@@ -293,7 +293,7 @@ Combat is **strength-ratio resolution**, not tactical map battles. Key flow in `
 |--------|----------|-------|
 | `GAME_VERSION` | `version.ts` | `'0.4.2'` |
 | `GAME_PHASE` | `version.ts` | `'Early Alpha'` |
-| `ROADMAP_TARGET_VERSION` | `roadmapContent.ts` | `'0.4.2'` |
+| `ROADMAP_TARGET_VERSION` | `roadmapContent.ts` | `'0.4.3'` |
 | `package.json` version | root + app | `0.4.2` |
 | `COMPATIBLE_SAVE_VERSIONS` | `saveLoad.ts` | `['2.0', '2.1', '2.2', '0.4', '0.4.1', '0.4.2']` |
 

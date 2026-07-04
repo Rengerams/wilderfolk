@@ -187,7 +187,7 @@ Status: ✅ Shipped · 🟡 Partial · ❌ Not started / deferred
 
 ## Shipped in v0.4.2 ✅
 
-*Not yet version-bumped in `version.ts` — see [app/CHANGELOG.md](app/CHANGELOG.md) `[Unreleased]`.*
+*`GAME_VERSION = 0.4.2` · tagged `v0.4.2` · see [app/CHANGELOG.md](app/CHANGELOG.md) `[0.4.2]`.*
 
 ### UI / UX
 - 6-tab sidebar (Village, Frontier, Nature, Progress, Log, More) + sub-tabs
@@ -311,8 +311,8 @@ Everything below was the **v0.4.2** build target. Most rows are implemented loca
 | Nature tab warning when deer pressure > grass recovery | ✅ Done | `ecosystemPressure.ts` caution/critical card |
 | **Eco Master challenge** UI progress bar | ✅ Done | `challengeProgress.ts` |
 | **Active challenge** highlight in UI | ✅ Done | 🎯 on first incomplete |
-| 5–10 external playtests with notes | ❌ v0.4.2 | |
-| 10 full in-game year balance pass | ❌ v0.4.2 | |
+| 5–10 external playtests with notes | ✅ v0.4.2 | [PLAYTEST_BETA_10_USERS.md](app/docs/PLAYTEST_BETA_10_USERS.md) |
+| 10 full in-game year balance pass | ✅ v0.4.2 | Town PASS 2026-07-04, 9/9 gates |
 | Perf check: 500+ entities, large map | ⚠️ v0.4.2 | Throttles shipped (~1.8 ms/tick avg); → [ROADMAP_0.4.3.md](ROADMAP_0.4.3.md) Phase 1 · [ROADMAP_0.4.4.md](ROADMAP_0.4.4.md) Phase 2 |
 | **In-game roadmap tab** (read-only slice of this doc) | ✅ Done | `RoadmapPanel.tsx`, `roadmapContent.ts` |
 
@@ -343,7 +343,7 @@ Everything below was the **v0.4.2** build target. Most rows are implemented loca
 - [x] Save migration 2.0/2.1/2.2 → 0.4 (in `loadGame`)
 - [x] Chronicle log + file export
 - [x] Focus hints + armament checklist
-- [ ] 5–10 external playtests with notes → **v0.4.2**
+- [x] 5–10 external playtests with notes → **v0.4.2** ([PLAYTEST_BETA_10_USERS.md](app/docs/PLAYTEST_BETA_10_USERS.md))
 - [x] Save migration story fully documented in TECHNICAL.md
 
 **Exit:** Testers play 2+ hours unaided and can name their current goal.
@@ -380,7 +380,7 @@ Path B — extend existing PNG humans.
 
 ---
 
-## Phase 2 — v0.4.2: craft, combat polish & juice *(in progress)*
+## Phase 2 — v0.4.2: craft, combat polish & juice ✅ *shipped*
 
 **Goal:** Clear combat/craft fantasy and production polish after v0.4.1 neighbor/diplomacy ship.
 
@@ -398,11 +398,11 @@ Path B — extend existing PNG humans.
 
 ### Balance & stability → **v0.4.2**
 
-- [ ] 10 full in-game year playtest pass
+- [x] 10 full in-game year playtest pass (town PASS 2026-07-04)
 - [ ] Winter food curve
 - [x] Save version `0.4` / `0.4.1` with migration from legacy `2.x` and `0.4` saves
 - [x] Perf check: 500+ entities — partial (throttles + maps shipped; → [ROADMAP_0.4.3.md](ROADMAP_0.4.3.md))
-- [ ] Bump save/game version to `0.4.2` on ship
+- [x] Bump save/game version to `0.4.2` on ship
 
 **Exit:** Founding couple → town that trades or fights with neighbors — player chose which.
 
@@ -440,7 +440,7 @@ See also [app/TODO.md](app/TODO.md) — v0.4.3 / v0.4.4 preview tables.
 |-------|--------|--------|
 | 1 | Walk sprites + tutorial + v0.4 clarity pass | **✅ done** |
 | 2 | **v0.4.1** — tribes, diplomacy, raids, victories, leadership | **✅ done** |
-| 3 | **v0.4.2** — craft, walls/guards, juice, balance | **Next** |
+| 3 | **v0.4.2** — craft, walls/guards, juice, balance | **✅ done** |
 | 4 | **v0.4.3** — scale & perf Phase 1 | [ROADMAP_0.4.3.md](ROADMAP_0.4.3.md) · Sep 2026 |
 | 5 | **v0.4.4** — perf Phase 2 + UI split | [ROADMAP_0.4.4.md](ROADMAP_0.4.4.md) · Nov 2026 |
 
@@ -464,14 +464,14 @@ See also [app/TODO.md](app/TODO.md) — v0.4.3 / v0.4.4 preview tables.
 2. [x] **Frontier raid polish** — distance-scaled deadline, Village/Frontier UI (`frontierCombat.ts`)
 3. [x] **Walls / Watchtowers / Barracks** + guard patrols
 4. [x] **Dedicated combat log panel** — Log → Combat sub-tab
-5. [ ] **External playtests** — 5–10 sessions using chronicle .txt for feedback
+5. [x] **External playtests** — 10 sessions ([PLAYTEST_BETA_10_USERS.md](app/docs/PLAYTEST_BETA_10_USERS.md))
 6. [x] **10-year balance pass** — town PASS 2026-07-04 (`simulate:10year`, 86400 ticks)
 7. [x] **Road rotation** — **R** key (`buildingRotation.ts`)
 8. [x] **Juice pass** — chimney glow, build-complete particles, camera nudge
 9. [x] **Intro screen refine** — ~20s timeline, skip after logo
 10. [x] **Header reputation tooltip** — ⭐ click → Trade
-11. [ ] **Bump version** to `0.4.2` in `version.ts` + save migration on ship
-12. [ ] **Perf Phase 1** → [ROADMAP_0.4.3.md](ROADMAP_0.4.3.md) (Sep 2026)
+11. [x] **Bump version** to `0.4.2` in `version.ts` + save migration on ship
+12. [ ] **Perf Phase 1** → [ROADMAP_0.4.3.md](ROADMAP_0.4.3.md) (Sep 2026) — **next**
 
 ## Next actions (v0.4.3 → v0.4.4)
 

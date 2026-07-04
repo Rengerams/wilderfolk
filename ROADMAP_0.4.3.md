@@ -183,7 +183,7 @@ Items listed under **Defer — not v0.4.3** below are the v0.4.4 P0 backlog — 
 
 ## Next actions (ordered)
 
-1. [ ] Ship v0.4.2 and tag baseline for perf comparison
+1. [x] Ship v0.4.2 and tag baseline for perf comparison
 2. [ ] Add `spatialGrid.ts` + unit-style sanity test (query radius correctness)
 3. [ ] Wire grid into flee/hunt in `lifeSimulation.ts` (feature flag `USE_SPATIAL_GRID`)
 4. [ ] Dead-entity compaction in `gameTick` with `entityById` rebuild

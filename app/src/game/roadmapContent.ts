@@ -25,6 +25,18 @@ export const ROADMAP_WINNING_MOMENT =
 
 export const ROADMAP_SECTIONS: RoadmapSection[] = [
   {
+    id: 'version-chain',
+    title: 'Version chain',
+    subtitle: '0.4.2 shipped → 0.4.3 (Sep 2026) → 0.4.4 (Nov 2026) → 0.5.0 (Q1 2027)',
+    items: [
+      { label: '0.4.1 — Tribes, raids, victories, leadership', status: 'done' },
+      { label: '0.4.2 — Craft, walls/guards, juice, UI/UX', status: 'done', note: 'Shipped Jul 2026' },
+      { label: '0.4.3 — Scale & perf Phase 1', status: 'open', note: 'Spatial grid, compaction, benchmark gate' },
+      { label: '0.4.4 — Perf Phase 2 + App tab split', status: 'deferred', note: 'Nov 2026' },
+      { label: '0.5.0 — Web Worker gameTick + canvas layers', status: 'deferred', note: 'Q1 2027' },
+    ],
+  },
+  {
     id: 'shipped-041',
     title: 'Shipped in v0.4.1',
     subtitle: 'Base frontier alpha',
@@ -69,8 +81,8 @@ export const ROADMAP_SECTIONS: RoadmapSection[] = [
       { label: 'Roads benefit copy — Infra hint in build catalog + Guide', status: 'done' },
       {
         label: 'Simulation perf — throttles, entity maps, wildlife byType, wildlifeCounts',
-        status: 'done',
-        note: 'Headless ~1.8 ms/tick avg @ ~550 entities',
+        status: 'partial',
+        note: 'Headless ~1.8 ms/tick avg @ ~550 entities — Phase 1 finishes in v0.4.3',
       },
       { label: 'Walls, Watchtowers, Barracks — barricade & militia bonuses', status: 'done' },
       { label: 'Barracks guard patrols around village core (work hours)', status: 'done' },
@@ -87,38 +99,185 @@ export const ROADMAP_SECTIONS: RoadmapSection[] = [
     ],
   },
   {
-    id: 'p2-world',
-    title: 'P2 — Next up (v0.4.3)',
+    id: 'half-done',
+    title: '🟡 Half-done registry',
+    subtitle: 'Partial features tracked until finished or deferred',
     items: [
       {
-        label: 'Perf at 500+ entities — spatial grid',
-        status: 'open',
-        note: 'Target Sep 2026 — see ROADMAP_0.4.3.md',
+        label: 'Perf at 500+ entities',
+        status: 'partial',
+        note: 'v0.4.2 throttles + maps — spatial grid + compaction + gate → v0.4.3',
       },
-      { label: 'Counter-raid militia march visuals (optional polish)', status: 'deferred', note: 'Prep-focused combat stays abstract' },
-      { label: 'Real-time tactical battles', status: 'deferred' },
+      {
+        label: 'Frontier counter-raid visuals',
+        status: 'partial',
+        note: 'flashMilitia + float text — march line + sprites to rival camp → v0.4.3 P1',
+      },
+      { label: '10-year balance', status: 'done', note: 'Town PASS 2026-07-04' },
+      {
+        label: 'Reputation arc UI',
+        status: 'deferred',
+        note: '⭐ badge + Village explainer — milestone beats → v0.4.4 P1',
+      },
+      {
+        label: 'Rival diplomacy',
+        status: 'partial',
+        note: 'Peace, raids, preview, march lines — tactical map battles deferred',
+      },
+      {
+        label: 'Visitor tribes',
+        status: 'partial',
+        note: '7 kinds, leader talk — deeper per-kind quest chains → v0.4.4',
+      },
+    ],
+  },
+  {
+    id: 'top10',
+    title: 'Top 10 feature tracks',
+    subtitle: 'High-level status from ROADMAP.md',
+    items: [
+      { label: 'Defense & combat — raids, walls, forge, combat log', status: 'done', note: 'Tactical map battles deferred' },
+      { label: 'Health & medicine — hospital rep boost only', status: 'deferred', note: 'Disease loop post-0.4.x' },
+      { label: 'Farming overhaul — flat daily farms today', status: 'deferred' },
+      { label: 'Production & crafting — workshop + Blacksmith forge queue', status: 'done' },
+      { label: 'Skills & apprentices — job skills shipped', status: 'partial' },
+      { label: 'Diplomacy & tribes — visitors, rivals, peace, leader talk', status: 'done', note: 'Player caravans later' },
+      { label: 'Map expansion — sizes/presets today', status: 'deferred', note: 'Fog of war / scouts later' },
+      { label: 'Wildlife ecology — food chain + Nature pressure warning', status: 'partial' },
+      { label: 'Culture & events — church, festivals, Renffr', status: 'partial' },
+      { label: 'Victory & endgame — 4 paths, challenges, chronicle, roadmap tab', status: 'done' },
+    ],
+  },
+  {
+    id: 'v043-p0',
+    title: 'v0.4.3 P0 — Perf Phase 1',
+    subtitle: 'Must ship · Sep 2026 · p95 < 16 ms/tick @ ~700 entities',
+    items: [
+      {
+        label: 'Spatial grid — graze, hunt, flee, wolf pack neighbor queries',
+        status: 'open',
+        note: 'lifeSimulation.ts — no full-map scans per entity',
+      },
+      {
+        label: 'Dead-entity compaction — drop alive: false each tick',
+        status: 'open',
+        note: 'gameEngine.ts + entityById refresh',
+      },
+      {
+        label: 'Renderer cache reuse — consume sim byType buckets',
+        status: 'open',
+        note: 'renderer.ts updateCachedEntities()',
+      },
+      {
+        label: 'Settler count denorm — working/idle on WorldState',
+        status: 'open',
+        note: 'No population scans in App.tsx per tick',
+      },
+      {
+        label: 'Benchmark gate — 50 / 100 / 200 human profiles',
+        status: 'open',
+        note: 'simulate-30min.ts — exit non-zero if p95 over budget',
+      },
+      {
+        label: 'Version bump — GAME_VERSION 0.4.3 + save migration',
+        status: 'open',
+      },
+    ],
+  },
+  {
+    id: 'v043-p1',
+    title: 'v0.4.3 P1 — Polish',
+    subtitle: 'Should ship with perf milestone',
+    items: [
+      { label: '10-year balance pass', status: 'done', note: 'Done in v0.4.2 — town PASS 9/9 gates' },
+      {
+        label: 'External playtests on large map + 10× after benchmark green',
+        status: 'open',
+      },
+      {
+        label: 'Counter-raid militia march — line + sprites to rival camp',
+        status: 'open',
+        note: 'Abstract resolve stays — prep-focused combat',
+      },
+      {
+        label: 'Spear tier balance review — militia preview vs 10-year sims',
+        status: 'partial',
+        note: 'Iron replaces stone — validate after large-map playtests',
+      },
+      {
+        label: 'Perf UX — optional dev overlay (ms/tick, entity count, grid rebuild)',
+        status: 'open',
+      },
+    ],
+  },
+  {
+    id: 'v043-p2',
+    title: 'v0.4.3 P2 — Stretch',
+    subtitle: 'Only if P0 green by mid-August 2026',
+    items: [
+      { label: 'Footstep / work SFX by surface', status: 'deferred', note: 'Deferred from v0.4.2 juice pass → v0.4.4 P1' },
+      { label: 'One visitor kind quest depth (e.g. Traders escort)', status: 'deferred', note: '→ v0.4.4 P1' },
+      { label: 'npm run benchmark:gate CI wrapper', status: 'deferred' },
+      { label: 'Large-map grass render LOD (light buckets)', status: 'deferred', note: 'Full buckets → v0.4.4' },
+    ],
+  },
+  {
+    id: 'v044-p0',
+    title: 'v0.4.4 P0 — Perf Phase 2',
+    subtitle: 'Must ship · Nov 2026 · after v0.4.3 benchmark gate',
+    items: [
+      { label: 'Incremental entityById — update on birth/death only', status: 'deferred' },
+      { label: 'buildingActions.ts scan cleanup — assign/recruit paths', status: 'deferred' },
+      { label: 'buildingById go-home — drop updatedBuildings.find', status: 'deferred' },
+      { label: 'Grass render spatial buckets + viewport cull', status: 'deferred' },
+      { label: 'Partner id map for relationship lines', status: 'deferred' },
+      { label: 'Particle / floating-text pooling', status: 'deferred' },
+      { label: 'App tab split + memo — Village / Nature / Progress', status: 'deferred' },
+      { label: 'Version bump — GAME_VERSION 0.4.4 + save migration', status: 'deferred' },
+    ],
+  },
+  {
+    id: 'v044-p1',
+    title: 'v0.4.4 P1 — UX & content',
+    subtitle: 'Should ship with maintainability milestone',
+    items: [
+      { label: 'Reputation arc UI — milestones beyond ⭐ tooltip', status: 'deferred' },
+      { label: 'Footstep / work SFX by surface', status: 'deferred' },
+      { label: 'One visitor multi-step quest chain (Scholars or Nomads)', status: 'deferred' },
+      { label: 'npm run benchmark:gate — CI-friendly wrapper', status: 'deferred' },
+      { label: 'Perf overlay polish — pool stats, bucket rebuild ms', status: 'deferred' },
     ],
   },
 ];
 
 export const ROADMAP_NEXT_ACTIONS: string[] = [
-  'v0.4.3 (Sep 2026) — spatial grid, dead-entity compaction, benchmark gate (ROADMAP_0.4.3.md)',
-  'v0.4.4 (Nov 2026) — incremental maps, App tab split, grass buckets, pooling',
-  'Perf v0.5.0 (Q1 2027) — Web Worker gameTick, canvas layers',
+  'v0.4.3 — Add spatialGrid.ts + wire flee/hunt (USE_SPATIAL_GRID flag)',
+  'v0.4.3 — Dead-entity compaction in gameTick with entityById rebuild',
+  'v0.4.3 — simulate-30min profiles: village / town / city + p95 exit code',
+  'v0.4.3 — Renderer consume sim byType; villageCounts denorm on WorldState',
+  'v0.4.3 P1 — Counter-raid march line (optional polish; abstract resolve stays)',
+  'v0.4.3 — Bump GAME_VERSION to 0.4.3 + migration + CHANGELOG',
+  'v0.4.4 (Nov 2026) — Incremental maps, App tab split, grass buckets, pooling',
+  'v0.5.0 (Q1 2027) — Web Worker gameTick, OffscreenCanvas terrain/entity layers',
 ];
 
-/** Open fixes — mirrors app/TODO.md for in-game roadmap visibility */
+/** Open fixes — mirrors app/TODO.md + half-done registry for in-game visibility */
 export const ROADMAP_OPEN_FIXES: string[] = [
-  'v0.4.3 — spatial grid for graze/hunt/flee at 100+ entities',
-  'Player militia march on counter-raid — optional polish; instant resolve today',
-  'Real-time tactical battles on map — deferred (abstract strength ratios)',
+  'v0.4.3 P0 — spatial grid for graze/hunt/flee at 100+ entities',
+  'v0.4.3 P0 — dead-entity compaction + renderer cache reuse + benchmark gate',
+  'v0.4.3 P1 — counter-raid militia march visuals (prep-focused; no battle screen)',
+  'v0.4.3 P1 — large-map playtests at 10× after benchmark gate is green',
+  'v0.4.4 — incremental entityById, buildingActions scans, App tab split',
   'Event log uncapped in saves by design — full chronicle kept forever',
 ];
 
 export const ROADMAP_DEFERRED: string[] = [
+  'Real-time tactical map battles — abstract raids stay (post-0.4.x)',
+  'Incremental entityById, grass buckets, App split — v0.4.4 (not v0.4.3)',
+  'Web Worker gameTick + OffscreenCanvas layers — v0.5.0',
   'Full tribal wars, sieges, embassies, player caravans',
   'Leader perks / government decisions beyond ceremonial head',
-  'Fog of war / map expansion',
-  'Hospital disease loop, wardogs',
+  'Fog of war / map expansion scouts',
+  'Hospital disease loop, wardogs, deep festival/culture',
   'Multiplayer',
 ];

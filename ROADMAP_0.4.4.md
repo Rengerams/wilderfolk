@@ -188,7 +188,7 @@ Extend `simulate-30min.ts`:
 
 | Version | Theme | Status |
 |---------|-------|--------|
-| 0.4.2 | Craft, walls/guards, juice, UI/UX | 🟡 Mostly done |
+| 0.4.2 | Craft, walls/guards, juice, UI/UX | ✅ Shipped Jul 2026 |
 | 0.4.3 | Scale & perf Phase 1 | 📋 [ROADMAP_0.4.3.md](ROADMAP_0.4.3.md) |
 | **0.4.4** | **Perf Phase 2 + UI split** | 📋 This document |
 | 0.5.0 | Web Worker + canvas layers | Planned Q1 2027 |
