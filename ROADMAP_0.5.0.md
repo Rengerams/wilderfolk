@@ -5,7 +5,7 @@
 Living plan for the **consolidated scale & architecture** release.  
 **Parent index** → [ROADMAP.md](ROADMAP.md) · Technical → [TECHNICAL.md](TECHNICAL.md) · Changelog → [CHANGELOG.md](CHANGELOG.md)
 
-*Updated: July 5, 2026 — **v0.5.0** consolidates scale, UI, quality, and architecture work into one July ship.*
+*Updated: 2026-07-05 — v0.4.2 shipped; **v0.5.0** target **end July 2026**.*
 
 ---
 
@@ -30,7 +30,7 @@ Players on **large maps** with **100–200+ settlers** should not feel sim hitch
 | Off-screen throttles, `entityById` / `buildingById`, `wildlifeCounts` | Hot paths still **O(n)** — graze scans, flee loops, UI population scans |
 | Headless avg ~1.8 ms/tick @ ~550 entities | **p95** and **large-map / city UI** not gated |
 | Partial React memo on a few panels | `App.tsx` still re-renders heavy tabs; assign flows scan all entities |
-| Perf work was planned across multiple releases | **One July ship** — sim Phase 1 + Phase 2 + Worker/layers |
+| Perf work was planned across multiple releases | **Single v0.5.0 ship (end July 2026)** — sim Phase 1 + Phase 2 + Worker/layers |
 | ~40-fix bug pass in v0.4.2; headless sims for balance | **No v0.5-wide regression gate** — logic invariants + multi-profile sim battery not yet required to ship |
 
 ---
@@ -41,7 +41,7 @@ Players on **large maps** with **100–200+ settlers** should not feel sim hitch
 |-------|---------|
 | **P0** | Must ship in v0.5.0 — blocks version bump |
 | **P1** | Should ship — polish that fits the scale milestone |
-| **P2** | Stretch — only if P0 is green by **mid-July 2026** |
+| **P2** | Stretch — only if P0 is green before **end July 2026** ship |
 | **Defer** | Explicitly **post-0.5.0** |
 
 ---
@@ -118,7 +118,7 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`.
 
 ---
 
-## P2 — Stretch (mid-July green only)
+## P2 — Stretch (only if P0 green before end July 2026)
 
 | Item | Notes |
 |------|-------|
@@ -167,13 +167,13 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`.
 
 ---
 
-## Timeline (end July 2026)
+## Timeline (v0.4.2 shipped 2026-07-05 → v0.5.0 end July 2026)
 
 | When | Milestone |
 |------|-----------|
-| **Early Jul 2026** | Spatial grid + compaction land |
-| **Mid Jul 2026** | Renderer/UI denorm + App tab split; benchmark profiles |
-| **Late Jul 2026** | Web Worker + OffscreenCanvas; **bug audit + sim battery**; P1 polish; ship **v0.5.0** |
+| **2026-07-06 – 2026-07-13** | Sim Phase 1 — spatial grid + compaction |
+| **2026-07-14 – 2026-07-21** | Sim Phase 2 + UI — renderer denorm, App tab split, benchmark profiles |
+| **2026-07-22 – 2026-07-31** | Architecture — Web Worker + OffscreenCanvas; bug audit + sim battery; P1 polish; **ship v0.5.0** |
 
 ---
 
@@ -207,8 +207,8 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`.
 | Version | Theme | Status |
 |---------|-------|--------|
 | 0.4.1 | Tribes, raids, victories, leadership | ✅ Shipped |
-| 0.4.2 | Craft, walls/guards, juice, UI/UX | ✅ Shipped Jul 2026 |
-| **0.5.0** | **Scale + architecture** | 📋 **This document — end Jul 2026** |
+| 0.4.2 | Craft, walls/guards, juice, UI/UX | ✅ Shipped 2026-07-05 |
+| **0.5.0** | **Scale + architecture** | 📋 **In progress — ship end July 2026** |
 
 ---
 

@@ -123,7 +123,7 @@ Running `npm install` at the repo root also installs the `app/` package (via `po
 | **[app/README.md](app/README.md)** | Players — how to play, tips, controls *(only markdown in `app/`)* |
 | **[TECHNICAL.md](TECHNICAL.md)** | Developers — architecture, dev log, playtests, audio credits |
 | **[ROADMAP.md](ROADMAP.md)** | Plan — alpha → v1 → Steam |
-| **[ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)** | **v0.5.0** — scale + architecture + open work (end Jul 2026) |
+| **[ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)** | **v0.5.0** — scale + architecture + open work (end July 2026) |
 | **[CHANGELOG.md](CHANGELOG.md)** | Detailed change log by version |
 
 ### Optional (developers)

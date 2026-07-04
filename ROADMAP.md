@@ -37,17 +37,17 @@ Every **🟡 Partial** item must stay on this list until we pick one:
 
 | Feature | What works today | What's missing | Decision | Target |
 |---------|------------------|----------------|----------|--------|
-| **Rival diplomacy** | Map camp panel, event cards, gift/pact/militia; raids + preview; **peace treaties**; Village/Frontier raid UI; distance-scaled deadline; raid march lines | Real-time map battles; full war/embassy tree | **DEFER** tactical combat | post-0.4.2 |
+| **Rival diplomacy** | Map camp panel, event cards, gift/pact/militia; raids + preview; **peace treaties**; Village/Frontier raid UI; distance-scaled deadline; raid march lines | Real-time map battles; full war/embassy tree | **DEFER** tactical combat | post-0.5.0 |
 | **Weapons / Blacksmith** | Research buffs; **forge queue** (`villageForge`); armament checklist; alerts + Go → Blacksmith; walls/towers/barracks; combat log panel | Militia-on-march map icons | **FINISH** balance pass | v0.4.2 |
-| **Visitor tribes** | 7 kinds, first-week caravan, camp trade, refugee negotiate, **talk to leader** (per-kind rewards) | Deeper per-kind quest chains | **DEFER** depth | post-0.4.2 |
-| **Village leadership** | Founding + decennial merit elections; succession; 👑 UI (Village tab, map, inspector) | Leader perks/decisions beyond ceremonial role | **DEFER** perks | post-0.4.2 |
+| **Visitor tribes** | 7 kinds, first-week caravan, camp trade, refugee negotiate, **talk to leader** (per-kind rewards) | Deeper per-kind quest chains | **DEFER** depth | post-0.5.0 |
+| **Village leadership** | Founding + decennial merit elections; succession; 👑 UI (Village tab, map, inspector) | Leader perks/decisions beyond ceremonial role | **DEFER** perks | post-0.5.0 |
 | **Roads** | 1.5× walk + 15% adjacency; `road_bonus` rep; **R** rotation for roads/walls/gates | Pathing still snap-based (no road-following AI) | **CUT** pathing; rotation **FINISH** ✅ | v0.4.2 |
 | **Reputation / honor** | ⭐ header badge (click → Trade) + Village tab explainer; roads rep | Reputation arc UI beyond tooltip | **FINISH** arc or defer | v0.4.2 |
 | **Worker commute** | Snap at 7am/7pm if far | No real pathing along roads | **CUT** snap is enough **or FINISH** roads pathing | v0.4.2 |
-| **Taming** | Post + food cost + follow + hunt assist | No wardogs, no UI on map for tamed pack | **DEFER** wardogs | post-0.4.2 |
-| **Hospital** | Rep + energy tweak | No disease/heal loop | **DEFER** | post-0.4.2 |
-| **Performers / festival hook** | Performers boost courtship | Festival system shallow | **DEFER** | post-0.4.2 |
-| **Rival "show militia"** | Parade eases tension; **raids** use abstract militia strength + war-band march; walls/towers/barracks bonuses; guard patrols | No tactical map battle | **DEFER** tactical combat | post-0.4.2 |
+| **Taming** | Post + food cost + follow + hunt assist | No wardogs, no UI on map for tamed pack | **DEFER** wardogs | post-0.5.0 |
+| **Hospital** | Rep + energy tweak | No disease/heal loop | **DEFER** | post-0.5.0 |
+| **Performers / festival hook** | Performers boost courtship | Festival system shallow | **DEFER** | post-0.5.0 |
+| **Rival "show militia"** | Parade eases tension; **raids** use abstract militia strength + war-band march; walls/towers/barracks bonuses; guard patrols | No tactical map battle | **DEFER** tactical combat | post-0.5.0 |
 
 When a row hits **FINISH**, delete it from this table and move a one-liner to *Shipped in v0.4.2*.
 
@@ -67,7 +67,7 @@ Detailed release plan → **[ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)**.
 
 | Version | Theme | Target | Plan |
 |---------|-------|--------|------|
-| **0.4.2** | Craft, walls/guards, juice, UI/UX | **Shipped** Jul 2026 | [CHANGELOG.md](CHANGELOG.md) `[0.4.2]` |
+| **0.4.2** | Craft, walls/guards, juice, UI/UX | **Shipped** 2026-07-05 | [CHANGELOG.md](CHANGELOG.md) `[0.4.2]` |
 | **0.5.0** | Scale + architecture (sim, UI, Worker, canvas) | **End Jul 2026** | **[ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)** |
 | **1.0 / Steam** | Installer or store release | TBD | post-0.5.0 |
 
@@ -97,13 +97,13 @@ Status: ✅ Shipped · 🟡 Partial · ❌ Not started / deferred
 
 | # | Track | Status | Notes |
 |---|-------|--------|-------|
-| 1 | **Defense & combat** | ✅ v0.4.2 | Stone/wood/iron gear, frontier raids, walls/towers/barracks, combat log. Tactical map battles → post-0.4.2 |
-| 2 | **Health & medicine** | ❌ post-0.4.2 | Hospital rep boost today; disease loop later |
-| 3 | **Farming overhaul** | ❌ post-0.4.2 | Flat daily farms today; crops/soil/rotation later |
+| 1 | **Defense & combat** | ✅ v0.4.2 | Stone/wood/iron gear, frontier raids, walls/towers/barracks, combat log. Tactical map battles → post-0.5.0 |
+| 2 | **Health & medicine** | ❌ post-0.5.0 | Hospital rep boost today; disease loop later |
+| 3 | **Farming overhaul** | ❌ post-0.5.0 | Flat daily farms today; crops/soil/rotation later |
 | 4 | **Production & crafting** | ✅ v0.4.2 | Workshop recipes + Blacksmith forge queue. Full chains later |
 | 5 | **Skills & apprentices** | 🟡 | Job skills shipped; apprentice hook optional for v0.4.2 |
 | 6 | **Diplomacy & tribes** | ✅ v0.4.1+ | Visitors, rivals, raids, peace, leader talk. Player caravans later |
-| 7 | **Map expansion** | ❌ post-0.4.2 | Map sizes/presets today; fog of war / scouts later |
+| 7 | **Map expansion** | ❌ post-0.5.0 | Map sizes/presets today; fog of war / scouts later |
 | 8 | **Wildlife ecology** | 🟡 | Food chain + Nature tab pressure warning. Herds/migration later |
 | 9 | **Culture & events** | 🟡 | Church, festivals, Renffr. Traditions/monuments later |
 | 10 | **Victory & endgame** | ✅ v0.4.1 | Four victory paths, challenges, chronicle, in-game Roadmap tab |
@@ -318,11 +318,11 @@ Everything below was the **v0.4.2** build target. Most rows are implemented loca
 
 | Item | Target |
 |------|--------|
-| Leader perks / government decisions beyond ceremonial head | post-0.4.2 |
-| Fog of war / exploration | post-0.4.2 |
-| Hospital disease/heal loop | post-0.4.2 |
-| Wardogs, deep festival/culture | post-0.4.2 |
-| Multiplayer, Wildkin expansion | post-0.4.2 |
+| Leader perks / government decisions beyond ceremonial head | post-0.5.0 |
+| Fog of war / exploration | post-0.5.0 |
+| Hospital disease/heal loop | post-0.5.0 |
+| Wardogs, deep festival/culture | post-0.5.0 |
+| Multiplayer, Wildkin expansion | post-0.5.0 |
 
 ---
 
@@ -362,7 +362,7 @@ Path B — extend existing PNG humans.
 - [x] Particles for birth and marriage
 - [x] Particles for build complete (confetti + sprite pop + screen shake)
 - [x] Hunt/combat feedback (chase lines, floating text, combat burst, hunt SFX)
-- [ ] Optional footstep or work SFX by surface → post-0.4.2
+- [ ] Optional footstep or work SFX by surface → v0.5.0 P1 ([ROADMAP_0.5.0.md](ROADMAP_0.5.0.md))
 - [x] Smooth camera nudge on select
 - [x] Intro screen refine (~20s timeline, skip after logo)
 
@@ -392,7 +392,7 @@ Path B — extend existing PNG humans.
 6. ~~**Juice pass**~~ ✅ — night glow, build confetti, camera nudge; intro screen refine
 7. ~~10-year balance pass~~ **Done** (2026-07-04) · external playtests (5–10 sessions)
 8. ~~Bump `GAME_VERSION` to `0.4.2` + save migration on ship~~ ✅
-9. Scale + architecture → **[ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)** (end Jul 2026) — not a v0.4.2 ship blocker
+9. Scale + architecture → **[ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)** (end July 2026) — not a v0.4.2 ship blocker
 
 ### Balance & stability → **v0.4.2**
 
@@ -436,14 +436,14 @@ Open work checklist → [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
 
 ---
 
-## Timeline (solo, part-time)
+## Timeline
 
-| Month | Focus | Status |
-|-------|--------|--------|
-| 1 | Walk sprites + tutorial + v0.4 clarity pass | **✅ done** |
-| 2 | **v0.4.1** — tribes, diplomacy, raids, victories, leadership | **✅ done** |
-| 3 | **v0.4.2** — craft, walls/guards, juice, balance | **✅ done** |
-| 4 | **v0.5.0** — scale + architecture | [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) · end Jul 2026 |
+| When | Focus | Status |
+|------|--------|--------|
+| Jun 2026 | Walk sprites + tutorial + v0.4 clarity pass | **✅ done** |
+| Jul 2026 (early) | **v0.4.1** — tribes, diplomacy, raids, victories, leadership | **✅ done** |
+| **2026-07-05** | **v0.4.2** — craft, walls/guards, juice, balance | **✅ shipped** |
+| **End July 2026** | **v0.5.0** — scale + architecture | [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) · **in progress** |
 
 ---
 
@@ -472,7 +472,7 @@ Open work checklist → [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
 9. [x] **Intro screen refine** — ~20s timeline, skip after logo
 10. [x] **Header reputation tooltip** — ⭐ click → Trade
 11. [x] **Bump version** to `0.4.2` in `version.ts` + save migration on ship
-12. [ ] **v0.5.0** → [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) (end Jul 2026) — **next**
+12. [ ] **v0.5.0** → [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) (end July 2026) — **next**
 
 ## Next actions (v0.5.0)
 
@@ -490,8 +490,8 @@ Open work checklist → [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
 |-----------|---------|--------|--------|
 | Clarity + chronicle + housing | 0.4 | Playtest feedback addressed | **✅ Shipped** |
 | Tribes + diplomacy + raids + victories + leadership | 0.4.1 | Tribe diplomacy v2, raids, peace, 4 victories, leadership, roadmap tab | **✅ Shipped** |
-| Craft + walls/guards + juice + balance | 0.4.2 | 10-year PASS, beta playtests, version bump | **✅ Shipped** Jul 2026 |
-| Scale + architecture (grid, UI split, Worker, canvas) | 0.5.0 | Large-map / city-scale stability | **In progress** — [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) end Jul 2026 |
+| Craft + walls/guards + juice + balance | 0.4.2 | 10-year PASS, beta playtests, version bump | **✅ Shipped** 2026-07-05 |
+| Scale + architecture (grid, UI split, Worker, canvas) | 0.5.0 | Large-map / city-scale stability | **In progress** — [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) end July 2026 |
 
 ---
 

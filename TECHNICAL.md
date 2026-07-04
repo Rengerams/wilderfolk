@@ -8,7 +8,7 @@ Developer-facing overview of the playtest build.
 |-----|-----|
 | [app/README.md](app/README.md) | Players |
 | [ROADMAP.md](ROADMAP.md) | Plan & half-done registry |
-| [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) | **v0.5.0** — scale + architecture (end Jul 2026) |
+| [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) | **v0.5.0** — scale + architecture (end July 2026) |
 | [CHANGELOG.md](CHANGELOG.md) | Detailed change log |
 
 ---
@@ -253,7 +253,7 @@ Combat is **strength-ratio resolution**, not tactical map battles. Key flow in `
 
 **UI:** `CombatPreviewPanel.tsx`, `CombatLogPanel.tsx` (filters `type === 'combat'`), raid banner + `FrontierPanel` in `App.tsx`.
 
-**Gaps (v0.4.2):** player militia march on counter-raid → **v0.5.0 P1**; real-time tactical battles deferred post-0.4.2. Full status → [Frontier combat — polish & gaps](#frontier-combat--polish--gaps).
+**Gaps (v0.4.2):** player militia march on counter-raid → **v0.5.0 P1**; real-time tactical battles deferred post-0.5.0. Full status → [Frontier combat — polish & gaps](#frontier-combat--polish--gaps).
 
 ---
 
@@ -311,7 +311,7 @@ Combat is **strength-ratio resolution**, not tactical map battles. Key flow in `
 
 | Phase | Version | Finish by |
 |-------|---------|-----------|
-| All open perf + UI + architecture (grid, compaction, App split, Worker, canvas) | v0.5.0 | End Jul 2026 |
+| All open perf + UI + architecture (grid, compaction, App split, Worker, canvas) | v0.5.0 | End July 2026 |
 
 Event log stays uncapped in saves; Phase 3 may add optional append-only indexing only if save size becomes a problem.
 
@@ -459,7 +459,7 @@ Player guide → [app/README.md](app/README.md#frontier-raids--militia) · Code 
 | **Rival war-band march** | — | Done | Rival settlers path to village while raid pending; ⚔️ badge when close |
 | **Weapon / status map icons** | Low | Partial | Settler badges: 🏹 hunt, 🛡️ shields, 🪖 guard, ⚔️ `combatTicks` ✅ · **Missing:** player militia march on **outgoing** counter-raid → **v0.5.0 P1** |
 | **Spear tier stacking** | — | Done | `militiaBalance.ts` — iron replaces stone; iron shields replace wooden |
-| **Real-time map battles** | — | Deferred | Abstract `resolveDefenseRatio` / `launchRaidOnRival` — no tactical combat (post-0.4.2) |
+| **Real-time map battles** | — | Deferred | Abstract `resolveDefenseRatio` / `launchRaidOnRival` — no tactical combat (post-0.5.0) |
 
 ---
 

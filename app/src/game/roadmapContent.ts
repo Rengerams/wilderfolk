@@ -30,11 +30,11 @@ export const ROADMAP_SECTIONS: RoadmapSection[] = [
     subtitle: '0.4.2 shipped → 0.5.0 (end July 2026) → installer / Steam',
     items: [
       { label: '0.4.1 — Tribes, raids, victories, leadership', status: 'done' },
-      { label: '0.4.2 — Craft, walls/guards, juice, UI/UX', status: 'done', note: 'Shipped Jul 2026' },
+      { label: '0.4.2 — Craft, walls/guards, juice, UI/UX', status: 'done', note: 'Shipped 2026-07-05' },
       {
         label: '0.5.0 — Scale + architecture',
         status: 'open',
-        note: 'Sim perf, UI split, Web Worker, canvas layers — end Jul 2026',
+        note: 'Sim perf, UI split, Web Worker, canvas layers — end July 2026',
       },
       { label: '1.0 / Steam — installer release', status: 'deferred', note: 'After v0.5.0' },
     ],
@@ -262,7 +262,7 @@ export const ROADMAP_SECTIONS: RoadmapSection[] = [
   {
     id: 'v050-p2',
     title: 'v0.5.0 P2 — Stretch',
-    subtitle: 'Only if P0 green by mid-July 2026',
+    subtitle: 'Only if P0 green before end July 2026 ship',
     items: [
       { label: 'Adaptive catch-up / sim decimation at 10×', status: 'open' },
       { label: 'Canvas LOD — trees, animals, sprites at low zoom', status: 'open' },

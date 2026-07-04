@@ -106,7 +106,7 @@ Inspired by **RimWorld** (priority alerts, contextual inspector), **Banished** (
 
 | Phase | Version | Finish by |
 |-------|---------|-----------|
-| All open perf + UI + architecture | **v0.5.0** | End Jul 2026 |
+| All open perf + UI + architecture | **v0.5.0** | End July 2026 |
 
 - **v0.5.0 (consolidated):** spatial grid, compaction, benchmark gate, incremental maps, `buildingActions` cleanup, grass buckets, App tab split, pooling, Web Worker `gameTick`, OffscreenCanvas layers — see [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
 
