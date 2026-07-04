@@ -11,6 +11,35 @@
 
 ---
 
+## Latest update — v0.4.2 (July 5, 2026)
+
+**Shipped.** You are on **v0.4.2** (`GAME_VERSION` in saves). `0.4.1` saves migrate on load. Full notes → [CHANGELOG](CHANGELOG.md) `[0.4.2]`.
+
+| Area | Highlights |
+|------|------------|
+| **UI** | 6-tab sidebar, alert strip, map build hotbar, tab hotkeys `V/F/N/P/L/M` |
+| **Defense** | Walls, towers, barracks, guard patrols; **Log → Combat** raid history |
+| **Raids** | Preparation-focused — combat preview + Frontier readiness card; **no battle screen** |
+| **Craft** | Blacksmith forge queue for iron spears & shields (research + staffed smith) |
+| **Polish** | **R** to rotate roads/walls/gates; night glow, confetti, camera nudge (toggle in ☰) |
+| **Balance** | 10-year town PASS (9/9 gates) · [10-user beta](docs/PLAYTEST_BETA_10_USERS.md) |
+| **Fixes** | ~40 bug fixes (July 4) + beta UX feedback |
+
+### What's coming
+
+| Version | Target | What it means for you |
+|---------|--------|------------------------|
+| **v0.4.3** | Sep 2026 | **Bigger villages, smoother sim** — large maps and 100+ settlers without lag ([plan](../ROADMAP_0.4.3.md)) |
+| **v0.4.4** | Nov 2026 | **Snappier UI at city scale** — sidebars stay fast; map polish ([plan](../ROADMAP_0.4.4.md)) |
+| **v0.5.0** | Q1 2027 | Deeper engine work for huge maps and high game speed |
+| **Steam / installer** | Later | Download and play — no terminal setup |
+
+Check **More → Roadmap** in-game for the live slice, or the full plan at [ROADMAP.md](../ROADMAP.md).
+
+**Later (not next):** tactical map battles, multiplayer, fog of war, full disease/hospital loop.
+
+---
+
 ### You wanted a frontier. You got a food chain.
 
 Every settlement game tells you to tame the wild. **Wilderfolk** tells you to move into it — and not wreck the neighborhood on your way in.
@@ -29,36 +58,6 @@ Caravans camp on the edge of your map. Rival settlements stake their own claim o
 > **Early alpha playtest** — not a finished game. Things will break, look rough, and change between updates. Save often. Your feedback shapes what ships for real.
 
 **Don't kill all the wolves.** Seriously. That's the whole game in one sentence.
-
-### v0.4.2 — shipped (July 5, 2026)
-
-You are on **v0.4.2** (`GAME_VERSION` in saves). `0.4.1` saves migrate on load.
-
-| Feature | Quick take |
-|---------|------------|
-| **6-tab UI** | Village · Frontier · Nature · Progress · Log · More — alert strip + bottom build hotbar |
-| **Defense** | Walls, towers, barracks, guard patrols; **Log → Combat** for raid history |
-| **Raids = prep** | No battle screen — combat preview + Frontier readiness card test preparation |
-| **Blacksmith forge** | Iron spears/shields need research **and** a staffed forge run |
-| **R key** | Rotate roads, walls, and gates while placing |
-| **Juice** | Night glow, confetti, camera nudge — toggle in ☰ menu |
-| **Balance** | 10-year town PASS · 10-user beta — [docs/PLAYTEST_BETA_10_USERS.md](docs/PLAYTEST_BETA_10_USERS.md) |
-| **Bug fixes** | ~40 fixes (July 4) + beta UX — [CHANGELOG](CHANGELOG.md) |
-
-### What's coming (after v0.4.2)
-
-| Version | Target | What it means for you |
-|---------|--------|------------------------|
-| **v0.4.3** | Sep 2026 | **Bigger villages, smoother sim** — large maps and 100+ settlers without lag ([plan](../ROADMAP_0.4.3.md)) |
-| **v0.4.4** | Nov 2026 | **Snappier UI at city scale** — sidebars stay fast; map polish ([plan](../ROADMAP_0.4.4.md)) |
-| **v0.5.0** | Q1 2027 | Deeper engine work for huge maps and high game speed |
-| **Steam / installer** | Later | Download and play — no terminal setup |
-
-Check **More → Roadmap** in-game for the live slice, or the full plan at [ROADMAP.md](../ROADMAP.md).
-
-**Later (not next):** tactical map battles, multiplayer, fog of war, full disease/hospital loop.
-
----
 
 ## How to Play
 
@@ -228,9 +227,7 @@ Adult settlers contribute base strength; bonuses stack from:
 
 **Log → Combat** — filtered raid/militia/barricade entries, summary stats (entries, raid-related, defenses), export `.txt` / `.json` / `.csv`. Full chronicle still lives under **Log → Chronicle**.
 
-#### What's in the build vs what's left for v0.4.2 release
-
-**In the playtest build (code done — not the same as v0.4.2 shipped):**
+#### Shipped in v0.4.2 (raids & defense)
 
 - Distance-scaled raid deadline (2–6 days) + slower war-band march from far rivals
 - Raid march lines on the map + rival settlers marching toward your village
@@ -240,13 +237,7 @@ Adult settlers contribute base strength; bonuses stack from:
 - **Barracks guards** — manual assign; patrol village core (🪖); +14 militia strength each
 - **Log → Combat** sub-tab + export
 - Settler map badges — 🏹 hunt, 🛡️ shields, 🪖 guard, ⚔️ combat
-- **Bug-fix pass (July 4)** — ~40 fixes: welcomed refugees no longer die when camps leave; diplomacy/raid buttons show why they fail; peace cancels in-flight raids; save migrations for old games — full list in [CHANGELOG.md](CHANGELOG.md)
-
-**Must complete to ship v0.4.2 (all open):**
-
-- **10-year balance pass** — **Done** (town PASS 2026-07-04; spear/militia in `militiaBalance.ts`)
-- **External playtests (5–10 sessions)**
-- **`GAME_VERSION` 0.4.2** + save migration + CHANGELOG/docs/Roadmap tab
+- **Bug-fix pass (July 4)** — ~40 fixes — full list in [CHANGELOG.md](CHANGELOG.md)
 
 **Intentionally not planned:**
 
@@ -550,7 +541,7 @@ npm run sprites:humans
 
 Wilderfolk keeps growing — more events, more neighbors, more ways to share the valley. Rival camps and visiting caravans are a taste of a busier frontier.
 
-**Near term:** finish **[v0.4.2](#whats-new-in-v042-local-playtest)** (balance + playtests), then **[v0.4.3](../ROADMAP_0.4.3.md)** for large-map performance and **[v0.4.4](../ROADMAP_0.4.4.md)** for city-scale UI polish.
+**Near term:** **[v0.4.3](../ROADMAP_0.4.3.md)** (large-map performance) → **[v0.4.4](../ROADMAP_0.4.4.md)** (city-scale UI polish). See [Latest update](#latest-update--v042-july-5-2026) for what shipped in v0.4.2.
 
 **Long term:** ship properly as an **installer or on Steam** — no terminal, no Node.js. This browser alpha is the trail; the boxed (or Steam) version is the destination.
 
