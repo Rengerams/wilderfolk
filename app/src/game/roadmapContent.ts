@@ -195,6 +195,37 @@ export const ROADMAP_SECTIONS: RoadmapSection[] = [
     ],
   },
   {
+    id: 'v050-p0-qa',
+    title: 'v0.5.0 P0 — Bug audit & simulation gates',
+    subtitle: 'Must ship · correctness pass before tag (like v0.4.2 July 4 audit)',
+    items: [
+      {
+        label: 'Big bug checkup — full-code audit after perf refactors',
+        status: 'open',
+        note: 'Frontier, save/load, raids, forge, prison, visitors, eco, UI dead-ends',
+      },
+      {
+        label: 'Logical invariant checks — entity maps, migration, peace vs raids',
+        status: 'open',
+        note: 'No ghost workers, orphaned raids, negative food/pop',
+      },
+      {
+        label: 'Headless simulation battery — all scripts green before ship',
+        status: 'open',
+        note: 'simulate · simulate:30min (village/town/city) · simulate:10year · balance:militia',
+      },
+      {
+        label: 'Simulation regression gate — exit non-zero on invariant fail',
+        status: 'open',
+        note: 'Document checks in TECHNICAL.md',
+      },
+      {
+        label: 'Manual playtest matrix — large map, 10×, save/reload, raid/forge/peace',
+        status: 'open',
+      },
+    ],
+  },
+  {
     id: 'v050-p1',
     title: 'v0.5.0 P1 — Polish & content',
     subtitle: 'Should ship with scale milestone',
@@ -244,6 +275,7 @@ export const ROADMAP_NEXT_ACTIONS: string[] = [
   'v0.5.0 — Grass buckets, partner map, particle pooling, App tab split',
   'v0.5.0 — Web Worker gameTick + OffscreenCanvas terrain/entity layers',
   'v0.5.0 P1 — Counter-raid march line; large-map playtests; reputation arc',
+  'v0.5.0 — Big bug checkup + logic invariants + full headless sim battery',
   'v0.5.0 — Bump GAME_VERSION to 0.5.0 + migration + CHANGELOG + tag',
 ];
 
@@ -253,6 +285,8 @@ export const ROADMAP_OPEN_FIXES: string[] = [
   'P0 — dead-entity compaction + renderer cache reuse + benchmark gate',
   'P0 — incremental entityById, buildingActions scans, App tab split, pooling',
   'P0 — Web Worker gameTick + OffscreenCanvas layers',
+  'P0 — big bug checkup after perf refactors (frontier, save, raids, forge, eco)',
+  'P0 — logical invariant checks + headless sim battery (5min, 30min, 10year, militia)',
   'P1 — counter-raid militia march visuals (prep-focused; no battle screen)',
   'P1 — large-map playtests at 10×; reputation arc; visitor quest chain',
   'P1 — footstep SFX; npm run benchmark:gate CI wrapper',

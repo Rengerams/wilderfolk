@@ -8,6 +8,9 @@
 - Spatial grid, dead-entity compaction, renderer cache reuse, settler count denorm, benchmark gate
 - Incremental `entityById`, `buildingActions` scan cleanup, grass buckets, App tab split, pooling
 - Web Worker `gameTick`, OffscreenCanvas terrain/entity layers
+- **Big bug checkup** — full-code audit after perf refactors (frontier, save, raids, forge, eco, UI)
+- **Logical invariant checks** — entity lifecycle, maps consistency, migration `0.4.2`→`0.5.0`, peace vs raids
+- **Simulation battery** — `simulate`, `simulate:30min` (all profiles), `simulate:10year`, `balance:militia`; exit codes on fail
 - `GAME_VERSION` **0.5.0** + save migration
 
 ### Planned (v0.5.0 P1)

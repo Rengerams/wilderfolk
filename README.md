@@ -78,7 +78,7 @@ You are not conquering nature. You are **moving into it**. Grass, rabbits, deer,
 
 | Version | When (target) | Theme | Highlights |
 |---------|---------------|-------|------------|
-| **0.5.0** | **End Jul 2026** | Scale + architecture | Spatial grid, benchmark gate, App tab split, Web Worker, canvas layers → [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) |
+| **0.5.0** | **End Jul 2026** | Scale + quality | Spatial grid, App tab split, Web Worker, canvas layers, **bug audit + sim gates** → [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) |
 | **1.0 / Steam** | TBD | Real release | Installer or Steam — no Node.js, no terminal |
 
 **Not on the near-term list:** real-time tactical battles on the map, multiplayer, fog of war, hospital disease loop — [ROADMAP.md](ROADMAP.md).

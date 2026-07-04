@@ -13,7 +13,7 @@ Living plan for the **consolidated scale & architecture** release.
 
 ## One-line pitch
 
-**v0.5.0 makes Wilderfolk scale** — spatial indexing, lean entity lists, render/UI polish, Web Worker simulation, and canvas layers so large-map towns at 10× feel smooth end-to-end.
+**v0.5.0 makes Wilderfolk scale and trustworthy** — spatial indexing, lean entity lists, render/UI polish, Web Worker simulation, canvas layers, and a **full bug + logic + simulation audit** so large-map towns at 10× feel smooth *and* correct.
 
 ---
 
@@ -33,6 +33,7 @@ Players on **large maps** with **100–200+ settlers** should not feel sim hitch
 | Headless avg ~1.8 ms/tick @ ~550 entities | **p95** and **large-map / city UI** not gated |
 | Partial React memo on a few panels | `App.tsx` still re-renders heavy tabs; assign flows scan all entities |
 | Perf roadmap split across 0.4.3 → 0.4.4 → 0.5.0 | **One July ship** — sim Phase 1 + Phase 2 + Worker/layers |
+| ~40-fix bug pass in v0.4.2; headless sims for balance | **No v0.5-wide regression gate** — logic invariants + multi-profile sim battery not yet required to ship |
 
 ---
 
@@ -89,6 +90,20 @@ Players on **large maps** with **100–200+ settlers** should not feel sim hitch
 
 Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`.
 
+### Quality — bug audit, logic checks & simulation gates (P0)
+
+*v0.5.0 is not perf-only — ship only after a deliberate correctness pass, same spirit as the July 4 v0.4.2 comprehensive bug-fix rounds.*
+
+| # | Item | Deliverable |
+|---|------|-------------|
+| 16 | **Big bug checkup** | Full-code audit: frontier/diplomacy, save/load, raids, forge, prison, visitors, eco streaks, UI dead-ends; fix + document in CHANGELOG |
+| 17 | **Logical invariant checks** | Assert or test: entity lifecycle (birth/death/compaction), `entityById`/`buildingById` consistency, peace vs active raids, migration round-trip `0.4.2`→`0.5.0`, no ghost workers/prisoners |
+| 18 | **Headless simulation battery** | All green before tag: `npm run build` · `npm run lint` · `npm run simulate` · `npm run simulate:30min` (village/town/city) · `npm run simulate:10year` · `npm run balance:militia` |
+| 19 | **Simulation regression gate** | Headless scripts exit non-zero on invariant fail (pop negative, food NaN, orphaned raids, challenge regressions); document env vars in TECHNICAL.md |
+| 20 | **Manual matrix playtest** | Large map + 10× + save/reload + raid respond + forge queue + peace treaty + year-10 spot-check; notes in playtest doc or SESSION_SUMMARY |
+
+**Reference:** v0.4.2 pass fixed welcomed-refugee deaths, peace vs raids, diplomacy event loss, eco streak 24×/year — v0.5 must re-verify these paths after perf refactors.
+
 ---
 
 ## P1 — Should ship
@@ -141,6 +156,8 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`.
 ## Exit criteria (ship v0.5.0)
 
 - [ ] All **P0** items merged; `npm run build` + `npm run lint` clean
+- [ ] **Bug checkup closed** — no known P0/P1 regressions; fixes logged in CHANGELOG `[0.5.0]`
+- [ ] **Logic + sim battery green** — `simulate`, `simulate:30min` (all profiles), `simulate:10year`, `balance:militia` pass; invariants documented
 - [ ] Benchmark gate passes **village** and **town** profiles
 - [ ] Manual: large map, 60+ humans, 30 min at 5× — no sustained frame drops
 - [ ] Manual: all 6 sidebar tabs @ 150 humans — no &gt; 100 ms blocking feel
@@ -156,7 +173,7 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`.
 |------|-----------|
 | **Early Jul 2026** | Spatial grid + compaction land |
 | **Mid Jul 2026** | Renderer/UI denorm + App tab split; benchmark profiles |
-| **Late Jul 2026** | Web Worker + OffscreenCanvas; P1 polish; ship **v0.5.0** |
+| **Late Jul 2026** | Web Worker + OffscreenCanvas; **bug audit + sim battery**; P1 polish; ship **v0.5.0** |
 
 ---
 
@@ -171,7 +188,10 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`.
 7. [ ] Extract Village / Nature / Progress tabs from `App.tsx`
 8. [ ] Web Worker `gameTick` contract + OffscreenCanvas split
 9. [ ] Counter-raid march line (P1)
-10. [ ] Bump `GAME_VERSION` to `0.5.0` + migration + docs + tag
+10. [ ] **Big bug checkup** — audit frontier, save, raids, forge, eco, UI; fix regressions from perf refactors
+11. [ ] **Logic checks** — entity maps, migration round-trip, peace/raid invariants
+12. [ ] **Simulation battery** — all headless scripts + exit codes; manual large-map matrix
+13. [ ] Bump `GAME_VERSION` to `0.5.0` + migration + docs + tag
 
 ---
 

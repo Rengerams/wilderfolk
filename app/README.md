@@ -34,6 +34,7 @@ All open perf, UI, and architecture work ships in one release. Full plan → [RO
 | **Sim scale** | Large maps, 100+ settlers, spatial grid, benchmark gate — no mystery lag |
 | **UI at city size** | Sidebar tabs stay fast; App split for Village / Nature / Progress |
 | **Architecture** | Web Worker simulation + canvas layers for 10× speed |
+| **Quality** | Big bug checkup, logic invariant checks, full headless sim battery before ship |
 | **Polish** | Counter-raid march visuals, reputation arc, visitor quests, footstep SFX |
 | **Steam / installer** | After v0.5.0 — download and play, no terminal |
 

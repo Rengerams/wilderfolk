@@ -417,6 +417,7 @@ Full plan → **[ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)**. Consolidates former v0.4
 | **Sim Phase 1** | Spatial grid, compaction, renderer cache, settler denorm, benchmark gate |
 | **Sim Phase 2 + UI** | Incremental maps, `buildingActions` cleanup, grass buckets, App tab split, pooling |
 | **Architecture** | Web Worker `gameTick`, OffscreenCanvas terrain/entity layers |
+| **Quality** | Big bug checkup, logic invariant checks, headless sim battery + regression exit codes |
 
 See also [app/TODO.md](app/TODO.md) — v0.5.0 preview table.
 
