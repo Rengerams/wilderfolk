@@ -257,7 +257,7 @@ Four code-review rounds (~40 fixes). Verified: `npm run build`, `npm run lint` (
 - **Stable village anchor** — `getPlayerCampCenter()` prefers Town Hall / House over wandering settler centroid (shared with `groupEvents.ts` spawn distance).
 - **Focus hint** — counter-raid note mentions distance-scaled food (not flat 30🍖).
 
-### Deferred to v0.4.2 (see [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md))
+### Deferred to v0.5.0 (see [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md))
 - Village tab raid shortcut, distance-based raid deadline/march, spear tier stacking review, dedicated combat log panel, walls/guards, Blacksmith forge queue.
 
 ## [0.4.1] - Frontier raids & militia combat (2026-07-04)
