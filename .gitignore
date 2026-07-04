@@ -1,2 +1,3 @@
-# IDE / agent terminal session logs (not project files)
+# IDE / agent session logs (not project files)
 terminals/
+log.txt
