@@ -316,9 +316,13 @@ v0.4.1 partial — deeper frontier diplomacy and ecosystem coaching.
 - `worldGen.ts` initializes `pendingDiplomacyEvents: []`.
 - Pending diplomacy events expire after 14 in-game days if unanswered (`tickPendingDiplomacyEvents`).
 
-## [Unreleased] - Event log overhaul + Prison building + terrain fix (2026-06-25)
+## [0.4] - Early alpha archive (June 2026)
 
-### Added
+*Shipped incrementally before **v0.4.1** (2026-07-04). Only the top `## [Unreleased]` section tracks in-flight **v0.5.0** work.*
+
+### 2026-06-25 — Event log overhaul + Prison building + terrain fix
+
+#### Added
 - **Event log no longer capped**: `eventLog.ts` removed the 500-entry storage cap. Saves keep every event forever.
 - **In-game log display stays capped at 500**: `EventLogPanel.tsx` renders only the latest 500 events for performance, but shows the total stored count.
 - **Raw data exports**: `eventLogExport.ts` adds `.json` and `.csv` exporters. All export formats include the full event history.
@@ -329,54 +333,54 @@ v0.4.1 partial — deeper frontier diplomacy and ecosystem coaching.
 - **Prison UI**: Prison panel lists prisoners and days remaining; entity panel shows imprisonment status; population badge/overview add a "jailed" count.
 - **`isImprisoned()` helper** in `dayCycle.ts` to exclude prisoners from work assignment and population stats.
 
-### Changed
+#### Changed
 - `App.tsx` build categories include Prison; population stats exclude prisoners from working/idle counts.
 - `gameEngine.ts` work/builder assignment filters reject imprisoned settlers.
 - `terrainGen.ts` preset modifiers widened so Verdant / Mountainous / Coastal / Arid / Harsh maps look visibly different.
 
-### Fixed
+#### Fixed
 - **Terrain rendering "mangled" maps**: `renderer.ts` `buildTerrainCache()` was sizing the cache to world pixel dimensions but drawing one pixel per tile, stretching the terrain 10×. Cache is now tile-sized (width/10 × height/10) so each tile renders at the correct scale.
 
-## [Unreleased] - Audio credits (2026-06-24)
+### 2026-06-24 — Audio credits
 
-### Added
+#### Added
 - **Audio credits** in [TECHNICAL.md](TECHNICAL.md#audio-credits): OpenGameArt sources, authors, and licenses for all music and ambient SFX.
 
-## [Unreleased] - Terrain rendering restored (2026-06-24)
+### 2026-06-24 — Terrain rendering restored
 
-### Fixed
+#### Fixed
 - **Flat green ground removed:** Maps now draw real terrain (water, beach, forest, hills, etc.) instead of the temporary solid-green backdrop.
 
-### Changed
+#### Changed
 - Build-zone overlay: water no longer double-highlighted (visible on terrain); red tint only for non-obvious blockers (cliffs, river banks, snow).
 
-## [Unreleased] - Coastal build fix (2026-06-24)
+### 2026-06-24 — Coastal build fix
 
-### Fixed
+#### Fixed
 - **Coastal maps unbuildable:** Preset was mostly water/rivers with no contiguous dry land for a House footprint. Coastal terrain toned down slightly; maps now carve a grassland camp clearing at the start. Pioneers spawn on buildable ground.
 
-## [Unreleased] - Code cleanup (2026-06-24)
+### 2026-06-24 — Code cleanup
 
-Light hygiene pass — no intended gameplay changes. Build verified (`npm run build`).
+*Light hygiene pass — no intended gameplay changes. Build verified (`npm run build`).*
 
-### Added
+#### Added
 - **`eventLog.ts`**: Shared `EVENT_LOG_MAX`, `logEvent()`, and `syncEventLogIdFromState()` for monotonic event-log ids after save load.
 
-### Changed
+#### Changed
 - **`groupEvents.ts`**: Removed duplicate `pushLog` / `logSeq`; visitor and rival events now use `logEvent` from `eventLog.ts`.
 - **`gameEngine.ts`**: Event-log helpers moved to `eventLog.ts` (re-exported for compatibility). Save load calls `syncEventLogIdFromState`. Re-exports `hasIronSpears`, `hasStoneSpears`, `hasCompletedBlacksmith` from `combat.ts`.
 - **`victory.ts`**: Added `COMING_SOON_VICTORY_PATHS` alongside `ACTIVE_VICTORY_PATHS`.
 - **`App.tsx`**: Imports victory-path and combat helpers from consolidated modules (`victory.ts`, `gameEngine.ts`).
 
-### Deferred (not touched)
+#### Deferred (not touched)
 - Splitting `gameEngine.ts` (~3,700 lines) — larger refactor.
 - Unifying `pushNews` (`groupEvents`) vs `addBigNews` (`gameEngine`).
 - Removing unused shadcn `components/ui/*` scaffold.
 - `soundEngine.ts` deprecated shim — kept for backward compat (no active imports).
 
-## [Unreleased] - Building Background Colors Overhaul
+### June 2026 — Building background colors overhaul
 
-### Added
+#### Added
 - **Building foundation pads**: Every completed building now renders a category-colored foundation pad beneath its sprite, making districts readable on the terrain.
 - **Per-building pad shapes**: Foundations now match the building's role:
   - `rect` for production, resources, and food buildings (Farm, Lumber Mill, Mine, etc.)
@@ -395,12 +399,12 @@ Light hygiene pass — no intended gameplay changes. Build verified (`npm run bu
 - **Minimap parity**: Buildings on the minimap are now rendered using their category background color instead of a single blue color.
 - **Hover state tracking**: Added `hoveredBuilding` to `GameState` and wired mouse hover detection in the main canvas.
 
-### Changed
+#### Changed
 - Reduced foundation pad opacity from 0.72 to 0.38 for completed buildings so sprites remain the focal point.
 - Improved under-construction visuals with a category-tinted foundation and a clearer progress fill.
 - Updated `BuildingConfig` interface to require `backgroundColor` and `padShape`.
 
-### Technical
+#### Technical
 - Added color utility helpers in `renderer.ts`:
   - `hexToRgb` / `rgbToHex`
   - `darkerColor`
@@ -411,9 +415,9 @@ Light hygiene pass — no intended gameplay changes. Build verified (`npm run bu
 - Updated `GameState` interface to include `hoveredBuilding`.
 - Updated `initGame` and `loadGame` to initialize `hoveredBuilding: null`.
 
-## [Unreleased] - Simulation Upgrade
+### June 2026 — Simulation upgrade
 
-### Added
+#### Added
 - **Resource storage caps**: Wood, stone, and food now have maximum storage limits.
 - **Storage buildings matter**: Barns, Silos, Stores, and Markets increase storage capacity.
 - **Food spoilage**: Food decays over time, faster in summer and slower in winter. Silos reduce spoilage.
@@ -429,11 +433,11 @@ Light hygiene pass — no intended gameplay changes. Build verified (`npm run bu
 - **Wolf pack behavior**: Wolves near other wolves gain extended hunt range, faster movement, and shared energy from kills.
 - **Production storage awareness**: Production buildings now display "storage full" warnings instead of wasting resources.
 
-### Changed
+#### Changed
 - Resource header badges now show current / maximum storage and highlight when near capacity.
 - Selected building panel now displays terrain efficiency, adjacency bonuses, and total efficiency percentage.
 
-### Technical
+#### Technical
 - Added `storageMax` and `foodSpoilageRate` to `GameState`.
 - Added helpers in `gameEngine.ts`:
   - `getTileAt`
@@ -444,28 +448,28 @@ Light hygiene pass — no intended gameplay changes. Build verified (`npm run bu
   - `applyFoodSpoilage`
 - Exported `getTerrainEfficiencyMultiplier` and `getAdjacencyMultiplier` for UI use.
 
-## [Unreleased] - Mystical Connections
+### June 2026 — Mystical connections
 
-### Added
+#### Added
 - **New entity: Werewolf** — A cursed human that transforms under the full moon. Werewolves hunt deer, rabbits, and humans.
 - **Werewolf taming** — Churches can soothe nearby werewolves, converting them back into humans with the surname "Moonborn".
 - **New entity: Wildkin** — A rare half-human, half-deer hybrid born when a pregnant human lives close to deer. Wildkin graze on grass and farm food.
 - **Big News banner** — Major events (werewolf transformations, taming, Wildkin births, and future epic events) now show a prominent dismissible banner at the top of the screen.
 - Added Werewolf and Wildkin to the wildlife panel, entity selection panel, and minimap.
 
-### Changed
+#### Changed
 - Updated food-chain info to include Werewolves and Wildkin.
 - Wildlife bars now track Werewolves and Wildkin populations.
 
-### Technical
+#### Technical
 - Added `Werewolf` and `Wildkin` to `EntityType` and `SPECIES_CONFIG`.
 - Added `BigNewsItem` interface and `bigNews` array to `GameState`.
 - Added `addBigNews` helper for major event announcements.
 - Updated predator/prey and graze logic to include the new species.
 
-## [Unreleased] - Taming, Visitors & Festivals
+### June 2026 — Taming, visitors & festivals
 
-### Added
+#### Added
 - **Animal taming** — Build a **Taming Post** and assign a settler to tame nearby wolves, foxes, deer, or rabbits.
 - **Tamed animals follow their owner** and assist in hunting (wolves/foxes). Tamed animals are no longer hunted by villagers.
 - **New building: Taming Post** — Community building that enables animal taming in its radius.
@@ -473,7 +477,7 @@ Light hygiene pass — no intended gameplay changes. Build verified (`npm run bu
 - **Village festivals** — Random festivals (Harvest Festival, Moonlight Feast, etc.) boost production, courtship, and immigration for 20–40 days.
 - Added `festival` state to `GameState`.
 
-### Changed
+#### Changed
 - **Economic rebalance**:
   - Reduced human energy loss from 8.0 to 5.5 per tick (less food consumption).
   - Increased Farm output: 15 → 22 food per cycle.
@@ -485,12 +489,12 @@ Light hygiene pass — no intended gameplay changes. Build verified (`npm run bu
 - Season/Year header now shows a 🎉 icon during festivals.
 - Entity selection panel shows tamed status and a Tame button for eligible creatures.
 
-### Technical
+#### Technical
 - Added `tamedBy` field to `Entity`.
 - Added `tameEntity` action exported from `gameEngine.ts`.
 - Added visitor and festival event logic to `gameTick`.
 - Added `festival` to `initGame` and `loadGame` defaults.
 
-### Fixed
+#### Fixed
 - Reinstalled dependencies from a clean state to resolve the npm `Exit handler never called` issue.
 - Verified full production build passes with `npm run build`.
