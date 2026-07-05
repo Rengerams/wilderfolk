@@ -34,7 +34,7 @@ export const ROADMAP_SECTIONS: RoadmapSection[] = [
       {
         label: '0.5.0 — Scale + architecture',
         status: 'open',
-        note: 'Sim perf, UI split, Web Worker, canvas layers — end July 2026',
+        note: 'Sim perf, UI split, Web Worker, canvas layers; election ceremony ✅ — end July 2026',
       },
       { label: '1.0 / Steam — installer release', status: 'deferred', note: 'After v0.5.0' },
     ],
@@ -107,12 +107,12 @@ export const ROADMAP_SECTIONS: RoadmapSection[] = [
     subtitle: 'Partial features tracked until shipped or deferred post-0.5',
     items: [
       {
-        label: 'Perf at 500+ entities',
+        label: 'Perf at ~1250 entities (300 player + neighbors)',
         status: 'partial',
-        note: 'Compaction ✅ — finish renderer byType, benchmark gate; then spatial grid + Worker',
+        note: 'v0.5 target: 300 camp + rival/visitor humans on map — dual-layer grid, city benchmark w/ frontier spawns',
       },
       {
-        label: 'UI at 150+ population',
+        label: 'UI at 300 population',
         status: 'partial',
         note: 'Partial memo — tab split + settler count denorm',
       },
@@ -301,6 +301,11 @@ export const ROADMAP_SECTIONS: RoadmapSection[] = [
         status: 'open',
       },
       { label: 'Reputation arc UI — milestones beyond ⭐ tooltip', status: 'partial', note: '⭐ + Village explainer — no milestone beats' },
+      {
+        label: 'Election day ceremony — extend villageLeadership.ts',
+        status: 'done',
+        note: 'Buildup, ceremony, incumbent record (+8 cap), always-in-race — playtest Year 10/20',
+      },
       { label: 'Footstep / work SFX by surface', status: 'open' },
       { label: 'One visitor multi-step quest chain (Scholars or Nomads)', status: 'open' },
       { label: 'npm run benchmark:gate — CI-friendly wrapper', status: 'open' },
@@ -333,6 +338,7 @@ export const ROADMAP_NEXT_ACTIONS: string[] = [
   'P0 — incremental entityById; buildingActions scan cleanup; partner map; pooling',
   'P0 — Web Worker gameTick + OffscreenCanvas terrain/entity layers',
   'P0 — big bug checkup + logic invariants + manual matrix playtest',
+  '✅ DONE — Election arc: buildup, ceremony, incumbent record, always-in-race (villageLeadership.ts)',
   'P1 — Outgoing counter-raid march line; reputation arc milestones',
   'SHIP — Bump GAME_VERSION 0.5.0 + migration + CHANGELOG + tag',
 ];
@@ -345,12 +351,12 @@ export const ROADMAP_OPEN_FIXES: string[] = [
   '🟡 FINISH simulate:20year full 172800-tick PASS + 30min exit codes',
   '🟡 FINISH App tab split (memo on 4 panels; App.tsx monolithic)',
   'P0 — settler count denorm (workingSettlers / idleSettlers)',
-  'P0 — spatial grid for graze/hunt/flee at 100+ entities',
+  'P0 — dual-layer spatial grid (grass + mobile) for ~1250 alive @ 300 player + neighbor humans',
   'P0 — incremental entityById, buildingActions scans, partner map, pooling',
   'P0 — Web Worker gameTick + OffscreenCanvas layers',
   'P0 — big bug checkup after perf refactors (frontier, save, raids, forge, eco)',
   'P0 — logical invariant checks + full headless sim battery',
-  'P1 — outgoing counter-raid march; reputation arc; visitor quest chain',
+  'P1 — playtest election Year 10/20; outgoing counter-raid march; reputation arc; visitor quest chain',
   'P1 — footstep SFX; npm run benchmark:gate CI wrapper',
   'Event log uncapped in saves by design — full chronicle kept forever',
 ];
@@ -359,7 +365,7 @@ export const ROADMAP_DEFERRED: string[] = [
   'Real-time tactical map battles — abstract raids stay (post-0.5.0)',
   'Installer / Steam release — no Node.js (post-0.5.0)',
   'Full tribal wars, sieges, embassies, player caravans',
-  'Leader perks / government decisions beyond ceremonial head',
+  'Deep government decisions beyond ceremonial head (incumbent record score shipped)',
   'Fog of war / map expansion scouts',
   'Hospital disease loop, wardogs, deep festival/culture',
   'Multiplayer',

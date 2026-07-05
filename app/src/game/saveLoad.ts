@@ -222,6 +222,9 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
     world.villageLeaderId = (parsed.villageLeaderId as number | null | undefined) ?? null;
     world.leaderSinceYear = (parsed.leaderSinceYear as number | undefined) ?? 0;
     world.lastElectionYear = (parsed.lastElectionYear as number | undefined) ?? -1;
+    world.pendingElectionYear = (parsed.pendingElectionYear as number | null | undefined) ?? null;
+    world.electionBuildupNotifiedYear = (parsed.electionBuildupNotifiedYear as number | null | undefined) ?? null;
+    world.electionCeremony = (parsed.electionCeremony as WorldState['electionCeremony']) ?? null;
     validateVillageLeaderOnLoad(world);
     migrateVillageForgeOnLoad(world);
     for (const challenge of world.challenges ?? []) {

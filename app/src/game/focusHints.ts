@@ -118,20 +118,29 @@ export function getFocusHints(state: WorldState): FocusHint[] {
   }
 
   const leader = getVillageLeader(state);
-  if (leader) {
-    const until = getYearsUntilElection(state);
+  const until = getYearsUntilElection(state);
+  if (!leader && state.pendingElectionYear != null) {
+    hints.push({
+      icon: '👑',
+      title: 'Leadership vacancy',
+      detail: until > 0
+        ? `No village head — merit election in ${until} year${until === 1 ? '' : 's'} (Year ${state.pendingElectionYear}).`
+        : 'Merit election imminent — settlers will gather soon.',
+      action: { label: 'Leadership', id: 'open_village' },
+    });
+  } else if (leader) {
     if (until === 0) {
       hints.push({
         icon: '🗳️',
         title: 'Leadership election this year',
-        detail: `Year ${state.year} — ${formatSettlerName(leader)} may be re-elected or replaced by highest merit score.`,
+        detail: `Year ${state.year} — ${formatSettlerName(leader)} is running again; skills decide most races, with a modest record edge from economy, scandals, and village health.`,
         action: { label: 'Leadership', id: 'open_village' },
       });
     } else if (until <= 2) {
       hints.push({
         icon: '👑',
         title: `Village head: ${formatSettlerName(leader)}`,
-        detail: `Election in ${until} year${until === 1 ? '' : 's'} — merit from skills, age, Town Hall duty.`,
+        detail: `Election in ${until} year${until === 1 ? '' : 's'} — merit from skills, age, Town Hall duty; sitting head gets a modest record bonus or penalty.`,
         action: { label: 'Leadership', id: 'open_village' },
       });
     }

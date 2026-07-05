@@ -20,6 +20,7 @@ import {
 import { addResource } from './economy';
 import { setEntityBirthDate } from './worldGen';
 import { isPlayerHuman } from './groupEvents';
+import { getElectionGatherTarget, isElectionCeremonyActive } from './villageLeadership';
 import {
   HUMAN_ADULT_MIN_AGE,
   HUMAN_ADULT_MAX_AGE,
@@ -342,6 +343,25 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const inFocus = !focus || isInFocus(entity, focus);
     const isPrisoner = entity.prisonBuildingId != null;
     const active = !isPrisoner && (inFocus || entity.pregnant || (state.tick + entity.id) % OFFSCREEN_HUMAN_THROTTLE === 0);
+
+    if (isElectionCeremonyActive(state) && isPlayerHuman(entity)) {
+      const target = getElectionGatherTarget(state, entity.id);
+      const dx = target.x - entity.x;
+      const dy = target.y - entity.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      if (dist > 10) {
+        entity.vx = (dx / dist) * config.speed * 1.15;
+        entity.vy = (dy / dist) * config.speed * 1.15;
+        entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+        entity.x += entity.vx;
+        entity.y += entity.vy;
+      } else {
+        entity.vx = 0;
+        entity.vy = 0;
+      }
+      entity.reproductionCooldown = Math.max(0, entity.reproductionCooldown - 1);
+      continue;
+    }
 
     if (isPrisoner) {
       entity.vx = 0;

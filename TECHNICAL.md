@@ -303,7 +303,7 @@ Combat is **strength-ratio resolution**, not tactical map battles. Key flow in `
 
 **Shipped (v0.4.2):** off-screen sim throttles, per-tick `entityById` / `buildingById`, wildlife `byType` loop, `wildlifeCounts`, UI memoization. See [CHANGELOG.md](CHANGELOG.md) `[0.4.2]` → Performance.
 
-**Benchmark:** `cd app && npm run simulate:30min` — env `SIM_MINUTES` (default 1200 ≈ 30 game-min), `PERF_SAMPLE_EVERY` (default 120). July 2026 sanity run (72k ticks, ~8 game years, ~557 entities): avg **1.81 ms/tick**, p50 **1.30 ms**, p95 **4.83 ms**, max **105 ms**. Informal budget: p95 &lt; 16 ms/tick @ ~700 alive entities.
+**Benchmark:** `cd app && npm run simulate:30min` — env `SIM_MINUTES` (default 1200 ≈ 30 game-min), `PERF_SAMPLE_EVERY` (default 120). July 2026 sanity run (72k ticks, ~8 game years, ~557 entities): avg **1.81 ms/tick**, p50 **1.30 ms**, p95 **4.83 ms**, max **105 ms**. **Real play (July 2026):** 200+ player humans, game still smooth — total alive **~850–1000**. **v0.5 design target:** **300 player + ~30 neighbor humans** (2 rival camps + visitors) → **~330 humans on map**, **~1250 alive**; p95 &lt; 16 ms/tick @ ~800 (town), &lt; 20 ms/tick @ **~1250** (city); headroom **~1500**.
 
 **v0.5 ship gatekeeper:** `npm run simulate:20year` — headless **20 in-game years** (172800 ticks, 20 winters). Env: `SIM_PROFILE=town|village|eco` (default `town`), `SIM_YEARS=20` (set by `simulate-20year.ts`), `SIM_MAX_TICKS` for smoke only. Logs → `app/scripts/logs/sim-20year-<profile>-<timestamp>.txt`. **Exit 0 required** before tagging v0.5.0. `npm run simulate:10year` remains a faster regression check (`SIM_YEARS=10`).
 
@@ -403,6 +403,42 @@ Tribes diplomacy v2, frontier raids MVP, Trade Empire + Harmony victory paths, m
 **Sim note:** `simulate:20year` smoke PASS (8640 ticks); full 172800-tick run still required for v0.5 tag.
 
 **Git (session):** `b69a865` … `4f157ca` on `main`.
+
+### July 5, 2026 — Scale target revision (real play)
+
+Playtest: **200+ citizens**, performance still good. Entity budget is higher than headless sims assumed (~557 @ ~70 humans). **v0.5 ship target: 300 player humans + neighbors / ~1250 alive** (headroom ~1500).
+
+| Layer | Approx. count @ city scale |
+|-------|----------------------------|
+| Player humans | **300** |
+| Rival humans (2 camps × up to 12) | **~24** |
+| Visitor humans (one camp, 3–7) | **~7** |
+| Grass (spawn cap) | ~500 |
+| Wildlife + trees | 50–150+ |
+| **Total alive** | **~1200–1250** |
+
+**Sim note:** `tickHumans` runs on **all** `EntityType.Human` (player + rival + visitor). Flee `predators` includes **player + rival** humans (`gameEngine.ts`), not visitors.
+
+**Optimization sizing:** dual-layer spatial grid; mobile layer must index all map humans; benchmark `SIM_PROFILE=city` spawns rivals + visitor wave and asserts **~1250 alive**. Private reference → `private/v0.5-scale-targets.md` (full budget + benchmark table + implementation order).
+
+### July 5, 2026 — Election day ceremony (v0.5.0 P1) ✅
+
+**Shipped in `villageLeadership.ts`** — extends merit election (do not duplicate).
+
+| Feature | Implementation |
+|---------|----------------|
+| Founding leader | First **male** pioneer via `appointFoundingLeader()` — no merit vote until Year 10 |
+| Decennial elections | Every 10 years (`ELECTION_INTERVAL_YEARS`); ceremony on calendar day 0 |
+| Vacancy | Leader death/jail → `pendingElectionYear = year + 2`; no instant succession |
+| Buildup | `tickElectionBuildup` (year-before notify) + `tickElectionGossip` |
+| Ceremony | `electionCeremony` phases: gathering → gossip → tension → reveal → 3-day *Election Revelry* |
+| Gather site | Town Hall center, else map center (`getElectionGatherSite`) |
+| Incumbent in race | `getElectionRaceCandidates()` — sitting head always listed when eligible |
+| Record score | `getIncumbentRecordAssessment()` — economy (+4/−5), scandals (+3 clean / −5 each), village health (+3/−6); **+8 positive cap**; only incumbent gets `recordPoints` |
+| UI | `VillageLeadershipPanel`, `focusHints`, `contextualTutorial` |
+| Save | `electionCeremony`, `electionBuildupNotifiedYear`, `pendingElectionYear` via `saveLoad.ts` |
+
+**Remaining:** live playtest at Year 10/20.
 
 ---
 

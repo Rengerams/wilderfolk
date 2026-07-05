@@ -229,7 +229,7 @@ export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutori
     id: 'leadership_election',
     icon: '👑',
     title: 'Leadership election',
-    detail: 'Your village head is chosen by merit — skills, age, and Town Hall duty matter. See Village → Leadership for the current head.',
+    detail: 'From Year 10 onward, your village head is chosen by merit — skills, age, and Town Hall duty. The sitting head always runs when eligible and gets a modest record edge or penalty, but a high-merit challenger can still win. See Village → Leadership.',
     action: { label: 'Leadership', id: 'open_village' },
   },
   first_challenge_done: {

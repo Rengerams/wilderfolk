@@ -369,7 +369,14 @@ import {
   isPlayerHuman, tickVisitorGroups, tickRivalSettlements,
   rollYearlyWorldEvent, tryFirstWeekVisitor, tryMidYearVisitorEvent,
 } from './groupEvents';
-import { tickDecennialElection, trySuccessionElection } from './villageLeadership';
+import {
+  tickElectionBuildup,
+  tickElectionCeremony,
+  tickElectionGossip,
+  tickLeaderVacancy,
+  tryStartDecennialElectionCeremony,
+  tryStartVacancyElectionCeremony,
+} from './villageLeadership';
 import { tickPendingRaidEvents } from './frontierCombat';
 
 export {
@@ -753,8 +760,15 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   releasePrisoners(state);
 
   // Food spoilage (once per calendar day)
+  const vacancyNews = tickLeaderVacancy(state);
+  if (vacancyNews) {
+    addBigNews(state, vacancyNews.title, vacancyNews.message, 'neutral');
+    addNotification(state, vacancyNews.title, vacancyNews.message, 'event');
+  }
+
   if (state.tick % TICKS_PER_DAY === 0) {
     applyFoodSpoilage(state, season);
+    tickElectionGossip(state);
   }
 
   const newEntities: Entity[] = [];
@@ -907,6 +921,13 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     ...byType[EntityType.Human].filter((h) => h.faction === 'rival'),
     ...byType[EntityType.Werewolf],
   ];
+
+  const electionReveal = tickElectionCeremony(state, state.year);
+  if (electionReveal) {
+    addBigNews(state, electionReveal.title, electionReveal.message, 'positive');
+    addNotification(state, electionReveal.title, electionReveal.message, 'event');
+    impulseScreenShake(state, 4);
+  }
 
   // Run human and wildlife simulation
   const ctx: TickContext = {
@@ -1281,10 +1302,29 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
         : 0;
     }
 
-    const decennialNews = tickDecennialElection(state, newYear, newDayInYear);
-    if (decennialNews) {
-      addBigNews(state, decennialNews.title, decennialNews.message, 'positive');
-      addNotification(state, decennialNews.title, decennialNews.message, 'event');
+    const buildupNews = tickElectionBuildup(state, newYear, yearRollover);
+    if (buildupNews) {
+      addBigNews(state, buildupNews.title, buildupNews.message, 'neutral');
+      addNotification(state, buildupNews.title, buildupNews.message, 'event');
+    }
+
+    const vacancyCeremony = tryStartVacancyElectionCeremony(state, newYear, newDayInYear);
+    const decennialCeremony = !vacancyCeremony
+      && tryStartDecennialElectionCeremony(state, newYear, newDayInYear);
+
+    if (vacancyCeremony || decennialCeremony) {
+      addBigNews(
+        state,
+        '🗳️ Election Day',
+        `Settlers gather for the leadership election (Year ${newYear}). Gossip, tension, then the merit reveal — and a village party after.`,
+        'neutral',
+      );
+      addNotification(
+        state,
+        '🗳️ Election Day',
+        `Year ${newYear} leadership election — villagers gathering now.`,
+        'event',
+      );
     }
   }
 
@@ -1309,12 +1349,6 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
 
     return { ...c, completed: completed || c.completed };
   });
-
-  const successionNews = trySuccessionElection(state, newYear);
-  if (successionNews) {
-    addBigNews(state, successionNews.title, successionNews.message, 'positive');
-    addNotification(state, successionNews.title, successionNews.message, 'event');
-  }
 
   const endTickHumans = allAlive.filter(isPlayerHuman);
   assignMissingResidences(endTickHumans, updatedBuildings);

@@ -20,7 +20,7 @@ import { logEvent } from './eventLog';
 import { computeWildlifeCounts } from './entityCounts';
 import { isPlayerHuman } from './groupEvents';
 import { SPECIES_CONFIG } from './gameEngine';
-import { runFoundingElection } from './villageLeadership';
+import { appointFoundingLeader } from './villageLeadership';
 import { createInitialForgeState } from './forge';
 import { getBuildingFootprint } from './buildingRotation';
 
@@ -264,6 +264,9 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     villageLeaderId: null,
     leaderSinceYear: 0,
     lastElectionYear: -1,
+    pendingElectionYear: null,
+    electionBuildupNotifiedYear: null,
+    electionCeremony: null,
     villageForge: createInitialForgeState(),
     totalBuildingsCompleted: 0,
     worldMap: null,
@@ -352,7 +355,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     spawnVisitorGroup(state, state.entities, state.buildings, 'traders');
   }
 
-  runFoundingElection(state);
+  appointFoundingLeader(state, father);
 
   state.wildlifeCounts = computeWildlifeCounts(state.entities);
   state.humanPopulation = state.entities.filter((e) => e.alive && isPlayerHuman(e)).length;

@@ -485,6 +485,19 @@ export interface VictoryProgress {
   achieved: boolean;
 }
 
+export type ElectionCeremonyPhase = 'gathering' | 'gossip' | 'tension' | 'reveal';
+
+export interface ElectionCeremonyState {
+  phase: ElectionCeremonyPhase;
+  phaseTicksLeft: number;
+  gatherX: number;
+  gatherY: number;
+  reason: 'founding' | 'decennial' | 'succession';
+  pendingLeaderId: number;
+  pendingLeaderName: string;
+  pendingChanged: boolean;
+}
+
 /** Pure simulation state — no camera, selection, or UI presentation fields. */
 export interface WorldState {
   entities: Entity[];
@@ -560,6 +573,12 @@ export interface WorldState {
   leaderSinceYear: number;
   /** Last year a founding or decennial election was held. */
   lastElectionYear: number;
+  /** Merit election scheduled after leader vacancy (Year N = election year). */
+  pendingElectionYear: number | null;
+  /** Year-start buildup notification sent (election next year). */
+  electionBuildupNotifiedYear: number | null;
+  /** Multi-phase election day ceremony (decennial). */
+  electionCeremony: ElectionCeremonyState | null;
   /** Blacksmith forge queue — iron gear requires research + forging. */
   villageForge: import('./forge').VillageForgeState;
   /** Contextual tutorial tips already shown this playthrough. */

@@ -17,9 +17,9 @@ Living plan for the **consolidated scale & architecture** release.
 
 ## North star (this version)
 
-Players on **large maps** with **100–200+ settlers** should not feel sim hitch, UI freeze, or mystery lag when they zoom out, speed up, or let a decade pass. Performance work must stay **invisible** — same food chain, same raids, same prep-focused combat — just scalable.
+Players on **large maps** with **100–300 settlers** should not feel sim hitch, UI freeze, or mystery lag when they zoom out, speed up, or let a decade pass. Performance work must stay **invisible** — same food chain, same raids, same prep-focused combat — just scalable.
 
-**Winning moment:** *"I hit 150 people on a large map, opened every sidebar tab at 10×, and the valley still felt alive — no stutter."*
+**Winning moment:** *"I hit 300 people on a large map, opened every sidebar tab at 10×, and the valley still felt alive — no stutter."*
 
 ---
 
@@ -28,7 +28,7 @@ Players on **large maps** with **100–200+ settlers** should not feel sim hitch
 | v0.4.2 delivered | v0.5.0 closes the gap |
 |------------------|----------------------|
 | Off-screen throttles, `entityById` / `buildingById`, `wildlifeCounts` | Hot paths still **O(n)** — graze scans, flee loops, UI population scans |
-| Headless avg ~1.8 ms/tick @ ~550 entities | **p95** and **large-map / city UI** not gated |
+| Headless avg ~1.8 ms/tick @ ~550 entities | **v0.5 target: 300 player + neighbor humans / ~1250 alive** — benchmarks and gates still tuned low |
 | Partial React memo on a few panels | `App.tsx` still re-renders heavy tabs; assign flows scan all entities |
 | Perf work was planned across multiple releases | **Single v0.5.0 ship (end July 2026)** — sim Phase 1 + Phase 2 + Worker/layers |
 | ~40-fix bug pass in v0.4.2; headless sims for balance | **No v0.5-wide regression gate** — logic invariants + multi-profile sim battery not yet required to ship |
@@ -68,7 +68,7 @@ Compared repo plan to code. **~1 P0 done, ~4 partial, ~16 P0 open.** v0.4.2 carr
 | 2 | **Dead-entity compaction** | ✅ Done | `gameEngine.ts` | `state.entities = allAlive` each tick — alive only |
 | 3 | **Renderer cache reuse** | 🟡 Partial | `renderer.ts` | `updateCachedEntities()` exists; still full scan — wire sim `byType` |
 | 4 | **Settler count denorm** | ❌ Open | `WorldState`, `App.tsx` | `workingSettlers` / `idleSettlers` once per tick |
-| 5 | **Benchmark gate** | 🟡 Partial | `simulate-30min.ts` | p95 reported; missing `SIM_PROFILE` 50/100/200 + exit non-zero |
+| 5 | **Benchmark gate** | 🟡 Partial | `simulate-30min.ts` | p95 reported; missing `SIM_PROFILE` 50/100/300 + exit non-zero |
 
 ### Sim & UI — Phase 2
 
@@ -86,19 +86,21 @@ Compared repo plan to code. **~1 P0 done, ~4 partial, ~16 P0 open.** v0.4.2 carr
 
 | # | Item | Status | Hotspot | Deliverable |
 |---|------|--------|---------|-------------|
-| 13 | **Web Worker `gameTick`** | ❌ Open | `gameEngine.ts`, `gameLoop.ts` | Serializable state contract; sim off main thread |
+| 13 | **Web Worker `gameTick`** | ❌ Open | `gameEngine.ts`, `gameLoop.ts` | Sim in worker; versioned **render SoA** (`schema.ts`, append-only columns, sidecar buffers); transferable ping-pong; upgradable command `proto` — not full `WorldState` clone |
 | 14 | **OffscreenCanvas layers** | ❌ Open | `renderer.ts` | Split terrain (static) vs entities (dynamic) |
 | 15 | **Version bump** | ❌ Open | `version.ts`, `saveLoad.ts` | `GAME_VERSION = '0.5.0'`; migrate from `0.4.2` |
 
 ### Benchmark budgets
 
-| Profile | Humans (approx.) | p95 budget |
-|---------|------------------|------------|
-| Village | 50 | &lt; 16 ms/tick |
-| Town | 100 | &lt; 16 ms/tick |
-| City stress | 200 | &lt; 20 ms/tick (document if missed) |
+**Design target:** **300 player humans** plus **neighbor humans on the map** (up to **2 rival camps × 12** each + **visitor groups 3–7** while camped → **~330 humans total**), **~1250 alive entities** (+ **~500 grass** spawn cap + wildlife/trees). Real play already smooth @ 200+; v0.5 must hold **headroom to ~1500**.
 
-Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`.
+| Profile | Player humans | Humans on map (incl. neighbors) | Alive entities (approx.) | p95 budget |
+|---------|---------------|----------------------------------|---------------------------|------------|
+| Village | 50 | ~55 | ~600 | &lt; 16 ms/tick |
+| Town | 100 | ~110 | ~800 | &lt; 16 ms/tick |
+| City | **300** | **~330** | **~1250** | &lt; 20 ms/tick (document if missed) |
+
+Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`. City profile must spawn **rivals + at least one visitor wave**; gate on **p95 + total alive**, not player pop alone.
 
 ### Quality — bug audit, logic checks & simulation gates (P0)
 
@@ -125,8 +127,28 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`.
 | 2 | **Large-map playtests** | 5–10 sessions at 10× after benchmark gate green |
 | 3 | **Reputation arc UI** | Milestones beyond ⭐ tooltip |
 | 4 | **Footstep / work SFX by surface** | Juice deferred since v0.4.2 |
-| 5 | **One visitor quest chain** | Scholars or Nomads multi-step |
-| 6 | **`npm run benchmark:gate`** | CI-friendly wrapper |
+| 5 | **Election day ceremony** | ✅ Done — extend **`villageLeadership.ts`**: buildup, ceremony, incumbent record score, always-in-race; playtest Year 10/20 |
+| 6 | **One visitor quest chain** | Scholars or Nomads multi-step |
+| 7 | **`npm run benchmark:gate`** | CI-friendly wrapper |
+
+#### Election day ceremony (P1 — v0.5.0) ✅ Shipped in code
+
+**Hotspot: `villageLeadership.ts`** — extended merit election (do not duplicate).
+
+| Step | Status |
+|------|--------|
+| 0. One year before — notify + buildup gossip (`tickElectionBuildup`, `tickElectionGossip`) | ✅ |
+| 1. Election year — hints/panel + ramped gossip | ✅ |
+| 2. Gather at Town Hall (else map center) | ✅ |
+| 3. Gossip phase (~1 game day) | ✅ |
+| 4. Tension phase | ✅ |
+| 5. Reveal — merit election + announcement | ✅ |
+| 6. **3-day** *Election Revelry* festival | ✅ |
+| Sitting head always in race (`getElectionRaceCandidates`) | ✅ |
+| Incumbent record score — economy, scandals, village health; +8 positive cap | ✅ |
+| Live playtest at Year 10/20 | ⏳ |
+
+**Rules:** founding **first male** until Year 10; decennial merit elections; vacancy → election in **2 years** (no instant succession). Challengers can still win on personal merit.
 
 ---
 
@@ -157,10 +179,11 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`.
 
 | Feature | What works today | What's missing | Target |
 |---------|------------------|----------------|--------|
-| **Perf at 500+ entities** | v0.4.2 throttles + maps + compaction ✅ | Finish partial: renderer `byType`, benchmark gate; then grid + Worker | **FINISH** v0.5.0 P0 |
-| **UI at 150+ pop** | Partial memo | Tab split + denorm counts | **FINISH** v0.5.0 P0 |
+| **Perf at ~1250 entities** | v0.4.2 throttles + maps + compaction ✅ — **200+ player humans plays well today** | Dual-layer spatial grid (grass + mobile), renderer `byType`, benchmark @ **300 player + neighbors** | **FINISH** v0.5.0 P0 |
+| **UI at 300 pop** | Partial memo | Tab split + denorm counts | **FINISH** v0.5.0 P0 |
 | **Frontier counter-raid visuals** | `flashMilitia` + float text | March line to rival camp | **FINISH** v0.5.0 P1 |
 | **Reputation arc** | ⭐ + Village explainer | Milestone beats UI | **FINISH** v0.5.0 P1 |
+| **Election day ceremony** | Full arc ✅ — buildup, ceremony, incumbent record, always-in-race | Live playtest Year 10/20 | **DONE** (playtest ⏳) |
 
 ---
 
@@ -172,7 +195,7 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`.
 - [ ] **Logic + sim battery green** — `simulate`, `simulate:30min` (all profiles), `simulate:10year` (regression), `balance:militia` pass; invariants documented
 - [ ] Benchmark gate passes **village** and **town** profiles
 - [ ] Manual: large map, 60+ humans, 30 min at 5× — no sustained frame drops
-- [ ] Manual: all 6 sidebar tabs @ 150 humans — no &gt; 100 ms blocking feel
+- [ ] Manual: all 6 sidebar tabs @ **300 player humans + active rivals/visitors** (~1250 alive) — no &gt; 100 ms blocking feel
 - [ ] Save migration `0.4.2` → `0.5.0` tested
 - [ ] CHANGELOG + [TECHNICAL.md](TECHNICAL.md#dev-log) + `roadmapContent.ts` (`ROADMAP_TARGET_VERSION = '0.5.0'`)
 - [ ] Git tag `v0.5.0`
@@ -196,7 +219,7 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`.
 1. [ ] **Renderer cache** — pass sim `byType` into render snapshot; stop `updateCachedEntities` full scan
 2. [ ] **`buildingById` go-home** — replace `updatedBuildings.find` in `lifeSimulation.ts` commute paths
 3. [ ] **Grass buckets** — spatial buckets in `drawGrass` (viewport cull exists)
-4. [ ] **Benchmark gate** — `simulate-30min.ts`: `SIM_PROFILE` village/town/city (50/100/200 humans) + p95 exit non-zero
+4. [ ] **Benchmark gate** — `simulate-30min.ts`: `SIM_PROFILE` village/town/city (50/100/**300** humans) + p95 exit non-zero
 5. [ ] **`simulate:20year` full run** — unset `SIM_MAX_TICKS`; 172800 ticks PASS → `scripts/logs/sim-20year-town-*.txt`
 6. [ ] **Sim regression** — add exit codes to `simulate-30min`; document battery in TECHNICAL.md
 7. [ ] **App tab split** — extend existing `memo` panels; extract Village / Nature / Progress from `App.tsx`

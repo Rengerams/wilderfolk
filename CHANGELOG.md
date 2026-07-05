@@ -14,7 +14,15 @@
 - **Simulation battery** — `simulate`, `simulate:30min` (all profiles), `simulate:20year`, `simulate:10year` (regression), `balance:militia`; exit codes on fail
 - `GAME_VERSION` **0.5.0** + save migration
 
+### Added (v0.5.0 P1 — election system)
+- **Election day ceremony** (`villageLeadership.ts`) — founding **first male** leads until Year 10; merit elections every 10 years; leader death → election **2 years later** (no instant succession); ceremony phases gather → gossip → tension → reveal + 3-day *Election Revelry* festival
+- **Election buildup** — year-before notification (`tickElectionBuildup`); ongoing settler gossip during buildup, election year, and ceremony (`tickElectionGossip`)
+- **Incumbent always runs** — `getElectionRaceCandidates()` keeps sitting head in race lineup, gossip, and Leadership standings even when merit rank drops below top 4
+- **Incumbent record score** — modest election bonus/penalty for sitting head only: economy (+4/−5), clean record (+3) vs scandals (−5 each), village health (+3/−6); **+8 positive cap** so high-merit challengers can still win; penalties uncapped
+- **Leadership UI** — `VillageLeadershipPanel` shows record breakdown; standings show record modifier; tutorial + focus hints updated
+
 ### Planned (v0.5.0 P1)
+- Election playtest at Year 10/20 in live save
 - Counter-raid militia march visuals, large-map playtests, reputation arc UI
 - Footstep SFX, one visitor quest chain, `npm run benchmark:gate`
 

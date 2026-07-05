@@ -40,7 +40,7 @@ Every **🟡 Partial** item must stay on this list until we pick one:
 | **Rival diplomacy** | Map camp panel, event cards, gift/pact/militia; raids + preview; **peace treaties**; Village/Frontier raid UI; distance-scaled deadline; raid march lines | Real-time map battles; full war/embassy tree | **DEFER** tactical combat | post-0.5.0 |
 | **Weapons / Blacksmith** | Research buffs; **forge queue** (`villageForge`); armament checklist; alerts + Go → Blacksmith; walls/towers/barracks; combat log panel | Militia-on-march map icons | **FINISH** balance pass | v0.4.2 |
 | **Visitor tribes** | 7 kinds, first-week caravan, camp trade, refugee negotiate, **talk to leader** (per-kind rewards) | Deeper per-kind quest chains | **DEFER** depth | post-0.5.0 |
-| **Village leadership** | Founding + decennial merit elections; succession; 👑 UI (Village tab, map, inspector) | Leader perks/decisions beyond ceremonial role | **DEFER** perks | post-0.5.0 |
+| **Village leadership** | Founding + decennial merit elections; election ceremony; incumbent record score; 👑 UI | Deeper government decisions beyond ceremonial head | **DEFER** deep gov | post-0.5.0 |
 | **Roads** | 1.5× walk + 15% adjacency; `road_bonus` rep; **R** rotation for roads/walls/gates | Pathing still snap-based (no road-following AI) | **CUT** pathing; rotation **FINISH** ✅ | v0.4.2 |
 | **Reputation / honor** | ⭐ header badge (click → Trade) + Village tab explainer; roads rep | Reputation arc UI beyond tooltip | **FINISH** arc or defer | v0.4.2 |
 | **Worker commute** | Snap at 7am/7pm if far | No real pathing along roads | **CUT** snap is enough **or FINISH** roads pathing | v0.4.2 |
@@ -181,7 +181,7 @@ Status: ✅ Shipped · 🟡 Partial · ❌ Not started / deferred
 - **Peace treaties** — `signPeaceTreaty()`, `peace_treaty` diplomacy events, `peaceTreatyDays` blocks raids (`groupEvents.ts`, rival inspector)
 - **Visitor leader talk** — per-kind rewards via `talkToVisitorLeader()` in visitor camp panel
 - **Trade Empire + Harmony victories** — active in Goals tab; 5th route Silkmarket (`victory.ts`, `economy.ts`)
-- **Village leadership** — merit elections every 10 years, founding + succession (`villageLeadership.ts`, `VillageLeadershipPanel.tsx`)
+- **Village leadership** — merit elections every 10 years, founding leader, vacancy delay (`villageLeadership.ts`, `VillageLeadershipPanel.tsx`)
 
 ## Shipped in v0.4.2 ✅
 
@@ -267,7 +267,7 @@ Everything below was the **v0.4.2** build target. Most rows are implemented loca
 | Explain weapons (research + Blacksmith, not crafting) | ✅ Done | Shipped v0.4 |
 | **Deeper tribe interaction** — trade UI, refugee negotiate, rival map ping, visitor leader talk | ✅ Done | Per-kind quest depth deferred |
 | **Peace treaties** — player sign + diplomacy events; raids blocked at peace | ✅ Done | Full war/embassy tree deferred |
-| **Village leadership** — merit elections every 10 years | ✅ Done | Leader perks/decisions deferred |
+| **Village leadership** — merit elections, ceremony, incumbent record | ✅ Done | Deep government decisions deferred |
 | **Trade Empire + Harmony victories** — active in Goals tab | ✅ Done | |
 | **Frontier raids MVP** — defend, barricade, pay off, counter-raid | ✅ Done | Raid polish + walls/guards + combat log — see [TECHNICAL.md](TECHNICAL.md#frontier-combat--polish--gaps) |
 | **Guaranteed first-week visitor** | ✅ Done | Days 4–7 after first house |
