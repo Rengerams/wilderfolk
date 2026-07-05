@@ -2,13 +2,13 @@
 
 *Last updated: **July 5, 2026** · playing **v0.4.2***
 
-Shipped work only — newest version first. Detail → [CHANGELOG.md](CHANGELOG.md) · dev checklist → [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)
+Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHANGELOG.md](CHANGELOG.md) · [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)
 
 ---
 
 ## v0.5.0 — Scale + architecture
 
-**Shipped (in code):** 2026-07-05 · **Full tag target:** End July 2026 · `GAME_VERSION` still `0.4.2`
+**Shipped (in code):** 2026-07-05 · **Tag target:** End July 2026 · `GAME_VERSION` still `0.4.2`
 
 | | Feature |
 |:--:|---------|
@@ -17,6 +17,32 @@ Shipped work only — newest version first. Detail → [CHANGELOG.md](CHANGELOG.
 | 🟢 | Incumbent always in race |
 | 🟢 | Incumbent record score — economy, scandals, village health (+8 positive cap) |
 | 🟢 | Leadership panel, focus hints, contextual tutorial synced |
+| 🟢 | Dead-entity compaction — alive-only entities each tick |
+| 🟡 | Renderer cache — wire sim byType into render snapshot |
+| 🟡 | buildingById go-home — drop commute `.find()` |
+| 🟡 | Grass render spatial buckets |
+| 🟡 | Benchmark gate — SIM_PROFILE village/town/city + p95 exit |
+| 🟡 | simulate:20year — full 172800-tick PASS |
+| 🟡 | Sim regression — simulate-30min exit on fail |
+| 🟡 | App tab split + memo @ 300 population |
+| ⬜ | Spatial grid — graze, hunt, flee, wolf-pack queries |
+| ⬜ | Settler count denorm — working/idle on WorldState |
+| ⬜ | Incremental entityById — update on birth/death only |
+| ⬜ | buildingActions scan cleanup |
+| ⬜ | Partner id map for relationship lines |
+| ⬜ | Particle / floating-text pooling |
+| ⬜ | Web Worker gameTick — sim off main thread |
+| ⬜ | OffscreenCanvas layers — terrain vs entities |
+| ⬜ | GAME_VERSION 0.5.0 + save migration |
+| ⬜ | Big bug checkup after perf refactors |
+| ⬜ | Logical invariant checks + full sim battery |
+| ⬜ | Manual playtest matrix — large map, 10× |
+| ⬜ | Outgoing counter-raid march line + militia sprites |
+| ⬜ | Reputation milestone arc UI |
+| ⬜ | One visitor multi-step quest chain (Scholars or Nomads) |
+| ⬜ | Election Year 10/20 live playtest |
+| ⬜ | Footstep / work SFX by surface |
+| ⬜ | npm run benchmark:gate — CI wrapper |
 
 ---
 

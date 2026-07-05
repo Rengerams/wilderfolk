@@ -166,7 +166,7 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`. City profile
 
 ## 🟡 Half-done registry (v0.5.0)
 
-**Dev-only** — not shown in-game or in public [ROADMAP.md](ROADMAP.md).
+Open/partial rows also listed on public [ROADMAP.md](ROADMAP.md) v0.5.0 table.
 
 | Feature | What works today | What's missing | Target |
 |---------|------------------|----------------|--------|

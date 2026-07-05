@@ -1,5 +1,25 @@
 import { GAME_PHASE, GAME_VERSION } from './version';
-import { ROADMAP_NORTH_STAR, ROADMAP_TARGET_VERSION, ROADMAP_VERSIONS } from './roadmapContent';
+import {
+  ROADMAP_NORTH_STAR,
+  ROADMAP_STATUS_META,
+  ROADMAP_TARGET_VERSION,
+  ROADMAP_VERSIONS,
+  type RoadmapFeature,
+} from './roadmapContent';
+
+function FeatureRow({ feature }: { feature: RoadmapFeature }) {
+  const meta = ROADMAP_STATUS_META[feature.status];
+  return (
+    <tr className="border-t border-stone-600/40 first:border-t-0">
+      <td className={`w-6 py-1 pr-1 align-top text-center ${meta.className}`} title={meta.label}>
+        {meta.icon}
+      </td>
+      <td className={`py-1 leading-snug ${feature.status === 'done' ? 'text-stone-300' : 'text-stone-400'}`}>
+        {feature.label}
+      </td>
+    </tr>
+  );
+}
 
 export default function RoadmapPanel() {
   return (
@@ -10,6 +30,9 @@ export default function RoadmapPanel() {
           {GAME_PHASE} · playing v{GAME_VERSION} · next tag v{ROADMAP_TARGET_VERSION}
         </p>
         <p className="mt-2 leading-relaxed text-stone-400">{ROADMAP_NORTH_STAR}</p>
+        <p className="mt-2 text-[9px] text-stone-500">
+          🟢 done · 🟡 in progress · ⬜ open
+        </p>
       </div>
 
       {ROADMAP_VERSIONS.map((v) => (
@@ -17,16 +40,14 @@ export default function RoadmapPanel() {
           <h4 className="text-xs font-bold text-stone-200">
             v{v.version} — {v.theme}
           </h4>
-          <p className="mb-2 text-[9px] text-stone-500">Shipped: {v.shipDate}</p>
+          <p className="mb-2 text-[9px] text-stone-500">
+            Shipped: {v.shipDate}
+            {v.tagTarget ? ` · Tag target: ${v.tagTarget}` : ''}
+          </p>
           <table className="w-full border-collapse text-[10px]">
             <tbody>
               {v.features.map((feature) => (
-                <tr key={feature} className="border-t border-stone-600/40 first:border-t-0">
-                  <td className="w-6 py-1 pr-1 align-top text-center text-emerald-400" title="Done">
-                    🟢
-                  </td>
-                  <td className="py-1 leading-snug text-stone-300">{feature}</td>
-                </tr>
+                <FeatureRow key={feature.label} feature={feature} />
               ))}
             </tbody>
           </table>
