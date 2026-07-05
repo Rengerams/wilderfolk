@@ -32,11 +32,9 @@ export const ROADMAP_VERSIONS: RoadmapVersion[] = [
     shipDate: '2026-07-05 (in code)',
     tagTarget: 'End July 2026',
     features: [
-      DONE('Election ceremony — gather, gossip, tension, reveal, 3-day Election Revelry'),
-      DONE('Election buildup — year-before notify + settler gossip'),
-      DONE('Incumbent always in race'),
-      DONE('Incumbent record score — economy, scandals, village health (+8 positive cap)'),
-      DONE('Leadership panel, focus hints, contextual tutorial synced'),
+      DONE(
+        'Election & leadership — decennial ceremony (year-before buildup → 3-day Revelry), incumbent always in race with record score (+8 cap), panel + hints + tutorial synced',
+      ),
       DONE('Dead-entity compaction — alive-only entities each tick'),
       PARTIAL('Renderer cache — wire sim byType into render snapshot'),
       PARTIAL('buildingById go-home — drop commute .find()'),

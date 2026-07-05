@@ -12,11 +12,7 @@ Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHA
 
 | | Feature |
 |:--:|---------|
-| 🟢 | Election ceremony — gather, gossip, tension, reveal, 3-day Election Revelry |
-| 🟢 | Election buildup — year-before notify + settler gossip |
-| 🟢 | Incumbent always in race |
-| 🟢 | Incumbent record score — economy, scandals, village health (+8 positive cap) |
-| 🟢 | Leadership panel, focus hints, contextual tutorial synced |
+| 🟢 | Election & leadership — decennial ceremony (year-before buildup → 3-day Revelry), incumbent always in race with record score (+8 cap), panel + hints + tutorial synced |
 | 🟢 | Dead-entity compaction — alive-only entities each tick |
 | 🟡 | Renderer cache — wire sim byType into render snapshot |
 | 🟡 | buildingById go-home — drop commute `.find()` |
