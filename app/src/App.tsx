@@ -2508,9 +2508,23 @@ export default function App() {
                 )}
                 <div className="rounded-xl bg-stone-700/50 p-3">
                   <h3 className="mb-2 text-xs font-bold text-stone-300">Victory Paths</h3>
-                  <p className="mb-3 text-[10px] text-stone-400 leading-relaxed">
+                  <p className="mb-2 text-[10px] text-stone-400 leading-relaxed">
                     Pursue any of four victory legacies — eco, city, trade, or harmony with the wild.
                   </p>
+                  <details className="mb-3 rounded-lg border border-stone-600/60 bg-stone-800/40">
+                    <summary className="cursor-pointer px-2 py-1.5 text-[10px] font-semibold text-stone-300 hover:text-stone-200">
+                      How each path works
+                    </summary>
+                    <ul className="space-y-1.5 border-t border-stone-600/40 px-2 py-2 text-[9px] leading-relaxed text-stone-400">
+                      <li><strong className="text-stone-300">🌿 Eco-Utopia</strong> — 250 people and a healthy ecosystem for 20 years.</li>
+                      <li><strong className="text-stone-300">🏰 Great City</strong> — 400 people and 60 finished buildings.</li>
+                      <li><strong className="text-stone-300">💰 Trade Empire</strong> — open all 7 trade routes; merchants <em>walk</em> each route (hub → partner → back). Complete 40 round-trips and earn 50,000 gold from caravan trade. Watch the map **🚚** line and Progress → Trade for status.</li>
+                      <li><strong className="text-stone-300">🐺 Harmony</strong> — 8 <em>wild</em> wolves in the valley (untamed — Taming Post does not count) plus 15 wildkin.</li>
+                      <li className="text-stone-500 pt-1 border-t border-stone-700/50">
+                        <strong className="text-stone-400">Raids & elections</strong> — raid fighters earn Guard XP; the village head gets extra XP and reputation on wins, which feeds merit elections (all skills ×2) and the incumbent record score.
+                      </li>
+                    </ul>
+                  </details>
                   <div className="space-y-2">
                     {world.victories.filter((v) => ACTIVE_VICTORY_PATHS.includes(v.path as typeof ACTIVE_VICTORY_PATHS[number])).map(v => (
                       <div key={v.path} className={`rounded-lg border p-2 ${
@@ -2651,7 +2665,7 @@ export default function App() {
                   <div className="space-y-1.5 text-stone-400">
                     <p>This is a <strong className="text-stone-200">sandbox frontier sim</strong>, not a campaign with one quest giver. Purpose comes from layers you choose:</p>
                     <p>• <strong className="text-stone-200">Challenges</strong> (Progress → Goals) — stepped goals with resource rewards.</p>
-                    <p>• <strong className="text-stone-200">Victory paths</strong> (Progress → Goals) — Eco-Utopia, Great City, Trade Empire, or Harmony with the wild.</p>
+                    <p>• <strong className="text-stone-200">Victory paths</strong> (Progress → Goals) — Eco 250, Great City 400/60, Trade Empire (7 walking caravan routes, 40 trips, 50k gold), Harmony (8 wild wolves + 15 wildkin). Raid Guard XP feeds elections.</p>
                     <p>• <strong className="text-stone-200">Living drama</strong> — marriages, scandals, babies, moon howlers (Log / .txt chronicle).</p>
                     <p>• <strong className="text-stone-200">The wider world</strong> — pilgrims, performers, rival camps appear as you grow.</p>
                     <p>• <strong className="text-stone-200">Trade &amp; reputation</strong> — become a known township, link routes, unlock gold.</p>

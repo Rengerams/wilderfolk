@@ -243,7 +243,7 @@ export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutori
     id: 'victory_progress',
     icon: '🏆',
     title: 'Victory path advancing',
-    detail: 'You are making progress on a legacy win condition. Progress → Goals lists Eco-Utopia, Great City, Trade Empire, and Harmony paths.',
+    detail: 'Progress → Goals lists four legacies: Eco-Utopia (250 + eco), Great City (400 + 60 buildings), Trade Empire (7 walking caravan routes, 40 trips, 50k trade gold), Harmony (8 wild wolves + 15 wildkin). Expand “How each path works” for detail.',
     action: { label: 'Victory paths', id: 'open_goals' },
   },
 };

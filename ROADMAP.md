@@ -17,7 +17,10 @@ Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHA
 | 🟢 | Dead-entity compaction — alive-only entities each tick |
 | 🟢 | Spatial grid — dual-layer grass + mobile cells; graze/hunt/flee wired (`spatialGrid.ts`, on by default) |
 | 🟢 | Web Worker gameTick — opt-in (`VITE_USE_GAME_WORKER=1`); render SoA + proto handshake |
-| 🟢 | Big bug checkup — **242** tracker items closed; Vitest **346** (64 files); lint **0**; build clean |
+| 🟢 | Big bug checkup — **242** tracker items closed; Vitest **346** (66 files); lint **0**; build clean |
+| 🟢 | **Raid Guard XP → elections** — fighters earn Guard skill XP; leader +0.45 XP + rep on wins; merit = all skills ×2; incumbent record from rep (+8 cap) |
+| 🟢 | **Victory goals retuned** — Eco-Utopia **250** + 20yr eco; Great City **400** + **60** buildings; Trade Empire **7** routes + **40** caravan trips + **50k** trade gold; Harmony **8 wild** wolves + **15** wildkin (untamed only) |
+| 🟢 | **Walking trade caravans** — merchants walk hub → partner → back; goods on arrival; map **🚚** lines; 7 routes (`tradeCaravans.ts`) |
 | 🟢 | Dialogue-tree settler chat — `sim_dialogue_trees.json` (95 trees); legacy `wf_*` migration; election/marriage chat tests |
 | 🟢 | Build catalog sidebar — `BuildCatalogPanel` (replaces hotbar) |
 | 🟢 | Renderer cache — `world.entityByType` → `RenderSnapshot` → `updateCachedEntities`; viewport grass culling |
@@ -42,6 +45,19 @@ Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHA
 | ⬜ | Election Year 10/20 live playtest |
 | ⬜ | Footstep / work SFX by surface |
 | ⬜ | npm run benchmark:gate — CI wrapper |
+
+### July 8, 2026 — Victory, trade & raid rewards (in code)
+
+| Area | What shipped |
+|------|----------------|
+| **Raid XP** | `rewardRaidParticipants()` — Guard XP 0.3–1.1 by outcome; leader bonus; rep feeds `getIncumbentRecordAssessment()` at elections |
+| **Eco-Utopia** | 250 humans + ecosystem ≥80% for 20 years |
+| **Great City** | 400 humans + 60 completed player buildings |
+| **Trade Empire** | All 7 routes active; 40 merchant round-trips; 50,000 gold from caravan trade (`goldFromTradeRoutes`) |
+| **Harmony** | 8 **untamed** wolves (`tamedBy == null`) + 15 wildkin — taming via Taming Post does **not** count |
+| **Caravans** | `establishTradeRoute` → walking merchant; export at partner, import at village; Progress → Trade shows leg status |
+
+Detail → [CHANGELOG.md](CHANGELOG.md) `[Unreleased]` · [TECHNICAL.md](TECHNICAL.md) (Victory paths + Trade caravans)
 
 ---
 
