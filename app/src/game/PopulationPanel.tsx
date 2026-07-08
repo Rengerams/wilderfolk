@@ -4,7 +4,7 @@ import { EntityType, BUILDING_CONFIGS } from './gameTypes';
 import { isPlayerHuman } from './groupEvents';
 import { buildFamilyGroups, hasWorkAssignment, isImprisoned } from './dayCycle';
 import { isVillageLeader } from './villageLeadership';
-import { getOpenBeds, getPopulationGrowthReport, getTotalBeds } from './populationGrowth';
+import { getLivePlayerPopulation, getOpenBeds, getPopulationGrowthReport, getTotalBeds } from './populationGrowth';
 import { formatCitizenId, formatCitizenName, matchesCitizenSearch } from './citizenId';
 import { formatEducationLabel } from './education';
 
@@ -108,6 +108,7 @@ export default function PopulationPanel({
     );
   }, [familyGroups, search]);
 
+  const livePopulation = getLivePlayerPopulation(state);
   const growth = getPopulationGrowthReport(state);
   const growthToneClass = growth.tone === 'blocked'
     ? 'border-rose-500/30 bg-rose-950/30 text-rose-200'
@@ -131,7 +132,7 @@ export default function PopulationPanel({
         </div>
         <div className="text-right">
           <p className="text-2xl font-black leading-none text-emerald-300">
-            {playerHumans.length}
+            {livePopulation}
             <span className="text-sm font-bold text-stone-500"> / {capacity}</span>
           </p>
         </div>

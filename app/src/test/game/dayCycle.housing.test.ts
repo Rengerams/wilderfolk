@@ -143,6 +143,29 @@ describe('syncPartnerResidence', () => {
     expect(countResidentsInBuilding(state.entities, 0)).toBe(1);
     expect(countResidentsInBuilding(state.entities, 1)).toBe(2);
   });
+
+  it('keeps existing homes when no shared residence is available', () => {
+    const state = initGame();
+    state.entities = [];
+    state.buildings = [];
+    makeCompletedHouse(state, 0, 100);
+
+    const a = createEntity(EntityType.Human, 100, 100, 1, 250);
+    const b = createEntity(EntityType.Human, 110, 100, 2, 250);
+    setHumanBirthFromAge(a, HUMAN_ADULT_MIN_AGE + 4, 0);
+    setHumanBirthFromAge(b, HUMAN_ADULT_MIN_AGE + 6, 0);
+    a.partnerId = 2;
+    b.partnerId = 1;
+    a.residenceBuildingId = 0;
+    b.residenceBuildingId = 0;
+    state.entities.push(a, b);
+
+    const residences = state.buildings.filter(isResidenceBuilding);
+    syncPartnerResidence(a, b, residences, state.entities);
+
+    expect(a.residenceBuildingId).toBe(0);
+    expect(b.residenceBuildingId).toBe(0);
+  });
 });
 
 describe('minor and orphan placement', () => {

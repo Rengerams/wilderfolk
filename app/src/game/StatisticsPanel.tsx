@@ -19,10 +19,26 @@ function MiniBar({ value, max, color, label }: { value: number; max: number; col
   );
 }
 
+function arrayMax(values: number[], floor = 1): number {
+  let max = floor;
+  for (const value of values) {
+    if (value > max) max = value;
+  }
+  return max;
+}
+
+function arrayMin(values: number[], ceiling = 0): number {
+  let min = ceiling;
+  for (const value of values) {
+    if (value < min) min = value;
+  }
+  return min;
+}
+
 function MiniLineChart({ data, color, height = 40 }: { data: number[]; color: string; height?: number }) {
   if (data.length < 2) return <div className="text-[9px] text-stone-500">Not enough data</div>;
-  const max = Math.max(...data, 1);
-  const min = Math.min(...data, 0);
+  const max = arrayMax(data, 1);
+  const min = arrayMin(data, 0);
   const range = max - min || 1;
   const step = 100 / (data.length - 1);
 
@@ -67,7 +83,7 @@ export default function StatisticsPanel({ state }: Props) {
   const ecoHistory = stats.map(s => s.ecosystem.health);
   const pollutionHistory = stats.map(s => s.ecosystem.pollution);
 
-  const maxPop = Math.max(...humanHistory, 1);
+  const maxPop = arrayMax(humanHistory, 1);
 
   return (
     <div className="space-y-3 text-[10px] text-stone-300">
@@ -78,9 +94,9 @@ export default function StatisticsPanel({ state }: Props) {
           <MiniBar value={latest.population.humans} max={maxPop} color="#fbbf24" label="👤 Humans" />
           <MiniBar value={latest.population.rabbits} max={maxPop * 2} color="#c4875a" label="🐰 Rabbits" />
           <MiniBar value={latest.population.deer} max={maxPop * 2} color="#926418" label="🦌 Deer" />
-          <MiniBar value={latest.population.wolves} max={Math.max(...stats.map(s => s.population.wolves), 5)} color="#6b7280" label="🐺 Wolves" />
-          <MiniBar value={latest.population.foxes} max={Math.max(...stats.map(s => s.population.foxes), 5)} color="#ea580c" label="🦊 Foxes" />
-          <MiniBar value={latest.population.trees} max={Math.max(...stats.map(s => s.population.trees), 50)} color="#22c55e" label="🌲 Trees" />
+          <MiniBar value={latest.population.wolves} max={arrayMax(stats.map(s => s.population.wolves), 5)} color="#6b7280" label="🐺 Wolves" />
+          <MiniBar value={latest.population.foxes} max={arrayMax(stats.map(s => s.population.foxes), 5)} color="#ea580c" label="🦊 Foxes" />
+          <MiniBar value={latest.population.trees} max={arrayMax(stats.map(s => s.population.trees), 50)} color="#22c55e" label="🌲 Trees" />
         </div>
       </div>
 
@@ -88,7 +104,7 @@ export default function StatisticsPanel({ state }: Props) {
       <div className="rounded-xl bg-stone-700/50 p-3">
         <div className="mb-1.5 flex items-center justify-between">
           <h3 className="text-xs font-bold text-amber-300">👤 Human Population</h3>
-          <span className="text-[9px] font-mono text-stone-500">Peak: {Math.max(...humanHistory).toLocaleString()}</span>
+          <span className="text-[9px] font-mono text-stone-500">Peak: {arrayMax(humanHistory, 0).toLocaleString()}</span>
         </div>
         <MiniLineChart data={humanHistory} color="#fbbf24" />
         <div className="mt-1 flex justify-between text-[9px] tabular-nums text-stone-500">

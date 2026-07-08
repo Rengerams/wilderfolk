@@ -1,5 +1,7 @@
 
 
+import { readUtf8RelativeToModule } from './nodeRuntime';
+
 export type DialogueCategory =
   | 'work'
   | 'needs'
@@ -30,28 +32,12 @@ let bank: DialogueBankFile | null = null;
 let treesByCategory = new Map<DialogueCategory, DialogueTree[]>();
 let loadPromise: Promise<void> | null = null;
 
-function isNodeRuntime(): boolean {
-  const proc = (globalThis as { process?: { versions?: { node?: string } } }).process;
-  return typeof proc?.versions?.node === 'string';
-}
-
 /** Headless sims/tests (tsx/node) cannot rely on Vite async JSON chunks. */
 async function loadDialogueFromDisk(): Promise<boolean> {
-  if (!isNodeRuntime()) return false;
-  try {
-    const fsSpec = 'node:fs';
-    const pathSpec = 'node:path';
-    const urlSpec = 'node:url';
-    const { readFileSync } = await import(fsSpec);
-    const { dirname, join } = await import(pathSpec);
-    const { fileURLToPath } = await import(urlSpec);
-    const here = dirname(fileURLToPath(import.meta.url));
-    const raw = readFileSync(join(here, 'data', 'sim_dialogue_trees.json'), 'utf8');
-    indexDialogueBank(JSON.parse(raw) as DialogueBankFile);
-    return bank !== null;
-  } catch {
-    return false;
-  }
+  const raw = await readUtf8RelativeToModule(import.meta.url, 'data', 'sim_dialogue_trees.json');
+  if (!raw) return false;
+  indexDialogueBank(JSON.parse(raw) as DialogueBankFile);
+  return bank !== null;
 }
 
 function indexDialogueBank(next: DialogueBankFile): void {
@@ -76,9 +62,14 @@ export async function preloadDialogueBank(): Promise<void> {
     await loadPromise;
     return;
   }
-  loadPromise = import('./data/sim_dialogue_trees.json').then((mod) => {
-    indexDialogueBank(mod.default as unknown as DialogueBankFile);
-  });
+  loadPromise = import('./data/sim_dialogue_trees.json')
+    .then((mod) => {
+      indexDialogueBank(mod.default as unknown as DialogueBankFile);
+    })
+    .catch((err) => {
+      loadPromise = null;
+      throw err;
+    });
   await loadPromise;
 }
 

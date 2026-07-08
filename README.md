@@ -49,10 +49,10 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | **Raids** | Prepare, raid/counter-raid, rival tribute offers; fighters earn **Guard XP** (0.4–1.1 by outcome); village head 👑 +0.45 XP + rep on wins → **merit elections** (skills ×2 for all candidates; rep feeds incumbent record only); pay-off = no XP; **no battle screen** |
 | **Craft** | Blacksmith forge queue for iron spears & shields (research + staffed smith) |
 | **Social** | Settlers chat in **3-line dialogue trees** (work, home, courtship, fear, festivals); election gossip + marriage `Yes!` scripted moments |
-| **Scale (pre-tag)** | Dual-layer **spatial grid**; optional **Web Worker** sim; **OffscreenCanvas** terrain/entity layers |
+| **Scale (pre-tag)** | Dual-layer **spatial grid** (grass 56px / mobile 80px); optional **Web Worker** sim; **OffscreenCanvas** terrain/entity layers — [TECHNICAL.md](TECHNICAL.md#dual-layer-spatial-grid) |
 | **Polish** | **R** to rotate roads/walls/gates; night glow, confetti, camera nudge (toggle in ☰) |
 | **Balance** | 10-year town PASS (9/9 gates) · [10-user beta](TECHNICAL.md#playtest-report) |
-| **Quality** | **358** Vitest tests (67 files) · `npm run lint` **0 errors** · `npm run build` clean · `npm run test:all` includes typecheck |
+| **Quality** | **390** Vitest tests (71 files) · `npm run lint` **0 errors** · `npm run build` clean · `npm run test:all` includes typecheck |
 | **Fixes** | ~40 (July 4) + **252** tracker items (July 7–8, Batch O) |
 
 ### What's next — v0.5.0 (end July 2026)

@@ -102,14 +102,22 @@ export class ScentGrid implements ScentGridRuntime {
     this.values[idx] = Math.min(255, this.values[idx] + amount);
   }
 
-  /** Stain cells where predators stood this tick. */
+  /** Stain cells where mobile predators stood this tick (wolf / fox / active werewolf only). */
   depositPredatorScent(entities: Iterable<Entity>): void {
     for (const entity of entities) {
       if (!entity.alive) continue;
+      const type = entity.type;
+      if (
+        type !== EntityType.Wolf
+        && type !== EntityType.Fox
+        && type !== EntityType.Werewolf
+      ) {
+        continue;
+      }
       let amount = 0;
-      if (entity.type === EntityType.Wolf) amount = WOLF_SCENT_DEPOSIT;
-      else if (entity.type === EntityType.Fox) amount = FOX_SCENT_DEPOSIT;
-      else if (entity.type === EntityType.Werewolf && isActiveMoonHowler(entity)) amount = WEREWOLF_SCENT_DEPOSIT;
+      if (type === EntityType.Wolf) amount = WOLF_SCENT_DEPOSIT;
+      else if (type === EntityType.Fox) amount = FOX_SCENT_DEPOSIT;
+      else if (isActiveMoonHowler(entity)) amount = WEREWOLF_SCENT_DEPOSIT;
       else continue;
       this.deposit(entity.x, entity.y, amount);
     }

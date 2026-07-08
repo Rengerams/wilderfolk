@@ -33,3 +33,13 @@ export function withRandomSequence<T>(rolls: number[], fn: () => T): T {
     spy.mockRestore();
   }
 }
+
+/** Single roll repeated for every Math.random() call — safe for long gameTick soaks. */
+export function withRepeatingRandom<T>(roll: number, fn: () => T): T {
+  const spy = vi.spyOn(Math, 'random').mockImplementation(() => roll);
+  try {
+    return fn();
+  } finally {
+    spy.mockRestore();
+  }
+}

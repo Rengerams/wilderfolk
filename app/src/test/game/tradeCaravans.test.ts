@@ -44,6 +44,7 @@ describe('trade caravans', () => {
 
     tryAdvanceCaravanLeg(state, carrier);
 
+    expect(state.entities.some((e) => e.id === carrier.id)).toBe(false);
     expect(route.caravanCarrierId).toBeUndefined();
     expect(route.caravansCompleted).toBe(1);
     expect(state.lifetimeStats.tradeCaravansCompleted).toBe(1);

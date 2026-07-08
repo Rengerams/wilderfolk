@@ -442,8 +442,9 @@ export function detectContextualTutorials(
 }
 
 export function markTutorialsSeen(state: WorldState, ids: ContextualTutorialId[]): WorldState {
-  const next = structuredClone(state) as WorldState;
-  const merged = new Set([...(next.tutorialSeen ?? []), ...ids]);
-  next.tutorialSeen = [...merged];
-  return next;
+  const merged = new Set([...(state.tutorialSeen ?? []), ...ids]);
+  return {
+    ...state,
+    tutorialSeen: [...merged],
+  };
 }

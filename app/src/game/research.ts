@@ -122,7 +122,7 @@ export function updateResearch(state: WorldState) {
     state.entities.filter((e) => e.alive && isPlayerHuman(e)),
   );
   const speedMult = getMultiplier(state, 'research_speed') * educatedMult;
-  state.researchProgress += speedMult;
+  state.researchProgress = Math.min(100, state.researchProgress + speedMult);
 
   if (state.researchProgress >= 100) {
     node.researched = true;

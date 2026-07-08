@@ -11,6 +11,8 @@ import {
   hasAffairPartner,
   pickAffairExposureReason,
   exposeAffair,
+  affairPairLead,
+  tryExposeCaughtAffairForPair,
   type TickContext,
 } from '@/game/lifeSimulation';
 import { isPlayerHuman } from '@/game/groupEvents';
@@ -166,6 +168,42 @@ describe('affair scandal pipeline', () => {
     expect(m.prisonBuildingId).toBeDefined();
     expect(f.prisonBuildingId).toBeUndefined();
     expect(state.eventLog.filter((e) => e.message.includes('imprisoned for scandal'))).toHaveLength(1);
+    expect(m.relationshipStatus).toBe('single');
+    expect(spouse.relationshipStatus).toBe('single');
+    expect(state.eventLog.some((e) => e.type === 'marriage' && e.message.includes('divorced'))).toBe(true);
+  });
+
+  it('caught exposeAffair divorces even when prison teleports cheater away from spouse', () => {
+    const state = initGame();
+    state.eventLog = [];
+    const prison = createBuilding(BuildingType.Prison, 900, 900, 90, 0);
+    prison.completed = true;
+    const guard = createEntity(EntityType.Human, 900, 900, 10, 400, false, {
+      gender: 'male', surname: 'Guard', ageYears: 30,
+    });
+    guard.isJuvenile = false;
+    guard.homeBuildingId = prison.id;
+    guard.job = JobType.Guard;
+    prison.occupants = [guard.id];
+    state.buildings.push(prison);
+    state.entities.push(guard);
+    const spouse = createEntity(EntityType.Human, 100, 100, 19, 400, false, { gender: 'female', surname: 'A', ageYears: 30 });
+    const cheater = createEntity(EntityType.Human, 105, 105, 20, 400, false, { gender: 'male', surname: 'A', ageYears: 30 });
+    const paramour = createEntity(EntityType.Human, 110, 110, 21, 400, false, { gender: 'female', surname: 'B', ageYears: 30 });
+    for (const e of [spouse, cheater, paramour]) e.isJuvenile = false;
+    cheater.relationshipStatus = 'married';
+    cheater.partnerId = spouse.id;
+    spouse.relationshipStatus = 'married';
+    spouse.partnerId = cheater.id;
+    paramour.relationshipStatus = 'single';
+    const humans = [...state.entities.filter(isPlayerHuman), spouse, cheater, paramour];
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    exposeAffair(state, cheater, paramour, 'caught', entityMap(humans), state.buildings, humans);
+    expect(cheater.prisonBuildingId).toBe(prison.id);
+    expect(Math.hypot(cheater.x - spouse.x, cheater.y - spouse.y)).toBeGreaterThan(100);
+    expect(cheater.relationshipStatus).toBe('single');
+    expect(spouse.relationshipStatus).toBe('single');
+    expect(state.eventLog.some((e) => e.type === 'marriage' && e.message.includes('divorced'))).toBe(true);
   });
 
   it('caught exposeAffair can imprison both lovers when both are married', () => {
@@ -235,6 +273,73 @@ describe('affair scandal pipeline', () => {
     expect(state.eventLog.some((e) => e.message.includes('imprisoned for scandal'))).toBe(true);
   });
 
+  it('affairPairLead always routes exposure through the lower entity id', () => {
+    const lead = createEntity(EntityType.Human, 0, 0, 10, 400, false, { gender: 'male', ageYears: 30 });
+    const higher = createEntity(EntityType.Human, 5, 0, 20, 400, false, { gender: 'female', ageYears: 30 });
+    expect(affairPairLead(higher, lead)).toEqual({ lead, other: higher });
+    expect(affairPairLead(lead, higher)).toEqual({ lead, other: higher });
+  });
+
+  it('higher-ID partner can trigger caught exposure via pair delegate (T-M41)', () => {
+    const state = initGame();
+    state.eventLog = [];
+    staffedPrisonSetup(state);
+    const church = createBuilding(BuildingType.Church, 80, 80, 80, 0);
+    church.completed = true;
+    state.buildings.push(church);
+
+    const lead = createEntity(EntityType.Human, 105, 105, 10, 400, false, { gender: 'male', surname: 'A', ageYears: 30 });
+    const higher = createEntity(EntityType.Human, 108, 108, 20, 400, false, { gender: 'female', surname: 'B', ageYears: 30 });
+    const spouse = createEntity(EntityType.Human, 106, 106, 19, 400, false, { gender: 'female', surname: 'A', ageYears: 30 });
+    for (const e of [lead, higher, spouse]) e.isJuvenile = false;
+    lead.relationshipStatus = 'married';
+    lead.partnerId = spouse.id;
+    spouse.relationshipStatus = 'married';
+    spouse.partnerId = lead.id;
+    higher.relationshipStatus = 'single';
+    lead.affairPartnerId = higher.id;
+    higher.affairPartnerId = lead.id;
+    lead.affairProgress = 100;
+    higher.affairProgress = 100;
+
+    const humans = [...state.entities.filter(isPlayerHuman), lead, higher, spouse];
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    tryExposeCaughtAffairForPair(
+      state,
+      higher,
+      lead,
+      entityMap(humans),
+      new Map(state.buildings.map((b) => [b.id, b])),
+      state.buildings,
+      humans,
+      1,
+      true,
+      true,
+      12,
+    );
+    expect(state.eventLog.some((e) => e.type === 'scandal')).toBe(true);
+  });
+
+  it('extends scandal prison sentence when already imprisoned for scandal', () => {
+    const state = initGame();
+    staffedPrisonSetup(state);
+    const prison = state.buildings.find((b) => b.type === BuildingType.Prison)!;
+    const offender = createEntity(EntityType.Human, 0, 0, 30, 400, false, { gender: 'male', ageYears: 30 });
+    offender.isJuvenile = false;
+    offender.relationshipStatus = 'married';
+    offender.partnerId = 99;
+    offender.prisonBuildingId = prison.id;
+    offender.prisonSentenceCrime = 'scandal';
+    offender.prisonerUntilTick = 520;
+    const lover = createEntity(EntityType.Human, 10, 0, 31, 400, false, { gender: 'female', ageYears: 30 });
+    lover.isJuvenile = false;
+    const humans = [...state.entities.filter(isPlayerHuman), offender, lover];
+    state.tick = 500;
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    exposeAffair(state, offender, lover, 'caught', entityMap(humans), state.buildings, humans);
+    expect(offender.prisonerUntilTick).toBe(560);
+  });
+
   it('does not extend non-scandal prison sentences on a later caught affair', () => {
     const state = initGame();
     staffedPrisonSetup(state);
@@ -252,6 +357,49 @@ describe('affair scandal pipeline', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     exposeAffair(state, offender, lover, 'caught', entityMap(humans), state.buildings, humans);
     expect(offender.prisonerUntilTick).toBe(1000);
+  });
+
+  it('husband divorces and wife is imprisoned when she is caught cheating', () => {
+    const state = initGame();
+    state.eventLog = [];
+    const prison = createBuilding(BuildingType.Prison, 900, 900, 90, 0);
+    prison.completed = true;
+    const guard = createEntity(EntityType.Human, 900, 900, 10, 400, false, {
+      gender: 'male', surname: 'Guard', ageYears: 30,
+    });
+    guard.isJuvenile = false;
+    guard.homeBuildingId = prison.id;
+    guard.job = JobType.Guard;
+    prison.occupants = [guard.id];
+    state.buildings.push(prison);
+    state.entities.push(guard);
+    const husband = createEntity(EntityType.Human, 100, 100, 40, 400, false, {
+      gender: 'male', surname: 'Husband', ageYears: 34,
+    });
+    const wife = createEntity(EntityType.Human, 105, 105, 41, 400, false, {
+      gender: 'female', surname: 'Husband', ageYears: 32,
+    });
+    wife.maidenSurname = 'Maiden';
+    const paramour = createEntity(EntityType.Human, 110, 110, 42, 400, false, {
+      gender: 'male', surname: 'Other', ageYears: 30,
+    });
+    for (const e of [husband, wife, paramour]) e.isJuvenile = false;
+    wife.relationshipStatus = 'married';
+    husband.relationshipStatus = 'married';
+    wife.partnerId = husband.id;
+    husband.partnerId = wife.id;
+    const humans = [...state.entities.filter(isPlayerHuman), husband, wife, paramour];
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    exposeAffair(state, wife, paramour, 'caught', entityMap(humans), state.buildings, humans);
+    expect(wife.prisonBuildingId).toBe(prison.id);
+    expect(husband.prisonBuildingId).toBeUndefined();
+    expect(wife.surname).toBe('Maiden');
+    expect(husband.surname).toBe('Husband');
+    expect(husband.relationshipStatus).toBe('single');
+    expect(wife.relationshipStatus).toBe('single');
+    const divorceLine = state.eventLog.find((e) => e.type === 'marriage' && e.message.includes('divorced'));
+    expect(divorceLine?.message).toContain('Husband divorced');
+    expect(divorceLine?.message).toContain('Maiden');
   });
 
   it('restores maiden surname when the wife is caught cheating', () => {

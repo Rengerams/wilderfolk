@@ -934,7 +934,7 @@ export function respondToRaidEvent(
 
   const event = state.pendingRaidEvents[idx];
   const rival = state.rivalSettlements.find((r) => r.id === event.rivalId);
-  const allAlive = state.entities;
+  const allAlive = state.entities.filter((e) => e.alive);
   const camp = getPlayerCampCenter(state, state.buildings);
   const defenderStrength = getMilitiaStrength(state, allAlive);
   const remove = () => {

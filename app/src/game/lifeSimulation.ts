@@ -44,6 +44,7 @@ import {
   isNearResidence,
   isResidenceBuilding,
   pickResidenceForHuman,
+  pickResidenceForHumanExcluding,
   syncResidenceOccupants,
   killHuman,
   isKillableSettlerEntity,
@@ -70,7 +71,13 @@ import {
 } from './humanChat';
 import { advanceHumanWalkAnim, pickHumanVariant } from './humanSprites';
 import { appendDeathAge, formatCitizenName, formatDeathLog } from './citizenId';
-import { getRandomName, grantDivorce, resolveChildSurname, syncMarriageSurnames } from './nameLoader';
+import {
+  dissolveMarriage,
+  formatCaughtCheaterDivorceDetail,
+  getRandomName,
+  resolveChildSurname,
+  syncMarriageSurnames,
+} from './nameLoader';
 import { isRenffrGossipActive } from './renffrStar';
 import {
   getHumanHuntRange,
@@ -80,6 +87,7 @@ import {
   rollCounterAttack,
 } from './combat';
 import { isActiveMoonHowler } from './moonHowler';
+import { isEntityOnBuilding } from './buildingRotation';
 import { createEntity } from './worldGen';
 import { logEvent } from './eventLog';
 import {
@@ -94,7 +102,12 @@ import { getPlayerCampCenter, isRaidMarchingForRival } from './frontierCombat';
 import { getCaravanMoveTarget, tryAdvanceCaravanLeg } from './tradeCaravans';
 import { tickFactionCampWander } from './factionWander';
 import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
-import { USE_SPATIAL_GRID, buildRoadAvoidanceIndex, buildTreeGrid, syncSpatialGridEntity } from './spatialGrid';
+import { MOBILE_CELL_SIZE, USE_SPATIAL_GRID, buildRoadAvoidanceIndex, syncSpatialGridEntity } from './spatialGrid';
+import {
+  isSpatialQueryMetricsEnabled,
+  recordSpatialCandidate,
+  withSpatialQuery,
+} from './spatialQueryMetrics';
 import {
   buildGrassPopulationSnapshot,
   buildResidenceOccupantIndex,
@@ -146,7 +159,22 @@ export interface TickContext {
   focus?: SimulationFocus;
   /** Newborn wildlife id → parent id (same-tick population cap excludes self-spawns). */
   wildlifeSpawnParent?: Map<number, number>;
+  hasWell?: boolean;
+  hasHospital?: boolean;
+  grassCap?: number;
 }
+
+/** Spouse proximity that blocks starting or pursuing an affair. */
+const AFFAIR_SPOUSE_BLOCK_RADIUS = 22;
+/** Building / marital-home proximity for affair tryst validation. */
+const AFFAIR_BUILDING_NEAR_RADIUS = 55;
+/** Off-screen daily affair encounter tryst distance. */
+const AFFAIR_DAILY_TRYST_RADIUS = 95;
+/** Live on-screen intimate tryst distance. */
+const AFFAIR_INTIMATE_RADIUS = 22;
+/** Medium map reference area for grass population cap scaling. */
+const GRASS_CAP_REFERENCE_AREA = 1200 * 900;
+const GRASS_CAP_BASE = 500;
 
 const WILDLIFE_TICK_TYPES: EntityType[] = [
   EntityType.Grass,
@@ -220,8 +248,18 @@ function isValidGrassTerrain(state: WorldState, x: number, y: number): boolean {
   return !UNPASSABLE_GRASS_TERRAIN.has(tile.type);
 }
 
-function allLivingHumans(state: WorldState, newEntities: Entity[]): Entity[] {
+/** Living player humans — includes same-tick newborns from newEntities and entityById. */
+export function allLivingHumans(
+  state: WorldState,
+  newEntities: Entity[],
+  entityById?: ReadonlyMap<number, Entity>,
+): Entity[] {
   const byId = new Map<number, Entity>();
+  if (entityById) {
+    for (const e of entityById.values()) {
+      if (e.type === EntityType.Human && e.alive) byId.set(e.id, e);
+    }
+  }
   for (const e of state.entities) {
     if (e.type === EntityType.Human && e.alive) byId.set(e.id, e);
   }
@@ -229,6 +267,36 @@ function allLivingHumans(state: WorldState, newEntities: Entity[]): Entity[] {
     if (e.type === EntityType.Human && e.alive) byId.set(e.id, e);
   }
   return [...byId.values()];
+}
+
+function shouldLeadAffairPair(a: Entity, b: Entity): boolean {
+  return a.id < b.id;
+}
+
+export function affairPairLead(a: Entity, b: Entity): { lead: Entity; other: Entity } {
+  return a.id < b.id ? { lead: a, other: b } : { lead: b, other: a };
+}
+
+function clearHuntersTargetingPrey(
+  preyId: number,
+  entityById: ReadonlyMap<number, Entity>,
+): void {
+  for (const hunter of entityById.values()) {
+    if (hunter.huntTargetId === preyId) hunter.huntTargetId = undefined;
+  }
+}
+
+export function getGrassPopulationCap(mapWidth: number, mapHeight: number): number {
+  const area = mapWidth * mapHeight;
+  return Math.max(200, Math.round(GRASS_CAP_BASE * (area / GRASS_CAP_REFERENCE_AREA)));
+}
+
+function isMealWindow(hourOfDay: number): boolean {
+  return (hourOfDay >= 8 && hourOfDay <= 10) || (hourOfDay >= 18 && hourOfDay <= 20);
+}
+
+function fract(value: number): number {
+  return value - Math.floor(value);
 }
 
 function isWildlifePredator(entity: Entity): boolean {
@@ -265,6 +333,14 @@ function humanDisplayName(entity: Entity): string {
 
 /** Drop one-sided or dead-lover affair links so off-screen throttling can resume. */
 export function reconcileAffairPartner(entity: Entity, entityById: Map<number, Entity>): void {
+  if (!entity.alive) {
+    entity.affairPartnerId = undefined;
+    entity.affairProgress = 0;
+    entity.lastAffairSiteDay = undefined;
+    entity.lastAffairSiteX = undefined;
+    entity.lastAffairSiteY = undefined;
+    return;
+  }
   if (entity.affairPartnerId == null) return;
   const lover = getLivingEntity(entity.affairPartnerId, entityById);
   if (
@@ -318,12 +394,19 @@ export function findAffairLover(
   };
 
   if (mobileGrid) {
-    mobileGrid.forEachInRadius(entity.x, entity.y, 150, (human) => {
-      if (human.type !== EntityType.Human) return;
-      consider(human);
+    withSpatialQuery('social', () => {
+      mobileGrid.forEachInRadius(entity.x, entity.y, 150, (human) => {
+        if (human.type !== EntityType.Human) return;
+        consider(human);
+      });
     });
   } else if (nearbyHumans) {
-    for (const human of nearbyHumans) consider(human);
+    withSpatialQuery('social', () => {
+      for (const human of nearbyHumans) {
+        if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('social');
+        consider(human);
+      }
+    });
   }
   return best;
 }
@@ -413,14 +496,15 @@ function isNearBuilding(human: Entity, building: Building, maxDist = 55): boolea
  * Logical tryst site — not the cheater's marital home (spouse lives there);
  * single paramours host at their own place; two married lovers meet elsewhere.
  */
-function isValidAffairTrystSite(
+export function isValidAffairTrystSite(
   cheater: Entity,
   paramour: Entity,
   entityById: Map<number, Entity>,
   buildingById: Map<number, Building>,
-  intimateDist = 55,
+  intimateDist = AFFAIR_BUILDING_NEAR_RADIUS,
   hourOfDay?: number,
 ): boolean {
+  if (!cheater.alive || !paramour.alive) return false;
   if (isAtMaritalHome(cheater, entityById, buildingById)) return false;
 
   const trystBuilding = getAffairTrystBuilding(cheater, paramour, buildingById);
@@ -431,8 +515,15 @@ function isValidAffairTrystSite(
 
   if (paramour.partnerId != null && isAtMaritalHome(paramour, entityById, buildingById)) {
     if (isSpouseAtSharedHome(paramour, entityById, buildingById, intimateDist)) return false;
-    if (hourOfDay != null && shouldBeAtHome(hourOfDay)) return false;
-    return false;
+    if (hourOfDay != null && shouldBeAtHome(hourOfDay) && isSpouseNearby(paramour, entityById, intimateDist)) {
+      return false;
+    }
+    const residence = paramour.residenceBuildingId != null
+      ? buildingById.get(paramour.residenceBuildingId)
+      : undefined;
+    if (!residence?.completed || !isResidenceBuilding(residence)) return false;
+    return isNearBuilding(cheater, residence, intimateDist)
+      && isNearBuilding(paramour, residence, intimateDist);
   }
   return Math.hypot(paramour.x - cheater.x, paramour.y - cheater.y) < intimateDist;
 }
@@ -469,7 +560,7 @@ function canPursueSecretAffair(
 ): boolean {
   if (onScandalCooldown(entity, tick)) return false;
   // Tight radius — a whole compact village fits inside 52 units, which blocked all affairs.
-  if (isSpouseNearby(entity, entityById, 22)) return false;
+  if (isSpouseNearby(entity, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)) return false;
   if (allowSocialLife(hourOfDay, workplace != null)) return true;
   if (!isWorkHour(hourOfDay) || entity.partnerId == null) return false;
 
@@ -489,7 +580,7 @@ function recordAffairTrystSite(
   state: WorldState,
   buildingById?: Map<number, Building>,
 ): void {
-  if (entity.id >= paramour.id) return;
+  if (!shouldLeadAffairPair(entity, paramour)) return;
   const siteDay = getColonyDay(state);
   const trystBuilding = buildingById
     ? getAffairTrystBuilding(entity, paramour, buildingById)
@@ -527,12 +618,13 @@ function tryDailyAffairEncounter(
 
   if (isAtMaritalHome(entity, entityById, buildingById)) return;
 
-  if (entity.affairPartnerId != null && entity.id < entity.affairPartnerId) {
+  if (entity.affairPartnerId != null) {
     const established = getLivingEntity(entity.affairPartnerId, entityById);
     if (
       established
       && established.affairPartnerId === entity.id
-      && isValidAffairTrystSite(entity, established, entityById, buildingById, 95)
+      && shouldLeadAffairPair(entity, established)
+      && isValidAffairTrystSite(entity, established, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)
     ) {
       recordAffairTrystSite(entity, established, state, buildingById);
     }
@@ -543,7 +635,7 @@ function tryDailyAffairEncounter(
   const considerParamour = (candidate: Entity, distSq: number) => {
     if (!isValidAffairTarget(entity, candidate, state.tick)) return;
     if (distSq >= bestDistSq) return;
-    if (isSpouseNearby(candidate, entityById, 22)) return;
+    if (isSpouseNearby(candidate, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)) return;
     bestDistSq = distSq;
     paramour = candidate;
   };
@@ -558,8 +650,9 @@ function tryDailyAffairEncounter(
     },
     playerHumans,
   );
-  if (!paramour || entity.id >= paramour.id) return;
-  if (!isValidAffairTrystSite(entity, paramour, entityById, buildingById, 95)) return;
+  if (!paramour) return;
+  if (!isValidAffairTrystSite(entity, paramour, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) return;
+  if (!shouldLeadAffairPair(entity, paramour)) return;
 
   const churchPenalty = churchStrength > 0 ? 0.72 + (1 - churchStrength) * 0.28 : 1;
   const hasPerformers = state.visitorGroups.some((g) => g.kind === 'performers' && g.daysLeft > 0);
@@ -567,8 +660,8 @@ function tryDailyAffairEncounter(
   const performerMult = hasPerformers ? 1.35 : 1;
   const trystBuilding = getAffairTrystBuilding(entity, paramour, buildingById);
   const atParamourHome = trystBuilding != null
-    && isNearBuilding(entity, trystBuilding, 55)
-    && isNearBuilding(paramour, trystBuilding, 55);
+    && isNearBuilding(entity, trystBuilding, AFFAIR_BUILDING_NEAR_RADIUS)
+    && isNearBuilding(paramour, trystBuilding, AFFAIR_BUILDING_NEAR_RADIUS);
   const cohabitMult = atParamourHome ? 1.55 : 1;
   const socialMult = festivalMult * performerMult * cohabitMult;
   const dailyChance = (churchStrength > 0 ? 0.14 : 0.2) * churchPenalty * socialMult;
@@ -599,7 +692,7 @@ export function tryDailyAffairGossip(
 ): void {
   const lover = findAffairLover(entity, entityById, state.tick, mobileGrid, playerHumans);
   if (!lover) return;
-  if (entity.id >= lover.id) return;
+  if (!shouldLeadAffairPair(entity, lover)) return;
   if (onScandalCooldown(entity, state.tick) || onScandalCooldown(lover, state.tick)) return;
 
   // Let secret pregnancies play out — gossip after the birth notifications.
@@ -613,7 +706,7 @@ export function tryDailyAffairGossip(
   if (churchStrength <= 0) {
     if ((entity.affairProgress ?? 0) < 85 && (lover.affairProgress ?? 0) < 85) return;
     if (Math.random() < 0.04) {
-      if (isValidAffairTrystSite(entity, lover, entityById, buildingById, 95)) {
+      if (isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) {
         recordAffairTrystSite(entity, lover, state, buildingById);
       }
       const reason = pickAffairExposureReason(state, entity, lover, playerHumans);
@@ -631,7 +724,7 @@ export function tryDailyAffairGossip(
 
   const chance = churchStrength >= 1 ? 0.16 : 0.08;
   if (Math.random() < chance) {
-    if (isValidAffairTrystSite(entity, lover, entityById, buildingById, 95)) {
+    if (isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) {
       recordAffairTrystSite(entity, lover, state, buildingById);
     }
     const reason = pickAffairExposureReason(state, entity, lover, playerHumans);
@@ -721,16 +814,16 @@ export function tryDailyConception(
   if (
     hasAffairPartner(entity, ctx.entityById)
     && entity.energy > config.reproductionEnergyThreshold * 0.65
-    && !isSpouseNearby(entity, ctx.entityById, 22)
+    && !isSpouseNearby(entity, ctx.entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)
   ) {
     const lover = getLivingEntity(entity.affairPartnerId, ctx.entityById);
-    if (!lover || !isPlayerHuman(lover)) return false;
+    if (!lover || !isPlayerHuman(lover) || lover.affairPartnerId !== entity.id) return false;
     const tryst = isValidAffairConceptionSite(
       entity,
       lover,
       ctx.entityById,
       ctx.buildingById,
-      55,
+      AFFAIR_BUILDING_NEAR_RADIUS,
     );
     const fertility = getFemaleFertility(entity.age);
     if (tryst && fertility > 0 && Math.random() < HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE * fertility) {
@@ -764,7 +857,7 @@ export function tryDailyHumanMortality(
   return false;
 }
 
-/** Wife may divorce after catching her husband cheating — not guaranteed. */
+/** Either spouse may divorce after catching the other cheating — chance applies to gossip only. */
 const DIVORCE_ON_CAUGHT_CHANCE = 0.55;
 /** Game-days before the same settler can headline another scandal. */
 const SCANDAL_COOLDOWN_TICKS = TICKS_PER_DAY * 21;
@@ -784,17 +877,18 @@ function tryDivorceOnCaughtCheater(
   entityById: Map<number, Entity>,
   buildings: Building[],
   playerHumans: readonly Entity[],
+  caughtInAct = false,
 ): void {
   if (cheater.relationshipStatus !== 'married' || cheater.partnerId == null) return;
-  if (!isSpouseNearby(cheater, entityById, 40)) return;
+  // arrestForScandal teleports the cheater to prison — spouse is no longer in range.
+  if (!caughtInAct && !isSpouseNearby(cheater, entityById, 40)) return;
 
   const spouse = getLivingEntity(cheater.partnerId, entityById);
   if (!spouse) return;
-  if (Math.random() >= DIVORCE_ON_CAUGHT_CHANCE) return;
+  const divorceChance = caughtInAct ? 1 : DIVORCE_ON_CAUGHT_CHANCE;
+  if (Math.random() >= divorceChance) return;
 
-  const wife = cheater.gender === 'female' ? cheater : spouse;
-  const husband = cheater.gender === 'female' ? spouse : cheater;
-  grantDivorce(wife, husband);
+  dissolveMarriage(spouse, cheater);
 
   const spouseName = humanDisplayName(spouse);
   const cheaterName = humanDisplayName(cheater);
@@ -805,53 +899,86 @@ function tryDivorceOnCaughtCheater(
     `${spouseName} divorced ${cheaterName} after catching them with ${otherName}`,
     spouseName,
   );
-  addNotification(state, 'Divorce', `${spouseName} left ${cheaterName} — maiden name restored`, 'warning');
+  addNotification(state, 'Divorce', formatCaughtCheaterDivorceDetail(spouse, cheater), 'warning');
   addFloatingText(state, (spouse.x + cheater.x) / 2, (spouse.y + cheater.y) / 2 - 22, 'Divorced!', '#f97316');
 
   const residences = buildings.filter(isResidenceBuilding);
-  if (residences.length > 0) {
-    const villagers = playerHumans.filter(isPlayerHuman);
-    for (const resident of [spouse, cheater]) {
-      if (resident.residenceBuildingId != null) {
-        const oldHome = buildings.find((b) => b.id === resident.residenceBuildingId);
-        if (oldHome) {
-          oldHome.occupants = oldHome.occupants.filter((id) => id !== resident.id);
-        }
+  const villagers = playerHumans.filter(isPlayerHuman);
+  const formerSharedHomes = new Set<number>();
+  for (const resident of [spouse, cheater]) {
+    if (resident.residenceBuildingId != null) {
+      formerSharedHomes.add(resident.residenceBuildingId);
+      const oldHome = buildings.find((b) => b.id === resident.residenceBuildingId);
+      if (oldHome) {
+        oldHome.occupants = oldHome.occupants.filter((id) => id !== resident.id);
       }
     }
+  }
+  if (residences.length === 0) {
+    spouse.residenceBuildingId = undefined;
+    if (cheater.prisonBuildingId == null) cheater.residenceBuildingId = undefined;
+  } else {
     spouse.residenceBuildingId = pickResidenceForHuman(spouse, villagers, residences);
-    cheater.residenceBuildingId = pickResidenceForHuman(cheater, villagers, residences);
+    if (cheater.prisonBuildingId == null) {
+      const excludeHomes = new Set(formerSharedHomes);
+      if (spouse.residenceBuildingId != null) excludeHomes.add(spouse.residenceBuildingId);
+      cheater.residenceBuildingId = pickResidenceForHumanExcluding(
+        cheater,
+        villagers,
+        residences,
+        excludeHomes,
+      );
+    } else {
+      cheater.residenceBuildingId = undefined;
+    }
     syncResidenceOccupants(villagers, buildings);
   }
 
-  if (
-    paramour.relationshipStatus === 'married'
-    && paramour.partnerId != null
-    && isSpouseNearby(paramour, entityById, 40)
-  ) {
+  if (paramour.relationshipStatus === 'married' && paramour.partnerId != null) {
     const paramourSpouse = getLivingEntity(paramour.partnerId, entityById);
-    if (paramourSpouse && Math.random() < DIVORCE_ON_CAUGHT_CHANCE) {
-      const pWife = paramour.gender === 'female' ? paramour : paramourSpouse;
-      const pHusband = paramour.gender === 'female' ? paramourSpouse : paramour;
-      grantDivorce(pWife, pHusband);
+    const paramourSpousePresent = caughtInAct || isSpouseNearby(paramour, entityById, 40);
+    const paramourDivorceChance = caughtInAct ? 1 : DIVORCE_ON_CAUGHT_CHANCE;
+    if (paramourSpouse && paramourSpousePresent && Math.random() < paramourDivorceChance) {
+      dissolveMarriage(paramourSpouse, paramour);
       logEvent(
         state,
         'marriage',
         `${humanDisplayName(paramourSpouse)} divorced ${humanDisplayName(paramour)} after catching them with ${humanDisplayName(cheater)}`,
         humanDisplayName(paramourSpouse),
       );
-      if (residences.length > 0) {
-        const villagers = playerHumans.filter(isPlayerHuman);
-        for (const resident of [paramourSpouse, paramour]) {
-          if (resident.residenceBuildingId != null) {
-            const oldHome = buildings.find((b) => b.id === resident.residenceBuildingId);
-            if (oldHome) {
-              oldHome.occupants = oldHome.occupants.filter((id) => id !== resident.id);
-            }
+      addNotification(
+        state,
+        'Divorce',
+        formatCaughtCheaterDivorceDetail(paramourSpouse, paramour),
+        'warning',
+      );
+      const formerParamourHomes = new Set<number>();
+      for (const resident of [paramourSpouse, paramour]) {
+        if (resident.residenceBuildingId != null) {
+          formerParamourHomes.add(resident.residenceBuildingId);
+          const oldHome = buildings.find((b) => b.id === resident.residenceBuildingId);
+          if (oldHome) {
+            oldHome.occupants = oldHome.occupants.filter((id) => id !== resident.id);
           }
         }
+      }
+      if (residences.length === 0) {
+        paramourSpouse.residenceBuildingId = undefined;
+        if (paramour.prisonBuildingId == null) paramour.residenceBuildingId = undefined;
+      } else {
         paramourSpouse.residenceBuildingId = pickResidenceForHuman(paramourSpouse, villagers, residences);
-        paramour.residenceBuildingId = pickResidenceForHuman(paramour, villagers, residences);
+        if (paramour.prisonBuildingId == null) {
+          const excludeHomes = new Set(formerParamourHomes);
+          if (paramourSpouse.residenceBuildingId != null) excludeHomes.add(paramourSpouse.residenceBuildingId);
+          paramour.residenceBuildingId = pickResidenceForHumanExcluding(
+            paramour,
+            villagers,
+            residences,
+            excludeHomes,
+          );
+        } else {
+          paramour.residenceBuildingId = undefined;
+        }
         syncResidenceOccupants(villagers, buildings);
       }
     }
@@ -906,14 +1033,14 @@ function tryExposeCaughtAffair(
   intimate: boolean,
   hourOfDay: number,
 ): void {
-  if (cheater.id >= paramour.id) return;
+  if (!shouldLeadAffairPair(cheater, paramour)) return;
   if (onScandalCooldown(cheater, state.tick) || onScandalCooldown(paramour, state.tick)) return;
 
   if (!intimate) return;
   const walkInAtHome = wouldWalkInOnMaritalAffair(cheater, entityById, buildingById, hourOfDay);
   const spousePresent =
-    isSpouseNearby(cheater, entityById, 22)
-    || isSpouseNearby(paramour, entityById, 22)
+    isSpouseNearby(cheater, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)
+    || isSpouseNearby(paramour, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)
     || walkInAtHome;
   if (!spousePresent) return;
 
@@ -922,6 +1049,36 @@ function tryExposeCaughtAffair(
   if (Math.random() < chance) {
     exposeAffair(state, cheater, paramour, 'caught', entityById, buildings, playerHumans);
   }
+}
+
+/** Run caught-in-the-act roll from either partner's tick — always routes through lower id (T-M41). */
+export function tryExposeCaughtAffairForPair(
+  state: WorldState,
+  a: Entity,
+  b: Entity,
+  entityById: Map<number, Entity>,
+  buildingById: Map<number, Building>,
+  buildings: Building[],
+  playerHumans: readonly Entity[],
+  churchStrength: number,
+  establishedAffair: boolean,
+  intimate: boolean,
+  hourOfDay: number,
+): void {
+  const { lead, other } = affairPairLead(a, b);
+  tryExposeCaughtAffair(
+    state,
+    lead,
+    other,
+    entityById,
+    buildingById,
+    buildings,
+    playerHumans,
+    churchStrength,
+    establishedAffair,
+    intimate,
+    hourOfDay,
+  );
 }
 
 export function exposeAffair(
@@ -962,7 +1119,7 @@ export function exposeAffair(
     // Arrest before divorce — grantDivorce clears relationshipStatus/partnerId.
     arrestForScandal(state, cheater);
     arrestForScandal(state, paramour);
-    tryDivorceOnCaughtCheater(state, cheater, paramour, entityById, buildings, playerHumans);
+    tryDivorceOnCaughtCheater(state, cheater, paramour, entityById, buildings, playerHumans, true);
   }
 }
 
@@ -994,6 +1151,7 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
   const newReleaseTick = state.tick + sentenceTicks;
 
   if (offender.prisonBuildingId != null) {
+    // T-M14: already serving a non-scandal sentence — leave term unchanged (Batch P test).
     if (offender.prisonSentenceCrime === 'scandal') {
       offender.prisonerUntilTick = Math.max(offender.prisonerUntilTick ?? 0, newReleaseTick);
     }
@@ -1157,6 +1315,7 @@ function findCourtshipPartner(
     courtRange,
     (candidate) => isCourtshipCandidate(entity, candidate),
     fallbackHumans,
+    'social',
   );
   if (nearby) {
     const dx = nearby.x - entity.x;
@@ -1187,13 +1346,21 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   };
   const residenceOccupants = ctx.residenceOccupants ?? buildResidenceOccupantIndex(playerHumans);
   ctx.residenceOccupants = residenceOccupants;
-  const roadAvoidance = ctx.roadAvoidance ?? buildRoadAvoidanceIndex(width, height, roadBuildings);
-  ctx.roadAvoidance = roadAvoidance;
-  ctx.treeGrid = buildTreeGrid(width, height, byType[EntityType.Tree]) ?? ctx.treeGrid;
+  if (!ctx.roadAvoidance) {
+    ctx.roadAvoidance = buildRoadAvoidanceIndex(width, height, roadBuildings);
+  }
+  const roadAvoidance = ctx.roadAvoidance;
   const churchStrength = getChurchStrength(updatedBuildings, playerHumans);
-  const hasWell = updatedBuildings.some(b => b.type === BuildingType.Well && b.completed);
-  const hasHospital = updatedBuildings.some(b => b.type === BuildingType.Hospital && b.completed);
-  const socialScanRadius = Math.hypot(width, height);
+  if (ctx.hasWell === undefined) {
+    ctx.hasWell = updatedBuildings.some((b) => b.type === BuildingType.Well && b.completed);
+  }
+  if (ctx.hasHospital === undefined) {
+    ctx.hasHospital = updatedBuildings.some((b) => b.type === BuildingType.Hospital && b.completed);
+  }
+  const hasWell = ctx.hasWell;
+  const hasHospital = ctx.hasHospital;
+  // Local neighborhood only — full map diagonal scanned every idle human per tick (perf cliff @ 100+ pop).
+  const socialScanRadius = MOBILE_CELL_SIZE * 4;
   const chatHints = chatHintsFromWorld({
     season,
     weather: state.weather,
@@ -1324,8 +1491,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (hasHospital) minimalEnergyLoss *= 0.9;
       if (isWinter && !canHeat) minimalEnergyLoss *= 1.5;
       entity.energy -= minimalEnergyLoss;
-      const mealHour = hourOfDay === 8 || hourOfDay === 18;
-      if (mealHour && state.resources.food >= 1 && entity.energy < entity.maxEnergy * 0.9) {
+      if (isMealWindow(hourOfDay) && state.resources.food >= 1 && entity.energy < entity.maxEnergy * 0.9) {
         state.resources.food -= 1;
         entity.energy = Math.min(entity.maxEnergy, entity.energy + 65);
       }
@@ -1423,9 +1589,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     let ateFromFarm = false;
 
-    // Meals twice per day (8am & 6pm) — 1 food restores ~65 energy
-    const mealHour = hourOfDay === 8 || hourOfDay === 18;
-    if (mealHour && state.resources.food >= 1 && entity.energy < entity.maxEnergy * 0.9) {
+    // Meals twice per day (8–10am & 6–8pm) — 1 food restores ~65 energy
+    if (isMealWindow(hourOfDay) && state.resources.food >= 1 && entity.energy < entity.maxEnergy * 0.9) {
       state.resources.food -= 1;
       entity.energy = Math.min(entity.maxEnergy, entity.energy + 65);
       ateFromFarm = true;
@@ -1453,17 +1618,22 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Flee from dangerous Moon Howlers on full-moon nights
     let huntingWere: Entity | undefined;
     if (USE_SPATIAL_GRID && mobileGrid) {
-      const hit = mobileGrid.findClosestInRadius(
-        entity.x,
-        entity.y,
-        110,
-        (w) => w.type === EntityType.Werewolf && w.alive && isActiveMoonHowler(w),
-      );
+      const hit = withSpatialQuery('human_hunt', () =>
+        mobileGrid.findClosestInRadius(
+          entity.x,
+          entity.y,
+          110,
+          (w) => w.type === EntityType.Werewolf && w.alive && isActiveMoonHowler(w),
+        ));
       huntingWere = hit?.entity;
     } else {
-      huntingWere = byType[EntityType.Werewolf].find(
-        (w) => isActiveMoonHowler(w) && Math.hypot(w.x - entity.x, w.y - entity.y) < 110,
-      );
+      huntingWere = withSpatialQuery('human_hunt', () => {
+        for (const w of byType[EntityType.Werewolf]) {
+          if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('human_hunt');
+          if (isActiveMoonHowler(w) && Math.hypot(w.x - entity.x, w.y - entity.y) < 110) return w;
+        }
+        return undefined;
+      });
     }
     if (huntingWere) {
       const fdx = entity.x - huntingWere.x;
@@ -1612,34 +1782,39 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       let closestDist = Infinity;
 
       if (USE_SPATIAL_GRID && mobileGrid) {
-        const hit = mobileGrid.findClosestInRadius(
-          entity.x,
-          entity.y,
-          huntRange,
-          (prey) => preyTypes.has(prey.type) && prey.alive && !prey.tamedBy,
-        );
+        const hit = withSpatialQuery('hunt', () =>
+          mobileGrid.findClosestInRadius(
+            entity.x,
+            entity.y,
+            huntRange,
+            (prey) => preyTypes.has(prey.type) && prey.alive && !prey.tamedBy,
+          ));
         if (hit) {
           closestPrey = hit.entity;
           closestDist = Math.sqrt(hit.distSq);
         }
       } else {
-        for (const preyType of preyTypes) {
-          for (const prey of byType[preyType]) {
-            if (!prey.alive || prey.tamedBy) continue;
-            const dx = prey.x - entity.x;
-            const dy = prey.y - entity.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < huntRange && dist < closestDist) {
-              closestDist = dist;
-              closestPrey = prey;
+        withSpatialQuery('hunt', () => {
+          for (const preyType of preyTypes) {
+            for (const prey of byType[preyType]) {
+              if (!prey.alive || prey.tamedBy) continue;
+              if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('hunt');
+              const dx = prey.x - entity.x;
+              const dy = prey.y - entity.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < huntRange && dist < closestDist) {
+                closestDist = dist;
+                closestPrey = prey;
+              }
             }
           }
-        }
+        });
       }
 
-      if (closestPrey && closestDist < config.size + closestPrey.size) {
+      if (closestPrey?.alive && closestDist < config.size + closestPrey.size) {
+        const preyId = closestPrey.id;
         closestPrey.alive = false;
-        closestPrey.huntTargetId = undefined;
+        clearHuntersTargetingPrey(preyId, entityById);
         createDeathParticles(state, closestPrey.x, closestPrey.y, '#8a2a2a', 10);
         syncEntityGrids(ctx, closestPrey);
         entity.energy = Math.min(entity.maxEnergy, entity.energy + config.energyGain[closestPrey.type]);
@@ -1653,7 +1828,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.vx = 0;
         entity.vy = 0;
         impulseScreenShake(state, 2);
-      } else if (closestPrey) {
+      } else if (closestPrey?.alive) {
         entity.huntTargetId = closestPrey.id;
         const dx = closestPrey.x - entity.x;
         const dy = closestPrey.y - entity.y;
@@ -1750,7 +1925,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             if (!husband.childrenIds.includes(child.id)) husband.childrenIds.push(child.id);
             if (husband.relationshipStatus === 'expecting') husband.relationshipStatus = 'married';
           }
-          rebuildChildrenIds(allLivingHumans(state, newEntities));
+          rebuildChildrenIds(allLivingHumans(state, newEntities, entityById));
           createDeathParticles(state, entity.x, entity.y - 10, isBastard ? '#a855f7' : '#ffb6c1', 12, 'heart');
           const childLabel = `${child.name}${babySurname ? ` ${babySurname}` : ''}`;
           if (isBastard) {
@@ -1998,7 +2173,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.x,
         entity.y,
         affairRange,
-        (h) => isValidAffairTarget(entity, h, state.tick) && !isSpouseNearby(h, entityById, 22),
+        (h) => isValidAffairTarget(entity, h, state.tick) && !isSpouseNearby(h, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS),
         playerHumans,
       );
 
@@ -2007,7 +2182,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           const dx = trystTarget.x - entity.x;
           const dy = trystTarget.y - entity.y;
           const dist = Math.hypot(dx, dy) || 1;
-          const intimate = isValidAffairTrystSite(entity, paramour, entityById, buildingById, 22);
+          const intimate = isValidAffairTrystSite(entity, paramour, entityById, buildingById, AFFAIR_INTIMATE_RADIUS);
 
           if (!intimate) {
             entity.vx = (dx / dist) * config.speed * 0.38;
@@ -2019,7 +2194,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             entity.vy *= 0.55;
             suppressIdle = true;
 
-            if (entity.id < paramour.id) {
+            if (shouldLeadAffairPair(entity, paramour)) {
               settlerPairChat(entity, paramour, 'affair', 0.18);
 
               const churchPenalty = churchStrength > 0 ? 0.72 + (1 - churchStrength) * 0.28 : 1;
@@ -2041,29 +2216,31 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
                 });
               }
 
-              if (
-                (entity.affairProgress ?? 0) >= 45
-                && (paramour.affairProgress ?? 0) >= 45
-              ) {
-                tryExposeCaughtAffair(
-                  state,
-                  entity,
-                  paramour,
-                  entityById,
-                  buildingById,
-                  updatedBuildings,
-                  playerHumans,
-                  churchStrength,
-                  false,
-                  true,
-                  hourOfDay,
-                );
-              } else if (entity.affairProgress >= 100 && paramour.affairProgress >= 100) {
+              if (entity.affairProgress >= 100 && paramour.affairProgress >= 100) {
                 entity.affairPartnerId = paramour.id;
                 paramour.affairPartnerId = entity.id;
                 entity.affairProgress = 100;
                 paramour.affairProgress = 100;
               }
+            }
+
+            if (
+              (entity.affairProgress ?? 0) >= 45
+              && (paramour.affairProgress ?? 0) >= 45
+            ) {
+              tryExposeCaughtAffairForPair(
+                state,
+                entity,
+                paramour,
+                entityById,
+                buildingById,
+                updatedBuildings,
+                playerHumans,
+                churchStrength,
+                false,
+                true,
+                hourOfDay,
+              );
             }
           }
       }
@@ -2084,14 +2261,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const dx = trystTarget.x - entity.x;
         const dy = trystTarget.y - entity.y;
         const dist = Math.hypot(dx, dy) || 1;
-        const tryst = isValidAffairTrystSite(entity, lover, entityById, buildingById, 22);
+        const tryst = isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_INTIMATE_RADIUS);
         if (!tryst && dist > 14) {
           entity.vx = (dx / dist) * config.speed * 0.32;
           entity.vy = (dy / dist) * config.speed * 0.32;
           entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
           suppressIdle = true;
         } else if (tryst) {
-          tryExposeCaughtAffair(
+          tryExposeCaughtAffairForPair(
             state,
             entity,
             lover,
@@ -2117,7 +2294,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           suppressIdle = true;
         }
       } else {
-        const livingHumans = allLivingHumans(state, newEntities);
+        const livingHumans = allLivingHumans(state, newEntities, entityById);
         const custodian = getChildCustodian(entity, livingHumans);
         if (custodian) {
           const pdx = custodian.x - entity.x;
@@ -2137,13 +2314,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     } else if (allowFreeRoam && !suppressIdle && !workplace) {
       const tick = state.tick;
       const idleRoll = Math.floor(tick / 150 + entity.id) % 8;
-      const seed = (entity.id * 7919 + Math.floor(tick / 1200)) % 1000;
+      const wanderPhase = entity.id * 0x9e3779b9 + Math.floor(tick / 1200) * 0x85ebca6b;
       let idleVx = 0;
       let idleVy = 0;
 
       if (idleRoll < 2) {
-        const targetX = ((seed * 137.5) % (width * 0.6)) + width * 0.2;
-        const targetY = ((seed * 293.1) % (height * 0.6)) + height * 0.2;
+        const targetX = (fract(wanderPhase * 0.6180339887) * (width * 0.6)) + width * 0.2;
+        const targetY = (fract(wanderPhase * 0.3819660113) * (height * 0.6)) + height * 0.2;
         const edx = targetX - entity.x, edy = targetY - entity.y;
         const edist = Math.sqrt(edx * edx + edy * edy) || 1;
         idleVx = (edx / edist) * config.speed * 0.5;
@@ -2177,6 +2354,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           socialScanRadius,
           (h) => h.id !== entity.id && !h.isJuvenile,
           allHumans,
+          'social',
         );
         if (nearest) {
           const sdx = nearest.x - entity.x;
@@ -2225,10 +2403,18 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    const nearRoad = roadAvoidance?.isNearRoad(entity.x, entity.y)
-      ?? roadBuildings.some(
-        (r) => Math.abs(r.x - entity.x) < r.width / 2 + 12 && Math.abs(r.y - entity.y) < r.height / 2 + 12,
-      );
+    const nearRoad = withSpatialQuery('road_near', () => {
+      if (roadAvoidance && typeof roadAvoidance.isNearRoad === 'function') {
+        return roadAvoidance.isNearRoad(entity.x, entity.y);
+      }
+      for (const r of roadBuildings) {
+        if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('road_near');
+        if (isEntityOnBuilding(entity.x, entity.y, r, 12)) {
+          return true;
+        }
+      }
+      return false;
+    });
     const roadMult = nearRoad ? 1.5 : 1.0;
 
     entity.x += entity.vx * roadMult;
@@ -2273,7 +2459,11 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     ctx.grassPopulation = buildGrassPopulationSnapshot(byType, newEntities);
   }
   const grassPopulation = ctx.grassPopulation;
-  const preyFallback = byType[EntityType.Rabbit].concat(byType[EntityType.Deer]);
+  if (ctx.grassCap === undefined) {
+    ctx.grassCap = getGrassPopulationCap(width, height);
+  }
+  const grassCap = ctx.grassCap;
+  const preyFallback = (byType[EntityType.Rabbit] ?? []).concat(byType[EntityType.Deer] ?? []);
 
   const isNewCalendarDay = isNewCalendarDayTick(state);
   const wildlifeDeathsThisTick = new Set<number>();
@@ -2331,7 +2521,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       entity.energy = Math.min(entity.maxEnergy, entity.energy + GRASS_GROWTH_PER_TICK * growMult);
 
       if (entity.energy > config.reproductionEnergyThreshold && Math.random() < config.reproductionChance * grassMult) {
-        if (grassPopulation.alive < 500) {
+        if (grassPopulation.alive < grassCap) {
           const angle = Math.random() * Math.PI * 2;
           const dist = 15 + Math.random() * 25;
           const nx = entity.x + Math.cos(angle) * dist;
@@ -2385,25 +2575,29 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       let closestPredator: Entity | null = null;
 
       if (USE_SPATIAL_GRID && mobileGrid) {
-        const hit = mobileGrid.findClosestInRadius(
-          entity.x,
-          entity.y,
-          config.fleeRange,
-          (pred) => isWildlifePredator(pred),
-        );
+        const hit = withSpatialQuery('flee', () =>
+          mobileGrid.findClosestInRadius(
+            entity.x,
+            entity.y,
+            config.fleeRange,
+            (pred) => isWildlifePredator(pred),
+          ));
         if (hit) closestPredator = hit.entity;
       } else {
-        let closestDist = Infinity;
-        for (const pred of predators) {
-          if (!pred.alive) continue;
-          const dx = pred.x - entity.x;
-          const dy = pred.y - entity.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < config.fleeRange && dist < closestDist) {
-            closestDist = dist;
-            closestPredator = pred;
+        withSpatialQuery('flee', () => {
+          let closestDist = Infinity;
+          for (const pred of predators) {
+            if (!pred.alive) continue;
+            if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('flee');
+            const dx = pred.x - entity.x;
+            const dy = pred.y - entity.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < config.fleeRange && dist < closestDist) {
+              closestDist = dist;
+              closestPredator = pred;
+            }
           }
-        }
+        });
       }
 
       if (closestPredator) {
@@ -2440,65 +2634,74 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       let huntRange = config.huntRange;
       if (entity.type === EntityType.Wolf) {
         if (USE_SPATIAL_GRID && mobileGrid) {
-          mobileGrid.forEachInRadius(entity.x, entity.y, 120, (other) => {
-            if (
-              other.type === EntityType.Wolf
-              && other.id !== entity.id
-              && other.alive
-              && !wildlifeDeathsThisTick.has(other.id)
-            ) nearbyPack++;
+          withSpatialQuery('wolf_pack', () => {
+            mobileGrid.forEachInRadius(entity.x, entity.y, 120, (other) => {
+              if (
+                other.type === EntityType.Wolf
+                && other.id !== entity.id
+                && other.alive
+                && !wildlifeDeathsThisTick.has(other.id)
+              ) nearbyPack++;
+            });
           });
         } else {
-          for (const other of byType[EntityType.Wolf]) {
-            if (
-              other.id !== entity.id
-              && other.alive
-              && !wildlifeDeathsThisTick.has(other.id)
-              && Math.hypot(other.x - entity.x, other.y - entity.y) < 120
-            ) {
-              nearbyPack++;
+          withSpatialQuery('wolf_pack', () => {
+            for (const other of byType[EntityType.Wolf]) {
+              if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('wolf_pack');
+              if (
+                other.id !== entity.id
+                && other.alive
+                && !wildlifeDeathsThisTick.has(other.id)
+                && Math.hypot(other.x - entity.x, other.y - entity.y) < 120
+              ) {
+                nearbyPack++;
+              }
             }
-          }
+          });
         }
         huntRange *= 1 + Math.min(3, nearbyPack) * 0.25;
       } else if (moonHowlerHunter) {
         huntRange *= 1.15;
       }
 
-      let closestPrey: Entity | null = null;
-      let closestDist = Infinity;
+      const huntPick = { prey: null as Entity | null, dist: Infinity };
       const preyTypeSet = new Set<EntityType>(preyTypes);
 
       if (USE_SPATIAL_GRID && mobileGrid) {
-        mobileGrid.forEachInRadius(entity.x, entity.y, huntRange, (prey, dSq) => {
-          if (!preyTypeSet.has(prey.type)) return;
-          if (!isValidHuntPrey(prey, prey.type, entity.id)) return;
-          const dist = Math.sqrt(dSq);
-          const humanBias = prey.type === EntityType.Human ? 0.82 : 1;
-          const biased = dist * humanBias;
-          if (biased < closestDist) {
-            closestDist = biased;
-            closestPrey = prey;
-          }
+        withSpatialQuery('hunt', () => {
+          mobileGrid.forEachInRadius(entity.x, entity.y, huntRange, (prey, dSq) => {
+            if (!preyTypeSet.has(prey.type)) return;
+            if (!isValidHuntPrey(prey, prey.type, entity.id)) return;
+            const dist = Math.sqrt(dSq);
+            const humanBias = prey.type === EntityType.Human ? 0.82 : 1;
+            const biased = dist * humanBias;
+            if (biased < huntPick.dist) {
+              huntPick.dist = biased;
+              huntPick.prey = prey;
+            }
+          });
         });
       } else {
-        for (const preyType of preyTypes) {
-          for (const prey of byType[preyType]) {
-            if (!isValidHuntPrey(prey, preyType, entity.id)) continue;
-            const dx = prey.x - entity.x;
-            const dy = prey.y - entity.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const humanBias = preyType === EntityType.Human ? 0.82 : 1;
-            if (dist < huntRange && dist * humanBias < closestDist) {
-              closestDist = dist * humanBias;
-              closestPrey = prey;
+        withSpatialQuery('hunt', () => {
+          for (const preyType of preyTypes) {
+            for (const prey of byType[preyType]) {
+              if (!isValidHuntPrey(prey, preyType, entity.id)) continue;
+              if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('hunt');
+              const dx = prey.x - entity.x;
+              const dy = prey.y - entity.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const humanBias = preyType === EntityType.Human ? 0.82 : 1;
+              if (dist < huntRange && dist * humanBias < huntPick.dist) {
+                huntPick.dist = dist * humanBias;
+                huntPick.prey = prey;
+              }
             }
           }
-        }
+        });
       }
 
-      if (closestPrey) {
-        const caughtPrey = closestPrey;
+      if (huntPick.prey) {
+        const caughtPrey = huntPick.prey;
         entity.huntTargetId = caughtPrey.id;
         const dx = caughtPrey.x - entity.x;
         const dy = caughtPrey.y - entity.y;
@@ -2543,12 +2746,13 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             targetVx = -(dx / dist) * config.speed * 1.4;
             targetVy = -(dy / dist) * config.speed * 1.4;
           } else {
+            const victimId = caughtPrey.id;
             if (isHumanPrey) {
               killHuman(caughtPrey, updatedBuildings, entityById);
             } else {
               caughtPrey.alive = false;
             }
-            caughtPrey.huntTargetId = undefined;
+            clearHuntersTargetingPrey(victimId, entityById);
             syncEntityGrids(ctx, caughtPrey);
             entity.huntTargetId = undefined;
             createDeathParticles(state, caughtPrey.x, caughtPrey.y, '#8a2a2a', 10);
@@ -2595,27 +2799,31 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       let closestGrassDist = Infinity;
 
       if (USE_SPATIAL_GRID && grassGrid) {
-        const hit = grassGrid.findClosestInRadius(
-          entity.x,
-          entity.y,
-          grazeRange,
-          (grass) => grass.alive && grass.energy >= GRASS_GRAZE_MIN_ENERGY,
-        );
+        const hit = withSpatialQuery('graze', () =>
+          grassGrid.findClosestInRadius(
+            entity.x,
+            entity.y,
+            grazeRange,
+            (grass) => grass.alive && grass.energy >= GRASS_GRAZE_MIN_ENERGY,
+          ));
         if (hit) {
           closestGrass = hit.entity;
           closestGrassDist = Math.sqrt(hit.distSq);
         }
       } else {
-        for (const grass of byType[EntityType.Grass]) {
-          if (!grass.alive || grass.energy < GRASS_GRAZE_MIN_ENERGY) continue;
-          const dx = grass.x - entity.x;
-          const dy = grass.y - entity.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < grazeRange && dist < closestGrassDist) {
-            closestGrassDist = dist;
-            closestGrass = grass;
+        withSpatialQuery('graze', () => {
+          for (const grass of byType[EntityType.Grass]) {
+            if (!grass.alive || grass.energy < GRASS_GRAZE_MIN_ENERGY) continue;
+            if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('graze');
+            const dx = grass.x - entity.x;
+            const dy = grass.y - entity.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < grazeRange && dist < closestGrassDist) {
+              closestGrassDist = dist;
+              closestGrass = grass;
+            }
           }
-        }
+        });
       }
 
       if (closestGrass) {
@@ -2655,7 +2863,9 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     }
 
     // Road avoidance
-    roadAvoidance?.applyAvoidance(entity);
+    if (roadAvoidance && typeof roadAvoidance.applyAvoidance === 'function') {
+      withSpatialQuery('road_avoid', () => roadAvoidance.applyAvoidance(entity));
+    }
 
     // Tamed animals follow their owner (velocity only — unified movement below)
     if (entity.tamedBy) {
@@ -2680,7 +2890,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       const owner = entityById.get(entity.tamedBy);
       if (owner?.alive) {
         const dist = Math.hypot(owner.x - entity.x, owner.y - entity.y);
-        if ((entity.type === EntityType.Wolf || entity.type === EntityType.Fox || entity.type === EntityType.Werewolf) && dist < 80 && isProductionTick(state.tick, EVENT_INTERVAL.tamedHuntAssist)) {
+        if (
+          (entity.type === EntityType.Wolf || entity.type === EntityType.Fox
+            || (entity.type === EntityType.Werewolf && !isActiveMoonHowler(entity)))
+          && dist < 80
+          && isProductionTick(state.tick, EVENT_INTERVAL.tamedHuntAssist)
+        ) {
           syncSpatialGridEntity(entity, grassGrid, mobileGrid);
           const assistPrey = findClosestEntityInRadius(
             mobileGrid,
@@ -2689,9 +2904,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             config.huntRange,
             (p) => (p.type === EntityType.Rabbit || p.type === EntityType.Deer) && p.alive,
             preyFallback,
+            'tamed_hunt',
           );
-          if (assistPrey) {
+          if (assistPrey?.alive) {
+            const preyId = assistPrey.id;
             assistPrey.alive = false;
+            clearHuntersTargetingPrey(preyId, entityById);
             syncEntityGrids(ctx, assistPrey);
             createDeathParticles(state, assistPrey.x, assistPrey.y, '#8a2a2a', 6);
             entity.energy = Math.min(entity.maxEnergy, entity.energy + (config.energyGain[assistPrey.type] || 50) * 0.5);
@@ -2727,6 +2945,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           && m.id !== entity.id
           && m.energy > config.reproductionEnergyThreshold * 0.3,
         byType[entity.type],
+        'mate',
       );
       if (mate) {
         const angle = Math.random() * Math.PI * 2;

@@ -1,6 +1,7 @@
 /**
  * Headless sim tick engine — worker_threads by default (matches live GameWorkerHost + SimTickDelta).
- * Set SIM_USE_WORKER=0 for legacy main-thread gameTick debugging.
+ * Balance sims (simulate-*year.ts, not *-worker) default to main-thread ticks for throughput.
+ * Set SIM_USE_WORKER=1 / =0 to override.
  */
 import { gameTick, type SimulationFocus } from '../src/game/gameEngine';
 import type { WorldState } from '../src/game/gameTypes';
@@ -8,8 +9,18 @@ import { NodeSimWorkerHost, type SimTickTiming } from './simWorkerHost.node';
 
 export type { SimTickTiming };
 
+/** npm run sim / run-sim.mjs entry scripts that should not default to worker_threads. */
+function balanceSimEntryScript(): boolean {
+  const script = (process.argv[1] ?? '').replace(/\\/g, '/');
+  return /simulate-\d+year\.ts$/.test(script) && !/worker/i.test(script);
+}
+
 export function simUsesWorker(): boolean {
-  return process.env.SIM_USE_WORKER !== '0';
+  const flag = process.env.SIM_USE_WORKER;
+  if (flag === '0') return false;
+  if (flag === '1') return true;
+  if (balanceSimEntryScript()) return false;
+  return true;
 }
 
 /** Headless balance sims skip render SoA and use compact syncSimPrep (default on). */

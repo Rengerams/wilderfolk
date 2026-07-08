@@ -225,7 +225,7 @@ export interface Entity {
   childrenIds: number[];
   name?: string;
   surname?: string;
-  /** Birth / maiden surname — restored if she divorces after catching her husband cheating. */
+  /** Birth / maiden surname — restored for the woman when a caught-affair marriage ends. */
   maidenSurname?: string;
   generation: number;
   // Visual
@@ -369,7 +369,10 @@ export interface VisitorGroup {
   kind: VisitorKind;
   campX: number;
   campY: number;
+  /** Midnights remaining after the arrival day — decrements once per calendar day boundary. */
   daysLeft: number;
+  /** Colony calendar day when the group arrived (for daysLeft timing). */
+  spawnedAtCalendarDay?: number;
   entityIds: number[];
   giftsGiven: number;
   /** Player-initiated trade while camped (v0.4.1). */
@@ -661,6 +664,12 @@ export interface WorldState {
   grassGrid?: import('./spatialGrid').EntitySpatialGrid;
   /** Mobile spatial index — rebuilt each sim tick for hunt/flee/social queries; not saved. */
   mobileGrid?: import('./spatialGrid').EntitySpatialGrid;
+  /** Tree spatial index — rebuilt when alive tree count changes; not saved. */
+  treeGrid?: import('./spatialGrid').EntitySpatialGrid;
+  treeGridAlive?: number;
+  /** Road avoidance index — rebuilt when completed road count changes; not saved. */
+  roadAvoidance?: import('./spatialGrid').RoadAvoidanceIndex;
+  roadAvoidanceStamp?: number;
   /** World-event titles fired during the current calendar year (flushed into YearlyStats). */
   eventsThisYear?: string[];
   /** Save migration ids already applied — avoids scanning event log on every load. */

@@ -4,7 +4,8 @@ import { buildEntityDrawBuckets } from './gameEngine';
 import { UNCACHED_RENDER_TICK } from './gameTypes';
 import type { RenderSnapshot } from './renderSnapshot';
 import { updateRenderSoABuckets, getRenderSoABuckets } from './simBuffers/renderSoAEntities';
-import { collectGrassInViewport } from './spatialGrid';
+import { collectGrassInViewport, viewportFromCamera } from './spatialGrid';
+import type { RenderSoABuckets } from './simBuffers/renderSoAEntities';
 import { invalidateRenderSoABucketsCache } from './simBuffers/renderSoAEntities';
 import { EntityType, BuildingType, Season, WeatherType, SPECIES_CONFIG, BUILDING_CONFIGS, GRID_SIZE, snapToGrid, TerrainType } from './gameEngine';
 import { WEATHER_CONFIGS } from './gameTypes';
@@ -48,7 +49,6 @@ import {
   isPredatorType,
   type HumanCombatStatusFlags,
 } from './combat';
-import { isPlayerHuman } from './groupEvents';
 import {
   bakeTerrainLayer,
   bakeTerrainDecor,
@@ -165,13 +165,20 @@ function buildTerrainCache(state: RenderSnapshot) {
 /** Viewport cache key precision — sub-pixel camera drift should not invalidate grass. */
 const GRASS_VIEWPORT_KEY_XY_DIGITS = 1;
 const GRASS_VIEWPORT_KEY_ZOOM_DIGITS = 3;
+const ENTITY_VIEWPORT_KEY_XY_DIGITS = 1;
+const ENTITY_VIEWPORT_KEY_ZOOM_DIGITS = 3;
 
 let _cachedEntityTick = UNCACHED_RENDER_TICK;
+let _cachedEntityViewportKey = '';
 let _cachedGrassKey = '';
+let _tickTrees: Entity[] = [];
+let _tickAnimals: Entity[] = [];
+let _tickHumans: Entity[] = [];
 let _cachedTrees: Entity[] = [];
 let _cachedAnimals: Entity[] = [];
 let _cachedHumans: Entity[] = [];
 let _cachedGrass: Entity[] = [];
+let _renderSoABuckets: RenderSoABuckets | null = null;
 
 function grassViewportKey(
   tick: number,
@@ -182,11 +189,30 @@ function grassViewportKey(
   return `${tick}|${cam.x.toFixed(GRASS_VIEWPORT_KEY_XY_DIGITS)}|${cam.y.toFixed(GRASS_VIEWPORT_KEY_XY_DIGITS)}|${cam.zoom.toFixed(GRASS_VIEWPORT_KEY_ZOOM_DIGITS)}|${cw}|${ch}`;
 }
 
+function entityViewportKey(
+  tick: number,
+  cam: Camera,
+  cw: number,
+  ch: number,
+): string {
+  return `${tick}|${cam.x.toFixed(ENTITY_VIEWPORT_KEY_XY_DIGITS)}|${cam.y.toFixed(ENTITY_VIEWPORT_KEY_XY_DIGITS)}|${cam.zoom.toFixed(ENTITY_VIEWPORT_KEY_ZOOM_DIGITS)}|${cw}|${ch}`;
+}
+
 function syncDrawCacheTick(tick: number): boolean {
   if (tick === _cachedEntityTick) return false;
   _cachedEntityTick = tick;
   _cachedGrassKey = '';
+  _cachedEntityViewportKey = '';
   return true;
+}
+
+function entityInViewport(entity: Entity, cam: Camera, cw: number, ch: number, pad = 72): boolean {
+  const vp = viewportFromCamera(cam.x, cam.y, cam.zoom, cw, ch, pad);
+  return entity.x >= vp.minX && entity.x <= vp.maxX && entity.y >= vp.minY && entity.y <= vp.maxY;
+}
+
+function filterEntitiesInViewport(entities: Entity[], cam: Camera, cw: number, ch: number): Entity[] {
+  return entities.filter((entity) => entityInViewport(entity, cam, cw, ch));
 }
 
 function syncGrassDrawCache(
@@ -211,6 +237,20 @@ function entitiesFromSoASlots(slots: number[], shimBySlot: Map<number, Entity>):
   return entities;
 }
 
+function syncEntityDrawViewport(
+  tick: number,
+  cam: Camera,
+  cw: number,
+  ch: number,
+): void {
+  const viewportKey = entityViewportKey(tick, cam, cw, ch);
+  if (viewportKey === _cachedEntityViewportKey) return;
+  _cachedEntityViewportKey = viewportKey;
+  _cachedTrees = filterEntitiesInViewport(_tickTrees, cam, cw, ch);
+  _cachedAnimals = filterEntitiesInViewport(_tickAnimals, cam, cw, ch);
+  _cachedHumans = filterEntitiesInViewport(_tickHumans, cam, cw, ch);
+}
+
 function updateCachedEntities(
   byType: EntityByType,
   grassGrid: RenderSnapshot['grassGrid'],
@@ -221,12 +261,15 @@ function updateCachedEntities(
   cw: number,
   ch: number,
 ) {
-  if (syncDrawCacheTick(tick)) {
+  const tickChanged = syncDrawCacheTick(tick);
+  if (tickChanged) {
     const buckets = buildEntityDrawBuckets(byType);
-    _cachedTrees = buckets.trees;
-    _cachedAnimals = buckets.animals;
-    _cachedHumans = buckets.humans;
+    _tickTrees = buckets.trees;
+    _tickAnimals = buckets.animals;
+    _tickHumans = buckets.humans;
+    _renderSoABuckets = null;
   }
+  syncEntityDrawViewport(tick, cam, cw, ch);
 
   syncGrassDrawCache(tick, cam, cw, ch, () =>
     collectGrassInViewport(
@@ -246,17 +289,24 @@ function updateCachedEntities(
 /** Phase B — bucket render SoA slots into draw lists (no Entity[] hydration on main). */
 function updateCachedEntitiesFromSoA(state: RenderSnapshot, cw: number, ch: number) {
   if (!state.renderSoA) return;
-  if (syncDrawCacheTick(state.tick)) {
-    const buckets = updateRenderSoABuckets(
+  const tickChanged = syncDrawCacheTick(state.tick);
+  if (tickChanged) {
+    _renderSoABuckets = updateRenderSoABuckets(
       state.renderSoA,
       state.renderMetaBySlot ?? undefined,
       state.tick,
     );
-
-    _cachedTrees = entitiesFromSoASlots(buckets.treeSlots, buckets.shimBySlot);
-    _cachedAnimals = entitiesFromSoASlots(buckets.animalSlots, buckets.shimBySlot);
-    _cachedHumans = entitiesFromSoASlots(buckets.humanSlots, buckets.shimBySlot);
+    _tickTrees = entitiesFromSoASlots(_renderSoABuckets.treeSlots, _renderSoABuckets.shimBySlot);
+    _tickAnimals = entitiesFromSoASlots(_renderSoABuckets.animalSlots, _renderSoABuckets.shimBySlot);
+    _tickHumans = entitiesFromSoASlots(_renderSoABuckets.humanSlots, _renderSoABuckets.shimBySlot);
+  } else if (!_renderSoABuckets) {
+    _renderSoABuckets = updateRenderSoABuckets(
+      state.renderSoA,
+      state.renderMetaBySlot ?? undefined,
+      state.tick,
+    );
   }
+  syncEntityDrawViewport(state.tick, state.camera, cw, ch);
 
   syncGrassDrawCache(state.tick, state.camera, cw, ch, () =>
     collectGrassInViewport(
@@ -300,6 +350,11 @@ function getCachedNameWidth(
 // ============ HELPERS ============
 let _time = 0;
 let _lastRenderTime = 0;
+
+function isDrawableSpriteFrame(frame: SpriteFrame | null | undefined): frame is SpriteFrame {
+  return !!frame?.image;
+}
+
 interface SpriteMotion {
   bobY?: number;
   scaleX?: number;
@@ -664,34 +719,41 @@ function strokeGridLines(
   color: string,
   shadowColor: string,
   lineWidth: number,
-  whiteOutline = 0,
 ) {
   const gs = GRID_SIZE;
-  const drawPass = (stroke: string, width: number, offsetX = 0, offsetY = 0) => {
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = width;
-    ctx.beginPath();
-    for (let x = vp.sx0; x <= vp.ex; x += step) {
-      if (skipMajor && Math.round(x / gs) % GRID_MAJOR_EVERY === 0) continue;
-      const px = worldToScreenX(x, cam, cw) + offsetX;
-      ctx.moveTo(px, 0);
-      ctx.lineTo(px, ch);
-    }
-    for (let y = vp.sy0; y <= vp.ey; y += step) {
-      if (skipMajor && Math.round(y / gs) % GRID_MAJOR_EVERY === 0) continue;
-      const py = worldToScreenY(y, cam, ch) + offsetY;
-      ctx.moveTo(0, py);
-      ctx.lineTo(cw, py);
-    }
-    ctx.stroke();
-  };
-
-  if (whiteOutline > 0) {
-    drawPass(`rgba(255, 255, 255, ${whiteOutline})`, lineWidth + 2.2);
-    drawPass(`rgba(255, 255, 255, ${whiteOutline * 0.55})`, lineWidth + 1.1);
+  ctx.strokeStyle = shadowColor;
+  ctx.lineWidth = lineWidth + 0.8;
+  ctx.beginPath();
+  for (let x = vp.sx0; x <= vp.ex; x += step) {
+    if (skipMajor && Math.round(x / gs) % GRID_MAJOR_EVERY === 0) continue;
+    const px = worldToScreenX(x, cam, cw) + 0.5;
+    ctx.moveTo(px, 0);
+    ctx.lineTo(px, ch);
   }
-  drawPass(shadowColor, lineWidth + 0.8, 0.5, 0.5);
-  drawPass(color, lineWidth);
+  for (let y = vp.sy0; y <= vp.ey; y += step) {
+    if (skipMajor && Math.round(y / gs) % GRID_MAJOR_EVERY === 0) continue;
+    const py = worldToScreenY(y, cam, ch) + 0.5;
+    ctx.moveTo(0, py);
+    ctx.lineTo(cw, py);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  for (let x = vp.sx0; x <= vp.ex; x += step) {
+    if (skipMajor && Math.round(x / gs) % GRID_MAJOR_EVERY === 0) continue;
+    const px = worldToScreenX(x, cam, cw);
+    ctx.moveTo(px, 0);
+    ctx.lineTo(px, ch);
+  }
+  for (let y = vp.sy0; y <= vp.ey; y += step) {
+    if (skipMajor && Math.round(y / gs) % GRID_MAJOR_EVERY === 0) continue;
+    const py = worldToScreenY(y, cam, ch);
+    ctx.moveTo(0, py);
+    ctx.lineTo(cw, py);
+  }
+  ctx.stroke();
 }
 
 /** Terrain blockers + valid snap points while placing a building. */
@@ -1076,7 +1138,12 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
   // Completed buildings (roads and wall panels already drawn above)
   const sorted = state.buildings
     .filter((b) => b.completed && b.type !== BuildingType.Road && !ISO_PANEL_BUILDINGS.has(b.type))
-    .sort((a, b) => (a.y + a.height / 2) - (b.y + b.height / 2));
+    .sort((a, b) => {
+      const depthA = a.y + a.height / 2;
+      const depthB = b.y + b.height / 2;
+      if (depthA !== depthB) return depthA - depthB;
+      return a.id - b.id;
+    });
   for (const b of sorted) {
     const { sx, sy, w, h } = getBuildingScreenRect(b);
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
@@ -1209,7 +1276,7 @@ function drawAnimals(
     ctx.fill();
 
     const drawAnimal = () => {
-      if (frame) {
+      if (isDrawableSpriteFrame(frame)) {
         const aspect = frame.sw / frame.sh;
         drawSpriteFrame(
           ctx, frame, sx, sy, spriteH * aspect, spriteH,
@@ -1395,17 +1462,6 @@ function getStatusIcon(human: Entity, ctx: HumanStatusIconContext): string {
   return '🚶';
 }
 
-function buildResidentCountByBuilding(humans: readonly Entity[]): Map<number, number> {
-  const counts = new Map<number, number>();
-  for (const human of humans) {
-    if (!isPlayerHuman(human)) continue;
-    const residenceId = human.residenceBuildingId;
-    if (residenceId == null) continue;
-    counts.set(residenceId, (counts.get(residenceId) ?? 0) + 1);
-  }
-  return counts;
-}
-
 function getPlayerCampCenterFromBuildings(buildings: RenderSnapshot['buildings']): { x: number; y: number } {
   const playerBuildings = buildings.filter((b) => b.completed && b.faction !== 'rival');
   const townHall = playerBuildings.find((b) => b.type === BuildingType.TownHall);
@@ -1484,11 +1540,12 @@ function drawHuntChaseLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot
   if (state.camera.zoom < 0.4) return;
   const cam = state.camera;
   const hunters = state.renderSoA
-    ? [..._cachedAnimals, ..._cachedHumans]
+    ? [..._tickAnimals, ..._tickHumans]
     : state.entities.filter((e) => e.alive && e.huntTargetId);
   const entityById = new Map<number, Entity>();
   if (state.renderSoA) {
-    for (const shim of getRenderSoABuckets().shims) entityById.set(shim.id, shim);
+    const buckets = _renderSoABuckets ?? getRenderSoABuckets();
+    for (const shim of buckets.shims) entityById.set(shim.id, shim);
   } else {
     for (const e of state.entities) {
       if (e.alive) entityById.set(e.id, e);
@@ -1573,7 +1630,7 @@ function drawHumans(
       const frame = isWalking
         ? getHumanSpriteFrame(gender, human.spriteVariant ?? 0, walkFrame)
         : getSpriteFrame(HUMAN_BASE_SPRITES[gender]);
-      if (frame) {
+      if (isDrawableSpriteFrame(frame)) {
         const aspect = frame.sw / frame.sh;
         const anchorY = frame.anchorY ?? 1;
         // fit:'height' + feet anchor — full 27x72 body, not a cropped head
@@ -1795,7 +1852,6 @@ function drawParticles(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
 function drawNightBuildingGlow(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (!isNightHour(state.hourOfDay) || state.camera.zoom < 0.32 || !state.juiceEffectsEnabled) return;
   const cam = state.camera;
-  const residentCountByBuilding = buildResidentCountByBuilding(_cachedHumans);
 
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
@@ -1805,7 +1861,8 @@ function drawNightBuildingGlow(ctx: CanvasRenderingContext2D, state: RenderSnaps
     const mayGlow = NIGHT_HOME_GLOW_TYPES.has(b.type)
       || (NIGHT_STAFFED_GLOW_TYPES.has(b.type) && b.occupants.length > 0);
     if (!mayGlow) continue;
-    const intensity = getNightGlowIntensity(b, residentCountByBuilding.get(b.id) ?? 0);
+    const residentCount = NIGHT_HOME_GLOW_TYPES.has(b.type) ? b.occupants.length : 0;
+    const intensity = getNightGlowIntensity(b, residentCount);
     if (intensity <= 0) continue;
 
     const sx = (b.x - cam.x) * cam.zoom + cw / 2;
@@ -2204,10 +2261,15 @@ export function resetRendererCaches(): void {
   invalidateRenderSoABucketsCache();
   resetDialogueSessions();
   _cachedEntityTick = UNCACHED_RENDER_TICK;
+  _cachedEntityViewportKey = '';
+  _tickTrees = [];
+  _tickAnimals = [];
+  _tickHumans = [];
   _cachedTrees = [];
   _cachedAnimals = [];
   _cachedHumans = [];
   _cachedGrass = [];
+  _renderSoABuckets = null;
   _nameWidthCache.clear();
   wParts = [];
   lastWType = null;

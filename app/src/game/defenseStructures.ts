@@ -1,7 +1,13 @@
 import { BuildingType, JobType } from './gameTypes';
 import type { Building, WorldState } from './gameTypes';
 import { isImprisoned } from './dayCycle';
-import { FORGE_BONUSES, isForgeOrderComplete } from './forge';
+import { FORGE_BONUSES, isForgeOrderComplete, type VillageForgeState } from './forge';
+
+const EMPTY_FORGE: VillageForgeState = {
+  activeOrder: null,
+  progress: 0,
+  completed: {},
+};
 import { MILITIA_BALANCE } from './militiaBalance';
 
 const WALL_TYPES = new Set<BuildingType>([
@@ -52,9 +58,16 @@ export function getBarracksGuardCount(state: WorldState, buildings: Building[]):
   let guards = 0;
   for (const b of buildings) {
     if (!b.completed || b.type !== BuildingType.Barracks || b.faction === 'rival') continue;
+    const liveOccupants: number[] = [];
     for (const humanId of b.occupants) {
       const human = state.entities.find((e) => e.id === humanId && e.alive);
-      if (human && human.job === JobType.Guard && !isImprisoned(human)) guards += 1;
+      if (human && human.job === JobType.Guard && !isImprisoned(human)) {
+        guards += 1;
+        liveOccupants.push(humanId);
+      }
+    }
+    if (liveOccupants.length !== b.occupants.length) {
+      b.occupants = liveOccupants;
     }
   }
   return guards;
@@ -63,7 +76,7 @@ export function getBarracksGuardCount(state: WorldState, buildings: Building[]):
 export function getBarracksGuardBonus(state: WorldState, buildings: Building[]): number {
   const guards = getBarracksGuardCount(state, buildings);
   const perGuard = MILITIA_BALANCE.guardBonusPerGuard + (
-    isForgeOrderComplete(state.villageForge, 'guard_halberds')
+    isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'guard_halberds')
       ? FORGE_BONUSES.guardHalberdPerGuard
       : 0
   );

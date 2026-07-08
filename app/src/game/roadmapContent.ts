@@ -43,7 +43,7 @@ export const ROADMAP_VERSIONS: RoadmapVersion[] = [
       PARTIAL('simulate:20year — full 172800-tick PASS'),
       PARTIAL('Sim regression — simulate-30min exit on fail'),
       PARTIAL('App tab split + memo @ 300 population'),
-      OPEN('Spatial grid — graze, hunt, flee, wolf-pack queries'),
+      DONE('Spatial grid — grass 56px + mobile 80px; graze→grass, flee/hunt/social→mobile'),
       OPEN('Settler count denorm — working/idle on WorldState'),
       OPEN('Incremental entityById — update on birth/death only'),
       OPEN('buildingActions scan cleanup'),

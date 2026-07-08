@@ -1,5 +1,10 @@
 import type { Entity, Building } from './gameTypes';
 import { EntityType } from './gameTypes';
+import {
+  isSpatialQueryMetricsEnabled,
+  recordSpatialCandidate,
+  recordSpatialCells,
+} from './spatialQueryMetrics';
 
 /** Grass patches — updated on birth/death; queried for graze. */
 export const GRASS_CELL_SIZE = 56;
@@ -202,7 +207,10 @@ export class EntitySpatialGrid {
     }
   }
 
-  /** Broad-phase: all entities in cells overlapping the circle, then narrow-phase distance filter. */
+  /**
+   * Broad-phase: square of grid cells around (x, y), then narrow-phase `distSq <= radius²`.
+   * Corner cells may extend past the circle — callers must filter on `distSq` (already applied here).
+   */
   forEachInRadius(
     x: number,
     y: number,
@@ -219,12 +227,16 @@ export class EntitySpatialGrid {
     const maxCol = Math.min(this.cols - 1, cx + cellRadius);
     const minRow = Math.max(0, cy - cellRadius);
     const maxRow = Math.min(this.rows - 1, cy + cellRadius);
+    if (isSpatialQueryMetricsEnabled()) {
+      recordSpatialCells(null, (maxCol - minCol + 1) * (maxRow - minRow + 1));
+    }
 
     for (let row = minRow; row <= maxRow; row++) {
       for (let col = minCol; col <= maxCol; col++) {
         const bucket = this.cells[this.cellIndex(col, row)];
         for (const entity of bucket) {
           if (!entity.alive) continue;
+          if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate();
           const dSq = distSq(x, y, entity.x, entity.y);
           if (dSq <= radiusSq) fn(entity, dSq);
         }
@@ -474,9 +486,12 @@ export class RoadAvoidanceIndex {
         const r = row + dr;
         if (c < 0 || r < 0 || c >= this.cols || r >= this.rows) continue;
         for (const road of this.cells[r * this.cols + c]) {
+          if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('road_near');
           if (
-            Math.abs(road.x - x) < road.width / 2 + margin
-            && Math.abs(road.y - y) < road.height / 2 + margin
+            x >= road.x - margin
+            && x <= road.x + road.width + margin
+            && y >= road.y - margin
+            && y <= road.y + road.height + margin
           ) {
             return true;
           }
@@ -499,6 +514,7 @@ export class RoadAvoidanceIndex {
         if (c < 0 || r < 0 || c >= this.cols || r >= this.rows) continue;
         const bucket = this.cells[r * this.cols + c];
         for (const road of bucket) {
+          if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('road_avoid');
           const dx = entity.x - road.cx;
           const dy = entity.y - road.cy;
           const distSq = dx * dx + dy * dy;
@@ -529,6 +545,24 @@ export function buildTreeGrid(
 ): EntitySpatialGrid | undefined {
   if (!USE_SPATIAL_GRID) return undefined;
   const grid = new EntitySpatialGrid(mapWidth, mapHeight, MOBILE_CELL_SIZE, false);
+  grid.rebuild(trees, isTreeGridEntity);
+  return grid;
+}
+
+/** Rebuild tree layer only when alive tree count changes (trees are static between chops). */
+export function syncTreeSimGrid(
+  existing: EntitySpatialGrid | undefined,
+  aliveStamp: number | undefined,
+  mapWidth: number,
+  mapHeight: number,
+  trees: Iterable<Entity>,
+  aliveTreeCount: number,
+): EntitySpatialGrid | undefined {
+  if (!USE_SPATIAL_GRID) return undefined;
+  if (existing && aliveStamp === aliveTreeCount && isReusableSpatialGrid(existing)) return existing;
+  const grid = isReusableSpatialGrid(existing)
+    ? existing
+    : new EntitySpatialGrid(mapWidth, mapHeight, MOBILE_CELL_SIZE, false);
   grid.rebuild(trees, isTreeGridEntity);
   return grid;
 }

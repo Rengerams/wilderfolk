@@ -118,7 +118,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         break;
       }
       case 'command': {
-        if (!world || !bufferPool) {
+        if (!world) {
           postError('Worker not initialized');
           break;
         }
@@ -134,39 +134,11 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           break;
         }
         const before = aliveIdSet(world);
-        let acquired: { index: number; buffer: ArrayBuffer } | null = null;
+        let delta;
         try {
           world = applyWorkerCommand(world, msg.cmd);
-          const delta = extractCommandDelta(world, before);
-          acquired = bufferPool.acquire();
-          let renderBuffer: ArrayBuffer | undefined;
-          let bufferIndex: number | undefined;
-          let schemaVersion: number | undefined;
-          if (acquired) {
-            try {
-              const pack = packRenderSoA(world, acquired.buffer);
-              renderBuffer = pack.buffer;
-              bufferIndex = acquired.index;
-              schemaVersion = pack.schemaVersion;
-            } catch (packErr) {
-              releaseAcquiredBuffer(acquired);
-              acquired = null;
-              throw packErr;
-            }
-          }
-          const response: WorkerResponse = {
-            type: 'commandResult',
-            proto: WORKER_PROTO,
-            ok: true,
-            delta,
-            renderBuffer,
-            bufferIndex,
-            schemaVersion,
-          };
-          const transferables = renderBuffer ? [renderBuffer] : [];
-          self.postMessage(response, transferables);
+          delta = extractCommandDelta(world, before);
         } catch (err) {
-          if (acquired) releaseAcquiredBuffer(acquired);
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
@@ -175,7 +147,38 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
             reason: err instanceof Error ? err.message : String(err),
           };
           self.postMessage(response);
+          break;
         }
+
+        let renderBuffer: ArrayBuffer | undefined;
+        let bufferIndex: number | undefined;
+        let schemaVersion: number | undefined;
+        if (bufferPool) {
+          const acquired = bufferPool.acquire();
+          if (acquired) {
+            try {
+              const pack = packRenderSoA(world, acquired.buffer);
+              renderBuffer = pack.buffer;
+              bufferIndex = acquired.index;
+              schemaVersion = pack.schemaVersion;
+            } catch (packErr) {
+              releaseAcquiredBuffer(acquired);
+              console.warn('[WorkerCommand] Render pack failed after command', packErr);
+            }
+          }
+        }
+
+        const response: WorkerResponse = {
+          type: 'commandResult',
+          proto: WORKER_PROTO,
+          ok: true,
+          delta,
+          renderBuffer,
+          bufferIndex,
+          schemaVersion,
+        };
+        const transferables = renderBuffer ? [renderBuffer] : [];
+        self.postMessage(response, transferables);
         break;
       }
       case 'returnBuffer': {
@@ -206,9 +209,9 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           postError('Worker not initialized');
           break;
         }
-        lastFocus = msg.focus;
         const before = aliveIdSet(world);
         gameTick(world, msg.focus);
+        lastFocus = msg.focus;
         const aliveNow = world.entities.filter((e) => e.alive);
 
         if (headlessMode) {

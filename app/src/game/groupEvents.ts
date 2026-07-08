@@ -5,6 +5,7 @@ import type {
 import { EntityType, BuildingType, BUILDING_CONFIGS, JobType } from './gameTypes';
 import {
   assignMissingResidences,
+  getAbsoluteCalendarDay,
   getColonyDay,
   HUMAN_ADULT_MIN_AGE,
   HUMAN_MAX_LIFESPAN_YEARS,
@@ -48,12 +49,21 @@ function pushFloat(state: WorldState, x: number, y: number, text: string, color:
   });
 }
 
-/** Colony settler human — excludes visitor/rival faction humans (not "the player character"). */
+/**
+ * Colony settler human — excludes transient faction humans (visitors, rivals, trade-route merchants).
+ * `trade_caravan` carriers are real humans on the map but must not count toward population, housing,
+ * or village job systems; they are handled in `lifeSimulation` / `tradeCaravans.ts` instead.
+ */
 export function isPlayerHuman(e: Entity): boolean {
   return e.type === EntityType.Human
     && e.faction !== 'visitor'
     && e.faction !== 'rival'
     && e.faction !== 'trade_caravan';
+}
+
+/** Deep-clone world state for player actions that mutate simulation data. */
+function cloneWorldStateForAction(originalState: WorldState): WorldState {
+  return structuredClone(originalState) as WorldState;
 }
 
 export function playerHumanCount(entities: Entity[]): number {
@@ -191,6 +201,7 @@ export function spawnVisitorGroup(
     campX: site.x,
     campY: site.y,
     daysLeft,
+    spawnedAtCalendarDay: getAbsoluteCalendarDay(state.tick),
     entityIds,
     giftsGiven: 0,
     tradesCompleted: 0,
@@ -208,7 +219,12 @@ export function spawnVisitorGroup(
     performers: 'Lifts spirits — courtship boosted',
   };
 
-  pushNews(state, `${template.emoji} Visitors Arrived!`, `${name} (${memberCount}) set camp near ${state.villageName}. They'll stay about ${daysLeft} days.`, 'neutral');
+  pushNews(
+    state,
+    `${template.emoji} Visitors Arrived!`,
+    `${name} (${memberCount}) set camp near ${state.villageName}. They'll stay ${daysLeft} more day${daysLeft === 1 ? '' : 's'} after today.`,
+    'neutral',
+  );
   logEvent(state, 'migration', `${name} arrived near the village`, name);
 
   return {
@@ -300,9 +316,12 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
   const remaining: VisitorGroup[] = [];
 
   const newCalendarDay = state.tick > 0 && state.tick % TICKS_PER_DAY === 0;
+  const calendarDay = getAbsoluteCalendarDay(state.tick);
 
   for (const group of state.visitorGroups) {
-    if (newCalendarDay) group.daysLeft--;
+    const arrivedDay = group.spawnedAtCalendarDay ?? calendarDay;
+    // daysLeft = midnights after the arrival day; first decrement is end of the next full day.
+    if (newCalendarDay && calendarDay > arrivedDay + 1) group.daysLeft--;
 
     if (newCalendarDay && group.daysLeft > 0) {
       switch (group.kind) {
@@ -393,16 +412,25 @@ const PEACE_TREATY_PLAYER_DAYS = 60;
 const PEACE_TREATY_EVENT_DAYS = 45;
 
 export function sendRivalGift(originalState: WorldState, rivalId: string): WorldState {
-  const state = structuredClone(originalState) as WorldState;
-  const rival = state.rivalSettlements.find((r) => r.id === rivalId);
-  if (!rival) return state;
+  const rivalPreview = originalState.rivalSettlements.find((r) => r.id === rivalId);
+  if (!rivalPreview) return originalState;
 
   const foodCost = 25;
-  if (state.resources.food < foodCost) {
+  if (rivalPreview.relationship === 'friendly') {
+    const state = cloneWorldStateForAction(originalState);
+    const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
+    pushFloat(state, rival.campX, rival.campY - 20, 'Already friendly', '#94a3b8');
+    return state;
+  }
+  if (originalState.resources.food < foodCost) {
+    const state = cloneWorldStateForAction(originalState);
+    const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
     pushFloat(state, rival.campX, rival.campY - 20, `Need ${foodCost}🍖`, '#f97316');
     return state;
   }
 
+  const state = cloneWorldStateForAction(originalState);
+  const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
   state.resources.food -= foodCost;
   const before = rival.relationship;
   rival.relationship = shiftRelationship(rival.relationship, 1);
@@ -418,18 +446,31 @@ export function sendRivalGift(originalState: WorldState, rivalId: string): World
 }
 
 export function establishRivalTradePact(originalState: WorldState, rivalId: string): WorldState {
-  const state = structuredClone(originalState) as WorldState;
-  const rival = state.rivalSettlements.find((r) => r.id === rivalId);
-  if (!rival || rival.relationship === 'tense') {
-    if (rival) pushFloat(state, rival.campX, rival.campY - 20, 'Relations too tense', '#f97316');
+  const rivalPreview = originalState.rivalSettlements.find((r) => r.id === rivalId);
+  if (!rivalPreview || rivalPreview.relationship === 'tense') {
+    if (!rivalPreview) return originalState;
+    const state = cloneWorldStateForAction(originalState);
+    const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
+    pushFloat(state, rival.campX, rival.campY - 20, 'Relations too tense', '#f97316');
     return state;
   }
 
   const goldCost = 40;
-  if (state.resources.gold < goldCost) {
+  if (rivalPreview.relationship === 'friendly') {
+    const state = cloneWorldStateForAction(originalState);
+    const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
+    pushFloat(state, rival.campX, rival.campY - 20, 'Already friendly', '#94a3b8');
+    return state;
+  }
+  if (originalState.resources.gold < goldCost) {
+    const state = cloneWorldStateForAction(originalState);
+    const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
     pushFloat(state, rival.campX, rival.campY - 20, `Need ${goldCost}💰`, '#f97316');
     return state;
   }
+
+  const state = cloneWorldStateForAction(originalState);
+  const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
 
   state.resources.gold -= goldCost;
   rival.relationship = 'friendly';
@@ -445,7 +486,7 @@ export function establishRivalTradePact(originalState: WorldState, rivalId: stri
 }
 
 export function showStrengthToRival(originalState: WorldState, rivalId: string): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = cloneWorldStateForAction(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return state;
 
@@ -483,7 +524,7 @@ export function showStrengthToRival(originalState: WorldState, rivalId: string):
 
 /** Player-initiated peace — halts raids for 60 days. */
 export function signPeaceTreaty(originalState: WorldState, rivalId: string): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = cloneWorldStateForAction(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival || rival.relationship === 'tense') {
     if (rival) pushFloat(state, rival.campX, rival.campY - 20, 'Relations too tense', '#f97316');
@@ -675,7 +716,7 @@ export function respondToDiplomacyEvent(
   eventId: string,
   choiceId: string,
 ): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = cloneWorldStateForAction(originalState);
   const idx = state.pendingDiplomacyEvents?.findIndex((e) => e.id === eventId) ?? -1;
   if (idx < 0) return state;
 
@@ -882,7 +923,7 @@ export function getVisitorLeaderTalkMeta(group: VisitorGroup): VisitorLeaderTalk
 }
 
 export function talkToVisitorLeader(originalState: WorldState, groupId: string): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = cloneWorldStateForAction(originalState);
   const group = state.visitorGroups.find((g) => g.id === groupId);
   if (!group || group.leaderTalked) return state;
 
@@ -996,14 +1037,16 @@ export function tradeWithVisitors(
   groupId: string,
   action: VisitorTradeAction,
 ): WorldState {
-  const state = structuredClone(originalState) as WorldState;
-  const group = state.visitorGroups.find((g) => g.id === groupId);
-  if (!group || group.kind === 'refugees' || group.daysLeft <= 0) return originalState;
+  const groupPreview = originalState.visitorGroups.find((g) => g.id === groupId);
+  if (!groupPreview || groupPreview.kind === 'refugees' || groupPreview.daysLeft <= 0) return originalState;
 
-  const canTrade = group.kind === 'traders' || group.kind === 'nomads' || group.kind === 'hunters';
+  const canTrade = groupPreview.kind === 'traders' || groupPreview.kind === 'nomads' || groupPreview.kind === 'hunters';
   if (!canTrade && action !== 'sell_food') return originalState;
 
   const deal = VISITOR_TRADE_COSTS[action];
+
+  const state = cloneWorldStateForAction(originalState);
+  const group = state.visitorGroups.find((g) => g.id === groupId)!;
 
   if (!canPayTradeCost(state, deal.pay)) {
     const hint = action === 'buy_food' ? 'Need 25💰'
@@ -1033,7 +1076,7 @@ export function tradeWithVisitors(
     const added = addCappedResource(state, key, amount);
     if (added < amount) {
       return rejectVisitorTrade(
-        structuredClone(originalState) as WorldState,
+        state,
         group,
         'Storage full!',
         'Trade cancelled — not enough storage space.',
@@ -1062,9 +1105,11 @@ export function negotiateRefugees(
   groupId: string,
   choice: RefugeeChoice,
 ): WorldState {
-  const state = structuredClone(originalState) as WorldState;
-  const group = state.visitorGroups.find((g) => g.id === groupId);
-  if (!group || group.kind !== 'refugees' || group.refugeeResolved) return state;
+  const groupPreview = originalState.visitorGroups.find((g) => g.id === groupId);
+  if (!groupPreview || groupPreview.kind !== 'refugees' || groupPreview.refugeeResolved) return originalState;
+
+  const state = cloneWorldStateForAction(originalState);
+  const group = state.visitorGroups.find((g) => g.id === groupId)!;
 
   const allAlive = state.entities;
 
@@ -1098,7 +1143,7 @@ export function negotiateRefugees(
     state.resources.food -= 40;
     group.refugeeResolved = true;
     const villagers = allAlive.filter(isPlayerHuman);
-    assignMissingResidences(villagers, state.buildings);
+    assignMissingResidences(villagers, state.buildings, allAlive);
     syncResidenceOccupants(villagers, state.buildings);
     pushFloat(state, group.campX, group.campY - 20, `+${joined} settlers`, '#22c55e');
     logEvent(state, 'migration', `Welcomed ${joined} refugee(s) from ${group.name}`, group.name);
@@ -1119,7 +1164,7 @@ export function negotiateRefugees(
     if (joined > 0) {
       state.resources.food -= 20;
       const villagers = allAlive.filter(isPlayerHuman);
-      assignMissingResidences(villagers, state.buildings);
+      assignMissingResidences(villagers, state.buildings, allAlive);
       syncResidenceOccupants(villagers, state.buildings);
       pushFloat(state, group.campX, group.campY - 20, '+1 refugee', '#22c55e');
       logEvent(state, 'migration', `Screened and admitted a refugee from ${group.name}`, group.name);
@@ -1176,10 +1221,16 @@ export function tickRivalSettlements(state: WorldState, allAlive: Entity[]): voi
 
   tickPendingDiplomacyEvents(state);
 
+  let tenseRepDrainToday = 0;
+  const maxTenseRepDrainPerDay = 2;
+
   for (const rival of state.rivalSettlements) {
-    rival.population = rival.entityIds.filter(
-      (id) => allAlive.some((e) => e.id === id && e.alive),
-    ).length;
+    let pop = 0;
+    for (const id of rival.entityIds) {
+      const ent = allAlive.find((e) => e.id === id);
+      if (ent?.alive) pop++;
+    }
+    rival.population = pop;
 
     if (rival.raidCooldownDays > 0) rival.raidCooldownDays--;
     if (rival.peaceTreatyDays > 0) {
@@ -1214,8 +1265,13 @@ export function tickRivalSettlements(state: WorldState, allAlive: Entity[]): voi
         logEvent(state, 'event', `${rival.name} hunters took game from the shared wilds`, rival.name);
       }
       state.pollutionLevel = Math.min(100, state.pollutionLevel + 0.5);
-    } else if (rival.relationship === 'tense' && Math.random() < 0.4) {
+    } else if (
+      rival.relationship === 'tense'
+      && tenseRepDrainToday < maxTenseRepDrainPerDay
+      && Math.random() < 0.4
+    ) {
       state.villageReputation = Math.max(0, state.villageReputation - 2);
+      tenseRepDrainToday++;
       pushNews(state, '⚡ Border Tension', `${rival.name} grumbles about your expansion. Reputation -2.`, 'negative');
     } else if (rival.relationship === 'neutral' && Math.random() < 0.3) {
       logEvent(state, 'event', `${rival.name} scouts were seen mapping the river bend`, rival.name);

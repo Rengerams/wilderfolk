@@ -13,6 +13,9 @@ import {
   refreshCityBenchmarkResources,
   seedCityScaleProfile,
 } from './simCityProfile';
+import { preloadDialogueBank } from '../src/game/dialogueTrees';
+import { getSpatialQueryReport } from '../src/game/spatialQueryMetrics';
+import { enableSpatialQueryMetrics, printSpatialQueryMetricsSection } from './spatialQueryReport';
 
 const STEADY_TICKS = Number(process.env.CITY_BENCH_TICKS ?? 600);
 const WARMUP_TICKS = Number(process.env.CITY_BENCH_WARMUP ?? 60);
@@ -38,7 +41,12 @@ function summarizeTickMs(samples: number[]): { avg: number; p50: number; p95: nu
   };
 }
 
-function run(): void {
+async function run(): Promise<void> {
+  await preloadDialogueBank();
+
+  const metricsOn = process.env.SPATIAL_QUERY_METRICS !== '0';
+  if (metricsOn) enableSpatialQueryMetrics();
+
   let state = initGame({ villageName: 'Benchburg', size: MapSize.Large });
   state.resources.food = 8000;
   seedCityScaleProfile(state, DEFAULT_CITY_TARGETS);
@@ -102,7 +110,15 @@ function run(): void {
     console.log(`Note: full steady-state p95=${steady.p95.toFixed(2)}ms (informational)`);
   }
 
+  if (metricsOn) printSpatialQueryMetricsSection();
+  if (process.env.SPATIAL_QUERY_JSON === '1') {
+    console.log(`__SPATIAL_QUERY_JSON__${JSON.stringify(getSpatialQueryReport())}`);
+  }
+
   if (GATE && !pass) process.exit(1);
 }
 
-run();
+run().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

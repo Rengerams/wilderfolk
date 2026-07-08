@@ -43,6 +43,8 @@ export class RenderBufferPool {
   /** Restore a transferred buffer after main thread finishes reading. */
   release(index: number, buffer: ArrayBuffer): void {
     if (index < 0 || index >= this.size) return;
+    if (!this.outbound[index]) return;
+    if (this.slots[index] !== buffer && buffer.byteLength < this.expectedByteLength) return;
     if (buffer.byteLength < this.expectedByteLength) {
       this.slots[index] = new ArrayBuffer(this.expectedByteLength);
     } else {

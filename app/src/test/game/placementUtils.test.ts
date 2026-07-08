@@ -5,6 +5,7 @@ import {
   isBuildingTechUnlocked,
   isFootprintOnBuildableTerrain,
   isFootprintWithinMapBounds,
+  overlapsAnyBuilding,
   overlapsPlayerBuilding,
   PLACEMENT_TILE_SIZE,
 } from '@/game/placementUtils';
@@ -60,8 +61,8 @@ describe('isFootprintWithinMapBounds', () => {
   });
 });
 
-describe('overlapsPlayerBuilding', () => {
-  it('ignores rival faction buildings', () => {
+describe('overlapsAnyBuilding', () => {
+  it('blocks rival faction buildings', () => {
     const rival: Building = {
       id: 1,
       type: BuildingType.House,
@@ -79,7 +80,30 @@ describe('overlapsPlayerBuilding', () => {
       buildAnimTimer: 0,
       faction: 'rival',
     };
-    expect(overlapsPlayerBuilding([rival], 30, 30, 50, 50)).toBe(false);
+    expect(overlapsAnyBuilding([rival], 30, 30, 50, 50)).toBe(true);
+  });
+});
+
+describe('overlapsPlayerBuilding', () => {
+  it('blocks rival faction buildings', () => {
+    const rival: Building = {
+      id: 1,
+      type: BuildingType.House,
+      x: 50,
+      y: 50,
+      width: 40,
+      height: 40,
+      occupants: [],
+      level: 1,
+      constructionProgress: 100,
+      completed: true,
+      health: 100,
+      maxHealth: 100,
+      spriteScale: 1,
+      buildAnimTimer: 0,
+      faction: 'rival',
+    };
+    expect(overlapsPlayerBuilding([rival], 30, 30, 50, 50)).toBe(true);
   });
 });
 

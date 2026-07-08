@@ -15,9 +15,9 @@ Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHA
 | 🟢 | Election & leadership — decennial ceremony (year-before buildup → 3-day Revelry), incumbent always in race with record score (+8 cap), panel + hints + tutorial synced |
 | 🟢 | Housing logic — beds vs immigration cap in UI; singles share until marriage; child custodian chain (mother → father → grandma → adoption); 18+ move-out; families share when houses full |
 | 🟢 | Dead-entity compaction — alive-only entities each tick |
-| 🟢 | Spatial grid — dual-layer grass + mobile cells; graze/hunt/flee wired (`spatialGrid.ts`, on by default) |
+| 🟢 | Spatial grid — grass **56px** + mobile **80px** + road index **128px**; graze→grass, flee/hunt/social→mobile (`spatialGrid.ts`, on by default) — [TECHNICAL.md](TECHNICAL.md#dual-layer-spatial-grid) |
 | 🟢 | Web Worker gameTick — opt-in (`VITE_USE_GAME_WORKER=1`); render SoA + proto handshake |
-| 🟢 | Big bug checkup — **252** tracker items closed (Batch O); Vitest **358** (67 files); lint **0**; build clean |
+| 🟢 | Big bug checkup — **429** tracker IDs (**391 fixed**, **24 info**, **0 open/partial**); Vitest **390** (71 files); lint **0**; build clean |
 | 🟢 | **Raid Guard XP → elections** — fighters earn Guard skill XP; leader +0.45 XP + rep on wins; merit = all skills ×2; incumbent record from rep (+8 cap) |
 | 🟢 | **Victory goals retuned** — Eco-Utopia **250** + 20yr eco; Great City **400** + **60** buildings; Trade Empire **7** routes + **40** caravan trips + **50k** trade gold; Harmony **8 wild** wolves + **15** wildkin (untamed only) |
 | 🟢 | **Walking trade caravans** — merchants walk hub → partner → back; goods on arrival; map **🚚** lines; 7 routes (`tradeCaravans.ts`) |

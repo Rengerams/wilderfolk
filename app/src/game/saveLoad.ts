@@ -2,7 +2,7 @@ import type { WorldState, Entity } from './gameTypes';
 import { EntityType, BuildingType, DEFAULT_WORKSHOP_RECIPE_ID, INITIAL_CHALLENGES } from './gameTypes';
 import { createEmptyLifetimeStats } from './stats';
 import { mergeForSave, createViewFromSave, type ViewState } from './viewState';
-import { WORLD_STATE_SAVE_KEYS } from './saveSchema';
+import { ENTITY_PERSISTED_FIELDS, WORLD_STATE_SAVE_KEYS } from './saveSchema';
 import { generateWorldMap } from './terrainGen';
 import {
   getCalendarDay, getHourOfDay, getAbsoluteCalendarDay, migrateHumanAges, rebuildChildrenIds,
@@ -36,6 +36,17 @@ import { migrateVillageForgeOnLoad } from './forge';
 
 const SAVE_KEY = 'ecosim_save';
 const COMPATIBLE_SAVE_VERSIONS = ['2.0', '2.1', '2.2', '0.4', '0.4.1', '0.4.2'] as const;
+
+/** Restore entity fields that must survive save/load (see ENTITY_PERSISTED_FIELDS). */
+function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): void {
+  for (const key of ENTITY_PERSISTED_FIELDS) {
+    const value = saved[key];
+    if (value !== undefined) {
+      (entity as unknown as Record<string, unknown>)[key] = value;
+    }
+  }
+  ensureEntitySkills(entity);
+}
 
 export type SaveResult = { success: true } | { success: false; error: string };
 
@@ -168,6 +179,7 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
         tradesCompleted: g.tradesCompleted ?? 0,
         refugeeResolved: g.refugeeResolved ?? g.kind !== 'refugees',
         leaderTalked: g.leaderTalked ?? false,
+        spawnedAtCalendarDay: g.spawnedAtCalendarDay ?? getAbsoluteCalendarDay(loadedTick),
       })),
       rivalSettlements: (worldData.rivalSettlements ?? []).map((r) => ({
         ...r,
@@ -193,11 +205,11 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
           birthDay: 0,
           ...e,
         } as Entity;
+        migrateEntityPersistedFields(entity, e);
         if (entity.type === EntityType.Human && entity.spriteVariant === undefined && entity.gender) {
           entity.spriteVariant = pickHumanVariant(entity.id, entity.gender);
         }
         migrateLegacyMoonHowler(entity, getAbsoluteCalendarDay(loadedTick), getHourOfDay(loadedTick));
-        ensureEntitySkills(entity);
         return entity;
       }),
     } as WorldState;
@@ -233,7 +245,7 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
       { forceCalendar: forceAgeMigration },
     );
     rebuildChildrenIds(world.entities);
-    assignMissingResidences(world.entities, world.buildings);
+    assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities);
     assignMissingWorkers(world.entities.filter(isPlayerHuman), world.buildings);
 
     const applySaveMigration = (id: string, message: string) => {

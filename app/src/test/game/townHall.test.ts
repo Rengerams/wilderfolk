@@ -91,4 +91,12 @@ describe('townHall civic system', () => {
     expect(state.festival?.active).toBe(true);
     expect(state.festival?.name).toContain('Town Hall');
   });
+
+  it('does not materialize undefined skill keys when assigning an official', () => {
+    let state = initGame();
+    const official = state.entities.find((e) => e.alive && isPlayerHuman(e))!;
+    delete official.skills;
+    state = addStaffedTownHall(state, official.id);
+    expect(official.skills).toBeUndefined();
+  });
 });

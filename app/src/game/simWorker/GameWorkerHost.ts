@@ -43,7 +43,7 @@ export type WorkerUiPatch = Pick<
 >;
 
 /** Max ticks in flight — reserve one pool slot for the display buffer held on main. */
-export const MAX_PIPELINE_DEPTH = Math.max(1, RENDER_BUFFER_POOL_SIZE - 1);
+export const MAX_PIPELINE_DEPTH = Math.max(0, RENDER_BUFFER_POOL_SIZE - 1);
 
 export class GameWorkerHost {
   private worker: Worker | null = null;
@@ -76,6 +76,9 @@ export class GameWorkerHost {
   async init(world: WorldState): Promise<void> {
     if (typeof Worker === 'undefined') {
       throw new Error('Web Workers are not available in this environment');
+    }
+    if (RENDER_BUFFER_POOL_SIZE < 2) {
+      throw new Error(`RENDER_BUFFER_POOL_SIZE must be >= 2, got ${RENDER_BUFFER_POOL_SIZE}`);
     }
     this.dispose();
     const initGen = this.generation;
@@ -380,8 +383,10 @@ export class GameWorkerHost {
     };
   }
 
-  private rejectInFlight(err: Error): void {
-    this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
+  private rejectInFlight(err: Error, opts?: { decrementTicks?: boolean }): void {
+    if (opts?.decrementTicks) {
+      this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
+    }
     this.pendingCommand?.reject(err);
     this.pendingCommand = null;
     this.pendingExport?.reject(err);
@@ -393,7 +398,7 @@ export class GameWorkerHost {
     if (!isWorkerProto(msg.proto)) {
       const err = new Error(workerProtoMismatch(msg.proto));
       console.error('[GameWorker]', err.message, msg.type);
-      this.rejectInFlight(err);
+      this.rejectInFlight(err, { decrementTicks: msg.type === 'tickResult' });
       return;
     }
 
@@ -409,15 +414,20 @@ export class GameWorkerHost {
     }
 
     if (msg.type === 'commandResult' && this.worldRef) {
-      if (msg.ok !== false) {
-        applySimTickDelta(this.worldRef, msg.delta, { cloneMode: 'transfer' });
+      if (msg.ok === false) {
+        this.onCommandResult?.(this.worldRef, msg.delta, null, false, msg.reason);
+        this.pendingCommand?.reject(new Error(msg.reason ?? 'Command failed'));
+        this.pendingCommand = null;
+        this.resolveIdleWaiters();
+        return;
       }
+      applySimTickDelta(this.worldRef, msg.delta, { cloneMode: 'transfer' });
       let render: WorkerTickRender | null = null;
       if (msg.renderBuffer != null && msg.bufferIndex != null) {
         this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer);
         render = this.buildRender(msg.renderBuffer, msg.delta, undefined);
       }
-      this.onCommandResult?.(this.worldRef, msg.delta, render, msg.ok, msg.reason);
+      this.onCommandResult?.(this.worldRef, msg.delta, render, true, msg.reason);
       this.pendingCommand?.resolve(msg.delta);
       this.pendingCommand = null;
       this.resolveIdleWaiters();
@@ -434,23 +444,21 @@ export class GameWorkerHost {
     if (msg.type !== 'tickResult' || !this.worldRef) return;
 
     this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
+    applySimTickDelta(this.worldRef, msg.delta, { cloneMode: 'transfer' });
 
     if (msg.headless || msg.renderBuffer == null || msg.bufferIndex == null) {
-      applySimTickDelta(this.worldRef, msg.delta, { cloneMode: 'transfer' });
       this.onTickResult?.(this.worldRef, msg.delta, null, true);
     } else {
       const reader = createRenderSoAReader(msg.renderBuffer);
       if (!reader) {
         console.error('[GameWorker] Invalid render SoA buffer');
         this.returnRenderBuffer(msg.bufferIndex, msg.renderBuffer);
-        this.resolveIdleWaiters();
-        return;
+        this.onTickResult?.(this.worldRef, msg.delta, null, true);
+      } else {
+        this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer);
+        const render = this.buildRender(msg.renderBuffer, msg.delta, msg.scentBuffer);
+        this.onTickResult?.(this.worldRef, msg.delta, render, true);
       }
-
-      applySimTickDelta(this.worldRef, msg.delta, { cloneMode: 'transfer' });
-      this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer);
-      const render = this.buildRender(msg.renderBuffer, msg.delta, msg.scentBuffer);
-      this.onTickResult?.(this.worldRef, msg.delta, render, true);
     }
 
     if (this.pendingFocus !== undefined) {

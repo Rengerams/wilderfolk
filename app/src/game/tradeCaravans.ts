@@ -96,8 +96,12 @@ function applyImports(state: WorldState, route: TradeRoute, mult: number): numbe
   return goldGained;
 }
 
-function removeCarrier(_state: WorldState, route: TradeRoute, entity: Entity): void {
+function removeCarrier(state: WorldState, route: TradeRoute, entity: Entity): void {
   entity.alive = false;
+  entity.residenceBuildingId = undefined;
+  entity.homeBuildingId = undefined;
+  const idx = state.entities.findIndex((e) => e.id === entity.id);
+  if (idx >= 0) state.entities.splice(idx, 1);
   route.caravanCarrierId = undefined;
   route.caravanLeg = undefined;
   route.caravanWaitTicks = undefined;
@@ -147,6 +151,10 @@ function spawnCaravan(state: WorldState, route: TradeRoute): boolean {
   carrier.faction = 'trade_caravan';
   carrier.groupId = route.id;
   carrier.occupation = 'merchant';
+  carrier.residenceBuildingId = undefined;
+  carrier.homeBuildingId = undefined;
+  carrier.relationshipStatus = 'single';
+  carrier.reproductionCooldown = 9999;
   state.entities.push(carrier);
   route.caravanCarrierId = carrier.id;
   route.caravanLeg = 'outbound';

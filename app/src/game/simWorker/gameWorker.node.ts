@@ -8,7 +8,7 @@ if (!isMainThread && parentPort) {
   const messageListeners = new Set<(event: MessageEvent) => void>();
 
   const dispatchMessage = (data: unknown): void => {
-    const event = { data } as MessageEvent;
+    const event = { data, target: scope, currentTarget: scope, ports: [] } as MessageEvent;
     messageHandler?.(event);
     for (const listener of messageListeners) listener(event);
   };
@@ -40,4 +40,6 @@ if (!isMainThread && parentPort) {
   parentPort.on('message', dispatchMessage);
 }
 
+const { preloadDialogueBank } = await import('../dialogueTrees');
+await preloadDialogueBank();
 await import('./gameWorker.ts');

@@ -1,4 +1,6 @@
+import { formatCitizenName } from './citizenId';
 import { EntityType, type Entity, type WorldState } from './gameTypes';
+import { readUtf8RelativeToModule } from './nodeRuntime';
 
 let maleNames: string[] = [];
 let femaleNames: string[] = [];
@@ -65,31 +67,16 @@ export function ensureNamesLoaded(): void {
   applyNameData(EMBEDDED_MALE, EMBEDDED_FEMALE, EMBEDDED_LAST);
 }
 
-function isNodeRuntime(): boolean {
-  const proc = (globalThis as { process?: { versions?: { node?: string } } }).process;
-  return typeof proc?.versions?.node === 'string';
-}
-
 /** Read name lists from disk — headless sims (tsx/node) cannot use Vite ?raw imports. */
 async function loadNamesFromDisk(): Promise<boolean> {
-  if (!isNodeRuntime()) return false;
-  try {
-    const fsSpec = 'node:fs';
-    const pathSpec = 'node:path';
-    const urlSpec = 'node:url';
-    const { readFileSync } = await import(fsSpec);
-    const { dirname, join } = await import(pathSpec);
-    const { fileURLToPath } = await import(urlSpec);
-    const here = dirname(fileURLToPath(import.meta.url));
-    const dataDir = join(here, 'data');
-    const male = readFileSync(join(dataDir, 'male-first-names.txt'), 'utf8');
-    const female = readFileSync(join(dataDir, 'female-first-names.txt'), 'utf8');
-    const last = readFileSync(join(dataDir, 'last-names.txt'), 'utf8');
-    applyNameData(male, female, last);
-    return maleNames.length > 20;
-  } catch {
-    return false;
-  }
+  const [male, female, last] = await Promise.all([
+    readUtf8RelativeToModule(import.meta.url, 'data', 'male-first-names.txt'),
+    readUtf8RelativeToModule(import.meta.url, 'data', 'female-first-names.txt'),
+    readUtf8RelativeToModule(import.meta.url, 'data', 'last-names.txt'),
+  ]);
+  if (!male || !female || !last) return false;
+  applyNameData(male, female, last);
+  return maleNames.length > 20;
 }
 
 export async function loadNames(): Promise<void> {
@@ -213,6 +200,31 @@ export function grantDivorce(wife: Entity, husband: Entity): void {
   husband.relationshipStatus = 'single';
   wife.courtshipProgress = 0;
   husband.courtshipProgress = 0;
+}
+
+/** End a marriage regardless of which partner cheated — maiden name restored for the woman. */
+export function dissolveMarriage(partnerA: Entity, partnerB: Entity): void {
+  const wife = partnerA.gender === 'female' ? partnerA : partnerB.gender === 'female' ? partnerB : null;
+  const husband = partnerA.gender === 'male' ? partnerA : partnerB.gender === 'male' ? partnerB : null;
+  if (wife && husband) {
+    grantDivorce(wife, husband);
+    return;
+  }
+  partnerA.partnerId = undefined;
+  partnerB.partnerId = undefined;
+  partnerA.relationshipStatus = 'single';
+  partnerB.relationshipStatus = 'single';
+  partnerA.courtshipProgress = 0;
+  partnerB.courtshipProgress = 0;
+}
+
+export function formatCaughtCheaterDivorceDetail(spouse: Entity, cheater: Entity): string {
+  const spouseName = formatCitizenName(spouse);
+  const cheaterName = formatCitizenName(cheater);
+  if (cheater.gender === 'female' && cheater.maidenSurname?.trim()) {
+    return `${spouseName} divorced ${cheaterName} — she took back her maiden name`;
+  }
+  return `${spouseName} divorced ${cheaterName}`;
 }
 
 /** Regenerate fallback names and backfill missing surnames (immigrants, old saves). */

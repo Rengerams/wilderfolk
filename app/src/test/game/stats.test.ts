@@ -57,7 +57,7 @@ describe('recordYearlyStats', () => {
     expect(stats.marriedCount).toBe(baselineMarried + 4);
   });
 
-  it('ignores founding wildlife with birthYear -1 in year 0 animal births', () => {
+  it('ignores founding wildlife (birthYear -1 sentinel) in year 0 animal births', () => {
     const state = initGame();
     state.year = 0;
     const founding = state.entities.filter((e) => e.type === EntityType.Rabbit);

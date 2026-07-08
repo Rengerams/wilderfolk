@@ -222,9 +222,6 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
 
   useEffect(() => {
     startedAtRef.current = Date.now();
-  }, []);
-
-  useEffect(() => {
     tryStartIntroAudio();
   }, [tryStartIntroAudio]);
 
@@ -259,7 +256,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
     return () => timers.forEach(clearTimeout);
   }, []);
 
-  // Subtle progress along the bottom.
+  // Subtle progress along the bottom — shares startedAtRef with the reveal timeline.
   useEffect(() => {
     const tick = () => {
       const elapsed = Date.now() - startedAtRef.current;

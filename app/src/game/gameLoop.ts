@@ -212,7 +212,7 @@ export class GameLoop {
   /** @param silent Skip React notification (use for per-frame hover/ghost/camera drag). */
   patchView(patch: Partial<ViewState>, silent = false): void {
     this.view = { ...this.view, ...patch };
-    if (!silent) this.notify(false, true);
+    if (!silent) this.notify(false, false, true);
   }
 
   /** Worker-authoritative player command (no full WorldState clone). */
@@ -438,7 +438,6 @@ export class GameLoop {
           gameTick(this.world, focus);
           this.catalog.rebuild(this.world.entities);
           this.view = syncScreenShakeFromWorld(this.view, this.world);
-          clearScreenShakeImpulse(this.world);
           this.tickAccumulator -= msPerTick;
           steps++;
           tickChanged = true;
@@ -497,6 +496,9 @@ export class GameLoop {
       scentReader: this.scentReader,
     });
     renderGame(ctx, snapshot, layoutW, layoutH);
+    if (this.world.screenShakeImpulse > 0) {
+      clearScreenShakeImpulse(this.world);
+    }
   }
 
   private pruneStaleSelection(): void {

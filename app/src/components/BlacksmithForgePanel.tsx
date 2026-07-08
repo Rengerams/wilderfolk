@@ -16,6 +16,7 @@ interface Props {
 
 export default function BlacksmithForgePanel({ state, buildingId, onQueueForge }: Props) {
   const forge = state.villageForge;
+  if (!forge) return null;
   const staffed = state.buildings.some(
     (b) => b.id === buildingId && b.completed && (b.occupants?.length ?? 0) > 0,
   );

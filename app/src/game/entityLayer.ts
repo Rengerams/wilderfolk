@@ -50,8 +50,6 @@ export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: numbe
     state.pendingOutgoingRaidEvents?.length ?? 0,
     state.visitorGroups.length,
     state.buildings.length,
-    state.deathParticles.length,
-    state.floatingTexts.length,
   ].join('|');
 }
 

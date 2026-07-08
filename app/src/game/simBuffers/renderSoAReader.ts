@@ -2,6 +2,7 @@ import type { EntityType as EntityTypeName } from '../gameTypes';
 import { codeToEntityType, isKnownEntityTypeCode } from './entityTypeCodes';
 import {
   HUNT_TARGET_NONE,
+  RESIDENCE_BUILDING_NONE,
   RENDER_FIELD,
   RENDER_GLOBAL_OVERFLOW,
   RENDER_HEADER,
@@ -14,6 +15,7 @@ import {
 
 export function validateRenderBufferLayout(buffer: ArrayBuffer): boolean {
   if (buffer.byteLength < 32) return false;
+  if (buffer.byteLength % 4 !== 0) return false;
   const u32 = new Uint32Array(buffer);
   if (u32[RENDER_HEADER.magic] !== RENDER_SOA_MAGIC) return false;
   if (u32[RENDER_HEADER.schemaVersion] !== RENDER_SOA_VERSION) return false;
@@ -31,6 +33,9 @@ export class RenderSoAReaderV1 {
   private readonly f32: Float32Array;
 
   constructor(buffer: ArrayBuffer) {
+    if (buffer.byteLength % 4 !== 0) {
+      throw new Error(`Render SoA buffer byteLength must be a multiple of 4 (got ${buffer.byteLength})`);
+    }
     this.buffer = buffer;
     this.u32 = new Uint32Array(buffer);
     this.f32 = new Float32Array(buffer);
@@ -162,7 +167,7 @@ export class RenderSoAReaderV1 {
   }
 
   residenceBuildingId(slot: number): number {
-    if (!this.slotInRange(slot)) return 0;
+    if (!this.slotInRange(slot)) return RESIDENCE_BUILDING_NONE;
     return this.u32[this.base(slot) + RENDER_FIELD.residenceBuildingId];
   }
 

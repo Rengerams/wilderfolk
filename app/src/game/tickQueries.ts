@@ -1,6 +1,12 @@
 import type { Entity } from './gameTypes';
 import { EntityType } from './gameTypes';
 import type { EntitySpatialGrid } from './spatialGrid';
+import type { SpatialQueryCategory } from './spatialQueryMetrics';
+import {
+  isSpatialQueryMetricsEnabled,
+  recordSpatialCandidate,
+  withSpatialQuery,
+} from './spatialQueryMetrics';
 
 /** O(1) alive lookup by entity id (rebuilt once per tick). */
 export function getLivingEntity(
@@ -53,26 +59,32 @@ export function findClosestEntityInRadius(
   radius: number,
   predicate: (entity: Entity, distSq: number) => boolean,
   fallback?: readonly Entity[],
+  metricCategory: SpatialQueryCategory = 'social',
 ): Entity | undefined {
-  if (mobileGrid) {
-    const hit = mobileGrid.findClosestInRadius(x, y, radius, predicate);
-    return hit?.entity;
+  if (mobileGrid && typeof mobileGrid.findClosestInRadius === 'function') {
+    return withSpatialQuery(metricCategory, () => {
+      const hit = mobileGrid.findClosestInRadius(x, y, radius, predicate);
+      return hit?.entity;
+    });
   }
   if (!fallback) return undefined;
-  const radiusSq = radius * radius;
-  let best: Entity | undefined;
-  let bestDistSq = radiusSq;
-  for (const entity of fallback) {
-    if (!entity.alive) continue;
-    const dx = entity.x - x;
-    const dy = entity.y - y;
-    const distSq = dx * dx + dy * dy;
-    if (distSq <= bestDistSq && predicate(entity, distSq)) {
-      bestDistSq = distSq;
-      best = entity;
+  return withSpatialQuery(metricCategory, () => {
+    const radiusSq = radius * radius;
+    let best: Entity | undefined;
+    let bestDistSq = radiusSq;
+    for (const entity of fallback) {
+      if (!entity.alive) continue;
+      if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate(metricCategory);
+      const dx = entity.x - x;
+      const dy = entity.y - y;
+      const distSq = dx * dx + dy * dy;
+      if (distSq <= bestDistSq && predicate(entity, distSq)) {
+        bestDistSq = distSq;
+        best = entity;
+      }
     }
-  }
-  return best;
+    return best;
+  });
 }
 
 export function forEachEntityInRadius(
@@ -82,20 +94,26 @@ export function forEachEntityInRadius(
   radius: number,
   fn: (entity: Entity, distSq: number) => void,
   fallback?: readonly Entity[],
+  metricCategory: SpatialQueryCategory = 'hunt',
 ): void {
-  if (mobileGrid) {
-    mobileGrid.forEachInRadius(x, y, radius, fn);
+  if (mobileGrid && typeof mobileGrid.forEachInRadius === 'function') {
+    withSpatialQuery(metricCategory, () => {
+      mobileGrid.forEachInRadius(x, y, radius, fn);
+    });
     return;
   }
   if (!fallback) return;
-  const radiusSq = radius * radius;
-  for (const entity of fallback) {
-    if (!entity.alive) continue;
-    const dx = entity.x - x;
-    const dy = entity.y - y;
-    const distSq = dx * dx + dy * dy;
-    if (distSq <= radiusSq) fn(entity, distSq);
-  }
+  withSpatialQuery(metricCategory, () => {
+    const radiusSq = radius * radius;
+    for (const entity of fallback) {
+      if (!entity.alive) continue;
+      if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate(metricCategory);
+      const dx = entity.x - x;
+      const dy = entity.y - y;
+      const distSq = dx * dx + dy * dy;
+      if (distSq <= radiusSq) fn(entity, distSq);
+    }
+  });
 }
 
 /** Wildlife population for capacity checks — computed once per type per tickWildlife. */

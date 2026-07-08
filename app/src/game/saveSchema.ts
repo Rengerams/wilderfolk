@@ -1,4 +1,4 @@
-import type { WorldState } from './gameTypes';
+import type { Entity, WorldState } from './gameTypes';
 
 /** Allow-list of WorldState keys — prevents view/UI fields from leaking into simulation state. */
 export const WORLD_STATE_SAVE_KEYS = [
@@ -18,6 +18,19 @@ export const WORLD_STATE_SAVE_KEYS = [
   'villageForge', 'tutorialSeen', 'lastWildlifeReplenishLogDay', 'eventsThisYear',
   'appliedSaveMigrations',
 ] as const satisfies readonly (keyof WorldState)[];
+
+/**
+ * Entity fields nested under `entities` that must survive save/load and worker catalog sync.
+ * (Not top-level WORLD_STATE_SAVE_KEYS — those are world-level only.)
+ */
+export const ENTITY_PERSISTED_FIELDS = [
+  'skills',
+  'moonHowlerSaved',
+  'moonHowlerCursed',
+  'pregnantById',
+  'pregnancyProgress',
+  'tamedBy',
+] as const satisfies readonly (keyof Entity)[];
 
 export function pickWorldFieldsForSave(world: WorldState): Record<string, unknown> {
   const out: Record<string, unknown> = {};

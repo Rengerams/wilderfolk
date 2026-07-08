@@ -19,7 +19,7 @@ import { checkVictoryAchievements } from './victory';
 import { logEvent } from './eventLog';
 import {
   ensureEntitySkills, readSkill, getWorkerSkillMultiplier,
-  getJobForBuilding, getOccupationForBuilding, gainSkill, rewardProductionSkills,
+  getJobForBuilding, getOccupationForBuilding, gainSkill, rewardProductionSkills, decayIdleSkills,
 } from './skills';
 
 export type { WorldState, Entity, EntityByType, Building, DeathParticle, FloatingText, GameEvent, Camera };
@@ -49,6 +49,8 @@ import {
   EVENT_INTERVAL, isNewCalendarDayTick, markCalendarDayProcessed,
   getAbsoluteCalendarDay, syncHumanAgeFromCalendar,
   reconcileOrphanedMarriages,
+  isResidenceOccupantEntity,
+  syncResidenceOccupants,
 } from './dayCycle';
 
 /** Region of the world that receives full simulation this tick. */
@@ -585,6 +587,7 @@ export {
 } from './villageLeadership';
 import {
   canMoonHowlerCurse, countActiveMoonHowlerCurses, curseMoonHowler,
+  isActiveMoonHowler,
   shouldApplyNewMoonHowlerCurse, syncMoonHowlerForms, transformToWerewolfForm,
   tryMoonHowlerChurchCures,
 } from './moonHowler';
@@ -919,6 +922,7 @@ export function releasePrisoners(state: WorldState): void {
     assignMissingResidences(
       state.entities.filter((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e)),
       state.buildings,
+      state.entities,
     );
   }
 }
@@ -939,6 +943,8 @@ import {
   USE_SPATIAL_GRID,
   buildGrassGrid,
   syncMobileSimGrid,
+  syncTreeSimGrid,
+  buildRoadAvoidanceIndex,
   assertSpatialGridInvariants,
   syncGrassRenderGrid,
 } from './spatialGrid';
@@ -948,15 +954,33 @@ import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { pushTransientParticle, spawnBuildCompleteParticles } from './juiceEffects';
 import { pruneFactionWanderStates } from './factionWander';
 import { loadJuiceEffectsEnabled } from './preferences';
-import { computePopulationCounts } from './entityCounts';
+import {
+  computePopulationCounts,
+  wildlifeCountsFromPopulation,
+} from './entityCounts';
+import {
+  flushSpatialQueryTickToSession,
+  isSpatialQueryMetricsEnabled,
+  resetSpatialQueryTickMetrics,
+  setSpatialQueryGridMode,
+} from './spatialQueryMetrics';
 
-export { computePopulationCounts, computeWildlifeCounts } from './entityCounts';
+export {
+  computePopulationCounts,
+  computeWildlifeCounts,
+  wildlifeCountsFromPopulation,
+} from './entityCounts';
 
 // ============ GAME TICK ============
 /** Advances simulation one tick. Mutates state in place for performance. */
 export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState {
   if (state.paused) return state;
   const { width, height } = state;
+
+  if (isSpatialQueryMetricsEnabled()) {
+    resetSpatialQueryTickMetrics();
+    setSpatialQueryGridMode(USE_SPATIAL_GRID ? 'grid' : 'naive');
+  }
 
   state.tick++;
   state.dayInYear = getCalendarDay(state.tick);
@@ -1030,11 +1054,16 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
       addFloatingText(state, curedOne.x, curedOne.y - 20, 'Cured!', '#22c55e');
       logEvent(state, 'event', `${who} was cured of the Moon Howler curse`, who);
     }
+    byType = buildEntityByType(aliveEntities);
   }
 
   const moonSync = syncMoonHowlerForms(aliveEntities, colonyDay, hourOfDay);
   if (moonSync.transformed.length > 0 || moonSync.reverted.length > 0) {
     byType = buildEntityByType(aliveEntities);
+    syncResidenceOccupants(
+      aliveEntities.filter(isResidenceOccupantEntity),
+      state.buildings,
+    );
   }
   if (moonSync.nightFall) {
     addBigNews(state, '🌝 Full Moon!', 'Moon Howlers are abroad. Keep settlers indoors — they hunt tonight.', 'negative');
@@ -1092,7 +1121,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
           ? 1 + workers * 0.25
           : isPassiveBuild(building.type) ? 0.55 : 0.12;
         const globalMult = getMultiplier(state, 'global_efficiency');
-        const skillMult = getWorkerSkillMultiplier(state, building);
+        const skillMult = getWorkerSkillMultiplier(state, building, entityById);
         building.constructionProgress += baseRate * buildMultiplier * globalMult * skillMult;
         if (workers > 0 && hourOfDay === WORK_START) {
           const job = getJobForBuilding(building.type) ?? JobType.Builder;
@@ -1158,6 +1187,13 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   const playerHumans = byType[EntityType.Human].filter(isPlayerHuman);
   assignMissingWorkers(playerHumans, updatedBuildings);
 
+  if (isNewCalendarDay) {
+    for (const human of playerHumans) {
+      if (!human.alive || human.isJuvenile) continue;
+      decayIdleSkills(human, human.job);
+    }
+  }
+
   if (maybeTriggerRenffrOmen(state, state.entities, isNightHour(hourOfDay))) {
     logEvent(state, 'event', 'A star scratched "Renffr" across the night sky. The letters fell out of alignment.', 'Renffr');
   }
@@ -1211,6 +1247,33 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   const mobileGrid = USE_SPATIAL_GRID
     ? syncMobileSimGrid(state.mobileGrid, width, height, aliveEntities)
     : undefined;
+  state.mobileGrid = mobileGrid;
+
+  const treeTypeList = byType[EntityType.Tree];
+  let aliveTreeCount = 0;
+  for (const tree of treeTypeList) {
+    if (tree.alive) aliveTreeCount++;
+  }
+  const treeGrid = syncTreeSimGrid(
+    state.treeGrid,
+    state.treeGridAlive,
+    width,
+    height,
+    treeTypeList,
+    aliveTreeCount,
+  );
+  state.treeGrid = treeGrid;
+  state.treeGridAlive = aliveTreeCount;
+
+  const roadStamp = roadBuildings.length;
+  if (
+    !state.roadAvoidance
+    || state.roadAvoidanceStamp !== roadStamp
+    || typeof state.roadAvoidance.isNearRoad !== 'function'
+  ) {
+    state.roadAvoidance = buildRoadAvoidanceIndex(width, height, roadBuildings);
+    state.roadAvoidanceStamp = roadStamp;
+  }
 
   const scentGrid = USE_SCENT_GRID ? ensureScentGrid(state) : undefined;
   if (scentGrid) tickScentGrid(state, predators);
@@ -1232,10 +1295,21 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     predators,
     grassGrid,
     mobileGrid,
+    treeGrid,
+    roadAvoidance: state.roadAvoidance,
     scentGrid,
     focus,
     wildlifeSpawnParent: new Map(),
+    hasWell: updatedBuildings.some((b) => b.type === BuildingType.Well && b.completed),
+    hasHospital: updatedBuildings.some((b) => b.type === BuildingType.Hospital && b.completed),
   };
+  if (aliveEntities.some(isActiveMoonHowler)) {
+    syncResidenceOccupants(
+      aliveEntities.filter(isResidenceOccupantEntity),
+      updatedBuildings,
+    );
+  }
+
   tickHumans(state, ctx);
   tickWildlife(state, ctx);
 
@@ -1349,7 +1423,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
       allAlive.push(newcomer);
       counts.humans++;
     }
-    assignMissingResidences(allAlive.filter(isPlayerHuman), updatedBuildings);
+    assignMissingResidences(allAlive.filter(isPlayerHuman), updatedBuildings, allAlive);
     assignMissingWorkers(allAlive.filter(isPlayerHuman), updatedBuildings);
     addFloatingText(state, spawnX, spawnY - 18, '+1 Settler arrived', '#22c55e');
   }
@@ -1361,18 +1435,25 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     * getTownHallGovernanceEfficiency(state, updatedBuildings);
   const festivalMult = state.festival?.active ? 1.5 : 1;
   const playerWorkers = allAlive.filter(isPlayerHuman);
+  const workersByBuildingId = new Map<number, number>();
+  for (const h of playerWorkers) {
+    if (!h.alive || h.faction) continue;
+    const siteId = h.homeBuildingId;
+    if (siteId == null) continue;
+    workersByBuildingId.set(siteId, (workersByBuildingId.get(siteId) ?? 0) + 1);
+  }
   const adjacencyIndex = buildAdjacencyIndex(updatedBuildings);
 
   for (const building of updatedBuildings) {
     const levelMult = building.level || 1;
     const terrainMult = getTerrainEfficiencyMultiplier(state, building);
     const adjacencyMult = getAdjacencyMultiplierFromIndex(adjacencyIndex, building);
-    const skillMult = getWorkerSkillMultiplier(state, building);
+    const skillMult = getWorkerSkillMultiplier(state, building, entityById);
     const totalMult = levelMult * terrainMult * adjacencyMult * festivalMult * skillMult;
     const productionJob = getJobForBuilding(building.type);
 
     const workers = BUILDING_JOB_TYPES[building.type]
-      ? countWorkersAtBuilding(playerWorkers, building.id)
+      ? (workersByBuildingId.get(building.id) ?? 0)
       : 0;
     const staffed = !BUILDING_JOB_TYPES[building.type] || workers > 0;
     if (building.completed && staffed && building.type === BuildingType.Farm && isProductionTick(state.tick, PRODUCTION_INTERVAL.farm)) {
@@ -1387,37 +1468,37 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     if (building.completed && staffed && building.type === BuildingType.Store && isProductionTick(state.tick, PRODUCTION_INTERVAL.store)) {
       const goldMult = getMultiplier(state, 'gold_production');
       const amount = Math.floor(5 * totalMult * goldMult * globalEff);
-      if (addResource(state, 'gold', amount) > 0) rewardProductionSkills(state, building);
+      if (addResource(state, 'gold', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
     }
     if (building.completed && staffed && building.type === BuildingType.LumberMill && isProductionTick(state.tick, PRODUCTION_INTERVAL.lumber)) {
       const lumberMult = getMultiplier(state, 'lumber_yield');
       const amount = Math.floor((12 + workers * 4) * totalMult * smithBonus * lumberMult * globalEff);
-      if (addResource(state, 'wood', amount) > 0) rewardProductionSkills(state, building);
+      if (addResource(state, 'wood', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
       state.deathParticles.push({ x: building.x + Math.random() * building.width, y: building.y + Math.random() * building.height, vx: (Math.random() - 0.5) * 0.5, vy: -1 - Math.random(), life: 20, maxLife: 20, color: '#8B7355', size: 2 + Math.random() * 2, type: 'smoke' });
     }
     if (building.completed && staffed && building.type === BuildingType.Quarry && isProductionTick(state.tick, PRODUCTION_INTERVAL.quarry)) {
       const stoneMult = getMultiplier(state, 'quarry_yield') * getForgeQuarryMultiplier(state);
       const amount = Math.floor((8 + workers * 3) * totalMult * smithBonus * stoneMult * globalEff);
-      if (addResource(state, 'stone', amount) > 0) rewardProductionSkills(state, building);
+      if (addResource(state, 'stone', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
       state.deathParticles.push({ x: building.x + Math.random() * building.width, y: building.y + Math.random() * building.height, vx: (Math.random() - 0.5) * 0.3, vy: -0.8 - Math.random() * 0.5, life: 25, maxLife: 25, color: '#808080', size: 2 + Math.random() * 2, type: 'smoke' });
     }
     if (building.completed && staffed && building.type === BuildingType.Mine && isProductionTick(state.tick, PRODUCTION_INTERVAL.mine)) {
       const stoneMult = getMultiplier(state, 'stone_production');
       const amount = Math.floor((12 + workers * 4) * totalMult * smithBonus * stoneMult * globalEff);
-      if (addResource(state, 'stone', amount) > 0) rewardProductionSkills(state, building);
+      if (addResource(state, 'stone', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
       state.deathParticles.push({ x: building.x + Math.random() * building.width, y: building.y + Math.random() * building.height, vx: (Math.random() - 0.5) * 0.4, vy: -1 - Math.random(), life: 30, maxLife: 30, color: '#555555', size: 3 + Math.random() * 2, type: 'smoke' });
     }
     if (building.completed && staffed && building.type === BuildingType.Greenhouse && isProductionTick(state.tick, PRODUCTION_INTERVAL.greenhouse)) {
       const harvestBonus = state.bountifulHarvest ? 2 : 1;
       const farmMult = getMultiplier(state, 'farm_yield');
       const amount = Math.floor((18 + workers * 5) * totalMult * harvestBonus * millBonus * farmMult * globalEff);
-      if (addResource(state, 'food', amount) > 0) rewardProductionSkills(state, building);
+      if (addResource(state, 'food', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
       state.deathParticles.push({ x: building.x + Math.random() * building.width, y: building.y + Math.random() * building.height, vx: (Math.random() - 0.5) * 0.3, vy: -0.8 - Math.random() * 0.5, life: 25, maxLife: 25, color: '#90EE90', size: 2 + Math.random(), type: 'smoke' });
     }
     if (building.completed && staffed && building.type === BuildingType.Market && isProductionTick(state.tick, PRODUCTION_INTERVAL.market)) {
       const goldMult = getMultiplier(state, 'gold_production');
       const amount = Math.floor((8 + workers * 3) * totalMult * goldMult * globalEff);
-      if (addResource(state, 'gold', amount) > 0) rewardProductionSkills(state, building);
+      if (addResource(state, 'gold', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
       state.deathParticles.push({ x: building.x + Math.random() * building.width, y: building.y + Math.random() * building.height, vx: (Math.random() - 0.5) * 0.5, vy: -1.2 - Math.random(), life: 30, maxLife: 30, color: '#ffd700', size: 2 + Math.random() * 2, type: 'star' });
     }
     if (building.completed && building.type === BuildingType.Workshop && isProductionTick(state.tick, PRODUCTION_INTERVAL.workshop)) {
@@ -1432,7 +1513,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
           const added = addResource(state, 'gold', amount);
           if (added > 0) {
             consumeWorkshopRecipeInputs(state, recipe);
-            rewardProductionSkills(state, building);
+            rewardProductionSkills(state, building, 0.2, entityById);
             addFloatingText(
               state,
               building.x + building.width / 2,
@@ -1594,7 +1675,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
 
   const endTickHumans = allAlive.filter(isPlayerHuman);
   // Must use allAlive — newborns/immigrants from this tick are not in state.entities yet.
-  assignMissingResidences(endTickHumans, updatedBuildings);
+  assignMissingResidences(endTickHumans, updatedBuildings, allAlive);
   assignMissingWorkers(endTickHumans, updatedBuildings);
 
   const preVictoryState: WorldState = {
@@ -1655,16 +1736,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.season = season;
   state.populationHistory = history;
   state.humanPopulation = counts.humans;
-  state.wildlifeCounts = {
-    grass: counts.grass,
-    rabbits: counts.rabbits,
-    deer: counts.deer,
-    wolves: counts.wolves,
-    foxes: counts.foxes,
-    werewolves: counts.werewolves,
-    wildkin: counts.wildkin,
-    trees: counts.trees,
-  };
+  state.wildlifeCounts = wildlifeCountsFromPopulation(counts);
   state.activeEvent = currentActiveEvent;
   state.lastEventYear = currentLastEventYear;
   state.bountifulHarvest = currentBountifulHarvest;
@@ -1672,6 +1744,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.victories = victoryResult.victories;
   state.victoryAchieved = victoryResult.victoryAchieved;
   markCalendarDayProcessed(state);
+  if (isSpatialQueryMetricsEnabled()) flushSpatialQueryTickToSession();
   return state;
 }
 
@@ -1781,7 +1854,7 @@ export {
 export { tickHumans, tickWildlife } from './lifeSimulation';
 export { updateWeather, updateDisasters } from './worldEvents';
 export { GAME_VERSION, GAME_PHASE, GAME_TITLE, GAME_SUBTITLE, ECOLOGICAL_FACTS } from './version';
-export { getOccupationForBuilding, getJobForBuilding, ensureEntitySkills, readSkill, gainSkill, rewardProductionSkills, getWorkerSkillMultiplier } from './skills';
+export { getOccupationForBuilding, getJobForBuilding, ensureEntitySkills, readSkill, gainSkill, rewardProductionSkills, decayIdleSkills, getWorkerSkillMultiplier } from './skills';
 export {
   FORGE_ORDERS, getForgeOrder, formatForgeInputs, getForgeBlockReason,
   queueForgeOrder, createInitialForgeState,

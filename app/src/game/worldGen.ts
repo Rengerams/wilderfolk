@@ -75,15 +75,31 @@ function spawnWildlifeAtRandomPassable(
   state: WorldState,
   type: EntityType,
   count: number,
+  opts?: { cx?: number; cy?: number; minDist?: number; maxDist?: number; recordBirthYear?: boolean },
 ): void {
+  const margin = 16;
+  const cx = opts?.cx ?? state.width / 2;
+  const cy = opts?.cy ?? state.height / 2;
+  const effMin = Math.max(0, opts?.minDist ?? 0);
+  const effMax = Math.max(effMin, opts?.maxDist ?? Math.max(state.width, state.height));
+  const maxAttempts = Math.min(count * 16, 512);
   let spawned = 0;
-  for (let attempt = 0; attempt < count * 16 && spawned < count; attempt++) {
-    const x = Math.random() * state.width;
-    const y = Math.random() * state.height;
-    if (!isPassableWildlifePosition(state, x, y)) continue;
-    state.entities.push(
-      createEntity(type, x, y, state.nextEntityId++, SPECIES_CONFIG[type].spawnEnergy),
-    );
+  let consecutiveFails = 0;
+
+  for (let attempt = 0; attempt < maxAttempts && spawned < count; attempt++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = effMin + Math.random() * Math.max(0, effMax - effMin);
+    const x = Math.max(margin, Math.min(state.width - margin, cx + Math.cos(angle) * dist));
+    const y = Math.max(margin, Math.min(state.height - margin, cy + Math.sin(angle) * dist));
+    if (!isPassableWildlifePosition(state, x, y, margin)) {
+      consecutiveFails++;
+      if (consecutiveFails >= 48) break;
+      continue;
+    }
+    consecutiveFails = 0;
+    const spawnedEntity = createEntity(type, x, y, state.nextEntityId++, SPECIES_CONFIG[type].spawnEnergy);
+    if (opts?.recordBirthYear) spawnedEntity.birthYear = state.year;
+    state.entities.push(spawnedEntity);
     spawned++;
   }
 }
@@ -192,14 +208,14 @@ export function createEntity(
     if (opts?.ageYears !== undefined) {
       setHumanBirthFromAge(entity, opts.ageYears, opts.colonyDay ?? 0);
     }
-    if (opts?.pregnant) {
+    if (opts?.pregnant && entGender === 'female') {
       entity.pregnant = true;
       entity.pregnancyProgress = opts.pregnancyProgress ?? 0;
       const fatherId = opts.pregnantById ?? opts.fatherId ?? opts.partnerId;
-      if (fatherId !== undefined) {
+      if (fatherId != null) {
         entity.pregnantById = fatherId;
       }
-      entity.relationshipStatus = opts.partnerId !== undefined ? 'married' : 'expecting';
+      entity.relationshipStatus = opts.partnerId != null ? 'married' : 'expecting';
     }
   }
 
@@ -276,18 +292,19 @@ export function spawnWildlifeRing(
   count: number,
   minDist: number,
   maxDist: number,
+  opts?: { recordBirthYear?: boolean },
 ): void {
   const { width, height } = state;
   const margin = 16;
   const maxRadius = maxRingRadiusFromCenter(cx, cy, width, height, margin);
   if (maxRadius <= 0) {
-    spawnWildlifeAtRandomPassable(state, type, count);
+    spawnWildlifeAtRandomPassable(state, type, count, { cx, cy, minDist, maxDist, recordBirthYear: opts?.recordBirthYear });
     return;
   }
   const effMax = Math.min(maxDist, maxRadius);
-  const effMin = Math.min(minDist, effMax);
+  const effMin = Math.min(Math.max(0, minDist), effMax);
   if (effMax <= 0) {
-    spawnWildlifeAtRandomPassable(state, type, count);
+    spawnWildlifeAtRandomPassable(state, type, count, { cx, cy, minDist, maxDist, recordBirthYear: opts?.recordBirthYear });
     return;
   }
 
@@ -300,9 +317,9 @@ export function spawnWildlifeRing(
       const sx = Math.max(margin, Math.min(width - margin, cx + Math.cos(angle) * dist));
       const sy = Math.max(margin, Math.min(height - margin, cy + Math.sin(angle) * dist));
       if (state.worldMap && !isPassableWildlifePosition(state, sx, sy, margin)) continue;
-      state.entities.push(
-        createEntity(type, sx, sy, state.nextEntityId++, SPECIES_CONFIG[type].spawnEnergy),
-      );
+      const spawnedEntity = createEntity(type, sx, sy, state.nextEntityId++, SPECIES_CONFIG[type].spawnEnergy);
+      if (opts?.recordBirthYear) spawnedEntity.birthYear = state.year;
+      state.entities.push(spawnedEntity);
       spawned++;
       placed = true;
       break;
@@ -310,7 +327,9 @@ export function spawnWildlifeRing(
     if (!placed) continue;
   }
   if (spawned < count) {
-    spawnWildlifeAtRandomPassable(state, type, count - spawned);
+    spawnWildlifeAtRandomPassable(state, type, count - spawned, {
+      cx, cy, minDist: effMin, maxDist: effMax, recordBirthYear: opts?.recordBirthYear,
+    });
   }
 }
 
@@ -325,8 +344,10 @@ export function replenishDepletedWildlife(state: WorldState): boolean {
   const predatorsOk = wolves + foxes >= 2;
   const grassCount = counts.grass;
 
-  // Hysteresis for wildlife only — grass can recover even when prey is stable.
-  const needsWildlife = preyTotal < 22 && !(preyTotal >= 14 && predatorsOk);
+  // Hysteresis: replenish when prey is critically low unless the band is stable with predators.
+  const preyCriticallyLow = preyTotal < 22;
+  const preyStableWithPredators = preyTotal >= 14 && predatorsOk;
+  const needsWildlife = preyCriticallyLow && !preyStableWithPredators;
   const needsGrass = grassCount < 30;
   if (!needsWildlife && !needsGrass) return false;
 
@@ -350,20 +371,20 @@ export function replenishDepletedWildlife(state: WorldState): boolean {
 
   let wildlifeSpawned = false;
   if (needsWildlife && rabbits < 12) {
-    spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, 12 - rabbits, 160, 420);
+    spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, 12 - rabbits, 160, 420, { recordBirthYear: true });
     wildlifeSpawned = true;
   }
   if (needsWildlife && deer < 8) {
-    spawnWildlifeRing(state, EntityType.Deer, cx, cy, 8 - deer, 200, 480);
+    spawnWildlifeRing(state, EntityType.Deer, cx, cy, 8 - deer, 200, 480, { recordBirthYear: true });
     wildlifeSpawned = true;
   }
   const preyHealthyForPredators = preyTotal >= 14;
   if (needsWildlife && wolves < 1 && preyHealthyForPredators) {
-    spawnWildlifeRing(state, EntityType.Wolf, cx, cy, 1, 320, 520);
+    spawnWildlifeRing(state, EntityType.Wolf, cx, cy, 1, 320, 520, { recordBirthYear: true });
     wildlifeSpawned = true;
   }
   if (needsWildlife && foxes < 2 && preyHealthyForPredators) {
-    spawnWildlifeRing(state, EntityType.Fox, cx, cy, 2 - foxes, 280, 500);
+    spawnWildlifeRing(state, EntityType.Fox, cx, cy, 2 - foxes, 280, 500, { recordBirthYear: true });
     wildlifeSpawned = true;
   }
 
@@ -411,6 +432,7 @@ export function createImmigrantSettler(
       pregnant: true,
       pregnancyProgress: 10 + Math.floor(Math.random() * 50),
       partnerId: husband.id,
+      pregnantById: husband.id,
     });
     husband.partnerId = wife.id;
     wife.relationshipStatus = 'married';

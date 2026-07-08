@@ -58,6 +58,9 @@ export const RENDER_FLAG_COMBAT = 1 << 10;
 
 export const HUNT_TARGET_NONE = 0xffffffff;
 
+/** No residence building — distinct from building id 0. */
+export const RESIDENCE_BUILDING_NONE = 0xffffffff;
+
 /** `globalFlags` bit — packed aliveCount < total alive entities. */
 export const RENDER_GLOBAL_OVERFLOW = 1 << 0;
 

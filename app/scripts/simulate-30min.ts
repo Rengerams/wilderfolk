@@ -26,6 +26,8 @@ import {
   refreshCityBenchmarkResources,
   seedCityScaleProfile,
 } from './simCityProfile';
+import { preloadDialogueBank } from '../src/game/dialogueTrees';
+import { enableSpatialQueryMetrics, printSpatialQueryMetricsSection } from './spatialQueryReport';
 
 const SIM_PROFILE = (process.env.SIM_PROFILE ?? 'village').toLowerCase();
 const IS_CITY = SIM_PROFILE === 'city';
@@ -126,7 +128,10 @@ function countMarriedPairs(humans: ReturnType<typeof initGame>['entities']): num
   return pairs;
 }
 
-function runSimulation(): void {
+async function runSimulation(): Promise<void> {
+  await preloadDialogueBank();
+  if (IS_CITY) enableSpatialQueryMetrics();
+
   let state = initGame({
     villageName: IS_CITY ? 'Gridburg' : 'Simville',
     size: IS_CITY ? MapSize.Large : undefined,
@@ -272,6 +277,7 @@ function runSimulation(): void {
     );
     console.log(`Overall tick p95: ${overall.p95.toFixed(2)}ms (informational)`);
     console.log(`Overall: ${perfOk ? 'PASS' : 'FAIL'}`);
+    printSpatialQueryMetricsSection();
     if (BENCHMARK_GATE && !perfOk) process.exit(1);
   }
 
@@ -281,4 +287,7 @@ function runSimulation(): void {
   }
 }
 
-runSimulation();
+runSimulation().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

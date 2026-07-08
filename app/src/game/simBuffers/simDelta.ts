@@ -1,7 +1,6 @@
 import type { Building, Entity, WorldState } from '../gameTypes';
 import { EntityType } from '../gameTypes';
 import type { SimulationFocus } from '../gameEngine';
-import { clearScreenShakeImpulse } from '../viewState';
 import type { EntityRenderMeta } from './entityRenderMeta';
 import { packRenderMetaForPacked } from './entityRenderMeta';
 import { selectRenderEntities } from './packRenderSoA';
@@ -118,7 +117,8 @@ function deltaCloneOptional<T>(value: T | null | undefined, mode: SimDeltaCloneM
 
 const CATALOG_PATCH_KEYS = [
   'name', 'surname', 'chatPhrase', 'gender', 'spriteVariant', 'faction',
-  'moonHowlerCursed', 'pregnant', 'courtshipProgress', 'relationshipStatus',
+  'moonHowlerCursed', 'moonHowlerSaved', 'educated', 'pregnant', 'pregnantById',
+  'pregnancyProgress', 'courtshipProgress', 'relationshipStatus',
   'partnerId', 'homeBuildingId', 'residenceBuildingId', 'tamedBy', 'combatTicks',
   'job', 'occupation', 'skills', 'energy', 'maxEnergy', 'x', 'y', 'vx', 'vy',
   'spriteAngle', 'animFrame', 'size', 'flash', 'huntTargetId', 'chatTicks',
@@ -127,9 +127,9 @@ const CATALOG_PATCH_KEYS = [
 ] as const satisfies readonly (keyof Entity)[];
 
 /** Test helper — extract a full delta from an already-ticked world. */
-export function simTickDeltaFromWorld(world: WorldState): SimTickDelta {
+export function simTickDeltaFromWorld(world: WorldState, aliveBefore?: Set<number>): SimTickDelta {
   const alive = world.entities.filter((e) => e.alive);
-  const before = new Set(alive.map((e) => e.id));
+  const before = aliveBefore ?? new Set(alive.map((e) => e.id));
   return extractSimTickDelta(world, before, alive);
 }
 
@@ -318,15 +318,16 @@ export function applySimTickDelta(
 
   if (delta.eventLogTail.length > 0) {
     const existingIds = new Set(world.eventLog.map((e) => e.id));
+    const seenTailIds = new Set<number>();
     for (const entry of delta.eventLogTail) {
+      if (seenTailIds.has(entry.id)) continue;
+      seenTailIds.add(entry.id);
       if (!existingIds.has(entry.id)) {
         world.eventLog.push(entry);
         existingIds.add(entry.id);
       }
     }
   }
-
-  clearScreenShakeImpulse(world);
 }
 
 function applyCatalogPatch(existing: Entity, patch: Entity): void {

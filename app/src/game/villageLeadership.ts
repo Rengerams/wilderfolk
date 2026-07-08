@@ -1,6 +1,7 @@
 import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState } from './gameTypes';
 import { BuildingType, EntityType } from './gameTypes';
-import { isImprisoned, TICKS_PER_DAY } from './dayCycle';
+import { HUMAN_ADULT_MIN_AGE, isImprisoned, TICKS_PER_DAY } from './dayCycle';
+import { getAgeInYears } from './worldGen';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './groupEvents';
 import { sayHumanChatPhrase } from './humanChat';
@@ -69,6 +70,13 @@ export interface ElectionBuildupNotice {
 export function formatSettlerName(entity: Entity): string {
   const base = entity.name || 'Unknown';
   return entity.surname ? `${base} ${entity.surname}` : base;
+}
+
+function leadershipAgeYears(
+  entity: Entity,
+  state: Pick<WorldState, 'year' | 'dayInYear' | 'tick'>,
+): number {
+  return Math.max(entity.age, getAgeInYears(entity, state));
 }
 
 function assessVillageEconomy(state: WorldState): 'good' | 'fair' | 'poor' {
@@ -180,17 +188,19 @@ export function getIncumbentRecordAssessment(
 function getIncumbentRecordPoints(state: WorldState, entity: Entity): number {
   if (state.villageLeaderId !== entity.id) return 0;
   const leader = state.entities.find((e) => e.id === entity.id);
-  if (!leader?.alive || !isEligibleForLeadership(leader)) return 0;
+  if (!leader?.alive || !isEligibleForLeadership(leader, state)) return 0;
   return getIncumbentRecordAssessment(state, leader).totalPoints;
 }
 
 /** Merit elections — adult player settlers only; no gender preference (founding leader is separate). */
-export function isEligibleForLeadership(entity: Entity): boolean {
+export function isEligibleForLeadership(entity: Entity, state?: Pick<WorldState, 'year' | 'dayInYear' | 'tick'>): boolean {
+  const ageYears = state ? leadershipAgeYears(entity, state) : entity.age;
   return (
     entity.alive
     && entity.type === EntityType.Human
     && isPlayerHuman(entity)
     && !entity.isJuvenile
+    && ageYears >= HUMAN_ADULT_MIN_AGE
     && !isImprisoned(entity)
   );
 }
@@ -200,7 +210,10 @@ export function getLeadershipScoreBreakdown(state: WorldState, entity: Entity): 
   const skills = ensureEntitySkills(entity);
   const skillSum = Object.values(skills).reduce((sum, value) => sum + (value ?? 0), 0);
   const skillPoints = Math.round(skillSum * 2);
-  const experiencePoints = Math.round(Math.min(Math.max(0, entity.age - 16), 200) * 0.25);
+  const ageYears = leadershipAgeYears(entity, state);
+  const experiencePoints = Math.round(
+    Math.min(Math.max(0, ageYears - HUMAN_ADULT_MIN_AGE), 200) * 0.25,
+  );
 
   const townHall = state.buildings.find(
     (b) => b.completed && b.type === BuildingType.TownHall && b.faction !== 'rival',
@@ -226,8 +239,8 @@ export function rankLeadershipCandidates(state: WorldState): LeadershipScoreBrea
   const ageById = new Map<number, number>();
   const candidates: LeadershipScoreBreakdown[] = [];
   for (const entity of state.entities) {
-    if (!isEligibleForLeadership(entity)) continue;
-    ageById.set(entity.id, entity.age);
+    if (!isEligibleForLeadership(entity, state)) continue;
+    ageById.set(entity.id, leadershipAgeYears(entity, state));
     candidates.push(getLeadershipScoreBreakdown(state, entity));
   }
 
@@ -267,8 +280,8 @@ export function getElectionRaceCandidates(
   const race = [...challengers, leaderBreakdown];
   const ageById = new Map(
     state.entities
-      .filter(isEligibleForLeadership)
-      .map((entity) => [entity.id, entity.age] as const),
+      .filter((entity) => isEligibleForLeadership(entity, state))
+      .map((entity) => [entity.id, leadershipAgeYears(entity, state)] as const),
   );
   race.sort((a, b) => {
     if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
@@ -283,7 +296,7 @@ export function getElectionRaceCandidates(
 export function getVillageLeader(state: WorldState): Entity | null {
   if (state.villageLeaderId == null) return null;
   const leader = state.entities.find((e) => e.id === state.villageLeaderId);
-  if (!leader?.alive || !isEligibleForLeadership(leader)) return null;
+  if (!leader?.alive || !isEligibleForLeadership(leader, state)) return null;
   return leader;
 }
 
@@ -337,9 +350,18 @@ export function getElectionGatherTarget(state: WorldState, entityId: number): { 
   const c = state.electionCeremony;
   if (!c) return getElectionGatherSite(state);
   const attendees = state.entities
-    .filter(isEligibleForLeadership)
+    .filter((entity) => isEligibleForLeadership(entity, state))
     .sort((a, b) => a.id - b.id);
-  const slot = Math.max(0, attendees.findIndex((entity) => entity.id === entityId));
+  const slot = attendees.findIndex((entity) => entity.id === entityId);
+  if (slot < 0) {
+    const outerRing = Math.ceil(attendees.length / GATHER_SLOTS_PER_RING);
+    const angle = ((entityId * 17) % 360) * (Math.PI / 180);
+    const ringRadius = 22 + outerRing * 14 + 28;
+    return {
+      x: c.gatherX + Math.cos(angle) * ringRadius,
+      y: c.gatherY + Math.sin(angle) * ringRadius,
+    };
+  }
   const ring = Math.floor(slot / GATHER_SLOTS_PER_RING);
   const angleSlot = slot % GATHER_SLOTS_PER_RING;
   const angle = (angleSlot / GATHER_SLOTS_PER_RING) * Math.PI * 2;
@@ -479,7 +501,7 @@ export function tickElectionGossip(state: WorldState): void {
   const inCeremony = state.electionCeremony != null;
   const vacancyPending = state.pendingElectionYear != null && !getVillageLeader(state);
   if (until > 1 && !inCeremony && !vacancyPending) return;
-  if (!state.entities.some(isEligibleForLeadership)) return;
+  if (!state.entities.some((entity) => isEligibleForLeadership(entity, state))) return;
 
   let chance = 0;
   let tone: 'buildup' | 'ceremony' | 'tension' = 'buildup';
@@ -503,7 +525,7 @@ export function tickElectionGossip(state: WorldState): void {
 
   if (Math.random() > chance) return;
 
-  const eligible = state.entities.filter(isEligibleForLeadership);
+  const eligible = state.entities.filter((entity) => isEligibleForLeadership(entity, state));
   const speaker = eligible[Math.floor(Math.random() * eligible.length)];
   if (!speaker) return;
 
@@ -516,7 +538,14 @@ export function startElectionCeremony(
   reason: 'founding' | 'decennial' | 'succession',
 ): boolean {
   const ranked = rankLeadershipCandidates(state);
-  if (ranked.length === 0) return false;
+  if (ranked.length === 0) {
+    logEvent(
+      state,
+      'event',
+      `Leadership election postponed (Year ${year}) — no eligible candidates`,
+    );
+    return false;
+  }
 
   const winner = ranked[0];
   const site = getElectionGatherSite(state);
@@ -620,6 +649,16 @@ export function tickElectionCeremony(state: WorldState, year: number): ElectionA
         );
       }
       return announcement;
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error('[villageLeadership] Election reveal failed:', err);
+      logEvent(
+        state,
+        'event',
+        `Leadership election failed (Year ${year}) — ${detail}`,
+        ceremony.pendingLeaderName,
+      );
+      return null;
     } finally {
       state.electionCeremony = null;
     }
@@ -724,9 +763,9 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
   if (leaderId == null) return null;
 
   const leader = state.entities.find((e) => e.id === leaderId);
-  if (leader?.alive && isEligibleForLeadership(leader)) return null;
+  if (leader?.alive && isEligibleForLeadership(leader, state)) return null;
 
-  if (!state.entities.some(isEligibleForLeadership)) {
+  if (!state.entities.some((entity) => isEligibleForLeadership(entity, state))) {
     state.villageLeaderId = null;
     return null;
   }

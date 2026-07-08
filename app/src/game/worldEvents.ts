@@ -16,12 +16,27 @@ type DisasterType = 'fire' | 'flood' | 'plague' | 'tornado' | 'earthquake';
 
 const ALL_DISASTER_TYPES: DisasterType[] = ['fire', 'flood', 'plague', 'tornado', 'earthquake'];
 
-function killEntityInDisaster(state: WorldState, entity: Entity, color: string): void {
+function clearHuntTargetsForVictim(state: WorldState, victimId: number): void {
+  for (const entity of state.entities) {
+    if (entity.huntTargetId === victimId) entity.huntTargetId = undefined;
+  }
+}
+
+function killEntityInDisaster(
+  state: WorldState,
+  entity: Entity,
+  color: string,
+  entityById: Map<number, Entity>,
+  killedThisTick: Set<number>,
+): void {
+  if (!entity.alive || killedThisTick.has(entity.id)) return;
+  killedThisTick.add(entity.id);
+
   if (entity.type === EntityType.Human) {
-    const entityById = new Map(state.entities.map((e) => [e.id, e]));
     killHuman(entity, state.buildings, entityById);
   } else {
     entity.alive = false;
+    clearHuntTargetsForVictim(state, entity.id);
   }
   createDeathParticles(state, entity.x, entity.y, color, 5, 'smoke');
 }
@@ -75,6 +90,8 @@ export function updateDisasters(state: WorldState) {
 
     // Apply disaster effects
     const resistMult = getMultiplier(state, 'disaster_resist');
+    const entityById = new Map(state.entities.map((ent) => [ent.id, ent]));
+    const killedThisTick = new Set<number>();
 
     if (type === 'fire') {
       // Damage buildings near the fire
@@ -89,7 +106,7 @@ export function updateDisasters(state: WorldState) {
         if (!e.alive) continue;
         const dx = e.x - x, dy = e.y - y;
         if (Math.sqrt(dx*dx + dy*dy) < radius) {
-          killEntityInDisaster(state, e, '#ff4500');
+          killEntityInDisaster(state, e, '#ff4500', entityById, killedThisTick);
         }
       }
     } else if (type === 'flood') {
@@ -98,7 +115,7 @@ export function updateDisasters(state: WorldState) {
         const dx = e.x - x, dy = e.y - y;
         if (Math.sqrt(dx*dx + dy*dy) < radius) {
           if (Math.random() < 0.3) {
-            killEntityInDisaster(state, e, '#4682b4');
+            killEntityInDisaster(state, e, '#4682b4', entityById, killedThisTick);
           }
         }
       }
@@ -112,7 +129,7 @@ export function updateDisasters(state: WorldState) {
           e.vx += (Math.random() - 0.5) * 5;
           e.vy += (Math.random() - 0.5) * 5;
           if (dist < radius * 0.3 && Math.random() < 0.1) {
-            killEntityInDisaster(state, e, '#888888');
+            killEntityInDisaster(state, e, '#888888', entityById, killedThisTick);
           }
         }
       }
@@ -123,17 +140,20 @@ export function updateDisasters(state: WorldState) {
       }
     } else if (type === 'plague') {
       let infected = 0;
-      const entityById = new Map(state.entities.map((ent) => [ent.id, ent]));
       for (const e of state.entities) {
         if (!e.alive || e.type !== EntityType.Human) continue;
         const dx = e.x - x;
         const dy = e.y - y;
         if (Math.sqrt(dx * dx + dy * dy) >= radius) continue;
         if (Math.random() < 0.2) {
-          killHuman(e, state.buildings, entityById);
-          infected++;
-          createDeathParticles(state, e.x, e.y, '#4a6741', 6, 'smoke');
-          logEvent(state, 'death', formatDeathLog(e, 'succumbed to plague'), formatCitizenName(e));
+          if (!killedThisTick.has(e.id)) {
+            killedThisTick.add(e.id);
+            killHuman(e, state.buildings, entityById);
+            clearHuntTargetsForVictim(state, e.id);
+            infected++;
+            createDeathParticles(state, e.x, e.y, '#4a6741', 6, 'smoke');
+            logEvent(state, 'death', formatDeathLog(e, 'succumbed to plague'), formatCitizenName(e));
+          }
         } else {
           e.energy = Math.max(0, e.energy - 100);
           e.flash = 10;

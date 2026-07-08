@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { rebuildChildrenIds } from '@/game/dayCycle';
+import { assignMissingResidences, rebuildChildrenIds } from '@/game/dayCycle';
 import { createEntity } from '@/game/worldGen';
 import { EntityType } from '@/game/gameTypes';
+import { initGame } from '@/game/gameEngine';
+import { makeCompletedHouse } from '@/test/housingFixtures';
 
 describe('rebuildChildrenIds', () => {
   it('links both parents and deduplicates when twins share mother and father', () => {
@@ -72,5 +74,28 @@ describe('rebuildChildrenIds', () => {
     rebuildChildrenIds([mother, child]);
 
     expect(mother.childrenIds).toEqual([]);
+  });
+
+  it('rebuilds rival parent links when assignMissingResidences receives the full entity pool', () => {
+    const state = initGame();
+    state.entities = [];
+    state.buildings = [];
+    makeCompletedHouse(state, 0, 100);
+
+    const rivalMother = createEntity(EntityType.Human, 0, 0, 1, 400, false, {
+      gender: 'female',
+      ageYears: 30,
+    });
+    rivalMother.faction = 'rival';
+    const child = createEntity(EntityType.Human, 5, 5, 10, 400, false, { ageYears: 4 });
+    child.motherId = rivalMother.id;
+    child.isJuvenile = true;
+    rivalMother.childrenIds = [];
+    state.entities.push(rivalMother, child);
+
+    const villagers = state.entities.filter((e) => !e.faction);
+    assignMissingResidences(villagers, state.buildings, state.entities);
+
+    expect(rivalMother.childrenIds).toEqual([10]);
   });
 });

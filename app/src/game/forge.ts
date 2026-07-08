@@ -197,6 +197,7 @@ function canAffordForgeInputs(resources: Resources, inputs: Partial<Resources>):
 }
 
 function consumeForgeInputs(state: WorldState, inputs: Partial<Resources>): void {
+  if (!canAffordForgeInputs(state.resources, inputs)) return;
   state.resources.wood -= inputs.wood ?? 0;
   state.resources.stone -= inputs.stone ?? 0;
   state.resources.gold -= inputs.gold ?? 0;

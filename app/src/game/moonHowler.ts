@@ -183,6 +183,12 @@ export function cureMoonHowler(entity: Entity): void {
   entity.tamedBy = undefined;
 }
 
+/** Revert werewolf form on death so save/stats record a human settler, not wildlife. */
+export function finalizeMoonHowlerDeath(entity: Entity): void {
+  if (!entity.moonHowlerCursed || entity.type !== EntityType.Werewolf) return;
+  revertToHumanForm(entity);
+}
+
 export interface MoonHowlerCureAttempt {
   cured: Entity[];
 }

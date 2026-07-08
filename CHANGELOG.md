@@ -4,6 +4,21 @@
 
 **Targeting v0.5.0** (end July 2026) — see [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
 
+### Fixed — audit mass-fix session (July 8, 2026)
+
+**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) — **429** registry IDs (**391 fixed**, **24 info**, **0 open/partial**); Batches Q, S, U, V, W, T (87), AP (8)
+
+- **simWorker (W):** command/render desync — delta always applied on command success; headless commands; per-op validation; `sendCommand()` rejects on failure; `applySimTickDelta` before render parse
+- **simBuffers (V):** `safeF32` NaN guard; screen-shake cleared in draw loop; `RESIDENCE_BUILDING_NONE` sentinel; bucket cache keyed on tick + meta
+- **UI (S + AP):** stale `worldRef` canvas clicks; panel crash guards; stable `GameHeader` callbacks; single big-news dismiss; `getBuildingConfig()` fallback
+- **Simulation (Q + T):** werewolf occupant/residence sync; rival building placement block; combined challenge progress; affair/hunt/divorce fixes; skills + `moonHowlerSaved` persisted on save
+- **Engine (U):** education graduation guard; wildlife counts exclude humans; `byType` rebuild after church cure
+- **Renderer (T):** entity cache rebuilds on camera pan; building glow from sim occupants; `finalizeMoonHowlerDeath` on kill
+- **Affairs (T-M14/T-M41):** scandal sentence extends when already imprisoned for scandal; `tryExposeCaughtAffairForPair` routes caught rolls through lower entity id
+- **Tests:** **390/390** vitest (71 files) — affair/prison/social integration hardened; test debt cleared (`stats.test.ts` founding `birthYear: -1`; `lifeSimulation.prison.test.ts` `withRepeatingRandom` soak)
+- **Founding wildlife:** init spawns keep `birthYear: -1`; runtime replenish sets `recordBirthYear: true`
+- **Hygiene:** shared `nodeRuntime.ts` disk loader; `overlapsPlayerBuilding` delegates to `overlapsAnyBuilding`; ESLint clean (`IntroScreen` purity, App hook deps, perf scripts)
+
 ### Added — frontier raid response & balance (July 8, 2026)
 
 - **Outgoing raid phase** — `launchRaidOnRival()` dispatches a war-band; rival may **offer tribute** or **choose to fight**; player always gets **Accept tribute** / **Decline — attack anyway** or **Press the attack** (`pendingOutgoingRaidEvents`, `respondToOutgoingRaidEvent`)
@@ -41,13 +56,22 @@
 - **Tests** — `moonHowler.cycle.test.ts` (hunt days 0/14/28/42); `moonHowler.test.ts` (dawn cure RNG, new-curse gate)
 - **UI** — Church panel, help tab, and building hints describe dawn (7am) exorcism in 🌝 form (~18%, village-wide), not “full-moon nights” proximity cure
 
+### Fixed — caught-affair divorce after imprisonment (July 8, 2026)
+
+**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) Batch P #1–#3
+
+- **Divorce after imprison** — caught affairs imprisoned the cheater first (teleport to prison), then required the spouse within 40px for divorce — so marriages almost never ended despite scandal + prison logs. Caught-in-act path skips the proximity check and always divorces
+- **Either spouse** — men and women can cheat; husbands and wives can both initiate divorce (`dissolveMarriage` in `nameLoader.ts`)
+- **Notifications** — `formatCaughtCheaterDivorceDetail()` — maiden-name line only when the cheating partner is a woman with a stored maiden surname
+- **Tests** — `lifeSimulation.affair.test.ts` (**18** tests): prison-far teleport divorce; husband divorces imprisoned wife
+
 ### Fixed — orphaned marriages, vitest dialogue preload, prison flake (July 8, 2026)
 
 **Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) Batch O #1–#3
 
 - **Orphaned marriages** — end-of-tick `allAlive` prunes dead entities; survivors could keep `partnerId` pointing at a removed id (`human 285 married partner 831 missing or dead` on seed-42 day 29). `reconcileOrphanedMarriages()` in `dayCycle.ts` runs before `state.entities = allAlive` (accepts human **or** cursed 🌝 form as valid partner)
 - **Vitest dialogue bank** — top-level `await preloadDialogueBank()` in `src/test/setup.ts` (disk load via dynamic `import()` like `nameLoader.ts`); fixes parallel-worker race with async `beforeAll`
-- **Prison integration flake** — `lifeSimulation.prison.test.ts` uses `withSeededRandom(123)` and dynamic `nextEntityId++` fixture ids; reliably surfaces `Whispers spread` gossip over 120 days
+- **Prison integration flake** — `lifeSimulation.prison.test.ts` uses `withRepeatingRandom(0.1)`, calendar-day pin, mortality mock, and two-pass fixture wiring; surfaces caught or rumor scandal over 120 days
 - **Tests** — `lifeSimulation.mortality.test.ts` (`reconcileOrphanedMarriages` ×3); social integration seed-42 (30/60 day) green
 
 ### Fixed — scandal imprisonment (July 8, 2026)
@@ -63,7 +87,8 @@
 
 ### Added — scale, worker, quality (July 8, 2026)
 
-- **Dual-layer spatial grid** (`spatialGrid.ts`) — grass + mobile cell indexes for graze, hunt, flee, wolf-pack queries; `USE_SPATIAL_GRID` on by default (`VITE_USE_SPATIAL_GRID=0` for A/B)
+- **Dual-layer spatial grid** (`spatialGrid.ts`) — **grass 56px** (graze only) + **mobile 80px** (flee/hunt/social); `RoadAvoidanceIndex` 128px; each hot path uses the correct layer — [TECHNICAL.md](TECHNICAL.md#dual-layer-spatial-grid); `USE_SPATIAL_GRID` on by default (`VITE_USE_SPATIAL_GRID=0` for A/B)
+- **Spatial query metrics** (`spatialQueryMetrics.ts`) — per-tick candidate/query counters; reported in `npm run bench` / city sims; A/B via `benchmark-spatial-ab.ts` (July 2026 city: graze **~99%**, flee **~88%** reduction vs naive)
 - **Web Worker simulation** (`simWorker/`) — optional `gameTick` off main thread (`VITE_USE_GAME_WORKER=1`); `GameWorkerHost`, render SoA ping-pong (`simBuffers/`), `WORKER_PROTO` negotiation, headless tick path
 - **Entity catalog** (`entityCatalog.ts`) — O(1) citizen lookup; main-thread `catalog` state synced from `GameLoop.subscribe`
 - **Save schema allow-list** (`saveSchema.ts`, `viewState.ts`) — `pickWorldFieldsForSave()` trims save bloat; camera pan preserved on load

@@ -179,7 +179,7 @@ export function resolveWallStripPlan(
 
     const junctionPt = resolveJunctionCenter(snapped.x, snapped.y, hList, vList);
     const info = analyzeStripJunction(junctionPt.x, junctionPt.y, hList, vList, along);
-    const existing = findStripBuildingAt(state, junctionPt.x, junctionPt.y, JUNCTION_PROXIMITY * 0.75);
+    const existing = findStripBuildingAt(state, junctionPt.x, junctionPt.y, JUNCTION_PROXIMITY * 0.75, 'wall');
 
     if (info.kind === 'elbow' || info.kind === 'tee' || info.kind === 'cross') {
       if (
@@ -291,10 +291,20 @@ export function findStripBuildingAt(
   x: number,
   y: number,
   tolerance = 6,
+  family?: 'wall' | 'road',
 ): Building | undefined {
+  const types = family === 'wall'
+    ? WALL_STRIP_TYPES
+    : family === 'road'
+      ? ROAD_STRIP_TYPES
+      : null;
   for (const b of state.buildings) {
     if (!b.completed || b.faction === 'rival') continue;
-    if (!WALL_STRIP_TYPES.has(b.type) && !ROAD_STRIP_TYPES.has(b.type)) continue;
+    if (types) {
+      if (!types.has(b.type)) continue;
+    } else if (!WALL_STRIP_TYPES.has(b.type) && !ROAD_STRIP_TYPES.has(b.type)) {
+      continue;
+    }
     if (Math.hypot(b.x - x, b.y - y) <= tolerance) return b;
   }
   return undefined;

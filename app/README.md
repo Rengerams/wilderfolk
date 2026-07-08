@@ -27,7 +27,7 @@
 | **Scale (pre-tag)** | Dual-layer **spatial grid**; optional **Web Worker** sim; **OffscreenCanvas** terrain/entity layers (smoother zoom/pan) |
 | **Polish** | **R** to rotate roads/walls/gates; night glow, confetti, camera nudge (toggle in ☰) |
 | **Balance** | 10-year town PASS (9/9 gates) · [10-user beta](../TECHNICAL.md#playtest-report) |
-| **Quality** | **358** automated tests (67 files) · lint **0 errors** · `npm run test:all` includes typecheck |
+| **Quality** | **390** automated tests (71 files) · lint **0 errors** · `npm run test:all` includes typecheck |
 | **Fixes** | ~40 (July 4) + **252** tracker items (July 7–8, Batch O) |
 
 ### What's coming — v0.5.0 (end July 2026)
@@ -36,7 +36,7 @@ All open perf, UI, and architecture work ships in one release. Full plan → [RO
 
 | Track | What it means for you |
 |-------|------------------------|
-| **Sim scale** | Spatial grid ✅; OffscreenCanvas layers ✅; benchmark gate |
+| **Sim scale** | Dual spatial grid (grass 56px / mobile 80px) ✅; OffscreenCanvas layers ✅; benchmark gate — [TECHNICAL.md](../TECHNICAL.md#dual-layer-spatial-grid) |
 | **UI at city size** | Sidebar tabs stay fast; App split for Village / Nature / Progress |
 | **Architecture** | Web Worker sim ✅ (opt-in); render SoA buffers |
 | **Social** | Dialogue-tree settler chat ✅ in code (95 JSON trees, paired 3-line banter) |

@@ -6,12 +6,25 @@ import { BUILDING_CONFIGS, BuildingType } from '@/game/gameTypes';
 import { createBuilding } from '@/game/worldGen';
 import {
   buildStripPlanFromDrag,
+  findStripBuildingAt,
   resolveRoadStripPlan,
   resolveWallStripPlan,
   snapStripDragEndpoints,
 } from '@/game/stripTopology';
 
 describe('stripTopology', () => {
+  it('findStripBuildingAt filters by strip family at overlapping junctions', () => {
+    const state = initGame();
+    const road = createBuilding(BuildingType.Road, 120, 200, 1, 0);
+    road.completed = true;
+    const wall = createBuilding(BuildingType.Wall, 120, 200, 2, 0);
+    wall.completed = true;
+    state.buildings.push(road, wall);
+
+    expect(findStripBuildingAt(state, 120, 200, 6, 'wall')?.type).toBe(BuildingType.Wall);
+    expect(findStripBuildingAt(state, 120, 200, 6, 'road')?.type).toBe(BuildingType.Road);
+  });
+
   it('snaps drag endpoints to nearby strip endpoints', () => {
     const state = initGame();
     const road = createBuilding(BuildingType.Road, 120, 200, 50, 0);

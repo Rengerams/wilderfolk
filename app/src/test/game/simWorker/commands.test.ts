@@ -47,5 +47,7 @@ describe('WorkerCommand', () => {
     expect(isWorkerCommand({ proto: 2, op: 'assignWorker' })).toBe(false);
     expect(isWorkerCommand({ proto: 1, op: 'notARealOp' })).toBe(false);
     expect(isWorkerCommand({ proto: 1, op: 'assignWorker', buildingId: 1 })).toBe(true);
+    expect(isWorkerCommand({ proto: 1, op: 'startBuilding' })).toBe(false);
+    expect(isWorkerCommand({ proto: 1, op: 'startBuilding', type: BuildingType.Farm, x: 0, y: 0, rotation: 0 })).toBe(true);
   });
 });

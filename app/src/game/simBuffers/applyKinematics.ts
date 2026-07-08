@@ -1,5 +1,6 @@
 import type { EntityCatalog } from '../entityCatalog';
 import type { RenderSoAReaderV1 } from './renderSoAReader';
+import { RESIDENCE_BUILDING_NONE } from './schema';
 
 /** Phase C — sync catalog positions from render SoA (no full entity array scan). */
 export function patchCatalogKinematicsFromRenderSoA(
@@ -23,9 +24,11 @@ export function patchCatalogKinematicsFromRenderSoA(
     entity.chatTicks = chatTicks > 0 ? chatTicks : undefined;
 
     const huntTargetId = reader.huntTargetId(slot);
-    entity.huntTargetId = huntTargetId;
+    entity.huntTargetId = huntTargetId ?? undefined;
 
     const residenceId = reader.residenceBuildingId(slot);
-    entity.residenceBuildingId = residenceId > 0 ? residenceId : undefined;
+    entity.residenceBuildingId = residenceId !== RESIDENCE_BUILDING_NONE
+      ? residenceId
+      : undefined;
   });
 }

@@ -1,5 +1,6 @@
 import type { WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
+import { getLivePlayerPopulation, getTotalBeds } from './populationGrowth';
 import { ACTIVE_VICTORY_PATHS } from './victory';
 import { getVillageLeader, getYearsUntilElection, formatSettlerName } from './villageLeadership';
 import { hasIronSpears, hasStoneSpears } from './combat';
@@ -68,12 +69,17 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
     return hints.slice(0, 4);
   }
 
-  const housesNeeded = humans > 0 && houses === 0;
+  const beds = getTotalBeds(state);
+  const pop = getLivePlayerPopulation(state);
+  const overcrowded = humans > 0 && pop > beds;
+  const housesNeeded = humans > 0 && (houses === 0 || overcrowded);
   if (housesNeeded) {
     hints.push({
       icon: '🏠',
-      title: 'Build shelter',
-      detail: 'Press B → Housing → House (or key 1), then click the map.',
+      title: overcrowded ? 'Build more housing' : 'Build shelter',
+      detail: overcrowded
+        ? `${pop} settlers in ${beds} beds — press B → Housing → House (or key 1), then click the map.`
+        : 'Press B → Housing → House (or key 1), then click the map.',
       action: { label: 'Place house', id: 'build_house' },
     });
   }

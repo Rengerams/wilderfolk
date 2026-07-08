@@ -15,6 +15,7 @@ import {
   shouldMoonHowlerTransform,
   syncMoonHowlerForms,
   transformToWerewolfForm,
+  finalizeMoonHowlerDeath,
   tryMoonHowlerChurchCures,
   shouldApplyNewMoonHowlerCurse,
   isMoonHowlerCureTick,
@@ -223,6 +224,19 @@ describe('shouldApplyNewMoonHowlerCurse', () => {
     expect(shouldApplyNewMoonHowlerCurse(0, NIGHT_START, 8, 1)).toBe(false);
     expect(shouldApplyNewMoonHowlerCurse(1, NIGHT_START, 8, 0)).toBe(false);
     expect(shouldApplyNewMoonHowlerCurse(0, WORK_START, 8, 0)).toBe(false);
+  });
+});
+
+describe('finalizeMoonHowlerDeath', () => {
+  it('reverts werewolf form before death is recorded for save/stats', () => {
+    const h = createEntity(EntityType.Human, 0, 0, 1, 250, false);
+    withLifeAge(h, 22);
+    curseMoonHowler(h);
+    transformToWerewolfForm(h);
+    h.alive = false;
+    finalizeMoonHowlerDeath(h);
+    expect(h.type).toBe(EntityType.Human);
+    expect(h.moonHowlerCursed).toBe(true);
   });
 });
 

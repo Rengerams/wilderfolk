@@ -36,7 +36,13 @@ export function resolveCombatLogKind(evt: GameEventLog): CombatLogKind | null {
   if (msg.includes('repelled') || msg.includes('routed')) return 'repelled';
   if (msg.includes('defending') || msg.includes('militia') || msg.includes('barricade')) return 'defense';
   if (msg.includes('raid')) {
-    return msg.includes('raid on ') ? 'outgoing_raid' : 'incoming_raid';
+    if (msg.includes('launched a raid on the village') || msg.includes('raid on the village')) {
+      return 'incoming_raid';
+    }
+    if (msg.includes(' raid on ') || msg.startsWith('raid on ')) {
+      return 'outgoing_raid';
+    }
+    return 'incoming_raid';
   }
   return null;
 }

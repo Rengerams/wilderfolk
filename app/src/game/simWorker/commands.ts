@@ -99,6 +99,102 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'spawnMoonHowlerDebug',
 ]);
 
+const BUILDING_TYPE_VALUES = new Set<string>(Object.values(BuildingType));
+const FORGE_ORDER_IDS = new Set<string>([
+  'iron_spears',
+  'iron_shields',
+  'guard_halberds',
+  'wall_plates',
+  'iron_pickaxes',
+]);
+const VISITOR_TRADE_ACTIONS = new Set<string>(['buy_food', 'buy_wood', 'sell_food']);
+const REFUGEE_CHOICES = new Set<string>(['welcome', 'screen', 'turn_away']);
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function isBuildingType(value: unknown): value is BuildingType {
+  return typeof value === 'string' && BUILDING_TYPE_VALUES.has(value);
+}
+
+function isBuildingRotation(value: unknown): value is BuildingRotation {
+  return value === 0 || value === 90;
+}
+
+function isStripSegment(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const segment = value as { x?: unknown; y?: unknown };
+  return isFiniteNumber(segment.x) && isFiniteNumber(segment.y);
+}
+
+function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<string, unknown>): boolean {
+  switch (cmd.op) {
+    case 'startBuilding':
+      return (
+        isBuildingType(cmd.type)
+        && isFiniteNumber(cmd.x)
+        && isFiniteNumber(cmd.y)
+        && isBuildingRotation(cmd.rotation)
+      );
+    case 'placeStripChain':
+      return (
+        isBuildingType(cmd.type)
+        && Array.isArray(cmd.segments)
+        && cmd.segments.length > 0
+        && cmd.segments.every(isStripSegment)
+        && isBuildingRotation(cmd.rotation)
+      );
+    case 'assignWorker':
+      return isFiniteNumber(cmd.buildingId) && (cmd.humanId === undefined || isFiniteNumber(cmd.humanId));
+    case 'removeWorker':
+      return isFiniteNumber(cmd.buildingId) && isFiniteNumber(cmd.humanId);
+    case 'repairBuilding':
+    case 'upgradeBuilding':
+    case 'demolishBuilding':
+    case 'hostTownFestival':
+      return isFiniteNumber(cmd.buildingId);
+    case 'setWorkshopRecipe':
+      return isFiniteNumber(cmd.buildingId) && isNonEmptyString(cmd.recipeId);
+    case 'queueForgeOrder':
+      return isFiniteNumber(cmd.buildingId) && typeof cmd.orderId === 'string' && FORGE_ORDER_IDS.has(cmd.orderId);
+    case 'recruitSettler':
+    case 'spawnMoonHowlerDebug':
+      return true;
+    case 'moveOutOfFamilyHome':
+      return isFiniteNumber(cmd.humanId);
+    case 'tameEntity':
+      return isFiniteNumber(cmd.entityId) && isFiniteNumber(cmd.humanId);
+    case 'notifyBuildingLocked':
+      return isBuildingType(cmd.type);
+    case 'respondToRaidEvent':
+    case 'respondToOutgoingRaidEvent':
+    case 'respondToDiplomacyEvent':
+      return isNonEmptyString(cmd.eventId) && isNonEmptyString(cmd.choiceId);
+    case 'talkToVisitorLeader':
+      return isNonEmptyString(cmd.groupId);
+    case 'tradeWithVisitors':
+      return isNonEmptyString(cmd.groupId) && typeof cmd.action === 'string' && VISITOR_TRADE_ACTIONS.has(cmd.action);
+    case 'negotiateRefugees':
+      return isNonEmptyString(cmd.groupId) && typeof cmd.choice === 'string' && REFUGEE_CHOICES.has(cmd.choice);
+    case 'sendRivalGift':
+    case 'establishRivalTradePact':
+    case 'showStrengthToRival':
+    case 'signPeaceTreaty':
+    case 'launchRaidOnRival':
+      return isNonEmptyString(cmd.rivalId);
+    case 'startResearch':
+    case 'establishTradeRoute':
+      return isNonEmptyString(cmd.researchId ?? cmd.routeId);
+    default:
+      return false;
+  }
+}
+
 /** Validate main → worker command shape before dispatch. */
 export function isWorkerCommand(cmd: unknown): cmd is WorkerCommand {
   if (!cmd || typeof cmd !== 'object') return false;
@@ -107,7 +203,7 @@ export function isWorkerCommand(cmd: unknown): cmd is WorkerCommand {
   if (typeof c.op !== 'string' || !WORKER_COMMAND_OPS.has(c.op as WorkerCommand['op'])) {
     return false;
   }
-  return true;
+  return validateWorkerCommandShape(c as { op: WorkerCommand['op'] } & Record<string, unknown>);
 }
 
 export function aliveIdSet(state: WorldState): Set<number> {

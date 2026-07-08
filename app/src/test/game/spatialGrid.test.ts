@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '@/game/gameTypes';
 import { createEntity } from '@/game/worldGen';
+import { BuildingType } from '@/game/gameEngine';
+import { createBuilding } from '@/game/worldGen';
 import {
   EntitySpatialGrid,
   GRASS_CELL_SIZE,
   MOBILE_CELL_SIZE,
+  RoadAvoidanceIndex,
   buildGrassGrid,
   buildMobileGrid,
   collectGrassInViewport,
@@ -283,5 +286,19 @@ describe('spatial grid structuredClone recovery', () => {
     const grid = syncGrassRenderGrid(stale, 400, 400, [patch]);
     expect(grid).toBeInstanceOf(EntitySpatialGrid);
     expect(typeof grid?.rebuild).toBe('function');
+  });
+});
+
+describe('RoadAvoidanceIndex', () => {
+  it('detects entities beside a vertically rotated road footprint', () => {
+    const road = createBuilding(BuildingType.Road, 100, 200, 1, 90);
+    road.completed = true;
+    const index = new RoadAvoidanceIndex(800, 600, [road]);
+    const centerX = road.x + road.width / 2;
+    const centerY = road.y + road.height / 2;
+    expect(index.isNearRoad(centerX, centerY)).toBe(true);
+    expect(index.isNearRoad(road.x - 5, centerY)).toBe(true);
+    expect(index.isNearRoad(road.x + road.width + 5, centerY)).toBe(true);
+    expect(index.isNearRoad(centerX, 50)).toBe(false);
   });
 });

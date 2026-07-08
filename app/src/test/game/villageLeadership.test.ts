@@ -68,6 +68,34 @@ describe('findFoundingColonyLeader', () => {
 });
 
 describe('getElectionGatherTarget', () => {
+  it('places non-attendees on an outer ring instead of slot -1 at the center', () => {
+    const attendee = adultHuman(1, 'male', 'Voter');
+    const child = createEntity(EntityType.Human, 0, 0, 99, 80, true);
+    withLifeAge(child, 8);
+    child.faction = undefined;
+    const world = minimalWorld({
+      entities: [attendee, child],
+      electionCeremony: {
+        phase: 'gathering',
+        phaseTicksLeft: 5,
+        gatherX: 100,
+        gatherY: 100,
+        reason: 'decennial',
+        pendingLeaderId: 1,
+        pendingLeaderName: 'Voter',
+        pendingChanged: true,
+      },
+    });
+
+    const voterTarget = getElectionGatherTarget(world, attendee.id);
+    const childTarget = getElectionGatherTarget(world, child.id);
+    const voterDist = Math.hypot(voterTarget.x - 100, voterTarget.y - 100);
+    const childDist = Math.hypot(childTarget.x - 100, childTarget.y - 100);
+
+    expect(childDist).toBeGreaterThan(voterDist);
+    expect(childDist).toBeGreaterThan(40);
+  });
+
   it('gives each attendee a distinct ring slot', () => {
     const entities = Array.from({ length: 25 }, (_, i) => adultHuman(i + 1, i % 2 === 0 ? 'male' : 'female', `Settler${i}`));
     const world = minimalWorld({

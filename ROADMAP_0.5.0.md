@@ -64,7 +64,7 @@ Compared repo plan to code (July 8). **~4 P0 done, ~6 partial, ~10 P0 open.** Sp
 
 | # | Item | Status | Hotspot | Deliverable |
 |---|------|--------|---------|-------------|
-| 1 | **Spatial grid** | ✅ Done | `spatialGrid.ts`, `lifeSimulation.ts` | Dual-layer grass + mobile grid; wired graze/hunt/flee; `USE_SPATIAL_GRID` on by default |
+| 1 | **Spatial grid** | ✅ Done | `spatialGrid.ts`, `lifeSimulation.ts` | Dual-layer: **grass 56px** (graze) + **mobile 80px** (flee/hunt/social); `RoadAvoidanceIndex` 128px; correct grid per hot path — [TECHNICAL.md](TECHNICAL.md#dual-layer-spatial-grid); `USE_SPATIAL_GRID` on by default |
 | 2 | **Dead-entity compaction** | ✅ Done | `gameEngine.ts` | `state.entities = allAlive` each tick — alive only |
 | 3 | **Renderer cache reuse** | ✅ Done | `renderer.ts` | `world.entityByType` per tick → `updateCachedEntities()`; viewport grass culling |
 | 4 | **Settler count denorm** | ❌ Open | `WorldState`, `App.tsx` | `workingSettlers` / `idleSettlers` once per tick |
@@ -108,7 +108,7 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`. City profile
 
 | # | Item | Status | Deliverable |
 |---|------|--------|-------------|
-| 16 | **Big bug checkup** | ✅ Done | **252** items closed (Batch O, July 8); Vitest **358** (67 files); lint **0**; build clean |
+| 16 | **Big bug checkup** | ✅ Done | **429** tracker IDs (**391 fixed**, **24 info**, **0 open/partial**); Vitest **390** (71 files); lint **0**; build clean (July 8) |
 | 16b | **Dialogue-tree settler chat** | ✅ Done | `sim_dialogue_trees.json` (95 trees); `dialogueTrees.ts` + `humanChat.ts`; legacy `wf_*` migration; tests in `humanChat`, `villageLeadership`, `lifeSimulation.courtship` |
 | 16c | **Raid XP → elections** | ✅ Done | `rewardRaidParticipants`; Guard XP + leader rep; docs in CHANGELOG/TECHNICAL |
 | 16d | **Victory balance + Harmony fix** | ✅ Done | `VICTORY_TARGETS` raised; wild wolves only (`tamedBy == null`); Goals tab explainer |

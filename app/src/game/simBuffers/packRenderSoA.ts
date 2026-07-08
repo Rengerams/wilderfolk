@@ -6,6 +6,7 @@ import { entityTypeToCode } from './entityTypeCodes';
 import { validateRenderBufferLayout } from './renderSoAReader';
 import {
   HUNT_TARGET_NONE,
+  RESIDENCE_BUILDING_NONE,
   RENDER_FLAG_ALIVE,
   RENDER_FLAG_COMBAT,
   RENDER_FLAG_EDUCATED,
@@ -37,6 +38,10 @@ export interface PackRenderSoAResult {
   tick: number;
   /** Entities written to the buffer — same order as render SoA slots. */
   packedEntities: Entity[];
+}
+
+function safeF32(value: number | undefined | null): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 function entityFlags(entity: Entity): number {
@@ -134,7 +139,7 @@ export function selectRenderEntities(
 ): { packed: Entity[]; totalAlive: number; overflow: boolean } {
   const totalAlive = alive.length;
   if (totalAlive <= maxSlots) {
-    return { packed: alive, totalAlive, overflow: false };
+    return { packed: alive.slice(), totalAlive, overflow: false };
   }
 
   const { scores, indices } = ensureSelectionScratch(totalAlive);
@@ -192,14 +197,14 @@ export function packRenderSoA(
 
     u32[base + RENDER_FIELD.id] = entity.id >>> 0;
     u32[base + RENDER_FIELD.typeCode] = entityTypeToCode(entity.type);
-    f32[base + RENDER_FIELD.x] = entity.x;
-    f32[base + RENDER_FIELD.y] = entity.y;
-    f32[base + RENDER_FIELD.vx] = entity.vx;
-    f32[base + RENDER_FIELD.vy] = entity.vy;
-    f32[base + RENDER_FIELD.spriteAngle] = entity.spriteAngle;
-    f32[base + RENDER_FIELD.animFrame] = entity.animFrame;
-    f32[base + RENDER_FIELD.size] = entity.size;
-    f32[base + RENDER_FIELD.flash] = entity.flash;
+    f32[base + RENDER_FIELD.x] = safeF32(entity.x);
+    f32[base + RENDER_FIELD.y] = safeF32(entity.y);
+    f32[base + RENDER_FIELD.vx] = safeF32(entity.vx);
+    f32[base + RENDER_FIELD.vy] = safeF32(entity.vy);
+    f32[base + RENDER_FIELD.spriteAngle] = safeF32(entity.spriteAngle);
+    f32[base + RENDER_FIELD.animFrame] = safeF32(entity.animFrame);
+    f32[base + RENDER_FIELD.size] = safeF32(entity.size);
+    f32[base + RENDER_FIELD.flash] = safeF32(entity.flash);
 
     u32[base + RENDER_FIELD.flags] = entityFlags(entity);
 
@@ -209,7 +214,9 @@ export function packRenderSoA(
       if (mapped != null) huntSlot = mapped >>> 0;
     }
     u32[base + RENDER_FIELD.huntTargetSlot] = huntSlot;
-    u32[base + RENDER_FIELD.residenceBuildingId] = (entity.residenceBuildingId ?? 0) >>> 0;
+    u32[base + RENDER_FIELD.residenceBuildingId] = entity.residenceBuildingId != null
+      ? (entity.residenceBuildingId >>> 0)
+      : RESIDENCE_BUILDING_NONE;
     u32[base + RENDER_FIELD.chatTicks] = (entity.chatTicks ?? 0) >>> 0;
     u32[base + RENDER_FIELD.reserved0] = 0;
     u32[base + RENDER_FIELD.reserved1] = 0;

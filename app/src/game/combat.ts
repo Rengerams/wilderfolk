@@ -9,7 +9,7 @@ import { COMBAT_TECH } from './combatTech';
 
 export { COMBAT_TECH } from './combatTech';
 
-const EMPTY_FORGE: VillageForgeState = {
+export const EMPTY_FORGE: VillageForgeState = {
   activeOrder: null,
   progress: 0,
   completed: {},
@@ -286,17 +286,23 @@ export function isPredatorType(type: EntityType): boolean {
   return type === EntityType.Wolf || type === EntityType.Fox || type === EntityType.Werewolf;
 }
 
-export function mergeCombatResearchNodes(nodes: ResearchNode[]): void {
-  const fresh = createInitialResearchNodes();
-  const existing = new Set(nodes.map((n) => n.id));
-  if (!existing.has('defense_1')) {
-    const defense1 = fresh.find((n) => n.id === 'defense_1');
-    if (defense1) nodes.push({ ...defense1 });
-    existing.add('defense_1');
+let cachedDefenseMigrationNodes: ResearchNode[] | null = null;
+
+function getDefenseMigrationNodes(): ResearchNode[] {
+  if (!cachedDefenseMigrationNodes) {
+    cachedDefenseMigrationNodes = createInitialResearchNodes().filter(
+      (n) => n.id === 'defense_1' || (n.id.startsWith('defense_') && n.id !== 'defense_1'),
+    );
   }
-  for (const node of fresh) {
-    if (!existing.has(node.id) && node.id.startsWith('defense_') && node.id !== 'defense_1') {
-      nodes.push({ ...node });
+  return cachedDefenseMigrationNodes;
+}
+
+export function mergeCombatResearchNodes(nodes: ResearchNode[]): void {
+  const existing = new Set(nodes.map((n) => n.id));
+  for (const template of getDefenseMigrationNodes()) {
+    if (!existing.has(template.id)) {
+      nodes.push({ ...template });
+      existing.add(template.id);
     }
   }
   for (const node of nodes) {

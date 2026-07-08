@@ -10,7 +10,8 @@
  *   SIM_LOG_FILE       — write full log to path (default: scripts/logs/sim-<years>year-<profile>-<timestamp>.txt)
  *   SIM_CHRONICLE_FILE — flat chronicle export path (default: scripts/logs/sim-<years>year-<profile>-chronicle-<timestamp>.txt)
  *   SIM_LOG_EVENTS     — 1 = include full grouped chronicle in main log (default 1); 0 = summary counts only
- *   SIM_LOG_LIFE       — 1 = stream pregnancies/births/deaths/marriages live (default 1); 0 = off (skips O(n) pregnancy scan)
+ *   SIM_LOG_LIFE       — 1 = stream pregnancies/births/deaths/marriages live (default 1); 0 = off
+ *   SIM_STAFF_EVERY    — auto-staff interval in ticks (default 48 ≈ 2 game days); also staffs after placements
  *   SIM_EVENT_LOG_MAX  — cap in-memory chronicle entries (default 5000; newest kept)
  *   SIM_LIFE_LOG_FILE  — dedicated life-events path (default: <main-log>-life.txt)
  *   SIM_VERBOSE        — 1 = log every player action to console (default 0)
@@ -51,7 +52,7 @@ import {
   writeChronicleFile,
 } from './simEventLog';
 import type { WorldState, BuildingType as BuildingTypeName } from '../src/game/gameTypes';
-import { JobType } from '../src/game/gameTypes';
+import { EntityType, JobType } from '../src/game/gameTypes';
 import { MapSize, createInitialResearchNodes } from '../src/game/gameTypes';
 import {
   isPlayerHuman,
@@ -212,6 +213,8 @@ const SIM_USE_WORKER = simUsesWorker();
 const SIM_VERBOSE = process.env.SIM_VERBOSE === '1';
 const SIM_LOG_EVENTS = process.env.SIM_LOG_EVENTS !== '0';
 const SIM_LOG_LIFE = process.env.SIM_LOG_LIFE !== '0';
+/** Balance harness — assignAllWorkers is expensive; skip ticks unless buildings/staff changed. */
+const SIM_STAFF_EVERY = Math.max(1, Number(process.env.SIM_STAFF_EVERY ?? 48));
 const SIM_STRICT_COVERAGE = process.env.SIM_STRICT_COVERAGE === '1';
 const PROGRESS_EVERY = Number(process.env.PROGRESS_EVERY ?? TICKS_PER_DAY * 15);
 const PERF_SAMPLE_EVERY = Number(process.env.PERF_SAMPLE_EVERY ?? TICKS_PER_YEAR);
@@ -793,14 +796,20 @@ function hasNewEventLogType(beforeLen: number, state: WorldState, type: string, 
 
 type PregnancySnap = Map<number, { pregnantById?: number; partnerId?: number }>;
 
-function snapshotPregnancies(state: WorldState): PregnancySnap {
-  const snap: PregnancySnap = new Map();
-  for (const e of state.entities) {
-    if (e.alive && isPlayerHuman(e) && e.gender === 'female' && e.pregnant) {
-      snap.set(e.id, { pregnantById: e.pregnantById, partnerId: e.partnerId });
+function forEachPlayerHumanFemale(
+  state: WorldState,
+  fn: (e: WorldState['entities'][number]) => void,
+): void {
+  const humans = state.entityByType?.[EntityType.Human];
+  if (humans) {
+    for (const e of humans) {
+      if (e.alive && isPlayerHuman(e) && e.gender === 'female') fn(e);
     }
+    return;
   }
-  return snap;
+  for (const e of state.entities) {
+    if (e.alive && isPlayerHuman(e) && e.gender === 'female') fn(e);
+  }
 }
 
 function formatLifeTick(state: WorldState): string {
@@ -827,20 +836,26 @@ function liveLifeEventKind(entry: WorldState['eventLog'][number]): string | null
 /** Stream pregnancies (entity state) and chronicle life events after each gameTick. */
 function drainLifeEvents(
   logger: SimLogger,
-  pregnanciesBefore: PregnancySnap,
+  pregnancySnap: PregnancySnap,
   eventLogLenBefore: number,
   state: WorldState,
 ): void {
   if (!SIM_LOG_LIFE) return;
 
-  for (const e of state.entities) {
-    if (!e.alive || !isPlayerHuman(e) || e.gender !== 'female' || !e.pregnant) continue;
-    if (pregnanciesBefore.has(e.id)) continue;
-    const mother = formatCitizenName(e);
-    const father = resolveFatherName(state, e);
-    const kind = e.pregnantById != null ? 'pregnancy (affair)' : 'pregnancy';
-    logger.life(`${formatLifeTick(state)} | ${kind} | ${mother} expecting (father: ${father})`);
-  }
+  // Single pass: log new pregnancies and incrementally maintain snap (no pre-tick rescan).
+  forEachPlayerHumanFemale(state, (e) => {
+    if (e.pregnant) {
+      if (!pregnancySnap.has(e.id)) {
+        const mother = formatCitizenName(e);
+        const father = resolveFatherName(state, e);
+        const kind = e.pregnantById != null ? 'pregnancy (affair)' : 'pregnancy';
+        logger.life(`${formatLifeTick(state)} | ${kind} | ${mother} expecting (father: ${father})`);
+      }
+      pregnancySnap.set(e.id, { pregnantById: e.pregnantById, partnerId: e.partnerId });
+    } else if (pregnancySnap.has(e.id)) {
+      pregnancySnap.delete(e.id);
+    }
+  });
 
   forEachNewEventLogEntry(eventLogLenBefore, state, (entry) => {
     const kind = liveLifeEventKind(entry);
@@ -1565,6 +1580,26 @@ function countStaffAtBuilding(state: WorldState, buildingId: number): number {
 function autoStaffAllBuildings(state: WorldState): WorldState {
   assignAllWorkers(state.entities.filter(isPlayerHuman), state.buildings);
   return ensurePrisonGuard(state);
+}
+
+const STAFF_TRIGGER_CATEGORIES = new Set<ActionLog['category']>([
+  'auto_build',
+  'buildings',
+  'coverage_sweep',
+  'scheduled',
+  'auto_growth',
+]);
+
+function simStaffingNeeded(t: number, actionLog: ActionLog[], buildLogBefore: number): boolean {
+  if (t % SIM_STAFF_EVERY === 0) return true;
+  if (t % 60 === 0) return true;
+  for (let i = buildLogBefore; i < actionLog.length; i++) {
+    const entry = actionLog[i];
+    if (!entry.ok || !STAFF_TRIGGER_CATEGORIES.has(entry.category)) continue;
+    if (entry.category === 'scheduled' && !/recruit/i.test(entry.action)) continue;
+    return true;
+  }
+  return false;
 }
 
 /** Prefer pulling a guard from these sites when the village has no idle workers (sim-only). */
@@ -2567,6 +2602,7 @@ async function runSimulation(): Promise<void> {
   const workerWaitMs: number[] = [];
   const prepSyncMs: number[] = [];
   const allTickMs: number[] = [];
+  const pregnancySnap: PregnancySnap = new Map();
 
   let state = initGame({ villageName: 'Balanceville', size: MapSize.Large });
   const simFocus = getSimFocus(state);
@@ -2647,6 +2683,7 @@ async function runSimulation(): Promise<void> {
     `Build mode: free — auto_build every 36 ticks, coverage sweep every 96 ticks`
     + ` (${expectedBuildingTypeCount()} types); placements stream live as 🏗️`,
   );
+  logger.live(`Auto-staff: every ${SIM_STAFF_EVERY} ticks + after placements/recruits (not every tick)`);
   if (SIM_LOG_LIFE) {
     logger.live(`Life events: live → ${logger.getLifeLogPath()} (pregnancies, births, deaths, marriages, scandals, prison)`);
   }
@@ -2694,14 +2731,14 @@ async function runSimulation(): Promise<void> {
     if (t % 96 === 0) {
       state = autoPlaceUnbuiltTypes(state, cx, cy, coverage, actionLog);
     }
-    state = autoStaffAllBuildings(state);
+    if (simStaffingNeeded(t, actionLog, buildLogBefore)) {
+      state = autoStaffAllBuildings(state);
+    }
     drainBuildActions(logger, actionLog, buildLogBefore);
 
     const woodBeforeTick = state.resources.wood;
     const popBeforeTick = state.humanPopulation;
     const eventLogLenBefore = state.eventLog.length;
-    let pregnanciesBefore: PregnancySnap | undefined;
-    if (SIM_LOG_LIFE) pregnanciesBefore = snapshotPregnancies(state);
 
     const tickStart = performance.now();
     const tickResult = await advanceSimTick(state, simFocus, workerHost);
@@ -2715,8 +2752,8 @@ async function runSimulation(): Promise<void> {
     frontierTracker.scanIncoming(state);
     allTickMs.push(performance.now() - tickStart);
 
-    if (SIM_LOG_LIFE && pregnanciesBefore) {
-      drainLifeEvents(logger, pregnanciesBefore, eventLogLenBefore, state);
+    if (SIM_LOG_LIFE) {
+      drainLifeEvents(logger, pregnancySnap, eventLogLenBefore, state);
       logger.flushLifeBuffers();
     }
 

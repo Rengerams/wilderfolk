@@ -101,6 +101,7 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
   const days = entity.schoolDays ?? 0;
   const tier = getEducationTier(days);
   if (tier === 0) return;
+  if (entity.educated) return;
 
   entity.educated = true;
   const skillBonus = tier === 3 ? 12 : tier === 2 ? 8 : 5;

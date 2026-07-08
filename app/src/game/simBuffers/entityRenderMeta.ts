@@ -2,6 +2,8 @@ import type { Entity } from '../gameTypes';
 import { EntityType } from '../gameTypes';
 import type { RenderSoAReaderV1 } from './renderSoAReader';
 import {
+  RESIDENCE_BUILDING_NONE,
+  RENDER_FLAG_ALIVE,
   RENDER_FLAG_COMBAT,
   RENDER_FLAG_EDUCATED,
   RENDER_FLAG_FEMALE,
@@ -10,6 +12,7 @@ import {
   RENDER_FLAG_MOON_HOWLER,
   RENDER_FLAG_PREGNANT,
   RENDER_FLAG_RIVAL,
+  RENDER_FLAG_TAMED,
   RENDER_FLAG_VISITOR,
 } from './schema';
 
@@ -96,7 +99,7 @@ export function buildRenderEntityShim(
     flash: reader.flash(slot),
     huntTargetId,
     chatTicks: chatTicksRaw > 0 ? chatTicksRaw : undefined,
-    residenceBuildingId: residenceId > 0 ? residenceId : undefined,
+    residenceBuildingId: residenceId !== RESIDENCE_BUILDING_NONE ? residenceId : undefined,
     homeBuildingId: meta?.homeBuildingId,
     name: meta?.name,
     surname: meta?.surname,
@@ -108,13 +111,13 @@ export function buildRenderEntityShim(
     pregnant: meta?.pregnant ?? !!(flags & RENDER_FLAG_PREGNANT),
     educated: !!(flags & RENDER_FLAG_EDUCATED),
     isJuvenile: !!(flags & RENDER_FLAG_JUVENILE),
-    tamedBy: meta?.tamedBy,
+    tamedBy: meta?.tamedBy ?? ((flags & RENDER_FLAG_TAMED) ? -1 : undefined),
     courtshipProgress: meta?.courtshipProgress,
     relationshipStatus: meta?.relationshipStatus,
     partnerId: meta?.partnerId,
     skills: meta?.skills ? { ...meta.skills } : {},
     combatTicks: meta?.combatTicks ?? ((flags & RENDER_FLAG_COMBAT) ? 1 : 0),
-    alive: true,
+    alive: !!(flags & RENDER_FLAG_ALIVE),
     energy: 0,
     maxEnergy: 1,
     age: 0,

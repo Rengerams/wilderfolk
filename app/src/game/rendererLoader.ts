@@ -1,9 +1,19 @@
 type RendererModule = typeof import('./renderer');
 
 let rendererModule: RendererModule | null = null;
+type RenderArgs = Parameters<RendererModule['renderGame']>;
+let pendingRender: RenderArgs | null = null;
+
+function flushPendingRender(mod: RendererModule): void {
+  if (!pendingRender) return;
+  const args = pendingRender;
+  pendingRender = null;
+  mod.renderGame(...args);
+}
 
 const rendererReady: Promise<RendererModule> = import('./renderer').then((mod) => {
   rendererModule = mod;
+  flushPendingRender(mod);
   return mod;
 });
 
@@ -20,11 +30,15 @@ export function resetRendererCaches(): void {
 }
 
 export function renderGame(
-  ...args: Parameters<RendererModule['renderGame']>
+  ...args: RenderArgs
 ): void {
   if (rendererModule) {
+    pendingRender = null;
     rendererModule.renderGame(...args);
     return;
   }
-  void rendererReady.then((mod) => mod.renderGame(...args));
+  pendingRender = args;
+  void rendererReady.then((mod) => {
+    if (pendingRender === args) flushPendingRender(mod);
+  });
 }

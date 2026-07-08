@@ -64,6 +64,12 @@ export function computeWildlifeCounts(entities: Entity[]): WildlifeCounts {
   return counts;
 }
 
+/** Strip the human tally from population counts — safe source for `wildlifeCounts`. */
+export function wildlifeCountsFromPopulation(counts: PopulationCounts): WildlifeCounts {
+  const { humans: _humans, ...wildlife } = counts;
+  return wildlife;
+}
+
 /** Player humans + wildlife — same rules as gameTick population counting. */
 export function computePopulationCounts(entities: Entity[]): PopulationCounts {
   const counts = emptyPopulationCounts();

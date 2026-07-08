@@ -1,7 +1,7 @@
 import type { WorldState } from '../gameTypes';
 
 /** Mutable sim slices updated before each headless worker tick (excludes worldMap). */
-export type SimPrepPayload = Pick<
+export type SimPrepPayload = Required<Pick<
   WorldState,
   | 'tick'
   | 'year'
@@ -44,7 +44,7 @@ export type SimPrepPayload = Pick<
   | 'nextBuildingId'
   | 'nextFloatingTextId'
   | 'totalBuildingsCompleted'
->;
+>>;
 
 export function extractSimPrep(state: WorldState): SimPrepPayload {
   return {
@@ -101,8 +101,10 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.weatherTimer = prep.weatherTimer;
   world.paused = prep.paused;
   world.speed = prep.speed;
-  world.entities = prep.entities;
-  world.buildings = prep.buildings;
+  world.entities.length = 0;
+  world.entities.push(...prep.entities);
+  world.buildings.length = 0;
+  world.buildings.push(...prep.buildings);
   world.resources = prep.resources;
   world.storageMax = prep.storageMax;
   world.humanPopulation = prep.humanPopulation;
@@ -114,9 +116,9 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.unlockedTechs = prep.unlockedTechs;
   world.visitorGroups = prep.visitorGroups;
   world.rivalSettlements = prep.rivalSettlements;
-  world.pendingRaidEvents = prep.pendingRaidEvents;
-  world.pendingOutgoingRaidEvents = prep.pendingOutgoingRaidEvents;
-  world.pendingDiplomacyEvents = prep.pendingDiplomacyEvents;
+  world.pendingRaidEvents = prep.pendingRaidEvents ?? [];
+  world.pendingOutgoingRaidEvents = prep.pendingOutgoingRaidEvents ?? [];
+  world.pendingDiplomacyEvents = prep.pendingDiplomacyEvents ?? [];
   world.tradeRoutes = prep.tradeRoutes;
   world.villageForge = prep.villageForge;
   world.challenges = prep.challenges;

@@ -37,24 +37,14 @@ export function getChallengeProgress(challenge: Challenge, state: WorldState): C
     case 'growing_village': {
       const targetBuildings = challenge.targetBuildings ?? 5;
       const targetYear = challenge.targetYear ?? 5;
-      if (playerBuildings < targetBuildings) {
-        return {
-          current: playerBuildings,
-          target: targetBuildings,
-          unit: 'buildings',
-        };
-      }
-      if (state.year < targetYear) {
-        return {
-          current: state.year,
-          target: targetYear,
-          unit: 'years',
-        };
-      }
+      const combined = Math.round(
+        Math.min(playerBuildings / targetBuildings, 1) * 50
+        + Math.min(state.year / targetYear, 1) * 50,
+      );
       return {
-        current: targetBuildings,
-        target: targetBuildings,
-        unit: 'buildings',
+        current: combined,
+        target: 100,
+        unit: '%',
       };
     }
     case 'thriving_town':
@@ -66,24 +56,14 @@ export function getChallengeProgress(challenge: Challenge, state: WorldState): C
     case 'great_city': {
       const targetBuildings = challenge.targetBuildings ?? 35;
       const targetPopulation = challenge.targetPopulation ?? 250;
-      if (playerBuildings >= targetBuildings) {
-        return {
-          current: targetBuildings,
-          target: targetBuildings,
-          unit: 'buildings',
-        };
-      }
-      if (state.humanPopulation < targetPopulation) {
-        return {
-          current: state.humanPopulation,
-          target: targetPopulation,
-          unit: 'population',
-        };
-      }
+      const combined = Math.round(
+        Math.min(state.humanPopulation / targetPopulation, 1) * 50
+        + Math.min(playerBuildings / targetBuildings, 1) * 50,
+      );
       return {
-        current: playerBuildings,
-        target: targetBuildings,
-        unit: 'buildings',
+        current: combined,
+        target: 100,
+        unit: '%',
       };
     }
     case 'century':

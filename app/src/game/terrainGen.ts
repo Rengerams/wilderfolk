@@ -1,4 +1,4 @@
-import { TerrainType, type TerrainTile, type WorldMap, type MapPreset, type MapSize, MAP_SIZE_DIMENSIONS } from './gameTypes';
+import { TerrainType, type TerrainTile, type WorldMap, type MapPreset, MapSize, MAP_SIZE_DIMENSIONS } from './gameTypes';
 
 // Simple seeded random number generator
 function seededRandom(seed: number) {
@@ -169,52 +169,78 @@ export function findCampSite(
     return { x: preferredX, y: preferredY };
   }
   const step = 10;
+  const margin = 40;
   for (let ring = 1; ring <= 40; ring++) {
     for (let dy = -ring; dy <= ring; dy++) {
       for (let dx = -ring; dx <= ring; dx++) {
         if (Math.abs(dx) !== ring && Math.abs(dy) !== ring) continue;
         const x = preferredX + dx * step;
         const y = preferredY + dy * step;
-        if (x < 40 || y < 40 || x > mapPixelW - 40 || y > mapPixelH - 40) continue;
+        if (x < margin || y < margin || x > mapPixelW - margin || y > mapPixelH - margin) continue;
         if (isFootprintBuildable(tiles, tileW, tileH, footprintW, footprintH, x, y)) {
           return { x, y };
         }
       }
     }
   }
+  // Full-map fallback — never return an unbuildable preferred site.
+  const scanStep = 20;
+  for (let y = margin; y <= mapPixelH - margin; y += scanStep) {
+    for (let x = margin; x <= mapPixelW - margin; x += scanStep) {
+      if (isFootprintBuildable(tiles, tileW, tileH, footprintW, footprintH, x, y)) {
+        return { x, y };
+      }
+    }
+  }
   return { x: preferredX, y: preferredY };
 }
 
+export interface GenerateWorldMapOptions {
+  size?: MapSize;
+  preset?: MapPreset;
+  seed?: number;
+  width?: number;
+  height?: number;
+}
+
+/** Preferred: `generateWorldMap(MapSize.Medium, MapPreset.Verdant, seed)`. */
+export function generateWorldMap(size: MapSize, preset?: MapPreset, seed?: number): WorldMap;
+/** Legacy pixel dimensions — prefer MapSize overload. */
+export function generateWorldMap(width: number, height: number, seed?: number, size?: MapSize, preset?: MapPreset): WorldMap;
 export function generateWorldMap(
   widthOrSize: number | MapSize = 1200,
-  heightOrPreset?: number | MapPreset,
+  heightOrPreset: number | MapPreset = 900,
   seedOrUndefined?: number,
-  size?: MapSize,
-  preset: MapPreset = 'verdant'
+  sizeArg?: MapSize,
+  presetArg: MapPreset = 'verdant',
 ): WorldMap {
   let width: number;
   let height: number;
-  const seed = seedOrUndefined ?? Math.floor(Math.random() * 100000);
+  let size: MapSize;
+  let preset: MapPreset;
+  let seed: number;
 
   if (typeof widthOrSize === 'string') {
     const dims = MAP_SIZE_DIMENSIONS[widthOrSize];
     width = dims.width;
     height = dims.height;
     size = widthOrSize;
-    if (typeof heightOrPreset === 'string') {
-      preset = heightOrPreset;
-    }
+    preset = typeof heightOrPreset === 'string' ? heightOrPreset : presetArg;
+    seed = seedOrUndefined ?? Math.floor(Math.random() * 100000);
   } else {
     width = widthOrSize;
     height = typeof heightOrPreset === 'number' ? heightOrPreset : 900;
-    if (typeof heightOrPreset === 'string') {
-      preset = heightOrPreset;
-    }
-    if (!size) {
+    preset = typeof heightOrPreset === 'string' ? heightOrPreset : presetArg;
+    seed = typeof heightOrPreset === 'number'
+      ? (seedOrUndefined ?? Math.floor(Math.random() * 100000))
+      : (seedOrUndefined ?? Math.floor(Math.random() * 100000));
+    if (sizeArg) {
+      size = sizeArg;
+    } else {
       const matched = (Object.keys(MAP_SIZE_DIMENSIONS) as MapSize[]).find(
-        s => MAP_SIZE_DIMENSIONS[s].width === width && MAP_SIZE_DIMENSIONS[s].height === height
+        (s) => MAP_SIZE_DIMENSIONS[s].width === width && MAP_SIZE_DIMENSIONS[s].height === height,
       );
-      size = matched ?? 'medium';
+      size = matched ?? MapSize.Medium;
     }
   }
 

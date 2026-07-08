@@ -15,17 +15,34 @@ export interface VillageStatsSummary {
   openBeds: number;
 }
 
+let cachedConstructionWorkers: Set<number> | null = null;
+let cachedConstructionStamp = -1;
+
+function getConstructionWorkers(world: WorldState): Set<number> {
+  const stamp = world.buildings.reduce(
+    (hash, b) => hash + b.id * 17 + (b.completed ? 0 : b.occupants.length * 31),
+    0,
+  );
+  if (cachedConstructionWorkers && cachedConstructionStamp === stamp) {
+    return cachedConstructionWorkers;
+  }
+  const workers = new Set<number>();
+  for (const b of world.buildings) {
+    if (!b.completed) {
+      for (const id of b.occupants) workers.add(id);
+    }
+  }
+  cachedConstructionWorkers = workers;
+  cachedConstructionStamp = stamp;
+  return workers;
+}
+
 /** Phase C — denormalized settler stats without scanning all entities. */
 export function computeVillageStats(
   world: WorldState,
   catalog?: EntityCatalog,
 ): VillageStatsSummary {
-  const constructionWorkers = new Set<number>();
-  for (const b of world.buildings) {
-    if (!b.completed) {
-      for (const id of b.occupants) constructionWorkers.add(id);
-    }
-  }
+  const constructionWorkers = getConstructionWorkers(world);
 
   const humans = catalog
     ? catalog.getPlayerHumans()

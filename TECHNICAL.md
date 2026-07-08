@@ -102,6 +102,9 @@ npm run dup              # jscpd duplicate scan (0 clones target)
 | `VITE_USE_GAME_WORKER=1` | Run `gameTick` in a Web Worker (opt-in) |
 | `VITE_USE_SPATIAL_GRID=0` | Disable spatial grid (falls back to scanning every entity per hunt/graze/flee query) |
 | `VITE_USE_SCENT_GRID=0` | Disable scent grid |
+| `VITE_SPATIAL_GRID_INVARIANT=1` | After each tick, assert every alive grass/mobile entity sits in exactly one grid cell |
+| `SPATIAL_QUERY_METRICS=1` | Headless sims: count spatial queries per tick (on in `npm run bench` city scripts; `0` to disable) |
+| `USE_SPATIAL_GRID=0` | Headless A/B: force naive full-list scans (set before process start) |
 
 ### App package (`cd app` or `npm --prefix app <script>`)
 
@@ -125,7 +128,7 @@ npm run sim -- 10year    # balance regression; SIM_YEARS=10 default, SIM_PROFILE
 npm run sim -- 20year    # v0.5 ship gatekeeper
 npm run sim -- city      # city benchmark profile
 npm run sim -- kill      # stop stuck sim (sim.lock)
-npm run bench            # benchmark gate script
+npm run bench            # benchmark gate script (perf + spatial query metrics + A/B)
 ```
 
 **Sim profiles** (full list in `app/scripts/sim-cli.mjs`): `5min`, `30min`, `housing`, `housing:ticks`, `family`, `social`, `militia`, `10year`, `10year:worker`, `20year`, `20year:worker`, `city`, `30min:city`, `kill`. Aliases: `simulate` → `5min`, `balance` → `militia`.
@@ -147,7 +150,7 @@ Most profiles launch through **`app/scripts/run-sim.mjs`** (tsx + localStorage s
 
 | Command | What it checks |
 |---------|----------------|
-| `npm test` | **358** Vitest tests, **67** files, **0 skipped** (browser worker suites optional via `vitest.browser-worker.config.ts`) |
+| `npm test` | **390** Vitest tests, **71** files, **0 skipped** (browser worker suites optional via `vitest.browser-worker.config.ts`) |
 | `npm run test:all` | `vitest run` + `tsc -p tsconfig.vitest.json --noEmit` |
 | `npm run lint` | ESLint — **0 errors** |
 | `npm run build` | `tsc -b` + Vite production bundle |
@@ -174,7 +177,7 @@ The game splits **world state** from **view state**:
 | `canvasLayer.ts` | Shared OffscreenCanvas create/resize/dispose/clear helpers |
 | `terrainLayer.ts` | Baked terrain tile layer (per season) + decor layer (rivers + map border at world resolution) |
 | `entityLayer.ts` | Dynamic entity bitmap cache; invalidates on tick, camera, build/selection UI state |
-| `spatialGrid.ts` | Dual-layer cell grid (grass + mobile); graze/hunt/flee queries (`USE_SPATIAL_GRID` on by default) |
+| `spatialGrid.ts` | Dual-layer spatial index — **grass** (56px) + **mobile** (80px); `RoadAvoidanceIndex` (128px); `USE_SPATIAL_GRID` on by default |
 | `entityCatalog.ts` | Indexed entity lookup for UI; lazy `alive` + `byType` index; `resolveAliveHumans()` |
 | `simWorker/` | Web Worker host + `gameWorker.ts`; opt-in via `VITE_USE_GAME_WORKER=1` |
 | `simBuffers/` | Render SoA pack/read, tick deltas, buffer pool for worker ↔ main transfer |
@@ -200,6 +203,41 @@ gameLoop → gameTick(world) [or worker tick]
 | Worker path | `simBuffers/renderSoAEntities.ts` | Slot buckets via `getRenderEntityLayer()` — same taxonomy as main thread |
 
 Shared helpers in `gameTypes.ts`: `emptyEntityByType()`, `getRenderEntityLayer()`, `UNCACHED_RENDER_TICK`. Draw-list builder: `buildEntityDrawBuckets()` in `gameEngine.ts`.
+
+### Dual-layer spatial grid
+
+Wilderfolk uses **two separate `EntitySpatialGrid` layers** plus auxiliary indexes. Grass never enters the mobile layer; mobile entity types never enter the grass layer.
+
+| Layer | Constant | Cell size | Entities indexed | Persisted | Rebuild cadence |
+|-------|----------|-----------|------------------|-----------|-----------------|
+| **Grass** | `GRASS_CELL_SIZE` | **56px** | `EntityType.Grass` only | `state.grassGrid` | Reused at tick start; incremental `update()` during tick; full `syncGrassRenderGrid()` at tick end |
+| **Mobile** | `MOBILE_CELL_SIZE` | **80px** | Human, Wolf, Fox, Deer, Rabbit, Wildkin, Werewolf | `state.mobileGrid` | Full `syncMobileSimGrid()` rebuild each tick start; incremental `update()` on move/birth/death |
+| **Road** | `ROAD_AVOID_CELL` | **128px** | Road building AABBs | `TickContext.roadAvoidance` | Built once per `tickHumans` / `tickWildlife` when missing |
+| **Tree** (ephemeral) | — | 80px | Trees only | `TickContext.treeGrid` | `buildTreeGrid()` once per `tickHumans` |
+| **Scent** (optional) | — | 80px | Float32 influence field | `state.scentGrid` | `ensureScentGrid()` + `tickScentGrid()` when `USE_SCENT_GRID` on |
+
+**Query routing** (`lifeSimulation.ts` — each hot path uses the correct grid):
+
+| Hot path | Grid / index | API |
+|----------|--------------|-----|
+| Graze (rabbit/deer/wildkin) | **Grass** | `grassGrid.findClosestInRadius(x, y, 50, …)` |
+| Flee (prey → predator) | **Mobile** | `mobileGrid.findClosestInRadius(x, y, fleeRange, isWildlifePredator)` |
+| Hunt / wolf pack | **Mobile** | `mobileGrid.forEachInRadius(x, y, huntRange, …)` |
+| Mate / tamed hunt assist | **Mobile** | `findClosestEntityInRadius(mobileGrid, …)` via `tickQueries.ts` |
+| Courtship / affair | **Mobile** | `findCourtshipPartner` / `findAffairLover` (localized radius; housemates via `residenceOccupants`) |
+| Human flee Moon Howler | **Mobile** | `mobileGrid.findClosestInRadius(…, 110, werewolf predicate)` |
+| Idle tree wander | **Tree** | `findClosestEntityInRadius(treeGrid, …)` |
+| Idle social roam | **Mobile** | `findClosestEntityInRadius(mobileGrid, …, socialScanRadius)` — radius is **map diagonal** (`Math.hypot(width, height)`), grid-accelerated but not a short local neighborhood |
+| Road speed / wildlife avoidance | **Road** | `roadAvoidance.isNearRoad()` / `applyAvoidance()` |
+| Render grass cull | **Grass** | `collectGrassInViewport(grassGrid, …)` |
+
+**Flee semantics:** with grid off, prey scans the prebuilt `predators` array in `gameEngine.ts` (wolves, foxes, **player + rival** humans, werewolves — not visitors). With grid on, `isWildlifePredator()` applies the same filter inside the mobile layer.
+
+**Broad-phase vs narrow-phase:** grid queries return cell buckets overlapping the search radius, then run distance checks (`hypot` / `distSq`) on candidates only. `forEachNeighborCell()` (3×3) exists for future scent sampling; graze/flee/hunt use `findClosestInRadius` / `forEachInRadius` with `cellRadius = ceil(radius / cellSize)` — typically ~9 cells at graze range, up to ~25 cells at max flee range (Wildkin 100px on 80px cells).
+
+**`structuredClone` safety:** `isReusableSpatialGrid()` detects plain-object clones (methods stripped) and reallocates before reuse — prevents multi-decade sim crashes after save/worker handoff.
+
+**Flags:** `USE_SPATIAL_GRID` on by default; `VITE_USE_SPATIAL_GRID=0` restores legacy full-list scans for A/B. Optional invariant check: `VITE_SPATIAL_GRID_INVARIANT=1` → `assertSpatialGridInvariants()` after each tick.
 
 ### Tick model
 
@@ -248,7 +286,7 @@ Food spoilage and some daily logic use `tick % TICKS_PER_DAY`.
 | `combatTech.ts` | `COMBAT_TECH` constants (breaks forge ↔ combat circular import) |
 | `priorityAlerts.ts` | Clickable priority alerts (raids, diplomacy, food, forge, trade) |
 | `buildCatalog.ts` | Build category rail, hotkey map, cost formatting |
-| `spatialGrid.ts` | Dual-layer spatial index for graze/hunt/flee (grass + mobile cells) |
+| `spatialGrid.ts` | Grass grid (56px) + mobile grid (80px) + `RoadAvoidanceIndex` (128px); see [Dual-layer spatial grid](#dual-layer-spatial-grid) |
 | `entityCatalog.ts` | Fast entity lookup for UI panels; `resolveAliveByType()` / `resolveAliveHumans()` |
 | `simBuffers/renderSoAEntities.ts` | Worker render slot buckets (grass/tree/human/animal) + shim cache |
 | `saveSchema.ts` | Allow-listed world fields for save (`pickWorldFieldsForSave`) |
@@ -650,7 +688,28 @@ terrain blit → entity layer blit → flash overlay → season/weather/night �
 
 **Shipped (v0.4.2):** off-screen sim throttles, per-tick `entityById` / `buildingById`, wildlife `byType` loop, `wildlifeCounts`, UI memoization. See [CHANGELOG.md](CHANGELOG.md) `[0.4.2]` → Performance.
 
-**v0.5.0 perf/render (in code):** renderer entity draw cache (`world.entityByType` → `RenderSnapshot` → `updateCachedEntities`); `EntityCatalog` combined alive/byType index; shared `getRenderEntityLayer()` for main + SoA paths; **OffscreenCanvas layers** (terrain tiles + decor bake, dynamic entity bitmap cache, flash overlay on main canvas).
+**v0.5.0 perf/render (in code):** renderer entity draw cache (`world.entityByType` → `RenderSnapshot` → `updateCachedEntities`); `EntityCatalog` combined alive/byType index; shared `getRenderEntityLayer()` for main + SoA paths; **OffscreenCanvas layers** (terrain tiles + decor bake, dynamic entity bitmap cache, flash overlay on main canvas); **dual-layer spatial grid** — see [Dual-layer spatial grid](#dual-layer-spatial-grid).
+
+**Spatial query metrics (instrumented):** `spatialQueryMetrics.ts` counts **queries/tick**, **candidate entity examinations/tick** (broad-phase bucket walks), and **cells visited/tick** (grid only). Enabled automatically in `npm run bench` and city `npm run sim -- city` / `npm run sim -- 30min` with `SIM_PROFILE=city`. A/B: `node scripts/run-sim.mjs scripts/benchmark-spatial-ab.ts`.
+
+**Measured @ city profile (July 2026)** — `benchmark-city.ts`, **~1220 alive**, 300 player + 24 rival + 7 visitor humans, Large map:
+
+| Interaction | Grid (default) | Naive (`USE_SPATIAL_GRID=0`) | Reduction | Notes |
+|-------------|----------------|------------------------------|-----------|-------|
+| **Graze** | **5.1** candidates/tick | **747** candidates/tick | **~99%** | Grass 56px; ~0.7 queries/tick, ~6.7 cells/tick |
+| **Flee** | **4110** candidates/tick | **35 974** candidates/tick | **~88%** | Mobile 80px; ~93 queries/tick; predators incl. player + rival humans |
+| **Hunt** | **15 380** candidates/tick | **20 490** candidates/tick | varies | Dense mobile cells — broad-phase can rival naive prey-list scans |
+| **Social** | **27 979** candidates/tick | **27 914** candidates/tick | ~0% | Idle roam uses map-span radius on mobile grid |
+
+Steady-state tick cost same run: avg **11.78 ms**, p95 **15.68 ms** (gate **PASS** &lt; 20 ms @ ≥1200 alive).
+
+**Design estimates (peak naive @ ~1250 alive)** — for comparison before measurement; throttles reduce live averages:
+
+| Interaction | Peak naive estimate | Grid path | Notes |
+|-------------|---------------------|-----------|-------|
+| **Graze** | ~40 grazers × ~500 grass ≈ **20k**/tick | Grass grid ~9 cells | Measured grid ≪ estimate (throttle + flee-first) |
+| **Flee** | ~40 prey × ~**324** predators ≈ **13k**/tick | Mobile radius ~9–25 cells | Measured naive **36k**/tick (more active prey queries than estimate) |
+| **Road** | Per entity `roadBuildings.some()` | `RoadAvoidanceIndex` 3×3 lookup | Road near: ~300 queries/tick @ city (humans on roads) |
 
 **Benchmark:** `cd app && npm run sim -- 30min` — env `SIM_MINUTES` (default 1200 ≈ 30 game-min), `PERF_SAMPLE_EVERY` (default 120). July 2026 sanity run (72k ticks, ~8 game years, ~557 entities): avg **1.81 ms/tick**, p50 **1.30 ms**, p95 **4.83 ms**, max **105 ms**. **Real play (July 2026):** 200+ player humans, game still smooth — total alive **~850–1000**. **v0.5 design target:** **300 player + ~30 neighbor humans** (2 rival camps + visitors) → **~330 humans on map**, **~1250 alive**; p95 &lt; 16 ms/tick @ ~800 (town), &lt; 20 ms/tick @ **~1250** (city); headroom **~1500**.
 
@@ -763,7 +822,7 @@ Playtest: **200+ citizens**, performance still good. Entity budget is higher tha
 
 **Sim note:** `tickHumans` runs on **all** `EntityType.Human` (player + rival + visitor). Flee `predators` includes **player + rival** humans (`gameEngine.ts`), not visitors.
 
-**Optimization sizing:** dual-layer spatial grid; mobile layer must index all map humans; benchmark `SIM_PROFILE=city` spawns rivals + visitor wave and asserts **~1250 alive**. Private reference → `private/v0.5-scale-targets.md` (full budget + benchmark table + implementation order).
+**Optimization sizing:** dual-layer spatial grid (grass 56px / mobile 80px) — query routing and naive-cost table in [Dual-layer spatial grid](#dual-layer-spatial-grid) and [Performance](#performance); mobile layer indexes all map humans; benchmark `SIM_PROFILE=city` spawns rivals + visitor wave and asserts **~1250 alive**.
 
 ### July 5, 2026 — Election day ceremony (v0.5.0 P1 — ready for shipment)
 
@@ -792,7 +851,7 @@ Playtest build remains **`GAME_VERSION` 0.4.2** until the v0.5.0 tag. Items belo
 | Area | Status |
 |------|--------|
 | **Bug pass** | **226** tracker items (batches A–J); `/check-work` PASS |
-| **Spatial grid** | Ready — `spatialGrid.ts` grass + mobile layers; wired in `lifeSimulation.ts` graze/hunt/flee |
+| **Spatial grid** | Ready — grass (56px) + mobile (80px) + `RoadAvoidanceIndex` (128px); correct grid per hot path — see [Dual-layer spatial grid](#dual-layer-spatial-grid) |
 | **Worker sim** | Ready — `simWorker/GameWorkerHost.ts`, render SoA (`simBuffers/`), `WORKER_PROTO` negotiation; opt-in via env |
 | **Renderer cache** | Ready — `world.entityByType` per sim tick; `RenderSnapshot.entityByType`; `buildEntityDrawBuckets()`; viewport grass culling from grass bucket only |
 | **Grass render buckets** | Ready — `collectGrassInViewport()` spatial query over `byType[Grass]`; `_cachedGrass` + viewport key; batched `drawGrass` |
@@ -803,7 +862,7 @@ Playtest build remains **`GAME_VERSION` 0.4.2** until the v0.5.0 tag. Items belo
 | **Raid rewards** | Ready — `rewardRaidParticipants()` Guard XP tiers; leader +0.45 XP + rep on wins; merit elections (`skillPoints = sum(skills)×2`); incumbent record from rep |
 | **Victory balance** | Ready — `VICTORY_TARGETS` raised; Harmony wild wolves only; Goals tab explainer |
 | **Trade caravans** | Ready — `tradeCaravans.ts`; walking merchants; 7 routes; instant trade removed |
-| **Tests** | Vitest **358** passed, **0 skipped**, **67** files (`npm test`); `npm run test:all` adds vitest typecheck; browser worker suites optional (`vitest.browser-worker.config.ts`); Moon Howler cycle in `moonHowler.cycle.test.ts` (3); frontier raid tests in `frontierCombat.test.ts` (24); trade caravan tests in `tradeCaravans.test.ts` (2); victory in `victory.test.ts` (1); layer tests in `entityLayer.test.ts` (4) |
+| **Tests** | Vitest **390** passed, **0 skipped**, **71** files (`npm test`); `npm run test:all` adds vitest typecheck; browser worker suites optional (`vitest.browser-worker.config.ts`); Moon Howler cycle in `moonHowler.cycle.test.ts` (3); frontier raid tests in `frontierCombat.test.ts` (24); trade caravan tests in `tradeCaravans.test.ts` (2); victory in `victory.test.ts` (1); layer tests in `entityLayer.test.ts` (4) |
 | **Lint** | **70 → 0** ESLint errors — `useLayoutEffect` ref sync, `BuildCatalogPanel` derived category, test hygiene |
 | **UI** | Ready — `BuildCatalogPanel` replaces deleted `BuildHotbar`; `ResourceBadge` / `resourceLabels.ts` |
 
@@ -828,7 +887,7 @@ Routine settler banter no longer uses inline phrase pools in `humanChat.ts`. All
 
 | Area | Change |
 |------|--------|
-| **`npm test`** | `vitest run` — **358 passed**, **67** files, **0 skipped** |
+| **`npm test`** | `vitest run` — **390 passed**, **71** files, **0 skipped** |
 | **`npm run test:all`** | vitest + `tsc -p tsconfig.vitest.json --noEmit` |
 | **`npm run` (app)** | **10 scripts**: `dev`, `build`, `test`, `test:all`, `test:types`, `test:watch`, `lint`, `preview`, `sim`, `bench`, `dup` |
 | **`sim` CLI** | `scripts/sim-cli.mjs` replaces all `simulate:*` / `balance:*` / `benchmark:*` entries |
@@ -857,11 +916,11 @@ Routine settler banter no longer uses inline phrase pools in `humanChat.ts`. All
 |---|-----|
 | 1 | `reconcileOrphanedMarriages` in `dayCycle.ts` before entity prune — clears stale `partnerId` when dead spouse row removed |
 | 2 | Top-level `await preloadDialogueBank()` in vitest setup; dynamic `import()` disk load (no `require()` in app tsconfig) |
-| 3 | `lifeSimulation.prison.test.ts` — `withSeededRandom(123)` + dynamic fixture ids |
+| 3 | `lifeSimulation.prison.test.ts` — `withRepeatingRandom(0.1)`, calendar-day pin, mortality mock, two-pass fixture wiring (test debt cleared) |
 
 ### July 8, 2026 — jscpd duplicate cleanup
 
-`jscpd` scan found **8 clones** (93 lines, 0.4%) in `stripRender.ts`, `trackPlayer.ts`, `director.ts`, intro/background music mute sync, and inline `lifetimeStats` in `worldGen.ts`. Refactored to shared helpers; **`npm run dup`** now reports **0 clones**. Quality gates: `npm test` **358** passed, `npm run build` PASS.
+`jscpd` scan found **8 clones** (93 lines, 0.4%) in `stripRender.ts`, `trackPlayer.ts`, `director.ts`, intro/background music mute sync, and inline `lifetimeStats` in `worldGen.ts`. Refactored to shared helpers; **`npm run dup`** now reports **0 clones**. Quality gates (current): `npm test` **390** passed, `npm run build` PASS.
 
 ---
 

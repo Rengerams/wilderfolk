@@ -194,7 +194,7 @@ export function startDialogueTreeChat(
   solo = false,
 ): void {
   if ((entityA.chatTicks ?? 0) > 0) return;
-  if (entityB && (entityB.chatTicks ?? 0) > 0) return;
+  if (!solo && entityB && (entityB.chatTicks ?? 0) > 0) return;
 
   const key = solo || !entityB
     ? `solo:${entityA.id}`
@@ -220,6 +220,16 @@ export function startDialogueTreeChat(
   showDialogueStep(tree, 0, entityA, entityB, solo || !entityB);
 }
 
+function resolveSessionSpeaker(
+  entityId: number,
+  self: ChatSpeaker,
+  partner: ChatSpeaker | null,
+): ChatSpeaker | null {
+  if (self.id === entityId) return self;
+  if (partner?.id === entityId) return partner;
+  return null;
+}
+
 function advanceDialogue(
   entity: ChatSpeaker,
   resolvePartner: (id: number) => ChatSpeaker | null | undefined,
@@ -235,8 +245,19 @@ function advanceDialogue(
     return false;
   }
 
-  const entityA = self.id === session.entityAId ? self : (partner ?? self);
-  const entityB = session.solo ? null : (self.id === session.entityBId ? self : partner);
+  if (!session.solo && !partner) {
+    clearDialogueSession(sessionKey, self, undefined);
+    return false;
+  }
+
+  const entityA = resolveSessionSpeaker(session.entityAId, self, partner) ?? self;
+  const entityB = session.solo
+    ? null
+    : resolveSessionSpeaker(session.entityBId, self, partner);
+  if (!session.solo && !entityB) {
+    clearDialogueSession(sessionKey, entityA, undefined);
+    return false;
+  }
 
   const nextStep = session.step + 1;
   if (nextStep >= tree.lines.length) {
@@ -309,19 +330,18 @@ export function maybeDialogueChat(
   startDialogueTreeChat(entity, partner, tree, partner == null);
 }
 
+/** @deprecated Prefer `maybeDialogueChat` — duration is derived from dialogue line length. */
 export function maybeHumanChat(
   entity: ChatSpeaker,
   context: HumanChatContext,
-  entityId: number,
+  _entityId: number,
   tick: number,
   chance: number,
-  durationTicks = CHAT_DEFAULT_DURATION_TICKS,
+  _durationTicks = CHAT_DEFAULT_DURATION_TICKS,
   options: ChatPickOptions = {},
   partner: ChatSpeaker | null = null,
 ): void {
   maybeDialogueChat(entity, partner, context, tick, chance, options);
-  void durationTicks;
-  void entityId;
 }
 
 function housemateChatContext(

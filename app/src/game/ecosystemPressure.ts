@@ -70,11 +70,18 @@ export function getGrazingPressureReport(state: WorldState): GrazingPressureRepo
   const pastureTight = deerGrassRatio > DEER_GRASS_CAUTION_RATIO;
   const pastureCritical = deerGrassRatio > DEER_GRASS_CRITICAL_RATIO;
 
+  const allGrassMaxed = grassCount > 0 && growingGrassCount === 0;
+
   let level: GrazingPressureLevel = 'stable';
   if (pressureRatio >= 1.35 || (deerCount >= 8 && pastureCritical)) {
     level = 'critical';
   } else if (pressureRatio >= 0.95 || (deerCount >= 5 && pastureTight)) {
     level = 'caution';
+  }
+
+  // All grass at max energy — zero recovery is saturation, not overgrazing.
+  if (allGrassMaxed && level === 'critical') {
+    level = pastureTight ? 'caution' : 'stable';
   }
 
   // Winter/drought recovery dips should not read as overgrazing when pasture patches are abundant.

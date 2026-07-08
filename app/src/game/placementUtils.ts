@@ -92,8 +92,8 @@ export function isFootprintOnBuildableTerrain(
   return true;
 }
 
-/** Player-owned structures block placement; rival camps do not. */
-export function overlapsPlayerBuilding(
+/** Any completed or in-progress structure blocks placement (including rival camps). */
+export function overlapsAnyBuilding(
   buildings: readonly Building[],
   width: number,
   height: number,
@@ -102,7 +102,6 @@ export function overlapsPlayerBuilding(
 ): boolean {
   if (width <= 0 || height <= 0) return false;
   for (const b of buildings) {
-    if (b.faction === 'rival') continue;
     if (
       x + width / 2 > b.x - b.width / 2
       && x - width / 2 < b.x + b.width / 2
@@ -113,6 +112,17 @@ export function overlapsPlayerBuilding(
     }
   }
   return false;
+}
+
+/** Any structure (player or rival) blocks placement — alias of overlapsAnyBuilding. */
+export function overlapsPlayerBuilding(
+  buildings: readonly Building[],
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+): boolean {
+  return overlapsAnyBuilding(buildings, width, height, x, y);
 }
 
 export function isBuildingTechUnlocked(

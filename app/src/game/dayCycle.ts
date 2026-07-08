@@ -1,5 +1,6 @@
 import { BuildingType, BUILDING_CONFIGS, EntityType } from './gameTypes';
 import type { Building, Entity } from './gameTypes';
+import { finalizeMoonHowlerDeath } from './moonHowler';
 
 /** 24 ticks = one in-game day. At 1× speed (~1 tick/s) a day lasts ~24 real seconds. */
 export const TICKS_PER_DAY = 24;
@@ -751,9 +752,10 @@ export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
   humans: Entity[],
   residences: Building[],
 ): void {
-  const emptyResidences = () =>
-    residences.filter((r) => countResidentsInBuilding(humans, r.id) === 0);
-  if (emptyResidences().length === 0) return;
+  let emptyHomeIds = residences
+    .filter((r) => countResidentsInBuilding(humans, r.id) === 0)
+    .map((r) => r.id);
+  if (emptyHomeIds.length === 0) return;
 
   const candidates = humans
     .filter((h) => isAdultChildAtHome(h, humans))
@@ -762,12 +764,16 @@ export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
   const moved = new Set<number>();
   for (const adult of candidates) {
     if (moved.has(adult.id)) continue;
-    if (emptyResidences().length === 0) return;
+    if (emptyHomeIds.length === 0) return;
 
     const household = collectOwnHousehold(adult, humans);
     if (household.some((m) => moved.has(m.id))) continue;
     if (!tryMoveOutOfFamilyHome(adult, humans, residences)) continue;
 
+    const newHomeId = adult.residenceBuildingId;
+    if (newHomeId != null) {
+      emptyHomeIds = emptyHomeIds.filter((id) => id !== newHomeId);
+    }
     for (const member of household) moved.add(member.id);
   }
 }
@@ -789,7 +795,9 @@ export function migrateHumanAges(
     const looksLikeLegacyPerDayAging =
       colonyDay > 0
       && stored > computed + 5
-      && stored > colonyDay * 0.4;
+      && stored >= colonyDay * 0.85
+      && human.birthYear === 0
+      && human.birthDay === 0;
 
     let ageYears = stored;
     if (options?.forceCalendar || looksLikeLegacyFastAge || looksLikeLegacyPerDayAging) {
@@ -1174,6 +1182,18 @@ function isFamilyHousingValid(
   return familyFitsInResidence(family, residence, humans);
 }
 
+export function pickResidenceForHumanExcluding(
+  human: Entity,
+  humans: Entity[],
+  residences: Building[],
+  excludeResidenceIds: Iterable<number> = [],
+): number | undefined {
+  const exclude = new Set(excludeResidenceIds);
+  const filtered = residences.filter((r) => !exclude.has(r.id));
+  if (filtered.length === 0) return undefined;
+  return pickResidenceForHuman(human, humans, filtered);
+}
+
 export function pickResidenceForHuman(
   human: Entity,
   humans: Entity[],
@@ -1274,9 +1294,16 @@ export function rebalanceOvercrowdedResidences(
   return evicted;
 }
 
-/** Remove a dead or evicted human from every building occupant list. */
+/** Player settler in human or cursed full-moon werewolf form — counts for residence sync. */
+export function isResidenceOccupantEntity(entity: Entity): boolean {
+  if (!entity.alive || entity.faction) return false;
+  if (entity.type === EntityType.Human) return true;
+  return entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
+}
+
+/** Remove a dead or evicted settler from every building occupant list. */
 export function removeHumanFromBuildingOccupants(entity: Entity, buildings: Building[]): void {
-  if (entity.type !== EntityType.Human) return;
+  if (!isKillableSettlerEntity(entity)) return;
   for (const building of buildings) {
     if (building.occupants.includes(entity.id)) {
       building.occupants = building.occupants.filter((id) => id !== entity.id);
@@ -1290,6 +1317,9 @@ export function finalizeHumanDeath(
   buildings: Building[],
   entityById?: ReadonlyMap<number, Entity>,
 ): void {
+  const partnerId = entity.partnerId;
+  const affairPartnerId = entity.affairPartnerId;
+
   removeHumanFromBuildingOccupants(entity, buildings);
   entity.homeBuildingId = undefined;
   entity.residenceBuildingId = undefined;
@@ -1297,12 +1327,41 @@ export function finalizeHumanDeath(
   entity.prisonerUntilTick = undefined;
   entity.prisonSentenceCrime = undefined;
 
-  if (entityById && entity.partnerId != null) {
-    const partner = entityById.get(entity.partnerId);
-    if (partner?.alive) {
-      partner.partnerId = undefined;
-      if (partner.relationshipStatus === 'married') {
-        partner.relationshipStatus = partner.pregnant ? 'expecting' : 'single';
+  if (entity.relationshipStatus === 'married') {
+    entity.relationshipStatus = entity.pregnant ? 'expecting' : 'single';
+  }
+  entity.partnerId = undefined;
+  entity.affairPartnerId = undefined;
+  entity.affairProgress = 0;
+  entity.lastAffairSiteDay = undefined;
+  entity.lastAffairSiteX = undefined;
+  entity.lastAffairSiteY = undefined;
+
+  if (entityById) {
+    if (partnerId != null) {
+      const partner = entityById.get(partnerId);
+      if (partner?.alive) {
+        partner.partnerId = undefined;
+        if (partner.relationshipStatus === 'married') {
+          partner.relationshipStatus = partner.pregnant ? 'expecting' : 'single';
+        }
+        if (partner.moonHowlerSaved?.partnerId === entity.id) {
+          partner.moonHowlerSaved.partnerId = undefined;
+        }
+      }
+    }
+    if (affairPartnerId != null) {
+      const lover = entityById.get(affairPartnerId);
+      if (lover?.alive) {
+        lover.affairPartnerId = undefined;
+        lover.affairProgress = 0;
+        lover.lastAffairSiteDay = undefined;
+        lover.lastAffairSiteX = undefined;
+        lover.lastAffairSiteY = undefined;
+        if (lover.moonHowlerSaved?.affairPartnerId === entity.id) {
+          lover.moonHowlerSaved.affairPartnerId = undefined;
+          lover.moonHowlerSaved.affairProgress = 0;
+        }
       }
     }
   }
@@ -1324,6 +1383,7 @@ export function killHuman(
 ): void {
   if (!entity.alive || !isKillableSettlerEntity(entity)) return;
   entity.alive = false;
+  finalizeMoonHowlerDeath(entity);
   finalizeHumanDeath(entity, buildings, entityById);
 }
 
@@ -1356,7 +1416,7 @@ export function syncResidenceOccupants(humans: Entity[], buildings: Building[]):
   for (const building of buildings) {
     if (!isResidenceBuilding(building) || building.faction === 'rival') continue;
     building.occupants = humans
-      .filter((h) => h.alive && !h.faction && h.residenceBuildingId === building.id)
+      .filter((h) => isResidenceOccupantEntity(h) && h.residenceBuildingId === building.id)
       .map((h) => h.id);
   }
 }
@@ -1403,7 +1463,11 @@ function fillHomelessAfterEviction(alive: Entity[], residences: Building[]): voi
   }
 }
 
-export function assignMissingResidences(humans: Entity[], buildings: Building[]): void {
+export function assignMissingResidences(
+  humans: Entity[],
+  buildings: Building[],
+  allHumansForGenealogy?: Entity[],
+): void {
   const residences = listPlayerResidences(buildings);
   if (residences.length === 0) return;
 
@@ -1412,8 +1476,11 @@ export function assignMissingResidences(humans: Entity[], buildings: Building[])
   }
 
   const alive = humans.filter((h) => h.alive && !h.faction);
+  const genealogyPool = (allHumansForGenealogy ?? humans).filter(
+    (h) => h.alive && h.type === EntityType.Human,
+  );
 
-  rebuildChildrenIds(alive);
+  rebuildChildrenIds(genealogyPool);
 
   for (const human of alive) {
     if (isMinorChild(human)) ensureOrphanAdoption(human, alive, residences);
@@ -1453,7 +1520,10 @@ export function assignMissingResidences(humans: Entity[], buildings: Building[])
     }
   }
 
-  syncResidenceOccupants(humans, buildings);
+  syncResidenceOccupants(
+    (allHumansForGenealogy ?? humans).filter(isResidenceOccupantEntity),
+    buildings,
+  );
 }
 
 /** When settlers partner up, move them into a couple's home (empty house preferred). */
@@ -1464,9 +1534,6 @@ export function syncPartnerResidence(
   humans: Entity[],
 ): void {
   if (residences.length === 0) return;
-
-  human.residenceBuildingId = undefined;
-  partner.residenceBuildingId = undefined;
 
   const couple = [human, partner];
   const shared = pickResidenceForFamily(couple, humans, residences)

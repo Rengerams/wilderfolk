@@ -62,7 +62,7 @@ export function computeVictoryProgress(state: GameState): VictoryProgress[] {
   const caravansCompleted = state.lifetimeStats.tradeCaravansCompleted ?? 0;
   const goldFromTrade = state.lifetimeStats.goldFromTradeRoutes ?? 0;
   const wildWolves = state.entities.filter(
-    (e) => e.alive && e.type === EntityType.Wolf && e.tamedBy == null,
+    (e) => e.alive && e.type === EntityType.Wolf && (e.tamedBy ?? null) === null,
   ).length;
   const wildkin = state.entities.filter((e) => e.alive && e.type === EntityType.Wildkin).length;
 

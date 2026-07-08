@@ -17,6 +17,7 @@ import {
   isProductionTick,
   setHumanBirthFromAge,
   syncHumanAgeFromCalendar,
+  migrateHumanAges,
   ticksForDays,
   WORK_START,
 } from '@/game/dayCycle';
@@ -134,5 +135,30 @@ describe('getFemaleFertility', () => {
 describe('ticksForDays', () => {
   it('uses 24 ticks per day', () => {
     expect(ticksForDays(1)).toBe(24);
+  });
+});
+
+describe('migrateHumanAges', () => {
+  it('preserves calendar-backed adults when stored age looks inflated', () => {
+    const colony = { year: 0, dayInYear: 40 };
+    const backed = createEntity(EntityType.Human, 0, 0, 1, 250);
+    setHumanBirthFromAge(backed, 32, getColonyDay(colony));
+    backed.age = 38;
+
+    migrateHumanAges([backed], colony);
+
+    expect(backed.age).toBe(38);
+  });
+
+  it('still migrates founder saves with missing birth records and per-day age drift', () => {
+    const colony = { year: 0, dayInYear: 40 };
+    const corrupt = createEntity(EntityType.Human, 0, 0, 2, 250, false, { generation: 1 });
+    corrupt.age = 38;
+    corrupt.birthYear = 0;
+    corrupt.birthDay = 0;
+
+    migrateHumanAges([corrupt], colony);
+
+    expect(corrupt.age).not.toBe(38);
   });
 });

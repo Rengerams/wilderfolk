@@ -102,7 +102,7 @@ describe('tryDailyHumanMortality', () => {
     killHuman(wife, state.buildings, entityById);
 
     expect(wife.alive).toBe(false);
-    expect(wife.type).toBe(EntityType.Werewolf);
+    expect(wife.type).toBe(EntityType.Human);
     expect(husband.partnerId).toBeUndefined();
     expect(husband.relationshipStatus).toBe('single');
   });

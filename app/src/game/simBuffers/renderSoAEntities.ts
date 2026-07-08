@@ -19,7 +19,7 @@ export interface RenderSoABuckets {
 }
 
 let cachedTick = UNCACHED_RENDER_TICK;
-let cachedBuffer: ArrayBuffer | null = null;
+let cachedMetaBySlot: EntityRenderMeta[] | undefined;
 let buckets: RenderSoABuckets = emptyBuckets();
 let grassRenderGrid: EntitySpatialGrid | undefined;
 let grassGridTick = UNCACHED_RENDER_TICK;
@@ -40,7 +40,7 @@ function emptyBuckets(): RenderSoABuckets {
 
 export function invalidateRenderSoABucketsCache(): void {
   cachedTick = UNCACHED_RENDER_TICK;
-  cachedBuffer = null;
+  cachedMetaBySlot = undefined;
   buckets = emptyBuckets();
   grassRenderGrid = undefined;
   grassGridTick = UNCACHED_RENDER_TICK;
@@ -53,11 +53,11 @@ export function updateRenderSoABuckets(
   metaBySlot: EntityRenderMeta[] | undefined,
   tick: number,
 ): RenderSoABuckets {
-  if (cachedBuffer === reader.buffer && cachedTick === tick) return buckets;
+  if (cachedTick === tick && cachedMetaBySlot === metaBySlot) return buckets;
 
   try {
-    cachedBuffer = reader.buffer;
     cachedTick = tick;
+    cachedMetaBySlot = metaBySlot;
 
     const grassSlots: number[] = [];
     const treeSlots: number[] = [];
@@ -69,16 +69,18 @@ export function updateRenderSoABuckets(
     reader.forEachSlot((slot) => {
       if (!reader.isKnownType(slot)) return;
 
+      const shim = buildRenderEntityShim(reader, slot, metaBySlot?.[slot]);
+      if (!shim) return;
+
       const type = reader.type(slot)!;
       switch (getRenderEntityLayer(type)) {
         case 'grass': grassSlots.push(slot); break;
         case 'tree': treeSlots.push(slot); break;
         case 'human': humanSlots.push(slot); break;
         case 'animal': animalSlots.push(slot); break;
+        default: animalSlots.push(slot); break;
       }
 
-      const shim = buildRenderEntityShim(reader, slot, metaBySlot?.[slot]);
-      if (!shim) return;
       shims.push(shim);
       shimBySlot.set(slot, shim);
     });
