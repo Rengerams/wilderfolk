@@ -1,6 +1,7 @@
-import type { WorldState } from './gameTypes';
+import type { Entity, WorldState } from './gameTypes';
 import { EntityType, Season, WeatherType } from './gameTypes';
-import { isProductionTick, EVENT_INTERVAL } from './dayCycle';
+import { killHuman, isProductionTick, EVENT_INTERVAL } from './dayCycle';
+import { formatCitizenName, formatDeathLog } from './citizenId';
 import { logEvent } from './eventLog';
 import {
   createDeathParticles,
@@ -10,6 +11,20 @@ import {
   getMultiplier,
   hasTech,
 } from './gameEngine';
+
+type DisasterType = 'fire' | 'flood' | 'plague' | 'tornado' | 'earthquake';
+
+const ALL_DISASTER_TYPES: DisasterType[] = ['fire', 'flood', 'plague', 'tornado', 'earthquake'];
+
+function killEntityInDisaster(state: WorldState, entity: Entity, color: string): void {
+  if (entity.type === EntityType.Human) {
+    const entityById = new Map(state.entities.map((e) => [e.id, e]));
+    killHuman(entity, state.buildings, entityById);
+  } else {
+    entity.alive = false;
+  }
+  createDeathParticles(state, entity.x, entity.y, color, 5, 'smoke');
+}
 
 export function updateWeather(state: WorldState) {
   state.weatherTimer++;
@@ -40,28 +55,27 @@ export function updateWeather(state: WorldState) {
 export function updateDisasters(state: WorldState) {
   // Random disaster chance
   if (isProductionTick(state.tick, EVENT_INTERVAL.disaster) && state.year > 3 && Math.random() < 0.15) {
-    const types: Array<'fire' | 'flood' | 'plague' | 'tornado' | 'earthquake'> = ['fire', 'flood', 'plague', 'tornado', 'earthquake'];
-    const type = types[Math.floor(Math.random() * types.length)];
-    
-    // Check immunity
-    if (type === 'plague' && hasTech(state, 'medicine_2')) return;
-    
+    const rollable = hasTech(state, 'medicine_2')
+      ? ALL_DISASTER_TYPES.filter((t) => t !== 'plague')
+      : ALL_DISASTER_TYPES;
+    const type = rollable[Math.floor(Math.random() * rollable.length)];
+
     const x = Math.random() * state.width;
     const y = Math.random() * state.height;
     const radius = 30 + Math.random() * 50;
-    
+
     state.disasters.push({ type, x, y, radius, duration: 200, progress: 0 });
     if (state.lifetimeStats) {
       state.lifetimeStats.disastersSurvived += 1;
     }
     impulseScreenShake(state, 8);
-    
+
     addNotification(state, `Disaster: ${type.charAt(0).toUpperCase() + type.slice(1)}!`, `A ${type} has struck the village!`, 'warning');
     logEvent(state, 'disaster', `A ${type} struck the village`);
-    
+
     // Apply disaster effects
     const resistMult = getMultiplier(state, 'disaster_resist');
-    
+
     if (type === 'fire') {
       // Damage buildings near the fire
       for (const b of state.buildings) {
@@ -75,8 +89,7 @@ export function updateDisasters(state: WorldState) {
         if (!e.alive) continue;
         const dx = e.x - x, dy = e.y - y;
         if (Math.sqrt(dx*dx + dy*dy) < radius) {
-          e.alive = false;
-          createDeathParticles(state, e.x, e.y, '#ff4500', 5, 'smoke');
+          killEntityInDisaster(state, e, '#ff4500');
         }
       }
     } else if (type === 'flood') {
@@ -85,22 +98,21 @@ export function updateDisasters(state: WorldState) {
         const dx = e.x - x, dy = e.y - y;
         if (Math.sqrt(dx*dx + dy*dy) < radius) {
           if (Math.random() < 0.3) {
-            e.alive = false;
-            createDeathParticles(state, e.x, e.y, '#4682b4', 5, 'smoke');
+            killEntityInDisaster(state, e, '#4682b4');
           }
         }
       }
     } else if (type === 'tornado') {
       // Tornado moves entities around
       for (const e of state.entities) {
+        if (!e.alive) continue;
         const dx = e.x - x, dy = e.y - y;
         const dist = Math.sqrt(dx*dx + dy*dy);
         if (dist < radius) {
           e.vx += (Math.random() - 0.5) * 5;
           e.vy += (Math.random() - 0.5) * 5;
           if (dist < radius * 0.3 && Math.random() < 0.1) {
-            e.alive = false;
-            createDeathParticles(state, e.x, e.y, '#888888', 8, 'smoke');
+            killEntityInDisaster(state, e, '#888888');
           }
         }
       }
@@ -111,17 +123,17 @@ export function updateDisasters(state: WorldState) {
       }
     } else if (type === 'plague') {
       let infected = 0;
+      const entityById = new Map(state.entities.map((ent) => [ent.id, ent]));
       for (const e of state.entities) {
         if (!e.alive || e.type !== EntityType.Human) continue;
         const dx = e.x - x;
         const dy = e.y - y;
         if (Math.sqrt(dx * dx + dy * dy) >= radius) continue;
         if (Math.random() < 0.2) {
-          e.alive = false;
+          killHuman(e, state.buildings, entityById);
           infected++;
           createDeathParticles(state, e.x, e.y, '#4a6741', 6, 'smoke');
-          const fullName = e.name ? `${e.name}${e.surname ? ' ' + e.surname : ''}` : 'A settler';
-          logEvent(state, 'death', `${fullName} succumbed to plague`, fullName);
+          logEvent(state, 'death', formatDeathLog(e, 'succumbed to plague'), formatCitizenName(e));
         } else {
           e.energy = Math.max(0, e.energy - 100);
           e.flash = 10;
@@ -133,7 +145,7 @@ export function updateDisasters(state: WorldState) {
       }
     }
   }
-  
+
   // Update active disasters
   const remaining: typeof state.disasters = [];
   for (const d of state.disasters) {

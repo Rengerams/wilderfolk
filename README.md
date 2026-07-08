@@ -28,7 +28,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | You get | Why it matters |
 |---------|----------------|
 | **Living food chain** | Grass, prey, predators, and your village share one ecology — balance or collapse |
-| **Settlers with schedules** | Day jobs, nights at home, courtship, families, walk animations on the map |
+| **Settlers with schedules** | Day jobs, nights at home, paired dialogue bubbles, courtship, families, walk animations on the map |
 | **Frontier diplomacy** | Visitor caravans, rival camps, trade, peace treaties, incoming raids you can *prepare* for |
 | **Craft & defense** | Research tiers, Blacksmith forge queue, walls, towers, barracks, guard patrols |
 | **Clear goals** | Focus hints, alert strip, six sidebar tabs — you always know what to do next |
@@ -38,19 +38,22 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-## Latest update — v0.4.2 (July 5, 2026)
+## Latest update — v0.4.2 shipped · v0.5.0 in progress (July 8, 2026)
 
-**Shipped.** `GAME_VERSION` is **0.4.2**; `0.4.1` saves migrate on load. Full notes → [CHANGELOG.md](CHANGELOG.md) `[0.4.2]`.
+**Playing `GAME_VERSION` 0.4.2** — `0.4.1` saves migrate on load. **Unreleased** work (spatial grid, Web Worker sim, 214 bug fixes, Vitest) is in tree pre-**0.5.0** tag. Full notes → [CHANGELOG.md](CHANGELOG.md) `[Unreleased]` + `[0.4.2]`.
 
 | Area | Highlights |
 |------|------------|
-| **UI** | 6-tab sidebar, alert strip, map build hotbar, tab hotkeys `V/F/N/P/L/M` |
+| **UI** | 6-tab sidebar, alert strip, **left build catalog** (category rail), tab hotkeys `V/F/N/P/L/M` |
 | **Defense** | Walls, towers, barracks, guard patrols; **Log → Combat** raid history |
-| **Raids** | Preparation-focused — combat preview + Frontier readiness card; **no battle screen** |
+| **Raids** | Prepare for incoming war-bands; raid or counter-raid rivals; rivals may offer tribute when you attack — accept or fight; **no battle screen** |
 | **Craft** | Blacksmith forge queue for iron spears & shields (research + staffed smith) |
+| **Social** | Settlers chat in **3-line dialogue trees** (work, home, courtship, fear, festivals); election gossip + marriage `Yes!` scripted moments |
+| **Scale (pre-tag)** | Dual-layer **spatial grid**; optional **Web Worker** sim; **OffscreenCanvas** terrain/entity layers |
 | **Polish** | **R** to rotate roads/walls/gates; night glow, confetti, camera nudge (toggle in ☰) |
 | **Balance** | 10-year town PASS (9/9 gates) · [10-user beta](TECHNICAL.md#playtest-report) |
-| **Fixes** | ~40 bug fixes (July 4) + beta UX feedback |
+| **Quality** | **343** Vitest tests (64 files) · `npm run lint` **0 errors** · `npm run build` clean |
+| **Fixes** | ~40 (July 4) + **242** tracker items (July 7–8) |
 
 ### What's next — v0.5.0 (end July 2026)
 
@@ -58,13 +61,12 @@ All open scale, quality, and architecture work ships in one release → [ROADMAP
 
 | Track | Highlights |
 |-------|------------|
-| **Scale** | Spatial grid, large-map perf, Web Worker sim, canvas layers |
+| **Scale** | Spatial grid ✅ · Web Worker sim ✅ (opt-in) · OffscreenCanvas layers ✅ · benchmark gate |
 | **UI** | App tab split so city-size villages stay snappy |
-| **Quality** | Big bug audit, logic checks, **`npm run simulate:20year` ship gatekeeper** |
-| **Polish** | Election ceremony ✅ in code (playtest Year 10/20); counter-raid march visuals, reputation arc, visitor quests |
+| **Social** | Dialogue-tree chat ✅ in code (95 JSON trees, paired 3-line banter) |
+| **Quality** | Bug audit ✅ (214 closed) · logic checks · **`npm run simulate:20year` PASS** for tag |
+| **Polish** | Election ceremony ✅ in code (playtest Year 10/20); housing logic ✅ |
 | **After v0.5** | Installer or **Steam** — download and play, no terminal |
-
-**Not on the near-term list:** tactical map battles, multiplayer, fog of war, hospital disease loop — [ROADMAP.md](ROADMAP.md).
 
 ### Prior release — v0.4.1
 
@@ -97,7 +99,7 @@ npm install
 npm start
 ```
 
-4. **Play** — open **http://localhost:5173** in your browser (or the URL shown in the terminal)
+4. **Play** — open **http://127.0.0.1:5173** in your browser (or the URL shown in the terminal)
 
 5. **Stop** — press `Ctrl+C` in the terminal
 
@@ -112,7 +114,7 @@ Running `npm install` at the repo root also installs the `app/` package (via `po
 | Blank or stale page | Hard-refresh: `Ctrl+Shift+R` (Windows/Linux) or `Cmd+Shift+R` (Mac) |
 | Install fails | Delete `node_modules` in the root **and** in `app/`, then run `npm install` again |
 
-**Player guide** (first day, controls, raids, tips) → **[app/README.md](app/README.md)**
+**Player guide** (first day, controls, raids, settlers, tips) → **[app/README.md](app/README.md)** · this root file stays the short repo overview
 
 ---
 
@@ -129,11 +131,14 @@ Running `npm install` at the repo root also installs the `app/` package (via `po
 ### Optional (developers)
 
 ```bash
-npm run build            # production build
+npm run build            # production build (tsc + vite) → app/dist/
+npm run preview          # serve production build locally
 npm run lint             # ESLint
 npm run simulate:20year  # v0.5 ship gatekeeper (20 in-game years)
 npm run sprites:humans   # regenerate human outfit variant PNGs
 ```
+
+Tests and extra sim scripts → **`cd app`** then `npm test`, `npm run benchmark:gate`, etc. Full list → [TECHNICAL.md](TECHNICAL.md#running--building).
 
 ---
 

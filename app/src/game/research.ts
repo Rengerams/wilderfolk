@@ -1,17 +1,68 @@
-import type { WorldState } from './gameTypes';
-import { BuildingType, BUILDING_CONFIGS } from './gameTypes';
+import type { ResearchNode, WorldState } from './gameTypes';
+import { BuildingType, BUILDING_CONFIGS, ResearchType } from './gameTypes';
 import { logEvent } from './eventLog';
 import {
   addNotification,
   impulseScreenShake,
   getMultiplier,
 } from './gameEngine';
+import { getEducationResearchMultiplier } from './education';
+import { isPlayerHuman } from './groupEvents';
+
+const RESEARCH_TAB_LABELS: Record<ResearchType, string> = {
+  [ResearchType.Agriculture]: 'Agriculture',
+  [ResearchType.Forestry]: 'Forestry',
+  [ResearchType.Mining]: 'Mining',
+  [ResearchType.Architecture]: 'Architecture',
+  [ResearchType.Medicine]: 'Medicine',
+  [ResearchType.Trade]: 'Trade',
+  [ResearchType.Education]: 'Education',
+  [ResearchType.Defense]: 'Defense',
+};
+
+function researchTabLabel(type: ResearchType | undefined): string {
+  return type ? RESEARCH_TAB_LABELS[type] : 'Tech';
+}
+
+function unlockTechId(state: WorldState, nodeId: string): void {
+  if (!state.unlockedTechs.includes(nodeId)) {
+    state.unlockedTechs.push(nodeId);
+  }
+}
+
+function notifyForgeUnlock(state: WorldState, node: ResearchNode): void {
+  const hasSmith = state.buildings.some((b) => b.completed && b.type === BuildingType.Blacksmith);
+  addNotification(
+    state,
+    hasSmith ? 'Iron gear researched — queue forge' : 'Iron gear researched — build Blacksmith',
+    hasSmith
+      ? `Open your Blacksmith on the map → Village forge → queue ${node.name} (~6 days staffed).`
+      : 'Build & complete a Blacksmith (Industry), then queue the forge order.',
+    'warning',
+  );
+}
+
+function notifyResearchCompletion(state: WorldState, node: ResearchNode): void {
+  if (node.completionNotify) {
+    addNotification(
+      state,
+      node.completionNotify.title,
+      node.completionNotify.message,
+      node.completionNotify.level ?? 'success',
+    );
+  }
+  if (node.forgeUnlockNotify) {
+    notifyForgeUnlock(state, node);
+  }
+}
 
 /** Keep researched techs, unlocked flags, and build unlocks in sync (fixes older saves). */
 export function syncResearchUnlocks(state: WorldState): void {
+  state.unlockedTechs = [...new Set(state.unlockedTechs)];
   for (const node of state.researchNodes) {
-    if (node.researched && !state.unlockedTechs.includes(node.id)) {
-      state.unlockedTechs.push(node.id);
+    if (node.researched) {
+      node.unlocked = true;
+      unlockTechId(state, node.id);
     }
   }
   for (const node of state.researchNodes) {
@@ -21,83 +72,71 @@ export function syncResearchUnlocks(state: WorldState): void {
   }
 }
 
+/** Mutates `state` in place (same pattern as `updateResearch`) so callers need not reassign. */
 export function notifyBuildingLocked(state: WorldState, type: BuildingType): WorldState {
-  const s = structuredClone(state) as WorldState;
-  syncResearchUnlocks(s);
+  syncResearchUnlocks(state);
   const config = BUILDING_CONFIGS[type];
-  if (!config.unlockRequirement || s.unlockedTechs.includes(config.unlockRequirement)) return s;
+  if (!config.unlockRequirement || state.unlockedTechs.includes(config.unlockRequirement)) return state;
 
-  const lockTech = s.researchNodes.find((n) => n.id === config.unlockRequirement);
-  const missingPrereq = lockTech?.prerequisites.find((p) => !s.unlockedTechs.includes(p));
+  const lockTech = state.researchNodes.find((n) => n.id === config.unlockRequirement);
+  const missingPrereq = lockTech?.prerequisites.find((p) => !state.unlockedTechs.includes(p));
   const prereqTech = missingPrereq
-    ? s.researchNodes.find((n) => n.id === missingPrereq)
+    ? state.researchNodes.find((n) => n.id === missingPrereq)
     : undefined;
+  const tab = researchTabLabel(lockTech?.type);
   const chain = prereqTech
-    ? `Research ${prereqTech.name} first, then ${lockTech?.name ?? 'the required tech'} (Research tab → Architecture).`
-    : `Research ${lockTech?.name ?? config.unlockRequirement} in the Research tab.`;
+    ? `Research ${prereqTech.name} first, then ${lockTech?.name ?? 'the required tech'} (Research tab → ${tab}).`
+    : `Research ${lockTech?.name ?? config.unlockRequirement} in the Research tab (→ ${tab}).`;
 
-  addNotification(s, `${config.label} locked`, chain, 'warning');
-  return s;
+  addNotification(state, `${config.label} locked`, chain, 'warning');
+  return state;
 }
 
+/** Mutates `state` in place (same pattern as `updateResearch`) so callers need not reassign. */
 export function startResearch(state: WorldState, researchId: string): WorldState {
-  const s = structuredClone(state) as WorldState;
-  const node = s.researchNodes.find(n => n.id === researchId);
-  if (!node || !node.unlocked || node.researched || s.activeResearch) return s;
+  const node = state.researchNodes.find(n => n.id === researchId);
+  if (!node || !node.unlocked || node.researched || state.activeResearch) return state;
 
-  const prereqsMet = node.prerequisites.every(p => s.unlockedTechs.includes(p));
-  if (!prereqsMet) return s;
-  
-  if (s.resources.wood >= node.cost.wood && s.resources.stone >= node.cost.stone && s.resources.gold >= node.cost.gold) {
-    s.resources.wood -= node.cost.wood;
-    s.resources.stone -= node.cost.stone;
-    s.resources.gold -= node.cost.gold;
-    s.activeResearch = researchId;
-    s.researchProgress = 0;
-    addNotification(s, 'Research Started', `Started researching: ${node.name}`, 'info');
+  const prereqsMet = node.prerequisites.every(p => state.unlockedTechs.includes(p));
+  if (!prereqsMet) return state;
+
+  const { wood = 0, stone = 0, gold = 0 } = node.cost;
+  if (state.resources.wood >= wood && state.resources.stone >= stone && state.resources.gold >= gold) {
+    state.resources.wood -= wood;
+    state.resources.stone -= stone;
+    state.resources.gold -= gold;
+    state.activeResearch = researchId;
+    state.researchProgress = 0;
+    addNotification(state, 'Research Started', `Started researching: ${node.name}`, 'info');
   }
-  return s;
+  return state;
 }
 
+/** Advances active research in place — called from `gameTick`, which mutates `WorldState` directly. */
 export function updateResearch(state: WorldState) {
   if (!state.activeResearch) return;
   const node = state.researchNodes.find(n => n.id === state.activeResearch);
   if (!node) { state.activeResearch = null; return; }
-  
-  const speedMult = getMultiplier(state, 'research_speed');
+
+  const educatedMult = getEducationResearchMultiplier(
+    state.entities.filter((e) => e.alive && isPlayerHuman(e)),
+  );
+  const speedMult = getMultiplier(state, 'research_speed') * educatedMult;
   state.researchProgress += speedMult;
-  
+
   if (state.researchProgress >= 100) {
     node.researched = true;
-    state.unlockedTechs.push(node.id);
+    node.unlocked = true;
+    unlockTechId(state, node.id);
     state.activeResearch = null;
     state.researchProgress = 0;
-    
+
     syncResearchUnlocks(state);
-    
+
     addNotification(state, 'Research Complete!', `${node.name} has been researched!`, 'success');
     state.villageReputation = Math.min(100, state.villageReputation + 3);
-    if (node.id === 'architecture_2') {
-      addNotification(
-        state,
-        'Town Hall unlocked',
-        'Open Build (B) → Community → Town Hall 🏰',
-        'success',
-      );
-    }
-    if (node.id === 'defense_4' || node.id === 'defense_5') {
-      const hasSmith = state.buildings.some((b) => b.completed && b.type === BuildingType.Blacksmith);
-      addNotification(
-        state,
-        hasSmith ? 'Iron gear researched — queue forge' : 'Iron gear researched — build Blacksmith',
-        hasSmith
-          ? `Open your Blacksmith on the map → Village forge → queue ${node.name} (~6 days staffed).`
-          : 'Build & complete a Blacksmith (Industry), then queue the forge order.',
-        'warning',
-      );
-    }
+    notifyResearchCompletion(state, node);
     logEvent(state, 'research', `${node.name} researched`);
     impulseScreenShake(state, 3);
-    
   }
 }

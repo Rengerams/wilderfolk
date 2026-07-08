@@ -14,13 +14,12 @@
     "dev": "npm run dev --prefix app",
     "start": "npm run dev --prefix app",
     "build": "npm run build --prefix app",
+    "test": "npm run test --prefix app",
     "lint": "npm run lint --prefix app",
     "preview": "npm run preview --prefix app",
-    "simulate": "npm run simulate --prefix app",
-    "simulate:30min": "npm run simulate:30min --prefix app",
-    "simulate:family": "npm run simulate:family --prefix app",
-    "simulate:10year": "npm run simulate:10year --prefix app",
-    "simulate:20year": "npm run simulate:20year --prefix app",
+    "sim": "npm run sim --prefix app",
+    "bench": "npm run bench --prefix app",
+    "dup": "npm run dup --prefix app",
     "desktop:note": "echo Tauri wrap: npm run build && tauri build",
     "sprites:humans": "python app/scripts/generate_human_variants.py"
   }

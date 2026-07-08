@@ -1,9 +1,12 @@
 import type { Challenge, WorldState } from './gameTypes';
 
+export type ChallengeProgressTone = 'eco' | 'default';
+
 export interface ChallengeProgress {
   current: number;
   target: number;
   unit: string;
+  tone?: ChallengeProgressTone;
 }
 
 export function getActiveChallengeId(challenges: Challenge[]): string | null {
@@ -19,7 +22,12 @@ export function getChallengeProgress(challenge: Challenge, state: WorldState): C
 
   switch (challenge.id) {
     case 'eco_master':
-      return { current: state.ecoHealthYearsAbove80, target: 10, unit: 'years eco ≥80%' };
+      return {
+        current: state.ecoHealthYearsAbove80,
+        target: 10,
+        unit: 'years eco ≥80%',
+        tone: 'eco',
+      };
     case 'first_settlers':
       return {
         current: state.humanPopulation,
@@ -29,13 +37,24 @@ export function getChallengeProgress(challenge: Challenge, state: WorldState): C
     case 'growing_village': {
       const targetBuildings = challenge.targetBuildings ?? 5;
       const targetYear = challenge.targetYear ?? 5;
-      const playerBuildings = state.buildings.filter(
-        (b) => b.completed && b.faction !== 'rival',
-      ).length;
+      if (playerBuildings < targetBuildings) {
+        return {
+          current: playerBuildings,
+          target: targetBuildings,
+          unit: 'buildings',
+        };
+      }
+      if (state.year < targetYear) {
+        return {
+          current: state.year,
+          target: targetYear,
+          unit: 'years',
+        };
+      }
       return {
-        current: Math.min(playerBuildings, targetBuildings),
+        current: targetBuildings,
         target: targetBuildings,
-        unit: `buildings · Y${Math.min(state.year, targetYear)}/${targetYear}`,
+        unit: 'buildings',
       };
     }
     case 'thriving_town':
@@ -47,14 +66,24 @@ export function getChallengeProgress(challenge: Challenge, state: WorldState): C
     case 'great_city': {
       const targetBuildings = challenge.targetBuildings ?? 20;
       const targetPopulation = challenge.targetPopulation ?? 100;
-      const playerBuildings = state.buildings.filter(
-        (b) => b.completed && b.faction !== 'rival',
-      ).length;
-      const popMet = state.humanPopulation >= targetPopulation;
+      if (playerBuildings >= targetBuildings) {
+        return {
+          current: targetBuildings,
+          target: targetBuildings,
+          unit: 'buildings',
+        };
+      }
+      if (state.humanPopulation < targetPopulation) {
+        return {
+          current: state.humanPopulation,
+          target: targetPopulation,
+          unit: 'population',
+        };
+      }
       return {
-        current: popMet ? Math.min(playerBuildings, targetBuildings) : Math.min(state.humanPopulation, targetPopulation),
-        target: popMet ? targetBuildings : targetPopulation,
-        unit: popMet ? 'buildings' : 'population',
+        current: playerBuildings,
+        target: targetBuildings,
+        unit: 'buildings',
       };
     }
     case 'century':

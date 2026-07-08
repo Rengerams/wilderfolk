@@ -6,24 +6,29 @@
 
 <p align="center">
   <strong>Where Beasts and Kin Unite</strong><br>
-  <em>Early Alpha · v0.4.2 shipped · targeting v0.5.0</em>
+  <em>Early Alpha · v0.4.2 shipped · v0.5.0 in progress (July 8, 2026)</em>
 </p>
+
+> **Player guide** — full how-to-play manual (this file). Repo pitch, doc index, and developer commands → **[README.md](../README.md)** (repo root).
 
 ---
 
-## Latest update — v0.4.2 (July 5, 2026)
+## Latest update — v0.4.2 shipped · v0.5.0 in progress (July 8, 2026)
 
-**Shipped.** You are on **v0.4.2** (`GAME_VERSION` in saves). `0.4.1` saves migrate on load. Full notes → [CHANGELOG](../CHANGELOG.md) `[0.4.2]`.
+**Playing v0.4.2** (`GAME_VERSION` in saves). `0.4.1` saves migrate on load. Unreleased scale/quality work is in the repo pre-**0.5.0** tag. Full notes → [CHANGELOG](../CHANGELOG.md) `[Unreleased]` + `[0.4.2]`.
 
 | Area | Highlights |
 |------|------------|
-| **UI** | 6-tab sidebar, alert strip, map build hotbar, tab hotkeys `V/F/N/P/L/M` |
+| **UI** | 6-tab sidebar, alert strip, **left build catalog** (category rail), tab hotkeys `V/F/N/P/L/M` |
 | **Defense** | Walls, towers, barracks, guard patrols; **Log → Combat** raid history |
 | **Raids** | Preparation-focused — combat preview + Frontier readiness card; **no battle screen** |
 | **Craft** | Blacksmith forge queue for iron spears & shields (research + staffed smith) |
+| **Social** | Settlers chat in **3-line dialogue trees** (work, home, courtship, fear, festivals); election gossip + marriage `Yes!` scripted moments |
+| **Scale (pre-tag)** | Dual-layer **spatial grid**; optional **Web Worker** sim; **OffscreenCanvas** terrain/entity layers (smoother zoom/pan) |
 | **Polish** | **R** to rotate roads/walls/gates; night glow, confetti, camera nudge (toggle in ☰) |
 | **Balance** | 10-year town PASS (9/9 gates) · [10-user beta](../TECHNICAL.md#playtest-report) |
-| **Fixes** | ~40 bug fixes (July 4) + beta UX feedback |
+| **Quality** | **343** automated tests (64 files) · lint **0 errors** |
+| **Fixes** | ~40 (July 4) + **242** tracker items (July 7–8) |
 
 ### What's coming — v0.5.0 (end July 2026)
 
@@ -31,16 +36,15 @@ All open perf, UI, and architecture work ships in one release. Full plan → [RO
 
 | Track | What it means for you |
 |-------|------------------------|
-| **Sim scale** | Large maps, 100+ settlers, spatial grid, benchmark gate — no mystery lag |
+| **Sim scale** | Spatial grid ✅; OffscreenCanvas layers ✅; benchmark gate |
 | **UI at city size** | Sidebar tabs stay fast; App split for Village / Nature / Progress |
-| **Architecture** | Web Worker simulation + canvas layers for 10× speed |
-| **Quality** | Big bug checkup, logic invariant checks, full headless sim battery before ship |
-| **Polish** | Election ceremony ✅ in code (playtest Year 10/20); counter-raid march visuals, reputation arc, visitor quests, footstep SFX |
+| **Architecture** | Web Worker sim ✅ (opt-in); render SoA buffers |
+| **Social** | Dialogue-tree settler chat ✅ in code (95 JSON trees, paired 3-line banter) |
+| **Quality** | Bug checkup ✅; **`simulate:20year` PASS** |
+| **Polish** | Election ceremony ✅ in code (playtest Year 10/20) |
 | **Steam / installer** | After v0.5.0 — download and play, no terminal |
 
 Check **More → Roadmap** in-game for the live slice, or the full plan at [ROADMAP.md](../ROADMAP.md).
-
-**Later (not next):** tactical map battles, multiplayer, fog of war, full disease/hospital loop.
 
 ## How to install
 
@@ -200,9 +204,10 @@ Combat is **abstract** (strength ratios, not tactical battles on the map) — bu
 | **Red banner** (top of map) | Raid title, **2–6 day** response window, choice buttons |
 | **Alert strip** (under header) | Click to jump to the raid |
 | **Village tab** | Incoming raid card with respond actions |
-| **Frontier tab** | Rival cards + `🏹 Raid` for counter-attacks |
+| **Frontier tab** | Rival cards + `🏹 Raid their camp` (or **Counter-raid** if they attacked first) |
+| **Orange banner** (outgoing) | Your war-band at their gates — accept tribute or fight |
 | **Map** | **Red dashed line** ⚔️ from rival camp → your village; rival settlers **march** toward you (slower from far camps) |
-| **Combat preview** | Militia vs attacker strength, defend/barricade/pay-off forecasts, counter-raid cost |
+| **Combat preview** | Militia vs attacker strength, defend/barricade/pay-off forecasts, outgoing raid cost & tiers |
 
 **Response window:** Farther rival camps get **more days** to respond (2–6 days). Their war-band also **marches slower** — use the time to arm up, barricade, or negotiate.
 
@@ -214,18 +219,26 @@ Combat is **abstract** (strength ratios, not tactical battles on the map) — bu
 | **Barricade** | 20🪵 + 10🪨 | — | Hold without spears; wall/tower bonuses stack; weaker than full militia |
 | **Pay off** | Rival's food demand | Enough 🍖 in storage | They leave; no fight |
 
-**Combat preview** (rival inspector or raid banner) shows ratio hints: decisive / narrow / stalemate / defeat tiers for defend and barricade. A **cyan hint** appears when paying tribute costs **less food** than counter-raiding.
+**Combat preview** (rival inspector or raid banner) shows ratio hints: decisive / narrow / stalemate / defeat tiers for defend and barricade. A **cyan hint** appears when paying **their** tribute costs **less food** than raiding back (counter-raid context only).
 
-After you choose **Defend** or **Barricade**, settlers flash ⚔️ briefly (`flashMilitia`) — you see the fight resolved, not a turn-by-turn battle.
+After you choose **Defend** or **Barricade**, settlers flash ⚔️ briefly (`flashMilitia`) — you see the fight resolved, not a turn-by-turn battle. **Even victories cost lives** — casualties scale with village population.
 
-#### Counter-raid (you attack them)
+#### Raid their camp (you attack them)
 
 From a rival camp panel (Frontier tab or map click):
 
 - Needs **Stone Spears** or **Iron Spears**, **8+ population**, enough food for **provisions** (22–50🍖 by distance)
+- **Two labels:**
+  - **Raid their camp** — proactive first strike (they have not attacked you)
+  - **Counter-raid their camp** — only when their war-band is already marching on you
+- **March phase:** provisions are spent when you launch; an **orange banner** appears when your war-band reaches their camp (2–6 day window, distance-scaled)
+- **Rival response:** they may **offer tribute** (food/wood/stone/gold) or **refuse and fight** — you always choose:
+  - **Accept their tribute** — loot, no fight, no casualties
+  - **Decline — attack anyway** — strength-ratio battle
+  - **Press the attack** — when they chose to fight instead of paying
 - **Home-turf bonus:** their camp defends at **+25%** strength vs your militia
-- Outcomes: success (loot), meager spoils, or repelled (possible casualty + they may raid back)
-- **Peace treaties** (🕊️) block both incoming raids and counter-raids for **60 days**
+- **Fight outcomes:** success (multi-resource spoils), meager spoils, or repelled (extra food loss, casualties, they may raid back)
+- **Peace treaties** (🕊️) block incoming raids, outgoing marches, and recall war-bands for **60 days**
 
 #### Militia strength (what the preview counts)
 
@@ -244,7 +257,9 @@ Adult settlers contribute base strength; bonuses stack from:
 
 - Distance-scaled raid deadline (2–6 days) + slower war-band march from far rivals
 - Raid march lines on the map + rival settlers marching toward your village
-- Combat preview + pay-off vs counter-raid hint
+- Combat preview + pay-off vs raid hint; raid vs counter-raid labels
+- Outgoing raid tribute offer (accept / decline) or rival fights
+- Population-scaled raid casualties; multi-resource loot on raids
 - Village + Frontier respond UI, map banner, alert strip
 - **Walls, wall corners, wall gates, watchtowers, barracks** — full Defense build category; barricade bonuses in combat; **R** to rotate walls/gates
 - **Barracks guards** — manual assign; patrol village core (🪖); +14 militia strength each
@@ -252,10 +267,7 @@ Adult settlers contribute base strength; bonuses stack from:
 - Settler map badges — 🏹 hunt, 🛡️ shields, 🪖 guard, ⚔️ combat
 - **Bug-fix pass (July 4)** — ~40 fixes — full list in [CHANGELOG.md](../CHANGELOG.md)
 
-**Intentionally not planned:**
-
-- **Fancy fight screen / tactical battles** — preparation and abstract resolution only
-- **Outgoing counter-raid march** as spectacle — incoming march line is a **warning to prep**, not battle entertainment ([v0.5.0](../ROADMAP_0.5.0.md) P1 optional polish)
+**How raids work:** You prepare (walls, forge tier, militia, tribute math), then pick defend, barricade, pay-off, raid their camp, or counter-raid after they hit you. When you attack, rivals may buy you off — you can always refuse and fight. Outcomes resolve abstractly — there is no tactical battle screen. March lines and banners are **deadline warnings** to decide before time runs out.
 
 ---
 
@@ -314,13 +326,34 @@ Weather shifts too: rain, snow, storms, fog, drought. Storms hurt buildings. Dro
 
 ### Your settlers
 
-Every person has a **name**, a **family**, a **job**, and a story. They **walk** (PNG animation), **chat**, and **live on a schedule**.
+Every person has a **name**, a **family**, a **job**, and a story. They **walk** (PNG animation), **chat** in short back-and-forth **dialogue trees** (three lines per exchange — at work, home, courting, fleeing wolves, festivals, and more), and **live on a schedule**.
 
-- Singles **court** nearby singles (watch for 💕 and speech bubbles)
+- Singles **court** nearby singles (watch for 💕 and speech bubbles — paired banter when they stand close)
 - Couples **marry** (💍), have **children** (🤰), pass down **surnames**
 - Click anyone to see their family, outfit, armament, and food-chain role
 - New settlers arrive when you have housing and a good reputation — or recruit from the Village tab
 - **Four outfit styles** per gender — brown/tan pioneer looks, assigned by settler ID
+
+### Housing & families
+
+The header and **Village → Population** show two different numbers:
+
+| Number | What it means |
+|--------|----------------|
+| **15/100** (example) | Settlers / **immigration cap** — who can still arrive or be recruited |
+| **🛏️ 84** | **Physical beds** in completed houses (upgrades count) |
+
+Births can push population above the cap or bed count for a while — build more houses to catch up.
+
+**Who lives where**
+
+- **Couples & kids** prefer their own empty house when one is free
+- **Singles** may share a house together (or bunk with a couple if every home is occupied)
+- When someone **marries**, the couple moves into their own home
+- **Children** stay with **mother**, then **father** if she’s gone; **bastards** may go to **grandma** if mother is gone
+- **Orphans** with no kin are adopted by a random married couple, or given a bed in any house with space
+- Adults **18+** still at home can use **Move to own home** in their inspector when an empty house exists
+- If **all houses are full**, families **stay together** in shared homes rather than splitting up
 
 ### Day & night
 
@@ -341,7 +374,7 @@ During the day off-duty, they'll hunt, socialize, wander, and chat. At night the
 
 ## Buildings at a Glance
 
-Pick from the **Construction** panel on the left (press **B** to hide it for more map space).
+Open the **Build** panel on the left (press **B** to collapse for more map space). Categories: Housing, Food, Resources, Industry, Community, Defense.
 
 | You need… | Build… |
 |-----------|--------|
@@ -424,7 +457,7 @@ They show up with **indigo buildings** and a camp name. **Click their camp marke
 | **Competitive** | Hunt the same deer, nudge pollution up; may raid |
 | **Tense** | Grumble about borders, hurt your reputation; **incoming raids** likely |
 
-**Frontier raids:** Tense or competitive rivals may attack — see **[Frontier raids & militia](#frontier-raids--militia)** above for the full respond flow, combat preview, and counter-raid rules.
+**Frontier raids:** Tense or competitive rivals may attack — see **[Frontier raids & militia](#frontier-raids--militia)** above for defend/pay-off, proactive raids, counter-raids, and rival tribute offers.
 
 Be a good neighbor — or at least a careful one.
 
@@ -490,7 +523,7 @@ Unlock trade routes in the **Trade** tab as reputation grows (the fifth route, *
 | **?** | Keyboard shortcuts overlay |
 | **⭐ (header)** | Reputation — click to open Trade routes |
 
-**Map overlays:** a **bottom build hotbar** (Banished-style) keeps common buildings one click away; the **alert strip** under the header jumps you to raids, diplomacy, low food, and ready trade routes. When the left build panel is collapsed, it only shows grid toggle and catalog expand — quick-build lives on the hotbar, not duplicated on the rail.
+**Map overlays:** the **alert strip** under the header jumps you to raids, diplomacy, low food, and ready trade routes. Press **B** to open the full build catalog; keys **1–9** quick-pick common buildings when the panel is open.
 
 ---
 
@@ -510,7 +543,7 @@ Unlock trade routes in the **Trade** tab as reputation grows (the fifth route, *
 | **More → Guide** | Full help + replay the tutorial |
 | **More → Roadmap** | v0.4.2 shipped · targeting v0.5.0 ([index](../ROADMAP.md)) |
 
-**Left side:** collapsible **Construction** panel (full catalog) plus the map **build hotbar** for fast placement.
+**Left side:** collapsible **Build** catalog (category rail + building cards).
 
 ---
 
@@ -539,16 +572,17 @@ Some nights, if the higher gods are in a mood, something **golden** might cross 
 
 ## For developers
 
-Architecture, tick model, and file layout → **[TECHNICAL.md](../TECHNICAL.md)** (repo root).  
-Music and sound-effect sources → **[TECHNICAL.md](../TECHNICAL.md#audio-credits)**.  
-Release plan → **[ROADMAP.md](../ROADMAP.md)** · **[v0.5.0](../ROADMAP_0.5.0.md)** · **[CHANGELOG](../CHANGELOG.md)**.
-What shipped → **[TECHNICAL.md](../TECHNICAL.md#dev-log)**.
+| Doc | For |
+|-----|-----|
+| **[README.md](../README.md)** | Repo landing — install, doc index, npm commands |
+| **[TECHNICAL.md](../TECHNICAL.md)** | Architecture, tick model, dialogue trees, file map |
+| **[ROADMAP.md](../ROADMAP.md)** · **[ROADMAP_0.5.0.md](../ROADMAP_0.5.0.md)** | Release plan |
+| **[CHANGELOG.md](../CHANGELOG.md)** | Version history |
 
-Regenerate human outfit sprites:
 
-```bash
-npm run sprites:humans
-```
+From the **repo root** (forwards into `app/`): `npm start`, `npm run build`, `npm run lint`, `npm run simulate:*`, `npm run sprites:humans`.
+
+From **`app/`** (this folder): `npm test`, `npm run test:watch`, `npm run benchmark:gate`, and other sim/benchmark scripts. See [TECHNICAL.md § Running & building](../TECHNICAL.md#running--building).
 
 ---
 
@@ -556,7 +590,7 @@ npm run sprites:humans
 
 Wilderfolk keeps growing — more events, more neighbors, more ways to share the valley. Rival camps and visiting caravans are a taste of a busier frontier.
 
-**Near term:** **[v0.5.0](../ROADMAP_0.5.0.md)** (end July 2026) — all open scale, UI, and architecture work. See [Latest update](#latest-update--v042-july-5-2026) for what shipped in v0.4.2.
+**Near term:** **[v0.5.0](../ROADMAP_0.5.0.md)** (end July 2026) — all open scale, UI, and architecture work. See [Latest update](#latest-update--v042-shipped--v050-in-progress-july-8-2026) for what's in the build today.
 
 **Long term:** ship properly as an **installer or on Steam** — no terminal, no Node.js. This browser alpha is the trail; the boxed (or Steam) version is the destination.
 

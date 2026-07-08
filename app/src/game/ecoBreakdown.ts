@@ -1,7 +1,7 @@
 import { BuildingType, type Building, type WorldState } from './gameTypes';
 import { isPlayerHuman } from './groupEvents';
 
-const INDUSTRIAL_TYPES: string[] = [
+const INDUSTRIAL_TYPES: BuildingType[] = [
   BuildingType.Blacksmith,
   BuildingType.Mill,
   BuildingType.Workshop,
@@ -65,11 +65,11 @@ export function getEcosystemBreakdown(state: WorldState, buildings: Building[] =
     {
       label: 'Wildlife',
       delta: wildlifeBonus,
-      detail: `${totalWildlife} animals (rabbits+deer+wolves+foxes) — bonus scales to ~80 ideal`,
+      detail: `${totalWildlife} animals (rabbits+deer+wolves+foxes) — scales to ~80 ideal; −20 baseline at zero wildlife`,
     },
   ];
 
-  let summary = 'Early wilderness — keep predators and prey balanced for hunting.';
+  let summary = 'Early wilderness starts at ~80% — zero wildlife carries a −20 baseline; keep predators and prey balanced.';
   if (health <= 0 && playerCompletedBuildings >= 25) {
     summary = 'Town scale dominates: building footprint and pollution outweigh wildlife. Eco tracks land pressure — not a failure state for balanced towns.';
   } else if (health < 30) {

@@ -1,5 +1,7 @@
 import { BuildingType, JobType } from './gameTypes';
 import type { Building, WorldState } from './gameTypes';
+import { isImprisoned } from './dayCycle';
+import { FORGE_BONUSES, isForgeOrderComplete } from './forge';
 import { MILITIA_BALANCE } from './militiaBalance';
 
 const WALL_TYPES = new Set<BuildingType>([
@@ -22,13 +24,24 @@ export function countCompletedDefenseBuildings(
   ).length;
 }
 
-export function getWallSegmentBonus(buildings: Building[]): number {
+export function getWallSegmentBonus(
+  buildings: Building[],
+  state?: Pick<WorldState, 'villageForge'>,
+): number {
   const segments = countCompletedDefenseBuildings(buildings, [
     BuildingType.Wall,
     BuildingType.WallCorner,
     BuildingType.WallGate,
   ]);
-  return Math.min(72, segments * 8);
+  const perSegment = 8 + (
+    state && isForgeOrderComplete(state.villageForge, 'wall_plates')
+      ? FORGE_BONUSES.wallPlatePerSegment
+      : 0
+  );
+  const cap = state && isForgeOrderComplete(state.villageForge, 'wall_plates')
+    ? FORGE_BONUSES.wallPlateCap
+    : 72;
+  return Math.min(cap, segments * perSegment);
 }
 
 export function getWatchtowerBonus(buildings: Building[]): number {
@@ -41,14 +54,20 @@ export function getBarracksGuardCount(state: WorldState, buildings: Building[]):
     if (!b.completed || b.type !== BuildingType.Barracks || b.faction === 'rival') continue;
     for (const humanId of b.occupants) {
       const human = state.entities.find((e) => e.id === humanId && e.alive);
-      if (human && human.job === JobType.Guard) guards += 1;
+      if (human && human.job === JobType.Guard && !isImprisoned(human)) guards += 1;
     }
   }
   return guards;
 }
 
 export function getBarracksGuardBonus(state: WorldState, buildings: Building[]): number {
-  return getBarracksGuardCount(state, buildings) * MILITIA_BALANCE.guardBonusPerGuard;
+  const guards = getBarracksGuardCount(state, buildings);
+  const perGuard = MILITIA_BALANCE.guardBonusPerGuard + (
+    isForgeOrderComplete(state.villageForge, 'guard_halberds')
+      ? FORGE_BONUSES.guardHalberdPerGuard
+      : 0
+  );
+  return guards * perGuard;
 }
 
 export function getDefenseStructureBreakdown(state: WorldState, buildings: Building[]): string[] {
@@ -58,7 +77,7 @@ export function getDefenseStructureBreakdown(state: WorldState, buildings: Build
     BuildingType.WallCorner,
     BuildingType.WallGate,
   ]);
-  const wallBonus = getWallSegmentBonus(buildings);
+  const wallBonus = getWallSegmentBonus(buildings, state);
   if (walls > 0) {
     lines.push(`+ ${wallBonus} wall segments (${walls} built, max +72)`);
   }
@@ -75,8 +94,14 @@ export function getDefenseStructureBreakdown(state: WorldState, buildings: Build
   return lines;
 }
 
-export function isBarracksGuard(_humanId: number, homeBuildingId: number | null | undefined, buildings: Building[]): boolean {
+export function isBarracksGuard(
+  humanId: number,
+  homeBuildingId: number | null | undefined,
+  buildings: Building[],
+): boolean {
   if (homeBuildingId == null) return false;
   const workplace = buildings.find((b) => b.id === homeBuildingId);
-  return !!workplace?.completed && workplace.type === BuildingType.Barracks;
+  return !!workplace?.completed
+    && workplace.type === BuildingType.Barracks
+    && workplace.occupants.includes(humanId);
 }

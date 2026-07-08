@@ -19,17 +19,15 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
-  },
-  {
-    files: ['src/components/ui/**/*.{ts,tsx}'],
     rules: {
-      'react-refresh/only-export-components': 'off',
-      'react-hooks/purity': 'off',
-      'react-hooks/set-state-in-effect': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
     },
   },
   {
-    files: ['src/hooks/use-mobile.ts'],
+    files: ['src/hooks/useContextualTutorial.ts'],
     rules: {
       'react-hooks/set-state-in-effect': 'off',
     },

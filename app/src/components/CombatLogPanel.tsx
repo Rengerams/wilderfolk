@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { GameEventLog } from '../game/gameTypes';
+import { summarizeCombatEvents } from '../game/eventLog';
 import {
   downloadChronicleCSV,
   downloadChronicleJSON,
@@ -28,18 +29,7 @@ export default function CombatLogPanel({ events, meta }: Props) {
     [combatEvents],
   );
 
-  const stats = useMemo(() => {
-    let raids = 0;
-    let defended = 0;
-    let repelled = 0;
-    for (const evt of combatEvents) {
-      const msg = evt.message.toLowerCase();
-      if (msg.includes('raid')) raids += 1;
-      if (msg.includes('defend') || msg.includes('militia') || msg.includes('barricade')) defended += 1;
-      if (msg.includes('repelled') || msg.includes('decisive')) repelled += 1;
-    }
-    return { raids, defended, repelled, total: combatEvents.length };
-  }, [combatEvents]);
+  const stats = useMemo(() => summarizeCombatEvents(combatEvents), [combatEvents]);
 
   const exportCombat = () => {
     downloadChronicleLog(combatEvents, { ...meta, villageName: `${meta.villageName} — Combat` });

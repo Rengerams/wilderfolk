@@ -41,7 +41,7 @@ function ChallengesPanel({ state }: { state: WorldState }) {
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-stone-700">
                     <div
-                      className={`h-full rounded-full transition-all ${c.id === 'eco_master' ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                      className={`h-full rounded-full transition-all ${progress.tone === 'eco' ? 'bg-emerald-500' : 'bg-amber-500'}`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>

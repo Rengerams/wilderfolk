@@ -104,6 +104,18 @@ class AudioGraph {
     return this.ambientGain;
   }
 
+  /** Call synchronously inside a click/key handler so resume() keeps user activation. */
+  primeUnlock(): void {
+    const ctx = this.ensure();
+    if (ctx.state === 'suspended') {
+      void ctx.resume().then(() => {
+        if (ctx.state === 'running') this.applyBusVolumes();
+      });
+    } else if (ctx.state === 'running') {
+      this.applyBusVolumes();
+    }
+  }
+
   async unlock(): Promise<boolean> {
     const ctx = this.ensure();
     try {

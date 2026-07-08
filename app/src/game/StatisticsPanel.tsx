@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react';
 import type { GameState } from './gameEngine';
+import { ResourceIcon, type ResourceKey } from '../components/ResourceIcons';
 
 interface Props {
   state: GameState;
@@ -164,20 +166,34 @@ export default function StatisticsPanel({ state }: Props) {
       <div className="rounded-xl bg-stone-700/50 p-3">
         <h3 className="mb-2 text-xs font-bold text-stone-300">📦 Current Resources</h3>
         <div className="grid grid-cols-2 gap-1.5">
-          <StatBox label="Wood" value={latest.resources.wood} icon="🪵" color="text-amber-500" />
-          <StatBox label="Stone" value={latest.resources.stone} icon="🪨" color="text-stone-400" />
-          <StatBox label="Food" value={latest.resources.food} icon="🍖" color="text-emerald-400" />
-          <StatBox label="Gold" value={latest.resources.gold} icon="💰" color="text-yellow-400" />
+          <StatBox label="Wood" value={latest.resources.wood} resource="wood" color="text-amber-500" />
+          <StatBox label="Stone" value={latest.resources.stone} resource="stone" color="text-stone-400" />
+          <StatBox label="Food" value={latest.resources.food} resource="food" color="text-emerald-400" />
+          <StatBox label="Gold" value={latest.resources.gold} resource="gold" color="text-yellow-400" />
         </div>
       </div>
     </div>
   );
 }
 
-function StatBox({ label, value, icon, color }: { label: string; value: number; icon: string; color: string }) {
+function StatBox({
+  label,
+  value,
+  resource,
+  icon,
+  color,
+}: {
+  label: string;
+  value: number;
+  resource?: ResourceKey;
+  icon?: ReactNode;
+  color: string;
+}) {
   return (
     <div className="flex items-center gap-2 rounded bg-stone-800/60 p-2">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center text-base">{icon}</span>
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center text-base">
+        {resource ? <ResourceIcon resource={resource} className="h-5 w-5" /> : icon}
+      </span>
       <div className="min-w-0">
         <div className="text-[8px] uppercase tracking-wider text-stone-500">{label}</div>
         <div className={`text-sm font-bold leading-tight ${color}`}>{value.toLocaleString()}</div>

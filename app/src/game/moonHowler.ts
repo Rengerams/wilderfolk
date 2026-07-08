@@ -13,6 +13,7 @@ export interface MoonHowlerSavedState {
   job?: Entity['job'];
   occupation?: string;
   homeBuildingId?: number;
+  residenceBuildingId?: number;
   relationshipStatus?: Entity['relationshipStatus'];
   partnerId?: number;
   affairPartnerId?: number;
@@ -25,8 +26,8 @@ export interface MoonHowlerSavedState {
   combatTicks?: number;
 }
 
-export function shouldMoonHowlerTransform(calendarDay: number, hourOfDay: number): boolean {
-  return isFullMoonNight(calendarDay, hourOfDay);
+export function shouldMoonHowlerTransform(colonyDay: number, hourOfDay: number): boolean {
+  return isFullMoonNight(colonyDay, hourOfDay);
 }
 
 export function canMoonHowlerCurse(entity: Entity): boolean {
@@ -45,6 +46,13 @@ export function isActiveMoonHowler(entity: Entity): boolean {
   return entity.alive && entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
 }
 
+/** Human settler or cursed villager temporarily in werewolf form (marriage/social lookups). */
+export function isSettlerRelationshipEntity(entity: Entity | undefined): entity is Entity {
+  if (!entity?.alive) return false;
+  if (entity.type === EntityType.Human) return true;
+  return entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
+}
+
 export function curseMoonHowler(human: Entity): void {
   human.moonHowlerCursed = true;
   human.surname = human.surname || 'Moonborn';
@@ -61,6 +69,7 @@ export function transformToWerewolfForm(human: Entity): void {
     job: human.job,
     occupation: human.occupation,
     homeBuildingId: human.homeBuildingId,
+    residenceBuildingId: human.residenceBuildingId,
     relationshipStatus: human.relationshipStatus,
     partnerId: human.partnerId,
     affairPartnerId: human.affairPartnerId,
@@ -75,6 +84,9 @@ export function transformToWerewolfForm(human: Entity): void {
   human.type = EntityType.Werewolf;
   human.huntTargetId = undefined;
   human.combatTicks = 0;
+  if (human.combatRollSeed == null) {
+    human.combatRollSeed = ((human.id * 2654435761) ^ 0x9e3779b9) >>> 0;
+  }
   human.energy = Math.min(cfg.maxEnergy, human.energy + 80);
   human.maxEnergy = cfg.maxEnergy;
   human.speed = cfg.speed;
@@ -93,6 +105,7 @@ export function revertToHumanForm(were: Entity): void {
   were.job = saved?.job ?? JobType.Settler;
   were.occupation = saved?.occupation ?? 'settler';
   were.homeBuildingId = saved?.homeBuildingId;
+  were.residenceBuildingId = saved?.residenceBuildingId;
   were.relationshipStatus = saved?.relationshipStatus;
   were.partnerId = saved?.partnerId;
   were.affairPartnerId = saved?.affairPartnerId;
@@ -117,14 +130,14 @@ export function cureMoonHowler(entity: Entity): void {
 }
 
 /** Convert legacy permanent werewolf saves into cursed villagers. */
-export function migrateLegacyMoonHowler(entity: Entity, calendarDay: number, hourOfDay: number): void {
+export function migrateLegacyMoonHowler(entity: Entity, colonyDay: number, hourOfDay: number): void {
   if (entity.type !== EntityType.Werewolf || entity.moonHowlerCursed) return;
 
   entity.moonHowlerCursed = true;
   entity.surname = entity.surname || 'Moonborn';
   entity.generation = Math.max(entity.generation, 1);
 
-  if (!shouldMoonHowlerTransform(calendarDay, hourOfDay)) {
+  if (!shouldMoonHowlerTransform(colonyDay, hourOfDay)) {
     entity.type = EntityType.Human;
     entity.job = entity.job ?? JobType.Settler;
     entity.occupation = entity.occupation ?? 'settler';
@@ -145,10 +158,10 @@ export interface MoonHowlerSyncResult {
 
 export function syncMoonHowlerForms(
   entities: Entity[],
-  calendarDay: number,
+  colonyDay: number,
   hourOfDay: number,
 ): MoonHowlerSyncResult {
-  const transforming = shouldMoonHowlerTransform(calendarDay, hourOfDay);
+  const transforming = shouldMoonHowlerTransform(colonyDay, hourOfDay);
   const transformed: Entity[] = [];
   const reverted: Entity[] = [];
 

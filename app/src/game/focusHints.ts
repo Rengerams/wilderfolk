@@ -50,11 +50,11 @@ export interface FocusHint {
   action?: FocusHintAction;
 }
 
-export function getFocusHints(state: WorldState): FocusHint[] {
+export function getFocusHints(state: WorldState, buildings = state.buildings): FocusHint[] {
   const hints: FocusHint[] = [];
   const humans = state.humanPopulation;
-  const completedBuildings = state.buildings.filter((b) => b.completed).length;
-  const houses = state.buildings.filter(
+  const completedBuildings = buildings.filter((b) => b.completed).length;
+  const houses = buildings.filter(
     (b) => b.completed && (b.type === BuildingType.House || b.type === BuildingType.Mansion),
   ).length;
 
@@ -65,7 +65,7 @@ export function getFocusHints(state: WorldState): FocusHint[] {
       title: `Victory: ${won?.label ?? 'Legacy achieved'}`,
       detail: 'You won — keep playing to shape the chronicle, or start a new map with a different path.',
     });
-    return hints;
+    return hints.slice(0, 4);
   }
 
   const housesNeeded = humans > 0 && houses === 0;
@@ -73,7 +73,7 @@ export function getFocusHints(state: WorldState): FocusHint[] {
     hints.push({
       icon: '🏠',
       title: 'Build shelter',
-      detail: 'Press 1 or use the bottom hotbar, then click the map.',
+      detail: 'Press B → Housing → House (or key 1), then click the map.',
       action: { label: 'Place house', id: 'build_house' },
     });
   }
@@ -226,8 +226,8 @@ export function getFocusHints(state: WorldState): FocusHint[] {
     }
   }
 
-  const blacksmith = findCompletedBlacksmith(state);
-  if (state.villageForge.activeOrder && blacksmith && !isBlacksmithStaffed(state)) {
+  const blacksmith = findCompletedBlacksmith(state, buildings);
+  if (state.villageForge.activeOrder && blacksmith && !isBlacksmithStaffed(state, buildings)) {
     const order = getForgeOrder(state.villageForge.activeOrder);
     hints.push({
       icon: '🔨',
@@ -264,12 +264,20 @@ export function getFocusHints(state: WorldState): FocusHint[] {
     });
   }
 
-  if ((state.pendingRaidEvents?.length ?? 0) > 0) {
+  if ((state.pendingOutgoingRaidEvents?.length ?? 0) > 0) {
+    const march = state.pendingOutgoingRaidEvents![0];
+    hints.push({
+      icon: '🏹',
+      title: march.rivalResponse === 'payoff_offer' ? 'Tribute on the table' : 'Attack orders',
+      detail: `${march.rivalName} — accept their payoff or press the attack before the war-band stands down.`,
+      action: { label: 'Frontier tab', id: 'open_frontier' },
+    });
+  } else if ((state.pendingRaidEvents?.length ?? 0) > 0) {
     const raid = state.pendingRaidEvents![0];
     hints.push({
       icon: '⚔️',
       title: 'Raid incoming!',
-      detail: `${raid.rivalName} — ${formatRaidDeadline(raid, state.tick)}. Defend (spears), barricade (20🪵+10🪨), or pay ${raid.lootFood}🍖.`,
+      detail: `${raid.rivalName} — ${formatRaidDeadline(raid, state.tick)}. Defend, pay ${raid.lootFood}🍖 tribute, or counter-raid their camp from the rival inspector.`,
       action: { label: 'Frontier tab', id: 'open_frontier' },
     });
   } else if (state.rivalSettlements.some((r) => r.relationship === 'tense' || r.relationship === 'competitive')) {
@@ -278,7 +286,7 @@ export function getFocusHints(state: WorldState): FocusHint[] {
       icon: armed ? '🛡️' : '⚠️',
       title: armed ? 'Border tension' : 'Arm the militia',
       detail: armed
-        ? 'Tense rivals may raid — click their camp to defend or launch a counter-raid (food cost scales with distance).'
+        ? 'Tense rivals may raid you — defend incoming war-bands, or raid their camp first (food cost scales with distance). Counter-raid only after they attack.'
         : 'Research Stone Spears (Defense) before rivals raid your stores.',
       action: { label: armed ? 'Frontier' : 'Research spears', id: armed ? 'open_frontier' : 'open_research' },
     });
@@ -288,7 +296,7 @@ export function getFocusHints(state: WorldState): FocusHint[] {
     hints.push({
       icon: '🏛️',
       title: 'Path to township',
-      detail: 'Research Fine Construction → Urban Planning to unlock Town Hall and grow village reputation.',
+      detail: 'Research Urban Planning → Town Hall: staff officials for taxes, trade, immigration, elections, and hosted festivals.',
       action: { label: 'Research tree', id: 'open_research' },
     });
   }

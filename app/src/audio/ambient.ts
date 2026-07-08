@@ -16,6 +16,16 @@ class AmbientNaturePlayer {
     return this.running;
   }
 
+  private isAudible(): boolean {
+    return this.running && ambientPlayer.currentUrl != null;
+  }
+
+  async ensurePlaying(): Promise<void> {
+    if (this.isAudible()) return;
+    if (this.running) this.stop();
+    await this.start();
+  }
+
   setNightMode(isNight: boolean) {
     if (this.isNight === isNight) return;
     this.isNight = isNight;

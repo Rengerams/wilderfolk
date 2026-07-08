@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { getFocusHints, type FocusHintAction } from './focusHints';
-import type { WorldState } from './gameTypes';
+import type { Building, WorldState } from './gameTypes';
 
 interface Props {
   state: WorldState;
+  buildings?: Building[];
   onOpenGoals?: () => void;
   onHintAction?: (action: FocusHintAction) => void;
 }
 
-export default function FocusPanel({ state, onOpenGoals, onHintAction }: Props) {
-  const hints = getFocusHints(state);
+export default function FocusPanel({ state, buildings, onOpenGoals, onHintAction }: Props) {
+  const hints = getFocusHints(state, buildings ?? state.buildings);
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? hints.slice(0, 3) : hints.slice(0, 1);
 

@@ -4,16 +4,122 @@
 
 **Targeting v0.5.0** (end July 2026) — see [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
 
+### Added — frontier raid response & balance (July 8, 2026)
+
+- **Outgoing raid phase** — `launchRaidOnRival()` dispatches a war-band; rival may **offer tribute** or **choose to fight**; player always gets **Accept tribute** / **Decline — attack anyway** or **Press the attack** (`pendingOutgoingRaidEvents`, `respondToOutgoingRaidEvent`)
+- **Raid vs counter-raid labels** — proactive strike = “Raid their camp”; retaliation after an incoming war-band = “Counter-raid their camp” (`isCounterRaidOnRival`, `getOutgoingRaidActionLabel`)
+- **Population-scaled raid casualties** — victories and barricade holds always cost lives; tiers scale with village size (`getRaidCasualtyBounds`)
+- **Raid loot bundles** — incoming defense can lose food/wood/stone/gold; outgoing wins grant multi-resource spoils (`RaidLootBundle`, `formatRaidLootSummary` on banners)
+- **Peace + outgoing marches** — treaties recall in-flight player war-bands (`cancelPendingOutgoingRaidsForRival`)
+- **Vitest** — **343** tests, **64** files (`frontierCombat.test.ts` +6 for outgoing tribute flow)
+
+### Fixed — scandal imprisonment (July 8, 2026)
+
+- Only **married** affair offenders are imprisoned; single paramours are not jailed (`isMarriedScandalOffender`); arrest runs before divorce clears marital status
+
+### Added — settler dialogue trees (July 8, 2026)
+
+- **Dialogue-tree chat** — `sim_dialogue_trees.json` (95 trees, 3-line paired banter); `dialogueTrees.ts` + dialogue-first `humanChat.ts` with session advance and multiline bubbles
+- **Legacy line migration** — old `humanChat` one-liners converted to `wf_*` trees (`migrate-legacy-dialogue.py`); Sims-style `dt_*` trees retained
+- **Chat wiring** — `lifeSimulation.ts` partner-aware `settlerChat` / `settlerPairChat`; `foodLow` / juvenile `child` context; `resetDialogueSessions()` on render cache reset
+- **Chat tests** — `humanChat.test.ts` (17), election gossip/winner in `villageLeadership.test.ts`, marriage `Yes!` in `lifeSimulation.courtship.test.ts`
+
+### Added — scale, worker, quality (July 8, 2026)
+
+- **Dual-layer spatial grid** (`spatialGrid.ts`) — grass + mobile cell indexes for graze, hunt, flee, wolf-pack queries; `USE_SPATIAL_GRID` on by default (`VITE_USE_SPATIAL_GRID=0` for A/B)
+- **Web Worker simulation** (`simWorker/`) — optional `gameTick` off main thread (`VITE_USE_GAME_WORKER=1`); `GameWorkerHost`, render SoA ping-pong (`simBuffers/`), `WORKER_PROTO` negotiation, headless tick path
+- **Entity catalog** (`entityCatalog.ts`) — O(1) citizen lookup; main-thread `catalog` state synced from `GameLoop.subscribe`
+- **Save schema allow-list** (`saveSchema.ts`, `viewState.ts`) — `pickWorldFieldsForSave()` trims save bloat; camera pan preserved on load
+- **Vitest suite** — **320** tests across 63 files (`npm test`); helpers in `src/test/` (housing, social, worker parity, ecosystemPressure, packRenderSoA, protocol, dialogue chat)
+- **Build catalog sidebar** — `BuildCatalogPanel.tsx` + `buildCatalog.ts` category rail (replaces deleted `BuildHotbar.tsx`)
+- **Resource badges** — `ResourceIcons.tsx`, `ResourceBadge.tsx`, `resourceLabels.ts`
+- **Citizen IDs** — `#id` search, death log age suffix (`citizenId.ts`)
+
+### Fixed — comprehensive bug pass (July 7–8, 2026)
+
+**226 tracker items closed** (130 master + 96 batches A–J, July 8 bug pass). Highlights:
+
+- **Sim/UI:** ecosystemPressure shared thresholds (#3–7), viewState camera + save merge (#3/#5), packRenderSoA overflow top-k (#17), protocol feature handshake (#13)
+- **Life/save:** `lastProcessedCalendarDay` on load, affair conception site (no hour gate), population snapshot single-pass, weather particles on canvas resize
+- **Worker:** `GameWorkerHost` `commandChain`, headless `tickResult`, proto guards on all responses
+- **Renderer:** SoA shim safety, night-glow cull, walk threshold, terrain dispose, rain batch, grid viewport
+- **Tooling:** production `tsc -b` clean; **ESLint 0 errors** (was 70 — App.tsx ref/`useLayoutEffect` sync, test unused imports, React hooks rules)
+
+### Fixed — marriage integrity + Moon Howler spouses (July 8, 2026)
+
+**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) Batch I #1–#3
+
+- **`killHuman` / `finalizeHumanDeath` (`dayCycle.ts`)** — single death cleanup entry for player settlers (`isKillableSettlerEntity`: human **or** cursed full-moon werewolf): sets `alive = false`, strips building occupants (`homeBuildingId`, `residenceBuildingId`, prison fields), and **widows the survivor** — clears `partner.partnerId`, sets `relationshipStatus` to `single` (or `expecting` if pregnant)
+- **Death paths unified** — all production human kills now call `killHuman(..., entityById)` instead of bare `alive = false`:
+  - `tryDailyHumanMortality` — old age + sudden illness (`lifeSimulation.ts`)
+  - exhaustion — active and off-screen throttled paths (`lifeSimulation.ts`)
+  - childbirth energy depletion (`lifeSimulation.ts`)
+  - predator kill — Moon Howler / wolf hunt on human prey (`lifeSimulation.ts`)
+  - raid defense casualties (`frontierCombat.ts`)
+  - disaster / plague (`worldEvents.ts`)
+- **Moon Howler marriage false-negative (root cause of seed-42 social sim failure)** — on full moon, `transformToWerewolfForm` sets `type = EntityType.Werewolf` while marriage fields remain in `moonHowlerSaved`; `livingHumanAt` and `assertSimInvariants` only accepted `EntityType.Human`, so EOD day 29 reported `human 20 married partner 120 missing or dead` although id 120 was alive as a cursed werewolf with `partnerId: 20`
+- **`isSettlerRelationshipEntity` (`moonHowler.ts`)** — returns true for alive humans **or** alive `EntityType.Werewolf` with `moonHowlerCursed`; wired into `livingHumanAt`, `resolveChatPartner`, and `assertSimInvariants`
+- **Test fixture id collision** — `lifeSimulation.social.integration.test.ts` no longer hardcodes ids `20`/`120`/`121` (collided with `initGame` auto-spawn, e.g. tree id 120); lovers/spouses allocated via `state.nextEntityId++`
+- **Werewolf-form deaths** — `tickWildlife` old-age and starvation paths call `markWildlifeDead` → `killHuman` for cursed settlers (not bare `alive = false`)
+- **Tests** — `lifeSimulation.mortality.test.ts` (widow on human + werewolf-form death), `moonHowler.test.ts` (werewolf-form spouse valid), `lifeSimulation.social.integration.test.ts` (30-day seed 42 green)
+- **Vitest typecheck** — 17 pre-existing `tsconfig.vitest.json` errors fixed in test helpers (`canvasPolyfill`, `gameLoopTestUtils`, `placementUtils`, `entityLayer`, `frontierCombat`, `contextualTutorial`, `lifeSimulation.wildlife`); now part of `npm test`
+
+### Fixed — pairwise sim hotspots (July 8, 2026)
+
+**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) Batch I #4–#9 · details in [private/OPEN_PROBLEMS.md](private/OPEN_PROBLEMS.md)
+
+- **`tickQueries.ts` (new)** — per-tick shared helpers: `getLivingEntity`, `buildResidenceOccupantIndex`, `getHousemates`, `findClosestEntityInRadius`, `forEachEntityInRadius`, `buildWildlifePopulationSnapshot`, `recordWildlifeBirth`, `buildGrassPopulationSnapshot`, `recordGrassBirth` / `recordGrassDeath`
+- **Social scans → indexed queries** (`lifeSimulation.ts`):
+  - housemate chat — `buildResidenceOccupantIndex` + `getHousemates` (was `playerHumans.filter` per settler)
+  - courtship — `findCourtshipPartner` + spatial closest-single query
+  - affair paramour — `findClosestEntityInRadius`; site checks use `entityById` / `buildingById` maps
+  - idle socialize — `findClosestEntityInRadius` over map-span radius
+- **Wildlife scans → built-once indexes** (`spatialGrid.ts`, `lifeSimulation.ts`):
+  - `RoadAvoidanceIndex` — `isNearRoad` + `applyAvoidance` replaces per-entity `roadBuildings.some`; shared on `TickContext` for human road-speed mult
+  - mate search — `findClosestEntityInRadius` on `mobileGrid`
+  - population cap — `buildWildlifePopulationSnapshot` + `recordWildlifeBirth` (was per-animal `byType.filter`)
+  - tamed hunt assist — grid sync + `findClosestEntityInRadius`
+- **Edge scans** — idle tree wander (`buildTreeGrid` once per `tickHumans`); grass repro cap (`buildGrassPopulationSnapshot`)
+- **`gameEngine.ts`** — `syncMobileSimGrid` reuses `state.mobileGrid` instead of allocating each tick
+- **Affair / reproduction tests** — `lifeSimulation.affair.test.ts`, `lifeSimulation.reproduction.test.ts` updated for `entityById` maps and `tryDailyConception` signature
+- **A/B flag** — `VITE_USE_SPATIAL_GRID=0` restores legacy full-list prey/predator scans for perf comparison only
+
+### Changed — npm scripts & test gate (July 8, 2026)
+
+**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) Batch J
+
+- **`npm test`** — single gate: `vitest run` (320 tests, 63 files, **0 skipped**) + `tsc -p tsconfig.vitest.json --noEmit`; replaces separate `test:unit` / `test:types`
+- **Vitest default config** — browser Web Worker suites (`gameLoop.worker.test.ts`, `gameWorkerHost.test.ts`) excluded from default run (Node has no `globalThis.Worker`); optional `npx vitest run --config vitest.browser-worker.config.ts`
+- **`npm run` shortened (app)** — 24 scripts → **8**: `dev`, `build`, `test`, `test:watch`, `lint`, `preview`, `sim`, `bench`
+- **`sim` CLI** (`scripts/sim-cli.mjs`) — `npm run sim` lists profiles; `npm run sim -- <profile>` replaces `simulate`, `simulate:30min`, `simulate:20year`, `simulate:social`, `simulate:housing`, `simulate:housing:ticks`, `simulate:family`, `simulate:10year`, `simulate:10year:worker`, `simulate:20year:worker`, `balance:militia`, `benchmark:city`, `simulate:30min:city`, `sim:kill` (aliases: `simulate` → `5min`, `balance` → `militia`)
+- **`bench`** — `npm run bench` replaces `npm run benchmark:gate` (CI benchmark gate)
+- **Repo root** — forwards `test`, `sim`, `bench` into `app/`; dropped five `simulate:*` forwards
+
+### Changed (July 8, 2026)
+
+- **`App.tsx`** — `catalog` + `hasPlacedHouse` + `villageStats` state from loop subscribe; callback refs synced in `useLayoutEffect` (eslint `react-hooks/refs` compliant)
+- **`useContextualTutorial`** — queue head = active tip; dismiss advances queue
+- **`BuildCatalogPanel`** — category follows selected building without `useEffect` setState
+
 ### Added
+- **Housing & population UI** — header + Village tab show **🛏️ beds** and open slots separately from **immigration cap** (`populationGrowth.ts`, `GameHeader.tsx`, `App.tsx`)
+- **Housing assignment overhaul** (`dayCycle.ts`) — `buildHousingUnits`, custodian chain, shortage sharing, orphan adoption
+  - **Cap vs beds** — recruitment/immigration uses `maxHumanPopulation` (houses + rep + base 5); physical slots = sum of completed House/Mansion capacity (upgrades included)
+  - **Singles** — may share a house; stay until **marriage**, then `syncPartnerResidence` moves the couple to their own home (empty preferred)
+  - **Children** — follow **mother** → **father**; **bastards** with no mother → **maternal grandma** → **paternal grandma**; then **father**
+  - **Orphans** — no kin left → random **married couple** adopts; if none, placed in **any house with room**
+  - **18+** — inspector button **Move to own home** when an empty house exists (`moveOutOfFamilyHome` in `buildingActions.ts`)
+  - **Housing shortage** — when no empty homes (or all beds full), **families stay together** in shared houses instead of splitting
 - **Election day ceremony** (`villageLeadership.ts`) — founding **first male** leads until Year 10; merit elections every 10 years; leader death → election **2 years later** (no instant succession); ceremony phases gather → gossip → tension → reveal + 3-day *Election Revelry* festival
 - **Election buildup** — year-before notification (`tickElectionBuildup`); ongoing settler gossip during buildup, election year, and ceremony (`tickElectionGossip`)
 - **Incumbent always runs** — `getElectionRaceCandidates()` keeps sitting head in race lineup, gossip, and Leadership standings even when merit rank drops below top 4
 - **Incumbent record score** — modest election bonus/penalty for sitting head only: economy (+4/−5), clean record (+3) vs scandals (−5 each), village health (+3/−6); **+8 positive cap** so high-merit challengers can still win; penalties uncapped
 - **Leadership UI** — `VillageLeadershipPanel` shows record breakdown; standings show record modifier; tutorial + focus hints updated
 
-### Planned
-- **P0** — spatial grid, dead-entity compaction, renderer cache reuse, settler count denorm, benchmark gate; incremental `entityById`, `buildingActions` scan cleanup, grass buckets, App tab split, pooling; Web Worker `gameTick`, OffscreenCanvas terrain/entity layers; big bug checkup; logical invariant checks; `npm run simulate:20year` gatekeeper; simulation battery; `GAME_VERSION` **0.5.0** + save migration
-- **P1** — election playtest at Year 10/20; counter-raid militia march visuals; large-map playtests; reputation arc UI; footstep SFX; one visitor quest chain; `npm run benchmark:gate`
+### Planned (remaining for v0.5.0 tag)
+- **P0** — renderer cache reuse, settler count denorm, benchmark gate exit codes; incremental `entityById`, `buildingActions` scan cleanup, grass render buckets, App tab split, pooling; OffscreenCanvas terrain/entity layers; logical invariant checks; **`npm run sim -- 20year` full 172800-tick PASS**; `GAME_VERSION` **0.5.0** + save migration
+- **Done in code (pre-tag):** spatial grid ✅, dead-entity compaction ✅, Web Worker `gameTick` ✅ (opt-in), big bug checkup ✅ (tracker closed), `npm test` gate ✅ (320 + types)
+- **P1** — election playtest at Year 10/20; counter-raid militia march visuals; large-map playtests; reputation arc UI; footstep SFX; one visitor quest chain; `npm run bench`
 
 ## [0.4.2] - 2026-07-05
 
@@ -93,23 +199,15 @@ Inspired by **RimWorld** (priority alerts, contextual inspector), **Banished** (
 - `app/scripts/simulate-30min.ts` — perf metrics output
 - `app/README.md`, `TECHNICAL.md`, `roadmapContent.ts` — player + dev docs
 
-#### Future performance optimizations (not yet implemented)
-
-| Phase | Version | Finish by |
-|-------|---------|-----------|
-| All open perf + UI + architecture | **v0.5.0** | End July 2026 |
-
-- **v0.5.0 (consolidated):** spatial grid, compaction, benchmark gate, incremental maps, `buildingActions` cleanup, grass buckets, App tab split, pooling, Web Worker `gameTick`, OffscreenCanvas layers — see [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
-
 #### Frontier raid polish
 - **Distance-scaled raid deadline** — incoming raids get **2–6 days** to respond based on camp distance (`expiresAtTick`, `marchDistanceTiles` on `RaidEvent`).
 - **War-band march speed** — rival settlers march slower from farther camps (`lifeSimulation.ts`).
 - **UI** — banner, alerts, Frontier/Village tabs show `formatRaidDeadline`; save migration backfills old raids.
 
 #### Fixed / hygiene (July 2026)
-- **Lint** — removed unused `countByType` in `simulate-30min.ts`; inspector auto-expand moved from `useEffect` into map selection handlers (`focusCampOnMap`, `handleCanvasClick`); `IntroScreen` `useRef` init — `npm run lint` → **0 errors** (3 pre-existing hook warnings in `App.tsx`).
-- **Sanity check** — `npm run build` pass; headless 72k-tick sim (~8 game years, ~557 entities): avg **1.81 ms/tick**, p95 **4.83 ms/tick**; `simulate:30min` pass; `/check-work` PASS (July 4, 2026).
-- **Docs sync** — all project `*.md` files + `roadmapContent.ts` aligned with v0.4.2 status (July 4, 2026).
+- **Lint** — July 4: unused imports + inspector handlers; July 8: **70 ESLint errors → 0** (`App.tsx` ref sync, `BuildCatalogPanel`, `GameMenu`, tests, scripts); `argsIgnorePattern: '^_'` for intentional unused params.
+- **Sanity check** — `npm run build` pass; `npm test` **317 passed** (3 skipped); `/check-work` PASS (July 8, 2026). July 4 headless baseline: avg **1.81 ms/tick**, p95 **4.83 ms/tick** @ ~557 entities.
+- **Docs sync** — all project `*.md` files aligned with v0.4.2 + July 8 bug-pass status.
 
 #### P1 defense & combat log (July 2026)
 - **Defense buildings** — Wall, Wall Corner, Wall Gate (+8 barricade/segment, cap +72), Watchtower (+15), Barracks (manual Guards, +12 militia each); unlocked via Fortification / Stone Spears research.
@@ -257,9 +355,6 @@ Four code-review rounds (~40 fixes). Verified: `npm run build`, `npm run lint` (
 - **Stable village anchor** — `getPlayerCampCenter()` prefers Town Hall / House over wandering settler centroid (shared with `groupEvents.ts` spawn distance).
 - **Focus hint** — counter-raid note mentions distance-scaled food (not flat 30🍖).
 
-### Deferred to v0.5.0 (see [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md))
-- Village tab raid shortcut, distance-based raid deadline/march, spear tier stacking review, dedicated combat log panel, walls/guards, Blacksmith forge queue.
-
 ## [0.4.1] - Frontier raids & militia combat (2026-07-04)
 
 ### Added
@@ -286,7 +381,7 @@ Four code-review rounds (~40 fixes). Verified: `npm run build`, `npm run lint` (
 ## [0.4.1] - In-game roadmap tab (2026-07-04)
 
 ### Added
-- **Roadmap tab** — eighth sidebar tab with read-only v0.4.1 slice: shipped features, open/partial P0–P2 items, next dev priorities, deferred backlog (`RoadmapPanel.tsx`, `roadmapContent.ts`).
+- **Roadmap tab** — eighth sidebar tab with read-only v0.4.1 slice: shipped features, open/partial P0–P2 items, next dev priorities (`RoadmapPanel.tsx`, `roadmapContent.ts`).
 - **Guide → Roadmap** shortcut button at top of Guide tab.
 
 ### Technical

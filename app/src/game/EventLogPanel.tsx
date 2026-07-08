@@ -69,7 +69,7 @@ function formatEventLine(evt: GameEventLog): string {
 export default function EventLogPanel({ events, meta }: Props) {
   const [filter, setFilter] = useState<'all' | GameEventLog['type']>('all');
   const [copied, setCopied] = useState(false);
-  const [downloaded, setDownloaded] = useState(false);
+  const [downloadedFormat, setDownloadedFormat] = useState<'txt' | 'json' | 'csv' | null>(null);
   const [exportOnSave, setExportOnSave] = useState(loadExportChronicleOnSave);
 
   const allFiltered = useMemo(
@@ -92,22 +92,24 @@ export default function EventLogPanel({ events, meta }: Props) {
     }
   };
 
+  const markDownloaded = (format: 'txt' | 'json' | 'csv') => {
+    setDownloadedFormat(format);
+    window.setTimeout(() => setDownloadedFormat(null), 2000);
+  };
+
   const downloadLogFile = () => {
     downloadChronicleLog(allFiltered, meta);
-    setDownloaded(true);
-    window.setTimeout(() => setDownloaded(false), 2000);
+    markDownloaded('txt');
   };
 
   const downloadLogJSON = () => {
     downloadChronicleJSON(allFiltered, meta);
-    setDownloaded(true);
-    window.setTimeout(() => setDownloaded(false), 2000);
+    markDownloaded('json');
   };
 
   const downloadLogCSV = () => {
     downloadChronicleCSV(allFiltered, meta);
-    setDownloaded(true);
-    window.setTimeout(() => setDownloaded(false), 2000);
+    markDownloaded('csv');
   };
 
   const toggleExportOnSave = () => {
@@ -160,21 +162,21 @@ export default function EventLogPanel({ events, meta }: Props) {
             onClick={downloadLogFile}
             className="rounded bg-amber-800 px-2 py-0.5 font-semibold text-amber-100 hover:bg-amber-700"
           >
-            {downloaded ? 'Saved!' : 'Download .txt'}
+            {downloadedFormat === 'txt' ? 'Saved!' : 'Download .txt'}
           </button>
           <button
             type="button"
             onClick={downloadLogJSON}
             className="rounded bg-stone-800 px-2 py-0.5 font-semibold text-stone-300 hover:bg-stone-700"
           >
-            .json
+            {downloadedFormat === 'json' ? 'Saved!' : '.json'}
           </button>
           <button
             type="button"
             onClick={downloadLogCSV}
             className="rounded bg-stone-800 px-2 py-0.5 font-semibold text-stone-300 hover:bg-stone-700"
           >
-            .csv
+            {downloadedFormat === 'csv' ? 'Saved!' : '.csv'}
           </button>
           <button
             type="button"

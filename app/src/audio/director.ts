@@ -32,16 +32,16 @@ class SoundDirector {
 
   async beginGameplayAudio(): Promise<void> {
     introMusic.stop();
+    audioGraph.primeUnlock();
     await this.unlock();
     await preloadAllSamples();
-    this.startGameplay();
+    this.gameplayActive = true;
+    await backgroundMusic.ensurePlaying();
+    await ambientNature.ensurePlaying();
   }
 
   startGameplay() {
-    if (this.gameplayActive) return;
-    this.gameplayActive = true;
-    void backgroundMusic.start();
-    void ambientNature.start();
+    void this.beginGameplayAudio();
   }
 
   stopAll() {
@@ -57,21 +57,28 @@ class SoundDirector {
     void backgroundMusic.setNightMode(isNight);
   }
 
+  private resumeAfterUnmute(): void {
+    if (introMusic.isRunning) {
+      introMusic.restartPadIfNeeded();
+    } else if (this.gameplayActive) {
+      void backgroundMusic.ensurePlaying();
+      void ambientNature.ensurePlaying();
+    }
+  }
+
   toggleMute(): boolean {
     const muted = audioGraph.toggleMute();
     introMusic.syncMute(muted);
-    if (!muted && introMusic.isRunning) {
-      introMusic.restartPadIfNeeded();
-    }
+    backgroundMusic.syncMute(muted);
+    if (!muted) this.resumeAfterUnmute();
     return muted;
   }
 
   setMute(muted: boolean) {
     audioGraph.setMute(muted);
     introMusic.syncMute(muted);
-    if (!muted && introMusic.isRunning) {
-      introMusic.restartPadIfNeeded();
-    }
+    backgroundMusic.syncMute(muted);
+    if (!muted) this.resumeAfterUnmute();
   }
 
   getMuteState(): boolean {

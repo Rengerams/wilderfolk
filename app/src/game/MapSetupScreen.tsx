@@ -19,6 +19,7 @@ interface MapSetupScreenProps {
   onStart: (villageName: string) => void;
   onLoad?: () => void;
   onBack?: () => void;
+  backLabel?: string;
   hasSave?: boolean;
 }
 
@@ -30,6 +31,7 @@ export default function MapSetupScreen({
   onStart,
   onLoad,
   onBack,
+  backLabel = '← Back to intro',
   hasSave,
 }: MapSetupScreenProps) {
   const [villageName, setVillageName] = useState('New Frontier');
@@ -168,7 +170,7 @@ export default function MapSetupScreen({
               onClick={onBack}
               className="order-2 rounded-lg border border-stone-700 px-4 py-2.5 text-xs font-semibold text-stone-400 transition-all hover:border-stone-600 hover:text-stone-200 sm:order-1"
             >
-              ← Back to intro
+              {backLabel}
             </button>
           ) : (
             <span className="hidden sm:block" />

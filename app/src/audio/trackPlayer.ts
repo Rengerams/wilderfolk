@@ -8,6 +8,38 @@ interface ActiveLoop {
   url: string;
 }
 
+function startLoopSource(
+  ctx: AudioContext,
+  buffer: AudioBuffer,
+  parent: AudioNode,
+  volume: number,
+  fadeSec: number,
+): Omit<ActiveLoop, 'url'> {
+  const t = ctx.currentTime;
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(Math.max(volume, 0.0002), t + fadeSec);
+  source.connect(gain);
+  gain.connect(parent);
+  source.start(t);
+  return { source, gain };
+}
+
+function scheduleLoopFadeOut(loop: ActiveLoop, fadeSec: number): void {
+  const ctx = audioGraph.context;
+  const t = ctx.currentTime;
+  loop.gain.gain.cancelScheduledValues(t);
+  loop.gain.gain.setValueAtTime(Math.max(loop.gain.gain.value, 0.0001), t);
+  loop.gain.gain.exponentialRampToValueAtTime(0.0001, t + fadeSec);
+  const ref = loop;
+  setTimeout(() => {
+    try { ref.source.stop(); } catch { /* ended */ }
+  }, fadeSec * 1000 + 80);
+}
+
 /** Looping or one-shot playback through an audio bus. */
 export class TrackPlayer {
   private loopA: ActiveLoop | null = null;
@@ -27,19 +59,7 @@ export class TrackPlayer {
     this.stop(0.6);
 
     const ctx = audioGraph.context;
-    const t = ctx.currentTime;
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(Math.max(volume, 0.0002), t + fadeInSec);
-
-    source.connect(gain);
-    gain.connect(parent);
-    source.start(t);
-
+    const { source, gain } = startLoopSource(ctx, buffer, parent, volume, fadeInSec);
     this.loopA = { source, gain, url };
     return true;
   }
@@ -59,28 +79,9 @@ export class TrackPlayer {
     if (!buffer || !parent) return false;
 
     const ctx = audioGraph.context;
-    const t = ctx.currentTime;
+    const { source, gain } = startLoopSource(ctx, buffer, parent, volume, durationSec);
 
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(Math.max(volume, 0.0002), t + durationSec);
-
-    source.connect(gain);
-    gain.connect(parent);
-    source.start(t);
-
-    if (current) {
-      current.gain.gain.cancelScheduledValues(t);
-      current.gain.gain.setValueAtTime(Math.max(current.gain.gain.value, 0.0001), t);
-      current.gain.gain.exponentialRampToValueAtTime(0.0001, t + durationSec);
-      const old = current;
-      setTimeout(() => {
-        try { old.source.stop(); } catch { /* ended */ }
-      }, durationSec * 1000 + 80);
-    }
+    if (current) scheduleLoopFadeOut(current, durationSec);
 
     this.loopA = { source, gain, url };
     return true;
@@ -115,17 +116,8 @@ export class TrackPlayer {
   }
 
   stop(fadeSec = 0.5) {
-    const ctx = audioGraph.context;
-    const t = ctx.currentTime;
     for (const loop of [this.loopA, this.loopB]) {
-      if (!loop) continue;
-      loop.gain.gain.cancelScheduledValues(t);
-      loop.gain.gain.setValueAtTime(Math.max(loop.gain.gain.value, 0.0001), t);
-      loop.gain.gain.exponentialRampToValueAtTime(0.0001, t + fadeSec);
-      const ref = loop;
-      setTimeout(() => {
-        try { ref.source.stop(); } catch { /* ended */ }
-      }, fadeSec * 1000 + 80);
+      if (loop) scheduleLoopFadeOut(loop, fadeSec);
     }
     this.loopA = null;
     this.loopB = null;

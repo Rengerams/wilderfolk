@@ -1,6 +1,6 @@
 # Wilderfolk Roadmap
 
-*Last updated: **July 5, 2026** · playing **v0.4.2***
+*Last updated: **July 8, 2026** · playing **v0.4.2** (`GAME_VERSION`); v0.5.0 work in tree pre-tag*
 
 Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHANGELOG.md](CHANGELOG.md) · [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)
 
@@ -8,29 +8,32 @@ Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHA
 
 ## v0.5.0 — Scale + architecture
 
-**Shipped (in code):** 2026-07-05 · **Tag target:** End July 2026 · `GAME_VERSION` still `0.4.2`
+**Shipped (in code):** 2026-07-05 · **Tag target:** End July 2026 · `GAME_VERSION` **0.4.2**
 
 | | Feature |
 |:--:|---------|
 | 🟢 | Election & leadership — decennial ceremony (year-before buildup → 3-day Revelry), incumbent always in race with record score (+8 cap), panel + hints + tutorial synced |
+| 🟢 | Housing logic — beds vs immigration cap in UI; singles share until marriage; child custodian chain (mother → father → grandma → adoption); 18+ move-out; families share when houses full |
 | 🟢 | Dead-entity compaction — alive-only entities each tick |
-| 🟡 | Renderer cache — wire sim byType into render snapshot |
+| 🟢 | Spatial grid — dual-layer grass + mobile cells; graze/hunt/flee wired (`spatialGrid.ts`, on by default) |
+| 🟢 | Web Worker gameTick — opt-in (`VITE_USE_GAME_WORKER=1`); render SoA + proto handshake |
+| 🟢 | Big bug checkup — **242** tracker items closed; Vitest **343** (64 files); lint **0**; build clean |
+| 🟢 | Dialogue-tree settler chat — `sim_dialogue_trees.json` (95 trees); legacy `wf_*` migration; election/marriage chat tests |
+| 🟢 | Build catalog sidebar — `BuildCatalogPanel` (replaces hotbar) |
+| 🟢 | Renderer cache — `world.entityByType` → `RenderSnapshot` → `updateCachedEntities`; viewport grass culling |
 | 🟡 | buildingById go-home — drop commute `.find()` |
-| 🟡 | Grass render spatial buckets |
+| 🟢 | Grass render spatial buckets — `byType[Grass]` + `buildGrassGrid` viewport query; `_cachedGrass` keyed by tick/camera |
 | 🟡 | Benchmark gate — SIM_PROFILE village/town/city + p95 exit |
 | 🟡 | simulate:20year — full 172800-tick PASS |
 | 🟡 | Sim regression — simulate-30min exit on fail |
 | 🟡 | App tab split + memo @ 300 population |
-| ⬜ | Spatial grid — graze, hunt, flee, wolf-pack queries |
 | ⬜ | Settler count denorm — working/idle on WorldState |
 | ⬜ | Incremental entityById — update on birth/death only |
 | ⬜ | buildingActions scan cleanup |
 | ⬜ | Partner id map for relationship lines |
 | ⬜ | Particle / floating-text pooling |
-| ⬜ | Web Worker gameTick — sim off main thread |
-| ⬜ | OffscreenCanvas layers — terrain vs entities |
+| 🟢 | OffscreenCanvas layers — terrain tiles + decor bake (`terrainLayer.ts`); dynamic entity bitmap cache (`entityLayer.ts`); flash overlay on main canvas |
 | ⬜ | GAME_VERSION 0.5.0 + save migration |
-| ⬜ | Big bug checkup after perf refactors |
 | ⬜ | Logical invariant checks + full sim battery |
 | ⬜ | Manual playtest matrix — large map, 10× |
 | ⬜ | Outgoing counter-raid march line + militia sprites |
@@ -48,7 +51,7 @@ Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHA
 
 | | Feature |
 |:--:|---------|
-| 🟢 | 6-tab sidebar, alert strip, map build hotbar, tab hotkeys V/F/N/P/L/M |
+| 🟢 | 6-tab sidebar, alert strip, left build catalog, tab hotkeys V/F/N/P/L/M |
 | 🟢 | Focus Go → actions, Frontier/Progress badges, collapsible inspector |
 | 🟢 | Blacksmith forge queue — iron spears & shields |
 | 🟢 | Forge alerts + Open Blacksmith → |
@@ -79,7 +82,7 @@ Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHA
 | | Feature |
 |:--:|---------|
 | 🟢 | Tribe diplomacy v2 — map camp panel, event cards, respond choices |
-| 🟢 | Frontier raids — defend, barricade, pay off, counter-raid |
+| 🟢 | Frontier raids — defend, barricade, pay off, raid / counter-raid, rival tribute on outgoing march |
 | 🟢 | Combat preview — distance, provisions, defend & raid forecasts |
 | 🟢 | Raid balance — home-turf +25%, distance food 22–50🍖 |
 | 🟢 | Peace treaties — sign with rivals; raids blocked at peace |
@@ -115,7 +118,7 @@ Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHA
 | 🟢 | Defense research tiers; visitors, rivals, festivals, Moon Howlers |
 | 🟢 | Eco-Utopia + Great City victories |
 | 🟢 | Village chronicle + export on save |
-| 🟢 | Sidebar → 6 tabs; alert strip; map hotbar |
+| 🟢 | Sidebar → 6 tabs; alert strip; build catalog |
 | 🟢 | Focus hints; armament checklist |
 | 🟢 | House expand (+2 slots); demolish always visible |
 | 🟢 | `npm run simulate:30min` headless sim |

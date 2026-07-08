@@ -1,21 +1,74 @@
-import type { Camera, Entity } from './gameEngine';
+import type { Camera, Entity, EntityByType } from './gameEngine';
+import { buildEntityDrawBuckets } from './gameEngine';
+import { UNCACHED_RENDER_TICK } from './gameTypes';
 import type { RenderSnapshot } from './renderSnapshot';
+import { updateRenderSoABuckets, getRenderSoABuckets } from './simBuffers/renderSoAEntities';
+import { collectGrassInViewport } from './spatialGrid';
+import { invalidateRenderSoABucketsCache } from './simBuffers/renderSoAEntities';
 import { EntityType, BuildingType, Season, WeatherType, SPECIES_CONFIG, BUILDING_CONFIGS, GRID_SIZE, snapToGrid, TerrainType } from './gameEngine';
-import { getBuildingFootprintForType, normalizeBuildingRotation } from './buildingRotation';
-import { getNightGlowIntensity, NIGHT_HOME_GLOW_TYPES } from './juiceEffects';
+import { WEATHER_CONFIGS } from './gameTypes';
+import { categoryBorderDashForType } from './buildCatalog';
+import type { MapPreset } from './gameTypes';
+import {
+  getBuildingFootprintForType,
+  normalizeBuildingRotation,
+  snapBuildingCenter,
+  type BuildingRotation,
+} from './buildingRotation';
+import {
+  getNightGlowIntensity,
+  NIGHT_HOME_GLOW_TYPES,
+  NIGHT_STAFFED_GLOW_TYPES,
+} from './juiceEffects';
 import { canPlaceBuildingSnapshot, isUnbuildableTerrainType, isWaterTerrainType } from './placementUtils';
 import { getSpriteFrame, type SpriteFrame } from './spriteLoader';
 import {
-  drawPioneerAt, getHumanSpriteMetrics, getHumanSpritePath,
-  getHumanWalkBob, getHumanWalkFrameIndex,
+  drawPioneerAt, getHumanSpriteMetrics,
+  getHumanWalkBob, getHumanWalkFrameIndex, getHumanSpriteFrame,
+  HUMAN_WALK_SPEED_THRESHOLD,
   HUMAN_BASE_SPRITES,
+  type HumanGender,
 } from './humanSprites';
 import { ANIMAL_SPRITE_ANCHOR_Y, getAnimalSpriteMetrics } from './entitySprites';
-import { getAnimatedChatDots } from './humanChat';
+import { getChatBubbleText, resetDialogueSessions, wrapChatLines } from './humanChat';
 import { isNightHour, isWorkHour, shouldBeAtHome } from './dayCycle';
+import { findNearestStaffedSchool, findStaffedSchools, isChildAtSchool } from './education';
+import { isStripBuildType } from './stripBuild';
+import {
+  drawProceduralStripBuilding,
+  drawProceduralWallJunction,
+  drawStripJunctionOverlay,
+} from './stripRender';
+import { detectBuildingJunction } from './stripJunction';
 import { drawRenffrOmen } from './renffrStar';
-import { getHumanStatusCombatIcon, isPredatorType } from './combat';
-import { getPlayerCampCenter } from './frontierCombat';
+import {
+  buildHumanCombatStatusFlags,
+  getHumanStatusCombatIconFromFlags,
+  isPredatorType,
+  type HumanCombatStatusFlags,
+} from './combat';
+import { isPlayerHuman } from './groupEvents';
+import {
+  bakeTerrainLayer,
+  bakeTerrainDecor,
+  disposeTerrainLayer,
+  disposeTerrainDecor,
+  terrainLayerNeedsRebuild,
+  terrainDecorNeedsRebuild,
+  type TerrainLayerCache,
+  type TerrainDecorCache,
+} from './terrainLayer';
+import {
+  beginEntityLayerPaint,
+  buildEntityLayerKey,
+  commitEntityLayerPaint,
+  disposeEntityLayerCache,
+  entityLayerNeedsRebuild,
+  getEntityLayerCache,
+  paintEntityLayerTo,
+} from './entityLayer';
+import type { CanvasContext2d } from './canvasLayer';
+const SCENT_DEBUG = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SCENT_DEBUG === '1';
 
 function isSnowGround(state: RenderSnapshot): boolean {
   return state.season === Season.Winter;
@@ -44,11 +97,46 @@ const SEASON_MODS: Record<Season, Partial<Record<TerrainType, number>>> = {
   [Season.Winter]: { [TerrainType.Grassland]: 0x7e8a6a, [TerrainType.Forest]: 0x6a7a5a, [TerrainType.Hills]: 0x8e8a7a, [TerrainType.DarkForest]: 0x5a6a4a },
 };
 
-// ============ TERRAIN CACHE ============
-let terrainCache: { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; width: number; height: number; seed: number; preset: string; season: Season } | null = null;
+/** Per-preset palette overrides so coastal/arid/harsh maps read differently at a glance. */
+const PRESET_TERRAIN_COLORS: Partial<Record<MapPreset, Partial<Record<TerrainType, number>>>> = {
+  verdant: {},
+  mountainous: {
+    [TerrainType.Grassland]: 0x5a6e42,
+    [TerrainType.Hills]: 0x7a6848,
+    [TerrainType.Mountains]: 0x5a544e,
+    [TerrainType.Rocky]: 0x6e6860,
+  },
+  coastal: {
+    [TerrainType.Grassland]: 0x5a7a48,
+    [TerrainType.ShallowWater]: 0x2e6a9e,
+    [TerrainType.DeepWater]: 0x1a4a78,
+    [TerrainType.Beach]: 0xd8c898,
+    [TerrainType.RiverBank]: 0x6a8a58,
+  },
+  arid: {
+    [TerrainType.Grassland]: 0xb8a068,
+    [TerrainType.Forest]: 0x8a7a48,
+    [TerrainType.DarkForest]: 0x6a5a38,
+    [TerrainType.Hills]: 0xa09060,
+    [TerrainType.Beach]: 0xd4b878,
+    [TerrainType.Rocky]: 0x9a9080,
+  },
+  harsh: {
+    [TerrainType.Grassland]: 0x7a8a72,
+    [TerrainType.Forest]: 0x5a6a52,
+    [TerrainType.Hills]: 0x8a8478,
+    [TerrainType.Snow]: 0xe8eef4,
+    [TerrainType.Mountains]: 0x6a6660,
+  },
+};
 
-function getTerrainColor(type: TerrainType, season: Season, variation: number): string {
-  const hex = SEASON_MODS[season]?.[type] || TERRAIN_COLORS[type] || TERRAIN_COLORS[TerrainType.Grassland];
+// ============ TERRAIN CACHE (OffscreenCanvas — static ground) ============
+let terrainCache: TerrainLayerCache | null = null;
+let terrainDecorCache: TerrainDecorCache | null = null;
+
+function getTerrainColor(type: TerrainType, season: Season, variation: number, preset?: MapPreset): string {
+  const presetHex = preset ? PRESET_TERRAIN_COLORS[preset]?.[type] : undefined;
+  const hex = presetHex ?? SEASON_MODS[season]?.[type] ?? TERRAIN_COLORS[type] ?? TERRAIN_COLORS[TerrainType.Grassland];
   const r = (hex >> 16) & 0xff;
   const g = (hex >> 8) & 0xff;
   const b = hex & 0xff;
@@ -58,51 +146,159 @@ function getTerrainColor(type: TerrainType, season: Season, variation: number): 
 
 function buildTerrainCache(state: RenderSnapshot) {
   if (!state.worldMap) return;
-  const map = state.worldMap;
-  const tileW = Math.ceil(map.width / 10);
-  const tileH = Math.ceil(map.height / 10);
-  const needRebuild = !terrainCache || terrainCache.width !== tileW || terrainCache.height !== tileH || terrainCache.seed !== map.seed || terrainCache.preset !== map.preset || terrainCache.season !== state.season;
-  if (!needRebuild) return;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = tileW;
-  canvas.height = tileH;
-  const ctx = canvas.getContext('2d')!;
-
-  for (let ty = 0; ty < tileH; ty++) {
-    for (let tx = 0; tx < tileW; tx++) {
-      const tile = map.tiles[ty]?.[tx];
-      if (!tile) continue;
-      ctx.fillStyle = getTerrainColor(tile.type, state.season, tile.variation);
-      ctx.fillRect(tx, ty, 1, 1);
-    }
+  if (terrainLayerNeedsRebuild(terrainCache, state.worldMap, state.season)) {
+    disposeTerrainLayer(terrainCache);
+    terrainCache = bakeTerrainLayer(
+      state.worldMap,
+      state.season,
+      (type, season, variation, preset) => getTerrainColor(type, season, variation, preset),
+    );
   }
-
-  terrainCache = { canvas, ctx, width: tileW, height: tileH, seed: map.seed, preset: map.preset, season: state.season };
+  if (terrainDecorNeedsRebuild(terrainDecorCache, state.worldMap, state.width, state.height)) {
+    disposeTerrainDecor(terrainDecorCache);
+    terrainDecorCache = bakeTerrainDecor(state.worldMap, state.width, state.height);
+  }
 }
 
 // ============ CACHED SORTED ENTITY LISTS ============
-let _cachedEntityTick = -1;
+/** Viewport cache key precision — sub-pixel camera drift should not invalidate grass. */
+const GRASS_VIEWPORT_KEY_XY_DIGITS = 1;
+const GRASS_VIEWPORT_KEY_ZOOM_DIGITS = 3;
+
+let _cachedEntityTick = UNCACHED_RENDER_TICK;
+let _cachedGrassKey = '';
 let _cachedTrees: Entity[] = [];
 let _cachedAnimals: Entity[] = [];
 let _cachedHumans: Entity[] = [];
 let _cachedGrass: Entity[] = [];
 
-function updateCachedEntities(entities: Entity[], tick: number) {
-  if (tick === _cachedEntityTick) return;
+function grassViewportKey(
+  tick: number,
+  cam: Camera,
+  cw: number,
+  ch: number,
+): string {
+  return `${tick}|${cam.x.toFixed(GRASS_VIEWPORT_KEY_XY_DIGITS)}|${cam.y.toFixed(GRASS_VIEWPORT_KEY_XY_DIGITS)}|${cam.zoom.toFixed(GRASS_VIEWPORT_KEY_ZOOM_DIGITS)}|${cw}|${ch}`;
+}
+
+function syncDrawCacheTick(tick: number): boolean {
+  if (tick === _cachedEntityTick) return false;
   _cachedEntityTick = tick;
-  const alive = entities.filter(e => e.alive);
-  _cachedTrees = alive.filter(e => e.type === EntityType.Tree).sort((a, b) => a.y - b.y);
-  _cachedGrass = alive.filter(e => e.type === EntityType.Grass);
-  _cachedAnimals = alive.filter(e => e.type !== EntityType.Grass && e.type !== EntityType.Tree && e.type !== EntityType.Human).sort((a, b) => a.y - b.y);
-  _cachedHumans = alive.filter(e => e.type === EntityType.Human).sort((a, b) => a.y - b.y);
+  _cachedGrassKey = '';
+  return true;
+}
+
+function syncGrassDrawCache(
+  tick: number,
+  cam: Camera,
+  cw: number,
+  ch: number,
+  collectVisibleGrass: () => Entity[],
+): void {
+  const grassKey = grassViewportKey(tick, cam, cw, ch);
+  if (grassKey === _cachedGrassKey) return;
+  _cachedGrassKey = grassKey;
+  _cachedGrass = collectVisibleGrass();
+}
+
+function entitiesFromSoASlots(slots: number[], shimBySlot: Map<number, Entity>): Entity[] {
+  const entities: Entity[] = [];
+  for (const slot of slots) {
+    const entity = shimBySlot.get(slot);
+    if (entity) entities.push(entity);
+  }
+  return entities;
+}
+
+function updateCachedEntities(
+  byType: EntityByType,
+  grassGrid: RenderSnapshot['grassGrid'],
+  tick: number,
+  cam: Camera,
+  mapW: number,
+  mapH: number,
+  cw: number,
+  ch: number,
+) {
+  if (syncDrawCacheTick(tick)) {
+    const buckets = buildEntityDrawBuckets(byType);
+    _cachedTrees = buckets.trees;
+    _cachedAnimals = buckets.animals;
+    _cachedHumans = buckets.humans;
+  }
+
+  syncGrassDrawCache(tick, cam, cw, ch, () =>
+    collectGrassInViewport(
+      grassGrid,
+      byType[EntityType.Grass],
+      mapW,
+      mapH,
+      cam.x,
+      cam.y,
+      cam.zoom,
+      cw,
+      ch,
+    ),
+  );
+}
+
+/** Phase B — bucket render SoA slots into draw lists (no Entity[] hydration on main). */
+function updateCachedEntitiesFromSoA(state: RenderSnapshot, cw: number, ch: number) {
+  if (!state.renderSoA) return;
+  if (syncDrawCacheTick(state.tick)) {
+    const buckets = updateRenderSoABuckets(
+      state.renderSoA,
+      state.renderMetaBySlot ?? undefined,
+      state.tick,
+    );
+
+    _cachedTrees = entitiesFromSoASlots(buckets.treeSlots, buckets.shimBySlot);
+    _cachedAnimals = entitiesFromSoASlots(buckets.animalSlots, buckets.shimBySlot);
+    _cachedHumans = entitiesFromSoASlots(buckets.humanSlots, buckets.shimBySlot);
+  }
+
+  syncGrassDrawCache(state.tick, state.camera, cw, ch, () =>
+    collectGrassInViewport(
+      state.grassGrid,
+      [],
+      state.width,
+      state.height,
+      state.camera.x,
+      state.camera.y,
+      state.camera.zoom,
+      cw,
+      ch,
+    ),
+  );
 }
 
 // ============ CACHED NAME WIDTHS ============
 const _nameWidthCache = new Map<string, number>();
+const NAME_WIDTH_CACHE_MAX = 512;
+
+function getCachedNameWidth(
+  ctx: CanvasRenderingContext2D,
+  fullName: string,
+  fontSize: number,
+  zoom: number,
+): number {
+  const key = `${fontSize.toFixed(2)}|${zoom.toFixed(3)}|${fullName}`;
+  let tw = _nameWidthCache.get(key);
+  if (tw == null) {
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    tw = ctx.measureText(fullName).width;
+    if (_nameWidthCache.size >= NAME_WIDTH_CACHE_MAX) {
+      const oldest = _nameWidthCache.keys().next().value;
+      if (oldest != null) _nameWidthCache.delete(oldest);
+    }
+    _nameWidthCache.set(key, tw);
+  }
+  return tw;
+}
 
 // ============ HELPERS ============
 let _time = 0;
+let _lastRenderTime = 0;
 function w2s(x: number, y: number, cam: Camera, cw: number, ch: number): [number, number] {
   return [(x - cam.x) * cam.zoom + cw / 2, (y - cam.y) * cam.zoom + ch / 2];
 }
@@ -230,16 +426,50 @@ function applySeasonTint(hex: string, season: Season): string {
   }
 }
 
-function categoryBorderDash(category: string): number[] {
-  switch (category) {
-    case 'Housing': return [];
-    case 'Food': return [4, 3];
-    case 'Resources': return [2, 2];
-    case 'Industry': return [6, 2, 2, 2];
-    case 'Community': return [3, 3];
-    case 'Infrastructure': return [1, 2];
-    default: return [];
+const DEFAULT_SPRITE_DISPLAY_SCALE = 1.15;
+
+const ISO_PANEL_BUILDINGS = new Set<BuildingType>([
+  BuildingType.Wall,
+  BuildingType.WallCorner,
+  BuildingType.WallGate,
+]);
+
+function getBuildingSpriteDrawBounds(
+  type: BuildingType,
+  w: number,
+  h: number,
+  spriteScale: number,
+  displayScale = DEFAULT_SPRITE_DISPLAY_SCALE,
+): { drawW: number; drawH: number; anchorY: number } {
+  const sc = Math.max(0.1, spriteScale);
+  if (type === BuildingType.Road) {
+    return { drawW: w * sc, drawH: h * sc, anchorY: 0.55 };
   }
+  if (ISO_PANEL_BUILDINGS.has(type)) {
+    const base = Math.max(w, h) * sc * displayScale;
+    return { drawW: base, drawH: base, anchorY: 0.88 };
+  }
+  return {
+    drawW: w * sc * displayScale,
+    drawH: h * sc * displayScale,
+    anchorY: 0.92,
+  };
+}
+
+function drawBuildingSprite(
+  ctx: CanvasRenderingContext2D,
+  type: BuildingType,
+  frame: SpriteFrame,
+  sx: number,
+  sy: number,
+  w: number,
+  h: number,
+  spriteScale: number,
+  rotation: BuildingRotation,
+  displayScale = DEFAULT_SPRITE_DISPLAY_SCALE,
+) {
+  const { drawW, drawH, anchorY } = getBuildingSpriteDrawBounds(type, w, h, spriteScale, displayScale);
+  drawSpriteFrame(ctx, frame, sx, sy, drawW, drawH, 0.5, anchorY, false, {}, 'contain', rotation);
 }
 
 function drawBuildingPad(
@@ -336,40 +566,37 @@ function drawSimpleGreenGround(ctx: CanvasRenderingContext2D, state: RenderSnaps
 
 function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;
-  const worldW = state.width || 1200;
-  const worldH = state.height || 900;
 
-  ctx.fillStyle = '#1a2e1a';
+  const presetVoid = state.worldMap?.preset;
+  const voidColors: Partial<Record<MapPreset, string>> = {
+    coastal: '#0f2840',
+    arid: '#3a3020',
+    harsh: '#2a3238',
+    mountainous: '#1a2420',
+  };
+  ctx.fillStyle = (presetVoid && voidColors[presetVoid]) || '#1a2e1a';
   ctx.fillRect(0, 0, cw, ch);
 
   if (state.worldMap && terrainCache) {
     const [sx0, sy0] = w2s(0, 0, cam, cw, ch);
     const drawTileSize = 10 * cam.zoom;
-    ctx.drawImage(terrainCache.canvas, sx0, sy0, terrainCache.width * drawTileSize, terrainCache.height * drawTileSize);
+    ctx.drawImage(
+      terrainCache.surface as CanvasImageSource,
+      sx0,
+      sy0,
+      terrainCache.width * drawTileSize,
+      terrainCache.height * drawTileSize,
+    );
 
-    if (state.worldMap.rivers) {
-      ctx.strokeStyle = 'rgba(55,115,180,0.7)';
-      ctx.lineWidth = 3 * cam.zoom;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      for (const river of state.worldMap.rivers) {
-        if (river.length < 2) continue;
-        ctx.beginPath();
-        const [rx0, ry0] = w2s(river[0].x, river[0].y, cam, cw, ch);
-        ctx.moveTo(rx0, ry0);
-        for (let i = 1; i < river.length; i++) {
-          const [rx, ry] = w2s(river[i].x, river[i].y, cam, cw, ch);
-          ctx.lineTo(rx, ry);
-        }
-        ctx.stroke();
-      }
+    if (terrainDecorCache) {
+      ctx.drawImage(
+        terrainDecorCache.surface as CanvasImageSource,
+        sx0,
+        sy0,
+        terrainDecorCache.width * cam.zoom,
+        terrainDecorCache.height * cam.zoom,
+      );
     }
-
-    const [tlx, tly] = w2s(0, 0, cam, cw, ch);
-    const [brx, bry] = w2s(worldW, worldH, cam, cw, ch);
-    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(tlx, tly, brx - tlx, bry - tly);
   }
 
   if (state.season === Season.Winter) {
@@ -398,6 +625,8 @@ interface GridViewport {
   ey: number;
   mx0: number;
   my0: number;
+  majorEx: number;
+  majorEy: number;
 }
 
 function getGridViewport(cam: RenderSnapshot['camera'], cw: number, ch: number): GridViewport {
@@ -407,13 +636,19 @@ function getGridViewport(cam: RenderSnapshot['camera'], cw: number, ch: number):
   const wr = cam.x + (cw / 2) / cam.zoom;
   const wt = cam.y - (ch / 2) / cam.zoom;
   const wb = cam.y + (ch / 2) / cam.zoom;
+  const sx0 = Math.floor(wl / gs) * gs;
+  const sy0 = Math.floor(wt / gs) * gs;
+  const mx0 = Math.floor(wl / majorGs) * majorGs;
+  const my0 = Math.floor(wt / majorGs) * majorGs;
   return {
-    sx0: Math.floor(wl / gs) * gs,
-    ex: Math.ceil(wr / gs) * gs,
-    sy0: Math.floor(wt / gs) * gs,
-    ey: Math.ceil(wb / gs) * gs,
-    mx0: Math.floor(wl / majorGs) * majorGs,
-    my0: Math.floor(wt / majorGs) * majorGs,
+    sx0,
+    ex: Math.ceil((wr - sx0) / gs) * gs + sx0,
+    sy0,
+    ey: Math.ceil((wb - sy0) / gs) * gs + sy0,
+    mx0,
+    my0,
+    majorEx: Math.ceil((wr - mx0) / majorGs) * majorGs + mx0,
+    majorEy: Math.ceil((wb - my0) / majorGs) * majorGs + my0,
   };
 }
 
@@ -509,9 +744,7 @@ function drawBuildZoneOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapsh
 
   for (let wx = startX; wx <= endX; wx += step) {
     for (let wy = startY; wy <= endY; wy += step) {
-      const snapX = snapToGrid(wx, gs);
-      const snapY = snapToGrid(wy, gs);
-      if (snapX !== wx || snapY !== wy) continue;
+      const { x: snapX, y: snapY } = snapBuildingCenter(placeType, wx, wy, state.buildRotation);
       const valid = canPlaceBuildingSnapshot(state, placeType, snapX, snapY, state.buildRotation);
       const [px, py] = w2s(snapX, snapY, cam, cw, ch);
       const r = Math.max(2.5, 3.5 * cam.zoom);
@@ -532,10 +765,13 @@ function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: numb
 
   // Validity checker on coarse cells while placing buildings
   if (cam.zoom >= 0.3 && state.buildMode) {
-    for (let wx = vp.mx0; wx < vp.ex; wx += majorGs) {
-      for (let wy = vp.my0; wy < vp.ey; wy += majorGs) {
-        const cx = snapToGrid(wx + majorGs / 2, gs);
-        const cy = snapToGrid(wy + majorGs / 2, gs);
+    for (let wx = vp.mx0; wx <= vp.majorEx; wx += majorGs) {
+      for (let wy = vp.my0; wy <= vp.majorEy; wy += majorGs) {
+        const rawX = wx + majorGs / 2;
+        const rawY = wy + majorGs / 2;
+        const { x: cx, y: cy } = state.buildMode
+          ? snapBuildingCenter(state.buildMode, rawX, rawY, state.buildRotation)
+          : { x: snapToGrid(rawX, gs), y: snapToGrid(rawY, gs) };
         const px = worldToScreenX(wx, cam, cw);
         const py = worldToScreenY(wy, cam, ch);
         const psz = majorGs * cam.zoom;
@@ -561,8 +797,54 @@ function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: numb
     }
   }
 
+  // Enclosed area hint while drawing walls
+  if (state.buildStripPreview?.enclosedAreas?.length) {
+    for (const area of state.buildStripPreview.enclosedAreas) {
+      const [ax, ay] = w2s(area.x, area.y, cam, cw, ch);
+      const aw = area.w * cam.zoom;
+      const ah = area.h * cam.zoom;
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.1)';
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.35)';
+      ctx.lineWidth = Math.max(1, 1.5 / cam.zoom);
+      ctx.setLineDash([6 / cam.zoom, 4 / cam.zoom]);
+      ctx.fillRect(ax, ay, aw, ah);
+      ctx.strokeRect(ax, ay, aw, ah);
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Strip drag preview (walls / roads)
+  if (state.buildMode && state.buildStripPreview && isStripBuildType(state.buildMode)) {
+    for (const seg of state.buildStripPreview.segments) {
+      const placeType = seg.placeType ?? state.buildMode;
+      const segRot = seg.rotation ?? state.buildStripPreview.rotation;
+      const footprint = getBuildingFootprintForType(placeType, segRot);
+      const [gx, gy] = w2s(seg.x, seg.y, cam, cw, ch);
+      const bw = footprint.width * cam.zoom;
+      const bh = footprint.height * cam.zoom;
+      const alpha = seg.valid ? 0.72 : 0.45;
+      if (
+        placeType === BuildingType.WallCorner
+        && seg.junctionInfo
+        && (seg.junctionInfo.kind === 'tee' || seg.junctionInfo.kind === 'cross')
+      ) {
+        drawProceduralWallJunction(ctx, gx, gy, bw, bh, seg.junctionInfo, alpha);
+      } else {
+        drawProceduralStripBuilding(ctx, placeType, gx, gy, bw, bh, segRot, alpha);
+        if (seg.junctionInfo) {
+          drawStripJunctionOverlay(ctx, placeType, gx, gy, bw, bh, seg.junctionInfo, alpha);
+        }
+      }
+      ctx.strokeStyle = seg.valid ? 'rgba(34, 197, 94, 0.9)' : 'rgba(239, 68, 68, 0.85)';
+      ctx.lineWidth = Math.max(1.2, 1.8 / cam.zoom);
+      ctx.setLineDash(seg.valid ? [] : [4, 3]);
+      ctx.strokeRect(gx - bw / 2, gy - bh / 2, bw, bh);
+      ctx.setLineDash([]);
+    }
+  }
+
   // Build ghost — full building footprint
-  if (state.buildMode && state.buildGhost) {
+  if (state.buildMode && state.buildGhost && !(state.buildStripPreview && isStripBuildType(state.buildMode))) {
     const footprint = getBuildingFootprintForType(state.buildMode, state.buildRotation);
     const [gx, gy] = w2s(state.buildGhost.x, state.buildGhost.y, cam, cw, ch);
     const bw = footprint.width * cam.zoom;
@@ -632,9 +914,10 @@ function drawGridTopOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot
     strokeGridLines(ctx, vp, cam, cw, ch, majorGs, false, 'rgba(52, 211, 153, 0.85)', 'rgba(0,0,0,0.45)', majorW);
     if (cam.zoom >= 0.4) {
       const dotR = Math.max(2, 2.5 * cam.zoom);
+      ctx.save();
       ctx.fillStyle = 'rgba(167, 243, 208, 0.9)';
-      for (let x = vp.mx0; x <= vp.ex; x += majorGs) {
-        for (let y = vp.my0; y <= vp.ey; y += majorGs) {
+      for (let x = vp.mx0; x <= vp.majorEx; x += majorGs) {
+        for (let y = vp.my0; y <= vp.majorEy; y += majorGs) {
           const px = worldToScreenX(x, cam, cw);
           const py = worldToScreenY(y, cam, ch);
           if (px < -8 || px > cw + 8 || py < -8 || py > ch + 8) continue;
@@ -643,6 +926,7 @@ function drawGridTopOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot
           ctx.fill();
         }
       }
+      ctx.restore();
     }
     return;
   }
@@ -661,6 +945,7 @@ function drawGridTopOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot
 function drawGrass(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;
   // Batch all grass into a single path for much faster rendering
+  ctx.save();
   ctx.fillStyle = '#22c55e';
   ctx.globalAlpha = 0.16;
 
@@ -679,7 +964,7 @@ function drawGrass(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: num
     ctx.fill();
     drawn++;
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 // ============ TREES (CULLED) ============
@@ -728,16 +1013,35 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
     if (b.type !== BuildingType.Road || !b.completed) continue;
     const { sx, sy, w, h } = getBuildingScreenRect(b);
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
-    const cfg = BUILDING_CONFIGS[b.type];
-    const tint = applySeasonTint(cfg.backgroundColor, state.season);
-    const border = darkerColor(tint, 0.45);
-    const dash = categoryBorderDash(cfg.category);
     const hover = isHovered(b);
     const rot = normalizeBuildingRotation(b.rotation);
-    drawBuildingPad(ctx, cfg.padShape, sx, sy, w, h, tint, border, hover ? 0.55 : 0.35, dash, 1.5);
-    const roadFrame = getSpriteFrame(cfg.sprite);
-    if (roadFrame) drawSpriteFrame(ctx, roadFrame, sx, sy, w, h, 0.5, 0.55, false, {}, 'contain', rot);
-    else { ctx.fillStyle = '#78716c'; ctx.fillRect(sx - w / 2, sy - h / 2, w, h); }
+    drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, hover ? 1 : 0.92);
+    const roadJunction = detectBuildingJunction(state.buildings, b, 'road');
+    if (roadJunction.kind !== 'end' && roadJunction.kind !== 'straight') {
+      drawStripJunctionOverlay(ctx, b.type, sx, sy, w, h, roadJunction, hover ? 1 : 0.92);
+    }
+  }
+
+  // Palisade walls, corners & gates (procedural — chains read clearly on the map)
+  for (const b of state.buildings) {
+    if (!ISO_PANEL_BUILDINGS.has(b.type) || !b.completed) continue;
+    const { sx, sy, w, h } = getBuildingScreenRect(b);
+    if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
+    const rot = b.type === BuildingType.WallCorner
+      ? (b.rotation ?? 0)
+      : normalizeBuildingRotation(b.rotation);
+    const hover = isHovered(b);
+    const alpha = hover ? 1 : 0.94;
+    if (b.type === BuildingType.WallCorner) {
+      const wallJunction = detectBuildingJunction(state.buildings, b, 'wall');
+      if (wallJunction.kind === 'tee' || wallJunction.kind === 'cross') {
+        drawProceduralWallJunction(ctx, sx, sy, w, h, wallJunction, alpha);
+      } else {
+        drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, alpha);
+      }
+    } else {
+      drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, alpha);
+    }
   }
 
   // Under construction
@@ -748,9 +1052,22 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
     const cfg = BUILDING_CONFIGS[b.type];
     const tint = applySeasonTint(cfg.backgroundColor, state.season);
     const border = darkerColor(tint, 0.35);
-    const dash = categoryBorderDash(cfg.category);
+    const dash = categoryBorderDashForType(b.type);
     const hover = isHovered(b);
     drawBuildingPad(ctx, cfg.padShape, sx, sy, w, h, tint, border, hover ? 0.45 : 0.28, dash, 1.5);
+    const rot = normalizeBuildingRotation(b.rotation);
+    if (isStripBuildType(b.type)) {
+      drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, 0.55);
+    } else {
+      const frame = getSpriteFrame(cfg.sprite);
+      if (frame) {
+        drawBuildingSprite(
+          ctx, b.type, frame, sx, sy, w, h,
+          Math.max(0.55, b.spriteScale || 0.55),
+          rot,
+        );
+      }
+    }
 
     // Progress bar
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
@@ -763,8 +1080,10 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
     ctx.fillText(`${Math.floor(b.constructionProgress)}%`, sx, sy + 3);
   }
 
-  // Completed buildings
-  const sorted = state.buildings.filter(b => b.completed).sort((a, b) => (a.y + a.height / 2) - (b.y + b.height / 2));
+  // Completed buildings (roads and wall panels already drawn above)
+  const sorted = state.buildings
+    .filter((b) => b.completed && b.type !== BuildingType.Road && !ISO_PANEL_BUILDINGS.has(b.type))
+    .sort((a, b) => (a.y + a.height / 2) - (b.y + b.height / 2));
   for (const b of sorted) {
     const { sx, sy, w, h } = getBuildingScreenRect(b);
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
@@ -787,18 +1106,16 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
     const isRival = b.faction === 'rival';
     const tint = isRival ? '#312e81' : applySeasonTint(cfg.backgroundColor, state.season);
     const border = isRival ? '#6366f1' : darkerColor(tint, 0.4);
-    const dash = categoryBorderDash(cfg.category);
+    const dash = categoryBorderDashForType(b.type);
     const baseAlpha = hover ? 0.52 : isRival ? 0.42 : 0.38;
     drawBuildingPad(ctx, cfg.padShape, sx, sy, padW, padH, tint, border, baseAlpha, dash, isRival ? 2 : 1.5);
 
     if (frame) {
-      const sc = Math.max(0.1, b.spriteScale || 1);
-      const displayScale = cfg.spriteDisplayScale ?? 1.15;
-      const rot = normalizeBuildingRotation(b.rotation);
-      drawSpriteFrame(
-        ctx, frame, sx, sy,
-        w * sc * displayScale, h * sc * displayScale,
-        0.5, 0.92, false, {}, 'contain', rot,
+      drawBuildingSprite(
+        ctx, b.type, frame, sx, sy, w, h,
+        b.spriteScale || 1,
+        normalizeBuildingRotation(b.rotation),
+        cfg.spriteDisplayScale ?? DEFAULT_SPRITE_DISPLAY_SCALE,
       );
     } else {
       ctx.fillStyle = '#e7e5e4';
@@ -871,7 +1188,13 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
 }
 
 // ============ ANIMALS (CULLED) ============
-function drawAnimals(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+function drawAnimals(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+  forEntityLayerCache = false,
+) {
   const cam = state.camera;
 
   for (const e of _cachedAnimals) {
@@ -907,7 +1230,7 @@ function drawAnimals(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: n
       ctx.fill();
     };
 
-    if (e.flash > 0) {
+    if (e.flash > 0 && !forEntityLayerCache) {
       ctx.globalAlpha = 0.7 + Math.sin(_time * 20) * 0.3;
       drawAnimal();
       ctx.globalAlpha = 1;
@@ -971,14 +1294,21 @@ function drawSpeechBubble(
 ) {
   if (zoom < 0.45) return;
 
+  ctx.save();
   const bob = Math.sin(tick * 0.14 + entityId) * 1.5;
-  const fontSize = Math.max(6, Math.min(8, 7 * zoom));
+  const fontSize = Math.max(5.5, Math.min(7.5, 6.5 * zoom));
   ctx.font = `bold ${fontSize}px sans-serif`;
   const padX = 5;
   const padY = 3;
-  const tw = ctx.measureText(text).width;
-  const bw = Math.ceil(tw + padX * 2);
-  const bh = Math.ceil(fontSize + padY * 2);
+  const lineGap = 2;
+  const lines = text.includes('\n') ? text.split('\n') : wrapChatLines(text);
+  let maxLineW = 0;
+  for (const line of lines) {
+    maxLineW = Math.max(maxLineW, ctx.measureText(line).width);
+  }
+  const bw = Math.ceil(maxLineW + padX * 2);
+  const lineH = fontSize + lineGap;
+  const bh = Math.ceil(padY * 2 + lines.length * lineH - lineGap);
   const bx = Math.round(sx - bw / 2);
   const by = Math.round(sy - size - bh - 12 + bob);
 
@@ -1000,44 +1330,110 @@ function drawSpeechBubble(
 
   ctx.fillStyle = '#1c1917';
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, sx, by + bh / 2);
+  ctx.textBaseline = 'top';
+  const textStartY = by + padY + fontSize * 0.1;
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i]!, sx, textStartY + i * lineH);
+  }
   ctx.textBaseline = 'alphabetic';
+  ctx.restore();
 }
 
-function getStatusIcon(
-  human: Entity,
-  hourOfDay: number,
-  unlockedTechs: readonly string[],
-  hasBlacksmith: boolean,
-  villageForge: RenderSnapshot['villageForge'],
-  buildings: RenderSnapshot['buildings'],
-  villageLeaderId: number | null,
-): string {
-  if (villageLeaderId != null && human.id === villageLeaderId) return '👑';
-  const combatIcon = getHumanStatusCombatIcon(human, unlockedTechs, hasBlacksmith, villageForge, buildings);
+function buildConstructionWorkerIds(buildings: RenderSnapshot['buildings']): Set<number> {
+  const ids = new Set<number>();
+  for (const b of buildings) {
+    if (b.completed) continue;
+    for (const id of b.occupants) ids.add(id);
+  }
+  return ids;
+}
+
+interface HumanStatusIconContext {
+  hourOfDay: number;
+  villageLeaderId: number | null;
+  constructionWorkerIds: Set<number>;
+  combatFlags: HumanCombatStatusFlags;
+  childSchoolById: Map<number, RenderSnapshot['buildings'][number] | undefined>;
+}
+
+function buildHumanStatusIconContext(
+  state: RenderSnapshot,
+  humans: readonly Entity[],
+): HumanStatusIconContext {
+  const staffedSchools = findStaffedSchools(state.buildings);
+  const childSchoolById = new Map<number, RenderSnapshot['buildings'][number] | undefined>();
+  for (const human of humans) {
+    if (!human.isJuvenile) continue;
+    childSchoolById.set(human.id, findNearestStaffedSchool(human, staffedSchools));
+  }
+  return {
+    hourOfDay: state.hourOfDay,
+    villageLeaderId: state.villageLeaderId,
+    constructionWorkerIds: buildConstructionWorkerIds(state.buildings),
+    combatFlags: buildHumanCombatStatusFlags(
+      state.unlockedTechs,
+      state.hasBlacksmith,
+      state.villageForge,
+      state.buildings,
+    ),
+    childSchoolById,
+  };
+}
+
+function getStatusIcon(human: Entity, ctx: HumanStatusIconContext): string {
+  if (ctx.villageLeaderId != null && human.id === ctx.villageLeaderId) return '👑';
+  if (human.moonHowlerCursed) return '🌝';
+  const combatIcon = getHumanStatusCombatIconFromFlags(human, ctx.combatFlags);
   if (combatIcon) return combatIcon;
   if (human.faction === 'visitor') return '🧳';
   if (human.faction === 'rival') return '🏕️';
-  if (human.isJuvenile) return '👶';
+  if (human.isJuvenile) {
+    const school = ctx.childSchoolById.get(human.id);
+    if (school && isWorkHour(ctx.hourOfDay)) {
+      return isChildAtSchool(human, school) ? '📚' : '🎒';
+    }
+    return '👶';
+  }
   if (human.pregnant) return '🤰';
-  if (human.courtshipProgress && human.courtshipProgress > 0 && !shouldBeAtHome(hourOfDay)) return '💕';
-  if (shouldBeAtHome(hourOfDay)) return '🏠';
-  const onConstruction = buildings.some(
-    (b) => !b.completed && b.occupants.includes(human.id),
-  );
-  if (isWorkHour(hourOfDay) && (human.homeBuildingId || onConstruction)) return '🔨';
+  if (human.courtshipProgress && human.courtshipProgress > 0 && !shouldBeAtHome(ctx.hourOfDay)) return '💕';
+  if (shouldBeAtHome(ctx.hourOfDay)) return '🏠';
+  if (isWorkHour(ctx.hourOfDay) && (human.homeBuildingId || ctx.constructionWorkerIds.has(human.id))) return '🔨';
   if (human.relationshipStatus === 'married' && human.partnerId) return '💍';
   return '🚶';
+}
+
+function buildResidentCountByBuilding(humans: readonly Entity[]): Map<number, number> {
+  const counts = new Map<number, number>();
+  for (const human of humans) {
+    if (!isPlayerHuman(human)) continue;
+    const residenceId = human.residenceBuildingId;
+    if (residenceId == null) continue;
+    counts.set(residenceId, (counts.get(residenceId) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function getPlayerCampCenterFromBuildings(buildings: RenderSnapshot['buildings']): { x: number; y: number } {
+  const playerBuildings = buildings.filter((b) => b.completed && b.faction !== 'rival');
+  const townHall = playerBuildings.find((b) => b.type === BuildingType.TownHall);
+  if (townHall) {
+    return { x: townHall.x + townHall.width / 2, y: townHall.y + townHall.height / 2 };
+  }
+  const house = playerBuildings.find((b) => b.type === BuildingType.House);
+  if (house) {
+    return { x: house.x + house.width / 2, y: house.y + house.height / 2 };
+  }
+  if (playerBuildings.length > 0) {
+    const b = playerBuildings[0];
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  }
+  return { x: 0, y: 0 };
 }
 
 function drawRaidMarchLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (!state.pendingRaidEvents?.length || state.camera.zoom < 0.35) return;
   const cam = state.camera;
-  const village = getPlayerCampCenter(
-    { buildings: state.buildings, entities: state.entities } as import('./gameTypes').WorldState,
-    state.buildings,
-  );
+  const village = getPlayerCampCenterFromBuildings(state.buildings);
   const vx = (village.x - cam.x) * cam.zoom + cw / 2;
   const vy = (village.y - cam.y) * cam.zoom + ch / 2;
 
@@ -1064,12 +1460,22 @@ function drawRaidMarchLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot
 function drawHuntChaseLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (state.camera.zoom < 0.4) return;
   const cam = state.camera;
-  const entityById = new Map(state.entities.map((e) => [e.id, e]));
+  const hunters = state.renderSoA
+    ? [..._cachedAnimals, ..._cachedHumans]
+    : state.entities.filter((e) => e.alive && e.huntTargetId);
+  const entityById = new Map<number, Entity>();
+  if (state.renderSoA) {
+    for (const shim of getRenderSoABuckets().shims) entityById.set(shim.id, shim);
+  } else {
+    for (const e of state.entities) {
+      if (e.alive) entityById.set(e.id, e);
+    }
+  }
 
-  for (const hunter of state.entities) {
-    if (!hunter.alive || !hunter.huntTargetId) continue;
+  for (const hunter of hunters) {
+    if (!hunter.huntTargetId) continue;
     const prey = entityById.get(hunter.huntTargetId);
-    if (!prey?.alive) continue;
+    if (!prey) continue;
 
     const hx = (hunter.x - cam.x) * cam.zoom + cw / 2;
     const hy = (hunter.y - cam.y) * cam.zoom + ch / 2;
@@ -1095,16 +1501,25 @@ function drawHuntChaseLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot
 
 function drawCombatBurst(ctx: CanvasRenderingContext2D, sx: number, sy: number, size: number, tick: number, entityId: number) {
   const pulse = 0.5 + Math.sin(tick * 0.5 + entityId) * 0.5;
+  ctx.save();
   ctx.strokeStyle = `rgba(251,191,36,${0.35 + pulse * 0.35})`;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.arc(sx, sy, size * 0.55 + pulse * 3, 0, Math.PI * 2);
   ctx.stroke();
+  ctx.restore();
 }
 
-function drawHumans(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+function drawHumans(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+  forEntityLayerCache = false,
+) {
   const tick = state.tick;
   const cam = state.camera;
+  const statusCtx = buildHumanStatusIconContext(state, _cachedHumans);
 
   for (const human of _cachedHumans) {
     const sx = (human.x - cam.x) * cam.zoom + cw / 2;
@@ -1116,8 +1531,9 @@ function drawHumans(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: nu
     const isSel = state.selectedEntity?.id === human.id;
     const flipX = human.vx < -0.05 || (Math.abs(human.vx) <= 0.05 && Math.cos(human.spriteAngle) < 0);
     const speed = Math.hypot(human.vx, human.vy);
-    const walkFrame = getHumanWalkFrameIndex(human.animFrame, speed);
-    const walkMotion = getHumanWalkMotion(human, cam.zoom, true, walkFrame);
+    const isWalking = speed > HUMAN_WALK_SPEED_THRESHOLD;
+    const walkFrame = isWalking ? getHumanWalkFrameIndex(human.animFrame, speed) : 0;
+    const walkMotion = getHumanWalkMotion(human, cam.zoom, isWalking, walkFrame);
     const drawSize = size;
     const footY = sy + footOffset;
     const headY = footY - spriteH;
@@ -1130,9 +1546,10 @@ function drawHumans(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: nu
     ctx.fill();
 
     const drawHuman = () => {
-      const spritePath = getHumanSpritePath(human);
-      const frame = getSpriteFrame(spritePath)
-        ?? getSpriteFrame(HUMAN_BASE_SPRITES[human.gender ?? 'male']);
+      const gender = (human.gender ?? 'male') as HumanGender;
+      const frame = isWalking
+        ? getHumanSpriteFrame(gender, human.spriteVariant ?? 0, walkFrame)
+        : getSpriteFrame(HUMAN_BASE_SPRITES[gender]);
       if (frame) {
         const aspect = frame.sw / frame.sh;
         const anchorY = frame.anchorY ?? 1;
@@ -1149,10 +1566,11 @@ function drawHumans(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: nu
       );
     };
 
-    if (human.flash > 0) {
+    if (human.flash > 0 && !forEntityLayerCache) {
+      ctx.save();
       ctx.globalAlpha = 0.7 + Math.sin(_time * 20) * 0.3;
       drawHuman();
-      ctx.globalAlpha = 1;
+      ctx.restore();
     } else {
       drawHuman();
     }
@@ -1164,7 +1582,7 @@ function drawHumans(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: nu
     const isTalking = (human.chatTicks ?? 0) > 0;
     if (isTalking) {
       drawTalkingMouth(ctx, sx, headY + spriteH * 0.12, drawSize, flipX, human.animFrame);
-      const bubbleText = human.chatPhrase || getAnimatedChatDots(tick, human.id);
+      const bubbleText = getChatBubbleText(human, tick);
       drawSpeechBubble(ctx, sx, headY, drawSize, bubbleText, tick, human.id, cam.zoom);
     }
 
@@ -1179,11 +1597,7 @@ function drawHumans(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: nu
       ctx.font = '8px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(
-        getStatusIcon(human, state.hourOfDay, state.unlockedTechs, state.hasBlacksmith, state.villageForge, state.buildings, state.villageLeaderId),
-        bx,
-        by,
-      );
+      ctx.fillText(getStatusIcon(human, statusCtx), bx, by);
       ctx.textBaseline = 'alphabetic';
     }
 
@@ -1197,18 +1611,14 @@ function drawHumans(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: nu
       ctx.stroke();
     }
 
-    if (human.name && cam.zoom > (human.isJuvenile ? 0.38 : 0.45)) {
+    if ((human.name || human.surname) && cam.zoom > (human.isJuvenile ? 0.38 : 0.45)) {
       const prefix = human.faction === 'visitor' ? '↗ ' : human.faction === 'rival' ? '⚑ ' : '';
       const childTag = human.isJuvenile ? ' · child' : '';
-      const fullName = prefix + (human.surname ? `${human.name} ${human.surname}` : human.name) + childTag;
-      let tw = _nameWidthCache.get(fullName);
-      if (!tw) {
-        const fontSize = Math.max(7, Math.min(9, 8 * cam.zoom));
-        ctx.font = `bold ${fontSize}px sans-serif`;
-        tw = ctx.measureText(fullName).width;
-        _nameWidthCache.set(fullName, tw);
-      }
+      const idTag = !human.faction && cam.zoom > 0.72 ? ` #${human.id}` : '';
+      const displayName = human.name?.trim() || 'Settler';
+      const fullName = prefix + (human.surname ? `${displayName} ${human.surname}` : displayName) + idTag + childTag;
       const fontSize = Math.max(7, Math.min(9, 8 * cam.zoom));
+      const tw = getCachedNameWidth(ctx, fullName, fontSize, cam.zoom);
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
       ctx.fillRect(sx - tw / 2 - 3, labelY - fontSize - 2, tw + 6, fontSize + 4);
       ctx.fillStyle = human.faction === 'visitor' ? '#67e8f9' : human.faction === 'rival' ? '#fdba74' : human.gender === 'male' ? '#fbbf24' : '#fda4af';
@@ -1347,6 +1757,7 @@ function drawParticleShape(
 
 function drawParticles(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;
+  ctx.save();
   for (const p of state.deathParticles) {
     const sx = (p.x - cam.x) * cam.zoom + cw / 2;
     const sy = (p.y - cam.y) * cam.zoom + ch / 2;
@@ -1354,21 +1765,24 @@ function drawParticles(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
     if (sx + size < -20 || sx - size > cw + 20 || sy + size < -20 || sy - size > ch + 20) continue;
     drawParticleShape(ctx, sx, sy, size, p, p.life / p.maxLife);
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 // ============ NIGHT BUILDING GLOW ============
 function drawNightBuildingGlow(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
-  if (!isNightHour(state.hourOfDay) || state.camera.zoom < 0.32) return;
+  if (!isNightHour(state.hourOfDay) || state.camera.zoom < 0.32 || !state.juiceEffectsEnabled) return;
   const cam = state.camera;
+  const residentCountByBuilding = buildResidentCountByBuilding(_cachedHumans);
 
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
 
   for (const b of state.buildings) {
     if (!b.completed || b.faction === 'rival') continue;
-    if (!state.juiceEffectsEnabled) continue;
-    const intensity = getNightGlowIntensity(b, state.entities);
+    const mayGlow = NIGHT_HOME_GLOW_TYPES.has(b.type)
+      || (NIGHT_STAFFED_GLOW_TYPES.has(b.type) && b.occupants.length > 0);
+    if (!mayGlow) continue;
+    const intensity = getNightGlowIntensity(b, residentCountByBuilding.get(b.id) ?? 0);
     if (intensity <= 0) continue;
 
     const sx = (b.x - cam.x) * cam.zoom + cw / 2;
@@ -1439,6 +1853,7 @@ function drawFloatingTexts(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
   const gridSize = 60;
   const gridMap = new Map<string, number>();
 
+  ctx.save();
   for (const ft of state.floatingTexts) {
     const sx = (ft.x - cam.x) * cam.zoom + cw / 2;
     const sy = (ft.y - cam.y) * cam.zoom + ch / 2;
@@ -1457,16 +1872,17 @@ function drawFloatingTexts(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
     ctx.textAlign = 'center';
     ctx.fillText(ft.text, sx, sy + offsetY);
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 // ============ ECOSYSTEM CONNECTIONS ============
 function drawEcoConnections(ctx: CanvasRenderingContext2D, _state: RenderSnapshot, cam: Camera, cw: number, ch: number) {
   if (cam.zoom < 0.6) return;
 
+  const humanById = new Map(_cachedHumans.map((h) => [h.id, h]));
   for (const h of _cachedHumans) {
-    if (h.partnerId && h.relationshipStatus === 'married' && h.gender === 'male') {
-      const p = _cachedHumans.find(x => x.id === h.partnerId);
+    if (h.partnerId && h.relationshipStatus === 'married' && h.id < h.partnerId) {
+      const p = humanById.get(h.partnerId);
       if (!p) continue;
       const x1 = (h.x - cam.x) * cam.zoom + cw / 2;
       const y1 = (h.y - 8 - cam.y) * cam.zoom + ch / 2;
@@ -1509,7 +1925,9 @@ function drawSeasonOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
 
 // ============ BUILD PREVIEW ============
 function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
-  if (!state.buildMode || !state.buildGhost) return;
+  if (!state.buildMode) return;
+  if (state.buildStripPreview && isStripBuildType(state.buildMode)) return;
+  if (!state.buildGhost) return;
   const sx = (state.buildGhost.x - state.camera.x) * state.camera.zoom + cw / 2;
   const sy = (state.buildGhost.y - state.camera.y) * state.camera.zoom + ch / 2;
   const cfg = BUILDING_CONFIGS[state.buildMode];
@@ -1520,18 +1938,17 @@ function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
   // Category-colored pad with validity tint
   const tint = state.buildGhost.valid ? cfg.backgroundColor : '#7f1d1d';
   const border = state.buildGhost.valid ? darkerColor(tint, 0.4) : '#ef4444';
-  const dash = categoryBorderDash(cfg.category);
+  const dash = categoryBorderDashForType(state.buildMode);
   const pad = Math.max(2, Math.min(w, h) * 0.08);
   drawBuildingPad(ctx, cfg.padShape, sx, sy, w + pad * 2, h + pad * 2, tint, border, 0.35, dash, 1.5);
 
   const previewFrame = getSpriteFrame(cfg.sprite);
   ctx.globalAlpha = 0.55;
   if (previewFrame) {
-    const displayScale = cfg.spriteDisplayScale ?? 1.15;
-    drawSpriteFrame(
-      ctx, previewFrame, sx, sy,
-      w * displayScale, h * displayScale,
-      0.5, 0.92, false, {}, 'contain', state.buildRotation,
+    drawBuildingSprite(
+      ctx, state.buildMode, previewFrame, sx, sy, w, h, 1,
+      state.buildRotation,
+      cfg.spriteDisplayScale ?? DEFAULT_SPRITE_DISPLAY_SCALE,
     );
   } else {
     ctx.fillStyle = state.buildGhost.valid ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)';
@@ -1551,22 +1968,34 @@ function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
 interface WParticle { x: number; y: number; vx: number; vy: number; s: number; a: number }
 let wParts: WParticle[] = [];
 let lastWType: WeatherType | null = null;
+let lastWeatherCw = 0;
+let lastWeatherCh = 0;
 
 function updateWeatherParticles(w: WeatherType, cw: number, ch: number) {
+  if (w === WeatherType.Clear) {
+    wParts = [];
+    lastWType = w;
+    return;
+  }
   if (w !== lastWType) {
     lastWType = w;
     wParts = [];
-    const count = w === 'rain' ? 40 : w === 'snow' ? 25 : w === 'storm' ? 50 : 0;
+  }
+  if (wParts.length === 0 || cw !== lastWeatherCw || ch !== lastWeatherCh) {
+    wParts = [];
+    const count = WEATHER_CONFIGS[w].particleCount;
     for (let i = 0; i < count; i++) {
       wParts.push({
         x: Math.random() * cw * 1.5 - cw * 0.25,
         y: Math.random() * ch * 1.5 - ch * 0.25,
-        vx: w === 'storm' ? (Math.random() - 0.3) * 3 : (Math.random() - 0.5) * 0.5,
-        vy: w === 'snow' ? 0.5 + Math.random() : 2 + Math.random() * 3,
-        s: w === 'snow' ? 2 + Math.random() * 2 : 1 + Math.random(),
+        vx: w === WeatherType.Storm ? (Math.random() - 0.3) * 3 : (Math.random() - 0.5) * 0.5,
+        vy: w === WeatherType.Snow ? 0.5 + Math.random() : 2 + Math.random() * 3,
+        s: w === WeatherType.Snow ? 2 + Math.random() * 2 : 1 + Math.random(),
         a: 0.3 + Math.random() * 0.4,
       });
     }
+    lastWeatherCw = cw;
+    lastWeatherCh = ch;
   }
   for (const p of wParts) {
     p.x += p.vx; p.y += p.vy;
@@ -1576,15 +2005,29 @@ function updateWeatherParticles(w: WeatherType, cw: number, ch: number) {
   }
 }
 
+function weatherOverlayStyle(color: string, alpha: number): string {
+  if (!color) return `rgba(0, 0, 0, ${alpha})`;
+  const hex = color.replace('#', '');
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function drawWeather(ctx: CanvasRenderingContext2D, w: WeatherType, cw: number, ch: number) {
   updateWeatherParticles(w, cw, ch);
-  if (w === 'fog') { ctx.fillStyle = 'rgba(180,170,155,0.2)'; ctx.fillRect(0, 0, cw, ch); return; }
-  if (w === 'drought') { ctx.fillStyle = 'rgba(180,100,20,0.06)'; ctx.fillRect(0, 0, cw, ch); return; }
+  const weatherCfg = WEATHER_CONFIGS[w];
+  if (weatherCfg.overlayAlpha > 0) {
+    ctx.fillStyle = weatherOverlayStyle(weatherCfg.color, weatherCfg.overlayAlpha);
+    ctx.fillRect(0, 0, cw, ch);
+    return;
+  }
   if (wParts.length === 0) return;
 
+  ctx.save();
   // Batch weather particles
-  if (w === 'snow') {
-    ctx.fillStyle = '#fff';
+  if (w === WeatherType.Snow) {
+    ctx.fillStyle = weatherCfg.color || '#fff';
     for (const p of wParts) {
       ctx.globalAlpha = p.a;
       ctx.beginPath();
@@ -1592,31 +2035,185 @@ function drawWeather(ctx: CanvasRenderingContext2D, w: WeatherType, cw: number, 
       ctx.fill();
     }
   } else {
-    ctx.strokeStyle = w === 'storm' ? '#90a0b0' : '#8a9aaa';
+    ctx.strokeStyle = weatherCfg.color;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.45;
     ctx.beginPath();
     for (const p of wParts) {
-      ctx.globalAlpha = p.a;
-      ctx.lineWidth = p.s;
       ctx.moveTo(p.x, p.y);
       ctx.lineTo(p.x + p.vx * 2, p.y + p.vy * 2);
-      ctx.stroke();
     }
+    ctx.stroke();
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
 
-  if (w === 'storm' && Math.random() < 0.003) {
+  if (w === WeatherType.Storm && Math.random() < 0.003) {
     ctx.fillStyle = `rgba(255,255,255,${0.3 + Math.random() * 0.4})`;
     ctx.fillRect(0, 0, cw, ch);
   }
 }
 
+function drawScentOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+  if (!SCENT_DEBUG) return;
+  const grid = state.scentGrid;
+  const reader = state.scentReader;
+  if (!grid && !reader) return;
+
+  const cam = state.camera;
+  const cellSize = grid?.cellSize ?? reader!.cellSize;
+  const cols = grid?.cols ?? reader!.cols;
+  const rows = grid?.rows ?? reader!.rows;
+  let max = 0;
+  if (reader) {
+    max = reader.maxScent();
+  } else if (grid) {
+    for (let i = 0; i < grid.values.length; i++) {
+      if (grid.values[i] > max) max = grid.values[i];
+    }
+  }
+  if (max <= 0) return;
+
+  const wl = cam.x - (cw / 2) / cam.zoom;
+  const wr = cam.x + (cw / 2) / cam.zoom;
+  const wt = cam.y - (ch / 2) / cam.zoom;
+  const wb = cam.y + (ch / 2) / cam.zoom;
+  const col0 = Math.max(0, Math.floor(wl / cellSize));
+  const col1 = Math.min(cols - 1, Math.ceil(wr / cellSize));
+  const row0 = Math.max(0, Math.floor(wt / cellSize));
+  const row1 = Math.min(rows - 1, Math.ceil(wb / cellSize));
+  const cellPx = cellSize * cam.zoom;
+
+  for (let row = row0; row <= row1; row++) {
+    for (let col = col0; col <= col1; col++) {
+      const scent = grid ? grid.values[row * cols + col] : reader!.scentAt(col, row);
+      if (scent <= 0) continue;
+      const sx = worldToScreenX(col * cellSize, cam, cw);
+      const sy = worldToScreenY(row * cellSize, cam, ch);
+      const alpha = Math.min(0.5, (scent / max) * 0.45);
+      ctx.fillStyle = `rgba(168,72,232,${alpha})`;
+      ctx.fillRect(sx, sy, cellPx, cellPx);
+    }
+  }
+}
+
+function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: number, ch: number): void {
+  // OffscreenCanvas 2d contexts are API-compatible with CanvasRenderingContext2D for draw passes.
+  const drawCtx = ctx as CanvasRenderingContext2D;
+  drawScentOverlay(drawCtx, state, cw, ch);
+  drawBuildZoneOverlay(drawCtx, state, cw, ch);
+  drawGrid(drawCtx, state, cw, ch);
+  drawGrass(drawCtx, state, cw, ch);
+  drawTrees(drawCtx, state, cw, ch);
+  drawBuildings(drawCtx, state, cw, ch);
+  drawCampMarkers(drawCtx, state, cw, ch);
+  drawEcoConnections(drawCtx, state, state.camera, cw, ch);
+  drawBuildPreview(drawCtx, state, cw, ch);
+  drawAnimals(drawCtx, state, cw, ch, true);
+  drawRaidMarchLines(drawCtx, state, cw, ch);
+  drawHuntChaseLines(drawCtx, state, cw, ch);
+  drawHumans(drawCtx, state, cw, ch, true);
+  drawParticles(drawCtx, state, cw, ch);
+  drawFloatingTexts(drawCtx, state, cw, ch);
+}
+
+function drawEntityFlashOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number): void {
+  const cam = state.camera;
+  for (const e of _cachedAnimals) {
+    if (e.flash <= 0) continue;
+    const sx = (e.x - cam.x) * cam.zoom + cw / 2;
+    const sy = (e.y - cam.y) * cam.zoom + ch / 2;
+    const { spriteH } = getAnimalSpriteMetrics(e, cam.zoom);
+    ctx.save();
+    ctx.globalAlpha = 0.7 + Math.sin(_time * 20) * 0.3;
+    ctx.strokeStyle = 'rgba(251,191,36,0.85)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(sx, sy, spriteH * 0.4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  for (const human of _cachedHumans) {
+    if (human.flash <= 0) continue;
+    const sx = (human.x - cam.x) * cam.zoom + cw / 2;
+    const sy = (human.y - cam.y) * cam.zoom + ch / 2;
+    const { size, spriteH, footOffset } = getHumanSpriteMetrics(human, cam.zoom);
+    const footY = sy + footOffset;
+    ctx.save();
+    ctx.globalAlpha = 0.7 + Math.sin(_time * 20) * 0.3;
+    ctx.strokeStyle = 'rgba(251,191,36,0.85)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(sx, footY - spriteH * 0.48, size * 0.42, spriteH * 0.54, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function compositeCachedEntityLayer(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+): void {
+  const layerKey = buildEntityLayerKey(state, cw, ch);
+  const existing = getEntityLayerCache();
+  if (!entityLayerNeedsRebuild(existing, layerKey, cw, ch)) {
+    paintEntityLayerTo(ctx, existing!);
+    return;
+  }
+
+  const layer = beginEntityLayerPaint(layerKey, cw, ch);
+  paintWorldEntityLayer(layer.ctx, state, cw, ch);
+  commitEntityLayerPaint(layerKey);
+  paintEntityLayerTo(ctx, layer);
+}
+
 // ============ MAIN RENDER ============
 /** Read-only render pass — camera/screenShake must be pre-interpolated in the snapshot. */
+/** Clear module-level render caches when starting a new session or loading a save. */
+export function resetRendererCaches(): void {
+  disposeTerrainLayer(terrainCache);
+  terrainCache = null;
+  disposeTerrainDecor(terrainDecorCache);
+  terrainDecorCache = null;
+  disposeEntityLayerCache();
+  invalidateRenderSoABucketsCache();
+  resetDialogueSessions();
+  _cachedEntityTick = UNCACHED_RENDER_TICK;
+  _cachedTrees = [];
+  _cachedAnimals = [];
+  _cachedHumans = [];
+  _cachedGrass = [];
+  _nameWidthCache.clear();
+  wParts = [];
+  lastWType = null;
+  lastWeatherCw = 0;
+  lastWeatherCh = 0;
+  _time = 0;
+  _lastRenderTime = 0;
+}
+
 export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
-  _time += 0.016;
+  const now = performance.now();
+  const dt = _lastRenderTime > 0 ? Math.min(0.1, (now - _lastRenderTime) / 1000) : 1 / 60;
+  _lastRenderTime = now;
+  _time += dt;
   ctx.imageSmoothingEnabled = false;
 
-  updateCachedEntities(state.entities, state.tick);
+  if (state.renderSoA) {
+    updateCachedEntitiesFromSoA(state, cw, ch);
+  } else {
+    updateCachedEntities(
+      state.entityByType,
+      state.grassGrid,
+      state.tick,
+      state.camera,
+      state.width,
+      state.height,
+      cw,
+      ch,
+    );
+  }
 
   const shake = state.screenShake;
   if (shake > 0.1) {
@@ -1625,20 +2222,8 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
   }
 
   drawGround(ctx, state, cw, ch);
-  drawBuildZoneOverlay(ctx, state, cw, ch);
-  drawGrid(ctx, state, cw, ch);
-  drawGrass(ctx, state, cw, ch);
-  drawTrees(ctx, state, cw, ch);
-  drawBuildings(ctx, state, cw, ch);
-  drawCampMarkers(ctx, state, cw, ch);
-  drawEcoConnections(ctx, state, state.camera, cw, ch);
-  drawBuildPreview(ctx, state, cw, ch);
-  drawAnimals(ctx, state, cw, ch);
-  drawRaidMarchLines(ctx, state, cw, ch);
-  drawHuntChaseLines(ctx, state, cw, ch);
-  drawHumans(ctx, state, cw, ch);
-  drawParticles(ctx, state, cw, ch);
-  drawFloatingTexts(ctx, state, cw, ch);
+  compositeCachedEntityLayer(ctx, state, cw, ch);
+  drawEntityFlashOverlay(ctx, state, cw, ch);
   drawSeasonOverlay(ctx, state, cw, ch);
   drawWeather(ctx, state.weather, cw, ch);
 

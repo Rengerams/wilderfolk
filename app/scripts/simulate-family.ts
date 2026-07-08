@@ -2,21 +2,10 @@
  * Quick family sim — courtship, marriage, and births.
  * Run: npx tsx scripts/simulate-family.ts
  */
-import { initGame, gameTick, startBuilding, recruitSettler, BuildingType, snapToGrid, canPlaceBuilding } from '../src/game/gameEngine';
+import { initGame, gameTick, recruitSettler, BuildingType } from '../src/game/gameEngine';
+import { getSimFocus } from './simFocus';
 import { isPlayerHuman } from '../src/game/groupEvents';
-
-function findSpot(state: ReturnType<typeof initGame>, type: BuildingType, cx: number, cy: number) {
-  for (let ring = 0; ring < 10; ring++) {
-    const r = 60 + ring * 35;
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2;
-      const x = snapToGrid(cx + Math.cos(a) * r);
-      const y = snapToGrid(cy + Math.sin(a) * r);
-      if (canPlaceBuilding(state, type, x, y)) return [x, y] as const;
-    }
-  }
-  return null;
-}
+import { tryPlaceBuilding } from './simBuildUtils';
 
 let state = initGame();
 state.resources.wood = 3000;
@@ -25,8 +14,8 @@ state.resources.food = 1000;
 const cx = state.width / 2;
 const cy = state.height / 2;
 
-const houseSpot = findSpot(state, BuildingType.House, cx, cy);
-if (houseSpot) state = startBuilding(state, BuildingType.House, houseSpot[0], houseSpot[1]);
+const housePlacement = tryPlaceBuilding(state, BuildingType.House, cx, cy);
+if (housePlacement.ok) state = housePlacement.state;
 for (let i = 0; i < 3; i++) state = recruitSettler(state);
 
 let marriages = 0;
@@ -34,8 +23,9 @@ let births = 0;
 let scandals = 0;
 let bastards = 0;
 
+const simFocus = getSimFocus(state);
 for (let t = 1; t <= 720; t++) {
-  state = gameTick(state);
+  state = gameTick(state, simFocus);
   for (const e of state.eventLog) {
     if (e.tick !== state.tick) continue;
     if (e.type === 'marriage') marriages++;

@@ -40,6 +40,10 @@ export function buildChronicleFilename(villageName: string): string {
 }
 
 export function downloadTextFile(content: string, filename: string): void {
+  if (typeof document === 'undefined') {
+    console.warn('[chronicle] downloadTextFile is only available in the browser');
+    return;
+  }
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -73,11 +77,15 @@ export function formatChronicleJSON(events: GameEventLog[], meta: ChronicleExpor
   );
 }
 
+function escapeCsvField(value: string): string {
+  return `"${value.replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+}
+
 export function formatChronicleCSV(events: GameEventLog[]): string {
   const header = 'id,tick,year,day,type,message,entityName';
   const rows = events.map(
     (evt) =>
-      `${evt.id},${evt.tick},${evt.year},${evt.day},${evt.type},"${(evt.message || '').replace(/"/g, '""')}","${(evt.entityName || '').replace(/"/g, '""')}"`,
+      `${evt.id},${evt.tick},${evt.year},${evt.day},${evt.type},${escapeCsvField(evt.message || '')},${escapeCsvField(evt.entityName || '')}`,
   );
   return [header, ...rows].join('\n');
 }

@@ -153,7 +153,7 @@ export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutori
     id: 'research_started',
     icon: '🔬',
     title: 'Research started',
-    detail: 'Progress accumulates over time. Staff a School to speed it up. Completed tech unlocks new buildings and upgrades.',
+    detail: 'Progress accumulates over time. Educated graduates speed research. Staff a School so children attend and mature faster. Completed tech unlocks new buildings and upgrades.',
     action: { label: 'Research tab', id: 'open_research' },
   },
   research_complete: {
@@ -292,7 +292,11 @@ export function seedTutorialSeenForExistingState(state: WorldState): string[] {
   }
   if (state.resources.food < Math.max(15, state.humanPopulation * 1.5)) seen.add('low_food');
   if (state.ecosystemHealth < 30) seen.add('ecosystem_low');
-  if (state.entities.some((e) => e.alive && isPlayerHuman(e) && e.isJuvenile)) seen.add('first_birth');
+  const hasRecordedBirth = state.yearlyStats.some((ys) => ys.births.humans > 0);
+  const hasBornChild = state.entities.some(
+    (e) => e.alive && isPlayerHuman(e) && e.isJuvenile && (e.motherId != null || e.generation > 1),
+  );
+  if (hasRecordedBirth || hasBornChild) seen.add('first_birth');
   if (state.entities.some((e) => e.alive && isPlayerHuman(e) && e.relationshipStatus === 'married')) {
     seen.add('first_marriage');
   }
@@ -395,12 +399,19 @@ export function detectContextualTutorials(
 
   if (prev.ecosystemHealth >= 30 && curr.ecosystemHealth < 30) queue('ecosystem_low');
 
-  const prevBabies = new Set(
+  const prevBabyIds = new Set(
     prev.entities.filter((e) => e.alive && isPlayerHuman(e) && e.isJuvenile).map((e) => e.id),
   );
-  if (
-    curr.entities.some((e) => e.alive && isPlayerHuman(e) && e.isJuvenile && !prevBabies.has(e.id))
-  ) {
+  const prevBirthKeys = new Set(
+    prev.eventLog.filter((e) => e.type === 'birth').map((e) => `${e.tick}|${e.message}`),
+  );
+  const newBirth = curr.eventLog.some(
+    (e) => e.type === 'birth' && !prevBirthKeys.has(`${e.tick}|${e.message}`),
+  );
+  const livingNewborn = curr.entities.some(
+    (e) => e.alive && isPlayerHuman(e) && e.isJuvenile && !prevBabyIds.has(e.id),
+  );
+  if (newBirth && livingNewborn) {
     queue('first_birth');
   }
 

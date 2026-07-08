@@ -1,7 +1,7 @@
 import { TICKS_PER_DAY } from './dayCycle';
 import { sayHumanChatPhrase } from './humanChat';
 import { isPlayerHuman } from './groupEvents';
-import { EntityType, type Entity, type WorldState } from './gameTypes';
+import type { Entity, WorldState } from './gameTypes';
 
 /** Lines spoken the night an omen appears (assigned directly to settlers). */
 export const RENFFR_OMEN_LINES = [
@@ -60,22 +60,43 @@ export function createRenffrOmen(): RenffrOmen {
   };
 }
 
+/** Deterministic 0..1 roll from world seed + tick (mulberry32 stream). */
+function renffrRng(state: WorldState, salt: number): () => number {
+  const mapSeed = state.worldMap?.seed ?? state.tick;
+  let s = (mapSeed ^ (state.tick * 2654435761) ^ salt) >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffleArray<T>(items: T[], rng: () => number): T[] {
+  const shuffled = [...items];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+function scatterUnit(index: number, life: number): number {
+  const x = Math.sin(index * 12.9898 + life * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
 export function beginRenffrSettlerChatter(state: WorldState, entities: readonly Entity[]): void {
   state.renffrChatterUntilTick = state.tick + TICKS_PER_DAY * RENFFR_GOSSIP_DAYS;
 
-  const humans = entities.filter(
-    (e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e),
-  );
+  const humans = entities.filter((e) => e.alive && isPlayerHuman(e));
   if (humans.length === 0) return;
 
-  const shuffled = [...humans].sort(() => Math.random() - 0.5);
-  const count = Math.min(3, shuffled.length);
+  const shuffled = shuffleArray(humans, renffrRng(state, 0x52e1));
+  const count = Math.min(RENFFR_OMEN_LINES.length, shuffled.length);
   for (let i = 0; i < count; i++) {
-    sayHumanChatPhrase(
-      shuffled[i],
-      RENFFR_OMEN_LINES[i % RENFFR_OMEN_LINES.length],
-      150,
-    );
+    sayHumanChatPhrase(shuffled[i], RENFFR_OMEN_LINES[i], 150);
   }
 }
 
@@ -85,14 +106,16 @@ export function isRenffrGossipActive(state: WorldState): boolean {
 
 export function maybeTriggerRenffrOmen(
   state: WorldState,
+  entities: readonly Entity[],
   isNight: boolean,
 ): boolean {
   if (state.renffrOmen || !isNight || state.tick < TICKS_PER_DAY * 3) return false;
   if (state.humanPopulation < 2) return false;
-  if (Math.random() >= 0.00035) return false;
+  if (renffrRng(state, 0x0de7)() >= 0.00035) return false;
 
   state.renffrOmen = createRenffrOmen();
   state.screenShakeImpulse = Math.max(state.screenShakeImpulse, 2.5);
+  beginRenffrSettlerChatter(state, entities);
   return true;
 }
 
@@ -115,9 +138,9 @@ export function tickRenffrOmen(omen: RenffrOmen | null | undefined): RenffrOmen 
       for (let i = 0; i < omen.letters.length; i++) {
         const L = omen.letters[i];
         const spread = (i - (omen.letters.length - 1) / 2) * 0.003;
-        L.vx = spread + (Math.random() - 0.5) * 0.018;
-        L.vy = -0.012 - Math.random() * 0.018;
-        L.vr = (Math.random() - 0.5) * 0.14;
+        L.vx = spread + (scatterUnit(i, omen.life) - 0.5) * 0.018;
+        L.vy = -0.012 - scatterUnit(i + 7, omen.life) * 0.018;
+        L.vr = (scatterUnit(i + 13, omen.life) - 0.5) * 0.14;
       }
     }
   } else {
@@ -133,6 +156,7 @@ export function tickRenffrOmen(omen: RenffrOmen | null | undefined): RenffrOmen 
   return omen.life > 0 ? omen : null;
 }
 
+/** @param time Elapsed render time in seconds (see renderer `_time`). */
 export function drawRenffrOmen(
   ctx: CanvasRenderingContext2D,
   omen: RenffrOmen,
@@ -206,6 +230,7 @@ export function drawRenffrOmen(
     ctx.restore();
   }
 
+  // Subtitle shares the outer save/restore so textAlign stays centered and styles do not leak.
   if (omen.phase === 1 && omen.phaseTimer > 18) {
     ctx.font = 'italic 11px Georgia, serif';
     ctx.fillStyle = `rgba(253,224,71,${nameAlpha * 0.45})`;

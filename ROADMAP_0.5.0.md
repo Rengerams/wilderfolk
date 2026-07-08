@@ -5,7 +5,7 @@
 **Developer-only** checklist for the **consolidated scale & architecture** release — not shown in-game.  
 **Player-facing shipped list** → [ROADMAP.md](ROADMAP.md) · Technical → [TECHNICAL.md](TECHNICAL.md) · Changelog → [CHANGELOG.md](CHANGELOG.md)
 
-*Updated: 2026-07-05 — v0.4.2 shipped; half-done registry = **FINISH polish in v0.5.0** (not blanket defer); election ceremony **shipped in code**; **v0.5.0** tag **end July 2026**.*
+*Updated: 2026-07-08 — v0.4.2 shipped; **spatial grid + Web Worker sim + OffscreenCanvas layers + bug tracker (214 closed)** in code pre-tag; election + housing **shipped**; **v0.5.0** tag **end July 2026**.*
 
 ---
 
@@ -27,7 +27,7 @@ Players on **large maps** with **100–300 settlers** should not feel sim hitch,
 
 | v0.4.2 delivered | v0.5.0 closes the gap |
 |------------------|----------------------|
-| Off-screen throttles, `entityById` / `buildingById`, `wildlifeCounts` | Hot paths still **O(n)** — graze scans, flee loops, UI population scans |
+| Off-screen throttles, `entityById` / `buildingById`, `wildlifeCounts` | Spatial grid ✅ for graze/hunt/flee; remaining per-tick work is linear (UI scans, assign flows) |
 | Headless avg ~1.8 ms/tick @ ~550 entities | **v0.5 target: 300 player + neighbor humans / ~1250 alive** — benchmarks and gates still tuned low |
 | Partial React memo on a few panels | `App.tsx` still re-renders heavy tabs; assign flows scan all entities |
 | Perf work was planned across multiple releases | **Single v0.5.0 ship (end July 2026)** — sim Phase 1 + Phase 2 + Worker/layers |
@@ -48,13 +48,13 @@ Players on **large maps** with **100–300 settlers** should not feel sim hitch,
 
 ## Code audit (2026-07-05 vs `GAME_VERSION = 0.4.2`)
 
-Compared repo plan to code. **~1 P0 done, ~4 partial, ~16 P0 open.** v0.4.2 carry-over (throttles, per-tick `entityById`/`buildingById`, `byType`, `wildlifeCounts`, partial `React.memo`) is in place but does not satisfy v0.5.0 ship criteria alone.
+Compared repo plan to code (July 8). **~4 P0 done, ~6 partial, ~10 P0 open.** Spatial grid, Web Worker sim, and bug checkup landed since July 5 audit.
 
 | Status | Count (P0) | Meaning |
 |--------|------------|---------|
-| ✅ Done | 1 | Shippable as-is |
-| 🟡 Partial | 4 | Started — **finish these first** |
-| ❌ Open | 16 | Not started |
+| ✅ Done | 4 | Shippable as-is (compaction, spatial grid, worker sim opt-in, bug checkup) |
+| 🟡 Partial | 6 | Started — **finish these first** |
+| ❌ Open | 10 | Not started |
 
 ---
 
@@ -64,9 +64,9 @@ Compared repo plan to code. **~1 P0 done, ~4 partial, ~16 P0 open.** v0.4.2 carr
 
 | # | Item | Status | Hotspot | Deliverable |
 |---|------|--------|---------|-------------|
-| 1 | **Spatial grid** | ❌ Open | `lifeSimulation.ts` | Cell-based graze/hunt/flee/wolf-pack queries |
+| 1 | **Spatial grid** | ✅ Done | `spatialGrid.ts`, `lifeSimulation.ts` | Dual-layer grass + mobile grid; wired graze/hunt/flee; `USE_SPATIAL_GRID` on by default |
 | 2 | **Dead-entity compaction** | ✅ Done | `gameEngine.ts` | `state.entities = allAlive` each tick — alive only |
-| 3 | **Renderer cache reuse** | 🟡 Partial | `renderer.ts` | `updateCachedEntities()` exists; still full scan — wire sim `byType` |
+| 3 | **Renderer cache reuse** | ✅ Done | `renderer.ts` | `world.entityByType` per tick → `updateCachedEntities()`; viewport grass culling |
 | 4 | **Settler count denorm** | ❌ Open | `WorldState`, `App.tsx` | `workingSettlers` / `idleSettlers` once per tick |
 | 5 | **Benchmark gate** | 🟡 Partial | `simulate-30min.ts` | p95 reported; missing `SIM_PROFILE` 50/100/300 + exit non-zero |
 
@@ -77,7 +77,7 @@ Compared repo plan to code. **~1 P0 done, ~4 partial, ~16 P0 open.** v0.4.2 carr
 | 6 | **Incremental `entityById`** | ❌ Open | `gameEngine.ts` | Update on birth/death only |
 | 7 | **`buildingActions` scan cleanup** | ❌ Open | `buildingActions.ts` | Maps + `villageCounts` instead of entity filters |
 | 8 | **`buildingById` go-home** | 🟡 Partial | `lifeSimulation.ts` | `buildingById` in ctx; commute still uses `updatedBuildings.find` |
-| 9 | **Grass render buckets** | 🟡 Partial | `renderer.ts` `drawGrass` | Viewport cull exists; spatial buckets still needed |
+| 9 | **Grass render buckets** | ✅ Done | `renderer.ts` `collectGrassInViewport` | `byType[Grass]` only; `buildGrassGrid` + `forEachInRect` viewport cull; `_cachedGrass` invalidates on tick + viewport key; SoA path slot scan (no grid rebuild) |
 | 10 | **Partner id map** | ❌ Open | `renderer.ts` | O(1) relationship-line lookup |
 | 11 | **Particle / float pooling** | ❌ Open | `gameEngine.ts` | Reuse death particles + `floatingTexts` |
 | 12 | **App tab split / memo** | 🟡 Partial | `App.tsx` | `memo` on 4 panels; no tab extract; `App.tsx` still monolithic |
@@ -86,8 +86,8 @@ Compared repo plan to code. **~1 P0 done, ~4 partial, ~16 P0 open.** v0.4.2 carr
 
 | # | Item | Status | Hotspot | Deliverable |
 |---|------|--------|---------|-------------|
-| 13 | **Web Worker `gameTick`** | ❌ Open | `gameEngine.ts`, `gameLoop.ts` | Sim in worker; versioned **render SoA** (`schema.ts`, append-only columns, sidecar buffers); transferable ping-pong; upgradable command `proto` — not full `WorldState` clone |
-| 14 | **OffscreenCanvas layers** | ❌ Open | `renderer.ts` | Split terrain (static) vs entities (dynamic) |
+| 13 | **Web Worker `gameTick`** | ✅ Done | `simWorker/`, `simBuffers/` | Opt-in (`VITE_USE_GAME_WORKER=1`); render SoA ping-pong, `WORKER_PROTO`, headless ticks; main-thread fallback unchanged |
+| 14 | **OffscreenCanvas layers** | ✅ Done | `canvasLayer.ts`, `terrainLayer.ts`, `entityLayer.ts`, `renderer.ts` | Terrain tiles + decor (rivers/border) baked offscreen; dynamic entity bitmap cache; time-based flash overlay on main canvas; `resetRendererCaches()` on new game/load |
 | 15 | **Version bump** | ❌ Open | `version.ts`, `saveLoad.ts` | `GAME_VERSION = '0.5.0'`; migrate from `0.4.2` |
 
 ### Benchmark budgets
@@ -108,7 +108,8 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`. City profile
 
 | # | Item | Status | Deliverable |
 |---|------|--------|-------------|
-| 16 | **Big bug checkup** | ❌ Open | Full-code audit after perf refactors; fix + document in CHANGELOG |
+| 16 | **Big bug checkup** | ✅ Done | **242** items closed (July 8 pass); Vitest **343** (64 files); lint **0**; build clean |
+| 16b | **Dialogue-tree settler chat** | ✅ Done | `sim_dialogue_trees.json` (95 trees); `dialogueTrees.ts` + `humanChat.ts`; legacy `wf_*` migration; tests in `humanChat`, `villageLeadership`, `lifeSimulation.courtship` |
 | 17 | **Logical invariant checks** | ❌ Open | Entity maps, peace vs raids, migration `0.4.2`→`0.5.0`, no ghost workers |
 | 18 | **20-year simulation gatekeeper** | 🟡 Partial | Script + smoke PASS (8640 ticks); **full 172800-tick run still required** |
 | 19 | **Headless simulation battery** | 🟡 Partial | Scripts exist; full battery not green for v0.5 tag |
@@ -125,13 +126,17 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`. City profile
 
 | # | Item | Top 10 track | Notes |
 |---|------|--------------|-------|
-| 1 | **Counter-raid militia march** | #1 Defense | Line + sprites to rival camp; abstract resolve stays |
+| 1 | **Outgoing raid march visuals** | #1 Defense | Tribute accept/decline + fight choice ✅ in code; **still open:** march line + militia sprites to rival camp |
 | 2 | **One visitor quest chain** | #6 Diplomacy | Scholars or Nomads multi-step |
 | 3 | **Election Year 10/20 playtest** | #9 Culture | Ceremony shipped in code — verify live |
 | 4 | **Reputation arc UI** | Village UX | Milestones beyond ⭐ tooltip |
 | 5 | **Large-map playtests** | Infrastructure | 5–10 sessions at 10× after benchmark gate green |
 | 6 | **Footstep / work SFX by surface** | Juice | Deferred since v0.4.2 |
 | 7 | **`npm run benchmark:gate`** | Infrastructure | CI-friendly wrapper |
+
+#### Housing assignment (P1 — v0.5.0) ✅ Shipped in code
+
+**Hotspot: `dayCycle.ts`, `populationGrowth.ts`, `buildingActions.ts`** — beds vs cap UI; `buildHousingUnits`, `getChildCustodian`, `ensureOrphanAdoption`, singles/orphan/shortage rules. Re-verify after perf refactors (item 17 logical invariants).
 
 #### Election day ceremony (P1 — v0.5.0) ✅ Shipped in code
 
@@ -170,19 +175,20 @@ Open/partial rows also listed on public [ROADMAP.md](ROADMAP.md) v0.5.0 table.
 
 | Feature | What works today | What's missing | Target |
 |---------|------------------|----------------|--------|
-| **Perf at ~1250 entities** | v0.4.2 throttles + maps + compaction ✅ — **200+ player humans plays well today** | Dual-layer spatial grid (grass + mobile), renderer `byType`, benchmark @ **300 player + neighbors** | **v0.5.0** (P0) |
+| **Perf at ~1250 entities** | v0.4.2 throttles + maps + compaction + **spatial grid** ✅ — **200+ player humans plays well today** | Renderer `byType`, benchmark @ **300 player + neighbors**, full `simulate:20year` | **v0.5.0** (P0) |
 | **UI at 300 pop** | Partial memo | Tab split + denorm counts | **v0.5.0** (P0) |
-| **Frontier counter-raid visuals** | *(v0.4.2 shipped)* incoming lines, forge, walls/guards, combat log | **Outgoing** march line + militia sprites to rival camp | **v0.5.0** (P1) |
+| **Frontier outgoing raid** | *(v0.4.2 shipped)* incoming lines, forge, walls/guards, combat log | Tribute offer + accept/decline ✅ · **Outgoing** march line + militia sprites still **v0.5.0** (P1) |
 | **Reputation arc** | *(v0.4.2 shipped)* ⭐ + Village explainer | Milestone beats UI | **v0.5.0** (P1) |
 | **Visitor quest depth** | *(v0.4.1 shipped)* 7 kinds, leader talk, camp trade | **One** multi-step chain (Scholars or Nomads) | **v0.5.0** (P1) |
-| **Election ceremony** | Buildup → revelry; incumbent record; always-in-race ✅ in code | Live playtest Year 10/20 | **v0.5.0** (P1) ⏳ |
+| **Election ceremony** | Buildup → revelry; incumbent record; gossip + winner chat tested ✅ in code | Live playtest Year 10/20 | **v0.5.0** (P1) ⏳ |
+| **Settler dialogue** | JSON trees (95); 3-beat paired bubbles; legacy lines migrated ✅ | More trees / voice polish | **v0.5.0** ✅ |
 
 ---
 
 ## Exit criteria (ship v0.5.0)
 
-- [ ] All **P0** items merged; `npm run build` + `npm run lint` clean
-- [ ] **Bug checkup closed** — no known P0/P1 regressions; fixes logged in CHANGELOG `[0.5.0]`
+- [ ] All **P0** items merged; `npm run build` + `npm run lint` clean — **build + lint ✅** (July 8)
+- [x] **Bug checkup closed** — tracker **0 open**; fixes in CHANGELOG `[Unreleased]` (July 8)
 - [ ] **`npm run simulate:20year` PASS** — town profile, all applicable gates (primary ship gatekeeper)
 - [ ] **Logic + sim battery green** — `simulate`, `simulate:30min` (all profiles), `simulate:10year` (regression), `balance:militia` pass; invariants documented
 - [ ] Benchmark gate passes **village** and **town** profiles
@@ -208,9 +214,9 @@ Open/partial rows also listed on public [ROADMAP.md](ROADMAP.md) v0.5.0 table.
 
 ### 🟡 Finish partial (closest to done)
 
-1. [ ] **Renderer cache** — pass sim `byType` into render snapshot; stop `updateCachedEntities` full scan
+1. [x] **Renderer cache** — pass sim `byType` into render snapshot; stop `updateCachedEntities` full scan ✅
 2. [ ] **`buildingById` go-home** — replace `updatedBuildings.find` in `lifeSimulation.ts` commute paths
-3. [ ] **Grass buckets** — spatial buckets in `drawGrass` (viewport cull exists)
+3. [x] **Grass buckets** — spatial buckets in `drawGrass` (viewport cull via `buildGrassGrid`) ✅
 4. [ ] **Benchmark gate** — `simulate-30min.ts`: `SIM_PROFILE` village/town/city (50/100/**300** humans) + p95 exit non-zero
 5. [ ] **`simulate:20year` full run** — unset `SIM_MAX_TICKS`; 172800 ticks PASS → `scripts/logs/sim-20year-town-*.txt`
 6. [ ] **Sim regression** — add exit codes to `simulate-30min`; document battery in TECHNICAL.md
@@ -223,9 +229,9 @@ Open/partial rows also listed on public [ROADMAP.md](ROADMAP.md) v0.5.0 table.
 10. [ ] **Incremental `entityById`** — update on birth/death only
 11. [ ] **`buildingActions` scan cleanup** — maps instead of entity filters
 12. [ ] **Partner id map** + **particle / float pooling**
-13. [ ] **`spatialGrid.ts`** + wire flee/hunt/graze (`USE_SPATIAL_GRID`)
-14. [ ] **Web Worker `gameTick`** + **OffscreenCanvas** terrain/entity split
-15. [ ] **Big bug checkup** + **logic invariant checks**
+13. [x] **`spatialGrid.ts`** + wire flee/hunt/graze (`USE_SPATIAL_GRID`) ✅
+14. [x] **Web Worker `gameTick`** ✅ (opt-in) · [x] **OffscreenCanvas** terrain/entity split ✅
+15. [x] **Big bug checkup** ✅ · [ ] **logic invariant checks**
 16. [ ] **Manual matrix playtest** — large map, 10×, save/reload, raid/forge/peace
 17. [ ] Counter-raid march line (P1)
 18. [ ] Bump `GAME_VERSION` to `0.5.0` + migration + docs + tag (only after #5 + battery green)

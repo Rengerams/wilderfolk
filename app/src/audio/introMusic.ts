@@ -1,3 +1,4 @@
+import { syncHtmlAudioMute } from './htmlAudioSync';
 import { audioGraph } from './graph';
 import { musicPlayer } from './trackPlayer';
 import { TRACKS, TRACK_VOLUMES } from './tracks';
@@ -35,12 +36,7 @@ class IntroMusicPlayer {
   }
 
   syncMute(muted: boolean) {
-    if (!this.htmlAudio) return;
-    if (muted) {
-      this.htmlAudio.pause();
-    } else if (this.running && this.usingHtmlAudio) {
-      void this.htmlAudio.play().catch(() => undefined);
-    }
+    syncHtmlAudioMute(this.htmlAudio, muted, this.running && this.usingHtmlAudio);
   }
 
   async start() {

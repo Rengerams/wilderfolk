@@ -8,6 +8,7 @@ import {
   getVolumePreset,
   toggleMute,
   unlockAudio,
+  primeAudioUnlock,
   playBirthSound,
   playMarriageSound,
   playBuildSound,
@@ -34,6 +35,7 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
   const seededRef = useRef(false);
 
   const handleToggleMute = useCallback(() => {
+    primeAudioUnlock();
     void unlockAudio().then(() => {
       const nowMuted = toggleMute();
       setMuted(nowMuted);
@@ -42,6 +44,7 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
   }, []);
 
   const handleVolumePreset = useCallback((preset: VolumePreset) => {
+    primeAudioUnlock();
     void unlockAudio().then(() => {
       setVolumePreset(preset);
       setVolumePresetState(preset);

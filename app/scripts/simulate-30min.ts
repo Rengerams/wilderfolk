@@ -1,24 +1,41 @@
 /**
  * Headless 30-minute session (~1800 ticks @ 1 tick/s) with village growth + family stats.
  * Run: npx tsx scripts/simulate-30min.ts
+ *
+ * Env:
+ *   SIM_PROFILE=city — 300 player humans + neighbors @ ~1250 alive (spatial grid gate)
+ *   BENCHMARK_GATE=1 — exit 1 when city profile p95 >= 20ms or alive < 1200 in samples
  */
+import { getSimFocus } from './simFocus';
 import {
   initGame,
   gameTick,
-  startBuilding,
   recruitSettler,
   EntityType,
   BuildingType,
-  canPlaceBuilding,
-  snapToGrid,
 } from '../src/game/gameEngine';
+import { MapSize } from '../src/game/gameTypes';
+import { tryPlaceBuilding } from './simBuildUtils';
 import type { WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/groupEvents';
+import {
+  CITY_BENCH_MIN_ALIVE,
+  countAlive,
+  DEFAULT_CITY_TARGETS,
+  maintainCityBenchmarkState,
+  refreshCityBenchmarkResources,
+  seedCityScaleProfile,
+} from './simCityProfile';
 
+const SIM_PROFILE = (process.env.SIM_PROFILE ?? 'village').toLowerCase();
+const IS_CITY = SIM_PROFILE === 'city';
 const TICKS_PER_REAL_MINUTE = 60;
-const SIM_MINUTES = Number(process.env.SIM_MINUTES ?? 1200);
+const SIM_MINUTES = Number(process.env.SIM_MINUTES ?? (IS_CITY ? 10 : 1200));
 const TOTAL_TICKS = TICKS_PER_REAL_MINUTE * SIM_MINUTES;
 const PERF_SAMPLE_EVERY = Number(process.env.PERF_SAMPLE_EVERY ?? 120);
+const P95_GATE_MS = Number(process.env.CITY_P95_GATE_MS ?? 20);
+const MIN_ALIVE_SAMPLE = Number(process.env.CITY_MIN_ALIVE ?? CITY_BENCH_MIN_ALIVE);
+const BENCHMARK_GATE = process.env.BENCHMARK_GATE !== '0' && IS_CITY;
 
 type PerfSample = {
   tick: number;
@@ -46,24 +63,9 @@ function summarizeTickMs(samples: number[]): { avg: number; p50: number; p95: nu
   };
 }
 
-function findBuildSpot(state: WorldState, type: BuildingType, cx: number, cy: number): [number, number] | null {
-  for (let ring = 0; ring < 12; ring++) {
-    const radius = 80 + ring * 40;
-    const steps = 8 + ring * 2;
-    for (let i = 0; i < steps; i++) {
-      const angle = (i / steps) * Math.PI * 2;
-      const x = snapToGrid(cx + Math.cos(angle) * radius);
-      const y = snapToGrid(cy + Math.sin(angle) * radius);
-      if (canPlaceBuilding(state, type, x, y)) return [x, y];
-    }
-  }
-  return null;
-}
-
 function tryPlaceNear(state: WorldState, type: BuildingType, cx: number, cy: number): WorldState {
-  const spot = findBuildSpot(state, type, cx, cy);
-  if (!spot) return state;
-  return startBuilding(state, type, spot[0], spot[1]);
+  const { state: next, ok } = tryPlaceBuilding(state, type, cx, cy);
+  return ok ? next : state;
 }
 
 type ScheduledAction = { at: number; fn: (s: WorldState) => WorldState; label: string };
@@ -125,18 +127,26 @@ function countMarriedPairs(humans: ReturnType<typeof initGame>['entities']): num
 }
 
 function runSimulation(): void {
-  let state = initGame({ villageName: 'Simville' });
+  let state = initGame({
+    villageName: IS_CITY ? 'Gridburg' : 'Simville',
+    size: IS_CITY ? MapSize.Large : undefined,
+  });
   state.resources.wood = 4000;
   state.resources.stone = 2000;
-  state.resources.food = 1200;
+  state.resources.food = IS_CITY ? 8000 : 1200;
   state.resources.gold = 400;
+
+  if (IS_CITY) {
+    seedCityScaleProfile(state, DEFAULT_CITY_TARGETS);
+  }
 
   const cx = state.width / 2;
   const cy = state.height / 2;
-  const actions = buildScenario(cx, cy);
+  const actions = IS_CITY ? [] : buildScenario(cx, cy);
   const milestones: string[] = [];
   const perfSamples: PerfSample[] = [];
   const allTickMs: number[] = [];
+  const simFocus = getSimFocus(state);
   const start = performance.now();
 
   for (let t = 1; t <= TOTAL_TICKS; t++) {
@@ -149,13 +159,20 @@ function runSimulation(): void {
         milestones.push(`tick ${t}: ${action.label}${recruited ? ' (+1 settler)' : ''}`);
       }
     }
+    if (IS_CITY) {
+      maintainCityBenchmarkState(state, MIN_ALIVE_SAMPLE);
+      refreshCityBenchmarkResources(state, t);
+    }
     const tickStart = performance.now();
-    state = gameTick(state);
+    state = gameTick(state, simFocus);
     const tickMs = performance.now() - tickStart;
     allTickMs.push(tickMs);
 
-    let alive = 0;
-    for (const e of state.entities) if (e.alive) alive++;
+    if (IS_CITY) {
+      maintainCityBenchmarkState(state, MIN_ALIVE_SAMPLE);
+    }
+
+    const alive = countAlive(state);
 
     if (t % PERF_SAMPLE_EVERY === 0) {
       perfSamples.push({
@@ -194,8 +211,8 @@ function runSimulation(): void {
   const completedBuildings = state.buildings.filter((b) => b.completed && b.faction !== 'rival');
   const houses = completedBuildings.filter((b) => b.type === BuildingType.House || b.type === BuildingType.Mansion);
 
-  console.log('\n=== Wilderfolk 30-minute simulation ===');
-  console.log(`Ticks: ${TOTAL_TICKS} (~${SIM_MINUTES} min @ 1×) | Wall time: ${elapsed}s`);
+  console.log(`\n=== Wilderfolk ${IS_CITY ? 'city spatial-grid' : '30-minute'} simulation ===`);
+  console.log(`Profile: ${SIM_PROFILE} | Ticks: ${TOTAL_TICKS} (~${SIM_MINUTES} min @ 1×) | Wall time: ${elapsed}s`);
   console.log(`Game calendar: Year ${state.year}, Day ${state.dayInYear} (~${Math.floor(state.tick / 24)} total days)`);
 
   console.log('\n--- Camp population ---');
@@ -243,8 +260,25 @@ function runSimulation(): void {
     }
   }
 
-  console.log('\n--- Milestones (every 5 game-days) ---');
-  for (const m of milestones) console.log(m);
+  if (IS_CITY) {
+    const sampleAliveOk = perfSamples.every((s) => s.alive >= MIN_ALIVE_SAMPLE);
+    const sampleMs = perfSamples.map((s) => s.ms);
+    const samplePerf = summarizeTickMs(sampleMs);
+    const perfOk = samplePerf.p95 < P95_GATE_MS && sampleAliveOk;
+    console.log('\n--- Spatial grid gate (city profile) ---');
+    console.log(`Samples alive ≥ ${MIN_ALIVE_SAMPLE}: ${sampleAliveOk ? 'PASS' : 'FAIL'}`);
+    console.log(
+      `Sample p95 < ${P95_GATE_MS}ms: ${samplePerf.p95 < P95_GATE_MS ? 'PASS' : 'FAIL'} (${samplePerf.p95.toFixed(2)}ms)`,
+    );
+    console.log(`Overall tick p95: ${overall.p95.toFixed(2)}ms (informational)`);
+    console.log(`Overall: ${perfOk ? 'PASS' : 'FAIL'}`);
+    if (BENCHMARK_GATE && !perfOk) process.exit(1);
+  }
+
+  if (!IS_CITY) {
+    console.log('\n--- Milestones (every 5 game-days) ---');
+    for (const m of milestones) console.log(m);
+  }
 }
 
 runSimulation();

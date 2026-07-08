@@ -17,7 +17,7 @@ function stubState(overrides: Partial<WorldState>): WorldState {
     resources: { food: 500, wood: 200, stone: 100, gold: 50 },
     unlockedTechs: [],
     researchNodes: [],
-    villageForge: { activeOrder: null, progress: 0, spearsReady: false, shieldsReady: false },
+    villageForge: { activeOrder: null, progress: 0, completed: {} },
     humanPopulation: 0,
     ...overrides,
   } as WorldState;
@@ -102,7 +102,7 @@ const scenarios: { label: string; state: WorldState; entities: Entity[] }[] = [
     state: withTech(
       stubState({}),
       [COMBAT_TECH.stoneSpears, COMBAT_TECH.ironSpears, COMBAT_TECH.woodenShields, COMBAT_TECH.ironShields],
-      { spearsReady: true, shieldsReady: true },
+      { completed: { iron_spears: true, iron_shields: true } },
     ),
     entities: adults(10),
   },
@@ -118,7 +118,7 @@ const scenarios: { label: string; state: WorldState; entities: Entity[] }[] = [
         ],
       }),
       [COMBAT_TECH.stoneSpears, COMBAT_TECH.ironSpears],
-      { spearsReady: true },
+      { completed: { iron_spears: true } },
     ),
     entities: adults(12),
   },

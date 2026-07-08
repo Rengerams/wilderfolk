@@ -12,6 +12,30 @@ export const EntityType = {
 } as const;
 export type EntityType = (typeof EntityType)[keyof typeof EntityType];
 
+/** Alive entities bucketed by `entity.type` — rebuilt each sim tick, not saved. */
+export type EntityByType = Record<EntityType, Entity[]>;
+
+/** Sentinel for render caches keyed off sim tick. */
+export const UNCACHED_RENDER_TICK = -1;
+
+export function emptyEntityByType(): EntityByType {
+  const byType = {} as EntityByType;
+  for (const type of Object.values(EntityType) as EntityType[]) {
+    byType[type] = [];
+  }
+  return byType;
+}
+
+/** Canvas draw layer — matches `renderSoAEntities` bucket rules. */
+export type RenderEntityLayer = 'grass' | 'tree' | 'human' | 'animal';
+
+export function getRenderEntityLayer(type: EntityType): RenderEntityLayer {
+  if (type === EntityType.Grass) return 'grass';
+  if (type === EntityType.Tree) return 'tree';
+  if (type === EntityType.Human) return 'human';
+  return 'animal';
+}
+
 // Building types as const object
 export const BuildingType = {
   House: 'house',
@@ -153,6 +177,12 @@ export interface Entity {
   flash: number;
   gender?: 'male' | 'female';
   isJuvenile: boolean;
+  /** Colony days with meaningful attendance at a staffed school. */
+  schoolDays?: number;
+  /** Work-hour ticks accumulated today toward the next school day. */
+  schoolTicksToday?: number;
+  /** Set on graduation — grants skills, stamina, and village research bonus. */
+  educated?: boolean;
   pregnant?: boolean;
   pregnancyProgress?: number;
   /** Workplace — farm, mill, etc. (assigned via building occupants) */
@@ -163,6 +193,8 @@ export interface Entity {
   prisonBuildingId?: number;
   /** Tick at which this settler is released from prison. */
   prisonerUntilTick?: number;
+  /** Crime that led to the current prison sentence, if any. */
+  prisonSentenceCrime?: 'scandal';
   occupation?: string;
   job?: JobType;
   skills: Partial<Record<JobType, number>>;
@@ -172,6 +204,12 @@ export interface Entity {
   /** Secret lover while still married (or paramour for a single settler). */
   affairPartnerId?: number;
   affairProgress?: number;
+  /** Colony day + site of the latest off-screen/in-world affair encounter (for prison proximity). */
+  lastAffairSiteDay?: number;
+  lastAffairSiteX?: number;
+  lastAffairSiteY?: number;
+  /** Tick until another caught/rumor scandal can fire for this settler. */
+  scandalCooldownUntilTick?: number;
   lastMetPartner?: number;
   courtshipProgress?: number;
   /** Biological father when pregnancy is not from the legal spouse. */
@@ -181,18 +219,29 @@ export interface Entity {
   motherId?: number;
   /** Born outside wedlock or to a father other than mother's spouse. */
   isBastard?: boolean;
+  /** Set when no living parent/grandparent — village couple takes the child in. */
+  adoptiveMotherId?: number;
+  adoptiveFatherId?: number;
   childrenIds: number[];
   name?: string;
   surname?: string;
+  /** Birth / maiden surname — restored if she divorces after catching her husband cheating. */
+  maidenSurname?: string;
   generation: number;
   // Visual
   spriteAngle: number;
   animFrame: number;
   /** Outfit / appearance variant (0..3) */
   spriteVariant?: number;
+  /** Per-entity salt mixed into combat rolls (stable across ticks, unique per entity). */
+  combatRollSeed?: number;
   /** Short speech-bubble line shown above the settler */
   chatPhrase?: string;
   chatTicks?: number;
+  /** Active multi-line dialogue partner (transient, not saved). */
+  chatPartnerId?: number;
+  /** Session key for 3-beat dialogue tree playback (transient, not saved). */
+  chatDialogueSessionKey?: string;
   /** Cursed villager — human most days, dangerous werewolf on full-moon nights (~every 2 weeks) */
   moonHowlerCursed?: boolean;
   /** Human stats restored after a full-moon transformation ends */
@@ -204,6 +253,7 @@ export interface Entity {
     job?: JobType;
     occupation?: string;
     homeBuildingId?: number;
+    residenceBuildingId?: number;
     relationshipStatus?: 'single' | 'married' | 'expecting';
     partnerId?: number;
     affairPartnerId?: number;
@@ -248,8 +298,8 @@ export interface Building {
   campLabel?: string;
   /** Workshop only — which goods this building crafts */
   workshopRecipeId?: string;
-  /** 0 = horizontal (default), 90 = vertical — roads, walls, gates */
-  rotation?: 0 | 90;
+  /** Strip orientation — 0/90 straight; 0/90/180/270 for wall corners. */
+  rotation?: 0 | 90 | 180 | 270;
 }
 
 export interface WorkshopRecipe {
@@ -369,6 +419,7 @@ export interface RivalSettlement {
   peaceTreatyDays: number;
 }
 
+/** Transient screen particles — deaths, confetti, smoke (stored on `WorldState.deathParticles`). */
 export interface DeathParticle {
   x: number;
   y: number;
@@ -431,6 +482,7 @@ export interface WildlifeCounts {
   foxes: number;
   werewolves: number;
   wildkin: number;
+  trees: number;
 }
 
 export interface Challenge {
@@ -445,6 +497,12 @@ export interface Challenge {
   rewardText?: string;
 }
 
+export interface ResearchCompletionNotify {
+  title: string;
+  message: string;
+  level?: 'info' | 'success' | 'warning';
+}
+
 export interface ResearchNode {
   id: string;
   type: ResearchType;
@@ -457,6 +515,10 @@ export interface ResearchNode {
   effects: ResearchEffect[];
   icon: string;
   tier: number;
+  /** Optional toast when this tech finishes researching. */
+  completionNotify?: ResearchCompletionNotify;
+  /** Show Blacksmith forge queue hint on complete (iron gear techs). */
+  forgeUnlockNotify?: boolean;
 }
 
 export interface ResearchEffect {
@@ -547,17 +609,23 @@ export interface WorldState {
   disasters: Disaster[];
   tradeRoutes: TradeRoute[];
   totalBuildingsCompleted: number;
+  /** Last absolute calendar day daily sim events ran (prevents reload double-fire). */
+  lastProcessedCalendarDay?: number;
   worldMap: WorldMap | null;
   yearlyStats: import('./stats').YearlyStats[];
   lifetimeStats: import('./stats').LifetimeStats;
   eventLog: GameEventLog[];
   festival: { active: boolean; name: string; daysLeft: number } | null;
+  /** Tick after which the player can host another Town Hall festival. */
+  townHallFestivalCooldownUntilTick?: number;
   visitorGroups: VisitorGroup[];
   rivalSettlements: RivalSettlement[];
   /** Rival diplomacy events awaiting a player response (v0.4.1). */
   pendingDiplomacyEvents: DiplomacyEvent[];
   /** Incoming raids — defend, barricade, or pay off. */
   pendingRaidEvents: import('./frontierCombat').RaidEvent[];
+  /** Outgoing raids — rival may offer tribute or fight when your war-band arrives. */
+  pendingOutgoingRaidEvents: import('./frontierCombat').OutgoingRaidEvent[];
   /** Rare night-sky easter egg */
   renffrOmen?: import('./renffrStar').RenffrOmen | null;
   /** Settlers gossip about Renffr until this tick (after a night omen). */
@@ -583,10 +651,26 @@ export interface WorldState {
   villageForge: import('./forge').VillageForgeState;
   /** Contextual tutorial tips already shown this playthrough. */
   tutorialSeen?: string[];
+  /** Colony day of last wildlife replenish event-log entry (throttles meadow spam). */
+  lastWildlifeReplenishLogDay?: number;
+  /** Ephemeral predator scent field — rebuilt each session, not saved. */
+  scentGrid?: import('./scentGrid').ScentGrid;
+  /** Alive entities by type — rebuilt each sim tick for render/UI; not saved. */
+  entityByType?: EntityByType;
+  /** Grass spatial index — rebuilt each sim tick for graze + render; not saved. */
+  grassGrid?: import('./spatialGrid').EntitySpatialGrid;
+  /** Mobile spatial index — rebuilt each sim tick for hunt/flee/social queries; not saved. */
+  mobileGrid?: import('./spatialGrid').EntitySpatialGrid;
+  /** World-event titles fired during the current calendar year (flushed into YearlyStats). */
+  eventsThisYear?: string[];
+  /** Save migration ids already applied — avoids scanning event log on every load. */
+  appliedSaveMigrations?: string[];
 }
 
 /** @deprecated Use WorldState for simulation and ViewState for presentation. */
 export type GameState = WorldState;
+
+export type CombatLogKind = 'incoming_raid' | 'outgoing_raid' | 'defense' | 'repelled';
 
 export interface GameEventLog {
   id: number;
@@ -596,6 +680,7 @@ export interface GameEventLog {
   type: 'birth' | 'death' | 'marriage' | 'scandal' | 'building' | 'disaster' | 'research' | 'trade' | 'migration' | 'season' | 'event' | 'combat';
   message: string;
   entityName?: string;
+  combatKind?: CombatLogKind;
 }
 
 export interface GameNotification {
@@ -644,7 +729,6 @@ export interface BuildingConfig {
   label: string;
   description: string;
   sprite: string;
-  category: string;
   backgroundColor: string;
   padShape: 'round' | 'rect' | 'circle' | 'road';
   /** Extra multiplier so trimmed sprites fill their footprint on the map. */
@@ -658,21 +742,21 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     cost: { wood: 40, stone: 10, gold: 5 },
     buildTime: 2, maxOccupants: 6,
     emoji: '🏠', label: 'House', description: 'Family home (6 slots). Upgrade to fit up to 10.',
-    sprite: '/sprites/house.png', category: 'Housing', backgroundColor: '#d97706', padShape: 'round',
+    sprite: '/sprites/house.png', backgroundColor: '#d97706', padShape: 'round',
   },
   [BuildingType.Farm]: {
     width: 53, height: 46,
     cost: { wood: 25, stone: 0, gold: 5 },
     buildTime: 3, maxOccupants: 2,
     emoji: '🌾', label: 'Farm', description: 'Produces food for your village.',
-    sprite: '/sprites/farm.png', category: 'Food', backgroundColor: '#16a34a', padShape: 'rect',
+    sprite: '/sprites/farm.png', backgroundColor: '#16a34a', padShape: 'rect',
   },
   [BuildingType.Greenhouse]: {
     width: 50, height: 43,
     cost: { wood: 30, stone: 10, gold: 15 },
     buildTime: 4, maxOccupants: 2,
     emoji: '🏡', label: 'Greenhouse', description: 'Efficient food production all year.',
-    sprite: '/sprites/greenhouse.png', category: 'Food', backgroundColor: '#15803d', padShape: 'rect',
+    sprite: '/sprites/greenhouse.png', backgroundColor: '#15803d', padShape: 'rect',
     unlockRequirement: 'agriculture_1',
   },
   [BuildingType.Barn]: {
@@ -680,35 +764,35 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     cost: { wood: 50, stone: 5, gold: 10 },
     buildTime: 4, maxOccupants: 0,
     emoji: '🚜', label: 'Barn', description: 'Boosts nearby Farms & Greenhouses +35% — no workers needed.',
-    sprite: '/sprites/barn.png', category: 'Food', backgroundColor: '#ca8a04', padShape: 'rect',
+    sprite: '/sprites/barn.png', backgroundColor: '#ca8a04', padShape: 'rect',
   },
   [BuildingType.Silo]: {
     width: 36, height: 50,
     cost: { wood: 30, stone: 20, gold: 10 },
     buildTime: 3, maxOccupants: 0,
     emoji: '🌽', label: 'Silo', description: 'Passive food storage bonus.',
-    sprite: '/sprites/silo.png', category: 'Food', backgroundColor: '#65a30d', padShape: 'rect',
+    sprite: '/sprites/silo.png', backgroundColor: '#65a30d', padShape: 'rect',
   },
   [BuildingType.LumberMill]: {
     width: 56, height: 46,
     cost: { wood: 35, stone: 10, gold: 10 },
     buildTime: 4, maxOccupants: 3,
     emoji: '🪵', label: 'Lumber Mill', description: 'Produces wood.',
-    sprite: '/sprites/lumbermill.png', category: 'Resources', backgroundColor: '#57534e', padShape: 'rect',
+    sprite: '/sprites/lumbermill.png', backgroundColor: '#57534e', padShape: 'rect',
   },
   [BuildingType.Quarry]: {
     width: 53, height: 46,
     cost: { wood: 20, stone: 10, gold: 10 },
     buildTime: 4, maxOccupants: 3,
     emoji: '🪨', label: 'Quarry', description: 'Produces stone.',
-    sprite: '/sprites/quarry.png', category: 'Resources', backgroundColor: '#44403c', padShape: 'rect',
+    sprite: '/sprites/quarry.png', backgroundColor: '#44403c', padShape: 'rect',
   },
   [BuildingType.Mine]: {
     width: 50, height: 46,
     cost: { wood: 40, stone: 20, gold: 25 },
     buildTime: 6, maxOccupants: 4,
     emoji: '⛏️', label: 'Mine', description: 'Produces lots of stone.',
-    sprite: '/sprites/mine.png', category: 'Resources', backgroundColor: '#292524', padShape: 'rect',
+    sprite: '/sprites/mine.png', backgroundColor: '#292524', padShape: 'rect',
     unlockRequirement: 'mining_1',
   },
   [BuildingType.Mill]: {
@@ -716,15 +800,15 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     cost: { wood: 45, stone: 25, gold: 30 },
     buildTime: 5, maxOccupants: 2,
     emoji: '🌾', label: 'Mill', description: 'Processes grain, boosting all food production.',
-    sprite: '/sprites/mill.png', category: 'Food', backgroundColor: '#84cc16', padShape: 'rect',
+    sprite: '/sprites/mill.png', backgroundColor: '#84cc16', padShape: 'rect',
     unlockRequirement: 'agriculture_2',
   },
   [BuildingType.Blacksmith]: {
     width: 53, height: 43,
     cost: { wood: 30, stone: 30, gold: 30 },
     buildTime: 5, maxOccupants: 2,
-    emoji: '🔨', label: 'Blacksmith', description: 'Queue iron spear & shield forge runs after Defense research. Staffed smiths boost industry.',
-    sprite: '/sprites/blacksmith.png', category: 'Industry', backgroundColor: '#c2410c', padShape: 'rect',
+    emoji: '🔨', label: 'Blacksmith', description: 'Queue forge upgrades — iron gear, guard halberds, wall plates, pickaxes. Staffed smiths boost industry.',
+    sprite: '/sprites/blacksmith.png', backgroundColor: '#c2410c', padShape: 'rect',
     unlockRequirement: 'forestry_1',
   },
   [BuildingType.Workshop]: {
@@ -732,29 +816,29 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     cost: { wood: 35, stone: 15, gold: 20 },
     buildTime: 4, maxOccupants: 2,
     emoji: '🔧', label: 'Workshop', description: 'Crafts frontier goods for gold — pick a recipe when built.',
-    sprite: '/sprites/workshop.png', category: 'Industry', backgroundColor: '#ea580c', padShape: 'rect',
+    sprite: '/sprites/workshop.png', backgroundColor: '#ea580c', padShape: 'rect',
   },
   [BuildingType.Store]: {
     width: 46, height: 40,
     cost: { wood: 30, stone: 10, gold: 15 },
     buildTime: 3, maxOccupants: 1,
     emoji: '🏪', label: 'Store', description: 'Generates gold.',
-    sprite: '/sprites/store.png', category: 'Industry', backgroundColor: '#f97316', padShape: 'rect',
+    sprite: '/sprites/store.png', backgroundColor: '#f97316', padShape: 'rect',
   },
   [BuildingType.Market]: {
     width: 59, height: 50,
     cost: { wood: 50, stone: 20, gold: 40 },
     buildTime: 6, maxOccupants: 3,
     emoji: '🏛️', label: 'Market', description: 'Generates lots of gold.',
-    sprite: '/sprites/market.png', category: 'Industry', backgroundColor: '#fb923c', padShape: 'rect',
+    sprite: '/sprites/market.png', backgroundColor: '#fb923c', padShape: 'rect',
     unlockRequirement: 'trade_1',
   },
   [BuildingType.School]: {
     width: 53, height: 46,
     cost: { wood: 50, stone: 30, gold: 25 },
     buildTime: 5, maxOccupants: 2,
-    emoji: '🏫', label: 'School', description: 'Staffed school helps children mature faster.',
-    sprite: '/sprites/school.png', category: 'Community', backgroundColor: '#2563eb', padShape: 'round',
+    emoji: '🏫', label: 'School', description: 'Staff a teacher — children attend by day for faster growth & graduation perks.',
+    sprite: '/sprites/school.png', backgroundColor: '#2563eb', padShape: 'round',
     unlockRequirement: 'education_1',
   },
   [BuildingType.Hospital]: {
@@ -762,15 +846,15 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     cost: { wood: 40, stone: 40, gold: 50 },
     buildTime: 6, maxOccupants: 2,
     emoji: '🏥', label: 'Hospital', description: 'Staffed hospital adds reputation and lowers energy drain.',
-    sprite: '/sprites/hospital.png', category: 'Community', backgroundColor: '#db2777', padShape: 'round',
+    sprite: '/sprites/hospital.png', backgroundColor: '#db2777', padShape: 'round',
     unlockRequirement: 'medicine_1',
   },
   [BuildingType.TownHall]: {
     width: 63, height: 53,
     cost: { wood: 100, stone: 80, gold: 100 },
     buildTime: 8, maxOccupants: 3,
-    emoji: '🏰', label: 'Town Hall', description: 'Greatly boosts reputation.',
-    sprite: '/sprites/townhall.png', category: 'Community', backgroundColor: '#1d4ed8', padShape: 'round',
+    emoji: '🏰', label: 'Town Hall', description: 'Civic hub — taxes, trade, immigration, elections & festivals when staffed.',
+    sprite: '/sprites/townhall.png', backgroundColor: '#1d4ed8', padShape: 'round',
     unlockRequirement: 'architecture_2',
   },
   [BuildingType.Church]: {
@@ -778,28 +862,28 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     cost: { wood: 45, stone: 35, gold: 20 },
     buildTime: 4, maxOccupants: 1,
     emoji: '⛪', label: 'Church', description: 'Staffed church boosts courtship, cures Moon Howlers nearby, and catches affairs.',
-    sprite: '/sprites/church.png', category: 'Community', backgroundColor: '#4f46e5', padShape: 'round',
+    sprite: '/sprites/church.png', backgroundColor: '#4f46e5', padShape: 'round',
   },
   [BuildingType.Well]: {
     width: 30, height: 30,
     cost: { wood: 15, stone: 10, gold: 5 },
     buildTime: 1, maxOccupants: 0,
     emoji: '🌊', label: 'Well', description: 'Reduces human energy consumption.',
-    sprite: '/sprites/well.png', category: 'Community', backgroundColor: '#0891b2', padShape: 'circle',
+    sprite: '/sprites/well.png', backgroundColor: '#0891b2', padShape: 'circle',
   },
   [BuildingType.Road]: {
     width: 66, height: 26,
     cost: { wood: 5, stone: 5, gold: 0 },
     buildTime: 1, maxOccupants: 0,
     emoji: '🛤️', label: 'Road', description: 'Speeds up travel, fragments wildlife habitat.',
-    sprite: '/sprites/road.png', category: 'Infrastructure', backgroundColor: '#4b5563', padShape: 'road',
+    sprite: '/sprites/road.png', backgroundColor: '#4b5563', padShape: 'road',
   },
   [BuildingType.Mansion]: {
     width: 59, height: 50,
     cost: { wood: 120, stone: 80, gold: 100 },
     buildTime: 7, maxOccupants: 8,
     emoji: '🏯', label: 'Mansion', description: 'Large family home (up to 8). Attracts more immigrants.',
-    sprite: '/sprites/mansion.png', category: 'Housing', backgroundColor: '#b45309', padShape: 'round',
+    sprite: '/sprites/mansion.png', backgroundColor: '#b45309', padShape: 'round',
     unlockRequirement: 'architecture_1',
   },
   [BuildingType.Prison]: {
@@ -807,53 +891,53 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     cost: { wood: 60, stone: 40, gold: 30 },
     buildTime: 5, maxOccupants: 2,
     emoji: '⛓️', label: 'Prison', description: 'Holds scandalous settlers for a short sentence. Requires a Guard.',
-    sprite: '/sprites/prison.png', category: 'Community', backgroundColor: '#475569', padShape: 'rect',
+    sprite: '/sprites/prison.png', backgroundColor: '#475569', padShape: 'rect',
     unlockRequirement: 'architecture_1',  },
   [BuildingType.TamingPost]: {
     width: 43, height: 43,
     cost: { wood: 35, stone: 15, gold: 20 },    buildTime: 3, maxOccupants: 1,
     emoji: '🦴', label: 'Taming Post', description: 'Allows settlers to tame nearby wolves, foxes, deer, and rabbits.',
-    sprite: '/sprites/wolf.png', category: 'Community', backgroundColor: '#7c3aed', padShape: 'circle',
+    sprite: '/sprites/wolf.png', backgroundColor: '#7c3aed', padShape: 'circle',
   },
   [BuildingType.Wall]: {
-    width: 72, height: 26,
+    width: 60, height: 40,
     cost: { wood: 8, stone: 14, gold: 0 },
     buildTime: 1, maxOccupants: 0,
     emoji: '🧱', label: 'Wall', description: 'Stone palisade segment — +8 barricade strength each (cap +72).',
-    sprite: '/sprites/wall_straight.png', category: 'Defense', backgroundColor: '#64748b', padShape: 'road',
-    spriteDisplayScale: 0.88, unlockRequirement: 'defense_1',
+    sprite: '/sprites/wall_straight.png', backgroundColor: '#64748b', padShape: 'rect',
+    unlockRequirement: 'defense_1',
   },
   [BuildingType.WallCorner]: {
-    width: 40, height: 40,
+    width: 48, height: 48,
     cost: { wood: 10, stone: 16, gold: 0 },
     buildTime: 1, maxOccupants: 0,
     emoji: '↪️', label: 'Wall Corner', description: 'L-shaped wall junction — counts as a wall segment for defense.',
-    sprite: '/sprites/wall_corner.png', category: 'Defense', backgroundColor: '#64748b', padShape: 'rect',
-    spriteDisplayScale: 0.82, unlockRequirement: 'defense_1',
+    sprite: '/sprites/wall_corner.png', backgroundColor: '#64748b', padShape: 'rect',
+    unlockRequirement: 'defense_1',
   },
   [BuildingType.WallGate]: {
-    width: 56, height: 48,
+    width: 60, height: 48,
     cost: { wood: 18, stone: 28, gold: 8 },
     buildTime: 2, maxOccupants: 0,
     emoji: '🚪', label: 'Wall Gate', description: 'Gated entrance — strong wall segment with drawbridge flair.',
-    sprite: '/sprites/wall_gate.png', category: 'Defense', backgroundColor: '#64748b', padShape: 'rect',
-    spriteDisplayScale: 0.78, unlockRequirement: 'defense_1',
+    sprite: '/sprites/wall_gate.png', backgroundColor: '#64748b', padShape: 'rect',
+    unlockRequirement: 'defense_1',
   },
   [BuildingType.Watchtower]: {
     width: 44, height: 52,
     cost: { wood: 28, stone: 42, gold: 12 },
     buildTime: 4, maxOccupants: 0,
     emoji: '🗼', label: 'Watchtower', description: 'Overwatch post — +15 barricade strength and early raid warning.',
-    sprite: '/sprites/watchtower.png', category: 'Defense', backgroundColor: '#475569', padShape: 'rect',
-    spriteDisplayScale: 0.72, unlockRequirement: 'defense_1',
+    sprite: '/sprites/watchtower.png', backgroundColor: '#475569', padShape: 'rect',
+    unlockRequirement: 'defense_1',
   },
   [BuildingType.Barracks]: {
     width: 56, height: 50,
     cost: { wood: 85, stone: 65, gold: 35 },
     buildTime: 6, maxOccupants: 4,
     emoji: '⚔️', label: 'Barracks', description: 'Staff Guards to patrol the village (+12 militia strength each).',
-    sprite: '/sprites/barracks.png', category: 'Defense', backgroundColor: '#57534e', padShape: 'rect',
-    spriteDisplayScale: 0.68, unlockRequirement: 'defense_2',
+    sprite: '/sprites/barracks.png', backgroundColor: '#57534e', padShape: 'rect',
+    unlockRequirement: 'defense_2',
   },
 };
 
@@ -874,11 +958,11 @@ export function createInitialResearchNodes(): ResearchNode[] {
     { id: 'agriculture_2', type: ResearchType.Agriculture, name: 'Grain Processing', description: 'Unlocks Mill', cost: { wood: 80, stone: 40, food: 0, gold: 60 }, unlocked: false, researched: false, prerequisites: ['agriculture_1'], effects: [{ target: 'all_food', multiplier: 1.25 }], icon: '🌾', tier: 2 },
     { id: 'agriculture_3', type: ResearchType.Agriculture, name: 'Irrigation', description: 'Farms work 50% better in drought', cost: { wood: 60, stone: 60, food: 0, gold: 80 }, unlocked: false, researched: false, prerequisites: ['agriculture_2'], effects: [{ target: 'drought_resist', multiplier: 1.5 }], icon: '💧', tier: 3 },
     { id: 'mining_1', type: ResearchType.Mining, name: 'Deep Mining', description: 'Unlocks Mine', cost: { wood: 60, stone: 30, food: 0, gold: 40 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'quarry_yield', multiplier: 1.2 }], icon: '⛏️', tier: 1 },
-    { id: 'mining_2', type: ResearchType.Mining, name: 'Refining', description: 'Stone production +30%', cost: { wood: 80, stone: 50, food: 0, gold: 70 }, unlocked: false, researched: false, prerequisites: ['mining_1'], effects: [{ target: 'stone_production', multiplier: 1.3 }], icon: '⚒️', tier: 2 },
+    { id: 'mining_2', type: ResearchType.Mining, name: 'Refining', description: 'Stone production +30% · unlocks Iron Pickaxes forge order at Blacksmith', cost: { wood: 80, stone: 50, food: 0, gold: 70 }, unlocked: false, researched: false, prerequisites: ['mining_1'], effects: [{ target: 'stone_production', multiplier: 1.3 }], icon: '⚒️', tier: 2 },
     { id: 'forestry_1', type: ResearchType.Forestry, name: 'Carpentry', description: 'Unlocks Blacksmith', cost: { wood: 40, stone: 30, food: 0, gold: 35 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'lumber_yield', multiplier: 1.2 }], icon: '🪵', tier: 1 },
     { id: 'forestry_2', type: ResearchType.Forestry, name: 'Sustainable Logging', description: 'Reduces pollution from lumber', cost: { wood: 70, stone: 40, food: 0, gold: 60 }, unlocked: false, researched: false, prerequisites: ['forestry_1'], effects: [{ target: 'lumber_pollution', multiplier: 0.5 }], icon: '🌲', tier: 2 },
     { id: 'architecture_1', type: ResearchType.Architecture, name: 'Fine Construction', description: 'Unlocks Mansion · step 1 toward Town Hall', cost: { wood: 80, stone: 60, food: 0, gold: 50 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'building_health', multiplier: 1.3 }], icon: '🏗️', tier: 1 },
-    { id: 'architecture_2', type: ResearchType.Architecture, name: 'Urban Planning', description: 'Unlocks Town Hall (+ reputation from roads)', cost: { wood: 100, stone: 80, food: 0, gold: 100 }, unlocked: false, researched: false, prerequisites: ['architecture_1'], effects: [{ target: 'road_bonus', multiplier: 1.5 }], icon: '🏛️', tier: 2 },
+    { id: 'architecture_2', type: ResearchType.Architecture, name: 'Urban Planning', description: 'Unlocks Town Hall (+ reputation from roads)', cost: { wood: 100, stone: 80, food: 0, gold: 100 }, unlocked: false, researched: false, prerequisites: ['architecture_1'], effects: [{ target: 'road_bonus', multiplier: 1.5 }], icon: '🏛️', tier: 2, completionNotify: { title: 'Town Hall unlocked', message: 'Open Build (B) → Community → Town Hall 🏰', level: 'success' } },
     { id: 'medicine_1', type: ResearchType.Medicine, name: 'Herbal Medicine', description: 'Unlocks Hospital', cost: { wood: 50, stone: 40, food: 0, gold: 60 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'human_lifespan', multiplier: 1.2 }], icon: '🌿', tier: 1 },
     { id: 'medicine_2', type: ResearchType.Medicine, name: 'Plague Resistance', description: 'Immune to plague disasters', cost: { wood: 60, stone: 50, food: 0, gold: 90 }, unlocked: false, researched: false, prerequisites: ['medicine_1'], effects: [{ target: 'plague_immunity', add: 1 }], icon: '💉', tier: 2 },
     { id: 'trade_1', type: ResearchType.Trade, name: 'Commerce', description: 'Unlocks Market', cost: { wood: 60, stone: 30, food: 0, gold: 50 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'gold_production', multiplier: 1.2 }], icon: '💰', tier: 1 },
@@ -886,10 +970,12 @@ export function createInitialResearchNodes(): ResearchNode[] {
     { id: 'education_1', type: ResearchType.Education, name: 'Scholarship', description: 'Unlocks School', cost: { wood: 70, stone: 50, food: 0, gold: 40 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'research_speed', multiplier: 1.3 }], icon: '📚', tier: 1 },
     { id: 'education_2', type: ResearchType.Education, name: 'Advanced Learning', description: 'All buildings 20% more efficient', cost: { wood: 90, stone: 70, food: 0, gold: 120 }, unlocked: false, researched: false, prerequisites: ['education_1'], effects: [{ target: 'global_efficiency', multiplier: 1.2 }], icon: '🎓', tier: 2 },
     { id: 'defense_1', type: ResearchType.Defense, name: 'Fortification', description: 'Unlocks walls & watchtower · buildings take 50% less disaster damage', cost: { wood: 100, stone: 80, food: 0, gold: 70 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'disaster_resist', multiplier: 0.5 }], icon: '🛡️', tier: 1 },
-    { id: 'defense_2', type: ResearchType.Defense, name: 'Stone Spears', description: 'Unlocks Barracks · settlers hunt farther (+20% range) and bring home more meat (+25% food)', cost: { wood: 40, stone: 25, food: 0, gold: 20 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'hunt_range', multiplier: 1.2 }, { target: 'hunt_food', multiplier: 1.25 }], icon: '🏹', tier: 1 },
+    { id: 'defense_2', type: ResearchType.Defense, name: 'Stone Spears', description: 'Unlocks Barracks · settlers hunt farther (+20% range) and bring home more meat (+25% food)', cost: { wood: 40, stone: 25, food: 0, gold: 20 }, unlocked: false, researched: false, prerequisites: ['defense_1'], effects: [{ target: 'hunt_range', multiplier: 1.2 }, { target: 'hunt_food', multiplier: 1.25 }], icon: '🏹', tier: 2 },
     { id: 'defense_3', type: ResearchType.Defense, name: 'Wooden Shields', description: 'Settlers block 35% of Moon Howler strikes and flee faster', cost: { wood: 60, stone: 20, food: 0, gold: 35 }, unlocked: false, researched: false, prerequisites: ['defense_1'], effects: [{ target: 'predator_block', add: 0.35 }, { target: 'flee_speed', multiplier: 1.2 }], icon: '🛡️', tier: 2 },
-    { id: 'defense_4', type: ResearchType.Defense, name: 'Iron Spears', description: 'Unlocks iron spear forge order at Blacksmith — +40% hunt range, fight back vs wolves', cost: { wood: 70, stone: 50, food: 0, gold: 80 }, unlocked: false, researched: false, prerequisites: ['defense_2', 'mining_1'], effects: [{ target: 'hunt_range', multiplier: 1.4 }, { target: 'hunt_food', multiplier: 1.3 }, { target: 'counter_attack', add: 0.45 }], icon: '⚔️', tier: 3 },
-    { id: 'defense_5', type: ResearchType.Defense, name: 'Iron Shields', description: 'Unlocks iron shield forge order at Blacksmith — block 60% of predator kills', cost: { wood: 80, stone: 60, food: 0, gold: 90 }, unlocked: false, researched: false, prerequisites: ['defense_3', 'mining_1'], effects: [{ target: 'predator_block', add: 0.6 }, { target: 'flee_speed', multiplier: 1.35 }], icon: '🛡️', tier: 3 },
+    { id: 'defense_4', type: ResearchType.Defense, name: 'Iron Spears', description: 'Unlocks iron spear forge order at Blacksmith — +40% hunt range, fight back vs wolves', cost: { wood: 70, stone: 50, food: 0, gold: 80 }, unlocked: false, researched: false, prerequisites: ['defense_2', 'mining_1'], effects: [{ target: 'hunt_range', multiplier: 1.4 }, { target: 'hunt_food', multiplier: 1.3 }, { target: 'counter_attack', add: 0.45 }], icon: '⚔️', tier: 3, forgeUnlockNotify: true },
+    { id: 'defense_5', type: ResearchType.Defense, name: 'Iron Shields', description: 'Unlocks iron shield forge order at Blacksmith — block 60% of predator kills', cost: { wood: 80, stone: 60, food: 0, gold: 90 }, unlocked: false, researched: false, prerequisites: ['defense_3', 'mining_1'], effects: [{ target: 'predator_block', add: 0.6 }, { target: 'flee_speed', multiplier: 1.35 }], icon: '🛡️', tier: 3, forgeUnlockNotify: true },
+    { id: 'defense_6', type: ResearchType.Defense, name: 'Militia Drill', description: 'Unlocks Guard Halberds forge order — +6 militia per staffed barracks guard', cost: { wood: 90, stone: 55, food: 0, gold: 100 }, unlocked: false, researched: false, prerequisites: ['defense_4'], effects: [], icon: '🪖', tier: 4 },
+    { id: 'defense_7', type: ResearchType.Defense, name: 'Reinforced Masonry', description: 'Unlocks Reinforced Wall Plates forge order — +4 barricade per wall segment', cost: { wood: 100, stone: 90, food: 0, gold: 110 }, unlocked: false, researched: false, prerequisites: ['defense_5', 'defense_1'], effects: [], icon: '🧱', tier: 4 },
   ];
 }
 
@@ -1000,7 +1086,7 @@ export const WEREWOLF_BEFRIEND_LINES = [
   (human: string, wolf: string) => `${human} said "nice fur." ${wolf} said "deal."`,
 ] as const;
 
-export const WEREWOLF_TAME_LINES = WEREWOLF_CURE_LINES;
+export const WEREWOLF_TAME_LINES: readonly string[] = [...WEREWOLF_CURE_LINES];
 
 export const ECOLOGICAL_FACTS = [
   'Apex predators like wolves help regulate prey populations and maintain ecosystem balance.',
@@ -1017,11 +1103,20 @@ export const ECOLOGICAL_FACTS = [
   'A Church nearby can break the Moon Howler curse before the next full moon.',
 ];
 
-export const WEATHER_CONFIGS: Record<WeatherType, { label: string; emoji: string; color: string; particleCount: number }> = {
-  [WeatherType.Clear]: { label: 'Clear', emoji: '', color: '', particleCount: 0 },
-  [WeatherType.Rain]: { label: 'Rain', emoji: '🌧️', color: '#6b7280', particleCount: 100 },
-  [WeatherType.Snow]: { label: 'Snow', emoji: '❄️', color: '#e5e7eb', particleCount: 80 },
-  [WeatherType.Storm]: { label: 'Storm', emoji: '⛈️', color: '#374151', particleCount: 150 },
-  [WeatherType.Fog]: { label: 'Fog', emoji: '🌫️', color: '#d1d5db', particleCount: 0 },
-  [WeatherType.Drought]: { label: 'Drought', emoji: '🌵', color: '#92400e', particleCount: 0 },
+export interface WeatherConfig {
+  label: string;
+  emoji: string;
+  color: string;
+  particleCount: number;
+  /** Full-screen tint alpha (fog/drought); 0 for particle-only weather. */
+  overlayAlpha: number;
+}
+
+export const WEATHER_CONFIGS: Record<WeatherType, WeatherConfig> = {
+  [WeatherType.Clear]: { label: 'Clear', emoji: '', color: '', particleCount: 0, overlayAlpha: 0 },
+  [WeatherType.Rain]: { label: 'Rain', emoji: '🌧️', color: '#8a9aaa', particleCount: 40, overlayAlpha: 0 },
+  [WeatherType.Snow]: { label: 'Snow', emoji: '❄️', color: '#ffffff', particleCount: 25, overlayAlpha: 0 },
+  [WeatherType.Storm]: { label: 'Storm', emoji: '⛈️', color: '#90a0b0', particleCount: 50, overlayAlpha: 0 },
+  [WeatherType.Fog]: { label: 'Fog', emoji: '🌫️', color: '#d1d5db', particleCount: 0, overlayAlpha: 0.2 },
+  [WeatherType.Drought]: { label: 'Drought', emoji: '🌵', color: '#92400e', particleCount: 0, overlayAlpha: 0.06 },
 };

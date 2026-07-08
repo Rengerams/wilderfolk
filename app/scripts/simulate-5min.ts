@@ -2,20 +2,30 @@
  * Headless 5-minute session sim (~300 ticks @ 1 tick/s) with automated building + audits.
  * Run: npx tsx scripts/simulate-5min.ts
  */
+import { getSimFocus } from './simFocus';
+import {
+  advanceSimTick,
+  disposeSimWorkerHost,
+  initSimWorkerHost,
+} from './simWorkerRuntime';
 import {
   initGame,
-  gameTick,
-  startBuilding,
   recruitSettler,
   EntityType,
   BuildingType,
   BUILDING_CONFIGS,
   BUILDING_JOB_TYPES,
-  canPlaceBuilding,
-  snapToGrid,
 } from '../src/game/gameEngine';
+import { tryPlaceBuilding } from './simBuildUtils';
 import type { WorldState, Entity, Building } from '../src/game/gameTypes';
-import { countResidentsInBuilding, hasResidenceAssignment, hasWorkAssignment, isResidenceBuilding } from '../src/game/dayCycle';
+import {
+  auditHousingSharingIssues,
+  countResidentsInBuilding,
+  getResidenceCapacity,
+  hasResidenceAssignment,
+  hasWorkAssignment,
+  isResidenceBuilding,
+} from '../src/game/dayCycle';
 import { isPlayerHuman } from '../src/game/groupEvents';
 
 const TICKS_PER_REAL_MINUTE = 60; // 1 tick/s at 1× speed
@@ -49,7 +59,7 @@ function audit(state: WorldState, tick: number): SimIssue[] {
   );
 
   for (const house of residences) {
-    const cap = BUILDING_CONFIGS[house.type].maxOccupants;
+    const cap = getResidenceCapacity(house);
     if (house.occupants.length > cap) {
       issues.push({
         tick,
@@ -61,10 +71,14 @@ function audit(state: WorldState, tick: number): SimIssue[] {
   }
 
   const openBeds = residences.reduce((sum, r) => {
-    const cap = BUILDING_CONFIGS[r.type].maxOccupants;
+    const cap = getResidenceCapacity(r);
     const used = countResidentsInBuilding(humans, r.id);
     return sum + Math.max(0, cap - used);
   }, 0);
+
+  for (const message of auditHousingSharingIssues(humans, state.buildings)) {
+    issues.push({ tick, severity: 'error', category: 'housing', message });
+  }
 
   for (const h of humans.filter((x) => !x.isJuvenile)) {
     if (!hasResidenceAssignment(h) && openBeds > 0) {
@@ -193,29 +207,14 @@ function audit(state: WorldState, tick: number): SimIssue[] {
   return issues;
 }
 
-function findBuildSpot(state: WorldState, type: BuildingType, cx: number, cy: number): [number, number] | null {
-  for (let ring = 0; ring < 12; ring++) {
-    const radius = 80 + ring * 40;
-    const steps = 8 + ring * 2;
-    for (let i = 0; i < steps; i++) {
-      const angle = (i / steps) * Math.PI * 2;
-      const x = snapToGrid(cx + Math.cos(angle) * radius);
-      const y = snapToGrid(cy + Math.sin(angle) * radius);
-      if (canPlaceBuilding(state, type, x, y)) return [x, y];
-    }
-  }
-  return null;
-}
-
 function tryPlaceNear(
   state: WorldState,
   type: BuildingType,
   cx: number,
   cy: number,
 ): WorldState {
-  const spot = findBuildSpot(state, type, cx, cy);
-  if (!spot) return state;
-  return startBuilding(state, type, spot[0], spot[1]);
+  const { state: next, ok } = tryPlaceBuilding(state, type, cx, cy);
+  return ok ? next : state;
 }
 
 type ScheduledAction = { at: number; fn: (s: WorldState) => WorldState; label: string };
@@ -246,7 +245,7 @@ function summarizeBuildings(state: WorldState): string {
     .join(', ');
 }
 
-function runSimulation(): void {
+async function runSimulation(): Promise<void> {
   let state = initGame({ villageName: 'Simville' });
   state.resources.wood = 2500;
   state.resources.stone = 1200;
@@ -258,6 +257,10 @@ function runSimulation(): void {
   const issueKeys = new Set<string>();
   const milestones: string[] = [];
 
+  const simFocus = getSimFocus(state);
+  const workerBoot = await initSimWorkerHost(state);
+  const workerHost = workerBoot.host;
+  state = workerBoot.state;
   const start = performance.now();
 
   for (let t = 1; t <= TOTAL_TICKS; t++) {
@@ -270,7 +273,7 @@ function runSimulation(): void {
       }
     }
 
-    state = gameTick(state);
+    state = (await advanceSimTick(state, simFocus, workerHost)).state;
 
     if (t % 24 === 0) {
       const day = t / 24;
@@ -289,6 +292,7 @@ function runSimulation(): void {
     }
   }
 
+  disposeSimWorkerHost(workerHost);
   const elapsed = ((performance.now() - start) / 1000).toFixed(2);
   const humans = state.entities.filter((e) => e.alive && isPlayerHuman(e));
   const errors = allIssues.filter((i) => i.severity === 'error');
@@ -320,4 +324,7 @@ function runSimulation(): void {
   }
 }
 
-runSimulation();
+runSimulation().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

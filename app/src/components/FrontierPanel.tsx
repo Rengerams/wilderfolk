@@ -3,6 +3,7 @@ import type { WorldState } from '../game/gameTypes';
 import CombatPreviewPanel from '../game/CombatPreviewPanel';
 import {
   canLaunchRaidOnRival,
+  getOutgoingRaidActionLabel,
   formatCampDistance,
   formatRaidDeadline,
   formatRivalPopulationLabel,
@@ -22,6 +23,7 @@ import { computeMilitiaBreakdown } from '../game/militiaBalance';
 interface Props {
   state: WorldState;
   pendingRaidCount: number;
+  pendingOutgoingRaidCount: number;
   pendingDiplomacyCount: number;
   onFocusVisitor: (id: string, x: number, y: number) => void;
   onFocusRival: (id: string, x: number, y: number, buildingId?: number) => void;
@@ -31,12 +33,14 @@ interface Props {
 function FrontierPanel({
   state,
   pendingRaidCount,
+  pendingOutgoingRaidCount,
   pendingDiplomacyCount,
   onFocusVisitor,
   onFocusRival,
   onLaunchRaid,
 }: Props) {
   const pendingRaids = state.pendingRaidEvents ?? [];
+  const firstPendingRaid = pendingRaids[0];
   const pendingDiplomacy = state.pendingDiplomacyEvents ?? [];
   const hasNeighbors = state.visitorGroups.length > 0 || state.rivalSettlements.length > 0;
   const militia = computeMilitiaBreakdown(state, state.entities);
@@ -49,11 +53,19 @@ function FrontierPanel({
   ]);
   const armament = hasIronSpears(state) ? 'Iron spears' : hasStoneSpears(state) ? 'Stone spears' : 'Unarmed adults';
 
-  if (!hasNeighbors && pendingRaidCount === 0) {
+  if (!hasNeighbors && pendingRaidCount === 0 && pendingOutgoingRaidCount === 0) {
+    const year = state.year ?? 0;
     return (
       <div className="rounded-xl border border-dashed border-stone-600 bg-stone-800/40 p-4 text-center">
         <p className="text-[10px] text-stone-400">No caravans or rival camps yet.</p>
-        <p className="mt-1 text-[9px] text-stone-500">Grow your village — neighbors arrive as reputation spreads.</p>
+        <p className="mt-1 text-[9px] text-stone-500">
+          Grow your village — trade caravans arrive as reputation spreads.
+        </p>
+        {year < 2 && (
+          <p className="mt-2 text-[9px] text-amber-400/90">
+            Rival camps usually appear from Year 2 onward (you are Year {year}).
+          </p>
+        )}
       </div>
     );
   }
@@ -88,24 +100,32 @@ function FrontierPanel({
         <p className="mt-1.5 text-[8px] text-stone-500">🏹 {armament} · assign guards in Barracks inspector</p>
       </div>
 
-      {(pendingRaidCount > 0 || pendingDiplomacyCount > 0) && (
+      {(pendingRaidCount > 0 || pendingOutgoingRaidCount > 0 || pendingDiplomacyCount > 0) && (
         <div className="rounded-lg border border-rose-500/30 bg-rose-950/25 px-3 py-2 text-[9px] text-rose-200">
-          {pendingRaidCount > 0 && <p>⚔️ {pendingRaidCount} raid(s) — respond in the map banner</p>}
-          {pendingDiplomacyCount > 0 && <p className={pendingRaidCount > 0 ? 'mt-0.5' : ''}>📜 {pendingDiplomacyCount} diplomacy event(s) — respond on map</p>}
+          {pendingRaidCount > 0 && <p>⚔️ {pendingRaidCount} incoming raid(s) — respond in the map banner</p>}
+          {pendingOutgoingRaidCount > 0 && (
+            <p className={pendingRaidCount > 0 ? 'mt-0.5' : ''}>
+              🏹 {pendingOutgoingRaidCount} war-band(s) at rival camps — accept tribute or fight
+            </p>
+          )}
+          {pendingDiplomacyCount > 0 && (
+            <p className={pendingRaidCount > 0 || pendingOutgoingRaidCount > 0 ? 'mt-0.5' : ''}>
+              📜 {pendingDiplomacyCount} diplomacy event(s) — respond on map
+            </p>
+          )}
         </div>
       )}
 
-      {pendingRaids.length > 0 && (
+      {firstPendingRaid && (
         <CombatPreviewPanel
           preview={getCombatPreview(state, {
-            attackerStrength: pendingRaids[0]?.attackerStrength
+            attackerStrength: firstPendingRaid.attackerStrength
               ?? (state.rivalSettlements[0] ? getRivalRaidStrength(state.rivalSettlements[0]) : undefined),
-            rival: pendingRaids[0]
-              ? state.rivalSettlements.find((r) => r.id === pendingRaids[0].rivalId)
-              : state.rivalSettlements[0],
-            incomingPayoffFood: pendingRaids[0]?.lootFood,
+            rival: state.rivalSettlements.find((r) => r.id === firstPendingRaid.rivalId)
+              ?? state.rivalSettlements[0],
+            incomingPayoffFood: firstPendingRaid.lootFood,
           })}
-          showCounterRaid={false}
+          showOutgoingRaid={false}
           title="⚔️ Incoming raid forecast"
         />
       )}
@@ -143,6 +163,7 @@ function FrontierPanel({
               const hasDiplo = pendingDiplomacy.some((e) => e.rivalId === r.id);
               const raidEligibility = canLaunchRaidOnRival(state, r);
               const raidFoodCost = getOutgoingRaidFoodCostForRival(state, r);
+              const outgoingRaidAction = getOutgoingRaidActionLabel(state, r.id);
               return (
                 <div
                   key={r.id}
@@ -187,7 +208,7 @@ function FrontierPanel({
                       }}
                       className="mt-1.5 w-full rounded bg-orange-950 px-2 py-1 text-[8px] font-bold text-orange-100 hover:bg-orange-900 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      🏹 Raid their camp ({raidFoodCost}🍖)
+                      🏹 {outgoingRaidAction.buttonLabel} ({raidFoodCost}🍖)
                     </button>
                   )}
                 </div>

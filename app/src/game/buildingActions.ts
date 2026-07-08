@@ -16,26 +16,50 @@ import {
   createDeathParticles,
   impulseScreenShake,
   getTerrainEfficiencyMultiplier,
-  getAdjacencyMultiplier,
+  buildAdjacencyIndex,
+  getAdjacencyMultiplierFromIndex,
   getMultiplier,
   assignMissingWorkers,
 } from './gameEngine';
 import { isPlayerHuman } from './groupEvents';
 import {
   assignMissingResidences,
+  collectOwnHousehold,
   hasWorkAssignment,
+  isAdultChildAtHome,
   isImprisoned,
   isResidenceBuilding,
   isResidenceBuildingType,
   getResidenceCapacity,
   syncResidenceOccupants,
+  tryMoveOutOfFamilyHome,
   HUMAN_ADULT_MIN_AGE,
+  HUMAN_MOVE_OUT_MIN_AGE,
+  getColonyDay,
+  setHumanBirthFromAge,
 } from './dayCycle';
 import { canMoonHowlerCurse, curseMoonHowler } from './moonHowler';
 import { notifyBuildingLocked } from './research';
 import { type BuildingRotation, getBuildingFootprintForType } from './buildingRotation';
-import { createEntity, createBuilding, setEntityBirthDate } from './worldGen';
+import {
+  isStripBuildType,
+  type StripBuildPreview,
+  type StripSegment,
+} from './stripBuild';
+import { buildStripPlanFromDrag } from './stripTopology';
+import {
+  normalizeBuildingRotation,
+  normalizeCornerRotation,
+  type CornerRotation,
+} from './buildingRotation';
+import { createEntity, createBuilding } from './worldGen';
 import { logEvent } from './eventLog';
+import {
+  isBuildingTechUnlocked,
+  isFootprintOnBuildableTerrain,
+  isFootprintWithinMapBounds,
+  overlapsPlayerBuilding,
+} from './placementUtils';
 
 // ============ BUILDING ACTIONS ============
 export const UNBUILDABLE_TERRAIN = new Set<TerrainType>([
@@ -47,47 +71,7 @@ export const UNBUILDABLE_TERRAIN = new Set<TerrainType>([
   TerrainType.Snow,
 ]);
 
-export function isFootprintWithinMapBounds(
-  width: number,
-  height: number,
-  x: number,
-  y: number,
-  mapWidth: number,
-  mapHeight: number,
-): boolean {
-  return (
-    x - width / 2 >= 0
-    && y - height / 2 >= 0
-    && x + width / 2 <= mapWidth
-    && y + height / 2 <= mapHeight
-  );
-}
-
-export function isFootprintOnBuildableTerrain(
-  state: WorldState,
-  width: number,
-  height: number,
-  x: number,
-  y: number,
-): boolean {
-  if (!state.worldMap) return false;
-  const left = x - width / 2;
-  const right = x + width / 2;
-  const top = y - height / 2;
-  const bottom = y + height / 2;
-  const startTx = Math.floor(left / 10);
-  const endTx = Math.floor(right / 10);
-  const startTy = Math.floor(top / 10);
-  const endTy = Math.floor(bottom / 10);
-
-  for (let ty = startTy; ty <= endTy; ty++) {
-    for (let tx = startTx; tx <= endTx; tx++) {
-      const tile = state.worldMap.tiles[ty]?.[tx];
-      if (!tile || UNBUILDABLE_TERRAIN.has(tile.type)) return false;
-    }
-  }
-  return true;
-}
+export { isFootprintOnBuildableTerrain, isFootprintWithinMapBounds } from './placementUtils';
 
 export function canPlaceBuilding(
   state: WorldState,
@@ -99,17 +83,14 @@ export function canPlaceBuilding(
   const config = BUILDING_CONFIGS[type];
   const { width, height } = getBuildingFootprintForType(type, rotation);
   if (!isFootprintWithinMapBounds(width, height, x, y, state.width, state.height)) return false;
-  if (config.unlockRequirement && !state.unlockedTechs.includes(config.unlockRequirement)) return false;
-  if (!isFootprintOnBuildableTerrain(state, width, height, x, y)) return false;
-  for (const b of state.buildings) {
-    if (
-      x + width / 2 > b.x - b.width / 2 && x - width / 2 < b.x + b.width / 2 &&
-      y + height / 2 > b.y - b.height / 2 && y - height / 2 < b.y + b.height / 2
-    ) {
-      return false;
-    }
+  if (
+    config.unlockRequirement
+    && !isBuildingTechUnlocked(config.unlockRequirement, state.unlockedTechs, state.researchNodes)
+  ) {
+    return false;
   }
-  return true;
+  if (!isFootprintOnBuildableTerrain(state, width, height, x, y)) return false;
+  return !overlapsPlayerBuilding(state.buildings, width, height, x, y);
 }
 
 export function getPlaceBuildingFailureReason(
@@ -122,16 +103,14 @@ export function getPlaceBuildingFailureReason(
   const config = BUILDING_CONFIGS[type];
   const { width, height } = getBuildingFootprintForType(type, rotation);
   if (!isFootprintWithinMapBounds(width, height, x, y, state.width, state.height)) return 'blocked';
-  if (config.unlockRequirement && !state.unlockedTechs.includes(config.unlockRequirement)) return 'research';
-  if (!isFootprintOnBuildableTerrain(state, width, height, x, y)) return 'terrain';
-  for (const b of state.buildings) {
-    if (
-      x + width / 2 > b.x - b.width / 2 && x - width / 2 < b.x + b.width / 2 &&
-      y + height / 2 > b.y - b.height / 2 && y - height / 2 < b.y + b.height / 2
-    ) {
-      return 'blocked';
-    }
+  if (
+    config.unlockRequirement
+    && !isBuildingTechUnlocked(config.unlockRequirement, state.unlockedTechs, state.researchNodes)
+  ) {
+    return 'research';
   }
+  if (!isFootprintOnBuildableTerrain(state, width, height, x, y)) return 'terrain';
+  if (overlapsPlayerBuilding(state.buildings, width, height, x, y)) return 'blocked';
   return null;
 }
 
@@ -180,6 +159,161 @@ export function startBuilding(
   return state;
 }
 
+function refundHalfBuildingCost(state: WorldState, type: BuildingType): void {
+  const config = BUILDING_CONFIGS[type];
+  state.resources.wood += Math.floor(config.cost.wood * 0.5);
+  state.resources.stone += Math.floor(config.cost.stone * 0.5);
+  state.resources.gold += Math.floor(config.cost.gold * 0.5);
+}
+
+function segmentRotationForPlacement(
+  placeType: BuildingType,
+  rotation: BuildingRotation | CornerRotation,
+): BuildingRotation {
+  if (placeType === BuildingType.WallCorner) {
+    const c = normalizeCornerRotation(rotation);
+    return c === 90 || c === 270 ? 90 : 0;
+  }
+  return normalizeBuildingRotation(rotation);
+}
+
+export function buildStripPreview(
+  state: WorldState,
+  type: BuildingType,
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+  rotation: BuildingRotation,
+): StripBuildPreview {
+  const { plan, enclosedAreas } = buildStripPlanFromDrag(
+    state, type, startX, startY, endX, endY, rotation,
+  );
+  return {
+    rotation,
+    enclosedAreas,
+    segments: plan.map((piece) => {
+      const segRot = segmentRotationForPlacement(piece.type, piece.rotation);
+      const replacing = piece.replacesBuildingId !== undefined
+        ? state.buildings.find((b) => b.id === piece.replacesBuildingId)
+        : undefined;
+      let valid = canPlaceBuilding(state, piece.type, piece.x, piece.y, segRot);
+      if (replacing !== undefined) {
+        const withoutReplace: WorldState = {
+          ...state,
+          buildings: state.buildings.filter((b) => b.id !== replacing.id),
+        };
+        valid = getPlaceBuildingFailureReason(withoutReplace, piece.type, piece.x, piece.y, segRot) == null;
+      }
+      return {
+        x: piece.x,
+        y: piece.y,
+        placeType: piece.type,
+        rotation: piece.rotation,
+        junctionInfo: piece.junctionInfo,
+        replacesBuildingId: piece.replacesBuildingId,
+        valid,
+      };
+    }),
+  };
+}
+
+export function placeStripChain(
+  originalState: WorldState,
+  type: BuildingType,
+  segments: StripSegment[],
+  rotation: BuildingRotation,
+): WorldState {
+  if (!isStripBuildType(type) || segments.length === 0) return originalState;
+
+  const state = structuredClone(originalState) as WorldState;
+  const baseConfig = BUILDING_CONFIGS[type];
+
+  if (
+    baseConfig.unlockRequirement
+    && !isBuildingTechUnlocked(baseConfig.unlockRequirement, state.unlockedTechs, state.researchNodes)
+  ) {
+    return notifyBuildingLocked(state, type);
+  }
+
+  let placed = 0;
+  let firstX = 0;
+  let firstY = 0;
+  const replaced = new Set<number>();
+
+  for (const seg of segments) {
+    if (!seg.valid) continue;
+    const placeType = seg.placeType ?? type;
+    const placeRot = seg.rotation ?? rotation;
+    const segRot = segmentRotationForPlacement(placeType, placeRot);
+    const config = BUILDING_CONFIGS[placeType];
+
+    if (
+      state.resources.wood < config.cost.wood
+      || state.resources.stone < config.cost.stone
+      || state.resources.gold < config.cost.gold
+    ) {
+      break;
+    }
+
+    const replaceId = seg.replacesBuildingId;
+    let placementChecked = false;
+    if (replaceId !== undefined && !replaced.has(replaceId)) {
+      const existing = state.buildings.find((b) => b.id === replaceId);
+      if (existing) {
+        state.buildings = state.buildings.filter((b) => b.id !== replaceId);
+        const failure = getPlaceBuildingFailureReason(state, placeType, seg.x, seg.y, segRot);
+        if (failure) {
+          state.buildings.push(existing);
+          continue;
+        }
+        refundHalfBuildingCost(state, existing.type);
+        replaced.add(replaceId);
+        placementChecked = true;
+      }
+    }
+
+    if (!placementChecked) {
+      const failure = getPlaceBuildingFailureReason(state, placeType, seg.x, seg.y, segRot);
+      if (failure) continue;
+    }
+
+    state.resources.wood -= config.cost.wood;
+    state.resources.stone -= config.cost.stone;
+    state.resources.gold -= config.cost.gold;
+
+    const cornerRot = placeType === BuildingType.WallCorner
+      ? normalizeCornerRotation(placeRot)
+      : normalizeBuildingRotation(placeRot);
+    const building = createBuilding(
+      placeType,
+      seg.x,
+      seg.y,
+      state.nextBuildingId++,
+      cornerRot,
+    );
+    building.spriteScale = 0;
+    state.buildings.push(building);
+    if (placed === 0) {
+      firstX = seg.x;
+      firstY = seg.y;
+    }
+    placed++;
+  }
+
+  if (placed === 0) {
+    const sample = segments.find((s) => s.valid) ?? segments[0];
+    addFloatingText(state, sample.x, sample.y, 'Cannot build strip here', '#ef4444');
+    return state;
+  }
+
+  createDeathParticles(state, firstX, firstY, '#ffd700', Math.min(12, 4 + placed), 'star');
+  const label = placed === 1 ? BUILDING_CONFIGS[segments[0].placeType ?? type].label : `${placed} segments`;
+  addFloatingText(state, firstX, firstY - 10, `🔨 ${label}`, '#22c55e', 'brief');
+  impulseScreenShake(state, placed > 3 ? 3 : 2);
+  return state;
+}
+
 export function isOnConstructionCrew(state: WorldState, humanId: number, exceptBuildingId?: number): boolean {
   return state.buildings.some(
     (b) => !b.completed && b.id !== exceptBuildingId && b.occupants.includes(humanId),
@@ -198,13 +332,12 @@ export function pickAdultSettler(
   return state.entities.find(filter);
 }
 
-/** Assign a settler to help build an unfinished structure (including houses). */
-export function assignBuilderToBuilding(
-  originalState: WorldState,
+/** Mutates state — assign a settler to help build an unfinished structure. */
+function applyBuilderAssignment(
+  state: WorldState,
   buildingId: number,
   preferredHumanId?: number,
 ): WorldState {
-  const state = structuredClone(originalState) as WorldState;
   const building = state.buildings.find((b) => b.id === buildingId);
   if (!building || building.faction === 'rival' || building.completed) return state;
 
@@ -239,17 +372,64 @@ export function assignBuilderToBuilding(
   return state;
 }
 
-/** Re-run automatic housing assignment (settlers pick homes by themselves). */
-export function assignResidentToBuilding(
+/** Assign a settler to help build an unfinished structure (including houses). */
+export function assignBuilderToBuilding(
   originalState: WorldState,
   buildingId: number,
+  preferredHumanId?: number,
 ): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  return applyBuilderAssignment(structuredClone(originalState) as WorldState, buildingId, preferredHumanId);
+}
+
+/** Mutates state — re-run automatic housing assignment for a residence. */
+function applyResidentAssignment(state: WorldState, buildingId: number): WorldState {
   const building = state.buildings.find((b) => b.id === buildingId);
   if (!building || building.faction === 'rival' || !isResidenceBuilding(building)) return state;
 
   assignMissingResidences(state.entities.filter(isPlayerHuman), state.buildings);
   assignMissingWorkers(state.entities.filter(isPlayerHuman), state.buildings);
+  return state;
+}
+
+/** Re-run automatic housing assignment (settlers pick homes by themselves). */
+export function assignResidentToBuilding(
+  originalState: WorldState,
+  buildingId: number,
+): WorldState {
+  return applyResidentAssignment(structuredClone(originalState) as WorldState, buildingId);
+}
+
+/** Move an adult child (18+) and their own household into a free house. */
+export function moveOutOfFamilyHome(originalState: WorldState, humanId: number): WorldState {
+  const state = structuredClone(originalState) as WorldState;
+  const human = state.entities.find((e) => e.id === humanId);
+  if (!human || !isPlayerHuman(human)) return state;
+
+  const humans = state.entities.filter(isPlayerHuman);
+  const residences = state.buildings.filter(isResidenceBuilding);
+  if (!tryMoveOutOfFamilyHome(human, humans, residences)) {
+    const reason = !isAdultChildAtHome(human, humans)
+      ? `Must be ${HUMAN_MOVE_OUT_MIN_AGE}+ and living with parents`
+      : 'No empty house available';
+    addFloatingText(state, human.x, human.y - 12, reason, '#ef4444');
+    return state;
+  }
+
+  syncResidenceOccupants(state.entities, state.buildings);
+  assignMissingResidences(humans, state.buildings);
+
+  const household = collectOwnHousehold(human, humans);
+  const who = human.name
+    ? `${human.name}${human.surname ? ` ${human.surname}` : ''}`
+    : 'Settler';
+  const extra = household.length > 1 ? ` (+${household.length - 1} family)` : '';
+  addFloatingText(state, human.x, human.y - 12, `${who} moved to own home${extra}`, '#3b82f6');
+  addNotification(
+    state,
+    'New household',
+    `${who}${extra} moved into their own home.`,
+    'success',
+  );
   return state;
 }
 
@@ -279,11 +459,11 @@ export function assignIdleWorkerToBuilding(originalState: WorldState, buildingId
   if (!building || building.faction === 'rival') return state;
 
   if (!building.completed) {
-    return assignBuilderToBuilding(state, buildingId, preferredHumanId);
+    return applyBuilderAssignment(state, buildingId, preferredHumanId);
   }
 
   if (isResidenceBuildingType(building.type)) {
-    return assignResidentToBuilding(state, buildingId);
+    return applyResidentAssignment(state, buildingId);
   }
 
   const config = BUILDING_CONFIGS[building.type];
@@ -359,6 +539,11 @@ export function removeWorkerFromBuilding(originalState: WorldState, buildingId: 
 
   if (!building.completed) {
     building.occupants = building.occupants.filter((id) => id !== humanId);
+    if (human.homeBuildingId === buildingId) {
+      human.homeBuildingId = undefined;
+      human.occupation = 'settler';
+      human.job = JobType.Settler;
+    }
     assignMissingWorkers(state.entities.filter(isPlayerHuman), state.buildings);
     return state;
   }
@@ -531,11 +716,11 @@ export function recruitSettler(originalState: WorldState): WorldState {
   if (home) { spawnX = home.x + home.width / 2; spawnY = home.y + home.height / 2; }
 
   const settler = createEntity(EntityType.Human, spawnX + (Math.random() - 0.5) * 40, spawnY + (Math.random() - 0.5) * 40, state.nextEntityId++, 250);
-  settler.age = HUMAN_ADULT_MIN_AGE + Math.floor(Math.random() * 20);
+  const recruitAge = HUMAN_ADULT_MIN_AGE + Math.floor(Math.random() * 20);
+  setHumanBirthFromAge(settler, recruitAge, getColonyDay(state));
   settler.relationshipStatus = 'single';
   settler.partnerId = undefined;
   settler.courtshipProgress = 0;
-  setEntityBirthDate(settler, state.year - settler.age, Math.floor(Math.random() * 12), Math.floor(Math.random() * 30));
   state.entities.push(settler);
   const recruited = state.entities.filter(isPlayerHuman);
   assignMissingResidences(recruited, state.buildings);
@@ -553,7 +738,7 @@ export function estimateWorkshopGold(state: WorldState, building: Building): num
   if (workers === 0) return recipe.baseGold;
   const levelMult = building.level || 1;
   const terrainMult = getTerrainEfficiencyMultiplier(state, building);
-  const adjacencyMult = getAdjacencyMultiplier(state, building);
+  const adjacencyMult = getAdjacencyMultiplierFromIndex(buildAdjacencyIndex(state.buildings), building);
   const skillMult = getWorkerSkillMultiplier(state, building);
   const festivalMult = state.festival?.active ? 1.5 : 1;
   const goldMult = getMultiplier(state, 'gold_production');
@@ -564,7 +749,7 @@ export function estimateWorkshopGold(state: WorldState, building: Building): num
 
 export function setWorkshopRecipe(originalState: WorldState, buildingId: number, recipeId: string): WorldState {
   if (!WORKSHOP_RECIPES.some((r) => r.id === recipeId)) return originalState;
-  const state = { ...originalState, buildings: originalState.buildings.map((b) => ({ ...b })) };
+  const state = structuredClone(originalState) as WorldState;
   const building = state.buildings.find((b) => b.id === buildingId);
   if (!building || building.type !== BuildingType.Workshop || building.faction === 'rival') return originalState;
   building.workshopRecipeId = recipeId;
@@ -598,6 +783,7 @@ export function demolishBuilding(originalState: WorldState, buildingId: number):
     if (e.prisonBuildingId === buildingId) {
       cleared.prisonBuildingId = undefined;
       cleared.prisonerUntilTick = undefined;
+      cleared.prisonSentenceCrime = undefined;
     }
     if (Object.keys(cleared).length > 0) return { ...e, ...cleared };
     return e;
@@ -631,9 +817,9 @@ export function spawnMoonHowlerDebug(originalState: WorldState): WorldState {
   }
 
   const settler = createEntity(EntityType.Human, state.width / 2, state.height / 2, state.nextEntityId++, 400);
-  settler.age = HUMAN_ADULT_MIN_AGE + Math.floor(Math.random() * 20);
+  const debugAge = HUMAN_ADULT_MIN_AGE + Math.floor(Math.random() * 20);
   settler.generation = 1;
-  setEntityBirthDate(settler, state.year - settler.age, Math.floor(Math.random() * 12), Math.floor(Math.random() * 30));
+  setHumanBirthFromAge(settler, debugAge, getColonyDay(state));
   curseMoonHowler(settler);
   state.entities.push(settler);
   addBigNews(state, '🌝 Debug Moon Howler!', '(Test) A cursed wanderer arrived from the woods.', 'negative');
@@ -658,9 +844,10 @@ export function tameEntity(originalState: WorldState, entityId: number, humanId:
   const human = state.entities.find(e => e.id === humanId && e.type === EntityType.Human);
   if (!entity || !human || !isPlayerHuman(human) || entity.tamedBy) return state;
 
-  // Only certain animals can be tamed
-  const tameableTypes: EntityType[] = [EntityType.Wolf, EntityType.Fox, EntityType.Deer, EntityType.Rabbit, EntityType.Werewolf];
-  if (!tameableTypes.includes(entity.type)) {
+  const interactableWildlife: EntityType[] = [
+    EntityType.Wolf, EntityType.Fox, EntityType.Deer, EntityType.Rabbit, EntityType.Werewolf,
+  ];
+  if (!interactableWildlife.includes(entity.type)) {
     addFloatingText(state, entity.x, entity.y - 10, 'Cannot tame this creature', '#ef4444');
     return state;
   }
@@ -773,10 +960,12 @@ function transferWorkerBetweenBuildings(
   fromBuilding: Building,
   toBuilding: Building,
 ): void {
+  const job = BUILDING_JOB_TYPES[toBuilding.type];
+  if (!job) return;
+
   fromBuilding.occupants = fromBuilding.occupants.filter((id) => id !== worker.id);
   if (!toBuilding.occupants.includes(worker.id)) toBuilding.occupants.push(worker.id);
 
-  const job = BUILDING_JOB_TYPES[toBuilding.type]!;
   worker.homeBuildingId = toBuilding.id;
   worker.occupation = getOccupationForBuilding(toBuilding.type);
   worker.job = job;

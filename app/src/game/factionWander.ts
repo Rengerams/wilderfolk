@@ -107,3 +107,16 @@ export function tickFactionCampWander(
 export function clearFactionWanderState(entityId: number): void {
   wanderByEntity.delete(entityId);
 }
+
+/** Reset all wander AI — call on new game, load, or session reset. */
+export function clearAllFactionWanderStates(): void {
+  wanderByEntity.clear();
+}
+
+/** Drop wander AI for entities that are no longer alive. */
+export function pruneFactionWanderStates(livingEntityIds: Iterable<number>): void {
+  const living = new Set(livingEntityIds);
+  for (const id of wanderByEntity.keys()) {
+    if (!living.has(id)) wanderByEntity.delete(id);
+  }
+}

@@ -13,6 +13,7 @@
 import { ambientNature } from './ambient';
 import { backgroundMusic } from './backgroundMusic';
 import { soundDirector } from './director';
+import { audioGraph } from './graph';
 import { introMusic } from './introMusic';
 import type { VolumePreset } from './preferences';
 
@@ -36,6 +37,11 @@ export {
 
 export async function unlockAudio(): Promise<boolean> {
   return soundDirector.unlock();
+}
+
+/** Synchronous — call from click handlers before any await so Web Audio can start. */
+export function primeAudioUnlock(): void {
+  audioGraph.primeUnlock();
 }
 
 export async function beginIntroAudio(): Promise<void> {

@@ -3,14 +3,28 @@ import type {
   DiplomacyEvent, DiplomacyEventKind, DiplomacyChoice,
 } from './gameTypes';
 import { EntityType, BuildingType, BUILDING_CONFIGS, JobType } from './gameTypes';
-import { HUMAN_ADULT_MIN_AGE, TICKS_PER_DAY } from './dayCycle';
+import {
+  assignMissingResidences,
+  getColonyDay,
+  HUMAN_ADULT_MIN_AGE,
+  HUMAN_MAX_LIFESPAN_YEARS,
+  syncResidenceOccupants,
+  TICKS_PER_DAY,
+} from './dayCycle';
+import { createEntity } from './worldGen';
+import { SPECIES_CONFIG } from './gameEngine';
 import { addCappedResource } from './resourceUtils';
-import { pickHumanVariant } from './humanSprites';
-import { getRandomName, getRandomSurname } from './nameLoader';
+import { getRandomSurname } from './nameLoader';
 import { hasIronSpears, hasStoneSpears } from './combat';
 import { logEvent } from './eventLog';
-import { cancelPendingRaidsForRival, getPlayerCampCenter, maybeQueueRaid } from './frontierCombat';
+import {
+  cancelPendingOutgoingRaidsForRival,
+  cancelPendingRaidsForRival,
+  getPlayerCampCenter,
+  maybeQueueRaid,
+} from './frontierCombat';
 import { clearFactionWanderState } from './factionWander';
+import { getRefugeeWelcomeBonus } from './townHall';
 
 let newsSeq = 0;
 
@@ -23,6 +37,7 @@ function pushNews(state: WorldState, title: string, message: string, type: 'posi
     createdAt: state.tick,
     dismissed: false,
   });
+  if (state.bigNews.length > 50) state.bigNews.shift();
 }
 
 function pushFloat(state: WorldState, x: number, y: number, text: string, color: string) {
@@ -33,6 +48,7 @@ function pushFloat(state: WorldState, x: number, y: number, text: string, color:
   });
 }
 
+/** Colony settler human — excludes visitor/rival faction humans (not "the player character"). */
 export function isPlayerHuman(e: Entity): boolean {
   return e.type === EntityType.Human && e.faction !== 'visitor' && e.faction !== 'rival';
 }
@@ -71,42 +87,25 @@ function createFactionHuman(
   groupId: string,
   surname: string
 ): Entity {
-  const gender = Math.random() > 0.5 ? 'male' : 'female';
-  const id = state.nextEntityId++;
-  return {
-    id,
-    type: EntityType.Human,
-    x: x + (Math.random() - 0.5) * 24,
-    y: y + (Math.random() - 0.5) * 24,
-    energy: 300,
-    maxEnergy: 500,
-    age: HUMAN_ADULT_MIN_AGE + Math.floor(Math.random() * 20),
-    maxAge: 365 * 80,
-    speed: 1.2,
-    size: 8,
-    vx: 0, vy: 0,
-    reproductionCooldown: 9999,
-    alive: true,
-    flash: 8,
-    gender,
-    isJuvenile: false,
-    skills: {},
-    childrenIds: [],
-    generation: 0,
-    name: getRandomName(gender),
-    surname,
-    occupation: faction === 'visitor' ? 'visitor' : 'settler',
-    job: JobType.Settler,
-    relationshipStatus: 'single',
-    faction,
-    groupId,
-    spriteAngle: Math.random() * Math.PI * 2,
-    animFrame: 0,
-    spriteVariant: pickHumanVariant(id, gender),
-    birthYear: 0,
-    birthMonth: 0,
-    birthDay: 0,
-  };
+  const age = HUMAN_ADULT_MIN_AGE + Math.floor(Math.random() * 20);
+  const ent = createEntity(
+    EntityType.Human,
+    x + (Math.random() - 0.5) * 24,
+    y + (Math.random() - 0.5) * 24,
+    state.nextEntityId++,
+    undefined,
+    false,
+    { surname, ageYears: age, colonyDay: getColonyDay(state) },
+  );
+  ent.faction = faction;
+  ent.groupId = groupId;
+  ent.occupation = faction === 'visitor' ? 'visitor' : 'settler';
+  ent.job = JobType.Settler;
+  ent.relationshipStatus = 'single';
+  ent.reproductionCooldown = 9999;
+  ent.flash = 8;
+  ent.maxAge = HUMAN_MAX_LIFESPAN_YEARS;
+  return ent;
 }
 
 function createRivalBuilding(
@@ -504,6 +503,9 @@ export function signPeaceTreaty(originalState: WorldState, rivalId: string): Wor
   if (cancelPendingRaidsForRival(state, rivalId)) {
     logEvent(state, 'event', `Raid called off — truce with ${rival.name}`, rival.name);
   }
+  if (cancelPendingOutgoingRaidsForRival(state, rivalId)) {
+    logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
+  }
 
   pushFloat(state, rival.campX, rival.campY - 20, '🕊️ Peace', '#22d3ee');
   pushNews(state, '🕊️ Peace signed', `${rival.name} and ${state.villageName} agreed to 60 days without raids.`, 'positive');
@@ -786,6 +788,9 @@ export function respondToDiplomacyEvent(
           if (cancelPendingRaidsForRival(state, rival.id)) {
             logEvent(state, 'event', `Raid called off — truce with ${rival.name}`, rival.name);
           }
+          if (cancelPendingOutgoingRaidsForRival(state, rival.id)) {
+            logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
+          }
           pushFloat(state, rival.campX, rival.campY - 20, '🕊️ Truce', '#22d3ee');
           logEvent(state, 'event', `Peace treaty with ${rival.name} — 45 days`, rival.name);
           resolved = true;
@@ -798,8 +803,15 @@ export function respondToDiplomacyEvent(
         if (cancelPendingRaidsForRival(state, rival.id)) {
           logEvent(state, 'event', `Raid called off — truce with ${rival.name}`, rival.name);
         }
-        state.resources.food = Math.min(state.storageMax.food, state.resources.food + 35);
-        pushFloat(state, rival.campX, rival.campY - 20, '+35🍖 tribute', '#eab308');
+        if (cancelPendingOutgoingRaidsForRival(state, rival.id)) {
+          logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
+        }
+        const tributeFood = addCappedResource(state, 'food', 35);
+        if (tributeFood < 35) {
+          pushFloat(state, rival.campX, rival.campY - 20, `+${tributeFood}🍖 (storage full)`, '#f97316');
+        } else {
+          pushFloat(state, rival.campX, rival.campY - 20, '+35🍖 tribute', '#eab308');
+        }
         logEvent(state, 'trade', `Short truce with ${rival.name} — they paid tribute`, rival.name);
         resolved = true;
       } else if (choiceId === 'decline') {
@@ -933,6 +945,49 @@ export function talkToVisitorLeader(originalState: WorldState, groupId: string):
 
 export type VisitorTradeAction = 'buy_food' | 'buy_wood' | 'sell_food';
 
+const VISITOR_TRADE_COSTS = {
+  buy_food: { pay: { gold: 25 }, receive: { food: 40 } },
+  buy_wood: { pay: { gold: 20 }, receive: { wood: 30 } },
+  sell_food: { pay: { food: 30 }, receive: { gold: 25 } },
+} as const;
+
+function storageRoom(state: WorldState, type: keyof WorldState['resources']): number {
+  return Math.max(0, (state.storageMax[type] as number) - (state.resources[type] as number));
+}
+
+function canFitPurchase(state: WorldState, type: keyof WorldState['resources'], amount: number): boolean {
+  return storageRoom(state, type) >= amount;
+}
+
+function canPayTradeCost(state: WorldState, pay: Partial<Record<keyof WorldState['resources'], number>>): boolean {
+  for (const [key, cost] of Object.entries(pay) as [keyof WorldState['resources'], number][]) {
+    if ((cost ?? 0) > 0 && (state.resources[key] as number) < cost) return false;
+  }
+  return true;
+}
+
+function applyTradeCost(state: WorldState, pay: Partial<Record<keyof WorldState['resources'], number>>): void {
+  for (const [key, cost] of Object.entries(pay) as [keyof WorldState['resources'], number][]) {
+    if ((cost ?? 0) > 0) {
+      (state.resources[key] as number) = Math.max(0, (state.resources[key] as number) - cost);
+    }
+  }
+}
+
+/** Show trade failure without mutating resources (gold/food unchanged). */
+function rejectVisitorTrade(
+  state: WorldState,
+  group: VisitorGroup,
+  hint: string,
+  notify?: string,
+): WorldState {
+  pushFloat(state, group.campX, group.campY - 20, hint, '#f97316');
+  if (notify) {
+    pushNews(state, 'Trade failed', notify, 'negative');
+  }
+  return state;
+}
+
 export function tradeWithVisitors(
   originalState: WorldState,
   groupId: string,
@@ -940,44 +995,60 @@ export function tradeWithVisitors(
 ): WorldState {
   const state = structuredClone(originalState) as WorldState;
   const group = state.visitorGroups.find((g) => g.id === groupId);
-  if (!group || group.kind === 'refugees') return state;
+  if (!group || group.kind === 'refugees' || group.daysLeft <= 0) return originalState;
 
   const canTrade = group.kind === 'traders' || group.kind === 'nomads' || group.kind === 'hunters';
-  if (!canTrade && action !== 'sell_food') return state;
+  if (!canTrade && action !== 'sell_food') return originalState;
 
-  switch (action) {
-    case 'buy_food':
-      if (state.resources.gold < 25) {
-        pushFloat(state, group.campX, group.campY - 20, 'Need 25💰', '#f97316');
-        return state;
-      }
-      state.resources.gold -= 25;
-      state.resources.food = Math.min(state.storageMax.food, state.resources.food + 40);
-      pushFloat(state, group.campX, group.campY - 20, '+40🍖', '#22c55e');
-      break;
-    case 'buy_wood':
-      if (state.resources.gold < 20) {
-        pushFloat(state, group.campX, group.campY - 20, 'Need 20💰', '#f97316');
-        return state;
-      }
-      state.resources.gold -= 20;
-      state.resources.wood = Math.min(state.storageMax.wood, state.resources.wood + 30);
-      pushFloat(state, group.campX, group.campY - 20, '+30🪵', '#d97706');
-      break;
-    case 'sell_food':
-      if (state.resources.food < 30) {
-        pushFloat(state, group.campX, group.campY - 20, 'Need 30🍖', '#f97316');
-        return state;
-      }
-      state.resources.food -= 30;
-      state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + 25);
-      pushFloat(state, group.campX, group.campY - 20, '+25💰', '#eab308');
-      break;
+  const deal = VISITOR_TRADE_COSTS[action];
+
+  if (!canPayTradeCost(state, deal.pay)) {
+    const hint = action === 'buy_food' ? 'Need 25💰'
+      : action === 'buy_wood' ? 'Need 20💰'
+        : 'Need 30🍖';
+    return rejectVisitorTrade(state, group, hint);
   }
 
+  for (const [key, amount] of Object.entries(deal.receive) as [keyof WorldState['resources'], number][]) {
+    if ((amount ?? 0) > 0 && !canFitPurchase(state, key, amount)) {
+      const hint = key === 'food' ? 'Food storage full!'
+        : key === 'wood' ? 'Wood storage full!'
+          : 'Cannot store more gold';
+      const notify = key === 'food'
+        ? 'Food storage is full — build a Barn or Silo before buying more.'
+        : key === 'wood'
+          ? 'Wood storage is full — build a Barn or Store before buying more.'
+          : undefined;
+      return rejectVisitorTrade(state, group, hint, notify);
+    }
+  }
+
+  applyTradeCost(state, deal.pay);
+  let receivedLabel = '';
+  for (const [key, amount] of Object.entries(deal.receive) as [keyof WorldState['resources'], number][]) {
+    if ((amount ?? 0) <= 0) continue;
+    const added = addCappedResource(state, key, amount);
+    if (added < amount) {
+      return rejectVisitorTrade(
+        structuredClone(originalState) as WorldState,
+        group,
+        'Storage full!',
+        'Trade cancelled — not enough storage space.',
+      );
+    }
+    if (key === 'food') receivedLabel = `+${added}🍖`;
+    else if (key === 'wood') receivedLabel = `+${added}🪵`;
+    else if (key === 'gold') receivedLabel = `+${added}💰`;
+  }
+
+  pushFloat(state, group.campX, group.campY - 20, receivedLabel, action === 'sell_food' ? '#eab308' : '#22c55e');
   group.tradesCompleted++;
   group.giftsGiven++;
-  logEvent(state, 'trade', `Traded with ${group.name}`, group.name);
+  const tradeDetail = action === 'buy_food' ? 'bought food'
+    : action === 'buy_wood' ? 'bought wood'
+      : action === 'sell_food' ? 'sold food'
+        : 'traded goods';
+  logEvent(state, 'trade', `Traded with ${group.name} — ${tradeDetail}`, group.name);
   return state;
 }
 
@@ -1011,13 +1082,21 @@ export function negotiateRefugees(
       pushFloat(state, group.campX, group.campY - 20, 'Population cap reached', '#f97316');
       return state;
     }
-    const joined = admitRefugees(state, group, allAlive, 2);
+    const joined = admitRefugees(
+      state,
+      group,
+      allAlive,
+      2 + getRefugeeWelcomeBonus(state.buildings),
+    );
     if (joined === 0) {
       pushFloat(state, group.campX, group.campY - 20, 'No room for refugees', '#f97316');
       return state;
     }
     state.resources.food -= 40;
     group.refugeeResolved = true;
+    const villagers = allAlive.filter(isPlayerHuman);
+    assignMissingResidences(villagers, state.buildings);
+    syncResidenceOccupants(villagers, state.buildings);
     pushFloat(state, group.campX, group.campY - 20, `+${joined} settlers`, '#22c55e');
     logEvent(state, 'migration', `Welcomed ${joined} refugee(s) from ${group.name}`, group.name);
     return state;
@@ -1032,10 +1111,13 @@ export function negotiateRefugees(
       pushFloat(state, group.campX, group.campY - 20, 'Population cap reached', '#f97316');
       return state;
     }
-    state.resources.food -= 20;
     const joined = Math.random() < 0.55 ? admitRefugees(state, group, allAlive, 1) : 0;
     group.refugeeResolved = true;
     if (joined > 0) {
+      state.resources.food -= 20;
+      const villagers = allAlive.filter(isPlayerHuman);
+      assignMissingResidences(villagers, state.buildings);
+      syncResidenceOccupants(villagers, state.buildings);
       pushFloat(state, group.campX, group.campY - 20, '+1 refugee', '#22c55e');
       logEvent(state, 'migration', `Screened and admitted a refugee from ${group.name}`, group.name);
     } else {
@@ -1055,7 +1137,6 @@ function admitRefugees(state: WorldState, group: VisitorGroup, allAlive: Entity[
     ent.faction = undefined;
     ent.occupation = 'settler';
     ent.job = JobType.Settler;
-    ent.age = HUMAN_ADULT_MIN_AGE + Math.floor(Math.random() * 20);
     allAlive.push(ent);
     joined++;
   }
@@ -1283,57 +1364,43 @@ export function rollYearlyWorldEvent(
 }
 
 function spawnWolf(width: number, height: number, id: number): Entity {
-  return {
-    id, type: EntityType.Wolf,
-    x: Math.random() * width, y: Math.random() * height,
-    energy: 400, maxEnergy: 500,
-    age: Math.floor(Math.random() * 365 * 8), maxAge: 365 * 14,
-    speed: 1.8, size: 10,
-    vx: 0, vy: 0, reproductionCooldown: Math.random() * 100,
-    alive: true, flash: 0, isJuvenile: false, skills: {}, childrenIds: [], generation: 0,
-    spriteAngle: Math.random() * Math.PI * 2, animFrame: 0,
-    birthYear: 0, birthMonth: 0, birthDay: 0,
-  };
+  return createEntity(
+    EntityType.Wolf,
+    Math.random() * width,
+    Math.random() * height,
+    id,
+    SPECIES_CONFIG[EntityType.Wolf].spawnEnergy,
+  );
 }
 
 function spawnDeer(width: number, height: number, id: number): Entity {
-  return {
-    id, type: EntityType.Deer,
-    x: Math.random() * width, y: Math.random() * height,
-    energy: 350, maxEnergy: 450,
-    age: Math.floor(Math.random() * 365 * 6), maxAge: 365 * 16,
-    speed: 1.4, size: 12,
-    vx: 0, vy: 0, reproductionCooldown: Math.random() * 100,
-    alive: true, flash: 0, isJuvenile: false, skills: {}, childrenIds: [], generation: 0,
-    spriteAngle: Math.random() * Math.PI * 2, animFrame: 0,
-    birthYear: 0, birthMonth: 0, birthDay: 0,
-  };
+  return createEntity(
+    EntityType.Deer,
+    Math.random() * width,
+    Math.random() * height,
+    id,
+    SPECIES_CONFIG[EntityType.Deer].spawnEnergy,
+  );
 }
 
 function spawnTree(width: number, height: number, id: number): Entity {
-  return {
-    id, type: EntityType.Tree,
-    x: Math.random() * width, y: Math.random() * height,
-    energy: 200, maxEnergy: 300,
-    age: 0, maxAge: 365 * 200, speed: 0, size: 16,
-    vx: 0, vy: 0, reproductionCooldown: 0,
-    alive: true, flash: 0, isJuvenile: false, skills: {}, childrenIds: [], generation: 0,
-    spriteAngle: 0, animFrame: 0,
-    birthYear: 0, birthMonth: 0, birthDay: 0,
-  };
+  return createEntity(
+    EntityType.Tree,
+    Math.random() * width,
+    Math.random() * height,
+    id,
+    SPECIES_CONFIG[EntityType.Tree].spawnEnergy,
+  );
 }
 
 function spawnGrass(width: number, height: number, id: number): Entity {
-  return {
-    id, type: EntityType.Grass,
-    x: Math.random() * width, y: Math.random() * height,
-    energy: 80, maxEnergy: 100,
-    age: 0, maxAge: 365 * 2, speed: 0, size: 4,
-    vx: 0, vy: 0, reproductionCooldown: 0,
-    alive: true, flash: 0, isJuvenile: false, skills: {}, childrenIds: [], generation: 0,
-    spriteAngle: 0, animFrame: 0,
-    birthYear: 0, birthMonth: 0, birthDay: 0,
-  };
+  return createEntity(
+    EntityType.Grass,
+    Math.random() * width,
+    Math.random() * height,
+    id,
+    SPECIES_CONFIG[EntityType.Grass].spawnEnergy,
+  );
 }
 
 export function tryMidYearVisitorEvent(state: WorldState, allAlive: Entity[], buildings: Building[]): GameEvent | null {
@@ -1352,7 +1419,6 @@ export function tryFirstWeekVisitor(
   buildings: Building[],
 ): GameEvent | null {
   if (state.firstWeekVisitorSpawned) return null;
-  if (state.visitorGroups.length > 0) return null;
   if (state.tick < 3 * TICKS_PER_DAY || state.tick >= 7 * TICKS_PER_DAY) return null;
 
   const hasPlayerHouse = buildings.some(

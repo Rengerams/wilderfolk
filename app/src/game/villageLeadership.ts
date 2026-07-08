@@ -1,10 +1,10 @@
 import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState } from './gameTypes';
-import { BuildingType, EntityType, JobType } from './gameTypes';
+import { BuildingType, EntityType } from './gameTypes';
 import { isImprisoned, TICKS_PER_DAY } from './dayCycle';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './groupEvents';
 import { sayHumanChatPhrase } from './humanChat';
-import { ensureEntitySkills, readSkill } from './skills';
+import { ensureEntitySkills } from './skills';
 
 export const ELECTION_INTERVAL_YEARS = 10;
 export const VACANCY_ELECTION_DELAY_YEARS = 2;
@@ -117,24 +117,21 @@ function assessVillageHealth(state: WorldState): 'good' | 'fair' | 'poor' {
   return 'fair';
 }
 
-function countLeaderScandalsDuringTerm(state: WorldState, leader: Entity): number {
+function scandalEventTargetsLeader(e: { entityName?: string }, leader: Entity): boolean {
+  if (!e.entityName) return false;
   const leaderName = formatSettlerName(leader);
   const baseName = leader.name || '';
+  return e.entityName === leaderName || (baseName.length > 0 && e.entityName === baseName);
+}
+
+function countLeaderScandalsDuringTerm(state: WorldState, leader: Entity): number {
   const sinceYear = state.leaderSinceYear;
 
   return state.eventLog.filter((e) => {
     if (e.year < sinceYear) return false;
-    if (e.type === 'scandal') {
-      return e.entityName === leaderName
-        || e.entityName === baseName
-        || e.message.includes(leaderName)
-        || (baseName.length > 0 && e.message.includes(baseName));
-    }
+    if (e.type === 'scandal') return scandalEventTargetsLeader(e, leader);
     if (e.type === 'event' && e.message.includes('imprisoned for scandal')) {
-      return e.entityName === leaderName
-        || e.entityName === baseName
-        || e.message.includes(leaderName)
-        || (baseName.length > 0 && e.message.includes(baseName));
+      return scandalEventTargetsLeader(e, leader);
     }
     return false;
   }).length;
@@ -200,11 +197,8 @@ export function isEligibleForLeadership(entity: Entity): boolean {
 
 /** Merit score — highest wins each election; no term limit (re-election unlimited if merit stays highest). */
 export function getLeadershipScoreBreakdown(state: WorldState, entity: Entity): LeadershipScoreBreakdown {
-  ensureEntitySkills(entity);
-  const skillSum = Object.values(JobType).reduce(
-    (sum, job) => sum + readSkill(entity, job),
-    0,
-  );
+  const skills = ensureEntitySkills(entity);
+  const skillSum = Object.values(skills).reduce((sum, value) => sum + (value ?? 0), 0);
   const skillPoints = Math.round(skillSum * 2);
   const experiencePoints = Math.round(Math.min(Math.max(0, entity.age - 16), 200) * 0.25);
 
@@ -229,16 +223,18 @@ export function getLeadershipScoreBreakdown(state: WorldState, entity: Entity): 
 }
 
 export function rankLeadershipCandidates(state: WorldState): LeadershipScoreBreakdown[] {
-  const candidates = state.entities
-    .filter(isEligibleForLeadership)
-    .map((e) => getLeadershipScoreBreakdown(state, e));
+  const ageById = new Map<number, number>();
+  const candidates: LeadershipScoreBreakdown[] = [];
+  for (const entity of state.entities) {
+    if (!isEligibleForLeadership(entity)) continue;
+    ageById.set(entity.id, entity.age);
+    candidates.push(getLeadershipScoreBreakdown(state, entity));
+  }
 
   candidates.sort((a, b) => {
     if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-    const entA = state.entities.find((e) => e.id === a.entityId);
-    const entB = state.entities.find((e) => e.id === b.entityId);
-    const ageA = entA?.age ?? 0;
-    const ageB = entB?.age ?? 0;
+    const ageA = ageById.get(a.entityId) ?? 0;
+    const ageB = ageById.get(b.entityId) ?? 0;
     if (ageB !== ageA) return ageB - ageA;
     return a.entityId - b.entityId;
   });
@@ -269,12 +265,15 @@ export function getElectionRaceCandidates(
     .filter((b) => b.entityId !== leader.id)
     .slice(0, displayLimit - 1);
   const race = [...challengers, leaderBreakdown];
+  const ageById = new Map(
+    state.entities
+      .filter(isEligibleForLeadership)
+      .map((entity) => [entity.id, entity.age] as const),
+  );
   race.sort((a, b) => {
     if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-    const entA = state.entities.find((e) => e.id === a.entityId);
-    const entB = state.entities.find((e) => e.id === b.entityId);
-    const ageA = entA?.age ?? 0;
-    const ageB = entB?.age ?? 0;
+    const ageA = ageById.get(a.entityId) ?? 0;
+    const ageB = ageById.get(b.entityId) ?? 0;
     if (ageB !== ageA) return ageB - ageA;
     return a.entityId - b.entityId;
   });
@@ -310,11 +309,11 @@ function scoreSummary(b: LeadershipScoreBreakdown): string {
   const parts = [
     `skills ${b.skillPoints}`,
     `experience ${b.experiencePoints}`,
-    b.servicePoints ? `Town Hall +${b.servicePoints}` : '',
-    b.communityPoints ? `family +${b.communityPoints}` : '',
-    b.recordPoints > 0 ? `record +${b.recordPoints}` : '',
-    b.recordPoints < 0 ? `record ${b.recordPoints}` : '',
-  ].filter(Boolean);
+  ];
+  if (b.servicePoints > 0) parts.push(`Town Hall +${b.servicePoints}`);
+  if (b.communityPoints > 0) parts.push(`family +${b.communityPoints}`);
+  if (b.recordPoints > 0) parts.push(`record +${b.recordPoints}`);
+  if (b.recordPoints < 0) parts.push(`record ${b.recordPoints}`);
   return `merit ${b.totalScore} (${parts.join(', ')})`;
 }
 
@@ -332,21 +331,30 @@ export function isElectionCeremonyActive(state: WorldState): boolean {
   return state.electionCeremony != null;
 }
 
+const GATHER_SLOTS_PER_RING = 12;
+
 export function getElectionGatherTarget(state: WorldState, entityId: number): { x: number; y: number } {
-  const c = state.electionCeremony!;
-  const angle = ((entityId % 24) / 24) * Math.PI * 2;
-  const ring = 22 + (entityId % 6) * 14;
+  const c = state.electionCeremony;
+  if (!c) return getElectionGatherSite(state);
+  const attendees = state.entities
+    .filter(isEligibleForLeadership)
+    .sort((a, b) => a.id - b.id);
+  const slot = Math.max(0, attendees.findIndex((entity) => entity.id === entityId));
+  const ring = Math.floor(slot / GATHER_SLOTS_PER_RING);
+  const angleSlot = slot % GATHER_SLOTS_PER_RING;
+  const angle = (angleSlot / GATHER_SLOTS_PER_RING) * Math.PI * 2;
+  const ringRadius = 22 + ring * 14;
   return {
-    x: c.gatherX + Math.cos(angle) * ring,
-    y: c.gatherY + Math.sin(angle) * ring,
+    x: c.gatherX + Math.cos(angle) * ringRadius,
+    y: c.gatherY + Math.sin(angle) * ringRadius,
   };
 }
 
 export function findFoundingColonyLeader(state: WorldState): Entity | null {
-  const males = state.entities
-    .filter((e) => e.alive && isPlayerHuman(e) && e.gender === 'male' && !e.isJuvenile)
+  const pioneers = state.entities
+    .filter((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile)
     .sort((a, b) => a.id - b.id);
-  return males[0] ?? null;
+  return pioneers.find((e) => e.gender === 'male') ?? pioneers[0] ?? null;
 }
 
 /** First male pioneer leads at founding — no merit vote until Year 10. */
@@ -559,7 +567,16 @@ export function tickElectionBuildup(
   return null;
 }
 
-function advanceCeremonyPhase(ceremony: ElectionCeremonyState): void {
+function refreshCeremonyPendingLeader(state: WorldState, ceremony: ElectionCeremonyState): void {
+  const ranked = rankLeadershipCandidates(state);
+  if (ranked.length === 0) return;
+  const winner = ranked[0];
+  ceremony.pendingLeaderId = winner.entityId;
+  ceremony.pendingLeaderName = winner.name;
+  ceremony.pendingChanged = state.villageLeaderId !== winner.entityId;
+}
+
+function advanceCeremonyPhase(state: WorldState, ceremony: ElectionCeremonyState): void {
   if (ceremony.phase === 'gathering') {
     ceremony.phase = 'gossip';
     ceremony.phaseTicksLeft = PHASE_TICKS.gossip;
@@ -570,6 +587,7 @@ function advanceCeremonyPhase(ceremony: ElectionCeremonyState): void {
     ceremony.phase = 'reveal';
     ceremony.phaseTicksLeft = 1;
   }
+  refreshCeremonyPendingLeader(state, ceremony);
 }
 
 /** Advance ceremony each tick; returns announcement when the winner is revealed. */
@@ -578,35 +596,38 @@ export function tickElectionCeremony(state: WorldState, year: number): ElectionA
   if (!ceremony) return null;
 
   if (ceremony.phase === 'reveal') {
-    const result = runVillageElection(state, year, ceremony.reason);
-    const announcement = buildAnnouncement(result, ceremony.reason, year);
-    const winner = state.entities.find((e) => e.id === result.leaderId);
-    if (winner) {
-      winner.flash = 14;
-      sayHumanChatPhrase(winner, 'I will serve the village!', 140);
-    }
+    try {
+      refreshCeremonyPendingLeader(state, ceremony);
+      const result = runVillageElection(state, year, ceremony.reason);
+      const announcement = buildAnnouncement(result, ceremony.reason, year);
+      const winner = state.entities.find((e) => e.id === result.leaderId);
+      if (winner) {
+        winner.flash = 14;
+        sayHumanChatPhrase(winner, 'I will serve the village!', 140);
+      }
 
-    state.festival = {
-      active: true,
-      name: ELECTION_PARTY_NAME,
-      daysLeft: ELECTION_PARTY_DAYS,
-    };
-    state.electionCeremony = null;
-
-    if (announcement) {
-      logEvent(
-        state,
-        'event',
-        `Election revelry began — ${ELECTION_PARTY_DAYS} days of celebration`,
-        result.leaderName,
-      );
+      if (announcement) {
+        state.festival = {
+          active: true,
+          name: ELECTION_PARTY_NAME,
+          daysLeft: ELECTION_PARTY_DAYS,
+        };
+        logEvent(
+          state,
+          'event',
+          `Election revelry began — ${ELECTION_PARTY_DAYS} days of celebration`,
+          result.leaderName,
+        );
+      }
+      return announcement;
+    } finally {
+      state.electionCeremony = null;
     }
-    return announcement;
   }
 
   ceremony.phaseTicksLeft--;
   if (ceremony.phaseTicksLeft <= 0) {
-    advanceCeremonyPhase(ceremony);
+    advanceCeremonyPhase(state, ceremony);
   }
 
   if (ceremony.phase === 'gossip' && state.tick % 18 === 0) {
@@ -782,11 +803,32 @@ export function tickDecennialElection(
   return null;
 }
 
+function isValidElectionCeremony(value: unknown): value is ElectionCeremonyState {
+  if (!value || typeof value !== 'object') return false;
+  const ceremony = value as Partial<ElectionCeremonyState>;
+  const phases: ElectionCeremonyPhase[] = ['gathering', 'gossip', 'tension', 'reveal'];
+  return (
+    typeof ceremony.phase === 'string'
+    && phases.includes(ceremony.phase as ElectionCeremonyPhase)
+    && typeof ceremony.phaseTicksLeft === 'number'
+    && Number.isFinite(ceremony.phaseTicksLeft)
+    && typeof ceremony.gatherX === 'number'
+    && typeof ceremony.gatherY === 'number'
+    && typeof ceremony.reason === 'string'
+    && typeof ceremony.pendingLeaderId === 'number'
+    && typeof ceremony.pendingLeaderName === 'string'
+    && typeof ceremony.pendingChanged === 'boolean'
+  );
+}
+
 export function validateVillageLeaderOnLoad(state: WorldState): void {
   if (state.electionBuildupNotifiedYear === undefined) {
     state.electionBuildupNotifiedYear = null;
   }
   if (state.electionCeremony === undefined) {
+    state.electionCeremony = null;
+  } else if (state.electionCeremony != null && !isValidElectionCeremony(state.electionCeremony)) {
+    console.warn('[villageLeadership] Corrupted electionCeremony in save — clearing ceremony state');
     state.electionCeremony = null;
   }
   if (state.pendingElectionYear === undefined) {

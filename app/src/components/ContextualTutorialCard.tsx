@@ -9,8 +9,10 @@ interface Props {
 }
 
 export default function ContextualTutorialCard({ tip, onDismiss, onDisableAll, onAction }: Props) {
+  const action = tip.action;
+
   return (
-    <div className="pointer-events-auto absolute bottom-24 left-4 z-25 w-full max-w-xs animate-in fade-in slide-in-from-left-2">
+    <div className="pointer-events-auto absolute bottom-20 left-4 z-30 w-full max-w-xs animate-in fade-in slide-in-from-left-2">
       <div className="rounded-xl border border-amber-500/35 bg-stone-900/95 p-3 shadow-2xl backdrop-blur-sm">
         <div className="mb-1 flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-start gap-2">
@@ -31,19 +33,19 @@ export default function ContextualTutorialCard({ tip, onDismiss, onDisableAll, o
         </div>
         <p className="mb-2 text-[11px] leading-relaxed text-stone-300">{tip.detail}</p>
         <div className="flex gap-2">
-          {tip.action && onAction && (
+          {action && onAction && (
             <button
               type="button"
-              onClick={() => onAction(tip.action!)}
+              onClick={() => onAction(action)}
               className="flex-1 rounded-lg bg-amber-700/80 px-2 py-1.5 text-[10px] font-bold text-amber-50 hover:bg-amber-600/90"
             >
-              {tip.action.label} →
+              {action.label} →
             </button>
           )}
           <button
             type="button"
             onClick={onDismiss}
-            className={`rounded-lg bg-stone-700 px-2 py-1.5 text-[10px] font-semibold text-stone-200 hover:bg-stone-600 ${tip.action ? '' : 'w-full'}`}
+            className={`rounded-lg bg-stone-700 px-2 py-1.5 text-[10px] font-semibold text-stone-200 hover:bg-stone-600 ${action ? '' : 'w-full'}`}
           >
             Got it
           </button>

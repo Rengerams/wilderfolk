@@ -4,7 +4,7 @@ import { TerrainType, type TerrainTile, type WorldMap, type MapPreset, type MapS
 function seededRandom(seed: number) {
   let s = seed;
   return function() {
-    s = (s * 16807 + 0) % 2147483647;
+    s = (s * 16807) % 2147483647;
     return (s - 1) / 2147483646;
   };
 }
@@ -82,7 +82,7 @@ function getTerrainType(elevation: number, moisture: number, temperature: number
 
   if (moisture > pm.forestThreshold + 0.15) return TerrainType.DarkForest;
   if (moisture > pm.forestThreshold) return TerrainType.Forest;
-  if (temperature > 0.7 && moisture < 0.25) return TerrainType.Beach; // dry grassland looks like savanna
+  if (temperature > 0.7 && moisture < 0.25) return TerrainType.Grassland; // inland savanna / dry grassland
 
   return TerrainType.Grassland;
 }
@@ -168,7 +168,7 @@ export function findCampSite(
   if (isFootprintBuildable(tiles, tileW, tileH, footprintW, footprintH, preferredX, preferredY)) {
     return { x: preferredX, y: preferredY };
   }
-  const step = 20;
+  const step = 10;
   for (let ring = 1; ring <= 40; ring++) {
     for (let dy = -ring; dy <= ring; dy++) {
       for (let dx = -ring; dx <= ring; dx++) {

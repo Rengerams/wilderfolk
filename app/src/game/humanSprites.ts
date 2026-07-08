@@ -114,7 +114,7 @@ const FEMALE_PALETTES: PioneerPalette[] = [
   { skin: '#e8b888', hair: '#501010', shirt: '#902028', pants: '#ece4d8', shoe: '#28180c', accent: '#f5f0e8', outline: '#0c0604' },
 ];
 
-let ready = true;
+let ready = false;
 
 function normalizeVariant(variant: number): number {
   return ((variant % HUMAN_VARIANT_COUNT) + HUMAN_VARIANT_COUNT) % HUMAN_VARIANT_COUNT;
@@ -221,6 +221,8 @@ export function getHumanVariantLabel(gender: HumanGender | undefined, variant: n
   return HUMAN_VARIANT_LABELS[g][v] ?? `Outfit ${v + 1}`;
 }
 
+const humanFrameCanvasCache = new Map<string, HTMLCanvasElement>();
+
 export function getHumanSpriteFrame(
   gender: HumanGender | undefined,
   variant: number,
@@ -230,13 +232,18 @@ export function getHumanSpriteFrame(
   const g = gender ?? 'male';
   const v = normalizeVariant(variant);
   const f = ((Math.floor(frame) % HUMAN_WALK_FRAMES) + HUMAN_WALK_FRAMES) % HUMAN_WALK_FRAMES;
-  const canvas = document.createElement('canvas');
-  canvas.width = PIONEER_FRAME_W;
-  canvas.height = PIONEER_FRAME_H;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    ctx.imageSmoothingEnabled = false;
-    drawPioneerFrame(ctx, f, g, paletteFor(g, v));
+  const cacheKey = `${g}:${v}:${f}`;
+  let canvas = humanFrameCanvasCache.get(cacheKey);
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.width = PIONEER_FRAME_W;
+    canvas.height = PIONEER_FRAME_H;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.imageSmoothingEnabled = false;
+      drawPioneerFrame(ctx, f, g, paletteFor(g, v));
+    }
+    humanFrameCanvasCache.set(cacheKey, canvas);
   }
   return {
     image: canvas,
@@ -265,14 +272,17 @@ export async function loadHumanWalkSheets(): Promise<void> {
 
 export const generateHumanSprites = loadHumanWalkSheets;
 
+/** Match renderer HUMAN_WALK_SPEED_THRESHOLD — idle settlers must not advance walk frames. */
+export const HUMAN_WALK_SPEED_THRESHOLD = 0.12;
+
 export function getHumanWalkFrameIndex(animFrame: number, speed: number): number {
-  if (speed < 0.08) return 0;
+  if (speed < HUMAN_WALK_SPEED_THRESHOLD) return 0;
   return Math.floor(animFrame) % HUMAN_WALK_FRAMES;
 }
 
 export function advanceHumanWalkAnim(human: Entity): void {
   const speed = Math.hypot(human.vx, human.vy);
-  if (speed > 0.08) {
+  if (speed > HUMAN_WALK_SPEED_THRESHOLD) {
     human.animFrame += speed * 0.28;
     if (human.animFrame >= HUMAN_WALK_FRAMES * 8) {
       human.animFrame %= HUMAN_WALK_FRAMES;
@@ -286,7 +296,7 @@ export function advanceHumanWalkAnim(human: Entity): void {
 }
 
 export function getHumanWalkBob(frame: number, speed: number, camZoom: number): number {
-  if (speed < 0.08) return 0;
+  if (speed < HUMAN_WALK_SPEED_THRESHOLD) return 0;
   const stride = Math.min(1, speed / 1.4);
   const passing = frame === 1 || frame === 3;
   return (passing ? 1.1 : 0.15) * stride * camZoom;

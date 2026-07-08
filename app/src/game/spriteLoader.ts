@@ -1,4 +1,5 @@
 import { loadHumanWalkSheets } from './humanSprites';
+import { BUILDING_CONFIGS } from './gameTypes';
 
 export interface SpriteFrame {
   image: CanvasImageSource;
@@ -14,6 +15,20 @@ const spriteCache = new Map<string, HTMLImageElement>();
 const frameCache = new Map<string, SpriteFrame>();
 const loadingPromises = new Map<string, Promise<SpriteFrame>>();
 
+/** Kept in sync with humanSprites path constants (no import — avoids circular dep). */
+const HUMAN_SPRITE_PATHS = new Set<string>([
+  '/sprites/human_male.png',
+  '/sprites/human_female.png',
+  '/sprites/human_male_v0.png',
+  '/sprites/human_male_v1.png',
+  '/sprites/human_male_v2.png',
+  '/sprites/human_male_v3.png',
+  '/sprites/human_female_v0.png',
+  '/sprites/human_female_v1.png',
+  '/sprites/human_female_v2.png',
+  '/sprites/human_female_v3.png',
+]);
+
 export function loadSprite(src: string): Promise<SpriteFrame> {
   if (frameCache.has(src)) return Promise.resolve(frameCache.get(src)!);
   if (loadingPromises.has(src)) return loadingPromises.get(src)!;
@@ -23,7 +38,7 @@ export function loadSprite(src: string): Promise<SpriteFrame> {
     img.onload = () => {
       spriteCache.set(src, img);
       // Use full image bounds — alpha trim skews aspect ratio and warps sprites.
-      const isHumanSprite = src.includes('/human_');
+      const isHumanSprite = HUMAN_SPRITE_PATHS.has(src);
       const frame: SpriteFrame = {
         image: img,
         sx: 0,
@@ -61,41 +76,18 @@ export function isSpriteLoaded(src: string): boolean {
 }
 
 export function preloadAllSprites(): Promise<void> {
-  const sprites = [
+  const wildlifeAndHumans = [
     '/sprites/rabbit.png',
     '/sprites/deer.png',
     '/sprites/wolf.png',
     '/sprites/fox.png',
     '/sprites/tree.png',
     '/sprites/grass.png',
-    '/sprites/house.png',
-    '/sprites/farm.png',
-    '/sprites/greenhouse.png',
-    '/sprites/barn.png',
-    '/sprites/silo.png',
-    '/sprites/lumbermill.png',
-    '/sprites/quarry.png',
-    '/sprites/mine.png',
-    '/sprites/mill.png',
-    '/sprites/blacksmith.png',
-    '/sprites/workshop.png',
-    '/sprites/store.png',
-    '/sprites/market.png',
-    '/sprites/school.png',
-    '/sprites/hospital.png',
-    '/sprites/townhall.png',
-    '/sprites/church.png',
-    '/sprites/well.png',
-    '/sprites/road.png',
-    '/sprites/mansion.png',
-    '/sprites/barracks.png',
-    '/sprites/watchtower.png',
-    '/sprites/wall_straight.png',
-    '/sprites/wall_corner.png',
-    '/sprites/wall_gate.png',
     '/sprites/human_male.png',
     '/sprites/human_female.png',
   ];
+  const buildingSprites = Object.values(BUILDING_CONFIGS).map((cfg) => cfg.sprite);
+  const sprites = [...new Set([...wildlifeAndHumans, ...buildingSprites])];
 
   return Promise.all([
     ...sprites.map(loadSprite),

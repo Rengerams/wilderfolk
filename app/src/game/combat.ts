@@ -3,8 +3,8 @@ import {
   createInitialResearchNodes,
   type Building, type Entity, type ResearchNode, type WorldState,
 } from './gameTypes';
-import { isBarracksGuard } from './defenseStructures';
-import type { VillageForgeState } from './forge';
+import type { ForgeOrderId, VillageForgeState } from './forge';
+import { isForgeOrderComplete } from './forge';
 import { COMBAT_TECH } from './combatTech';
 
 export { COMBAT_TECH } from './combatTech';
@@ -12,8 +12,7 @@ export { COMBAT_TECH } from './combatTech';
 const EMPTY_FORGE: VillageForgeState = {
   activeOrder: null,
   progress: 0,
-  spearsReady: false,
-  shieldsReady: false,
+  completed: {},
 };
 
 type CombatContext = Pick<WorldState, 'unlockedTechs' | 'researchNodes' | 'buildings' | 'villageForge'>;
@@ -43,20 +42,20 @@ export function hasStoneSpears(state: CombatContext): boolean {
   return hasTech(state, COMBAT_TECH.stoneSpears);
 }
 
-export function hasIronSpears(state: CombatContext & { villageForge?: { spearsReady: boolean } }): boolean {
+export function hasIronSpears(state: CombatContext & { villageForge?: VillageForgeState }): boolean {
   return hasTech(state, COMBAT_TECH.ironSpears)
     && hasCompletedBlacksmith(state)
-    && (state.villageForge?.spearsReady ?? false);
+    && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'iron_spears');
 }
 
 export function hasWoodenShields(state: CombatContext): boolean {
   return hasTech(state, COMBAT_TECH.woodenShields);
 }
 
-export function hasIronShields(state: CombatContext & { villageForge?: { shieldsReady: boolean } }): boolean {
+export function hasIronShields(state: CombatContext & { villageForge?: VillageForgeState }): boolean {
   return hasTech(state, COMBAT_TECH.ironShields)
     && hasCompletedBlacksmith(state)
-    && (state.villageForge?.shieldsReady ?? false);
+    && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'iron_shields');
 }
 
 export function getHuntRangeMultiplier(state: WorldState): number {
@@ -87,17 +86,28 @@ export function getCounterAttackChance(state: WorldState): number {
   return researchedEffect(state, 'counter_attack', 'add') || 0.45;
 }
 
-export function rollPredatorBlock(state: WorldState, humanId: number, tick: number): boolean {
+export function rollPredatorBlock(
+  state: WorldState,
+  humanId: number,
+  tick: number,
+  combatRollSeed = 0,
+): boolean {
   const chance = getPredatorBlockChance(state);
   if (chance <= 0) return false;
-  const roll = (((humanId * 1103515245 + tick * 12345) >>> 0) % 1000) / 1000;
+  const roll = (((humanId * 1103515245 + tick * 12345 + combatRollSeed) >>> 0) % 1000) / 1000;
   return roll < chance;
 }
 
-export function rollCounterAttack(state: WorldState, humanId: number, predatorId: number, tick: number): boolean {
+export function rollCounterAttack(
+  state: WorldState,
+  humanId: number,
+  predatorId: number,
+  tick: number,
+  combatRollSeed = 0,
+): boolean {
   const chance = getCounterAttackChance(state);
   if (chance <= 0) return false;
-  const roll = (((humanId * 2654435761 + predatorId * 1597334677 + tick) >>> 0) % 1000) / 1000;
+  const roll = (((humanId * 2654435761 + predatorId * 1597334677 + tick + combatRollSeed) >>> 0) % 1000) / 1000;
   return roll < chance;
 }
 
@@ -140,23 +150,46 @@ export function getArmamentSteps(state: WorldState): ArmamentStep[] {
       id: 'iron_spears',
       label: 'Iron Spears',
       done: hasIronSpears(state),
-      detail: state.villageForge?.activeOrder === 'iron_spears'
-        ? `Forging at Blacksmith… ${Math.round(state.villageForge.progress)}%`
-        : state.villageForge?.spearsReady
-          ? 'Forged at the Blacksmith — village armed.'
-          : 'Research Iron Spears, staff Blacksmith, queue forge order.',
+      detail: forgeStepDetail(state, 'iron_spears', 'Research Iron Spears, staff Blacksmith, queue forge order.', 'Forged at the Blacksmith — village armed.'),
     },
     {
       id: 'iron_shields',
       label: 'Iron Shields',
       done: hasIronShields(state),
-      detail: state.villageForge?.activeOrder === 'iron_shields'
-        ? `Forging at Blacksmith… ${Math.round(state.villageForge.progress)}%`
-        : state.villageForge?.shieldsReady
-          ? 'Forged at the Blacksmith — shields active.'
-          : 'Research Iron Shields, staff Blacksmith, queue forge order.',
+      detail: forgeStepDetail(state, 'iron_shields', 'Research Iron Shields, staff Blacksmith, queue forge order.', 'Forged at the Blacksmith — shields active.'),
+    },
+    {
+      id: 'guard_halberds',
+      label: 'Guard Halberds',
+      done: isForgeOrderComplete(state.villageForge, 'guard_halberds'),
+      detail: forgeStepDetail(state, 'guard_halberds', 'Research Militia Drill, forge Iron Spears first, then queue halberds.', 'Forged — staffed guards gain extra militia strength.'),
+    },
+    {
+      id: 'wall_plates',
+      label: 'Wall Plates',
+      done: isForgeOrderComplete(state.villageForge, 'wall_plates'),
+      detail: forgeStepDetail(state, 'wall_plates', 'Research Reinforced Masonry, forge Iron Shields first, then queue wall plates.', 'Forged — wall segments grant stronger barricade bonus.'),
+    },
+    {
+      id: 'iron_pickaxes',
+      label: 'Iron Pickaxes',
+      done: isForgeOrderComplete(state.villageForge, 'iron_pickaxes'),
+      detail: forgeStepDetail(state, 'iron_pickaxes', 'Research Refining (Mining), staff Blacksmith, queue pickaxes.', 'Forged — quarries produce more stone.'),
     },
   ];
+}
+
+function forgeStepDetail(
+  state: WorldState,
+  orderId: ForgeOrderId,
+  pending: string,
+  ready: string,
+): string {
+  if (state.villageForge?.activeOrder === orderId) {
+    return `Forging at Blacksmith… ${Math.round(state.villageForge.progress)}%`;
+  }
+  if (isForgeOrderComplete(state.villageForge, orderId)) return ready;
+  return pending;
 }
 
 export function getHumanArmamentLabel(state: WorldState): string | null {
@@ -189,6 +222,50 @@ function combatProbeState(
   };
 }
 
+export interface HumanCombatStatusFlags {
+  barracksGuardKeys: Set<string>;
+  hasShields: boolean;
+  hasSpears: boolean;
+}
+
+/** O(buildings) precompute — status badges call this once per frame, not per human. */
+export function buildHumanCombatStatusFlags(
+  unlockedTechs: readonly string[],
+  hasBlacksmith: boolean,
+  villageForge: VillageForgeState | undefined,
+  buildings: readonly Building[],
+): HumanCombatStatusFlags {
+  const probe = combatProbeState(unlockedTechs, hasBlacksmith, villageForge);
+  const barracksGuardKeys = new Set<string>();
+  for (const b of buildings) {
+    if (!b.completed || b.type !== BuildingType.Barracks) continue;
+    for (const id of b.occupants) barracksGuardKeys.add(`${id}:${b.id}`);
+  }
+  return {
+    barracksGuardKeys,
+    hasShields: hasIronShields(probe) || hasWoodenShields(probe),
+    hasSpears: hasIronSpears(probe) || hasStoneSpears(probe),
+  };
+}
+
+export function getHumanStatusCombatIconFromFlags(
+  human: Entity,
+  flags: HumanCombatStatusFlags,
+): string | null {
+  if (
+    human.job === JobType.Guard
+    && human.homeBuildingId != null
+    && flags.barracksGuardKeys.has(`${human.id}:${human.homeBuildingId}`)
+  ) {
+    return '🪖';
+  }
+  if (human.huntTargetId) return '🏹';
+  if (human.combatTicks && human.combatTicks > 0) return '⚔️';
+  if (flags.hasShields) return '🛡️';
+  if (flags.hasSpears) return '🏹';
+  return null;
+}
+
 export function getHumanStatusCombatIcon(
   human: Entity,
   unlockedTechs: readonly string[],
@@ -196,19 +273,13 @@ export function getHumanStatusCombatIcon(
   villageForge?: VillageForgeState,
   buildings?: readonly Building[],
 ): string | null {
-  const probe = combatProbeState(unlockedTechs, hasBlacksmith, villageForge);
-  if (
-    buildings
-    && human.job === JobType.Guard
-    && isBarracksGuard(human.id, human.homeBuildingId, buildings as Building[])
-  ) {
-    return '🪖';
-  }
-  if (human.huntTargetId) return '🏹';
-  if (human.combatTicks && human.combatTicks > 0) return '⚔️';
-  if (hasIronShields(probe) || hasWoodenShields(probe)) return '🛡️';
-  if (hasIronSpears(probe) || hasStoneSpears(probe)) return '🏹';
-  return null;
+  const flags = buildHumanCombatStatusFlags(
+    unlockedTechs,
+    hasBlacksmith,
+    villageForge,
+    buildings ?? [],
+  );
+  return getHumanStatusCombatIconFromFlags(human, flags);
 }
 
 export function isPredatorType(type: EntityType): boolean {
@@ -218,6 +289,11 @@ export function isPredatorType(type: EntityType): boolean {
 export function mergeCombatResearchNodes(nodes: ResearchNode[]): void {
   const fresh = createInitialResearchNodes();
   const existing = new Set(nodes.map((n) => n.id));
+  if (!existing.has('defense_1')) {
+    const defense1 = fresh.find((n) => n.id === 'defense_1');
+    if (defense1) nodes.push({ ...defense1 });
+    existing.add('defense_1');
+  }
   for (const node of fresh) {
     if (!existing.has(node.id) && node.id.startsWith('defense_') && node.id !== 'defense_1') {
       nodes.push({ ...node });

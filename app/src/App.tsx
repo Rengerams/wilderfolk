@@ -1,53 +1,71 @@
-import { useEffect, useRef, useState, useCallback, useMemo, memo } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, memo, type RefObject } from 'react';
 import {
-  initGame, startBuilding, canPlaceBuilding, notifyBuildingLocked, assignIdleWorkerToBuilding, canAssignWorkerToBuilding,
+  initGame, canPlaceBuilding, canAssignWorkerToBuilding,
+  buildStripPreview, isStripBuildType, inferStripRotation,
   listAssignableWorkersForBuilding,
-  removeWorkerFromBuilding, repairBuilding, upgradeBuilding, demolishBuilding, setWorkshopRecipe, queueForgeOrder,
-  recruitSettler, startResearch, establishTradeRoute, initTradeRoutes,
+  initTradeRoutes,
   EntityType, BuildingType, Season,
   BUILDING_CONFIGS, BUILDING_JOB_TYPES, WORKSHOP_RECIPES, getWorkshopRecipe, formatRecipeInputs,
-  GAME_TITLE, GAME_SUBTITLE, GAME_VERSION, GAME_PHASE,
+  GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
   SPECIES_CONFIG, WeatherType, ResearchType,
-  GRID_SIZE, snapToGrid,
+
   saveGame, loadGame, hasSave, deleteSave,
-  getTerrainEfficiencyMultiplier, getAdjacencyMultiplier, getBuildingUpgradeCost, getTameFoodCost, tameEntity, spawnMoonHowlerDebug,
-  sendRivalGift, establishRivalTradePact, showStrengthToRival, signPeaceTreaty, isRivalAtPeace,
-  respondToDiplomacyEvent, getDiplomacyChoiceEligibility, tradeWithVisitors, negotiateRefugees,
-  talkToVisitorLeader, getVisitorLeaderTalkMeta,
+  getTerrainEfficiencyMultiplier, getAdjacencyMultiplier, getBuildingUpgradeCost, getTameFoodCost,
+  isRivalAtPeace,
+  getDiplomacyChoiceEligibility, getVisitorLeaderTalkMeta,
   hitTestCamp, ensureFullTradeRoutes,
-  respondToRaidEvent, launchRaidOnRival, getRivalRaidStrength, getCombatPreview,
+  getRivalRaidStrength, getCombatPreview,
   canLaunchRaidOnRival,
+  getOutgoingRaidActionLabel,
   getOutgoingRaidFoodCostForRival, formatCampDistance, getCampDistancePixels,
-  formatRaidDeadline,
+  formatRaidDeadline, formatRaidLootSummary, raidEventLoot,
   isVillageLeader,
   getGrazingPressureReport, getEcosystemBreakdown, getArmamentSteps,
   formatRivalPopulationLabel,
   getHumanArmamentLabel, hasIronSpears, hasStoneSpears,
   estimateWorkshopGold, getAgeInYears,
 } from './game/gameEngine';
+import { getForgeOrder } from './game/forge';
 import { MapSize, MapPreset } from './game/gameTypes';
 import {
-  formatHour, getHourOfDay, isNightHour, isResidenceBuildingType,
+  isResidenceBuildingType, isResidenceBuilding,
   hasResidenceAssignment, hasWorkAssignment, isImprisoned, getResidenceCapacity, getResidenceUpgradeSlotGain,
+  canMoveOutOfFamilyHome, isAdultChildAtHome, HUMAN_MOVE_OUT_MIN_AGE,
   NIGHT_START, PREGNANCY_TICKS, TICKS_PER_DAY, getBirthDateString,
 } from './game/dayCycle';
 import type { WorldState, Entity, Building } from './game/gameEngine';
 import type { VisitorGroup } from './game/gameTypes';
 import type { VisitorTradeAction, RefugeeChoice } from './game/groupEvents';
+import {
+  canHostTownFestival,
+  describeTownHallPerks,
+  TOWN_HALL_FESTIVAL_COST,
+  TOWN_HALL_FESTIVAL_DAYS,
+} from './game/townHall';
 import { screenToWorld } from './game/renderer';
 import { GameLoop } from './game/gameLoop';
+import type { WorkerCommand } from './game/simWorker/commands';
+import type { EntityCatalog } from './game/entityCatalog';
+import { resolveAliveHumans } from './game/entityCatalog';
+import { computeVillageStats, type VillageStatsSummary } from './game/uiSimSummary';
+import { isFoodAlert } from './game/resourceUtils';
 import {
   createInitialView,
   moveCameraView,
-  zoomCameraView,
+  zoomCameraViewAt,
   focusCameraOn,
+  CAMERA_ZOOM_DEFAULT,
+  CAMERA_ZOOM_STEP_IN,
+  CAMERA_ZOOM_STEP_OUT,
+  clampCameraZoom,
   nudgeCameraToward,
   clampCameraTarget,
   resolveEntity,
   resolveBuilding,
   type ViewState,
 } from './game/viewState';
-import { isRotatableBuildingType, toggleBuildingRotation } from './game/buildingRotation';
+import { isRotatableBuildingType, snapBuildingCenter, toggleBuildingRotation } from './game/buildingRotation';
+import { isProductionBuildingType } from './game/buildCatalog';
 import { preloadAllSprites } from './game/spriteLoader';
 import { getHumanVariantLabel, getHumanSelectionBounds } from './game/humanSprites';
 import { isPlayerHuman } from './game/groupEvents';
@@ -59,12 +77,13 @@ import EventLogPanel from './game/EventLogPanel';
 import CombatLogPanel from './components/CombatLogPanel';
 import FocusPanel from './game/FocusPanel';
 import PopulationPanel from './game/PopulationPanel';
+
 import VillageLeadershipPanel from './game/VillageLeadershipPanel';
 import RoadmapPanel from './game/RoadmapPanel';
 import CombatPreviewPanel from './game/CombatPreviewPanel';
 
 import { downloadChronicleLog, loadExportChronicleOnSave } from './game/eventLogExport';
-import { beginAudio, playClickSound, playFailSfx } from './audio';
+import { beginAudio, primeAudioUnlock, playClickSound } from './audio';
 import { useGameAudio } from './hooks/useGameAudio';
 import { useContextualTutorial } from './hooks/useContextualTutorial';
 import ContextualTutorialCard from './components/ContextualTutorialCard';
@@ -73,16 +92,18 @@ import { ACTIVE_VICTORY_PATHS, COMING_SOON_VICTORY_PATHS } from './game/victory'
 import {
   loadTutorialsEnabled,
   loadJuiceEffectsEnabled,
+  loadFirstNightWarningDismissed,
   saveAutoSavePreference,
   saveTutorialsEnabled,
   saveJuiceEffectsEnabled,
+  saveFirstNightWarningDismissed,
 } from './game/preferences';
 import CollapsibleSection from './components/CollapsibleSection';
 import ChallengesPanel from './components/ChallengesPanel';
 import FrontierPanel from './components/FrontierPanel';
 import AlertBar from './components/AlertBar';
 import GameHeader from './components/GameHeader';
-import BuildHotbar from './components/BuildHotbar';
+import BuildCatalogPanel from './components/BuildCatalogPanel';
 import BlacksmithForgePanel from './components/BlacksmithForgePanel';
 import { getPriorityAlerts, type PriorityAlert } from './game/priorityAlerts';
 import type { FocusHintAction } from './game/focusHints';
@@ -101,6 +122,29 @@ const TAB_HOTKEYS: Record<string, SidebarTab> = {
   l: 'log',
   m: 'more',
 };
+
+const TAB_HOTKEY_CODES: Record<string, SidebarTab> = {
+  KeyV: 'village',
+  KeyF: 'frontier',
+  KeyN: 'nature',
+  KeyP: 'progress',
+  KeyL: 'log',
+  KeyM: 'more',
+};
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  const el = (target instanceof HTMLElement ? target : null)
+    ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (el.isContentEditable) return true;
+  return el.getAttribute('role') === 'textbox' || el.getAttribute('role') === 'combobox';
+}
+
+function resolveSidebarTabFromKey(e: KeyboardEvent): SidebarTab | null {
+  return TAB_HOTKEYS[e.key.toLowerCase()] ?? TAB_HOTKEY_CODES[e.code] ?? null;
+}
 type ProgressSubTab = 'research' | 'trade' | 'goals';
 type MoreSubTab = 'guide' | 'roadmap';
 
@@ -108,7 +152,7 @@ const SIDEBAR_TABS: { id: SidebarTab; icon: string; label: string; hint: string 
   { id: 'village', icon: '🏘️', label: 'Village', hint: 'People, leadership, armament' },
   { id: 'frontier', icon: '🏕️', label: 'Frontier', hint: 'Visitors, rivals, raids' },
   { id: 'nature', icon: '🌿', label: 'Nature', hint: 'Ecosystem & wildlife' },
-  { id: 'progress', icon: '📊', label: 'Progress', hint: 'Research, trade, goals & challenges' },
+  { id: 'progress', icon: '📊', label: 'Progress', hint: 'Research · Trade · Goals — press P' },
   { id: 'log', icon: '📜', label: 'Log', hint: 'Village chronicle' },
   { id: 'more', icon: '⋯', label: 'More', hint: 'Guide & roadmap' },
 ];
@@ -126,18 +170,12 @@ const HOTKEY_BUILDINGS: Record<string, BuildingType> = {
 };
 
 const QUICK_START_STEPS = [
-  { icon: '🏠', title: 'Build a House before night', detail: `Press 1 or tap House on the bottom bar, click the map, then assign workers. Night starts at tick ${NIGHT_START} on day one.` },
+  { icon: '🏠', title: 'Build a House before night', detail: `Press B to open Build, pick Housing → House (or press 1), click the map, then assign workers. Night starts at tick ${NIGHT_START} on day one.` },
   { icon: '👆', title: 'Click the map to manage', detail: 'Select people, buildings, or visitor camps — actions appear in the right panel. Assign workers with + Worker on finished buildings.' },
   { icon: '💡', title: 'Tips appear as you play', detail: 'When something new happens — traders, rivals, winter, raids — a tip card appears on the map. Alerts under the header jump to urgent issues. Press ? for shortcuts.' },
 ];
 
 const TUTORIAL_DONE_KEY = 'wilderfolk-tutorial-done';
-
-function formatNumber(n: number) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-  return Math.floor(n).toString();
-}
 
 const SEASON_ICONS: Record<Season, string> = {
   [Season.Spring]: '🌸', [Season.Summer]: '☀️', [Season.Fall]: '🍂', [Season.Winter]: '❄️',
@@ -157,13 +195,21 @@ const RESEARCH_COLORS: Record<ResearchType, string> = {
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [world, setWorld] = useState<WorldState>(() => {
     const s = initGame();
     s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
     return s;
   });
   const [view, setView] = useState<ViewState>(() => createInitialView(world.width, world.height));
+  const [villageStats, setVillageStats] = useState<VillageStatsSummary>(() =>
+    computeVillageStats(world),
+  );
+  const [catalog, setCatalog] = useState<EntityCatalog | null>(null);
+  const [hasPlacedHouse, setHasPlacedHouse] = useState(
+    () => world.buildings.some(
+      (b) => b.type === BuildingType.House && (b.completed || b.constructionProgress > 0),
+    ),
+  );
   const [selectedMapSize, setSelectedMapSize] = useState<MapSize>(MapSize.Medium);
   const [selectedMapPreset, setSelectedMapPreset] = useState<MapPreset>(MapPreset.Verdant);
   const [selectedBuildingType, setSelectedBuildingType] = useState<BuildingType | null>(null);
@@ -171,7 +217,7 @@ export default function App() {
   const [saveToast, setSaveToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [spritesLoaded, setSpritesLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<SidebarTab>('village');
-  const [progressSubTab, setProgressSubTab] = useState<ProgressSubTab>('goals');
+  const [progressSubTab, setProgressSubTab] = useState<ProgressSubTab>('research');
   const [moreSubTab, setMoreSubTab] = useState<MoreSubTab>('guide');
   const [logSubTab, setLogSubTab] = useState<LogSubTab>('chronicle');
   const [inspectorCollapsed, setInspectorCollapsed] = useState(true);
@@ -189,9 +235,15 @@ export default function App() {
   const [tutorialStep, setTutorialStep] = useState(0);
   const [showIntro, setShowIntro] = useState(true);
   const [showMapSetup, setShowMapSetup] = useState(false);
+  const [mapSetupSource, setMapSetupSource] = useState<'intro' | 'game'>('intro');
   const [hasSavedGame, setHasSavedGame] = useState(hasSave());
   const gameplayActive = !showIntro && !showMapSetup && spritesLoaded;
   const { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset } = useGameAudio(world, gameplayActive);
+
+  useEffect(() => {
+    if (!gameplayActive) return;
+    void beginAudio();
+  }, [gameplayActive]);
   const { active: contextualTip, dismissActive: dismissContextualTip } = useContextualTutorial(
     world,
     gameplayActive && tutorialsEnabled && !showTutorial,
@@ -203,11 +255,12 @@ export default function App() {
       return false;
     }
   });
-  const [firstNightWarningDismissed, setFirstNightWarningDismissed] = useState(false);
+  const [firstNightWarningDismissed, setFirstNightWarningDismissed] = useState(loadFirstNightWarningDismissed);
 
   const worldRef = useRef(world);
   const viewRef = useRef(view);
   const loopRef = useRef<GameLoop | null>(null);
+  const catalogRef = useRef<EntityCatalog | null>(null);
 
   useEffect(() => {
     worldRef.current = world;
@@ -221,15 +274,33 @@ export default function App() {
   }, [buildPanelOpen]);
   const isDraggingRef = useRef(false);
   const cameraDragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const clickOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const selectedBuildingTypeRef = useRef(selectedBuildingType);
+  const stripDragStartRef = useRef<{ x: number; y: number } | null>(null);
   const cameraVelRef = useRef({ x: 0, y: 0 });
   const keysRef = useRef<Set<string>>(new Set());
+  const sidebarContentRef = useRef<HTMLDivElement>(null);
+  const gameplayActiveRef = useRef(gameplayActive);
+  const persistCurrentGameRef = useRef<
+    (options?: { chronicle?: boolean; feedback?: boolean }) => Promise<boolean>
+  >(async () => false);
+
+  useLayoutEffect(() => {
+    selectedBuildingTypeRef.current = selectedBuildingType;
+    gameplayActiveRef.current = gameplayActive;
+  }, [selectedBuildingType, gameplayActive]);
 
   // Preload sprites and names
   useEffect(() => {
-    Promise.all([preloadAllSprites(), loadNames()]).then(() => {
-      fixDefaultNames(world);
-      setSpritesLoaded(true);
-    });
+    Promise.all([preloadAllSprites(), loadNames()])
+      .then(() => {
+        fixDefaultNames(world);
+        setSpritesLoaded(true);
+      })
+      .catch((err) => {
+        console.error('Sprite preload failed — continuing with fallbacks', err);
+        setSpritesLoaded(true);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -239,21 +310,82 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [saveToast]);
 
+  const persistCurrentGame = useCallback(async (options?: {
+    chronicle?: boolean;
+    feedback?: boolean;
+  }) => {
+    const chronicle = options?.chronicle ?? false;
+    const feedback = options?.feedback ?? true;
+    const loop = loopRef.current;
+    const view = loop?.getView() ?? viewRef.current;
+    let worldToSave = worldRef.current;
+    if (loop) {
+      worldToSave = await loop.exportAuthoritativeWorld();
+    }
+    const result = saveGame(worldToSave, view);
+    if (!result.success) {
+      if (feedback) setSaveToast({ message: result.error, type: 'error' });
+      return false;
+    }
+    if (chronicle && loadExportChronicleOnSave()) {
+      try {
+        downloadChronicleLog(worldToSave.eventLog, {
+          villageName: worldToSave.villageName,
+          year: worldToSave.year,
+          day: worldToSave.dayInYear,
+          tick: worldToSave.tick,
+          population: worldToSave.humanPopulation,
+        });
+      } catch {
+        /* localStorage save succeeded */
+      }
+    }
+    setHasSavedGame(true);
+    if (feedback) {
+      loopRef.current?.mutateWorld((prev) => {
+        const id = prev.nextFloatingTextId++;
+        prev.floatingTexts.push({
+          id,
+          x: prev.width / 2,
+          y: prev.height / 2 - 50,
+          text: 'Game Saved! 💾',
+          color: '#22c55e',
+          life: 60,
+          maxLife: 60,
+          scale: 1.5,
+        });
+      });
+      setSaveToast({
+        message: chronicle && loadExportChronicleOnSave()
+          ? 'Game saved · chronicle .txt downloaded'
+          : 'Game saved successfully',
+        type: 'success',
+      });
+    }
+    return true;
+  }, []);
+
+  useLayoutEffect(() => {
+    persistCurrentGameRef.current = persistCurrentGame;
+  }, [persistCurrentGame]);
+
   // Auto-save every 30 seconds (stable interval via ref)
   useEffect(() => {
     const interval = setInterval(() => {
-      const session = loopRef.current?.getWorldAndView() ?? { world: worldRef.current, view: viewRef.current };
-      if (!session.world.paused && session.world.autoSave) {
-        const result = saveGame(session.world, session.view);
-        if (!result.success) {
-          setSaveToast({ message: result.error, type: 'error' });
+      const loop = loopRef.current;
+      if (!loop) return;
+      const snapshot = loop.getWorld();
+      if (!snapshot.autoSave) return;
+      void persistCurrentGame({ chronicle: false, feedback: false }).then((ok) => {
+        if (!ok) {
+          setSaveToast({ message: 'Auto-save failed — try manual save from the menu', type: 'error' });
         }
-      }
+      });
     }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [persistCurrentGame]);
 
-  // Auto-dismiss big news after 12 seconds and cap the list
+  // Auto-dismiss big news after ~15s (360 ticks) — interval must not reset every sim tick
   useEffect(() => {
     if (world.bigNews.length === 0) return;
     const timer = setInterval(() => {
@@ -266,7 +398,7 @@ export default function App() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [world.bigNews.length, world.tick]);
+  }, [world.bigNews.length]);
 
   // Keep the sim frozen while Quick Start or map setup is open
   useEffect(() => {
@@ -274,18 +406,11 @@ export default function App() {
     loopRef.current?.mutateWorld((w) => { w.paused = true; });
   }, [showTutorial, spritesLoaded, showIntro, showMapSetup]);
 
-  const hasPlacedHouse = useMemo(
-    () => world.buildings.some((b) => b.type === BuildingType.House),
-    [world.buildings],
-  );
-
   const isFirstGameDay = world.tick < TICKS_PER_DAY;
 
-  // First-night shelter reminder on day one until a House is placed
+  // First-night shelter reminder until a House is placed (or player dismisses)
   const showFirstNightWarning =
-    !firstNightWarningDismissed &&
-    !hasPlacedHouse &&
-    world.tick < TICKS_PER_DAY * 2;
+    !firstNightWarningDismissed && !hasPlacedHouse && world.tick < TICKS_PER_DAY * 2;
 
   const firstNightWarningMessage = isFirstGameDay && world.tick < NIGHT_START
     ? `Tick ${world.tick} — night begins at tick ${NIGHT_START} (8pm). Place a House on the map and assign workers!`
@@ -300,10 +425,16 @@ export default function App() {
     }
     const loop = new GameLoop(worldRef.current, viewRef.current, () => canvasRef.current);
     loopRef.current = loop;
-    const unsub = loop.subscribe((nextWorld, nextView) => {
+    const unsub = loop.subscribe((nextWorld, nextView, changed, nextCatalog) => {
       worldRef.current = nextWorld;
       viewRef.current = nextView;
-      setWorld(nextWorld);
+      catalogRef.current = nextCatalog;
+      setCatalog(nextCatalog);
+      setVillageStats(computeVillageStats(nextWorld, nextCatalog));
+      setHasPlacedHouse((prev) => prev || nextWorld.buildings.some(
+        (b) => b.type === BuildingType.House && (b.completed || b.constructionProgress > 0),
+      ));
+      if (changed) setWorld(nextWorld);
       setView(nextView);
     });
     loop.start();
@@ -319,11 +450,13 @@ export default function App() {
   }, []);
 
   const resumeAfterTutorialOverlay = useCallback(() => {
+    primeAudioUnlock();
     void beginAudio();
     const loop = loopRef.current;
     if (!loop) return;
     const w = loop.getWorld();
-    const settlers = w.entities.filter((ent) => ent.alive && isPlayerHuman(ent));
+    const settlers = catalogRef.current?.getPlayerHumans()
+      ?? w.entities.filter((ent) => ent.alive && isPlayerHuman(ent));
     if (settlers.length > 0) {
       const cx = settlers.reduce((sum, ent) => sum + ent.x, 0) / settlers.length;
       const cy = settlers.reduce((sum, ent) => sum + ent.y, 0) / settlers.length;
@@ -392,7 +525,8 @@ export default function App() {
 
   const cancelBuildMode = useCallback(() => {
     setSelectedBuildingType(null);
-    loopRef.current?.patchView({ buildMode: null, buildGhost: null, buildRotation: 0 });
+    stripDragStartRef.current = null;
+    loopRef.current?.patchView({ buildMode: null, buildGhost: null, buildStripPreview: null, buildRotation: 0 });
   }, []);
 
   const rotateBuildPlacement = useCallback(() => {
@@ -452,13 +586,29 @@ export default function App() {
     setInspectorCollapsed(false);
   }, []);
 
+  const focusCitizenOnMap = useCallback((entity: import('./game/gameTypes').Entity) => {
+    const loop = loopRef.current;
+    if (!loop) return;
+    const nextView = focusCameraOn(loop.getView(), entity.x, entity.y, 1.5);
+    loop.patchView({
+      ...nextView,
+      selectedEntityId: entity.id,
+      selectedBuildingId: null,
+      highlightedCampKey: null,
+      selectedCampKey: null,
+    });
+    setInspectorCollapsed(false);
+  }, []);
+
   const selectBuildingType = useCallback((type: BuildingType) => {
     clearSelection();
     setSelectedBuildingType((prev) => {
       const next = prev === type ? null : type;
+      stripDragStartRef.current = null;
       loopRef.current?.patchView({
         buildMode: next,
-        buildGhost: next ? loopRef.current.getView().buildGhost : null,
+        buildGhost: null,
+        buildStripPreview: null,
         buildRotation: 0,
         ...(next ? { showGrid: true } : {}),
       });
@@ -556,77 +706,160 @@ export default function App() {
     }
   }, [selectBuildingType, focusCampOnMap, focusBuildingOnMap]);
 
-  const applyGameAction = useCallback((fn: (w: WorldState) => WorldState) => {
-    loopRef.current?.applyAction(fn);
+  const applyGameAction = useCallback((action: WorkerCommand | ((w: WorldState) => WorldState)) => {
+    if (typeof action === 'function') {
+      loopRef.current?.applyAction(action);
+    } else {
+      loopRef.current?.applyCommand(action);
+    }
   }, []);
 
   const getViewCamera = useCallback(() => {
     return loopRef.current?.getView().camera ?? viewRef.current.camera;
   }, []);
 
-  const BUILDING_HOTKEYS: Record<string, string> = useMemo(() => {
-    const map: Record<string, string> = {};
+  const BUILDING_HOTKEYS = useMemo((): Partial<Record<BuildingType, string>> => {
+    const map: Partial<Record<BuildingType, string>> = {};
     for (const [key, val] of Object.entries(HOTKEY_BUILDINGS)) {
       map[val] = key;
     }
     return map;
   }, []);
 
-  // Keyboard controls with WASD + momentum
+  useEffect(() => {
+    sidebarContentRef.current?.scrollTo({ top: 0 });
+  }, [activeTab]);
+
+  const togglePauseRef = useRef(togglePause);
+  const selectBuildingTypeRef = useRef(selectBuildingType);
+  const cancelBuildModeRef = useRef(cancelBuildMode);
+  const toggleGridRef = useRef(toggleGrid);
+  const rotateBuildPlacementRef = useRef(rotateBuildPlacement);
+  const showShortcutsRef = useRef(showShortcuts);
+
+  const applyZoom = useCallback((factor: number, screenX?: number, screenY?: number) => {
+    const loop = loopRef.current;
+    const canvas = canvasRef.current;
+    if (!loop || !canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const cw = rect.width;
+    const ch = rect.height;
+    if (cw <= 0 || ch <= 0) return;
+    const sx = screenX ?? cw / 2;
+    const sy = screenY ?? ch / 2;
+    const world = loop.getWorld();
+    const next = zoomCameraViewAt(loop.getView(), factor, sx, sy, cw, ch);
+    clampCameraTarget(next.camera, world.width, world.height);
+    loop.patchView(next);
+  }, []);
+
+  const applyZoomRef = useRef(applyZoom);
+
+  const resetZoom = useCallback(() => {
+    const loop = loopRef.current;
+    if (!loop) return;
+    const world = loop.getWorld();
+    const cam = loop.getView().camera;
+    const next = focusCameraOn(loop.getView(), cam.targetX, cam.targetY, CAMERA_ZOOM_DEFAULT);
+    clampCameraTarget(next.camera, world.width, world.height);
+    loop.patchView(next);
+  }, []);
+
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const factor = e.deltaY > 0 ? CAMERA_ZOOM_STEP_OUT : CAMERA_ZOOM_STEP_IN;
+    applyZoom(factor, e.clientX - rect.left, e.clientY - rect.top);
+  }, [applyZoom]);
+
+  useLayoutEffect(() => {
+    togglePauseRef.current = togglePause;
+    selectBuildingTypeRef.current = selectBuildingType;
+    cancelBuildModeRef.current = cancelBuildMode;
+    toggleGridRef.current = toggleGrid;
+    rotateBuildPlacementRef.current = rotateBuildPlacement;
+    showShortcutsRef.current = showShortcuts;
+    applyZoomRef.current = applyZoom;
+  }, [togglePause, selectBuildingType, cancelBuildMode, toggleGrid, rotateBuildPlacement, showShortcuts, applyZoom]);
+
+  // Keyboard controls with WASD + momentum — stable listeners (refs, not build mode)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      keysRef.current.add(e.key.toLowerCase());
-      if (e.key === ' ') { e.preventDefault(); togglePause(); }
+      const inFormControl = isEditableTarget(e.target);
+
+      if (!inFormControl) {
+        keysRef.current.add(e.key.toLowerCase());
+      }
+
+      if (
+        !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat
+        && gameplayActiveRef.current
+        && !showShortcutsRef.current
+      ) {
+        const tab = resolveSidebarTabFromKey(e);
+        if (tab) {
+          e.preventDefault();
+          if (inFormControl) {
+            (document.activeElement as HTMLElement | null)?.blur();
+          }
+          if (tab === 'progress') setProgressSubTab('research');
+          setActiveTab(tab);
+          return;
+        }
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        void persistCurrentGameRef.current({ chronicle: true, feedback: true });
+        return;
+      }
+
+      if (inFormControl) return;
+
+      if (e.key === ' ') { e.preventDefault(); togglePauseRef.current(); }
       if (e.key === 'Escape') {
-        if (showShortcuts) {
+        if (showShortcutsRef.current) {
           setShowShortcuts(false);
-        } else if (selectedBuildingType) {
-          cancelBuildMode();
+        } else if (selectedBuildingTypeRef.current) {
+          cancelBuildModeRef.current();
         } else {
           loopRef.current?.patchView({ selectedEntityId: null, selectedBuildingId: null });
         }
       }
       if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const tag = (e.target as HTMLElement)?.tagName;
-        if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
-          e.preventDefault();
-          setShowShortcuts((open) => !open);
-        }
+        e.preventDefault();
+        setShowShortcuts((open) => !open);
       }
       if (e.key === '+' || e.key === '=') {
-        const loop = loopRef.current;
-        if (loop) loop.patchView(zoomCameraView(loop.getView(), 1.1));
+        applyZoomRef.current(CAMERA_ZOOM_STEP_IN);
       }
       if (e.key === '-') {
-        const loop = loopRef.current;
-        if (loop) loop.patchView(zoomCameraView(loop.getView(), 0.9));
+        applyZoomRef.current(CAMERA_ZOOM_STEP_OUT);
       }
       // Building hotkeys
       if (HOTKEY_BUILDINGS[e.key]) {
-        selectBuildingType(HOTKEY_BUILDINGS[e.key]);
+        selectBuildingTypeRef.current(HOTKEY_BUILDINGS[e.key]);
+        setBuildPanelOpen(true);
       }
       if (e.key === 'b' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         setBuildPanelOpen((open) => !open);
       }
       if (e.key === 'g' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        toggleGrid();
+        toggleGridRef.current();
       }
       if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const tag = (e.target as HTMLElement)?.tagName;
-        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && selectedBuildingType
-          && isRotatableBuildingType(selectedBuildingType)) {
+        const buildType = selectedBuildingTypeRef.current;
+        if (buildType && isRotatableBuildingType(buildType)) {
           e.preventDefault();
-          rotateBuildPlacement();
+          rotateBuildPlacementRef.current();
         }
-      }
-      if (!e.ctrlKey && !e.metaKey && !e.altKey && TAB_HOTKEYS[e.key.toLowerCase()]) {
-        setActiveTab(TAB_HOTKEYS[e.key.toLowerCase()]);
       }
       if (e.key === 'h' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const loop = loopRef.current;
         if (loop) {
           const world = loop.getWorld();
-          const settlers = world.entities.filter((ent) => ent.alive && isPlayerHuman(ent));
+          const settlers = catalogRef.current?.getPlayerHumans()
+            ?? world.entities.filter((ent) => ent.alive && isPlayerHuman(ent));
           if (settlers.length > 0) {
             const cx = settlers.reduce((sum, ent) => sum + ent.x, 0) / settlers.length;
             const cy = settlers.reduce((sum, ent) => sum + ent.y, 0) / settlers.length;
@@ -638,9 +871,10 @@ export default function App() {
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return;
       keysRef.current.delete(e.key.toLowerCase());
     };
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
     window.addEventListener('keyup', handleKeyUp);
 
     // Camera momentum loop
@@ -682,15 +916,23 @@ export default function App() {
     animId = requestAnimationFrame(cameraLoop);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('keyup', handleKeyUp);
       cancelAnimationFrame(animId);
     };
-  }, [togglePause, selectBuildingType, selectedBuildingType, cancelBuildMode, toggleGrid, showShortcuts, rotateBuildPlacement]);
+  }, []);
 
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (clickOriginRef.current) {
+      const dx = e.clientX - clickOriginRef.current.x;
+      const dy = e.clientY - clickOriginRef.current.y;
+      clickOriginRef.current = null;
+      if (dx * dx + dy * dy > 16) return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const world = worldRef.current;
     const rect = canvas.getBoundingClientRect();
     const canvasW = canvas.offsetWidth;
     const canvasH = canvas.offsetHeight;
@@ -701,11 +943,11 @@ export default function App() {
     const [worldX, worldY] = screenToWorld(screenX, screenY, getViewCamera(), canvasW, canvasH);
 
     if (selectedBuildingType) {
-      const snapX = snapToGrid(worldX, GRID_SIZE);
-      const snapY = snapToGrid(worldY, GRID_SIZE);
-      playClickSound();
+      if (isStripBuildType(selectedBuildingType)) return;
       const rotation = loopRef.current?.getView().buildRotation ?? 0;
-      applyGameAction((prev) => startBuilding(prev, selectedBuildingType, snapX, snapY, rotation));
+      const { x: snapX, y: snapY } = snapBuildingCenter(selectedBuildingType, worldX, worldY, rotation);
+      playClickSound();
+      applyGameAction({ proto: 1, op: 'startBuilding', type: selectedBuildingType, x: snapX, y: snapY, rotation });
       return;
     }
 
@@ -715,14 +957,15 @@ export default function App() {
       if (worldX >= b.x - b.width / 2 && worldX <= b.x + b.width / 2 &&
           worldY >= b.y - b.height / 2 && worldY <= b.y + b.height / 2) {
         clickedBuilding = b;
+        break;
       }
     }
 
     // Check entity selection (humans still win over buildings; trees/grass do not)
     const camera = getViewCamera();
+    const clickEntities = catalogRef.current?.getAlive() ?? world.entities.filter((ent) => ent.alive);
     let clickedEntity: Entity | null = null;
-    for (const ent of world.entities) {
-      if (!ent.alive) continue;
+    for (const ent of clickEntities) {
       if (clickedBuilding && (ent.type === EntityType.Tree || ent.type === EntityType.Grass)) {
         continue;
       }
@@ -733,6 +976,7 @@ export default function App() {
         const dy = worldY - bounds.cy;
         if ((dx / bounds.rx) ** 2 + (dy / bounds.ry) ** 2 <= 1) {
           clickedEntity = ent;
+          break;
         }
         continue;
       }
@@ -740,6 +984,7 @@ export default function App() {
       const dy = ent.y - worldY;
       if (dx * dx + dy * dy <= (ent.size * 1.2 + 6) ** 2) {
         clickedEntity = ent;
+        break;
       }
     }
 
@@ -792,11 +1037,12 @@ export default function App() {
         selectedCampKey: null,
       });
     }
-  }, [selectedBuildingType, world.entities, world.buildings, world.visitorGroups, world.rivalSettlements, getViewCamera, applyGameAction]);
+  }, [selectedBuildingType, juiceEffectsEnabled, getViewCamera, applyGameAction]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const world = worldRef.current;
     const rect = canvas.getBoundingClientRect();
     const canvasW = canvas.offsetWidth;
     const canvasH = canvas.offsetHeight;
@@ -821,53 +1067,108 @@ export default function App() {
         if (worldX >= b.x - b.width / 2 && worldX <= b.x + b.width / 2 &&
             worldY >= b.y - b.height / 2 && worldY <= b.y + b.height / 2) {
           hovered = b;
+          break;
         }
       }
     }
 
     if (selectedBuildingType) {
-      const snapX = snapToGrid(worldX, GRID_SIZE);
-      const snapY = snapToGrid(worldY, GRID_SIZE);
       const loop = loopRef.current;
-      const rotation = loop?.getView().buildRotation ?? 0;
       const liveWorld = loop?.getWorld() ?? world;
-      const valid = canPlaceBuilding(liveWorld, selectedBuildingType, snapX, snapY, rotation);
-      loop?.patchView({
-        buildGhost: { x: snapX, y: snapY, valid },
-        hoveredBuildingId: hovered?.id ?? null,
-      }, true);
+      if (isStripBuildType(selectedBuildingType) && stripDragStartRef.current) {
+        const start = stripDragStartRef.current;
+        const rotation = inferStripRotation(start.x, start.y, worldX, worldY);
+        const preview = buildStripPreview(
+          liveWorld,
+          selectedBuildingType,
+          start.x,
+          start.y,
+          worldX,
+          worldY,
+          rotation,
+        );
+        loop?.patchView({
+          buildStripPreview: preview,
+          buildRotation: rotation,
+          buildGhost: null,
+          hoveredBuildingId: hovered?.id ?? null,
+        }, true);
+      } else if (!isStripBuildType(selectedBuildingType)) {
+        const rotation = loop?.getView().buildRotation ?? 0;
+        const { x: snapX, y: snapY } = snapBuildingCenter(selectedBuildingType, worldX, worldY, rotation);
+        const valid = canPlaceBuilding(liveWorld, selectedBuildingType, snapX, snapY, rotation);
+        loop?.patchView({
+          buildGhost: { x: snapX, y: snapY, valid },
+          buildStripPreview: null,
+          hoveredBuildingId: hovered?.id ?? null,
+        }, true);
+      } else {
+        loop?.patchView({ hoveredBuildingId: hovered?.id ?? null }, true);
+      }
     } else {
       loopRef.current?.patchView({ hoveredBuildingId: hovered?.id ?? null }, true);
     }
-  }, [selectedBuildingType, world.buildings, getViewCamera]);
+  }, [selectedBuildingType, getViewCamera]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (gameplayActive && e.button === 0) {
+      primeAudioUnlock();
+      void beginAudio();
+    }
     if (e.button === 2 && selectedBuildingType) {
       cancelBuildMode();
+      return;
+    }
+    if (e.button === 0 && selectedBuildingType && isStripBuildType(selectedBuildingType)) {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const canvasW = canvas.offsetWidth;
+      const canvasH = canvas.offsetHeight;
+      const screenX = (e.clientX - rect.left) * (canvasW / rect.width);
+      const screenY = (e.clientY - rect.top) * (canvasH / rect.height);
+      const [worldX, worldY] = screenToWorld(screenX, screenY, getViewCamera(), canvasW, canvasH);
+      stripDragStartRef.current = { x: worldX, y: worldY };
       return;
     }
     if (e.button === 1 || e.button === 2 || (e.button === 0 && !selectedBuildingType)) {
       isDraggingRef.current = true;
       cameraDragStartRef.current = { x: e.clientX, y: e.clientY };
+      clickOriginRef.current = { x: e.clientX, y: e.clientY };
     }
-  }, [selectedBuildingType, cancelBuildMode]);
+  }, [gameplayActive, selectedBuildingType, cancelBuildMode, getViewCamera]);
 
   const handleMouseUp = useCallback(() => {
+    if (stripDragStartRef.current && selectedBuildingType && isStripBuildType(selectedBuildingType)) {
+      const start = stripDragStartRef.current;
+      stripDragStartRef.current = null;
+      const loop = loopRef.current;
+      const preview = loop?.getView().buildStripPreview
+        ?? buildStripPreview(
+          loop?.getWorld() ?? worldRef.current,
+          selectedBuildingType,
+          start.x,
+          start.y,
+          start.x,
+          start.y,
+          loop?.getView().buildRotation ?? 0,
+        );
+      if (preview.segments.length > 0) {
+        playClickSound();
+        applyGameAction({ proto: 1, op: 'placeStripChain', type: selectedBuildingType, segments: preview.segments, rotation: preview.rotation });
+      }
+      loop?.patchView({ buildStripPreview: null });
+    }
     isDraggingRef.current = false;
     cameraDragStartRef.current = null;
-  }, []);
+  }, [selectedBuildingType, applyGameAction]);
 
   const handleMouseLeave = useCallback(() => {
+    stripDragStartRef.current = null;
     isDraggingRef.current = false;
     cameraDragStartRef.current = null;
-    loopRef.current?.patchView({ hoveredBuildingId: null }, true);
-  }, []);
-
-  const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const factor = e.deltaY > 0 ? 0.9 : 1.1;
-    const loop = loopRef.current;
-    if (loop) loop.patchView(zoomCameraView(loop.getView(), factor));
+    clickOriginRef.current = null;
+    loopRef.current?.patchView({ hoveredBuildingId: null, buildStripPreview: null }, true);
   }, []);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -875,9 +1176,9 @@ export default function App() {
   }, []);
 
   const setSpeed = (speed: number) => loopRef.current?.mutateWorld((w) => { w.speed = speed; });
-  const resetGame = () => {
+  const beginNewGameSession = useCallback((villageName: string) => {
     deleteSave();
-    const s = initGame({ size: selectedMapSize, preset: selectedMapPreset });
+    const s = initGame({ size: selectedMapSize, preset: selectedMapPreset, villageName });
     s.paused = true;
     s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
     const nextView = createInitialView(s.width, s.height);
@@ -889,9 +1190,16 @@ export default function App() {
     setSelectedBuildingType(null);
     setHasSavedGame(false);
     setFirstNightWarningDismissed(false);
+    saveFirstNightWarningDismissed(false);
     setShowTutorial(tutorialsEnabled);
     setTutorialStep(0);
-  };
+    setShowMapSetup(false);
+  }, [selectedMapSize, selectedMapPreset, tutorialsEnabled]);
+
+  const startNewGame = useCallback(() => {
+    setMapSetupSource('game');
+    setShowMapSetup(true);
+  }, []);
 
   const toggleAutoSave = () => {
     loopRef.current?.mutateWorld((w) => {
@@ -900,119 +1208,101 @@ export default function App() {
     });
   };
 
-  const handleSave = () => {
-    const session = loopRef.current?.getWorldAndView() ?? { world: worldRef.current, view: viewRef.current };
-    const result = saveGame(session.world, session.view);
-    if (result.success) {
-      if (loadExportChronicleOnSave()) {
-        downloadChronicleLog(session.world.eventLog, {
-          villageName: session.world.villageName,
-          year: session.world.year,
-          day: session.world.dayInYear,
-          tick: session.world.tick,
-          population: session.world.humanPopulation,
-        });
-      }
-      loopRef.current?.mutateWorld((prev) => {
-        const id = prev.nextFloatingTextId++;
-        prev.floatingTexts.push({
-          id,
-          x: prev.width / 2, y: prev.height / 2 - 50,
-          text: 'Game Saved! 💾',
-          color: '#22c55e',
-          life: 60, maxLife: 60, scale: 1.5,
-        });
-      });
-      setHasSavedGame(true);
-      setSaveToast({
-        message: loadExportChronicleOnSave()
-          ? 'Game saved · chronicle .txt downloaded'
-          : 'Game saved successfully',
-        type: 'success',
-      });
-    } else {
-      setSaveToast({ message: result.error, type: 'error' });
-    }
-  };
+  const handleSave = useCallback(() => {
+    void persistCurrentGame({ chronicle: true, feedback: true });
+  }, [persistCurrentGame]);
 
-  const handleLoad = () => {
+  const applyLoadedSession = useCallback((loaded: { world: WorldState; view: ViewState }) => {
+    loaded.world.tradeRoutes = ensureFullTradeRoutes(
+      loaded.world.tradeRoutes.length > 0 ? loaded.world.tradeRoutes : initTradeRoutes(),
+    );
+    fixDefaultNames(loaded.world);
+    worldRef.current = loaded.world;
+    viewRef.current = loaded.view;
+    setWorld(loaded.world);
+    setView(loaded.view);
+    loopRef.current?.setSession(loaded.world, loaded.view);
+    setHasSavedGame(true);
+  }, []);
+
+  const handleLoad = useCallback(() => {
     const loaded = loadGame();
     if (loaded) {
-      loaded.world.tradeRoutes = ensureFullTradeRoutes(
-        loaded.world.tradeRoutes.length > 0 ? loaded.world.tradeRoutes : initTradeRoutes(),
-      );
-      fixDefaultNames(loaded.world);
-      worldRef.current = loaded.world;
-      viewRef.current = loaded.view;
-      setWorld(loaded.world);
-      setView(loaded.view);
-      loopRef.current?.setSession(loaded.world, loaded.view);
-      setHasSavedGame(true);
+      applyLoadedSession(loaded);
+      setSaveToast({ message: 'Game loaded', type: 'success' });
+    } else {
+      setHasSavedGame(hasSave());
+      setSaveToast({
+        message: hasSave()
+          ? 'Could not load save — file may be corrupted'
+          : 'No saved game found — use Save game first',
+        type: 'error',
+      });
     }
-  };
+  }, [applyLoadedSession]);
 
-  const villageStats = useMemo(() => {
-    const constructionWorkers = new Set<number>();
-    for (const b of world.buildings) {
-      if (!b.completed) {
-        for (const id of b.occupants) constructionWorkers.add(id);
-      }
+  const handleLoadFromSetup = useCallback(() => {
+    const loaded = loadGame();
+    if (loaded) {
+      applyLoadedSession(loaded);
+      setShowMapSetup(false);
+    } else {
+      setHasSavedGame(hasSave());
     }
-    let total = 0;
-    let adults = 0;
-    let children = 0;
-    let working = 0;
-    let idle = 0;
-    let imprisoned = 0;
-    for (const e of world.entities) {
-      if (!e.alive || !isPlayerHuman(e)) continue;
-      total++;
-      if (e.isJuvenile) {
-        children++;
-        continue;
-      }
-      adults++;
-      if (isImprisoned(e)) {
-        imprisoned++;
-        continue;
-      }
-      if (hasWorkAssignment(e) || constructionWorkers.has(e.id)) working++;
-      else idle++;
-    }
-    return { total, adults, children, working, idle, imprisoned };
-  }, [world.entities, world.buildings]);
+  }, [applyLoadedSession]);
 
-  const priorityAlerts = useMemo(
-    () => getPriorityAlerts(world),
-    [
-      world.humanPopulation,
-      world.resources.food,
-      world.buildings,
-      world.pendingRaidEvents,
-      world.pendingDiplomacyEvents,
-      world.tradeRoutes,
-      world.villageReputation,
-      world.challenges,
-      world.villageForge,
-      world.unlockedTechs,
-    ],
+  const activeBigNews = useMemo(
+    () => world.bigNews.filter((n) => !n.dismissed),
+    [world.bigNews],
   );
+
+  const priorityAlerts = useMemo(() => getPriorityAlerts(world), [world]);
   const tradeReadyCount = useMemo(
     () => world.tradeRoutes.filter((r) => !r.active && world.villageReputation >= r.reputationRequired).length,
     [world.tradeRoutes, world.villageReputation],
   );
   const progressTabAlert = world.activeResearch != null || tradeReadyCount > 0;
-  const foodCritical = world.resources.food < Math.max(15, world.humanPopulation * 1.5);
+  const foodAlert = isFoodAlert(world);
+  const ecoBreakdown = useMemo(() => getEcosystemBreakdown(world), [world]);
 
-  const buildingCategories = [
-    { label: 'Housing', types: [BuildingType.House, BuildingType.Mansion], color: 'bg-amber-500' },
-    { label: 'Food', types: [BuildingType.Farm, BuildingType.Greenhouse, BuildingType.Barn, BuildingType.Silo, BuildingType.Mill], color: 'bg-green-500' },
-    { label: 'Resources', types: [BuildingType.LumberMill, BuildingType.Quarry, BuildingType.Mine], color: 'bg-stone-500' },
-    { label: 'Industry', types: [BuildingType.Blacksmith, BuildingType.Workshop, BuildingType.Store, BuildingType.Market], color: 'bg-orange-500' },
-    { label: 'Community', types: [BuildingType.TownHall, BuildingType.Church, BuildingType.School, BuildingType.Hospital, BuildingType.Prison, BuildingType.Well, BuildingType.TamingPost], color: 'bg-amber-600' },
-    { label: 'Defense', types: [BuildingType.Wall, BuildingType.WallCorner, BuildingType.WallGate, BuildingType.Watchtower, BuildingType.Barracks], color: 'bg-slate-500', hint: 'Walls & towers boost barricade · R rotates walls & gates · Barracks guards patrol (+12 militia each)' },
-    { label: 'Infra', types: [BuildingType.Road], color: 'bg-gray-500', hint: '1.5× walk speed on roads · +15% adjacency · press R to rotate' },
-  ];
+  if (showIntro) {
+    return (
+      <IntroScreen
+        onContinue={() => {
+          setShowIntro(false);
+          setMapSetupSource('intro');
+          setShowMapSetup(true);
+        }}
+      />
+    );
+  }
+
+  if (showMapSetup) {
+    return (
+      <MapSetupScreen
+        selectedSize={selectedMapSize}
+        selectedPreset={selectedMapPreset}
+        onSizeChange={setSelectedMapSize}
+        onPresetChange={setSelectedMapPreset}
+        onBack={() => {
+          setShowMapSetup(false);
+          if (mapSetupSource === 'intro') setShowIntro(true);
+        }}
+        backLabel={mapSetupSource === 'game' ? '← Back to game' : '← Back to intro'}
+        onStart={(villageName) => {
+          primeAudioUnlock();
+          void beginAudio();
+          beginNewGameSession(villageName);
+        }}
+        onLoad={() => {
+          primeAudioUnlock();
+          void beginAudio();
+          handleLoadFromSetup();
+        }}
+        hasSave={hasSavedGame || hasSave()}
+      />
+    );
+  }
 
   if (!spritesLoaded) {
     return (
@@ -1029,70 +1319,30 @@ export default function App() {
     );
   }
 
-  if (showIntro) {
-    return (
-      <IntroScreen
-        onContinue={() => {
-          setShowIntro(false);
-          setShowMapSetup(true);
-        }}
-      />
-    );
-  }
-
-  if (showMapSetup) {
-    return (
-      <MapSetupScreen
-        selectedSize={selectedMapSize}
-        selectedPreset={selectedMapPreset}
-        onSizeChange={setSelectedMapSize}
-        onPresetChange={setSelectedMapPreset}
-        onBack={() => {
-          setShowMapSetup(false);
-          setShowIntro(true);
-        }}
-        onStart={(villageName) => {
-          void beginAudio();
-          const s = initGame({ size: selectedMapSize, preset: selectedMapPreset, villageName });
-          s.paused = true;
-          s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
-          const nextView = createInitialView(s.width, s.height);
-          worldRef.current = s;
-          viewRef.current = nextView;
-          setWorld(s);
-          setView(nextView);
-          loopRef.current?.setSession(s, nextView);
-          setShowMapSetup(false);
-        }}
-        onLoad={() => {
-          void beginAudio();
-          const loaded = loadGame();
-          if (loaded) {
-            loaded.world.tradeRoutes = ensureFullTradeRoutes(
-        loaded.world.tradeRoutes.length > 0 ? loaded.world.tradeRoutes : initTradeRoutes(),
-      );
-            fixDefaultNames(loaded.world);
-            worldRef.current = loaded.world;
-            viewRef.current = loaded.view;
-            setWorld(loaded.world);
-            setView(loaded.view);
-            loopRef.current?.setSession(loaded.world, loaded.view);
-            setHasSavedGame(true);
-            setShowMapSetup(false);
-          }
-        }}
-        hasSave={hasSavedGame}
-      />
-    );
-  }
-
-  const selectedEntity = resolveEntity(world, view.selectedEntityId);
+  const selectedEntity = catalog?.get(view.selectedEntityId)
+    ?? resolveEntity(world, view.selectedEntityId);
   const selectedBuilding = resolveBuilding(world, view.selectedBuildingId);
+  const selectedBuildingIdleWorkerCount = selectedBuilding
+    ? (() => {
+        const humans = resolveAliveHumans(world, catalog ?? undefined);
+        if (!selectedBuilding.completed) {
+          return humans.filter((human) => {
+            if (human.isJuvenile || human.faction) return false;
+            return !world.buildings.some(
+              (building) => !building.completed && building.occupants.includes(human.id),
+            );
+          }).length;
+        }
+        return humans.filter(
+          (human) => !human.isJuvenile && human.homeBuildingId == null && !human.faction,
+        ).length;
+      })()
+    : 0;
   const grazingPressure = getGrazingPressureReport(world);
-  const ecoBreakdown = useMemo(() => getEcosystemBreakdown(world), [world]);
   const pendingDiplomacy = world.pendingDiplomacyEvents ?? [];
   const pendingRaids = world.pendingRaidEvents ?? [];
-  const frontierAlertCount = pendingRaids.length + pendingDiplomacy.length;
+  const pendingOutgoingRaids = world.pendingOutgoingRaidEvents ?? [];
+  const frontierAlertCount = pendingRaids.length + pendingOutgoingRaids.length + pendingDiplomacy.length;
   const selectedVisitorCamp = view.selectedCampKey?.startsWith('visitor:')
     ? world.visitorGroups.find((g) => g.id === view.selectedCampKey!.slice(8)) ?? null
     : null;
@@ -1110,10 +1360,12 @@ export default function App() {
         population={villageStats.total}
         gameTitle={GAME_TITLE}
         gameVersion={GAME_VERSION}
-        foodCritical={foodCritical}
+        gamePhase={GAME_PHASE}
+        gameSubtitle={GAME_SUBTITLE}
+        foodAlert={foodAlert}
         muted={muted}
         volumePreset={volumePreset}
-        hasSavedGame={hasSavedGame}
+        hasSavedGame={hasSavedGame || hasSave()}
         speedOptions={SPEED_OPTIONS}
         onTogglePause={togglePause}
         onSetSpeed={setSpeed}
@@ -1130,7 +1382,11 @@ export default function App() {
         onToggleJuiceEffects={handleToggleJuiceEffects}
         onToggleMute={handleToggleMute}
         onVolumePreset={handleVolumePreset}
-        onReset={resetGame}
+        onOpenGuide={() => {
+          setActiveTab('more');
+          setMoreSubTab('guide');
+        }}
+        onStartNewGame={startNewGame}
       />
 
       <AlertBar alerts={priorityAlerts} onAlert={handlePriorityAlert} />
@@ -1140,7 +1396,7 @@ export default function App() {
         {/* Left sidebar — collapsible construction panel */}
         <aside
           className={`build-panel relative flex shrink-0 flex-col border-r border-stone-700 bg-stone-800/90 backdrop-blur transition-[width] duration-300 ease-in-out ${
-            buildPanelOpen ? 'w-56' : 'w-12'
+            buildPanelOpen ? 'w-[15.5rem]' : 'w-12'
           }`}
         >
           <button
@@ -1152,112 +1408,22 @@ export default function App() {
           </button>
 
           {buildPanelOpen ? (
-            <div className="flex h-full flex-col overflow-y-auto p-2.5">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-stone-400">Construction</h2>
-                {selectedBuildingType && (
-                  <button onClick={cancelBuildMode} className="rounded bg-rose-900/40 px-2 py-0.5 text-[10px] font-semibold text-rose-300 hover:bg-rose-900/60">
-                    ✕ Cancel
-                  </button>
-                )}
-              </div>
-
-              {buildingCategories.map(cat => (
-                <div key={cat.label} className="mb-3">
-                  <div className="mb-1 flex items-center gap-1.5">
-                    <div className={`h-1.5 w-1.5 rounded-full ${cat.color}`} />
-                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-stone-500">{cat.label}</h3>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1">
-                    {cat.types.map(type => {
-                      const config = BUILDING_CONFIGS[type];
-                      const selected = selectedBuildingType === type;
-                      const affordable = world.resources.wood >= config.cost.wood &&
-                        world.resources.stone >= config.cost.stone &&
-                        world.resources.gold >= config.cost.gold;
-                      const locked = config.unlockRequirement && !world.unlockedTechs.includes(config.unlockRequirement);
-                      const lockTech = locked && config.unlockRequirement
-                        ? world.researchNodes.find((n) => n.id === config.unlockRequirement)
-                        : undefined;
-
-                      return (
-                        <button key={type} onClick={() => {
-                            if (locked) {
-                              applyGameAction((prev) => notifyBuildingLocked(prev, type));
-                            } else {
-                              selectBuildingType(type);
-                            }
-                          }}
-                          title={`${config.description} ${BUILDING_HOTKEYS[type] ? `[${BUILDING_HOTKEYS[type]}] ` : ''}${locked ? `(Research: ${lockTech?.name ?? config.unlockRequirement})` : ''}`}
-                          className={`group relative flex flex-col items-center rounded-lg border p-1 text-center transition-all ${
-                            selected ? 'border-emerald-500 bg-emerald-500/20 shadow-lg shadow-emerald-500/10' :
-                            locked ? 'border-stone-700 bg-stone-800 opacity-40 cursor-pointer hover:border-amber-600/40' :
-                            affordable ? 'border-stone-600 bg-stone-700/50 hover:border-emerald-500/50 hover:bg-emerald-500/10' :
-                            'border-stone-700 bg-stone-800 opacity-50'
-                          }`}>
-                          <div className="mb-0.5 flex h-3.5 w-full items-center justify-between px-0.5">
-                            {BUILDING_HOTKEYS[type] ? (
-                              <span className="flex h-3.5 w-3.5 items-center justify-center rounded bg-stone-800 text-[7px] font-bold text-emerald-400 ring-1 ring-stone-600">
-                                {BUILDING_HOTKEYS[type]}
-                              </span>
-                            ) : <span />}
-                            {locked && <span className="text-[7px]">🔒</span>}
-                          </div>
-                          <img src={config.sprite} alt={config.label} className="mb-0.5 h-7 w-7 object-contain" />
-                          <span className="text-[8px] font-bold leading-tight text-stone-200">{config.label}</span>
-                          {locked && lockTech && (
-                            <span className="text-[6px] leading-tight text-amber-500/90">🔒 {lockTech.name}</span>
-                          )}
-                          <span className="mt-0.5 inline-flex gap-1 text-[7px] text-stone-500">
-                            {config.cost.wood > 0 && <span>{config.cost.wood}w</span>}
-                            {config.cost.stone > 0 && <span>{config.cost.stone}s</span>}
-                            {config.cost.gold > 0 && <span>{config.cost.gold}g</span>}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-
-              {selectedBuildingType && (
-                <div className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-[10px] text-emerald-300">
-                  <p className="font-semibold">Placing: {BUILDING_CONFIGS[selectedBuildingType].label}</p>
-                  <p className="mt-1 text-stone-400">Click the map to place · ESC or right-click to cancel</p>
-                  {isRotatableBuildingType(selectedBuildingType) && (
-                    <p className="mt-1 text-stone-400">
-                      <span className="text-emerald-400">R</span> rotate ({view.buildRotation === 90 ? 'vertical' : 'horizontal'})
-                    </p>
-                  )}
-                  <p className="mt-1.5 leading-relaxed text-stone-500">
-                    <span className="text-emerald-400">Green dots</span> = valid ·{' '}
-                    <span className="text-red-400">Red tint</span> = blocked terrain ·{' '}
-                    Water shows on the map (blue)
-                  </p>
-                </div>
-              )}
-
-              <div className="mt-auto space-y-2 pt-4">
-                <button
-                  onClick={toggleGrid}
-                  className={`w-full rounded-lg border px-3 py-2 text-[10px] font-bold transition-all ${
-                    view.showGrid
-                      ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
-                      : 'border-stone-700 bg-stone-800 text-stone-400 hover:border-stone-600 hover:text-stone-300'
-                  }`}
-                  title="Toggle placement grid (G)"
-                >
-                  {view.showGrid ? '⊞ Grid ON' : '⊞ Grid off'}
-                </button>
-
-              </div>
-            </div>
+            <BuildCatalogPanel
+              world={world}
+              selected={selectedBuildingType}
+              buildRotation={view.buildRotation}
+              showGrid={view.showGrid}
+              hotkeys={BUILDING_HOTKEYS}
+              onSelect={selectBuildingType}
+              onLocked={(type) => applyGameAction({ proto: 1, op: 'notifyBuildingLocked', type })}
+              onCancel={cancelBuildMode}
+              onToggleGrid={toggleGrid}
+            />
           ) : (
             <div className="flex h-full flex-col items-center gap-2 py-3">
               <span
                 className="text-base"
-                title="Common builds on the map hotbar below · B opens full catalog"
+                title="Build catalog on the left · press B"
               >
                 🏗️
               </span>
@@ -1299,7 +1465,7 @@ export default function App() {
         </aside>
 
         {/* Center - Canvas */}
-        <main ref={containerRef} className="relative bg-stone-900" style={{ flex: '1 1 0%', minHeight: 0, minWidth: 0 }}>
+        <main className="relative bg-stone-900" style={{ flex: '1 1 0%', minHeight: 0, minWidth: 0 }}>
           <canvas
             ref={canvasRef}
             onClick={handleCanvasClick}
@@ -1314,15 +1480,22 @@ export default function App() {
 
           {/* Build mode banner */}
           {selectedBuildingType && (
-            <div className="pointer-events-none absolute bottom-24 left-1/2 z-20 -translate-x-1/2">
+            <div className="pointer-events-none absolute bottom-20 left-1/2 z-20 -translate-x-1/2">
               <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/90 px-5 py-2.5 text-center shadow-2xl backdrop-blur">
                 <p className="text-sm font-bold text-emerald-200">
                   Placing {BUILDING_CONFIGS[selectedBuildingType].label}
                 </p>
                 <p className="text-[10px] text-stone-400">
-                  Click to place · ESC to cancel
-                  {isRotatableBuildingType(selectedBuildingType) && (
+                  {isStripBuildType(selectedBuildingType)
+                    ? selectedBuildingType === BuildingType.Road
+                      ? <>Drag to draw — snaps to existing roads · ESC cancel</>
+                      : <>Drag to draw — auto-corners at junctions · green = enclosed · ESC cancel</>
+                    : <>Click to place · ESC to cancel</>}
+                  {isRotatableBuildingType(selectedBuildingType) && !isStripBuildType(selectedBuildingType) && (
                     <> · <span className="text-emerald-400">R</span> rotate ({view.buildRotation === 90 ? '↕' : '↔'})</>
+                  )}
+                  {isStripBuildType(selectedBuildingType) && (
+                    <> · drag sets ↔/↕ · <span className="text-emerald-400">R</span> locks axis</>
                   )}
                 </p>
               </div>
@@ -1344,6 +1517,66 @@ export default function App() {
           </div>
 
           {/* Raid defense — respond before march deadline (distance-scaled) */}
+          {pendingOutgoingRaids.length > 0 && (
+            <div className={`absolute left-1/2 ${pendingRaids.length > 0 ? 'top-44' : 'top-4'} z-20 w-full max-w-lg -translate-x-1/2 animate-in fade-in slide-in-from-top`}>
+              {pendingOutgoingRaids.slice(0, 2).map((evt) => (
+                <div key={evt.id} className="mb-2 rounded-xl border border-orange-500/50 bg-orange-950/95 p-3 shadow-xl backdrop-blur">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{evt.emoji}</span>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-orange-100">{evt.title}</h3>
+                      <p className="text-xs text-stone-300">{evt.description}</p>
+                      <p className="mt-1 text-[9px] text-orange-300/90">
+                        {evt.rivalResponse === 'payoff_offer'
+                          ? `Offer: ${formatRaidLootSummary(raidEventLoot(evt))}`
+                          : 'They chose to fight'}
+                        {' · '}
+                        <strong>{formatRaidDeadline(
+                          { createdAtTick: evt.createdAtTick, expiresAtTick: evt.expiresAtTick } as import('./game/frontierCombat').RaidEvent,
+                          world.tick,
+                        )}</strong>
+                        {evt.marchDistanceTiles > 0 && (
+                          <span> · {evt.marchDistanceTiles} tiles march</span>
+                        )}
+                      </p>
+                      <div className="mt-2 grid grid-cols-1 gap-1">
+                        {evt.choices.map((choice) => (
+                          <button
+                            key={choice.id}
+                            type="button"
+                            onClick={() => {
+                              playClickSound();
+                              applyGameAction({
+                                proto: 1,
+                                op: 'respondToOutgoingRaidEvent',
+                                eventId: evt.id,
+                                choiceId: choice.id,
+                              });
+                            }}
+                            className="rounded-lg bg-stone-900/80 px-2 py-1.5 text-left text-[10px] font-semibold text-stone-100 hover:bg-stone-800"
+                            title={choice.hint}
+                          >
+                            {choice.label}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const rival = world.rivalSettlements.find((r) => r.id === evt.rivalId);
+                          if (rival) focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0]);
+                        }}
+                        className="mt-1.5 text-[9px] font-semibold text-cyan-400 hover:text-cyan-300"
+                      >
+                        📍 Open rival camp
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {pendingRaids.length > 0 && (
             <div className="absolute left-1/2 top-4 z-20 w-full max-w-lg -translate-x-1/2 animate-in fade-in slide-in-from-top">
               {pendingRaids.slice(0, 2).map((evt) => {
@@ -1361,7 +1594,7 @@ export default function App() {
                       <h3 className="font-bold text-rose-100">{evt.title}</h3>
                       <p className="text-xs text-stone-300">{evt.description}</p>
                       <p className="mt-1 text-[9px] text-rose-300/90">
-                        At risk: {evt.lootFood}🍖{evt.lootGold > 0 ? ` · ${evt.lootGold}💰` : ''}
+                        At risk: {formatRaidLootSummary(raidEventLoot(evt)) || `${evt.lootFood}🍖`}
                         {' · '}
                         <strong>{formatRaidDeadline(evt, world.tick)}</strong>
                         {evt.marchDistanceTiles > 0 && (
@@ -1400,7 +1633,7 @@ export default function App() {
                             onClick={() => {
                               if (blocked) return;
                               playClickSound();
-                              applyGameAction((prev) => respondToRaidEvent(prev, evt.id, choice.id));
+                              applyGameAction({ proto: 1, op: 'respondToRaidEvent', eventId: evt.id, choiceId: choice.id });
                             }}
                             className="rounded-lg bg-stone-900/80 px-2 py-1.5 text-left text-[10px] font-semibold text-stone-100 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
                             title={blockReason ?? choice.hint}
@@ -1430,7 +1663,7 @@ export default function App() {
 
           {/* Diplomacy event cards — player must respond */}
           {pendingDiplomacy.length > 0 && (
-            <div className={`absolute left-1/2 ${pendingRaids.length > 0 ? 'top-44' : 'top-4'} z-10 w-full max-w-lg -translate-x-1/2 animate-in fade-in slide-in-from-top`}>
+            <div className={`absolute left-1/2 ${pendingRaids.length > 0 || pendingOutgoingRaids.length > 0 ? 'top-44' : 'top-4'} z-10 w-full max-w-lg -translate-x-1/2 animate-in fade-in slide-in-from-top`}>
               {pendingDiplomacy.slice(0, 2).map((evt) => (
                 <div key={evt.id} className="mb-2 rounded-xl border border-amber-500/40 bg-amber-950/90 p-3 shadow-xl backdrop-blur">
                   <div className="flex items-start gap-3">
@@ -1449,7 +1682,7 @@ export default function App() {
                             onClick={() => {
                               if (!eligibility.ok) return;
                               playClickSound();
-                              applyGameAction((prev) => respondToDiplomacyEvent(prev, evt.id, choice.id));
+                              applyGameAction({ proto: 1, op: 'respondToDiplomacyEvent', eventId: evt.id, choiceId: choice.id });
                             }}
                             className="rounded-lg bg-stone-800/80 px-2 py-1.5 text-left text-[10px] font-semibold text-stone-100 hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
                             title={eligibility.blockReason ?? choice.hint}
@@ -1513,7 +1746,10 @@ export default function App() {
                       {firstNightWarningMessage}
                     </p>
                     <button
-                      onClick={() => setFirstNightWarningDismissed(true)}
+                      onClick={() => {
+                        setFirstNightWarningDismissed(true);
+                        saveFirstNightWarningDismissed(true);
+                      }}
                       className="mt-2 rounded-lg bg-amber-700/60 px-3 py-1 text-[10px] font-semibold text-amber-100 hover:bg-amber-600/60"
                     >
                       Got it
@@ -1525,23 +1761,14 @@ export default function App() {
           )}
 
           {/* Big News banner */}
-          {world.bigNews.filter(n => !n.dismissed).length > 0 && (
+          {activeBigNews.length > 0 && (
             <BigNewsBanner
-              news={world.bigNews.filter(n => !n.dismissed)}
+              news={activeBigNews}
               onDismiss={() => loopRef.current?.mutateWorld((prev) => {
                 prev.bigNews = prev.bigNews.map(n => ({ ...n, dismissed: true }));
               })}
             />
           )}
-
-          <BuildHotbar
-            world={world}
-            selected={selectedBuildingType}
-            panelOpen={buildPanelOpen}
-            onSelect={selectBuildingType}
-            onExpandPanel={() => setBuildPanelOpen(true)}
-            onCancel={cancelBuildMode}
-          />
 
           {contextualTip && tutorialsEnabled && !showTutorial && (
             <ContextualTutorialCard
@@ -1556,11 +1783,48 @@ export default function App() {
           )}
 
           {/* Minimap */}
-          <MiniMap world={world} camera={view.camera} />
+          <MiniMap worldRef={worldRef} viewRef={viewRef} />
+
+          {/* Zoom controls */}
+          <div className="absolute bottom-4 right-4 z-20 flex flex-col items-stretch gap-0.5 rounded-lg border border-stone-600 bg-stone-800/85 p-1 shadow-xl backdrop-blur">
+            <button
+              type="button"
+              onClick={() => applyZoom(CAMERA_ZOOM_STEP_IN)}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-lg font-bold text-stone-200 hover:bg-stone-700/80 hover:text-white"
+              title="Zoom in (+)"
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+            <div
+              className="px-1 text-center text-[9px] font-semibold tabular-nums text-stone-400"
+              title="Current zoom"
+            >
+              {Math.round(clampCameraZoom(view.camera.targetZoom) * 100)}%
+            </div>
+            <button
+              type="button"
+              onClick={() => applyZoom(CAMERA_ZOOM_STEP_OUT)}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-lg font-bold text-stone-200 hover:bg-stone-700/80 hover:text-white"
+              title="Zoom out (-)"
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={resetZoom}
+              className="flex h-7 w-8 items-center justify-center rounded-md text-[11px] text-stone-400 hover:bg-stone-700/80 hover:text-stone-200"
+              title="Reset zoom"
+              aria-label="Reset zoom"
+            >
+              ⟲
+            </button>
+          </div>
 
           {/* Save toast */}
           {saveToast && (
-            <div className={`absolute bottom-20 left-1/2 z-30 -translate-x-1/2 rounded-lg border px-4 py-2 text-sm font-semibold shadow-2xl backdrop-blur ${
+            <div className={`absolute bottom-16 left-1/2 z-30 -translate-x-1/2 rounded-lg border px-4 py-2 text-sm font-semibold shadow-2xl backdrop-blur ${
               saveToast.type === 'success'
                 ? 'border-emerald-500/40 bg-emerald-950/90 text-emerald-200'
                 : 'border-rose-500/40 bg-rose-950/90 text-rose-200'
@@ -1681,33 +1945,32 @@ export default function App() {
                 talkMeta={getVisitorLeaderTalkMeta(selectedVisitorCamp)}
                 onTalkLeader={() => {
                   playClickSound();
-                  applyGameAction((prev) => talkToVisitorLeader(prev, selectedVisitorCamp.id));
+                  applyGameAction({ proto: 1, op: 'talkToVisitorLeader', groupId: selectedVisitorCamp.id });
                 }}
                 onTrade={(action) => {
                   playClickSound();
-                  applyGameAction((prev) => tradeWithVisitors(prev, selectedVisitorCamp.id, action));
+                  applyGameAction({ proto: 1, op: 'tradeWithVisitors', groupId: selectedVisitorCamp.id, action });
                 }}
                 onRefugeeChoice={(choice) => {
                   playClickSound();
-                  applyGameAction((prev) => negotiateRefugees(prev, selectedVisitorCamp.id, choice));
+                  applyGameAction({ proto: 1, op: 'negotiateRefugees', groupId: selectedVisitorCamp.id, choice });
                 }}
                 onFocusCamp={() => focusCampOnMap('visitor', selectedVisitorCamp.id, selectedVisitorCamp.campX, selectedVisitorCamp.campY)}
               />
             ) : selectedEntity ? (
               <SelectedEntityPanel
                 entity={selectedEntity}
-                allEntities={world.entities}
+                allEntities={catalog?.getAlive() ?? world.entities}
                 state={world}
+                onMoveOut={() => {
+                  playClickSound();
+                  const entityId = selectedEntity.id;
+                  applyGameAction({ proto: 1, op: 'moveOutOfFamilyHome', humanId: entityId });
+                }}
                 onTame={(humanId: number) => {
                   playClickSound();
                   const entityId = selectedEntity.id;
-                  applyGameAction((prev) => {
-                    const before = prev.entities.find(e => e.id === entityId)?.tamedBy;
-                    const next = tameEntity(prev, entityId, humanId);
-                    const after = next.entities.find(e => e.id === entityId)?.tamedBy;
-                    if (!before && !after) playFailSfx();
-                    return next;
-                  });
+                  applyGameAction({ proto: 1, op: 'tameEntity', entityId, humanId });
                 }}
                 onOpenVisitorCamp={(group) => focusCampOnMap('visitor', group.id, group.campX, group.campY)}
               />
@@ -1715,40 +1978,33 @@ export default function App() {
               <SelectedBuildingPanel
                 building={selectedBuilding}
                 state={world}
-                onAssign={() => applyGameAction((prev) => assignIdleWorkerToBuilding(prev, selectedBuilding.id))}
+                onAssign={() => applyGameAction({ proto: 1, op: 'assignWorker', buildingId: selectedBuilding.id })}
                 onAssignWorker={(humanId: number) => {
                   playClickSound();
-                  applyGameAction((prev) => assignIdleWorkerToBuilding(prev, selectedBuilding.id, humanId));
+                  applyGameAction({ proto: 1, op: 'assignWorker', buildingId: selectedBuilding.id, humanId });
                 }}
                 assignableWorkers={listAssignableWorkersForBuilding(world, selectedBuilding.id)}
-                onRemove={(humanId: number) => applyGameAction((prev) => removeWorkerFromBuilding(prev, selectedBuilding.id, humanId))}
-                onRepair={() => applyGameAction((prev) => repairBuilding(prev, selectedBuilding.id))}
-                onUpgrade={() => applyGameAction((prev) => upgradeBuilding(prev, selectedBuilding.id))}
-                onDemolish={() => applyGameAction((prev) => demolishBuilding(prev, selectedBuilding.id))}
+                onRemove={(humanId: number) => applyGameAction({ proto: 1, op: 'removeWorker', buildingId: selectedBuilding.id, humanId })}
+                onRepair={() => applyGameAction({ proto: 1, op: 'repairBuilding', buildingId: selectedBuilding.id })}
+                onUpgrade={() => applyGameAction({ proto: 1, op: 'upgradeBuilding', buildingId: selectedBuilding.id })}
+                onDemolish={() => applyGameAction({ proto: 1, op: 'demolishBuilding', buildingId: selectedBuilding.id })}
                 onSetWorkshopRecipe={(recipeId: string) => {
                   playClickSound();
-                  applyGameAction((prev) => setWorkshopRecipe(prev, selectedBuilding.id, recipeId));
+                  applyGameAction({ proto: 1, op: 'setWorkshopRecipe', buildingId: selectedBuilding.id, recipeId });
                 }}
                 onQueueForge={(orderId) => {
                   playClickSound();
-                  applyGameAction((prev) => queueForgeOrder(prev, selectedBuilding.id, orderId));
+                  applyGameAction({ proto: 1, op: 'queueForgeOrder', buildingId: selectedBuilding.id, orderId });
                 }}
-                idleWorkers={
-                  !selectedBuilding.completed
-                    ? world.entities.filter((e) => {
-                        if (e.type !== EntityType.Human || !e.alive || e.isJuvenile || e.faction) return false;
-                        return !world.buildings.some(
-                          (b) => !b.completed && b.occupants.includes(e.id),
-                        );
-                      }).length
-                    : world.entities.filter(
-                        (e) => e.type === EntityType.Human && e.alive && !e.isJuvenile && e.homeBuildingId == null && !e.faction,
-                      ).length
-                }
-                canAssignWorker={canAssignWorkerToBuilding(world, selectedBuilding.id)}
-                onDiplomacyAction={(fn) => {
+                onTownHallAction={(cmd) => {
                   playClickSound();
-                  applyGameAction(fn);
+                  applyGameAction(cmd);
+                }}
+                idleWorkers={selectedBuildingIdleWorkerCount}
+                canAssignWorker={canAssignWorkerToBuilding(world, selectedBuilding.id)}
+                onDiplomacyAction={(cmd) => {
+                  playClickSound();
+                  applyGameAction(cmd);
                 }}
                 onFocusCamp={(rival) => focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0])}
               />
@@ -1773,8 +2029,8 @@ export default function App() {
                 className={`sidebar-tab relative ${activeTab === tab.id ? 'sidebar-tab--active text-emerald-400' : 'text-stone-500 hover:text-stone-300'}`}
                 title={tab.hint}
               >
-                <span className="text-base leading-none">{tab.icon}</span>
-                <span className="text-[8px] font-bold leading-tight">{tab.label}</span>
+                <span className="text-lg leading-none">{tab.icon}</span>
+                <span className="text-[10px] font-bold leading-tight sm:text-[11px]">{tab.label}</span>
                 {tab.id === 'frontier' && frontierAlertCount > 0 && (
                   <span className="sidebar-tab-badge">{frontierAlertCount}</span>
                 )}
@@ -1787,32 +2043,52 @@ export default function App() {
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3">
+          <div ref={sidebarContentRef} className="flex-1 overflow-y-auto p-3">
             {/* Village Tab */}
             {activeTab === 'village' && (
               <div className="space-y-2.5">
                 <FocusPanel
                   state={world}
+                  buildings={world.buildings}
                   onOpenGoals={() => { setActiveTab('progress'); setProgressSubTab('goals'); }}
                   onHintAction={handleHintAction}
                 />
                 <CollapsibleSection
                   icon="👥"
                   title="Population"
-                  subtitle={`${villageStats.total}/${world.maxHumanPopulation} · ${villageStats.working} working · ⭐${world.villageReputation}`}
+                  subtitle={`${villageStats.total}/${world.maxHumanPopulation} cap · 🛏️ ${villageStats.beds} beds · ${villageStats.working} working · ⭐${world.villageReputation}`}
                   accent="emerald"
                   defaultOpen={false}
                 >
-                  <div className="mb-2 flex items-end justify-between gap-2">
-                    <p className="text-2xl font-black leading-none text-emerald-300">
-                      {villageStats.total}
-                      <span className="text-sm font-bold text-stone-500"> / {world.maxHumanPopulation}</span>
-                    </p>
-                    <p className="text-[9px] text-stone-500">capacity</p>
-                  </div>
-                  <div className="mb-2 h-2 overflow-hidden rounded-full bg-stone-600">
-                    <div className="h-full rounded-full bg-emerald-500 transition-all" 
-                      style={{ width: `${Math.min(100, (villageStats.total / Math.max(1, world.maxHumanPopulation)) * 100)}%` }} />
+                  <div className="mb-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="flex items-end justify-between gap-1">
+                        <p className="text-2xl font-black leading-none text-emerald-300">
+                          {villageStats.total}
+                          <span className="text-sm font-bold text-stone-500"> / {world.maxHumanPopulation}</span>
+                        </p>
+                        <p className="text-[9px] text-stone-500">immigration cap</p>
+                      </div>
+                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-600">
+                        <div className="h-full rounded-full bg-emerald-500 transition-all"
+                          style={{ width: `${Math.min(100, (villageStats.total / Math.max(1, world.maxHumanPopulation)) * 100)}%` }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-end justify-between gap-1">
+                        <p className="text-2xl font-black leading-none text-sky-300">
+                          {villageStats.beds}
+                          <span className="text-sm font-bold text-stone-500"> beds</span>
+                        </p>
+                        <p className="text-[9px] text-stone-500" title="Empty housing slots for assignment">
+                          {villageStats.openBeds} open
+                        </p>
+                      </div>
+                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-600">
+                        <div className="h-full rounded-full bg-sky-500 transition-all"
+                          style={{ width: `${Math.min(100, (villageStats.total / Math.max(1, villageStats.beds)) * 100)}%` }} />
+                      </div>
+                    </div>
                   </div>
                   <div className="mb-2 grid grid-cols-4 gap-1 text-[9px]">
                     <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
@@ -1839,7 +2115,7 @@ export default function App() {
                     <StatBadge label="Techs" value={world.unlockedTechs.length} icon="🔬" />
                   </div>
                   <button
-                    onClick={() => applyGameAction(recruitSettler)}
+                    onClick={() => applyGameAction({ proto: 1, op: 'recruitSettler' })}
                     disabled={villageStats.total >= world.maxHumanPopulation || world.resources.food < 30 || world.resources.gold < 20}
                     title={
                       villageStats.total >= world.maxHumanPopulation
@@ -1865,7 +2141,7 @@ export default function App() {
                   accent="stone"
                   defaultOpen={false}
                 >
-                  <PopulationPanel state={world} />
+                  <PopulationPanel state={world} onFocusCitizen={focusCitizenOnMap} />
                 </CollapsibleSection>
 
                 <CollapsibleSection
@@ -1880,7 +2156,7 @@ export default function App() {
                   </p>
                   {world.villageForge.activeOrder && (
                     <p className="mb-2 rounded bg-orange-950/40 px-2 py-1 text-[9px] text-orange-200">
-                      🔨 Forging {world.villageForge.activeOrder === 'iron_spears' ? 'Iron Spears' : 'Iron Shields'} — {Math.round(world.villageForge.progress)}%
+                      🔨 Forging {getForgeOrder(world.villageForge.activeOrder)?.label ?? 'gear'} — {Math.round(world.villageForge.progress)}%
                     </p>
                   )}
                   <div className="space-y-1">
@@ -1889,7 +2165,7 @@ export default function App() {
                         (b) => b.completed && b.type === BuildingType.Blacksmith,
                       );
                       const showForgeGo = !step.done
-                        && (step.id === 'iron_spears' || step.id === 'iron_shields')
+                        && ['iron_spears', 'iron_shields', 'guard_halberds', 'wall_plates', 'iron_pickaxes'].includes(step.id)
                         && smith;
                       return (
                         <div key={step.id} className={`rounded px-2 py-1 text-[9px] ${step.done ? 'bg-emerald-900/30 text-emerald-300' : 'bg-stone-800/50 text-stone-400'}`}>
@@ -1934,12 +2210,13 @@ export default function App() {
               <FrontierPanel
                 state={world}
                 pendingRaidCount={pendingRaids.length}
+                pendingOutgoingRaidCount={pendingOutgoingRaids.length}
                 pendingDiplomacyCount={pendingDiplomacy.length}
                 onFocusVisitor={(id, x, y) => focusCampOnMap('visitor', id, x, y)}
                 onFocusRival={(id, x, y, buildingId) => focusCampOnMap('rival', id, x, y, buildingId)}
                 onLaunchRaid={(rivalId) => {
                   playClickSound();
-                  applyGameAction((prev) => launchRaidOnRival(prev, rivalId));
+                  applyGameAction({ proto: 1, op: 'launchRaidOnRival', rivalId });
                 }}
               />
             )}
@@ -2053,11 +2330,11 @@ export default function App() {
                     <WildlifeBar label="Rabbits" count={world.wildlifeCounts.rabbits} max={120} color="bg-amber-600" icon="🐰" />
                     <WildlifeBar label="Deer" count={world.wildlifeCounts.deer} max={60} color="bg-orange-700" icon="🦌" />
                     <WildlifeBar label="Wolves" count={world.wildlifeCounts.wolves} max={25} color="bg-stone-500" icon="🐺" />
-                    <WildlifeBar label="Foxes" count={world.entities.filter(e => e.type === EntityType.Fox && e.alive).length} max={35} color="bg-orange-600" icon="🦊" />
-                    <WildlifeBar label="Moon Howlers" count={world.entities.filter(e => e.type === EntityType.Werewolf && e.alive && e.moonHowlerCursed).length} max={10} color="bg-violet-700" icon="🌝" />
-                    <WildlifeBar label="Wildkin" count={world.entities.filter(e => e.type === EntityType.Wildkin && e.alive).length} max={15} color="bg-lime-700" icon="🦌" />
-                    <WildlifeBar label="Trees" count={world.entities.filter(e => e.type === EntityType.Tree && e.alive).length} max={200} color="bg-green-700" icon="🌲" />
-                    <WildlifeBar label="Grass" count={world.entities.filter(e => e.type === EntityType.Grass && e.alive).length} max={500} color="bg-green-500" icon="🌿" />
+                    <WildlifeBar label="Foxes" count={world.wildlifeCounts.foxes} max={35} color="bg-orange-600" icon="🦊" />
+                    <WildlifeBar label="Moon Howlers" count={world.wildlifeCounts.werewolves} max={10} color="bg-violet-700" icon="🌝" />
+                    <WildlifeBar label="Wildkin" count={world.wildlifeCounts.wildkin} max={15} color="bg-lime-700" icon="🦌" />
+                    <WildlifeBar label="Trees" count={world.wildlifeCounts.trees} max={200} color="bg-green-700" icon="🌲" />
+                    <WildlifeBar label="Grass" count={world.wildlifeCounts.grass} max={500} color="bg-green-500" icon="🌿" />
                   </div>
                 </div>
 
@@ -2154,7 +2431,7 @@ export default function App() {
                                     {node.cost.gold > 0 && `${node.cost.gold}g`}
                                   </div>
                                   {node.unlocked && (
-                                    <button onClick={() => applyGameAction((prev) => startResearch(prev, node.id))}
+                                    <button onClick={() => applyGameAction({ proto: 1, op: 'startResearch', researchId: node.id })}
                                       disabled={!canResearch}
                                       className={`mt-1 w-full rounded py-1 text-[9px] font-bold transition-all ${
                                         canResearch ? 'bg-amber-600 text-white hover:bg-amber-500' : 'bg-stone-600 text-stone-400 cursor-not-allowed'
@@ -2194,7 +2471,7 @@ export default function App() {
                         </div>
                         <p className="text-stone-400">Receive: +{route.resourcesReceived.gold > 0 ? `${route.resourcesReceived.gold}g` : `${route.resourcesReceived.stone}s`} / cycle</p>
                         {!route.active && (
-                          <button onClick={() => applyGameAction((prev) => establishTradeRoute(prev, route.id))}
+                          <button onClick={() => applyGameAction({ proto: 1, op: 'establishTradeRoute', routeId: route.id })}
                             disabled={world.villageReputation < route.reputationRequired}
                             className={`mt-1 w-full rounded py-1 text-[9px] font-bold transition-all ${
                               world.villageReputation >= route.reputationRequired ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-stone-600 text-stone-400 cursor-not-allowed'
@@ -2311,7 +2588,7 @@ export default function App() {
                   <>
                     <h3 className="mb-2 text-xs font-bold text-rose-300">Combat Chronicle</h3>
                     <p className="mb-2 text-[9px] leading-relaxed text-stone-500">
-                      Raids, militia battles, barricades, and counter-raids — dedicated combat log with export.
+                      Incoming raids, proactive strikes, counter-raids, militia battles, and barricades — dedicated combat log with export.
                     </p>
                     <CombatLogPanel
                       events={world.eventLog}
@@ -2403,8 +2680,7 @@ export default function App() {
                   <h3 className="mb-2 text-xs font-bold text-blue-300">Interface Overview</h3>
                   <div className="space-y-1 text-stone-400">
                     <p><strong className="text-stone-200">Alert strip</strong> — Under the header. Click raids, diplomacy, low food, or ready trade routes to jump there.</p>
-                    <p><strong className="text-stone-200">Bottom build hotbar</strong> — House, Farm, Lumber, Quarry, Well, Road on the map (keys 1–4, 6, 8). Collapsed left rail only shows grid + catalog expand — no duplicate buttons.</p>
-                    <p><strong className="text-stone-200">Left catalog</strong> — Press <strong className="text-stone-200">B</strong> for the full building list (all categories + locked tech hints).</p>
+                    <p><strong className="text-stone-200">Build panel (left)</strong> — Press <strong className="text-stone-200">B</strong> to open. Pick a category, then a building. Keys <strong className="text-stone-200">1–9</strong> quick-select common types.</p>
                     <p><strong className="text-stone-200">Grid</strong> — Press <strong className="text-stone-200">G</strong> to toggle the placement grid (auto-on when building).</p>
                     <p><strong className="text-stone-200">Inspector</strong> — Top of the right panel; collapsible, auto-opens when you click the map.</p>
                     <p><strong className="text-stone-200">Village</strong> — Focus hints with <strong className="text-stone-200">Go →</strong>, population, leadership, armament.</p>
@@ -2494,7 +2770,7 @@ export default function App() {
                   <h3 className="mb-2 text-xs font-bold text-violet-300">🧪 Testing</h3>
                   <p className="mb-2 text-[9px] text-stone-500">Spawn a Moon Howler instantly for playtesting.</p>
                   <button
-                    onClick={() => applyGameAction((prev) => spawnMoonHowlerDebug(prev))}
+                    onClick={() => applyGameAction({ proto: 1, op: 'spawnMoonHowlerDebug' })}
                     className="w-full rounded-lg bg-violet-800 px-3 py-2 text-[10px] font-bold text-violet-100 transition-all hover:bg-violet-700"
                   >
                     🌝 Spawn Moon Howler
@@ -2511,7 +2787,7 @@ export default function App() {
                     <span><strong className="text-stone-200">Space</strong></span><span>Pause/Play</span>
                     <span><strong className="text-stone-200">B</strong></span><span>Full build catalog (left)</span>
                     <span><strong className="text-stone-200">G</strong></span><span>Toggle grid</span>
-                    <span><strong className="text-stone-200">1–9</strong></span><span>Quick-build (hotbar + catalog)</span>
+                    <span><strong className="text-stone-200">1–9</strong></span><span>Quick-build (opens left catalog)</span>
                     <span><strong className="text-stone-200">V F N P L M</strong></span><span>Sidebar tabs</span>
                     <span><strong className="text-stone-200">H</strong></span><span>Find settlers (center camera)</span>
                     <span><strong className="text-stone-200">ESC</strong></span><span>Cancel build</span>
@@ -2528,7 +2804,7 @@ export default function App() {
                     <p>• <strong className="text-amber-200">Lumber Mill</strong> — Produces wood. Needs workers.</p>
                     <p>• <strong className="text-amber-200">Quarry/Mine</strong> — Produces stone.</p>
                     <p>• <strong className="text-amber-200">Roads</strong> — Infra tab (key 8). Horizontal strips — zigzag them (step north/south each segment) for paths up hills. Boost nearby buildings +15%.</p>
-                    <p>• <strong className="text-amber-200">Town Hall</strong> — Community tab after researching <strong className="text-stone-200">Urban Planning</strong> (Architecture tier 2). Staff it for +3 reputation every 3 days.</p>
+                    <p>• <strong className="text-amber-200">Town Hall</strong> — After <strong className="text-stone-200">Urban Planning</strong>. Staff officials for taxes, trade &amp; immigration boosts, election site, scandal buffer, and hosted festivals.</p>
                     <p>• <strong className="text-amber-200">Church</strong> — Community tab, no research needed. Faster marriages, breaks Moon Howler curses, stricter morals.</p>
                     <p>• <strong className="text-amber-200">Hospital</strong> — Staffed: +2 reputation every 5 days. Any hospital lowers energy drain.</p>
                     <p>• <strong className="text-amber-200">Demolish</strong> — Click any building → sidebar → <strong className="text-stone-200">🗑 Demolish</strong> (works on houses too; residents are reassigned).</p>
@@ -2569,7 +2845,7 @@ export default function App() {
                     <p>2. Click a wild <strong className="text-stone-200">wolf, fox, deer, or rabbit</strong> within ~140px of the post.</p>
                     <p>3. Pick an adult settler — costs food: rabbit 10, fox 25, deer 30, wolf 40.</p>
                     <p>4. Tamed animals <strong className="text-stone-200">follow their owner</strong>. Wolves and foxes sometimes hunt nearby prey for them.</p>
-                    <p className="text-stone-500 italic">Moon Howlers cannot be tamed — cure them at a staffed Church on a full-moon night.</p>
+                    <p className="text-stone-500 italic">Moon Howlers cannot be tamed — staff a Church and keep cursed settlers nearby; cures roll each morning at 7am.</p>
                   </div>
                 </div>
 
@@ -2600,6 +2876,7 @@ export default function App() {
 // ============ SUB-COMPONENTS ============
 
 function BigNewsBanner({ news, onDismiss }: { news: { id: string; title: string; message: string; type: 'positive' | 'negative' | 'neutral' }[]; onDismiss: () => void }) {
+  if (news.length === 0) return null;
   const item = news[news.length - 1];
   return (
     <div className="absolute left-1/2 top-16 z-20 w-full max-w-lg -translate-x-1/2 animate-in fade-in slide-in-from-top">
@@ -2627,34 +2904,6 @@ function BigNewsBanner({ news, onDismiss }: { news: { id: string; title: string;
         </div>
       </div>
     </div>
-  );
-}
-
-function ReputationBadge({
-  value,
-  nextRouteRep,
-  onOpenTrade,
-}: {
-  value: number;
-  nextRouteRep?: number;
-  onOpenTrade: () => void;
-}) {
-  const tooltip = [
-    `Reputation ${value} — unlocks trade routes and draws visitors`,
-    'Grows from: buildings, festivals, research, staffed Hospital & Town Hall, roads (with Urban Planning)',
-    nextRouteRep != null ? `Next trade route needs ${nextRouteRep}⭐` : 'All trade routes unlocked or active',
-    'Click to open Trade routes',
-  ].join('\n');
-  return (
-    <button
-      type="button"
-      onClick={onOpenTrade}
-      className="flex items-center gap-1 rounded-md bg-violet-900/35 px-2 py-1 text-xs font-medium text-violet-200 transition-colors hover:bg-violet-800/45"
-      title={tooltip}
-    >
-      <span>⭐</span>
-      <span className="font-mono font-bold">{value}</span>
-    </button>
   );
 }
 
@@ -2700,51 +2949,6 @@ function ShortcutsOverlay({ onClose }: { onClose: () => void }) {
   );
 }
 
-function PopulationBadge({
-  total, max, working, idle, children, imprisoned,
-}: {
-  total: number;
-  max: number;
-  working: number;
-  idle: number;
-  children: number;
-  imprisoned: number;
-}) {
-  const nearCap = total / Math.max(1, max) >= 0.9;
-  const parts = [
-    `${total} settler${total === 1 ? '' : 's'}`,
-    `${working} working`,
-    `${idle} idle`,
-  ];
-  if (imprisoned > 0) parts.push(`${imprisoned} imprisoned`);
-  if (children > 0) parts.push(`${children} child${children === 1 ? '' : 'ren'}`);
-  parts.push(`max ${max}`);
-  return (
-    <span
-      className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium ${
-        nearCap ? 'bg-rose-900/40 text-rose-300 ring-1 ring-rose-500/50' : 'bg-sky-900/40 text-sky-300'
-      }`}
-      title={parts.join(' · ')}
-    >
-      <span>👥</span>
-      <span className="font-mono font-bold">
-        {total}
-        <span className="ml-0.5 text-[9px] opacity-70">/{max}</span>
-      </span>
-    </span>
-  );
-}
-
-function ResourceBadge({ icon, value, max, color }: { icon: string; value: number; max?: number; color: string }) {
-  const nearCap = max !== undefined && value / max > 0.85;
-  return (
-    <span className={`flex items-center gap-1 rounded-md px-2 py-1 ${color} ${nearCap ? 'ring-1 ring-rose-500/60' : ''}`} title={max !== undefined ? `${formatNumber(value)} / ${formatNumber(max)} storage` : undefined}>
-      <span>{icon}</span>
-      <span className="font-mono font-bold">{formatNumber(value)}{max !== undefined && <span className="ml-0.5 text-[9px] opacity-60">/{formatNumber(max)}</span>}</span>
-    </span>
-  );
-}
-
 const StatBadge = memo(function StatBadge({ label, value, icon }: { label: string; value: number; icon: string }) {
   return (
     <div className="flex items-center gap-1.5 rounded bg-stone-600/30 px-2 py-1">
@@ -2778,8 +2982,10 @@ function VisitorCampPanel({
   onFocusCamp: () => void;
 }) {
   const emoji = VISITOR_KIND_EMOJI[group.kind];
-  const canBuyFood = state.resources.gold >= 25;
-  const canBuyWood = state.resources.gold >= 20;
+  const foodRoom = Math.max(0, state.storageMax.food - state.resources.food);
+  const woodRoom = Math.max(0, state.storageMax.wood - state.resources.wood);
+  const canBuyFood = state.resources.gold >= 25 && foodRoom >= 40;
+  const canBuyWood = state.resources.gold >= 20 && woodRoom >= 30;
   const canSellFood = state.resources.food >= 30;
   const canTradeKind = group.kind === 'traders' || group.kind === 'nomads' || group.kind === 'hunters';
 
@@ -2850,7 +3056,7 @@ function VisitorCampPanel({
             onClick={() => onTrade('buy_food')}
             className="w-full rounded bg-stone-700 px-2 py-1 text-[9px] font-bold text-stone-200 hover:bg-stone-600 disabled:opacity-40"
           >
-            Buy food · 25💰 → 40🍖
+            Buy food · 25💰 → 40🍖{foodRoom < 40 ? ` (${foodRoom}🍖 space)` : ''}
           </button>
           <button
             type="button"
@@ -2936,7 +3142,7 @@ function countLivingChildren(entity: Entity, allEntities: Entity[]): number {
   ).length;
 }
 
-function SelectedEntityPanel({ entity, allEntities, state, onTame, onOpenVisitorCamp }: { entity: Entity; allEntities: Entity[]; state: WorldState; onTame?: (humanId: number) => void; onOpenVisitorCamp?: (group: VisitorGroup) => void }) {
+function SelectedEntityPanel({ entity, allEntities, state, onTame, onMoveOut, onOpenVisitorCamp }: { entity: Entity; allEntities: Entity[]; state: WorldState; onTame?: (humanId: number) => void; onMoveOut?: () => void; onOpenVisitorCamp?: (group: VisitorGroup) => void }) {
   const isVillageHead = isVillageLeader(state, entity.id);
   const isHuman = entity.type === EntityType.Human;
   const isVisitor = entity.faction === 'visitor';
@@ -2966,16 +3172,20 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onOpenVisitor
   const canTameHere = hasTamingPost;
   const tameFoodCost = getTameFoodCost(entity.type);
   const availableHumans = allEntities.filter(e => e.type === EntityType.Human && e.alive && !e.isJuvenile);
+  const playerHumans = allEntities.filter((e) => e.alive && isPlayerHuman(e));
+  const residences = state.buildings.filter((b) => b.completed && isResidenceBuilding(b));
+  const canMoveOut = isHuman && !isVisitor && !isRival && isAdultChildAtHome(entity, playerHumans);
+  const moveOutReady = canMoveOut && canMoveOutOfFamilyHome(entity, playerHumans, residences);
 
   return (
     <div className="rounded-xl border border-amber-600/30 bg-amber-900/20 p-3">
       <div className="mb-2 flex items-center gap-2">
         <span className="text-lg">
-          {entity.type === 'human' ? (entity.gender === 'male' ? '👨' : '👩') :
-           entity.type === 'rabbit' ? '🐰' : entity.type === 'deer' ? '🦌' :
-           entity.type === 'wolf' ? '🐺' : entity.type === 'fox' ? '🦊' :
-           entity.type === 'werewolf' ? '🌝' : entity.type === 'wildkin' ? '🦌' :
-           entity.type === 'tree' ? '🌲' : '🌿'}
+          {entity.type === EntityType.Human ? (entity.gender === 'male' ? '👨' : '👩') :
+           entity.type === EntityType.Rabbit ? '🐰' : entity.type === EntityType.Deer ? '🦌' :
+           entity.type === EntityType.Wolf ? '🐺' : entity.type === EntityType.Fox ? '🦊' :
+           entity.type === EntityType.Werewolf ? '🌝' : entity.type === EntityType.Wildkin ? '🦌' :
+           entity.type === EntityType.Tree ? '🌲' : '🌿'}
         </span>
         <div>
           <h3 className="text-xs font-bold text-amber-200">
@@ -2984,10 +3194,10 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onOpenVisitor
               : entity.type}
           </h3>
           {isMoonHowler && (
-            <p className="text-[9px] text-rose-300">Full moon — hunting settlers tonight.</p>
+            <p className="text-[9px] font-semibold text-rose-300">🌝 Full moon form — curse NOT cured · hunting tonight</p>
           )}
           {isHuman && entity.moonHowlerCursed && (
-            <p className="text-[9px] text-violet-300">Moon Howler curse — human until the next full moon (~2 weeks).</p>
+            <p className="text-[9px] font-semibold text-violet-300">🌝 Moon Howler curse — NOT cured yet (human until next full moon)</p>
           )}
           {isVisitor && visitorGroup && (
             <p className="text-[9px] text-cyan-300">Visiting — {visitorGroup.name} ({visitorGroup.daysLeft}d)</p>
@@ -3006,6 +3216,8 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onOpenVisitor
           )}
           {isHuman && !isVisitor && !isRival && (
             <p className="text-[9px] text-amber-400">
+              <span className="font-mono text-stone-400">Citizen #{entity.id}</span>
+              {' · '}
               {entity.gender === 'male' ? '♂' : '♀'} {entity.relationshipStatus || 'child'}
               {entity.generation > 0 ? ` · Gen ${entity.generation}` : ''}
               {isVillageHead && (
@@ -3030,7 +3242,7 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onOpenVisitor
 
       <div className="space-y-0.5 text-[10px] text-amber-200">
         <p>Energy: {Math.round(entity.energy)} / {entity.maxEnergy}</p>
-        <p>Age: {getAgeInYears(entity)} years{entity.isJuvenile && ' (child)'} — b. {getBirthDateString(entity)}</p>
+        <p>Age: {getAgeInYears(entity, state)} years{entity.isJuvenile && ' (child)'} — b. {getBirthDateString(entity)}</p>
         {entity.huntTargetId && (
           <p className="text-orange-300">🏹 Chasing prey — watch the dashed hunt line on the map</p>
         )}
@@ -3051,6 +3263,21 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onOpenVisitor
               return <p className="text-sky-300">🏠 Lives in: {label}</p>;
             })() : (
               <p className="text-rose-300">🏠 No home yet — build a House (auto-assigned when ready)</p>
+            )}
+            {canMoveOut && (
+              <button
+                type="button"
+                onClick={() => onMoveOut?.()}
+                disabled={!moveOutReady}
+                title={
+                  moveOutReady
+                    ? 'Move into an empty house (spouse and your children come too)'
+                    : 'Build and finish an empty house first'
+                }
+                className="mt-1 w-full rounded-lg bg-sky-700/80 px-2 py-1.5 text-[9px] font-bold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-stone-600 disabled:text-stone-400 transition-all"
+              >
+                🏠 Move to own home ({HUMAN_MOVE_OUT_MIN_AGE}+)
+              </button>
             )}
             {isImprisoned(entity) ? (() => {
               const prison = state.buildings.find((b) => b.id === entity.prisonBuildingId);
@@ -3109,7 +3336,7 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onOpenVisitor
       </div>
 
       {isMoonHowler && (
-        <p className="mt-2 text-[9px] text-rose-300">Build a Church nearby to break the curse — only on full-moon nights are they this dangerous.</p>
+        <p className="mt-2 text-[9px] text-rose-300">🌝 Curse NOT cured — hunting tonight. Staff a Church and keep them nearby by day for morning cures.</p>
       )}
 
       {/* Taming */}
@@ -3173,9 +3400,10 @@ const BUILDING_OUTPUT_HINTS: Partial<Record<BuildingType, string>> = {
   [BuildingType.Market]: 'Trades goods for gold with assigned workers.',
   [BuildingType.Workshop]: 'Pick a recipe below — crafts every 2 days when staffed and stocked.',
   [BuildingType.Church]: 'Staffed church boosts courtship, cures Moon Howlers nearby, and catches affairs.',
-  [BuildingType.School]: 'Staffed school doubles child aging — assign a teacher.',
+  [BuildingType.School]: 'Assign a teacher — children walk here by day; schooling speeds growth and grants graduation perks.',
   [BuildingType.Blacksmith]: 'Forge iron spears & shields here after Defense research. Staffed smith boosts lumber, quarry & mine (+25% per worker).',
   [BuildingType.Hospital]: 'Staffed hospital adds reputation every 5 days; any hospital lowers energy drain.',
+  [BuildingType.TownHall]: 'Staff officials — taxes, trade & immigration boost, elections, scandal buffer, host festivals.',
   [BuildingType.Well]: 'Lowers settler energy drain for the whole village.',
   [BuildingType.Prison]: 'Staffed by a Guard. Caught adulterers may be sentenced here for a few days.',
   [BuildingType.Wall]: '+8 barricade strength per segment (max +72 from all wall pieces).',
@@ -3193,7 +3421,7 @@ function canAffordRecipe(resources: WorldState['resources'], recipe: ReturnType<
   return true;
 }
 
-function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onSetWorkshopRecipe, onQueueForge, idleWorkers, canAssignWorker, onDiplomacyAction, onFocusCamp }: {
+function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onSetWorkshopRecipe, onQueueForge, idleWorkers, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp }: {
   building: Building; state: WorldState; onAssign: () => void; onAssignWorker: (humanId: number) => void;
   assignableWorkers: Entity[]; onRemove: (id: number) => void;
   onRepair: () => void; onUpgrade: () => void; onDemolish: () => void;
@@ -3201,7 +3429,8 @@ function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assi
   onQueueForge?: (orderId: import('./game/forge').ForgeOrderId) => void;
   idleWorkers: number;
   canAssignWorker: boolean;
-  onDiplomacyAction?: (fn: (prev: WorldState) => WorldState) => void;
+  onDiplomacyAction?: (cmd: WorkerCommand) => void;
+  onTownHallAction?: (cmd: WorkerCommand) => void;
   onFocusCamp?: (rival: import('./game/gameTypes').RivalSettlement) => void;
 }) {
   if (building.faction === 'rival') {
@@ -3209,11 +3438,14 @@ function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assi
     const config = BUILDING_CONFIGS[building.type];
     const pendingForRival = (state.pendingDiplomacyEvents ?? []).filter((e) => e.rivalId === rival?.id);
     const raidsForRival = (state.pendingRaidEvents ?? []).filter((e) => e.rivalId === rival?.id);
+    const outgoingRaidsForRival = (state.pendingOutgoingRaidEvents ?? []).filter((e) => e.rivalId === rival?.id);
     const rivalStr = rival ? getRivalRaidStrength(rival) : 0;
     const raidFoodCost = rival ? getOutgoingRaidFoodCostForRival(state, rival) : 0;
     const atPeace = rival ? isRivalAtPeace(rival) : false;
     const raidEligibility = rival ? canLaunchRaidOnRival(state, rival) : { ok: false, foodCost: 0, blockReason: 'Unknown rival' };
     const canLaunchRaid = raidEligibility.ok;
+    const outgoingRaidAction = rival ? getOutgoingRaidActionLabel(state, rival.id) : null;
+    const isCounterRaid = raidsForRival.length > 0;
     const canSignPeace = rival && !atPeace && rival.relationship !== 'tense'
       && state.resources.gold >= 30 && state.resources.food >= 20;
     const canGift = rival && state.resources.food >= 25 && rival.relationship !== 'friendly';
@@ -3251,10 +3483,12 @@ function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assi
           <div className="mb-2">
             <CombatPreviewPanel
               compact
-              showCounterRaid
+              showOutgoingRaid
+              outgoingRaidIsCounter={isCounterRaid}
               preview={getCombatPreview(state, {
                 rival,
                 attackerStrength: raidsForRival[0]?.attackerStrength ?? rivalStr,
+                incomingPayoffFood: raidsForRival[0]?.lootFood,
               })}
               title={`vs ${rival.name} — ${formatCampDistance(getCampDistancePixels(state, state.buildings, rival))} · raid ${raidFoodCost}🍖`}
             />
@@ -3270,8 +3504,41 @@ function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assi
                   key={choice.id}
                   type="button"
                   title={choice.hint}
-                  onClick={() => onDiplomacyAction?.((prev) => respondToRaidEvent(prev, evt.id, choice.id))}
+                  onClick={() => onDiplomacyAction?.({ proto: 1, op: 'respondToRaidEvent', eventId: evt.id, choiceId: choice.id })}
                   className="rounded bg-rose-950 px-2 py-1 text-[8px] font-bold text-rose-100 hover:bg-rose-900"
+                >
+                  {choice.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {outgoingRaidsForRival.map((evt) => (
+          <div key={evt.id} className="mb-2 rounded-lg border border-orange-600/40 bg-orange-950/40 p-2">
+            <p className="text-[10px] font-bold text-orange-200">{evt.emoji} {evt.title}</p>
+            <p className="text-[9px] text-stone-400">{evt.description}</p>
+            <p className="mt-1 text-[8px] text-orange-300/90">
+              {formatRaidDeadline(
+                { createdAtTick: evt.createdAtTick, expiresAtTick: evt.expiresAtTick } as import('./game/frontierCombat').RaidEvent,
+                state.tick,
+              )}
+              {evt.rivalResponse === 'payoff_offer' && (
+                <span> · offer {formatRaidLootSummary(raidEventLoot(evt))}</span>
+              )}
+            </p>
+            <div className="mt-1.5 grid grid-cols-1 gap-1">
+              {evt.choices.map((choice) => (
+                <button
+                  key={choice.id}
+                  type="button"
+                  title={choice.hint}
+                  onClick={() => onDiplomacyAction?.({
+                    proto: 1,
+                    op: 'respondToOutgoingRaidEvent',
+                    eventId: evt.id,
+                    choiceId: choice.id,
+                  })}
+                  className="rounded bg-orange-950 px-2 py-1 text-[8px] font-bold text-orange-100 hover:bg-orange-900"
                 >
                   {choice.label}
                 </button>
@@ -3294,7 +3561,7 @@ function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assi
                   title={eligibility.blockReason ?? choice.hint}
                   onClick={() => {
                     if (!eligibility.ok) return;
-                    onDiplomacyAction?.((prev) => respondToDiplomacyEvent(prev, evt.id, choice.id));
+                    onDiplomacyAction?.({ proto: 1, op: 'respondToDiplomacyEvent', eventId: evt.id, choiceId: choice.id });
                   }}
                   className="rounded bg-stone-800 px-2 py-1 text-[8px] font-bold text-stone-200 hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
@@ -3310,7 +3577,7 @@ function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assi
             <button
               type="button"
               disabled={!canGift}
-              onClick={() => onDiplomacyAction((prev) => sendRivalGift(prev, rival.id))}
+              onClick={() => onDiplomacyAction({ proto: 1, op: 'sendRivalGift', rivalId: rival.id })}
               className="rounded bg-stone-700 px-2 py-1 text-[8px] font-bold text-stone-200 hover:bg-stone-600 disabled:opacity-40"
             >
               🎁 Send food gift (25🍖)
@@ -3318,7 +3585,7 @@ function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assi
             <button
               type="button"
               disabled={!canPact}
-              onClick={() => onDiplomacyAction((prev) => establishRivalTradePact(prev, rival.id))}
+              onClick={() => onDiplomacyAction({ proto: 1, op: 'establishRivalTradePact', rivalId: rival.id })}
               className="rounded bg-cyan-900 px-2 py-1 text-[8px] font-bold text-cyan-100 hover:bg-cyan-800 disabled:opacity-40"
             >
               🤝 Trade pact (40💰)
@@ -3326,7 +3593,7 @@ function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assi
             <button
               type="button"
               disabled={!canShowForce}
-              onClick={() => onDiplomacyAction((prev) => showStrengthToRival(prev, rival.id))}
+              onClick={() => onDiplomacyAction({ proto: 1, op: 'showStrengthToRival', rivalId: rival.id })}
               className="rounded bg-rose-900 px-2 py-1 text-[8px] font-bold text-rose-100 hover:bg-rose-800 disabled:opacity-40"
             >
               ⚔️ Show militia (parade)
@@ -3334,7 +3601,7 @@ function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assi
             <button
               type="button"
               disabled={!canSignPeace}
-              onClick={() => onDiplomacyAction((prev) => signPeaceTreaty(prev, rival.id))}
+              onClick={() => onDiplomacyAction({ proto: 1, op: 'signPeaceTreaty', rivalId: rival.id })}
               className="rounded bg-cyan-900 px-2 py-1 text-[8px] font-bold text-cyan-100 hover:bg-cyan-800 disabled:opacity-40"
               title="60 days without raids · needs neutral+ relations (not tense)"
             >
@@ -3343,13 +3610,13 @@ function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assi
             <button
               type="button"
               disabled={!canLaunchRaid}
-              onClick={() => onDiplomacyAction((prev) => launchRaidOnRival(prev, rival.id))}
+              onClick={() => onDiplomacyAction({ proto: 1, op: 'launchRaidOnRival', rivalId: rival.id })}
               className="rounded bg-orange-950 px-2 py-1 text-[8px] font-bold text-orange-100 hover:bg-orange-900 disabled:opacity-40"
               title={canLaunchRaid
                 ? `Costs ${raidFoodCost} food (march rations) · worsens relations`
                 : (raidEligibility.blockReason ?? 'Cannot raid')}
             >
-              🏹 Raid their camp ({raidFoodCost}🍖)
+              🏹 {outgoingRaidAction?.buttonLabel ?? 'Raid their camp'} ({raidFoodCost}🍖)
             </button>
           </div>
         )}
@@ -3406,7 +3673,7 @@ function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assi
         {!building.completed && isHousing && (
           <p className="text-[9px] text-stone-400">Assign builders to speed up construction.</p>
         )}
-        {building.completed && (config.category === 'Food' || config.category === 'Resources' || config.category === 'Industry') && (
+        {building.completed && isProductionBuildingType(building.type) && (
           <>
             <p>Placement bonus: <span className={totalEff >= 130 ? 'text-emerald-400' : totalEff >= 100 ? 'text-amber-400' : 'text-rose-400'}>{totalEff}%</span></p>
             <p className="text-[8px] text-stone-500">Terrain + nearby buildings (not worker skill)</p>
@@ -3431,10 +3698,53 @@ function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assi
           <p className="text-[9px] text-stone-400">{BUILDING_OUTPUT_HINTS[building.type]}</p>
         )}
         {building.completed && building.type === BuildingType.Church && building.occupants.length === 0 && (
-          <p className="text-[9px] text-amber-400">⚠️ No priest — Taylor keeps hunting; courtship/morals bonuses reduced.</p>
+          <p className="text-[9px] text-amber-400">⚠️ No priest — Moon Howler cures disabled; courtship/morals bonuses reduced.</p>
         )}
-        {building.completed && (building.type === BuildingType.School || building.type === BuildingType.Blacksmith || building.type === BuildingType.Hospital) && building.occupants.length === 0 && (
+        {building.completed && building.type === BuildingType.Church && (() => {
+          const nearbyCursed = state.entities.filter(
+            (e) => e.alive && e.moonHowlerCursed && Math.hypot(e.x - building.x, e.y - building.y) < 140,
+          );
+          const totalCursed = state.entities.filter((e) => e.alive && e.moonHowlerCursed).length;
+          if (totalCursed === 0) {
+            return (
+              <p className="text-[9px] text-emerald-400">✓ No active Moon Howler curses in the village.</p>
+            );
+          }
+          if (building.occupants.length === 0) return null;
+          return (
+            <p className={`text-[9px] ${nearbyCursed.length > 0 ? 'text-violet-300' : 'text-amber-400'}`}>
+              {nearbyCursed.length > 0
+                ? `🌝 ${nearbyCursed.length} cursed settler${nearbyCursed.length === 1 ? '' : 's'} in range — cure attempts each morning (7am).`
+                : `🌝 ${totalCursed} curse${totalCursed === 1 ? '' : 's'} active but none near this church yet.`}
+            </p>
+          );
+        })()}
+        {building.completed && (building.type === BuildingType.School || building.type === BuildingType.Blacksmith || building.type === BuildingType.Hospital || building.type === BuildingType.TownHall) && building.occupants.length === 0 && (
           <p className="text-[9px] text-amber-400">⚠️ Unstaffed — bonuses are reduced or inactive until a worker is assigned.</p>
+        )}
+        {building.completed && building.type === BuildingType.TownHall && (
+          <div className="mt-2 space-y-1.5 rounded-lg border border-blue-700/40 bg-blue-950/30 p-2">
+            <p className="text-[9px] text-blue-200">{describeTownHallPerks(building)}</p>
+            {onTownHallAction && (() => {
+              const fest = canHostTownFestival(state, building);
+              const cooldownLeft = Math.max(
+                0,
+                Math.ceil(((state.townHallFestivalCooldownUntilTick ?? 0) - state.tick) / 24),
+              );
+              return (
+                <button
+                  type="button"
+                  disabled={!fest.ok}
+                  title={fest.reason ?? `Costs ${TOWN_HALL_FESTIVAL_COST.food} food & ${TOWN_HALL_FESTIVAL_COST.gold} gold`}
+                  onClick={() => onTownHallAction({ proto: 1, op: 'hostTownFestival', buildingId: building.id })}
+                  className="w-full rounded bg-blue-900 px-2 py-1.5 text-[9px] font-bold text-blue-100 hover:bg-blue-800 disabled:opacity-40"
+                >
+                  🎉 Host town festival ({TOWN_HALL_FESTIVAL_DAYS}d)
+                  {!fest.ok && cooldownLeft > 0 ? ` — ${cooldownLeft}d cooldown` : ''}
+                </button>
+              );
+            })()}
+          </div>
         )}
         {building.completed && building.type === BuildingType.Barracks && building.occupants.length === 0 && (
           <p className="text-[9px] text-amber-400">⚠️ No guards assigned — militia bonus inactive until you staff the barracks.</p>
@@ -3615,64 +3925,74 @@ function SelectedBuildingPanel({ building, state, onAssign, onAssignWorker, assi
   );
 }
 
-function MiniMap({ world, camera }: { world: WorldState; camera: ViewState['camera'] }) {
+function MiniMap({
+  worldRef,
+  viewRef,
+}: {
+  worldRef: RefObject<WorldState>;
+  viewRef: RefObject<ViewState>;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameCounter = useRef(0);
 
   useEffect(() => {
-    // Throttle: only render minimap every 5 frames (saves ~80% of minimap CPU)
-    frameCounter.current++;
-    if (frameCounter.current % 5 !== 0) return;
+    let animId = 0;
+    const draw = () => {
+      frameCounter.current++;
+      if (frameCounter.current % 5 === 0) {
+        const world = worldRef.current;
+        const camera = viewRef.current?.camera;
+        const canvas = canvasRef.current;
+        if (world && camera && canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            const w = 140;
+            const h = 100;
+            ctx.fillStyle = world.season === Season.Winter ? '#ffffff' : '#72a85c';
+            ctx.fillRect(0, 0, w, h);
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+            const scaleX = w / world.width;
+            const scaleY = h / world.height;
 
-    const w = 140, h = 100;
-    // Background — matches flat meadow / winter snow on main map
-    ctx.fillStyle = world.season === Season.Winter ? '#ffffff' : '#72a85c';
-    ctx.fillRect(0, 0, w, h);
+            for (const e of world.entities) {
+              if (!e.alive || e.type === EntityType.Grass) continue;
+              const sx = e.x * scaleX;
+              const sy = e.y * scaleY;
+              if (e.type === EntityType.Tree) {
+                ctx.fillStyle = '#166534';
+                ctx.fillRect(sx - 1, sy - 1, 2, 2);
+              } else if (e.type === EntityType.Human) {
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillRect(sx - 1, sy - 1, 2, 2);
+              } else {
+                ctx.fillStyle = SPECIES_CONFIG[e.type].color;
+                ctx.fillRect(sx - 1, sy - 1, 2, 2);
+              }
+            }
 
-    const scaleX = w / world.width;
-    const scaleY = h / world.height;
+            for (const b of world.buildings) {
+              if (!b.completed) continue;
+              const sx = b.x * scaleX;
+              const sy = b.y * scaleY;
+              ctx.fillStyle = BUILDING_CONFIGS[b.type].backgroundColor;
+              ctx.fillRect(sx - 2, sy - 2, 4, 3);
+            }
 
-    // Only draw non-grass entities (grass is too dense and adds no info)
-    for (const e of world.entities) {
-      if (!e.alive || e.type === EntityType.Grass) continue;
-      const sx = e.x * scaleX;
-      const sy = e.y * scaleY;
-      if (e.type === EntityType.Tree) {
-        ctx.fillStyle = '#166534';
-        ctx.fillRect(sx - 1, sy - 1, 2, 2);
-      } else if (e.type === EntityType.Human) {
-        ctx.fillStyle = '#fbbf24';
-        ctx.fillRect(sx - 1, sy - 1, 2, 2);
-      } else {
-        ctx.fillStyle = SPECIES_CONFIG[e.type].color;
-        ctx.fillRect(sx - 1, sy - 1, 2, 2);
+            const camW = (world.width / camera.zoom) * scaleX * 0.5;
+            const camH = (world.height / camera.zoom) * scaleY * 0.5;
+            const camX = camera.x * scaleX - camW / 2;
+            const camY = camera.y * scaleY - camH / 2;
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(camX, camY, camW, camH);
+          }
+        }
       }
-    }
-
-    // Buildings
-    for (const b of world.buildings) {
-      if (!b.completed) continue;
-      const sx = b.x * scaleX;
-      const sy = b.y * scaleY;
-      ctx.fillStyle = BUILDING_CONFIGS[b.type].backgroundColor;
-      ctx.fillRect(sx - 2, sy - 2, 4, 3);
-    }
-
-    // Camera viewport
-    const camW = (world.width / camera.zoom) * scaleX * 0.5;
-    const camH = (world.height / camera.zoom) * scaleY * 0.5;
-    const camX = camera.x * scaleX - camW / 2;
-    const camY = camera.y * scaleY - camH / 2;
-    ctx.strokeStyle = '#fbbf24';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(camX, camY, camW, camH);
-
-  }, [world, camera]);
+      animId = requestAnimationFrame(draw);
+    };
+    animId = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(animId);
+  }, [worldRef, viewRef]);
 
   return (
     <div className="absolute bottom-4 left-4 overflow-hidden rounded-lg border border-stone-600 bg-stone-800/80 shadow-xl backdrop-blur">

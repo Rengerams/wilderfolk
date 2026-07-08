@@ -7,8 +7,10 @@ import {
 interface Props {
   preview: CombatPreview;
   compact?: boolean;
-  /** Show "If you raid their camp" forecast — only in rival inspector, not incoming-raid banner */
-  showCounterRaid?: boolean;
+  /** Show outgoing attack forecast — rival inspector only, not incoming-raid banner */
+  showOutgoingRaid?: boolean;
+  /** They marched on you first — label as counter-raid instead of a first strike */
+  outgoingRaidIsCounter?: boolean;
   title?: string;
 }
 
@@ -33,7 +35,17 @@ function ratioPct(ratio: number | null): string {
   return `${Math.round(ratio * 100)}%`;
 }
 
-export default function CombatPreviewPanel({ preview, compact, showCounterRaid, title }: Props) {
+export default function CombatPreviewPanel({
+  preview,
+  compact,
+  showOutgoingRaid,
+  outgoingRaidIsCounter = false,
+  title,
+}: Props) {
+  const outgoingActionLabel = outgoingRaidIsCounter ? 'Counter-raid their camp' : 'Raid their camp';
+  const outgoingHeading = outgoingRaidIsCounter
+    ? 'If you counter-raid their camp:'
+    : 'If you raid their camp:';
   return (
     <div className={`rounded-lg border border-stone-600/50 bg-stone-900/60 ${compact ? 'p-2' : 'p-2.5'}`}>
       <h4 className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-stone-400">
@@ -86,8 +98,17 @@ export default function CombatPreviewPanel({ preview, compact, showCounterRaid, 
           <p className="mb-1 text-[8px] font-semibold text-stone-500">If they raid your village:</p>
           <div className="flex flex-wrap items-center justify-between gap-1">
             <span className="text-stone-400">Defend with militia (spears)</span>
-            {preview.hasSpears && preview.defendOutcome
-              ? <OutcomeBadge tier={preview.defendOutcome} kind="defend" />
+            {preview.hasSpears
+              ? (preview.defendOutcome
+                  ? <OutcomeBadge tier={preview.defendOutcome} kind="defend" />
+                  : (
+                    <span
+                      className="inline-block rounded border border-stone-600/40 bg-stone-800/80 px-1.5 py-0.5 text-[8px] font-bold text-stone-400"
+                      title="Militia strength could not be forecast"
+                    >
+                      Unknown
+                    </span>
+                  ))
               : <span className="text-rose-400/90">Need stone/iron spears</span>}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-1">
@@ -104,14 +125,14 @@ export default function CombatPreviewPanel({ preview, compact, showCounterRaid, 
             && preview.outgoingRaidFoodCost != null
             && preview.incomingPayoffFood < preview.outgoingRaidFoodCost && (
             <p className="rounded bg-cyan-950/40 px-1.5 py-1 text-[8px] font-semibold text-cyan-300">
-              💡 Paying {preview.incomingPayoffFood}🍖 tribute is cheaper than counter-raiding ({preview.outgoingRaidFoodCost}🍖 provisions).
+              💡 Paying {preview.incomingPayoffFood}🍖 tribute is cheaper than {outgoingRaidIsCounter ? 'counter-raiding' : 'raiding their camp'} ({preview.outgoingRaidFoodCost}🍖 provisions).
             </p>
           )}
           <p className="mt-1 text-[8px] italic text-stone-600">{DEFENSE_RATIO_HINT}</p>
           <p className="text-[8px] italic text-stone-600">{MILITIA_TIER_HINT}</p>
-          {showCounterRaid && (
+          {showOutgoingRaid && (
             <>
-              <p className="mb-0.5 mt-1.5 text-[8px] font-semibold text-stone-500">If you raid their camp:</p>
+              <p className="mb-0.5 mt-1.5 text-[8px] font-semibold text-stone-500">{outgoingHeading}</p>
               {preview.counterRaidRivalStrength != null && (
                 <p className="mb-1 text-[8px] text-stone-500">
                   Their camp defense: <strong className="text-rose-300">{preview.counterRaidRivalStrength}</strong>
@@ -122,7 +143,7 @@ export default function CombatPreviewPanel({ preview, compact, showCounterRaid, 
               )}
               <div className="flex flex-wrap items-center justify-between gap-1">
                 <span className="text-stone-400">
-                  Raid their camp{preview.outgoingRaidFoodCost != null ? ` (${preview.outgoingRaidFoodCost}🍖)` : ''}
+                  {outgoingActionLabel}{preview.outgoingRaidFoodCost != null ? ` (${preview.outgoingRaidFoodCost}🍖)` : ''}
                 </span>
                 {preview.canCounterRaid && preview.counterRaidOutcome
                   ? <OutcomeBadge tier={preview.counterRaidOutcome} kind="counter" />

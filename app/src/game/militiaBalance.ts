@@ -8,6 +8,7 @@ import {
   hasIronShields, hasIronSpears, hasStoneSpears, hasWoodenShields,
 } from './combat';
 import {
+  getBarracksGuardBonus,
   getBarracksGuardCount,
   countCompletedDefenseBuildings,
   getWallSegmentBonus,
@@ -125,19 +126,20 @@ export function computeMilitiaBreakdown(
     }
 
     if (guardCount > 0) {
-      const guardBonus = guardCount * MILITIA_BALANCE.guardBonusPerGuard;
+      const guardBonus = getBarracksGuardBonus(state, state.buildings);
       working += guardBonus;
-      lines.push(`+ ${guardBonus} barracks guards (${guardCount} staffed × ${MILITIA_BALANCE.guardBonusPerGuard})`);
+      const perGuard = Math.round(guardBonus / guardCount);
+      lines.push(`+ ${guardBonus} barracks guards (${guardCount} staffed × ${perGuard})`);
     }
 
     militiaStrength = Math.round(working);
   }
 
-  const structureBonus = getWallSegmentBonus(state.buildings) + getWatchtowerBonus(state.buildings);
+  const structureBonus = getWallSegmentBonus(state.buildings, state) + getWatchtowerBonus(state.buildings);
   const barricadeStrength = Math.round(
     militiaStrength * MILITIA_BALANCE.barricadeMilitiaFactor
     + MILITIA_BALANCE.barricadeFlatBonus
-    + structureBonus,
+    + (options?.includeStructures !== false ? structureBonus : 0),
   );
 
   if (options?.includeStructures !== false && structureBonus > 0) {
@@ -146,7 +148,7 @@ export function computeMilitiaBreakdown(
       BuildingType.WallCorner,
       BuildingType.WallGate,
     ]);
-    const wallBonus = getWallSegmentBonus(state.buildings);
+    const wallBonus = getWallSegmentBonus(state.buildings, state);
     if (walls > 0) {
       lines.push(`Barricade only: +${wallBonus} wall segments (${walls} built, max +72)`);
     }

@@ -1,0 +1,2104 @@
+{
+  "version": "1.1",
+  "game": "Wilderfolk Sim",
+  "dialogue_trees": [
+    {
+      "id": "dt_rock",
+      "category": "work",
+      "speakers": [
+        "npc_laborer",
+        "npc_bystander"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_laborer",
+          "text": "I've been carrying this rock for 3 hours. I don't know where to put it."
+        },
+        {
+          "speaker": "npc_bystander",
+          "text": "Have you tried... setting it down?"
+        },
+        {
+          "speaker": "npc_laborer",
+          "text": "I am one with the rock now. Do not interrupt our journey."
+        }
+      ]
+    },
+    {
+      "id": "dt_diagonal",
+      "category": "work",
+      "speakers": [
+        "npc_farmer",
+        "npc_veteran"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_farmer",
+          "text": "Just watched a guy harvest an entire field by walking diagonally through it."
+        },
+        {
+          "speaker": "npc_veteran",
+          "text": "We don't talk about the diagonal walk."
+        },
+        {
+          "speaker": "npc_farmer",
+          "text": "I tried it once. They found my body in a fence."
+        }
+      ]
+    },
+    {
+      "id": "dt_bathroom",
+      "category": "needs",
+      "speakers": [
+        "npc_humiliated",
+        "npc_logician"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_humiliated",
+          "text": "I peed myself because someone was using the bathroom."
+        },
+        {
+          "speaker": "npc_logician",
+          "text": "We have four bathrooms."
+        },
+        {
+          "speaker": "npc_humiliated",
+          "text": "It was the principle of the thing."
+        }
+      ]
+    },
+    {
+      "id": "dt_bed",
+      "category": "needs",
+      "speakers": [
+        "npc_floor_sleeper",
+        "npc_pragmatist"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_floor_sleeper",
+          "text": "Slept on the floor next to a $3000 bed because someone claimed it 0.4 seconds before me."
+        },
+        {
+          "speaker": "npc_pragmatist",
+          "text": "You could've just... asked them to move?"
+        },
+        {
+          "speaker": "npc_floor_sleeper",
+          "text": "And admit defeat? I have standards."
+        }
+      ]
+    },
+    {
+      "id": "dt_potato",
+      "category": "needs",
+      "speakers": [
+        "npc_hungry",
+        "npc_cook"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_hungry",
+          "text": "Ate raw potatoes for 3 days because the stove was slightly too far from the fridge."
+        },
+        {
+          "speaker": "npc_cook",
+          "text": "Slightly?"
+        },
+        {
+          "speaker": "npc_hungry",
+          "text": "Four tiles. Might as well be the moon."
+        }
+      ]
+    },
+    {
+      "id": "dt_greg",
+      "category": "social",
+      "speakers": [
+        "npc_chicken_friend",
+        "npc_judgmental"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_chicken_friend",
+          "text": "My best friend is a chicken. His name is Greg."
+        },
+        {
+          "speaker": "npc_judgmental",
+          "text": "You named a chicken Greg?"
+        },
+        {
+          "speaker": "npc_chicken_friend",
+          "text": "He named himself. I just respected his choice."
+        }
+      ]
+    },
+    {
+      "id": "dt_party",
+      "category": "social",
+      "speakers": [
+        "npc_host",
+        "npc_sympathetic"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_host",
+          "text": "Threw a party. Nobody came. The cake rotted."
+        },
+        {
+          "speaker": "npc_sympathetic",
+          "text": "That's depressing."
+        },
+        {
+          "speaker": "npc_host",
+          "text": "I ate it anyway. 5/10, would grief again."
+        }
+      ]
+    },
+    {
+      "id": "dt_seam",
+      "category": "existential",
+      "speakers": [
+        "npc_aware",
+        "npc_denier"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_aware",
+          "text": "Pretty sure I saw a loading seam in the mountains yesterday."
+        },
+        {
+          "speaker": "npc_denier",
+          "text": "You should report that."
+        },
+        {
+          "speaker": "npc_aware",
+          "text": "I pretended I didn't. We all pretend."
+        }
+      ]
+    },
+    {
+      "id": "dt_toast",
+      "category": "chaos",
+      "speakers": [
+        "npc_arsonist",
+        "npc_confused"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_arsonist",
+          "text": "Started a fire trying to make toast."
+        },
+        {
+          "speaker": "npc_confused",
+          "text": "The bread was already toasted?"
+        },
+        {
+          "speaker": "npc_arsonist",
+          "text": "I was just holding it near the stove for moral support."
+        }
+      ]
+    },
+    {
+      "id": "dt_ladder",
+      "category": "chaos",
+      "speakers": [
+        "npc_builder",
+        "npc_concerned"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_builder",
+          "text": "Built a ladder to nowhere. It goes up. It does not come down."
+        },
+        {
+          "speaker": "npc_concerned",
+          "text": "Why?"
+        },
+        {
+          "speaker": "npc_builder",
+          "text": "I live there now. Send sandwiches."
+        }
+      ]
+    },
+    {
+      "id": "dt_indoor_weather",
+      "category": "environment",
+      "speakers": [
+        "npc_damp",
+        "npc_fixer"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_damp",
+          "text": "It's raining inside my house again."
+        },
+        {
+          "speaker": "npc_fixer",
+          "text": "Have you tried fixing the roof?"
+        },
+        {
+          "speaker": "npc_damp",
+          "text": "It is simply my indoor weather now. I do not question it."
+        }
+      ]
+    },
+    {
+      "id": "dt_tornado",
+      "category": "environment",
+      "speakers": [
+        "npc_calm",
+        "npc_panicker"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_calm",
+          "text": "Saw a tornado coming. Made a sandwich instead."
+        },
+        {
+          "speaker": "npc_panicker",
+          "text": "You didn't go to the shelter?"
+        },
+        {
+          "speaker": "npc_calm",
+          "text": "It was a really good sandwich."
+        }
+      ]
+    },
+    {
+      "id": "dt_shirts",
+      "category": "existential",
+      "speakers": [
+        "npc_hoarder",
+        "npc_minimalist"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_hoarder",
+          "text": "I have 47 identical shirts in my inventory."
+        },
+        {
+          "speaker": "npc_minimalist",
+          "text": "Why?"
+        },
+        {
+          "speaker": "npc_hoarder",
+          "text": "I will defend each one with my life. Do not test me."
+        }
+      ]
+    },
+    {
+      "id": "dt_friendship",
+      "category": "social",
+      "speakers": [
+        "npc_invested",
+        "npc_cynical"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_invested",
+          "text": "Spent 6 hours building a friendship with someone."
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "That's nice."
+        },
+        {
+          "speaker": "npc_invested",
+          "text": "We're both scheduled to leave the map tomorrow. I want a refund."
+        }
+      ]
+    },
+    {
+      "id": "dt_cow",
+      "category": "chaos",
+      "speakers": [
+        "npc_puncher",
+        "npc_hr"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_puncher",
+          "text": "Accidentally punched a cow while trying to pet it."
+        },
+        {
+          "speaker": "npc_hr",
+          "text": "Is the cow okay?"
+        },
+        {
+          "speaker": "npc_puncher",
+          "text": "The cow filed a complaint. HR is involved."
+        }
+      ]
+    },
+    {
+      "id": "dt_doorframe",
+      "category": "chaos",
+      "speakers": [
+        "npc_traumatized",
+        "npc_curious"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_traumatized",
+          "text": "Called in sick because I got stuck in a doorframe."
+        },
+        {
+          "speaker": "npc_curious",
+          "text": "With who?"
+        },
+        {
+          "speaker": "npc_traumatized",
+          "text": "Two other people tried to walk through at the same time. It was traumatic."
+        }
+      ]
+    },
+    {
+      "id": "dt_personality",
+      "category": "existential",
+      "speakers": [
+        "npc_wind",
+        "npc_shallow"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_wind",
+          "text": "My entire personality is 'Likes Wind.'"
+        },
+        {
+          "speaker": "npc_shallow",
+          "text": "That's... it?"
+        },
+        {
+          "speaker": "npc_wind",
+          "text": "This is all I am. I have accepted it."
+        }
+      ]
+    },
+    {
+      "id": "dt_berries",
+      "category": "needs",
+      "speakers": [
+        "npc_dead",
+        "npc_alive"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_dead",
+          "text": "Died of starvation surrounded by berries."
+        },
+        {
+          "speaker": "npc_alive",
+          "text": "Why didn't you eat them?"
+        },
+        {
+          "speaker": "npc_dead",
+          "text": "I forgot I could eat them without putting them in a crate first. Don't look at me."
+        }
+      ]
+    },
+    {
+      "id": "dt_stare",
+      "category": "existential",
+      "speakers": [
+        "npc_thinker",
+        "npc_player_proxy"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_thinker",
+          "text": "Sometimes I stop in the middle of the road and stare at the sky."
+        },
+        {
+          "speaker": "npc_player_proxy",
+          "text": "Are you broken?"
+        },
+        {
+          "speaker": "npc_thinker",
+          "text": "I'm just thinking. The player probably thinks I'm broken too."
+        }
+      ]
+    },
+    {
+      "id": "dt_well",
+      "category": "chaos",
+      "speakers": [
+        "npc_fallen",
+        "npc_nurse"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_fallen",
+          "text": "Fell down a well. Not an important well. Just a decorative one."
+        },
+        {
+          "speaker": "npc_nurse",
+          "text": "Are you hurt?"
+        },
+        {
+          "speaker": "npc_fallen",
+          "text": "The shame is worse than the injuries."
+        }
+      ]
+    },
+    {
+      "id": "wf_home_arrival",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Home at last."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Long day, huh?"
+        },
+        {
+          "speaker": "settler",
+          "text": "Feet up soon."
+        }
+      ]
+    },
+    {
+      "id": "wf_home_cozy",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Cozy night."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Kettle on?"
+        },
+        {
+          "speaker": "settler",
+          "text": "Quiet evening."
+        }
+      ]
+    },
+    {
+      "id": "wf_home_warm",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Warm fire soon."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Glad to be back."
+        },
+        {
+          "speaker": "settler",
+          "text": "Settle in?"
+        }
+      ]
+    },
+    {
+      "id": "wf_home_indoors",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Finally indoors."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Smells like stew."
+        },
+        {
+          "speaker": "settler",
+          "text": "Good night."
+        }
+      ]
+    },
+    {
+      "id": "wf_home_winter",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Shut the door!"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Chimney smoke."
+        },
+        {
+          "speaker": "settler",
+          "text": "Blankets out."
+        }
+      ]
+    },
+    {
+      "id": "wf_home_festival",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Guests in the lane!"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Smell the pies?"
+        },
+        {
+          "speaker": "settler",
+          "text": "Glad to be back."
+        }
+      ]
+    },
+    {
+      "id": "wf_home_food",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Thin stew tonight."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Save a crust for morning."
+        },
+        {
+          "speaker": "settler",
+          "text": "Children first."
+        }
+      ]
+    },
+    {
+      "id": "wf_sleep",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Zzz…"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Good night."
+        },
+        {
+          "speaker": "settler",
+          "text": "Dream well."
+        }
+      ]
+    },
+    {
+      "id": "wf_sleep_long",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Long day…"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Quiet house."
+        },
+        {
+          "speaker": "settler",
+          "text": "Home sweet home."
+        }
+      ]
+    },
+    {
+      "id": "wf_food_crisis",
+      "category": "needs",
+      "speakers": [
+        "hungry_settler",
+        "pantry_keeper"
+      ],
+      "lines": [
+        {
+          "speaker": "hungry_settler",
+          "text": "Cupboards bare…"
+        },
+        {
+          "speaker": "pantry_keeper",
+          "text": "Ration the grain."
+        },
+        {
+          "speaker": "hungry_settler",
+          "text": "Hunters must bring more."
+        }
+      ]
+    },
+    {
+      "id": "wf_food_soup",
+      "category": "needs",
+      "speakers": [
+        "cook",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "cook",
+          "text": "Soup again?"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "We need farms."
+        },
+        {
+          "speaker": "cook",
+          "text": "Winter stores thin."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant",
+      "category": "needs",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "Oof…"
+        },
+        {
+          "speaker": "partner",
+          "text": "Little kick…"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Counting days…"
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_tired",
+      "category": "needs",
+      "speakers": [
+        "expectant_mother",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "So tired…"
+        },
+        {
+          "speaker": "friend",
+          "text": "Nursery ready?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Baby's restless."
+        }
+      ]
+    },
+    {
+      "id": "wf_work_shift",
+      "category": "work",
+      "speakers": [
+        "laborer",
+        "foreman"
+      ],
+      "lines": [
+        {
+          "speaker": "laborer",
+          "text": "Hard work!"
+        },
+        {
+          "speaker": "foreman",
+          "text": "More wood!"
+        },
+        {
+          "speaker": "laborer",
+          "text": "Keep at it."
+        }
+      ]
+    },
+    {
+      "id": "wf_work_busy",
+      "category": "work",
+      "speakers": [
+        "farmer",
+        "helper"
+      ],
+      "lines": [
+        {
+          "speaker": "farmer",
+          "text": "Busy day."
+        },
+        {
+          "speaker": "helper",
+          "text": "Good yield."
+        },
+        {
+          "speaker": "farmer",
+          "text": "One more load."
+        }
+      ]
+    },
+    {
+      "id": "wf_work_tools",
+      "category": "work",
+      "speakers": [
+        "smith",
+        "carpenter"
+      ],
+      "lines": [
+        {
+          "speaker": "smith",
+          "text": "Sturdy beams."
+        },
+        {
+          "speaker": "carpenter",
+          "text": "Tools need sharpening."
+        },
+        {
+          "speaker": "smith",
+          "text": "Shift's long."
+        }
+      ]
+    },
+    {
+      "id": "wf_work_winter",
+      "category": "work",
+      "speakers": [
+        "laborer",
+        "foreman"
+      ],
+      "lines": [
+        {
+          "speaker": "laborer",
+          "text": "Fingers numb."
+        },
+        {
+          "speaker": "foreman",
+          "text": "Shorter daylight."
+        },
+        {
+          "speaker": "laborer",
+          "text": "Almost done."
+        }
+      ]
+    },
+    {
+      "id": "wf_work_rain",
+      "category": "work",
+      "speakers": [
+        "builder",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "builder",
+          "text": "Roof leak again."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Work in the barn."
+        },
+        {
+          "speaker": "builder",
+          "text": "Hope it holds."
+        }
+      ]
+    },
+    {
+      "id": "wf_work_festival",
+      "category": "work",
+      "speakers": [
+        "laborer",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "laborer",
+          "text": "Half day tomorrow?"
+        },
+        {
+          "speaker": "friend",
+          "text": "Finish before the dance."
+        },
+        {
+          "speaker": "laborer",
+          "text": "Good yield."
+        }
+      ]
+    },
+    {
+      "id": "wf_guard_patrol",
+      "category": "work",
+      "speakers": [
+        "guard",
+        "relief"
+      ],
+      "lines": [
+        {
+          "speaker": "guard",
+          "text": "All quiet."
+        },
+        {
+          "speaker": "relief",
+          "text": "Perimeter clear."
+        },
+        {
+          "speaker": "guard",
+          "text": "Hold the line."
+        }
+      ]
+    },
+    {
+      "id": "wf_guard_night",
+      "category": "work",
+      "speakers": [
+        "guard",
+        "captain"
+      ],
+      "lines": [
+        {
+          "speaker": "guard",
+          "text": "Eyes open."
+        },
+        {
+          "speaker": "captain",
+          "text": "I saw movement."
+        },
+        {
+          "speaker": "guard",
+          "text": "Torch lit."
+        }
+      ]
+    },
+    {
+      "id": "wf_guard_wait",
+      "category": "work",
+      "speakers": [
+        "guard",
+        "relief"
+      ],
+      "lines": [
+        {
+          "speaker": "guard",
+          "text": "Nothing yet."
+        },
+        {
+          "speaker": "relief",
+          "text": "Relief soon?"
+        },
+        {
+          "speaker": "guard",
+          "text": "All quiet."
+        }
+      ]
+    },
+    {
+      "id": "wf_hunt_stalk",
+      "category": "work",
+      "speakers": [
+        "hunter",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "hunter",
+          "text": "There!"
+        },
+        {
+          "speaker": "partner",
+          "text": "Shhh…"
+        },
+        {
+          "speaker": "hunter",
+          "text": "Steady…"
+        }
+      ]
+    },
+    {
+      "id": "wf_hunt_catch",
+      "category": "work",
+      "speakers": [
+        "hunter",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "hunter",
+          "text": "Prey!"
+        },
+        {
+          "speaker": "partner",
+          "text": "Quiet…"
+        },
+        {
+          "speaker": "hunter",
+          "text": "Got one!"
+        }
+      ]
+    },
+    {
+      "id": "wf_hunt_wind",
+      "category": "work",
+      "speakers": [
+        "hunter",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "hunter",
+          "text": "Tracks here."
+        },
+        {
+          "speaker": "partner",
+          "text": "Wind's wrong."
+        },
+        {
+          "speaker": "hunter",
+          "text": "Almost in range."
+        }
+      ]
+    },
+    {
+      "id": "wf_social_hey",
+      "category": "social",
+      "speakers": [
+        "neighbor_a",
+        "neighbor_b"
+      ],
+      "lines": [
+        {
+          "speaker": "neighbor_a",
+          "text": "Hey!"
+        },
+        {
+          "speaker": "neighbor_b",
+          "text": "Fine day."
+        },
+        {
+          "speaker": "neighbor_a",
+          "text": "Fine village."
+        }
+      ]
+    },
+    {
+      "id": "wf_social_peace",
+      "category": "social",
+      "speakers": [
+        "elder",
+        "youth"
+      ],
+      "lines": [
+        {
+          "speaker": "elder",
+          "text": "Peaceful, for now."
+        },
+        {
+          "speaker": "youth",
+          "text": "Heard the news?"
+        },
+        {
+          "speaker": "elder",
+          "text": "Busy week."
+        }
+      ]
+    },
+    {
+      "id": "wf_social_harvest",
+      "category": "social",
+      "speakers": [
+        "farmer",
+        "trader"
+      ],
+      "lines": [
+        {
+          "speaker": "farmer",
+          "text": "Good harvest?"
+        },
+        {
+          "speaker": "trader",
+          "text": "Roads help."
+        },
+        {
+          "speaker": "farmer",
+          "text": "Seen the traders?"
+        }
+      ]
+    },
+    {
+      "id": "wf_social_kids",
+      "category": "social",
+      "speakers": [
+        "parent",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "parent",
+          "text": "Kids are loud today."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Nice weather."
+        },
+        {
+          "speaker": "parent",
+          "text": "Hungry yet?"
+        }
+      ]
+    },
+    {
+      "id": "wf_social_wolves",
+      "category": "social",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Wolves again…"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Bars are latched."
+        },
+        {
+          "speaker": "settler",
+          "text": "Cold out."
+        }
+      ]
+    },
+    {
+      "id": "wf_child_mama",
+      "category": "social",
+      "speakers": [
+        "child",
+        "parent"
+      ],
+      "lines": [
+        {
+          "speaker": "child",
+          "text": "Mama!"
+        },
+        {
+          "speaker": "parent",
+          "text": "Look!"
+        },
+        {
+          "speaker": "child",
+          "text": "Race you!"
+        }
+      ]
+    },
+    {
+      "id": "wf_child_play",
+      "category": "social",
+      "speakers": [
+        "child",
+        "sibling"
+      ],
+      "lines": [
+        {
+          "speaker": "child",
+          "text": "Yay!"
+        },
+        {
+          "speaker": "sibling",
+          "text": "I found a bug!"
+        },
+        {
+          "speaker": "child",
+          "text": "Hehe!"
+        }
+      ]
+    },
+    {
+      "id": "wf_child_help",
+      "category": "social",
+      "speakers": [
+        "child",
+        "parent"
+      ],
+      "lines": [
+        {
+          "speaker": "child",
+          "text": "Can I help?"
+        },
+        {
+          "speaker": "parent",
+          "text": "Story time?"
+        },
+        {
+          "speaker": "child",
+          "text": "Wait up!"
+        }
+      ]
+    },
+    {
+      "id": "wf_school_lesson",
+      "category": "social",
+      "speakers": [
+        "pupil",
+        "teacher"
+      ],
+      "lines": [
+        {
+          "speaker": "pupil",
+          "text": "Lesson time!"
+        },
+        {
+          "speaker": "teacher",
+          "text": "ABC…"
+        },
+        {
+          "speaker": "pupil",
+          "text": "I learned!"
+        }
+      ]
+    },
+    {
+      "id": "wf_school_recess",
+      "category": "social",
+      "speakers": [
+        "pupil",
+        "classmate"
+      ],
+      "lines": [
+        {
+          "speaker": "pupil",
+          "text": "Recess soon?"
+        },
+        {
+          "speaker": "classmate",
+          "text": "Books!"
+        },
+        {
+          "speaker": "pupil",
+          "text": "Sums are hard."
+        }
+      ]
+    },
+    {
+      "id": "wf_school_class",
+      "category": "social",
+      "speakers": [
+        "pupil",
+        "teacher"
+      ],
+      "lines": [
+        {
+          "speaker": "pupil",
+          "text": "Teacher?"
+        },
+        {
+          "speaker": "teacher",
+          "text": "Who's top of class?"
+        },
+        {
+          "speaker": "pupil",
+          "text": "Books!"
+        }
+      ]
+    },
+    {
+      "id": "wf_courtship_walk",
+      "category": "social",
+      "speakers": [
+        "suitor",
+        "beloved"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "Walk with me?"
+        },
+        {
+          "speaker": "beloved",
+          "text": "Gladly."
+        },
+        {
+          "speaker": "suitor",
+          "text": "Moon looks kind tonight."
+        }
+      ]
+    },
+    {
+      "id": "wf_courtship_well",
+      "category": "social",
+      "speakers": [
+        "suitor",
+        "beloved"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "You look well."
+        },
+        {
+          "speaker": "beloved",
+          "text": "So do you."
+        },
+        {
+          "speaker": "suitor",
+          "text": "Care for a stroll?"
+        }
+      ]
+    },
+    {
+      "id": "wf_courtship_evening",
+      "category": "social",
+      "speakers": [
+        "suitor",
+        "beloved"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "Lovely evening."
+        },
+        {
+          "speaker": "beloved",
+          "text": "It is now."
+        },
+        {
+          "speaker": "suitor",
+          "text": "Fancy meeting you."
+        }
+      ]
+    },
+    {
+      "id": "wf_courtship_company",
+      "category": "social",
+      "speakers": [
+        "suitor",
+        "beloved"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "Care for company?"
+        },
+        {
+          "speaker": "beloved",
+          "text": "I would."
+        },
+        {
+          "speaker": "suitor",
+          "text": "Pretty view."
+        }
+      ]
+    },
+    {
+      "id": "wf_courtship_boots",
+      "category": "social",
+      "speakers": [
+        "suitor",
+        "beloved"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "Nice boots."
+        },
+        {
+          "speaker": "beloved",
+          "text": "Hi there."
+        },
+        {
+          "speaker": "suitor",
+          "text": "Lovely day…"
+        }
+      ]
+    },
+    {
+      "id": "wf_visitor_trade",
+      "category": "social",
+      "speakers": [
+        "visitor",
+        "host"
+      ],
+      "lines": [
+        {
+          "speaker": "visitor",
+          "text": "Greetings!"
+        },
+        {
+          "speaker": "host",
+          "text": "Trade?"
+        },
+        {
+          "speaker": "visitor",
+          "text": "Your reputation travels."
+        }
+      ]
+    },
+    {
+      "id": "wf_visitor_roads",
+      "category": "social",
+      "speakers": [
+        "visitor",
+        "host"
+      ],
+      "lines": [
+        {
+          "speaker": "visitor",
+          "text": "Safe roads?"
+        },
+        {
+          "speaker": "host",
+          "text": "Fine village."
+        },
+        {
+          "speaker": "visitor",
+          "text": "We brought news."
+        }
+      ]
+    },
+    {
+      "id": "wf_visitor_passing",
+      "category": "social",
+      "speakers": [
+        "visitor",
+        "host"
+      ],
+      "lines": [
+        {
+          "speaker": "visitor",
+          "text": "Passing through."
+        },
+        {
+          "speaker": "host",
+          "text": "Camped down the road."
+        },
+        {
+          "speaker": "visitor",
+          "text": "Greetings!"
+        }
+      ]
+    },
+    {
+      "id": "wf_rival_fences",
+      "category": "social",
+      "speakers": [
+        "rival",
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "rival",
+          "text": "Mind your fences."
+        },
+        {
+          "speaker": "settler",
+          "text": "Our land too."
+        },
+        {
+          "speaker": "rival",
+          "text": "Bold settlers."
+        }
+      ]
+    },
+    {
+      "id": "wf_rival_watch",
+      "category": "social",
+      "speakers": [
+        "rival",
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "rival",
+          "text": "Watching you."
+        },
+        {
+          "speaker": "settler",
+          "text": "Hmm."
+        },
+        {
+          "speaker": "rival",
+          "text": "Keep your distance."
+        }
+      ]
+    },
+    {
+      "id": "wf_rival_slight",
+      "category": "social",
+      "speakers": [
+        "rival",
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "rival",
+          "text": "We remember slights."
+        },
+        {
+          "speaker": "settler",
+          "text": "Mind your fences."
+        },
+        {
+          "speaker": "rival",
+          "text": "Our land too."
+        }
+      ]
+    },
+    {
+      "id": "wf_festival_feast",
+      "category": "social",
+      "speakers": [
+        "reveler",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "What a feast!"
+        },
+        {
+          "speaker": "friend",
+          "text": "Dance!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "Music tonight!"
+        }
+      ]
+    },
+    {
+      "id": "wf_festival_cheers",
+      "category": "social",
+      "speakers": [
+        "reveler",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "Cheers!"
+        },
+        {
+          "speaker": "friend",
+          "text": "Harvest revel!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "Flags up!"
+        }
+      ]
+    },
+    {
+      "id": "wf_festival_best",
+      "category": "social",
+      "speakers": [
+        "reveler",
+        "visitor"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "Visitors everywhere."
+        },
+        {
+          "speaker": "visitor",
+          "text": "Best week of the year!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "What a feast!"
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_longday",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Long day."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Tell me about it."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Kettle on?"
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_rain",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Smells like rain."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Hope the roof holds."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "I'll check the thatch."
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_kids",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Kids asleep?"
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Finally quiet."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Until morning."
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_wood",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Wood pile low."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "I'll chop tomorrow."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Again."
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_wolves",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Heard wolves."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Bars are latched."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Sleep close."
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_harvest",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Good harvest?"
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Bins are full."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "For now."
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_cold",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Cold night."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Fire's warm enough."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Barely."
+        }
+      ]
+    },
+    {
+      "id": "wf_fear_run",
+      "category": "chaos",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Run!"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Wolf!"
+        },
+        {
+          "speaker": "settler",
+          "text": "Don't look back!"
+        }
+      ]
+    },
+    {
+      "id": "wf_fear_inside",
+      "category": "chaos",
+      "speakers": [
+        "settler",
+        "guard"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Inside!"
+        },
+        {
+          "speaker": "guard",
+          "text": "Help!"
+        },
+        {
+          "speaker": "settler",
+          "text": "Too close!"
+        }
+      ]
+    },
+    {
+      "id": "wf_fear_moon",
+      "category": "chaos",
+      "speakers": [
+        "settler",
+        "elder"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Moon curse!"
+        },
+        {
+          "speaker": "elder",
+          "text": "Inside!"
+        },
+        {
+          "speaker": "settler",
+          "text": "Don't look back!"
+        }
+      ]
+    },
+    {
+      "id": "wf_affair_secret",
+      "category": "chaos",
+      "speakers": [
+        "lover_a",
+        "lover_b"
+      ],
+      "lines": [
+        {
+          "speaker": "lover_a",
+          "text": "Shh…"
+        },
+        {
+          "speaker": "lover_b",
+          "text": "Our secret."
+        },
+        {
+          "speaker": "lover_a",
+          "text": "After dark…"
+        }
+      ]
+    },
+    {
+      "id": "wf_affair_meet",
+      "category": "chaos",
+      "speakers": [
+        "lover_a",
+        "lover_b"
+      ],
+      "lines": [
+        {
+          "speaker": "lover_a",
+          "text": "Meet me later."
+        },
+        {
+          "speaker": "lover_b",
+          "text": "Not here."
+        },
+        {
+          "speaker": "lover_a",
+          "text": "They'll never know."
+        }
+      ]
+    },
+    {
+      "id": "wf_affair_kiss",
+      "category": "chaos",
+      "speakers": [
+        "lover_a",
+        "lover_b"
+      ],
+      "lines": [
+        {
+          "speaker": "lover_a",
+          "text": "Quick kiss."
+        },
+        {
+          "speaker": "lover_b",
+          "text": "Don't tell."
+        },
+        {
+          "speaker": "lover_a",
+          "text": "Our secret."
+        }
+      ]
+    },
+    {
+      "id": "wf_renffr_stars",
+      "category": "existential",
+      "speakers": [
+        "gossip",
+        "skeptic"
+      ],
+      "lines": [
+        {
+          "speaker": "gossip",
+          "text": "I saw Renffr in the stars…"
+        },
+        {
+          "speaker": "skeptic",
+          "text": "Did anyone else see the sky?"
+        },
+        {
+          "speaker": "gossip",
+          "text": "Just a shepherd's tale… right?"
+        }
+      ]
+    },
+    {
+      "id": "wf_renffr_mark",
+      "category": "existential",
+      "speakers": [
+        "believer",
+        "doubter"
+      ],
+      "lines": [
+        {
+          "speaker": "believer",
+          "text": "The mark of Renffr… plentiful harvest?"
+        },
+        {
+          "speaker": "doubter",
+          "text": "Grandmother feared that name."
+        },
+        {
+          "speaker": "believer",
+          "text": "Something wrote Renffr up there."
+        }
+      ]
+    },
+    {
+      "id": "wf_renffr_letters",
+      "category": "existential",
+      "speakers": [
+        "scholar",
+        "farmer"
+      ],
+      "lines": [
+        {
+          "speaker": "scholar",
+          "text": "The letters scattered…"
+        },
+        {
+          "speaker": "farmer",
+          "text": "Renffr — old valley omen."
+        },
+        {
+          "speaker": "scholar",
+          "text": "Did anyone else see the sky?"
+        }
+      ]
+    },
+    {
+      "id": "wf_election_vote",
+      "category": "existential",
+      "speakers": [
+        "voter_a",
+        "voter_b"
+      ],
+      "lines": [
+        {
+          "speaker": "voter_a",
+          "text": "Who'll lead us?"
+        },
+        {
+          "speaker": "voter_b",
+          "text": "My vote's cast."
+        },
+        {
+          "speaker": "voter_a",
+          "text": "Decennial year!"
+        }
+      ]
+    },
+    {
+      "id": "wf_election_speech",
+      "category": "existential",
+      "speakers": [
+        "voter",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "voter",
+          "text": "Heard the speeches?"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Town meeting soon."
+        },
+        {
+          "speaker": "voter",
+          "text": "New leader, new luck."
+        }
+      ]
+    },
+    {
+      "id": "wf_election_incumbent",
+      "category": "existential",
+      "speakers": [
+        "voter_a",
+        "voter_b"
+      ],
+      "lines": [
+        {
+          "speaker": "voter_a",
+          "text": "Incumbent again?"
+        },
+        {
+          "speaker": "voter_b",
+          "text": "Who'll lead us?"
+        },
+        {
+          "speaker": "voter_a",
+          "text": "Heard the speeches?"
+        }
+      ]
+    },
+    {
+      "id": "wf_winter_cold",
+      "category": "environment",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "So cold…"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Frost again."
+        },
+        {
+          "speaker": "settler",
+          "text": "Boots frozen."
+        }
+      ]
+    },
+    {
+      "id": "wf_winter_wood",
+      "category": "environment",
+      "speakers": [
+        "settler",
+        "elder"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Wood's low."
+        },
+        {
+          "speaker": "elder",
+          "text": "Heat the hall."
+        },
+        {
+          "speaker": "settler",
+          "text": "Spring feels far."
+        }
+      ]
+    },
+    {
+      "id": "wf_winter_snow",
+      "category": "environment",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Snow won't quit."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Ice on the well."
+        },
+        {
+          "speaker": "settler",
+          "text": "So cold…"
+        }
+      ]
+    },
+    {
+      "id": "wf_weather_rain",
+      "category": "environment",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Wet boots."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Mud everywhere."
+        },
+        {
+          "speaker": "settler",
+          "text": "Rain'll pass."
+        }
+      ]
+    },
+    {
+      "id": "wf_weather_snow",
+      "category": "environment",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Deep drifts."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Paths are buried."
+        },
+        {
+          "speaker": "settler",
+          "text": "Cold out."
+        }
+      ]
+    },
+    {
+      "id": "wf_weather_drought",
+      "category": "environment",
+      "speakers": [
+        "farmer",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "farmer",
+          "text": "Dust in the air."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Crops look thirsty."
+        },
+        {
+          "speaker": "farmer",
+          "text": "Hungry yet?"
+        }
+      ]
+    }
+  ],
+  "categories": [
+    "work",
+    "needs",
+    "social",
+    "existential",
+    "chaos",
+    "environment"
+  ]
+}

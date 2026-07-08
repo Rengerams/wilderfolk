@@ -12,15 +12,14 @@ import {
 export function useContextualTutorial(world: WorldState, enabled: boolean) {
   const prevRef = useRef<WorldState | null>(null);
   const [queue, setQueue] = useState<ContextualTutorialTip[]>([]);
-  const [active, setActive] = useState<ContextualTutorialTip | null>(null);
   const seededRef = useRef(false);
+
+  const active = enabled && queue.length > 0 ? queue[0] : null;
 
   useEffect(() => {
     if (!enabled) {
       prevRef.current = null;
       seededRef.current = false;
-      setQueue([]);
-      setActive(null);
       return;
     }
 
@@ -65,15 +64,8 @@ export function useContextualTutorial(world: WorldState, enabled: boolean) {
     active,
   ]);
 
-  useEffect(() => {
-    if (!active && queue.length > 0) {
-      setActive(queue[0]);
-      setQueue((q) => q.slice(1));
-    }
-  }, [active, queue]);
-
   const dismissActive = useCallback(() => {
-    setActive(null);
+    setQueue((q) => q.slice(1));
   }, []);
 
   return { active, dismissActive };

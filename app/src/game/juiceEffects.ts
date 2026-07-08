@@ -1,5 +1,10 @@
-import { BuildingType, type Building, type WorldState } from './gameTypes';
+import { BuildingType, type Building, type DeathParticle, type WorldState } from './gameTypes';
 import { isPlayerHuman } from './groupEvents';
+
+/** Shared transient pool on `state.deathParticles` (deaths, confetti, smoke, forge sparks). */
+export function pushTransientParticle(state: WorldState, particle: DeathParticle): void {
+  state.deathParticles.push(particle);
+}
 
 const BUILD_COMPLETE_COLORS = ['#fde047', '#fbbf24', '#34d399', '#60a5fa', '#f472b6', '#ffffff'];
 
@@ -24,12 +29,12 @@ export function countResidentsInBuilding(buildingId: number, entities: WorldStat
   return count;
 }
 
-export function getNightGlowIntensity(building: Building, entities: WorldState['entities']): number {
+/** @param residentCount Pre-indexed residents-at-home (avoids per-building entity scans in the renderer). */
+export function getNightGlowIntensity(building: Building, residentCount = 0): number {
   if (!building.completed || building.faction === 'rival') return 0;
   if (NIGHT_HOME_GLOW_TYPES.has(building.type)) {
-    const residents = countResidentsInBuilding(building.id, entities);
-    if (residents <= 0) return 0;
-    return Math.min(1, 0.45 + residents * 0.12);
+    if (residentCount <= 0) return 0;
+    return Math.min(1, 0.45 + residentCount * 0.12);
   }
   if (NIGHT_STAFFED_GLOW_TYPES.has(building.type) && building.occupants.length > 0) {
     return 0.55;
@@ -48,7 +53,7 @@ export function spawnBuildCompleteParticles(state: WorldState, building: Buildin
     const angle = Math.random() * Math.PI * 2;
     const speed = 0.8 + Math.random() * 2.4;
     const upward = i % 3 === 0;
-    state.deathParticles.push({
+    pushTransientParticle(state, {
       x: cx + (Math.random() - 0.5) * spreadX,
       y: cy + (Math.random() - 0.5) * spreadY,
       vx: upward ? (Math.random() - 0.5) * 1.4 : Math.cos(angle) * speed,
@@ -62,7 +67,7 @@ export function spawnBuildCompleteParticles(state: WorldState, building: Buildin
   }
 
   for (let i = 0; i < 8; i++) {
-    state.deathParticles.push({
+    pushTransientParticle(state, {
       x: cx + (Math.random() - 0.5) * spreadX * 0.5,
       y: cy + building.height * 0.2,
       vx: (Math.random() - 0.5) * 0.4,

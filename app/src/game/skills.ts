@@ -1,5 +1,5 @@
 import type { WorldState, Building } from './gameTypes';
-import { BuildingType, BUILDING_JOB_TYPES, JOB_LABELS, JobType } from './gameTypes';
+import { BuildingType, BUILDING_JOB_TYPES, EntityType, JOB_LABELS, JobType } from './gameTypes';
 
 export function getOccupationForBuilding(type: BuildingType): string {
   const job = BUILDING_JOB_TYPES[type];
@@ -23,7 +23,7 @@ export function readSkill(entity: { skills?: Partial<Record<JobType, number>> },
 
 export function gainSkill(state: WorldState, humanId: number, job: JobType, amount: number) {
   const human = state.entities.find(e => e.id === humanId);
-  if (!human || human.isJuvenile || !human.alive) return;
+  if (!human || human.type !== EntityType.Human || human.isJuvenile || !human.alive) return;
   const skills = ensureEntitySkills(human);
   skills[job] = Math.min(100, (skills[job] ?? 0) + amount);
 }

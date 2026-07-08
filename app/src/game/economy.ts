@@ -7,6 +7,7 @@ import {
   addNotification,
   getMultiplier,
 } from './gameEngine';
+import { getTownHallTradeMultiplier } from './townHall';
 
 export function updateStorageCaps(state: WorldState) {
   const barns = state.buildings.filter(b => b.completed && b.type === BuildingType.Barn).length;
@@ -64,12 +65,24 @@ export function establishTradeRoute(state: WorldState, routeId: string): WorldSt
   }
   
   route.active = true;
+  s.lifetimeStats = {
+    ...s.lifetimeStats,
+    tradeRoutesEstablished: s.lifetimeStats.tradeRoutesEstablished + 1,
+  };
   addNotification(s, 'Trade Route Established', `Now trading with ${route.targetName}!`, 'success');
   return s;
 }
 
+function canStoreFullTradeAmount(state: WorldState, type: keyof Resources, amount: number): boolean {
+  if (amount <= 0) return true;
+  const current = state.resources[type] as number;
+  const max = state.storageMax[type] as number;
+  return current + amount <= max;
+}
+
 export function updateTradeRoutes(state: WorldState) {
-  const tradeMult = getMultiplier(state, 'trade_bonus');
+  const tradeMult = getMultiplier(state, 'trade_bonus')
+    * getTownHallTradeMultiplier(state, state.buildings);
   for (const route of state.tradeRoutes) {
     if (!route.active) continue;
     if (isProductionTick(state.tick, EVENT_INTERVAL.tradeRoute)) {
@@ -93,12 +106,19 @@ export function updateTradeRoutes(state: WorldState) {
       const recvFood = Math.floor(route.resourcesReceived.food * tradeMult);
       const recvGold = Math.floor(route.resourcesReceived.gold * tradeMult);
 
-      const addedWood = recvWood > 0 ? addResource(state, 'wood', recvWood) : 0;
-      const addedStone = recvStone > 0 ? addResource(state, 'stone', recvStone) : 0;
-      const addedFood = recvFood > 0 ? addResource(state, 'food', recvFood) : 0;
-      const addedGold = recvGold > 0 ? addResource(state, 'gold', recvGold) : 0;
+      const receives: { key: keyof Resources; amount: number }[] = [
+        { key: 'wood', amount: recvWood },
+        { key: 'stone', amount: recvStone },
+        { key: 'food', amount: recvFood },
+        { key: 'gold', amount: recvGold },
+      ];
 
-      if (addedWood + addedStone + addedFood + addedGold <= 0) {
+      if (receives.every((r) => r.amount <= 0)) continue;
+
+      const storageBlocked = receives.some(
+        (r) => r.amount > 0 && !canStoreFullTradeAmount(state, r.key, r.amount),
+      );
+      if (storageBlocked) {
         addFloatingText(
           state,
           state.width / 2,
@@ -114,8 +134,22 @@ export function updateTradeRoutes(state: WorldState) {
       state.resources.food -= route.resourcesGiven.food;
       state.resources.gold -= route.resourcesGiven.gold;
 
+      const addedWood = recvWood > 0 ? addResource(state, 'wood', recvWood) : 0;
+      const addedStone = recvStone > 0 ? addResource(state, 'stone', recvStone) : 0;
+      const addedFood = recvFood > 0 ? addResource(state, 'food', recvFood) : 0;
+      const addedGold = recvGold > 0 ? addResource(state, 'gold', recvGold) : 0;
+
+      if (addedWood > 0) {
+        addFloatingText(state, state.width / 2, state.height / 2 - 14, `Trade: +${addedWood} wood`, '#a3e635', 'brief');
+      }
+      if (addedStone > 0) {
+        addFloatingText(state, state.width / 2, state.height / 2 - 6, `Trade: +${addedStone} stone`, '#a8a29e', 'brief');
+      }
+      if (addedFood > 0) {
+        addFloatingText(state, state.width / 2, state.height / 2 + 2, `Trade: +${addedFood} food`, '#4ade80', 'brief');
+      }
       if (addedGold > 0) {
-        addFloatingText(state, state.width / 2, state.height / 2, `Trade: +${addedGold} gold`, '#eab308');
+        addFloatingText(state, state.width / 2, state.height / 2 + 10, `Trade: +${addedGold} gold`, '#eab308');
       }
     }
   }

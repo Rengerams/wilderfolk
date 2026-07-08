@@ -1,12 +1,29 @@
-import { BuildingType, type Building, type Camera, type Entity, type WorldState } from './gameTypes';
+import { BuildingType, type Building, type Camera, type Entity, type EntityByType, type ResearchNode, type WorldState } from './gameTypes';
+import { buildEntityByType } from './gameEngine';
 import { getHourOfDay } from './dayCycle';
 import { loadJuiceEffectsEnabled } from './preferences';
+import type { EntityCatalog } from './entityCatalog';
+import type { EntityRenderMeta } from './simBuffers/entityRenderMeta';
+import type { RenderSoAReaderV1 } from './simBuffers/renderSoAReader';
+import type { ScentGrid, ScentGridReader } from './scentGrid';
+import { syncGrassRenderGridFromSoA } from './simBuffers/renderSoAEntities';
+import type { EntitySpatialGrid } from './spatialGrid';
 import type { ViewState } from './viewState';
 import { resolveBuilding, resolveEntity } from './viewState';
+
+export interface RenderSnapshotOptions {
+  renderSoA?: RenderSoAReaderV1 | null;
+  renderMetaBySlot?: EntityRenderMeta[];
+  catalog?: EntityCatalog;
+  scentGrid?: ScentGrid | null;
+  scentReader?: ScentGridReader | null;
+}
 
 /** Read-only bundle for the canvas renderer — simulation rules must not mutate this. */
 export interface RenderSnapshot {
   readonly entities: Entity[];
+  /** Alive entities by type — from sim tick buckets when available. */
+  readonly entityByType: EntityByType;
   readonly buildings: Building[];
   readonly deathParticles: WorldState['deathParticles'];
   readonly floatingTexts: WorldState['floatingTexts'];
@@ -27,6 +44,7 @@ export interface RenderSnapshot {
   readonly hoveredBuilding: Building | null;
   readonly buildMode: BuildingType | null;
   readonly buildGhost: ViewState['buildGhost'];
+  readonly buildStripPreview: ViewState['buildStripPreview'];
   readonly buildRotation: ViewState['buildRotation'];
   readonly showGrid: boolean;
   readonly showPaths: boolean;
@@ -38,16 +56,48 @@ export interface RenderSnapshot {
   readonly pollutionLevel: number;
   readonly renffrOmen: WorldState['renffrOmen'];
   readonly unlockedTechs: readonly string[];
+  readonly researchNodes: readonly ResearchNode[];
   readonly hasBlacksmith: boolean;
   readonly villageForge: WorldState['villageForge'];
   readonly villageLeaderId: number | null;
   readonly pendingRaidEvents: WorldState['pendingRaidEvents'];
   readonly juiceEffectsEnabled: boolean;
+  /** Phase B — canvas reads kinematics from transferable buffer when set. */
+  readonly renderSoA: RenderSoAReaderV1 | null;
+  readonly renderMetaBySlot: EntityRenderMeta[] | null;
+  readonly scentGrid: ScentGrid | null;
+  readonly scentReader: ScentGridReader | null;
+  /** Tick-persistent grass spatial index — sim path from world; worker path from render SoA. */
+  readonly grassGrid: EntitySpatialGrid | null;
 }
 
-export function buildRenderSnapshot(world: WorldState, view: ViewState): RenderSnapshot {
+export function buildRenderSnapshot(
+  world: WorldState,
+  view: ViewState,
+  options: RenderSnapshotOptions = {},
+): RenderSnapshot {
+  const catalog = options.catalog;
+  const selectedEntity = catalog?.get(view.selectedEntityId)
+    ?? resolveEntity(world, view.selectedEntityId);
+  const entityByType = world.entityByType
+    ?? catalog?.getEntityByType()
+    ?? buildEntityByType(world.entities);
+  const entities = catalog?.getAlive() ?? world.entities;
+
+  let grassGrid: EntitySpatialGrid | null = world.grassGrid ?? null;
+  if (options.renderSoA) {
+    grassGrid = syncGrassRenderGridFromSoA(
+      options.renderSoA,
+      options.renderMetaBySlot,
+      world.width,
+      world.height,
+      world.tick,
+    ) ?? grassGrid;
+  }
+
   return {
-    entities: world.entities,
+    entities,
+    entityByType,
     buildings: world.buildings,
     deathParticles: world.deathParticles,
     floatingTexts: world.floatingTexts,
@@ -63,11 +113,12 @@ export function buildRenderSnapshot(world: WorldState, view: ViewState): RenderS
     disasters: world.disasters,
     camera: view.camera,
     screenShake: view.screenShake,
-    selectedEntity: resolveEntity(world, view.selectedEntityId),
+    selectedEntity,
     selectedBuilding: resolveBuilding(world, view.selectedBuildingId),
     hoveredBuilding: resolveBuilding(world, view.hoveredBuildingId),
     buildMode: view.buildMode,
     buildGhost: view.buildGhost,
+    buildStripPreview: view.buildStripPreview,
     buildRotation: view.buildRotation,
     showGrid: view.showGrid,
     showPaths: view.showPaths,
@@ -79,10 +130,16 @@ export function buildRenderSnapshot(world: WorldState, view: ViewState): RenderS
     pollutionLevel: world.pollutionLevel,
     renffrOmen: world.renffrOmen ?? null,
     unlockedTechs: world.unlockedTechs,
+    researchNodes: world.researchNodes,
     hasBlacksmith: world.buildings.some((b) => b.completed && b.type === BuildingType.Blacksmith),
     villageForge: world.villageForge,
     villageLeaderId: world.villageLeaderId,
     pendingRaidEvents: world.pendingRaidEvents ?? [],
     juiceEffectsEnabled: loadJuiceEffectsEnabled(),
+    renderSoA: options.renderSoA ?? null,
+    renderMetaBySlot: options.renderMetaBySlot ?? null,
+    scentGrid: options.scentGrid ?? null,
+    scentReader: options.scentReader ?? null,
+    grassGrid,
   };
 }

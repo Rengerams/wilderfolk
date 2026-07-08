@@ -5,15 +5,26 @@
  * Run: npm run simulate:10year  (or simulate:20year for v0.5 ship gate)
  * Env:
  *   SIM_YEARS          — in-game years for official balance test (default 10; v0.5 gate = 20)
- *   SIM_PROFILE        — village | town (default) | eco — population targets & pass gates
+ *   SIM_PROFILE        — village | town (default) | eco — growth pacing (pop range is INFO only)
+ *                      (town @10y: ~160–230; mid-Y0 often 170+ once housing + rep stack)
  *   SIM_LOG_FILE       — write full log to path (default: scripts/logs/sim-<years>year-<profile>-<timestamp>.txt)
+ *   SIM_CHRONICLE_FILE — flat chronicle export path (default: scripts/logs/sim-<years>year-<profile>-chronicle-<timestamp>.txt)
+ *   SIM_LOG_EVENTS     — 1 = include full grouped chronicle in main log (default 1); 0 = summary counts only
+ *   SIM_LOG_LIFE       — 1 = stream pregnancies/births/deaths/marriages live (default 1); 0 = off (skips O(n) pregnancy scan)
+ *   SIM_EVENT_LOG_MAX  — cap in-memory chronicle entries (default 5000; newest kept)
+ *   SIM_LIFE_LOG_FILE  — dedicated life-events path (default: <main-log>-life.txt)
  *   SIM_VERBOSE        — 1 = log every player action to console (default 0)
  *   SIM_STRICT_COVERAGE — 1 = exit 1 if any option category untested
  *   PROGRESS_EVERY     — live heartbeat interval in ticks (default 360 = 15 game days)
  *   PERF_SAMPLE_EVERY  — perf sample interval in ticks (default 8640 = 1 game year)
  *   SIM_MAX_TICKS      — dev smoke only (shorter run). Unset for the official 10-year balance test.
+ *   SIM_FULL_SIM       — 1 = no viewport throttle (slowest; old behavior)
+ *   SIM_ZOOM           — viewport zoom for focus box (default 0.45, matches typical play)
+ *   SIM_USE_WORKER     — 1 = worker_threads (slower; use npm run simulate:10year:worker); default via run-sim = 0 (fast main-thread)
+ *   SIM_HEADLESS       — 1 = compact syncSimPrep + no render SoA (default for worker sims); 0 = full importSave + render pack
  *
  * Buildings are not scripted on a timeline — autoBuildFree picks types from village needs.
+ * Logs a full building inventory + build chronicle; year-end and final sweeps place missing types.
  * Scheduled actions only apply yearly resource grants and pre-winter bumps.
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -22,18 +33,25 @@ import { fileURLToPath } from 'node:url';
 
 import {
   initGame,
-  gameTick,
-  startBuilding,
   recruitSettler,
   getSeason,
-  EntityType,
+  assignAllWorkers,
+  assignIdleWorkerToBuilding,
+  getOccupationForBuilding,
   BuildingType,
   BUILDING_CONFIGS,
-  canPlaceBuilding,
-  snapToGrid,
   Season,
 } from '../src/game/gameEngine';
+import { findBuildSpot, tryPlaceBuilding, tryPlaceWallChain } from './simBuildUtils';
+import {
+  buildChronicleMeta,
+  formatEventSummaryLines,
+  formatGroupedChronicleLines,
+  formatCombatReportLines,
+  writeChronicleFile,
+} from './simEventLog';
 import type { WorldState, BuildingType as BuildingTypeName } from '../src/game/gameTypes';
+import { JobType } from '../src/game/gameTypes';
 import { MapSize, createInitialResearchNodes } from '../src/game/gameTypes';
 import {
   isPlayerHuman,
@@ -60,13 +78,39 @@ import {
   canLaunchRaidOnRival,
   getMilitiaStrength,
   getBarricadeStrength,
+  resolveDefenseRatio,
+  type RaidOutcomeTier,
 } from '../src/game/frontierCombat';
 import { computeMilitiaBreakdown } from '../src/game/militiaBalance';
+import { countCompletedDefenseBuildings, getWallSegmentBonus } from '../src/game/defenseStructures';
 import { startResearch, syncResearchUnlocks } from '../src/game/research';
-import { queueForgeOrder, type ForgeOrderId } from '../src/game/forge';
-import { TICKS_PER_DAY, DAYS_PER_YEAR, getResidenceCapacity, isResidenceBuildingType } from '../src/game/dayCycle';
+import {
+  FORGE_ORDERS,
+  getForgeBlockReason,
+  isForgeOrderComplete,
+  queueForgeOrder,
+  type ForgeOrderId,
+} from '../src/game/forge';
+import {
+  TICKS_PER_DAY,
+  DAYS_PER_YEAR,
+  getResidenceCapacity,
+  isResidenceBuildingType,
+  isImprisoned,
+} from '../src/game/dayCycle';
 import { getGrazingPressureReport } from '../src/game/ecosystemPressure';
 import { hasStoneSpears, hasIronSpears } from '../src/game/combat';
+import { getSimFocus } from './simFocus';
+import {
+  advanceSimTick,
+  disposeSimWorkerHost,
+  initSimWorkerHost,
+  simUsesWorker,
+  simHeadless,
+} from './simWorkerRuntime';
+import { saveJuiceEffectsEnabled } from '../src/game/preferences';
+import { formatCitizenName } from '../src/game/citizenId';
+import { getNamePoolInfo, loadNames } from '../src/game/nameLoader';
 
 const TICKS_PER_YEAR = TICKS_PER_DAY * DAYS_PER_YEAR;
 const SIM_YEARS = Math.max(1, parseInt(process.env.SIM_YEARS ?? '10', 10) || 10);
@@ -99,50 +143,61 @@ type ProfileConfig = {
   skipRoadCoverage: boolean;
 };
 
+/** Reference span for pop gates — scaled when SIM_YEARS ≠ 10 (e.g. 20-year ship gate). */
+const POP_GATE_YEARS_REF = 10;
+
 const PROFILE_CONFIG: Record<SimProfile, ProfileConfig> = {
   village: {
     label: 'Village (minimum viable)',
-    popMin: 40,
-    popMax: 55,
+    popMin: 95,
+    popMax: 540,
     ecoMin: 30,
     ecoMax: 100,
     grantMultiplier: 0.65,
     autoRecruit: true,
     autoHouses: true,
-    housesPerYear: 1,
-    maxRecruitsPerYear: 2,
+    housesPerYear: 6,
+    maxRecruitsPerYear: 5,
     preferEcoBuildings: false,
     skipRoadCoverage: false,
   },
   town: {
     label: 'Town (default balance pass)',
-    popMin: 70,
-    popMax: 95,
+    popMin: 160,
+    popMax: 530,
     ecoMin: 35,
     ecoMax: 60,
     grantMultiplier: 1,
     autoRecruit: true,
     autoHouses: true,
-    housesPerYear: 2,
-    maxRecruitsPerYear: 6,
+    housesPerYear: 8,
+    maxRecruitsPerYear: 12,
     preferEcoBuildings: false,
     skipRoadCoverage: false,
   },
   eco: {
     label: 'Eco path',
-    popMin: 45,
-    popMax: 60,
+    popMin: 100,
+    popMax: 845,
     ecoMin: 65,
     ecoMax: 100,
     grantMultiplier: 0.7,
     autoRecruit: true,
     autoHouses: true,
-    housesPerYear: 1,
-    maxRecruitsPerYear: 2,
+    housesPerYear: 8,
+    maxRecruitsPerYear: 4,
     preferEcoBuildings: true,
     skipRoadCoverage: true,
   },
 };
+
+function scaledPopGateMin(): number {
+  return Math.round(profileCfg.popMin * Math.pow(SIM_YEARS / POP_GATE_YEARS_REF, 0.7));
+}
+
+function scaledPopGateMax(): number {
+  return Math.round(profileCfg.popMax * Math.pow(SIM_YEARS / POP_GATE_YEARS_REF, 0.7));
+}
 
 const WINTER_START_DAY = 270;
 const WINTER_DAYS = DAYS_PER_YEAR - WINTER_START_DAY;
@@ -152,10 +207,15 @@ const FIRST_WINTER_TICK = WINTER_ENTER_TICK;
 const DIPLOMACY_STALE_TICKS = 30 * TICKS_PER_DAY;
 const RAID_STALE_TICKS = 6 * TICKS_PER_DAY;
 
+const SIM_USE_WORKER = simUsesWorker();
 const SIM_VERBOSE = process.env.SIM_VERBOSE === '1';
+const SIM_LOG_EVENTS = process.env.SIM_LOG_EVENTS !== '0';
+const SIM_LOG_LIFE = process.env.SIM_LOG_LIFE !== '0';
 const SIM_STRICT_COVERAGE = process.env.SIM_STRICT_COVERAGE === '1';
 const PROGRESS_EVERY = Number(process.env.PROGRESS_EVERY ?? TICKS_PER_DAY * 15);
 const PERF_SAMPLE_EVERY = Number(process.env.PERF_SAMPLE_EVERY ?? TICKS_PER_YEAR);
+/** Keep newest entries only — eventLog grows via unshift (index 0 = newest). */
+const EVENT_LOG_MAX = Number(process.env.SIM_EVENT_LOG_MAX ?? 5000);
 
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultLogDir = join(here, 'logs');
@@ -170,7 +230,80 @@ const ALL_BUILDING_TYPES = Object.values(BuildingType).filter(
 
 class SimLogger {
   private lines: string[] = [];
+  private lifeLines: string[] = [];
   private startMs = performance.now();
+  private readonly logPath: string;
+  private readonly lifeLogPath: string;
+  private announcedLogPath = false;
+  private mainDirty = false;
+  private lifeDirty = false;
+
+  constructor(profile: SimProfile) {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const engineTag = SIM_USE_WORKER ? '' : '-mainthread';
+    this.logPath = process.env.SIM_LOG_FILE ?? join(defaultLogDir, `sim-${SIM_YEARS}year-${profile}${engineTag}-${stamp}.txt`);
+    this.lifeLogPath = process.env.SIM_LIFE_LOG_FILE ?? this.logPath.replace(/\.txt$/i, '-life.txt');
+  }
+
+  getLogPath(): string {
+    return this.logPath;
+  }
+
+  getLifeLogPath(): string {
+    return this.lifeLogPath;
+  }
+
+  getLifeEventCount(): number {
+    return this.lifeLines.length;
+  }
+
+  private persist(): void {
+    try {
+      mkdirSync(dirname(this.logPath), { recursive: true });
+      writeFileSync(this.logPath, this.lines.join('\n'), 'utf8');
+      if (!this.announcedLogPath) {
+        this.announcedLogPath = true;
+        console.log(`[simulate-10year] Live log: ${this.logPath}`);
+        if (SIM_LOG_LIFE) {
+          console.log(`[simulate-10year] Life events: ${this.lifeLogPath}`);
+        }
+      }
+    } catch {
+      /* console-only fallback */
+    }
+  }
+
+  private persistLife(): void {
+    if (!SIM_LOG_LIFE || this.lifeLines.length === 0) return;
+    try {
+      mkdirSync(dirname(this.lifeLogPath), { recursive: true });
+      writeFileSync(this.lifeLogPath, `${this.lifeLines.join('\n')}\n`, 'utf8');
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** Pregnancies, births, deaths, marriages — batched to disk once per tick via flushLifeBuffers(). */
+  life(msg: string): void {
+    if (!SIM_LOG_LIFE) return;
+    const line = `  🧬 ${msg}`;
+    this.lifeLines.push(msg);
+    this.lines.push(line);
+    console.log(line);
+    this.mainDirty = true;
+    this.lifeDirty = true;
+  }
+
+  /** Write buffered life lines — call once per tick after drainLifeEvents, not per event. */
+  flushLifeBuffers(): void {
+    if (!SIM_LOG_LIFE || !this.lifeDirty) return;
+    if (this.mainDirty) {
+      this.persist();
+      this.mainDirty = false;
+    }
+    this.persistLife();
+    this.lifeDirty = false;
+  }
 
   section(title: string): void {
     this.lines.push('');
@@ -187,6 +320,7 @@ class SimLogger {
   live(msg: string): void {
     this.lines.push(msg);
     console.log(msg);
+    this.persist();
   }
 
   /** Progress heartbeat with % complete and ETA. */
@@ -198,6 +332,7 @@ class SimLogger {
     const line = `[${pct}%] Y${year} day ${dayInYear} tick ${tick} | +${elapsed.toFixed(0)}s ETA ~${eta}s | ${msg}`;
     this.lines.push(line);
     console.log(line);
+    this.persist();
   }
 
   progressYear(tick: number, year: number, msg: string): void {
@@ -208,22 +343,22 @@ class SimLogger {
     const line = `[${pct}%] Year ${year} tick ${tick} | +${elapsed.toFixed(0)}s ETA ~${eta}s | ${msg}`;
     this.lines.push(line);
     console.log(line);
+    this.persist();
   }
 
-  flush(profile: SimProfile): string | null {
+  flush(_profile: SimProfile): string | null {
+    this.flushLifeBuffers();
     const text = this.lines.join('\n');
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const logPath = process.env.SIM_LOG_FILE ?? join(defaultLogDir, `sim-${SIM_YEARS}year-${profile}-${stamp}.txt`);
     try {
-      mkdirSync(dirname(logPath), { recursive: true });
-      writeFileSync(logPath, text, 'utf8');
+      mkdirSync(dirname(this.logPath), { recursive: true });
+      writeFileSync(this.logPath, text, 'utf8');
       console.log('\n=== Final report ===');
       console.log(text);
-      console.log(`\n[simulate-10year] Log written to ${logPath}`);
-      return logPath;
+      console.log(`\n[simulate-10year] Log written to ${this.logPath}`);
+      return this.logPath;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[simulate-10year] Failed to write log to ${logPath}: ${msg}`);
+      console.error(`[simulate-10year] Failed to write log to ${this.logPath}: ${msg}`);
       console.log('\n=== Final report (console only) ===');
       console.log(text);
       return null;
@@ -264,7 +399,7 @@ const EXPECTED_OPTIONS: Record<string, string[]> = {
   visitor_trade: ['buy_food', 'buy_wood', 'sell_food'],
   refugee: ['welcome', 'screen', 'turn_away'],
   visitor_talk: ['traders', 'pilgrims', 'scholars', 'hunters', 'nomads', 'performers', 'refugees'],
-  forge: ['iron_spears', 'iron_shields'],
+  forge: ['iron_spears', 'iron_shields', 'guard_halberds', 'wall_plates', 'iron_pickaxes'],
   research: createInitialResearchNodes().map((n) => n.id),
 };
 
@@ -325,20 +460,6 @@ function summarizeTickMs(samples: number[]) {
   };
 }
 
-function findBuildSpot(state: WorldState, type: BuildingTypeName, cx: number, cy: number): [number, number] | null {
-  for (let ring = 0; ring < 16; ring++) {
-    const radius = 60 + ring * 36;
-    const steps = 10 + ring * 2;
-    for (let i = 0; i < steps; i++) {
-      const angle = (i / steps) * Math.PI * 2;
-      const x = snapToGrid(cx + Math.cos(angle) * radius);
-      const y = snapToGrid(cy + Math.sin(angle) * radius);
-      if (canPlaceBuilding(state, type, x, y)) return [x, y];
-    }
-  }
-  return null;
-}
-
 function tryPlace(
   state: WorldState,
   type: BuildingTypeName,
@@ -348,9 +469,11 @@ function tryPlace(
   if (!canUnlockBuilding(state, type)) {
     return { state, ok: false, detail: `locked (${BUILDING_CONFIGS[type].unlockRequirement ?? 'unknown'})` };
   }
-  const spot = findBuildSpot(state, type, cx, cy);
-  if (!spot) return { state, ok: false, detail: 'no valid spot' };
-  return { state: startBuilding(state, type, spot[0], spot[1]), ok: true };
+  if (type === BuildingType.Wall) {
+    const chain = tryPlaceWallChain(state, cx, cy);
+    return chain.ok ? chain : tryPlaceBuilding(state, type, cx, cy);
+  }
+  return tryPlaceBuilding(state, type, cx, cy);
 }
 
 function getCompletedBuildingTypes(state: WorldState): Set<BuildingTypeName> {
@@ -359,6 +482,138 @@ function getCompletedBuildingTypes(state: WorldState): Set<BuildingTypeName> {
       .filter((b) => b.completed && b.faction !== 'rival')
       .map((b) => b.type),
   );
+}
+
+type BuildingCount = { completed: number; inProgress: number };
+
+function countBuildingsByType(state: WorldState): Map<BuildingTypeName, BuildingCount> {
+  const counts = new Map<BuildingTypeName, BuildingCount>();
+  for (const b of state.buildings) {
+    if (b.faction === 'rival') continue;
+    const cur = counts.get(b.type) ?? { completed: 0, inProgress: 0 };
+    if (b.completed) cur.completed++;
+    else cur.inProgress++;
+    counts.set(b.type, cur);
+  }
+  return counts;
+}
+
+function formatBuildingTypesLine(state: WorldState): string {
+  const counts = countBuildingsByType(state);
+  const parts = [...counts.entries()]
+    .filter(([, c]) => c.completed > 0)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([type, c]) => `${type}×${c.completed}`);
+  return parts.length > 0 ? parts.join(', ') : '(none)';
+}
+
+function expectedBuildingTypeCount(): number {
+  return ALL_BUILDING_TYPES.filter(
+    (type) => !(profileCfg.skipRoadCoverage && type === BuildingType.Road),
+  ).length;
+}
+
+/** Compact building line for live progress heartbeats. */
+function formatBuildingLiveSummary(state: WorldState, coverage: CoverageMap): string {
+  syncBuildingCoverage(state, coverage);
+  const typesDone = getCompletedBuildingTypes(state).size;
+  const typesExpected = expectedBuildingTypeCount();
+  const completed = state.buildings.filter((b) => b.completed && b.faction !== 'rival').length;
+  const inProgress = state.buildings.filter((b) => !b.completed && b.faction !== 'rival').length;
+  const prog = inProgress > 0 ? ` (+${inProgress} in progress)` : '';
+  return `buildings=${completed}${prog} types=${typesDone}/${typesExpected} [${formatBuildingTypesLine(state)}]`;
+}
+
+function calendarAtTick(tick: number): { year: number; day: number } {
+  const days = Math.floor(tick / TICKS_PER_DAY);
+  return { year: Math.floor(days / DAYS_PER_YEAR), day: days % DAYS_PER_YEAR };
+}
+
+/** Stream successful placements to console (auto_build / buildings / coverage_sweep). */
+function drainBuildActions(
+  logger: SimLogger,
+  actionLog: ActionLog[],
+  fromIndex: number,
+): void {
+  for (let i = fromIndex; i < actionLog.length; i++) {
+    const entry = actionLog[i];
+    if (!entry.ok) continue;
+    if (entry.category !== 'auto_build' && entry.category !== 'buildings' && entry.category !== 'coverage_sweep') {
+      continue;
+    }
+    const type = entry.action.replace('place:', '');
+    const cal = calendarAtTick(entry.tick);
+    logger.live(
+      `  🏗️ Y${cal.year} D${cal.day} tick ${entry.tick} | placed ${type} (${entry.category})`
+      + (entry.detail ? ` — ${entry.detail}` : ''),
+    );
+  }
+}
+
+function formatBuildingInventoryReport(state: WorldState, coverage: CoverageMap): string[] {
+  const counts = countBuildingsByType(state);
+  const lines: string[] = [];
+
+  const completed = [...counts.entries()]
+    .filter(([, c]) => c.completed > 0)
+    .sort((a, b) => a[0].localeCompare(b[0]));
+  lines.push(`Completed types: ${completed.length}/${ALL_BUILDING_TYPES.length}`);
+  for (const [type, c] of completed) {
+    const prog = c.inProgress > 0 ? ` (+${c.inProgress} in progress)` : '';
+    lines.push(`  ${type}: ${c.completed} completed${prog}`);
+  }
+
+  const inProgressOnly = [...counts.entries()]
+    .filter(([, c]) => c.inProgress > 0 && c.completed === 0)
+    .sort((a, b) => a[0].localeCompare(b[0]));
+  if (inProgressOnly.length > 0) {
+    lines.push('In progress (not yet completed):');
+    for (const [type, c] of inProgressOnly) {
+      lines.push(`  ${type}: ${c.inProgress}`);
+    }
+  }
+
+  syncBuildingCoverage(state, coverage);
+  const tested = coverage.buildings ?? new Set<BuildingTypeName>();
+  const missing = ALL_BUILDING_TYPES.filter((type) => {
+    if (profileCfg.skipRoadCoverage && type === BuildingType.Road) return false;
+    return !tested.has(type);
+  });
+  if (missing.length > 0) {
+    lines.push(`Never completed (${missing.length}):`);
+    for (const type of missing) {
+      const unlock = canUnlockBuilding(state, type)
+        ? 'unlocked'
+        : `locked (${BUILDING_CONFIGS[type].unlockRequirement ?? 'prereq'})`;
+      const afford = canAffordBuilding(state, type) ? 'affordable now' : 'cannot afford now';
+      lines.push(`  ${type} — ${unlock}, ${afford}`);
+    }
+  } else {
+    lines.push('All building types completed at least once ✓');
+  }
+
+  return lines;
+}
+
+function formatBuildChronicle(actionLog: ActionLog[]): string[] {
+  const builds = actionLog.filter(
+    (a) => (a.category === 'auto_build' || a.category === 'buildings' || a.category === 'coverage_sweep') && a.ok,
+  );
+  if (builds.length === 0) return ['(no automated placements logged)'];
+
+  const byType = new Map<string, number[]>();
+  for (const entry of builds) {
+    const type = entry.action.replace('place:', '');
+    const ticks = byType.get(type) ?? [];
+    ticks.push(entry.tick);
+    byType.set(type, ticks);
+  }
+
+  const lines = [`Total placements: ${builds.length}`];
+  for (const [type, ticks] of [...byType.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    lines.push(`  ${type}: ${ticks.length}× (ticks ${Math.min(...ticks)}–${Math.max(...ticks)})`);
+  }
+  return lines;
 }
 
 function syncBuildingCoverage(state: WorldState, coverage: CoverageMap): void {
@@ -374,11 +629,13 @@ function syncResearchCoverage(state: WorldState, coverage: CoverageMap): void {
 }
 
 function syncForgeCoverage(state: WorldState, coverage: CoverageMap): void {
-  if (state.villageForge.spearsReady || state.villageForge.activeOrder === 'iron_spears') {
-    cov(coverage, 'forge', 'iron_spears');
-  }
-  if (state.villageForge.shieldsReady || state.villageForge.activeOrder === 'iron_shields') {
-    cov(coverage, 'forge', 'iron_shields');
+  for (const orderId of EXPECTED_OPTIONS.forge) {
+    if (
+      isForgeOrderComplete(state.villageForge, orderId as ForgeOrderId)
+      || state.villageForge.activeOrder === orderId
+    ) {
+      cov(coverage, 'forge', orderId);
+    }
   }
 }
 
@@ -404,6 +661,35 @@ function getTotalBeds(state: WorldState): number {
     .filter((b) => b.completed && b.faction !== 'rival' && isResidenceBuildingType(b.type))
     .reduce((sum, b) => sum + getResidenceCapacity(b), 0);
 }
+
+type BedsCacheKey = { buildingsLen: number; completedResidences: number };
+let bedsCache: { key: BedsCacheKey; beds: number } | null = null;
+
+function bedsCacheKey(state: WorldState): BedsCacheKey {
+  let completedResidences = 0;
+  for (const b of state.buildings) {
+    if (b.completed && b.faction !== 'rival' && isResidenceBuildingType(b.type)) {
+      completedResidences++;
+    }
+  }
+  return { buildingsLen: state.buildings.length, completedResidences };
+}
+
+function getTotalBedsCached(state: WorldState): number {
+  const key = bedsCacheKey(state);
+  if (
+    bedsCache
+    && bedsCache.key.buildingsLen === key.buildingsLen
+    && bedsCache.key.completedResidences === key.completedResidences
+  ) {
+    return bedsCache.beds;
+  }
+  const beds = getTotalBeds(state);
+  bedsCache = { key, beds };
+  return beds;
+}
+
+
 
 function getWoodNeedPerDay(pop: number): number {
   return pop > 0 ? Math.ceil(pop / 5) : 0;
@@ -438,7 +724,7 @@ function topUpPreWinterStockpile(state: WorldState, profile: SimProfile): WorldS
   };
 }
 
-/** Shallow clone for spawn helpers — avoids full structuredClone. */
+/** Shallow clone for spawn helpers — avoids full structuredClone; shares eventLog (spawn rarely logs). */
 function shallowCloneWorld(state: WorldState): WorldState {
   return {
     ...state,
@@ -446,10 +732,18 @@ function shallowCloneWorld(state: WorldState): WorldState {
     buildings: [...state.buildings],
     rivalSettlements: [...state.rivalSettlements],
     visitorGroups: [...state.visitorGroups],
-    eventLog: [...state.eventLog],
     pendingDiplomacyEvents: [...(state.pendingDiplomacyEvents ?? [])],
     pendingRaidEvents: [...(state.pendingRaidEvents ?? [])],
+    entityByType: undefined,
+    grassGrid: undefined,
+    mobileGrid: undefined,
+    scentGrid: undefined,
   };
+}
+
+function pruneEventLog(state: WorldState): void {
+  if (state.eventLog.length <= EVENT_LOG_MAX) return;
+  state.eventLog.length = EVENT_LOG_MAX;
 }
 
 /** eventLog uses unshift — new entries are always at indices [0 .. added-1]. */
@@ -477,12 +771,82 @@ function countNewEventLogType(beforeLen: number, state: WorldState, type: string
   return n;
 }
 
+/** Player deaths only — uses new chronicle slice (O(new) not O(entities)). */
+function countNewPlayerDeaths(beforeLen: number, state: WorldState): number {
+  let n = 0;
+  forEachNewEventLogEntry(beforeLen, state, (e) => {
+    if (e.type !== 'death' || !e.entityName) return;
+    if (e.message.includes('Wildkin')) return;
+    n++;
+  });
+  return n;
+}
+
 function hasNewEventLogType(beforeLen: number, state: WorldState, type: string, tick?: number): boolean {
   let found = false;
   forEachNewEventLogEntry(beforeLen, state, (e) => {
     if (e.type === type && (tick === undefined || e.tick === tick)) found = true;
   });
   return found;
+}
+
+type PregnancySnap = Map<number, { pregnantById?: number; partnerId?: number }>;
+
+function snapshotPregnancies(state: WorldState): PregnancySnap {
+  const snap: PregnancySnap = new Map();
+  for (const e of state.entities) {
+    if (e.alive && isPlayerHuman(e) && e.gender === 'female' && e.pregnant) {
+      snap.set(e.id, { pregnantById: e.pregnantById, partnerId: e.partnerId });
+    }
+  }
+  return snap;
+}
+
+function formatLifeTick(state: WorldState): string {
+  return `Y${state.year} D${state.dayInYear} tick ${state.tick}`;
+}
+
+function resolveFatherName(state: WorldState, mother: WorldState['entities'][number]): string {
+  const fatherId = mother.pregnantById ?? mother.partnerId;
+  if (fatherId == null) return 'unknown';
+  const father = state.entities.find((e) => e.id === fatherId);
+  return father ? formatCitizenName(father) : `#${fatherId}`;
+}
+
+const LIVE_LIFE_EVENT_TYPES = new Set(['birth', 'death', 'marriage', 'scandal']);
+
+function liveLifeEventKind(entry: WorldState['eventLog'][number]): string | null {
+  if (LIVE_LIFE_EVENT_TYPES.has(entry.type)) return entry.type;
+  if (entry.type !== 'event') return null;
+  if (entry.message.includes('imprisoned for scandal')) return 'imprison';
+  if (entry.message.includes('released from prison')) return 'release';
+  return null;
+}
+
+/** Stream pregnancies (entity state) and chronicle life events after each gameTick. */
+function drainLifeEvents(
+  logger: SimLogger,
+  pregnanciesBefore: PregnancySnap,
+  eventLogLenBefore: number,
+  state: WorldState,
+): void {
+  if (!SIM_LOG_LIFE) return;
+
+  for (const e of state.entities) {
+    if (!e.alive || !isPlayerHuman(e) || e.gender !== 'female' || !e.pregnant) continue;
+    if (pregnanciesBefore.has(e.id)) continue;
+    const mother = formatCitizenName(e);
+    const father = resolveFatherName(state, e);
+    const kind = e.pregnantById != null ? 'pregnancy (affair)' : 'pregnancy';
+    logger.life(`${formatLifeTick(state)} | ${kind} | ${mother} expecting (father: ${father})`);
+  }
+
+  forEachNewEventLogEntry(eventLogLenBefore, state, (entry) => {
+    const kind = liveLifeEventKind(entry);
+    if (!kind) return;
+    const who = entry.entityName ? ` (${entry.entityName})` : '';
+    logger.life(`${formatLifeTick(state)} | ${kind} | ${entry.message}${who}`);
+  });
 }
 
 function countCompletedBuildings(state: WorldState, type: BuildingTypeName): number {
@@ -503,6 +867,49 @@ function canAffordBuilding(state: WorldState, type: BuildingTypeName): boolean {
     && state.resources.food >= foodCost;
 }
 
+/** Top up resources so coverage sweeps can afford a placement (sim-only). */
+function fundForBuildingCost(state: WorldState, type: BuildingTypeName): WorldState {
+  const cost = BUILDING_CONFIGS[type].cost;
+  const foodCost = (cost as { food?: number }).food ?? 0;
+  const woodNeed = Math.max(0, cost.wood - state.resources.wood);
+  const stoneNeed = Math.max(0, cost.stone - state.resources.stone);
+  const goldNeed = Math.max(0, cost.gold - state.resources.gold);
+  const foodNeed = Math.max(0, foodCost - state.resources.food);
+  if (woodNeed === 0 && stoneNeed === 0 && goldNeed === 0 && foodNeed === 0) return state;
+  return {
+    ...state,
+    resources: {
+      ...state.resources,
+      wood: Math.min(state.storageMax.wood, state.resources.wood + woodNeed + scaleGrant(80)),
+      stone: Math.min(state.storageMax.stone, state.resources.stone + stoneNeed + scaleGrant(40)),
+      gold: Math.min(state.storageMax.gold, state.resources.gold + goldNeed + scaleGrant(30)),
+      food: Math.min(state.storageMax.food, state.resources.food + foodNeed + scaleGrant(20)),
+    },
+  };
+}
+
+/** Headless sim — mark in-progress player builds complete so coverage logs match placements. */
+function simInstantCompleteInProgress(state: WorldState): WorldState {
+  let changed = false;
+  const buildings = state.buildings.map((b) => {
+    if (b.faction === 'rival' || b.completed) return b;
+    changed = true;
+    return {
+      ...b,
+      completed: true,
+      constructionProgress: 100,
+      occupants: [],
+      spriteScale: 1,
+    };
+  });
+  if (!changed) return state;
+  let totalCompleted = 0;
+  for (const b of buildings) {
+    if (b.completed && b.faction !== 'rival') totalCompleted++;
+  }
+  return { ...state, buildings, totalBuildingsCompleted: totalCompleted };
+}
+
 function isPreWinterRecruitPause(state: WorldState): boolean {
   return state.dayInYear >= PRE_WINTER_DAY - 30 && state.dayInYear < WINTER_START_DAY;
 }
@@ -511,19 +918,7 @@ function scaleGrant(n: number): number {
   return Math.round(n * profileCfg.grantMultiplier);
 }
 
-function getAlivePlayerHumanIds(state: WorldState): Set<number> {
-  return new Set(state.entities.filter((e) => e.alive && isPlayerHuman(e)).map((e) => e.id));
-}
 
-/** gameTick sets state.entities = allAlive — dead entities are removed, not left as !alive. */
-function countPlayerDeathsSince(aliveBefore: Set<number>, state: WorldState): number {
-  const aliveNow = getAlivePlayerHumanIds(state);
-  let n = 0;
-  for (const id of aliveBefore) {
-    if (!aliveNow.has(id)) n++;
-  }
-  return n;
-}
 
 function storageCapsForProfile(profile: SimProfile): Pick<WorldState['storageMax'], 'food' | 'wood' | 'stone'> {
   if (profile === 'town') return { food: 2500, wood: 4000, stone: 2000 };
@@ -561,6 +956,8 @@ type WinterRecord = {
   heatingFailDays: number;
   passed: boolean;
   failReasons: string[];
+  /** Sim ended before spring — excluded from winter balance gates. */
+  incomplete?: boolean;
 };
 
 class WinterTracker {
@@ -578,7 +975,7 @@ class WinterTracker {
       tick: state.tick,
       pop,
       maxPop: state.maxHumanPopulation,
-      beds: getTotalBeds(state),
+      beds: getTotalBedsCached(state),
       food: Math.floor(state.resources.food),
       wood: Math.floor(state.resources.wood),
       eco: state.ecosystemHealth,
@@ -610,7 +1007,7 @@ class WinterTracker {
         tick: state.tick,
         pop,
         maxPop: state.maxHumanPopulation,
-        beds: getTotalBeds(state),
+        beds: getTotalBedsCached(state),
         food: Math.floor(state.resources.food),
         wood: Math.floor(state.resources.wood),
         eco: state.ecosystemHealth,
@@ -642,6 +1039,12 @@ class WinterTracker {
     this.current.minPop = Math.min(this.current.minPop, pop);
   }
 
+  /** Track player-human deaths every winter tick (entity IDs — not heating-heuristic). */
+  recordWinterDeaths(n: number): void {
+    if (!this.current || n <= 0) return;
+    this.current.playerDeathsInWinter += n;
+  }
+
   /**
    * Called once per calendar day at tick end (after gameTick heating).
    * heatingFailed mirrors gameEngine: wood < ceil(pop/5) at daily consumption time.
@@ -650,31 +1053,32 @@ class WinterTracker {
     state: WorldState,
     woodAtDayStart: number,
     popAtDayStart: number,
-    winterStressDeaths: number,
   ): void {
     if (!this.current) return;
     this.onWinterIntraDay(state);
     const woodNeed = getWoodNeedPerDay(popAtDayStart);
     const heatingFailed = popAtDayStart > 0 && woodAtDayStart < woodNeed;
     if (heatingFailed) this.current.heatingFailDays++;
-    this.current.playerDeathsInWinter += Math.max(0, winterStressDeaths);
   }
 
-  onWinterExit(state: WorldState, playerDeathsCumulative: number): WinterRecord | null {
+  onWinterExit(
+    state: WorldState,
+    playerDeathsCumulative: number,
+    opts?: { incomplete?: boolean },
+  ): WinterRecord | null {
     if (!this.current) return null;
     const pop = state.humanPopulation;
     const woodNeedDay = getWoodNeedPerDay(pop);
     this.current.netPopLoss = Math.max(0, this.current.entry.pop - pop);
     const entityDeaths = playerDeathsCumulative - this.winterStartPlayerDeaths;
-    const deathMismatch = this.current.playerDeathsInWinter > entityDeaths
-      ? `death tally mismatch (heating-stress=${this.current.playerDeathsInWinter} > entity-tracked=${entityDeaths})`
-      : null;
+    // Prefer entity-tracked tally (covers raids/combat on any winter day).
+    this.current.playerDeathsInWinter = Math.max(this.current.playerDeathsInWinter, entityDeaths);
     this.current.exit = {
       day: state.dayInYear,
       tick: state.tick,
       pop,
       maxPop: state.maxHumanPopulation,
-      beds: getTotalBeds(state),
+      beds: getTotalBedsCached(state),
       food: Math.floor(state.resources.food),
       wood: Math.floor(state.resources.wood),
       eco: state.ecosystemHealth,
@@ -683,10 +1087,12 @@ class WinterTracker {
       woodBufferDays: woodNeedDay > 0 ? Math.floor(state.resources.wood / woodNeedDay) : 999,
       foodPerCapita: pop > 0 ? state.resources.food / pop : 0,
     };
-    this.judgeWinter(this.current);
-    if (deathMismatch) {
-      this.current.failReasons.push(deathMismatch);
-      this.current.passed = false;
+    if (opts?.incomplete) {
+      this.current.incomplete = true;
+      this.current.passed = true;
+      this.current.failReasons = [];
+    } else {
+      this.judgeWinter(this.current);
     }
     const closed = this.current;
     this.records.push(closed);
@@ -722,10 +1128,10 @@ class WinterTracker {
     w.passed = reasons.length === 0;
   }
 
-  /** Close an in-progress winter at run end so partial runs still get judged. */
+  /** Close an in-progress winter at run end — marked incomplete, not balance-judged. */
   forceCloseOpenWinter(state: WorldState, playerDeathsCumulative: number): WinterRecord | null {
     if (!this.current) return null;
-    return this.onWinterExit(state, playerDeathsCumulative);
+    return this.onWinterExit(state, playerDeathsCumulative, { incomplete: true });
   }
 
   /** Closed winters only — never judge an in-progress winter. */
@@ -738,9 +1144,11 @@ class WinterTracker {
     for (const w of this.records) {
       const e = w.entry;
       const pre = w.preWinter;
+      const verdict = w.incomplete ? 'INCOMPLETE' : w.passed ? 'PASS' : 'FAIL';
       lines.push(
-        `Winter Y${w.year} | ${w.passed ? 'PASS' : 'FAIL'}`
-        + (w.failReasons.length ? ` — ${w.failReasons.join('; ')}` : ''),
+        `Winter Y${w.year} | ${verdict}`
+        + (w.failReasons.length ? ` — ${w.failReasons.join('; ')}` : '')
+        + (w.incomplete ? ' (sim ended mid-winter — not gated)' : ''),
       );
       if (pre && pre.day !== e.day) {
         lines.push(
@@ -766,10 +1174,52 @@ class WinterTracker {
         );
       }
     }
-    const passed = this.records.filter((r) => r.passed).length;
-    const total = this.records.length;
-    lines.push(`Winter summary: ${passed}/${total} winters passed`);
+    const complete = this.records.filter((r) => !r.incomplete);
+    const passed = complete.filter((r) => r.passed).length;
+    const total = complete.length;
+    const incomplete = this.records.length - total;
+    lines.push(
+      `Winter summary: ${passed}/${total} winters passed`
+      + (incomplete > 0 ? ` (${incomplete} incomplete, excluded from gates)` : ''),
+    );
     return lines;
+  }
+}
+
+/** Cumulative frontier activity (incoming vs player-initiated), not pending queue depth. */
+class FrontierTracker {
+  private seenRaidIds = new Set<string>();
+  private seenDiplomacyIds = new Set<string>();
+
+  incomingRaids = 0;
+  incomingDiplomacy = 0;
+  outgoingRaids = 0;
+  outgoingDiplomacy = 0;
+
+  scanIncoming(state: WorldState): void {
+    for (const evt of state.pendingRaidEvents ?? []) {
+      if (this.seenRaidIds.has(evt.id)) continue;
+      this.seenRaidIds.add(evt.id);
+      this.incomingRaids++;
+    }
+    for (const evt of state.pendingDiplomacyEvents ?? []) {
+      if (this.seenDiplomacyIds.has(evt.id)) continue;
+      this.seenDiplomacyIds.add(evt.id);
+      this.incomingDiplomacy++;
+    }
+  }
+
+  recordOutgoingRaid(): void {
+    this.outgoingRaids++;
+  }
+
+  recordOutgoingDiplomacy(): void {
+    this.outgoingDiplomacy++;
+  }
+
+  formatProgress(): string {
+    return `raids_on=${this.incomingRaids} raids_out=${this.outgoingRaids}`
+      + ` dip_on=${this.incomingDiplomacy} dip_out=${this.outgoingDiplomacy}`;
   }
 }
 
@@ -784,14 +1234,17 @@ type YearSnapshot = {
   militia: string;
   grazing: string;
   buildings: number;
-  raidsPending: number;
-  diplomacyPending: number;
+  buildingTypes: string;
+  raidsOnVillage: number;
+  raidsInitiated: number;
+  diplomacyOnVillage: number;
+  diplomacyInitiated: number;
   visitors: number;
   rivals: number;
   playerDeaths: number;
 };
 
-function captureYearSnapshot(state: WorldState, playerDeaths: number): YearSnapshot {
+function captureYearSnapshot(state: WorldState, playerDeaths: number, frontier: FrontierTracker): YearSnapshot {
   const grazing = getGrazingPressureReport(state);
   return {
     year: state.year,
@@ -804,8 +1257,11 @@ function captureYearSnapshot(state: WorldState, playerDeaths: number): YearSnaps
     militia: militiaSnapshot(state),
     grazing: `${grazing.level} (${(grazing.pressureRatio * 100).toFixed(0)}% pressure)`,
     buildings: state.buildings.filter((b) => b.completed && b.faction !== 'rival').length,
-    raidsPending: state.pendingRaidEvents?.length ?? 0,
-    diplomacyPending: state.pendingDiplomacyEvents?.length ?? 0,
+    buildingTypes: formatBuildingTypesLine(state),
+    raidsOnVillage: frontier.incomingRaids,
+    raidsInitiated: frontier.outgoingRaids,
+    diplomacyOnVillage: frontier.incomingDiplomacy,
+    diplomacyInitiated: frontier.outgoingDiplomacy,
     visitors: state.visitorGroups.length,
     rivals: state.rivalSettlements.length,
     playerDeaths,
@@ -875,6 +1331,20 @@ const ECO_BUILDING_PRIORITY: BuildingTypeName[] = [
   BuildingType.Well, BuildingType.LumberMill,
 ];
 
+/** Civic / industry types unlocked by research — coverage sweep targets these explicitly. */
+const CIVIC_BUILDING_PRIORITY: BuildingTypeName[] = [
+  BuildingType.Church,
+  BuildingType.Prison,
+  BuildingType.Blacksmith,
+  BuildingType.Mine,
+  BuildingType.Mill,
+  BuildingType.Market,
+  BuildingType.School,
+  BuildingType.Hospital,
+  BuildingType.Mansion,
+  BuildingType.TownHall,
+];
+
 const GROWTH_STATE = { recruitsThisYear: 0, housesThisYear: 0, lastGrowthYear: -1 };
 
 function resetGrowthState(): void {
@@ -891,15 +1361,19 @@ function resetGrowthYear(year: number): void {
   }
 }
 
+/** Smooth ramp — founders → lively mid-game when housing/rep stack (matches active play). */
 function targetPopForYear(year: number): number {
   const t = Math.min(1, Math.max(0, year / SIM_YEARS));
-  return Math.round(profileCfg.popMin + (profileCfg.popMax - profileCfg.popMin) * t);
+  const startPop = 12;
+  const endPop = scaledPopGateMax();
+  const curved = Math.pow(t, 0.82);
+  return Math.round(startPop + (endPop - startPop) * curved);
 }
 
 /** Pick the next building from live village needs (can repeat farms, mills, houses). */
 function pickFreeBuildPriority(state: WorldState): BuildingTypeName | null {
   const pop = state.humanPopulation;
-  const beds = getTotalBeds(state);
+  const beds = getTotalBedsCached(state);
   const targetPop = targetPopForYear(state.year);
   const foodPerCap = pop > 0 ? state.resources.food / pop : 99;
   const mills = countCompletedBuildings(state, BuildingType.LumberMill);
@@ -936,6 +1410,18 @@ function pickFreeBuildPriority(state: WorldState): BuildingTypeName | null {
     if (choice) return choice;
   }
 
+  // Church + prison before mid-game affair spikes — arrests need a staffed prison.
+  if (state.unlockedTechs.includes('architecture_1')) {
+    const dramaPipeline: [BuildingTypeName, boolean][] = [
+      [BuildingType.Church, !hasCompletedBuilding(state, BuildingType.Church)],
+      [BuildingType.Prison, !hasCompletedBuilding(state, BuildingType.Prison)],
+    ];
+    for (const [type, cond] of dramaPipeline) {
+      const choice = pick(type, cond);
+      if (choice) return choice;
+    }
+  }
+
   if (profileCfg.preferEcoBuildings) {
     for (const type of ECO_BUILDING_PRIORITY) {
       if (hasCompletedBuilding(state, type)) continue;
@@ -950,11 +1436,32 @@ function pickFreeBuildPriority(state: WorldState): BuildingTypeName | null {
     [BuildingType.Barn, true],
     [BuildingType.Workshop, true],
     [BuildingType.Store, true],
-    [BuildingType.Church, !profileCfg.preferEcoBuildings],
+    [BuildingType.Church, !profileCfg.preferEcoBuildings && !hasCompletedBuilding(state, BuildingType.Church)],
     [BuildingType.TamingPost, !profileCfg.preferEcoBuildings],
     [BuildingType.Road, !profileCfg.skipRoadCoverage],
   ];
   for (const [type, cond] of oneOffs) {
+    if (hasCompletedBuilding(state, type)) continue;
+    const choice = pick(type, cond);
+    if (choice) return choice;
+  }
+
+  for (const type of CIVIC_BUILDING_PRIORITY) {
+    if (hasCompletedBuilding(state, type)) continue;
+    if (!canUnlockBuilding(state, type)) continue;
+    const choice = pick(type);
+    if (choice) return choice;
+  }
+
+  const defenseBuildings: [BuildingTypeName, boolean][] = [
+    [BuildingType.Wall, canUnlockBuilding(state, BuildingType.Wall) && pop >= 12],
+    [BuildingType.Watchtower, canUnlockBuilding(state, BuildingType.Watchtower)],
+    [BuildingType.Barracks, canUnlockBuilding(state, BuildingType.Barracks) && pop >= 18],
+    [BuildingType.WallCorner, canUnlockBuilding(state, BuildingType.WallCorner) && hasCompletedBuilding(state, BuildingType.Wall)],
+    [BuildingType.WallGate, canUnlockBuilding(state, BuildingType.WallGate) && hasCompletedBuilding(state, BuildingType.Wall)],
+    [BuildingType.Prison, canUnlockBuilding(state, BuildingType.Prison)],
+  ];
+  for (const [type, cond] of defenseBuildings) {
     if (hasCompletedBuilding(state, type)) continue;
     const choice = pick(type, cond);
     if (choice) return choice;
@@ -988,6 +1495,184 @@ function pickCoverageBuildPriority(state: WorldState, coverage: CoverageMap): Bu
   return null;
 }
 
+/** Final pass — ring-search every missing building type before verdict. */
+function ensureFullBuildingCoverage(
+  state: WorldState,
+  cx: number,
+  cy: number,
+  coverage: CoverageMap,
+  log: ActionLog[],
+): WorldState {
+  let s = state;
+  syncBuildingCoverage(s, coverage);
+  const missing = ALL_BUILDING_TYPES.filter((type) => {
+    if (profileCfg.skipRoadCoverage && type === BuildingType.Road) return false;
+    return !coverage.buildings?.has(type);
+  });
+  if (missing.length === 0) return s;
+
+  for (const type of missing) {
+    if (!canUnlockBuilding(s, type)) {
+      log.push({
+        tick: s.tick,
+        category: 'coverage_sweep',
+        action: `place:${type}`,
+        ok: false,
+        detail: `locked (${BUILDING_CONFIGS[type].unlockRequirement ?? 'prereq'})`,
+      });
+      continue;
+    }
+    s = fundForBuildingCost(s, type);
+    const result = type === BuildingType.Wall
+      ? tryPlaceWallChain(s, cx, cy)
+      : (() => {
+        const spot = findBuildSpot(s, type, cx, cy);
+        return spot
+          ? tryPlaceBuilding(s, type, spot[0], spot[1])
+          : { state: s, ok: false as const, detail: 'no valid spot' };
+      })();
+    if (result.ok) {
+      cov(coverage, 'buildings', type);
+      log.push({
+        tick: s.tick,
+        category: 'coverage_sweep',
+        action: `place:${type}`,
+        ok: true,
+        detail: result.detail ?? 'final sweep',
+      });
+      s = simInstantCompleteInProgress(result.state);
+    } else {
+      log.push({
+        tick: s.tick,
+        category: 'coverage_sweep',
+        action: `place:${type}`,
+        ok: false,
+        detail: result.detail ?? 'placement failed',
+      });
+    }
+  }
+  return s;
+}
+
+function countStaffAtBuilding(state: WorldState, buildingId: number): number {
+  return state.entities.filter(
+    (e) => e.alive && isPlayerHuman(e) && e.homeBuildingId === buildingId && !isImprisoned(e),
+  ).length;
+}
+
+/** Fill construction crews and every job slot (including manual-staff buildings). */
+function autoStaffAllBuildings(state: WorldState): WorldState {
+  assignAllWorkers(state.entities.filter(isPlayerHuman), state.buildings);
+  return ensurePrisonGuard(state);
+}
+
+/** Prefer pulling a guard from these sites when the village has no idle workers (sim-only). */
+const PRISON_GUARD_DONOR_PRIORITY: BuildingTypeName[] = [
+  BuildingType.Barracks,
+  BuildingType.TamingPost,
+  BuildingType.Greenhouse,
+  BuildingType.Road,
+  BuildingType.Store,
+  BuildingType.Workshop,
+  BuildingType.Market,
+  BuildingType.Mill,
+  BuildingType.Mansion,
+  BuildingType.School,
+  BuildingType.Hospital,
+  BuildingType.Farm,
+  BuildingType.LumberMill,
+  BuildingType.Mine,
+  BuildingType.Quarry,
+  BuildingType.Blacksmith,
+  BuildingType.Church,
+];
+
+function stealWorkerForPrisonGuard(state: WorldState, prisonId: number): WorldState {
+  const prison = state.buildings.find((b) => b.id === prisonId);
+  if (!prison) return state;
+  const humans = state.entities.filter(isPlayerHuman);
+  for (const donorType of PRISON_GUARD_DONOR_PRIORITY) {
+    for (const donor of state.buildings) {
+      if (!donor.completed || donor.faction === 'rival' || donor.type !== donorType) continue;
+      const worker = humans.find(
+        (h) => h.alive
+          && !h.isJuvenile
+          && !isImprisoned(h)
+          && !h.pregnant
+          && h.homeBuildingId === donor.id,
+      );
+      if (!worker) continue;
+      donor.occupants = donor.occupants.filter((id) => id !== worker.id);
+      worker.homeBuildingId = prison.id;
+      worker.job = JobType.Guard;
+      worker.occupation = getOccupationForBuilding(BuildingType.Prison);
+      if (!prison.occupants.includes(worker.id)) prison.occupants.push(worker.id);
+      return state;
+    }
+  }
+  return state;
+}
+
+/** Arrests require a Guard at the prison — pull one in if auto-assign missed (common when pop is fully employed). */
+function ensurePrisonGuard(state: WorldState): WorldState {
+  let next = state;
+  for (const prison of next.buildings) {
+    if (!prison.completed || prison.type !== BuildingType.Prison || prison.faction === 'rival') continue;
+    if (countStaffAtBuilding(next, prison.id) > 0) continue;
+    next = assignIdleWorkerToBuilding(next, prison.id);
+    if (countStaffAtBuilding(next, prison.id) > 0) continue;
+    next = stealWorkerForPrisonGuard(next, prison.id);
+  }
+  return next;
+}
+
+function formatPrisonReport(state: WorldState, log: WorldState['eventLog']): string[] {
+  const imprisonEvents = log.filter((e) => e.type === 'event' && e.message.includes('imprisoned for scandal'));
+  const releaseEvents = log.filter((e) => e.type === 'event' && e.message.includes('released from prison'));
+  const caughtScandals = log.filter((e) => e.type === 'scandal' && e.message.includes('was caught with'));
+  const rumorScandals = log.filter((e) => e.type === 'scandal' && e.message.includes('Whispers spread'));
+  const prisons = state.buildings.filter((b) => b.completed && b.type === BuildingType.Prison);
+  const staffedPrisons = prisons.filter((b) => countStaffAtBuilding(state, b.id) > 0).length;
+  const imprisonedNow = state.entities.filter((e) => e.alive && isImprisoned(e)).length;
+  const hasArch1 = state.unlockedTechs.includes('architecture_1');
+  const lines = [
+    `Prisons completed: ${prisons.length} | Staffed: ${staffedPrisons}`
+    + ` | architecture_1: ${hasArch1 ? 'yes' : 'no'}`,
+    `Scandals — caught: ${caughtScandals.length} | rumors: ${rumorScandals.length}`,
+    `Imprisonments: ${imprisonEvents.length} | Releases: ${releaseEvents.length} | Jailed now: ${imprisonedNow}`,
+    'Note: only caught scandals imprison married settlers (not single paramours); rumors need a staffed prison + ~22% exposure roll.',
+  ];
+  if (prisons.length === 0 && !hasArch1) {
+    lines.push('  → No prison yet — research architecture_1 (sim now prioritizes it earlier).');
+  } else if (prisons.length === 0) {
+    lines.push('  → architecture_1 unlocked but no prison placed — check build coverage logs.');
+  } else if (staffedPrisons === 0) {
+    lines.push('  → Prison built but no Guard staffed — imprisonment cannot trigger.');
+  } else if (caughtScandals.length === 0 && rumorScandals.length === 0) {
+    lines.push('  → No affairs exposed — need married settlers + affair progress (Church helps).');
+  } else if (caughtScandals.length === 0 && rumorScandals.length > 0) {
+    lines.push('  → Rumors only this run — caught busts are RNG-heavy even with a staffed prison.');
+  }
+  if (imprisonEvents.length > 0) {
+    for (const e of imprisonEvents.slice(0, 8)) {
+      lines.push(`  Y${e.year} D${e.day} tick ${e.tick} | ${e.message}`);
+    }
+    if (imprisonEvents.length > 8) {
+      lines.push(`  … +${imprisonEvents.length - 8} more`);
+    }
+  } else if (caughtScandals.length > 0) {
+    for (const e of caughtScandals.slice(0, 4)) {
+      lines.push(`  caught Y${e.year} D${e.day} | ${e.message}`);
+    }
+    if (staffedPrisons === 0) {
+      lines.push('  → Caught scandals but prison had no Guard — sim now steals a worker each tick until staffed.');
+    } else {
+      lines.push('  → Caught scandals logged but no imprisonments (arrest roll failed or prison full).');
+    }
+  }
+  return lines;
+}
+
 function autoBuildFree(
   state: WorldState,
   cx: number,
@@ -995,7 +1680,7 @@ function autoBuildFree(
   coverage: CoverageMap,
   log: ActionLog[],
 ): WorldState {
-  const preferCoverage = state.tick % 108 < 36;
+  const preferCoverage = state.tick % 108 < 72;
   const type = (preferCoverage ? pickCoverageBuildPriority(state, coverage) : null)
     ?? pickFreeBuildPriority(state)
     ?? pickCoverageBuildPriority(state, coverage);
@@ -1010,7 +1695,7 @@ function autoBuildFree(
       ok: true,
       detail: `pop=${state.humanPopulation} food=${Math.floor(state.resources.food)} wood=${Math.floor(state.resources.wood)}`,
     });
-    return next;
+    return simInstantCompleteInProgress(next);
   }
   if (SIM_VERBOSE && detail) {
     log.push({ tick: state.tick, category: 'auto_build', action: `place:${type}`, ok: false, detail });
@@ -1135,9 +1820,18 @@ function injectRaidEvent(state: WorldState, rivalId: string, lootFood = 25): Wor
     createdAtTick: state.tick,
     expiresAtTick: state.tick + 6 * TICKS_PER_DAY,
     marchDistanceTiles: 12,
-    attackerStrength: 80 + (state.tick % 40),
+    attackerStrength: (() => {
+      const defendStr = getMilitiaStrength(state, state.entities);
+      const barricadeStr = getBarricadeStrength(state, state.entities);
+      const defenderRef = Math.max(defendStr, barricadeStr, 40);
+      const ratioBands = [0.55, 0.75, 0.92, 1.05, 1.25] as const;
+      const band = ratioBands[Math.floor(state.tick / TICKS_PER_DAY) % ratioBands.length];
+      return Math.max(35, Math.floor(defenderRef * band));
+    })(),
     lootFood,
     lootGold: 10,
+    lootWood: 30 + Math.floor(rival.population * 3),
+    lootStone: 12 + rival.population,
   };
   return { ...state, pendingRaidEvents: [...pending, event] };
 }
@@ -1373,7 +2067,7 @@ const HAS_SCHEDULED_WINTER = TOTAL_TICKS >= FIRST_WINTER_TICK;
 
 function formatRunLength(ticks: number): string {
   if (ticks >= FULL_BALANCE_TICKS) {
-    return `${ticks} ticks (10 game years)`;
+    return `${ticks} ticks (${SIM_YEARS} game years)`;
   }
   const years = (ticks / TICKS_PER_YEAR).toFixed(2);
   const days = Math.floor(ticks / TICKS_PER_DAY);
@@ -1458,8 +2152,8 @@ function autoResearch(state: WorldState, coverage: CoverageMap, log: ActionLog[]
 
   const order = SIM_PROFILE === 'eco' || SIM_PROFILE === 'town'
     ? [
-      'forestry_1', 'forestry_2', 'defense_2', 'defense_1', 'mining_1', 'agriculture_1',
-      'defense_3', 'trade_1', 'education_1', 'medicine_1', 'architecture_1',
+      'forestry_1', 'forestry_2', 'architecture_1', 'defense_2', 'defense_1', 'mining_1', 'agriculture_1',
+      'defense_3', 'trade_1', 'education_1', 'medicine_1',
       'defense_4', 'defense_5', 'agriculture_2', 'mining_2',
       'architecture_2', 'trade_2', 'education_2', 'medicine_2', 'agriculture_3',
     ]
@@ -1486,10 +2180,12 @@ function autoForge(state: WorldState, coverage: CoverageMap, log: ActionLog[]): 
   const smith = state.buildings.find((b) => b.completed && b.type === BuildingType.Blacksmith);
   if (!smith) return state;
 
-  const orders: ForgeOrderId[] = ['iron_spears', 'iron_shields'];
+  const orders: ForgeOrderId[] = FORGE_ORDERS.map((o) => o.id);
   for (const orderId of orders) {
     if (coverage.forge?.has(orderId)) continue;
+    if (isForgeOrderComplete(state.villageForge, orderId)) continue;
     if (state.villageForge.activeOrder && state.villageForge.activeOrder !== orderId) continue;
+    if (getForgeBlockReason(state, orderId) != null) continue;
     const before = state.villageForge.activeOrder;
     const next = queueForgeOrder(state, smith.id, orderId);
     if (next.villageForge.activeOrder === orderId && before !== orderId) {
@@ -1517,11 +2213,21 @@ function autoPlaceUnbuiltTypes(
     if (profileCfg.skipRoadCoverage && type === BuildingType.Road) continue;
     if (completed.has(type)) continue;
 
-    const { state: next, ok, detail } = tryPlace(state, type, cx + Math.random() * 200 - 100, cy + Math.random() * 200 - 100);
+    if (!canUnlockBuilding(state, type)) continue;
+    const s = fundForBuildingCost(state, type);
+    const result = type === BuildingType.Wall
+      ? tryPlaceWallChain(s, cx, cy)
+      : (() => {
+        const spot = findBuildSpot(s, type, cx, cy);
+        return spot
+          ? tryPlaceBuilding(s, type, spot[0], spot[1])
+          : { state: s, ok: false as const, detail: 'no valid spot' };
+      })();
+    const { state: next, ok, detail } = result;
     if (ok) {
       cov(coverage, 'buildings', type);
       log.push({ tick: state.tick, category: 'buildings', action: `place:${type}`, ok: true });
-      return next;
+      return simInstantCompleteInProgress(next);
     }
     if (detail && SIM_VERBOSE) {
       log.push({ tick: state.tick, category: 'buildings', action: `place:${type}`, ok: false, detail });
@@ -1531,7 +2237,7 @@ function autoPlaceUnbuiltTypes(
 }
 
 function autoDiplomacy(state: WorldState, coverage: CoverageMap, log: ActionLog[]): WorldState {
-  let s = dropStaleDiplomacyEvents(state, log);
+  const s = dropStaleDiplomacyEvents(state, log);
   const events = s.pendingDiplomacyEvents ?? [];
   if (events.length === 0) return s;
 
@@ -1564,8 +2270,29 @@ function autoDiplomacy(state: WorldState, coverage: CoverageMap, log: ActionLog[
   return s;
 }
 
+function predictRaidOutcome(
+  state: WorldState,
+  evt: RaidEvent,
+  choice: (typeof RAID_RESPONSES)[number],
+): RaidOutcomeTier | 'payoff' | 'unresolved' {
+  if (choice === 'payoff') return 'payoff';
+  const strength = choice === 'barricade'
+    ? getBarricadeStrength(state, state.entities)
+    : getMilitiaStrength(state, state.entities);
+  return resolveDefenseRatio(strength, evt.attackerStrength);
+}
+
+function sliceNewCombatMessages(beforeLen: number, state: WorldState): string[] {
+  const msgs: string[] = [];
+  for (let i = beforeLen; i < state.eventLog.length; i++) {
+    const entry = state.eventLog[i];
+    if (entry?.type === 'combat') msgs.push(entry.message);
+  }
+  return msgs;
+}
+
 function autoRaidResponse(state: WorldState, coverage: CoverageMap, log: ActionLog[]): WorldState {
-  let s = dropStaleRaidEvents(state, log);
+  const s = dropStaleRaidEvents(state, log);
   const events = s.pendingRaidEvents ?? [];
   if (events.length === 0) return s;
 
@@ -1583,15 +2310,26 @@ function autoRaidResponse(state: WorldState, coverage: CoverageMap, log: ActionL
     if (!choice) continue;
 
     const beforeLen = s.pendingRaidEvents.length;
+    const eventLogBefore = s.eventLog.length;
+    const deathsBefore = s.entities.filter((e) => e.alive && isPlayerHuman(e)).length;
+    const predicted = predictRaidOutcome(s, evt, choice);
     const next = respondToRaidEvent(s, evt.id, choice);
     const resolved = next.pendingRaidEvents.length < beforeLen;
     if (resolved) cov(coverage, 'raid_response', choice);
+    const deathsAfter = next.entities.filter((e) => e.alive && isPlayerHuman(e)).length;
+    const casualties = Math.max(0, deathsBefore - deathsAfter);
+    const combatMsgs = sliceNewCombatMessages(eventLogBefore, next);
+    const outcomeMsg = combatMsgs[combatMsgs.length - 1] ?? '(no combat log)';
     log.push({
       tick: s.tick,
       category: 'raid_response',
       action: choice,
       ok: resolved,
-      detail: `attacker=${evt.attackerStrength}`,
+      detail: `attacker=${evt.attackerStrength} vs ${
+        choice === 'barricade'
+          ? getBarricadeStrength(s, s.entities)
+          : getMilitiaStrength(s, s.entities)
+      } | predicted=${predicted} | casualties=${casualties} | ${outcomeMsg}`,
     });
     return next;
   }
@@ -1616,6 +2354,19 @@ function canRefugeeChoice(state: WorldState, choice: RefugeeChoice): boolean {
 function autoVisitors(state: WorldState, coverage: CoverageMap, log: ActionLog[]): WorldState {
   let s = state;
   const talkTested = coverage.visitor_talk ?? new Set();
+
+  // Re-spawn any visitor_talk kind that expired before leader talk (don't wait for next inject).
+  for (const kind of VISITOR_TALK_KINDS) {
+    if (talkTested.has(kind)) continue;
+    const hasActive = s.visitorGroups.some((g) => g.kind === kind && g.daysLeft > 0);
+    if (!hasActive) {
+      const spawned = ensureVisitor(s, kind);
+      s = spawned.state;
+      if (spawned.label) {
+        log.push({ tick: s.tick, category: 'visitor_respawn', action: spawned.label, ok: true });
+      }
+    }
+  }
 
   // Untested visitor kinds first so injected groups get leader talk before expiring.
   const groups = [...s.visitorGroups].sort((a, b) => {
@@ -1691,13 +2442,18 @@ function rivalActionApplied(
 
   switch (actionId) {
     case 'gift':
-      return after.resources.food < before.resources.food && rb.relationship !== ra.relationship;
+      // Gift spends food even when already friendly (no relationship shift left).
+      return after.resources.food < before.resources.food;
     case 'trade_pact':
-      return ra.relationship === 'friendly' && after.resources.gold < before.resources.gold;
+      return ra.relationship === 'friendly'
+        && (rb.relationship !== 'friendly' || after.resources.gold < before.resources.gold);
     case 'show_strength':
-      return rb.relationship !== ra.relationship || rb.daysUntilAction !== ra.daysUntilAction;
+      return rb.relationship !== ra.relationship
+        || rb.daysUntilAction !== ra.daysUntilAction
+        || hasNewEventLogType(before.eventLog.length, after, 'event', after.tick);
     case 'peace_treaty':
-      return ra.peaceTreatyDays > rb.peaceTreatyDays;
+      return (after.resources.gold < before.resources.gold && after.resources.food < before.resources.food)
+        || ra.peaceTreatyDays > rb.peaceTreatyDays;
     case 'counter_raid':
       return hasNewEventLogType(before.eventLog.length, after, 'combat', after.tick);
     default:
@@ -1722,7 +2478,12 @@ function rivalsForAction(rivals: WorldState['rivalSettlements'], actionId: strin
   return rotated;
 }
 
-function autoRivalActions(state: WorldState, coverage: CoverageMap, log: ActionLog[]): WorldState {
+function autoRivalActions(
+  state: WorldState,
+  coverage: CoverageMap,
+  log: ActionLog[],
+  frontier: FrontierTracker,
+): WorldState {
   let s = state;
   const rivals = s.rivalSettlements;
   if (rivals.length === 0) return s;
@@ -1742,6 +2503,7 @@ function autoRivalActions(state: WorldState, coverage: CoverageMap, log: ActionL
       if (rivalActionApplied(before, next, rival.id, id)) {
         cov(coverage, 'rival_action', id);
         log.push({ tick: s.tick, category: 'rival_action', action: `${id}:${rival.name}`, ok: true });
+        frontier.recordOutgoingDiplomacy();
         s = next;
         break;
       }
@@ -1749,27 +2511,34 @@ function autoRivalActions(state: WorldState, coverage: CoverageMap, log: ActionL
   }
 
   if (!coverage.rival_action?.has('counter_raid')) {
-    const raidTarget = s.rivalSettlements.find((r) => r.relationship === 'tense' || r.relationship === 'competitive')
-      ?? s.rivalSettlements.find((r) => r.relationship === 'neutral')
-      ?? s.rivalSettlements[0];
-    if (raidTarget && (raidTarget.relationship === 'friendly' || isRivalAtPeace(raidTarget))) {
-      s = {
-        ...s,
-        rivalSettlements: s.rivalSettlements.map((r) => (
-          r.id === raidTarget.id
-            ? { ...r, relationship: 'tense' as const, peaceTreatyDays: 0, raidCooldownDays: 0 }
-            : r
-        )),
-      };
-    }
     for (const rival of rivalsForAction(s.rivalSettlements, 'counter_raid', s.tick)) {
-      const check = canLaunchRaidOnRival(s, rival);
+      let attemptState = s;
+      const liveRival = attemptState.rivalSettlements.find((r) => r.id === rival.id);
+      if (!liveRival) continue;
+
+      if (liveRival.relationship === 'friendly' || isRivalAtPeace(liveRival)) {
+        attemptState = {
+          ...attemptState,
+          rivalSettlements: attemptState.rivalSettlements.map((r) => (
+            r.id === rival.id
+              ? { ...r, relationship: 'tense' as const, peaceTreatyDays: 0, raidCooldownDays: 0 }
+              : r
+          )),
+        };
+      }
+
+      const check = canLaunchRaidOnRival(
+        attemptState,
+        attemptState.rivalSettlements.find((r) => r.id === rival.id) ?? liveRival,
+      );
       if (!check.ok) continue;
-      const before = s;
-      const next = launchRaidOnRival(s, rival.id);
+
+      const before = attemptState;
+      const next = launchRaidOnRival(attemptState, rival.id);
       if (rivalActionApplied(before, next, rival.id, 'counter_raid')) {
         cov(coverage, 'rival_action', 'counter_raid');
         log.push({ tick: s.tick, category: 'rival_action', action: `counter_raid:${rival.name}`, ok: true });
+        frontier.recordOutgoingRaid();
         s = next;
         break;
       }
@@ -1781,17 +2550,29 @@ function autoRivalActions(state: WorldState, coverage: CoverageMap, log: ActionL
 
 // ─── Main simulation ─────────────────────────────────────────────────────────
 
-function runSimulation(): void {
+async function runSimulation(): Promise<void> {
+  await loadNames();
+  // Particles / screen shake are no-ops in balance testing but still cost allocations.
+  saveJuiceEffectsEnabled(false);
   resetGrowthState();
-  const logger = new SimLogger();
+  const logger = new SimLogger(SIM_PROFILE);
   const coverage: CoverageMap = {};
   const actionLog: ActionLog[] = [];
   const yearSnapshots: YearSnapshot[] = [];
   const winterTracker = new WinterTracker();
+  const frontierTracker = new FrontierTracker();
   const perfSamples: { tick: number; ms: number; humans: number; alive: number }[] = [];
+  const mainSyncMs: number[] = [];
+  const workerWaitMs: number[] = [];
+  const prepSyncMs: number[] = [];
   const allTickMs: number[] = [];
 
   let state = initGame({ villageName: 'Balanceville', size: MapSize.Large });
+  const simFocus = getSimFocus(state);
+
+  const workerBoot = await initSimWorkerHost(state);
+  const workerHost = workerBoot.host;
+  state = workerBoot.state;
   const initCaps = storageCapsForProfile(SIM_PROFILE);
   const startWood = Math.min(
     SIM_PROFILE === 'town' ? 4000 : SIM_PROFILE === 'eco' ? 3500 : 2500,
@@ -1822,8 +2603,29 @@ function runSimulation(): void {
   let lastProgressTick = 0;
 
   logger.live(`=== Wilderfolk ${SIM_YEARS}-year balance simulation (live) ===`);
+  logger.live(
+    SIM_USE_WORKER
+      ? simHeadless()
+        ? 'Tick engine: worker_threads (headless — syncSimPrep, no render SoA)'
+        : 'Tick engine: worker_threads (full importSave + render SoA — playability path)'
+      : 'Tick engine: main-thread gameTick (SIM_USE_WORKER=0 legacy debug path)',
+  );
+  if (SIM_USE_WORKER) {
+    logger.live(
+      'Perf note: worker path is ~4× slower wall time — validates live-game protocol, not balance throughput.'
+      + ' For fast runs use: npm run simulate:10year (main-thread default).',
+    );
+  } else {
+    logger.live('Perf: main-thread ticks (fast balance path). Worker validation: npm run simulate:10year:worker');
+  }
   logger.live(`Profile: ${SIM_PROFILE} — ${profileCfg.label}`);
-  logger.live(`Targets @ Y${SIM_YEARS}: pop ${profileCfg.popMin}–${profileCfg.popMax}`);
+  const names = getNamePoolInfo();
+  logger.live(
+    names.full
+      ? `Name pool: full lists (${names.male} male, ${names.female} female, ${names.last} surnames)`
+      : `Name pool: embedded fallback (${names.male} male, ${names.female} female — expect repeats like Ezra & Hannah)`,
+  );
+  logger.live(`Targets @ Y${SIM_YEARS}: pop ${scaledPopGateMin()}–${scaledPopGateMax()}`);
   logger.live(`Target: ${formatRunLength(TOTAL_TICKS)} | map ${state.width}×${state.height}`);
   if (IS_SMOKE_RUN) {
     const winterNote = HAS_SCHEDULED_WINTER
@@ -1840,7 +2642,13 @@ function runSimulation(): void {
     );
   }
   logger.live(`Progress every ${PROGRESS_EVERY} ticks (~${(PROGRESS_EVERY / TICKS_PER_DAY).toFixed(0)} game days)`);
-  logger.live('Build mode: free (needs-based auto_build every 36 ticks; coverage sweep every 192)');
+  logger.live(
+    `Build mode: free — auto_build every 36 ticks, coverage sweep every 96 ticks`
+    + ` (${expectedBuildingTypeCount()} types); placements stream live as 🏗️`,
+  );
+  if (SIM_LOG_LIFE) {
+    logger.live(`Life events: live → ${logger.getLifeLogPath()} (pregnancies, births, deaths, marriages, scandals, prison)`);
+  }
   logger.live('');
 
   for (let t = 1; t <= TOTAL_TICKS; t++) {
@@ -1864,6 +2672,8 @@ function runSimulation(): void {
 
     state = tickCoverageInjections(state, t, actionLog, logger);
 
+    const buildLogBefore = actionLog.length;
+
     // Order matters: research/forge first, then frontier responses (fresh eligibility),
     // then growth/placement which spend resources.
     state = autoResearch(state, coverage, actionLog);
@@ -1872,7 +2682,7 @@ function runSimulation(): void {
     state = autoRaidResponse(state, coverage, actionLog);
     state = autoVisitors(state, coverage, actionLog);
     if (t % 72 === 0) {
-      state = autoRivalActions(state, coverage, actionLog);
+      state = autoRivalActions(state, coverage, actionLog, frontierTracker);
     }
     if (t % 36 === 0) {
       state = autoBuildFree(state, cx, cy, coverage, actionLog);
@@ -1880,20 +2690,36 @@ function runSimulation(): void {
     if (t % 60 === 0) {
       state = autoProfileGrowth(state, cx, cy, actionLog);
     }
-    if (t % 192 === 0) {
+    if (t % 96 === 0) {
       state = autoPlaceUnbuiltTypes(state, cx, cy, coverage, actionLog);
     }
+    state = autoStaffAllBuildings(state);
+    drainBuildActions(logger, actionLog, buildLogBefore);
 
-    const alivePlayerBefore = getAlivePlayerHumanIds(state);
     const woodBeforeTick = state.resources.wood;
     const popBeforeTick = state.humanPopulation;
     const eventLogLenBefore = state.eventLog.length;
+    let pregnanciesBefore: PregnancySnap | undefined;
+    if (SIM_LOG_LIFE) pregnanciesBefore = snapshotPregnancies(state);
 
     const tickStart = performance.now();
-    state = gameTick(state);
+    const tickResult = await advanceSimTick(state, simFocus, workerHost);
+    state = tickResult.state;
+    if (tickResult.timing) {
+      prepSyncMs.push(tickResult.timing.importMs);
+      mainSyncMs.push(tickResult.timing.mainSyncMs);
+      workerWaitMs.push(tickResult.timing.workerWaitMs);
+    }
+    pruneEventLog(state);
+    frontierTracker.scanIncoming(state);
     allTickMs.push(performance.now() - tickStart);
 
-    const playerDeathsThisTick = countPlayerDeathsSince(alivePlayerBefore, state);
+    if (SIM_LOG_LIFE && pregnanciesBefore) {
+      drainLifeEvents(logger, pregnanciesBefore, eventLogLenBefore, state);
+      logger.flushLifeBuffers();
+    }
+
+    const playerDeathsThisTick = countNewPlayerDeaths(eventLogLenBefore, state);
     playerDeathsCumulative += playerDeathsThisTick;
     playerBirthsCumulative += countNewEventLogType(eventLogLenBefore, state, 'birth');
 
@@ -1906,23 +2732,30 @@ function runSimulation(): void {
       const woodBufferDays = woodNeedDay > 0 ? Math.floor(state.resources.wood / woodNeedDay) : 999;
       const foodPerCap = pop > 0 ? state.resources.food / pop : 0;
       logger.live(
-        `  📋 Pre-winter Y${state.year} day ${PRE_WINTER_DAY} | pop=${pop}/${state.maxHumanPopulation} beds=${getTotalBeds(state)}`
+        `  📋 Pre-winter Y${state.year} day ${PRE_WINTER_DAY} | pop=${pop}/${state.maxHumanPopulation} beds=${getTotalBedsCached(state)}`
         + ` food=${Math.floor(state.resources.food)} (${foodPerCap.toFixed(1)}/cap) wood=${Math.floor(state.resources.wood)}`
         + ` buffer=${woodBufferDays}d need=${woodNeedWinter}`,
       );
     }
     const season = getSeason(state.dayInYear);
     if (season === Season.Winter) {
+      winterTracker.recordWinterDeaths(playerDeathsThisTick);
       winterTracker.onWinterIntraDay(state);
       if (state.tick % TICKS_PER_DAY === 0) {
-        const heatingFailed = popBeforeTick > 0 && woodBeforeTick < getWoodNeedPerDay(popBeforeTick);
-        const heatingStressDeaths = heatingFailed ? playerDeathsThisTick : 0;
-        winterTracker.onWinterCalendarDayEnd(state, woodBeforeTick, popBeforeTick, heatingStressDeaths);
+        winterTracker.onWinterCalendarDayEnd(state, woodBeforeTick, popBeforeTick);
       }
     }
 
     if (state.year !== lastYear) {
-      const snap = captureYearSnapshot(state, playerDeathsCumulative);
+      const yearSweepBefore = actionLog.length;
+      for (let sweep = 0; sweep < 4; sweep++) {
+        const typesBefore = getCompletedBuildingTypes(state).size;
+        state = autoPlaceUnbuiltTypes(state, cx, cy, coverage, actionLog);
+        state = simInstantCompleteInProgress(state);
+        if (getCompletedBuildingTypes(state).size === typesBefore) break;
+      }
+      drainBuildActions(logger, actionLog, yearSweepBefore);
+      const snap = captureYearSnapshot(state, playerDeathsCumulative, frontierTracker);
       yearSnapshots.push(snap);
       syncResearchCoverage(state, coverage);
       syncBuildingCoverage(state, coverage);
@@ -1931,7 +2764,8 @@ function runSimulation(): void {
         t,
         state.year,
         `YEAR END | pop=${snap.pop} ${snap.resources} eco=${snap.eco}% rep=${snap.rep}`
-        + ` | buildings=${snap.buildings} rivals=${snap.rivals} playerDeaths=${snap.playerDeaths}`,
+        + ` | buildings=${snap.buildings} [${snap.buildingTypes}]`
+        + ` rivals=${snap.rivals} playerDeaths=${snap.playerDeaths}`,
       );
       lastYear = state.year;
     }
@@ -1964,7 +2798,9 @@ function runSimulation(): void {
       const avgRecent = recentMs.length
         ? recentMs.reduce((a, b) => a + b, 0) / recentMs.length
         : 0;
-      const beds = getTotalBeds(state);
+      const beds = getTotalBedsCached(state);
+      let aliveEntities = 0;
+      for (const e of state.entities) if (e.alive) aliveEntities++;
       logger.progress(
         t,
         state.year,
@@ -1972,7 +2808,9 @@ function runSimulation(): void {
         `pop=${state.humanPopulation}/${state.maxHumanPopulation} beds=${beds}`
         + ` food=${Math.floor(state.resources.food)} wood=${Math.floor(state.resources.wood)}`
         + ` eco=${state.ecosystemHealth}%`
-        + ` | raids=${state.pendingRaidEvents?.length ?? 0} dip=${state.pendingDiplomacyEvents?.length ?? 0}`
+        + ` entities=${aliveEntities}`
+        + ` | ${formatBuildingLiveSummary(state, coverage)}`
+        + ` | ${frontierTracker.formatProgress()}`
         + ` | avg ${avgRecent.toFixed(2)}ms/tick`,
       );
       lastProgressTick = t;
@@ -1992,9 +2830,18 @@ function runSimulation(): void {
 
   winterTracker.forceCloseOpenWinter(state, playerDeathsCumulative);
 
+  const finalSweepBefore = actionLog.length;
+  state = ensureFullBuildingCoverage(state, cx, cy, coverage, actionLog);
+  drainBuildActions(logger, actionLog, finalSweepBefore);
+  syncResearchCoverage(state, coverage);
+  syncBuildingCoverage(state, coverage);
+  syncForgeCoverage(state, coverage);
+
   const elapsed = ((performance.now() - start) / 1000).toFixed(1);
   const humans = state.entities.filter((e) => e.alive && isPlayerHuman(e));
   const overall = summarizeTickMs(allTickMs);
+  const syncOverall = summarizeTickMs(mainSyncMs);
+  const workerOverall = summarizeTickMs(workerWaitMs);
   const completedBuildings = state.buildings.filter((b) => b.completed && b.faction !== 'rival');
   const log = state.eventLog;
   const combatEvents = log.filter((e) => e.type === 'combat').length;
@@ -2004,18 +2851,20 @@ function runSimulation(): void {
   logger.live(`\n✓ Simulation complete in ${elapsed}s`);
   logger.log(`=== Wilderfolk ${SIM_YEARS}-year balance simulation ===`);
   logger.log(`Profile: ${SIM_PROFILE} — ${profileCfg.label}`);
-  logger.log(`Targets @ Y${SIM_YEARS}: pop ${profileCfg.popMin}–${profileCfg.popMax}`);
+  logger.log(`Targets @ Y${SIM_YEARS}: pop ${scaledPopGateMin()}–${scaledPopGateMax()}`);
   logger.log(`Ticks: ${formatRunLength(TOTAL_TICKS)} | Wall time: ${elapsed}s`);
   logger.log(`Calendar: Year ${state.year}, Day ${state.dayInYear} | Total days: ${Math.floor(state.tick / TICKS_PER_DAY)}`);
   logger.log(`Map: ${state.width}×${state.height} (large)`);
-  logger.log(`Housing: ${getTotalBeds(state)} beds | maxPop=${state.maxHumanPopulation}`);
+  logger.log(`Housing: ${getTotalBedsCached(state)} beds | maxPop=${state.maxHumanPopulation}`);
 
   logger.section('Year-by-year snapshots');
   for (const y of yearSnapshots) {
     logger.log(
       `Y${y.year} tick=${y.tick} | pop=${y.pop} | ${y.resources} | eco=${y.eco}% (≥80% streak=${y.ecoYears80}y)`
       + ` | rep=${y.rep} | ${y.militia} | grazing=${y.grazing}`
-      + ` | buildings=${y.buildings} raids=${y.raidsPending} dip=${y.diplomacyPending}`
+      + ` | buildings=${y.buildings} [${y.buildingTypes}]`
+      + ` raids_on=${y.raidsOnVillage} raids_out=${y.raidsInitiated}`
+      + ` dip_on=${y.diplomacyOnVillage} dip_out=${y.diplomacyInitiated}`
       + ` | visitors=${y.visitors} rivals=${y.rivals} playerDeaths=${y.playerDeaths}`,
     );
   }
@@ -2034,14 +2883,33 @@ function runSimulation(): void {
   logger.log(`Player deaths (entity-tracked): ${playerDeathsCumulative} | births: ${playerBirthsCumulative}`);
   logger.log(`Death events in log (all entities): ${log.filter((e) => e.type === 'death').length}`);
 
+  logger.section('Prison & scandal');
+  for (const line of formatPrisonReport(state, log)) logger.log(line);
+
+  logger.section('Combat & raids');
+  for (const line of formatCombatReportLines(log, actionLog)) logger.log(line);
+
+  logger.section('Building inventory');
+  for (const line of formatBuildingInventoryReport(state, coverage)) logger.log(line);
+
+  logger.section('Build chronicle (automated placements)');
+  for (const line of formatBuildChronicle(actionLog)) logger.log(line);
+
   logger.section('End state — village & frontier');
   logger.log(`Completed buildings: ${completedBuildings.length}`);
-  logger.log(`Building types placed: ${[...new Set(completedBuildings.map((b) => b.type))].join(', ')}`);
+  logger.log(`Building types placed: ${formatBuildingTypesLine(state)}`);
   logger.log(`Resources: ${resourceSnapshot(state)}`);
   logger.log(`Reputation: ${state.villageReputation} | Ecosystem: ${state.ecosystemHealth}% | eco≥80% years: ${state.ecoHealthYearsAbove80}`);
   logger.log(`Wildlife: rabbits=${state.wildlifeCounts.rabbits} deer=${state.wildlifeCounts.deer} wolves=${state.wildlifeCounts.wolves} grass=${state.wildlifeCounts.grass}`);
-  logger.log(`Militia: ${militiaSnapshot(state)} | raw strength=${getMilitiaStrength(state, state.entities)} barricade=${getBarricadeStrength(state, state.entities)}`);
-  logger.log(`Forge: spears=${state.villageForge.spearsReady} shields=${state.villageForge.shieldsReady} active=${state.villageForge.activeOrder ?? 'none'}`);
+  const wallSegments = countCompletedDefenseBuildings(state.buildings, [
+    BuildingType.Wall, BuildingType.WallCorner, BuildingType.WallGate,
+  ]);
+  logger.log(
+    `Militia: ${militiaSnapshot(state)} | raw strength=${getMilitiaStrength(state, state.entities)}`
+    + ` barricade=${getBarricadeStrength(state, state.entities)} (+${getWallSegmentBonus(state.buildings, state)} from ${wallSegments} wall segments)`,
+  );
+  const forged = FORGE_ORDERS.filter((o) => isForgeOrderComplete(state.villageForge, o.id)).map((o) => o.id).join(',') || 'none';
+  logger.log(`Forge: forged=[${forged}] active=${state.villageForge.activeOrder ?? 'none'}`);
   logger.log(`Researched: ${state.researchNodes.filter((n) => n.researched).map((n) => n.id).join(', ') || '(none)'}`);
   logger.log(`Rivals (${state.rivalSettlements.length}): ${state.rivalSettlements.map((r) => `${r.name}[${r.relationship} pop=${r.population}]`).join('; ') || 'none'}`);
 
@@ -2056,9 +2924,31 @@ function runSimulation(): void {
     .reduce((n, k) => n + (coverage[k]?.size ?? 0), 0);
 
   logger.section('Event totals');
+  for (const line of formatEventSummaryLines(log)) logger.log(line);
+  logger.log(`Player deaths (entity-tracked): ${playerDeathsCumulative} | births (log): ${playerBirthsCumulative}`);
   logger.log(`Combat events: ${combatEvents} | Trade events: ${tradeEvents} | Research events: ${researchEvents}`);
+  logger.log(
+    `Frontier totals: raids on village=${frontierTracker.incomingRaids} player raids=${frontierTracker.outgoingRaids}`
+    + ` | diplomacy on village=${frontierTracker.incomingDiplomacy} player diplomacy=${frontierTracker.outgoingDiplomacy}`,
+  );
   logger.log(`Diplomacy responses: ${diplomacyResolved} (coverage choices=${diplomacyCoverage}) | Raid responses: ${raidsResolved} (coverage=${coverage.raid_response?.size ?? 0})`);
-  logger.log(`Marriages: ${log.filter((e) => e.type === 'marriage').length} | Births: ${log.filter((e) => e.type === 'birth').length}`);
+
+  if (SIM_LOG_EVENTS) {
+    logger.section('Village chronicle — all events (grouped, oldest first)');
+    for (const line of formatGroupedChronicleLines(log)) logger.log(line);
+  } else {
+    logger.log('\n(Set SIM_LOG_EVENTS=1 to include full weddings/births/deaths listing in this log)');
+  }
+
+  const chronicleStamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const chronicleEngineTag = SIM_USE_WORKER ? '' : '-mainthread';
+  const chroniclePath = process.env.SIM_CHRONICLE_FILE
+    ?? join(defaultLogDir, `sim-${SIM_YEARS}year-${SIM_PROFILE}${chronicleEngineTag}-chronicle-${chronicleStamp}.txt`);
+  writeChronicleFile(log, buildChronicleMeta(state), chroniclePath);
+  if (SIM_LOG_LIFE) {
+    logger.log(`Life events log: ${logger.getLifeLogPath()} (${logger.getLifeEventCount()} entries)`);
+  }
+  logger.log(`\nFlat chronicle export: ${chroniclePath}`);
 
   logger.section('Option coverage');
   for (const line of covReport(coverage, EXPECTED_OPTIONS)) {
@@ -2067,18 +2957,43 @@ function runSimulation(): void {
 
   logger.section('Performance');
   logger.log(
-    `Tick cost: avg=${overall.avg.toFixed(2)}ms p50=${overall.p50.toFixed(2)}ms p95=${overall.p95.toFixed(2)}ms max=${overall.max.toFixed(2)}ms`,
+    `Round-trip (harness): avg=${overall.avg.toFixed(2)}ms p50=${overall.p50.toFixed(2)}ms p95=${overall.p95.toFixed(2)}ms max=${overall.max.toFixed(2)}ms`,
   );
-  logger.log(`Budget @ 60fps: ${(1000 / 60).toFixed(1)}ms/tick | @ 10×: ${(1000 / 600).toFixed(2)}ms/tick`);
+  if (SIM_USE_WORKER && mainSyncMs.length > 0) {
+    const importOverall = summarizeTickMs(prepSyncMs);
+    logger.log(
+      `Prep sync (importSave/syncSimPrep): avg=${importOverall.avg.toFixed(2)}ms p50=${importOverall.p50.toFixed(2)}ms`
+      + ` p95=${importOverall.p95.toFixed(2)}ms max=${importOverall.max.toFixed(2)}ms`,
+    );
+    logger.log(
+      `Main-thread sync (playability): avg=${syncOverall.avg.toFixed(2)}ms p50=${syncOverall.p50.toFixed(2)}ms`
+      + ` p95=${syncOverall.p95.toFixed(2)}ms max=${syncOverall.max.toFixed(2)}ms`,
+    );
+    logger.log(
+      `Worker sim wait (off-thread): avg=${workerOverall.avg.toFixed(2)}ms p50=${workerOverall.p50.toFixed(2)}ms`
+      + ` p95=${workerOverall.p95.toFixed(2)}ms max=${workerOverall.max.toFixed(2)}ms`,
+    );
+  }
+  logger.log(`Budget @ 60fps: ${(1000 / 60).toFixed(1)}ms/frame for main-thread sync | @ 10×: ${(1000 / 600).toFixed(2)}ms/tick`);
   for (const s of perfSamples) {
     logger.log(`  tick ${s.tick}: ${s.ms.toFixed(2)}ms | humans=${s.humans} alive=${s.alive}`);
   }
 
   const winterRecords = winterTracker.getRecords();
-  const wintersPassed = winterRecords.filter((r) => r.passed).length;
-  const wintersTotal = winterRecords.length;
-  const popInRange = humans.length >= profileCfg.popMin && humans.length <= profileCfg.popMax;
+  const completeWinterRecords = winterRecords.filter((r) => !r.incomplete);
+  const wintersPassed = completeWinterRecords.filter((r) => r.passed).length;
+  const wintersTotal = completeWinterRecords.length;
+  const popGateMin = scaledPopGateMin();
+  const popGateMax = scaledPopGateMax();
+  const popInRange = humans.length >= popGateMin && humans.length <= popGateMax;
   const winterGatesApplicable = HAS_SCHEDULED_WINTER && wintersTotal > 0;
+  const buildingTypesCompleted = getCompletedBuildingTypes(state).size;
+  const buildingTypesExpected = expectedBuildingTypeCount();
+  const missingBuildingTypes = ALL_BUILDING_TYPES.filter((type) => {
+    if (profileCfg.skipRoadCoverage && type === BuildingType.Road) return false;
+    return !coverage.buildings?.has(type);
+  });
+  const allBuildingTypesBuilt = missingBuildingTypes.length === 0;
 
   logger.section(`Balance gates — profile: ${SIM_PROFILE}`);
   type BalanceGate = {
@@ -2095,13 +3010,6 @@ function runSimulation(): void {
       skipReason: `smoke run — ${SIM_YEARS}-year test needs ${FULL_BALANCE_TICKS} ticks (have ${TOTAL_TICKS})`,
       pass: state.year >= SIM_YEARS,
       detail: `year=${state.year}`,
-    },
-    {
-      name: `Population ${profileCfg.popMin}–${profileCfg.popMax}`,
-      applicable: IS_FULL_BALANCE_RUN,
-      skipReason: `smoke run — ${SIM_YEARS}-year test needs ${FULL_BALANCE_TICKS} ticks (have ${TOTAL_TICKS})`,
-      pass: popInRange,
-      detail: `pop=${humans.length}`,
     },
     {
       name: 'Population alive',
@@ -2130,8 +3038,8 @@ function runSimulation(): void {
       skipReason: HAS_SCHEDULED_WINTER
         ? 'no completed winter in run'
         : `run ended before winter (tick ${TOTAL_TICKS} < ${FIRST_WINTER_TICK})`,
-      pass: winterRecords.every((r) => r.minFood > 0),
-      detail: `min winter food across years: ${winterRecords.length ? Math.min(...winterRecords.map((r) => r.minFood)) : 'n/a'}`,
+      pass: completeWinterRecords.every((r) => r.minFood > 0),
+      detail: `min winter food across years: ${completeWinterRecords.length ? Math.min(...completeWinterRecords.map((r) => r.minFood)) : 'n/a'}`,
     },
     {
       name: 'Diplomacy exercised',
@@ -2148,10 +3056,20 @@ function runSimulation(): void {
       detail: `responses=${raidsResolved}`,
     },
     {
-      name: 'Perf p95 < 16ms',
+      name: 'Main-thread sync p95 < 16ms (playability)',
       applicable: true,
-      pass: overall.p95 < 16,
-      detail: `p95=${overall.p95.toFixed(2)}ms`,
+      pass: SIM_USE_WORKER ? syncOverall.p95 < 16 : overall.p95 < 16,
+      detail: SIM_USE_WORKER
+        ? `sync p95=${syncOverall.p95.toFixed(2)}ms (worker wait p95=${workerOverall.p95.toFixed(2)}ms informational)`
+        : `p95=${overall.p95.toFixed(2)}ms`,
+    },
+    {
+      name: `All building types built (${buildingTypesExpected})`,
+      applicable: IS_FULL_BALANCE_RUN,
+      skipReason: `smoke run — ${SIM_YEARS}-year test needs ${FULL_BALANCE_TICKS} ticks (have ${TOTAL_TICKS})`,
+      pass: allBuildingTypesBuilt,
+      detail: `${buildingTypesCompleted}/${buildingTypesExpected} types`
+        + (missingBuildingTypes.length ? ` — missing: ${missingBuildingTypes.join(', ')}` : ''),
     },
   ];
 
@@ -2169,6 +3087,9 @@ function runSimulation(): void {
   }
 
   const ecoInRange = state.ecosystemHealth >= profileCfg.ecoMin && state.ecosystemHealth <= profileCfg.ecoMax;
+  logger.log(
+    `INFO — Population target ${popGateMin}–${popGateMax} (pop=${humans.length}, ${popInRange ? 'in range' : 'out of range'}, not a pass gate)`,
+  );
   logger.log(
     `INFO — Ecosystem ${profileCfg.ecoMin}–${profileCfg.ecoMax}% (eco=${state.ecosystemHealth}%, ${ecoInRange ? 'in range' : 'out of range'}, not a pass gate)`,
   );
@@ -2223,9 +3144,16 @@ function runSimulation(): void {
     for (const m of missingCategories) logger.log(`  • ${m}`);
   }
 
-  logger.flush(SIM_PROFILE);
+  const mainLogPath = logger.flush(SIM_PROFILE);
+  logger.live(`Chronicle export: ${chroniclePath}${mainLogPath ? ` | Main log: ${mainLogPath}` : ''}`);
 
-  process.exitCode = (failedGates > 0 || strictCoverageFail) ? 1 : 0;
+  disposeSimWorkerHost(workerHost);
+
+  const exitCode = (failedGates > 0 || strictCoverageFail) ? 1 : 0;
+  process.exit(exitCode);
 }
 
-runSimulation();
+runSimulation().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

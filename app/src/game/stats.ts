@@ -15,6 +15,8 @@ export interface YearlyStats {
   births: { humans: number; animals: number };
   deaths: { humans: number; animals: number };
   marriages: number;
+  /** Married player humans at year-end (for year-over-year marriage delta). */
+  marriedCount: number;
   buildings: { completed: number; total: number; upgraded: number };
   resources: { wood: number; stone: number; food: number; gold: number };
   ecosystem: { health: number; pollution: number; biodiversity: number };
@@ -53,43 +55,61 @@ export function createEmptyLifetimeStats(): LifetimeStats {
   };
 }
 
-export function recordYearlyStats(state: GameState): YearlyStats {
+export function recordYearlyStats(state: GameState, forYear?: number): YearlyStats {
   const entities = state.entities;
   const alive = entities.filter(e => e.alive);
+  const statsYear = forYear ?? state.year;
 
   const humans = alive.filter((e) => e.type === ET.Human && isPlayerHuman(e));
   const prevYearStats = state.yearlyStats[state.yearlyStats.length - 1];
 
   // Humans born during this calendar year (birthYear set at birth in lifeSimulation)
-  const humanBirths = humans.filter((h) => h.birthYear === state.year).length;
+  const humanBirths = humans.filter((h) => h.birthYear === statsYear).length;
 
-  // Count marriages this year
   const marriedHumans = humans.filter(h => h.relationshipStatus === 'married').length;
-  const marriagesThisYear = Math.max(0, Math.floor((marriedHumans - (prevYearStats?.population.humans || 0)) / 2));
+  const prevMarried = prevYearStats?.marriedCount ?? 0;
+  const marriagesThisYear = Math.max(0, Math.floor((marriedHumans - prevMarried) / 2));
+
+  const animalTypes = new Set<ET>([
+    ET.Rabbit, ET.Deer, ET.Wolf, ET.Fox, ET.Werewolf, ET.Wildkin,
+  ]);
+  const animalBirths = alive.filter(
+    (e) => animalTypes.has(e.type) && e.birthYear === statsYear && e.birthYear >= 0,
+  ).length;
+
+  const currentUpgrades = state.buildings.reduce(
+    (sum, b) => sum + (b.level > 1 ? b.level - 1 : 0),
+    0,
+  );
+  const prevUpgrades = prevYearStats?.buildings.upgraded ?? 0;
+  const upgradesThisYear = Math.max(0, currentUpgrades - prevUpgrades);
 
   const stats: YearlyStats = {
-    year: state.year,
+    year: statsYear,
     population: {
       humans: humans.length,
-      rabbits: alive.filter(e => e.type === ET.Rabbit).length,
-      deer: alive.filter(e => e.type === ET.Deer).length,
-      wolves: alive.filter(e => e.type === ET.Wolf).length,
-      foxes: alive.filter(e => e.type === ET.Fox).length,
-      trees: alive.filter(e => e.type === ET.Tree).length,
+      rabbits: state.wildlifeCounts.rabbits,
+      deer: state.wildlifeCounts.deer,
+      wolves: state.wildlifeCounts.wolves,
+      foxes: state.wildlifeCounts.foxes,
+      trees: state.wildlifeCounts.trees,
     },
     births: {
       humans: humanBirths,
-      animals: alive.filter(e => e.type !== ET.Human && e.type !== ET.Tree && e.type !== ET.Grass && e.age <= 30).length,
+      animals: animalBirths,
     },
     deaths: {
       humans: entities.filter(e => e.type === ET.Human && !e.alive && e.age > 0).length - (prevYearStats?.deaths.humans || 0),
-      animals: entities.filter(e => e.type !== ET.Human && e.type !== ET.Tree && e.type !== ET.Grass && !e.alive).length - (prevYearStats?.deaths.animals || 0),
+      animals: entities.filter(
+        (e) => e.type !== ET.Human && e.type !== ET.Tree && e.type !== ET.Grass && !e.alive && e.age > 0,
+      ).length - (prevYearStats?.deaths.animals || 0),
     },
     marriages: marriagesThisYear,
+    marriedCount: marriedHumans,
     buildings: {
       completed: state.buildings.filter(b => b.completed).length,
       total: state.totalBuildingsCompleted,
-      upgraded: state.buildings.reduce((sum, b) => sum + (b.level > 1 ? b.level - 1 : 0), 0),
+      upgraded: upgradesThisYear,
     },
     resources: { ...state.resources },
     ecosystem: {
@@ -97,7 +117,7 @@ export function recordYearlyStats(state: GameState): YearlyStats {
       pollution: state.pollutionLevel,
       biodiversity: state.biodiversityIndex,
     },
-    events: state.activeEvent ? [state.activeEvent.title] : [],
+    events: [...(state.eventsThisYear ?? [])],
   };
 
   return stats;
@@ -106,13 +126,16 @@ export function recordYearlyStats(state: GameState): YearlyStats {
 export function updateLifetimeStats(state: GameState, stats: LifetimeStats): LifetimeStats {
   const s = { ...stats };
 
-  // Count total humans ever born
-  s.totalHumansBorn = state.entities.filter(e => e.type === ET.Human).length;
+  s.totalHumansBorn = state.yearlyStats.reduce((sum, y) => sum + y.births.humans, 0);
   s.totalHumansDied = state.entities.filter(e => e.type === ET.Human && !e.alive).length;
   s.totalBuildings = state.totalBuildingsCompleted;
   s.technologiesResearched = state.unlockedTechs.length;
-  s.tradeRoutesEstablished = state.tradeRoutes.filter(r => r.active).length;
-  // disastersSurvived incremented when disasters spawn in worldEvents.ts
+  const latestYear = state.yearlyStats[state.yearlyStats.length - 1];
+  if (latestYear) {
+    s.totalMarriages += latestYear.marriages;
+    s.totalBuildingsUpgraded += latestYear.buildings.upgraded;
+  }
+  // tradeRoutesEstablished incremented in establishTradeRoute; disastersSurvived in worldEvents.ts
 
   // Find longest living human
   const allHumans = state.entities.filter(e => e.type === ET.Human);
@@ -130,6 +153,14 @@ export function updateLifetimeStats(state: GameState, stats: LifetimeStats): Lif
   }
 
   return s;
+}
+
+/** Record a world-event title for the closing year's statistics. */
+export function trackYearEvent(state: GameState, title: string): void {
+  if (!state.eventsThisYear) state.eventsThisYear = [];
+  if (!state.eventsThisYear.includes(title)) {
+    state.eventsThisYear.push(title);
+  }
 }
 
 // Simple bar chart renderer
@@ -189,8 +220,8 @@ export function drawLineChart(
   }
   ctx.stroke();
 
-  // Fill area under line
-  ctx.fillStyle = color + '20';
+  const fillAlpha = /^#[0-9a-fA-F]{6}$/.test(color) ? color + '20' : color;
+  ctx.fillStyle = fillAlpha;
   ctx.lineTo(x + w, y + h);
   ctx.lineTo(x, y + h);
   ctx.closePath();

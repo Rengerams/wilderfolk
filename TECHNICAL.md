@@ -6,7 +6,8 @@ Developer-facing overview of the playtest build.
 
 | Doc | For |
 |-----|-----|
-| [app/README.md](app/README.md) | Players |
+| [README.md](README.md) | Repo landing — pitch, install, doc index |
+| [app/README.md](app/README.md) | **Players** — full how-to-play guide |
 | [ROADMAP.md](ROADMAP.md) | Plan & half-done registry |
 | [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) | **v0.5.0** — scale + architecture (end July 2026) |
 | [CHANGELOG.md](CHANGELOG.md) | Detailed change log |
@@ -15,23 +16,40 @@ Developer-facing overview of the playtest build.
 
 ## Repository layout
 
+Git clone root (npm package name **wilderfolk**). All runnable code lives under `app/`.
+
 ```
-wilderfolk/
-├── package.json          # Root scripts → delegates to app/
-├── README.md             # Short landing page
-├── TECHNICAL.md          # This file
-├── ROADMAP.md            # Release plan + backlog
-├── CHANGELOG.md          # Feature-level change log
-└── app/
-    ├── README.md         # Player guide (only markdown in app/)
+<repo-root>/
+├── package.json            # Root forwards → `npm --prefix app` (dev, build, test, lint, preview, sim, bench, dup); `sprites:humans` at root
+├── README.md               # Short landing page
+├── TECHNICAL.md            # This file
+├── ROADMAP.md              # Release plan + backlog
+├── ROADMAP_0.5.0.md        # v0.5.0 scale + architecture checklist
+├── CHANGELOG.md            # Public change log
+├── LICENSE                 # MIT
+└── app/                    # Vite + React application
+    ├── README.md           # Player guide
     ├── package.json
-    ├── vite.config.ts    # Dev server port 5173 (3000 blocked on some Windows hosts)
-    ├── public/           # Static assets (sprites, logo)
+    ├── index.html
+    ├── vite.config.ts      # Dev server port 5173 (3000 blocked on some Windows hosts)
+    ├── vitest.config.ts
+    ├── eslint.config.js
+    ├── public/             # Static assets (sprites, logo, audio)
+    ├── scripts/            # Headless sims (`sim-cli.mjs` → `simulate-*`), benchmarks, sprite tools, `logs/`
     └── src/
-        ├── App.tsx       # Main UI shell, tabs, tutorial, build panel
+        ├── App.tsx         # Main UI shell, tabs, tutorial, inspector
         ├── main.tsx
-        └── game/         # Simulation + rendering (see below)
+        ├── components/     # React panels (BuildCatalog, Frontier, GameMenu, …)
+        ├── hooks/          # UI hooks (contextual tutorial)
+        ├── audio/          # Web Audio director, ambient, music
+        ├── test/           # Vitest — `game/`, `helpers/`, `fixtures/`
+        └── game/           # Simulation + canvas (see file map below)
+            ├── simWorker/  # Web Worker host + `gameWorker.ts` (opt-in)
+            ├── simBuffers/ # Render SoA pack/read, tick deltas, buffer pool
+            └── data/       # Name lists, dialogue bank (`sim_dialogue_trees.json`)
 ```
+
+Developer docs stay at repo root; `app/` holds the player README plus all source, tests, and sim scripts.
 
 ---
 
@@ -39,12 +57,12 @@ wilderfolk/
 
 | Layer | Choice |
 |-------|--------|
-| UI | React 19, Tailwind CSS, Radix UI primitives |
+| UI | React 19, Tailwind CSS (custom panels in `src/components/`) |
 | Build | Vite 7, TypeScript 5.9 |
 | Simulation | Custom tick-based engine (`gameEngine.ts`) |
-| Rendering | Canvas 2D (`renderer.ts`), read-only `RenderSnapshot` |
+| Rendering | Canvas 2D (`renderer.ts`) + OffscreenCanvas layers (`terrainLayer.ts`, `entityLayer.ts`); read-only `RenderSnapshot` |
 | Persistence | `localStorage` JSON saves (`SAVE_KEY` in `gameEngine.ts`) |
-| Audio | Web Audio procedural tones (`src/audio/`; `soundEngine.ts` is a deprecated re-export) |
+| Audio | Web Audio + HTML `<audio>` fallback (`src/audio/` — `trackPlayer.ts`, `director.ts`, `htmlAudioSync.ts`) |
 
 No backend. Single-player, client-only.
 
@@ -52,19 +70,89 @@ No backend. Single-player, client-only.
 
 ## Running & building
 
-From the **repo root** (folder containing `app/`):
-
-```bash
-npm install    # postinstall also installs app deps
-npm start      # vite dev server → http://127.0.0.1:5173
-npm run build  # tsc + production bundle → app/dist/
-npm run lint   # ESLint (0 errors as of July 2026 sanity check)
-npm run simulate:30min   # Headless playtest sim — env SIM_MINUTES (default 1200), PERF_SAMPLE_EVERY
-npm run simulate:20year  # v0.5 ship gatekeeper — 20 in-game years (SIM_YEARS=20), town profile; exit 0 = PASS
-npm run simulate:10year  # 10-year balance regression (SIM_YEARS=10 default)
-```
+The runnable Vite app lives in **`app/`**. Root `package.json` **forwards** the main dev workflow via `npm --prefix app` (plus `sprites:humans`). **`app/package.json`** exposes **9 scripts** — no per-sim npm entries; headless profiles go through **`sim-cli.mjs`**.
 
 Requires **Node.js 20+**.
+
+### Repo root (`<repo-root>/` — git clone folder that contains `app/`)
+
+```bash
+npm install              # postinstall also runs npm install in app/
+npm start                # same as npm run dev — Vite dev server (app/vite.config.ts)
+npm run build            # tsc -b && vite build → app/dist/
+npm run test             # vitest + vitest tsconfig typecheck (app/)
+npm run preview          # serve production build (default http://127.0.0.1:4173)
+npm run lint             # ESLint (app/)
+npm run sprites:humans   # Python — regenerate human outfit PNGs in app/public/
+
+# Headless sims & quality (forwarded to app/)
+npm run sim              # list profiles; npm run sim -- <profile>
+npm run sim -- 5min      # ~5 min smoke (default)
+npm run sim -- 20year    # v0.5 ship gatekeeper; SIM_YEARS=20, exit 0 = PASS
+npm run bench            # city benchmark gate (SIM_PROFILE=city + BENCHMARK_GATE=1)
+npm run dup              # jscpd duplicate scan (0 clones target)
+```
+
+**Dev server:** `npm start` → **http://127.0.0.1:5173** (port 5173 chosen because 3000 is often blocked on Windows). Vite may pick the next free port if 5173 is taken — check the terminal URL.
+
+**Optional browser flags** (`.env` in `app/` or shell before `npm start`):
+
+| Variable | Effect |
+|----------|--------|
+| `VITE_USE_GAME_WORKER=1` | Run `gameTick` in a Web Worker (opt-in) |
+| `VITE_USE_SPATIAL_GRID=0` | Disable spatial grid (falls back to scanning every entity per hunt/graze/flee query) |
+| `VITE_USE_SCENT_GRID=0` | Disable scent grid |
+
+### App package (`cd app` or `npm --prefix app <script>`)
+
+```bash
+cd app
+npm run dev              # vite dev (alias: npm start from root)
+npm run build            # tsc -b && vite build → dist/
+npm run preview
+npm test                 # vitest run && tsc -p tsconfig.vitest.json --noEmit
+npm run test:watch       # vitest (watch mode)
+npm run lint
+npm run dup              # jscpd — min 8 lines / 60 tokens; ignores test/ + data/
+
+# Headless sims (single dispatcher)
+npm run sim              # print profile list
+npm run sim -- 30min     # long playtest; env SIM_MINUTES (default 1200), PERF_SAMPLE_EVERY
+npm run sim -- housing
+npm run sim -- social
+npm run sim -- militia   # alias: balance
+npm run sim -- 10year    # balance regression; SIM_YEARS=10 default, SIM_PROFILE=town
+npm run sim -- 20year    # v0.5 ship gatekeeper
+npm run sim -- city      # city benchmark profile
+npm run sim -- kill      # stop stuck sim (sim.lock)
+npm run bench            # benchmark gate script
+```
+
+**Sim profiles** (full list in `app/scripts/sim-cli.mjs`): `5min`, `30min`, `housing`, `housing:ticks`, `family`, `social`, `militia`, `10year`, `10year:worker`, `20year`, `20year:worker`, `city`, `30min:city`, `kill`. Aliases: `simulate` → `5min`, `balance` → `militia`.
+
+**Common sim env vars** (set in shell before `npm run sim -- <profile>`):
+
+| Variable | Purpose |
+|----------|---------|
+| `SIM_YEARS` | In-game years for 10y/20y scripts (default 10 or 20) |
+| `SIM_PROFILE` | `village` \| `town` (default) \| `eco` |
+| `SIM_MINUTES` | Wall-clock cap for 30min sim (default 1200) |
+| `SIM_USE_WORKER=0` | Main-thread `gameTick` instead of worker_threads |
+| `SIM_LOG_LIFE=1` | Stream births/deaths to `-life.txt` |
+| `PERF_SAMPLE_EVERY` | Perf sample interval in ticks (10year script) |
+
+Most profiles launch through **`app/scripts/run-sim.mjs`** (tsx + localStorage shim). `sim-cli.mjs` routes profile names to `simulate-*.ts` or direct node scripts. See script headers in `app/scripts/` for full env lists.
+
+### Code quality gates (July 2026)
+
+| Command | What it checks |
+|---------|----------------|
+| `npm test` | **343** Vitest tests, **64** files, **0 skipped** + `tsconfig.vitest.json` typecheck (browser worker suites optional via `vitest.browser-worker.config.ts`) |
+| `npm run lint` | ESLint — **0 errors** |
+| `npm run build` | `tsc -b` + Vite production bundle |
+| `npm run dup` | [jscpd](https://github.com/kucherenko/jscpd) clone detection on `app/src` — **0 clones** after July 8 dedup pass |
+
+**Duplicate cleanup (July 8):** shared helpers in `stripRender.ts` (palisade draw), `trackPlayer.ts` (loop fade), `director.ts` (unmute resume), `htmlAudioSync.ts` (HTML audio mute), `worldGen.ts` → `createEmptyLifetimeStats()`.
 
 ---
 
@@ -79,13 +167,36 @@ The game splits **world state** from **view state**:
 | `gameTypes.ts` | Types, enums, building/species configs |
 | `gameEngine.ts` | `gameTick()`, init, save/load, building actions |
 | `viewState.ts` | Camera, selection, camp highlight, build mode, `buildRotation`, `nudgeCameraToward()`, screen shake (UI-owned) |
-| `gameLoop.ts` | `requestAnimationFrame` loop, tick accumulator, pause/speed |
-| `renderSnapshot.ts` | Immutable bundle passed to renderer each frame |
-| `renderer.ts` | Pure draw pass; must not mutate simulation |
+| `gameLoop.ts` | `requestAnimationFrame` loop, tick accumulator, pause/speed; optional `GameWorkerHost` pipeline |
+| `renderSnapshot.ts` | Immutable bundle passed to renderer each frame; includes `entityByType` buckets |
+| `renderer.ts` | Pure draw pass; OffscreenCanvas terrain + entity layers; tick-keyed entity draw cache (`updateCachedEntities` / SoA path) |
+| `canvasLayer.ts` | Shared OffscreenCanvas create/resize/dispose/clear helpers |
+| `terrainLayer.ts` | Baked terrain tile layer (per season) + decor layer (rivers + map border at world resolution) |
+| `entityLayer.ts` | Dynamic entity bitmap cache; invalidates on tick, camera, build/selection UI state |
+| `spatialGrid.ts` | Dual-layer cell grid (grass + mobile); graze/hunt/flee queries (`USE_SPATIAL_GRID` on by default) |
+| `entityCatalog.ts` | Indexed entity lookup for UI; lazy `alive` + `byType` index; `resolveAliveHumans()` |
+| `simWorker/` | Web Worker host + `gameWorker.ts`; opt-in via `VITE_USE_GAME_WORKER=1` |
+| `simBuffers/` | Render SoA pack/read, tick deltas, buffer pool for worker ↔ main transfer |
 
 ```
-gameLoop → gameTick(world) → buildRenderSnapshot(world, view) → renderGame(ctx, snapshot)
+gameLoop → gameTick(world) [or worker tick]
+         → world.entityByType rebuilt once per tick (end of gameTick)
+         → buildRenderSnapshot(world, view, { catalog, renderSoA })
+         → renderGame(ctx, snapshot)   // OffscreenCanvas terrain + entity layers; main: byType buckets; worker: render SoA slots
 ```
+
+**Entity indexing (v0.5.0 — ready for shipment, `GAME_VERSION` still 0.4.2):**
+
+| Layer | Source | Notes |
+|-------|--------|-------|
+| Sim tick | `world.entityByType` | Built at end of `gameTick()` via `buildEntityByType()`; not saved |
+| Render snapshot | `RenderSnapshot.entityByType` | Prefers `world.entityByType` → `catalog.getEntityByType()` → fallback scan |
+| UI catalog | `EntityCatalog.ensureAliveIndex()` | Single pass builds `getAlive()` + per-type buckets; invalidated on rebuild/delta |
+| Canvas cache | `renderer.ts` `_cachedTrees/Animals/Humans/Grass` | Invalidates on tick change; grass also on viewport key |
+| Offscreen layers | `terrainLayer.ts`, `entityLayer.ts` | Terrain tiles/decor baked until map or season changes; entity layer rebuilt on `buildEntityLayerKey()` mismatch |
+| Worker path | `simBuffers/renderSoAEntities.ts` | Slot buckets via `getRenderEntityLayer()` — same taxonomy as main thread |
+
+Shared helpers in `gameTypes.ts`: `emptyEntityByType()`, `getRenderEntityLayer()`, `UNCACHED_RENDER_TICK`. Draw-list builder: `buildEntityDrawBuckets()` in `gameEngine.ts`.
 
 ### Tick model
 
@@ -104,7 +215,7 @@ Food spoilage and some daily logic use `tick % TICKS_PER_DAY`.
 - Loading `2.0` / `2.1` / `2.2` saves triggers v0.4 calendar/housing migration + one-time log line
 - Loading `0.4` saves logs v0.4.1 migration (diplomacy, leadership, trade routes, victory paths)
 - `syncEventLogIdFromState()` restores monotonic event-log ids after load
-- v0.4.1 fields default on load: `pendingDiplomacyEvents: []`, `pendingRaidEvents: []`; visitor groups get `tradesCompleted: 0`, `refugeeResolved`, `leaderTalked`; rivals get `peaceTreatyDays`, `raidCooldownDays`; leadership fields via `validateVillageLeaderOnLoad`
+- v0.4.1 fields default on load: `pendingDiplomacyEvents: []`, `pendingRaidEvents: []`; `pendingOutgoingRaidEvents: []` defaults on load (v0.5.0+); visitor groups get `tradesCompleted: 0`, `refugeeResolved`, `leaderTalked`; rivals get `peaceTreatyDays`, `raidCooldownDays`; leadership fields via `validateVillageLeaderOnLoad`
 
 ---
 
@@ -122,7 +233,8 @@ Food spoilage and some daily logic use `tick % TICKS_PER_DAY`.
 | `saveLoad.ts` | `localStorage` save/load, version compatibility, migration |
 | `skills.ts` | Job/skill helpers and worker skill multipliers |
 | `version.ts` | `GAME_VERSION`, `GAME_PHASE`, title, ecological fact pool |
-| `dayCycle.ts` | Hours, night/work windows, residence assignment helpers |
+| `dayCycle.ts` | Hours, night/work windows, housing units, custodian chain, residence assignment |
+| `populationGrowth.ts` | `getTotalBeds`, `getOpenBeds`, population growth report (cap vs beds messaging) |
 | `groupEvents.ts` | Visitors, rivals, diplomacy events, trade/refugee negotiate, yearly world events |
 | `militiaBalance.ts` | `MILITIA_BALANCE` constants, `computeMilitiaBreakdown` — iron replaces stone/wooden tiers |
 | `frontierCombat.ts` | Militia/rival strength, `RaidEvent` queue, `respondToRaidEvent`, `launchRaidOnRival`, `getCombatPreview`, distance-scaled `expiresAtTick` |
@@ -130,6 +242,15 @@ Food spoilage and some daily logic use `tick % TICKS_PER_DAY`.
 | `forge.ts` | `villageForge` state, iron spear/shield forge queue, save migration, outstanding-order alerts |
 | `combatTech.ts` | `COMBAT_TECH` constants (breaks forge ↔ combat circular import) |
 | `priorityAlerts.ts` | Clickable priority alerts (raids, diplomacy, food, forge, trade) |
+| `buildCatalog.ts` | Build category rail, hotkey map, cost formatting |
+| `spatialGrid.ts` | Dual-layer spatial index for graze/hunt/flee (grass + mobile cells) |
+| `entityCatalog.ts` | Fast entity lookup for UI panels; `resolveAliveByType()` / `resolveAliveHumans()` |
+| `simBuffers/renderSoAEntities.ts` | Worker render slot buckets (grass/tree/human/animal) + shim cache |
+| `saveSchema.ts` | Allow-listed world fields for save (`pickWorldFieldsForSave`) |
+| `simWorker/GameWorkerHost.ts` | Main-thread worker host, render buffer pool, command chain |
+| `simBuffers/packRenderSoA.ts` | Top-k overflow entity selection for render SoA |
+| `simBuffers/simDelta.ts` | Tick delta extraction + catalog entity merge |
+| `citizenId.ts` | Citizen `#id` display and search helpers |
 | `entityCounts.ts` | `computeWildlifeCounts`, denormalized `world.wildlifeCounts` |
 | `CombatPreviewPanel.tsx` | UI for militia vs rival forecasts (defend, barricade, pay-off, outgoing raid) |
 | `ecosystemPressure.ts` | Deer vs grass grazing pressure report for Nature tab warnings |
@@ -139,11 +260,17 @@ Food spoilage and some daily logic use `tick % TICKS_PER_DAY`.
 | `eventLogExport.ts` | Chronicle `.txt` export formatting |
 | `focusHints.ts` | "What to do next" hint generation |
 | `humanSprites.ts` | PNG human sprites, sizing, selection bounds; procedural fallback |
-| `humanChat.ts` | Speech-bubble phrase pools + chat tick decay |
+| `humanChat.ts` | 3-beat dialogue trees (`dialogueTrees.ts` JSON bank), session advance, speech bubbles |
+| `dialogueTrees.ts` | Loads `data/sim_dialogue_trees.json`; context → category mapping, tree pick |
 | `renffrStar.ts` | Rare night-sky easter egg (shooting star + “Renffr”) |
 | `buildingRotation.ts` | Road/wall/gate rotation (`BuildingRotation` 0\|90), footprint swap on place/render |
+| `stripRender.ts` | Procedural road/wall/corner/junction canvas draws (palisade posts, rails, cobble) |
+| `tickQueries.ts` | Per-tick query indexes (residence, spatial closest, wildlife/grass snapshots) — avoids O(n²) scans |
 | `juiceEffects.ts` | Night window/chimney glow, build-complete confetti particles, glow intensity helpers |
-| `renderer.ts` | Terrain cache, entities, buildings, weather, night overlay + home glow, speech bubbles, raid march lines (`drawRaidMarchLines`) |
+| `canvasLayer.ts` | OffscreenCanvas surface helpers (create, resize, dispose, clear) |
+| `terrainLayer.ts` | Baked terrain tiles + decor (rivers, border); `terrainLayerNeedsRebuild` / `terrainDecorNeedsRebuild` |
+| `entityLayer.ts` | Dynamic entity offscreen cache; `buildEntityLayerKey`, `beginEntityLayerPaint`, `paintEntityLayerTo` |
+| `renderer.ts` | OffscreenCanvas compositing, tick-keyed entity draw lists, buildings, weather, night overlay + home glow, speech bubbles, raid march lines (`drawRaidMarchLines`) |
 | `spriteLoader.ts` | PNG preload + alpha trim; calls `generateHumanSprites()` |
 | `terrainGen.ts` | Procedural `WorldMap` from seed + preset |
 | `victory.ts` | Four victory paths; `ACTIVE_VICTORY_PATHS` + `COMING_SOON_VICTORY_PATHS` |
@@ -163,8 +290,11 @@ Food spoilage and some daily logic use `tick % TICKS_PER_DAY`.
 |-------|---------|
 | `residenceBuildingId` | House/Mansion where settler sleeps |
 | `homeBuildingId` | **Workplace** (farm, mill, etc.) when assigned via building occupants |
+| `adoptiveMotherId` / `adoptiveFatherId` | Orphan placement when no living kin (`ensureOrphanAdoption`) |
+| `isBastard` | Affects grandma custodian step in `getChildCustodian` |
 | `spriteVariant` | Outfit index 0–3 (procedural sprite palette) |
-| `chatPhrase` / `chatTicks` | Active speech bubble |
+| `chatPhrase` / `chatTicks` | Active speech bubble (newline-separated wrapped lines in `chatPhrase`) |
+| `chatPartnerId` / `chatDialogueSessionKey` | Paired 3-beat dialogue session (`humanChat.ts`) |
 | `faction` | `'visitor'` \| `'rival'` for non-player humans |
 
 ### Daily schedule (`gameEngine.ts` + `dayCycle.ts`)
@@ -178,12 +308,70 @@ Food spoilage and some daily logic use `tick % TICKS_PER_DAY`.
 
 Hunting, courtship, and idle wandering only run during “free roam” hours.
 
+### Housing — cap vs beds
+
+| Metric | Source | Meaning |
+|--------|--------|---------|
+| **Population** | Live player humans | Headcount on map |
+| **`maxHumanPopulation`** | `gameEngine.ts` each tick | Immigration/recruit cap: `5 + housingCap + floor(rep/10)` |
+| **Beds** | `getTotalBeds()` in `populationGrowth.ts` | Sum of `getResidenceCapacity()` on completed House/Mansion |
+| **Open beds** | `beds − population` | Empty slots (births can exceed cap/beds briefly) |
+
+UI: header badge `🛏️N`, Village → Population (cap + beds columns), growth report in Families panel.
+
+### Housing assignment (`dayCycle.ts`)
+
+Orchestrated by `assignMissingResidences()` each tick and on build/recruit/demolish (`buildingActions.ts`). Uses **`buildHousingUnits()`** (custodian-led units, not full extended family tree).
+
+**Custodian chain** (`getChildCustodian`) — minors follow for residence + map idle:
+
+1. Living **mother**
+2. **Bastard only:** maternal **grandmother** → paternal **grandmother** (via dead parent records in full entity list)
+3. Living **father**
+4. **Adoptive couple** (`adoptiveMotherId` / `adoptiveFatherId`) — `ensureOrphanAdoption()` picks stable-random married pair; if none, `placeOrphanInHouse()` uses `pickResidenceForFamily` / least crowded
+5. Adults **18+** may use **`moveOutOfFamilyHome()`** (player action) into an empty house
+
+**Singles:** `pickResidenceForFamily` allows sharing with couples or other singles; `alreadyHere` bonus keeps roommates in place until **`syncPartnerResidence`** on marriage (empty house preferred for the new couple).
+
+**Shortage:** when `!anyEmptyHouse` or `!anyOpenBeds`, families use low outsider penalty (`outsiders × 10`) and `pickSharedResidenceForFamily()` fallback so households stay together in shared homes.
+
+**Overcrowding:** `rebalanceOvercrowdedResidences()` evicts smallest family groups when count > capacity.
+
 ### Movement & visuals
 
 - Idle behavior: explore, gather (nearest tree), socialize, patrol
 - Velocity blending + friction; purposeful movement suppresses idle
-- Renderer: PNG sprites (idle + moving); procedural sprites as fallback; speech bubbles, mouth overlay
+- Renderer: PNG sprites (idle + moving); procedural sprites as fallback; multiline speech bubbles (`wrapChatLines`), mouth overlay
 - Status badges: 🏠 home, 🔨 work, 💕 courtship, etc.
+
+### Settler chat (dialogue trees)
+
+Routine settler banter is driven by **`app/src/game/data/sim_dialogue_trees.json`** (v1.1 — **95** trees: 20 Sims-style `dt_*` + 75 migrated Wilderfolk `wf_*`). Each tree is a **3-line** call-and-response between two speaker roles.
+
+| Module | Role |
+|--------|------|
+| `dialogueTrees.ts` | Load JSON; map `HumanChatContext` → `DialogueCategory`; `pickDialogueTree()` with season/weather/festival/`foodLow` hints |
+| `humanChat.ts` | Session map (`chatDialogueSessionKey`); advance one line per bubble lifetime; `maybeDialogueChat` / `maybeHousemateChat`; `resetDialogueSessions()` on new game/load |
+| `lifeSimulation.ts` | `settlerChat` / `settlerPairChat`; `tickHumanChat(entity, resolveChatPartner)` each active tick |
+
+**Categories:** `work`, `needs`, `social`, `existential`, `chaos`, `environment`
+
+**Context → category (examples):** `work`/`guard`/`hunt` → work; `home`/`sleep`/`food`/`pregnant` → needs; `social`/`courtship`/`festival`/`school`/`child` → social; `fear`/`affair` → chaos; `renffr`/`election` → existential; winter/rain/drought hints widen the pool.
+
+**Pairing:** `settlerPairChat` lets the lower entity id initiate so both settlers share one session (courtship, affair, idle social, Renffr gossip pairs). Solo chat uses `solo:{id}` sessions (all three lines on one settler).
+
+**Scripted exceptions** (not JSON trees — fixed or dynamic one-liners):
+
+| Trigger | Source | Mechanism |
+|---------|--------|-----------|
+| Renffr omen night | `renffrStar.ts` | `sayHumanChatPhrase` — simultaneous scripted lines to multiple settlers |
+| Election gossip | `villageLeadership.ts` | `tickElectionGossip` → `sayHumanChatPhrase` with candidate names in phrase |
+| Election winner | `villageLeadership.ts` | `"I will serve the village!"` on reveal |
+| Marriage | `lifeSimulation.ts` | Both partners get `chatPhrase: 'Yes!'`, `chatTicks: 120` on courtship completion |
+
+**Tests:** `humanChat.test.ts` (tree pick, 3-beat advance, housemate child/food contexts); `villageLeadership.test.ts` (gossip + winner line); `lifeSimulation.courtship.test.ts` (marriage `Yes!`); `renffrStar.test.ts` (omen broadcast).
+
+**Editing dialogue:** add trees to `sim_dialogue_trees.json` under a `category`; optional root copy `sim_dialogue_trees.json` kept in sync. Legacy one-liners were migrated via `app/scripts/migrate-legacy-dialogue.py` (`wf_*` ids).
 
 ---
 
@@ -241,23 +429,67 @@ Combat is **strength-ratio resolution**, not tactical map battles. Key flow in `
 |----------|------|
 | `maybeQueueRaid` | Tense/competitive rivals roll raid chance; sets `marchDistanceTiles`, `expiresAtTick` (2–6 days) |
 | `respondToRaidEvent` | Player picks defend / barricade / payoff; `flashMilitia()` sets `combatTicks` on adults |
-| `launchRaidOnRival` | Counter-raid — provisions cost by distance, `OUTGOING_RAID_DEFENSE_MULT` (+25% rival defense) |
-| `getCombatPreview` | UI forecasts: militia count/strength, defend/barricade/counter ratios, payoff vs raid hint |
+| `launchRaidOnRival` | Dispatches player war-band (provisions by distance); queues `pendingOutgoingRaidEvents` — does **not** resolve combat instantly |
+| `rollRivalOutgoingRaidResponse` | Rival offers tribute or chooses to fight (fight always possible) |
+| `respondToOutgoingRaidEvent` | Player accepts tribute, declines and attacks, or presses attack when rival fought |
+| `getOutgoingRaidActionLabel` | **Raid** vs **Counter-raid** copy — counter only when `pendingRaidEvents` includes that rival |
+| `getCombatPreview` | UI forecasts: militia count/strength, defend/barricade/outgoing ratios, payoff vs raid hint |
+| `getRaidCasualtyBounds` | Population-scaled death tiers on fight outcomes (payoff = 0 deaths) |
 | `getMilitiaStrength` | Adults × base + spears/shields + `getBarracksGuardBonus` + wall/tower from `defenseStructures.ts` |
+
+**State:** `pendingRaidEvents` (incoming), `pendingOutgoingRaidEvents` (player war-band awaiting response). Peace treaties cancel both (`cancelPendingRaidsForRival`, `cancelPendingOutgoingRaidsForRival`).
 
 **Map presentation:**
 
 - `renderer.ts` `drawRaidMarchLines` — pending incoming raids only
 - `lifeSimulation.ts` — rival `faction` settlers march toward `getPlayerCampCenter` when `isRaidMarchingForRival`
-- Outgoing counter-raids resolve instantly (no player march animation yet)
+- Outgoing raids: orange map banner + rival inspector; abstract combat resolves on player choice (not at launch)
 
-**UI:** `CombatPreviewPanel.tsx`, `CombatLogPanel.tsx` (filters `type === 'combat'`), raid banner + `FrontierPanel` in `App.tsx`.
-
-**Gaps (v0.4.2):** player militia march on counter-raid → **v0.5.0 P1**; real-time tactical battles deferred post-0.5.0. Full status → [Frontier combat — polish & gaps](#frontier-combat--polish--gaps).
+**UI:** `CombatPreviewPanel.tsx`, `CombatLogPanel.tsx` (filters `type === 'combat'`), incoming (rose) + outgoing (orange) raid banners + `FrontierPanel` in `App.tsx`. Player guide → [app/README.md](app/README.md#frontier-raids--militia).
 
 ---
 
 ## Rendering notes
+
+### Entity draw cache (v0.5.0 — ready for shipment)
+
+Main-thread rendering no longer full-scans `entities` on each tick change (lands in v0.5.0 release):
+
+1. `gameTick` sets `world.entityByType` after all entity mutations (including wildlife replenish).
+2. `buildRenderSnapshot()` passes `entityByType` into the snapshot.
+3. `updateCachedEntities()` reads type buckets → `buildEntityDrawBuckets()` → y-sorted trees, animals, humans.
+4. Grass uses viewport-keyed culling: `collectGrassInViewport()` over `byType[Grass]` → ephemeral `buildGrassGrid` + `forEachInRect` (not a full-entity filter). `_cachedGrass` invalidates on tick or `grassViewportKey` (camera/zoom/canvas). Worker SoA path scans `grassSlots` with AABB check (no grid rebuild).
+5. Worker + `renderSoA` path uses `updateCachedEntitiesFromSoA()` — slot lists from `updateRenderSoABuckets()`.
+
+Layer taxonomy is centralized in `getRenderEntityLayer(type)` (`grass` | `tree` | `human` | `animal`) — used by both `buildEntityDrawBuckets()` and `renderSoAEntities.ts`.
+
+### OffscreenCanvas layers (v0.5.0 — ready for shipment)
+
+Rendering splits **static ground** from **dynamic world content** so rivers, terrain tiles, and entity sprites are not redrawn from scratch every frame when the cache key is unchanged.
+
+**Modules:**
+
+| Module | Cache | Invalidates when |
+|--------|-------|------------------|
+| `terrainLayer.ts` `bakeTerrainLayer()` | 1×1 px per map tile (season-colored) | Map seed/preset/size or `season` changes |
+| `terrainLayer.ts` `bakeTerrainDecor()` | World-resolution rivers + map border | Map seed/preset or world `width`/`height` changes |
+| `entityLayer.ts` `beginEntityLayerPaint()` | Full canvas bitmap of entities + overlays | `buildEntityLayerKey()` — tick, camera, grid/paths, selection, build mode/ghost/strip, particle/text counts |
+
+**Frame paint order** (`renderGame` in `renderer.ts`):
+
+```
+terrain blit → entity layer blit → flash overlay → season/weather/night → grid-top → renffr omen
+```
+
+- **Terrain:** `drawProceduralGround()` blits baked tile + decor surfaces scaled by camera zoom.
+- **Entities:** `compositeCachedEntityLayer()` paints scent/grid/grass/trees/buildings/animals/humans/particles into an offscreen surface, then `drawImage` to the main canvas.
+- **Flash effects:** `drawEntityFlashOverlay()` stays on the main canvas (uses `_time`); `drawAnimals` / `drawHumans` skip flash when `forEntityLayerCache` is true.
+
+`resetRendererCaches()` (called from `gameLoop.ts` on new game / load) disposes terrain, decor, and entity offscreen surfaces.
+
+**Tests:** `entityLayer.test.ts`, `terrainLayer.test.ts`; Vitest uses `src/test/canvasPolyfill.ts` (Node has no native `OffscreenCanvas`).
+
+### Visuals
 
 - `ENTITY_DRAW_SCALE` (animals/buildings) vs `HUMAN_DRAW_SCALE` (smaller settlers)
 - Human sprites: preloaded PNGs (`human_male.png`, `human_female.png`); procedural canvas sheets as fallback
@@ -279,7 +511,7 @@ Combat is **strength-ratio resolution**, not tactical map battles. Key flow in `
 - **Focus panel** — contextual next-step hints with **Go →** actions (`focusHints.ts`, `FocusPanel.tsx`)
 - **Progress subnav** — Research / Trade / Goals with active-research dot and trade-ready count badges
 - **Event log** — Chronicle + **Combat** sub-tabs; filterable chronicle with copy / download `.txt` / `.json` / `.csv`; optional export on save
-- **Build UX** — bottom map **hotbar** (`BuildHotbar`) for common types; left **catalog** panel (`B`) for full list; collapsed rail has no duplicate quick-build (grid + cancel + expand only); grid toggle (`G`); rotation (`R`) for Road/Wall/Wall Gate; quick-build `1–9`
+- **Build UX** — left **Build catalog** (`BuildCatalogPanel`, `buildCatalog.ts`) with category rail; press **B** to collapse; grid toggle (`G`); rotation (`R`) for Road/Wall/Wall Gate; quick-build `1–9` when panel open
 - **Intro** — `IntroScreen` before `initGame`; `ensureIntroAudio()` on first interaction; skip to setup after logo
 - **Game menu** (`GameMenu`) — save, load, auto-save, audio, reset in ☰ header menu
 - Header shows season, year, **day**, **time** (☀️/🌙), resources; food badge pulses when critical
@@ -303,9 +535,11 @@ Combat is **strength-ratio resolution**, not tactical map battles. Key flow in `
 
 **Shipped (v0.4.2):** off-screen sim throttles, per-tick `entityById` / `buildingById`, wildlife `byType` loop, `wildlifeCounts`, UI memoization. See [CHANGELOG.md](CHANGELOG.md) `[0.4.2]` → Performance.
 
-**Benchmark:** `cd app && npm run simulate:30min` — env `SIM_MINUTES` (default 1200 ≈ 30 game-min), `PERF_SAMPLE_EVERY` (default 120). July 2026 sanity run (72k ticks, ~8 game years, ~557 entities): avg **1.81 ms/tick**, p50 **1.30 ms**, p95 **4.83 ms**, max **105 ms**. **Real play (July 2026):** 200+ player humans, game still smooth — total alive **~850–1000**. **v0.5 design target:** **300 player + ~30 neighbor humans** (2 rival camps + visitors) → **~330 humans on map**, **~1250 alive**; p95 &lt; 16 ms/tick @ ~800 (town), &lt; 20 ms/tick @ **~1250** (city); headroom **~1500**.
+**v0.5.0 perf/render (in code):** renderer entity draw cache (`world.entityByType` → `RenderSnapshot` → `updateCachedEntities`); `EntityCatalog` combined alive/byType index; shared `getRenderEntityLayer()` for main + SoA paths; **OffscreenCanvas layers** (terrain tiles + decor bake, dynamic entity bitmap cache, flash overlay on main canvas).
 
-**v0.5 ship gatekeeper:** `npm run simulate:20year` — headless **20 in-game years** (172800 ticks, 20 winters). Env: `SIM_PROFILE=town|village|eco` (default `town`), `SIM_YEARS=20` (set by `simulate-20year.ts`), `SIM_MAX_TICKS` for smoke only. Logs → `app/scripts/logs/sim-20year-<profile>-<timestamp>.txt`. **Exit 0 required** before tagging v0.5.0. `npm run simulate:10year` remains a faster regression check (`SIM_YEARS=10`).
+**Benchmark:** `cd app && npm run sim -- 30min` — env `SIM_MINUTES` (default 1200 ≈ 30 game-min), `PERF_SAMPLE_EVERY` (default 120). July 2026 sanity run (72k ticks, ~8 game years, ~557 entities): avg **1.81 ms/tick**, p50 **1.30 ms**, p95 **4.83 ms**, max **105 ms**. **Real play (July 2026):** 200+ player humans, game still smooth — total alive **~850–1000**. **v0.5 design target:** **300 player + ~30 neighbor humans** (2 rival camps + visitors) → **~330 humans on map**, **~1250 alive**; p95 &lt; 16 ms/tick @ ~800 (town), &lt; 20 ms/tick @ **~1250** (city); headroom **~1500**.
+
+**v0.5 ship gatekeeper:** `npm run sim -- 20year` — headless **20 in-game years** (172800 ticks, 20 winters). Env: `SIM_PROFILE=town|village|eco` (default `town`), `SIM_YEARS=20` (set by `simulate-20year.ts`), `SIM_MAX_TICKS` for smoke only. Logs → `app/scripts/logs/sim-20year-<profile>-<timestamp>.txt`. **Exit 0 required** before tagging v0.5.0. `npm run sim -- 10year` remains a faster regression check (`SIM_YEARS=10`). CI gate: `npm run bench`.
 
 **Future phases** (version + finish target) — full table in [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md):
 
@@ -317,14 +551,9 @@ Event log stays uncapped in saves; Phase 3 may add optional append-only indexing
 
 ---
 
-## Planned packaging (not implemented)
+## Distribution
 
-Target shipping paths documented for players:
-
-- **Electron / Tauri** — desktop installer
-- **Steam** — distribution + updates
-
-Current alpha intentionally uses `npm start` + browser.
+Current alpha runs in the browser via `npm start`. Packaging plans (desktop installer, Steam) → [ROADMAP.md](ROADMAP.md).
 
 ---
 
@@ -333,7 +562,7 @@ Current alpha intentionally uses `npm start` + browser.
 | Task | Where to start |
 |------|----------------|
 | New building | `gameTypes.ts` `BUILDING_CONFIGS`, sprite in `public/sprites/`, production block in `gameEngine.ts` |
-| New species | `EntityType`, `SPECIES_CONFIG`, tick branch in `gameEngine.ts`, `renderer.ts` |
+| New species | `EntityType`, `SPECIES_CONFIG`, tick branch in `gameEngine.ts`, `renderer.ts`; `getRenderEntityLayer()` auto-buckets unknown wildlife as `animal` |
 | New world event | `groupEvents.ts` `rollYearlyWorldEvent` |
 | New rival diplomacy event | `DiplomacyEventKind`, `pickDiplomacyKind` / `maybeQueueDiplomacyEvent`, handler in `respondToDiplomacyEvent` |
 | New visitor kind | `VisitorKind`, spawn tables in `groupEvents.ts` |
@@ -355,7 +584,7 @@ Current alpha intentionally uses `npm start` + browser.
 |------|----------------|
 | **Branding** | `GAME_PHASE = 'Early Alpha'`; badges in header, intro, Guide |
 | **Humans** | Movement fixes; procedural 4-frame walk sheets (`humanSprites.ts`) |
-| **Social** | Speech bubbles (`humanChat.ts`); day/night schedule — 24 ticks = 1 day |
+| **Social** | Speech bubbles via dialogue trees (`humanChat.ts` + `sim_dialogue_trees.json`); day/night schedule — 24 ticks = 1 day |
 | **Housing** | `residenceBuildingId` for sleep; `homeBuildingId` = workplace |
 | **World** | Visitor caravans + rival camps (`groupEvents.ts`); Moon Howlers + Church cure |
 | **UX** | Collapsible build panel, Inspector, Guide tab, `IntroScreen.tsx` |
@@ -377,11 +606,11 @@ Uncapped event log in saves (UI still shows latest 500); `.json` / `.csv` export
 
 ### July 4, 2026 — v0.4.1 shipped
 
-Tribes diplomacy v2, frontier raids MVP, Trade Empire + Harmony victory paths, merit elections (ceremony + record score shipped in code pre-0.5.0 tag), in-game Roadmap tab.
+Tribes diplomacy v2, frontier raids MVP, Trade Empire + Harmony victory paths, merit elections (ceremony + record score ready in code — ships with v0.5.0 tag), in-game Roadmap tab.
 
 ### July 2026 — v0.4.2 feature work (shipped July 5)
 
-6-tab sidebar, `AlertBar`, `BuildHotbar`, `FrontierPanel`, forge queue, raid deadlines, perf pass (`entityById`, off-screen throttles, `wildlifeCounts`), `simulate:30min` benchmark. P1 defense buildings + `CombatLogPanel`; P2 rotation, juice pass, intro refine.
+6-tab sidebar, `AlertBar`, `BuildHotbar` (v0.4.2; later replaced by `BuildCatalogPanel`), `FrontierPanel`, forge queue, raid deadlines, perf pass (`entityById`, off-screen throttles, `wildlifeCounts`), `sim -- 30min` benchmark. P1 defense buildings + `CombatLogPanel`; P2 rotation, juice pass, intro refine.
 
 ### July 5, 2026 — v0.4.2 shipped
 
@@ -398,9 +627,9 @@ Tribes diplomacy v2, frontier raids MVP, Trade Empire + Harmony victory paths, m
 | **v0.5.0 code audit** | Compared roadmap to code: **1 P0 done** (compaction), **4 partial**, **16 P0 open** — see [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md#code-audit-2026-07-05-vs-game_version--042) |
 | **Next-action order** | **Finish partial first** in `ROADMAP_0.5.0.md` + in-game `roadmapContent.ts` (`v050-partial-first` section) |
 
-**Partial-first todo (dev):** renderer `byType` cache → `buildingById` go-home → grass buckets → `simulate-30min` profiles/exit → full `simulate:20year` → App tab split → then spatial grid + Worker.
+**Partial-first todo (dev):** renderer `byType` cache **ready** · grass viewport buckets **ready** → `buildingById` go-home → `sim -- 30min` profiles/exit → full `sim -- 20year` → App tab split. Spatial grid + Worker + OffscreenCanvas **ready** July 7–8 (ship with v0.5.0 tag).
 
-**Sim note:** `simulate:20year` smoke PASS (8640 ticks); full 172800-tick run still required for v0.5 tag.
+**Sim note:** `sim -- 20year` smoke PASS (8640 ticks); full 172800-tick run still required for v0.5 tag.
 
 **Git (session):** `b69a865` … `4f157ca` on `main`.
 
@@ -421,9 +650,9 @@ Playtest: **200+ citizens**, performance still good. Entity budget is higher tha
 
 **Optimization sizing:** dual-layer spatial grid; mobile layer must index all map humans; benchmark `SIM_PROFILE=city` spawns rivals + visitor wave and asserts **~1250 alive**. Private reference → `private/v0.5-scale-targets.md` (full budget + benchmark table + implementation order).
 
-### July 5, 2026 — Election day ceremony (v0.5.0 P1) ✅
+### July 5, 2026 — Election day ceremony (v0.5.0 P1 — ready for shipment)
 
-**Shipped in `villageLeadership.ts`** — extends merit election (do not duplicate).
+**Implemented in `villageLeadership.ts`** — extends merit election (do not duplicate). Ships with v0.5.0 tag.
 
 | Feature | Implementation |
 |---------|----------------|
@@ -440,13 +669,56 @@ Playtest: **200+ citizens**, performance still good. Entity budget is higher tha
 
 **Remaining:** live playtest at Year 10/20.
 
+### July 7–8, 2026 — Bug tracker closure + scale infra (ready for v0.5.0)
+
+Playtest build remains **`GAME_VERSION` 0.4.2** until the v0.5.0 tag. Items below are **implemented and tested**, not released.
+
+| Area | Status |
+|------|--------|
+| **Bug pass** | **226** tracker items (batches A–J); `/check-work` PASS |
+| **Spatial grid** | Ready — `spatialGrid.ts` grass + mobile layers; wired in `lifeSimulation.ts` graze/hunt/flee |
+| **Worker sim** | Ready — `simWorker/GameWorkerHost.ts`, render SoA (`simBuffers/`), `WORKER_PROTO` negotiation; opt-in via env |
+| **Renderer cache** | Ready — `world.entityByType` per sim tick; `RenderSnapshot.entityByType`; `buildEntityDrawBuckets()`; viewport grass culling from grass bucket only |
+| **Grass render buckets** | Ready — `collectGrassInViewport()` spatial query over `byType[Grass]`; `_cachedGrass` + viewport key; batched `drawGrass` |
+| **OffscreenCanvas** | Ready — `canvasLayer.ts`, `terrainLayer.ts` (tiles + decor), `entityLayer.ts` (dynamic bitmap); `renderer.ts` compositing; `resetRendererCaches()` on new game/load |
+| **Entity indexing** | Ready — `EntityCatalog` combined alive/byType cache; `resolveAliveHumans()`; `getRenderEntityLayer()` shared with SoA buckets; `emptyEntityByType()` |
+| **Save/UI** | Ready — `saveSchema.ts` allow-list saves; camera pan round-trip; `catalog` state in `App.tsx` from loop subscribe |
+| **Settler chat** | Ready — `sim_dialogue_trees.json` (v1.1, **95** trees); `dialogueTrees.ts` + `humanChat.ts` 3-beat paired sessions; scripted election gossip, marriage `Yes!`, Renffr omen exceptions |
+| **Tests** | Vitest **343** passed, **0 skipped**, **64** files (`npm test`); browser worker suites optional (`vitest.browser-worker.config.ts`); frontier raid tests in `frontierCombat.test.ts` (22); chat tests in `humanChat.test.ts`, `villageLeadership.test.ts`, `lifeSimulation.courtship.test.ts`; layer tests in `entityLayer.test.ts`, `terrainLayer.test.ts` |
+| **Lint** | **70 → 0** ESLint errors — `useLayoutEffect` ref sync, `BuildCatalogPanel` derived category, test hygiene |
+| **UI** | Ready — `BuildCatalogPanel` replaces deleted `BuildHotbar`; `ResourceBadge` / `resourceLabels.ts` |
+
+### July 8, 2026 — Dialogue-tree settler chat
+
+Routine settler banter no longer uses inline phrase pools in `humanChat.ts`. All context-driven chat routes through **`sim_dialogue_trees.json`** (95 trees: `dt_*` + migrated `wf_*`). Legacy one-liners were converted via `app/scripts/migrate-legacy-dialogue.py`. Election gossip, winner speech, marriage `Yes!`, and Renffr omen remain scripted one-offs.
+
+### July 8, 2026 — npm scripts + test gate cleanup
+
+| Area | Change |
+|------|--------|
+| **`npm test`** | `vitest run && tsc -p tsconfig.vitest.json --noEmit` — **343 passed**, **64** files, **0 skipped** |
+| **`npm run` (app)** | **9 scripts**: `dev`, `build`, `test`, `test:watch`, `lint`, `preview`, `sim`, `bench`, `dup` |
+| **`sim` CLI** | `scripts/sim-cli.mjs` replaces all `simulate:*` / `balance:*` / `benchmark:*` entries |
+| **Vitest** | Browser worker tests excluded from default run; optional `vitest.browser-worker.config.ts` |
+
+### July 8, 2026 — Batches I–J (sim integrity + check-work follow-ups)
+
+| Batch | Theme |
+|-------|-------|
+| **I** | `killHuman` widow routing; `isSettlerRelationshipEntity` for Moon Howler marriages; `tickQueries.ts` pairwise hotspot elimination; collision-free social integration test ids |
+| **J** | `isKillableSettlerEntity` + `markWildlifeDead` for werewolf-form deaths; test helper type fixes folded into `npm test` |
+
+### July 8, 2026 — jscpd duplicate cleanup
+
+`jscpd` scan found **8 clones** (93 lines, 0.4%) in `stripRender.ts`, `trackPlayer.ts`, `director.ts`, intro/background music mute sync, and inline `lifetimeStats` in `worldGen.ts`. Refactored to shared helpers; **`npm run dup`** now reports **0 clones**. Quality gates: `npm test` **320** passed, `npm run build` PASS.
+
 ---
 
 ## Fix history
 
 ### June 24, 2026 — Sprite & interaction fixes
 
-**Tests:** `npm run build`, `npm run lint`, `npx tsc --noEmit` — all pass.
+**Tests:** `npm run build`, `npm run lint` (repo root or `app/`) — all pass.
 
 | Problem | Fix | Files |
 |---------|-----|-------|
@@ -465,7 +737,7 @@ Playtest: **200+ citizens**, performance still good. Entity budget is higher tha
 
 ### June 24 — Code cleanup (hygiene only)
 
-Shared `eventLog.ts`; deduped visitor/rival logging in `groupEvents.ts`; victory constants in `victory.ts`; consolidated `App.tsx` imports. Deferred: split `gameEngine.ts`, unify news helpers.
+Shared `eventLog.ts`; deduped visitor/rival logging in `groupEvents.ts`; victory constants in `victory.ts`; consolidated `App.tsx` imports.
 
 ### July 4, 2026 — Lint hygiene
 
@@ -490,29 +762,9 @@ Four review rounds — full P0/P1/P2 table in [CHANGELOG.md](CHANGELOG.md) → *
 | **3** | Calendar + save | Eco 24×/year; age display; raid tick timing; save year sync; trade storage cap; forge tick; leadership XP |
 | **4** | Visitors + stats | Refugees killed on departure; pop-cap food charge; save migrations; stats births/disasters; diplomacy/trade/forge UI; moon howler hunt leak |
 
-**Verified:** `npm run build`, `npm run lint` (0 errors), `npm run simulate`, `npm run simulate:30min`.
+**Verified:** `npm run build`, `npm run lint` (0 errors), `npm run sim -- 5min`, `npm run sim -- 30min`.
 
 Key areas: `App.tsx`, `groupEvents.ts`, `gameEngine.ts`, `frontierCombat.ts`, `saveLoad.ts`, `stats.ts`, `militiaBalance.ts`, `moonHowler.ts`, `forge.ts`.
-
----
-
-## Frontier combat — polish & gaps
-
-Player guide → [app/README.md](app/README.md#frontier-raids--militia) · Code → `frontierCombat.ts`, `defenseStructures.ts`, `CombatLogPanel.tsx`, `CombatPreviewPanel.tsx`
-
-| Item | Priority | Status | Notes |
-|------|----------|--------|-------|
-| **Village tab raid shortcut** | — | Done | Incoming raid card + Frontier `🏹 Raid` + map banner + alert strip |
-| **Raid deadline vs distance** | — | Done | `expiresAtTick` 2–6 days; `marchDistanceTiles`; slower rival march in `lifeSimulation.ts` |
-| **Pay-off vs raid tooltip** | — | Done | `CombatPreviewPanel` cyan hint when `incomingPayoffFood` &lt; `outgoingRaidFoodCost` |
-| **Combat preview panel** | — | Done | Militia vs rival, defend/barricade/counter tiers, block reasons |
-| **Dedicated combat log panel** | — | Done | Log → **Combat** — stats, scroll, .txt/.json/.csv export |
-| **Walls / Watchtowers / Barracks** | — | Done | `defenseStructures.ts`; guard patrols in `lifeSimulation.ts` |
-| **Raid march map overlay** | — | Done | `drawRaidMarchLines` — dashed red line + ⚔️ midpoint |
-| **Rival war-band march** | — | Done | Rival settlers path to village while raid pending; ⚔️ badge when close |
-| **Weapon / status map icons** | Low | Partial | Settler badges: 🏹 hunt, 🛡️ shields, 🪖 guard, ⚔️ `combatTicks` ✅ · **Missing:** player militia march on **outgoing** counter-raid → **v0.5.0 P1** |
-| **Spear tier stacking** | — | Done | `militiaBalance.ts` — iron replaces stone; iron shields replace wooden |
-| **Real-time map battles** | — | Deferred | Abstract `resolveDefenseRatio` / `launchRaidOnRival` — no tactical combat (post-0.5.0) |
 
 ---
 
@@ -543,8 +795,6 @@ Player guide → [app/README.md](app/README.md#frontier-raids--militia) · Code 
 
 **Fixed before v0.4.2 ship (July 5):** eco breakdown on Nature tab; population growth report; rival “distant camp” label; Frontier readiness card; juice toggle; raid prep copy; death filter hints; combat log readability.
 
-**Out of scope:** tactical battle screen; outgoing counter-raid march spectacle (incoming march = warning only); counter-raid militia sprites → v0.5.0 P1.
-
 **Endorsement:** 7/10 would recommend to friends (eco/growth caveats); 3/10 wanted eco copy or mid-game goals first.
 
 Per-session notes (10 testers) were archived in git history when `app/docs/PLAYTEST_BETA_10_USERS.md` was merged here (commit July 2026).
@@ -555,7 +805,7 @@ Per-session notes (10 testers) were archived in git history when `app/docs/PLAYT
 
 Wilderfolk uses royalty-free music and sound effects from [OpenGameArt.org](https://opengameart.org). Files live under `app/public/audio/`. Track paths are defined in `src/audio/tracks.ts`.
 
-If a sample fails to load, the game falls back to procedural Web Audio tones (`src/audio/introMusic.ts`, `src/audio/backgroundMusic.ts`).
+If a sample fails to load, the game falls back to procedural Web Audio tones (`src/audio/introMusic.ts`, `src/audio/backgroundMusic.ts`). Loop playback and fade-out live in `trackPlayer.ts`; HTML `<audio>` mute sync in `htmlAudioSync.ts`; orchestration in `director.ts`.
 
 ### Music
 
