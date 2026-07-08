@@ -1,4 +1,5 @@
 import type { WorldState } from '../gameTypes';
+import { normalizeForgeState } from '../forge';
 
 /**
  * Mutable sim slices updated before each headless worker tick (excludes worldMap).
@@ -85,7 +86,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     pendingOutgoingRaidEvents: [...(state.pendingOutgoingRaidEvents ?? [])],
     pendingDiplomacyEvents: [...(state.pendingDiplomacyEvents ?? [])],
     tradeRoutes: [...(state.tradeRoutes ?? [])],
-    villageForge: { ...state.villageForge },
+    villageForge: normalizeForgeState(state.villageForge),
     challenges: [...(state.challenges ?? [])],
     victories: [...(state.victories ?? [])],
     festival: state.festival ? { ...state.festival } : null,

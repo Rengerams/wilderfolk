@@ -295,7 +295,7 @@ export function seedTutorialSeenForExistingState(state: WorldState): string[] {
   if (state.ecosystemHealth < 30) seen.add('ecosystem_low');
   const hasRecordedBirth = state.yearlyStats.some((ys) => ys.births.humans > 0);
   const hasBornChild = state.entities.some(
-    (e) => e.alive && isPlayerHuman(e) && e.isJuvenile && (e.motherId != null || e.generation > 1),
+    (e) => e.alive && isPlayerHuman(e) && e.isJuvenile && (e.motherId != null || (e.generation ?? 0) > 1),
   );
   if (hasRecordedBirth || hasBornChild) seen.add('first_birth');
   if (state.entities.some((e) => e.alive && isPlayerHuman(e) && e.relationshipStatus === 'married')) {

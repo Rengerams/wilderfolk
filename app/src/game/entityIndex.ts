@@ -26,13 +26,20 @@ export function ensureEntityByIdMap(state: WorldState): Map<number, Entity> {
 export function indexLivingEntity(state: WorldState, entity: Entity): void {
   if (!entity.alive) return;
   indexEntity(ensureEntityByIdMap(state), entity);
-  syncTreeSpatialIndex(state, entity);
+  // Defensive: only sync if the spatial index actually exists (old saves may lack it).
+  if (state.treeGrid != null) {
+    syncTreeSpatialIndex(state, entity);
+  }
 }
 
 /** Remove entity from id map and static tree grid on death/despawn. */
 export function unindexLivingEntity(state: WorldState, entity: Entity): void {
+  // Explicitly mark dead before syncing so the spatial index knows to remove it.
+  entity.alive = false;
   unindexEntity(state.entityById, entity.id);
-  syncTreeSpatialIndex(state, entity);
+  if (state.treeGrid != null) {
+    syncTreeSpatialIndex(state, entity);
+  }
 }
 
 /** Full rebuild from alive entities — load recovery, init, and tests only. */

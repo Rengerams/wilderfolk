@@ -30,13 +30,14 @@ export function matchesCitizenSearch(entity: Entity, query: string): boolean {
   const base = (entity.name || '').toLowerCase();
   const surname = (entity.surname || '').toLowerCase();
   const full = `${base} ${surname}`.trim();
-  return base.includes(q) || surname.includes(q) || full.includes(q) || formatCitizenId(entity.id).includes(q);
+  return base.includes(q) || surname.includes(q) || full.includes(q);
 }
 
 /** Life stage + age for chronicle death lines (internal age counts as years in the village calendar). */
 export function formatDeathAgeSuffix(entity: Pick<Entity, 'age' | 'isJuvenile'>): string {
   const years = Math.max(0, entity.age);
-  const stage = entity.isJuvenile || years < HUMAN_CHILDHOOD_DAYS
+  // Age is ground truth; isJuvenile flag is ignored here to avoid inconsistent overrides.
+  const stage = years < HUMAN_CHILDHOOD_DAYS
     ? 'child'
     : years >= HUMAN_VENERABLE_AGE
       ? 'elder'

@@ -1,7 +1,5 @@
 import type { Entity, WildlifeCounts } from './gameTypes';
 import { EntityType } from './gameTypes';
-import { isPlayerHuman } from './groupEvents';
-import { isActiveMoonHowler } from './moonHowler';
 
 export type PopulationCounts = WildlifeCounts & { humans: number };
 
@@ -41,7 +39,9 @@ function wildlifeCountBucket(e: Entity): keyof WildlifeCounts | null {
     case EntityType.Fox:
       return 'foxes';
     case EntityType.Werewolf:
-      return isActiveMoonHowler(e) ? 'werewolves' : null;
+      // Always count Werewolf-type entities as werewolves.
+      // If a cursed human is in Human form, its type should be Human (restored via moonHowlerSaved).
+      return 'werewolves';
     case EntityType.Wildkin:
       return 'wildkin';
     case EntityType.Human:
@@ -70,12 +70,13 @@ export function wildlifeCountsFromPopulation(counts: PopulationCounts): Wildlife
   return wildlife;
 }
 
-/** Player humans + wildlife — same rules as gameTick population counting. */
+/** All humans + wildlife — same rules as gameTick population counting. */
 export function computePopulationCounts(entities: Entity[]): PopulationCounts {
   const counts = emptyPopulationCounts();
   for (const e of entities) {
     if (!e.alive) continue;
-    if (isPlayerHuman(e)) {
+    // Count ALL humans (player, visitors, rivals, caravans), not just player humans.
+    if (e.type === EntityType.Human) {
       counts.humans++;
       continue;
     }

@@ -1920,7 +1920,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             husband,
             biologicalFather,
           );
-          const babyGen = entity.generation + 1;
+          const babyGen = (entity.generation ?? 0) + 1;
           const childGender = Math.random() > 0.5 ? 'male' : 'female';
           const child = createEntity(EntityType.Human, nx, ny, state.nextEntityId++, 80, true, {
             gender: childGender,
@@ -1935,9 +1935,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           child.residenceBuildingId = entity.residenceBuildingId;
           setHumanBirthFromAge(child, 0, getColonyDay(state));
           pushNewEntity(state, ctx, child);
+          entity.childrenIds ??= [];
           entity.childrenIds.push(child.id);
           if (biologicalFather?.alive) {
             biologicalFather.flash = 10;
+            biologicalFather.childrenIds ??= [];
             biologicalFather.childrenIds.push(child.id);
             if (biologicalFather.relationshipStatus === 'expecting') {
               biologicalFather.relationshipStatus = biologicalFather.partnerId != null ? 'married' : 'single';
@@ -1945,6 +1947,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           }
           if (husband?.alive && !isBastard) {
             husband.flash = 10;
+            husband.childrenIds ??= [];
             if (!husband.childrenIds.includes(child.id)) husband.childrenIds.push(child.id);
             if (husband.relationshipStatus === 'expecting') husband.relationshipStatus = 'married';
           }
@@ -2506,7 +2509,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       const prey = entityById.get(entity.huntTargetId);
       if (!prey?.alive) entity.huntTargetId = undefined;
     }
-    entity.animFrame += 0.1;
+    entity.animFrame = (entity.animFrame ?? 0) + 0.1;
 
     // Death by old age
     if (entity.age >= entity.maxAge) {

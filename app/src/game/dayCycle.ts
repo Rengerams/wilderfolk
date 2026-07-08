@@ -570,6 +570,8 @@ export function ensureOrphanAdoption(
   if (couple) {
     child.adoptiveMotherId = couple.mother.id;
     child.adoptiveFatherId = couple.father.id;
+    couple.mother.childrenIds ??= [];
+    couple.father.childrenIds ??= [];
     if (!couple.mother.childrenIds.includes(child.id)) couple.mother.childrenIds.push(child.id);
     if (!couple.father.childrenIds.includes(child.id)) couple.father.childrenIds.push(child.id);
     return true;
@@ -582,6 +584,7 @@ export function ensureOrphanAdoption(
     } else {
       child.adoptiveFatherId = guardian.id;
     }
+    guardian.childrenIds ??= [];
     if (!guardian.childrenIds.includes(child.id)) guardian.childrenIds.push(child.id);
     return true;
   }
@@ -625,7 +628,7 @@ export function collectFamilyMembers(
     const father = livingHuman(humans, human.fatherId);
     if (father && !visited.has(father.id)) queue.push(father);
 
-    for (const childId of human.childrenIds) {
+    for (const childId of human.childrenIds ?? []) {
       const child = livingHuman(humans, childId);
       if (child && !visited.has(child.id)) queue.push(child);
     }
@@ -803,7 +806,7 @@ export function migrateHumanAges(
     if (options?.forceCalendar || looksLikeLegacyFastAge || looksLikeLegacyPerDayAging) {
       if (computed < stored - 3 && (human.birthYear !== 0 || human.birthDay !== 0)) {
         ageYears = computed;
-      } else if (human.generation <= 1 && colonyDay < DAYS_PER_YEAR * 2) {
+      } else if ((human.generation ?? 0) <= 1 && colonyDay < DAYS_PER_YEAR * 2) {
         ageYears = human.isJuvenile
           ? Math.min(HUMAN_CHILDHOOD_DAYS - 1, Math.floor(colonyDay / JUVENILE_DAYS_PER_AGE_YEAR))
           : Math.min(35, 28 + Math.floor(colonyDay / ADULT_DAYS_PER_AGE_YEAR));

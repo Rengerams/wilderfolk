@@ -110,14 +110,15 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
   }
 
   const blacksmith = findCompletedBlacksmith(state);
-  if (state.villageForge.activeOrder && blacksmith && !isBlacksmithStaffed(state)) {
-    const order = getForgeOrder(state.villageForge.activeOrder);
+  const forge = state.villageForge;
+  if (forge?.activeOrder && blacksmith && !isBlacksmithStaffed(state)) {
+    const order = getForgeOrder(forge.activeOrder);
     alerts.push({
       id: 'forge-unstaffed',
       severity: 'warning',
       icon: '🔨',
       title: 'Forge paused',
-      detail: `${order?.label ?? 'Iron gear'} at ${Math.round(state.villageForge.progress)}% — staff the Blacksmith`,
+      detail: `${order?.label ?? 'Iron gear'} at ${Math.round(forge.progress)}% — staff the Blacksmith`,
       action: {
         type: 'focus_building',
         buildingId: blacksmith.id,

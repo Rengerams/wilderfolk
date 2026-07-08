@@ -48,21 +48,23 @@ export class EntityCatalog {
   }
 
   applyTickDelta(delta: Pick<SimTickDelta, 'diedIds' | 'newEntities' | 'catalogEntities'>): void {
-    for (const id of delta.diedIds) {
-      const entity = this.byId.get(id);
-      if (entity) entity.alive = false;
-      this.aliveIds.delete(id);
-    }
-    for (const entity of delta.newEntities) {
-      this.byId.set(entity.id, entity);
-      if (entity.alive) this.aliveIds.add(entity.id);
-    }
+    // Process catalogEntities first (full state sync), then new spawns, then deaths last.
+    // This guarantees that death always wins if an ID appears in multiple delta arrays.
     if (delta.catalogEntities) {
       for (const entity of delta.catalogEntities) {
         this.byId.set(entity.id, entity);
         if (entity.alive) this.aliveIds.add(entity.id);
         else this.aliveIds.delete(entity.id);
       }
+    }
+    for (const entity of delta.newEntities) {
+      this.byId.set(entity.id, entity);
+      if (entity.alive) this.aliveIds.add(entity.id);
+    }
+    for (const id of delta.diedIds) {
+      const entity = this.byId.get(id);
+      if (entity) entity.alive = false;
+      this.aliveIds.delete(id);
     }
     this.invalidateAliveIndex();
   }
@@ -78,8 +80,9 @@ export class EntityCatalog {
     return this.byId.get(id);
   }
 
+  /** Returns a shallow copy so callers cannot corrupt the internal cache. */
   getAlive(): Entity[] {
-    return this.ensureAliveIndex().alive;
+    return [...this.ensureAliveIndex().alive];
   }
 
   getAliveByType(type: EntityType): Entity[] {

@@ -21,17 +21,20 @@ function hasTech(state: CombatContext, techId: string): boolean {
   return state.unlockedTechs.includes(techId);
 }
 
-function researchedEffect(state: CombatContext, target: string, mode: 'mult' | 'add'): number {
+/** Returns undefined when no matching researched effect exists. */
+function researchedEffect(state: CombatContext, target: string, mode: 'mult' | 'add'): number | undefined {
   let value = mode === 'mult' ? 1 : 0;
+  let found = false;
   for (const node of state.researchNodes) {
     if (!node.researched) continue;
     for (const effect of node.effects) {
       if (effect.target !== target) continue;
-      if (mode === 'mult' && effect.multiplier) value *= effect.multiplier;
-      if (mode === 'add' && effect.add) value += effect.add;
+      found = true;
+      if (mode === 'mult' && effect.multiplier !== undefined) value *= effect.multiplier;
+      if (mode === 'add' && effect.add !== undefined) value += effect.add;
     }
   }
-  return value;
+  return found ? value : undefined;
 }
 
 export function hasCompletedBlacksmith(state: CombatContext): boolean {
@@ -59,11 +62,11 @@ export function hasIronShields(state: CombatContext & { villageForge?: VillageFo
 }
 
 export function getHuntRangeMultiplier(state: WorldState): number {
-  return researchedEffect(state, 'hunt_range', 'mult');
+  return researchedEffect(state, 'hunt_range', 'mult') ?? 1;
 }
 
 export function getHuntFoodMultiplier(state: WorldState): number {
-  return researchedEffect(state, 'hunt_food', 'mult');
+  return researchedEffect(state, 'hunt_food', 'mult') ?? 1;
 }
 
 export function getHumanHuntRange(state: WorldState, baseRange: number): number {
@@ -71,19 +74,21 @@ export function getHumanHuntRange(state: WorldState, baseRange: number): number 
 }
 
 export function getPredatorBlockChance(state: WorldState): number {
-  let chance = researchedEffect(state, 'predator_block', 'add');
+  let chance = researchedEffect(state, 'predator_block', 'add') ?? 0;
   if (hasIronShields(state)) chance = Math.max(chance, 0.6);
   else if (hasWoodenShields(state)) chance = Math.max(chance, 0.35);
   return Math.min(0.85, chance);
 }
 
 export function getHumanFleeSpeedMultiplier(state: WorldState): number {
-  return researchedEffect(state, 'flee_speed', 'mult');
+  return researchedEffect(state, 'flee_speed', 'mult') ?? 1;
 }
 
 export function getCounterAttackChance(state: WorldState): number {
   if (!hasIronSpears(state)) return 0;
-  return researchedEffect(state, 'counter_attack', 'add') || 0.45;
+  const add = researchedEffect(state, 'counter_attack', 'add');
+  // Default 0.45 only when no explicit research effect exists; 0 is a valid explicit value.
+  return add === undefined ? 0.45 : add;
 }
 
 export function rollPredatorBlock(
@@ -121,6 +126,7 @@ export interface ArmamentStep {
 export function getArmamentSteps(state: WorldState): ArmamentStep[] {
   const hasSmith = hasCompletedBlacksmith(state);
   const hasMining = hasTech(state, 'mining_1');
+  const forge = state.villageForge ?? EMPTY_FORGE;
   return [
     {
       id: 'stone_spears',
@@ -150,45 +156,45 @@ export function getArmamentSteps(state: WorldState): ArmamentStep[] {
       id: 'iron_spears',
       label: 'Iron Spears',
       done: hasIronSpears(state),
-      detail: forgeStepDetail(state, 'iron_spears', 'Research Iron Spears, staff Blacksmith, queue forge order.', 'Forged at the Blacksmith — village armed.'),
+      detail: forgeStepDetail(forge, 'iron_spears', 'Research Iron Spears, staff Blacksmith, queue forge order.', 'Forged at the Blacksmith — village armed.'),
     },
     {
       id: 'iron_shields',
       label: 'Iron Shields',
       done: hasIronShields(state),
-      detail: forgeStepDetail(state, 'iron_shields', 'Research Iron Shields, staff Blacksmith, queue forge order.', 'Forged at the Blacksmith — shields active.'),
+      detail: forgeStepDetail(forge, 'iron_shields', 'Research Iron Shields, staff Blacksmith, queue forge order.', 'Forged at the Blacksmith — shields active.'),
     },
     {
       id: 'guard_halberds',
       label: 'Guard Halberds',
-      done: isForgeOrderComplete(state.villageForge, 'guard_halberds'),
-      detail: forgeStepDetail(state, 'guard_halberds', 'Research Militia Drill, forge Iron Spears first, then queue halberds.', 'Forged — staffed guards gain extra militia strength.'),
+      done: isForgeOrderComplete(forge, 'guard_halberds'),
+      detail: forgeStepDetail(forge, 'guard_halberds', 'Research Militia Drill, forge Iron Spears first, then queue halberds.', 'Forged — staffed guards gain extra militia strength.'),
     },
     {
       id: 'wall_plates',
       label: 'Wall Plates',
-      done: isForgeOrderComplete(state.villageForge, 'wall_plates'),
-      detail: forgeStepDetail(state, 'wall_plates', 'Research Reinforced Masonry, forge Iron Shields first, then queue wall plates.', 'Forged — wall segments grant stronger barricade bonus.'),
+      done: isForgeOrderComplete(forge, 'wall_plates'),
+      detail: forgeStepDetail(forge, 'wall_plates', 'Research Reinforced Masonry, forge Iron Shields first, then queue wall plates.', 'Forged — wall segments grant stronger barricade bonus.'),
     },
     {
       id: 'iron_pickaxes',
       label: 'Iron Pickaxes',
-      done: isForgeOrderComplete(state.villageForge, 'iron_pickaxes'),
-      detail: forgeStepDetail(state, 'iron_pickaxes', 'Research Refining (Mining), staff Blacksmith, queue pickaxes.', 'Forged — quarries produce more stone.'),
+      done: isForgeOrderComplete(forge, 'iron_pickaxes'),
+      detail: forgeStepDetail(forge, 'iron_pickaxes', 'Research Refining (Mining), staff Blacksmith, queue pickaxes.', 'Forged — quarries produce more stone.'),
     },
   ];
 }
 
 function forgeStepDetail(
-  state: WorldState,
+  forge: VillageForgeState,
   orderId: ForgeOrderId,
   pending: string,
   ready: string,
 ): string {
-  if (state.villageForge?.activeOrder === orderId) {
-    return `Forging at Blacksmith… ${Math.round(state.villageForge.progress)}%`;
+  if (forge.activeOrder === orderId) {
+    return `Forging at Blacksmith… ${Math.round(forge.progress)}%`;
   }
-  if (isForgeOrderComplete(state.villageForge, orderId)) return ready;
+  if (isForgeOrderComplete(forge, orderId)) return ready;
   return pending;
 }
 
@@ -260,7 +266,7 @@ export function getHumanStatusCombatIconFromFlags(
     return '🪖';
   }
   if (human.huntTargetId) return '🏹';
-  if (human.combatTicks && human.combatTicks > 0) return '⚔️';
+  if ((human.combatTicks ?? 0) > 0) return '⚔️';
   if (flags.hasShields) return '🛡️';
   if (flags.hasSpears) return '🏹';
   return null;
@@ -282,8 +288,10 @@ export function getHumanStatusCombatIcon(
   return getHumanStatusCombatIconFromFlags(human, flags);
 }
 
+const PREDATOR_TYPES = new Set<EntityType>([EntityType.Wolf, EntityType.Fox, EntityType.Werewolf]);
+
 export function isPredatorType(type: EntityType): boolean {
-  return type === EntityType.Wolf || type === EntityType.Fox || type === EntityType.Werewolf;
+  return PREDATOR_TYPES.has(type);
 }
 
 let cachedDefenseMigrationNodes: ResearchNode[] | null = null;
@@ -297,16 +305,18 @@ function getDefenseMigrationNodes(): ResearchNode[] {
   return cachedDefenseMigrationNodes;
 }
 
-export function mergeCombatResearchNodes(nodes: ResearchNode[]): void {
-  const existing = new Set(nodes.map((n) => n.id));
+/** Returns a new array; does NOT mutate the input. */
+export function mergeCombatResearchNodes(nodes: readonly ResearchNode[]): ResearchNode[] {
+  const result = nodes.map((n) => ({ ...n }));
+  const existing = new Set(result.map((n) => n.id));
   for (const template of getDefenseMigrationNodes()) {
     if (!existing.has(template.id)) {
-      nodes.push({ ...template });
+      result.push({ ...template });
       existing.add(template.id);
     }
   }
-  for (const node of nodes) {
+  for (const node of result) {
     if (node.id === 'defense_1' && !node.unlocked) node.unlocked = true;
   }
+  return result;
 }
-

@@ -225,7 +225,7 @@ export function migrateLegacyMoonHowler(entity: Entity, colonyDay: number, hourO
 
   entity.moonHowlerCursed = true;
   entity.surname = entity.surname || 'Moonborn';
-  entity.generation = Math.max(entity.generation, 1);
+  entity.generation = Math.max(entity.generation ?? 0, 1);
 
   if (!shouldMoonHowlerTransform(colonyDay, hourOfDay)) {
     entity.type = EntityType.Human;

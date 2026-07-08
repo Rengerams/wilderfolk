@@ -197,7 +197,8 @@ export interface Entity {
   prisonSentenceCrime?: 'scandal';
   occupation?: string;
   job?: JobType;
-  skills: Partial<Record<JobType, number>>;
+  /** Optional for non-human entities (animals, trees, etc.). */
+  skills?: Partial<Record<JobType, number>>;
   relationshipStatus?: 'single' | 'married' | 'expecting';
   attraction?: number;
   partnerId?: number;
@@ -222,15 +223,19 @@ export interface Entity {
   /** Set when no living parent/grandparent — village couple takes the child in. */
   adoptiveMotherId?: number;
   adoptiveFatherId?: number;
-  childrenIds: number[];
+  /** Optional for non-human entities. Spawn utilities should default to `[]`. */
+  childrenIds?: number[];
   name?: string;
   surname?: string;
   /** Birth / maiden surname — restored for the woman when a caught-affair marriage ends. */
   maidenSurname?: string;
-  generation: number;
+  /** Optional for non-human entities. */
+  generation?: number;
   // Visual
-  spriteAngle: number;
-  animFrame: number;
+  /** Optional for non-human entities. */
+  spriteAngle?: number;
+  /** Optional for non-human entities. */
+  animFrame?: number;
   /** Outfit / appearance variant (0..3) */
   spriteVariant?: number;
   /** Per-entity salt mixed into combat rolls (stable across ticks, unique per entity). */
@@ -584,8 +589,11 @@ export interface WorldState {
   activeEvent: GameEvent | null;
   lastEventYear: number;
   bountifulHarvest: boolean;
+  /** ⚠️ Denormalized — must stay in sync with `entities` each tick. */
   humanPopulation: number;
+  /** ⚠️ Denormalized — must stay in sync with `entities` each tick. */
   maxHumanPopulation: number;
+  /** ⚠️ Denormalized — must stay in sync with `entities` each tick. */
   wildlifeCounts: WildlifeCounts;
   villageName: string;
   villageReputation: number;
@@ -611,6 +619,7 @@ export interface WorldState {
   screenShakeImpulse: number;
   disasters: Disaster[];
   tradeRoutes: TradeRoute[];
+  /** ⚠️ Denormalized — must stay in sync with `buildings` each tick. */
   totalBuildingsCompleted: number;
   /** Last absolute calendar day daily sim events ran (prevents reload double-fire). */
   lastProcessedCalendarDay?: number;
@@ -651,7 +660,7 @@ export interface WorldState {
   /** Multi-phase election day ceremony (decennial). */
   electionCeremony: ElectionCeremonyState | null;
   /** Blacksmith forge queue — iron gear requires research + forging. */
-  villageForge: import('./forge').VillageForgeState;
+  villageForge?: import('./forge').VillageForgeState;
   /** Contextual tutorial tips already shown this playthrough. */
   tutorialSeen?: string[];
   /** Colony day of last wildlife replenish event-log entry (throttles meadow spam). */
@@ -914,10 +923,12 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     buildTime: 5, maxOccupants: 2,
     emoji: '⛓️', label: 'Prison', description: 'Holds scandalous settlers for a short sentence. Requires a Guard.',
     sprite: '/sprites/prison.png', backgroundColor: '#475569', padShape: 'rect',
-    unlockRequirement: 'architecture_1',  },
+    unlockRequirement: 'architecture_1',
+  },
   [BuildingType.TamingPost]: {
     width: 43, height: 43,
-    cost: { wood: 35, stone: 15, gold: 20 },    buildTime: 3, maxOccupants: 1,
+    cost: { wood: 35, stone: 15, gold: 20 },
+    buildTime: 3, maxOccupants: 1,
     emoji: '🦴', label: 'Taming Post', description: 'Allows settlers to tame nearby wolves, foxes, deer, and rabbits.',
     sprite: '/sprites/wolf.png', backgroundColor: '#7c3aed', padShape: 'circle',
   },

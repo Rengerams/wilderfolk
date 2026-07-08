@@ -418,7 +418,7 @@ function getHumanWalkMotion(human: Entity, camZoom: number, hasWalkFrame: boolea
     return { bobY: getHumanWalkBob(walkFrame, speed, camZoom) };
   }
   const stride = Math.min(1, speed / 1.4);
-  const phase = human.animFrame * 1.9 + human.id * 0.15;
+  const phase = (human.animFrame ?? 0) * 1.9 + human.id * 0.15;
   return { bobY: Math.abs(Math.sin(phase)) * stride * 2.8 * camZoom };
 }
 
@@ -1573,10 +1573,10 @@ function drawHumans(
     if (sx + cullPad < -20 || sx - cullPad > cw + 20 || sy + cullPad < -20 || sy - cullPad > ch + 20) continue;
 
     const isSel = state.selectedEntity?.id === human.id;
-    const flipX = human.vx < -0.05 || (Math.abs(human.vx) <= 0.05 && Math.cos(human.spriteAngle) < 0);
+    const flipX = human.vx < -0.05 || (Math.abs(human.vx) <= 0.05 && Math.cos(human.spriteAngle ?? 0) < 0);
     const speed = Math.hypot(human.vx, human.vy);
     const isWalking = speed > HUMAN_WALK_SPEED_THRESHOLD;
-    const walkFrame = isWalking ? getHumanWalkFrameIndex(human.animFrame, speed) : 0;
+    const walkFrame = isWalking ? getHumanWalkFrameIndex(human.animFrame ?? 0, speed) : 0;
     const walkMotion = getHumanWalkMotion(human, cam.zoom, isWalking, walkFrame);
     const drawSize = size;
     const footY = sy + footOffset;
@@ -1625,7 +1625,7 @@ function drawHumans(
 
     const isTalking = (human.chatTicks ?? 0) > 0;
     if (isTalking) {
-      drawTalkingMouth(ctx, sx, headY + spriteH * 0.12, drawSize, flipX, human.animFrame);
+      drawTalkingMouth(ctx, sx, headY + spriteH * 0.12, drawSize, flipX, human.animFrame ?? 0);
       const bubbleText = getChatBubbleText(human, tick);
       drawSpeechBubble(ctx, sx, headY, drawSize, bubbleText, tick, human.id, cam.zoom);
     }

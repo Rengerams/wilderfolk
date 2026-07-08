@@ -281,18 +281,20 @@ export function getHumanWalkFrameIndex(animFrame: number, speed: number): number
 }
 
 export function advanceHumanWalkAnim(human: Entity): void {
+  let frame = human.animFrame ?? 0;
   const speed = Math.hypot(human.vx, human.vy);
   if (speed > HUMAN_WALK_SPEED_THRESHOLD) {
-    human.animFrame += speed * 0.28;
-    if (human.animFrame >= HUMAN_WALK_FRAMES * 8) {
-      human.animFrame %= HUMAN_WALK_FRAMES;
+    frame += speed * 0.28;
+    if (frame >= HUMAN_WALK_FRAMES * 8) {
+      frame %= HUMAN_WALK_FRAMES;
     }
   } else if ((human.chatTicks ?? 0) > 0) {
-    human.animFrame += 0.12;
+    frame += 0.12;
   } else {
-    human.animFrame *= 0.55;
-    if (human.animFrame < 0.04) human.animFrame = 0;
+    frame *= 0.55;
+    if (frame < 0.04) frame = 0;
   }
+  human.animFrame = frame;
 }
 
 export function getHumanWalkBob(frame: number, speed: number, camZoom: number): number {

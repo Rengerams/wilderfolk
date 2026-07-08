@@ -1,4 +1,4 @@
-import { EntityType, Season, WeatherType, type WorldState } from './gameTypes';
+import { EntityType, WeatherType, type WorldState } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycle';
 import {
   GRASS_GROWTH_PER_TICK,

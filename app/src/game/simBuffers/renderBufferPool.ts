@@ -41,15 +41,17 @@ export class RenderBufferPool {
   }
 
   /** Restore a transferred buffer after main thread finishes reading. */
-  release(index: number, buffer: ArrayBuffer): void {
+  release(index: number, buffer: ArrayBuffer | null | undefined): void {
     if (index < 0 || index >= this.size) return;
     if (!this.outbound[index]) return;
-    if (this.slots[index] !== buffer && buffer.byteLength < this.expectedByteLength) return;
-    if (buffer.byteLength < this.expectedByteLength) {
+
+    // Guard against null/undefined or undersized buffers; always alloc fresh if unusable.
+    if (!buffer || buffer.byteLength < this.expectedByteLength) {
       this.slots[index] = new ArrayBuffer(this.expectedByteLength);
     } else {
       this.slots[index] = buffer;
     }
+
     this.outbound[index] = false;
   }
 }

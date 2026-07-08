@@ -233,12 +233,13 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
   }
 
   const blacksmith = findCompletedBlacksmith(state, buildings);
-  if (state.villageForge.activeOrder && blacksmith && !isBlacksmithStaffed(state, buildings)) {
-    const order = getForgeOrder(state.villageForge.activeOrder);
+  const forge = state.villageForge;
+  if (forge?.activeOrder && blacksmith && !isBlacksmithStaffed(state, buildings)) {
+    const order = getForgeOrder(forge.activeOrder);
     hints.push({
       icon: '🔨',
       title: 'Forge paused',
-      detail: `${order?.label ?? 'Iron gear'} is ${Math.round(state.villageForge.progress)}% — assign a worker to the Blacksmith.`,
+      detail: `${order?.label ?? 'Iron gear'} is ${Math.round(forge.progress)}% — assign a worker to the Blacksmith.`,
       action: {
         label: 'Open Blacksmith',
         id: 'focus_blacksmith',

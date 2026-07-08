@@ -3276,7 +3276,7 @@ function getFamilyMembers(entity: Entity, allEntities: Entity[]): { label: strin
     if (e.id === entity.motherId) add(e, '👩', 'Mother');
     if (e.partnerId === entity.id) add(e, e.gender === 'male' ? '👨' : '👩', 'Spouse');
     if (
-      entity.childrenIds.includes(e.id)
+      (entity.childrenIds ?? []).includes(e.id)
       || e.motherId === entity.id
       || e.fatherId === entity.id
     ) {
@@ -3300,7 +3300,7 @@ function countLivingChildren(entity: Entity, allEntities: Entity[]): number {
   return allEntities.filter((e) =>
     e.alive
     && e.type === EntityType.Human
-    && (entity.childrenIds.includes(e.id) || e.motherId === entity.id || e.fatherId === entity.id),
+    && ((entity.childrenIds ?? []).includes(e.id) || e.motherId === entity.id || e.fatherId === entity.id),
   ).length;
 }
 
@@ -3381,7 +3381,7 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onMoveOut, on
               <span className="font-mono text-stone-400">Citizen #{entity.id}</span>
               {' · '}
               {entity.gender === 'male' ? '♂' : '♀'} {entity.relationshipStatus || 'child'}
-              {entity.generation > 0 ? ` · Gen ${entity.generation}` : ''}
+              {(entity.generation ?? 0) > 0 ? ` · Gen ${entity.generation}` : ''}
               {isVillageHead && (
                 <span className="text-amber-200"> · 👑 Village head (since Y{state.leaderSinceYear})</span>
               )}
