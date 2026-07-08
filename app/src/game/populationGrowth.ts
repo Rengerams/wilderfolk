@@ -122,7 +122,8 @@ export function getOpenBedsFromPop(state: WorldState, pop: number): number {
   const { pop: livePop, beds } = snapshotPopulation(state);
   if (!Number.isFinite(pop)) return Math.max(0, beds - livePop);
   const normalizedPop = Math.max(0, Math.floor(pop));
-  const effectivePop = normalizedPop > livePop ? livePop : normalizedPop;
+  // Caller must pass live player-human count; any mismatch uses authoritative snapshot pop.
+  const effectivePop = normalizedPop === livePop ? normalizedPop : livePop;
   return Math.max(0, beds - effectivePop);
 }
 

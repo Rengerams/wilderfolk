@@ -64,6 +64,17 @@ describe('getPopulationGrowthReport', () => {
     expect(report.reasons.some((r) => r.includes('paused'))).toBe(true);
   });
 
+  it('includes food warning in detail when paused and stores are low', () => {
+    const state = freshState();
+    state.paused = true;
+    state.resources.food = 10;
+
+    const report = getPopulationGrowthReport(state);
+
+    expect(report.detail).toContain('frozen while the game is paused');
+    expect(report.detail).toContain('Low food (10🍖)');
+  });
+
   it('includes overcrowding in detail when paused and overcrowded', () => {
     const state = freshState();
     state.paused = true;
@@ -160,6 +171,14 @@ describe('getOpenBedsFromPop', () => {
     const inflatedPop = livePop + 5;
 
     expect(getOpenBedsFromPop(state, inflatedPop)).toBe(getOpenBeds(state));
+  });
+
+  it('ignores deflated pop counts that omit live settlers', () => {
+    const state = freshState();
+    const livePop = snapshotPopulation(state).pop;
+    if (livePop === 0) return;
+
+    expect(getOpenBedsFromPop(state, 0)).toBe(getOpenBeds(state));
   });
 });
 
