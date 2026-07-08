@@ -1,4 +1,5 @@
 import type { Building, BuildingType, Camera, Entity, WorldState } from './gameTypes';
+import { BuildingType as BuildingTypeEnum } from './gameTypes';
 import type { StripBuildPreview } from './stripBuild';
 import { pickWorldFieldsForSave } from './saveSchema';
 
@@ -52,6 +53,12 @@ export const CAMERA_ZOOM_DEFAULT = 1.45;
 export const CAMERA_ZOOM_STEP_IN = 1.1;
 export const CAMERA_ZOOM_STEP_OUT = 0.9;
 
+const BUILDING_TYPE_VALUES = new Set<string>(Object.values(BuildingTypeEnum));
+const CAMP_KEY_PATTERN = /^(rival|visitor):/;
+
+const entityIndexCache = new WeakMap<readonly Entity[], Map<number, Entity>>();
+const buildingIndexCache = new WeakMap<readonly Building[], Map<number, Building>>();
+
 export function clampCameraZoom(zoom: number): number {
   return Math.max(CAMERA_ZOOM_MIN, Math.min(CAMERA_ZOOM_MAX, zoom));
 }
@@ -60,13 +67,87 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-/** Clamp corrupted save camera values; fall back to map center when coordinates are invalid. */
+function getEntityIndex(entities: readonly Entity[]): Map<number, Entity> {
+  let index = entityIndexCache.get(entities);
+  if (!index) {
+    index = new Map();
+    for (const entity of entities) index.set(entity.id, entity);
+    entityIndexCache.set(entities, index);
+  }
+  return index;
+}
+
+function getBuildingIndex(buildings: readonly Building[]): Map<number, Building> {
+  let index = buildingIndexCache.get(buildings);
+  if (!index) {
+    index = new Map();
+    for (const building of buildings) index.set(building.id, building);
+    buildingIndexCache.set(buildings, index);
+  }
+  return index;
+}
+
+function parseFiniteNumber(value: unknown): number | null {
+  if (isFiniteNumber(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function parseEntityId(value: unknown): number | null {
+  const id = parseFiniteNumber(value);
+  return id == null || !Number.isInteger(id) ? null : id;
+}
+
+function parseIdFromLegacyRecord(value: unknown): number | null {
+  if (value == null || typeof value !== 'object') return null;
+  return parseEntityId((value as { id?: unknown }).id);
+}
+
+function parseBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function parseOptionalString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function parseCampKey(value: unknown): string | null {
+  const key = parseOptionalString(value);
+  return key && CAMP_KEY_PATTERN.test(key) ? key : null;
+}
+
+export function parseBuildRotation(value: unknown): 0 | 90 {
+  const n = parseFiniteNumber(value);
+  if (n === 90) return 90;
+  return 0;
+}
+
+function isBuildingType(value: unknown): value is BuildingType {
+  return typeof value === 'string' && BUILDING_TYPE_VALUES.has(value);
+}
+
+function parseBuildGhost(value: unknown): ViewState['buildGhost'] {
+  if (value == null || typeof value !== 'object') return null;
+  const ghost = value as { x?: unknown; y?: unknown; valid?: unknown };
+  const x = parseFiniteNumber(ghost.x);
+  const y = parseFiniteNumber(ghost.y);
+  if (x == null || y == null || typeof ghost.valid !== 'boolean') return null;
+  return { x, y, valid: ghost.valid };
+}
+
+function parseCameraRecord(value: unknown): Partial<Camera> | undefined {
+  if (value == null || typeof value !== 'object') return undefined;
+  return value as Partial<Camera>;
+}
+
+/** Clamp corrupted save camera values; resolves target coords + zoom (x/y synced on normalize). */
 export function sanitizeCamera(raw: Partial<Camera> | undefined, fallback: Camera): Camera {
   if (!raw) return fallback;
   const zoom = isFiniteNumber(raw.zoom) ? clampCameraZoom(raw.zoom) : fallback.zoom;
-  const targetZoom = isFiniteNumber(raw.targetZoom)
-    ? clampCameraZoom(raw.targetZoom)
-    : zoom;
+  const targetZoom = isFiniteNumber(raw.targetZoom) ? clampCameraZoom(raw.targetZoom) : zoom;
   const targetX = isFiniteNumber(raw.targetX)
     ? raw.targetX
     : isFiniteNumber(raw.x)
@@ -77,9 +158,7 @@ export function sanitizeCamera(raw: Partial<Camera> | undefined, fallback: Camer
     : isFiniteNumber(raw.y)
       ? raw.y
       : fallback.targetY;
-  const x = isFiniteNumber(raw.x) ? raw.x : targetX;
-  const y = isFiniteNumber(raw.y) ? raw.y : targetY;
-  return { x, y, zoom, targetX, targetY, targetZoom };
+  return { x: targetX, y: targetY, zoom: targetZoom, targetX, targetY, targetZoom };
 }
 
 /** Persist/restored pan uses target coords so mid-lerp views do not snap back to map center. */
@@ -96,58 +175,77 @@ function normalizeCameraFromSave(raw: Partial<Camera> | undefined, fallback: Cam
   return normalizeCameraForSave(sanitizeCamera(raw, fallback));
 }
 
+function resolveSelectionIds(
+  world: WorldState,
+  data: Record<string, unknown>,
+): {
+  selectedEntityId: number | null;
+  selectedBuildingId: number | null;
+  hoveredBuildingId: number | null;
+} {
+  let selectedEntityId =
+    parseEntityId(data.selectedEntityId)
+    ?? parseIdFromLegacyRecord(data.selectedEntity);
+  let selectedBuildingId =
+    parseEntityId(data.selectedBuildingId)
+    ?? parseIdFromLegacyRecord(data.selectedBuilding);
+  let hoveredBuildingId =
+    parseEntityId(data.hoveredBuildingId)
+    ?? parseIdFromLegacyRecord(data.hoveredBuilding);
+
+  if (selectedEntityId != null && !resolveEntity(world, selectedEntityId)) {
+    selectedEntityId = null;
+  }
+  if (selectedBuildingId != null && !resolveBuilding(world, selectedBuildingId)) {
+    selectedBuildingId = null;
+  }
+  if (hoveredBuildingId != null && !resolveBuilding(world, hoveredBuildingId)) {
+    hoveredBuildingId = null;
+  }
+
+  return { selectedEntityId, selectedBuildingId, hoveredBuildingId };
+}
+
 /** Restore view from a saved game payload (backward compatible with v2.0/2.1 saves). */
 export function createViewFromSave(
   data: Record<string, unknown>,
-  world: WorldState
+  world: WorldState,
 ): ViewState {
-  const w = (data.width as number) ?? world.width;
-  const h = (data.height as number) ?? world.height;
+  const w = parseFiniteNumber(data.width) ?? world.width;
+  const h = parseFiniteNumber(data.height) ?? world.height;
   const base = createInitialView(w, h);
-  const camera = data.camera as Partial<Camera> | undefined;
-  const selectedEntity = data.selectedEntity as Entity | null | undefined;
-  const selectedBuilding = data.selectedBuilding as Building | null | undefined;
-  const hoveredBuilding = data.hoveredBuilding as Building | null | undefined;
-  const selectedEntityId = data.selectedEntityId as number | null | undefined;
-  const selectedBuildingId = data.selectedBuildingId as number | null | undefined;
-
-  let resolvedEntityId = selectedEntityId ?? selectedEntity?.id ?? null;
-  let resolvedBuildingId = selectedBuildingId ?? selectedBuilding?.id ?? null;
-  if (resolvedEntityId != null && !resolveEntity(world, resolvedEntityId)) {
-    resolvedEntityId = null;
-  }
-  if (resolvedBuildingId != null && !resolveBuilding(world, resolvedBuildingId)) {
-    resolvedBuildingId = null;
-  }
+  const selection = resolveSelectionIds(world, data);
+  const screenShake = parseFiniteNumber(data.screenShake);
 
   return {
     ...base,
-    camera: normalizeCameraFromSave(camera, base.camera),
-    selectedEntityId: resolvedEntityId,
-    selectedBuildingId: resolvedBuildingId,
-    hoveredBuildingId: hoveredBuilding?.id ?? null,
-    buildMode: (data.buildMode as BuildingType | null) ?? null,
-    buildGhost: (data.buildGhost as ViewState['buildGhost']) ?? null,
+    camera: normalizeCameraFromSave(parseCameraRecord(data.camera), base.camera),
+    screenShake: screenShake != null && screenShake >= 0 ? screenShake : base.screenShake,
+    selectedEntityId: selection.selectedEntityId,
+    selectedBuildingId: selection.selectedBuildingId,
+    hoveredBuildingId: selection.hoveredBuildingId,
+    buildMode: isBuildingType(data.buildMode) ? data.buildMode : null,
+    buildGhost: parseBuildGhost(data.buildGhost),
     buildStripPreview: null,
-    buildRotation: (data.buildRotation as 0 | 90) === 90 ? 90 : 0,
-    showGrid: (data.showGrid as boolean) ?? true,
-    showPaths: (data.showPaths as boolean) ?? false,
-    showTechTree: false,
-    highlightedCampKey: null,
-    selectedCampKey: null,
+    buildRotation: parseBuildRotation(data.buildRotation),
+    showGrid: parseBoolean(data.showGrid, true),
+    showPaths: parseBoolean(data.showPaths, false),
+    showTechTree: parseBoolean(data.showTechTree, false),
+    highlightedCampKey: parseCampKey(data.highlightedCampKey),
+    selectedCampKey: parseCampKey(data.selectedCampKey),
   };
 }
 
 export function resolveEntity(world: WorldState, id: number | null): Entity | null {
   if (id == null) return null;
-  const entity = world.entities.find((e) => e.id === id);
+  const entity = getEntityIndex(world.entities).get(id);
   if (!entity?.alive) return null;
   return entity;
 }
 
 export function resolveBuilding(world: WorldState, id: number | null): Building | null {
   if (id == null) return null;
-  const building = world.buildings.find((b) => b.id === id);
+  const building = getBuildingIndex(world.buildings).get(id);
   if (!building) return null;
   return building;
 }
@@ -168,12 +266,42 @@ export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewS
   return { ...view, selectedEntityId, selectedBuildingId };
 }
 
+/** Legacy transient world fields kept at the save root for backward compatibility. */
+export function pickTransientWorldFieldsForSave(world: WorldState): Record<string, unknown> {
+  return {
+    deathParticles: world.deathParticles,
+    floatingTexts: world.floatingTexts,
+    notifications: world.notifications,
+    disasters: world.disasters,
+  };
+}
+
+export function restoreTransientWorldFieldsFromSave(
+  parsed: Record<string, unknown>,
+): Pick<WorldState, 'deathParticles' | 'floatingTexts' | 'notifications' | 'disasters'> {
+  return {
+    deathParticles: Array.isArray(parsed.deathParticles)
+      ? parsed.deathParticles as WorldState['deathParticles']
+      : [],
+    floatingTexts: Array.isArray(parsed.floatingTexts)
+      ? parsed.floatingTexts as WorldState['floatingTexts']
+      : [],
+    notifications: Array.isArray(parsed.notifications)
+      ? parsed.notifications as WorldState['notifications']
+      : [],
+    disasters: Array.isArray(parsed.disasters)
+      ? parsed.disasters as WorldState['disasters']
+      : [],
+  };
+}
+
 /** Merge world + view into a serializable save payload (allow-listed world keys + view overlay). */
 export function mergeForSave(world: WorldState, view: ViewState): Record<string, unknown> {
   const selection = sanitizeViewSelection(world, view);
 
   return {
     ...pickWorldFieldsForSave(world),
+    ...pickTransientWorldFieldsForSave(world),
     camera: normalizeCameraForSave(selection.camera),
     selectedEntityId: selection.selectedEntityId,
     selectedBuildingId: selection.selectedBuildingId,
@@ -182,12 +310,9 @@ export function mergeForSave(world: WorldState, view: ViewState): Record<string,
     showGrid: selection.showGrid,
     showPaths: selection.showPaths,
     showTechTree: selection.showTechTree,
-    screenShake: 0,
-    deathParticles: [],
-    floatingTexts: [],
-    notifications: [],
-    disasters: [],
-    activeEvent: null,
+    highlightedCampKey: selection.highlightedCampKey,
+    selectedCampKey: selection.selectedCampKey,
+    screenShake: selection.screenShake,
   };
 }
 
@@ -236,19 +361,21 @@ export function updateView(view: ViewState, dtMs: number): ViewState {
     : { ...view, camera: nextCamera, screenShake: nextShake };
 }
 
-export function clampCameraTarget(cam: Camera, worldW: number, worldH: number): void {
+export function clampCameraTarget(cam: Camera, worldW: number, worldH: number): Camera {
   const marginX = worldW * 0.02;
   const marginY = worldH * 0.02;
-  cam.targetX = Math.max(-marginX, Math.min(worldW + marginX, cam.targetX));
-  cam.targetY = Math.max(-marginY, Math.min(worldH + marginY, cam.targetY));
+  return {
+    ...cam,
+    targetX: Math.max(-marginX, Math.min(worldW + marginX, cam.targetX)),
+    targetY: Math.max(-marginY, Math.min(worldH + marginY, cam.targetY)),
+  };
 }
 
 export function moveCameraView(view: ViewState, world: WorldState, dx: number, dy: number): ViewState {
   const cam = { ...view.camera };
   cam.targetX += dx / cam.zoom;
   cam.targetY += dy / cam.zoom;
-  clampCameraTarget(cam, world.width, world.height);
-  return { ...view, camera: cam };
+  return { ...view, camera: clampCameraTarget(cam, world.width, world.height) };
 }
 
 /** Zoom toward a screen-space anchor (canvas px). Keeps the world point under the cursor fixed. */
@@ -303,8 +430,7 @@ export function nudgeCameraToward(
   if (cam.targetZoom < 1.15) {
     cam.targetZoom = Math.min(1.15, cam.targetZoom + 0.04);
   }
-  clampCameraTarget(cam, world.width, world.height);
-  return { ...view, camera: cam };
+  return { ...view, camera: clampCameraTarget(cam, world.width, world.height) };
 }
 
 export function syncScreenShakeFromWorld(view: ViewState, world: WorldState): ViewState {

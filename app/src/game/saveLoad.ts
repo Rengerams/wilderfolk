@@ -1,7 +1,12 @@
 import type { WorldState, Entity } from './gameTypes';
 import { EntityType, BuildingType, DEFAULT_WORKSHOP_RECIPE_ID, INITIAL_CHALLENGES } from './gameTypes';
 import { createEmptyLifetimeStats } from './stats';
-import { mergeForSave, createViewFromSave, type ViewState } from './viewState';
+import {
+  mergeForSave,
+  createViewFromSave,
+  restoreTransientWorldFieldsFromSave,
+  type ViewState,
+} from './viewState';
 import { ENTITY_PERSISTED_FIELDS, WORLD_STATE_SAVE_KEYS } from './saveSchema';
 import { generateWorldMap } from './terrainGen';
 import {
@@ -150,6 +155,7 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
       : loadAutoSavePreference();
     saveAutoSavePreference(autoSave);
 
+    const transient = restoreTransientWorldFieldsFromSave(parsed);
     const world = {
       ...worldData,
       buildings: worldData.buildings ?? [],
@@ -162,11 +168,8 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
       dayInYear: getCalendarDay(loadedTick),
       year: Math.floor(loadedTick / (TICKS_PER_DAY * DAYS_PER_YEAR)),
       paused: true,
-      deathParticles: [],
-      floatingTexts: [],
-      notifications: [],
+      ...transient,
       bigNews: [],
-      disasters: [],
       screenShakeImpulse: 0,
       festival: worldData.festival ?? null,
       townHallFestivalCooldownUntilTick: worldData.townHallFestivalCooldownUntilTick ?? 0,

@@ -3,8 +3,10 @@ import { BuildingType, BUILDING_CONFIGS } from '@/game/gameTypes';
 import { freshState, makeAdultSettler } from '@/test/fixtures/gameFixtures';
 import {
   getOpenBeds,
+  getOpenBedsFromPop,
   getPopulationGrowthReport,
   getTotalBeds,
+  snapshotPopulation,
 } from '@/game/populationGrowth';
 
 describe('getTotalBeds', () => {
@@ -62,6 +64,55 @@ describe('getPopulationGrowthReport', () => {
     expect(report.reasons.some((r) => r.includes('paused'))).toBe(true);
   });
 
+  it('includes overcrowding in detail when paused and overcrowded', () => {
+    const state = freshState();
+    state.paused = true;
+    state.resources.food = 500;
+    state.buildings = state.buildings.filter((b) => !b.completed || b.type !== BuildingType.House);
+    state.entities = Array.from({ length: 6 }, (_, i) => makeAdultSettler(i + 1));
+
+    const report = getPopulationGrowthReport(state);
+
+    expect(report.detail).toContain('frozen while the game is paused');
+    expect(report.detail).toContain('housing is the bottleneck');
+  });
+
+  it('warns on missing food amount as zero stores', () => {
+    const state = freshState();
+    state.resources = { ...state.resources, food: undefined as never };
+
+    const report = getPopulationGrowthReport(state);
+
+    expect(report.reasons.some((r) => r.includes('Low food (0🍖)'))).toBe(true);
+    expect(report.tone).toBe('warn');
+  });
+
+  it('uses mansion bed capacity in blocked cap copy, not hardcoded +4', () => {
+    const state = freshState();
+    state.maxHumanPopulation = 3;
+    state.entities = Array.from({ length: 3 }, (_, i) => makeAdultSettler(i + 1));
+
+    const report = getPopulationGrowthReport(state);
+
+    expect(report.reasons.some((r) => r.includes('mansions ~8 beds'))).toBe(true);
+    expect(report.reasons.some((r) => r.includes('+4 each'))).toBe(false);
+  });
+
+  it('clamps fractional cap slots in detail', () => {
+    const state = freshState();
+    state.maxHumanPopulation = 8.3;
+    state.entities = Array.from({ length: 3 }, (_, i) => makeAdultSettler(i + 1));
+    state.paused = false;
+    state.resources.food = 500;
+    state.villageReputation = 80;
+
+    const report = getPopulationGrowthReport(state);
+
+    expect(report.detail).not.toMatch(/-\d/);
+    expect(report.detail).toContain('5');
+    expect(report.detail).not.toContain('-0');
+  });
+
   it('warns on overcrowding even with high food and reputation', () => {
     const state = freshState();
     state.resources.food = 500;
@@ -99,5 +150,29 @@ describe('getPopulationGrowthReport', () => {
     });
 
     expect(getOpenBeds(state)).toBe(before);
+  });
+});
+
+describe('getOpenBedsFromPop', () => {
+  it('ignores inflated pop counts that include non-player humans', () => {
+    const state = freshState();
+    const livePop = snapshotPopulation(state).pop;
+    const inflatedPop = livePop + 5;
+
+    expect(getOpenBedsFromPop(state, inflatedPop)).toBe(getOpenBeds(state));
+  });
+});
+
+describe('snapshotPopulation cache', () => {
+  it('reuses the snapshot within the same tick across helpers', () => {
+    const state = freshState();
+    state.tick = 42;
+
+    const first = snapshotPopulation(state);
+    const second = snapshotPopulation(state);
+
+    expect(second).toBe(first);
+    expect(getTotalBeds(state)).toBe(first.beds);
+    expect(getOpenBeds(state)).toBe(Math.max(0, first.beds - first.pop));
   });
 });

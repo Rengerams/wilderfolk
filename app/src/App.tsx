@@ -519,8 +519,7 @@ export default function App() {
       const cx = settlers.reduce((sum, ent) => sum + ent.x, 0) / settlers.length;
       const cy = settlers.reduce((sum, ent) => sum + ent.y, 0) / settlers.length;
       const nextView = focusCameraOn(loop.getView(), cx, cy, 1.5);
-      clampCameraTarget(nextView.camera, w.width, w.height);
-      loop.patchView(nextView);
+      loop.patchView({ camera: clampCameraTarget(nextView.camera, w.width, w.height) });
     }
     loop.mutateWorld((session) => { session.paused = false; });
   }, []);
@@ -799,8 +798,7 @@ export default function App() {
     const sy = screenY ?? ch / 2;
     const world = loop.getWorld();
     const next = zoomCameraViewAt(loop.getView(), factor, sx, sy, cw, ch);
-    clampCameraTarget(next.camera, world.width, world.height);
-    loop.patchView(next);
+    loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height) });
   }, []);
 
   const applyZoomRef = useRef(applyZoom);
@@ -811,8 +809,7 @@ export default function App() {
     const world = loop.getWorld();
     const cam = loop.getView().camera;
     const next = focusCameraOn(loop.getView(), cam.targetX, cam.targetY, CAMERA_ZOOM_DEFAULT);
-    clampCameraTarget(next.camera, world.width, world.height);
-    loop.patchView(next);
+    loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height) });
   }, []);
 
   // passive:false — React onWheel cannot preventDefault on modern browsers
@@ -921,8 +918,7 @@ export default function App() {
             const cx = settlers.reduce((sum, ent) => sum + ent.x, 0) / settlers.length;
             const cy = settlers.reduce((sum, ent) => sum + ent.y, 0) / settlers.length;
             const nextView = focusCameraOn(loop.getView(), cx, cy, 1.5);
-            clampCameraTarget(nextView.camera, world.width, world.height);
-            loop.patchView(nextView);
+            loop.patchView({ camera: clampCameraTarget(nextView.camera, world.width, world.height) });
           }
         }
       }
@@ -958,8 +954,9 @@ export default function App() {
           const cam = { ...view.camera };
           cam.targetX += cameraVelRef.current.x / cam.zoom;
           cam.targetY += cameraVelRef.current.y / cam.zoom;
-          clampCameraTarget(cam, loop.getWorld().width, loop.getWorld().height);
-          loop.patchView({ camera: cam }, true);
+          loop.patchView({
+            camera: clampCameraTarget(cam, loop.getWorld().width, loop.getWorld().height),
+          }, true);
         }
         cameraVelRef.current.x *= 0.85;
         cameraVelRef.current.y *= 0.85;

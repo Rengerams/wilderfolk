@@ -3,10 +3,12 @@ import { BuildingType, EntityType } from '@/game/gameTypes';
 import type { Building, WorldState } from '@/game/gameTypes';
 import { createEntity } from '@/game/worldGen';
 import {
+  clampCameraTarget,
   createInitialView,
   createViewFromSave,
   mergeForSave,
   normalizeCameraForSave,
+  parseBuildRotation,
   resolveBuilding,
   resolveEntity,
   sanitizeCamera,
@@ -139,7 +141,7 @@ describe('resolveEntity / resolveBuilding', () => {
 });
 
 describe('sanitizeCamera', () => {
-  it('replaces NaN and Infinity with map-center fallback', () => {
+  it('replaces NaN and Infinity with target coords and zoom', () => {
     const fallback = createInitialView(400, 300).camera;
     const sanitized = sanitizeCamera(
       { x: NaN, y: Infinity, zoom: NaN, targetX: 50, targetY: 60, targetZoom: 2.5 },
@@ -149,8 +151,36 @@ describe('sanitizeCamera', () => {
     expect(sanitized.y).toBe(60);
     expect(sanitized.targetX).toBe(50);
     expect(sanitized.targetY).toBe(60);
-    expect(sanitized.zoom).toBe(fallback.zoom);
+    expect(sanitized.zoom).toBe(2.5);
     expect(sanitized.targetZoom).toBe(2.5);
+  });
+
+  it('falls back to legacy x/y when target coords are missing', () => {
+    const fallback = createInitialView(400, 300).camera;
+    const sanitized = sanitizeCamera({ x: 12, y: 34, zoom: 1.2, targetZoom: 1.2 }, fallback);
+    expect(sanitized.targetX).toBe(12);
+    expect(sanitized.targetY).toBe(34);
+  });
+});
+
+describe('parseBuildRotation', () => {
+  it('accepts numeric and string 90', () => {
+    expect(parseBuildRotation(90)).toBe(90);
+    expect(parseBuildRotation('90')).toBe(90);
+    expect(parseBuildRotation(0)).toBe(0);
+    expect(parseBuildRotation('0')).toBe(0);
+  });
+});
+
+describe('clampCameraTarget', () => {
+  it('returns a new camera object without mutating the input', () => {
+    const cam = createInitialView(200, 200).camera;
+    cam.targetX = 500;
+    cam.targetY = 500;
+    const clamped = clampCameraTarget(cam, 200, 200);
+    expect(clamped).not.toBe(cam);
+    expect(cam.targetX).toBe(500);
+    expect(clamped.targetX).toBeLessThan(500);
   });
 });
 
@@ -161,6 +191,9 @@ describe('save round-trip', () => {
       buildings: [sampleBuilding(3, true)],
       scentGrid: { cols: 1, rows: 1, cellSize: 56, values: new Float32Array(1) } as never,
       bigNews: [{ id: 'bn_1', title: 't', message: 'm', type: 'neutral', createdAt: 0, dismissed: false }],
+      activeEvent: { title: 'Storm', description: 'Wind', effect: 'Cold', emoji: '🌧', type: 'negative' } as never,
+      notifications: [{ id: 1, message: 'Hi', tone: 'info', createdAt: 0 }],
+      disasters: [{ type: 'storm', severity: 1, startedAt: 0, endsAt: 10 }],
     });
     const view = createInitialView(200, 200);
     view.camera.x = 42;
@@ -170,6 +203,10 @@ describe('save round-trip', () => {
     view.camera.targetZoom = 1.8;
     view.selectedEntityId = 7;
     view.selectedBuildingId = 3;
+    view.screenShake = 2.5;
+    view.showTechTree = true;
+    view.highlightedCampKey = 'rival:3';
+    view.selectedCampKey = 'visitor:9';
 
     const payload = mergeForSave(world, view);
     const camera = payload.camera as { x: number; y: number; targetX: number; targetY: number; zoom: number };
@@ -180,6 +217,13 @@ describe('save round-trip', () => {
     expect(camera.zoom).toBe(1.8);
     expect(payload.selectedEntityId).toBe(7);
     expect(payload.selectedBuildingId).toBe(3);
+    expect(payload.screenShake).toBe(2.5);
+    expect(payload.showTechTree).toBe(true);
+    expect(payload.highlightedCampKey).toBe('rival:3');
+    expect(payload.selectedCampKey).toBe('visitor:9');
+    expect(payload.activeEvent).toEqual(world.activeEvent);
+    expect(payload.notifications).toEqual(world.notifications);
+    expect(payload.disasters).toEqual(world.disasters);
     expect(payload.selectedEntity).toBeUndefined();
     expect(payload.selectedBuilding).toBeUndefined();
     expect(payload.scentGrid).toBeUndefined();
@@ -188,8 +232,8 @@ describe('save round-trip', () => {
 
     const overlayKeys = new Set([
       'camera', 'selectedEntityId', 'selectedBuildingId', 'buildMode', 'buildRotation',
-      'showGrid', 'showPaths', 'showTechTree', 'screenShake', 'deathParticles',
-      'floatingTexts', 'notifications', 'disasters', 'activeEvent',
+      'showGrid', 'showPaths', 'showTechTree', 'highlightedCampKey', 'selectedCampKey',
+      'screenShake', 'deathParticles', 'floatingTexts', 'notifications', 'disasters',
     ]);
     const allowedWorldKeys = new Set(WORLD_STATE_SAVE_KEYS);
     for (const key of Object.keys(payload)) {
@@ -218,6 +262,11 @@ describe('save round-trip', () => {
         },
         selectedEntityId: 5,
         selectedBuildingId: 9,
+        buildRotation: '90',
+        showTechTree: true,
+        highlightedCampKey: 'rival:2',
+        selectedCampKey: 'visitor:4',
+        screenShake: 1.25,
       },
       world,
     );
@@ -229,6 +278,11 @@ describe('save round-trip', () => {
     expect(view.camera.zoom).toBe(1.6);
     expect(view.selectedEntityId).toBe(5);
     expect(view.selectedBuildingId).toBe(9);
+    expect(view.buildRotation).toBe(90);
+    expect(view.showTechTree).toBe(true);
+    expect(view.highlightedCampKey).toBe('rival:2');
+    expect(view.selectedCampKey).toBe('visitor:4');
+    expect(view.screenShake).toBe(1.25);
 
     const corrupted = createViewFromSave(
       {
@@ -240,5 +294,26 @@ describe('save round-trip', () => {
     );
     expect(Number.isFinite(corrupted.camera.x)).toBe(true);
     expect(Number.isFinite(corrupted.camera.y)).toBe(true);
+  });
+
+  it('createViewFromSave validates hovered building and legacy object ids only', () => {
+    const world = minimalWorld({ buildings: [sampleBuilding(3, true)] });
+    const ghostHover = createViewFromSave(
+      { hoveredBuilding: { id: 99, type: 'House' } },
+      world,
+    );
+    expect(ghostHover.hoveredBuildingId).toBeNull();
+
+    const validHover = createViewFromSave(
+      { hoveredBuildingId: 3 },
+      world,
+    );
+    expect(validHover.hoveredBuildingId).toBe(3);
+
+    const legacyEntity = createViewFromSave(
+      { selectedEntity: { id: 42, type: 'Human', alive: true } },
+      world,
+    );
+    expect(legacyEntity.selectedEntityId).toBeNull();
   });
 });
