@@ -519,10 +519,10 @@ Track progress in the **Goals** tab. **Four victory paths** are active:
 
 | Path | What it takes |
 |------|----------------|
-| **🌿 Eco-Utopia** | 100 people + healthy ecosystem for 20 years |
-| **🏰 Great City** | 200 people + 50 finished buildings |
+| **🌿 Eco-Utopia** | 250 people + healthy ecosystem for 20 years |
+| **🏰 Great City** | 400 people + 60 finished buildings |
 | **💰 Trade Empire** | 5 active trade routes + 10,000 gold |
-| **🐺 Harmony** | 10 befriended wolves + 50 wildkin in the valley |
+| **🐺 Harmony** | 8 **wild** wolves (untamed) + 15 wildkin — coexistence, not taming |
 
 Unlock trade routes in the **Trade** tab as reputation grows (the fifth route, **Silkmarket**, needs high reputation). You can keep playing after you win. The valley doesn't stop.
 

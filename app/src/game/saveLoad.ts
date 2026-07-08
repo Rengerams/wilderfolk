@@ -267,9 +267,11 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
     validateVillageLeaderOnLoad(world);
     migrateVillageForgeOnLoad(world);
     for (const challenge of world.challenges ?? []) {
-      if (challenge.id === 'great_city' && challenge.targetBuildings == null) {
-        challenge.targetBuildings = 20;
-      }
+      const fresh = INITIAL_CHALLENGES.find((c) => c.id === challenge.id);
+      if (!fresh || challenge.completed) continue;
+      if (fresh.targetPopulation != null) challenge.targetPopulation = fresh.targetPopulation;
+      if (fresh.targetBuildings != null) challenge.targetBuildings = fresh.targetBuildings;
+      challenge.description = fresh.description;
     }
     world.pendingRaidEvents = (world.pendingRaidEvents ?? []).map((evt) => {
       if (evt.expiresAtTick != null && evt.marchDistanceTiles != null) return evt;

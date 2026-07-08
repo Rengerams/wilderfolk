@@ -64,8 +64,8 @@ export function getChallengeProgress(challenge: Challenge, state: WorldState): C
         unit: 'population',
       };
     case 'great_city': {
-      const targetBuildings = challenge.targetBuildings ?? 20;
-      const targetPopulation = challenge.targetPopulation ?? 100;
+      const targetBuildings = challenge.targetBuildings ?? 35;
+      const targetPopulation = challenge.targetPopulation ?? 250;
       if (playerBuildings >= targetBuildings) {
         return {
           current: targetBuildings,
