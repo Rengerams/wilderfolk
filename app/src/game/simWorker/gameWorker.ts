@@ -5,9 +5,15 @@ import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool } from '../simBuffers/renderBufferPool';
 import { extractSimTickDelta } from '../simBuffers/simDelta';
 import { USE_SCENT_GRID } from '../scentGrid';
-import { applyWorkerCommand, aliveIdSet, extractCommandDelta, isWorkerCommand } from './commands';
+import {
+  applyWorkerCommand,
+  aliveIdSet,
+  extractCommandDelta,
+  isWorkerCommand,
+  safeExtractCommandDelta,
+} from './commands';
 import { syncEventLogIdFromState } from '../eventLog';
-import { applySimPrep } from './simPrep';
+import { applySimPrep, extractSimPrep } from './simPrep';
 import { isWorkerProto, WORKER_PROTO, workerProtoMismatch, type WorkerRequest, type WorkerResponse } from './protocol';
 
 let world: WorldState | null = null;
@@ -15,8 +21,11 @@ let bufferPool: RenderBufferPool | null = null;
 let headlessMode = false;
 let lastFocus: import('../gameEngine').SimulationFocus | undefined;
 
-function postError(message: string): void {
-  const response: WorkerResponse = { type: 'error', proto: WORKER_PROTO, message };
+function postError(
+  message: string,
+  source: 'tick' | 'command' | 'export' | 'general' = 'general',
+): void {
+  const response: WorkerResponse = { type: 'error', proto: WORKER_PROTO, message, source };
   self.postMessage(response);
 }
 
@@ -122,28 +131,30 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           postError('Worker not initialized');
           break;
         }
+        const before = aliveIdSet(world);
         if (!isWorkerCommand(msg.cmd)) {
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
             ok: false,
-            delta: extractCommandDelta(world, aliveIdSet(world)),
+            delta: extractCommandDelta(world, before),
             reason: 'Invalid worker command',
           };
           self.postMessage(response);
           break;
         }
-        const before = aliveIdSet(world);
+        const prepBackup = extractSimPrep(world);
         let delta;
         try {
           world = applyWorkerCommand(world, msg.cmd);
           delta = extractCommandDelta(world, before);
         } catch (err) {
+          applySimPrep(world, prepBackup);
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
             ok: false,
-            delta: extractCommandDelta(world, before),
+            delta: safeExtractCommandDelta(world, before),
             reason: err instanceof Error ? err.message : String(err),
           };
           self.postMessage(response);
@@ -206,44 +217,47 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       }
       case 'tick': {
         if (!world) {
-          postError('Worker not initialized');
+          postError('Worker not initialized', 'tick');
           break;
         }
+        const prepBackup = extractSimPrep(world);
         const before = aliveIdSet(world);
-        gameTick(world, msg.focus);
-        lastFocus = msg.focus;
-        const aliveNow = world.entities.filter((e) => e.alive);
-
-        if (headlessMode) {
-          const delta = extractSimTickDelta(world, before, aliveNow, {
-            focus: lastFocus,
-            headless: true,
-            cloneMode: 'transfer',
-          });
-          const response: WorkerResponse = {
-            type: 'tickResult',
-            proto: WORKER_PROTO,
-            delta,
-            headless: true,
-          };
-          self.postMessage(response);
-          break;
-        }
-
-        if (!bufferPool) {
-          postError('Render buffer pool not initialized');
-          break;
-        }
-        const acquired = bufferPool.acquire();
-        if (!acquired) {
-          postError('Render buffer pool exhausted — return buffers before pipelining more ticks');
-          break;
-        }
         try {
+          gameTick(world, msg.focus);
+          lastFocus = msg.focus;
+          const aliveNow = world.entities.filter((e) => e.alive);
+
+          if (headlessMode) {
+            const delta = extractSimTickDelta(world, before, aliveNow, {
+              focus: lastFocus,
+              headless: true,
+              cloneMode: 'transfer',
+            });
+            const response: WorkerResponse = {
+              type: 'tickResult',
+              proto: WORKER_PROTO,
+              delta,
+              headless: true,
+            };
+            self.postMessage(response);
+            break;
+          }
+
+          if (!bufferPool) {
+            applySimPrep(world, prepBackup);
+            postError('Render buffer pool not initialized', 'tick');
+            break;
+          }
+          const acquired = bufferPool.acquire();
+          if (!acquired) {
+            applySimPrep(world, prepBackup);
+            postError('Render buffer pool exhausted — return buffers before pipelining more ticks', 'tick');
+            break;
+          }
           packAndPostTickResult(before, aliveNow, acquired);
         } catch (err) {
-          releaseAcquiredBuffer(acquired);
-          throw err;
+          applySimPrep(world, prepBackup);
+          postError(err instanceof Error ? err.message : String(err), 'tick');
         }
         break;
       }
@@ -251,6 +265,11 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         postError(`Unknown worker request: ${(msg as { type?: string }).type ?? '?'}`);
     }
   } catch (err) {
-    postError(err instanceof Error ? err.message : String(err));
+    const source = msg.type === 'tick'
+      ? 'tick'
+      : msg.type === 'exportSave'
+        ? 'export'
+        : 'general';
+    postError(err instanceof Error ? err.message : String(err), source);
   }
 };

@@ -2,6 +2,18 @@
  * Node worker_threads entry — polyfills `self` before loading the shared worker module.
  */
 import { isMainThread, parentPort } from 'node:worker_threads';
+import { WORKER_PROTO, type WorkerResponse } from './protocol';
+
+function postStartupError(message: string): void {
+  if (!parentPort) return;
+  const response: WorkerResponse = {
+    type: 'error',
+    proto: WORKER_PROTO,
+    message,
+    source: 'general',
+  };
+  parentPort.postMessage(response);
+}
 
 if (!isMainThread && parentPort) {
   let messageHandler: ((event: MessageEvent) => void) | null = null;
@@ -40,6 +52,13 @@ if (!isMainThread && parentPort) {
   parentPort.on('message', dispatchMessage);
 }
 
-const { preloadDialogueBank } = await import('../dialogueTrees');
-await preloadDialogueBank();
-await import('./gameWorker.ts');
+try {
+  const { preloadDialogueBank } = await import('../dialogueTrees');
+  await preloadDialogueBank();
+  await import('./gameWorker.ts');
+} catch (err) {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error('[gameWorker.node] Startup failed:', message);
+  postStartupError(`Worker startup failed: ${message}`);
+  throw err;
+}

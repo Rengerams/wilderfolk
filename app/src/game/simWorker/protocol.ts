@@ -88,4 +88,6 @@ export type WorkerResponse =
       type: 'error';
       proto: typeof WORKER_PROTO;
       message: string;
+      /** Which request failed — host uses this to adjust in-flight counters. */
+      source?: 'tick' | 'command' | 'export' | 'general';
     };

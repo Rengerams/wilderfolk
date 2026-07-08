@@ -188,8 +188,9 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
     case 'launchRaidOnRival':
       return isNonEmptyString(cmd.rivalId);
     case 'startResearch':
+      return isNonEmptyString(cmd.researchId);
     case 'establishTradeRoute':
-      return isNonEmptyString(cmd.researchId ?? cmd.routeId);
+      return isNonEmptyString(cmd.routeId);
     default:
       return false;
   }
@@ -288,5 +289,22 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
 
 export function extractCommandDelta(world: WorldState, aliveBefore: Set<number>): SimTickDelta {
   const aliveNow = world.entities.filter((e) => e.alive);
-  return extractSimTickDelta(world, aliveBefore, aliveNow, { cloneMode: 'transfer' });
+  return extractSimTickDelta(world, aliveBefore, aliveNow, {
+    headless: true,
+    cloneMode: 'transfer',
+  });
+}
+
+/** Best-effort command delta — returns empty-ish delta if extraction fails after rollback. */
+export function safeExtractCommandDelta(world: WorldState, aliveBefore: Set<number>): SimTickDelta {
+  try {
+    return extractCommandDelta(world, aliveBefore);
+  } catch (err) {
+    console.warn('[WorkerCommand] Delta extract failed after command error', err);
+    const aliveNow = world.entities.filter((e) => e.alive);
+    return extractSimTickDelta(world, aliveBefore, aliveNow, {
+      headless: true,
+      cloneMode: 'transfer',
+    });
+  }
 }

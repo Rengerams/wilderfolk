@@ -93,7 +93,7 @@ export class GameWorkerHost {
 
     const readyPromise = new Promise<void>((resolve, reject) => {
       let settled = false;
-      const timeout = window.setTimeout(() => {
+      const timeout = globalThis.setTimeout(() => {
         if (!settled) {
           settled = true;
           reject(new Error('Worker init timeout'));
@@ -109,7 +109,7 @@ export class GameWorkerHost {
             if (!isWorkerProto(msg.proto)) {
               if (!settled) {
                 settled = true;
-                window.clearTimeout(timeout);
+                globalThis.clearTimeout(timeout);
                 reject(new Error(workerProtoMismatch(msg.proto)));
               }
               return;
@@ -119,14 +119,14 @@ export class GameWorkerHost {
             } catch (err) {
               if (!settled) {
                 settled = true;
-                window.clearTimeout(timeout);
+                globalThis.clearTimeout(timeout);
                 reject(err instanceof Error ? err : new Error(String(err)));
               }
               return;
             }
             if (!settled) {
               settled = true;
-              window.clearTimeout(timeout);
+              globalThis.clearTimeout(timeout);
               this.ready = true;
               resolve();
             }
@@ -137,7 +137,7 @@ export class GameWorkerHost {
           if (msg.type === 'error') {
             if (!settled) {
               settled = true;
-              window.clearTimeout(timeout);
+              globalThis.clearTimeout(timeout);
               reject(new Error(msg.message));
             }
             return;
@@ -347,10 +347,15 @@ export class GameWorkerHost {
 
   requestTick(focus?: SimulationFocus): boolean {
     if (!this.worker || !this.ready || !this.canPipelineTick()) return false;
+    const msg: WorkerRequest = { type: 'tick', proto: WORKER_PROTO, focus };
+    try {
+      this.worker.postMessage(msg);
+    } catch (err) {
+      console.error('[GameWorker] requestTick postMessage failed', err);
+      return false;
+    }
     this.ticksInFlight++;
     this.pendingFocus = focus;
-    const msg: WorkerRequest = { type: 'tick', proto: WORKER_PROTO, focus };
-    this.worker.postMessage(msg);
     return true;
   }
 
@@ -404,7 +409,9 @@ export class GameWorkerHost {
 
     if (msg.type === 'error') {
       console.error('[GameWorker]', msg.message);
-      this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
+      if (msg.source === 'tick') {
+        this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
+      }
       this.pendingCommand?.reject(new Error(msg.message));
       this.pendingCommand = null;
       this.pendingExport?.reject(new Error(msg.message));

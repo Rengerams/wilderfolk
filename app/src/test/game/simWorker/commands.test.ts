@@ -33,7 +33,7 @@ describe('WorkerCommand', () => {
 
     expect(next.entities.find((e) => e.id === 1)?.homeBuildingId).toBe(2);
     expect(delta.buildings.some((b) => b.id === 2 && b.occupants.includes(1))).toBe(true);
-    expect(delta.catalogEntities?.some((e) => e.id === 1 && e.homeBuildingId === 2)).toBe(true);
+    expect(delta.aliveEntities.some((e) => e.id === 1 && e.homeBuildingId === 2)).toBe(true);
   });
 
   it('setSpeed command proto is rejected safely for unknown ops', () => {
@@ -49,5 +49,20 @@ describe('WorkerCommand', () => {
     expect(isWorkerCommand({ proto: 1, op: 'assignWorker', buildingId: 1 })).toBe(true);
     expect(isWorkerCommand({ proto: 1, op: 'startBuilding' })).toBe(false);
     expect(isWorkerCommand({ proto: 1, op: 'startBuilding', type: BuildingType.Farm, x: 0, y: 0, rotation: 0 })).toBe(true);
+  });
+
+  it('startResearch and establishTradeRoute require their own id fields', () => {
+    expect(isWorkerCommand({ proto: 1, op: 'startResearch', researchId: 'medicine_1' })).toBe(true);
+    expect(isWorkerCommand({ proto: 1, op: 'startResearch', routeId: 'route_a' })).toBe(false);
+    expect(isWorkerCommand({ proto: 1, op: 'establishTradeRoute', routeId: 'route_a' })).toBe(true);
+    expect(isWorkerCommand({ proto: 1, op: 'establishTradeRoute', researchId: 'medicine_1' })).toBe(false);
+  });
+
+  it('extractCommandDelta skips render packing (headless)', () => {
+    const state = freshState();
+    const before = aliveIdSet(state);
+    const delta = extractCommandDelta(state, before);
+    expect(delta.renderMetaBySlot).toBeUndefined();
+    expect(delta.catalogEntities).toBeUndefined();
   });
 });

@@ -95,7 +95,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     lastElectionYear: state.lastElectionYear,
     pendingElectionYear: state.pendingElectionYear,
     electionBuildupNotifiedYear: state.electionBuildupNotifiedYear ?? null,
-    electionCeremony: state.electionCeremony,
+    electionCeremony: state.electionCeremony ? { ...state.electionCeremony } : null,
     eventLog: [...state.eventLog],
     nextEntityId: state.nextEntityId,
     nextBuildingId: state.nextBuildingId,
