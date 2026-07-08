@@ -13,6 +13,7 @@ import {
   TICKS_PER_DAY,
 } from './dayCycle';
 import { createEntity } from './worldGen';
+import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
 import { SPECIES_CONFIG } from './gameEngine';
 import { addCappedResource } from './resourceUtils';
 import { getRandomSurname } from './nameLoader';
@@ -192,6 +193,7 @@ export function spawnVisitorGroup(
     const ent = createFactionHuman(state, site.x, site.y, 'visitor', groupId, surname);
     entityIds.push(ent.id);
     allAlive.push(ent);
+    indexLivingEntity(state, ent);
   }
 
   state.visitorGroups.push({
@@ -271,6 +273,7 @@ export function spawnRivalSettlement(
     const ent = createFactionHuman(state, site.x, site.y, 'rival', groupId, surname);
     entityIds.push(ent.id);
     allAlive.push(ent);
+    indexLivingEntity(state, ent);
   }
 
   const relRoll = Math.random();
@@ -367,6 +370,7 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
           const poachChance = group.leaderTalked ? 0.1 : 0.25;
           if (deer && Math.random() < poachChance) {
             deer.alive = false;
+            unindexEntityFromState(state, deer.id);
             pushFloat(state, deer.x, deer.y - 15, 'Hunted', '#f97316');
           }
           break;
@@ -378,7 +382,10 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
       for (const id of group.entityIds) {
         clearFactionWanderState(id);
         const ent = allAlive.find((e) => e.id === id);
-        if (ent?.faction === 'visitor') ent.alive = false;
+        if (ent?.faction === 'visitor') {
+          ent.alive = false;
+          unindexEntityFromState(state, ent.id);
+        }
       }
       pushNews(state, '👋 Visitors Departed', `${group.name} packed up and left the valley.`, 'neutral');
       logEvent(state, 'migration', `${group.name} departed`);
@@ -1186,6 +1193,7 @@ function admitRefugees(state: WorldState, group: VisitorGroup, allAlive: Entity[
     ent.occupation = 'settler';
     ent.job = JobType.Settler;
     allAlive.push(ent);
+    indexLivingEntity(state, ent);
     joined++;
   }
   return joined;
@@ -1261,6 +1269,7 @@ export function tickRivalSettlements(state: WorldState, allAlive: Entity[]): voi
       const deer = allAlive.find((e) => e.alive && e.type === EntityType.Deer);
       if (deer && Math.random() < 0.5) {
         deer.alive = false;
+        unindexEntityFromState(state, deer.id);
         pushFloat(state, deer.x, deer.y - 15, `${rival.name} hunted`, '#fb923c');
         logEvent(state, 'event', `${rival.name} hunters took game from the shared wilds`, rival.name);
       }
@@ -1282,6 +1291,7 @@ export function tickRivalSettlements(state: WorldState, allAlive: Entity[]): voi
       rival.entityIds.push(ent.id);
       rival.population++;
       allAlive.push(ent);
+      indexLivingEntity(state, ent);
       logEvent(state, 'migration', `${rival.name} welcomed a new family`, rival.name);
     }
   }
@@ -1348,7 +1358,9 @@ export function rollYearlyWorldEvent(
   switch (picked.id) {
     case 'wolf_migration': {
       for (let i = 0; i < 3; i++) {
-        allAlive.push(spawnWolf(width, height, nextEntityId()));
+        const wolf = spawnWolf(width, height, nextEntityId());
+        allAlive.push(wolf);
+        indexLivingEntity(state, wolf);
       }
       return {
         event: { id: 'wolf_migration', title: 'Wolf Pack Migration', description: 'A pack of wolves has migrated into the valley!', emoji: '🐺', effect: '+3 Wolves', type: 'negative' },
@@ -1369,8 +1381,16 @@ export function rollYearlyWorldEvent(
         bountifulHarvest,
       };
     case 'nature_boom':
-      for (let i = 0; i < 15; i++) allAlive.push(spawnTree(width, height, nextEntityId()));
-      for (let i = 0; i < 30; i++) allAlive.push(spawnGrass(width, height, nextEntityId()));
+      for (let i = 0; i < 15; i++) {
+        const tree = spawnTree(width, height, nextEntityId());
+        allAlive.push(tree);
+        indexLivingEntity(state, tree);
+      }
+      for (let i = 0; i < 30; i++) {
+        const grass = spawnGrass(width, height, nextEntityId());
+        allAlive.push(grass);
+        indexLivingEntity(state, grass);
+      }
       return {
         event: { id: 'nature_boom', title: 'Ecological Super-Bloom', description: 'Natural energy revitalizes the valley flora!', emoji: '🌿', effect: '+15 Trees, +30 Grass', type: 'positive' },
         bountifulHarvest,
@@ -1396,7 +1416,11 @@ export function rollYearlyWorldEvent(
         bountifulHarvest,
       };
     case 'deer_migration':
-      for (let i = 0; i < 4; i++) allAlive.push(spawnDeer(width, height, nextEntityId()));
+      for (let i = 0; i < 4; i++) {
+        const deer = spawnDeer(width, height, nextEntityId());
+        allAlive.push(deer);
+        indexLivingEntity(state, deer);
+      }
       return {
         event: { id: 'deer_migration', title: 'Deer Migration', description: 'A herd of deer wandered into the valley!', emoji: '🦌', effect: '+4 Deer', type: 'positive' },
         bountifulHarvest,

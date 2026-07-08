@@ -160,9 +160,11 @@ export class GameLoop {
     this.renderSoA = null;
     this.renderMetaBySlot = null;
     this.scentReader = null;
-    this.queueWorkerImport(world);
+    const sessionGen = this.sessionGen;
+    this.queueWorkerImport(world, () => {
+      if (sessionGen === this.sessionGen) this.notify(true);
+    });
     this.lastPausedSentToWorker = null;
-    this.notify(true);
   }
 
   setWorld(world: WorldState): void {
@@ -176,14 +178,19 @@ export class GameLoop {
     this.renderSoA = null;
     this.renderMetaBySlot = null;
     this.scentReader = null;
-    this.queueWorkerImport(world);
+    const sessionGen = this.sessionGen;
+    this.queueWorkerImport(world, () => {
+      if (sessionGen === this.sessionGen) this.notify(true);
+    });
     this.lastPausedSentToWorker = null;
-    this.notify(true);
   }
 
   /** Wait for worker boot/idle before importSave so load/new-game cannot drop the upload. */
-  private queueWorkerImport(world: WorldState): void {
-    if (!this.workerHost) return;
+  private queueWorkerImport(world: WorldState, afterImport?: () => void): void {
+    if (!this.workerHost) {
+      afterImport?.();
+      return;
+    }
     const sessionGen = this.sessionGen;
     this.commandChain = this.commandChain
       .then(async () => {
@@ -198,6 +205,7 @@ export class GameLoop {
         this.renderMetaBySlot = null;
         this.scentReader = null;
         this.workerHost.importSave(world);
+        afterImport?.();
       })
       .catch((err) => {
         if (sessionGen !== this.sessionGen) return;

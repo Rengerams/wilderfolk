@@ -7,6 +7,7 @@ import { addResource } from './economy';
 import { getTownHallTradeMultiplier } from './townHall';
 import { logEvent } from './eventLog';
 import { createEntity } from './worldGen';
+import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
 
 export const TRADE_CARAVAN_ARRIVAL_DIST = 28;
 const PARTNER_WAIT_TICKS = ticksForDays(1);
@@ -98,6 +99,7 @@ function applyImports(state: WorldState, route: TradeRoute, mult: number): numbe
 
 function removeCarrier(state: WorldState, route: TradeRoute, entity: Entity): void {
   entity.alive = false;
+  unindexEntityFromState(state, entity.id);
   entity.residenceBuildingId = undefined;
   entity.homeBuildingId = undefined;
   const idx = state.entities.findIndex((e) => e.id === entity.id);
@@ -156,6 +158,7 @@ function spawnCaravan(state: WorldState, route: TradeRoute): boolean {
   carrier.relationshipStatus = 'single';
   carrier.reproductionCooldown = 9999;
   state.entities.push(carrier);
+  indexLivingEntity(state, carrier);
   route.caravanCarrierId = carrier.id;
   route.caravanLeg = 'outbound';
   route.caravanWaitTicks = 0;

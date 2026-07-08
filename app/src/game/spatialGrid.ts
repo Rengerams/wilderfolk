@@ -22,7 +22,7 @@ const MOBILE_ENTITY_TYPES = new Set<EntityType>([
   EntityType.Werewolf,
 ]);
 
-function envFlagDisabled(val: string | undefined): boolean {
+export function envFlagDisabled(val: string | undefined): boolean {
   if (val == null || val === '') return false;
   return /^(0|false|no|off|disabled)$/i.test(val.trim());
 }
@@ -63,10 +63,7 @@ export function distSq(ax: number, ay: number, bx: number, by: number): number {
   return dx * dx + dy * dy;
 }
 
-/**
- * Uniform spatial hash — broad-phase filter; callers must still apply SPECIES_CONFIG radii.
- * Optional `influence` layer reserved for post-P0 scent maps (Float32Array per cell).
- */
+/** Uniform spatial hash — broad-phase filter; callers must still apply SPECIES_CONFIG radii. */
 export class EntitySpatialGrid {
   readonly mapWidth: number;
   readonly mapHeight: number;
@@ -76,14 +73,11 @@ export class EntitySpatialGrid {
   private readonly rows: number;
   /** entity id → cell coords (invariant: alive filtered entities appear exactly once). */
   private readonly entityCell = new Map<number, { col: number; row: number }>();
-  /** Future: wolf scent / ecology gradients per cell. */
-  influence?: Float32Array;
 
   constructor(
     mapWidth: number,
     mapHeight: number,
     cellSize: number,
-    withInfluenceLayer = false,
   ) {
     this.mapWidth = mapWidth;
     this.mapHeight = mapHeight;
@@ -91,9 +85,6 @@ export class EntitySpatialGrid {
     this.cols = Math.max(1, Math.ceil(mapWidth / cellSize));
     this.rows = Math.max(1, Math.ceil(mapHeight / cellSize));
     this.cells = Array.from({ length: this.cols * this.rows }, () => []);
-    if (withInfluenceLayer) {
-      this.influence = new Float32Array(this.cols * this.rows);
-    }
   }
 
   get gridCols(): number {
@@ -124,7 +115,6 @@ export class EntitySpatialGrid {
   clear(): void {
     for (const bucket of this.cells) bucket.length = 0;
     this.entityCell.clear();
-    if (this.influence) this.influence.fill(0);
   }
 
   /** Remove an entity from its current cell (no-op if absent). */
@@ -173,6 +163,21 @@ export class EntitySpatialGrid {
       return;
     }
     this.insert(entity);
+  }
+
+  /** Insert only when the entity is missing from the grid (cheap tick-start reconcile). */
+  ensurePresent(entity: Entity): void {
+    if (!entity.alive) {
+      this.remove(entity);
+      return;
+    }
+    if (!this.entityCell.has(entity.id)) {
+      this.insert(entity);
+    }
+  }
+
+  hasEntity(id: number): boolean {
+    return this.entityCell.has(id);
   }
 
   rebuild(entities: Iterable<Entity>, filter?: (entity: Entity) => boolean): void {
@@ -344,15 +349,6 @@ export class EntitySpatialGrid {
   }
 }
 
-export interface BuildSpatialGridOptions {
-  withInfluenceLayer?: boolean;
-}
-
-function resolveGridOptions(options?: boolean | BuildSpatialGridOptions): BuildSpatialGridOptions {
-  if (typeof options === 'boolean') return { withInfluenceLayer: options };
-  return options ?? {};
-}
-
 /** structuredClone strips class methods — stale plain objects must not be reused. */
 function isReusableSpatialGrid(
   grid: unknown,
@@ -371,28 +367,24 @@ export function resolveSpatialGrid(
   mapWidth: number,
   mapHeight: number,
   cellSize: number,
-  withInfluenceLayer = false,
 ): EntitySpatialGrid {
   if (isReusableSpatialGrid(existing, mapWidth, mapHeight, cellSize)) {
     return existing;
   }
-  return new EntitySpatialGrid(mapWidth, mapHeight, cellSize, withInfluenceLayer);
+  return new EntitySpatialGrid(mapWidth, mapHeight, cellSize);
 }
 
-/** @param options Pass `{ withInfluenceLayer: true }` to allocate scent/ecology gradients per cell. */
 export function buildGrassGrid(
   mapWidth: number,
   mapHeight: number,
   entities: Iterable<Entity>,
-  options?: boolean | BuildSpatialGridOptions,
 ): EntitySpatialGrid {
-  const { withInfluenceLayer = false } = resolveGridOptions(options);
-  const grid = new EntitySpatialGrid(mapWidth, mapHeight, GRASS_CELL_SIZE, withInfluenceLayer);
+  const grid = new EntitySpatialGrid(mapWidth, mapHeight, GRASS_CELL_SIZE);
   grid.rebuild(entities, isGrassGridEntity);
   return grid;
 }
 
-/** Rebuild (or allocate) the persistent grass index — one full update per sim tick. */
+/** Allocate grass index; full rebuild only on first tick or after layout/clone recovery. */
 export function syncGrassRenderGrid(
   existing: EntitySpatialGrid | undefined,
   mapWidth: number,
@@ -401,7 +393,9 @@ export function syncGrassRenderGrid(
 ): EntitySpatialGrid | undefined {
   if (!USE_SPATIAL_GRID) return undefined;
   const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, GRASS_CELL_SIZE);
-  grid.rebuild(grassEntities, isGrassGridEntity);
+  if (grid !== existing) {
+    grid.rebuild(grassEntities, isGrassGridEntity);
+  }
   return grid;
 }
 
@@ -469,7 +463,10 @@ export function syncSpatialGridEntity(
   if (!USE_SPATIAL_GRID) return;
   if (grassGrid && isGrassGridEntity(entity)) grassGrid.update(entity);
   if (mobileGrid && isMobileGridEntity(entity)) mobileGrid.update(entity);
-  if (treeGrid && isTreeGridEntity(entity)) treeGrid.update(entity);
+  if (treeGrid && entity.type === EntityType.Tree) {
+    if (entity.alive) treeGrid.update(entity);
+    else treeGrid.remove(entity);
+  }
 }
 
 const ROAD_AVOID_CELL = 128;
@@ -575,6 +572,20 @@ export class RoadAvoidanceIndex {
   }
 }
 
+/** Fingerprint completed road layout — count alone misses demolish+rebuild at same cardinality. */
+export function computeRoadLayoutStamp(roads: readonly Building[]): number {
+  let h = roads.length;
+  for (const road of roads) {
+    h = Math.imul(31, h) + road.id;
+    h = Math.imul(31, h) + Math.floor(road.x);
+    h = Math.imul(31, h) + Math.floor(road.y);
+    h = Math.imul(31, h) + Math.floor(road.width);
+    h = Math.imul(31, h) + Math.floor(road.height);
+    h |= 0;
+  }
+  return h;
+}
+
 export function buildRoadAvoidanceIndex(
   mapWidth: number,
   mapHeight: number,
@@ -584,19 +595,19 @@ export function buildRoadAvoidanceIndex(
   return new RoadAvoidanceIndex(mapWidth, mapHeight, roads);
 }
 
-/** Static tree layer — rebuilt once per tickHumans for idle wander queries. */
+/** Static tree layer — event-driven updates; full rebuild only on layout/clone recovery. */
 export function buildTreeGrid(
   mapWidth: number,
   mapHeight: number,
   trees: Iterable<Entity>,
 ): EntitySpatialGrid | undefined {
   if (!USE_SPATIAL_GRID) return undefined;
-  const grid = new EntitySpatialGrid(mapWidth, mapHeight, MOBILE_CELL_SIZE, false);
+  const grid = new EntitySpatialGrid(mapWidth, mapHeight, MOBILE_CELL_SIZE);
   grid.rebuild(trees, isTreeGridEntity);
   return grid;
 }
 
-/** Rebuild tree layer once per sim tick (trees are static but identity can change). */
+/** Allocate tree index; full rebuild only on first tick or after layout/clone recovery. */
 export function syncTreeSimGrid(
   existing: EntitySpatialGrid | undefined,
   mapWidth: number,
@@ -604,8 +615,10 @@ export function syncTreeSimGrid(
   trees: Iterable<Entity>,
 ): EntitySpatialGrid | undefined {
   if (!USE_SPATIAL_GRID) return undefined;
-  const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, MOBILE_CELL_SIZE, false);
-  grid.rebuild(trees, isTreeGridEntity);
+  const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, MOBILE_CELL_SIZE);
+  if (grid !== existing) {
+    grid.rebuild(trees, isTreeGridEntity);
+  }
   return grid;
 }
 
@@ -617,20 +630,17 @@ export function syncMobileSimGrid(
   entities: Iterable<Entity>,
 ): EntitySpatialGrid | undefined {
   if (!USE_SPATIAL_GRID) return undefined;
-  const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, MOBILE_CELL_SIZE, false);
+  const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, MOBILE_CELL_SIZE);
   grid.rebuild(entities, isMobileGridEntity);
   return grid;
 }
 
-/** @param options Pass `{ withInfluenceLayer: true }` to allocate scent/ecology gradients per cell. */
 export function buildMobileGrid(
   mapWidth: number,
   mapHeight: number,
   entities: Iterable<Entity>,
-  options?: boolean | BuildSpatialGridOptions,
 ): EntitySpatialGrid {
-  const { withInfluenceLayer = false } = resolveGridOptions(options);
-  const grid = new EntitySpatialGrid(mapWidth, mapHeight, MOBILE_CELL_SIZE, withInfluenceLayer);
+  const grid = new EntitySpatialGrid(mapWidth, mapHeight, MOBILE_CELL_SIZE);
   grid.rebuild(entities, isMobileGridEntity);
   return grid;
 }

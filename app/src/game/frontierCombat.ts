@@ -1,6 +1,7 @@
 import type { Building, Entity, RivalSettlement, WorldState } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
 import { TICKS_PER_DAY, killHuman } from './dayCycle';
+import { ensureEntityByIdMap } from './entityIndex';
 import { hasIronSpears, hasStoneSpears } from './combat';
 import { formatCitizenName, formatDeathLog } from './citizenId';
 import { logEvent } from './eventLog';
@@ -606,7 +607,7 @@ function applyRaidCasualties(
     const idx = Math.floor(Math.random() * remaining.length);
     victims.push(remaining.splice(idx, 1)[0]);
   }
-  const entityById = new Map(state.entities.map((e) => [e.id, e]));
+  const entityById = ensureEntityByIdMap(state);
   for (const victim of victims) {
     killHuman(victim, state.buildings, entityById);
     logEvent(

@@ -71,10 +71,6 @@ import {
 import type { CanvasContext2d } from './canvasLayer';
 const SCENT_DEBUG = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SCENT_DEBUG === '1';
 
-function isSnowGround(state: RenderSnapshot): boolean {
-  return state.season === Season.Winter;
-}
-
 // ============ TERRAIN COLOR PALETTE ============
 const TERRAIN_COLORS: Record<TerrainType, number> = {
   [TerrainType.DeepWater]:    0x1c3a6e,
@@ -89,13 +85,6 @@ const TERRAIN_COLORS: Record<TerrainType, number> = {
   [TerrainType.Mountains]:    0x524e48,
   [TerrainType.Rocky]:        0x625c52,
   [TerrainType.Snow]:         0xd2dae1,
-};
-
-const SEASON_MODS: Record<Season, Partial<Record<TerrainType, number>>> = {
-  [Season.Spring]: { [TerrainType.Grassland]: 0x6e8a4a, [TerrainType.Forest]: 0x4a6c3a },
-  [Season.Summer]: { [TerrainType.Grassland]: 0x5e8a2a, [TerrainType.Forest]: 0x3a5c1a },
-  [Season.Fall]:   { [TerrainType.Grassland]: 0x8e7a2a, [TerrainType.Forest]: 0x6a4c1a, [TerrainType.DarkForest]: 0x5a3a0a, [TerrainType.Hills]: 0x86663a },
-  [Season.Winter]: { [TerrainType.Grassland]: 0x7e8a6a, [TerrainType.Forest]: 0x6a7a5a, [TerrainType.Hills]: 0x8e8a7a, [TerrainType.DarkForest]: 0x5a6a4a },
 };
 
 /** Per-preset palette overrides so coastal/arid/harsh maps read differently at a glance. */
@@ -135,9 +124,9 @@ const PRESET_TERRAIN_COLORS: Partial<Record<MapPreset, Partial<Record<TerrainTyp
 let terrainCache: TerrainLayerCache | null = null;
 let terrainDecorCache: TerrainDecorCache | null = null;
 
-function getTerrainColor(type: TerrainType, season: Season, variation: number, preset?: MapPreset): string {
+function getTerrainColor(type: TerrainType, variation: number, preset?: MapPreset): string {
   const presetHex = preset ? PRESET_TERRAIN_COLORS[preset]?.[type] : undefined;
-  const hex = presetHex ?? SEASON_MODS[season]?.[type] ?? TERRAIN_COLORS[type] ?? TERRAIN_COLORS[TerrainType.Grassland];
+  const hex = presetHex ?? TERRAIN_COLORS[type] ?? TERRAIN_COLORS[TerrainType.Grassland];
   const r = (hex >> 16) & 0xff;
   const g = (hex >> 8) & 0xff;
   const b = hex & 0xff;
@@ -147,12 +136,12 @@ function getTerrainColor(type: TerrainType, season: Season, variation: number, p
 
 function buildTerrainCache(state: RenderSnapshot) {
   if (!state.worldMap) return;
-  if (terrainLayerNeedsRebuild(terrainCache, state.worldMap, state.season)) {
+  if (terrainLayerNeedsRebuild(terrainCache, state.worldMap, Season.Spring)) {
     disposeTerrainLayer(terrainCache);
     terrainCache = bakeTerrainLayer(
       state.worldMap,
-      state.season,
-      (type, season, variation, preset) => getTerrainColor(type, season, variation, preset),
+      Season.Spring,
+      (type, _season, variation, preset) => getTerrainColor(type, variation, preset),
     );
   }
   if (terrainDecorNeedsRebuild(terrainDecorCache, state.worldMap, state.width, state.height)) {
@@ -463,17 +452,6 @@ function darkerColor(hex: string, factor = 0.35): string {
   return rgbToHex(r * (1 - factor), g * (1 - factor), b * (1 - factor));
 }
 
-function applySeasonTint(hex: string, season: Season): string {
-  const { r, g, b } = hexToRgb(hex);
-  switch (season) {
-    case Season.Spring: return rgbToHex(r * 1.05, g * 1.08, b * 0.95);
-    case Season.Summer: return rgbToHex(r * 1.02, g * 1.05, b * 0.92);
-    case Season.Fall:   return rgbToHex(r * 1.08, g * 0.95, b * 0.82);
-    case Season.Winter: return rgbToHex(r * 0.82, g * 0.85, b * 0.95);
-    default: return hex;
-  }
-}
-
 const DEFAULT_SPRITE_DISPLAY_SCALE = 1.15;
 
 const ISO_PANEL_BUILDINGS = new Set<BuildingType>([
@@ -589,9 +567,7 @@ function drawSimpleGreenGround(ctx: CanvasRenderingContext2D, state: RenderSnaps
   const worldW = state.width || 1200;
   const worldH = state.height || 900;
 
-  const snow = isSnowGround(state);
-
-  ctx.fillStyle = snow ? '#dbe4ec' : '#3f6f38';
+  ctx.fillStyle = '#3f6f38';
   ctx.fillRect(0, 0, cw, ch);
 
   const [tlx, tly] = w2s(0, 0, cam, cw, ch);
@@ -599,17 +575,12 @@ function drawSimpleGreenGround(ctx: CanvasRenderingContext2D, state: RenderSnaps
   const mapW = brx - tlx;
   const mapH = bry - tly;
 
-  ctx.fillStyle = snow ? '#ffffff' : '#72a85c';
+  ctx.fillStyle = '#72a85c';
   ctx.fillRect(tlx, tly, mapW, mapH);
 
-  ctx.strokeStyle = snow ? 'rgba(100, 116, 139, 0.55)' : 'rgba(31, 56, 28, 0.45)';
+  ctx.strokeStyle = 'rgba(31, 56, 28, 0.45)';
   ctx.lineWidth = Math.max(2, 2 * cam.zoom);
   ctx.strokeRect(tlx, tly, mapW, mapH);
-
-  if (!snow && state.season === Season.Fall) {
-    ctx.fillStyle = 'rgba(180, 120, 40, 0.05)';
-    ctx.fillRect(tlx, tly, mapW, mapH);
-  }
 }
 
 function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
@@ -647,10 +618,6 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     }
   }
 
-  if (state.season === Season.Winter) {
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.fillRect(0, 0, cw, ch);
-  }
 }
 
 function drawGround(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
@@ -959,7 +926,6 @@ function drawGridTopOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot
   const vp = getGridViewport(cam, cw, ch);
   const gs = GRID_SIZE;
   const majorGs = gs * GRID_MAJOR_EVERY;
-  const onSnow = isSnowGround(state);
   const isNight = isNightHour(state.hourOfDay);
 
   if (inBuildMode) {
@@ -988,11 +954,9 @@ function drawGridTopOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot
 
   // Normal play: one clean major grid (every 5 cells) — no minor lines, dots, or checker
   const majorW = Math.max(1, 1.4 / cam.zoom);
-  const lineColor = onSnow
-    ? 'rgba(100, 116, 139, 0.35)'
-    : isNight
-      ? 'rgba(226, 232, 240, 0.4)'
-      : 'rgba(31, 56, 28, 0.28)';
+  const lineColor = isNight
+    ? 'rgba(226, 232, 240, 0.4)'
+    : 'rgba(31, 56, 28, 0.28)';
   strokeGridLines(ctx, vp, cam, cw, ch, majorGs, false, lineColor, 'rgba(0,0,0,0)', majorW);
 }
 
@@ -1105,7 +1069,7 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
     const { sx, sy, w, h } = getBuildingScreenRect(b);
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
     const cfg = BUILDING_CONFIGS[b.type];
-    const tint = applySeasonTint(cfg.backgroundColor, state.season);
+    const tint = cfg.backgroundColor;
     const border = darkerColor(tint, 0.35);
     const dash = categoryBorderDashForType(b.type);
     const hover = isHovered(b);
@@ -1164,7 +1128,7 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
     const padW = w + pad * 2;
     const padH = h + pad * 2;
     const isRival = b.faction === 'rival';
-    const tint = isRival ? '#312e81' : applySeasonTint(cfg.backgroundColor, state.season);
+    const tint = isRival ? '#312e81' : cfg.backgroundColor;
     const border = isRival ? '#6366f1' : darkerColor(tint, 0.4);
     const dash = categoryBorderDashForType(b.type);
     const baseAlpha = hover ? 0.52 : isRival ? 0.42 : 0.38;
@@ -1987,22 +1951,6 @@ function drawEcoConnections(ctx: CanvasRenderingContext2D, _state: RenderSnapsho
   }
 }
 
-// ============ SEASON OVERLAY ============
-function drawSeasonOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot, _cw: number, ch: number) {
-  const seasonIcons: Record<Season, string> = { [Season.Spring]: '🌸', [Season.Summer]: '☀️', [Season.Fall]: '🍂', [Season.Winter]: '❄️' };
-  const seasonColors: Record<Season, string> = { [Season.Spring]: '#86efac', [Season.Summer]: '#fde047', [Season.Fall]: '#fdba74', [Season.Winter]: '#bfdbfe' };
-
-  const label = `${seasonIcons[state.season]} ${state.season.toUpperCase()} | Year ${state.year}`;
-  ctx.font = 'bold 12px sans-serif';
-  ctx.textAlign = 'right';
-  const tw = ctx.measureText(label).width;
-  const mx = 155, my = ch - 120;
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillRect(mx - tw - 10, my - 18, tw + 14, 22);
-  ctx.fillStyle = seasonColors[state.season];
-  ctx.fillText(label, mx, my + 4);
-}
-
 // ============ BUILD PREVIEW ============
 function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (!state.buildMode) return;
@@ -2310,7 +2258,6 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
   drawGround(ctx, state, cw, ch);
   compositeCachedEntityLayer(ctx, state, cw, ch);
   drawEntityFlashOverlay(ctx, state, cw, ch);
-  drawSeasonOverlay(ctx, state, cw, ch);
   drawWeather(ctx, state.weather, cw, ch);
 
   if (isNightHour(state.hourOfDay)) {

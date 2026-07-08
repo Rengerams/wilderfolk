@@ -21,6 +21,7 @@ import {
   setHumanBirthFromAge,
 } from './dayCycle';
 import { syncEventLogIdFromState } from './eventLog';
+import { indexLivingEntity, rebuildEntityByIdMap } from './entityIndex';
 import { pickHumanVariant } from './humanSprites';
 import { spawnVisitorGroup } from './groupEvents';
 import { syncResearchUnlocks } from './research';
@@ -100,6 +101,7 @@ function spawnWildlifeAtRandomPassable(
     const spawnedEntity = createEntity(type, x, y, state.nextEntityId++, SPECIES_CONFIG[type].spawnEnergy);
     if (opts?.recordBirthYear) spawnedEntity.birthYear = state.year;
     state.entities.push(spawnedEntity);
+    indexLivingEntity(state, spawnedEntity);
     spawned++;
   }
 }
@@ -274,12 +276,13 @@ export function spawnGrassPatch(
   for (let attempt = 0; attempt < count * 12 && spawned < count; attempt++) {
     const angle = Math.random() * Math.PI * 2;
     const dist = Math.random() * patchRadius;
-    const gx = Math.max(0, Math.min(width, cx + Math.cos(angle) * dist));
-    const gy = Math.max(0, Math.min(height, cy + Math.sin(angle) * dist));
+    const gx = cx + Math.cos(angle) * dist;
+    const gy = cy + Math.sin(angle) * dist;
+    if (gx < 0 || gx > width || gy < 0 || gy > height) continue;
     if (state.worldMap && !isPassableWildlifePosition(state, gx, gy, 4)) continue;
-    state.entities.push(
-      createEntity(EntityType.Grass, gx, gy, state.nextEntityId++, SPECIES_CONFIG[EntityType.Grass].spawnEnergy),
-    );
+    const grass = createEntity(EntityType.Grass, gx, gy, state.nextEntityId++, SPECIES_CONFIG[EntityType.Grass].spawnEnergy);
+    state.entities.push(grass);
+    indexLivingEntity(state, grass);
     spawned++;
   }
 }
@@ -320,6 +323,7 @@ export function spawnWildlifeRing(
       const spawnedEntity = createEntity(type, sx, sy, state.nextEntityId++, SPECIES_CONFIG[type].spawnEnergy);
       if (opts?.recordBirthYear) spawnedEntity.birthYear = state.year;
       state.entities.push(spawnedEntity);
+      indexLivingEntity(state, spawnedEntity);
       spawned++;
       placed = true;
       break;
@@ -599,6 +603,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   state.humanPopulation = state.entities.filter((e) => e.alive && isPlayerHuman(e)).length;
   state.wildlifeCounts = computeWildlifeCounts(state.entities);
+  rebuildEntityByIdMap(state);
 
   return state;
 }

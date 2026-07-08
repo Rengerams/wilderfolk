@@ -1,13 +1,15 @@
 import GameMenu from './GameMenu';
 import ResourceBadge from './ResourceBadge';
-import type { Season, WorldState } from '../game/gameTypes';
+import type { WorldState } from '../game/gameTypes';
 import { WEATHER_CONFIGS } from '../game/gameTypes';
 import { isNightHour, getHourOfDay } from '../game/dayCycle';
 import { getOpenBeds, getTotalBeds } from '../game/populationGrowth';
-
-const SEASON_ICONS: Record<Season, string> = {
-  spring: '🌸', summer: '☀️', fall: '🍂', winter: '❄️',
-};
+import {
+  computeDailyTemperatureC,
+  formatTemperatureC,
+  SEASON_LABELS,
+  seasonTextClass,
+} from '../game/temperature';
 
 function formatHour(hour: number) {
   const h = hour % 24;
@@ -71,6 +73,8 @@ export default function GameHeader({
 }: Props) {
   const hour = getHourOfDay(world.tick);
   const isNight = isNightHour(hour);
+  const dailyTempC = computeDailyTemperatureC(world.season, world.weather, world.dayInYear, world.year);
+  const seasonLabel = SEASON_LABELS[world.season];
   const popNearCap = population / Math.max(1, world.maxHumanPopulation) >= 0.9;
   const beds = getTotalBeds(world);
   const openBeds = getOpenBeds(world);
@@ -90,11 +94,11 @@ export default function GameHeader({
 
       <div className="flex shrink-0 items-center gap-2">
         <div
-          className="hidden items-center gap-1.5 rounded-md bg-stone-700/50 px-2.5 py-1 text-[11px] sm:flex"
-          title={`${world.season} · Year ${world.year} · Day ${world.dayInYear}${world.weather !== 'clear' ? ` · ${WEATHER_CONFIGS[world.weather].label}` : ''}${world.festival ? ` · ${world.festival.name}` : ''}`}
+          className="flex items-center gap-1.5 rounded-md bg-stone-700/50 px-2 py-1 text-[10px] sm:px-2.5 sm:text-[11px]"
+          title={`${seasonLabel} · ${formatTemperatureC(dailyTempC)} · Year ${world.year} · Day ${world.dayInYear}${world.weather !== 'clear' ? ` · ${WEATHER_CONFIGS[world.weather].label}` : ''}${world.festival ? ` · ${world.festival.name}` : ''}`}
         >
-          <span>{SEASON_ICONS[world.season]}</span>
-          <span className="font-semibold capitalize text-emerald-400">{world.season.slice(0, 3)}</span>
+          <span className={seasonTextClass(world.season)}>{seasonLabel}</span>
+          <span className="font-mono text-stone-200">{formatTemperatureC(dailyTempC)}</span>
           <span className="text-stone-500">·</span>
           <span className="text-stone-300">Y{world.year} D{world.dayInYear}</span>
           <span className="text-stone-500">·</span>

@@ -1,6 +1,6 @@
 import type { Entity } from './gameTypes';
 import { EntityType } from './gameTypes';
-import { MOBILE_CELL_SIZE } from './spatialGrid';
+import { envFlagDisabled, MOBILE_CELL_SIZE } from './spatialGrid';
 import { isActiveMoonHowler } from './moonHowler';
 
 /** Magic `WFSN` — Wilderfolk scent sidecar. */
@@ -34,13 +34,13 @@ export const DEER_SCENT_SENSITIVITY = 0.75;
 export const WILDKIN_SCENT_SENSITIVITY = 0.55;
 
 function isScentGridDisabled(): boolean {
-  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_USE_SCENT_GRID === '0') {
+  if (typeof import.meta !== 'undefined' && envFlagDisabled(import.meta.env?.VITE_USE_SCENT_GRID)) {
     return true;
   }
   const runtime = globalThis as typeof globalThis & {
     process?: { env?: Record<string, string | undefined> };
   };
-  return runtime.process?.env?.USE_SCENT_GRID === '0';
+  return envFlagDisabled(runtime.process?.env?.USE_SCENT_GRID);
 }
 
 export const USE_SCENT_GRID = !isScentGridDisabled();
@@ -77,6 +77,21 @@ export class ScentGrid implements ScentGridRuntime {
     const grid = new ScentGrid(runtime.cols * runtime.cellSize, runtime.rows * runtime.cellSize, runtime.cellSize);
     grid.values.set(runtime.values);
     return grid;
+  }
+
+  /** Reuse a plain runtime object (e.g. after structuredClone) without copying values. */
+  static adoptRuntime(runtime: ScentGridRuntime): ScentGrid {
+    const grid = Object.create(ScentGrid.prototype) as {
+      cols: number;
+      rows: number;
+      cellSize: number;
+      values: Float32Array;
+    };
+    grid.cols = runtime.cols;
+    grid.rows = runtime.rows;
+    grid.cellSize = runtime.cellSize;
+    grid.values = runtime.values;
+    return grid as ScentGrid;
   }
 
   private index(col: number, row: number): number {
@@ -117,7 +132,7 @@ export class ScentGrid implements ScentGridRuntime {
       let amount = 0;
       if (type === EntityType.Wolf) amount = WOLF_SCENT_DEPOSIT;
       else if (type === EntityType.Fox) amount = FOX_SCENT_DEPOSIT;
-      else if (isActiveMoonHowler(entity)) amount = WEREWOLF_SCENT_DEPOSIT;
+      else if (type === EntityType.Werewolf && isActiveMoonHowler(entity)) amount = WEREWOLF_SCENT_DEPOSIT;
       else continue;
       this.deposit(entity.x, entity.y, amount);
     }
@@ -142,7 +157,7 @@ export class ScentGrid implements ScentGridRuntime {
     for (let row = Math.max(0, cy - 1); row <= Math.min(this.rows - 1, cy + 1); row++) {
       for (let col = Math.max(0, cx - 1); col <= Math.min(this.cols - 1, cx + 1); col++) {
         const scent = this.values[this.index(col, row)];
-        if (scent <= 0) continue;
+        if (!Number.isFinite(scent) || scent <= 0) continue;
         const cellCenterX = (col + 0.5) * this.cellSize;
         const cellCenterY = (row + 0.5) * this.cellSize;
         gradX += scent * (cellCenterX - x);
@@ -219,7 +234,8 @@ export class ScentGridReader {
 
   scentAt(col: number, row: number): number {
     const idx = SCENT_HEADER_WORDS + row * this.cols + col;
-    return this.f32[idx] ?? 0;
+    const scent = this.f32[idx];
+    return Number.isFinite(scent) ? scent : 0;
   }
 
   maxScent(): number {
@@ -237,6 +253,18 @@ export function scentSidecarByteLength(cols: number, rows: number): number {
   return (SCENT_HEADER_WORDS + cols * rows) * 4;
 }
 
+export function isScentGridRuntime(value: unknown): value is ScentGridRuntime {
+  if (!value || typeof value !== 'object') return false;
+  const grid = value as ScentGridRuntime;
+  return (
+    Number.isFinite(grid.cols) && grid.cols > 0
+    && Number.isFinite(grid.rows) && grid.rows > 0
+    && Number.isFinite(grid.cellSize) && grid.cellSize > 0
+    && grid.values instanceof Float32Array
+    && grid.values.length === grid.cols * grid.rows
+  );
+}
+
 export function ensureScentGrid(
   state: { width: number; height: number; scentGrid?: ScentGrid },
 ): ScentGrid {
@@ -246,16 +274,16 @@ export function ensureScentGrid(
 
   const existing = state.scentGrid;
   if (
-    existing
+    isScentGridRuntime(existing)
     && existing.cols === cols
     && existing.rows === rows
     && existing.cellSize === cellSize
-    && existing.values instanceof Float32Array
   ) {
-    if (!(existing instanceof ScentGrid)) {
-      state.scentGrid = ScentGrid.fromRuntime(existing);
-    }
-    return state.scentGrid!;
+    const grid = existing instanceof ScentGrid
+      ? existing
+      : ScentGrid.adoptRuntime(existing);
+    state.scentGrid = grid;
+    return grid;
   }
 
   state.scentGrid = new ScentGrid(state.width, state.height, cellSize);

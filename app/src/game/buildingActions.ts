@@ -16,11 +16,13 @@ import {
   createDeathParticles,
   impulseScreenShake,
   getTerrainEfficiencyMultiplier,
-  buildAdjacencyIndex,
+  ensureAdjacencyIndex,
   getAdjacencyMultiplierFromIndex,
   getMultiplier,
   assignMissingWorkers,
 } from './gameEngine';
+import { unindexAdjacency } from './adjacencyIndex';
+import { indexLivingEntity } from './entityIndex';
 import { isPlayerHuman } from './groupEvents';
 import {
   assignMissingResidences,
@@ -755,6 +757,7 @@ export function recruitSettler(originalState: WorldState): WorldState {
   settler.partnerId = undefined;
   settler.courtshipProgress = 0;
   state.entities.push(settler);
+  indexLivingEntity(state, settler);
   const recruited = state.entities.filter(isPlayerHuman);
   assignMissingResidences(recruited, state.buildings, state.entities);
   assignMissingWorkers(recruited, state.buildings);
@@ -771,7 +774,7 @@ export function estimateWorkshopGold(state: WorldState, building: Building): num
   if (workers === 0) return recipe.baseGold;
   const levelMult = building.level || 1;
   const terrainMult = getTerrainEfficiencyMultiplier(state, building);
-  const adjacencyMult = getAdjacencyMultiplierFromIndex(buildAdjacencyIndex(state.buildings), building);
+  const adjacencyMult = getAdjacencyMultiplierFromIndex(ensureAdjacencyIndex(state), building);
   const skillMult = getWorkerSkillMultiplier(state, building);
   const festivalMult = state.festival?.active ? 1.5 : 1;
   const goldMult = getMultiplier(state, 'gold_production');
@@ -826,6 +829,12 @@ export function demolishBuilding(originalState: WorldState, buildingId: number):
   addFloatingText(state, building.x, building.y - 10, `Refunded: ${refundWood}w ${refundStone}s`, '#eab308');
   impulseScreenShake(state, 4);
 
+  unindexAdjacency(state, buildingId);
+  state.adjacency = undefined;
+  if (building.type === BuildingType.Road) {
+    state.roadAvoidance = undefined;
+    state.roadAvoidanceStamp = undefined;
+  }
   state.buildings = state.buildings.filter(b => b.id !== buildingId);
   const humans = state.entities.filter(isPlayerHuman);
   assignMissingResidences(humans, state.buildings, state.entities);
@@ -860,6 +869,7 @@ export function spawnMoonHowlerDebug(originalState: WorldState): WorldState {
   setHumanBirthFromAge(settler, debugAge, getColonyDay(state));
   curseMoonHowler(settler);
   state.entities.push(settler);
+  indexLivingEntity(state, settler);
   addBigNews(state, '🌝 Debug Moon Howler!', '(Test) A cursed wanderer arrived from the woods.', 'negative');
   addFloatingText(state, settler.x, settler.y - 20, 'Cursed…', '#c4b5fd');
   logEvent(state, 'event', '(Debug) Cursed Moon Howler spawned at map center', settler.name);

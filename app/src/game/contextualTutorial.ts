@@ -280,6 +280,7 @@ export function seedTutorialSeenForExistingState(state: WorldState): string[] {
   if ((state.pendingDiplomacyEvents?.length ?? 0) > 0) seen.add('diplomacy_event');
   if ((state.pendingRaidEvents?.length ?? 0) > 0) seen.add('raid_incoming');
   if (state.season === Season.Winter) seen.add('first_winter');
+
   if (state.activeResearch) seen.add('research_started');
   if (state.researchNodes.some((n) => n.researched)) seen.add('research_complete');
   if (state.tradeRoutes.some((r) => r.active)) seen.add('trade_route_opened');

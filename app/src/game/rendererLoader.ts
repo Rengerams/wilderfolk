@@ -37,8 +37,7 @@ export function renderGame(
     rendererModule.renderGame(...args);
     return;
   }
+  // Coalesce to the latest frame while the renderer chunk loads.
   pendingRender = args;
-  void rendererReady.then((mod) => {
-    if (pendingRender === args) flushPendingRender(mod);
-  });
+  void rendererReady.then((mod) => flushPendingRender(mod));
 }

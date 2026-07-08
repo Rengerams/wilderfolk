@@ -1383,6 +1383,7 @@ export function killHuman(
 ): void {
   if (!entity.alive || !isKillableSettlerEntity(entity)) return;
   entity.alive = false;
+  if (entityById instanceof Map) entityById.delete(entity.id);
   finalizeMoonHowlerDeath(entity);
   finalizeHumanDeath(entity, buildings, entityById);
 }

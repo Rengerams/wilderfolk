@@ -36,6 +36,14 @@ export type { YearlyStats, LifetimeStats } from './stats';
 export { createInitialVictories, computeVictoryProgress, VICTORY_DEFINITIONS } from './victory';
 export type { VictoryPath, VictoryProgress } from './gameTypes';
 export { logEvent } from './eventLog';
+import {
+  buildingUsesAdjacency,
+  ensureAdjacencyIndex,
+  getAdjacencyMultiplierFromIndex,
+  syncAdjacency,
+} from './adjacencyIndex';
+import { ensureEntityByIdMap, indexEntity } from './entityIndex';
+import { getLumberMillTreeMultiplier } from './treeProximity';
 import { getGrassGrowthMultiplier, getWinterEnergyPenalty } from './grassEcology';
 import { isEntityOnBuilding } from './buildingRotation';
 import {
@@ -70,6 +78,15 @@ export const OFFSCREEN_HUMAN_THROTTLE = 8;
 function sortEntitiesByY(entities: Entity[]): Entity[] {
   return entities.slice().sort((a, b) => a.y - b.y);
 }
+
+export {
+  ensureEntityByIdMap,
+  indexEntity,
+  indexLivingEntity,
+  rebuildEntityByIdMap,
+  unindexEntity,
+  unindexEntityFromState,
+} from './entityIndex';
 
 /** Bucket alive entities by `entity.type` (call again after mid-tick type changes, e.g. Moon Howlers). */
 export function buildEntityByType(entities: Iterable<Entity>): EntityByType {
@@ -236,7 +253,7 @@ export const SPECIES_CONFIG: Record<EntityType, SpeciesConfig> = {
     sprite: '/sprites/fox.png',
   },
   [EntityType.Human]: {
-    maxEnergy: 500, energyLossPerTick: 4.2, energyGain: { deer: 350, rabbit: 150, farm: 120 },
+    maxEnergy: 500, energyLossPerTick: 4.2, energyGain: { deer: 350, rabbit: 150 },
     maxAge: HUMAN_MAX_LIFESPAN_YEARS, speed: 2.25, size: 10,
     reproductionCooldown: REPRODUCTION_COOLDOWN_TICKS, reproductionEnergyThreshold: 180, reproductionChance: 0.02, spawnEnergy: 180,
     color: '#f5d0a9', fleeRange: 50, huntRange: 105, wanderRadius: 100,
@@ -257,7 +274,7 @@ export const SPECIES_CONFIG: Record<EntityType, SpeciesConfig> = {
     sprite: '/sprites/wolf.png',
   },
   [EntityType.Wildkin]: {
-    maxEnergy: 450, energyLossPerTick: 3, energyGain: { grass: 45, farm: 80 },
+    maxEnergy: 450, energyLossPerTick: 3, energyGain: { grass: 45 },
     maxAge: 365 * 40, speed: 3.2, size: 12,
     reproductionCooldown: ticksForDays(12), reproductionEnergyThreshold: 200, reproductionChance: 0.008, spawnEnergy: 200,
     color: '#a3a35a', fleeRange: 100, huntRange: 0, wanderRadius: 90,
@@ -387,93 +404,19 @@ export function getTerrainEfficiencyMultiplier(state: WorldState, building: Buil
   }
 }
 
-type AdjacencyBuckets = Map<string, Building[]>;
-
-const ADJACENCY_CELL = 80;
-
-export interface AdjacencyIndex {
-  barns: Building[];
-  roads: Building[];
-  markets: Building[];
-  barnMap: AdjacencyBuckets;
-  roadMap: AdjacencyBuckets;
-  marketMap: AdjacencyBuckets;
-}
-
-function adjacencyCellKey(x: number, y: number): string {
-  return `${Math.floor(x / ADJACENCY_CELL)},${Math.floor(y / ADJACENCY_CELL)}`;
-}
-
-function addToAdjacencyMap(map: AdjacencyBuckets, building: Building): void {
-  const key = adjacencyCellKey(building.x, building.y);
-  const bucket = map.get(key);
-  if (bucket) bucket.push(building);
-  else map.set(key, [building]);
-}
-
-function hasAdjacencyNeighbor(
-  map: AdjacencyBuckets,
-  x: number,
-  y: number,
-  radius: number,
-): boolean {
-  const radiusSq = radius * radius;
-  const cellRadius = Math.ceil(radius / ADJACENCY_CELL);
-  const cx = Math.floor(x / ADJACENCY_CELL);
-  const cy = Math.floor(y / ADJACENCY_CELL);
-  for (let dx = -cellRadius; dx <= cellRadius; dx++) {
-    for (let dy = -cellRadius; dy <= cellRadius; dy++) {
-      const bucket = map.get(`${cx + dx},${cy + dy}`);
-      if (!bucket) continue;
-      for (const other of bucket) {
-        const ddx = other.x - x;
-        const ddy = other.y - y;
-        if (ddx * ddx + ddy * ddy < radiusSq) return true;
-      }
-    }
-  }
-  return false;
-}
-
-export function buildAdjacencyIndex(buildings: Building[]): AdjacencyIndex {
-  const barns: Building[] = [];
-  const roads: Building[] = [];
-  const markets: Building[] = [];
-  const barnMap: AdjacencyBuckets = new Map();
-  const roadMap: AdjacencyBuckets = new Map();
-  const marketMap: AdjacencyBuckets = new Map();
-  for (const b of buildings) {
-    if (!b.completed || b.faction === 'rival') continue;
-    if (b.type === BuildingType.Barn) {
-      barns.push(b);
-      addToAdjacencyMap(barnMap, b);
-    } else if (b.type === BuildingType.Road) {
-      roads.push(b);
-      addToAdjacencyMap(roadMap, b);
-    } else if (b.type === BuildingType.Market) {
-      markets.push(b);
-      addToAdjacencyMap(marketMap, b);
-    }
-  }
-  return { barns, roads, markets, barnMap, roadMap, marketMap };
-}
-
-export function getAdjacencyMultiplierFromIndex(index: AdjacencyIndex, building: Building): number {
-  let mult = 1;
-  if (building.type === BuildingType.Farm || building.type === BuildingType.Greenhouse) {
-    if (hasAdjacencyNeighbor(index.barnMap, building.x, building.y, 120)) mult += 0.35;
-  }
-  if (building.type !== BuildingType.Road) {
-    if (hasAdjacencyNeighbor(index.roadMap, building.x, building.y, 70)) mult += 0.15;
-  }
-  if (building.type === BuildingType.Store || building.type === BuildingType.Workshop) {
-    if (hasAdjacencyNeighbor(index.marketMap, building.x, building.y, 160)) mult += 0.25;
-  }
-  return mult;
-}
+export {
+  AdjacencyIndex,
+  buildAdjacencyIndex,
+  buildingUsesAdjacency,
+  ensureAdjacencyIndex,
+  getAdjacencyMultiplierFromIndex,
+  syncAdjacency,
+  unindexAdjacency,
+} from './adjacencyIndex';
 
 export function getAdjacencyMultiplier(state: WorldState, building: Building): number {
-  return getAdjacencyMultiplierFromIndex(buildAdjacencyIndex(state.buildings), building);
+  if (!buildingUsesAdjacency(building)) return 1;
+  return getAdjacencyMultiplierFromIndex(ensureAdjacencyIndex(state), building);
 }
 
 export function impulseScreenShake(state: WorldState, amount: number): void {
@@ -938,12 +881,13 @@ import {
 import { tickTradeCaravans } from './tradeCaravans';
 import { updateWeather, updateDisasters } from './worldEvents';
 import { updateResearch } from './research';
-import { tickHumans, tickWildlife, type TickContext } from './lifeSimulation';
+import { tickHumans, tickWildlife, buildHuntTargetByPreyIndex, type TickContext } from './lifeSimulation';
 import {
   USE_SPATIAL_GRID,
   syncMobileSimGrid,
   syncTreeSimGrid,
   buildRoadAvoidanceIndex,
+  computeRoadLayoutStamp,
   assertSpatialGridInvariants,
   syncGrassRenderGrid,
 } from './spatialGrid';
@@ -1010,6 +954,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.season = season;
 
   // Update systems
+  ensureEntityByIdMap(state);
   updateStorageCaps(state);
   updateWeather(state);
   updateResearch(state);
@@ -1099,8 +1044,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     }
   }
 
-  const entityById = new Map<number, Entity>();
-  for (const e of aliveEntities) entityById.set(e.id, e);
+  const entityById = ensureEntityByIdMap(state);
 
   const isPassiveBuild =
     (type: BuildingType) =>
@@ -1151,6 +1095,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
         } else {
           createDeathParticles(state, building.x, building.y, '#ffd700', 12, 'star');
         }
+        syncAdjacency(state, building, b.completed);
       }
     }
     if (building.completed && building.spriteScale > 1) {
@@ -1162,11 +1107,14 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     if (building.completed && season === Season.Winter && isNewCalendarDay) {
       building.health = Math.max(10, building.health - 2);
     }
-    // Auto repair with workers — once per game-day
+    // Auto repair with workers — once per game-day (alive occupants only)
+    const aliveRepairWorkers = building.occupants.filter(
+      (id) => entityById.get(id)?.alive,
+    ).length;
     if (
       building.completed
       && building.health < building.maxHealth
-      && building.occupants.length > 0
+      && aliveRepairWorkers > 0
       && isNewCalendarDay
     ) {
       const hpNeeded = building.maxHealth - building.health;
@@ -1198,22 +1146,8 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   }
   state.renffrOmen = tickRenffrOmen(state.renffrOmen);
 
-  const isWinter = season === Season.Winter;
   const humanCount = playerHumans.length;
-
-  // Predator migration
-  if (isProductionTick(state.tick, EVENT_INTERVAL.wolfRecruit) && byType[EntityType.Wolf].filter(e => e.alive).length < 2 && Math.random() < 0.1) {
-    const edge = Math.floor(Math.random() * 4);
-    let sx = 0, sy = 0;
-    if (edge === 0) { sx = Math.random() * width; sy = 0; }
-    else if (edge === 1) { sx = Math.random() * width; sy = height; }
-    else if (edge === 2) { sx = 0; sy = Math.random() * height; }
-    else { sx = width; sy = Math.random() * height; }
-    newEntities.push(createEntity(
-      EntityType.Wolf, sx, sy, state.nextEntityId++, SPECIES_CONFIG[EntityType.Wolf].spawnEnergy,
-    ));
-    addFloatingText(state, sx, sy, 'A lone wolf enters', '#6b7280');
-  }
+  const isWinter = season === Season.Winter;
 
   // Winter heating
   let canHeat = true;
@@ -1224,6 +1158,22 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     } else {
       canHeat = false;
     }
+  }
+
+  // Predator migration
+  if (isProductionTick(state.tick, EVENT_INTERVAL.wolfRecruit) && byType[EntityType.Wolf].filter(e => e.alive).length < 2 && Math.random() < 0.1) {
+    const edge = Math.floor(Math.random() * 4);
+    let sx = 0, sy = 0;
+    if (edge === 0) { sx = Math.random() * width; sy = 0; }
+    else if (edge === 1) { sx = Math.random() * width; sy = height; }
+    else if (edge === 2) { sx = 0; sy = Math.random() * height; }
+    else { sx = width; sy = Math.random() * height; }
+    const wolf = createEntity(
+      EntityType.Wolf, sx, sy, state.nextEntityId++, SPECIES_CONFIG[EntityType.Wolf].spawnEnergy,
+    );
+    newEntities.push(wolf);
+    indexEntity(entityById, wolf);
+    addFloatingText(state, sx, sy, 'A lone wolf enters', '#6b7280');
   }
 
   const buildingById = new Map<number, Building>();
@@ -1237,19 +1187,20 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     ...byType[EntityType.Werewolf].filter((e) => e.alive),
   ];
 
-  let grassGrid = USE_SPATIAL_GRID
-    ? syncGrassRenderGrid(state.grassGrid, width, height, byType[EntityType.Grass] ?? [])
-    : undefined;
   const mobileGrid = USE_SPATIAL_GRID
     ? syncMobileSimGrid(state.mobileGrid, width, height, aliveEntities)
     : undefined;
   state.mobileGrid = mobileGrid;
 
+  let grassGrid = USE_SPATIAL_GRID
+    ? syncGrassRenderGrid(state.grassGrid, width, height, byType[EntityType.Grass] ?? [])
+    : undefined;
+
   const treeTypeList = byType[EntityType.Tree];
   const treeGrid = syncTreeSimGrid(state.treeGrid, width, height, treeTypeList);
   state.treeGrid = treeGrid;
 
-  const roadStamp = roadBuildings.length;
+  const roadStamp = computeRoadLayoutStamp(roadBuildings);
   if (
     !state.roadAvoidance
     || state.roadAvoidanceStamp !== roadStamp
@@ -1282,6 +1233,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     mobileGrid,
     treeGrid,
     roadAvoidance: state.roadAvoidance,
+    huntTargetByPreyId: buildHuntTargetByPreyIndex(byType),
     scentGrid,
     focus,
     wildlifeSpawnParent: new Map(),
@@ -1406,6 +1358,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     const newcomers = createImmigrantSettler(state, spawn.x, spawn.y);
     for (const newcomer of newcomers) {
       allAlive.push(newcomer);
+      indexEntity(entityById, newcomer);
       counts.humans++;
     }
     assignMissingResidences(allAlive.filter(isPlayerHuman), updatedBuildings, allAlive);
@@ -1427,12 +1380,14 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     if (siteId == null) continue;
     workersByBuildingId.set(siteId, (workersByBuildingId.get(siteId) ?? 0) + 1);
   }
-  const adjacencyIndex = buildAdjacencyIndex(updatedBuildings);
+  const adjacencyIndex = ensureAdjacencyIndex(state);
 
   for (const building of updatedBuildings) {
     const levelMult = building.level || 1;
     const terrainMult = getTerrainEfficiencyMultiplier(state, building);
-    const adjacencyMult = getAdjacencyMultiplierFromIndex(adjacencyIndex, building);
+    const adjacencyMult = buildingUsesAdjacency(building)
+      ? getAdjacencyMultiplierFromIndex(adjacencyIndex, building)
+      : 1;
     const skillMult = getWorkerSkillMultiplier(state, building, entityById);
     const totalMult = levelMult * terrainMult * adjacencyMult * festivalMult * skillMult;
     const productionJob = getJobForBuilding(building.type);
@@ -1457,7 +1412,8 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     }
     if (building.completed && staffed && building.type === BuildingType.LumberMill && isProductionTick(state.tick, PRODUCTION_INTERVAL.lumber)) {
       const lumberMult = getMultiplier(state, 'lumber_yield');
-      const amount = Math.floor((12 + workers * 4) * totalMult * smithBonus * lumberMult * globalEff);
+      const treeMult = getLumberMillTreeMultiplier(building, treeGrid, treeTypeList);
+      const amount = Math.floor((12 + workers * 4) * totalMult * smithBonus * lumberMult * treeMult * globalEff);
       if (addResource(state, 'wood', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
       state.deathParticles.push({ x: building.x + Math.random() * building.width, y: building.y + Math.random() * building.height, vx: (Math.random() - 0.5) * 0.5, vy: -1 - Math.random(), life: 20, maxLife: 20, color: '#8B7355', size: 2 + Math.random() * 2, type: 'smoke' });
     }
@@ -1690,12 +1646,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     replenishDepletedWildlife(state);
   }
   state.entityByType = buildEntityByType(state.entities);
-  state.grassGrid = syncGrassRenderGrid(
-    grassGrid,
-    state.width,
-    state.height,
-    state.entityByType[EntityType.Grass],
-  );
+  state.grassGrid = grassGrid ?? undefined;
   if (USE_SPATIAL_GRID) state.mobileGrid = mobileGrid;
   state.buildings = updatedBuildings;
 

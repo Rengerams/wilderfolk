@@ -10,7 +10,8 @@ export type SpatialQueryCategory =
   | 'human_hunt'
   | 'tamed_hunt'
   | 'road_near'
-  | 'road_avoid';
+  | 'road_avoid'
+  | 'lumber_trees';
 
 export interface SpatialQueryBucket {
   queries: number;
@@ -37,6 +38,7 @@ const CATEGORY_LABELS: Record<SpatialQueryCategory, string> = {
   tamed_hunt: 'Tamed hunt',
   road_near: 'Road near',
   road_avoid: 'Road avoid',
+  lumber_trees: 'Lumber mill trees',
 };
 
 /** Compile-time check: if a category is added to the union but not to labels, TypeScript will error here. */

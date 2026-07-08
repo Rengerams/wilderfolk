@@ -1,6 +1,7 @@
 import { BuildingType, JobType } from './gameTypes';
 import type { Building, WorldState } from './gameTypes';
 import { isImprisoned } from './dayCycle';
+import { ensureEntityByIdMap } from './entityIndex';
 import { FORGE_BONUSES, isForgeOrderComplete, type VillageForgeState } from './forge';
 import { MILITIA_BALANCE } from './militiaBalance';
 
@@ -62,7 +63,7 @@ export function getBarracksGuardCount(state: WorldState, buildings: Building[]):
   if (!state?.entities || !buildings?.length) return 0;
 
   // O(1) lookup instead of O(n) find inside a nested loop
-  const entityById = new Map(state.entities.map((e) => [e.id, e]));
+  const entityById = ensureEntityByIdMap(state);
   let guards = 0;
 
   for (const b of buildings) {
@@ -86,7 +87,7 @@ export function getBarracksGuardCount(state: WorldState, buildings: Building[]):
 export function pruneDeadBarracksOccupants(state: WorldState, buildings: Building[]): void {
   if (!state?.entities || !buildings?.length) return;
 
-  const entityById = new Map(state.entities.map((e) => [e.id, e]));
+  const entityById = ensureEntityByIdMap(state);
 
   for (const b of buildings) {
     if (!b.completed || b.type !== BuildingType.Barracks || b.faction === 'rival') continue;

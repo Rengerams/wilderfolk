@@ -5,7 +5,7 @@ import {
   GRASS_MAX_ENERGY,
   GRAZER_METABOLISM,
   getGrassGrowthMultiplier,
-  getWinterEnergyPenalty,
+
   grazerGrassEnergyDemandPerDay,
 } from './grassEcology';
 
@@ -56,13 +56,12 @@ export function getGrazingPressureReport(state: WorldState): GrazingPressureRepo
   const grassCount = counts.grass;
   const growingGrassCount = countGrowingGrass(state);
   const grassMult = getGrassGrowthMultiplier(state.season, state.weather);
-  const winterPenalty = getWinterEnergyPenalty(state.season);
   const grassRecoveryPerDay = growingGrassCount * GRASS_GROWTH_PER_TICK * grassMult * TICKS_PER_DAY;
 
   const grazingDemandPerDay =
-    grazerGrassEnergyDemandPerDay(GRAZER_METABOLISM.deer.energyLossPerTick, GRAZER_METABOLISM.deer.grassEnergyGain, winterPenalty) * deerCount
-    + grazerGrassEnergyDemandPerDay(GRAZER_METABOLISM.rabbit.energyLossPerTick, GRAZER_METABOLISM.rabbit.grassEnergyGain, winterPenalty) * rabbitCount
-    + grazerGrassEnergyDemandPerDay(GRAZER_METABOLISM.wildkin.energyLossPerTick, GRAZER_METABOLISM.wildkin.grassEnergyGain, winterPenalty) * wildkinCount;
+    grazerGrassEnergyDemandPerDay(GRAZER_METABOLISM.deer.energyLossPerTick, GRAZER_METABOLISM.deer.grassEnergyGain, 0) * deerCount
+    + grazerGrassEnergyDemandPerDay(GRAZER_METABOLISM.rabbit.energyLossPerTick, GRAZER_METABOLISM.rabbit.grassEnergyGain, 0) * rabbitCount
+    + grazerGrassEnergyDemandPerDay(GRAZER_METABOLISM.wildkin.energyLossPerTick, GRAZER_METABOLISM.wildkin.grassEnergyGain, 0) * wildkinCount;
 
   const pressureRatio = grazingDemandPerDay / Math.max(grassRecoveryPerDay, GRASS_GROWTH_PER_TICK * TICKS_PER_DAY);
 
@@ -89,12 +88,9 @@ export function getGrazingPressureReport(state: WorldState): GrazingPressureRepo
     level = 'stable';
   }
 
-  const seasonNote =
-    state.season === Season.Winter
-      ? 'Grass barely grows in winter — herds shrink or starve.'
-      : state.weather === WeatherType.Drought
-        ? 'Drought is slowing grass recovery.'
-        : '';
+  const seasonNote = state.weather === WeatherType.Drought
+    ? 'Drought is slowing grass recovery.'
+    : '';
 
   const headlines: Record<GrazingPressureLevel, string> = {
     stable: 'Grazing pressure is within recovery limits.',

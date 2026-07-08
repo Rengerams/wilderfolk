@@ -4,6 +4,45 @@
 
 **Targeting v0.5.0** (end July 2026) — see [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
 
+### Added — spatial perf & query metrics (July 8, 2026)
+
+**Priority 1–4 implemented; #5 (skip mobile rebuild) and #6 (type-partitioned buckets) deferred until profiling shows need.**
+
+- **Hunt reverse index** — `buildHuntTargetByPreyIndex(byType)` built once per tick → `ctx.huntTargetByPreyId`; `clearHuntersTargetingPrey` uses `Map<preyId, Set<hunterId>>` instead of full `entityById` scans
+- **`AdjacencyIndex` event-driven** (`adjacencyIndex.ts`) — sparse 80px cell map for barn/road/market placement bonuses; lives on `WorldState.adjacency`; `syncAdjacency` on completion, `unindexAdjacency` on demolish; production loop reuses index (no per-tick full rebuild); lookups only for production consumer types
+- **Tree/grass grids event-driven** — `syncTreeSimGrid` / `syncGrassRenderGrid` skip rebuild when grid instance is reused; mid-tick updates via `syncSpatialGridEntity`
+- **Mobile grid unchanged** — `syncMobileSimGrid` still full `rebuild()` every tick (runs first at tick start)
+- **Influence layer removed** — deprecated `EntitySpatialGrid.influence` API
+- **`entityById` event-driven index** (`entityIndex.ts`) — `WorldState.entityById` Map reused across ticks (not saved); `indexEntity` on birth, `unindexEntity` / `killHuman` delete on death; `ensureEntityByIdMap` only rebuilds once after load/init; no per-tick O(n) reconcile; `worldEvents`, `defenseStructures`, `frontierCombat` use persisted map
+
+**Spatial query metrics — gateway (`tickQueries.ts`):**
+
+- Sim hot-path queries via `findClosestInEntityGrid`, `forEachInEntityGrid`, `queryIsNearRoad`, `queryRoadAvoidance`
+- **`lifeSimulation.ts`** — no direct `withSpatialQuery` / `recordSpatialCandidate` branches
+
+### Removed — farm proximity energy bonus (July 8, 2026)
+
+- **Farm field grazing** — removed passive +120 energy / 15% tick when near farm/greenhouse (bypassed `state.resources.food`, no design doc); meals + farm production + hunting remain
+- **`BuildingProximityIndex`** — deleted (`buildingProximityIndex.ts`); only consumer was the removed bonus; `building_near` metrics category removed
+
+### Fixed — engine & loop bugs (July 8, 2026)
+
+**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) Batch EA #1–#7
+
+- **EA-1** — `computeRoadLayoutStamp(roads)` replaces count-only `roadAvoidanceStamp`; road demolish clears avoidance index
+- **EA-2** — building repair requires **alive** occupants (`entityById`), not `occupants.length`
+- **EA-3** — workshop `Needs worker` path verified reachable (workshop omits `staffed` guard)
+- **EA-4** — grass reproduction allows `x/y ∈ [0, width/height]` (no border dead zones)
+- **EA-5** — `setSession` / `setWorld` notify UI after worker `importSave` completes
+- **EA-6** — redundant building proximity ensure resolved by removing farm proximity index
+- **EA-7** — `spawnGrassPatch` bounds aligned with sim reproduction check
+
+### Fixed — spatial perf audit follow-ups (July 8, 2026)
+
+- **`tickHumans` social pool** — `allHumans` includes same-tick `newEntities` humans (deduped by id)
+- **`tickWildlife` tamed hunt** — removed redundant pre-query `syncSpatialGridEntity`
+- **`buildWildlifePopulationSnapshot`** — `newByType` zero-initialized per wildlife type
+
 ### Fixed — audit mass-fix session (July 8, 2026)
 
 **Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) — **429** registry IDs (**391 fixed**, **24 info**, **0 open/partial**); Batches Q, S, U, V, W, T (87), AP (8)

@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "sim": "node scripts/sim-cli.mjs",
+    "sim:parallel": "node scripts/sim-parallel.mjs",
     "bench": "node scripts/benchmark-gate.mjs",
     "dup": "jscpd src --min-lines 8 --min-tokens 60 --format typescript,tsx,javascript --ignore \"**/test/**,**/*.test.ts,**/data/**\""
   },

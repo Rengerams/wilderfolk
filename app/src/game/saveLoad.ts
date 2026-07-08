@@ -27,6 +27,7 @@ import { ensureEntitySkills } from './skills';
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
 import { syncResearchUnlocks } from './research';
 import { assignMissingWorkers, syncBigNewsIdFromState } from './gameEngine';
+import { rebuildEntityByIdMap } from './entityIndex';
 import {
   getCampDistancePixels,
   getCampDistanceTiles,
@@ -117,6 +118,8 @@ function stripRuntimeWorldFields(world: WorldState): WorldState {
     scentGrid: _scentGrid,
     roadAvoidance: _roadAvoidance,
     roadAvoidanceStamp: _roadAvoidanceStamp,
+    adjacency: _adjacency,
+    entityById: _entityById,
     ...serializable
   } = world;
   return serializable;
@@ -319,6 +322,7 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
       tutorialSeen: (parsed.tutorialSeen as string[] | undefined) ?? [],
     });
     clearAllFactionWanderStates();
+    rebuildEntityByIdMap(world);
     const view = createViewFromSave(parsed, world);
     return { world, view };
   } catch (e) {

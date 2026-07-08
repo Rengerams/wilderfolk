@@ -45,7 +45,7 @@ export const ROADMAP_VERSIONS: RoadmapVersion[] = [
       PARTIAL('App tab split + memo @ 300 population'),
       DONE('Spatial grid — grass 56px + mobile 80px; graze→grass, flee/hunt/social→mobile'),
       OPEN('Settler count denorm — working/idle on WorldState'),
-      OPEN('Incremental entityById — update on birth/death only'),
+      DONE('Incremental entityById — update on birth/death only'),
       OPEN('buildingActions scan cleanup'),
       OPEN('Partner id map for relationship lines'),
       OPEN('Particle / floating-text pooling'),

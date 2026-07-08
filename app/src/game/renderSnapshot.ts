@@ -79,12 +79,13 @@ export function buildRenderSnapshot(
   options: RenderSnapshotOptions = {},
 ): RenderSnapshot {
   const catalog = options.catalog;
-  const selectedEntity = catalog?.get(view.selectedEntityId)
-    ?? resolveEntity(world, view.selectedEntityId);
-  const entityByType = world.entityByType
-    ?? catalog?.getEntityByType()
-    ?? buildEntityByType(world.entities);
-  const entities = catalog?.getAlive() ?? world.entities;
+  const selectedEntity = resolveEntity(world, view.selectedEntityId)
+    ?? catalog?.get(view.selectedEntityId)
+    ?? null;
+  const entities = catalog?.getAlive() ?? world.entities.filter((e) => e.alive);
+  const entityByType = catalog?.getEntityByType()
+    ?? world.entityByType
+    ?? buildEntityByType(entities);
 
   let grassGrid: EntitySpatialGrid | null = world.grassGrid ?? null;
   if (options.renderSoA) {

@@ -4,7 +4,7 @@ import {
   buildStripPreview, isStripBuildType, inferStripRotation,
   listAssignableWorkersForBuilding,
   initTradeRoutes,
-  EntityType, BuildingType, Season,
+  EntityType, BuildingType,
   BUILDING_CONFIGS, BUILDING_JOB_TYPES, WORKSHOP_RECIPES, getWorkshopRecipe, formatRecipeInputs,
   GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
   SPECIES_CONFIG, WeatherType, ResearchType,
@@ -27,7 +27,13 @@ import {
 } from './game/gameEngine';
 import { getForgeOrder } from './game/forge';
 import { MOON_HOWLER_CHURCH_CURE_CHANCE } from './game/moonHowler';
-import { MapSize, MapPreset } from './game/gameTypes';
+import { MapSize, MapPreset, Season } from './game/gameTypes';
+import {
+  computeDailyTemperatureC,
+  formatTemperatureC,
+  SEASON_LABELS,
+  seasonTextClass,
+} from './game/temperature';
 import {
   isResidenceBuildingType, isResidenceBuilding,
   hasResidenceAssignment, hasWorkAssignment, isImprisoned, getResidenceCapacity, getResidenceUpgradeSlotGain,
@@ -206,9 +212,7 @@ const QUICK_START_STEPS = [
 
 const TUTORIAL_DONE_KEY = 'wilderfolk-tutorial-done';
 
-const SEASON_ICONS: Record<Season, string> = {
-  [Season.Spring]: '🌸', [Season.Summer]: '☀️', [Season.Fall]: '🍂', [Season.Winter]: '❄️',
-};
+
 
 const WEATHER_ICONS: Record<WeatherType, string> = {
   [WeatherType.Clear]: '', [WeatherType.Rain]: '🌧️', [WeatherType.Snow]: '❄️',
@@ -2410,12 +2414,23 @@ export default function App() {
                 </div>
 
                 <div className="rounded-xl bg-stone-700/50 p-3">
-                  <h3 className="mb-2 text-xs font-bold text-stone-300">Season Effects</h3>
+                  <h3 className="mb-2 text-xs font-bold text-stone-300">Season & Climate</h3>
                   <div className="space-y-1 text-[10px] text-stone-400">
-                    <p>{SEASON_ICONS[world.season]} <strong className="text-stone-200 capitalize">{world.season}</strong> — Grass growth: {world.season === Season.Spring ? 'Fast' : world.season === Season.Winter ? 'Minimal' : 'Normal'}</p>
-                    <p>🌡️ Reproduction: {world.season === Season.Spring ? 'High' : world.season === Season.Winter ? 'Low' : 'Normal'}</p>
+                    <p>
+                      <strong className={seasonTextClass(world.season)}>{SEASON_LABELS[world.season]}</strong>
+                      {' · '}
+                      <span className="font-mono text-stone-200">
+                        {formatTemperatureC(computeDailyTemperatureC(world.season, world.weather, world.dayInYear, world.year))}
+                      </span>
+                      {' today'}
+                    </p>
+                    {world.season === Season.Winter && (
+                      <p className="text-sky-300/90">
+                        Winter (days 270–359) — settlers burn wood for heat; grass and babies slow down.
+                      </p>
+                    )}
                     {world.weather !== WeatherType.Clear && (
-                      <p>{WEATHER_ICONS[world.weather]} <strong className="text-stone-200">{world.weather}</strong> — Affects farming and movement</p>
+                      <p>{WEATHER_ICONS[world.weather]} <strong className="text-stone-200">{world.weather}</strong> — shifts today&apos;s temperature and farming</p>
                     )}
                   </div>
                 </div>
@@ -4095,7 +4110,7 @@ function MiniMap({
           if (ctx) {
             const w = 140;
             const h = 100;
-            ctx.fillStyle = world.season === Season.Winter ? '#ffffff' : '#72a85c';
+            ctx.fillStyle = '#72a85c';
             ctx.fillRect(0, 0, w, h);
 
             const scaleX = w / world.width;

@@ -12,36 +12,10 @@
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveProfile } from './sim-profiles.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '..');
-
-/** Profiles routed through run-sim.mjs */
-const RUN_SIM = {
-  '5min': 'simulate-5min.ts',
-  '30min': 'simulate-30min.ts',
-  'housing': 'simulate-housing.ts',
-  'housing:ticks': 'simulate-housing-ticks.ts',
-  'family': 'simulate-family.ts',
-  'social': 'simulate-social.ts',
-  'militia': 'balance-militia.ts',
-  '10year': 'simulate-10year.ts',
-  '10year:worker': 'simulate-10year-worker.ts',
-  '20year': 'simulate-20year.ts',
-  '20year:worker': 'simulate-20year-worker.ts',
-  'city': 'benchmark-city.ts',
-};
-
-/** Direct node scripts (not run-sim.mjs) */
-const DIRECT = {
-  '30min:city': 'run-city-30min.mjs',
-  kill: 'kill-sims.mjs',
-};
-
-const ALIASES = {
-  simulate: '5min',
-  balance: 'militia',
-};
 
 function printHelp() {
   console.log(`Wilderfolk headless sims — npm run sim -- <profile>
@@ -65,6 +39,21 @@ Other:
   kill            stop stuck sim (sim.lock)
 
 Benchmark gate (CI): npm run bench
+
+Multicore:
+  sim:parallel      run several profiles at once (uses all CPU cores)
+  10year:worker     single long sim on worker_threads (matches live game)
+  SIM_USE_WORKER=1  force worker-thread ticks on any profile
+
+Build policy (10year / 20year auto-build):
+  SIM_BUILD_DEFENSE=0 npm run sim -- 10year
+  SIM_BUILD_DENY=defense,security npm run sim -- 10year
+  SIM_BUILD_ALLOW=economy,housing npm run sim -- 10year
+
+Examples:
+  npm run sim:parallel -- 5min housing family
+  SIM_PARALLEL=4 npm run sim:parallel -- 5min social militia
+  npm run sim -- 10year:worker
 
 Aliases: simulate → 5min, balance → militia
 `);
@@ -95,15 +84,12 @@ if (!raw || raw === 'help' || raw === '--help' || raw === '-h' || raw === 'list'
   process.exit(0);
 }
 
-const profile = ALIASES[raw] ?? raw;
-const ts = RUN_SIM[profile];
-if (ts) {
-  runSim(ts);
+const resolved = resolveProfile(raw);
+if (resolved?.viaRunSim) {
+  runSim(resolved.ts);
 }
-
-const direct = DIRECT[profile];
-if (direct) {
-  runNode(direct, process.argv.slice(3));
+if (resolved && !resolved.viaRunSim) {
+  runNode(resolved.ts, process.argv.slice(3));
 }
 
 console.error(`Unknown sim profile: ${raw}\n`);

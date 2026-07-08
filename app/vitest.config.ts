@@ -9,12 +9,6 @@ if (!existsSync(storageFile)) {
   writeFileSync(storageFile, '{}', 'utf8');
 }
 
-/** Browser-only Web Worker suites — run via `npm run test:browser-worker`. */
-const BROWSER_WORKER_TESTS = [
-  'src/test/game/simWorker/gameLoop.worker.test.ts',
-  'src/test/game/simWorker/gameWorkerHost.test.ts',
-];
-
 export default defineConfig({
   test: {
     environment: 'node',
@@ -22,7 +16,6 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
-      ...BROWSER_WORKER_TESTS,
     ],
     setupFiles: ['./src/test/setup.ts'],
     execArgv: [`--localstorage-file=${storageFile}`],

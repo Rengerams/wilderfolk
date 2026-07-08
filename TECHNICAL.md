@@ -212,7 +212,8 @@ Wilderfolk uses **two separate `EntitySpatialGrid` layers** plus auxiliary index
 |-------|----------|-----------|------------------|-----------|-----------------|
 | **Grass** | `GRASS_CELL_SIZE` | **56px** | `EntityType.Grass` only | `state.grassGrid` | Reused at tick start; incremental `update()` during tick; full `syncGrassRenderGrid()` at tick end |
 | **Mobile** | `MOBILE_CELL_SIZE` | **80px** | Human, Wolf, Fox, Deer, Rabbit, Wildkin, Werewolf | `state.mobileGrid` | Full `syncMobileSimGrid()` rebuild each tick start; incremental `update()` on move/birth/death |
-| **Road** | `ROAD_AVOID_CELL` | **128px** | Road building AABBs | `TickContext.roadAvoidance` | Built once per `tickHumans` / `tickWildlife` when missing |
+| **Road** | `ROAD_AVOID_CELL` | **128px** | Road building AABBs | `TickContext.roadAvoidance` | Rebuilt when `computeRoadLayoutStamp` changes (not count-only) |
+| **Adjacency** | `ADJACENCY_CELL` | **80px** | Completed barn / road / market | `WorldState.adjacency` | Event-driven insert/remove; reused every production tick |
 | **Tree** (ephemeral) | — | 80px | Trees only | `TickContext.treeGrid` | `buildTreeGrid()` once per `tickHumans` |
 | **Scent** (optional) | — | 80px | Float32 influence field | `state.scentGrid` | `ensureScentGrid()` + `tickScentGrid()` when `USE_SCENT_GRID` on |
 

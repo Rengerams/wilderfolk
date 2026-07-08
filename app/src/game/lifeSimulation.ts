@@ -102,19 +102,21 @@ import { getPlayerCampCenter, isRaidMarchingForRival } from './frontierCombat';
 import { getCaravanMoveTarget, tryAdvanceCaravanLeg } from './tradeCaravans';
 import { tickFactionCampWander } from './factionWander';
 import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
-import { MOBILE_CELL_SIZE, USE_SPATIAL_GRID, buildRoadAvoidanceIndex, syncSpatialGridEntity } from './spatialGrid';
 import {
-  isSpatialQueryMetricsEnabled,
-  recordSpatialCandidate,
-  withSpatialQuery,
-} from './spatialQueryMetrics';
+  MOBILE_CELL_SIZE,
+  buildRoadAvoidanceIndex,
+  syncSpatialGridEntity,
+} from './spatialGrid';
 import {
   buildGrassPopulationSnapshot,
   buildResidenceOccupantIndex,
   buildWildlifePopulationSnapshot,
   findClosestEntityInRadius,
-  forEachEntityInRadius,
+  findClosestInEntityGrid,
+  forEachInEntityGrid,
   getHousemates,
+  queryIsNearRoad,
+  queryRoadAvoidance,
   getLivingEntity,
   grassPopulationTotal,
   recordGrassBirth,
@@ -155,6 +157,7 @@ export interface TickContext {
   residenceOccupants?: Map<number, Entity[]>;
   grassPopulation?: GrassPopulationSnapshot;
   roadAvoidance?: RoadAvoidanceIndex;
+  huntTargetByPreyId?: Map<number, Set<number>>;
   wildlifePopulation?: WildlifePopulationSnapshot;
   scentGrid?: ScentGrid;
   focus?: SimulationFocus;
@@ -179,7 +182,6 @@ const GRASS_CAP_BASE = 500;
 
 const WILDLIFE_TICK_TYPES: EntityType[] = [
   EntityType.Grass,
-  EntityType.Tree,
   EntityType.Rabbit,
   EntityType.Deer,
   EntityType.Wolf,
@@ -215,6 +217,7 @@ function pushNewEntity(state: WorldState, ctx: TickContext, entity: Entity): voi
 function markGrassDead(ctx: TickContext, grass: Entity): void {
   if (grass.type !== EntityType.Grass || !grass.alive) return;
   grass.alive = false;
+  ctx.entityById.delete(grass.id);
   if (ctx.grassPopulation) recordGrassDeath(ctx.grassPopulation);
 }
 
@@ -228,6 +231,7 @@ function markWildlifeDead(
     killHuman(entity, ctx.updatedBuildings, ctx.entityById);
   } else {
     entity.alive = false;
+    ctx.entityById.delete(entity.id);
     wildlifeDeathsThisTick.add(entity.id);
   }
 }
@@ -283,10 +287,44 @@ export function affairPairLead(a: Entity, b: Entity): { lead: Entity; other: Ent
   return a.id < b.id ? { lead: a, other: b } : { lead: b, other: a };
 }
 
+export function buildHuntTargetByPreyIndex(byType: Record<EntityType, Entity[]>): Map<number, Set<number>> {
+  const index = new Map<number, Set<number>>();
+  const hunterTypes = [
+    EntityType.Wolf,
+    EntityType.Fox,
+    EntityType.Werewolf,
+    EntityType.Human,
+  ] as const;
+  for (const type of hunterTypes) {
+    for (const hunter of byType[type]) {
+      if (!hunter.alive || hunter.huntTargetId == null) continue;
+      const preyId = hunter.huntTargetId;
+      let hunters = index.get(preyId);
+      if (!hunters) {
+        hunters = new Set();
+        index.set(preyId, hunters);
+      }
+      hunters.add(hunter.id);
+    }
+  }
+  return index;
+}
+
 function clearHuntersTargetingPrey(
   preyId: number,
   entityById: ReadonlyMap<number, Entity>,
+  huntTargetByPreyId?: Map<number, Set<number>>,
 ): void {
+  const index = huntTargetByPreyId;
+  const hunters = index?.get(preyId);
+  if (hunters && index) {
+    for (const hunterId of hunters) {
+      const hunter = entityById.get(hunterId);
+      if (hunter) hunter.huntTargetId = undefined;
+    }
+    index.delete(preyId);
+    return;
+  }
   for (const hunter of entityById.values()) {
     if (hunter.huntTargetId === preyId) hunter.huntTargetId = undefined;
   }
@@ -399,20 +437,19 @@ export function findAffairLover(
     }
   };
 
-  if (mobileGrid) {
-    withSpatialQuery('social', () => {
-      mobileGrid.forEachInRadius(entity.x, entity.y, 150, (human) => {
+  if (mobileGrid || nearbyHumans) {
+    forEachInEntityGrid(
+      mobileGrid,
+      entity.x,
+      entity.y,
+      150,
+      (human) => {
         if (human.type !== EntityType.Human) return;
         consider(human);
-      });
-    });
-  } else if (nearbyHumans) {
-    withSpatialQuery('social', () => {
-      for (const human of nearbyHumans) {
-        if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('social');
-        consider(human);
-      }
-    });
+      },
+      'social',
+      nearbyHumans,
+    );
   }
   return best;
 }
@@ -645,7 +682,7 @@ function tryDailyAffairEncounter(
     bestDistSq = distSq;
     paramour = candidate;
   };
-  forEachEntityInRadius(
+  forEachInEntityGrid(
     mobileGrid,
     entity.x,
     entity.y,
@@ -1342,10 +1379,23 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   const config = SPECIES_CONFIG[EntityType.Human];
   const isWinter = season === Season.Winter;
+
   const goHomeTime = shouldBeAtHome(hourOfDay);
   const goWorkTime = isWorkHour(hourOfDay);
   const isNewCalendarDay = isNewCalendarDayTick(state);
-  const allHumans = byType[EntityType.Human].filter((h) => h.alive);
+  const allHumans: Entity[] = [];
+  const humanIds = new Set<number>();
+  for (const h of byType[EntityType.Human]) {
+    if (!h.alive) continue;
+    allHumans.push(h);
+    humanIds.add(h.id);
+  }
+  for (const born of newEntities) {
+    if (born.alive && born.type === EntityType.Human && !humanIds.has(born.id)) {
+      allHumans.push(born);
+      humanIds.add(born.id);
+    }
+  }
   const livingHumanAt = (id: number | null | undefined): Entity | undefined => {
     if (id == null) return undefined;
     const h = entityById.get(id);
@@ -1594,26 +1644,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     
     entity.energy -= energyLoss;
 
-    let ateFromFarm = false;
+    let ateMeal = false;
 
     // Meals twice per day (8–10am & 6–8pm) — 1 food restores ~65 energy
     if (isMealWindow(hourOfDay) && state.resources.food >= 1 && entity.energy < entity.maxEnergy * 0.9) {
       state.resources.food -= 1;
       entity.energy = Math.min(entity.maxEnergy, entity.energy + 65);
-      ateFromFarm = true;
-    }
-
-    for (const building of updatedBuildings) {
-      if (building.completed && (building.type === BuildingType.Farm || building.type === BuildingType.Greenhouse)) {
-        const dx = building.x + building.width / 2 - entity.x;
-        const dy = building.y + building.height / 2 - entity.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 80 && Math.random() < 0.15) {
-          entity.energy = Math.min(entity.maxEnergy, entity.energy + config.energyGain['farm']);
-          ateFromFarm = true;
-          break;
-        }
-      }
+      ateMeal = true;
     }
 
     let suppressIdle = false;
@@ -1623,25 +1660,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const socialTime = allowSocialLife(hourOfDay, workplace != null);
 
     // Flee from dangerous Moon Howlers on full-moon nights
-    let huntingWere: Entity | undefined;
-    if (USE_SPATIAL_GRID && mobileGrid) {
-      const hit = withSpatialQuery('human_hunt', () =>
-        mobileGrid.findClosestInRadius(
-          entity.x,
-          entity.y,
-          110,
-          (w) => w.type === EntityType.Werewolf && w.alive && isActiveMoonHowler(w),
-        ));
-      huntingWere = hit?.entity;
-    } else {
-      huntingWere = withSpatialQuery('human_hunt', () => {
-        for (const w of byType[EntityType.Werewolf]) {
-          if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('human_hunt');
-          if (isActiveMoonHowler(w) && Math.hypot(w.x - entity.x, w.y - entity.y) < 110) return w;
-        }
-        return undefined;
-      });
-    }
+    const huntingWere = findClosestEntityInRadius(
+      mobileGrid,
+      entity.x,
+      entity.y,
+      110,
+      (w) => w.type === EntityType.Werewolf && w.alive && isActiveMoonHowler(w),
+      'human_hunt',
+      byType[EntityType.Werewolf],
+    );
     if (huntingWere) {
       const fdx = entity.x - huntingWere.x;
       const fdy = entity.y - huntingWere.y;
@@ -1782,46 +1809,35 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.vy *= 0.85;
     }
 
-    if (allowFreeRoam && !ateFromFarm && !entity.isJuvenile && entity.energy < entity.maxEnergy * 0.8) {
+    if (allowFreeRoam && !ateMeal && !entity.isJuvenile && entity.energy < entity.maxEnergy * 0.8) {
       const preyTypes = new Set<EntityType>([EntityType.Deer, EntityType.Rabbit]);
       const huntRange = getHumanHuntRange(state, config.huntRange);
       let closestPrey: Entity | null = null;
       let closestDist = Infinity;
 
-      if (USE_SPATIAL_GRID && mobileGrid) {
-        const hit = withSpatialQuery('hunt', () =>
-          mobileGrid.findClosestInRadius(
-            entity.x,
-            entity.y,
-            huntRange,
-            (prey) => preyTypes.has(prey.type) && prey.alive && !prey.tamedBy,
-          ));
-        if (hit) {
-          closestPrey = hit.entity;
-          closestDist = Math.sqrt(hit.distSq);
-        }
-      } else {
-        withSpatialQuery('hunt', () => {
-          for (const preyType of preyTypes) {
-            for (const prey of byType[preyType]) {
-              if (!prey.alive || prey.tamedBy) continue;
-              if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('hunt');
-              const dx = prey.x - entity.x;
-              const dy = prey.y - entity.y;
-              const dist = Math.sqrt(dx * dx + dy * dy);
-              if (dist < huntRange && dist < closestDist) {
-                closestDist = dist;
-                closestPrey = prey;
-              }
-            }
-          }
-        });
+      const preyFallback = [
+        ...byType[EntityType.Deer],
+        ...byType[EntityType.Rabbit],
+      ];
+      const huntHit = findClosestInEntityGrid(
+        mobileGrid,
+        entity.x,
+        entity.y,
+        huntRange,
+        (prey) => preyTypes.has(prey.type) && prey.alive && !prey.tamedBy,
+        'hunt',
+        preyFallback,
+      );
+      if (huntHit) {
+        closestPrey = huntHit.entity;
+        closestDist = Math.sqrt(huntHit.distSq);
       }
 
       if (closestPrey?.alive && closestDist < config.size + closestPrey.size) {
         const preyId = closestPrey.id;
         closestPrey.alive = false;
-        clearHuntersTargetingPrey(preyId, entityById);
+        entityById.delete(preyId);
+        clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId);
         createDeathParticles(state, closestPrey.x, closestPrey.y, '#8a2a2a', 10);
         syncEntityGrids(ctx, closestPrey);
         entity.energy = Math.min(entity.maxEnergy, entity.energy + config.energyGain[closestPrey.type]);
@@ -1848,7 +1864,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       } else {
         entity.huntTargetId = undefined;
       }
-    } else if (!allowFreeRoam || ateFromFarm || entity.energy >= entity.maxEnergy * 0.8) {
+    } else if (!allowFreeRoam || ateMeal || entity.energy >= entity.maxEnergy * 0.8) {
       entity.huntTargetId = undefined;
     }
 
@@ -2413,18 +2429,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    const nearRoad = withSpatialQuery('road_near', () => {
-      if (roadAvoidance && typeof roadAvoidance.isNearRoad === 'function') {
-        return roadAvoidance.isNearRoad(entity.x, entity.y);
-      }
-      for (const r of roadBuildings) {
-        if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('road_near');
-        if (isEntityOnBuilding(entity.x, entity.y, r, 12)) {
-          return true;
-        }
-      }
-      return false;
-    });
+    const nearRoad = queryIsNearRoad(
+      roadAvoidance,
+      entity.x,
+      entity.y,
+      roadBuildings,
+      (x, y, road) => isEntityOnBuilding(x, y, road, 12),
+    );
     const roadMult = nearRoad ? 1.5 : 1.0;
 
     entity.x += entity.vx * roadMult;
@@ -2452,7 +2463,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
   const {
     width, height, grassMult, reproMult, winterPenalty,
     byType, newEntities, updatedBuildings, roadBuildings, focus, entityById, predators,
-    grassGrid, mobileGrid, treeGrid, scentGrid,
+    grassGrid, mobileGrid, scentGrid,
   } = ctx;
 
   const roadAvoidance = ctx.roadAvoidance ?? buildRoadAvoidanceIndex(width, height, roadBuildings);
@@ -2536,7 +2547,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           const dist = 15 + Math.random() * 25;
           const nx = entity.x + Math.cos(angle) * dist;
           const ny = entity.y + Math.sin(angle) * dist;
-          if (nx > 0 && nx < width && ny > 0 && ny < height && isValidGrassTerrain(state, nx, ny)) {
+          if (nx >= 0 && nx <= width && ny >= 0 && ny <= height && isValidGrassTerrain(state, nx, ny)) {
             pushNewEntity(state, ctx, createEntity(EntityType.Grass, nx, ny, state.nextEntityId++, config.spawnEnergy));
             entity.energy -= 25;
           }
@@ -2548,12 +2559,6 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         syncEntityGrids(ctx, entity);
         continue;
       }
-      syncEntityGrids(ctx, entity);
-      continue;
-    }
-
-    // ---- TREES ----
-    if (entity.type === EntityType.Tree) {
       syncEntityGrids(ctx, entity);
       continue;
     }
@@ -2584,31 +2589,15 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     if (entity.type === EntityType.Rabbit || entity.type === EntityType.Deer || entity.type === EntityType.Wildkin) {
       let closestPredator: Entity | null = null;
 
-      if (USE_SPATIAL_GRID && mobileGrid) {
-        const hit = withSpatialQuery('flee', () =>
-          mobileGrid.findClosestInRadius(
-            entity.x,
-            entity.y,
-            config.fleeRange,
-            (pred) => isWildlifePredator(pred),
-          ));
-        if (hit) closestPredator = hit.entity;
-      } else {
-        withSpatialQuery('flee', () => {
-          let closestDist = Infinity;
-          for (const pred of predators) {
-            if (!pred.alive) continue;
-            if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('flee');
-            const dx = pred.x - entity.x;
-            const dy = pred.y - entity.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < config.fleeRange && dist < closestDist) {
-              closestDist = dist;
-              closestPredator = pred;
-            }
-          }
-        });
-      }
+      closestPredator = findClosestEntityInRadius(
+        mobileGrid,
+        entity.x,
+        entity.y,
+        config.fleeRange,
+        (pred) => isWildlifePredator(pred),
+        'flee',
+        predators,
+      ) ?? null;
 
       if (closestPredator) {
         const dx = entity.x - closestPredator.x;
@@ -2643,32 +2632,22 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       let nearbyPack = 0;
       let huntRange = config.huntRange;
       if (entity.type === EntityType.Wolf) {
-        if (USE_SPATIAL_GRID && mobileGrid) {
-          withSpatialQuery('wolf_pack', () => {
-            mobileGrid.forEachInRadius(entity.x, entity.y, 120, (other) => {
-              if (
-                other.type === EntityType.Wolf
-                && other.id !== entity.id
-                && other.alive
-                && !wildlifeDeathsThisTick.has(other.id)
-              ) nearbyPack++;
-            });
-          });
-        } else {
-          withSpatialQuery('wolf_pack', () => {
-            for (const other of byType[EntityType.Wolf]) {
-              if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('wolf_pack');
-              if (
-                other.id !== entity.id
-                && other.alive
-                && !wildlifeDeathsThisTick.has(other.id)
-                && Math.hypot(other.x - entity.x, other.y - entity.y) < 120
-              ) {
-                nearbyPack++;
-              }
-            }
-          });
-        }
+        forEachInEntityGrid(
+          mobileGrid,
+          entity.x,
+          entity.y,
+          120,
+          (other) => {
+            if (
+              other.type === EntityType.Wolf
+              && other.id !== entity.id
+              && other.alive
+              && !wildlifeDeathsThisTick.has(other.id)
+            ) nearbyPack++;
+          },
+          'wolf_pack',
+          byType[EntityType.Wolf],
+        );
         huntRange *= 1 + Math.min(3, nearbyPack) * 0.25;
       } else if (moonHowlerHunter) {
         huntRange *= 1.15;
@@ -2677,38 +2656,26 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       const huntPick = { prey: null as Entity | null, dist: Infinity };
       const preyTypeSet = new Set<EntityType>(preyTypes);
 
-      if (USE_SPATIAL_GRID && mobileGrid) {
-        withSpatialQuery('hunt', () => {
-          mobileGrid.forEachInRadius(entity.x, entity.y, huntRange, (prey, dSq) => {
-            if (!preyTypeSet.has(prey.type)) return;
-            if (!isValidHuntPrey(prey, prey.type, entity.id)) return;
-            const dist = Math.sqrt(dSq);
-            const humanBias = prey.type === EntityType.Human ? 0.82 : 1;
-            const biased = dist * humanBias;
-            if (biased < huntPick.dist) {
-              huntPick.dist = biased;
-              huntPick.prey = prey;
-            }
-          });
-        });
-      } else {
-        withSpatialQuery('hunt', () => {
-          for (const preyType of preyTypes) {
-            for (const prey of byType[preyType]) {
-              if (!isValidHuntPrey(prey, preyType, entity.id)) continue;
-              if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('hunt');
-              const dx = prey.x - entity.x;
-              const dy = prey.y - entity.y;
-              const dist = Math.sqrt(dx * dx + dy * dy);
-              const humanBias = preyType === EntityType.Human ? 0.82 : 1;
-              if (dist < huntRange && dist * humanBias < huntPick.dist) {
-                huntPick.dist = dist * humanBias;
-                huntPick.prey = prey;
-              }
-            }
+      const huntPreyFallback = preyTypes.flatMap((type) => byType[type]);
+      forEachInEntityGrid(
+        mobileGrid,
+        entity.x,
+        entity.y,
+        huntRange,
+        (prey, dSq) => {
+          if (!preyTypeSet.has(prey.type)) return;
+          if (!isValidHuntPrey(prey, prey.type, entity.id)) return;
+          const dist = Math.sqrt(dSq);
+          const humanBias = prey.type === EntityType.Human ? 0.82 : 1;
+          const biased = dist * humanBias;
+          if (biased < huntPick.dist) {
+            huntPick.dist = biased;
+            huntPick.prey = prey;
           }
-        });
-      }
+        },
+        'hunt',
+        huntPreyFallback,
+      );
 
       if (huntPick.prey) {
         const caughtPrey = huntPick.prey;
@@ -2729,14 +2696,11 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           )) {
             const victimId = caughtPrey.id;
             entity.alive = false;
+            entityById.delete(entity.id);
             wildlifeDeathsThisTick.add(entity.id);
             syncEntityGrids(ctx, entity);
             entity.huntTargetId = undefined;
-            for (const other of byType[EntityType.Werewolf]) {
-              if (other.alive && other.huntTargetId === victimId) {
-                other.huntTargetId = undefined;
-              }
-            }
+            clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId);
             caughtPrey.combatTicks = 18;
             caughtPrey.flash = 12;
             createDeathParticles(state, entity.x, entity.y, '#8a2a2a', 10);
@@ -2761,8 +2725,9 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
               killHuman(caughtPrey, updatedBuildings, entityById);
             } else {
               caughtPrey.alive = false;
+              entityById.delete(victimId);
             }
-            clearHuntersTargetingPrey(victimId, entityById);
+            clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId);
             syncEntityGrids(ctx, caughtPrey);
             entity.huntTargetId = undefined;
             createDeathParticles(state, caughtPrey.x, caughtPrey.y, '#8a2a2a', 10);
@@ -2808,32 +2773,18 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       let closestGrass: Entity | null = null;
       let closestGrassDist = Infinity;
 
-      if (USE_SPATIAL_GRID && grassGrid) {
-        const hit = withSpatialQuery('graze', () =>
-          grassGrid.findClosestInRadius(
-            entity.x,
-            entity.y,
-            grazeRange,
-            (grass) => grass.alive && grass.energy >= GRASS_GRAZE_MIN_ENERGY,
-          ));
-        if (hit) {
-          closestGrass = hit.entity;
-          closestGrassDist = Math.sqrt(hit.distSq);
-        }
-      } else {
-        withSpatialQuery('graze', () => {
-          for (const grass of byType[EntityType.Grass]) {
-            if (!grass.alive || grass.energy < GRASS_GRAZE_MIN_ENERGY) continue;
-            if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('graze');
-            const dx = grass.x - entity.x;
-            const dy = grass.y - entity.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < grazeRange && dist < closestGrassDist) {
-              closestGrassDist = dist;
-              closestGrass = grass;
-            }
-          }
-        });
+      const grazeHit = findClosestInEntityGrid(
+        grassGrid,
+        entity.x,
+        entity.y,
+        grazeRange,
+        (grass) => grass.alive && grass.energy >= GRASS_GRAZE_MIN_ENERGY,
+        'graze',
+        byType[EntityType.Grass],
+      );
+      if (grazeHit) {
+        closestGrass = grazeHit.entity;
+        closestGrassDist = Math.sqrt(grazeHit.distSq);
       }
 
       if (closestGrass) {
@@ -2873,9 +2824,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     }
 
     // Road avoidance
-    if (roadAvoidance && typeof roadAvoidance.applyAvoidance === 'function') {
-      withSpatialQuery('road_avoid', () => roadAvoidance.applyAvoidance(entity));
-    }
+    queryRoadAvoidance(roadAvoidance, entity);
 
     // Tamed animals follow their owner (velocity only — unified movement below)
     if (entity.tamedBy) {
@@ -2906,7 +2855,6 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           && dist < 80
           && isProductionTick(state.tick, EVENT_INTERVAL.tamedHuntAssist)
         ) {
-          syncSpatialGridEntity(entity, grassGrid, mobileGrid, treeGrid);
           const assistPrey = findClosestEntityInRadius(
             mobileGrid,
             entity.x,
@@ -2919,7 +2867,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           if (assistPrey?.alive) {
             const preyId = assistPrey.id;
             assistPrey.alive = false;
-            clearHuntersTargetingPrey(preyId, entityById);
+            entityById.delete(preyId);
+            clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId);
             syncEntityGrids(ctx, assistPrey);
             createDeathParticles(state, assistPrey.x, assistPrey.y, '#8a2a2a', 6);
             entity.energy = Math.min(entity.maxEnergy, entity.energy + (config.energyGain[assistPrey.type] || 50) * 0.5);

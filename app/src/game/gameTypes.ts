@@ -667,9 +667,14 @@ export interface WorldState {
   /** Tree spatial index — rebuilt when alive tree count changes; not saved. */
   treeGrid?: import('./spatialGrid').EntitySpatialGrid;
   treeGridAlive?: number;
-  /** Road avoidance index — rebuilt when completed road count changes; not saved. */
+  /** Road avoidance index — rebuilt when completed road layout changes; not saved. */
   roadAvoidance?: import('./spatialGrid').RoadAvoidanceIndex;
+  /** `computeRoadLayoutStamp` fingerprint of completed roads; not saved. */
   roadAvoidanceStamp?: number;
+  /** Barn/road/market adjacency index — event-driven insert/remove; not saved. */
+  adjacency?: import('./adjacencyIndex').AdjacencyIndex;
+  /** Alive entity lookup — persisted across ticks; pruned on death; not saved. */
+  entityById?: Map<number, Entity>;
   /** World-event titles fired during the current calendar year (flushed into YearlyStats). */
   eventsThisYear?: string[];
   /** Save migration ids already applied — avoids scanning event log on every load. */

@@ -1,6 +1,7 @@
 import type { Entity, WorldState } from './gameTypes';
 import { EntityType, Season, WeatherType } from './gameTypes';
 import { killHuman, isProductionTick, EVENT_INTERVAL } from './dayCycle';
+import { ensureEntityByIdMap, unindexLivingEntity } from './entityIndex';
 import { formatCitizenName, formatDeathLog } from './citizenId';
 import { logEvent } from './eventLog';
 import {
@@ -36,6 +37,7 @@ function killEntityInDisaster(
     killHuman(entity, state.buildings, entityById);
   } else {
     entity.alive = false;
+    unindexLivingEntity(state, entity);
     clearHuntTargetsForVictim(state, entity.id);
   }
   createDeathParticles(state, entity.x, entity.y, color, 5, 'smoke');
@@ -90,7 +92,7 @@ export function updateDisasters(state: WorldState) {
 
     // Apply disaster effects
     const resistMult = getMultiplier(state, 'disaster_resist');
-    const entityById = new Map(state.entities.map((ent) => [ent.id, ent]));
+    const entityById = ensureEntityByIdMap(state);
     const killedThisTick = new Set<number>();
 
     if (type === 'fire') {

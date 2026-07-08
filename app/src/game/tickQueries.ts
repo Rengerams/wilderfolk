@@ -1,13 +1,18 @@
-import type { Entity } from './gameTypes';
+import type { Building, Entity } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { isPlayerHuman } from './groupEvents';
-import type { EntitySpatialGrid } from './spatialGrid';
+import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
 import type { SpatialQueryCategory } from './spatialQueryMetrics';
 import {
   isSpatialQueryMetricsEnabled,
   recordSpatialCandidate,
   withSpatialQuery,
 } from './spatialQueryMetrics';
+
+// ---------------------------------------------------------------------------
+// Spatial query gateway — sim hot paths call only these helpers so metrics
+// (queries / candidates / cells) stay consistent across grid and naive modes.
+// ---------------------------------------------------------------------------
 
 /** O(1) alive lookup by entity id (rebuilt once per tick). */
 export function getLivingEntity(
@@ -54,8 +59,70 @@ export function getHousemates(
   return out;
 }
 
+function naiveFindClosestInRadius(
+  entities: readonly Entity[],
+  x: number,
+  y: number,
+  radius: number,
+  predicate: (entity: Entity, distSq: number) => boolean,
+  metricCategory: SpatialQueryCategory,
+): { entity: Entity; distSq: number } | null {
+  const radiusSq = radius * radius;
+  let best: { entity: Entity; distSq: number } | null = null;
+  for (const entity of entities) {
+    if (!entity.alive) continue;
+    const dx = entity.x - x;
+    const dy = entity.y - y;
+    const distSq = dx * dx + dy * dy;
+    if (distSq > radiusSq || !predicate(entity, distSq)) continue;
+    if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate(metricCategory);
+    if (!best || distSq < best.distSq) best = { entity, distSq };
+  }
+  return best;
+}
+
+function naiveForEachInRadius(
+  entities: readonly Entity[],
+  x: number,
+  y: number,
+  radius: number,
+  fn: (entity: Entity, distSq: number) => void,
+  metricCategory: SpatialQueryCategory,
+): void {
+  const radiusSq = radius * radius;
+  for (const entity of entities) {
+    if (!entity.alive) continue;
+    const dx = entity.x - x;
+    const dy = entity.y - y;
+    const distSq = dx * dx + dy * dy;
+    if (distSq > radiusSq) continue;
+    if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate(metricCategory);
+    fn(entity, distSq);
+  }
+}
+
+export function findClosestInEntityGrid(
+  grid: EntitySpatialGrid | undefined,
+  x: number,
+  y: number,
+  radius: number,
+  predicate: (entity: Entity, distSq: number) => boolean,
+  metricCategory: SpatialQueryCategory,
+  fallback?: readonly Entity[],
+): { entity: Entity; distSq: number } | null {
+  if (grid) {
+    return withSpatialQuery(metricCategory, () =>
+      grid.findClosestInRadius(x, y, radius, predicate),
+    );
+  }
+  if (!fallback) return null;
+  return withSpatialQuery(metricCategory, () =>
+    naiveFindClosestInRadius(fallback, x, y, radius, predicate, metricCategory),
+  );
+}
+
 export function findClosestEntityInRadius(
-  mobileGrid: EntitySpatialGrid | undefined,
+  grid: EntitySpatialGrid | undefined,
   x: number,
   y: number,
   radius: number,
@@ -63,35 +130,11 @@ export function findClosestEntityInRadius(
   metricCategory: SpatialQueryCategory,
   fallback?: readonly Entity[],
 ): Entity | undefined {
-  if (mobileGrid && typeof mobileGrid.findClosestInRadius === 'function') {
-    return withSpatialQuery(metricCategory, () => {
-      const hit = mobileGrid.findClosestInRadius(x, y, radius, predicate);
-      return hit?.entity;
-    });
-  }
-  if (!fallback) return undefined;
-  return withSpatialQuery(metricCategory, () => {
-    const radiusSq = radius * radius;
-    let best: Entity | undefined;
-    let bestDistSq = radiusSq;
-    for (const entity of fallback) {
-      if (!entity.alive) continue;
-      const dx = entity.x - x;
-      const dy = entity.y - y;
-      const distSq = dx * dx + dy * dy;
-      if (distSq > radiusSq || !predicate(entity, distSq)) continue;
-      if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate(metricCategory);
-      if (distSq <= bestDistSq) {
-        bestDistSq = distSq;
-        best = entity;
-      }
-    }
-    return best;
-  });
+  return findClosestInEntityGrid(grid, x, y, radius, predicate, metricCategory, fallback)?.entity;
 }
 
-export function forEachEntityInRadius(
-  mobileGrid: EntitySpatialGrid | undefined,
+export function forEachInEntityGrid(
+  grid: EntitySpatialGrid | undefined,
   x: number,
   y: number,
   radius: number,
@@ -99,26 +142,42 @@ export function forEachEntityInRadius(
   metricCategory: SpatialQueryCategory,
   fallback?: readonly Entity[],
 ): void {
-  if (mobileGrid && typeof mobileGrid.forEachInRadius === 'function') {
-    withSpatialQuery(metricCategory, () => {
-      mobileGrid.forEachInRadius(x, y, radius, fn);
-    });
+  if (grid) {
+    withSpatialQuery(metricCategory, () => grid.forEachInRadius(x, y, radius, fn));
     return;
   }
   if (!fallback) return;
-  withSpatialQuery(metricCategory, () => {
-    const radiusSq = radius * radius;
-    for (const entity of fallback) {
-      if (!entity.alive) continue;
-      const dx = entity.x - x;
-      const dy = entity.y - y;
-      const distSq = dx * dx + dy * dy;
-      if (distSq <= radiusSq) {
-        if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate(metricCategory);
-        fn(entity, distSq);
-      }
+  withSpatialQuery(metricCategory, () =>
+    naiveForEachInRadius(fallback, x, y, radius, fn, metricCategory),
+  );
+}
+
+/** @deprecated Use forEachInEntityGrid */
+export const forEachEntityInRadius = forEachInEntityGrid;
+
+export function queryIsNearRoad(
+  roadAvoidance: RoadAvoidanceIndex | undefined,
+  x: number,
+  y: number,
+  fallbackRoads: readonly Building[],
+  fallbackOnRoad: (x: number, y: number, road: Building) => boolean,
+): boolean {
+  return withSpatialQuery('road_near', () => {
+    if (roadAvoidance) return roadAvoidance.isNearRoad(x, y);
+    for (const road of fallbackRoads) {
+      if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('road_near');
+      if (fallbackOnRoad(x, y, road)) return true;
     }
+    return false;
   });
+}
+
+export function queryRoadAvoidance(
+  roadAvoidance: RoadAvoidanceIndex | undefined,
+  entity: Entity,
+): void {
+  if (!roadAvoidance) return;
+  withSpatialQuery('road_avoid', () => roadAvoidance.applyAvoidance(entity));
 }
 
 /** Wildlife population for capacity checks — computed once per type per tickWildlife. */
@@ -143,6 +202,7 @@ export function buildWildlifePopulationSnapshot(
   spawnParents?: Map<number, number>,
 ): WildlifePopulationSnapshot {
   const aliveByType = new Map<EntityType, number>();
+  /** Mid-tick births only — incremented by recordWildlifeBirth; not folded into aliveByType. */
   const newByType = new Map<EntityType, number>();
   const newSpawnedByParent = new Map<number, number>();
   const absorbedEntityIds = new Set<number>();
@@ -153,6 +213,7 @@ export function buildWildlifePopulationSnapshot(
       if (entity.alive) alive++;
     }
     aliveByType.set(type, alive);
+    newByType.set(type, 0);
   }
 
   for (const entity of newEntities) {

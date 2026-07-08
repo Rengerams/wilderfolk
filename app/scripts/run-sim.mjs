@@ -9,6 +9,11 @@
  *   SIM_FORCE       — 1 = ignore an existing sim.lock and start anyway
  *   SIM_FULL_SIM    — 1 = simulate every entity every tick (slow; default uses viewport focus)
  *   SIM_ZOOM        — camera zoom for headless focus (default: map-aware ~1.5 on Large maps)
+ *   SIM_USE_WORKER  — 1 = worker_threads per tick (live-game path); 0 = main-thread (faster for 10/20year)
+ *   SIM_PARALLEL    — max concurrent jobs for npm run sim:parallel (default: CPU count)
+ *   SIM_BUILD_DENY    — skip auto-build types (preset defense, security, economy, …)
+ *   SIM_BUILD_ALLOW   — whitelist auto-build types/presets only
+ *   SIM_BUILD_DEFENSE — 0 = no walls/barracks/watchtowers
  *   SIM_LOG_LIFE    — 1 = stream pregnancies/births/deaths live to -life.txt (default 1)
  *   SIM_LIFE_LOG_FILE — custom life-events log path
  *

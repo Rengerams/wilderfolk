@@ -35,7 +35,6 @@ export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: numbe
     cw,
     ch,
     state.hourOfDay,
-    state.season,
     state.showGrid ? 1 : 0,
     state.showPaths ? 1 : 0,
     state.hoveredBuilding?.id ?? '',

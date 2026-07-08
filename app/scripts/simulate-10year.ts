@@ -28,6 +28,9 @@
  *   SIM_ZOOM           — viewport zoom for focus box (default 0.45, matches typical play)
  *   SIM_USE_WORKER     — 1 = worker_threads (slower; use npm run simulate:10year:worker); default via run-sim = 0 (fast main-thread)
  *   SIM_HEADLESS       — 1 = compact syncSimPrep + no render SoA (default for worker sims); 0 = full importSave + render pack
+ *   SIM_BUILD_DENY     — comma list or presets: defense, security, economy, housing, civic, infra (e.g. defense)
+ *   SIM_BUILD_ALLOW    — whitelist only these types/presets (overrides deny)
+ *   SIM_BUILD_DEFENSE  — 0 = skip walls, barracks, watchtowers (same as SIM_BUILD_DENY=defense)
  *
  * Buildings are not scripted on a timeline — autoBuildFree picks types from village needs.
  * Logs a full building inventory + build chronicle; year-end and final sweeps place missing types.
@@ -49,6 +52,11 @@ import {
   Season,
 } from '../src/game/gameEngine';
 import { findBuildSpot, tryPlaceBuilding, tryPlaceWallChain } from './simBuildUtils';
+import {
+  describeSimBuildPolicy,
+  isSimBuildAllowed,
+  parseSimBuildPolicy,
+} from './simBuildPolicy';
 import {
   buildChronicleMeta,
   formatEventSummaryLines,
@@ -238,11 +246,22 @@ const EVENT_LOG_MAX = Number(process.env.SIM_EVENT_LOG_MAX ?? 2000);
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultLogDir = join(here, 'logs');
 const profileCfg = PROFILE_CONFIG[SIM_PROFILE];
+const simBuildPolicy = parseSimBuildPolicy();
 
 /** String building types only — safe if BuildingType ever becomes a numeric enum. */
 const ALL_BUILDING_TYPES = Object.values(BuildingType).filter(
   (v): v is BuildingTypeName => typeof v === 'string',
 );
+
+function simAutoBuildAllowed(type: BuildingTypeName): boolean {
+  if (profileCfg.skipRoadCoverage && type === BuildingType.Road) return false;
+  return isSimBuildAllowed(type, simBuildPolicy);
+}
+
+/** Building types the harness may place or require for coverage gates. */
+function simCoverageBuildingTypes(): BuildingTypeName[] {
+  return ALL_BUILDING_TYPES.filter((type) => simAutoBuildAllowed(type));
+}
 
 // ─── Logging ───────────────────────────────────────────────────────────────
 
@@ -526,9 +545,7 @@ function formatBuildingTypesLine(state: WorldState): string {
 }
 
 function expectedBuildingTypeCount(): number {
-  return ALL_BUILDING_TYPES.filter(
-    (type) => !(profileCfg.skipRoadCoverage && type === BuildingType.Road),
-  ).length;
+  return simCoverageBuildingTypes().length;
 }
 
 /** Compact building line for live progress heartbeats. */
@@ -593,10 +610,7 @@ function formatBuildingInventoryReport(state: WorldState, coverage: CoverageMap)
 
   syncBuildingCoverage(state, coverage);
   const tested = coverage.buildings ?? new Set<BuildingTypeName>();
-  const missing = ALL_BUILDING_TYPES.filter((type) => {
-    if (profileCfg.skipRoadCoverage && type === BuildingType.Road) return false;
-    return !tested.has(type);
-  });
+  const missing = simCoverageBuildingTypes().filter((type) => !tested.has(type));
   if (missing.length > 0) {
     lines.push(`Never completed (${missing.length}):`);
     for (const type of missing) {
@@ -1413,7 +1427,7 @@ function pickFreeBuildPriority(state: WorldState): BuildingTypeName | null {
   const woodRunway = woodNeedDay > 0 ? state.resources.wood / woodNeedDay : 99;
 
   const pick = (type: BuildingTypeName, cond = true): BuildingTypeName | null => (
-    cond && canAffordBuilding(state, type) ? type : null
+    cond && simAutoBuildAllowed(type) && canAffordBuilding(state, type) ? type : null
   );
 
   const essentials: [BuildingTypeName, boolean][] = [
@@ -1541,8 +1555,7 @@ function minPopForCoverageBuild(type: BuildingTypeName): number {
 function pickCoverageBuildPriority(state: WorldState, coverage: CoverageMap): BuildingTypeName | null {
   syncBuildingCoverage(state, coverage);
   const pop = state.humanPopulation;
-  for (const type of ALL_BUILDING_TYPES) {
-    if (profileCfg.skipRoadCoverage && type === BuildingType.Road) continue;
+  for (const type of simCoverageBuildingTypes()) {
     if (coverage.buildings?.has(type)) continue;
     if (pop < minPopForCoverageBuild(type)) continue;
     if (!canAffordBuilding(state, type)) continue;
@@ -1561,10 +1574,7 @@ function ensureFullBuildingCoverage(
 ): WorldState {
   let s = state;
   syncBuildingCoverage(s, coverage);
-  const missing = ALL_BUILDING_TYPES.filter((type) => {
-    if (profileCfg.skipRoadCoverage && type === BuildingType.Road) return false;
-    return !coverage.buildings?.has(type);
-  });
+  const missing = simCoverageBuildingTypes().filter((type) => !coverage.buildings?.has(type));
   if (missing.length === 0) return s;
 
   for (const type of missing) {
@@ -2287,11 +2297,10 @@ function autoPlaceUnbuiltTypes(
   const completed = getCompletedBuildingTypes(state);
 
   const typesToTry = profileCfg.preferEcoBuildings
-    ? [...ECO_BUILDING_PRIORITY, ...ALL_BUILDING_TYPES.filter((t) => !ECO_BUILDING_PRIORITY.includes(t))]
-    : ALL_BUILDING_TYPES;
+    ? [...ECO_BUILDING_PRIORITY, ...simCoverageBuildingTypes().filter((t) => !ECO_BUILDING_PRIORITY.includes(t))]
+    : simCoverageBuildingTypes();
 
   for (const type of typesToTry) {
-    if (profileCfg.skipRoadCoverage && type === BuildingType.Road) continue;
     if (completed.has(type)) continue;
 
     if (!canUnlockBuilding(state, type)) continue;
@@ -2708,6 +2717,7 @@ async function runSimulation(): Promise<void> {
     logger.live('Perf: main-thread ticks (fast balance path). Worker validation: npm run simulate:10year:worker');
   }
   logger.live(`Profile: ${SIM_PROFILE} — ${profileCfg.label}`);
+  logger.live(`Auto-build policy: ${describeSimBuildPolicy(simBuildPolicy)}`);
   const names = getNamePoolInfo();
   logger.live(
     names.full
@@ -3081,10 +3091,9 @@ async function runSimulation(): Promise<void> {
   const winterGatesApplicable = HAS_SCHEDULED_WINTER && wintersTotal > 0;
   const buildingTypesCompleted = getCompletedBuildingTypes(state).size;
   const buildingTypesExpected = expectedBuildingTypeCount();
-  const missingBuildingTypes = ALL_BUILDING_TYPES.filter((type) => {
-    if (profileCfg.skipRoadCoverage && type === BuildingType.Road) return false;
-    return !coverage.buildings?.has(type);
-  });
+  const missingBuildingTypes = simCoverageBuildingTypes().filter(
+    (type) => !coverage.buildings?.has(type),
+  );
   const allBuildingTypesBuilt = missingBuildingTypes.length === 0;
 
   logger.section(`Balance gates — profile: ${SIM_PROFILE}`);
