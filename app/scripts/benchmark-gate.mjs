@@ -20,5 +20,3 @@ function run(script, extraEnv = {}) {
 }
 
 run('scripts/benchmark-city.ts', { SPATIAL_QUERY_METRICS: '1' });
-run('scripts/simulate-30min.ts', { SIM_PROFILE: 'city', BENCHMARK_GATE: '1', SPATIAL_QUERY_METRICS: '1' });
-run('scripts/benchmark-spatial-ab.ts');

@@ -1,4 +1,7 @@
-# Wilderfolk
+<!-- ⚠️ This README has been generated from the file(s) "blueprint.md" ⚠️-->
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#wilderfolk)
+
+# ➤ Wilderfolk
 
 <p align="center">
   <img src="public/logo.png" alt="Wilderfolk" width="120" />
@@ -14,7 +17,10 @@
 
 ---
 
-## Latest update — v0.4.2 shipped · v0.5.0 in progress (July 8, 2026)
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#latest-update--v042-shipped--v050-in-progress-july-8-2026)
+
+## ➤ Latest update — v0.4.2 shipped · v0.5.0 in progress (July 8, 2026)
 
 **Playing v0.4.2** (`GAME_VERSION` in saves). `0.4.1` saves migrate on load. Unreleased scale/quality work is in the repo pre-**0.5.0** tag. Full notes → [CHANGELOG](../CHANGELOG.md) `[Unreleased]` + `[0.4.2]`.
 
@@ -43,7 +49,10 @@ All open perf, UI, and architecture work ships in one release. Full plan → [RO
 
 Check **More → Roadmap** in-game for the live slice, or the full plan at [ROADMAP.md](../ROADMAP.md).
 
-## How to install
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#how-to-install)
+
+## ➤ How to install
 
 *Early alpha — you need **Node.js** for now. A normal installer or **Steam** build is planned later.*
 
@@ -101,7 +110,10 @@ Caravans camp on the edge of your map. Rival settlements stake their own claim o
 
 **Don't kill all the wolves.** Seriously. That's the whole game in one sentence.
 
-## Fun options & ways to play
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#fun-options--ways-to-play)
+
+## ➤ Fun options & ways to play
 
 Wilderfolk is a sandbox inside a food chain — pick how you want to win, who you befriend, and how wild you let the valley stay.
 
@@ -147,7 +159,10 @@ Track progress in **Progress → Goals**. Mid-game **challenges** nudge you towa
 
 Chase lines on hunts and raids, night window glow, confetti on build complete, camera nudge on click, status badges (🏹 🛡️ 🪖 ⚔️). Turn **Juice effects** off if you prefer a calmer map.
 
-## How to Play
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#how-to-play)
+
+## ➤ How to Play
 
 1. Open the game in your browser.
 2. Pick a **map size** and **land type**, name your village, and press start.
@@ -179,7 +194,10 @@ See **[How to install](#how-to-install)** at the top of this page. When the real
 
 ---
 
-## The Big Idea
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#the-big-idea)
+
+## ➤ The Big Idea
 
 Everything is connected:
 
@@ -191,7 +209,10 @@ You can farm for steadier food, but building too much raises **pollution** and h
 
 ---
 
-## Hunting & Combat (watch it happen)
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#hunting--combat-watch-it-happen)
+
+## ➤ Hunting & Combat (watch it happen)
 
 Hunting isn't hidden in the background — you can **see it on the map**:
 
@@ -337,7 +358,10 @@ Adult settlers contribute base strength; bonuses stack from:
 
 ---
 
-## Your First Day
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#your-first-day)
+
+## ➤ Your First Day
 
 | Do this | Why |
 |---------|-----|
@@ -350,7 +374,10 @@ Adult settlers contribute base strength; bonuses stack from:
 
 ---
 
-## The World
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#the-world)
+
+## ➤ The World
 
 ### Map choices
 
@@ -381,7 +408,10 @@ The calendar runs **360 days per year**. The header and **Nature → Season & Cl
 
 ---
 
-## Who Lives Here
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#who-lives-here)
+
+## ➤ Who Lives Here
 
 ### Wildlife
 
@@ -444,7 +474,10 @@ During the day off-duty, they'll hunt, socialize, wander, and chat. At night the
 
 ---
 
-## Village social life
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#village-social-life)
+
+## ➤ Village social life
 
 Wilderfolk is as much about **people** as ecology. The valley has **more than 80 different social interaction possibilities** — settler banter alone draws from **95 unique three-line dialogue scripts**, and that's before visitor camps, rival diplomacy, elections, festivals, scandals, and recruitment.
 
@@ -622,7 +655,10 @@ Click any settler on the map — the **Inspector** shows family, job, skills, ou
 
 ---
 
-## Buildings at a Glance
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#buildings-at-a-glance)
+
+## ➤ Buildings at a Glance
 
 Open the **Build** panel on the left (press **B** to collapse for more map space). Categories: Housing, Food, Resources, Industry, Community, Defense.
 
@@ -659,7 +695,10 @@ Zoom in at night after everyone is home — you'll see the village glow while wo
 
 ---
 
-## Moon Howlers 🌝
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#moon-howlers-)
+
+## ➤ Moon Howlers 🌝
 
 Sometimes a grown settler is **cursed as a Moon Howler**.
 
@@ -675,7 +714,10 @@ Watch the header and big-news alerts for full-moon warnings.
 
 ---
 
-## Other Groups on the Map
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#other-groups-on-the-map)
+
+## ➤ Other Groups on the Map
 
 You are not alone on the frontier. **Click camp markers** on the map to open diplomacy panels.
 
@@ -718,7 +760,10 @@ Merit elections, ceremony phases, scandal record, and Guard XP on the ballot —
 
 ---
 
-## Events, Festivals & Disasters
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#events-festivals--disasters)
+
+## ➤ Events, Festivals & Disasters
 
 **Every couple of years**, something big happens: wolf migrations, bumper harvests, merchant caravans, superblooms, new rivals moving in, royal surveyors, surprise visitors, and more.
 
@@ -737,7 +782,10 @@ Use Chronicle for the story of your village; use Combat when you want raid talli
 
 ---
 
-## Winning (If You Want To)
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#winning-if-you-want-to)
+
+## ➤ Winning (If You Want To)
 
 Track progress in the **Goals** tab. **Four victory paths** are active:
 
@@ -752,7 +800,10 @@ Unlock trade routes in the **Trade** tab as reputation grows. Once a route is **
 
 ---
 
-## Controls
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#controls)
+
+## ➤ Controls
 
 | | |
 |---|---|
@@ -775,7 +826,10 @@ Unlock trade routes in the **Trade** tab as reputation grows. Once a route is **
 
 ---
 
-## The Panels (Right Side)
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#the-panels-right-side)
+
+## ➤ The Panels (Right Side)
 
 | Tab | What's inside |
 |-----|----------------|
@@ -795,7 +849,10 @@ Unlock trade routes in the **Trade** tab as reputation grows. Once a route is **
 
 ---
 
-## Tips From the Trail
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#tips-from-the-trail)
+
+## ➤ Tips From the Trail
 
 1. **Don't kill all the wolves.** Seriously.
 2. **House before night → farm → workers.** That order works.
@@ -812,13 +869,19 @@ Unlock trade routes in the **Trade** tab as reputation grows. Once a route is **
 
 ---
 
-## Secrets (no spoilers, barely)
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#secrets-no-spoilers-barely)
+
+## ➤ Secrets (no spoilers, barely)
 
 Some nights, if the higher gods are in a mood, something **golden** might cross the sky. If you see a name you don't recognize, check the **Log**. The letters never stay friends for long.
 
 ---
 
-## What's Next?
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#whats-next)
+
+## ➤ What's Next?
 
 Wilderfolk keeps growing — more events, more neighbors, more ways to share the valley. Rival camps and visiting caravans are a taste of a busier frontier.
 
@@ -830,7 +893,10 @@ For now: name your settlement, respect the wolves, and try not to pave the whole
 
 ---
 
-## Feedback & questions
+
+[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#feedback--questions)
+
+## ➤ Feedback & questions
 
 **Feedback and questions are appreciated!** You're playtesting the trail — your notes shape what ships next.
 

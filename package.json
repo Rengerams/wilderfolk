@@ -1,26 +1,5 @@
 {
-  "name": "wilderfolk",
-  "private": true,
-  "version": "0.4.2",
-  "description": "Wilderfolk — Where Beasts and Kin Unite",
-  "license": "MIT",
-  "author": "Renffr <info@autosolid.nl>",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Rengerams/Wilderfolk.git"
-  },
-  "scripts": {
-    "postinstall": "npm install --prefix app",
-    "dev": "npm run dev --prefix app",
-    "start": "npm run dev --prefix app",
-    "build": "npm run build --prefix app",
-    "test": "npm run test --prefix app",
-    "lint": "npm run lint --prefix app",
-    "preview": "npm run preview --prefix app",
-    "sim": "npm run sim --prefix app",
-    "bench": "npm run bench --prefix app",
-    "dup": "npm run dup --prefix app",
-    "desktop:note": "echo Tauri wrap: npm run build && tauri build",
-    "sprites:humans": "python app/scripts/generate_human_variants.py"
+  "dependencies": {
+    "npx": "^10.2.2"
   }
 }

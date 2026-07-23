@@ -1,6 +1,6 @@
 # Wilderfolk Roadmap
 
-*Last updated: **July 8, 2026** · playing **v0.4.2** (`GAME_VERSION`); v0.5.0 work in tree pre-tag*
+*Last updated: **July 20, 2026** · playing **v0.4.2** (`GAME_VERSION`); v0.5.0 work in tree pre-tag*
 
 Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHANGELOG.md](CHANGELOG.md) · [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)
 
@@ -21,13 +21,13 @@ Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHA
 | 🟢 | **Raid Guard XP → elections** — fighters earn Guard skill XP; leader +0.45 XP + rep on wins; merit = all skills ×2; incumbent record from rep (+8 cap) |
 | 🟢 | **Victory goals retuned** — Eco-Utopia **250** + 20yr eco; Great City **400** + **60** buildings; Trade Empire **7** routes + **40** caravan trips + **50k** trade gold; Harmony **8 wild** wolves + **15** wildkin (untamed only) |
 | 🟢 | **Walking trade caravans** — merchants walk hub → partner → back; goods on arrival; map **🚚** lines; 7 routes (`tradeCaravans.ts`) |
-| 🟢 | Dialogue-tree settler chat — `sim_dialogue_trees.json` (95 trees); legacy `wf_*` migration; election/marriage chat tests |
+| 🟢 | Dialogue-tree settler chat — `sim_dialogue_trees.json` (95 trees); legacy `wf_*` migration; death-cleanup of dialogue sessions; O(1) tree lookup; ellipsis overflow |
+| 🟢 | Group events perf — visitor/rival ticks use alive-entity Map + deer cursor instead of per-loop `allAlive.find()` scans; empty yearly-event pool guard |
 | 🟢 | Build catalog sidebar — `BuildCatalogPanel` (replaces hotbar) |
 | 🟢 | Renderer cache — `world.entityByType` → `RenderSnapshot` → `updateCachedEntities`; viewport grass culling |
 | 🟡 | buildingById go-home — drop commute `.find()` |
 | 🟢 | Grass render spatial buckets — `byType[Grass]` + `buildGrassGrid` viewport query; `_cachedGrass` keyed by tick/camera |
 | 🟡 | Benchmark gate — SIM_PROFILE village/town/city + p95 exit |
-| 🟡 | simulate:20year — full 172800-tick PASS |
 | 🟡 | Sim regression — simulate-30min exit on fail |
 | 🟡 | App tab split + memo @ 300 population |
 | ⬜ | Settler count denorm — working/idle on WorldState |

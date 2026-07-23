@@ -204,6 +204,17 @@ gameLoop → gameTick(world) [or worker tick]
 
 Shared helpers in `gameTypes.ts`: `emptyEntityByType()`, `getRenderEntityLayer()`, `UNCACHED_RENDER_TICK`. Draw-list builder: `buildEntityDrawBuckets()` in `gameEngine.ts`.
 
+### Social interaction
+
+Dialogue, courtship, affairs, and visitor/rival camps are handled by `humanChat.ts`, `dialogueTrees.ts`, `lifeSimulation.ts` (relationship logic), and `groupEvents.ts`.
+
+| Concern | Implementation |
+|---------|----------------|
+| Dialogue bank | `sim_dialogue_trees.json` (95 trees) loaded once; `dialogueTrees.ts` indexes by category and by id for O(1) lookups |
+| Chat bubbles | `humanChat.ts` wraps lines to 3 lines, derives duration from line length, and advances paired/solo sessions via `tickHumanChat()` |
+| Death cleanup | `finalizeHumanDeath()` calls `cleanupEntityDialogueState()` to remove stale sessions and clear chat fields |
+| Visitor/rival ticks | `groupEvents.ts` builds an alive-entity Map and a deer cursor once per tick; no per-group/per-rival `allAlive.find()` scans |
+
 ### Dual-layer spatial grid
 
 Wilderfolk uses **two separate `EntitySpatialGrid` layers** plus auxiliary indexes. Grass never enters the mobile layer; mobile entity types never enter the grass layer.

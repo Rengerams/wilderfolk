@@ -70,11 +70,34 @@ export default defineConfig({
             return "game-dialogue"
           }
 
-          if (filePath.includes("/src/game/renderer")) {
+          // Renderer files only (not rendererLoader — avoids chunk cycle)
+          if (filePath.includes("/src/game/renderer.ts") || filePath.includes("/src/game/huntrenderer")) {
             return "game-render"
           }
 
-          // Simulation, audio, and shared game logic stay together to avoid chunk cycles.
+          // Heavy leaf modules — split out to keep main game chunk small.
+          // NOTE: "hub" modules (groupEvents, dayCycle, frontierCombat, combat,
+          // gameTypes, gameTick, gameLoop) stay in 'game' because they're imported
+          // bidirectionally by many modules; splitting them causes chunk cycles.
+          if (filePath.includes("/src/game/lifeSimulation")) return "game-life"
+          if (filePath.includes("/src/game/buildingActions")) return "game-build"
+          if (filePath.includes("/src/game/villageLeadership")) return "game-social"
+
+          // Barrel file — keep with its importer (App.tsx / index) to avoid re-export cycles
+          if (filePath.includes("/src/game/gameEngine.ts")) return
+
+          // Remaining simulation, audio, and shared game logic
+          if (filePath.includes("/src/game/") || filePath.includes("/src/audio/")) {
+            return "game"
+          }
+          // NOTE: "hub" modules (groupEvents, dayCycle, frontierCombat, combat,
+          // gameTypes, gameTick, gameLoop) stay in 'game' because they're imported
+          // bidirectionally by many modules; splitting them causes chunk cycles.
+          if (filePath.includes("/src/game/lifeSimulation")) return "game-life"
+          if (filePath.includes("/src/game/buildingActions")) return "game-build"
+          if (filePath.includes("/src/game/villageLeadership")) return "game-social"
+
+          // Remaining simulation, audio, and shared game logic
           if (filePath.includes("/src/game/") || filePath.includes("/src/audio/")) {
             return "game"
           }

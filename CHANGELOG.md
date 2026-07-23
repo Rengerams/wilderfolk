@@ -4,6 +4,17 @@
 
 **Targeting v0.5.0** (end July 2026) — see [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
 
+### Fixed — social interaction system (July 20, 2026)
+
+**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) — chat/dialogue cleanup + groupEvents perf pass
+
+- **`humanChat.ts`** — `cleanupEntityDialogueState()` removes a dead settler's dialogue session and clears `chatDialogueSessionKey` / `chatPartnerId` / `chatPhrase` / `chatTicks`
+- **`dayCycle.ts`** — death cleanup now calls `cleanupEntityDialogueState()` via `finalizeHumanDeath()`, fixing stale session leaks when chat partners die
+- **`dialogueTrees.ts`** — `treesById` Map replaces O(n) `.find()` in `getDialogueTreeById()` for the 95 dialogue trees
+- **`humanChat.ts` bubble wrap** — `wrapChatLines()` now appends `…` to the last visible line when text overflows 3 lines instead of silently dropping words
+- **`lifeSimulation.ts`** — marriage "Yes!" bubbles go through `sayHumanChatPhrase()`; duplicated divorce residence reassignment consolidated into `reassignDivorcedResidences()`
+- **`groupEvents.ts`** — visitor/rival tick loops use alive-entity Map + deer cursor instead of repeated `allAlive.find()` scans; `rollYearlyWorldEvent()` guards against empty event pool; refugee admission computes `playerHumanCount()` once
+
 ### Added — v2 rewrite (`wilderfolk-v2`, July 9, 2026)
 
 Parallel **React + canvas** colony sim in `v2/` (`npm run dev:v2` · `npm run test:v2`). **1 tick = 1 day**; procedural valley per new game (`mapSeed`).
