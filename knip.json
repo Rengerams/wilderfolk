@@ -6,7 +6,10 @@
     "vitest.browser-worker.config.ts",
     "scripts/**/*.{ts,mts,mjs,js}!"
   ],
-  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.{ts,mts,mjs,js}"],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "scripts/**/*.{ts,mts,mjs,js}"
+  ],
   "ignoreDependencies": [
     "tw-animate-css",
     "ts-call-graph",

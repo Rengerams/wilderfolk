@@ -36,11 +36,12 @@ A big playability and presentation pass: the map reads as a place, the day has r
 #### Build & quality-of-life
 - **Build hotkeys 1–9** pick real building types for faster placement
 - **Market-gated trade** — long routes need a completed Market (commerce as a real milestone)
-- **Player-facing docs** — `app/README.md` covers hotel, valley stages, elections, day length, and leadership
+- **Player-facing docs** — root `README.md` covers hotel, valley stages, elections, day length, and leadership
 
 #### For developers (tooling)
 - **knip** + **dependency-cruiser** — `npm run audit:knip` / `audit:deps` / `audit`
 - Focused regression tests for day cadence, hotel checkout, leadership, and build hotkeys
+- **Flat repo layout** — game package lives at the repository root (`src/`, `public/`, `package.json`); no nested `app/` folder
 
 ---
 
