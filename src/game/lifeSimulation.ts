@@ -1663,9 +1663,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (hasHospital) minimalEnergyLoss *= 0.9;
       if (isWinter && !canHeat) minimalEnergyLoss *= 1.5;
       entity.energy -= minimalEnergyLoss;
-      // One meal roll per clock hour in the meal window (not every sub-hour tick)
+      // Colony larder meals are player settlers only (visitors/rivals must not drain food)
       if (
-        isMealWindow(hourOfDay)
+        isPlayerHuman(entity)
+        && isMealWindow(hourOfDay)
         && isStartOfClockHour(state.tick)
         && state.resources.food >= 1
         && entity.energy < entity.maxEnergy * 0.9
@@ -1673,7 +1674,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         state.resources.food -= 1;
         entity.energy = Math.min(entity.maxEnergy, entity.energy + 65);
       }
-      if (entity.energy <= 0) {
+      if (isPlayerHuman(entity) && entity.energy <= 0) {
         killHuman(entity, updatedBuildings, entityById, state.tick);
         createDeathParticles(state, entity.x, entity.y, '#8B0000', 8);
         logEvent(state, 'death', formatDeathLog(entity, 'succumbed to exhaustion'), formatCitizenName(entity));
