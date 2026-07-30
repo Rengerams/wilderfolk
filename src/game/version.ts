@@ -1,5 +1,4 @@
 export const GAME_VERSION = '0.5.0';
-/** Soft 0.5 — scale foundation + sim trust; see ROADMAP_0.5.0.md for follow-ups. */
 export const GAME_PHASE = 'Early Alpha';
 export const GAME_TITLE = 'Wilderfolk';
 export const GAME_SUBTITLE = 'Where Beasts and Kin Unite';

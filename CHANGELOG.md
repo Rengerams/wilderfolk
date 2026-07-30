@@ -2,34 +2,29 @@
 
 ## [Unreleased]
 
-Post-0.5 polish (scan cleanup, particle pooling, large-map playtest matrix). See [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
-
 ---
 
 ## [0.5.0] — 2026-07-30
 
-**The valley scales — kin, beasts, and forge-steel.** Soft scale + sim-trust milestone.  
-`GAME_VERSION` **0.5.0** · saves **0.4 → 0.5** · **2.x saves no longer load**.
+**The valley scales — kin, beasts, and forge-steel.**
+
+`GAME_VERSION` **0.5.0** · continue colonies from **0.4**.
 
 ### Added
-- **Forge tier 5** — Iron Swords, Scale Mail, Bastion Towers (research + Blacksmith queue)
+- **Forge tier 5** — Iron Swords, Scale Mail, Bastion Towers
 - Intro **v0.5 milestone ribbon** + version tagline
-- README **v0.5.0** hero section
+- README **v0.5.0** hero — scale, trust, steel, life
+- Spatial grids, Web Worker sim, OffscreenCanvas layers, leaner tick paths
 
-### Fixed — Batch EK sim audit
-- **Moon Howlers** — job/home/prison restore; load form resync; pregnancy scale; howl cadence; cure housing
-- **Raids** — dual-march cancel; lost-raid deaths + raiding logs; immigration pop cap
-- **Housing** — occupancy map; household minors; orphans on death; father before grandmother custody
-- **Life / hunt** — player-only off-screen meals; `ticksForDays` prison; prey cleanup; patrol/leisure day scale
+### Fixed — sim trust (Batch EK)
+- **Moon Howlers** — job/home/prison restore; load form resync; howl cadence; cure housing
+- **Raids** — counter-raid pairing; lost-raid deaths; immigration respects pop cap
+- **Housing** — faster assign; household minors; orphans on death; father-first custody
+- **Life / hunt** — honest meals, prison days, prey cleanup, day-scaled patrol & leisure
 
 ### Changed
-- Forge: progression order, multi-smith pace, layout toasts only, Armament checklist complete
-- Save compatibility: **0.4 / 0.4.1 / 0.4.2 / 0.5.0** only (legacy **2.0–2.2 dropped**)
-
-### Still open after 0.5.0
-- EK-D5 gold uncapped on raid success (partial)
-- Private tracker batches Q / S / V
-- Perf polish: buildingActions scans, particle pools, App tab split
+- Forge progression, multi-smith pace, layout toasts, full Armament checklist
+- Smoother large-valley foundation for towns that grow
 
 ### Added — living valley & clearer days (July 30, 2026)
 

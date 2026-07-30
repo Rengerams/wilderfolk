@@ -29,16 +29,16 @@ This is the **scale + trust** milestone: big towns stay playable, the sim is hon
 | **Steel** | Blacksmith tier 5 — iron **swords**, **scale mail**, tower **ballistae** |
 | **Life** | Hotel, valley stages, elections, painted map, 72 ticks/day |
 
-**Save note:** Continues **0.4 → 0.5** colonies. Legacy **2.x** saves are no longer loaded — start a new valley or keep an old build if you need them.
+**Continue your 0.4 colony** — saves step up cleanly into 0.5.
 
 <details>
-<summary><strong>Ship highlights (open me)</strong></summary>
+<summary><strong>Ship highlights</strong></summary>
 
-- Moon Howler job/prison restore, howl cadence, form resync on load  
-- Raids: pair-cancel counter-marches; lost raids cost lives; custody father before grandma  
-- Housing occupancy map; orphans on death; immigration respects pop cap  
-- Forge progression UI, multi-smith pace, layout toasts only  
-- See [CHANGELOG.md](CHANGELOG.md) `[0.5.0]` / `[Unreleased]`  
+- Moon Howlers that keep their place in the village after the night  
+- Raids you prepare for — counter-marches, real costs, living frontier  
+- Families that move and stay together; orphans find a home  
+- Forge progression: multi-smith pace, Armament checklist, swords & scale  
+- Full notes → [CHANGELOG.md](CHANGELOG.md) `[0.5.0]`  
 
 </details>
 

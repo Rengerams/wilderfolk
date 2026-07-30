@@ -1,28 +1,23 @@
 # Wilderfolk Roadmap
 
-*Last updated: **July 30, 2026** · playing **v0.5.0** (`GAME_VERSION`) · soft scale + sim-trust ship*
+*Last updated: **July 30, 2026** · playing **v0.5.0** · *The valley scales — kin, beasts, and forge-steel.*
 
-Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHANGELOG.md](CHANGELOG.md) · [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)
+Newest version first. Detail → [CHANGELOG.md](CHANGELOG.md) · [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)
 
 ---
 
-## v0.5.0 — Scale + architecture + sim trust
+## v0.5.0 — The valley scales
 
-**Shipped:** 2026-07-30 · `GAME_VERSION` **0.5.0** · saves **0.4.x → 0.5** (2.x dropped)
+**Shipped:** 2026-07-30 · `GAME_VERSION` **0.5.0** · continue **0.4 → 0.5** colonies
 
 | | Feature |
 |:--:|---------|
-| 🟢 | **GAME_VERSION 0.5.0** + save migration; intro milestone ribbon |
-| 🟢 | Spatial grid · Web Worker · OffscreenCanvas · dead-entity compaction |
-| 🟢 | Settler denorm · entityById · partner map · grass buckets · renderer cache |
-| 🟢 | **Batch EK** sim trust (moon, housing, raids, immigration, hunt) |
-| 🟢 | **Forge tier 5** — swords, scale mail, ballistae |
-| 🟢 | Elections, valley stages, hotel, painted map, 72 ticks/day |
-| 🟢 | Housing custody mother → **father** → grandma → adoption |
-| 🟡 | buildingById go-home / App tab split @ 300 |
-| ⬜ | buildingActions scan cleanup · particle pooling |
-| ⬜ | Large-map 10× playtest matrix (post-tag) |
-| ⬜ | Quest chain · multi save slots · rep arc UI |
+| 🟢 | **Scale** — spatial grids, Web Worker sim, OffscreenCanvas, alive-only entities |
+| 🟢 | **Trust** — moon Howlers, housing, raids, immigration, hunt cadence |
+| 🟢 | **Steel** — forge tier 5: swords, scale mail, tower ballistae |
+| 🟢 | **Life** — elections, valley stages, hotel, painted map, 72 ticks/day |
+| 🟢 | Custody mother → father → grandma · raids that matter · Armament checklist |
+| 🟢 | Intro v0.5 ribbon · save continue from 0.4 |
 
 ### July 8, 2026 — Victory, trade & raid rewards (in code)
 
@@ -35,7 +30,7 @@ Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHA
 | **Harmony** | 8 **untamed** wolves (`tamedBy == null`) + 15 wildkin — taming via Taming Post does **not** count |
 | **Caravans** | `establishTradeRoute` → walking merchant; export at partner, import at village; Progress → Trade shows leg status |
 
-Detail → [CHANGELOG.md](CHANGELOG.md) `[Unreleased]` · [TECHNICAL.md](TECHNICAL.md) (Frontier combat · Victory paths · Trade caravans)
+Detail → [CHANGELOG.md](CHANGELOG.md) `[0.5.0]` · [TECHNICAL.md](TECHNICAL.md)
 
 ---
 

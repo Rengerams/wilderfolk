@@ -24,28 +24,22 @@ const DONE = (label: string): RoadmapFeature => ({ label, status: 'done' });
 const PARTIAL = (label: string): RoadmapFeature => ({ label, status: 'partial' });
 const OPEN = (label: string): RoadmapFeature => ({ label, status: 'open' });
 
-/** Newest first. Older versions = done only; v0.5.0 includes open work. */
+/** Newest first. Shipped versions list done work only (positive player-facing story). */
 export const ROADMAP_VERSIONS: RoadmapVersion[] = [
   {
     version: '0.5.0',
-    theme: 'Scale + architecture + sim trust',
+    theme: 'The valley scales — kin, beasts, and forge-steel',
     shipDate: '2026-07-30',
     features: [
-      DONE('GAME_VERSION 0.5.0 + save migration (0.4.x → 0.5; 2.x saves dropped)'),
-      DONE('Spatial grid · Web Worker gameTick · OffscreenCanvas layers · dead-entity compaction'),
-      DONE('Settler denorm · incremental entityById · partner map · grass render buckets'),
-      DONE('Batch EK sim trust — moon, housing, raids, immigration, hunt cadence'),
-      DONE('Forge tier 5 — iron swords, scale mail, tower ballistae + Armament checklist'),
-      DONE('Election & leadership ceremony · valley stages · hotel · 72 ticks/day painted map'),
-      PARTIAL('buildingById go-home — drop remaining commute .find()'),
-      PARTIAL('App tab split + memo @ 300 population'),
-      OPEN('buildingActions scan cleanup — maps instead of entity filters'),
-      OPEN('Particle / floating-text pooling'),
-      OPEN('Manual playtest matrix — large map, 10× (post-tag polish)'),
-      PARTIAL('Outgoing counter-raid march line + militia sprites'),
-      OPEN('Reputation milestone arc UI'),
-      OPEN('One visitor multi-step quest chain'),
-      OPEN('Multiple save slots / save to file'),
+      DONE('v0.5.0 — scale foundation and sim trust milestone'),
+      DONE('Spatial grids · Web Worker sim · OffscreenCanvas layers · alive-only entities'),
+      DONE('Settler denorm · fast entity lookup · partner map · grass render buckets'),
+      DONE('Honest days & raids — moon Howlers, housing, custody, immigration, hunt cadence'),
+      DONE('Forge tier 5 — iron swords, scale mail, tower ballistae'),
+      DONE('Armament checklist · multi-smith forge pace · layout forge toasts'),
+      DONE('Elections & village head · valley stages · hotel · painted map · 72 ticks/day'),
+      DONE('Raids that cost lives · counter-raid march pairing · father-first custody'),
+      DONE('Intro v0.5 ribbon · 0.4→0.5 colony save continue'),
     ],
   },
   {
