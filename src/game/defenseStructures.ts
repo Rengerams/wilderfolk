@@ -8,12 +8,14 @@ import type { VillageForgeState } from './gameTypes';
 /** Tuned July 2026 — spear/militia balance review (10-year sim targets). */
 export const MILITIA_BALANCE = {
   basePerAdult: 10,
-  /** Iron replaces stone — not multiplied together. */
+  /** Higher weapon tiers replace lower — not multiplied together. */
   stoneSpearMult: 1.3,
   ironSpearMult: 1.52,
-  /** Iron replaces wooden — per-adult additive, not stacked. */
+  ironSwordMult: 1.72,
+  /** Higher armor tiers replace lower — per-adult additive, not stacked. */
   woodenShieldPerAdult: 4,
   ironShieldPerAdult: 9,
+  scaleMailPerAdult: 14,
   /**
    * Trained barracks guards — bonus ON TOP of their adult base.
    * Guards ARE counted in adultCount, so they receive base (10) + this bonus.
@@ -73,9 +75,16 @@ export function getWallSegmentBonus(
   return Math.min(cap, segments * perSegment);
 }
 
-export function getWatchtowerBonus(buildings: Building[]): number {
+export function getWatchtowerBonus(
+  buildings: Building[],
+  state?: Pick<WorldState, 'villageForge'>,
+): number {
   if (!buildings?.length) return 0;
-  return countCompletedDefenseBuildings(buildings, BuildingType.Watchtower) * 15;
+  const towers = countCompletedDefenseBuildings(buildings, BuildingType.Watchtower);
+  if (towers === 0) return 0;
+  const ballistae = state && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'tower_ballistae');
+  const perTower = ballistae ? FORGE_BONUSES.towerBallistaTotalPerTower : 15;
+  return towers * perTower;
 }
 
 /**
@@ -153,9 +162,10 @@ export function getDefenseStructureBreakdown(state: WorldState, buildings: Build
     lines.push(`+ ${wallBonus} wall segments (${walls} built, max +72)`);
   }
   const towers = countCompletedDefenseBuildings(buildings, BuildingType.Watchtower);
-  const towerBonus = getWatchtowerBonus(buildings);
+  const towerBonus = getWatchtowerBonus(buildings, state);
   if (towers > 0) {
-    lines.push(`+ ${towerBonus} watchtowers (${towers})`);
+    const ballistae = isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'tower_ballistae');
+    lines.push(`+ ${towerBonus} watchtowers (${towers}${ballistae ? ', ballistae' : ''})`);
   }
   const guards = getBarracksGuardCount(state, buildings);
   const guardBonus = getBarracksGuardBonus(state, buildings);

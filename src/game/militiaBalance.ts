@@ -1,11 +1,16 @@
 /**
  * Single source of truth for militia / barricade strength (frontier raids).
- * Spear and shield tiers do not stack — iron replaces stone / wooden.
+ * Weapon and armor tiers do not stack — higher replaces lower (stone → iron → sword / wooden → iron → scale).
  */
 
 import type { Entity, WorldState } from './gameTypes';
 import {
-  hasIronShields, hasIronSpears, hasStoneSpears, hasWoodenShields,
+  hasIronShields,
+  hasIronSpears,
+  hasIronSwords,
+  hasScaleMail,
+  hasStoneSpears,
+  hasWoodenShields,
 } from './combat';
 import {
   getBarracksGuardBonus,
@@ -18,8 +23,10 @@ import {
 import { BuildingType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 
-export type MilitiaSpearTier = 'none' | 'stone' | 'iron';
-export type MilitiaShieldTier = 'none' | 'wooden' | 'iron';
+/** Weapon tier used for militia multiplier (legacy name kept for call sites). */
+export type MilitiaSpearTier = 'none' | 'stone' | 'iron' | 'sword';
+/** Armor tier used for militia flat bonus. */
+export type MilitiaShieldTier = 'none' | 'wooden' | 'iron' | 'scale';
 
 export interface MilitiaBreakdown {
   adultCount: number;
@@ -35,24 +42,28 @@ export interface MilitiaBreakdown {
 }
 
 export function getMilitiaSpearTier(state: WorldState): MilitiaSpearTier {
+  if (hasIronSwords(state)) return 'sword';
   if (hasIronSpears(state)) return 'iron';
   if (hasStoneSpears(state)) return 'stone';
   return 'none';
 }
 
 export function getMilitiaShieldTier(state: WorldState): MilitiaShieldTier {
+  if (hasScaleMail(state)) return 'scale';
   if (hasIronShields(state)) return 'iron';
   if (hasWoodenShields(state)) return 'wooden';
   return 'none';
 }
 
 export function getMilitiaSpearMultiplier(tier: MilitiaSpearTier): number {
+  if (tier === 'sword') return MILITIA_BALANCE.ironSwordMult;
   if (tier === 'iron') return MILITIA_BALANCE.ironSpearMult;
   if (tier === 'stone') return MILITIA_BALANCE.stoneSpearMult;
   return 1;
 }
 
 export function getMilitiaShieldPerAdult(tier: MilitiaShieldTier): number {
+  if (tier === 'scale') return MILITIA_BALANCE.scaleMailPerAdult;
   if (tier === 'iron') return MILITIA_BALANCE.ironShieldPerAdult;
   if (tier === 'wooden') return MILITIA_BALANCE.woodenShieldPerAdult;
   return 0;
@@ -62,8 +73,16 @@ export function getMilitiaArmamentLabel(state: WorldState): string | null {
   const spear = getMilitiaSpearTier(state);
   const shield = getMilitiaShieldTier(state);
   if (spear === 'none' && shield === 'none') return null;
-  const spearLabel = spear === 'iron' ? 'Iron spears' : spear === 'stone' ? 'Stone spears' : null;
-  const shieldLabel = shield === 'iron' ? 'Iron shields' : shield === 'wooden' ? 'Wooden shields' : null;
+  const spearLabel =
+    spear === 'sword' ? 'Iron swords'
+      : spear === 'iron' ? 'Iron spears'
+        : spear === 'stone' ? 'Stone spears'
+          : null;
+  const shieldLabel =
+    shield === 'scale' ? 'Scale mail'
+      : shield === 'iron' ? 'Iron shields'
+        : shield === 'wooden' ? 'Wooden shields'
+          : null;
   if (spearLabel && shieldLabel) return `${spearLabel} + ${shieldLabel}`;
   return spearLabel ?? shieldLabel;
 }
@@ -124,15 +143,21 @@ export function computeMilitiaBreakdown(
 
   let rawTotal = base * spearMultiplier;
 
-  if (spearTier === 'iron') {
+  if (spearTier === 'sword') {
+    lines.push(`× ${MILITIA_BALANCE.ironSwordMult} iron swords (replaces spears) → ${Math.round(rawTotal)}`);
+  } else if (spearTier === 'iron') {
     lines.push(`× ${MILITIA_BALANCE.ironSpearMult} iron spears (replaces stone) → ${Math.round(rawTotal)}`);
   } else if (spearTier === 'stone') {
     lines.push(`× ${MILITIA_BALANCE.stoneSpearMult} stone spears → ${Math.round(rawTotal)}`);
   } else {
-    lines.push('No spears equipped');
+    lines.push('No weapons equipped');
   }
 
-  if (shieldTier === 'iron') {
+  if (shieldTier === 'scale') {
+    const add = adultCount * MILITIA_BALANCE.scaleMailPerAdult;
+    rawTotal += add;
+    lines.push(`+ ${add} scale mail (replaces shields)`);
+  } else if (shieldTier === 'iron') {
     const add = adultCount * MILITIA_BALANCE.ironShieldPerAdult;
     rawTotal += add;
     lines.push(`+ ${add} iron shields (replaces wooden)`);
@@ -141,7 +166,7 @@ export function computeMilitiaBreakdown(
     rawTotal += add;
     lines.push(`+ ${add} wooden shields`);
   } else {
-    lines.push('No shields equipped');
+    lines.push('No armor equipped');
   }
 
   if (guardCount > 0) {
@@ -157,7 +182,7 @@ export function computeMilitiaBreakdown(
   // Structure bonus — only calculate if requested
   const includeStructures = options?.includeStructures !== false;
   const wallBonus = includeStructures ? getWallSegmentBonus(state.buildings, state) : 0;
-  const towerBonus = includeStructures ? getWatchtowerBonus(state.buildings) : 0;
+  const towerBonus = includeStructures ? getWatchtowerBonus(state.buildings, state) : 0;
   const structureBonus = wallBonus + towerBonus;
 
   // Barricade requires at least some militia to man it

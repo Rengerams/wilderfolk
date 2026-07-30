@@ -58,6 +58,27 @@ export function hasIronShields(state: CombatContext & { villageForge?: VillageFo
     && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'iron_shields');
 }
 
+/** Research + blacksmith + forge — village-wide iron swords (militia weapon tier above iron spears). */
+export function hasIronSwords(state: CombatContext & { villageForge?: VillageForgeState }): boolean {
+  return hasTech(state, COMBAT_TECH.ironSwords)
+    && hasCompletedBlacksmith(state)
+    && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'iron_swords');
+}
+
+/** Research + blacksmith + forge — scale mail (armor tier above iron shields). */
+export function hasScaleMail(state: CombatContext & { villageForge?: VillageForgeState }): boolean {
+  return hasTech(state, COMBAT_TECH.scaleMail)
+    && hasCompletedBlacksmith(state)
+    && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'scale_mail');
+}
+
+/** Research + forge — watchtower ballistae (structure defense). */
+export function hasTowerBallistae(state: CombatContext & { villageForge?: VillageForgeState }): boolean {
+  return hasTech(state, COMBAT_TECH.bastionTowers)
+    && hasCompletedBlacksmith(state)
+    && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'tower_ballistae');
+}
+
 export function getHuntRangeMultiplier(state: WorldState): number {
   return researchedEffect(state, 'hunt_range', 'mult') ?? 1;
 }
@@ -72,7 +93,8 @@ export function getHumanHuntRange(state: WorldState, baseRange: number): number 
 
 export function getPredatorBlockChance(state: WorldState): number {
   let chance = researchedEffect(state, 'predator_block', 'add') ?? 0;
-  if (hasIronShields(state)) chance = Math.max(chance, 0.6);
+  if (hasScaleMail(state)) chance = Math.max(chance, 0.72);
+  else if (hasIronShields(state)) chance = Math.max(chance, 0.6);
   else if (hasWoodenShields(state)) chance = Math.max(chance, 0.35);
   return Math.min(0.85, chance);
 }
@@ -82,10 +104,11 @@ export function getHumanFleeSpeedMultiplier(state: WorldState): number {
 }
 
 export function getCounterAttackChance(state: WorldState): number {
-  if (!hasIronSpears(state)) return 0;
+  if (!hasIronSpears(state) && !hasIronSwords(state)) return 0;
   const add = researchedEffect(state, 'counter_attack', 'add');
-  // Default 0.45 only when no explicit research effect exists; 0 is a valid explicit value.
-  return add === undefined ? 0.45 : add;
+  // Default depends on best weapon; 0 is a valid explicit research value.
+  if (add !== undefined) return add;
+  return hasIronSwords(state) ? 0.55 : 0.45;
 }
 
 export function rollPredatorBlock(
@@ -174,6 +197,24 @@ export function getArmamentSteps(state: WorldState): ArmamentStep[] {
       detail: forgeStepDetail(forge, 'wall_plates', 'Research Reinforced Masonry, forge Iron Shields first, then queue wall plates.', 'Forged — wall segments grant stronger barricade bonus.'),
     },
     {
+      id: 'iron_swords',
+      label: 'Iron Swords',
+      done: hasIronSwords(state),
+      detail: forgeStepDetail(forge, 'iron_swords', 'Research Iron Swords, forge Iron Spears first, then queue swords.', 'Forged — militia wields iron swords.'),
+    },
+    {
+      id: 'scale_mail',
+      label: 'Scale Mail',
+      done: hasScaleMail(state),
+      detail: forgeStepDetail(forge, 'scale_mail', 'Research Scale Mail, forge Iron Shields first, then queue armor.', 'Forged — scale mail equips the militia.'),
+    },
+    {
+      id: 'tower_ballistae',
+      label: 'Tower Ballistae',
+      done: hasTowerBallistae(state),
+      detail: forgeStepDetail(forge, 'tower_ballistae', 'Research Bastion Towers, forge Wall Plates first, then queue ballistae.', 'Forged — watchtowers mount ballistae.'),
+    },
+    {
       id: 'iron_pickaxes',
       label: 'Iron Pickaxes',
       done: isForgeOrderComplete(forge, 'iron_pickaxes'),
@@ -196,12 +237,23 @@ function forgeStepDetail(
 }
 
 export function getHumanArmamentLabel(state: WorldState): string | null {
-  if (hasIronSpears(state) && hasIronShields(state)) return 'Iron spear & shield';
-  if (hasIronSpears(state)) return 'Iron spear';
-  if (hasIronShields(state)) return 'Iron shield';
-  if (hasStoneSpears(state) && hasWoodenShields(state)) return 'Spear & wooden shield';
-  if (hasStoneSpears(state)) return 'Stone spear';
-  if (hasWoodenShields(state)) return 'Wooden shield';
+  const weapon = hasIronSwords(state)
+    ? 'Iron sword'
+    : hasIronSpears(state)
+      ? 'Iron spear'
+      : hasStoneSpears(state)
+        ? 'Stone spear'
+        : null;
+  const armor = hasScaleMail(state)
+    ? 'scale mail'
+    : hasIronShields(state)
+      ? 'iron shield'
+      : hasWoodenShields(state)
+        ? 'wooden shield'
+        : null;
+  if (weapon && armor) return `${weapon} & ${armor}`;
+  if (weapon) return weapon;
+  if (armor) return armor.charAt(0).toUpperCase() + armor.slice(1);
   return null;
 }
 
@@ -246,8 +298,8 @@ export function buildHumanCombatStatusFlags(
   }
   return {
     barracksGuardKeys,
-    hasShields: hasIronShields(probe) || hasWoodenShields(probe),
-    hasSpears: hasIronSpears(probe) || hasStoneSpears(probe),
+    hasShields: hasScaleMail(probe) || hasIronShields(probe) || hasWoodenShields(probe),
+    hasSpears: hasIronSwords(probe) || hasIronSpears(probe) || hasStoneSpears(probe),
   };
 }
 

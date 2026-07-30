@@ -30,6 +30,10 @@ export const FORGE_BONUSES = {
   wallPlatePerSegment: 4,
   wallPlateCap: 96,
   quarryYieldMult: 1.15,
+  /** Extra militia strength per completed watchtower when ballistae forged. */
+  towerBallistaPerTower: 12,
+  /** Base watchtower bonus stays 15; ballistae replace that with this total per tower. */
+  towerBallistaTotalPerTower: 27,
 } as const;
 
 export const FORGE_ORDERS: ForgeOrder[] = [
@@ -79,6 +83,36 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     techId: 'mining_2',
     inputs: { wood: 40, stone: 45, gold: 50 },
     progressPerTick: 32,
+  },
+  {
+    id: 'iron_swords',
+    label: 'Iron Swords',
+    emoji: '🗡️',
+    description: 'Forge village-wide iron swords — strongest militia weapons (replace iron spears for raids).',
+    techId: COMBAT_TECH.ironSwords,
+    requiresForge: ['iron_spears'],
+    inputs: { wood: 45, stone: 40, gold: 70 },
+    progressPerTick: 28,
+  },
+  {
+    id: 'scale_mail',
+    label: 'Scale Mail',
+    emoji: '🦺',
+    description: 'Forge scale armor for the militia — replaces iron shields for raid defense and predator blocks.',
+    techId: COMBAT_TECH.scaleMail,
+    requiresForge: ['iron_shields'],
+    inputs: { wood: 35, stone: 55, gold: 75 },
+    progressPerTick: 28,
+  },
+  {
+    id: 'tower_ballistae',
+    label: 'Tower Ballistae',
+    emoji: '🏰',
+    description: `Watchtowers grant ${FORGE_BONUSES.towerBallistaTotalPerTower} barricade each (up from 15).`,
+    techId: COMBAT_TECH.bastionTowers,
+    requiresForge: ['wall_plates'],
+    inputs: { wood: 55, stone: 70, gold: 80 },
+    progressPerTick: 26,
   },
 ];
 

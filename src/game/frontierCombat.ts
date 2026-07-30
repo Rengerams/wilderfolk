@@ -304,7 +304,7 @@ export const COUNTER_RAID_LABELS: Record<CounterRaidTier, { label: string; hint:
 export const RAID_PREPARATION_HINT =
   'Raids test preparation you already made — walls, forge tier, guards, and food for tribute. There is no battle screen; outcomes resolve from strength ratios.';
 export const DEFENSE_RATIO_HINT = 'Ratio ≥135% decisive · ≥95% narrow · ≥65% stalemate · below = defeat';
-export const MILITIA_TIER_HINT = 'Iron spear/shield tiers replace stone/wooden — bonuses do not stack.';
+export const MILITIA_TIER_HINT = 'Weapon/armor tiers replace lower ones (stone→iron→sword · wood→iron→scale) — do not stack.';
 export const COUNTER_RAID_RATIO_HINT = 'Ratio ≥135% full spoils · ≥100% meager · below = repelled (+15🍖 extra loss)';
 
 export function canLaunchRaidOnRival(
