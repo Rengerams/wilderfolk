@@ -3,6 +3,10 @@
 /** Full moon hits every ~2 in-game weeks */
 export const DAYS_PER_MOON_CYCLE = 14;
 
+/**
+ * Social-adult floor (courtship, adoption singles, recruit ages, etc.).
+ * Full age ladder lives next to related constants in `dayCycle.ts` (EK-E4).
+ */
 export const HUMAN_ADULT_MIN_AGE = 16;
 
 export const NIGHT_START = 20;
