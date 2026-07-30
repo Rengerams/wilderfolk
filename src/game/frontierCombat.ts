@@ -719,6 +719,15 @@ function applyRaidLootTaken(state: WorldState, loot: RaidLootBundle, fraction = 
   return taken;
 }
 
+/** Soft cap for raid gold spoils (storageMax.gold is effectively unlimited). */
+export function clampRaidGoldGain(currentGold: number, spoilsGold: number, softCap = 9999): number {
+  if (spoilsGold <= 0) return 0;
+  const room = Math.max(0, softCap - currentGold);
+  // Also never take more than a single-raid ceiling (prevents free-money stacks)
+  const perRaidMax = 80;
+  return Math.min(spoilsGold, room, perRaidMax);
+}
+
 /** Add spoils from a successful counter-raid (respects storage caps). */
 function grantRaidSpoils(state: WorldState, spoils: RaidLootBundle): RaidLootBundle {
   const gained: RaidLootBundle = { food: 0, wood: 0, stone: 0, gold: 0 };
@@ -738,7 +747,7 @@ function grantRaidSpoils(state: WorldState, spoils: RaidLootBundle): RaidLootBun
     state.resources.stone += gained.stone;
   }
   if (spoils.gold > 0) {
-    gained.gold = spoils.gold;
+    gained.gold = clampRaidGoldGain(state.resources.gold, spoils.gold);
     state.resources.gold += gained.gold;
   }
   return gained;
