@@ -953,7 +953,7 @@ export function tameEntity(originalState: WorldState, entityId: number, humanId:
   }
 
   if (entity.type === EntityType.Werewolf) {
-    addFloatingText(state, entity.x, entity.y - 10, 'Staff a Church — cures roll at dawn after the hunt', '#ef4444');
+    addFloatingText(state, entity.x, entity.y - 10, 'Staff a Church — cures roll on full-moon nights (20:00–06:00)', '#ef4444');
     return state;
   }
 

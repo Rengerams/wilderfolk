@@ -41,7 +41,7 @@ import {
   IMMIGRATION_CHECK_TICKS,
   getResidenceCapacity,
   assignMissingResidences,
-  buildWorkTicks,
+  buildWorkHours,
   WORK_HOURS_PER_DAY,
 } from './dayCycle';
 import type { TickContext } from './lifeSimulation';
@@ -159,8 +159,8 @@ function tickBuildingProgress(state: WorldState): void {
     if (!building.completed && building.constructionProgress < 100) {
       const workers = building.occupants.length;
       const buildDays = BUILDING_CONFIGS[building.type].buildTime;
-      const totalWorkTicks = buildWorkTicks(buildDays);
-      const baseRate = 100 / totalWorkTicks;
+      const totalWorkHours = buildWorkHours(buildDays);
+      const baseRate = 100 / totalWorkHours;
       // Unstaffed production buildings crawl; houses/roads/wells still self-build slowly.
       const buildMultiplier = workers > 0
         ? 1 + workers * 0.35

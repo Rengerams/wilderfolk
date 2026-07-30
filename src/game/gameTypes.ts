@@ -122,7 +122,6 @@ export const JobType = {
   Hunter: 'hunter',
   Builder: 'builder',
   Guard: 'guard',
-  Housewife: 'housewife',
   Innkeeper: 'innkeeper',
   Hotelier: 'hotelier',
 } as const;
@@ -142,7 +141,6 @@ export const JOB_LABELS: Record<JobType, string> = {
   [JobType.Hunter]: 'Hunter',
   [JobType.Builder]: 'Builder',
   [JobType.Guard]: 'Guard',
-  [JobType.Housewife]: 'Housewife',
   [JobType.Innkeeper]: 'Innkeeper',
   [JobType.Hotelier]: 'Hotelier',
 };
@@ -934,6 +932,21 @@ export interface BuildingConfig {
   cost: { wood: number; stone: number; gold: number };
   /** Calendar days of on-site work (7am–7pm) for one builder to finish. */
   buildTime: number;
+  /**
+   * Slot cap for `building.occupants` — **overloaded by building role** (not one semantic):
+   *
+   * - **Housing** (House, Mansion, Hotel): bed / resident capacity (upgrades may raise
+   *   effective beds via `getResidenceCapacity`; base value is the config floor/ceiling).
+   * - **Staffed workplaces** (Farm, Church, Barracks, …): max assigned **workers/staff**
+   *   while complete (`BUILDING_JOB_TYPES`); same field is also the **construction crew**
+   *   cap while incomplete.
+   * - **Prison**: guard + prisoner slots share this cap (prisoners typically leave one
+   *   seat for a guard — see lifeSimulation / moonHowler helpers).
+   * - **0**: no permanent staff and no builders via occupants (e.g. roads, walls, wells);
+   *   construction may still progress passively.
+   *
+   * Do not assume beds ≡ staff; always interpret with building type + completed flag.
+   */
   maxOccupants: number;
   emoji: string;
   label: string;
