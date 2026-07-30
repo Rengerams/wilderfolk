@@ -4,7 +4,7 @@ import { formatResourceCost } from './resourceCost';
 import { isProductionTick, PRODUCTION_INTERVAL } from './dayCycle';
 import { COMBAT_TECH } from './combatTech';
 import { logEvent } from './eventLog';
-import { addNotification } from './gameEngine';
+import { addNotification } from './simEffects';
 
 export function hasCompletedBlacksmith(state: { buildings: Building[] }): boolean {
   return state.buildings.some((b) => b.completed && b.type === BuildingType.Blacksmith);
@@ -21,12 +21,13 @@ export const FORGE_BONUSES = {
   towerBallistaTotalPerTower: 27,
 } as const;
 
+/** Display + forge priority: basic iron → utility → drill/walls → tier-5 war gear. */
 export const FORGE_ORDERS: ForgeOrder[] = [
   {
     id: 'iron_spears',
     label: 'Iron Spears',
     emoji: '⚔️',
-    description: 'Forge village-wide iron spears — hunt farther, fight back vs wolves.',
+    description: 'Village-wide iron spears — longer hunts, fight back vs wolves, unlock militia raids.',
     techId: COMBAT_TECH.ironSpears,
     inputs: { wood: 35, stone: 25, gold: 40 },
     progressPerTick: 34,
@@ -35,10 +36,19 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     id: 'iron_shields',
     label: 'Iron Shields',
     emoji: '🛡️',
-    description: 'Forge iron shields for all settlers — heavy predator protection.',
+    description: 'Heavy shields for all settlers — strong predator blocks and raid armor baseline.',
     techId: COMBAT_TECH.ironShields,
     inputs: { wood: 40, stone: 30, gold: 45 },
     progressPerTick: 34,
+  },
+  {
+    id: 'iron_pickaxes',
+    label: 'Iron Pickaxes',
+    emoji: '⛏️',
+    description: `Quarries produce ${Math.round((FORGE_BONUSES.quarryYieldMult - 1) * 100)}% more stone while staffed.`,
+    techId: 'mining_2',
+    inputs: { wood: 40, stone: 45, gold: 50 },
+    progressPerTick: 32,
   },
   {
     id: 'guard_halberds',
@@ -61,19 +71,10 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     progressPerTick: 30,
   },
   {
-    id: 'iron_pickaxes',
-    label: 'Iron Pickaxes',
-    emoji: '⛏️',
-    description: `Quarries produce ${Math.round((FORGE_BONUSES.quarryYieldMult - 1) * 100)}% more stone while staffed.`,
-    techId: 'mining_2',
-    inputs: { wood: 40, stone: 45, gold: 50 },
-    progressPerTick: 32,
-  },
-  {
     id: 'iron_swords',
     label: 'Iron Swords',
     emoji: '🗡️',
-    description: 'Forge village-wide iron swords — strongest militia weapons (replace iron spears for raids).',
+    description: 'Strongest militia weapons — replace iron spears for raids; better counter-attacks.',
     techId: COMBAT_TECH.ironSwords,
     requiresForge: ['iron_spears'],
     inputs: { wood: 45, stone: 40, gold: 70 },
@@ -83,7 +84,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     id: 'scale_mail',
     label: 'Scale Mail',
     emoji: '🦺',
-    description: 'Forge scale armor for the militia — replaces iron shields for raid defense and predator blocks.',
+    description: 'Heavy armor for the militia — replaces iron shields for raids and predator blocks.',
     techId: COMBAT_TECH.scaleMail,
     requiresForge: ['iron_shields'],
     inputs: { wood: 35, stone: 55, gold: 75 },
@@ -306,16 +307,18 @@ export function tickVillageForge(state: WorldState, buildings: Building[]): void
 
   if (!isProductionTick(state.tick, PRODUCTION_INTERVAL.workshop)) return;
 
-  forge.progress = Math.min(100, forge.progress + order.progressPerTick);
+  // Extra staffed smiths speed the run (soft cap so 2–3 workers feel better than 1).
+  const crew = Math.max(1, Math.min(3, smith.occupants?.length ?? 1));
+  const pace = order.progressPerTick * (1 + (crew - 1) * 0.35);
+  forge.progress = Math.min(100, forge.progress + pace);
 
-  // Progress shows only on the Blacksmith panel / Village tab — no world float spam.
+  // Progress only on Blacksmith panel / Village Armament — one toast type on finish.
   if (forge.progress < 100) return;
 
   forge.completed[order.id] = true;
   forge.activeOrder = null;
   forge.progress = 0;
 
-  // Same toast channel as the rest of the HUD (top-right layout) — one notification type only.
   addNotification(
     state,
     `${order.emoji} ${order.label} forged`,

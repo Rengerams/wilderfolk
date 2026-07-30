@@ -159,7 +159,7 @@ export default function VillageTabPanel({
         defaultOpen={false}
       >
         <p className="mb-2 text-[11px] leading-relaxed text-stone-500">
-          Stone/wood gear unlocks from Defense research. Iron needs research <strong className="text-stone-400">and</strong> a forge run at a staffed Blacksmith.
+          Stone/wood from Defense research. Iron spears & shields, then swords, scale mail & tower ballistae need research <strong className="text-stone-400">and</strong> a staffed Blacksmith forge run. Finish toast is a normal village alert.
         </p>
         {state.villageForge?.activeOrder && (
           <p className="mb-2 rounded bg-orange-950/40 px-2 py-1 text-[11px] text-orange-200">
@@ -172,7 +172,11 @@ export default function VillageTabPanel({
               (b) => b.completed && b.type === BuildingType.Blacksmith,
             );
             const showForgeGo = !step.done
-              && ['iron_spears', 'iron_shields', 'guard_halberds', 'wall_plates', 'iron_pickaxes'].includes(step.id)
+              && [
+                'iron_spears', 'iron_shields', 'iron_pickaxes',
+                'guard_halberds', 'wall_plates',
+                'iron_swords', 'scale_mail', 'tower_ballistae',
+              ].includes(step.id)
               && smith;
             return (
               <div key={step.id} className={`rounded px-2 py-1 text-[11px] ${step.done ? 'bg-emerald-900/30 text-emerald-300' : 'bg-stone-800/50 text-stone-400'}`}>
