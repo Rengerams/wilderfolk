@@ -47,7 +47,11 @@ export function formatEventSummaryLines(events: readonly GameEventLog[]): string
 
 /** Oldest-first, grouped by event type (weddings, births, deaths, ...). */
 function isWarDeath(message: string): boolean {
-  return message.includes('fell defending');
+  return (
+    message.includes('fell defending') ||
+    message.includes('fell raiding') ||
+    message.includes('fell on the raid')
+  );
 }
 
 function classifyCombatOutcome(message: string, warnOnUnknown = true): string {
@@ -60,7 +64,9 @@ function classifyCombatOutcome(message: string, warnOnUnknown = true): string {
   if (m.includes('held poorly')) return 'barricade_loss';
   if (m.includes('paid ') && m.includes('food')) return 'payoff';
   if (m.includes('no response in time')) return 'expired';
-  if (m.includes('fell defending')) return 'casualties';
+  if (m.includes('fell defending') || m.includes('fell on the raid') || m.includes('fell raiding')) {
+    return 'casualties';
+  }
   if (m.includes('launched a raid')) return 'incoming';
   if (m.includes('raid on ') && m.includes('succeeded')) return 'outgoing_win';
   if (m.includes('raid on ') && m.includes('failed')) return 'outgoing_fail';

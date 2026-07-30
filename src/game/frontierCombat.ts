@@ -583,7 +583,8 @@ export function getRaidCasualtyBounds(tier: RaidCasualtyTier, adultPop: number):
     victory: [1, 2],
     costly: [2, 4],
     moderate: [3, 6],
-    heavy: [6, 10],
+    // Heavy: at least 1 death if any adult; at least 2 when pop >= 2 (via min(pop, floor)).
+    heavy: [7, 12],
   };
   const [minPct, maxPct] = pct[tier];
   const [minFloor, maxFloor] = floor[tier];
@@ -597,6 +598,7 @@ function applyRaidCasualties(
   entities: Entity[],
   tier: RaidCasualtyTier,
   rivalName: string,
+  mode: 'defending' | 'raiding' = 'defending',
 ): number {
   const pool = entities.filter((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile);
   if (pool.length === 0) return 0;
@@ -614,23 +616,29 @@ function applyRaidCasualties(
     const idx = Math.floor(Math.random() * remaining.length);
     victims.push(remaining.splice(idx, 1)[0]);
   }
+  const deathReason =
+    mode === 'raiding' ? `fell raiding ${rivalName}` : 'fell defending the village';
   const entityById = ensureEntityByIdMap(state);
   for (const victim of victims) {
     killHuman(victim, state.buildings, entityById, state.tick);
     logEvent(
       state,
       'death',
-      formatDeathLog(victim, 'fell defending the village'),
+      formatDeathLog(victim, deathReason),
       formatCitizenName(victim),
     );
   }
   const names = victims.map((v) => formatCitizenName(v)).join(', ');
+  const summary =
+    mode === 'raiding'
+      ? `${victims.length} villager${victims.length === 1 ? '' : 's'} fell on the raid against ${rivalName} (${names})`
+      : `${victims.length} villager${victims.length === 1 ? '' : 's'} fell defending against ${rivalName} (${names})`;
   logEvent(
     state,
     'combat',
-    `${victims.length} villager${victims.length === 1 ? '' : 's'} fell defending against ${rivalName} (${names})`,
+    summary,
     rivalName,
-    'defense',
+    mode === 'raiding' ? 'outgoing_raid' : 'defense',
   );
   return victims.length;
 }
@@ -1133,12 +1141,14 @@ function resolveOutgoingRaidCombat(
   rewardRaidParticipants(state, warBand, counterRaidToReward(outcome), rival.name);
 
   flashMilitia(state.entities, 20);
-  state.screenShakeImpulse = Math.max(state.screenShakeImpulse, 4);
+  state.screenShakeImpulse = Math.max(state.screenShakeImpulse, outcome === 'fail' ? 8 : 4);
 
   if (outcome === 'success') {
     const gained = grantRaidSpoils(state, rollOutgoingRaidSpoils(rival, 'success'));
     rival.relationship = 'tense';
     rival.raidCooldownDays = 10;
+    // Raids always cost lives — light victory casualties even on success (EK-D5 partial).
+    applyRaidCasualties(state, state.entities, 'victory', rival.name, 'raiding');
     pushFloat(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Spoils!', '#22c55e');
     const lootNote = formatLootParts(gained);
     logEvent(
@@ -1154,6 +1164,8 @@ function resolveOutgoingRaidCombat(
     rival.relationship = 'tense';
     rival.raidCooldownDays = 14;
     state.villageReputation = Math.max(0, state.villageReputation - 4);
+    // Partial loss of the war-band.
+    applyRaidCasualties(state, state.entities, 'costly', rival.name, 'raiding');
     const lootNote = formatLootParts(gained);
     logEvent(
       state,
@@ -1167,8 +1179,9 @@ function resolveOutgoingRaidCombat(
     state.resources.food = Math.max(0, state.resources.food - 15);
     state.villageReputation = Math.max(0, state.villageReputation - 8);
     rival.relationship = 'tense';
-    applyRaidCasualties(state, state.entities, 'costly', rival.name);
-    pushFloat(state, rival.campX, rival.campY - 20, 'Repelled!', '#f87171');
+    // Lost raid: heavy casualties — guaranteed deaths when adults exist.
+    applyRaidCasualties(state, state.entities, 'heavy', rival.name, 'raiding');
+    pushFloat(state, rival.campX, rival.campY - 20, 'War-band broken!', '#f87171');
     logEvent(state, 'combat', `${verb} on ${rival.name} failed — war-band fought back`, rival.name, 'outgoing_raid');
     // Queue strike-back *before* cooldown — maybeQueueRaid bails when raidCooldownDays > 0
     maybeQueueRaid(state, rival, state.entities.filter((e) => e.alive));
