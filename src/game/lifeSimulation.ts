@@ -88,6 +88,7 @@ import {
   getFemaleFertility,
   getOldAgeDeathChance,
   EVENT_INTERVAL,
+  ticksForDays,
 } from './dayCycle';
 import {
   chatHintsFromWorld,
@@ -1219,7 +1220,8 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
   const prisonerCap = Math.max(1, BUILDING_CONFIGS[BuildingType.Prison].maxOccupants - 1);
   const prison = prisons.find((b) => countPrisonersAt(state, b.id) < prisonerCap) ?? prisons[0];
   if (countPrisonersAt(state, prison.id) >= prisonerCap && offender.prisonBuildingId == null) return;
-  const sentenceTicks = 60 + Math.floor(Math.random() * 80); // ~2.5–6 days
+  // ~2.5–6 days at current TICKS_PER_DAY (not a hard-coded tick count)
+  const sentenceTicks = ticksForDays(2.5 + Math.random() * 3.5);
   const newReleaseTick = state.tick + sentenceTicks;
 
   if (offender.prisonBuildingId != null) {
