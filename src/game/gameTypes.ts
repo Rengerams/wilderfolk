@@ -278,6 +278,10 @@ export interface Entity {
     occupation?: string;
     homeBuildingId?: number;
     residenceBuildingId?: number;
+    /** Prison sentence snapshotted during full-moon hunt (live fields cleared). */
+    prisonBuildingId?: number;
+    prisonerUntilTick?: number;
+    prisonSentenceCrime?: 'scandal';
     relationshipStatus?: 'single' | 'married' | 'expecting';
     partnerId?: number;
     affairPartnerId?: number;
@@ -601,7 +605,10 @@ export type ForgeOrderId =
   | 'iron_shields'
   | 'guard_halberds'
   | 'wall_plates'
-  | 'iron_pickaxes';
+  | 'iron_pickaxes'
+  | 'iron_swords'
+  | 'scale_mail'
+  | 'tower_ballistae';
 
 export interface ForgeOrder {
   id: ForgeOrderId;
@@ -1205,6 +1212,9 @@ export function createInitialResearchNodes(): ResearchNode[] {
     { id: 'defense_5', type: ResearchType.Defense, name: 'Iron Shields', description: 'Unlocks iron shield forge order at Blacksmith — block 60% of predator kills', cost: { wood: 80, stone: 60, food: 0, gold: 90 }, unlocked: false, researched: false, prerequisites: ['defense_3', 'mining_1'], effects: [{ target: 'predator_block', add: 0.6 }, { target: 'flee_speed', multiplier: 1.35 }], icon: '🛡️', tier: 3, forgeUnlockNotify: true },
     { id: 'defense_6', type: ResearchType.Defense, name: 'Militia Drill', description: 'Unlocks Guard Halberds forge order — +6 militia per staffed barracks guard', cost: { wood: 90, stone: 55, food: 0, gold: 100 }, unlocked: false, researched: false, prerequisites: ['defense_4'], effects: [], icon: '🪖', tier: 4 },
     { id: 'defense_7', type: ResearchType.Defense, name: 'Reinforced Masonry', description: 'Unlocks Reinforced Wall Plates forge order — +4 barricade per wall segment', cost: { wood: 100, stone: 90, food: 0, gold: 110 }, unlocked: false, researched: false, prerequisites: ['defense_5', 'defense_1'], effects: [], icon: '🧱', tier: 4 },
+    { id: 'defense_8', type: ResearchType.Defense, name: 'Iron Swords', description: 'Unlocks iron sword forge order — stronger militia than spears · better counter-attacks vs predators', cost: { wood: 95, stone: 70, food: 0, gold: 130 }, unlocked: false, researched: false, prerequisites: ['defense_4', 'defense_6'], effects: [{ target: 'counter_attack', add: 0.55 }, { target: 'hunt_food', multiplier: 1.15 }], icon: '🗡️', tier: 5, forgeUnlockNotify: true },
+    { id: 'defense_9', type: ResearchType.Defense, name: 'Scale Mail', description: 'Unlocks scale mail forge order — heavy armor for settlers · block most predator kills', cost: { wood: 85, stone: 100, food: 0, gold: 140 }, unlocked: false, researched: false, prerequisites: ['defense_5', 'defense_7'], effects: [{ target: 'predator_block', add: 0.72 }, { target: 'flee_speed', multiplier: 1.15 }], icon: '🦺', tier: 5, forgeUnlockNotify: true },
+    { id: 'defense_10', type: ResearchType.Defense, name: 'Bastion Towers', description: 'Unlocks tower ballistae forge order — watchtowers add far more barricade strength', cost: { wood: 110, stone: 120, food: 0, gold: 150 }, unlocked: false, researched: false, prerequisites: ['defense_7', 'defense_1'], effects: [], icon: '🏰', tier: 5, forgeUnlockNotify: true },
   ];
 }
 

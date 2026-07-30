@@ -1,4 +1,4 @@
-import { BuildingType, EntityType, JobType } from './gameTypes';
+import { BUILDING_CONFIGS, BuildingType, EntityType, JobType } from './gameTypes';
 import type { Building, Entity, EntityByType, WorldState } from './gameTypes';
 import {
   WEREWOLF_ATTACK_LINES,
@@ -15,7 +15,14 @@ import {
   NIGHT_END,
   NIGHT_START,
 } from './dayCycleConstants';
-import { killHuman, syncResidenceOccupants, TICKS_PER_HOUR } from './dayCycle';
+import {
+  assignMissingResidences,
+  countResidentsInBuilding,
+  getResidenceCapacity,
+  killHuman,
+  syncResidenceOccupants,
+  TICKS_PER_HOUR,
+} from './dayCycle';
 import { isPlayerHuman } from './playerHuman';
 import { buildEntityByType } from './simFocus';
 import {
@@ -25,6 +32,7 @@ import {
   impulseScreenShake,
 } from './simEffects';
 import { logEvent } from './eventLog';
+import { assignMissingWorkers, countWorkersAtBuilding } from './workforce';
 
 /**
  * Night exorcism — only if a Church is **staffed** (priest on duty).
@@ -141,6 +149,10 @@ export interface MoonHowlerSavedState {
   occupation?: string;
   homeBuildingId?: number;
   residenceBuildingId?: number;
+  /** Prison sentence — live fields cleared during hunt; restored at dawn if still active. */
+  prisonBuildingId?: number;
+  prisonerUntilTick?: number;
+  prisonSentenceCrime?: Entity['prisonSentenceCrime'];
   relationshipStatus?: Entity['relationshipStatus'];
   partnerId?: number;
   affairPartnerId?: number;
@@ -151,6 +163,27 @@ export interface MoonHowlerSavedState {
   pregnancyProgress?: number;
   huntTargetId?: number;
   combatTicks?: number;
+}
+
+function detachEntityFromBuildingOccupants(buildings: Building[], buildingId: number | undefined, entityId: number): void {
+  if (buildingId == null) return;
+  const b = buildings.find((x) => x.id === buildingId);
+  if (b) b.occupants = b.occupants.filter((id) => id !== entityId);
+}
+
+function countPrisonersAtBuilding(humans: Entity[], prisonId: number, excludeId?: number): number {
+  return humans.filter(
+    (e) =>
+      e.alive
+      && e.type === EntityType.Human
+      && e.prisonBuildingId === prisonId
+      && e.id !== excludeId,
+  ).length;
+}
+
+/** Scandal / sentence prisoner cap — match arrestForScandal (guards use maxOccupants slots). */
+function prisonPrisonerCap(): number {
+  return Math.max(1, BUILDING_CONFIGS[BuildingType.Prison].maxOccupants - 1);
 }
 
 /** True while the settler should be in werewolf form (full-moon night through pre-dawn). */
@@ -217,34 +250,41 @@ export function curseMoonHowler(human: Entity): void {
   human.flash = 10;
 }
 
-/** Push the howler out of buildings into the open night. */
+/**
+ * Push the howler into the open night.
+ * Position nudge always. Detach job/home/prison occupants via saved (or live) ids.
+ * Never wipe live prison fields unless the sentence is already in moonHowlerSaved.
+ */
 export function forceMoonHowlerOutside(
   entity: Entity,
   buildings: Building[],
   mapWidth: number,
   mapHeight: number,
 ): void {
-  // Detach from workplace / residence / prison so AI doesn't commute home mid-hunt.
-  if (entity.homeBuildingId != null) {
-    const job = buildings.find((b) => b.id === entity.homeBuildingId);
-    if (job) job.occupants = job.occupants.filter((id) => id !== entity.id);
-    entity.homeBuildingId = undefined;
-  }
-  if (entity.residenceBuildingId != null) {
-    const home = buildings.find((b) => b.id === entity.residenceBuildingId);
-    if (home) home.occupants = home.occupants.filter((id) => id !== entity.id);
-    // Keep id in moonHowlerSaved for morning restore; clear active residence so they don't path home.
-    entity.residenceBuildingId = undefined;
-  }
-  if (entity.prisonBuildingId != null) {
-    const prison = buildings.find((b) => b.id === entity.prisonBuildingId);
-    if (prison) prison.occupants = prison.occupants.filter((id) => id !== entity.id);
+  const saved = entity.moonHowlerSaved;
+  const jobId = entity.homeBuildingId ?? saved?.homeBuildingId;
+  const residenceId = entity.residenceBuildingId ?? saved?.residenceBuildingId;
+  const prisonId = entity.prisonBuildingId ?? saved?.prisonBuildingId;
+
+  detachEntityFromBuildingOccupants(buildings, jobId, entity.id);
+  detachEntityFromBuildingOccupants(buildings, residenceId, entity.id);
+  detachEntityFromBuildingOccupants(buildings, prisonId, entity.id);
+
+  if (entity.homeBuildingId != null) entity.homeBuildingId = undefined;
+  if (entity.residenceBuildingId != null) entity.residenceBuildingId = undefined;
+
+  // Only clear live prison when sentence is snapshotted (EK-C2).
+  if (
+    entity.prisonBuildingId != null
+    && saved
+    && (saved.prisonBuildingId != null || saved.prisonerUntilTick != null)
+  ) {
     entity.prisonBuildingId = undefined;
     entity.prisonerUntilTick = undefined;
     entity.prisonSentenceCrime = undefined;
   }
 
-  // Nudge away from map center-ish open ground (small random walk from current pos).
+  // Nudge away from buildings into open ground.
   const angle = Math.random() * Math.PI * 2;
   const dist = 40 + Math.random() * 50;
   entity.x = Math.max(24, Math.min(mapWidth - 24, entity.x + Math.cos(angle) * dist));
@@ -254,8 +294,16 @@ export function forceMoonHowlerOutside(
   entity.spriteAngle = angle;
 }
 
-export function transformToWerewolfForm(human: Entity): void {
+/**
+ * Snapshot human form + job/home/prison; detach from building occupants; clear live assignment ids.
+ * Pass buildings so occupants arrays stay consistent during the hunt.
+ */
+export function transformToWerewolfForm(human: Entity, buildings?: Building[]): void {
   const cfg = WEREWOLF_FORM;
+  const liveJobId = human.homeBuildingId;
+  const liveResidenceId = human.residenceBuildingId;
+  const livePrisonId = human.prisonBuildingId;
+
   human.moonHowlerSaved = {
     energy: human.energy,
     maxEnergy: human.maxEnergy,
@@ -263,8 +311,11 @@ export function transformToWerewolfForm(human: Entity): void {
     size: human.size,
     job: human.job,
     occupation: human.occupation,
-    homeBuildingId: human.homeBuildingId,
-    residenceBuildingId: human.residenceBuildingId,
+    homeBuildingId: liveJobId,
+    residenceBuildingId: liveResidenceId,
+    prisonBuildingId: livePrisonId,
+    prisonerUntilTick: human.prisonerUntilTick,
+    prisonSentenceCrime: human.prisonSentenceCrime,
     relationshipStatus: human.relationshipStatus,
     partnerId: human.partnerId,
     affairPartnerId: human.affairPartnerId,
@@ -276,6 +327,13 @@ export function transformToWerewolfForm(human: Entity): void {
     huntTargetId: human.huntTargetId,
     combatTicks: human.combatTicks,
   };
+
+  if (buildings) {
+    detachEntityFromBuildingOccupants(buildings, liveJobId, human.id);
+    detachEntityFromBuildingOccupants(buildings, liveResidenceId, human.id);
+    detachEntityFromBuildingOccupants(buildings, livePrisonId, human.id);
+  }
+
   human.type = EntityType.Werewolf;
   human.huntTargetId = undefined;
   human.combatTicks = 0;
@@ -287,23 +345,40 @@ export function transformToWerewolfForm(human: Entity): void {
   human.speed = cfg.speed;
   human.size = cfg.size;
   human.flash = 12;
-  // Do not path home during the hunt
+  // Sentence / job / home only in moonHowlerSaved during hunt (EK-C1/C2).
   human.homeBuildingId = undefined;
   human.residenceBuildingId = undefined;
+  human.prisonBuildingId = undefined;
+  human.prisonerUntilTick = undefined;
+  human.prisonSentenceCrime = undefined;
 }
 
-export function revertToHumanForm(were: Entity): void {
+export interface RevertToHumanFormOptions {
+  buildings?: Building[];
+  humans?: Entity[];
+  tick?: number;
+}
+
+/**
+ * Cap-aware dawn restore (EK-C1):
+ * 1) Prison if sentence still active and room (same cap as arrestForScandal)
+ * 2) Else job if workplace has free worker slot
+ * 3) Else residence if capacity remains
+ * Stolen/missing slots → Settler / no home (assignMissing* fills later).
+ * Dead entities never re-enter occupants arrays.
+ */
+export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions): void {
   const cfg = HUMAN_FORM;
   const saved = were.moonHowlerSaved;
+  const buildings = opts?.buildings;
+  const humans = opts?.humans;
+  const tick = opts?.tick;
+
   were.type = EntityType.Human;
   were.maxEnergy = saved?.maxEnergy ?? cfg.maxEnergy;
   were.energy = Math.min(were.maxEnergy, saved?.energy ?? cfg.maxEnergy * 0.55);
   were.speed = saved?.speed ?? cfg.speed;
   were.size = saved?.size ?? cfg.size;
-  were.job = saved?.job ?? JobType.Settler;
-  were.occupation = saved?.occupation ?? 'settler';
-  were.homeBuildingId = saved?.homeBuildingId;
-  were.residenceBuildingId = saved?.residenceBuildingId;
   were.relationshipStatus = saved?.relationshipStatus;
   were.partnerId = saved?.partnerId;
   were.affairPartnerId = saved?.affairPartnerId;
@@ -316,6 +391,95 @@ export function revertToHumanForm(were: Entity): void {
   were.combatTicks = saved?.combatTicks ?? 0;
   were.moonHowlerSaved = undefined;
   were.flash = 8;
+
+  // Default: no workplace / home / prison until cap checks pass.
+  were.job = JobType.Settler;
+  were.occupation = 'settler';
+  were.homeBuildingId = undefined;
+  were.residenceBuildingId = undefined;
+  were.prisonBuildingId = undefined;
+  were.prisonerUntilTick = undefined;
+  were.prisonSentenceCrime = undefined;
+
+  // Death path: human form for stats/save only — do not re-push onto occupants.
+  if (!were.alive || !saved) return;
+
+  // Without world context, restore ids best-effort (legacy / cure without buildings).
+  if (!buildings || !humans) {
+    const sentenceActive =
+      saved.prisonBuildingId != null
+      && saved.prisonerUntilTick != null
+      && (tick == null || tick < saved.prisonerUntilTick);
+    if (sentenceActive) {
+      were.prisonBuildingId = saved.prisonBuildingId;
+      were.prisonerUntilTick = saved.prisonerUntilTick;
+      were.prisonSentenceCrime = saved.prisonSentenceCrime;
+      return;
+    }
+    were.job = saved.job ?? JobType.Settler;
+    were.occupation = saved.occupation ?? 'settler';
+    were.homeBuildingId = saved.homeBuildingId;
+    were.residenceBuildingId = saved.residenceBuildingId;
+    return;
+  }
+
+  const sentenceActive =
+    saved.prisonBuildingId != null
+    && saved.prisonerUntilTick != null
+    && (tick == null || tick < saved.prisonerUntilTick);
+
+  if (sentenceActive) {
+    const prison = buildings.find(
+      (b) => b.id === saved.prisonBuildingId && b.completed && b.type === BuildingType.Prison,
+    );
+    if (prison) {
+      const cap = prisonPrisonerCap();
+      const held = countPrisonersAtBuilding(humans, prison.id, were.id);
+      if (held < cap) {
+        were.prisonBuildingId = prison.id;
+        were.prisonerUntilTick = saved.prisonerUntilTick;
+        were.prisonSentenceCrime = saved.prisonSentenceCrime;
+        if (!prison.occupants.includes(were.id)) prison.occupants.push(were.id);
+        were.x = prison.x + (Math.random() - 0.5) * 12;
+        were.y = prison.y + (Math.random() - 0.5) * 8;
+        were.vx = 0;
+        were.vy = 0;
+        return;
+      }
+    }
+    // No room / missing prison — free; assignMissing* may re-house later.
+  }
+
+  // Job if building free (countWorkersAtBuilding < maxOccupants).
+  if (saved.homeBuildingId != null) {
+    const jobSite = buildings.find((b) => b.id === saved.homeBuildingId && b.completed && b.faction !== 'rival');
+    if (jobSite) {
+      const maxOcc = BUILDING_CONFIGS[jobSite.type]?.maxOccupants ?? 0;
+      const workers = countWorkersAtBuilding(humans, jobSite.id);
+      // Count self if already restored (we are not yet assigned).
+      if (workers < maxOcc) {
+        were.homeBuildingId = jobSite.id;
+        were.job = saved.job ?? JobType.Settler;
+        were.occupation = saved.occupation ?? 'settler';
+        if (!jobSite.occupants.includes(were.id)) jobSite.occupants.push(were.id);
+      }
+    }
+  }
+
+  // Residence if room (countResidentsInBuilding < capacity).
+  if (saved.residenceBuildingId != null) {
+    const home = buildings.find(
+      (b) => b.id === saved.residenceBuildingId && b.completed && b.faction !== 'rival',
+    );
+    if (home) {
+      const cap = getResidenceCapacity(home);
+      const residents = countResidentsInBuilding(humans, home.id);
+      if (residents < cap) {
+        were.residenceBuildingId = home.id;
+        if (!home.occupants.includes(were.id)) home.occupants.push(were.id);
+      }
+    }
+  }
 }
 
 export function cureMoonHowler(entity: Entity): void {
@@ -617,23 +781,33 @@ export function syncMoonHowlerForms(
   buildings?: Building[],
   mapWidth = 1200,
   mapHeight = 900,
+  tick?: number,
 ): MoonHowlerSyncResult {
   const transformTick = isMoonHowlerTransformTick(colonyDay, hourOfDay);
   const revertTick = isMoonHowlerRevertTick(hourOfDay);
   const transformed: Entity[] = [];
   const reverted: Entity[] = [];
+  const humans = entities.filter((e) => e.alive && e.type === EntityType.Human);
+  const revertOpts =
+    buildings
+      ? { buildings, humans, tick }
+      : tick != null
+        ? { tick }
+        : undefined;
 
   for (const entity of entities) {
     if (!entity.alive || !entity.moonHowlerCursed || !isMoonHowlerEligible(entity)) continue;
 
     if (transformTick && entity.type === EntityType.Human) {
-      transformToWerewolfForm(entity);
+      transformToWerewolfForm(entity, buildings);
       if (buildings) {
         forceMoonHowlerOutside(entity, buildings, mapWidth, mapHeight);
       }
       transformed.push(entity);
     } else if (revertTick && entity.type === EntityType.Werewolf) {
-      revertToHumanForm(entity);
+      revertToHumanForm(entity, revertOpts);
+      // After form change, include them in subsequent cap counts if more reverts same tick.
+      if (!humans.includes(entity)) humans.push(entity);
       reverted.push(entity);
     }
   }
@@ -674,13 +848,26 @@ export function tickMoonHowlerCycle(
   let byType = buildEntityByType(aliveEntities);
   let changed = false;
 
-  const moonSync = syncMoonHowlerForms(aliveEntities, colonyDay, hourOfDay, buildings, state.width, state.height);
+  const moonSync = syncMoonHowlerForms(
+    aliveEntities,
+    colonyDay,
+    hourOfDay,
+    buildings,
+    state.width,
+    state.height,
+    state.tick,
+  );
   if (moonSync.transformed.length > 0 || moonSync.reverted.length > 0) {
     byType = buildEntityByType(aliveEntities);
     syncResidenceOccupants(
       aliveEntities.filter((e) => e.alive && e.type === EntityType.Human),
       buildings,
     );
+    if (moonSync.reverted.length > 0) {
+      const villagers = aliveEntities.filter((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e));
+      assignMissingResidences(villagers, buildings, aliveEntities);
+      assignMissingWorkers(villagers, buildings);
+    }
     changed = true;
   }
 
@@ -704,8 +891,13 @@ export function tickMoonHowlerCycle(
     if (human) {
       const who = human.name ? `${human.name}${human.surname ? ` ${human.surname}` : ''}` : 'A settler';
       curseMoonHowler(human);
-      transformToWerewolfForm(human);
+      transformToWerewolfForm(human, buildings);
+      forceMoonHowlerOutside(human, buildings, state.width, state.height);
       byType = buildEntityByType(aliveEntities);
+      syncResidenceOccupants(
+        aliveEntities.filter((e) => e.alive && e.type === EntityType.Human),
+        buildings,
+      );
       changed = true;
       const line = WEREWOLF_CURSE_LINES[Math.floor(Math.random() * WEREWOLF_CURSE_LINES.length)](who);
       addBigNews(state, '🌝 Moon Howler Curse!', line, 'negative');
