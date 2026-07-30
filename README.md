@@ -219,7 +219,8 @@ Tutorial, thesis, and warning label in one line.
 | | |
 |--|--|
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |
-| Roadmap | [ROADMAP.md](ROADMAP.md) · [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) |
+| Roadmap | [ROADMAP.md](ROADMAP.md) · [docs/archive/ROADMAP_0.5.0.md](docs/archive/ROADMAP_0.5.0.md) (0.5 archive) |
+| Marketing | [docs/MARKETING_v0.5.0.md](docs/MARKETING_v0.5.0.md) |
 | Dev server | `npm start` / `npm run dev` |
 | Lint | `npm run lint` |
 | Tests | `npm test` |

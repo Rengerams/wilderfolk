@@ -1,4 +1,4 @@
-/** In-game roadmap — one table per version. Dev detail: ../../ROADMAP_0.5.0.md */
+/** In-game roadmap — one table per version. Archive: docs/archive/ROADMAP_0.5.0.md */
 
 export type RoadmapFeatureStatus = 'done' | 'partial' | 'open';
 

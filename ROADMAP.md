@@ -3,7 +3,7 @@
 *Last updated: **July 30, 2026** · playing **v0.5.0** · *The valley scales — kin, beasts, and forge-steel.*
 
 **Doc map (avoid duplicates):**  
-Player story → [README.md](README.md) · Version list (this file) · Release notes → [CHANGELOG.md](CHANGELOG.md) · 0.5 archive → [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) · Marketing kit → [docs/MARKETING_v0.5.0.md](docs/MARKETING_v0.5.0.md) · In-game tab → `roadmapContent.ts`
+Player story → [README.md](README.md) · Version list (this file) · Release notes → [CHANGELOG.md](CHANGELOG.md) · 0.5 archive → [docs/archive/ROADMAP_0.5.0.md](docs/archive/ROADMAP_0.5.0.md) · Marketing kit → [docs/MARKETING_v0.5.0.md](docs/MARKETING_v0.5.0.md) · In-game tab → `roadmapContent.ts`
 
 ---
 
@@ -106,4 +106,4 @@ Full write-up → [CHANGELOG.md](CHANGELOG.md) `[0.5.0]`
 
 ---
 
-<p align="center"><em><strong>v0.5.0 shipped</strong> · July 30, 2026 · <a href="ROADMAP_0.5.0.md">milestone archive</a></em></p>
+<p align="center"><em><strong>v0.5.0 shipped</strong> · July 30, 2026 · <a href="docs/archive/ROADMAP_0.5.0.md">milestone archive</a></em></p>
