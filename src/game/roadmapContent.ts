@@ -15,7 +15,7 @@ export interface RoadmapVersion {
   features: RoadmapFeature[];
 }
 
-export const ROADMAP_TARGET_VERSION = '0.5.0';
+export const ROADMAP_TARGET_VERSION = '0.5.1';
 
 export const ROADMAP_NORTH_STAR =
   'A cozy frontier eco-sim where settlers live on a schedule, the food chain matters, the valley feels alive with other people and tribes — and you always know what to do next.';
@@ -24,6 +24,17 @@ const DONE = (label: string): RoadmapFeature => ({ label, status: 'done' });
 
 /** Newest first. Shipped versions list done work only (positive player-facing story). */
 export const ROADMAP_VERSIONS: RoadmapVersion[] = [
+  {
+    version: '0.5.1',
+    theme: 'Clearer valley — truer sim, clearer frontier',
+    shipDate: '2026-07-30',
+    features: [
+      DONE('Fairer raid spoils — gold soft-capped so hauls stay grounded'),
+      DONE('Clearer outgoing raid marches on the map'),
+      DONE('Stronger strained-valley cues when game runs thin'),
+      DONE('v0.5.1 — continue colonies from 0.4.x / 0.5.0'),
+    ],
+  },
   {
     version: '0.5.0',
     theme: 'The valley scales — kin, beasts, and forge-steel',

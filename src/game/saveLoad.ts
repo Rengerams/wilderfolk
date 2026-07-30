@@ -43,7 +43,7 @@ import { migrateVillageForgeOnLoad } from './forge';
 
 const SAVE_KEY = 'ecosim_save';
 /** Supported colony save versions. */
-const COMPATIBLE_SAVE_VERSIONS = ['0.4', '0.4.1', '0.4.2', '0.5.0'] as const;
+const COMPATIBLE_SAVE_VERSIONS = ['0.4', '0.4.1', '0.4.2', '0.5.0', '0.5.1'] as const;
 
 /** Restore entity fields that must survive save/load (see ENTITY_PERSISTED_FIELDS). */
 function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): void {
@@ -394,6 +394,18 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
       applySaveMigration(
         'v0.5.0',
         'Save migrated to v0.5.0 — scale foundation, sim trust pass (Batch EK), and forge tier 5 (swords, scale mail, ballistae).',
+      );
+    }
+
+    if (
+      saveVersion === '0.5.0' ||
+      saveVersion === '0.4.2' ||
+      saveVersion === '0.4.1' ||
+      saveVersion === '0.4'
+    ) {
+      applySaveMigration(
+        'v0.5.1',
+        'Save migrated to v0.5.1 — clearer valley: fairer raid spoils and presentation polish.',
       );
     }
 

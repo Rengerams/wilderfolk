@@ -1,24 +1,24 @@
 # Wilderfolk Roadmap
 
-*Last updated: **July 30, 2026** · playing **v0.5.0** · *The valley scales — kin, beasts, and forge-steel.*
+*Last updated: **July 30, 2026** · playing **v0.5.1** · *Clearer valley — truer sim, clearer frontier.*
 
 **Doc map (avoid duplicates):**  
 Player story → [README.md](README.md) · Version list (this file) · Release notes → [CHANGELOG.md](CHANGELOG.md) · 0.5 archive → [docs/archive/ROADMAP_0.5.0.md](docs/archive/ROADMAP_0.5.0.md) · Marketing kit → [docs/MARKETING_v0.5.0.md](docs/MARKETING_v0.5.0.md) · In-game tab → `roadmapContent.ts`
 
 ---
 
-## v0.5.1 — Clearer valley *(target: end of August 2026)*
+## v0.5.1 — Clearer valley
 
-**In progress** · builds on 0.5.0 · *The valley feels truer and clearer.*
+**Shipped:** 2026-07-30 · `GAME_VERSION` **0.5.1** · continue **0.4.x / 0.5.0 → 0.5.1** colonies · *The valley feels truer and clearer.*
 
-| Track | What you will notice |
-|-------|----------------------|
-| **Play** | Smoother sessions — fixes from real play |
-| **Truth** | The valley makes sense — fairer raids & readable ecology |
-| **Looks** | The frontier reads on the map — clearer cues and polish |
+| | Feature |
+|:--:|---------|
+| 🟢 | **Truth** — fairer outgoing raid gold (soft-cap so spoils stay grounded) |
+| 🟢 | **Looks** — clearer outgoing raid march lines on the map |
+| 🟢 | **Looks / Truth** — stronger strained-valley cues when game runs thin |
+| 🟢 | Colony saves continue from **0.4 / 0.4.1 / 0.4.2 / 0.5.0** |
 
-Ship when: a normal session has no known blockers, plus at least one Truth and one Looks improvement.  
-Detail → [docs/archive/2026-07-30-v0.5.1-roadmap-design.md](docs/archive/2026-07-30-v0.5.1-roadmap-design.md) · plan → [docs/plans/2026-07-30-v0.5.1-implementation-plan.md](docs/plans/2026-07-30-v0.5.1-implementation-plan.md)
+Full write-up → [CHANGELOG.md](CHANGELOG.md) `[0.5.1]` · design → [docs/archive/2026-07-30-v0.5.1-roadmap-design.md](docs/archive/2026-07-30-v0.5.1-roadmap-design.md)
 
 ---
 
@@ -121,4 +121,4 @@ Full write-up → [CHANGELOG.md](CHANGELOG.md) `[0.5.0]`
 
 ---
 
-<p align="center"><em><strong>v0.5.0 shipped</strong> · July 30, 2026 · <a href="docs/archive/ROADMAP_0.5.0.md">milestone archive</a></em></p>
+<p align="center"><em><strong>v0.5.1 shipped</strong> · July 30, 2026 · clearer valley · <a href="docs/archive/ROADMAP_0.5.0.md">0.5.0 milestone archive</a></em></p>

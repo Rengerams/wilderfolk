@@ -10,9 +10,17 @@
 </p>
 
 <p align="center">
-  <strong>v0.5.0</strong> · Early Alpha<br>
+  <strong>v0.5.1</strong> · Early Alpha · current<br>
   A cozy frontier colony sim — inside the food chain, not on top of it
 </p>
+
+---
+
+# 🌿 v0.5.1 — Clearer valley
+
+**The valley feels truer and clearer** — fairer raid spoils, clearer marches, and stronger cues when the wild runs thin. Continues **0.4 / 0.5.0** colonies.
+
+Full notes → [CHANGELOG.md](CHANGELOG.md) `[0.5.1]` · Roadmap → [ROADMAP.md](ROADMAP.md)
 
 ---
 

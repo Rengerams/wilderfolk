@@ -4,6 +4,23 @@
 
 ---
 
+## [0.5.1] — 2026-07-30
+
+**The valley feels truer and clearer.**
+
+`GAME_VERSION` **0.5.1** · continue colonies from **0.4.x / 0.5.0**.  
+Feature table → [ROADMAP.md](ROADMAP.md)
+
+### Changed
+- **Raid gold soft-cap** on outgoing spoils — hauls stay grounded as the treasury grows (EK-D5)
+- **Outgoing raid march lines** — clearer on the map so your parties read at a glance
+- **Strained-valley cues** — stronger player-facing signals when wildlife and yields thin out
+
+### Saves
+- Continues **0.4 / 0.4.1 / 0.4.2 / 0.5.0 → 0.5.1**
+
+---
+
 ## [0.5.0] — 2026-07-30
 
 **The valley scales — kin, beasts, and forge-steel.**
