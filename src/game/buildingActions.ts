@@ -538,12 +538,26 @@ export function assignIdleWorkerToBuilding(originalState: WorldState, buildingId
   let idleHuman = pickAdultSettler(
     state,
     preferredHumanId,
-    (e) => isPlayerHuman(e) && !e.isJuvenile && !hasWorkAssignment(e) && !isImprisoned(e),
+    (e) =>
+      isPlayerHuman(e)
+      && e.alive
+      && !e.isJuvenile
+      && !e.pregnant
+      && !hasWorkAssignment(e)
+      && !isImprisoned(e)
+      && !isOnConstructionCrew(state, e.id),
   );
 
   if (!idleHuman && preferredHumanId === undefined) {
     const candidates = state.entities.filter(
-      (e) => isPlayerHuman(e) && !e.isJuvenile && !hasWorkAssignment(e) && !isImprisoned(e),
+      (e) =>
+        isPlayerHuman(e)
+        && e.alive
+        && !e.isJuvenile
+        && !e.pregnant
+        && !hasWorkAssignment(e)
+        && !isImprisoned(e)
+        && !isOnConstructionCrew(state, e.id),
     );
     candidates.sort((a, b) => readSkill(b, job) - readSkill(a, job));
     idleHuman = candidates[0];
@@ -972,6 +986,7 @@ export function tameEntity(originalState: WorldState, entityId: number, humanId:
 const AUTO_JOB_BUILDING_PRIORITY: BuildingType[] = [
   BuildingType.Farm,
   BuildingType.Greenhouse,
+  BuildingType.HuntingSpot,
   BuildingType.LumberMill,
   BuildingType.Quarry,
   BuildingType.Mine,
@@ -983,6 +998,8 @@ const AUTO_JOB_BUILDING_PRIORITY: BuildingType[] = [
   BuildingType.Hospital,
   BuildingType.TownHall,
   BuildingType.Church,
+  BuildingType.Tavern,
+  BuildingType.Hotel,
 ];
 
 function jobBuildingPriority(type: BuildingType): number {

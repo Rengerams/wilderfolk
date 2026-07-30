@@ -520,6 +520,7 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
     ? 1.4
     : 1;
 
+  let festivalStartedThisTick = false;
   if (
     !state.festival
     && state.tick >= (state.townHallFestivalCooldownUntilTick ?? 0)
@@ -534,9 +535,11 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
     state.villageReputation = Math.min(100, state.villageReputation + 10);
     addBigNews(state, '🎉 Festival!', `${name} has begun! Production, courtship, and immigration are boosted for ${state.festival.daysLeft} days.`, 'positive');
     logEvent(state, 'season', `${name} festival began in the village`);
+    festivalStartedThisTick = true;
   }
 
-  if (state.festival && state.tick > 0 && state.tick % TICKS_PER_DAY === 0) {
+  // Don't burn a day on the same tick the festival starts
+  if (state.festival && !festivalStartedThisTick && state.tick > 0 && state.tick % TICKS_PER_DAY === 0) {
     state.festival.daysLeft--;
     if (state.festival.daysLeft <= 0) {
       addBigNews(state, '🎉 Festival Ended', `${state.festival.name} is over. The village returns to normal.`, 'neutral');

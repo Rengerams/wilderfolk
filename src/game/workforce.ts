@@ -16,6 +16,7 @@ function isOnConstructionCrew(human: Entity, buildings: Building[]): boolean {
 const AUTO_JOB_BUILDING_PRIORITY: BuildingType[] = [
   BuildingType.Farm,
   BuildingType.Greenhouse,
+  BuildingType.HuntingSpot,
   BuildingType.LumberMill,
   BuildingType.Quarry,
   BuildingType.Mine,
@@ -476,11 +477,9 @@ export function releasePrisoners(state: WorldState): void {
     released = true;
   }
   if (released) {
-    assignMissingResidences(
-      state.entities.filter((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e)),
-      state.buildings,
-      state.entities,
-    );
+    const villagers = state.entities.filter((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e));
+    assignMissingResidences(villagers, state.buildings, state.entities);
+    assignMissingWorkers(villagers, state.buildings);
   }
 }
 

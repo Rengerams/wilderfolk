@@ -1224,17 +1224,24 @@ function admitRefugees(
   max: number,
 ): number {
   let joined = 0;
-  for (let i = 0; i < max; i++) {
-    if (currentPopulation + joined >= state.maxHumanPopulation) break;
-    const ent = createFactionHuman(state, group.campX, group.campY, 'visitor', group.id, getRandomSurname());
+  const stillCamping: number[] = [];
+  // Convert camp members into settlers — do not spawn brand-new humans
+  for (const id of group.entityIds) {
+    const ent = allAlive.find((e) => e.id === id && e.alive);
+    if (!ent || ent.faction !== 'visitor') continue;
+    if (joined >= max || currentPopulation + joined >= state.maxHumanPopulation) {
+      stillCamping.push(id);
+      continue;
+    }
     ent.faction = undefined;
+    ent.groupId = undefined;
     ent.occupation = 'settler';
     ent.job = JobType.Settler;
+    ent.reproductionCooldown = 0;
     finalizeSettlerAge(ent, state);
-    allAlive.push(ent);
-    indexLivingEntity(state, ent);
     joined++;
   }
+  group.entityIds = stillCamping;
   return joined;
 }
 

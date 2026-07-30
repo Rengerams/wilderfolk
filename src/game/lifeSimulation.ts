@@ -843,6 +843,9 @@ function startMarriedPregnancy(state: WorldState, entity: Entity, partner: Entit
   entity.pregnantById = undefined;
   entity.pregnancyProgress = 0;
   entity.relationshipStatus = 'expecting';
+  if (partner.relationshipStatus === 'married' || partner.partnerId === entity.id) {
+    partner.relationshipStatus = 'expecting';
+  }
   entity.flash = 15;
   partner.flash = 15;
   createDeathParticles(state, entity.x, entity.y - 8, '#ffb6c1', 10, 'heart');
@@ -1838,7 +1841,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
       suppressIdle = true;
       onSchedule = true;
-      settlerChat(entity, 'fear', 0.14);
+      settlerChat(entity, 'fear', 0.14 * PER_TICK_RATE_SCALE);
     } else if (inElectionCeremony && state.electionCeremony) {
       const target = getElectionGatherTarget(state, entity.id);
       const dx = target.x - entity.x;
@@ -2272,19 +2275,22 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             entity.vx *= 0.6;
             entity.vy *= 0.6;
             suppressIdle = true;
-            if (Math.random() < 0.4) {
+            if (Math.random() < 0.4 * PER_TICK_RATE_SCALE) {
               settlerPairChat(entity, closest, 'courtship', 0.85);
-            } else {
+            } else if (Math.random() < 0.5 * PER_TICK_RATE_SCALE) {
               settlerPairChat(entity, closest, 'courtship', 0.1);
             }
-            const hasPerformers = state.visitorGroups.some((g) => g.kind === 'performers' && g.daysLeft > 0);
-            const courtRate = (4 + churchStrength * 2)
-              * (state.festival?.active ? 2 : 1)
-              * (hasPerformers ? 1.35 : 1)
-              * (livingTogether ? 1.5 : 1)
-              * PER_TICK_RATE_SCALE;
-            entity.courtshipProgress = Math.min(100, (entity.courtshipProgress || 0) + courtRate);
-            closest.courtshipProgress = Math.min(100, (closest.courtshipProgress || 0) + courtRate);
+            // Only the lower-id partner applies progress (avoids 2× when both tick)
+            if (entity.id < closest.id) {
+              const hasPerformers = state.visitorGroups.some((g) => g.kind === 'performers' && g.daysLeft > 0);
+              const courtRate = (4 + churchStrength * 2)
+                * (state.festival?.active ? 2 : 1)
+                * (hasPerformers ? 1.35 : 1)
+                * (livingTogether ? 1.5 : 1)
+                * PER_TICK_RATE_SCALE;
+              entity.courtshipProgress = Math.min(100, (entity.courtshipProgress || 0) + courtRate);
+              closest.courtshipProgress = Math.min(100, (closest.courtshipProgress || 0) + courtRate);
+            }
 
             if (Math.random() < 0.08 * PER_TICK_RATE_SCALE) {
               state.deathParticles.push({
@@ -2736,7 +2742,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           if (home?.completed) {
             commuteHumanToBuilding(entity, home, config.speed * (impulse.motive === 'sick_day' ? 0.7 : 0.9), true, 2.2);
             if (impulse.motive === 'sick_day') {
-              entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.25);
+              entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.25 * PER_TICK_RATE_SCALE);
             }
             suppressIdle = true;
           }
@@ -2769,7 +2775,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
           } else if (impulse.motive === 'comfort_neighbor') {
             settlerPairChat(entity, c, 'social', 0.12);
-            c.energy = Math.min(c.maxEnergy, c.energy + 0.15);
+            c.energy = Math.min(c.maxEnergy, c.energy + 0.15 * PER_TICK_RATE_SCALE);
           } else if (impulse.motive === 'care_pregnant') {
             settlerPairChat(entity, c, 'home', 0.12);
           }
@@ -2787,7 +2793,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             entity.vy *= 0.2;
             if (Math.random() < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1);
           } else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') {
-            entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.2);
+            entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.2 * PER_TICK_RATE_SCALE);
             settlerChat(entity, 'social', 0.1);
           }
           suppressIdle = true;
@@ -2925,7 +2931,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         if (well) {
           const arrived = steerTo(well.x + well.width / 2, well.y + well.height / 2, 0.45, 12);
           if (arrived) {
-            entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.35);
+            entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.35 * PER_TICK_RATE_SCALE);
           }
         } else {
           steerTo(
@@ -3393,11 +3399,9 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             state, caughtPrey.id, entity.id, state.tick, caughtPrey.combatRollSeed ?? 0,
           )) {
             const victimId = caughtPrey.id;
-            entity.alive = false;
-            entityById.delete(entity.id);
-            wildlifeDeathsThisTick.add(entity.id);
+            // Full death path — cursed howlers need killHuman via markWildlifeDead
+            markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick);
             syncEntityGrids(ctx, entity);
-            entity.huntTargetId = undefined;
             clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId);
             caughtPrey.combatTicks = 18;
             caughtPrey.flash = 12;

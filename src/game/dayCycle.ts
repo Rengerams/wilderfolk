@@ -298,7 +298,7 @@ export function getHourOfDay(tick: number): number {
 
 export function getCalendarDay(tick: number): number {
   if (tick <= 0) return 0;
-  return Math.floor(tick / TICKS_PER_DAY) % 360;
+  return Math.floor(tick / TICKS_PER_DAY) % DAYS_PER_YEAR;
 }
 
 /** Monotonic colony day index (never wraps within a save). */
@@ -578,6 +578,8 @@ function humanById(humans: Entity[], id: number | undefined): Entity | undefined
 }
 
 function isMinorChild(child: Entity): boolean {
+  // Married / partnered settlers are emancipated for housing (EK-E1)
+  if (child.partnerId != null) return false;
   return child.isJuvenile || child.age < HUMAN_MOVE_OUT_MIN_AGE;
 }
 
