@@ -136,6 +136,8 @@ export { formatRivalPopulationLabel, formatRivalRelationshipLabel } from './riva
 export {
   getArmamentSteps, getHumanArmamentLabel,
   hasIronSpears, hasStoneSpears,
+  hasIronSwords, hasScaleMail, hasTowerBallistae,
+  hasIronShields, hasWoodenShields,
 } from './combat';
 export {
   ELECTION_INTERVAL_YEARS,

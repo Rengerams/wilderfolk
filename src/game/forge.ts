@@ -264,6 +264,13 @@ export function queueForgeOrder(
   consumeForgeInputs(state, order.inputs);
   state.villageForge.activeOrder = orderId;
   state.villageForge.progress = 0;
+  // Same toast channel as completion / block (layout notifications only).
+  addNotification(
+    state,
+    `${order.emoji} Forging ${order.label}`,
+    'Staff the Blacksmith — progress shows on the forge panel until finished.',
+    'info',
+  );
   logEvent(state, 'event', `Blacksmith began forging ${order.label}`, building.campLabel ?? 'Blacksmith');
   return state;
 }

@@ -185,6 +185,12 @@ export function getArmamentSteps(state: WorldState): ArmamentStep[] {
       detail: forgeStepDetail(forge, 'iron_shields', 'Research Iron Shields, staff Blacksmith, queue forge order.', 'Forged at the Blacksmith — shields active.'),
     },
     {
+      id: 'iron_pickaxes',
+      label: 'Iron Pickaxes',
+      done: isForgeOrderComplete(forge, 'iron_pickaxes'),
+      detail: forgeStepDetail(forge, 'iron_pickaxes', 'Research Refining (Mining), staff Blacksmith, queue pickaxes.', 'Forged — quarries produce more stone.'),
+    },
+    {
       id: 'guard_halberds',
       label: 'Guard Halberds',
       done: isForgeOrderComplete(forge, 'guard_halberds'),
@@ -200,7 +206,7 @@ export function getArmamentSteps(state: WorldState): ArmamentStep[] {
       id: 'iron_swords',
       label: 'Iron Swords',
       done: hasIronSwords(state),
-      detail: forgeStepDetail(forge, 'iron_swords', 'Research Iron Swords, forge Iron Spears first, then queue swords.', 'Forged — militia wields iron swords.'),
+      detail: forgeStepDetail(forge, 'iron_swords', 'Research Iron Swords (+ Militia Drill), forge Iron Spears first, then queue swords.', 'Forged — militia wields iron swords.'),
     },
     {
       id: 'scale_mail',
@@ -213,12 +219,6 @@ export function getArmamentSteps(state: WorldState): ArmamentStep[] {
       label: 'Tower Ballistae',
       done: hasTowerBallistae(state),
       detail: forgeStepDetail(forge, 'tower_ballistae', 'Research Bastion Towers, forge Wall Plates first, then queue ballistae.', 'Forged — watchtowers mount ballistae.'),
-    },
-    {
-      id: 'iron_pickaxes',
-      label: 'Iron Pickaxes',
-      done: isForgeOrderComplete(forge, 'iron_pickaxes'),
-      detail: forgeStepDetail(forge, 'iron_pickaxes', 'Research Refining (Mining), staff Blacksmith, queue pickaxes.', 'Forged — quarries produce more stone.'),
     },
   ];
 }
