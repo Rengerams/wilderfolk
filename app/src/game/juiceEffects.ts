@@ -1,5 +1,5 @@
 import { BuildingType, type Building, type DeathParticle, type WorldState } from './gameTypes';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 
 /** Shared transient pool on `state.deathParticles` (deaths, confetti, smoke, forge sparks). */
 export function pushTransientParticle(state: WorldState, particle: DeathParticle): void {
@@ -17,6 +17,8 @@ export const NIGHT_HOME_GLOW_TYPES = new Set<BuildingType>([
 /** Community/industry — subtle forge/candle glow when staffed (day or night). */
 export const NIGHT_STAFFED_GLOW_TYPES = new Set<BuildingType>([
   BuildingType.Church,
+  BuildingType.Tavern,
+  BuildingType.Hotel,
   BuildingType.Blacksmith,
   BuildingType.Hospital,
 ]);

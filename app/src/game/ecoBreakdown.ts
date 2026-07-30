@@ -1,5 +1,5 @@
 import { BuildingType, type Building, type WorldState } from './gameTypes';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 
 const INDUSTRIAL_TYPES: BuildingType[] = [
   BuildingType.Blacksmith,

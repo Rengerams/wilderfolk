@@ -1,8 +1,14 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import type { WorldState } from '../../game/gameEngine';
 import type { GrazingPressureReport, EcosystemBreakdown } from '../../game/gameEngine';
 import { SEASON_LABELS, seasonTextClass, formatTemperatureC, computeDailyTemperatureC } from '../../game/temperature';
 import { Season, WeatherType } from '../../game/gameTypes';
+import {
+  computeValleyEcologySnapshot,
+  valleyStageEmoji,
+  valleyStageLabel,
+  type ValleyStage,
+} from '../../game/ecologyStage';
 
 const WEATHER_ICONS: Record<WeatherType, string> = {
   [WeatherType.Clear]: '',
@@ -47,9 +53,69 @@ export interface NatureTabPanelProps {
   ecoBreakdown: EcosystemBreakdown;
 }
 
+const STAGE_STYLES: Record<ValleyStage, string> = {
+  stable: 'border-emerald-500/40 bg-emerald-950/30',
+  strained: 'border-amber-500/40 bg-amber-950/30',
+  damaged: 'border-orange-500/45 bg-orange-950/35',
+  collapse: 'border-rose-500/50 bg-rose-950/40',
+};
+
+const STAGE_TITLE: Record<ValleyStage, string> = {
+  stable: 'text-emerald-300',
+  strained: 'text-amber-300',
+  damaged: 'text-orange-300',
+  collapse: 'text-rose-300',
+};
+
+const DRIVER_BAND_COLOR = {
+  good: 'text-emerald-400',
+  caution: 'text-amber-400',
+  bad: 'text-rose-400',
+} as const;
+
 export default function NatureTabPanel({ state, grazingPressure, ecoBreakdown }: NatureTabPanelProps) {
+  const valley = useMemo(() => computeValleyEcologySnapshot(state), [
+    state.valleyStage,
+    state.ecosystemHealth,
+    state.pollutionLevel,
+    state.wildlifeCounts,
+    state.humanPopulation,
+    state.buildings,
+    state.tick,
+    state.season,
+    state.weather,
+  ]);
+  const stage = valley.stage;
+
   return (
     <div className="space-y-3">
+      <div className={`rounded-xl border p-3 ${STAGE_STYLES[stage]}`}>
+        <h3 className={`mb-1 text-xs font-bold ${STAGE_TITLE[stage]}`}>
+          {valleyStageEmoji(stage)} Valley: {valleyStageLabel(stage)}
+        </h3>
+        <p className="text-[11px] leading-relaxed text-stone-300">{valley.playerSummary}</p>
+        <div className="mt-2 space-y-1">
+          {valley.drivers.map((d) => (
+            <div key={d.id} className="flex items-start justify-between gap-2 text-[10px]">
+              <span className="text-stone-400">{d.label}</span>
+              <span className={`shrink-0 font-semibold uppercase ${DRIVER_BAND_COLOR[d.band]}`}>
+                {d.band}
+              </span>
+            </div>
+          ))}
+        </div>
+        {stage !== 'stable' && (
+          <div className="mt-2 rounded-lg bg-stone-950/30 px-2 py-1.5 text-[10px] text-stone-400">
+            <p className="mb-0.5 font-semibold uppercase tracking-wide text-stone-500">What helps</p>
+            <ul className="list-inside list-disc space-y-0.5">
+              {valley.helpLines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
       {grazingPressure.level !== 'stable' && (
         <div className={`rounded-xl border p-3 ${
           grazingPressure.level === 'critical'

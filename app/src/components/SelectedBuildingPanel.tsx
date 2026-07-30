@@ -1,7 +1,7 @@
 import { Suspense, lazy } from 'react';
 import {
   BuildingType, EntityType, BUILDING_JOB_TYPES, WORKSHOP_RECIPES, getWorkshopRecipe, formatRecipeInputs,
-  getTerrainEfficiencyMultiplier, getAdjacencyMultiplier, getBuildingUpgradeCost,
+  getTerrainEfficiencyMultiplier, getAdjacencyMultiplier,
   isRivalAtPeace,
   getDiplomacyChoiceEligibility,
   getRivalRaidStrength, getCombatPreview,
@@ -11,14 +11,16 @@ import {
   formatRaidLootSummary, raidEventLoot,
   formatRivalPopulationLabel,
   hasIronSpears, hasStoneSpears,
-  estimateWorkshopGold,
 } from '../game/gameEngine';
+import { getBuildingUpgradeCost, estimateWorkshopGold } from '../game/buildingActions';
 import { moonHowlerRiteWeights, moonHowlerCureChanceForPriests } from '../game/moonHowler';
 import {
-  isResidenceBuildingType, getResidenceCapacity, getResidenceUpgradeSlotGain,
+  isResidenceBuildingType, getResidenceCapacity, getResidenceUpgradeSlotGain, TICKS_PER_DAY,
 } from '../game/dayCycle';
 import { isProductionBuildingType } from '../game/buildCatalog';
 import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
+import { describeHotelStatus } from '../game/hotelStay';
+import { HOTEL_GUEST_CAPACITY, HOTEL_NIGHTLY_GOLD } from '../game/gameTypes';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { formatRaidDeadlineSafe } from '../game/raidUtils';
 import type { Building, WorldState, Entity } from '../game/gameEngine';
@@ -385,8 +387,16 @@ export default function SelectedBuildingPanel({
             </p>
           );
         })()}
-        {building.completed && (building.type === BuildingType.School || building.type === BuildingType.Blacksmith || building.type === BuildingType.Hospital || building.type === BuildingType.TownHall) && building.occupants.length === 0 && (
+        {building.completed && (building.type === BuildingType.School || building.type === BuildingType.Blacksmith || building.type === BuildingType.Hospital || building.type === BuildingType.TownHall || building.type === BuildingType.Hotel) && building.occupants.length === 0 && (
           <p className="text-[9px] text-amber-400">⚠️ Unstaffed — bonuses are reduced or inactive until a worker is assigned.</p>
+        )}
+        {building.completed && building.type === BuildingType.Hotel && (
+          <div className="mt-2 space-y-1 rounded-lg border border-cyan-700/40 bg-cyan-950/30 p-2">
+            <p className="text-[9px] text-cyan-100">{describeHotelStatus(building, state.entities)}</p>
+            <p className="text-[9px] text-stone-400">
+              Guests: up to {HOTEL_GUEST_CAPACITY} visitors · about {HOTEL_NIGHTLY_GOLD}g+ per night when staffed.
+            </p>
+          </div>
         )}
         {building.completed && building.type === BuildingType.TownHall && (
           <div className="mt-2 space-y-1.5 rounded-lg border border-blue-700/40 bg-blue-950/30 p-2">
@@ -395,7 +405,7 @@ export default function SelectedBuildingPanel({
               const fest = canHostTownFestival(state, building);
               const cooldownLeft = Math.max(
                 0,
-                Math.ceil(((state.townHallFestivalCooldownUntilTick ?? 0) - state.tick) / 24),
+                Math.ceil(((state.townHallFestivalCooldownUntilTick ?? 0) - state.tick) / TICKS_PER_DAY),
               );
               return (
                 <button
@@ -503,7 +513,7 @@ export default function SelectedBuildingPanel({
           <div className="mt-2 space-y-0.5 rounded border border-slate-600/40 bg-slate-900/40 p-2">
             <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Prisoners</p>
             {prisoners.map((p) => {
-              const daysLeft = p.prisonerUntilTick ? Math.max(0, Math.ceil((p.prisonerUntilTick - state.tick) / 24)) : 0;
+              const daysLeft = p.prisonerUntilTick ? Math.max(0, Math.ceil((p.prisonerUntilTick - state.tick) / TICKS_PER_DAY)) : 0;
               return (
                 <p key={p.id} className="text-[9px] text-slate-300">
                   ⛓️ {p.name || 'Settler'}{p.surname ? ` ${p.surname}` : ''} · {daysLeft} day{daysLeft === 1 ? '' : 's'} left

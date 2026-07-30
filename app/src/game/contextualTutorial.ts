@@ -2,8 +2,8 @@ import type { WorldState } from './gameTypes';
 import { BuildingType, EntityType, Season } from './gameTypes';
 import type { VisitorKind } from './gameTypes';
 import type { FocusHintAction } from './focusHints';
-import { NIGHT_START, TICKS_PER_DAY } from './dayCycle';
-import { isPlayerHuman } from './groupEvents';
+import { NIGHT_START, TICKS_PER_DAY, getHourOfDay } from './dayCycle';
+import { isPlayerHuman } from './playerHuman';
 
 export type ContextualTutorialId =
   | 'shelter_night'
@@ -29,6 +29,7 @@ export type ContextualTutorialId =
   | 'moon_howler_hunt'
   | 'low_food'
   | 'ecosystem_low'
+  | 'valley_strained'
   | 'first_birth'
   | 'first_marriage'
   | 'festival_started'
@@ -204,6 +205,13 @@ export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutori
     detail: 'Town footprint, industry, and wildlife counts all move ecosystem health. Open Nature tab for the breakdown — growing villages rarely stay pristine; balance hunting with expansion.',
     action: { label: 'Nature tab', id: 'open_nature' },
   },
+  valley_strained: {
+    id: 'valley_strained',
+    icon: '⚠️',
+    title: 'Valley strained — be careful',
+    detail: 'Nature shows a valley stage: Stable → Strained → Damaged → Collapse. Fix grazing, hunting, or predators while the problem is still light. Ignoring it long enough makes consequences extreme.',
+    action: { label: 'Nature tab', id: 'open_nature' },
+  },
   first_birth: {
     id: 'first_birth',
     icon: '👶',
@@ -229,7 +237,7 @@ export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutori
     id: 'leadership_election',
     icon: '👑',
     title: 'Leadership election',
-    detail: 'The first male pioneer leads until Year 10. After that, merit elections every 10 years with a ceremony. The sitting head always runs when eligible; economy, scandals, and village health give a modest record edge or penalty — but a high-merit challenger can still win. See Village → Leadership.',
+    detail: 'The first male pioneer leads until Year 5. After that, merit elections every 5 years with a ceremony. The sitting head always runs when eligible; economy, scandals, and village health give a modest record edge or penalty — but a high-merit challenger can still win. See Village → Leadership.',
     action: { label: 'Leadership', id: 'open_village' },
   },
   first_challenge_done: {
@@ -320,9 +328,11 @@ export function detectContextualTutorials(
   };
 
   const hasHouse = curr.buildings.some((b) => b.completed && b.type === BuildingType.House);
+  // Warn from late afternoon on day one (hour >= 16) until first house
+  const hour = getHourOfDay(curr.tick);
   if (
     curr.tick < TICKS_PER_DAY
-    && curr.tick >= NIGHT_START - 48
+    && hour >= Math.max(0, NIGHT_START - 4)
     && !hasHouse
   ) {
     queue('shelter_night');
@@ -399,6 +409,10 @@ export function detectContextualTutorials(
   }
 
   if (prev.ecosystemHealth >= 30 && curr.ecosystemHealth < 30) queue('ecosystem_low');
+
+  const prevStage = prev.valleyStage ?? 'stable';
+  const currStage = curr.valleyStage ?? 'stable';
+  if (prevStage === 'stable' && currStage !== 'stable') queue('valley_strained');
 
   const prevBabyIds = new Set(
     prev.entities.filter((e) => e.alive && isPlayerHuman(e) && e.isJuvenile).map((e) => e.id),

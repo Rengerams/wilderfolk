@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { WorldState, Entity } from './gameTypes';
 import { EntityType, BUILDING_CONFIGS } from './gameTypes';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 import { buildFamilyGroups, hasWorkAssignment, isImprisoned } from './dayCycle';
 import { isVillageLeader } from './villageLeadership';
 import { getLivePlayerPopulation, getOpenBeds, getPopulationGrowthReport, getTotalBeds } from './populationGrowth';

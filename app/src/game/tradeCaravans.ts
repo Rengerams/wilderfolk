@@ -3,11 +3,18 @@ import { BuildingType, EntityType, JobType } from './gameTypes';
 import { EVENT_INTERVAL, ticksForDays } from './dayCycle';
 import { getPlayerCampCenter } from './frontierCombat';
 import { addFloatingText, addNotification, getMultiplier } from './gameEngine';
-import { addResource } from './economy';
+import { addResource } from './resourceUtils';
 import { getTownHallTradeMultiplier } from './townHall';
 import { logEvent } from './eventLog';
 import { createEntity } from './worldGen';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
+
+/** Long-range trade routes require a completed player Market (EC-4). */
+export function hasCompletedMarket(state: WorldState): boolean {
+  return state.buildings.some(
+    (b) => b.completed && b.faction !== 'rival' && b.type === BuildingType.Market,
+  );
+}
 
 export const TRADE_CARAVAN_ARRIVAL_DIST = 28;
 function getPartnerWaitTicks(): number {
@@ -125,6 +132,10 @@ export function establishTradeRoute(state: WorldState, routeId: string): WorldSt
   const s = structuredClone(state) as WorldState;
   const route = s.tradeRoutes.find(r => r.id === routeId);
   if (!route || route.active) return s;
+  if (!hasCompletedMarket(s)) {
+    addNotification(s, 'Trade Failed', 'Build a Market before establishing trade routes', 'warning');
+    return s;
+  }
   if (s.villageReputation < route.reputationRequired) {
     addNotification(s, 'Trade Failed', `Need ${route.reputationRequired} reputation`, 'warning');
     return s;

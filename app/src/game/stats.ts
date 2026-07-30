@@ -1,6 +1,6 @@
 import type { GameState } from './gameEngine';
 import { EntityType as ET } from './gameEngine';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 
 export interface YearlyStats {
   year: number;

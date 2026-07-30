@@ -1,7 +1,7 @@
 import type { RenffrLetter, RenffrOmen } from './omenTypes';
 import { TICKS_PER_DAY } from './dayCycle';
 import { sayHumanChatPhrase } from './humanChat';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 import type { Entity, WorldState } from './gameTypes';
 
 /** Lines spoken the night an omen appears (assigned directly to settlers). */

@@ -16,7 +16,7 @@ import {
   NIGHT_START,
 } from './dayCycleConstants';
 import { syncResidenceOccupants } from './dayCycle';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 import { buildEntityByType } from './simFocus';
 import {
   addBigNews,

@@ -22,8 +22,11 @@ import {
   type ViewState,
 } from './viewState';
 
-/** 2 ticks/s at 1× — one game-day (24 ticks) ≈ 12 real seconds. */
-const BASE_TICKS_PER_SECOND = 2;
+/**
+ * Real-time tick rate at 1×. With TICKS_PER_DAY=72, 3 ticks/s ≈ 24 real seconds per day
+ * (was 2 ticks/s × 24 ticks ≈ 12s when 1 tick = 1 hour).
+ */
+const BASE_TICKS_PER_SECOND = 3;
 const UI_UPDATE_MS = 100;
 const MAX_CATCHUP_STEPS = 12;
 
@@ -113,6 +116,9 @@ export class GameLoop {
   private lastPausedSentToWorker: boolean | null = null;
   /** Serializes worker commands — GameWorkerHost rejects overlapping sendCommand. */
   private commandChain: Promise<void> = Promise.resolve();
+  /** Cached 2d context — getContext every frame is not free. */
+  private canvasCtx: CanvasRenderingContext2D | null = null;
+  private canvasCtxFor: HTMLCanvasElement | null = null;
 
   constructor(world: WorldState, view: ViewState, getCanvas: () => HTMLCanvasElement | null) {
     resetRendererCaches();
@@ -127,8 +133,10 @@ export class GameLoop {
       this.workerHost = new GameWorkerHost();
       const initGen = this.sessionGen;
       void this.workerHost.init(world).then(() => {
-        if (initGen !== this.sessionGen || !this.running || !this.workerHost) {
-          // Stale boot (e.g. new game during init) — release lock so main-thread ticks can run.
+        // Only sessionGen / dispose mark a stale boot — do NOT require `running`.
+        // Init is async; if we gated on start(), a fast worker ready before start()
+        // permanently disabled the worker and left gameTick on the main thread.
+        if (initGen !== this.sessionGen || !this.workerHost) {
           this.workerBooting = false;
           this.workerEnabled = false;
           if (initGen !== this.sessionGen) {
@@ -137,35 +145,37 @@ export class GameLoop {
           }
           return;
         }
+        // init() already posted the world; re-sync so any pre-ready mutations are authoritative.
         this.workerHost.importSave(this.world);
         this.workerEnabled = true;
         this.workerBooting = false;
         this.workerHost.setTickResultHandler((nextWorld, _delta, render, changed) => {
-          if (initGen !== this.sessionGen || !this.running) return;
+          if (initGen !== this.sessionGen) return;
           this.world = nextWorld;
           this.catalog.rebuild(this.world.entities);
           if (render) {
             this.renderSoA = render.reader;
             this.renderMetaBySlot = render.metaBySlot;
             this.scentReader = render.scentReader;
-            patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader);
+            patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
           }
           this.view = syncScreenShakeFromWorld(this.view, this.world);
           clearScreenShakeImpulse(this.world);
           this.workerTickChanged = changed;
         });
         this.workerHost.setCommandResultHandler((world, _delta, render) => {
-          if (initGen !== this.sessionGen || !this.running) return;
+          if (initGen !== this.sessionGen) return;
           this.world = world;
           if (render) {
             this.renderSoA = render.reader;
             this.renderMetaBySlot = render.metaBySlot;
             this.scentReader = render.scentReader;
-            patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader);
+            patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
           }
         });
+        console.info('[GameLoop] Sim worker active — gameTick + commands run off the main thread');
       }).catch((err) => {
-        if (initGen !== this.sessionGen || !this.running) return;
+        if (initGen !== this.sessionGen) return;
         console.warn('[GameLoop] Worker init failed — falling back to main-thread ticks', err);
         this.workerHost?.dispose();
         this.workerHost = null;
@@ -176,6 +186,19 @@ export class GameLoop {
         this.scentReader = null;
       });
     }
+  }
+
+  /**
+   * True when sim ticks/commands are authoritative on the Web Worker (heavy work off main).
+   * False while booting, after worker failure, or when `VITE_USE_GAME_WORKER=0`.
+   */
+  isUsingSimWorker(): boolean {
+    return this.workerEnabled && !!this.workerHost?.isReady();
+  }
+
+  /** True while the worker is starting (main-thread ticks held to avoid split-brain). */
+  isSimWorkerBooting(): boolean {
+    return this.workerBooting;
   }
 
   getWorld(): WorldState {
@@ -190,8 +213,11 @@ export class GameLoop {
     return this.catalog;
   }
 
-  /** Replace simulation + view state (new game, load, reset). */
-  setSession(world: WorldState, view: ViewState): void {
+  /**
+   * Shared session swap: bump gen, clear caches, rebuild catalog, import to worker.
+   * Used by setSession / setWorld so load and world-only replace stay in lockstep.
+   */
+  private adoptWorldSession(world: WorldState, view: ViewState): void {
     this.sessionGen++;
     clearAllFactionWanderStates();
     resetRendererCaches();
@@ -209,22 +235,13 @@ export class GameLoop {
     this.lastPausedSentToWorker = null;
   }
 
+  /** Replace simulation + view state (new game, load, reset). */
+  setSession(world: WorldState, view: ViewState): void {
+    this.adoptWorldSession(world, view);
+  }
+
   setWorld(world: WorldState): void {
-    this.sessionGen++;
-    clearAllFactionWanderStates();
-    resetRendererCaches();
-    this.world = world;
-    this.view = createInitialView(world.width, world.height);
-    this.lastNotifiedTick = world.tick;
-    this.catalog.rebuild(world.entities);
-    this.renderSoA = null;
-    this.renderMetaBySlot = null;
-    this.scentReader = null;
-    const sessionGen = this.sessionGen;
-    this.queueWorkerImport(world, () => {
-      if (sessionGen === this.sessionGen) this.notify(true);
-    });
-    this.lastPausedSentToWorker = null;
+    this.adoptWorldSession(world, createInitialView(world.width, world.height));
   }
 
   /** Wait for worker boot/idle before importSave so load/new-game cannot drop the upload. */
@@ -436,6 +453,8 @@ export class GameLoop {
     this.renderMetaBySlot = null;
     this.scentReader = null;
     this.lastPausedSentToWorker = null;
+    this.canvasCtx = null;
+    this.canvasCtxFor = null;
   }
 
   getWorldAndView(): { world: WorldState; view: ViewState } {
@@ -525,7 +544,11 @@ export class GameLoop {
     const layoutH = canvas.offsetHeight || canvas.clientHeight || rect.height;
     if (layoutW <= 0 || layoutH <= 0) return;
 
-    const ctx = canvas.getContext('2d');
+    if (this.canvasCtxFor !== canvas || !this.canvasCtx) {
+      this.canvasCtx = canvas.getContext('2d');
+      this.canvasCtxFor = canvas;
+    }
+    const ctx = this.canvasCtx;
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
@@ -535,9 +558,13 @@ export class GameLoop {
     if (canvas.width !== targetW || canvas.height !== targetH) {
       canvas.width = targetW;
       canvas.height = targetH;
+      // Resize resets context state
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+    } else {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.imageSmoothingEnabled = false;
     }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.imageSmoothingEnabled = false;
 
     const snapshot = buildRenderSnapshot(this.world, this.view, {
       renderSoA: this.renderSoA,

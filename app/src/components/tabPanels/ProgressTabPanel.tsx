@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { ResearchType } from '../../game/gameTypes';
 import type { WorldState } from '../../game/gameEngine';
 import { ACTIVE_VICTORY_PATHS, COMING_SOON_VICTORY_PATHS } from '../../game/victory';
+import { hasCompletedMarket } from '../../game/tradeCaravans';
 
 type ProgressSubTab = 'research' | 'trade' | 'goals';
 
@@ -141,16 +142,29 @@ export default function ProgressTabPanel({
           <div className="rounded-xl bg-stone-700/50 p-3">
             <h3 className="mb-2 text-sm font-bold text-stone-300">Trade Routes</h3>
             <p className="mb-2 text-[11px] text-stone-400">Reputation: <strong className="text-emerald-400">{state.villageReputation}</strong> / 100</p>
+            {!hasCompletedMarket(state) && (
+              <p className="mb-2 text-[11px] text-amber-400">
+                Build a completed Market before establishing long-range trade routes.
+              </p>
+            )}
 
             <div className="space-y-2">
-              {state.tradeRoutes.map(route => (
+              {state.tradeRoutes.map(route => {
+                const marketOk = hasCompletedMarket(state);
+                const repOk = state.villageReputation >= route.reputationRequired;
+                const canEstablish = marketOk && repOk;
+                return (
                 <div key={route.id} className={`rounded-lg border p-2 text-[11px] ${
                   route.active ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-stone-600 bg-stone-600/20'
                 }`}>
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-stone-200">{route.targetName}</span>
                     <span className={route.active ? 'text-emerald-400' : 'text-stone-500'}>
-                      {route.active ? 'Active' : `Need ${route.reputationRequired} rep`}
+                      {route.active
+                        ? 'Active'
+                        : !marketOk
+                          ? 'Need Market'
+                          : `Need ${route.reputationRequired} rep`}
                     </span>
                   </div>
                   <p className="text-stone-400">
@@ -165,15 +179,16 @@ export default function ProgressTabPanel({
                   )}
                   {!route.active && (
                     <button onClick={() => onEstablishTradeRoute(route.id)}
-                      disabled={state.villageReputation < route.reputationRequired}
+                      disabled={!canEstablish}
                       className={`mt-1 w-full rounded py-1 text-[11px] font-bold transition-all ${
-                        state.villageReputation >= route.reputationRequired ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-stone-600 text-stone-400 cursor-not-allowed'
+                        canEstablish ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-stone-600 text-stone-400 cursor-not-allowed'
                       }`}>
                       Establish Route
                     </button>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

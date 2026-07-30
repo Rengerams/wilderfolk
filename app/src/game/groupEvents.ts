@@ -51,25 +51,12 @@ function pushFloat(state: WorldState, x: number, y: number, text: string, color:
   });
 }
 
-/**
- * Colony settler human — excludes transient faction humans (visitors, rivals, trade-route merchants).
- * `trade_caravan` carriers are real humans on the map but must not count toward population, housing,
- * or village job systems; they are handled in `lifeSimulation` / `tradeCaravans.ts` instead.
- */
-export function isPlayerHuman(e: Entity): boolean {
-  return e.type === EntityType.Human
-    && e.faction !== 'visitor'
-    && e.faction !== 'rival'
-    && e.faction !== 'trade_caravan';
-}
+export { isPlayerHuman, playerHumanCount } from './playerHuman';
+import { isPlayerHuman, playerHumanCount } from './playerHuman';
 
 /** Deep-clone world state for player actions that mutate simulation data. */
 function cloneWorldStateForAction(originalState: WorldState): WorldState {
   return structuredClone(originalState) as WorldState;
-}
-
-export function playerHumanCount(entities: Entity[]): number {
-  return entities.filter((e) => e.alive && isPlayerHuman(e)).length;
 }
 
 function buildAliveEntityIndex(allAlive: Entity[]): Map<number, Entity> {

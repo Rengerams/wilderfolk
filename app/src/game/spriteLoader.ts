@@ -92,12 +92,22 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/rabbit.png',
     '/sprites/deer.png',
     '/sprites/wolf.png',
-    '/sprites/hunterspot.png',
+    '/sprites/Huntingspot.png',
     '/sprites/fox.png',
     '/sprites/tree.png',
+    '/sprites/tree2.png',
     '/sprites/grass.png',
+    '/sprites/grass2.png',
+    '/sprites/bush.png',
+    '/sprites/stump.png',
     '/sprites/human_male.png',
     '/sprites/human_female.png',
+    // Seamless ground fills (Phase A terrain — stamped in bakeTerrainLayer)
+    '/sprites/terrain/grass_fill.png',
+    '/sprites/terrain/dirt_fill.png',
+    '/sprites/terrain/sand_fill.png',
+    '/sprites/terrain/water_shallow_fill.png',
+    '/sprites/terrain/water_deep_fill.png',
   ];
   const buildingSprites = Object.values(BUILDING_CONFIGS).map((cfg) => cfg.sprite);
   const sprites = [...new Set([...wildlifeAndHumans, ...buildingSprites])];

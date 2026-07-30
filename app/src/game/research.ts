@@ -7,7 +7,8 @@ import {
   getMultiplier,
 } from './gameEngine';
 import { getEducationResearchMultiplier } from './education';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
+import { PER_TICK_RATE_SCALE } from './dayCycle';
 
 const RESEARCH_TAB_LABELS: Record<ResearchType, string> = {
   [ResearchType.Agriculture]: 'Agriculture',
@@ -122,7 +123,8 @@ export function updateResearch(state: WorldState) {
     state.entities.filter((e) => e.alive && isPlayerHuman(e)),
   );
   const speedMult = getMultiplier(state, 'research_speed') * educatedMult;
-  state.researchProgress = Math.min(100, state.researchProgress + speedMult);
+  // Systems layer fires more often at higher day resolution — use dayCycle scale only
+  state.researchProgress = Math.min(100, state.researchProgress + speedMult * PER_TICK_RATE_SCALE);
 
   if (state.researchProgress >= 100) {
     node.researched = true;

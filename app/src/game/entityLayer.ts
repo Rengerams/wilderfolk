@@ -40,6 +40,7 @@ export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: numbe
     state.hoveredBuilding?.id ?? '',
     state.selectedEntity?.id ?? '',
     state.selectedBuilding?.id ?? '',
+    state.villageLeaderId ?? '',
     state.highlightedCampKey ?? '',
     state.buildMode ?? '',
     state.buildRotation ?? 0,

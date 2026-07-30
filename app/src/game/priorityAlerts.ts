@@ -157,18 +157,32 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
     }
   }
 
-  const readyRoute = state.tradeRoutes.find(
-    (r) => !r.active && state.villageReputation >= r.reputationRequired,
+  const hasMarket = state.buildings.some(
+    (b) => b.completed && b.faction !== 'rival' && b.type === BuildingType.Market,
   );
-  if (readyRoute) {
+  if (!hasMarket && state.villageReputation >= 15) {
     alerts.push({
-      id: `trade-${readyRoute.id}`,
+      id: 'trade-need-market',
       severity: 'info',
-      icon: '🤝',
-      title: `Trade route ready`,
-      detail: `Establish ${readyRoute.targetName}`,
-      action: { type: 'tab', tab: 'progress', progressSub: 'trade' },
+      icon: '🏛️',
+      title: 'Market required for trade',
+      detail: 'Build a Market before establishing long-range routes',
+      action: { type: 'build', building: BuildingType.Market },
     });
+  } else {
+    const readyRoute = state.tradeRoutes.find(
+      (r) => !r.active && state.villageReputation >= r.reputationRequired,
+    );
+    if (readyRoute) {
+      alerts.push({
+        id: `trade-${readyRoute.id}`,
+        severity: 'info',
+        icon: '🤝',
+        title: `Trade route ready`,
+        detail: `Establish ${readyRoute.targetName}`,
+        action: { type: 'tab', tab: 'progress', progressSub: 'trade' },
+      });
+    }
   }
 
   const activeChallenge = state.challenges.find((c) => !c.completed);

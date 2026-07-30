@@ -8,7 +8,7 @@ import {
   clampCameraTarget,
 } from '../game/viewState';
 import { isRotatableBuildingType } from '../game/buildingRotation';
-import { isPlayerHuman } from '../game/groupEvents';
+import { isPlayerHuman } from '../game/playerHuman';
 import {
   isEditableTarget,
   resolveSidebarTabFromKey,
@@ -131,8 +131,9 @@ export function useKeyboardControls({
         applyZoomRef.current(CAMERA_ZOOM_STEP_OUT);
       }
       // Building hotkeys
-      if (HOTKEY_BUILDINGS[e.key]) {
-        selectBuildingTypeRef.current(HOTKEY_BUILDINGS[e.key]);
+      const hotBuild = HOTKEY_BUILDINGS[e.key];
+      if (hotBuild != null) {
+        selectBuildingTypeRef.current(hotBuild);
         setBuildPanelOpen(true);
       }
       if (e.key === 'b' && !e.ctrlKey && !e.metaKey && !e.altKey) {

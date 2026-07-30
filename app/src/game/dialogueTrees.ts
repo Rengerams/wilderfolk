@@ -1,6 +1,7 @@
 
-
 import { readUtf8RelativeToModule } from './nodeRuntime';
+// Static import — always available as a hard guarantee (same bundle path as gameWorker).
+import dialogueBankJson from './data/sim_dialogue_trees.json';
 
 export type DialogueCategory =
   | 'work'
@@ -22,7 +23,7 @@ export interface DialogueTree {
   lines: readonly DialogueLine[];
 }
 
-interface DialogueBankFile {
+export interface DialogueBankFile {
   version: string;
   dialogue_trees: DialogueTree[];
   categories: DialogueCategory[];
@@ -53,8 +54,21 @@ function indexDialogueBank(next: DialogueBankFile): void {
   }
 }
 
+/** Install the bundled `sim_dialogue_trees.json` if nothing is loaded yet. */
+export function ensureDialogueBankFromBundle(): boolean {
+  if (bank && bank.dialogue_trees.length > 0) return true;
+  try {
+    const payload = dialogueBankJson as unknown as DialogueBankFile;
+    indexDialogueBank(payload);
+    return Boolean(bank && bank.dialogue_trees.length > 0);
+  } catch (err) {
+    console.error('[dialogue] Failed to install bundled sim_dialogue_trees.json', err);
+    return false;
+  }
+}
+
 export function isDialogueBankReady(): boolean {
-  return bank !== null;
+  return bank !== null && (bank.dialogue_trees?.length ?? 0) > 0;
 }
 
 /** Install pre-serialized dialogue data (e.g. worker static JSON bundle). */
@@ -62,13 +76,16 @@ export function installDialogueBankPayload(payload: DialogueBankFile): void {
   indexDialogueBank(payload);
 }
 
-/** Load dialogue JSON on demand — keeps the main game chunk smaller in production builds. */
+/**
+ * Load dialogue JSON on demand.
+ * Order: already loaded → disk (node) → dynamic chunk → static bundle fallback.
+ */
 export async function preloadDialogueBank(): Promise<void> {
-  if (bank) return;
+  if (isDialogueBankReady()) return;
   if (await loadDialogueFromDisk()) return;
   if (loadPromise) {
     await loadPromise;
-    return;
+    if (isDialogueBankReady()) return;
   }
   loadPromise = import('./data/sim_dialogue_trees.json')
     .then((mod) => {
@@ -76,12 +93,22 @@ export async function preloadDialogueBank(): Promise<void> {
     })
     .catch((err) => {
       loadPromise = null;
-      throw err;
+      console.warn('[dialogue] Dynamic JSON chunk failed — using static bundle', err);
+      ensureDialogueBankFromBundle();
     });
   await loadPromise;
+  if (!isDialogueBankReady()) {
+    ensureDialogueBankFromBundle();
+  }
+  if (!isDialogueBankReady()) {
+    throw new Error('Dialogue bank failed to load (sim_dialogue_trees.json)');
+  }
 }
 
 function requireBank(): DialogueBankFile {
+  if (!isDialogueBankReady()) {
+    ensureDialogueBankFromBundle();
+  }
   if (!bank) {
     throw new Error('Dialogue bank not loaded — call preloadDialogueBank() before chat simulation');
   }
@@ -89,6 +116,9 @@ function requireBank(): DialogueBankFile {
 }
 
 export function getDialogueTrees(): readonly DialogueTree[] {
+  if (!isDialogueBankReady()) {
+    ensureDialogueBankFromBundle();
+  }
   if (!bank) return [];
   return bank.dialogue_trees;
 }
@@ -152,30 +182,37 @@ export function pickDialogueTree(
   avoidTreeId?: string,
 ): DialogueTree | null {
   const trees = getDialogueTrees();
+  if (trees.length === 0) return null;
+
   const categories = resolveDialogueCategories(context, hints);
   const pool: DialogueTree[] = [];
   for (const cat of categories) {
     const list = treesByCategory.get(cat);
     if (list) pool.push(...list);
   }
-  if (pool.length === 0) return trees[0] ?? null;
+  // Prefer category pool; fall back to full bank so trees always play.
+  const usePool = pool.length > 0 ? pool : [...trees];
 
   const seed = entityId * 47 + tick * 13;
-  let idx = Math.abs(seed) % pool.length;
-  let tree = pool[idx]!;
-  if (avoidTreeId && pool.length > 1) {
-    for (let attempt = 0; attempt < pool.length && tree.id === avoidTreeId; attempt++) {
-      idx = (idx + 5 + entityId) % pool.length;
-      tree = pool[idx]!;
+  let idx = Math.abs(seed) % usePool.length;
+  let tree = usePool[idx]!;
+  if (avoidTreeId && usePool.length > 1) {
+    for (let attempt = 0; attempt < usePool.length && tree.id === avoidTreeId; attempt++) {
+      idx = (idx + 5 + entityId) % usePool.length;
+      tree = usePool[idx]!;
     }
   }
   return tree;
 }
 
 export function getDialogueTreeById(id: string): DialogueTree | undefined {
+  if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
   return treesById.get(id);
 }
 
 export function speakerRoleIndex(tree: DialogueTree, line: DialogueLine): 0 | 1 {
   return line.speaker === tree.speakers[0] ? 0 : 1;
 }
+
+// Eager install so the first chat tick never races preload.
+ensureDialogueBankFromBundle();

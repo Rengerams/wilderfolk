@@ -11,7 +11,7 @@ import { ENTITY_PERSISTED_FIELDS, WORLD_STATE_SAVE_KEYS } from './saveSchema';
 import { generateWorldMap } from './terrainGen';
 import {
   getCalendarDay, getHourOfDay, getAbsoluteCalendarDay, migrateHumanAges, rebuildChildrenIds,
-  TICKS_PER_DAY, DAYS_PER_YEAR,
+  TICKS_PER_DAY, DAYS_PER_YEAR, LEGACY_TICKS_PER_DAY,
   assignMissingResidences,
 } from './dayCycle';
 import { mergeCombatResearchNodes } from './combat';
@@ -20,7 +20,7 @@ import { loadAutoSavePreference, saveAutoSavePreference } from './preferences';
 import { logEvent, syncEventLogIdFromState } from './eventLog';
 import { pickHumanVariant } from './humanSprites';
 import { migrateLegacyMoonHowler } from './moonHowler';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 import { GAME_VERSION } from './version';
 import { ensureEntitySkills } from './skills';
 
@@ -38,6 +38,7 @@ import { ensureFullTradeRoutes } from './economy';
 import { enrichTradeRoute, scheduleTradeRouteDeparture } from './tradeCaravans';
 import { clearAllFactionWanderStates } from './factionWander';
 import { validateVillageLeaderOnLoad } from './villageLeadership';
+import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
 
 const SAVE_KEY = 'ecosim_save';
@@ -123,6 +124,83 @@ function stripRuntimeWorldFields(world: WorldState): WorldState {
   return serializable;
 }
 
+/** Scale absolute tick values when day length changed between save and load. */
+function scaleTickValue(value: unknown, scale: number): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return Math.round(value * scale);
+}
+
+/**
+ * Old saves used 24 ticks/day (1 tick = 1 hour). Current builds use TICKS_PER_DAY.
+ * Scale world.tick and deadline fields so calendar day + remaining durations stay correct.
+ */
+function migrateTickTimeline(
+  world: WorldState,
+  savedTicksPerDay: number,
+): void {
+  if (!Number.isFinite(savedTicksPerDay) || savedTicksPerDay <= 0) return;
+  if (savedTicksPerDay === TICKS_PER_DAY) return;
+  const scale = TICKS_PER_DAY / savedTicksPerDay;
+
+  world.tick = Math.round((world.tick ?? 0) * scale);
+
+  const scaleField = (obj: Record<string, unknown>, key: string) => {
+    const next = scaleTickValue(obj[key], scale);
+    if (next !== undefined) obj[key] = next;
+  };
+
+  scaleField(world as unknown as Record<string, unknown>, 'townHallFestivalCooldownUntilTick');
+  scaleField(world as unknown as Record<string, unknown>, 'renffrChatterUntilTick');
+
+  for (const e of world.entities ?? []) {
+    const rec = e as unknown as Record<string, unknown>;
+    scaleField(rec, 'prisonerUntilTick');
+    scaleField(rec, 'scandalCooldownUntilTick');
+    scaleField(rec, 'griefUntilTick');
+    scaleField(rec, 'hotelStayUntilTick');
+    scaleField(rec, 'reproductionCooldown');
+    scaleField(rec, 'lastMetPartner');
+    // pregnancyProgress is 0..PREGNANCY_TICKS absolute progress — scale with day length
+    scaleField(rec, 'pregnancyProgress');
+    // chatTicks / combatTicks are short remaining counters — leave unscaled
+  }
+
+  for (const route of world.tradeRoutes ?? []) {
+    const rec = route as unknown as Record<string, unknown>;
+    scaleField(rec, 'nextDepartureTick');
+    scaleField(rec, 'caravanWaitTicks');
+  }
+
+  if (world.electionCeremony) {
+    const rec = world.electionCeremony as unknown as Record<string, unknown>;
+    scaleField(rec, 'phaseTicksLeft');
+    scaleField(rec, 'startedAtTick');
+    scaleField(rec, 'endsAtTick');
+  }
+
+  for (const evt of world.pendingRaidEvents ?? []) {
+    const rec = evt as unknown as Record<string, unknown>;
+    scaleField(rec, 'createdAtTick');
+    scaleField(rec, 'expiresAtTick');
+  }
+  for (const evt of world.pendingOutgoingRaidEvents ?? []) {
+    const rec = evt as unknown as Record<string, unknown>;
+    scaleField(rec, 'createdAtTick');
+    scaleField(rec, 'expiresAtTick');
+  }
+  for (const evt of world.pendingDiplomacyEvents ?? []) {
+    const rec = evt as unknown as Record<string, unknown>;
+    scaleField(rec, 'createdAtTick');
+    scaleField(rec, 'expiresAtTick');
+    scaleField(rec, 'startedAtTick');
+  }
+  if (world.festival) {
+    const rec = world.festival as unknown as Record<string, unknown>;
+    scaleField(rec, 'startedAtTick');
+    scaleField(rec, 'endsAtTick');
+  }
+}
+
 export function saveGame(world: WorldState, view: ViewState): SaveResult {
   try {
     const persistable = stripRuntimeWorldFields(world);
@@ -131,6 +209,7 @@ export function saveGame(world: WorldState, view: ViewState): SaveResult {
       worldMap: compactWorldMapForSave(persistable.worldMap),
       _savedAt: Date.now(),
       _version: GAME_VERSION,
+      _ticksPerDay: TICKS_PER_DAY,
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
     return { success: true };
@@ -150,7 +229,10 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
     const parsed = result.parsed;
     const worldData = pickWorldStateFromSave(parsed);
 
-    const loadedTick = (worldData.tick ?? (parsed.tick as number | undefined) ?? 0) as number;
+    let loadedTick = (worldData.tick ?? (parsed.tick as number | undefined) ?? 0) as number;
+    const savedTicksPerDay = typeof parsed._ticksPerDay === 'number' && parsed._ticksPerDay > 0
+      ? (parsed._ticksPerDay as number)
+      : LEGACY_TICKS_PER_DAY;
     const autoSave = typeof worldData.autoSave === 'boolean'
       ? worldData.autoSave
       : loadAutoSavePreference();
@@ -165,9 +247,9 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
       tick: loadedTick,
       lastProcessedCalendarDay: typeof worldData.lastProcessedCalendarDay === 'number'
         ? worldData.lastProcessedCalendarDay
-        : getAbsoluteCalendarDay(loadedTick),
-      dayInYear: getCalendarDay(loadedTick),
-      year: Math.floor(loadedTick / (TICKS_PER_DAY * DAYS_PER_YEAR)),
+        : undefined,
+      dayInYear: 0,
+      year: 0,
       paused: true,
       ...transient,
       bigNews: [],
@@ -187,7 +269,7 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
         tradesCompleted: g.tradesCompleted ?? 0,
         refugeeResolved: g.refugeeResolved ?? g.kind !== 'refugees',
         leaderTalked: g.leaderTalked ?? false,
-        spawnedAtCalendarDay: g.spawnedAtCalendarDay ?? getAbsoluteCalendarDay(loadedTick),
+        spawnedAtCalendarDay: g.spawnedAtCalendarDay,
       })),
       rivalSettlements: (worldData.rivalSettlements ?? []).map((r) => ({
         ...r,
@@ -217,10 +299,26 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
         if (entity.type === EntityType.Human && entity.spriteVariant === undefined && entity.gender) {
           entity.spriteVariant = pickHumanVariant(entity.id, entity.gender);
         }
-        migrateLegacyMoonHowler(entity, getAbsoluteCalendarDay(loadedTick), getHourOfDay(loadedTick));
         return entity;
       }),
     } as WorldState;
+
+    migrateTickTimeline(world, savedTicksPerDay);
+    loadedTick = world.tick;
+    world.dayInYear = getCalendarDay(loadedTick);
+    world.year = Math.floor(loadedTick / (TICKS_PER_DAY * DAYS_PER_YEAR));
+    if (typeof world.lastProcessedCalendarDay !== 'number') {
+      world.lastProcessedCalendarDay = getAbsoluteCalendarDay(loadedTick);
+    }
+    for (const g of world.visitorGroups ?? []) {
+      if (g.spawnedAtCalendarDay == null) {
+        g.spawnedAtCalendarDay = getAbsoluteCalendarDay(loadedTick);
+      }
+    }
+    for (const entity of world.entities) {
+      migrateLegacyMoonHowler(entity, getAbsoluteCalendarDay(loadedTick), getHourOfDay(loadedTick));
+    }
+
     syncEventLogIdFromState(world);
     syncBigNewsIdFromState(world);
     world.totalBuildingsCompleted = (world.buildings ?? []).filter(
@@ -297,6 +395,7 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
     world.electionBuildupNotifiedYear = (parsed.electionBuildupNotifiedYear as number | null | undefined) ?? null;
     world.electionCeremony = (parsed.electionCeremony as WorldState['electionCeremony']) ?? null;
     validateVillageLeaderOnLoad(world);
+    ensureValleyEcologyOnLoad(world);
     migrateVillageForgeOnLoad(world);
     for (const challenge of world.challenges ?? []) {
       const fresh = INITIAL_CHALLENGES.find((c) => c.id === challenge.id);

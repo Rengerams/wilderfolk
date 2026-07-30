@@ -2,13 +2,12 @@ import { useCallback, type RefObject } from 'react';
 import type { GameLoop } from '../game/gameLoop';
 import type { WorldState, BuildingType, Building, Entity } from '../game/gameEngine';
 import {
-  canPlaceBuilding,
-  buildStripPreview,
   isStripBuildType,
   inferStripRotation,
   hitTestCamp,
   EntityType,
 } from '../game/gameEngine';
+import { canPlaceBuilding, buildStripPreview } from '../game/buildingActions';
 import { screenToWorld, focusCameraOn, nudgeCameraToward } from '../game/viewState';
 import { snapBuildingCenter } from '../game/buildingRotation';
 import { getHumanSelectionBounds } from '../game/humanSprites';
@@ -26,6 +25,8 @@ export interface UseCanvasInteractionsOptions {
   isDraggingRef: RefObject<boolean>;
   cameraDragStartRef: RefObject<{ x: number; y: number } | null>;
   clickOriginRef: RefObject<{ x: number; y: number } | null>;
+  /** Right-click drag vs short right-click to cancel build */
+  rightClickOriginRef: RefObject<{ x: number; y: number } | null>;
   setInspectorCollapsed: (value: boolean | ((prev: boolean) => boolean)) => void;
   juiceEffectsEnabled: boolean;
   gameplayActive: boolean;
@@ -45,6 +46,7 @@ export function useCanvasInteractions({
   isDraggingRef,
   cameraDragStartRef,
   clickOriginRef,
+  rightClickOriginRef,
   setInspectorCollapsed,
   juiceEffectsEnabled,
   gameplayActive,
@@ -75,6 +77,37 @@ export function useCanvasInteractions({
     if (selectedBuildingType) {
       const rotation = loopRef.current?.getView().buildRotation ?? 0;
       const { x: snapX, y: snapY } = snapBuildingCenter(selectedBuildingType, worldX, worldY, rotation);
+
+      // Click an existing building while placement is invalid → select it & exit build mode
+      // (so you don't need right-click just to open the inspector)
+      if (!isStripBuildType(selectedBuildingType)) {
+        const valid = canPlaceBuilding(world, selectedBuildingType, snapX, snapY, rotation);
+        if (!valid) {
+          let under: Building | null = null;
+          for (const b of world.buildings) {
+            if (
+              worldX >= b.x - b.width / 2 && worldX <= b.x + b.width / 2
+              && worldY >= b.y - b.height / 2 && worldY <= b.y + b.height / 2
+            ) {
+              under = b;
+              break;
+            }
+          }
+          if (under) {
+            playClickSound();
+            cancelBuildMode();
+            loopRef.current?.patchView({
+              selectedBuildingId: under.id,
+              selectedEntityId: null,
+              selectedCampKey: null,
+              highlightedCampKey: null,
+            });
+            setInspectorCollapsed(false);
+            return;
+          }
+        }
+      }
+
       if (isStripBuildType(selectedBuildingType)) {
         const preview = buildStripPreview(world, selectedBuildingType, snapX, snapY, snapX, snapY, rotation);
         if (preview.segments.length > 0 && preview.segments.every((seg) => seg.valid)) {
@@ -87,10 +120,14 @@ export function useCanvasInteractions({
             rotation: preview.rotation,
           });
         }
+        // Stay in build mode for continuous strip / next segment
         return;
       }
-      playClickSound();
-      applyGameAction({ proto: 1, op: 'startBuilding', type: selectedBuildingType, x: snapX, y: snapY, rotation });
+      // Continuous place — keep tool selected for another click
+      if (canPlaceBuilding(world, selectedBuildingType, snapX, snapY, rotation)) {
+        playClickSound();
+        applyGameAction({ proto: 1, op: 'startBuilding', type: selectedBuildingType, x: snapX, y: snapY, rotation });
+      }
       return;
     }
 
@@ -183,7 +220,7 @@ export function useCanvasInteractions({
         selectedCampKey: null,
       });
     }
-  }, [selectedBuildingType, juiceEffectsEnabled, getViewCamera, applyGameAction, canvasRef, worldRef, loopRef, setInspectorCollapsed]);
+  }, [selectedBuildingType, juiceEffectsEnabled, getViewCamera, applyGameAction, cancelBuildMode, canvasRef, worldRef, loopRef, setInspectorCollapsed]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -270,8 +307,11 @@ export function useCanvasInteractions({
       onPrimeAudioUnlock();
       audioStartedRef.current = true;
     }
-    if (e.button === 2 && selectedBuildingType) {
-      cancelBuildMode();
+    // Right-click: start pan; cancel build only on short click (mouseup)
+    if (e.button === 2) {
+      rightClickOriginRef.current = { x: e.clientX, y: e.clientY };
+      isDraggingRef.current = true;
+      cameraDragStartRef.current = { x: e.clientX, y: e.clientY };
       return;
     }
     if (e.button === 0 && selectedBuildingType && isStripBuildType(selectedBuildingType)) {
@@ -286,14 +326,14 @@ export function useCanvasInteractions({
       stripDragStartRef.current = { x: worldX, y: worldY };
       return;
     }
-    if (e.button === 1 || e.button === 2 || (e.button === 0 && !selectedBuildingType)) {
+    if (e.button === 1 || (e.button === 0 && !selectedBuildingType)) {
       isDraggingRef.current = true;
       cameraDragStartRef.current = { x: e.clientX, y: e.clientY };
       clickOriginRef.current = { x: e.clientX, y: e.clientY };
     }
-  }, [gameplayActive, selectedBuildingType, cancelBuildMode, onPrimeAudioUnlock, audioStartedRef, getViewCamera, canvasRef, stripDragStartRef, isDraggingRef, cameraDragStartRef, clickOriginRef]);
+  }, [gameplayActive, selectedBuildingType, onPrimeAudioUnlock, audioStartedRef, getViewCamera, canvasRef, stripDragStartRef, isDraggingRef, cameraDragStartRef, clickOriginRef, rightClickOriginRef]);
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = useCallback((e?: React.MouseEvent) => {
     if (stripDragStartRef.current && selectedBuildingType && isStripBuildType(selectedBuildingType)) {
       const start = stripDragStartRef.current;
       stripDragStartRef.current = null;
@@ -314,18 +354,32 @@ export function useCanvasInteractions({
       }
       loop?.patchView({ buildStripPreview: null });
     }
+    // Short right-click cancels build; drag pans the map
+    if (rightClickOriginRef.current && e?.button === 2) {
+      const ox = rightClickOriginRef.current.x;
+      const oy = rightClickOriginRef.current.y;
+      const dx = e.clientX - ox;
+      const dy = e.clientY - oy;
+      rightClickOriginRef.current = null;
+      if (dx * dx + dy * dy < 36 && selectedBuildingType) {
+        cancelBuildMode();
+      }
+    } else {
+      rightClickOriginRef.current = null;
+    }
     isDraggingRef.current = false;
     cameraDragStartRef.current = null;
     clickOriginRef.current = null;
-  }, [selectedBuildingType, applyGameAction, stripDragStartRef, isDraggingRef, cameraDragStartRef, clickOriginRef, loopRef, worldRef]);
+  }, [selectedBuildingType, applyGameAction, cancelBuildMode, stripDragStartRef, isDraggingRef, cameraDragStartRef, clickOriginRef, rightClickOriginRef, loopRef, worldRef]);
 
   const handleMouseLeave = useCallback(() => {
     stripDragStartRef.current = null;
     isDraggingRef.current = false;
     cameraDragStartRef.current = null;
     clickOriginRef.current = null;
+    rightClickOriginRef.current = null;
     loopRef.current?.patchView({ hoveredBuildingId: null, buildStripPreview: null }, true);
-  }, [loopRef, stripDragStartRef, isDraggingRef, cameraDragStartRef, clickOriginRef]);
+  }, [loopRef, stripDragStartRef, isDraggingRef, cameraDragStartRef, clickOriginRef, rightClickOriginRef]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

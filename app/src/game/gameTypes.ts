@@ -67,6 +67,10 @@ export const BuildingType = {
   Barracks: 'barracks',
   /** Outdoor hunting post — staffed hunters harvest nearby wildlife. */
   HuntingSpot: 'huntingSpot',
+  /** Public house — free-time hangout: drink, chat, unwind. */
+  Tavern: 'tavern',
+  /** Guest lodging — visitors pay gold to sleep; staffed by hoteliers. */
+  Hotel: 'hotel',
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 
@@ -119,6 +123,8 @@ export const JobType = {
   Builder: 'builder',
   Guard: 'guard',
   Housewife: 'housewife',
+  Innkeeper: 'innkeeper',
+  Hotelier: 'hotelier',
 } as const;
 export type JobType = (typeof JobType)[keyof typeof JobType];
 
@@ -137,6 +143,8 @@ export const JOB_LABELS: Record<JobType, string> = {
   [JobType.Builder]: 'Builder',
   [JobType.Guard]: 'Guard',
   [JobType.Housewife]: 'Housewife',
+  [JobType.Innkeeper]: 'Innkeeper',
+  [JobType.Hotelier]: 'Hotelier',
 };
 
 export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
@@ -156,7 +164,14 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
   [BuildingType.Prison]: JobType.Guard,
   [BuildingType.Barracks]: JobType.Guard,
   [BuildingType.HuntingSpot]: JobType.Hunter,
+  [BuildingType.Tavern]: JobType.Innkeeper,
+  [BuildingType.Hotel]: JobType.Hotelier,
 };
+
+/** Max visitor guests who can sleep at one staffed hotel overnight. */
+export const HOTEL_GUEST_CAPACITY = 4;
+/** Gold charged per visitor per night at a staffed hotel. */
+export const HOTEL_NIGHTLY_GOLD = 3;
 
 export interface Entity {
   id: number;
@@ -213,6 +228,8 @@ export interface Entity {
   lastAffairSiteY?: number;
   /** Tick until another caught/rumor scandal can fire for this settler. */
   scandalCooldownUntilTick?: number;
+  /** After a partner dies — mourn until this tick (stay home, soft chat). */
+  griefUntilTick?: number;
   lastMetPartner?: number;
   courtshipProgress?: number;
   /** Biological father when pregnancy is not from the legal spouse. */
@@ -277,6 +294,10 @@ export interface Entity {
   /** Non-player humans: visitors, rivals, or trade-route merchants */
   faction?: 'visitor' | 'rival' | 'trade_caravan';
   groupId?: string;
+  /** Visitor lodging at a player Hotel (not staff occupants). */
+  hotelStayBuildingId?: number;
+  /** Tick until which the visitor remains checked in. */
+  hotelStayUntilTick?: number;
   /** Prey or predator being chased — used for hunt lines in the renderer */
   huntTargetId?: number;
   /** Brief combat flash after a hunt, block, or counter-attack */
@@ -307,6 +328,8 @@ export interface Building {
   workshopRecipeId?: string;
   /** Strip orientation — 0/90 straight; 0/90/180/270 for wall corners. */
   rotation?: 0 | 90 | 180 | 270;
+  /** Hotel only — visitor entity ids currently lodging (max HOTEL_GUEST_CAPACITY). */
+  hotelGuestIds?: number[];
 }
 
 export interface WorkshopRecipe {
@@ -724,6 +747,19 @@ export interface WorldState {
   ecosystemHealth: number;
   biodiversityIndex: number;
   pollutionLevel: number;
+  /**
+   * Escalating valley ecology stage (Stable → Collapse).
+   * See ecologyStage.ts — information-first, effects scale with sustained stress.
+   */
+  valleyStage?: import('./ecologyStage').ValleyStage;
+  /** Absolute colony day when current valleyStage was entered. */
+  valleyStageSinceDay?: number;
+  /** Consecutive days raw stress wanted a higher stage. */
+  valleyRawStressStreakDays?: number;
+  /** Consecutive days raw stress wanted a lower stage. */
+  valleyRawCalmStreakDays?: number;
+  /** Absolute day of last stage notification (cooldown). */
+  valleyLastStageNotifyDay?: number;
   challenges: Challenge[];
   autoSave: boolean;
   weather: WeatherType;
@@ -744,6 +780,11 @@ export interface WorldState {
   totalBuildingsCompleted: number;
   /** Last absolute calendar day daily sim events ran (prevents reload double-fire). */
   lastProcessedCalendarDay?: number;
+  /**
+   * Winter heating result for the current colony day.
+   * Set when wood is burned at day boundary; true outside winter.
+   */
+  villageCanHeat?: boolean;
   worldMap: WorldMap | null;
   yearlyStats: import('./stats').YearlyStats[];
   lifetimeStats: import('./stats').LifetimeStats;
@@ -1007,7 +1048,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     width: 53, height: 46,
     cost: { wood: 40, stone: 40, gold: 50 },
     buildTime: 6, maxOccupants: 2,
-    emoji: '🏥', label: 'Hospital', description: 'Staffed hospital adds reputation and lowers energy drain.',
+    emoji: '🏥', label: 'Hospital', description: 'Staff doctors — settlers visit when sick or pregnant; treatments heal energy and steady mothers. Passiveed wards lower village energy drain.',
     sprite: '/sprites/hospital.png', backgroundColor: '#db2777', padShape: 'round',
     unlockRequirement: 'medicine_1',
   },
@@ -1015,7 +1056,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     width: 63, height: 53,
     cost: { wood: 100, stone: 80, gold: 100 },
     buildTime: 8, maxOccupants: 3,
-    emoji: '🏰', label: 'Town Hall', description: 'Civic hub — taxes, trade, immigration, elections & festivals when staffed.',
+    emoji: '🏰', label: 'Town Hall', description: 'Civic hub — taxes, trade, immigration, elections & festivals. Staffed officials hear petitions, grant small aid, and hold leader audiences.',
     sprite: '/sprites/townhall.png', backgroundColor: '#1d4ed8', padShape: 'round',
     unlockRequirement: 'architecture_2',
   },
@@ -1110,6 +1151,21 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     emoji: '🏹', label: 'Hunting Spot', description: 'Staff hunters to harvest nearby wildlife for food. Wolves may fight back.',
     sprite: '/sprites/Huntingspot.png', backgroundColor: '#854d0e', padShape: 'circle',
   },
+  [BuildingType.Tavern]: {
+    width: 56, height: 48,
+    cost: { wood: 55, stone: 25, gold: 30 },
+    buildTime: 4, maxOccupants: 2,
+    emoji: '🍺', label: 'Tavern', description: 'Village pub — guests visit after work and on free days. Staff an Innkeeper who works evenings (5pm–11pm), not the day shift.',
+    sprite: '/sprites/tavern.png', backgroundColor: '#b45309', padShape: 'round',
+  },
+  [BuildingType.Hotel]: {
+    width: 60, height: 52,
+    cost: { wood: 70, stone: 40, gold: 55 },
+    buildTime: 5, maxOccupants: 2,
+    emoji: '🏨', label: 'Hotel', description: 'Visitor lodging — staff Hoteliers (day shift). Up to 4 guests sleep overnight for gold.',
+    sprite: '/sprites/hotel.png', backgroundColor: '#0e7490', padShape: 'round',
+    unlockRequirement: 'trade_1',
+  },
 };
 
 export const INITIAL_CHALLENGES: Challenge[] = [
@@ -1136,7 +1192,7 @@ export function createInitialResearchNodes(): ResearchNode[] {
     { id: 'architecture_2', type: ResearchType.Architecture, name: 'Urban Planning', description: 'Unlocks Town Hall (+ reputation from roads)', cost: { wood: 100, stone: 80, food: 0, gold: 100 }, unlocked: false, researched: false, prerequisites: ['architecture_1'], effects: [{ target: 'road_bonus', multiplier: 1.5 }], icon: '🏛️', tier: 2, completionNotify: { title: 'Town Hall unlocked', message: 'Open Build (B) → Community → Town Hall 🏰', level: 'success' } },
     { id: 'medicine_1', type: ResearchType.Medicine, name: 'Herbal Medicine', description: 'Unlocks Hospital', cost: { wood: 50, stone: 40, food: 0, gold: 60 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'human_lifespan', multiplier: 1.2 }], icon: '🌿', tier: 1 },
     { id: 'medicine_2', type: ResearchType.Medicine, name: 'Plague Resistance', description: 'Immune to plague disasters', cost: { wood: 60, stone: 50, food: 0, gold: 90 }, unlocked: false, researched: false, prerequisites: ['medicine_1'], effects: [{ target: 'plague_immunity', add: 1 }], icon: '💉', tier: 2 },
-    { id: 'trade_1', type: ResearchType.Trade, name: 'Commerce', description: 'Unlocks Market', cost: { wood: 60, stone: 30, food: 0, gold: 50 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'gold_production', multiplier: 1.2 }], icon: '💰', tier: 1 },
+    { id: 'trade_1', type: ResearchType.Trade, name: 'Commerce', description: 'Unlocks Market and Hotel', cost: { wood: 60, stone: 30, food: 0, gold: 50 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'gold_production', multiplier: 1.2 }], icon: '💰', tier: 1 },
     { id: 'trade_2', type: ResearchType.Trade, name: 'Trade Routes', description: 'Enables trade routes', cost: { wood: 80, stone: 40, food: 0, gold: 100 }, unlocked: false, researched: false, prerequisites: ['trade_1'], effects: [{ target: 'trade_bonus', multiplier: 1.5 }], icon: '🚢', tier: 2 },
     { id: 'education_1', type: ResearchType.Education, name: 'Scholarship', description: 'Unlocks School', cost: { wood: 70, stone: 50, food: 0, gold: 40 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'research_speed', multiplier: 1.3 }], icon: '📚', tier: 1 },
     { id: 'education_2', type: ResearchType.Education, name: 'Advanced Learning', description: 'All buildings 20% more efficient', cost: { wood: 90, stone: 70, food: 0, gold: 120 }, unlocked: false, researched: false, prerequisites: ['education_1'], effects: [{ target: 'global_efficiency', multiplier: 1.2 }], icon: '🎓', tier: 2 },

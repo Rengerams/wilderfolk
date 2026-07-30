@@ -1,8 +1,10 @@
 import type { WorldState, Resources, WorkshopRecipe } from './gameTypes';
 import { BuildingType, Season } from './gameTypes';
 import { addCappedResource } from './resourceUtils';
-import { addFloatingText, addNotification } from './gameEngine';
-import { onTradeRouteEstablished } from './tradeCaravans';
+import { addFloatingText } from './gameEngine';
+
+/** Canonical implementation lives in tradeCaravans (Market gate + caravan schedule). */
+export { establishTradeRoute, hasCompletedMarket } from './tradeCaravans';
 
 export function updateStorageCaps(state: WorldState) {
   const barns = state.buildings.filter(b => b.completed && b.type === BuildingType.Barn).length;
@@ -48,25 +50,6 @@ export function applyFoodSpoilage(state: WorldState, season: Season) {
       addFloatingText(state, state.width / 2, state.height / 2 - 40, `-${loss} food spoiled`, '#ef4444', 'brief');
     }
   }
-}
-
-export function establishTradeRoute(state: WorldState, routeId: string): WorldState {
-  const s = structuredClone(state) as WorldState;
-  const route = s.tradeRoutes.find(r => r.id === routeId);
-  if (!route || route.active) return s;
-  if (s.villageReputation < route.reputationRequired) {
-    addNotification(s, 'Trade Failed', `Need ${route.reputationRequired} reputation`, 'warning');
-    return s;
-  }
-  
-  route.active = true;
-  s.lifetimeStats = {
-    ...s.lifetimeStats,
-    tradeRoutesEstablished: s.lifetimeStats.tradeRoutesEstablished + 1,
-  };
-  onTradeRouteEstablished(s, routeId);
-  addNotification(s, 'Trade Route Established', `Merchants will walk to ${route.targetName} and back!`, 'success');
-  return s;
 }
 
 export function initTradeRoutes(): WorldState['tradeRoutes'] {

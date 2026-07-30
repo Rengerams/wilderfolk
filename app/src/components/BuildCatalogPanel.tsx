@@ -114,9 +114,9 @@ export default function BuildCatalogPanel({
                   type="button"
                   onClick={() => (locked ? onLocked(type) : onSelect(type))}
                   title={`${config.description}${hotkey ? ` · key ${hotkey}` : ''}`}
-                  className={`flex w-full items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-all ${
+                  className={`flex w-full items-center gap-2.5 rounded-xl border-2 px-2.5 py-2 text-left transition-all ${
                     isSelected
-                      ? 'border-emerald-500 bg-emerald-500/20 shadow-md shadow-emerald-500/10'
+                      ? 'border-emerald-400 bg-emerald-500/25 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-400/40'
                       : locked
                         ? 'border-stone-700 bg-stone-800/50 opacity-50'
                         : affordable
@@ -167,10 +167,19 @@ export default function BuildCatalogPanel({
       </div>
 
       {selected && BUILDING_CONFIGS[selected] && (
-        <div className="shrink-0 border-t border-stone-700/80 p-2">
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-[11px] text-emerald-200">
+        <div className="shrink-0 border-t border-emerald-500/35 bg-emerald-950/40 p-2">
+          <div className="rounded-xl border-2 border-emerald-400/45 bg-emerald-500/15 p-2.5 text-[11px] text-emerald-100 shadow-inner">
             <p className="font-bold">Placing: {BUILDING_CONFIGS[selected].label}</p>
-            <p className="mt-1 text-stone-400">Click map to place · ESC to cancel</p>
+            <p className="mt-1 text-[10px] leading-snug text-emerald-200/75">
+              Click map repeatedly to place more. Done / Esc exits.
+            </p>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="mt-2 w-full rounded-lg bg-emerald-600 py-1.5 text-[11px] font-bold text-white hover:bg-emerald-500"
+            >
+              Done placing
+            </button>
             {isRotatableBuildingType(selected) && (
               <p className="mt-1 text-stone-400">
                 <span className="font-bold text-emerald-400">R</span> rotate ({buildRotation === 90 ? 'vertical' : 'horizontal'})

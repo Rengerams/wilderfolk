@@ -1,6 +1,6 @@
 import { BuildingType, BUILDING_CONFIGS, type WorldState } from './gameTypes';
 import { getResidenceCapacity, isResidenceBuilding } from './dayCycle';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 
 export interface PopulationSnapshot {
   pop: number;

@@ -5,7 +5,8 @@ import { ensureEntityByIdMap } from './entityIndex';
 import { hasIronSpears, hasStoneSpears } from './combat';
 import { formatCitizenName, formatDeathLog } from './citizenId';
 import { logEvent } from './eventLog';
-import { isPlayerHuman, isRivalAtPeace } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
+import { isRivalAtPeace } from './groupEvents';
 import { gainSkill } from './skills';
 import {
   computeMilitiaBreakdown,
@@ -615,7 +616,7 @@ function applyRaidCasualties(
   }
   const entityById = ensureEntityByIdMap(state);
   for (const victim of victims) {
-    killHuman(victim, state.buildings, entityById);
+    killHuman(victim, state.buildings, entityById, state.tick);
     logEvent(
       state,
       'death',

@@ -189,17 +189,34 @@ export function resolveChildSurname(
   };
 }
 
-/** Wife leaves the marriage and takes back her maiden name; husband keeps his surname. */
+/** Status after a marriage ends — pregnant settlers stay "expecting", not free to remarry. */
+function statusAfterDivorce(entity: Entity): 'single' | 'expecting' {
+  return entity.pregnant ? 'expecting' : 'single';
+}
+
+/** Clear legal + secret-romance links so either person can court again later. */
+function clearMarriageLinks(entity: Entity): void {
+  entity.partnerId = undefined;
+  entity.affairPartnerId = undefined;
+  entity.affairProgress = 0;
+  entity.courtshipProgress = 0;
+  entity.lastAffairSiteDay = undefined;
+  entity.lastAffairSiteX = undefined;
+  entity.lastAffairSiteY = undefined;
+}
+
+/**
+ * Wife leaves the marriage and takes back her maiden name; husband keeps his surname.
+ * Both become eligible to remarry once single (not pregnant / not imprisoned).
+ */
 export function grantDivorce(wife: Entity, husband: Entity): void {
   if (wife.maidenSurname?.trim()) {
     wife.surname = wife.maidenSurname.trim();
   }
-  wife.partnerId = undefined;
-  husband.partnerId = undefined;
-  wife.relationshipStatus = 'single';
-  husband.relationshipStatus = 'single';
-  wife.courtshipProgress = 0;
-  husband.courtshipProgress = 0;
+  clearMarriageLinks(wife);
+  clearMarriageLinks(husband);
+  wife.relationshipStatus = statusAfterDivorce(wife);
+  husband.relationshipStatus = statusAfterDivorce(husband);
 }
 
 /** End a marriage regardless of which partner cheated — maiden name restored for the woman. */
@@ -210,12 +227,10 @@ export function dissolveMarriage(partnerA: Entity, partnerB: Entity): void {
     grantDivorce(wife, husband);
     return;
   }
-  partnerA.partnerId = undefined;
-  partnerB.partnerId = undefined;
-  partnerA.relationshipStatus = 'single';
-  partnerB.relationshipStatus = 'single';
-  partnerA.courtshipProgress = 0;
-  partnerB.courtshipProgress = 0;
+  clearMarriageLinks(partnerA);
+  clearMarriageLinks(partnerB);
+  partnerA.relationshipStatus = statusAfterDivorce(partnerA);
+  partnerB.relationshipStatus = statusAfterDivorce(partnerB);
 }
 
 export function formatCaughtCheaterDivorceDetail(spouse: Entity, cheater: Entity): string {

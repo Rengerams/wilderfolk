@@ -4,6 +4,46 @@
 
 **Targeting v0.5.0** (end July 2026) — see [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
 
+### Added — living valley & clearer days (July 30, 2026)
+
+A big playability and presentation pass: the map reads as a place, the day has room to breathe, and the village’s people and ecology show up more clearly on screen.
+
+#### Map & landscape
+- **Painted ground** — seamless grass, dirt, sand, and water fills replace flat color blocks
+- **Soft biome edges** — neighboring terrain blends (meadows into hills, shores into water) with a light shore lip
+- **Living clutter** — bushes, stumps, grass tufts, and rock flecks scatter by terrain; forests and meadows feel fuller
+- **Richer woods** — denser tree clusters, extra trees on forest tiles, more undergrowth near trunks
+- **Seasons on the land** — spring/summer/fall/winter wash the whole ground layer (not a permanent “spring” bake)
+- **Quieter grid & light** — play-mode grid and sun wash step back so the painted map leads
+
+#### Day, work & lodging
+- **Richer day clock** — 72 sim steps per day (3 per clock hour) so people can walk, work, and socialize without the day vanishing
+- **Hotel** — build a staffed inn (2 Hoteliers); up to **4 visitors** pay gold for a bed and leave after morning
+- **Tavern evenings** — Innkeepers work the evening shift; the pub stays a night-life hub
+- **Remarriage** — after divorce (or when single again), settlers can court and marry cleanly
+
+#### Ecology you can read
+- **Valley stages** on the Nature tab: **Stable → Strained → Damaged → Collapse**
+- Clear **drivers** (grazing, predators/prey, hunting pressure, town footprint) and short “what helps” tips
+- **Focus & alerts** when the valley needs care — light pressure first, serious outcomes only if you keep ignoring the wild
+- Hunt and farm yields respond gently at higher strain so the food chain stays part of the story
+
+#### Leadership & civic life
+- **Village head on the map** — crown, gold ring, name plate; header chip to find them; minimap marker
+- **Five-year terms** — founding lead until Year 5, then merit elections every 5 years (ceremony, gossip, revelry)
+- **Town Hall & Hospital** keep richer people-facing roles (petitions, care) alongside production
+
+#### Build & quality-of-life
+- **Build hotkeys 1–9** pick real building types for faster placement
+- **Market-gated trade** — long routes need a completed Market (commerce as a real milestone)
+- **Player-facing docs** — `app/README.md` covers hotel, valley stages, elections, day length, and leadership
+
+#### For developers (tooling)
+- **knip** + **dependency-cruiser** — `npm run audit:knip` / `audit:deps` / `audit`
+- Focused regression tests for day cadence, hotel checkout, leadership, and build hotkeys
+
+---
+
 ### Fixed — social interaction system (July 20, 2026)
 
 **Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) — chat/dialogue cleanup + groupEvents perf pass

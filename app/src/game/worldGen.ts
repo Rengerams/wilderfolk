@@ -25,7 +25,7 @@ import { spawnVisitorGroup } from './groupEvents';
 import { syncResearchUnlocks } from './research';
 import { logEvent } from './eventLog';
 import { computeWildlifeCounts } from './entityCounts';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 import { SPECIES_CONFIG } from './gameEngine';
 import { appointFoundingLeader } from './villageLeadership';
 import { clearAllFactionWanderStates } from './factionWander';
@@ -485,6 +485,11 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     storageMax: { wood: 500, stone: 300, food: 600, gold: 99999 },
     foodSpoilageRate: 0.03, // balance v2.2
     ecosystemHealth: 100, biodiversityIndex: 1.0, pollutionLevel: 0,
+    valleyStage: 'stable',
+    valleyStageSinceDay: 0,
+    valleyRawStressStreakDays: 0,
+    valleyRawCalmStreakDays: 0,
+    valleyLastStageNotifyDay: -999,
     challenges: JSON.parse(JSON.stringify(INITIAL_CHALLENGES)),
     autoSave: loadAutoSavePreference(),
     weather: WeatherType.Clear, weatherTimer: 0,
@@ -528,23 +533,46 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   state.worldMap = generateWorldMap(size, preset ?? 'verdant');
 
   // Grass meadows — prey need grazing patches to survive the day/night calendar.
-  for (let p = 0; p < 8; p++) {
+  // Phase C: more / larger patches so open ground feels living
+  for (let p = 0; p < 12; p++) {
     const cx = width * 0.1 + Math.random() * width * 0.8;
     const cy = height * 0.1 + Math.random() * height * 0.8;
-    spawnGrassPatch(state, cx, cy, 10, 60 + Math.random() * 80);
+    spawnGrassPatch(state, cx, cy, 12, 70 + Math.random() * 90);
   }
 
-  // Spawn tree clusters
-  for (let c = 0; c < 8; c++) {
-    const cx = width * 0.15 + Math.random() * width * 0.7;
-    const cy = height * 0.15 + Math.random() * height * 0.7;
-    for (let i = 0; i < 10; i++) {
+  // Spawn tree clusters (Phase C: more clusters, denser groves)
+  for (let c = 0; c < 12; c++) {
+    const cx = width * 0.12 + Math.random() * width * 0.76;
+    const cy = height * 0.12 + Math.random() * height * 0.76;
+    for (let i = 0; i < 14; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const dist = Math.random() * 60;
+      const dist = Math.random() * 72;
       const tx = cx + Math.cos(angle) * dist;
       const ty = cy + Math.sin(angle) * dist;
       if (!isPassableWildlifePosition(state, tx, ty, 4)) continue;
       state.entities.push(createEntity(EntityType.Tree, tx, ty, state.nextEntityId++));
+    }
+  }
+
+  // Extra trees on forest tiles when map data exists (fills sparse procedural woods)
+  if (state.worldMap?.tiles) {
+    const ts = state.worldMap.tiles;
+    const mw = state.worldMap.width;
+    const mh = state.worldMap.height;
+    const tw = width / mw;
+    const th = height / mh;
+    for (let ty = 0; ty < mh; ty += 2) {
+      for (let tx = 0; tx < mw; tx += 2) {
+        const t = ts[ty]?.[tx];
+        if (!t) continue;
+        const isForest =
+          t.type === TerrainType.Forest || t.type === TerrainType.DarkForest;
+        if (!isForest || Math.random() > 0.22) continue;
+        const px = (tx + 0.35 + Math.random() * 0.3) * tw;
+        const py = (ty + 0.35 + Math.random() * 0.3) * th;
+        if (!isPassableWildlifePosition(state, px, py, 4)) continue;
+        state.entities.push(createEntity(EntityType.Tree, px, py, state.nextEntityId++));
+      }
     }
   }
 

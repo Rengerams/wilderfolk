@@ -1,11 +1,13 @@
 import type { WorldState, Building, Entity } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
-import { ticksForDays } from './dayCycle';
-import { readSkill, rewardProductionSkills } from './skills';
+import { ticksForDays, personDayRoll, TICKS_PER_DAY, getHourOfDay, isWorkHour } from './dayCycle';
+import { readSkill, rewardProductionSkills, gainSkill } from './skills';
 import { addReputation, addFloatingText, addNotification } from './gameEngine';
 import { addResource } from './economy';
 import { logEvent } from './eventLog';
 import { getVillageLeader } from './villageLeadership';
+import { sayHumanChatPhrase } from './humanChat';
+import { isPlayerHuman } from './playerHuman';
 
 export function getTownHallFestivalCooldownTicks(): number {
   return ticksForDays(50);
@@ -151,7 +153,209 @@ export function hostTownFestival(originalState: WorldState, buildingId: number):
 
 export function describeTownHallPerks(building: Building): string {
   if (building.occupants.length === 0) {
-    return 'Assign officials (Official job) to collect taxes, grow trade & immigration, and host festivals.';
+    return 'Assign officials (Official job) to collect taxes, grow trade & immigration, and host festivals. Settlers petition the hall for aid & audiences.';
   }
-  return 'Every 3 days: +rep & tax gold · +trade · +immigration · +village efficiency · softer scandals · host festivals below';
+  return 'Every 3 days: +rep & tax gold · trade · immigration · efficiency · softer scandals · petitions & leader audiences · host festivals below';
+}
+
+export function isOfficialAtHall(
+  entity: Entity,
+  buildings: readonly Building[],
+): Building | undefined {
+  if (entity.job !== JobType.Official || entity.homeBuildingId == null) return undefined;
+  const hall = buildings.find((b) => b.id === entity.homeBuildingId);
+  if (!hall || hall.type !== BuildingType.TownHall || !hall.completed) return undefined;
+  return hall;
+}
+
+/** Settler wants civic attention (dispute, aid, gossip, leader). */
+export function wantsCivicAudience(entity: Entity, state: WorldState): boolean {
+  if (!isPlayerHuman(entity) || entity.isJuvenile) return false;
+  if (entity.job === JobType.Official) return false;
+  if ((entity.griefUntilTick ?? 0) > state.tick) return true;
+  if (state.resources.food < Math.max(40, state.humanPopulation * 2) && entity.energy < entity.maxEnergy * 0.55) {
+    return true;
+  }
+  if ((entity.scandalCooldownUntilTick ?? 0) > state.tick) return true;
+  return personDayRoll(entity.id, state.tick, 820) < 0.18;
+}
+
+export type CivicPetitionResult =
+  | { kind: 'aid_food'; amount: number }
+  | { kind: 'aid_gold'; amount: number }
+  | { kind: 'heard'; }
+  | { kind: 'leader_audience' }
+  | { kind: 'none' };
+
+/**
+ * Settler petitions a staffed town hall — small aid, comfort, or leader audience.
+ * Call when the settler is near the hall during free time or civic hours.
+ */
+export function resolveCivicPetition(
+  state: WorldState,
+  petitioner: Entity,
+  hall: Building,
+): CivicPetitionResult {
+  if (!hall.completed || hall.occupants.length === 0) return { kind: 'none' };
+  if (!isPlayerHuman(petitioner) || petitioner.isJuvenile) return { kind: 'none' };
+
+  const hx = hall.x + hall.width / 2;
+  const hy = hall.y + hall.height * 0.9;
+  if (Math.hypot(petitioner.x - hx, petitioner.y - hy) > 52) return { kind: 'none' };
+
+  // At most one meaningful petition per person per few days
+  const day = Math.floor(state.tick / TICKS_PER_DAY);
+  if (personDayRoll(petitioner.id, state.tick, 821 + day) > 0.4) return { kind: 'none' };
+
+  const leader = getVillageLeader(state);
+  const leaderHere =
+    leader
+    && hall.occupants.includes(leader.id)
+    && Math.hypot(leader.x - hx, leader.y - hy) < 50;
+
+  const hour = getHourOfDay(state.tick);
+  const openHours = isWorkHour(hour) || (hour >= 16 && hour < 19);
+
+  if (!openHours && !leaderHere) return { kind: 'none' };
+
+  for (const id of hall.occupants) {
+    gainSkill(state, id, JobType.Official, 0.06);
+  }
+
+  // Food hardship → small food relief
+  if (
+    state.resources.food >= 8
+    && state.resources.food < state.humanPopulation * 3
+    && petitioner.energy < petitioner.maxEnergy * 0.5
+    && personDayRoll(petitioner.id, state.tick, 822) < 0.45
+  ) {
+    const amount = Math.min(4, Math.floor(state.resources.food * 0.02) + 1);
+    state.resources.food -= amount;
+    petitioner.energy = Math.min(petitioner.maxEnergy, petitioner.energy + 12 + amount * 4);
+    addFloatingText(state, petitioner.x, petitioner.y - 14, `+${amount} food (aid)`, '#86efac', 'brief');
+    sayHumanChatPhrase(
+      petitioner,
+      Math.random() < 0.5 ? 'The hall will help us.' : 'Thank the officials.',
+      50,
+    );
+    addReputation(state, 1);
+    return { kind: 'aid_food', amount };
+  }
+
+  // Scandal / grief → being heard
+  if (
+    ((petitioner.griefUntilTick ?? 0) > state.tick
+      || (petitioner.scandalCooldownUntilTick ?? 0) > state.tick)
+    && personDayRoll(petitioner.id, state.tick, 823) < 0.55
+  ) {
+    petitioner.energy = Math.min(petitioner.maxEnergy, petitioner.energy + 6);
+    sayHumanChatPhrase(
+      petitioner,
+      Math.random() < 0.5 ? 'They listened…' : 'The record is noted.',
+      52,
+    );
+    addFloatingText(state, hall.x + hall.width / 2, hall.y - 10, '📜 Petition heard', '#93c5fd', 'brief');
+    addReputation(state, 1);
+    return { kind: 'heard' };
+  }
+
+  // Leader audience
+  if (leaderHere && personDayRoll(petitioner.id, state.tick, 824) < 0.35) {
+    sayHumanChatPhrase(
+      petitioner,
+      Math.random() < 0.5 ? 'A word with the leader.' : 'I trust our chief.',
+      48,
+    );
+    if ((leader.chatTicks ?? 0) <= 0) {
+      sayHumanChatPhrase(
+        leader,
+        Math.random() < 0.5 ? 'Speak freely.' : 'We will see it done.',
+        48,
+      );
+    }
+    addReputation(state, 1);
+    return { kind: 'leader_audience' };
+  }
+
+  // Generic civic visit — small gold stipend for very poor days
+  if (
+    state.resources.gold >= 5
+    && personDayRoll(petitioner.id, state.tick, 825) < 0.2
+    && petitioner.energy < petitioner.maxEnergy * 0.6
+  ) {
+    const amount = 1;
+    state.resources.gold -= amount;
+    petitioner.energy = Math.min(petitioner.maxEnergy, petitioner.energy + 5);
+    addFloatingText(state, petitioner.x, petitioner.y - 12, '🪙 Stipend', '#fde047', 'brief');
+    sayHumanChatPhrase(petitioner, 'A coin for the road.', 40);
+    return { kind: 'aid_gold', amount };
+  }
+
+  if (personDayRoll(petitioner.id, state.tick, 826) < 0.25) {
+    sayHumanChatPhrase(
+      petitioner,
+      Math.random() < 0.5 ? 'Busy halls today.' : 'Papers and plans…',
+      40,
+    );
+    return { kind: 'heard' };
+  }
+
+  return { kind: 'none' };
+}
+
+/** Official on duty greets / handles the nearest petitioner. */
+export function officialHandlePetitioners(
+  state: WorldState,
+  official: Entity,
+  hall: Building,
+  villagers: readonly Entity[],
+): boolean {
+  const hx = hall.x + hall.width / 2;
+  const hy = hall.y + hall.height * 0.9;
+  if (Math.hypot(official.x - hx, official.y - hy) > 48) return false;
+
+  const petitioners = villagers.filter(
+    (v) =>
+      v.id !== official.id
+      && v.alive
+      && isPlayerHuman(v)
+      && !v.isJuvenile
+      && Math.hypot(v.x - hx, v.y - hy) < 55
+      && wantsCivicAudience(v, state),
+  );
+  if (petitioners.length === 0) return false;
+
+  const pick = petitioners[Math.floor(personDayRoll(official.id, state.tick, 827) * petitioners.length)]!;
+  const result = resolveCivicPetition(state, pick, hall);
+  if (result.kind === 'none') return false;
+  if ((official.chatTicks ?? 0) <= 0 && Math.random() < 0.4) {
+    sayHumanChatPhrase(
+      official,
+      Math.random() < 0.5 ? 'Next, please.' : 'The village hears you.',
+      44,
+    );
+  }
+  return true;
+}
+
+/**
+ * Daily civic pulse beyond taxes — clear a few petitions symbolically for villagers near hall.
+ */
+export function tickTownHallAudiences(
+  state: WorldState,
+  hall: Building,
+  playerHumans: Entity[],
+): void {
+  if (!hall.completed || hall.occupants.length === 0) return;
+  let handled = 0;
+  const adults = playerHumans.filter((h) => h.alive && !h.isJuvenile);
+  for (const h of adults) {
+    if (handled >= 2) break;
+    if (!wantsCivicAudience(h, state)) continue;
+    const r = resolveCivicPetition(state, h, hall);
+    if (r.kind !== 'none') handled++;
+  }
+  if (handled > 0 && Math.random() < 0.5) {
+    logEvent(state, 'event', `Town Hall heard ${handled} petition${handled > 1 ? 's' : ''}`);
+  }
 }

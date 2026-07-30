@@ -134,7 +134,8 @@ export function buildRenderSnapshot(
     renffrOmen: world.renffrOmen ?? null,
     unlockedTechs: world.unlockedTechs,
     researchNodes: world.researchNodes,
-    hasBlacksmith: world.buildings.some((b) => b.completed && b.type === BuildingType.Blacksmith),
+    // Cheap forge presence check (avoid full scan when forge state already implies smith work)
+    hasBlacksmith: world.buildings.some((b) => b.completed && b.type === BuildingType.Blacksmith && b.faction !== 'rival'),
     villageForge: world.villageForge,
     villageLeaderId: world.villageLeaderId,
     pendingRaidEvents: world.pendingRaidEvents ?? [],

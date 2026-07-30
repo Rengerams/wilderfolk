@@ -52,3 +52,12 @@ export function getMultiplier(state: WorldState, key: string): number {
 export function addReputation(state: WorldState, amount: number): void {
   state.villageReputation = Math.max(0, state.villageReputation + amount);
 }
+
+/**
+ * Production penalty from pollution.
+ * At 0% pollution: 1.0 · At 100% pollution: 0.5.
+ * Lives here (not in a layer file) so daily production can import without coupling layers.
+ */
+export function getPollutionProductionMultiplier(state: WorldState): number {
+  return Math.max(0.5, 1 - state.pollutionLevel / 200);
+}

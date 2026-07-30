@@ -1,4 +1,4 @@
-import type { BuildingType } from './gameEngine';
+import { BuildingType } from './gameTypes';
 
 export type SidebarTab = 'village' | 'frontier' | 'nature' | 'progress' | 'log' | 'more';
 
@@ -20,17 +20,18 @@ export const TAB_HOTKEY_CODES: Record<string, SidebarTab> = {
   KeyM: 'more',
 };
 
+/** Number keys → building types (must be string BuildingType values, not indices). */
 export const HOTKEY_BUILDINGS: Record<string, BuildingType> = {
-  '1': 0,  // House
-  '2': 1,  // Farm
-  '3': 2,  // LumberMill
-  '4': 3,  // Quarry
-  '5': 4,  // Barn
-  '6': 5,  // Well
-  '7': 6,  // Store
-  '8': 7,  // Road
-  '9': 8,  // Workshop
-} as unknown as Record<string, BuildingType>;
+  '1': BuildingType.House,
+  '2': BuildingType.Farm,
+  '3': BuildingType.LumberMill,
+  '4': BuildingType.Quarry,
+  '5': BuildingType.Barn,
+  '6': BuildingType.Well,
+  '7': BuildingType.Store,
+  '8': BuildingType.Road,
+  '9': BuildingType.Workshop,
+};
 
 export const BUILDING_HOTKEYS: Partial<Record<BuildingType, string>> = {};
 for (const [key, val] of Object.entries(HOTKEY_BUILDINGS)) {

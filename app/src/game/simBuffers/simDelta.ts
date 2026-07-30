@@ -62,6 +62,11 @@ export interface SimTickDelta {
   ecosystemHealth: number;
   pollutionLevel: number;
   biodiversityIndex: number;
+  valleyStage: WorldState['valleyStage'];
+  valleyStageSinceDay: number | undefined;
+  valleyRawStressStreakDays: number | undefined;
+  valleyRawCalmStreakDays: number | undefined;
+  valleyLastStageNotifyDay: number | undefined;
   villageReputation: number;
   screenShakeImpulse: number;
   floatingTexts: WorldState['floatingTexts'];
@@ -157,8 +162,17 @@ const CATALOG_PATCH_KEYS = [
   'job', 'occupation', 'skills', 'age', 'birthYear', 'birthMonth', 'birthDay', 'generation',
   'energy', 'maxEnergy', 'x', 'y', 'vx', 'vy',
   'spriteAngle', 'animFrame', 'size', 'flash', 'huntTargetId', 'chatTicks',
+  'chatPartnerId', 'chatDialogueSessionKey',
   'prisonBuildingId', 'prisonerUntilTick', 'prisonSentenceCrime', 'affairPartnerId',
   'affairProgress', 'isJuvenile', 'alive',
+] as const satisfies readonly (keyof Entity)[];
+
+/** Chat fields must clear when undefined (ending a dialogue line). */
+const CATALOG_CLEARABLE_KEYS = [
+  'chatPhrase',
+  'chatTicks',
+  'chatPartnerId',
+  'chatDialogueSessionKey',
 ] as const satisfies readonly (keyof Entity)[];
 
 /** Test helper — extract a full delta from an already-ticked world. */
@@ -210,6 +224,11 @@ export function extractSimTickDelta(
     ecosystemHealth: world.ecosystemHealth,
     pollutionLevel: world.pollutionLevel,
     biodiversityIndex: world.biodiversityIndex,
+    valleyStage: world.valleyStage,
+    valleyStageSinceDay: world.valleyStageSinceDay,
+    valleyRawStressStreakDays: world.valleyRawStressStreakDays,
+    valleyRawCalmStreakDays: world.valleyRawCalmStreakDays,
+    valleyLastStageNotifyDay: world.valleyLastStageNotifyDay,
     villageReputation: world.villageReputation,
     screenShakeImpulse: world.screenShakeImpulse,
     floatingTexts: deltaClone(world.floatingTexts, cloneMode),
@@ -297,6 +316,11 @@ export function applySimTickDelta(
   world.ecosystemHealth = delta.ecosystemHealth;
   world.pollutionLevel = delta.pollutionLevel;
   world.biodiversityIndex = delta.biodiversityIndex;
+  world.valleyStage = delta.valleyStage;
+  world.valleyStageSinceDay = delta.valleyStageSinceDay;
+  world.valleyRawStressStreakDays = delta.valleyRawStressStreakDays;
+  world.valleyRawCalmStreakDays = delta.valleyRawCalmStreakDays;
+  world.valleyLastStageNotifyDay = delta.valleyLastStageNotifyDay;
   world.villageReputation = delta.villageReputation;
   world.screenShakeImpulse = delta.screenShakeImpulse;
   world.floatingTexts = deltaClone(delta.floatingTexts, cloneMode);
@@ -378,7 +402,8 @@ export function applySimTickDelta(
 function applyCatalogPatch(existing: Entity, patch: Entity): void {
   for (const key of CATALOG_PATCH_KEYS) {
     const value = patch[key];
-    if (value === undefined) continue;
+    const clearable = (CATALOG_CLEARABLE_KEYS as readonly string[]).includes(key);
+    if (value === undefined && !clearable) continue;
     if (key === 'skills') {
       existing.skills = structuredClone(patch.skills ?? {});
       continue;

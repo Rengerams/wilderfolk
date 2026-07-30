@@ -1,6 +1,6 @@
 import type { Building, Entity } from './gameTypes';
 import { EntityType } from './gameTypes';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
 import type { SpatialQueryCategory } from './spatialQueryMetrics';
 import {

@@ -18,10 +18,16 @@ const FOCUS_MARGIN = 120;
 /** How often off-screen humans run full AI (every N ticks). */
 export const OFFSCREEN_HUMAN_THROTTLE = 8;
 
-/** How often off-screen wildlife runs full AI (every N ticks). */
+/** How often off-screen wildlife runs full AI (every N wildlife-layer calls). */
 export const OFFSCREEN_WILDLIFE_THROTTLE = 8;
 
-/** How often off-screen grass patches grow/reproduce (every N ticks). */
+/**
+ * Wildlife AI cadence in game ticks — must match `LAYER_SYSTEMS_INTERVAL`.
+ * Grass is daily (`tickGrassDaily`); trees are static props (no sim tick).
+ */
+export const WILDLIFE_LAYER_INTERVAL = 4;
+
+/** @deprecated Grass runs once per day in `tickGrassDaily`, not per-tick. */
 export const OFFSCREEN_GRASS_THROTTLE = 4;
 
 function sortEntitiesByY(entities: Entity[]): Entity[] {

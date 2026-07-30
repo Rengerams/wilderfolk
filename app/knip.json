@@ -1,0 +1,34 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/game/simWorker/gameWorker.ts",
+    "src/game/simWorker/gameWorker.node.ts!",
+    "vitest.browser-worker.config.ts",
+    "scripts/**/*.{ts,mts,mjs,js}!"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.{ts,mts,mjs,js}"],
+  "ignoreDependencies": [
+    "tw-animate-css",
+    "ts-call-graph",
+    "typescript-graph",
+    "madge"
+  ],
+  "vite": true,
+  "vitest": true,
+  "rules": {
+    "files": "error",
+    "dependencies": "error",
+    "devDependencies": "error",
+    "optionalPeerDependencies": "off",
+    "unlisted": "error",
+    "binaries": "error",
+    "unresolved": "error",
+    "exports": "off",
+    "types": "off",
+    "nsExports": "off",
+    "nsTypes": "off",
+    "duplicates": "off",
+    "enumMembers": "off",
+    "namespaceMembers": "off"
+  }
+}

@@ -171,7 +171,7 @@ export default function MoreTabPanel({
               <p>• <strong className="text-stone-200">Rival settlements</strong> appear from ~6 population / yearly events — another camp on the map with its own houses.</p>
               <p>• <strong className="text-stone-200">Diplomacy</strong> — click a rival camp for gifts, pacts, peace treaties (🕊️), militia, raids, and event responses.</p>
               <p>• <strong className="text-stone-200">Visitor camps</strong> — talk to the caravan leader (once per visit), trade goods, or negotiate refugees.</p>
-              <p className="text-stone-500 italic">Full raids & wars are not in v0.4 yet — relations affect gold gifts, hunting competition, and reputation.</p>
+              <p className="text-stone-500 italic">Raids use strength ratios (not a battle screen). Peace treaties block attacks; prep walls, barracks, and spears.</p>
             </div>
           </div>
 
@@ -229,7 +229,7 @@ export default function MoreTabPanel({
               <p>• <strong className="text-amber-200">Hospital</strong> — Staffed: +2 reputation every 5 days. Any hospital lowers energy drain.</p>
               <p>• <strong className="text-amber-200">Demolish</strong> — Click any building → sidebar → <strong className="text-stone-200">🗑 Demolish</strong> (works on houses too; residents are reassigned).</p>
               <p>• <strong className="text-amber-200">Reputation ⭐</strong> — Village header &amp; Progress → Trade. From Town Hall, Hospital, pilgrims, festivals, and avoiding scandals. Unlocks trade routes.</p>
-              <p>• <strong className="text-amber-200">Village head 👑</strong> — First male leads until Year 10; merit elections every 10 years after that. Village tab → Leadership for standings and record score. Scandals hurt re-election; a strong challenger can still win.</p>
+              <p>• <strong className="text-amber-200">Village head 👑</strong> — First male leads until Year 5; merit elections every 5 years after that. Village tab → Leadership for standings and record score. Scandals hurt re-election; a strong challenger can still win.</p>
             </div>
           </div>
 

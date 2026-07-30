@@ -2,7 +2,7 @@ import type { EntityCatalog } from './entityCatalog';
 import type { WorldState } from './gameTypes';
 import { hasWorkAssignment, isImprisoned } from './dayCycle';
 import { getTotalBeds } from './populationGrowth';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 
 export interface VillageStatsSummary {
   total: number;

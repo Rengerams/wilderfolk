@@ -23,7 +23,7 @@ import {
 } from './gameEngine';
 import { unindexAdjacency } from './adjacencyIndex';
 import { indexLivingEntity } from './entityIndex';
-import { isPlayerHuman, playerHumanCount } from './groupEvents';
+import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import {
   assignMissingResidences,
   collectOwnHousehold,
@@ -177,11 +177,14 @@ export function startBuilding(
   const building = createBuilding(type, x, y, state.nextBuildingId++, rotation);
   building.spriteScale = 0;
   state.buildings.push(building);
-  
+
+  // Immediate construction crew so progress starts on the next work day (not after social pulse).
+  assignMissingWorkers(state.entities.filter(isPlayerHuman), state.buildings);
+
   createDeathParticles(state, x, y, '#ffd700', 8, 'star');
   addFloatingText(state, x, y - 10, `🔨 ${config.label}`, '#22c55e', 'brief');
   impulseScreenShake(state, 2);
-  
+
   return state;
 }
 
@@ -339,6 +342,7 @@ export function placeStripChain(
   const label = placed === 1 ? BUILDING_CONFIGS[segments[0].placeType ?? type].label : `${placed} segments`;
   addFloatingText(state, firstX, firstY - 10, `🔨 ${label}`, '#22c55e', 'brief');
   impulseScreenShake(state, placed > 3 ? 3 : 2);
+  assignMissingWorkers(state.entities.filter(isPlayerHuman), state.buildings);
   return state;
 }
 

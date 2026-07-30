@@ -12,11 +12,13 @@ import {
   getOutstandingForgeOrder,
   isBlacksmithStaffed,
 } from './forge';
+import { getValleyStageFocusHint } from './ecologyStage';
 
 export type FocusHintActionId =
   | 'open_goals'
   | 'open_frontier'
   | 'open_trade'
+  | 'build_market'
   | 'open_research'
   | 'open_village'
   | 'open_nature'
@@ -123,6 +125,16 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
     });
   }
 
+  const valleyHint = getValleyStageFocusHint(state);
+  if (valleyHint) {
+    hints.push({
+      icon: valleyHint.icon,
+      title: valleyHint.title,
+      detail: valleyHint.detail,
+      action: { label: 'Nature tab', id: 'open_nature' },
+    });
+  }
+
   const leader = getVillageLeader(state);
   const until = getYearsUntilElection(state);
   if (!leader && state.pendingElectionYear != null) {
@@ -198,14 +210,24 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
     });
   }
 
+  const hasMarket = state.buildings.some(
+    (b) => b.completed && b.faction !== 'rival' && b.type === BuildingType.Market,
+  );
   const readyRoute = state.tradeRoutes.find(
-    (r) => !r.active && state.villageReputation >= r.reputationRequired,
+    (r) => !r.active && hasMarket && state.villageReputation >= r.reputationRequired,
   );
   const nextRoute = state.tradeRoutes.find(
     (r) => !r.active && state.villageReputation < r.reputationRequired,
   );
 
-  if (readyRoute) {
+  if (!hasMarket && completedBuildings >= 5 && state.villageReputation >= 15) {
+    hints.push({
+      icon: '🏛️',
+      title: 'Build a Market',
+      detail: 'A completed Market is required before long-range trade routes can open.',
+      action: { label: 'Build Market', id: 'build_market' },
+    });
+  } else if (readyRoute) {
     hints.push({
       icon: '🤝',
       title: `Open trade with ${readyRoute.targetName}`,

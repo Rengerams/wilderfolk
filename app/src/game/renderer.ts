@@ -136,13 +136,14 @@ function getTerrainColor(type: TerrainType, variation: number, preset?: MapPrese
 
 function buildTerrainCache(state: RenderSnapshot) {
   if (!state.worldMap) return;
-  if (terrainLayerNeedsRebuild(terrainCache, state.worldMap, Season.Spring, state.width, state.height)) {
+  const season = state.season ?? Season.Spring;
+  if (terrainLayerNeedsRebuild(terrainCache, state.worldMap, season, state.width, state.height)) {
     disposeTerrainLayer(terrainCache);
     terrainCache = bakeTerrainLayer(
       state.worldMap,
       state.width,
       state.height,
-      Season.Spring,
+      season,
       (type, _season, variation, preset) => getTerrainColor(type, variation, preset),
     );
   }
@@ -508,6 +509,40 @@ function drawBuildingSprite(
   drawSpriteFrame(ctx, frame, sx, sy, drawW, drawH, 0.5, anchorY, false, {}, 'contain', rotation);
 }
 
+/** Parse #rrggbb (or short) for 2.5D pad shading. */
+function parseHexRgb(color: string): { r: number; g: number; b: number } {
+  const c = color.trim();
+  if (c.startsWith('#') && (c.length === 7 || c.length === 4)) {
+    if (c.length === 7) {
+      return {
+        r: parseInt(c.slice(1, 3), 16),
+        g: parseInt(c.slice(3, 5), 16),
+        b: parseInt(c.slice(5, 7), 16),
+      };
+    }
+    return {
+      r: parseInt(c[1] + c[1], 16),
+      g: parseInt(c[2] + c[2], 16),
+      b: parseInt(c[3] + c[3], 16),
+    };
+  }
+  const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (m) return { r: +m[1], g: +m[2], b: +m[3] };
+  return { r: 80, g: 90, b: 70 };
+}
+
+function rgbaFromRgb(rgb: { r: number; g: number; b: number }, a: number, shade = 0): string {
+  const k = shade >= 0 ? 1 : 1 + shade;
+  const lift = shade > 0 ? shade : 0;
+  const r = Math.min(255, Math.max(0, rgb.r * k + (255 - rgb.r) * lift));
+  const g = Math.min(255, Math.max(0, rgb.g * k + (255 - rgb.g) * lift));
+  const b = Math.min(255, Math.max(0, rgb.b * k + (255 - rgb.b) * lift));
+  return `rgba(${r | 0},${g | 0},${b | 0},${a})`;
+}
+
+/**
+ * Raised foundation pad — top face + south “wall” + soft cast shadow (2.5D tabletop).
+ */
 function drawBuildingPad(
   ctx: CanvasRenderingContext2D,
   shape: 'round' | 'rect' | 'circle' | 'road',
@@ -516,15 +551,40 @@ function drawBuildingPad(
   dash: number[], lineWidth: number
 ) {
   ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = fillColor;
-
+  const rgb = parseHexRgb(fillColor);
+  const depth = Math.max(2, Math.min(h, w) * 0.12);
+  // Contact shadow under pad (SE light)
+  ctx.fillStyle = `rgba(0,0,0,${Math.min(0.35, alpha * 0.55)})`;
   if (shape === 'circle') {
     const r = Math.min(w, h) / 2;
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.ellipse(x + depth * 0.35, y + r * 0.35 + depth * 0.4, r * 0.92, r * 0.28, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (shape !== 'road') {
+    ctx.beginPath();
+    ctx.ellipse(x + depth * 0.25, y + h * 0.28 + depth * 0.5, w * 0.48, h * 0.16, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (shape === 'circle') {
+    const r = Math.min(w, h) / 2;
+    // South disc wall
+    ctx.fillStyle = rgbaFromRgb(rgb, alpha * 0.95, -0.35);
+    ctx.beginPath();
+    ctx.ellipse(x, y + depth * 0.45, r, r * 0.72, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Top disc
+    const top = ctx.createRadialGradient(x - r * 0.25, y - r * 0.3, r * 0.1, x, y, r);
+    top.addColorStop(0, rgbaFromRgb(rgb, alpha, 0.28));
+    top.addColorStop(0.55, rgbaFromRgb(rgb, alpha, 0.05));
+    top.addColorStop(1, rgbaFromRgb(rgb, alpha, -0.18));
+    ctx.fillStyle = top;
+    ctx.beginPath();
+    ctx.ellipse(x, y - depth * 0.15, r, r * 0.78, 0, 0, Math.PI * 2);
     ctx.fill();
   } else if (shape === 'road') {
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = fillColor;
     if (w >= h) {
       const padH = Math.max(4, h * 1.4);
       ctx.fillRect(x - w / 2, y - padH / 2, w, padH);
@@ -532,16 +592,43 @@ function drawBuildingPad(
       const padW = Math.max(4, w * 1.4);
       ctx.fillRect(x - padW / 2, y - h / 2, padW, h);
     }
-  } else if (shape === 'rect') {
-    ctx.fillRect(x - w / 2, y - h / 2, w, h);
   } else {
-    const r = Math.min(w, h) * 0.18;
-    roundRect(ctx, x - w / 2, y - h / 2, w, h, r);
-    ctx.fill();
+    const rw = w;
+    const rh = h;
+    const x0 = x - rw / 2;
+    const y0 = y - rh / 2;
+    const rr = shape === 'rect' ? 2 : Math.min(rw, rh) * 0.18;
+    // Front (south) face of the platform
+    ctx.fillStyle = rgbaFromRgb(rgb, Math.min(1, alpha + 0.1), -0.4);
+    if (shape === 'rect') {
+      ctx.fillRect(x0 + 1, y0 + rh - depth * 0.2, rw - 2, depth + 1);
+    } else {
+      roundRect(ctx, x0 + 1, y0 + rh * 0.55, rw - 2, rh * 0.45 + depth, rr * 0.5);
+      ctx.fill();
+    }
+    // Top face with NW light gradient
+    const grad = ctx.createLinearGradient(x0, y0, x0 + rw, y0 + rh);
+    grad.addColorStop(0, rgbaFromRgb(rgb, alpha, 0.32));
+    grad.addColorStop(0.45, rgbaFromRgb(rgb, alpha, 0.06));
+    grad.addColorStop(1, rgbaFromRgb(rgb, alpha, -0.22));
+    ctx.fillStyle = grad;
+    if (shape === 'rect') {
+      ctx.fillRect(x0, y0 - depth * 0.15, rw, rh);
+    } else {
+      roundRect(ctx, x0, y0 - depth * 0.15, rw, rh, rr);
+      ctx.fill();
+    }
+    // Top-edge highlight
+    ctx.strokeStyle = rgbaFromRgb(rgb, Math.min(1, alpha + 0.2), 0.45);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x0 + rr, y0 - depth * 0.15);
+    ctx.lineTo(x0 + rw - rr, y0 - depth * 0.15);
+    ctx.stroke();
   }
 
   // Border (colorblind-friendly secondary cue)
-  ctx.globalAlpha = Math.min(1, alpha + 0.25);
+  ctx.globalAlpha = Math.min(1, alpha + 0.3);
   ctx.strokeStyle = borderColor;
   ctx.lineWidth = lineWidth;
   ctx.setLineDash(dash);
@@ -549,7 +636,7 @@ function drawBuildingPad(
   if (shape === 'circle') {
     const r = Math.min(w, h) / 2;
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.ellipse(x, y - depth * 0.15, r, r * 0.78, 0, 0, Math.PI * 2);
     ctx.stroke();
   } else if (shape === 'road') {
     if (w >= h) {
@@ -560,10 +647,10 @@ function drawBuildingPad(
       ctx.strokeRect(x - padW / 2, y - h / 2, padW, h);
     }
   } else if (shape === 'rect') {
-    ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+    ctx.strokeRect(x - w / 2, y - h / 2 - depth * 0.15, w, h);
   } else {
     const r = Math.min(w, h) * 0.18;
-    roundRect(ctx, x - w / 2, y - h / 2, w, h, r);
+    roundRect(ctx, x - w / 2, y - h / 2 - depth * 0.15, w, h, r);
     ctx.stroke();
   }
 
@@ -598,18 +685,41 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
 
   const presetVoid = state.worldMap?.preset;
   const voidColors: Partial<Record<MapPreset, string>> = {
-    coastal: '#0f2840',
-    arid: '#3a3020',
-    harsh: '#2a3238',
-    mountainous: '#1a2420',
+    coastal: '#0a1c30',
+    arid: '#2a2218',
+    harsh: '#1c2228',
+    mountainous: '#121c18',
   };
-  ctx.fillStyle = (presetVoid && voidColors[presetVoid]) || '#1a2e1a';
+  // Deep void — map reads as a raised diorama tabletop
+  const voidBase = (presetVoid && voidColors[presetVoid]) || '#0c1410';
+  ctx.fillStyle = voidBase;
+  ctx.fillRect(0, 0, cw, ch);
+  const voidGrad = ctx.createRadialGradient(cw * 0.5, ch * 0.4, Math.min(cw, ch) * 0.1, cw * 0.5, ch * 0.55, Math.max(cw, ch) * 0.8);
+  voidGrad.addColorStop(0, 'rgba(28, 48, 36, 0.25)');
+  voidGrad.addColorStop(0.45, 'rgba(10, 16, 12, 0)');
+  voidGrad.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
+  ctx.fillStyle = voidGrad;
   ctx.fillRect(0, 0, cw, ch);
 
   if (state.worldMap && terrainCache) {
     const [sx0, sy0] = w2s(0, 0, cam, cw, ch);
     const drawW = terrainCache.width * cam.zoom;
     const drawH = terrainCache.height * cam.zoom;
+
+    // Drop shadow under the whole map slab (2.5D floating board)
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    const shOff = Math.max(4, 8 * cam.zoom);
+    ctx.beginPath();
+    // Soft rounded shadow offset SE
+    if (typeof (ctx as CanvasRenderingContext2D & { roundRect?: typeof ctx.fillRect }).roundRect === 'function') {
+      ctx.roundRect(sx0 + shOff * 0.6, sy0 + shOff, drawW, drawH, Math.max(4, 6 * cam.zoom));
+      ctx.fill();
+    } else {
+      ctx.fillRect(sx0 + shOff * 0.6, sy0 + shOff, drawW, drawH);
+    }
+    ctx.restore();
+
     ctx.drawImage(
       terrainCache.surface as CanvasImageSource,
       sx0,
@@ -627,6 +737,26 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
         terrainDecorCache.height * cam.zoom,
       );
     }
+
+    // Phase D — softer sun wash (textures + season wash carry most of the look)
+    ctx.save();
+    const sun = ctx.createLinearGradient(sx0, sy0, sx0 + drawW, sy0 + drawH);
+    sun.addColorStop(0, 'rgba(255, 250, 230, 0.045)');
+    sun.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
+    sun.addColorStop(1, 'rgba(10, 20, 40, 0.06)');
+    ctx.fillStyle = sun;
+    ctx.fillRect(sx0, sy0, drawW, drawH);
+    ctx.restore();
+
+    // Map edge — dark outer lip + inner rim light
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.lineWidth = Math.max(3, 5 * cam.zoom);
+    ctx.strokeRect(sx0, sy0, drawW, drawH);
+    ctx.strokeStyle = 'rgba(220, 245, 220, 0.16)';
+    ctx.lineWidth = Math.max(1, 1.5 * cam.zoom);
+    ctx.strokeRect(sx0 + 1.5, sy0 + 1.5, drawW - 3, drawH - 3);
+    ctx.restore();
   }
 
 }
@@ -734,6 +864,32 @@ function strokeGridLines(
   ctx.stroke();
 }
 
+/** Soft diamond “tile” at a screen point — 2.5D grid cell / snap marker. */
+function drawIsoCellMarker(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  halfW: number,
+  halfH: number,
+  fill: string,
+  stroke?: string,
+  lineWidth = 1,
+) {
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - halfH);
+  ctx.lineTo(cx + halfW, cy);
+  ctx.lineTo(cx, cy + halfH);
+  ctx.lineTo(cx - halfW, cy);
+  ctx.closePath();
+  ctx.fillStyle = fill;
+  ctx.fill();
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  }
+}
+
 /** Terrain blockers + valid snap points while placing a building. */
 function drawBuildZoneOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (!state.buildMode || !state.worldMap) return;
@@ -757,11 +913,26 @@ function drawBuildZoneOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapsh
       if (isWaterTerrainType(tile.type)) continue;
       const wx = tx * TERRAIN_TILE_SIZE + TERRAIN_TILE_SIZE / 2;
       const wy = ty * TERRAIN_TILE_SIZE + TERRAIN_TILE_SIZE / 2;
-      const px = worldToScreenX(wx, cam, cw) - (TERRAIN_TILE_SIZE / 2) * cam.zoom;
-      const py = worldToScreenY(wy, cam, ch) - (TERRAIN_TILE_SIZE / 2) * cam.zoom;
-      const psz = TERRAIN_TILE_SIZE * cam.zoom;
-      ctx.fillStyle = 'rgba(220, 38, 38, 0.28)';
-      ctx.fillRect(px, py, psz, psz);
+      const cx = worldToScreenX(wx, cam, cw);
+      const cy = worldToScreenY(wy, cam, ch);
+      const halfW = (TERRAIN_TILE_SIZE * 0.48) * cam.zoom;
+      const halfH = (TERRAIN_TILE_SIZE * 0.28) * cam.zoom;
+      // Blocked terrain as flattened diamond plates (not flat red squares)
+      drawIsoCellMarker(
+        ctx, cx, cy, halfW, halfH,
+        'rgba(185, 28, 28, 0.32)',
+        'rgba(252, 165, 165, 0.35)',
+        Math.max(0.8, 1.1 * cam.zoom),
+      );
+      // Thin south “lip” for height
+      ctx.fillStyle = 'rgba(80, 10, 10, 0.35)';
+      ctx.beginPath();
+      ctx.moveTo(cx - halfW, cy);
+      ctx.lineTo(cx, cy + halfH);
+      ctx.lineTo(cx + halfW, cy);
+      ctx.lineTo(cx, cy + halfH + Math.max(2, 3 * cam.zoom));
+      ctx.closePath();
+      ctx.fill();
     }
   }
 
@@ -780,11 +951,28 @@ function drawBuildZoneOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapsh
       const { x: snapX, y: snapY } = snapBuildingCenter(placeType, wx, wy, state.buildRotation);
       const valid = canPlaceBuildingSnapshot(state, placeType, snapX, snapY, state.buildRotation);
       const [px, py] = w2s(snapX, snapY, cam, cw, ch);
-      const r = Math.max(2.5, 3.5 * cam.zoom);
-      ctx.fillStyle = valid ? 'rgba(34, 197, 94, 0.75)' : 'rgba(248, 113, 113, 0.45)';
-      ctx.beginPath();
-      ctx.arc(px, py, r, 0, Math.PI * 2);
-      ctx.fill();
+      const hw = Math.max(3.5, 5.5 * cam.zoom);
+      const hh = Math.max(2, 3.2 * cam.zoom);
+      if (valid) {
+        drawIsoCellMarker(
+          ctx, px, py, hw, hh,
+          'rgba(34, 197, 94, 0.55)',
+          'rgba(167, 243, 208, 0.85)',
+          Math.max(0.9, 1.2 * cam.zoom),
+        );
+        // Tiny raised nub
+        ctx.fillStyle = 'rgba(220, 252, 231, 0.9)';
+        ctx.beginPath();
+        ctx.ellipse(px, py - hh * 0.15, hw * 0.28, hh * 0.22, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        drawIsoCellMarker(
+          ctx, px, py, hw * 0.85, hh * 0.85,
+          'rgba(248, 113, 113, 0.28)',
+          'rgba(252, 165, 165, 0.4)',
+          1,
+        );
+      }
     }
   }
 }
@@ -796,8 +984,10 @@ function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: numb
   const majorGs = gs * GRID_MAJOR_EVERY;
   const vp = getGridViewport(cam, cw, ch);
 
-  // Validity checker on coarse cells while placing buildings
+  // Validity checker on coarse cells — diamond plates instead of flat squares
   if (cam.zoom >= 0.3 && state.buildMode) {
+    const halfW = (majorGs * 0.48) * cam.zoom;
+    const halfH = (majorGs * 0.26) * cam.zoom;
     for (let wx = vp.mx0; wx <= vp.majorEx; wx += majorGs) {
       for (let wy = vp.my0; wy <= vp.majorEy; wy += majorGs) {
         const rawX = wx + majorGs / 2;
@@ -805,13 +995,16 @@ function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: numb
         const { x: cx, y: cy } = state.buildMode
           ? snapBuildingCenter(state.buildMode, rawX, rawY, state.buildRotation)
           : { x: snapToGrid(rawX, gs), y: snapToGrid(rawY, gs) };
-        const px = worldToScreenX(wx, cam, cw);
-        const py = worldToScreenY(wy, cam, ch);
-        const psz = majorGs * cam.zoom;
-        if (px + psz < 0 || px > cw || py + psz < 0 || py > ch) continue;
+        const px = worldToScreenX(wx + majorGs / 2, cam, cw);
+        const py = worldToScreenY(wy + majorGs / 2, cam, ch);
+        if (px + halfW < 0 || px - halfW > cw || py + halfH < 0 || py - halfH > ch) continue;
         const valid = canPlaceBuildingSnapshot(state, state.buildMode, cx, cy, state.buildRotation);
-        ctx.fillStyle = valid ? 'rgba(16, 185, 129, 0.14)' : 'rgba(127, 29, 29, 0.18)';
-        ctx.fillRect(px, py, psz, psz);
+        drawIsoCellMarker(
+          ctx, px, py, halfW, halfH,
+          valid ? 'rgba(16, 185, 129, 0.16)' : 'rgba(127, 29, 29, 0.2)',
+          valid ? 'rgba(52, 211, 153, 0.22)' : 'rgba(248, 113, 113, 0.22)',
+          Math.max(0.7, 1 / cam.zoom),
+        );
       }
     }
   }
@@ -821,7 +1014,7 @@ function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: numb
     ctx.font = `bold ${Math.max(8, Math.round(9 * cam.zoom))}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(6, 78, 59, 0.85)';
+    ctx.fillStyle = 'rgba(167, 243, 208, 0.75)';
     const label = `${majorGs}u`;
     const lx = worldToScreenX(vp.mx0 + majorGs * 0.5, cam, cw);
     const ly = worldToScreenY(vp.my0 + majorGs * 0.5, cam, ch);
@@ -876,55 +1069,69 @@ function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: numb
     }
   }
 
-  // Build ghost — full building footprint
+  // Build ghost footprint — ground diamond plate (sprite ghost drawn later in drawBuildPreview)
   if (state.buildMode && state.buildGhost && !(state.buildStripPreview && isStripBuildType(state.buildMode))) {
     const footprint = getBuildingFootprintForType(state.buildMode, state.buildRotation);
     const [gx, gy] = w2s(state.buildGhost.x, state.buildGhost.y, cam, cw, ch);
     const bw = footprint.width * cam.zoom;
     const bh = footprint.height * cam.zoom;
     const valid = state.buildGhost.valid;
-    const x0 = gx - bw / 2;
-    const y0 = gy - bh / 2;
+    const halfW = bw * 0.52;
+    const halfH = Math.max(bh * 0.28, bw * 0.16);
 
-    ctx.fillStyle = valid ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)';
-    ctx.fillRect(x0, y0, bw, bh);
+    // Soft ground shadow under the plate
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.beginPath();
+    ctx.ellipse(gx + 3, gy + halfH * 0.55, halfW * 0.95, halfH * 0.55, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-    ctx.setLineDash([Math.max(4, 6 / cam.zoom), Math.max(3, 4 / cam.zoom)]);
-    ctx.strokeStyle = valid ? 'rgba(34, 197, 94, 0.85)' : 'rgba(239, 68, 68, 0.85)';
-    ctx.lineWidth = Math.max(1.5, 2.2 / cam.zoom);
-    ctx.strokeRect(x0, y0, bw, bh);
-    ctx.setLineDash([]);
+    drawIsoCellMarker(
+      ctx, gx, gy, halfW, halfH,
+      valid ? 'rgba(34, 197, 94, 0.28)' : 'rgba(239, 68, 68, 0.28)',
+      valid ? 'rgba(74, 222, 128, 0.9)' : 'rgba(248, 113, 113, 0.9)',
+      Math.max(1.4, 2 / cam.zoom),
+    );
+    // South lip for thickness
+    ctx.fillStyle = valid ? 'rgba(6, 78, 59, 0.45)' : 'rgba(127, 29, 29, 0.5)';
+    ctx.beginPath();
+    ctx.moveTo(gx - halfW, gy);
+    ctx.lineTo(gx, gy + halfH);
+    ctx.lineTo(gx + halfW, gy);
+    ctx.lineTo(gx, gy + halfH + Math.max(2.5, 3.5 * cam.zoom));
+    ctx.closePath();
+    ctx.fill();
 
-    // Inner cell lines for large footprints
+    // Inner cell ticks for large footprints (along diamond axes)
     if (cam.zoom >= 0.5 && bw > gs * cam.zoom * 1.5) {
-      ctx.strokeStyle = valid ? 'rgba(34, 197, 94, 0.25)' : 'rgba(239, 68, 68, 0.25)';
-      ctx.lineWidth = 0.5;
+      ctx.strokeStyle = valid ? 'rgba(34, 197, 94, 0.28)' : 'rgba(239, 68, 68, 0.28)';
+      ctx.lineWidth = 0.8;
       ctx.beginPath();
       const left = state.buildGhost.x - footprint.width / 2;
       const right = state.buildGhost.x + footprint.width / 2;
       const top = state.buildGhost.y - footprint.height / 2;
       const bottom = state.buildGhost.y + footprint.height / 2;
       for (let wx = Math.ceil(left / gs) * gs; wx < right; wx += gs) {
-        const px = (wx - cam.x) * cam.zoom + cw / 2;
-        ctx.moveTo(px, y0);
-        ctx.lineTo(px, y0 + bh);
+        const t = (wx - left) / footprint.width;
+        const px = gx - halfW + t * halfW * 2;
+        ctx.moveTo(px, gy - halfH * 0.35);
+        ctx.lineTo(px, gy + halfH * 0.35);
       }
       for (let wy = Math.ceil(top / gs) * gs; wy < bottom; wy += gs) {
-        const py = (wy - cam.y) * cam.zoom + ch / 2;
-        ctx.moveTo(x0, py);
-        ctx.lineTo(x0 + bw, py);
+        const t = (wy - top) / footprint.height;
+        const py = gy - halfH + t * halfH * 2;
+        ctx.moveTo(gx - halfW * 0.35, py);
+        ctx.lineTo(gx + halfW * 0.35, py);
       }
       ctx.stroke();
     }
 
-    // Snap anchor
-    ctx.fillStyle = valid ? '#4ade80' : '#f87171';
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
-    ctx.lineWidth = Math.max(1, 1.2 / cam.zoom);
-    ctx.beginPath();
-    ctx.arc(gx, gy, Math.max(3, 4.5 * cam.zoom), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    // Snap anchor (small raised diamond)
+    drawIsoCellMarker(
+      ctx, gx, gy, Math.max(3, 4.5 * cam.zoom), Math.max(2, 2.8 * cam.zoom),
+      valid ? '#4ade80' : '#f87171',
+      'rgba(0,0,0,0.55)',
+      Math.max(1, 1.2 / cam.zoom),
+    );
   }
 }
 
@@ -940,22 +1147,27 @@ function drawGridTopOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot
   const isNight = isNightHour(state.hourOfDay);
 
   if (inBuildMode) {
-    const minorW = Math.max(0.9, 1.2 / cam.zoom);
-    const majorW = Math.max(1.2, 2 / cam.zoom);
-    strokeGridLines(ctx, vp, cam, cw, ch, gs, true, 'rgba(110, 231, 183, 0.55)', 'rgba(0,0,0,0.35)', minorW);
-    strokeGridLines(ctx, vp, cam, cw, ch, majorGs, false, 'rgba(52, 211, 153, 0.85)', 'rgba(0,0,0,0.45)', majorW);
+    // Softer etched lines — sit on the ground, not neon wireframe
+    const minorW = Math.max(0.7, 0.95 / cam.zoom);
+    const majorW = Math.max(1.0, 1.5 / cam.zoom);
+    strokeGridLines(ctx, vp, cam, cw, ch, gs, true, 'rgba(110, 231, 183, 0.28)', 'rgba(0,0,0,0.22)', minorW);
+    strokeGridLines(ctx, vp, cam, cw, ch, majorGs, false, 'rgba(52, 211, 153, 0.5)', 'rgba(0,0,0,0.32)', majorW);
     if (cam.zoom >= 0.4) {
-      const dotR = Math.max(2, 2.5 * cam.zoom);
+      // Major intersections as tiny diamonds (2.5D pegs)
+      const hw = Math.max(2.2, 2.8 * cam.zoom);
+      const hh = Math.max(1.3, 1.7 * cam.zoom);
       ctx.save();
-      ctx.fillStyle = 'rgba(167, 243, 208, 0.9)';
       for (let x = vp.mx0; x <= vp.majorEx; x += majorGs) {
         for (let y = vp.my0; y <= vp.majorEy; y += majorGs) {
           const px = worldToScreenX(x, cam, cw);
           const py = worldToScreenY(y, cam, ch);
           if (px < -8 || px > cw + 8 || py < -8 || py > ch + 8) continue;
-          ctx.beginPath();
-          ctx.arc(px, py, dotR, 0, Math.PI * 2);
-          ctx.fill();
+          drawIsoCellMarker(
+            ctx, px, py, hw, hh,
+            'rgba(167, 243, 208, 0.75)',
+            'rgba(6, 78, 59, 0.55)',
+            1,
+          );
         }
       }
       ctx.restore();
@@ -963,35 +1175,90 @@ function drawGridTopOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot
     return;
   }
 
-  // Normal play: one clean major grid (every 5 cells) — no minor lines, dots, or checker
-  const majorW = Math.max(1, 1.4 / cam.zoom);
+  // Phase D — quieter play grid so painted ground reads first
+  const majorW = Math.max(0.7, 1.0 / cam.zoom);
   const lineColor = isNight
-    ? 'rgba(226, 232, 240, 0.4)'
-    : 'rgba(31, 56, 28, 0.28)';
-  strokeGridLines(ctx, vp, cam, cw, ch, majorGs, false, lineColor, 'rgba(0,0,0,0)', majorW);
+    ? 'rgba(226, 232, 240, 0.16)'
+    : 'rgba(31, 56, 28, 0.11)';
+  strokeGridLines(ctx, vp, cam, cw, ch, majorGs, false, lineColor, 'rgba(0,0,0,0.08)', majorW);
 }
 
-// ============ GRASS (BATCHED, NO SPRITES, NO SHADOWS) ============
+// ============ GRASS (soft tufts — seasonal tint, still cheap) ============
+function grassSeasonFill(season: Season): string {
+  switch (season) {
+    case Season.Spring: return '#4ade80';
+    case Season.Summer: return '#22c55e';
+    case Season.Fall: return '#a3b35c';
+    case Season.Winter: return '#86a88a';
+    default: return '#22c55e';
+  }
+}
+
+const GRASS_SPRITE_PATHS = ['/sprites/grass.png', '/sprites/grass2.png'] as const;
+const TREE_SPRITE_PATHS = ['/sprites/tree.png', '/sprites/tree2.png'] as const;
+
+function grassSeasonAlpha(season: Season): number {
+  switch (season) {
+    case Season.Winter: return 0.55;
+    case Season.Fall: return 0.82;
+    case Season.Spring: return 0.95;
+    default: return 0.9;
+  }
+}
+
 function drawGrass(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;
-  // Batch all grass into a single path for much faster rendering
-  ctx.save();
-  ctx.fillStyle = '#22c55e';
-  ctx.globalAlpha = 0.16;
+  const seasonA = grassSeasonAlpha(state.season);
+  const frames = GRASS_SPRITE_PATHS.map((p) => getSpriteFrame(p));
+  const hasSprite = frames.some(isDrawableSpriteFrame);
 
+  ctx.save();
   let drawn = 0;
   for (const grass of _cachedGrass) {
     const sx = (grass.x - cam.x) * cam.zoom + cw / 2;
     const sy = (grass.y - cam.y) * cam.zoom + ch / 2;
     const size = grass.size * 1.0 * cam.zoom;
-    // Fast culling without function call
     if (sx + size < -20 || sx - size > cw + 20 || sy + size < -20 || sy - size > ch + 20) continue;
-    // Only draw every other grass at low zoom
-    if (cam.zoom < 0.8 && drawn % 2 !== 0) { drawn++; continue; }
-    const r = size * 0.3;
+    // Density cull when zoomed out
+    if (cam.zoom < 0.55 && drawn % 3 !== 0) { drawn++; continue; }
+    if (cam.zoom < 0.85 && drawn % 2 !== 0) { drawn++; continue; }
+
+    const energyT = Math.max(0.35, Math.min(1, grass.energy / 100));
+    const r = size * (0.55 + 0.35 * energyT);
+
+    // Soft contact shadow under tuft
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
     ctx.beginPath();
-    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.ellipse(sx + r * 0.06, sy + r * 0.22, r * 0.55, r * 0.18, 0.1, 0, Math.PI * 2);
     ctx.fill();
+
+    const frame = frames[grass.id % frames.length];
+    if (hasSprite && isDrawableSpriteFrame(frame)) {
+      ctx.globalAlpha = seasonA * (0.65 + 0.35 * energyT);
+      // Winter desaturate via slight blue wash on alpha only — keep sprite readable
+      if (state.season === Season.Winter) ctx.globalAlpha *= 0.75;
+      const flip = (grass.id & 1) === 0;
+      drawSpriteFrame(
+        ctx,
+        frame,
+        sx,
+        sy,
+        r * 2.2,
+        r * 2.0,
+        0.5,
+        0.92,
+        flip,
+      );
+      ctx.globalAlpha = 1;
+    } else {
+      // Procedural fallback
+      ctx.fillStyle = grassSeasonFill(state.season);
+      ctx.globalAlpha = 0.22 * energyT;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + r * 0.15, r * 1.15, r * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
     drawn++;
   }
   ctx.restore();
@@ -1000,25 +1267,72 @@ function drawGrass(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: num
 // ============ TREES (CULLED) ============
 function drawTrees(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;
-  for (const tree of _cachedTrees) {
+  const treeFrames = TREE_SPRITE_PATHS.map((p) => getSpriteFrame(p));
+  const bushFrame = getSpriteFrame('/sprites/bush.png');
+  const stumpFrame = getSpriteFrame('/sprites/stump.png');
+
+  // Sort by Y so lower trees draw in front (simple 2.5D depth)
+  const trees = _cachedTrees.length > 1
+    ? [..._cachedTrees].sort((a, b) => a.y - b.y || a.id - b.id)
+    : _cachedTrees;
+
+  for (const tree of trees) {
     const sx = (tree.x - cam.x) * cam.zoom + cw / 2;
     const sy = (tree.y - cam.y) * cam.zoom + ch / 2;
     const size = tree.size * 2.4 * cam.zoom;
     if (sx + size < -20 || sx - size > cw + 20 || sy + size < -20 || sy - size > ch + 20) continue;
 
-    // Shadow - simple dark circle, no save/restore
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    // Phase C — denser forest-floor props near trees (stable by id)
+    if (cam.zoom >= 0.4) {
+      const propRoll = tree.id % 5;
+      if ((propRoll === 0 || propRoll === 3) && isDrawableSpriteFrame(stumpFrame)) {
+        const px = sx - size * 0.55;
+        const py = sy + size * 0.12;
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(px + 2, py + size * 0.08, size * 0.28, size * 0.1, 0, 0, Math.PI * 2);
+        ctx.fill();
+        drawSpriteFrame(ctx, stumpFrame, px, py, size * 0.85, size * 0.55, 0.5, 0.9);
+      }
+      if ((propRoll === 1 || propRoll === 2 || propRoll === 4) && isDrawableSpriteFrame(bushFrame)) {
+        const px = sx + size * (propRoll === 4 ? -0.4 : 0.48);
+        const py = sy + size * 0.08;
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.beginPath();
+        ctx.ellipse(px, py + size * 0.06, size * 0.22, size * 0.08, 0, 0, Math.PI * 2);
+        ctx.fill();
+        drawSpriteFrame(ctx, bushFrame, px, py, size * 0.7, size * 0.55, 0.5, 0.9);
+      }
+    }
+
+    // 2.5D contact shadow (offset SE) + soft canopy pool
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.beginPath();
-    ctx.ellipse(sx, sy + size * 0.3, size * 0.5, size * 0.15, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx + size * 0.14, sy + size * 0.34, size * 0.58, size * 0.18, 0.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.beginPath();
+    ctx.ellipse(sx + size * 0.06, sy + size * 0.22, size * 0.42, size * 0.14, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    const treeFrame = getSpriteFrame('/sprites/tree.png');
-    if (treeFrame) {
-      drawSpriteFrame(ctx, treeFrame, sx, sy, size * 2, size * 2.2, 0.5, 0.92);
+    // Oak vs pine by entity id for map variety
+    const treeFrame = treeFrames[tree.id % treeFrames.length];
+    if (isDrawableSpriteFrame(treeFrame)) {
+      const isPine = (tree.id % TREE_SPRITE_PATHS.length) === 1;
+      const drawW = size * (isPine ? 1.65 : 2.05);
+      const drawH = size * (isPine ? 2.55 : 2.3);
+      drawSpriteFrame(ctx, treeFrame, sx, sy - size * 0.08, drawW, drawH, 0.5, 0.92);
     } else {
+      // Procedural fallback: trunk + canopy
+      ctx.fillStyle = '#5c4030';
+      ctx.fillRect(sx - size * 0.08, sy - size * 0.1, size * 0.16, size * 0.45);
       ctx.fillStyle = '#228B22';
       ctx.beginPath();
-      ctx.arc(sx, sy, size / 2, 0, Math.PI * 2);
+      ctx.arc(sx, sy - size * 0.25, size * 0.48, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2d8a3e';
+      ctx.beginPath();
+      ctx.arc(sx - size * 0.18, sy - size * 0.12, size * 0.32, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -1128,26 +1442,33 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
     const sel = state.selectedBuilding?.id === b.id;
     const hover = isHovered(b);
 
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    // Long soft cast shadow (SE sun) — reads as volume under the sprite
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
     ctx.beginPath();
-    ctx.ellipse(sx, sy + h * 0.1 + 2, w * 0.35, h * 0.12, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx + w * 0.08, sy + h * 0.32, w * 0.48, h * 0.16, 0.12, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.beginPath();
+    ctx.ellipse(sx + w * 0.14, sy + h * 0.36, w * 0.38, h * 0.1, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
-    // Category-colored foundation pad
-    const pad = Math.max(2, Math.min(w, h) * 0.08);
+    // Category-colored raised foundation pad (2.5D platform)
+    const pad = Math.max(2, Math.min(w, h) * 0.1);
     const padW = w + pad * 2;
     const padH = h + pad * 2;
     const isRival = b.faction === 'rival';
     const tint = isRival ? '#312e81' : cfg.backgroundColor;
     const border = isRival ? '#6366f1' : darkerColor(tint, 0.4);
     const dash = categoryBorderDashForType(b.type);
-    const baseAlpha = hover ? 0.52 : isRival ? 0.42 : 0.38;
-    drawBuildingPad(ctx, cfg.padShape, sx, sy, padW, padH, tint, border, baseAlpha, dash, isRival ? 2 : 1.5);
+    const baseAlpha = hover ? 0.72 : isRival ? 0.58 : 0.55;
+    drawBuildingPad(ctx, cfg.padShape, sx, sy + h * 0.06, padW, padH * 0.72, tint, border, baseAlpha, dash, isRival ? 2 : 1.5);
 
     if (frame) {
+      // Lift sprite slightly above pad so the footprint reads as a base
       drawBuildingSprite(
-        ctx, b.type, frame, sx, sy, w, h,
+        ctx, b.type, frame, sx, sy - h * 0.04, w, h,
         b.spriteScale || 1,
         normalizeBuildingRotation(b.rotation),
         cfg.spriteDisplayScale ?? DEFAULT_SPRITE_DISPLAY_SCALE,
@@ -1173,13 +1494,23 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
     }
 
     if (sel || hover) {
-      const ringColor = sel ? (isRival ? '#818cf8' : tint) : '#ffffff';
+      const ringColor = sel ? (isRival ? '#a5b4fc' : '#6ee7b7') : 'rgba(255,255,255,0.85)';
+      const padX = sx - w / 2 - 3;
+      const padY = sy - h / 2 - 3;
+      const padRw = w + 6;
+      const padRh = h + 6;
+      ctx.save();
+      if (sel) {
+        ctx.fillStyle = isRival ? 'rgba(99, 102, 241, 0.12)' : 'rgba(16, 185, 129, 0.12)';
+        ctx.fillRect(padX, padY, padRw, padRh);
+      }
       ctx.strokeStyle = ringColor;
       ctx.lineWidth = sel ? 2.5 : 1.5;
       ctx.shadowColor = ringColor;
-      ctx.shadowBlur = sel ? 10 : 6;
-      ctx.strokeRect(sx - w / 2 - 2, sy - h / 2 - 2, w + 4, h + 4);
+      ctx.shadowBlur = sel ? 12 : 5;
+      ctx.strokeRect(padX, padY, padRw, padRh);
       ctx.shadowBlur = 0;
+      ctx.restore();
     }
 
     if (b.level > 1) {
@@ -1244,10 +1575,10 @@ function drawAnimals(
     const flipX = e.vx < 0;
     const frame = getSpriteFrame(cfg.sprite);
 
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    // Soft contact shadow (SE offset for 2.5D volume)
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.beginPath();
-    ctx.ellipse(sx, sy + shadowY, shadowW * 0.45, shadowW * 0.12, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx + shadowW * 0.08, sy + shadowY + 1, shadowW * 0.5, shadowW * 0.15, 0.1, 0, Math.PI * 2);
     ctx.fill();
 
     const drawAnimal = () => {
@@ -1277,7 +1608,14 @@ function drawAnimals(
       ctx.font = `${Math.max(8, 10 * cam.zoom)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText('🐾', sx, sy - spriteH * 0.55 - 4);
-    } else if (e.type === EntityType.Werewolf && cam.zoom > 0.55) {
+    } else if (e.type === EntityType.Werewolf && cam.zoom > 0.4) {
+      // Village head still wearing the howl — crown so they stay findable (use animal metrics only)
+      if (state.villageLeaderId === e.id && !e.faction) {
+        ctx.font = `${Math.max(11, Math.round(13 * cam.zoom))}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fde047';
+        ctx.fillText('👑', sx, sy - spriteH * 0.55 - Math.max(10, 12 * cam.zoom));
+      }
       ctx.font = `${Math.max(8, 10 * cam.zoom)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText('🌝', sx, sy - spriteH * 0.55 - 4);
@@ -1288,14 +1626,24 @@ function drawAnimals(
     }
 
     if (sel) {
-      ctx.strokeStyle = e.type === EntityType.Werewolf ? '#a78bfa' : '#d97706';
+      const ring = e.type === EntityType.Werewolf ? '#c4b5fd' : '#fbbf24';
+      const rr = spriteH * 0.4 + 5;
+      ctx.save();
+      ctx.strokeStyle = ring;
       ctx.lineWidth = 2;
-      ctx.shadowColor = ctx.strokeStyle;
-      ctx.shadowBlur = 8;
+      ctx.shadowColor = ring;
+      ctx.shadowBlur = 10;
+      ctx.setLineDash([4, 3]);
       ctx.beginPath();
-      ctx.arc(sx, sy, spriteH * 0.38 + 4, 0, Math.PI * 2);
+      ctx.arc(sx, sy, rr, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.shadowBlur = 0;
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.15;
+      ctx.fillStyle = ring;
+      ctx.beginPath();
+      ctx.arc(sx, sy, rr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
   }
 }
@@ -1327,38 +1675,50 @@ function drawSpeechBubble(
   entityId: number,
   zoom: number,
 ) {
-  if (zoom < 0.45) return;
+  // Tree lines are long — show bubbles a bit earlier when zooming out.
+  if (zoom < 0.36 || !text) return;
 
   ctx.save();
   const bob = Math.sin(tick * 0.14 + entityId) * 1.5;
-  const fontSize = Math.max(5.5, Math.min(7.5, 6.5 * zoom));
-  ctx.font = `bold ${fontSize}px sans-serif`;
-  const padX = 5;
-  const padY = 3;
-  const lineGap = 2;
-  const lines = text.includes('\n') ? text.split('\n') : wrapChatLines(text);
+  const fontSize = Math.max(6, Math.min(8.5, 7 * zoom));
+  ctx.font = `600 ${fontSize}px "Segoe UI", system-ui, sans-serif`;
+  const padX = 7;
+  const padY = 5;
+  const lineGap = 2.5;
+  // formatChatLine already wraps; split on newlines, re-wrap single blobs.
+  const lines = text.includes('\n')
+    ? text.split('\n').filter(Boolean)
+    : wrapChatLines(text, 36, 3);
   let maxLineW = 0;
   for (const line of lines) {
     maxLineW = Math.max(maxLineW, ctx.measureText(line).width);
   }
-  const bw = Math.ceil(maxLineW + padX * 2);
+  // Cap width so long tree quotes stay readable near screen edges
+  const maxBw = Math.min(220 * Math.max(0.85, zoom), Math.max(72, maxLineW + padX * 2));
+  const bw = Math.ceil(Math.min(maxBw, maxLineW + padX * 2));
   const lineH = fontSize + lineGap;
   const bh = Math.ceil(padY * 2 + lines.length * lineH - lineGap);
   const bx = Math.round(sx - bw / 2);
-  const by = Math.round(sy - size - bh - 12 + bob);
+  const by = Math.round(sy - size - bh - 14 + bob);
 
-  ctx.fillStyle = 'rgba(255,253,245,0.96)';
-  ctx.strokeStyle = 'rgba(28,25,23,0.55)';
-  ctx.lineWidth = 1;
-  roundRect(ctx, bx, by, bw, bh, 4);
+  // Soft shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  roundRect(ctx, bx + 1, by + 2, bw, bh, 6);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(255,252,245,0.97)';
+  ctx.strokeStyle = 'rgba(41,37,36,0.5)';
+  ctx.lineWidth = 1.25;
+  roundRect(ctx, bx, by, bw, bh, 6);
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = 'rgba(255,253,245,0.96)';
+  // Tail
+  ctx.fillStyle = 'rgba(255,252,245,0.97)';
   ctx.beginPath();
-  ctx.moveTo(sx - 4, by + bh - 1);
-  ctx.lineTo(sx, sy - size - 3 + bob * 0.3);
-  ctx.lineTo(sx + 4, by + bh - 1);
+  ctx.moveTo(sx - 5, by + bh - 1);
+  ctx.lineTo(sx, sy - size - 4 + bob * 0.3);
+  ctx.lineTo(sx + 5, by + bh - 1);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -1366,9 +1726,19 @@ function drawSpeechBubble(
   ctx.fillStyle = '#1c1917';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  const textStartY = by + padY + fontSize * 0.1;
+  const textStartY = by + padY + fontSize * 0.08;
   for (let i = 0; i < lines.length; i++) {
-    ctx.fillText(lines[i]!, sx, textStartY + i * lineH);
+    const line = lines[i]!;
+    // Clip visually if measure overflowed maxBw
+    if (ctx.measureText(line).width > bw - padX * 2) {
+      let clipped = line;
+      while (clipped.length > 4 && ctx.measureText(`${clipped}…`).width > bw - padX * 2) {
+        clipped = clipped.slice(0, -1);
+      }
+      ctx.fillText(`${clipped}…`, sx, textStartY + i * lineH);
+    } else {
+      ctx.fillText(line, sx, textStartY + i * lineH);
+    }
   }
   ctx.textBaseline = 'alphabetic';
   ctx.restore();
@@ -1615,10 +1985,10 @@ function drawHumans(
     const headY = footY - spriteH;
     const bobY = walkMotion.bobY ?? 0;
 
-    const shadowScale = speed > 0.1 ? 1.08 : 1;
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    const shadowScale = speed > 0.1 ? 1.1 : 1;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.ellipse(sx, footY + 1, size * 0.42 * shadowScale, size * 0.1, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx + size * 0.08, footY + 2, size * 0.46 * shadowScale, size * 0.13, 0.12, 0, Math.PI * 2);
     ctx.fill();
 
     const drawHuman = () => {
@@ -1661,6 +2031,47 @@ function drawHumans(
       drawSpeechBubble(ctx, sx, headY, drawSize, bubbleText, tick, human.id, cam.zoom);
     }
 
+    // Village leader — gold ring + crown (visible even zoomed out)
+    const isLeader =
+      state.villageLeaderId != null
+      && human.id === state.villageLeaderId
+      && !human.faction;
+    if (isLeader && cam.zoom > 0.22) {
+      ctx.save();
+      const pulse = 0.55 + Math.sin(_time * 2.8 + human.id) * 0.2;
+      // Soft gold ground ring (double stroke at closer zoom)
+      ctx.strokeStyle = `rgba(251, 191, 36, ${0.5 + pulse * 0.4})`;
+      ctx.lineWidth = Math.max(2, 2.5 * cam.zoom);
+      ctx.beginPath();
+      ctx.ellipse(sx, footY + 1, size * 0.62, size * 0.2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      if (cam.zoom > 0.35) {
+        ctx.strokeStyle = `rgba(253, 224, 71, ${0.25 + pulse * 0.2})`;
+        ctx.lineWidth = Math.max(1, 1.2 * cam.zoom);
+        ctx.beginPath();
+        ctx.ellipse(sx, footY + 1, size * 0.78, size * 0.28, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // Head halo
+      const halo = ctx.createRadialGradient(sx, headY + bobY, 2, sx, headY + bobY, size * 1.05);
+      halo.addColorStop(0, `rgba(253, 224, 71, ${0.4 * pulse})`);
+      halo.addColorStop(1, 'rgba(253, 224, 71, 0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(sx, headY + bobY + spriteH * 0.08, size * 0.95, 0, Math.PI * 2);
+      ctx.fill();
+      // Crown above head
+      const crownY = headY + bobY - Math.max(5, 7 * cam.zoom);
+      ctx.font = `${Math.max(12, Math.round(15 * cam.zoom))}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillText('👑', sx + 0.5, crownY + 0.5);
+      ctx.fillStyle = '#fde047';
+      ctx.fillText('👑', sx, crownY);
+      ctx.restore();
+    }
+
     // Status badge
     if (cam.zoom > 0.6) {
       const bx = sx + size * 0.35;
@@ -1676,8 +2087,8 @@ function drawHumans(
       ctx.textBaseline = 'alphabetic';
     }
 
-    // Name label
-    const labelY = headY - (isTalking ? 22 : 4);
+    // Name label — leaders keep a gold plate at lower zoom
+    const labelY = headY - (isTalking ? 22 : 4) - (isLeader && cam.zoom > 0.22 ? Math.max(10, 12 * cam.zoom) : 0);
     if (human.faction && cam.zoom > 0.55) {
       ctx.strokeStyle = human.faction === 'visitor' ? '#22d3ee' : '#fb923c';
       ctx.lineWidth = 1.5;
@@ -1686,17 +2097,34 @@ function drawHumans(
       ctx.stroke();
     }
 
-    if ((human.name || human.surname) && cam.zoom > (human.isJuvenile ? 0.38 : 0.45)) {
-      const prefix = human.faction === 'visitor' ? '↗ ' : human.faction === 'rival' ? '⚑ ' : '';
+    const nameZoomMin = isLeader ? 0.28 : (human.isJuvenile ? 0.38 : 0.45);
+    if ((human.name || human.surname || isLeader) && cam.zoom > nameZoomMin) {
+      const prefix = isLeader
+        ? '👑 '
+        : human.faction === 'visitor'
+          ? '↗ '
+          : human.faction === 'rival'
+            ? '⚑ '
+            : '';
       const childTag = human.isJuvenile ? ' · child' : '';
-      const idTag = !human.faction && cam.zoom > 0.72 ? ` #${human.id}` : '';
-      const displayName = human.name?.trim() || 'Settler';
-      const fullName = prefix + (human.surname ? `${displayName} ${human.surname}` : displayName) + idTag + childTag;
-      const fontSize = Math.max(7, Math.min(9, 8 * cam.zoom));
+      const roleTag = isLeader && cam.zoom > 0.5 ? ' · Head' : '';
+      const idTag = !human.faction && !isLeader && cam.zoom > 0.72 ? ` #${human.id}` : '';
+      const displayName = human.name?.trim() || (isLeader ? 'Village head' : 'Settler');
+      const fullName = prefix + (human.surname ? `${displayName} ${human.surname}` : displayName) + roleTag + idTag + childTag;
+      const fontSize = Math.max(isLeader ? 8 : 7, Math.min(isLeader ? 11 : 9, (isLeader ? 9.5 : 8) * cam.zoom));
       const tw = getCachedNameWidth(ctx, fullName, fontSize, cam.zoom);
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.fillRect(sx - tw / 2 - 3, labelY - fontSize - 2, tw + 6, fontSize + 4);
-      ctx.fillStyle = human.faction === 'visitor' ? '#67e8f9' : human.faction === 'rival' ? '#fdba74' : human.gender === 'male' ? '#fbbf24' : '#fda4af';
+      if (isLeader) {
+        ctx.fillStyle = 'rgba(120, 53, 15, 0.82)';
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.85)';
+        ctx.lineWidth = 1;
+        ctx.fillRect(sx - tw / 2 - 4, labelY - fontSize - 3, tw + 8, fontSize + 6);
+        ctx.strokeRect(sx - tw / 2 - 4, labelY - fontSize - 3, tw + 8, fontSize + 6);
+        ctx.fillStyle = '#fde68a';
+      } else {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(sx - tw / 2 - 3, labelY - fontSize - 2, tw + 6, fontSize + 4);
+        ctx.fillStyle = human.faction === 'visitor' ? '#67e8f9' : human.faction === 'rival' ? '#fdba74' : human.gender === 'male' ? '#fbbf24' : '#fda4af';
+      }
       ctx.font = `bold ${fontSize}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
@@ -1705,14 +2133,30 @@ function drawHumans(
     }
 
     if (isSel) {
-      ctx.strokeStyle = '#d97706';
+      ctx.save();
+      ctx.strokeStyle = '#fbbf24';
       ctx.lineWidth = 2;
-      ctx.shadowColor = '#d97706';
-      ctx.shadowBlur = 8;
+      ctx.shadowColor = '#f59e0b';
+      ctx.shadowBlur = 12;
+      ctx.setLineDash([5, 3]);
       ctx.beginPath();
-      ctx.ellipse(sx, footY - spriteH * 0.48, size * 0.42, spriteH * 0.54, 0, 0, Math.PI * 2);
+      ctx.ellipse(sx, footY - spriteH * 0.48, size * 0.44, spriteH * 0.56, 0, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.12;
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.ellipse(sx, footY - spriteH * 0.48, size * 0.44, spriteH * 0.56, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Ground marker under feet
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = '#fde68a';
+      ctx.lineWidth = 1.5;
       ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.ellipse(sx, footY + 2, size * 0.5, size * 0.14, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
     }
   }
 }
@@ -1993,34 +2437,103 @@ function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
   const footprint = getBuildingFootprintForType(state.buildMode, state.buildRotation);
   const w = footprint.width * state.camera.zoom;
   const h = footprint.height * state.camera.zoom;
+  const valid = state.buildGhost.valid;
+  const bob = Math.sin(_time * 3.2) * Math.max(1.5, 2.5 * state.camera.zoom);
+  const pulse = 0.55 + Math.sin(_time * 4.5) * 0.2;
 
-  // Category-colored pad with validity tint
-  const tint = state.buildGhost.valid ? cfg.backgroundColor : '#7f1d1d';
-  const border = state.buildGhost.valid ? darkerColor(tint, 0.4) : '#ef4444';
+  // Soft outer glow ring (valid green / invalid red)
+  ctx.save();
+  const glow = ctx.createRadialGradient(sx, sy, Math.min(w, h) * 0.2, sx, sy, Math.max(w, h) * 0.85);
+  glow.addColorStop(0, valid ? `rgba(52, 211, 153, ${0.22 * pulse})` : `rgba(248, 113, 113, ${0.2 * pulse})`);
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + h * 0.05, w * 0.72, h * 0.55, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Ground projection of footprint
+  ctx.save();
+  ctx.fillStyle = valid ? 'rgba(34,197,94,0.22)' : 'rgba(239,68,68,0.24)';
+  ctx.beginPath();
+  ctx.ellipse(sx + 2, sy + h * 0.28, w * 0.55, h * 0.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Solid footprint rectangle outline (clear bounds)
+  const fx0 = sx - w / 2;
+  const fy0 = sy - h / 2 + bob * 0.3;
+  ctx.save();
+  ctx.lineWidth = Math.max(2, 2.5 * state.camera.zoom);
+  ctx.strokeStyle = valid ? 'rgba(16, 185, 129, 0.95)' : 'rgba(239, 68, 68, 0.95)';
+  ctx.setLineDash([]);
+  ctx.strokeRect(fx0 - 1, fy0 - 1, w + 2, h + 2);
+  // Inner dashed
+  ctx.lineWidth = Math.max(1, 1.2 * state.camera.zoom);
+  ctx.strokeStyle = valid ? 'rgba(167, 243, 208, 0.85)' : 'rgba(254, 202, 202, 0.85)';
+  ctx.setLineDash([Math.max(4, 5 / state.camera.zoom), Math.max(3, 4 / state.camera.zoom)]);
+  ctx.strokeRect(fx0 + 2, fy0 + 2, w - 4, h - 4);
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // Category-colored raised pad with validity tint
+  const tint = valid ? cfg.backgroundColor : '#7f1d1d';
+  const border = valid ? darkerColor(tint, 0.4) : '#ef4444';
   const dash = categoryBorderDashForType(state.buildMode);
-  const pad = Math.max(2, Math.min(w, h) * 0.08);
-  drawBuildingPad(ctx, cfg.padShape, sx, sy, w + pad * 2, h + pad * 2, tint, border, 0.35, dash, 1.5);
+  const pad = Math.max(2, Math.min(w, h) * 0.1);
+  drawBuildingPad(ctx, cfg.padShape, sx, sy + h * 0.08, w + pad * 2, (h + pad * 2) * 0.7, tint, border, 0.55, dash, 2);
 
+  // Floating ghost sprite (hover bob)
   const previewFrame = getSpriteFrame(cfg.sprite);
-  ctx.globalAlpha = 0.55;
+  ctx.globalAlpha = 0.78;
   if (previewFrame) {
     drawBuildingSprite(
-      ctx, state.buildMode, previewFrame, sx, sy, w, h, 1,
+      ctx, state.buildMode, previewFrame, sx, sy - h * 0.06 + bob, w, h, 1,
       state.buildRotation,
       cfg.spriteDisplayScale ?? DEFAULT_SPRITE_DISPLAY_SCALE,
     );
   } else {
-    ctx.fillStyle = state.buildGhost.valid ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)';
-    ctx.fillRect(sx - w / 2, sy - h / 2, w, h);
+    ctx.fillStyle = valid ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)';
+    ctx.fillRect(sx - w / 2, sy - h / 2 + bob, w, h);
   }
   ctx.globalAlpha = 1;
 
-  // Validity outline
-  ctx.strokeStyle = state.buildGhost.valid ? '#22c55e' : '#ef4444';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([4, 4]);
-  ctx.strokeRect(sx - w / 2 - 2, sy - h / 2 - 2, w + 4, h + 4);
-  ctx.setLineDash([]);
+  // Thick corner brackets
+  const x0 = sx - w / 2 - 5;
+  const y0 = sy - h / 2 - 5 + bob;
+  const x1 = sx + w / 2 + 5;
+  const y1 = sy + h / 2 + 5 + bob;
+  const arm = Math.max(8, Math.min(w, h) * 0.28);
+  ctx.strokeStyle = valid ? 'rgba(74, 222, 128, 1)' : 'rgba(248, 113, 113, 1)';
+  ctx.lineWidth = Math.max(2.2, 2.8 * state.camera.zoom);
+  ctx.lineCap = 'square';
+  ctx.shadowColor = valid ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.65)';
+  ctx.shadowBlur = 6;
+  const corners: [number, number, number, number, number, number][] = [
+    [x0, y0 + arm, x0, y0, x0 + arm, y0],
+    [x1 - arm, y0, x1, y0, x1, y0 + arm],
+    [x0, y1 - arm, x0, y1, x0 + arm, y1],
+    [x1 - arm, y1, x1, y1, x1, y1 - arm],
+  ];
+  ctx.beginPath();
+  for (const [ax, ay, bx, by, cx2, cy2] of corners) {
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(bx, by);
+    ctx.lineTo(cx2, cy2);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Status label under footprint
+  ctx.font = `bold ${Math.max(10, Math.round(11 * state.camera.zoom))}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const label = valid ? '✓ Place' : '✗ Blocked';
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  const tw = ctx.measureText(label).width;
+  ctx.fillRect(sx - tw / 2 - 5, y1 + 4, tw + 10, 16);
+  ctx.fillStyle = valid ? '#6ee7b7' : '#fca5a5';
+  ctx.fillText(label, sx, y1 + 6);
 }
 
 // ============ WEATHER PARTICLES (BATCHED) ============
@@ -2166,7 +2679,7 @@ function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: 
   drawBuildings(drawCtx, state, cw, ch);
   drawCampMarkers(drawCtx, state, cw, ch);
   drawEcoConnections(drawCtx, state, state.camera, cw, ch);
-  drawBuildPreview(drawCtx, state, cw, ch);
+  // Build ghost is drawn live in renderGame (animated bob / brackets)
   drawAnimals(drawCtx, state, cw, ch, true);
   drawTradeRouteLines(drawCtx, state, cw, ch);
   drawRaidMarchLines(drawCtx, state, cw, ch);
@@ -2289,18 +2802,22 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
 
   drawGround(ctx, state, cw, ch);
   compositeCachedEntityLayer(ctx, state, cw, ch);
+  drawBuildPreview(ctx, state, cw, ch);
   drawEntityFlashOverlay(ctx, state, cw, ch);
   drawWeather(ctx, state.weather, cw, ch);
 
   if (isNightHour(state.hourOfDay)) {
-    const depth = state.hourOfDay >= 22 || state.hourOfDay < 4 ? 0.4 : 0.28;
-    ctx.fillStyle = `rgba(8,12,32,${depth})`;
-    ctx.fillRect(0, 0, cw, ch);
+    drawNightAtmosphere(ctx, state, cw, ch);
     drawNightBuildingGlow(ctx, state, cw, ch);
+  } else {
+    drawDayAtmosphere(ctx, state, cw, ch);
   }
 
   // Grid lines on top of all map sprites (underlay was hidden under trees/grass)
   drawGridTopOverlay(ctx, state, cw, ch);
+
+  // Screen vignette — focuses the eye on the settlement
+  drawScreenVignette(ctx, cw, ch, isNightHour(state.hourOfDay));
 
   if (state.renffrOmen) {
     drawRenffrOmen(ctx, state.renffrOmen, cw, ch, _time);
@@ -2309,6 +2826,49 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
   if (shake > 0.1) {
     ctx.restore();
   }
+}
+
+/** Cool blue night wash with stronger edges — leaves center readable for village glows. */
+function drawNightAtmosphere(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+  const deep = state.hourOfDay >= 22 || state.hourOfDay < 4;
+  const depth = deep ? 0.42 : 0.3;
+  ctx.fillStyle = `rgba(6, 10, 28, ${depth * 0.85})`;
+  ctx.fillRect(0, 0, cw, ch);
+  const g = ctx.createRadialGradient(cw * 0.5, ch * 0.42, Math.min(cw, ch) * 0.12, cw * 0.5, ch * 0.5, Math.max(cw, ch) * 0.72);
+  g.addColorStop(0, 'rgba(8, 12, 40, 0)');
+  g.addColorStop(0.55, `rgba(8, 14, 40, ${depth * 0.35})`);
+  g.addColorStop(1, `rgba(2, 4, 18, ${depth * 0.85})`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, cw, ch);
+}
+
+/** Warm / seasonal day grade + soft directional key light (2.5D). */
+function drawDayAtmosphere(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+  const hour = state.hourOfDay;
+  let tint = 'rgba(255, 248, 230, 0.05)';
+  if (hour < 8 || hour >= 18) tint = 'rgba(255, 170, 90, 0.1)'; // dawn / dusk gold
+  else if (state.season === Season.Winter) tint = 'rgba(200, 220, 240, 0.08)';
+  else if (state.season === Season.Fall) tint = 'rgba(255, 200, 120, 0.07)';
+  ctx.fillStyle = tint;
+  ctx.fillRect(0, 0, cw, ch);
+
+  // NW sun beam wash
+  const sun = ctx.createLinearGradient(0, 0, cw * 0.85, ch);
+  sun.addColorStop(0, hour < 8 || hour >= 18 ? 'rgba(255, 200, 120, 0.08)' : 'rgba(255, 255, 240, 0.05)');
+  sun.addColorStop(0.45, 'rgba(255,255,255,0)');
+  sun.addColorStop(1, 'rgba(20, 30, 50, 0.06)');
+  ctx.fillStyle = sun;
+  ctx.fillRect(0, 0, cw, ch);
+}
+
+function drawScreenVignette(ctx: CanvasRenderingContext2D, cw: number, ch: number, night: boolean) {
+  const g = ctx.createRadialGradient(cw * 0.5, ch * 0.45, Math.min(cw, ch) * 0.22, cw * 0.5, ch * 0.52, Math.max(cw, ch) * 0.78);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(0.55, 'rgba(0,0,0,0)');
+  g.addColorStop(0.85, night ? 'rgba(0,0,0,0.22)' : 'rgba(0,0,0,0.12)');
+  g.addColorStop(1, night ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.38)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, cw, ch);
 }
 
 

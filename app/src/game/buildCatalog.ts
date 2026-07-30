@@ -49,6 +49,8 @@ export const BUILDING_CATEGORIES: BuildingCategoryDef[] = [
     types: [
       BuildingType.TownHall,
       BuildingType.Church,
+      BuildingType.Tavern,
+      BuildingType.Hotel,
       BuildingType.School,
       BuildingType.Hospital,
       BuildingType.Prison,

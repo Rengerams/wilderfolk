@@ -4,7 +4,7 @@ import type { TickContext } from './lifeSimulation';
 import { syncResidenceOccupants, assignMissingResidences } from './dayCycle';
 import { assignMissingWorkers } from './workforce';
 
-/** Social layer pulse — 4× per in-game day when the host gates on tick % 6 === 0. */
+/** Social layer pulse — every N ticks (≈12× per day at TICKS_PER_DAY=72). */
 export const LAYER_SOCIAL_INTERVAL = 6;
 
 /**

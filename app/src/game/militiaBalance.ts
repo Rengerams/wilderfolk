@@ -16,7 +16,7 @@ import {
   MILITIA_BALANCE,
 } from './defenseStructures';
 import { BuildingType } from './gameTypes';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 
 export type MilitiaSpearTier = 'none' | 'stone' | 'iron';
 export type MilitiaShieldTier = 'none' | 'wooden' | 'iron';

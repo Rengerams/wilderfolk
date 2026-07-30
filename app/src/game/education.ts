@@ -1,11 +1,11 @@
 import type { WorldState, Entity, Building } from './gameTypes';
 import { BuildingType, EntityType, JobType } from './gameTypes';
-import { WORK_HOURS_PER_DAY, isWorkHour } from './dayCycle';
+import { WORK_HOURS_PER_DAY, isOnWorkShift, isWorkHour } from './dayCycle';
 import { ensureEntitySkills } from './skills';
 import { addNotification } from './gameEngine';
 import { formatCitizenName } from './citizenId';
 import { logEvent } from './eventLog';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 
 /** School days before faster maturation kicks in. */
 export const SCHOOL_MIN_DAYS_FOR_BOOST = 3;
@@ -72,8 +72,13 @@ export function recordChildSchoolTick(
   child: Entity,
   school: Building | undefined,
   hourOfDay: number,
+  tick?: number,
 ): void {
-  if (!school || !isWorkHour(hourOfDay) || !isChildAtSchool(child, school)) return;
+  // No school on weekends; weekday work hours only.
+  const inSchoolHours = tick != null
+    ? isOnWorkShift(tick, hourOfDay)
+    : isWorkHour(hourOfDay);
+  if (!school || !inSchoolHours || !isChildAtSchool(child, school)) return;
   child.schoolTicksToday = (child.schoolTicksToday ?? 0) + 1;
 }
 

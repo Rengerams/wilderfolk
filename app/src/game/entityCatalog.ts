@@ -1,6 +1,6 @@
 import type { Entity, EntityByType, WorldState } from './gameTypes';
 import { EntityType, emptyEntityByType } from './gameTypes';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 import type { SimTickDelta } from './simBuffers/simDelta';
 
 /**

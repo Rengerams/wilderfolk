@@ -1,6 +1,6 @@
 import type { Entity, WildlifeCounts } from './gameTypes';
 import { EntityType } from './gameTypes';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 
 export type PopulationCounts = WildlifeCounts & {
   /** Village settlers (player humans). Matches `WorldState.humanPopulation`. */

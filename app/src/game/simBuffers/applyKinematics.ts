@@ -1,11 +1,16 @@
 import type { EntityCatalog } from '../entityCatalog';
+import type { EntityRenderMeta } from './entityRenderMeta';
 import type { RenderSoAReaderV1 } from './renderSoAReader';
 import { RESIDENCE_BUILDING_NONE } from './schema';
 
-/** Phase C — sync catalog positions from render SoA (no full entity array scan). */
+/**
+ * Phase C — sync catalog positions from render SoA.
+ * When metaBySlot is provided, also sync speech bubble text (chatPhrase).
+ */
 export function patchCatalogKinematicsFromRenderSoA(
   catalog: EntityCatalog,
   reader: RenderSoAReaderV1,
+  metaBySlot?: EntityRenderMeta[] | null,
 ): void {
   reader.forEachSlot((slot) => {
     const entity = catalog.getAny(reader.id(slot));
@@ -22,6 +27,18 @@ export function patchCatalogKinematicsFromRenderSoA(
 
     const chatTicks = reader.chatTicks(slot);
     entity.chatTicks = chatTicks > 0 ? chatTicks : undefined;
+
+    // Phrase lives in meta sidecar — without this, bubbles show dots only on worker path.
+    if (metaBySlot) {
+      const meta = metaBySlot[slot];
+      if (chatTicks > 0) {
+        if (meta?.chatPhrase) entity.chatPhrase = meta.chatPhrase;
+      } else {
+        entity.chatPhrase = undefined;
+      }
+    } else if (chatTicks <= 0) {
+      entity.chatPhrase = undefined;
+    }
 
     const huntTargetId = reader.huntTargetId(slot);
     entity.huntTargetId = huntTargetId ?? undefined;

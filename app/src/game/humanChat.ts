@@ -1,5 +1,7 @@
 import {
+  ensureDialogueBankFromBundle,
   getDialogueTreeById,
+  isDialogueBankReady,
   pickDialogueTree,
   speakerRoleIndex,
   type DialogueTree,
@@ -270,6 +272,7 @@ function advanceDialogue(
   if (!resolved) return false;
 
   const { session, self, partner } = resolved;
+  if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
   const tree = getDialogueTreeById(session.treeId);
   const sessionKey = self.chatDialogueSessionKey!;
   if (!tree) {
@@ -324,6 +327,7 @@ export function startHumanChat(
   partner: ChatSpeaker | null = null,
 ): void {
   if ((entity.chatTicks ?? 0) > 0) return;
+  if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
   const tree = pickDialogueTree(context, entityId, tick, options, options.avoidTreeId);
   if (!tree) return;
   startDialogueTreeChat(entity, partner, tree, partner == null);
@@ -345,6 +349,8 @@ export function tickHumanChat(
   clearEntityChat(entity);
 }
 
+let warnedMissingBank = false;
+
 export function maybeDialogueChat(
   entity: ChatSpeaker,
   partner: ChatSpeaker | null,
@@ -357,18 +363,88 @@ export function maybeDialogueChat(
   if (partner && (partner.chatTicks ?? 0) > 0) return;
   if (Math.random() > chance) return;
 
+  if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
+
   const tree = pickDialogueTree(context, entity.id, tick, options, options.avoidTreeId);
-  if (!tree) {
-    const fallback = FALLBACK_CHAT_LINES[context] ?? DEFAULT_FALLBACK_LINES;
-    const phrase = fallback[(entity.id + tick) % fallback.length]!;
-    sayHumanChatPhrase(entity, phrase, CHAT_DEFAULT_DURATION_TICKS);
-    if (partner) {
-      const reply = fallback[(entity.id + tick + 1) % fallback.length]!;
-      sayHumanChatPhrase(partner, reply, CHAT_DEFAULT_DURATION_TICKS);
-    }
+  if (tree) {
+    startDialogueTreeChat(entity, partner, tree, partner == null);
     return;
   }
-  startDialogueTreeChat(entity, partner, tree, partner == null);
+
+  // Bank missing or empty — short emergency lines only (should be rare).
+  if (!warnedMissingBank) {
+    warnedMissingBank = true;
+    console.warn('[chat] Dialogue bank empty — using fallback phrases (sim_dialogue_trees.json not loaded)');
+  }
+  const fallback = FALLBACK_CHAT_LINES[context] ?? DEFAULT_FALLBACK_LINES;
+  const phrase = fallback[(entity.id + tick) % fallback.length]!;
+  sayHumanChatPhrase(entity, phrase, CHAT_DEFAULT_DURATION_TICKS);
+  if (partner) {
+    const reply = fallback[(entity.id + tick + 1) % fallback.length]!;
+    sayHumanChatPhrase(partner, reply, CHAT_DEFAULT_DURATION_TICKS);
+  }
+}
+
+/** Weighted pool of chat contexts — random pick, optional light bias from world state. */
+export function pickRandomChatContext(
+  entity: Pick<ChatSpeaker, 'isJuvenile'>,
+  options: ChatPickOptions = {},
+  extra?: {
+    pregnant?: boolean;
+    renffr?: boolean;
+    workHour?: boolean;
+    night?: boolean;
+  },
+): HumanChatContext {
+  // Base weights: mostly social / work / home so trees across the bank get used.
+  const pool: HumanChatContext[] = [
+    'social', 'social', 'social', 'social',
+    'work', 'work',
+    'home', 'home',
+  ];
+  if (options.foodLow) pool.push('food', 'food');
+  if (options.season === 'winter' || options.weather === 'snow') pool.push('winter', 'winter');
+  if (options.festivalActive) pool.push('festival', 'festival');
+  if (entity.isJuvenile) pool.push('child', 'child', 'school');
+  if (extra?.pregnant) pool.push('pregnant');
+  if (extra?.renffr) pool.push('renffr', 'renffr');
+  if (extra?.workHour) pool.push('work', 'work');
+  if (extra?.night) pool.push('home', 'sleep', 'sleep');
+  if (options.weather === 'rain' || options.weather === 'storm') pool.push('winter');
+  return pool[Math.floor(Math.random() * pool.length)]!;
+}
+
+/**
+ * Ambient dialogue — random time, random context, optional random nearby partner.
+ * Not gated to work hours / evening / “arrived at building”.
+ *
+ * @param chancePerTick raw chance this tick (e.g. 0.012 ≈ occasional chatter)
+ */
+export function tryAmbientRandomDialogue(
+  entity: ChatSpeaker,
+  nearbyCandidates: ChatSpeaker[],
+  tick: number,
+  chancePerTick: number,
+  options: ChatPickOptions = {},
+  extra?: {
+    pregnant?: boolean;
+    renffr?: boolean;
+    workHour?: boolean;
+    night?: boolean;
+  },
+): void {
+  if ((entity.chatTicks ?? 0) > 0) return;
+  if (Math.random() > chancePerTick) return;
+
+  const context = pickRandomChatContext(entity, options, extra);
+  const freePartners = nearbyCandidates.filter(
+    (p) => p.id !== entity.id && (p.chatTicks ?? 0) <= 0,
+  );
+  let partner: ChatSpeaker | null = null;
+  if (freePartners.length > 0 && Math.random() < 0.6) {
+    partner = freePartners[Math.floor(Math.random() * freePartners.length)]!;
+  }
+  maybeDialogueChat(entity, partner, context, tick, 1, options);
 }
 
 /** @deprecated Prefer `maybeDialogueChat` — duration is derived from dialogue line length. */
@@ -459,7 +535,9 @@ export function getChatBubbleText(
 ): string {
   const talking = (entity.chatTicks ?? 0) > 0;
   if (!talking) return '';
-  if (entity.chatPhrase) return entity.chatPhrase;
+  // Prefer stored tree line; only animate dots if phrase was lost in transfer.
+  const phrase = entity.chatPhrase?.trim();
+  if (phrase) return phrase;
   return getAnimatedChatDots(tick, entity.id);
 }
 

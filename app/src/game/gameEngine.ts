@@ -30,6 +30,7 @@ export {
   OFFSCREEN_HUMAN_THROTTLE,
   OFFSCREEN_WILDLIFE_THROTTLE,
   OFFSCREEN_GRASS_THROTTLE,
+  WILDLIFE_LAYER_INTERVAL,
   buildEntityByType,
   buildEntityDrawBuckets,
   computeSimulationFocus,
@@ -104,8 +105,8 @@ export {
   respondToDiplomacyEvent, getDiplomacyChoiceEligibility, tradeWithVisitors, negotiateRefugees,
   talkToVisitorLeader, getVisitorLeaderTalkMeta,
   hitTestCamp,
-  isPlayerHuman,
 } from './groupEvents';
+export { isPlayerHuman, playerHumanCount } from './playerHuman';
 export type { VisitorLeaderTalkMeta } from './groupEvents';
 export {
   respondToRaidEvent, respondToOutgoingRaidEvent, launchRaidOnRival,
@@ -120,6 +121,15 @@ export { getGrazingPressureReport } from './ecosystemPressure';
 export type { GrazingPressureReport, GrazingPressureLevel } from './ecosystemPressure';
 export { getEcosystemBreakdown } from './ecoBreakdown';
 export type { EcosystemBreakdown, EcosystemBreakdownLine } from './ecoBreakdown';
+export {
+  computeValleyEcologySnapshot,
+  tickValleyEcologyStage,
+  getValleyHuntYieldMultiplier,
+  getValleyFarmYieldMultiplier,
+  valleyStageLabel,
+  valleyStageEmoji,
+} from './ecologyStage';
+export type { ValleyStage, ValleyEcologySnapshot, EcologyDriverId } from './ecologyStage';
 export { getPopulationGrowthReport } from './populationGrowth';
 export type { PopulationGrowthReport, PopulationGrowthTone } from './populationGrowth';
 export { formatRivalPopulationLabel, formatRivalRelationshipLabel } from './rivalDisplay';
@@ -200,7 +210,7 @@ export {
   type InitGameOptions,
 } from './worldGen';
 export { getAgeInYears } from './dayCycle';
-export { tickHumans, tickWildlife } from './lifeSimulation';
+export { tickHumans, tickWildlife, tickGrassDaily } from './lifeSimulation';
 export { updateWeather, updateDisasters } from './worldEvents';
 export { GAME_VERSION, GAME_PHASE, GAME_TITLE, GAME_SUBTITLE, ECOLOGICAL_FACTS } from './version';
 export {

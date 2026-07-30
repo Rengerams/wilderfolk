@@ -1,20 +1,24 @@
 /**
- * Daily layer — every 24 ticks.
+ * Daily layer — once per colony day (`tick % TICKS_PER_DAY === 0`).
  *
- * Consolidates static bookkeeping, building production, frontier systems
- * (festivals, immigration, raids, rivals), and daily-gated world events.
+ * Grass ecology (growth/spread), static bookkeeping, building production,
+ * frontier systems, and daily-gated world events. Trees have no sim tick.
  */
-import type { WorldState, Entity, Building, Challenge, Season } from './gameTypes';
+import type { WorldState, Entity, Building, Challenge } from './gameTypes';
 import {
   BuildingType,
+  BUILDING_CONFIGS,
   BUILDING_JOB_TYPES,
   EntityType,
+  JobType,
+  Season,
   getWorkshopRecipe,
 } from './gameTypes';
 import {
   buildingUsesAdjacency,
   ensureAdjacencyIndex,
   getAdjacencyMultiplierFromIndex,
+  syncAdjacency,
 } from './adjacencyIndex';
 import { indexEntity } from './entityIndex';
 import type { PopulationCounts } from './entityCounts';
@@ -37,11 +41,19 @@ import {
   IMMIGRATION_CHECK_TICKS,
   getResidenceCapacity,
   assignMissingResidences,
+  buildWorkTicks,
+  WORK_HOURS_PER_DAY,
 } from './dayCycle';
 import type { TickContext } from './lifeSimulation';
-import { getMultiplier, addReputation } from './simHelpers';
-import { getPollutionProductionMultiplier } from './tickEcosystem';
-import { addFloatingText, addBigNews, addNotification, impulseScreenShake } from './simEffects';
+import { tickGrassDaily } from './lifeSimulation';
+import { getMultiplier, addReputation, getPollutionProductionMultiplier } from './simHelpers';
+import {
+  addFloatingText,
+  addBigNews,
+  addNotification,
+  impulseScreenShake,
+  createDeathParticles,
+} from './simEffects';
 import { getTerrainEfficiencyMultiplier, findHumanSpawnNear } from './terrainSystems';
 import {
   gainSkill,
@@ -50,16 +62,24 @@ import {
   decayIdleSkills,
   getWorkerSkillMultiplier,
 } from './skills';
-import { getSmithBonus } from './workforce';
-import { isPlayerHuman } from './groupEvents';
+import { assignMissingWorkers, getSmithBonus } from './workforce';
+import { isPlayerHuman } from './playerHuman';
+import { tickHospitalDailyCare } from './hospitalCare';
+import { tickTownHallAudiences } from './townHall';
+import {
+  tickValleyEcologyStage,
+  getValleyHuntYieldMultiplier,
+  getValleyFarmYieldMultiplier,
+} from './ecologyStage';
 import {
   rollYearlyWorldEvent,
   tryFirstWeekVisitor,
   tryMidYearVisitorEvent,
+  tickRivalSettlements,
+  tickVisitorGroups,
 } from './groupEvents';
 import {
   tickElectionGossip,
-  tickElectionCeremony,
   tickElectionBuildup,
   tickLeaderVacancy,
   tryStartDecennialElectionCeremony,
@@ -77,26 +97,151 @@ import {
   tickPendingRaidEvents,
 } from './frontierCombat';
 import { pruneFactionWanderStates } from './factionWander';
-import { tickRivalSettlements, tickVisitorGroups } from './groupEvents';
 import { createImmigrantSettler, replenishDepletedWildlife } from './worldGen';
+import { isChallengeComplete } from './challenges';
 import { addHuntVisual } from './huntvisuals';
+import { spawnBuildCompleteParticles } from './juiceEffects';
+import { loadJuiceEffectsEnabled } from './preferences';
 
-/** Daily winter heating — keep settlers warm or flag that we cannot. */
+/**
+ * Winter heating — burns wood once per colony day, stores result on state for the whole day.
+ * Call from gameTick only (not from daily layer again).
+ */
 export function tickWinterHeating(
   state: WorldState,
   humanCount: number,
   isWinter: boolean,
 ): boolean {
+  if (!isWinter) {
+    state.villageCanHeat = true;
+    return true;
+  }
+  // Same colony day after morning burn: reuse stored flag
+  if (state.tick > 0 && state.tick % TICKS_PER_DAY !== 0) {
+    return state.villageCanHeat !== false;
+  }
+  // Day boundary: attempt to heat the village
   let canHeat = true;
-  if (isWinter && state.tick > 0 && state.tick % TICKS_PER_DAY === 0 && humanCount > 0) {
+  if (state.tick > 0 && humanCount > 0) {
     const woodNeeded = Math.ceil(humanCount / 5);
     if (state.resources.wood >= woodNeeded) {
       state.resources.wood -= woodNeeded;
+      canHeat = true;
     } else {
       canHeat = false;
     }
   }
+  state.villageCanHeat = canHeat;
   return canHeat;
+}
+
+const isPassiveBuild = (type: BuildingType) =>
+  type === BuildingType.House || type === BuildingType.Road || type === BuildingType.Well;
+
+/** Construction / repair / winter decay — once per colony day (in this file only). */
+function tickBuildingProgress(state: WorldState): void {
+  const entityById = new Map<number, Entity>();
+  for (const e of state.entities) {
+    if (e.alive) entityById.set(e.id, e);
+  }
+
+  // Fill crews before progress so unfinished sites always get hands on site this day.
+  assignMissingWorkers(
+    state.entities.filter((e) => e.alive && isPlayerHuman(e)),
+    state.buildings,
+  );
+
+  const isWinter = state.season === Season.Winter;
+  const globalMult = getMultiplier(state, 'global_efficiency');
+  let completedAny = false;
+
+  for (const building of state.buildings) {
+    if (!building.completed && building.constructionProgress < 100) {
+      const workers = building.occupants.length;
+      const buildDays = BUILDING_CONFIGS[building.type].buildTime;
+      const totalWorkTicks = buildWorkTicks(buildDays);
+      const baseRate = 100 / totalWorkTicks;
+      // Unstaffed production buildings crawl; houses/roads/wells still self-build slowly.
+      const buildMultiplier = workers > 0
+        ? 1 + workers * 0.35
+        : isPassiveBuild(building.type) ? 0.55 : 0.22;
+      const skillMult = getWorkerSkillMultiplier(state, building, entityById);
+
+      building.constructionProgress += baseRate
+        * buildMultiplier
+        * globalMult
+        * skillMult
+        * WORK_HOURS_PER_DAY;
+      building.buildAnimTimer += WORK_HOURS_PER_DAY * 0.1;
+
+      if (workers > 0) {
+        const job = getJobForBuilding(building.type) ?? JobType.Builder;
+        for (const id of building.occupants) gainSkill(state, id, job, 0.15);
+      }
+
+      if (building.constructionProgress >= 100) {
+        const wasCompleted = building.completed;
+        building.constructionProgress = 100;
+        building.completed = true;
+        building.occupants = [];
+        building.spriteScale = 1;
+        completedAny = true;
+        logEvent(state, 'building', `${BUILDING_CONFIGS[building.type].label} completed`);
+        if (building.faction !== 'rival') state.totalBuildingsCompleted++;
+        const repGain = building.faction === 'rival' ? 0 : 2;
+        if (repGain > 0) addReputation(state, repGain);
+        if (building.faction !== 'rival') {
+          if (loadJuiceEffectsEnabled()) {
+            spawnBuildCompleteParticles(state, building);
+            addFloatingText(
+              state,
+              building.x,
+              building.y - building.height * 0.35,
+              '✨ Built!',
+              '#fde047',
+              'emphasis',
+            );
+            if (repGain > 0) {
+              addFloatingText(state, building.x, building.y - 8, `+${repGain}⭐`, '#22c55e', 'brief');
+            }
+            impulseScreenShake(state, 3.5);
+          }
+        } else {
+          createDeathParticles(state, building.x, building.y, '#ffd700', 12, 'star');
+        }
+        syncAdjacency(state, building, wasCompleted);
+      }
+      continue;
+    }
+
+    if (building.spriteScale !== 1) building.spriteScale = 1;
+    if (!building.completed) continue;
+
+    if (isWinter) {
+      building.health = Math.max(10, building.health - 2);
+    }
+
+    const aliveRepairWorkers = building.occupants.filter(
+      (id) => entityById.get(id)?.alive,
+    ).length;
+    if (building.health < building.maxHealth && aliveRepairWorkers > 0) {
+      const hpNeeded = building.maxHealth - building.health;
+      const repairAmount = Math.min(5, hpNeeded);
+      const woodCost = hpNeeded <= 1 ? 1 : 2;
+      if (state.resources.wood >= woodCost) {
+        state.resources.wood -= woodCost;
+        building.health = Math.min(building.maxHealth, building.health + repairAmount);
+      }
+    }
+  }
+
+  // Newly finished job buildings get workers the same day (production can fire below).
+  if (completedAny) {
+    assignMissingWorkers(
+      state.entities.filter((e) => e.alive && isPlayerHuman(e)),
+      state.buildings,
+    );
+  }
 }
 
 // ==================== STATIC / DAILY BOOKKEEPING ====================
@@ -152,7 +297,8 @@ function tickBuildingProduction(
       const harvestBonus = state.bountifulHarvest ? 2 : 1;
       const farmMult = getMultiplier(state, 'farm_yield');
       const pollutionMult = getPollutionProductionMultiplier(state);
-      const amount = Math.floor(22 * totalMult * harvestBonus * millBonus * farmMult * globalEff * pollutionMult);
+      const valleyFarm = getValleyFarmYieldMultiplier(state);
+      const amount = Math.floor(22 * totalMult * harvestBonus * millBonus * farmMult * globalEff * pollutionMult * valleyFarm);
       const added = addResource(state, 'food', amount);
       if (added > 0 && productionJob) {
         for (const id of building.occupants) gainSkill(state, id, productionJob, 0.2);
@@ -197,7 +343,8 @@ function tickBuildingProduction(
           targetPrey.energy = 0;
 
           const huntMult = getMultiplier(state, 'hunt_yield');
-          const amount = Math.floor((12 + workers * 6) * totalMult * huntMult * globalEff);
+          const valleyHunt = getValleyHuntYieldMultiplier(state);
+          const amount = Math.floor((12 + workers * 6) * totalMult * huntMult * globalEff * valleyHunt);
 
           if (addResource(state, 'food', amount) > 0) {
             rewardProductionSkills(state, building, 0.2, entityById);
@@ -240,7 +387,8 @@ function tickBuildingProduction(
       const harvestBonus = state.bountifulHarvest ? 2 : 1;
       const farmMult = getMultiplier(state, 'farm_yield');
       const pollutionMult = getPollutionProductionMultiplier(state);
-      const amount = Math.floor((18 + workers * 5) * totalMult * harvestBonus * millBonus * farmMult * globalEff * pollutionMult);
+      const valleyFarm = getValleyFarmYieldMultiplier(state);
+      const amount = Math.floor((18 + workers * 5) * totalMult * harvestBonus * millBonus * farmMult * globalEff * pollutionMult * valleyFarm);
       if (addResource(state, 'food', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
       state.deathParticles.push({ x: building.x + Math.random() * building.width, y: building.y + Math.random() * building.height, vx: (Math.random() - 0.5) * 0.3, vy: -0.8 - Math.random() * 0.5, life: 25, maxLife: 25, color: '#90EE90', size: 2 + Math.random(), type: 'smoke' });
     }
@@ -280,11 +428,18 @@ function tickBuildingProduction(
     }
     if (building.completed && staffed && building.type === BuildingType.Hospital && isProductionTick(state.tick, PRODUCTION_INTERVAL.hospital)) {
       addReputation(state, 2);
+      tickHospitalDailyCare(
+        state,
+        building,
+        state.entities.filter((e) => e.alive && isPlayerHuman(e)),
+      );
     }
     if (building.completed && staffed && building.type === BuildingType.TownHall && isProductionTick(state.tick, PRODUCTION_INTERVAL.townHall)) {
       // Deliberately use state.entities here to match legacy behavior:
       // town-hall civic ran before state.entities was replaced with allAlive.
-      tickTownHallCivic(state, building, state.entities.filter(isPlayerHuman));
+      const villagers = state.entities.filter(isPlayerHuman);
+      tickTownHallCivic(state, building, villagers);
+      tickTownHallAudiences(state, building, villagers);
     }
     if (building.completed && staffed && building.type === BuildingType.Silo && isProductionTick(state.tick, PRODUCTION_INTERVAL.silo)) {
       const amount = Math.floor(8 * totalMult * millBonus * globalEff);
@@ -406,51 +561,6 @@ function tickImmigration(
   }
 }
 
-// ==================== DAILY GATING FROM GAMETICK ====================
-
-function isChallengeComplete(
-  challenge: Challenge,
-  state: WorldState,
-  humanCount: number,
-  buildings: Building[],
-): boolean {
-  function countPlayerCompletedBuildings(buildings: Building[]): number {
-    return buildings.filter((b) => b.completed && b.faction !== 'rival').length;
-  }
-  const playerBuildings = countPlayerCompletedBuildings(buildings);
-  const hasHousing = buildings.some(
-    (b) =>
-      b.completed
-      && b.faction !== 'rival'
-      && (b.type === BuildingType.House || b.type === BuildingType.Mansion),
-  );
-
-  switch (challenge.id) {
-    case 'first_settlers':
-      return humanCount >= (challenge.targetPopulation ?? 0) && hasHousing;
-    case 'growing_village':
-      return (
-        state.year >= (challenge.targetYear ?? 0)
-        && playerBuildings >= (challenge.targetBuildings ?? 0)
-      );
-    case 'eco_master':
-      return state.ecoHealthYearsAbove80 >= 10;
-    case 'great_city':
-      return humanCount >= (challenge.targetPopulation ?? 0) && playerBuildings >= (challenge.targetBuildings ?? 0);
-    case 'tech_pioneer':
-      return state.unlockedTechs.length >= 5;
-    case 'trading_hub':
-      return state.tradeRoutes.filter((r) => r.active).length >= 3;
-    default: {
-      let met = true;
-      if (challenge.targetYear !== undefined) met = met && state.year >= challenge.targetYear;
-      if (challenge.targetPopulation !== undefined) met = met && humanCount >= challenge.targetPopulation;
-      if (challenge.targetBuildings !== undefined) met = met && playerBuildings >= challenge.targetBuildings;
-      return met;
-    }
-  }
-}
-
 // ==================== DAILY LAYER ENTRYPOINT ====================
 
 export function tickLayerDaily(
@@ -459,6 +569,14 @@ export function tickLayerDaily(
   allAlive: Entity[],
   counts: PopulationCounts,
 ): void {
+  // Winter heating runs once in gameTick (sets ctx.canHeat) — do not burn wood again here.
+
+  // Grass growth + spread once per day (trees are static props)
+  tickGrassDaily(state, ctx, allAlive);
+
+  // Construction / repair / decay — buildings do not move, once per day only
+  tickBuildingProgress(state);
+
   // Static / daily bookkeeping
   tickStaticDaily(state, ctx.season);
 
@@ -481,6 +599,9 @@ export function tickLayerDaily(
     replenishDepletedWildlife(state);
   }
 
+  // Valley ecology stage (after wildlife counts on state; before production yields)
+  tickValleyEcologyStage(state);
+
   // Building production + forge
   tickBuildingProduction(state, ctx, allAlive);
 
@@ -492,13 +613,7 @@ export function tickLayerDaily(
     }
   }
 
-  // Election ceremony
-  const electionReveal = tickElectionCeremony(state, state.year);
-  if (electionReveal) {
-    addBigNews(state, electionReveal.title, electionReveal.message, 'positive');
-    addNotification(state, electionReveal.title, electionReveal.message, 'event');
-    impulseScreenShake(state, 4);
-  }
+  // Election ceremony advances in realtime (every tick) — see tickLayerRealtime
 
   // Leader vacancy
   const vacancyNews = tickLeaderVacancy(state);

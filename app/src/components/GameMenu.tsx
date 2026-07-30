@@ -311,7 +311,7 @@ autoSave,
                 <MenuToggle
                   icon="⏱"
                   label="Show sim tick"
-                  hint="Raw tick + absolute day on the clock bar (24 ticks = 1 day)"
+                  hint="Raw tick + absolute day on the clock bar (72 ticks = 1 day)"
                   checked={showSimTick}
                   onChange={onToggleShowSimTick}
                 />

@@ -15,14 +15,63 @@ export {
   NIGHT_START,
 } from './dayCycleConstants';
 
-/** 24 ticks = one in-game day. At 1× speed (~1 tick/s) a day lasts ~24 real seconds. */
-export const TICKS_PER_DAY = 24;
+/**
+ * Day resolution: multiple sim ticks per clock hour so settlers can walk to work,
+ * chat, and eat before the day flips.
+ *
+ * - TICKS_PER_HOUR = 3 → TICKS_PER_DAY = 72 (was 24: 1 tick = 1 hour)
+ * - getHourOfDay maps tick-of-day → 0..23
+ * - Per-tick energy / wildlife rates use {@link PER_TICK_RATE_SCALE} so daily totals stay balanced
+ * - Real-time: gameLoop BASE_TICKS_PER_SECOND × speed; at 3 ticks/s a day ≈ 24 real seconds at 1×
+ */
+export const TICKS_PER_HOUR = 3;
+/** Legacy day length (1 tick = 1 hour). Used when migrating old saves. */
+export const LEGACY_TICKS_PER_DAY = 24;
+export const TICKS_PER_DAY = 24 * TICKS_PER_HOUR;
+/**
+ * Multiply legacy **per-tick** rates (written when 1 tick = 1 hour) so daily
+ * totals stay the same after increasing {@link TICKS_PER_HOUR}.
+ *
+ * Use this for values applied every sim tick or every systems pulse when the
+ * original author assumed ~24 pulses/day. Prefer this constant over raw
+ * `* TICKS_PER_HOUR` / `/ 3` sprinkled at call sites.
+ */
+export const PER_TICK_RATE_SCALE = 1 / TICKS_PER_HOUR;
 export const DAYS_PER_YEAR = 360;
 export const GAME_YEAR_OFFSET = 1700;
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export function ticksForDays(days: number): number {
   return Math.round(days * TICKS_PER_DAY);
+}
+
+/**
+ * Scale a **legacy systems-layer step count** (weather intervals, disaster
+ * duration in systems pulses, etc.) so calendar length matches the 24-tick-day era.
+ *
+ * Do not invent local `* TICKS_PER_HOUR` factors for systems cadence — use this.
+ */
+export function systemsPulsesFromLegacy(legacyPulses: number): number {
+  return Math.max(1, Math.round(legacyPulses * TICKS_PER_HOUR));
+}
+
+/** Absolute sim tick when clock `hour` (0–23) next starts at or after `fromTick`. */
+export function nextTickAtClockHour(fromTick: number, hour: number): number {
+  const h = ((hour % 24) + 24) % 24;
+  const dayStart = Math.floor(fromTick / TICKS_PER_DAY) * TICKS_PER_DAY;
+  let target = dayStart + h * TICKS_PER_HOUR;
+  if (fromTick >= target) target += TICKS_PER_DAY;
+  return target;
+}
+
+/** Tick index within the current day, 0 .. TICKS_PER_DAY-1. */
+export function getTickOfDay(tick: number): number {
+  return ((tick % TICKS_PER_DAY) + TICKS_PER_DAY) % TICKS_PER_DAY;
+}
+
+/** True on the first sub-hour tick of a clock hour (e.g. 07:00.0, not 07:20). */
+export function isStartOfClockHour(tick: number): boolean {
+  return getTickOfDay(tick) % TICKS_PER_HOUR === 0;
 }
 
 /** Life stages — children mature in ~1 game year; adults gain 1 life-year per game year. */
@@ -196,28 +245,55 @@ export const EVENT_INTERVAL = {
   tamedHuntAssist: ticksForDays(3),
 } as const;
 
+/** Shift start (07:00). Clock hour 0–23 via {@link getHourOfDay}. */
 export const WORK_START = 7;
-export const WORK_END = 19;
-export const EVENING_START = 19;
+/** Shift end exclusive — free from 18:00 onward (not working during hour 18). */
+export const WORK_END = 18;
+/** After work / head home. Matches WORK_END so evenings start when the shift ends. */
+export const EVENING_START = 18;
 
-/** Work hours per game-day (7am–7pm) — construction only advances during these ticks. */
+/**
+ * Tavern / Innkeeper service window — open for the evening rush through late night.
+ * Inclusive start, exclusive end (hours 17–22).
+ */
+export const TAVERN_SHIFT_START = 17;
+export const TAVERN_SHIFT_END = 23;
+
+/** Work hours per weekday (7am–6pm) — construction daily batch uses this. */
 export const WORK_HOURS_PER_DAY = WORK_END - WORK_START;
+
+/** Mon=0 … Sun=6 (colony day 0 = Monday). */
+export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
 /** Total on-site work ticks to finish a building (buildTime in config = game-days). */
 export function buildWorkTicks(buildDays: number): number {
   return Math.max(WORK_HOURS_PER_DAY, Math.round(buildDays * WORK_HOURS_PER_DAY));
 }
 
-/** Production fires at the start of the work-day, every `interval` ticks. */
+/**
+ * Calendar-aligned production / rare-event gate.
+ *
+ * Fires on the **day boundary** (`tick % TICKS_PER_DAY === 0`) so it matches the
+ * daily layer host in `gameTick` (and systems layer, since TICKS_PER_DAY is a
+ * multiple of LAYER_SYSTEMS_INTERVAL).
+ *
+ * - Daily work (interval ≤ 1 day): weekdays only (farms rest weekends).
+ * - Multi-day buildings (store/market every 2d, etc.): every N **calendar** days
+ *   including weekends so modulo does not starve output when it lands on Sat/Sun.
+ */
 export function isProductionTick(tick: number, interval: number): boolean {
   if (tick <= 0 || interval <= 0) return false;
-  if (getHourOfDay(tick) !== WORK_START) return false;
-  const workDayTick = tick - WORK_START;
-  return workDayTick % interval === 0;
+  if (tick % TICKS_PER_DAY !== 0) return false;
+  const dayIndex = getAbsoluteCalendarDay(tick);
+  const intervalDays = Math.max(1, Math.round(interval / TICKS_PER_DAY));
+  if (dayIndex % intervalDays !== 0) return false;
+  if (intervalDays <= 1 && !isWorkDay(tick)) return false;
+  return true;
 }
 
+/** Clock hour 0–23 for the current sim tick. */
 export function getHourOfDay(tick: number): number {
-  return ((tick % TICKS_PER_DAY) + TICKS_PER_DAY) % TICKS_PER_DAY;
+  return Math.floor(getTickOfDay(tick) / TICKS_PER_HOUR);
 }
 
 export function getCalendarDay(tick: number): number {
@@ -228,6 +304,25 @@ export function getCalendarDay(tick: number): number {
 /** Monotonic colony day index (never wraps within a save). */
 export function getAbsoluteCalendarDay(tick: number): number {
   return Math.floor(tick / TICKS_PER_DAY);
+}
+
+/** 0=Mon … 6=Sun from absolute colony day. */
+export function getWeekday(tick: number): number {
+  return ((getAbsoluteCalendarDay(tick) % 7) + 7) % 7;
+}
+
+export function getWeekdayLabel(tick: number): string {
+  return WEEKDAY_LABELS[getWeekday(tick)] ?? 'Mon';
+}
+
+/** Saturday (5) or Sunday (6) — full free day, no work commute. */
+export function isWeekend(tick: number): boolean {
+  const d = getWeekday(tick);
+  return d === 5 || d === 6;
+}
+
+export function isWorkDay(tick: number): boolean {
+  return !isWeekend(tick);
 }
 
 /** True once per in-game day; skips reload mid-day and duplicate same-tick calls. */
@@ -254,12 +349,95 @@ export function getBirthDateString(entity: { birthYear: number; birthMonth: numb
   return `${MONTH_NAMES[month]} ${dayOfMonth}, ${realYear}`;
 }
 
+/** True for clock hours 07:00–17:59 (hour 7..17). Does not check weekends. */
 export function isWorkHour(hour: number): boolean {
   return hour >= WORK_START && hour < WORK_END;
 }
 
+/**
+ * True when a settler should be on the job: weekday + work hours.
+ * Use this for commute / workplace AI. Weekends are always free.
+ * (Innkeepers use {@link isOnInnkeeperShift} instead — evenings every day.)
+ */
+export function isOnWorkShift(tick: number, hour?: number): boolean {
+  if (!isWorkDay(tick)) return false;
+  const h = hour ?? getHourOfDay(tick);
+  return isWorkHour(h);
+}
+
+/** Hours the tavern is open (17:00–22:59). */
+export function isTavernServiceHour(hour: number): boolean {
+  return hour >= TAVERN_SHIFT_START && hour < TAVERN_SHIFT_END;
+}
+
+/**
+ * Innkeeper shift: evenings every day (including weekends) when guests drink & chat.
+ * Not the daytime farm/mill shift.
+ */
+export function isOnInnkeeperShift(tick: number, hour?: number): boolean {
+  const h = hour ?? getHourOfDay(tick);
+  return isTavernServiceHour(h);
+}
+
 export function shouldBeAtHome(hour: number): boolean {
   return isNightHour(hour) || hour >= EVENING_START || hour < WORK_START;
+}
+
+/**
+ * Stable 0..1 roll for one person on one colony day (same result all day).
+ * Used so evening/weekend plans feel human: different choices day-to-day, not RNG flicker each tick.
+ */
+export function personDayRoll(entityId: number, tick: number, salt = 0): number {
+  const day = getAbsoluteCalendarDay(tick);
+  let h = (Math.imul(entityId | 0, 374761393) ^ Math.imul(day | 0, 668265263) ^ Math.imul(salt | 0, 1274126177)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 2246822519) >>> 0;
+  return (h % 10000) / 10000;
+}
+
+/**
+ * Human-like “should I stay in?” for this hour — varies by person and day.
+ *
+ * - Late night / pre-dawn: almost always home (rare night walk)
+ * - Evening 18–22: ~half stay in, half go out
+ * - 22–23: mostly home; few night-owls
+ * - Weekend daytime: some lazy home days, many active days
+ * - Weekday work hours: not used (work AI owns that)
+ */
+export function prefersHomeTonight(
+  entityId: number,
+  tick: number,
+  hour: number,
+): boolean {
+  const weekend = isWeekend(tick);
+  const r = (salt: number) => personDayRoll(entityId, tick, salt);
+
+  // Deep night / early morning — nearly always sleep
+  if (hour >= 23 || hour < 5) return r(101) > 0.07;
+  if (hour >= 5 && hour < WORK_START) return r(102) > 0.12;
+
+  // After work / evening social window — varied: out some nights, in others
+  if (hour >= EVENING_START && hour < 22) {
+    // Higher roll → more homebody that evening
+    return r(103) < 0.50;
+  }
+
+  // Late evening wind-down
+  if (hour >= 22 && hour < 23) return r(104) > 0.20;
+
+  // Weekend daytime: ~30% quiet days at home, rest out and about
+  if (weekend && hour >= WORK_START && hour < EVENING_START) {
+    return r(105) < 0.30;
+  }
+
+  // Unemployed / free weekday daytime — don't force home
+  return false;
+}
+
+/** True when this person is having an “active free day” (leisure bias). */
+export function isActiveFreeDay(entityId: number, tick: number): boolean {
+  if (isWeekend(tick)) return personDayRoll(entityId, tick, 201) >= 0.30;
+  // Weekday evening out
+  return !prefersHomeTonight(entityId, tick, EVENING_START + 1);
 }
 
 export function formatHour(hour: number): string {
@@ -326,7 +504,12 @@ export function isNearResidence(
 }
 
 /** Evening/night/morning or unemployed — not while on a workplace commute. */
-export function allowSocialLife(hour: number, hasWorkplace: boolean): boolean {
+/**
+ * Free time for leisure / social AI.
+ * Weekends are always free; weekdays free outside work hours or without a workplace.
+ */
+export function allowSocialLife(hour: number, hasWorkplace: boolean, tick?: number): boolean {
+  if (tick != null && isWeekend(tick)) return true;
   return !(isWorkHour(hour) && hasWorkplace);
 }
 
@@ -1319,6 +1502,8 @@ export function finalizeHumanDeath(
   entity: Entity,
   buildings: Building[],
   entityById?: ReadonlyMap<number, Entity>,
+  /** Current world tick — used to set partner grief window. */
+  tick?: number,
 ): void {
   const partnerId = entity.partnerId;
   const affairPartnerId = entity.affairPartnerId;
@@ -1348,6 +1533,10 @@ export function finalizeHumanDeath(
         if (partner.relationshipStatus === 'married') {
           partner.relationshipStatus = partner.pregnant ? 'expecting' : 'single';
         }
+        // About a week of mourning when we know the tick
+        if (tick != null) {
+          partner.griefUntilTick = Math.max(partner.griefUntilTick ?? 0, tick + TICKS_PER_DAY * 7);
+        }
         if (partner.moonHowlerSaved?.partnerId === entity.id) {
           partner.moonHowlerSaved.partnerId = undefined;
         }
@@ -1361,6 +1550,10 @@ export function finalizeHumanDeath(
         lover.lastAffairSiteDay = undefined;
         lover.lastAffairSiteX = undefined;
         lover.lastAffairSiteY = undefined;
+        if (tick != null) {
+          // Soft grief for a secret lover — shorter than a spouse
+          lover.griefUntilTick = Math.max(lover.griefUntilTick ?? 0, tick + TICKS_PER_DAY * 3);
+        }
         if (lover.moonHowlerSaved?.affairPartnerId === entity.id) {
           lover.moonHowlerSaved.affairPartnerId = undefined;
           lover.moonHowlerSaved.affairProgress = 0;
@@ -1385,12 +1578,13 @@ export function killHuman(
   entity: Entity,
   buildings: Building[],
   entityById?: ReadonlyMap<number, Entity>,
+  tick?: number,
 ): void {
   if (!entity.alive || !isKillableSettlerEntity(entity)) return;
   entity.alive = false;
   if (entityById instanceof Map) entityById.delete(entity.id);
   finalizeMoonHowlerDeath(entity);
-  finalizeHumanDeath(entity, buildings, entityById);
+  finalizeHumanDeath(entity, buildings, entityById, tick);
 }
 
 /** Human settler or cursed villager in werewolf form — valid marriage partner for lookups. */

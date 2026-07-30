@@ -1,6 +1,6 @@
 import type { Entity, WorldState } from './gameTypes';
 import { EntityType, Season, WeatherType } from './gameTypes';
-import { killHuman, isProductionTick, EVENT_INTERVAL } from './dayCycle';
+import { killHuman, isProductionTick, EVENT_INTERVAL, systemsPulsesFromLegacy } from './dayCycle';
 import { ensureEntityByIdMap, unindexLivingEntity } from './entityIndex';
 import { formatCitizenName, formatDeathLog } from './citizenId';
 import { logEvent } from './eventLog';
@@ -34,7 +34,7 @@ function killEntityInDisaster(
   killedThisTick.add(entity.id);
 
   if (entity.type === EntityType.Human) {
-    killHuman(entity, state.buildings, entityById);
+    killHuman(entity, state.buildings, entityById, state.tick);
   } else {
     entity.alive = false;
     unindexLivingEntity(state, entity);
@@ -43,9 +43,12 @@ function killEntityInDisaster(
   createDeathParticles(state, entity.x, entity.y, color, 5, 'smoke');
 }
 
+/** Systems pulses between weather rolls (legacy 360 ≈ 60 colony days at old day length). */
+const WEATHER_ROLL_SYSTEMS_PULSES = systemsPulsesFromLegacy(360);
+
 export function updateWeather(state: WorldState) {
   state.weatherTimer++;
-  if (state.weatherTimer % 360 === 0) {
+  if (state.weatherTimer % WEATHER_ROLL_SYSTEMS_PULSES === 0) {
     const season = state.season;
     const roll = Math.random();
     if (season === Season.Spring) {
@@ -73,8 +76,6 @@ export function updateDisasters(state: WorldState) {
   // Domain-specific cadence: disasters are a rare calendar-aligned event.
   // tickLayerSystems calls this every 4 ticks; the internal gate keeps the
   // intended ~40-day interval so the layer does not need to know disaster tuning.
-  // tickLayerEcological calls this every 4 ticks; the internal gate keeps the
-  // intended ~40-day interval so the layer does not need to know disaster tuning.
   if (isProductionTick(state.tick, EVENT_INTERVAL.disaster) && state.year > 3 && Math.random() < 0.15) {
     const rollable = hasTech(state, 'medicine_2')
       ? ALL_DISASTER_TYPES.filter((t) => t !== 'plague')
@@ -85,7 +86,12 @@ export function updateDisasters(state: WorldState) {
     const y = Math.random() * state.height;
     const radius = 30 + Math.random() * 50;
 
-    state.disasters.push({ type, x, y, radius, duration: 200, progress: 0 });
+    // Duration counted in systems pulses — scale via dayCycle helper (no raw tick math)
+    state.disasters.push({
+      type, x, y, radius,
+      duration: systemsPulsesFromLegacy(200),
+      progress: 0,
+    });
     if (state.lifetimeStats) {
       state.lifetimeStats.disastersSurvived += 1;
     }
@@ -154,7 +160,7 @@ export function updateDisasters(state: WorldState) {
         if (Math.random() < 0.2) {
           if (!killedThisTick.has(e.id)) {
             killedThisTick.add(e.id);
-            killHuman(e, state.buildings, entityById);
+            killHuman(e, state.buildings, entityById, state.tick);
             clearHuntTargetsForVictim(state, e.id);
             infected++;
             createDeathParticles(state, e.x, e.y, '#4a6741', 6, 'smoke');

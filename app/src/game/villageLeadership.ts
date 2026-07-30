@@ -2,12 +2,18 @@ import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState }
 import { BuildingType, EntityType } from './gameTypes';
 import { getAgeInYears, HUMAN_ADULT_MIN_AGE, isImprisoned, TICKS_PER_DAY } from './dayCycle';
 import { logEvent } from './eventLog';
-import { isPlayerHuman } from './groupEvents';
+import { isPlayerHuman } from './playerHuman';
 import { sayHumanChatPhrase } from './humanChat';
 import { ensureEntitySkills } from './skills';
 
-export const ELECTION_INTERVAL_YEARS = 10;
-export const VACANCY_ELECTION_DELAY_YEARS = 2;
+/**
+ * Scheduled term length (colony years).
+ * 10 felt endless once days are 72 ticks — 5 years is long enough for an
+ * incumbent record to matter, short enough that elections stay visible.
+ */
+export const ELECTION_INTERVAL_YEARS = 5;
+/** After the head dies with no successor race ready, wait this many years. */
+export const VACANCY_ELECTION_DELAY_YEARS = 1;
 export const ELECTION_PARTY_DAYS = 3;
 export const ELECTION_PARTY_NAME = 'Election Revelry';
 
@@ -294,15 +300,28 @@ export function getElectionRaceCandidates(
   return race;
 }
 
+/**
+ * True while the office-holder is still “present” for UI/vacancy — including
+ * temporary Moon Howler form (type becomes Werewolf but they remain head).
+ */
+export function isActingVillageHead(entity: Entity, state?: Pick<WorldState, 'year' | 'dayInYear' | 'tick'>): boolean {
+  if (!entity.alive || entity.faction) return false;
+  if (isEligibleForLeadership(entity, state)) return true;
+  // Full-moon form of a cursed settler — still the elected head on map/UI
+  return entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
+}
+
 export function getVillageLeader(state: WorldState): Entity | null {
   if (state.villageLeaderId == null) return null;
   const leader = state.entities.find((e) => e.id === state.villageLeaderId);
-  if (!leader?.alive || !isEligibleForLeadership(leader, state)) return null;
+  if (!leader || !isActingVillageHead(leader, state)) return null;
   return leader;
 }
 
 export function isVillageLeader(state: WorldState, entityId: number): boolean {
-  return state.villageLeaderId === entityId && getVillageLeader(state) != null;
+  if (state.villageLeaderId !== entityId) return false;
+  const leader = state.entities.find((e) => e.id === entityId);
+  return leader != null && isActingVillageHead(leader, state);
 }
 
 export function getYearsUntilElection(state: WorldState): number {
@@ -380,7 +399,7 @@ export function findFoundingColonyLeader(state: WorldState): Entity | null {
   return pioneers.find((e) => e.gender === 'male') ?? pioneers[0] ?? null;
 }
 
-/** First male pioneer leads at founding — no merit vote until Year 10. */
+/** First male pioneer leads at founding — no merit vote until Year ELECTION_INTERVAL_YEARS. */
 export function appointFoundingLeader(state: WorldState, entity: Entity): void {
   state.villageLeaderId = entity.id;
   state.leaderSinceYear = state.year;
@@ -756,7 +775,7 @@ function buildAnnouncement(
   };
 }
 
-/** Leader died or became ineligible — schedule merit election in two years. */
+/** Leader died or became ineligible — schedule merit election after a short delay. */
 export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | null {
   if (state.pendingElectionYear != null) return null;
 
@@ -764,7 +783,8 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
   if (leaderId == null) return null;
 
   const leader = state.entities.find((e) => e.id === leaderId);
-  if (leader?.alive && isEligibleForLeadership(leader, state)) return null;
+  // Still in office while alive (incl. temporary Moon Howler form)
+  if (leader && isActingVillageHead(leader, state)) return null;
 
   if (!state.entities.some((entity) => isEligibleForLeadership(entity, state))) {
     state.villageLeaderId = null;

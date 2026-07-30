@@ -1,15 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import {
-  initGame, canPlaceBuilding, canAssignWorkerToBuilding,
+  initGame,
   isStripBuildType,
-  listAssignableWorkersForBuilding,
   initTradeRoutes,
   EntityType, BuildingType,
 
   GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
 
   saveGame, loadGame, hasSave, deleteSave,
-  getTameFoodCost,
   getDiplomacyChoiceEligibility, getVisitorLeaderTalkMeta,
   ensureFullTradeRoutes,
   getCombatPreview,
@@ -19,12 +17,18 @@ import {
   getHumanArmamentLabel, hasIronSpears, hasStoneSpears,
   getAgeInYears,
 } from './game/gameEngine';
+import {
+  canPlaceBuilding,
+  canAssignWorkerToBuilding,
+  listAssignableWorkersForBuilding,
+  getTameFoodCost,
+} from './game/buildingActions';
 import { MapSize, MapPreset } from './game/gameTypes';
 import {
   isResidenceBuilding,
   hasResidenceAssignment, hasWorkAssignment, isImprisoned,
   canMoveOutOfFamilyHome, isAdultChildAtHome, HUMAN_MOVE_OUT_MIN_AGE,
-  NIGHT_START, PREGNANCY_TICKS, TICKS_PER_DAY, getBirthDateString,
+  NIGHT_START, PREGNANCY_TICKS, TICKS_PER_DAY, getBirthDateString, getHourOfDay, isNightHour,
 } from './game/dayCycle';
 import type { WorldState, Entity } from './game/gameEngine';
 import type { VisitorGroup } from './game/gameTypes';
@@ -59,9 +63,9 @@ import { getHumanVariantLabel } from './game/humanSprites';
 import { formatRaidDeadlineSafe } from './game/raidUtils';
 import SelectedBuildingPanel from './components/SelectedBuildingPanel';
 import MiniMap from './components/MiniMap';
-import { isPlayerHuman } from './game/groupEvents';
+import { isPlayerHuman } from './game/playerHuman';
 import { loadNames, fixDefaultNames } from './game/nameLoader';
-import { preloadDialogueBank } from './game/dialogueTrees';
+import { ensureDialogueBankFromBundle, preloadDialogueBank } from './game/dialogueTrees';
 import { preloadRenderer } from './game/rendererLoader';
 const IntroScreen = lazy(() => import('./game/IntroScreen'));
 const MapSetupScreen = lazy(() => import('./game/MapSetupScreen'));
@@ -235,6 +239,7 @@ export default function App() {
   const isDraggingRef = useRef(false);
   const cameraDragStartRef = useRef<{ x: number; y: number } | null>(null);
   const clickOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const rightClickOriginRef = useRef<{ x: number; y: number } | null>(null);
   const selectedBuildingTypeRef = useRef(selectedBuildingType);
   const stripDragStartRef = useRef<{ x: number; y: number } | null>(null);
   const cameraVelRef = useRef({ x: 0, y: 0 });
@@ -256,7 +261,7 @@ export default function App() {
     gameplayActiveRef.current = gameplayActive;
   }, [selectedBuildingType, gameplayActive]);
 
-  // Preload sprites, names, and dialogue bank
+  // Preload sprites, names, and dialogue bank (sim_dialogue_trees.json)
   useEffect(() => {
     Promise.all([preloadAllSprites(), loadNames(), preloadDialogueBank(), preloadRenderer()])
       .then(() => {
@@ -269,7 +274,9 @@ export default function App() {
         setSpritesLoaded(true);
       })
       .catch((err) => {
-        console.error('Sprite preload failed — continuing with fallbacks', err);
+        console.error('Asset preload failed — continuing with fallbacks', err);
+        // Still install dialogue trees so speech bubbles use the bank.
+        ensureDialogueBankFromBundle();
         setSpritesLoaded(true);
       });
   }, []);
@@ -416,8 +423,10 @@ export default function App() {
   const showFirstNightWarning =
     !firstNightWarningDismissed && !hasPlacedHouse && world.tick < TICKS_PER_DAY * 2;
 
-  const firstNightWarningMessage = world.tick < NIGHT_START
-    ? `Tick ${world.tick} — night begins at tick ${NIGHT_START} (8pm). Place a House on the map and assign workers!`
+  const hourNow = getHourOfDay(world.tick);
+  const nightFallen = isNightHour(hourNow);
+  const firstNightWarningMessage = !nightFallen
+    ? `Hour ${hourNow}:00 — night begins at ${NIGHT_START}:00. Place a House on the map and assign workers!`
     : `Night has fallen — place a House and assign workers so your pioneers have somewhere to sleep.`;
 
   // Simulation + render loop (decoupled from React render cycle)
@@ -672,17 +681,17 @@ export default function App() {
 
   const selectBuildingType = useCallback((type: BuildingType) => {
     clearSelection();
-    setSelectedBuildingType((prev) => {
-      const next = prev === type ? null : type;
-      stripDragStartRef.current = null;
-      loopRef.current?.patchView({
-        buildMode: next,
-        buildGhost: null,
-        buildStripPreview: null,
-        buildRotation: 0,
-        ...(next ? { showGrid: true } : {}),
-      });
-      return next;
+    setBuildPanelOpen(true);
+    stripDragStartRef.current = null;
+    setSelectedBuildingType(type);
+    loopRef.current?.patchView({
+      buildMode: type,
+      buildGhost: null,
+      buildStripPreview: null,
+      buildRotation: 0,
+      showGrid: true,
+      selectedBuildingId: null,
+      selectedEntityId: null,
     });
   }, [clearSelection]);
 
@@ -699,6 +708,9 @@ export default function App() {
       case 'open_trade':
         openTab('progress');
         setProgressSubTab('trade');
+        break;
+      case 'build_market':
+        selectBuildingType(BuildingType.Market);
         break;
       case 'open_research':
         openTab('progress');
@@ -904,6 +916,7 @@ export default function App() {
     isDraggingRef,
     cameraDragStartRef,
     clickOriginRef,
+    rightClickOriginRef,
     setInspectorCollapsed,
     juiceEffectsEnabled,
     gameplayActive,
@@ -1036,10 +1049,13 @@ export default function App() {
   ]);
 
   const priorityAlerts = getPriorityAlerts(world);
-  const tradeReadyCount = useMemo(
-    () => world.tradeRoutes.filter((r) => !r.active && world.villageReputation >= r.reputationRequired).length,
-    [world.tradeRoutes, world.villageReputation],
-  );
+  const tradeReadyCount = useMemo(() => {
+    const hasMarket = world.buildings.some(
+      (b) => b.completed && b.faction !== 'rival' && b.type === BuildingType.Market,
+    );
+    if (!hasMarket) return 0;
+    return world.tradeRoutes.filter((r) => !r.active && world.villageReputation >= r.reputationRequired).length;
+  }, [world.tradeRoutes, world.villageReputation, world.buildings]);
   const progressTabAlert = world.activeResearch != null || tradeReadyCount > 0;
   const foodAlert = isFoodAlert(world);
   const ecoBreakdown = getEcosystemBreakdown(world);
@@ -1145,7 +1161,7 @@ export default function App() {
       : 'default';
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-stone-900 text-stone-100">
+    <div className="game-shell flex h-screen w-screen flex-col overflow-hidden text-stone-100">
       <GameHeader
         world={world}
         population={villageStats.total}
@@ -1174,6 +1190,15 @@ export default function App() {
         onVolumePreset={handleVolumePreset}
         onOpenGuide={handleOpenGuide}
         onStartNewGame={startNewGame}
+        onFocusLeader={() => {
+          const leaderId = world.villageLeaderId;
+          if (leaderId == null) return;
+          const leader =
+            catalog?.get(leaderId)
+            ?? resolveEntity(world, leaderId)
+            ?? world.entities.find((e) => e.id === leaderId);
+          if (leader?.alive) focusCitizenOnMap(leader);
+        }}
       />
 
       <AlertBar alerts={priorityAlerts} onAlert={handlePriorityAlert} />
@@ -1182,13 +1207,13 @@ export default function App() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar — collapsible construction panel */}
         <aside
-          className={`build-panel relative flex shrink-0 flex-col border-r border-stone-700 bg-stone-800/90 backdrop-blur transition-[width] duration-300 ease-in-out ${
+          className={`build-panel side-panel relative flex shrink-0 flex-col border-r border-stone-700/80 transition-[width] duration-300 ease-in-out ${
             buildPanelOpen ? 'w-[15.5rem]' : 'w-12'
           }`}
         >
           <button
             onClick={() => setBuildPanelOpen((open) => !open)}
-            className="build-panel-toggle absolute -right-3 top-5 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-stone-600 bg-stone-800 text-xs font-bold text-stone-300 shadow-lg transition-all hover:border-emerald-500/50 hover:bg-stone-700 hover:text-emerald-300"
+            className="build-panel-toggle absolute -right-3 top-5 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-stone-600 bg-stone-850 text-xs font-bold text-stone-300 shadow-lg transition-all hover:border-emerald-500/50 hover:bg-stone-700 hover:text-emerald-300"
             title={buildPanelOpen ? 'Collapse build panel (B)' : 'Expand build panel (B)'}
           >
             {buildPanelOpen ? '‹' : '›'}
@@ -1254,59 +1279,105 @@ export default function App() {
         </aside>
 
         {/* Center - Canvas */}
-        <main className="relative bg-stone-900" style={{ flex: '1 1 0%', minHeight: 0, minWidth: 0 }}>
+        <main className="map-stage relative" style={{ flex: '1 1 0%', minHeight: 0, minWidth: 0 }}>
           <canvas
             ref={canvasRef}
             onClick={handleCanvasClick}
             onMouseMove={handleMouseMove}
             onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
+            onMouseUp={(e) => handleMouseUp(e)}
             onMouseLeave={handleMouseLeave}
             onContextMenu={handleContextMenu}
+            className="map-canvas"
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', imageRendering: 'pixelated', cursor: canvasCursor, display: 'block' }}
           />
+          {/* UI vignette frame over the map (does not block hits except children) */}
+          <div className="map-frame-overlay pointer-events-none absolute inset-0 z-[5]" aria-hidden />
 
           <div className="pointer-events-none absolute inset-0 z-10">
-          {/* Build mode banner */}
+          {/* Build mode banner — multi-place friendly */}
           {selectedBuildingType && (
-            <div className="pointer-events-none absolute bottom-20 left-1/2 z-20 -translate-x-1/2">
-              <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/90 px-5 py-2.5 text-center shadow-2xl backdrop-blur">
-                <p className="text-sm font-bold text-emerald-200">
-                  Placing {getBuildingConfig(selectedBuildingType).label}
-                </p>
-                <p className="text-[10px] text-stone-400">
+            <div className="pointer-events-auto absolute bottom-16 left-1/2 z-20 -translate-x-1/2">
+              <div className="hud-banner flex min-w-[16rem] max-w-[min(96vw,28rem)] flex-col gap-2 rounded-xl border-2 border-emerald-400/55 bg-emerald-950/95 px-4 py-3 text-center shadow-2xl ring-1 ring-emerald-500/20 backdrop-blur-md">
+                <div className="flex items-center justify-center gap-2">
+                  <img
+                    src={getBuildingConfig(selectedBuildingType).sprite}
+                    alt=""
+                    className="h-8 w-8 object-contain"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                  <div className="text-left">
+                    <p className="text-sm font-bold text-emerald-100">
+                      Placing {getBuildingConfig(selectedBuildingType).label}
+                    </p>
+                    <p className="text-[10px] text-emerald-200/80">
+                      Keep clicking to place more · stays selected
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[10px] leading-snug text-stone-400">
                   {isStripBuildType(selectedBuildingType)
                     ? selectedBuildingType === BuildingType.Road
-                      ? <>Drag to draw — snaps to existing roads · ESC cancel</>
-                      : <>Drag to draw — auto-corners at junctions · green = enclosed · ESC cancel</>
-                    : <>Click to place · ESC to cancel</>}
+                      ? <>Drag to draw roads · green = valid</>
+                      : <>Drag walls · green = enclosed yard</>
+                    : <>Left-click map to place · click an existing building to select it</>}
                   {isRotatableBuildingType(selectedBuildingType) && !isStripBuildType(selectedBuildingType) && (
-                    <> · <span className="text-emerald-400">R</span> rotate ({view.buildRotation === 90 ? '↕' : '↔'})</>
-                  )}
-                  {isStripBuildType(selectedBuildingType) && (
-                    <> · drag sets ↔/↕ · <span className="text-emerald-400">R</span> locks axis</>
+                    <> · <kbd className="rounded bg-stone-800 px-1 text-emerald-300">R</kbd> rotate</>
                   )}
                 </p>
+                <div className="flex justify-center gap-2">
+                  {isRotatableBuildingType(selectedBuildingType) && (
+                    <button
+                      type="button"
+                      onClick={rotateBuildPlacement}
+                      className="rounded-lg border border-stone-600 bg-stone-800/90 px-3 py-1 text-[11px] font-bold text-stone-200 hover:border-emerald-500/50 hover:text-emerald-200"
+                    >
+                      Rotate (R)
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={cancelBuildMode}
+                    className="rounded-lg border border-emerald-500/50 bg-emerald-600/90 px-4 py-1 text-[11px] font-bold text-white shadow hover:bg-emerald-500"
+                  >
+                    Done
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelBuildMode}
+                    className="rounded-lg border border-stone-600 bg-stone-800/90 px-3 py-1 text-[11px] font-semibold text-stone-300 hover:border-rose-500/40 hover:text-rose-200"
+                  >
+                    Cancel (Esc)
+                  </button>
+                </div>
               </div>
             </div>
           )}
           
-          {/* Floating notifications — click or × to dismiss */}
-          <div className="pointer-events-auto absolute left-4 top-4 z-20 flex max-w-xs flex-col gap-1">
-            {world.notifications.slice(-3).map(n => (
+          {/* Floating notifications — top-right, clear of build rail & banners */}
+          <div
+            className="pointer-events-auto absolute right-3 top-3 z-[40] flex w-[min(20rem,calc(100vw-8rem))] flex-col gap-1.5"
+            aria-live="polite"
+          >
+            {world.notifications.slice(-4).map((n) => (
               <button
                 key={n.id}
                 type="button"
                 onClick={() => dismissNotification(n.id)}
                 title="Dismiss"
-                className={`group relative w-full rounded-lg border px-3 py-1.5 pr-7 text-left text-xs shadow-lg backdrop-blur transition-all animate-in slide-in-from-left hover:brightness-110 ${
-                n.type === 'success' ? 'border-emerald-500/30 bg-emerald-500/20 text-emerald-200' :
-                n.type === 'warning' ? 'border-amber-500/30 bg-amber-500/20 text-amber-200' :
-                n.type === 'event' ? 'border-amber-500/30 bg-amber-500/20 text-amber-200' :
-                'border-stone-600 bg-stone-800/90 text-stone-200'
-              }`}>
-                <strong>{n.title}</strong> {n.message}
-                <span className="absolute right-2 top-1.5 text-sm leading-none text-stone-400 group-hover:text-white">×</span>
+                className={`group relative w-full rounded-xl border-2 px-3 py-2 pr-8 text-left text-xs shadow-xl backdrop-blur-md transition-all animate-in slide-in-from-right hover:brightness-110 ${
+                  n.type === 'success'
+                    ? 'border-emerald-500/45 bg-emerald-950/92 text-emerald-100'
+                    : n.type === 'warning'
+                      ? 'border-amber-500/45 bg-amber-950/92 text-amber-100'
+                      : n.type === 'event'
+                        ? 'border-sky-500/40 bg-sky-950/92 text-sky-100'
+                        : 'border-stone-500/50 bg-stone-900/94 text-stone-100'
+                }`}
+              >
+                <span className="block font-bold leading-tight">{n.title}</span>
+                <span className="mt-0.5 block text-[11px] leading-snug opacity-90">{n.message}</span>
+                <span className="absolute right-2 top-2 text-sm leading-none text-stone-400 group-hover:text-white">×</span>
               </button>
             ))}
           </div>
@@ -1508,10 +1579,10 @@ export default function App() {
             <div className="pointer-events-auto absolute left-1/2 top-16 z-20 w-full max-w-md -translate-x-1/2 animate-in fade-in slide-in-from-top">
               <div className="rounded-xl border border-amber-500/40 bg-amber-950/90 p-3 shadow-xl backdrop-blur">
                 <div className="flex items-start gap-3">
-                  <Emoji className="text-2xl">{isFirstGameDay && world.tick < NIGHT_START ? '🌅' : '🌙'}</Emoji>
+                  <Emoji className="text-2xl">{isFirstGameDay && !nightFallen ? '🌅' : '🌙'}</Emoji>
                   <div className="flex-1">
                     <h3 className="font-bold text-amber-200">
-                      {isFirstGameDay && world.tick < NIGHT_START ? 'Sunset is approaching' : 'Your pioneers need shelter'}
+                      {isFirstGameDay && !nightFallen ? 'Sunset is approaching' : 'Your pioneers need shelter'}
                     </h3>
                     <p className="text-xs text-stone-300">
                       {firstNightWarningMessage}
@@ -1650,7 +1721,7 @@ export default function App() {
         </main>
 
         {/* Right sidebar */}
-        <aside className="flex w-[18.5rem] flex-col border-l border-stone-700 bg-stone-800/80 backdrop-blur">
+        <aside className="side-panel flex w-[18.5rem] flex-col border-l border-stone-700/80">
           {hasInspectorSelection && (
           <div className="shrink-0 border-b border-stone-700 bg-stone-900/50">
             <div className="flex items-center justify-between px-3 py-1.5">
@@ -2290,7 +2361,19 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onMoveOut, on
   const moveOutReady = canMoveOut && canMoveOutOfFamilyHome(entity, playerHumans, residences);
 
   return (
-    <div className="rounded-xl border border-amber-600/30 bg-amber-900/20 p-3">
+    <div className={`rounded-xl p-3 ${isVillageHead ? 'border-2 border-amber-400/70 bg-gradient-to-b from-amber-900/45 to-amber-950/30 shadow-md shadow-amber-900/30' : 'border border-amber-600/30 bg-amber-900/20'}`}>
+      {isVillageHead && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg bg-amber-500/20 px-2 py-1.5 ring-1 ring-amber-400/50">
+          <span className="text-base leading-none" aria-hidden>👑</span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-amber-200">Village head</p>
+            <p className="text-[9px] text-amber-100/90">
+              In office since Year {state.leaderSinceYear}
+              {state.pendingElectionYear != null ? ` · next vote Y${state.pendingElectionYear}` : ''}
+            </p>
+          </div>
+        </div>
+      )}
       <div className="mb-2 flex items-center gap-2">
         <span className="text-lg">
           {entity.type === EntityType.Human ? (entity.gender === 'male' ? '👨' : '👩') :
@@ -2300,9 +2383,9 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onMoveOut, on
            entity.type === EntityType.Tree ? '🌲' : '🌿'}
         </span>
         <div>
-          <h3 className="text-xs font-bold text-amber-200">
+          <h3 className={`text-xs font-bold ${isVillageHead ? 'text-amber-100' : 'text-amber-200'}`}>
             {isHuman || entity.type === EntityType.Werewolf
-              ? `${entity.name || 'Unnamed'} ${entity.surname || ''}${entity.type === EntityType.Werewolf ? ' (Moon Howler)' : ''}`
+              ? `${isVillageHead ? '👑 ' : ''}${entity.name || 'Unnamed'} ${entity.surname || ''}${entity.type === EntityType.Werewolf ? ' (Moon Howler)' : ''}`
               : entity.type}
           </h3>
           {isMoonHowler && (
@@ -2332,9 +2415,6 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onMoveOut, on
               {' · '}
               {entity.gender === 'male' ? '♂' : '♀'} {entity.relationshipStatus || 'child'}
               {(entity.generation ?? 0) > 0 ? ` · Gen ${entity.generation}` : ''}
-              {isVillageHead && (
-                <span className="text-amber-200"> · 👑 Village head (since Y{state.leaderSinceYear})</span>
-              )}
             </p>
           )}
         </div>
@@ -2393,7 +2473,7 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onMoveOut, on
             )}
             {isImprisoned(entity) ? (() => {
               const prison = state.buildings.find((b) => b.id === entity.prisonBuildingId);
-              const daysLeft = entity.prisonerUntilTick ? Math.max(0, Math.ceil((entity.prisonerUntilTick - state.tick) / 24)) : 0;
+              const daysLeft = entity.prisonerUntilTick ? Math.max(0, Math.ceil((entity.prisonerUntilTick - state.tick) / TICKS_PER_DAY)) : 0;
               return (
                 <p className="text-slate-400">
                   ⛓️ Imprisoned{prison ? ` at ${getBuildingConfig(prison.type).label}` : ''} · {daysLeft} day{daysLeft === 1 ? '' : 's'} left

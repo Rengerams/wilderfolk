@@ -1,7 +1,7 @@
 import type { Entity, WorldState } from '../gameTypes';
 import { EntityType } from '../gameTypes';
 import type { SimulationFocus } from '../gameEngine';
-import { isPlayerHuman } from '../groupEvents';
+import { isPlayerHuman } from '../playerHuman';
 import { entityTypeToCode } from './entityTypeCodes';
 import { validateRenderBufferLayout } from './renderSoAReader';
 import {
