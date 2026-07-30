@@ -19,7 +19,7 @@ import { createInitialVictories, computeVictoryProgress } from './victory';
 import { loadAutoSavePreference, saveAutoSavePreference } from './preferences';
 import { logEvent, syncEventLogIdFromState } from './eventLog';
 import { pickHumanVariant } from './humanSprites';
-import { migrateLegacyMoonHowler } from './moonHowler';
+import { migrateLegacyMoonHowler, syncMoonHowlerForms } from './moonHowler';
 import { isPlayerHuman } from './playerHuman';
 import { GAME_VERSION } from './version';
 import { ensureEntitySkills } from './skills';
@@ -162,6 +162,11 @@ function migrateTickTimeline(
     scaleField(rec, 'lastMetPartner');
     // pregnancyProgress is 0..PREGNANCY_TICKS absolute progress — scale with day length
     scaleField(rec, 'pregnancyProgress');
+    // Nested snapshot while hunting (EK-C5) — same absolute progress units
+    const saved = rec.moonHowlerSaved;
+    if (saved && typeof saved === 'object') {
+      scaleField(saved as Record<string, unknown>, 'pregnancyProgress');
+    }
     // chatTicks / combatTicks are short remaining counters — leave unscaled
   }
 
@@ -315,9 +320,22 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
         g.spawnedAtCalendarDay = getAbsoluteCalendarDay(loadedTick);
       }
     }
+    const colonyDayOnLoad = getAbsoluteCalendarDay(loadedTick);
+    const hourOnLoad = getHourOfDay(loadedTick);
     for (const entity of world.entities) {
-      migrateLegacyMoonHowler(entity, getAbsoluteCalendarDay(loadedTick), getHourOfDay(loadedTick));
+      // Legacy permanent-werewolf → cursed; early-out when already cursed (EK-C4).
+      migrateLegacyMoonHowler(entity, colonyDayOnLoad, hourOnLoad);
     }
+    // Form must match full-moon night window after load — migrateLegacy alone is not enough.
+    syncMoonHowlerForms(
+      world.entities,
+      colonyDayOnLoad,
+      hourOnLoad,
+      world.buildings,
+      world.width ?? 1200,
+      world.height ?? 900,
+      loadedTick,
+    );
 
     syncEventLogIdFromState(world);
     syncBigNewsIdFromState(world);

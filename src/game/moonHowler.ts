@@ -777,6 +777,12 @@ export interface MoonHowlerSyncResult {
   nightFall: boolean;
 }
 
+/**
+ * Align cursed settlers' form to the clock.
+ * Uses the full-moon *window* (not only 20:00 / 06:00 edges) so load mid-hunt
+ * and missed edge ticks still match (EK-C4). Only Human→Werewolf / Werewolf→Human
+ * when types already mismatch — never re-snapshots an active howler.
+ */
 export function syncMoonHowlerForms(
   entities: Entity[],
   colonyDay: number,
@@ -786,8 +792,8 @@ export function syncMoonHowlerForms(
   mapHeight = 900,
   tick?: number,
 ): MoonHowlerSyncResult {
+  const wantWerewolf = shouldMoonHowlerTransform(colonyDay, hourOfDay);
   const transformTick = isMoonHowlerTransformTick(colonyDay, hourOfDay);
-  const revertTick = isMoonHowlerRevertTick(hourOfDay);
   const transformed: Entity[] = [];
   const reverted: Entity[] = [];
   const humans = entities.filter((e) => e.alive && e.type === EntityType.Human);
@@ -801,13 +807,13 @@ export function syncMoonHowlerForms(
   for (const entity of entities) {
     if (!entity.alive || !entity.moonHowlerCursed || !isMoonHowlerEligible(entity)) continue;
 
-    if (transformTick && entity.type === EntityType.Human) {
+    if (wantWerewolf && entity.type === EntityType.Human) {
       transformToWerewolfForm(entity, buildings);
       if (buildings) {
         forceMoonHowlerOutside(entity, buildings, mapWidth, mapHeight);
       }
       transformed.push(entity);
-    } else if (revertTick && entity.type === EntityType.Werewolf) {
+    } else if (!wantWerewolf && entity.type === EntityType.Werewolf) {
       revertToHumanForm(entity, revertOpts);
       // After form change, include them in subsequent cap counts if more reverts same tick.
       if (!humans.includes(entity)) humans.push(entity);
