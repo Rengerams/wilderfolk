@@ -482,9 +482,10 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   }
 }
 
-export function cureMoonHowler(entity: Entity): void {
+export function cureMoonHowler(entity: Entity, opts?: RevertToHumanFormOptions): void {
   if (entity.type === EntityType.Werewolf) {
-    revertToHumanForm(entity);
+    // Cap-aware job/home/prison restore when buildings provided (EK-C1 + EK-C6).
+    revertToHumanForm(entity, opts);
   }
   entity.moonHowlerCursed = false;
   entity.moonHowlerSaved = undefined;
@@ -678,7 +679,9 @@ export function tryMoonHowlerChurchCures(
 
   // ── 1) Cured + priest lives ─────────────────────────────────
   if (outcome === 'cured') {
-    cureMoonHowler(howler);
+    const humans = entities.filter((e) => e.alive && e.type === EntityType.Human);
+    cureMoonHowler(howler, { buildings, humans, tick: state.tick });
+    if (!humans.includes(howler)) humans.push(howler);
     result.cured.push(howler);
     const line = WEREWOLF_CURE_LINES[Math.floor(rng() * WEREWOLF_CURE_LINES.length)]!;
     addFloatingText(state, howler.x, howler.y - 22, 'Cured!', '#22c55e', 'emphasis');
@@ -923,6 +926,12 @@ export function tickMoonHowlerCycle(
       logEvent(state, 'event', `${who} was cured of the Moon Howler curse`, who);
     }
     byType = buildEntityByType(aliveEntities);
+    // EK-C6: immediate residence/job sync so housing isn't stale until next assign layer.
+    const humansAfterCure = aliveEntities.filter((e) => e.alive && e.type === EntityType.Human);
+    syncResidenceOccupants(humansAfterCure, buildings);
+    const villagers = humansAfterCure.filter((e) => isPlayerHuman(e));
+    assignMissingResidences(villagers, buildings, aliveEntities);
+    assignMissingWorkers(villagers, buildings);
     changed = true;
   }
 
