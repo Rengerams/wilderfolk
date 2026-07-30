@@ -1,43 +1,38 @@
 # Wilderfolk Roadmap
 
-*Last updated: **July 30, 2026** · playing **v0.5.1** · *Clearer valley — truer sim, clearer frontier.*
+*Last updated: **July 30, 2026** · playing **v0.5.1***
 
-**Doc map (avoid duplicates):**  
-Player story → [README.md](README.md) · Version list (this file) · Release notes → [CHANGELOG.md](CHANGELOG.md) · 0.5 archive → [docs/archive/ROADMAP_0.5.0.md](docs/archive/ROADMAP_0.5.0.md) · Marketing kit → [docs/MARKETING_v0.5.0.md](docs/MARKETING_v0.5.0.md) · In-game tab → `roadmapContent.ts`
+What shipped, newest first. Pitch → [README.md](README.md) · Notes → [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
 ## v0.5.1 — Clearer valley
 
-**Shipped:** 2026-07-30 · `GAME_VERSION` **0.5.1** · continue **0.4.x / 0.5.0 → 0.5.1** colonies · *The valley feels truer and clearer.*
+**Shipped:** 2026-07-30 · *The valley feels truer and clearer.*
 
-| | Feature |
+| | |
 |:--:|---------|
-| 🟢 | **Truth** — fairer outgoing raid gold (soft-cap so spoils stay grounded) |
-| 🟢 | **Looks** — clearer outgoing raid march lines on the map |
-| 🟢 | **Looks / Truth** — stronger strained-valley cues when game runs thin |
-| 🟢 | Colony saves continue from **0.4 / 0.4.1 / 0.4.2 / 0.5.0** |
-
-Full write-up → [CHANGELOG.md](CHANGELOG.md) `[0.5.1]` · design → [docs/archive/2026-07-30-v0.5.1-roadmap-design.md](docs/archive/2026-07-30-v0.5.1-roadmap-design.md)
+| 🟢 | Raid spoils stay grounded — gold hauls no longer run unbounded |
+| 🟢 | Your war parties read clearly on the map (outgoing march lines) |
+| 🟢 | When the valley strains, hunters and Nature say so — thin game isn’t pure luck |
+| 🟢 | Keep playing your **0.4** or **0.5.0** colony — saves continue |
 
 ---
 
 ## v0.5.0 — The valley scales
 
-**Shipped:** 2026-07-30 · `GAME_VERSION` **0.5.0** · continue **0.4 → 0.5** colonies
+**Shipped:** 2026-07-30 · *Kin, beasts, and forge-steel.*
 
-| | Feature |
+| | |
 |:--:|---------|
-| 🟢 | **Scale** — spatial grids, Web Worker sim, OffscreenCanvas, alive-only entities |
-| 🟢 | **Trust** — moon Howlers, housing, raids, immigration, hunt cadence |
-| 🟢 | **Steel** — forge tier 5: swords, scale mail, tower ballistae |
-| 🟢 | **Life** — elections, valley stages, hotel, painted map, 72 ticks/day |
-| 🟢 | Custody mother → father → grandma · raids that matter · Armament checklist |
-| 🟢 | Intro v0.5 ribbon · save continue from 0.4 |
+| 🟢 | Bigger towns stay playable (spatial grids, optional worker sim, lean entities) |
+| 🟢 | Honest days — moon Howlers, housing, raids, immigration, hunt cadence |
+| 🟢 | Blacksmith forge tier 5 — iron swords, scale mail, tower ballistae |
+| 🟢 | Elections, valley stages, hotel, painted map, rich day clock |
+| 🟢 | Families stay together; father-first custody; raids that cost lives |
+| 🟢 | Intro milestone · continue from 0.4 |
 
-**Also in 0.5 tree (earlier 2026):** raid Guard XP for elections · retuned victory paths · walking trade caravans · dialogue-tree chat · build catalog  
-
-Full write-up → [CHANGELOG.md](CHANGELOG.md) `[0.5.0]`
+Also in this era: raid XP for elections · victory paths · walking caravans · dialogue chat · build catalog
 
 ---
 
@@ -117,8 +112,8 @@ Full write-up → [CHANGELOG.md](CHANGELOG.md) `[0.5.0]`
 | 🟢 | Sidebar → 6 tabs; alert strip; build catalog |
 | 🟢 | Focus hints; armament checklist |
 | 🟢 | House expand (+2 slots); demolish always visible |
-| 🟢 | `npm run simulate:30min` headless sim |
+| 🟢 | Headless balance harness for developers |
 
 ---
 
-<p align="center"><em><strong>v0.5.1 shipped</strong> · July 30, 2026 · clearer valley · <a href="docs/archive/ROADMAP_0.5.0.md">0.5.0 milestone archive</a></em></p>
+<p align="center"><em><strong>Playing v0.5.1</strong> — clearer valley · July 2026</em></p>

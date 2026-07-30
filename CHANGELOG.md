@@ -12,12 +12,12 @@
 Feature table → [ROADMAP.md](ROADMAP.md)
 
 ### Changed
-- **Raid gold soft-cap** on outgoing spoils — hauls stay grounded as the treasury grows (EK-D5)
-- **Outgoing raid march lines** — clearer on the map so your parties read at a glance
-- **Strained-valley cues** — stronger player-facing signals when wildlife and yields thin out
+- **Raid gold** — outgoing spoils stay grounded (no unbounded free gold)
+- **Outgoing raid marches** — clearer lines on the map
+- **Strained valley** — hunters and Nature signal when game runs thin
 
 ### Saves
-- Continues **0.4 / 0.4.1 / 0.4.2 / 0.5.0 → 0.5.1**
+- Continues from **0.4.x** and **0.5.0**
 
 ---
 

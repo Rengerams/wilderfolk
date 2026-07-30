@@ -26,13 +26,13 @@ const DONE = (label: string): RoadmapFeature => ({ label, status: 'done' });
 export const ROADMAP_VERSIONS: RoadmapVersion[] = [
   {
     version: '0.5.1',
-    theme: 'Clearer valley — truer sim, clearer frontier',
+    theme: 'Clearer valley — what you see matches how it lives',
     shipDate: '2026-07-30',
     features: [
-      DONE('Fairer raid spoils — gold soft-capped so hauls stay grounded'),
-      DONE('Clearer outgoing raid marches on the map'),
-      DONE('Stronger strained-valley cues when game runs thin'),
-      DONE('v0.5.1 — continue colonies from 0.4.x / 0.5.0'),
+      DONE('Raid spoils stay grounded — gold hauls no longer run unbounded'),
+      DONE('Your war parties read clearly on the map'),
+      DONE('When the valley strains, hunters and Nature say so'),
+      DONE('Keep playing your 0.4 or 0.5.0 colony — saves continue'),
     ],
   },
   {
@@ -40,15 +40,12 @@ export const ROADMAP_VERSIONS: RoadmapVersion[] = [
     theme: 'The valley scales — kin, beasts, and forge-steel',
     shipDate: '2026-07-30',
     features: [
-      DONE('v0.5.0 — scale foundation and sim trust milestone'),
-      DONE('Spatial grids · Web Worker sim · OffscreenCanvas layers · alive-only entities'),
-      DONE('Settler denorm · fast entity lookup · partner map · grass render buckets'),
-      DONE('Honest days & raids — moon Howlers, housing, custody, immigration, hunt cadence'),
+      DONE('Bigger towns stay playable — grids, worker sim, lean entities'),
+      DONE('Honest days — moon Howlers, housing, raids, immigration, hunt'),
       DONE('Forge tier 5 — iron swords, scale mail, tower ballistae'),
-      DONE('Armament checklist · multi-smith forge pace · layout forge toasts'),
-      DONE('Elections & village head · valley stages · hotel · painted map · 72 ticks/day'),
-      DONE('Raids that cost lives · counter-raid march pairing · father-first custody'),
-      DONE('Intro v0.5 ribbon · 0.4→0.5 colony save continue'),
+      DONE('Elections, valley stages, hotel, painted map, rich day clock'),
+      DONE('Families stay together · father-first custody · raids that cost lives'),
+      DONE('Intro milestone · continue from 0.4'),
     ],
   },
   {
