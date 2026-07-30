@@ -170,12 +170,6 @@ export function pickSocialImpulse(
   }
 
   // 5) Care for pregnant partner — walk them gently or to hospital
-  if (entity.partnerId != null) {
-    const partner = nearbyAdults.find((h) => h.id === entity.partnerId)
-      ?? null;
-    // Partner may not be in nearby list — caller can pass spouse via nearbyAdults
-  }
-  // Handled via optional spouse in nearbyAdults tagged by partnerId match
   const spouse = nearbyAdults.find((h) => h.id === entity.partnerId && h.alive);
   if (spouse?.pregnant && personDayRoll(entity.id, tick, 707) < 0.55) {
     const hospital = pickBuilding(buildings, [BuildingType.Hospital], entity.id);

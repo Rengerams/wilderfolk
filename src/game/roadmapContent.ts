@@ -21,8 +21,6 @@ export const ROADMAP_NORTH_STAR =
   'A cozy frontier eco-sim where settlers live on a schedule, the food chain matters, the valley feels alive with other people and tribes — and you always know what to do next.';
 
 const DONE = (label: string): RoadmapFeature => ({ label, status: 'done' });
-const PARTIAL = (label: string): RoadmapFeature => ({ label, status: 'partial' });
-const OPEN = (label: string): RoadmapFeature => ({ label, status: 'open' });
 
 /** Newest first. Shipped versions list done work only (positive player-facing story). */
 export const ROADMAP_VERSIONS: RoadmapVersion[] = [

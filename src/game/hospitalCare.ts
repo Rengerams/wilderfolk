@@ -4,7 +4,8 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
 import { personDayRoll, TICKS_PER_DAY } from './dayCycle';
-import { addFloatingText, addReputation } from './simEffects';
+import { addFloatingText } from './simEffects';
+import { addReputation } from './simHelpers';
 import { sayHumanChatPhrase } from './humanChat';
 import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';

@@ -147,7 +147,6 @@ import {
   hotelierGreetGuests,
   isHotelierAtHotel,
   steerVisitorToHotel,
-  tickHotelLodging,
 } from './hotelStay';
 import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
 import {
@@ -2322,8 +2321,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               && entity.gender
               && closest.gender
               && entity.gender !== closest.gender
-              && entity.courtshipProgress >= 100
-              && closest.courtshipProgress >= 100
+              && (entity.courtshipProgress ?? 0) >= 100
+              && (closest.courtshipProgress ?? 0) >= 100
               && isEligibleToCourt(entity)
               && isEligibleToCourt(closest)
             ) {

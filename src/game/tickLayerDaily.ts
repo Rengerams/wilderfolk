@@ -4,7 +4,7 @@
  * Grass ecology (growth/spread), static bookkeeping, building production,
  * frontier systems, and daily-gated world events. Trees have no sim tick.
  */
-import type { WorldState, Entity, Building, Challenge } from './gameTypes';
+import type { WorldState, Entity } from './gameTypes';
 import {
   BuildingType,
   BUILDING_CONFIGS,
