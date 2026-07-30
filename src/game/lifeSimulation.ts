@@ -2116,10 +2116,39 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           }
         }
       }
+      // EK-F1: apply movement before continue so pregnancy does not freeze settlers
+      // (velocity still set earlier in the loop for work/home paths).
+      {
+        const nearRoad = queryIsNearRoad(
+          roadAvoidance,
+          entity.x,
+          entity.y,
+          roadBuildings,
+          (x, y, road) => isEntityOnBuilding(x, y, road, 12),
+        );
+        const roadMult = nearRoad ? 1.5 : 1.0;
+        entity.x += entity.vx * roadMult;
+        entity.y += entity.vy * roadMult;
+        if (entity.x < 0) entity.x = 0;
+        if (entity.x > width) entity.x = width;
+        if (entity.y < 0) entity.y = 0;
+        if (entity.y > height) entity.y = height;
+        advanceHumanWalkAnim(entity);
+      }
       if (entity.energy <= 0) {
+        // Birth clears `pregnant` and spends energy; only then is death "childbirth".
+        const diedInChildbirth = !entity.pregnant && entity.pregnancyProgress === 0;
         killHuman(entity, updatedBuildings, entityById, state.tick);
         createDeathParticles(state, entity.x, entity.y, '#8B0000', 8);
-        logEvent(state, 'death', formatDeathLog(entity, 'died in childbirth'), formatCitizenName(entity));
+        logEvent(
+          state,
+          'death',
+          formatDeathLog(
+            entity,
+            diedInChildbirth ? 'died in childbirth' : 'succumbed to exhaustion',
+          ),
+          formatCitizenName(entity),
+        );
       }
       syncEntityGrids(ctx, entity);
       continue;
