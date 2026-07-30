@@ -514,7 +514,44 @@ export function allowSocialLife(hour: number, hasWorkplace: boolean, tick?: numb
   return !(isWorkHour(hour) && hasWorkplace);
 }
 
-export function countResidentsInBuilding(humans: Entity[], buildingId: number): number {
+/** Per-residence resident counts for O(1) capacity checks during housing assign. */
+export type ResidenceOccupancy = Map<number, number>;
+
+/** Build occupancy counts once from current residenceBuildingId assignments. */
+export function buildResidenceOccupancy(humans: readonly Entity[]): ResidenceOccupancy {
+  const occupancy: ResidenceOccupancy = new Map();
+  for (const h of humans) {
+    if (!h.alive || h.faction) continue;
+    const id = h.residenceBuildingId;
+    if (id == null) continue;
+    occupancy.set(id, (occupancy.get(id) ?? 0) + 1);
+  }
+  return occupancy;
+}
+
+/** Adjust occupancy when a settler leaves `fromId` and/or joins `toId`. */
+export function occupancyMove(
+  occupancy: ResidenceOccupancy,
+  fromId: number | undefined,
+  toId: number | undefined,
+): void {
+  if (fromId === toId) return;
+  if (fromId != null) {
+    const next = (occupancy.get(fromId) ?? 0) - 1;
+    if (next <= 0) occupancy.delete(fromId);
+    else occupancy.set(fromId, next);
+  }
+  if (toId != null) {
+    occupancy.set(toId, (occupancy.get(toId) ?? 0) + 1);
+  }
+}
+
+export function countResidentsInBuilding(
+  humans: Entity[],
+  buildingId: number,
+  occupancy?: ResidenceOccupancy,
+): number {
+  if (occupancy) return occupancy.get(buildingId) ?? 0;
   return humans.filter((h) => h.alive && !h.faction && h.residenceBuildingId === buildingId).length;
 }
 
@@ -531,9 +568,10 @@ export function residenceRoomFor(
   human: Entity,
   residence: Building,
   humans: Entity[],
+  occupancy?: ResidenceOccupancy,
 ): boolean {
   const cap = getResidenceCapacity(residence);
-  let count = countResidentsInBuilding(humans, residence.id);
+  let count = countResidentsInBuilding(humans, residence.id, occupancy);
   if (human.residenceBuildingId === residence.id) count--;
   return count < cap;
 }
@@ -551,13 +589,14 @@ function pickLeastCrowdedResidence(
   residences: Building[],
   extraSlots = 1,
   options: PickResidenceOptions = {},
+  occupancy?: ResidenceOccupancy,
 ): number | undefined {
   let best: Building | undefined;
   let bestCount = Infinity;
   for (const residence of residences) {
     if (options.forbidSinglesOnly && residenceHostsOnlySingles(residence.id, humans)) continue;
     const cap = getResidenceCapacity(residence);
-    const count = countResidentsInBuilding(humans, residence.id);
+    const count = countResidentsInBuilding(humans, residence.id, occupancy);
     if (count + extraSlots > cap) continue;
     if (count < bestCount || (count === bestCount && residence.id < (best?.id ?? Infinity))) {
       bestCount = count;
@@ -1070,9 +1109,10 @@ function familyFitsInResidence(
   family: Entity[],
   residence: Building,
   humans: Entity[],
+  occupancy?: ResidenceOccupancy,
 ): boolean {
   const cap = getResidenceCapacity(residence);
-  const count = countResidentsInBuilding(humans, residence.id);
+  const count = countResidentsInBuilding(humans, residence.id, occupancy);
   const alreadyHere = familyAlreadyInResidence(family, residence.id);
   const outsiders = count - alreadyHere;
   return outsiders + family.length <= cap;
@@ -1105,9 +1145,12 @@ function hasEmptyResidenceForUnit(
   unit: Entity[],
   humans: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): boolean {
   return residences.some(
-    (r) => countResidentsInBuilding(humans, r.id) === 0 && familyFitsInResidence(unit, r, humans),
+    (r) =>
+      countResidentsInBuilding(humans, r.id, occupancy) === 0
+      && familyFitsInResidence(unit, r, humans, occupancy),
   );
 }
 
@@ -1117,11 +1160,12 @@ function hasSinglesOnlyResidenceWithRoom(
   humans: Entity[],
   residences: Building[],
   excludeResidenceId?: number,
+  occupancy?: ResidenceOccupancy,
 ): boolean {
   return residences.some((r) => {
     if (excludeResidenceId != null && r.id === excludeResidenceId) return false;
-    if (!familyFitsInResidence(unit, r, humans)) return false;
-    const count = countResidentsInBuilding(humans, r.id);
+    if (!familyFitsInResidence(unit, r, humans, occupancy)) return false;
+    const count = countResidentsInBuilding(humans, r.id, occupancy);
     if (count === 0) return true;
     return residenceHostsOnlySingles(r.id, humans);
   });
@@ -1142,21 +1186,22 @@ export function isUnnecessarilySharingHousing(
   unit: Entity[],
   humans: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): boolean {
-  if (!isFamilyHousingValid(unit, residences, humans)) return false;
+  if (!isFamilyHousingValid(unit, residences, humans, occupancy)) return false;
   const homeId = unitResidenceId(unit);
   if (homeId == null) return false;
 
   if (isLoneSettler(unit, humans)) {
     if (!loneSingleSharesWithFamily(unit, humans, homeId)) return false;
     return (
-      hasEmptyResidenceForUnit(unit, humans, residences)
-      || hasSinglesOnlyResidenceWithRoom(unit, humans, residences, homeId)
+      hasEmptyResidenceForUnit(unit, humans, residences, occupancy)
+      || hasSinglesOnlyResidenceWithRoom(unit, humans, residences, homeId, occupancy)
     );
   }
 
-  if (!hasEmptyResidenceForUnit(unit, humans, residences)) return false;
-  if (countResidentsInBuilding(humans, homeId) <= unit.length) return false;
+  if (!hasEmptyResidenceForUnit(unit, humans, residences, occupancy)) return false;
+  if (countResidentsInBuilding(humans, homeId, occupancy) <= unit.length) return false;
   return unitSharesResidenceWithOutsiders(unit, humans, homeId);
 }
 
@@ -1192,25 +1237,26 @@ export function housingUnitNeedsReassignment(
   unit: Entity[],
   alive: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): boolean {
-  if (!isFamilyHousingValid(unit, residences, alive)) return true;
+  if (!isFamilyHousingValid(unit, residences, alive, occupancy)) return true;
   const homeId = unitResidenceId(unit);
   if (homeId == null) return true;
 
   if (isLoneSettler(unit, alive)) {
     if (!unitSharesResidenceWithOutsiders(unit, alive, homeId)) return false;
-    if (hasEmptyResidenceForUnit(unit, alive, residences)) return true;
+    if (hasEmptyResidenceForUnit(unit, alive, residences, occupancy)) return true;
     if (
       residenceHostsCouple(homeId, alive)
-      && hasSinglesOnlyResidenceWithRoom(unit, alive, residences, homeId)
+      && hasSinglesOnlyResidenceWithRoom(unit, alive, residences, homeId, occupancy)
     ) {
       return true;
     }
     return false;
   }
 
-  if (!hasEmptyResidenceForUnit(unit, alive, residences)) return false;
-  if (countResidentsInBuilding(alive, homeId) === unit.length) return false;
+  if (!hasEmptyResidenceForUnit(unit, alive, residences, occupancy)) return false;
+  if (countResidentsInBuilding(alive, homeId, occupancy) === unit.length) return false;
   return unitSharesResidenceWithOutsiders(unit, alive, homeId);
 }
 
@@ -1218,13 +1264,18 @@ function sortHousingUnitsForAssignment(
   units: Entity[][],
   alive: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): Entity[][] {
-  return [...units].sort((a, b) => {
-    const pri = (u: Entity[]) => (housingUnitNeedsReassignment(u, alive, residences) ? 0 : 1);
-    const d = pri(a) - pri(b);
-    if (d !== 0) return d;
-    return b.length - a.length;
-  });
+  // Cache reassignment priority once — comparator must not recompute O(R) checks.
+  const needReassign = units.map((u) => housingUnitNeedsReassignment(u, alive, residences, occupancy));
+  return units
+    .map((unit, i) => ({ unit, need: needReassign[i] ? 0 : 1, len: unit.length }))
+    .sort((a, b) => {
+      const d = a.need - b.need;
+      if (d !== 0) return d;
+      return b.len - a.len;
+    })
+    .map((x) => x.unit);
 }
 
 function residenceHostsCouple(residenceId: number, humans: Entity[]): boolean {
@@ -1253,9 +1304,13 @@ function residenceHostsOnlySingles(residenceId: number, humans: Entity[]): boole
   return !residenceHostsCouple(residenceId, humans);
 }
 
-function anyOpenBeds(humans: Entity[], residences: Building[]): boolean {
+function anyOpenBeds(
+  humans: Entity[],
+  residences: Building[],
+  occupancy?: ResidenceOccupancy,
+): boolean {
   return residences.some(
-    (r) => countResidentsInBuilding(humans, r.id) < getResidenceCapacity(r),
+    (r) => countResidentsInBuilding(humans, r.id, occupancy) < getResidenceCapacity(r),
   );
 }
 
@@ -1264,14 +1319,15 @@ function pickSharedResidenceForFamily(
   family: Entity[],
   humans: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): number | undefined {
   let best: Building | undefined;
   let bestScore = Infinity;
 
   for (const residence of residences) {
-    if (!familyFitsInResidence(family, residence, humans)) continue;
+    if (!familyFitsInResidence(family, residence, humans, occupancy)) continue;
 
-    const count = countResidentsInBuilding(humans, residence.id);
+    const count = countResidentsInBuilding(humans, residence.id, occupancy);
     const alreadyHere = familyAlreadyInResidence(family, residence.id);
     const outsiders = count - alreadyHere;
     const score = outsiders * 10 + count;
@@ -1290,20 +1346,24 @@ export function pickResidenceForFamily(
   family: Entity[],
   humans: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): number | undefined {
   if (residences.length === 0 || family.length === 0) return undefined;
 
   const loneSingle = isLoneSettler(family, humans);
   const hasMinor = family.some((m) => isMinorChild(m));
-  const anyEmptyHouse = residences.some((r) => countResidentsInBuilding(humans, r.id) === 0);
-  const housingShortage = !anyEmptyHouse || !anyOpenBeds(humans, residences);
+  // Prefer map-backed empty checks when occupancy is provided (EK-E2).
+  const anyEmptyHouse = residences.some(
+    (r) => countResidentsInBuilding(humans, r.id, occupancy) === 0,
+  );
+  const housingShortage = !anyEmptyHouse || !anyOpenBeds(humans, residences, occupancy);
 
   let best: Building | undefined;
   let bestScore = Infinity;
   for (const residence of residences) {
-    if (!familyFitsInResidence(family, residence, humans)) continue;
+    if (!familyFitsInResidence(family, residence, humans, occupancy)) continue;
 
-    const count = countResidentsInBuilding(humans, residence.id);
+    const count = countResidentsInBuilding(humans, residence.id, occupancy);
     const alreadyHere = familyAlreadyInResidence(family, residence.id);
     const outsiders = count - alreadyHere;
     const cap = getResidenceCapacity(residence);
@@ -1312,8 +1372,8 @@ export function pickResidenceForFamily(
     const singlesAlternative = residences.some(
       (r) =>
         r.id !== residence.id
-        && familyFitsInResidence(family, r, humans)
-        && (countResidentsInBuilding(humans, r.id) === 0
+        && familyFitsInResidence(family, r, humans, occupancy)
+        && (countResidentsInBuilding(humans, r.id, occupancy) === 0
           || residenceHostsOnlySingles(r.id, humans)),
     );
 
@@ -1360,6 +1420,7 @@ function isFamilyHousingValid(
   family: Entity[],
   residences: Building[],
   humans: Entity[],
+  occupancy?: ResidenceOccupancy,
 ): boolean {
   const assigned = family.filter((m) => m.residenceBuildingId !== undefined);
   if (assigned.length === 0) return false;
@@ -1371,7 +1432,7 @@ function isFamilyHousingValid(
   const residence = residences.find((b) => b.id === houseId);
   if (!residence) return false;
 
-  return familyFitsInResidence(family, residence, humans);
+  return familyFitsInResidence(family, residence, humans, occupancy);
 }
 
 export function pickResidenceForHumanExcluding(
@@ -1390,18 +1451,19 @@ export function pickResidenceForHuman(
   human: Entity,
   humans: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): number | undefined {
   if (residences.length === 0) return undefined;
 
   const household = isMinorChild(human) ? [human] : collectOwnHousehold(human, humans);
-  const familyHouse = pickResidenceForFamily(household, humans, residences);
+  const familyHouse = pickResidenceForFamily(household, humans, residences, occupancy);
   if (familyHouse !== undefined) return familyHouse;
 
   if (human.partnerId) {
     const partner = humans.find((h) => h.id === human.partnerId && h.alive);
     if (partner && hasResidenceAssignment(partner)) {
       const partnerResidence = residences.find((b) => b.id === partner.residenceBuildingId);
-      if (partnerResidence && residenceRoomFor(human, partnerResidence, humans)) {
+      if (partnerResidence && residenceRoomFor(human, partnerResidence, humans, occupancy)) {
         return partner.residenceBuildingId;
       }
     }
@@ -1413,7 +1475,7 @@ export function pickResidenceForHuman(
   }
 
   const crowdOpts: PickResidenceOptions = isMinorChild(human) ? { forbidSinglesOnly: true } : {};
-  return pickLeastCrowdedResidence(humans, residences, 1, crowdOpts);
+  return pickLeastCrowdedResidence(humans, residences, 1, crowdOpts, occupancy);
 }
 
 function pickSharedResidence(
@@ -1633,11 +1695,15 @@ function assignFamilyToResidence(
   alive: Entity[],
   residences: Building[],
   allHumans: Entity[],
+  occupancy?: ResidenceOccupancy,
 ): void {
-  const picked = pickResidenceForFamily(family, alive, residences)
-    ?? pickSharedResidenceForFamily(family, alive, residences);
+  const picked = pickResidenceForFamily(family, alive, residences, occupancy)
+    ?? pickSharedResidenceForFamily(family, alive, residences, occupancy);
   if (picked !== undefined) {
-    for (const member of family) member.residenceBuildingId = picked;
+    for (const member of family) {
+      if (occupancy) occupancyMove(occupancy, member.residenceBuildingId, picked);
+      member.residenceBuildingId = picked;
+    }
     return;
   }
 
@@ -1645,26 +1711,40 @@ function assignFamilyToResidence(
   const juveniles = family.filter((m) => m.isJuvenile).sort((a, b) => a.id - b.id);
 
   for (const adult of adults) {
-    const house = pickResidenceForHuman(adult, alive, residences);
-    if (house !== undefined) adult.residenceBuildingId = house;
+    const house = pickResidenceForHuman(adult, alive, residences, occupancy);
+    if (house !== undefined) {
+      if (occupancy) occupancyMove(occupancy, adult.residenceBuildingId, house);
+      adult.residenceBuildingId = house;
+    }
   }
 
   for (const child of juveniles) {
     const custodianHome = pickResidenceFromChildCustodian(child, allHumans, residences);
     if (custodianHome !== undefined) {
+      if (occupancy) occupancyMove(occupancy, child.residenceBuildingId, custodianHome);
       child.residenceBuildingId = custodianHome;
       continue;
     }
-    const house = pickResidenceForHuman(child, alive, residences);
-    if (house !== undefined) child.residenceBuildingId = house;
+    const house = pickResidenceForHuman(child, alive, residences, occupancy);
+    if (house !== undefined) {
+      if (occupancy) occupancyMove(occupancy, child.residenceBuildingId, house);
+      child.residenceBuildingId = house;
+    }
   }
 }
 
-function fillHomelessAfterEviction(alive: Entity[], residences: Building[]): void {
+function fillHomelessAfterEviction(
+  alive: Entity[],
+  residences: Building[],
+  occupancy?: ResidenceOccupancy,
+): void {
   for (const human of alive) {
     if (!hasResidenceAssignment(human)) {
-      const house = pickResidenceForHuman(human, alive, residences);
-      if (house !== undefined) human.residenceBuildingId = house;
+      const house = pickResidenceForHuman(human, alive, residences, occupancy);
+      if (house !== undefined) {
+        if (occupancy) occupancyMove(occupancy, human.residenceBuildingId, house);
+        human.residenceBuildingId = house;
+      }
     }
   }
 }
@@ -1706,23 +1786,43 @@ export function assignMissingResidences(
 
   for (let pass = 0; pass < 24; pass++) {
     let reassigned = 0;
-    const housingUnits = sortHousingUnitsForAssignment(buildHousingUnits(alive), alive, residences);
+    // One occupancy scan per pass — O(H) then O(1) counts (EK-E2).
+    const occupancy = buildResidenceOccupancy(alive);
+    const housingUnits = sortHousingUnitsForAssignment(
+      buildHousingUnits(alive),
+      alive,
+      residences,
+      occupancy,
+    );
     for (const unit of housingUnits) {
-      if (!housingUnitNeedsReassignment(unit, alive, residences)) continue;
+      if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy)) continue;
 
-      for (const member of unit) member.residenceBuildingId = undefined;
-      assignFamilyToResidence(unit, alive, residences, humans);
+      for (const member of unit) {
+        occupancyMove(occupancy, member.residenceBuildingId, undefined);
+        member.residenceBuildingId = undefined;
+      }
+      assignFamilyToResidence(unit, alive, residences, humans, occupancy);
       reassigned++;
     }
     const evicted = rebalanceOvercrowdedResidences(alive, residences);
-    if (evicted) fillHomelessAfterEviction(alive, residences);
+    if (evicted) {
+      // Rebalance clears residences without the map — rebuild before fill.
+      const afterEvict = buildResidenceOccupancy(alive);
+      fillHomelessAfterEviction(alive, residences, afterEvict);
+    }
     if (reassigned === 0 && !evicted) break;
   }
 
-  for (const human of alive) {
-    if (!hasResidenceAssignment(human)) {
-      const house = pickResidenceForHuman(human, alive, residences);
-      if (house !== undefined) human.residenceBuildingId = house;
+  {
+    const occupancy = buildResidenceOccupancy(alive);
+    for (const human of alive) {
+      if (!hasResidenceAssignment(human)) {
+        const house = pickResidenceForHuman(human, alive, residences, occupancy);
+        if (house !== undefined) {
+          occupancyMove(occupancy, human.residenceBuildingId, house);
+          human.residenceBuildingId = house;
+        }
+      }
     }
   }
 
