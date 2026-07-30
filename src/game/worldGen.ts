@@ -410,16 +410,22 @@ export function finalizeSettlerAge(entity: Entity, state: Pick<WorldState, 'year
   entity.generation = Math.max(entity.generation ?? 0, 2);
 }
 
-/** Player settler from immigration — may arrive as a expecting couple with father linked. */
+/**
+ * Player settler from immigration — may arrive as an expecting couple with father linked.
+ * `maxMembers` caps how many may be created (respects open pop-cap slots; couples need 2).
+ */
 export function createImmigrantSettler(
   state: WorldState,
   x: number,
   y: number,
+  maxMembers = 2,
 ): Entity[] {
+  if (maxMembers < 1) return [];
+
   const colonyDay = getColonyDay(state);
   const age = HUMAN_ADULT_MIN_AGE + Math.floor(Math.random() * 25);
 
-  if (Math.random() < 0.12) {
+  if (maxMembers >= 2 && Math.random() < 0.12) {
     const husband = createEntity(EntityType.Human, x - 6, y, state.nextEntityId++, undefined, false, {
       gender: 'male',
       ageYears: age,

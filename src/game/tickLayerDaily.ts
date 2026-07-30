@@ -572,10 +572,11 @@ function tickImmigration(
       * getTownHallImmigrationMultiplier(updatedBuildings),
   );
 
+  const openSlots = state.maxHumanPopulation - counts.humans;
   if (
     state.tick > 0
     && state.tick % IMMIGRATION_CHECK_TICKS === 0
-    && counts.humans < state.maxHumanPopulation
+    && openSlots > 0
     && Math.random() < immigrationChance
   ) {
     let spawnX = width / 2;
@@ -591,14 +592,21 @@ function tickImmigration(
     const rawSpawnX = spawnX + (Math.random() - 0.5) * 40;
     const rawSpawnY = spawnY + (Math.random() - 0.5) * 40;
     const spawn = findHumanSpawnNear(state, rawSpawnX, rawSpawnY);
-    const newcomers = createImmigrantSettler(state, spawn.x, spawn.y);
+    // Cap members so a couple cannot overshoot maxHumanPopulation
+    const newcomers = createImmigrantSettler(state, spawn.x, spawn.y, openSlots);
+    let admitted = 0;
     for (const newcomer of newcomers) {
+      if (counts.humans >= state.maxHumanPopulation) break;
       allAlive.push(newcomer);
       indexEntity(entityById, newcomer);
       counts.humans++;
+      admitted++;
     }
-    assignMissingResidences(allAlive.filter(isPlayerHuman), updatedBuildings, allAlive);
-    addFloatingText(state, spawnX, spawnY - 18, '+1 Settler arrived', '#22c55e');
+    if (admitted > 0) {
+      assignMissingResidences(allAlive.filter(isPlayerHuman), updatedBuildings, allAlive);
+      const label = admitted === 1 ? '+1 Settler arrived' : `+${admitted} Settlers arrived`;
+      addFloatingText(state, spawnX, spawnY - 18, label, '#22c55e');
+    }
   }
 }
 
