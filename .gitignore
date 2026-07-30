@@ -5,5 +5,8 @@ log.txt
 # Local-only notes (not for GitHub)
 private/
 
+# Local agent/design specs (not for GitHub)
+docs/superpowers/
+
 # Git worktrees
 .worktrees
