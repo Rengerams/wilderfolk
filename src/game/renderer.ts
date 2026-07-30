@@ -1863,42 +1863,51 @@ function drawRaidMarchLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot
   const vx = (village.x - cam.x) * cam.zoom + cw / 2;
   const vy = (village.y - cam.y) * cam.zoom + ch / 2;
 
+  // Incoming: solid rose (threat toward village)
   for (const raid of state.pendingRaidEvents ?? []) {
     const rival = state.rivalSettlements.find((r) => r.id === raid.rivalId);
     if (!rival) continue;
     const rx = (rival.campX - cam.x) * cam.zoom + cw / 2;
     const ry = (rival.campY - cam.y) * cam.zoom + ch / 2;
-    ctx.strokeStyle = 'rgba(239,68,68,0.45)';
+    ctx.strokeStyle = 'rgba(244,63,94,0.55)';
     ctx.lineWidth = 2;
-    ctx.setLineDash([8, 6]);
+    ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(rx, ry);
     ctx.lineTo(vx, vy);
     ctx.stroke();
-    ctx.setLineDash([]);
     ctx.font = `${Math.max(9, 11 * cam.zoom)}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#f87171';
+    ctx.fillStyle = '#fb7185';
     ctx.fillText('⚔️', (rx + vx) / 2, (ry + vy) / 2 - 6);
   }
 
+  // Outgoing: dashed amber/orange, heavier stroke; counter-raid uses gold + short dash
   for (const raid of state.pendingOutgoingRaidEvents ?? []) {
     const rival = state.rivalSettlements.find((r) => r.id === raid.rivalId);
     if (!rival) continue;
     const rx = (rival.campX - cam.x) * cam.zoom + cw / 2;
     const ry = (rival.campY - cam.y) * cam.zoom + ch / 2;
-    ctx.strokeStyle = raid.isCounterRaid ? 'rgba(251,191,36,0.55)' : 'rgba(249,115,22,0.55)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([8, 6]);
+    const counter = !!raid.isCounterRaid;
+    ctx.strokeStyle = counter ? 'rgba(251,191,36,0.7)' : 'rgba(249,115,22,0.7)';
+    ctx.lineWidth = counter ? 3 : 2.75;
+    ctx.setLineDash(counter ? [4, 4] : [12, 6]);
     ctx.beginPath();
     ctx.moveTo(vx, vy);
     ctx.lineTo(rx, ry);
     ctx.stroke();
     ctx.setLineDash([]);
+    // Endpoint marker toward rival camp
+    const mx = vx + (rx - vx) * 0.92;
+    const my = vy + (ry - vy) * 0.92;
+    ctx.beginPath();
+    ctx.arc(mx, my, Math.max(2.5, 3.5 * Math.min(1, cam.zoom)), 0, Math.PI * 2);
+    ctx.fillStyle = counter ? 'rgba(251,191,36,0.85)' : 'rgba(251,146,60,0.85)';
+    ctx.fill();
     ctx.font = `${Math.max(9, 11 * cam.zoom)}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = raid.isCounterRaid ? '#fbbf24' : '#fb923c';
-    ctx.fillText(raid.isCounterRaid ? '🛡️' : '🥾', (vx + rx) / 2, (vy + ry) / 2 - 6);
+    ctx.fillStyle = counter ? '#fbbf24' : '#fb923c';
+    ctx.fillText(counter ? '🛡️' : '🥾', (vx + rx) / 2, (vy + ry) / 2 - 6);
   }
 }
 
