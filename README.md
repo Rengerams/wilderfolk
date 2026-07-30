@@ -25,7 +25,7 @@ This is the **scale + trust** milestone: big towns stay playable, the sim is hon
 | | What v0.5 stands for |
 |:--:|--|
 | **Scale** | Spatial grids, worker sim (opt-in), alive-only entities, leaner tick paths |
-| **Trust** | Batch EK sim audit — moon, housing, raids, immigration, hunt cadence |
+| **Trust** | Honest days & raids — moon Howlers, housing, immigration, hunt cadence |
 | **Steel** | Blacksmith tier 5 — iron **swords**, **scale mail**, tower **ballistae** |
 | **Life** | Hotel, valley stages, elections, painted map, 72 ticks/day |
 

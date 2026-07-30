@@ -2,7 +2,8 @@
 
 *Last updated: **July 30, 2026** · playing **v0.5.0** · *The valley scales — kin, beasts, and forge-steel.*
 
-Newest version first. Detail → [CHANGELOG.md](CHANGELOG.md) · [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)
+**Doc map (avoid duplicates):**  
+Player story → [README.md](README.md) · Version list (this file) · Release notes → [CHANGELOG.md](CHANGELOG.md) · 0.5 archive → [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md) · Marketing kit → [docs/MARKETING_v0.5.0.md](docs/MARKETING_v0.5.0.md) · In-game tab → `roadmapContent.ts`
 
 ---
 
@@ -19,18 +20,9 @@ Newest version first. Detail → [CHANGELOG.md](CHANGELOG.md) · [ROADMAP_0.5.0.
 | 🟢 | Custody mother → father → grandma · raids that matter · Armament checklist |
 | 🟢 | Intro v0.5 ribbon · save continue from 0.4 |
 
-### July 8, 2026 — Victory, trade & raid rewards (in code)
+**Also in 0.5 tree (earlier 2026):** raid Guard XP for elections · retuned victory paths · walking trade caravans · dialogue-tree chat · build catalog  
 
-| Area | What shipped |
-|------|----------------|
-| **Raid XP** | `rewardRaidParticipants()` — Guard XP 0.3–1.1 by outcome; leader bonus; rep feeds `getIncumbentRecordAssessment()` at elections |
-| **Eco-Utopia** | 250 humans + ecosystem ≥80% for 20 years |
-| **Great City** | 400 humans + 60 completed player buildings |
-| **Trade Empire** | All 7 routes active; 40 merchant round-trips; 50,000 gold from caravan trade (`goldFromTradeRoutes`) |
-| **Harmony** | 8 **untamed** wolves (`tamedBy == null`) + 15 wildkin — taming via Taming Post does **not** count |
-| **Caravans** | `establishTradeRoute` → walking merchant; export at partner, import at village; Progress → Trade shows leg status |
-
-Detail → [CHANGELOG.md](CHANGELOG.md) `[0.5.0]` · [TECHNICAL.md](TECHNICAL.md)
+Full write-up → [CHANGELOG.md](CHANGELOG.md) `[0.5.0]`
 
 ---
 
@@ -42,7 +34,7 @@ Detail → [CHANGELOG.md](CHANGELOG.md) `[0.5.0]` · [TECHNICAL.md](TECHNICAL.md
 |:--:|---------|
 | 🟢 | 6-tab sidebar, alert strip, left build catalog, tab hotkeys V/F/N/P/L/M |
 | 🟢 | Focus Go → actions, Frontier/Progress badges, collapsible inspector |
-| 🟢 | Blacksmith forge queue — iron spears & shields |
+| 🟢 | Blacksmith forge queue — iron spears & shields (+ later tiers in 0.5) |
 | 🟢 | Forge alerts + Open Blacksmith → |
 | 🟢 | Frontier raid polish — 2–6 day deadline by distance, slower distant march |
 | 🟢 | Village + Frontier raid respond UI; combat preview hints |
@@ -79,7 +71,7 @@ Detail → [CHANGELOG.md](CHANGELOG.md) `[0.5.0]` · [TECHNICAL.md](TECHNICAL.md
 | 🟢 | Visitor trade + refugee negotiate |
 | 🟢 | Guaranteed first-week visitor (days 4–7) |
 | 🟢 | Trade Empire + Harmony victories (4 active paths) |
-| 🟢 | Village leadership — merit elections every 10 years |
+| 🟢 | Village leadership — merit elections every 5 years |
 | 🟢 | Population & families panel |
 | 🟢 | Challenge progress bars + active 🎯 highlight |
 | 🟢 | Nature tab grazing pressure warning |
@@ -114,4 +106,4 @@ Detail → [CHANGELOG.md](CHANGELOG.md) `[0.5.0]` · [TECHNICAL.md](TECHNICAL.md
 
 ---
 
-<p align="center"><em><strong>v0.4.2 shipped</strong> → <a href="ROADMAP_0.5.0.md">v0.5.0</a> (end July 2026)</em></p>
+<p align="center"><em><strong>v0.5.0 shipped</strong> · July 30, 2026 · <a href="ROADMAP_0.5.0.md">milestone archive</a></em></p>

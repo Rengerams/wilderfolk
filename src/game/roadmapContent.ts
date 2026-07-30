@@ -48,8 +48,6 @@ export const ROADMAP_VERSIONS: RoadmapVersion[] = [
       DONE('6-tab sidebar, alert strip, map build hotbar, tab hotkeys V/F/N/P/L/M'),
       DONE('Focus Go → actions, Frontier/Progress badges, collapsible inspector'),
       DONE('Blacksmith forge — iron spears/shields, pickaxes, halberds, wall plates'),
-      DONE('Forge tier 5 — iron swords, scale mail, tower ballistae'),
-      DONE('Forge single toast + multi-smith pace + Armament Open Blacksmith'),
       DONE('Frontier raid polish — 2–6 day deadline by distance, slower distant march'),
       DONE('Village + Frontier raid respond UI; combat preview hints'),
       DONE('Walls, watchtowers, barracks; guard patrols; combat log + export'),

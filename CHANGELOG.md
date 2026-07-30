@@ -8,7 +8,8 @@
 
 **The valley scales — kin, beasts, and forge-steel.**
 
-`GAME_VERSION` **0.5.0** · continue colonies from **0.4**.
+`GAME_VERSION` **0.5.0** · continue colonies from **0.4**.  
+Marketing kit → [docs/MARKETING_v0.5.0.md](docs/MARKETING_v0.5.0.md) · Feature table → [ROADMAP.md](ROADMAP.md) · Archive → [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)
 
 ### Added
 - **Forge tier 5** — Iron Swords, Scale Mail, Bastion Towers
@@ -16,7 +17,7 @@
 - README **v0.5.0** hero — scale, trust, steel, life
 - Spatial grids, Web Worker sim, OffscreenCanvas layers, leaner tick paths
 
-### Fixed — sim trust (Batch EK)
+### Fixed — sim trust
 - **Moon Howlers** — job/home/prison restore; load form resync; howl cadence; cure housing
 - **Raids** — counter-raid pairing; lost-raid deaths; immigration respects pop cap
 - **Housing** — faster assign; household minors; orphans on death; father-first custody
@@ -26,7 +27,7 @@
 - Forge progression, multi-smith pace, layout toasts, full Armament checklist
 - Smoother large-valley foundation for towns that grow
 
-### Added — living valley & clearer days (July 30, 2026)
+### Also in this era — living valley & clearer days (July 30, 2026)
 
 A big playability and presentation pass: the map reads as a place, the day has room to breathe, and the village’s people and ecology show up more clearly on screen.
 
