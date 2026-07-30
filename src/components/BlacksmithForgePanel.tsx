@@ -28,21 +28,21 @@ export default function BlacksmithForgePanel({ state, buildingId, onQueueForge }
     <div className="mt-2 space-y-1.5 rounded-lg border border-orange-700/40 bg-orange-950/30 p-2">
       <p className="text-[9px] font-semibold uppercase tracking-wider text-orange-300">Village forge</p>
       <p className="text-[9px] leading-relaxed text-stone-400">
-        Research unlocks orders; each needs materials <strong className="text-stone-300">and</strong> a staffed forge run (~6–7 days).
+        Research unlocks orders; materials + staffed smith. When done, you get one toast (same as other village alerts).
       </p>
 
       {forge.activeOrder && activeOrder && (
-        <div className="rounded bg-stone-900/60 px-2 py-1.5">
+        <div className="rounded border border-orange-600/30 bg-stone-900/60 px-2 py-1.5">
           <p className="text-[10px] font-bold text-amber-200">
             🔨 Forging {activeOrder.label}
           </p>
           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-700">
             <div
-              className="h-full rounded-full bg-orange-500 transition-all"
+              className="h-full rounded-full bg-gradient-to-r from-orange-600 to-amber-400 transition-all"
               style={{ width: `${forge.progress}%` }}
             />
           </div>
-          <p className="mt-0.5 text-[8px] text-stone-500">{Math.round(forge.progress)}% · ticks while smith is staffed</p>
+          <p className="mt-0.5 text-[8px] text-stone-500">{Math.round(forge.progress)}% · progress only while staffed</p>
         </div>
       )}
 
@@ -52,6 +52,7 @@ export default function BlacksmithForgePanel({ state, buildingId, onQueueForge }
           const active = forge.activeOrder === order.id;
           const block = getForgeBlockReason(state, order.id);
           const canQueue = block == null && !ready;
+          const epic = order.id === 'iron_swords' || order.id === 'scale_mail' || order.id === 'tower_ballistae';
           return (
             <button
               key={order.id}
@@ -65,12 +66,15 @@ export default function BlacksmithForgePanel({ state, buildingId, onQueueForge }
                   : active
                     ? 'border border-orange-500/50 bg-orange-900/40 text-orange-100'
                     : canQueue
-                      ? 'bg-stone-800/80 text-stone-200 hover:bg-stone-700'
+                      ? epic
+                        ? 'border border-amber-600/40 bg-amber-950/30 text-amber-100 hover:bg-amber-900/40'
+                        : 'bg-stone-800/80 text-stone-200 hover:bg-stone-700'
                       : 'bg-stone-900/50 text-stone-500'
               }`}
             >
               <span className="font-bold">
                 {ready ? '✓ ' : ''}<Emoji>{order.emoji}</Emoji> {order.label}
+                {epic && !ready ? <span className="ml-1 text-[7px] font-semibold text-amber-400/90">tier 5</span> : null}
               </span>
               <span className="block text-[7px] opacity-80">{order.description}</span>
               <ResourceCost

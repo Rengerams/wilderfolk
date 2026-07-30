@@ -5,24 +5,9 @@ import { isProductionTick, PRODUCTION_INTERVAL } from './dayCycle';
 import { COMBAT_TECH } from './combatTech';
 import { logEvent } from './eventLog';
 import { addNotification } from './gameEngine';
-import { pushTransientParticle } from './juiceEffects';
 
 export function hasCompletedBlacksmith(state: { buildings: Building[] }): boolean {
   return state.buildings.some((b) => b.completed && b.type === BuildingType.Blacksmith);
-}
-
-function addForgeFloat(state: WorldState, x: number, y: number, text: string, color: string) {
-  if (!state.floatingTexts) state.floatingTexts = [];
-  state.floatingTexts.push({
-    id: state.nextFloatingTextId++,
-    x,
-    y,
-    text,
-    color,
-    life: 18,
-    maxLife: 18,
-    scale: 1,
-  });
 }
 
 export const FORGE_BONUSES = {
@@ -323,44 +308,19 @@ export function tickVillageForge(state: WorldState, buildings: Building[]): void
 
   forge.progress = Math.min(100, forge.progress + order.progressPerTick);
 
-  if (forge.progress < 100) {
-    addForgeFloat(
-      state,
-      smith.x + (smith.width ?? 0) / 2,
-      smith.y - 14,
-      `🔨 ${order.label} ${Math.round(forge.progress)}%`,
-      '#fb923c',
-    );
-    return;
-  }
+  // Progress shows only on the Blacksmith panel / Village tab — no world float spam.
+  if (forge.progress < 100) return;
 
   forge.completed[order.id] = true;
   forge.activeOrder = null;
   forge.progress = 0;
 
+  // Same toast channel as the rest of the HUD (top-right layout) — one notification type only.
   addNotification(
     state,
-    `${order.emoji} ${order.label} ready`,
+    `${order.emoji} ${order.label} forged`,
     order.description,
     'success',
   );
-  addForgeFloat(
-    state,
-    smith.x + (smith.width ?? 0) / 2,
-    smith.y - 18,
-    `${order.emoji} ${order.label} forged!`,
-    '#4ade80',
-  );
-  pushTransientParticle(state, {
-    x: smith.x + Math.random() * (smith.width ?? 0),
-    y: smith.y + Math.random() * (smith.height ?? 0),
-    vx: (Math.random() - 0.5) * 0.6,
-    vy: -1 - Math.random(),
-    life: 30,
-    maxLife: 30,
-    color: '#f97316',
-    size: 3 + Math.random() * 2,
-    type: 'sparkle',
-  });
   logEvent(state, 'event', `Blacksmith finished forging ${order.label}`, order.label);
 }

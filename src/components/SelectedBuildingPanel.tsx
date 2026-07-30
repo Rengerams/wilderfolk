@@ -46,7 +46,7 @@ const BUILDING_OUTPUT_HINTS: Partial<Record<BuildingType, string>> = {
   [BuildingType.Workshop]: 'Pick a recipe below — crafts every 2 days when staffed and stocked.',
   [BuildingType.Church]: 'Staffed church boosts courtship/morals. Full-moon nights: more priests = higher cure chance vs a Moon Howler; no priest = howler unopposed.',
   [BuildingType.School]: 'Assign a teacher — children walk here by day; schooling speeds growth and grants graduation perks.',
-  [BuildingType.Blacksmith]: 'Forge iron spears & shields here after Defense research. Staffed smith boosts lumber, quarry & mine (+25% per worker).',
+  [BuildingType.Blacksmith]: 'Forge spears, shields, swords, scale mail & tower gear after Defense research. Staffed smith boosts lumber, quarry & mine (+25% per worker).',
   [BuildingType.Hospital]: 'Staffed hospital adds reputation every 5 days; any hospital lowers energy drain.',
   [BuildingType.TownHall]: 'Staff officials — taxes, trade & immigration boost, elections, scandal buffer, host festivals.',
   [BuildingType.Well]: 'Lowers settler energy drain for the whole village.',
