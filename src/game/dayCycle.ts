@@ -286,10 +286,18 @@ export const WORK_HOURS_PER_DAY = WORK_END - WORK_START;
 /** Mon=0 … Sun=6 (colony day 0 = Monday). */
 export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
-/** Total on-site work ticks to finish a building (buildTime in config = game-days). */
-export function buildWorkTicks(buildDays: number): number {
+/**
+ * Total on-site **work hours** to finish a building (not sim ticks).
+ * `buildTime` in BuildingConfig is calendar game-days; each weekday contributes
+ * {@link WORK_HOURS_PER_DAY} hours. Daily construction multiplies the per-hour
+ * rate by WORK_HOURS_PER_DAY (see tickLayerDaily).
+ */
+export function buildWorkHours(buildDays: number): number {
   return Math.max(WORK_HOURS_PER_DAY, Math.round(buildDays * WORK_HOURS_PER_DAY));
 }
+
+/** @deprecated Use {@link buildWorkHours} — name implied sim ticks; returns work hours. */
+export const buildWorkTicks = buildWorkHours;
 
 /**
  * Calendar-aligned production / rare-event gate.
@@ -1654,6 +1662,47 @@ export function finalizeHumanDeath(
   cleanupEntityDialogueState(entity);
 }
 
+/**
+ * After a settler dies, immediately adopt/place minor dependents so they are not
+ * stuck under a dead custodian until the next housing assign pass (EK-E9).
+ */
+function reassignOrphansAfterDeath(
+  dead: Entity,
+  buildings: Building[],
+  entityById: ReadonlyMap<number, Entity>,
+): void {
+  const residences = listPlayerResidences(buildings);
+  if (residences.length === 0) return;
+
+  const humans = [...entityById.values()].filter(
+    (h) => h.alive && !h.faction && h.type === EntityType.Human,
+  );
+  const deadId = dead.id;
+  let touched = false;
+
+  for (const child of humans) {
+    if (!isMinorChild(child)) continue;
+    const related =
+      child.motherId === deadId
+      || child.fatherId === deadId
+      || child.adoptiveMotherId === deadId
+      || child.adoptiveFatherId === deadId
+      || (dead.childrenIds?.includes(child.id) ?? false);
+    if (!related) continue;
+
+    ensureOrphanAdoption(child, humans, residences);
+    const home = pickResidenceFromChildCustodian(child, humans, residences);
+    if (home !== undefined) {
+      child.residenceBuildingId = home;
+      touched = true;
+    } else if (!hasResidenceAssignment(child)) {
+      if (placeOrphanInHouse(child, humans, residences)) touched = true;
+    }
+  }
+
+  if (touched) syncResidenceOccupants(humans, buildings);
+}
+
 /** Player settler eligible for human death cleanup (human or cursed full-moon werewolf form). */
 export function isKillableSettlerEntity(entity: Entity): boolean {
   return (
@@ -1674,6 +1723,8 @@ export function killHuman(
   if (entityById instanceof Map) entityById.delete(entity.id);
   finalizeMoonHowlerDeath(entity);
   finalizeHumanDeath(entity, buildings, entityById, tick);
+  // entityById is required so we can walk living settlers for adoption/housing.
+  if (entityById) reassignOrphansAfterDeath(entity, buildings, entityById);
 }
 
 /** Human settler or cursed villager in werewolf form — valid marriage partner for lookups. */
@@ -1862,11 +1913,19 @@ export function syncPartnerResidence(
 ): void {
   if (residences.length === 0) return;
 
-  const couple = [human, partner];
-  const shared = pickResidenceForFamily(couple, humans, residences)
+  // Couple + housing-minor kids only — adult children who moved out stay put (EK-E5).
+  const household: Entity[] = [human, partner];
+  for (const member of collectOwnHousehold(human, humans)) {
+    if (member.id === human.id || member.id === partner.id) continue;
+    if (!isMinorChild(member)) continue;
+    household.push(member);
+  }
+
+  const shared = pickResidenceForFamily(household, humans, residences)
     ?? pickSharedResidence(human, partner, humans, residences);
   if (shared === undefined) return;
 
-  human.residenceBuildingId = shared;
-  partner.residenceBuildingId = shared;
+  for (const member of household) {
+    member.residenceBuildingId = shared;
+  }
 }
