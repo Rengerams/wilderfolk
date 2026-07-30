@@ -16,7 +16,7 @@ export function updateStorageCaps(state: WorldState) {
     food: 600 + barns * 400 + silos * 600,
     gold: 99999,
   };
-  state.foodSpoilageRate = Math.max(0.01, 0.03 - silos * 0.012); // balance v2.2
+  state.foodSpoilageRate = Math.max(0.01, 0.03 - silos * 0.012);
 }
 
 export function addResource(state: WorldState, type: keyof Resources, amount: number): number {

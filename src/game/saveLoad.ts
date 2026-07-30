@@ -42,7 +42,7 @@ import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
 
 const SAVE_KEY = 'ecosim_save';
-/** Supported colony save versions (legacy 2.x dropped). */
+/** Supported colony save versions. */
 const COMPATIBLE_SAVE_VERSIONS = ['0.4', '0.4.1', '0.4.2', '0.5.0'] as const;
 
 /** Restore entity fields that must survive save/load (see ENTITY_PERSISTED_FIELDS). */

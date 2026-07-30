@@ -487,9 +487,9 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     idleSettlers: 0,
     villageName: villageName || 'New Frontier',
     villageReputation: 10,
-    resources: { wood: 220, stone: 70, food: 530, gold: 80 }, // balance v2.2 — +50 starting food
+    resources: { wood: 220, stone: 70, food: 530, gold: 80 },
     storageMax: { wood: 500, stone: 300, food: 600, gold: 99999 },
-    foodSpoilageRate: 0.03, // balance v2.2
+    foodSpoilageRate: 0.03,
     ecosystemHealth: 100, biodiversityIndex: 1.0, pollutionLevel: 0,
     valleyStage: 'stable',
     valleyStageSinceDay: 0,

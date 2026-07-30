@@ -207,7 +207,7 @@ function resolveSelectionIds(
   return { selectedEntityId, selectedBuildingId, hoveredBuildingId };
 }
 
-/** Restore view from a saved game payload (backward compatible with v2.0/2.1 saves). */
+/** Restore view from a saved game payload (missing fields use current world defaults). */
 export function createViewFromSave(
   data: Record<string, unknown>,
   world: WorldState,

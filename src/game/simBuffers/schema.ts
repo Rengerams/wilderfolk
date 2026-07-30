@@ -26,7 +26,7 @@ export const RENDER_FIELD = {
   huntTargetSlot: 11,
   residenceBuildingId: 12,
   chatTicks: 13,
-  /** Reserved for v2 — scentLevel, packBonus, etc. */
+  /** Reserved for future fields — scentLevel, packBonus, etc. */
   reserved0: 14,
   reserved1: 15,
 } as const;
