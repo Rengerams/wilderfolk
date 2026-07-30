@@ -3467,9 +3467,15 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    if (entity.type === EntityType.Werewolf && isActiveMoonHowler(entity) && state.tick % 140 === entity.id % 140) {
-      const line = WEREWOLF_HOWL_LINES[Math.floor(Math.random() * WEREWOLF_HOWL_LINES.length)];
-      addFloatingText(state, entity.x, entity.y - 18, line, '#c4b5fd');
+    // Systems layer only runs every WILDLIFE_LAYER_INTERVAL ticks — stagger by pulse, not raw tick,
+    // so every id can howl. ~2 clock hours between howls for a given entity.
+    if (entity.type === EntityType.Werewolf && isActiveMoonHowler(entity)) {
+      const pulse = Math.floor(state.tick / WILDLIFE_LAYER_INTERVAL);
+      const pulsePeriod = Math.max(1, Math.round((2 * TICKS_PER_HOUR) / WILDLIFE_LAYER_INTERVAL));
+      if (pulse % pulsePeriod === entity.id % pulsePeriod) {
+        const line = WEREWOLF_HOWL_LINES[Math.floor(Math.random() * WEREWOLF_HOWL_LINES.length)];
+        addFloatingText(state, entity.x, entity.y - 18, line, '#c4b5fd');
+      }
     }
 
     // Graze — only when hungry and not fleeing
