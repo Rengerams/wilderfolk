@@ -41,8 +41,8 @@ Build hotels for travelers. Watch seasons wash a painted map. Forge iron swords,
 
 **The valley scales — kin, beasts, and forge-steel.**
 
-- **Scale** — Bigger towns stay playable. The world breathes on spatial grids with smoother simulation and rendering so your colony can grow without the valley grinding to a halt.
-- **Trust** — Days, raids, and family life read more clearly. Moon Howlers, housing, immigration, and the hunt rhythm feel fair and readable.
+- **Scale** — Bigger towns stay playable. Spatial indexes keep sim work local; an optional Web Worker streams a **render SoA** (typed pack for draw only)—the living colony itself stays ordinary objects.
+- **Trust** — Days, raids, and family life read more clearly. Moon Howlers, housing, immigration, and the hunt rhythm feel fair and readable. **0.4 saves continue**: the colony, forge, and valley stage persist; runtime grids rebuild after load.
 - **Steel** — The blacksmith forge reaches tier 5. Craft iron swords, scale mail, and tower ballistae; arm your people with a clear armament checklist when the frontier bites back.
 - **Life** — A hotel for visitors; valley stages from Stable toward Collapse; elections and a village head; a painted map; and days measured in seventy-two ticks.
 

@@ -19,12 +19,13 @@ This file is the **developer archive** for the 0.5 milestone. It is **not** a li
 
 Four pillars (player-facing):
 
-1. **Scale** — Spatial grids, opt-in Web Worker sim, OffscreenCanvas layers, alive-only entity list  
-2. **Trust** — Sim honesty: Moon Howlers, housing & custody, raids, immigration, day/hunt cadence  
+1. **Scale** — Spatial grids, opt-in Web Worker sim, OffscreenCanvas, alive-only entities; **render SoA** is transfer-only (TypedArray pack), sim stays object arrays  
+2. **Trust** — Sim honesty + **save allow-list** (`saveSchema.ts`): domain state + `valleyStage` persist; grids/SoA buffers **rebuild**, not serialize  
 3. **Steel** — Forge tier 5 (iron swords, scale mail, tower ballistae) + Armament checklist  
-4. **Life** — Hotel, valley stages, elections, painted map, 72 ticks/day  
+4. **Life** — Hotel, valley stages (Nature UI + toasts; Strained = gentle hunt yield + cues), elections, painted map, 72 ticks/day  
 
-**Saves:** Continue colonies from **0.4 / 0.4.1 / 0.4.2** into **0.5.0**.
+**Saves:** Continue colonies from **0.4 / 0.4.1 / 0.4.2** into **0.5.0**.  
+**Precision deep-dive:** [PRECISION_NOTES_v0.5.md](./PRECISION_NOTES_v0.5.md)
 
 ---
 

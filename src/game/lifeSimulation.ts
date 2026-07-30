@@ -39,7 +39,11 @@ import {
 import { isPlayerHuman } from './playerHuman';
 import { isSettlerRelationshipEntity } from './moonHowler';
 import { getElectionGatherTarget } from './villageLeadership';
-import { getValleyIllnessChanceBonus, getValleyHuntYieldMultiplier } from './ecologyStage';
+import {
+  getValleyIllnessChanceBonus,
+  getValleyHuntYieldMultiplier,
+  valleyStageIndex,
+} from './ecologyStage';
 import {
   HUMAN_ADULT_MIN_AGE,
   HUMAN_ADULT_MAX_AGE,
@@ -2048,8 +2052,23 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.vy = (dy / dist) * config.speed * chaseMult;
         entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
         suppressIdle = true;
+        // Strained+ valley: rare chatter so yield dips don't read as pure RNG
+        if (
+          valleyStageIndex(state.valleyStage ?? 'stable') >= 1
+          && isJobHunter
+          && personDayRoll(entity.id, state.tick, 811) < 0.012
+        ) {
+          sayHumanChatPhrase(entity, "Game's getting scarce…", 48);
+        }
       } else {
         entity.huntTargetId = undefined;
+        if (
+          valleyStageIndex(state.valleyStage ?? 'stable') >= 1
+          && isJobHunter
+          && personDayRoll(entity.id, state.tick, 812) < 0.02
+        ) {
+          sayHumanChatPhrase(entity, 'Thin trails today…', 40);
+        }
       }
     } else if (
       !allowFreeRoam
