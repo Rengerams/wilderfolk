@@ -7,6 +7,21 @@ Player story → [README.md](README.md) · Version list (this file) · Release n
 
 ---
 
+## v0.5.1 — Clearer valley *(target: end of August 2026)*
+
+**In progress** · builds on 0.5.0 · *The valley feels truer and clearer.*
+
+| Track | What you will notice |
+|-------|----------------------|
+| **Play** | Smoother sessions — fixes from real play |
+| **Truth** | The valley makes sense — fairer raids & readable ecology |
+| **Looks** | The frontier reads on the map — clearer cues and polish |
+
+Ship when: a normal session has no known blockers, plus at least one Truth and one Looks improvement.  
+Detail → [docs/archive/2026-07-30-v0.5.1-roadmap-design.md](docs/archive/2026-07-30-v0.5.1-roadmap-design.md) · plan → [docs/plans/2026-07-30-v0.5.1-implementation-plan.md](docs/plans/2026-07-30-v0.5.1-implementation-plan.md)
+
+---
+
 ## v0.5.0 — The valley scales
 
 **Shipped:** 2026-07-30 · `GAME_VERSION` **0.5.0** · continue **0.4 → 0.5** colonies
