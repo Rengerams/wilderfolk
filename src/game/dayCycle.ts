@@ -709,13 +709,16 @@ function pickRandomAdoptiveGuardian(child: Entity, humans: Entity[]): Entity | u
 }
 
 /**
- * Who a child lives with: mother first, then father.
- * Bastards with no living mother follow grandmother (maternal, then paternal).
+ * Who a child lives with: mother, then father.
+ * Bastards with no living parents follow grandmother (maternal, then paternal).
  * If no kin remain, an adoptive village couple (stable random pick per child).
  */
 export function getChildCustodian(child: Entity, humans: Entity[]): Entity | undefined {
   const mother = livingHuman(humans, child.motherId);
   if (mother) return mother;
+
+  const father = livingHuman(humans, child.fatherId);
+  if (father) return father;
 
   if (child.isBastard) {
     const motherRecord = humanById(humans, child.motherId);
@@ -730,14 +733,12 @@ export function getChildCustodian(child: Entity, humans: Entity[]): Entity | und
     }
   }
 
-  const father = livingHuman(humans, child.fatherId);
-  if (father) return father;
-
   return livingAdoptiveCustodian(child, humans);
 }
 
 function hasLivingNaturalCustodian(child: Entity, humans: Entity[]): boolean {
   if (livingHuman(humans, child.motherId)) return true;
+  if (livingHuman(humans, child.fatherId)) return true;
 
   if (child.isBastard) {
     const motherRecord = humanById(humans, child.motherId);
@@ -746,7 +747,7 @@ function hasLivingNaturalCustodian(child: Entity, humans: Entity[]): boolean {
     if (fatherRecord?.motherId != null && livingHuman(humans, fatherRecord.motherId)) return true;
   }
 
-  return !!livingHuman(humans, child.fatherId);
+  return false;
 }
 
 function pickOrphanResidence(
