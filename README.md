@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/logo.png" alt="Wilderfolk" width="140" />
+  <img src="public/logo.png" alt="Wilderfolk" width="160" />
 </p>
 
 <h1 align="center">Wilderfolk</h1>
@@ -10,8 +10,37 @@
 </p>
 
 <p align="center">
-  Early Alpha · A cozy frontier colony sim — inside the food chain, not on top of it
+  <strong>v0.5.0</strong> · Early Alpha<br>
+  A cozy frontier colony sim — inside the food chain, not on top of it
 </p>
+
+---
+
+# 🌿 v0.5.0 — The valley scales
+
+**The valley scales — kin, beasts, and forge-steel.**
+
+This is the **scale + trust** milestone: big towns stay playable, the sim is honest about days and raids, and the forge arms your people for a real frontier.
+
+| | What v0.5 stands for |
+|:--:|--|
+| **Scale** | Spatial grids, worker sim (opt-in), alive-only entities, leaner tick paths |
+| **Trust** | Batch EK sim audit — moon, housing, raids, immigration, hunt cadence |
+| **Steel** | Blacksmith tier 5 — iron **swords**, **scale mail**, tower **ballistae** |
+| **Life** | Hotel, valley stages, elections, painted map, 72 ticks/day |
+
+**Save note:** Continues **0.4 → 0.5** colonies. Legacy **2.x** saves are no longer loaded — start a new valley or keep an old build if you need them.
+
+<details>
+<summary><strong>Ship highlights (open me)</strong></summary>
+
+- Moon Howler job/prison restore, howl cadence, form resync on load  
+- Raids: pair-cancel counter-marches; lost raids cost lives; custody father before grandma  
+- Housing occupancy map; orphans on death; immigration respects pop cap  
+- Forge progression UI, multi-smith pace, layout toasts only  
+- See [CHANGELOG.md](CHANGELOG.md) `[0.5.0]` / `[Unreleased]`  
+
+</details>
 
 ---
 

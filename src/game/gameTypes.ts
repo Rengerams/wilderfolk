@@ -1295,7 +1295,9 @@ export function snapToGrid(value: number, gridSize: number = GRID_SIZE): number 
   return Math.round(value / gridSize) * gridSize;
 }
 
-export { GAME_VERSION, GAME_PHASE, GAME_TITLE, GAME_SUBTITLE, ECOLOGICAL_FACTS } from './version';
+export {
+  GAME_VERSION, GAME_PHASE, GAME_TITLE, GAME_SUBTITLE, GAME_VERSION_TAGLINE, ECOLOGICAL_FACTS,
+} from './version';
 
 export const WEREWOLF_CURSE_LINES = [
   (name: string) => `${name} was touched by the full moon. They seem fine… for now.`,

@@ -1,7 +1,10 @@
-export const GAME_VERSION = '0.4.2';
+export const GAME_VERSION = '0.5.0';
+/** Soft 0.5 — scale foundation + sim trust; see ROADMAP_0.5.0.md for follow-ups. */
 export const GAME_PHASE = 'Early Alpha';
 export const GAME_TITLE = 'Wilderfolk';
 export const GAME_SUBTITLE = 'Where Beasts and Kin Unite';
+/** Intro / splash line for this major beat (valley that can scale). */
+export const GAME_VERSION_TAGLINE = 'The valley scales — kin, beasts, and forge-steel.';
 
 export const ECOLOGICAL_FACTS = [
   'Apex predators like wolves help regulate prey populations and maintain ecosystem balance.',

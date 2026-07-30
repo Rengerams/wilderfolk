@@ -2,27 +2,34 @@
 
 ## [Unreleased]
 
-**Targeting v0.5.0** (end July 2026) — see [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
+Post-0.5 polish (scan cleanup, particle pooling, large-map playtest matrix). See [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
 
-### Fixed — Batch EK sim audit + forge tier 5 (July 30, 2026)
+---
 
-Ship-facing sim correctness and late Defense forge gear. **Pushed** `main` through `92ff9ec` (after F2/F3 prison meals).
+## [0.5.0] — 2026-07-30
 
-#### Sim bugs (Batch EK — high/med ship list)
-- **Moon Howlers** — job/home restore without over-cap slots; prison sentence survives transform/save; new-curse forces outside; form resyncs on load; nested pregnancy scale; cure resyncs housing; howl cadence fixed for systems layer
-- **Raids** — counter-raid cancels paired incoming march; lost raids kill settlers with correct “raiding” death logs; immigration respects pop cap
-- **Housing** — occupancy map once per assign pass; partners move minors with the household; orphans reassigned on death; living father before grandmother for custody
-- **Life / hunt** — off-screen meals player-only; prison sentences use `ticksForDays`; dead prey cleaned same tick; guard patrol / leisure day-scaled
-- **Copy / config** — full-moon night cure copy; Mill/Taming Post honesty; age ladder docs; housewife job removed
+**The valley scales — kin, beasts, and forge-steel.** Soft scale + sim-trust milestone.  
+`GAME_VERSION` **0.5.0** · saves **0.4 → 0.5** · **2.x saves no longer load**.
 
-#### Forge & war prep
-- **Tier 5 Defense** — Iron Swords, Scale Mail, Bastion Towers (research → staffed Blacksmith forge)
-- Militia tiers **replace** lower gear (stone → iron → sword; wood → iron → scale); tower ballistae boost watchtower barricades
-- **Forge UX** — progression order, multi-smith pace, single layout toast on start/block/finish, Village Armament checklist + Open Blacksmith for all forge steps
+### Added
+- **Forge tier 5** — Iron Swords, Scale Mail, Bastion Towers (research + Blacksmith queue)
+- Intro **v0.5 milestone ribbon** + version tagline
+- README **v0.5.0** hero section
 
-#### Still open (not this pass)
-- **EK-D5** (partial) — outgoing success gold still uncapped
-- Older audit batches **Q / S / V** in the private bug tracker
+### Fixed — Batch EK sim audit
+- **Moon Howlers** — job/home/prison restore; load form resync; pregnancy scale; howl cadence; cure housing
+- **Raids** — dual-march cancel; lost-raid deaths + raiding logs; immigration pop cap
+- **Housing** — occupancy map; household minors; orphans on death; father before grandmother custody
+- **Life / hunt** — player-only off-screen meals; `ticksForDays` prison; prey cleanup; patrol/leisure day scale
+
+### Changed
+- Forge: progression order, multi-smith pace, layout toasts only, Armament checklist complete
+- Save compatibility: **0.4 / 0.4.1 / 0.4.2 / 0.5.0** only (legacy **2.0–2.2 dropped**)
+
+### Still open after 0.5.0
+- EK-D5 gold uncapped on raid success (partial)
+- Private tracker batches Q / S / V
+- Perf polish: buildingActions scans, particle pools, App tab split
 
 ### Added — living valley & clearer days (July 30, 2026)
 

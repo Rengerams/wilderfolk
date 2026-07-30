@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ensureIntroAudio, getMuteState, toggleMute } from '../audio';
-import { GAME_PHASE, GAME_SUBTITLE, GAME_VERSION } from './version';
+import { GAME_PHASE, GAME_SUBTITLE, GAME_VERSION, GAME_VERSION_TAGLINE } from './version';
 
 // ---------------------------------------------------------------------------
 // Types & constants
@@ -403,9 +403,30 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
         <span className="rounded-full bg-stone-900/75 px-3 py-1 text-[10px] font-bold tracking-widest uppercase text-amber-300 ring-1 ring-amber-600/35 backdrop-blur-sm">
           {GAME_PHASE}
         </span>
-        <span className="rounded-full bg-stone-900/60 px-2.5 py-1 text-[10px] font-semibold tracking-[0.18em] text-stone-400 ring-1 ring-stone-700/50 backdrop-blur-sm">
+        <span className="rounded-full bg-emerald-950/80 px-2.5 py-1 text-[10px] font-black tracking-[0.14em] text-emerald-300 ring-1 ring-emerald-500/50 backdrop-blur-sm shadow-[0_0_20px_rgba(16,185,129,0.25)]">
           v{GAME_VERSION}
         </span>
+      </div>
+
+      {/* v0.5 milestone ribbon — food chain that scales */}
+      <div
+        className={`intro-control absolute left-1/2 top-16 z-20 w-[min(92vw,28rem)] -translate-x-1/2 transition-all ease-out sm:top-20 ${
+          logoVisible ? 'opacity-100 translate-y-0' : 'pointer-events-none -translate-y-2 opacity-0'
+        }`}
+        style={{ transitionDuration: `${FADE_MS}ms` }}
+        aria-hidden={!logoVisible}
+      >
+        <div className="rounded-2xl border border-emerald-500/35 bg-gradient-to-r from-emerald-950/90 via-stone-950/90 to-amber-950/80 px-4 py-2.5 text-center shadow-[0_8px_32px_rgba(0,0,0,0.45)] ring-1 ring-amber-500/20 backdrop-blur-md">
+          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-emerald-400/95">
+            🌿 New milestone · v{GAME_VERSION}
+          </p>
+          <p className="mt-1 text-[11px] font-semibold leading-snug text-amber-100/95 sm:text-xs">
+            {GAME_VERSION_TAGLINE}
+          </p>
+          <p className="mt-0.5 text-[9px] leading-relaxed text-stone-400">
+            Larger valleys · truer sim · forge-steel for the frontier
+          </p>
+        </div>
       </div>
 
       <div
@@ -627,8 +648,11 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
             )}
           </p>
 
-          <p className="text-[10px] font-medium tracking-[0.14em] text-stone-600">
-            {GAME_PHASE} · v{GAME_VERSION}
+          <p className="max-w-md text-center text-[10px] font-medium leading-relaxed tracking-wide text-stone-500">
+            <span className="font-bold text-emerald-500/90">v{GAME_VERSION}</span>
+            {' · '}
+            {GAME_PHASE}
+            <span className="mt-1 block text-amber-600/80">{GAME_VERSION_TAGLINE}</span>
           </p>
         </div>
       </div>

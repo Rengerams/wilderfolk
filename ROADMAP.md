@@ -1,45 +1,28 @@
 # Wilderfolk Roadmap
 
-*Last updated: **July 20, 2026** · playing **v0.4.2** (`GAME_VERSION`); v0.5.0 work in tree pre-tag*
+*Last updated: **July 30, 2026** · playing **v0.5.0** (`GAME_VERSION`) · soft scale + sim-trust ship*
 
 Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHANGELOG.md](CHANGELOG.md) · [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md)
 
 ---
 
-## v0.5.0 — Scale + architecture
+## v0.5.0 — Scale + architecture + sim trust
 
-**Shipped (in code):** 2026-07-05 · **Tag target:** End July 2026 · `GAME_VERSION` **0.4.2**
+**Shipped:** 2026-07-30 · `GAME_VERSION` **0.5.0** · saves **0.4.x → 0.5** (2.x dropped)
 
 | | Feature |
 |:--:|---------|
-| 🟢 | Election & leadership — decennial ceremony (year-before buildup → 3-day Revelry), incumbent always in race with record score (+8 cap), panel + hints + tutorial synced |
-| 🟢 | Housing logic — beds vs immigration cap in UI; singles share until marriage; child custodian chain (mother → father → grandma → adoption); 18+ move-out; families share when houses full |
-| 🟢 | Dead-entity compaction — alive-only entities each tick |
-| 🟢 | Spatial grid — grass **56px** + mobile **80px** + road index **128px**; graze→grass, flee/hunt/social→mobile (`spatialGrid.ts`, on by default) — [TECHNICAL.md](TECHNICAL.md#dual-layer-spatial-grid) |
-| 🟢 | Web Worker gameTick — opt-in (`VITE_USE_GAME_WORKER=1`); render SoA + proto handshake |
-| 🟢 | Big bug checkup — **429** tracker IDs (**391 fixed**, **24 info**, **0 open/partial**); Vitest **390** (71 files); lint **0**; build clean |
-| 🟢 | **Raid Guard XP → elections** — fighters earn Guard skill XP; leader +0.45 XP + rep on wins; merit = all skills ×2; incumbent record from rep (+8 cap) |
-| 🟢 | **Victory goals retuned** — Eco-Utopia **250** + 20yr eco; Great City **400** + **60** buildings; Trade Empire **7** routes + **40** caravan trips + **50k** trade gold; Harmony **8 wild** wolves + **15** wildkin (untamed only) |
-| 🟢 | **Walking trade caravans** — merchants walk hub → partner → back; goods on arrival; map **🚚** lines; 7 routes (`tradeCaravans.ts`) |
-| 🟢 | Dialogue-tree settler chat — `sim_dialogue_trees.json` (95 trees); legacy `wf_*` migration; death-cleanup of dialogue sessions; O(1) tree lookup; ellipsis overflow |
-| 🟢 | Group events perf — visitor/rival ticks use alive-entity Map + deer cursor instead of per-loop `allAlive.find()` scans; empty yearly-event pool guard |
-| 🟢 | Build catalog sidebar — `BuildCatalogPanel` (replaces hotbar) |
-| 🟢 | Renderer cache — `world.entityByType` → `RenderSnapshot` → `updateCachedEntities`; viewport grass culling |
-| 🟡 | buildingById go-home — drop commute `.find()` |
-| 🟢 | Grass render spatial buckets — `byType[Grass]` + `buildGrassGrid` viewport query; `_cachedGrass` keyed by tick/camera |
-| 🟢 | Settler denorm · entityById incremental · partner map · spatial grid |
-| 🟡 | App tab split + memo @ 300 population |
-| ⬜ | buildingActions scan cleanup |
-| ⬜ | Particle / floating-text pooling |
-| 🟢 | OffscreenCanvas layers — terrain + entity bake |
-| ⬜ | GAME_VERSION 0.5.0 + save migration |
-| ⬜ | Logical invariant checks (focused tests / checklist) |
-| ⬜ | Manual playtest matrix — large map, 10× (**primary ship gate**) |
-| ⬜ | Outgoing counter-raid march line + militia sprites |
-| ⬜ | Reputation milestone arc UI |
-| ⬜ | One visitor multi-step quest chain (Scholars or Nomads) |
-| ⬜ | Election Year 5+ live playtest (5-year terms) |
-| ⬜ | Footstep / work SFX by surface |
+| 🟢 | **GAME_VERSION 0.5.0** + save migration; intro milestone ribbon |
+| 🟢 | Spatial grid · Web Worker · OffscreenCanvas · dead-entity compaction |
+| 🟢 | Settler denorm · entityById · partner map · grass buckets · renderer cache |
+| 🟢 | **Batch EK** sim trust (moon, housing, raids, immigration, hunt) |
+| 🟢 | **Forge tier 5** — swords, scale mail, ballistae |
+| 🟢 | Elections, valley stages, hotel, painted map, 72 ticks/day |
+| 🟢 | Housing custody mother → **father** → grandma → adoption |
+| 🟡 | buildingById go-home / App tab split @ 300 |
+| ⬜ | buildingActions scan cleanup · particle pooling |
+| ⬜ | Large-map 10× playtest matrix (post-tag) |
+| ⬜ | Quest chain · multi save slots · rep arc UI |
 
 ### July 8, 2026 — Victory, trade & raid rewards (in code)
 

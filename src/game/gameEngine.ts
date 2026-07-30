@@ -214,7 +214,9 @@ export {
 export { getAgeInYears } from './dayCycle';
 export { tickHumans, tickWildlife, tickGrassDaily } from './lifeSimulation';
 export { updateWeather, updateDisasters } from './worldEvents';
-export { GAME_VERSION, GAME_PHASE, GAME_TITLE, GAME_SUBTITLE, ECOLOGICAL_FACTS } from './version';
+export {
+  GAME_VERSION, GAME_PHASE, GAME_TITLE, GAME_SUBTITLE, GAME_VERSION_TAGLINE, ECOLOGICAL_FACTS,
+} from './version';
 export {
   getOccupationForBuilding, getJobForBuilding, ensureEntitySkills, readSkill,
   gainSkill, rewardProductionSkills, decayIdleSkills, getWorkerSkillMultiplier,

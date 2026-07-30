@@ -42,7 +42,8 @@ import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
 
 const SAVE_KEY = 'ecosim_save';
-const COMPATIBLE_SAVE_VERSIONS = ['2.0', '2.1', '2.2', '0.4', '0.4.1', '0.4.2'] as const;
+/** Supported colony save versions (legacy 2.x dropped). */
+const COMPATIBLE_SAVE_VERSIONS = ['0.4', '0.4.1', '0.4.2', '0.5.0'] as const;
 
 /** Restore entity fields that must survive save/load (see ENTITY_PERSISTED_FIELDS). */
 function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): void {
@@ -359,12 +360,7 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
     );
 
     const saveVersion = parsed._version as string;
-    const forceAgeMigration =
-      saveVersion === '2.0'
-      || saveVersion === '2.1'
-      || saveVersion === '2.2'
-      || saveVersion === '0.4'
-      || saveVersion === '0.4.1';
+    const forceAgeMigration = saveVersion === '0.4' || saveVersion === '0.4.1';
     migrateHumanAges(
       world.entities,
       { year: world.year, dayInYear: world.dayInYear },
@@ -392,6 +388,13 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
 
     if (saveVersion === '0.4.1' || saveVersion === '0.4') {
       applySaveMigration('v0.4.2', 'Save migrated to v0.4.2 — 6-tab UI, forge, defense buildings, and balance pass features are active.');
+    }
+
+    if (saveVersion === '0.4.2' || saveVersion === '0.4.1' || saveVersion === '0.4') {
+      applySaveMigration(
+        'v0.5.0',
+        'Save migrated to v0.5.0 — scale foundation, sim trust pass (Batch EK), and forge tier 5 (swords, scale mail, ballistae).',
+      );
     }
 
     mergeCombatResearchNodes(world.researchNodes);
