@@ -679,6 +679,56 @@ export default function App() {
     setInspectorCollapsed(false);
   }, []);
 
+  /** Favorite = follow this citizen with the camera until cleared or they die. */
+  const toggleFavoriteCitizen = useCallback((entityId: number) => {
+    const loop = loopRef.current;
+    if (!loop) return;
+    const view = loop.getView();
+    const nextId = view.favoriteEntityId === entityId ? null : entityId;
+    if (nextId != null) {
+      const ent = resolveEntity(loop.getWorld(), nextId)
+        ?? catalogRef.current?.get(nextId)
+        ?? null;
+      if (!ent?.alive) {
+        loop.patchView({ favoriteEntityId: null });
+        return;
+      }
+      const nextView = focusCameraOn(view, ent.x, ent.y, 1.5);
+      loop.patchView({
+        ...nextView,
+        favoriteEntityId: nextId,
+        selectedEntityId: nextId,
+        selectedBuildingId: null,
+        selectedCampKey: null,
+        highlightedCampKey: null,
+      });
+      setInspectorCollapsed(false);
+      setView(loop.getView());
+      return;
+    }
+    loop.patchView({ favoriteEntityId: null });
+    setView(loop.getView());
+  }, []);
+
+  // Keep camera on favorite citizen each sim tick
+  useEffect(() => {
+    const loop = loopRef.current;
+    if (!loop || showIntro || showMapSetup) return;
+    const view = loop.getView();
+    const id = view.favoriteEntityId;
+    if (id == null) return;
+    const w = loop.getWorld();
+    const ent = resolveEntity(w, id) ?? catalogRef.current?.get(id) ?? null;
+    if (!ent?.alive) {
+      loop.patchView({ favoriteEntityId: null });
+      return;
+    }
+    const nextView = focusCameraOn(view, ent.x, ent.y);
+    loop.patchView({
+      camera: clampCameraTarget(nextView.camera, w.width, w.height),
+    });
+  }, [world.tick, showIntro, showMapSetup]);
+
   const selectBuildingType = useCallback((type: BuildingType) => {
     clearSelection();
     setBuildPanelOpen(true);
@@ -1574,6 +1624,37 @@ export default function App() {
             </div>
           )}
 
+          {/* Favorite citizen follow banner */}
+          {view.favoriteEntityId != null && (() => {
+            const fav = resolveEntity(world, view.favoriteEntityId)
+              ?? catalog?.get(view.favoriteEntityId)
+              ?? null;
+            if (!fav?.alive) return null;
+            const label = fav.name
+              ? `${fav.name}${fav.surname ? ` ${fav.surname}` : ''}`
+              : `Citizen #${fav.id}`;
+            return (
+              <div className="pointer-events-auto absolute left-1/2 top-14 z-20 -translate-x-1/2">
+                <div className="flex items-center gap-2 rounded-full border border-amber-500/40 bg-stone-900/90 px-3 py-1.5 shadow-lg backdrop-blur">
+                  <span className="text-sm" aria-hidden>⭐</span>
+                  <span className="text-[11px] font-semibold text-amber-100">
+                    Following {label}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playClickSound();
+                      toggleFavoriteCitizen(fav.id);
+                    }}
+                    className="rounded-full bg-stone-700/80 px-2 py-0.5 text-[10px] font-bold text-stone-200 hover:bg-stone-600 hover:text-white"
+                  >
+                    Stop
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* First-night shelter warning */}
           {showFirstNightWarning && (
             <div className="pointer-events-auto absolute left-1/2 top-16 z-20 w-full max-w-md -translate-x-1/2 animate-in fade-in slide-in-from-top">
@@ -1770,6 +1851,15 @@ export default function App() {
                 entity={selectedEntity}
                 allEntities={catalog?.getAlive() ?? world.entities}
                 state={world}
+                isFavorite={view.favoriteEntityId === selectedEntity.id}
+                onToggleFavorite={
+                  selectedEntity.type === EntityType.Human && isPlayerHuman(selectedEntity)
+                    ? () => {
+                        playClickSound();
+                        toggleFavoriteCitizen(selectedEntity.id);
+                      }
+                    : undefined
+                }
                 onMoveOut={() => {
                   playClickSound();
                   const entityId = selectedEntity.id;
@@ -1869,9 +1959,14 @@ export default function App() {
                 <VillageTabPanel
                   state={world}
                   villageStats={villageStats}
+                  favoriteEntityId={view.favoriteEntityId}
                   onRecruitSettler={() => applyGameAction({ proto: 1, op: 'recruitSettler' })}
                   onFocusBuilding={focusBuildingOnMap}
                   onFocusCitizen={focusCitizenOnMap}
+                  onToggleFavoriteCitizen={(id) => {
+                    playClickSound();
+                    toggleFavoriteCitizen(id);
+                  }}
                   onOpenGoals={() => { openTab('progress'); setProgressSubTab('goals'); }}
                   onHintAction={handleHintAction}
                 />
@@ -2325,7 +2420,25 @@ function countLivingChildren(entity: Entity, allEntities: Entity[]): number {
   ).length;
 }
 
-function SelectedEntityPanel({ entity, allEntities, state, onTame, onMoveOut, onOpenVisitorCamp }: { entity: Entity; allEntities: Entity[]; state: WorldState; onTame?: (humanId: number) => void; onMoveOut?: () => void; onOpenVisitorCamp?: (group: VisitorGroup) => void }) {
+function SelectedEntityPanel({
+  entity,
+  allEntities,
+  state,
+  isFavorite,
+  onToggleFavorite,
+  onTame,
+  onMoveOut,
+  onOpenVisitorCamp,
+}: {
+  entity: Entity;
+  allEntities: Entity[];
+  state: WorldState;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
+  onTame?: (humanId: number) => void;
+  onMoveOut?: () => void;
+  onOpenVisitorCamp?: (group: VisitorGroup) => void;
+}) {
   const isVillageHead = isVillageLeader(state, entity.id);
   const isHuman = entity.type === EntityType.Human;
   const isVisitor = entity.faction === 'visitor';
@@ -2374,7 +2487,7 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onMoveOut, on
           </div>
         </div>
       )}
-      <div className="mb-2 flex items-center gap-2">
+      <div className="mb-2 flex items-start gap-2">
         <span className="text-lg">
           {entity.type === EntityType.Human ? (entity.gender === 'male' ? '👨' : '👩') :
            entity.type === EntityType.Rabbit ? '🐰' : entity.type === EntityType.Deer ? '🦌' :
@@ -2382,7 +2495,7 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onMoveOut, on
            entity.type === EntityType.Werewolf ? '🌝' : entity.type === EntityType.Wildkin ? '🦌' :
            entity.type === EntityType.Tree ? '🌲' : '🌿'}
         </span>
-        <div>
+        <div className="min-w-0 flex-1">
           <h3 className={`text-xs font-bold ${isVillageHead ? 'text-amber-100' : 'text-amber-200'}`}>
             {isHuman || entity.type === EntityType.Werewolf
               ? `${isVillageHead ? '👑 ' : ''}${entity.name || 'Unnamed'} ${entity.surname || ''}${entity.type === EntityType.Werewolf ? ' (Moon Howler)' : ''}`
@@ -2418,7 +2531,28 @@ function SelectedEntityPanel({ entity, allEntities, state, onTame, onMoveOut, on
             </p>
           )}
         </div>
+        {onToggleFavorite && (
+          <button
+            type="button"
+            onClick={onToggleFavorite}
+            title={isFavorite ? 'Stop following this citizen' : 'Favorite — camera follows on the map'}
+            aria-label={isFavorite ? 'Stop following' : 'Favorite and follow'}
+            aria-pressed={!!isFavorite}
+            className={`shrink-0 rounded-lg px-2 py-1 text-sm leading-none transition-colors ${
+              isFavorite
+                ? 'bg-amber-500/25 text-amber-200 ring-1 ring-amber-400/50 hover:bg-amber-500/35'
+                : 'bg-stone-800/70 text-stone-400 hover:bg-stone-700 hover:text-amber-200'
+            }`}
+          >
+            {isFavorite ? '⭐' : '☆'}
+          </button>
+        )}
       </div>
+      {isFavorite && onToggleFavorite && (
+        <p className="mb-2 rounded-lg border border-amber-500/30 bg-amber-950/40 px-2 py-1 text-[9px] text-amber-100/90">
+          Following on the map — camera stays with them. Tap ⭐ again to stop.
+        </p>
+      )}
 
       {/* Food Chain Role */}
       <div className="mb-2 rounded bg-stone-800/60 p-2 text-[9px]">

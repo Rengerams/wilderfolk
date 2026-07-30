@@ -22,11 +22,15 @@ function relationIcon(e: Entity): string {
 function CitizenRow({
   person,
   state,
+  isFavorite,
   onFocusCitizen,
+  onToggleFavorite,
 }: {
   person: Entity;
   state: WorldState;
+  isFavorite?: boolean;
   onFocusCitizen?: (entity: Entity) => void;
+  onToggleFavorite?: (entityId: number) => void;
 }) {
   const educationLabel = formatEducationLabel(person);
   const label = (
@@ -34,6 +38,7 @@ function CitizenRow({
       <span className="font-mono text-[11px] text-stone-500">{formatCitizenId(person.id)}</span>
       {' '}
       {relationIcon(person)} {formatName(person)}
+      {isFavorite ? ' ⭐' : ''}
       {isVillageLeader(state, person.id) ? ' 👑' : ''}
       {hasWorkAssignment(person) ? ' 🔨' : ''}
       {isImprisoned(person) ? ' 🔒' : ''}
@@ -51,23 +56,50 @@ function CitizenRow({
   }
 
   return (
-    <button
-      type="button"
-      title={`Locate ${formatCitizenName(person)} on the map`}
-      onClick={() => onFocusCitizen(person)}
-      className="rounded px-0.5 text-left text-stone-300 transition-colors hover:bg-stone-700/60 hover:text-amber-100"
-    >
-      {label}
-    </button>
+    <span className="inline-flex items-center gap-0.5">
+      <button
+        type="button"
+        title={`Locate ${formatCitizenName(person)} on the map`}
+        onClick={() => onFocusCitizen(person)}
+        className={`rounded px-0.5 text-left transition-colors hover:bg-stone-700/60 hover:text-amber-100 ${
+          isFavorite ? 'text-amber-200' : 'text-stone-300'
+        }`}
+      >
+        {label}
+      </button>
+      {onToggleFavorite && (
+        <button
+          type="button"
+          title={isFavorite ? 'Stop following' : 'Favorite — follow on map'}
+          aria-label={isFavorite ? `Stop following ${formatCitizenName(person)}` : `Favorite ${formatCitizenName(person)}`}
+          aria-pressed={!!isFavorite}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFavorite(person.id);
+          }}
+          className={`rounded px-0.5 text-[11px] leading-none transition-colors ${
+            isFavorite
+              ? 'text-amber-300 hover:text-amber-100'
+              : 'text-stone-500 hover:text-amber-200'
+          }`}
+        >
+          {isFavorite ? '★' : '☆'}
+        </button>
+      )}
+    </span>
   );
 }
 
 export default function PopulationPanel({
   state,
+  favoriteEntityId,
   onFocusCitizen,
+  onToggleFavorite,
 }: {
   state: WorldState;
+  favoriteEntityId?: number | null;
   onFocusCitizen?: (entity: Entity) => void;
+  onToggleFavorite?: (entityId: number) => void;
 }) {
   const [search, setSearch] = useState('');
   const playerHumans = state.entities.filter(
@@ -223,10 +255,24 @@ export default function PopulationPanel({
                 </div>
                 <div className="flex flex-wrap gap-x-2 gap-y-0.5">
                   {visibleParents.map((p) => (
-                    <CitizenRow key={p.id} person={p} state={state} onFocusCitizen={onFocusCitizen} />
+                    <CitizenRow
+                      key={p.id}
+                      person={p}
+                      state={state}
+                      isFavorite={favoriteEntityId === p.id}
+                      onFocusCitizen={onFocusCitizen}
+                      onToggleFavorite={onToggleFavorite}
+                    />
                   ))}
                   {visibleKids.map((k) => (
-                    <CitizenRow key={k.id} person={k} state={state} onFocusCitizen={onFocusCitizen} />
+                    <CitizenRow
+                      key={k.id}
+                      person={k}
+                      state={state}
+                      isFavorite={favoriteEntityId === k.id}
+                      onFocusCitizen={onFocusCitizen}
+                      onToggleFavorite={onToggleFavorite}
+                    />
                   ))}
                 </div>
               </div>

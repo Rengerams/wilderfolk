@@ -1,5 +1,5 @@
-import type { GameState } from './gameEngine';
-import { EntityType as ET } from './gameEngine';
+import type { WorldState } from './gameTypes';
+import { EntityType as ET } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 
 export interface YearlyStats {
@@ -59,7 +59,7 @@ export function createEmptyLifetimeStats(): LifetimeStats {
   };
 }
 
-export function recordYearlyStats(state: GameState, forYear?: number): YearlyStats {
+export function recordYearlyStats(state: WorldState, forYear?: number): YearlyStats {
   const entities = state.entities;
   const alive = entities.filter(e => e.alive);
   const statsYear = forYear ?? state.year;
@@ -127,7 +127,7 @@ export function recordYearlyStats(state: GameState, forYear?: number): YearlySta
   return stats;
 }
 
-export function updateLifetimeStats(state: GameState, stats: LifetimeStats): LifetimeStats {
+export function updateLifetimeStats(state: WorldState, stats: LifetimeStats): LifetimeStats {
   const s = { ...stats };
 
   s.totalHumansBorn = state.yearlyStats.reduce((sum, y) => sum + y.births.humans, 0);
@@ -160,7 +160,7 @@ export function updateLifetimeStats(state: GameState, stats: LifetimeStats): Lif
 }
 
 /** Record a world-event title for the closing year's statistics. */
-export function trackYearEvent(state: GameState, title: string): void {
+export function trackYearEvent(state: WorldState, title: string): void {
   if (!state.eventsThisYear) state.eventsThisYear = [];
   if (!state.eventsThisYear.includes(title)) {
     state.eventsThisYear.push(title);

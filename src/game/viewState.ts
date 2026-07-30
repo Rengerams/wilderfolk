@@ -22,6 +22,11 @@ export interface ViewState {
   highlightedCampKey: string | null;
   /** Selected visitor/rival camp for diplomacy inspector. */
   selectedCampKey: string | null;
+  /**
+   * Favorite citizen — camera keeps following while set (and entity stays alive).
+   * One favorite at a time; null = not following.
+   */
+  favoriteEntityId: number | null;
 }
 
 export function createInitialView(width: number, height: number, zoom = 1.45): ViewState {
@@ -42,6 +47,7 @@ export function createInitialView(width: number, height: number, zoom = 1.45): V
     showTechTree: false,
     highlightedCampKey: null,
     selectedCampKey: null,
+    favoriteEntityId: null,
   };
 }
 
@@ -234,6 +240,10 @@ export function createViewFromSave(
     showTechTree: parseBoolean(data.showTechTree, false),
     highlightedCampKey: parseCampKey(data.highlightedCampKey),
     selectedCampKey: parseCampKey(data.selectedCampKey),
+    favoriteEntityId: (() => {
+      const id = parseEntityId(data.favoriteEntityId);
+      return id != null && resolveEntity(world, id) ? id : null;
+    })(),
   };
 }
 
@@ -255,16 +265,24 @@ export function resolveBuilding(world: WorldState, id: number | null): Building 
 export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewState {
   let selectedEntityId = view.selectedEntityId;
   let selectedBuildingId = view.selectedBuildingId;
+  let favoriteEntityId = view.favoriteEntityId;
   if (selectedEntityId != null && !resolveEntity(world, selectedEntityId)) {
     selectedEntityId = null;
   }
   if (selectedBuildingId != null && !resolveBuilding(world, selectedBuildingId)) {
     selectedBuildingId = null;
   }
-  if (selectedEntityId === view.selectedEntityId && selectedBuildingId === view.selectedBuildingId) {
+  if (favoriteEntityId != null && !resolveEntity(world, favoriteEntityId)) {
+    favoriteEntityId = null;
+  }
+  if (
+    selectedEntityId === view.selectedEntityId
+    && selectedBuildingId === view.selectedBuildingId
+    && favoriteEntityId === view.favoriteEntityId
+  ) {
     return view;
   }
-  return { ...view, selectedEntityId, selectedBuildingId };
+  return { ...view, selectedEntityId, selectedBuildingId, favoriteEntityId };
 }
 
 /** Legacy transient world fields kept at the save root for backward compatibility. */
@@ -313,6 +331,7 @@ export function mergeForSave(world: WorldState, view: ViewState): Record<string,
     showTechTree: selection.showTechTree,
     highlightedCampKey: selection.highlightedCampKey,
     selectedCampKey: selection.selectedCampKey,
+    favoriteEntityId: selection.favoriteEntityId,
     screenShake: selection.screenShake,
   };
 }

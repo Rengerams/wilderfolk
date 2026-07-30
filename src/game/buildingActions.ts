@@ -15,13 +15,11 @@ import {
   addBigNews,
   createDeathParticles,
   impulseScreenShake,
-  getTerrainEfficiencyMultiplier,
-  ensureAdjacencyIndex,
-  getAdjacencyMultiplierFromIndex,
-  getMultiplier,
-  assignMissingWorkers,
-} from './gameEngine';
-import { unindexAdjacency } from './adjacencyIndex';
+} from './simEffects';
+import { getMultiplier } from './simHelpers';
+import { assignMissingWorkers } from './workforce';
+import { unindexAdjacency, ensureAdjacencyIndex, getAdjacencyMultiplierFromIndex } from './adjacencyIndex';
+import { getTerrainEfficiencyMultiplier } from './terrainSystems';
 import { indexLivingEntity } from './entityIndex';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import {
@@ -61,7 +59,8 @@ import {
   normalizeCornerRotation,
   type CornerRotation,
 } from './buildingRotation';
-import { createEntity, createBuilding } from './worldGen';
+import { createEntity } from './entityFactory';
+import { createBuilding } from './worldGen';
 import { getRandomSurname } from './nameLoader';
 import { logEvent } from './eventLog';
 import {
@@ -70,6 +69,11 @@ import {
   isFootprintWithinMapBounds,
   overlapsAnyBuilding,
 } from './placementUtils';
+
+/** Living player humans — one filter pass when actions need the settler list repeatedly. */
+function listPlayerHumans(state: WorldState): Entity[] {
+  return state.entities.filter(isPlayerHuman);
+}
 
 function isStripSegmentTechUnlocked(
   stripType: BuildingType,
@@ -179,7 +183,7 @@ export function startBuilding(
   state.buildings.push(building);
 
   // Immediate construction crew so progress starts on the next work day (not after social pulse).
-  assignMissingWorkers(state.entities.filter(isPlayerHuman), state.buildings);
+  assignMissingWorkers(listPlayerHumans(state), state.buildings);
 
   createDeathParticles(state, x, y, '#ffd700', 8, 'star');
   addFloatingText(state, x, y - 10, `🔨 ${config.label}`, '#22c55e', 'brief');
@@ -342,7 +346,7 @@ export function placeStripChain(
   const label = placed === 1 ? BUILDING_CONFIGS[segments[0].placeType ?? type].label : `${placed} segments`;
   addFloatingText(state, firstX, firstY - 10, `🔨 ${label}`, '#22c55e', 'brief');
   impulseScreenShake(state, placed > 3 ? 3 : 2);
-  assignMissingWorkers(state.entities.filter(isPlayerHuman), state.buildings);
+  assignMissingWorkers(listPlayerHumans(state), state.buildings);
   return state;
 }
 
@@ -419,11 +423,11 @@ function applyResidentAssignment(state: WorldState, buildingId: number): WorldSt
   if (!building || building.faction === 'rival' || !isResidenceBuilding(building)) return state;
 
   assignMissingResidences(
-    state.entities.filter(isPlayerHuman),
+    listPlayerHumans(state),
     state.buildings,
     state.entities,
   );
-  assignMissingWorkers(state.entities.filter(isPlayerHuman), state.buildings);
+  assignMissingWorkers(listPlayerHumans(state), state.buildings);
   return state;
 }
 
@@ -441,7 +445,7 @@ export function moveOutOfFamilyHome(originalState: WorldState, humanId: number):
   const human = state.entities.find((e) => e.id === humanId);
   if (!human || !isPlayerHuman(human)) return state;
 
-  const humans = state.entities.filter(isPlayerHuman);
+  const humans = listPlayerHumans(state);
   const residences = state.buildings.filter(isResidenceBuilding);
   if (!tryMoveOutOfFamilyHome(human, humans, residences)) {
     const reason = !isAdultChildAtHome(human, humans)
@@ -482,11 +486,11 @@ export function removeResidentFromBuilding(
   human.residenceBuildingId = undefined;
   syncResidenceOccupants(state.entities, state.buildings);
   assignMissingResidences(
-    state.entities.filter(isPlayerHuman),
+    listPlayerHumans(state),
     state.buildings,
     state.entities,
   );
-  assignMissingWorkers(state.entities.filter(isPlayerHuman), state.buildings);
+  assignMissingWorkers(listPlayerHumans(state), state.buildings);
   return state;
 }
 
@@ -512,7 +516,7 @@ export function fillBuildingWorkers(originalState: WorldState, buildingId: numbe
 
 export function autoStaffAllWorkers(originalState: WorldState): WorldState {
   const state = structuredClone(originalState) as WorldState;
-  assignMissingWorkers(state.entities.filter(isPlayerHuman), state.buildings);
+  assignMissingWorkers(listPlayerHumans(state), state.buildings);
   return state;
 }
 
@@ -565,7 +569,7 @@ export function assignIdleWorkerToBuilding(originalState: WorldState, buildingId
 
   let reassignedFrom: Building | undefined;
   if (!idleHuman) {
-    const humans = state.entities.filter(isPlayerHuman);
+    const humans = listPlayerHumans(state);
     const jobBuildings = completedJobBuildings(state.buildings);
     const donor = findOverstaffedDonorBuilding(jobBuildings, humans, building.id);
     const transfer = donor ? pickWorkerToTransfer(humans, donor, building) : undefined;
@@ -620,7 +624,7 @@ export function removeWorkerFromBuilding(originalState: WorldState, buildingId: 
       human.occupation = 'settler';
       human.job = JobType.Settler;
     }
-    assignMissingWorkers(state.entities.filter(isPlayerHuman), state.buildings);
+    assignMissingWorkers(listPlayerHumans(state), state.buildings);
     return state;
   }
 
@@ -632,7 +636,7 @@ export function removeWorkerFromBuilding(originalState: WorldState, buildingId: 
   human.homeBuildingId = undefined;
   human.occupation = 'settler';
   human.job = JobType.Settler;
-  assignMissingWorkers(state.entities.filter(isPlayerHuman), state.buildings);
+  assignMissingWorkers(listPlayerHumans(state), state.buildings);
   return state;
 }
 
@@ -690,7 +694,7 @@ export function canAssignWorkerToBuilding(state: WorldState, buildingId: number)
   const cap = BUILDING_CONFIGS[building.type].maxOccupants;
   if (building.occupants.length >= cap) return false;
 
-  const humans = state.entities.filter(isPlayerHuman);
+  const humans = listPlayerHumans(state);
   if (
     humans.some(
       (h) => h.alive && !h.isJuvenile && !h.pregnant && !hasWorkAssignment(h) && !isImprisoned(h),
@@ -753,7 +757,7 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
   if (isHousing) {
     const cap = getResidenceCapacity(building);
     assignMissingResidences(
-      state.entities.filter(isPlayerHuman),
+      listPlayerHumans(state),
       state.buildings,
       state.entities,
     );
@@ -810,7 +814,7 @@ export function recruitSettler(originalState: WorldState): WorldState {
   settler.courtshipProgress = 0;
   state.entities.push(settler);
   indexLivingEntity(state, settler);
-  const recruited = state.entities.filter(isPlayerHuman);
+  const recruited = listPlayerHumans(state);
   assignMissingResidences(recruited, state.buildings, state.entities);
   assignMissingWorkers(recruited, state.buildings);
 
@@ -888,7 +892,7 @@ export function demolishBuilding(originalState: WorldState, buildingId: number):
     state.roadAvoidanceStamp = undefined;
   }
   state.buildings = state.buildings.filter(b => b.id !== buildingId);
-  const humans = state.entities.filter(isPlayerHuman);
+  const humans = listPlayerHumans(state);
   assignMissingResidences(humans, state.buildings, state.entities);
   assignMissingWorkers(humans, state.buildings);
   return state;

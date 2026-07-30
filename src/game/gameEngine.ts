@@ -101,12 +101,14 @@ export { createInitialVictories, computeVictoryProgress, VICTORY_DEFINITIONS } f
 export { logEvent } from './eventLog';
 export {
   sendRivalGift, establishRivalTradePact, showStrengthToRival,
-  signPeaceTreaty, isRivalAtPeace,
+  signPeaceTreaty,
   respondToDiplomacyEvent, getDiplomacyChoiceEligibility, tradeWithVisitors, negotiateRefugees,
   talkToVisitorLeader, getVisitorLeaderTalkMeta,
   hitTestCamp,
 } from './groupEvents';
+export { isRivalAtPeace } from './rivalPeace';
 export { isPlayerHuman, playerHumanCount } from './playerHuman';
+export { createEntity, finalizeSettlerAge } from './entityFactory';
 export type { VisitorLeaderTalkMeta } from './groupEvents';
 export {
   respondToRaidEvent, respondToOutgoingRaidEvent, launchRaidOnRival,
@@ -201,7 +203,6 @@ export {
   updateResearch,
 } from './research';
 export {
-  createEntity,
   createBuilding,
   spawnGrassPatch,
   spawnWildlifeRing,

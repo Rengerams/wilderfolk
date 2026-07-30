@@ -13,9 +13,9 @@ import {
   syncResidenceOccupants,
   TICKS_PER_DAY,
 } from './dayCycle';
-import { createEntity, finalizeSettlerAge } from './worldGen';
+import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
-import { SPECIES_CONFIG } from './gameEngine';
+import { SPECIES_CONFIG } from './speciesConfig';
 import { addCappedResource } from './resourceUtils';
 import { getRandomSurname } from './nameLoader';
 import { hasIronSpears, hasStoneSpears } from './combat';
@@ -440,9 +440,8 @@ function relationshipLabel(rel: RivalRelationship): string {
   return { friendly: 'Friendly', neutral: 'Neutral', competitive: 'Competitive', tense: 'Tense' }[rel];
 }
 
-export function isRivalAtPeace(rival: RivalSettlement): boolean {
-  return rival.peaceTreatyDays > 0;
-}
+export { isRivalAtPeace } from './rivalPeace';
+import { isRivalAtPeace } from './rivalPeace';
 
 const PEACE_TREATY_PLAYER_DAYS = 60;
 const PEACE_TREATY_EVENT_DAYS = 45;

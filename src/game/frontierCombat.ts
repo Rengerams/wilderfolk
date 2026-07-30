@@ -6,7 +6,7 @@ import { hasIronSpears, hasStoneSpears } from './combat';
 import { formatCitizenName, formatDeathLog } from './citizenId';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
-import { isRivalAtPeace } from './groupEvents';
+import { isRivalAtPeace } from './rivalPeace';
 import { gainSkill } from './skills';
 import {
   computeMilitiaBreakdown,

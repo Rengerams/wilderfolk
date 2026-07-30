@@ -122,7 +122,7 @@ import {
 } from './combat';
 import { isActiveMoonHowler } from './moonHowler';
 import { isEntityOnBuilding } from './buildingRotation';
-import { createEntity } from './worldGen';
+import { createEntity } from './entityFactory';
 import { logEvent } from './eventLog';
 import {
   applyEducationGraduation,

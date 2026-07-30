@@ -13,7 +13,7 @@ import { tickWildlife } from './lifeSimulation';
 import { updateWeather, updateDisasters } from './worldEvents';
 import { updateResearch } from './research';
 import { tickTradeCaravans } from './tradeCaravans';
-import { createEntity } from './worldGen';
+import { createEntity } from './entityFactory';
 import { indexEntity } from './entityIndex';
 import { addFloatingText } from './simEffects';
 import { WILDLIFE_LAYER_INTERVAL } from './simFocus';

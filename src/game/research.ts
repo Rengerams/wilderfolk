@@ -1,11 +1,8 @@
 import type { ResearchNode, WorldState } from './gameTypes';
 import { BuildingType, BUILDING_CONFIGS, ResearchType } from './gameTypes';
 import { logEvent } from './eventLog';
-import {
-  addNotification,
-  impulseScreenShake,
-  getMultiplier,
-} from './gameEngine';
+import { addNotification, impulseScreenShake } from './simEffects';
+import { getMultiplier } from './simHelpers';
 import { getEducationResearchMultiplier } from './education';
 import { isPlayerHuman } from './playerHuman';
 import { PER_TICK_RATE_SCALE } from './dayCycle';

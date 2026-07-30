@@ -6,7 +6,7 @@ import { addFloatingText, addNotification, getMultiplier } from './gameEngine';
 import { addResource } from './resourceUtils';
 import { getTownHallTradeMultiplier } from './townHall';
 import { logEvent } from './eventLog';
-import { createEntity } from './worldGen';
+import { createEntity } from './entityFactory';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
 
 /** Long-range trade routes require a completed player Market (EC-4). */

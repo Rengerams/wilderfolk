@@ -2,7 +2,7 @@ import type { WorldState, Entity, Building } from './gameTypes';
 import { BuildingType, EntityType, JobType } from './gameTypes';
 import { WORK_HOURS_PER_DAY, isOnWorkShift, isWorkHour } from './dayCycle';
 import { ensureEntitySkills } from './skills';
-import { addNotification } from './gameEngine';
+import { addNotification } from './simEffects';
 import { formatCitizenName } from './citizenId';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';

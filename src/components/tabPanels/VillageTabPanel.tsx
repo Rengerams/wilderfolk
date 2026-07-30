@@ -29,9 +29,11 @@ const StatBadge = memo(function StatBadge({ label, value, icon }: StatBadgeProps
 export interface VillageTabPanelProps {
   state: WorldState;
   villageStats: VillageStatsSummary;
+  favoriteEntityId?: number | null;
   onRecruitSettler: () => void;
   onFocusBuilding: (buildingId: number, cx: number, cy: number) => void;
   onFocusCitizen: (entity: Entity) => void;
+  onToggleFavoriteCitizen?: (entityId: number) => void;
   onOpenGoals: () => void;
   onHintAction: (action: FocusHintAction) => void;
 }
@@ -39,9 +41,11 @@ export interface VillageTabPanelProps {
 export default function VillageTabPanel({
   state,
   villageStats,
+  favoriteEntityId,
   onRecruitSettler,
   onFocusBuilding,
   onFocusCitizen,
+  onToggleFavoriteCitizen,
   onOpenGoals,
   onHintAction,
 }: VillageTabPanelProps) {
@@ -147,7 +151,12 @@ export default function VillageTabPanel({
         defaultOpen={false}
       >
         <Suspense fallback={<p className="text-[11px] text-stone-500">Loading families…</p>}>
-          <PopulationPanel state={state} onFocusCitizen={onFocusCitizen} />
+          <PopulationPanel
+            state={state}
+            favoriteEntityId={favoriteEntityId}
+            onFocusCitizen={onFocusCitizen}
+            onToggleFavorite={onToggleFavoriteCitizen}
+          />
         </Suspense>
       </CollapsibleSection>
 

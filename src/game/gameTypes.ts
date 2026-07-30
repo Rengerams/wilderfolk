@@ -1171,7 +1171,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     cost: { wood: 30, stone: 10, gold: 15 },
     buildTime: 3, maxOccupants: 2,
     emoji: '🏹', label: 'Hunting Spot', description: 'Staff hunters to harvest nearby wildlife for food. Wolves may fight back.',
-    sprite: '/sprites/Huntingspot.png', backgroundColor: '#854d0e', padShape: 'circle',
+    sprite: '/sprites/huntingspot.png', backgroundColor: '#854d0e', padShape: 'circle',
   },
   [BuildingType.Tavern]: {
     width: 56, height: 48,
