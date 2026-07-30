@@ -1007,13 +1007,24 @@ function completedJobBuildings(buildings: Building[]): Building[] {
     });
 }
 
+function isManualStaffBuildingType(type: BuildingType): boolean {
+  return type === BuildingType.Church
+    || type === BuildingType.Prison
+    || type === BuildingType.Barracks;
+}
+
 function findOverstaffedDonorBuilding(
   jobBuildings: Building[],
   humans: Entity[],
   excludeBuildingId: number,
 ): Building | undefined {
   return jobBuildings
-    .filter((b) => b.id !== excludeBuildingId && countWorkersAtBuilding(humans, b.id) >= 2)
+    .filter(
+      (b) =>
+        b.id !== excludeBuildingId
+        && !isManualStaffBuildingType(b.type)
+        && countWorkersAtBuilding(humans, b.id) >= 2,
+    )
     .sort((a, b) => countWorkersAtBuilding(humans, a.id) - countWorkersAtBuilding(humans, b.id))[0];
 }
 

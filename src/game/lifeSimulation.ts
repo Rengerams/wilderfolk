@@ -39,7 +39,7 @@ import {
 import { isPlayerHuman } from './playerHuman';
 import { isSettlerRelationshipEntity } from './moonHowler';
 import { getElectionGatherTarget } from './villageLeadership';
-import { getValleyIllnessChanceBonus } from './ecologyStage';
+import { getValleyIllnessChanceBonus, getValleyHuntYieldMultiplier } from './ecologyStage';
 import {
   HUMAN_ADULT_MIN_AGE,
   HUMAN_ADULT_MAX_AGE,
@@ -271,9 +271,10 @@ function markWildlifeDead(
   ctx: TickContext,
   entity: Entity,
   wildlifeDeathsThisTick: Set<number>,
+  tick?: number,
 ): void {
   if (isKillableSettlerEntity(entity)) {
-    killHuman(entity, ctx.updatedBuildings, ctx.entityById, state.tick);
+    killHuman(entity, ctx.updatedBuildings, ctx.entityById, tick);
   } else {
     entity.alive = false;
     ctx.entityById.delete(entity.id);
@@ -392,11 +393,22 @@ function isValidHuntPrey(
   hunterId: number,
 ): boolean {
   if (!prey.alive || prey.id === hunterId) return false;
+  // Tamed animals are colony stock — wildlife and free hunters leave them alone
+  if (prey.tamedBy != null) return false;
   if (preyType === EntityType.Human) {
     if (prey.moonHowlerCursed) return false;
     if (prey.faction === 'visitor' || prey.faction === 'rival') return false;
   }
   return true;
+}
+
+/** Food from a free-roam kill — deer is a proper carcass, rabbit a snack. */
+function freeHuntFoodGain(preyType: EntityType, state: WorldState): number {
+  const base = preyType === EntityType.Deer ? 52 : preyType === EntityType.Rabbit ? 22 : 18;
+  return Math.max(
+    1,
+    Math.round(base * getHuntFoodMultiplier(state) * getValleyHuntYieldMultiplier(state)),
+  );
 }
 
 // ============ HUMAN RELATIONSHIP HELPERS ============
@@ -869,8 +881,8 @@ export function tryDailyConception(
       const dist = Math.hypot(partner.x - entity.x, partner.y - entity.y);
       const sharesHome = shareResidence(entity, partner);
       const bothAtSharedHome = sharesHome
-        && isNearResidence(entity, ctx.updatedBuildings)
-        && isNearResidence(partner, ctx.updatedBuildings);
+        && isNearResidence(entity, ctx.buildingById)
+        && isNearResidence(partner, ctx.buildingById);
       const together = dist < 22 || bothAtSharedHome;
       const fertility = getFemaleFertility(entity.age);
       if (together && fertility > 0) {
@@ -1448,6 +1460,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   }
   const hasWell = ctx.hasWell;
   const hasHospital = ctx.hasHospital;
+  // Staffed civic sites once per tick — avoid O(buildings) find per human for hospital/hall.
+  const staffedHospitals: Building[] = [];
+  const staffedTownHalls: Building[] = [];
+  for (const b of updatedBuildings) {
+    if (!b.completed || b.faction === 'rival' || b.occupants.length === 0) continue;
+    if (b.type === BuildingType.Hospital) staffedHospitals.push(b);
+    else if (b.type === BuildingType.TownHall) staffedTownHalls.push(b);
+  }
   // Local neighborhood only — full map diagonal scanned every idle human per tick (perf cliff @ 100+ pop).
   const socialScanRadius = MOBILE_CELL_SIZE * 4;
   const chatHints = chatHintsFromWorld({
@@ -1540,7 +1560,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     const isPrisoner = entity.prisonBuildingId != null;
-    const atHome = shouldBeAtHome(hourOfDay) && isNearResidence(entity, updatedBuildings);
+    const atHome = shouldBeAtHome(hourOfDay) && isNearResidence(entity, buildingById);
 
     entity.reproductionCooldown = Math.max(0, entity.reproductionCooldown - 1);
     if (entity.gender && entity.relationshipStatus === undefined) {
@@ -1613,7 +1633,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     tickHumanChat(entity, resolveChatPartner);
 
     // Ambient random dialogue (any time) — not gated to work/evening/arrival.
-    // ~1.2% per tick per active settler ≈ occasional chatter across the village.
+    // ~1.2% per clock-hour tick (legacy 24-tick day); scale so longer days stay chatty, not spammy.
     if (
       active
       && isPlayerHuman(entity)
@@ -1624,7 +1644,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity,
         ambientChatNeighbors(entity),
         state.tick,
-        0.012,
+        0.012 * PER_TICK_RATE_SCALE,
         chatHints,
         {
           pregnant: !!entity.pregnant,
@@ -1723,9 +1743,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         // Visitors chat more when near the village center (looks "busy")
         const village = getPlayerCampCenter(state, updatedBuildings);
         const nearVillage = Math.hypot(entity.x - village.x, entity.y - village.y) < 110;
-        const chatChance = entity.faction === 'visitor'
+        const chatChance = (entity.faction === 'visitor'
           ? (nearVillage ? 0.055 : 0.03)
-          : 0.025;
+          : 0.025) * PER_TICK_RATE_SCALE;
         settlerChat(entity, entity.faction === 'visitor' ? 'visitor' : 'rival', chatChance);
       }
       syncEntityGrids(ctx, entity);
@@ -1927,7 +1947,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       commuteHumanToBuilding(entity, workplace, config.speed, false, 3.2);
       onSchedule = true;
       suppressIdle = true;
-      if (Math.random() < 0.04) settlerChat(entity, 'work', 0.12);
+      if (Math.random() < 0.04 * PER_TICK_RATE_SCALE) settlerChat(entity, 'work', 0.12);
     } else if (!huntingWere && !inElectionCeremony && goWorkTime && !isInnkeeper && workplace) {
       commuteHumanToBuilding(
         entity,
@@ -1945,9 +1965,25 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.vy *= 0.85;
     }
 
-    if (allowFreeRoam && !ateMeal && !entity.isJuvenile && entity.energy < entity.maxEnergy * 0.8) {
+    // Free-roam hunting — player settlers only (visitors/rivals do not farm the valley).
+    // Hunters chase game when moderately hungry; other jobs only when starving.
+    const isJobHunter = entity.job === JobType.Hunter;
+    const freeHuntHungry = isJobHunter
+      ? entity.energy < entity.maxEnergy * 0.85
+      : entity.energy < entity.maxEnergy * 0.38;
+    if (
+      allowFreeRoam
+      && isPlayerHuman(entity)
+      && !ateMeal
+      && !entity.isJuvenile
+      && freeHuntHungry
+    ) {
       const preyTypes = new Set<EntityType>([EntityType.Deer, EntityType.Rabbit]);
-      const huntRange = getHumanHuntRange(state, config.huntRange);
+      // Assigned hunters range farther; everyone else is opportunistic
+      const huntRange = getHumanHuntRange(
+        state,
+        config.huntRange * (isJobHunter ? 1.2 : 0.75),
+      );
       let closestPrey: Entity | null = null;
       let closestDist = Infinity;
 
@@ -1960,7 +1996,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.x,
         entity.y,
         huntRange,
-        (prey) => preyTypes.has(prey.type) && prey.alive && !prey.tamedBy,
+        (prey) => preyTypes.has(prey.type) && isValidHuntPrey(prey, prey.type, entity.id),
         'hunt',
         preyFallback,
       );
@@ -1976,11 +2012,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId);
         createDeathParticles(state, closestPrey.x, closestPrey.y, '#8a2a2a', 10);
         syncEntityGrids(ctx, closestPrey);
-        entity.energy = Math.min(entity.maxEnergy, entity.energy + config.energyGain[closestPrey.type]);
+        const energyBite = config.energyGain[closestPrey.type] ?? (closestPrey.type === EntityType.Deer ? 350 : 150);
+        entity.energy = Math.min(entity.maxEnergy, entity.energy + energyBite);
         entity.flash = 10;
         entity.combatTicks = 16;
         entity.huntTargetId = undefined;
-        const foodGain = Math.round(38 * getHuntFoodMultiplier(state));
+        const foodGain = freeHuntFoodGain(closestPrey.type, state);
         addResource(state, 'food', foodGain);
         const preyLabel = closestPrey.type === EntityType.Deer ? 'Deer' : 'Rabbit';
         addFloatingText(state, closestPrey.x, closestPrey.y - 14, `Hunted ${preyLabel}! +${foodGain}`, '#f97316');
@@ -1992,14 +2029,22 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const dx = closestPrey.x - entity.x;
         const dy = closestPrey.y - entity.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        entity.vx = (dx / dist) * config.speed * 0.55;
-        entity.vy = (dy / dist) * config.speed * 0.55;
+        // Hunters pursue faster; casual foragers jog
+        const chaseMult = isJobHunter ? 0.72 : 0.5;
+        entity.vx = (dx / dist) * config.speed * chaseMult;
+        entity.vy = (dy / dist) * config.speed * chaseMult;
         entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
         suppressIdle = true;
       } else {
         entity.huntTargetId = undefined;
       }
-    } else if (!allowFreeRoam || ateMeal || entity.energy >= entity.maxEnergy * 0.8) {
+    } else if (
+      !allowFreeRoam
+      || ateMeal
+      || !isPlayerHuman(entity)
+      || entity.isJuvenile
+      || !freeHuntHungry
+    ) {
       entity.huntTargetId = undefined;
     }
 
@@ -2241,7 +2286,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             entity.courtshipProgress = Math.min(100, (entity.courtshipProgress || 0) + courtRate);
             closest.courtshipProgress = Math.min(100, (closest.courtshipProgress || 0) + courtRate);
 
-            if (Math.random() < 0.08) {
+            if (Math.random() < 0.08 * PER_TICK_RATE_SCALE) {
               state.deathParticles.push({
                 x: entity.x + (Math.random() - 0.5) * 15,
                 y: entity.y - 8,
@@ -2385,7 +2430,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               entity.affairProgress = Math.min(100, (entity.affairProgress || 0) + affairRate);
               paramour.affairProgress = Math.min(100, (paramour.affairProgress || 0) + affairRate);
 
-              if (Math.random() < 0.06) {
+              if (Math.random() < 0.06 * PER_TICK_RATE_SCALE) {
                 state.deathParticles.push({
                   x: entity.x + (Math.random() - 0.5) * 10,
                   y: entity.y - 6,
@@ -2505,7 +2550,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Hotelier on duty — greet guests / tend front desk
     if (onDayJobShift && isPlayerHuman(entity) && entity.job === JobType.Hotelier) {
-      const hotel = isHotelierAtHotel(entity, updatedBuildings);
+      const hotel = isHotelierAtHotel(entity, buildingById);
       if (hotel) {
         hotelierGreetGuests(state, entity, hotel);
       }
@@ -2517,14 +2562,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && isPlayerHuman(entity)
       && workplace == null
       && (entity.energy < entity.maxEnergy * 0.5 || entity.pregnant)
+      && staffedHospitals.length > 0
     ) {
-      const hospital = updatedBuildings.find(
-        (b) =>
-          b.completed
-          && b.type === BuildingType.Hospital
-          && b.faction !== 'rival'
-          && b.occupants.length > 0
-          && Math.hypot(entity.x - (b.x + b.width / 2), entity.y - (b.y + b.height / 2)) < 36,
+      const hospital = staffedHospitals.find(
+        (b) => Math.hypot(entity.x - (b.x + b.width / 2), entity.y - (b.y + b.height / 2)) < 36,
       );
       if (hospital && personDayRoll(entity.id, state.tick, 840) < 0.2) {
         treatPatientAtHospital(state, entity, hospital);
@@ -2537,14 +2578,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && isPlayerHuman(entity)
       && !entity.isJuvenile
       && wantsCivicAudience(entity, state)
+      && staffedTownHalls.length > 0
     ) {
-      const hall = updatedBuildings.find(
-        (b) =>
-          b.completed
-          && b.type === BuildingType.TownHall
-          && b.faction !== 'rival'
-          && b.occupants.length > 0
-          && Math.hypot(entity.x - (b.x + b.width / 2), entity.y - (b.y + b.height / 2)) < 40,
+      const hall = staffedTownHalls.find(
+        (b) => Math.hypot(entity.x - (b.x + b.width / 2), entity.y - (b.y + b.height / 2)) < 40,
       );
       if (hall && personDayRoll(entity.id, state.tick, 841) < 0.18) {
         resolveCivicPetition(state, entity, hall);
@@ -2596,7 +2633,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           // Circle / tag weave
           entity.vx = Math.sin(state.tick * 0.2 + entity.id) * config.speed * 0.45;
           entity.vy = Math.cos(state.tick * 0.18 + play.id) * config.speed * 0.45;
-          if (kidImpulse.bubble && Math.random() < 0.06) {
+          if (kidImpulse.bubble && Math.random() < 0.06 * PER_TICK_RATE_SCALE) {
             sayHumanChatPhrase(entity, kidImpulse.bubble, 40);
           }
         }
@@ -2691,7 +2728,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         [],
       );
       if (impulse.motive !== 'none') {
-        if (impulse.bubble && Math.random() < 0.08) {
+        if (impulse.bubble && Math.random() < 0.08 * PER_TICK_RATE_SCALE) {
           sayHumanChatPhrase(entity, impulse.bubble, 55);
         }
         if (impulse.stayHome && hasResidenceAssignment(entity)) {
@@ -2748,7 +2785,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           } else if (impulse.motive === 'sunday_service' || impulse.motive === 'grief') {
             entity.vx *= 0.2;
             entity.vy *= 0.2;
-            if (Math.random() < 0.05) settlerChat(entity, 'social', 0.1);
+            if (Math.random() < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1);
           } else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') {
             entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.2);
             settlerChat(entity, 'social', 0.1);
@@ -2869,9 +2906,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             18,
           );
           if (arrived) {
-            entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.45);
-            settlerChat(entity, 'social', 0.14);
-            if (Math.random() < 0.04) {
+            entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.45 * PER_TICK_RATE_SCALE);
+            settlerChat(entity, 'social', 0.14 * PER_TICK_RATE_SCALE);
+            if (Math.random() < 0.04 * PER_TICK_RATE_SCALE) {
               addFloatingText(state, entity.x, entity.y - 14, '🍺', '#fbbf24');
             }
           }
@@ -3208,7 +3245,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
     // Death by old age
     if (entity.age >= entity.maxAge) {
-      markWildlifeDead(ctx, entity, wildlifeDeathsThisTick);
+      markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick);
       createDeathParticles(state, entity.x, entity.y, '#aaaaaa', 5, 'smoke');
       syncEntityGrids(ctx, entity);
       continue;
@@ -3227,7 +3264,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     entity.energy -= (config.energyLossPerTick + winterPenalty) * step;
 
     if (entity.energy <= 0) {
-      markWildlifeDead(ctx, entity, wildlifeDeathsThisTick);
+      markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick);
       createDeathParticles(state, entity.x, entity.y, '#8a2a2a', 8);
       syncEntityGrids(ctx, entity);
       continue;
@@ -3244,8 +3281,9 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     let targetVx = 0;
     let targetVy = 0;
 
-    // Flee from predators — check every 2 ticks to reduce spatial queries
-    if ((entity.type === EntityType.Rabbit || entity.type === EntityType.Deer || entity.type === EntityType.Wildkin) && (state.tick + entity.id) % 2 === 0) {
+    // Flee from predators — every systems pulse for all prey (do NOT use tick+id % 2:
+    // wildlife only runs on even ticks → odd ids never fled).
+    if (entity.type === EntityType.Rabbit || entity.type === EntityType.Deer || entity.type === EntityType.Wildkin) {
       let closestPredator: Entity | null = null;
 
       closestPredator = findClosestEntityInRadius(
@@ -3467,9 +3505,10 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Wander
+    // Wander — systems layer runs every WILDLIFE_LAYER_INTERVAL ticks; scale chance so
+    // daily wander attempts stay ~like a per-tick 5% rate at 24 TPD.
     if (targetVx === 0 && targetVy === 0) {
-      if (Math.random() < 0.05) {
+      if (Math.random() < 1 - (1 - 0.05) ** step) {
         const angle = Math.random() * Math.PI * 2;
         entity.vx = Math.cos(angle) * config.speed * 0.4;
         entity.vy = Math.sin(angle) * config.speed * 0.4;
@@ -3521,7 +3560,9 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             entity.x,
             entity.y,
             config.huntRange,
-            (p) => (p.type === EntityType.Rabbit || p.type === EntityType.Deer) && p.alive,
+            (p) =>
+              (p.type === EntityType.Rabbit || p.type === EntityType.Deer)
+              && isValidHuntPrey(p, p.type, entity.id),
             'tamed_hunt',
             preyFallback,
           );

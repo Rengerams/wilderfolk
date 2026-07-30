@@ -490,14 +490,15 @@ export function shareResidence(a: Entity, b: Entity): boolean {
 
 export function isNearResidence(
   human: Entity,
-  buildings: Building[],
+  buildings: Building[] | ReadonlyMap<number, Building>,
   maxDist = 55,
 ): boolean {
   if (!hasResidenceAssignment(human)) return false;
-  const residence = buildings.find(
-    (b) => b.id === human.residenceBuildingId && isResidenceBuilding(b),
-  );
-  if (!residence) return false;
+  const id = human.residenceBuildingId!;
+  const residence = 'get' in buildings
+    ? (buildings as ReadonlyMap<number, Building>).get(id)
+    : (buildings as Building[]).find((b) => b.id === id);
+  if (!residence || !isResidenceBuilding(residence)) return false;
   const cx = residence.x + residence.width / 2;
   const cy = residence.y + residence.height / 2;
   return Math.hypot(human.x - cx, human.y - cy) <= maxDist;
@@ -620,7 +621,10 @@ function pickRandomAdoptiveCouple(
 }
 
 function listVillageSingleAdults(humans: Entity[]): Entity[] {
-  const alive = humans.filter((h) => h.alive && !h.faction && !h.isJuvenile);
+  // Social adults only — not graduated juveniles aged 12–15
+  const alive = humans.filter(
+    (h) => h.alive && !h.faction && !h.isJuvenile && h.age >= HUMAN_ADULT_MIN_AGE,
+  );
   return alive.filter((h) => {
     const partner = livingHuman(alive, h.partnerId);
     return !partner;

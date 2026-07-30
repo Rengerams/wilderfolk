@@ -27,24 +27,19 @@ Newest version first. 🟢 done · 🟡 in progress · ⬜ open. Detail → [CHA
 | 🟢 | Renderer cache — `world.entityByType` → `RenderSnapshot` → `updateCachedEntities`; viewport grass culling |
 | 🟡 | buildingById go-home — drop commute `.find()` |
 | 🟢 | Grass render spatial buckets — `byType[Grass]` + `buildGrassGrid` viewport query; `_cachedGrass` keyed by tick/camera |
-| 🟡 | Benchmark gate — SIM_PROFILE village/town/city + p95 exit |
-| 🟡 | Sim regression — simulate-30min exit on fail |
+| 🟢 | Settler denorm · entityById incremental · partner map · spatial grid |
 | 🟡 | App tab split + memo @ 300 population |
-| ⬜ | Settler count denorm — working/idle on WorldState |
-| ⬜ | Incremental entityById — update on birth/death only |
 | ⬜ | buildingActions scan cleanup |
-| ⬜ | Partner id map for relationship lines |
 | ⬜ | Particle / floating-text pooling |
-| 🟢 | OffscreenCanvas layers — terrain tiles + decor bake (`terrainLayer.ts`); dynamic entity bitmap cache (`entityLayer.ts`); flash overlay on main canvas |
+| 🟢 | OffscreenCanvas layers — terrain + entity bake |
 | ⬜ | GAME_VERSION 0.5.0 + save migration |
-| ⬜ | Logical invariant checks + full sim battery |
-| ⬜ | Manual playtest matrix — large map, 10× |
+| ⬜ | Logical invariant checks (focused tests / checklist) |
+| ⬜ | Manual playtest matrix — large map, 10× (**primary ship gate**) |
 | ⬜ | Outgoing counter-raid march line + militia sprites |
 | ⬜ | Reputation milestone arc UI |
 | ⬜ | One visitor multi-step quest chain (Scholars or Nomads) |
-| ⬜ | Election Year 10/20 live playtest |
+| ⬜ | Election Year 5+ live playtest (5-year terms) |
 | ⬜ | Footstep / work SFX by surface |
-| ⬜ | npm run benchmark:gate — CI wrapper |
 
 ### July 8, 2026 — Victory, trade & raid rewards (in code)
 

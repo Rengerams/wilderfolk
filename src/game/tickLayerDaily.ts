@@ -307,11 +307,33 @@ function tickBuildingProduction(
 
     if (building.completed && staffed && building.type === BuildingType.HuntingSpot && isProductionTick(state.tick, PRODUCTION_INTERVAL.huntingSpot)) {
       const searchRadius = 320;
-      const targetPrey = state.entities.find((e) =>
-        e.alive
-        && (e.type === EntityType.Deer || e.type === EntityType.Rabbit || e.type === EntityType.Wolf)
-        && Math.hypot(e.x - building.x, e.y - building.y) < searchRadius,
-      );
+      const bx = building.x + building.width / 2;
+      const by = building.y + building.height / 2;
+      // Closest valid game animal — prefer deer/rabbit over wolves; never tamed stock.
+      // (Old code used entities.find → always the first array hit, not the nearest.)
+      let targetPrey: Entity | null = null;
+      let bestScore = Infinity;
+      const preyPool = [
+        ...(byType[EntityType.Deer] ?? []),
+        ...(byType[EntityType.Rabbit] ?? []),
+        ...(byType[EntityType.Wolf] ?? []),
+      ];
+      for (const e of preyPool) {
+        if (!e.alive || e.tamedBy != null) continue;
+        if (
+          e.type !== EntityType.Deer
+          && e.type !== EntityType.Rabbit
+          && e.type !== EntityType.Wolf
+        ) continue;
+        const dist = Math.hypot(e.x - bx, e.y - by);
+        if (dist >= searchRadius) continue;
+        // Wolves are dangerous side-targets — only take them if no game is closer-ish
+        const score = e.type === EntityType.Wolf ? dist + 160 : dist;
+        if (score < bestScore) {
+          bestScore = score;
+          targetPrey = e;
+        }
+      }
 
       if (targetPrey) {
         const isWolf = targetPrey.type === EntityType.Wolf;
@@ -339,17 +361,33 @@ function tickBuildingProduction(
           addFloatingText(state, building.x, building.y - 12, 'Wolf fights back! 🐺', '#f87171');
           logEvent(state, 'combat', 'A wild wolf fought back at the Hunting Spot!');
         } else if (success) {
-          targetPrey.alive = false;
-          targetPrey.energy = 0;
-
           const huntMult = getMultiplier(state, 'hunt_yield');
           const valleyHunt = getValleyHuntYieldMultiplier(state);
-          const amount = Math.floor((12 + workers * 6) * totalMult * huntMult * globalEff * valleyHunt);
+          // Deer carcass > rabbit > lean wolf meat
+          const carcass =
+            targetPrey.type === EntityType.Deer ? 1.35
+            : targetPrey.type === EntityType.Wolf ? 0.85
+            : 1;
+          const amount = Math.floor((12 + workers * 6) * carcass * totalMult * huntMult * globalEff * valleyHunt);
 
-          if (addResource(state, 'food', amount) > 0) {
+          // Don't kill wildlife if stores are full (no meat banked)
+          if (amount <= 0 || addResource(state, 'food', amount) <= 0) {
+            addFloatingText(state, building.x + building.width / 2, building.y - 12, 'Stores full!', '#94a3b8', 'brief');
+          } else {
+            const preyId = targetPrey.id;
+            targetPrey.alive = false;
+            targetPrey.energy = 0;
+            entityById.delete(preyId);
+            for (const e of entityById.values()) {
+              if (e.huntTargetId === preyId) e.huntTargetId = undefined;
+            }
             rewardProductionSkills(state, building, 0.2, entityById);
             addFloatingText(state, targetPrey.x, targetPrey.y - 12, `+${amount} meat`, '#ef4444', 'brief');
-            logEvent(state, 'event', `Hunting Spot successfully harvested a ${targetPrey.type} (+${amount} meat)`);
+            const preyName =
+              targetPrey.type === EntityType.Deer ? 'deer'
+              : targetPrey.type === EntityType.Wolf ? 'wolf'
+              : 'rabbit';
+            logEvent(state, 'event', `Hunting Spot bagged a ${preyName} (+${amount} meat)`);
           }
         } else {
           addFloatingText(state, targetPrey.x, targetPrey.y - 12, 'Missed shot!', '#94a3b8', 'brief');

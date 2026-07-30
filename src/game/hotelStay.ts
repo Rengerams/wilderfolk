@@ -13,6 +13,7 @@ import {
   getAbsoluteCalendarDay,
   getHourOfDay,
   isNightHour,
+  isStartOfClockHour,
   nextTickAtClockHour,
   personDayRoll,
   NIGHT_END,
@@ -36,10 +37,13 @@ export function findStaffedHotels(buildings: readonly Building[]): Building[] {
 
 export function isHotelierAtHotel(
   entity: Entity,
-  buildings: readonly Building[],
+  buildings: readonly Building[] | ReadonlyMap<number, Building>,
 ): Building | undefined {
   if (entity.job !== JobType.Hotelier || entity.homeBuildingId == null) return undefined;
-  const h = buildings.find((b) => b.id === entity.homeBuildingId);
+  const id = entity.homeBuildingId;
+  const h = 'get' in buildings
+    ? (buildings as ReadonlyMap<number, Building>).get(id)
+    : (buildings as readonly Building[]).find((b) => b.id === id);
   if (!h || h.type !== BuildingType.Hotel || !h.completed) return undefined;
   return h;
 }
@@ -245,7 +249,9 @@ export function hotelierGreetGuests(
   if ((hotelier.chatTicks ?? 0) > 0) return;
   const guests = (hotel.hotelGuestIds ?? []).length;
   if (guests <= 0) return;
-  if (personDayRoll(hotelier.id, state.tick, 913) > 0.08) return;
+  // Once per clock hour — not every sub-hour tick (avoids greeting spam after day stretch)
+  if (!isStartOfClockHour(state.tick)) return;
+  if (personDayRoll(hotelier.id, state.tick, 913 + getHourOfDay(state.tick)) > 0.35) return;
   sayHumanChatPhrase(
     hotelier,
     guests >= 3 ? 'Busy night — rooms nearly full.' : 'Welcome, traveler.',

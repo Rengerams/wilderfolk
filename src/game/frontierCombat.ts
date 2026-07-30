@@ -1154,11 +1154,12 @@ function resolveOutgoingRaidCombat(
     state.resources.food = Math.max(0, state.resources.food - 15);
     state.villageReputation = Math.max(0, state.villageReputation - 8);
     rival.relationship = 'tense';
-    rival.raidCooldownDays = 7;
     applyRaidCasualties(state, state.entities, 'costly', rival.name);
     pushFloat(state, rival.campX, rival.campY - 20, 'Repelled!', '#f87171');
     logEvent(state, 'combat', `${verb} on ${rival.name} failed — war-band fought back`, rival.name, 'outgoing_raid');
+    // Queue strike-back *before* cooldown — maybeQueueRaid bails when raidCooldownDays > 0
     maybeQueueRaid(state, rival, state.entities.filter((e) => e.alive));
+    rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 7);
   }
 
   rival.daysUntilAction = 30;

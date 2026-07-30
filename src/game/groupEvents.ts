@@ -62,17 +62,41 @@ function cloneWorldStateForAction(originalState: WorldState): WorldState {
 function buildAliveEntityIndex(allAlive: Entity[]): Map<number, Entity> {
   const index = new Map<number, Entity>();
   for (const e of allAlive) {
-    if (e.alive) index.set(e.id, e);  }
-  return index;}
+    if (e.alive) index.set(e.id, e);
+  }
+  return index;
+}
 
 function buildAliveDeerList(allAlive: Entity[]): Entity[] {
   const deer: Entity[] = [];
-  for (const e of allAlive) {    if (e.alive && e.type === EntityType.Deer) deer.push(e);  }  return deer;}
+  for (const e of allAlive) {
+    // Never poach colony stock — same rule as free-roam / wildlife hunt
+    if (e.alive && e.type === EntityType.Deer && e.tamedBy == null) deer.push(e);
+  }
+  return deer;
+}
+
+/** Kill wild game from visitor/rival actions — unindex + drop hunt chases. */
+function killWildGameForPoach(state: WorldState, animal: Entity): void {
+  if (!animal.alive) return;
+  animal.alive = false;
+  unindexEntityFromState(state, animal.id);
+  for (const e of state.entities) {
+    if (e.huntTargetId === animal.id) e.huntTargetId = undefined;
+  }
+}
 
 function makeNextAliveDeer(deerList: Entity[]): () => Entity | undefined {
   let idx = 0;
   return () => {
-    while (idx < deerList.length) {      const deer = deerList[idx];      if (deer?.alive) return deer;      idx++;    }    return undefined;  };}
+    while (idx < deerList.length) {
+      const deer = deerList[idx];
+      if (deer?.alive) return deer;
+      idx++;
+    }
+    return undefined;
+  };
+}
 
 function pickSite(
   state: WorldState,
@@ -374,8 +398,7 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
           const deer = nextDeer();
           const poachChance = group.leaderTalked ? 0.1 : 0.25;
           if (deer && Math.random() < poachChance) {
-            deer.alive = false;
-            unindexEntityFromState(state, deer.id);
+            killWildGameForPoach(state, deer);
             pushFloat(state, deer.x, deer.y - 15, 'Hunted', '#f97316');
           }
           break;
@@ -1287,8 +1310,7 @@ export function tickRivalSettlements(state: WorldState, allAlive: Entity[]): voi
     } else if (rival.relationship === 'competitive') {
       const deer = nextDeer();
       if (deer && Math.random() < 0.5) {
-        deer.alive = false;
-        unindexEntityFromState(state, deer.id);
+        killWildGameForPoach(state, deer);
         pushFloat(state, deer.x, deer.y - 15, `${rival.name} hunted`, '#fb923c');
         logEvent(state, 'event', `${rival.name} hunters took game from the shared wilds`, rival.name);
       }

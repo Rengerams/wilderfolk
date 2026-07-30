@@ -14,8 +14,12 @@ import {
   getAbsoluteCalendarDay,
   isProductionTick,
   isWeekend,
+  isNearResidence,
   NIGHT_END,
 } from './dayCycle';
+import { BuildingType } from './gameTypes';
+import type { Building, Entity } from './gameTypes';
+import { OFFSCREEN_HUMAN_THROTTLE } from './simFocus';
 
 describe('day resolution (no loose magic numbers)', () => {
   it('keeps 24 clock hours as TICKS_PER_HOUR sub-steps', () => {
@@ -84,5 +88,35 @@ describe('isProductionTick (EJ-11)', () => {
   it('never fires mid-day (only day boundary)', () => {
     expect(isProductionTick(dayBoundary(7) + 1, daily)).toBe(false);
     expect(isProductionTick(dayBoundary(8) + TICKS_PER_HOUR, everyTwoDays)).toBe(false);
+  });
+});
+
+describe('day-length scaling (no 3× spam after 72 TPD)', () => {
+  it('off-screen human throttle matches ~8 clock hours at current day resolution', () => {
+    // Legacy: every 8 ticks when 1 tick = 1 hour. Now: 8 * TICKS_PER_HOUR.
+    expect(OFFSCREEN_HUMAN_THROTTLE).toBe(8 * TICKS_PER_HOUR);
+    expect(OFFSCREEN_HUMAN_THROTTLE).toBe(24);
+  });
+
+  it('isNearResidence accepts buildingById Map (O(1) path)', () => {
+    const house = {
+      id: 7,
+      type: BuildingType.House,
+      completed: true,
+      x: 100,
+      y: 100,
+      width: 40,
+      height: 40,
+    } as Building;
+    const human = {
+      residenceBuildingId: 7,
+      x: 110,
+      y: 110,
+    } as Entity;
+    const map = new Map<number, Building>([[7, house]]);
+    expect(isNearResidence(human, map)).toBe(true);
+    expect(isNearResidence(human, [house])).toBe(true);
+    human.x = 400;
+    expect(isNearResidence(human, map)).toBe(false);
   });
 });

@@ -98,7 +98,12 @@ export function findOverstaffedDonorBuilding(
   excludeBuildingId: number,
 ): Building | undefined {
   return jobBuildings
-    .filter((b) => b.id !== excludeBuildingId && countWorkersAtBuilding(humans, b.id) >= 2)
+    .filter(
+      (b) =>
+        b.id !== excludeBuildingId
+        && !isManualStaffBuilding(b.type) // never strip Church / Prison / Barracks for farms
+        && countWorkersAtBuilding(humans, b.id) >= 2,
+    )
     .sort((a, b) => countWorkersAtBuilding(humans, a.id) - countWorkersAtBuilding(humans, b.id))[0];
 }
 

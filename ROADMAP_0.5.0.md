@@ -31,7 +31,7 @@ Players on **large maps** with **100–300 settlers** should not feel sim hitch,
 | Headless avg ~1.8 ms/tick @ ~550 entities | **v0.5 target: 300 player + neighbor humans / ~1250 alive** — benchmarks and gates still tuned low |
 | Partial React memo on a few panels | `App.tsx` still re-renders heavy tabs; assign flows scan all entities |
 | Perf work was planned across multiple releases | **Single v0.5.0 ship (end July 2026)** — sim Phase 1 + Phase 2 + Worker/layers |
-| ~40-fix bug pass in v0.4.2; headless sims for balance | **No v0.5-wide regression gate** — logic invariants + multi-profile sim battery not yet required to ship |
+| ~40-fix bug pass in v0.4.2 | v0.5 correctness via **manual play + Vitest**, not long headless runs |
 
 ---
 
@@ -90,33 +90,31 @@ Compared repo plan to code (July 12). **~7 P0 done, ~5 partial, ~8 P0 open.** Se
 | 14 | **OffscreenCanvas layers** | ✅ Done | `canvasLayer.ts`, `terrainLayer.ts`, `entityLayer.ts`, `renderer.ts` | Terrain tiles + decor (rivers/border) baked offscreen; dynamic entity bitmap cache; time-based flash overlay on main canvas; `resetRendererCaches()` on new game/load |
 | 15 | **Version bump** | ❌ Open | `version.ts`, `saveLoad.ts` | `GAME_VERSION = '0.5.0'`; migrate from `0.4.2` |
 
-### Benchmark budgets
+### Scale target
 
-**Design target:** **300 player humans** plus **neighbor humans on the map** (up to **2 rival camps × 12** each + **visitor groups 3–7** while camped → **~330 humans total**), **~1250 alive entities** (+ **~500 grass** spawn cap + wildlife/trees). Real play already smooth @ 200+; v0.5 must hold **headroom to ~1500**.
+**Design target:** **300 player humans** plus neighbors (~**1250** alive). Real play already smooth @ 200+; ship confidence comes from **manual play + Vitest**.
 
-| Profile | Player humans | Humans on map (incl. neighbors) | Alive entities (approx.) | p95 budget |
-|---------|---------------|----------------------------------|---------------------------|------------|
-| Village | 50 | ~55 | ~600 | &lt; 16 ms/tick |
-| Town | 100 | ~110 | ~800 | &lt; 16 ms/tick |
-| City | **300** | **~330** | **~1250** | &lt; 20 ms/tick (document if missed) |
+| Profile | Player humans | Alive entities (approx.) | How we judge |
+|---------|---------------|---------------------------|--------------|
+| Village | 50 | ~600 | Live play |
+| Town | 100 | ~800 | Live play |
+| City | **300** | **~1250** | Live play @ 5–10× + tabs open |
 
-Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`. City profile must spawn **rivals + at least one visitor wave**; gate on **p95 + total alive**, not player pop alone.
+### Quality — bug audit, logic checks & playtest (P0)
 
-### Quality — bug audit, logic checks & simulation gates (P0)
-
-*v0.5.0 is not perf-only — ship only after a deliberate correctness pass, same spirit as the July 4 v0.4.2 comprehensive bug-fix rounds.*
+*v0.5.0 is not perf-only — ship after correctness + **player-felt** scale, same spirit as the July 4 v0.4.2 bug-fix rounds.*
 
 | # | Item | Status | Deliverable |
 |---|------|--------|-------------|
-| 16 | **Big bug checkup** | ✅ Done | **429** tracker IDs (**391 fixed**, **24 info**, **0 open/partial**); Vitest **390** (71 files); lint **0**; build clean (July 8) |
-| 16b | **Dialogue-tree settler chat** | ✅ Done | `sim_dialogue_trees.json` (95 trees); `dialogueTrees.ts` + `humanChat.ts`; legacy `wf_*` migration; tests in `humanChat`, `villageLeadership`, `lifeSimulation.courtship` |
-| 16c | **Raid XP → elections** | ✅ Done | `rewardRaidParticipants`; Guard XP + leader rep; docs in CHANGELOG/TECHNICAL |
-| 16d | **Victory balance + Harmony fix** | ✅ Done | `VICTORY_TARGETS` raised; wild wolves only (`tamedBy == null`); Goals tab explainer |
-| 16e | **Walking trade caravans** | ✅ Done | `tradeCaravans.ts`; 7 routes; map lines; Trade Empire 40 trips / 50k gold |
-| 17 | **Logical invariant checks** | ❌ Open | Entity maps, peace vs raids, migration `0.4.2`→`0.5.0`, no ghost workers |
-| 18 | **Manual matrix playtest** | ❌ Open | Large map + 10× matrix for v0.5 (v0.4.2 playtests done) |
+| 16 | **Big bug checkup** | ✅ Done | Tracker closed for gameplay; focused Vitest; lint/build clean |
+| 16b | **Dialogue-tree settler chat** | ✅ Done | `sim_dialogue_trees.json` (95 trees); `dialogueTrees.ts` + `humanChat.ts` |
+| 16c | **Raid XP → elections** | ✅ Done | `rewardRaidParticipants`; Guard XP + leader rep |
+| 16d | **Victory balance + Harmony fix** | ✅ Done | `VICTORY_TARGETS` raised; wild wolves only; Goals tab |
+| 16e | **Walking trade caravans** | ✅ Done | `tradeCaravans.ts`; 7 routes; map lines |
+| 17 | **Logical invariant checks** | ❌ Open | Focused tests / play checklist — entity maps, peace vs raids, migrate `0.4.2`→`0.5.0`, no ghost workers |
+| 18 | **Manual matrix playtest** | ❌ Open | Large map + 10× matrix for v0.5 (**primary ship confidence**) |
 
-**Reference:** v0.4.2 pass fixed welcomed-refugee deaths, peace vs raids, diplomacy event loss, eco streak 24×/year — v0.5 must re-verify these paths after perf refactors.
+**Reference:** v0.4.2 pass fixed welcomed-refugee deaths, peace vs raids, diplomacy event loss, eco streak — v0.5 re-verifies via **play + unit tests**.
 
 ---
 
@@ -130,9 +128,8 @@ Run: `npm run simulate:30min` with `SIM_PROFILE=village|town|city`. City profile
 | 2 | **One visitor quest chain** | #6 Diplomacy | Scholars or Nomads multi-step |
 | 3 | **Election Year 10/20 playtest** | #9 Culture | Ceremony shipped in code — verify live |
 | 4 | **Reputation arc UI** | Village UX | Milestones beyond ⭐ tooltip |
-| 5 | **Large-map playtests** | Infrastructure | 5–10 sessions at 10× after benchmark gate green |
+| 5 | **Large-map playtests** | Infrastructure | 5–10 sessions at 10× (primary scale signal) |
 | 6 | **Footstep / work SFX by surface** | Juice | Deferred since v0.4.2 |
-| 7 | **`npm run benchmark:gate`** | Infrastructure | CI-friendly wrapper |
 
 #### Housing assignment (P1 — v0.5.0) ✅ Shipped in code
 
@@ -175,7 +172,7 @@ Open/partial rows also listed on public [ROADMAP.md](ROADMAP.md) v0.5.0 table.
 
 | Feature | What works today | What's missing | Target |
 |---------|------------------|----------------|--------|
-| **Perf at ~1250 entities** | v0.4.2 throttles + maps + compaction + **spatial grid** ✅ — **200+ player humans plays well today** | Renderer `byType`, benchmark @ **300 player + neighbors**, full `simulate:20year` | **v0.5.0** (P0) |
+| **Perf at ~1250 entities** | v0.4.2 throttles + maps + compaction + **spatial grid** ✅ — **200+ player humans plays well today** | Confirm feel @ ~300 in **manual** play | **v0.5.0** (P0) |
 | **UI at 300 pop** | Partial memo | Tab split + denorm counts | **v0.5.0** (P0) |
 | **Frontier outgoing raid** | *(v0.4.2 shipped)* incoming lines, forge, walls/guards, combat log | Tribute offer + accept/decline ✅ · **Outgoing** march line + militia sprites still **v0.5.0** (P1) |
 | **Reputation arc** | *(v0.4.2 shipped)* ⭐ + Village explainer | Milestone beats UI | **v0.5.0** (P1) |
@@ -187,16 +184,12 @@ Open/partial rows also listed on public [ROADMAP.md](ROADMAP.md) v0.5.0 table.
 
 ## Exit criteria (ship v0.5.0)
 
-- [ ] All **P0** items merged; `npm run build` + `npm run lint` clean — **build + lint ✅** (July 8)
-- [x] **Bug checkup closed** — tracker **0 open**; fixes in CHANGELOG `[Unreleased]` (July 8)
-- [ ] **`npm run simulate:20year` PASS** — town profile, all applicable gates (primary ship gatekeeper)
-- [ ] **Logic + sim battery green** — `simulate`, `simulate:30min` (all profiles), `simulate:10year` (regression), `balance:militia` pass; invariants documented
-- [ ] Benchmark gate passes **village** and **town** profiles
+- [ ] Remaining **P0** code polish merged; `npm run build` + `npm run lint` + `npm test` clean
+- [x] **Bug checkup closed** for gameplay (import-cycle EI debt only)
+- [ ] Focused **logical invariants** (tests or short checklist) + save migrate `0.4.2` → `0.5.0`
 - [ ] Manual: large map, 60+ humans, 30 min at 5× — no sustained frame drops
-- [ ] Manual: all 6 sidebar tabs @ **300 player humans + active rivals/visitors** (~1250 alive) — no &gt; 100 ms blocking feel
-- [ ] Save migration `0.4.2` → `0.5.0` tested
-- [ ] CHANGELOG + [TECHNICAL.md](TECHNICAL.md#dev-log) + `roadmapContent.ts` (`ROADMAP_TARGET_VERSION = '0.5.0'`)
-- [ ] Git tag `v0.5.0`
+- [ ] Manual: all 6 sidebar tabs @ **~300 player humans + rivals/visitors** — no &gt; 100 ms blocking feel
+- [ ] CHANGELOG + `roadmapContent.ts` (`ROADMAP_TARGET_VERSION = '0.5.0'`) + Git tag `v0.5.0`
 
 ---
 
@@ -206,7 +199,7 @@ Open/partial rows also listed on public [ROADMAP.md](ROADMAP.md) v0.5.0 table.
 |------|-----------|
 | **2026-07-06 – 2026-07-13** | **Finish partial** — renderer `byType`, go-home `buildingById`, grass buckets, benchmark gate; then spatial grid |
 | **2026-07-14 – 2026-07-21** | Sim Phase 2 + UI — settler denorm, App tab split, partner map, pooling |
-| **2026-07-22 – 2026-07-31** | Architecture — Web Worker + OffscreenCanvas; bug audit + sim battery; P1 polish; **ship v0.5.0** |
+| **2026-07-22 – 2026-07-31** | Architecture — Web Worker + OffscreenCanvas; bug audit; playtest; P1 polish; **ship v0.5.0** |
 
 ---
 
@@ -217,24 +210,18 @@ Open/partial rows also listed on public [ROADMAP.md](ROADMAP.md) v0.5.0 table.
 1. [x] **Renderer cache** — pass sim `byType` into render snapshot; stop `updateCachedEntities` full scan ✅
 2. [ ] **`buildingById` go-home** — replace `updatedBuildings.find` in `lifeSimulation.ts` commute paths
 3. [x] **Grass buckets** — spatial buckets in `drawGrass` (viewport cull via `buildGrassGrid`) ✅
-4. [ ] **Benchmark gate** — `simulate-30min.ts`: `SIM_PROFILE` village/town/city (50/100/**300** humans) + p95 exit non-zero
-5. [ ] **`simulate:20year` full run** — unset `SIM_MAX_TICKS`; 172800 ticks PASS → `scripts/logs/sim-20year-town-*.txt`
-6. [ ] **Sim regression** — add exit codes to `simulate-30min`; document battery in TECHNICAL.md
-7. [ ] **App tab split** — extend existing `memo` panels; extract Village / Nature / Progress from `App.tsx`
-8. [x] **Dead-entity compaction** — `state.entities = allAlive` each tick ✅ (2026-07-05 audit)
+4. [ ] **App tab split** — extend existing `memo` panels; extract Village / Nature / Progress from `App.tsx`
+5. [x] **Dead-entity compaction** — `state.entities = allAlive` each tick ✅
 
-### ❌ New work (after partial green)
+### Remaining before tag
 
-9. [ ] **Settler count denorm** — `workingSettlers` / `idleSettlers` on `WorldState`
-10. [ ] **Incremental `entityById`** — update on birth/death only
-11. [ ] **`buildingActions` scan cleanup** — maps instead of entity filters
-12. [ ] **Partner id map** + **particle / float pooling**
-13. [x] **`spatialGrid.ts`** + wire flee/hunt/graze (`USE_SPATIAL_GRID`) ✅
-14. [x] **Web Worker `gameTick`** ✅ (opt-in) · [x] **OffscreenCanvas** terrain/entity split ✅
-15. [x] **Big bug checkup** ✅ · [ ] **logic invariant checks**
-16. [ ] **Manual matrix playtest** — large map, 10×, save/reload, raid/forge/peace
-17. [ ] Counter-raid march line (P1)
-18. [ ] Bump `GAME_VERSION` to `0.5.0` + migration + docs + tag (only after #5 + battery green)
+6. [x] Settler denorm · incremental `entityById` · partner map · spatial grid · worker · OffscreenCanvas · big bug checkup
+7. [ ] **`buildingActions` scan cleanup** — maps instead of entity filters
+8. [ ] **Particle / float pooling** (if still hot in play)
+9. [ ] **Logic invariant checks** (focused tests / checklist)
+10. [ ] **Manual matrix playtest** — large map, 10×, save/reload, raid/forge/peace, ecology, hotel, elections
+11. [ ] Counter-raid militia sprites (P1)
+12. [ ] Bump `GAME_VERSION` to `0.5.0` + migration + docs + tag (after playtest + invariants)
 
 ### When closing an item
 

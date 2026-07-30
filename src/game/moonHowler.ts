@@ -15,7 +15,7 @@ import {
   NIGHT_END,
   NIGHT_START,
 } from './dayCycleConstants';
-import { syncResidenceOccupants } from './dayCycle';
+import { killHuman, syncResidenceOccupants, TICKS_PER_HOUR } from './dayCycle';
 import { isPlayerHuman } from './playerHuman';
 import { buildEntityByType } from './simFocus';
 import {
@@ -55,7 +55,7 @@ export const MOON_HOWLER_CHURCH_CURE_CHANCE = MOON_HOWLER_OUTCOME_CURE;
 export const MOON_HOWLER_PRIEST_KILL_CHANCE =
   MOON_HOWLER_OUTCOME_KILL_PRIEST / (MOON_HOWLER_OUTCOME_KILL_PRIEST + MOON_HOWLER_OUTCOME_FLEE);
 
-/** How often (in-game hours / ticks) a priest may attempt while the night window is open. */
+/** How often (in-game clock hours) a priest may attempt while the night window is open. */
 export const MOON_HOWLER_EXORCISM_INTERVAL_HOURS = 2;
 
 export type MoonHowlerRiteOutcome = 'cured' | 'priest_killed' | 'priest_fled';
@@ -443,7 +443,9 @@ export function tryMoonHowlerChurchCures(
   if (priestCount <= 0) return empty('no_priest');
 
   const last = state.lastMoonHowlerExorcismTick ?? -9999;
-  if (state.tick - last < MOON_HOWLER_EXORCISM_INTERVAL_HOURS) {
+  // INTERVAL is clock hours — must multiply by ticks-per-hour (was compared raw → rites every 2 ticks)
+  const riteCooldownTicks = MOON_HOWLER_EXORCISM_INTERVAL_HOURS * TICKS_PER_HOUR;
+  if (state.tick - last < riteCooldownTicks) {
     return empty('rate_limited');
   }
 
@@ -537,24 +539,8 @@ export function tryMoonHowlerChurchCures(
       howlerName,
       priestName,
     );
-    priest.alive = false;
-    entityById.delete(priest.id);
-    for (const b of buildings) {
-      if (b.occupants.includes(priest.id)) {
-        b.occupants = b.occupants.filter((id) => id !== priest.id);
-      }
-    }
-    priest.homeBuildingId = undefined;
-    priest.residenceBuildingId = undefined;
-    priest.prisonBuildingId = undefined;
-    if (priest.partnerId != null) {
-      const spouse = entityById.get(priest.partnerId);
-      if (spouse?.alive && spouse.partnerId === priest.id) {
-        spouse.partnerId = undefined;
-        spouse.relationshipStatus = spouse.pregnant ? 'expecting' : 'single';
-      }
-      priest.partnerId = undefined;
-    }
+    // Full death path — grief, affair cleanup, dialogue, buildings (not hand-rolled partial)
+    killHuman(priest, buildings, entityById, state.tick);
     createDeathParticles(state, priest.x, priest.y, '#8B0000', 10);
     impulseScreenShake(state, 5);
     howler.energy = Math.min(howler.maxEnergy, howler.energy + 120);

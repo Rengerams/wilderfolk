@@ -2,8 +2,9 @@
  * gameTick — thin orchestrator: calendar + TickContext + 4 layers + post cleanup.
  *
  * Exactly four layer files own sim work:
- *   tickLayerRealtime · tickLayerSystems · tickLayerSocial · tickLayerDaily
+ *   tickLayerRealtime · tickLayerSystems · tickLayerAssign · tickLayerDaily
  * Domain helpers (tickHumans, etc.) live in feature modules, not extra tick* files.
+ * Chat/courtship = Realtime; house/job fill = Assign (not “social”).
  */
 import type {
   WorldState, Entity, Building,
@@ -45,7 +46,7 @@ import type { TickContext } from './lifeSimulation';
 import { buildHuntTargetByPreyIndex } from './lifeSimulation';
 import { tickLayerRealtime } from './tickLayerRealtime';
 import { tickLayerSystems, LAYER_SYSTEMS_INTERVAL } from './tickLayerSystems';
-import { tickLayerSocial, LAYER_SOCIAL_INTERVAL } from './tickLayerSocial';
+import { tickLayerAssign, LAYER_ASSIGN_INTERVAL } from './tickLayerAssign';
 import { tickLayerDaily, tickWinterHeating } from './tickLayerDaily';
 import {
   USE_SPATIAL_GRID,
@@ -194,8 +195,8 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     tickLayerSystems(state, ctx);
   }
 
-  if (state.tick % LAYER_SOCIAL_INTERVAL === 0) {
-    tickLayerSocial(state, ctx);
+  if (state.tick % LAYER_ASSIGN_INTERVAL === 0) {
+    tickLayerAssign(state, ctx);
   }
 
   const allAlive: Entity[] = [];
@@ -230,8 +231,8 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.workingSettlers = workforceCounts.working;
   state.idleSettlers = workforceCounts.idle;
 
-  // Victory scan is O(entities) for harmony wolves — every social pulse / day, not every tick
-  if (state.tick % LAYER_SOCIAL_INTERVAL === 0 || state.tick % TICKS_PER_DAY === 0) {
+  // Victory scan is O(entities) for harmony wolves — every assign pulse / day, not every tick
+  if (state.tick % LAYER_ASSIGN_INTERVAL === 0 || state.tick % TICKS_PER_DAY === 0) {
     const preVictoryState: WorldState = {
       ...state,
       entities: allAlive,

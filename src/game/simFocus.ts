@@ -15,8 +15,12 @@ export interface SimulationFocus {
 /** Extra margin around the viewport in world units where AI still runs. */
 const FOCUS_MARGIN = 120;
 
-/** How often off-screen humans run full AI (every N ticks). */
-export const OFFSCREEN_HUMAN_THROTTLE = 8;
+/**
+ * How often off-screen humans run full AI (every N ticks).
+ * Keep in sync with `TICKS_PER_HOUR` in dayCycle (3 → 24 ticks ≈ 8 clock hours).
+ * Do not import dayCycle here — avoids circular init (simFocus ↔ dayCycle).
+ */
+export const OFFSCREEN_HUMAN_THROTTLE = 24;
 
 /** How often off-screen wildlife runs full AI (every N wildlife-layer calls). */
 export const OFFSCREEN_WILDLIFE_THROTTLE = 8;
