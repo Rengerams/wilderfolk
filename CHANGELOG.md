@@ -4,6 +4,26 @@
 
 **Targeting v0.5.0** (end July 2026) — see [ROADMAP_0.5.0.md](ROADMAP_0.5.0.md).
 
+### Fixed — Batch EK sim audit + forge tier 5 (July 30, 2026)
+
+Ship-facing sim correctness and late Defense forge gear. **Pushed** `main` through `92ff9ec` (after F2/F3 prison meals).
+
+#### Sim bugs (Batch EK — high/med ship list)
+- **Moon Howlers** — job/home restore without over-cap slots; prison sentence survives transform/save; new-curse forces outside; form resyncs on load; nested pregnancy scale; cure resyncs housing; howl cadence fixed for systems layer
+- **Raids** — counter-raid cancels paired incoming march; lost raids kill settlers with correct “raiding” death logs; immigration respects pop cap
+- **Housing** — occupancy map once per assign pass; partners move minors with the household; orphans reassigned on death; living father before grandmother for custody
+- **Life / hunt** — off-screen meals player-only; prison sentences use `ticksForDays`; dead prey cleaned same tick; guard patrol / leisure day-scaled
+- **Copy / config** — full-moon night cure copy; Mill/Taming Post honesty; age ladder docs; housewife job removed
+
+#### Forge & war prep
+- **Tier 5 Defense** — Iron Swords, Scale Mail, Bastion Towers (research → staffed Blacksmith forge)
+- Militia tiers **replace** lower gear (stone → iron → sword; wood → iron → scale); tower ballistae boost watchtower barricades
+- **Forge UX** — progression order, multi-smith pace, single layout toast on start/block/finish, Village Armament checklist + Open Blacksmith for all forge steps
+
+#### Still open (not this pass)
+- **EK-D5** (partial) — outgoing success gold still uncapped
+- Older audit batches **Q / S / V** in the private bug tracker
+
 ### Added — living valley & clearer days (July 30, 2026)
 
 A big playability and presentation pass: the map reads as a place, the day has room to breathe, and the village’s people and ecology show up more clearly on screen.
