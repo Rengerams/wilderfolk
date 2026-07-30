@@ -850,6 +850,9 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   if (!state.pendingRaidEvents) state.pendingRaidEvents = [];
   if (rival.population <= 0) return;
   if (state.pendingRaidEvents.some((r) => r.rivalId === rival.id)) return;
+  // Don't stack an incoming march while our war-band is still at their camp (EK-D2).
+  // Strike-back after a failed outgoing still works once that outgoing event is removed.
+  if ((state.pendingOutgoingRaidEvents ?? []).some((e) => e.rivalId === rival.id)) return;
   if (rival.raidCooldownDays > 0) return;
   if (isRivalAtPeace(rival)) return;
   if (rival.relationship !== 'tense' && rival.relationship !== 'competitive') return;
@@ -949,6 +952,16 @@ export function respondToRaidEvent(
   const defenderStrength = getMilitiaStrength(state, allAlive);
   const remove = () => {
     state.pendingRaidEvents = state.pendingRaidEvents.filter((e) => e.id !== eventId);
+    // EK-D2: resolving the gate threat recalls any paired war-band still marching on them.
+    if (cancelPendingOutgoingRaidsForRival(state, event.rivalId)) {
+      logEvent(
+        state,
+        'combat',
+        `Your war-band broke off the march on ${event.rivalName} — home front resolved`,
+        event.rivalName,
+        'outgoing_raid',
+      );
+    }
   };
 
   if (choiceId === 'payoff') {
@@ -1211,6 +1224,17 @@ export function respondToOutgoingRaidEvent(
   const verb = event.isCounterRaid ? 'Counter-raid' : 'Raid';
   const remove = () => {
     state.pendingOutgoingRaidEvents = state.pendingOutgoingRaidEvents!.filter((e) => e.id !== eventId);
+    // EK-D2: finishing our march cancels any paired incoming still live for this rival.
+    // Call before strike-back maybeQueueRaid so a fresh counter-march is not cancelled.
+    if (cancelPendingRaidsForRival(state, event.rivalId)) {
+      logEvent(
+        state,
+        'combat',
+        `${event.rivalName}'s war-band broke off — your campaign resolved the front`,
+        event.rivalName,
+        'incoming_raid',
+      );
+    }
   };
 
   if (choiceId === 'accept_payoff') {
@@ -1242,8 +1266,9 @@ export function respondToOutgoingRaidEvent(
   if (choiceId === 'decline_payoff' || choiceId === 'fight') {
     if (choiceId === 'decline_payoff' && event.rivalResponse !== 'payoff_offer') return state;
     if (choiceId === 'fight' && event.rivalResponse !== 'fight') return state;
-    resolveOutgoingRaidCombat(state, rival, event);
+    // Remove outgoing first so failed-raid strike-back (maybeQueueRaid) is not blocked (EK-D2).
     remove();
+    resolveOutgoingRaidCombat(state, rival, event);
     return state;
   }
 
@@ -1264,11 +1289,26 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
 
   if (!state.pendingOutgoingRaidEvents) state.pendingOutgoingRaidEvents = [];
 
+  // EK-D2: detect counter-raid first (before cancel clears pending incoming).
+  const isCounterRaid = isCounterRaidOnRival(state, rivalId);
+  const { verb } = isCounterRaid
+    ? { verb: 'Counter-raid' }
+    : getOutgoingRaidActionLabel(state, rivalId);
+  if (isCounterRaid) {
+    if (cancelPendingRaidsForRival(state, rivalId)) {
+      logEvent(
+        state,
+        'combat',
+        `${rival.name}'s war-band broke off — you marched out to meet them`,
+        rival.name,
+        'incoming_raid',
+      );
+    }
+  }
+
   state.resources.food -= raidFoodCost;
   const attackerStrength = getMilitiaStrength(state, state.entities);
   const rivalDefense = getRivalDefenseStrength(rival);
-  const isCounterRaid = isCounterRaidOnRival(state, rivalId);
-  const { verb } = getOutgoingRaidActionLabel(state, rivalId);
   const rivalResponse = rollRivalOutgoingRaidResponse(attackerStrength, rivalDefense, rival);
   const payoffLoot = rollRivalPayoffOffer(rival, attackerStrength, rivalDefense);
   const marchDistancePx = getCampDistancePixels(state, state.buildings, rival);
