@@ -50,6 +50,7 @@ import {
   setHumanBirthFromAge,
   syncHumanAgeFromCalendar,
   PER_TICK_RATE_SCALE,
+  TICKS_PER_HOUR,
   HUMAN_DAILY_ILLNESS_CHANCE,
   HUMAN_DAILY_PREGNANCY_CHANCE_HOME,
   HUMAN_DAILY_PREGNANCY_CHANCE_NEAR,
@@ -271,15 +272,22 @@ function markGrassDead(ctx: TickContext, grass: Entity): void {
 function markWildlifeDead(
   ctx: TickContext,
   entity: Entity,
-  wildlifeDeathsThisTick: Set<number>,
+  wildlifeDeathsThisTick?: Set<number>,
   tick?: number,
 ): void {
+  if (!entity.alive) return;
   if (isKillableSettlerEntity(entity)) {
     killHuman(entity, ctx.updatedBuildings, ctx.entityById, tick);
   } else {
     entity.alive = false;
     ctx.entityById.delete(entity.id);
-    wildlifeDeathsThisTick.add(entity.id);
+    wildlifeDeathsThisTick?.add(entity.id);
+  }
+  // Drop from byType immediately so same-tick hunters / AI fallbacks skip corpse.
+  const bucket = ctx.byType[entity.type];
+  if (bucket) {
+    const idx = bucket.indexOf(entity);
+    if (idx >= 0) bucket.splice(idx, 1);
   }
 }
 
@@ -1921,7 +1929,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const anchor = getPlayerCampCenter(state, updatedBuildings);
       if (anchor) {
         const radius = 95 + (entity.id % 6) * 10;
-        const angle = state.tick * 0.028 + entity.id * 2.1;
+        // Legacy 0.028 rad/tick assumed 1 tick = 1 hour; scale so patrol speed is calendar-stable.
+        const angle = state.tick * 0.028 * PER_TICK_RATE_SCALE + entity.id * 2.1;
         const tx = anchor.x + Math.cos(angle) * radius;
         const ty = anchor.y + Math.sin(angle) * radius * 0.55;
         const pdx = tx - entity.x;
@@ -2013,8 +2022,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
       if (closestPrey?.alive && closestDist < config.size + closestPrey.size) {
         const preyId = closestPrey.id;
-        closestPrey.alive = false;
-        entityById.delete(preyId);
+        markWildlifeDead(ctx, closestPrey);
         clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId);
         createDeathParticles(state, closestPrey.x, closestPrey.y, '#8a2a2a', 10);
         syncEntityGrids(ctx, closestPrey);
@@ -2680,7 +2688,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     } else if (allowFreeRoam && !suppressIdle && isPlayerHuman(entity) && !entity.isJuvenile) {
       const tick = state.tick;
       const absDay = getAbsoluteCalendarDay(tick);
-      const leisureSlot = Math.floor(tick / 80 + entity.id * 3);
+      // Legacy slot was 80 ticks (~3.3 days at 24 tpd); scale with day length.
+      const leisureSlotPeriod = 80 * TICKS_PER_HOUR;
+      const leisureSlot = Math.floor(tick / leisureSlotPeriod + entity.id * 3);
       const daySpice = Math.floor(personDayRoll(entity.id, tick, 401 + leisureSlot) * 12);
       const quietBias = personDayRoll(entity.id, tick, 202) < 0.35;
       let leisureKind = (leisureSlot * 17 + entity.id * 31 + absDay * 13 + daySpice) % 12;
@@ -3428,9 +3438,13 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             const victimId = caughtPrey.id;
             if (isHumanPrey) {
               killHuman(caughtPrey, updatedBuildings, entityById, state.tick);
+              const humanBucket = byType[caughtPrey.type];
+              if (humanBucket) {
+                const hIdx = humanBucket.indexOf(caughtPrey);
+                if (hIdx >= 0) humanBucket.splice(hIdx, 1);
+              }
             } else {
-              caughtPrey.alive = false;
-              entityById.delete(victimId);
+              markWildlifeDead(ctx, caughtPrey, wildlifeDeathsThisTick, state.tick);
             }
             clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId);
             syncEntityGrids(ctx, caughtPrey);
@@ -3581,8 +3595,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           );
           if (assistPrey?.alive) {
             const preyId = assistPrey.id;
-            assistPrey.alive = false;
-            entityById.delete(preyId);
+            markWildlifeDead(ctx, assistPrey, wildlifeDeathsThisTick, state.tick);
             clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId);
             syncEntityGrids(ctx, assistPrey);
             createDeathParticles(state, assistPrey.x, assistPrey.y, '#8a2a2a', 6);
