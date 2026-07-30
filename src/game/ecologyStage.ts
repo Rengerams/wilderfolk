@@ -227,8 +227,8 @@ export function computeValleyEcologySnapshot(state: WorldState): ValleyEcologySn
       break;
     case 'strained':
       playerSummary = primaryView
-        ? `Be careful: ${primaryView.label.toLowerCase()}.`
-        : 'The valley is under strain — check Nature for details.';
+        ? `The valley is strained — ${primaryView.label.toLowerCase()}. Hunts may feel thinner; this is the wild chain, not bad luck.`
+        : 'The valley is under strain — game and meadows are tighter. Check Nature; thin hunts are ecology, not pure chance.';
       break;
     case 'damaged':
       playerSummary = primaryView
