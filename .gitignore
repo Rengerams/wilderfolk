@@ -35,6 +35,9 @@ private/
 # Local agent/design specs (not for GitHub)
 docs/superpowers/
 
+# Deep Code CLI local config + skills (not project files)
+.deepcode/
+
 # Local-only session transcript (not for GitHub)
 Wilderfolk.txt
 
