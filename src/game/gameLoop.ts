@@ -27,7 +27,12 @@ import {
  * (was 2 ticks/s × 24 ticks ≈ 12s when 1 tick = 1 hour).
  */
 const BASE_TICKS_PER_SECOND = 3;
-const UI_UPDATE_MS = 100;
+/**
+ * React UI publish throttle (ms). Sim ticks notify listeners immediately;
+ * this only paces periodic non-tick polls. 250ms keeps App re-render load low
+ * (clicks/commands are never delayed by this).
+ */
+const UI_UPDATE_MS = 250;
 const MAX_CATCHUP_STEPS = 12;
 
 export type { WorkerCommand } from './simWorker/commands';
@@ -119,6 +124,13 @@ export class GameLoop {
   /** Cached 2d context — getContext every frame is not free. */
   private canvasCtx: CanvasRenderingContext2D | null = null;
   private canvasCtxFor: HTMLCanvasElement | null = null;
+  /** Cached canvas CSS size — avoids getBoundingClientRect layout reads per frame. */
+  private layoutSize = { w: 0, h: 0 };
+  private layoutCanvas: HTMLCanvasElement | null = null;
+  private resizeObserver: ResizeObserver | null = null;
+  /** Cached render snapshot — rebuilt only when sim/view inputs change. */
+  private snapshotCache: import('./renderSnapshot').RenderSnapshot | null = null;
+  private snapshotKey = '';
 
   constructor(world: WorldState, view: ViewState, getCanvas: () => HTMLCanvasElement | null) {
     resetRendererCaches();
@@ -455,10 +467,68 @@ export class GameLoop {
     this.lastPausedSentToWorker = null;
     this.canvasCtx = null;
     this.canvasCtxFor = null;
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+    this.layoutCanvas = null;
+    this.layoutSize = { w: 0, h: 0 };
+    this.snapshotCache = null;
+    this.snapshotKey = '';
   }
 
   getWorldAndView(): { world: WorldState; view: ViewState } {
     return { world: this.world, view: this.view };
+  }
+
+  /** Keep the canvas CSS size cached — rebinds the observer when the canvas changes. */
+  private ensureCanvasSizeTracking(): void {
+    const canvas = this.getCanvas();
+    if (!canvas || canvas === this.layoutCanvas) return;
+    this.layoutCanvas = canvas;
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      this.layoutSize = { w: Math.floor(entry.contentRect.width), h: Math.floor(entry.contentRect.height) };
+    });
+    this.resizeObserver.observe(canvas);
+  }
+
+  /** Cheap fingerprint of everything renderGame reads — skip snapshot rebuild when unchanged. */
+  private snapshotDirtyKey(): string {
+    const w = this.world;
+    const v = this.view;
+    const ghost = v.buildGhost;
+    const strip = v.buildStripPreview;
+    return [
+      w.tick,
+      w.paused ? 1 : 0,
+      w.season,
+      w.floatingTexts.length,
+      w.bigNews.length,
+      w.deathParticles.length,
+      w.pendingRaidEvents?.length ?? 0,
+      w.pendingOutgoingRaidEvents?.length ?? 0,
+      w.visitorGroups.length,
+      w.buildings.length,
+      w.entities.length,
+      v.camera.x.toFixed(1),
+      v.camera.y.toFixed(1),
+      v.camera.zoom.toFixed(3),
+      v.screenShake.toFixed(1),
+      v.selectedEntityId ?? '',
+      v.selectedBuildingId ?? '',
+      v.hoveredBuildingId ?? '',
+      v.buildMode ?? '',
+      v.buildRotation ?? 0,
+      v.favoriteEntityId ?? '',
+      v.highlightedCampKey ?? '',
+      v.selectedCampKey ?? '',
+      v.showGrid ? 1 : 0,
+      v.showPaths ? 1 : 0,
+      ghost ? `${ghost.x.toFixed(0)},${ghost.y.toFixed(0)},${ghost.valid ? 1 : 0}` : '',
+      strip ? `${strip.segments.length}|${strip.rotation}` : '',
+      this.renderSoA ? 'soa' : 'obj',
+    ].join('|');
   }
 
   private frame = (time: number) => {
@@ -539,9 +609,16 @@ export class GameLoop {
   private draw(): void {
     const canvas = this.getCanvas();
     if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const layoutW = canvas.offsetWidth || canvas.clientWidth || rect.width;
-    const layoutH = canvas.offsetHeight || canvas.clientHeight || rect.height;
+    this.ensureCanvasSizeTracking();
+    let layoutW = this.layoutSize.w;
+    let layoutH = this.layoutSize.h;
+    if (layoutW <= 0 || layoutH <= 0) {
+      // First frame(s) before ResizeObserver fires — measure once and cache.
+      const rect = canvas.getBoundingClientRect();
+      layoutW = canvas.offsetWidth || canvas.clientWidth || rect.width;
+      layoutH = canvas.offsetHeight || canvas.clientHeight || rect.height;
+      this.layoutSize = { w: Math.floor(layoutW), h: Math.floor(layoutH) };
+    }
     if (layoutW <= 0 || layoutH <= 0) return;
 
     if (this.canvasCtxFor !== canvas || !this.canvasCtx) {
@@ -566,13 +643,19 @@ export class GameLoop {
       ctx.imageSmoothingEnabled = false;
     }
 
-    const snapshot = buildRenderSnapshot(this.world, this.view, {
-      renderSoA: this.renderSoA,
-      renderMetaBySlot: this.renderMetaBySlot ?? undefined,
-      catalog: this.catalog,
-      scentGrid: this.workerEnabled ? null : this.world.scentGrid,
-      scentReader: this.scentReader,
-    });
+    const dirtyKey = this.snapshotDirtyKey();
+    let snapshot = this.snapshotCache;
+    if (!snapshot || dirtyKey !== this.snapshotKey) {
+      snapshot = buildRenderSnapshot(this.world, this.view, {
+        renderSoA: this.renderSoA,
+        renderMetaBySlot: this.renderMetaBySlot ?? undefined,
+        catalog: this.catalog,
+        scentGrid: this.workerEnabled ? null : this.world.scentGrid,
+        scentReader: this.scentReader,
+      });
+      this.snapshotCache = snapshot;
+      this.snapshotKey = dirtyKey;
+    }
     renderGame(ctx, snapshot, layoutW, layoutH);
     if (this.world.screenShakeImpulse > 0) {
       clearScreenShakeImpulse(this.world);

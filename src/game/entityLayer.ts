@@ -7,10 +7,23 @@ import {
   type CanvasContext2d,
   type CanvasSurface,
 } from './canvasLayer';
+import type { Camera } from './gameTypes';
 
-/** Viewport cache key precision — sub-pixel camera drift should not invalidate layers. */
-const LAYER_KEY_XY_DIGITS = 1;
-const LAYER_KEY_ZOOM_DIGITS = 3;
+/**
+ * Dynamic world-entity bitmap cache.
+ *
+ * The layer is painted relative to an **anchor camera** into a surface padded by
+ * {@link LAYER_MARGIN_PX} on every side. While the live camera stays inside that
+ * margin (panning without zoom), the cached bitmap is reused and just blitted at
+ * an offset — no per-frame rebake. Rebake happens only when: the sim tick / UI
+ * state changes, the camera leaves the margin, the zoom changes, or the surface
+ * must resize.
+ */
+
+/** Padding (px) around the viewport so small pans reuse the cached layer. */
+const LAYER_MARGIN_PX = 160;
+/** Zoom change beyond this triggers a rebake (we blit without scaling). */
+const LAYER_ANCHOR_ZOOM_EPSILON = 1e-4;
 
 export interface EntityLayerCache {
   surface: CanvasSurface;
@@ -18,20 +31,25 @@ export interface EntityLayerCache {
   key: string;
   width: number;
   height: number;
+  /** Camera used when painting the layer (world coords of its center). */
+  anchorX: number;
+  anchorY: number;
+  anchorZoom: number;
+  margin: number;
 }
 
 let entityLayerCache: EntityLayerCache | null = null;
 
-/** Cache key for the dynamic world entity bitmap (invalidates on tick, camera, or UI build state). */
+/**
+ * Cache key for the dynamic world entity bitmap.
+ * Camera position is intentionally NOT part of the key — panning within the
+ * margin reuses the layer via {@link entityLayerAnchorMoved} instead.
+ */
 export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: number): string {
-  const cam = state.camera;
   const ghost = state.buildGhost;
   const strip = state.buildStripPreview;
   return [
     state.tick,
-    cam.x.toFixed(LAYER_KEY_XY_DIGITS),
-    cam.y.toFixed(LAYER_KEY_XY_DIGITS),
-    cam.zoom.toFixed(LAYER_KEY_ZOOM_DIGITS),
     cw,
     ch,
     state.hourOfDay,
@@ -50,7 +68,16 @@ export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: numbe
     state.pendingOutgoingRaidEvents?.length ?? 0,
     state.visitorGroups.length,
     state.buildings.length,
+    state.entities.length,
   ].join('|');
+}
+
+/** Surface dimensions for a viewport of cw×ch (padded on all sides). */
+function layerSize(cw: number, ch: number): { w: number; h: number } {
+  return {
+    w: Math.max(1, Math.floor(cw + LAYER_MARGIN_PX * 2)),
+    h: Math.max(1, Math.floor(ch + LAYER_MARGIN_PX * 2)),
+  };
 }
 
 export function entityLayerNeedsRebuild(
@@ -59,10 +86,19 @@ export function entityLayerNeedsRebuild(
   cw: number,
   ch: number,
 ): boolean {
+  const { w, h } = layerSize(cw, ch);
   if (!cache) return true;
-  const w = Math.max(1, Math.floor(cw));
-  const h = Math.max(1, Math.floor(ch));
   return cache.key !== key || cache.width !== w || cache.height !== h;
+}
+
+/** True when the live camera has moved outside the cached layer's margin (or zoomed). */
+export function entityLayerAnchorMoved(cache: EntityLayerCache, cam: Camera, cw: number, ch: number): boolean {
+  const { w, h } = layerSize(cw, ch);
+  if (cache.width < w || cache.height < h) return true;
+  if (Math.abs(cam.zoom - cache.anchorZoom) > LAYER_ANCHOR_ZOOM_EPSILON) return true;
+  const dxPx = (cam.x - cache.anchorX) * cam.zoom;
+  const dyPx = (cam.y - cache.anchorY) * cam.zoom;
+  return Math.abs(dxPx) > cache.margin || Math.abs(dyPx) > cache.margin;
 }
 
 export function disposeEntityLayerCache(): void {
@@ -71,13 +107,15 @@ export function disposeEntityLayerCache(): void {
   entityLayerCache = null;
 }
 
-/** Acquire (or resize) the entity offscreen layer and clear it for painting. */
-export function beginEntityLayerPaint(key: string, cw: number, ch: number): EntityLayerCache {
-  const w = Math.max(1, Math.floor(cw));
-  const h = Math.max(1, Math.floor(ch));
+/** Acquire (or resize) the padded entity offscreen layer, cleared for painting. */
+export function beginEntityLayerPaint(key: string, cw: number, ch: number, cam: Camera): EntityLayerCache {
+  const { w, h } = layerSize(cw, ch);
 
   if (entityLayerCache && entityLayerCache.width === w && entityLayerCache.height === h) {
     entityLayerCache.key = key;
+    entityLayerCache.anchorX = cam.x - LAYER_MARGIN_PX / cam.zoom;
+    entityLayerCache.anchorY = cam.y - LAYER_MARGIN_PX / cam.zoom;
+    entityLayerCache.anchorZoom = cam.zoom;
     clearCanvasSurface(entityLayerCache.ctx, w, h);
     return entityLayerCache;
   }
@@ -86,7 +124,17 @@ export function beginEntityLayerPaint(key: string, cw: number, ch: number): Enti
   const surface = createCanvasSurface(w, h);
   const ctx = getCanvasContext(surface);
   clearCanvasSurface(ctx, w, h);
-  entityLayerCache = { surface, ctx, key, width: w, height: h };
+  entityLayerCache = {
+    surface,
+    ctx,
+    key,
+    width: w,
+    height: h,
+    anchorX: cam.x - LAYER_MARGIN_PX / cam.zoom,
+    anchorY: cam.y - LAYER_MARGIN_PX / cam.zoom,
+    anchorZoom: cam.zoom,
+    margin: LAYER_MARGIN_PX,
+  };
   return entityLayerCache;
 }
 
@@ -98,9 +146,13 @@ export function commitEntityLayerPaint(key: string): void {
   if (entityLayerCache) entityLayerCache.key = key;
 }
 
+/** Blit the cached layer onto the target, translating for the current camera. */
 export function paintEntityLayerTo(
   target: CanvasRenderingContext2D,
   cache: EntityLayerCache,
+  cam: Camera,
 ): void {
-  target.drawImage(cache.surface as CanvasImageSource, 0, 0, cache.width, cache.height);
+  const dx = cache.margin + (cache.anchorX - cam.x) * cam.zoom;
+  const dy = cache.margin + (cache.anchorY - cam.y) * cam.zoom;
+  target.drawImage(cache.surface as CanvasImageSource, dx, dy);
 }

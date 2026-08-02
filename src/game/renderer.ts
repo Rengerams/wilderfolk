@@ -65,6 +65,7 @@ import {
   buildEntityLayerKey,
   commitEntityLayerPaint,
   disposeEntityLayerCache,
+  entityLayerAnchorMoved,
   entityLayerNeedsRebuild,
   getEntityLayerCache,
   paintEntityLayerTo,
@@ -2936,15 +2937,20 @@ function compositeCachedEntityLayer(
 ): void {
   const layerKey = buildEntityLayerKey(state, cw, ch);
   const existing = getEntityLayerCache();
-  if (!entityLayerNeedsRebuild(existing, layerKey, cw, ch)) {
-    paintEntityLayerTo(ctx, existing!);
+  if (
+    existing
+    && !entityLayerNeedsRebuild(existing, layerKey, cw, ch)
+    && !entityLayerAnchorMoved(existing, state.camera, cw, ch)
+  ) {
+    paintEntityLayerTo(ctx, existing, state.camera);
     return;
   }
 
-  const layer = beginEntityLayerPaint(layerKey, cw, ch);
-  paintWorldEntityLayer(layer.ctx, state, cw, ch);
+  const layer = beginEntityLayerPaint(layerKey, cw, ch, state.camera);
+  const anchorCam = { ...state.camera, x: layer.anchorX, y: layer.anchorY, zoom: layer.anchorZoom };
+  paintWorldEntityLayer(layer.ctx, { ...state, camera: anchorCam }, layer.width, layer.height);
   commitEntityLayerPaint(layerKey);
-  paintEntityLayerTo(ctx, layer);
+  paintEntityLayerTo(ctx, layer, state.camera);
 }
 
 // ============ MAIN RENDER ============
