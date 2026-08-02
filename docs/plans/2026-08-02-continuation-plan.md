@@ -43,6 +43,13 @@ Committed in `0e3c489` (all verified: lint 0/0, build passes, 26 tests pass):
 4. **Sim bug:** `tickWildlife` spliced the bucket while iterating → one entity skipped per in-tick death. Now iterates a copy (`lifeSimulation.ts`).
 5. **Lint cleanup:** `FavoriteFollowBanner` extracted as a component (App.tsx), `TutorialOverlay.tsx` export removed, 3 `exhaustive-deps` warnings resolved.
 
+Also committed in `e9bc4df` — **render-loop performance** (verified the same way):
+
+6. **Canvas size cached** (`gameLoop.ts`) — `getBoundingClientRect()` per frame replaced by a `ResizeObserver`-driven size cache.
+7. **`RenderSnapshot` cached** (`gameLoop.ts`) — rebuilt only when a dirty-key (tick, camera, selection, build state, transient FX counts) changes; idle/paused frames skip the build.
+8. **`UI_UPDATE_MS` 100 → 250** — only paces periodic non-tick polls; sim ticks and clicks/commands notify immediately (no input latency impact).
+9. **Entity layer camera-decoupled** (`entityLayer.ts` + `renderer.ts`) — painted against an anchor camera into a 160px-margin-padded surface; panning within the margin reuses the bitmap via blit offset (no per-frame rebake). Zoom still rebakes (pixel-perfect, no bitmap scaling).
+
 ---
 
 ## 4. Architecture quick map (orientation, not exhaustive)
