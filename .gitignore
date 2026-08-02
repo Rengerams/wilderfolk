@@ -35,5 +35,14 @@ private/
 # Local agent/design specs (not for GitHub)
 docs/superpowers/
 
+# Local-only session transcript (not for GitHub)
+Wilderfolk.txt
+
+# Local config with secrets — never commit
+.env
+
 # Git worktrees
 .worktrees
+
+# Windows shortcut (accidental local file)
+*.lnk

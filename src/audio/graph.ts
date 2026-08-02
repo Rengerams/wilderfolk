@@ -34,7 +34,7 @@ class AudioGraph {
   private muted = false;
   private volumePreset: VolumePreset = 'normal';
   private levels: AudioLevels = levelsForPreset('normal');
-  private isNightMood = false;
+
   private visibilityHooked = false;
 
   ensure(): AudioContext {
@@ -135,12 +135,11 @@ class AudioGraph {
     this.musicFilter.frequency.setTargetAtTime(target, ctx.currentTime, 0.6);
   }
 
-  setGameMood(isNight: boolean) {
-    this.isNightMood = isNight;
+  setGameMood(_isNight: boolean) {
     if (!this.musicFilter) return;
     const ctx = this.context;
-    const target = isNight ? FILTER_FREQ.musicNight : FILTER_FREQ.musicDay;
-    this.musicFilter.frequency.setTargetAtTime(target, ctx.currentTime, 1.2);
+    // Stable filter — day/night sweeps felt like the song changing.
+    this.musicFilter.frequency.setTargetAtTime(FILTER_FREQ.musicDay, ctx.currentTime, 1.2);
     this.applyAmbientVolume();
   }
 
@@ -195,9 +194,9 @@ class AudioGraph {
     const ctx = this.context;
     const t = atTime ?? ctx.currentTime;
     const base = VOLUMES.ambient * this.levels.master;
-    const ambientTarget = this.isNightMood ? base * 0.72 : base;
+    // Same ambience level day/night — no dusk duck that feels like a scene change.
     this.ambientGain.gain.cancelScheduledValues(t);
-    this.ambientGain.gain.setTargetAtTime(ambientTarget, t, 0.08);
+    this.ambientGain.gain.setTargetAtTime(base, t, 0.08);
   }
 
   private hookVisibilityResume() {

@@ -39,6 +39,8 @@ tutorialsEnabled: boolean;
   onOpenTrade: () => void;
   onSave: () => void;
   onLoad: () => void;
+  onSaveToFile: () => void;
+  onLoadFromFile: (jsonText: string) => void;
   onToggleAutoSave: () => void;
   onToggleTutorials: () => void;
   onToggleJuiceEffects: () => void;
@@ -71,6 +73,8 @@ tutorialsEnabled,
   onOpenTrade,
   onSave,
   onLoad,
+  onSaveToFile,
+  onLoadFromFile,
   onToggleAutoSave,
   onToggleTutorials,
   onToggleJuiceEffects,
@@ -258,6 +262,8 @@ tutorialsEnabled,
           volumePreset={volumePreset}
           onSave={onSave}
           onLoad={onLoad}
+          onSaveToFile={onSaveToFile}
+          onLoadFromFile={onLoadFromFile}
           onToggleAutoSave={onToggleAutoSave}
           onToggleTutorials={onToggleTutorials}
           onToggleJuiceEffects={onToggleJuiceEffects}

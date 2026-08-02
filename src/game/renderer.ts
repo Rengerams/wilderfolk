@@ -43,6 +43,7 @@ import {
 } from './stripRender';
 import { detectBuildingJunction } from './stripJunction';
 import { drawRenffrOmen } from './renffrStar';
+import { huntAnimProgress } from './huntvisuals';
 import {
   buildHumanCombatStatusFlags,
   getHumanStatusCombatIconFromFlags,
@@ -124,14 +125,45 @@ const PRESET_TERRAIN_COLORS: Partial<Record<MapPreset, Partial<Record<TerrainTyp
 let terrainCache: TerrainLayerCache | null = null;
 let terrainDecorCache: TerrainDecorCache | null = null;
 
-function getTerrainColor(type: TerrainType, variation: number, preset?: MapPreset): string {
+/** Per-season shift on land tiles so spring/fall/winter aren't only a faint overlay. */
+function seasonTerrainShift(season: Season, type: TerrainType): { r: number; g: number; b: number } {
+  const isWater =
+    type === TerrainType.DeepWater
+    || type === TerrainType.ShallowWater
+    || type === TerrainType.River
+    || type === TerrainType.RiverBank;
+  if (isWater) {
+    if (season === Season.Winter) return { r: 12, g: 18, b: 28 };
+    if (season === Season.Fall) return { r: 8, g: 4, b: -4 };
+    return { r: 0, g: 0, b: 0 };
+  }
+  switch (season) {
+    case Season.Spring:
+      return { r: -8, g: 22, b: -6 };
+    case Season.Summer:
+      // Drier, yellower grass/dirt (distinct from spring green)
+      return { r: 22, g: 8, b: -28 };
+    case Season.Fall:
+      return { r: 28, g: -6, b: -22 };
+    case Season.Winter:
+      return { r: 18, g: 22, b: 32 };
+    default:
+      return { r: 0, g: 0, b: 0 };
+  }
+}
+
+function getTerrainColor(type: TerrainType, variation: number, preset?: MapPreset, season: Season = Season.Spring): string {
   const presetHex = preset ? PRESET_TERRAIN_COLORS[preset]?.[type] : undefined;
   const hex = presetHex ?? TERRAIN_COLORS[type] ?? TERRAIN_COLORS[TerrainType.Grassland];
-  const r = (hex >> 16) & 0xff;
-  const g = (hex >> 8) & 0xff;
-  const b = hex & 0xff;
+  let r = (hex >> 16) & 0xff;
+  let g = (hex >> 8) & 0xff;
+  let b = hex & 0xff;
   const v = (variation - 0.5) * 3;
-  return `rgb(${Math.min(255,Math.max(0,r+v))|0},${Math.min(255,Math.max(0,g+v))|0},${Math.min(255,Math.max(0,b+v))|0})`;
+  const s = seasonTerrainShift(season, type);
+  r += v + s.r;
+  g += v + s.g;
+  b += v + s.b;
+  return `rgb(${Math.min(255, Math.max(0, r)) | 0},${Math.min(255, Math.max(0, g)) | 0},${Math.min(255, Math.max(0, b)) | 0})`;
 }
 
 function buildTerrainCache(state: RenderSnapshot) {
@@ -144,7 +176,7 @@ function buildTerrainCache(state: RenderSnapshot) {
       state.width,
       state.height,
       season,
-      (type, _season, variation, preset) => getTerrainColor(type, variation, preset),
+      (type, seas, variation, preset) => getTerrainColor(type, variation, preset, seas ?? season),
     );
   }
   if (terrainDecorNeedsRebuild(terrainDecorCache, state.worldMap, state.width, state.height)) {
@@ -1186,10 +1218,10 @@ function drawGridTopOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot
 // ============ GRASS (soft tufts — seasonal tint, still cheap) ============
 function grassSeasonFill(season: Season): string {
   switch (season) {
-    case Season.Spring: return '#4ade80';
-    case Season.Summer: return '#22c55e';
-    case Season.Fall: return '#a3b35c';
-    case Season.Winter: return '#86a88a';
+    case Season.Spring: return '#5eea8a';
+    case Season.Summer: return '#a3b35c'; // sun-bleached olive, not spring neon
+    case Season.Fall: return '#ca8a04';
+    case Season.Winter: return '#cbd5e1';
     default: return '#22c55e';
   }
 }
@@ -1199,9 +1231,10 @@ const TREE_SPRITE_PATHS = ['/sprites/tree.png', '/sprites/tree2.png'] as const;
 
 function grassSeasonAlpha(season: Season): number {
   switch (season) {
-    case Season.Winter: return 0.55;
-    case Season.Fall: return 0.82;
-    case Season.Spring: return 0.95;
+    case Season.Winter: return 0.38;
+    case Season.Fall: return 0.88;
+    case Season.Spring: return 0.98;
+    case Season.Summer: return 0.85;
     default: return 0.9;
   }
 }
@@ -1954,6 +1987,47 @@ function drawHuntChaseLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot
   }
 }
 
+/** Hunting Spot shots — dashed arrow flight toward the prey (data from huntvisuals.ts). */
+function drawHuntVisuals(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+  const visuals = state.huntVisuals;
+  if (!visuals || visuals.length === 0 || state.camera.zoom < 0.4) return;
+  const cam = state.camera;
+  for (const v of visuals) {
+    const progress = huntAnimProgress(v);
+    if (progress <= 0 || progress >= 1) continue;
+
+    const sx = (v.fromX - cam.x) * cam.zoom + cw / 2;
+    const sy = (v.fromY - cam.y) * cam.zoom + ch / 2;
+    const tx = (v.toX - cam.x) * cam.zoom + cw / 2;
+    const ty = (v.toY - cam.y) * cam.zoom + ch / 2;
+    const mx = sx + (tx - sx) * progress;
+    const my = sy + (ty - sy) * progress;
+
+    // Dashed flight path behind the arrow
+    ctx.strokeStyle = 'rgba(249,115,22,0.45)';
+    ctx.lineWidth = 1.25;
+    ctx.setLineDash([4, 5]);
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(mx, my);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Arrow projectile (gold triangle) at the tip
+    ctx.save();
+    ctx.translate(mx, my);
+    ctx.rotate(Math.atan2(ty - sy, tx - sx));
+    ctx.fillStyle = v.foughtBack ? '#f87171' : '#fbbf24';
+    ctx.beginPath();
+    ctx.moveTo(7 * cam.zoom, 0);
+    ctx.lineTo(-4 * cam.zoom, -3.5 * cam.zoom);
+    ctx.lineTo(-4 * cam.zoom, 3.5 * cam.zoom);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
 function drawCombatBurst(ctx: CanvasRenderingContext2D, sx: number, sy: number, size: number, tick: number, entityId: number) {
   const pulse = 0.5 + Math.sin(tick * 0.5 + entityId) * 0.5;
   ctx.save();
@@ -2375,6 +2449,122 @@ function drawNightBuildingGlow(ctx: CanvasRenderingContext2D, state: RenderSnaps
   ctx.restore();
 }
 
+/**
+ * Day + night polish: forge fire pulse, house chimney smoke, blacksmith heat.
+ * Drawn every frame (outside entity-layer cache) so motion stays smooth.
+ */
+function drawBuildingActiveEffects(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+  if (!state.juiceEffectsEnabled || state.camera.zoom < 0.35) return;
+  const cam = state.camera;
+  const forgeActive = !!state.villageForge?.activeOrder;
+  const night = isNightHour(state.hourOfDay);
+
+  ctx.save();
+  for (const b of state.buildings) {
+    if (b.faction === 'rival') continue;
+    const sx = (b.x - cam.x) * cam.zoom + cw / 2;
+    const sy = (b.y - cam.y) * cam.zoom + ch / 2;
+    const w = b.width * cam.zoom;
+    const h = b.height * cam.zoom;
+    if (sx + w < -40 || sx - w > cw + 40 || sy + h < -40 || sy - h > ch + 40) continue;
+
+    // Construction dust — unfinished buildings
+    if (!b.completed) {
+      const dustN = cam.zoom > 0.7 ? 5 : 3;
+      for (let i = 0; i < dustN; i++) {
+        const phase = _time * 1.8 + b.id * 0.7 + i * 1.3;
+        const px = sx + Math.sin(phase * 0.9 + i) * w * 0.35;
+        const py = sy - h * 0.1 - ((phase * 12 + i * 7) % (h * 0.7));
+        const a = 0.12 + (Math.sin(phase) * 0.5 + 0.5) * 0.18;
+        ctx.globalAlpha = a;
+        ctx.fillStyle = '#d6d3d1';
+        ctx.beginPath();
+        ctx.arc(px, py, Math.max(1.2, 1.8 * cam.zoom), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      continue;
+    }
+
+    // Blacksmith forge heat (day or night) when order active or staffed
+    if (b.type === BuildingType.Blacksmith && (forgeActive || b.occupants.length > 0)) {
+      const pulse = 0.55 + Math.sin(_time * 5 + b.id) * 0.25;
+      const heat = forgeActive ? 1 : 0.55;
+      ctx.globalCompositeOperation = 'lighter';
+      const gx = sx;
+      const gy = sy + h * 0.05;
+      const r = Math.max(w, h) * (0.55 + pulse * 0.15);
+      const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, r);
+      g.addColorStop(0, `rgba(255, 160, 40, ${0.45 * heat * pulse})`);
+      g.addColorStop(0.4, `rgba(255, 80, 20, ${0.18 * heat})`);
+      g.addColorStop(1, 'rgba(255, 40, 0, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(gx, gy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+
+      // Rising sparks when forging
+      if (forgeActive && cam.zoom > 0.45) {
+        for (let i = 0; i < 4; i++) {
+          const t = (_time * 2.2 + b.id + i * 0.55) % 1.4;
+          const px = sx + Math.sin(_time * 3 + i * 2 + b.id) * w * 0.15;
+          const py = sy - h * 0.15 - t * h * 0.55;
+          ctx.globalAlpha = (1 - t / 1.4) * 0.7;
+          ctx.fillStyle = i % 2 === 0 ? '#fbbf24' : '#fb923c';
+          ctx.beginPath();
+          ctx.arc(px, py, Math.max(1, 1.4 * cam.zoom), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // Chimney smoke — homes always subtle; stronger at night
+    if (
+      (b.type === BuildingType.House || b.type === BuildingType.Mansion || b.type === BuildingType.Hotel)
+      && cam.zoom > 0.4
+    ) {
+      const strength = night ? 0.28 : 0.14;
+      const chimX = sx + w * 0.22;
+      const chimY = sy - h * 0.38;
+      for (let i = 0; i < 3; i++) {
+        const phase = _time * 1.1 + b.id * 0.4 + i * 0.9;
+        const drift = Math.sin(phase) * (3 + i);
+        const rise = ((phase * 16 + i * 11) % 28);
+        const smokeY = chimY - rise;
+        const r = (2.2 + i * 0.9) * cam.zoom;
+        ctx.globalAlpha = strength * (1 - rise / 30);
+        ctx.fillStyle = night ? '#94a3b8' : '#cbd5e1';
+        ctx.beginPath();
+        ctx.arc(chimX + drift, smokeY, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Lumber mill / quarry / mine light industrial dust when staffed
+    if (
+      (b.type === BuildingType.LumberMill || b.type === BuildingType.Quarry || b.type === BuildingType.Mine)
+      && b.occupants.length > 0
+      && cam.zoom > 0.5
+    ) {
+      for (let i = 0; i < 3; i++) {
+        const phase = _time * 1.4 + b.id + i;
+        const px = sx + Math.sin(phase) * w * 0.3;
+        const py = sy - ((phase * 10) % (h * 0.4));
+        ctx.globalAlpha = 0.1 + (Math.sin(phase * 2) * 0.5 + 0.5) * 0.1;
+        ctx.fillStyle = b.type === BuildingType.LumberMill ? '#a8a29e' : '#d6d3d1';
+        ctx.beginPath();
+        ctx.arc(px, py, 1.5 * cam.zoom, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.restore();
+}
+
 // ============ FLOATING TEXTS ============
 function drawFloatingTexts(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;
@@ -2569,18 +2759,22 @@ function updateWeatherParticles(w: WeatherType, cw: number, ch: number) {
       wParts.push({
         x: Math.random() * cw * 1.5 - cw * 0.25,
         y: Math.random() * ch * 1.5 - ch * 0.25,
-        vx: w === WeatherType.Storm ? (Math.random() - 0.3) * 3 : (Math.random() - 0.5) * 0.5,
-        vy: w === WeatherType.Snow ? 0.5 + Math.random() : 2 + Math.random() * 3,
-        s: w === WeatherType.Snow ? 2 + Math.random() * 2 : 1 + Math.random(),
-        a: 0.3 + Math.random() * 0.4,
+        vx: w === WeatherType.Storm ? (Math.random() - 0.2) * 4 : (Math.random() - 0.5) * 1.2,
+        vy: w === WeatherType.Snow ? 0.6 + Math.random() * 1.2 : 4 + Math.random() * 5,
+        s: w === WeatherType.Snow ? 2 + Math.random() * 2.5 : 1.2 + Math.random() * 1.5,
+        a: 0.45 + Math.random() * 0.45,
       });
     }
     lastWeatherCw = cw;
     lastWeatherCh = ch;
   }
   for (const p of wParts) {
-    p.x += p.vx; p.y += p.vy;
-    if (p.y > ch * 1.3) { p.y = -10; p.x = Math.random() * cw * 1.5 - cw * 0.25; }
+    p.x += p.vx;
+    p.y += p.vy;
+    if (p.y > ch * 1.3) {
+      p.y = -10;
+      p.x = Math.random() * cw * 1.5 - cw * 0.25;
+    }
     if (p.x > cw * 1.3) p.x = -10;
     if (p.x < -cw * 0.3) p.x = cw * 1.3;
   }
@@ -2598,38 +2792,40 @@ function weatherOverlayStyle(color: string, alpha: number): string {
 function drawWeather(ctx: CanvasRenderingContext2D, w: WeatherType, cw: number, ch: number) {
   updateWeatherParticles(w, cw, ch);
   const weatherCfg = WEATHER_CONFIGS[w];
+  // Tint first, then particles (fog/drought are overlay-only; rain/snow/storm draw both)
   if (weatherCfg.overlayAlpha > 0) {
     ctx.fillStyle = weatherOverlayStyle(weatherCfg.color, weatherCfg.overlayAlpha);
     ctx.fillRect(0, 0, cw, ch);
-    return;
   }
   if (wParts.length === 0) return;
 
   ctx.save();
-  // Batch weather particles
   if (w === WeatherType.Snow) {
     ctx.fillStyle = weatherCfg.color || '#fff';
     for (const p of wParts) {
-      ctx.globalAlpha = p.a;
+      ctx.globalAlpha = Math.min(1, p.a + 0.15);
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, p.s * 1.15, 0, Math.PI * 2);
       ctx.fill();
     }
-  } else {
+  } else if (w === WeatherType.Rain || w === WeatherType.Storm) {
+    // Longer streaks so rain is obvious at normal zoom
     ctx.strokeStyle = weatherCfg.color;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = w === WeatherType.Storm ? 1.75 : 1.45;
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = w === WeatherType.Storm ? 0.78 : 0.68;
     ctx.beginPath();
+    const len = w === WeatherType.Storm ? 3.5 : 2.9;
     for (const p of wParts) {
       ctx.moveTo(p.x, p.y);
-      ctx.lineTo(p.x + p.vx * 2, p.y + p.vy * 2);
+      ctx.lineTo(p.x + p.vx * len, p.y + p.vy * len);
     }
     ctx.stroke();
   }
   ctx.restore();
 
-  if (w === WeatherType.Storm && Math.random() < 0.003) {
-    ctx.fillStyle = `rgba(255,255,255,${0.3 + Math.random() * 0.4})`;
+  if (w === WeatherType.Storm && Math.random() < 0.008) {
+    ctx.fillStyle = `rgba(255,255,255,${0.25 + Math.random() * 0.35})`;
     ctx.fillRect(0, 0, cw, ch);
   }
 }
@@ -2693,6 +2889,7 @@ function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: 
   drawTradeRouteLines(drawCtx, state, cw, ch);
   drawRaidMarchLines(drawCtx, state, cw, ch);
   drawHuntChaseLines(drawCtx, state, cw, ch);
+  drawHuntVisuals(drawCtx, state, cw, ch);
   drawHumans(drawCtx, state, cw, ch, true);
   drawParticles(drawCtx, state, cw, ch);
   drawFloatingTexts(drawCtx, state, cw, ch);
@@ -2811,6 +3008,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
 
   drawGround(ctx, state, cw, ch);
   compositeCachedEntityLayer(ctx, state, cw, ch);
+  drawBuildingActiveEffects(ctx, state, cw, ch);
   drawBuildPreview(ctx, state, cw, ch);
   drawEntityFlashOverlay(ctx, state, cw, ch);
   drawWeather(ctx, state.weather, cw, ch);
@@ -2855,17 +3053,31 @@ function drawNightAtmosphere(ctx: CanvasRenderingContext2D, state: RenderSnapsho
 function drawDayAtmosphere(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const hour = state.hourOfDay;
   let tint = 'rgba(255, 248, 230, 0.05)';
-  if (hour < 8 || hour >= 18) tint = 'rgba(255, 170, 90, 0.1)'; // dawn / dusk gold
-  else if (state.season === Season.Winter) tint = 'rgba(200, 220, 240, 0.08)';
-  else if (state.season === Season.Fall) tint = 'rgba(255, 200, 120, 0.07)';
+  if (hour < 8 || hour >= 18) {
+    tint = 'rgba(255, 170, 90, 0.1)'; // dawn / dusk gold
+  } else if (state.season === Season.Winter) {
+    tint = 'rgba(190, 215, 245, 0.16)';
+  } else if (state.season === Season.Fall) {
+    tint = 'rgba(255, 175, 90, 0.14)';
+  } else if (state.season === Season.Spring) {
+    tint = 'rgba(200, 255, 180, 0.08)';
+  } else if (state.season === Season.Summer) {
+    tint = 'rgba(255, 230, 100, 0.14)'; // hot noon wash
+  }
   ctx.fillStyle = tint;
   ctx.fillRect(0, 0, cw, ch);
 
-  // NW sun beam wash
+  // NW sun beam wash — cooler in winter
   const sun = ctx.createLinearGradient(0, 0, cw * 0.85, ch);
-  sun.addColorStop(0, hour < 8 || hour >= 18 ? 'rgba(255, 200, 120, 0.08)' : 'rgba(255, 255, 240, 0.05)');
-  sun.addColorStop(0.45, 'rgba(255,255,255,0)');
-  sun.addColorStop(1, 'rgba(20, 30, 50, 0.06)');
+  if (state.season === Season.Winter) {
+    sun.addColorStop(0, 'rgba(200, 220, 255, 0.1)');
+    sun.addColorStop(0.45, 'rgba(255,255,255,0)');
+    sun.addColorStop(1, 'rgba(30, 40, 70, 0.1)');
+  } else {
+    sun.addColorStop(0, hour < 8 || hour >= 18 ? 'rgba(255, 200, 120, 0.08)' : 'rgba(255, 255, 240, 0.05)');
+    sun.addColorStop(0.45, 'rgba(255,255,255,0)');
+    sun.addColorStop(1, 'rgba(20, 30, 50, 0.06)');
+  }
   ctx.fillStyle = sun;
   ctx.fillRect(0, 0, cw, ch);
 }

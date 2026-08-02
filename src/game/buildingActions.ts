@@ -3,8 +3,10 @@ import {
   BuildingType, EntityType, TerrainType,
   BUILDING_CONFIGS, BUILDING_JOB_TYPES, JobType,
   WORKSHOP_RECIPES, getWorkshopRecipe,
+  HUNTING_SPOT_PREY_OPTIONS,
   WEREWOLF_CURSE_LINES,
 } from './gameTypes';
+import type { HuntingSpotPrey } from './gameTypes';
 import {
   getOccupationForBuilding, readSkill, getWorkerSkillMultiplier,
 } from './skills';
@@ -119,7 +121,7 @@ export function canPlaceBuilding(
   ) {
     return false;
   }
-  if (!isFootprintOnBuildableTerrain(state, width, height, x, y)) return false;
+  if (!isFootprintOnBuildableTerrain(state, width, height, x, y, type)) return false;
   return !overlapsAnyBuilding(state.buildings, width, height, x, y);
 }
 
@@ -139,7 +141,7 @@ export function getPlaceBuildingFailureReason(
   ) {
     return 'research';
   }
-  if (!isFootprintOnBuildableTerrain(state, width, height, x, y)) return 'terrain';
+  if (!isFootprintOnBuildableTerrain(state, width, height, x, y, type)) return 'terrain';
   if (overlapsAnyBuilding(state.buildings, width, height, x, y)) return 'blocked';
   return null;
 }
@@ -845,6 +847,15 @@ export function setWorkshopRecipe(originalState: WorldState, buildingId: number,
   const building = state.buildings.find((b) => b.id === buildingId);
   if (!building || building.type !== BuildingType.Workshop || building.faction === 'rival') return originalState;
   building.workshopRecipeId = recipeId;
+  return state;
+}
+
+export function setHuntingSpotPrey(originalState: WorldState, buildingId: number, prey: HuntingSpotPrey): WorldState {
+  if (!HUNTING_SPOT_PREY_OPTIONS.some((o) => o.id === prey)) return originalState;
+  const state = structuredClone(originalState) as WorldState;
+  const building = state.buildings.find((b) => b.id === buildingId);
+  if (!building || building.type !== BuildingType.HuntingSpot || building.faction === 'rival') return originalState;
+  building.huntingSpotPrey = prey;
   return state;
 }
 

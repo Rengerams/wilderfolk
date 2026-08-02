@@ -2098,7 +2098,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const wildkinBirth = nearDeer && Math.random() < 0.03;
         const biologicalFatherIdAtBirth = entity.pregnantById ?? entity.partnerId;
 
-        entity.energy -= 50;
+        // Soft birth cost — was flat -50 and could kill low-energy mothers as "childbirth"
+        entity.energy = Math.max(entity.maxEnergy * 0.18, entity.energy - 45);
         entity.pregnant = false;
         entity.pregnancyProgress = 0;
         entity.pregnantById = undefined;
@@ -2213,20 +2214,59 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         advanceHumanWalkAnim(entity);
       }
       if (entity.energy <= 0) {
-        // Birth clears `pregnant` and spends energy; only then is death "childbirth".
-        const diedInChildbirth = !entity.pregnant && entity.pregnancyProgress === 0;
+        // Still pregnant + energy gone = exhaustion; post-birth floor should prevent false "childbirth"
         killHuman(entity, updatedBuildings, entityById, state.tick);
         createDeathParticles(state, entity.x, entity.y, '#8B0000', 8);
         logEvent(
           state,
           'death',
-          formatDeathLog(
-            entity,
-            diedInChildbirth ? 'died in childbirth' : 'succumbed to exhaustion',
-          ),
+          formatDeathLog(entity, 'succumbed to exhaustion while pregnant'),
           formatCitizenName(entity),
         );
+        syncEntityGrids(ctx, entity);
+        continue;
       }
+
+      // BUGFIX: pregnancy used to `continue` before hospital care — mothers never got treated
+      if (
+        staffedHospitals.length > 0
+        && isPlayerHuman(entity)
+      ) {
+        const hospital = staffedHospitals.find(
+          (b) => Math.hypot(entity.x - (b.x + b.width / 2), entity.y - (b.y + b.height / 2)) < 40,
+        );
+        if (hospital && personDayRoll(entity.id, state.tick, 840) < 0.28) {
+          treatPatientAtHospital(state, entity, hospital);
+        } else if (
+          !onJobShift
+          && !huntingWere
+          && !inElectionCeremony
+          && staffedHospitals.length > 0
+          && personDayRoll(entity.id, state.tick, 842) < 0.12
+        ) {
+          // Walk toward nearest staffed hospital when free
+          let best: Building | undefined;
+          let bestD = Infinity;
+          for (const h of staffedHospitals) {
+            const d = Math.hypot(entity.x - (h.x + h.width / 2), entity.y - (h.y + h.height / 2));
+            if (d < bestD) {
+              bestD = d;
+              best = h;
+            }
+          }
+          if (best && bestD > 28) {
+            const dx = best.x + best.width / 2 - entity.x;
+            const dy = best.y + best.height / 2 - entity.y;
+            const dist = Math.hypot(dx, dy) || 1;
+            entity.vx = (dx / dist) * config.speed * 0.55;
+            entity.vy = (dy / dist) * config.speed * 0.55;
+            entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+            entity.x += entity.vx;
+            entity.y += entity.vy;
+          }
+        }
+      }
+
       syncEntityGrids(ctx, entity);
       continue;
     }
@@ -3263,7 +3303,9 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
   const wildlifeDeathsThisTick = new Set<number>();
 
   for (const entityType of WILDLIFE_TICK_TYPES) {
-    for (const entity of byType[entityType]) {
+    // Iterate a copy — markWildlifeDead splices the bucket while we walk it,
+    // which otherwise skips the entity after each in-tick death.
+    for (const entity of [...(byType[entityType] ?? [])]) {
       if (!entity.alive) continue;
 
     // Common updates
@@ -3298,7 +3340,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     const config = SPECIES_CONFIG[entity.type];
 
     // Energy loss scaled to systems cadence (including off-screen fauna).
-    entity.energy -= (config.energyLossPerTick + winterPenalty) * step;
+    // Grazers run slightly cheaper metabolism so passive play doesn't empty the map by summer.
+    const grazerEase =
+      entity.type === EntityType.Rabbit || entity.type === EntityType.Deer || entity.type === EntityType.Wildkin
+        ? 0.82
+        : 1;
+    entity.energy -= (config.energyLossPerTick * grazerEase + winterPenalty) * step;
 
     if (entity.energy <= 0) {
       markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick);
@@ -3510,10 +3557,10 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Graze — only when hungry and not fleeing
-    const needsFood = entity.energy < entity.maxEnergy * 0.6;
+    // Graze earlier / farther so herds recover before starving out
+    const needsFood = entity.energy < entity.maxEnergy * 0.78;
     if (needsFood && (entity.type === EntityType.Rabbit || entity.type === EntityType.Deer || entity.type === EntityType.Wildkin) && targetVx === 0 && targetVy === 0) {
-      const grazeRange = 50;
+      const grazeRange = 70;
       let closestGrass: Entity | null = null;
       let closestGrassDist = Infinity;
 
@@ -3638,8 +3685,10 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     const sameTypeCount = wildlifeTypePopulation(wildlifePopulation, entity.type, entity.id);
     const maxPop = entity.type === EntityType.Rabbit ? 120 : entity.type === EntityType.Deer ? 60 : entity.type === EntityType.Wolf ? 25 : 35;
     const capacityFactor = Math.max(0, 1 - (sameTypeCount / maxPop));
+    // Bounce back when scarce (passive valleys were going empty by ~half year)
+    const scarcityBoost = sameTypeCount < maxPop * 0.25 ? 1.55 : sameTypeCount < maxPop * 0.45 ? 1.25 : 1;
 
-    if (entity.reproductionCooldown <= 0 && entity.energy > config.reproductionEnergyThreshold && Math.random() < config.reproductionChance * reproMult * capacityFactor) {
+    if (entity.reproductionCooldown <= 0 && entity.energy > config.reproductionEnergyThreshold && Math.random() < config.reproductionChance * reproMult * capacityFactor * scarcityBoost) {
       const mate = findClosestEntityInRadius(
         mobileGrid,
         entity.x,

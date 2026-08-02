@@ -8,6 +8,7 @@ export type CornerRotation = 0 | 90 | 180 | 270;
 
 const ROTATABLE = new Set<BuildingType>([
   BuildingType.Road,
+  BuildingType.Bridge,
   BuildingType.Wall,
   BuildingType.WallGate,
 ]);
@@ -15,6 +16,7 @@ const ROTATABLE = new Set<BuildingType>([
 /** Strip buildings snap along their long axis so segments chain edge-to-edge. */
 const STRIP_SNAP_TYPES = new Set<BuildingType>([
   BuildingType.Road,
+  BuildingType.Bridge,
   BuildingType.Wall,
   BuildingType.WallGate,
 ]);

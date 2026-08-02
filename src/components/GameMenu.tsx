@@ -19,6 +19,10 @@ autoSave: boolean;
   volumePreset: VolumePreset;
   onSave: () => void;
   onLoad: () => void;
+  /** Download .json colony file (survives browser cache clear). */
+  onSaveToFile: () => void;
+  /** Load from .json file text. */
+  onLoadFromFile: (jsonText: string) => void;
   onToggleAutoSave: () => void;
   onToggleTutorials: () => void;
   onToggleJuiceEffects: () => void;
@@ -148,6 +152,8 @@ autoSave,
   volumePreset,
   onSave,
   onLoad,
+  onSaveToFile,
+  onLoadFromFile,
   onToggleAutoSave,
   onToggleTutorials,
   onToggleJuiceEffects,
@@ -162,6 +168,7 @@ autoSave,
   const [anchor, setAnchor] = useState({ top: 0, right: 0 });
   const portalRoot = typeof document !== 'undefined' ? document.body : null;
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const close = () => {
     setOpen(false);
@@ -236,17 +243,51 @@ autoSave,
                   onClick={() => { onStartNewGame(); close(); }}
                 />
                 <MenuAction
+                  icon="💾"
+                  label="Save game"
+                  hint="Browser slot only (can be wiped)"
+                  onClick={() => { onSave(); close(); }}
+                />
+                <MenuAction
+                  icon="⬇️"
+                  label="Save to file"
+                  hint="Download .json — keep this, survives cache clear"
+                  onClick={() => { onSaveToFile(); close(); }}
+                />
+                <MenuAction
                   icon="📂"
                   label="Load game"
-                  hint={hasSavedGame ? 'Restore last manual save' : 'Save a game first'}
+                  hint={hasSavedGame ? 'Last browser save' : 'No browser save — use Load from file'}
                   disabled={!hasSavedGame}
                   onClick={() => { onLoad(); close(); }}
                 />
                 <MenuAction
-                  icon="💾"
-                  label="Save game"
-                  hint="Also exports chronicle if enabled"
-                  onClick={() => { onSave(); close(); }}
+                  icon="📁"
+                  label="Load from file"
+                  hint="Open a .json you downloaded earlier"
+                  onClick={() => fileInputRef.current?.click()}
+                />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const text = typeof reader.result === 'string' ? reader.result : '';
+                      onLoadFromFile(text);
+                      close();
+                    };
+                    reader.onerror = () => {
+                      onLoadFromFile('');
+                      close();
+                    };
+                    reader.readAsText(file);
+                  }}
                 />
               </MenuSection>
 

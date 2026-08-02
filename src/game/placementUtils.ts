@@ -62,12 +62,22 @@ export function isFootprintWithinMapBounds(
   );
 }
 
+const RIVER_PLACE_TERRAIN = new Set<TerrainType>([
+  TerrainType.River,
+  TerrainType.RiverBank,
+]);
+
+/**
+ * Normal buildings: no water/mountains/snow.
+ * Bridges: only river / riverbank (must touch river water, not only bank).
+ */
 export function isFootprintOnBuildableTerrain(
   snapshot: Pick<RenderSnapshot, 'worldMap'>,
   width: number,
   height: number,
   x: number,
   y: number,
+  buildingType?: BuildingType,
 ): boolean {
   if (width <= 0 || height <= 0) return false;
   if (!snapshot.worldMap) return false;
@@ -82,12 +92,27 @@ export function isFootprintOnBuildableTerrain(
 
   if (startTx > endTx || startTy > endTy) return false;
 
+  const bridge = buildingType === BuildingType.Bridge;
+  let riverCells = 0;
+  let cells = 0;
+
   for (let ty = startTy; ty <= endTy; ty++) {
     for (let tx = startTx; tx <= endTx; tx++) {
       if (tx < 0 || ty < 0 || tx >= tileW || ty >= tileH) return false;
       const tile = snapshot.worldMap.tiles[ty]?.[tx];
-      if (!tile || UNBUILDABLE_TERRAIN.has(tile.type)) return false;
+      if (!tile) return false;
+      cells++;
+      if (bridge) {
+        if (!RIVER_PLACE_TERRAIN.has(tile.type)) return false;
+        if (tile.type === TerrainType.River) riverCells++;
+      } else if (UNBUILDABLE_TERRAIN.has(tile.type)) {
+        return false;
+      }
     }
+  }
+  if (bridge) {
+    // Must span actual river water, not only dry bank
+    return riverCells >= 1 && cells > 0;
   }
   return true;
 }
@@ -153,7 +178,7 @@ export function canPlaceBuildingSnapshot(
   ) {
     return false;
   }
-  if (!isFootprintOnBuildableTerrain(snapshot, width, height, x, y)) return false;
+  if (!isFootprintOnBuildableTerrain(snapshot, width, height, x, y, type)) return false;
   if (overlapsPlayerBuilding(snapshot.buildings, width, height, x, y)) return false;
   return true;
 }

@@ -1,5 +1,6 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useMemo, useState } from 'react';
 import { GAME_PHASE, GAME_VERSION } from '../../game/gameEngine';
+import { searchGuideHelp } from '../../game/guideHelp';
 
 type MoreSubTab = 'guide' | 'roadmap';
 
@@ -22,6 +23,9 @@ export default function MoreTabPanel({
   onToggleTutorials,
   onSpawnMoonHowlerDebug,
 }: MoreTabPanelProps) {
+  const [helpQuery, setHelpQuery] = useState('');
+  const helpHits = useMemo(() => searchGuideHelp(helpQuery), [helpQuery]);
+
   return (
     <div className="space-y-3">
       <div className="progress-subnav">
@@ -45,6 +49,28 @@ export default function MoreTabPanel({
 
       {moreSubTab === 'guide' && (
         <div className="space-y-3 text-[11px] text-stone-300">
+          <div className="rounded-xl border border-sky-700/40 bg-sky-950/25 p-3">
+            <h3 className="mb-1.5 text-sm font-bold text-sky-300">🔎 Quick help</h3>
+            <input
+              type="search"
+              value={helpQuery}
+              onChange={(e) => setHelpQuery(e.target.value)}
+              placeholder="Type: swords, forge, raid, barracks…"
+              className="w-full rounded-lg border border-stone-600/50 bg-stone-900/80 px-2.5 py-1.5 text-[11px] text-stone-100 placeholder:text-stone-500 focus:border-sky-500/50 focus:outline-none"
+            />
+            <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto">
+              {helpHits.length === 0 && (
+                <li className="text-[10px] text-stone-500">No match — try forge, swords, raid, rival…</li>
+              )}
+              {helpHits.map((t) => (
+                <li key={t.id} className="rounded-lg border border-stone-600/40 bg-stone-800/50 px-2 py-1.5">
+                  <p className="text-[11px] font-bold text-sky-100">{t.title}</p>
+                  <p className="mt-0.5 text-[10px] leading-snug text-stone-400">{t.body}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           <div className="rounded-xl border border-amber-700/40 bg-amber-950/20 p-3">
             <h3 className="mb-1 text-sm font-bold text-amber-300">⚠️ {GAME_PHASE} · v{GAME_VERSION}</h3>
             <p className="text-stone-400">Playtest build — expect bugs, rough edges, and features that change. Saves may break between updates. Feedback helps shape the real release.</p>
@@ -62,7 +88,7 @@ export default function MoreTabPanel({
             <div className="space-y-1.5 text-stone-400">
               <p>This is a <strong className="text-stone-200">sandbox frontier sim</strong>, not a campaign with one quest giver. Purpose comes from layers you choose:</p>
               <p>• <strong className="text-stone-200">Challenges</strong> (Progress → Goals) — stepped goals with resource rewards.</p>
-              <p>• <strong className="text-stone-200">Victory paths</strong> (Progress → Goals) — Eco 250, Great City 400/60, Trade Empire (7 walking caravan routes, 40 trips, 50k gold), Harmony (8 wild wolves + 15 wildkin). Raid Guard XP feeds elections.</p>
+              <p>• <strong className="text-stone-200">Your legend</strong> (Progress → Goals) — not a hard win. History describes you (warlike, steward, trader, builder, diplomat). Optional challenges give rewards.</p>
               <p>• <strong className="text-stone-200">Living drama</strong> — marriages, scandals, babies, moon howlers (Log / .txt chronicle).</p>
               <p>• <strong className="text-stone-200">The wider world</strong> — pilgrims, performers, rival camps appear as you grow.</p>
               <p>• <strong className="text-stone-200">Trade &amp; reputation</strong> — become a known township, link routes, unlock gold.</p>
@@ -106,7 +132,7 @@ export default function MoreTabPanel({
               <p><strong className="text-stone-200">Village</strong> — Focus hints with <strong className="text-stone-200">Go →</strong>, population, leadership, armament.</p>
               <p><strong className="text-stone-200">Frontier</strong> — Visitors, rivals, raids, diplomacy (badge when action needed).</p>
               <p><strong className="text-stone-200">Nature</strong> — Ecosystem health and wildlife counts.</p>
-              <p><strong className="text-stone-200">Progress</strong> — Research · Trade · Goals (challenges + victory paths). Sub-tabs show badges when researching or trade is ready.</p>
+              <p><strong className="text-stone-200">Progress</strong> — Research · Trade · Goals (legend portrait + optional challenges). Sub-tabs show badges when researching or trade is ready.</p>
               <p><strong className="text-stone-200">More</strong> — Guide (this page) and Roadmap.</p>
               <p><strong className="text-stone-200">Tab hotkeys</strong> — <strong className="text-stone-200">V</strong> Village · <strong className="text-stone-200">F</strong> Frontier · <strong className="text-stone-200">N</strong> Nature · <strong className="text-stone-200">P</strong> Progress · <strong className="text-stone-200">L</strong> Log · <strong className="text-stone-200">M</strong> More.</p>
             </div>
@@ -116,8 +142,8 @@ export default function MoreTabPanel({
             <h3 className="mb-2 text-sm font-bold text-cyan-300">🧳 Visitors & Rival Settlements</h3>
             <div className="space-y-1 text-stone-400">
               <p>• <strong className="text-cyan-200">Traveling groups</strong> camp near your village — traders, pilgrims, scholars, performers, and more. They bring gifts and leave after a while.</p>
-              <p>• <strong className="text-amber-200">Rival settlements</strong> can appear on the same map with their own camp, people, and buildings (indigo markers).</p>
-              <p>• Relationships vary: <em>friendly</em> neighbors trade, <em>competitive</em> ones hunt your deer, <em>tense</em> ones grumble about borders.</p>
+              <p>• <strong className="text-amber-200">Rival settlements</strong> appear on the same map and <strong className="text-stone-200">slowly expand</strong> (houses, farms, markets, or towers by mood — not always hostile).</p>
+              <p>• Relationships vary: <em>friendly</em> neighbors trade &amp; grow peacefully, <em>competitive</em> ones hunt your deer, <em>tense</em> ones may fortify and raid.</p>
               <p>• Check the <strong className="text-stone-200">Frontier tab</strong> to see who&apos;s currently on the map.</p>
             </div>
           </div>
@@ -168,7 +194,7 @@ export default function MoreTabPanel({
             <h3 className="mb-2 text-sm font-bold text-cyan-300">🏕️ Other tribes</h3>
             <div className="space-y-1 text-stone-400">
               <p>• <strong className="text-stone-200">Visitors</strong> camp nearby (traders, pilgrims, refugees…) — passive bonuses while they stay.</p>
-              <p>• <strong className="text-stone-200">Rival settlements</strong> appear from ~6 population / yearly events — another camp on the map with its own houses.</p>
+              <p>• <strong className="text-stone-200">Rival settlements</strong> appear from ~6 population / yearly events — their camps grow slowly on the map (mood shapes what they build).</p>
               <p>• <strong className="text-stone-200">Diplomacy</strong> — click a rival camp for gifts, pacts, peace treaties (🕊️), militia, raids, and event responses.</p>
               <p>• <strong className="text-stone-200">Visitor camps</strong> — talk to the caravan leader (once per visit), trade goods, or negotiate refugees.</p>
               <p className="text-stone-500 italic">Raids use strength ratios (not a battle screen). Peace treaties block attacks; prep walls, barracks, and spears.</p>

@@ -5,6 +5,27 @@ import {
   type ContextualTutorialTip,
 } from '../game/contextualTutorial';
 
+const TUTORIAL_SEEN_KEY = 'wilderfolk-contextual-tutorial-seen';
+
+function loadPersistedSeen(): Set<string> {
+  try {
+    const raw = localStorage.getItem(TUTORIAL_SEEN_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    return new Set(Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function persistSeen(seen: Set<string>): void {
+  try {
+    localStorage.setItem(TUTORIAL_SEEN_KEY, JSON.stringify([...seen]));
+  } catch {
+    /* ignore quota / privacy-mode errors */
+  }
+}
+
 /**
  * Watches sim state and surfaces one contextual tutorial tip at a time
  * when a mechanic appears for the first time this playthrough.
@@ -13,7 +34,9 @@ export function useContextualTutorial(world: WorldState, enabled: boolean) {
   const prevRef = useRef<WorldState | null>(null);
   const [queue, setQueue] = useState<ContextualTutorialTip[]>([]);
   const seededRef = useRef(false);
-  const locallySeenRef = useRef(new Set<string>());
+  // Seen ids survive reloads and new games (localStorage), so tips a player
+  // already dismissed never replay — only world.tutorialSeen is per-save.
+  const locallySeenRef = useRef<Set<string>>(loadPersistedSeen());
 
   const active = enabled && queue.length > 0 ? queue[0] : null;
 
@@ -72,6 +95,7 @@ export function useContextualTutorial(world: WorldState, enabled: boolean) {
 
   const markSeen = useCallback((id: string) => {
     locallySeenRef.current.add(id);
+    persistSeen(locallySeenRef.current);
     setQueue((q) => q.filter((t) => t.id !== id));
   }, []);
 

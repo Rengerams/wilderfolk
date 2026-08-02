@@ -309,14 +309,15 @@ function tickBuildingProduction(
       const searchRadius = 320;
       const bx = building.x + building.width / 2;
       const by = building.y + building.height / 2;
-      // Closest valid game animal — prefer deer/rabbit over wolves; never tamed stock.
+      // Closest valid game animal — auto prefers deer/rabbit over wolves; never tamed stock.
       // (Old code used entities.find → always the first array hit, not the nearest.)
       let targetPrey: Entity | null = null;
       let bestScore = Infinity;
+      const preyTarget = building.huntingSpotPrey ?? 'auto';
       const preyPool = [
-        ...(byType[EntityType.Deer] ?? []),
-        ...(byType[EntityType.Rabbit] ?? []),
-        ...(byType[EntityType.Wolf] ?? []),
+        ...(preyTarget === 'auto' || preyTarget === 'deer' ? (byType[EntityType.Deer] ?? []) : []),
+        ...(preyTarget === 'auto' || preyTarget === 'rabbit' ? (byType[EntityType.Rabbit] ?? []) : []),
+        ...(preyTarget === 'auto' || preyTarget === 'wolf' ? (byType[EntityType.Wolf] ?? []) : []),
       ];
       for (const e of preyPool) {
         if (!e.alive || e.tamedBy != null) continue;
@@ -644,7 +645,8 @@ export function tickLayerDaily(
   tickFestivals(state, counts);
   tickImmigration(state, ctx, allAlive, counts);
 
-  if (state.tick > 0 && state.tick % (TICKS_PER_DAY * 7) === 0) {
+  // Every 3 days — soft wildlife floor so passive play doesn't empty the map by mid-year
+  if (state.tick > 0 && state.tick % (TICKS_PER_DAY * 3) === 0) {
     replenishDepletedWildlife(state);
   }
 

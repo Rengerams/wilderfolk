@@ -33,7 +33,6 @@ class BackgroundMusicPlayer {
   private usingHtmlAudio = false;
   private htmlAudio: HTMLAudioElement | null = null;
   private htmlTrackUrl: string | null = null;
-  private isNight = false;
   private phraseIndex = 0;
   private timeout: ReturnType<typeof setTimeout> | null = null;
   private ensurePromise: Promise<void> | null = null;
@@ -42,10 +41,9 @@ class BackgroundMusicPlayer {
     return this.running;
   }
 
+  /** One continuous bed after intro — no day/night track swaps. */
   private currentTrack(): { url: string; vol: number } {
-    return this.isNight
-      ? { url: TRACKS.night, vol: TRACK_VOLUMES.night }
-      : { url: TRACKS.day, vol: TRACK_VOLUMES.day };
+    return { url: TRACKS.gameplay, vol: TRACK_VOLUMES.gameplay };
   }
 
   private isAudible(): boolean {
@@ -150,30 +148,12 @@ class BackgroundMusicPlayer {
     this.usingHtmlAudio = false;
   }
 
-  async setNightMode(isNight: boolean) {
-    if (this.isNight === isNight) return;
-    this.isNight = isNight;
-    if (!this.running) return;
-
-    const { url, vol } = this.currentTrack();
-
-    if (this.usingHtmlAudio) {
-      const el = this.ensureHtmlAudio(url);
-      el.volume = vol;
-      if (this.htmlTrackUrl !== url) {
-        this.htmlTrackUrl = url;
-        el.src = url;
-        el.load();
-      }
-      try {
-        await el.play();
-      } catch { /* ignore */ }
-      return;
-    }
-
-    if (this.usingSamples) {
-      await musicPlayer.crossfadeLoop(url, 'music', vol, 3);
-    }
+  /**
+   * Day/night used to swap tracks and restart the bed (annoying).
+   * Keep one continuous loop — mood is only filter/ambience elsewhere if needed.
+   */
+  async setNightMode(_isNight: boolean) {
+    /* no-op: continuous gameplay music */
   }
 
   private scheduleProcedural() {

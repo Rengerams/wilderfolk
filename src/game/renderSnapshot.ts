@@ -27,6 +27,7 @@ export interface RenderSnapshot {
   readonly buildings: Building[];
   readonly deathParticles: WorldState['deathParticles'];
   readonly floatingTexts: WorldState['floatingTexts'];
+  readonly huntVisuals: WorldState['huntVisuals'];
   readonly tick: number;
   readonly hourOfDay: number;
   readonly season: WorldState['season'];
@@ -104,6 +105,7 @@ export function buildRenderSnapshot(
     buildings: world.buildings,
     deathParticles: world.deathParticles,
     floatingTexts: world.floatingTexts,
+    huntVisuals: world.huntVisuals,
     tick: world.tick,
     hourOfDay: getHourOfDay(world.tick),
     season: world.season,

@@ -28,7 +28,7 @@ export default function BlacksmithForgePanel({ state, buildingId, onQueueForge }
     <div className="mt-2 space-y-1.5 rounded-lg border border-orange-700/40 bg-orange-950/30 p-2">
       <p className="text-[9px] font-semibold uppercase tracking-wider text-orange-300">Village forge</p>
       <p className="text-[9px] leading-relaxed text-stone-400">
-        Research unlocks orders; materials + staffed smith. When done, you get one toast (same as other village alerts).
+        Each order is a <strong className="text-stone-300">one-time village tier</strong> (not a stack of items). Research → staff smith → queue once. Higher weapons replace lower for all adults. Help: More → Guide → search &quot;forge&quot;.
       </p>
 
       {forge.activeOrder && activeOrder && (

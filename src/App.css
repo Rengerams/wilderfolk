@@ -437,6 +437,13 @@ header, aside, .absolute {
   user-select: none;
 }
 
+/* Emoji spans — Windows often shows "?" unless Segoe UI Emoji is first */
+.font-emoji {
+  font-family: 'Segoe UI Emoji', 'Segoe UI Symbol', 'Apple Color Emoji', 'Noto Color Emoji', emoji, sans-serif !important;
+  font-style: normal;
+  font-weight: 400;
+}
+
 /* ============ Intro screen ============ */
 .intro-root {
   font-family: 'Source Sans 3', system-ui, sans-serif, 'Segoe UI Emoji', 'Segoe UI Symbol', 'Apple Color Emoji', 'Noto Color Emoji', emoji;

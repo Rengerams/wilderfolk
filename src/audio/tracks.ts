@@ -9,13 +9,12 @@ function audioUrl(path: string): string {
 export const TRACKS = {
   intro: audioUrl('audio/music/intro-frontier.mp3'),
   /**
-   * Single continuous gameplay bed — calm frontier loop (no day/night swaps).
-   * Uses the softer night asset as the all-day village theme.
+   * Single continuous gameplay bed after intro (loops; no day/night swaps).
+   * Prefer the calmer loop so it doesn't fatigue over long sessions.
    */
   gameplay: audioUrl('audio/music/night-calm.ogg'),
-  /** @deprecated Prefer TRACKS.gameplay — kept so old references resolve. */
+  /** Alias of gameplay — day/night no longer pick different files. */
   day: audioUrl('audio/music/night-calm.ogg'),
-  /** @deprecated Prefer TRACKS.gameplay */
   night: audioUrl('audio/music/night-calm.ogg'),
   birdsLoop: audioUrl('audio/ambient/birds-loop.ogg'),
   birdChirp: audioUrl('audio/ambient/bird-chirp.mp3'),

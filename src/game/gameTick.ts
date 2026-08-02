@@ -130,7 +130,8 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   for (const b of updatedBuildings) {
     buildingById.set(b.id, b);
     if (!b.completed) continue;
-    if (b.type === BuildingType.Road) roadBuildings.push(b);
+    // Roads + bridges grant the walk-speed bonus
+    if (b.type === BuildingType.Road || b.type === BuildingType.Bridge) roadBuildings.push(b);
     else if (b.type === BuildingType.Well && b.faction !== 'rival') hasWell = true;
     else if (b.type === BuildingType.Hospital && b.faction !== 'rival') hasHospital = true;
   }

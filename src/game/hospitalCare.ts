@@ -40,7 +40,11 @@ export function needsMedicalCare(entity: Entity): boolean {
 
 /** How urgently this settler should seek the hospital (0–1). */
 export function medicalUrgency(entity: Entity): number {
-  if (entity.pregnant) return 0.55 + Math.min(0.35, (entity.pregnancyProgress ?? 0) / 200);
+  // pregnancyProgress runs ~0..PREGNANCY_TICKS (~24 days); scale urgency over the term
+  if (entity.pregnant) {
+    const term = Math.max(1, entity.pregnancyProgress ?? 0);
+    return 0.55 + Math.min(0.4, term / 1800);
+  }
   const energyRatio = entity.energy / Math.max(1, entity.maxEnergy);
   if (energyRatio < 0.28) return 0.85;
   if (energyRatio < 0.42) return 0.55;

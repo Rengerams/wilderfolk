@@ -462,21 +462,36 @@ export function bakeTerrainLayer(
   };
 }
 
-/** Subtle full-layer tint so seasons read without recoloring every sprite. */
+/**
+ * Full-layer seasonal grade — strong enough to read at a glance (was ~5–14% and easy to miss).
+ * Uses Season enum values / string ids from gameTypes.
+ */
 function applySeasonWash(ctx: CanvasContext2d, season: Season, w: number, h: number): void {
   ctx.save();
   switch (season) {
     case 'spring':
-      ctx.fillStyle = 'rgba(180, 255, 160, 0.06)';
+      // Fresh green lift
+      ctx.fillStyle = 'rgba(120, 220, 100, 0.16)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(255, 255, 200, 0.05)';
       break;
     case 'summer':
-      ctx.fillStyle = 'rgba(255, 240, 120, 0.05)';
+      // Hot dry gold / haze (must read vs spring green)
+      ctx.fillStyle = 'rgba(255, 210, 70, 0.18)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(180, 120, 40, 0.08)';
       break;
     case 'fall':
-      ctx.fillStyle = 'rgba(220, 140, 60, 0.1)';
+      // Amber / rust
+      ctx.fillStyle = 'rgba(210, 110, 40, 0.22)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(80, 40, 20, 0.06)';
       break;
     case 'winter':
-      ctx.fillStyle = 'rgba(180, 200, 230, 0.14)';
+      // Cold blue-grey + light snow veil
+      ctx.fillStyle = 'rgba(160, 190, 230, 0.28)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(240, 248, 255, 0.12)';
       break;
     default:
       ctx.restore();

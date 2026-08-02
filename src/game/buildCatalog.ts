@@ -77,8 +77,8 @@ export const BUILDING_CATEGORIES: BuildingCategoryDef[] = [
     label: 'Infra',
     icon: '🛤️',
     color: 'bg-gray-500',
-    hint: '1.5× walk speed · +15% adjacency · press R to rotate',
-    types: [BuildingType.Road],
+    hint: 'Roads 1.5× walk · Bridges on rivers · R rotates',
+    types: [BuildingType.Road, BuildingType.Bridge],
   },
 ];
 

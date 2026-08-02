@@ -71,6 +71,8 @@ export const BuildingType = {
   Tavern: 'tavern',
   /** Guest lodging — visitors pay gold to sleep; staffed by hoteliers. */
   Hotel: 'hotel',
+  /** Cross rivers — place on river / bank tiles only. Drop `public/sprites/bridge.png`. */
+  Bridge: 'bridge',
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 
@@ -332,7 +334,19 @@ export interface Building {
   rotation?: 0 | 90 | 180 | 270;
   /** Hotel only — visitor entity ids currently lodging (max HOTEL_GUEST_CAPACITY). */
   hotelGuestIds?: number[];
+  /** Hunting Spot only — which prey the staffed hunters target (see HUNTING_SPOT_PREY_OPTIONS). */
+  huntingSpotPrey?: HuntingSpotPrey;
 }
+
+/** Hunting Spot only — which prey the staffed hunters target ('auto' = nearest legal game). */
+export type HuntingSpotPrey = 'auto' | 'deer' | 'rabbit' | 'wolf';
+
+export const HUNTING_SPOT_PREY_OPTIONS: { id: HuntingSpotPrey; label: string; emoji: string; hint: string }[] = [
+  { id: 'auto', label: 'Auto', emoji: '🎯', hint: 'Nearest deer, rabbit, or wolf' },
+  { id: 'deer', label: 'Deer', emoji: '🦌', hint: 'Biggest carcass — most meat' },
+  { id: 'rabbit', label: 'Rabbit', emoji: '🐰', hint: 'Fast snack — small but safe' },
+  { id: 'wolf', label: 'Wolf', emoji: '🐺', hint: 'Risky — wolves fight back' },
+];
 
 export interface WorkshopRecipe {
   id: string;
@@ -1188,6 +1202,16 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     sprite: '/sprites/hotel.png', backgroundColor: '#0e7490', padShape: 'round',
     unlockRequirement: 'trade_1',
   },
+  [BuildingType.Bridge]: {
+    // Matches OpenGameArt stone path strip (top-down deck); R rotates across the river
+    width: 64, height: 22,
+    cost: { wood: 45, stone: 35, gold: 15 },
+    buildTime: 3, maxOccupants: 0,
+    emoji: '🌉', label: 'Bridge', description: 'Spans a river — place on river/bank. 1.5× walk like roads (R rotates). Art: OpenGameArt stone bridge tiles (top deck).',
+    sprite: '/sprites/bridge.png', backgroundColor: '#6b7280', padShape: 'road',
+    unlockRequirement: 'architecture_1',
+    spriteDisplayScale: 1.05,
+  },
 };
 
 export const INITIAL_CHALLENGES: Challenge[] = [
@@ -1355,9 +1379,10 @@ export interface WeatherConfig {
 
 export const WEATHER_CONFIGS: Record<WeatherType, WeatherConfig> = {
   [WeatherType.Clear]: { label: 'Clear', emoji: '', color: '', particleCount: 0, overlayAlpha: 0 },
-  [WeatherType.Rain]: { label: 'Rain', emoji: '🌧️', color: '#8a9aaa', particleCount: 40, overlayAlpha: 0 },
-  [WeatherType.Snow]: { label: 'Snow', emoji: '❄️', color: '#ffffff', particleCount: 25, overlayAlpha: 0 },
-  [WeatherType.Storm]: { label: 'Storm', emoji: '⛈️', color: '#90a0b0', particleCount: 50, overlayAlpha: 0 },
-  [WeatherType.Fog]: { label: 'Fog', emoji: '🌫️', color: '#d1d5db', particleCount: 0, overlayAlpha: 0.2 },
-  [WeatherType.Drought]: { label: 'Drought', emoji: '🌵', color: '#92400e', particleCount: 0, overlayAlpha: 0.06 },
+  // Higher counts + readable colours — 40 grey 1px streaks were invisible on the map
+  [WeatherType.Rain]: { label: 'Rain', emoji: '🌧️', color: '#a8c4e0', particleCount: 140, overlayAlpha: 0.08 },
+  [WeatherType.Snow]: { label: 'Snow', emoji: '❄️', color: '#f0f4f8', particleCount: 90, overlayAlpha: 0.06 },
+  [WeatherType.Storm]: { label: 'Storm', emoji: '⛈️', color: '#b0c4d8', particleCount: 180, overlayAlpha: 0.12 },
+  [WeatherType.Fog]: { label: 'Fog', emoji: '🌫️', color: '#d1d5db', particleCount: 0, overlayAlpha: 0.28 },
+  [WeatherType.Drought]: { label: 'Drought', emoji: '🌵', color: '#92400e', particleCount: 0, overlayAlpha: 0.1 },
 };

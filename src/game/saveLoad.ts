@@ -70,18 +70,77 @@ function pickWorldStateFromSave(parsed: Record<string, unknown>): Partial<WorldS
   return out;
 }
 
-export function readSavePayload(): SaveReadResult {
+/** Parse save JSON from localStorage or a downloaded .json file. */
+export function parseSaveJson(raw: string | null | undefined): SaveReadResult {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return { valid: false };
+    if (!raw || !raw.trim()) return { valid: false };
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     if (!COMPATIBLE_SAVE_VERSIONS.includes(parsed._version as typeof COMPATIBLE_SAVE_VERSIONS[number])) {
       return { valid: false };
     }
     return { valid: true, parsed };
   } catch (e) {
+    console.error('Save parse failed:', e);
+    return { valid: false };
+  }
+}
+
+export function readSavePayload(): SaveReadResult {
+  try {
+    return parseSaveJson(localStorage.getItem(SAVE_KEY));
+  } catch (e) {
     console.error('Save read failed:', e);
     return { valid: false };
+  }
+}
+
+/** Build the JSON object written to browser storage or a .json file. */
+export function buildSaveData(world: WorldState, view: ViewState): Record<string, unknown> {
+  const persistable = stripRuntimeWorldFields(world);
+  return {
+    ...mergeForSave(persistable, view),
+    worldMap: compactWorldMapForSave(persistable.worldMap),
+    _savedAt: Date.now(),
+    _version: GAME_VERSION,
+    _ticksPerDay: TICKS_PER_DAY,
+  };
+}
+
+export function buildSaveFilename(villageName: string, year: number, dayInYear: number): string {
+  const safe = (villageName || 'village')
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 40) || 'village';
+  return `wilderfolk-${safe}-Y${year}-D${dayInYear}.json`;
+}
+
+/** Download colony save as a file (also writes browser slot when possible). */
+export function downloadSaveFile(world: WorldState, view: ViewState): SaveResult {
+  try {
+    const saveData = buildSaveData(world, view);
+    const json = JSON.stringify(saveData);
+    try {
+      localStorage.setItem(SAVE_KEY, json);
+    } catch {
+      /* file download still works if storage is full */
+    }
+    if (typeof document !== 'undefined') {
+      const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = buildSaveFilename(world.villageName, world.year, world.dayInYear);
+      anchor.rel = 'noopener';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    }
+    return { success: true };
+  } catch (e) {
+    console.error('Save download failed:', e);
+    return { success: false, error: 'Could not download save file' };
   }
 }
 
@@ -209,30 +268,21 @@ function migrateTickTimeline(
 
 export function saveGame(world: WorldState, view: ViewState): SaveResult {
   try {
-    const persistable = stripRuntimeWorldFields(world);
-    const saveData = {
-      ...mergeForSave(persistable, view),
-      worldMap: compactWorldMapForSave(persistable.worldMap),
-      _savedAt: Date.now(),
-      _version: GAME_VERSION,
-      _ticksPerDay: TICKS_PER_DAY,
-    };
+    const saveData = buildSaveData(world, view);
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
     return { success: true };
   } catch (e) {
     const error =
       e instanceof DOMException && e.name === 'QuotaExceededError'
-        ? 'Storage full — try a smaller map or clear browser data'
+        ? 'Storage full — use Save to file, or clear browser data'
         : 'Save failed — check browser storage permissions';
     return { success: false, error };
   }
 }
 
-export function loadGame(): { world: WorldState; view: ViewState } | null {
+/** Hydrate a world+view from an already-parsed save object (browser or file). */
+export function loadGameFromParsed(parsed: Record<string, unknown>): { world: WorldState; view: ViewState } | null {
   try {
-    const result = readSavePayload();
-    if (!result.valid) return null;
-    const parsed = result.parsed;
     const worldData = pickWorldStateFromSave(parsed);
 
     let loadedTick = (worldData.tick ?? (parsed.tick as number | undefined) ?? 0) as number;
@@ -461,6 +511,24 @@ export function loadGame(): { world: WorldState; view: ViewState } | null {
     console.error('Save load failed:', e);
     return null;
   }
+}
+
+export function loadGame(): { world: WorldState; view: ViewState } | null {
+  try {
+    const result = readSavePayload();
+    if (!result.valid) return null;
+    return loadGameFromParsed(result.parsed);
+  } catch (e) {
+    console.error('Save load failed:', e);
+    return null;
+  }
+}
+
+/** Load a colony from a downloaded .json file body. */
+export function loadGameFromFileText(raw: string): { world: WorldState; view: ViewState } | null {
+  const result = parseSaveJson(raw);
+  if (!result.valid) return null;
+  return loadGameFromParsed(result.parsed);
 }
 
 export function hasSave(): boolean {

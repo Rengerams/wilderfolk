@@ -157,7 +157,15 @@ export {
   formatPopulationBrief,
 } from './entityCounts';
 export type { PopulationCounts } from './entityCounts';
-export { saveGame, loadGame, hasSave, deleteSave } from './saveLoad';
+export {
+  saveGame,
+  loadGame,
+  hasSave,
+  deleteSave,
+  downloadSaveFile,
+  loadGameFromFileText,
+  parseSaveJson,
+} from './saveLoad';
 export {
   UNBUILDABLE_TERRAIN,
   isFootprintOnBuildableTerrain,

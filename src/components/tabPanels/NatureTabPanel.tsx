@@ -9,6 +9,7 @@ import {
   valleyStageLabel,
   type ValleyStage,
 } from '../../game/ecologyStage';
+import Emoji from '../Emoji';
 
 const WEATHER_ICONS: Record<WeatherType, string> = {
   [WeatherType.Clear]: '',
@@ -30,11 +31,13 @@ interface WildlifeBarProps {
 const WildlifeBar = memo(function WildlifeBar({ label, count, max, color, icon }: WildlifeBarProps) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-5 text-center text-[11px]">{icon}</span>
+      <span className="flex w-5 justify-center text-center text-[13px]">
+        <Emoji>{icon}</Emoji>
+      </span>
       <div className="flex-1">
         <div className="mb-0.5 flex justify-between text-[11px]">
           <span className="text-stone-400">{label}</span>
-          <span className="text-stone-300">{count}</span>
+          <span className="font-bold tabular-nums text-stone-200">{count}</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-stone-600">
           <div
@@ -74,6 +77,8 @@ const DRIVER_BAND_COLOR = {
 } as const;
 
 export default function NatureTabPanel({ state, grazingPressure, ecoBreakdown }: NatureTabPanelProps) {
+  // Field-level deps on purpose — recompute only when an ecology input changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const valley = useMemo(() => computeValleyEcologySnapshot(state), [
     state.valleyStage,
     state.ecosystemHealth,
@@ -87,11 +92,70 @@ export default function NatureTabPanel({ state, grazingPressure, ecoBreakdown }:
   ]);
   const stage = valley.stage;
 
+  const wc = state.wildlifeCounts;
+  const preyTotal = (wc?.rabbits ?? 0) + (wc?.deer ?? 0);
+  const predatorTotal = (wc?.wolves ?? 0) + (wc?.foxes ?? 0);
+
   return (
     <div className="space-y-3">
+      {/* Counts first — easy to miss when buried under eco essays */}
+      <div className="rounded-xl border border-emerald-700/35 bg-stone-700/50 p-3">
+        <div className="mb-2 flex items-end justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-bold text-stone-200">Wildlife populations</h3>
+            <p className="text-[10px] text-stone-500">
+              Live counts · prey {preyTotal} · predators {predatorTotal} · grass {wc?.grass ?? 0}
+            </p>
+          </div>
+          <p className="shrink-0 text-[10px] text-stone-500" title="Season affects grass & animal energy">
+            {SEASON_LABELS[state.season]}
+          </p>
+        </div>
+        <div className="mb-2 grid grid-cols-4 gap-1 text-center text-[10px]">
+          <div className="rounded-lg bg-stone-800/70 px-1 py-1.5">
+            <div className="text-base leading-none"><Emoji>🐰</Emoji></div>
+            <div className="mt-0.5 font-bold tabular-nums text-amber-200">{wc?.rabbits ?? 0}</div>
+            <div className="text-stone-500">rabbits</div>
+          </div>
+          <div className="rounded-lg bg-stone-800/70 px-1 py-1.5">
+            <div className="text-base leading-none"><Emoji>🦌</Emoji></div>
+            <div className="mt-0.5 font-bold tabular-nums text-orange-200">{wc?.deer ?? 0}</div>
+            <div className="text-stone-500">deer</div>
+          </div>
+          <div className="rounded-lg bg-stone-800/70 px-1 py-1.5">
+            <div className="text-base leading-none"><Emoji>🐺</Emoji></div>
+            <div className="mt-0.5 font-bold tabular-nums text-stone-200">{wc?.wolves ?? 0}</div>
+            <div className="text-stone-500">wolves</div>
+          </div>
+          <div className="rounded-lg bg-stone-800/70 px-1 py-1.5">
+            <div className="text-base leading-none"><Emoji>🦊</Emoji></div>
+            <div className="mt-0.5 font-bold tabular-nums text-orange-300">{wc?.foxes ?? 0}</div>
+            <div className="text-stone-500">foxes</div>
+          </div>
+        </div>
+        <div className="space-y-1 text-[11px]">
+          <WildlifeBar label="Rabbits" count={wc?.rabbits ?? 0} max={120} color="bg-amber-600" icon="🐰" />
+          <WildlifeBar label="Deer" count={wc?.deer ?? 0} max={60} color="bg-orange-700" icon="🦌" />
+          <WildlifeBar label="Wolves" count={wc?.wolves ?? 0} max={25} color="bg-stone-500" icon="🐺" />
+          <WildlifeBar label="Foxes" count={wc?.foxes ?? 0} max={35} color="bg-orange-600" icon="🦊" />
+          <WildlifeBar label="Grass patches" count={wc?.grass ?? 0} max={500} color="bg-green-500" icon="🌿" />
+          <WildlifeBar label="Trees" count={wc?.trees ?? 0} max={200} color="bg-green-700" icon="🌲" />
+          {(wc?.werewolves ?? 0) > 0 && (
+            <WildlifeBar label="Moon Howlers" count={wc.werewolves} max={10} color="bg-violet-700" icon="🌝" />
+          )}
+          {(wc?.wildkin ?? 0) > 0 && (
+            <WildlifeBar label="Wildkin" count={wc.wildkin} max={15} color="bg-lime-700" icon="🦌" />
+          )}
+        </div>
+        <p className="mt-2 text-[9px] leading-snug text-stone-500">
+          Winter and heavy hunting thin herds. Soft recovery at the frontier if numbers stay low.
+        </p>
+      </div>
+
       <div className={`rounded-xl border p-3 ${STAGE_STYLES[stage]}`}>
         <h3 className={`mb-1 text-xs font-bold ${STAGE_TITLE[stage]}`}>
-          {valleyStageEmoji(stage)} Valley: {valleyStageLabel(stage)}
+          <Emoji className="mr-1">{valleyStageEmoji(stage)}</Emoji>
+          Valley: {valleyStageLabel(stage)}
         </h3>
         <p className="text-[11px] leading-relaxed text-stone-300">{valley.playerSummary}</p>
         <div className="mt-2 space-y-1">
@@ -130,8 +194,8 @@ export default function NatureTabPanel({ state, grazingPressure, ecoBreakdown }:
           <p className="text-[11px] leading-relaxed text-stone-300">{grazingPressure.headline}</p>
           <p className="mt-1.5 text-[11px] text-stone-400">{grazingPressure.advice}</p>
           <div className="mt-2 grid grid-cols-2 gap-1 text-[11px] text-stone-500">
-            <span>🦌 Deer: {grazingPressure.deerCount}</span>
-            <span>🌿 Grass: {grazingPressure.grassCount}</span>
+            <span><Emoji className="mr-0.5">🦌</Emoji> Deer: {grazingPressure.deerCount}</span>
+            <span><Emoji className="mr-0.5">🌿</Emoji> Grass: {grazingPressure.grassCount}</span>
             <span>Demand/day: {grazingPressure.grazingDemandPerDay}</span>
             <span>Recovery/day: {grazingPressure.grassRecoveryPerDay}</span>
           </div>
@@ -221,23 +285,12 @@ export default function NatureTabPanel({ state, grazingPressure, ecoBreakdown }:
             </p>
           )}
           {state.weather !== WeatherType.Clear && (
-            <p>{WEATHER_ICONS[state.weather]} <strong className="text-stone-200">{state.weather}</strong> — shifts today&apos;s temperature and farming</p>
+            <p>
+              {WEATHER_ICONS[state.weather] ? <Emoji className="mr-1">{WEATHER_ICONS[state.weather]}</Emoji> : null}
+              <strong className="text-stone-200">{state.weather}</strong>
+              {' '}— shifts today&apos;s temperature and farming
+            </p>
           )}
-        </div>
-      </div>
-
-      <div className="rounded-xl bg-stone-700/50 p-3">
-        <h3 className="mb-2 text-sm font-bold text-stone-300">Wildlife Populations</h3>
-        <p className="mb-2 text-[11px] text-stone-500">Healthy numbers keep the food chain balanced.</p>
-        <div className="space-y-1 text-[11px]">
-          <WildlifeBar label="Rabbits" count={state.wildlifeCounts.rabbits} max={120} color="bg-amber-600" icon="🐰" />
-          <WildlifeBar label="Deer" count={state.wildlifeCounts.deer} max={60} color="bg-orange-700" icon="🦌" />
-          <WildlifeBar label="Wolves" count={state.wildlifeCounts.wolves} max={25} color="bg-stone-500" icon="🐺" />
-          <WildlifeBar label="Foxes" count={state.wildlifeCounts.foxes} max={35} color="bg-orange-600" icon="🦊" />
-          <WildlifeBar label="Moon Howlers" count={state.wildlifeCounts.werewolves} max={10} color="bg-violet-700" icon="🌝" />
-          <WildlifeBar label="Wildkin" count={state.wildlifeCounts.wildkin} max={15} color="bg-lime-700" icon="🦌" />
-          <WildlifeBar label="Trees" count={state.wildlifeCounts.trees} max={200} color="bg-green-700" icon="🌲" />
-          <WildlifeBar label="Grass" count={state.wildlifeCounts.grass} max={500} color="bg-green-500" icon="🌿" />
         </div>
       </div>
 

@@ -220,7 +220,7 @@ export function useCanvasInteractions({
         selectedCampKey: null,
       });
     }
-  }, [selectedBuildingType, juiceEffectsEnabled, getViewCamera, applyGameAction, cancelBuildMode, canvasRef, worldRef, loopRef, setInspectorCollapsed]);
+  }, [selectedBuildingType, juiceEffectsEnabled, getViewCamera, applyGameAction, cancelBuildMode, canvasRef, worldRef, loopRef, clickOriginRef, setInspectorCollapsed]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;

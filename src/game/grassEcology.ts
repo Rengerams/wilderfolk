@@ -22,18 +22,19 @@ export function getGrassGrowthMultiplier(season: Season, weather: WeatherType): 
   switch (season) {
     case Season.Spring: base = 1.8; break;
     case Season.Summer: base = 1.2; break;
-    case Season.Fall: base = 0.6; break;
-    case Season.Winter: base = 0.15; break;
+    case Season.Fall: base = 0.7; break;
+    // Was 0.15 — winter grass crash wiped grazers by mid-year with no player hunting.
+    case Season.Winter: base = 0.35; break;
   }
   if (weather === WeatherType.Rain) base *= 1.3;
   if (weather === WeatherType.Drought) base *= 0.3;
-  if (weather === WeatherType.Snow) base *= 0.5;
+  if (weather === WeatherType.Snow) base *= 0.55;
   return base;
 }
 
 export function getWinterEnergyPenalty(season: Season): number {
-  // Scaled like SPECIES energyLoss so daily winter burn stays ~legacy after TICKS_PER_HOUR
-  return season === Season.Winter ? 0.4 * PER_TICK_RATE_SCALE : 0;
+  // Softer winter burn so fauna survive a full cold season if grass remains.
+  return season === Season.Winter ? 0.22 * PER_TICK_RATE_SCALE : 0;
 }
 
 /**

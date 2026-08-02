@@ -43,32 +43,48 @@ function killEntityInDisaster(
   createDeathParticles(state, entity.x, entity.y, color, 5, 'smoke');
 }
 
-/** Systems pulses between weather rolls (legacy 360 ≈ 60 colony days at old day length). */
-const WEATHER_ROLL_SYSTEMS_PULSES = systemsPulsesFromLegacy(360);
+/**
+ * Systems pulses between weather rolls.
+ * Legacy 360 ≈ 60 colony days was so rare players never saw rain.
+ * Target: re-roll about every ~2.5–3 colony days (readable weather, not constant spam).
+ * At 72 TPD / systems every 4 ticks → 18 systems pulses/day → ~50 pulses ≈ 2.8 days.
+ */
+const WEATHER_ROLL_SYSTEMS_PULSES = systemsPulsesFromLegacy(50 / 3);
+// 50/3 * TICKS_PER_HOUR ≈ 50 systems pulses when TICKS_PER_HOUR=3
 
 export function updateWeather(state: WorldState) {
   state.weatherTimer++;
-  if (state.weatherTimer % WEATHER_ROLL_SYSTEMS_PULSES === 0) {
-    const season = state.season;
-    const roll = Math.random();
-    if (season === Season.Spring) {
-      if (roll < 0.5) state.weather = WeatherType.Rain;
-      else if (roll < 0.7) state.weather = WeatherType.Fog;
-      else state.weather = WeatherType.Clear;
-    } else if (season === Season.Summer) {
-      if (roll < 0.15) state.weather = WeatherType.Drought;
-      else if (roll < 0.3) state.weather = WeatherType.Rain;
-      else if (roll < 0.4) state.weather = WeatherType.Storm;
-      else state.weather = WeatherType.Clear;
-    } else if (season === Season.Fall) {
-      if (roll < 0.35) state.weather = WeatherType.Rain;
-      else if (roll < 0.55) state.weather = WeatherType.Fog;
-      else state.weather = WeatherType.Clear;
-    } else {
-      if (roll < 0.4) state.weather = WeatherType.Snow;
-      else if (roll < 0.6) state.weather = WeatherType.Fog;
-      else state.weather = WeatherType.Clear;
-    }
+  if (state.weatherTimer % Math.max(1, WEATHER_ROLL_SYSTEMS_PULSES) !== 0) return;
+
+  const season = state.season;
+  const roll = Math.random();
+  // Slight bias to leave "event" weather after a spell (feels like weather, not a stuck state)
+  if (state.weather !== WeatherType.Clear && roll < 0.35) {
+    state.weather = WeatherType.Clear;
+    return;
+  }
+
+  if (season === Season.Spring) {
+    if (roll < 0.45) state.weather = WeatherType.Rain;
+    else if (roll < 0.6) state.weather = WeatherType.Fog;
+    else if (roll < 0.68) state.weather = WeatherType.Storm;
+    else state.weather = WeatherType.Clear;
+  } else if (season === Season.Summer) {
+    if (roll < 0.12) state.weather = WeatherType.Drought;
+    else if (roll < 0.28) state.weather = WeatherType.Rain;
+    else if (roll < 0.36) state.weather = WeatherType.Storm;
+    else state.weather = WeatherType.Clear;
+  } else if (season === Season.Fall) {
+    if (roll < 0.4) state.weather = WeatherType.Rain;
+    else if (roll < 0.55) state.weather = WeatherType.Fog;
+    else if (roll < 0.62) state.weather = WeatherType.Storm;
+    else state.weather = WeatherType.Clear;
+  } else {
+    // Winter
+    if (roll < 0.42) state.weather = WeatherType.Snow;
+    else if (roll < 0.55) state.weather = WeatherType.Fog;
+    else if (roll < 0.62) state.weather = WeatherType.Rain;
+    else state.weather = WeatherType.Clear;
   }
 }
 

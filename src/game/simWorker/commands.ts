@@ -1,5 +1,6 @@
 import type { WorldState } from '../gameTypes';
-import { BuildingType } from '../gameTypes';
+import { BuildingType, HUNTING_SPOT_PREY_OPTIONS } from '../gameTypes';
+import type { HuntingSpotPrey } from '../gameTypes';
 import type { BuildingRotation } from '../buildingRotation';
 import type { StripSegment } from '../stripBuild';
 import type { VisitorTradeAction, RefugeeChoice } from '../groupEvents';
@@ -15,6 +16,7 @@ import {
   upgradeBuilding,
   demolishBuilding,
   setWorkshopRecipe,
+  setHuntingSpotPrey,
   recruitSettler,
   moveOutOfFamilyHome,
   tameEntity,
@@ -50,6 +52,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'upgradeBuilding'; buildingId: number }
   | { proto: 1; op: 'demolishBuilding'; buildingId: number }
   | { proto: 1; op: 'setWorkshopRecipe'; buildingId: number; recipeId: string }
+  | { proto: 1; op: 'setHuntingSpotPrey'; buildingId: number; prey: HuntingSpotPrey }
   | { proto: 1; op: 'queueForgeOrder'; buildingId: number; orderId: ForgeOrderId }
   | { proto: 1; op: 'recruitSettler' }
   | { proto: 1; op: 'moveOutOfFamilyHome'; humanId: number }
@@ -81,6 +84,7 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'upgradeBuilding',
   'demolishBuilding',
   'setWorkshopRecipe',
+  'setHuntingSpotPrey',
   'queueForgeOrder',
   'recruitSettler',
   'moveOutOfFamilyHome',
@@ -164,6 +168,10 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       return isFiniteNumber(cmd.buildingId);
     case 'setWorkshopRecipe':
       return isFiniteNumber(cmd.buildingId) && isNonEmptyString(cmd.recipeId);
+    case 'setHuntingSpotPrey':
+      return isFiniteNumber(cmd.buildingId)
+        && typeof cmd.prey === 'string'
+        && HUNTING_SPOT_PREY_OPTIONS.some((o) => o.id === cmd.prey);
     case 'queueForgeOrder':
       return isFiniteNumber(cmd.buildingId) && typeof cmd.orderId === 'string' && FORGE_ORDER_IDS.has(cmd.orderId);
     case 'recruitSettler':
@@ -248,6 +256,8 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return demolishBuilding(world, cmd.buildingId);
     case 'setWorkshopRecipe':
       return setWorkshopRecipe(world, cmd.buildingId, cmd.recipeId);
+    case 'setHuntingSpotPrey':
+      return setHuntingSpotPrey(world, cmd.buildingId, cmd.prey);
     case 'queueForgeOrder':
       return queueForgeOrder(world, cmd.buildingId, cmd.orderId);
     case 'recruitSettler':

@@ -1,8 +1,8 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useMemo } from 'react';
 import { ResearchType } from '../../game/gameTypes';
 import type { WorldState } from '../../game/gameEngine';
-import { ACTIVE_VICTORY_PATHS, COMING_SOON_VICTORY_PATHS } from '../../game/victory';
 import { hasCompletedMarket } from '../../game/tradeCaravans';
+import { computeVillagePortrait } from '../../game/villagePortrait';
 
 type ProgressSubTab = 'research' | 'trade' | 'goals';
 
@@ -27,6 +27,77 @@ export interface ProgressTabPanelProps {
   tradeReadyCount: number;
   onStartResearch: (researchId: string) => void;
   onEstablishTradeRoute: (routeId: string) => void;
+}
+
+/** How you play — not a win screen. */
+function GoalsPortraitPanel({ state }: { state: WorldState }) {
+  // Field-level deps on purpose — recompute only when a portrait input changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const portrait = useMemo(() => computeVillagePortrait(state), [
+    state.tick,
+    state.year,
+    state.humanPopulation,
+    state.ecosystemHealth,
+    state.valleyStage,
+    state.villageReputation,
+    state.rivalSettlements,
+    state.tradeRoutes,
+    state.eventLog.length,
+    state.lifetimeStats,
+    state.buildings.length,
+  ]);
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-amber-600/35 bg-gradient-to-b from-amber-950/40 to-stone-800/40 p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-500/90">How history sees you</p>
+        <h3 className="mt-1 text-sm font-bold text-amber-100">
+          <span className="mr-1.5" aria-hidden>{portrait.emoji}</span>
+          {portrait.title}
+        </h3>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-stone-300">{portrait.summary}</p>
+        <p className="mt-2 text-[10px] text-stone-500">
+          No single win screen — raid like barbarians, tend the wild, trade, build, or make peace. This portrait shifts as you play.
+        </p>
+      </div>
+
+      <div className="rounded-xl bg-stone-700/50 p-3">
+        <h3 className="mb-2 text-sm font-bold text-stone-300">Your path (live)</h3>
+        <div className="space-y-2">
+          {portrait.traits.map((t) => (
+            <div key={t.id} className="rounded-lg border border-stone-600/50 bg-stone-800/40 p-2">
+              <div className="mb-0.5 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-stone-200">
+                  {t.emoji} {t.label}
+                </span>
+                <span className="text-[10px] font-semibold tabular-nums text-stone-500">{t.score}</span>
+              </div>
+              <div className="mb-1 h-1 overflow-hidden rounded-full bg-stone-700">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    t.id === portrait.primary ? 'bg-amber-500' : 'bg-stone-500'
+                  }`}
+                  style={{ width: `${t.score}%` }}
+                />
+              </div>
+              <p className="text-[10px] leading-snug text-stone-400">{t.blurb}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-stone-600/40 bg-stone-700/30 p-3">
+        <h3 className="mb-2 text-sm font-bold text-amber-300">🏆 Challenges</h3>
+        <p className="mb-2 text-[10px] text-stone-500">Optional goals with resource rewards — not required to “finish” the game.</p>
+        <Suspense fallback={<p className="text-[11px] text-stone-500">Loading challenges…</p>}>
+          <ChallengesPanel state={state} />
+        </Suspense>
+      </div>
+      <Suspense fallback={<p className="text-[11px] text-stone-500">Loading statistics…</p>}>
+        <StatisticsPanel state={state} />
+      </Suspense>
+    </div>
+  );
 }
 
 export default function ProgressTabPanel({
@@ -195,85 +266,7 @@ export default function ProgressTabPanel({
       )}
 
       {progressSubTab === 'goals' && (
-        <div className="space-y-3">
-          {state.victoryAchieved && (
-            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-center">
-              <span className="text-2xl">🏆</span>
-              <h3 className="text-sm font-bold text-amber-300">Victory Achieved!</h3>
-              <p className="text-[11px] text-amber-200/80">
-                {state.victories.find(v => v.path === state.victoryAchieved)?.label}
-              </p>
-            </div>
-          )}
-          <div className="rounded-xl bg-stone-700/50 p-3">
-            <h3 className="mb-2 text-sm font-bold text-stone-300">Victory Paths</h3>
-            <p className="mb-2 text-[11px] text-stone-400 leading-relaxed">
-              Pursue any of four victory legacies — eco, city, trade, or harmony with the wild.
-            </p>
-            <details className="mb-3 rounded-lg border border-stone-600/60 bg-stone-800/40">
-              <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-semibold text-stone-300 hover:text-stone-200">
-                How each path works
-              </summary>
-              <ul className="space-y-1.5 border-t border-stone-600/40 px-2 py-2 text-[11px] leading-relaxed text-stone-400">
-                <li><strong className="text-stone-300">🌿 Eco-Utopia</strong> — 250 people and a healthy ecosystem for 20 years.</li>
-                <li><strong className="text-stone-300">🏰 Great City</strong> — 400 people and 60 finished buildings.</li>
-                <li><strong className="text-stone-300">💰 Trade Empire</strong> — open all 7 trade routes; merchants <em>walk</em> each route (hub → partner → back). Complete 40 round-trips and earn 50,000 gold from caravan trade. Watch the map **🚚** line and Progress → Trade for status.</li>
-                <li><strong className="text-stone-300">🐺 Harmony</strong> — 8 <em>wild</em> wolves in the valley (untamed — Taming Post does not count) plus 15 wildkin.</li>
-                <li className="text-stone-500 pt-1 border-t border-stone-700/50">
-                  <strong className="text-stone-400">Raids & elections</strong> — raid fighters earn Guard XP; the village head gets extra XP and reputation on wins, which feeds merit elections (all skills ×2) and the incumbent record score.
-                </li>
-              </ul>
-            </details>
-            <div className="space-y-2">
-              {state.victories.filter((v) => ACTIVE_VICTORY_PATHS.includes(v.path as typeof ACTIVE_VICTORY_PATHS[number])).map(v => (
-                <div key={v.path} className={`rounded-lg border p-2 ${
-                  v.achieved ? 'border-amber-500/40 bg-amber-500/10' : 'border-stone-600 bg-stone-600/20'
-                }`}>
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-stone-200">{v.label}</span>
-                    <span className={`text-[11px] font-bold ${v.achieved ? 'text-amber-400' : 'text-stone-500'}`}>
-                      {v.achieved ? '✓ Won' : `${v.progress}%`}
-                    </span>
-                  </div>
-                  <p className="mb-1.5 text-[11px] text-stone-400">{v.description}</p>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-stone-700">
-                    <div
-                      className={`h-full rounded-full transition-all ${v.achieved ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                      style={{ width: `${v.progress}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-            {COMING_SOON_VICTORY_PATHS.length > 0 && (
-              <details className="mt-3 rounded-lg border border-stone-600/60 bg-stone-800/40">
-                <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-semibold text-stone-400 hover:text-stone-300">
-                  Coming later
-                </summary>
-                <div className="space-y-2 border-t border-stone-600/40 p-2">
-                  {state.victories.filter((v) => COMING_SOON_VICTORY_PATHS.includes(v.path as typeof COMING_SOON_VICTORY_PATHS[number])).map(v => (
-                    <div key={v.path} className="rounded-lg border border-stone-700 bg-stone-700/20 p-2 opacity-70">
-                      <div className="mb-1 flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-stone-300">{v.label}</span>
-                        <span className="text-[11px] font-bold text-stone-500">Soon</span>
-                      </div>
-                      <p className="text-[11px] text-stone-500">{v.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </details>
-            )}
-          </div>
-          <div className="rounded-xl border border-stone-600/40 bg-stone-700/30 p-3">
-            <h3 className="mb-2 text-sm font-bold text-amber-300">🏆 Challenges</h3>
-            <Suspense fallback={<p className="text-[11px] text-stone-500">Loading challenges…</p>}>
-              <ChallengesPanel state={state} />
-            </Suspense>
-          </div>
-          <Suspense fallback={<p className="text-[11px] text-stone-500">Loading statistics…</p>}>
-            <StatisticsPanel state={state} />
-          </Suspense>
-        </div>
+        <GoalsPortraitPanel state={state} />
       )}
     </div>
   );

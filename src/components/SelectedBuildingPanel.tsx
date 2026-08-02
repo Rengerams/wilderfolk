@@ -21,6 +21,8 @@ import { isProductionBuildingType } from '../game/buildCatalog';
 import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
 import { describeHotelStatus } from '../game/hotelStay';
 import { HOTEL_GUEST_CAPACITY, HOTEL_NIGHTLY_GOLD } from '../game/gameTypes';
+import { HUNTING_SPOT_PREY_OPTIONS } from '../game/gameTypes';
+import type { HuntingSpotPrey } from '../game/gameTypes';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { formatRaidDeadlineSafe } from '../game/raidUtils';
 import type { Building, WorldState, Entity } from '../game/gameEngine';
@@ -78,6 +80,7 @@ export interface SelectedBuildingPanelProps {
   onUpgrade: () => void;
   onDemolish: () => void;
   onSetWorkshopRecipe?: (recipeId: string) => void;
+  onSetHuntingPrey?: (prey: HuntingSpotPrey) => void;
   onQueueForge?: (orderId: ForgeOrderId) => void;
   idleWorkers: number;
   canAssignWorker: boolean;
@@ -87,7 +90,7 @@ export interface SelectedBuildingPanelProps {
 }
 
 export default function SelectedBuildingPanel({
-  building, state, onAssign, onAutoStaffAll, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onSetWorkshopRecipe, onQueueForge, idleWorkers, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
+  building, state, onAssign, onAutoStaffAll, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onSetWorkshopRecipe, onSetHuntingPrey, onQueueForge, idleWorkers, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
 }: SelectedBuildingPanelProps) {
   if (building.faction === 'rival') {
     const rival = state.rivalSettlements.find((r) => r.id === building.groupId);
@@ -351,6 +354,35 @@ export default function SelectedBuildingPanel({
         )}
         {building.completed && BUILDING_OUTPUT_HINTS[building.type] && (
           <p className="text-[9px] text-stone-400">{BUILDING_OUTPUT_HINTS[building.type]}</p>
+        )}
+        {building.completed && building.type === BuildingType.HuntingSpot && (
+          <div className="mt-2 space-y-1.5 rounded-lg border border-orange-700/40 bg-orange-950/30 p-2">
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-orange-300">Hunt target</p>
+            <div className="grid grid-cols-2 gap-1">
+              {HUNTING_SPOT_PREY_OPTIONS.map((opt) => {
+                const active = (building.huntingSpotPrey ?? 'auto') === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    disabled={!onSetHuntingPrey}
+                    onClick={() => onSetHuntingPrey?.(opt.id)}
+                    title={opt.hint}
+                    className={`rounded px-1.5 py-1 text-left text-[8px] transition-all ${
+                      active
+                        ? 'bg-orange-600 text-white ring-1 ring-amber-300'
+                        : 'bg-stone-800/80 text-stone-200 hover:bg-stone-700'
+                    }`}
+                  >
+                    <span className="font-bold">{opt.emoji} {opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[8px] text-stone-400">
+              Hunters take the nearest selected prey within ~320 units each day. Auto hunts deer/rabbit first and only wolves as a risky last resort.
+            </p>
+          </div>
         )}
         {building.completed && building.type === BuildingType.Church && building.occupants.length === 0 && (
           <p className="text-[9px] text-amber-400">⚠️ No priest — nothing stops Moon Howlers on full-moon nights; courtship/morals bonuses reduced.</p>

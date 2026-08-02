@@ -7,7 +7,7 @@ import {
 
   GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
 
-  saveGame, loadGame, hasSave, deleteSave,
+  saveGame, loadGame, hasSave, deleteSave, downloadSaveFile, loadGameFromFileText,
   getDiplomacyChoiceEligibility, getVisitorLeaderTalkMeta,
   ensureFullTradeRoutes,
   getCombatPreview,
@@ -1055,7 +1055,52 @@ export default function App() {
       setSaveToast({
         message: hasSave()
           ? 'Could not load save — file may be corrupted'
-          : 'No saved game found — use Save game first',
+          : 'No browser save — use Load from file',
+        type: 'error',
+      });
+    }
+  }, [applyLoadedSession]);
+
+  const handleSaveToFile = useCallback(async () => {
+    const loop = loopRef.current;
+    const view = loop?.getView() ?? viewRef.current;
+    if (!view) return;
+    let worldToSave = worldRef.current;
+    if (loop) {
+      worldToSave = await loop.exportAuthoritativeWorld();
+    }
+    const result = downloadSaveFile(worldToSave, view);
+    if (!result.success) {
+      setSaveToast({ message: result.error, type: 'error' });
+      return;
+    }
+    setHasSavedGame(true);
+    setSaveToast({
+      message: 'Save downloaded — keep the .json file safe',
+      type: 'success',
+    });
+  }, []);
+
+  const handleLoadFromFile = useCallback((jsonText: string) => {
+    if (!jsonText.trim()) {
+      setSaveToast({ message: 'Could not read that file', type: 'error' });
+      return;
+    }
+    const loaded = loadGameFromFileText(jsonText);
+    if (loaded) {
+      applyLoadedSession(loaded);
+      setShowMapSetup(false);
+      setHasSavedGame(true);
+      // Keep browser slot in sync with the file you just loaded
+      try {
+        saveGame(loaded.world, loaded.view);
+      } catch {
+        /* ignore */
+      }
+      setSaveToast({ message: 'Colony loaded from file', type: 'success' });
+    } else {
+      setSaveToast({
+        message: 'Invalid save file — wrong version or corrupted',
         type: 'error',
       });
     }
@@ -1229,6 +1274,8 @@ export default function App() {
         onOpenTrade={handleOpenTrade}
         onSave={handleSave}
         onLoad={handleLoad}
+        onSaveToFile={() => { void handleSaveToFile(); }}
+        onLoadFromFile={handleLoadFromFile}
         tutorialsEnabled={tutorialsEnabled}
         juiceEffectsEnabled={juiceEffectsEnabled}
         showSimTick={showSimTick}
@@ -1630,29 +1677,7 @@ export default function App() {
               ?? catalog?.get(view.favoriteEntityId)
               ?? null;
             if (!fav?.alive) return null;
-            const label = fav.name
-              ? `${fav.name}${fav.surname ? ` ${fav.surname}` : ''}`
-              : `Citizen #${fav.id}`;
-            return (
-              <div className="pointer-events-auto absolute left-1/2 top-14 z-20 -translate-x-1/2">
-                <div className="flex items-center gap-2 rounded-full border border-amber-500/40 bg-stone-900/90 px-3 py-1.5 shadow-lg backdrop-blur">
-                  <span className="text-sm" aria-hidden>⭐</span>
-                  <span className="text-[11px] font-semibold text-amber-100">
-                    Following {label}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      playClickSound();
-                      toggleFavoriteCitizen(fav.id);
-                    }}
-                    className="rounded-full bg-stone-700/80 px-2 py-0.5 text-[10px] font-bold text-stone-200 hover:bg-stone-600 hover:text-white"
-                  >
-                    Stop
-                  </button>
-                </div>
-              </div>
-            );
+            return <FavoriteFollowBanner fav={fav} onStop={toggleFavoriteCitizen} />;
           })()}
 
           {/* First-night shelter warning */}
@@ -1891,6 +1916,10 @@ export default function App() {
                   playClickSound();
                   applyGameAction({ proto: 1, op: 'setWorkshopRecipe', buildingId: selectedBuilding.id, recipeId });
                 }}
+                onSetHuntingPrey={(prey) => {
+                  playClickSound();
+                  applyGameAction({ proto: 1, op: 'setHuntingSpotPrey', buildingId: selectedBuilding.id, prey });
+                }}
                 onQueueForge={(orderId) => {
                   playClickSound();
                   applyGameAction({ proto: 1, op: 'queueForgeOrder', buildingId: selectedBuilding.id, orderId });
@@ -2113,6 +2142,38 @@ export default function App() {
 }
 
 // ============ SUB-COMPONENTS ============
+
+function FavoriteFollowBanner({
+  fav,
+  onStop,
+}: {
+  fav: { id: number; name?: string; surname?: string };
+  onStop: (id: number) => void;
+}) {
+  const label = fav.name
+    ? `${fav.name}${fav.surname ? ` ${fav.surname}` : ''}`
+    : `Citizen #${fav.id}`;
+  return (
+    <div className="pointer-events-auto absolute left-1/2 top-14 z-20 -translate-x-1/2">
+      <div className="flex items-center gap-2 rounded-full border border-amber-500/40 bg-stone-900/90 px-3 py-1.5 shadow-lg backdrop-blur">
+        <span className="text-sm" aria-hidden>⭐</span>
+        <span className="text-[11px] font-semibold text-amber-100">
+          Following {label}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            playClickSound();
+            onStop(fav.id);
+          }}
+          className="rounded-full bg-stone-700/80 px-2 py-0.5 text-[10px] font-bold text-stone-200 hover:bg-stone-600 hover:text-white"
+        >
+          Stop
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ActiveEventBanner({
   event,

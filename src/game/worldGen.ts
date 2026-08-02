@@ -223,14 +223,13 @@ export function replenishDepletedWildlife(state: WorldState): boolean {
   const wolves = counts.wolves;
   const foxes = counts.foxes;
   const preyTotal = rabbits + deer;
-  const predatorsOk = wolves + foxes >= 2;
   const grassCount = counts.grass;
 
-  // Hysteresis: replenish when prey is critically low unless the band is stable with predators.
-  const preyCriticallyLow = preyTotal < 22;
-  const preyStableWithPredators = preyTotal >= 14 && predatorsOk;
-  const needsWildlife = preyCriticallyLow && !preyStableWithPredators;
-  const needsGrass = grassCount < 30;
+  // Soft floor — don't wait until the valley is empty (players saw "all gone" by ~half year).
+  const needsRabbits = rabbits < 18;
+  const needsDeer = deer < 10;
+  const needsWildlife = needsRabbits || needsDeer;
+  const needsGrass = grassCount < 45;
   if (!needsWildlife && !needsGrass) return false;
 
   const cx = state.width / 2;
@@ -238,34 +237,35 @@ export function replenishDepletedWildlife(state: WorldState): boolean {
 
   let grassReplenished = false;
   if (needsGrass) {
-    for (let p = 0; p < 4; p++) {
-      const angle = (p / 4) * Math.PI * 2;
+    for (let p = 0; p < 5; p++) {
+      const angle = (p / 5) * Math.PI * 2;
       spawnGrassPatch(
         state,
         cx + Math.cos(angle) * 220,
         cy + Math.sin(angle) * 180,
-        10,
-        90,
+        12,
+        100,
       );
     }
     grassReplenished = true;
   }
 
   let wildlifeSpawned = false;
-  if (needsWildlife && rabbits < 12) {
-    spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, 12 - rabbits, 160, 420, { recordBirthYear: true });
+  if (needsRabbits) {
+    spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, Math.max(0, 22 - rabbits), 160, 420, { recordBirthYear: true });
     wildlifeSpawned = true;
   }
-  if (needsWildlife && deer < 8) {
-    spawnWildlifeRing(state, EntityType.Deer, cx, cy, 8 - deer, 200, 480, { recordBirthYear: true });
+  if (needsDeer) {
+    spawnWildlifeRing(state, EntityType.Deer, cx, cy, Math.max(0, 12 - deer), 200, 480, { recordBirthYear: true });
     wildlifeSpawned = true;
   }
-  const preyHealthyForPredators = preyTotal >= 14;
-  if (needsWildlife && wolves < 1 && preyHealthyForPredators) {
+  // Only top up predators when prey is healthy enough to support them
+  const preyHealthyForPredators = rabbits + deer >= 20;
+  if (preyHealthyForPredators && wolves < 1) {
     spawnWildlifeRing(state, EntityType.Wolf, cx, cy, 1, 320, 520, { recordBirthYear: true });
     wildlifeSpawned = true;
   }
-  if (needsWildlife && foxes < 2 && preyHealthyForPredators) {
+  if (preyHealthyForPredators && foxes < 2) {
     spawnWildlifeRing(state, EntityType.Fox, cx, cy, 2 - foxes, 280, 500, { recordBirthYear: true });
     wildlifeSpawned = true;
   }
