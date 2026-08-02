@@ -1456,6 +1456,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       humanIds.add(born.id);
     }
   }
+  // One workplace index per tick — shift-mates / coworker lookups below stay O(1)
+  // instead of an O(H) filter per human (O(H²) per tick at 200+ pop).
+  const workersByWorkplace = new Map<number, Entity[]>();
+  for (const h of allHumans) {
+    if (!h.alive || !isPlayerHuman(h) || h.isJuvenile) continue;
+    const siteId = h.homeBuildingId;
+    if (siteId == null) continue;
+    const bucket = workersByWorkplace.get(siteId);
+    if (bucket) bucket.push(h);
+    else workersByWorkplace.set(siteId, [h]);
+  }
   const livingHumanAt = (id: number | null | undefined): Entity | undefined => {
     if (id == null) return undefined;
     const h = entityById.get(id);
@@ -2596,14 +2607,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && !entity.isJuvenile
       && entity.job !== JobType.Innkeeper
     ) {
-      const shiftMates = allHumans.filter(
-        (h) =>
-          h.id !== entity.id
-          && h.alive
-          && isPlayerHuman(h)
-          && h.homeBuildingId === entity.homeBuildingId
-          && !h.isJuvenile,
-      );
+      const shiftMates = (workersByWorkplace.get(entity.homeBuildingId ?? -1) ?? [])
+        .filter((h) => h.id !== entity.id);
       tryWorkplaceBanter(entity, shiftMates, state.tick, hourOfDay, true);
     }
 
@@ -2785,12 +2790,18 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       };
 
       // --- Human motives (sick, grief, weather, Sunday, errands, care…) ---
-      const nearbyAdults = allHumans.filter(
-        (h) =>
-          h.alive
-          && isPlayerHuman(h)
-          && !h.isJuvenile
-          && Math.hypot(h.x - entity.x, h.y - entity.y) < socialScanRadius * 1.5,
+      // Grid query instead of an O(H) distance filter per free-roaming human.
+      const nearbyAdults: Entity[] = [];
+      forEachInEntityGrid(
+        mobileGrid,
+        entity.x,
+        entity.y,
+        socialScanRadius * 1.5,
+        (h) => {
+          if (h.alive && isPlayerHuman(h) && !h.isJuvenile) nearbyAdults.push(h);
+        },
+        'social',
+        allHumans,
       );
       // Ensure spouse is considered even if slightly farther
       const spouseEarly = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
@@ -2878,14 +2889,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         .map((id) => livingHumanAt(id))
         .filter((k): k is Entity => !!k?.alive && !!k.isJuvenile);
       const coworkers = entity.homeBuildingId != null
-        ? allHumans.filter(
-          (h) =>
-            h.id !== entity.id
-            && h.alive
-            && isPlayerHuman(h)
-            && !h.isJuvenile
-            && h.homeBuildingId === entity.homeBuildingId,
-        )
+        ? (workersByWorkplace.get(entity.homeBuildingId) ?? []).filter((h) => h.id !== entity.id)
         : [];
       // Active affair lover is NOT open free-time company — tryst AI owns that.
       const sneaking =
