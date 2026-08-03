@@ -50,3 +50,8 @@ Wilderfolk.txt
 
 # Windows shortcut (accidental local file)
 *.lnk
+
+# Playwright / playtest artifacts
+playtest/
+test-results/
+playwright-report/
