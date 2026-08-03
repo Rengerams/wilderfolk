@@ -12,16 +12,19 @@ import { ensureEntitySkills } from './skills';
  * 10 felt endless once days are 72 ticks — 5 years is long enough for an
  * incumbent record to matter, short enough that elections stay visible.
  */
-export const ELECTION_INTERVAL_YEARS = 5;
+export const ELECTION_INTERVAL_YEARS = 2;
 /** After the head dies with no successor race ready, wait this many years. */
 export const VACANCY_ELECTION_DELAY_YEARS = 1;
 export const ELECTION_PARTY_DAYS = 3;
 export const ELECTION_PARTY_NAME = 'Election Revelry';
 
+/** Gossip lasts 3 months (1 month = 30 days) before the vote. */
+const GOSSIP_MONTHS = 3;
+
 function getPhaseTicks(phase: 'gathering' | 'gossip' | 'tension'): number {
   switch (phase) {
     case 'gathering': return 12;
-    case 'gossip': return TICKS_PER_DAY;
+    case 'gossip': return GOSSIP_MONTHS * 30 * TICKS_PER_DAY;
     case 'tension': return 12;
   }
 }
@@ -425,10 +428,10 @@ export function getElectionCeremonyStatus(state: WorldState): string | null {
   }
   if (state.electionCeremony) {
     const labels: Record<ElectionCeremonyPhase, string> = {
-      gathering: 'Election day — settlers are gathering at the Town Hall.',
-      gossip: 'Election day — villagers gossip about who should lead.',
-      tension: 'Election day — the crowd waits for the result…',
-      reveal: 'Election day — announcing the village head!',
+      gathering: 'The election season begins — settlers gather at the Town Hall.',
+      gossip: 'Months of gossip — the village debates who should lead.',
+      tension: 'Voting day — the crowd waits for the result…',
+      reveal: 'Announcing the village head!',
     };
     return labels[state.electionCeremony.phase];
   }
