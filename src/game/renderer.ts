@@ -2862,6 +2862,19 @@ function drawWaterShimmer(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
       const sx = (tx * ts - cam.x) * z + cw / 2;
       const sy = (ty * ts - cam.y) * z + ch / 2;
       const sw = ts * z;
+
+      // Broad flowing wave bands — the water visibly moves (sine currents).
+      const flow = _time * 0.16 + tx * 0.9 + ty * 1.35;
+      for (let band = 0; band < 2; band++) {
+        const bp = (flow + band * 0.5) % 1;
+        const bandY = sy + sw * (0.12 + bp * 0.76);
+        const waveH = Math.max(1, sw * (0.06 + 0.03 * Math.sin(_time * 1.3 + tx * 2.3 + ty * 1.7)));
+        const bandAlpha = 0.05 + 0.03 * Math.sin(_time * 1.6 + tx * 1.3 + ty * 0.8);
+        ctx.fillStyle = `rgba(255,255,255,${Math.max(0.02, bandAlpha)})`;
+        ctx.fillRect(sx - 2, bandY, sw + 4, waveH);
+      }
+
+      // Sparkle streaks (existing) — thin light lines sliding downstream.
       const phase = _time * 0.5 + (tx * 7 + ty * 13);
       const p1 = phase % 1;
       const p2 = (phase + 0.55) % 1;

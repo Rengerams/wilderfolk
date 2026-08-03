@@ -463,6 +463,40 @@ export function bakeTerrainLayer(
     }
   }
 
+  // Shallow↔deep water transition — rivers fade into deeper water instead of a
+  // hard color seam (same material family, so blendNeighborEdge skips them).
+  for (let ty = 0; ty < map.height; ty++) {
+    for (let tx = 0; tx < map.width; tx++) {
+      const tile = map.tiles[ty]?.[tx];
+      if (!tile || !isWater(tile.type)) continue;
+      const selfDeep = tile.type === TerrainType.DeepWater;
+      const x0 = tx * tileSize;
+      const y0 = ty * tileSize;
+      if (x0 >= w || y0 >= h) continue;
+      const nbs = [
+        ['n', map.tiles[ty - 1]?.[tx]],
+        ['s', map.tiles[ty + 1]?.[tx]],
+        ['w', map.tiles[ty]?.[tx - 1]],
+        ['e', map.tiles[ty]?.[tx + 1]],
+      ] as const;
+      for (const [dir, nb] of nbs) {
+        if (!nb || !isWater(nb.type)) continue;
+        if ((nb.type === TerrainType.DeepWater) === selfDeep) continue;
+        const a = parseTerrainRgb(colorAt(tile.type, season, tile.variation, map.preset));
+        const b = parseTerrainRgb(colorAt(nb.type, season, nb.variation, map.preset));
+        const mid = rgbStr(Math.round((a.r + b.r) / 2), Math.round((a.g + b.g) / 2), Math.round((a.b + b.b) / 2));
+        const band = Math.max(1, Math.round(tileSize * 0.18));
+        ctx.fillStyle = mid;
+        ctx.globalAlpha = 0.5;
+        if (dir === 'n') ctx.fillRect(x0, y0, tileSize, band);
+        else if (dir === 's') ctx.fillRect(x0, y0 + tileSize - band, tileSize, band);
+        else if (dir === 'w') ctx.fillRect(x0, y0, band, tileSize);
+        else ctx.fillRect(x0 + tileSize - band, y0, band, tileSize);
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
   // High-zoom LOD — fine patchwork noise per tile so close zoom stops reading
   // as flat 10px blocks (only drawn on the 2× bake).
   if (lod > 1) {
