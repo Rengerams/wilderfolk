@@ -158,6 +158,8 @@ export interface TerrainLayerCache {
   seed: number;
   preset: string;
   season: Season;
+  /** Bake resolution factor — 2 when zoomed in close so tiles get fine detail. */
+  lod: number;
   /** True when this bake used seamless fill sprites (not flat RGB only). */
   fills: boolean;
 }
@@ -185,6 +187,7 @@ export function terrainLayerNeedsRebuild(
   season: Season,
   worldWidth: number,
   worldHeight: number,
+  lod = 1,
 ): boolean {
   if (!cache) return true;
   // After sprites finish loading, force one rebake so fills replace flat color
@@ -195,7 +198,8 @@ export function terrainLayerNeedsRebuild(
     || cache.worldHeight !== worldHeight
     || cache.seed !== map.seed
     || cache.preset !== map.preset
-    || cache.season !== season;
+    || cache.season !== season
+    || cache.lod !== lod;
 }
 
 function landscapePropSpritesReady(): boolean {
@@ -308,12 +312,13 @@ export function bakeTerrainLayer(
   worldHeight: number,
   season: Season,
   colorAt: (type: TerrainType, season: Season, variation: number, preset?: MapPreset) => string,
+  lod = 1,
 ): TerrainLayerCache {
-  const w = Math.max(1, Math.floor(worldWidth));
-  const h = Math.max(1, Math.floor(worldHeight));
+  const w = Math.max(1, Math.floor(worldWidth * lod));
+  const h = Math.max(1, Math.floor(worldHeight * lod));
   const surface = createCanvasSurface(w, h);
   const ctx = getCanvasContext(surface);
-  const tileSize = TERRAIN_TILE_SIZE;
+  const tileSize = TERRAIN_TILE_SIZE * lod;
   const seed = typeof map.seed === 'number' ? map.seed : 1;
 
   // Base fill
@@ -445,6 +450,30 @@ export function bakeTerrainLayer(
     }
   }
 
+  // High-zoom LOD — fine patchwork noise per tile so close zoom stops reading
+  // as flat 10px blocks (only drawn on the 2× bake).
+  if (lod > 1) {
+    const cells = 4;
+    const cw = tileSize / cells;
+    const chh = tileSize / cells;
+    for (let ty = 0; ty < map.height; ty++) {
+      for (let tx = 0; tx < map.width; tx++) {
+        const tile = map.tiles[ty]?.[tx];
+        if (!tile) continue;
+        const x0 = tx * tileSize;
+        const y0 = ty * tileSize;
+        if (x0 >= w || y0 >= h) continue;
+        for (let cy = 0; cy < cells; cy++) {
+          for (let cx = 0; cx < cells; cx++) {
+            const hsh = hash01(tx * 97 + cx * 7 + cy * 3, ty * 113 + cy * 5 + cx, seed + 11);
+            ctx.fillStyle = hsh > 0.5 ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)';
+            ctx.fillRect(x0 + cx * cw, y0 + cy * chh, cw, chh);
+          }
+        }
+      }
+    }
+  }
+
   // Phase D — full-map seasonal wash (after all tile stamps)
   applySeasonWash(ctx, season, w, h);
 
@@ -453,11 +482,12 @@ export function bakeTerrainLayer(
     ctx,
     width: w,
     height: h,
-    worldWidth: w,
-    worldHeight: h,
+    worldWidth,
+    worldHeight,
     seed: map.seed,
     preset: map.preset,
     season,
+    lod,
     fills: terrainFillSpritesReady(),
   };
 }

@@ -170,7 +170,9 @@ function getTerrainColor(type: TerrainType, variation: number, preset?: MapPrese
 function buildTerrainCache(state: RenderSnapshot) {
   if (!state.worldMap) return;
   const season = state.season ?? Season.Spring;
-  if (terrainLayerNeedsRebuild(terrainCache, state.worldMap, season, state.width, state.height)) {
+  // Higher bake resolution when zoomed in close so the ground isn't blocky.
+  const lod = state.camera.zoom >= 3 ? 2 : 1;
+  if (terrainLayerNeedsRebuild(terrainCache, state.worldMap, season, state.width, state.height, lod)) {
     disposeTerrainLayer(terrainCache);
     terrainCache = bakeTerrainLayer(
       state.worldMap,
@@ -178,6 +180,7 @@ function buildTerrainCache(state: RenderSnapshot) {
       state.height,
       season,
       (type, seas, variation, preset) => getTerrainColor(type, variation, preset, seas ?? season),
+      lod,
     );
   }
   if (terrainDecorNeedsRebuild(terrainDecorCache, state.worldMap, state.width, state.height)) {
@@ -736,8 +739,9 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
 
   if (state.worldMap && terrainCache) {
     const [sx0, sy0] = w2s(0, 0, cam, cw, ch);
-    const drawW = terrainCache.width * cam.zoom;
-    const drawH = terrainCache.height * cam.zoom;
+    // Draw at WORLD scale — the baked surface may be lod× larger than the world.
+    const drawW = terrainCache.worldWidth * cam.zoom;
+    const drawH = terrainCache.worldHeight * cam.zoom;
 
     // Drop shadow under the whole map slab (2.5D floating board)
     ctx.save();
