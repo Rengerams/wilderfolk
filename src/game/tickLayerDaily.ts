@@ -55,6 +55,7 @@ import {
   createDeathParticles,
 } from './simEffects';
 import { recordFoodProduced } from './economyLedger';
+import { tickVisitorQuest } from './visitorQuest';
 import { getTerrainEfficiencyMultiplier, findHumanSpawnNear } from './terrainSystems';
 import {
   gainSkill,
@@ -635,6 +636,7 @@ export function tickLayerDaily(
 
   // Frontier systems
   tickVisitorGroups(state, allAlive);
+  tickVisitorQuest(state);
   tickPendingRaidEvents(state, allAlive, ctx.updatedBuildings);
   tickPendingOutgoingRaidEvents(state);
   tickRivalSettlements(state, allAlive);

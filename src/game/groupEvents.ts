@@ -19,6 +19,7 @@ import { SPECIES_CONFIG } from './speciesConfig';
 import { addCappedResource } from './resourceUtils';
 import { getRandomSurname } from './nameLoader';
 import { hasIronSpears, hasStoneSpears } from './combat';
+import { maybeStartVisitorQuest } from './visitorQuest';
 import { logEvent } from './eventLog';
 import {
   cancelPendingOutgoingRaidsForRival,
@@ -256,6 +257,9 @@ export function spawnVisitorGroup(
     'neutral',
   );
   logEvent(state, 'migration', `${name} arrived near the village`, name);
+
+  // The traveling smith tags along with trader camps (visitor quest, v0.5.2).
+  if (kind === 'traders') maybeStartVisitorQuest(state);
 
   return {
     id: `visitor_${kind}`,

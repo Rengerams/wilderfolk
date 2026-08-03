@@ -27,8 +27,9 @@ import {
   isResidenceBuilding,
   hasResidenceAssignment, hasWorkAssignment, isImprisoned,
   canMoveOutOfFamilyHome, isAdultChildAtHome, HUMAN_MOVE_OUT_MIN_AGE,
-  NIGHT_START, PREGNANCY_TICKS, TICKS_PER_DAY, getBirthDateString, getHourOfDay, isNightHour,
+  NIGHT_START, PREGNANCY_TICKS, TICKS_PER_DAY, getBirthDateString, getHourOfDay, isNightHour, getAbsoluteCalendarDay,
 } from './game/dayCycle';
+import { getVisitorQuest } from './game/visitorQuest';
 import type { WorldState, Entity } from './game/gameEngine';
 import type { VisitorGroup } from './game/gameTypes';
 import type { VisitorTradeAction, RefugeeChoice } from './game/groupEvents';
@@ -1704,6 +1705,48 @@ export default function App() {
               ?? null;
             if (!fav?.alive) return null;
             return <FavoriteFollowBanner fav={fav} onStop={toggleFavoriteCitizen} />;
+          })()}
+
+          {/* Visitor quest card (traveling smith) */}
+          {(() => {
+            const q = getVisitorQuest(world);
+            if (!q) return null;
+            const resEmoji: Record<string, string> = { wood: '🪵', stone: '🪨', food: '🍖', gold: '💰' };
+            const have = world.resources[q.goalResource] ?? 0;
+            const canDeliver = have >= q.goalAmount;
+            const daysLeft = Math.max(0, q.expiresDay - getAbsoluteCalendarDay(world.tick));
+            return (
+              <div className="pointer-events-auto absolute left-1/2 top-16 z-[25] w-full max-w-md -translate-x-1/2 animate-in fade-in slide-in-from-top">
+                <div className="rounded-xl border border-amber-500/40 bg-stone-900/95 p-3 shadow-xl backdrop-blur">
+                  <div className="flex items-start gap-3">
+                    <Emoji className="text-2xl">{q.emoji}</Emoji>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-bold text-amber-200">{q.title}</h3>
+                        <span className="shrink-0 text-[10px] text-stone-500">{daysLeft}d left</span>
+                      </div>
+                      <p className="mt-0.5 text-xs leading-relaxed text-stone-300">{q.description}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-semibold text-stone-400">
+                          Needs {q.goalAmount} {resEmoji[q.goalResource] ?? q.goalResource} · you have {have}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={!canDeliver}
+                          onClick={() => {
+                            playClickSound();
+                            applyGameAction({ proto: 1, op: 'deliverVisitorQuest' });
+                          }}
+                          className="ml-auto rounded-lg bg-amber-600 px-3 py-1 text-[11px] font-bold text-amber-50 hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-stone-700 disabled:text-stone-500"
+                        >
+                          Deliver → +{q.rewardGold}💰 +{q.rewardReputation}⭐
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
           })()}
 
           {/* First-night shelter warning */}

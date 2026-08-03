@@ -846,6 +846,8 @@ export interface WorldState {
   tutorialSeen?: string[];
   /** Per-day food ledger (production vs consumption) for the Village tab. */
   economyLedger?: DailyEconomyLedger;
+  /** One active visitor quest (traveling smith) — delivered via the quest card. */
+  visitorQuest?: VisitorQuest;
   /** Colony day of last wildlife replenish event-log entry (throttles meadow spam). */
   lastWildlifeReplenishLogDay?: number;
   /** Player-dismissed big-news ids (UI patch / worker sync). */
@@ -905,6 +907,23 @@ export interface DailyEconomyLedger {
   day: number;
   produced: Record<string, number>;
   consumed: Record<string, number>;
+}
+
+/** One active visitor quest (traveling smith etc.) — delivered via the quest card. */
+export interface VisitorQuest {
+  id: string;
+  emoji: string;
+  title: string;
+  description: string;
+  goalType: 'deliver';
+  goalResource: 'wood' | 'stone' | 'food' | 'gold';
+  goalAmount: number;
+  progress: number;
+  status: 'active' | 'completed' | 'failed';
+  rewardGold: number;
+  rewardReputation: number;
+  /** Absolute calendar day after which the quest expires. */
+  expiresDay: number;
 }
 
 export interface GameNotification {

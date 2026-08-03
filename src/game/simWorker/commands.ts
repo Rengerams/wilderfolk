@@ -25,6 +25,8 @@ import {
 import { queueForgeOrder } from '../forge';
 import { notifyBuildingLocked, startResearch } from '../research';
 import { establishTradeRoute } from '../tradeCaravans';
+import { addBigNews, addFloatingText } from '../simEffects';
+import { deliverVisitorQuest } from '../visitorQuest';
 import {
   sendRivalGift,
   establishRivalTradePact,
@@ -63,6 +65,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'respondToDiplomacyEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'talkToVisitorLeader'; groupId: string }
   | { proto: 1; op: 'tradeWithVisitors'; groupId: string; action: VisitorTradeAction }
+  | { proto: 1; op: 'deliverVisitorQuest' }
   | { proto: 1; op: 'negotiateRefugees'; groupId: string; choice: RefugeeChoice }
   | { proto: 1; op: 'sendRivalGift'; rivalId: string }
   | { proto: 1; op: 'establishRivalTradePact'; rivalId: string }
@@ -95,6 +98,7 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'respondToDiplomacyEvent',
   'talkToVisitorLeader',
   'tradeWithVisitors',
+  'deliverVisitorQuest',
   'negotiateRefugees',
   'sendRivalGift',
   'establishRivalTradePact',
@@ -192,6 +196,8 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       return isNonEmptyString(cmd.groupId);
     case 'tradeWithVisitors':
       return isNonEmptyString(cmd.groupId) && typeof cmd.action === 'string' && VISITOR_TRADE_ACTIONS.has(cmd.action);
+    case 'deliverVisitorQuest':
+      return true;
     case 'negotiateRefugees':
       return isNonEmptyString(cmd.groupId) && typeof cmd.choice === 'string' && REFUGEE_CHOICES.has(cmd.choice);
     case 'sendRivalGift':
@@ -278,6 +284,14 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return talkToVisitorLeader(world, cmd.groupId);
     case 'tradeWithVisitors':
       return tradeWithVisitors(world, cmd.groupId, cmd.action);
+    case 'deliverVisitorQuest': {
+      const done = deliverVisitorQuest(world);
+      if (done) {
+        addBigNews(world, '⚒️ The smith is grateful', 'The masterwork is finished — he pays handsomely and your reputation grows.', 'positive');
+        addFloatingText(world, world.width / 2, world.height / 2 - 40, 'Quest complete! +30💰 +4⭐', '#fbbf24');
+      }
+      return world;
+    }
     case 'negotiateRefugees':
       return negotiateRefugees(world, cmd.groupId, cmd.choice);
     case 'sendRivalGift':
