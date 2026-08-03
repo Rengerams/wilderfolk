@@ -3,6 +3,7 @@ import { worldToScreen as w2s } from './viewState';
 import { buildEntityDrawBuckets } from './gameEngine';
 import { UNCACHED_RENDER_TICK } from './gameTypes';
 import type { RenderSnapshot } from './renderSnapshot';
+import type { CanvasSurface } from './canvasLayer';
 import { updateRenderSoABuckets, getRenderSoABuckets } from './simBuffers/renderSoAEntities';
 import { collectGrassInViewport, viewportFromCamera } from './spatialGrid';
 import type { RenderSoABuckets } from './simBuffers/renderSoAEntities';
@@ -3225,11 +3226,39 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
 
   drawGround(ctx, state, cw, ch);
   compositeCachedEntityLayer(ctx, state, cw, ch);
+  drawGameOverlay(ctx, state, cw, ch);
+
+  if (isNightHour(state.hourOfDay)) {
+    drawNightAtmosphere(ctx, state, cw, ch);
+    drawNightBuildingGlow(ctx, state, cw, ch);
+  } else {
+    drawDayAtmosphere(ctx, state, cw, ch);
+  }
+
+  if (shake > 0.1) {
+    ctx.restore();
+  }
+}
+
+/**
+ * Per-frame overlay pass — everything drawn on top of the baked ground +
+ * entity layers. Shared between the Canvas 2D renderer and the Pixi renderer
+ * (which draws the bakes on the GPU and runs this pass on a transparent
+ * overlay canvas; it skips the 2D water shimmer because the water shader
+ * replaces it).
+ */
+export function drawGameOverlay(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+  opts?: { includeWaterShimmer?: boolean },
+): void {
   drawBuildingActiveEffects(ctx, state, cw, ch);
   drawBuildPreview(ctx, state, cw, ch);
   drawEntityFlashOverlay(ctx, state, cw, ch);
   drawWeather(ctx, state.weather, cw, ch);
-  drawWaterShimmer(ctx, state, cw, ch);
+  if (opts?.includeWaterShimmer !== false) drawWaterShimmer(ctx, state, cw, ch);
   drawSeasonParticles(ctx, state, cw, ch);
 
   if (isNightHour(state.hourOfDay)) {
@@ -3248,10 +3277,47 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
   if (state.renffrOmen) {
     drawRenffrOmen(ctx, state.renffrOmen, cw, ch, _time);
   }
+}
 
-  if (shake > 0.1) {
-    ctx.restore();
+/**
+ * Exposes the current baked canvases (terrain, decor, entity) so the Pixi
+ * renderer can upload them as GPU textures. Runs the same bake logic as the
+ * Canvas 2D path; the entity layer is left painted and ready.
+ */
+export function getBakedLayerCanvases(
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+): {
+  terrain: CanvasSurface | null;
+  decor: CanvasSurface | null;
+  entity: CanvasSurface | null;
+  entityAnchor: { anchorX: number; anchorY: number; anchorZoom: number; margin: number } | null;
+} {
+  buildTerrainCache(state);
+
+  const layerKey = buildEntityLayerKey(state, cw, ch);
+  const existing = getEntityLayerCache();
+  if (
+    !existing
+    || entityLayerNeedsRebuild(existing, layerKey, cw, ch)
+    || entityLayerAnchorMoved(existing, state.camera, cw, ch)
+  ) {
+    const layer = beginEntityLayerPaint(layerKey, cw, ch, state.camera);
+    const anchorCam = { ...state.camera, x: layer.anchorX, y: layer.anchorY, zoom: layer.anchorZoom };
+    paintWorldEntityLayer(layer.ctx, { ...state, camera: anchorCam }, layer.width, layer.height);
+    commitEntityLayerPaint(layerKey);
   }
+  const cache = getEntityLayerCache();
+
+  return {
+    terrain: terrainCache?.surface ?? null,
+    decor: terrainDecorCache?.surface ?? null,
+    entity: cache?.surface ?? null,
+    entityAnchor: cache
+      ? { anchorX: cache.anchorX, anchorY: cache.anchorY, anchorZoom: cache.anchorZoom, margin: cache.margin }
+      : null,
+  };
 }
 
 /** Cool blue night wash with stronger edges — leaves center readable for village glows. */
