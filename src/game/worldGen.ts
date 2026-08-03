@@ -19,7 +19,6 @@ import {
 } from './dayCycle';
 import { syncEventLogIdFromState } from './eventLog';
 import { indexLivingEntity, rebuildEntityByIdMap } from './entityIndex';
-import { spawnVisitorGroup } from './groupEvents';
 import { syncResearchUnlocks } from './research';
 import { logEvent } from './eventLog';
 import { computeWildlifeCounts } from './entityCounts';
@@ -511,15 +510,9 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   syncResearchUnlocks(state);
 
-  // Guaranteed friendly visitor in the first week: traders arrive at founding.
-  if (state.visitorGroups.length === 0) {
-    spawnVisitorGroup(state, state.entities, state.buildings, 'traders');
-    state.tutorialSeen = [...new Set([
-      ...(state.tutorialSeen ?? []),
-      'visitors_arrived',
-      'visitor_traders',
-    ])];
-  }
+  // No visitor group at founding — the first-week visitor event (day 4–7, after
+  // the player builds a house) already brings friendly visitors, without the
+  // startup clutter of an instant camp + notification flood.
 
   appointFoundingLeader(state, father);
 

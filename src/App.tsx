@@ -1470,7 +1470,7 @@ export default function App() {
           
           {/* Floating notifications — top-right, clear of build rail & banners */}
           <div
-            className="pointer-events-auto absolute right-3 top-3 z-[40] flex w-[min(20rem,calc(100vw-8rem))] flex-col gap-1.5"
+            className="pointer-events-auto absolute right-3 top-3 z-[40] flex max-h-[calc(100vh-7rem)] w-[min(20rem,calc(100vw-8rem))] flex-col gap-1.5 overflow-y-auto pr-0.5"
             aria-live="polite"
           >
             {world.notifications.slice(-4).map((n) => (
