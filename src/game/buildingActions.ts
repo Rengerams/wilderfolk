@@ -797,9 +797,13 @@ export function recruitSettler(originalState: WorldState): WorldState {
   state.resources.food -= costFood;
   state.resources.gold -= costGold;
 
+  // Spawn beside a completed player building (house preferred) so recruits never
+  // appear on water/mountains — buildings only ever stand on valid land.
+  const spawnAnchor =
+    state.buildings.find((b) => b.type === BuildingType.House && b.completed && b.faction !== 'rival')
+    ?? state.buildings.find((b) => b.completed && b.faction !== 'rival');
   let spawnX = state.width / 2, spawnY = state.height / 2;
-  const home = state.buildings.find(b => b.type === BuildingType.House && b.completed);
-  if (home) { spawnX = home.x + home.width / 2; spawnY = home.y + home.height / 2; }
+  if (spawnAnchor) { spawnX = spawnAnchor.x + spawnAnchor.width / 2; spawnY = spawnAnchor.y + spawnAnchor.height / 2; }
 
   const recruitAge = HUMAN_ADULT_MIN_AGE + Math.floor(Math.random() * 20);
   const settler = createEntity(

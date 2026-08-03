@@ -1857,12 +1857,15 @@ export function assignMissingResidences(
   rebalanceOvercrowdedResidences(alive, residences);
   rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(alive, residences);
 
+  // Family structure is static while we converge on residence slots — build the
+  // housing units ONCE instead of every pass (was 24× full rebuilds per call).
+  const housingUnitsBase = buildHousingUnits(alive);
   for (let pass = 0; pass < 24; pass++) {
     let reassigned = 0;
     // One occupancy scan per pass — O(H) then O(1) counts (EK-E2).
     const occupancy = buildResidenceOccupancy(alive);
     const housingUnits = sortHousingUnitsForAssignment(
-      buildHousingUnits(alive),
+      housingUnitsBase,
       alive,
       residences,
       occupancy,
