@@ -8,7 +8,7 @@ import {
   GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
 
   saveGame, loadGame, hasSave, deleteSave, downloadSaveFile, loadGameFromFileText,
-  getDiplomacyChoiceEligibility, getVisitorLeaderTalkMeta,
+  getDiplomacyChoiceEligibility, getVisitorLeaderTalkMeta, getVisitorTradePriceMult, getVisitorTradeRewardMult,
   ensureFullTradeRoutes,
   getCombatPreview,
   formatRaidDeadline, formatRaidLootSummary, raidEventLoot,
@@ -2362,9 +2362,16 @@ function VisitorCampPanel({
   const emoji = VISITOR_KIND_EMOJI[group.kind];
   const foodRoom = Math.max(0, state.storageMax.food - state.resources.food);
   const woodRoom = Math.max(0, state.storageMax.wood - state.resources.wood);
-  const canBuyFood = state.resources.gold >= 25 && foodRoom >= 40;
-  const canBuyWood = state.resources.gold >= 20 && woodRoom >= 30;
-  const canSellFood = state.resources.food >= 30;
+  const priceMult = getVisitorTradePriceMult(state.villageReputation ?? 0);
+  const rewardMult = getVisitorTradeRewardMult(state.villageReputation ?? 0);
+  const buyFoodCost = Math.ceil(25 * priceMult);
+  const buyWoodCost = Math.ceil(20 * priceMult);
+  const sellFoodReward = Math.floor(25 * rewardMult);
+  const sellWoodReward = Math.floor(20 * rewardMult);
+  const canBuyFood = state.resources.gold >= buyFoodCost && foodRoom >= 40;
+  const canBuyWood = state.resources.gold >= buyWoodCost && woodRoom >= 30;
+  const canSellFood = state.resources.food >= 30 && (group.gold ?? 0) >= sellFoodReward;
+  const canSellWood = state.resources.wood >= 40 && (group.gold ?? 0) >= sellWoodReward;
   const canTradeKind = group.kind === 'traders' || group.kind === 'nomads' || group.kind === 'hunters';
 
   return (
@@ -2374,7 +2381,7 @@ function VisitorCampPanel({
           <Emoji className="text-lg">{emoji}</Emoji>
           <div className="min-w-0">
             <h3 className="truncate text-xs font-bold text-cyan-200">{group.name}</h3>
-            <p className="text-[9px] capitalize text-cyan-300/80">{group.kind} · {group.daysLeft}d · {group.entityIds.length} people</p>
+            <p className="text-[9px] capitalize text-cyan-300/80">{group.kind} · {group.daysLeft}d · {group.entityIds.length} people · {group.gold ?? 0}💰</p>
           </div>
         </div>
         <button
@@ -2428,13 +2435,20 @@ function VisitorCampPanel({
       )}
       {canTradeKind && (
         <div className="grid grid-cols-1 gap-1">
+          {state.villageReputation >= 80 || state.villageReputation <= 30 ? (
+            <p className={`text-[8px] font-semibold ${state.villageReputation >= 80 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {state.villageReputation >= 80
+                ? '⭐ Reputation 80+ — friendly prices'
+                : '⚠️ Reputation 30 or less — they demand harsher terms'}
+            </p>
+          ) : null}
           <button
             type="button"
             disabled={!canBuyFood}
             onClick={() => onTrade('buy_food')}
             className="w-full rounded bg-stone-700 px-2 py-1 text-[9px] font-bold text-stone-200 hover:bg-stone-600 disabled:opacity-40"
           >
-            Buy food · 25💰 → 40🍖{foodRoom < 40 ? ` (${foodRoom}🍖 space)` : ''}
+            Buy food · {buyFoodCost}💰 → 40🍖{foodRoom < 40 ? ` (${foodRoom}🍖 space)` : ''}
           </button>
           <button
             type="button"
@@ -2442,15 +2456,25 @@ function VisitorCampPanel({
             onClick={() => onTrade('buy_wood')}
             className="w-full rounded bg-stone-700 px-2 py-1 text-[9px] font-bold text-stone-200 hover:bg-stone-600 disabled:opacity-40"
           >
-            Buy wood · 20💰 → 30🪵
+            Buy wood · {buyWoodCost}💰 → 30🪵{woodRoom < 30 ? ` (${woodRoom}🪵 space)` : ''}
           </button>
           <button
             type="button"
             disabled={!canSellFood}
             onClick={() => onTrade('sell_food')}
             className="w-full rounded bg-amber-900 px-2 py-1 text-[9px] font-bold text-amber-100 hover:bg-amber-800 disabled:opacity-40"
+            title={(group.gold ?? 0) < sellFoodReward ? 'They have no gold left' : undefined}
           >
-            Sell food · 30🍖 → 25💰
+            Sell food · 30🍖 → {sellFoodReward}💰{(group.gold ?? 0) < sellFoodReward ? ' (out of gold)' : ''}
+          </button>
+          <button
+            type="button"
+            disabled={!canSellWood}
+            onClick={() => onTrade('sell_wood')}
+            className="w-full rounded bg-amber-900 px-2 py-1 text-[9px] font-bold text-amber-100 hover:bg-amber-800 disabled:opacity-40"
+            title={(group.gold ?? 0) < sellWoodReward ? 'They have no gold left' : undefined}
+          >
+            Sell wood · 40🪵 → {sellWoodReward}💰{(group.gold ?? 0) < sellWoodReward ? ' (out of gold)' : ''}
           </button>
         </div>
       )}

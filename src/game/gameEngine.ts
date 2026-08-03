@@ -103,7 +103,7 @@ export {
   sendRivalGift, establishRivalTradePact, showStrengthToRival,
   signPeaceTreaty,
   respondToDiplomacyEvent, getDiplomacyChoiceEligibility, tradeWithVisitors, negotiateRefugees,
-  talkToVisitorLeader, getVisitorLeaderTalkMeta,
+  talkToVisitorLeader, getVisitorLeaderTalkMeta, getVisitorTradePriceMult, getVisitorTradeRewardMult,
   hitTestCamp,
 } from './groupEvents';
 export { isRivalAtPeace } from './rivalPeace';

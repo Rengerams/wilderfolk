@@ -878,7 +878,12 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   const hasPlayerStructure = state.buildings.some((b) => b.completed && b.faction !== 'rival');
   if (!hasPlayerStructure) return;
 
-  const chance = rival.relationship === 'tense' ? 0.22 : 0.12;
+  // Reputation shapes how belligerent rivals get: ≤30 → raids more likely,
+  // ≥80 → respected villages face fewer attacks.
+  const rep = state.villageReputation ?? 0;
+  let chance = rival.relationship === 'tense' ? 0.22 : 0.12;
+  if (rep <= 30) chance *= 1.5;
+  else if (rep >= 80) chance *= 0.6;
   if (Math.random() > chance) return;
 
   const attackerStrength = getRivalRaidStrength(rival);

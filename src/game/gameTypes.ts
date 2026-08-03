@@ -421,6 +421,8 @@ export interface VisitorGroup {
   giftsGiven: number;
   /** Player-initiated trade while camped (v0.4.1). */
   tradesCompleted: number;
+  /** Gold the group carries — funds gifts & sell-trades, no minted gold. */
+  gold?: number;
   /** Refugee families negotiated — no auto-join without player choice. */
   refugeeResolved: boolean;
   /** Caravan leader audience used for this visit (v0.4.1). */

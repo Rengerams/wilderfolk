@@ -234,6 +234,7 @@ export function spawnVisitorGroup(
     entityIds,
     giftsGiven: 0,
     tradesCompleted: 0,
+    gold: seedGroupGold(kind),
     refugeeResolved: kind !== 'refugees',
     leaderTalked: false,
   });
@@ -358,7 +359,9 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
     if (newCalendarDay && group.daysLeft > 0) {
       switch (group.kind) {
         case 'traders': {
-          const gold = 15 + Math.floor(Math.random() * 25);
+          const goldWant = 15 + Math.floor(Math.random() * 25);
+          const gold = Math.min(group.gold ?? 0, goldWant);
+          group.gold = (group.gold ?? 0) - gold;
           const food = 10 + Math.floor(Math.random() * 20);
           state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + gold);
           state.resources.food = Math.min(state.storageMax.food, state.resources.food + food);
@@ -376,7 +379,9 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
             state.researchProgress = Math.min(100, state.researchProgress + 3);
             pushFloat(state, group.campX, group.campY - 20, '+Research', '#8b5cf6');
           } else {
-            state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + 10);
+            const goldGift = Math.min(group.gold ?? 0, 10);
+            group.gold = (group.gold ?? 0) - goldGift;
+            state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + goldGift);
           }
           group.giftsGiven++;
           break;
@@ -1022,13 +1027,44 @@ export function talkToVisitorLeader(originalState: WorldState, groupId: string):
   return state;
 }
 
-export type VisitorTradeAction = 'buy_food' | 'buy_wood' | 'sell_food';
+export type VisitorTradeAction = 'buy_food' | 'buy_wood' | 'sell_food' | 'sell_wood';
 
 const VISITOR_TRADE_COSTS = {
   buy_food: { pay: { gold: 25 }, receive: { food: 40 } },
   buy_wood: { pay: { gold: 20 }, receive: { wood: 30 } },
   sell_food: { pay: { food: 30 }, receive: { gold: 25 } },
+  sell_wood: { pay: { wood: 40 }, receive: { gold: 20 } },
 } as const;
+
+/** Reputation tier → trade price modifier (≥80 friendly, ≤30 harsh terms). */
+export function getVisitorTradePriceMult(rep: number): number {
+  return rep >= 80 ? 0.8 : rep <= 30 ? 1.25 : 1;
+}
+
+/** High reputation earns better sell prices. */
+export function getVisitorTradeRewardMult(rep: number): number {
+  return rep >= 80 ? 1.15 : 1;
+}
+
+/** Starting gold a visitor group carries — funds gifts and sell-trades. */
+function seedGroupGold(kind: VisitorKind): number {
+  const ranges: Partial<Record<VisitorKind, [number, number]>> = {
+    traders: [40, 80],
+    hunters: [20, 50],
+    nomads: [15, 40],
+    scholars: [10, 30],
+    pilgrims: [0, 15],
+    performers: [0, 20],
+  };
+  const [lo, hi] = ranges[kind] ?? [0, 20];
+  return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+function rejectVisitorTrade(state: WorldState, group: VisitorGroup, hint: string, notify?: string): WorldState {
+  pushFloat(state, group.campX, group.campY - 20, hint, '#f97316');
+  if (notify) pushNews(state, 'Trade failed', notify, 'negative');
+  return state;
+}
 
 function storageRoom(state: WorldState, type: keyof WorldState['resources']): number {
   return Math.max(0, (state.storageMax[type] as number) - (state.resources[type] as number));
@@ -1053,20 +1089,6 @@ function applyTradeCost(state: WorldState, pay: Partial<Record<keyof WorldState[
   }
 }
 
-/** Show trade failure without mutating resources (gold/food unchanged). */
-function rejectVisitorTrade(
-  state: WorldState,
-  group: VisitorGroup,
-  hint: string,
-  notify?: string,
-): WorldState {
-  pushFloat(state, group.campX, group.campY - 20, hint, '#f97316');
-  if (notify) {
-    pushNews(state, 'Trade failed', notify, 'negative');
-  }
-  return state;
-}
-
 export function tradeWithVisitors(
   originalState: WorldState,
   groupId: string,
@@ -1079,18 +1101,39 @@ export function tradeWithVisitors(
   if (!canTrade && action !== 'sell_food') return originalState;
 
   const deal = VISITOR_TRADE_COSTS[action];
+  const rep = originalState.villageReputation ?? 0;
+  const priceMult = getVisitorTradePriceMult(rep);
+  const rewardMult = getVisitorTradeRewardMult(rep);
+
+  // Effective costs/prices with the reputation tier applied (gold only).
+  const effectivePay: Partial<Record<keyof WorldState['resources'], number>> = {};
+  for (const [key, cost] of Object.entries(deal.pay) as [keyof WorldState['resources'], number][]) {
+    effectivePay[key] = key === 'gold' ? Math.ceil((cost ?? 0) * priceMult) : cost;
+  }
+  const effectiveReceive: Partial<Record<keyof WorldState['resources'], number>> = {};
+  for (const [key, amt] of Object.entries(deal.receive) as [keyof WorldState['resources'], number][]) {
+    effectiveReceive[key] = key === 'gold' ? Math.floor((amt ?? 0) * rewardMult) : amt;
+  }
 
   const state = cloneWorldStateForAction(originalState);
   const group = state.visitorGroups.find((g) => g.id === groupId)!;
 
-  if (!canPayTradeCost(state, deal.pay)) {
-    const hint = action === 'buy_food' ? 'Need 25💰'
-      : action === 'buy_wood' ? 'Need 20💰'
-        : 'Need 30🍖';
+  if (!canPayTradeCost(state, effectivePay)) {
+    const goldNeed = effectivePay.gold ?? 0;
+    const hint = action === 'buy_food' ? `Need ${goldNeed}💰`
+      : action === 'buy_wood' ? `Need ${goldNeed}💰`
+        : action === 'sell_food' ? `Need ${effectivePay.food ?? 0}🍖`
+          : `Need ${effectivePay.wood ?? 0}🪵`;
     return rejectVisitorTrade(state, group, hint);
   }
 
-  for (const [key, amount] of Object.entries(deal.receive) as [keyof WorldState['resources'], number][]) {
+  // Selling to the group requires them to actually have the gold (no minting).
+  const gainedGold = effectiveReceive.gold ?? 0;
+  if (gainedGold > 0 && (group.gold ?? 0) < gainedGold) {
+    return rejectVisitorTrade(state, group, 'They are out of gold', `${group.name} has no gold left to pay you.`);
+  }
+
+  for (const [key, amount] of Object.entries(effectiveReceive) as [keyof WorldState['resources'], number][]) {
     if ((amount ?? 0) > 0 && !canFitPurchase(state, key, amount)) {
       const hint = key === 'food' ? 'Food storage full!'
         : key === 'wood' ? 'Wood storage full!'
@@ -1104,9 +1147,11 @@ export function tradeWithVisitors(
     }
   }
 
-  applyTradeCost(state, deal.pay);
+  applyTradeCost(state, effectivePay);
+  const paidGold = effectivePay.gold ?? 0;
+  if (paidGold > 0) group.gold = (group.gold ?? 0) + paidGold;
   let receivedLabel = '';
-  for (const [key, amount] of Object.entries(deal.receive) as [keyof WorldState['resources'], number][]) {
+  for (const [key, amount] of Object.entries(effectiveReceive) as [keyof WorldState['resources'], number][]) {
     if ((amount ?? 0) <= 0) continue;
     const added = addCappedResource(state, key, amount);
     if (added < amount) {
@@ -1121,14 +1166,15 @@ export function tradeWithVisitors(
     else if (key === 'wood') receivedLabel = `+${added}🪵`;
     else if (key === 'gold') receivedLabel = `+${added}💰`;
   }
+  if (gainedGold > 0) group.gold = Math.max(0, (group.gold ?? 0) - gainedGold);
 
-  pushFloat(state, group.campX, group.campY - 20, receivedLabel, action === 'sell_food' ? '#eab308' : '#22c55e');
+  pushFloat(state, group.campX, group.campY - 20, receivedLabel, action === 'buy_food' || action === 'buy_wood' ? '#22c55e' : '#eab308');
   group.tradesCompleted++;
   group.giftsGiven++;
   const tradeDetail = action === 'buy_food' ? 'bought food'
     : action === 'buy_wood' ? 'bought wood'
       : action === 'sell_food' ? 'sold food'
-        : 'traded goods';
+        : 'sold wood';
   logEvent(state, 'trade', `Traded with ${group.name} — ${tradeDetail}`, group.name);
   return state;
 }

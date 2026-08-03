@@ -16,11 +16,12 @@ interface StatBadgeProps {
   label: string;
   value: number;
   icon: string;
+  title?: string;
 }
 
-const StatBadge = memo(function StatBadge({ label, value, icon }: StatBadgeProps) {
+const StatBadge = memo(function StatBadge({ label, value, icon, title }: StatBadgeProps) {
   return (
-    <div className="flex items-center justify-between rounded bg-stone-600/30 px-2 py-1 text-[11px]">
+    <div title={title} className="flex items-center justify-between rounded bg-stone-600/30 px-2 py-1 text-[11px]">
       <span className="text-stone-400">{icon} {label}</span>
       <span className="font-bold text-stone-200">{value}</span>
     </div>
@@ -163,7 +164,7 @@ export default function VillageTabPanel({
         </div>
         <div className="grid grid-cols-2 gap-1.5 text-[11px]">
           <StatBadge label="Adults" value={villageStats.adults} icon="👤" />
-          <StatBadge label="Reputation" value={state.villageReputation} icon="⭐" />
+          <StatBadge label="Reputation" value={state.villageReputation} icon="⭐" title="80+: cheaper visitor trade & fewer raids · 30 or less: harsher prices & more raids" />
           <StatBadge label="Buildings" value={state.buildings.filter(b => b.completed && b.faction !== 'rival').length} icon="🏗️" />
           <StatBadge label="Techs" value={state.unlockedTechs.length} icon="🔬" />
         </div>
