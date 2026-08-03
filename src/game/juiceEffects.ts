@@ -23,6 +23,14 @@ export const NIGHT_STAFFED_GLOW_TYPES = new Set<BuildingType>([
   BuildingType.Hospital,
 ]);
 
+/** Community buildings that pool warm light on the plaza at night when staffed. */
+export const LIGHT_POOL_TYPES = new Set<BuildingType>([
+  BuildingType.TownHall,
+  BuildingType.Market,
+  BuildingType.Tavern,
+  BuildingType.Church,
+]);
+
 export function countResidentsInBuilding(buildingId: number, entities: WorldState['entities']): number {
   let count = 0;
   for (const e of entities) {

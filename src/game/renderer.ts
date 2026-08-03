@@ -21,6 +21,7 @@ import {
   getNightGlowIntensity,
   NIGHT_HOME_GLOW_TYPES,
   NIGHT_STAFFED_GLOW_TYPES,
+  LIGHT_POOL_TYPES,
 } from './juiceEffects';
 import { canPlaceBuildingSnapshot, isUnbuildableTerrainType, isWaterTerrainType } from './placementUtils';
 import { getSpriteFrame, type SpriteFrame } from './spriteLoader';
@@ -2432,11 +2433,15 @@ function drawNightBuildingGlow(ctx: CanvasRenderingContext2D, state: RenderSnaps
 
   for (const b of state.buildings) {
     if (!b.completed || b.faction === 'rival') continue;
+    const isPool = LIGHT_POOL_TYPES.has(b.type) && b.occupants.length > 0;
     const mayGlow = NIGHT_HOME_GLOW_TYPES.has(b.type)
-      || (NIGHT_STAFFED_GLOW_TYPES.has(b.type) && b.occupants.length > 0);
+      || (NIGHT_STAFFED_GLOW_TYPES.has(b.type) && b.occupants.length > 0)
+      || isPool;
     if (!mayGlow) continue;
     const residentCount = NIGHT_HOME_GLOW_TYPES.has(b.type) ? b.occupants.length : 0;
-    const intensity = getNightGlowIntensity(b, residentCount);
+    const intensity = isPool
+      ? Math.min(0.85, 0.5 + b.level * 0.12)
+      : getNightGlowIntensity(b, residentCount);
     if (intensity <= 0) continue;
 
     const sx = (b.x - cam.x) * cam.zoom + cw / 2;
@@ -2447,6 +2452,18 @@ function drawNightBuildingGlow(ctx: CanvasRenderingContext2D, state: RenderSnaps
 
     const flicker = 0.82 + Math.sin(_time * 3.5 + b.id * 1.9) * 0.18;
     const warm = intensity * flicker;
+
+    // Warm light pooling on the ground around community buildings (plaza glow).
+    if (isPool) {
+      const poolR = Math.max(16, (w + h) * 0.9);
+      const poolY = sy + h * 0.42;
+      const grad = ctx.createRadialGradient(sx, poolY, 0, sx, poolY, poolR);
+      grad.addColorStop(0, `rgba(255, 196, 130, ${0.30 * warm})`);
+      grad.addColorStop(0.55, `rgba(255, 150, 85, ${0.12 * warm})`);
+      grad.addColorStop(1, 'rgba(255, 130, 60, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(sx - poolR, poolY - poolR, poolR * 2, poolR * 2);
+    }
 
     if (NIGHT_HOME_GLOW_TYPES.has(b.type)) {
       const winW = Math.max(2.5, w * 0.09);
