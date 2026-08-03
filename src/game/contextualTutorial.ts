@@ -327,7 +327,10 @@ export function detectContextualTutorials(
     if (!hasSeen(curr, id)) tips.push(CONTEXTUAL_TUTORIALS[id]);
   };
 
-  const hasHouse = curr.buildings.some((b) => b.completed && b.type === BuildingType.House);
+  // A placed (even unfinished) house counts — the player already acted, don't nag.
+  const hasHouse = curr.buildings.some(
+    (b) => b.type === BuildingType.House && b.faction !== 'rival',
+  );
   // Warn from late afternoon on day one (hour >= 16) until first house
   const hour = getHourOfDay(curr.tick);
   if (

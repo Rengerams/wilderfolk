@@ -495,6 +495,14 @@ export default function App() {
     });
   }, [contextualTip, dismissContextualTip, markContextualTipSeen]);
 
+  // Auto-acknowledge a tip after a short grace — a card can never nag forever
+  // or re-appear if the player ignores it (also persists it into the save).
+  useEffect(() => {
+    if (!contextualTip) return;
+    const timer = setTimeout(() => acknowledgeContextualTip(), 20_000);
+    return () => clearTimeout(timer);
+  }, [contextualTip, acknowledgeContextualTip]);
+
   const disableAllTutorials = useCallback(() => {
     saveTutorialsEnabled(false);
     setTutorialsEnabled(false);
