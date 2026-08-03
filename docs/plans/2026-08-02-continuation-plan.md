@@ -25,8 +25,8 @@ This document is a handoff for a fresh agent (no prior conversation context). Re
 
 ## 2. Repo & git state (verify this first)
 
-- Remote: `https://github.com/Rengerams/wilderfolk`, single branch `main`. **116 commits of history + 1 local sync commit.**
-- `git status` must be clean; `git log --oneline -3` tip = `0e3c489`.
+- Remote: `https://github.com/Rengerams/wilderfolk`, single branch `main`. Full history + all sync work pushed.
+- `git status` must be clean; `git log --oneline -3` tip = `2d7c213`.
 - `.gitattributes` (`* text=auto eol=lf` + binary rules): repo is **LF**, working copy on Windows is **CRLF** — never "fix" line endings.
 - `.gitignore` hardened: `docs/private/`, `docs/superpowers/`, `.env`, `Wilderfolk.txt` (36 MB local transcript — **not part of the game**), `*.lnk`, `node_modules`, `dist`, `logs`.
 - Push with: `git push origin main` (credentials already stored on this machine).
@@ -55,6 +55,9 @@ Also committed later (each verified the same way):
 10. **O(H²) scans killed in `tickHumans`** (`7284eff`) — `workersByWorkplace` index built once per tick (shiftMates/coworkers lookups now O(1)); `nearbyAdults` uses a mobile-grid query instead of an O(H) distance filter per free-roaming human. `collectFamilyMembers` left alone — its only caller `buildFamilyGroups` has no call sites.
 11. **`.deepcode` excluded** (`fb407c1`) — the Deep Code CLI's local dir (settings + 16 MB `skills/` plugins) was swept in by `git add -A` and broke `eslint .`; now untracked + gitignored + eslint-ignored.
 12. **UX smoothness** (`c4e7b91`) — `getGrazingPressureReport` (O(entities) grass scan) + `getEcosystemBreakdown` moved from every App render into `NatureTabPanel` (run only while the tab is open); build-panel width transition 300ms → 150ms.
+13. **Review batch** (`063cc30`) — `assignMissingResidences` builds housing units **once** before its 24-pass loop (was a full rebuild every pass); `recruitSettler` spawns beside a valid building instead of map center (no more recruits on water).
+14. **Rival buildings no longer count as player's** (`ef0a972`) — Village tab "Buildings" stat now excludes `faction === 'rival'` (rival camp buildings live in `state.buildings`); hotel "full" toast now fires only when ≥ `HOTEL_GUEST_CAPACITY` guests check in.
+15. **Zoom / trees / panel** (`2d7c213`) — `CAMERA_ZOOM_MAX` 3 → **5** (very close zoom); trees under a building's footprint are cleared on placement (`startBuilding` + `placeStripChain`); `SelectedBuildingPanel` split into collapsible **Overview / Workers · Construction / Building actions** sections; hotel even-day gate removed.
 
 ---
 
@@ -68,28 +71,34 @@ Also committed later (each verified the same way):
 
 ---
 
-## 5. Known issues & recommended next work (priority order)
+## 5. Action plan for the next agent — what matters most
 
-### A. ✅ DONE — O(H²) scans (`7284eff`)
+> The micro-bug-fix wave is done. These are the **impactful** items — pick from P1 first. Do NOT go hunting for more small bugs; the player tests by playing and files what matters.
 
-### B. App.tsx is 2761 lines; build warns "chunk > 500 kB" (game chunk ~587 kB)
-Extract remaining inline sub-components (`VisitorCampPanel`, `SelectedEntityPanel`, `BigNewsBanner`, `ActiveEventBanner`, `ShortcutsOverlay`) into `src/components/`. Already extracted: `FavoriteFollowBanner`. Re-check `npm run build` output after each move.
+### P1 — High impact (game feel / product value)
 
-### C. `homeBuildingId` is actually the **workplace** id (footgun)
-`dayCycle.ts` `hasWorkAssignment()` returns `homeBuildingId != null`; `App.tsx:2663` shows "Works at" from it. Rename to `workplaceBuildingId` across `dayCycle.ts`, `workforce.ts`, `buildingActions.ts`, `lifeSimulation.ts`, `App.tsx`. Mechanical, no logic change — do it in one commit.
+1. **Landscape looks Phase A** (`docs/private/landscape-looks-research.md`) — the map "reads like colored blocks" is the #1 visual complaint. Seamless terrain atlas stamped in `bakeTerrainLayer` (grass/dirt/water), keep the current stack. Research estimates ~0.5–1 day of agent sessions for clearly better ground. Touch: `terrainLayer.ts`, `renderer.ts`, `public/sprites/terrain/`.
+2. **App.tsx split** — still ~2700 lines; build warns "chunk > 500 kB" (~587 kB). Extract `VisitorCampPanel`, `SelectedEntityPanel`, `BigNewsBanner`, `ActiveEventBanner`, `ShortcutsOverlay` into `src/components/`. Re-check `npm run build` after each move. (`FavoriteFollowBanner` done; there is a 2026-07-24 repo-cleanup design with a hooks-extraction plan in `docs/superpowers/specs/`.)
+3. **Outgoing counter-raid militia sprites** — incoming march lines exist; the war band has no visible sprites on the map (`renderer.ts`). Small, visible win.
+4. **Right-menu UX continuation** — `SelectedBuildingPanel` is collapsible now; give `SelectedEntityPanel` (and the entity inspector) the same treatment so panels stay findable.
+5. **Visitor quest lines / reputation arc depth** — one small visitor quest chain + rep arc beats another bug fix for player value (`groupEvents.ts` has the hooks).
 
-### D. Werewolf-form age drift (low)
-Cursed settlers in Werewolf form get `entity.age++` from the wildlife tick, but `gameTick.ts:110` only calendar-syncs `Human`-typed cursed settlers, so `entity.age` drifts from calendar age while transformed. Self-heals on revert. Fix: include `moonHowlerCursed` Werewolf entities in the calendar-sync pass.
+### P2 — Player-observed issues (need a repro detail before fixing)
 
-### E. Minor cleanups
-- `gameTick.ts:236` victory-scan condition is redundant with `LAYER_ASSIGN_INTERVAL` dividing the day — comment/code mismatch (cosmetic).
-- `state.buildings = updatedBuildings` is assigned twice per tick in `gameTick.ts` (lines 222 & 265).
+- **Citizens standing at the map edge** — investigated: leisure targets are center-weighted, camps are clamped ≥80 from the edge, the mobile grid covers all alive entities. Prime suspects: workers at workplaces the player placed near the edge, and the direct-line commute (no pathfinding) getting stuck on terrain. **Ask the player:** which citizens (workers/builders?), what time of day, which map edge, is there a building nearby?
+- **"Talking to no one"** — the visible bubbles are mostly intentional self-talk (grief "I miss them…", weather "Awful storm", elder "My knees…"). Confirm with the player that's what they mean before changing anything.
+- **"Too many guests"** — hotel toast spam fixed; the actual visitor spawn cadence is intentionally low (first-week + mid-year + bi-yearly). Recheck only if the player still sees crowds.
 
-### F. ✅ DONE — hotel gold-from-nothing bug (user-reported, fixed)
-`checkInVisitor` did `addResource(state, 'gold', …)` with no source — visitors had no wallet, so a staffed hotel **minted 3–5g per guest per night from thin air**. Per player directive: **lodging is free for now** (no charge, no wallet), hoteliers still gain Hotelier XP per check-in; `HOTEL_NIGHTLY_GOLD` removed; status/panel text say "free lodging". If lodging ever gets a price: give visitors a purse (`Entity.gold` already exists, seed by visitor kind at spawn) and deduct *before* booking the guest.
+### P3 — Cleanups (mechanical; do in one commit each when there's time)
 
-### G. Suggested playtest focus (manual — the player tests by playing)
-Hunting Spot with each prey target (wolf fights back 35%, damages the building), tutorial dismissal across reload/new game, favorite-follow banner, weather cadence (should re-roll ~every 2.8 days now), hotel guests over 2–3 nights (free check-in at dusk, checkout at dawn, capacity).
+- **`homeBuildingId` is really the workplace id** — rename to `workplaceBuildingId` (`dayCycle.ts`, `workforce.ts`, `buildingActions.ts`, `lifeSimulation.ts`, `App.tsx`). No logic change.
+- **`entity.age` dual-use** — humans in life-years, wildlife in days (`getAgeInYears` patches it). Consider renaming to `lifeYears` / `lifeDays`; combine with the werewolf age drift fix (`gameTick.ts:110` calendar-sync only covers `Human`-typed cursed settlers).
+- **`gameTick.ts` minor cleanups** — redundant victory-scan condition (~line 236); `state.buildings = updatedBuildings` assigned twice per tick.
+- **`structuredClone` per building action** — architectural (immer-style delta) only if actions hitch at huge pop; not urgent.
+
+### P4 — Manual playtest focus (the player tests by playing)
+
+Hunting Spot prey targets, tutorial persistence, favorite-follow banner, hotel over 2–3 nights, **zoom 5 feel** (pixelated terrain?), tree-clearing on build, collapsible building panel.
 
 ---
 
