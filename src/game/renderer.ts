@@ -551,6 +551,24 @@ function drawBuildingSprite(
   drawSpriteFrame(ctx, frame, sx, sy, drawW, drawH, 0.5, anchorY, false, {}, 'contain', rotation);
 }
 
+/** Soft ambient-occlusion pool — darkens the ground right under an object. */
+function drawGroundAO(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  strength: number,
+): void {
+  if (radius <= 0) return;
+  const grad = ctx.createRadialGradient(x, y, radius * 0.1, x, y, radius);
+  grad.addColorStop(0, `rgba(10, 15, 8, ${strength})`);
+  grad.addColorStop(1, 'rgba(10, 15, 8, 0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 /**
  * Level-based visual upgrade without new art: Lv2+ gets a gold trim ring on the
  * raised pad, Lv3+ adds a small gold pennant. Only drawn for player buildings.
@@ -1403,6 +1421,9 @@ function drawTrees(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: num
     ctx.ellipse(sx + size * 0.06, sy + size * 0.22, size * 0.42, size * 0.14, 0, 0, Math.PI * 2);
     ctx.fill();
 
+    // Soft ambient-occlusion pool — the ground darkens right under the canopy.
+    drawGroundAO(ctx, sx + size * 0.05, sy + size * 0.18, size * 0.62, 0.10);
+
     // Oak vs pine by entity id for map variety
     const treeFrame = treeFrames[tree.id % treeFrames.length];
     if (isDrawableSpriteFrame(treeFrame)) {
@@ -1541,6 +1562,9 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
     ctx.ellipse(sx + w * 0.14, sy + h * 0.36, w * 0.38, h * 0.1, 0.2, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+
+    // Soft ambient-occlusion pool — the ground darkens right under the pad.
+    drawGroundAO(ctx, sx, sy + h * 0.34, Math.max(w, h) * 0.8, 0.10);
 
     // Category-colored raised foundation pad (2.5D platform)
     const pad = Math.max(2, Math.min(w, h) * 0.1);
