@@ -12,6 +12,28 @@ export function getSeason(dayInYear: number): SeasonType {
   return Season.Winter;
 }
 
+/**
+ * Season transition lerp — within `blendDays` of a season boundary the terrain
+ * bake fades from the outgoing season's palette into the incoming one instead
+ * of swapping instantly. Returns null far from a boundary.
+ */
+export function seasonBlendForDay(
+  dayInYear: number,
+  blendDays = 5,
+): { from: SeasonType; to: SeasonType; t: number } | null {
+  const boundaries = [90, 180, 270, 360];
+  for (const boundary of boundaries) {
+    const until = boundary - dayInYear;
+    if (until <= 0 || until > blendDays) continue;
+    return {
+      from: getSeason(boundary - 1),
+      to: getSeason(boundary % 360),
+      t: 1 - until / blendDays,
+    };
+  }
+  return null;
+}
+
 export function getReproductionMultiplier(season: SeasonType): number {
   switch (season) {
     case Season.Spring:

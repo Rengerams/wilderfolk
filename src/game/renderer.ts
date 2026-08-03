@@ -43,6 +43,7 @@ import {
   drawStripJunctionOverlay,
 } from './stripRender';
 import { detectBuildingJunction } from './stripJunction';
+import { seasonBlendForDay } from './simHelpers';
 import { drawRenffrOmen } from './renffrStar';
 import { huntAnimProgress } from './huntvisuals';
 import {
@@ -173,7 +174,10 @@ function buildTerrainCache(state: RenderSnapshot) {
   const season = state.season ?? Season.Spring;
   // Higher bake resolution when zoomed in close so the ground isn't blocky.
   const lod = state.camera.zoom >= 3 ? 2 : 1;
-  if (terrainLayerNeedsRebuild(terrainCache, state.worldMap, season, state.width, state.height, lod)) {
+  // Season transitions fade the palette over a few days instead of snapping.
+  const blend = seasonBlendForDay(state.dayInYear ?? 0);
+  const blendT = blend ? Math.round(blend.t * 100) : undefined;
+  if (terrainLayerNeedsRebuild(terrainCache, state.worldMap, season, state.width, state.height, lod, blendT)) {
     disposeTerrainLayer(terrainCache);
     terrainCache = bakeTerrainLayer(
       state.worldMap,
@@ -182,6 +186,7 @@ function buildTerrainCache(state: RenderSnapshot) {
       season,
       (type, seas, variation, preset) => getTerrainColor(type, variation, preset, seas ?? season),
       lod,
+      blend ?? undefined,
     );
   }
   if (terrainDecorNeedsRebuild(terrainDecorCache, state.worldMap, state.width, state.height)) {

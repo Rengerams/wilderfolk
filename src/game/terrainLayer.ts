@@ -162,6 +162,8 @@ export interface TerrainLayerCache {
   season: Season;
   /** Bake resolution factor — 2 when zoomed in close so tiles get fine detail. */
   lod: number;
+  /** Season-lerp progress ×100 (0-100) — cache invalidates as the palette fades. */
+  seasonBlendT?: number;
   /** True when this bake used seamless fill sprites (not flat RGB only). */
   fills: boolean;
 }
@@ -190,6 +192,7 @@ export function terrainLayerNeedsRebuild(
   worldWidth: number,
   worldHeight: number,
   lod = 1,
+  seasonBlendT?: number,
 ): boolean {
   if (!cache) return true;
   // After sprites finish loading, force one rebake so fills replace flat color
@@ -201,7 +204,8 @@ export function terrainLayerNeedsRebuild(
     || cache.seed !== map.seed
     || cache.preset !== map.preset
     || cache.season !== season
-    || cache.lod !== lod;
+    || cache.lod !== lod
+    || (cache.seasonBlendT ?? 0) !== (seasonBlendT ?? 0);
 }
 
 function landscapePropSpritesReady(): boolean {
@@ -315,6 +319,7 @@ export function bakeTerrainLayer(
   season: Season,
   colorAt: (type: TerrainType, season: Season, variation: number, preset?: MapPreset) => string,
   lod = 1,
+  seasonBlend?: { from: Season; to: Season; t: number },
 ): TerrainLayerCache {
   const w = Math.max(1, Math.floor(worldWidth * lod));
   const h = Math.max(1, Math.floor(worldHeight * lod));
@@ -323,8 +328,22 @@ export function bakeTerrainLayer(
   const tileSize = TERRAIN_TILE_SIZE * lod;
   const seed = typeof map.seed === 'number' ? map.seed : 1;
 
+  // Season-lerp colour source — fades between the outgoing and incoming palette.
+  const seasonColorAt = seasonBlend
+    ? (type: TerrainType, variation: number, preset?: MapPreset) => {
+        const a = parseTerrainRgb(colorAt(type, seasonBlend.from, variation, preset));
+        const b = parseTerrainRgb(colorAt(type, seasonBlend.to, variation, preset));
+        return rgbStr(
+          Math.round(a.r + (b.r - a.r) * seasonBlend.t),
+          Math.round(a.g + (b.g - a.g) * seasonBlend.t),
+          Math.round(a.b + (b.b - a.b) * seasonBlend.t),
+        );
+      }
+    : (type: TerrainType, variation: number, preset?: MapPreset) =>
+        colorAt(type, season, variation, preset);
+
   // Base fill
-  ctx.fillStyle = colorAt(TerrainType.Grassland, season, 0.5, map.preset);
+  ctx.fillStyle = seasonColorAt(TerrainType.Grassland, 0.5, map.preset);
   ctx.fillRect(0, 0, w, h);
 
   for (let ty = 0; ty < map.height; ty++) {
@@ -337,7 +356,7 @@ export function bakeTerrainLayer(
       const fillW = Math.min(tileSize, w - x0);
       const fillH = Math.min(tileSize, h - y0);
 
-      const base = parseTerrainRgb(colorAt(tile.type, season, tile.variation, map.preset));
+      const base = parseTerrainRgb(seasonColorAt(tile.type, tile.variation, map.preset));
       const relief = tileRelief(tile.type, tile.elevation);
 
       // Slope from neighbors (N/W higher = lit face; S/E higher = shade)
@@ -386,8 +405,8 @@ export function bakeTerrainLayer(
       if (!stamped) {
         const east = map.tiles[ty]?.[tx + 1];
         if (east && east.type !== tile.type) {
-          const a = parseTerrainRgb(colorAt(tile.type, season, tile.variation, map.preset));
-          const b = parseTerrainRgb(colorAt(east.type, season, east.variation, map.preset));
+          const a = parseTerrainRgb(seasonColorAt(tile.type, tile.variation, map.preset));
+          const b = parseTerrainRgb(seasonColorAt(east.type, east.variation, map.preset));
           ctx.fillStyle = rgbStr((a.r + b.r) / 2, (a.g + b.g) / 2, (a.b + b.b) / 2);
           ctx.globalAlpha = 0.45;
           ctx.fillRect(x0 + fillW - 1, y0, 2, fillH);
@@ -395,8 +414,8 @@ export function bakeTerrainLayer(
         }
         const south = map.tiles[ty + 1]?.[tx];
         if (south && south.type !== tile.type) {
-          const a = parseTerrainRgb(colorAt(tile.type, season, tile.variation, map.preset));
-          const b = parseTerrainRgb(colorAt(south.type, season, south.variation, map.preset));
+          const a = parseTerrainRgb(seasonColorAt(tile.type, tile.variation, map.preset));
+          const b = parseTerrainRgb(seasonColorAt(south.type, south.variation, map.preset));
           ctx.fillStyle = rgbStr((a.r + b.r) / 2, (a.g + b.g) / 2, (a.b + b.b) / 2);
           ctx.globalAlpha = 0.45;
           ctx.fillRect(x0, y0 + fillH - 1, fillW, 2);
@@ -482,8 +501,8 @@ export function bakeTerrainLayer(
       for (const [dir, nb] of nbs) {
         if (!nb || !isWater(nb.type)) continue;
         if ((nb.type === TerrainType.DeepWater) === selfDeep) continue;
-        const a = parseTerrainRgb(colorAt(tile.type, season, tile.variation, map.preset));
-        const b = parseTerrainRgb(colorAt(nb.type, season, nb.variation, map.preset));
+        const a = parseTerrainRgb(seasonColorAt(tile.type, tile.variation, map.preset));
+        const b = parseTerrainRgb(seasonColorAt(nb.type, nb.variation, map.preset));
         const mid = rgbStr(Math.round((a.r + b.r) / 2), Math.round((a.g + b.g) / 2), Math.round((a.b + b.b) / 2));
         const band = Math.max(1, Math.round(tileSize * 0.18));
         ctx.fillStyle = mid;
@@ -521,8 +540,14 @@ export function bakeTerrainLayer(
     }
   }
 
-  // Phase D — full-map seasonal wash (after all tile stamps)
-  applySeasonWash(ctx, season, w, h);
+  // Phase D — full-map seasonal wash (after all tile stamps); blended during
+  // season transitions so the palette fades instead of snapping.
+  if (seasonBlend) {
+    applySeasonWash(ctx, seasonBlend.from, w, h, 1 - seasonBlend.t);
+    applySeasonWash(ctx, seasonBlend.to, w, h, seasonBlend.t);
+  } else {
+    applySeasonWash(ctx, season, w, h);
+  }
 
   return {
     surface,
@@ -535,6 +560,7 @@ export function bakeTerrainLayer(
     preset: map.preset,
     season,
     lod,
+    seasonBlendT: seasonBlend ? Math.round(seasonBlend.t * 100) : undefined,
     fills: terrainFillSpritesReady(),
   };
 }
@@ -543,8 +569,9 @@ export function bakeTerrainLayer(
  * Full-layer seasonal grade — strong enough to read at a glance (was ~5–14% and easy to miss).
  * Uses Season enum values / string ids from gameTypes.
  */
-function applySeasonWash(ctx: CanvasContext2d, season: Season, w: number, h: number): void {
+function applySeasonWash(ctx: CanvasContext2d, season: Season, w: number, h: number, alpha = 1): void {
   ctx.save();
+  ctx.globalAlpha = alpha;
   switch (season) {
     case 'spring':
       // Fresh green lift

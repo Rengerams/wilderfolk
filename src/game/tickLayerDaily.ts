@@ -413,7 +413,20 @@ function tickBuildingProduction(
       const treeMult = getLumberMillTreeMultiplier(building, byType[EntityType.Tree] ?? []);
       const amount = Math.floor((12 + workers * 4) * totalMult * smithBonus * lumberMult * treeMult * globalEff);
       if (addResource(state, 'wood', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
-      state.deathParticles.push({ x: building.x + Math.random() * building.width, y: building.y + Math.random() * building.height, vx: (Math.random() - 0.5) * 0.5, vy: -1 - Math.random(), life: 20, maxLife: 20, color: '#8B7355', size: 2 + Math.random() * 2, type: 'smoke' });
+      // Sawdust + wood chips fly when the mill is working
+      for (let i = 0; i < 3; i++) {
+        state.deathParticles.push({
+          x: building.x + Math.random() * building.width,
+          y: building.y + Math.random() * building.height,
+          vx: (Math.random() - 0.5) * 1.3,
+          vy: -0.5 - Math.random() * 0.9,
+          life: 16 + Math.random() * 10,
+          maxLife: 26,
+          color: i % 2 === 0 ? '#a16207' : '#d2a95c',
+          size: 1.5 + Math.random() * 1.4,
+          type: 'smoke',
+        });
+      }
     }
     if (building.completed && staffed && building.type === BuildingType.Quarry && isProductionTick(state.tick, PRODUCTION_INTERVAL.quarry)) {
       const stoneMult = getMultiplier(state, 'quarry_yield') * getForgeQuarryMultiplier(state);

@@ -2239,6 +2239,26 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         if (entity.x > width) entity.x = width;
         if (entity.y < 0) entity.y = 0;
         if (entity.y > height) entity.y = height;
+
+        // Footstep dust — a puff of trail dust when a settler walks the frontier.
+        if (
+          Math.hypot(entity.vx, entity.vy) > 0.8
+          && Math.random() < 0.012
+          && isPlayerHuman(entity)
+          && !entity.isJuvenile
+        ) {
+          state.deathParticles.push({
+            x: entity.x + (Math.random() - 0.5) * 6,
+            y: entity.y + 4,
+            vx: -entity.vx * 0.08 + (Math.random() - 0.5) * 0.3,
+            vy: -0.25 - Math.random() * 0.3,
+            life: 14 + Math.random() * 8,
+            maxLife: 22,
+            color: Math.random() < 0.5 ? '#9a8b74' : '#8a7c66',
+            size: 1.5 + Math.random() * 1.2,
+            type: 'smoke',
+          });
+        }
         advanceHumanWalkAnim(entity);
       }
       if (entity.energy <= 0) {
