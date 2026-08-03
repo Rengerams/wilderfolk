@@ -1,6 +1,6 @@
 # Wilderfolk — Game Feel & Depth Plan
 
-**Date:** 2026-08-03 · **Branch:** `main` · **Status:** Phase 0 + 1 done · Phase 2 next
+**Date:** 2026-08-03 · **Branch:** `main` · **Status:** Phase 0 + 1 done · Phase 2 done · Phase 3 next
 **Companion docs:** [continuation plan](./2026-08-02-continuation-plan.md) (agent handoff + what's already done) · [landscape looks research](../private/landscape-looks-research.md) (private)
 
 ---
@@ -19,8 +19,13 @@ The micro-bug-fix wave is done. This plan turns the product analysis into ordere
 | 1.1 Grid pathfinding (A*, 5 tests) | `8b8129b` |
 | 1.2 Terrain atlas polish (variation, bevels, coasts) | `79b9a8f` |
 | 1.3 Economy ledger ("Food this day") | `53709fa` |
+| 2.2 Reputation consequences (prices + raids) | `284c465` |
+| 2.3 Real visitor trade (group purses, no minted gold) | `284c465` |
+| 2.1 Visitor quest chain (traveling smith) | `c825859` |
+| 2.4 Building level visuals (gold trim / pennant) | `208f5f7` |
+| 2.5 Election promises | `db9e8eb` |
 
-**Next up:** Phase 2 — depth (visitor quests, reputation, trade, building variety). Playtest Phase 0/1 first (zoom 5 ground, settlers crossing rivers, Food this day tab) and file what feels off.
+**Next up:** Phase 3 — QoL & polish (multi-select workers, decorations/beauty, SFX, weather consequences). Playtest Phase 2 first (trade prices at your reputation, the smith quest, upgraded building look) and file what feels off.
 
 **Priority logic (impact ÷ effort):**
 - Pathfinding first: it is a real bug (stuck citizens at map edges) *and* the single biggest sim/controls upgrade.
