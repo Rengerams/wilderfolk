@@ -2794,6 +2794,107 @@ function weatherOverlayStyle(color: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/** Subtle animated shimmer on water tiles (rivers/lakes) — only close enough to read. */
+function drawWaterShimmer(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+  const map = state.worldMap;
+  if (!map || state.camera.zoom < 1.4 || !state.juiceEffectsEnabled) return;
+  const cam = state.camera;
+  const ts = TERRAIN_TILE_SIZE;
+  const z = cam.zoom;
+  const tx0 = Math.max(0, Math.floor((cam.x - cw / (2 * z)) / ts));
+  const tx1 = Math.min(map.width - 1, Math.floor((cam.x + cw / (2 * z)) / ts));
+  const ty0 = Math.max(0, Math.floor((cam.y - ch / (2 * z)) / ts));
+  const ty1 = Math.min(map.height - 1, Math.floor((cam.y + ch / (2 * z)) / ts));
+  if (tx1 - tx0 > 90 || ty1 - ty0 > 90) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let ty = ty0; ty <= ty1; ty++) {
+    for (let tx = tx0; tx <= tx1; tx++) {
+      const tile = map.tiles[ty]?.[tx];
+      if (!tile || !isWaterTerrainType(tile.type)) continue;
+      const sx = (tx * ts - cam.x) * z + cw / 2;
+      const sy = (ty * ts - cam.y) * z + ch / 2;
+      const sw = ts * z;
+      const phase = _time * 0.5 + (tx * 7 + ty * 13);
+      const p1 = phase % 1;
+      const p2 = (phase + 0.55) % 1;
+      const alpha = 0.09 + Math.sin(_time * 2.1 + tx + ty * 0.7) * 0.04;
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.fillRect(sx + p1 * sw, sy + sw * 0.32, sw * 0.22, Math.max(1, sw * 0.045));
+      ctx.fillRect(sx + p2 * sw, sy + sw * 0.66, sw * 0.16, Math.max(1, sw * 0.045));
+    }
+  }
+  ctx.restore();
+}
+
+interface SeasonParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  sway: number;
+}
+
+let seasonParts: SeasonParticle[] = [];
+let seasonPartsSeason: Season | null = null;
+
+function newSeasonParticle(cw: number, ch: number, season: Season): SeasonParticle {
+  const fall = season === Season.Fall;
+  return {
+    x: Math.random() * cw,
+    y: Math.random() * ch,
+    vx: (Math.random() - 0.25) * (fall ? 0.4 : 0.16),
+    vy: fall ? 0.22 + Math.random() * 0.3 : 0.12 + Math.random() * 0.2,
+    size: fall ? 1.6 + Math.random() * 2.2 : 1 + Math.random() * 1.2,
+    sway: Math.random() * 10,
+  };
+}
+
+/** Fall leaves + winter ambient snow-dust — season juice, independent of weather. */
+function drawSeasonParticles(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+  const active = state.season === Season.Fall
+    || (state.season === Season.Winter && state.weather === WeatherType.Clear);
+  if (!active) {
+    seasonParts = [];
+    seasonPartsSeason = null;
+    return;
+  }
+  if (seasonPartsSeason !== state.season || seasonParts.length === 0) {
+    const n = Math.min(110, Math.floor((cw * ch) / 9000));
+    seasonParts = [];
+    for (let i = 0; i < n; i++) seasonParts.push(newSeasonParticle(cw, ch, state.season));
+    seasonPartsSeason = state.season;
+  }
+  if (!state.juiceEffectsEnabled) return;
+  const fall = state.season === Season.Fall;
+  for (const p of seasonParts) {
+    p.y += p.vy;
+    p.x += p.vx + Math.sin(_time * 1.4 + p.sway) * 0.35;
+    if (p.y > ch + 8 || p.x < -8 || p.x > cw + 8) {
+      p.y = -8 - Math.random() * 8;
+      p.x = Math.random() * cw;
+    }
+  }
+  ctx.save();
+  if (fall) {
+    ctx.fillStyle = '#e8a24c';
+    for (const p of seasonParts) {
+      ctx.globalAlpha = 0.45 + Math.sin(_time * 3 + p.sway) * 0.18;
+      ctx.fillRect(p.x, p.y, p.size, p.size * 0.6);
+    }
+  } else {
+    ctx.fillStyle = '#ffffff';
+    for (const p of seasonParts) {
+      ctx.globalAlpha = 0.22 + Math.sin(_time * 2 + p.sway) * 0.1;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
 function drawWeather(ctx: CanvasRenderingContext2D, w: WeatherType, cw: number, ch: number) {
   updateWeatherParticles(w, cw, ch);
   const weatherCfg = WEATHER_CONFIGS[w];
@@ -3022,6 +3123,8 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
   drawBuildPreview(ctx, state, cw, ch);
   drawEntityFlashOverlay(ctx, state, cw, ch);
   drawWeather(ctx, state.weather, cw, ch);
+  drawWaterShimmer(ctx, state, cw, ch);
+  drawSeasonParticles(ctx, state, cw, ch);
 
   if (isNightHour(state.hourOfDay)) {
     drawNightAtmosphere(ctx, state, cw, ch);
