@@ -9,7 +9,6 @@ import {
 } from './gameTypes';
 import {
   PER_TICK_RATE_SCALE,
-  getAbsoluteCalendarDay,
   getHourOfDay,
   isNightHour,
   isStartOfClockHour,
@@ -196,7 +195,7 @@ export function tickHotelLodging(state: WorldState): void {
 
   // Notify only when at least one hotel's worth of guests checked in — otherwise
   // a nightly "Hotel full of guests" toast would fire for a single guest.
-  if (nightCheckIns >= HOTEL_GUEST_CAPACITY && getAbsoluteCalendarDay(state.tick) % 2 === 0) {
+  if (nightCheckIns >= HOTEL_GUEST_CAPACITY) {
     addNotification(
       state,
       'Hotel full of guests',

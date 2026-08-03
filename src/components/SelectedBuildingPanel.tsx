@@ -1,4 +1,5 @@
 import { Suspense, lazy } from 'react';
+import CollapsibleSection from './CollapsibleSection';
 import {
   BuildingType, EntityType, BUILDING_JOB_TYPES, WORKSHOP_RECIPES, getWorkshopRecipe, formatRecipeInputs,
   getTerrainEfficiencyMultiplier, getAdjacencyMultiplier,
@@ -308,8 +309,9 @@ export default function SelectedBuildingPanel({
         </div>
       </div>
 
-      <div className="mb-2 space-y-0.5 text-[10px] text-amber-200">
-        <p>Health: {Math.round(building.health)} / {building.maxHealth}</p>
+      <CollapsibleSection title="Overview" defaultOpen>
+        <div className="space-y-0.5 text-[10px] text-amber-200">
+          <p>Health: {Math.round(building.health)} / {building.maxHealth}</p>
         {isHousing && building.completed ? (
           <p>Residents: {residents.length} / {residenceCap}</p>
         ) : building.completed && !BUILDING_JOB_TYPES[building.type] && building.type === BuildingType.Mill ? (
@@ -565,12 +567,10 @@ export default function SelectedBuildingPanel({
           </div>
         )}
       </div>
+      </CollapsibleSection>
 
       {((!building.completed && config.maxOccupants > 0) || (building.completed && BUILDING_JOB_TYPES[building.type])) && (
-        <div className="mt-1 space-y-1">
-          <p className="text-[9px] font-semibold uppercase tracking-wider text-stone-500">
-            {!building.completed ? 'Construction' : 'Workers'}
-          </p>
+        <CollapsibleSection title={!building.completed ? 'Construction' : 'Workers'} defaultOpen>
           {building.completed && BUILDING_JOB_TYPES[building.type] && assignableWorkers.length > 0 && building.occupants.length < config.maxOccupants && (
             <div className="mb-1 max-h-28 space-y-1 overflow-y-auto">
               <p className="text-[8px] text-stone-500">
@@ -621,10 +621,9 @@ export default function SelectedBuildingPanel({
             </button>
           )}
           </div>
-        </div>
+        </CollapsibleSection>
       )}
-      <div className="mt-1 space-y-1">
-        <p className="text-[9px] font-semibold uppercase tracking-wider text-stone-500">Building actions</p>
+      <CollapsibleSection title="Building actions" defaultOpen>
         <div className="grid grid-cols-2 gap-1">
           {building.health < building.maxHealth && (
             <button onClick={onRepair} className="rounded bg-amber-700 px-2 py-1 text-[9px] font-bold text-white hover:bg-amber-600">
@@ -643,7 +642,7 @@ export default function SelectedBuildingPanel({
             🗑 Demolish{isHousing && residents.length > 0 ? ' (evicts residents)' : ''}
           </button>
         </div>
-      </div>
+      </CollapsibleSection>
     </div>
   );
 }

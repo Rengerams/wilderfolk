@@ -54,7 +54,7 @@ export function createInitialView(width: number, height: number, zoom = 1.45): V
 const CAMERA_EPS = 1e-3;
 
 export const CAMERA_ZOOM_MIN = 0.5;
-export const CAMERA_ZOOM_MAX = 3;
+export const CAMERA_ZOOM_MAX = 5;
 export const CAMERA_ZOOM_DEFAULT = 1.45;
 export const CAMERA_ZOOM_STEP_IN = 1.1;
 export const CAMERA_ZOOM_STEP_OUT = 0.9;

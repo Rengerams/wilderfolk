@@ -146,6 +146,20 @@ export function getPlaceBuildingFailureReason(
   return null;
 }
 
+/** Remove trees under a building footprint so they don't clip through the new building. */
+function clearTreesUnderFootprint(
+  state: WorldState,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  for (const e of state.entities) {
+    if (!e.alive || e.type !== EntityType.Tree) continue;
+    if (e.x >= x && e.x < x + width && e.y >= y && e.y < y + height) e.alive = false;
+  }
+}
+
 export function startBuilding(
   originalState: WorldState,
   type: BuildingType,
@@ -183,6 +197,10 @@ export function startBuilding(
   const building = createBuilding(type, x, y, state.nextBuildingId++, rotation);
   building.spriteScale = 0;
   state.buildings.push(building);
+
+  // Trees under the footprint are cleared — you can't keep a forest inside a wall.
+  const footprint = getBuildingFootprintForType(type, rotation);
+  clearTreesUnderFootprint(state, x, y, footprint.width, footprint.height);
 
   // Immediate construction crew so progress starts on the next work day (not after social pulse).
   assignMissingWorkers(listPlayerHumans(state), state.buildings);
@@ -327,6 +345,9 @@ export function placeStripChain(
     );
     building.spriteScale = 0;
     state.buildings.push(building);
+    // Clear trees under this segment (walls/roads shouldn't keep forests inside them).
+    const segFootprint = getBuildingFootprintForType(placeType, cornerRot);
+    clearTreesUnderFootprint(state, seg.x, seg.y, segFootprint.width, segFootprint.height);
     if (placed === 0) {
       firstX = seg.x;
       firstY = seg.y;
