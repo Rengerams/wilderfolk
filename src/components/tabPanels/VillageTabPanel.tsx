@@ -124,7 +124,7 @@ export default function VillageTabPanel({
         <div className="grid grid-cols-2 gap-1.5 text-[11px]">
           <StatBadge label="Adults" value={villageStats.adults} icon="👤" />
           <StatBadge label="Reputation" value={state.villageReputation} icon="⭐" />
-          <StatBadge label="Buildings" value={state.buildings.filter(b => b.completed).length} icon="🏗️" />
+          <StatBadge label="Buildings" value={state.buildings.filter(b => b.completed && b.faction !== 'rival').length} icon="🏗️" />
           <StatBadge label="Techs" value={state.unlockedTechs.length} icon="🔬" />
         </div>
         <button

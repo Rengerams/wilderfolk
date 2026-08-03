@@ -194,11 +194,13 @@ export function tickHotelLodging(state: WorldState): void {
     }
   }
 
-  if (nightCheckIns > 0 && getAbsoluteCalendarDay(state.tick) % 2 === 0) {
+  // Notify only when at least one hotel's worth of guests checked in — otherwise
+  // a nightly "Hotel full of guests" toast would fire for a single guest.
+  if (nightCheckIns >= HOTEL_GUEST_CAPACITY && getAbsoluteCalendarDay(state.tick) % 2 === 0) {
     addNotification(
       state,
       'Hotel full of guests',
-      `${nightCheckIns} visitor${nightCheckIns > 1 ? 's' : ''} rested at the hotel`,
+      `${nightCheckIns} visitors rested at the hotel`,
       'success',
     );
     logEvent(state, 'trade', `Hotel lodging: ${nightCheckIns} guest(s) checked in`);
