@@ -152,6 +152,7 @@ import {
   isHotelierAtHotel,
   steerVisitorToHotel,
 } from './hotelStay';
+import { setCurrentPathMap, steerWithPath } from './pathfinding';
 import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
 import {
   MOBILE_CELL_SIZE,
@@ -1337,6 +1338,16 @@ function commuteHumanToBuilding(
   const distRush = Math.min(12, 1 + dist / 40);
   const moveSpeed = speed * rush * distRush;
   if (dist > 22) {
+    // Long commute: route around water/mountains when the straight line is blocked.
+    const handled = steerWithPath(
+      entity,
+      target.x,
+      target.y,
+      moveSpeed * 0.72,
+      `c_${building.id}_${arrivingHome ? 'h' : 'w'}`,
+    );
+    if (handled === 'path') return false;
+    if (handled === 'arrived') return true;
     entity.vx = (dx / dist) * moveSpeed * 0.72;
     entity.vy = (dy / dist) * moveSpeed * 0.72;
     entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
@@ -1430,6 +1441,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     byType, newEntities, updatedBuildings, roadBuildings, playerHumans, focus,
     entityById, buildingById, mobileGrid,
   } = ctx;
+
+  // Current terrain for pathfinding (routing around water/mountains).
+  setCurrentPathMap(state.worldMap);
 
   const config = SPECIES_CONFIG[EntityType.Human];
   const isWinter = season === Season.Winter;

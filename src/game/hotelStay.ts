@@ -17,6 +17,7 @@ import {
   NIGHT_END,
 } from './dayCycle';
 import { addFloatingText, addNotification } from './simEffects';
+import { steerWithPath } from './pathfinding';
 import { logEvent } from './eventLog';
 import { sayHumanChatPhrase } from './humanChat';
 import { gainSkill } from './skills';
@@ -226,6 +227,14 @@ export function steerVisitorToHotel(
   const dy = ty - visitor.y;
   const dist = Math.hypot(dx, dy) || 1;
   if (dist > 14) {
+    // Route around water/mountains on the camp→hotel walk.
+    const handled = steerWithPath(visitor, tx, ty, speed * 0.7, `h_${hotel.id}`);
+    if (handled === 'path') {
+      visitor.x += visitor.vx;
+      visitor.y += visitor.vy;
+      return true;
+    }
+    if (handled === 'arrived') return true;
     visitor.vx = (dx / dist) * speed * 0.7;
     visitor.vy = (dy / dist) * speed * 0.7;
     visitor.x += visitor.vx;
