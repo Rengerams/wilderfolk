@@ -613,6 +613,38 @@ export function bakeTerrainDecor(map: WorldMap, worldWidth: number, worldHeight:
     }
   }
 
+  // Shore reflection — the land's colours faintly mirror into the first water
+  // row: a darker teal-green band that fades, so water next to land reads as a
+  // mirror instead of a hard colour stop.
+  for (let ty = 0; ty < map.height; ty++) {
+    for (let tx = 0; tx < map.width; tx++) {
+      const tile = map.tiles[ty]?.[tx];
+      if (!tile || !isWater(tile.type)) continue;
+      const x0 = tx * TERRAIN_TILE_SIZE;
+      const y0 = ty * TERRAIN_TILE_SIZE;
+      const nbs = [
+        ['n', map.tiles[ty - 1]?.[tx]],
+        ['s', map.tiles[ty + 1]?.[tx]],
+        ['w', map.tiles[ty]?.[tx - 1]],
+        ['e', map.tiles[ty]?.[tx + 1]],
+      ] as const;
+      for (const [dir, nb] of nbs) {
+        if (!nb || isWater(nb.type)) continue;
+        const rim = 2;
+        ctx.fillStyle = dir === 'n' ? 'rgba(38, 68, 58, 0.32)' : 'rgba(38, 68, 58, 0.24)';
+        if (dir === 'n') ctx.fillRect(x0, y0, TERRAIN_TILE_SIZE, rim);
+        else if (dir === 's') ctx.fillRect(x0, y0 + TERRAIN_TILE_SIZE - rim, TERRAIN_TILE_SIZE, rim);
+        else if (dir === 'w') ctx.fillRect(x0, y0, rim, TERRAIN_TILE_SIZE);
+        else ctx.fillRect(x0 + TERRAIN_TILE_SIZE - rim, y0, rim, TERRAIN_TILE_SIZE);
+        ctx.fillStyle = 'rgba(33, 58, 52, 0.15)';
+        if (dir === 'n') ctx.fillRect(x0, y0 + rim, TERRAIN_TILE_SIZE, rim);
+        else if (dir === 's') ctx.fillRect(x0, y0 + TERRAIN_TILE_SIZE - rim * 2, TERRAIN_TILE_SIZE, rim);
+        else if (dir === 'w') ctx.fillRect(x0 + rim, y0, rim, TERRAIN_TILE_SIZE);
+        else ctx.fillRect(x0 + TERRAIN_TILE_SIZE - rim * 2, y0, rim, TERRAIN_TILE_SIZE);
+      }
+    }
+  }
+
   // Phase C — ground clutter (deterministic by tile + seed; not sim entities)
   stampLandscapeProps(ctx, map, w, h);
 
