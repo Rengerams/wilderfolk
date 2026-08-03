@@ -37,6 +37,7 @@ docs/superpowers/
 
 # Deep Code CLI local config + skills (not project files)
 .deepcode/
+skills/
 
 # Local-only session transcript (not for GitHub)
 Wilderfolk.txt
