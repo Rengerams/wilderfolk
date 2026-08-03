@@ -13,7 +13,6 @@ import {
   getCombatPreview,
   formatRaidDeadline, formatRaidLootSummary, raidEventLoot,
   isVillageLeader,
-  getGrazingPressureReport, getEcosystemBreakdown,
   getHumanArmamentLabel, hasIronSpears, hasStoneSpears,
   getAgeInYears,
 } from './game/gameEngine';
@@ -1153,7 +1152,6 @@ export default function App() {
   }, [world.tradeRoutes, world.villageReputation, world.buildings]);
   const progressTabAlert = world.activeResearch != null || tradeReadyCount > 0;
   const foodAlert = isFoodAlert(world);
-  const ecoBreakdown = getEcosystemBreakdown(world);
 
   const selectedBuildingIdleWorkerCount = useMemo(() => {
     const building = resolveBuilding(world, view.selectedBuildingId);
@@ -1231,7 +1229,6 @@ export default function App() {
   const selectedEntity = catalog?.get(view.selectedEntityId)
     ?? resolveEntity(world, view.selectedEntityId);
   const selectedBuilding = resolveBuilding(world, view.selectedBuildingId);
-  const grazingPressure = getGrazingPressureReport(world);
   const pendingDiplomacy = world.pendingDiplomacyEvents ?? [];
   const pendingRaids = world.pendingRaidEvents ?? [];
   const pendingOutgoingRaids = world.pendingOutgoingRaidEvents ?? [];
@@ -1304,7 +1301,7 @@ export default function App() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar — collapsible construction panel */}
         <aside
-          className={`build-panel side-panel relative flex shrink-0 flex-col border-r border-stone-700/80 transition-[width] duration-300 ease-in-out ${
+          className={`build-panel side-panel relative flex shrink-0 flex-col border-r border-stone-700/80 transition-[width] duration-150 ease-in-out ${
             buildPanelOpen ? 'w-[15.5rem]' : 'w-12'
           }`}
         >
@@ -2045,8 +2042,6 @@ export default function App() {
                 </div>
                 <NatureTabPanel
                   state={world}
-                  grazingPressure={grazingPressure}
-                  ecoBreakdown={ecoBreakdown}
                 />
               </div>
             )}

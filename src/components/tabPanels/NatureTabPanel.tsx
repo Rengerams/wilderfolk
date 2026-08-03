@@ -1,6 +1,7 @@
 import { memo, useMemo } from 'react';
 import type { WorldState } from '../../game/gameEngine';
-import type { GrazingPressureReport, EcosystemBreakdown } from '../../game/gameEngine';
+import { getGrazingPressureReport } from '../../game/gameEngine';
+import { getEcosystemBreakdown } from '../../game/gameEngine';
 import { SEASON_LABELS, seasonTextClass, formatTemperatureC, computeDailyTemperatureC } from '../../game/temperature';
 import { Season, WeatherType } from '../../game/gameTypes';
 import {
@@ -52,8 +53,6 @@ const WildlifeBar = memo(function WildlifeBar({ label, count, max, color, icon }
 
 export interface NatureTabPanelProps {
   state: WorldState;
-  grazingPressure: GrazingPressureReport;
-  ecoBreakdown: EcosystemBreakdown;
 }
 
 const STAGE_STYLES: Record<ValleyStage, string> = {
@@ -76,7 +75,7 @@ const DRIVER_BAND_COLOR = {
   bad: 'text-rose-400',
 } as const;
 
-export default function NatureTabPanel({ state, grazingPressure, ecoBreakdown }: NatureTabPanelProps) {
+export default function NatureTabPanel({ state }: NatureTabPanelProps) {
   // Field-level deps on purpose — recompute only when an ecology input changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const valley = useMemo(() => computeValleyEcologySnapshot(state), [
@@ -89,6 +88,23 @@ export default function NatureTabPanel({ state, grazingPressure, ecoBreakdown }:
     state.tick,
     state.season,
     state.weather,
+  ]);
+  // Computed here (not in App) so these scans only run while this tab is open —
+  // getGrazingPressureReport walks every entity for growing-grass counts.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const grazingPressure = useMemo(() => getGrazingPressureReport(state), [
+    state.wildlifeCounts,
+    state.season,
+    state.weather,
+    state.tick,
+    state.entities,
+  ]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const ecoBreakdown = useMemo(() => getEcosystemBreakdown(state), [
+    state.wildlifeCounts,
+    state.buildings,
+    state.unlockedTechs,
+    state.tick,
   ]);
   const stage = valley.stage;
 
