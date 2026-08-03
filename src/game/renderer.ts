@@ -3320,7 +3320,9 @@ export function getBakedLayerCanvases(
     entityAnchor: cache
       ? { anchorX: cache.anchorX, anchorY: cache.anchorY, anchorZoom: cache.anchorZoom, margin: cache.margin }
       : null,
-    entityKey: cache?.key ?? '',
+    // key + anchor: the layer repaints on tick AND on camera moves (anchor
+    // rebakes when the zoom/pan crosses the margin) — both must re-upload.
+    entityKey: cache ? `${cache.key}|${cache.anchorX.toFixed(2)}|${cache.anchorY.toFixed(2)}|${cache.anchorZoom.toFixed(3)}` : '',
   };
 }
 

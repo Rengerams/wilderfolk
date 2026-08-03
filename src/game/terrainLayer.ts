@@ -308,6 +308,54 @@ function neighborRelief(map: WorldMap, tx: number, ty: number, fallback: number)
   return tileRelief(tile.type, tile.elevation);
 }
 
+/** A single terrain tile with its pixel origin, or undefined out of bounds. */
+type TileEntry = {
+  tile: NonNullable<WorldMap['tiles'][number][number]>;
+  tx: number;
+  ty: number;
+  x0: number;
+  y0: number;
+};
+
+/**
+ * Iterate every terrain tile with its pixel origin (skips out-of-bounds).
+ * Generator form so call sites stay plain for-of loops without re-indenting.
+ */
+function *terrainTiles(
+  map: WorldMap,
+  tileSize: number,
+  w: number,
+  h: number,
+): Generator<TileEntry> {
+  for (let ty = 0; ty < map.height; ty++) {
+    for (let tx = 0; tx < map.width; tx++) {
+      const tile = map.tiles[ty]?.[tx];
+      if (!tile) continue;
+      const x0 = tx * tileSize;
+      const y0 = ty * tileSize;
+      if (x0 >= w || y0 >= h) continue;
+      yield { tile, tx, ty, x0, y0 };
+    }
+  }
+}
+
+/** Run a callback for each of the four cardinal neighbours of a tile. */
+function forEachCardinalNeighbor(
+  map: WorldMap,
+  tx: number,
+  ty: number,
+  cb: (dir: 'n' | 's' | 'w' | 'e', nb: NonNullable<WorldMap['tiles'][number][number]>) => void,
+): void {
+  const north = map.tiles[ty - 1]?.[tx];
+  if (north) cb('n', north);
+  const south = map.tiles[ty + 1]?.[tx];
+  if (south) cb('s', south);
+  const west = map.tiles[ty]?.[tx - 1];
+  if (west) cb('w', west);
+  const east = map.tiles[ty]?.[tx + 1];
+  if (east) cb('e', east);
+}
+
 /**
  * Bake a textured, elevation-lit terrain sheet.
  * Uses NW key light + slope from neighbors so the ground reads as 2.5D relief.
@@ -346,13 +394,7 @@ export function bakeTerrainLayer(
   ctx.fillStyle = seasonColorAt(TerrainType.Grassland, 0.5, map.preset);
   ctx.fillRect(0, 0, w, h);
 
-  for (let ty = 0; ty < map.height; ty++) {
-    for (let tx = 0; tx < map.width; tx++) {
-      const tile = map.tiles[ty]?.[tx];
-      if (!tile) continue;
-      const x0 = tx * tileSize;
-      const y0 = ty * tileSize;
-      if (x0 >= w || y0 >= h) continue;
+  for (const { tile, tx, ty, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
       const fillW = Math.min(tileSize, w - x0);
       const fillH = Math.min(tileSize, h - y0);
 
@@ -479,41 +521,28 @@ export function bakeTerrainLayer(
           : `rgba(0,0,0,${Math.min(0.07, -varAmt)})`;
         ctx.fillRect(x0, y0, fillW, fillH);
       }
-    }
   }
 
   // Shallow↔deep water transition — rivers fade into deeper water instead of a
   // hard color seam (same material family, so blendNeighborEdge skips them).
-  for (let ty = 0; ty < map.height; ty++) {
-    for (let tx = 0; tx < map.width; tx++) {
-      const tile = map.tiles[ty]?.[tx];
-      if (!tile || !isWater(tile.type)) continue;
-      const selfDeep = tile.type === TerrainType.DeepWater;
-      const x0 = tx * tileSize;
-      const y0 = ty * tileSize;
-      if (x0 >= w || y0 >= h) continue;
-      const nbs = [
-        ['n', map.tiles[ty - 1]?.[tx]],
-        ['s', map.tiles[ty + 1]?.[tx]],
-        ['w', map.tiles[ty]?.[tx - 1]],
-        ['e', map.tiles[ty]?.[tx + 1]],
-      ] as const;
-      for (const [dir, nb] of nbs) {
-        if (!nb || !isWater(nb.type)) continue;
-        if ((nb.type === TerrainType.DeepWater) === selfDeep) continue;
-        const a = parseTerrainRgb(seasonColorAt(tile.type, tile.variation, map.preset));
-        const b = parseTerrainRgb(seasonColorAt(nb.type, nb.variation, map.preset));
-        const mid = rgbStr(Math.round((a.r + b.r) / 2), Math.round((a.g + b.g) / 2), Math.round((a.b + b.b) / 2));
-        const band = Math.max(1, Math.round(tileSize * 0.18));
-        ctx.fillStyle = mid;
-        ctx.globalAlpha = 0.5;
-        if (dir === 'n') ctx.fillRect(x0, y0, tileSize, band);
-        else if (dir === 's') ctx.fillRect(x0, y0 + tileSize - band, tileSize, band);
-        else if (dir === 'w') ctx.fillRect(x0, y0, band, tileSize);
-        else ctx.fillRect(x0 + tileSize - band, y0, band, tileSize);
-        ctx.globalAlpha = 1;
-      }
-    }
+  for (const { tile, tx, ty, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
+    if (!isWater(tile.type)) continue;
+    const selfDeep = tile.type === TerrainType.DeepWater;
+    forEachCardinalNeighbor(map, tx, ty, (dir, nb) => {
+      if (!isWater(nb.type)) return;
+      if ((nb.type === TerrainType.DeepWater) === selfDeep) return;
+      const a = parseTerrainRgb(seasonColorAt(tile.type, tile.variation, map.preset));
+      const b = parseTerrainRgb(seasonColorAt(nb.type, nb.variation, map.preset));
+      const mid = rgbStr(Math.round((a.r + b.r) / 2), Math.round((a.g + b.g) / 2), Math.round((a.b + b.b) / 2));
+      const band = Math.max(1, Math.round(tileSize * 0.18));
+      ctx.fillStyle = mid;
+      ctx.globalAlpha = 0.5;
+      if (dir === 'n') ctx.fillRect(x0, y0, tileSize, band);
+      else if (dir === 's') ctx.fillRect(x0, y0 + tileSize - band, tileSize, band);
+      else if (dir === 'w') ctx.fillRect(x0, y0, band, tileSize);
+      else ctx.fillRect(x0 + tileSize - band, y0, band, tileSize);
+      ctx.globalAlpha = 1;
+    });
   }
 
   // High-zoom LOD — fine patchwork noise per tile so close zoom stops reading
@@ -522,13 +551,7 @@ export function bakeTerrainLayer(
     const cells = 4;
     const cw = tileSize / cells;
     const chh = tileSize / cells;
-    for (let ty = 0; ty < map.height; ty++) {
-      for (let tx = 0; tx < map.width; tx++) {
-        const tile = map.tiles[ty]?.[tx];
-        if (!tile) continue;
-        const x0 = tx * tileSize;
-        const y0 = ty * tileSize;
-        if (x0 >= w || y0 >= h) continue;
+    for (const { tx, ty, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
         for (let cy = 0; cy < cells; cy++) {
           for (let cx = 0; cx < cells; cx++) {
             const hsh = hash01(tx * 97 + cx * 7 + cy * 3, ty * 113 + cy * 5 + cx, seed + 11);
@@ -537,7 +560,6 @@ export function bakeTerrainLayer(
           }
         }
       }
-    }
   }
 
   // Phase D — full-map seasonal wash (after all tile stamps); blended during
@@ -643,33 +665,22 @@ export function bakeTerrainDecor(map: WorldMap, worldWidth: number, worldHeight:
   // Shore reflection — the land's colours faintly mirror into the first water
   // row: a darker teal-green band that fades, so water next to land reads as a
   // mirror instead of a hard colour stop.
-  for (let ty = 0; ty < map.height; ty++) {
-    for (let tx = 0; tx < map.width; tx++) {
-      const tile = map.tiles[ty]?.[tx];
-      if (!tile || !isWater(tile.type)) continue;
-      const x0 = tx * TERRAIN_TILE_SIZE;
-      const y0 = ty * TERRAIN_TILE_SIZE;
-      const nbs = [
-        ['n', map.tiles[ty - 1]?.[tx]],
-        ['s', map.tiles[ty + 1]?.[tx]],
-        ['w', map.tiles[ty]?.[tx - 1]],
-        ['e', map.tiles[ty]?.[tx + 1]],
-      ] as const;
-      for (const [dir, nb] of nbs) {
-        if (!nb || isWater(nb.type)) continue;
-        const rim = 2;
-        ctx.fillStyle = dir === 'n' ? 'rgba(38, 68, 58, 0.32)' : 'rgba(38, 68, 58, 0.24)';
-        if (dir === 'n') ctx.fillRect(x0, y0, TERRAIN_TILE_SIZE, rim);
-        else if (dir === 's') ctx.fillRect(x0, y0 + TERRAIN_TILE_SIZE - rim, TERRAIN_TILE_SIZE, rim);
-        else if (dir === 'w') ctx.fillRect(x0, y0, rim, TERRAIN_TILE_SIZE);
-        else ctx.fillRect(x0 + TERRAIN_TILE_SIZE - rim, y0, rim, TERRAIN_TILE_SIZE);
-        ctx.fillStyle = 'rgba(33, 58, 52, 0.15)';
-        if (dir === 'n') ctx.fillRect(x0, y0 + rim, TERRAIN_TILE_SIZE, rim);
-        else if (dir === 's') ctx.fillRect(x0, y0 + TERRAIN_TILE_SIZE - rim * 2, TERRAIN_TILE_SIZE, rim);
-        else if (dir === 'w') ctx.fillRect(x0 + rim, y0, rim, TERRAIN_TILE_SIZE);
-        else ctx.fillRect(x0 + TERRAIN_TILE_SIZE - rim * 2, y0, rim, TERRAIN_TILE_SIZE);
-      }
-    }
+  for (const { tile, tx, ty, x0, y0 } of terrainTiles(map, TERRAIN_TILE_SIZE, w, h)) {
+    if (!isWater(tile.type)) continue;
+    forEachCardinalNeighbor(map, tx, ty, (dir, nb) => {
+      if (isWater(nb.type)) return;
+      const rim = 2;
+      ctx.fillStyle = dir === 'n' ? 'rgba(38, 68, 58, 0.32)' : 'rgba(38, 68, 58, 0.24)';
+      if (dir === 'n') ctx.fillRect(x0, y0, TERRAIN_TILE_SIZE, rim);
+      else if (dir === 's') ctx.fillRect(x0, y0 + TERRAIN_TILE_SIZE - rim, TERRAIN_TILE_SIZE, rim);
+      else if (dir === 'w') ctx.fillRect(x0, y0, rim, TERRAIN_TILE_SIZE);
+      else ctx.fillRect(x0 + TERRAIN_TILE_SIZE - rim, y0, rim, TERRAIN_TILE_SIZE);
+      ctx.fillStyle = 'rgba(33, 58, 52, 0.15)';
+      if (dir === 'n') ctx.fillRect(x0, y0 + rim, TERRAIN_TILE_SIZE, rim);
+      else if (dir === 's') ctx.fillRect(x0, y0 + TERRAIN_TILE_SIZE - rim * 2, TERRAIN_TILE_SIZE, rim);
+      else if (dir === 'w') ctx.fillRect(x0 + rim, y0, rim, TERRAIN_TILE_SIZE);
+      else ctx.fillRect(x0 + TERRAIN_TILE_SIZE - rim * 2, y0, rim, TERRAIN_TILE_SIZE);
+    });
   }
 
   // Phase C — ground clutter (deterministic by tile + seed; not sim entities)

@@ -56,13 +56,13 @@ uniform float uTime;
 void main(void) {
   vec2 uv = vTextureCoord;
   // flowing sine currents: bands drift downstream with a gentle lateral sway
-  float flow = sin(uv.y * 40.0 + uTime * 1.3 + sin(uv.x * 24.0 + uTime * 0.8) * 2.1);
+  float flow = sin(uv.y * 40.0 + uTime * 1.6 + sin(uv.x * 24.0 + uTime * 0.9) * 2.4);
   // subtle refraction-like displacement
-  vec2 off = vec2(sin(uv.y * 28.0 + uTime * 0.7) * 0.012, sin(uv.x * 22.0 - uTime * 0.5) * 0.006);
+  vec2 off = vec2(sin(uv.y * 28.0 + uTime * 0.8) * 0.014, sin(uv.x * 22.0 - uTime * 0.5) * 0.007);
   vec4 c = texture2D(uTexture, uv + off);
   // moving specular glints ride the wave crests
-  float glint = smoothstep(0.55, 1.0, flow) * 0.55;
-  c.rgb += vec3(glint * 0.85, glint * 0.98, glint * 1.25);
+  float glint = smoothstep(0.4, 1.0, flow) * 0.8;
+  c.rgb += vec3(glint * 0.9, glint * 1.0, glint * 1.3);
   gl_FragColor = c;
 }
 `;
@@ -136,7 +136,7 @@ function createWaterWaveTexture(): Texture {
     const y = (i * 25 + 6) % size;
     const grad = g.createLinearGradient(0, y - 5, 0, y + 5);
     grad.addColorStop(0, 'rgba(255,255,255,0)');
-    grad.addColorStop(0.5, `rgba(210,235,255,${0.16 + i * 0.015})`);
+    grad.addColorStop(0.5, `rgba(210,235,255,${0.3 + i * 0.03})`);
     grad.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = grad;
     g.fillRect(0, y - 5, size, 10);
@@ -193,7 +193,7 @@ export async function initPixiRenderer(originalCanvas: HTMLCanvasElement): Promi
   waterTex = createWaterWaveTexture();
   waterSprite = new TilingSprite({ texture: waterTex, width: 100, height: 100 });
   waterSprite.blendMode = 'screen';
-  waterSprite.alpha = 0.6;
+  waterSprite.alpha = 0.85;
   const waterFilter = new Filter({
     glProgram: new GlProgram({ fragment: WATER_FRAGMENT, vertex: DEFAULT_VERTEX }),
     resources: {
@@ -207,8 +207,8 @@ export async function initPixiRenderer(originalCanvas: HTMLCanvasElement): Promi
 
   // subtle vibrance / lift — keeps the baked palette but gives it a gentle punch
   colorFilter = new ColorMatrixFilter();
-  colorFilter.saturate(0.12);
-  colorFilter.brightness(1.03, false);
+  colorFilter.saturate(0.2);
+  colorFilter.brightness(1.05, false);
   world.filters = [colorFilter];
 
   const host = originalCanvas.parentElement;
@@ -308,7 +308,7 @@ export function renderGamePixi(
     waterSprite.y = -cam.y * cam.zoom + ch / 2;
     waterSprite.width = worldW * cam.zoom;
     waterSprite.height = worldH * cam.zoom;
-    waterSprite.tilePosition.set(time * 10, time * 6);
+    waterSprite.tilePosition.set(time * 16, time * 9);
     if (waterSprite.filters) {
       (waterSprite.filters[0] as unknown as {
         resources: { timeUniforms: { uniforms: { uTime: number } } };
@@ -331,4 +331,9 @@ export function renderGamePixi(
   // 2D overlay on the original canvas (transparent, input surface)
   ctx.clearRect(0, 0, cw, ch);
   drawGameOverlay(ctx, state, cw, ch, { includeWaterShimmer: false });
+
+  // dev probe — lets playtests observe the repaint key
+  if (import.meta.env?.DEV) {
+    (window as unknown as Record<string, string>).__pixiEntityKey = lastEntityKey;
+  }
 }
