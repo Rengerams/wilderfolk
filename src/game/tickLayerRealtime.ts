@@ -9,7 +9,7 @@ import { pruneHuntVisuals } from './huntvisuals';
 import type {
   WorldState, DeathParticle, FloatingText, PopulationHistoryEntry, Entity,
 } from './gameTypes';
-import { EntityType } from './gameTypes';
+import { EntityType, BuildingType } from './gameTypes';
 import {
   USE_SPATIAL_GRID,
   syncMobileSimGrid,
