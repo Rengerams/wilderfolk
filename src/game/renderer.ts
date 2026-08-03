@@ -545,6 +545,50 @@ function drawBuildingSprite(
   drawSpriteFrame(ctx, frame, sx, sy, drawW, drawH, 0.5, anchorY, false, {}, 'contain', rotation);
 }
 
+/**
+ * Level-based visual upgrade without new art: Lv2+ gets a gold trim ring on the
+ * raised pad, Lv3+ adds a small gold pennant. Only drawn for player buildings.
+ */
+function drawBuildingLevelMark(
+  ctx: CanvasRenderingContext2D,
+  level: number,
+  sx: number,
+  sy: number,
+  w: number,
+  h: number,
+  zoom: number,
+): void {
+  if (level < 2) return;
+  const pad = Math.max(2, Math.min(w, h) * 0.1);
+  const padW = w + pad * 2;
+  const padH = h + pad * 2;
+  const py = sy + h * 0.06;
+  ctx.save();
+  ctx.strokeStyle = level >= 3 ? 'rgba(250,204,21,0.85)' : 'rgba(250,204,21,0.5)';
+  ctx.lineWidth = Math.max(1, 1.2 * zoom);
+  ctx.beginPath();
+  ctx.rect(sx - padW / 2, py - padH * 0.36, padW, padH * 0.72);
+  ctx.stroke();
+  if (level >= 3) {
+    const px = sx + w * 0.22;
+    const topY = sy - h * 0.66;
+    ctx.strokeStyle = 'rgba(250,204,21,0.9)';
+    ctx.lineWidth = Math.max(1, 1.5 * zoom);
+    ctx.beginPath();
+    ctx.moveTo(px, topY + h * 0.16);
+    ctx.lineTo(px, topY);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(250,204,21,0.9)';
+    ctx.beginPath();
+    ctx.moveTo(px, topY);
+    ctx.lineTo(px + w * 0.24, topY + h * 0.05);
+    ctx.lineTo(px, topY + h * 0.1);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 /** Parse #rrggbb (or short) for 2.5D pad shading. */
 function parseHexRgb(color: string): { r: number; g: number; b: number } {
   const c = color.trim();
@@ -1518,6 +1562,9 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
       ctx.lineWidth = sel ? 3 : 1;
       ctx.strokeRect(sx - w / 2, sy - h / 2, w, h);
     }
+
+    // Level-based visual upgrade — gold trim from Lv2, pennant from Lv3.
+    drawBuildingLevelMark(ctx, b.level, sx, sy, w, h, cam.zoom);
 
     // Selection ring uses the building's category color
     if (isRival && b.campLabel && cam.zoom > 0.45) {
