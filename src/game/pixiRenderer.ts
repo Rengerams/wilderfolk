@@ -20,6 +20,7 @@ import {
   ColorMatrixFilter,
   Container,
   Filter,
+  RendererType,
   Sprite,
   Texture,
   TilingSprite,
@@ -44,6 +45,14 @@ let lastTerrain: CanvasSurface | null = null;
 let lastDecor: CanvasSurface | null = null;
 let lastEntity: CanvasSurface | null = null;
 let lastEntityKey = '';
+// persistent upload targets — reusing one texture+html canvas per layer avoids
+// a GPU texture leak (the entity layer repaints in place every tick) and makes
+// the repaint reliably re-upload via source.update().
+const uploads = {
+  terrain: { tex: null as Texture | null, html: null as HTMLCanvasElement | null },
+  decor: { tex: null as Texture | null, html: null as HTMLCanvasElement | null },
+  entity: { tex: null as Texture | null, html: null as HTMLCanvasElement | null },
+};
 let lastTime = 0;
 let time = 0;
 
@@ -80,29 +89,35 @@ void main(void) {
 }
 `;
 
-/** OffscreenCanvas → HTMLCanvasElement (draw once; used for texture uploads). */
-function toHtmlCanvas(canvas: CanvasSurface): HTMLCanvasElement {
-  if (canvas instanceof HTMLCanvasElement) return canvas;
-  const out = document.createElement('canvas');
-  out.width = canvas.width;
-  out.height = canvas.height;
-  out.getContext('2d')?.drawImage(canvas, 0, 0);
-  return out;
-}
-
-/**
- * Texture sync — only uploads when the baked canvas identity changes (the 2D
- * pipeline reuses the same canvas object while it is valid).
- */
-function syncTexture(sprite: Sprite | null, canvas: CanvasSurface | null): boolean {
+/** Draw a bake into a persistent HTML canvas + (re)upload its texture. */
+function syncTexture(
+  sprite: Sprite | null,
+  canvas: CanvasSurface | null,
+  holder: { tex: Texture | null; html: HTMLCanvasElement | null },
+): boolean {
   if (!sprite) return false;
-  if (canvas) {
-    sprite.texture = Texture.from(toHtmlCanvas(canvas));
-    sprite.visible = true;
-    return true;
+  if (!canvas) {
+    sprite.visible = false;
+    return false;
   }
-  sprite.visible = false;
-  return false;
+  let html = holder.html;
+  if (!html || html.width !== canvas.width || html.height !== canvas.height) {
+    html = document.createElement('canvas');
+    html.width = canvas.width;
+    html.height = canvas.height;
+    holder.html = html;
+  }
+  html.getContext('2d')!.drawImage(canvas, 0, 0);
+  if (!holder.tex) {
+    holder.tex = Texture.from(html);
+    sprite.texture = holder.tex;
+  } else {
+    // the layer surface is reused in place (entity repaints every tick) —
+    // force a re-upload of the new pixels
+    holder.tex.source.update();
+  }
+  sprite.visible = true;
+  return true;
 }
 
 /** World → screen placement, mirroring the Canvas 2D blits exactly. */
@@ -146,9 +161,7 @@ function createWaterWaveTexture(): Texture {
   for (let i = 0; i < 60; i++) {
     g.fillRect((i * 37) % size, (i * 53) % size, 2, 1);
   }
-  const tex = Texture.from(canvas);
-  tex.source.wrapMode = 'repeat';
-  return tex;
+  return Texture.from(canvas);
 }
 
 export function pixiActive(): boolean {
@@ -174,6 +187,13 @@ export async function initPixiRenderer(originalCanvas: HTMLCanvasElement): Promi
     });
     app.canvas.style.width = `${cssW}px`;
     app.canvas.style.height = `${cssH}px`;
+    if (app.renderer.type !== RendererType.WEBGL) {
+      // WebGL unavailable (e.g. hardware acceleration off) — the classic Canvas
+      // 2D renderer is better than pixi's Canvas renderer (which skips filters)
+      app.destroy(true);
+      app = null;
+      return false;
+    }
   } catch {
     if (app) {
       app.canvas?.remove();
@@ -235,6 +255,11 @@ export function disposePixiRenderer(): void {
   waterTex = null;
   lastTerrain = lastDecor = lastEntity = null;
   lastEntityKey = '';
+  for (const key of ['terrain', 'decor', 'entity'] as const) {
+    uploads[key].tex?.destroy();
+    uploads[key].tex = null;
+    uploads[key].html = null;
+  }
 }
 
 /**
@@ -274,24 +299,25 @@ export function renderGamePixi(
   // frame (camera pan/zoom) and mirrors the 2D blits exactly.
   if (layers.terrain !== lastTerrain) {
     lastTerrain = layers.terrain;
-    syncTexture(terrainSprite, layers.terrain);
+    syncTexture(terrainSprite, layers.terrain, uploads.terrain);
   }
   if (layers.decor !== lastDecor) {
     lastDecor = layers.decor;
-    syncTexture(decorSprite, layers.decor);
+    syncTexture(decorSprite, layers.decor, uploads.decor);
   }
   if (layers.entity !== lastEntity || layers.entityKey !== lastEntityKey) {
     lastEntity = layers.entity;
     lastEntityKey = layers.entityKey;
-    syncTexture(entitySprite, layers.entity);
+    syncTexture(entitySprite, layers.entity, uploads.entity);
   }
 
   // world → screen placement every frame
   if (terrainSprite?.visible && layers.terrain) {
-    placeWorldSprite(terrainSprite, 0, 0, layers.terrain.width, layers.terrain.height, cam, cw, ch);
+    // bakes may be lod× the world (zoom ≥ 3) — place at WORLD size like the 2D path
+    placeWorldSprite(terrainSprite, 0, 0, worldW, worldH, cam, cw, ch);
   }
   if (decorSprite?.visible && layers.decor) {
-    placeWorldSprite(decorSprite, 0, 0, layers.decor.width, layers.decor.height, cam, cw, ch);
+    placeWorldSprite(decorSprite, 0, 0, worldW, worldH, cam, cw, ch);
   }
   if (entitySprite?.visible && layers.entity && layers.entityAnchor) {
     // entity surface is anchored with a margin and blitted at NATURAL size
