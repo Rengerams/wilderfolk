@@ -1214,6 +1214,18 @@ export default function App() {
           handleLoadFromSetup();
         }}
         hasSave={hasSavedGame || hasSave()}
+        tutorialsEnabled={tutorialsEnabled}
+        onTutorialsChange={(enabled) => {
+          saveTutorialsEnabled(enabled);
+          setTutorialsEnabled(enabled);
+          if (!enabled) {
+            try {
+              localStorage.setItem(TUTORIAL_DONE_KEY, '1');
+            } catch { /* ignore */ }
+            setShowTutorial(false);
+            dismissContextualTip();
+          }
+        }}
       />
       </Suspense>
     );

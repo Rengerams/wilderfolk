@@ -22,6 +22,8 @@ interface MapSetupScreenProps {
   onBack?: () => void;
   backLabel?: string;
   hasSave?: boolean;
+  tutorialsEnabled?: boolean;
+  onTutorialsChange?: (enabled: boolean) => void;
 }
 
 export default function MapSetupScreen({
@@ -34,6 +36,8 @@ export default function MapSetupScreen({
   onBack,
   backLabel = '← Back to intro',
   hasSave,
+  tutorialsEnabled,
+  onTutorialsChange,
 }: MapSetupScreenProps) {
   const [villageName, setVillageName] = useState('New Frontier');
 
@@ -157,6 +161,24 @@ export default function MapSetupScreen({
             })}
           </div>
         </section>
+
+        {onTutorialsChange !== undefined && (
+          <section className="rounded-xl border border-stone-700/60 bg-stone-900/70 p-4 sm:p-5">
+            <h2 className="mb-1 text-xs font-bold uppercase tracking-widest text-emerald-400">Tutorial tips</h2>
+            <p className="mb-3 text-[11px] text-stone-500">
+              Help cards appear when something new happens — buildings, workers, visitors, raids.
+            </p>
+            <label className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={tutorialsEnabled !== false}
+                onChange={(e) => onTutorialsChange(e.target.checked)}
+                className="h-4 w-4 accent-emerald-500"
+              />
+              <span className="text-sm text-stone-200">Show tutorial tips</span>
+            </label>
+          </section>
+        )}
 
         <p className="text-center text-[10px] leading-relaxed text-stone-600">
           Playtest build — bugs and features still in flux. You can change difficulty by picking a harsher preset.
