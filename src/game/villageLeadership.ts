@@ -2,6 +2,7 @@ import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState }
 import { BuildingType, EntityType } from './gameTypes';
 import { getAgeInYears, HUMAN_ADULT_MIN_AGE, isImprisoned, TICKS_PER_DAY } from './dayCycle';
 import { logEvent } from './eventLog';
+import { addBigNews } from './simEffects';
 import { isPlayerHuman } from './playerHuman';
 import { sayHumanChatPhrase } from './humanChat';
 import { ensureEntitySkills } from './skills';
@@ -668,6 +669,7 @@ export function tickElectionCeremony(state: WorldState, year: number): ElectionA
           result.leaderName,
         );
       }
+      setNewLeaderPromise(state);
       return announcement;
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
@@ -900,5 +902,48 @@ export function validateVillageLeaderOnLoad(state: WorldState): void {
   if (state.lastElectionYear === 0) {
     const founder = findFoundingColonyLeader(state);
     if (founder) appointFoundingLeader(state, founder);
+  }
+}
+
+const PROMISE_GOALS = [
+  { goal: 'buildings', label: 'Finish 3 new buildings', extra: 3 },
+  { goal: 'food', label: 'Keep food stores above 60', extra: 60 },
+] as const;
+
+function countPlayerBuildings(state: WorldState): number {
+  return state.buildings.filter((b) => b.completed && b.faction !== 'rival').length;
+}
+
+/** New leader's promise — an unresolved previous promise is resolved as broken. */
+export function setNewLeaderPromise(state: WorldState): void {
+  const old = state.leaderPromise;
+  if (old) {
+    state.villageReputation = Math.max(0, state.villageReputation - 3);
+    addBigNews(
+      state,
+      '⚖️ Promise broken',
+      `The previous village head never kept their promise — ${old.label}. Reputation -3.`,
+      'negative',
+    );
+  }
+  const pick = PROMISE_GOALS[Math.floor(Math.random() * PROMISE_GOALS.length)];
+  const current = pick.goal === 'buildings' ? countPlayerBuildings(state) : state.resources.food;
+  state.leaderPromise = {
+    goal: pick.goal,
+    label: pick.label,
+    target: pick.goal === 'buildings' ? current + pick.extra : pick.extra,
+    startValue: current,
+  };
+}
+
+/** Daily check — a fulfilled promise grants reputation and clears. */
+export function tickLeaderPromise(state: WorldState): void {
+  const p = state.leaderPromise;
+  if (!p) return;
+  const now = p.goal === 'buildings' ? countPlayerBuildings(state) : state.resources.food;
+  if (now >= p.target) {
+    state.leaderPromise = undefined;
+    state.villageReputation = Math.min(100, state.villageReputation + 3);
+    addBigNews(state, '⚖️ Promise kept', `The village head kept their promise — ${p.label}. Reputation +3.`, 'positive');
   }
 }

@@ -56,6 +56,7 @@ import {
 } from './simEffects';
 import { recordFoodProduced } from './economyLedger';
 import { tickVisitorQuest } from './visitorQuest';
+import { tickLeaderPromise } from './villageLeadership';
 import { getTerrainEfficiencyMultiplier, findHumanSpawnNear } from './terrainSystems';
 import {
   gainSkill,
@@ -637,6 +638,7 @@ export function tickLayerDaily(
   // Frontier systems
   tickVisitorGroups(state, allAlive);
   tickVisitorQuest(state);
+  tickLeaderPromise(state);
   tickPendingRaidEvents(state, allAlive, ctx.updatedBuildings);
   tickPendingOutgoingRaidEvents(state);
   tickRivalSettlements(state, allAlive);

@@ -848,6 +848,8 @@ export interface WorldState {
   economyLedger?: DailyEconomyLedger;
   /** One active visitor quest (traveling smith) — delivered via the quest card. */
   visitorQuest?: VisitorQuest;
+  /** The village head's election promise — fulfilled or broken before next vote. */
+  leaderPromise?: LeaderPromise;
   /** Colony day of last wildlife replenish event-log entry (throttles meadow spam). */
   lastWildlifeReplenishLogDay?: number;
   /** Player-dismissed big-news ids (UI patch / worker sync). */
@@ -907,6 +909,16 @@ export interface DailyEconomyLedger {
   day: number;
   produced: Record<string, number>;
   consumed: Record<string, number>;
+}
+
+/** The village head's election promise — fulfilled or broken before the next vote. */
+export interface LeaderPromise {
+  goal: 'buildings' | 'food';
+  /** Player-facing label, e.g. 'Finish 3 new buildings'. */
+  label: string;
+  target: number;
+  /** Value at promise time (buildings completed or food stored). */
+  startValue: number;
 }
 
 /** One active visitor quest (traveling smith etc.) — delivered via the quest card. */
