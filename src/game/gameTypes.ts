@@ -842,6 +842,8 @@ export interface WorldState {
   villageForge?: VillageForgeState;
   /** Contextual tutorial tips already shown this playthrough. */
   tutorialSeen?: string[];
+  /** Per-day food ledger (production vs consumption) for the Village tab. */
+  economyLedger?: DailyEconomyLedger;
   /** Colony day of last wildlife replenish event-log entry (throttles meadow spam). */
   lastWildlifeReplenishLogDay?: number;
   /** Player-dismissed big-news ids (UI patch / worker sync). */
@@ -893,6 +895,14 @@ export interface GameEventLog {
   message: string;
   entityName?: string;
   combatKind?: CombatLogKind;
+}
+
+/** Per-day economy counters — production vs consumption by source. */
+export interface DailyEconomyLedger {
+  /** Absolute calendar day the counters were collected on. */
+  day: number;
+  produced: Record<string, number>;
+  consumed: Record<string, number>;
 }
 
 export interface GameNotification {

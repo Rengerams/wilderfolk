@@ -2,6 +2,7 @@ import { memo, Suspense, lazy } from 'react';
 import { BuildingType } from '../../game/gameTypes';
 import { getForgeOrder } from '../../game/forge';
 import { getHumanArmamentLabel, getArmamentSteps } from '../../game/gameEngine';
+import { getEconomyLedger, ECONOMY_SOURCE_LABELS } from '../../game/economyLedger';
 import type { WorldState, Entity } from '../../game/gameEngine';
 import type { VillageStatsSummary } from '../../game/uiSimSummary';
 import type { FocusHintAction } from '../../game/focusHints';
@@ -22,6 +23,45 @@ const StatBadge = memo(function StatBadge({ label, value, icon }: StatBadgeProps
     <div className="flex items-center justify-between rounded bg-stone-600/30 px-2 py-1 text-[11px]">
       <span className="text-stone-400">{icon} {label}</span>
       <span className="font-bold text-stone-200">{value}</span>
+    </div>
+  );
+});
+
+/** Today's food production vs consumption — "why is my food low?" at a glance. */
+const FoodLedger = memo(function FoodLedger({ state }: { state: WorldState }) {
+  const ledger = getEconomyLedger(state);
+  const producedEntries = ledger ? Object.entries(ledger.produced) : [];
+  const consumedEntries = ledger ? Object.entries(ledger.consumed) : [];
+  if (producedEntries.length === 0 && consumedEntries.length === 0) {
+    return (
+      <p className="text-[11px] text-stone-500">
+        No food produced or eaten yet today — build farms or a hunting spot and staff them.
+      </p>
+    );
+  }
+  const produced = producedEntries.reduce((sum, [, v]) => sum + v, 0);
+  const consumed = consumedEntries.reduce((sum, [, v]) => sum + v, 0);
+  const net = produced - consumed;
+  return (
+    <div className="space-y-1 text-[11px]">
+      {producedEntries.map(([src, v]) => (
+        <div key={`p-${src}`} className="flex items-center justify-between rounded bg-stone-600/30 px-2 py-1">
+          <span className="text-stone-400">{ECONOMY_SOURCE_LABELS[src] ?? src}</span>
+          <span className="font-bold text-emerald-300">+{v}</span>
+        </div>
+      ))}
+      {consumedEntries.map(([src, v]) => (
+        <div key={`c-${src}`} className="flex items-center justify-between rounded bg-stone-600/30 px-2 py-1">
+          <span className="text-stone-400">{ECONOMY_SOURCE_LABELS[src] ?? src}</span>
+          <span className="font-bold text-rose-300">−{v}</span>
+        </div>
+      ))}
+      <div className="flex items-center justify-between rounded bg-stone-700/40 px-2 py-1 font-bold">
+        <span className="text-stone-300">Net</span>
+        <span className={net >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
+          {net >= 0 ? '+' : ''}{net}
+        </span>
+      </div>
     </div>
   );
 });
@@ -135,6 +175,16 @@ export default function VillageTabPanel({
         >
           📯 Recruit Settler (30🍖 20💰)
         </button>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        icon="🍖"
+        title="Food this day"
+        subtitle="Produced vs eaten today"
+        accent="amber"
+        defaultOpen={false}
+      >
+        <FoodLedger state={state} />
       </CollapsibleSection>
 
       <CollapsibleSection icon="👑" title="Village leadership" accent="amber" defaultOpen={false}>

@@ -153,6 +153,7 @@ import {
   steerVisitorToHotel,
 } from './hotelStay';
 import { setCurrentPathMap, steerWithPath } from './pathfinding';
+import { recordFoodConsumed } from './economyLedger';
 import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
 import {
   MOBILE_CELL_SIZE,
@@ -1710,6 +1711,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         && entity.energy < entity.maxEnergy * 0.9
       ) {
         state.resources.food -= 1;
+        recordFoodConsumed(state, 'meals', 1);
         entity.energy = Math.min(entity.maxEnergy, entity.energy + 65);
       }
       if (isPlayerHuman(entity) && entity.energy <= 0) {
@@ -1828,6 +1830,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && entity.energy < entity.maxEnergy * 0.9
     ) {
       state.resources.food -= 1;
+      recordFoodConsumed(state, 'meals', 1);
       entity.energy = Math.min(entity.maxEnergy, entity.energy + 65);
       ateMeal = true;
     }

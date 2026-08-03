@@ -54,6 +54,7 @@ import {
   impulseScreenShake,
   createDeathParticles,
 } from './simEffects';
+import { recordFoodProduced } from './economyLedger';
 import { getTerrainEfficiencyMultiplier, findHumanSpawnNear } from './terrainSystems';
 import {
   gainSkill,
@@ -300,6 +301,7 @@ function tickBuildingProduction(
       const valleyFarm = getValleyFarmYieldMultiplier(state);
       const amount = Math.floor(22 * totalMult * harvestBonus * millBonus * farmMult * globalEff * pollutionMult * valleyFarm);
       const added = addResource(state, 'food', amount);
+      recordFoodProduced(state, 'farms', added);
       if (added > 0 && productionJob) {
         for (const id of building.occupants) gainSkill(state, id, productionJob, 0.2);
       }
@@ -375,6 +377,7 @@ function tickBuildingProduction(
           if (amount <= 0 || addResource(state, 'food', amount) <= 0) {
             addFloatingText(state, building.x + building.width / 2, building.y - 12, 'Stores full!', '#94a3b8', 'brief');
           } else {
+            recordFoodProduced(state, 'hunting', amount);
             const preyId = targetPrey.id;
             targetPrey.alive = false;
             targetPrey.energy = 0;
@@ -482,7 +485,7 @@ function tickBuildingProduction(
     }
     if (building.completed && staffed && building.type === BuildingType.Silo && isProductionTick(state.tick, PRODUCTION_INTERVAL.silo)) {
       const amount = Math.floor(8 * totalMult * millBonus * globalEff);
-      addResource(state, 'food', amount);
+      recordFoodProduced(state, 'silos', addResource(state, 'food', amount));
     }
   }
 
@@ -757,6 +760,7 @@ export function tickLayerDaily(
     if (completed && c.reward) {
       addResource(state, 'wood', c.reward.wood || 0);
       addResource(state, 'stone', c.reward.stone || 0);
+      recordFoodProduced(state, 'challenges', c.reward.food || 0);
       addResource(state, 'food', c.reward.food || 0);
       addResource(state, 'gold', c.reward.gold || 0);
       addFloatingText(state, state.width / 2, state.height / 2 - 40, `Challenge: ${c.title}!`, '#fbbf24');
