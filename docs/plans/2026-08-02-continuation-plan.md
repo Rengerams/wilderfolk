@@ -50,6 +50,12 @@ Also committed in `e9bc4df` — **render-loop performance** (verified the same w
 8. **`UI_UPDATE_MS` 100 → 250** — only paces periodic non-tick polls; sim ticks and clicks/commands notify immediately (no input latency impact).
 9. **Entity layer camera-decoupled** (`entityLayer.ts` + `renderer.ts`) — painted against an anchor camera into a 160px-margin-padded surface; panning within the margin reuses the bitmap via blit offset (no per-frame rebake). Zoom still rebakes (pixel-perfect, no bitmap scaling).
 
+Also committed later (each verified the same way):
+
+10. **O(H²) scans killed in `tickHumans`** (`7284eff`) — `workersByWorkplace` index built once per tick (shiftMates/coworkers lookups now O(1)); `nearbyAdults` uses a mobile-grid query instead of an O(H) distance filter per free-roaming human. `collectFamilyMembers` left alone — its only caller `buildFamilyGroups` has no call sites.
+11. **`.deepcode` excluded** (`fb407c1`) — the Deep Code CLI's local dir (settings + 16 MB `skills/` plugins) was swept in by `git add -A` and broke `eslint .`; now untracked + gitignored + eslint-ignored.
+12. **UX smoothness** (`c4e7b91`) — `getGrazingPressureReport` (O(entities) grass scan) + `getEcosystemBreakdown` moved from every App render into `NatureTabPanel` (run only while the tab is open); build-panel width transition 300ms → 150ms.
+
 ---
 
 ## 4. Architecture quick map (orientation, not exhaustive)
@@ -64,13 +70,7 @@ Also committed in `e9bc4df` — **render-loop performance** (verified the same w
 
 ## 5. Known issues & recommended next work (priority order)
 
-### A. Remaining O(H²) scans (perf, matters at 200+ pop)
-`lifeSimulation.ts` still scans all humans per human in several spots:
-- `nearbyAdults` filter (≈line 2788, free-roam leisure)
-- `shiftMates` / `coworkers` filters (≈lines 2599, 2880)
-- `collectFamilyMembers` inner `for (const other of humans)` (≈line 894)
-- `countGuardsAtPrison` / `hasStaffedPrison` (lines ~1072-1086)
-**Approach:** reuse the existing mobile-grid queries (`simQueries.ts`) and the `residenceOccupants` index instead of `allHumans.filter`. Verify with a high-pop playtest; no automated perf gate exists anymore.
+### A. ✅ DONE — O(H²) scans (`7284eff`)
 
 ### B. App.tsx is 2761 lines; build warns "chunk > 500 kB" (game chunk ~587 kB)
 Extract remaining inline sub-components (`VisitorCampPanel`, `SelectedEntityPanel`, `BigNewsBanner`, `ActiveEventBanner`, `ShortcutsOverlay`) into `src/components/`. Already extracted: `FavoriteFollowBanner`. Re-check `npm run build` output after each move.
@@ -85,8 +85,16 @@ Cursed settlers in Werewolf form get `entity.age++` from the wildlife tick, but 
 - `gameTick.ts:236` victory-scan condition is redundant with `LAYER_ASSIGN_INTERVAL` dividing the day — comment/code mismatch (cosmetic).
 - `state.buildings = updatedBuildings` is assigned twice per tick in `gameTick.ts` (lines 222 & 265).
 
-### F. Suggested playtest focus (manual — the player tests by playing)
-Hunting Spot with each prey target (wolf fights back 35%, damages the building), tutorial dismissal across reload/new game, favorite-follow banner, weather cadence (should re-roll ~every 2.8 days now).
+### F. 🚩 USER-REPORTED BUG — `src/game/hotelStay.ts` (investigate & fix)
+The player reports a bug in the hotel lodging flow. Audit done 2026-08-02: checkout math (`hotelCheckoutTick` → `nextTickAtClockHour(NIGHT_END=6)`) is tested (26/26 pass) and correct; night window (20..6), dusk gate (18–22), staffing guard, and capacity guard all check out; departing visitors are marked `alive=false` so no ghost-guests. **The happy path reads sound — so the bug is likely in a live edge case.** Prime suspects to test in play / with a small vitest sim:
+- **Check-in distribution:** `personDayRoll` is per-*day* constant, so with the `911`/`912` gates the same visitor is eligible at EVERY dusk tick (18–22) — they check in at the *first* dusk tick (18:00) or *first* night tick (23:00), never later. Verify that matches intent.
+- **`checkInVisitor` refresh branch** (guest already in `hotelGuestIds`): refreshes `hotelStayUntilTick` WITHOUT re-charging gold — dead code today, but if reachable via another path it gives free stays.
+- **`hotelierGreetGuests` salt `913 + getHourOfDay(tick)`** changes per hour — the "once per clock hour" intent holds, but verify the greet rate feels right.
+- **Stale `state.buildings` in `tickHotelLodging`** if a hotel is destroyed/rebuilt the same tick (`state.buildings` may lag `updatedBuildings` by one tick).
+Repro ask: what exactly does the player see? (e.g., no gold, guests never leave, capacity stuck, visitors never check in). Add a regression test with a comment header (see `hotelStay.checkout.test.ts` / EJ-12 style).
+
+### G. Suggested playtest focus (manual — the player tests by playing)
+Hunting Spot with each prey target (wolf fights back 35%, damages the building), tutorial dismissal across reload/new game, favorite-follow banner, weather cadence (should re-roll ~every 2.8 days now), hotel guests over 2–3 nights (gold, checkout at dawn, capacity).
 
 ---
 
