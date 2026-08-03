@@ -134,15 +134,17 @@ function blendNeighborEdge(
     drawTerrainFill(ctx, neighborType, rx, ry, rw, rh, tx, ty, alpha);
   }
 
-  // Shore highlight: land next to water gets a thin foam/sand lip
+  // Shore highlight: land next to water gets a thin foam/sand lip (2px reads
+  // as a painted coastline; scales with tile size).
   const selfWater = fillFamily(selfType) === 'water';
   const nWater = fillFamily(neighborType) === 'water';
   if (selfWater !== nWater && fillW > 2 && fillH > 2) {
-    ctx.fillStyle = selfWater ? 'rgba(255,255,255,0.14)' : 'rgba(230,210,160,0.28)';
-    if (side === 'n') ctx.fillRect(x0, y0, fillW, 1);
-    if (side === 's') ctx.fillRect(x0, y0 + fillH - 1, fillW, 1);
-    if (side === 'w') ctx.fillRect(x0, y0, 1, fillH);
-    if (side === 'e') ctx.fillRect(x0 + fillW - 1, y0, 1, fillH);
+    const lip = Math.max(1, Math.round(tileSize * 0.2));
+    ctx.fillStyle = selfWater ? 'rgba(255,255,255,0.2)' : 'rgba(230,210,160,0.34)';
+    if (side === 'n') ctx.fillRect(x0, y0, fillW, lip);
+    if (side === 's') ctx.fillRect(x0, y0 + fillH - lip, fillW, lip);
+    if (side === 'w') ctx.fillRect(x0, y0, lip, fillH);
+    if (side === 'e') ctx.fillRect(x0 + fillW - lip, y0, lip, fillH);
   }
 }
 
@@ -402,8 +404,9 @@ export function bakeTerrainLayer(
         }
       }
 
-      // Lighter bevel when textured
-      if (fillW > 6 && fillH > 6) {
+      // Lighter bevel when textured — skipped on flat terrain so the ground
+      // stops looking like a grid of framed blocks (textures carry the form).
+      if (fillW > 6 && fillH > 6 && (isWater(tile.type) || Math.abs(relief - 0.5) > 0.06)) {
         const edge = Math.max(1, Math.min(stamped ? 2 : 3, (tileSize * 0.12) | 0));
         ctx.fillStyle = stamped ? 'rgba(255,255,255,0.1)' : shadeRgb(base, light + 0.22);
         ctx.fillRect(x0, y0, fillW, edge);
@@ -446,6 +449,16 @@ export function bakeTerrainLayer(
           ctx.fillStyle = 'rgba(0,0,0,0.12)';
           ctx.fillRect(x0 + fillW - 2, y0, 2, fillH);
         }
+      }
+
+      // Per-tile brightness variation — breaks up large uniform regions so the
+      // ground stops reading as identical colored blocks (multi-variant look).
+      const varAmt = (hash01(tx * 31, ty * 47, seed) - 0.5) * 0.16;
+      if (Math.abs(varAmt) > 0.02) {
+        ctx.fillStyle = varAmt > 0
+          ? `rgba(255,255,255,${Math.min(0.06, varAmt)})`
+          : `rgba(0,0,0,${Math.min(0.07, -varAmt)})`;
+        ctx.fillRect(x0, y0, fillW, fillH);
       }
     }
   }
