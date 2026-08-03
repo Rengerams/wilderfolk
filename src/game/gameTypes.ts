@@ -901,6 +901,8 @@ export interface GameNotification {
   message: string;
   type: 'info' | 'success' | 'warning' | 'event';
   createdAt: number;
+  /** World position the toast jumps to when clicked (optional). */
+  focus?: { x: number; y: number };
 }
 
 export interface BigNewsItem {

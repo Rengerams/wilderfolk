@@ -1477,8 +1477,17 @@ export default function App() {
               <button
                 key={n.id}
                 type="button"
-                onClick={() => dismissNotification(n.id)}
-                title="Dismiss"
+                onClick={() => {
+                  if (n.focus) {
+                    const loop = loopRef.current;
+                    if (loop) {
+                      const nextView = focusCameraOn(loop.getView(), n.focus.x, n.focus.y, 1.5);
+                      loop.patchView({ camera: clampCameraTarget(nextView.camera, world.width, world.height) });
+                    }
+                  }
+                  dismissNotification(n.id);
+                }}
+                title={n.focus ? 'Focus location · click to dismiss' : 'Dismiss'}
                 className={`group relative w-full rounded-xl border-2 px-3 py-2 pr-8 text-left text-xs shadow-xl backdrop-blur-md transition-all animate-in slide-in-from-right hover:brightness-110 ${
                   n.type === 'success'
                     ? 'border-emerald-500/45 bg-emerald-950/92 text-emerald-100'

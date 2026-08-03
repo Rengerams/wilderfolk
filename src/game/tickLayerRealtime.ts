@@ -72,7 +72,16 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     const electionReveal = tickElectionCeremony(state, state.year);
     if (electionReveal) {
       addBigNews(state, electionReveal.title, electionReveal.message, 'positive');
-      addNotification(state, electionReveal.title, electionReveal.message, 'event');
+      const hall = state.buildings.find(
+        (b) => b.completed && b.type === BuildingType.TownHall && b.faction !== 'rival',
+      );
+      addNotification(
+        state,
+        electionReveal.title,
+        electionReveal.message,
+        'event',
+        hall ? { x: hall.x + hall.width / 2, y: hall.y + hall.height / 2 } : undefined,
+      );
       impulseScreenShake(state, 4);
     }
   }

@@ -61,6 +61,7 @@ export function addNotification(
   title: string,
   message: string,
   type: 'info' | 'success' | 'warning' | 'event' = 'info',
+  focus?: { x: number; y: number },
 ) {
   state.notifications.push({
     id: `notif_${state.tick}_${Math.random()}`,
@@ -68,6 +69,7 @@ export function addNotification(
     message,
     type,
     createdAt: Date.now(),
+    ...(focus ? { focus } : {}),
   });
   if (state.notifications.length > 20) state.notifications.shift();
 }

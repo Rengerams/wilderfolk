@@ -250,7 +250,13 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
         def?.description ?? 'Your settlement has achieved greatness!',
         'positive',
       );
-      addNotification(state, 'Victory Achieved!', `${def?.label ?? 'Victory'} — your legacy is secured!`, 'success');
+      addNotification(
+        state,
+        'Victory Achieved!',
+        `${def?.label ?? 'Victory'} — your legacy is secured!`,
+        'success',
+        { x: state.width / 2, y: state.height / 2 },
+      );
       impulseScreenShake(state, 6);
       logEvent(state, 'season', `Victory: ${def?.label ?? victoryResult.newlyAchieved}`);
     }
