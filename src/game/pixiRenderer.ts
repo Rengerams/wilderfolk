@@ -43,6 +43,7 @@ let waterTex: Texture | null = null;
 let lastTerrain: CanvasSurface | null = null;
 let lastDecor: CanvasSurface | null = null;
 let lastEntity: CanvasSurface | null = null;
+let lastEntityKey = '';
 let lastTime = 0;
 let time = 0;
 
@@ -87,6 +88,39 @@ function toHtmlCanvas(canvas: CanvasSurface): HTMLCanvasElement {
   out.height = canvas.height;
   out.getContext('2d')?.drawImage(canvas, 0, 0);
   return out;
+}
+
+/**
+ * Texture sync — only uploads when the baked canvas identity changes (the 2D
+ * pipeline reuses the same canvas object while it is valid).
+ */
+function syncTexture(sprite: Sprite | null, canvas: CanvasSurface | null): boolean {
+  if (!sprite) return false;
+  if (canvas) {
+    sprite.texture = Texture.from(toHtmlCanvas(canvas));
+    sprite.visible = true;
+    return true;
+  }
+  sprite.visible = false;
+  return false;
+}
+
+/** World → screen placement, mirroring the Canvas 2D blits exactly. */
+function placeWorldSprite(
+  sprite: Sprite | null,
+  worldX: number,
+  worldY: number,
+  sizeW: number,
+  sizeH: number,
+  cam: RenderSnapshot['camera'],
+  cw: number,
+  ch: number,
+): void {
+  if (!sprite || !sprite.visible) return;
+  sprite.x = (worldX - cam.x) * cam.zoom + cw / 2;
+  sprite.y = (worldY - cam.y) * cam.zoom + ch / 2;
+  sprite.width = sizeW * cam.zoom;
+  sprite.height = sizeH * cam.zoom;
 }
 
 /** Tileable water wave texture: light crest bands on transparent (GPU animated). */
@@ -200,31 +234,7 @@ export function disposePixiRenderer(): void {
   colorFilter = null;
   waterTex = null;
   lastTerrain = lastDecor = lastEntity = null;
-}
-
-function syncBakedSprite(
-  sprite: Sprite | null,
-  canvas: CanvasSurface | null,
-  worldX: number,
-  worldY: number,
-  cam: RenderSnapshot['camera'],
-  cw: number,
-  ch: number,
-): void {
-  if (!sprite) return;
-  if (canvas) {
-    // OffscreenCanvas sources can misbehave when uploaded as WebGL textures
-    // (and break canvas readback); convert once to an HTML canvas.
-    const src = toHtmlCanvas(canvas);
-    sprite.texture = Texture.from(src);
-    sprite.x = (worldX - cam.x) * cam.zoom + cw / 2;
-    sprite.y = (worldY - cam.y) * cam.zoom + ch / 2;
-    sprite.width = canvas.width * cam.zoom;
-    sprite.height = canvas.height * cam.zoom;
-    sprite.visible = true;
-  } else {
-    sprite.visible = false;
-  }
+  lastEntityKey = '';
 }
 
 /**
@@ -257,42 +267,43 @@ export function renderGamePixi(
 
   const layers = getBakedLayerCanvases(state, cw, ch);
   const cam = state.camera;
+  const worldW = state.worldMap ? state.worldMap.width * TERRAIN_TILE_SIZE : 0;
+  const worldH = state.worldMap ? state.worldMap.height * TERRAIN_TILE_SIZE : 0;
 
+  // Textures only change when a bake is re-created; placement changes EVERY
+  // frame (camera pan/zoom) and mirrors the 2D blits exactly.
   if (layers.terrain !== lastTerrain) {
     lastTerrain = layers.terrain;
-    syncBakedSprite(terrainSprite, layers.terrain, 0, 0, cam, cw, ch);
+    syncTexture(terrainSprite, layers.terrain);
   }
   if (layers.decor !== lastDecor) {
     lastDecor = layers.decor;
-    syncBakedSprite(decorSprite, layers.decor, 0, 0, cam, cw, ch);
+    syncTexture(decorSprite, layers.decor);
   }
-  if (layers.entity !== lastEntity) {
+  if (layers.entity !== lastEntity || layers.entityKey !== lastEntityKey) {
     lastEntity = layers.entity;
-    if (layers.entity && layers.entityAnchor) {
-      syncBakedSprite(
-        entitySprite,
-        layers.entity,
-        layers.entityAnchor.anchorX,
-        layers.entityAnchor.anchorY,
-        cam,
-        cw,
-        ch,
-      );
-      if (entitySprite) {
-        // the entity surface is anchored with a margin: its top-left in world
-        // space sits margin/zoom before the anchor (matches paintEntityLayerTo)
-        entitySprite.x = (layers.entityAnchor.anchorX - cam.x) * cam.zoom - layers.entityAnchor.margin + cw / 2;
-        entitySprite.y = (layers.entityAnchor.anchorY - cam.y) * cam.zoom - layers.entityAnchor.margin + ch / 2;
-      }
-    } else if (entitySprite) {
-      entitySprite.visible = false;
-    }
+    lastEntityKey = layers.entityKey;
+    syncTexture(entitySprite, layers.entity);
+  }
+
+  // world → screen placement every frame
+  if (terrainSprite?.visible && layers.terrain) {
+    placeWorldSprite(terrainSprite, 0, 0, layers.terrain.width, layers.terrain.height, cam, cw, ch);
+  }
+  if (decorSprite?.visible && layers.decor) {
+    placeWorldSprite(decorSprite, 0, 0, layers.decor.width, layers.decor.height, cam, cw, ch);
+  }
+  if (entitySprite?.visible && layers.entity && layers.entityAnchor) {
+    // entity surface is anchored with a margin and blitted at NATURAL size
+    // (zoom is baked into the surface at the anchor) — matches paintEntityLayerTo
+    entitySprite.x = (layers.entityAnchor.anchorX - cam.x) * cam.zoom - layers.entityAnchor.margin;
+    entitySprite.y = (layers.entityAnchor.anchorY - cam.y) * cam.zoom - layers.entityAnchor.margin;
+    entitySprite.width = layers.entity.width;
+    entitySprite.height = layers.entity.height;
   }
 
   // water: world-sized tiling surface, animated by the shader + slow drift
   if (waterSprite && state.worldMap) {
-    const worldW = state.worldMap.width * TERRAIN_TILE_SIZE;
-    const worldH = state.worldMap.height * TERRAIN_TILE_SIZE;
     waterSprite.x = -cam.x * cam.zoom + cw / 2;
     waterSprite.y = -cam.y * cam.zoom + ch / 2;
     waterSprite.width = worldW * cam.zoom;

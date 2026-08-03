@@ -3293,6 +3293,9 @@ export function getBakedLayerCanvases(
   decor: CanvasSurface | null;
   entity: CanvasSurface | null;
   entityAnchor: { anchorX: number; anchorY: number; anchorZoom: number; margin: number } | null;
+  /** Entity layer paint key (changes every repaint — the surface is reused in
+   *  place, so identity alone can't detect repaints). */
+  entityKey: string;
 } {
   buildTerrainCache(state);
 
@@ -3317,6 +3320,7 @@ export function getBakedLayerCanvases(
     entityAnchor: cache
       ? { anchorX: cache.anchorX, anchorY: cache.anchorY, anchorZoom: cache.anchorZoom, margin: cache.margin }
       : null,
+    entityKey: cache?.key ?? '',
   };
 }
 
