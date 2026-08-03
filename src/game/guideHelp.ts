@@ -67,7 +67,7 @@ export const GUIDE_HELP_TOPICS: GuideHelpTopic[] = [
     id: 'bridge',
     title: 'Rivers & bridges',
     keywords: 'river bridge water cross span map',
-    body: 'Maps already generate rivers. Build → Infra → Bridge (Fine Construction). Place on river/bank. Sprite is the top path from OpenGameArt stone-bridge tiles (sheet kept as bridge_sheet.png).',
+    body: 'Maps already generate rivers. Build → Infra → Bridge (Fine Construction). Place on river/bank. Sprite is a hand-made seamless wooden deck (regenerate with scripts/generate-bridge-sprite.mjs).',
   },
   {
     id: 'pregnant',

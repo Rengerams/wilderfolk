@@ -1250,7 +1250,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     width: 64, height: 22,
     cost: { wood: 45, stone: 35, gold: 15 },
     buildTime: 3, maxOccupants: 0,
-    emoji: '🌉', label: 'Bridge', description: 'Spans a river — place on river/bank. 1.5× walk like roads (R rotates). Art: OpenGameArt stone bridge tiles (top deck).',
+    emoji: '🌉', label: 'Bridge', description: 'Spans a river — place on river/bank. 1.5× walk like roads (R rotates). Art: hand-made seamless wooden deck (scripts/generate-bridge-sprite.mjs).',
     sprite: '/sprites/bridge.png', backgroundColor: '#6b7280', padShape: 'road',
     unlockRequirement: 'architecture_1',
     spriteDisplayScale: 1.05,
