@@ -1,6 +1,6 @@
 # Wilderfolk — Game Feel & Depth Plan
 
-**Date:** 2026-08-03 · **Branch:** `main` · **Status:** Approved direction, not yet started
+**Date:** 2026-08-03 · **Branch:** `main` · **Status:** Phase 0 + 1 done · Phase 2 next
 **Companion docs:** [continuation plan](./2026-08-02-continuation-plan.md) (agent handoff + what's already done) · [landscape looks research](../private/landscape-looks-research.md) (private)
 
 ---
@@ -8,6 +8,19 @@
 ## 1. Summary
 
 The micro-bug-fix wave is done. This plan turns the product analysis into ordered work: **fix what makes the sim feel broken → make the map pretty → make the economy readable → add depth → polish → engineering hygiene**. Every phase is shippable on its own; each task has a verification step. **Keep this file updated**: mark `[x]` when a task lands, move it into the continuation plan's "already done" list, and only start the next phase when the current one is verified.
+
+### ✅ Completed (2026-08-03 — Phase 0 + Phase 1)
+
+| Task | Commit |
+|------|--------|
+| 0.1 Notifications click-to-focus | `f44a22a` (+build fix `fc7cfb2`) |
+| 0.2 Zoom-5 terrain LOD (2× bake) | `96bbeb9` |
+| 0.3 Water shimmer + season juice | `763239b` |
+| 1.1 Grid pathfinding (A*, 5 tests) | `8b8129b` |
+| 1.2 Terrain atlas polish (variation, bevels, coasts) | `79b9a8f` |
+| 1.3 Economy ledger ("Food this day") | `53709fa` |
+
+**Next up:** Phase 2 — depth (visitor quests, reputation, trade, building variety). Playtest Phase 0/1 first (zoom 5 ground, settlers crossing rivers, Food this day tab) and file what feels off.
 
 **Priority logic (impact ÷ effort):**
 - Pathfinding first: it is a real bug (stuck citizens at map edges) *and* the single biggest sim/controls upgrade.
