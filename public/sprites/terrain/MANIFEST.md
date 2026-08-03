@@ -7,8 +7,8 @@ Engine-ready seamless ground fills for `bakeTerrainLayer`.
 | `grass_fill.png` | Grassland, Forest base | 128×128, top-down painted, even light |
 | `dirt_fill.png` | Hills, Rocky, Mountains base | 128×128 |
 | `sand_fill.png` | Beach, RiverBank, Snow base (+ cool tint) | 128×128 |
-| `water_shallow_fill.png` | ShallowWater, River | Soft wash; mild large-scale blob FLAG |
-| `water_deep_fill.png` | DeepWater | 128×128 |
+| `water_shallow_fill.png` | ShallowWater, River | 128×128, sine wave bands + sparkles — regen: `scripts/generate-water-sprites.mjs` |
+| `water_deep_fill.png` | DeepWater | 128×128, stronger current bands, fewer sparkles — regen: same script |
 
 ## Defaults applied (game-asset-core + tilesets)
 
@@ -19,7 +19,7 @@ Engine-ready seamless ground fills for `bakeTerrainLayer`.
 
 ## Flags
 
-- **water_shallow_fill**: soft center mottling may show slight checkerboard in 2×2; acceptable Phase A.
+- **Water fills**: regenerated 2026-08-03 — seamless sine wave bands (wavelengths divide 128), coordinate-hashed grain/flecks that tile at the wrap; the old shallow "checkerboard" flag no longer applies.
 - **Phase B transitions**: code-side feather (no extra edge art) via `blendNeighborEdge` — material families grass/dirt/sand/water; shore lip on land↔water.
 
 ## Checks
