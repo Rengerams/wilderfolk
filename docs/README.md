@@ -19,6 +19,7 @@
 - Dev engine reference: `docs/private/TECHNICAL.md`
 - Private changelog: `docs/private/CHANGELOG_PRIVATE.md`
 - Handoff for a fresh agent: `docs/plans/2026-08-02-continuation-plan.md`
+- Game-feel / depth roadmap (pathfinding, looks, economy, quests): `docs/plans/2026-08-03-game-feel-plan.md`
 
 **Rules**
 - New docs → put them in `docs/` (plans → `docs/plans/`, design → `docs/private/` or `docs/superpowers/specs/`, done milestones → `docs/archive/`).

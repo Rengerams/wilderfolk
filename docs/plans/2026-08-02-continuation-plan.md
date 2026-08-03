@@ -73,7 +73,7 @@ Also committed later (each verified the same way):
 
 ## 5. Action plan for the next agent — what matters most
 
-> The micro-bug-fix wave is done. These are the **impactful** items — pick from P1 first. Do NOT go hunting for more small bugs; the player tests by playing and files what matters.
+> The micro-bug-fix wave is done. **Ordered execution plan: [docs/plans/2026-08-03-game-feel-plan.md](./2026-08-03-game-feel-plan.md)** (phases: quick wins → core → depth → QoL → hygiene). The P1 list below mirrors it; follow the phase order in the plan doc.
 
 ### P1 — High impact (game feel / product value)
 
