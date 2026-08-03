@@ -5,7 +5,6 @@ import type { Building, Entity, WorldState } from './gameTypes';
 import {
   BuildingType,
   HOTEL_GUEST_CAPACITY,
-  HOTEL_NIGHTLY_GOLD,
   JobType,
 } from './gameTypes';
 import {
@@ -18,7 +17,6 @@ import {
   personDayRoll,
   NIGHT_END,
 } from './dayCycle';
-import { addResource } from './resourceUtils';
 import { addFloatingText, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { sayHumanChatPhrase } from './humanChat';
@@ -122,12 +120,11 @@ export function checkInVisitor(
   }
   if (guestCount(hotel, state.entities) >= HOTEL_GUEST_CAPACITY) return false;
 
+  // Free lodging for now — hoteliers still gain work experience for tending guests.
   hotel.hotelGuestIds = [...(hotel.hotelGuestIds ?? []), visitor.id];
   visitor.hotelStayBuildingId = hotel.id;
   visitor.hotelStayUntilTick = hotelCheckoutTick(state.tick);
 
-  const gold = HOTEL_NIGHTLY_GOLD + Math.min(2, hotel.occupants.length); // better staff → slight premium
-  addResource(state, 'gold', gold);
   for (const id of hotel.occupants) {
     gainSkill(state, id, JobType.Hotelier, 0.12);
   }
@@ -136,8 +133,8 @@ export function checkInVisitor(
     state,
     hotel.x + hotel.width / 2,
     hotel.y - 12,
-    `+${gold}g lodging`,
-    '#fde047',
+    'Guest checked in',
+    '#a5f3fc',
     'brief',
   );
   if ((visitor.chatTicks ?? 0) <= 0) {
@@ -201,7 +198,7 @@ export function tickHotelLodging(state: WorldState): void {
     addNotification(
       state,
       'Hotel full of guests',
-      `${nightCheckIns} visitor${nightCheckIns > 1 ? 's' : ''} paid for a room`,
+      `${nightCheckIns} visitor${nightCheckIns > 1 ? 's' : ''} rested at the hotel`,
       'success',
     );
     logEvent(state, 'trade', `Hotel lodging: ${nightCheckIns} guest(s) checked in`);
@@ -265,10 +262,10 @@ export function describeHotelStatus(
 ): string {
   if (!hotel.completed) return 'Under construction';
   if (hotel.occupants.length === 0) {
-    return `Assign Hoteliers — then up to ${HOTEL_GUEST_CAPACITY} visitors can sleep for gold.`;
+    return `Assign Hoteliers — then up to ${HOTEL_GUEST_CAPACITY} visitors can rest here.`;
   }
   const n = guestCount(hotel, entities);
-  return `Staffed · ${n}/${HOTEL_GUEST_CAPACITY} guests · ${HOTEL_NIGHTLY_GOLD}+g / night`;
+  return `Staffed · ${n}/${HOTEL_GUEST_CAPACITY} guests · free lodging`;
 }
 
 /** Optional: settlers can also hang around hotels as free-time POI (not sleeping). */

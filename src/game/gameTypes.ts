@@ -170,8 +170,6 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
 
 /** Max visitor guests who can sleep at one staffed hotel overnight. */
 export const HOTEL_GUEST_CAPACITY = 4;
-/** Gold charged per visitor per night at a staffed hotel. */
-export const HOTEL_NIGHTLY_GOLD = 3;
 
 export interface Entity {
   id: number;

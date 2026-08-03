@@ -20,7 +20,7 @@ import {
 import { isProductionBuildingType } from '../game/buildCatalog';
 import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
 import { describeHotelStatus } from '../game/hotelStay';
-import { HOTEL_GUEST_CAPACITY, HOTEL_NIGHTLY_GOLD } from '../game/gameTypes';
+import { HOTEL_GUEST_CAPACITY } from '../game/gameTypes';
 import { HUNTING_SPOT_PREY_OPTIONS } from '../game/gameTypes';
 import type { HuntingSpotPrey } from '../game/gameTypes';
 import { getBuildingConfig } from '../game/buildingConfig';
@@ -426,7 +426,7 @@ export default function SelectedBuildingPanel({
           <div className="mt-2 space-y-1 rounded-lg border border-cyan-700/40 bg-cyan-950/30 p-2">
             <p className="text-[9px] text-cyan-100">{describeHotelStatus(building, state.entities)}</p>
             <p className="text-[9px] text-stone-400">
-              Guests: up to {HOTEL_GUEST_CAPACITY} visitors · about {HOTEL_NIGHTLY_GOLD}g+ per night when staffed.
+              Guests: up to {HOTEL_GUEST_CAPACITY} visitors rest free while the hotel is staffed.
             </p>
           </div>
         )}

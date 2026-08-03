@@ -85,16 +85,11 @@ Cursed settlers in Werewolf form get `entity.age++` from the wildlife tick, but 
 - `gameTick.ts:236` victory-scan condition is redundant with `LAYER_ASSIGN_INTERVAL` dividing the day — comment/code mismatch (cosmetic).
 - `state.buildings = updatedBuildings` is assigned twice per tick in `gameTick.ts` (lines 222 & 265).
 
-### F. 🚩 USER-REPORTED BUG — `src/game/hotelStay.ts` (investigate & fix)
-The player reports a bug in the hotel lodging flow. Audit done 2026-08-02: checkout math (`hotelCheckoutTick` → `nextTickAtClockHour(NIGHT_END=6)`) is tested (26/26 pass) and correct; night window (20..6), dusk gate (18–22), staffing guard, and capacity guard all check out; departing visitors are marked `alive=false` so no ghost-guests. **The happy path reads sound — so the bug is likely in a live edge case.** Prime suspects to test in play / with a small vitest sim:
-- **Check-in distribution:** `personDayRoll` is per-*day* constant, so with the `911`/`912` gates the same visitor is eligible at EVERY dusk tick (18–22) — they check in at the *first* dusk tick (18:00) or *first* night tick (23:00), never later. Verify that matches intent.
-- **`checkInVisitor` refresh branch** (guest already in `hotelGuestIds`): refreshes `hotelStayUntilTick` WITHOUT re-charging gold — dead code today, but if reachable via another path it gives free stays.
-- **`hotelierGreetGuests` salt `913 + getHourOfDay(tick)`** changes per hour — the "once per clock hour" intent holds, but verify the greet rate feels right.
-- **Stale `state.buildings` in `tickHotelLodging`** if a hotel is destroyed/rebuilt the same tick (`state.buildings` may lag `updatedBuildings` by one tick).
-Repro ask: what exactly does the player see? (e.g., no gold, guests never leave, capacity stuck, visitors never check in). Add a regression test with a comment header (see `hotelStay.checkout.test.ts` / EJ-12 style).
+### F. ✅ DONE — hotel gold-from-nothing bug (user-reported, fixed)
+`checkInVisitor` did `addResource(state, 'gold', …)` with no source — visitors had no wallet, so a staffed hotel **minted 3–5g per guest per night from thin air**. Per player directive: **lodging is free for now** (no charge, no wallet), hoteliers still gain Hotelier XP per check-in; `HOTEL_NIGHTLY_GOLD` removed; status/panel text say "free lodging". If lodging ever gets a price: give visitors a purse (`Entity.gold` already exists, seed by visitor kind at spawn) and deduct *before* booking the guest.
 
 ### G. Suggested playtest focus (manual — the player tests by playing)
-Hunting Spot with each prey target (wolf fights back 35%, damages the building), tutorial dismissal across reload/new game, favorite-follow banner, weather cadence (should re-roll ~every 2.8 days now), hotel guests over 2–3 nights (gold, checkout at dawn, capacity).
+Hunting Spot with each prey target (wolf fights back 35%, damages the building), tutorial dismissal across reload/new game, favorite-follow banner, weather cadence (should re-roll ~every 2.8 days now), hotel guests over 2–3 nights (free check-in at dusk, checkout at dawn, capacity).
 
 ---
 
