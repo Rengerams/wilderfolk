@@ -236,7 +236,7 @@ Tutorial, thesis, and warning label in one line.
 | Import cycles | `npm run audit:deps` · both: `npm run audit` |
 | Dupes | `npm run dup` |
 
-Sim code lives under `src/`. Private notes stay in `private/` (gitignored).
+Sim code lives under `src/`. Private notes stay in `docs/private/` (gitignored).
 
 ---
 

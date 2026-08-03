@@ -11,7 +11,7 @@ This file is the **developer archive** for the 0.5 milestone. It is **not** a li
 | Shipped features by version | [../../ROADMAP.md](../../ROADMAP.md) |
 | Release notes | [../../CHANGELOG.md](../../CHANGELOG.md) `[0.5.0]` |
 | In-game Progress → Roadmap | `src/game/roadmapContent.ts` (must stay in sync with ROADMAP.md) |
-| Deep eng notes | `private/TECHNICAL.md` (gitignored) |
+| Deep eng notes | `docs/private/TECHNICAL.md` (gitignored) |
 
 ---
 
@@ -37,7 +37,7 @@ Large maps with **100–300 settlers** should feel smooth; performance stays inv
 
 ## Post-0.5 engineering (optional)
 
-Further perf/UI polish lives in private trackers (`private/OPEN_PROBLEMS.md`, `private/BUGS_TRACKER.md`) — not duplicated here so this file does not fight [ROADMAP.md](../../ROADMAP.md).
+Further perf/UI polish lives in private trackers (`docs/private/OPEN_PROBLEMS.md`, `docs/private/BUGS_TRACKER.md`) — not duplicated here so this file does not fight [ROADMAP.md](../../ROADMAP.md).
 
 ---
 

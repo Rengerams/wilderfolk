@@ -87,7 +87,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — social interaction system (July 20, 2026)
 
-**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) — chat/dialogue cleanup + groupEvents perf pass
+**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) — chat/dialogue cleanup + groupEvents perf pass
 
 - **`humanChat.ts`** — `cleanupEntityDialogueState()` removes a dead settler's dialogue session and clears `chatDialogueSessionKey` / `chatPartnerId` / `chatPhrase` / `chatTicks`
 - **`dayCycle.ts`** — death cleanup now calls `cleanupEntityDialogueState()` via `finalizeHumanDeath()`, fixing stale session leaks when chat partners die
@@ -119,7 +119,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — engine & loop bugs (July 8, 2026)
 
-**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) Batch EA #1–#7
+**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch EA #1–#7
 
 - **EA-1** — `computeRoadLayoutStamp(roads)` replaces count-only `roadAvoidanceStamp`; road demolish clears avoidance index
 - **EA-2** — building repair requires **alive** occupants (`entityById`), not `occupants.length`
@@ -137,7 +137,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — audit mass-fix session (July 8, 2026)
 
-**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) — **429** registry IDs (**391 fixed**, **24 info**, **0 open/partial**); Batches Q, S, U, V, W, T (87), AP (8)
+**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) — **429** registry IDs (**391 fixed**, **24 info**, **0 open/partial**); Batches Q, S, U, V, W, T (87), AP (8)
 
 - **simWorker (W):** command/render desync — delta always applied on command success; headless commands; per-op validation; `sendCommand()` rejects on failure; `applySimTickDelta` before render parse
 - **simBuffers (V):** `safeF32` NaN guard; screen-shake cleared in draw loop; `RESIDENCE_BUILDING_NONE` sentinel; bucket cache keyed on tick + meta
@@ -191,7 +191,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — Moon Howler 14-day cycle & Church cure (July 8, 2026)
 
-**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) Batch N #1–#7
+**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch N #1–#7
 
 - **Recurring hunts** — uncured settlers now transform at **8pm** on full-moon colony days (0, 14, 28…) and revert at **7am** the next morning; no longer reverts on arbitrary daytime ticks (`isMoonHowlerTransformTick` / `isMoonHowlerRevertTick` in `moonHowler.ts`)
 - **Calendar** — moon logic uses `getAbsoluteCalendarDay(state.tick)` so the 14-day cadence stays aligned with the sim clock
@@ -203,7 +203,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — caught-affair divorce after imprisonment (July 8, 2026)
 
-**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) Batch P #1–#3
+**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch P #1–#3
 
 - **Divorce after imprison** — caught affairs imprisoned the cheater first (teleport to prison), then required the spouse within 40px for divorce — so marriages almost never ended despite scandal + prison logs. Caught-in-act path skips the proximity check and always divorces
 - **Either spouse** — men and women can cheat; husbands and wives can both initiate divorce (`dissolveMarriage` in `nameLoader.ts`)
@@ -212,7 +212,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — orphaned marriages, vitest dialogue preload, prison flake (July 8, 2026)
 
-**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) Batch O #1–#3
+**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch O #1–#3
 
 - **Orphaned marriages** — end-of-tick `allAlive` prunes dead entities; survivors could keep `partnerId` pointing at a removed id (`human 285 married partner 831 missing or dead` on seed-42 day 29). `reconcileOrphanedMarriages()` in `dayCycle.ts` runs before `state.entities = allAlive` (accepts human **or** cursed 🌝 form as valid partner)
 - **Vitest dialogue bank** — top-level `await preloadDialogueBank()` in `src/test/setup.ts` (disk load via dynamic `import()` like `nameLoader.ts`); fixes parallel-worker race with async `beforeAll`
@@ -254,7 +254,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — marriage integrity + Moon Howler spouses (July 8, 2026)
 
-**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) Batch I #1–#3
+**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch I #1–#3
 
 - **`killHuman` / `finalizeHumanDeath` (`dayCycle.ts`)** — single death cleanup entry for player settlers (`isKillableSettlerEntity`: human **or** cursed full-moon werewolf): sets `alive = false`, strips building occupants (`homeBuildingId`, `residenceBuildingId`, prison fields), and **widows the survivor** — clears `partner.partnerId`, sets `relationshipStatus` to `single` (or `expecting` if pregnant)
 - **Death paths unified** — all production human kills now call `killHuman(..., entityById)` instead of bare `alive = false`:
@@ -273,7 +273,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — pairwise sim hotspots (July 8, 2026)
 
-**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) Batch I #4–#9 · details in [private/OPEN_PROBLEMS.md](private/OPEN_PROBLEMS.md)
+**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch I #4–#9 · details in [docs/private/OPEN_PROBLEMS.md](docs/private/OPEN_PROBLEMS.md)
 
 - **`tickQueries.ts` (new)** — per-tick shared helpers: `getLivingEntity`, `buildResidenceOccupantIndex`, `getHousemates`, `findClosestEntityInRadius`, `forEachEntityInRadius`, `buildWildlifePopulationSnapshot`, `recordWildlifeBirth`, `buildGrassPopulationSnapshot`, `recordGrassBirth` / `recordGrassDeath`
 - **Social scans → indexed queries** (`lifeSimulation.ts`):
@@ -293,7 +293,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Changed — npm scripts & test gate (July 8, 2026)
 
-**Bug tracker:** [private/BUGS_TRACKER.md](private/BUGS_TRACKER.md) Batch J
+**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch J
 
 - **`npm test`** — `vitest run` (**358** tests, **67** files, **0 skipped**)
 - **`npm run test:all`** — vitest + `tsc -p tsconfig.vitest.json --noEmit`; **`npm run test:types`** — typecheck only

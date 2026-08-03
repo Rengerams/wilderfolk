@@ -19,7 +19,7 @@ This document is a handoff for a fresh agent (no prior conversation context). Re
 | `docs/ARCHITECTURE.md` | Command/snapshot loop, main-loop diagram |
 | `CHANGELOG.md` | Release notes (Keep a Changelog style, `[version] — date` headings) |
 | `ROADMAP.md` | Shipped features by version |
-| `private/` (gitignored) | `BUGS_TRACKER.md` (bug IDs like `EK-G4`), `OPEN_PROBLEMS.md`, `TECHNICAL.md` — **local only, never commit** |
+| `docs/private/` (gitignored) | `BUGS_TRACKER.md` (bug IDs like `EK-G4`), `OPEN_PROBLEMS.md`, `TECHNICAL.md` — **local only, never commit** |
 
 ---
 
@@ -28,7 +28,7 @@ This document is a handoff for a fresh agent (no prior conversation context). Re
 - Remote: `https://github.com/Rengerams/wilderfolk`, single branch `main`. **116 commits of history + 1 local sync commit.**
 - `git status` must be clean; `git log --oneline -3` tip = `0e3c489`.
 - `.gitattributes` (`* text=auto eol=lf` + binary rules): repo is **LF**, working copy on Windows is **CRLF** — never "fix" line endings.
-- `.gitignore` hardened: `private/`, `docs/superpowers/`, `.env`, `Wilderfolk.txt` (36 MB local transcript — **not part of the game**), `*.lnk`, `node_modules`, `dist`, `logs`.
+- `.gitignore` hardened: `docs/private/`, `docs/superpowers/`, `.env`, `Wilderfolk.txt` (36 MB local transcript — **not part of the game**), `*.lnk`, `node_modules`, `dist`, `logs`.
 - Push with: `git push origin main` (credentials already stored on this machine).
 
 ---
@@ -112,6 +112,6 @@ npm test         # 26 tests, 6 files — all must pass
 
 - **Shell cwd trap (tooling):** never `cd` into `/tmp`-style paths in the Bash tool — the persisted working directory becomes an invalid Windows path and every later command fails with `spawn bash ENOENT`. Keep `C:\tmp\wilderfolk-github\.keep` in place — it is the recovery shim for this exact failure. If the shell wedges anyway, recreate that directory.
 - `.env` was deleted by the user; it is now gitignored. `VITE_USE_GAME_WORKER=1`, `VITE_USE_SPATIAL_GRID=0`, `VITE_SPATIAL_GRID_INVARIANT=1` are optional runtime flags if a `.env` is ever recreated.
-- `private/` contains the real bug tracker + open problems — read it locally for context, never commit it.
+- `docs/private/` contains the real bug tracker + open problems — read it locally for context, never commit it.
 - Tests and headless sim scripts (`scripts/`) still exist — the user tests by playing, but do not delete them without explicit instruction.
 - No `.git` history beyond `0e3c489` locally matters; full history lives on GitHub (`git log` works now that the remote is fetched).

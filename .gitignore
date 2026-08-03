@@ -29,8 +29,8 @@ dependency-graph.svg
 terminals/
 log.txt
 
-# Local-only notes (not for GitHub)
-private/
+# Local-only notes (not for GitHub) — lives under docs/private/
+docs/private/
 
 # Local agent/design specs (not for GitHub)
 docs/superpowers/

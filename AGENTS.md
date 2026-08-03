@@ -7,7 +7,7 @@ Wilderfolk is a client-only colony sim built with **React 19 + TypeScript + Vite
 - `src/game/` — simulation logic. One file per system (`dayCycle.ts`, `combat.ts`, `economy.ts`), plus `data/` (catalogs), `simBuffers/`, and `simWorker/`.
 - `src/components/` — React UI (PascalCase `.tsx`); tab panels in `src/components/tabPanels/`. `src/hooks/` — custom hooks; `src/audio/` — audio director; `src/test/` — shared Vitest setup.
 - `scripts/` — headless sims and tooling (`simBuildPolicy.ts`, `perf-at-pop.ts`, `smoke-build.mts`), run with `tsx`.
-- `public/` — static assets; `docs/` — architecture, marketing, archives; `private/` — local-only dev notes, **gitignored** (bugs, open problems, eng reference).
+- `public/` — static assets; `docs/` — architecture, marketing, archives; `docs/private/` — local-only dev notes, **gitignored** (bugs, open problems, eng reference).
 - Import via the `@/*` alias (`@/game/dayCycle`), configured in `tsconfig.json`.
 
 ## Build, Test, and Development Commands
@@ -43,7 +43,7 @@ Headless sims run from `scripts/` via `tsx`, e.g. `npx tsx scripts/smoke-build.m
 
 - No Git history in this checkout; match `CHANGELOG.md`: Keep a Changelog style with `Added` / `Changed` / `Fixed` sections and a `[version] — date` heading per release.
 - Bump `GAME_VERSION` and update `CHANGELOG.md` for gameplay-affecting changes; keep saves migrating (`_version` field; 0.4.x+ saves step up).
-- Track bugs with `<batch>-<item>` IDs (e.g., `EK-G4`) in `private/BUGS_TRACKER.md`; closed work moves to `private/archive/`.
+- Track bugs with `<batch>-<item>` IDs (e.g., `EK-G4`) in `docs/private/BUGS_TRACKER.md`; closed work moves to `docs/private/archive/`.
 - Keep PRs focused on one system; run `npm test`, `npm run lint`, `npm run audit` before opening, and link the relevant roadmap item or issue.
 
 ## Security & Configuration Tips
