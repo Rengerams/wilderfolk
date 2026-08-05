@@ -36,4 +36,4 @@ Engine-ready seamless ground fills for `bakeTerrainLayer`.
 
 - Props stamped in `bakeTerrainDecor` (`stampLandscapeProps`)
 - Season wash + real season in terrain bake
-- Optional later: painted transition atlas, Pixi renderer
+- Optional later: painted transition atlas

@@ -1,10 +1,10 @@
 # Repository Guidelines
 
-Wilderfolk is a client-only frontier colony sim: **React 19 + TypeScript + Vite + Canvas 2D**, with an optional **PixiJS v8 WebGL renderer** and an optional Web Worker sim. Player docs: `README.md` · `CHANGELOG.md` · `ROADMAP.md`. Technical design: `docs/ARCHITECTURE.md`.
+Wilderfolk is a client-only frontier colony sim: **React 19 + TypeScript + Vite + Canvas 2D**, with an optional Web Worker sim (opt-in via `VITE_USE_GAME_WORKER=1`). Player docs: `README.md` · `CHANGELOG.md` · `ROADMAP.md`. Technical design: `docs/ARCHITECTURE.md`.
 
 ## Project Structure & Module Organization
 
-- `src/game/` — simulation + rendering. One file per system (`dayCycle.ts`, `combat.ts`, `economy.ts`), plus `data/` (catalogs), `simWorker/`, and the renderers: `renderer.ts` (Canvas 2D), `pixiRenderer.ts` (WebGL), `rendererLoader.ts` (dispatch + automatic fallback).
+- `src/game/` — simulation + rendering. One file per system (`dayCycle.ts`, `combat.ts`, `economy.ts`), plus `data/` (catalogs), `simWorker/`, and the renderer: `renderer.ts` (Canvas 2D) via `rendererLoader.ts` (pass-through).
 - `src/components/` — React UI (PascalCase `.tsx`); tab panels in `tabPanels/`. Plus `src/hooks/`, `src/audio/`.
 - `scripts/` — tooling: headless sims via `tsx`, asset generators via plain Node (`generate-bridge-sprite.mjs`, `generate-water-sprites.mjs`, no deps), Playwright playtests (`playtest*.py`).
 - `public/` — static assets (sprites, incl. self-generated art). `docs/` is the single docs home; `docs/private/` holds gitignored local dev notes.
@@ -44,7 +44,38 @@ Headless sims: `npx tsx scripts/<file>.mts`. Regenerate procedural art: `node sc
 
 ## Graphics & Configuration Tips
 
-- Any new render FX must flow through `RenderSnapshot` or it is never drawn; the Pixi path reuses the Canvas 2D bakes and overlay pass.
-- `rendererLoader` tries Pixi (WebGL) first; set `VITE_USE_PIXI=0` to force Canvas 2D.
-- Runtime flags: `VITE_USE_GAME_WORKER=1`, `VITE_USE_SPATIAL_GRID=0`, `VITE_SPATIAL_GRID_INVARIANT=1`.
+- Any new render FX must flow through `RenderSnapshot` or it is never drawn.
+- Rendering is Canvas 2D only (`rendererLoader.ts` is a pass-through to `renderer.ts`).
+- Runtime flags: `VITE_USE_GAME_WORKER=1` (opt-in sim worker; main-thread ticks by default), `VITE_USE_SPATIAL_GRID=0`, `VITE_SPATIAL_GRID_INVARIANT=1`.
 - `.env` holds local config — never commit secrets. Gitignored: `docs/private/`, `.deepcode/`, `skills/`, `playtest/`, `test-results/`.
+
+Respond always in the english language!!
+
+
+# Guidance for AI Agents Working in This Repo
+
+This repository contains **Agent Skills** for AI coding agents. When editing or adding skills, follow these rules.
+
+## Repo structure
+
+- **skills/** — Each subdirectory is one skill. The CLI and agents discover skills by scanning `skills/` for directories that contain `SKILL.md`.
+- **Skill directory name** must exactly match the `name` in that skill’s frontmatter (e.g. `skills/webapp-testing/` ↔ `name: webapp-testing`).
+
+## SKILL.md requirements
+
+- **Frontmatter (YAML):**
+  - `name` (required): lowercase, hyphens only, max 64 chars, must match parent directory name.
+  - `description` (required): what the skill does and when to use it; include trigger terms so agents know when to apply it. Max 1024 chars.
+  - `license` (optional): e.g. `MIT` if the skill is under the repo license.
+- **Body:** Markdown instructions. Keep under ~500 lines; put long reference material in `references/` or `scripts/` and link from SKILL.md.
+
+## Conventions
+
+- Write descriptions in **third person** (e.g. "Use when…" not "You can use when…").
+- Be concise; avoid restating general framework docs. Focus on correct API usage and common pitfalls.
+- When adding a new skill: create `skills/<skill-name>/SKILL.md`, then update README.md "Skills" table and "Structure" section.
+
+## References
+
+- [Agent Skills specification](https://agentskills.io/specification.md)
+- [skills CLI (discovery, install)](https://github.com/vercel-labs/skills)

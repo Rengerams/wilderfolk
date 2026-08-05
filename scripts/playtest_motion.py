@@ -34,7 +34,7 @@ with sync_playwright() as p:
         info = page.evaluate("""() => {
             const body = document.body.innerText;
             const time = (body.match(/D\d+|\d{2}:\d{2}|Y\d/) || ['?'])[0];
-            return { key: window.__pixiEntityKey || 'no-hook', time };
+            return { time };
         }""")
         return info
 

@@ -1,4 +1,4 @@
-"""DOM probe: what canvases exist + pixi state, on a new colony."""
+"""DOM probe: what canvases exist, on a new colony."""
 import os
 from playwright.sync_api import sync_playwright
 

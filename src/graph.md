@@ -133,14 +133,13 @@ graph TD
    entityTypeCodes[src\game\simBuffers\entityTypeCodes.ts]
    applyKinematics[src\game\simBuffers\applyKinematics.ts]
    GameWorkerHost[src\game\simWorker\GameWorkerHost.ts]
-   pixiRenderer[src\game\pixiRenderer.ts]
    renderer[src\game\renderer.ts]
-   canvasLayer[src\game\canvasLayer.ts]
    buildCatalog[src\game\buildCatalog.ts]
    entitySprites[src\game\entitySprites.ts]
    stripRender[src\game\stripRender.ts]
    terrainLayer[src\game\terrainLayer.ts]
    entityLayer[src\game\entityLayer.ts]
+   canvasLayer[src\game\canvasLayer.ts]
    renderBufferPool[src\game\simBuffers\renderBufferPool.ts]
    protocol[src\game\simWorker\protocol.ts]
    CollapsibleSection[src\components\CollapsibleSection.tsx]
@@ -750,17 +749,11 @@ graph TD
          gameLoop --> commands
          gameLoop --> scentGrid
          gameLoop --> viewState
-         rendererLoader --> pixiRenderer
          rendererLoader --> renderer
-         pixiRenderer --> renderSnapshot
-         pixiRenderer --> renderer
-         pixiRenderer --> gameTypes
-         pixiRenderer --> canvasLayer
          renderer --> gameEngine
          renderer --> viewState
          renderer --> gameTypes
          renderer --> renderSnapshot
-         renderer --> canvasLayer
          renderer --> renderSoAEntities
          renderer --> spatialGrid
          renderer --> buildCatalog
@@ -782,6 +775,7 @@ graph TD
          renderer --> combat
          renderer --> terrainLayer
          renderer --> entityLayer
+         renderer --> canvasLayer
          buildCatalog --> gameTypes
          buildCatalog --> resourceCost
          entitySprites --> gameTypes
