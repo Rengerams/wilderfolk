@@ -1000,7 +1000,14 @@ export default function App() {
     deleteSave();
     const s = initGame({ size: selectedMapSize, preset: selectedMapPreset, villageName });
     // Only pause when the quick-start overlay will actually show — otherwise the sim stays frozen.
-    s.paused = tutorialsEnabled;
+    // Respect the done flag too: a player who already skipped/completed the tutorial must not
+    // get the "how to place buildings" overlay again on a new game.
+    let tutorialDone = false;
+    try {
+      tutorialDone = localStorage.getItem(TUTORIAL_DONE_KEY) === '1';
+    } catch { /* ignore */ }
+    const showQuickStart = tutorialsEnabled && !tutorialDone;
+    s.paused = showQuickStart;
     s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
     const nextView = createInitialView(s.width, s.height);
     worldRef.current = s;
@@ -1014,7 +1021,7 @@ export default function App() {
     setHasSavedGame(false);
     setFirstNightWarningDismissed(false);
     saveFirstNightWarningDismissed(false);
-    setShowTutorial(tutorialsEnabled);
+    setShowTutorial(showQuickStart);
     setTutorialStep(0);
     setShowMapSetup(false);
   }, [selectedMapSize, selectedMapPreset, tutorialsEnabled]);
