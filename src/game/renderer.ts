@@ -3,7 +3,6 @@ import { worldToScreen as w2s } from './viewState';
 import { buildEntityDrawBuckets } from './gameEngine';
 import { UNCACHED_RENDER_TICK } from './gameTypes';
 import type { RenderSnapshot } from './renderSnapshot';
-import type { CanvasSurface } from './canvasLayer';
 import { updateRenderSoABuckets, getRenderSoABuckets } from './simBuffers/renderSoAEntities';
 import { collectGrassInViewport, viewportFromCamera } from './spatialGrid';
 import type { RenderSoABuckets } from './simBuffers/renderSoAEntities';
@@ -3242,23 +3241,19 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
 
 /**
  * Per-frame overlay pass — everything drawn on top of the baked ground +
- * entity layers. Shared between the Canvas 2D renderer and the Pixi renderer
- * (which draws the bakes on the GPU and runs this pass on a transparent
- * overlay canvas; it skips the 2D water shimmer because the water shader
- * replaces it).
+ * entity layers.
  */
-export function drawGameOverlay(
+function drawGameOverlay(
   ctx: CanvasRenderingContext2D,
   state: RenderSnapshot,
   cw: number,
   ch: number,
-  opts?: { includeWaterShimmer?: boolean },
 ): void {
   drawBuildingActiveEffects(ctx, state, cw, ch);
   drawBuildPreview(ctx, state, cw, ch);
   drawEntityFlashOverlay(ctx, state, cw, ch);
   drawWeather(ctx, state.weather, cw, ch);
-  if (opts?.includeWaterShimmer !== false) drawWaterShimmer(ctx, state, cw, ch);
+  drawWaterShimmer(ctx, state, cw, ch);
   drawSeasonParticles(ctx, state, cw, ch);
 
   if (isNightHour(state.hourOfDay)) {
@@ -3277,53 +3272,6 @@ export function drawGameOverlay(
   if (state.renffrOmen) {
     drawRenffrOmen(ctx, state.renffrOmen, cw, ch, _time);
   }
-}
-
-/**
- * Exposes the current baked canvases (terrain, decor, entity) so the Pixi
- * renderer can upload them as GPU textures. Runs the same bake logic as the
- * Canvas 2D path; the entity layer is left painted and ready.
- */
-export function getBakedLayerCanvases(
-  state: RenderSnapshot,
-  cw: number,
-  ch: number,
-): {
-  terrain: CanvasSurface | null;
-  decor: CanvasSurface | null;
-  entity: CanvasSurface | null;
-  entityAnchor: { anchorX: number; anchorY: number; anchorZoom: number; margin: number } | null;
-  /** Entity layer paint key (changes every repaint — the surface is reused in
-   *  place, so identity alone can't detect repaints). */
-  entityKey: string;
-} {
-  buildTerrainCache(state);
-
-  const layerKey = buildEntityLayerKey(state, cw, ch);
-  const existing = getEntityLayerCache();
-  if (
-    !existing
-    || entityLayerNeedsRebuild(existing, layerKey, cw, ch)
-    || entityLayerAnchorMoved(existing, state.camera, cw, ch)
-  ) {
-    const layer = beginEntityLayerPaint(layerKey, cw, ch, state.camera);
-    const anchorCam = { ...state.camera, x: layer.anchorX, y: layer.anchorY, zoom: layer.anchorZoom };
-    paintWorldEntityLayer(layer.ctx, { ...state, camera: anchorCam }, layer.width, layer.height);
-    commitEntityLayerPaint(layerKey);
-  }
-  const cache = getEntityLayerCache();
-
-  return {
-    terrain: terrainCache?.surface ?? null,
-    decor: terrainDecorCache?.surface ?? null,
-    entity: cache?.surface ?? null,
-    entityAnchor: cache
-      ? { anchorX: cache.anchorX, anchorY: cache.anchorY, anchorZoom: cache.anchorZoom, margin: cache.margin }
-      : null,
-    // key + anchor: the layer repaints on tick AND on camera moves (anchor
-    // rebakes when the zoom/pan crosses the margin) — both must re-upload.
-    entityKey: cache ? `${cache.key}|${cache.anchorX.toFixed(2)}|${cache.anchorY.toFixed(2)}|${cache.anchorZoom.toFixed(3)}` : '',
-  };
 }
 
 /** Cool blue night wash with stronger edges — leaves center readable for village glows. */
