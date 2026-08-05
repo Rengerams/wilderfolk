@@ -34,12 +34,14 @@ function ensurePixi(ctx: CanvasRenderingContext2D): void {
       pixiMode = ok && pixiActive();
       if (!pixiMode) disposePixiRenderer();
       pixiStarting = false;
+      console.info(`[renderer] ${pixiMode ? 'Pixi (WebGL) active' : 'Canvas 2D (Pixi disabled or unavailable)'}`);
     })
     .catch((e) => {
       console.error('[pixi] init failed:', e);
       pixiMode = false;
       disposePixiRenderer();
       pixiStarting = false;
+      console.info('[renderer] Canvas 2D (Pixi init failed)');
     });
 }
 
