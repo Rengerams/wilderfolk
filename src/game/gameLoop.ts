@@ -34,6 +34,12 @@ const BASE_TICKS_PER_SECOND = 3;
  */
 const UI_UPDATE_MS = 250;
 const MAX_CATCHUP_STEPS = 12;
+/**
+ * Worker stall watchdog (ms). If a tick was requested from the worker but no
+ * tickResult arrives within this window, the worker is assumed dead: dispose it
+ * and fall back to main-thread gameTick so the sim never freezes silently.
+ */
+const WORKER_STALL_TIMEOUT_MS = 2000;
 
 export type { WorkerCommand } from './simWorker/commands';
 
@@ -113,6 +119,8 @@ export class GameLoop {
   /** True while worker is initializing — blocks main-thread ticks to avoid split-brain. */
   private workerBooting = false;
   private workerTickChanged = false;
+  /** Last time the worker delivered a tick/command result — watchdog input. */
+  private lastWorkerActivity = 0;
   private renderSoA: RenderSoAReaderV1 | null = null;
   private renderMetaBySlot: EntityRenderMeta[] | null = null;
   private scentReader: ScentGridReader | null = null;
@@ -163,6 +171,7 @@ export class GameLoop {
         this.workerBooting = false;
         this.workerHost.setTickResultHandler((nextWorld, _delta, render, changed) => {
           if (initGen !== this.sessionGen) return;
+          this.lastWorkerActivity = performance.now();
           this.world = nextWorld;
           this.catalog.rebuild(this.world.entities);
           if (render) {
@@ -177,6 +186,7 @@ export class GameLoop {
         });
         this.workerHost.setCommandResultHandler((world, _delta, render) => {
           if (initGen !== this.sessionGen) return;
+          this.lastWorkerActivity = performance.now();
           this.world = world;
           if (render) {
             this.renderSoA = render.reader;
@@ -202,7 +212,7 @@ export class GameLoop {
 
   /**
    * True when sim ticks/commands are authoritative on the Web Worker (heavy work off main).
-   * False while booting, after worker failure, or when `VITE_USE_GAME_WORKER=0`.
+   * False by default — the worker is opt-in via `VITE_USE_GAME_WORKER=1`.
    */
   isUsingSimWorker(): boolean {
     return this.workerEnabled && !!this.workerHost?.isReady();
@@ -556,23 +566,40 @@ export class GameLoop {
       if (this.workerBooting) {
         // Hold accumulator until worker is authoritative — prevents init race.
       } else if (this.workerEnabled && this.workerHost) {
-        while (
-          this.tickAccumulator >= msPerTick
-          && steps < MAX_CATCHUP_STEPS
-          && this.workerHost.canPipelineTick()
-        ) {
-          if (this.workerHost.requestTick(focus)) {
-            this.tickAccumulator -= msPerTick;
-            steps++;
-          } else {
-            break;
+        // Watchdog: a requested tick that never answers = dead/stuck worker.
+        // Dispose it and fall back to the main-thread sim so the game keeps
+        // running instead of freezing silently (citizens stop moving, no errors).
+        const stalled = this.workerHost.hasTickInFlight()
+          && performance.now() - this.lastWorkerActivity > WORKER_STALL_TIMEOUT_MS;
+        if (stalled) {
+          console.warn('[GameLoop] Worker tick stalled — falling back to main-thread ticks');
+          this.workerHost.dispose();
+          this.workerHost = null;
+          this.workerEnabled = false;
+          this.workerBooting = false;
+          this.renderSoA = null;
+          this.renderMetaBySlot = null;
+          this.scentReader = null;
+        } else {
+          while (
+            this.tickAccumulator >= msPerTick
+            && steps < MAX_CATCHUP_STEPS
+            && this.workerHost.canPipelineTick()
+          ) {
+            if (this.workerHost.requestTick(focus)) {
+              this.tickAccumulator -= msPerTick;
+              steps++;
+            } else {
+              break;
+            }
+          }
+          if (this.workerTickChanged) {
+            tickChanged = true;
+            this.workerTickChanged = false;
           }
         }
-        if (this.workerTickChanged) {
-          tickChanged = true;
-          this.workerTickChanged = false;
-        }
-      } else if (!this.workerEnabled) {
+      }
+      if (!this.workerEnabled && !this.workerBooting) {
         while (this.tickAccumulator >= msPerTick && steps < MAX_CATCHUP_STEPS) {
           gameTick(this.world, focus);
           this.catalog.rebuild(this.world.entities);

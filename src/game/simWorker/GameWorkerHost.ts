@@ -106,7 +106,18 @@ export class GameWorkerHost {
           settled = true;
           reject(new Error('Worker init timeout'));
         }
-      }, 15000);
+      }, 3000);
+
+      const onError = (event: ErrorEvent) => {
+        // Worker script failed to load/execute (dev chunk error, top-level throw).
+        // Without this listener the readyPromise would hang until the 15s timeout,
+        // during which GameLoop holds ALL sim ticks (workerBooting) — a full freeze.
+        if (!settled) {
+          settled = true;
+          globalThis.clearTimeout(timeout);
+          reject(new Error(`Worker failed to start: ${event.message ?? 'unknown error'}`));
+        }
+      };
 
       const onMessage = (event: MessageEvent<WorkerResponse>) => {
         if (initGen !== this.generation) return;
@@ -158,6 +169,7 @@ export class GameWorkerHost {
       };
 
       this.worker!.addEventListener('message', onMessage);
+      this.worker!.addEventListener('error', onError);
     });
 
     const init: WorkerRequest = {
@@ -490,19 +502,14 @@ export class GameWorkerHost {
   }
 }
 
-function isWorkerEnvDisabled(value: unknown): boolean {
-  if (value === false || value === 0) return true;
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    return normalized === '0' || normalized === 'false' || normalized === 'off' || normalized === 'no';
-  }
-  return false;
-}
-
+/** Sim worker is opt-in — main-thread ticks by default (stable everywhere). */
 export function isGameWorkerEnabled(): boolean {
   if (typeof Worker === 'undefined') return false;
-  if (typeof import.meta !== 'undefined' && isWorkerEnvDisabled(import.meta.env?.VITE_USE_GAME_WORKER)) {
-    return false;
+  const v = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_USE_GAME_WORKER : undefined;
+  if (v === true || v === 1) return true;
+  if (typeof v === 'string') {
+    const normalized = v.trim().toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'on' || normalized === 'yes';
   }
-  return true;
+  return false;
 }
