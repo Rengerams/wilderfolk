@@ -29,6 +29,7 @@ import {
 } from './frontierCombat';
 import { clearFactionWanderState } from './factionWander';
 import { getRefugeeWelcomeBonus } from './townHall';
+import { addNotification } from './simEffects';
 
 let newsSeq = 0;
 
@@ -255,6 +256,14 @@ export function spawnVisitorGroup(
     `${template.emoji} Visitors Arrived!`,
     `${name} (${memberCount}) set camp near ${state.villageName}. They'll stay ${daysLeft} more day${daysLeft === 1 ? '' : 's'} after today.`,
     'neutral',
+  );
+  addNotification(
+    state,
+    `${template.emoji} ${name} camped nearby`,
+    `Click to find their camp — talk to the ${kind === 'traders' ? 'caravan master' : kind === 'refugees' ? 'spokesman' : 'leader'} or trade while they stay.`,
+    'event',
+    { x: site.x, y: site.y },
+    `visitor:${groupId}`,
   );
   logEvent(state, 'migration', `${name} arrived near the village`, name);
 
@@ -1761,7 +1770,8 @@ export function tryFirstWeekVisitor(
   buildings: Building[],
 ): GameEvent | null {
   if (state.firstWeekVisitorSpawned) return null;
-  if (state.tick < 3 * TICKS_PER_DAY || state.tick >= 7 * TICKS_PER_DAY) return null;
+  // No visitors during the founding burst — let the player settle first.
+  if (state.tick < 7 * TICKS_PER_DAY || state.tick >= 14 * TICKS_PER_DAY) return null;
 
   const hasPlayerHouse = buildings.some(
     (b) =>

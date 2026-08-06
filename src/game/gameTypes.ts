@@ -952,6 +952,8 @@ export interface GameNotification {
   createdAt: number;
   /** World position the toast jumps to when clicked (optional). */
   focus?: { x: number; y: number };
+  /** Visitor/rival camp key (e.g. `visitor:xxx`) to select when clicked (optional). */
+  campKey?: string;
 }
 
 export interface BigNewsItem {

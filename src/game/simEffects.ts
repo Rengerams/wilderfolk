@@ -62,6 +62,7 @@ export function addNotification(
   message: string,
   type: 'info' | 'success' | 'warning' | 'event' = 'info',
   focus?: { x: number; y: number },
+  campKey?: string,
 ) {
   state.notifications.push({
     id: `notif_${state.tick}_${Math.random()}`,
@@ -70,6 +71,7 @@ export function addNotification(
     type,
     createdAt: Date.now(),
     ...(focus ? { focus } : {}),
+    ...(campKey ? { campKey } : {}),
   });
   if (state.notifications.length > 20) state.notifications.shift();
 }

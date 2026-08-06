@@ -1515,9 +1515,19 @@ export default function App() {
                       loop.patchView({ camera: clampCameraTarget(nextView.camera, world.width, world.height) });
                     }
                   }
+                  // Visitor/rival camp notification — select the camp so the
+                  // inspector opens with its talk/trade actions visible.
+                  if (n.campKey) {
+                    loopRef.current?.patchView({
+                      selectedCampKey: n.campKey,
+                      selectedEntityId: null,
+                      selectedBuildingId: null,
+                    });
+                    setInspectorCollapsed(false);
+                  }
                   dismissNotification(n.id);
                 }}
-                title={n.focus ? 'Focus location · click to dismiss' : 'Dismiss'}
+                title={n.focus ? (n.campKey ? 'Open camp · click to dismiss' : 'Focus location · click to dismiss') : 'Dismiss'}
                 className={`group relative w-full rounded-xl border-2 px-3 py-2 pr-8 text-left text-xs shadow-xl backdrop-blur-md transition-all animate-in slide-in-from-right hover:brightness-110 ${
                   n.type === 'success'
                     ? 'border-emerald-500/45 bg-emerald-950/92 text-emerald-100'
