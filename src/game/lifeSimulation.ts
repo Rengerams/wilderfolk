@@ -186,6 +186,7 @@ import {
   DEER_SCENT_SENSITIVITY,
   WILDKIN_SCENT_SENSITIVITY,
 } from './scentGrid';
+import { addHuntVisual } from './huntvisuals';
 
 export interface TickContext {
   width: number;
@@ -2057,6 +2058,19 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId);
         createDeathParticles(state, closestPrey.x, closestPrey.y, '#8a2a2a', 10);
         syncEntityGrids(ctx, closestPrey);
+        // Arrow flight for free-roam hunting too (same FX as Hunting Spots)
+        addHuntVisual(state, {
+          hunterId: entity.id,
+          preyType: closestPrey.type,
+          fromX: entity.x,
+          fromY: entity.y,
+          toX: closestPrey.x,
+          toY: closestPrey.y,
+          startedAtTick: state.tick,
+          startedAtMs: Date.now(),
+          success: true,
+          foughtBack: false,
+        });
         const energyBite = config.energyGain[closestPrey.type] ?? (closestPrey.type === EntityType.Deer ? 350 : 150);
         entity.energy = Math.min(entity.maxEnergy, entity.energy + energyBite);
         entity.flash = 10;

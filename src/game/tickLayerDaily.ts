@@ -625,6 +625,13 @@ function tickImmigration(
       assignMissingResidences(allAlive.filter(isPlayerHuman), updatedBuildings, allAlive);
       const label = admitted === 1 ? '+1 Settler arrived' : `+${admitted} Settlers arrived`;
       addFloatingText(state, spawnX, spawnY - 18, label, '#22c55e');
+      addNotification(
+        state,
+        'New Settler',
+        label,
+        'success',
+        { x: spawnX, y: spawnY },
+      );
     }
   }
 }
