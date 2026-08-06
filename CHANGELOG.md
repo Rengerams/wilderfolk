@@ -6,19 +6,44 @@
 
 ## [0.5.2] — 2026-08-06
 
-**Command validation can no longer drift — and the buttons it had silently swallowed work again.**
+**A game-feel and depth pass — flowing water, living light, real trade, and elections that matter.**
 
-`GAME_VERSION` **0.5.2** · continue colonies from **0.4.x – 0.5.1**.
+`GAME_VERSION` **0.5.2** · continue colonies from **0.4.x – 0.5.1**.  
+Feature table → [ROADMAP.md](ROADMAP.md)
+
+### Added
+- **Water & terrain** — own seamless shallow/deep water sprites, flowing wave bands, shore reflection, zoom-5 terrain LOD, per-tile terrain-atlas variation (softer bevels, painted coasts), own seamless wooden bridge sprite
+- **Light & season** — warm light pools on the plaza at night, season-transition lerp, ambient particles (footstep dust, sawdust), ambient-occlusion pools under trees and buildings, water shimmer + fall leaves / winter snow-dust
+- **Elections every 2 years** — 3 months of gossip buildup before the vote; the elected head makes a promise — keeping it pays
+- **Real visitor trade** — visitor groups carry gold purses (no minted gold); reputation now shifts prices and raid odds, with tooltips on the ⭐ badge
+- **Traveling smith quest** — a visitor asks for 20 wood, pays gold and reputation
+- **Economy ledger** — "Food this day": production vs consumption in the Village tab
+- **Grid pathfinding** — settlers and visitors route around water and mountains
+- **Click-to-focus notifications** — toasts jump the camera to the subject
+- **Favorite citizen follow** + closer zoom (max 5)
+- **Level-based building visuals** — gold trim (Lv2+) and pennant (Lv3+)
+- **Hunting Spot prey selection** (auto / deer / rabbit / wolf) + arrow-flight visuals
+- **Village portrait** — richer Progress → Goals panel
+- **Founding & tutorial polish** — no instant visitors at founding; "Show tutorial tips" toggle; dismissed tips persist; tips auto-acknowledge after 20s (never nag)
+
+### Changed
+- **Renderer** — a PixiJS v8 GPU renderer was tried, then removed: the game is **Canvas 2D only**, with baked terrain layers and a camera-decoupled entity layer; the sim worker is opt-in (`VITE_USE_GAME_WORKER=1`), main-thread ticks by default
+- **Weather** — re-rolls every ~2.8 colony days (was ~60 — rain was almost never seen)
+- **Hotels** — lodging is free (no gold minted from nothing); the "Hotel full" toast fires whenever at capacity
+- **Build** — trees are cleared under new footprints (no more forests inside walls); collapsible building panel
 
 ### Fixed
-- **Forge tier 5** — Iron Swords, Scale Mail, and Tower Ballistae now start when queued (the worker-command validator had silently dropped those order ids)
-- **Visitor trade** — "Sell wood" now completes (same validator gap)
-- Worker `ready` handshake advertises the real `GAME_VERSION` instead of a stale hard-coded string
+- **Command validation drift** — Iron Swords / Scale Mail / Tower Ballistae forge orders and the "Sell wood" visitor trade now work (the validator silently dropped them); the worker advertises the real `GAME_VERSION`
+- Buildings drew 2×margin px right/down (entity-layer blit sign error)
+- Rival camp buildings no longer count as the player's
+- Recruits spawn on valid land (never water or mountains)
+- Wildlife tick skipped an entity after every in-tick death (splice during iteration)
+- Quick-start tutorial no longer re-shows after skipping
 
 ### Tech
-- Command validation derives allowed forge orders / visitor trade actions from the source catalogs — no hand-maintained allow-lists to drift
-- Hardened 13 non-null assertions on id lookups; removed 26 redundant `structuredClone` casts; hoisted `gameTypes` type imports
-- Canvas click hit-testing uses the live entity catalog instead of a dead cast
+- Housing assignment builds family units once (was 24×/pass); remaining O(H²) scans removed in tickHumans
+- Smoother render loop — cached layout, snapshot dirty-flag, camera-decoupled entity layer; nature tab scans only when open
+- Command validation derives allowed values from source catalogs; 13 non-null assertions hardened; 26 redundant casts removed; `gameTypes` imports hoisted
 
 ### Saves
 - Continues from **0.4.x – 0.5.1**
