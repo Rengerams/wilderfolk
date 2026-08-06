@@ -1,5 +1,6 @@
 const AUTOSAVE_KEY = 'wilderfolk-autosave';
 const TUTORIALS_ENABLED_KEY = 'wilderfolk-tutorials-enabled';
+const BUILD_PLACEMENT_HINT_SEEN_KEY = 'wilderfolk-build-placement-hint-seen';
 const JUICE_EFFECTS_KEY = 'wilderfolk-juice-effects';
 const FIRST_NIGHT_WARNING_KEY = 'wilderfolk-first-night-warning-dismissed';
 const SHOW_SIM_TICK_KEY = 'wilderfolk-show-sim-tick';
@@ -36,6 +37,15 @@ export function loadTutorialsEnabled(): boolean {
 
 export function saveTutorialsEnabled(enabled: boolean): void {
   writeBoolPreference(TUTORIALS_ENABLED_KEY, enabled);
+}
+
+/** Whether the one-time "Click map repeatedly to place more" hint was shown. */
+export function loadBuildPlacementHintSeen(): boolean {
+  return readBoolPreference(BUILD_PLACEMENT_HINT_SEEN_KEY, false);
+}
+
+export function saveBuildPlacementHintSeen(seen: boolean): void {
+  writeBoolPreference(BUILD_PLACEMENT_HINT_SEEN_KEY, seen);
 }
 
 export function loadJuiceEffectsEnabled(): boolean {

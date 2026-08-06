@@ -85,11 +85,13 @@ import {
   loadJuiceEffectsEnabled,
   loadShowSimTick,
   loadFirstNightWarningDismissed,
+  loadBuildPlacementHintSeen,
   saveAutoSavePreference,
   saveTutorialsEnabled,
   saveJuiceEffectsEnabled,
   saveShowSimTick,
   saveFirstNightWarningDismissed,
+  saveBuildPlacementHintSeen,
 } from './game/preferences';
 import { LabelWithResourceCost } from './components/ResourceCost';
 import { BARRICADE_RAID_COST, canAffordResourceCost, formatResourceCostNeed } from './game/resourceCost';
@@ -610,8 +612,16 @@ export default function App() {
     loop.patchView({ showGrid: next });
   }, []);
 
+  // The "Click map repeatedly to place more" hint shows for the first-ever
+  // build session (tutorials on), then is recorded as seen so it never nags
+  // again — even for players who keep tutorials enabled.
+  const placementHintSeenRef = useRef(loadBuildPlacementHintSeen());
+  const [placementHintShown, setPlacementHintShown] = useState(false);
+  const showPlacementHint = tutorialsEnabled && placementHintShown;
+
   const cancelBuildMode = useCallback(() => {
     setSelectedBuildingType(null);
+    setPlacementHintShown(false);
     stripDragStartRef.current = null;
     loopRef.current?.patchView({ buildMode: null, buildGhost: null, buildStripPreview: null, buildRotation: 0 });
   }, []);
@@ -742,6 +752,12 @@ export default function App() {
     setBuildPanelOpen(true);
     stripDragStartRef.current = null;
     setSelectedBuildingType(type);
+    // One-time placement how-to: only the first build session shows it.
+    if (tutorialsEnabled && !placementHintSeenRef.current) {
+      placementHintSeenRef.current = true;
+      saveBuildPlacementHintSeen(true);
+      setPlacementHintShown(true);
+    }
     loopRef.current?.patchView({
       buildMode: type,
       buildGhost: null,
@@ -751,7 +767,7 @@ export default function App() {
       selectedBuildingId: null,
       selectedEntityId: null,
     });
-  }, [clearSelection]);
+  }, [clearSelection, tutorialsEnabled, setPlacementHintShown]);
 
   const handleHintAction = useCallback((action: FocusHintAction) => {
     playClickSound();
@@ -1354,7 +1370,7 @@ export default function App() {
                 onLocked={(type) => applyGameAction({ proto: 1, op: 'notifyBuildingLocked', type })}
                 onCancel={cancelBuildMode}
                 onToggleGrid={toggleGrid}
-                tutorialsEnabled={tutorialsEnabled}
+                showPlacementHint={showPlacementHint}
               />
             </Suspense>
           ) : (
@@ -1434,14 +1450,14 @@ export default function App() {
                     <p className="text-sm font-bold text-emerald-100">
                       Placing {getBuildingConfig(selectedBuildingType).label}
                     </p>
-                    {tutorialsEnabled && (
+                    {showPlacementHint && (
                       <p className="text-[10px] text-emerald-200/80">
                         Keep clicking to place more · stays selected
                       </p>
                     )}
                   </div>
                 </div>
-                {tutorialsEnabled && (
+                {showPlacementHint && (
                   <p className="text-[10px] leading-snug text-stone-400">
                     {isStripBuildType(selectedBuildingType)
                       ? selectedBuildingType === BuildingType.Road
