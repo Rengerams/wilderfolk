@@ -151,7 +151,10 @@ export function useCanvasInteractions({
       ?? world.entities.filter((ent) => ent.alive);
     let clickedEntity: Entity | null = null;
     for (const ent of clickEntities) {
-      if (clickedBuilding && (ent.type === EntityType.Tree || ent.type === EntityType.Grass)) {
+      // Scenery (grass/trees) is never click-selectable — otherwise the dense,
+      // array-first grass tiles win the hit-test race over citizens standing on
+      // them (clicking a settler kept selecting grass instead).
+      if (ent.type === EntityType.Tree || ent.type === EntityType.Grass) {
         continue;
       }
       if (ent.type === EntityType.Human) {
