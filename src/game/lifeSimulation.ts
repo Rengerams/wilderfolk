@@ -140,7 +140,7 @@ import {
   tryNeighborGreeting,
   tryWorkplaceBanter,
 } from './socialLife';
-import { doctorTreatNearby, isDoctorAtHospital, treatPatientAtHospital } from './hospitalCare';
+import { doctorTreatNearby, isDoctorAtHospital, needsMedicalCare, treatPatientAtHospital } from './hospitalCare';
 import {
   isOfficialAtHall,
   officialHandlePetitioners,
@@ -2286,7 +2286,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         if (hospital && personDayRoll(entity.id, state.tick, 840) < 0.28) {
           treatPatientAtHospital(state, entity, hospital);
         } else if (
-          !onJobShift
+          // Needy settlers (pregnant / low energy) may take a hospital visit
+          // during work hours — a staffed ward should actually be used, not
+          // only help those who happen to wander past in free time.
+          (needsMedicalCare(entity) || !onJobShift)
           && !huntingWere
           && !inElectionCeremony
           && staffedHospitals.length > 0
@@ -2673,11 +2676,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Patient arrived at hospital during free time / after commute
+    // Patient arrived at hospital — free time, or a needy settler who took a
+    // work-hours clinic visit (matched by the walk-to-hospital gate above).
     if (
-      !onJobShift
+      (needsMedicalCare(entity) || !onJobShift)
       && isPlayerHuman(entity)
-      && workplace == null
       && (entity.energy < entity.maxEnergy * 0.5 || entity.pregnant)
       && staffedHospitals.length > 0
     ) {
