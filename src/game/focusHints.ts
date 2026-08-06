@@ -274,23 +274,25 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
 
   const outstandingForge = getOutstandingForgeOrder(state);
   if (outstandingForge) {
-    const order = getForgeOrder(outstandingForge)!;
-    hints.push({
-      icon: order.emoji,
-      title: `Forge ${order.label}`,
-      detail: blacksmith
-        ? `Queue at Blacksmith · ${formatForgeInputs(order.inputs)} · ~6 staffed days`
-        : 'Research done — build & complete a Blacksmith (Industry), then queue the order.',
-      action: blacksmith
-        ? {
-          label: 'Open Blacksmith',
-          id: 'focus_blacksmith',
-          buildingId: blacksmith.id,
-          buildingX: blacksmith.x + blacksmith.width / 2,
-          buildingY: blacksmith.y + blacksmith.height / 2,
-        }
-        : { label: 'Build Blacksmith', id: 'build_blacksmith' },
-    });
+    const order = getForgeOrder(outstandingForge);
+    if (order) {
+      hints.push({
+        icon: order.emoji,
+        title: `Forge ${order.label}`,
+        detail: blacksmith
+          ? `Queue at Blacksmith · ${formatForgeInputs(order.inputs)} · ~6 staffed days`
+          : 'Research done — build & complete a Blacksmith (Industry), then queue the order.',
+        action: blacksmith
+          ? {
+            label: 'Open Blacksmith',
+            id: 'focus_blacksmith',
+            buildingId: blacksmith.id,
+            buildingX: blacksmith.x + blacksmith.width / 2,
+            buildingY: blacksmith.y + blacksmith.height / 2,
+          }
+          : { label: 'Build Blacksmith', id: 'build_blacksmith' },
+      });
+    }
   }
 
   if ((state.pendingOutgoingRaidEvents?.length ?? 0) > 0) {

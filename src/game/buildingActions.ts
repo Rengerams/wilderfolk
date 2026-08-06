@@ -167,7 +167,7 @@ export function startBuilding(
   y: number,
   rotation: BuildingRotation = 0,
 ): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const config = BUILDING_CONFIGS[type];
 
   const placeFailure = getPlaceBuildingFailureReason(state, type, x, y, rotation);
@@ -279,7 +279,7 @@ export function placeStripChain(
 ): WorldState {
   if (!isStripBuildType(type) || segments.length === 0) return originalState;
 
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
 
   let placed = 0;
   let firstX = 0;
@@ -437,7 +437,7 @@ export function assignBuilderToBuilding(
   buildingId: number,
   preferredHumanId?: number,
 ): WorldState {
-  return applyBuilderAssignment(structuredClone(originalState) as WorldState, buildingId, preferredHumanId);
+  return applyBuilderAssignment(structuredClone(originalState), buildingId, preferredHumanId);
 }
 
 /** Mutates state — re-run automatic housing assignment for a residence. */
@@ -459,12 +459,12 @@ export function assignResidentToBuilding(
   originalState: WorldState,
   buildingId: number,
 ): WorldState {
-  return applyResidentAssignment(structuredClone(originalState) as WorldState, buildingId);
+  return applyResidentAssignment(structuredClone(originalState), buildingId);
 }
 
 /** Move an adult child (18+) and their own household into a free house. */
 export function moveOutOfFamilyHome(originalState: WorldState, humanId: number): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const human = state.entities.find((e) => e.id === humanId);
   if (!human || !isPlayerHuman(human)) return state;
 
@@ -501,7 +501,7 @@ export function removeResidentFromBuilding(
   buildingId: number,
   humanId: number,
 ): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const building = state.buildings.find((b) => b.id === buildingId);
   const human = state.entities.find((e) => e.id === humanId);
   if (!building || !human || human.residenceBuildingId !== buildingId) return state;
@@ -538,13 +538,13 @@ export function fillBuildingWorkers(originalState: WorldState, buildingId: numbe
 }
 
 export function autoStaffAllWorkers(originalState: WorldState): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   assignMissingWorkers(listPlayerHumans(state), state.buildings);
   return state;
 }
 
 export function assignIdleWorkerToBuilding(originalState: WorldState, buildingId: number, preferredHumanId?: number): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const building = state.buildings.find(b => b.id === buildingId);
   if (!building || building.faction === 'rival') return state;
 
@@ -635,7 +635,7 @@ export function assignIdleWorkerToBuilding(originalState: WorldState, buildingId
 }
 
 export function removeWorkerFromBuilding(originalState: WorldState, buildingId: number, humanId: number): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const building = state.buildings.find(b => b.id === buildingId);
   const human = state.entities.find(e => e.id === humanId);
   if (!building || !human) return state;
@@ -730,7 +730,7 @@ export function canAssignWorkerToBuilding(state: WorldState, buildingId: number)
 }
 
 export function repairBuilding(originalState: WorldState, buildingId: number): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const building = state.buildings.find(b => b.id === buildingId);
   if (!building || !building.completed || building.health >= building.maxHealth) return state;
 
@@ -759,7 +759,7 @@ export function getBuildingUpgradeCost(building: Building): { wood: number; ston
 }
 
 export function upgradeBuilding(originalState: WorldState, buildingId: number): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const building = state.buildings.find(b => b.id === buildingId);
   if (!building || !building.completed) return state;
   if (building.level >= 3) return state;
@@ -801,7 +801,7 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
 }
 
 export function recruitSettler(originalState: WorldState): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const costFood = 30;
   const costGold = 20;
 
@@ -868,7 +868,7 @@ export function estimateWorkshopGold(state: WorldState, building: Building): num
 
 export function setWorkshopRecipe(originalState: WorldState, buildingId: number, recipeId: string): WorldState {
   if (!WORKSHOP_RECIPES.some((r) => r.id === recipeId)) return originalState;
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const building = state.buildings.find((b) => b.id === buildingId);
   if (!building || building.type !== BuildingType.Workshop || building.faction === 'rival') return originalState;
   building.workshopRecipeId = recipeId;
@@ -877,7 +877,7 @@ export function setWorkshopRecipe(originalState: WorldState, buildingId: number,
 
 export function setHuntingSpotPrey(originalState: WorldState, buildingId: number, prey: HuntingSpotPrey): WorldState {
   if (!HUNTING_SPOT_PREY_OPTIONS.some((o) => o.id === prey)) return originalState;
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const building = state.buildings.find((b) => b.id === buildingId);
   if (!building || building.type !== BuildingType.HuntingSpot || building.faction === 'rival') return originalState;
   building.huntingSpotPrey = prey;
@@ -885,7 +885,7 @@ export function setHuntingSpotPrey(originalState: WorldState, buildingId: number
 }
 
 export function demolishBuilding(originalState: WorldState, buildingId: number): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const building = state.buildings.find(b => b.id === buildingId);
   if (!building) return state;
 
@@ -936,7 +936,7 @@ export function demolishBuilding(originalState: WorldState, buildingId: number):
 
 /** Debug/testing: curse a random adult settler as a Moon Howler. */
 export function spawnMoonHowlerDebug(originalState: WorldState): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const candidates = state.entities.filter((e) => e.alive && canMoonHowlerCurse(e));
   const pick = candidates[Math.floor(Math.random() * candidates.length)];
 
@@ -979,7 +979,7 @@ export function getTameFoodCost(type: EntityType): number | null {
 }
 
 export function tameEntity(originalState: WorldState, entityId: number, humanId: number): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const entity = state.entities.find(e => e.id === entityId);
   const human = state.entities.find(e => e.id === humanId && e.type === EntityType.Human);
   if (!entity || !human || !isPlayerHuman(human) || entity.tamedBy) return state;

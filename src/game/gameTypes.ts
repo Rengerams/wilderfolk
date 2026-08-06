@@ -1,4 +1,12 @@
 // Entity types as const object
+import type { Resources, ResourceKey } from './resourceTypes';
+import type { ValleyStage } from './ecologyStage';
+import type { YearlyStats, LifetimeStats } from './stats';
+import type { RenffrOmen } from './omenTypes';
+import type { ScentGrid } from './scentGrid';
+import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
+import type { AdjacencyIndex } from './adjacencyIndex';
+
 export const EntityType = {
   Grass: 'grass',
   Rabbit: 'rabbit',
@@ -501,9 +509,7 @@ export interface GameEvent {
   type: 'positive' | 'negative' | 'neutral';
 }
 
-import type { Resources, ResourceKey } from './resourceTypes';
 export type { Resources, ResourceKey };
-
 
 /**
  * One sample in `WorldState.populationHistory` (stats layer / charts).
@@ -770,7 +776,7 @@ export interface WorldState {
    * Escalating valley ecology stage (Stable → Collapse).
    * See ecologyStage.ts — information-first, effects scale with sustained stress.
    */
-  valleyStage?: import('./ecologyStage').ValleyStage;
+  valleyStage?: ValleyStage;
   /** Absolute colony day when current valleyStage was entered. */
   valleyStageSinceDay?: number;
   /** Consecutive days raw stress wanted a higher stage. */
@@ -805,8 +811,8 @@ export interface WorldState {
    */
   villageCanHeat?: boolean;
   worldMap: WorldMap | null;
-  yearlyStats: import('./stats').YearlyStats[];
-  lifetimeStats: import('./stats').LifetimeStats;
+  yearlyStats: YearlyStats[];
+  lifetimeStats: LifetimeStats;
   eventLog: GameEventLog[];
   festival: { active: boolean; name: string; daysLeft: number } | null;
   /** Tick after which the player can host another Town Hall festival. */
@@ -820,7 +826,7 @@ export interface WorldState {
   /** Outgoing raids — rival may offer tribute or fight when your war-band arrives. */
   pendingOutgoingRaidEvents: OutgoingRaidEvent[];
   /** Rare night-sky easter egg */
-  renffrOmen?: import('./omenTypes').RenffrOmen | null;
+  renffrOmen?: RenffrOmen | null;
   /** Settlers gossip about Renffr until this tick (after a night omen). */
   renffrChatterUntilTick?: number;
   victories: VictoryProgress[];
@@ -866,19 +872,19 @@ export interface WorldState {
    */
   lastMoonHowlerExorcismTick?: number;
   /** Ephemeral predator scent field — rebuilt each session, not saved. */
-  scentGrid?: import('./scentGrid').ScentGrid;
+  scentGrid?: ScentGrid;
   /** Alive entities by type — rebuilt each sim tick for render/UI; not saved. */
   entityByType?: EntityByType;
   /** Grass spatial index — rebuilt each sim tick for graze + render; not saved. */
-  grassGrid?: import('./spatialGrid').EntitySpatialGrid;
+  grassGrid?: EntitySpatialGrid;
   /** Mobile spatial index — rebuilt each sim tick for hunt/flee/social queries; not saved. */
-  mobileGrid?: import('./spatialGrid').EntitySpatialGrid;
+  mobileGrid?: EntitySpatialGrid;
   /** Road avoidance index — rebuilt when completed road layout changes; not saved. */
-  roadAvoidance?: import('./spatialGrid').RoadAvoidanceIndex;
+  roadAvoidance?: RoadAvoidanceIndex;
   /** `computeRoadLayoutStamp` fingerprint of completed roads; not saved. */
   roadAvoidanceStamp?: number;
   /** Barn/road/market adjacency index — event-driven insert/remove; not saved. */
-  adjacency?: import('./adjacencyIndex').AdjacencyIndex;
+  adjacency?: AdjacencyIndex;
   /** Alive entity lookup — persisted across ticks; pruned on death; not saved. */
   entityById?: Map<number, Entity>;
   /** World-event titles fired during the current calendar year (flushed into YearlyStats). */

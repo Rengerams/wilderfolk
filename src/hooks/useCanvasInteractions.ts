@@ -1,6 +1,7 @@
 import { useCallback, type RefObject } from 'react';
 import type { GameLoop } from '../game/gameLoop';
 import type { WorldState, BuildingType, Building, Entity } from '../game/gameEngine';
+import type { EntityCatalog } from '../game/entityCatalog';
 import {
   isStripBuildType,
   inferStripRotation,
@@ -18,6 +19,8 @@ export interface UseCanvasInteractionsOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   loopRef: RefObject<GameLoop | null>;
   worldRef: RefObject<WorldState>;
+  /** Alive-entity catalog for click hit-testing — null before the loop is running. */
+  catalogRef: RefObject<EntityCatalog | null>;
   selectedBuildingType: BuildingType | null;
   getViewCamera: () => import('../game/viewState').ViewState['camera'];
   applyGameAction: (action: WorkerCommand | ((w: WorldState) => WorldState)) => void;
@@ -39,6 +42,7 @@ export function useCanvasInteractions({
   canvasRef,
   loopRef,
   worldRef,
+  catalogRef,
   selectedBuildingType,
   getViewCamera,
   applyGameAction,
@@ -143,7 +147,7 @@ export function useCanvasInteractions({
 
     // Check entity selection (humans still win over buildings; trees/grass do not)
     const camera = getViewCamera();
-    const clickEntities = (world as WorldState & { catalog?: { getAlive: () => Entity[] } }).catalog?.getAlive()
+    const clickEntities = catalogRef.current?.getAlive()
       ?? world.entities.filter((ent) => ent.alive);
     let clickedEntity: Entity | null = null;
     for (const ent of clickEntities) {
@@ -220,7 +224,7 @@ export function useCanvasInteractions({
         selectedCampKey: null,
       });
     }
-  }, [selectedBuildingType, juiceEffectsEnabled, getViewCamera, applyGameAction, cancelBuildMode, canvasRef, worldRef, loopRef, clickOriginRef, setInspectorCollapsed]);
+  }, [selectedBuildingType, juiceEffectsEnabled, getViewCamera, applyGameAction, cancelBuildMode, canvasRef, worldRef, catalogRef, loopRef, clickOriginRef, setInspectorCollapsed]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;

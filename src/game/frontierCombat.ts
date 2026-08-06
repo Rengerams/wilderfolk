@@ -963,7 +963,7 @@ export function respondToRaidEvent(
   eventId: string,
   choiceId: string,
 ): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const idx = state.pendingRaidEvents?.findIndex((e) => e.id === eventId) ?? -1;
   if (idx < 0) return state;
 
@@ -1237,7 +1237,7 @@ export function respondToOutgoingRaidEvent(
   eventId: string,
   choiceId: string,
 ): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const idx = state.pendingOutgoingRaidEvents?.findIndex((e) => e.id === eventId) ?? -1;
   if (idx < 0) return state;
 
@@ -1303,7 +1303,7 @@ export function respondToOutgoingRaidEvent(
 }
 
 export function launchRaidOnRival(originalState: WorldState, rivalId: string): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return state;
   if (rival.relationship === 'friendly') return state;

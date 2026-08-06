@@ -3,7 +3,7 @@ import { BuildingType, HUNTING_SPOT_PREY_OPTIONS } from '../gameTypes';
 import type { HuntingSpotPrey } from '../gameTypes';
 import type { BuildingRotation } from '../buildingRotation';
 import type { StripSegment } from '../stripBuild';
-import type { VisitorTradeAction, RefugeeChoice } from '../groupEvents';
+import { VISITOR_TRADE_COSTS, type VisitorTradeAction, type RefugeeChoice } from '../groupEvents';
 import type { ForgeOrderId } from '../gameTypes';
 import {
   startBuilding,
@@ -22,7 +22,7 @@ import {
   tameEntity,
   spawnMoonHowlerDebug,
 } from '../buildingActions';
-import { queueForgeOrder } from '../forge';
+import { FORGE_ORDERS, queueForgeOrder } from '../forge';
 import { notifyBuildingLocked, startResearch } from '../research';
 import { establishTradeRoute } from '../tradeCaravans';
 import { addBigNews, addFloatingText } from '../simEffects';
@@ -112,14 +112,13 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
 ]);
 
 const BUILDING_TYPE_VALUES = new Set<string>(Object.values(BuildingType));
-const FORGE_ORDER_IDS = new Set<string>([
-  'iron_spears',
-  'iron_shields',
-  'guard_halberds',
-  'wall_plates',
-  'iron_pickaxes',
-]);
-const VISITOR_TRADE_ACTIONS = new Set<string>(['buy_food', 'buy_wood', 'sell_food']);
+/**
+ * Allowed ids derived from the source catalogs so the validator can never drift
+ * from the forge orders / visitor actions the UI offers (regression: the tier-5
+ * orders and sell_wood were once missing and those commands silently no-op'd).
+ */
+const FORGE_ORDER_IDS = new Set<string>(FORGE_ORDERS.map((o) => o.id));
+const VISITOR_TRADE_ACTIONS = new Set<string>(Object.keys(VISITOR_TRADE_COSTS));
 const REFUGEE_CHOICES = new Set<string>(['welcome', 'screen', 'turn_away']);
 
 function isFiniteNumber(value: unknown): value is number {

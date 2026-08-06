@@ -129,7 +129,7 @@ export function scheduleTradeRouteDeparture(
 }
 
 export function establishTradeRoute(state: WorldState, routeId: string): WorldState {
-  const s = structuredClone(state) as WorldState;
+  const s = structuredClone(state);
   const route = s.tradeRoutes.find(r => r.id === routeId);
   if (!route || route.active) return s;
   if (!hasCompletedMarket(s)) {

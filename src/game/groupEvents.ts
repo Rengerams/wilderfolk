@@ -57,7 +57,7 @@ import { isPlayerHuman, playerHumanCount } from './playerHuman';
 
 /** Deep-clone world state for player actions that mutate simulation data. */
 function cloneWorldStateForAction(originalState: WorldState): WorldState {
-  return structuredClone(originalState) as WorldState;
+  return structuredClone(originalState);
 }
 
 function buildAliveEntityIndex(allAlive: Entity[]): Map<number, Entity> {
@@ -462,19 +462,22 @@ export function sendRivalGift(originalState: WorldState, rivalId: string): World
   const foodCost = 25;
   if (rivalPreview.relationship === 'friendly') {
     const state = cloneWorldStateForAction(originalState);
-    const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
+    const rival = state.rivalSettlements.find((r) => r.id === rivalId);
+    if (!rival) return state;
     pushFloat(state, rival.campX, rival.campY - 20, 'Already friendly', '#94a3b8');
     return state;
   }
   if (originalState.resources.food < foodCost) {
     const state = cloneWorldStateForAction(originalState);
-    const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
+    const rival = state.rivalSettlements.find((r) => r.id === rivalId);
+    if (!rival) return state;
     pushFloat(state, rival.campX, rival.campY - 20, `Need ${foodCost}🍖`, '#f97316');
     return state;
   }
 
   const state = cloneWorldStateForAction(originalState);
-  const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
+  const rival = state.rivalSettlements.find((r) => r.id === rivalId);
+  if (!rival) return state;
   state.resources.food -= foodCost;
   const before = rival.relationship;
   rival.relationship = shiftRelationship(rival.relationship, 1);
@@ -494,7 +497,8 @@ export function establishRivalTradePact(originalState: WorldState, rivalId: stri
   if (!rivalPreview || rivalPreview.relationship === 'tense') {
     if (!rivalPreview) return originalState;
     const state = cloneWorldStateForAction(originalState);
-    const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
+    const rival = state.rivalSettlements.find((r) => r.id === rivalId);
+    if (!rival) return state;
     pushFloat(state, rival.campX, rival.campY - 20, 'Relations too tense', '#f97316');
     return state;
   }
@@ -502,19 +506,22 @@ export function establishRivalTradePact(originalState: WorldState, rivalId: stri
   const goldCost = 40;
   if (rivalPreview.relationship === 'friendly') {
     const state = cloneWorldStateForAction(originalState);
-    const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
+    const rival = state.rivalSettlements.find((r) => r.id === rivalId);
+    if (!rival) return state;
     pushFloat(state, rival.campX, rival.campY - 20, 'Already friendly', '#94a3b8');
     return state;
   }
   if (originalState.resources.gold < goldCost) {
     const state = cloneWorldStateForAction(originalState);
-    const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
+    const rival = state.rivalSettlements.find((r) => r.id === rivalId);
+    if (!rival) return state;
     pushFloat(state, rival.campX, rival.campY - 20, `Need ${goldCost}💰`, '#f97316');
     return state;
   }
 
   const state = cloneWorldStateForAction(originalState);
-  const rival = state.rivalSettlements.find((r) => r.id === rivalId)!;
+  const rival = state.rivalSettlements.find((r) => r.id === rivalId);
+  if (!rival) return state;
 
   state.resources.gold -= goldCost;
   rival.relationship = 'friendly';
@@ -1031,14 +1038,19 @@ export function talkToVisitorLeader(originalState: WorldState, groupId: string):
   return state;
 }
 
-export type VisitorTradeAction = 'buy_food' | 'buy_wood' | 'sell_food' | 'sell_wood';
-
-const VISITOR_TRADE_COSTS = {
+/**
+ * Visitor trade actions — single source of truth: the action type is derived from
+ * the cost table keys so validation allow-lists can never drift from the actions
+ * the UI offers (regression: sell_wood was once missing from the worker validator).
+ */
+export const VISITOR_TRADE_COSTS = {
   buy_food: { pay: { gold: 25 }, receive: { food: 40 } },
   buy_wood: { pay: { gold: 20 }, receive: { wood: 30 } },
   sell_food: { pay: { food: 30 }, receive: { gold: 25 } },
   sell_wood: { pay: { wood: 40 }, receive: { gold: 20 } },
 } as const;
+
+export type VisitorTradeAction = keyof typeof VISITOR_TRADE_COSTS;
 
 /** Reputation tier → trade price modifier (≥80 friendly, ≤30 harsh terms). */
 export function getVisitorTradePriceMult(rep: number): number {
@@ -1120,7 +1132,8 @@ export function tradeWithVisitors(
   }
 
   const state = cloneWorldStateForAction(originalState);
-  const group = state.visitorGroups.find((g) => g.id === groupId)!;
+  const group = state.visitorGroups.find((g) => g.id === groupId);
+  if (!group) return state;
 
   if (!canPayTradeCost(state, effectivePay)) {
     const goldNeed = effectivePay.gold ?? 0;
@@ -1194,7 +1207,8 @@ export function negotiateRefugees(
   if (!groupPreview || groupPreview.kind !== 'refugees' || groupPreview.refugeeResolved) return originalState;
 
   const state = cloneWorldStateForAction(originalState);
-  const group = state.visitorGroups.find((g) => g.id === groupId)!;
+  const group = state.visitorGroups.find((g) => g.id === groupId);
+  if (!group) return state;
 
   const allAlive = state.entities;
 

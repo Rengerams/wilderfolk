@@ -967,6 +967,7 @@ export default function App() {
     canvasRef,
     loopRef,
     worldRef,
+    catalogRef,
     selectedBuildingType,
     getViewCamera,
     applyGameAction,

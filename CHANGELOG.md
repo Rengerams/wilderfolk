@@ -4,6 +4,27 @@
 
 ---
 
+## [0.5.2] — 2026-08-06
+
+**Command validation can no longer drift — and the buttons it had silently swallowed work again.**
+
+`GAME_VERSION` **0.5.2** · continue colonies from **0.4.x – 0.5.1**.
+
+### Fixed
+- **Forge tier 5** — Iron Swords, Scale Mail, and Tower Ballistae now start when queued (the worker-command validator had silently dropped those order ids)
+- **Visitor trade** — "Sell wood" now completes (same validator gap)
+- Worker `ready` handshake advertises the real `GAME_VERSION` instead of a stale hard-coded string
+
+### Tech
+- Command validation derives allowed forge orders / visitor trade actions from the source catalogs — no hand-maintained allow-lists to drift
+- Hardened 13 non-null assertions on id lookups; removed 26 redundant `structuredClone` casts; hoisted `gameTypes` type imports
+- Canvas click hit-testing uses the live entity catalog instead of a dead cast
+
+### Saves
+- Continues from **0.4.x – 0.5.1**
+
+---
+
 ## [0.5.1] — 2026-07-30
 
 **The valley feels truer and clearer.**

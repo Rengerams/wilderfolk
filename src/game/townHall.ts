@@ -126,7 +126,7 @@ export function canHostTownFestival(
 }
 
 export function hostTownFestival(originalState: WorldState, buildingId: number): WorldState {
-  const state = structuredClone(originalState) as WorldState;
+  const state = structuredClone(originalState);
   const building = state.buildings.find((b) => b.id === buildingId);
   if (!building) return originalState;
 

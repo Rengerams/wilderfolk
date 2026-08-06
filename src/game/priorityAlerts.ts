@@ -130,8 +130,8 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
 
   const outstandingForge = getOutstandingForgeOrder(state);
   if (outstandingForge && alerts.length < 4) {
-    const order = getForgeOrder(outstandingForge)!;
-    if (blacksmith) {
+    const order = getForgeOrder(outstandingForge);
+    if (order && blacksmith) {
       alerts.push({
         id: `forge-queue-${outstandingForge}`,
         severity: 'warning',
@@ -145,7 +145,7 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
           y: blacksmith.y + blacksmith.height / 2,
         },
       });
-    } else {
+    } else if (order) {
       alerts.push({
         id: `forge-need-smith-${outstandingForge}`,
         severity: 'warning',

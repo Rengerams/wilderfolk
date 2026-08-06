@@ -1247,7 +1247,8 @@ export function auditHousingSharingIssues(
   const issues: string[] = [];
   for (const unit of buildHousingUnits(alive)) {
     if (!isUnnecessarilySharingHousing(unit, alive, residences)) continue;
-    const homeId = unitResidenceId(unit)!;
+    const homeId = unitResidenceId(unit);
+    if (homeId == null) continue;
     const label = unit.map((m) => m.name ?? `settler#${m.id}`).join(', ');
     if (emptyCount > 0) {
       issues.push(

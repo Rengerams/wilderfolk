@@ -2,6 +2,7 @@
 import dialogueBankJson from '../data/sim_dialogue_trees.json';
 import { installDialogueBankPayload } from '../dialogueTrees';
 import { gameTick } from '../gameEngine';
+import { GAME_VERSION } from '../version';
 
 installDialogueBankPayload(dialogueBankJson as unknown as Parameters<typeof installDialogueBankPayload>[0]);
 import type { Entity, WorldState } from '../gameTypes';
@@ -99,7 +100,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const ready: WorkerResponse = {
           type: 'ready',
           proto: WORKER_PROTO,
-          simVersion: '0.5.0',
+          simVersion: GAME_VERSION,
           buffers: headlessMode ? [] : USE_SCENT_GRID ? ['renderSoA_v1', 'scentSidecar_v1'] : ['renderSoA_v1'],
         };
         self.postMessage(ready);
@@ -127,7 +128,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const response: WorkerResponse = {
           type: 'exportSaveResult',
           proto: WORKER_PROTO,
-          world: structuredClone(world) as WorldState,
+          world: structuredClone(world),
         };
         self.postMessage(response);
         break;

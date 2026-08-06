@@ -246,7 +246,7 @@ export function queueForgeOrder(
 ): WorldState {
   const block = getForgeBlockReason(originalState, orderId);
   if (block) {
-    const blocked = structuredClone(originalState) as WorldState;
+    const blocked = structuredClone(originalState);
     if (!blocked.floatingTexts) blocked.floatingTexts = [];
     addNotification(blocked, 'Forge blocked', block, 'warning');
     return blocked;
@@ -255,8 +255,9 @@ export function queueForgeOrder(
   if (!building || building.type !== BuildingType.Blacksmith || !building.completed) {
     return originalState;
   }
-  const order = getForgeOrder(orderId)!;
-  const state = structuredClone(originalState) as WorldState;
+  const order = getForgeOrder(orderId);
+  if (!order) return originalState;
+  const state = structuredClone(originalState);
   if (!state.resources) state.resources = { food: 0, wood: 0, stone: 0, gold: 0 };
   state.resources = { ...state.resources };
   state.villageForge = normalizeForgeState(state.villageForge);
