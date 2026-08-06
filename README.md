@@ -10,9 +10,17 @@
 </p>
 
 <p align="center">
-  <strong>v0.5.1</strong> · Early Alpha · current<br>
+  <strong>v0.5.2</strong> · Early Alpha · current<br>
   A cozy frontier colony sim — inside the food chain, not on top of it
 </p>
+
+---
+
+# 🌿 v0.5.2 — Game-feel & depth
+
+**The valley comes alive** — flowing water and season light, real visitor trade with gold purses, elections every two years, and settlers who route around rivers. Continues **0.4 / 0.5.0 / 0.5.1** colonies.
+
+Full notes → [CHANGELOG.md](CHANGELOG.md) `[0.5.2]` · Roadmap → [ROADMAP.md](ROADMAP.md)
 
 ---
 
@@ -84,7 +92,7 @@ Children grow up. Couples marry. Affairs leave scars. Orphans get adopted.
 Visitors sleep at your **Hotel**, drink at the **Tavern**, and gossip in the square.  
 Full moons turn cursed kin into **Moon Howlers**. Rivals draw red raid lines across the map.  
 The Nature tab tells you when the **valley** is strained — before it collapses.  
-A **village head** wears the crown. Every five years, merit decides who keeps it.
+A **village head** wears the crown. Every two years, merit decides who keeps it — and their election promise follows them into the term.
 
 It’s a **colony sim** with a **food chain**, **families**, and **drama** — not a spreadsheet with trees.
 
@@ -128,7 +136,7 @@ House → farm → watch a workday → open Nature → stock wood for winter →
 | Goals | Challenges, four victory paths, Focus hints, alerts |
 | Leadership | Town Hall, **👑 village head**, elections |
 
-The painted map isn’t just green blocks anymore — meadows, shores, forests, and clutter make the valley feel like a place you live in.
+The painted map isn’t just green blocks anymore — flowing rivers, shores, forests, and clutter make the valley feel like a place you live in.
 
 ---
 
@@ -151,7 +159,7 @@ Strip-place walls and roads; construction fills day by day.
 
 ### Economy
 
-Wood · stone · food · gold · storage · spoilage · workshop recipes · blacksmith forge queue · trade routes (reputation **and** Market).
+Wood · stone · food · gold · storage · spoilage · workshop recipes · blacksmith forge queue · trade routes (reputation **and** Market) · **"Food this day"** ledger in the Village tab.
 
 ### People
 
@@ -159,7 +167,7 @@ Weekday work · night home · evening out · weekends free · courtship · marri
 
 ### Land & seasons
 
-Map size and land type · spring → winter · weather · ecosystem health · **valley stage** (Stable → Collapse) with Focus tips when you should ease up.
+Map size and land type · spring → winter · weather (re-rolls every few days — rain is real) · ecosystem health · **valley stage** (Stable → Collapse) with Focus tips when you should ease up · settlers route around water & mountains.
 
 ### Wildlife
 
@@ -167,11 +175,11 @@ Grass, rabbits, deer, foxes, wolves, wildkin · hunt lines on the map · don’t
 
 ### Visitors & rivals
 
-Seven visitor kinds (traders, pilgrims, scholars, hunters, nomads, refugees, performers) · Hotel lodgings · diplomacy · raids / counter-raids · combat log.
+Seven visitor kinds (traders, pilgrims, scholars, hunters, nomads, refugees, performers) · **real trade** — groups carry gold purses (no minted gold), reputation shifts prices · traveling-smith quest · Hotel lodgings · diplomacy · raids / counter-raids · combat log.
 
 ### Spectacle
 
-Moon Howlers · taming · Renffr omen · night glow, hunt chases, build confetti (toggle in ☰).
+Moon Howlers · taming · Renffr omen · night light pools, season particles, hunt chases, build confetti (toggle in ☰).
 
 ### Victory
 
