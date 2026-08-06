@@ -313,6 +313,29 @@ export function generateWorldMap(
     }
   }
 
+  // Smoothed elevation for river routing — the raw per-tile noise is spiky
+  // (peaks drop ~50 elevation units within 2 tiles), so greedy descents hit a
+  // local minimum almost immediately and rivers never form. Rivers follow this
+  // coarse gradient instead, then carve their channel into the real tiles.
+  const smoothElev: number[][] = [];
+  for (let ty = 0; ty < tileH; ty++) {
+    smoothElev[ty] = [];
+    for (let tx = 0; tx < tileW; tx++) {
+      let sum = 0;
+      let n = 0;
+      for (let dy = -3; dy <= 3; dy++) {
+        for (let dx = -3; dx <= 3; dx++) {
+          const t = tiles[ty + dy]?.[tx + dx];
+          if (t) {
+            sum += t.elevation;
+            n++;
+          }
+        }
+      }
+      smoothElev[ty][tx] = n > 0 ? sum / n : 0;
+    }
+  }
+
   // ── Find mountain peaks for river sources ──
   const peaks: { x: number; y: number; elev: number }[] = [];
   for (let ty = 2; ty < tileH - 2; ty++) {
@@ -340,6 +363,8 @@ export function generateWorldMap(
   // ── Generate rivers from peaks ──
   const rivers: { x: number; y: number }[][] = [];
   const riverSet = new Set<string>();
+  /** Cells of rivers long enough to keep — these render as real flowing water. */
+  const acceptedRiverSet = new Set<string>();
 
   for (const peak of topPeaks) {
     const river: { x: number; y: number }[] = [];
@@ -347,40 +372,67 @@ export function generateWorldMap(
     let cy = peak.y;
     const visited = new Set<string>();
 
-    for (let step = 0; step < 200; step++) {
+    for (let step = 0; step < 90; step++) {
       const key = `${cx},${cy}`;
       if (visited.has(key)) break;
       visited.add(key);
       river.push({ x: cx * 10, y: cy * 10 });
       riverSet.add(key);
 
-      let lowestElev = tiles[cy][cx].elevation;
-      let lowestX = cx;
-      let lowestY = cy;
+      // Stop when the channel reaches actual water / very low ground
+      if (tiles[cy][cx].elevation < 20) break;
 
       const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+
+      // 1) Steepest smoothed descent
+      let lowestElev = smoothElev[cy][cx];
+      let lowestX = cx;
+      let lowestY = cy;
       for (const [dx, dy] of dirs) {
         const nx = cx + dx;
         const ny = cy + dy;
         if (nx >= 0 && nx < tileW && ny >= 0 && ny < tileH) {
-          if (tiles[ny][nx].elevation < lowestElev) {
-            lowestElev = tiles[ny][nx].elevation;
+          if (!visited.has(`${nx},${ny}`) && smoothElev[ny][nx] < lowestElev) {
+            lowestElev = smoothElev[ny][nx];
             lowestX = nx;
             lowestY = ny;
           }
         }
       }
+      if (lowestX !== cx || lowestY !== cy) {
+        cx = lowestX;
+        cy = lowestY;
+        continue;
+      }
 
-      if (lowestX === cx && lowestY === cy) break;
-      cx = lowestX;
-      cy = lowestY;
-
-      // Stop at water
-      if (tiles[cy][cx].elevation < 20) break;
+      // 2) Basin bypass — step to the lowest unvisited neighbour so the river
+      //    keeps cutting toward the valley floor instead of dying in a hollow.
+      let fallback = -1;
+      let fx = cx;
+      let fy = cy;
+      for (const [dx, dy] of dirs) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        if (nx >= 0 && nx < tileW && ny >= 0 && ny < tileH) {
+          if (visited.has(`${nx},${ny}`)) continue;
+          if (fallback < 0 || smoothElev[ny][nx] < fallback) {
+            fallback = smoothElev[ny][nx];
+            fx = nx;
+            fy = ny;
+          }
+        }
+      }
+      if (fx === cx && fy === cy) break;
+      cx = fx;
+      cy = fy;
     }
 
     if (river.length > 10) {
       rivers.push(river);
+      // Skip the peak cell (mountain top stays land); the channel below it is water.
+      for (let i = 1; i < river.length; i++) {
+        acceptedRiverSet.add(`${Math.floor(river[i].x / 10)},${Math.floor(river[i].y / 10)}`);
+      }
     }
   }
 
@@ -415,7 +467,13 @@ export function generateWorldMap(
         }
       }
 
-      tile.type = getTerrainType(elevNorm, moistNorm, tempNorm, nearRiver, nearMountain, preset);
+      // A carved river channel is water regardless of elevation — otherwise the
+      // downhill walk from peaks never drops below the strict River threshold
+      // (elevation < waterLevel*0.75) and rivers rendered as land: verdant maps
+      // had almost no visible water. Bridges can now span these real rivers.
+      tile.type = acceptedRiverSet.has(`${tx},${ty}`)
+        ? TerrainType.River
+        : getTerrainType(elevNorm, moistNorm, tempNorm, nearRiver, nearMountain, preset);
     }
   }
 

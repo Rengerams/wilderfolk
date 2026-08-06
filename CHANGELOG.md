@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Rivers actually flow** — world-gen rivers now follow a smoothed elevation gradient from mountain peaks (with a basin-bypass fallback) and carve their channel into real water tiles; before, greedy descents died on spiky noise and rivers rendered as land on every preset
+
 ---
 
 ## [0.5.2] — 2026-08-06
