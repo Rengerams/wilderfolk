@@ -2890,7 +2890,7 @@ function weatherOverlayStyle(color: string, alpha: number): string {
 /** Subtle animated shimmer on water tiles (rivers/lakes) — only close enough to read. */
 function drawWaterShimmer(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const map = state.worldMap;
-  if (!map || state.camera.zoom < 1.4 || !state.juiceEffectsEnabled) return;
+  if (!map || state.camera.zoom < 0.75 || !state.juiceEffectsEnabled) return;
   const cam = state.camera;
   const ts = TERRAIN_TILE_SIZE;
   const z = cam.zoom;
@@ -2898,16 +2898,20 @@ function drawWaterShimmer(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
   const tx1 = Math.min(map.width - 1, Math.floor((cam.x + cw / (2 * z)) / ts));
   const ty0 = Math.max(0, Math.floor((cam.y - ch / (2 * z)) / ts));
   const ty1 = Math.min(map.height - 1, Math.floor((cam.y + ch / (2 * z)) / ts));
-  if (tx1 - tx0 > 90 || ty1 - ty0 > 90) return;
+  // Bounded cost: when zoomed out, sample a stride of tiles so the water keeps
+  // its animated shimmer at any zoom without a full-map pass.
+  const span = Math.max(tx1 - tx0, ty1 - ty0);
+  if (span > 150) return;
+  const stride = Math.ceil(span / 90);
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  for (let ty = ty0; ty <= ty1; ty++) {
-    for (let tx = tx0; tx <= tx1; tx++) {
+  for (let ty = ty0; ty <= ty1; ty += stride) {
+    for (let tx = tx0; tx <= tx1; tx += stride) {
       const tile = map.tiles[ty]?.[tx];
       if (!tile || !isWaterTerrainType(tile.type)) continue;
       const sx = (tx * ts - cam.x) * z + cw / 2;
       const sy = (ty * ts - cam.y) * z + ch / 2;
-      const sw = ts * z;
+      const sw = ts * z * stride;
 
       // Broad flowing wave bands — the water visibly moves (sine currents).
       const flow = _time * 0.16 + tx * 0.9 + ty * 1.35;
@@ -3261,6 +3265,16 @@ function drawGameOverlay(
     drawNightBuildingGlow(ctx, state, cw, ch);
   } else {
     drawDayAtmosphere(ctx, state, cw, ch);
+  }
+
+  // Gentle warm vibrance on day scenes — cheap Canvas 2D stand-in for a GPU
+  // colour grade (soft-light punch; day only, so night keeps its cool blue).
+  if (!isNightHour(state.hourOfDay)) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'soft-light';
+    ctx.fillStyle = 'rgba(240, 205, 150, 0.10)';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.restore();
   }
 
   // Grid lines on top of all map sprites (underlay was hidden under trees/grass)
