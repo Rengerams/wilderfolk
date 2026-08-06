@@ -1354,6 +1354,7 @@ export default function App() {
                 onLocked={(type) => applyGameAction({ proto: 1, op: 'notifyBuildingLocked', type })}
                 onCancel={cancelBuildMode}
                 onToggleGrid={toggleGrid}
+                tutorialsEnabled={tutorialsEnabled}
               />
             </Suspense>
           ) : (
@@ -1433,21 +1434,25 @@ export default function App() {
                     <p className="text-sm font-bold text-emerald-100">
                       Placing {getBuildingConfig(selectedBuildingType).label}
                     </p>
-                    <p className="text-[10px] text-emerald-200/80">
-                      Keep clicking to place more · stays selected
-                    </p>
+                    {tutorialsEnabled && (
+                      <p className="text-[10px] text-emerald-200/80">
+                        Keep clicking to place more · stays selected
+                      </p>
+                    )}
                   </div>
                 </div>
-                <p className="text-[10px] leading-snug text-stone-400">
-                  {isStripBuildType(selectedBuildingType)
-                    ? selectedBuildingType === BuildingType.Road
-                      ? <>Drag to draw roads · green = valid</>
-                      : <>Drag walls · green = enclosed yard</>
-                    : <>Left-click map to place · click an existing building to select it</>}
-                  {isRotatableBuildingType(selectedBuildingType) && !isStripBuildType(selectedBuildingType) && (
-                    <> · <kbd className="rounded bg-stone-800 px-1 text-emerald-300">R</kbd> rotate</>
-                  )}
-                </p>
+                {tutorialsEnabled && (
+                  <p className="text-[10px] leading-snug text-stone-400">
+                    {isStripBuildType(selectedBuildingType)
+                      ? selectedBuildingType === BuildingType.Road
+                        ? <>Drag to draw roads · green = valid</>
+                        : <>Drag walls · green = enclosed yard</>
+                      : <>Left-click map to place · click an existing building to select it</>}
+                    {isRotatableBuildingType(selectedBuildingType) && !isStripBuildType(selectedBuildingType) && (
+                      <> · <kbd className="rounded bg-stone-800 px-1 text-emerald-300">R</kbd> rotate</>
+                    )}
+                  </p>
+                )}
                 <div className="flex justify-center gap-2">
                   {isRotatableBuildingType(selectedBuildingType) && (
                     <button
