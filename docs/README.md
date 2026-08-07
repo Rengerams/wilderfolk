@@ -8,7 +8,7 @@
 | **Plans** (implementation + agent handoff) | `docs/plans/` | ✅ public |
 | **Design specs / research** (roadmap designs, landscape looks) | `docs/private/` · `docs/superpowers/specs/` | ❌ gitignored (local) |
 | **Archived milestones** (0.5.0 roadmap, precision notes, v0.5.1 design) | `docs/archive/` | ✅ public |
-| **Marketing** (0.5.0 launch copy) | `docs/MARKETING_v0.5.0.md` | ✅ public |
+| **Marketing** (sneak-preview package + v0.5.0 launch copy) | `docs/marketing/` · `docs/MARKETING_v0.5.0.md` | ✅ public |
 | **Local dev notes** (bug tracker, open problems, private changelog, eng reference) | `docs/private/` | ❌ gitignored |
 
 **Repo-root files stay at the root by convention** (GitHub shows them automatically): `README.md` (pitch/install) · `CHANGELOG.md` (release notes) · `ROADMAP.md` (shipped features) · `AGENTS.md` (agent guide). Everything else goes in `docs/`.
