@@ -30,6 +30,7 @@ import {
   NIGHT_START, PREGNANCY_TICKS, TICKS_PER_DAY, getBirthDateString, getHourOfDay, isNightHour, getAbsoluteCalendarDay,
 } from './game/dayCycle';
 import { getVisitorQuest } from './game/visitorQuest';
+import { TRAIT_DEFS } from './game/settlerTraits';
 import type { WorldState, Entity } from './game/gameEngine';
 import type { VisitorGroup } from './game/gameTypes';
 import type { VisitorTradeAction, RefugeeChoice } from './game/groupEvents';
@@ -2697,6 +2698,22 @@ function SelectedEntityPanel({
           )}
           {isHuman && entity.moonHowlerCursed && (
             <p className="text-[9px] font-semibold text-violet-300">🌝 Moon Howler curse — transforms again every 14 days until cured</p>
+          )}
+          {isHuman && entity.traits && entity.traits.length > 0 && (
+            <div className="mt-0.5 flex flex-wrap gap-1">
+              {entity.traits.map((trait) => {
+                const def = TRAIT_DEFS[trait];
+                return def ? (
+                  <span
+                    key={trait}
+                    title={def.description}
+                    className="rounded bg-stone-700/60 px-1.5 py-0.5 text-[8px] font-semibold text-amber-100/90"
+                  >
+                    {def.emoji} {def.label}
+                  </span>
+                ) : null;
+              })}
+            </div>
           )}
           {isVisitor && visitorGroup && (
             <p className="text-[9px] text-cyan-300">Visiting — {visitorGroup.name} ({visitorGroup.daysLeft}d)</p>

@@ -187,6 +187,7 @@ import {
   WILDKIN_SCENT_SENSITIVITY,
 } from './scentGrid';
 import { addHuntVisual } from './huntvisuals';
+import { traitMultiplier } from './settlerTraits';
 
 export interface TickContext {
   width: number;
@@ -909,7 +910,8 @@ export function tryDailyConception(
         const baseChance = bothAtSharedHome
           ? HUMAN_DAILY_PREGNANCY_CHANCE_HOME
           : HUMAN_DAILY_PREGNANCY_CHANCE_NEAR;
-        if (Math.random() < baseChance * fertility) {
+        // Lucky settlers have a bit better luck conceiving.
+        if (Math.random() < baseChance * fertility * traitMultiplier(entity, 'lucky', 1.15)) {
           startMarriedPregnancy(state, entity, partner);
           return true;
         }
@@ -1704,6 +1706,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       let minimalEnergyLoss = hasWell ? config.energyLossPerTick * 0.8 : config.energyLossPerTick;
       if (hasHospital) minimalEnergyLoss *= 0.9;
       if (isWinter && !canHeat) minimalEnergyLoss *= 1.5;
+      // Hardy settlers burn energy slower.
+      minimalEnergyLoss *= traitMultiplier(entity, 'hardy', 0.85);
       entity.energy -= minimalEnergyLoss;
       // Colony larder meals are player settlers only (visitors/rivals must not drain food)
       if (
@@ -1801,7 +1805,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     let energyLoss = hasWell ? config.energyLossPerTick * 0.8 : config.energyLossPerTick;
     if (isWinter && !canHeat) {
-      energyLoss *= 1.5;
+      // Greenthumb settlers shrug off the winter cold.
+      energyLoss *= 1.5 * traitMultiplier(entity, 'greenthumb', 0.7);
       if (isTick8) entity.flash = 5;
     }
 
@@ -1820,6 +1825,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     
     // Hospital reduces energy loss
     if (hasHospital) energyLoss *= 0.9;
+    // Hardy settlers burn energy slower.
+    energyLoss *= traitMultiplier(entity, 'hardy', 0.85);
     
     entity.energy -= energyLoss;
 
@@ -1880,7 +1887,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const fdx = entity.x - huntingWere.x;
       const fdy = entity.y - huntingWere.y;
       const fdist = Math.sqrt(fdx * fdx + fdy * fdy) || 1;
-      const fleeMult = humanFleeMult;
+      const fleeMult = humanFleeMult * traitMultiplier(entity, 'timid', 1.35);
       entity.vx = (fdx / fdist) * config.speed * 1.6 * fleeMult;
       entity.vy = (fdy / fdist) * config.speed * 1.6 * fleeMult;
       entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
@@ -2031,7 +2038,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       // Assigned hunters range farther; everyone else is opportunistic
       const huntRange = getHumanHuntRange(
         state,
-        config.huntRange * (isJobHunter ? 1.2 : 0.75),
+        config.huntRange * (isJobHunter ? 1.2 : 0.75) * traitMultiplier(entity, 'brave', 1.25),
       );
       let closestPrey: Entity | null = null;
       let closestDist = Infinity;
@@ -2090,8 +2097,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const dx = closestPrey.x - entity.x;
         const dy = closestPrey.y - entity.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        // Hunters pursue faster; casual foragers jog
-        const chaseMult = isJobHunter ? 0.72 : 0.5;
+        // Hunters pursue faster; casual foragers jog; brave settlers push harder
+        const chaseMult = (isJobHunter ? 0.72 : 0.5) * traitMultiplier(entity, 'brave', 1.2);
         entity.vx = (dx / dist) * config.speed * chaseMult;
         entity.vy = (dy / dist) * config.speed * chaseMult;
         entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
@@ -2178,6 +2185,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           );
           const babyGen = (entity.generation ?? 0) + 1;
           const childGender = Math.random() > 0.5 ? 'male' : 'female';
+          // Children inherit one trait from a parent (if any parent has traits).
+          const traitParent = [entity, biologicalFather].find(
+            (p) => p?.alive && (p.traits?.length ?? 0) > 0,
+          );
+          const inheritedTraits = traitParent?.traits?.length
+            ? [traitParent.traits[Math.floor(Math.random() * traitParent.traits.length)]]
+            : undefined;
           const child = createEntity(EntityType.Human, nx, ny, state.nextEntityId++, 80, true, {
             gender: childGender,
             fatherId: biologicalFatherId,
@@ -2186,6 +2200,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             surname: babySurname,
             isBastard,
             spriteVariant: entity.spriteVariant ?? pickHumanVariant(entity.id, childGender),
+            inheritedTraits,
           });
           child.name = getRandomName(child.gender === 'male' ? 'male' : 'female');
           child.residenceBuildingId = entity.residenceBuildingId;
@@ -2423,6 +2438,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
                 * (state.festival?.active ? 2 : 1)
                 * (hasPerformers ? 1.35 : 1)
                 * (livingTogether ? 1.5 : 1)
+                // Gregarious settlers court faster; timid ones hold back.
+                * traitMultiplier(entity, 'gregarious', 1.4)
+                * traitMultiplier(entity, 'timid', 0.7)
                 * PER_TICK_RATE_SCALE;
               entity.courtshipProgress = Math.min(100, (entity.courtshipProgress || 0) + courtRate);
               closest.courtshipProgress = Math.min(100, (closest.courtshipProgress || 0) + courtRate);

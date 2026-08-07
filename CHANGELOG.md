@@ -14,6 +14,7 @@
 - **New-settler notification** — immigrants arriving at the village now raise a header toast (with camera focus), not just floating text
 - **Visitor intent made visible** — arrival toasts say what the group offers and clicking one selects the camp, opening the inspector with its talk / trade / refugee actions
 - **No visitors in week 1** — the first visitor group now arrives day 7–14 instead of day 3–7, so the founding burst is undisturbed
+- **Settler personality traits** — every villager gets 1–2 traits (💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky) that subtly shape how they live: energy burn, hunting range, courtship pace, winter cold, and conception luck. Children inherit one trait from a parent. Traits show in the inspector with tooltips
 
 ### Performance
 - **Two redundant O(n) scans removed per sim tick** — the moon-Howler cycle reuses the entity-by-type index `gameTick` already builds (rebuilding only when moon forms actually transform/revert), and the realtime layer reuses the tick-start alive-entity list instead of re-filtering `state.entities`. Behavior unchanged, verified by regression tests (40 tests)

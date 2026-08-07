@@ -2,7 +2,7 @@
  * Leaf entity construction — keeps worldGen / groupEvents from mutual-importing
  * just to spawn settlers and wildlife.
  */
-import type { Entity, WorldState } from './gameTypes';
+import type { Entity, SettlerTrait, WorldState } from './gameTypes';
 import { EntityType, JobType } from './gameTypes';
 import {
   getColonyDay,
@@ -12,6 +12,7 @@ import {
 import { getRandomName, getRandomSurname } from './nameLoader';
 import { pickHumanVariant } from './humanSprites';
 import { SPECIES_CONFIG } from './speciesConfig';
+import { rollSettlerTraits } from './settlerTraits';
 
 export function createEntity(
   type: EntityType,
@@ -36,6 +37,8 @@ export function createEntity(
     pregnantById?: number;
     partnerId?: number;
     name?: string;
+    /** Traits inherited from a parent (children keep one) — then roll the rest. */
+    inheritedTraits?: SettlerTrait[];
   },
 ): Entity {
   const config = SPECIES_CONFIG[type];
@@ -46,6 +49,8 @@ export function createEntity(
   if (isHuman) {
     name = opts?.name ?? getRandomName(entGender === 'male' ? 'male' : 'female');
   }
+  // Personality traits — only settlers get them; children keep one parent trait.
+  const traits = isHuman ? rollSettlerTraits(opts?.inheritedTraits) : undefined;
   const entity: Entity = {
     id, type, x, y,
     energy: energy ?? config.spawnEnergy,
@@ -74,6 +79,7 @@ export function createEntity(
     occupation: isHuman ? 'settler' : undefined,
     job: isHuman ? JobType.Settler : undefined,
     skills: {},
+    traits,
     relationshipStatus: isHuman ? 'single' : undefined,
     childrenIds: [],
     fatherId: opts?.fatherId,

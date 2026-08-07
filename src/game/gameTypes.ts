@@ -137,6 +137,15 @@ export const JobType = {
 } as const;
 export type JobType = (typeof JobType)[keyof typeof JobType];
 
+/** Personality trait ids for settlers (catalog + behavior in settlerTraits.ts). */
+export type SettlerTrait =
+  | 'hardy'
+  | 'brave'
+  | 'gregarious'
+  | 'timid'
+  | 'greenthumb'
+  | 'lucky';
+
 export const JOB_LABELS: Record<JobType, string> = {
   [JobType.Settler]: 'Settler',
   [JobType.Farmer]: 'Farmer',
@@ -206,6 +215,8 @@ export interface Entity {
   schoolTicksToday?: number;
   /** Set on graduation — grants skills, stamina, and village research bonus. */
   educated?: boolean;
+  /** Personality traits (settler only) — subtle behavioral modifiers. */
+  traits?: SettlerTrait[];
   pregnant?: boolean;
   pregnancyProgress?: number;
   /** Workplace — farm, mill, etc. (assigned via building occupants) */
