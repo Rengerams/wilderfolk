@@ -2392,6 +2392,7 @@ function BigNewsBanner({
 function ShortcutsOverlay({ onClose }: { onClose: () => void }) {
   const rows: [string, string][] = [
     ['WASD / drag', 'Pan camera'],
+    ['Right-drag', 'Pan camera (alt)'],
     ['Scroll / + −', 'Zoom'],
     ['Mini-map', 'Click to jump the camera'],
     ['Click', 'Select · build · inspect camps'],
