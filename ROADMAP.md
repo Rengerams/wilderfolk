@@ -1,8 +1,28 @@
 # Wilderfolk Roadmap
 
-*Last updated: **July 30, 2026** · playing **v0.5.1***
+*Last updated: **August 6, 2026** · playing **v0.5.2***
 
 What shipped, newest first. Pitch → [README.md](README.md) · Notes → [CHANGELOG.md](CHANGELOG.md)
+
+---
+
+## v0.5.2 — Game-feel & depth
+
+**Shipped:** 2026-08-06 · *The valley comes alive — flowing water, season light, real trade, elections that matter.*
+
+| | |
+|:--:|---------|
+| 🟢 | Water & terrain — own seamless shallow/deep water sprites, flowing wave bands, shore reflection, terrain LOD & variation, wooden bridge sprite |
+| 🟢 | Light & season — warm night light pools, season-transition lerp, ambient particles (footstep dust, sawdust), AO under trees/buildings, water shimmer + leaf/snow dust |
+| 🟢 | Elections every 2 years — gossip buildup before the vote; the elected head makes a promise — keeping it pays |
+| 🟢 | Real visitor trade — gold purses (no minted gold); reputation shifts prices and raid odds |
+| 🟢 | Traveling smith quest — 20 wood for gold and reputation |
+| 🟢 | Economy ledger — "Food this day": production vs consumption in the Village tab |
+| 🟢 | Grid pathfinding — settlers and visitors route around water and mountains |
+| 🟢 | Click-to-focus notifications · favorite citizen follow · closer zoom (max 5) |
+| 🟢 | Level-based building visuals — gold trim (Lv2+) and pennant (Lv3+) |
+| 🟢 | Hunting Spot prey selection + arrow-flight visuals · village portrait · founding & tutorial polish |
+| 🟢 | Keep playing your **0.4 / 0.5.0 / 0.5.1** colony — saves continue |
 
 ---
 
@@ -116,4 +136,4 @@ Also in this era: raid XP for elections · victory paths · walking caravans · 
 
 ---
 
-<p align="center"><em><strong>Playing v0.5.1</strong> — clearer valley · July 2026</em></p>
+<p align="center"><em><strong>Playing v0.5.2</strong> — game-feel & depth · August 2026</em></p>

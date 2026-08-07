@@ -15,7 +15,7 @@ export interface RoadmapVersion {
   features: RoadmapFeature[];
 }
 
-export const ROADMAP_TARGET_VERSION = '0.5.1';
+export const ROADMAP_TARGET_VERSION = '0.5.2';
 
 export const ROADMAP_NORTH_STAR =
   'A cozy frontier eco-sim where settlers live on a schedule, the food chain matters, the valley feels alive with other people and tribes — and you always know what to do next.';
@@ -24,6 +24,22 @@ const DONE = (label: string): RoadmapFeature => ({ label, status: 'done' });
 
 /** Newest first. Shipped versions list done work only (positive player-facing story). */
 export const ROADMAP_VERSIONS: RoadmapVersion[] = [
+  {
+    version: '0.5.2',
+    theme: 'Game-feel & depth — the valley comes alive',
+    shipDate: '2026-08-06',
+    features: [
+      DONE('Flowing water — seamless shallow/deep sprites, wave bands, shore reflection'),
+      DONE('Light & season — warm night light pools, season lerp, ambient particles'),
+      DONE('Elections every 2 years — the elected head makes a promise — keeping it pays'),
+      DONE('Real visitor trade — gold purses; reputation shifts prices and raid odds'),
+      DONE('Traveling smith quest — 20 wood for gold and reputation'),
+      DONE('Economy ledger — "Food this day": production vs consumption'),
+      DONE('Grid pathfinding — settlers and visitors route around water and mountains'),
+      DONE('Click-to-focus notifications · favorite citizen follow · closer zoom'),
+      DONE('Keep playing your 0.4 / 0.5.0 / 0.5.1 colony — saves continue'),
+    ],
+  },
   {
     version: '0.5.1',
     theme: 'Clearer valley — what you see matches how it lives',
