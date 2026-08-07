@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import {
   initGame,
-  isStripBuildType,
   initTradeRoutes,
   EntityType, BuildingType,
 
@@ -86,13 +85,11 @@ import {
   loadJuiceEffectsEnabled,
   loadShowSimTick,
   loadFirstNightWarningDismissed,
-  loadBuildPlacementHintSeen,
   saveAutoSavePreference,
   saveTutorialsEnabled,
   saveJuiceEffectsEnabled,
   saveShowSimTick,
   saveFirstNightWarningDismissed,
-  saveBuildPlacementHintSeen,
 } from './game/preferences';
 import { LabelWithResourceCost } from './components/ResourceCost';
 import { BARRICADE_RAID_COST, canAffordResourceCost, formatResourceCostNeed } from './game/resourceCost';
@@ -614,15 +611,10 @@ export default function App() {
   }, []);
 
   // The "Click map repeatedly to place more" hint shows for the first-ever
-  // build session (tutorials on), then is recorded as seen so it never nags
-  // again — even for players who keep tutorials enabled.
-  const placementHintSeenRef = useRef(loadBuildPlacementHintSeen());
-  const [placementHintShown, setPlacementHintShown] = useState(false);
-  const showPlacementHint = tutorialsEnabled && placementHintShown;
-
+  // (Placement how-to was removed with the build banner — the ghost on the
+  // map is the only placement indicator; Esc / right-click exits.)
   const cancelBuildMode = useCallback(() => {
     setSelectedBuildingType(null);
-    setPlacementHintShown(false);
     stripDragStartRef.current = null;
     loopRef.current?.patchView({ buildMode: null, buildGhost: null, buildStripPreview: null, buildRotation: 0 });
   }, []);
@@ -753,12 +745,6 @@ export default function App() {
     setBuildPanelOpen(true);
     stripDragStartRef.current = null;
     setSelectedBuildingType(type);
-    // One-time placement how-to: only the first build session shows it.
-    if (tutorialsEnabled && !placementHintSeenRef.current) {
-      placementHintSeenRef.current = true;
-      saveBuildPlacementHintSeen(true);
-      setPlacementHintShown(true);
-    }
     loopRef.current?.patchView({
       buildMode: type,
       buildGhost: null,
@@ -768,7 +754,7 @@ export default function App() {
       selectedBuildingId: null,
       selectedEntityId: null,
     });
-  }, [clearSelection, tutorialsEnabled, setPlacementHintShown]);
+  }, [clearSelection]);
 
   const handleHintAction = useCallback((action: FocusHintAction) => {
     playClickSound();
@@ -1364,14 +1350,12 @@ export default function App() {
               <BuildCatalogPanel
                 world={world}
                 selected={selectedBuildingType}
-                buildRotation={view.buildRotation}
                 showGrid={view.showGrid}
                 hotkeys={BUILDING_HOTKEYS}
                 onSelect={selectBuildingType}
                 onLocked={(type) => applyGameAction({ proto: 1, op: 'notifyBuildingLocked', type })}
                 onCancel={cancelBuildMode}
                 onToggleGrid={toggleGrid}
-                showPlacementHint={showPlacementHint}
               />
             </Suspense>
           ) : (
@@ -1436,68 +1420,8 @@ export default function App() {
           <div className="map-frame-overlay pointer-events-none absolute inset-0 z-[5]" aria-hidden />
 
           <div className="pointer-events-none absolute inset-0 z-10">
-          {/* Build mode banner — multi-place friendly */}
-          {selectedBuildingType && (
-            <div className="pointer-events-auto absolute bottom-16 left-1/2 z-20 -translate-x-1/2">
-              <div className="hud-banner flex min-w-[16rem] max-w-[min(96vw,28rem)] flex-col gap-2 rounded-xl border-2 border-emerald-400/55 bg-emerald-950/95 px-4 py-3 text-center shadow-2xl ring-1 ring-emerald-500/20 backdrop-blur-md">
-                <div className="flex items-center justify-center gap-2">
-                  <img
-                    src={getBuildingConfig(selectedBuildingType).sprite}
-                    alt=""
-                    className="h-8 w-8 object-contain"
-                    style={{ imageRendering: 'pixelated' }}
-                  />
-                  <div className="text-left">
-                    <p className="text-sm font-bold text-emerald-100">
-                      Placing {getBuildingConfig(selectedBuildingType).label}
-                    </p>
-                    {showPlacementHint && (
-                      <p className="text-[10px] text-emerald-200/80">
-                        Keep clicking to place more · stays selected
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {showPlacementHint && (
-                  <p className="text-[10px] leading-snug text-stone-400">
-                    {isStripBuildType(selectedBuildingType)
-                      ? selectedBuildingType === BuildingType.Road
-                        ? <>Drag to draw roads · green = valid</>
-                        : <>Drag walls · green = enclosed yard</>
-                      : <>Left-click map to place · click an existing building to select it</>}
-                    {isRotatableBuildingType(selectedBuildingType) && !isStripBuildType(selectedBuildingType) && (
-                      <> · <kbd className="rounded bg-stone-800 px-1 text-emerald-300">R</kbd> rotate</>
-                    )}
-                  </p>
-                )}
-                <div className="flex justify-center gap-2">
-                  {isRotatableBuildingType(selectedBuildingType) && (
-                    <button
-                      type="button"
-                      onClick={rotateBuildPlacement}
-                      className="rounded-lg border border-stone-600 bg-stone-800/90 px-3 py-1 text-[11px] font-bold text-stone-200 hover:border-emerald-500/50 hover:text-emerald-200"
-                    >
-                      Rotate (R)
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={cancelBuildMode}
-                    className="rounded-lg border border-emerald-500/50 bg-emerald-600/90 px-4 py-1 text-[11px] font-bold text-white shadow hover:bg-emerald-500"
-                  >
-                    Done
-                  </button>
-                  <button
-                    type="button"
-                    onClick={cancelBuildMode}
-                    className="rounded-lg border border-stone-600 bg-stone-800/90 px-3 py-1 text-[11px] font-semibold text-stone-300 hover:border-rose-500/40 hover:text-rose-200"
-                  >
-                    Cancel (Esc)
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Build mode is shown by the building ghost following the cursor —
+              no banner. Esc / right-click exits placement; R rotates. */}
           
           {/* Floating notifications — top-right, clear of build rail & banners */}
           <div

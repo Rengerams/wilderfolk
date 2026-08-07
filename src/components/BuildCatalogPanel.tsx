@@ -7,33 +7,27 @@ import {
 } from '../game/buildCatalog';
 import Emoji from './Emoji';
 import ResourceCost from './ResourceCost';
-import { isRotatableBuildingType } from '../game/buildingRotation';
 
 interface Props {
   world: WorldState;
   selected: BuildingType | null;
-  buildRotation: number;
   showGrid: boolean;
   hotkeys: Partial<Record<BuildingType, string>>;
   onSelect: (type: BuildingType) => void;
   onLocked: (type: BuildingType) => void;
   onCancel: () => void;
   onToggleGrid: () => void;
-  /** One-time placement how-to text (hidden after first build session / tutorials off). */
-  showPlacementHint?: boolean;
 }
 
 export default function BuildCatalogPanel({
   world,
   selected,
-  buildRotation,
   showGrid,
   hotkeys,
   onSelect,
   onLocked,
   onCancel,
   onToggleGrid,
-  showPlacementHint = true,
 }: Props) {
   const [manualCategory, setManualCategory] = useState(BUILDING_CATEGORIES[0].id);
   const activeCategory = selected != null
@@ -170,27 +164,10 @@ export default function BuildCatalogPanel({
       </div>
 
       {selected && BUILDING_CONFIGS[selected] && (
-        <div className="shrink-0 border-t border-emerald-500/35 bg-emerald-950/40 p-2">
-          <div className="rounded-xl border-2 border-emerald-400/45 bg-emerald-500/15 p-2.5 text-[11px] text-emerald-100 shadow-inner">
-            <p className="font-bold">Placing: {BUILDING_CONFIGS[selected].label}</p>
-            {showPlacementHint && (
-              <p className="mt-1 text-[10px] leading-snug text-emerald-200/75">
-                Click map repeatedly to place more. Done / Esc exits.
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={onCancel}
-              className="mt-2 w-full rounded-lg bg-emerald-600 py-1.5 text-[11px] font-bold text-white hover:bg-emerald-500"
-            >
-              Done placing
-            </button>
-            {showPlacementHint && isRotatableBuildingType(selected) && (
-              <p className="mt-1 text-stone-400">
-                <span className="font-bold text-emerald-400">R</span> rotate ({buildRotation === 90 ? 'vertical' : 'horizontal'})
-              </p>
-            )}
-          </div>
+        <div className="shrink-0 border-t border-stone-700/60 bg-stone-900/40 p-1.5">
+          <p className="text-center text-[9px] font-medium text-stone-500">
+            Placing {BUILDING_CONFIGS[selected].label} — <kbd className="rounded bg-stone-800 px-1 text-stone-400">Esc</kbd> or right-click stops
+          </p>
         </div>
       )}
 
