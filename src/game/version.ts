@@ -1,9 +1,9 @@
-export const GAME_VERSION = '0.5.2';
+export const GAME_VERSION = '0.5.3';
 export const GAME_PHASE = 'Early Alpha';
 export const GAME_TITLE = 'Wilderfolk';
 export const GAME_SUBTITLE = 'Where Beasts and Kin Unite';
-/** Intro / splash line for this major beat (valley that can scale). */
-export const GAME_VERSION_TAGLINE = 'The valley scales — kin, beasts, and forge-steel.';
+/** Intro / splash line for this major beat (the night hunts back). */
+export const GAME_VERSION_TAGLINE = 'The night hunts back — Moon Howler nights, traits, and a valley that runs deeper.';
 
 export const ECOLOGICAL_FACTS = [
   'Apex predators like wolves help regulate prey populations and maintain ecosystem balance.',

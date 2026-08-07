@@ -39,27 +39,25 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-## Latest update — v0.5.2 shipped (August 6, 2026)
+## Latest update — v0.5.3 shipped (August 7, 2026)
 
-**Playing `GAME_VERSION` 0.5.2** — colonies continue from **0.4 / 0.5.0 / 0.5.1** saves. Full notes → [CHANGELOG.md](CHANGELOG.md) `[0.5.2]`.
+**Playing `GAME_VERSION` 0.5.3** — colonies continue from **0.4 / 0.5.x** saves. Full notes → [CHANGELOG.md](CHANGELOG.md) `[0.5.3]` · Moon Howler notes → [docs/marketing/moon-howler-overhaul.md](docs/marketing/moon-howler-overhaul.md)
 
 | Area | Highlights |
 |------|------------|
-| **Water & terrain** | Rivers carve real channels from the peaks and actually flow; seamless water sprites with shore reflection; wooden bridge; zoom-5 terrain LOD |
-| **Light & seasons** | Season lerp across spring → winter; warm light pools on the plaza at night; footstep dust, sawdust, ambient-occlusion pools |
+| **🌕 Moon Howler nights** | Churches hold **up to 4 priests** (cure 35% → 71%); on full-moon nights priests leave home to **hunt the howler** — the rite fires when they close in. Howlers show as a **pulsing red dot** on the minimap + red ring on the map. Guards roll to save the priest. Slay a howler → title **Moonslayer** · break a curse → **Howlerbane** |
 | **People** | **Personality traits** (3 of 14 per settler, children inherit each parent trait 50/50); hospital visits during work hours; hunt arrow FX; click-to-focus toasts |
-| **Elections** | Every **two years** — the elected head makes a promise, keeping it pays; gossip season before the vote |
-| **Trade** | Visitors carry **real gold purses** (no minted gold); reputation shifts prices and raid odds; traveling-smith quest; Market-gated trade routes |
+| **Water & terrain** | Rivers carve real channels from the peaks and actually flow; seamless water sprites with shore reflection; wooden bridge; zoom-5 terrain LOD |
 | **Life & map** | Grid pathfinding (people walk around water & mountains); clickable mini-map; no visitors in week 1; new games default to Small |
-| **Quality** | Eco metrics once per day; two redundant scans removed per tick; camera clamp fixed; auto-staff confirms itself |
+| **Quality** | Eco metrics once per day; two redundant scans removed per tick; camera clamp fixed; auto-staff confirms itself; placement hints respect tutorials |
 
 ### What's next — game-feel Phase 3
 
 Multi-select workers, decorations & beauty, sound effects, and weather with real consequences → [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md).
 
-### Prior release — v0.5.1
+### Prior release — v0.5.2
 
-Fairer raid spoils, clearer marches, and stronger cues when the wild runs thin. Details → [ROADMAP.md](ROADMAP.md).
+Flowing water, season light, real visitor trade with gold purses, elections every two years, and people who route around rivers. Details → [ROADMAP.md](ROADMAP.md).
 
 ---
 

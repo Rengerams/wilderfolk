@@ -1,8 +1,24 @@
 # Wilderfolk Roadmap
 
-*Last updated: **August 6, 2026** · playing **v0.5.2***
+*Last updated: **August 7, 2026** · playing **v0.5.3***
 
 What shipped, newest first. Pitch → [README.md](README.md) · Notes → [CHANGELOG.md](CHANGELOG.md)
+
+---
+
+## v0.5.3 — The night hunts back
+
+**Shipped:** 2026-08-07 · *Moon Howler nights, personality traits, and the deepest playtest pass yet.*
+
+| | |
+|:--:|---------|
+| 🟢 | **Moon Howler exorcism overhaul** — up to **4 priests/church** (cure 35% → 71%); priests leave home to **hunt the howler**; the rite fires in range (no teleport) — a howler that stays away survives |
+| 🟢 | **Guard protection** — Barracks guards roll to save the priest from a failed rite (extra roll, not guaranteed); fallen priests scare the survivors into retreating |
+| 🟢 | **See the hunt** — pulsing **red dot** on the minimap + red ring on the map for active howlers; howlers dragged out of houses |
+| 🟢 | **Titles** — **Moonslayer** (killed a howler) · **Howlerbane** (broke a curse), shown after the name |
+| 🟢 | Personality traits — 3 of 14 per settler, inherited DNA-style · rivers actually flow · clickable mini-map |
+| 🟢 | Playtest fixes — citizen select, eco cadence, hospital visits, hunt arrows, placement hints, camera clamp, auto-staff confirmation |
+| 🟢 | Keep playing your **0.4 / 0.5.x** colony — saves continue |
 
 ---
 

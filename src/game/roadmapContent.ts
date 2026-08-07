@@ -15,7 +15,7 @@ export interface RoadmapVersion {
   features: RoadmapFeature[];
 }
 
-export const ROADMAP_TARGET_VERSION = '0.5.2';
+export const ROADMAP_TARGET_VERSION = '0.5.3';
 
 export const ROADMAP_NORTH_STAR =
   'A cozy frontier eco-sim where settlers live on a schedule, the food chain matters, the valley feels alive with other people and tribes — and you always know what to do next.';
@@ -24,6 +24,21 @@ const DONE = (label: string): RoadmapFeature => ({ label, status: 'done' });
 
 /** Newest first. Shipped versions list done work only (positive player-facing story). */
 export const ROADMAP_VERSIONS: RoadmapVersion[] = [
+  {
+    version: '0.5.3',
+    theme: 'The night hunts back — Moon Howler nights & a deeper valley',
+    shipDate: '2026-08-07',
+    features: [
+      DONE('Moon Howler exorcism overhaul — up to 4 priests/church (35% → 71% cure), priests hunt the howler, range-gated rite'),
+      DONE('Barracks guards roll to save the priest from a failed rite · scared survivors retreat'),
+      DONE('Active howlers flagged — pulsing red dot on the minimap + red ring on the map; dragged out of houses to hunt'),
+      DONE('Titles — Moonslayer (killed a howler) · Howlerbane (broke a curse), shown after the name'),
+      DONE('Personality traits — 3 of 14 per settler, inherited DNA-style'),
+      DONE('Rivers actually flow · clickable mini-map · click-to-focus toasts'),
+      DONE('Playtest fixes — citizen select, eco cadence, hospital visits, hunt arrows, placement hints, camera clamp'),
+      DONE('Keep playing your 0.4 / 0.5.x colony — saves continue'),
+    ],
+  },
   {
     version: '0.5.2',
     theme: 'Game-feel & depth — the valley comes alive',

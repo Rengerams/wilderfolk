@@ -1,6 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [0.5.3] — 2026-08-07
+
+**The night hunts back — Moon Howler exorcism overhaul, personality traits, and the deepest playtest pass yet.**
+
+`GAME_VERSION` **0.5.3** · continue colonies from **0.4.x – 0.5.2**.  
+Feature table → [ROADMAP.md](ROADMAP.md) · Moon Howler release notes → [docs/marketing/moon-howler-overhaul.md](docs/marketing/moon-howler-overhaul.md)
 
 ### Fixed
 - **Rivers actually flow** — world-gen rivers now follow a smoothed elevation gradient from mountain peaks (with a basin-bypass fallback) and carve their channel into real water tiles; before, greedy descents died on spiky noise and rivers rendered as land on every preset
