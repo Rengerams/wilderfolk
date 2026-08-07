@@ -1817,8 +1817,20 @@ export default function App() {
             </div>
           )}
 
-          {/* Minimap */}
-          <MiniMap worldRef={worldRef} viewRef={viewRef} />
+          {/* Minimap — click anywhere to jump the camera there */}
+          <MiniMap
+            worldRef={worldRef}
+            viewRef={viewRef}
+            onNavigate={(wx, wy) => {
+              const loop = loopRef.current;
+              if (loop) {
+                const nextView = focusCameraOn(loop.getView(), wx, wy);
+                loop.patchView({
+                  camera: clampCameraTarget(nextView.camera, world.width, world.height),
+                });
+              }
+            }}
+          />
 
           {/* Zoom controls — wider range; speech bubbles visible from ~28% zoom */}
           <div className="pointer-events-auto absolute bottom-4 right-4 z-20 flex flex-col items-stretch gap-0.5 rounded-lg border border-stone-600 bg-stone-800/85 p-1 shadow-xl backdrop-blur">
@@ -2381,6 +2393,7 @@ function ShortcutsOverlay({ onClose }: { onClose: () => void }) {
   const rows: [string, string][] = [
     ['WASD / drag', 'Pan camera'],
     ['Scroll / + −', 'Zoom'],
+    ['Mini-map', 'Click to jump the camera'],
     ['Click', 'Select · build · inspect camps'],
     ['Space', 'Pause / resume'],
     ['B', 'Full build catalog (left)'],

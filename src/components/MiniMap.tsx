@@ -27,9 +27,12 @@ const TERRAIN_DOT: Partial<Record<TerrainType, string>> = {
 export default function MiniMap({
   worldRef,
   viewRef,
+  onNavigate,
 }: {
   worldRef: RefObject<WorldState>;
   viewRef: RefObject<ViewState>;
+  /** Click-to-navigate: jump the camera to a world coordinate. */
+  onNavigate?: (worldX: number, worldY: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameCounter = useRef(0);
@@ -153,9 +156,22 @@ export default function MiniMap({
     <div className="minimap-frame pointer-events-auto absolute bottom-4 left-4 overflow-hidden shadow-2xl">
       <div className="flex items-center justify-between border-b border-stone-600/60 bg-stone-900/90 px-2 py-0.5">
         <span className="text-[9px] font-bold tracking-wide text-stone-400">MAP</span>
-        <span className="text-[8px] text-stone-600">view</span>
+        <span className="text-[8px] text-stone-600">click to go</span>
       </div>
-      <canvas ref={canvasRef} width={W} height={H} className="block" />
+      <canvas
+        ref={canvasRef}
+        width={W}
+        height={H}
+        className="block cursor-pointer"
+        onClick={(e) => {
+          const world = worldRef.current;
+          if (!world || !onNavigate) return;
+          const rect = e.currentTarget.getBoundingClientRect();
+          const px = (e.clientX - rect.left) * (W / rect.width);
+          const py = (e.clientY - rect.top) * (H / rect.height);
+          onNavigate((px / W) * world.width, (py / H) * world.height);
+        }}
+      />
     </div>
   );
 }
