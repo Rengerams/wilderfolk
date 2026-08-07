@@ -6,6 +6,22 @@ What shipped, newest first. Pitch → [README.md](README.md) · Notes → [CHANG
 
 ---
 
+## v0.5.4 — In progress *(builds on 0.5.3)*
+
+**Themes:** new sprites · new buildings · features · bug solving · simulation polish.
+
+| Track | What's on the table |
+|---|---|
+| 🎨 **Sprites** | Investigate a proper sprite pack — fix the Hotel (current file is a JPEG with a `.png` name), consistent building art, per-building files in `public/sprites/` (RGBA, wider-than-tall ≈1.15:1 draw boxes) |
+| 🏗️ **Buildings** | New buildings & roles — candidates from game-feel Phase 3: decorations/beauty (fences, gardens, lamps, statues), a "beauty" readout |
+| ✨ **Features** | Game-feel Phase 3 — multi-select workers, sound effects by surface, weather with real consequences → [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md) |
+| 🐛 **Bug solving** | EM-8 build-menu switch repro (pending player detail); new playtest findings as they land |
+| ⚙️ **Simulation** | Deeper sim polish — scan cleanup, economy readability, balance from playtest data |
+
+*Details live in [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md) (Phase 3 next).*
+
+---
+
 ## v0.5.3 — The night hunts back
 
 **Shipped:** 2026-08-07 · *Moon Howler nights, personality traits, and the deepest playtest pass yet.*
