@@ -33,6 +33,7 @@ import {
 } from './simEffects';
 import { logEvent } from './eventLog';
 import { assignMissingWorkers, countWorkersAtBuilding } from './workforce';
+import { isBarracksGuard } from './defenseStructures';
 
 /**
  * Night exorcism — only if a Church is **staffed** (priest on duty).
@@ -65,6 +66,15 @@ export const MOON_HOWLER_PRIEST_KILL_CHANCE =
 
 /** How often (in-game clock hours) a priest may attempt while the night window is open. */
 export const MOON_HOWLER_EXORCISM_INTERVAL_HOURS = 2;
+
+/** The priest must be within this distance (world px) of the howler to attempt the rite. */
+export const MOON_HOWLER_EXORCISM_RANGE = 200;
+
+/** Barracks guards within this distance (world px) of the priest can roll to save them. */
+export const MOON_HOWLER_GUARD_PROTECT_RANGE = 220;
+
+/** Per-guard save chance when a failed rite would kill the priest (extra roll, not guaranteed). */
+export const MOON_HOWLER_GUARD_SAVE_CHANCE = 0.5;
 
 export type MoonHowlerRiteOutcome = 'cured' | 'priest_killed' | 'priest_fled';
 
@@ -506,7 +516,7 @@ export interface MoonHowlerCureAttempt {
   priestsDeployed: Entity[];
   attempted: boolean;
   /** Why no rite ran — useful for UI/debug. */
-  skippedReason?: 'not_full_moon_night' | 'no_howler' | 'no_staffed_church' | 'rate_limited' | 'no_priest';
+  skippedReason?: 'not_full_moon_night' | 'no_howler' | 'no_staffed_church' | 'rate_limited' | 'no_priest' | 'priests_scared' | 'priest_too_far';
   /** Which of the three RNG outcomes landed (only if attempted). */
   outcome?: MoonHowlerRiteOutcome;
   /** Priests on duty this attempt (scales cure odds). */
@@ -558,9 +568,26 @@ export function countStaffedPriests(
   return n;
 }
 
+/**
+ * Barracks guards near the priest who can cover a failed rite. A guard must be
+ * alive, an assigned Barracks guard, and within MOON_HOWLER_GUARD_PROTECT_RANGE.
+ */
+function guardsNearPriest(priest: Entity, entities: Entity[], buildings: Building[]): Entity[] {
+  const rangeSq = MOON_HOWLER_GUARD_PROTECT_RANGE * MOON_HOWLER_GUARD_PROTECT_RANGE;
+  const guards: Entity[] = [];
+  for (const e of entities) {
+    if (!e.alive || e.type !== EntityType.Human || e.job !== JobType.Guard) continue;
+    if (!isBarracksGuard(e.id, e.homeBuildingId, buildings)) continue;
+    const dx = e.x - priest.x;
+    const dy = e.y - priest.y;
+    if (dx * dx + dy * dy <= rangeSq) guards.push(e);
+  }
+  return guards;
+}
+
 function humanDisplayName(entity: Entity): string {
   if (entity.name) {
-    return entity.surname ? `${entity.name} ${entity.surname}` : entity.name;
+    return `${entity.name}${entity.surname ? ` ${entity.surname}` : ''}${entity.title ? ` ${entity.title}` : ''}`;
   }
   return 'A settler';
 }
@@ -597,6 +624,11 @@ export function tryMoonHowlerChurchCures(
     return empty('not_full_moon_night');
   }
 
+  // A fallen comrade scares the survivors — they retreat to the Church for a while.
+  if (state.tick < (state.moonHowlerPriestsFleeUntil ?? -1)) {
+    return empty('priests_scared');
+  }
+
   const howlers = entities.filter(isActiveMoonHowler);
   if (howlers.length === 0) return empty('no_howler');
 
@@ -619,24 +651,27 @@ export function tryMoonHowlerChurchCures(
   const priest = pickPriest(church, entityById);
   if (!priest) return empty('no_priest');
 
+  // Priests hunt the howler down — the rite needs them within range of it.
+  const ddx = howler.x - priest.x;
+  const ddy = howler.y - priest.y;
+  if (Math.sqrt(ddx * ddx + ddy * ddy) > MOON_HOWLER_EXORCISM_RANGE) {
+    return empty('priest_too_far');
+  }
+
   const weights = moonHowlerRiteWeights(priestCount);
   state.lastMoonHowlerExorcismTick = state.tick;
 
-  // Priest leaves the church and approaches the howler.
+  // Confrontation in place — the priest hunted the howler down, no teleport.
   church.occupants = church.occupants.filter((id) => id !== priest.id);
   if (priest.homeBuildingId === church.id) {
     priest.homeBuildingId = undefined;
   }
-  const approachAngle = Math.atan2(howler.y - church.y, howler.x - church.x);
-  priest.x = howler.x - Math.cos(approachAngle) * 28;
-  priest.y = howler.y - Math.sin(approachAngle) * 28;
+  const approachAngle = Math.atan2(howler.y - priest.y, howler.x - priest.x);
   priest.vx = 0;
   priest.vy = 0;
   priest.spriteAngle = approachAngle;
   priest.flash = 6;
 
-  howler.x = Math.max(24, Math.min(state.width - 24, howler.x));
-  howler.y = Math.max(24, Math.min(state.height - 24, howler.y));
   howler.spriteAngle = approachAngle + Math.PI;
   howler.combatTicks = Math.max(howler.combatTicks ?? 0, 8);
 
@@ -674,7 +709,7 @@ export function tryMoonHowlerChurchCures(
     priestName,
   );
 
-  const outcome = rollMoonHowlerRiteOutcome(rng, priestCount);
+  let outcome = rollMoonHowlerRiteOutcome(rng, priestCount);
   result.outcome = outcome;
 
   // ── 1) Cured + priest lives ─────────────────────────────────
@@ -686,6 +721,12 @@ export function tryMoonHowlerChurchCures(
     const line = WEREWOLF_CURE_LINES[Math.floor(rng() * WEREWOLF_CURE_LINES.length)]!;
     addFloatingText(state, howler.x, howler.y - 22, 'Cured!', '#22c55e', 'emphasis');
     addFloatingText(state, priest.x, priest.y - 28, 'Amen', '#c4b5fd', 'brief');
+    // Breaking a curse earns the priest a title.
+    if (!priest.title) {
+      priest.title = 'Howlerbane';
+      addFloatingText(state, priest.x, priest.y - 34, 'Howlerbane!', '#fbbf24', 'brief');
+      logEvent(state, 'event', `${priestName} broke the curse and earned the title Howlerbane`, priestName);
+    }
     logEvent(state, 'event', `${howlerName} — ${line}`, howlerName);
     logEvent(state, 'event', `${priestName} survived the rite and returned to the Church`, priestName);
     priest.x = church.x + church.width / 2;
@@ -702,30 +743,53 @@ export function tryMoonHowlerChurchCures(
 
   // ── 2) Not cured + priest dies ──────────────────────────────
   if (outcome === 'priest_killed') {
-    const attack = WEREWOLF_ATTACK_LINES[Math.floor(rng() * WEREWOLF_ATTACK_LINES.length)]!(
-      howlerName,
-      priestName,
-    );
-    // Full death path — grief, affair cleanup, dialogue, buildings (not hand-rolled partial)
-    killHuman(priest, buildings, entityById, state.tick);
-    createDeathParticles(state, priest.x, priest.y, '#8B0000', 10);
-    impulseScreenShake(state, 5);
-    howler.energy = Math.min(howler.maxEnergy, howler.energy + 120);
-    howler.combatTicks = 12;
-    howler.flash = 10;
-    // Explicit: curse remains
-    howler.moonHowlerCursed = true;
-    result.priestsKilled.push(priest);
-    addFloatingText(state, howler.x, howler.y - 20, 'Devoured!', '#ef4444', 'emphasis');
-    addFloatingText(state, howler.x, howler.y - 34, 'Still cursed', '#c4b5fd', 'brief');
-    logEvent(state, 'death', attack, priestName);
-    logEvent(
-      state,
-      'combat',
-      `Moon Howler ${howlerName} killed priest ${priestName} — curse unbroken; will hunt again next full moon`,
-      howlerName,
-    );
-    return result;
+    // Barracks guards nearby roll to protect the priest (extra roll, not guaranteed).
+    let guarded = false;
+    for (const _guard of guardsNearPriest(priest, entities, buildings)) {
+      if (rng() < MOON_HOWLER_GUARD_SAVE_CHANCE) {
+        guarded = true;
+        break;
+      }
+    }
+    if (guarded) {
+      outcome = 'priest_fled';
+      result.outcome = outcome;
+      addFloatingText(state, priest.x, priest.y - 26, '🛡️ Guarded!', '#38bdf8', 'brief');
+      logEvent(
+        state,
+        'combat',
+        `A Barracks guard covered priest ${priestName} — the Moon Howler's strike was turned, curse unbroken`,
+        priestName,
+      );
+      // Fall through to the flee branch: the priest escapes alive.
+    } else {
+      const attack = WEREWOLF_ATTACK_LINES[Math.floor(rng() * WEREWOLF_ATTACK_LINES.length)]!(
+        howlerName,
+        priestName,
+      );
+      // Full death path — grief, affair cleanup, dialogue, buildings (not hand-rolled partial)
+      killHuman(priest, buildings, entityById, state.tick);
+      createDeathParticles(state, priest.x, priest.y, '#8B0000', 10);
+      impulseScreenShake(state, 5);
+      howler.energy = Math.min(howler.maxEnergy, howler.energy + 120);
+      howler.combatTicks = 12;
+      howler.flash = 10;
+      // Explicit: curse remains
+      howler.moonHowlerCursed = true;
+      result.priestsKilled.push(priest);
+      // Survivors are scared: they retreat to the Church for a cooldown.
+      state.moonHowlerPriestsFleeUntil = state.tick + MOON_HOWLER_EXORCISM_INTERVAL_HOURS * TICKS_PER_HOUR;
+      addFloatingText(state, howler.x, howler.y - 20, 'Devoured!', '#ef4444', 'emphasis');
+      addFloatingText(state, howler.x, howler.y - 34, 'Still cursed', '#c4b5fd', 'brief');
+      logEvent(state, 'death', attack, priestName);
+      logEvent(
+        state,
+        'combat',
+        `Moon Howler ${howlerName} killed priest ${priestName} — curse unbroken; will hunt again next full moon`,
+        howlerName,
+      );
+      return result;
+    }
   }
 
   // ── 3) Not cured + priest flees (lives) ─────────────────────
@@ -894,6 +958,25 @@ export function tickMoonHowlerCycle(
     const line = WEREWOLF_TRANSFORM_LINES[Math.floor(Math.random() * WEREWOLF_TRANSFORM_LINES.length)](who);
     addFloatingText(state, were.x, were.y - 20, 'AWOO!', '#c4b5fd');
     logEvent(state, 'event', line, who);
+  }
+
+  // Hunt starts outside — drag any howler that slipped indoors back into the open.
+  if (isMoonHowlerCureWindow(colonyDay, hourOfDay)) {
+    for (const were of aliveEntities) {
+      if (!isActiveMoonHowler(were)) continue;
+      const inside = buildings.some(
+        (b) =>
+          b.completed
+          && were.x >= b.x
+          && were.x <= b.x + b.width
+          && were.y >= b.y
+          && were.y <= b.y + b.height,
+      );
+      if (inside) {
+        forceMoonHowlerOutside(were, buildings, state.width, state.height);
+        changed = true;
+      }
+    }
   }
 
   const activeMoonCurses = countActiveMoonHowlerCurses(aliveEntities);

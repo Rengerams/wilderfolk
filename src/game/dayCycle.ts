@@ -3,7 +3,7 @@ import type { Building, Entity } from './gameTypes';
 import { finalizeMoonHowlerDeath } from './moonHowler';
 import { cleanupEntityDialogueState } from './humanChat';
 
-import { HUMAN_ADULT_MIN_AGE, isNightHour } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE, isNightHour, isFullMoonNight } from './dayCycleConstants';
 
 export {
   DAYS_PER_MOON_CYCLE,
@@ -406,6 +406,16 @@ export function isTavernServiceHour(hour: number): boolean {
 export function isOnInnkeeperShift(tick: number, hour?: number): boolean {
   const h = hour ?? getHourOfDay(tick);
   return isTavernServiceHour(h);
+}
+
+/**
+ * Priest exorcism shift: full-moon nights (20:00 → before 06:00), when the
+ * cursed settler is in 🌝 form. Mirrors the innkeeper pattern — priests leave
+ * home to work the night so they can hunt the Moon Howler.
+ */
+export function isOnMoonHowlerNightShift(tick: number, hour?: number): boolean {
+  const h = hour ?? getHourOfDay(tick);
+  return isFullMoonNight(getAbsoluteCalendarDay(tick), h);
 }
 
 export function shouldBeAtHome(hour: number): boolean {

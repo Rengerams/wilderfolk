@@ -24,6 +24,7 @@
 - **New games default to Small** — new-game setup preselects Small (800×600), the size the landscape renders best at; Medium stays selectable
 - **Auto-staff confirms itself** — the Auto-staff button toasts ⚒️ how many settlers it assigned, or an info note when everything is already staffed / nobody is available (2 regression tests)
 - **Right-drag pan documented** — the ? shortcuts overlay now lists right-click drag as a panning shortcut
+- **Moon Howler exorcism overhaul** — churches hold **up to 4 priests** (cure chance 35% → 71%); on full-moon nights priests leave home to **hunt the howler** — the rite fires when they close in (range-gated, no teleport), and a howler that stays away survives the night. A failed rite can kill the priest, but **Barracks guards nearby roll to save them** (extra roll, not guaranteed); a fallen priest scares the survivors into retreating. Active Moon Howlers show as a **pulsing red dot** on the minimap + a red ring on the map, and any howler that slips indoors is dragged back out to hunt. Settlers who **slay a Moon Howler earn the title *Moonslayer***; priests who break a curse earn ***Howlerbane*** (shown after their name)
 
 ### Performance
 - **Two redundant O(n) scans removed per sim tick** — the moon-Howler cycle reuses the entity-by-type index `gameTick` already builds (rebuilding only when moon forms actually transform/revert), and the realtime layer reuses the tick-start alive-entity list instead of re-filtering `state.entities`. Behavior unchanged, verified by regression tests (40 tests)

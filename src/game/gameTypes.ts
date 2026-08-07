@@ -271,6 +271,8 @@ export interface Entity {
   childrenIds?: number[];
   name?: string;
   surname?: string;
+  /** Honorific earned for deeds — e.g. "Moonslayer" (killed a Moon Howler) or "Howlerbane" (broke a curse). */
+  title?: string;
   /** Birth / maiden surname — restored for the woman when a caught-affair marriage ends. */
   maidenSurname?: string;
   /** Optional for non-human entities. */
@@ -890,6 +892,8 @@ export interface WorldState {
    * Transient — not required in saves.
    */
   lastMoonHowlerExorcismTick?: number;
+  /** Transient — priests retreat to the Church until this tick after a fallen comrade. */
+  moonHowlerPriestsFleeUntil?: number;
   /** Ephemeral predator scent field — rebuilt each session, not saved. */
   scentGrid?: ScentGrid;
   /** Alive entities by type — rebuilt each sim tick for render/UI; not saved. */
@@ -1168,8 +1172,8 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
   [BuildingType.Church]: {
     width: 50, height: 56,
     cost: { wood: 45, stone: 35, gold: 20 },
-    buildTime: 4, maxOccupants: 1,
-    emoji: '⛪', label: 'Church', description: 'Staffed church boosts courtship and morals. Full-moon nights: priests may confront a Moon Howler — more priests raise cure odds; no priest means the howler is not stopped.',
+    buildTime: 4, maxOccupants: 4,
+    emoji: '⛪', label: 'Church', description: 'Staffed church boosts courtship and morals. Full-moon nights: up to 4 priests leave home to hunt the Moon Howler — more priests raise cure odds (35% → 71%); Barracks guards nearby can protect a priest from a failed rite.',
     sprite: '/sprites/church.png', backgroundColor: '#4f46e5', padShape: 'round',
   },
   [BuildingType.Well]: {

@@ -4,6 +4,7 @@ import { SPECIES_CONFIG } from '../game/gameEngine';
 import type { WorldState } from '../game/gameEngine';
 import type { ViewState } from '../game/viewState';
 import { TerrainType } from '../game/gameTypes';
+import { isActiveMoonHowler } from '../game/moonHowler';
 
 const W = 152;
 const H = 110;
@@ -91,8 +92,15 @@ export default function MiniMap({
                   leaderSy = sy;
                 }
                 if (e.type === EntityType.Werewolf) {
-                  ctx.fillStyle = isLeader ? '#fde047' : (SPECIES_CONFIG[e.type]?.color ?? '#7c6f9a');
-                  ctx.fillRect(sx - 1, sy - 1, isLeader ? 3 : 2, isLeader ? 3 : 2);
+                  if (isActiveMoonHowler(e)) {
+                    // Pulsing red dot — a Moon Howler is hunting right now.
+                    const pulse = Math.sin(frameCounter.current / 5) > 0 ? 3 : 2;
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillRect(sx - pulse, sy - pulse, pulse * 2, pulse * 2);
+                  } else {
+                    ctx.fillStyle = isLeader ? '#fde047' : (SPECIES_CONFIG[e.type]?.color ?? '#7c6f9a');
+                    ctx.fillRect(sx - 1, sy - 1, isLeader ? 3 : 2, isLeader ? 3 : 2);
+                  }
                 } else {
                   ctx.fillStyle = e.faction === 'rival' ? '#fb923c' : e.faction === 'visitor' ? '#22d3ee' : isLeader ? '#fde047' : '#fbbf24';
                   ctx.fillRect(sx - 1, sy - 1, isLeader ? 3 : 2, isLeader ? 3 : 2);

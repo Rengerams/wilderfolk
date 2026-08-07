@@ -2655,7 +2655,7 @@ function SelectedEntityPanel({
         <div className="min-w-0 flex-1">
           <h3 className={`text-xs font-bold ${isVillageHead ? 'text-amber-100' : 'text-amber-200'}`}>
             {isHuman || entity.type === EntityType.Werewolf
-              ? `${isVillageHead ? '👑 ' : ''}${entity.name || 'Unnamed'} ${entity.surname || ''}${entity.type === EntityType.Werewolf ? ' (Moon Howler)' : ''}`
+              ? `${isVillageHead ? '👑 ' : ''}${entity.name || 'Unnamed'} ${entity.surname || ''}${entity.title ? ` ${entity.title}` : ''}${entity.type === EntityType.Werewolf ? ' (Moon Howler)' : ''}`
               : entity.type}
           </h3>
           {isMoonHowler && (

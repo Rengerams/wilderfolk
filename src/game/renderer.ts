@@ -35,6 +35,7 @@ import {
 import { ANIMAL_SPRITE_ANCHOR_Y, getAnimalSpriteMetrics } from './entitySprites';
 import { getChatBubbleText, resetDialogueSessions, wrapChatLines } from './humanChat';
 import { isNightHour, isWorkHour, shouldBeAtHome } from './dayCycle';
+import { isActiveMoonHowler } from './moonHowler';
 import { findNearestStaffedSchool, findStaffedSchools, isChildAtSchool } from './education';
 import { isStripBuildType } from './stripBuild';
 import {
@@ -1731,6 +1732,17 @@ function drawAnimals(
         ctx.fillStyle = '#fde047';
         ctx.fillText('👑', sx, sy - spriteH * 0.55 - Math.max(10, 12 * cam.zoom));
       }
+      if (isActiveMoonHowler(e)) {
+        // Pulsing red ring — this Moon Howler is hunting right now.
+        const pulse = 0.5 + 0.5 * Math.sin(state.tick * 0.35 + e.id);
+        ctx.save();
+        ctx.strokeStyle = `rgba(239, 68, 68, ${0.45 + 0.4 * pulse})`;
+        ctx.lineWidth = Math.max(1.5, 2 * cam.zoom);
+        ctx.beginPath();
+        ctx.arc(sx, sy, spriteH * (0.45 + 0.12 * pulse), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
       ctx.font = `${Math.max(8, 10 * cam.zoom)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText('🌝', sx, sy - spriteH * 0.55 - 4);
@@ -2275,7 +2287,7 @@ function drawHumans(
       const roleTag = isLeader && cam.zoom > 0.5 ? ' · Head' : '';
       const idTag = !human.faction && !isLeader && cam.zoom > 0.72 ? ` #${human.id}` : '';
       const displayName = human.name?.trim() || (isLeader ? 'Village head' : 'Settler');
-      const fullName = prefix + (human.surname ? `${displayName} ${human.surname}` : displayName) + roleTag + idTag + childTag;
+      const fullName = prefix + (human.surname ? `${displayName} ${human.surname}` : displayName) + (human.title ? ` ${human.title}` : '') + roleTag + idTag + childTag;
       const fontSize = Math.max(isLeader ? 8 : 7, Math.min(isLeader ? 11 : 9, (isLeader ? 9.5 : 8) * cam.zoom));
       const tw = getCachedNameWidth(ctx, fullName, fontSize, cam.zoom);
       if (isLeader) {

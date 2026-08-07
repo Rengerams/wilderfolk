@@ -67,6 +67,7 @@ import {
   isWorkHour,
   isOnWorkShift,
   isOnInnkeeperShift,
+  isOnMoonHowlerNightShift,
   isWeekend,
   prefersHomeTonight,
   personDayRoll,
@@ -431,7 +432,9 @@ function freeHuntFoodGain(preyType: EntityType, state: WorldState): number {
 
 // ============ HUMAN RELATIONSHIP HELPERS ============
 function humanDisplayName(entity: Entity): string {
-  return entity.name ? `${entity.name}${entity.surname ? ` ${entity.surname}` : ''}` : 'A settler';
+  return entity.name
+    ? `${entity.name}${entity.surname ? ` ${entity.surname}` : ''}${entity.title ? ` ${entity.title}` : ''}`
+    : 'A settler';
 }
 
 /** Drop one-sided or dead-lover affair links so off-screen throttling can resume. */
@@ -1441,6 +1444,24 @@ function findCourtshipPartner(
 }
 
 // ============ TICK HUMANS ============
+
+/** Nearest alive cursed Moon Howler (werewolf form) to an entity — for the priest hunt. */
+function nearestActiveMoonHowler(e: Entity, werewolves: Entity[] | undefined): Entity | undefined {
+  let best: Entity | undefined;
+  let bestD = Infinity;
+  for (const w of werewolves ?? []) {
+    if (!w.alive || !isActiveMoonHowler(w)) continue;
+    const dx = w.x - e.x;
+    const dy = w.y - e.y;
+    const d = dx * dx + dy * dy;
+    if (d < bestD) {
+      bestD = d;
+      best = w;
+    }
+  }
+  return best;
+}
+
 export function tickHumans(state: WorldState, ctx: TickContext): void {
   const {
     width, height, hourOfDay, season, canHeat,
@@ -1864,11 +1885,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       || (entity.job === JobType.Guard && isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings))
     );
     const onTavernShift = isInnkeeper && isOnInnkeeperShift(state.tick, hourOfDay);
-    const onJobShift = onDayJobShift || onTavernShift;
+    // Priests work the exorcism shift on full-moon nights — they leave home to hunt the Moon Howler.
+    const onMoonPriestShift = entity.job === JobType.Priest
+      && workplace?.type === BuildingType.Church
+      && workplace.completed
+      && isOnMoonHowlerNightShift(state.tick, hourOfDay);
+    const onJobShift = onDayJobShift || onTavernShift || onMoonPriestShift;
 
     // Per-person daily mood: some evenings out, some nights in; weekends lazy or busy.
     // Innkeepers on duty ignore "stay in" — the pub needs them.
-    const stayIn = !onTavernShift && prefersHomeTonight(entity.id, state.tick, hourOfDay);
+    const stayIn = !onTavernShift && !onMoonPriestShift && prefersHomeTonight(entity.id, state.tick, hourOfDay);
     // Free roam when not on the job and not choosing a quiet home stretch.
     const allowFreeRoam = !onJobShift && !stayIn;
     // Day-job holders aren't "free" during work hours; innkeepers only lock evenings.
@@ -1888,7 +1914,27 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       'human_hunt',
       byType[EntityType.Werewolf],
     );
-    if (huntingWere) {
+    // Priests on the exorcism shift: come out and actively hunt the Moon Howler —
+    // or retreat to the Church if a comrade just fell.
+    if (onMoonPriestShift) {
+      suppressIdle = true;
+      onSchedule = true;
+      const scared = state.tick < (state.moonHowlerPriestsFleeUntil ?? -1);
+      const targetWere = nearestActiveMoonHowler(entity, byType[EntityType.Werewolf]);
+      if (targetWere) {
+        const hdx = targetWere.x - entity.x;
+        const hdy = targetWere.y - entity.y;
+        const hdist = Math.hypot(hdx, hdy) || 1;
+        const dir = scared ? -1 : 1; // scared → away from the howler
+        const mult = scared ? 1.35 : 1.1;
+        entity.vx = (hdx / hdist) * config.speed * mult * dir;
+        entity.vy = (hdy / hdist) * config.speed * mult * dir;
+        entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+      } else if (workplace) {
+        // No howler abroad — hold the night shift at the Church.
+        commuteHumanToBuilding(entity, workplace, config.speed, false, 3.2);
+      }
+    } else if (huntingWere) {
       const fdx = entity.x - huntingWere.x;
       const fdy = entity.y - huntingWere.y;
       const fdist = Math.sqrt(fdx * fdx + fdy * fdy) || 1;
@@ -3562,6 +3608,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick);
             syncEntityGrids(ctx, entity);
             clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId);
+            // Slaying a Moon Howler earns the defender a title.
+            if (entity.type === EntityType.Werewolf && entity.moonHowlerCursed && !caughtPrey.title) {
+              caughtPrey.title = 'Moonslayer';
+              addFloatingText(state, caughtPrey.x, caughtPrey.y - 28, 'Moonslayer!', '#fbbf24');
+              logEvent(state, 'combat', `${humanDisplayName(caughtPrey)} slew the Moon Howler and earned the title Moonslayer`, caughtPrey.name);
+            }
             caughtPrey.combatTicks = 18;
             caughtPrey.flash = 12;
             createDeathParticles(state, entity.x, entity.y, '#8a2a2a', 10);
