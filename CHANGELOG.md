@@ -6,6 +6,9 @@
 - **Rivers actually flow** — world-gen rivers now follow a smoothed elevation gradient from mountain peaks (with a basin-bypass fallback) and carve their channel into real water tiles; before, greedy descents died on spiky noise and rivers rendered as land on every preset
 - **Clicking a citizen selects them again** — grass tiles (spawned first, 10.8px hit radius) won the click hit-test race over settlers standing on them; scenery is no longer click-selectable
 - **Eco metrics no longer over-tick** — pollution / ecosystem health / biodiversity refresh once per day instead of 18×/day (pure waste removed)
+- **Build hints respect tutorials-off** — the floating “Placing X” banner and the Build panel strip keep their functional bits (Done/Cancel, Rotate) but drop the how-to sentences once tutorials are disabled
+- **Placement hint shows once ever** — the “Click map repeatedly to place more” text appears for the first-ever build session (tutorials on), is remembered in localStorage, and never nags per building again
+- **No empty ring when zoomed out** — the camera clamp now accounts for the visible viewport: zooming out on a small map pins the view to the world center instead of exposing empty space around it (3 regression tests)
 
 ### Added
 - **Placement banner removed** — building placement is now shown by the ghost on the map only; a thin "Placing X — Esc / right-click stops" line in the build panel keeps the exit discoverable (the old green banner is gone)
@@ -17,6 +20,9 @@
 - **No visitors in week 1** — the first visitor group now arrives day 7–14 instead of day 3–7, so the founding burst is undisturbed
 - **Settler personality traits** — every villager carries **three** traits from a pool of **14** (💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful, 🦁 Chivalrous, 🔨 Resourceful, 🏔️ Stoic, ✨ Graceful, 🦉 Intuitive, 🔥 Fierce) that subtly shape how they live: energy burn, hunting range, courtship pace, winter cold, conception luck, research speed, child maturation, militia strength, construction speed, grief recovery, and workplace banter. Children inherit each parent trait by a 50% chance (DNA-style) — a child can take after mom, dad, both, or neither. Assignment is softly gender-weighted: community & wisdom traits (nurturing, insightful, gregarious, graceful, intuitive, fierce) skew toward women; frontier traits (hardy, brave, chivalrous, resourceful, stoic) toward men — everyone can still draw any trait. Traits show in the inspector with tooltips
 - **Clickable mini-map** — the map widget now jumps the camera to wherever you click, so scouting and panning are one click away (also listed in the ? shortcuts overlay)
+- **New games default to Small** — new-game setup preselects Small (800×600), the size the landscape renders best at; Medium stays selectable
+- **Auto-staff confirms itself** — the Auto-staff button toasts ⚒️ how many settlers it assigned, or an info note when everything is already staffed / nobody is available (2 regression tests)
+- **Right-drag pan documented** — the ? shortcuts overlay now lists right-click drag as a panning shortcut
 
 ### Performance
 - **Two redundant O(n) scans removed per sim tick** — the moon-Howler cycle reuses the entity-by-type index `gameTick` already builds (rebuilding only when moon forms actually transform/revert), and the realtime layer reuses the tick-start alive-entity list instead of re-filtering `state.entities`. Behavior unchanged, verified by regression tests (40 tests)
