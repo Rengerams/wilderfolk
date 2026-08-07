@@ -23,10 +23,11 @@ import {
 } from './viewState';
 
 /**
- * Real-time tick rate at 1×. With TICKS_PER_DAY=72, 3 ticks/s ≈ 24 real seconds per day
- * (was 2 ticks/s × 24 ticks ≈ 12s when 1 tick = 1 hour).
+ * Real-time tick rate at 1×. With TICKS_PER_DAY=72, 1.5 ticks/s ≈ 48 real seconds per day.
+ * (Previously 3 ticks/s ≈ 24s/day — players found the baseline too rushed; the
+ * 72-tick day structure is unchanged, this only paces real time. 0.5× ≈ 96s, 2× ≈ 24s.)
  */
-const BASE_TICKS_PER_SECOND = 3;
+const BASE_TICKS_PER_SECOND = 1.5;
 /**
  * React UI publish throttle (ms). Sim ticks notify listeners immediately;
  * this only paces periodic non-tick polls. 250ms keeps App re-render load low

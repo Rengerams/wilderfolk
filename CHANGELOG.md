@@ -8,7 +8,8 @@
 - **Eco metrics no longer over-tick** — pollution / ecosystem health / biodiversity refresh once per day instead of 18×/day (pure waste removed)
 
 ### Added
-- **Build-mode placement hint shows once ever** — the "Placing X · keep clicking…" banner no longer nags on every building (and respects the tutorials-off setting)
+- **Placement banner removed** — building placement is now shown by the ghost on the map only; a thin "Placing X — Esc / right-click stops" line in the build panel keeps the exit discoverable (the old green banner is gone)
+- **Slower baseline pacing** — a full in-game day now takes ~48 real seconds at 1× speed (was 24s); 72 ticks/day is unchanged, all speeds scale (0.5× ≈ 96s, 2× ≈ 24s)
 - **Hospital is worth building** — pregnant and low-energy settlers now take clinic visits *during work hours* (walk to the ward + get treated on arrival), not just in free time or by chance proximity
 - **Arrow flight FX for free-roam hunts** — hungry settlers chasing deer/rabbits now show the same dashed-arrow animation as Hunting Spots
 - **New-settler notification** — immigrants arriving at the village now raise a header toast (with camera focus), not just floating text

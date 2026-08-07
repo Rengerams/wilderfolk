@@ -22,7 +22,7 @@ export {
  * - TICKS_PER_HOUR = 3 → TICKS_PER_DAY = 72 (was 24: 1 tick = 1 hour)
  * - getHourOfDay maps tick-of-day → 0..23
  * - Per-tick energy / wildlife rates use {@link PER_TICK_RATE_SCALE} so daily totals stay balanced
- * - Real-time: gameLoop BASE_TICKS_PER_SECOND × speed; at 3 ticks/s a day ≈ 24 real seconds at 1×
+ * - Real-time: gameLoop BASE_TICKS_PER_SECOND × speed; at 1.5 ticks/s a day ≈ 48 real seconds at 1×
  */
 export const TICKS_PER_HOUR = 3;
 /** Legacy day length (1 tick = 1 hour). Used when migrating old saves. */
