@@ -187,7 +187,7 @@ import {
   WILDKIN_SCENT_SENSITIVITY,
 } from './scentGrid';
 import { addHuntVisual } from './huntvisuals';
-import { traitMultiplier } from './settlerTraits';
+import { inheritSettlerTraits, traitMultiplier } from './settlerTraits';
 
 export interface TickContext {
   width: number;
@@ -1487,6 +1487,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (bucket) bucket.push(h);
     else workersByWorkplace.set(siteId, [h]);
   }
+  // Nurturing settlers boost every child's maturation this tick.
+  const nurturingSettlerCount = allHumans.filter(
+    (h) => h.alive && !h.isJuvenile && h.traits?.includes('nurturing'),
+  ).length;
   const livingHumanAt = (id: number | null | undefined): Entity | undefined => {
     if (id == null) return undefined;
     const h = entityById.get(id);
@@ -1585,7 +1589,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         creditChildSchoolDay(entity);
       }
       const schoolMult = entity.isJuvenile && isPlayerHuman(entity)
-        ? getSchoolAgeMultiplier(entity, updatedBuildings)
+        ? getSchoolAgeMultiplier(entity, updatedBuildings, nurturingSettlerCount)
         : 1;
       syncHumanAgeFromCalendar(entity, state, {
         schoolAgeMultiplier: schoolMult > 1 ? schoolMult : undefined,
@@ -2185,13 +2189,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           );
           const babyGen = (entity.generation ?? 0) + 1;
           const childGender = Math.random() > 0.5 ? 'male' : 'female';
-          // Children inherit one trait from a parent (if any parent has traits).
-          const traitParent = [entity, biologicalFather].find(
-            (p) => p?.alive && (p.traits?.length ?? 0) > 0,
-          );
-          const inheritedTraits = traitParent?.traits?.length
-            ? [traitParent.traits[Math.floor(Math.random() * traitParent.traits.length)]]
-            : undefined;
+          // DNA-like inheritance: each parent trait has a chance to pass down;
+          // any slot left unfilled is rolled fresh by createEntity.
+          const inheritedTraits = inheritSettlerTraits(entity, biologicalFather);
           const child = createEntity(EntityType.Human, nx, ny, state.nextEntityId++, 80, true, {
             gender: childGender,
             fatherId: biologicalFatherId,

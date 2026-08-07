@@ -2,7 +2,12 @@
  * Settler personality traits — a small trait catalog that makes each villager
  * feel like an individual. Traits are assigned at creation (1–2 per settler),
  * inherited partly from parents, and feed subtle behavioral modifiers in
- * lifeSimulation / buildingActions.
+ * lifeSimulation / buildingActions / education / research.
+ *
+ * Assignment is softly gender-weighted: community/wisdom traits (nurturing,
+ * insightful, gregarious) skew toward women, frontier/physical traits (hardy,
+ * brave) skew toward men — but every settler can draw any trait, it's a
+ * probability bias, not a gate.
  */
 import type { Entity, SettlerTrait } from './gameTypes';
 import { EntityType } from './gameTypes';
@@ -54,6 +59,18 @@ export const TRAIT_DEFS: Record<SettlerTrait, TraitDef> = {
     emoji: '🍀',
     description: 'Better hunt luck and a bit more likely to conceive.',
   },
+  nurturing: {
+    id: 'nurturing',
+    label: 'Nurturing',
+    emoji: '💗',
+    description: 'Children mature faster while they live in the village.',
+  },
+  insightful: {
+    id: 'insightful',
+    label: 'Insightful',
+    emoji: '🔮',
+    description: 'A sharp mind — the village researches a little faster.',
+  },
 };
 
 const TRAIT_POOL: SettlerTrait[] = [
@@ -63,7 +80,18 @@ const TRAIT_POOL: SettlerTrait[] = [
   'timid',
   'greenthumb',
   'lucky',
+  'nurturing',
+  'insightful',
 ];
+
+/** Traits drawn more often by women (community & wisdom leaning). */
+const FEMALE_LEANING: SettlerTrait[] = ['nurturing', 'insightful', 'gregarious', 'lucky'];
+/** Traits drawn more often by men (frontier & physical leaning). */
+const MALE_LEANING: SettlerTrait[] = ['hardy', 'brave', 'greenthumb'];
+/** Bias strength when the trait matches the settler's gender (1.0 = neutral). */
+const GENDER_BIAS = 1.6;
+/** Neutral weight for every trait regardless of gender. */
+const BASE_WEIGHT = 1;
 
 /** Mutually exclusive pairs — a settler can't have both. */
 const TRAIT_OPPOSITES: ReadonlyArray<readonly [SettlerTrait, SettlerTrait]> = [
@@ -74,24 +102,62 @@ const TRAIT_OPPOSITES: ReadonlyArray<readonly [SettlerTrait, SettlerTrait]> = [
 /** How many traits a fresh adult gets. */
 const TRAIT_COUNT = 2;
 
-/** Roll a single random trait that doesn't conflict with `existing`. */
-function pickTrait(existing: SettlerTrait[]): SettlerTrait {
+/** Roll a single random trait weighted by gender that doesn't conflict. */
+function pickTrait(existing: SettlerTrait[], gender?: 'male' | 'female'): SettlerTrait {
   const excluded = new Set(existing);
   for (const [a, b] of TRAIT_OPPOSITES) {
     if (existing.includes(a)) excluded.add(b);
     if (existing.includes(b)) excluded.add(a);
   }
   const pool = TRAIT_POOL.filter((t) => !excluded.has(t));
-  return pool[Math.floor(Math.random() * pool.length)];
+  // Weighted pick: gender-leaning traits get a boost; everything else stays 1.
+  const weights = pool.map((t) => {
+    const leaning = gender === 'female' ? FEMALE_LEANING : MALE_LEANING;
+    return leaning.includes(t) ? GENDER_BIAS : BASE_WEIGHT;
+  });
+  const total = weights.reduce((s, w) => s + w, 0);
+  let roll = Math.random() * total;
+  for (let i = 0; i < pool.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return pool[i];
+  }
+  return pool[pool.length - 1];
 }
 
-/** Assign 1–2 random traits for a new settler. */
-export function rollSettlerTraits(existing: SettlerTrait[] = []): SettlerTrait[] {
+/** Assign 1–2 random traits for a new settler (optionally gender-weighted). */
+export function rollSettlerTraits(
+  existing: SettlerTrait[] = [],
+  gender?: 'male' | 'female',
+): SettlerTrait[] {
   const traits = [...existing];
   while (traits.length < TRAIT_COUNT) {
-    traits.push(pickTrait(traits));
+    traits.push(pickTrait(traits, gender));
   }
   return traits;
+}
+
+/** Per-trait chance a parent passes a personality on to a child (DNA-like). */
+const INHERIT_CHANCE = 0.5;
+/** Hard cap on how many traits a child can inherit from both parents. */
+const MAX_INHERITED = 2;
+
+/**
+ * DNA-like inheritance: each parent trait has a 50% chance to pass to the
+ * child, drawing from both parents, capped at 2. Slots not filled by
+ * inheritance are rolled fresh by the caller via `rollSettlerTraits`.
+ */
+export function inheritSettlerTraits(
+  mother?: Entity,
+  father?: Entity,
+): SettlerTrait[] {
+  const inherited: SettlerTrait[] = [];
+  for (const parent of [mother, father]) {
+    for (const t of parent?.traits ?? []) {
+      if (inherited.length >= MAX_INHERITED) break;
+      if (Math.random() < INHERIT_CHANCE && !inherited.includes(t)) inherited.push(t);
+    }
+  }
+  return inherited;
 }
 
 /** A settler who is alive and carries at least one trait. */

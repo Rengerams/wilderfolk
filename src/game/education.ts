@@ -51,13 +51,20 @@ export function isChildAtSchool(child: Entity, school: Building, maxDist = 28): 
 }
 
 /** Maturation multiplier while a child is actively attending a staffed school. */
-export function getSchoolAgeMultiplier(child: Entity, buildings: Building[]): number {
+export function getSchoolAgeMultiplier(
+  child: Entity,
+  buildings: Building[],
+  nurturingCount = 0,
+): number {
   if (child.type !== EntityType.Human || !child.isJuvenile || findStaffedSchools(buildings).length === 0) {
     return 1;
   }
   const days = child.schoolDays ?? 0;
   if (days < SCHOOL_MIN_DAYS_FOR_BOOST) return 1;
-  return 1 + Math.min(1, days / SCHOOL_FULL_EDUCATION_DAYS);
+  const schoolBoost = Math.min(1, days / SCHOOL_FULL_EDUCATION_DAYS);
+  // Nurturing settlers in the village help every child mature a bit faster.
+  const nurtureBoost = Math.min(0.2, nurturingCount * 0.04);
+  return 1 + schoolBoost + nurtureBoost;
 }
 
 export function creditChildSchoolDay(child: Entity): void {
@@ -130,10 +137,11 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
   logEvent(state, 'event', detail, entity.name);
 }
 
-/** Up to +15% research speed when most adults attended school. */
+/** Up to +15% research speed when most adults attended school; insightful settlers add a bit more. */
 export function getEducationResearchMultiplier(humans: Entity[]): number {
   const adults = humans.filter((h) => h.alive && isPlayerHuman(h) && !h.isJuvenile);
   if (adults.length === 0) return 1;
   const educated = adults.filter((h) => h.educated).length;
-  return 1 + (educated / adults.length) * 0.15;
+  const insightful = adults.filter((h) => h.traits?.includes('insightful')).length;
+  return 1 + (educated / adults.length) * 0.15 + Math.min(0.15, insightful * 0.03);
 }

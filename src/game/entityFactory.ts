@@ -49,8 +49,8 @@ export function createEntity(
   if (isHuman) {
     name = opts?.name ?? getRandomName(entGender === 'male' ? 'male' : 'female');
   }
-  // Personality traits — only settlers get them; children keep one parent trait.
-  const traits = isHuman ? rollSettlerTraits(opts?.inheritedTraits) : undefined;
+  // Personality traits — only settlers get them; gender-softly weighted.
+  const traits = isHuman ? rollSettlerTraits(opts?.inheritedTraits, entGender) : undefined;
   const entity: Entity = {
     id, type, x, y,
     energy: energy ?? config.spawnEnergy,
