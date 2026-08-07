@@ -9,6 +9,7 @@
 - **Build hints respect tutorials-off** — the floating “Placing X” banner and the Build panel strip keep their functional bits (Done/Cancel, Rotate) but drop the how-to sentences once tutorials are disabled
 - **Placement hint shows once ever** — the “Click map repeatedly to place more” text appears for the first-ever build session (tutorials on), is remembered in localStorage, and never nags per building again
 - **No empty ring when zoomed out** — the camera clamp now accounts for the visible viewport: zooming out on a small map pins the view to the world center instead of exposing empty space around it (3 regression tests)
+- **Moon Howler exorcism window documented correctly** — the sim breaks the curse on the **full-moon night** (20:00 → before 06:00) while the settler is still in 🌝 form, not at 7am work start; the tutorial said "dawn" and no test locked the window in. Tutorial copy now says the night window, and `moonHowler.cureWindow.test.ts` locks the window + the 7am skip (also fixed the stale "revert at 7am" note — it's 6am)
 
 ### Added
 - **Placement banner removed** — building placement is now shown by the ghost on the map only; a thin "Placing X — Esc / right-click stops" line in the build panel keeps the exit discoverable (the old green banner is gone)
@@ -264,13 +265,13 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 **Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch N #1–#7
 
-- **Recurring hunts** — uncured settlers now transform at **8pm** on full-moon colony days (0, 14, 28…) and revert at **7am** the next morning; no longer reverts on arbitrary daytime ticks (`isMoonHowlerTransformTick` / `isMoonHowlerRevertTick` in `moonHowler.ts`)
+- **Recurring hunts** — uncured settlers now transform at **8pm** on full-moon colony days (0, 14, 28…) and revert at **6am** the next morning; no longer reverts on arbitrary daytime ticks (`isMoonHowlerTransformTick` / `isMoonHowlerRevertTick` in `moonHowler.ts`)
 - **Calendar** — moon logic uses `getAbsoluteCalendarDay(state.tick)` so the 14-day cadence stays aligned with the sim clock
 - **New curse** — when no active Moon Howler curse exists and population > 5, one settler is cursed on the next full moon (replaces 8% RNG); transforms the same night
-- **Church cure** — staffed Church rolls **~18%** at **dawn (7am)** while the settler is still in werewolf form (after the hunt); village-wide, no proximity check (`tryMoonHowlerChurchCures`)
+- **Church cure** — staffed Church rolls **~18%** on the **full-moon night** (20:00 → before 06:00) while the settler is still in werewolf form; village-wide, no proximity check (`tryMoonHowlerChurchCures`)
 - **Alerts & debug** — “Full Moon!” fires when Moon Howlers are abroad at 8pm even if the transform tick was missed; debug spawn transforms on the current full-moon night
 - **Tests** — `moonHowler.cycle.test.ts` (hunt days 0/14/28/42); `moonHowler.test.ts` (dawn cure RNG, new-curse gate)
-- **UI** — Church panel, help tab, and building hints describe dawn (7am) exorcism in 🌝 form (~18%, village-wide), not “full-moon nights” proximity cure
+- **UI** — Church panel, help tab, and building hints describe the full-moon-night (20:00–06:00) exorcism in 🌝 form (~18%, village-wide), not a "dawn (7am)" cure
 
 ### Fixed — caught-affair divorce after imprisonment (July 8, 2026)
 
