@@ -184,18 +184,10 @@ export function drawPioneerAt(
   walkFrame: number,
   flipX: boolean,
   bobY = 0,
-  entityId?: number,
 ) {
   const g = gender ?? 'male';
   const scale = pixelHeight / PIONEER_FRAME_H;
   const drawW = PIONEER_FRAME_W * scale;
-  const palette = { ...paletteFor(g, variant) };
-  // Seeded per-settler look: hair shade varies by id; outfit keeps hue family.
-  if (entityId !== undefined) {
-    palette.hair = seededHairColor(entityId, variant);
-    palette.shirt = seededOutfitColor(entityId, variant, palette.shirt);
-    palette.accent = seededOutfitColor(entityId, variant + 3, palette.accent);
-  }
 
   ctx.save();
   ctx.imageSmoothingEnabled = false;
@@ -206,7 +198,7 @@ export function drawPioneerAt(
   }
   ctx.translate(sx - drawW / 2, footY - pixelHeight - bobY);
   ctx.scale(scale, scale);
-  drawPioneerFrame(ctx, walkFrame, g, palette);
+  drawPioneerFrame(ctx, walkFrame, g, paletteFor(g, variant));
   ctx.restore();
 }
 
@@ -214,40 +206,6 @@ export function pickHumanVariant(entityId: number, gender: HumanGender): number 
   const genderSalt = gender === 'female' ? 1013904223 : 0;
   const seed = (entityId * 2654435761 + genderSalt) >>> 0;
   return seed % HUMAN_VARIANT_COUNT;
-}
-
-/** Seedable RNG — stable per settler id (same id → same hair, always). */
-function seedFor(entityId: number, salt: number): number {
-  return ((entityId * 2654435761 + salt) >>> 0) % 1000;
-}
-
-/** Hair shades settlers can draw — wide enough that villagers look distinct. */
-const HAIR_SHADES = [
-  '#3a2a18', // dark brown
-  '#2a1a0e', // near-black
-  '#4a3020', // chestnut
-  '#6b4a28', // medium brown
-  '#8b6b3a', // light brown
-  '#c9a050', // blonde
-  '#e0c070', // light blonde
-  '#8b3a2a', // auburn
-  '#5a4a3a', // ash brown
-  '#4a3a4a', // dark grey
-] as const;
-
-/** Seeded hair color for a settler — replaces the single fixed shade. */
-export function seededHairColor(entityId: number, variant: number): string {
-  return HAIR_SHADES[seedFor(entityId, variant * 137 + 7) % HAIR_SHADES.length];
-}
-
-/** Seeded outfit (shirt/dress) color — keeps the current hue family but varies it. */
-export function seededOutfitColor(entityId: number, variant: number, base: string): string {
-  const shift = seedFor(entityId, variant * 53 + 11);
-  // Lighten/darken the base outfit color by a seeded amount (0.75–1.25×).
-  const r = Math.min(255, Math.round(parseInt(base.slice(1, 3), 16) * (0.75 + (shift % 50) / 100)));
-  const g = Math.min(255, Math.round(parseInt(base.slice(3, 5), 16) * (0.75 + (shift % 50) / 100)));
-  const b = Math.min(255, Math.round(parseInt(base.slice(5, 7), 16) * (0.75 + (shift % 50) / 100)));
-  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 }
 
 export function getHumanWalkSheetPath(gender: HumanGender, variant: number): string {
