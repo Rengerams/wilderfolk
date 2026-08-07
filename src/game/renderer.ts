@@ -27,10 +27,8 @@ import { canPlaceBuildingSnapshot, isUnbuildableTerrainType, isWaterTerrainType 
 import { getSpriteFrame, type SpriteFrame } from './spriteLoader';
 import {
   drawPioneerAt, getHumanSpriteMetrics,
-  getHumanWalkBob, getHumanWalkFrameIndex, getHumanSpriteFrame,
+  getHumanWalkBob, getHumanWalkFrameIndex,
   HUMAN_WALK_SPEED_THRESHOLD,
-  HUMAN_BASE_SPRITES,
-  type HumanGender,
 } from './humanSprites';
 import { ANIMAL_SPRITE_ANCHOR_Y, getAnimalSpriteMetrics } from './entitySprites';
 import { getChatBubbleText, resetDialogueSessions, wrapChatLines } from './humanChat';
@@ -2157,19 +2155,11 @@ function drawHumans(
     ctx.fill();
 
     const drawHuman = () => {
-      const gender = (human.gender ?? 'male') as HumanGender;
-      const frame = isWalking
-        ? getHumanSpriteFrame(gender, human.spriteVariant ?? 0, walkFrame)
-        : getSpriteFrame(HUMAN_BASE_SPRITES[gender]);
-      if (isDrawableSpriteFrame(frame)) {
-        const aspect = frame.sw / frame.sh;
-        const anchorY = frame.anchorY ?? 1;
-        drawSpriteFrame(
-          ctx, frame, sx, footY, spriteH * aspect, spriteH,
-          0.5, anchorY, flipX, { bobY }, 'height',
-        );
-        return;
-      }
+      // Always draw the procedural pioneer — the walk-sheet PNGs were never
+      // actually loaded (loadHumanWalkSheets is uncalled), so the old code
+      // swapped between the idle base PNG and the procedural fallback while
+      // walking (two different looks mid-step). The procedural figure also
+      // carries the seeded per-settler hair/outfit variation.
       drawPioneerAt(
         ctx, sx, footY, spriteH,
         human.gender, human.spriteVariant ?? 0, walkFrame, flipX, bobY,
