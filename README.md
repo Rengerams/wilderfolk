@@ -14,6 +14,12 @@
   A cozy frontier colony sim — inside the food chain, not on top of it
 </p>
 
+## What is Wilderfolk?
+
+**Wilderfolk** is a cozy frontier colony sim about living *inside* the food chain — not ruling it. Settle a wild valley where deer eat the grass, wolves eat the deer, and your hunters share the same trails. Build homes, farms, taverns, and forges. Fall in love, get in trouble, and elect a village head.
+
+But keep the balance — because if you wipe out the wolves, the deer explode, the meadows die, and the valley remembers who was here first.
+
 ---
 
 # 🌿 v0.5.2 — Game-feel & depth
