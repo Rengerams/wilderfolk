@@ -2173,6 +2173,7 @@ function drawHumans(
       drawPioneerAt(
         ctx, sx, footY, spriteH,
         human.gender, human.spriteVariant ?? 0, walkFrame, flipX, bobY,
+        human.id,
       );
     };
 
