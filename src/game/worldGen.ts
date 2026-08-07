@@ -343,7 +343,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   clearAllFactionWanderStates();
   ensureNamesLoaded();
   const {
-    size = MapSize.Medium,
+    size = MapSize.Small,
     preset,
     villageName,
   } = options;
