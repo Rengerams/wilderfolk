@@ -2,14 +2,14 @@
  * Hotel lodging must end at morning checkout, not a full day after check-in (EJ-12).
  */
 import { describe, expect, it } from 'vitest';
-import { hotelCheckoutTick } from './hotelStay';
+import { hotelCheckoutTick } from '../src/game/hotelStay';
 import {
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
   getAbsoluteCalendarDay,
   getHourOfDay,
   NIGHT_END,
-} from './dayCycle';
+} from '../src/game/dayCycle';
 
 describe('hotelCheckoutTick', () => {
   it('evening check-in checks out next morning, not next evening', () => {

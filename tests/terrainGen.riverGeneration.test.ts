@@ -9,8 +9,8 @@
  * into `TerrainType.River` regardless of elevation.
  */
 import { describe, expect, it } from 'vitest';
-import { generateWorldMap } from './terrainGen';
-import { MapPreset, MapSize, TerrainType, type WorldMap } from './gameTypes';
+import { generateWorldMap } from '../src/game/terrainGen';
+import { MapPreset, MapSize, TerrainType, type WorldMap } from '../src/game/gameTypes';
 
 function countType(map: WorldMap, type: TerrainType): number {
   let n = 0;

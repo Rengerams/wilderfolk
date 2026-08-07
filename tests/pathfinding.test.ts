@@ -3,9 +3,9 @@
  * through them (fixes settlers stuck at map edges on blocked lines).
  */
 import { describe, expect, it } from 'vitest';
-import { findPath, getPathGrid, lineCrossesBlocked } from './pathfinding';
-import { TERRAIN_TILE_SIZE, TerrainType } from './gameTypes';
-import type { WorldMap } from './gameTypes';
+import { findPath, getPathGrid, lineCrossesBlocked } from '../src/game/pathfinding';
+import { TERRAIN_TILE_SIZE, TerrainType } from '../src/game/gameTypes';
+import type { WorldMap } from '../src/game/gameTypes';
 
 function makeMap(width: number, height: number, seed: number, blocker: (x: number, y: number) => boolean): WorldMap {
   const tiles = Array.from({ length: height }, (_, y) =>

@@ -16,10 +16,10 @@ import {
   isWeekend,
   isNearResidence,
   NIGHT_END,
-} from './dayCycle';
-import { BuildingType } from './gameTypes';
-import type { Building, Entity } from './gameTypes';
-import { OFFSCREEN_HUMAN_THROTTLE } from './simFocus';
+} from '../src/game/dayCycle';
+import { BuildingType } from '../src/game/gameTypes';
+import type { Building, Entity } from '../src/game/gameTypes';
+import { OFFSCREEN_HUMAN_THROTTLE } from '../src/game/simFocus';
 
 describe('day resolution (no loose magic numbers)', () => {
   it('keeps 24 clock hours as TICKS_PER_HOUR sub-steps', () => {

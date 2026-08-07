@@ -3,14 +3,14 @@
  * Vacancy must not fire just because type flipped to Werewolf.
  */
 import { describe, expect, it } from 'vitest';
-import { EntityType } from './gameTypes';
-import type { Entity, WorldState } from './gameTypes';
+import { EntityType } from '../src/game/gameTypes';
+import type { Entity, WorldState } from '../src/game/gameTypes';
 import {
   getVillageLeader,
   isActingVillageHead,
   isEligibleForLeadership,
   isVillageLeader,
-} from './villageLeadership';
+} from '../src/game/villageLeadership';
 
 function stubHuman(id: number, overrides: Partial<Entity> = {}): Entity {
   return {

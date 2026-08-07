@@ -2,12 +2,12 @@
  * Hunting rules — free-roam food yields and prey validity after ecology / day-length work.
  */
 import { describe, expect, it } from 'vitest';
-import { EntityType } from './gameTypes';
-import type { Entity, WorldState } from './gameTypes';
+import { EntityType } from '../src/game/gameTypes';
+import type { Entity, WorldState } from '../src/game/gameTypes';
 
 // freeHuntFoodGain is module-private — re-test via the same formula constants
-import { getHuntFoodMultiplier } from './combat';
-import { getValleyHuntYieldMultiplier } from './ecologyStage';
+import { getHuntFoodMultiplier } from '../src/game/combat';
+import { getValleyHuntYieldMultiplier } from '../src/game/ecologyStage';
 
 function freeHuntFoodGain(preyType: EntityType, state: WorldState): number {
   const base = preyType === EntityType.Deer ? 52 : preyType === EntityType.Rabbit ? 22 : 18;
@@ -80,8 +80,8 @@ describe('hunt prey validity', () => {
 
 describe('moon howler rite cooldown ticks', () => {
   it('exorcism interval is clock hours × ticks-per-hour (not raw 2 ticks)', async () => {
-    const { MOON_HOWLER_EXORCISM_INTERVAL_HOURS } = await import('./moonHowler');
-    const { TICKS_PER_HOUR } = await import('./dayCycle');
+    const { MOON_HOWLER_EXORCISM_INTERVAL_HOURS } = await import('../src/game/moonHowler');
+    const { TICKS_PER_HOUR } = await import('../src/game/dayCycle');
     expect(MOON_HOWLER_EXORCISM_INTERVAL_HOURS * TICKS_PER_HOUR).toBe(6);
   });
 });

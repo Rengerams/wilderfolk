@@ -3,8 +3,8 @@
  * Regression for House key `1` being falsy and crashing placement.
  */
 import { describe, expect, it } from 'vitest';
-import { BuildingType } from './gameTypes';
-import { BUILDING_HOTKEYS, HOTKEY_BUILDINGS } from './hotkeys';
+import { BuildingType } from '../src/game/gameTypes';
+import { BUILDING_HOTKEYS, HOTKEY_BUILDINGS } from '../src/game/hotkeys';
 
 describe('HOTKEY_BUILDINGS', () => {
   it('key 1 is House string type (not numeric 0)', () => {

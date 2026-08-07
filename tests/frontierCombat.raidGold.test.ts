@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clampRaidGoldGain } from './frontierCombat';
+import { clampRaidGoldGain } from '../src/game/frontierCombat';
 
 describe('clampRaidGoldGain', () => {
   it('caps per-raid gold', () => {

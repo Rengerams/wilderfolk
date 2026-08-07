@@ -7,16 +7,16 @@
  * conception, research, child maturation).
  */
 import { describe, it, expect } from 'vitest';
-import { initGame } from './worldGen';
-import { createEntity } from './entityFactory';
-import { EntityType } from './gameTypes';
+import { initGame } from '../src/game/worldGen';
+import { createEntity } from '../src/game/entityFactory';
+import { EntityType } from '../src/game/gameTypes';
 import {
   rollSettlerTraits,
   inheritSettlerTraits,
   TRAIT_DEFS,
   traitMultiplier,
   hasTrait,
-} from './settlerTraits';
+} from '../src/game/settlerTraits';
 
 describe('rollSettlerTraits', () => {
   it('assigns 2 traits to a fresh settler', () => {

@@ -8,10 +8,10 @@
  * already built the identical index and passed it via ctx.byType.
  */
 import { describe, it, expect } from 'vitest';
-import { initGame } from './worldGen';
-import { tickMoonHowlerCycle } from './moonHowler';
-import { buildEntityByType } from './simFocus';
-import { EntityType } from './gameTypes';
+import { initGame } from '../src/game/worldGen';
+import { tickMoonHowlerCycle } from '../src/game/moonHowler';
+import { buildEntityByType } from '../src/game/simFocus';
+import { EntityType } from '../src/game/gameTypes';
 
 describe('tickMoonHowlerCycle byType reuse', () => {
   it('returns the same byType object when no form changes occur', () => {
