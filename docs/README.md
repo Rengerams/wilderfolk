@@ -16,9 +16,9 @@
 **Key pointers**
 - Bug tracker with `<batch>-<item>` IDs (e.g. `EK-G4`): `docs/private/BUGS_TRACKER.md`
 - Open problems / gaps: `docs/private/OPEN_PROBLEMS.md`
-- Dev engine reference: `docs/private/TECHNICAL.md`
-- Private changelog: `docs/private/CHANGELOG_PRIVATE.md`
-- Handoff for a fresh agent: `docs/plans/2026-08-02-continuation-plan.md`
+- Dev engine reference (archived): `docs/private/archive/TECHNICAL.md`
+- Private changelog (archived): `docs/private/archive/CHANGELOG_PRIVATE.md`
+- Handoff for a fresh agent (superseded by the game-feel plan): `docs/archive/2026-08-02-continuation-plan.md`
 - Game-feel / depth roadmap (pathfinding, looks, economy, quests): `docs/plans/2026-08-03-game-feel-plan.md`
 
 **Rules**

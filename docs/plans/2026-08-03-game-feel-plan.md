@@ -1,7 +1,7 @@
 # Wilderfolk — Game Feel & Depth Plan
 
 **Date:** 2026-08-03 · **Branch:** `main` · **Status:** Phase 0 + 1 done · Phase 2 done · Phase 3 next
-**Companion docs:** [continuation plan](./2026-08-02-continuation-plan.md) (agent handoff + what's already done) · [landscape looks research](../private/landscape-looks-research.md) (private)
+**Companion docs:** [continuation plan (archived)](../archive/2026-08-02-continuation-plan.md) (agent handoff + what's already done) · [landscape looks research](../private/landscape-looks-research.md) (private)
 
 ---
 
