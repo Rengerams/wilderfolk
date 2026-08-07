@@ -381,13 +381,28 @@ export function updateView(view: ViewState, dtMs: number): ViewState {
     : { ...view, camera: nextCamera, screenShake: nextShake };
 }
 
-export function clampCameraTarget(cam: Camera, worldW: number, worldH: number): Camera {
+export function clampCameraTarget(
+  cam: Camera,
+  worldW: number,
+  worldH: number,
+  viewportW = worldW,
+  viewportH = worldH,
+): Camera {
+  // Keep the visible viewport inside the world (no empty ring when zoomed out).
+  // Half the viewport in world units = (viewportPx / 2) / zoom.
+  const halfViewW = viewportW / 2 / cam.zoom;
+  const halfViewH = viewportH / 2 / cam.zoom;
+  // If the viewport is bigger than the world, pin to the center instead.
+  const minX = halfViewW * 2 >= worldW ? worldW / 2 : Math.max(-halfViewW, halfViewW);
+  const maxX = halfViewW * 2 >= worldW ? worldW / 2 : worldW - halfViewW;
+  const minY = halfViewH * 2 >= worldH ? worldH / 2 : Math.max(-halfViewH, halfViewH);
+  const maxY = halfViewH * 2 >= worldH ? worldH / 2 : worldH - halfViewH;
   const marginX = worldW * 0.02;
   const marginY = worldH * 0.02;
   return {
     ...cam,
-    targetX: Math.max(-marginX, Math.min(worldW + marginX, cam.targetX)),
-    targetY: Math.max(-marginY, Math.min(worldH + marginY, cam.targetY)),
+    targetX: Math.max(minX - marginX, Math.min(maxX + marginX, cam.targetX)),
+    targetY: Math.max(minY - marginY, Math.min(maxY + marginY, cam.targetY)),
   };
 }
 

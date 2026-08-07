@@ -9,7 +9,7 @@ import {
   EntityType,
 } from '../game/gameEngine';
 import { canPlaceBuilding, buildStripPreview } from '../game/buildingActions';
-import { screenToWorld, focusCameraOn, nudgeCameraToward } from '../game/viewState';
+import { screenToWorld, focusCameraOn, nudgeCameraToward, clampCameraTarget } from '../game/viewState';
 import { snapBuildingCenter } from '../game/buildingRotation';
 import { getHumanSelectionBounds } from '../game/humanSprites';
 import { playClickSound } from '../audio';
@@ -245,13 +245,21 @@ export function useCanvasInteractions({
       const dy = e.clientY - cameraDragStartRef.current.y;
       const loop = loopRef.current;
       if (loop) {
+        const cam = loop.getView().camera;
+        const nextCam = {
+          ...cam,
+          targetX: cam.targetX - dx / cam.zoom,
+          targetY: cam.targetY - dy / cam.zoom,
+        };
+        // Viewport-aware clamp: dragging can't expose an empty ring around the map.
+        const w = loop.getWorld();
+        const rect = canvasRef.current?.getBoundingClientRect();
         loop.patchView(
           {
-            camera: {
-              ...loop.getView().camera,
-              targetX: loop.getView().camera.targetX - dx / loop.getView().camera.zoom,
-              targetY: loop.getView().camera.targetY - dy / loop.getView().camera.zoom,
-            },
+            camera: clampCameraTarget(
+              nextCam, w.width, w.height,
+              rect?.width ?? w.width, rect?.height ?? w.height,
+            ),
           },
           true,
         );

@@ -481,7 +481,14 @@ export default function App() {
       const cx = settlers.reduce((sum, ent) => sum + ent.x, 0) / settlers.length;
       const cy = settlers.reduce((sum, ent) => sum + ent.y, 0) / settlers.length;
       const nextView = focusCameraOn(loop.getView(), cx, cy, 1.5);
-      loop.patchView({ camera: clampCameraTarget(nextView.camera, w.width, w.height) });
+      const canvas = canvasRef.current;
+      const rect = canvas?.getBoundingClientRect();
+      loop.patchView({
+        camera: clampCameraTarget(
+          nextView.camera, w.width, w.height,
+          rect?.width ?? w.width, rect?.height ?? w.height,
+        ),
+      });
     }
     loop.mutateWorld((session) => { session.paused = false; });
   }, []);
@@ -735,8 +742,12 @@ export default function App() {
       return;
     }
     const nextView = focusCameraOn(view, ent.x, ent.y);
+    const rect = canvasRef.current?.getBoundingClientRect();
     loop.patchView({
-      camera: clampCameraTarget(nextView.camera, w.width, w.height),
+      camera: clampCameraTarget(
+        nextView.camera, w.width, w.height,
+        rect?.width ?? w.width, rect?.height ?? w.height,
+      ),
     });
   }, [world.tick, showIntro, showMapSetup]);
 
@@ -884,28 +895,34 @@ export default function App() {
     const sy = screenY ?? ch / 2;
     const world = loop.getWorld();
     const next = zoomCameraViewAt(loop.getView(), factor, sx, sy, cw, ch);
-    loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height) });
+    // Viewport-aware clamp: keeps the visible area inside the world even when
+    // zoomed out (no empty ring around the map).
+    loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height, cw, ch) });
   }, []);
 
   const applyZoomRef = useRef(applyZoom);
 
   const resetZoom = useCallback(() => {
     const loop = loopRef.current;
-    if (!loop) return;
+    const canvas = canvasRef.current;
+    if (!loop || !canvas) return;
     const world = loop.getWorld();
+    const { width: cw, height: ch } = canvas.getBoundingClientRect();
     const cam = loop.getView().camera;
     const next = focusCameraOn(loop.getView(), cam.targetX, cam.targetY, CAMERA_ZOOM_DEFAULT);
-    loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height) });
+    loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height, cw, ch) });
   }, []);
 
   /** Jump to a preset zoom level (keeps camera center). */
   const setZoomLevel = useCallback((zoom: number) => {
     const loop = loopRef.current;
-    if (!loop) return;
+    const canvas = canvasRef.current;
+    if (!loop || !canvas) return;
     const world = loop.getWorld();
+    const { width: cw, height: ch } = canvas.getBoundingClientRect();
     const cam = loop.getView().camera;
     const next = focusCameraOn(loop.getView(), cam.targetX, cam.targetY, clampCameraZoom(zoom));
-    loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height) });
+    loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height, cw, ch) });
   }, []);
 
   // passive:false — React onWheel cannot preventDefault on modern browsers
@@ -1437,7 +1454,13 @@ export default function App() {
                     const loop = loopRef.current;
                     if (loop) {
                       const nextView = focusCameraOn(loop.getView(), n.focus.x, n.focus.y, 1.5);
-                      loop.patchView({ camera: clampCameraTarget(nextView.camera, world.width, world.height) });
+                      const rect = canvasRef.current?.getBoundingClientRect();
+                      loop.patchView({
+                        camera: clampCameraTarget(
+                          nextView.camera, world.width, world.height,
+                          rect?.width ?? world.width, rect?.height ?? world.height,
+                        ),
+                      });
                     }
                   }
                   // Visitor/rival camp notification — select the camp so the
@@ -1749,8 +1772,12 @@ export default function App() {
               const loop = loopRef.current;
               if (loop) {
                 const nextView = focusCameraOn(loop.getView(), wx, wy);
+                const rect = canvasRef.current?.getBoundingClientRect();
                 loop.patchView({
-                  camera: clampCameraTarget(nextView.camera, world.width, world.height),
+                  camera: clampCameraTarget(
+                    nextView.camera, world.width, world.height,
+                    rect?.width ?? world.width, rect?.height ?? world.height,
+                  ),
                 });
               }
             }}
