@@ -539,7 +539,31 @@ export function fillBuildingWorkers(originalState: WorldState, buildingId: numbe
 
 export function autoStaffAllWorkers(originalState: WorldState): WorldState {
   const state = structuredClone(originalState);
+  const countAssigned = () =>
+    listPlayerHumans(state).filter((h) => h.homeBuildingId != null).length;
+  const before = countAssigned();
   assignMissingWorkers(listPlayerHumans(state), state.buildings);
+  const after = countAssigned();
+  const assigned = after - before;
+
+  if (assigned > 0) {
+    addNotification(
+      state,
+      '⚒️ Auto-staff complete',
+      `${assigned} settler${assigned === 1 ? '' : 's'} assigned to job buildings.`,
+      'success',
+    );
+  } else {
+    // Still confirm the button did something — nothing idle to assign.
+    addNotification(
+      state,
+      '⚒️ Auto-staff',
+      before > 0
+        ? 'All job buildings are already staffed — no idle settlers to assign.'
+        : 'No settlers available to assign yet.',
+      'info',
+    );
+  }
   return state;
 }
 
