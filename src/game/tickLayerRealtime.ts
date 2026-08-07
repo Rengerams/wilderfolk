@@ -86,7 +86,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     }
   }
 
-  const aliveEntities = state.entities.filter((e) => e.alive);
+  const aliveEntities = ctx.aliveEntities;
   const colonyDay = getAbsoluteCalendarDay(state.tick);
   const moonResult = tickMoonHowlerCycle(
     state,

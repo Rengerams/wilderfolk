@@ -171,6 +171,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     winterPenalty,
     canHeat,
     byType,
+    aliveEntities,
     newEntities,
     updatedBuildings,
     roadBuildings,

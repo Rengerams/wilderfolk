@@ -198,6 +198,8 @@ export interface TickContext {
   winterPenalty: number;
   canHeat: boolean;
   byType: Record<EntityType, Entity[]>;
+  /** Alive entities at tick start — avoids re-filtering state.entities in each layer. */
+  aliveEntities: Entity[];
   newEntities: Entity[];
   updatedBuildings: Building[];
   roadBuildings: Building[];
