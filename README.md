@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Where Beasts and Kin Unite</strong><br>
-  <em>Don't kill the wolves!</em><br>
+  <em>Don't kill all the wolves.</em><br>
   <em>A cozy frontier settlement sim — built inside the food chain, not on top of it.</em>
 </p>
 
@@ -139,6 +139,6 @@ Source code is [MIT](LICENSE) — Copyright (c) 2026 Renffr. Audio assets have s
 
 <p align="center">
   <strong>Wilderfolk</strong><br>
-  <em>Don't kill the wolves!</em><br>
+  <em>Don't kill all the wolves.</em><br>
   <em>Build inside the food chain — or watch it collapse.</em>
 </p>
