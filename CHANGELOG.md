@@ -15,6 +15,9 @@
 - **Visitor intent made visible** — arrival toasts say what the group offers and clicking one selects the camp, opening the inspector with its talk / trade / refugee actions
 - **No visitors in week 1** — the first visitor group now arrives day 7–14 instead of day 3–7, so the founding burst is undisturbed
 
+### Performance
+- **Two redundant O(n) scans removed per sim tick** — the moon-Howler cycle reuses the entity-by-type index `gameTick` already builds (rebuilding only when moon forms actually transform/revert), and the realtime layer reuses the tick-start alive-entity list instead of re-filtering `state.entities`. Behavior unchanged, verified by regression tests (40 tests)
+
 ---
 
 ## [0.5.2] — 2026-08-06
