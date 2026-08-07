@@ -853,8 +853,12 @@ export function tickMoonHowlerCycle(
   colonyDay: number,
   hourOfDay: number,
   entityById: Map<number, Entity>,
+  initialByType?: EntityByType,
 ): MoonHowlerTickResult {
-  let byType = buildEntityByType(aliveEntities);
+  // Reuse the caller's byType index (already built from the same aliveEntities
+  // in gameTick) instead of rebuilding it every tick — rebuild only when forms
+  // actually transform/revert below.
+  let byType = initialByType ?? buildEntityByType(aliveEntities);
   let changed = false;
 
   const moonSync = syncMoonHowlerForms(

@@ -95,6 +95,8 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     colonyDay,
     ctx.hourOfDay,
     ctx.entityById,
+    // Reuse the byType index gameTick already built from this same alive set.
+    ctx.byType,
   );
   if (moonResult.changed) {
     ctx.byType = moonResult.byType;
