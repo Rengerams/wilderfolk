@@ -22,7 +22,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 🌿 → 🐰 🦌 → 🐺 🦊 → 🏹 → 🏘️
 ```
 
-**Build homes. Assign workers. Watch families grow.** Every settler carries three personality traits from a pool of fourteen — inherited from their parents, DNA-style — so the brave father's daughter carries his fire. Meet neighbor tribes on the map, queue iron at the Blacksmith, survive Moon Howlers, and chase four victory paths — from Eco-Utopia to Trade Empire. The valley feels alive because the sim treats predators, prey, and people as one system.
+**Build homes. Assign workers. Watch families grow.** Every settler carries three personality traits from a pool of fourteen — 💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful, 🦁 Chivalrous, 🔨 Resourceful, 🏔️ Stoic, ✨ Graceful, 🦉 Intuitive, 🔥 Fierce — inherited from their parents, DNA-style, so the brave father's daughter carries his fire. Meet neighbor tribes on the map, queue iron at the Blacksmith, survive Moon Howlers, and chase four victory paths — from Eco-Utopia to Trade Empire. The valley feels alive because the sim treats predators, prey, and people as one system.
 
 > **Early alpha today** — playtest the trail in your browser. **Installer and Steam** are the destination; this repo is the open development build.
 
