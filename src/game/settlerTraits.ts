@@ -71,6 +71,42 @@ export const TRAIT_DEFS: Record<SettlerTrait, TraitDef> = {
     emoji: '🔮',
     description: 'A sharp mind — the village researches a little faster.',
   },
+  chivalrous: {
+    id: 'chivalrous',
+    label: 'Chivalrous',
+    emoji: '🦁',
+    description: 'Gallant and protective — adds militia strength in a raid.',
+  },
+  resourceful: {
+    id: 'resourceful',
+    label: 'Resourceful',
+    emoji: '🔨',
+    description: 'Solves practical problems fast — builds quicker on site.',
+  },
+  stoic: {
+    id: 'stoic',
+    label: 'Stoic',
+    emoji: '🏔️',
+    description: 'Calm and steady — mourns loss and recovers sooner.',
+  },
+  graceful: {
+    id: 'graceful',
+    label: 'Graceful',
+    emoji: '✨',
+    description: 'Poised and elegant — courts and charms a little faster.',
+  },
+  intuitive: {
+    id: 'intuitive',
+    label: 'Intuitive',
+    emoji: '🦉',
+    description: 'Sharp instincts and empathy — chats up coworkers more.',
+  },
+  fierce: {
+    id: 'fierce',
+    label: 'Fierce',
+    emoji: '🔥',
+    description: 'Passionate and determined — burns energy slower on the job.',
+  },
 };
 
 const TRAIT_POOL: SettlerTrait[] = [
@@ -82,12 +118,33 @@ const TRAIT_POOL: SettlerTrait[] = [
   'lucky',
   'nurturing',
   'insightful',
+  'chivalrous',
+  'resourceful',
+  'stoic',
+  'graceful',
+  'intuitive',
+  'fierce',
 ];
 
 /** Traits drawn more often by women (community & wisdom leaning). */
-const FEMALE_LEANING: SettlerTrait[] = ['nurturing', 'insightful', 'gregarious', 'lucky'];
+const FEMALE_LEANING: SettlerTrait[] = [
+  'nurturing',
+  'insightful',
+  'gregarious',
+  'lucky',
+  'graceful',
+  'intuitive',
+  'fierce',
+];
 /** Traits drawn more often by men (frontier & physical leaning). */
-const MALE_LEANING: SettlerTrait[] = ['hardy', 'brave', 'greenthumb'];
+const MALE_LEANING: SettlerTrait[] = [
+  'hardy',
+  'brave',
+  'greenthumb',
+  'chivalrous',
+  'resourceful',
+  'stoic',
+];
 /** Bias strength when the trait matches the settler's gender (1.0 = neutral). */
 const GENDER_BIAS = 1.6;
 /** Neutral weight for every trait regardless of gender. */
@@ -99,8 +156,8 @@ const TRAIT_OPPOSITES: ReadonlyArray<readonly [SettlerTrait, SettlerTrait]> = [
   ['gregarious', 'timid'],
 ];
 
-/** How many traits a fresh adult gets. */
-const TRAIT_COUNT = 2;
+/** How many traits a fresh settler gets. */
+const TRAIT_COUNT = 3;
 
 /** Roll a single random trait weighted by gender that doesn't conflict. */
 function pickTrait(existing: SettlerTrait[], gender?: 'male' | 'female'): SettlerTrait {
@@ -139,11 +196,11 @@ export function rollSettlerTraits(
 /** Per-trait chance a parent passes a personality on to a child (DNA-like). */
 const INHERIT_CHANCE = 0.5;
 /** Hard cap on how many traits a child can inherit from both parents. */
-const MAX_INHERITED = 2;
+const MAX_INHERITED = 3;
 
 /**
  * DNA-like inheritance: each parent trait has a 50% chance to pass to the
- * child, drawing from both parents, capped at 2. Slots not filled by
+ * child, drawing from both parents, capped at 3. Slots not filled by
  * inheritance are rolled fresh by the caller via `rollSettlerTraits`.
  */
 export function inheritSettlerTraits(

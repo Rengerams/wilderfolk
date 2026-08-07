@@ -4,6 +4,7 @@
  */
 
 import type { Entity, WorldState } from './gameTypes';
+import { EntityType } from './gameTypes';
 import {
   hasIronShields,
   hasIronSpears,
@@ -175,6 +176,16 @@ export function computeMilitiaBreakdown(
     const perGuard = guardBonus / guardCount;
     // Show 1 decimal to avoid misleading integer rounding (e.g. 14.0, 14.5)
     lines.push(`+ ${guardBonus} barracks guards (${guardCount} staffed × ${perGuard.toFixed(1)})`);
+  }
+
+  // Chivalrous settlers add a protective edge to the whole militia.
+  const chivalrous = entities.filter(
+    (e) => e.type === EntityType.Human && e.alive && e.traits?.includes('chivalrous'),
+  ).length;
+  if (chivalrous > 0) {
+    const bonus = Math.round(rawTotal * 0.08);
+    rawTotal += bonus;
+    lines.push(`+ ${bonus} chivalrous protector(s) (${chivalrous} × 8%)`);
   }
 
   const militiaStrength = Math.round(rawTotal);

@@ -146,7 +146,13 @@ export type SettlerTrait =
   | 'greenthumb'
   | 'lucky'
   | 'nurturing'
-  | 'insightful';
+  | 'insightful'
+  | 'chivalrous'
+  | 'resourceful'
+  | 'stoic'
+  | 'graceful'
+  | 'intuitive'
+  | 'fierce';
 
 export const JOB_LABELS: Record<JobType, string> = {
   [JobType.Settler]: 'Settler',

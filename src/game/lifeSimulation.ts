@@ -1829,8 +1829,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     
     // Hospital reduces energy loss
     if (hasHospital) energyLoss *= 0.9;
-    // Hardy settlers burn energy slower.
+    // Hardy settlers burn energy slower; fierce ones push through the shift.
     energyLoss *= traitMultiplier(entity, 'hardy', 0.85);
+    energyLoss *= traitMultiplier(entity, 'fierce', 0.9);
     
     entity.energy -= energyLoss;
 
@@ -2441,6 +2442,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
                 // Gregarious settlers court faster; timid ones hold back.
                 * traitMultiplier(entity, 'gregarious', 1.4)
                 * traitMultiplier(entity, 'timid', 0.7)
+                // Graceful settlers charm a little faster too.
+                * traitMultiplier(entity, 'graceful', 1.2)
                 * PER_TICK_RATE_SCALE;
               entity.courtshipProgress = Math.min(100, (entity.courtshipProgress || 0) + courtRate);
               closest.courtshipProgress = Math.min(100, (closest.courtshipProgress || 0) + courtRate);

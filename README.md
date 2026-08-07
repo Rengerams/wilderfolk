@@ -163,7 +163,7 @@ Wood · stone · food · gold · storage · spoilage · workshop recipes · blac
 
 ### People
 
-Weekday work · night home · evening out · weekends free · courtship · marriage · divorce · remarriage · school · hospital care · Town Hall petitions · jobs from farmer to hotelier · **personality traits** — each villager carries two (💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful) that subtly shape how they live, from energy burn to research speed; children inherit each parent trait by a 50% chance, so families really do take after each other.
+Weekday work · night home · evening out · weekends free · courtship · marriage · divorce · remarriage · school · hospital care · Town Hall petitions · jobs from farmer to hotelier · **personality traits** — each villager carries three (💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful, 🦁 Chivalrous, 🔨 Resourceful, 🏔️ Stoic, ✨ Graceful, 🦉 Intuitive, 🔥 Fierce) that subtly shape how they live, from energy burn to research speed to militia strength; children inherit each parent trait by a 50% chance, so families really do take after each other.
 
 ### Land & seasons
 

@@ -1632,9 +1632,10 @@ export function finalizeHumanDeath(
         if (partner.relationshipStatus === 'married') {
           partner.relationshipStatus = partner.pregnant ? 'expecting' : 'single';
         }
-        // About a week of mourning when we know the tick
+        // About a week of mourning when we know the tick — stoic settlers recover sooner.
         if (tick != null) {
-          partner.griefUntilTick = Math.max(partner.griefUntilTick ?? 0, tick + TICKS_PER_DAY * 7);
+          const griefDays = partner.traits?.includes('stoic') ? 5 : 7;
+          partner.griefUntilTick = Math.max(partner.griefUntilTick ?? 0, tick + TICKS_PER_DAY * griefDays);
         }
         if (partner.moonHowlerSaved?.partnerId === entity.id) {
           partner.moonHowlerSaved.partnerId = undefined;

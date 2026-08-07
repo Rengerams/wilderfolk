@@ -19,9 +19,9 @@ import {
 } from '../src/game/settlerTraits';
 
 describe('rollSettlerTraits', () => {
-  it('assigns 2 traits to a fresh settler', () => {
+  it('assigns 3 traits to a fresh settler', () => {
     const traits = rollSettlerTraits();
-    expect(traits).toHaveLength(2);
+    expect(traits).toHaveLength(3);
     for (const t of traits) {
       expect(TRAIT_DEFS[t]).toBeDefined();
     }
@@ -38,32 +38,33 @@ describe('rollSettlerTraits', () => {
   it('keeps inherited traits and fills the rest', () => {
     const traits = rollSettlerTraits(['lucky']);
     expect(traits[0]).toBe('lucky');
-    expect(traits).toHaveLength(2);
+    expect(traits).toHaveLength(3);
   });
 
-  it('women draw nurturing/insightful more often than men (soft bias)', () => {
-    let femaleNurturing = 0;
-    let maleNurturing = 0;
+  it('women draw female-leaning traits more often than men (soft bias)', () => {
+    const FEMALE_SET = ['nurturing', 'insightful', 'gregarious', 'lucky', 'graceful', 'intuitive', 'fierce'];
+    let femaleLeaningForWomen = 0;
+    let femaleLeaningForMen = 0;
     const N = 400;
     for (let i = 0; i < N; i++) {
-      if (rollSettlerTraits([], 'female').includes('nurturing')) femaleNurturing++;
-      if (rollSettlerTraits([], 'male').includes('nurturing')) maleNurturing++;
+      femaleLeaningForWomen += rollSettlerTraits([], 'female').filter((t) => FEMALE_SET.includes(t)).length;
+      femaleLeaningForMen += rollSettlerTraits([], 'male').filter((t) => FEMALE_SET.includes(t)).length;
     }
-    // The bias is soft (1.6×) — women should clearly lead, men still can roll it.
-    expect(femaleNurturing).toBeGreaterThan(maleNurturing);
-    expect(maleNurturing).toBeGreaterThan(0);
+    expect(femaleLeaningForWomen).toBeGreaterThan(femaleLeaningForMen);
+    expect(femaleLeaningForMen).toBeGreaterThan(0);
   });
 
-  it('men draw hardy/brave more often than women (soft bias)', () => {
-    let femaleHardy = 0;
-    let maleHardy = 0;
+  it('men draw male-leaning traits more often than women (soft bias)', () => {
+    const MALE_SET = ['hardy', 'brave', 'greenthumb', 'chivalrous', 'resourceful', 'stoic'];
+    let maleLeaningForMen = 0;
+    let maleLeaningForWomen = 0;
     const N = 400;
     for (let i = 0; i < N; i++) {
-      if (rollSettlerTraits([], 'female').includes('hardy')) femaleHardy++;
-      if (rollSettlerTraits([], 'male').includes('hardy')) maleHardy++;
+      maleLeaningForMen += rollSettlerTraits([], 'male').filter((t) => MALE_SET.includes(t)).length;
+      maleLeaningForWomen += rollSettlerTraits([], 'female').filter((t) => MALE_SET.includes(t)).length;
     }
-    expect(maleHardy).toBeGreaterThan(femaleHardy);
-    expect(femaleHardy).toBeGreaterThan(0);
+    expect(maleLeaningForMen).toBeGreaterThan(maleLeaningForWomen);
+    expect(maleLeaningForWomen).toBeGreaterThan(0);
   });
 });
 
@@ -88,7 +89,7 @@ describe('inheritSettlerTraits (DNA-like)', () => {
     expect(inheritedNurturing).toBeLessThan(N);
   });
 
-  it('never exceeds the inherited cap of 2 traits', () => {
+  it('never exceeds the inherited cap of 3 traits', () => {
     const mother = createEntity(EntityType.Human, 0, 0, 201, 100, false, {
       gender: 'female',
       inheritedTraits: ['nurturing', 'lucky'],
@@ -99,7 +100,7 @@ describe('inheritSettlerTraits (DNA-like)', () => {
     });
     for (let i = 0; i < 200; i++) {
       const inherited = inheritSettlerTraits(mother, father);
-      expect(inherited.length).toBeLessThanOrEqual(2);
+      expect(inherited.length).toBeLessThanOrEqual(3);
     }
   });
 });
@@ -107,7 +108,7 @@ describe('inheritSettlerTraits (DNA-like)', () => {
 describe('createEntity traits', () => {
   it('gives settlers traits at creation', () => {
     const entity = createEntity(EntityType.Human, 0, 0, 1, 100, false, { gender: 'male' });
-    expect(entity.traits?.length).toBe(2);
+    expect(entity.traits?.length).toBe(3);
   });
 
   it('does not give traits to non-humans', () => {
@@ -122,7 +123,7 @@ describe('createEntity traits', () => {
     );
     expect(settlers.length).toBeGreaterThan(0);
     for (const s of settlers) {
-      expect(s.traits?.length).toBe(2);
+      expect(s.traits?.length).toBe(3);
     }
   });
 });

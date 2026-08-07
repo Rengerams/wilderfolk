@@ -68,10 +68,16 @@ export function getWorkerSkillMultiplier(
   const job = getJobForBuilding(building.type);
   if (!job || building.occupants.length === 0) return 1;
   let total = 0;
+  let resourceful = 0;
   for (const id of building.occupants) {
     const h = entityById?.get(id) ?? state.entities.find((e) => e.id === id);
-    if (h) total += readSkill(h, job);
+    if (h) {
+      total += readSkill(h, job);
+      if (h.traits?.includes('resourceful')) resourceful++;
+    }
   }
   const avg = total / building.occupants.length;
-  return 1 + avg * 0.02; // up to 3x at skill 100
+  // Resourceful builders get the site moving faster (+10% each, cap +30%).
+  const resourcefulMult = 1 + Math.min(0.3, resourceful * 0.1);
+  return (1 + avg * 0.02) * resourcefulMult; // up to 3x at skill 100
 }

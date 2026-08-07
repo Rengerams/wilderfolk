@@ -327,7 +327,9 @@ export function tryWorkplaceBanter(
 ): void {
   if (!onDayShift || hour < 11 || hour > 13) return;
   if ((entity.chatTicks ?? 0) > 0) return;
-  if (personDayRoll(entity.id, tick, 720) > 0.08) return;
+  // Intuitive settlers pick up on the room better — they banter more often.
+  const banterChance = entity.traits?.includes('intuitive') ? 0.11 : 0.08;
+  if (personDayRoll(entity.id, tick, 720) > banterChance) return;
   const mate = coworkers.find((c) => c.id !== entity.id && (c.chatTicks ?? 0) <= 0);
   if (!mate) {
     sayHumanChatPhrase(entity, personDayRoll(entity.id, tick, 721) < 0.5 ? 'Long morning.' : 'Almost midday.', 40);
