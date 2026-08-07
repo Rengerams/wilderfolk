@@ -4,6 +4,16 @@
 
 ### Fixed
 - **Rivers actually flow** — world-gen rivers now follow a smoothed elevation gradient from mountain peaks (with a basin-bypass fallback) and carve their channel into real water tiles; before, greedy descents died on spiky noise and rivers rendered as land on every preset
+- **Clicking a citizen selects them again** — grass tiles (spawned first, 10.8px hit radius) won the click hit-test race over settlers standing on them; scenery is no longer click-selectable
+- **Eco metrics no longer over-tick** — pollution / ecosystem health / biodiversity refresh once per day instead of 18×/day (pure waste removed)
+
+### Added
+- **Build-mode placement hint shows once ever** — the "Placing X · keep clicking…" banner no longer nags on every building (and respects the tutorials-off setting)
+- **Hospital is worth building** — pregnant and low-energy settlers now take clinic visits *during work hours* (walk to the ward + get treated on arrival), not just in free time or by chance proximity
+- **Arrow flight FX for free-roam hunts** — hungry settlers chasing deer/rabbits now show the same dashed-arrow animation as Hunting Spots
+- **New-settler notification** — immigrants arriving at the village now raise a header toast (with camera focus), not just floating text
+- **Visitor intent made visible** — arrival toasts say what the group offers and clicking one selects the camp, opening the inspector with its talk / trade / refugee actions
+- **No visitors in week 1** — the first visitor group now arrives day 7–14 instead of day 3–7, so the founding burst is undisturbed
 
 ---
 
