@@ -6,103 +6,245 @@
 
 <p align="center">
   <strong>Where Beasts and Kin Unite</strong><br>
-  <em>Don't kill all the wolves.</em>
+  <em>Don’t kill all the wolves.</em>
 </p>
 
 <p align="center">
-  <strong>v0.5.2</strong> · Early Alpha · <a href="#play-early-alpha">Play it in your browser</a>
+  <strong>v0.5.2</strong> · Early Alpha · current<br>
+  A cozy frontier colony sim — inside the food chain, not on top of it
 </p>
 
 ---
 
-## A cozy frontier colony sim — inside the food chain, not on top of it
+# 🌿 v0.5.2 — Game-feel & depth
 
-Most colony games ask you to **conquer** the wild. **Wilderfolk** asks you to **move into it** — and live with the consequences.
+**The valley comes alive** — flowing water and season light, real visitor trade with gold purses, elections every two years, and settlers who route around rivers. Continues **0.4 / 0.5.0 / 0.5.1** colonies.
+
+Full notes → [CHANGELOG.md](CHANGELOG.md) `[0.5.2]` · Roadmap → [ROADMAP.md](ROADMAP.md)
+
+---
+
+# 🌿 v0.5.1 — Clearer valley
+
+**The valley feels truer and clearer** — fairer raid spoils, clearer marches, and stronger cues when the wild runs thin. Continues **0.4 / 0.5.0** colonies.
+
+Full notes → [CHANGELOG.md](CHANGELOG.md) `[0.5.1]` · Roadmap → [ROADMAP.md](ROADMAP.md)
+
+---
+
+# 🌿 v0.5.0 — The valley scales
+
+**The valley scales — kin, beasts, and forge-steel.**
+
+This is the **scale + trust** milestone: big towns stay playable, the sim is honest about days and raids, and the forge arms your people for a real frontier.
+
+| | What v0.5 stands for |
+|:--:|--|
+| **Scale** | Spatial grids, worker sim (opt-in), alive-only entities, leaner tick paths |
+| **Trust** | Honest days & raids — moon Howlers, housing, immigration, hunt cadence |
+| **Steel** | Blacksmith tier 5 — iron **swords**, **scale mail**, tower **ballistae** |
+| **Life** | Hotel, valley stages, elections, painted map, 72 ticks/day |
+
+**Continue your 0.4 colony** — saves step up cleanly into 0.5.
+
+<details>
+<summary><strong>Ship highlights</strong></summary>
+
+- Moon Howlers that keep their place in the village after the night  
+- Raids you prepare for — counter-marches, real costs, living frontier  
+- Families that move and stay together; orphans find a home  
+- Forge progression: multi-smith pace, Armament checklist, swords & scale  
+- Full notes → [CHANGELOG.md](CHANGELOG.md) `[0.5.0]`  
+
+</details>
+
+---
+
+## Why you’ll want to play
+
+Most colony games ask you to **conquer** the wild.
+
+**Wilderfolk** asks you to **move into it** — and live with the consequences.
+
+Your people fall in love, argue at work, sneak out at night, and trade lines in speech bubbles.  
+Deer eat the grass. Wolves eat the deer. Your hunters want the same trails.  
+Caravans camp at the edge of the map. Rivals claim the next ridge. Winter burns your woodpile.
+
+Wipe the wolves? You’ll feel clever for a season.  
+Then the deer explode, the meadows die, and the hunting packs come home empty.
+
+**You didn’t lose to a raid. You lost to ecology.**
 
 ```
-🌿 grass  →  🐰 🦌 prey  →  🐺 🦊 predators  →  🏹 you  →  🏘️ village
+  🌿 grass  →  🐰 🦌 prey  →  🐺 🦊 predators  →  🏹 you  →  🏘️ village
 ```
 
 That loop is the heart of the game. Farms, walls, taverns, elections, and trade are how you stay **human** inside it.
 
-- 🌿 **The valley is alive.** Deer eat the grass. Wolves eat the deer. Your hunters want the same trails. Wipe out the wolves and the deer explode, the meadows die, and the hunting packs come home empty. You didn't lose to a raid. **You lost to ecology.**
-- 👨‍👩‍👧 **People who refuse to be statistics.** Every settler carries three personality traits from a pool of fourteen — Hardy, Brave, Lucky, Fierce, Nurturing… — inherited from their parents DNA-style, and shaping how they live, love, and fight. They court, marry, argue at work, sneak out for affairs (hello, prison), divorce, remarry, and grieve. Orphans get adopted.
-- 🌕 **The night has teeth.** On full moons, cursed kin become **Moon Howlers** and hunt through the dark. The Church has until dawn.
-- 🏛️ **The crown is never safe.** Elections every two years. The village head makes a promise — keeping it pays, and everyone remembers.
-- 🛠️ **Steel for the frontier.** The forge reaches tier 5: iron swords, scale mail, tower ballistae. Raids you *prepare* for, not lose to.
-- 🏨 **A frontier that visits you.** Seven kinds of visitors with real gold purses, reputation that shifts prices, and a traveling-smith quest. Hotel beds, tavern evenings, trade caravans across the map.
-- 🌊 **A valley that looks alive.** Flowing rivers, painted ground, seasons washing the land, night light pools, clickable mini-map, and a day that breathes (72 ticks).
+---
+
+## The fantasy
+
+You’re the founder of a **frontier village**. Two pioneers. Empty land. Night coming.
+
+You place a house before dark. A farm at dawn. People walk to work, home, the tavern.  
+Children grow up. Couples marry. Affairs leave scars. Orphans get adopted.  
+Visitors sleep at your **Hotel**, drink at the **Tavern**, and gossip in the square.  
+Full moons turn cursed kin into **Moon Howlers**. Rivals draw red raid lines across the map.  
+The Nature tab tells you when the **valley** is strained — before it collapses.  
+A **village head** wears the crown. Every two years, merit decides who keeps it — and their election promise follows them into the term.
+
+It’s a **colony sim** with a **food chain**, **families**, and **drama** — not a spreadsheet with trees.
 
 ---
 
-## Your first hour
-
-House → farm → watch a workday → open the Nature tab → stock wood for winter → talk to a visitor camp → **leave some wolves alive.**
-
-## What you'll actually do
+## You’ll actually do this
 
 1. **Shelter before night** — house first, or the cold will teach you.
-2. **Staff the valley** — farms, mills, smiths; people walk to work and back.
+2. **Staff the valley** — farms, mills, smiths; people walk there and back.
 3. **Watch them live** — chat bubbles, courtship, scandals, kids, remarriage.
 4. **Mind the wild** — Nature tab: Stable → Strained → Damaged → Collapse. Listen early.
-5. **Meet the frontier** — visitors, rivals, trade (build a **Market** for long routes), raids you prepare for.
+5. **Meet the frontier** — visitors, rivals, trade (build a **Market** for long routes), raids you *prepare* for.
 6. **Chase a legacy** — Eco-Utopia, Great City, Trade Empire, or Harmony — or just the chronicle.
 
-## Controls
+### First hour
+
+House → farm → watch a workday → open Nature → stock wood for winter → talk to a visitor camp → **leave some wolves alive**.
+
+### Controls
 
 | | |
 |--|--|
 | Click | Select people, buildings, camps |
-| Drag / scroll | Pan / zoom (right-drag also pans) |
+| Drag / scroll | Pan / zoom |
 | **B** | Build · **1–9** quick buildings · **R** rotate strips |
 | **Space** | Pause · speed buttons in the header |
 | **V F N P L M** | Village · Frontier · Nature · Progress · Log · More |
 | **Esc** | Cancel / clear |
 
-## Good first checklist
+---
 
-- [ ] House before night one
-- [ ] Farm staffed, food stable
-- [ ] Valley still "alive" on Nature (Stable or Strained is fine)
-- [ ] Hosted — or deliberately refused — a visitor group
-- [ ] First winter with wood and food
-- [ ] A few wolves still roaming
-- [ ] Found the village head 👑 (map crown or header chip)
-- [ ] Peeked at Progress → Goals
+## What’s in the game (quick map)
+
+| You care about… | Look here |
+|-----------------|-----------|
+| Food, work, homes | Farms, houses, jobs, meals, weekends off |
+| Money & trade | Store, **Market**, caravans, reputation |
+| Drama | Families, affairs, prison, tavern nights, hotel guests |
+| Ecology | Wildlife, hunting, **valley stages**, pollution |
+| Danger | Raids, walls, barracks, spears, Moon Howlers |
+| Goals | Challenges, four victory paths, Focus hints, alerts |
+| Leadership | Town Hall, **👑 village head**, elections |
+
+The painted map isn’t just green blocks anymore — flowing rivers, shores, forests, and clutter make the valley feel like a place you live in.
 
 ---
 
-## Play (Early Alpha)
+<details>
+<summary><strong>Full systems list</strong> (open if you want the complete menu)</summary>
+
+### Build
+
+| Category | Buildings |
+|----------|-----------|
+| **Homes** | House, Mansion |
+| **Food** | Farm, Greenhouse, Barn, Silo, Mill, Hunting Spot |
+| **Industry** | Lumber Mill, Quarry, Mine, Blacksmith, Workshop |
+| **Trade** | Store, Market |
+| **Civic** | Town Hall, School, Hospital, Church, Well, Prison |
+| **Life** | Tavern (evening Innkeeper), Hotel (2 staff, 4 guest beds), Taming Post |
+| **Defense** | Wall / Corner / Gate, Watchtower, Barracks, Road |
+
+Strip-place walls and roads; construction fills day by day.
+
+### Economy
+
+Wood · stone · food · gold · storage · spoilage · workshop recipes · blacksmith forge queue · trade routes (reputation **and** Market) · **"Food this day"** ledger in the Village tab.
+
+### People
+
+Weekday work · night home · evening out · weekends free · courtship · marriage · divorce · remarriage · school · hospital care · Town Hall petitions · jobs from farmer to hotelier · **personality traits** — each villager carries three (💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful, 🦁 Chivalrous, 🔨 Resourceful, 🏔️ Stoic, ✨ Graceful, 🦉 Intuitive, 🔥 Fierce) that subtly shape how they live, from energy burn to research speed to militia strength; children inherit each parent trait by a 50% chance, so families really do take after each other.
+
+### Land & seasons
+
+Map size and land type · spring → winter · weather (re-rolls every few days — rain is real) · ecosystem health · **valley stage** (Stable → Collapse) with Focus tips when you should ease up · settlers route around water & mountains.
+
+### Wildlife
+
+Grass, rabbits, deer, foxes, wolves, wildkin · hunt lines on the map · don’t erase the top of the chain.
+
+### Visitors & rivals
+
+Seven visitor kinds (traders, pilgrims, scholars, hunters, nomads, refugees, performers) · **real trade** — groups carry gold purses (no minted gold), reputation shifts prices · traveling-smith quest · Hotel lodgings · diplomacy · raids / counter-raids · combat log.
+
+### Spectacle
+
+Moon Howlers · taming · Renffr omen · night light pools, season particles, hunt chases, build confetti (toggle in ☰).
+
+### Victory
+
+Eco-Utopia · Great City · Trade Empire · Harmony · challenges under Progress → Goals · chronicle in the Log.
+
+</details>
+
+---
+
+## Good first checklist
+
+- [ ] House before night one  
+- [ ] Farm staffed, food stable  
+- [ ] Valley still “alive” on Nature (Stable or Strained is fine)  
+- [ ] Hosted — or deliberately refused — a visitor group  
+- [ ] First winter with wood and food  
+- [ ] A few wolves still roaming  
+- [ ] Found the village head 👑 (map crown or header chip)  
+- [ ] Peeked at Progress → Goals  
+
+---
+
+## Play (alpha)
 
 *Browser build for now — Steam / installer later.*
 
-**Need:** [Node.js 20+](https://nodejs.org) · a modern browser
+**Need:** [Node.js 20+](https://nodejs.org) · a modern browser  
 
 ```bash
+# from the repo root
 npm install
 npm start
 ```
 
 Open the URL the terminal prints (usually **http://localhost:5173**). Stop with `Ctrl+C`.
 
-Early alpha: balance moves, saves migrate, edges are rough. Your "that felt unfair" notes are how the frontier improves. Colonies continue across updates (0.4 → 0.5.x saves).
+| Stuck? | Try |
+|--------|-----|
+| `npm` missing | Install Node, restart the terminal |
+| Blank / old graphics | Hard refresh `Ctrl+Shift+R` |
+| Port busy | Close other dev servers |
+| Install fails | Delete `node_modules`, run `npm install` again |
 
-**Don't kill all the wolves.** Tutorial, thesis, and warning label in one line.
+Early alpha: balance moves, saves migrate, edges are rough. Your “that felt unfair” notes are how the frontier improves.
 
-## What's new in v0.5.2
-
-The valley comes alive — flowing water and season light, real visitor trade with gold purses, elections every two years, personality traits on every settler, and people who route around rivers. Full notes → [CHANGELOG.md](CHANGELOG.md) · Roadmap → [ROADMAP.md](ROADMAP.md)
+**Don’t kill all the wolves.**  
+Tutorial, thesis, and warning label in one line.
 
 ---
 
-## For builders
+## For builders (dev)
 
-The player docs end here — this README is the storefront. For the technical side:
+| | |
+|--|--|
+| Changelog | [CHANGELOG.md](CHANGELOG.md) |
+| Roadmap | [ROADMAP.md](ROADMAP.md) · [docs/archive/ROADMAP_0.5.0.md](docs/archive/ROADMAP_0.5.0.md) (0.5 archive) |
+| Marketing | [docs/MARKETING_v0.5.0.md](docs/MARKETING_v0.5.0.md) |
+| Dev server | `npm start` / `npm run dev` |
+| Lint | `npm run lint` |
+| Tests | `npm test` |
+| Dead code / deps | `npm run audit:knip` |
+| Import cycles | `npm run audit:deps` · both: `npm run audit` |
+| Dupes | `npm run dup` |
 
-- Architecture & sim design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- Agent guide (build, test, commit conventions): [AGENTS.md](AGENTS.md)
-- Release notes: [CHANGELOG.md](CHANGELOG.md) · Roadmap: [ROADMAP.md](ROADMAP.md)
-- Marketing assets: [docs/marketing/](docs/marketing/)
+Sim code lives under `src/`. Private notes stay in `docs/private/` (gitignored).
 
 ---
 
