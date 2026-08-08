@@ -58,6 +58,7 @@ const PRESET_MODIFIERS: Record<MapPreset, PresetModifiers> = {
   coastal:     { elevationBias: -0.12, elevationScale: 0.85, moistureBias:  0.22, moistureScale: 1.20, temperatureBias:  0.08, waterLevel: 0.32, forestThreshold: 0.42 },
   arid:        { elevationBias:  0.02, elevationScale: 1.05, moistureBias: -0.38, moistureScale: 0.55, temperatureBias:  0.22, waterLevel: 0.12, forestThreshold: 0.70 },
   harsh:       { elevationBias:  0.18, elevationScale: 1.25, moistureBias: -0.22, moistureScale: 0.70, temperatureBias: -0.22, waterLevel: 0.16, forestThreshold: 0.55 },
+  riverlands:  { elevationBias: -0.08, elevationScale: 0.85, moistureBias:  0.30, moistureScale: 1.30, temperatureBias:  0.05, waterLevel: 0.26, forestThreshold: 0.30 },
 };
 
 // ─── Terrain assignment ──────────────────────────────────────────────────────

@@ -1364,6 +1364,7 @@ export const MapPreset = {
   Coastal: 'coastal',
   Arid: 'arid',
   Harsh: 'harsh',
+  Riverlands: 'riverlands',
 } as const;
 export type MapPreset = (typeof MapPreset)[keyof typeof MapPreset];
 
