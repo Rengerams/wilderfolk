@@ -219,15 +219,40 @@ export function getHumanVariantLabel(gender: HumanGender | undefined, variant: n
   return HUMAN_VARIANT_LABELS[g][v] ?? `Outfit ${v + 1}`;
 }
 
+/**
+ * Slice one walk frame out of a human sheet. Landscape sheets (wider than
+ * ~1.5× tall) are treated as HUMAN_WALK_FRAMES frames side by side — the
+ * animator's format; portrait art (like the current 27×72 placeholders) is a
+ * single frame and returned as-is.
+ */
+export function sliceWalkFrame(frame: SpriteFrame, walkFrame: number): SpriteFrame {
+  const w = frame.sw;
+  if (w > frame.sh * 1.5) {
+    const f = ((Math.floor(walkFrame) % HUMAN_WALK_FRAMES) + HUMAN_WALK_FRAMES) % HUMAN_WALK_FRAMES;
+    const frameW = w / HUMAN_WALK_FRAMES;
+    return {
+      image: frame.image,
+      sx: frame.sx + f * frameW,
+      sy: frame.sy,
+      sw: frameW,
+      sh: frame.sh,
+      anchorY: frame.anchorY,
+    };
+  }
+  return frame;
+}
+
 export function getHumanSpriteFrame(
   gender: HumanGender | undefined,
   variant: number,
-  _frame: number,
+  frame: number,
 ): SpriteFrame | null {
   if (!isHumanSpritesReady()) return null;
   const g = gender ?? 'male';
   const v = normalizeVariant(variant);
-  return getSpriteFrame(getHumanWalkSheetPath(g, v)) ?? getSpriteFrame(HUMAN_BASE_SPRITES[g]);
+  const sheet = getSpriteFrame(getHumanWalkSheetPath(g, v)) ?? getSpriteFrame(HUMAN_BASE_SPRITES[g]);
+  if (!sheet) return null;
+  return sliceWalkFrame(sheet, frame);
 }
 
 /** Match renderer HUMAN_WALK_SPEED_THRESHOLD — idle settlers must not advance walk frames. */

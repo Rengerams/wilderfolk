@@ -28,6 +28,7 @@ import { getSpriteFrame, type SpriteFrame } from './spriteLoader';
 import {
   drawPioneerAt, getHumanSpriteMetrics,
   getHumanWalkBob, getHumanWalkFrameIndex, getHumanSpriteFrame,
+  pickHumanVariant,
   HUMAN_WALK_SPEED_THRESHOLD,
   HUMAN_BASE_SPRITES,
   type HumanGender,
@@ -2170,8 +2171,9 @@ function drawHumans(
 
     const drawHuman = () => {
       const gender = (human.gender ?? 'male') as HumanGender;
+      const variant = human.spriteVariant ?? pickHumanVariant(human.id, gender);
       const frame = isWalking
-        ? getHumanSpriteFrame(gender, human.spriteVariant ?? 0, walkFrame)
+        ? getHumanSpriteFrame(gender, variant, walkFrame)
         : getSpriteFrame(HUMAN_BASE_SPRITES[gender]);
       if (isDrawableSpriteFrame(frame)) {
         const aspect = frame.sw / frame.sh;
@@ -2184,7 +2186,7 @@ function drawHumans(
       }
       drawPioneerAt(
         ctx, sx, footY, spriteH,
-        human.gender, human.spriteVariant ?? 0, walkFrame, flipX, bobY,
+        human.gender, variant, walkFrame, flipX, bobY,
       );
     };
 
