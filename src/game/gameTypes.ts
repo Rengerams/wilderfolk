@@ -275,6 +275,10 @@ export interface Entity {
   title?: string;
   /** Colony day this child last let a family secret slip at school (transient per-day gate). */
   schoolGossipDay?: number;
+  /** Colony day this child last formed a schoolyard bond (transient per-day gate). */
+  schoolBondDay?: number;
+  /** Childhood friends from school — their bonds nudge adult courtship. */
+  childhoodFriendsIds?: number[];
   /** Birth / maiden surname — restored for the woman when a caught-affair marriage ends. */
   maidenSurname?: string;
   /** Optional for non-human entities. */

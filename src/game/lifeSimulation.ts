@@ -880,6 +880,55 @@ export function trySchoolyardGossip(
   }
 }
 
+/** Every N school days a child befriends a classmate — bonds that nudge adult courtship. */
+const SCHOOLYARD_BOND_EVERY_DAYS = 5;
+const SCHOOLYARD_BOND_MAX_FRIENDS = 3;
+
+/**
+ * Schoolyard bonds — kids at school befriend classmates. Those childhood bonds
+ * follow them into adulthood and nudge who they court (see findCourtshipPartner —
+ * a friend counts as half the distance). Mutual, capped, one formation per
+ * school-day milestone.
+ */
+export function tryFormSchoolyardBond(
+  state: WorldState,
+  child: Entity,
+  rng: () => number = Math.random,
+): void {
+  if (!child.isJuvenile || !isPlayerHuman(child)) return;
+  const day = getAbsoluteCalendarDay(state.tick);
+  if (child.schoolBondDay === day) return;
+  const schoolDays = child.schoolDays ?? 0;
+  if (schoolDays === 0 || schoolDays % SCHOOLYARD_BOND_EVERY_DAYS !== 0) return;
+  child.schoolBondDay = day;
+
+  const friends = child.childhoodFriendsIds ?? [];
+  if (friends.length >= SCHOOLYARD_BOND_MAX_FRIENDS) return;
+
+  const classmates = state.entities.filter(
+    (e) =>
+      e.alive
+      && e.type === EntityType.Human
+      && e.isJuvenile
+      && isPlayerHuman(e)
+      && e.id !== child.id
+      && !friends.includes(e.id),
+  );
+  if (classmates.length === 0) return;
+
+  const friend = classmates[Math.floor(rng() * classmates.length)];
+  if (!friend) return;
+  child.childhoodFriendsIds = [...friends, friend.id].slice(0, SCHOOLYARD_BOND_MAX_FRIENDS);
+  friend.childhoodFriendsIds = [...(friend.childhoodFriendsIds ?? []), child.id].slice(0, SCHOOLYARD_BOND_MAX_FRIENDS);
+  addFloatingText(state, child.x, child.y - 22, '👫 friends', '#fbbf24', 'brief');
+  logEvent(
+    state,
+    'event',
+    `${formatCitizenName(child)} and ${formatCitizenName(friend)} became friends at school`,
+    child.name,
+  );
+}
+
 function isValidAffairTarget(entity: Entity, target: Entity, tick: number): boolean {
   if (!isPlayerHuman(target) || !target.alive || !target.gender) return false;
   if (entity.prisonBuildingId != null || target.prisonBuildingId != null) return false;
@@ -1440,7 +1489,7 @@ function isCourtshipCandidate(entity: Entity, candidate: Entity): boolean {
 }
 
 /** Nearest eligible single — spatial query plus cohabiting housemates when at home. */
-function findCourtshipPartner(
+export function findCourtshipPartner(
   entity: Entity,
   atHome: boolean,
   courtRange: number,
@@ -1457,6 +1506,16 @@ function findCourtshipPartner(
     closestDistSq = distSq;
     closest = candidate;
   };
+
+  // Childhood sweethearts get a head start — a schoolyard bond makes a friend feel closer.
+  for (const friendId of entity.childhoodFriendsIds ?? []) {
+    const friend = fallbackHumans?.find((h) => h.id === friendId);
+    if (!friend || !friend.alive) continue;
+    if (!isCourtshipCandidate(entity, friend)) continue;
+    const dx = friend.x - entity.x;
+    const dy = friend.y - entity.y;
+    consider(friend, (dx * dx + dy * dy) * 0.25); // a friend counts as half the distance
+  }
 
   if (atHome && hasResidenceAssignment(entity)) {
     for (const housemate of getHousemates(entity, residenceOccupants)) {
@@ -1722,6 +1781,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       // Kids let family secrets slip at school — once per day, while enrolled.
       if (isNewCalendarDay) {
         trySchoolyardGossip(state, entity, entityById, updatedBuildings, playerHumans);
+        tryFormSchoolyardBond(state, entity);
       }
     }
     const inFocus = !focus || isInFocus(entity, focus);
