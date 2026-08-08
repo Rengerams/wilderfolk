@@ -735,8 +735,9 @@ function stampPropSprite(
 }
 
 /**
- * Scatter bushes / stumps / grass tufts / rock dots by terrain family.
- * Density: forest high, meadow medium, hills sparse, water/beach none.
+ * Scatter bushes / stumps / grass tufts / rock clusters by terrain family.
+ * Density: forest high, meadow sparse (with tiny flowers), hills rare.
+ * Snow & beach get procedural (sprite-free) relief — mounds and ripples.
  */
 function stampLandscapeProps(
   ctx: CanvasContext2d,
@@ -755,16 +756,28 @@ function stampLandscapeProps(
     for (let tx = 0; tx < map.width; tx++) {
       const tile = map.tiles[ty]?.[tx];
       if (!tile || isWater(tile.type)) continue;
-      if (tile.type === TerrainType.Beach || tile.type === TerrainType.Snow) continue;
-
-      const fam = fillFamily(tile.type);
-      if (fam !== 'grass' && fam !== 'dirt') continue;
       const r0 = hash01(tx, ty, seed);
       const r1 = hash01(tx + 3, ty + 7, seed + 11);
       const r2 = hash01(tx * 5, ty * 3, seed + 29);
       const cx = tx * tileSize + tileSize * (0.25 + r0 * 0.5);
       const cy = ty * tileSize + tileSize * (0.35 + r1 * 0.45);
       if (cx < 8 || cy < 8 || cx > worldW - 8 || cy > worldH - 8) continue;
+
+      // Snow — soft mounds with a cool shadow so white-on-white still reads.
+      if (tile.type === TerrainType.Snow) {
+        if (r0 > 0.12) continue;
+        drawSnowMound(ctx, cx, cy, 4 + r2 * 5, r1);
+        continue;
+      }
+      // Beach — faint sand ripples instead of a flat band.
+      if (tile.type === TerrainType.Beach) {
+        if (r0 > 0.1) continue;
+        drawSandRipple(ctx, cx, cy, 8 + r2 * 6, r1 > 0.5);
+        continue;
+      }
+
+      const fam = fillFamily(tile.type);
+      if (fam !== 'grass' && fam !== 'dirt') continue;
 
       // Chance: dark forest dense, meadow sparse, hills rare
       const density = fam === 'grass'
@@ -793,24 +806,83 @@ function stampLandscapeProps(
             stampPropSprite(ctx, bush, cx2, cy2, 10, 8, !flip);
           }
         } else {
-          // Open meadow — grass tufts only, not walls of bushes
+          // Open meadow — grass tufts only, not walls of bushes; tiny flowers now and then.
           stampPropSprite(ctx, r1 > 0.5 ? grassTuft : grassTuft2, cx, cy, 8 + r2 * 5, 7 + r2 * 4, flip);
+          if (r2 < 0.3 && tile.type === TerrainType.Grassland) {
+            drawMeadowFlower(ctx, cx + (r1 - 0.5) * 7, cy - 2 + (r0 - 0.5) * 5, r2);
+          }
         }
       } else if (fam === 'dirt') {
         if (r1 < 0.4 && getSprite(stump)) {
           stampPropSprite(ctx, stump, cx, cy, 9 + r2 * 4, 7 + r2 * 3, flip);
         } else {
-          // Procedural rock speck (no rock sprite)
-          ctx.fillStyle = 'rgba(70, 68, 62, 0.55)';
-          ctx.beginPath();
-          ctx.ellipse(cx, cy, 2.2 + r2 * 2, 1.4 + r2 * 1.2, r0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = 'rgba(110, 105, 95, 0.4)';
-          ctx.beginPath();
-          ctx.ellipse(cx - 0.5, cy - 0.4, 1.2 + r2, 0.8, r0, 0, Math.PI * 2);
-          ctx.fill();
+          drawRockCluster(ctx, cx, cy, r0, r1, r2);
         }
       }
     }
   }
+}
+
+/** Soft snow mound — shadowed base + bright top reads as relief on white ground. */
+function drawSnowMound(ctx: CanvasContext2d, cx: number, cy: number, size: number, roll: number): void {
+  ctx.fillStyle = 'rgba(120, 150, 190, 0.18)';
+  ctx.beginPath();
+  ctx.ellipse(cx + 1, cy + 1.6, size, size * 0.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(246, 250, 255, 0.8)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, size, size * 0.45, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.beginPath();
+  ctx.ellipse(cx - size * 0.15, cy - size * 0.12, size * 0.6, size * 0.28, roll - 0.3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** Faint wind-blown sand ripple on the beach. */
+function drawSandRipple(ctx: CanvasContext2d, cx: number, cy: number, length: number, flip: boolean): void {
+  const dir = flip ? -1 : 1;
+  ctx.strokeStyle = 'rgba(235, 220, 180, 0.32)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(cx - length * 0.4 * dir, cy + 2);
+  ctx.quadraticCurveTo(cx, cy - 1, cx + length * 0.4 * dir, cy + 2);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(160, 140, 105, 0.16)';
+  ctx.beginPath();
+  ctx.moveTo(cx - length * 0.4 * dir, cy + 2.7);
+  ctx.quadraticCurveTo(cx, cy + 0.6, cx + length * 0.4 * dir, cy + 2.7);
+  ctx.stroke();
+}
+
+/** Tiny meadow flower — a pale dot with a darker centre, very subtle. */
+function drawMeadowFlower(ctx: CanvasContext2d, cx: number, cy: number, roll: number): void {
+  ctx.fillStyle = roll < 0.12 ? 'rgba(255, 240, 170, 0.5)' : roll < 0.24 ? 'rgba(250, 210, 220, 0.45)' : 'rgba(255, 255, 255, 0.35)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 0.9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(180, 140, 40, 0.35)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 0.35, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** Procedural rock cluster — shadow, main stone, highlight, satellite pebble. */
+function drawRockCluster(ctx: CanvasContext2d, cx: number, cy: number, r0: number, r1: number, r2: number): void {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+  ctx.beginPath();
+  ctx.ellipse(cx + 0.8, cy + 0.8, 4 + r2 * 3, 1.6 + r1, r0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(78, 74, 66, 0.75)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 2.6 + r2 * 2.2, 1.8 + r1 * 1.4, r0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(140, 132, 118, 0.55)';
+  ctx.beginPath();
+  ctx.ellipse(cx - 0.7, cy - 0.6, 1.1 + r2 * 0.8, 0.7, r0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(90, 84, 74, 0.6)';
+  ctx.beginPath();
+  ctx.ellipse(cx + 3.4 + r1 * 1.5, cy + 1.2, 1.2 + r2, 0.8, r0 + 0.5, 0, Math.PI * 2);
+  ctx.fill();
 }
