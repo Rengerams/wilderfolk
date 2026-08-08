@@ -117,7 +117,7 @@ export function useKeyboardControls({
         } else if (selectedBuildingTypeRef.current) {
           cancelBuildModeRef.current();
         } else {
-          loopRef.current?.patchView({ selectedEntityId: null, selectedBuildingId: null });
+          loopRef.current?.patchView({ selectedEntityId: null, selectedEntityIds: [], selectedBuildingId: null });
         }
       }
       if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {

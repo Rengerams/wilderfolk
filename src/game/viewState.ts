@@ -6,7 +6,10 @@ import { pickWorldFieldsForSave } from './saveSchema';
 export interface ViewState {
   camera: Camera;
   screenShake: number;
+  /** Primary selected entity (last of selectedEntityIds) — inspector target. */
   selectedEntityId: number | null;
+  /** Multi-selection (shift-click). Includes the primary; drives multi-assign + rings. */
+  selectedEntityIds: number[];
   selectedBuildingId: number | null;
   hoveredBuildingId: number | null;
   buildMode: BuildingType | null;
@@ -36,6 +39,7 @@ export function createInitialView(width: number, height: number, zoom = 1.45): V
     camera: { x: cx, y: cy, zoom, targetX: cx, targetY: cy, targetZoom: zoom },
     screenShake: 0,
     selectedEntityId: null,
+    selectedEntityIds: [],
     selectedBuildingId: null,
     hoveredBuildingId: null,
     buildMode: null,
@@ -229,6 +233,13 @@ export function createViewFromSave(
     camera: normalizeCameraFromSave(parseCameraRecord(data.camera), base.camera),
     screenShake: screenShake != null && screenShake >= 0 ? screenShake : base.screenShake,
     selectedEntityId: selection.selectedEntityId,
+    selectedEntityIds: Array.isArray(data.selectedEntityIds)
+      ? data.selectedEntityIds
+        .map(parseEntityId)
+        .filter((id): id is number => id != null)
+      : selection.selectedEntityId != null
+        ? [selection.selectedEntityId]
+        : [],
     selectedBuildingId: selection.selectedBuildingId,
     hoveredBuildingId: selection.hoveredBuildingId,
     buildMode: isBuildingType(data.buildMode) ? data.buildMode : null,
@@ -264,11 +275,13 @@ export function resolveBuilding(world: WorldState, id: number | null): Building 
 /** Drop dead entity/building ids before persisting or restoring view selection. */
 export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewState {
   let selectedEntityId = view.selectedEntityId;
+  let selectedEntityIds = view.selectedEntityIds ?? (selectedEntityId != null ? [selectedEntityId] : []);
   let selectedBuildingId = view.selectedBuildingId;
   let favoriteEntityId = view.favoriteEntityId;
   if (selectedEntityId != null && !resolveEntity(world, selectedEntityId)) {
     selectedEntityId = null;
   }
+  selectedEntityIds = selectedEntityIds.filter((id) => resolveEntity(world, id) != null);
   if (selectedBuildingId != null && !resolveBuilding(world, selectedBuildingId)) {
     selectedBuildingId = null;
   }
@@ -279,10 +292,11 @@ export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewS
     selectedEntityId === view.selectedEntityId
     && selectedBuildingId === view.selectedBuildingId
     && favoriteEntityId === view.favoriteEntityId
+    && selectedEntityIds.length === (view.selectedEntityIds?.length ?? 0)
   ) {
     return view;
   }
-  return { ...view, selectedEntityId, selectedBuildingId, favoriteEntityId };
+  return { ...view, selectedEntityId, selectedEntityIds, selectedBuildingId, favoriteEntityId };
 }
 
 /** Legacy transient world fields kept at the save root for backward compatibility. */
@@ -323,6 +337,7 @@ export function mergeForSave(world: WorldState, view: ViewState): Record<string,
     ...pickTransientWorldFieldsForSave(world),
     camera: normalizeCameraForSave(selection.camera),
     selectedEntityId: selection.selectedEntityId,
+    selectedEntityIds: selection.selectedEntityIds,
     selectedBuildingId: selection.selectedBuildingId,
     buildMode: selection.buildMode,
     buildRotation: selection.buildRotation,

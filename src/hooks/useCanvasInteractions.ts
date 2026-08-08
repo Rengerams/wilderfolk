@@ -103,6 +103,7 @@ export function useCanvasInteractions({
             loopRef.current?.patchView({
               selectedBuildingId: under.id,
               selectedEntityId: null,
+              selectedEntityIds: [],
               selectedCampKey: null,
               highlightedCampKey: null,
             });
@@ -185,6 +186,7 @@ export function useCanvasInteractions({
         loop.patchView({
           ...nextView,
           selectedEntityId: null,
+          selectedEntityIds: [],
           selectedBuildingId: campHit.kind === 'rival' ? campHit.buildingId : null,
           highlightedCampKey: campKey,
           selectedCampKey: campKey,
@@ -201,12 +203,29 @@ export function useCanvasInteractions({
       const focusX = focusTarget.x;
       const focusY = focusTarget.y;
       if (loop) {
+        const view = loop.getView();
         const viewPatch = juiceEffectsEnabled
-          ? nudgeCameraToward(loop.getView(), loop.getWorld(), focusX, focusY)
-          : loop.getView();
+          ? nudgeCameraToward(view, loop.getWorld(), focusX, focusY)
+          : view;
+        // Multi-select: shift-click toggles a settler in the selection; a
+        // shift-click on a building keeps the settlers "armed" for multi-assign.
+        let nextEntityIds: number[];
+        if (clickedEntity) {
+          const current = view.selectedEntityIds ?? (view.selectedEntityId != null ? [view.selectedEntityId] : []);
+          nextEntityIds = e.shiftKey
+            ? current.includes(clickedEntity.id)
+              ? current.filter((id) => id !== clickedEntity.id)
+              : [...current, clickedEntity.id]
+            : [clickedEntity.id];
+        } else {
+          nextEntityIds = e.shiftKey
+            ? view.selectedEntityIds ?? []
+            : [];
+        }
         loop.patchView({
           ...viewPatch,
-          selectedEntityId: clickedEntity?.id ?? null,
+          selectedEntityId: nextEntityIds[nextEntityIds.length - 1] ?? null,
+          selectedEntityIds: nextEntityIds,
           selectedBuildingId: clickedBuilding?.id ?? null,
           highlightedCampKey: clickedEntity?.faction === 'rival' && clickedEntity.groupId
             ? `rival:${clickedEntity.groupId}`
@@ -222,6 +241,7 @@ export function useCanvasInteractions({
     } else {
       loopRef.current?.patchView({
         selectedEntityId: null,
+        selectedEntityIds: [],
         selectedBuildingId: null,
         highlightedCampKey: null,
         selectedCampKey: null,

@@ -7,6 +7,7 @@
 - **Schools are your call now** — teachers are **manually assigned** (no auto-fill, so you pick the personality shaping the kids), and each school caps attendance at **10 children** — a full classroom means building a second school
 - **Kids are gossip couriers** — a child at school whose parent carries an established affair may let it slip, exposing the scandal as a rumor (🤫 whispered…). One slip per child per day — the schoolyard does the church's gossip work
 - **Schoolyard bonds** — kids at school befriend classmates (👫 every ~5 school days, up to 3 friends); those childhood bonds follow them into adulthood and nudge who they court — a friend counts as half the distance
+- **Multi-select workers** — shift-click settlers to select several at once (every selected settler shows a ring); select a building and one button assigns them all
 
 ---
 

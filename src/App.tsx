@@ -648,6 +648,7 @@ export default function App() {
   const clearSelection = useCallback(() => {
     loopRef.current?.patchView({
       selectedEntityId: null,
+      selectedEntityIds: [],
       selectedBuildingId: null,
       highlightedCampKey: null,
       selectedCampKey: null,
@@ -662,6 +663,7 @@ export default function App() {
     loop.patchView({
       ...nextView,
       selectedEntityId: null,
+      selectedEntityIds: [],
       selectedBuildingId: kind === 'rival' ? (buildingId ?? null) : null,
       highlightedCampKey: campKey,
       selectedCampKey: kind === 'visitor' ? campKey : null,
@@ -676,6 +678,7 @@ export default function App() {
     loop.patchView({
       ...nextView,
       selectedEntityId: null,
+      selectedEntityIds: [],
       selectedBuildingId: buildingId,
       highlightedCampKey: null,
       selectedCampKey: null,
@@ -690,6 +693,7 @@ export default function App() {
     loop.patchView({
       ...nextView,
       selectedEntityId: entity.id,
+      selectedEntityIds: [entity.id],
       selectedBuildingId: null,
       highlightedCampKey: null,
       selectedCampKey: null,
@@ -716,6 +720,7 @@ export default function App() {
         ...nextView,
         favoriteEntityId: nextId,
         selectedEntityId: nextId,
+        selectedEntityIds: [nextId],
         selectedBuildingId: null,
         selectedCampKey: null,
         highlightedCampKey: null,
@@ -764,6 +769,7 @@ export default function App() {
       showGrid: true,
       selectedBuildingId: null,
       selectedEntityId: null,
+      selectedEntityIds: [],
     });
   }, [clearSelection]);
 
@@ -1469,6 +1475,7 @@ export default function App() {
                     loopRef.current?.patchView({
                       selectedCampKey: n.campKey,
                       selectedEntityId: null,
+                      selectedEntityIds: [],
                       selectedBuildingId: null,
                     });
                     setInspectorCollapsed(false);
@@ -1970,6 +1977,28 @@ export default function App() {
                 onOpenVisitorCamp={(group) => focusCampOnMap('visitor', group.id, group.campX, group.campY)}
               />
             ) : selectedBuilding ? (
+              <>
+                {(() => {
+                  const selectedSettlers = (view.selectedEntityIds ?? [])
+                    .map((id) => resolveEntity(world, id) ?? catalog?.get(id) ?? null)
+                    .filter((e): e is import('./game/gameTypes').Entity =>
+                      !!e && e.alive && e.type === EntityType.Human && !e.faction && !e.isJuvenile);
+                  if (selectedSettlers.length < 2) return null;
+                  return (
+                    <button
+                      onClick={() => {
+                        playClickSound();
+                        for (const s of selectedSettlers) {
+                          applyGameAction({ proto: 1, op: 'assignWorker', buildingId: selectedBuilding.id, humanId: s.id });
+                        }
+                        loopRef.current?.patchView({ selectedEntityIds: [], selectedEntityId: null });
+                      }}
+                      className="mb-2 w-full rounded-xl border-2 border-amber-400/60 bg-amber-400/15 px-3 py-2 text-left text-xs font-semibold text-amber-200 shadow-lg backdrop-blur-md transition-colors hover:bg-amber-400/25"
+                    >
+                      👥 Assign {selectedSettlers.length} selected settlers here
+                    </button>
+                  );
+                })()}
               <SelectedBuildingPanel
                 building={selectedBuilding}
                 state={world}
@@ -2008,6 +2037,7 @@ export default function App() {
                 }}
                 onFocusCamp={(rival) => focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0])}
               />
+              </>
             ) : null}
             </div>
             )}

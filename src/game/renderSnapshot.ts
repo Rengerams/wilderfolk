@@ -41,6 +41,8 @@ export interface RenderSnapshot {
   readonly camera: Camera;
   readonly screenShake: number;
   readonly selectedEntity: Entity | null;
+  /** Multi-selection (shift-click) — drives selection rings + multi-assign. */
+  readonly selectedEntityIds: readonly number[];
   readonly selectedBuilding: Building | null;
   readonly hoveredBuilding: Building | null;
   readonly buildMode: BuildingType | null;
@@ -83,6 +85,8 @@ export function buildRenderSnapshot(
   const selectedEntity = resolveEntity(world, view.selectedEntityId)
     ?? catalog?.get(view.selectedEntityId)
     ?? null;
+  const selectedEntityIds = (view.selectedEntityIds ?? (view.selectedEntityId != null ? [view.selectedEntityId] : []))
+    .filter((id) => (resolveEntity(world, id) ?? catalog?.get(id)) != null);
   const entities = catalog?.getAlive() ?? world.entities.filter((e) => e.alive);
   const entityByType = catalog?.getEntityByType()
     ?? world.entityByType
@@ -119,6 +123,7 @@ export function buildRenderSnapshot(
     camera: view.camera,
     screenShake: view.screenShake,
     selectedEntity,
+    selectedEntityIds,
     selectedBuilding: resolveBuilding(world, view.selectedBuildingId),
     hoveredBuilding: resolveBuilding(world, view.hoveredBuildingId),
     buildMode: view.buildMode,

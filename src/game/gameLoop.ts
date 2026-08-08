@@ -697,6 +697,10 @@ export class GameLoop {
     if (this.view.selectedEntityId != null && !resolveEntity(this.world, this.view.selectedEntityId)) {
       this.view = { ...this.view, selectedEntityId: null };
     }
+    const alive = (this.view.selectedEntityIds ?? []).filter((id) => resolveEntity(this.world, id) != null);
+    if (alive.length !== (this.view.selectedEntityIds?.length ?? 0)) {
+      this.view = { ...this.view, selectedEntityIds: alive };
+    }
   }
 
   private notify(tickChanged: boolean, allowPeriodic = false, force = false): void {

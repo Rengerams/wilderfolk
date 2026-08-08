@@ -1,6 +1,6 @@
 # Wilderfolk — Game Feel & Depth Plan
 
-**Date:** 2026-08-03 · **Branch:** `main` · **Status:** Phase 0 + 1 done · Phase 2 done · Phase 3 next
+**Date:** 2026-08-03 · **Branch:** `main` · **Status:** Phase 0 + 1 done · Phase 2 done · Phase 3 in progress (3.1 done)
 **Companion docs:** [continuation plan (archived)](../archive/2026-08-02-continuation-plan.md) (agent handoff + what's already done) · [landscape looks research](../private/landscape-looks-research.md) (private)
 
 ---
@@ -26,6 +26,12 @@ The micro-bug-fix wave is done. This plan turns the product analysis into ordere
 | 2.5 Election promises | `db9e8eb` |
 
 **Next up:** Phase 3 — QoL & polish (multi-select workers, decorations/beauty, SFX, weather consequences). Playtest Phase 2 first (trade prices at your reputation, the smith quest, upgraded building look) and file what feels off.
+
+### ✅ Phase 3 (in progress)
+
+| Task | Commit |
+|------|--------|
+| 3.1 Multi-select workers (shift-click select + assign all at once) | (see this session — multi-select) |
 
 **Priority logic (impact ÷ effort):**
 - Pathfinding first: it is a real bug (stuck citizens at map edges) *and* the single biggest sim/controls upgrade.
@@ -104,5 +110,5 @@ Follow `docs/private/landscape-looks-research.md` exactly: seamless grass/dirt/w
 
 - One task = one commit; message per repo convention (`feat:`/`fix:`/`docs:`), bug IDs when relevant.
 - **When a task is done:** tick its checkbox here, add a one-line note to the continuation plan's "already done" list (with commit hash), and update `docs/README.md` only if the docs layout changes.
-- **Before each commit:** `npm run lint` (0 errors), `npm run build` (passes, chunk warning is pre-existing), `npm test` (26 pass).
+- **Before each commit:** `npm run lint` (0 errors), `npm run build` (passes, chunk warning is pre-existing), `npm test` (89 pass).
 - Player-tested features get a playtest note in the continuation plan's P4 section; do not mark "verified" without the player having seen it.

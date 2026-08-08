@@ -1687,7 +1687,7 @@ function drawAnimals(
     const cullPad = spriteH * 0.75;
     if (sx + cullPad < -20 || sx - cullPad > cw + 20 || sy + cullPad < -20 || sy - cullPad > ch + 20) continue;
 
-    const sel = state.selectedEntity?.id === e.id;
+    const sel = state.selectedEntityIds.includes(e.id) || state.selectedEntity?.id === e.id;
     const flipX = e.vx < 0;
     const frame = getSpriteFrame(cfg.sprite);
 
@@ -2151,7 +2151,7 @@ function drawHumans(
     const cullPad = Math.max(size * 1.5, spriteH);
     if (sx + cullPad < -20 || sx - cullPad > cw + 20 || sy + cullPad < -20 || sy - cullPad > ch + 20) continue;
 
-    const isSel = state.selectedEntity?.id === human.id;
+    const isSel = state.selectedEntityIds.includes(human.id) || state.selectedEntity?.id === human.id;
     const flipX = human.vx < -0.05 || (Math.abs(human.vx) <= 0.05 && Math.cos(human.spriteAngle ?? 0) < 0);
     const speed = Math.hypot(human.vx, human.vy);
     const isWalking = speed > HUMAN_WALK_SPEED_THRESHOLD;
