@@ -4,6 +4,7 @@
 
 ### Added
 - **Titles sway elections** — settlers who earned a title (**Moonslayer**, **Howlerbane**) carry **+8 merit** into leadership votes; the title shows in the race standings and announcements
+- **Schools are your call now** — teachers are **manually assigned** (no auto-fill, so you pick the personality shaping the kids), and each school caps attendance at **10 children** — a full classroom means building a second school
 
 ---
 

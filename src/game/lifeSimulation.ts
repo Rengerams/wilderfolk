@@ -1600,6 +1600,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     return prefer.length > 0 ? [...prefer, ...out] : out;
   };
 
+  // School enrollment is capped per school (SCHOOL_MAX_CHILDREN) — reserve seats
+  // as children pick schools this pass so the first 10 get in.
+  const schoolReserved = new Map<number, number>();
+
   for (const entity of allHumans) {
     if (!entity.alive) continue;
     reconcileAffairPartner(entity, entityById);
@@ -1670,8 +1674,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (isPlayerHuman(e)) applyEducationGraduation(state, e);
     });
     const schoolTarget = entity.isJuvenile && isPlayerHuman(entity)
-      ? findSchoolForChild(entity, updatedBuildings)
+      ? findSchoolForChild(entity, updatedBuildings, schoolReserved)
       : undefined;
+    if (schoolTarget) {
+      schoolReserved.set(schoolTarget.id, (schoolReserved.get(schoolTarget.id) ?? 0) + 1);
+    }
     const inFocus = !focus || isInFocus(entity, focus);
     const active = !isPrisoner && (
       inFocus

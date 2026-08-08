@@ -1149,7 +1149,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     width: 53, height: 46,
     cost: { wood: 50, stone: 30, gold: 25 },
     buildTime: 5, maxOccupants: 2,
-    emoji: '🏫', label: 'School', description: 'Staff a teacher — children attend by day for faster growth & graduation perks.',
+    emoji: '🏫', label: 'School', description: 'Assign teachers yourself (up to 2) — children attend by day (up to 10 per school) for faster growth & graduation perks.',
     sprite: '/sprites/school.png', backgroundColor: '#2563eb', padShape: 'round',
     unlockRequirement: 'education_1',
   },

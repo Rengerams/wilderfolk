@@ -14,6 +14,9 @@ export const SCHOOL_GRADUATION_DAYS = 15;
 /** School days for full education tier. */
 export const SCHOOL_FULL_EDUCATION_DAYS = 45;
 
+/** Max children who can attend one school at once — a classroom holds a classroom. */
+export const SCHOOL_MAX_CHILDREN = 10;
+
 export function findStaffedSchools(buildings: Building[]): Building[] {
   return buildings.filter(
     (b) =>
@@ -24,11 +27,17 @@ export function findStaffedSchools(buildings: Building[]): Building[] {
   );
 }
 
-export function findNearestStaffedSchool(child: Entity, schools: readonly Building[]): Building | undefined {
+export function findNearestStaffedSchool(
+  child: Entity,
+  schools: readonly Building[],
+  reserved?: Map<number, number>,
+): Building | undefined {
   if (schools.length === 0) return undefined;
   let best: Building | undefined;
   let bestDist = Infinity;
   for (const school of schools) {
+    // Skip schools already at capacity (children reserved earlier this pass).
+    if ((reserved?.get(school.id) ?? 0) >= SCHOOL_MAX_CHILDREN) continue;
     const cx = school.x + school.width / 2;
     const cy = school.y + school.height / 2;
     const dist = Math.hypot(child.x - cx, child.y - cy);
@@ -40,8 +49,12 @@ export function findNearestStaffedSchool(child: Entity, schools: readonly Buildi
   return best;
 }
 
-export function findSchoolForChild(child: Entity, buildings: Building[]): Building | undefined {
-  return findNearestStaffedSchool(child, findStaffedSchools(buildings));
+export function findSchoolForChild(
+  child: Entity,
+  buildings: Building[],
+  reserved?: Map<number, number>,
+): Building | undefined {
+  return findNearestStaffedSchool(child, findStaffedSchools(buildings), reserved);
 }
 
 export function isChildAtSchool(child: Entity, school: Building, maxDist = 28): boolean {

@@ -33,7 +33,7 @@ const AUTO_JOB_BUILDING_PRIORITY: BuildingType[] = [
 ];
 
 /** Job sites the player staffs manually (no auto-fill each tick). */
-const MANUAL_STAFF_BUILDINGS = new Set<BuildingType>([BuildingType.Church, BuildingType.Prison, BuildingType.Barracks]);
+const MANUAL_STAFF_BUILDINGS = new Set<BuildingType>([BuildingType.Church, BuildingType.Prison, BuildingType.Barracks, BuildingType.School]);
 
 export function isManualStaffBuilding(type: BuildingType): boolean {
   return MANUAL_STAFF_BUILDINGS.has(type);
