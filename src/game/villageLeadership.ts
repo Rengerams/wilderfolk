@@ -42,6 +42,8 @@ export interface LeadershipScoreBreakdown {
   communityPoints: number;
   /** Incumbent-only election bonuses/penalties from economy, scandals, and village health. */
   recordPoints: number;
+  /** Election bonus for earned titles (Moonslayer, Howlerbane…) — deeds speak in the vote. */
+  titlePoints: number;
 }
 
 export interface IncumbentRecordAssessment {
@@ -65,6 +67,9 @@ const RECORD_VILLAGE_POOR = -6;
 /** Cap positive record so a high-merit challenger can beat a popular sitting head. */
 const RECORD_POSITIVE_CAP = 8;
 
+/** Election merit for holding an earned title — rare deeds (slaying/breaking a Moon Howler) carry weight. */
+const TITLE_MERIT_BONUS = 8;
+
 export interface ElectionAnnouncement {
   title: string;
   message: string;
@@ -80,7 +85,8 @@ export interface ElectionBuildupNotice {
 
 export function formatSettlerName(entity: Entity): string {
   const base = entity.name || 'Unknown';
-  return entity.surname ? `${base} ${entity.surname}` : base;
+  const full = entity.surname ? `${base} ${entity.surname}` : base;
+  return entity.title ? `${full} ${entity.title}` : full;
 }
 
 function leadershipAgeYears(
@@ -231,8 +237,9 @@ export function getLeadershipScoreBreakdown(state: WorldState, entity: Entity): 
   );
   const servicePoints = townHall?.occupants.includes(entity.id) ? 15 : 0;
   const communityPoints = entity.relationshipStatus === 'married' ? 5 : 0;
+  const titlePoints = entity.title ? TITLE_MERIT_BONUS : 0;
   const recordPoints = getIncumbentRecordPoints(state, entity);
-  const baseScore = skillPoints + experiencePoints + servicePoints + communityPoints;
+  const baseScore = skillPoints + experiencePoints + servicePoints + communityPoints + titlePoints;
 
   return {
     entityId: entity.id,
@@ -242,6 +249,7 @@ export function getLeadershipScoreBreakdown(state: WorldState, entity: Entity): 
     servicePoints,
     communityPoints,
     recordPoints,
+    titlePoints,
     totalScore: baseScore + recordPoints,
   };
 }
@@ -347,6 +355,7 @@ function scoreSummary(b: LeadershipScoreBreakdown): string {
     `skills ${b.skillPoints}`,
     `experience ${b.experiencePoints}`,
   ];
+  if (b.titlePoints > 0) parts.push(`title +${b.titlePoints}`);
   if (b.servicePoints > 0) parts.push(`Town Hall +${b.servicePoints}`);
   if (b.communityPoints > 0) parts.push(`family +${b.communityPoints}`);
   if (b.recordPoints > 0) parts.push(`record +${b.recordPoints}`);

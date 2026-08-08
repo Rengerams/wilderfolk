@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Titles sway elections** — settlers who earned a title (**Moonslayer**, **Howlerbane**) carry **+8 merit** into leadership votes; the title shows in the race standings and announcements
+
+---
+
 ## [0.5.3] — 2026-08-07
 
 **The night hunts back — Moon Howler exorcism overhaul, personality traits, and the deepest playtest pass yet.**
