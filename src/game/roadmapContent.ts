@@ -15,15 +15,30 @@ export interface RoadmapVersion {
   features: RoadmapFeature[];
 }
 
-export const ROADMAP_TARGET_VERSION = '0.5.3';
+export const ROADMAP_TARGET_VERSION = '0.5.4';
 
 export const ROADMAP_NORTH_STAR =
   'A cozy frontier eco-sim where settlers live on a schedule, the food chain matters, the valley feels alive with other people and tribes — and you always know what to do next.';
 
 const DONE = (label: string): RoadmapFeature => ({ label, status: 'done' });
+const OPEN = (label: string): RoadmapFeature => ({ label, status: 'open' });
 
 /** Newest first. Shipped versions list done work only (positive player-facing story). */
 export const ROADMAP_VERSIONS: RoadmapVersion[] = [
+  {
+    version: '0.5.4',
+    theme: 'In development — schools, titles, and a more manageable valley',
+    shipDate: 'in development',
+    tagTarget: 'v0.5.4',
+    features: [
+      DONE('Titles sway elections — Moonslayer / Howlerbane carry +8 election merit'),
+      DONE('Schools are your call — manual teachers, 10-child classes, schoolyard bonds & gossip'),
+      DONE('Multi-select workers — shift-click settlers, assign them all at once'),
+      DONE('Saves from the current build load again — version gate fix'),
+      OPEN('Decorations & beauty — fences, gardens, lamps, statues'),
+      OPEN('Sound effects by surface · weather with real consequences'),
+    ],
+  },
   {
     version: '0.5.3',
     theme: 'The night hunts back — Moon Howler nights & a deeper valley',

@@ -1,6 +1,6 @@
 # Wilderfolk Roadmap
 
-*Last updated: **August 7, 2026** · playing **v0.5.3***
+*Last updated: **August 8, 2026** · playing **v0.5.3** · cooking **v0.5.4***
 
 What shipped, newest first. Pitch → [README.md](README.md) · Notes → [CHANGELOG.md](CHANGELOG.md)
 
@@ -14,11 +14,11 @@ What shipped, newest first. Pitch → [README.md](README.md) · Notes → [CHANG
 |---|---|
 | 🎨 **Sprites** | Investigate a proper sprite pack — fix the Hotel (current file is a JPEG with a `.png` name), consistent building art, per-building files in `public/sprites/` (RGBA, wider-than-tall ≈1.15:1 draw boxes) |
 | 🏗️ **Buildings** | New buildings & roles — candidates from game-feel Phase 3: decorations/beauty (fences, gardens, lamps, statues), a "beauty" readout |
-| ✨ **Features** | Game-feel Phase 3 — multi-select workers, sound effects by surface, weather with real consequences → [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md) |
-| 🐛 **Bug solving** | EM-8 build-menu switch repro (pending player detail); new playtest findings as they land |
+| ✨ **Features** | ✅ **Multi-select workers** (shipped — shift-click select, assign all at once) · up next: sound effects by surface, weather with real consequences → [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md) |
+| 🐛 **Bug solving** | ✅ EM-8 build-menu switch (fixed, player confirmed) · save version gate fixed (0.5.3 saves load again) · new playtest findings as they land |
 | ⚙️ **Simulation** | Deeper sim polish — scan cleanup, economy readability, balance from playtest data |
 
-*Details live in [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md) (Phase 3 next).*
+*Details live in [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md) (Phase 3 in progress — 3.1 multi-select done).*
 
 ---
 

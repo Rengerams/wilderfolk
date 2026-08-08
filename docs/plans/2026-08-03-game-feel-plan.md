@@ -31,7 +31,7 @@ The micro-bug-fix wave is done. This plan turns the product analysis into ordere
 
 | Task | Commit |
 |------|--------|
-| 3.1 Multi-select workers (shift-click select + assign all at once) | (see this session — multi-select) |
+| 3.1 Multi-select workers (shift-click select + assign all at once) | `e572b6a` |
 
 **Priority logic (impact ÷ effort):**
 - Pathfinding first: it is a real bug (stuck citizens at map edges) *and* the single biggest sim/controls upgrade.
