@@ -273,6 +273,8 @@ export interface Entity {
   surname?: string;
   /** Honorific earned for deeds — e.g. "Moonslayer" (killed a Moon Howler) or "Howlerbane" (broke a curse). */
   title?: string;
+  /** Colony day this child last let a family secret slip at school (transient per-day gate). */
+  schoolGossipDay?: number;
   /** Birth / maiden surname — restored for the woman when a caught-affair marriage ends. */
   maidenSurname?: string;
   /** Optional for non-human entities. */

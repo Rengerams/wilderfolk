@@ -839,6 +839,47 @@ export function tryDailyAffairGossip(
   }
 }
 
+/**
+ * Schoolyard gossip — kids let family secrets slip at school. A child enrolled
+ * in a staffed school whose parent carries an established affair may blurt it
+ * out, exposing the affair as a rumor (church gossip, but from the sandbox).
+ * One slip per child per day.
+ */
+export function trySchoolyardGossip(
+  state: WorldState,
+  child: Entity,
+  entityById: Map<number, Entity>,
+  buildings: Building[],
+  playerHumans: readonly Entity[],
+  rng: () => number = Math.random,
+): void {
+  if (!child.isJuvenile || !isPlayerHuman(child)) return;
+  const parentIds = [child.fatherId, child.motherId, child.adoptiveFatherId, child.adoptiveMotherId]
+    .filter((id): id is number => id != null);
+  if (parentIds.length === 0) return;
+
+  for (const pid of parentIds) {
+    const parent = entityById.get(pid);
+    if (!parent?.alive) continue;
+    const lover = parent.affairPartnerId != null ? entityById.get(parent.affairPartnerId) : undefined;
+    if (!lover?.alive) continue;
+    if (!shouldLeadAffairPair(parent, lover)) continue;
+    if (onScandalCooldown(parent, state.tick) || onScandalCooldown(lover, state.tick)) continue;
+    // Established affairs only — a schoolyard blab needs something to blab about.
+    if ((parent.affairProgress ?? 0) < 45 && (lover.affairProgress ?? 0) < 45) continue;
+    const day = getAbsoluteCalendarDay(state.tick);
+    if (child.schoolGossipDay === day) continue;
+    child.schoolGossipDay = day;
+
+    if (rng() < 0.35) {
+      exposeAffair(state, parent, lover, 'rumor', entityById, buildings, playerHumans);
+      const parentName = formatCitizenName(parent);
+      addFloatingText(state, child.x, child.y - 22, '🤫 whispered…', '#fbbf24', 'brief');
+      logEvent(state, 'event', `The children at school are whispering that ${parentName} sneaks out at night…`, child.name);
+    }
+  }
+}
+
 function isValidAffairTarget(entity: Entity, target: Entity, tick: number): boolean {
   if (!isPlayerHuman(target) || !target.alive || !target.gender) return false;
   if (entity.prisonBuildingId != null || target.prisonBuildingId != null) return false;
@@ -1678,6 +1719,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       : undefined;
     if (schoolTarget) {
       schoolReserved.set(schoolTarget.id, (schoolReserved.get(schoolTarget.id) ?? 0) + 1);
+      // Kids let family secrets slip at school — once per day, while enrolled.
+      if (isNewCalendarDay) {
+        trySchoolyardGossip(state, entity, entityById, updatedBuildings, playerHumans);
+      }
     }
     const inFocus = !focus || isInFocus(entity, focus);
     const active = !isPrisoner && (
