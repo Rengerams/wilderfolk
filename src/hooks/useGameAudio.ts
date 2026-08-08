@@ -3,6 +3,8 @@ import type { WorldState } from '../game/gameEngine';
 import { EntityType } from '../game/gameEngine';
 import { isNightHour, getHourOfDay } from '../game/dayCycle';
 import { detectInteractionSounds } from '../audio/interactionDetect';
+import { detectWorkActivity, detectFootstepSurface } from '../audio/workDetect';
+import { playWorkSfx, playFootstepSfx } from '../audio/workSfx';
 import {
   getMuteState,
   getVolumePreset,
@@ -33,6 +35,7 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
   const prevMarriedCountRef = useRef(0);
   const prevResearchedCountRef = useRef(0);
   const seededRef = useRef(false);
+  const ambienceTickRef = useRef(0);
 
   const handleToggleMute = useCallback(() => {
     primeAudioUnlock();
@@ -83,6 +86,17 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
     // Hunt, tame, predator kills, transforms
     detectInteractionSounds(prevEntities, currentEntities);
 
+    // Work & footstep ambience — throttled so they read as ambience, not noise.
+    ambienceTickRef.current++;
+    if (ambienceTickRef.current % 8 === 0) {
+      const workKind = detectWorkActivity(currentBuildings, getHourOfDay(world.tick));
+      if (workKind) playWorkSfx(workKind);
+    }
+    if (ambienceTickRef.current % 10 === 0) {
+      const surface = detectFootstepSurface(prevEntities, currentEntities, world.worldMap);
+      if (surface) playFootstepSfx(surface);
+    }
+
     const prevBabies = new Set(prevEntities.filter(e => e.alive && e.isJuvenile).map(e => e.id));
     const newBabies = currentEntities.filter(e => e.alive && e.isJuvenile && !prevBabies.has(e.id));
     if (newBabies.length > 0) playBirthSound();
@@ -110,7 +124,7 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
 
     prevEntitiesRef.current = currentEntities;
     prevBuildingsRef.current = currentBuildings;
-  }, [world.tick, enabled, world.entities, world.buildings, world.disasters.length, world.researchNodes]);
+  }, [world.tick, enabled, world.entities, world.buildings, world.disasters.length, world.researchNodes, world.worldMap]);
 
   return { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset };
 }

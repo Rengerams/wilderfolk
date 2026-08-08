@@ -8,6 +8,7 @@
 - **Kids are gossip couriers** — a child at school whose parent carries an established affair may let it slip, exposing the scandal as a rumor (🤫 whispered…). One slip per child per day — the schoolyard does the church's gossip work
 - **Schoolyard bonds** — kids at school befriend classmates (👫 every ~5 school days, up to 3 friends); those childhood bonds follow them into adulthood and nudge who they court — a friend counts as half the distance
 - **Multi-select workers** — shift-click settlers to select several at once (every selected settler shows a ring); select a building and one button assigns them all
+- **Sound of the work** — the village has ambience now: soft work sounds (chopping, mining, hammering, farming, gathering) whenever staffed production is active, and quiet footsteps pitched by the surface underfoot (grass, stone, snow, forest, water). Throttled and unobtrusive — the dramatic sounds (hunts, deaths, the Moon Howler) were already wired
 
 ### Fixed
 - **Saves from the current build now load** — v0.5.3 tagged its saves with a version the loader rejected, so a save made in the current build could never be read back (colony lost on refresh). The version gate accepts the current version, and a test now pins it for every future bump
