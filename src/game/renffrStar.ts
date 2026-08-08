@@ -55,6 +55,17 @@ function renffrRng(state: WorldState, salt: number): () => number {
   };
 }
 
+/** Single 0..1 roll (same stream) without allocating a closure — for hot paths. */
+function renffrRoll(state: WorldState, salt: number): number {
+  const mapSeed = state.worldMap?.seed ?? state.tick;
+  let s = (mapSeed ^ (state.tick * 2654435761) ^ salt) >>> 0;
+  s = (s + 0x6d2b79f5) >>> 0;
+  let t = s;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
 function shuffleArray<T>(items: T[], rng: () => number): T[] {
   const shuffled = [...items];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -93,7 +104,7 @@ export function maybeTriggerRenffrOmen(
 ): boolean {
   if (state.renffrOmen || !isNight || state.tick < TICKS_PER_DAY * 3) return false;
   if (state.humanPopulation < 2) return false;
-  if (renffrRng(state, 0x0de7)() >= 0.00035) return false;
+  if (renffrRoll(state, 0x0de7) >= 0.00035) return false;
 
   state.renffrOmen = createRenffrOmen();
   state.screenShakeImpulse = Math.max(state.screenShakeImpulse, 2.5);
@@ -193,6 +204,13 @@ export function drawRenffrOmen(
   ctx.textBaseline = 'middle';
   ctx.font = 'bold 34px Fraunces, Georgia, serif';
 
+  const glow = omen.phase === 1 ? 16 : 8;
+  ctx.shadowColor = '#fde047';
+  ctx.shadowBlur = glow;
+  ctx.fillStyle = `rgba(253,224,71,${nameAlpha})`;
+  ctx.strokeStyle = `rgba(120,90,10,${nameAlpha * 0.5})`;
+  ctx.lineWidth = 1;
+
   for (const L of omen.letters) {
     const x = L.nx * cw;
     const y = L.ny * ch;
@@ -200,13 +218,6 @@ export function drawRenffrOmen(
     ctx.save();
     ctx.translate(x, y + wobble);
     ctx.rotate(L.rot);
-
-    const glow = omen.phase === 1 ? 16 : 8;
-    ctx.shadowColor = '#fde047';
-    ctx.shadowBlur = glow;
-    ctx.fillStyle = `rgba(253,224,71,${nameAlpha})`;
-    ctx.strokeStyle = `rgba(120,90,10,${nameAlpha * 0.5})`;
-    ctx.lineWidth = 1;
     ctx.strokeText(L.char, 0, 0);
     ctx.fillText(L.char, 0, 0);
     ctx.restore();
