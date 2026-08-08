@@ -9,9 +9,9 @@
  * unless the validator accepts it too.
  */
 import { describe, expect, it } from 'vitest';
-import { isWorkerCommand } from './commands';
-import { FORGE_ORDERS } from '../forge';
-import { VISITOR_TRADE_COSTS, type VisitorTradeAction } from '../groupEvents';
+import { isWorkerCommand } from '../src/game/simWorker/commands';
+import { FORGE_ORDERS } from '../src/game/forge';
+import { VISITOR_TRADE_COSTS, type VisitorTradeAction } from '../src/game/groupEvents';
 
 describe('worker command validation parity', () => {
   it('accepts every forge order in FORGE_ORDERS', () => {

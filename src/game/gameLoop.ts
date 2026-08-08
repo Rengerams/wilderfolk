@@ -694,12 +694,18 @@ export class GameLoop {
     if (this.view.selectedBuildingId != null && !resolveBuilding(this.world, this.view.selectedBuildingId)) {
       this.view = { ...this.view, selectedBuildingId: null };
     }
-    if (this.view.selectedEntityId != null && !resolveEntity(this.world, this.view.selectedEntityId)) {
-      this.view = { ...this.view, selectedEntityId: null };
-    }
-    const alive = (this.view.selectedEntityIds ?? []).filter((id) => resolveEntity(this.world, id) != null);
-    if (alive.length !== (this.view.selectedEntityIds?.length ?? 0)) {
-      this.view = { ...this.view, selectedEntityIds: alive };
+    const alive = (this.view.selectedEntityIds ?? [])
+      .filter((id) => resolveEntity(this.world, id) != null);
+    const primaryAlive = this.view.selectedEntityId != null
+      && resolveEntity(this.world, this.view.selectedEntityId) != null;
+    if (alive.length !== (this.view.selectedEntityIds?.length ?? 0) || !primaryAlive) {
+      this.view = {
+        ...this.view,
+        selectedEntityIds: alive,
+        selectedEntityId: primaryAlive
+          ? this.view.selectedEntityId
+          : alive[alive.length - 1] ?? null,
+      };
     }
   }
 

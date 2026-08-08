@@ -9,6 +9,10 @@
 - **Schoolyard bonds** — kids at school befriend classmates (👫 every ~5 school days, up to 3 friends); those childhood bonds follow them into adulthood and nudge who they court — a friend counts as half the distance
 - **Multi-select workers** — shift-click settlers to select several at once (every selected settler shows a ring); select a building and one button assigns them all
 
+### Fixed
+- **Saves from the current build now load** — v0.5.3 tagged its saves with a version the loader rejected, so a save made in the current build could never be read back (colony lost on refresh). The version gate accepts the current version, and a test now pins it for every future bump
+- **Worker-command validation tests are running again** — three regression tests (pinning the forge/trade command validator to the real catalogs) sat outside the test suite and silently never ran; they're back in the gate
+
 ---
 
 ## [0.5.3] — 2026-08-07
