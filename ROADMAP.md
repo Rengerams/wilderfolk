@@ -16,7 +16,7 @@ What shipped, newest first. Pitch → [README.md](README.md) · Notes → [CHANG
 | 🏗️ **Buildings** | New buildings & roles — candidates from game-feel Phase 3: decorations/beauty (fences, gardens, lamps, statues), a "beauty" readout |
 | ✨ **Features** | ✅ **Multi-select workers** (shipped — shift-click select, assign all at once) · up next: sound effects by surface, weather with real consequences → [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md) |
 | 🐛 **Bug solving** | ✅ EM-8 build-menu switch (fixed, player confirmed) · save version gate fixed (0.5.3 saves load again) · new playtest findings as they land |
-| ⚙️ **Simulation** | Deeper sim polish — scan cleanup, economy readability, balance from playtest data |
+| ⚙️ **Simulation** | Deeper sim polish — scan cleanup, economy readability, balance from playtest data · **entity capacity (1,200+ settlers @ 10×) is planned for v0.6** → [perf plan](docs/plans/2026-08-08-entity-capacity-perf-plan.md) |
 
 *Details live in [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md) (Phase 3 in progress — 3.1 multi-select done).*
 
