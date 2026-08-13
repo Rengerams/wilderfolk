@@ -11,10 +11,7 @@
     "scripts/**/*.{ts,mts,mjs,js}"
   ],
   "ignoreDependencies": [
-    "tw-animate-css",
-    "ts-call-graph",
-    "typescript-graph",
-    "madge"
+    "tw-animate-css"
   ],
   "vite": true,
   "vitest": true,

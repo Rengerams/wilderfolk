@@ -1,886 +1,244 @@
 graph TD
    App[src\App.tsx]
-   gameEngine[src\game\gameEngine.ts]
-   buildingActions[src\game\buildingActions.ts]
-   gameTypes[src\game\gameTypes.ts]
-   dayCycle[src\game\dayCycle.ts]
-   visitorQuest[src\game\visitorQuest.ts]
-   groupEvents[src\game\groupEvents.ts]
-   gameLoop[src\game\gameLoop.ts]
-   commands[src\game\simWorker\commands.ts]
-   entityCatalog[src\game\entityCatalog.ts]
-   uiSimSummary[src\game\uiSimSummary.ts]
-   resourceUtils[src\game\resourceUtils.ts]
-   viewState[src\game\viewState.ts]
-   buildingRotation[src\game\buildingRotation.ts]
-   spriteLoader[src\game\spriteLoader.ts]
-   humanSprites[src\game\humanSprites.ts]
-   raidUtils[src\game\raidUtils.ts]
-   SelectedBuildingPanel[src\components\SelectedBuildingPanel.tsx]
-   MiniMap[src\components\MiniMap.tsx]
-   playerHuman[src\game\playerHuman.ts]
-   nameLoader[src\game\nameLoader.ts]
-   dialogueTrees[src\game\dialogueTrees.ts]
-   rendererLoader[src\game\rendererLoader.ts]
-   IntroScreen[src\game\IntroScreen.tsx]
-   MapSetupScreen[src\game\MapSetupScreen.tsx]
-   CombatPreviewPanel[src\game\CombatPreviewPanel.tsx]
-   BuildCatalogPanel[src\components\BuildCatalogPanel.tsx]
-   eventLogExport[src\game\eventLogExport.ts]
-   index[src\audio\index.ts]
-   useGameAudio[src\hooks\useGameAudio.ts]
-   useKeyboardControls[src\hooks\useKeyboardControls.ts]
-   useCanvasInteractions[src\hooks\useCanvasInteractions.ts]
-   useContextualTutorial[src\hooks\useContextualTutorial.ts]
-   ContextualTutorialCard[src\components\ContextualTutorialCard.tsx]
-   preferences[src\game\preferences.ts]
-   ResourceCost[src\components\ResourceCost.tsx]
-   resourceCost[src\game\resourceCost.ts]
-   VillageTabPanel[src\components\tabPanels\VillageTabPanel.tsx]
-   FrontierTabPanel[src\components\tabPanels\FrontierTabPanel.tsx]
-   NatureTabPanel[src\components\tabPanels\NatureTabPanel.tsx]
-   ProgressTabPanel[src\components\tabPanels\ProgressTabPanel.tsx]
-   LogTabPanel[src\components\tabPanels\LogTabPanel.tsx]
-   MoreTabPanel[src\components\tabPanels\MoreTabPanel.tsx]
-   AlertBar[src\components\AlertBar.tsx]
-   Emoji[src\components\Emoji.tsx]
-   GameHeader[src\components\GameHeader.tsx]
-   priorityAlerts[src\game\priorityAlerts.ts]
-   focusHints[src\game\focusHints.ts]
-   hotkeys[src\game\hotkeys.ts]
-   TutorialOverlay[src\components\TutorialOverlay.tsx]
-   buildingConfig[src\game\buildingConfig.ts]
-   speciesConfig[src\game\speciesConfig.ts]
-   simFocus[src\game\simFocus.ts]
-   simHelpers[src\game\simHelpers.ts]
-   grassEcology[src\game\grassEcology.ts]
-   simEffects[src\game\simEffects.ts]
-   juiceEffects[src\game\juiceEffects.ts]
-   terrainSystems[src\game\terrainSystems.ts]
-   adjacencyIndex[src\game\adjacencyIndex.ts]
-   entityIndex[src\game\entityIndex.ts]
-   workforce[src\game\workforce.ts]
-   gameTick[src\game\gameTick.ts]
-   terrainGen[src\game\terrainGen.ts]
-   stats[src\game\stats.ts]
-   victory[src\game\victory.ts]
-   eventLog[src\game\eventLog.ts]
-   rivalPeace[src\game\rivalPeace.ts]
-   entityFactory[src\game\entityFactory.ts]
-   frontierCombat[src\game\frontierCombat.ts]
-   ecosystemPressure[src\game\ecosystemPressure.ts]
-   ecoBreakdown[src\game\ecoBreakdown.ts]
-   ecologyStage[src\game\ecologyStage.ts]
-   populationGrowth[src\game\populationGrowth.ts]
-   rivalDisplay[src\game\rivalDisplay.ts]
-   combat[src\game\combat.ts]
-   villageLeadership[src\game\villageLeadership.ts]
-   entityCounts[src\game\entityCounts.ts]
-   saveLoad[src\game\saveLoad.ts]
-   stripBuild[src\game\stripBuild.ts]
-   economy[src\game\economy.ts]
-   research[src\game\research.ts]
-   worldGen[src\game\worldGen.ts]
-   lifeSimulation[src\game\lifeSimulation.ts]
-   worldEvents[src\game\worldEvents.ts]
-   version[src\game\version.ts]
-   skills[src\game\skills.ts]
-   forge[src\game\forge.ts]
-   resourceTypes[src\game\resourceTypes.ts]
-   omenTypes[src\game\omenTypes.ts]
-   scentGrid[src\game\scentGrid.ts]
-   spatialGrid[src\game\spatialGrid.ts]
-   moonHowler[src\game\moonHowler.ts]
-   humanChat[src\game\humanChat.ts]
-   dayCycleConstants[src\game\dayCycleConstants.ts]
-   nodeRuntime[src\game\nodeRuntime.ts]
-   spatialQueryMetrics[src\game\spatialQueryMetrics.ts]
-   tickLayerRealtime[src\game\tickLayerRealtime.ts]
-   tickLayerSystems[src\game\tickLayerSystems.ts]
-   tickLayerAssign[src\game\tickLayerAssign.ts]
-   tickLayerDaily[src\game\tickLayerDaily.ts]
-   defenseStructures[src\game\defenseStructures.ts]
-   citizenId[src\game\citizenId.ts]
-   renffrStar[src\game\renffrStar.ts]
-   education[src\game\education.ts]
-   townHall[src\game\townHall.ts]
-   tradeCaravans[src\game\tradeCaravans.ts]
-   factionWander[src\game\factionWander.ts]
-   socialLife[src\game\socialLife.ts]
-   hospitalCare[src\game\hospitalCare.ts]
-   hotelStay[src\game\hotelStay.ts]
-   pathfinding[src\game\pathfinding.ts]
-   economyLedger[src\game\economyLedger.ts]
-   simQueries[src\game\simQueries.ts]
-   combatTech[src\game\combatTech.ts]
-   resourceLabels[src\components\resourceLabels.ts]
-   militiaBalance[src\game\militiaBalance.ts]
-   huntvisuals[src\game\huntvisuals.ts]
-   treeProximity[src\game\treeProximity.ts]
-   challenges[src\game\challenges.ts]
-   saveSchema[src\game\saveSchema.ts]
-   contextualTutorial[src\game\contextualTutorial.ts]
-   stripJunction[src\game\stripJunction.ts]
-   stripTopology[src\game\stripTopology.ts]
-   placementUtils[src\game\placementUtils.ts]
-   renderSnapshot[src\game\renderSnapshot.ts]
-   entityRenderMeta[src\game\simBuffers\entityRenderMeta.ts]
-   renderSoAReader[src\game\simBuffers\renderSoAReader.ts]
-   renderSoAEntities[src\game\simBuffers\renderSoAEntities.ts]
-   simDelta[src\game\simBuffers\simDelta.ts]
-   packRenderSoA[src\game\simBuffers\packRenderSoA.ts]
-   schema[src\game\simBuffers\schema.ts]
-   entityTypeCodes[src\game\simBuffers\entityTypeCodes.ts]
-   applyKinematics[src\game\simBuffers\applyKinematics.ts]
-   GameWorkerHost[src\game\simWorker\GameWorkerHost.ts]
-   renderer[src\game\renderer.ts]
-   buildCatalog[src\game\buildCatalog.ts]
-   entitySprites[src\game\entitySprites.ts]
-   stripRender[src\game\stripRender.ts]
-   terrainLayer[src\game\terrainLayer.ts]
-   entityLayer[src\game\entityLayer.ts]
-   canvasLayer[src\game\canvasLayer.ts]
-   renderBufferPool[src\game\simBuffers\renderBufferPool.ts]
-   protocol[src\game\simWorker\protocol.ts]
-   CollapsibleSection[src\components\CollapsibleSection.tsx]
-   BlacksmithForgePanel[src\components\BlacksmithForgePanel.tsx]
-   ResourceIcons[src\components\ResourceIcons.tsx]
    ambient[src\audio\ambient.ts]
    backgroundMusic[src\audio\backgroundMusic.ts]
+   constants[src\audio\constants.ts]
    director[src\audio\director.ts]
    graph_xx[src\audio\graph.ts]
+   htmlAudioSync[src\audio\htmlAudioSync.ts]
+   index[src\audio\index.ts]
+   interactionDetect[src\audio\interactionDetect.ts]
+   interactionSfx[src\audio\interactionSfx.ts]
    introMusic[src\audio\introMusic.ts]
    preferences[src\audio\preferences.ts]
-   tracks[src\audio\tracks.ts]
-   interactionSfx[src\audio\interactionSfx.ts]
-   constants[src\audio\constants.ts]
-   sfx[src\audio\sfx.ts]
-   trackPlayer[src\audio\trackPlayer.ts]
    sampleLoader[src\audio\sampleLoader.ts]
-   htmlAudioSync[src\audio\htmlAudioSync.ts]
    scheduler[src\audio\scheduler.ts]
    session[src\audio\session.ts]
-   interactionDetect[src\audio\interactionDetect.ts]
-   FocusPanel[src\game\FocusPanel.tsx]
-   VillageLeadershipPanel[src\game\VillageLeadershipPanel.tsx]
-   PopulationPanel[src\game\PopulationPanel.tsx]
-   FrontierPanel[src\components\FrontierPanel.tsx]
-   temperature[src\game\temperature.ts]
-   villagePortrait[src\game\villagePortrait.ts]
+   sfx[src\audio\sfx.ts]
+   trackPlayer[src\audio\trackPlayer.ts]
+   tracks[src\audio\tracks.ts]
+   workDetect[src\audio\workDetect.ts]
+   workSfx[src\audio\workSfx.ts]
+   AlertBar[src\components\AlertBar.tsx]
+   BlacksmithForgePanel[src\components\BlacksmithForgePanel.tsx]
+   BuildCatalogPanel[src\components\BuildCatalogPanel.tsx]
    ChallengesPanel[src\components\ChallengesPanel.tsx]
-   StatisticsPanel[src\game\StatisticsPanel.tsx]
-   EventLogPanel[src\game\EventLogPanel.tsx]
+   CollapsibleSection[src\components\CollapsibleSection.tsx]
    CombatLogPanel[src\components\CombatLogPanel.tsx]
-   guideHelp[src\game\guideHelp.ts]
-   RoadmapPanel[src\game\RoadmapPanel.tsx]
-   roadmapContent[src\game\roadmapContent.ts]
+   ContextualTutorialCard[src\components\ContextualTutorialCard.tsx]
+   Emoji[src\components\Emoji.tsx]
+   FrontierPanel[src\components\FrontierPanel.tsx]
+   GameHeader[src\components\GameHeader.tsx]
    GameMenu[src\components\GameMenu.tsx]
+   MiniMap[src\components\MiniMap.tsx]
    ResourceBadge[src\components\ResourceBadge.tsx]
-   class app myClass1
-         App --> gameEngine
-         App --> buildingActions
-         App --> gameTypes
-         App --> dayCycle
-         App --> visitorQuest
-         App --> groupEvents
-         App --> gameLoop
-         App --> commands
-         App --> entityCatalog
-         App --> uiSimSummary
-         App --> resourceUtils
-         App --> viewState
-         App --> buildingRotation
-         App --> spriteLoader
-         App --> humanSprites
-         App --> raidUtils
-         App --> SelectedBuildingPanel
-         App --> MiniMap
-         App --> playerHuman
-         App --> nameLoader
-         App --> dialogueTrees
-         App --> rendererLoader
-         App --> IntroScreen
-         App --> MapSetupScreen
-         App --> CombatPreviewPanel
-         App --> BuildCatalogPanel
-         App --> eventLogExport
+   ResourceCost[src\components\ResourceCost.tsx]
+   ResourceIcons[src\components\ResourceIcons.tsx]
+   resourceLabels[src\components\resourceLabels.ts]
+   SelectedBuildingPanel[src\components\SelectedBuildingPanel.tsx]
+   FrontierTabPanel[src\components\tabPanels\FrontierTabPanel.tsx]
+   LogTabPanel[src\components\tabPanels\LogTabPanel.tsx]
+   MoreTabPanel[src\components\tabPanels\MoreTabPanel.tsx]
+   NatureTabPanel[src\components\tabPanels\NatureTabPanel.tsx]
+   ProgressTabPanel[src\components\tabPanels\ProgressTabPanel.tsx]
+   VillageTabPanel[src\components\tabPanels\VillageTabPanel.tsx]
+   TutorialOverlay[src\components\TutorialOverlay.tsx]
+   adjacencyIndex[src\game\adjacencyIndex.ts]
+   buildCatalog[src\game\buildCatalog.ts]
+   buildingActions[src\game\buildingActions.ts]
+   buildingConfig[src\game\buildingConfig.ts]
+   buildingRotation[src\game\buildingRotation.ts]
+   canvasLayer[src\game\canvasLayer.ts]
+   challenges[src\game\challenges.ts]
+   citizenId[src\game\citizenId.ts]
+   combat[src\game\combat.ts]
+   CombatPreviewPanel[src\game\CombatPreviewPanel.tsx]
+   combatTech[src\game\combatTech.ts]
+   contextualTutorial[src\game\contextualTutorial.ts]
+   dayCycle[src\game\dayCycle.ts]
+   dayCycleConstants[src\game\dayCycleConstants.ts]
+   defenseStructures[src\game\defenseStructures.ts]
+   dialogueTrees[src\game\dialogueTrees.ts]
+   ecoBreakdown[src\game\ecoBreakdown.ts]
+   ecologyStage[src\game\ecologyStage.ts]
+   economy[src\game\economy.ts]
+   economyLedger[src\game\economyLedger.ts]
+   ecosystemPressure[src\game\ecosystemPressure.ts]
+   education[src\game\education.ts]
+   entityCatalog[src\game\entityCatalog.ts]
+   entityCounts[src\game\entityCounts.ts]
+   entityFactory[src\game\entityFactory.ts]
+   entityIndex[src\game\entityIndex.ts]
+   entityLayer[src\game\entityLayer.ts]
+   entitySprites[src\game\entitySprites.ts]
+   eventLog[src\game\eventLog.ts]
+   eventLogExport[src\game\eventLogExport.ts]
+   EventLogPanel[src\game\EventLogPanel.tsx]
+   factionWander[src\game\factionWander.ts]
+   focusHints[src\game\focusHints.ts]
+   FocusPanel[src\game\FocusPanel.tsx]
+   forge[src\game\forge.ts]
+   frontierCombat[src\game\frontierCombat.ts]
+   gameEngine[src\game\gameEngine.ts]
+   gameLoop[src\game\gameLoop.ts]
+   gameTick[src\game\gameTick.ts]
+   gameTypes[src\game\gameTypes.ts]
+   grassEcology[src\game\grassEcology.ts]
+   groupEvents[src\game\groupEvents.ts]
+   guideHelp[src\game\guideHelp.ts]
+   hospitalCare[src\game\hospitalCare.ts]
+   hotelStay[src\game\hotelStay.ts]
+   hotkeys[src\game\hotkeys.ts]
+   humanChat[src\game\humanChat.ts]
+   humanSprites[src\game\humanSprites.ts]
+   huntvisuals[src\game\huntvisuals.ts]
+   IntroScreen[src\game\IntroScreen.tsx]
+   juiceEffects[src\game\juiceEffects.ts]
+   lifeSimulation[src\game\lifeSimulation.ts]
+   MapSetupScreen[src\game\MapSetupScreen.tsx]
+   militiaBalance[src\game\militiaBalance.ts]
+   moonHowler[src\game\moonHowler.ts]
+   nameLoader[src\game\nameLoader.ts]
+   nodeRuntime[src\game\nodeRuntime.ts]
+   omenTypes[src\game\omenTypes.ts]
+   pathfinding[src\game\pathfinding.ts]
+   placementUtils[src\game\placementUtils.ts]
+   playerHuman[src\game\playerHuman.ts]
+   populationGrowth[src\game\populationGrowth.ts]
+   PopulationPanel[src\game\PopulationPanel.tsx]
+   preferences[src\game\preferences.ts]
+   priorityAlerts[src\game\priorityAlerts.ts]
+   raidUtils[src\game\raidUtils.ts]
+   renderer[src\game\renderer.ts]
+   rendererLoader[src\game\rendererLoader.ts]
+   renderSnapshot[src\game\renderSnapshot.ts]
+   renffrStar[src\game\renffrStar.ts]
+   research[src\game\research.ts]
+   resourceCost[src\game\resourceCost.ts]
+   resourceTypes[src\game\resourceTypes.ts]
+   resourceUtils[src\game\resourceUtils.ts]
+   rivalDisplay[src\game\rivalDisplay.ts]
+   rivalPeace[src\game\rivalPeace.ts]
+   roadmapContent[src\game\roadmapContent.ts]
+   RoadmapPanel[src\game\RoadmapPanel.tsx]
+   saveLoad[src\game\saveLoad.ts]
+   saveSchema[src\game\saveSchema.ts]
+   scentGrid[src\game\scentGrid.ts]
+   settlerTraits[src\game\settlerTraits.ts]
+   applyKinematics[src\game\simBuffers\applyKinematics.ts]
+   entityRenderMeta[src\game\simBuffers\entityRenderMeta.ts]
+   entityTypeCodes[src\game\simBuffers\entityTypeCodes.ts]
+   packRenderSoA[src\game\simBuffers\packRenderSoA.ts]
+   renderBufferPool[src\game\simBuffers\renderBufferPool.ts]
+   renderSoAEntities[src\game\simBuffers\renderSoAEntities.ts]
+   renderSoAReader[src\game\simBuffers\renderSoAReader.ts]
+   schema[src\game\simBuffers\schema.ts]
+   simDelta[src\game\simBuffers\simDelta.ts]
+   simEffects[src\game\simEffects.ts]
+   simFocus[src\game\simFocus.ts]
+   simHelpers[src\game\simHelpers.ts]
+   simQueries[src\game\simQueries.ts]
+   commands[src\game\simWorker\commands.ts]
+   GameWorkerHost[src\game\simWorker\GameWorkerHost.ts]
+   protocol[src\game\simWorker\protocol.ts]
+   skills[src\game\skills.ts]
+   socialLife[src\game\socialLife.ts]
+   spatialGrid[src\game\spatialGrid.ts]
+   spatialQueryMetrics[src\game\spatialQueryMetrics.ts]
+   speciesConfig[src\game\speciesConfig.ts]
+   spriteLoader[src\game\spriteLoader.ts]
+   StatisticsPanel[src\game\StatisticsPanel.tsx]
+   stats[src\game\stats.ts]
+   stripBuild[src\game\stripBuild.ts]
+   stripJunction[src\game\stripJunction.ts]
+   stripRender[src\game\stripRender.ts]
+   stripTopology[src\game\stripTopology.ts]
+   temperature[src\game\temperature.ts]
+   terrainGen[src\game\terrainGen.ts]
+   terrainLayer[src\game\terrainLayer.ts]
+   terrainSystems[src\game\terrainSystems.ts]
+   tickLayerAssign[src\game\tickLayerAssign.ts]
+   tickLayerDaily[src\game\tickLayerDaily.ts]
+   tickLayerRealtime[src\game\tickLayerRealtime.ts]
+   tickLayerSystems[src\game\tickLayerSystems.ts]
+   townHall[src\game\townHall.ts]
+   tradeCaravans[src\game\tradeCaravans.ts]
+   treeProximity[src\game\treeProximity.ts]
+   uiSimSummary[src\game\uiSimSummary.ts]
+   version[src\game\version.ts]
+   victory[src\game\victory.ts]
+   viewState[src\game\viewState.ts]
+   villageLeadership[src\game\villageLeadership.ts]
+   VillageLeadershipPanel[src\game\VillageLeadershipPanel.tsx]
+   villagePortrait[src\game\villagePortrait.ts]
+   visitorQuest[src\game\visitorQuest.ts]
+   workforce[src\game\workforce.ts]
+   worldEvents[src\game\worldEvents.ts]
+   worldGen[src\game\worldGen.ts]
+   useCanvasInteractions[src\hooks\useCanvasInteractions.ts]
+   useContextualTutorial[src\hooks\useContextualTutorial.ts]
+   useGameAudio[src\hooks\useGameAudio.ts]
+   useKeyboardControls[src\hooks\useKeyboardControls.ts]
          App --> index
-         App --> useGameAudio
-         App --> useKeyboardControls
-         App --> useCanvasInteractions
-         App --> useContextualTutorial
-         App --> ContextualTutorialCard
-         App --> preferences
-         App --> ResourceCost
-         App --> resourceCost
-         App --> VillageTabPanel
-         App --> FrontierTabPanel
-         App --> NatureTabPanel
-         App --> ProgressTabPanel
-         App --> LogTabPanel
-         App --> MoreTabPanel
          App --> AlertBar
+         App --> BuildCatalogPanel
+         App --> ContextualTutorialCard
          App --> Emoji
          App --> GameHeader
-         App --> priorityAlerts
-         App --> focusHints
-         App --> hotkeys
+         App --> MiniMap
+         App --> ResourceCost
+         App --> SelectedBuildingPanel
+         App --> FrontierTabPanel
+         App --> LogTabPanel
+         App --> MoreTabPanel
+         App --> NatureTabPanel
+         App --> ProgressTabPanel
+         App --> VillageTabPanel
          App --> TutorialOverlay
+         App --> buildingActions
          App --> buildingConfig
-         gameEngine --> gameTypes
-         gameEngine --> speciesConfig
-         gameEngine --> simFocus
-         gameEngine --> simHelpers
-         gameEngine --> grassEcology
-         gameEngine --> simEffects
-         gameEngine --> juiceEffects
-         gameEngine --> terrainSystems
-         gameEngine --> adjacencyIndex
-         gameEngine --> entityIndex
-         gameEngine --> workforce
-         gameEngine --> gameTick
-         gameEngine --> terrainGen
-         gameEngine --> stats
-         gameEngine --> victory
-         gameEngine --> eventLog
-         gameEngine --> groupEvents
-         gameEngine --> rivalPeace
-         gameEngine --> playerHuman
-         gameEngine --> entityFactory
-         gameEngine --> frontierCombat
-         gameEngine --> ecosystemPressure
-         gameEngine --> ecoBreakdown
-         gameEngine --> ecologyStage
-         gameEngine --> populationGrowth
-         gameEngine --> rivalDisplay
-         gameEngine --> combat
-         gameEngine --> villageLeadership
-         gameEngine --> entityCounts
-         gameEngine --> saveLoad
-         gameEngine --> buildingActions
-         gameEngine --> stripBuild
-         gameEngine --> economy
-         gameEngine --> research
-         gameEngine --> worldGen
-         gameEngine --> dayCycle
-         gameEngine --> lifeSimulation
-         gameEngine --> worldEvents
-         gameEngine --> version
-         gameEngine --> skills
-         gameEngine --> forge
-         gameTypes --> resourceTypes
-         gameTypes --> ecologyStage
-         gameTypes --> stats
-         gameTypes --> omenTypes
-         gameTypes --> scentGrid
-         gameTypes --> spatialGrid
-         gameTypes --> adjacencyIndex
-         gameTypes --> version
-         ecologyStage --> gameTypes
-         ecologyStage --> dayCycle
-         ecologyStage --> ecosystemPressure
-         ecologyStage --> simEffects
-         ecologyStage --> eventLog
-         dayCycle --> gameTypes
-         dayCycle --> moonHowler
-         dayCycle --> humanChat
-         dayCycle --> dayCycleConstants
-         moonHowler --> gameTypes
-         moonHowler --> dayCycleConstants
-         moonHowler --> dayCycle
-         moonHowler --> playerHuman
-         moonHowler --> simFocus
-         moonHowler --> simEffects
-         moonHowler --> eventLog
-         moonHowler --> workforce
-         playerHuman --> gameTypes
-         simFocus --> gameTypes
-         simEffects --> gameTypes
-         simEffects --> juiceEffects
-         juiceEffects --> gameTypes
-         juiceEffects --> playerHuman
-         eventLog --> gameTypes
-         workforce --> gameTypes
-         workforce --> skills
-         workforce --> playerHuman
-         workforce --> dayCycle
-         workforce --> eventLog
-         workforce --> simEffects
-         skills --> gameTypes
-         humanChat --> dialogueTrees
-         humanChat --> gameTypes
-         dialogueTrees --> nodeRuntime
-         ecosystemPressure --> gameTypes
-         ecosystemPressure --> dayCycle
-         ecosystemPressure --> grassEcology
-         grassEcology --> gameTypes
-         grassEcology --> dayCycle
-         stats --> gameTypes
-         stats --> playerHuman
-         scentGrid --> gameTypes
-         scentGrid --> spatialGrid
-         scentGrid --> moonHowler
-         spatialGrid --> gameTypes
-         spatialGrid --> spatialQueryMetrics
-         adjacencyIndex --> gameTypes
-         speciesConfig --> gameTypes
-         speciesConfig --> dayCycle
-         simHelpers --> gameTypes
-         terrainSystems --> gameTypes
-         terrainSystems --> adjacencyIndex
-         terrainSystems --> buildingRotation
-         buildingRotation --> gameTypes
-         entityIndex --> gameTypes
-         gameTick --> gameTypes
-         gameTick --> stats
-         gameTick --> victory
-         gameTick --> eventLog
-         gameTick --> entityIndex
-         gameTick --> grassEcology
-         gameTick --> dayCycle
-         gameTick --> simFocus
-         gameTick --> simHelpers
-         gameTick --> simEffects
-         gameTick --> workforce
-         gameTick --> playerHuman
-         gameTick --> lifeSimulation
-         gameTick --> tickLayerRealtime
-         gameTick --> tickLayerSystems
-         gameTick --> tickLayerAssign
-         gameTick --> tickLayerDaily
-         gameTick --> spatialGrid
-         gameTick --> entityCounts
-         gameTick --> spatialQueryMetrics
-         victory --> gameTypes
-         lifeSimulation --> gameTypes
-         lifeSimulation --> defenseStructures
-         lifeSimulation --> speciesConfig
-         lifeSimulation --> simFocus
-         lifeSimulation --> simEffects
-         lifeSimulation --> workforce
-         lifeSimulation --> economy
-         lifeSimulation --> grassEcology
-         lifeSimulation --> playerHuman
-         lifeSimulation --> moonHowler
-         lifeSimulation --> villageLeadership
-         lifeSimulation --> ecologyStage
-         lifeSimulation --> dayCycle
-         lifeSimulation --> humanChat
-         lifeSimulation --> humanSprites
-         lifeSimulation --> citizenId
-         lifeSimulation --> nameLoader
-         lifeSimulation --> renffrStar
-         lifeSimulation --> combat
-         lifeSimulation --> buildingRotation
-         lifeSimulation --> entityFactory
-         lifeSimulation --> eventLog
-         lifeSimulation --> education
-         lifeSimulation --> townHall
-         lifeSimulation --> frontierCombat
-         lifeSimulation --> tradeCaravans
-         lifeSimulation --> factionWander
-         lifeSimulation --> socialLife
-         lifeSimulation --> hospitalCare
-         lifeSimulation --> hotelStay
-         lifeSimulation --> pathfinding
-         lifeSimulation --> economyLedger
-         lifeSimulation --> spatialGrid
-         lifeSimulation --> simQueries
-         lifeSimulation --> scentGrid
-         defenseStructures --> gameTypes
-         defenseStructures --> dayCycle
-         defenseStructures --> entityIndex
-         defenseStructures --> forge
-         forge --> gameTypes
-         forge --> resourceCost
-         forge --> dayCycle
-         forge --> combatTech
-         forge --> eventLog
-         forge --> simEffects
-         resourceCost --> resourceLabels
-         economy --> gameTypes
-         economy --> resourceUtils
-         economy --> gameEngine
-         economy --> tradeCaravans
-         resourceUtils --> gameTypes
-         tradeCaravans --> gameTypes
-         tradeCaravans --> dayCycle
-         tradeCaravans --> frontierCombat
-         tradeCaravans --> gameEngine
-         tradeCaravans --> resourceUtils
-         tradeCaravans --> townHall
-         tradeCaravans --> eventLog
-         tradeCaravans --> entityFactory
-         tradeCaravans --> entityIndex
-         frontierCombat --> gameTypes
-         frontierCombat --> dayCycle
-         frontierCombat --> entityIndex
-         frontierCombat --> combat
-         frontierCombat --> citizenId
-         frontierCombat --> eventLog
-         frontierCombat --> playerHuman
-         frontierCombat --> rivalPeace
-         frontierCombat --> skills
-         frontierCombat --> militiaBalance
-         frontierCombat --> resourceCost
-         combat --> gameTypes
-         combat --> forge
-         combat --> combatTech
-         citizenId --> gameTypes
-         citizenId --> dayCycle
-         rivalPeace --> gameTypes
-         militiaBalance --> gameTypes
-         militiaBalance --> combat
-         militiaBalance --> defenseStructures
-         militiaBalance --> playerHuman
-         townHall --> gameTypes
-         townHall --> dayCycle
-         townHall --> skills
-         townHall --> gameEngine
-         townHall --> economy
-         townHall --> eventLog
-         townHall --> villageLeadership
-         townHall --> humanChat
-         townHall --> playerHuman
-         villageLeadership --> gameTypes
-         villageLeadership --> dayCycle
-         villageLeadership --> eventLog
-         villageLeadership --> simEffects
-         villageLeadership --> playerHuman
-         villageLeadership --> humanChat
-         villageLeadership --> skills
-         entityFactory --> gameTypes
-         entityFactory --> dayCycle
-         entityFactory --> nameLoader
-         entityFactory --> humanSprites
-         entityFactory --> speciesConfig
-         nameLoader --> citizenId
-         nameLoader --> gameTypes
-         nameLoader --> nodeRuntime
-         humanSprites --> gameTypes
-         humanSprites --> spriteLoader
-         spriteLoader --> gameTypes
-         renffrStar --> omenTypes
-         renffrStar --> dayCycle
-         renffrStar --> humanChat
-         renffrStar --> playerHuman
-         renffrStar --> gameTypes
-         education --> gameTypes
-         education --> dayCycle
-         education --> skills
-         education --> simEffects
-         education --> citizenId
-         education --> eventLog
-         education --> playerHuman
-         factionWander --> gameTypes
-         factionWander --> frontierCombat
-         factionWander --> dayCycle
-         socialLife --> gameTypes
-         socialLife --> dayCycle
-         socialLife --> humanChat
-         hospitalCare --> gameTypes
-         hospitalCare --> dayCycle
-         hospitalCare --> simEffects
-         hospitalCare --> simHelpers
-         hospitalCare --> humanChat
-         hospitalCare --> skills
-         hospitalCare --> playerHuman
-         hotelStay --> gameTypes
-         hotelStay --> dayCycle
-         hotelStay --> simEffects
-         hotelStay --> pathfinding
-         hotelStay --> eventLog
-         hotelStay --> humanChat
-         hotelStay --> skills
-         hotelStay --> playerHuman
-         pathfinding --> gameTypes
-         economyLedger --> gameTypes
-         economyLedger --> dayCycle
-         simQueries --> gameTypes
-         simQueries --> playerHuman
-         simQueries --> spatialGrid
-         simQueries --> spatialQueryMetrics
-         tickLayerRealtime --> huntvisuals
-         tickLayerRealtime --> gameTypes
-         tickLayerRealtime --> spatialGrid
-         tickLayerRealtime --> scentGrid
-         tickLayerRealtime --> entityCounts
-         tickLayerRealtime --> lifeSimulation
-         tickLayerRealtime --> workforce
-         tickLayerRealtime --> renffrStar
-         tickLayerRealtime --> dayCycle
-         tickLayerRealtime --> eventLog
-         tickLayerRealtime --> moonHowler
-         tickLayerRealtime --> playerHuman
-         tickLayerRealtime --> hotelStay
-         tickLayerRealtime --> villageLeadership
-         tickLayerRealtime --> simEffects
-         huntvisuals --> gameTypes
-         entityCounts --> gameTypes
-         entityCounts --> playerHuman
-         tickLayerSystems --> gameTypes
-         tickLayerSystems --> speciesConfig
-         tickLayerSystems --> dayCycle
-         tickLayerSystems --> lifeSimulation
-         tickLayerSystems --> worldEvents
-         tickLayerSystems --> research
-         tickLayerSystems --> tradeCaravans
-         tickLayerSystems --> entityFactory
-         tickLayerSystems --> entityIndex
-         tickLayerSystems --> simEffects
-         tickLayerSystems --> simFocus
-         tickLayerSystems --> simHelpers
-         tickLayerSystems --> entityCounts
-         worldEvents --> gameTypes
-         worldEvents --> dayCycle
-         worldEvents --> entityIndex
-         worldEvents --> citizenId
-         worldEvents --> eventLog
-         worldEvents --> gameEngine
-         research --> gameTypes
-         research --> eventLog
-         research --> simEffects
-         research --> simHelpers
-         research --> education
-         research --> playerHuman
-         research --> dayCycle
-         tickLayerAssign --> gameTypes
-         tickLayerAssign --> lifeSimulation
-         tickLayerAssign --> dayCycle
-         tickLayerAssign --> workforce
-         tickLayerDaily --> gameTypes
-         tickLayerDaily --> adjacencyIndex
-         tickLayerDaily --> entityIndex
-         tickLayerDaily --> entityCounts
-         tickLayerDaily --> economy
-         tickLayerDaily --> eventLog
-         tickLayerDaily --> forge
-         tickLayerDaily --> treeProximity
-         tickLayerDaily --> dayCycle
-         tickLayerDaily --> lifeSimulation
-         tickLayerDaily --> simHelpers
-         tickLayerDaily --> simEffects
-         tickLayerDaily --> economyLedger
-         tickLayerDaily --> visitorQuest
-         tickLayerDaily --> villageLeadership
-         tickLayerDaily --> terrainSystems
-         tickLayerDaily --> skills
-         tickLayerDaily --> workforce
-         tickLayerDaily --> playerHuman
-         tickLayerDaily --> hospitalCare
-         tickLayerDaily --> townHall
-         tickLayerDaily --> ecologyStage
-         tickLayerDaily --> groupEvents
-         tickLayerDaily --> stats
-         tickLayerDaily --> frontierCombat
-         tickLayerDaily --> factionWander
-         tickLayerDaily --> worldGen
-         tickLayerDaily --> challenges
-         tickLayerDaily --> huntvisuals
-         tickLayerDaily --> juiceEffects
-         tickLayerDaily --> preferences
-         treeProximity --> gameTypes
-         visitorQuest --> gameTypes
-         visitorQuest --> dayCycle
-         visitorQuest --> simEffects
-         groupEvents --> gameTypes
-         groupEvents --> dayCycle
-         groupEvents --> entityFactory
-         groupEvents --> entityIndex
-         groupEvents --> speciesConfig
-         groupEvents --> resourceUtils
-         groupEvents --> nameLoader
-         groupEvents --> combat
-         groupEvents --> visitorQuest
-         groupEvents --> eventLog
-         groupEvents --> frontierCombat
-         groupEvents --> factionWander
-         groupEvents --> townHall
-         groupEvents --> playerHuman
-         groupEvents --> rivalPeace
-         worldGen --> gameTypes
-         worldGen --> terrainGen
-         worldGen --> victory
-         worldGen --> preferences
-         worldGen --> nameLoader
-         worldGen --> dayCycle
-         worldGen --> eventLog
-         worldGen --> entityIndex
-         worldGen --> research
-         worldGen --> entityCounts
-         worldGen --> playerHuman
-         worldGen --> speciesConfig
-         worldGen --> entityFactory
-         worldGen --> villageLeadership
-         worldGen --> factionWander
-         worldGen --> forge
-         worldGen --> buildingRotation
-         worldGen --> stats
-         terrainGen --> gameTypes
-         challenges --> gameTypes
-         ecoBreakdown --> gameTypes
-         ecoBreakdown --> playerHuman
-         populationGrowth --> gameTypes
-         populationGrowth --> dayCycle
-         populationGrowth --> playerHuman
-         rivalDisplay --> gameTypes
-         saveLoad --> gameTypes
-         saveLoad --> stats
-         saveLoad --> viewState
-         saveLoad --> saveSchema
-         saveLoad --> terrainGen
-         saveLoad --> dayCycle
-         saveLoad --> combat
-         saveLoad --> victory
-         saveLoad --> preferences
-         saveLoad --> eventLog
-         saveLoad --> humanSprites
-         saveLoad --> moonHowler
-         saveLoad --> playerHuman
-         saveLoad --> version
-         saveLoad --> skills
-         saveLoad --> contextualTutorial
-         saveLoad --> research
-         saveLoad --> gameEngine
-         saveLoad --> entityIndex
-         saveLoad --> frontierCombat
-         saveLoad --> entityCounts
-         saveLoad --> economy
-         saveLoad --> tradeCaravans
-         saveLoad --> factionWander
-         saveLoad --> villageLeadership
-         saveLoad --> ecologyStage
-         saveLoad --> forge
-         viewState --> gameTypes
-         viewState --> stripBuild
-         viewState --> saveSchema
-         stripBuild --> gameTypes
-         stripBuild --> stripJunction
-         stripBuild --> buildingRotation
-         stripJunction --> gameTypes
-         stripJunction --> buildingRotation
-         saveSchema --> gameTypes
-         contextualTutorial --> gameTypes
-         contextualTutorial --> focusHints
-         contextualTutorial --> dayCycle
-         contextualTutorial --> playerHuman
-         focusHints --> gameTypes
-         focusHints --> populationGrowth
-         focusHints --> victory
-         focusHints --> villageLeadership
-         focusHints --> combat
-         focusHints --> frontierCombat
-         focusHints --> forge
-         focusHints --> ecologyStage
-         buildingActions --> gameTypes
-         buildingActions --> skills
-         buildingActions --> economy
-         buildingActions --> simEffects
-         buildingActions --> simHelpers
-         buildingActions --> workforce
-         buildingActions --> adjacencyIndex
-         buildingActions --> terrainSystems
-         buildingActions --> entityIndex
-         buildingActions --> playerHuman
-         buildingActions --> dayCycle
-         buildingActions --> moonHowler
-         buildingActions --> research
-         buildingActions --> buildingRotation
-         buildingActions --> stripBuild
-         buildingActions --> stripTopology
-         buildingActions --> entityFactory
-         buildingActions --> worldGen
-         buildingActions --> nameLoader
-         buildingActions --> eventLog
-         buildingActions --> placementUtils
-         stripTopology --> gameTypes
-         stripTopology --> buildingRotation
-         stripTopology --> stripBuild
-         stripTopology --> stripJunction
-         placementUtils --> buildingRotation
-         placementUtils --> gameTypes
-         placementUtils --> renderSnapshot
-         renderSnapshot --> gameTypes
-         renderSnapshot --> gameEngine
-         renderSnapshot --> dayCycle
-         renderSnapshot --> preferences
-         renderSnapshot --> entityCatalog
-         renderSnapshot --> entityRenderMeta
-         renderSnapshot --> renderSoAReader
-         renderSnapshot --> scentGrid
-         renderSnapshot --> renderSoAEntities
-         renderSnapshot --> spatialGrid
-         renderSnapshot --> viewState
-         entityCatalog --> gameTypes
-         entityCatalog --> playerHuman
-         entityCatalog --> simDelta
-         simDelta --> gameTypes
-         simDelta --> gameEngine
-         simDelta --> entityRenderMeta
-         simDelta --> packRenderSoA
-         simDelta --> schema
-         entityRenderMeta --> gameTypes
-         entityRenderMeta --> renderSoAReader
-         entityRenderMeta --> schema
-         renderSoAReader --> gameTypes
-         renderSoAReader --> entityTypeCodes
-         renderSoAReader --> schema
-         entityTypeCodes --> gameTypes
-         packRenderSoA --> gameTypes
-         packRenderSoA --> gameEngine
-         packRenderSoA --> playerHuman
-         packRenderSoA --> entityTypeCodes
-         packRenderSoA --> renderSoAReader
-         packRenderSoA --> schema
-         renderSoAEntities --> gameTypes
-         renderSoAEntities --> spatialGrid
-         renderSoAEntities --> entityRenderMeta
-         renderSoAEntities --> renderSoAReader
-         gameLoop --> gameTypes
-         gameLoop --> gameEngine
-         gameLoop --> entityCatalog
-         gameLoop --> rendererLoader
-         gameLoop --> renderSnapshot
-         gameLoop --> applyKinematics
-         gameLoop --> entityRenderMeta
-         gameLoop --> renderSoAReader
-         gameLoop --> factionWander
-         gameLoop --> GameWorkerHost
-         gameLoop --> commands
-         gameLoop --> scentGrid
-         gameLoop --> viewState
-         rendererLoader --> renderer
-         renderer --> gameEngine
-         renderer --> viewState
-         renderer --> gameTypes
-         renderer --> renderSnapshot
-         renderer --> renderSoAEntities
-         renderer --> spatialGrid
-         renderer --> buildCatalog
-         renderer --> buildingRotation
-         renderer --> juiceEffects
-         renderer --> placementUtils
-         renderer --> spriteLoader
-         renderer --> humanSprites
-         renderer --> entitySprites
-         renderer --> humanChat
-         renderer --> dayCycle
-         renderer --> education
-         renderer --> stripBuild
-         renderer --> stripRender
-         renderer --> stripJunction
-         renderer --> simHelpers
-         renderer --> renffrStar
-         renderer --> huntvisuals
-         renderer --> combat
-         renderer --> terrainLayer
-         renderer --> entityLayer
-         renderer --> canvasLayer
-         buildCatalog --> gameTypes
-         buildCatalog --> resourceCost
-         entitySprites --> gameTypes
-         entitySprites --> humanSprites
-         stripRender --> gameTypes
-         stripRender --> buildingRotation
-         stripRender --> stripJunction
-         terrainLayer --> gameTypes
-         terrainLayer --> canvasLayer
-         terrainLayer --> spriteLoader
-         entityLayer --> renderSnapshot
-         entityLayer --> canvasLayer
-         entityLayer --> gameTypes
-         applyKinematics --> entityCatalog
-         applyKinematics --> entityRenderMeta
-         applyKinematics --> renderSoAReader
-         applyKinematics --> schema
-         GameWorkerHost --> gameTypes
-         GameWorkerHost --> gameEngine
-         GameWorkerHost --> renderSoAReader
-         GameWorkerHost --> entityRenderMeta
-         GameWorkerHost --> simDelta
-         GameWorkerHost --> renderBufferPool
-         GameWorkerHost --> scentGrid
-         GameWorkerHost --> commands
-         GameWorkerHost --> protocol
-         renderBufferPool --> schema
-         commands --> gameTypes
-         commands --> buildingRotation
-         commands --> stripBuild
-         commands --> groupEvents
-         commands --> buildingActions
-         commands --> forge
-         commands --> research
-         commands --> tradeCaravans
-         commands --> simEffects
-         commands --> visitorQuest
-         commands --> frontierCombat
-         commands --> townHall
-         commands --> simDelta
-         protocol --> gameTypes
-         uiSimSummary --> entityCatalog
-         uiSimSummary --> gameTypes
-         uiSimSummary --> dayCycle
-         uiSimSummary --> populationGrowth
-         uiSimSummary --> playerHuman
-         raidUtils --> gameEngine
-         raidUtils --> frontierCombat
-         SelectedBuildingPanel --> CollapsibleSection
-         SelectedBuildingPanel --> gameEngine
-         SelectedBuildingPanel --> buildingActions
-         SelectedBuildingPanel --> moonHowler
-         SelectedBuildingPanel --> dayCycle
-         SelectedBuildingPanel --> buildCatalog
-         SelectedBuildingPanel --> townHall
-         SelectedBuildingPanel --> hotelStay
-         SelectedBuildingPanel --> gameTypes
-         SelectedBuildingPanel --> buildingConfig
-         SelectedBuildingPanel --> raidUtils
-         SelectedBuildingPanel --> commands
-         SelectedBuildingPanel --> CombatPreviewPanel
-         SelectedBuildingPanel --> BlacksmithForgePanel
-         buildingConfig --> gameEngine
-         buildingConfig --> gameTypes
-         CombatPreviewPanel --> frontierCombat
-         BlacksmithForgePanel --> forge
-         BlacksmithForgePanel --> gameTypes
-         BlacksmithForgePanel --> Emoji
-         BlacksmithForgePanel --> ResourceCost
-         ResourceCost --> ResourceIcons
-         ResourceCost --> resourceLabels
-         ResourceCost --> resourceCost
-         ResourceIcons --> resourceLabels
-         MiniMap --> gameEngine
-         MiniMap --> viewState
-         MiniMap --> gameTypes
-         IntroScreen --> index
-         IntroScreen --> version
-         index --> ambient
-         index --> backgroundMusic
-         index --> director
-         index --> graph_xx
-         index --> introMusic
-         index --> preferences
-         index --> tracks
-         index --> interactionSfx
-         index --> constants
-         index --> sfx
+         App --> buildingRotation
+         App --> CombatPreviewPanel
+         App --> dayCycle
+         App --> dialogueTrees
+         App --> entityCatalog
+         App --> eventLogExport
+         App --> focusHints
+         App --> gameEngine
+         App --> gameLoop
+         App --> gameTypes
+         App --> groupEvents
+         App --> hotkeys
+         App --> humanSprites
+         App --> IntroScreen
+         App --> MapSetupScreen
+         App --> nameLoader
+         App --> playerHuman
+         App --> preferences
+         App --> priorityAlerts
+         App --> raidUtils
+         App --> rendererLoader
+         App --> resourceCost
+         App --> resourceUtils
+         App --> settlerTraits
+         App --> commands
+         App --> spriteLoader
+         App --> uiSimSummary
+         App --> viewState
+         App --> visitorQuest
+         App --> useCanvasInteractions
+         App --> useContextualTutorial
+         App --> useGameAudio
+         App --> useKeyboardControls
          ambient --> graph_xx
          ambient --> trackPlayer
          ambient --> tracks
-         graph_xx --> constants
-         graph_xx --> preferences
-         preferences --> constants
-         trackPlayer --> graph_xx
-         trackPlayer --> sampleLoader
-         sampleLoader --> tracks
-         sampleLoader --> graph_xx
          backgroundMusic --> constants
-         backgroundMusic --> htmlAudioSync
          backgroundMusic --> graph_xx
+         backgroundMusic --> htmlAudioSync
          backgroundMusic --> scheduler
          backgroundMusic --> trackPlayer
          backgroundMusic --> tracks
-         scheduler --> graph_xx
          director --> ambient
          director --> backgroundMusic
          director --> graph_xx
@@ -888,136 +246,790 @@ graph TD
          director --> preferences
          director --> sampleLoader
          director --> session
-         introMusic --> htmlAudioSync
+         graph_xx --> constants
+         graph_xx --> preferences
+         index --> ambient
+         index --> backgroundMusic
+         index --> constants
+         index --> director
+         index --> graph_xx
+         index --> interactionSfx
+         index --> introMusic
+         index --> preferences
+         index --> sfx
+         index --> tracks
+         interactionDetect --> interactionSfx
+         interactionDetect --> gameEngine
+         interactionSfx --> graph_xx
+         interactionSfx --> sfx
+         interactionSfx --> trackPlayer
+         interactionSfx --> tracks
          introMusic --> graph_xx
+         introMusic --> htmlAudioSync
+         introMusic --> scheduler
          introMusic --> trackPlayer
          introMusic --> tracks
-         introMusic --> scheduler
-         interactionSfx --> graph_xx
-         interactionSfx --> tracks
-         interactionSfx --> trackPlayer
-         interactionSfx --> sfx
+         preferences --> constants
+         sampleLoader --> graph_xx
+         sampleLoader --> tracks
+         scheduler --> graph_xx
          sfx --> constants
          sfx --> graph_xx
          sfx --> scheduler
-         MapSetupScreen --> Emoji
-         MapSetupScreen --> gameEngine
-         MapSetupScreen --> index
-         MapSetupScreen --> gameTypes
-         BuildCatalogPanel --> gameEngine
-         BuildCatalogPanel --> gameTypes
-         BuildCatalogPanel --> buildCatalog
+         trackPlayer --> graph_xx
+         trackPlayer --> sampleLoader
+         workDetect --> workSfx
+         workDetect --> dayCycle
+         workDetect --> gameTypes
+         workSfx --> scheduler
+         workSfx --> gameTypes
+         AlertBar --> Emoji
+         AlertBar --> priorityAlerts
+         BlacksmithForgePanel --> Emoji
+         BlacksmithForgePanel --> ResourceCost
+         BlacksmithForgePanel --> forge
+         BlacksmithForgePanel --> gameTypes
          BuildCatalogPanel --> Emoji
          BuildCatalogPanel --> ResourceCost
-         BuildCatalogPanel --> buildingRotation
-         eventLogExport --> gameTypes
-         eventLogExport --> version
-         useGameAudio --> gameEngine
-         useGameAudio --> dayCycle
-         useGameAudio --> interactionDetect
-         useGameAudio --> index
-         interactionDetect --> gameEngine
-         interactionDetect --> interactionSfx
-         useKeyboardControls --> gameLoop
-         useKeyboardControls --> entityCatalog
-         useKeyboardControls --> viewState
-         useKeyboardControls --> buildingRotation
-         useKeyboardControls --> playerHuman
-         useKeyboardControls --> hotkeys
-         useKeyboardControls --> gameEngine
-         hotkeys --> gameTypes
-         useCanvasInteractions --> gameLoop
-         useCanvasInteractions --> gameEngine
-         useCanvasInteractions --> buildingActions
-         useCanvasInteractions --> viewState
-         useCanvasInteractions --> buildingRotation
-         useCanvasInteractions --> humanSprites
-         useCanvasInteractions --> index
-         useCanvasInteractions --> commands
-         useContextualTutorial --> gameEngine
-         useContextualTutorial --> contextualTutorial
+         BuildCatalogPanel --> buildCatalog
+         BuildCatalogPanel --> gameEngine
+         BuildCatalogPanel --> gameTypes
+         ChallengesPanel --> challenges
+         ChallengesPanel --> gameTypes
+         CombatLogPanel --> eventLog
+         CombatLogPanel --> eventLogExport
+         CombatLogPanel --> gameTypes
          ContextualTutorialCard --> Emoji
          ContextualTutorialCard --> contextualTutorial
          ContextualTutorialCard --> focusHints
-         VillageTabPanel --> gameTypes
-         VillageTabPanel --> forge
-         VillageTabPanel --> gameEngine
-         VillageTabPanel --> economyLedger
-         VillageTabPanel --> uiSimSummary
-         VillageTabPanel --> focusHints
-         VillageTabPanel --> CollapsibleSection
-         VillageTabPanel --> FocusPanel
-         VillageTabPanel --> VillageLeadershipPanel
-         VillageTabPanel --> PopulationPanel
-         FocusPanel --> Emoji
-         FocusPanel --> focusHints
-         FocusPanel --> gameTypes
-         VillageLeadershipPanel --> gameTypes
-         VillageLeadershipPanel --> villageLeadership
-         PopulationPanel --> gameTypes
-         PopulationPanel --> playerHuman
-         PopulationPanel --> dayCycle
-         PopulationPanel --> villageLeadership
-         PopulationPanel --> populationGrowth
-         PopulationPanel --> citizenId
-         PopulationPanel --> education
-         FrontierTabPanel --> gameEngine
-         FrontierTabPanel --> FrontierPanel
-         FrontierPanel --> gameTypes
          FrontierPanel --> CombatPreviewPanel
-         FrontierPanel --> gameEngine
          FrontierPanel --> defenseStructures
+         FrontierPanel --> gameEngine
+         FrontierPanel --> gameTypes
          FrontierPanel --> militiaBalance
-         NatureTabPanel --> gameEngine
-         NatureTabPanel --> temperature
-         NatureTabPanel --> gameTypes
-         NatureTabPanel --> ecologyStage
-         NatureTabPanel --> Emoji
-         temperature --> gameTypes
-         ProgressTabPanel --> gameTypes
-         ProgressTabPanel --> gameEngine
-         ProgressTabPanel --> tradeCaravans
-         ProgressTabPanel --> villagePortrait
-         ProgressTabPanel --> ChallengesPanel
-         ProgressTabPanel --> StatisticsPanel
-         villagePortrait --> gameTypes
-         villagePortrait --> playerHuman
-         villagePortrait --> rivalPeace
-         villagePortrait --> eventLog
-         ChallengesPanel --> challenges
-         ChallengesPanel --> gameTypes
-         StatisticsPanel --> gameEngine
-         StatisticsPanel --> ResourceIcons
-         LogTabPanel --> gameEngine
-         LogTabPanel --> EventLogPanel
-         LogTabPanel --> CombatLogPanel
-         EventLogPanel --> gameTypes
-         EventLogPanel --> eventLogExport
-         CombatLogPanel --> gameTypes
-         CombatLogPanel --> eventLog
-         CombatLogPanel --> eventLogExport
-         MoreTabPanel --> gameEngine
-         MoreTabPanel --> guideHelp
-         MoreTabPanel --> RoadmapPanel
-         RoadmapPanel --> version
-         RoadmapPanel --> roadmapContent
-         AlertBar --> Emoji
-         AlertBar --> priorityAlerts
-         priorityAlerts --> gameTypes
-         priorityAlerts --> forge
-         priorityAlerts --> frontierCombat
          GameHeader --> Emoji
          GameHeader --> GameMenu
          GameHeader --> ResourceBadge
-         GameHeader --> gameTypes
          GameHeader --> dayCycle
+         GameHeader --> gameTypes
          GameHeader --> populationGrowth
-         GameHeader --> villageLeadership
          GameHeader --> temperature
+         GameHeader --> villageLeadership
          GameMenu --> RoadmapPanel
+         MiniMap --> gameEngine
+         MiniMap --> gameTypes
+         MiniMap --> moonHowler
+         MiniMap --> viewState
          ResourceBadge --> ResourceIcons
          ResourceBadge --> resourceLabels
+         ResourceCost --> ResourceIcons
+         ResourceCost --> resourceLabels
+         ResourceCost --> resourceCost
+         ResourceIcons --> resourceLabels
+         SelectedBuildingPanel --> BlacksmithForgePanel
+         SelectedBuildingPanel --> CollapsibleSection
+         SelectedBuildingPanel --> buildCatalog
+         SelectedBuildingPanel --> buildingActions
+         SelectedBuildingPanel --> buildingConfig
+         SelectedBuildingPanel --> CombatPreviewPanel
+         SelectedBuildingPanel --> dayCycle
+         SelectedBuildingPanel --> gameEngine
+         SelectedBuildingPanel --> gameTypes
+         SelectedBuildingPanel --> hotelStay
+         SelectedBuildingPanel --> moonHowler
+         SelectedBuildingPanel --> raidUtils
+         SelectedBuildingPanel --> commands
+         SelectedBuildingPanel --> townHall
+         FrontierTabPanel --> FrontierPanel
+         FrontierTabPanel --> gameEngine
+         LogTabPanel --> CombatLogPanel
+         LogTabPanel --> EventLogPanel
+         LogTabPanel --> gameEngine
+         MoreTabPanel --> gameEngine
+         MoreTabPanel --> guideHelp
+         MoreTabPanel --> RoadmapPanel
+         NatureTabPanel --> Emoji
+         NatureTabPanel --> ecologyStage
+         NatureTabPanel --> gameEngine
+         NatureTabPanel --> gameTypes
+         NatureTabPanel --> temperature
+         ProgressTabPanel --> ChallengesPanel
+         ProgressTabPanel --> gameEngine
+         ProgressTabPanel --> gameTypes
+         ProgressTabPanel --> StatisticsPanel
+         ProgressTabPanel --> tradeCaravans
+         ProgressTabPanel --> villagePortrait
+         VillageTabPanel --> CollapsibleSection
+         VillageTabPanel --> economyLedger
+         VillageTabPanel --> focusHints
+         VillageTabPanel --> FocusPanel
+         VillageTabPanel --> forge
+         VillageTabPanel --> gameEngine
+         VillageTabPanel --> gameTypes
+         VillageTabPanel --> PopulationPanel
+         VillageTabPanel --> uiSimSummary
+         VillageTabPanel --> VillageLeadershipPanel
          TutorialOverlay --> Emoji
-
-
-
+         adjacencyIndex --> gameTypes
+         buildCatalog --> gameTypes
+         buildCatalog --> resourceCost
+         buildingActions --> adjacencyIndex
+         buildingActions --> buildingRotation
+         buildingActions --> dayCycle
+         buildingActions --> economy
+         buildingActions --> entityFactory
+         buildingActions --> entityIndex
+         buildingActions --> eventLog
+         buildingActions --> gameTypes
+         buildingActions --> moonHowler
+         buildingActions --> nameLoader
+         buildingActions --> placementUtils
+         buildingActions --> playerHuman
+         buildingActions --> research
+         buildingActions --> simEffects
+         buildingActions --> simHelpers
+         buildingActions --> skills
+         buildingActions --> stripBuild
+         buildingActions --> stripTopology
+         buildingActions --> terrainSystems
+         buildingActions --> workforce
+         buildingActions --> worldGen
+         buildingConfig --> gameEngine
+         buildingConfig --> gameTypes
+         buildingRotation --> gameTypes
+         challenges --> gameTypes
+         citizenId --> dayCycle
+         citizenId --> gameTypes
+         combat --> combatTech
+         combat --> forge
+         combat --> gameTypes
+         CombatPreviewPanel --> frontierCombat
+         contextualTutorial --> dayCycle
+         contextualTutorial --> focusHints
+         contextualTutorial --> gameTypes
+         contextualTutorial --> playerHuman
+         dayCycle --> dayCycleConstants
+         dayCycle --> gameTypes
+         dayCycle --> humanChat
+         dayCycle --> moonHowler
+         defenseStructures --> dayCycle
+         defenseStructures --> entityIndex
+         defenseStructures --> forge
+         defenseStructures --> gameTypes
+         dialogueTrees --> nodeRuntime
+         ecoBreakdown --> gameTypes
+         ecoBreakdown --> playerHuman
+         ecologyStage --> dayCycle
+         ecologyStage --> ecosystemPressure
+         ecologyStage --> eventLog
+         ecologyStage --> gameTypes
+         ecologyStage --> simEffects
+         economy --> gameEngine
+         economy --> gameTypes
+         economy --> resourceUtils
+         economy --> tradeCaravans
+         economyLedger --> dayCycle
+         economyLedger --> gameTypes
+         ecosystemPressure --> dayCycle
+         ecosystemPressure --> gameTypes
+         ecosystemPressure --> grassEcology
+         education --> citizenId
+         education --> dayCycle
+         education --> eventLog
+         education --> gameTypes
+         education --> playerHuman
+         education --> simEffects
+         education --> skills
+         entityCatalog --> gameTypes
+         entityCatalog --> playerHuman
+         entityCatalog --> simDelta
+         entityCounts --> gameTypes
+         entityCounts --> playerHuman
+         entityFactory --> dayCycle
+         entityFactory --> gameTypes
+         entityFactory --> humanSprites
+         entityFactory --> nameLoader
+         entityFactory --> settlerTraits
+         entityFactory --> speciesConfig
+         entityIndex --> gameTypes
+         entityLayer --> canvasLayer
+         entityLayer --> gameTypes
+         entityLayer --> renderSnapshot
+         entitySprites --> gameTypes
+         entitySprites --> humanSprites
+         eventLog --> gameTypes
+         eventLogExport --> gameTypes
+         eventLogExport --> version
+         EventLogPanel --> eventLogExport
+         EventLogPanel --> gameTypes
+         factionWander --> dayCycle
+         factionWander --> frontierCombat
+         factionWander --> gameTypes
+         focusHints --> combat
+         focusHints --> ecologyStage
+         focusHints --> forge
+         focusHints --> frontierCombat
+         focusHints --> gameTypes
+         focusHints --> populationGrowth
+         focusHints --> victory
+         focusHints --> villageLeadership
+         FocusPanel --> Emoji
+         FocusPanel --> focusHints
+         FocusPanel --> gameTypes
+         forge --> combatTech
+         forge --> dayCycle
+         forge --> eventLog
+         forge --> gameTypes
+         forge --> resourceCost
+         forge --> simEffects
+         frontierCombat --> citizenId
+         frontierCombat --> combat
+         frontierCombat --> dayCycle
+         frontierCombat --> entityIndex
+         frontierCombat --> eventLog
+         frontierCombat --> gameTypes
+         frontierCombat --> militiaBalance
+         frontierCombat --> playerHuman
+         frontierCombat --> resourceCost
+         frontierCombat --> rivalPeace
+         frontierCombat --> skills
+         gameEngine --> adjacencyIndex
+         gameEngine --> buildingActions
+         gameEngine --> combat
+         gameEngine --> dayCycle
+         gameEngine --> ecoBreakdown
+         gameEngine --> ecologyStage
+         gameEngine --> economy
+         gameEngine --> ecosystemPressure
+         gameEngine --> entityCounts
+         gameEngine --> entityFactory
+         gameEngine --> entityIndex
+         gameEngine --> eventLog
+         gameEngine --> forge
+         gameEngine --> frontierCombat
+         gameEngine --> gameTick
+         gameEngine --> gameTypes
+         gameEngine --> grassEcology
+         gameEngine --> groupEvents
+         gameEngine --> juiceEffects
+         gameEngine --> lifeSimulation
+         gameEngine --> playerHuman
+         gameEngine --> populationGrowth
+         gameEngine --> research
+         gameEngine --> rivalDisplay
+         gameEngine --> rivalPeace
+         gameEngine --> saveLoad
+         gameEngine --> simEffects
+         gameEngine --> simFocus
+         gameEngine --> simHelpers
+         gameEngine --> skills
+         gameEngine --> speciesConfig
+         gameEngine --> stats
+         gameEngine --> stripBuild
+         gameEngine --> terrainGen
+         gameEngine --> terrainSystems
+         gameEngine --> version
+         gameEngine --> victory
+         gameEngine --> villageLeadership
+         gameEngine --> workforce
+         gameEngine --> worldEvents
+         gameEngine --> worldGen
+         gameLoop --> entityCatalog
+         gameLoop --> factionWander
+         gameLoop --> gameEngine
+         gameLoop --> gameTypes
+         gameLoop --> rendererLoader
+         gameLoop --> renderSnapshot
+         gameLoop --> scentGrid
+         gameLoop --> applyKinematics
+         gameLoop --> entityRenderMeta
+         gameLoop --> renderSoAReader
+         gameLoop --> commands
+         gameLoop --> GameWorkerHost
+         gameLoop --> viewState
+         gameTick --> dayCycle
+         gameTick --> entityCounts
+         gameTick --> entityIndex
+         gameTick --> eventLog
+         gameTick --> gameTypes
+         gameTick --> grassEcology
+         gameTick --> lifeSimulation
+         gameTick --> playerHuman
+         gameTick --> simEffects
+         gameTick --> simFocus
+         gameTick --> simHelpers
+         gameTick --> spatialGrid
+         gameTick --> spatialQueryMetrics
+         gameTick --> stats
+         gameTick --> tickLayerAssign
+         gameTick --> tickLayerDaily
+         gameTick --> tickLayerRealtime
+         gameTick --> tickLayerSystems
+         gameTick --> victory
+         gameTick --> workforce
+         gameTypes --> adjacencyIndex
+         gameTypes --> ecologyStage
+         gameTypes --> omenTypes
+         gameTypes --> resourceTypes
+         gameTypes --> scentGrid
+         gameTypes --> spatialGrid
+         gameTypes --> stats
+         gameTypes --> version
+         grassEcology --> dayCycle
+         grassEcology --> gameTypes
+         groupEvents --> combat
+         groupEvents --> dayCycle
+         groupEvents --> entityFactory
+         groupEvents --> entityIndex
+         groupEvents --> eventLog
+         groupEvents --> factionWander
+         groupEvents --> frontierCombat
+         groupEvents --> gameTypes
+         groupEvents --> nameLoader
+         groupEvents --> playerHuman
+         groupEvents --> resourceUtils
+         groupEvents --> rivalPeace
+         groupEvents --> simEffects
+         groupEvents --> speciesConfig
+         groupEvents --> townHall
+         groupEvents --> visitorQuest
+         hospitalCare --> dayCycle
+         hospitalCare --> gameTypes
+         hospitalCare --> humanChat
+         hospitalCare --> playerHuman
+         hospitalCare --> simEffects
+         hospitalCare --> simHelpers
+         hospitalCare --> skills
+         hotelStay --> dayCycle
+         hotelStay --> eventLog
+         hotelStay --> gameTypes
+         hotelStay --> humanChat
+         hotelStay --> pathfinding
+         hotelStay --> playerHuman
+         hotelStay --> simEffects
+         hotelStay --> skills
+         hotkeys --> gameTypes
+         humanChat --> dialogueTrees
+         humanChat --> gameTypes
+         humanSprites --> gameTypes
+         humanSprites --> spriteLoader
+         huntvisuals --> gameTypes
+         IntroScreen --> index
+         IntroScreen --> version
+         juiceEffects --> gameTypes
+         juiceEffects --> playerHuman
+         lifeSimulation --> buildingRotation
+         lifeSimulation --> citizenId
+         lifeSimulation --> combat
+         lifeSimulation --> dayCycle
+         lifeSimulation --> defenseStructures
+         lifeSimulation --> ecologyStage
+         lifeSimulation --> economy
+         lifeSimulation --> economyLedger
+         lifeSimulation --> education
+         lifeSimulation --> entityFactory
+         lifeSimulation --> eventLog
+         lifeSimulation --> factionWander
+         lifeSimulation --> frontierCombat
+         lifeSimulation --> gameTypes
+         lifeSimulation --> grassEcology
+         lifeSimulation --> hospitalCare
+         lifeSimulation --> hotelStay
+         lifeSimulation --> humanChat
+         lifeSimulation --> humanSprites
+         lifeSimulation --> huntvisuals
+         lifeSimulation --> moonHowler
+         lifeSimulation --> nameLoader
+         lifeSimulation --> pathfinding
+         lifeSimulation --> playerHuman
+         lifeSimulation --> renffrStar
+         lifeSimulation --> scentGrid
+         lifeSimulation --> settlerTraits
+         lifeSimulation --> simEffects
+         lifeSimulation --> simFocus
+         lifeSimulation --> simQueries
+         lifeSimulation --> socialLife
+         lifeSimulation --> spatialGrid
+         lifeSimulation --> speciesConfig
+         lifeSimulation --> townHall
+         lifeSimulation --> tradeCaravans
+         lifeSimulation --> villageLeadership
+         lifeSimulation --> workforce
+         MapSetupScreen --> index
+         MapSetupScreen --> gameEngine
+         MapSetupScreen --> gameTypes
+         militiaBalance --> combat
+         militiaBalance --> defenseStructures
+         militiaBalance --> gameTypes
+         militiaBalance --> playerHuman
+         moonHowler --> dayCycle
+         moonHowler --> dayCycleConstants
+         moonHowler --> defenseStructures
+         moonHowler --> eventLog
+         moonHowler --> gameTypes
+         moonHowler --> playerHuman
+         moonHowler --> simEffects
+         moonHowler --> simFocus
+         moonHowler --> workforce
+         nameLoader --> citizenId
+         nameLoader --> gameTypes
+         nameLoader --> nodeRuntime
+         pathfinding --> gameTypes
+         placementUtils --> buildingRotation
+         placementUtils --> gameTypes
+         placementUtils --> renderSnapshot
+         playerHuman --> gameTypes
+         populationGrowth --> dayCycle
+         populationGrowth --> gameTypes
+         populationGrowth --> playerHuman
+         PopulationPanel --> citizenId
+         PopulationPanel --> dayCycle
+         PopulationPanel --> education
+         PopulationPanel --> gameTypes
+         PopulationPanel --> playerHuman
+         PopulationPanel --> populationGrowth
+         PopulationPanel --> villageLeadership
+         priorityAlerts --> forge
+         priorityAlerts --> frontierCombat
+         priorityAlerts --> gameTypes
+         raidUtils --> frontierCombat
+         raidUtils --> gameEngine
+         renderer --> buildCatalog
+         renderer --> buildingRotation
+         renderer --> canvasLayer
+         renderer --> combat
+         renderer --> dayCycle
+         renderer --> education
+         renderer --> entityLayer
+         renderer --> entitySprites
+         renderer --> gameEngine
+         renderer --> gameTypes
+         renderer --> humanChat
+         renderer --> humanSprites
+         renderer --> huntvisuals
+         renderer --> juiceEffects
+         renderer --> moonHowler
+         renderer --> placementUtils
+         renderer --> renderSnapshot
+         renderer --> renffrStar
+         renderer --> renderSoAEntities
+         renderer --> simHelpers
+         renderer --> spatialGrid
+         renderer --> spriteLoader
+         renderer --> stripBuild
+         renderer --> stripJunction
+         renderer --> stripRender
+         renderer --> terrainLayer
+         renderer --> viewState
+         rendererLoader --> renderer
+         renderSnapshot --> dayCycle
+         renderSnapshot --> entityCatalog
+         renderSnapshot --> gameEngine
+         renderSnapshot --> gameTypes
+         renderSnapshot --> preferences
+         renderSnapshot --> scentGrid
+         renderSnapshot --> entityRenderMeta
+         renderSnapshot --> renderSoAEntities
+         renderSnapshot --> renderSoAReader
+         renderSnapshot --> spatialGrid
+         renderSnapshot --> viewState
+         renffrStar --> dayCycle
+         renffrStar --> gameTypes
+         renffrStar --> humanChat
+         renffrStar --> omenTypes
+         renffrStar --> playerHuman
+         research --> dayCycle
+         research --> education
+         research --> eventLog
+         research --> gameTypes
+         research --> playerHuman
+         research --> simEffects
+         research --> simHelpers
+         resourceCost --> resourceLabels
+         resourceUtils --> gameTypes
+         rivalDisplay --> gameTypes
+         rivalPeace --> gameTypes
+         RoadmapPanel --> roadmapContent
+         RoadmapPanel --> version
+         saveLoad --> combat
+         saveLoad --> contextualTutorial
+         saveLoad --> dayCycle
+         saveLoad --> ecologyStage
+         saveLoad --> economy
+         saveLoad --> entityCounts
+         saveLoad --> entityIndex
+         saveLoad --> eventLog
+         saveLoad --> factionWander
+         saveLoad --> forge
+         saveLoad --> frontierCombat
+         saveLoad --> gameEngine
+         saveLoad --> gameTypes
+         saveLoad --> humanSprites
+         saveLoad --> moonHowler
+         saveLoad --> playerHuman
+         saveLoad --> preferences
+         saveLoad --> research
+         saveLoad --> saveSchema
+         saveLoad --> skills
+         saveLoad --> stats
+         saveLoad --> terrainGen
+         saveLoad --> tradeCaravans
+         saveLoad --> version
+         saveLoad --> victory
+         saveLoad --> viewState
+         saveLoad --> villageLeadership
+         saveSchema --> gameTypes
+         scentGrid --> gameTypes
+         scentGrid --> moonHowler
+         scentGrid --> spatialGrid
+         settlerTraits --> gameTypes
+         applyKinematics --> entityCatalog
+         applyKinematics --> entityRenderMeta
+         applyKinematics --> renderSoAReader
+         applyKinematics --> schema
+         entityRenderMeta --> gameTypes
+         entityRenderMeta --> renderSoAReader
+         entityRenderMeta --> schema
+         entityTypeCodes --> gameTypes
+         packRenderSoA --> gameEngine
+         packRenderSoA --> gameTypes
+         packRenderSoA --> playerHuman
+         packRenderSoA --> entityTypeCodes
+         packRenderSoA --> renderSoAReader
+         packRenderSoA --> schema
+         renderBufferPool --> schema
+         renderSoAEntities --> gameTypes
+         renderSoAEntities --> entityRenderMeta
+         renderSoAEntities --> renderSoAReader
+         renderSoAEntities --> spatialGrid
+         renderSoAReader --> gameTypes
+         renderSoAReader --> entityTypeCodes
+         renderSoAReader --> schema
+         simDelta --> gameEngine
+         simDelta --> gameTypes
+         simDelta --> entityRenderMeta
+         simDelta --> packRenderSoA
+         simDelta --> schema
+         simEffects --> gameTypes
+         simEffects --> juiceEffects
+         simFocus --> gameTypes
+         simHelpers --> gameTypes
+         simQueries --> gameTypes
+         simQueries --> playerHuman
+         simQueries --> spatialGrid
+         simQueries --> spatialQueryMetrics
+         commands --> buildingActions
+         commands --> buildingRotation
+         commands --> forge
+         commands --> frontierCombat
+         commands --> gameTypes
+         commands --> groupEvents
+         commands --> research
+         commands --> simDelta
+         commands --> simEffects
+         commands --> stripBuild
+         commands --> townHall
+         commands --> tradeCaravans
+         commands --> visitorQuest
+         GameWorkerHost --> gameEngine
+         GameWorkerHost --> gameTypes
+         GameWorkerHost --> scentGrid
+         GameWorkerHost --> entityRenderMeta
+         GameWorkerHost --> renderBufferPool
+         GameWorkerHost --> renderSoAReader
+         GameWorkerHost --> simDelta
+         GameWorkerHost --> commands
+         GameWorkerHost --> protocol
+         protocol --> gameTypes
+         skills --> gameTypes
+         socialLife --> dayCycle
+         socialLife --> gameTypes
+         socialLife --> humanChat
+         spatialGrid --> gameTypes
+         spatialGrid --> spatialQueryMetrics
+         speciesConfig --> dayCycle
+         speciesConfig --> gameTypes
+         spriteLoader --> gameTypes
+         StatisticsPanel --> ResourceIcons
+         StatisticsPanel --> gameEngine
+         stats --> gameTypes
+         stats --> playerHuman
+         stripBuild --> buildingRotation
+         stripBuild --> gameTypes
+         stripBuild --> stripJunction
+         stripJunction --> buildingRotation
+         stripJunction --> gameTypes
+         stripRender --> buildingRotation
+         stripRender --> gameTypes
+         stripRender --> stripJunction
+         stripTopology --> buildingRotation
+         stripTopology --> gameTypes
+         stripTopology --> stripBuild
+         stripTopology --> stripJunction
+         temperature --> gameTypes
+         terrainGen --> gameTypes
+         terrainLayer --> canvasLayer
+         terrainLayer --> gameTypes
+         terrainLayer --> spriteLoader
+         terrainSystems --> adjacencyIndex
+         terrainSystems --> buildingRotation
+         terrainSystems --> gameTypes
+         tickLayerAssign --> dayCycle
+         tickLayerAssign --> gameTypes
+         tickLayerAssign --> lifeSimulation
+         tickLayerAssign --> workforce
+         tickLayerDaily --> adjacencyIndex
+         tickLayerDaily --> challenges
+         tickLayerDaily --> dayCycle
+         tickLayerDaily --> ecologyStage
+         tickLayerDaily --> economy
+         tickLayerDaily --> economyLedger
+         tickLayerDaily --> entityCounts
+         tickLayerDaily --> entityIndex
+         tickLayerDaily --> eventLog
+         tickLayerDaily --> factionWander
+         tickLayerDaily --> forge
+         tickLayerDaily --> frontierCombat
+         tickLayerDaily --> gameTypes
+         tickLayerDaily --> groupEvents
+         tickLayerDaily --> hospitalCare
+         tickLayerDaily --> huntvisuals
+         tickLayerDaily --> juiceEffects
+         tickLayerDaily --> lifeSimulation
+         tickLayerDaily --> playerHuman
+         tickLayerDaily --> preferences
+         tickLayerDaily --> simEffects
+         tickLayerDaily --> simHelpers
+         tickLayerDaily --> skills
+         tickLayerDaily --> stats
+         tickLayerDaily --> terrainSystems
+         tickLayerDaily --> townHall
+         tickLayerDaily --> treeProximity
+         tickLayerDaily --> villageLeadership
+         tickLayerDaily --> visitorQuest
+         tickLayerDaily --> workforce
+         tickLayerDaily --> worldGen
+         tickLayerRealtime --> dayCycle
+         tickLayerRealtime --> entityCounts
+         tickLayerRealtime --> eventLog
+         tickLayerRealtime --> gameTypes
+         tickLayerRealtime --> hotelStay
+         tickLayerRealtime --> huntvisuals
+         tickLayerRealtime --> lifeSimulation
+         tickLayerRealtime --> moonHowler
+         tickLayerRealtime --> playerHuman
+         tickLayerRealtime --> renffrStar
+         tickLayerRealtime --> scentGrid
+         tickLayerRealtime --> simEffects
+         tickLayerRealtime --> spatialGrid
+         tickLayerRealtime --> villageLeadership
+         tickLayerRealtime --> workforce
+         tickLayerSystems --> dayCycle
+         tickLayerSystems --> entityFactory
+         tickLayerSystems --> entityIndex
+         tickLayerSystems --> gameTypes
+         tickLayerSystems --> lifeSimulation
+         tickLayerSystems --> research
+         tickLayerSystems --> simEffects
+         tickLayerSystems --> simFocus
+         tickLayerSystems --> speciesConfig
+         tickLayerSystems --> tradeCaravans
+         tickLayerSystems --> worldEvents
+         townHall --> dayCycle
+         townHall --> economy
+         townHall --> eventLog
+         townHall --> gameEngine
+         townHall --> gameTypes
+         townHall --> humanChat
+         townHall --> playerHuman
+         townHall --> skills
+         townHall --> villageLeadership
+         tradeCaravans --> dayCycle
+         tradeCaravans --> entityFactory
+         tradeCaravans --> entityIndex
+         tradeCaravans --> eventLog
+         tradeCaravans --> frontierCombat
+         tradeCaravans --> gameEngine
+         tradeCaravans --> gameTypes
+         tradeCaravans --> resourceUtils
+         tradeCaravans --> townHall
+         treeProximity --> gameTypes
+         uiSimSummary --> dayCycle
+         uiSimSummary --> entityCatalog
+         uiSimSummary --> gameTypes
+         uiSimSummary --> playerHuman
+         uiSimSummary --> populationGrowth
+         victory --> gameTypes
+         viewState --> gameTypes
+         viewState --> saveSchema
+         viewState --> stripBuild
+         villageLeadership --> dayCycle
+         villageLeadership --> eventLog
+         villageLeadership --> gameTypes
+         villageLeadership --> humanChat
+         villageLeadership --> playerHuman
+         villageLeadership --> simEffects
+         villageLeadership --> skills
+         VillageLeadershipPanel --> gameTypes
+         VillageLeadershipPanel --> villageLeadership
+         villagePortrait --> eventLog
+         villagePortrait --> gameTypes
+         villagePortrait --> playerHuman
+         villagePortrait --> rivalPeace
+         visitorQuest --> dayCycle
+         visitorQuest --> gameTypes
+         visitorQuest --> simEffects
+         workforce --> dayCycle
+         workforce --> eventLog
+         workforce --> gameTypes
+         workforce --> playerHuman
+         workforce --> simEffects
+         workforce --> skills
+         worldEvents --> citizenId
+         worldEvents --> dayCycle
+         worldEvents --> entityIndex
+         worldEvents --> eventLog
+         worldEvents --> gameEngine
+         worldEvents --> gameTypes
+         worldGen --> buildingRotation
+         worldGen --> dayCycle
+         worldGen --> entityCounts
+         worldGen --> entityFactory
+         worldGen --> entityIndex
+         worldGen --> eventLog
+         worldGen --> factionWander
+         worldGen --> forge
+         worldGen --> gameTypes
+         worldGen --> nameLoader
+         worldGen --> playerHuman
+         worldGen --> preferences
+         worldGen --> research
+         worldGen --> speciesConfig
+         worldGen --> stats
+         worldGen --> terrainGen
+         worldGen --> victory
+         worldGen --> villageLeadership
+         useCanvasInteractions --> index
+         useCanvasInteractions --> buildingActions
+         useCanvasInteractions --> buildingRotation
+         useCanvasInteractions --> entityCatalog
+         useCanvasInteractions --> gameEngine
+         useCanvasInteractions --> gameLoop
+         useCanvasInteractions --> humanSprites
+         useCanvasInteractions --> commands
+         useCanvasInteractions --> viewState
+         useContextualTutorial --> contextualTutorial
+         useContextualTutorial --> gameEngine
+         useGameAudio --> index
+         useGameAudio --> interactionDetect
+         useGameAudio --> workDetect
+         useGameAudio --> workSfx
+         useGameAudio --> dayCycle
+         useGameAudio --> gameEngine
+         useKeyboardControls --> buildingRotation
+         useKeyboardControls --> entityCatalog
+         useKeyboardControls --> gameEngine
+         useKeyboardControls --> gameLoop
+         useKeyboardControls --> hotkeys
+         useKeyboardControls --> playerHuman
+         useKeyboardControls --> viewState
