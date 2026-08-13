@@ -80,6 +80,14 @@ export const BUILDING_CATEGORIES: BuildingCategoryDef[] = [
     hint: 'Roads 1.5× walk · Bridges on rivers · R rotates',
     types: [BuildingType.Road, BuildingType.Bridge],
   },
+  {
+    id: 'decor',
+    label: 'Decor',
+    icon: '🌷',
+    color: 'bg-pink-600',
+    hint: 'Beauty lifts the neighborhood — settlers drift toward pretty spots',
+    types: [BuildingType.Garden, BuildingType.Statue, BuildingType.Lamp, BuildingType.Fence],
+  },
 ];
 
 export function categoryForBuildingType(type: BuildingType): string {

@@ -11,6 +11,7 @@ export const STRIP_BUILD_TYPES = new Set<BuildingType>([
   BuildingType.Road,
   BuildingType.Wall,
   BuildingType.WallGate,
+  BuildingType.Fence,
 ]);
 
 export const MAX_STRIP_SEGMENTS = 72;

@@ -120,7 +120,10 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/terrain/water_shallow_fill.png',
     '/sprites/terrain/water_deep_fill.png',
   ];
-  const buildingSprites = Object.values(BUILDING_CONFIGS).map((cfg) => cfg.sprite);
+  // Decor buildings draw procedurally — they reference no real sprite file.
+  const buildingSprites = Object.values(BUILDING_CONFIGS)
+    .filter((cfg) => !cfg.decor)
+    .map((cfg) => cfg.sprite);
   const sprites = [...new Set([...wildlifeAndHumans, ...buildingSprites])];
 
   return Promise.all([

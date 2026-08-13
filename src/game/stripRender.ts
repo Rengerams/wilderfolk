@@ -168,6 +168,37 @@ export function drawProceduralWall(
   ctx.restore();
 }
 
+/** Light wooden fence — thin posts + two rails, reads as a tidy boundary. */
+export function drawProceduralFence(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  w: number,
+  h: number,
+  rotation: BuildingRotation,
+  alpha = 1,
+): void {
+  const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
+
+  const posts = Math.max(2, Math.floor(rw / 18));
+  for (let i = 0; i < posts; i++) {
+    const t = posts === 1 ? 0.5 : i / (posts - 1);
+    const px = x0 + 4 + t * (rw - 8);
+    ctx.fillStyle = '#92400e';
+    ctx.fillRect(px - 1.5, y0, 3, rh);
+    ctx.fillStyle = '#d6a35c';
+    ctx.fillRect(px - 2.5, y0 - 1, 5, 2.5);
+  }
+  ctx.fillStyle = '#b45309';
+  ctx.fillRect(x0, y0 + rh * 0.3, rw, 2.2);
+  ctx.fillRect(x0, y0 + rh * 0.62, rw, 2.2);
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x0 + 0.5, y0 + 0.5, rw - 1, rh - 1);
+  ctx.restore();
+}
+
 function drawPalisadePosts(
   ctx: CanvasRenderingContext2D,
   x0: number,
@@ -315,6 +346,10 @@ export function drawProceduralStripBuilding(
   }
   if (type === BuildingType.WallCorner) {
     drawProceduralWallCorner(ctx, sx, sy, w, h, normalizeCornerRotation(rotation), alpha);
+    return;
+  }
+  if (type === BuildingType.Fence) {
+    drawProceduralFence(ctx, sx, sy, w, h, rotation as BuildingRotation, alpha);
     return;
   }
   drawProceduralWall(ctx, sx, sy, w, h, rotation as BuildingRotation, type === BuildingType.WallGate, alpha);

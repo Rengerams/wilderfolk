@@ -39,6 +39,8 @@ import { isNightHour, isWorkHour, shouldBeAtHome } from './dayCycle';
 import { isActiveMoonHowler } from './moonHowler';
 import { findNearestStaffedSchool, findStaffedSchools, isChildAtSchool } from './education';
 import { isStripBuildType } from './stripBuild';
+import { isDecorType } from './beautyGrid';
+import { drawProceduralDecor } from './decorRender';
 import {
   drawProceduralStripBuilding,
   drawProceduralWallJunction,
@@ -1513,6 +1515,8 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
     const rot = normalizeBuildingRotation(b.rotation);
     if (isStripBuildType(b.type)) {
       drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, 0.55);
+    } else if (isDecorType(b.type)) {
+      drawProceduralDecor(ctx, b.type, sx, sy, w, h, isNightHour(state.hourOfDay), 0.75);
     } else {
       const frame = getSpriteFrame(cfg.sprite);
       if (frame) {
@@ -1579,7 +1583,9 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
     const baseAlpha = hover ? 0.72 : isRival ? 0.58 : 0.55;
     drawBuildingPad(ctx, cfg.padShape, sx, sy + h * 0.06, padW, padH * 0.72, tint, border, baseAlpha, dash, isRival ? 2 : 1.5);
 
-    if (frame) {
+    if (isDecorType(b.type)) {
+      drawProceduralDecor(ctx, b.type, sx, sy - h * 0.04, w, h, isNightHour(state.hourOfDay));
+    } else if (frame) {
       // Lift sprite slightly above pad so the footprint reads as a base
       drawBuildingSprite(
         ctx, b.type, frame, sx, sy - h * 0.04, w, h,

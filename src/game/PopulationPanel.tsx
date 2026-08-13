@@ -150,6 +150,10 @@ export default function PopulationPanel({
         <div>
           <h3 className="text-xs font-bold text-stone-300">Population & Families</h3>
           <p className="text-[11px] text-stone-500">{familyGroups.length} families · 🛏️ {beds} beds ({openBeds} open) · cap {capacity}</p>
+          <p className="text-[11px] text-stone-500">
+            😊 Village mood <span className="text-pink-300">{Math.round(state.villageHappiness ?? 50)}</span>/100
+            <span className="text-stone-600"> — decor (🌷 gardens, 🗿 statues, 🏮 lamps) lifts it</span>
+          </p>
         </div>
         <div className="text-right">
           <p className="text-2xl font-black leading-none text-emerald-300">

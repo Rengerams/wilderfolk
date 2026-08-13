@@ -30,6 +30,7 @@ import {
 } from './economy';
 import { logEvent } from './eventLog';
 import { tickMigration } from './migration';
+import { tickBeauty } from './beautyGrid';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getLumberMillTreeMultiplier } from './treeProximity';
 import {
@@ -765,6 +766,9 @@ export function tickLayerDaily(
 
   // Autumn deer migration — herds arrive, graze, and leave with memory
   tickMigration(state);
+
+  // Neighborhood beauty grid + village happiness (Phase 3.2)
+  tickBeauty(state);
 
   // Building production + forge
   tickBuildingProduction(state, ctx, allAlive);

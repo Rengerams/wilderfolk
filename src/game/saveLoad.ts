@@ -179,6 +179,7 @@ function stripRuntimeWorldFields(world: WorldState): WorldState {
     roadAvoidanceStamp: _roadAvoidanceStamp,
     adjacency: _adjacency,
     entityById: _entityById,
+    beautyGrid: _beautyGrid,
     ...serializable
   } = world;
   return serializable;

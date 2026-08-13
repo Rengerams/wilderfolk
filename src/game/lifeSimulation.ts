@@ -26,6 +26,7 @@ import {
   createDeathParticles,
   impulseScreenShake,
 } from './simEffects';
+import { beautyAt, pickBeautySpot } from './beautyGrid';
 import {
   getChurchStrength,
   findHumanWorkplace,
@@ -3173,7 +3174,21 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           idleVy = -(sdy / sdist) * config.speed * 0.1;
         } else {
           // Drift together toward a shared village spot (tavern is a favorite).
-          const shared = (Math.min(entity.id, company.id) * 31 + leisureSlot * 17 + absDay) % 6;
+          // Phase 3.2 — sometimes the prettiest spot in the neighborhood wins.
+          if (state.beautyGrid != null && Math.random() < 0.35) {
+            const pretty = pickBeautySpot(
+              state.beautyGrid,
+              (entity.x + company.x) / 2,
+              (entity.y + company.y) / 2,
+              5,
+            );
+            steerTo(pretty.x, pretty.y, 0.42, 14);
+            if (beautyAt(state.beautyGrid, entity.x, entity.y) >= 3 && Math.random() < 0.04 * PER_TICK_RATE_SCALE) {
+              entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.4 * PER_TICK_RATE_SCALE);
+              addFloatingText(state, entity.x, entity.y - 26, '💐', '#f9a8d4', 'brief');
+            }
+          } else {
+            const shared = (Math.min(entity.id, company.id) * 31 + leisureSlot * 17 + absDay) % 6;
           if (shared <= 1) {
             const tavern = pickCompleted([BuildingType.Tavern]);
             if (tavern) {
@@ -3198,6 +3213,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           } else {
             idleVx = Math.sin(tick * 0.025 + entity.id) * config.speed * 0.12;
             idleVy = Math.cos(tick * 0.02 + company.id) * config.speed * 0.12;
+          }
           }
           if (companyKind === 'partner') {
             settlerPairChat(entity, company, 'home', 0.08);

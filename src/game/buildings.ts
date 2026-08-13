@@ -40,6 +40,15 @@ export const BuildingType = {
   Hotel: 'hotel',
   /** Cross rivers — place on river / bank tiles only. Drop `public/sprites/bridge.png`. */
   Bridge: 'bridge',
+  // ── Decor (Phase 3.2 — beauty grid) ──
+  /** Flower garden — neighborhood beauty + a spot settlers like to sit. */
+  Garden: 'garden',
+  /** Carved stone statue — the strongest beauty nudge in the village. */
+  Statue: 'statue',
+  /** Street lamp — beauty by day, a warm glow at night. */
+  Lamp: 'lamp',
+  /** Light wooden fence — cheap strip that prettifies a boundary. */
+  Fence: 'fence',
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 export interface Building {
@@ -103,6 +112,10 @@ export interface BuildingConfig {
   /** Extra multiplier so trimmed sprites fill their footprint on the map. */
   spriteDisplayScale?: number;
   unlockRequirement?: string;
+  /** Decor only — neighborhood beauty contribution (see beautyGrid). */
+  beauty?: number;
+  /** Decor only — procedural draw + feeds the beauty grid; no sprite/staff. */
+  decor?: boolean;
 }
 
 export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
@@ -343,6 +356,38 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     sprite: '/sprites/bridge.png', backgroundColor: '#6b7280', padShape: 'road',
     unlockRequirement: 'architecture_1',
     spriteDisplayScale: 1.05,
+  },
+  [BuildingType.Garden]: {
+    width: 42, height: 38,
+    cost: { wood: 12, stone: 4, gold: 2 },
+    buildTime: 1, maxOccupants: 0,
+    emoji: '🌷', label: 'Garden', description: 'A flower bed — neighborhood beauty, and settlers drift toward pretty spots in their free time.',
+    sprite: '/sprites/garden.png', backgroundColor: '#84cc16', padShape: 'rect',
+    beauty: 3, decor: true,
+  },
+  [BuildingType.Statue]: {
+    width: 30, height: 32,
+    cost: { wood: 0, stone: 25, gold: 15 },
+    buildTime: 2, maxOccupants: 0,
+    emoji: '🗿', label: 'Statue', description: 'Carved stone — the strongest beauty nudge in the village.',
+    sprite: '/sprites/statue.png', backgroundColor: '#a8a29e', padShape: 'circle',
+    beauty: 5, decor: true,
+  },
+  [BuildingType.Lamp]: {
+    width: 22, height: 26,
+    cost: { wood: 10, stone: 6, gold: 3 },
+    buildTime: 1, maxOccupants: 0,
+    emoji: '🏮', label: 'Lamp', description: 'Street lamp — beauty by day, a warm glow at night.',
+    sprite: '/sprites/lamp.png', backgroundColor: '#eab308', padShape: 'circle',
+    beauty: 2, decor: true,
+  },
+  [BuildingType.Fence]: {
+    width: 44, height: 12,
+    cost: { wood: 6, stone: 2, gold: 0 },
+    buildTime: 1, maxOccupants: 0,
+    emoji: '🚧', label: 'Fence', description: 'A light wooden fence — cheap beauty that prettifies a boundary (R rotates).',
+    sprite: '/sprites/fence.png', backgroundColor: '#a16207', padShape: 'road',
+    beauty: 1, decor: true,
   },
 };
 

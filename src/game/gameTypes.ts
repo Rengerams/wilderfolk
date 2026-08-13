@@ -789,6 +789,10 @@ export interface WorldState {
   activeMigration?: { herdYear: number; endDay: number; spawned: number };
   /** Memory across years — how big next autumn's herd will be (see migration). */
   migrationNextHerdSize?: number;
+  /** Transient — neighborhood beauty tile grid (Phase 3.2, see beautyGrid). */
+  beautyGrid?: import('./beautyGrid').BeautyGrid;
+  /** Transient — 0–100 village happiness derived from beauty under settlers. */
+  villageHappiness?: number;
   /** Ephemeral predator scent field — rebuilt each session, not saved. */
   scentGrid?: ScentGrid;
   /** Alive entities by type — rebuilt each sim tick for render/UI; not saved. */
