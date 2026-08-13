@@ -28,9 +28,9 @@ import { getSpriteFrame, type SpriteFrame } from './spriteLoader';
 import {
   drawPioneerAt, getHumanSpriteMetrics,
   getHumanWalkBob, getHumanWalkFrameIndex, getHumanSpriteFrame,
+  getJuvenileSpriteFrame,
   pickHumanVariant,
   HUMAN_WALK_SPEED_THRESHOLD,
-  HUMAN_BASE_SPRITES,
   type HumanGender,
 } from './humanSprites';
 import { ANIMAL_SPRITE_ANCHOR_Y, getAnimalSpriteMetrics } from './entitySprites';
@@ -2172,9 +2172,11 @@ function drawHumans(
     const drawHuman = () => {
       const gender = (human.gender ?? 'male') as HumanGender;
       const variant = human.spriteVariant ?? pickHumanVariant(human.id, gender);
-      const frame = isWalking
-        ? getHumanSpriteFrame(gender, variant, walkFrame)
-        : getSpriteFrame(HUMAN_BASE_SPRITES[gender]);
+      const frame = human.isJuvenile
+        ? getJuvenileSpriteFrame(gender)
+        : isWalking
+          ? getHumanSpriteFrame(gender, variant, walkFrame)
+          : getHumanSpriteFrame(gender, variant, 0);
       if (isDrawableSpriteFrame(frame)) {
         const aspect = frame.sw / frame.sh;
         const anchorY = frame.anchorY ?? 1;

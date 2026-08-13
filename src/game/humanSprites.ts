@@ -2,7 +2,7 @@ import type { Entity } from './gameTypes';
 import { getSpriteFrame, isHumanSpritesReady, type SpriteFrame } from './spriteLoader';
 
 export const HUMAN_WALK_FRAMES = 4;
-export const HUMAN_VARIANT_COUNT = 4;
+export const HUMAN_VARIANT_COUNT = 8;
 
 export type HumanGender = 'male' | 'female';
 
@@ -17,18 +17,32 @@ export const WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
     '/sprites/human_male_v1.png',
     '/sprites/human_male_v2.png',
     '/sprites/human_male_v3.png',
+    '/sprites/human_male_v4.png',
+    '/sprites/human_male_v5.png',
+    '/sprites/human_male_v6.png',
+    '/sprites/human_male_v7.png',
   ],
   female: [
     '/sprites/human_female_v0.png',
     '/sprites/human_female_v1.png',
     '/sprites/human_female_v2.png',
     '/sprites/human_female_v3.png',
+    '/sprites/human_female_v4.png',
+    '/sprites/human_female_v5.png',
+    '/sprites/human_female_v6.png',
+    '/sprites/human_female_v7.png',
   ],
 } as const;
 
+/** Dedicated juvenile sprites — drawn instead of the scaled adult when set. */
+export const JUVENILE_SPRITE_PATHS: Record<HumanGender, string> = {
+  male: '/sprites/human_male_toddler_v1.png',
+  female: '/sprites/human_female_toddler_v1.png',
+} as const;
+
 export const HUMAN_VARIANT_LABELS: Record<HumanGender, readonly string[]> = {
-  male: ['Brown', 'Tan', 'Dark Brown', 'Rust Brown'],
-  female: ['Red Dress', 'Maroon', 'Rose Red', 'Burgundy'],
+  male: ['Brown', 'Tan', 'Dark Brown', 'Rust Brown', 'Grey', 'Blonde', 'Black', 'Auburn'],
+  female: ['Red Dress', 'Maroon', 'Rose Red', 'Burgundy', 'Teal Dress', 'Violet Dress', 'Sapphire Dress', 'Olive Dress'],
 } as const;
 
 /** Native artboard — feet on bottom edge. */
@@ -253,6 +267,12 @@ export function getHumanSpriteFrame(
   const sheet = getSpriteFrame(getHumanWalkSheetPath(g, v)) ?? getSpriteFrame(HUMAN_BASE_SPRITES[g]);
   if (!sheet) return null;
   return sliceWalkFrame(sheet, frame);
+}
+
+/** Dedicated child sprite (toddler art) — single frame, no slicing. */
+export function getJuvenileSpriteFrame(gender: HumanGender | undefined): SpriteFrame | null {
+  if (!isHumanSpritesReady()) return null;
+  return getSpriteFrame(JUVENILE_SPRITE_PATHS[gender ?? 'male']);
 }
 
 /** Match renderer HUMAN_WALK_SPEED_THRESHOLD — idle settlers must not advance walk frames. */

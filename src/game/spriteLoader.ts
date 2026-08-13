@@ -20,14 +20,24 @@ let humanSpritesReady = false;
 const HUMAN_SPRITE_PATHS = new Set<string>([
   '/sprites/human_male.png',
   '/sprites/human_female.png',
+  '/sprites/human_male_toddler_v1.png',
+  '/sprites/human_female_toddler_v1.png',
   '/sprites/human_male_v0.png',
   '/sprites/human_male_v1.png',
   '/sprites/human_male_v2.png',
   '/sprites/human_male_v3.png',
+  '/sprites/human_male_v4.png',
+  '/sprites/human_male_v5.png',
+  '/sprites/human_male_v6.png',
+  '/sprites/human_male_v7.png',
   '/sprites/human_female_v0.png',
   '/sprites/human_female_v1.png',
   '/sprites/human_female_v2.png',
   '/sprites/human_female_v3.png',
+  '/sprites/human_female_v4.png',
+  '/sprites/human_female_v5.png',
+  '/sprites/human_female_v6.png',
+  '/sprites/human_female_v7.png',
 ]);
 
 export function loadSprite(src: string): Promise<SpriteFrame> {
