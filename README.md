@@ -39,25 +39,26 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-## Latest update — v0.5.3 shipped (August 7, 2026)
+## Latest update — v0.5.4 shipped (August 13, 2026)
 
-**Playing `GAME_VERSION` 0.5.3** — colonies continue from **0.4 / 0.5.x** saves. Full notes → [CHANGELOG.md](CHANGELOG.md) `[0.5.3]` · Moon Howler notes → [docs/marketing/moon-howler-overhaul.md](docs/marketing/moon-howler-overhaul.md)
+**Playing `GAME_VERSION` 0.5.4** — colonies continue from **0.4 / 0.5.x** saves. Full notes → [CHANGELOG.md](CHANGELOG.md)
 
 | Area | Highlights |
 |------|------------|
-| **🌕 Moon Howler nights** | Churches hold **up to 4 priests** (cure 35% → 71%); on full-moon nights priests leave home to **hunt the howler** — the rite fires when they close in. Howlers show as a **pulsing red dot** on the minimap + red ring on the map. Guards roll to save the priest. Slay a howler → title **Moonslayer** · break a curse → **Howlerbane** |
-| **People** | **Personality traits** (3 of 14 per settler, children inherit each parent trait 50/50); hospital visits during work hours; hunt arrow FX; click-to-focus toasts |
-| **Water & terrain** | Rivers carve real channels from the peaks and actually flow; seamless water sprites with shore reflection; wooden bridge; zoom-5 terrain LOD |
-| **Life & map** | Grid pathfinding (people walk around water & mountains); clickable mini-map; no visitors in week 1; new games default to Small |
-| **Quality** | Eco metrics once per day; two redundant scans removed per tick; camera clamp fixed; auto-staff confirms itself; placement hints respect tutorials |
+| **🗺️ Choose your land** | The new-settlement screen is a **painted gallery** — six valleys (Verdant, Mountainous, Coastal, Arid, Harsh, **Riverlands** marshland) as tiny landscape cards; map size is a slim segmented control |
+| **🎭 People & drama** | **Titles sway elections** (+8 merit for Moonslayer/Howlerbane); schools are **yours to staff** (no auto-teachers, up to **10 kids** per school); kids **gossip** their parents' affairs at school and form **childhood bonds** that shape who they court as adults |
+| **👥 Multi-select workers** | Shift-click several settlers at once, then assign them all to one building in a single click |
+| **🚶 Real walking** | Human sprites support **4-frame walk sheets** — settlers swing their legs instead of bobbing; outfit variants now spread across the village |
+| **🎨 Painted valley** | Procedural decor (snow mounds, beach ripples, rock clusters, meadow flowers) + **work ambience** — the village sounds like work: chopping, mining, hammering, and footsteps pitched by the surface underfoot |
+| **Quality** | Every **0.5.x save loads** (version-gate test pins it); worker-command tests back in the gate; the code hub slimmed 1,489 → 1,072 lines |
 
 ### What's next — game-feel Phase 3
 
-Multi-select workers, decorations & beauty, sound effects, and weather with real consequences → [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md).
+Decorations & beauty, and weather with real consequences → [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md).
 
-### Prior release — v0.5.2
+### Prior release — v0.5.3
 
-Flowing water, season light, real visitor trade with gold purses, elections every two years, and people who route around rivers. Details → [ROADMAP.md](ROADMAP.md).
+The night hunts back: Moon Howler exorcism overhaul — up to 4 priests, active night hunts, red-dot howlers, guard saves, and the **Moonslayer / Howlerbane** titles. Details → [ROADMAP.md](ROADMAP.md).
 
 ---
 
