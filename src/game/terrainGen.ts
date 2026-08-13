@@ -431,8 +431,19 @@ export function generateWorldMap(
     if (river.length > 10) {
       rivers.push(river);
       // Skip the peak cell (mountain top stays land); the channel below it is water.
+      // Widen into a real river: each path cell's orthogonal neighbours become
+      // water where the valley dips below the water level — so rivers read as
+      // wide flowing channels in the lowlands and narrow streams on slopes.
       for (let i = 1; i < river.length; i++) {
-        acceptedRiverSet.add(`${Math.floor(river[i].x / 10)},${Math.floor(river[i].y / 10)}`);
+        const cx = Math.floor(river[i].x / 10);
+        const cy = Math.floor(river[i].y / 10);
+        acceptedRiverSet.add(`${cx},${cy}`);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+          const nt = tiles[cy + dy]?.[cx + dx];
+          if (nt && nt.elevation / 100 < pm.waterLevel + 0.05) {
+            acceptedRiverSet.add(`${cx + dx},${cy + dy}`);
+          }
+        }
       }
     }
   }

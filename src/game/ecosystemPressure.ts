@@ -56,7 +56,13 @@ export function getGrazingPressureReport(state: WorldState): GrazingPressureRepo
   const grassCount = counts.grass;
   const growingGrassCount = countGrowingGrass(state);
   const grassMult = getGrassGrowthMultiplier(state.season, state.weather);
-  const grassRecoveryPerDay = growingGrassCount * GRASS_GROWTH_PER_TICK * grassMult * TICKS_PER_DAY;
+  // A full meadow regrows when grazed — treat a mostly-maxed pasture as having
+  // at least 30% regrow potential, or the ratio explodes the moment grass fills
+  // up and reads as a false "overgrazed" crisis with zero player action.
+  const regrowBase = growingGrassCount >= grassCount * 0.3
+    ? growingGrassCount
+    : grassCount * 0.3;
+  const grassRecoveryPerDay = regrowBase * GRASS_GROWTH_PER_TICK * grassMult * TICKS_PER_DAY;
 
   const grazingDemandPerDay =
     grazerGrassEnergyDemandPerDay(GRAZER_METABOLISM.deer.energyLossPerTick, GRAZER_METABOLISM.deer.grassEnergyGain, 0) * deerCount

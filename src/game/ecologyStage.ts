@@ -37,8 +37,8 @@ const STAGE_ORDER: ValleyStage[] = ['stable', 'strained', 'damaged', 'collapse']
 
 /** No Collapse until the colony has lived this many absolute days. */
 export const ECOLOGY_COLLAPSE_MIN_DAY = 14;
-/** Metrics must stay elevated this many colony days before stage +1. */
-const CONFIRM_UP_DAYS = 1;
+/** Metrics must stay elevated this many colony days before stage +1 (warning-first). */
+const CONFIRM_UP_DAYS = 3;
 /** Improved metrics must hold before stage −1. */
 const RECOVERY_LAG_DAYS = 2;
 /** Damaged dwell before Collapse is allowed (colony days). */
@@ -109,10 +109,12 @@ export function computeRawEcologyStress(state: WorldState): {
   if (grazing.pressureRatio >= 2.0) grazingStress = 2;
 
   // --- Predators / prey chain ---
+  // Eased so a map that simply spawned no wolves reads as a caution, not an
+  // instant "nature is hurt" — only a clear deer surplus tips it to bad.
   let predatorStress = 0;
-  if (wolves === 0 && deer >= 8) predatorStress = 2;
-  else if (wolves === 0 && deer >= 5) predatorStress = 1;
-  else if (wolves <= 1 && deer >= 12) predatorStress = 2;
+  if (wolves === 0 && deer >= 12) predatorStress = 2;
+  else if (wolves === 0 && deer >= 8) predatorStress = 1;
+  else if (wolves <= 1 && deer >= 15) predatorStress = 2;
   else if (prey === 0 && humans >= 4) predatorStress = 2; // barren for hunters
   else if (prey > 0 && prey < 3 && humans >= 8) predatorStress = 1;
 

@@ -4,6 +4,8 @@ import {
   BuildingType,
   JobType,
   Season,
+  TerrainType,
+  TERRAIN_TILE_SIZE,
   WEREWOLF_ATTACK_LINES,
   WEREWOLF_HOWL_LINES,
   BUILDING_CONFIGS,
@@ -3875,6 +3877,24 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           entity.vy = (dy / dist) * config.speed * 0.6;
           entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
         }
+      }
+    }
+
+    // Wildlife wade shallow water but stop at rivers and deep water — slide
+    // along the bank by cancelling the blocked axis instead of wading across.
+    const worldMap = state.worldMap;
+    if (worldMap) {
+      const nextX = entity.x + entity.vx;
+      const nextY = entity.y + entity.vy;
+      const tileAt = (px: number, py: number): TerrainType | undefined =>
+        worldMap.tiles[Math.floor(py / TERRAIN_TILE_SIZE)]?.[Math.floor(px / TERRAIN_TILE_SIZE)]?.type;
+      const deep = (t: TerrainType | undefined) => t === TerrainType.River || t === TerrainType.DeepWater;
+      if (deep(tileAt(nextX, nextY))) {
+        const xBlocked = deep(tileAt(nextX, entity.y));
+        const yBlocked = deep(tileAt(entity.x, nextY));
+        if (xBlocked && !yBlocked) entity.vx = 0;
+        else if (yBlocked && !xBlocked) entity.vy = 0;
+        else { entity.vx = 0; entity.vy = 0; }
       }
     }
 
