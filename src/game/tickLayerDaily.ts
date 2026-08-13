@@ -44,6 +44,8 @@ import {
   assignMissingResidences,
   buildWorkHours,
   WORK_HOURS_PER_DAY,
+  getAbsoluteCalendarDay,
+  DAYS_PER_YEAR,
 } from './dayCycle';
 import type { TickContext } from './lifeSimulation';
 import { tickGrassDaily } from './lifeSimulation';
@@ -541,6 +543,27 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
     : 1;
 
   let festivalStartedThisTick = false;
+
+  // Seasonal festivals — 5 days at the start of each season: 20 guaranteed
+  // festival days per year (Spring Revel · Midsummer Feast · Harvest Festival ·
+  // Frostfall Feast), on top of the random festivals.
+  const dayInYear = getAbsoluteCalendarDay(state.tick) % DAYS_PER_YEAR;
+  const seasonalStart = Math.floor(dayInYear / 90) * 90;
+  if (!state.festival && dayInYear === seasonalStart + 3 && counts.humans >= 2) {
+    const seasonalNames: Record<number, string> = {
+      0: 'Spring Revel',
+      90: 'Midsummer Feast',
+      180: 'Harvest Festival',
+      270: 'Frostfall Feast',
+    };
+    const name = seasonalNames[seasonalStart] ?? 'Village Festival';
+    state.festival = { active: true, name, daysLeft: 5 };
+    state.villageReputation = Math.min(100, state.villageReputation + 5);
+    addBigNews(state, '🎉 Festival!', `${name} has begun! Production, courtship, and immigration are boosted for 5 days.`, 'positive');
+    logEvent(state, 'season', `${name} festival began in the village`);
+    festivalStartedThisTick = true;
+  }
+
   if (
     !state.festival
     && state.tick >= (state.townHallFestivalCooldownUntilTick ?? 0)
