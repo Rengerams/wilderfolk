@@ -29,6 +29,7 @@ import {
   applyFoodSpoilage,
 } from './economy';
 import { logEvent } from './eventLog';
+import { tickMigration } from './migration';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getLumberMillTreeMultiplier } from './treeProximity';
 import {
@@ -738,6 +739,9 @@ export function tickLayerDaily(
 
   // Valley ecology stage (after wildlife counts on state; before production yields)
   tickValleyEcologyStage(state);
+
+  // Autumn deer migration — herds arrive, graze, and leave with memory
+  tickMigration(state);
 
   // Building production + forge
   tickBuildingProduction(state, ctx, allAlive);

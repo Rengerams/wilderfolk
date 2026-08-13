@@ -267,6 +267,8 @@ export interface Entity {
   surname?: string;
   /** Honorific earned for deeds — e.g. "Moonslayer" (killed a Moon Howler) or "Howlerbane" (broke a curse). */
   title?: string;
+  /** Autumn-migration herd membership (deer only) — which year's herd this deer belongs to. */
+  migrationTag?: number;
   /** Colony day this child last let a family secret slip at school (transient per-day gate). */
   schoolGossipDay?: number;
   /** Colony day this child last formed a schoolyard bond (transient per-day gate). */
@@ -783,6 +785,10 @@ export interface WorldState {
   lastMoonHowlerExorcismTick?: number;
   /** Transient — priests retreat to the Church until this tick after a fallen comrade. */
   moonHowlerPriestsFleeUntil?: number;
+  /** Transient — the autumn deer herd currently in the valley (see migration). */
+  activeMigration?: { herdYear: number; endDay: number; spawned: number };
+  /** Memory across years — how big next autumn's herd will be (see migration). */
+  migrationNextHerdSize?: number;
   /** Ephemeral predator scent field — rebuilt each session, not saved. */
   scentGrid?: ScentGrid;
   /** Alive entities by type — rebuilt each sim tick for render/UI; not saved. */

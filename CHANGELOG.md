@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- **🦌 The Passing Herds** — every autumn a herd of deer crosses the valley: they graze, they are huntable, and they leave after a week. **The herds remember** — every deer you take this year makes next year's herd smaller (feast now, thinner autumns later); let them pass unharmed and they come back fat as ever
+
 ---
 
 ## [0.5.4] — 2026-08-13
