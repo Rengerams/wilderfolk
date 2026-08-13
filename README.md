@@ -50,11 +50,14 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | **👥 Multi-select workers** | Shift-click several settlers at once, then assign them all to one building in a single click |
 | **🚶 Real walking** | Human sprites support **4-frame walk sheets** — settlers swing their legs instead of bobbing; outfit variants now spread across the village |
 | **🎨 Painted valley** | Procedural decor (snow mounds, beach ripples, rock clusters, meadow flowers) + **work ambience** — the village sounds like work: chopping, mining, hammering, and footsteps pitched by the surface underfoot |
+| **🦌 The Passing Herds** | Every autumn a herd of deer crosses the valley — they graze, they're huntable, they leave. **The herds remember:** every deer you take this year makes next year's herd smaller; let them pass and they come back fat as ever |
+| **🎉 Seasonal festivals** | **20 guaranteed festival days/year** — Spring Revel, Midsummer Feast, Harvest Festival, Frostfall Feast (5 days each, plus the random ones). Production, courtship & immigration boost; the tavern stays open day and night |
+| **🌷 Decor & village beauty** | A **Decor** build tab — gardens, statues, lamps, wooden fences (no art needed, all procedural). Decor stamps neighborhood beauty: settlers drift toward pretty spots in free time, and the Population panel shows a **Village mood** readout |
 | **Quality** | Every **0.5.x save loads** (version-gate test pins it); worker-command tests back in the gate; the code hub slimmed 1,489 → 1,072 lines |
 
 ### What's next — game-feel Phase 3
 
-Decorations & beauty, and weather with real consequences → [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md).
+Multi-select workers ✅ · Decorations & beauty ✅ · SFX ✅ — **weather with real consequences** is the last piece → [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md).
 
 ### Prior release — v0.5.3
 
