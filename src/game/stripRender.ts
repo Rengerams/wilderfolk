@@ -3,6 +3,40 @@ import type { BuildingRotation, CornerRotation } from './buildingRotation';
 import { normalizeCornerRotation } from './buildingRotation';
 import { cornerArms } from './stripJunction';
 import type { JunctionKind, StripJunctionInfo } from './stripJunction';
+import { getSpriteFrame } from './spriteLoader';
+
+const PAVEMENT_SPRITE = '/sprites/tile_pavement.png';
+
+/**
+ * Tile the seamless pavement texture across a strip rect (rotation already
+ * applied by the caller's frame). Returns false when the tile isn't loaded,
+ * so callers fall back to flat fills.
+ */
+function paintPavementPattern(
+  ctx: CanvasRenderingContext2D,
+  x0: number,
+  y0: number,
+  rw: number,
+  rh: number,
+): boolean {
+  const frame = getSpriteFrame(PAVEMENT_SPRITE);
+  const img = frame?.image;
+  if (!img) return false;
+  const pat = ctx.createPattern(img as CanvasImageSource, 'repeat');
+  if (!pat) return false;
+  const tile = 25;
+  const scale = Math.max(1, rh / tile); // tile roughly the road's height
+  ctx.save();
+  ctx.translate(x0, y0);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = pat;
+  ctx.fillRect(0, 0, rw / scale, rh / scale);
+  ctx.restore();
+  // Subtle depth overlay so the strip still reads as a built road.
+  ctx.fillStyle = 'rgba(0,0,0,0.10)';
+  ctx.fillRect(x0, y0, rw, rh);
+  return true;
+}
 
 function seeded(seed: number): number {
   const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
@@ -72,24 +106,27 @@ export function drawProceduralRoad(
 ): void {
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
 
-  ctx.fillStyle = '#3f3a33';
-  ctx.fillRect(x0, y0, rw, rh);
+  if (!paintPavementPattern(ctx, x0, y0, rw, rh)) {
+    // Fallback flat road (tile not loaded yet)
+    ctx.fillStyle = '#3f3a33';
+    ctx.fillRect(x0, y0, rw, rh);
 
-  ctx.fillStyle = '#5c5346';
-  ctx.fillRect(x0 + 2, y0 + 2, rw - 4, rh - 4);
+    ctx.fillStyle = '#5c5346';
+    ctx.fillRect(x0 + 2, y0 + 2, rw - 4, rh - 4);
 
-  ctx.fillStyle = '#78716c';
-  ctx.fillRect(x0 + rw * 0.2, y0 + rh * 0.28, rw * 0.6, rh * 0.44);
+    ctx.fillStyle = '#78716c';
+    ctx.fillRect(x0 + rw * 0.2, y0 + rh * 0.28, rw * 0.6, rh * 0.44);
 
-  const stones = Math.max(4, Math.floor(rw / 14));
-  for (let i = 0; i < stones; i++) {
-    const t = i / Math.max(1, stones - 1);
-    const px = x0 + 4 + t * (rw - 8);
-    const jitter = (seeded(i * 3.1) - 0.5) * rh * 0.25;
-    ctx.fillStyle = seeded(i) > 0.5 ? '#6b6560' : '#4b453d';
-    ctx.beginPath();
-    ctx.ellipse(px, y0 + rh * 0.5 + jitter, 2.8, 2.2, 0, 0, Math.PI * 2);
-    ctx.fill();
+    const stones = Math.max(4, Math.floor(rw / 14));
+    for (let i = 0; i < stones; i++) {
+      const t = i / Math.max(1, stones - 1);
+      const px = x0 + 4 + t * (rw - 8);
+      const jitter = (seeded(i * 3.1) - 0.5) * rh * 0.25;
+      ctx.fillStyle = seeded(i) > 0.5 ? '#6b6560' : '#4b453d';
+      ctx.beginPath();
+      ctx.ellipse(px, y0 + rh * 0.5 + jitter, 2.8, 2.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   ctx.strokeStyle = 'rgba(0,0,0,0.25)';
@@ -213,25 +250,15 @@ export function drawProceduralRoadJunction(
   ctx.translate(sx, sy);
 
   const size = Math.max(w, h);
-  const half = size / 2;
   const cap = size * (kind === 'cross' ? 0.52 : 0.44);
 
-  ctx.fillStyle = '#3f3a33';
-  ctx.fillRect(-cap / 2, -cap / 2, cap, cap);
-  ctx.fillStyle = '#5c5346';
-  ctx.fillRect(-cap / 2 + 2, -cap / 2 + 2, cap - 4, cap - 4);
-  ctx.fillStyle = '#78716c';
-  ctx.fillRect(-cap * 0.28, -cap * 0.28, cap * 0.56, cap * 0.56);
-
-  const stones = kind === 'cross' ? 6 : 4;
-  for (let i = 0; i < stones; i++) {
-    const angle = (i / stones) * Math.PI * 2;
-    const px = Math.cos(angle) * half * 0.22;
-    const py = Math.sin(angle) * half * 0.22;
-    ctx.fillStyle = seeded(i * 2.3) > 0.5 ? '#6b6560' : '#4b453d';
-    ctx.beginPath();
-    ctx.ellipse(px, py, 2.6, 2.1, angle, 0, Math.PI * 2);
-    ctx.fill();
+  if (!paintPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)) {
+    ctx.fillStyle = '#3f3a33';
+    ctx.fillRect(-cap / 2, -cap / 2, cap, cap);
+    ctx.fillStyle = '#5c5346';
+    ctx.fillRect(-cap / 2 + 2, -cap / 2 + 2, cap - 4, cap - 4);
+    ctx.fillStyle = '#78716c';
+    ctx.fillRect(-cap * 0.28, -cap * 0.28, cap * 0.56, cap * 0.56);
   }
 
   ctx.strokeStyle = 'rgba(0,0,0,0.3)';

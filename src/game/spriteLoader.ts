@@ -110,6 +110,7 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/grass2.png',
     '/sprites/bush.png',
     '/sprites/stump.png',
+    '/sprites/tile_pavement.png',
     '/sprites/human_male.png',
     '/sprites/human_female.png',
     // Seamless ground fills (Phase A terrain — stamped in bakeTerrainLayer)
