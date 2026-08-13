@@ -2,9 +2,20 @@
 
 ## [Unreleased]
 
+---
+
+## [0.5.4] — 2026-08-13
+
+**Six valleys to settle — painted lands, walking pioneers, and a frontier that breathes.**
+
+`GAME_VERSION` **0.5.4** · continue colonies from **0.4.x – 0.5.3**.  
+Feature table → [ROADMAP.md](ROADMAP.md)
+
 ### Added
 - **Choose your land** — the new-settlement screen is a painted gallery: each of the **six valleys** (Verdant, Mountainous, Coastal, Arid, Harsh, and the new **Riverlands** marshland) is a tiny landscape card, and map size is a slim segmented control
 - **Settlers walk properly** — human sprites can now be **4-frame walk sheets** (landscape PNGs) and the renderer animates real leg-swing frames; single-frame art still works as before. Unset outfit variants now spread across the village instead of everyone wearing outfit 0
+- **Human sprite pack** — **8 outfits per gender** (was 4) and dedicated **toddler art** for kids (no more shrunk adults); a settler's standing pose now matches their outfit
+- **Pavement roads** — roads and their junctions tile the seamless `tile_pavement` texture (with a flat-fill fallback while it loads)
 - **The valley got painted** — procedural decor pass: snow mounds, beach ripples, clustered rocks, and tiny meadow flowers (no new art needed)
 - **Titles sway elections** — settlers who earned a title (**Moonslayer**, **Howlerbane**) carry **+8 merit** into leadership votes; the title shows in the race standings and announcements
 - **Schools are your call now** — teachers are **manually assigned** (no auto-fill, so you pick the personality shaping the kids), and each school caps attendance at **10 children** — a full classroom means building a second school
@@ -16,6 +27,10 @@
 ### Fixed
 - **Saves from the current build now load** — v0.5.3 tagged its saves with a version the loader rejected, so a save made in the current build could never be read back (colony lost on refresh). The version gate accepts the current version, and a test now pins it for every future bump
 - **Worker-command validation tests are running again** — three regression tests (pinning the forge/trade command validator to the real catalogs) sat outside the test suite and silently never ran; they're back in the gate
+- **The hotel renders as a building** — its sprite was a JPEG wearing a `.png` name (no transparency), so it drew as a rectangle box; converted to a real transparent RGBA sprite
+- **Rivers are rivers** (new maps) — the channel used to carve exactly one tile wide (a trickle); now it widens into a 2–4 tile channel in the lowlands and narrows to a stream on slopes. Existing saves keep their old terrain
+- **Animals respect the water** — wildlife wades shallow water but slides along riverbanks instead of walking straight through rivers and deep water
+- **The valley stops crying wolf** — three false "nature is hurt" alarms fixed: a **full meadow** no longer reads as overgrazed (it has regrow potential), a map that simply **spawned no wolves** is a caution instead of an instant crisis, and the stage now needs a **3-day warning window** before it escalates instead of dropping after one day
 
 ---
 
