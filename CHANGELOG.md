@@ -5,6 +5,7 @@
 ### Added
 - **🦌 The Passing Herds** — every autumn a herd of deer crosses the valley: they graze, they are huntable, and they leave after a week. **The herds remember** — every deer you take this year makes next year's herd smaller (feast now, thinner autumns later); let them pass unharmed and they come back fat as ever
 - **🎉 Seasonal festivals** — the village now holds a 5-day festival at the start of every season (Spring Revel · Midsummer Feast · Harvest Festival · Frostfall Feast): **20 guaranteed festival days per year**, with the old random festivals on top
+- **🍺 Taverns never close during festivals** — the innkeeper works all day and night while the party is on, so the pub stays open around the clock
 
 ---
 

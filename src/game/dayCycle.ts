@@ -399,13 +399,19 @@ export function isTavernServiceHour(hour: number): boolean {
   return hour >= TAVERN_SHIFT_START && hour < TAVERN_SHIFT_END;
 }
 
+/** Tavern open right now — festivals keep the pub open all day and night. */
+export function isTavernOpen(hour: number, festivalActive?: boolean): boolean {
+  return festivalActive ? true : isTavernServiceHour(hour);
+}
+
 /**
  * Innkeeper shift: evenings every day (including weekends) when guests drink & chat.
- * Not the daytime farm/mill shift.
+ * Not the daytime farm/mill shift. During festivals the innkeeper works around
+ * the clock — the party does not close.
  */
-export function isOnInnkeeperShift(tick: number, hour?: number): boolean {
+export function isOnInnkeeperShift(tick: number, hour?: number, festivalActive?: boolean): boolean {
   const h = hour ?? getHourOfDay(tick);
-  return isTavernServiceHour(h);
+  return isTavernOpen(h, festivalActive);
 }
 
 /**

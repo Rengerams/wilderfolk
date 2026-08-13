@@ -1998,7 +1998,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       || schoolTarget != null
       || (entity.job === JobType.Guard && isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings))
     );
-    const onTavernShift = isInnkeeper && isOnInnkeeperShift(state.tick, hourOfDay);
+    const onTavernShift = isInnkeeper && isOnInnkeeperShift(state.tick, hourOfDay, state.festival?.active === true);
     // Priests work the exorcism shift on full-moon nights — they leave home to hunt the Moon Howler.
     const onMoonPriestShift = entity.job === JobType.Priest
       && workplace?.type === BuildingType.Church

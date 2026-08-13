@@ -323,7 +323,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     width: 56, height: 48,
     cost: { wood: 55, stone: 25, gold: 30 },
     buildTime: 4, maxOccupants: 2,
-    emoji: '🍺', label: 'Tavern', description: 'Village pub — guests visit after work and on free days. Staff an Innkeeper who works evenings (5pm–11pm), not the day shift.',
+    emoji: '🍺', label: 'Tavern', description: 'Village pub — guests visit after work and on free days. Staff an Innkeeper who works evenings (5pm–11pm) and all day and night during festivals.',
     sprite: '/sprites/tavern.png', backgroundColor: '#b45309', padShape: 'round',
   },
   [BuildingType.Hotel]: {
