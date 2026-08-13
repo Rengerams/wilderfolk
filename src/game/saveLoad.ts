@@ -43,7 +43,7 @@ import { migrateVillageForgeOnLoad } from './forge';
 
 const SAVE_KEY = 'ecosim_save';
 /** Supported colony save versions. */
-const COMPATIBLE_SAVE_VERSIONS = ['0.4', '0.4.1', '0.4.2', '0.5.0', '0.5.1', '0.5.2', '0.5.3'] as const;
+const COMPATIBLE_SAVE_VERSIONS = ['0.4', '0.4.1', '0.4.2', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4'] as const;
 
 /** Restore entity fields that must survive save/load (see ENTITY_PERSISTED_FIELDS). */
 function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): void {

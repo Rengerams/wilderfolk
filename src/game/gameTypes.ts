@@ -2,10 +2,42 @@
 import type { Resources, ResourceKey } from './resourceTypes';
 import type { ValleyStage } from './ecologyStage';
 import type { YearlyStats, LifetimeStats } from './stats';
-import type { RenffrOmen } from './omenTypes';
 import type { ScentGrid } from './scentGrid';
 import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
 import type { AdjacencyIndex } from './adjacencyIndex';
+import { BuildingType } from './buildings';
+import type { Building } from './buildings';
+import type { Challenge } from './challenges';
+
+export { BuildingType, BUILDING_CONFIGS } from './buildings';
+export type { Building, BuildingConfig } from './buildings';
+export { HUNTING_SPOT_PREY_OPTIONS } from './huntingSpots';
+export type { HuntingSpotPrey } from './huntingSpots';
+export { WORKSHOP_RECIPES, DEFAULT_WORKSHOP_RECIPE_ID, getWorkshopRecipe, formatRecipeInputs } from './workshops';
+export type { WorkshopRecipe } from './workshops';
+export { INITIAL_CHALLENGES } from './challenges';
+export type { Challenge } from './challenges';
+
+/** One letter of the Renffr sky omen (see renffrStar). */
+export interface RenffrLetter {
+  char: string;
+  nx: number;
+  ny: number;
+  vx: number;
+  vy: number;
+  rot: number;
+  vr: number;
+}
+
+/** Transient sky omen state — lives on WorldState.renffrOmen while active. */
+export interface RenffrOmen {
+  life: number;
+  maxLife: number;
+  phase: number;
+  phaseTimer: number;
+  streakT: number;
+  letters: RenffrLetter[];
+}
 
 export const EntityType = {
   Grass: 'grass',
@@ -45,44 +77,6 @@ export function getRenderEntityLayer(type: EntityType): RenderEntityLayer {
 }
 
 // Building types as const object
-export const BuildingType = {
-  House: 'house',
-  Farm: 'farm',
-  Greenhouse: 'greenhouse',
-  Barn: 'barn',
-  Silo: 'silo',
-  LumberMill: 'lumberMill',
-  Quarry: 'quarry',
-  Mine: 'mine',
-  Mill: 'mill',
-  Blacksmith: 'blacksmith',
-  Workshop: 'workshop',
-  Store: 'store',
-  Market: 'market',
-  School: 'school',
-  Hospital: 'hospital',
-  TownHall: 'townHall',
-  Church: 'church',
-  Prison: 'prison',
-  Well: 'well',
-  Road: 'road',
-  Mansion: 'mansion',
-  TamingPost: 'tamingPost',
-  Wall: 'wall',
-  WallCorner: 'wallCorner',
-  WallGate: 'wallGate',
-  Watchtower: 'watchtower',
-  Barracks: 'barracks',
-  /** Outdoor hunting post — staffed hunters harvest nearby wildlife. */
-  HuntingSpot: 'huntingSpot',
-  /** Public house — free-time hangout: drink, chat, unwind. */
-  Tavern: 'tavern',
-  /** Guest lodging — visitors pay gold to sleep; staffed by hoteliers. */
-  Hotel: 'hotel',
-  /** Cross rivers — place on river / bank tiles only. Drop `public/sprites/bridge.png`. */
-  Bridge: 'bridge',
-} as const;
-export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 
 // Seasons as const object
 export const Season = {
@@ -341,105 +335,6 @@ export interface Entity {
   combatTicks?: number;
 }
 
-export interface Building {
-  id: number;
-  type: BuildingType;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  occupants: number[];
-  level: number;
-  constructionProgress: number;
-  completed: boolean;
-  health: number;
-  maxHealth: number;
-  // Visual
-  spriteScale: number;
-  buildAnimTimer: number;
-  /** Rival settlement structures — not player-owned */
-  faction?: 'rival';
-  groupId?: string;
-  campLabel?: string;
-  /** Workshop only — which goods this building crafts */
-  workshopRecipeId?: string;
-  /** Strip orientation — 0/90 straight; 0/90/180/270 for wall corners. */
-  rotation?: 0 | 90 | 180 | 270;
-  /** Hotel only — visitor entity ids currently lodging (max HOTEL_GUEST_CAPACITY). */
-  hotelGuestIds?: number[];
-  /** Hunting Spot only — which prey the staffed hunters target (see HUNTING_SPOT_PREY_OPTIONS). */
-  huntingSpotPrey?: HuntingSpotPrey;
-}
-
-/** Hunting Spot only — which prey the staffed hunters target ('auto' = nearest legal game). */
-export type HuntingSpotPrey = 'auto' | 'deer' | 'rabbit' | 'wolf';
-
-export const HUNTING_SPOT_PREY_OPTIONS: { id: HuntingSpotPrey; label: string; emoji: string; hint: string }[] = [
-  { id: 'auto', label: 'Auto', emoji: '🎯', hint: 'Nearest deer, rabbit, or wolf' },
-  { id: 'deer', label: 'Deer', emoji: '🦌', hint: 'Biggest carcass — most meat' },
-  { id: 'rabbit', label: 'Rabbit', emoji: '🐰', hint: 'Fast snack — small but safe' },
-  { id: 'wolf', label: 'Wolf', emoji: '🐺', hint: 'Risky — wolves fight back' },
-];
-
-export interface WorkshopRecipe {
-  id: string;
-  label: string;
-  emoji: string;
-  description: string;
-  inputs: Partial<Resources>;
-  baseGold: number;
-}
-
-export const DEFAULT_WORKSHOP_RECIPE_ID = 'wooden_goods';
-
-export const WORKSHOP_RECIPES: WorkshopRecipe[] = [
-  {
-    id: 'wooden_goods',
-    label: 'Wooden goods',
-    emoji: '🪵',
-    description: 'Carved bowls, spoons, and simple trade goods.',
-    inputs: { wood: 5 },
-    baseGold: 4,
-  },
-  {
-    id: 'stone_tools',
-    label: 'Stone tools',
-    emoji: '⛏️',
-    description: 'Axes, hammers, and frontier hardware.',
-    inputs: { wood: 3, stone: 2 },
-    baseGold: 6,
-  },
-  {
-    id: 'furniture',
-    label: 'Furniture',
-    emoji: '🪑',
-    description: 'Sturdy chairs, tables, and cabin fittings.',
-    inputs: { wood: 10, stone: 2 },
-    baseGold: 10,
-  },
-  {
-    id: 'trade_trinkets',
-    label: 'Trade trinkets',
-    emoji: '✨',
-    description: 'Quick carved charms when wood is tight.',
-    inputs: { wood: 2 },
-    baseGold: 2,
-  },
-];
-
-export function getWorkshopRecipe(recipeId?: string): WorkshopRecipe {
-  return WORKSHOP_RECIPES.find((r) => r.id === recipeId) ?? WORKSHOP_RECIPES[0];
-}
-
-export function formatRecipeInputs(inputs: Partial<Resources>): string {
-  const parts: string[] = [];
-  if (inputs.wood) parts.push(`${inputs.wood} wood`);
-  if (inputs.stone) parts.push(`${inputs.stone} stone`);
-  if (inputs.food) parts.push(`${inputs.food} food`);
-  if (inputs.gold) parts.push(`${inputs.gold} gold`);
-  return parts.join(' + ') || '—';
-}
-
 export type VisitorKind = 'traders' | 'pilgrims' | 'scholars' | 'hunters' | 'nomads' | 'refugees' | 'performers';
 
 export interface VisitorGroup {
@@ -579,18 +474,6 @@ export interface WildlifeCounts {
   werewolves: number;
   wildkin: number;
   trees: number;
-}
-
-export interface Challenge {
-  id: string;
-  title: string;
-  description: string;
-  completed: boolean;
-  targetYear?: number;
-  targetPopulation?: number;
-  targetBuildings?: number;
-  reward?: Resources;
-  rewardText?: string;
 }
 
 export interface ResearchCompletionNotify {
@@ -1019,291 +902,6 @@ export interface TradeRoute {
   nextDepartureTick?: number;
   caravansCompleted?: number;
 }
-
-export interface BuildingConfig {
-  width: number;
-  height: number;
-  cost: { wood: number; stone: number; gold: number };
-  /** Calendar days of on-site work (7am–7pm) for one builder to finish. */
-  buildTime: number;
-  /**
-   * Slot cap for `building.occupants` — **overloaded by building role** (not one semantic):
-   *
-   * - **Housing** (House, Mansion, Hotel): bed / resident capacity (upgrades may raise
-   *   effective beds via `getResidenceCapacity`; base value is the config floor/ceiling).
-   * - **Staffed workplaces** (Farm, Church, Barracks, …): max assigned **workers/staff**
-   *   while complete (`BUILDING_JOB_TYPES`); same field is also the **construction crew**
-   *   cap while incomplete.
-   * - **Prison**: guard + prisoner slots share this cap (prisoners typically leave one
-   *   seat for a guard — see lifeSimulation / moonHowler helpers).
-   * - **0**: no permanent staff and no builders via occupants (e.g. roads, walls, wells);
-   *   construction may still progress passively.
-   *
-   * Do not assume beds ≡ staff; always interpret with building type + completed flag.
-   */
-  maxOccupants: number;
-  emoji: string;
-  label: string;
-  description: string;
-  sprite: string;
-  backgroundColor: string;
-  padShape: 'round' | 'rect' | 'circle' | 'road';
-  /** Extra multiplier so trimmed sprites fill their footprint on the map. */
-  spriteDisplayScale?: number;
-  unlockRequirement?: string;
-}
-
-export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
-  [BuildingType.House]: {
-    width: 46, height: 40,
-    cost: { wood: 40, stone: 10, gold: 5 },
-    buildTime: 2, maxOccupants: 6,
-    emoji: '🏠', label: 'House', description: 'Family home (6 slots). Upgrade to fit up to 10.',
-    sprite: '/sprites/house.png', backgroundColor: '#d97706', padShape: 'round',
-  },
-  [BuildingType.Farm]: {
-    width: 53, height: 46,
-    cost: { wood: 25, stone: 0, gold: 5 },
-    buildTime: 3, maxOccupants: 2,
-    emoji: '🌾', label: 'Farm', description: 'Produces food for your village.',
-    sprite: '/sprites/farm.png', backgroundColor: '#16a34a', padShape: 'rect',
-  },
-  [BuildingType.Greenhouse]: {
-    width: 50, height: 43,
-    cost: { wood: 30, stone: 10, gold: 15 },
-    buildTime: 4, maxOccupants: 2,
-    emoji: '🏡', label: 'Greenhouse', description: 'Efficient food production all year.',
-    sprite: '/sprites/greenhouse.png', backgroundColor: '#15803d', padShape: 'rect',
-    unlockRequirement: 'agriculture_1',
-  },
-  [BuildingType.Barn]: {
-    width: 56, height: 46,
-    cost: { wood: 50, stone: 5, gold: 10 },
-    buildTime: 4, maxOccupants: 0,
-    emoji: '🚜', label: 'Barn', description: 'Boosts nearby Farms & Greenhouses +35% — no workers needed.',
-    sprite: '/sprites/barn.png', backgroundColor: '#ca8a04', padShape: 'rect',
-  },
-  [BuildingType.Silo]: {
-    width: 36, height: 50,
-    cost: { wood: 30, stone: 20, gold: 10 },
-    buildTime: 3, maxOccupants: 0,
-    emoji: '🌽', label: 'Silo', description: 'Passive food storage bonus.',
-    sprite: '/sprites/silo.png', backgroundColor: '#65a30d', padShape: 'rect',
-  },
-  [BuildingType.LumberMill]: {
-    width: 56, height: 46,
-    cost: { wood: 35, stone: 10, gold: 10 },
-    buildTime: 4, maxOccupants: 3,
-    emoji: '🪵', label: 'Lumber Mill', description: 'Produces wood.',
-    sprite: '/sprites/lumbermill.png', backgroundColor: '#57534e', padShape: 'rect',
-  },
-  [BuildingType.Quarry]: {
-    width: 53, height: 46,
-    cost: { wood: 20, stone: 10, gold: 10 },
-    buildTime: 4, maxOccupants: 3,
-    emoji: '🪨', label: 'Quarry', description: 'Produces stone.',
-    sprite: '/sprites/quarry.png', backgroundColor: '#44403c', padShape: 'rect',
-  },
-  [BuildingType.Mine]: {
-    width: 50, height: 46,
-    cost: { wood: 40, stone: 20, gold: 25 },
-    buildTime: 6, maxOccupants: 4,
-    emoji: '⛏️', label: 'Mine', description: 'Produces lots of stone.',
-    sprite: '/sprites/mine.png', backgroundColor: '#292524', padShape: 'rect',
-    unlockRequirement: 'mining_1',
-  },
-  [BuildingType.Mill]: {
-    width: 53, height: 46,
-    cost: { wood: 45, stone: 25, gold: 30 },
-    buildTime: 5, maxOccupants: 2,
-    emoji: '🌾', label: 'Mill',
-    description: 'When complete, passively boosts food production (no miller job). Up to 2 builders while under construction.',
-    sprite: '/sprites/mill.png', backgroundColor: '#84cc16', padShape: 'rect',
-    unlockRequirement: 'agriculture_2',
-  },
-  [BuildingType.Blacksmith]: {
-    width: 53, height: 43,
-    cost: { wood: 30, stone: 30, gold: 30 },
-    buildTime: 5, maxOccupants: 2,
-    emoji: '🔨', label: 'Blacksmith', description: 'Queue forge upgrades — iron gear, guard halberds, wall plates, pickaxes. Staffed smiths boost industry.',
-    sprite: '/sprites/blacksmith.png', backgroundColor: '#c2410c', padShape: 'rect',
-    unlockRequirement: 'forestry_1',
-  },
-  [BuildingType.Workshop]: {
-    width: 50, height: 43,
-    cost: { wood: 35, stone: 15, gold: 20 },
-    buildTime: 4, maxOccupants: 2,
-    emoji: '🔧', label: 'Workshop', description: 'Crafts frontier goods for gold — pick a recipe when built.',
-    sprite: '/sprites/workshop.png', backgroundColor: '#ea580c', padShape: 'rect',
-  },
-  [BuildingType.Store]: {
-    width: 46, height: 40,
-    cost: { wood: 30, stone: 10, gold: 15 },
-    buildTime: 3, maxOccupants: 1,
-    emoji: '🏪', label: 'Store', description: 'Generates gold.',
-    sprite: '/sprites/store.png', backgroundColor: '#f97316', padShape: 'rect',
-  },
-  [BuildingType.Market]: {
-    width: 59, height: 50,
-    cost: { wood: 50, stone: 20, gold: 40 },
-    buildTime: 6, maxOccupants: 3,
-    emoji: '🏛️', label: 'Market', description: 'Generates lots of gold.',
-    sprite: '/sprites/market.png', backgroundColor: '#fb923c', padShape: 'rect',
-    unlockRequirement: 'trade_1',
-  },
-  [BuildingType.School]: {
-    width: 53, height: 46,
-    cost: { wood: 50, stone: 30, gold: 25 },
-    buildTime: 5, maxOccupants: 2,
-    emoji: '🏫', label: 'School', description: 'Assign teachers yourself (up to 2) — children attend by day (up to 10 per school) for faster growth & graduation perks.',
-    sprite: '/sprites/school.png', backgroundColor: '#2563eb', padShape: 'round',
-    unlockRequirement: 'education_1',
-  },
-  [BuildingType.Hospital]: {
-    width: 53, height: 46,
-    cost: { wood: 40, stone: 40, gold: 50 },
-    buildTime: 6, maxOccupants: 2,
-    emoji: '🏥', label: 'Hospital', description: 'Staff doctors — settlers visit when sick or pregnant; treatments heal energy and steady mothers. Staffed wards lower village energy drain.',
-    sprite: '/sprites/hospital.png', backgroundColor: '#db2777', padShape: 'round',
-    unlockRequirement: 'medicine_1',
-  },
-  [BuildingType.TownHall]: {
-    width: 63, height: 53,
-    cost: { wood: 100, stone: 80, gold: 100 },
-    buildTime: 8, maxOccupants: 3,
-    emoji: '🏰', label: 'Town Hall', description: 'Civic hub — taxes, trade, immigration, elections & festivals. Staffed officials hear petitions, grant small aid, and hold leader audiences.',
-    sprite: '/sprites/townhall.png', backgroundColor: '#1d4ed8', padShape: 'round',
-    unlockRequirement: 'architecture_2',
-  },
-  [BuildingType.Church]: {
-    width: 50, height: 56,
-    cost: { wood: 45, stone: 35, gold: 20 },
-    buildTime: 4, maxOccupants: 4,
-    emoji: '⛪', label: 'Church', description: 'Staffed church boosts courtship and morals. Full-moon nights: up to 4 priests leave home to hunt the Moon Howler — more priests raise cure odds (35% → 71%); Barracks guards nearby can protect a priest from a failed rite.',
-    sprite: '/sprites/church.png', backgroundColor: '#4f46e5', padShape: 'round',
-  },
-  [BuildingType.Well]: {
-    width: 30, height: 30,
-    cost: { wood: 15, stone: 10, gold: 5 },
-    buildTime: 1, maxOccupants: 0,
-    emoji: '🌊', label: 'Well', description: 'Reduces human energy consumption.',
-    sprite: '/sprites/well.png', backgroundColor: '#0891b2', padShape: 'circle',
-  },
-  [BuildingType.Road]: {
-    width: 66, height: 26,
-    cost: { wood: 5, stone: 5, gold: 0 },
-    buildTime: 1, maxOccupants: 0,
-    emoji: '🛤️', label: 'Road', description: 'Speeds up travel, fragments wildlife habitat.',
-    sprite: '/sprites/road.png', backgroundColor: '#4b5563', padShape: 'road',
-  },
-  [BuildingType.Mansion]: {
-    width: 59, height: 50,
-    cost: { wood: 120, stone: 80, gold: 100 },
-    buildTime: 7, maxOccupants: 8,
-    emoji: '🏯', label: 'Mansion', description: 'Large family home (base 8 beds; upgrades add capacity). Attracts more immigrants.',
-    sprite: '/sprites/mansion.png', backgroundColor: '#b45309', padShape: 'round',
-    unlockRequirement: 'architecture_1',
-  },
-  [BuildingType.Prison]: {
-    width: 50, height: 46,
-    cost: { wood: 60, stone: 40, gold: 30 },
-    buildTime: 5, maxOccupants: 2,
-    emoji: '⛓️', label: 'Prison', description: 'Holds scandalous settlers for a short sentence. Requires a Guard.',
-    sprite: '/sprites/prison.png', backgroundColor: '#475569', padShape: 'rect',
-    unlockRequirement: 'architecture_1',
-  },
-  [BuildingType.TamingPost]: {
-    width: 43, height: 43,
-    cost: { wood: 35, stone: 15, gold: 20 },
-    buildTime: 3, maxOccupants: 2,
-    emoji: '🦴', label: 'Taming Post',
-    description: 'Lets settlers tame nearby wildlife. No permanent staff — builders only during construction.',
-    sprite: '/sprites/stump.png', backgroundColor: '#7c3aed', padShape: 'circle',
-  },
-  [BuildingType.Wall]: {
-    width: 60, height: 40,
-    cost: { wood: 8, stone: 14, gold: 0 },
-    buildTime: 1, maxOccupants: 0,
-    emoji: '🧱', label: 'Wall', description: 'Stone palisade segment — +8 barricade strength each (cap +72).',
-    sprite: '/sprites/wall_straight.png', backgroundColor: '#64748b', padShape: 'rect',
-    unlockRequirement: 'defense_1',
-  },
-  [BuildingType.WallCorner]: {
-    width: 48, height: 48,
-    cost: { wood: 10, stone: 16, gold: 0 },
-    buildTime: 1, maxOccupants: 0,
-    emoji: '↪️', label: 'Wall Corner', description: 'L-shaped wall junction — counts as a wall segment for defense.',
-    sprite: '/sprites/wall_corner.png', backgroundColor: '#64748b', padShape: 'rect',
-    unlockRequirement: 'defense_1',
-  },
-  [BuildingType.WallGate]: {
-    width: 60, height: 48,
-    cost: { wood: 18, stone: 28, gold: 8 },
-    buildTime: 2, maxOccupants: 0,
-    emoji: '🚪', label: 'Wall Gate', description: 'Gated entrance — strong wall segment with drawbridge flair.',
-    sprite: '/sprites/wall_gate.png', backgroundColor: '#64748b', padShape: 'rect',
-    unlockRequirement: 'defense_1',
-  },
-  [BuildingType.Watchtower]: {
-    width: 44, height: 52,
-    cost: { wood: 28, stone: 42, gold: 12 },
-    buildTime: 4, maxOccupants: 0,
-    emoji: '🗼', label: 'Watchtower', description: 'Overwatch post — +15 barricade strength and early raid warning.',
-    sprite: '/sprites/watchtower.png', backgroundColor: '#475569', padShape: 'rect',
-    unlockRequirement: 'defense_1',
-  },
-  [BuildingType.Barracks]: {
-    width: 56, height: 50,
-    cost: { wood: 85, stone: 65, gold: 35 },
-    buildTime: 6, maxOccupants: 4,
-    emoji: '⚔️', label: 'Barracks', description: 'Staff Guards to patrol the village (+12 militia strength each).',
-    sprite: '/sprites/barracks.png', backgroundColor: '#57534e', padShape: 'rect',
-    unlockRequirement: 'defense_2',
-  },
-  [BuildingType.HuntingSpot]: {
-    width: 44, height: 40,
-    cost: { wood: 30, stone: 10, gold: 15 },
-    buildTime: 3, maxOccupants: 2,
-    emoji: '🏹', label: 'Hunting Spot', description: 'Staff hunters to harvest nearby wildlife for food. Wolves may fight back.',
-    sprite: '/sprites/huntingspot.png', backgroundColor: '#854d0e', padShape: 'circle',
-  },
-  [BuildingType.Tavern]: {
-    width: 56, height: 48,
-    cost: { wood: 55, stone: 25, gold: 30 },
-    buildTime: 4, maxOccupants: 2,
-    emoji: '🍺', label: 'Tavern', description: 'Village pub — guests visit after work and on free days. Staff an Innkeeper who works evenings (5pm–11pm), not the day shift.',
-    sprite: '/sprites/tavern.png', backgroundColor: '#b45309', padShape: 'round',
-  },
-  [BuildingType.Hotel]: {
-    width: 60, height: 52,
-    cost: { wood: 70, stone: 40, gold: 55 },
-    buildTime: 5, maxOccupants: 2,
-    emoji: '🏨', label: 'Hotel', description: 'Visitor lodging — staff Hoteliers (day shift). Up to 4 guests sleep overnight for gold.',
-    sprite: '/sprites/hotel.png', backgroundColor: '#0e7490', padShape: 'round',
-    unlockRequirement: 'trade_1',
-  },
-  [BuildingType.Bridge]: {
-    // Matches OpenGameArt stone path strip (top-down deck); R rotates across the river
-    width: 64, height: 22,
-    cost: { wood: 45, stone: 35, gold: 15 },
-    buildTime: 3, maxOccupants: 0,
-    emoji: '🌉', label: 'Bridge', description: 'Spans a river — place on river/bank. 1.5× walk like roads (R rotates). Art: hand-made seamless wooden deck (scripts/generate-bridge-sprite.mjs).',
-    sprite: '/sprites/bridge.png', backgroundColor: '#6b7280', padShape: 'road',
-    unlockRequirement: 'architecture_1',
-    spriteDisplayScale: 1.05,
-  },
-};
-
-export const INITIAL_CHALLENGES: Challenge[] = [
-  { id: 'first_settlers', title: 'First Settlers', description: 'Build a house and reach a population of 5 humans.', completed: false, targetPopulation: 5, reward: { wood: 50, stone: 20, food: 30, gold: 20 }, rewardText: '+50 wood, +20 stone, +30 food, +20 gold' },
-  { id: 'growing_village', title: 'Growing Village', description: 'Reach Year 5 with at least 5 completed buildings.', completed: false, targetYear: 5, targetBuildings: 5, reward: { wood: 100, stone: 50, food: 50, gold: 40 }, rewardText: '+100 wood, +50 stone, +50 food, +40 gold' },
-  { id: 'thriving_town', title: 'Thriving Town', description: 'Reach a population of 50 humans.', completed: false, targetPopulation: 50, reward: { wood: 200, stone: 100, food: 100, gold: 100 }, rewardText: '+200 wood, +100 stone, +100 food, +100 gold' },
-  { id: 'century', title: 'Century Mark', description: 'Survive for 100 years.', completed: false, targetYear: 100, reward: { wood: 500, stone: 500, food: 500, gold: 500 }, rewardText: '+500 all resources!' },
-  { id: 'eco_master', title: 'Eco Master', description: 'Maintain ecosystem health above 80% for 10 years.', completed: false, reward: { wood: 150, stone: 100, food: 200, gold: 100 }, rewardText: '+150 wood, +100 stone, +200 food, +100 gold' },
-  { id: 'tech_pioneer', title: 'Tech Pioneer', description: 'Research 5 technologies.', completed: false, reward: { wood: 100, stone: 100, food: 0, gold: 200 }, rewardText: '+100 wood, +100 stone, +200 gold' },
-  { id: 'trading_hub', title: 'Trading Hub', description: 'Establish 3 trade routes.', completed: false, reward: { wood: 0, stone: 0, food: 0, gold: 300 }, rewardText: '+300 gold' },
-  { id: 'great_city', title: 'Great City', description: 'Reach a population of 250 humans with 35 buildings.', completed: false, targetPopulation: 250, targetBuildings: 35, reward: { wood: 1000, stone: 1000, food: 1000, gold: 1000 }, rewardText: '+1000 all resources!' },
-];
 
 export function createInitialResearchNodes(): ResearchNode[] {
   return [

@@ -1,4 +1,4 @@
-import type { RenffrLetter, RenffrOmen } from './omenTypes';
+import type { RenffrLetter, RenffrOmen } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycle';
 import { sayHumanChatPhrase } from './humanChat';
 import { isPlayerHuman } from './playerHuman';

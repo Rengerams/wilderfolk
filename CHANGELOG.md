@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Added
+- **Choose your land** — the new-settlement screen is a painted gallery: each of the **six valleys** (Verdant, Mountainous, Coastal, Arid, Harsh, and the new **Riverlands** marshland) is a tiny landscape card, and map size is a slim segmented control
+- **Settlers walk properly** — human sprites can now be **4-frame walk sheets** (landscape PNGs) and the renderer animates real leg-swing frames; single-frame art still works as before. Unset outfit variants now spread across the village instead of everyone wearing outfit 0
+- **The valley got painted** — procedural decor pass: snow mounds, beach ripples, clustered rocks, and tiny meadow flowers (no new art needed)
 - **Titles sway elections** — settlers who earned a title (**Moonslayer**, **Howlerbane**) carry **+8 merit** into leadership votes; the title shows in the race standings and announcements
 - **Schools are your call now** — teachers are **manually assigned** (no auto-fill, so you pick the personality shaping the kids), and each school caps attendance at **10 children** — a full classroom means building a second school
 - **Kids are gossip couriers** — a child at school whose parent carries an established affair may let it slip, exposing the scandal as a rumor (🤫 whispered…). One slip per child per day — the schoolyard does the church's gossip work
