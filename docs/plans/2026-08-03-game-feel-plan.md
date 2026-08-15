@@ -1,6 +1,6 @@
 # Wilderfolk — Game Feel & Depth Plan
 
-**Date:** 2026-08-03 · **Branch:** `main` · **Status:** Phase 0 + 1 done · Phase 2 done · Phase 3 in progress (3.1 + 3.3 done)
+**Date:** 2026-08-03 · **Branch:** `main` · **Status:** Phase 0 + 1 done · Phase 2 done · Phase 3 done (3.1, 3.3, 3.4 complete)
 **Companion docs:** [continuation plan (archived)](../archive/2026-08-02-continuation-plan.md) (agent handoff + what's already done) · [landscape looks research](../private/landscape-looks-research.md) (private)
 
 ---
@@ -33,6 +33,7 @@ The micro-bug-fix wave is done. This plan turns the product analysis into ordere
 |------|--------|
 | 3.1 Multi-select workers (shift-click select + assign all at once) | `e572b6a` |
 | 3.3 SFX — work & footstep ambience by surface (chop/mine/hammer/farm/gather + surface footsteps, throttled) | (this session) |
+| 3.4 Weather consequences — storm damages buildings (recoverable, disaster_resist halved), drought cuts farm/greenhouse yields, rain boosts | (this session) |
 
 **Priority logic (impact ÷ effort):**
 - Pathfinding first: it is a real bug (stuck citizens at map edges) *and* the single biggest sim/controls upgrade.

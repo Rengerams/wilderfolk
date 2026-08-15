@@ -7,6 +7,7 @@
 - **🎉 Seasonal festivals** — the village now holds a 5-day festival at the start of every season (Spring Revel · Midsummer Feast · Harvest Festival · Frostfall Feast): **20 guaranteed festival days per year**, with the old random festivals on top
 - **🍺 Taverns never close during festivals** — the innkeeper works all day and night while the party is on, so the pub stays open around the clock
 - **🌷 Decor & village beauty** — new **Decor** build tab (garden, statue, lamp, wooden fence, all procedural art). Decor stamps neighborhood beauty: settlers drift toward pretty spots in free time (and a 💐 mood lift), and the Population panel shows a **Village mood** readout fed by how much beauty surrounds your settlers
+- **⛈️ Weather with real consequences** (game-feel Phase 3.4) — weather is no longer just a tint. Storm days slowly damage your buildings (recoverable with the 🔧 Repair button, halved by Fortification research, never destroying a building); **Drought cuts farm & greenhouse harvests to half**, Rain gives them a small boost
 
 ### Fixed
 - **The herds survive a save/load** — a save made mid-migration used to drop the active herd and its year-to-year memory (the deer then lingered forever as permanent strays); the migration state now rides in the save schema, pinned by a regression test

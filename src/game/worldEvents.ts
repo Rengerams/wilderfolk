@@ -1,5 +1,6 @@
 import type { Entity, WorldState } from './gameTypes';
 import { EntityType, Season, WeatherType } from './gameTypes';
+import type { Building } from './gameTypes';
 import { killHuman, isProductionTick, EVENT_INTERVAL, systemsPulsesFromLegacy } from './dayCycle';
 import { ensureEntityByIdMap, unindexLivingEntity } from './entityIndex';
 import { formatCitizenName, formatDeathLog } from './citizenId';
@@ -85,6 +86,51 @@ export function updateWeather(state: WorldState) {
     else if (roll < 0.55) state.weather = WeatherType.Fog;
     else if (roll < 0.62) state.weather = WeatherType.Rain;
     else state.weather = WeatherType.Clear;
+  }
+}
+
+/**
+ * Storm damage per day per building (Phase 3.4). Halved by Fortification
+ * research (`disaster_resist`), floored at 20 HP so weather never destroys
+ * a building — it is recoverable via the Repair button. Player buildings only.
+ * Returns how many buildings lost health.
+ */
+export function applyStormDamageToBuildings(
+  buildings: readonly Building[],
+  resistMult: number,
+  damagePerDay = 6,
+): number {
+  let damaged = 0;
+  for (const b of buildings) {
+    if (!b.completed || b.faction === 'rival') continue;
+    const dmg = Math.max(1, Math.round(damagePerDay * resistMult));
+    const before = b.health ?? b.maxHealth;
+    b.health = Math.max(20, before - dmg);
+    if (b.health < before) damaged++;
+  }
+  return damaged;
+}
+
+/**
+ * Daily weather consequences — call from the daily layer once per day.
+ * Storm days slowly damage player buildings and raise a notification when
+ * the storm bites; other weather types change farm yields (see
+ * `getWeatherFarmMultiplier`), which need no per-day effect here.
+ */
+export function applyDailyWeatherEffects(state: WorldState): void {
+  if (state.weather !== WeatherType.Storm) return;
+  const resistMult = getMultiplier(state, 'disaster_resist');
+  const damaged = applyStormDamageToBuildings(state.buildings, resistMult);
+  if (damaged > 0) {
+    const noun = damaged === 1 ? 'building' : 'buildings';
+    addNotification(
+      state,
+      '⛈️ Storm damage',
+      `The storm battered ${damaged} ${noun}. Repair them with the 🔧 button.`,
+      'warning',
+      { x: state.width / 2, y: state.height / 2 },
+    );
+    logEvent(state, 'event', `A storm damaged ${damaged} ${noun}`);
   }
 }
 

@@ -50,6 +50,8 @@ import {
 } from './dayCycle';
 import type { TickContext } from './lifeSimulation';
 import { tickGrassDaily } from './lifeSimulation';
+import { getWeatherFarmMultiplier } from './grassEcology';
+import { applyDailyWeatherEffects } from './worldEvents';
 import { getMultiplier, addReputation, getPollutionProductionMultiplier, hasTech } from './simHelpers';
 import {
   addFloatingText,
@@ -305,7 +307,8 @@ function tickBuildingProduction(
       const farmMult = getMultiplier(state, 'farm_yield');
       const pollutionMult = getPollutionProductionMultiplier(state);
       const valleyFarm = getValleyFarmYieldMultiplier(state);
-      const amount = Math.floor(22 * totalMult * harvestBonus * millBonus * farmMult * globalEff * pollutionMult * valleyFarm);
+      const weatherFarm = getWeatherFarmMultiplier(state.weather);
+      const amount = Math.floor(22 * totalMult * harvestBonus * millBonus * farmMult * globalEff * pollutionMult * valleyFarm * weatherFarm);
       const added = addResource(state, 'food', amount);
       recordFoodProduced(state, 'farms', added);
       if (added > 0 && productionJob) {
@@ -449,7 +452,8 @@ function tickBuildingProduction(
       const farmMult = getMultiplier(state, 'farm_yield');
       const pollutionMult = getPollutionProductionMultiplier(state);
       const valleyFarm = getValleyFarmYieldMultiplier(state);
-      const amount = Math.floor((18 + workers * 5) * totalMult * harvestBonus * millBonus * farmMult * globalEff * pollutionMult * valleyFarm);
+      const weatherFarm = getWeatherFarmMultiplier(state.weather);
+      const amount = Math.floor((18 + workers * 5) * totalMult * harvestBonus * millBonus * farmMult * globalEff * pollutionMult * valleyFarm * weatherFarm);
       if (addResource(state, 'food', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
       state.deathParticles.push({ x: building.x + Math.random() * building.width, y: building.y + Math.random() * building.height, vx: (Math.random() - 0.5) * 0.3, vy: -0.8 - Math.random() * 0.5, life: 25, maxLife: 25, color: '#90EE90', size: 2 + Math.random(), type: 'smoke' });
     }
@@ -726,6 +730,9 @@ export function tickLayerDaily(
   counts: PopulationCounts,
 ): void {
   // Winter heating runs once in gameTick (sets ctx.canHeat) — do not burn wood again here.
+
+  // Weather consequences (Phase 3.4) — storm damages buildings once per day
+  applyDailyWeatherEffects(state);
 
   // Grass growth + spread once per day (trees are static props)
   tickGrassDaily(state, ctx, allAlive);
