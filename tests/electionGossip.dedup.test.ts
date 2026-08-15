@@ -47,13 +47,13 @@ describe('election gossip cadence', () => {
   });
 
   it('daily layer skips gossip while a ceremony is running (ceremony gates cover it)', () => {
-    let world = runToDayBoundary(ceremonyWorld());
+    const world = runToDayBoundary(ceremonyWorld());
     gameTick(world); // tick 72 — day boundary, ceremony in gossip phase
     expect(vi.mocked(tickElectionGossip)).toHaveBeenCalledTimes(0);
   });
 
   it('daily layer still rolls gossip on day boundaries with no ceremony', () => {
-    let world = runToDayBoundary(initGame({ villageName: 'W', size: 'small' }));
+    const world = runToDayBoundary(initGame({ villageName: 'W', size: 'small' }));
     gameTick(world); // tick 72 — day boundary, no ceremony
     expect(vi.mocked(tickElectionGossip)).toHaveBeenCalledTimes(1);
   });

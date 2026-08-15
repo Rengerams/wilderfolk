@@ -63,3 +63,29 @@ Run the capacity sweep with forced `gc()` between ticks (`--expose-gc`) to split
 
 - The benchmark is **worst case**: all settlers clustered in the focus box (throttle can't help). Real villages spread out and already benefit from the off-screen throttle — measured capacity is a lower bound.
 - Keep `docs/private/BUGS_TRACKER.md` perf-related findings in sync (batch EN-style).
+
+---
+
+## 6. Round 2026-08-15 — P0/P1 done, P2 parked (evidence), P3 is the next real step
+
+**New baseline (this machine, 120 ticks/tier, focus throttle):** 800h **85 ms** · 1000h **127 ms** · 1200h **191 ms** · 1500h **291 ms** — ~40 ms worse than the Aug-8 numbers (herds, festivals, decor, school drama landed since).
+
+### P0 — GC forensics: **allocations are NOT the tail** ❌ premise
+
+`SIM_GC=1 NODE_OPTIONS=--expose-gc` (forced full `gc()` between ticks) made ticks **slower**, not faster (1200h: 191 → **215 ms**; 800h p95 spiked to 1.7 s). Deferred nursery GC is already cheap; a full GC pass costs more than it saves. Conclusion: the superlinear tail is **real per-human compute**, not allocation churn.
+
+### P1 — shipped (safe, small win) ✅
+
+Cadence audit (BUG-2) found the entity-by-type index built **3× per tick** (gameTick ×2 + catalog rebuild). Now `gameTick` keeps a per-world WeakMap of the tick-start `byType`; on ticks with no births/deaths/type-changes (most ticks — scenery is static, births/deaths are daily) `state.entityByType` reuses that object, and `gameLoop` skips the catalog rebuild when the identity didn't change. Commits `f8f01b4` (P0 script) · `0b5f397` (P1).
+
+### P2 — parked, not implemented ⚠️
+
+The plan's own profiler (courtship/affairs/housemates/dialogue ≈ **0 ms**, 290k spatial queries ≈ 0.1–0.3 ms, pathfinding 0 calls) plus P0 forensics show the staggerable subsystems are **not** where the 190 ms goes — staggering them cannot produce a measurable win and would add pacing/regression risk for nothing. Pooling per-tick collections was also dropped (same P0 evidence).
+
+### Reassessment — path to the 67 ms target
+
+1. **P3 — worker sim by default (`VITE_USE_GAME_WORKER=1`)** — the real playability win: slow 10× ticks stop freezing the UI (frames stay 60 fps; the sim runs slower than real-time instead of blocking). Does not lower tick cost but is what players feel.
+2. **Reduce the per-human AI body** (the actual 99%): deep, high-risk refactor — needs a fresh profiling session with `scripts/profile-town-tick.ts` to find the per-human constant factors worth removing.
+3. Accept the benchmark as a **worst-case lower bound** (real 1,200-settler villages spread out and are off-screen-throttled).
+
+Acceptance criteria in §4 are **not met yet**; do not call v0.6 perf done on this round.
