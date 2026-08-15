@@ -11,6 +11,10 @@
 
 ### Fixed
 - **The herds survive a save/load** — a save made mid-migration used to drop the active herd and its year-to-year memory (the deer then lingered forever as permanent strays); the migration state now rides in the save schema, pinned by a regression test
+- **No double election gossip during ceremonies** — the daily gossip roll ran *and* the ceremony's own tick gates rolled again on day-boundary ticks (72 % 18 = 0, 72 % 24 = 0), so a ceremony's gossip/tension phases fired twice on boundary days; the daily layer now stands down while a ceremony is running
+
+### Performance
+- **One entity index build per tick instead of three** (cadence audit) — the entity-by-type index was rebuilt twice inside `gameTick` plus once for the render catalog; ticks without births/deaths/type-changes now reuse identity-stable buckets and the catalog skips its rebuild. Small measured win (~3% at 1,200 settlers), groundwork for the v0.6 capacity work
 
 ---
 
