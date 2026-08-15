@@ -257,7 +257,10 @@ function tickBuildingProgress(state: WorldState): void {
 
 function tickStaticDaily(state: WorldState, season: Season): void {
   applyFoodSpoilage(state, season);
-  tickElectionGossip(state);
+  // Ceremony gossip/tension phases drive their own rolls (tick % 18 / % 24 in
+  // tickElectionCeremony) — skip the daily roll so a day-boundary tick
+  // (72 % 18 === 0, 72 % 24 === 0) doesn't fire gossip twice.
+  if (!state.electionCeremony) tickElectionGossip(state);
 }
 
 // ==================== BUILDING PRODUCTION ====================
