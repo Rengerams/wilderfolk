@@ -20,6 +20,8 @@ import { isPlayerHuman } from '../src/game/groupEvents';
 const TICKS = Number(process.env.PERF_TICKS ?? 250);
 const WARMUP = 30;
 const TIERS = [0, 200, 400, 600, 800, 1000, 1200, 1500];
+/** P0 GC forensics: force a full gc() between ticks (SIM_GC=1 + NODE_OPTIONS=--expose-gc). */
+const GC_BETWEEN = process.env.SIM_GC === '1';
 
 function seedHumans(state: ReturnType<typeof initGame>, pop: number): void {
   for (let i = 0; i < pop; i++) {
@@ -46,7 +48,7 @@ async function main(): Promise<void> {
   const fullSim = process.env.SIM_FULL_SIM === '1';
 
   console.log(
-    `Ticks=${TICKS} warmup=${WARMUP} | ${fullSim ? 'FULL SIM (no throttle)' : 'focus throttle (default)'}`,
+    `Ticks=${TICKS} warmup=${WARMUP} | ${fullSim ? 'FULL SIM (no throttle)' : 'focus throttle (default)'}${GC_BETWEEN ? ' | forced gc() between ticks' : ''}`,
   );
   console.log('');
 
@@ -59,6 +61,9 @@ async function main(): Promise<void> {
 
     const ms: number[] = [];
     for (let t = 1; t <= WARMUP + TICKS; t++) {
+      // Force a full GC before each measured tick so avg = pure sim work,
+      // isolating allocation/GC pressure from real computation.
+      if (GC_BETWEEN && t > 1) globalThis.gc?.();
       const t0 = performance.now();
       gameTick(state, fullSim ? undefined : focus);
       ms.push(performance.now() - t0);
