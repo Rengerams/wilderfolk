@@ -7,7 +7,7 @@
  * Chat/courtship = Realtime; house/job fill = Assign (not “social”).
  */
 import type {
-  WorldState, Entity, Building,
+  WorldState, Entity, Building, EntityByType,
 } from './gameTypes';
 import {
   BuildingType,
@@ -65,6 +65,16 @@ import {
   setSpatialQueryGridMode,
 } from './spatialQueryMetrics';
 
+/**
+ * Per-world stable entity buckets across no-change ticks (P1, BUG-2):
+ * most ticks neither birth, nor kill, nor change types — on those, the
+ * entity-by-type index built for the layers is also the final index, so we
+ * reuse it (same object identity) instead of rebuilding it at the end of the
+ * tick. The render catalog keys off that identity to skip its own rebuild.
+ * Keyed per WorldState so multiple worlds/scripts never share buckets.
+ */
+const stableByTypeByWorld = new WeakMap<WorldState, EntityByType>();
+
 export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState {
   if (state.paused) return state;
   const { width, height } = state;
@@ -112,7 +122,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     }
   }
 
-  const byType = buildEntityByType(aliveEntities);
+  const byType = stableByTypeByWorld.get(state) ?? buildEntityByType(aliveEntities);
   const hourOfDay = getHourOfDay(state.tick);
   const updatedBuildings = state.buildings;
   const playerHumans = byType[EntityType.Human].filter(isPlayerHuman);
@@ -266,8 +276,18 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   }
 
   reconcileOrphanedMarriages(allAlive);
-  // Deaths/births during the tick — always rebuild type buckets
-  state.entityByType = buildEntityByType(allAlive);
+  // Deaths/births during the tick — rebuild type buckets only when the
+  // composition actually changed; otherwise reuse this tick's buckets so the
+  // object identity stays stable (lets the render catalog skip its rebuild).
+  const deathsThisTick = aliveEntities.length - (allAlive.length - newEntities.length);
+  const typeChanged = ctx.byType !== byType;
+  if (deathsThisTick > 0 || newEntities.length > 0 || typeChanged) {
+    state.entityByType = buildEntityByType(allAlive);
+    stableByTypeByWorld.delete(state);
+  } else {
+    if (!stableByTypeByWorld.has(state)) stableByTypeByWorld.set(state, byType);
+    state.entityByType = stableByTypeByWorld.get(state)!;
+  }
   if (USE_SPATIAL_GRID) state.mobileGrid = ctx.mobileGrid;
   state.buildings = updatedBuildings;
   state.season = season;

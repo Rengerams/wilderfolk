@@ -107,6 +107,7 @@ export class GameLoop {
   private world: WorldState;
   private view: ViewState;
   private readonly catalog = new EntityCatalog();
+  private lastCatalogByTypeRef: unknown = undefined;
   private rafId = 0;
   private running = false;
   private tickAccumulator = 0;
@@ -603,7 +604,13 @@ export class GameLoop {
       if (!this.workerEnabled && !this.workerBooting) {
         while (this.tickAccumulator >= msPerTick && steps < MAX_CATCHUP_STEPS) {
           gameTick(this.world, focus);
-          this.catalog.rebuild(this.world.entities);
+          // P1 (BUG-2): gameTick keeps identity-stable entity buckets on
+          // no-change ticks — rebuild the catalog only when that identity
+          // actually changed (birth/death/type-change), not every tick.
+          if (this.world.entityByType !== this.lastCatalogByTypeRef) {
+            this.catalog.rebuild(this.world.entities);
+            this.lastCatalogByTypeRef = this.world.entityByType;
+          }
           this.view = syncScreenShakeFromWorld(this.view, this.world);
           clearScreenShakeImpulse(this.world);
           this.tickAccumulator -= msPerTick;
