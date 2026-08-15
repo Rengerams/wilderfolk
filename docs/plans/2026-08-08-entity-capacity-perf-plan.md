@@ -26,7 +26,7 @@ Curve shape ≈ `1.5 + (settlers/98)²` — **superlinear**; the tail is per-hum
 
 - `tickHumans` is **99% of the tick** (~250–470 ms, machine varies; p95 ≈ 1.6× avg = GC spikes).
 - **Spatial grid is free:** 289,958 `findClosestEntityInRadius` + 121k social scans ≈ **0.1–0.3 ms total**.
-- **Pathfinding is NOT the cost:** `findPath`/`steerWithPath` = **0 calls** in the benchmark (only fires on long hops across blocked terrain; cache capped at 200 entries).
+- **Pathfinding is NOT the cost:** `findPath`/`steerWithPath` = **0 calls** in the benchmark (only fires on long hops across blocked terrain; cache capped at 200 entries). *Caveat: benchmark-limited — the sweep's settlers are jobless and clustered in open center terrain, so it never exercises a big village with many distinct river crossings (cache thrash → bounded A* re-runs).*
 - Courtship / affairs / housemates / dialogue ≈ 0 ms.
 - The unaccounted cost is the **per-human AI body + per-tick allocation churn**:
   - per tick: `aliveEntities` filter (2,800), `byType` (12+ arrays, built **twice**), `entityById` Map, `allHumans` + Set, `workersByWorkplace`, `residenceOccupants`, per-human social arrays.
