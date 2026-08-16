@@ -55,9 +55,19 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | **🌷 Decor & village beauty** | A **Decor** build tab — gardens, statues, lamps, wooden fences (no art needed, all procedural). Decor stamps neighborhood beauty: settlers drift toward pretty spots in free time, and the Population panel shows a **Village mood** readout |
 | **Quality** | Every **0.5.x save loads** (version-gate test pins it); worker-command tests back in the gate; the code hub slimmed 1,489 → 1,072 lines |
 
-### What's next — game-feel Phase 3
+### What's new since 0.5.4 (in development)
 
-Multi-select workers ✅ · Decorations & beauty ✅ · SFX ✅ — **weather with real consequences** is the last piece → [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md).
+| Area | Highlights |
+|------|------------|
+| **🏔️ 2.5D painted relief** | The valley reads as a landscape, not colored blocks. **Hand-painted shores** (a painted grass-biome tileset, blob-autotiled) line every coast and river, and **hills and peaks physically rise** out of the plain — raised surfaces with sun-lit edges and shaded cliff faces. Buildings, settlers and props **ride the terrain**; nothing floats on slopes |
+| **🌊 Rivers look like rivers** | New maps carve **whole-tile water bands 3–5 tiles across** (not 1-tile threads), the thin blue "stream" stroke is gone, and **Riverlands & Coastal valleys finally get rivers** at all |
+| **🔨 Upgrades you can see** | Lv2 buildings grow a warm new roof + chimney, Lv3 a stronger roof, a gold rim and a soft glow at night — upgrades read at a glance |
+| **🪵 Painted dirt** | Hills, Rocky and Mountain relief surfaces use a hand-painted soil texture, matching the painted coasts |
+| **⛈️ Storm damage you can see** | When a storm batters buildings, debris flies and a warning floats up from each battered roof — and the colony now **founds at 08:00**, not midnight |
+
+### What's next
+
+The **game-feel plan is complete** (Phases 0–3 all shipped — pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather). On the table: engineering hygiene (App split, renames), hand-painted **wall/gate building sprites**, and v0.6 entity-capacity performance. → [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md)
 
 ### Prior release — v0.5.3
 
