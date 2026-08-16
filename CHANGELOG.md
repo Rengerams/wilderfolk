@@ -18,6 +18,7 @@
 - **No double election gossip during ceremonies** — the daily gossip roll ran *and* the ceremony's own tick gates rolled again on day-boundary ticks (72 % 18 = 0, 72 % 24 = 0), so a ceremony's gossip/tension phases fired twice on boundary days; the daily layer now stands down while a ceremony is running
 - **The valley is lit at founding** — the colony now starts at 08:00 instead of midnight, so the founding scene no longer opens in pitch darkness (settlers arrive to a lit valley with visible water)
 - **Rivers look like rivers** (new maps) — a river now carves a **whole-tile water band 3–5 tiles across** (wider at confluences) instead of a 1-tile thread, and the old thin blue "stream" stroke is gone — the painted water and painted shores carry the look. **Riverlands and Coastal maps finally get rivers**: river sources now form at ~70% of each preset's reachable elevation, so low-lying valleys no longer come up dry
+- **Build menu switching works** — with a building tool selected you can now jump to any other build category and pick a different building directly; previously the category tab was pinned to the selected tool, so you had to cancel before switching (EM-8)
 
 ### Performance
 - **One entity index build per tick instead of three** (cadence audit) — the entity-by-type index was rebuilt twice inside `gameTick` plus once for the render catalog; ticks without births/deaths/type-changes now reuse identity-stable buckets and the catalog skips its rebuild. Small measured win (~3% at 1,200 settlers), groundwork for the v0.6 capacity work

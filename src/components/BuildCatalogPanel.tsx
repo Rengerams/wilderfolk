@@ -30,9 +30,19 @@ export default function BuildCatalogPanel({
   onToggleGrid,
 }: Props) {
   const [manualCategory, setManualCategory] = useState(BUILDING_CATEGORIES[0].id);
-  const activeCategory = selected != null
-    ? categoryForBuildingType(selected)
-    : manualCategory;
+
+  // React to a changed selection without an effect (adjust-state-during-render):
+  // selecting a build jumps the category tab to it, but the user stays free to
+  // navigate other tabs while a build is selected (previously the tab was
+  // pinned to the selected type, so you could never switch to another category
+  // without cancelling first — "can't change build type while one is selected").
+  const [prevSelected, setPrevSelected] = useState<BuildingType | null>(null);
+  if (selected !== prevSelected) {
+    setPrevSelected(selected);
+    if (selected != null) setManualCategory(categoryForBuildingType(selected));
+  }
+
+  const activeCategory = manualCategory;
 
   const category = BUILDING_CATEGORIES.find((c) => c.id === activeCategory) ?? BUILDING_CATEGORIES[0];
 
