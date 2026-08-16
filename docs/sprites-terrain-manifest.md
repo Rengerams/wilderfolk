@@ -41,6 +41,7 @@ Engine-ready seamless ground fills for `bakeTerrainLayer`.
 
 - Stamp: `terrainAtlas.pickAtlasTile` in `bakeTerrainLayer` pass 1 (grass/water/forest floor) — painted tile replaces fill + feather when all 8 neighbours are grass/water; everything else falls back to fills.
 - Relief: `terrainAtlas.reliefY` extrudes hills/peaks in a sorted pass 2 (cliff faces); the renderer offsets buildings/settlers/props via `terrainAtlas.terrainRiseAt` so they ride the terrain.
+- **Painted dirt**: Hills/Rocky/Mountains relief surfaces stamp the seamless painted `tile_dirt.png` (25×25, root of `public/sprites/`) instead of the procedural `dirt_fill.png`.
 - Regeneration: painted art is authored (Aseprite/Tiled), not script-generated.
 
 ## Phase C–D (code)

@@ -17,20 +17,22 @@ import {
   type AtlasPick,
 } from './terrainAtlas';
 
-/** Seamless 128px fills under public/sprites/terrain/ (game-asset-core Phase A). */
+/** Seamless fills under public/sprites/ (terrain/ = procedural, root = painted). */
 const TERRAIN_FILL_PATH: Partial<Record<TerrainType, string>> = {
   [TerrainType.Grassland]: '/sprites/terrain/grass_fill.png',
   [TerrainType.Forest]: '/sprites/terrain/grass_fill.png',
   [TerrainType.DarkForest]: '/sprites/terrain/grass_fill.png',
-  [TerrainType.Hills]: '/sprites/terrain/dirt_fill.png',
-  [TerrainType.Rocky]: '/sprites/terrain/dirt_fill.png',
+  // Painted dirt (25×25 seamless) — hills/peaks read as painted soil on the
+  // 2.5D relief surfaces (dirt_fill.png stays as the offline fallback sprite).
+  [TerrainType.Hills]: '/sprites/tile_dirt.png',
+  [TerrainType.Rocky]: '/sprites/tile_dirt.png',
   [TerrainType.Beach]: '/sprites/terrain/sand_fill.png',
   [TerrainType.RiverBank]: '/sprites/terrain/sand_fill.png',
   [TerrainType.ShallowWater]: '/sprites/terrain/water_shallow_fill.png',
   [TerrainType.River]: '/sprites/terrain/water_shallow_fill.png',
   [TerrainType.DeepWater]: '/sprites/terrain/water_deep_fill.png',
   [TerrainType.Snow]: '/sprites/terrain/sand_fill.png', // tinted cool via shade overlay
-  [TerrainType.Mountains]: '/sprites/terrain/dirt_fill.png',
+  [TerrainType.Mountains]: '/sprites/tile_dirt.png',
 };
 
 /** Material family for transitions — same family = no edge blend needed. */
