@@ -338,6 +338,13 @@ export function generateWorldMap(
   }
 
   // ── Find mountain peaks for river sources ──
+  // Peaks must clear ~70% of what this preset can reach (bias + scale). An
+  // absolute 70 starved low-elevation presets (coastal, riverlands) — their
+  // hills never got that high, so they got no rivers at all.
+  const peakThreshold = Math.max(
+    48,
+    Math.min(1, (1 + pm.elevationBias) * pm.elevationScale) * 0.7 * 100,
+  );
   const peaks: { x: number; y: number; elev: number }[] = [];
   for (let ty = 2; ty < tileH - 2; ty++) {
     for (let tx = 2; tx < tileW - 2; tx++) {
@@ -352,7 +359,7 @@ export function generateWorldMap(
           }
         }
       }
-      if (isPeak && e > (pm.elevationBias < 0 ? 60 : 70)) {
+      if (isPeak && e > peakThreshold) {
         peaks.push({ x: tx, y: ty, elev: e });
       }
     }
