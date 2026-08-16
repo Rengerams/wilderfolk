@@ -352,7 +352,7 @@ export function generateWorldMap(
           }
         }
       }
-      if (isPeak && e > 70) {
+      if (isPeak && e > (pm.elevationBias < 0 ? 60 : 70)) {
         peaks.push({ x: tx, y: ty, elev: e });
       }
     }
@@ -431,16 +431,18 @@ export function generateWorldMap(
     if (river.length > 10) {
       rivers.push(river);
       // Skip the peak cell (mountain top stays land); the channel below it is water.
-      // Widen into a real river: each path cell's orthogonal neighbours become
-      // water where the valley dips below the water level — so rivers read as
-      // wide flowing channels in the lowlands and narrow streams on slopes.
+      // Widen into a real river: each path cell's orthogonal AND diagonal
+      // neighbours become water where the valley floor is low enough — so a
+      // river reads as a whole-tile water band (3–5 tiles across in the
+      // lowlands) instead of a 1-tile thread. Only narrows on steep gorges
+      // where the walls rise above the water line.
       for (let i = 1; i < river.length; i++) {
         const cx = Math.floor(river[i].x / 10);
         const cy = Math.floor(river[i].y / 10);
         acceptedRiverSet.add(`${cx},${cy}`);
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const) {
           const nt = tiles[cy + dy]?.[cx + dx];
-          if (nt && nt.elevation / 100 < pm.waterLevel + 0.05) {
+          if (nt && nt.elevation / 100 < pm.waterLevel + 0.08) {
             acceptedRiverSet.add(`${cx + dx},${cy + dy}`);
           }
         }

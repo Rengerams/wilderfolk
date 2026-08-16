@@ -770,30 +770,18 @@ export function bakeTerrainDecor(map: WorldMap, worldWidth: number, worldHeight:
   const ctx = getCanvasContext(surface);
 
   if (map.rivers) {
-    // Soft river banks (darker underlay) then bright water stroke — reads as depth
+    // The carved channel is whole-tile water now (painted atlas water tiles +
+    // painted shores). A single faint dark core line keeps the channel readable
+    // in the no-atlas fallback without painting a thin "stream" over the river.
     for (const river of map.rivers) {
       if (river.length < 2) continue;
-      ctx.strokeStyle = 'rgba(20, 50, 80, 0.45)';
-      ctx.lineWidth = 7;
+      ctx.strokeStyle = 'rgba(20, 50, 80, 0.22)';
+      ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.beginPath();
       ctx.moveTo(river[0].x, river[0].y);
       for (let i = 1; i < river.length; i++) ctx.lineTo(river[i].x, river[i].y);
-      ctx.stroke();
-
-      ctx.strokeStyle = 'rgba(55, 130, 200, 0.75)';
-      ctx.lineWidth = 3.5;
-      ctx.beginPath();
-      ctx.moveTo(river[0].x, river[0].y);
-      for (let i = 1; i < river.length; i++) ctx.lineTo(river[i].x, river[i].y);
-      ctx.stroke();
-
-      ctx.strokeStyle = 'rgba(160, 210, 255, 0.35)';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(river[0].x, river[0].y - 1);
-      for (let i = 1; i < river.length; i++) ctx.lineTo(river[i].x, river[i].y - 1);
       ctx.stroke();
     }
   }
