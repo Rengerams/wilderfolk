@@ -1,7 +1,7 @@
 # Wilderfolk — Game Feel & Depth Plan
 
-**Date:** 2026-08-03 · **Branch:** `main` · **Status:** Phase 0 + 1 done · Phase 2 done · Phase 3 done (3.1, 3.3, 3.4 complete)
-**Companion docs:** [continuation plan (archived)](../archive/2026-08-02-continuation-plan.md) (agent handoff + what's already done) · [landscape looks research](../private/landscape-looks-research.md) (private)
+**Date:** 2026-08-03 · **Branch:** `main` · **Status:** Phase 0–3 all done · Phase 4 hygiene parked (see below) · 2.5D Painted Relief shipped 2026-08-16
+**Companion docs:** [continuation plan (archived)](../archive/2026-08-02-continuation-plan.md) (agent handoff + what's already done) · [landscape looks research](../private/landscape-looks-research.md) (private) · [terrain manifest](../sprites-terrain-manifest.md)
 
 ---
 
@@ -27,13 +27,24 @@ The micro-bug-fix wave is done. This plan turns the product analysis into ordere
 
 **Next up:** Phase 3 — QoL & polish (multi-select workers, decorations/beauty, SFX, weather consequences). Playtest Phase 2 first (trade prices at your reputation, the smith quest, upgraded building look) and file what feels off.
 
-### ✅ Phase 3 (in progress)
+### ✅ Phase 3 (done)
 
 | Task | Commit |
 |------|--------|
 | 3.1 Multi-select workers (shift-click select + assign all at once) | `e572b6a` |
-| 3.3 SFX — work & footstep ambience by surface (chop/mine/hammer/farm/gather + surface footsteps, throttled) | (this session) |
-| 3.4 Weather consequences — storm damages buildings (recoverable, disaster_resist halved), drought cuts farm/greenhouse yields, rain boosts | (this session) |
+| 3.2 Decorations / beauty (fences, gardens, statues, lamps; neighborhood beauty grid; village mood) | `5d65350` |
+| 3.3 SFX — work & footstep ambience by surface (chop/mine/hammer/farm/gather + surface footsteps, throttled) | `aeb2495` |
+| 3.4 Weather consequences — storm damages buildings (recoverable, disaster_resist halved), drought cuts farm/greenhouse yields, rain boosts | `aeca78a` |
+| 3.4 follow-up — storm damage now visible on the map (floating ⛈️ warnings + debris particles); colony founds at 08:00 not midnight | `28aa144` |
+
+### ✅ 2.5D Painted Relief (2026-08-16, after Phase 3)
+
+The manifest's "optional: painted transition atlas" landed as a full 2.5D feature on Canvas 2D (engine question researched: the repo already built + removed a PixiJS renderer, so staying on Canvas 2D). Commit `b4e9f00`:
+
+- **Painted grass biome atlas** (`public/sprites/tileset_grass.png`, runtime copy of `TilesetGrass/` authoring) — grass base + grass↔water blob transitions autotiled by Tiled corner (16 combos, mirror flips), stamped in `bakeTerrainLayer` pass 1.
+- **Elevation extrusion** — hills/peaks rise out of the plain with shaded cliff faces + sun-lit lips (pass 2, sorted low→high); water stays flat.
+- **Everything rides the terrain** — buildings, settlers, wildlife and decor props offset by the elevation beneath them (`terrainAtlas.terrainRiseAt`).
+- New module `src/game/terrainAtlas.ts` + `tests/terrainAtlas.test.ts` (13 tests). Gates: 150 tests green, lint 0, build passes.
 
 **Priority logic (impact ÷ effort):**
 - Pathfinding first: it is a real bug (stuck citizens at map edges) *and* the single biggest sim/controls upgrade.
