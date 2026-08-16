@@ -1,4 +1,4 @@
-import { TerrainType, TERRAIN_TILE_SIZE, type MapPreset, type Season, type WorldMap } from './gameTypes';
+import { TerrainType, TERRAIN_TILE_SIZE, type MapPreset, type Season, type TerrainTile, type WorldMap } from './gameTypes';
 import {
   createCanvasSurface,
   disposeCanvasSurface,
@@ -7,6 +7,15 @@ import {
   type CanvasSurface,
 } from './canvasLayer';
 import { getSprite } from './spriteLoader';
+import {
+  ATLAS_TILE_SIZE,
+  atlasSourceRect,
+  pickAtlasTile,
+  reliefY,
+  terrainAtlasReady,
+  TERRAIN_ATLAS_PATH,
+  type AtlasPick,
+} from './terrainAtlas';
 
 /** Seamless 128px fills under public/sprites/terrain/ (game-asset-core Phase A). */
 const TERRAIN_FILL_PATH: Partial<Record<TerrainType, string>> = {
@@ -148,6 +157,60 @@ function blendNeighborEdge(
   }
 }
 
+/**
+ * Stamp one painted atlas tile (16×16 source, scaled to the cell), honouring
+ * the mirror flips the corner table picked. Returns true when drawn.
+ */
+function drawAtlasTile(
+  ctx: CanvasContext2d,
+  img: HTMLImageElement,
+  pick: AtlasPick,
+  x0: number,
+  y0: number,
+  fillW: number,
+  fillH: number,
+): boolean {
+  const { sx, sy } = atlasSourceRect(pick.id);
+  try {
+    ctx.save();
+    ctx.translate(pick.flipH ? x0 + fillW : x0, pick.flipV ? y0 + fillH : y0);
+    ctx.scale(pick.flipH ? -1 : 1, pick.flipV ? -1 : 1);
+    ctx.drawImage(img, sx, sy, ATLAS_TILE_SIZE, ATLAS_TILE_SIZE, 0, 0, fillW, fillH);
+    ctx.restore();
+    return true;
+  } catch {
+    ctx.restore();
+    return false;
+  }
+}
+
+/**
+ * 2.5D relief — the shaded earth face under a raised tile. Spans
+ * [y0 + fillH − raise, y0 + fillH] with a sun-lit lip on its top edge, so a
+ * hillside reads as a cliff dropping to the lower ground / water below.
+ */
+function drawCliffFace(
+  ctx: CanvasContext2d,
+  x0: number,
+  y0: number,
+  fillW: number,
+  fillH: number,
+  raise: number,
+  base: { r: number; g: number; b: number },
+  tileSize: number,
+): void {
+  if (raise <= 0 || fillW < 1 || fillH < 1) return;
+  const fy = y0 + fillH - raise;
+  const grad = ctx.createLinearGradient(0, fy, 0, fy + raise);
+  grad.addColorStop(0, shadeRgb(base, -0.12));
+  grad.addColorStop(1, shadeRgb(base, -0.55));
+  ctx.fillStyle = grad;
+  ctx.fillRect(x0, fy, fillW, raise);
+  // Sun lip on the cliff's top edge
+  ctx.fillStyle = 'rgba(255,255,255,0.16)';
+  ctx.fillRect(x0, fy, fillW, Math.max(1, Math.round(tileSize * 0.06)));
+}
+
 export type TerrainSurface = CanvasSurface;
 
 export interface TerrainLayerCache {
@@ -166,6 +229,8 @@ export interface TerrainLayerCache {
   seasonBlendT?: number;
   /** True when this bake used seamless fill sprites (not flat RGB only). */
   fills: boolean;
+  /** True when this bake stamped the painted terrain atlas tiles. */
+  atlas: boolean;
 }
 
 /** World-pixel decor (rivers + map border + ground props) — static until map seed/preset changes. */
@@ -197,6 +262,10 @@ export function terrainLayerNeedsRebuild(
   if (!cache) return true;
   // After sprites finish loading, force one rebake so fills replace flat color
   if (terrainFillSpritesReady() && !cache.fills) {
+    return true;
+  }
+  // Same for the painted atlas — bake flat once, then re-bake painted
+  if (terrainAtlasReady() && !cache.atlas) {
     return true;
   }
   return cache.worldWidth !== worldWidth
@@ -394,9 +463,29 @@ export function bakeTerrainLayer(
   ctx.fillStyle = seasonColorAt(TerrainType.Grassland, 0.5, map.preset);
   ctx.fillRect(0, 0, w, h);
 
+  const atlasReady = terrainAtlasReady();
+  const reliefTiles: {
+    tile: TerrainTile;
+    tx: number;
+    ty: number;
+    x0: number;
+    y0: number;
+    fillW: number;
+    fillH: number;
+    raise: number;
+  }[] = [];
+
   for (const { tile, tx, ty, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
       const fillW = Math.min(tileSize, w - x0);
       const fillH = Math.min(tileSize, h - y0);
+
+      // 2.5D relief — raised tiles (hills/peaks) render in a sorted pass after
+      // the flat base, so their cliff faces layer over the lower ground.
+      const raise = reliefY(tile.type, tile.elevation) * tileSize;
+      if (raise > 0) {
+        reliefTiles.push({ tile, tx, ty, x0, y0, fillW, fillH, raise });
+        continue;
+      }
 
       const base = parseTerrainRgb(seasonColorAt(tile.type, tile.variation, map.preset));
       const relief = tileRelief(tile.type, tile.elevation);
@@ -411,10 +500,28 @@ export function bakeTerrainLayer(
       const heightLight = (relief - 0.45) * 0.35;
       const waterDark = isWater(tile.type) ? -0.08 : 0;
       const light = slopeLight + heightLight + waterDark;
+      const tint = light >= 0
+        ? `rgba(255,255,255,${Math.min(0.22, light * 0.35)})`
+        : `rgba(0,0,0,${Math.min(0.35, -light * 0.45)})`;
 
-      // Seamless fill when preloaded; else solid color fallback
-      const stamped = drawTerrainFill(ctx, tile.type, x0, y0, fillW, fillH, tx, ty);
-      if (!stamped) {
+      // Painted atlas tile when loaded and the corner set matches — the flat
+      // grass/water/forest floor (painted shores and texture replace the fills).
+      const atlasPick = atlasReady ? pickAtlasTile(map, tx, ty) : null;
+      const atlasImg = atlasPick ? getSprite(TERRAIN_ATLAS_PATH) : null;
+      const stamped = atlasImg && atlasPick
+        ? drawAtlasTile(ctx, atlasImg, atlasPick, x0, y0, fillW, fillH)
+        : drawTerrainFill(ctx, tile.type, x0, y0, fillW, fillH, tx, ty);
+
+      if (atlasPick) {
+        // Painted tile is self-contained — relief light + canopy tint only
+        // (no feather/bevel/variation: the art carries the form).
+        ctx.fillStyle = tint;
+        ctx.fillRect(x0, y0, fillW, fillH);
+        if (tile.type === TerrainType.DarkForest) {
+          ctx.fillStyle = 'rgba(20,40,15,0.28)';
+          ctx.fillRect(x0, y0, fillW, fillH);
+        }
+      } else if (!stamped) {
         ctx.fillStyle = shadeRgb(base, light);
         ctx.fillRect(x0, y0, fillW, fillH);
       } else {
@@ -428,9 +535,6 @@ export function bakeTerrainLayer(
         if (west) blendNeighborEdge(ctx, tile.type, west.type, x0, y0, fillW, fillH, tx, ty, 'w', tileSize);
         if (eastT) blendNeighborEdge(ctx, tile.type, eastT.type, x0, y0, fillW, fillH, tx, ty, 'e', tileSize);
 
-        const tint = light >= 0
-          ? `rgba(255,255,255,${Math.min(0.22, light * 0.35)})`
-          : `rgba(0,0,0,${Math.min(0.35, -light * 0.45)})`;
         ctx.fillStyle = tint;
         ctx.fillRect(x0, y0, fillW, fillH);
         if (tile.type === TerrainType.Snow) {
@@ -442,6 +546,8 @@ export function bakeTerrainLayer(
           ctx.fillRect(x0, y0, fillW, fillH);
         }
       }
+
+      if (!atlasPick) {
 
       // Color mid-blend for solid fallback (or as extra soft seam when textured)
       if (!stamped) {
@@ -521,6 +627,33 @@ export function bakeTerrainLayer(
           : `rgba(0,0,0,${Math.min(0.07, -varAmt)})`;
         ctx.fillRect(x0, y0, fillW, fillH);
       }
+      } // !atlasPick
+  }
+
+  // Relief pass — raised tiles (hills/peaks) drawn low→high so each cliff face
+  // layers under the next raised surface; water stays flat below them.
+  reliefTiles.sort((a, b) => (a.y0 - a.raise) - (b.y0 - b.raise));
+  for (const t of reliefTiles) {
+    const base = parseTerrainRgb(seasonColorAt(t.tile.type, t.tile.variation, map.preset));
+    drawCliffFace(ctx, t.x0, t.y0, t.fillW, t.fillH, t.raise, base, tileSize);
+    const stamped = drawTerrainFill(ctx, t.tile.type, t.x0, t.y0 - t.raise, t.fillW, t.fillH, t.tx, t.ty);
+    if (!stamped) {
+      ctx.fillStyle = shadeRgb(base, 0.08);
+      ctx.fillRect(t.x0, t.y0 - t.raise, t.fillW, t.fillH);
+    } else {
+      // Sun-lit top edge on the raised surface
+      ctx.fillStyle = 'rgba(255,255,255,0.10)';
+      ctx.fillRect(t.x0, t.y0 - t.raise, t.fillW, Math.max(1, Math.round(tileSize * 0.08)));
+    }
+    // Material overlays the flat pass applies too (snow veil, forest canopy)
+    if (t.tile.type === TerrainType.Snow) {
+      ctx.fillStyle = 'rgba(200,220,255,0.35)';
+      ctx.fillRect(t.x0, t.y0 - t.raise, t.fillW, t.fillH);
+    }
+    if (t.tile.type === TerrainType.DarkForest) {
+      ctx.fillStyle = 'rgba(20,40,15,0.28)';
+      ctx.fillRect(t.x0, t.y0 - t.raise, t.fillW, t.fillH);
+    }
   }
 
   // Shallow↔deep water transition — rivers fade into deeper water instead of a
@@ -584,6 +717,7 @@ export function bakeTerrainLayer(
     lod,
     seasonBlendT: seasonBlend ? Math.round(seasonBlend.t * 100) : undefined,
     fills: terrainFillSpritesReady(),
+    atlas: atlasReady,
   };
 }
 
@@ -760,7 +894,9 @@ function stampLandscapeProps(
       const r1 = hash01(tx + 3, ty + 7, seed + 11);
       const r2 = hash01(tx * 5, ty * 3, seed + 29);
       const cx = tx * tileSize + tileSize * (0.25 + r0 * 0.5);
-      const cy = ty * tileSize + tileSize * (0.35 + r1 * 0.45);
+      // Ride the 2.5D relief — props sit on the raised terrain surface
+      const cy = ty * tileSize + tileSize * (0.35 + r1 * 0.45)
+        - reliefY(tile.type, tile.elevation) * tileSize;
       if (cx < 8 || cy < 8 || cx > worldW - 8 || cy > worldH - 8) continue;
 
       // Snow — soft mounds with a cool shadow so white-on-white still reads.

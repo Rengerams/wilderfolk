@@ -119,6 +119,8 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/terrain/sand_fill.png',
     '/sprites/terrain/water_shallow_fill.png',
     '/sprites/terrain/water_deep_fill.png',
+    // Painted terrain atlas (2.5D Painted Relief — grass biome tiles)
+    '/sprites/tileset_grass.png',
   ];
   // Decor buildings draw procedurally — they reference no real sprite file.
   const buildingSprites = Object.values(BUILDING_CONFIGS)

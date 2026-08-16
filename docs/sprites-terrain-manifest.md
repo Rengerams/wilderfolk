@@ -32,8 +32,19 @@ Engine-ready seamless ground fills for `bakeTerrainLayer`.
 - Stamp: `terrainLayer.drawTerrainFill` / `TERRAIN_FILL_PATH`
 - Transitions: `blendNeighborEdge` on N/E/S/W when fill family differs
 
+## Painted atlas (2.5D Painted Relief, 2026-08-16)
+
+| File | Use | Notes |
+|------|-----|--------|
+| `tileset_grass.png` | Painted grass biome — grass base + grass↔water blob transitions (Tiled corner encoding) | 192×336, 16×16 tiles, 12 cols. Runtime copy of `TilesetGrass/overworld_tileset_grass.png` (Aseprite + `grass_biome.tsx` sources stay in the authoring folder) |
+| `terrainAtlas.ts` | Corner→tile table (16 combos, mirror flips), `pickAtlasTile`, elevation relief curve | Lookup derived from `grass_biome.tsx` terrain tags (0=grass, 1=water) |
+
+- Stamp: `terrainAtlas.pickAtlasTile` in `bakeTerrainLayer` pass 1 (grass/water/forest floor) — painted tile replaces fill + feather when all 8 neighbours are grass/water; everything else falls back to fills.
+- Relief: `terrainAtlas.reliefY` extrudes hills/peaks in a sorted pass 2 (cliff faces); the renderer offsets buildings/settlers/props via `terrainAtlas.terrainRiseAt` so they ride the terrain.
+- Regeneration: painted art is authored (Aseprite/Tiled), not script-generated.
+
 ## Phase C–D (code)
 
 - Props stamped in `bakeTerrainDecor` (`stampLandscapeProps`)
 - Season wash + real season in terrain bake
-- Optional later: painted transition atlas
+- Optional later: painted transition atlas for the remaining families (dirt/sand/swamp); forest canopy tiles

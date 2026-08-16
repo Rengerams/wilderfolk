@@ -76,6 +76,7 @@ import {
   getEntityLayerCache,
   paintEntityLayerTo,
 } from './entityLayer';
+import { terrainRiseAt } from './terrainAtlas';
 import type { CanvasContext2d } from './canvasLayer';
 const SCENT_DEBUG = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SCENT_DEBUG === '1';
 
@@ -1457,7 +1458,9 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
 
   function getBuildingScreenRect(b: typeof state.buildings[0]) {
     const sx = (b.x - cam.x) * cam.zoom + cw / 2;
-    const sy = (b.y - cam.y) * cam.zoom + ch / 2;
+    // Ride the 2.5D relief — the footprint base sits on the raised terrain
+    const sy = (b.y - cam.y) * cam.zoom + ch / 2
+      - terrainRiseAt(state.worldMap, b.x + b.width / 2, b.y + b.height) * cam.zoom;
     const w = b.width * cam.zoom;
     const h = b.height * cam.zoom;
     return { sx, sy, w, h };
@@ -1688,7 +1691,9 @@ function drawAnimals(
 
   for (const e of _cachedAnimals) {
     const sx = (e.x - cam.x) * cam.zoom + cw / 2;
-    const sy = (e.y - cam.y) * cam.zoom + ch / 2;
+    // Ride the 2.5D relief — wildlife grazes on the raised terrain surface
+    const sy = (e.y - cam.y) * cam.zoom + ch / 2
+      - terrainRiseAt(state.worldMap, e.x, e.y) * cam.zoom;
     const cfg = SPECIES_CONFIG[e.type];
     const { spriteH, shadowW, shadowY } = getAnimalSpriteMetrics(e, cam.zoom);
     const cullPad = spriteH * 0.75;
@@ -2153,7 +2158,9 @@ function drawHumans(
 
   for (const human of _cachedHumans) {
     const sx = (human.x - cam.x) * cam.zoom + cw / 2;
-    const sy = (human.y - cam.y) * cam.zoom + ch / 2;
+    // Ride the 2.5D relief — settlers walk on the raised terrain surface
+    const sy = (human.y - cam.y) * cam.zoom + ch / 2
+      - terrainRiseAt(state.worldMap, human.x, human.y) * cam.zoom;
     const { size, spriteH, footOffset } = getHumanSpriteMetrics(human, cam.zoom);
     const cullPad = Math.max(size * 1.5, spriteH);
     if (sx + cullPad < -20 || sx - cullPad > cw + 20 || sy + cullPad < -20 || sy - cullPad > ch + 20) continue;
