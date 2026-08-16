@@ -52,14 +52,14 @@ describe('applyStormDamageToBuildings', () => {
   it('damages completed player buildings by 6 HP per storm day', () => {
     const house = playerHouse(1, 100);
     const damaged = applyStormDamageToBuildings([house], 1);
-    expect(damaged).toBe(1);
+    expect(damaged).toEqual([house]);
     expect(house.health).toBe(94);
   });
 
   it('halves damage when Fortification research (disaster_resist) is active', () => {
     const house = playerHouse(1, 100);
     const damaged = applyStormDamageToBuildings([house], 0.5);
-    expect(damaged).toBe(1);
+    expect(damaged).toEqual([house]);
     expect(house.health).toBe(97);
   });
 
@@ -73,7 +73,7 @@ describe('applyStormDamageToBuildings', () => {
     const rival = { ...playerHouse(1, 100), faction: 'rival' as never };
     const skeleton = { ...playerHouse(2, 100), completed: false as never };
     const damaged = applyStormDamageToBuildings([rival, skeleton], 1);
-    expect(damaged).toBe(0);
+    expect(damaged).toEqual([]);
     expect(rival.health).toBe(100);
     expect(skeleton.health).toBe(100);
   });
@@ -108,6 +108,19 @@ describe('applyDailyWeatherEffects', () => {
     const beforeNotifs = state.notifications.length;
     applyDailyWeatherEffects(state);
     expect(state.notifications.slice(beforeNotifs).length).toBe(0);
+  });
+
+  it('shows storm-damage feedback on each battered building (FX)', () => {
+    const state = initGame({ villageName: 'W', size: 'small' });
+    state.weather = WeatherType.Storm;
+    state.buildings.push(playerHouse(1, 100), playerHouse(2, 100));
+    const beforeParticles = state.deathParticles.length;
+    applyDailyWeatherEffects(state);
+    // One floating-text warning per damaged building.
+    const stormTexts = state.floatingTexts.filter((ft) => ft.text.includes('Storm'));
+    expect(stormTexts.length).toBe(2);
+    // Wind-blown debris particles spawned at the battered buildings.
+    expect(state.deathParticles.length).toBeGreaterThan(beforeParticles);
   });
 });
 

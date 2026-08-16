@@ -16,6 +16,7 @@ import { ensureNamesLoaded, getRandomName, getRandomSurname } from './nameLoader
 import {
   getColonyDay,
   HUMAN_ADULT_MIN_AGE,
+  TICKS_PER_HOUR,
 } from './dayCycle';
 import { syncEventLogIdFromState } from './eventLog';
 import { indexLivingEntity, rebuildEntityByIdMap } from './entityIndex';
@@ -353,7 +354,9 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   const state: WorldState = {
     entities: [], buildings: [],
     deathParticles: [], floatingTexts: [],
-    tick: 0, season: Season.Spring, year: 0, dayInYear: 0,
+    // Start at 08:00 (not tick 0 / midnight) — the founding scene shouldn't
+    // open in pitch darkness; settlers arrive to a lit valley with visible water.
+    tick: TICKS_PER_HOUR * 8, season: Season.Spring, year: 0, dayInYear: 0,
     populationHistory: [], width, height,
     nextEntityId: 0, nextBuildingId: 0, nextFloatingTextId: 0,
     paused: false, speed: 1,

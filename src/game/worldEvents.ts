@@ -93,44 +93,63 @@ export function updateWeather(state: WorldState) {
  * Storm damage per day per building (Phase 3.4). Halved by Fortification
  * research (`disaster_resist`), floored at 20 HP so weather never destroys
  * a building — it is recoverable via the Repair button. Player buildings only.
- * Returns how many buildings lost health.
+ * Returns the buildings that lost health (empty when the storm bit nothing).
  */
 export function applyStormDamageToBuildings(
   buildings: readonly Building[],
   resistMult: number,
   damagePerDay = 6,
-): number {
-  let damaged = 0;
+): Building[] {
+  const damaged: Building[] = [];
   for (const b of buildings) {
     if (!b.completed || b.faction === 'rival') continue;
     const dmg = Math.max(1, Math.round(damagePerDay * resistMult));
     const before = b.health ?? b.maxHealth;
     b.health = Math.max(20, before - dmg);
-    if (b.health < before) damaged++;
+    if (b.health < before) damaged.push(b);
   }
   return damaged;
 }
 
 /**
  * Daily weather consequences — call from the daily layer once per day.
- * Storm days slowly damage player buildings and raise a notification when
- * the storm bites; other weather types change farm yields (see
- * `getWeatherFarmMultiplier`), which need no per-day effect here.
+ * Storm days slowly damage player buildings, raise a notification, and paint
+ * the damage on the map (per-building floating text + wind-blown debris) so
+ * the consequence is visible, not just a toast. Other weather types change
+ * farm yields (see `getWeatherFarmMultiplier`), needing no per-day effect.
  */
 export function applyDailyWeatherEffects(state: WorldState): void {
   if (state.weather !== WeatherType.Storm) return;
   const resistMult = getMultiplier(state, 'disaster_resist');
   const damaged = applyStormDamageToBuildings(state.buildings, resistMult);
-  if (damaged > 0) {
-    const noun = damaged === 1 ? 'building' : 'buildings';
+  if (damaged.length > 0) {
+    for (const b of damaged) {
+      addFloatingText(
+        state,
+        b.x + b.width / 2,
+        b.y - 12,
+        'Storm damage!',
+        '#93c5fd',
+        'brief',
+      );
+      createDeathParticles(
+        state,
+        b.x + b.width / 2,
+        b.y + b.height / 2,
+        '#7dd3fc',
+        5,
+        'smoke',
+      );
+    }
+    const noun = damaged.length === 1 ? 'building' : 'buildings';
     addNotification(
       state,
       '⛈️ Storm damage',
-      `The storm battered ${damaged} ${noun}. Repair them with the 🔧 button.`,
+      `The storm battered ${damaged.length} ${noun}. Repair them with the 🔧 button.`,
       'warning',
       { x: state.width / 2, y: state.height / 2 },
     );
-    logEvent(state, 'event', `A storm damaged ${damaged} ${noun}`);
+    logEvent(state, 'event', `A storm damaged ${damaged.length} ${noun}`);
   }
 }
 

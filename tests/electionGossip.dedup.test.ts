@@ -11,6 +11,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
+import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { tickElectionGossip } from '../src/game/villageLeadership';
 
 vi.mock('../src/game/villageLeadership', async (importOriginal) => {
@@ -34,9 +35,15 @@ function ceremonyWorld() {
   return world;
 }
 
-/** Run to just before the first day boundary (tick 72) and clear the spy. */
+/**
+ * Run to just before the next day boundary and clear the spy. The colony now
+ * founds at 08:00 (initGame starts at tick 24, not midnight), so the boundary
+ * is computed relative to the start tick instead of assuming tick 0.
+ */
 function runToDayBoundary(world: ReturnType<typeof initGame>) {
-  for (let t = 1; t <= 71; t++) world = gameTick(world);
+  const boundary = Math.ceil(world.tick / TICKS_PER_DAY) * TICKS_PER_DAY;
+  const ticksToRun = boundary - world.tick - 1;
+  for (let t = 0; t < ticksToRun; t++) world = gameTick(world);
   vi.mocked(tickElectionGossip).mockClear();
   return world;
 }

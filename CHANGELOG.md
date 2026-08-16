@@ -8,10 +8,12 @@
 - **🍺 Taverns never close during festivals** — the innkeeper works all day and night while the party is on, so the pub stays open around the clock
 - **🌷 Decor & village beauty** — new **Decor** build tab (garden, statue, lamp, wooden fence, all procedural art). Decor stamps neighborhood beauty: settlers drift toward pretty spots in free time (and a 💐 mood lift), and the Population panel shows a **Village mood** readout fed by how much beauty surrounds your settlers
 - **⛈️ Weather with real consequences** (game-feel Phase 3.4) — weather is no longer just a tint. Storm days slowly damage your buildings (recoverable with the 🔧 Repair button, halved by Fortification research, never destroying a building); **Drought cuts farm & greenhouse harvests to half**, Rain gives them a small boost
+- **See the storm bite** — when a storm batters your buildings, the damage is now visible on the map: debris particles fly and a ⛈️ warning floats up from each battered roof (not just a toast)
 
 ### Fixed
 - **The herds survive a save/load** — a save made mid-migration used to drop the active herd and its year-to-year memory (the deer then lingered forever as permanent strays); the migration state now rides in the save schema, pinned by a regression test
 - **No double election gossip during ceremonies** — the daily gossip roll ran *and* the ceremony's own tick gates rolled again on day-boundary ticks (72 % 18 = 0, 72 % 24 = 0), so a ceremony's gossip/tension phases fired twice on boundary days; the daily layer now stands down while a ceremony is running
+- **The valley is lit at founding** — the colony now starts at 08:00 instead of midnight, so the founding scene no longer opens in pitch darkness (settlers arrive to a lit valley with visible water)
 
 ### Performance
 - **One entity index build per tick instead of three** (cadence audit) — the entity-by-type index was rebuilt twice inside `gameTick` plus once for the render catalog; ticks without births/deaths/type-changes now reuse identity-stable buckets and the catalog skips its rebuild. Small measured win (~3% at 1,200 settlers), groundwork for the v0.6 capacity work
