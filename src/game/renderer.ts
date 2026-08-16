@@ -575,6 +575,49 @@ function drawGroundAO(
 }
 
 /**
+ * Procedural level upgrades (no new art) — an upgraded building reads at a
+ * glance: Lv2 gets a warm fresh roof + a chimney, Lv3 a stronger roof and a
+ * soft gold rim. Overlays the footprint rect, safe for every sprite shape.
+ */
+function drawBuildingLevelUpgrades(
+  ctx: CanvasRenderingContext2D,
+  level: number,
+  sx: number,
+  sy: number,
+  w: number,
+  h: number,
+  zoom: number,
+): void {
+  if (level < 2 || w < 6 || h < 6) return;
+  const roofH = Math.max(3, h * 0.2);
+  ctx.save();
+  // Fresh-roof wash across the top of the building
+  ctx.fillStyle = level >= 3 ? 'rgba(251,191,36,0.30)' : 'rgba(251,191,36,0.16)';
+  ctx.fillRect(sx - w / 2, sy - h / 2, w, roofH);
+  // Roof ridge highlight
+  ctx.fillStyle = level >= 3 ? 'rgba(255,242,190,0.55)' : 'rgba(255,242,190,0.32)';
+  ctx.fillRect(sx - w / 2, sy - h / 2, w, Math.max(1, 1.2 * zoom));
+  // Chimney stack, top-right
+  const chW = Math.max(2, w * 0.09);
+  const chH = Math.max(3, roofH * 0.6);
+  const chX = sx + w / 2 - chW * 1.5;
+  ctx.fillStyle = level >= 3 ? '#6f4a2f' : '#8b5e3c';
+  ctx.fillRect(chX, sy - h / 2 - chH * 0.5, chW, chH);
+  ctx.fillStyle = '#e9d9ae';
+  ctx.fillRect(chX, sy - h / 2 - chH * 0.5, chW, Math.max(1, zoom));
+  // Lv3 — soft gold rim so the upgrade reads even zoomed out
+  if (level >= 3) {
+    ctx.strokeStyle = 'rgba(250,204,21,0.35)';
+    ctx.lineWidth = Math.max(1.5, 2 * zoom);
+    ctx.shadowColor = 'rgba(250,204,21,0.6)';
+    ctx.shadowBlur = Math.max(4, 6 * zoom);
+    ctx.strokeRect(sx - w / 2 - 1, sy - h / 2 - 1, w + 2, h + 2);
+    ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+}
+
+/**
  * Level-based visual upgrade without new art: Lv2+ gets a gold trim ring on the
  * raised pad, Lv3+ adds a small gold pennant. Only drawn for player buildings.
  */
@@ -1604,6 +1647,10 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
       ctx.strokeRect(sx - w / 2, sy - h / 2, w, h);
     }
 
+    // Procedural level upgrades — roof/chimney/gold rim so upgrades read at a glance
+    if (b.faction !== 'rival' && !isDecorType(b.type)) {
+      drawBuildingLevelUpgrades(ctx, b.level, sx, sy, w, h, cam.zoom);
+    }
     // Level-based visual upgrade — gold trim from Lv2, pennant from Lv3.
     drawBuildingLevelMark(ctx, b.level, sx, sy, w, h, cam.zoom);
 
@@ -2494,12 +2541,15 @@ function drawNightBuildingGlow(ctx: CanvasRenderingContext2D, state: RenderSnaps
     const isPool = LIGHT_POOL_TYPES.has(b.type) && b.occupants.length > 0;
     const mayGlow = NIGHT_HOME_GLOW_TYPES.has(b.type)
       || (NIGHT_STAFFED_GLOW_TYPES.has(b.type) && b.occupants.length > 0)
-      || isPool;
+      || isPool
+      || b.level >= 3; // upgraded buildings glow softly at night
     if (!mayGlow) continue;
     const residentCount = NIGHT_HOME_GLOW_TYPES.has(b.type) ? b.occupants.length : 0;
     const intensity = isPool
       ? Math.min(0.85, 0.5 + b.level * 0.12)
-      : getNightGlowIntensity(b, residentCount);
+      : b.level >= 3
+        ? 0.3 // Lv3 non-pool glow — modest, reads as "well-kept and lit"
+        : getNightGlowIntensity(b, residentCount);
     if (intensity <= 0) continue;
 
     const sx = (b.x - cam.x) * cam.zoom + cw / 2;

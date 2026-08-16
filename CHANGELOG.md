@@ -10,6 +10,8 @@
 - **⛈️ Weather with real consequences** (game-feel Phase 3.4) — weather is no longer just a tint. Storm days slowly damage your buildings (recoverable with the 🔧 Repair button, halved by Fortification research, never destroying a building); **Drought cuts farm & greenhouse harvests to half**, Rain gives them a small boost
 - **See the storm bite** — when a storm batters your buildings, the damage is now visible on the map: debris particles fly and a ⛈️ warning floats up from each battered roof (not just a toast)
 - **🏔️ 2.5D painted relief** — the valley now reads as a landscape, not colored blocks. Coastlines and rivers get **hand-painted shores** from a painted grass-biome tileset (blob-autotiled grass↔water transitions, mirror-flipped to fill every corner), and **hills and peaks physically rise** out of the plain: raised surfaces with sun-lit edges and shaded cliff faces dropping to the lowland and water below. Buildings, settlers and props **ride the terrain** — nothing floats on slopes. Flat ground, water shimmer, season wash and zoom LOD all unchanged
+- **🪵 Painted dirt hills** — Hills, Rocky and Mountain relief surfaces stamp a hand-painted seamless soil texture (matching the painted coasts)
+- **🔨 Upgrades you can see** — an upgraded building now reads at a glance: **Lv2** grows a warm new roof and a chimney, **Lv3** a stronger roof, a soft gold rim, and a gentle glow at night (on top of the existing gold trim + pennant)
 
 ### Fixed
 - **The herds survive a save/load** — a save made mid-migration used to drop the active herd and its year-to-year memory (the deer then lingered forever as permanent strays); the migration state now rides in the save schema, pinned by a regression test
