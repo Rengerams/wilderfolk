@@ -41,7 +41,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ## Latest update — v0.6.1 (August 17, 2026)
 
-**The valley thinks faster — 1,200 settlers at ~70 ms/tick.**
+**The valley thinks faster — 1,200 settlers at ~38 ms/tick.**
 
 * `GAME_VERSION` **0.6.1**
 * ⚠️ **Beta Save Policy:** This build loads only 0.6.1 saves.
