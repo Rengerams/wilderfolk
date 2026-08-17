@@ -39,7 +39,21 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-## Latest update — v0.6 (August 17, 2026)
+## Latest update — v0.6.1 (August 17, 2026)
+
+**The valley thinks faster — 1,200 settlers at ~70 ms/tick.**
+
+* `GAME_VERSION` **0.6.1**
+* ⚠️ **Beta Save Policy:** this build loads only 0.6.1 saves (0.6 saves are rejected — start a new settlement).
+
+| Area | Highlights |
+|------|------------|
+| 🚀 **Perf gate passed** | 1,200 humans **~192 ms → ~70 ms/tick** (p95 362 → 95 ms); every population tier 200–1,200 is ACCEPTABLE |
+| 🧮 **Smarter social sim** | social queries use a **living-humans-only grid**, **adaptive grid-vs-array scanning**, **staggered ambient scans** (banter/greetings 1-in-6 ticks) and **behavior-specific radii** — the valley feels the same, runs much lighter |
+| 🧩 **Cleaner sim code** | `lifeSimulation.ts` split into domain modules (`simulation/types · entities · relationships`, `humanTick`), grass lives in the daily tick layer, wildlife in the systems layer |
+
+---
+## v0.6 (August 17, 2026)
 
 **Build, flow, and grow: watch the valley transform.**
 

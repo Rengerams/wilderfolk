@@ -1,5 +1,27 @@
 # Changelog
 
+## <u>[0.6.1]</u> — 2026-08-17
+
+**The valley thinks faster — 1,200 settlers at ~70 ms/tick.**
+
+* `GAME_VERSION` **0.6.1**
+* ⚠️ **Beta Save Policy:** this build loads only 0.6.1 saves.
+* **New Start Required:** 0.6 and older saves are rejected — please start a new settlement.
+
+### Performance
+- **Human-only social grid** — social / greeting / courtship / affair queries no longer scan the wildlife-heavy mobile grid; a dedicated living-humans index (64-unit cells) makes the candidate set predictable
+- **Adaptive spatial queries** — each radius query estimates grid-vs-array work and picks the cheaper strategy, so broad settlement-scale scans fall back to a plain array instead of bucket traversal
+- **Staggered ambient social scans** — banter / greeting / impulse-pool / friend searches run 1-in-6 ticks per settler (deterministic buckets); courtship, affairs and gossip stay live
+- **Behavior-specific radii** — greeting 48 · banter 72 · friendship 96 · courtship 90 · affair 120, instead of one population-scaled radius for everything
+- **Result (benchmark, Large map, full sim):** 1,200 humans **~192 ms → ~70 ms avg** (p95 362 → 95 ms); every tier 200–1,200 passes the perf gate
+
+### Technical
+- `lifeSimulation.ts` split into domain modules — `simulation/simulationTypes` (TickContext), `simulation/simulationEntities` (entity bookkeeping), `simulation/humanRelationships` (affairs / courtship / scandal), `humanTick` (tickHumans); grass lives in `tickLayerDaily`, wildlife in `tickLayerSystems`; the monolith is gone
+- `findClosestInRadius` delegates to `forEachInRadius` (single cell-walk implementation); `npm run dup` (jscpd) is clean
+
+### Saves
+- Loads **0.6.1** saves only (exact-version policy); older saves are rejected — start a new settlement.
+
 ## <u>[0.6]</u> — 2026-08-17
 
 **Build, flow, and grow: watch the valley transform.**
