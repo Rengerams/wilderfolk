@@ -83,7 +83,9 @@ import { buildResidenceOccupantIndex, findClosestEntityInRadius, findClosestInEn
 import { addHuntVisual } from './huntvisuals';
 import { inheritSettlerTraits, traitMultiplier } from './settlerTraits';
 import type { TickContext } from './simulation/simulationTypes';
-import { AFFAIR_BUILDING_NEAR_RADIUS, AFFAIR_DAILY_TRYST_RADIUS, AFFAIR_SPOUSE_BLOCK_RADIUS, findCourtshipPartner, getAffairTrystBuilding, getBuildingCenter, hasAffairPartner, humanDisplayName, isAtMaritalHome, isEligibleToCourt, isNearBuilding, isSpouseNearby, isValidAffairTarget, isValidAffairTrystSite, isValidHuntPrey, onScandalCooldown, reconcileAffairPartner, recordAffairTrystSite, shouldLeadAffairPair, tryDailyAffairGossip, tryDailyConception, tryDailyHumanMortality, tryExposeCaughtAffairForPair, tryFormSchoolyardBond, trySchoolyardGossip } from './lifeSimulation';
+import { isValidHuntPrey } from './simulation/simulationEntities';
+import { AFFAIR_BUILDING_NEAR_RADIUS, AFFAIR_DAILY_TRYST_RADIUS, AFFAIR_SPOUSE_BLOCK_RADIUS, findCourtshipPartner, getAffairTrystBuilding, getBuildingCenter, hasAffairPartner, isAtMaritalHome, isEligibleToCourt, isNearBuilding, isSpouseNearby, isValidAffairTarget, isValidAffairTrystSite, onScandalCooldown, reconcileAffairPartner, recordAffairTrystSite, shouldLeadAffairPair, tryDailyAffairGossip, tryDailyConception, tryDailyHumanMortality, tryExposeCaughtAffairForPair, tryFormSchoolyardBond, trySchoolyardGossip } from './simulation/humanRelationships';
+import { humanDisplayName } from './citizenId';
 import { allLivingHumans, clearHuntersTargetingPrey, markWildlifeDead, pushNewEntity, syncEntityGrids } from './simulation/simulationEntities';
 
 /** Live on-screen intimate tryst distance. */

@@ -1,6 +1,13 @@
 import { EntityType, type Entity } from './gameTypes';
 import { HUMAN_CHILDHOOD_DAYS, HUMAN_VENERABLE_AGE } from './dayCycle';
 
+/** Full display name incl. title, with a fallback for nameless entities. */
+export function humanDisplayName(entity: Entity): string {
+  return entity.name
+    ? `${entity.name}${entity.surname ? ` ${entity.surname}` : ''}${entity.title ? ` ${entity.title}` : ''}`
+    : 'A settler';
+}
+
 /** Stable citizen number — same as internal entity id, shown as #123 in the UI. */
 export function formatCitizenId(id: number): string {
   return `#${id}`;

@@ -1,7 +1,7 @@
 import type { WorldState, Entity } from '../gameTypes';
 import { EntityType } from '../gameTypes';
 import type { TickContext } from './simulationTypes';
-import { recordWildlifeBirth, recordGrassBirth } from '../simQueries';
+import { recordWildlifeBirth, recordGrassBirth, recordGrassDeath } from '../simQueries';
 import { syncSpatialGridEntity } from '../spatialGrid';
 import { killHuman, isKillableSettlerEntity } from '../dayCycle';
 
@@ -39,6 +39,28 @@ export function pushNewEntity(state: WorldState, ctx: TickContext, entity: Entit
 }
 
 /** Wildlife tick death — cursed settlers in werewolf form use human widow/building cleanup. */
+export function markGrassDead(ctx: TickContext, grass: Entity): void {
+  if (grass.type !== EntityType.Grass || !grass.alive) return;
+  grass.alive = false;
+  ctx.entityById.delete(grass.id);
+  if (ctx.grassPopulation) recordGrassDeath(ctx.grassPopulation);
+}
+
+export function isValidHuntPrey(
+  prey: Entity,
+  preyType: EntityType,
+  hunterId: number,
+): boolean {
+  if (!prey.alive || prey.id === hunterId) return false;
+  // Tamed animals are colony stock — wildlife and free hunters leave them alone
+  if (prey.tamedBy != null) return false;
+  if (preyType === EntityType.Human) {
+    if (prey.moonHowlerCursed) return false;
+    if (prey.faction === 'visitor' || prey.faction === 'rival') return false;
+  }
+  return true;
+}
+
 export function markWildlifeDead(
   ctx: TickContext,
   entity: Entity,

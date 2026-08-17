@@ -103,7 +103,7 @@ async function main(): Promise<void> {
   for (const id of profile.samples ?? []) counts.set(id, (counts.get(id) ?? 0) + 1);
 
   const lifeRows = profile.nodes
-    .filter((node) => sourceName(node.callFrame.url) === 'lifeSimulation.ts')
+    .filter((node) => /(humanTick|simulation|tickLayerSystems|tickLayerDaily)/.test(sourceName(node.callFrame.url)))
     .map((node) => ({
       name: node.callFrame.functionName || '(anonymous)',
       line: (node.callFrame.lineNumber ?? -1) + 1,
@@ -116,7 +116,7 @@ async function main(): Promise<void> {
   const totalSamples = profile.samples?.length ?? 0;
   console.log(`Population=${POP} ticks=${TICKS} warmup=${WARMUP} | ${FULL_SIM ? 'FULL SIM' : 'focus throttle'} | ecology=${STRIP_ECOLOGY ? 'stripped' : 'preserved'}`);
   console.log(`Wall=${wallMs.toFixed(1)}ms avg=${(wallMs / TICKS).toFixed(2)}ms/tick CPU samples=${totalSamples}`);
-  console.log('\nTop lifeSimulation leaf samples (approximate CPU hotspots):');
+  console.log('\nTop human-sim leaf samples (approximate CPU hotspots):');
   for (const row of lifeRows.slice(0, 30)) {
     const share = totalSamples > 0 ? (row.samples / totalSamples) * 100 : 0;
     console.log(`${row.name.padEnd(42)} line=${String(row.line).padStart(4)} samples=${String(row.samples).padStart(5)} share=${share.toFixed(2).padStart(6)}%`);

@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity } from '../src/game/gameTypes';
-import { trySchoolyardGossip } from '../src/game/lifeSimulation';
+import { trySchoolyardGossip } from '../src/game/simulation/humanRelationships';
 import { getAbsoluteCalendarDay } from '../src/game/dayCycle';
 
 function stubHuman(id: number, overrides: Partial<Entity> = {}): Entity {
