@@ -56,12 +56,20 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 | Humans | avg tick | p95 tick | Gate |
 |--------|----------|----------|------|
-| 200 | 5.5 ms | 7.7 ms | ✅ ACCEPTABLE |
-| 400 | 10.6 ms | 15.0 ms | ✅ ACCEPTABLE |
-| 600 | 18.5 ms | 24.0 ms | ✅ ACCEPTABLE |
-| 800 | 33.1 ms | 45.6 ms | ✅ ACCEPTABLE |
-| 1,000 | 46.7 ms | 69.0 ms | ✅ ACCEPTABLE |
-| 1,200 | 69.7 ms | 94.7 ms | ✅ ACCEPTABLE |
+| 200 | 4.8 ms | 8.1 ms | ✅ ACCEPTABLE |
+| 400 | 7.5 ms | 13.3 ms | ✅ ACCEPTABLE |
+| 600 | 11.7 ms | 18.6 ms | ✅ ACCEPTABLE |
+| 800 | 18.7 ms | 34.0 ms | ✅ ACCEPTABLE |
+| 1,000 | 27.3 ms | 56.0 ms | ✅ ACCEPTABLE |
+| 1,200 | 38.0 ms | 64.8 ms | ✅ ACCEPTABLE |
+| 1,400 | 49.0 ms | 90.9 ms | ✅ ACCEPTABLE |
+| 1,600 | 64.3 ms | 121.0 ms | ✅ ACCEPTABLE |
+| 1,800 | 79.1 ms | 152.8 ms | ✅ ACCEPTABLE |
+| 2,000 | 103.9 ms | 195.0 ms | ✅ ACCEPTABLE |
+| 2,200 | 121.8 ms | 231.5 ms | ✅ ACCEPTABLE |
+| 2,400 | 135.3 ms | 270.6 ms | ✅ ACCEPTABLE |
+| 2,600 | 172.2 ms | 329.3 ms | ✅ ACCEPTABLE |
+| 2,800 | 183.8 ms | 362.9 ms | ⚠️ WATCH |
 
 **Capacity ceiling** (dynamic run, `PERF_STOP_AT=acceptable`): **2,600 settlers** stay ACCEPTABLE (p95 329 ms) — **>2× the pre-0.6.1 capacity**, where 1,200 was already WATCH. **2,800** hits WATCH (p95 363 ms) but stays under the hard budget (667 ms).
 
