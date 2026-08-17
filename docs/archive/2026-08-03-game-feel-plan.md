@@ -1,7 +1,7 @@
 # Wilderfolk — Game Feel & Depth Plan
 
 **Date:** 2026-08-03 · **Branch:** `main` · **Status:** Phase 0–3 all done · Phase 4 done (App split shipped; renames + clone-delta parked with evidence) · 2.5D Painted Relief shipped 2026-08-16
-**Companion docs:** [continuation plan (archived)](../archive/2026-08-02-continuation-plan.md) (agent handoff + what's already done) · [landscape looks research](../private/landscape-looks-research.md) (private) · [terrain manifest](../sprites-terrain-manifest.md)
+**Companion docs:** [continuation plan (archived)](2026-08-02-continuation-plan.md) (agent handoff + what's already done) · [landscape looks research](../private/landscape-looks-research.md) (private) · [terrain manifest](../sprites-terrain-manifest.md)
 
 ---
 

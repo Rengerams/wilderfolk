@@ -169,7 +169,7 @@ Feature table → [ROADMAP.md](ROADMAP.md)
 **The valley scales — kin, beasts, and forge-steel.**
 
 `GAME_VERSION` **0.5.0** · continue colonies from **0.4**.  
-Marketing kit → [docs/MARKETING_v0.5.0.md](docs/MARKETING_v0.5.0.md) · Feature table → [ROADMAP.md](ROADMAP.md) · Archive → [docs/archive/ROADMAP_0.5.0.md](docs/archive/ROADMAP_0.5.0.md)
+Marketing kit → [docs/archive/MARKETING_v0.5.0.md](docs/archive/MARKETING_v0.5.0.md) · Feature table → [ROADMAP.md](ROADMAP.md) · Archive → [docs/archive/ROADMAP_0.5.0.md](docs/archive/ROADMAP_0.5.0.md)
 
 ### Added
 - **Forge tier 5** — Iron Swords, Scale Mail, Bastion Towers

@@ -67,7 +67,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ### What's next
 
-The **game-feel plan is complete** (Phases 0–4 — pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather, App split; renames + clone-delta parked with evidence). On the table: hand-painted **wall/gate building sprites** and v0.6 entity-capacity performance. → [docs/plans/2026-08-03-game-feel-plan.md](docs/plans/2026-08-03-game-feel-plan.md)
+The **game-feel plan is complete** (Phases 0–4 — pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather, App split; renames + clone-delta parked with evidence). On the table: hand-painted **wall/gate building sprites** and v0.6 entity-capacity performance. → [docs/archive/2026-08-03-game-feel-plan.md](docs/archive/2026-08-03-game-feel-plan.md)
 
 ### Prior release — v0.5.3
 
