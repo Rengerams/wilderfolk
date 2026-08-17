@@ -23,6 +23,9 @@
 ### Performance
 - **One entity index build per tick instead of three** (cadence audit) — the entity-by-type index was rebuilt twice inside `gameTick` plus once for the render catalog; ticks without births/deaths/type-changes now reuse identity-stable buckets and the catalog skips its rebuild. Small measured win (~3% at 1,200 settlers), groundwork for the v0.6 capacity work
 
+### Technical
+- **App.tsx split (Phase 4)** — `VisitorCampPanel`, `SelectedEntityPanel`, `BigNewsBanner`, `ActiveEventBanner` and `ShortcutsOverlay` extracted into `src/components/`; App.tsx 2917 → 2270 lines
+
 ---
 
 ## [0.5.4] — 2026-08-13

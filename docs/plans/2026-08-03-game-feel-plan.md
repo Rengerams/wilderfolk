@@ -1,6 +1,6 @@
 # Wilderfolk — Game Feel & Depth Plan
 
-**Date:** 2026-08-03 · **Branch:** `main` · **Status:** Phase 0–3 all done · Phase 4 hygiene parked (see below) · 2.5D Painted Relief shipped 2026-08-16
+**Date:** 2026-08-03 · **Branch:** `main` · **Status:** Phase 0–3 all done · Phase 4 done (App split shipped; renames + clone-delta parked with evidence) · 2.5D Painted Relief shipped 2026-08-16
 **Companion docs:** [continuation plan (archived)](../archive/2026-08-02-continuation-plan.md) (agent handoff + what's already done) · [landscape looks research](../private/landscape-looks-research.md) (private) · [terrain manifest](../sprites-terrain-manifest.md)
 
 ---
@@ -114,9 +114,9 @@ Follow `docs/private/landscape-looks-research.md` exactly: seamless grass/dirt/w
 
 ## 6. Phase 4 — Engineering hygiene (do not block phases 1–3 on this)
 
-- **App.tsx split** (from continuation plan P1 #2) — extract `VisitorCampPanel`, `SelectedEntityPanel`, `BigNewsBanner`, `ActiveEventBanner`, `ShortcutsOverlay`; re-check chunk size after each move.
-- **`structuredClone` delta pattern** in `buildingActions.ts` — only if actions hitch at 300+ pop (measure first with `scripts/perf-*.ts`).
-- **Renames:** `homeBuildingId` → `workplaceBuildingId`; `entity.age` dual-use → `lifeYears`/`lifeDays` (combine with the werewolf age-drift fix in `gameTick.ts`).
+- **✅ App.tsx split** — `VisitorCampPanel`, `SelectedEntityPanel`, `BigNewsBanner`, `ActiveEventBanner`, `ShortcutsOverlay` extracted into `src/components/` (`953c8bb`). App.tsx 2917 → 2270 lines; gates green. Bundle chunk essentially unchanged (all five are eagerly imported by App — extraction is a maintainability win, not a size win).
+- **Parked — `structuredClone` delta pattern** in `buildingActions.ts` — measured (2026-08-16): every action deep-clones the full state; per-click cost ≈ **25 ms @ 100 pop → 28 ms @ 600 pop** (p95 31 ms), dominated by the clone, barely pop-scaled. A visible click-stutter, not a freeze — borderline vs. the "hitches at 300+" gate. The delta refactor reworks 28 action functions with regression risk in the hot action path; parked as optional follow-up with the numbers on record.
+- **Parked — renames** (user decision 2026-08-16): `homeBuildingId` → `workplaceBuildingId` (81 refs) and `entity.age` dual-use → `lifeYears`/`lifeDays`. Both are **persisted in the save schema** — renaming requires save-migration backfills for zero player-visible value. The `entity.age` split is a semantic refactor (days vs years mixed across ~30 sites) and should ride with the werewolf age-drift fix in its own careful session.
 
 ---
 
