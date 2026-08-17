@@ -333,15 +333,17 @@ export class EntitySpatialGrid {
   ): { entity: Entity; distSq: number } | null {
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(radius) || radius < 0) return null;
     // Delegates to forEachInRadius so the radius cell-walk lives in one place.
-    // The predicate prunes on distance to keep the best candidate; the closure
-    // is per-call, not per-candidate, so the hot path stays allocation-free.
+    // Candidate metrics stay predicate-gated (as the original loop did) instead
+    // of counting every distance-passing entity, so grid-vs-naive reports agree.
+    const metrics = isSpatialQueryMetricsEnabled();
     let bestEntity: Entity | undefined;
     let bestDistSq = Number.POSITIVE_INFINITY;
     this.forEachInRadius(x, y, radius, (entity, dSq) => {
       if (dSq >= bestDistSq || !predicate(entity, dSq)) return;
+      if (metrics) recordSpatialCandidate();
       bestEntity = entity;
       bestDistSq = dSq;
-    });
+    }, false);
     return bestEntity ? { entity: bestEntity, distSq: bestDistSq } : null;
   }
 
