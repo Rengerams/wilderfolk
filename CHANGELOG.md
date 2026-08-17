@@ -1,8 +1,9 @@
 # Changelog
 
 ## [0.6] — 2026-08-17
+---
 
-📜 **Build, flow, and grow: watch the valley transform.**📜
+- **Build, flow, and grow: watch the valley transform.**
 
 - `GAME_VERSION` **0.6** · ⚠️ **beta save policy: this build loads only 0.6 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
 
