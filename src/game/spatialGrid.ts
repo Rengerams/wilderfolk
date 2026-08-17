@@ -172,6 +172,23 @@ export class EntitySpatialGrid {
     }
   }
 
+  /**
+   * Reconcile an existing grid without clearing all buckets.
+   * This remains behavior-preserving for teleports, deaths, and births while
+   * avoiding full bucket allocation/reinsertion on every realtime tick.
+   */
+  reconcile(entities: Iterable<Entity>, filter?: (entity: Entity) => boolean): void {
+    const seen = new Set<number>();
+    for (const entity of entities) {
+      if (!entity.alive || (filter && !filter(entity))) continue;
+      seen.add(entity.id);
+      this.update(entity);
+    }
+    for (const id of this.entityCell.keys()) {
+      if (!seen.has(id)) this.removeById(id);
+    }
+  }
+
   hasEntity(id: number): boolean {
     return this.entityCell.has(id);
   }
@@ -229,30 +246,41 @@ export class EntitySpatialGrid {
     fn: (entity: Entity, distSq: number) => void,
     recordCandidates = true,
   ): void {
-    const coords = this.cellCoords(x, y);
-    if (!coords) return;
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(radius) || radius < 0) return;
 
+    // Keep the hot path allocation-free: cellCoords() returns a temporary object,
+    // which is expensive when this query runs tens of thousands of times per tick.
+    const rawCol = Math.floor(x / this.cellSize);
+    const rawRow = Math.floor(y / this.cellSize);
+    const cx = rawCol < 0 ? 0 : rawCol >= this.cols ? this.cols - 1 : rawCol;
+    const cy = rawRow < 0 ? 0 : rawRow >= this.rows ? this.rows - 1 : rawRow;
     const radiusSq = radius * radius;
-    const { col: cx, row: cy } = coords;
     const cellRadius = Math.ceil(radius / this.cellSize);
     const minCol = Math.max(0, cx - cellRadius);
     const maxCol = Math.min(this.cols - 1, cx + cellRadius);
     const minRow = Math.max(0, cy - cellRadius);
     const maxRow = Math.min(this.rows - 1, cy + cellRadius);
-    if (isSpatialQueryMetricsEnabled()) {
+    const metrics = isSpatialQueryMetricsEnabled();
+
+    if (metrics) {
       recordSpatialCells(null, (maxCol - minCol + 1) * (maxRow - minRow + 1));
     }
 
+    const cols = this.cols;
+    const cells = this.cells;
     for (let row = minRow; row <= maxRow; row++) {
+      const rowOffset = row * cols;
       for (let col = minCol; col <= maxCol; col++) {
-        const bucket = this.cells[this.cellIndex(col, row)];
-        for (const entity of bucket) {
+        const bucket = cells[rowOffset + col];
+        for (let i = 0; i < bucket.length; i++) {
+          const entity = bucket[i];
           if (!entity.alive) continue;
-          const dSq = distSq(x, y, entity.x, entity.y);
-          if (dSq <= radiusSq) {
-            if (recordCandidates && isSpatialQueryMetricsEnabled()) recordSpatialCandidate();
-            fn(entity, dSq);
-          }
+          const dx = entity.x - x;
+          const dy = entity.y - y;
+          const dSq = dx * dx + dy * dy;
+          if (dSq > radiusSq) continue;
+          if (recordCandidates && metrics) recordSpatialCandidate();
+          fn(entity, dSq);
         }
       }
     }
@@ -293,13 +321,45 @@ export class EntitySpatialGrid {
     radius: number,
     predicate: (entity: Entity, distSq: number) => boolean,
   ): { entity: Entity; distSq: number } | null {
-    let best: { entity: Entity; distSq: number } | null = null;
-    this.forEachInRadius(x, y, radius, (entity, dSq) => {
-      if (!entity.alive || !predicate(entity, dSq)) return;
-      if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate();
-      if (!best || dSq < best.distSq) best = { entity, distSq: dSq };
-    }, false);
-    return best;
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(radius) || radius < 0) return null;
+
+    const rawCol = Math.floor(x / this.cellSize);
+    const rawRow = Math.floor(y / this.cellSize);
+    const cx = rawCol < 0 ? 0 : rawCol >= this.cols ? this.cols - 1 : rawCol;
+    const cy = rawRow < 0 ? 0 : rawRow >= this.rows ? this.rows - 1 : rawRow;
+    const radiusSq = radius * radius;
+    const cellRadius = Math.ceil(radius / this.cellSize);
+    const minCol = Math.max(0, cx - cellRadius);
+    const maxCol = Math.min(this.cols - 1, cx + cellRadius);
+    const minRow = Math.max(0, cy - cellRadius);
+    const maxRow = Math.min(this.rows - 1, cy + cellRadius);
+    const metrics = isSpatialQueryMetricsEnabled();
+    if (metrics) {
+      recordSpatialCells(null, (maxCol - minCol + 1) * (maxRow - minRow + 1));
+    }
+
+    let bestEntity: Entity | undefined;
+    let bestDistSq = Number.POSITIVE_INFINITY;
+    const cols = this.cols;
+    const cells = this.cells;
+    for (let row = minRow; row <= maxRow; row++) {
+      const rowOffset = row * cols;
+      for (let col = minCol; col <= maxCol; col++) {
+        const bucket = cells[rowOffset + col];
+        for (let i = 0; i < bucket.length; i++) {
+          const entity = bucket[i];
+          if (!entity.alive) continue;
+          const dx = entity.x - x;
+          const dy = entity.y - y;
+          const dSq = dx * dx + dy * dy;
+          if (dSq > radiusSq || dSq >= bestDistSq || !predicate(entity, dSq)) continue;
+          if (metrics) recordSpatialCandidate();
+          bestEntity = entity;
+          bestDistSq = dSq;
+        }
+      }
+    }
+    return bestEntity ? { entity: bestEntity, distSq: bestDistSq } : null;
   }
 
   /** Returns entities missing from grid or duplicated / stale entries (single linear pass). */
@@ -586,7 +646,7 @@ export function buildRoadAvoidanceIndex(
   return new RoadAvoidanceIndex(mapWidth, mapHeight, roads);
 }
 
-/** Rebuild (or allocate) the mobile layer once per sim tick. */
+/** Rebuild once, then incrementally reconcile the mobile layer each sim tick. */
 export function syncMobileSimGrid(
   existing: EntitySpatialGrid | undefined,
   mapWidth: number,
@@ -595,7 +655,8 @@ export function syncMobileSimGrid(
 ): EntitySpatialGrid | undefined {
   if (!USE_SPATIAL_GRID) return undefined;
   const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, MOBILE_CELL_SIZE);
-  grid.rebuild(entities, isMobileGridEntity);
+  if (grid !== existing) grid.rebuild(entities, isMobileGridEntity);
+  else grid.reconcile(entities, isMobileGridEntity);
   return grid;
 }
 

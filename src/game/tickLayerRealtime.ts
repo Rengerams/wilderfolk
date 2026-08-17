@@ -101,14 +101,29 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
   if (moonResult.changed) {
     ctx.byType = moonResult.byType;
     ctx.playerHumans = ctx.byType[EntityType.Human].filter(isPlayerHuman);
+    // Only rebuild this derived array when moonhowler transitions actually
+    // change the type index. Rebuilding it every tick allocates and scans the
+    // same human/wildlife arrays before tickHumans even starts.
+    ctx.predators = rebuildPredators(ctx.byType, ctx.playerHumans);
   }
-  ctx.predators = rebuildPredators(ctx.byType, ctx.playerHumans);
 
-  if (aliveEntities.some(isActiveMoonHowler)) {
-    syncResidenceOccupants(
-      aliveEntities.filter(isResidenceOccupantEntity),
-      ctx.updatedBuildings,
-    );
+  // Avoid two full aliveEntities passes in the common case. The residence
+  // synchronization is needed only while a moon howler is active.
+  let activeMoonHowler = false;
+  if (aliveEntities.length > 0) {
+    for (const entity of aliveEntities) {
+      if (isActiveMoonHowler(entity)) {
+        activeMoonHowler = true;
+        break;
+      }
+    }
+  }
+  if (activeMoonHowler) {
+    const occupants: Entity[] = [];
+    for (const entity of aliveEntities) {
+      if (isResidenceOccupantEntity(entity)) occupants.push(entity);
+    }
+    syncResidenceOccupants(occupants, ctx.updatedBuildings);
   }
 
   if (maybeTriggerRenffrOmen(state, state.entities, isNightHour(ctx.hourOfDay))) {

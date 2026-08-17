@@ -39,9 +39,9 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-## Latest update — v0.5.4.2 (August 17, 2026)
+## Latest update — v0.6 (August 17, 2026)
 
-**Playing `GAME_VERSION` 0.5.4.2** — ⚠️ **beta save policy: this build loads only 0.5.4.2 saves** (historical-save compatibility dropped — a save from any older build is rejected; start a new settlement). Full notes → [CHANGELOG.md](CHANGELOG.md)
+**Playing `GAME_VERSION` 0.6** — ⚠️ **beta save policy: this build loads only 0.5.4.2 saves** (historical-save compatibility dropped — a save from any older build is rejected; start a new settlement). Full notes → [CHANGELOG.md](CHANGELOG.md)
 
 | Area | Highlights |
 |------|------------|
@@ -52,6 +52,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | **🌊 Rivers look like rivers** | New maps carve **whole-tile water bands 3–5 tiles across** (not 1-tile threads), the thin blue "stream" stroke is gone, and **Riverlands & Coastal valleys finally get rivers** at all |
 | **🔨 Upgrades you can see** | Lv2 buildings grow a warm new roof + chimney, Lv3 a stronger roof, a gold rim and a soft glow at night — upgrades read at a glance |
 | **⛈️ Storm damage you can see** | When a storm batters buildings, debris flies and a warning floats up from each battered roof — and the colony now **founds at 08:00**, not midnight |
+| **Quality** | pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather, App split updated |
 
 ### Previous release — v0.5.4.1 (August 17)
 
@@ -69,7 +70,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ### What's next
 
-The **game-feel plan is complete** (Phases 0–4 — pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather, App split; renames + clone-delta parked with evidence). On the table: hand-painted **wall/gate building sprites** and v0.6 entity-capacity performance. → [docs/archive/2026-08-03-game-feel-plan.md](docs/archive/2026-08-03-game-feel-plan.md)
+(Phases 0–4 — (docs/archive/2026-08-03-game-feel-plan.md)
 
 ### Prior release — v0.5.3
 

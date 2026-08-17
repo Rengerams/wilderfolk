@@ -1829,12 +1829,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && isPlayerHuman(entity)
       && !entity.faction
       && (entity.chatTicks ?? 0) <= 0
+      // v0.6 perf: stagger the ambient-chat grid scan 3× (flavor-only; the chance
+      // below is tripled so the expected dialogue rate stays identical).
+      && (state.tick + entity.id) % 3 === 0
     ) {
       tryAmbientRandomDialogue(
         entity,
         ambientChatNeighbors(entity),
         state.tick,
-        0.012 * PER_TICK_RATE_SCALE,
+        0.036 * PER_TICK_RATE_SCALE,
         chatHints,
         {
           pregnant: !!entity.pregnant,
@@ -3032,12 +3035,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
       // --- Human motives (sick, grief, weather, Sunday, errands, care…) ---
       // Grid query instead of an O(H) distance filter per free-roaming human.
+      // v0.6 perf: radius 1.5x → 1.1x socialScanRadius (4.4 cells) — the nearby pool
+      // stays rich at village density; the visited area at clustered scale drops ~1.8x.
       const nearbyAdults: Entity[] = [];
       forEachInEntityGrid(
         mobileGrid,
         entity.x,
         entity.y,
-        socialScanRadius * 1.5,
+        socialScanRadius * 1.1,
         (h) => {
           if (h.alive && isPlayerHuman(h) && !h.isJuvenile) nearbyAdults.push(h);
         },

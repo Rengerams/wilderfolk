@@ -502,14 +502,15 @@ export class GameWorkerHost {
   }
 }
 
-/** Sim worker is opt-in — main-thread ticks by default (stable everywhere). */
+/** Sim worker is default-on — opt OUT via `VITE_USE_GAME_WORKER=0` (slow 10× ticks stop freezing the UI). */
 export function isGameWorkerEnabled(): boolean {
   if (typeof Worker === 'undefined') return false;
   const v = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_USE_GAME_WORKER : undefined;
-  if (v === true || v === 1) return true;
+  if (v === false || v === 0) return false;
   if (typeof v === 'string') {
     const normalized = v.trim().toLowerCase();
-    return normalized === '1' || normalized === 'true' || normalized === 'on' || normalized === 'yes';
+    if (normalized === '0' || normalized === 'false' || normalized === 'off' || normalized === 'no') return false;
+    return true;
   }
-  return false;
+  return true;
 }

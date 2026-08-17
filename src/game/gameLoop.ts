@@ -214,7 +214,7 @@ export class GameLoop {
 
   /**
    * True when sim ticks/commands are authoritative on the Web Worker (heavy work off main).
-   * False by default — the worker is opt-in via `VITE_USE_GAME_WORKER=1`.
+   * Default-on since v0.6 — opt out via `VITE_USE_GAME_WORKER=0` (slow 10x ticks stop freezing the UI).
    */
   isUsingSimWorker(): boolean {
     return this.workerEnabled && !!this.workerHost?.isReady();

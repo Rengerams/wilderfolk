@@ -11,6 +11,10 @@ import { logEvent } from './eventLog';
 const friendKey = (id: number) => `friend_${id}`;
 const feudKey = (id: number) => `feud_${id}`;
 
+/** Cap all-pairs friendship bumps per shared group — a pathological group (e.g. the
+ * whole colony sharing one home) must not cost O(H²) per day. */
+const PAIR_BUDGET = 40;
+
 export function friendshipScore(e: Entity, otherId: number): number {
   return e.friendships?.[friendKey(otherId)] ?? 0;
 }
@@ -70,11 +74,13 @@ export function advanceSocialRelationships(state: WorldState, allAlive: Entity[]
     }
   };
 
-  // Shared home and shared job draw people together.
+  // Shared home and shared job draw people together (bounded to PAIR_BUDGET members
+  // so an absurdly large shared group cannot explode to O(H²) pair work).
   for (const group of [...homeGroups.values(), ...jobGroups.values()]) {
     if (group.length < 2) continue;
-    for (let i = 0; i < group.length; i++) {
-      for (let j = i + 1; j < group.length; j++) bump(group[i], group[j], 0.6);
+    const capped = group.length > PAIR_BUDGET ? group.slice(0, PAIR_BUDGET) : group;
+    for (let i = 0; i < capped.length; i++) {
+      for (let j = i + 1; j < capped.length; j++) bump(capped[i], capped[j], 0.6);
     }
   }
   // Childhood school bonds stay warm.

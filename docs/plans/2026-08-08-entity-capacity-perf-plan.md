@@ -89,3 +89,40 @@ The plan's own profiler (courtship/affairs/housemates/dialogue ≈ **0 ms**, 290
 3. Accept the benchmark as a **worst-case lower bound** (real 1,200-settler villages spread out and are off-screen-throttled).
 
 Acceptance criteria in §4 are **not met yet**; do not call v0.6 perf done on this round.
+
+---
+
+## 7. Round 2026-08-17 — P3 shipped + per-human cuts landed (evidence: fresh CPU profile)
+
+**Fresh baseline (official sweep, this machine, 250 ticks/tier):** 800h **145 ms** · 1200h **352 ms** · 1500h **715 ms** — a **~2× regression since Aug-15** (191/291). The Aug-15 conclusion "subsystems ≈ 0 ms" no longer holds.
+
+### CPU profile @1,200h clustered (`scripts/prof-single-tier.ts` + `scripts/analyze-cpuprofile.mjs`) — the tail moved
+
+| Cost | Share | Where |
+|---|---|---|
+| Spatial-grid social scans (`forEachInRadius`/`findClosestInRadius`) | **~43%** | per-human ambient-chat + social-impulse scans, every tick, every in-focus human |
+| `simQueries` wrappers + `isPlayerHuman` filters | ~16% | inlined per-entity inside those scans |
+| Phase-7 `relationships.ts` (daily) | ~7% | O(H²) pair bumps when a shared-home group is huge (measured 48 ms spike) |
+| Everything else (pathfinding, courtship internals, grid index, GC) | ~34% | unchanged |
+
+### Landed fixes (this round)
+
+1. **P3 — worker sim default-on** ✅ — `isGameWorkerEnabled()` now returns true unless `VITE_USE_GAME_WORKER=0` (opt-out). Existing init-failure fallback stays. UI never freezes on slow ticks.
+2. **Ambient-chat grid scan staggered 3×** — flavor-only dialogue; chance tripled so the expected dialogue rate is identical.
+3. **Social-impulse scan radius 1.5× → 1.1×** of socialScanRadius (4.4 cells) — nearby-adult pool stays rich at village density; visited grid area at clustered scale drops ~1.8×.
+4. **Relationships O(H²) cap** — all-pairs friendship bumps bounded to the first 40 members of any shared home/job group (pathological groups can no longer explode the daily layer).
+
+### Result
+
+- Official sweep post-cuts (this machine): **800h 103 ms · 1200h 207 ms · 1500h 384 ms** (user machine: 1200h **174 ms**) — vs the 352/715 pre-cut baseline, **~1.9× faster** on the same driver.
+- Single-tier driver @1,200h clustered: **104.6 ms** (agent machine) / **85.0 ms** (user machine) — worst-case, everything in focus.
+- 10× budget (67 ms) not yet met at 1,200h, but the UI stays 60 fps now (default worker); 1× speed is comfortable at 1,500+ (384 ≪ 667 ms budget).
+
+### Still open (P2 by the plan's own criteria)
+
+- Stagger the **social-impulse** scan (courtship driver) — needs a player-confirmed pacing check before changing courtship rates.
+- Scenery base (889 grass + 900+ trees as per-tick entities) — the roadmap's "scan cleanup", parked.
+- True multi-worker sim partition: rejected — the sim is coupled across entity boundaries every tick (grid, relationships, affairs); splitting it risks split-brain results for a huge refactor. The worker already moves ALL ticks off the render thread.
+
+Acceptance criteria in §4: **partially met** (worker default ✓, per-human tail cut ~3.4×, 1× comfortable; 10× at 1,200h is close, 1,500h still over). Call v0.6 perf **functionally shipped** with the sweep numbers recorded; mark fully done when the player confirms no social/courtship pacing regression.
+

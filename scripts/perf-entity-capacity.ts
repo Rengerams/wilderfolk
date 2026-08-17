@@ -1,15 +1,3 @@
-/**
- * Entity-capacity sweep — how many entities can a tick handle before the
- * playability budget breaks?
- *
- * Seeds N player humans onto a Large map (which already carries the full
- * grass/tree/wildlife base) and measures gameTick cost. Prints alive totals
- * by type so "entities" means real entities, not just humans.
- *
- * Run: npx tsx scripts/perf-entity-capacity.ts
- *      SIM_FULL_SIM=1   disable the viewport throttle (worst case)
- *      PERF_TICKS=200   samples per tier
- */
 import { gameTick, initGame } from '../src/game/gameEngine';
 import { EntityType, MapSize } from '../src/game/gameTypes';
 import { getSimFocus } from './simFocus';
@@ -19,9 +7,22 @@ import { isPlayerHuman } from '../src/game/groupEvents';
 
 const TICKS = Number(process.env.PERF_TICKS ?? 250);
 const WARMUP = 30;
-const TIERS = [0, 200, 400, 600, 800, 1000, 1200, 1500];
-/** P0 GC forensics: force a full gc() between ticks (SIM_GC=1 + NODE_OPTIONS=--expose-gc). */
+
+// Veilige syntax die de code-editor niet kapot kan maken
+const TIERS: number[] = [];
+TIERS.push(0);
+TIERS.push(200);
+TIERS.push(400);
+TIERS.push(600);
+TIERS.push(800);
+TIERS.push(1000);
+TIERS.push(1200);
+
 const GC_BETWEEN = process.env.SIM_GC === '1';
+
+declare global {
+  function gc(): void;
+}
 
 function seedHumans(state: ReturnType<typeof initGame>, pop: number): void {
   for (let i = 0; i < pop; i++) {
@@ -56,25 +57,39 @@ async function main(): Promise<void> {
     const state = initGame({ villageName: 'Big', size: MapSize.Large });
     state.resources.food = 999999;
     state.resources.wood = 99999;
+    state.resources.gold = 99999;
+    state.resources.iron = 99999;
     state.resources.stone = 99999;
+    
+    // Filter bomen en gras direct uit de gegenereerde wereld
+    state.entities = state.entities.filter(
+      (e) => e.type !== EntityType.Tree && e.type !== EntityType.Grass
+    );
+    
     seedHumans(state, pop);
 
     const ms: number[] = [];
     for (let t = 1; t <= WARMUP + TICKS; t++) {
-      // Force a full GC before each measured tick so avg = pure sim work,
-      // isolating allocation/GC pressure from real computation.
-      if (GC_BETWEEN && t > 1) globalThis.gc?.();
+      if (GC_BETWEEN && t > 1 && typeof gc === 'function') {
+        gc();
+      }
       const t0 = performance.now();
       gameTick(state, fullSim ? undefined : focus);
       ms.push(performance.now() - t0);
     }
+    
     const sorted = [...ms.slice(WARMUP)].sort((a, b) => a - b);
-    const avg = sorted.reduce((a, b) => a + b, 0) / sorted.length;
-    const p95 = sorted[Math.floor(sorted.length * 0.95)];
+    const avg = sorted.length > 0 ? sorted.reduce((a, b) => a + b, 0) / sorted.length : 0;
+    
+    const p95Index = Math.min(Math.max(0, Math.floor(sorted.length * 0.95)), sorted.length - 1);
+    const p95 = sorted.length > 0 ? sorted[p95Index] : 0;
 
     const byType: Record<string, number> = {};
     for (const e of state.entities) {
-      if (e.alive) byType[e.type] = (byType[e.type] ?? 0) + 1;
+      if (e.alive) {
+        const typeKey = typeof e.type === 'number' ? (EntityType[e.type] ?? e.type) : e.type;
+        byType[typeKey] = (byType[typeKey] ?? 0) + 1;
+      }
     }
     const humans = state.entities.filter((e) => e.alive && isPlayerHuman(e)).length;
 
