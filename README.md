@@ -52,7 +52,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | **🌊 Rivers look like rivers** | New maps carve **whole-tile water bands 3–5 tiles across** (not 1-tile threads), the thin blue "stream" stroke is gone, and **Riverlands & Coastal valleys finally get rivers** at all |
 | **🔨 Upgrades you can see** | Lv2 buildings grow a warm new roof + chimney, Lv3 a stronger roof, a gold rim and a soft glow at night — upgrades read at a glance |
 | **⛈️ Storm damage you can see** | When a storm batters buildings, debris flies and a warning floats up from each battered roof — and the colony now **founds at 08:00**, not midnight |
-| **Quality** | pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather, App split updated |
+| **Quality** |  pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather, App split updated
 
 ### Previous release — v0.5.4.1 (August 17)
 
