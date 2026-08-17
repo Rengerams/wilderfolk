@@ -84,7 +84,6 @@ export function useContextualTutorial(world: WorldState, enabled: boolean) {
     world.entities,
     world.buildings,
     world.challenges,
-    world.victories,
     world.festival,
     active,
   ]);

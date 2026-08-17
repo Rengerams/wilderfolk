@@ -10,7 +10,6 @@ import {
   DEFAULT_WORKSHOP_RECIPE_ID,
 } from './gameTypes';
 import { generateWorldMap, findCampSite } from './terrainGen';
-import { createInitialVictories } from './victory';
 import { loadAutoSavePreference } from './preferences';
 import { ensureNamesLoaded, getRandomName, getRandomSurname } from './nameLoader';
 import {
@@ -395,8 +394,6 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     pendingRaidEvents: [],
     pendingOutgoingRaidEvents: [],
     tutorialSeen: [],
-    victories: createInitialVictories(),
-    victoryAchieved: null,
     ecoHealthYearsAbove80: 0,
     firstWeekVisitorSpawned: false,
     villageLeaderId: null,

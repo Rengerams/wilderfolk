@@ -34,8 +34,7 @@ export type ContextualTutorialId =
   | 'first_marriage'
   | 'festival_started'
   | 'leadership_election'
-  | 'first_challenge_done'
-  | 'victory_progress';
+  | 'first_challenge_done';
 
 export interface ContextualTutorialTip {
   id: ContextualTutorialId;
@@ -247,13 +246,6 @@ export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutori
     detail: 'Challenges in Progress → Goals reward resources for milestones. They guide early priorities without forcing a single storyline.',
     action: { label: 'Goals', id: 'open_goals' },
   },
-  victory_progress: {
-    id: 'victory_progress',
-    icon: '🏆',
-    title: 'Victory path advancing',
-    detail: 'Progress → Goals lists four legacies: Eco-Utopia (250 + eco), Great City (400 + 60 buildings), Trade Empire (7 walking caravan routes, 40 trips, 50k trade gold), Harmony (8 wild wolves + 15 wildkin). Expand “How each path works” for detail.',
-    action: { label: 'Victory paths', id: 'open_goals' },
-  },
 };
 
 const VISITOR_TOPIC: Record<VisitorKind, ContextualTutorialId> = {
@@ -311,7 +303,6 @@ export function seedTutorialSeenForExistingState(state: WorldState): string[] {
   }
   if (state.festival?.active) seen.add('festival_started');
   if (state.challenges.some((c) => c.completed)) seen.add('first_challenge_done');
-  if (state.victories.some((v) => v.progress >= 25)) seen.add('victory_progress');
   if (state.villageLeaderId != null && state.lastElectionYear > 0) seen.add('leadership_election');
 
   return [...seen];
@@ -450,11 +441,6 @@ export function detectContextualTutorials(
   const prevChallengesDone = prev.challenges.filter((c) => c.completed).length;
   const currChallengesDone = curr.challenges.filter((c) => c.completed).length;
   if (currChallengesDone > prevChallengesDone) queue('first_challenge_done');
-
-  const crossedVictory = curr.victories.find(
-    (v) => v.progress >= 25 && (prev.victories.find((pv) => pv.path === v.path)?.progress ?? 0) < 25,
-  );
-  if (crossedVictory) queue('victory_progress');
 
   return tips;
 }

@@ -15,7 +15,6 @@ import {
   assignMissingResidences,
 } from './dayCycle';
 import { mergeCombatResearchNodes } from './combat';
-import { createInitialVictories, computeVictoryProgress } from './victory';
 import { loadAutoSavePreference, saveAutoSavePreference } from './preferences';
 import { logEvent, syncEventLogIdFromState } from './eventLog';
 import { pickHumanVariant } from './humanSprites';
@@ -317,8 +316,6 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
       foodSpoilageRate: worldData.foodSpoilageRate ?? 0.03,
       eventLog: worldData.eventLog || [],
       worldMap: restoreWorldMapFromSave(parsed),
-      victories: worldData.victories ?? createInitialVictories(),
-      victoryAchieved: worldData.victoryAchieved ?? null,
       ecoHealthYearsAbove80: worldData.ecoHealthYearsAbove80 ?? 0,
       firstWeekVisitorSpawned: worldData.firstWeekVisitorSpawned ?? false,
       visitorGroups: (worldData.visitorGroups ?? []).map((g) => ({
@@ -499,7 +496,6 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
       };
     });
 
-    world.victories = computeVictoryProgress(world);
     world.tutorialSeen = seedTutorialSeenForExistingState({
       ...world,
       tutorialSeen: (parsed.tutorialSeen as string[] | undefined) ?? [],

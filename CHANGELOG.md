@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.5.4.2] — 2026-08-17
+
+**The valley rises — painted relief, rivers that run, and upgrades you can see. Victory paths removed for redesign.**
+
+`GAME_VERSION` **0.5.4.2** · ⚠️ **beta save policy: this build loads only 0.5.4.2 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
+
+### Removed
+- **Victory paths removed** (redesign) — the four hard win conditions (Eco-Utopia, Great City, Trade Empire, Harmony) are gone: they were not well thought out as end conditions and locked the sandbox into arbitrary targets. The game is now a **pure frontier sandbox** — no forced win, no victory banners; optional Challenges keep rewarding milestones, and the **village portrait** ("how history sees you") remains the live story readout. The system is slated for a proper redesign later.
+
 ## [0.5.4.1] — 2026-08-17
 
 **The valley rises — painted relief, rivers that run, and upgrades you can see.**

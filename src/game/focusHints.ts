@@ -1,7 +1,6 @@
 import type { WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { getLivePlayerPopulation, getTotalBeds } from './populationGrowth';
-import { ACTIVE_VICTORY_PATHS } from './victory';
 import { getVillageLeader, getYearsUntilElection, formatSettlerName } from './villageLeadership';
 import { hasIronSpears, hasStoneSpears } from './combat';
 import { formatRaidDeadline } from './frontierCombat';
@@ -61,16 +60,6 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
     (b) => b.completed && (b.type === BuildingType.House || b.type === BuildingType.Mansion),
   ).length;
 
-  if (state.victoryAchieved) {
-    const won = state.victories.find((v) => v.path === state.victoryAchieved);
-    hints.push({
-      icon: '🏆',
-      title: `Victory: ${won?.label ?? 'Legacy achieved'}`,
-      detail: 'You won — keep playing to shape the chronicle, or start a new map with a different path.',
-    });
-    return hints.slice(0, 4);
-  }
-
   const beds = getTotalBeds(state);
   const pop = getLivePlayerPopulation(state);
   const overcrowded = humans > 0 && pop > beds;
@@ -93,26 +82,6 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
       title: nextChallenge.title,
       detail: `${nextChallenge.description}${nextChallenge.rewardText ? ` · Reward: ${nextChallenge.rewardText}` : ''}`,
       action: { label: 'View challenge', id: 'open_goals' },
-    });
-  }
-
-  const activeLegacies = state.victories
-    .filter((v) => ACTIVE_VICTORY_PATHS.includes(v.path as (typeof ACTIVE_VICTORY_PATHS)[number]) && !v.achieved)
-    .sort((a, b) => b.progress - a.progress);
-
-  if (activeLegacies[0]) {
-    const v = activeLegacies[0];
-    const legacyIcon = {
-      eco_utopia: '🌿',
-      great_city: '🏰',
-      trade_empire: '💰',
-      harmony: '🐺',
-    }[v.path] ?? '🎯';
-    hints.push({
-      icon: legacyIcon,
-      title: `Win condition: ${v.label}`,
-      detail: `${v.description} — ${v.progress}% complete.`,
-      action: { label: 'Victory paths', id: 'open_goals' },
     });
   }
 

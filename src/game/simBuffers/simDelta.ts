@@ -97,8 +97,6 @@ export interface SimTickDelta {
   researchProgress: number;
   activeResearch: string | null;
   challenges: WorldState['challenges'];
-  victories: WorldState['victories'];
-  victoryAchieved: WorldState['victoryAchieved'];
   tradeRoutes: WorldState['tradeRoutes'];
   disasters: WorldState['disasters'];
   villageForge: WorldState['villageForge'];
@@ -258,8 +256,6 @@ export function extractSimTickDelta(
     researchProgress: world.researchProgress,
     activeResearch: world.activeResearch,
     challenges: deltaClone(world.challenges, cloneMode),
-    victories: deltaClone(world.victories, cloneMode),
-    victoryAchieved: world.victoryAchieved,
     tradeRoutes: deltaClone(world.tradeRoutes, cloneMode),
     disasters: deltaClone(world.disasters, cloneMode),
     villageForge: deltaClone(world.villageForge, cloneMode),
@@ -353,8 +349,6 @@ export function applySimTickDelta(
   world.researchProgress = delta.researchProgress;
   world.activeResearch = delta.activeResearch;
   world.challenges = deltaClone(delta.challenges, cloneMode);
-  world.victories = deltaClone(delta.victories, cloneMode);
-  world.victoryAchieved = delta.victoryAchieved;
   world.tradeRoutes = deltaClone(delta.tradeRoutes, cloneMode);
   world.disasters = deltaClone(delta.disasters, cloneMode);
   world.villageForge = deltaClone(delta.villageForge, cloneMode);

@@ -48,7 +48,7 @@ export const GUIDE_HELP_TOPICS: GuideHelpTopic[] = [
   {
     id: 'win',
     title: 'Winning / goals',
-    keywords: 'win victory legacy goals barbarian end game how to win',
+    keywords: 'win goals end game how to win',
     body: 'There is no required win. Progress → Goals shows how history sees you (war, nature, trade, build, diplomacy). Challenges are optional rewards.',
   },
   {

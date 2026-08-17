@@ -15,8 +15,6 @@ import {
   EntityType,
 } from './gameTypes';
 import { recordYearlyStats, updateLifetimeStats } from './stats';
-import { checkVictoryAchievements } from './victory';
-import { logEvent } from './eventLog';
 import { ensureEntityByIdMap } from './entityIndex';
 import { getGrassGrowthMultiplier, getWinterEnergyPenalty } from './grassEcology';
 import {
@@ -35,11 +33,6 @@ import {
   getSeason,
   getReproductionMultiplier,
 } from './simHelpers';
-import {
-  impulseScreenShake,
-  addNotification,
-  addBigNews,
-} from './simEffects';
 import { countWorkingAndIdleSettlers } from './workforce';
 import { isPlayerHuman } from './playerHuman';
 import type { TickContext } from './lifeSimulation';
@@ -242,38 +235,6 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   const workforceCounts = countWorkingAndIdleSettlers(endTickHumans, updatedBuildings);
   state.workingSettlers = workforceCounts.working;
   state.idleSettlers = workforceCounts.idle;
-
-  // Victory scan is O(entities) for harmony wolves — every assign pulse / day, not every tick
-  if (state.tick % LAYER_ASSIGN_INTERVAL === 0 || state.tick % TICKS_PER_DAY === 0) {
-    const preVictoryState: WorldState = {
-      ...state,
-      entities: allAlive,
-      buildings: updatedBuildings,
-      humanPopulation: counts.humans,
-      ecoHealthYearsAbove80: state.ecoHealthYearsAbove80,
-    };
-    const victoryResult = checkVictoryAchievements(preVictoryState);
-    if (victoryResult.newlyAchieved) {
-      const def = victoryResult.victories.find((v) => v.path === victoryResult.newlyAchieved);
-      addBigNews(
-        state,
-        `🏆 ${def?.label ?? 'Victory'}!`,
-        def?.description ?? 'Your settlement has achieved greatness!',
-        'positive',
-      );
-      addNotification(
-        state,
-        'Victory Achieved!',
-        `${def?.label ?? 'Victory'} — your legacy is secured!`,
-        'success',
-        { x: state.width / 2, y: state.height / 2 },
-      );
-      impulseScreenShake(state, 6);
-      logEvent(state, 'season', `Victory: ${def?.label ?? victoryResult.newlyAchieved}`);
-    }
-    state.victories = victoryResult.victories;
-    state.victoryAchieved = victoryResult.victoryAchieved;
-  }
 
   reconcileOrphanedMarriages(allAlive);
   // Deaths/births during the tick — rebuild type buckets only when the

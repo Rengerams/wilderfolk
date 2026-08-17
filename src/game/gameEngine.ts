@@ -13,7 +13,7 @@
 export type {
   WorldState, Entity, EntityByType, Building, DeathParticle,
   FloatingText, GameEvent, Camera, WorkshopRecipe,
-  VictoryPath, VictoryProgress, GameState,
+  GameState,
 } from './gameTypes';
 export {
   EntityType, BuildingType, Season, WeatherType, ResearchType, BUILDING_CONFIGS,
@@ -97,7 +97,6 @@ export { gameTick } from './gameTick';
 export { generateWorldMap } from './terrainGen';
 export { recordYearlyStats, updateLifetimeStats, drawBarChart, drawLineChart } from './stats';
 export type { YearlyStats, LifetimeStats } from './stats';
-export { createInitialVictories, computeVictoryProgress, VICTORY_DEFINITIONS } from './victory';
 export { logEvent } from './eventLog';
 export {
   sendRivalGift, establishRivalTradePact, showStrengthToRival,

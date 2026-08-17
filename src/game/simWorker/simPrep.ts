@@ -38,7 +38,6 @@ type SimPrepKeys =
   | 'tradeRoutes'
   | 'villageForge'
   | 'challenges'
-  | 'victories'
   | 'festival'
   | 'townHallFestivalCooldownUntilTick'
   | 'villageLeaderId'
@@ -88,7 +87,6 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     tradeRoutes: [...(state.tradeRoutes ?? [])],
     villageForge: normalizeForgeState(state.villageForge),
     challenges: [...(state.challenges ?? [])],
-    victories: [...(state.victories ?? [])],
     festival: state.festival ? { ...state.festival } : null,
     townHallFestivalCooldownUntilTick: state.townHallFestivalCooldownUntilTick ?? 0,
     villageLeaderId: state.villageLeaderId,
@@ -141,7 +139,6 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.tradeRoutes = prep.tradeRoutes;
   world.villageForge = prep.villageForge;
   world.challenges = prep.challenges;
-  world.victories = prep.victories;
   world.festival = prep.festival;
   world.townHallFestivalCooldownUntilTick = prep.townHallFestivalCooldownUntilTick;
   world.villageLeaderId = prep.villageLeaderId;

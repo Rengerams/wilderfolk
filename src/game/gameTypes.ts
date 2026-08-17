@@ -518,16 +518,6 @@ export interface Camera {
   targetZoom: number;
 }
 
-export type VictoryPath = 'eco_utopia' | 'trade_empire' | 'great_city' | 'harmony';
-
-export interface VictoryProgress {
-  path: VictoryPath;
-  label: string;
-  description: string;
-  progress: number;
-  achieved: boolean;
-}
-
 export type ElectionCeremonyPhase = 'gathering' | 'gossip' | 'tension' | 'reveal';
 
 export type ForgeOrderId =
@@ -741,8 +731,6 @@ export interface WorldState {
   renffrOmen?: RenffrOmen | null;
   /** Settlers gossip about Renffr until this tick (after a night omen). */
   renffrChatterUntilTick?: number;
-  victories: VictoryProgress[];
-  victoryAchieved: VictoryPath | null;
   ecoHealthYearsAbove80: number;
   /** Guaranteed friendly caravan in the first in-game week (v0.4.1). */
   firstWeekVisitorSpawned: boolean;
