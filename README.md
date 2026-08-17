@@ -74,7 +74,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | 2,800 | 183.8 ms | 362.9 ms | ⚠️ WATCH |
 
 **Capacity ceiling** 
-- **2,600 settlers** stay ACCEPTABLE (p95 329 ms) engine can run now alamost 100% more citizins.
+- **2,600 settlers** stay ACCEPTABLE (p95 329 ms) — the engine can now run almost 100% more citizens.
 
 
 
