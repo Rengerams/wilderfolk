@@ -276,6 +276,14 @@ export interface Entity {
   schoolBondDay?: number;
   /** Childhood friends from school — their bonds nudge adult courtship. */
   childhoodFriendsIds?: number[];
+  /** Friendship bonds — key `friend_<entityId>` → 0..100 (Phase 7). */
+  friendships?: Record<string, number>;
+  /** Active feuds — key `feud_<entityId>` → 0..100 (Phase 7). */
+  feuds?: Record<string, number>;
+  /** Master this juvenile is apprenticed to (Phase 7). */
+  apprenticeOfId?: number;
+  /** Juvenile this master is teaching (Phase 7). */
+  apprenticeId?: number;
   /** Birth / maiden surname — restored for the woman when a caught-affair marriage ends. */
   maidenSurname?: string;
   /** Optional for non-human entities. */

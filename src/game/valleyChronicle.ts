@@ -3,6 +3,7 @@ import { BuildingType } from './buildings';
 import { logEvent } from './eventLog';
 import { isRivalAtPeace } from './rivalPeace';
 import { addCappedResource } from './resourceUtils';
+import { hasDynasty } from './familyLegacy';
 
 /**
  * Valley Chronicle — the sandbox's story spine (replaces the removed victory
@@ -65,6 +66,11 @@ export const VALLEY_CHAPTERS: ChronicleChapter[] = [
     id: 'the_alliance', icon: '🤝', title: 'The Alliance',
     detail: 'A rival becomes a friend — peace written in ink, not blood.',
     isMet: (w) => w.rivalSettlements.some((r) => isRivalAtPeace(r)), reward: { gold: 150 },
+  },
+  {
+    id: 'a_dynasty', icon: '👑', title: 'A Dynasty',
+    detail: 'Three generations of one family live together — a line written into the valley.',
+    isMet: hasDynasty, reward: { gold: 200 },
   },
   {
     id: 'the_century', icon: '⏳', title: 'A Century',

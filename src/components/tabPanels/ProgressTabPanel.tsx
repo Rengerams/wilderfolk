@@ -10,6 +10,7 @@ const ChallengesPanel = lazy(() => import('../ChallengesPanel'));
 const StatisticsPanel = lazy(() => import('../../game/StatisticsPanel'));
 const ValleyChartsPanel = lazy(() => import('./ValleyChartsPanel'));
 const ValleyChroniclePanel = lazy(() => import('./ValleyChroniclePanel'));
+const DynastyPanel = lazy(() => import('./DynastyPanel'));
 
 const RESEARCH_COLORS: Record<ResearchType, string> = {
   [ResearchType.Agriculture]: '#22c55e',
@@ -271,6 +272,9 @@ export default function ProgressTabPanel({
         <>
           <Suspense fallback={<p className="text-[11px] text-stone-500">Loading chronicle…</p>}>
             <ValleyChroniclePanel state={state} />
+          </Suspense>
+          <Suspense fallback={<p className="text-[11px] text-stone-500">Loading dynasties…</p>}>
+            <DynastyPanel state={state} />
           </Suspense>
           <GoalsPortraitPanel state={state} />
         </>

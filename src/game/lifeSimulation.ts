@@ -128,6 +128,7 @@ import { isActiveMoonHowler } from './moonHowler';
 import { isEntityOnBuilding } from './buildingRotation';
 import { createEntity } from './entityFactory';
 import { logEvent } from './eventLog';
+import { startFeud } from './relationships';
 import {
   applyEducationGraduation,
   creditChildSchoolDay,
@@ -1133,6 +1134,8 @@ function tryDivorceOnCaughtCheater(
   if (Math.random() >= divorceChance) return;
 
   dissolveMarriage(spouse, cheater);
+  // Phase 7 — the wronged spouse now feuds with the paramour.
+  startFeud(state, spouse, paramour, 35);
 
   const spouseName = humanDisplayName(spouse);
   const cheaterName = humanDisplayName(cheater);

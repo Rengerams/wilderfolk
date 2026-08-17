@@ -595,6 +595,14 @@ export default function SelectedBuildingPanel({
               <p key={w.id} className="text-[9px] text-emerald-200">
                 👷 {w.name || 'Settler'}{w.surname ? ` ${w.surname}` : ''}
                 {w.job ? ` · ${w.job}` : ''}
+                {w.apprenticeId != null && (
+                  <span className="text-cyan-300">
+                    {' '}🎓 {(() => {
+                      const ap = state.entities.find((e) => e.id === w.apprenticeId);
+                      return ap ? `teaching ${ap.name ?? 'an apprentice'}` : '';
+                    })()}
+                  </span>
+                )}
               </p>
             ))}
           </div>

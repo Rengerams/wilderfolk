@@ -30,6 +30,8 @@ import {
 } from './economy';
 import { logEvent } from './eventLog';
 import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
+import { advanceSocialRelationships } from './relationships';
+import { advanceApprenticeships } from './apprenticeships';
 import { tickMigration } from './migration';
 import { tickBeauty } from './beautyGrid';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
@@ -757,6 +759,12 @@ export function tickLayerDaily(
   counts: PopulationCounts,
 ): void {
   // Winter heating runs once in gameTick (sets ctx.canHeat) — do not burn wood again here.
+
+  // Phase 7 social layers — friendships, feuds and apprenticeships pulse daily.
+  if (state.tick > 0) {
+    advanceSocialRelationships(state, allAlive);
+    advanceApprenticeships(state, allAlive);
+  }
 
   // Valley Chronicle — milestone chapters unlock once per day boundary.
   if (state.tick > 0) {
