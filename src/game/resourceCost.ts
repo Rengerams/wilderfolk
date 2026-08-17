@@ -5,13 +5,14 @@ export type ResourceCostAmount = Partial<Record<ResourceKey, number>>;
 /** Incoming raid barricade response cost. */
 export const BARRICADE_RAID_COST: ResourceCostAmount = { wood: 20, stone: 10 };
 
-const COST_ORDER: ResourceKey[] = ['wood', 'stone', 'food', 'gold'];
+const COST_ORDER: ResourceKey[] = ['wood', 'stone', 'food', 'gold', 'iron'];
 
 const COST_ABBREV: Record<ResourceKey, string> = {
   wood: 'w',
   stone: 's',
   food: 'f',
   gold: 'g',
+  iron: 'i',
 };
 
 export function resourceCostEntries(cost: ResourceCostAmount): Array<{ key: ResourceKey; amount: number }> {
@@ -32,7 +33,7 @@ export function formatResourceCostNeed(cost: ResourceCostAmount): string {
 }
 
 export function canAffordResourceCost(
-  resources: { wood: number; stone: number; food: number; gold: number },
+  resources: { wood: number; stone: number; food: number; gold: number; iron: number },
   cost: ResourceCostAmount,
 ): boolean {
   return resourceCostEntries(cost).every(({ key, amount }) => (resources[key] ?? 0) >= amount);

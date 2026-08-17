@@ -17,6 +17,7 @@ import {
   demolishBuilding,
   setWorkshopRecipe,
   setHuntingSpotPrey,
+  setMineMode,
   recruitSettler,
   moveOutOfFamilyHome,
   tameEntity,
@@ -55,6 +56,9 @@ export type WorkerCommand =
   | { proto: 1; op: 'demolishBuilding'; buildingId: number }
   | { proto: 1; op: 'setWorkshopRecipe'; buildingId: number; recipeId: string }
   | { proto: 1; op: 'setHuntingSpotPrey'; buildingId: number; prey: HuntingSpotPrey }
+  | { proto: 1; op: 'setMineMode'; buildingId: number; mode: 'stone' | 'iron' }
+  | { proto: 1; op: 'setMineMode'; buildingId: number; mode: 'stone' | 'iron' }
+  | { proto: 1; op: 'setMineMode'; buildingId: number; mode: 'stone' | 'iron' }
   | { proto: 1; op: 'queueForgeOrder'; buildingId: number; orderId: ForgeOrderId }
   | { proto: 1; op: 'recruitSettler' }
   | { proto: 1; op: 'moveOutOfFamilyHome'; humanId: number }
@@ -88,6 +92,9 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'demolishBuilding',
   'setWorkshopRecipe',
   'setHuntingSpotPrey',
+  'setMineMode',
+  'setMineMode',
+  'setMineMode',
   'queueForgeOrder',
   'recruitSettler',
   'moveOutOfFamilyHome',
@@ -175,6 +182,9 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       return isFiniteNumber(cmd.buildingId)
         && typeof cmd.prey === 'string'
         && HUNTING_SPOT_PREY_OPTIONS.some((o) => o.id === cmd.prey);
+    case 'setMineMode':
+      return isFiniteNumber(cmd.buildingId)
+        && (cmd.mode === 'stone' || cmd.mode === 'iron');
     case 'queueForgeOrder':
       return isFiniteNumber(cmd.buildingId) && typeof cmd.orderId === 'string' && FORGE_ORDER_IDS.has(cmd.orderId);
     case 'recruitSettler':
@@ -263,6 +273,8 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return setWorkshopRecipe(world, cmd.buildingId, cmd.recipeId);
     case 'setHuntingSpotPrey':
       return setHuntingSpotPrey(world, cmd.buildingId, cmd.prey);
+    case 'setMineMode':
+      return setMineMode(world, cmd.buildingId, cmd.mode);
     case 'queueForgeOrder':
       return queueForgeOrder(world, cmd.buildingId, cmd.orderId);
     case 'recruitSettler':

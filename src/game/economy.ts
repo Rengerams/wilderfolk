@@ -15,6 +15,7 @@ export function updateStorageCaps(state: WorldState) {
     stone: 300 + silos * 200 + warehouses * 200,
     food: 600 + barns * 400 + silos * 600,
     gold: 99999,
+    iron: 300 + warehouses * 100,
   };
   state.foodSpoilageRate = Math.max(0.01, 0.03 - silos * 0.012);
 }
@@ -54,13 +55,13 @@ export function applyFoodSpoilage(state: WorldState, season: Season) {
 
 export function initTradeRoutes(): WorldState['tradeRoutes'] {
   return [
-    { id: 'trade_1', targetName: 'Riverdale', resourcesGiven: { wood: 20, stone: 0, food: 30, gold: 0 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 15 }, reputationRequired: 15, active: false },
-    { id: 'trade_2', targetName: 'Oakhaven', resourcesGiven: { wood: 40, stone: 0, food: 0, gold: 0 }, resourcesReceived: { wood: 0, stone: 25, food: 0, gold: 0 }, reputationRequired: 25, active: false },
-    { id: 'trade_3', targetName: 'Ironport', resourcesGiven: { wood: 0, stone: 30, food: 0, gold: 10 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 30 }, reputationRequired: 40, active: false },
-    { id: 'trade_4', targetName: 'Goldhaven', resourcesGiven: { wood: 20, stone: 20, food: 20, gold: 0 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 50 }, reputationRequired: 60, active: false },
-    { id: 'trade_5', targetName: 'Silkmarket', resourcesGiven: { wood: 30, stone: 10, food: 40, gold: 20 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 80 }, reputationRequired: 75, active: false },
-    { id: 'trade_6', targetName: 'Spice Coast', resourcesGiven: { wood: 25, stone: 15, food: 50, gold: 30 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 120 }, reputationRequired: 85, active: false },
-    { id: 'trade_7', targetName: 'Granite Reach', resourcesGiven: { wood: 40, stone: 35, food: 30, gold: 40 }, resourcesReceived: { wood: 0, stone: 80, food: 0, gold: 60 }, reputationRequired: 95, active: false },
+    { id: 'trade_1', targetName: 'Riverdale', resourcesGiven: { wood: 20, stone: 0, food: 30, gold: 0, iron: 0 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 15, iron: 0 }, reputationRequired: 15, active: false },
+    { id: 'trade_2', targetName: 'Oakhaven', resourcesGiven: { wood: 40, stone: 0, food: 0, gold: 0, iron: 0 }, resourcesReceived: { wood: 0, stone: 25, food: 0, gold: 0, iron: 0 }, reputationRequired: 25, active: false },
+    { id: 'trade_3', targetName: 'Ironport', resourcesGiven: { wood: 0, stone: 30, food: 0, gold: 10, iron: 0 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 30, iron: 15 }, reputationRequired: 40, active: false },
+    { id: 'trade_4', targetName: 'Goldhaven', resourcesGiven: { wood: 20, stone: 20, food: 20, gold: 0, iron: 0 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 50, iron: 0 }, reputationRequired: 60, active: false },
+    { id: 'trade_5', targetName: 'Silkmarket', resourcesGiven: { wood: 30, stone: 10, food: 40, gold: 20, iron: 0 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 80, iron: 0 }, reputationRequired: 75, active: false },
+    { id: 'trade_6', targetName: 'Spice Coast', resourcesGiven: { wood: 25, stone: 15, food: 50, gold: 30, iron: 0 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 120, iron: 0 }, reputationRequired: 85, active: false },
+    { id: 'trade_7', targetName: 'Granite Reach', resourcesGiven: { wood: 40, stone: 35, food: 30, gold: 40, iron: 0 }, resourcesReceived: { wood: 0, stone: 80, food: 0, gold: 60, iron: 0 }, reputationRequired: 95, active: false },
   ];
 }
 

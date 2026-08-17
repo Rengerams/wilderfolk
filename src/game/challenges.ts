@@ -21,14 +21,14 @@ export interface Challenge {
 }
 
 export const INITIAL_CHALLENGES: Challenge[] = [
-  { id: 'first_settlers', title: 'First Settlers', description: 'Build a house and reach a population of 5 humans.', completed: false, targetPopulation: 5, reward: { wood: 50, stone: 20, food: 30, gold: 20 }, rewardText: '+50 wood, +20 stone, +30 food, +20 gold' },
-  { id: 'growing_village', title: 'Growing Village', description: 'Reach Year 5 with at least 5 completed buildings.', completed: false, targetYear: 5, targetBuildings: 5, reward: { wood: 100, stone: 50, food: 50, gold: 40 }, rewardText: '+100 wood, +50 stone, +50 food, +40 gold' },
-  { id: 'thriving_town', title: 'Thriving Town', description: 'Reach a population of 50 humans.', completed: false, targetPopulation: 50, reward: { wood: 200, stone: 100, food: 100, gold: 100 }, rewardText: '+200 wood, +100 stone, +100 food, +100 gold' },
-  { id: 'century', title: 'Century Mark', description: 'Survive for 100 years.', completed: false, targetYear: 100, reward: { wood: 500, stone: 500, food: 500, gold: 500 }, rewardText: '+500 all resources!' },
-  { id: 'eco_master', title: 'Eco Master', description: 'Maintain ecosystem health above 80% for 10 years.', completed: false, reward: { wood: 150, stone: 100, food: 200, gold: 100 }, rewardText: '+150 wood, +100 stone, +200 food, +100 gold' },
-  { id: 'tech_pioneer', title: 'Tech Pioneer', description: 'Research 5 technologies.', completed: false, reward: { wood: 100, stone: 100, food: 0, gold: 200 }, rewardText: '+100 wood, +100 stone, +200 gold' },
-  { id: 'trading_hub', title: 'Trading Hub', description: 'Establish 3 trade routes.', completed: false, reward: { wood: 0, stone: 0, food: 0, gold: 300 }, rewardText: '+300 gold' },
-  { id: 'great_city', title: 'Great City', description: 'Reach a population of 250 humans with 35 buildings.', completed: false, targetPopulation: 250, targetBuildings: 35, reward: { wood: 1000, stone: 1000, food: 1000, gold: 1000 }, rewardText: '+1000 all resources!' },
+  { id: 'first_settlers', title: 'First Settlers', description: 'Build a house and reach a population of 5 humans.', completed: false, targetPopulation: 5, reward: { wood: 50, stone: 20, food: 30, gold: 20, iron: 0 }, rewardText: '+50 wood, +20 stone, +30 food, +20 gold' },
+  { id: 'growing_village', title: 'Growing Village', description: 'Reach Year 5 with at least 5 completed buildings.', completed: false, targetYear: 5, targetBuildings: 5, reward: { wood: 100, stone: 50, food: 50, gold: 40, iron: 0 }, rewardText: '+100 wood, +50 stone, +50 food, +40 gold' },
+  { id: 'thriving_town', title: 'Thriving Town', description: 'Reach a population of 50 humans.', completed: false, targetPopulation: 50, reward: { wood: 200, stone: 100, food: 100, gold: 100, iron: 100 }, rewardText: '+200 wood, +100 stone, +100 food, +100 gold, +100 iron' },
+  { id: 'century', title: 'Century Mark', description: 'Survive for 100 years.', completed: false, targetYear: 100, reward: { wood: 500, stone: 500, food: 500, gold: 500, iron: 500 }, rewardText: '+500 all resources + 500 iron!' },
+  { id: 'eco_master', title: 'Eco Master', description: 'Maintain ecosystem health above 80% for 10 years.', completed: false, reward: { wood: 150, stone: 100, food: 200, gold: 100, iron: 50 }, rewardText: '+150 wood, +100 stone, +200 food, +100 gold, +50 iron' },
+  { id: 'tech_pioneer', title: 'Tech Pioneer', description: 'Research 5 technologies.', completed: false, reward: { wood: 100, stone: 100, food: 0, gold: 200, iron: 100 }, rewardText: '+100 wood, +100 stone, +200 gold, +100 iron' },
+  { id: 'trading_hub', title: 'Trading Hub', description: 'Establish 3 trade routes.', completed: false, reward: { wood: 0, stone: 0, food: 0, gold: 300, iron: 0 }, rewardText: '+300 gold' },
+  { id: 'great_city', title: 'Great City', description: 'Reach a population of 250 humans with 35 buildings.', completed: false, targetPopulation: 250, targetBuildings: 35, reward: { wood: 1000, stone: 1000, food: 1000, gold: 1000, iron: 500 }, rewardText: '+1000 all resources! +500 iron!' },
 ];
 
 export interface ChallengeProgress {

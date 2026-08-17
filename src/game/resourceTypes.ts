@@ -1,5 +1,5 @@
 /** Resource keys used by economy, production, and costs. */
-export type ResourceKey = 'wood' | 'stone' | 'food' | 'gold';
+export type ResourceKey = 'wood' | 'stone' | 'food' | 'gold' | 'iron';
 
 /** Standard resource purse. */
 export interface Resources {
@@ -7,4 +7,5 @@ export interface Resources {
   stone: number;
   food: number;
   gold: number;
+  iron: number;
 }

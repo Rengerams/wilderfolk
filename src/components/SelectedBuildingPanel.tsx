@@ -43,7 +43,7 @@ const BUILDING_OUTPUT_HINTS: Partial<Record<BuildingType, string>> = {
   [BuildingType.Barn]: 'Boosts nearby Farms/Greenhouses +35% — place next to fields, not a farm itself.',
   [BuildingType.LumberMill]: 'Produces wood — watch Wood in the header.',
   [BuildingType.Quarry]: 'Produces stone — watch Stone in the header.',
-  [BuildingType.Mine]: 'Produces stone — watch Stone in the header.',
+  [BuildingType.Mine]: 'Produces stone or iron — set the mode below; iron feeds the Blacksmith forge.',
   [BuildingType.Store]: 'Generates passive gold income.',
   [BuildingType.Market]: 'Trades goods for gold with assigned workers.',
   [BuildingType.Workshop]: 'Pick a recipe below — crafts every 2 days when staffed and stocked.',
@@ -82,6 +82,7 @@ export interface SelectedBuildingPanelProps {
   onDemolish: () => void;
   onSetWorkshopRecipe?: (recipeId: string) => void;
   onSetHuntingPrey?: (prey: HuntingSpotPrey) => void;
+  onSetMineMode?: (mode: 'stone' | 'iron') => void;
   onQueueForge?: (orderId: ForgeOrderId) => void;
   idleWorkers: number;
   canAssignWorker: boolean;
@@ -91,7 +92,7 @@ export interface SelectedBuildingPanelProps {
 }
 
 export default function SelectedBuildingPanel({
-  building, state, onAssign, onAutoStaffAll, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onSetWorkshopRecipe, onSetHuntingPrey, onQueueForge, idleWorkers, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
+  building, state, onAssign, onAutoStaffAll, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onQueueForge, idleWorkers, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
 }: SelectedBuildingPanelProps) {
   if (building.faction === 'rival') {
     const rival = state.rivalSettlements.find((r) => r.id === building.groupId);
@@ -341,6 +342,35 @@ export default function SelectedBuildingPanel({
         )}
         {building.completed && BUILDING_JOB_TYPES[building.type] && building.type !== BuildingType.Church && building.type !== BuildingType.Prison && building.type !== BuildingType.Barracks && (
           <p className="text-[9px] text-sky-300">Workers are assigned here automatically (7am–7pm).</p>
+        )}
+        {building.completed && building.type === BuildingType.Mine && (
+          <div className="mt-2 space-y-1.5 rounded-lg border border-zinc-700/40 bg-zinc-950/30 p-2">
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-300">Extract</p>
+            <div className="grid grid-cols-2 gap-1">
+              {([['stone', '🪨 Stone'], ['iron', '🔩 Iron']] as const).map(([mode, label]) => {
+                const active = (building.mineMode ?? 'stone') === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    disabled={!onSetMineMode}
+                    onClick={() => onSetMineMode?.(mode)}
+                    title={mode === 'iron' ? 'Mine extracts iron ore for the Blacksmith forge' : 'Mine extracts stone for building'}
+                    className={`rounded px-1.5 py-1 text-left text-[8px] transition-all ${
+                      active
+                        ? 'bg-zinc-600 text-white ring-1 ring-zinc-300'
+                        : 'bg-stone-800/80 text-stone-200 hover:bg-stone-700'
+                    }`}
+                  >
+                    <span className="font-bold">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[8px] text-stone-400">
+              Iron mode feeds the Blacksmith forge orders; stone mode feeds construction and walls. Switch freely — production follows the mode.
+            </p>
+          </div>
         )}
         {building.completed && building.type === BuildingType.Church && (
           <p className="text-[9px] text-violet-300">Priest is manual only — pick below, or leave empty (no curse cures).</p>

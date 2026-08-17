@@ -29,7 +29,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     emoji: '⚔️',
     description: 'Village-wide iron spears — longer hunts, fight back vs wolves, unlock militia raids.',
     techId: COMBAT_TECH.ironSpears,
-    inputs: { wood: 35, stone: 25, gold: 40 },
+    inputs: { wood: 25, stone: 20, gold: 15, iron: 15 },
     progressPerTick: 34,
   },
   {
@@ -38,7 +38,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     emoji: '🛡️',
     description: 'Heavy shields for all settlers — strong predator blocks and raid armor baseline.',
     techId: COMBAT_TECH.ironShields,
-    inputs: { wood: 40, stone: 30, gold: 45 },
+    inputs: { wood: 30, stone: 25, gold: 15, iron: 15 },
     progressPerTick: 34,
   },
   {
@@ -47,7 +47,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     emoji: '⛏️',
     description: `Quarries produce ${Math.round((FORGE_BONUSES.quarryYieldMult - 1) * 100)}% more stone while staffed.`,
     techId: 'mining_2',
-    inputs: { wood: 40, stone: 45, gold: 50 },
+    inputs: { wood: 25, stone: 30, gold: 15, iron: 10 },
     progressPerTick: 32,
   },
   {
@@ -57,7 +57,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     description: `+${FORGE_BONUSES.guardHalberdPerGuard} militia per staffed barracks guard (stacks with base guard bonus).`,
     techId: COMBAT_TECH.militiaDrill,
     requiresForge: ['iron_spears'],
-    inputs: { wood: 45, stone: 35, gold: 55 },
+    inputs: { wood: 30, stone: 25, gold: 15, iron: 25 },
     progressPerTick: 30,
   },
   {
@@ -67,7 +67,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     description: `+${FORGE_BONUSES.wallPlatePerSegment} barricade per wall segment (max +${FORGE_BONUSES.wallPlateCap}).`,
     techId: COMBAT_TECH.reinforcedMasonry,
     requiresForge: ['iron_shields'],
-    inputs: { wood: 50, stone: 60, gold: 60 },
+    inputs: { wood: 30, stone: 40, gold: 15, iron: 20 },
     progressPerTick: 30,
   },
   {
@@ -77,7 +77,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     description: 'Strongest militia weapons — replace iron spears for raids; better counter-attacks.',
     techId: COMBAT_TECH.ironSwords,
     requiresForge: ['iron_spears'],
-    inputs: { wood: 45, stone: 40, gold: 70 },
+    inputs: { wood: 30, stone: 25, gold: 15, iron: 30 },
     progressPerTick: 28,
   },
   {
@@ -87,7 +87,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     description: 'Heavy armor for the militia — replaces iron shields for raids and predator blocks.',
     techId: COMBAT_TECH.scaleMail,
     requiresForge: ['iron_shields'],
-    inputs: { wood: 35, stone: 55, gold: 75 },
+    inputs: { wood: 20, stone: 35, gold: 15, iron: 30 },
     progressPerTick: 28,
   },
   {
@@ -97,7 +97,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     description: `Watchtowers grant ${FORGE_BONUSES.towerBallistaTotalPerTower} barricade each (up from 15).`,
     techId: COMBAT_TECH.bastionTowers,
     requiresForge: ['wall_plates'],
-    inputs: { wood: 55, stone: 70, gold: 80 },
+    inputs: { wood: 35, stone: 45, gold: 20, iron: 40 },
     progressPerTick: 26,
   },
 ];
@@ -189,6 +189,7 @@ export function formatForgeInputs(inputs: Partial<Resources>): string {
     wood: inputs.wood,
     stone: inputs.stone,
     gold: inputs.gold,
+    iron: inputs.iron,
   }) || '—';
 }
 
@@ -196,7 +197,8 @@ function canAffordForgeInputs(resources: Resources | null | undefined, inputs: P
   if (!resources) return false;
   return (inputs.wood ?? 0) <= (resources.wood ?? 0)
     && (inputs.stone ?? 0) <= (resources.stone ?? 0)
-    && (inputs.gold ?? 0) <= (resources.gold ?? 0);
+    && (inputs.gold ?? 0) <= (resources.gold ?? 0)
+    && (inputs.iron ?? 0) <= (resources.iron ?? 0);
 }
 
 function consumeForgeInputs(state: WorldState, inputs: Partial<Resources>): void {
@@ -204,6 +206,7 @@ function consumeForgeInputs(state: WorldState, inputs: Partial<Resources>): void
   state.resources.wood = (state.resources.wood ?? 0) - (inputs.wood ?? 0);
   state.resources.stone = (state.resources.stone ?? 0) - (inputs.stone ?? 0);
   state.resources.gold = (state.resources.gold ?? 0) - (inputs.gold ?? 0);
+  state.resources.iron = (state.resources.iron ?? 0) - (inputs.iron ?? 0);
 }
 
 export function getForgeBlockReason(state: WorldState, orderId: ForgeOrderId): string | null {
@@ -258,7 +261,7 @@ export function queueForgeOrder(
   const order = getForgeOrder(orderId);
   if (!order) return originalState;
   const state = structuredClone(originalState);
-  if (!state.resources) state.resources = { food: 0, wood: 0, stone: 0, gold: 0 };
+  if (!state.resources) state.resources = { food: 0, wood: 0, stone: 0, gold: 0, iron: 0 };
   state.resources = { ...state.resources };
   state.villageForge = normalizeForgeState(state.villageForge);
   if (state.villageForge.activeOrder === orderId) return originalState;

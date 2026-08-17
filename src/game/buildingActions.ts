@@ -7,6 +7,7 @@ import {
   WEREWOLF_CURSE_LINES,
 } from './gameTypes';
 import type { HuntingSpotPrey } from './gameTypes';
+import type { MineMode } from './buildings';
 import {
   getOccupationForBuilding, readSkill, getWorkerSkillMultiplier,
 } from './skills';
@@ -896,6 +897,14 @@ export function setWorkshopRecipe(originalState: WorldState, buildingId: number,
   const building = state.buildings.find((b) => b.id === buildingId);
   if (!building || building.type !== BuildingType.Workshop || building.faction === 'rival') return originalState;
   building.workshopRecipeId = recipeId;
+  return state;
+}
+
+export function setMineMode(originalState: WorldState, buildingId: number, mode: MineMode): WorldState {
+  const state = structuredClone(originalState);
+  const building = state.buildings.find((b) => b.id === buildingId);
+  if (!building || building.type !== BuildingType.Mine) return state;
+  building.mineMode = mode;
   return state;
 }
 

@@ -13,6 +13,7 @@ const RESOURCE_STYLES: Record<ResourceKey, string> = {
   wood: 'bg-amber-900/40 text-amber-400',
   stone: 'bg-stone-700/60 text-stone-300',
   gold: 'bg-yellow-900/40 text-yellow-300',
+  iron: 'bg-zinc-700/60 text-zinc-200',
 };
 
 const ALERT_STYLES: Partial<Record<ResourceKey, string>> = {

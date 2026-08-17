@@ -40,6 +40,17 @@ export function FoodIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
   );
 }
 
+export function IronIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 12 12" className={`shrink-0 ${className}`} aria-hidden>
+      <rect x="2" y="4.5" width="8" height="4" rx="0.8" fill="#57534e" />
+      <rect x="2" y="4.5" width="8" height="1.6" rx="0.8" fill="#a8a29e" />
+      <rect x="4.6" y="2" width="2.8" height="3" rx="0.6" fill="#78716c" />
+      <path d="M5.4 6.2h3.4M5.4 7.2h2.2" stroke="#292524" strokeWidth="0.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function GoldIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
   return (
     <svg viewBox="0 0 12 12" className={`shrink-0 ${className}`} aria-hidden>
@@ -56,6 +67,7 @@ const RESOURCE_ICONS = {
   stone: StoneIcon,
   food: FoodIcon,
   gold: GoldIcon,
+  iron: IronIcon,
 } satisfies Record<ResourceKey, (props: IconProps) => ReactElement>;
 
 export function ResourceIcon({ resource, className }: { resource: ResourceKey; className?: string }) {

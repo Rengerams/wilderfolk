@@ -78,7 +78,7 @@ export default function BlacksmithForgePanel({ state, buildingId, onQueueForge }
               </span>
               <span className="block text-[7px] opacity-80">{order.description}</span>
               <ResourceCost
-                cost={{ wood: order.inputs.wood, stone: order.inputs.stone, gold: order.inputs.gold }}
+                cost={order.inputs}
                 className="mt-0.5"
                 iconClassName="h-2 w-2"
                 amountClassName="font-mono text-[7px] font-semibold leading-none"

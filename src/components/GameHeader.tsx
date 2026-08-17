@@ -245,6 +245,12 @@ tutorialsEnabled,
               max={world.storageMax.stone}
               className="hidden md:inline-flex"
             />
+            <ResourceBadge
+              resource="iron"
+              value={world.resources.iron}
+              max={world.storageMax.iron}
+              className="hidden lg:inline-flex"
+            />
           </div>
         </div>
 

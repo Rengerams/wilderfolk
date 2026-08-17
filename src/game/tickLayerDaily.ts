@@ -447,8 +447,13 @@ function tickBuildingProduction(
     if (building.completed && staffed && building.type === BuildingType.Mine && isProductionTick(state.tick, PRODUCTION_INTERVAL.mine)) {
       const stoneMult = getMultiplier(state, 'stone_production');
       const amount = Math.floor((12 + workers * 4) * totalMult * smithBonus * stoneMult * globalEff);
-      if (addResource(state, 'stone', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
-      state.deathParticles.push({ x: building.x + Math.random() * building.width, y: building.y + Math.random() * building.height, vx: (Math.random() - 0.5) * 0.4, vy: -1 - Math.random(), life: 30, maxLife: 30, color: '#555555', size: 3 + Math.random() * 2, type: 'smoke' });
+      if (building.mineMode === 'iron') {
+        if (addResource(state, 'iron', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
+        state.deathParticles.push({ x: building.x + Math.random() * building.width, y: building.y + Math.random() * building.height, vx: (Math.random() - 0.5) * 0.4, vy: -1 - Math.random(), life: 30, maxLife: 30, color: '#a8a29e', size: 2 + Math.random() * 2, type: 'smoke' });
+      } else {
+        if (addResource(state, 'stone', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
+        state.deathParticles.push({ x: building.x + Math.random() * building.width, y: building.y + Math.random() * building.height, vx: (Math.random() - 0.5) * 0.4, vy: -1 - Math.random(), life: 30, maxLife: 30, color: '#555555', size: 3 + Math.random() * 2, type: 'smoke' });
+      }
     }
     if (building.completed && staffed && building.type === BuildingType.Greenhouse && isProductionTick(state.tick, PRODUCTION_INTERVAL.greenhouse)) {
       const harvestBonus = state.bountifulHarvest ? 2 : 1;

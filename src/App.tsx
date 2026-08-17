@@ -1700,7 +1700,7 @@ export default function App() {
           {(() => {
             const q = getVisitorQuest(world);
             if (!q) return null;
-            const resEmoji: Record<string, string> = { wood: '🪵', stone: '🪨', food: '🍖', gold: '💰' };
+            const resEmoji: Record<string, string> = { wood: '🪵', stone: '🪨', food: '🍖', gold: '💰', iron: '🔩' };
             const have = world.resources[q.goalResource] ?? 0;
             const canDeliver = have >= q.goalAmount;
             const daysLeft = Math.max(0, q.expiresDay - getAbsoluteCalendarDay(world.tick));
@@ -2015,6 +2015,10 @@ export default function App() {
                 onSetHuntingPrey={(prey) => {
                   playClickSound();
                   applyGameAction({ proto: 1, op: 'setHuntingSpotPrey', buildingId: selectedBuilding.id, prey });
+                }}
+                onSetMineMode={(mode) => {
+                  playClickSound();
+                  applyGameAction({ proto: 1, op: 'setMineMode', buildingId: selectedBuilding.id, mode });
                 }}
                 onQueueForge={(orderId) => {
                   playClickSound();

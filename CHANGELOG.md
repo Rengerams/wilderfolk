@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- **🔩 Iron — a real resource at last** — the economy audit found "iron" gear was secretly paid in wood+stone+gold; now **iron is a true fifth resource**: the **Mine gains an Extract mode (🪨 Stone / 🔩 Iron)**, and all **Blacksmith forge orders cost iron** (Spears → Ballistae, ~15–40 each). Iron shows in the header (lg+), forge cost chips, challenge rewards, and the Ironport trade route pays iron. Mine iron mode yields ~21/day; the forge is now an iron sink, not a gold sink. (Audit → `docs/private/ECONOMY_AUDIT_2026-08-17.md`)
+
 ## [0.5.4.2] — 2026-08-17
 
 **The valley rises — painted relief, rivers that run, and upgrades you can see. Victory paths removed for redesign.**

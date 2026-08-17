@@ -51,6 +51,9 @@ export const BuildingType = {
   Fence: 'fence',
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
+
+/** What a Mine extracts — stone (default) or iron. */
+export type MineMode = 'stone' | 'iron';
 export interface Building {
   id: number;
   type: BuildingType;
@@ -79,6 +82,8 @@ export interface Building {
   hotelGuestIds?: number[];
   /** Hunting Spot only — which prey the staffed hunters target (see HUNTING_SPOT_PREY_OPTIONS). */
   huntingSpotPrey?: HuntingSpotPrey;
+  /** Mine only — extracts stone (default) or iron. */
+  mineMode?: MineMode;
 }
 
 export interface BuildingConfig {

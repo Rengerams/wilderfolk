@@ -8,6 +8,7 @@ const RESOURCE_TONE: Record<ResourceKey, string> = {
   stone: 'text-stone-300',
   food: 'text-green-400',
   gold: 'text-yellow-300',
+  iron: 'text-zinc-300',
 };
 
 interface Props {

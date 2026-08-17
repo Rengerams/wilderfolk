@@ -397,6 +397,13 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
     world.yearlyStats = world.yearlyStats ?? [];
     world.lifetimeStats = world.lifetimeStats ?? createEmptyLifetimeStats();
     world.eventsThisYear = worldData.eventsThisYear ?? [];
+    // Iron was added mid-0.5.4.2 — backfill saves that predate it (same _version).
+    if (typeof (world.resources as { iron?: unknown }).iron !== 'number') {
+      (world.resources as { iron: number }).iron = 0;
+    }
+    if (typeof (world.storageMax as { iron?: unknown }).iron !== 'number') {
+      (world.storageMax as { iron: number }).iron = 300;
+    }
     world.wildlifeCounts = computeWildlifeCounts(world.entities);
     world.workingSettlers = world.workingSettlers ?? 0;
     world.idleSettlers = world.idleSettlers ?? 0;
