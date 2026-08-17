@@ -45,6 +45,7 @@ The manifest's "optional: painted transition atlas" landed as a full 2.5D featur
 - **Elevation extrusion** — hills/peaks rise out of the plain with shaded cliff faces + sun-lit lips (pass 2, sorted low→high); water stays flat.
 - **Everything rides the terrain** — buildings, settlers, wildlife and decor props offset by the elevation beneath them (`terrainAtlas.terrainRiseAt`).
 - New module `src/game/terrainAtlas.ts` + `tests/terrainAtlas.test.ts` (13 tests). Gates: 150 tests green, lint 0, build passes.
+- **Player-verified 2026-08-16** — playtest OK: painted coasts, raised hills, wide rivers, visible upgrades, 08:00 founding all confirmed in-game; build-menu switching fix (EM-8) also player-confirmed. Extrusion knob (`terrainAtlas.reliefY`) left at defaults.
 
 **Priority logic (impact ÷ effort):**
 - Pathfinding first: it is a real bug (stuck citizens at map edges) *and* the single biggest sim/controls upgrade.
