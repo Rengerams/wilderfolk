@@ -222,6 +222,8 @@ export interface Entity {
   traits?: SettlerTrait[];
   pregnant?: boolean;
   pregnancyProgress?: number;
+  /** Per-pregnancy term target (progress at which birth fires) — varies per conception. */
+  pregnancyDueProgress?: number;
   /** Workplace — farm, mill, etc. (assigned via building occupants) */
   homeBuildingId?: number;
   /** Where the settler sleeps — house or mansion */
@@ -470,6 +472,26 @@ export interface PopulationHistoryEntry {
   pollution?: number;
   ecosystemHealth?: number;
   biodiversity?: number;
+}
+
+/** A player-facing choice on an authored story event. */
+export interface StoryChoice {
+  id: string;
+  label: string;
+  detail: string;
+}
+
+/** Authored cross-system story — a visible choice that ties sim systems together. */
+export interface StoryEvent {
+  id: string;
+  emoji: string;
+  title: string;
+  description: string;
+  choices: StoryChoice[];
+  createdAtTick: number;
+  expiresAtTick: number;
+  /** Which authored story this resolves — keeps the responder data-driven-safe. */
+  storyKey: 'wolf_choice' | 'valley_debate';
 }
 
 /** @deprecated Prefer PopulationHistoryEntry (same shape, richer optional fields). */
@@ -736,6 +758,10 @@ export interface WorldState {
   pendingDiplomacyEvents: DiplomacyEvent[];
   /** Incoming raids — defend, barricade, or pay off. */
   pendingRaidEvents: RaidEvent[];
+  /** Authored cross-system story choices awaiting a response (v0.6.1+). */
+  pendingStoryEvents?: StoryEvent[];
+  /** Which authored stories have already been offered/resolved this world. */
+  storyFlags?: Record<string, number>;
   /** Outgoing raids — rival may offer tribute or fight when your war-band arrives. */
   pendingOutgoingRaidEvents: OutgoingRaidEvent[];
   /** Rare night-sky easter egg */

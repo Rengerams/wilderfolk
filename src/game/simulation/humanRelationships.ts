@@ -34,6 +34,7 @@ import {
   getFemaleFertility,
   getOldAgeDeathChance,
   ticksForDays,
+  PREGNANCY_TICKS,
 } from '../dayCycle';
 import { formatCitizenName, formatDeathLog, humanDisplayName } from '../citizenId';
 import { dissolveMarriage, formatCaughtCheaterDivorceDetail } from '../nameLoader';
@@ -465,6 +466,8 @@ function startMarriedPregnancy(state: WorldState, entity: Entity, partner: Entit
   entity.pregnant = true;
   entity.pregnantById = undefined;
   entity.pregnancyProgress = 0;
+  // Real-world variance: no pregnancy is the same — term runs 85%–115% of the base (~24 days).
+  entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + Math.random() * 0.3));
   entity.relationshipStatus = 'expecting';
   if (partner.relationshipStatus === 'married' || partner.partnerId === entity.id) {
     partner.relationshipStatus = 'expecting';
@@ -480,6 +483,7 @@ function startAffairPregnancy(state: WorldState, entity: Entity, lover: Entity):
   entity.pregnant = true;
   entity.pregnantById = lover.id;
   entity.pregnancyProgress = 0;
+  entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + Math.random() * 0.3));
   entity.relationshipStatus = entity.partnerId != null ? 'married' : 'expecting';
   entity.flash = 14;
   lover.flash = 14;

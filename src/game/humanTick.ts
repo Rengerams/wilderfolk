@@ -26,7 +26,7 @@ import { isPlayerHuman } from './playerHuman';
 import { isSettlerRelationshipEntity } from './moonHowler';
 import { getElectionGatherTarget } from './villageLeadership';
 import { getValleyHuntYieldMultiplier, valleyStageIndex } from './ecologyStage';
-import { HUMAN_ADULT_MIN_AGE, HUMAN_ADULT_MAX_AGE, tryGraduateHumanChild, getColonyDay, setHumanBirthFromAge, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, PREGNANCY_TICKS, REPRODUCTION_COOLDOWN_TICKS, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isWorkHour, isOnWorkShift, isOnInnkeeperShift, isOnMoonHowlerNightShift, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, rebuildChildrenIds, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, WORK_START, EVENING_START, TAVERN_SHIFT_START, isStartOfClockHour } from './dayCycle';
+import { HUMAN_ADULT_MIN_AGE, HUMAN_ADULT_MAX_AGE, tryGraduateHumanChild, getColonyDay, setHumanBirthFromAge, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, ticksForDays, PREGNANCY_TICKS, REPRODUCTION_COOLDOWN_TICKS, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isWorkHour, isOnWorkShift, isOnInnkeeperShift, isOnMoonHowlerNightShift, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, rebuildChildrenIds, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, WORK_START, EVENING_START, TAVERN_SHIFT_START, isStartOfClockHour } from './dayCycle';
 import {
   chatHintsFromWorld,
   maybeDialogueChat,
@@ -980,17 +980,24 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Free-roam hunting — player settlers only (visitors/rivals do not farm the valley).
     // Hunters chase game when moderately hungry; other jobs only when starving.
     const isJobHunter = entity.job === JobType.Hunter;
+    // Famine overrides: with no food in stores a hungry settler hunts whatever
+    // nature offers, even off-schedule — hunger wins over the daily routine.
+    const famine = state.resources.food <= 0;
     const freeHuntHungry = isJobHunter
       ? entity.energy < entity.maxEnergy * 0.85
-      : entity.energy < entity.maxEnergy * 0.38;
+      : famine
+        ? entity.energy < entity.maxEnergy * 0.6
+        : entity.energy < entity.maxEnergy * 0.38;
     if (
-      allowFreeRoam
+      (allowFreeRoam || famine)
       && isPlayerHuman(entity)
       && !ateMeal
       && !entity.isJuvenile
       && freeHuntHungry
     ) {
-      const preyTypes = new Set<EntityType>([EntityType.Deer, EntityType.Rabbit]);
+      const preyTypes = new Set<EntityType>(famine
+        ? [EntityType.Deer, EntityType.Rabbit, EntityType.Fox, EntityType.Wolf]
+        : [EntityType.Deer, EntityType.Rabbit]);
       // Assigned hunters range farther; everyone else is opportunistic
       const huntRange = getHumanHuntRange(
         state,
@@ -999,10 +1006,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       let closestPrey: Entity | null = null;
       let closestDist = Infinity;
 
-      const preyFallback = [
-        ...byType[EntityType.Deer],
-        ...byType[EntityType.Rabbit],
-      ];
+      const preyFallback = famine
+        ? [
+            ...byType[EntityType.Deer],
+            ...byType[EntityType.Rabbit],
+            ...byType[EntityType.Fox],
+            ...byType[EntityType.Wolf],
+          ]
+        : [
+            ...byType[EntityType.Deer],
+            ...byType[EntityType.Rabbit],
+          ];
       const huntHit = findClosestInEntityGrid(
         mobileGrid,
         entity.x,
@@ -1095,7 +1109,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && entity.pregnancyProgress !== undefined
     ) {
       entity.pregnancyProgress++;
-      if (entity.pregnancyProgress >= PREGNANCY_TICKS) {
+      if (entity.pregnancyProgress >= (entity.pregnancyDueProgress ?? PREGNANCY_TICKS)) {
         const angle = Math.random() * Math.PI * 2;
         const nx = Math.min(width, Math.max(0, entity.x + Math.cos(angle) * 10));
         const ny = Math.min(height, Math.max(0, entity.y + Math.sin(angle) * 10));
@@ -1125,6 +1139,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           addFloatingText(state, entity.x, entity.y - 20, 'Wildkin born!', '#a3a35a');
           logEvent(state, 'birth', `${entity.name || 'A settler'} gave birth to a Wildkin`, entity.name);
         } else {
+          // 1 in 1000 births are stillborn — nature is real, but rarely cruel.
+          if (Math.random() < 0.001) {
+            entity.griefUntilTick = Math.max(entity.griefUntilTick ?? 0, state.tick + ticksForDays(3));
+            addFloatingText(state, entity.x, entity.y - 20, 'Stillborn…', '#9ca3af');
+            addNotification(state, 'Stillborn', `${entity.name || 'A settler'}'s baby did not survive birth.`, 'warning');
+            logEvent(state, 'death', `${entity.name || 'A settler'} lost the baby — stillborn.`, entity.name);
+          } else {
           const biologicalFatherId = biologicalFatherIdAtBirth;
           const husband = entity.partnerId != null
             ? livingHumanAt(entity.partnerId)
@@ -1203,6 +1224,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             addNotification(state, 'New Birth', `${childLabel} was born to ${entity.name || 'mother'}!`, 'success');
             logEvent(state, 'birth', `${childLabel} was born`, child.name);
           }
+        }
         }
       }
 
