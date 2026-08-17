@@ -238,7 +238,7 @@ tutorialsEnabled,
               value={world.resources.wood}
               max={world.storageMax.wood}
             />
-            <ResourceBadge resource="gold" value={world.resources.gold} />
+            <ResourceBadge resource="gold" value={world.resources.gold} max={world.storageMax.gold} />
             <ResourceBadge
               resource="stone"
               value={world.resources.stone}

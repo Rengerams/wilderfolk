@@ -312,7 +312,7 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
       screenShakeImpulse: 0,
       festival: worldData.festival ?? null,
       townHallFestivalCooldownUntilTick: worldData.townHallFestivalCooldownUntilTick ?? 0,
-      storageMax: worldData.storageMax || { wood: 500, stone: 300, food: 600, gold: 99999 },
+      storageMax: worldData.storageMax || { wood: 800, stone: 300, food: 800, gold: 20000, iron: 300 },
       foodSpoilageRate: worldData.foodSpoilageRate ?? 0.03,
       eventLog: worldData.eventLog || [],
       worldMap: restoreWorldMapFromSave(parsed),

@@ -10,6 +10,8 @@ export const BuildingType = {
   Greenhouse: 'greenhouse',
   Barn: 'barn',
   Silo: 'silo',
+  /** Dry shelter for winter firewood — +800 wood storage, no workers. */
+  WoodStorehouse: 'woodStorehouse',
   LumberMill: 'lumberMill',
   Quarry: 'quarry',
   Mine: 'mine',
@@ -150,7 +152,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     width: 56, height: 46,
     cost: { wood: 50, stone: 5, gold: 10 },
     buildTime: 4, maxOccupants: 0,
-    emoji: '🚜', label: 'Barn', description: 'Boosts nearby Farms & Greenhouses +35% — no workers needed.',
+    emoji: '🚜', label: 'Barn', description: 'Boosts nearby Farms & Greenhouses +35% · extends wood storage +300 — no workers needed.',
     sprite: '/sprites/barn.png', backgroundColor: '#ca8a04', padShape: 'rect',
   },
   [BuildingType.Silo]: {
@@ -159,6 +161,14 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     buildTime: 3, maxOccupants: 0,
     emoji: '🌽', label: 'Silo', description: 'Passive food storage bonus.',
     sprite: '/sprites/silo.png', backgroundColor: '#65a30d', padShape: 'rect',
+  },
+  [BuildingType.WoodStorehouse]: {
+    width: 72, height: 48,
+    cost: { wood: 40, stone: 20, gold: 15 },
+    buildTime: 4, maxOccupants: 0,
+    emoji: '🏚️', label: 'Wood Storehouse',
+    description: 'Dry shelter for winter firewood — +800 wood storage (winter fuel), no workers needed.',
+    sprite: '/sprites/storehouse_wood.png', backgroundColor: '#92400e', padShape: 'rect',
   },
   [BuildingType.LumberMill]: {
     width: 56, height: 46,

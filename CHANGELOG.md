@@ -5,6 +5,13 @@
 ### Added
 - **🔩 Iron — a real resource at last** — the economy audit found "iron" gear was secretly paid in wood+stone+gold; now **iron is a true fifth resource**: the **Mine gains an Extract mode (🪨 Stone / 🔩 Iron)**, and all **Blacksmith forge orders cost iron** (Spears → Ballistae, ~15–40 each). Iron shows in the header (lg+), forge cost chips, challenge rewards, and the Ironport trade route pays iron. Mine iron mode yields ~21/day; the forge is now an iron sink, not a gold sink. (Audit → `docs/private/ECONOMY_AUDIT_2026-08-17.md`)
 - **🎓 First-spring guide** — a living, step-by-step tutorial walks new players through their first year (build a house → plant a farm → assign workers → secure wood/meat → earn gold → prepare for winter → year two). It's a **non-modal banner** that auto-advances as you actually do each thing, and can be **skipped at any time**. New-settlement screen has a **First-spring guide On/Off choice** (remembered) — turn it off to start completely free, no tutorial at all
+- **🏚️ Wood Storehouse** — a new Resources building (`storehouse_wood.png`) that shelters **+800 wood storage** for winter fuel; the base wood cap is 500 → **800**, so a 50-pop village can finally bank a winter (~900 needed)
+- **🍞 Food keeps longer** — spoilage drops **3% → 2%/day** and the base food cap rises to 800 (silos still cut further); banking food for winter is now viable
+- **💰 Gold has a cap** — 20,000 (was uncapped); the late-game snowball stops and the header shows the cap
+- **🌾 Farms reward workers** — farm output now scales `12 + 5×workers` (was a flat 22), so a fully-staffed farm out-produces an empty one
+
+### Changed
+- **Great City challenge reward nerfed** — 1,000×4 + 500 iron → **400×4 + 200 iron** (the mid-game economy eraser is gone)
 
 ## [0.5.4.2] — 2026-08-17
 

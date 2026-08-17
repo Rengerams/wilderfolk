@@ -9,15 +9,16 @@ export { establishTradeRoute, hasCompletedMarket } from './tradeCaravans';
 export function updateStorageCaps(state: WorldState) {
   const barns = state.buildings.filter(b => b.completed && b.type === BuildingType.Barn).length;
   const silos = state.buildings.filter(b => b.completed && b.type === BuildingType.Silo).length;
+  const storehouses = state.buildings.filter(b => b.completed && b.type === BuildingType.WoodStorehouse).length;
   const warehouses = state.buildings.filter(b => b.completed && (b.type === BuildingType.Store || b.type === BuildingType.Market)).length;
   state.storageMax = {
-    wood: 500 + barns * 300 + warehouses * 200,
+    wood: 800 + barns * 300 + storehouses * 800 + warehouses * 200,
     stone: 300 + silos * 200 + warehouses * 200,
-    food: 600 + barns * 400 + silos * 600,
-    gold: 99999,
+    food: 800 + barns * 400 + silos * 600,
+    gold: 20000,
     iron: 300 + warehouses * 100,
   };
-  state.foodSpoilageRate = Math.max(0.01, 0.03 - silos * 0.012);
+  state.foodSpoilageRate = Math.max(0.01, 0.02 - silos * 0.012);
 }
 
 export function addResource(state: WorldState, type: keyof Resources, amount: number): number {

@@ -311,7 +311,7 @@ function tickBuildingProduction(
       const pollutionMult = getPollutionProductionMultiplier(state);
       const valleyFarm = getValleyFarmYieldMultiplier(state);
       const weatherFarm = getWeatherFarmMultiplier(state.weather);
-      const amount = Math.floor(22 * totalMult * harvestBonus * millBonus * farmMult * globalEff * pollutionMult * valleyFarm * weatherFarm);
+      const amount = Math.floor((12 + workers * 5) * totalMult * harvestBonus * millBonus * farmMult * globalEff * pollutionMult * valleyFarm * weatherFarm);
       const added = addResource(state, 'food', amount);
       recordFoodProduced(state, 'farms', added);
       if (added > 0 && productionJob) {

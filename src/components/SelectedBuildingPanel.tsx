@@ -35,10 +35,11 @@ const CombatPreviewPanel = lazy(() => import('../game/CombatPreviewPanel'));
 const BlacksmithForgePanel = lazy(() => import('./BlacksmithForgePanel'));
 
 const BUILDING_OUTPUT_HINTS: Partial<Record<BuildingType, string>> = {
-  [BuildingType.Farm]: 'Produces food — check the Food counter in the header.',
+  [BuildingType.Farm]: 'Produces food — more workers harvest more (up to 3). Watch Food in the header.',
   [BuildingType.HuntingSpot]: 'Hunters produce meat from nearby wildlife — check Food counter.',
   [BuildingType.Greenhouse]: 'Produces food year-round — watch Food in the header.',
   [BuildingType.Silo]: 'Passive food every 2 days, +600 food storage, less spoilage — no workers.',
+  [BuildingType.WoodStorehouse]: 'Passive — +800 wood storage for winter fuel, no workers needed.',
   [BuildingType.Mill]: 'Passive — standing mill boosts all food production +25%. No workers needed.',
   [BuildingType.Barn]: 'Boosts nearby Farms/Greenhouses +35% — place next to fields, not a farm itself.',
   [BuildingType.LumberMill]: 'Produces wood — watch Wood in the header.',

@@ -28,7 +28,7 @@ export const INITIAL_CHALLENGES: Challenge[] = [
   { id: 'eco_master', title: 'Eco Master', description: 'Maintain ecosystem health above 80% for 10 years.', completed: false, reward: { wood: 150, stone: 100, food: 200, gold: 100, iron: 50 }, rewardText: '+150 wood, +100 stone, +200 food, +100 gold, +50 iron' },
   { id: 'tech_pioneer', title: 'Tech Pioneer', description: 'Research 5 technologies.', completed: false, reward: { wood: 100, stone: 100, food: 0, gold: 200, iron: 100 }, rewardText: '+100 wood, +100 stone, +200 gold, +100 iron' },
   { id: 'trading_hub', title: 'Trading Hub', description: 'Establish 3 trade routes.', completed: false, reward: { wood: 0, stone: 0, food: 0, gold: 300, iron: 0 }, rewardText: '+300 gold' },
-  { id: 'great_city', title: 'Great City', description: 'Reach a population of 250 humans with 35 buildings.', completed: false, targetPopulation: 250, targetBuildings: 35, reward: { wood: 1000, stone: 1000, food: 1000, gold: 1000, iron: 500 }, rewardText: '+1000 all resources! +500 iron!' },
+  { id: 'great_city', title: 'Great City', description: 'Reach a population of 250 humans with 35 buildings.', completed: false, targetPopulation: 250, targetBuildings: 35, reward: { wood: 400, stone: 400, food: 400, gold: 400, iron: 200 }, rewardText: '+400 all resources + 200 iron!' },
 ];
 
 export interface ChallengeProgress {
