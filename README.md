@@ -47,7 +47,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 * ⚠️ **Beta Save Policy:** This build loads only 0.6 saves.
 * **Compatibility Dropped:** Historical-save compatibility is no longer supported.
 * **New Start Required:** Saves from other builds are rejected, so please start a new settlement.
-* **V0.6 perf Gate:** **PASSED**
+* **`V0.6 perf Gate:** **PASSED`**
 
 | Area | Highlights |
 |------|------------|
