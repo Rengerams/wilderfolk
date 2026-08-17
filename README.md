@@ -52,6 +52,19 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | 🧮 **Smarter social sim** | social queries use a **living-humans-only grid**, **adaptive grid-vs-array scanning**, **staggered ambient scans** (banter/greetings 1-in-6 ticks) and **behavior-specific radii** — the valley feels the same, runs much lighter |
 | 🧩 **Cleaner sim code** | `lifeSimulation.ts` split into domain modules (`simulation/types · entities · relationships`, `humanTick`), grass lives in the daily tick layer, wildlife in the systems layer |
 
+**Perf benchmark results** (`scripts/perf-all.ts` · Large map · full sim · 60 measured ticks after 30 warmup):
+
+| Humans | avg tick | p95 tick | Gate |
+|--------|----------|----------|------|
+| 200 | 5.5 ms | 7.7 ms | ✅ ACCEPTABLE |
+| 400 | 10.6 ms | 15.0 ms | ✅ ACCEPTABLE |
+| 600 | 18.5 ms | 24.0 ms | ✅ ACCEPTABLE |
+| 800 | 33.1 ms | 45.6 ms | ✅ ACCEPTABLE |
+| 1,000 | 46.7 ms | 69.0 ms | ✅ ACCEPTABLE |
+| 1,200 | 69.7 ms | 94.7 ms | ✅ ACCEPTABLE |
+
+Run it yourself: `PERF_TICKS=60 SIM_FULL_SIM=1 npx tsx scripts/perf-all.ts`
+
 ---
 ## v0.6 (August 17, 2026)
 
