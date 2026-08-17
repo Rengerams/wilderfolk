@@ -1,4 +1,5 @@
 import type { WorldState, StoryEvent } from './gameTypes';
+import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { addCappedResource } from './resourceUtils';
@@ -81,10 +82,25 @@ export function respondToStoryEvent(
 // Story 1 — The pack watches (first-session ecological choice)
 // ---------------------------------------------------------------------------
 
-/** Offer always, once, somewhere in the first two months (year 0, days 0–59). */
+/**
+ * Offer once, as a gentle invitation: waits for the player to settle in (a
+ * house plus a first practical job — the ~6–10 minute window), and guarantees
+ * the moment by the end of the first two months (day 60) no matter what.
+ */
 export function maybeOfferWolfChoice(state: WorldState): void {
   if ((state.storyFlags?.wolf_choice ?? 0) > 0) return;
-  if (state.year > 0 || state.dayInYear >= 60) return;
+  if (state.year > 0) return;
+
+  const hasHome = state.buildings.some(
+    (b) => b.completed && b.type === BuildingType.House,
+  );
+  const startedWork = state.buildings.some(
+    (b) => b.completed
+      && (b.type === BuildingType.Farm
+        || b.type === BuildingType.HuntingSpot
+        || b.type === BuildingType.LumberMill),
+  );
+  if ((!hasHome || !startedWork) && state.dayInYear < 60) return;
 
   state.storyFlags = { ...state.storyFlags, wolf_choice: state.tick };
   offerStoryEvent(state, {

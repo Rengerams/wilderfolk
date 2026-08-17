@@ -48,6 +48,19 @@ function worldWithWolvesAndFarm(): WorldState {
     occupants: [],
     level: 1,
   } as never);
+  // A completed home — the wolf choice waits for the player to settle in.
+  state.buildings.push({
+    id: state.nextBuildingId++,
+    type: BuildingType.House,
+    x: 500,
+    y: 300,
+    width: 80,
+    height: 60,
+    completed: true,
+    faction: 'player',
+    occupants: [],
+    level: 1,
+  } as never);
   return state;
 }
 
@@ -63,9 +76,20 @@ describe('first-session wolf choice', () => {
     expect(state.pendingStoryEvents?.length).toBe(1);
   });
 
-  it('does not offer after the first two months', () => {
+  it('guarantees the moment by day 60 even if the player has not built yet', () => {
     const state = worldWithWolvesAndFarm();
+    state.buildings = []; // no house, no farm
+    state.dayInYear = 10;
+    maybeOfferWolfChoice(state);
+    expect(state.pendingStoryEvents?.length ?? 0).toBe(0); // waits for progress
     state.dayInYear = 60;
+    maybeOfferWolfChoice(state);
+    expect(state.pendingStoryEvents?.length).toBe(1); // guaranteed now
+  });
+
+  it('does not offer after the first year', () => {
+    const state = worldWithWolvesAndFarm();
+    state.year = 1;
     maybeOfferWolfChoice(state);
     expect(state.pendingStoryEvents?.length ?? 0).toBe(0);
   });
@@ -187,7 +211,7 @@ describe('first-session arc', () => {
   it('ranger: waits for the wolf choice to resolve, then visits once', () => {
     const state = initGame({ villageName: 'ArcVale3', size: MapSize.Small });
     state.year = 0;
-    state.dayInYear = 10;
+    state.dayInYear = 60; // the two-month guarantee — no build progress needed
     maybeOfferWolfChoice(state);
     const wolfId = state.pendingStoryEvents![0].id;
     const resolved = respondToStoryEvent(state, wolfId, 'let_be');
@@ -204,7 +228,7 @@ describe('first-session arc', () => {
   it('ranger: acknowledges the spare-the-pack choice with reputation', () => {
     const state = initGame({ villageName: 'ArcVale4', size: MapSize.Small });
     state.year = 0;
-    state.dayInYear = 10;
+    state.dayInYear = 60; // the two-month guarantee — no build progress needed
     maybeOfferWolfChoice(state);
     const resolved = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'let_be');
     resolved.tick = resolved.storyFlags!.wolf_resolvedTick! + TICKS_PER_DAY * 3;

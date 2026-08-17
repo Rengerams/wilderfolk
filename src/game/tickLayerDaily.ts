@@ -806,7 +806,7 @@ export function tickLayerDaily(
   // Old Kaia's first-winter quest with its freeze-day resolution.
   if (state.year === 0) {
     maybeOfferWelcome(state);
-    if (state.dayInYear < 60) maybeOfferWolfChoice(state);
+    maybeOfferWolfChoice(state);
     maybeOfferRangerVisit(state);
     maybeOfferWinterPrep(state);
     tickWinterFreezeCheck(state);
