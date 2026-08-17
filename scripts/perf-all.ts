@@ -133,7 +133,9 @@ async function runTier(pop: number, detailed: boolean): Promise<void> {
   session?.disconnect();
 
   const p95 = percentile(times, 0.95);
-  const alive = state.entities.filter((e) => e.alive).length;
+  // Trees and grass are static scenery, not living entities — exclude from reports.
+  const SCENERY = new Set([EntityType.Tree, EntityType.Grass]);
+  const alive = state.entities.filter((e) => e.alive && !SCENERY.has(e.type)).length;
   const humans = state.entities.filter((e) => e.alive && isPlayerHuman(e)).length;
   const report = getSpatialQueryReport();
   console.log(`\n${pop} humans | avg=${(wall / TICKS).toFixed(2)}ms p95=${p95.toFixed(2)}ms | ${acceptability(p95)} | alive=${alive} humans=${humans}`);

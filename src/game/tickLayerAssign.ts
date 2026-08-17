@@ -1,6 +1,6 @@
 import type { WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
-import type { TickContext } from './lifeSimulation';
+import type { TickContext } from './simulation/simulationTypes';
 import {
   syncResidenceOccupants,
   assignMissingResidences,

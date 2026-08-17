@@ -14,11 +14,12 @@ import {
   USE_SPATIAL_GRID,
   syncMobileSimGrid,
   syncGrassRenderGrid,
+  syncTreeGrid,
 } from './spatialGrid';
 import { USE_SCENT_GRID, ensureScentGrid, tickScentGrid } from './scentGrid';
 import { computePopulationCounts } from './entityCounts';
-import { tickHumans } from './lifeSimulation';
-import type { TickContext } from './lifeSimulation';
+import { tickHumans } from './humanTick';
+import type { TickContext } from './simulation/simulationTypes';
 import { releasePrisoners } from './workforce';
 import { maybeTriggerRenffrOmen, tickRenffrOmen } from './renffrStar';
 import {
@@ -148,6 +149,13 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     : undefined;
   state.grassGrid = grassGrid ?? undefined;
   ctx.grassGrid = grassGrid;
+
+  // Static tree index — rebuilt lazily (trees only change on UI building placement)
+  const treeGrid = USE_SPATIAL_GRID
+    ? syncTreeGrid(state.treeGrid, width, height, ctx.byType[EntityType.Tree] ?? [])
+    : undefined;
+  state.treeGrid = treeGrid;
+  ctx.treeGrid = treeGrid;
 
   // Scent grid
   const scentGrid = USE_SCENT_GRID ? ensureScentGrid(state) : undefined;

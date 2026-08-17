@@ -86,7 +86,8 @@ async function main(): Promise<void> {
 
     const byType: Record<string, number> = {};
     for (const e of state.entities) {
-      if (e.alive) {
+      // Trees/grass are static scenery — not reported as living entities.
+      if (e.alive && e.type !== EntityType.Tree && e.type !== EntityType.Grass) {
         const typeKey = typeof e.type === 'number' ? (EntityType[e.type] ?? e.type) : e.type;
         byType[typeKey] = (byType[typeKey] ?? 0) + 1;
       }

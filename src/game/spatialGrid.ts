@@ -12,6 +12,9 @@ export const GRASS_CELL_SIZE = 56;
 /** Humans + wildlife — updated each tick for flee/hunt/pack queries. */
 export const MOBILE_CELL_SIZE = 80;
 
+/** Trees — static scenery; indexed for the "visit a tree" leisure. */
+export const TREE_CELL_SIZE = 80;
+
 const MOBILE_ENTITY_TYPES = new Set<EntityType>([
   EntityType.Human,
   EntityType.Wolf,
@@ -451,6 +454,30 @@ export function syncGrassRenderGrid(
   const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, GRASS_CELL_SIZE);
   if (grid !== existing) {
     grid.rebuild(grassEntities, isGrassGridEntity);
+  }
+  return grid;
+}
+
+export function isTreeGridEntity(entity: Entity): boolean {
+  return entity.type === EntityType.Tree;
+}
+
+/**
+ * Static tree index for the "visit a tree" leisure. Trees never move and only
+ * change when the player places a building over one (UI commit, which
+ * structuredClones state and strips class methods), so the grid is rebuilt
+ * only when the stored instance is stale — never on ordinary ticks.
+ */
+export function syncTreeGrid(
+  existing: EntitySpatialGrid | undefined,
+  mapWidth: number,
+  mapHeight: number,
+  treeEntities: Iterable<Entity>,
+): EntitySpatialGrid | undefined {
+  if (!USE_SPATIAL_GRID) return undefined;
+  const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, TREE_CELL_SIZE);
+  if (grid !== existing) {
+    grid.rebuild(treeEntities, isTreeGridEntity);
   }
   return grid;
 }

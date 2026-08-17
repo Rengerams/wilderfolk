@@ -51,7 +51,7 @@ import {
   getAbsoluteCalendarDay,
   DAYS_PER_YEAR,
 } from './dayCycle';
-import type { TickContext } from './lifeSimulation';
+import type { TickContext } from './simulation/simulationTypes';
 import { tickGrassDaily } from './lifeSimulation';
 import { getWeatherFarmMultiplier } from './grassEcology';
 import { applyDailyWeatherEffects } from './worldEvents';

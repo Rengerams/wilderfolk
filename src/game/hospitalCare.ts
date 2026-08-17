@@ -52,6 +52,24 @@ export function medicalUrgency(entity: Entity): number {
   return 0;
 }
 
+/** Nearest staffed hospital to walk to (undefined when already there, or none exist). */
+export function pickHospitalWalkTarget(
+  entity: Pick<Entity, 'x' | 'y'>,
+  hospitals: readonly Building[],
+): Building | undefined {
+  let best: Building | undefined;
+  let bestD = Infinity;
+  for (const h of hospitals) {
+    const d = Math.hypot(entity.x - (h.x + h.width / 2), entity.y - (h.y + h.height / 2));
+    if (d < bestD) {
+      bestD = d;
+      best = h;
+    }
+  }
+  // Already at the ward (<= 28px) or no staffed hospital at all — stay put.
+  return best && bestD > 28 ? best : undefined;
+}
+
 /**
  * Apply treatment when a patient is at a staffed hospital.
  * Returns true if care was given.

@@ -8,7 +8,7 @@ import type { WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { isProductionTick, EVENT_INTERVAL } from './dayCycle';
-import type { TickContext } from './lifeSimulation';
+import type { TickContext } from './simulation/simulationTypes';
 import { tickWildlife } from './lifeSimulation';
 import { updateWeather, updateDisasters } from './worldEvents';
 import { updateResearch } from './research';

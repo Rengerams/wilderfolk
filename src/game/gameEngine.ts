@@ -220,7 +220,7 @@ export {
   type InitGameOptions,
 } from './worldGen';
 export { getAgeInYears } from './dayCycle';
-export { tickHumans, tickWildlife, tickGrassDaily } from './lifeSimulation';
+export { tickWildlife, tickGrassDaily } from './lifeSimulation';
 export { updateWeather, updateDisasters } from './worldEvents';
 export {
   GAME_VERSION, GAME_PHASE, GAME_TITLE, GAME_SUBTITLE, GAME_VERSION_TAGLINE, ECOLOGICAL_FACTS,

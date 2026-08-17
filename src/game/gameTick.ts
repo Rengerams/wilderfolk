@@ -35,8 +35,8 @@ import {
 } from './simHelpers';
 import { countWorkingAndIdleSettlers } from './workforce';
 import { isPlayerHuman } from './playerHuman';
-import type { TickContext } from './lifeSimulation';
-import { buildHuntTargetByPreyIndex } from './lifeSimulation';
+import type { TickContext } from './simulation/simulationTypes';
+import { buildHuntTargetByPreyIndex } from './simulation/simulationEntities';
 import { tickLayerRealtime } from './tickLayerRealtime';
 import { tickLayerSystems, LAYER_SYSTEMS_INTERVAL } from './tickLayerSystems';
 import { tickLayerAssign, LAYER_ASSIGN_INTERVAL } from './tickLayerAssign';
@@ -184,6 +184,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     predators,
     grassGrid: undefined,
     mobileGrid: undefined,
+    treeGrid: undefined,
     roadAvoidance: state.roadAvoidance,
     huntTargetByPreyId: buildHuntTargetByPreyIndex(byType),
     scentGrid: undefined,
