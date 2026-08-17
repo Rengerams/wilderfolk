@@ -4,7 +4,7 @@
 
 **Build, flow, and grow: watch the valley transform.**
 
-`GAME_VERSION` **0.6** · ⚠️ **beta save policy: this build loads only 0.6 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
+- `GAME_VERSION` **0.6** · ⚠️ **beta save policy: this build loads only 0.6 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
 
 ### Added
 - **🎣 Fishing Spot (Phase 6: rivers feed)** — a new Food building that must straddle water (a dock): staffed fishers haul `8 + 4×workers` food per day, thin in winter (55%), rich in fall (115%). Safer than hunting — no wolves fight back. Generated sprite `fishingspot.png`
@@ -41,7 +41,7 @@
 
 **The valley rises — painted relief, rivers that run, and upgrades you can see.**
 
-`GAME_VERSION` **0.5.4.2** · ⚠️ **beta save policy: this build loads only 0.5.4.2 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
+- `GAME_VERSION` **0.5.4.2** · ⚠️ **beta save policy: this build loads only 0.5.4.2 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
 
 ### Added
 - **🦌 The Passing Herds** — every autumn a herd of deer crosses the valley: they graze, they are huntable, and they leave after a week. **The herds remember** — every deer you take this year makes next year's herd smaller (feast now, thinner autumns later); let them pass unharmed and they come back fat as ever
@@ -104,8 +104,8 @@ Feature table → [ROADMAP.md](ROADMAP.md)
 
 **The night hunts back — Moon Howler exorcism overhaul, personality traits, and the deepest playtest pass yet.**
 
-`GAME_VERSION` **0.5.3** · continue colonies from **0.4.x – 0.5.2**.  
-Feature table → [ROADMAP.md](ROADMAP.md) · Moon Howler release notes → [docs/marketing/moon-howler-overhaul.md](docs/marketing/moon-howler-overhaul.md)
+- `GAME_VERSION` **0.5.3** · continue colonies from **0.4.x – 0.5.2**.  
+- Feature table → [ROADMAP.md](ROADMAP.md) · Moon Howler release notes → [docs/marketing/moon-howler-overhaul.md](docs/marketing/moon-howler-overhaul.md)
 
 ### Fixed
 - **Rivers actually flow** — world-gen rivers now follow a smoothed elevation gradient from mountain peaks (with a basin-bypass fallback) and carve their channel into real water tiles; before, greedy descents died on spiky noise and rivers rendered as land on every preset
