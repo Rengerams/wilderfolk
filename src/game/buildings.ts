@@ -36,6 +36,10 @@ export const BuildingType = {
   Barracks: 'barracks',
   /** Outdoor hunting post — staffed hunters harvest nearby wildlife. */
   HuntingSpot: 'huntingSpot',
+  /** Riverside fishing post — staffed fishers harvest food from the water. */
+  FishingSpot: 'fishingSpot',
+  /** Fenced wild grove — restores ecosystem health, no workers. */
+  WildlifePreserve: 'wildlifePreserve',
   /** Public house — free-time hangout: drink, chat, unwind. */
   Tavern: 'tavern',
   /** Guest lodging — visitors pay gold to sleep; staffed by hoteliers. */
@@ -346,6 +350,22 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     buildTime: 3, maxOccupants: 2,
     emoji: '🏹', label: 'Hunting Spot', description: 'Staff hunters to harvest nearby wildlife for food. Wolves may fight back.',
     sprite: '/sprites/huntingspot.png', backgroundColor: '#854d0e', padShape: 'circle',
+  },
+  [BuildingType.FishingSpot]: {
+    width: 52, height: 40,
+    cost: { wood: 20, stone: 15, gold: 10 },
+    buildTime: 3, maxOccupants: 2,
+    emoji: '🎣', label: 'Fishing Spot',
+    description: 'Riverside post — staffed fishers harvest food from the water. Must touch water; no wolves to fight.',
+    sprite: '/sprites/fishingspot.png', backgroundColor: '#0369a1', padShape: 'rect',
+  },
+  [BuildingType.WildlifePreserve]: {
+    width: 64, height: 64,
+    cost: { wood: 50, stone: 40, gold: 30 },
+    buildTime: 5, maxOccupants: 0,
+    emoji: '🌳', label: 'Wildlife Preserve',
+    description: 'Fenced wild grove — restores ecosystem health +4 and helps wildlife recover. No workers.',
+    sprite: '/sprites/wildlife_preserve.png', backgroundColor: '#166534', padShape: 'rect',
   },
   [BuildingType.Tavern]: {
     width: 56, height: 48,

@@ -12,7 +12,7 @@ export const WORLD_STATE_SAVE_KEYS = [
   'challenges', 'autoSave', 'weather', 'weatherTimer', 'researchNodes',
   'unlockedTechs', 'activeResearch', 'researchProgress', 'soundEnabled', 'musicEnabled',
   'tradeRoutes', 'totalBuildingsCompleted', 'lastProcessedCalendarDay', 'yearlyStats',
-  'lifetimeStats', 'eventLog', 'festival', 'townHallFestivalCooldownUntilTick',
+  'lifetimeStats', 'eventLog', 'chronicleChapters', 'festival', 'townHallFestivalCooldownUntilTick',
   'visitorGroups', 'rivalSettlements', 'pendingDiplomacyEvents', 'pendingRaidEvents', 'pendingOutgoingRaidEvents',
   'renffrOmen', 'renffrChatterUntilTick',
   'activeMigration', 'migrationNextHerdSize',

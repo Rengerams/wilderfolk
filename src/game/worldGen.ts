@@ -356,7 +356,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     // Start at 08:00 (not tick 0 / midnight) — the founding scene shouldn't
     // open in pitch darkness; settlers arrive to a lit valley with visible water.
     tick: TICKS_PER_HOUR * 8, season: Season.Spring, year: 0, dayInYear: 0,
-    populationHistory: [], width, height,
+    populationHistory: [], chronicleChapters: [], width, height,
     nextEntityId: 0, nextBuildingId: 0, nextFloatingTextId: 0,
     paused: false, speed: 1,
     activeEvent: null, lastEventYear: 0,

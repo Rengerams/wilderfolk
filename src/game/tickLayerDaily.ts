@@ -29,6 +29,7 @@ import {
   applyFoodSpoilage,
 } from './economy';
 import { logEvent } from './eventLog';
+import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
 import { tickMigration } from './migration';
 import { tickBeauty } from './beautyGrid';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
@@ -413,6 +414,20 @@ function tickBuildingProduction(
       }
     }
 
+    if (building.completed && staffed && building.type === BuildingType.FishingSpot && isProductionTick(state.tick, PRODUCTION_INTERVAL.fishingSpot)) {
+      // Rivers feed the village — better in spring/autumn, thin in winter.
+      const seasonFish = state.season === Season.Winter ? 0.55 : state.season === Season.Fall ? 1.15 : state.season === Season.Summer ? 0.9 : 1;
+      const amount = Math.floor((8 + workers * 4) * totalMult * seasonFish * globalEff);
+      if (amount <= 0 || addResource(state, 'food', amount) <= 0) {
+        addFloatingText(state, building.x + building.width / 2, building.y - 12, 'Stores full!', '#94a3b8', 'brief');
+      } else {
+        recordFoodProduced(state, 'fishing', amount);
+        rewardProductionSkills(state, building, 0.2, entityById);
+        addFloatingText(state, building.x + building.width / 2, building.y - 12, `+${amount} fish`, '#38bdf8', 'brief');
+        logEvent(state, 'event', `Fishing Spot hauled in ${amount} fish from the river`);
+      }
+    }
+
     if (building.completed && staffed && building.type === BuildingType.Store && isProductionTick(state.tick, PRODUCTION_INTERVAL.store)) {
       const goldMult = getMultiplier(state, 'gold_production');
       const amount = Math.floor(5 * totalMult * goldMult * globalEff);
@@ -714,9 +729,13 @@ function tickEcosystemMetrics(
   const wildlifeRatio = Math.min(1, totalWildlife / IDEAL_WILDLIFE);
   const buildingImpact = playerCompletedBuildings * 2;
   const pollutionPenalty = Math.floor(state.pollutionLevel / 2);
+  let preserveBonus = 0;
+  for (const b of state.buildings) {
+    if (b.completed && b.type === BuildingType.WildlifePreserve) preserveBonus += 4;
+  }
   state.ecosystemHealth = Math.max(
     0,
-    Math.min(100, 100 - buildingImpact - pollutionPenalty + (wildlifeRatio * 30 - 20)),
+    Math.min(100, 100 - buildingImpact - pollutionPenalty + preserveBonus + (wildlifeRatio * 30 - 20)),
   );
 
   const species = [counts.rabbits, counts.deer, counts.wolves, counts.foxes].filter((c) => c > 0);
@@ -738,6 +757,17 @@ export function tickLayerDaily(
   counts: PopulationCounts,
 ): void {
   // Winter heating runs once in gameTick (sets ctx.canHeat) — do not burn wood again here.
+
+  // Valley Chronicle — milestone chapters unlock once per day boundary.
+  if (state.tick > 0) {
+    const newly = advanceValleyChronicle(state);
+    if (newly.length > 0) {
+      for (const id of newly) {
+        const ch = VALLEY_CHAPTERS.find((c) => c.id === id);
+        if (ch) addFloatingText(state, state.width / 2, state.height / 2, `${ch.icon} ${ch.title}`, '#fbbf24', 'brief');
+      }
+    }
+  }
 
   // Weather consequences (Phase 3.4) — storm damages buildings once per day
   applyDailyWeatherEffects(state);

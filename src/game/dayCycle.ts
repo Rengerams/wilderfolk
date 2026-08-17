@@ -252,6 +252,7 @@ export const PRODUCTION_INTERVAL = {
   townHall: ticksForDays(3),
   hospital: ticksForDays(5),
   huntingSpot: ticksForDays(1),
+  fishingSpot: ticksForDays(1),
 } as const;
 
 export const IMMIGRATION_CHECK_TICKS = ticksForDays(2);

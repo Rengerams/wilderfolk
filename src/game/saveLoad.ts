@@ -397,6 +397,10 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
     world.yearlyStats = world.yearlyStats ?? [];
     world.lifetimeStats = world.lifetimeStats ?? createEmptyLifetimeStats();
     world.eventsThisYear = worldData.eventsThisYear ?? [];
+    // Valley Chronicle (added mid-0.5.4.2) — same-version saves predating it default to empty.
+    if (!Array.isArray(world.chronicleChapters)) {
+      world.chronicleChapters = [];
+    }
     // Iron was added mid-0.5.4.2 — backfill saves that predate it (same _version).
     if (typeof (world.resources as { iron?: unknown }).iron !== 'number') {
       (world.resources as { iron: number }).iron = 0;

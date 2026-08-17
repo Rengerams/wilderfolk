@@ -108,7 +108,9 @@ import './App.css';
 import { BUILDING_HOTKEYS } from './game/hotkeys';
 import TutorialOverlay from './components/TutorialOverlay';
 import TutorialCampaignBanner from './components/TutorialCampaignBanner';
+import MomentTitleCard, { type MomentCardData } from './components/MomentTitleCard';
 import { currentCampaignStep, TUTORIAL_CAMPAIGN } from './game/tutorialCampaign';
+import { VALLEY_CHAPTERS } from './game/valleyChronicle';
 import { getBuildingConfig } from './game/buildingConfig';
 
 const SPEED_OPTIONS = [0.5, 1, 2, 3, 5, 10];
@@ -181,6 +183,7 @@ export default function App() {
   const [campaignActive, setCampaignActive] = useState(false);
   const [juiceEffectsEnabled, setJuiceEffectsEnabled] = useState(() => loadJuiceEffectsEnabled());
   const [showSimTick, setShowSimTick] = useState(() => loadShowSimTick());
+  const [momentCard, setMomentCard] = useState<MomentCardData | null>(null);
   const [showTutorial, setShowTutorial] = useState(() => {
     if (!loadTutorialsEnabled()) return false;
     try {
@@ -559,6 +562,20 @@ export default function App() {
     if (!campaignStep) return -1;
     return TUTORIAL_CAMPAIGN.findIndex((s) => s.id === campaignStep.id);
   }, [campaignStep]);
+
+  // Valley Chronicle chapter moments — a title card when a new chapter unlocks.
+  const chapterMomentShown = useRef<string | null>(null);
+  useEffect(() => {
+    const ids = world?.chronicleChapters ?? [];
+    const last = ids.length > 0 ? ids[ids.length - 1] : null;
+    if (!last || last === chapterMomentShown.current) return;
+    const t = window.setTimeout(() => {
+      chapterMomentShown.current = last;
+      const ch = VALLEY_CHAPTERS.find((c) => c.id === last);
+      if (ch) setMomentCard({ id: ch.id, icon: ch.icon, title: ch.title, detail: ch.detail });
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [world, world?.chronicleChapters?.length]);
 
   const handleToggleShowSimTick = useCallback(() => {
     const next = !showSimTick;
@@ -1069,6 +1086,8 @@ export default function App() {
     setShowTutorial(showQuickStart);
     setTutorialStep(0);
     setCampaignActive(tutorialChoice);
+    chapterMomentShown.current = null;
+    setMomentCard({ id: 'founding', icon: '🌄', title: villageName || 'New Frontier', detail: 'A new settlement takes root in the wild valley.' });
     setShowMapSetup(false);
   }, [selectedMapSize, selectedMapPreset, tutorialsEnabled, tutorialChoice]);
 
@@ -1919,6 +1938,10 @@ export default function App() {
               total={TUTORIAL_CAMPAIGN.length}
               onSkip={() => setCampaignActive(false)}
             />
+          )}
+
+          {!showTutorial && momentCard && (
+            <MomentTitleCard moment={momentCard} onDone={() => setMomentCard(null)} />
           )}
 
           {contextualTip && tutorialsEnabled && !showTutorial && (

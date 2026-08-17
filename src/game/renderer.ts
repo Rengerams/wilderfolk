@@ -1566,9 +1566,11 @@ function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw:
     } else {
       const frame = getSpriteFrame(cfg.sprite);
       if (frame) {
+        // Construction builds up — the frame grows from scaffold to full size.
+        const buildScale = Math.max(0.35, 0.45 + 0.55 * (b.constructionProgress / 100));
         drawBuildingSprite(
           ctx, b.type, frame, sx, sy, w, h,
-          Math.max(0.55, b.spriteScale || 0.55),
+          Math.max(buildScale, b.spriteScale || 0.55),
           rot,
         );
       }

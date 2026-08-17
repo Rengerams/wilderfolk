@@ -27,6 +27,7 @@ const EVENT_ICONS: Record<GameEventLog['type'], string> = {
   season: '🌸',
   event: '🌝',
   combat: '⚔️',
+  milestone: '🏅',
 };
 
 const EVENT_COLORS: Record<GameEventLog['type'], string> = {
@@ -42,6 +43,7 @@ const EVENT_COLORS: Record<GameEventLog['type'], string> = {
   season: 'text-green-400',
   event: 'text-violet-400',
   combat: 'text-rose-400',
+  milestone: 'text-amber-300',
 };
 
 const FILTER_OPTIONS: Array<{ id: 'all' | GameEventLog['type']; label: string }> = [

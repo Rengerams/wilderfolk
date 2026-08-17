@@ -9,6 +9,7 @@ type ProgressSubTab = 'research' | 'trade' | 'goals' | 'charts';
 const ChallengesPanel = lazy(() => import('../ChallengesPanel'));
 const StatisticsPanel = lazy(() => import('../../game/StatisticsPanel'));
 const ValleyChartsPanel = lazy(() => import('./ValleyChartsPanel'));
+const ValleyChroniclePanel = lazy(() => import('./ValleyChroniclePanel'));
 
 const RESEARCH_COLORS: Record<ResearchType, string> = {
   [ResearchType.Agriculture]: '#22c55e',
@@ -267,7 +268,12 @@ export default function ProgressTabPanel({
       )}
 
       {progressSubTab === 'goals' && (
-        <GoalsPortraitPanel state={state} />
+        <>
+          <Suspense fallback={<p className="text-[11px] text-stone-500">Loading chronicle…</p>}>
+            <ValleyChroniclePanel state={state} />
+          </Suspense>
+          <GoalsPortraitPanel state={state} />
+        </>
       )}
 
       {progressSubTab === 'charts' && (

@@ -183,6 +183,7 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
   [BuildingType.Prison]: JobType.Guard,
   [BuildingType.Barracks]: JobType.Guard,
   [BuildingType.HuntingSpot]: JobType.Hunter,
+  [BuildingType.FishingSpot]: JobType.Hunter,
   [BuildingType.Tavern]: JobType.Innkeeper,
   [BuildingType.Hotel]: JobType.Hotelier,
 };
@@ -716,6 +717,8 @@ export interface WorldState {
   yearlyStats: YearlyStats[];
   lifetimeStats: LifetimeStats;
   eventLog: GameEventLog[];
+  /** Valley Chronicle — ids of chapters already reached (sandbox story spine). */
+  chronicleChapters?: string[];
   festival: { active: boolean; name: string; daysLeft: number } | null;
   /** Tick after which the player can host another Town Hall festival. */
   townHallFestivalCooldownUntilTick?: number;
@@ -813,7 +816,7 @@ export interface GameEventLog {
   tick: number;
   year: number;
   day: number;
-  type: 'birth' | 'death' | 'marriage' | 'scandal' | 'building' | 'disaster' | 'research' | 'trade' | 'migration' | 'season' | 'event' | 'combat';
+  type: 'birth' | 'death' | 'marriage' | 'scandal' | 'building' | 'disaster' | 'research' | 'trade' | 'migration' | 'season' | 'event' | 'combat' | 'milestone';
   message: string;
   entityName?: string;
   combatKind?: CombatLogKind;

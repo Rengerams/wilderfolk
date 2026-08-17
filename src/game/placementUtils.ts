@@ -93,7 +93,9 @@ export function isFootprintOnBuildableTerrain(
   if (startTx > endTx || startTy > endTy) return false;
 
   const bridge = buildingType === BuildingType.Bridge;
+  const fishing = buildingType === BuildingType.FishingSpot;
   let riverCells = 0;
+  let waterCells = 0;
   let cells = 0;
 
   for (let ty = startTy; ty <= endTy; ty++) {
@@ -105,6 +107,10 @@ export function isFootprintOnBuildableTerrain(
       if (bridge) {
         if (!RIVER_PLACE_TERRAIN.has(tile.type)) return false;
         if (tile.type === TerrainType.River) riverCells++;
+      } else if (fishing) {
+        // A fishing dock may straddle land and water — but never mountains/snow.
+        if (UNBUILDABLE_TERRAIN.has(tile.type) && !WATER_TERRAIN.has(tile.type)) return false;
+        if (WATER_TERRAIN.has(tile.type)) waterCells++;
       } else if (UNBUILDABLE_TERRAIN.has(tile.type)) {
         return false;
       }
@@ -113,6 +119,10 @@ export function isFootprintOnBuildableTerrain(
   if (bridge) {
     // Must span actual river water, not only dry bank
     return riverCells >= 1 && cells > 0;
+  }
+  if (fishing) {
+    // A dock must actually reach the water.
+    return waterCells >= 1;
   }
   return true;
 }
