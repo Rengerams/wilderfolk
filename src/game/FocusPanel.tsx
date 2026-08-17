@@ -8,10 +8,13 @@ interface Props {
   buildings?: Building[];
   onOpenGoals?: () => void;
   onHintAction?: (action: FocusHintAction) => void;
+  /** Hint action ids to hide — the first-spring guide suppresses duplicate prompts. */
+  suppressHintIds?: string[];
 }
 
-export default function FocusPanel({ state, buildings, onOpenGoals, onHintAction }: Props) {
-  const hints = getFocusHints(state, buildings ?? state.buildings);
+export default function FocusPanel({ state, buildings, onOpenGoals, onHintAction, suppressHintIds = [] }: Props) {
+  const hints = getFocusHints(state, buildings ?? state.buildings)
+    .filter((h) => !(h.action && suppressHintIds.includes(h.action.id)));
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? hints.slice(0, 3) : hints.slice(0, 1);
 

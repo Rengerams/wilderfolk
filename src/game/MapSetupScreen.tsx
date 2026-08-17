@@ -263,7 +263,7 @@ export default function MapSetupScreen({
         <section>
           <div className="mb-2 flex items-baseline justify-between">
             <h2 className="text-xs font-bold uppercase tracking-widest text-emerald-400">Choose your land</h2>
-            <span className="text-[10px] text-stone-600">5 valleys, each with its own mood</span>
+            <span className="text-[10px] text-stone-600">6 valleys, each with its own mood</span>
           </div>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {presets.map((preset, i) => {

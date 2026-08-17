@@ -207,7 +207,15 @@ export function startBuilding(
   assignMissingWorkers(listPlayerHumans(state), state.buildings);
 
   createDeathParticles(state, x, y, '#ffd700', 8, 'star');
-  addFloatingText(state, x, y - 10, `🔨 ${config.label}`, '#22c55e', 'brief');
+  // One-shot commit feedback: cost charged NOW + build time, so the click is unambiguous.
+  addFloatingText(
+    state,
+    x,
+    y - 10,
+    `🔨 ${config.label} · −${config.cost.wood}w −${config.cost.stone}s −${config.cost.gold}g · ${config.buildTime}d`,
+    '#22c55e',
+    'brief',
+  );
   impulseScreenShake(state, 2);
 
   return state;

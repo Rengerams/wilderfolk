@@ -12,6 +12,10 @@
 
 ### Changed
 - **Great City challenge reward nerfed** — 1,000×4 + 500 iron → **400×4 + 200 iron** (the mid-game economy eraser is gone)
+- **Placement is unambiguous (external review P0)** — placing a building now floats **`🔨 House · −40w −10s −5g · 2d`** at the site: cost charged now, build time shown, so the click's commit is obvious; header resource badges now **pop on decrease too** (rose ring) so spending is visible
+- **One primary prompt (external review P0)** — while the first-spring guide's "build a house" step is live, the duplicate "Build shelter" focus hint is suppressed; the guide is the single call to action
+- **Version/save docs corrected (external review P1)** — README, in-game roadmap and `ARCHITECTURE.md` now all state the current `0.5.4.2` + exact-version save policy (no more stale `0.5.4.1`/`0.4…0.5.1` claims)
+- **Hygiene (external review P1/P2)** — "5 valleys" copy fixed to 6; stray `Wilderfolk - Snelkoppeling.lnk` removed from `src/game/`
 
 ## [0.5.4.2] — 2026-08-17
 

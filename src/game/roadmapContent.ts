@@ -15,7 +15,7 @@ export interface RoadmapVersion {
   features: RoadmapFeature[];
 }
 
-export const ROADMAP_TARGET_VERSION = '0.5.4.1';
+export const ROADMAP_TARGET_VERSION = '0.5.4.2';
 
 export const ROADMAP_NORTH_STAR =
   'A cozy frontier eco-sim where settlers live on a schedule, the food chain matters, the valley feels alive with other people and tribes — and you always know what to do next.';
@@ -24,6 +24,18 @@ const DONE = (label: string): RoadmapFeature => ({ label, status: 'done' });
 
 /** Newest first. Shipped versions list done work only (positive player-facing story). */
 export const ROADMAP_VERSIONS: RoadmapVersion[] = [
+  {
+    version: '0.5.4.2',
+    theme: 'A real iron age, a guided first spring, and an economy that behaves',
+    shipDate: '2026-08-17',
+    tagTarget: 'v0.5.4.2',
+    features: [
+      DONE('Iron is real — Mines extract stone or iron; forge orders cost iron, not gold'),
+      DONE('First-spring guide — a living tutorial banner that auto-advances; skippable, On/Off at settlement'),
+      DONE('Economy audit fixes — Wood Storehouse (+800 wood), spoilage 3→2%, gold capped at 20k, farms scale with workers, Great City reward nerfed'),
+      DONE('Beta save policy — this build loads only 0.5.4.2 saves'),
+    ],
+  },
   {
     version: '0.5.4.1',
     theme: 'The valley rises — painted relief, rivers that run, and upgrades you can see',

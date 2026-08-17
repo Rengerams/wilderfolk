@@ -36,26 +36,33 @@ export default function ResourceBadge({ resource, value, max, className = '', al
   const tone = alert && ALERT_STYLES[resource] ? ALERT_STYLES[resource] : RESOURCE_STYLES[resource];
   const prev = useRef(value);
   const [pop, setPop] = useState(false);
+  const [popDown, setPopDown] = useState(false);
 
   useEffect(() => {
     if (value === prev.current) return;
     const up = value > prev.current;
     prev.current = value;
-    if (!up) return;
+    setPopDown(!up);
     setPop(true);
     const t = window.setTimeout(() => setPop(false), 280);
     return () => window.clearTimeout(t);
   }, [value]);
 
+  const popRing = pop
+    ? popDown
+      ? 'scale-110 ring-1 ring-rose-500/60'
+      : 'scale-110 ring-1 ring-emerald-400/40'
+    : 'scale-100';
+
   return (
     <span
       className={`flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[11px] font-medium transition-transform duration-200 ${tone} ${
         alert ? 'ring-1 ring-rose-500/50' : ''
-      } ${pop ? 'scale-110 ring-1 ring-emerald-400/40' : 'scale-100'} ${className}`}
+      } ${popRing} ${className}`}
       title={title}
     >
       <ResourceIcon resource={resource} />
-      <span className={`font-mono font-bold tabular-nums ${pop ? 'text-white' : ''}`}>
+      <span className={`font-mono font-bold tabular-nums ${pop ? (popDown ? 'text-rose-200' : 'text-white') : ''}`}>
         {formatNumber(value)}
       </span>
     </span>

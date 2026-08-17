@@ -549,17 +549,16 @@ export default function App() {
   }, []);
 
   // Current first-spring guide step — advances automatically as the player plays.
+  // (When every step is complete, currentCampaignStep returns null and the banner
+  // simply stops rendering; campaignActive can stay true harmlessly for the session.)
   const campaignStep = useMemo(() => {
     if (!campaignActive || !world) return null;
     return currentCampaignStep(world);
-  }, [campaignActive, world, world?.tick]);
+  }, [campaignActive, world]);
   const campaignStepIndex = useMemo(() => {
     if (!campaignStep) return -1;
     return TUTORIAL_CAMPAIGN.findIndex((s) => s.id === campaignStep.id);
   }, [campaignStep]);
-  useEffect(() => {
-    if (campaignActive && world && !currentCampaignStep(world)) setCampaignActive(false);
-  }, [campaignActive, world, world?.tick]);
 
   const handleToggleShowSimTick = useCallback(() => {
     const next = !showSimTick;
@@ -2135,6 +2134,7 @@ export default function App() {
                   }}
                   onOpenGoals={() => { openTab('progress'); setProgressSubTab('goals'); }}
                   onHintAction={handleHintAction}
+                  suppressHintIds={campaignStep?.id === 'build_house' ? ['build_house'] : []}
                 />
               </div>
             )}

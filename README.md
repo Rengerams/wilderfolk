@@ -39,19 +39,21 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-## Latest update — v0.5.4.1 (August 17, 2026)
+## Latest update — v0.5.4.2 (August 17, 2026)
 
-**Playing `GAME_VERSION` 0.5.4.1** — ⚠️ **beta save policy: this build loads only 0.5.4.1 saves** (historical-save compatibility dropped — a save from any older build is rejected; start a new settlement). Full notes → [CHANGELOG.md](CHANGELOG.md)
+**Playing `GAME_VERSION` 0.5.4.2** — ⚠️ **beta save policy: this build loads only 0.5.4.2 saves** (historical-save compatibility dropped — a save from any older build is rejected; start a new settlement). Full notes → [CHANGELOG.md](CHANGELOG.md)
 
 | Area | Highlights |
 |------|------------|
+| **🔩 Iron is real** | The Mine gains an **Extract mode (🪨 Stone / 🔩 Iron)** — switch it per mine in the inspector — and every **Blacksmith forge order now costs iron** (Spears → Ballistae). The forge is an iron sink, not a gold sink |
+| **🎓 First-spring guide** | A living step-by-step guide walks you through your first year (house → farm → workers → wood/meat → gold → winter). It auto-advances as you do things, has a **Skip** button, and the new-settlement screen has an **On/Off choice** |
+| **🏚️ Wood Storehouse** | A new Resources building that shelters **+800 wood storage** for winter; food spoilage drops to 2%/day, and gold is capped at 20,000 — the economy audit's fixes, all in |
 | **🏔️ 2.5D painted relief** | The valley reads as a landscape, not colored blocks. **Hand-painted shores** (a painted grass-biome tileset, blob-autotiled) line every coast and river, and **hills and peaks physically rise** out of the plain — raised surfaces with sun-lit edges and shaded cliff faces. Buildings, settlers and props **ride the terrain**; nothing floats on slopes |
 | **🌊 Rivers look like rivers** | New maps carve **whole-tile water bands 3–5 tiles across** (not 1-tile threads), the thin blue "stream" stroke is gone, and **Riverlands & Coastal valleys finally get rivers** at all |
 | **🔨 Upgrades you can see** | Lv2 buildings grow a warm new roof + chimney, Lv3 a stronger roof, a gold rim and a soft glow at night — upgrades read at a glance |
-| **🪵 Painted dirt** | Hills, Rocky and Mountain relief surfaces use a hand-painted soil texture, matching the painted coasts |
 | **⛈️ Storm damage you can see** | When a storm batters buildings, debris flies and a warning floats up from each battered roof — and the colony now **founds at 08:00**, not midnight |
 
-### Previous release — v0.5.4 (August 13)
+### Previous release — v0.5.4.1 (August 17)
 
 | Area | Highlights |
 |------|------------|

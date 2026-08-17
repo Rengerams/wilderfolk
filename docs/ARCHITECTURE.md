@@ -207,7 +207,7 @@ flowchart TB
 
 - **Browser save** = convenient, can vanish with cache wipe.  
 - **Save to file** = real backup you keep.  
-- Compatible versions listed in `saveLoad.ts` (`0.4` … `0.5.1`).
+- **Beta save policy (since 2026-08-16):** only the **exact current `GAME_VERSION`'s** saves load — historical-save compatibility is dropped (`saveLoad.ts` `parseSaveJson` rejects any other `_version`; the app explains this on load).
 
 ---
 

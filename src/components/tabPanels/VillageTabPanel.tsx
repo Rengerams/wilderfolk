@@ -77,6 +77,8 @@ export interface VillageTabPanelProps {
   onToggleFavoriteCitizen?: (entityId: number) => void;
   onOpenGoals: () => void;
   onHintAction: (action: FocusHintAction) => void;
+  /** Hint action ids the first-spring guide suppresses as duplicates. */
+  suppressHintIds?: string[];
 }
 
 export default function VillageTabPanel({
@@ -89,6 +91,7 @@ export default function VillageTabPanel({
   onToggleFavoriteCitizen,
   onOpenGoals,
   onHintAction,
+  suppressHintIds = [],
 }: VillageTabPanelProps) {
   const canRecruit = villageStats.total < state.maxHumanPopulation && state.resources.food >= 30 && state.resources.gold >= 20;
   const recruitTitle = villageStats.total >= state.maxHumanPopulation
@@ -105,6 +108,7 @@ export default function VillageTabPanel({
           buildings={state.buildings}
           onOpenGoals={onOpenGoals}
           onHintAction={onHintAction}
+          suppressHintIds={suppressHintIds}
         />
       </Suspense>
       <CollapsibleSection
