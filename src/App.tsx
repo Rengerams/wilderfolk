@@ -80,6 +80,8 @@ import {
   loadJuiceEffectsEnabled,
   loadShowSimTick,
   loadFirstNightWarningDismissed,
+  loadTutorialChoice,
+  saveTutorialChoice,
   saveAutoSavePreference,
   saveTutorialsEnabled,
   saveJuiceEffectsEnabled,
@@ -105,6 +107,8 @@ import type { FocusHintAction } from './game/focusHints';
 import './App.css';
 import { BUILDING_HOTKEYS } from './game/hotkeys';
 import TutorialOverlay from './components/TutorialOverlay';
+import TutorialCampaignBanner from './components/TutorialCampaignBanner';
+import { currentCampaignStep, TUTORIAL_CAMPAIGN } from './game/tutorialCampaign';
 import { getBuildingConfig } from './game/buildingConfig';
 
 const SPEED_OPTIONS = [0.5, 1, 2, 3, 5, 10];
@@ -173,6 +177,8 @@ export default function App() {
   const [inspectorCollapsed, setInspectorCollapsed] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [tutorialsEnabled, setTutorialsEnabled] = useState(() => loadTutorialsEnabled());
+  const [tutorialChoice, setTutorialChoice] = useState(() => loadTutorialChoice());
+  const [campaignActive, setCampaignActive] = useState(false);
   const [juiceEffectsEnabled, setJuiceEffectsEnabled] = useState(() => loadJuiceEffectsEnabled());
   const [showSimTick, setShowSimTick] = useState(() => loadShowSimTick());
   const [showTutorial, setShowTutorial] = useState(() => {
@@ -536,6 +542,24 @@ export default function App() {
       dismissContextualTip();
     }
   }, [tutorialsEnabled, dismissContextualTip]);
+
+  const handleTutorialChoiceChange = useCallback((enabled: boolean) => {
+    saveTutorialChoice(enabled);
+    setTutorialChoice(enabled);
+  }, []);
+
+  // Current first-spring guide step — advances automatically as the player plays.
+  const campaignStep = useMemo(() => {
+    if (!campaignActive || !world) return null;
+    return currentCampaignStep(world);
+  }, [campaignActive, world, world?.tick]);
+  const campaignStepIndex = useMemo(() => {
+    if (!campaignStep) return -1;
+    return TUTORIAL_CAMPAIGN.findIndex((s) => s.id === campaignStep.id);
+  }, [campaignStep]);
+  useEffect(() => {
+    if (campaignActive && world && !currentCampaignStep(world)) setCampaignActive(false);
+  }, [campaignActive, world, world?.tick]);
 
   const handleToggleShowSimTick = useCallback(() => {
     const next = !showSimTick;
@@ -1045,8 +1069,9 @@ export default function App() {
     saveFirstNightWarningDismissed(false);
     setShowTutorial(showQuickStart);
     setTutorialStep(0);
+    setCampaignActive(tutorialChoice);
     setShowMapSetup(false);
-  }, [selectedMapSize, selectedMapPreset, tutorialsEnabled]);
+  }, [selectedMapSize, selectedMapPreset, tutorialsEnabled, tutorialChoice]);
 
   const startNewGame = useCallback(() => {
     setMapSetupSource('game');
@@ -1256,6 +1281,8 @@ export default function App() {
             dismissContextualTip();
           }
         }}
+        tutorialChoice={tutorialChoice}
+        onTutorialChoiceChange={handleTutorialChoiceChange}
       />
       </Suspense>
     );
@@ -1885,6 +1912,15 @@ export default function App() {
             onDisableAll={disableAllTutorials}
           />
           </div>
+
+          {campaignActive && campaignStep && !showTutorial && (
+            <TutorialCampaignBanner
+              step={campaignStep}
+              stepIndex={campaignStepIndex}
+              total={TUTORIAL_CAMPAIGN.length}
+              onSkip={() => setCampaignActive(false)}
+            />
+          )}
 
           {contextualTip && tutorialsEnabled && !showTutorial && (
             <ContextualTutorialCard

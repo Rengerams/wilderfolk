@@ -167,6 +167,9 @@ interface MapSetupScreenProps {
   hasSave?: boolean;
   tutorialsEnabled?: boolean;
   onTutorialsChange?: (enabled: boolean) => void;
+  /** Per-new-game choice — play the first-spring guide or start free. */
+  tutorialChoice?: boolean;
+  onTutorialChoiceChange?: (enabled: boolean) => void;
 }
 
 export default function MapSetupScreen({
@@ -181,6 +184,8 @@ export default function MapSetupScreen({
   hasSave,
   tutorialsEnabled,
   onTutorialsChange,
+  tutorialChoice,
+  onTutorialChoiceChange,
 }: MapSetupScreenProps) {
   const [villageName, setVillageName] = useState('New Frontier');
 
@@ -348,6 +353,30 @@ export default function MapSetupScreen({
                   type="checkbox"
                   checked={tutorialsEnabled !== false}
                   onChange={(e) => onTutorialsChange(e.target.checked)}
+                  className="h-4 w-4 accent-emerald-500"
+                />
+              </label>
+            </div>
+          </section>
+        )}
+
+        {onTutorialChoiceChange !== undefined && (
+          <section className="rounded-xl border border-emerald-700/40 bg-emerald-950/30 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-widest text-emerald-300">🎓 First-spring guide</h2>
+                <p className="mt-0.5 text-[11px] text-stone-400">
+                  A step-by-step guide walks you through your first year — build a house, plant food, survive winter. You can skip it anytime.
+                </p>
+              </div>
+              <label className="flex cursor-pointer items-center gap-2">
+                <span className={`text-xs ${tutorialChoice !== false ? 'text-emerald-200' : 'text-stone-500'}`}>
+                  {tutorialChoice !== false ? 'On' : 'Off'}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={tutorialChoice !== false}
+                  onChange={(e) => onTutorialChoiceChange(e.target.checked)}
                   className="h-4 w-4 accent-emerald-500"
                 />
               </label>

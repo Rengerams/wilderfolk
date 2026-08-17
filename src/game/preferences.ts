@@ -38,6 +38,17 @@ export function saveTutorialsEnabled(enabled: boolean): void {
   writeBoolPreference(TUTORIALS_ENABLED_KEY, enabled);
 }
 
+const TUTORIAL_CHOICE_KEY = 'wilderfolk-tutorial-choice';
+
+/** Per-new-game choice: play the first-spring guide or start free. */
+export function loadTutorialChoice(): boolean {
+  return readBoolPreference(TUTORIAL_CHOICE_KEY, true);
+}
+
+export function saveTutorialChoice(enabled: boolean): void {
+  writeBoolPreference(TUTORIAL_CHOICE_KEY, enabled);
+}
+
 export function loadJuiceEffectsEnabled(): boolean {
   if (cachedJuiceEffects !== null) return cachedJuiceEffects;
   cachedJuiceEffects = readBoolPreference(JUICE_EFFECTS_KEY, true);

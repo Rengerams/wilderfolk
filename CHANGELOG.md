@@ -4,6 +4,7 @@
 
 ### Added
 - **🔩 Iron — a real resource at last** — the economy audit found "iron" gear was secretly paid in wood+stone+gold; now **iron is a true fifth resource**: the **Mine gains an Extract mode (🪨 Stone / 🔩 Iron)**, and all **Blacksmith forge orders cost iron** (Spears → Ballistae, ~15–40 each). Iron shows in the header (lg+), forge cost chips, challenge rewards, and the Ironport trade route pays iron. Mine iron mode yields ~21/day; the forge is now an iron sink, not a gold sink. (Audit → `docs/private/ECONOMY_AUDIT_2026-08-17.md`)
+- **🎓 First-spring guide** — a living, step-by-step tutorial walks new players through their first year (build a house → plant a farm → assign workers → secure wood/meat → earn gold → prepare for winter → year two). It's a **non-modal banner** that auto-advances as you actually do each thing, and can be **skipped at any time**. New-settlement screen has a **First-spring guide On/Off choice** (remembered) — turn it off to start completely free, no tutorial at all
 
 ## [0.5.4.2] — 2026-08-17
 
