@@ -2,6 +2,8 @@
 
 ## [0.6] — 2026-08-17
 
+`GAME_VERSION` **0.6** · ⚠️ **beta save policy: this build loads only 0.6 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
+
 ### Added
 - **🎣 Fishing Spot (Phase 6: rivers feed)** — a new Food building that must straddle water (a dock): staffed fishers haul `8 + 4×workers` food per day, thin in winter (55%), rich in fall (115%). Safer than hunting — no wolves fight back. Generated sprite `fishingspot.png`
 - **🌳 Wildlife Preserve (Phase 6: ecology tools)** — a new Community building: fenced wild grove that **restores ecosystem health +4** and shows the valley you're giving back. No workers
@@ -33,7 +35,7 @@
 
 **The valley rises — painted relief, rivers that run, and upgrades you can see.**
 
-`GAME_VERSION` **0.5.4.2** · ⚠️ **beta save policy: this build loads only 0.5.4.1 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
+`GAME_VERSION` **0.5.4.2** · ⚠️ **beta save policy: this build loads only 0.5.4.2 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
 
 ### Added
 - **🦌 The Passing Herds** — every autumn a herd of deer crosses the valley: they graze, they are huntable, and they leave after a week. **The herds remember** — every deer you take this year makes next year's herd smaller (feast now, thinner autumns later); let them pass unharmed and they come back fat as ever
@@ -62,7 +64,7 @@
 
 ---
 
-## [0.5.4] — 2026-08-11
+## [0.5.4] — 2026-08-11 
 
 **Six valleys to settle — painted lands, walking pioneers, and a frontier that breathes.**
 
