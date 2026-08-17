@@ -70,13 +70,16 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ### What's next
 
-Soon...
 
-### Prior release — v0.5.3
+### Prior release — v0.5.3 August 12, 2026)
 
 The night hunts back: Moon Howler exorcism overhaul — up to 4 priests, active night hunts, red-dot howlers, guard saves, and the **Moonslayer / Howlerbane** titles. Details → [ROADMAP.md](ROADMAP.md).
 
 ---
+
+
+
+Soon...
 
 ## How to install
 
