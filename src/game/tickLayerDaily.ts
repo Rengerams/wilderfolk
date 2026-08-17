@@ -33,7 +33,7 @@ import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
 import { advanceSocialRelationships } from './relationships';
 import { advanceApprenticeships } from './apprenticeships';
 import { tickMigration } from './migration';
-import { tickPendingStoryEvents, maybeOfferWolfChoice } from './storyEvents';
+import { tickPendingStoryEvents, maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferWinterPrep, tickWinterFreezeCheck } from './storyEvents';
 import { tickBeauty } from './beautyGrid';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getLumberMillTreeMultiplier } from './treeProximity';
@@ -801,10 +801,15 @@ export function tickLayerDaily(
   tickLeaderPromise(state);
   tickPendingRaidEvents(state, allAlive, ctx.updatedBuildings);
   tickPendingOutgoingRaidEvents(state);
-  // Signature stories — the first-session wolf choice is offered once in the
-  // first two months; after that the daily check is skipped entirely.
-  if (state.year === 0 && state.dayInYear < 60) {
-    maybeOfferWolfChoice(state);
+  // First-session arc (year 0 only — zero cost in later years): the welcome
+  // beat, the wolf choice (first two months), the ranger's memory of it, and
+  // Old Kaia's first-winter quest with its freeze-day resolution.
+  if (state.year === 0) {
+    maybeOfferWelcome(state);
+    if (state.dayInYear < 60) maybeOfferWolfChoice(state);
+    maybeOfferRangerVisit(state);
+    maybeOfferWinterPrep(state);
+    tickWinterFreezeCheck(state);
   }
   tickPendingStoryEvents(state);
   tickRivalSettlements(state, allAlive);

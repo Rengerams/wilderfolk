@@ -1,6 +1,7 @@
 import type { WorldState, StoryEvent } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
+import { addCappedResource } from './resourceUtils';
 import { logEvent } from './eventLog';
 
 /**
@@ -54,8 +55,20 @@ export function respondToStoryEvent(
   state.pendingStoryEvents = state.pendingStoryEvents!.filter((e) => e.id !== eventId);
 
   switch (event.storyKey) {
+    case 'welcome':
+      resolveWelcome(state, choiceId);
+      break;
     case 'wolf_choice':
       resolveWolfChoice(state, choiceId);
+      break;
+    case 'ranger_visit':
+      resolveRangerVisit(state, choiceId);
+      break;
+    case 'winter_prep':
+      if (choiceId === 'accept') {
+        state.storyFlags = { ...state.storyFlags, winter_accepted: state.tick };
+        addBigNews(state, '❄️ The test is set', 'Old Kaia marks the day — 120 wood and 180 food before the first freeze.', 'neutral');
+      }
       break;
     case 'valley_debate':
       resolveValleyDebate(state, choiceId);
@@ -91,6 +104,12 @@ export function maybeOfferWolfChoice(state: WorldState): void {
 }
 
 function resolveWolfChoice(state: WorldState, choiceId: string): void {
+  // The valley remembers — the ranger story reads this choice.
+  state.storyFlags = {
+    ...state.storyFlags,
+    wolf_resolved: choiceId === 'thin_pack' ? 1 : 2,
+    wolf_resolvedTick: state.tick,
+  };
   if (choiceId === 'thin_pack') {
     setEco(state, eco(state) - 6);
     bumpRep(state, 2);
@@ -126,7 +145,131 @@ function resolveWolfChoice(state: WorldState, choiceId: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// Story 2 — The valley's future (philosophical election debate)
+// Story 2 — The valley wakes (first-session welcome beat, day 0)
+// ---------------------------------------------------------------------------
+
+/** Offer once, on the very first day — sets the tone and the first course. */
+export function maybeOfferWelcome(state: WorldState): void {
+  if ((state.storyFlags?.welcome ?? 0) > 0) return;
+  if (state.year > 0 || state.dayInYear >= 1) return;
+  state.storyFlags = { ...state.storyFlags, welcome: state.tick };
+  offerStoryEvent(state, {
+    id: `welcome_${state.tick}`,
+    emoji: '🌄',
+    storyKey: 'welcome',
+    title: 'The valley wakes',
+    description:
+      'Dawn over a valley that already has owners — deer, wolves, and a hundred quiet ways. The elders say: move in gently, or not at all. Where do you begin?',
+    choices: [
+      { id: 'listen_elders', label: 'Listen to the elders', detail: 'Start by watching the land — the valley remembers respect.' },
+      { id: 'set_to_work', label: 'Set to work', detail: 'Start building at once — mouths to feed, roofs to raise.' },
+    ],
+    createdAtTick: state.tick,
+    expiresAtTick: state.tick + TICKS_PER_DAY,
+  });
+}
+
+function resolveWelcome(state: WorldState, choiceId: string): void {
+  if (choiceId === 'listen_elders') {
+    setEco(state, eco(state) + 2);
+    addBigNews(state, '🌄 The elders nod', 'You began by watching the land. The valley remembers respect — and rewards it.', 'positive');
+    logEvent(state, 'event', `${state.villageName} began by listening to the elders — the valley's first impression.`);
+  } else {
+    addCappedResource(state, 'wood', 5);
+    addBigNews(state, '🔨 A fast start', 'You began at once — the first beams fall before noon. The valley watches.', 'neutral');
+    logEvent(state, 'event', `${state.villageName} began at once — the first beams fell before noon.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Story 3 — The old ranger (remembers the wolf choice)
+// ---------------------------------------------------------------------------
+
+/** Offer a few days after the wolf choice resolves — the valley keeps memory. */
+export function maybeOfferRangerVisit(state: WorldState): void {
+  if ((state.storyFlags?.ranger_visit ?? 0) > 0) return;
+  const resolved = state.storyFlags?.wolf_resolved;
+  const resolvedTick = state.storyFlags?.wolf_resolvedTick ?? 0;
+  if (resolved == null || state.tick < resolvedTick + TICKS_PER_DAY * 3) return;
+  state.storyFlags = { ...state.storyFlags, ranger_visit: state.tick };
+  const thin = resolved === 1;
+  offerStoryEvent(state, {
+    id: `ranger_${state.tick}`,
+    emoji: '🧙',
+    storyKey: 'ranger_visit',
+    title: thin ? 'The ranger counts the pack' : 'The ranger nods',
+    description: thin
+      ? 'An old ranger walks the treeline, counting the missing. “Fewer wolves now. The deer will grow bold, and bold deer thin the fields. Balance is a debt.”'
+      : 'An old ranger stops at your gate. “You let the pack be. That is the old way — the deer stay honest, and so does this valley.”',
+    choices: [
+      { id: 'acknowledge', label: '“I will remember.”', detail: 'The valley keeps its history — so will you.' },
+    ],
+    createdAtTick: state.tick,
+    expiresAtTick: state.tick + TICKS_PER_DAY * 5,
+  });
+}
+
+function resolveRangerVisit(state: WorldState, choiceId: string): void {
+  const thin = (state.storyFlags?.wolf_resolved ?? 0) === 1;
+  if (choiceId === 'acknowledge') {
+    if (thin) {
+      setEco(state, eco(state) + 1); // a gesture toward the debt
+      bumpRep(state, 1);
+      addBigNews(state, '🧙 A debt acknowledged', 'The ranger leaves a single feather — “for the balance.” The valley keeps its ledger.', 'neutral');
+      logEvent(state, 'event', `The ranger counted the pack after ${state.villageName} thinned it — a debt acknowledged.`);
+    } else {
+      bumpRep(state, 2);
+      addBigNews(state, '🧙 The old way holds', 'The ranger leaves a single feather — “for the old way.” The valley keeps its ledger.', 'positive');
+      logEvent(state, 'event', `The ranger honored ${state.villageName} for sparing the pack — the old way holds.`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Story 4 — Old Kaia's winter test (first-year course-setting quest)
+// ---------------------------------------------------------------------------
+
+/** Offer mid first year: a goal with a real deadline — the first freeze. */
+export function maybeOfferWinterPrep(state: WorldState): void {
+  if ((state.storyFlags?.winter_prep ?? 0) > 0) return;
+  if (state.year > 0 || state.dayInYear !== 210) return;
+  state.storyFlags = { ...state.storyFlags, winter_prep: state.tick };
+  offerStoryEvent(state, {
+    id: `winter_prep_${state.tick}`,
+    emoji: '❄️',
+    storyKey: 'winter_prep',
+    title: "Old Kaia's winter test",
+    description:
+      '“First freeze comes at day 260,” Old Kaia says. “A warm village needs 120 wood and a full larder — 180 food. Meet it, and I will tell the valley your name.”',
+    choices: [
+      { id: 'accept', label: 'Accept the test', detail: 'Stockpile 120 wood and 180 food before the first freeze.' },
+      { id: 'decline', label: 'Decline', detail: "Rely on the guide's winter advice instead." },
+    ],
+    createdAtTick: state.tick,
+    expiresAtTick: state.tick + TICKS_PER_DAY * 10,
+  });
+}
+
+/** Check the pact at the first freeze (day 260) — the valley remembers the result. */
+export function tickWinterFreezeCheck(state: WorldState): void {
+  if (state.year > 0 || state.dayInYear !== 260) return;
+  if ((state.storyFlags?.winter_resolved ?? 0) > 0) return;
+  const pact = state.storyFlags?.winter_prep ?? 0;
+  const accepted = pact > 0 && (state.storyFlags?.winter_accepted ?? 0) > 0;
+  state.storyFlags = { ...state.storyFlags, winter_resolved: state.tick };
+  if (accepted && state.resources.wood >= 120 && state.resources.food >= 180) {
+    bumpRep(state, 2);
+    addBigNews(state, '❄️ The first freeze holds', 'The first freeze came — and the village was ready. Old Kaia tells the valley your name.', 'positive');
+    logEvent(state, 'event', `${state.villageName} passed Old Kaia's first winter test — 120 wood, a full larder, and a name remembered.`);
+  } else if (accepted) {
+    bumpRep(state, -1);
+    addBigNews(state, '❄️ A lean first freeze', 'The first freeze came early and the larder thin. Old Kaia says nothing — the valley remembers.', 'negative');
+    logEvent(state, 'event', `${state.villageName} failed Old Kaia's first winter test — a lean freeze the valley remembers.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Story 5 — The valley's future (philosophical election debate)
 // ---------------------------------------------------------------------------
 
 /** Offer once per election season when candidates genuinely disagree. */

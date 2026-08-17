@@ -12,10 +12,14 @@ import type { WorldState } from '../src/game/gameTypes';
 import { BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import {
+  maybeOfferWelcome,
   maybeOfferWolfChoice,
+  maybeOfferRangerVisit,
+  maybeOfferWinterPrep,
   maybeOfferValleyDebate,
   respondToStoryEvent,
   tickPendingStoryEvents,
+  tickWinterFreezeCheck,
 } from '../src/game/storyEvents';
 
 function worldWithWolvesAndFarm(): WorldState {
@@ -154,6 +158,104 @@ describe('philosophical election debate', () => {
     const next = respondToStoryEvent(state, id, 'festivals');
     expect(next.ecosystemHealth ?? 80).toBe(ecoBefore);
     expect(next.villageReputation).toBeGreaterThan(repBefore);
+  });
+});
+
+describe('first-session arc', () => {
+  it('welcome beat: offered once on day 0, listen-to-elders raises eco', () => {
+    const state = initGame({ villageName: 'ArcVale1', size: MapSize.Small });
+    state.dayInYear = 0;
+    state.ecosystemHealth = 50;
+    maybeOfferWelcome(state);
+    expect(state.pendingStoryEvents?.length).toBe(1);
+    const id = state.pendingStoryEvents![0].id;
+    const next = respondToStoryEvent(state, id, 'listen_elders');
+    expect(next.ecosystemHealth).toBe(52);
+    maybeOfferWelcome(next);
+    expect(next.pendingStoryEvents?.length ?? 0).toBe(0);
+  });
+
+  it('welcome beat: set-to-work grants wood', () => {
+    const state = initGame({ villageName: 'ArcVale2', size: MapSize.Small });
+    state.dayInYear = 0;
+    const woodBefore = state.resources.wood;
+    maybeOfferWelcome(state);
+    const next = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'set_to_work');
+    expect(next.resources.wood).toBe(woodBefore + 5);
+  });
+
+  it('ranger: waits for the wolf choice to resolve, then visits once', () => {
+    const state = initGame({ villageName: 'ArcVale3', size: MapSize.Small });
+    state.year = 0;
+    state.dayInYear = 10;
+    maybeOfferWolfChoice(state);
+    const wolfId = state.pendingStoryEvents![0].id;
+    const resolved = respondToStoryEvent(state, wolfId, 'let_be');
+    // Too soon (same tick) — no ranger yet.
+    maybeOfferRangerVisit(resolved);
+    expect(resolved.pendingStoryEvents?.length ?? 0).toBe(0);
+    // Three days later — the ranger comes.
+    resolved.tick = resolved.storyFlags!.wolf_resolvedTick! + TICKS_PER_DAY * 3;
+    maybeOfferRangerVisit(resolved);
+    expect(resolved.pendingStoryEvents?.length).toBe(1);
+    expect(resolved.pendingStoryEvents![0].storyKey).toBe('ranger_visit');
+  });
+
+  it('ranger: acknowledges the spare-the-pack choice with reputation', () => {
+    const state = initGame({ villageName: 'ArcVale4', size: MapSize.Small });
+    state.year = 0;
+    state.dayInYear = 10;
+    maybeOfferWolfChoice(state);
+    const resolved = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'let_be');
+    resolved.tick = resolved.storyFlags!.wolf_resolvedTick! + TICKS_PER_DAY * 3;
+    maybeOfferRangerVisit(resolved);
+    const repBefore = resolved.villageReputation;
+    const next = respondToStoryEvent(resolved, resolved.pendingStoryEvents![0].id, 'acknowledge');
+    expect(next.villageReputation).toBeGreaterThan(repBefore);
+  });
+
+  it('winter prep: offered on day 210; freeze check rewards a met pact', () => {
+    const state = initGame({ villageName: 'ArcVale5', size: MapSize.Small });
+    state.year = 0;
+    state.dayInYear = 210;
+    maybeOfferWinterPrep(state);
+    expect(state.pendingStoryEvents?.length).toBe(1);
+    const accepted = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'accept');
+    expect(accepted.storyFlags?.winter_accepted).toBeGreaterThan(0);
+    accepted.dayInYear = 260;
+    accepted.resources.wood = 150;
+    accepted.resources.food = 200;
+    const repBefore = accepted.villageReputation;
+    tickWinterFreezeCheck(accepted);
+    expect(accepted.villageReputation).toBeGreaterThan(repBefore);
+  });
+
+  it('winter prep: a failed pact costs reputation at the freeze', () => {
+    const state = initGame({ villageName: 'ArcVale6', size: MapSize.Small });
+    state.year = 0;
+    state.dayInYear = 210;
+    maybeOfferWinterPrep(state);
+    const accepted = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'accept');
+    accepted.dayInYear = 260;
+    accepted.resources.wood = 10;
+    accepted.resources.food = 5;
+    const repBefore = accepted.villageReputation;
+    tickWinterFreezeCheck(accepted);
+    expect(accepted.villageReputation).toBeLessThan(repBefore);
+  });
+
+  it('winter prep: declining the pact means no freeze penalty', () => {
+    const state = initGame({ villageName: 'ArcVale7', size: MapSize.Small });
+    state.year = 0;
+    state.dayInYear = 210;
+    maybeOfferWinterPrep(state);
+    const declined = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'decline');
+    declined.dayInYear = 260;
+    declined.resources.wood = 5;
+    declined.resources.food = 5;
+    const repBefore = declined.villageReputation;
+    tickWinterFreezeCheck(declined);
+    expect(declined.villageReputation).toBe(repBefore);
   });
 });
 
