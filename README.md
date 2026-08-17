@@ -68,8 +68,6 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | **🌷 Decor & village beauty** | A **Decor** build tab — gardens, statues, lamps, wooden fences (no art needed, all procedural). Decor stamps neighborhood beauty: settlers drift toward pretty spots in free time, and the Population panel shows a **Village mood** readout |
 | **Quality** | Every **0.5.x save loads** (version-gate test pins it); worker-command tests back in the gate; the code hub slimmed 1,489 → 1,072 lines |
 
-### What's next
-
 
 ### Prior release — v0.5.3 August 12, 2026)
 
@@ -77,7 +75,7 @@ The night hunts back: Moon Howler exorcism overhaul — up to 4 priests, active 
 
 ---
 
-
+### What's next
 
 Soon...
 
