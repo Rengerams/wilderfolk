@@ -11,7 +11,6 @@
 - **🎓 Apprenticeships (Phase 7: skills pass on)** — a master (skill ≥ 40) at a staffed production building takes on the nearest juvenile; the apprentice learns fast under a good master and **graduates at skill 50** into the trade. Building panels show who is teaching whom
 - **👑 Dynasties (Phase 7: family legacy)** — the Goals tab lists **living dynasties** (surnames across generations), and a true **three-generation dynasty unlocks a Valley Chronicle chapter** ("A Dynasty", +200 gold)
 - **🗳️ Elections are real ballots (Phase 7: vote-support)** — every adult settler votes; **merit stays the strongest force** (a candidate ahead by >15 points wins every ballot), while **friendships boost and feuds can cancel a vote** — bonds only tip close races. Results log as "X of Y ballots", and the announcement reads "Elected by ballot"
-- **⚡ v0.6 perf: sim worker default-on + per-human tail cut ~1.9×** — a fresh CPU profile found the spatial-grid social scans had grown to ~43% of the tick and the daily relationships layer could spike O(H²). Fixed: worker sim now **default-on** (opt out with `VITE_USE_GAME_WORKER=0` — slow 10× ticks never freeze the UI); ambient-chat scans staggered 3× (identical dialogue rate); social-impulse scan radius trimmed; relationships pair-bumps capped. Official sweep: 1,200h **352 → 207 ms**, 1,500h **715 → 384 ms** (1× speed comfortable at 1,500+). Trees/grass stay entities — measured at only ~3% of the tick (they already skip the mobile grid) → de-entitying parked in the plan doc §7
 - **🔩 Iron — a real resource at last** — the economy audit found "iron" gear was secretly paid in wood+stone+gold; now **iron is a true fifth resource**: the **Mine gains an Extract mode (🪨 Stone / 🔩 Iron)**, and all **Blacksmith forge orders cost iron** (Spears → Ballistae, ~15–40 each). Iron shows in the header (lg+), forge cost chips, challenge rewards, and the Ironport trade route pays iron. Mine iron mode yields ~21/day; the forge is now an iron sink, not a gold sink. (Audit → `docs/private/ECONOMY_AUDIT_2026-08-17.md`)
 - **🎓 First-spring guide** — a living, step-by-step tutorial walks new players through their first year (build a house → plant a farm → assign workers → secure wood/meat → earn gold → prepare for winter → year two). It's a **non-modal banner** that auto-advances as you actually do each thing, and can be **skipped at any time**. New-settlement screen has a **First-spring guide On/Off choice** (remembered) — turn it off to start completely free, no tutorial at all
 - **🏚️ Wood Storehouse** — a new Resources building (`storehouse_wood.png`) that shelters **+800 wood storage** for winter fuel; the base wood cap is 500 → **800**, so a 50-pop village can finally bank a winter (~900 needed)
@@ -28,21 +27,13 @@
 - **Hygiene (external review P1/P2)** — "5 valleys" copy fixed to 6; stray `Wilderfolk - Snelkoppeling.lnk` removed from `src/game/`
 - **Quality**   pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather, App split updated
 - **Charts subtab (Progress tab)** — a rolling ~40-day view that makes the valley legible: the **food chain** (humans/wolves/rabbits/deer/foxes on one chart), **ecosystem health & pollution**, and **gold/food/wood/stone trends** — the loop you could only feel before, you can now read
+- **Victory paths removed** (redesign) — the four hard win conditions (Eco-Utopia, Great City, Trade Empire, Harmony) are gone: they were not well thought out as end conditions and locked the sandbox into arbitrary targets. The game is now a **pure frontier sandbox** — no forced win, no victory banners; optional Challenges keep rewarding milestones, and the **village portrait** ("how history sees you") remains the live story readout. The system is slated for a proper redesign later.
 
 ## [0.5.4.2] — 2026-08-15
 
-**The valley rises — painted relief, rivers that run, and upgrades you can see. Victory paths removed for redesign.**
-
-`GAME_VERSION` **0.5.4.2** · ⚠️ **beta save policy: this build loads only 0.5.4.2 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
-
-### Removed
-- **Victory paths removed** (redesign) — the four hard win conditions (Eco-Utopia, Great City, Trade Empire, Harmony) are gone: they were not well thought out as end conditions and locked the sandbox into arbitrary targets. The game is now a **pure frontier sandbox** — no forced win, no victory banners; optional Challenges keep rewarding milestones, and the **village portrait** ("how history sees you") remains the live story readout. The system is slated for a proper redesign later.
-
-## [0.5.4.1] — 2026-08-13
-
 **The valley rises — painted relief, rivers that run, and upgrades you can see.**
 
-`GAME_VERSION` **0.5.4.1** · ⚠️ **beta save policy: this build loads only 0.5.4.1 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
+`GAME_VERSION` **0.5.4.2** · ⚠️ **beta save policy: this build loads only 0.5.4.1 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
 
 ### Added
 - **🦌 The Passing Herds** — every autumn a herd of deer crosses the valley: they graze, they are huntable, and they leave after a week. **The herds remember** — every deer you take this year makes next year's herd smaller (feast now, thinner autumns later); let them pass unharmed and they come back fat as ever
@@ -71,7 +62,7 @@
 
 ---
 
-## [0.5.4] — 2026-08-13
+## [0.5.4] — 2026-08-11
 
 **Six valleys to settle — painted lands, walking pioneers, and a frontier that breathes.**
 
