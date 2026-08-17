@@ -6,6 +6,7 @@ import { addBigNews } from './simEffects';
 import { isPlayerHuman } from './playerHuman';
 import { sayHumanChatPhrase } from './humanChat';
 import { ensureEntitySkills } from './skills';
+import { simulateElectionVotes } from './electionVotes';
 
 /**
  * Scheduled term length (colony years).
@@ -632,7 +633,9 @@ export function tickElectionBuildup(
 function refreshCeremonyPendingLeader(state: WorldState, ceremony: ElectionCeremonyState): void {
   const ranked = rankLeadershipCandidates(state);
   if (ranked.length === 0) return;
-  const winner = ranked[0];
+  // Merit ranks the field; the ballot decides — friendships/feuds tip close races only.
+  const vote = simulateElectionVotes(state, ranked);
+  const winner = ranked.find((b) => b.entityId === vote.winnerId) ?? ranked[0];
   ceremony.pendingLeaderId = winner.entityId;
   ceremony.pendingLeaderName = winner.name;
   ceremony.pendingChanged = state.villageLeaderId !== winner.entityId;
@@ -717,15 +720,17 @@ export function runVillageElection(
   state: WorldState,
   year: number,
   reason: LeadershipElectionReason,
-): { leaderId: number | null; changed: boolean; leaderName: string; breakdown: LeadershipScoreBreakdown | null } {
+): { leaderId: number | null; changed: boolean; leaderName: string; breakdown: LeadershipScoreBreakdown | null; votes: { won: number; total: number } } {
   const ranked = rankLeadershipCandidates(state);
   if (ranked.length === 0) {
     const changed = state.villageLeaderId != null;
     state.villageLeaderId = null;
-    return { leaderId: null, changed, leaderName: '', breakdown: null };
+    return { leaderId: null, changed, leaderName: '', breakdown: null, votes: { won: 0, total: 0 } };
   }
 
-  const winner = ranked[0];
+  // Merit ranks the field; the ballot decides — friendships/feuds tip close races only.
+  const vote = simulateElectionVotes(state, ranked);
+  const winner = ranked.find((b) => b.entityId === vote.winnerId) ?? ranked[0];
   const prevId = state.villageLeaderId;
   const changed = prevId !== winner.entityId;
 
@@ -735,11 +740,12 @@ export function runVillageElection(
     state.lastElectionYear = year;
   }
 
+  const ballot = `${vote.winnerVotes} of ${vote.totalVotes} ballots`;
   if (reason === 'founding') {
     logEvent(
       state,
       'event',
-      `${winner.name} elected founding village head — ${scoreSummary(winner)}`,
+      `${winner.name} elected founding village head — ${ballot} · ${scoreSummary(winner)}`,
       winner.name,
     );
   } else if (reason === 'decennial') {
@@ -747,20 +753,20 @@ export function runVillageElection(
       state,
       'event',
       changed
-        ? `${winner.name} elected village head (Year ${year}) — ${scoreSummary(winner)}`
-        : `${winner.name} re-elected village head (Year ${year}) — ${scoreSummary(winner)}`,
+        ? `${winner.name} elected village head (Year ${year}) — ${ballot} · ${scoreSummary(winner)}`
+        : `${winner.name} re-elected village head (Year ${year}) — ${ballot} · ${scoreSummary(winner)}`,
       winner.name,
     );
   } else {
     logEvent(
       state,
       'event',
-      `${winner.name} succeeded as village head — ${scoreSummary(winner)}`,
+      `${winner.name} succeeded as village head — ${ballot} · ${scoreSummary(winner)}`,
       winner.name,
     );
   }
 
-  return { leaderId: winner.entityId, changed, leaderName: winner.name, breakdown: winner };
+  return { leaderId: winner.entityId, changed, leaderName: winner.name, breakdown: winner, votes: { won: vote.winnerVotes, total: vote.totalVotes } };
 }
 
 /** @deprecated Use appointFoundingLeader on the first male pioneer */
@@ -780,9 +786,10 @@ function buildAnnouncement(
     : '👑 New village head';
   const verb = reason === 'decennial' && !result.changed ? 're-elected' : 'is now village head';
   const merit = result.breakdown ? scoreSummary(result.breakdown) : '';
+  const ballots = result.votes.total > 0 ? `${result.votes.won} of ${result.votes.total} ballots · ` : '';
   return {
     title,
-    message: `${result.leaderName} ${verb} (Year ${year}). Elected by merit — ${merit}.`,
+    message: `${result.leaderName} ${verb} (Year ${year}). Elected by ballot — ${ballots}${merit}.`,
     leaderName: result.leaderName,
     changed: result.changed,
     reason,
