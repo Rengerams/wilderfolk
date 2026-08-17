@@ -1684,6 +1684,39 @@ export default function App() {
             </div>
           )}
 
+          {/* Signature story cards — authored choices with real sim consequences */}
+          {(world.pendingStoryEvents ?? []).length > 0 && (
+            <div className="pointer-events-auto absolute left-1/2 top-4 z-10 w-full max-w-lg -translate-x-1/2 animate-in fade-in slide-in-from-top">
+              {(world.pendingStoryEvents ?? []).slice(0, 2).map((evt) => (
+                <div key={evt.id} className="mb-2 rounded-xl border border-emerald-500/40 bg-emerald-950/90 p-3 shadow-xl backdrop-blur">
+                  <div className="flex items-start gap-3">
+                    <Emoji className="text-2xl">{evt.emoji}</Emoji>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-emerald-100">{evt.title}</h3>
+                      <p className="mt-0.5 text-[11px] leading-snug text-emerald-200/80">{evt.description}</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {evt.choices.map((choice) => (
+                          <button
+                            key={choice.id}
+                            type="button"
+                            onClick={() => {
+                              playClickSound();
+                              applyGameAction({ proto: 1, op: 'respondToStoryEvent', eventId: evt.id, choiceId: choice.id });
+                            }}
+                            className="rounded-lg bg-stone-900/80 px-2 py-1.5 text-left text-[10px] font-semibold text-emerald-100 hover:bg-stone-800"
+                            title={choice.detail}
+                          >
+                            {choice.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Diplomacy event cards — player must respond */}
           {pendingDiplomacy.length > 0 && (
             <div className={`pointer-events-auto absolute left-1/2 ${pendingRaids.length > 0 || pendingOutgoingRaids.length > 0 ? 'top-44' : 'top-4'} z-10 w-full max-w-lg -translate-x-1/2 animate-in fade-in slide-in-from-top`}>

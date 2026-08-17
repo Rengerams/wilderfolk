@@ -1,4 +1,5 @@
 import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState } from './gameTypes';
+import { maybeOfferValleyDebate } from './storyEvents';
 import { BuildingType, EntityType } from './gameTypes';
 import { getAgeInYears, HUMAN_ADULT_MIN_AGE, isImprisoned, TICKS_PER_DAY } from './dayCycle';
 import { logEvent } from './eventLog';
@@ -572,6 +573,7 @@ export function startElectionCeremony(
   reason: 'founding' | 'decennial' | 'succession',
 ): boolean {
   const ranked = rankLeadershipCandidates(state);
+  maybeOfferValleyDebate(state, ranked.map((c) => c.name));
   if (ranked.length === 0) {
     logEvent(
       state,

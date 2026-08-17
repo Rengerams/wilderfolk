@@ -33,6 +33,7 @@ import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
 import { advanceSocialRelationships } from './relationships';
 import { advanceApprenticeships } from './apprenticeships';
 import { tickMigration } from './migration';
+import { tickPendingStoryEvents, maybeOfferWolfChoice } from './storyEvents';
 import { tickBeauty } from './beautyGrid';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getLumberMillTreeMultiplier } from './treeProximity';
@@ -800,6 +801,9 @@ export function tickLayerDaily(
   tickLeaderPromise(state);
   tickPendingRaidEvents(state, allAlive, ctx.updatedBuildings);
   tickPendingOutgoingRaidEvents(state);
+  // Signature stories — first-session wolf choice + any pending story expiry.
+  maybeOfferWolfChoice(state);
+  tickPendingStoryEvents(state);
   tickRivalSettlements(state, allAlive);
 
   // Remove any entities that died during frontier resolution before counts are reused.
