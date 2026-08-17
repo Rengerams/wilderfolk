@@ -1,11 +1,13 @@
 # Changelog
 
-## [0.6] — 2026-08-17
----
+## <u>[0.6]</u> — 2026-08-17
 
-- **Build, flow, and grow: watch the valley transform.**
+**Build, flow, and grow: watch the valley transform.**
 
-- `GAME_VERSION` **0.6** · ⚠️ **beta save policy: this build loads only 0.6 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
+* `GAME_VERSION` **0.6**
+* ⚠️ **Beta Save Policy:** This build loads only 0.6 saves.
+* **Compatibility Dropped:** Historical-save compatibility is no longer supported.
+* **New Start Required:** Saves from other builds are rejected, so please start a new settlement.
 
 ### Added
 - **🎣 Fishing Spot (Phase 6: rivers feed)** — a new Food building that must straddle water (a dock): staffed fishers haul `8 + 4×workers` food per day, thin in winter (55%), rich in fall (115%). Safer than hunting — no wolves fight back. Generated sprite `fishingspot.png`
