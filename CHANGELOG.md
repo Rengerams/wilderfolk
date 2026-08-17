@@ -19,7 +19,6 @@
 - **🍞 Food keeps longer** — spoilage drops **3% → 2%/day** and the base food cap rises to 800 (silos still cut further); banking food for winter is now viable
 - **💰 Gold has a cap** — 20,000 (was uncapped); the late-game snowball stops and the header shows the cap
 - **🌾 Farms reward workers** — farm output now scales `12 + 5×workers` (was a flat 22), so a fully-staffed farm out-produces an empty one
-- **Quality**   pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather, App split updated
 
 ### Changed
 - **Great City challenge reward nerfed** — 1,000×4 + 500 iron → **400×4 + 200 iron** (the mid-game economy eraser is gone)
@@ -30,6 +29,11 @@
 - **Quality**   pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather, App split updated
 - **Charts subtab (Progress tab)** — a rolling ~40-day view that makes the valley legible: the **food chain** (humans/wolves/rabbits/deer/foxes on one chart), **ecosystem health & pollution**, and **gold/food/wood/stone trends** — the loop you could only feel before, you can now read
 - **Victory paths removed** (redesign) — the four hard win conditions (Eco-Utopia, Great City, Trade Empire, Harmony) are gone: they were not well thought out as end conditions and locked the sandbox into arbitrary targets. The game is now a **pure frontier sandbox** — no forced win, no victory banners; optional Challenges keep rewarding milestones, and the **village portrait** ("how history sees you") remains the live story readout. The system is slated for a proper redesign later.
+
+### Performance
+- **Quality**   pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather, App split updated
+
+---
 
 ## [0.5.4.2] — 2026-08-15
 
