@@ -1,20 +1,26 @@
 /**
- * Wilderfolk — consolidated performance benchmark.
+ * Wilderfolk — dynamic consolidated performance benchmark.
  *
- * Runs exactly: 200, 400, 600, 800, 1000, 1200 humans.
- * Every tier reports wall-clock tick timing and spatial-query metrics.
- * The final 1200-human tier additionally reports CPU layer shares and
- * caller-level attribution for radius-query helpers.
+ * Starts at PERF_START_POP and increases population by PERF_STEP_POP until
+ * the selected p95 limit is reached, or PERF_MAX_POP is reached.
+ *
+ * Default population sequence:
+ *   200, 400, 600, ...
  *
  * Run from the project root:
- *   PERF_TICKS=120 PERF_WARMUP=30 SIM_FULL_SIM=1 npx tsx scripts/perf-all.ts
+ *   PERF_TICKS=60 PERF_WARMUP=30 SIM_FULL_SIM=1 npx tsx scripts/perf-all.ts
  *
  * Options:
- *   SIM_FULL_SIM=1          run the complete simulation; 0 = focus mode
+ *   SIM_FULL_SIM=1          full simulation; 0 = focus mode
  *   SIM_STRIP_ECOLOGY=1     remove grass and trees intentionally
  *   USE_SPATIAL_GRID=0      force naive spatial fallback
  *   SIM_SPEED=1             simulated game speed for acceptance budget
- *   SIM_ALL_PROFILE=1       CPU-profile every tier instead of only 1200
+ *   SIM_ALL_PROFILE=1       CPU-profile every tier
+ *   PERF_START_POP=200      first population tier
+ *   PERF_STEP_POP=200       population increment
+ *   PERF_MAX_POP=5000       safety ceiling
+ *   PERF_STOP_AT=acceptable  stop above preferred p95 limit (default)
+ *   PERF_STOP_AT=budget      stop above hard p95 budget
  */
 import { Session } from 'node:inspector/promises';
 import { gameTick, initGame } from '../src/game/gameEngine';
@@ -40,14 +46,30 @@ type CpuProfile = {
   timeDeltas?: number[];
 };
 
-const TIERS = [200, 400, 600, 800, 1000, 1200] as const;
-const TICKS = Number(process.env.PERF_TICKS ?? 60);
-const WARMUP = Number(process.env.PERF_WARMUP ?? 30);
+type StopMode = 'acceptable' | 'budget';
+type ResultStatus = 'ACCEPTABLE' | 'WATCH' | 'OVER BUDGET';
+
+type TierResult = {
+  population: number;
+  averageMs: number;
+  p95Ms: number;
+  status: ResultStatus;
+};
+
+const START_POP = Math.max(1, Number(process.env.PERF_START_POP ?? 200));
+const STEP_POP = Math.max(1, Number(process.env.PERF_STEP_POP ?? 200));
+const MAX_POP = Math.max(START_POP, Number(process.env.PERF_MAX_POP ?? 5000));
+const TICKS = Math.max(1, Number(process.env.PERF_TICKS ?? 60));
+const WARMUP = Math.max(0, Number(process.env.PERF_WARMUP ?? 30));
 const FULL_SIM = process.env.SIM_FULL_SIM === '1';
 const STRIP_ECOLOGY = process.env.SIM_STRIP_ECOLOGY === '1';
 const SIM_SPEED = Number(process.env.SIM_SPEED ?? 1);
 const INTERVAL_MS = 1000 / (1.5 * SIM_SPEED);
+const PREFERRED_P95_MS = INTERVAL_MS * 0.5;
 const PROFILE_ALL = process.env.SIM_ALL_PROFILE === '1';
+const STOP_AT: StopMode = process.env.PERF_STOP_AT === 'budget'
+  ? 'budget'
+  : 'acceptable';
 
 const QUERY_NAMES = new Set([
   'forEachInRadius',
@@ -98,10 +120,16 @@ function percentile(values: number[], p: number): number {
   return sorted[Math.min(Math.floor(sorted.length * p), sorted.length - 1)] ?? 0;
 }
 
-function acceptability(p95: number): string {
-  if (p95 <= INTERVAL_MS * 0.5) return 'ACCEPTABLE';
+function statusFor(p95: number): ResultStatus {
+  if (p95 <= PREFERRED_P95_MS) return 'ACCEPTABLE';
   if (p95 <= INTERVAL_MS) return 'WATCH';
   return 'OVER BUDGET';
+}
+
+function shouldStop(result: TierResult): boolean {
+  return STOP_AT === 'acceptable'
+    ? result.p95Ms > PREFERRED_P95_MS
+    : result.p95Ms > INTERVAL_MS;
 }
 
 function parentsOf(profile: CpuProfile): Map<number, number> {
@@ -179,75 +207,16 @@ function sampled(
   return { count, ms };
 }
 
-async function runTier(pop: number, detailed: boolean): Promise<void> {
-  const state = initGame({ villageName: `AllProfile${pop}`, size: MapSize.Large });
-  state.resources.food = 999999;
-  state.resources.wood = 99999;
-  state.resources.gold = 99999;
-  state.resources.iron = 99999;
-  state.resources.stone = 99999;
-
-  if (STRIP_ECOLOGY) {
-    state.entities = state.entities.filter(
-      (entity) => entity.type !== EntityType.Tree && entity.type !== EntityType.Grass,
-    );
-  }
-
-  // Same population layout for grid and naive runs at the same tier.
-  seedHumans(state, pop, seededRandom(0x5eed + pop));
-
-  // Warmup is excluded from both spatial metrics and wall-clock measurements.
-  setSpatialQueryMetricsEnabled(false);
-  for (let i = 0; i < WARMUP; i++) {
-    gameTick(state, FULL_SIM ? undefined : state);
-  }
-
-  resetSpatialQuerySession();
-  setSpatialQueryMetricsEnabled(true);
-
-  const session = detailed || PROFILE_ALL ? new Session() : undefined;
-  if (session) {
-    session.connect();
-    await session.post('Profiler.enable');
-    await session.post('Profiler.start');
-  }
-
-  const times: number[] = [];
-  const started = performance.now();
-
-  for (let i = 0; i < TICKS; i++) {
-    const startedTick = performance.now();
-    gameTick(state, FULL_SIM ? undefined : state);
-    times.push(performance.now() - startedTick);
-  }
-
-  const wall = performance.now() - started;
-  const profile = session
-    ? (await session.post('Profiler.stop') as unknown as { profile: CpuProfile }).profile
-    : undefined;
-
-  session?.disconnect();
-  setSpatialQueryMetricsEnabled(false);
-
-  const p95 = percentile(times, 0.95);
-  const scenery = new Set([EntityType.Tree, EntityType.Grass]);
-  const alive = state.entities.filter(
-    (entity) => entity.alive && !scenery.has(entity.type),
-  ).length;
-  const humans = state.entities.filter(
-    (entity) => entity.alive && isPlayerHuman(entity),
-  ).length;
+function printSpatialReport(population: number): void {
   const report = getSpatialQueryReport();
+  const targetP95Ms = STOP_AT === 'acceptable'
+    ? PREFERRED_P95_MS
+    : INTERVAL_MS;
 
-  console.log(
-    `\n${pop} humans | avg=${(wall / TICKS).toFixed(2)}ms `
-    + `p95=${p95.toFixed(2)}ms | ${acceptability(p95)} `
-    + `| alive=${alive} humans=${humans}`,
-  );
   console.log(
     `  gridMode=${report.gridMode} metricsTicks=${report.ticks} `
     + `interval=${INTERVAL_MS.toFixed(1)}ms `
-    + `targetP95<=${INTERVAL_MS.toFixed(1)}ms`,
+    + `targetP95<=${targetP95Ms.toFixed(1)}ms`,
   );
   console.log(
     '  spatial category                         '
@@ -265,8 +234,10 @@ async function runTier(pop: number, detailed: boolean): Promise<void> {
     }
   }
 
-  if (!profile) return;
+  console.log(`  report tier=${population}`);
+}
 
+function printCpuProfile(profile: CpuProfile): void {
   const total = profile.samples?.length ?? 0;
   console.log(`  CPU samples=${total}`);
 
@@ -312,12 +283,86 @@ async function runTier(pop: number, detailed: boolean): Promise<void> {
   }
 }
 
+async function runTier(pop: number, detailed: boolean): Promise<TierResult> {
+  const state = initGame({ villageName: `UntilLimit${pop}`, size: MapSize.Large });
+  state.resources.food = 999999;
+  state.resources.wood = 99999;
+  state.resources.gold = 99999;
+  state.resources.iron = 99999;
+  state.resources.stone = 99999;
+
+  if (STRIP_ECOLOGY) {
+    state.entities = state.entities.filter(
+      (entity) => entity.type !== EntityType.Tree && entity.type !== EntityType.Grass,
+    );
+  }
+
+  seedHumans(state, pop, seededRandom(0x5eed + pop));
+
+  setSpatialQueryMetricsEnabled(false);
+  for (let i = 0; i < WARMUP; i++) {
+    gameTick(state, FULL_SIM ? undefined : state);
+  }
+
+  resetSpatialQuerySession();
+  setSpatialQueryMetricsEnabled(true);
+
+  const session = detailed || PROFILE_ALL ? new Session() : undefined;
+  if (session) {
+    session.connect();
+    await session.post('Profiler.enable');
+    await session.post('Profiler.start');
+  }
+
+  const times: number[] = [];
+  const started = performance.now();
+
+  for (let i = 0; i < TICKS; i++) {
+    const startedTick = performance.now();
+    gameTick(state, FULL_SIM ? undefined : state);
+    times.push(performance.now() - startedTick);
+  }
+
+  const wall = performance.now() - started;
+  const profile = session
+    ? (await session.post('Profiler.stop') as unknown as { profile: CpuProfile }).profile
+    : undefined;
+
+  session?.disconnect();
+  setSpatialQueryMetricsEnabled(false);
+
+  const p95 = percentile(times, 0.95);
+  const averageMs = wall / TICKS;
+  const status = statusFor(p95);
+  const scenery = new Set([EntityType.Tree, EntityType.Grass]);
+  const alive = state.entities.filter(
+    (entity) => entity.alive && !scenery.has(entity.type),
+  ).length;
+  const humans = state.entities.filter(
+    (entity) => entity.alive && isPlayerHuman(entity),
+  ).length;
+
+  console.log(
+    `\n${pop} humans | avg=${averageMs.toFixed(2)}ms `
+    + `p95=${p95.toFixed(2)}ms | ${status} `
+    + `| alive=${alive} humans=${humans}`,
+  );
+  printSpatialReport(pop);
+
+  if (profile) {
+    printCpuProfile(profile);
+  }
+
+  return { population: pop, averageMs, p95Ms: p95, status };
+}
+
 async function main(): Promise<void> {
   await preloadDialogueBank();
 
   console.log(
-    `WILDERFOLK CONSOLIDATED PERFORMANCE TEST | `
-    + `tiers=${TIERS.join(', ')} | ticks=${TICKS} warmup=${WARMUP}`,
+    'WILDERFOLK DYNAMIC PERFORMANCE TEST '
+    + `| start=${START_POP} step=${STEP_POP} max=${MAX_POP} `
+    + `ticks=${TICKS} warmup=${WARMUP}`,
   );
   console.log(
     `mode=${FULL_SIM ? 'FULL SIM' : 'focus'} `
@@ -330,19 +375,51 @@ async function main(): Promise<void> {
         : 'spatial grid default-on'}`,
   );
   console.log(
-    `acceptability: ACCEPTABLE p95<=${(INTERVAL_MS * 0.5).toFixed(1)}ms; `
-    + `WATCH p95<=${INTERVAL_MS.toFixed(1)}ms; `
-    + `OVER BUDGET above ${INTERVAL_MS.toFixed(1)}ms.`,
+    `stopAt=${STOP_AT} `
+    + `preferredP95<=${PREFERRED_P95_MS.toFixed(1)}ms `
+    + `hardBudgetP95<=${INTERVAL_MS.toFixed(1)}ms`,
   );
 
-  for (const pop of TIERS) {
-    await runTier(pop, pop === 1200 || PROFILE_ALL);
+  const results: TierResult[] = [];
+  let limitResult: TierResult | undefined;
+
+  for (let pop = START_POP; pop <= MAX_POP; pop += STEP_POP) {
+    const result = await runTier(pop, PROFILE_ALL);
+    results.push(result);
+
+    if (shouldStop(result)) {
+      limitResult = result;
+      break;
+    }
+  }
+
+  const lastAcceptable = [...results]
+    .reverse()
+    .find((result) => !shouldStop(result));
+
+  console.log('\n=== LIMIT SUMMARY ===');
+  if (lastAcceptable) {
+    console.log(
+      `last tier before limit: ${lastAcceptable.population} humans `
+      + `p95=${lastAcceptable.p95Ms.toFixed(2)}ms `
+      + `status=${lastAcceptable.status}`,
+    );
+  } else {
+    console.log('No tested tier was below the selected limit.');
+  }
+
+  if (limitResult) {
+    console.log(
+      `first tier reaching limit: ${limitResult.population} humans `
+      + `p95=${limitResult.p95Ms.toFixed(2)}ms `
+      + `status=${limitResult.status}`,
+    );
+  } else {
+    console.log(`Limit not reached before PERF_MAX_POP=${MAX_POP}.`);
   }
 
   console.log(
-    '\nFINAL INTERPRETATION: use the 1200-human section for the detailed '
-    + 'bottleneck. Compare gridMode, spatial candidates, layer shares, '
-    + 'and query callers together.',
+    `tested tiers: ${results.map((result) => result.population).join(', ')}`,
   );
 }
 

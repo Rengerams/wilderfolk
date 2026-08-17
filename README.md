@@ -63,7 +63,9 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | 1,000 | 46.7 ms | 69.0 ms | ✅ ACCEPTABLE |
 | 1,200 | 69.7 ms | 94.7 ms | ✅ ACCEPTABLE |
 
-Run it yourself: `PERF_TICKS=60 SIM_FULL_SIM=1 npx tsx scripts/perf-all.ts`
+**Capacity ceiling** (dynamic run, `PERF_STOP_AT=acceptable`): **2,400 settlers** stay ACCEPTABLE (p95 327 ms) — **2× the pre-0.6.1 capacity**, where 1,200 was already WATCH. **2,600** hits WATCH (p95 397 ms) but stays under the hard budget (667 ms).
+
+Run it yourself: `PERF_TICKS=60 SIM_FULL_SIM=1 npx tsx scripts/perf-all.ts` (stops at the first tier over budget; `PERF_STOP_AT=acceptable|budget`, `PERF_START_POP`/`PERF_STEP_POP`/`PERF_MAX_POP` control the sweep)
 
 ---
 ## v0.6 (August 17, 2026)
