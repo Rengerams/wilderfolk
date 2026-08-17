@@ -15,28 +15,42 @@ export interface RoadmapVersion {
   features: RoadmapFeature[];
 }
 
-export const ROADMAP_TARGET_VERSION = '0.5.4';
+export const ROADMAP_TARGET_VERSION = '0.5.4.1';
 
 export const ROADMAP_NORTH_STAR =
   'A cozy frontier eco-sim where settlers live on a schedule, the food chain matters, the valley feels alive with other people and tribes — and you always know what to do next.';
 
 const DONE = (label: string): RoadmapFeature => ({ label, status: 'done' });
-const OPEN = (label: string): RoadmapFeature => ({ label, status: 'open' });
 
 /** Newest first. Shipped versions list done work only (positive player-facing story). */
 export const ROADMAP_VERSIONS: RoadmapVersion[] = [
   {
+    version: '0.5.4.1',
+    theme: 'The valley rises — painted relief, rivers that run, and upgrades you can see',
+    shipDate: '2026-08-17',
+    tagTarget: 'v0.5.4.1',
+    features: [
+      DONE('2.5D painted relief — hand-painted shores, hills & peaks physically rise, everything rides the terrain'),
+      DONE('Rivers look like rivers — whole-tile water bands 3–5 wide; Riverlands & Coastal finally get rivers'),
+      DONE('Upgrades you can see — Lv2 roof + chimney, Lv3 gold rim + night glow'),
+      DONE('Storm damage visible on the map — debris + rooftop warnings; the colony founds at 08:00'),
+      DONE('Build-menu switching fixed — jump between build categories without cancelling (EM-8)'),
+      DONE('Beta save policy — this build loads only 0.5.4.1 saves'),
+    ],
+  },
+  {
     version: '0.5.4',
-    theme: 'In development — schools, titles, and a more manageable valley',
-    shipDate: 'in development',
+    theme: 'Painted lands, walking pioneers, and a frontier that breathes',
+    shipDate: '2026-08-13',
     tagTarget: 'v0.5.4',
     features: [
+      DONE('Six valleys as painted landscape cards + map-size control'),
       DONE('Titles sway elections — Moonslayer / Howlerbane carry +8 election merit'),
       DONE('Schools are your call — manual teachers, 10-child classes, schoolyard bonds & gossip'),
       DONE('Multi-select workers — shift-click settlers, assign them all at once'),
       DONE('Saves from the current build load again — version gate fix'),
-      OPEN('Decorations & beauty — fences, gardens, lamps, statues'),
-      OPEN('Sound effects by surface · weather with real consequences'),
+      DONE('Decorations & beauty — fences, gardens, lamps, statues'),
+      DONE('Sound effects by surface · weather with real consequences'),
     ],
   },
   {

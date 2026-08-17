@@ -1137,7 +1137,7 @@ export default function App() {
       setSaveToast({ message: 'Colony loaded from file', type: 'success' });
     } else {
       setSaveToast({
-        message: 'Invalid save file — wrong version or corrupted',
+        message: 'Save from a different build — beta keeps only current-build saves. Start a new settlement.',
         type: 'error',
       });
     }

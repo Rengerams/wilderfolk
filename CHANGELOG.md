@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.5.4.1] — 2026-08-17
+
+**The valley rises — painted relief, rivers that run, and upgrades you can see.**
+
+`GAME_VERSION` **0.5.4.1** · ⚠️ **beta save policy: this build loads only 0.5.4.1 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
+
 ### Added
 - **🦌 The Passing Herds** — every autumn a herd of deer crosses the valley: they graze, they are huntable, and they leave after a week. **The herds remember** — every deer you take this year makes next year's herd smaller (feast now, thinner autumns later); let them pass unharmed and they come back fat as ever
 - **🎉 Seasonal festivals** — the village now holds a 5-day festival at the start of every season (Spring Revel · Midsummer Feast · Harvest Festival · Frostfall Feast): **20 guaranteed festival days per year**, with the old random festivals on top
@@ -25,6 +31,7 @@
 
 ### Technical
 - **App.tsx split (Phase 4)** — `VisitorCampPanel`, `SelectedEntityPanel`, `BigNewsBanner`, `ActiveEventBanner` and `ShortcutsOverlay` extracted into `src/components/`; App.tsx 2917 → 2270 lines
+- **Beta save policy** — dropped the historical-save gate (`COMPATIBLE_SAVE_VERSIONS`); `parseSaveJson` now accepts only the exact current `_version`. A save from any other build is rejected with a clear message; `saveVersion.gate.test.ts` pins the new gate
 
 ---
 

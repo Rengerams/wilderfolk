@@ -42,8 +42,6 @@ import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
 
 const SAVE_KEY = 'ecosim_save';
-/** Supported colony save versions. */
-const COMPATIBLE_SAVE_VERSIONS = ['0.4', '0.4.1', '0.4.2', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4'] as const;
 
 /** Restore entity fields that must survive save/load (see ENTITY_PERSISTED_FIELDS). */
 function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): void {
@@ -75,7 +73,9 @@ export function parseSaveJson(raw: string | null | undefined): SaveReadResult {
   try {
     if (!raw || !raw.trim()) return { valid: false };
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    if (!COMPATIBLE_SAVE_VERSIONS.includes(parsed._version as typeof COMPATIBLE_SAVE_VERSIONS[number])) {
+    // Beta: no historical-save compatibility — only the exact current build's
+    // saves load. Old-version saves are rejected (start a new settlement).
+    if (parsed._version !== GAME_VERSION) {
       return { valid: false };
     }
     return { valid: true, parsed };
