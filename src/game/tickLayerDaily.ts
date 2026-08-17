@@ -801,8 +801,11 @@ export function tickLayerDaily(
   tickLeaderPromise(state);
   tickPendingRaidEvents(state, allAlive, ctx.updatedBuildings);
   tickPendingOutgoingRaidEvents(state);
-  // Signature stories — first-session wolf choice + any pending story expiry.
-  maybeOfferWolfChoice(state);
+  // Signature stories — the first-session wolf choice is offered once in the
+  // first two months; after that the daily check is skipped entirely.
+  if (state.year === 0 && state.dayInYear < 60) {
+    maybeOfferWolfChoice(state);
+  }
   tickPendingStoryEvents(state);
   tickRivalSettlements(state, allAlive);
 

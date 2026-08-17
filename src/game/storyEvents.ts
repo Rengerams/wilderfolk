@@ -1,5 +1,4 @@
 import type { WorldState, StoryEvent } from './gameTypes';
-import { BuildingType, EntityType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
@@ -69,15 +68,10 @@ export function respondToStoryEvent(
 // Story 1 — The pack watches (first-session ecological choice)
 // ---------------------------------------------------------------------------
 
-/** Offer once, in the first year, once the village has started engaging the valley. */
+/** Offer always, once, somewhere in the first two months (year 0, days 0–59). */
 export function maybeOfferWolfChoice(state: WorldState): void {
   if ((state.storyFlags?.wolf_choice ?? 0) > 0) return;
-  if (state.year > 0) return;
-  const hasWolves = state.entities.some((e) => e.alive && e.type === EntityType.Wolf);
-  const engagedValley = state.buildings.some(
-    (b) => b.completed && (b.type === BuildingType.Farm || b.type === BuildingType.HuntingSpot),
-  );
-  if (!hasWolves || !engagedValley) return;
+  if (state.year > 0 || state.dayInYear >= 60) return;
 
   state.storyFlags = { ...state.storyFlags, wolf_choice: state.tick };
   offerStoryEvent(state, {

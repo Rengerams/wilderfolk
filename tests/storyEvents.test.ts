@@ -59,9 +59,9 @@ describe('first-session wolf choice', () => {
     expect(state.pendingStoryEvents?.length).toBe(1);
   });
 
-  it('does not offer before the village engages the valley (no farm/hunting spot)', () => {
+  it('does not offer after the first two months', () => {
     const state = worldWithWolvesAndFarm();
-    state.buildings = [];
+    state.dayInYear = 60;
     maybeOfferWolfChoice(state);
     expect(state.pendingStoryEvents?.length ?? 0).toBe(0);
   });
