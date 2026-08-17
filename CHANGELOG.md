@@ -31,7 +31,6 @@
 - **One primary prompt (external review P0)** — while the first-spring guide's "build a house" step is live, the duplicate "Build shelter" focus hint is suppressed; the guide is the single call to action
 - **Version/save docs corrected (external review P1)** — README, in-game roadmap and `ARCHITECTURE.md` now all state the current `0.5.4.2` + exact-version save policy (no more stale `0.5.4.1`/`0.4…0.5.1` claims)
 - **Hygiene (external review P1/P2)** — "5 valleys" copy fixed to 6; stray `Wilderfolk - Snelkoppeling.lnk` removed from `src/game/`
-- **Quality**   pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather, App split updated
 - **Charts subtab (Progress tab)** — a rolling ~40-day view that makes the valley legible: the **food chain** (humans/wolves/rabbits/deer/foxes on one chart), **ecosystem health & pollution**, and **gold/food/wood/stone trends** — the loop you could only feel before, you can now read
 - **Victory paths removed** (redesign) — the four hard win conditions (Eco-Utopia, Great City, Trade Empire, Harmony) are gone: they were not well thought out as end conditions and locked the sandbox into arbitrary targets. The game is now a **pure frontier sandbox** — no forced win, no victory banners; optional Challenges keep rewarding milestones, and the **village portrait** ("how history sees you") remains the live story readout. The system is slated for a proper redesign later.
 
@@ -44,7 +43,7 @@
 
 **The valley rises — painted relief, rivers that run, and upgrades you can see.**
 
-- `GAME_VERSION` **0.5.4.2** · ⚠️ **beta save policy: this build loads only 0.5.4.2 saves** (historical-save compatibility dropped — a save from any other build is rejected; start a new settlement)
+- `GAME_VERSION` **0.5.4.2** · 
 
 ### Added
 - **🦌 The Passing Herds** — every autumn a herd of deer crosses the valley: they graze, they are huntable, and they leave after a week. **The herds remember** — every deer you take this year makes next year's herd smaller (feast now, thinner autumns later); let them pass unharmed and they come back fat as ever
