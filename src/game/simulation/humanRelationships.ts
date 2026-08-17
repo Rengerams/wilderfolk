@@ -38,7 +38,8 @@ import {
 import { formatCitizenName, formatDeathLog, humanDisplayName } from '../citizenId';
 import { dissolveMarriage, formatCaughtCheaterDivorceDetail } from '../nameLoader';
 import { dampScandalReputationLoss } from '../townHall';
-import { getLivingEntity, getHousemates, findClosestEntityInRadius, forEachInEntityGrid } from '../simQueries';
+import { getLivingEntity, getHousemates } from '../simQueries';
+import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions } from '../adaptiveSpatialQuery';
 import { startFeud } from '../relationships';
 import { logEvent } from '../eventLog';
 import { isPlayerHuman } from '../playerHuman';
@@ -98,8 +99,10 @@ export function findAffairLover(
   entity: Entity,
   entityById: Map<number, Entity>,
   tick: number,
-  mobileGrid?: EntitySpatialGrid,
+  humanSocialGrid?: EntitySpatialGrid,
   nearbyHumans?: readonly Entity[],
+  width?: number,
+  height?: number,
 ): Entity | undefined {
   if (entity.affairPartnerId != null) {
     const lover = getLivingEntity(entity.affairPartnerId, entityById);
@@ -124,9 +127,10 @@ export function findAffairLover(
     }
   };
 
-  if (mobileGrid || nearbyHumans) {
-    forEachInEntityGrid(
-      mobileGrid,
+  if (humanSocialGrid || (nearbyHumans && nearbyHumans.length > 0)) {
+    forEachAdaptiveInRadius(
+      humanSocialGrid,
+      nearbyHumans ?? [],
       entity.x,
       entity.y,
       150,
@@ -134,8 +138,7 @@ export function findAffairLover(
         if (human.type !== EntityType.Human) return;
         consider(human);
       },
-      'social',
-      nearbyHumans,
+      socialAdaptiveOptions('social', nearbyHumans?.length ?? 0, width ?? 0, height ?? 0),
     );
   }
   return best;
@@ -302,9 +305,11 @@ export function tryDailyAffairGossip(
   buildingById: Map<number, Building>,
   churchStrength: number,
   playerHumans: readonly Entity[],
-  mobileGrid?: EntitySpatialGrid,
+  humanSocialGrid?: EntitySpatialGrid,
+  width?: number,
+  height?: number,
 ): void {
-  const lover = findAffairLover(entity, entityById, state.tick, mobileGrid, playerHumans);
+  const lover = findAffairLover(entity, entityById, state.tick, humanSocialGrid, playerHumans, width, height);
   if (!lover) return;
   if (!shouldLeadAffairPair(entity, lover)) return;
   if (onScandalCooldown(entity, state.tick) || onScandalCooldown(lover, state.tick)) return;
@@ -920,9 +925,11 @@ export function findCourtshipPartner(
   entity: Entity,
   atHome: boolean,
   courtRange: number,
-  mobileGrid: EntitySpatialGrid | undefined,
+  humanSocialGrid: EntitySpatialGrid | undefined,
   residenceOccupants: Map<number, Entity[]>,
   fallbackHumans?: readonly Entity[],
+  width?: number,
+  height?: number,
 ): Entity | undefined {
   let closest: Entity | undefined;
   let closestDistSq = courtRange * courtRange;
@@ -953,14 +960,14 @@ export function findCourtshipPartner(
     }
   }
 
-  const nearby = findClosestEntityInRadius(
-    mobileGrid,
+  const nearby = findClosestAdaptiveInRadius(
+    humanSocialGrid,
+    fallbackHumans ?? [],
     entity.x,
     entity.y,
     courtRange,
     (candidate) => isCourtshipCandidate(entity, candidate),
-    'social',
-    fallbackHumans,
+    socialAdaptiveOptions('social', fallbackHumans?.length ?? 0, width ?? 0, height ?? 0),
   );
   if (nearby) {
     const dx = nearby.x - entity.x;

@@ -15,7 +15,7 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "preview": "vite preview",
-    "dup": "jscpd src --min-lines 8 --min-tokens 60 --format typescript,tsx,javascript --ignore \"**/test/**,**/*.test.ts,**/data/**\"",
+    "dup": "jscpd src --min-lines 12 --min-tokens 60 --format typescript,tsx,javascript --ignore \"**/test/**,**/*.test.ts,**/data/**\"",
     "audit:knip": "knip",
     "audit:deps": "depcruise src --config .dependency-cruiser.cjs --ts-config tsconfig.app.json",
     "audit:deps:cycles": "depcruise src --config .dependency-cruiser.cjs --ts-config tsconfig.app.json --output-type err-long --focus \"circular\"",

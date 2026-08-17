@@ -800,6 +800,8 @@ export interface WorldState {
   grassGrid?: EntitySpatialGrid;
   /** Mobile spatial index — rebuilt each sim tick for hunt/flee/social queries; not saved. */
   mobileGrid?: EntitySpatialGrid;
+  /** Living-humans-only grid for social radius queries (not persisted). */
+  humanSocialGrid?: EntitySpatialGrid;
   /** Static tree spatial index — lazily rebuilt for the "visit a tree" leisure; not saved. */
   treeGrid?: EntitySpatialGrid;
   /** Road avoidance index — rebuilt when completed road layout changes; not saved. */

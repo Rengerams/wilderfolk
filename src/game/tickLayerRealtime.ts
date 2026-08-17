@@ -13,6 +13,7 @@ import { EntityType, BuildingType } from './gameTypes';
 import {
   USE_SPATIAL_GRID,
   syncMobileSimGrid,
+  syncHumanSocialGrid,
   syncGrassRenderGrid,
   syncTreeGrid,
 } from './spatialGrid';
@@ -143,6 +144,13 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     : undefined;
   state.mobileGrid = mobileGrid;
   ctx.mobileGrid = mobileGrid;
+
+  // Living-humans-only grid — social/greeting/courtship queries skip wildlife.
+  const humanSocialGrid = USE_SPATIAL_GRID
+    ? syncHumanSocialGrid(state.humanSocialGrid, width, height, aliveEntities)
+    : undefined;
+  state.humanSocialGrid = humanSocialGrid;
+  ctx.humanSocialGrid = humanSocialGrid;
 
   const grassGrid = USE_SPATIAL_GRID
     ? syncGrassRenderGrid(state.grassGrid, width, height, ctx.byType[EntityType.Grass] ?? [])

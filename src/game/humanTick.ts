@@ -76,14 +76,15 @@ import {
 import { setCurrentPathMap, steerWithPath } from './pathfinding';
 import { recordFoodConsumed } from './economyLedger';
 import type { EntitySpatialGrid } from './spatialGrid';
-import { MOBILE_CELL_SIZE, buildRoadAvoidanceIndex } from './spatialGrid';
-import { buildResidenceOccupantIndex, findClosestEntityInRadius, findClosestInEntityGrid, forEachInEntityGrid, queryIsNearRoad, getLivingEntity } from './simQueries';
+import { buildRoadAvoidanceIndex } from './spatialGrid';
+import { buildResidenceOccupantIndex, findClosestEntityInRadius, findClosestInEntityGrid, queryIsNearRoad, getLivingEntity } from './simQueries';
 
 
 import { addHuntVisual } from './huntvisuals';
 import { inheritSettlerTraits, traitMultiplier } from './settlerTraits';
 import type { TickContext } from './simulation/simulationTypes';
 import { isValidHuntPrey } from './simulation/simulationEntities';
+import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_STAGGER, SOCIAL_GREETING_RADIUS, SOCIAL_BANTER_RADIUS, SOCIAL_FRIENDSHIP_RADIUS, SOCIAL_COURTSHIP_RADIUS, SOCIAL_AFFAIR_RADIUS } from './adaptiveSpatialQuery';
 import { AFFAIR_BUILDING_NEAR_RADIUS, AFFAIR_DAILY_TRYST_RADIUS, AFFAIR_SPOUSE_BLOCK_RADIUS, findCourtshipPartner, getAffairTrystBuilding, getBuildingCenter, hasAffairPartner, isAtMaritalHome, isEligibleToCourt, isNearBuilding, isSpouseNearby, isValidAffairTarget, isValidAffairTrystSite, onScandalCooldown, reconcileAffairPartner, recordAffairTrystSite, shouldLeadAffairPair, tryDailyAffairGossip, tryDailyConception, tryDailyHumanMortality, tryExposeCaughtAffairForPair, tryFormSchoolyardBond, trySchoolyardGossip } from './simulation/humanRelationships';
 import { humanDisplayName } from './citizenId';
 import { allLivingHumans, clearHuntersTargetingPrey, markWildlifeDead, pushNewEntity, syncEntityGrids } from './simulation/simulationEntities';
@@ -153,8 +154,10 @@ function tryDailyAffairEncounter(
   buildingById: Map<number, Building>,
   churchStrength: number,
   hourOfDay: number,
-  mobileGrid?: EntitySpatialGrid,
+  humanSocialGrid?: EntitySpatialGrid,
   playerHumans?: readonly Entity[],
+  width?: number,
+  height?: number,
 ): void {
   const config = SPECIES_CONFIG[EntityType.Human];
   if (!isPlayerHuman(entity)) return;
@@ -189,17 +192,17 @@ function tryDailyAffairEncounter(
     bestDistSq = distSq;
     paramour = candidate;
   };
-  forEachInEntityGrid(
-    mobileGrid,
+  forEachAdaptiveInRadius(
+    humanSocialGrid,
+    playerHumans ?? [],
     entity.x,
     entity.y,
-    120,
+    SOCIAL_AFFAIR_RADIUS,
     (human, distSq) => {
       if (human.type !== EntityType.Human || !isPlayerHuman(human)) return;
       considerParamour(human, distSq);
     },
-    'social',
-    playerHumans,
+    socialAdaptiveOptions('social', playerHumans?.length ?? 0, width ?? 0, height ?? 0),
   );
   if (!paramour) return;
   if (!isValidAffairTrystSite(entity, paramour, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) return;
@@ -342,7 +345,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const {
     width, height, hourOfDay, season, canHeat,
     byType, newEntities, updatedBuildings, roadBuildings, playerHumans, focus,
-    entityById, buildingById, mobileGrid,
+    entityById, buildingById, mobileGrid, humanSocialGrid,
   } = ctx;
 
   // Current terrain for pathfinding (routing around water/mountains).
@@ -416,14 +419,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (b.type === BuildingType.Hospital) staffedHospitals.push(b);
     else if (b.type === BuildingType.TownHall) staffedTownHalls.push(b);
   }
-  // Local neighborhood only — full map diagonal scanned every idle human per tick (perf cliff @ 100+ pop).
-  // Radius shrinks as the village grows: area ∝ r² ∝ 1/√pop keeps the expected
-  // neighbor count roughly constant, bounding social query cost at high
-  // population instead of scanning a fixed 4-cell radius for every human.
-  const socialScanRadius = Math.min(
-    MOBILE_CELL_SIZE * 4,
-    60 + Math.floor((MOBILE_CELL_SIZE * 4) / Math.sqrt(playerHumans.length + 1)),
-  );
   const chatHints = chatHintsFromWorld({
     season,
     weather: state.weather,
@@ -451,13 +446,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   /** Nearby humans for random pair banter — prefer partner, kids, coworkers (small village). */
   const ambientChatNeighbors = (self: Entity): Entity[] => {
+    // Ambient banter is staggered — each human scans 1 in SOCIAL_STAGGER ticks.
+    if ((state.tick + self.id) % SOCIAL_STAGGER !== 0) return [];
     const out: Entity[] = [];
     const prefer: Entity[] = [];
-    forEachInEntityGrid(
-      mobileGrid,
+    forEachAdaptiveInRadius(
+      humanSocialGrid,
+      allHumans,
       self.x,
       self.y,
-      socialScanRadius,
+      SOCIAL_BANTER_RADIUS,
       (other) => {
         if (
           other.id !== self.id
@@ -475,8 +473,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           else out.push(other);
         }
       },
-      'social',
-      allHumans,
+      socialAdaptiveOptions('social', allHumans.length, width, height),
     );
     // Bonds first so dialogue trees fire between people who share a life.
     return prefer.length > 0 ? [...prefer, ...out] : out;
@@ -537,8 +534,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         buildingById,
         churchStrength,
         hourOfDay,
-        mobileGrid,
+        humanSocialGrid,
         playerHumans,
+        width,
+        height,
       );
       tryDailyAffairGossip(
         state,
@@ -548,7 +547,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         buildingById,
         churchStrength,
         playerHumans,
-        mobileGrid,
+        humanSocialGrid,
+        width,
+        height,
       );
     }
 
@@ -1210,19 +1211,19 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && !suppressIdle
       && personDayRoll(entity.id, state.tick, 301) > 0.35
     ) {
-      const nearbySingle = findClosestEntityInRadius(
-        mobileGrid,
+      const nearbySingle = findClosestAdaptiveInRadius(
+        humanSocialGrid,
+        allHumans,
         entity.x,
         entity.y,
-        90,
+        SOCIAL_COURTSHIP_RADIUS,
         (h) =>
           isEligibleToCourt(h)
           && h.id !== entity.id
           && !!h.gender
           && !!entity.gender
           && h.gender !== entity.gender,
-        'social',
-        allHumans,
+        socialAdaptiveOptions('social', allHumans.length, width, height),
       ) != null;
       if (!nearbySingle) {
         const tx = width * 0.5 + ((entity.id % 5) - 2) * 35;
@@ -1251,9 +1252,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity,
         atHome,
         courtRange,
-        mobileGrid,
+        humanSocialGrid,
         residenceOccupants,
         allHumans,
+        width,
+        height,
       );
 
       if (closest) {
@@ -1401,14 +1404,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && !isAtMaritalHome(entity, entityById, buildingById)
     ) {
       const affairRange = 75;
-      const paramour = findClosestEntityInRadius(
-        mobileGrid,
+      const paramour = findClosestAdaptiveInRadius(
+        humanSocialGrid,
+        playerHumans,
         entity.x,
         entity.y,
         affairRange,
         (h) => isValidAffairTarget(entity, h, state.tick) && !isSpouseNearby(h, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS),
-        'social',
-        playerHumans,
+        socialAdaptiveOptions('social', playerHumans.length, width, height),
       );
 
       if (paramour) {
@@ -1621,20 +1624,22 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && hourOfDay >= 6
       && hourOfDay <= 9
     ) {
-      const passer = findClosestEntityInRadius(
-        mobileGrid,
-        entity.x,
-        entity.y,
-        30,
-        (h) =>
-          h.id !== entity.id
-          && h.alive
-          && isPlayerHuman(h)
-          && !h.isJuvenile,
-        'social',
-        allHumans,
-      );
-      tryNeighborGreeting(entity, passer, state.tick, hourOfDay);
+      if ((state.tick + entity.id) % SOCIAL_STAGGER === 0) {
+        const passer = findClosestAdaptiveInRadius(
+          humanSocialGrid,
+          allHumans,
+          entity.x,
+          entity.y,
+          SOCIAL_GREETING_RADIUS,
+          (h) =>
+            h.id !== entity.id
+            && h.alive
+            && isPlayerHuman(h)
+            && !h.isJuvenile,
+          socialAdaptiveOptions('social', allHumans.length, width, height),
+        );
+        tryNeighborGreeting(entity, passer, state.tick, hourOfDay);
+      }
     }
 
     // === FREE-TIME / LEISURE — small-world bonds (family, coworkers) ===
@@ -1739,17 +1744,19 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       // v0.6 perf: radius 1.5x → 1.1x socialScanRadius (4.4 cells) — the nearby pool
       // stays rich at village density; the visited area at clustered scale drops ~1.8x.
       const nearbyAdults: Entity[] = [];
-      forEachInEntityGrid(
-        mobileGrid,
-        entity.x,
-        entity.y,
-        socialScanRadius * 1.1,
-        (h) => {
-          if (h.alive && isPlayerHuman(h) && !h.isJuvenile) nearbyAdults.push(h);
-        },
-        'social',
-        allHumans,
-      );
+      if ((state.tick + entity.id) % SOCIAL_STAGGER === 0) {
+        forEachAdaptiveInRadius(
+          humanSocialGrid,
+          allHumans,
+          entity.x,
+          entity.y,
+          SOCIAL_FRIENDSHIP_RADIUS,
+          (h) => {
+            if (h.alive && isPlayerHuman(h) && !h.isJuvenile) nearbyAdults.push(h);
+          },
+          socialAdaptiveOptions('social', allHumans.length, width, height),
+        );
+      }
       // Ensure spouse is considered even if slightly farther
       const spouseEarly = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
       if (spouseEarly?.alive && !nearbyAdults.some((h) => h.id === spouseEarly.id)) {
@@ -2007,20 +2014,20 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         if (!friend && coworkers.length > 0 && personDayRoll(entity.id, tick, 530) < 0.55) {
           friend = coworkers[(entity.id + leisureSlot) % coworkers.length]!;
         }
-        if (!friend) {
-          friend = findClosestEntityInRadius(
-            mobileGrid,
+        if (!friend && (state.tick + entity.id) % SOCIAL_STAGGER === 0) {
+          friend = findClosestAdaptiveInRadius(
+            humanSocialGrid,
+            allHumans,
             entity.x,
             entity.y,
-            socialScanRadius * 1.4,
+            SOCIAL_FRIENDSHIP_RADIUS,
             (h) =>
               h.id !== entity.id
               && h.alive
               && isPlayerHuman(h)
               && !h.isJuvenile
               && h.id !== entity.affairPartnerId,
-            'social',
-            allHumans,
+            socialAdaptiveOptions('social', allHumans.length, width, height),
           ) ?? null;
         }
         if (friend) {
@@ -2075,7 +2082,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           ctx.treeGrid,
           entity.x,
           entity.y,
-          socialScanRadius * 1.2,
+          120,
           (t) => t.type === EntityType.Tree && t.alive,
           'social',
           byType[EntityType.Tree],

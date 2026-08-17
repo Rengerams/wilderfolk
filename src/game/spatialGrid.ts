@@ -15,6 +15,9 @@ export const MOBILE_CELL_SIZE = 80;
 /** Trees — static scenery; indexed for the "visit a tree" leisure. */
 export const TREE_CELL_SIZE = 80;
 
+/** Living humans only — smaller cells so broad social radii stay selective. */
+export const SOCIAL_CELL_SIZE = 64;
+
 const MOBILE_ENTITY_TYPES = new Set<EntityType>([
   EntityType.Human,
   EntityType.Wolf,
@@ -47,6 +50,10 @@ function isSpatialGridDisabled(): boolean {
 
 /** When false, hunt/graze/flee fall back to full-map entity scans (A/B perf comparison). */
 export const USE_SPATIAL_GRID = !isSpatialGridDisabled();
+
+export function isHumanSocialGridEntity(entity: Entity): boolean {
+  return entity.type === EntityType.Human && entity.alive;
+}
 
 export function isMobileGridEntity(entity: Entity): boolean {
   return MOBILE_ENTITY_TYPES.has(entity.type);
@@ -325,43 +332,16 @@ export class EntitySpatialGrid {
     predicate: (entity: Entity, distSq: number) => boolean,
   ): { entity: Entity; distSq: number } | null {
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(radius) || radius < 0) return null;
-
-    const rawCol = Math.floor(x / this.cellSize);
-    const rawRow = Math.floor(y / this.cellSize);
-    const cx = rawCol < 0 ? 0 : rawCol >= this.cols ? this.cols - 1 : rawCol;
-    const cy = rawRow < 0 ? 0 : rawRow >= this.rows ? this.rows - 1 : rawRow;
-    const radiusSq = radius * radius;
-    const cellRadius = Math.ceil(radius / this.cellSize);
-    const minCol = Math.max(0, cx - cellRadius);
-    const maxCol = Math.min(this.cols - 1, cx + cellRadius);
-    const minRow = Math.max(0, cy - cellRadius);
-    const maxRow = Math.min(this.rows - 1, cy + cellRadius);
-    const metrics = isSpatialQueryMetricsEnabled();
-    if (metrics) {
-      recordSpatialCells(null, (maxCol - minCol + 1) * (maxRow - minRow + 1));
-    }
-
+    // Delegates to forEachInRadius so the radius cell-walk lives in one place.
+    // The predicate prunes on distance to keep the best candidate; the closure
+    // is per-call, not per-candidate, so the hot path stays allocation-free.
     let bestEntity: Entity | undefined;
     let bestDistSq = Number.POSITIVE_INFINITY;
-    const cols = this.cols;
-    const cells = this.cells;
-    for (let row = minRow; row <= maxRow; row++) {
-      const rowOffset = row * cols;
-      for (let col = minCol; col <= maxCol; col++) {
-        const bucket = cells[rowOffset + col];
-        for (let i = 0; i < bucket.length; i++) {
-          const entity = bucket[i];
-          if (!entity.alive) continue;
-          const dx = entity.x - x;
-          const dy = entity.y - y;
-          const dSq = dx * dx + dy * dy;
-          if (dSq > radiusSq || dSq >= bestDistSq || !predicate(entity, dSq)) continue;
-          if (metrics) recordSpatialCandidate();
-          bestEntity = entity;
-          bestDistSq = dSq;
-        }
-      }
-    }
+    this.forEachInRadius(x, y, radius, (entity, dSq) => {
+      if (dSq >= bestDistSq || !predicate(entity, dSq)) return;
+      bestEntity = entity;
+      bestDistSq = dSq;
+    });
     return bestEntity ? { entity: bestEntity, distSq: bestDistSq } : null;
   }
 
@@ -684,6 +664,19 @@ export function syncMobileSimGrid(
   const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, MOBILE_CELL_SIZE);
   if (grid !== existing) grid.rebuild(entities, isMobileGridEntity);
   else grid.reconcile(entities, isMobileGridEntity);
+  return grid;
+}
+
+export function syncHumanSocialGrid(
+  existing: EntitySpatialGrid | undefined,
+  mapWidth: number,
+  mapHeight: number,
+  entities: Iterable<Entity>,
+): EntitySpatialGrid | undefined {
+  if (!USE_SPATIAL_GRID) return undefined;
+  const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, SOCIAL_CELL_SIZE);
+  if (grid !== existing) grid.rebuild(entities, isHumanSocialGridEntity);
+  else grid.reconcile(entities, isHumanSocialGridEntity);
   return grid;
 }
 

@@ -33,6 +33,8 @@ export interface TickContext {
   predators: Entity[];
   grassGrid?: EntitySpatialGrid;
   mobileGrid?: EntitySpatialGrid;
+  /** Living humans only — social/greeting/courtship queries avoid wildlife. */
+  humanSocialGrid?: EntitySpatialGrid;
   treeGrid?: EntitySpatialGrid;
   residenceOccupants?: Map<number, Entity[]>;
   grassPopulation?: GrassPopulationSnapshot;
