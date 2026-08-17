@@ -44,7 +44,9 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 **The valley thinks faster — 1,200 settlers at ~70 ms/tick.**
 
 * `GAME_VERSION` **0.6.1**
-* ⚠️ **Beta Save Policy:** this build loads only 0.6.1 saves (0.6 saves are rejected — start a new settlement).
+* ⚠️ **Beta Save Policy:** This build loads only 0.6.1 saves.
+* **Compatibility Dropped:** Historical-save compatibility is no longer supported.
+* **New Start Required:** Saves from other builds (including 0.6) are rejected, so please start a new settlement.
 
 | Area | Highlights |
 |------|------------|
@@ -52,7 +54,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | 🧮 **Smarter social sim** | social queries use a **living-humans-only grid**, **adaptive grid-vs-array scanning**, **staggered ambient scans** (banter/greetings 1-in-6 ticks) and **behavior-specific radii** — the valley feels the same, runs much lighter |
 | 🧩 **Cleaner sim code** | `lifeSimulation.ts` split into domain modules (`simulation/types · entities · relationships`, `humanTick`), grass lives in the daily tick layer, wildlife in the systems layer |
 
-**Perf benchmark results** (`scripts/perf-all.ts` · Large map · full sim · 60 measured ticks after 30 warmup):
+**Performance** (`scripts/perf-all.ts` · Large map · full sim · 60 measured ticks after 30 warmup):
 
 | Humans | avg tick | p95 tick | Gate |
 |--------|----------|----------|------|
@@ -71,9 +73,10 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | 2,600 | 172.2 ms | 329.3 ms | ✅ ACCEPTABLE |
 | 2,800 | 183.8 ms | 362.9 ms | ⚠️ WATCH |
 
-**Capacity ceiling** (dynamic run, `PERF_STOP_AT=acceptable`): **2,600 settlers** stay ACCEPTABLE (p95 329 ms) — **>2× the pre-0.6.1 capacity**, where 1,200 was already WATCH. **2,800** hits WATCH (p95 363 ms) but stays under the hard budget (667 ms).
+**Capacity ceiling** 
+- **2,600 settlers** stay ACCEPTABLE (p95 329 ms) engine can run now alamost 100% more citizins.
 
-Run it yourself: `PERF_TICKS=60 SIM_FULL_SIM=1 npx tsx scripts/perf-all.ts` (stops at the first tier over budget; `PERF_STOP_AT=acceptable|budget`, `PERF_START_POP`/`PERF_STEP_POP`/`PERF_MAX_POP` control the sweep)
+
 
 ---
 ## v0.6 (August 17, 2026)
