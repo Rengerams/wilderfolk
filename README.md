@@ -43,7 +43,10 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 **Build, flow, and grow: watch the valley transform.**
 
-**Playing `GAME_VERSION` 0.6** — ⚠️ **beta save policy: this build loads only 0.6 saves** (historical-save compatibility dropped — a save from any older build is rejected; start a new settlement). Full notes → [CHANGELOG.md](CHANGELOG.md)
+* `GAME_VERSION` **0.6**
+* ⚠️ **Beta Save Policy:** This build loads only 0.6 saves.
+* **Compatibility Dropped:** Historical-save compatibility is no longer supported.
+* **New Start Required:** Saves from other builds are rejected, so please start a new settlement.
 
 | Area | Highlights |
 |------|------------|
@@ -55,6 +58,28 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | **🔨 Upgrades you can see** | Lv2 buildings grow a warm new roof + chimney, Lv3 a stronger roof, a gold rim and a soft glow at night — upgrades read at a glance |
 | **⛈️ Storm damage you can see** | When a storm batters buildings, debris flies and a warning floats up from each battered roof — and the colony now **founds at 08:00**, not midnight |
 | **Quality** |  pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather, App split updated
+
+### Added
+- **🎣 Fishing Spot (Phase 6: rivers feed)** — a new Food building that must straddle water (a dock): staffed fishers haul `8 + 4×workers` food per day, thin in winter (55%), rich in fall (115%). Safer than hunting — no wolves fight back. Generated sprite `fishingspot.png`
+- **🌳 Wildlife Preserve (Phase 6: ecology tools)** — a new Community building: fenced wild grove that **restores ecosystem health +4** and shows the valley you're giving back. No workers
+- **📜 Valley Chronicle (Phase 7: people become history)** — the victory-path replacement: **9 chapter milestones** (The Foundation → The First Harvest → The Great Hunt → The River's Gift → The Iron Age → The Market Opens → Keeper of the Wild → The Alliance → A Century). Each unlocks once, logs to the chronicle, grants a small reward, and appears as a **center-screen title card**. Progress lives in Progress → Goals. No win/lose — the valley just keeps living
+- **🌄 Cinematic moments (Phase 8: feel)** — a title card marks your **founding** and every **chronicle chapter** unlock; **construction now builds up** visually — scaffolds grow from 45% to full size as progress rises
+- **🤝 Relationships (Phase 7: relationship webs)** — settlers build **friendships** from shared work, shared homes and childhood school bonds (become friends at 60); **feuds** start when a spouse catches a cheater with a paramour, drain energy daily, and slowly heal. Friends lift each other's energy; the chronicle log tells both stories
+- **🎓 Apprenticeships (Phase 7: skills pass on)** — a master (skill ≥ 40) at a staffed production building takes on the nearest juvenile; the apprentice learns fast under a good master and **graduates at skill 50** into the trade. Building panels show who is teaching whom
+- **👑 Dynasties (Phase 7: family legacy)** — the Goals tab lists **living dynasties** (surnames across generations), and a true **three-generation dynasty unlocks a Valley Chronicle chapter** ("A Dynasty", +200 gold)
+- **🗳️ Elections are real ballots (Phase 7: vote-support)** — every adult settler votes; **merit stays the strongest force** (a candidate ahead by >15 points wins every ballot), while **friendships boost and feuds can cancel a vote** — bonds only tip close races. Results log as "X of Y ballots", and the announcement reads "Elected by ballot"
+- **🔩 Iron — a real resource at last** — the economy audit found "iron" gear was secretly paid in wood+stone+gold; now **iron is a true fifth resource**: the **Mine gains an Extract mode (🪨 Stone / 🔩 Iron)**, and all **Blacksmith forge orders cost iron** (Spears → Ballistae, ~15–40 each). Iron shows in the header (lg+), forge cost chips, challenge rewards, and the Ironport trade route pays iron. Mine iron mode yields ~21/day; the forge is now an iron sink, not a gold sink. (Audit → `docs/private/ECONOMY_AUDIT_2026-08-17.md`)
+- **🎓 First-spring guide** — a living, step-by-step tutorial walks new players through their first year (build a house → plant a farm → assign workers → secure wood/meat → earn gold → prepare for winter → year two). It's a **non-modal banner** that auto-advances as you actually do each thing, and can be **skipped at any time**. New-settlement screen has a **First-spring guide On/Off choice** (remembered) — turn it off to start completely free, no tutorial at all
+- **🏚️ Wood Storehouse** — a new Resources building (`storehouse_wood.png`) that shelters **+800 wood storage** for winter fuel; the base wood cap is 500 → **800**, so a 50-pop village can finally bank a winter (~900 needed)
+- **🍞 Food keeps longer** — spoilage drops **3% → 2%/day** and the base food cap rises to 800 (silos still cut further); banking food for winter is now viable
+- **💰 Gold has a cap** — 20,000 (was uncapped); the late-game snowball stops and the header shows the cap
+- **🌾 Farms reward workers** — farm output now scales `12 + 5×workers` (was a flat 22), so a fully-staffed farm out-produces an empty one
+
+
+### Performance
+- **Quality**   pathfinding, painted valley, economy ledger, quests, trade, elections, multi-select, decor, SFX, weather, App split updated
+
+---
 
 ### Previous release — v0.5.4.1 (August 15, 2026)
 
