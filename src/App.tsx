@@ -116,7 +116,7 @@ const SPEED_OPTIONS = [0.5, 1, 2, 3, 5, 10];
 type SidebarTab = 'village' | 'frontier' | 'nature' | 'progress' | 'log' | 'more';
 type LogSubTab = 'chronicle' | 'combat';
 
-type ProgressSubTab = 'research' | 'trade' | 'goals';
+type ProgressSubTab = 'research' | 'trade' | 'goals' | 'charts';
 type MoreSubTab = 'guide' | 'roadmap';
 
 const SIDEBAR_TABS: { id: SidebarTab; icon: string; label: string; hint: string }[] = [

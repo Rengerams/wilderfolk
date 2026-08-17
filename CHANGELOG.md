@@ -16,6 +16,7 @@
 - **One primary prompt (external review P0)** — while the first-spring guide's "build a house" step is live, the duplicate "Build shelter" focus hint is suppressed; the guide is the single call to action
 - **Version/save docs corrected (external review P1)** — README, in-game roadmap and `ARCHITECTURE.md` now all state the current `0.5.4.2` + exact-version save policy (no more stale `0.5.4.1`/`0.4…0.5.1` claims)
 - **Hygiene (external review P1/P2)** — "5 valleys" copy fixed to 6; stray `Wilderfolk - Snelkoppeling.lnk` removed from `src/game/`
+- **📈 Charts subtab (Progress tab)** — a rolling ~40-day view that makes the valley legible: the **food chain** (humans/wolves/rabbits/deer/foxes on one chart), **ecosystem health & pollution**, and **gold/food/wood/stone trends** — the loop you could only feel before, you can now read
 
 ## [0.5.4.2] — 2026-08-17
 
