@@ -15,6 +15,8 @@ import {
   maybeOfferWelcome,
   maybeOfferWolfChoice,
   maybeOfferRangerVisit,
+  maybeOfferGriefBeat,
+  maybeOfferHowlerRumor,
   maybeOfferWinterPrep,
   maybeOfferValleyDebate,
   respondToStoryEvent,
@@ -280,6 +282,76 @@ describe('first-session arc', () => {
     const repBefore = declined.villageReputation;
     tickWinterFreezeCheck(declined);
     expect(declined.villageReputation).toBe(repBefore);
+  });
+});
+
+describe('systems introduced through consequences', () => {
+  it('grief beat: offered once when a grieving settler with family exists', () => {
+    const state = initGame({ villageName: 'Emergence1', size: MapSize.Small });
+    state.year = 0;
+    const human = state.entities.find((e) => e.type === EntityType.Human && !e.faction && !e.isJuvenile);
+    expect(human).toBeTruthy();
+    human!.griefUntilTick = state.tick + 10;
+    human!.childrenIds = [9999];
+    maybeOfferGriefBeat(state);
+    expect(state.pendingStoryEvents?.length).toBe(1);
+    expect(state.pendingStoryEvents![0].storyKey).toBe('grief_beat');
+    maybeOfferGriefBeat(state);
+    expect(state.pendingStoryEvents?.length).toBe(1);
+  });
+
+  it('grief beat: not offered without a grieving settler', () => {
+    const state = initGame({ villageName: 'Emergence2', size: MapSize.Small });
+    state.year = 0;
+    maybeOfferGriefBeat(state);
+    expect(state.pendingStoryEvents?.length ?? 0).toBe(0);
+  });
+
+  it('grief beat: comfort raises reputation and eases the mourner', () => {
+    const state = initGame({ villageName: 'Emergence3', size: MapSize.Small });
+    state.year = 0;
+    const human = state.entities.find((e) => e.type === EntityType.Human && !e.faction && !e.isJuvenile)!;
+    human.griefUntilTick = state.tick + 10;
+    human.childrenIds = [9999];
+    maybeOfferGriefBeat(state);
+    const repBefore = state.villageReputation;
+    const energyBefore = human.energy;
+    const next = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'comfort');
+    expect(next.villageReputation).toBeGreaterThan(repBefore);
+    const mourner = next.entities.find((e) => e.id === human.id)!;
+    expect(mourner.energy).toBeGreaterThan(energyBefore);
+  });
+
+  it('howler rumor: only after the ranger visit, late in the first year', () => {
+    const state = initGame({ villageName: 'Emergence4', size: MapSize.Small });
+    state.year = 0;
+    state.storyFlags = { ranger_visit: 10 };
+    state.dayInYear = 100;
+    maybeOfferHowlerRumor(state);
+    expect(state.pendingStoryEvents?.length ?? 0).toBe(0); // too early
+    state.dayInYear = 200;
+    maybeOfferHowlerRumor(state);
+    expect(state.pendingStoryEvents?.length).toBe(1);
+    expect(state.pendingStoryEvents![0].storyKey).toBe('howler_rumor');
+  });
+
+  it('howler rumor: not offered before the ranger visited', () => {
+    const state = initGame({ villageName: 'Emergence5', size: MapSize.Small });
+    state.year = 0;
+    state.dayInYear = 200;
+    maybeOfferHowlerRumor(state);
+    expect(state.pendingStoryEvents?.length ?? 0).toBe(0);
+  });
+
+  it('howler rumor: heeding the warning raises reputation', () => {
+    const state = initGame({ villageName: 'Emergence6', size: MapSize.Small });
+    state.year = 0;
+    state.storyFlags = { ranger_visit: 10 };
+    state.dayInYear = 200;
+    maybeOfferHowlerRumor(state);
+    const repBefore = state.villageReputation;
+    const next = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'heed');
+    expect(next.villageReputation).toBeGreaterThan(repBefore);
   });
 });
 

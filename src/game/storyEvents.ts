@@ -3,6 +3,7 @@ import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { addCappedResource } from './resourceUtils';
+import { isPlayerHuman } from './playerHuman';
 import { logEvent } from './eventLog';
 
 /**
@@ -64,6 +65,12 @@ export function respondToStoryEvent(
       break;
     case 'ranger_visit':
       resolveRangerVisit(state, choiceId);
+      break;
+    case 'grief_beat':
+      resolveGriefBeat(state, choiceId);
+      break;
+    case 'howler_rumor':
+      resolveHowlerRumor(state, choiceId);
       break;
     case 'winter_prep':
       if (choiceId === 'accept') {
@@ -285,7 +292,92 @@ export function tickWinterFreezeCheck(state: WorldState): void {
 }
 
 // ---------------------------------------------------------------------------
-// Story 5 — The valley's future (philosophical election debate)
+// Story 5 — A household mourns (grief surfaces as a consequence)
+// ---------------------------------------------------------------------------
+
+/** Offer once in the first year, after a player settler with family is grieving. */
+export function maybeOfferGriefBeat(state: WorldState): void {
+  if ((state.storyFlags?.grief_beat ?? 0) > 0) return;
+  if (state.year > 0) return;
+  const mourner = state.entities.find(
+    (e) => e.alive
+      && isPlayerHuman(e)
+      && (e.griefUntilTick ?? 0) > state.tick
+      && ((e.childrenIds?.length ?? 0) > 0 || e.partnerId != null),
+  );
+  if (!mourner) return;
+  state.storyFlags = { ...state.storyFlags, grief_beat: state.tick };
+  offerStoryEvent(state, {
+    id: `grief_${state.tick}`,
+    emoji: '🕯️',
+    storyKey: 'grief_beat',
+    title: 'A household mourns',
+    description:
+      `${mourner.name} sits by the fire with the household — grief is a weight carried together, and what the lost one built now passes to kin.`,
+    choices: [
+      { id: 'comfort', label: 'Comfort them', detail: 'A quiet word — mourning settlers rest more, and the household holds.' },
+      { id: 'space', label: 'Give them space', detail: 'Grief runs its own course — they will rejoin the village in their own time.' },
+    ],
+    createdAtTick: state.tick,
+    expiresAtTick: state.tick + TICKS_PER_DAY * 3,
+  });
+}
+
+function resolveGriefBeat(state: WorldState, choiceId: string): void {
+  const mourner = state.entities.find(
+    (e) => e.alive && isPlayerHuman(e) && (e.griefUntilTick ?? 0) > state.tick,
+  );
+  if (choiceId === 'comfort') {
+    if (mourner) mourner.energy = Math.min(mourner.maxEnergy, mourner.energy + 20);
+    bumpRep(state, 1);
+    addBigNews(state, '🕯️ The household holds', 'A quiet word by the fire — the mourning settler rests easier, and the village stands a little closer.', 'positive');
+    logEvent(state, 'event', `${state.villageName} comforted a grieving household — grief carried together, not alone.`);
+  } else {
+    addNotification(state, 'Grief takes its course', 'The household mourns in its own time — they will rejoin the village soon.', 'info');
+    logEvent(state, 'event', `${state.villageName} gave a grieving household space — grief runs its own course.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Story 6 — The ranger's tale (Moon Howlers introduced as a rumor)
+// ---------------------------------------------------------------------------
+
+/** Offer late in the first year, after the ranger visited — the pack mystery deepens. */
+export function maybeOfferHowlerRumor(state: WorldState): void {
+  if ((state.storyFlags?.howler_rumor ?? 0) > 0) return;
+  if (state.year > 0) return;
+  if ((state.storyFlags?.ranger_visit ?? 0) === 0) return;
+  if (state.dayInYear < 180) return;
+  state.storyFlags = { ...state.storyFlags, howler_rumor: state.tick };
+  offerStoryEvent(state, {
+    id: `howler_${state.tick}`,
+    emoji: '🌕',
+    storyKey: 'howler_rumor',
+    title: "The ranger's tale",
+    description:
+      'The ranger returns with a strange tale: on full-moon nights, something walks the treeline on two legs and howls like a wolf. “Keep a priest near, and trust the moon less.”',
+    choices: [
+      { id: 'heed', label: 'Heed the warning', detail: 'The full moon will be watched — the Church gains weight in the village.' },
+      { id: 'dismiss', label: "A hunter's tall tale", detail: 'Old stories — the village goes about its business.' },
+    ],
+    createdAtTick: state.tick,
+    expiresAtTick: state.tick + TICKS_PER_DAY * 5,
+  });
+}
+
+function resolveHowlerRumor(state: WorldState, choiceId: string): void {
+  if (choiceId === 'heed') {
+    bumpRep(state, 1);
+    addBigNews(state, '🌕 The moon is watched', 'The village heeds the ranger — priests keep watch on full-moon nights, and the treeline feels less certain.', 'neutral');
+    logEvent(state, 'event', `${state.villageName} heeded the ranger's tale — the full moon will be watched.`);
+  } else {
+    addNotification(state, "A hunter's tale", 'The village shrugs off the ranger’s story — old tales for old folks.', 'info');
+    logEvent(state, 'event', `${state.villageName} dismissed the ranger's tale — old stories for old folks.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Story 7 — The valley's future (philosophical election debate)
 // ---------------------------------------------------------------------------
 
 /** Offer once per election season when candidates genuinely disagree. */

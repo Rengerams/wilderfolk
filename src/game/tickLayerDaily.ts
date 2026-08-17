@@ -33,7 +33,7 @@ import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
 import { advanceSocialRelationships } from './relationships';
 import { advanceApprenticeships } from './apprenticeships';
 import { tickMigration } from './migration';
-import { tickPendingStoryEvents, maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferWinterPrep, tickWinterFreezeCheck } from './storyEvents';
+import { tickPendingStoryEvents, maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, tickWinterFreezeCheck } from './storyEvents';
 import { tickBeauty } from './beautyGrid';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getLumberMillTreeMultiplier } from './treeProximity';
@@ -808,6 +808,8 @@ export function tickLayerDaily(
     maybeOfferWelcome(state);
     maybeOfferWolfChoice(state);
     maybeOfferRangerVisit(state);
+    maybeOfferGriefBeat(state);
+    maybeOfferHowlerRumor(state);
     maybeOfferWinterPrep(state);
     tickWinterFreezeCheck(state);
   }

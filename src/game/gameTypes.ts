@@ -491,7 +491,7 @@ export interface StoryEvent {
   createdAtTick: number;
   expiresAtTick: number;
   /** Which authored story this resolves — keeps the responder data-driven-safe. */
-  storyKey: 'welcome' | 'wolf_choice' | 'ranger_visit' | 'winter_prep' | 'valley_debate';
+  storyKey: 'welcome' | 'wolf_choice' | 'ranger_visit' | 'howler_rumor' | 'grief_beat' | 'winter_prep' | 'valley_debate';
 }
 
 /** @deprecated Prefer PopulationHistoryEntry (same shape, richer optional fields). */
