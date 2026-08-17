@@ -48,7 +48,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 | Area | Highlights |
 |------|------------|
-| 🚀 **Perf gate passed** | 1,200 humans **~192 ms → ~70 ms/tick** (p95 362 → 95 ms); every population tier 200–1,200 is ACCEPTABLE |
+| 🚀 **Perf gate passed** | 1,200 humans **~192 ms → ~38 ms/tick** (p95 362 → 65 ms); every tier 200–2,600 is ACCEPTABLE |
 | 🧮 **Smarter social sim** | social queries use a **living-humans-only grid**, **adaptive grid-vs-array scanning**, **staggered ambient scans** (banter/greetings 1-in-6 ticks) and **behavior-specific radii** — the valley feels the same, runs much lighter |
 | 🧩 **Cleaner sim code** | `lifeSimulation.ts` split into domain modules (`simulation/types · entities · relationships`, `humanTick`), grass lives in the daily tick layer, wildlife in the systems layer |
 
