@@ -33,6 +33,7 @@ import {
   resetSpatialQuerySession,
   setSpatialQueryMetricsEnabled,
 } from '../src/game/spatialQueryMetrics';
+import { USE_SPATIAL_GRID } from '../src/game/spatialGrid';
 
 type CpuNode = {
   id: number;
@@ -368,11 +369,7 @@ async function main(): Promise<void> {
     `mode=${FULL_SIM ? 'FULL SIM' : 'focus'} `
     + `ecology=${STRIP_ECOLOGY ? 'stripped' : 'preserved'} `
     + `speed=${SIM_SPEED}x `
-    + `grid=${process.env.USE_SPATIAL_GRID === '1'
-      ? 'spatial grid on'
-      : process.env.USE_SPATIAL_GRID === '0'
-        ? 'naive fallback forced'
-        : 'spatial grid default-on'}`,
+    + `grid=${USE_SPATIAL_GRID ? 'spatial grid on' : 'naive fallback forced'}`,
   );
   console.log(
     `stopAt=${STOP_AT} `
