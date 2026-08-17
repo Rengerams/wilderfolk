@@ -41,6 +41,8 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ## Latest update — v0.6 (August 17, 2026)
 
+**Build, flow, and grow: watch the valley transform.**
+
 **Playing `GAME_VERSION` 0.6** — ⚠️ **beta save policy: this build loads only 0.6 saves** (historical-save compatibility dropped — a save from any older build is rejected; start a new settlement). Full notes → [CHANGELOG.md](CHANGELOG.md)
 
 | Area | Highlights |
