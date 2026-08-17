@@ -354,6 +354,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const config = SPECIES_CONFIG[EntityType.Human];
   const isWinter = season === Season.Winter;
 
+  // Moon-Howler fear scan only matters while a cursed werewolf is active —
+  // otherwise skip the per-human radius query entirely (saves ~1 query +
+  // 25 cells per human on every non-howler tick).
+  const anyActiveHowler = (byType[EntityType.Werewolf] ?? []).some(isActiveMoonHowler);
+
   // Clock buckets (not per-person yet — refined per human below).
   const goWorkTime = isOnWorkShift(state.tick, hourOfDay);
   const weekend = isWeekend(state.tick);
@@ -803,15 +808,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       || (allowFreeRoam && isPlayerHuman(entity));
 
     // Flee from dangerous Moon Howlers on full-moon nights
-    const huntingWere = findClosestEntityInRadius(
-      mobileGrid,
-      entity.x,
-      entity.y,
-      110,
-      (w) => w.type === EntityType.Werewolf && w.alive && isActiveMoonHowler(w),
-      'human_hunt',
-      byType[EntityType.Werewolf],
-    );
+    const huntingWere = anyActiveHowler
+      ? findClosestEntityInRadius(
+          mobileGrid,
+          entity.x,
+          entity.y,
+          110,
+          isActiveMoonHowler,
+          'human_hunt',
+          byType[EntityType.Werewolf],
+        )
+      : undefined;
     // Priests on the exorcism shift: come out and actively hunt the Moon Howler —
     // or retreat to the Church if a comrade just fell.
     if (onMoonPriestShift) {
