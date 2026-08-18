@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import dialogueBankJson from '../data/sim_dialogue_trees.json';
 import { installDialogueBankPayload } from '../dialogueTrees';
-import { gameTick } from '../gameEngine';
+import { gameTick } from '../gameTick';
 import { GAME_VERSION } from '../version';
 
 installDialogueBankPayload(dialogueBankJson as unknown as Parameters<typeof installDialogueBankPayload>[0]);

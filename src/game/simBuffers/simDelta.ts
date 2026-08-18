@@ -1,6 +1,6 @@
 import type { Building, Entity, WorldState } from '../gameTypes';
 import { EntityType } from '../gameTypes';
-import type { SimulationFocus } from '../gameEngine';
+import type { SimulationFocus } from '../simFocus';
 import type { EntityRenderMeta } from './entityRenderMeta';
 import { packRenderMetaForPacked } from './entityRenderMeta';
 import { selectRenderEntities } from './packRenderSoA';

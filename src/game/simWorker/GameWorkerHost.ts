@@ -1,5 +1,5 @@
 import type { WorldState } from '../gameTypes';
-import type { SimulationFocus } from '../gameEngine';
+import type { SimulationFocus } from '../simFocus';
 import { createRenderSoAReader, type RenderSoAReaderV1 } from '../simBuffers/renderSoAReader';
 import type { EntityRenderMeta } from '../simBuffers/entityRenderMeta';
 import { applySimTickDelta, type SimTickDelta } from '../simBuffers/simDelta';

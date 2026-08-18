@@ -25,7 +25,8 @@ import { ensureEntitySkills } from './skills';
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
 import { syncResearchUnlocks } from './research';
-import { assignMissingWorkers, syncBigNewsIdFromState } from './gameEngine';
+import { assignMissingWorkers } from './workforce';
+import { syncBigNewsIdFromState } from './simEffects';
 import { rebuildEntityByIdMap } from './entityIndex';
 import {
   getCampDistancePixels,

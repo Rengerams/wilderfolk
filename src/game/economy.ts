@@ -1,7 +1,7 @@
 import type { WorldState, Resources, WorkshopRecipe } from './gameTypes';
 import { BuildingType, Season } from './gameTypes';
 import { addCappedResource } from './resourceUtils';
-import { addFloatingText } from './gameEngine';
+import { addFloatingText } from './simEffects';
 
 /** Canonical implementation lives in tradeCaravans (Market gate + caravan schedule). */
 export { establishTradeRoute, hasCompletedMarket } from './tradeCaravans';

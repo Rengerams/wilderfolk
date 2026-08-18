@@ -1,4 +1,4 @@
-import { formatRaidDeadline } from './gameEngine';
+import { formatRaidDeadline } from './frontierCombat';
 import type { RaidEvent } from './frontierCombat';
 
 export function formatRaidDeadlineSafe(

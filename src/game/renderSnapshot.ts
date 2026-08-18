@@ -1,5 +1,5 @@
 import { BuildingType, type Building, type Camera, type Entity, type EntityByType, type ResearchNode, type WorldState } from './gameTypes';
-import { buildEntityByType } from './gameEngine';
+import { buildEntityByType } from './simFocus';
 import { getHourOfDay } from './dayCycle';
 import { loadJuiceEffectsEnabled } from './preferences';
 import type { EntityCatalog } from './entityCatalog';

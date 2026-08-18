@@ -1,5 +1,4 @@
-import { BUILDING_CONFIGS } from './gameEngine';
-import type { BuildingType } from './gameEngine';
+import { BUILDING_CONFIGS, type BuildingType } from './buildings';
 import type { BuildingConfig } from './gameTypes';
 
 export const FALLBACK_BUILDING_CONFIG: BuildingConfig = {

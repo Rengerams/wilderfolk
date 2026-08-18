@@ -1,6 +1,6 @@
 import type { Entity, WorldState } from '../gameTypes';
 import { EntityType } from '../gameTypes';
-import type { SimulationFocus } from '../gameEngine';
+import type { SimulationFocus } from '../simFocus';
 import { isPlayerHuman } from '../playerHuman';
 import { entityTypeToCode } from './entityTypeCodes';
 import { validateRenderBufferLayout } from './renderSoAReader';
