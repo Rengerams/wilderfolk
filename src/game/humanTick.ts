@@ -25,7 +25,7 @@ import { addResource } from './economy';
 import { isPlayerHuman } from './playerHuman';
 import { isSettlerRelationshipEntity } from './moonHowler';
 import { getElectionGatherTarget } from './villageLeadership';
-import { getValleyHuntYieldMultiplier, valleyStageIndex } from './ecologyStage';
+import { valleyStageIndex } from './ecologyStage';
 import { HUMAN_ADULT_MIN_AGE, HUMAN_ADULT_MAX_AGE, tryGraduateHumanChild, getColonyDay, setHumanBirthFromAge, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, ticksForDays, PREGNANCY_TICKS, REPRODUCTION_COOLDOWN_TICKS, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isWorkHour, isOnWorkShift, isOnInnkeeperShift, isOnMoonHowlerNightShift, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, rebuildChildrenIds, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, WORK_START, EVENING_START, TAVERN_SHIFT_START, isStartOfClockHour } from './dayCycle';
 import {
   chatHintsFromWorld,
@@ -39,7 +39,7 @@ import { advanceHumanWalkAnim, pickHumanVariant } from './humanSprites';
 import { formatCitizenName, formatDeathLog } from './citizenId';
 import { getRandomName, resolveChildSurname, syncMarriageSurnames } from './nameLoader';
 import { isRenffrGossipActive } from './renffrStar';
-import { getHumanHuntRange, getHumanFleeSpeedMultiplier, getHuntFoodMultiplier } from './combat';
+import { getHumanHuntRange, getHumanFleeSpeedMultiplier } from './combat';
 import { isActiveMoonHowler } from './moonHowler';
 import { isEntityOnBuilding } from './buildingRotation';
 import { createEntity } from './entityFactory';
@@ -77,6 +77,7 @@ import { setCurrentPathMap } from './pathfinding';
 import {
   COMMUTE_SNAP_DISTANCE, commuteDistanceToBuilding, commuteHumanToBuilding, nearestActiveMoonHowler, snapHumanToBuilding,
 } from './simulation/humanMovement';
+import { fract, freeHuntFoodGain, humanEnergyLoss, isMealWindow } from './simulation/humanNeeds';
 import { recordFoodConsumed } from './economyLedger';
 import type { EntitySpatialGrid } from './spatialGrid';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
@@ -94,23 +95,6 @@ import { allLivingHumans, clearHuntersTargetingPrey, markWildlifeDead, pushNewEn
 
 /** Live on-screen intimate tryst distance. */
 const AFFAIR_INTIMATE_RADIUS = 22;
-
-function isMealWindow(hourOfDay: number): boolean {
-  return (hourOfDay >= 8 && hourOfDay <= 10) || (hourOfDay >= 18 && hourOfDay <= 20);
-}
-
-function fract(value: number): number {
-  return value - Math.floor(value);
-}
-
-/** Food from a free-roam kill — deer is a proper carcass, rabbit a snack. */
-function freeHuntFoodGain(preyType: EntityType, state: WorldState): number {
-  const base = preyType === EntityType.Deer ? 52 : preyType === EntityType.Rabbit ? 22 : 18;
-  return Math.max(
-    1,
-    Math.round(base * getHuntFoodMultiplier(state) * getValleyHuntYieldMultiplier(state)),
-  );
-}
 
 function getAffairTrystTarget(
   cheater: Entity,
@@ -627,31 +611,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       continue;
     }
 
-    let energyLoss = hasWell ? config.energyLossPerTick * 0.8 : config.energyLossPerTick;
-    if (isWinter && !canHeat) {
-      // Greenthumb settlers shrug off the winter cold.
-      energyLoss *= 1.5 * traitMultiplier(entity, 'greenthumb', 0.7);
-      if (isTick8) entity.flash = 5;
-    }
+    const energyLoss = humanEnergyLoss(entity, config, {
+      hasWell, isWinter, canHeat, hasHospital, tick: state.tick, hourOfDay, buildingById,
+    });
+    if (isWinter && !canHeat && isTick8) entity.flash = 5;
 
-    // Resting near home (evening/night or quiet day) costs less energy.
-    if (
-      hasResidenceAssignment(entity)
-      && prefersHomeTonight(entity.id, state.tick, hourOfDay)
-    ) {
-      const residence = buildingById.get(entity.residenceBuildingId!);
-      if (residence?.completed) {
-        const hdx = residence.x + residence.width / 2 - entity.x;
-        const hdy = residence.y + residence.height / 2 - entity.y;
-        if (Math.hypot(hdx, hdy) < 14) energyLoss *= 0.5;
-      }
-    }
-    
-    // Hospital reduces energy loss
-    if (hasHospital) energyLoss *= 0.9;
-    // Hardy settlers burn energy slower; fierce ones push through the shift.
-    energyLoss *= traitMultiplier(entity, 'hardy', 0.85);
-    energyLoss *= traitMultiplier(entity, 'fierce', 0.9);
+
     
     entity.energy -= energyLoss;
 
