@@ -70,7 +70,11 @@ export default defineConfig({
           }
 
           // Renderer only (not rendererLoader — avoids chunk cycle with game)
-          if (filePath.includes("/src/game/renderer.ts") || filePath.includes("/src/game/huntrenderer")) {
+          if (
+            filePath.includes("/src/game/renderer.ts")
+            || filePath.includes("/src/game/renderer/")
+            || filePath.includes("/src/game/huntrenderer")
+          ) {
             return "game-render"
           }
 

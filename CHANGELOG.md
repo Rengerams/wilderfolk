@@ -18,6 +18,12 @@
 ### Technical
 - `lifeSimulation.ts` split into domain modules — `simulation/simulationTypes` (TickContext), `simulation/simulationEntities` (entity bookkeeping), `simulation/humanRelationships` (affairs / courtship / scandal), `humanTick` (tickHumans); grass lives in `tickLayerDaily`, wildlife in `tickLayerSystems`; the monolith is gone
 - `findClosestInRadius` delegates to `forEachInRadius` (single cell-walk implementation); `npm run dup` (jscpd) is clean
+- `renderer.ts` split into focused renderer modules under `src/game/renderer/` — `grid`, `markers`, `particles`, `nightEffects`, `buildPreview`, `weather`, `scent`, `entityComposite`, and `overlay`; `renderer.ts` is now a thin render orchestrator
+- Vite chunking updated so all renderer modules live in the `game-render` chunk
+
+### Fixed
+- **ES-1** — Night atmosphere and building glow were drawn twice per frame (once in `renderGame`, again inside `drawGameOverlay`), over-darkening nights and double-applying glow. The duplicate block was removed from `renderGame`; `drawGameOverlay` owns the full overlay pass.
+- **ES-2** — Ecosystem connection lines (`drawEcoConnections`) only culled against the horizontal screen bounds, so off-screen vertical pairs could still be drawn. Vertical culling added.
 
 ### Saves
 - Loads **0.6.1** saves only (exact-version policy); older saves are rejected — start a new settlement.
