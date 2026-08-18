@@ -1,0 +1,1102 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for game/forge.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../prettify.css" />
+    <link rel="stylesheet" href="../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../index.html">All files</a> / <a href="index.html">game</a> forge.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">15.43% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>23/149</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">8.33% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>13/156</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">17.85% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>5/28</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">18.42% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>21/114</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">152x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">103x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import type { Building, Resources, VillageForgeState, WorldState, ForgeOrderId, ForgeOrder } from './gameTypes';
+import { BuildingType } from './gameTypes';
+import { formatResourceCost } from './resourceCost';
+import { isProductionTick, PRODUCTION_INTERVAL } from './dayCycle';
+import { COMBAT_TECH } from './combatTech';
+import { logEvent } from './eventLog';
+import { addNotification } from './simEffects';
+&nbsp;
+export function <span class="fstat-no" title="function not covered" >hasCompletedBlacksmith(s</span>tate: { buildings: Building[] }): boolean {
+<span class="cstat-no" title="statement not covered" >  return state.buildings.some(<span class="fstat-no" title="function not covered" >(b</span>) =&gt; <span class="cstat-no" title="statement not covered" >b.completed &amp;&amp; b.type === BuildingType.Blacksmith)</span>;</span>
+}
+&nbsp;
+export const FORGE_BONUSES = {
+  guardHalberdPerGuard: 6,
+  wallPlatePerSegment: 4,
+  wallPlateCap: 96,
+  quarryYieldMult: 1.15,
+  /** Extra militia strength per completed watchtower when ballistae forged. */
+  towerBallistaPerTower: 12,
+  /** Base watchtower bonus stays 15; ballistae replace that with this total per tower. */
+  towerBallistaTotalPerTower: 27,
+} as const;
+&nbsp;
+/** Display + forge priority: basic iron → utility → drill/walls → tier-5 war gear. */
+export const FORGE_ORDERS: ForgeOrder[] = [
+  {
+    id: 'iron_spears',
+    label: 'Iron Spears',
+    emoji: '⚔️',
+    description: 'Village-wide iron spears — longer hunts, fight back vs wolves, unlock militia raids.',
+    techId: COMBAT_TECH.ironSpears,
+    inputs: { wood: 25, stone: 20, gold: 15, iron: 15 },
+    progressPerTick: 34,
+  },
+  {
+    id: 'iron_shields',
+    label: 'Iron Shields',
+    emoji: '🛡️',
+    description: 'Heavy shields for all settlers — strong predator blocks and raid armor baseline.',
+    techId: COMBAT_TECH.ironShields,
+    inputs: { wood: 30, stone: 25, gold: 15, iron: 15 },
+    progressPerTick: 34,
+  },
+  {
+    id: 'iron_pickaxes',
+    label: 'Iron Pickaxes',
+    emoji: '⛏️',
+    description: `Quarries produce ${Math.round((FORGE_BONUSES.quarryYieldMult - 1) * 100)}% more stone while staffed.`,
+    techId: 'mining_2',
+    inputs: { wood: 25, stone: 30, gold: 15, iron: 10 },
+    progressPerTick: 32,
+  },
+  {
+    id: 'guard_halberds',
+    label: 'Guard Halberds',
+    emoji: '🪖',
+    description: `+${FORGE_BONUSES.guardHalberdPerGuard} militia per staffed barracks guard (stacks with base guard bonus).`,
+    techId: COMBAT_TECH.militiaDrill,
+    requiresForge: ['iron_spears'],
+    inputs: { wood: 30, stone: 25, gold: 15, iron: 25 },
+    progressPerTick: 30,
+  },
+  {
+    id: 'wall_plates',
+    label: 'Reinforced Wall Plates',
+    emoji: '🧱',
+    description: `+${FORGE_BONUSES.wallPlatePerSegment} barricade per wall segment (max +${FORGE_BONUSES.wallPlateCap}).`,
+    techId: COMBAT_TECH.reinforcedMasonry,
+    requiresForge: ['iron_shields'],
+    inputs: { wood: 30, stone: 40, gold: 15, iron: 20 },
+    progressPerTick: 30,
+  },
+  {
+    id: 'iron_swords',
+    label: 'Iron Swords',
+    emoji: '🗡️',
+    description: 'Strongest militia weapons — replace iron spears for raids; better counter-attacks.',
+    techId: COMBAT_TECH.ironSwords,
+    requiresForge: ['iron_spears'],
+    inputs: { wood: 30, stone: 25, gold: 15, iron: 30 },
+    progressPerTick: 28,
+  },
+  {
+    id: 'scale_mail',
+    label: 'Scale Mail',
+    emoji: '🦺',
+    description: 'Heavy armor for the militia — replaces iron shields for raids and predator blocks.',
+    techId: COMBAT_TECH.scaleMail,
+    requiresForge: ['iron_shields'],
+    inputs: { wood: 20, stone: 35, gold: 15, iron: 30 },
+    progressPerTick: 28,
+  },
+  {
+    id: 'tower_ballistae',
+    label: 'Tower Ballistae',
+    emoji: '🏰',
+    description: `Watchtowers grant ${FORGE_BONUSES.towerBallistaTotalPerTower} barricade each (up from 15).`,
+    techId: COMBAT_TECH.bastionTowers,
+    requiresForge: ['wall_plates'],
+    inputs: { wood: 35, stone: 45, gold: 20, iron: 40 },
+    progressPerTick: 26,
+  },
+];
+&nbsp;
+const FORGE_PRIORITY: ForgeOrderId[] = FORGE_ORDERS.map((o) =&gt; o.id);
+&nbsp;
+export function createInitialForgeState(): VillageForgeState {
+  return {
+    activeOrder: null,
+    progress: 0,
+    completed: {},
+  };
+}
+&nbsp;
+export function normalizeForgeState(
+  forge: VillageForgeState | (VillageForgeState &amp; { spearsReady?: boolean; shieldsReady?: boolean }) | null | undefined,
+): VillageForgeState {
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (!forge) <span class="cstat-no" title="statement not covered" >return createInitialForgeState();</span>
+  const legacy = forge as VillageForgeState &amp; { spearsReady?: boolean; shieldsReady?: boolean };
+  const completed = { ...(forge.completed ?? <span class="branch-1 cbranch-no" title="branch not covered" >{}) }</span>;
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (legacy.spearsReady) <span class="cstat-no" title="statement not covered" >completed.iron_spears = true;</span>
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (legacy.shieldsReady) <span class="cstat-no" title="statement not covered" >completed.iron_shields = true;</span>
+  return {
+    activeOrder: forge.activeOrder ?? null,
+    progress: forge.progress ?? <span class="branch-1 cbranch-no" title="branch not covered" >0,</span>
+    completed,
+  };
+}
+&nbsp;
+export function <span class="fstat-no" title="function not covered" >getForgeOrder(o</span>rderId?: ForgeOrderId | null): ForgeOrder | undefined {
+<span class="cstat-no" title="statement not covered" >  return FORGE_ORDERS.find(<span class="fstat-no" title="function not covered" >(o</span>) =&gt; <span class="cstat-no" title="statement not covered" >o.id === orderId)</span>;</span>
+}
+&nbsp;
+export function <span class="fstat-no" title="function not covered" >isForgeOrderComplete(</span>
+  forge: VillageForgeState | (VillageForgeState &amp; { spearsReady?: boolean; shieldsReady?: boolean }) | null | undefined,
+  orderId: ForgeOrderId,
+): boolean {
+  const normalized = <span class="cstat-no" title="statement not covered" >normalizeForgeState(forge);</span>
+<span class="cstat-no" title="statement not covered" >  return !!normalized.completed[orderId];</span>
+}
+&nbsp;
+export function <span class="fstat-no" title="function not covered" >hasAnyForgeUpgrade(</span>
+  forge: VillageForgeState | (VillageForgeState &amp; { spearsReady?: boolean; shieldsReady?: boolean }) | null | undefined,
+): boolean {
+  const normalized = <span class="cstat-no" title="statement not covered" >normalizeForgeState(forge);</span>
+<span class="cstat-no" title="statement not covered" >  return FORGE_ORDERS.some(<span class="fstat-no" title="function not covered" >(o</span>rder) =&gt; <span class="cstat-no" title="statement not covered" >normalized.completed[order.id])</span>;</span>
+}
+&nbsp;
+export function <span class="fstat-no" title="function not covered" >getForgeQuarryMultiplier(s</span>tate: WorldState): number {
+<span class="cstat-no" title="statement not covered" >  if (!state?.villageForge) <span class="cstat-no" title="statement not covered" >return 1;</span></span>
+<span class="cstat-no" title="statement not covered" >  return isForgeOrderComplete(state.villageForge, 'iron_pickaxes')</span>
+    ? FORGE_BONUSES.quarryYieldMult
+    : 1;
+}
+&nbsp;
+export function <span class="fstat-no" title="function not covered" >findCompletedBlacksmith(</span>
+  state: WorldState,
+  buildings: Building[] = <span class="branch-0 cbranch-no" title="branch not covered" >state?.buildings ?? [],</span>
+): Building | undefined {
+<span class="cstat-no" title="statement not covered" >  return buildings.find(<span class="fstat-no" title="function not covered" >(b</span>) =&gt; <span class="cstat-no" title="statement not covered" >b.completed &amp;&amp; b.type === BuildingType.Blacksmith)</span>;</span>
+}
+&nbsp;
+export function <span class="fstat-no" title="function not covered" >isBlacksmithStaffed(</span>
+  state: WorldState,
+  buildings: Building[] = <span class="branch-0 cbranch-no" title="branch not covered" >state?.buildings ?? [],</span>
+): boolean {
+<span class="cstat-no" title="statement not covered" >  return buildings.some(</span>
+<span class="fstat-no" title="function not covered" >    (b</span>) =&gt; <span class="cstat-no" title="statement not covered" >b.completed &amp;&amp; b.type === BuildingType.Blacksmith &amp;&amp; (b.occupants?.length ?? 0) &gt; 0,</span>
+  );
+}
+&nbsp;
+/** Iron tech researched but not yet forged — and no order currently running. */
+export function <span class="fstat-no" title="function not covered" >getOutstandingForgeOrder(s</span>tate: WorldState): ForgeOrderId | null {
+<span class="cstat-no" title="statement not covered" >  if (!state?.villageForge || !state.unlockedTechs) <span class="cstat-no" title="statement not covered" >return null;</span></span>
+  const forge = <span class="cstat-no" title="statement not covered" >normalizeForgeState(state.villageForge);</span>
+<span class="cstat-no" title="statement not covered" >  if (forge.activeOrder) <span class="cstat-no" title="statement not covered" >return null;</span></span>
+<span class="cstat-no" title="statement not covered" >  for (const orderId of FORGE_PRIORITY) {</span>
+    const order = <span class="cstat-no" title="statement not covered" >getForgeOrder(orderId);</span>
+<span class="cstat-no" title="statement not covered" >    if (!order) <span class="cstat-no" title="statement not covered" >continue;</span></span>
+<span class="cstat-no" title="statement not covered" >    if (!state.unlockedTechs.includes(order.techId)) <span class="cstat-no" title="statement not covered" >continue;</span></span>
+<span class="cstat-no" title="statement not covered" >    if (order.requiresForge?.some(<span class="fstat-no" title="function not covered" >(r</span>eq) =&gt; <span class="cstat-no" title="statement not covered" >!isForgeOrderComplete(forge, req))</span>) <span class="cstat-no" title="statement not covered" >continue;</span></span>
+<span class="cstat-no" title="statement not covered" >    if (!isForgeOrderComplete(forge, orderId)) <span class="cstat-no" title="statement not covered" >return orderId;</span></span>
+  }
+<span class="cstat-no" title="statement not covered" >  return null;</span>
+}
+&nbsp;
+export function <span class="fstat-no" title="function not covered" >formatForgeInputs(i</span>nputs: Partial&lt;Resources&gt;): string {
+<span class="cstat-no" title="statement not covered" >  return formatResourceCost({</span>
+    wood: inputs.wood,
+    stone: inputs.stone,
+    gold: inputs.gold,
+    iron: inputs.iron,
+  }) || '—';
+}
+&nbsp;
+function <span class="fstat-no" title="function not covered" >canAffordForgeInputs(r</span>esources: Resources | null | undefined, inputs: Partial&lt;Resources&gt;): boolean {
+<span class="cstat-no" title="statement not covered" >  if (!resources) <span class="cstat-no" title="statement not covered" >return false;</span></span>
+<span class="cstat-no" title="statement not covered" >  return (inputs.wood ?? 0) &lt;= (resources.wood ?? 0)</span>
+    &amp;&amp; (inputs.stone ?? 0) &lt;= (resources.stone ?? 0)
+    &amp;&amp; (inputs.gold ?? 0) &lt;= (resources.gold ?? 0)
+    &amp;&amp; (inputs.iron ?? 0) &lt;= (resources.iron ?? 0);
+}
+&nbsp;
+function <span class="fstat-no" title="function not covered" >consumeForgeInputs(s</span>tate: WorldState, inputs: Partial&lt;Resources&gt;): void {
+<span class="cstat-no" title="statement not covered" >  if (!state.resources || !canAffordForgeInputs(state.resources, inputs)) <span class="cstat-no" title="statement not covered" >return;</span></span>
+<span class="cstat-no" title="statement not covered" >  state.resources.wood = (state.resources.wood ?? 0) - (inputs.wood ?? 0);</span>
+<span class="cstat-no" title="statement not covered" >  state.resources.stone = (state.resources.stone ?? 0) - (inputs.stone ?? 0);</span>
+<span class="cstat-no" title="statement not covered" >  state.resources.gold = (state.resources.gold ?? 0) - (inputs.gold ?? 0);</span>
+<span class="cstat-no" title="statement not covered" >  state.resources.iron = (state.resources.iron ?? 0) - (inputs.iron ?? 0);</span>
+}
+&nbsp;
+export function <span class="fstat-no" title="function not covered" >getForgeBlockReason(s</span>tate: WorldState, orderId: ForgeOrderId): string | null {
+  const order = <span class="cstat-no" title="statement not covered" >getForgeOrder(orderId);</span>
+<span class="cstat-no" title="statement not covered" >  if (!order) <span class="cstat-no" title="statement not covered" >return 'Unknown order';</span></span>
+  const forge = <span class="cstat-no" title="statement not covered" >normalizeForgeState(state?.villageForge);</span>
+<span class="cstat-no" title="statement not covered" >  if (!state?.unlockedTechs?.includes(order.techId)) {</span>
+    const techName = <span class="cstat-no" title="statement not covered" >state?.researchNodes?.find(<span class="fstat-no" title="function not covered" >(n</span>) =&gt; <span class="cstat-no" title="statement not covered" >n.id === order.techId)</span>?.name ?? order.label;</span>
+<span class="cstat-no" title="statement not covered" >    return `Research ${techName} first (Research tab)`;</span>
+  }
+<span class="cstat-no" title="statement not covered" >  if (!hasCompletedBlacksmith(state)) <span class="cstat-no" title="statement not covered" >return 'Complete a Blacksmith first';</span></span>
+<span class="cstat-no" title="statement not covered" >  if (isForgeOrderComplete(forge, orderId)) <span class="cstat-no" title="statement not covered" >return `${order.label} already forged`;</span></span>
+<span class="cstat-no" title="statement not covered" >  if (forge.activeOrder === orderId) <span class="cstat-no" title="statement not covered" >return null;</span></span>
+<span class="cstat-no" title="statement not covered" >  if (forge.activeOrder) {</span>
+    const active = <span class="cstat-no" title="statement not covered" >getForgeOrder(forge.activeOrder);</span>
+<span class="cstat-no" title="statement not covered" >    return `Smith is forging ${active?.label ?? 'another order'}`;</span>
+  }
+<span class="cstat-no" title="statement not covered" >  if (order.requiresForge) {</span>
+<span class="cstat-no" title="statement not covered" >    for (const req of order.requiresForge) {</span>
+<span class="cstat-no" title="statement not covered" >      if (!isForgeOrderComplete(forge, req)) {</span>
+        const reqOrder = <span class="cstat-no" title="statement not covered" >getForgeOrder(req);</span>
+<span class="cstat-no" title="statement not covered" >        return `Forge ${reqOrder?.label ?? req} first`;</span>
+      }
+    }
+  }
+  const staffed = <span class="cstat-no" title="statement not covered" >state?.buildings?.some(</span>
+<span class="fstat-no" title="function not covered" >    (b</span>) =&gt; <span class="cstat-no" title="statement not covered" >b.completed &amp;&amp; b.type === BuildingType.Blacksmith &amp;&amp; (b.occupants?.length ?? 0) &gt; 0,</span>
+  );
+<span class="cstat-no" title="statement not covered" >  if (!staffed) <span class="cstat-no" title="statement not covered" >return 'Staff the Blacksmith to forge';</span></span>
+<span class="cstat-no" title="statement not covered" >  if (!canAffordForgeInputs(state?.resources, order.inputs)) {</span>
+<span class="cstat-no" title="statement not covered" >    return `Need ${formatForgeInputs(order.inputs)}`;</span>
+  }
+<span class="cstat-no" title="statement not covered" >  return null;</span>
+}
+&nbsp;
+export function <span class="fstat-no" title="function not covered" >queueForgeOrder(</span>
+  originalState: WorldState,
+  buildingId: number,
+  orderId: ForgeOrderId,
+): WorldState {
+  const block = <span class="cstat-no" title="statement not covered" >getForgeBlockReason(originalState, orderId);</span>
+<span class="cstat-no" title="statement not covered" >  if (block) {</span>
+    const blocked = <span class="cstat-no" title="statement not covered" >structuredClone(originalState);</span>
+<span class="cstat-no" title="statement not covered" >    if (!blocked.floatingTexts) <span class="cstat-no" title="statement not covered" >blocked.floatingTexts = [];</span></span>
+<span class="cstat-no" title="statement not covered" >    addNotification(blocked, 'Forge blocked', block, 'warning');</span>
+<span class="cstat-no" title="statement not covered" >    return blocked;</span>
+  }
+  const building = <span class="cstat-no" title="statement not covered" >originalState.buildings?.find(<span class="fstat-no" title="function not covered" >(b</span>) =&gt; <span class="cstat-no" title="statement not covered" >b.id === buildingId)</span>;</span>
+<span class="cstat-no" title="statement not covered" >  if (!building || building.type !== BuildingType.Blacksmith || !building.completed) {</span>
+<span class="cstat-no" title="statement not covered" >    return originalState;</span>
+  }
+  const order = <span class="cstat-no" title="statement not covered" >getForgeOrder(orderId);</span>
+<span class="cstat-no" title="statement not covered" >  if (!order) <span class="cstat-no" title="statement not covered" >return originalState;</span></span>
+  const state = <span class="cstat-no" title="statement not covered" >structuredClone(originalState);</span>
+<span class="cstat-no" title="statement not covered" >  if (!state.resources) <span class="cstat-no" title="statement not covered" >state.resources = { food: 0, wood: 0, stone: 0, gold: 0, iron: 0 };</span></span>
+<span class="cstat-no" title="statement not covered" >  state.resources = { ...state.resources };</span>
+<span class="cstat-no" title="statement not covered" >  state.villageForge = normalizeForgeState(state.villageForge);</span>
+<span class="cstat-no" title="statement not covered" >  if (state.villageForge.activeOrder === orderId) <span class="cstat-no" title="statement not covered" >return originalState;</span></span>
+<span class="cstat-no" title="statement not covered" >  consumeForgeInputs(state, order.inputs);</span>
+<span class="cstat-no" title="statement not covered" >  state.villageForge.activeOrder = orderId;</span>
+<span class="cstat-no" title="statement not covered" >  state.villageForge.progress = 0;</span>
+  // Same toast channel as completion / block (layout notifications only).
+<span class="cstat-no" title="statement not covered" >  addNotification(</span>
+    state,
+    `${order.emoji} Forging ${order.label}`,
+    'Staff the Blacksmith — progress shows on the forge panel until finished.',
+    'info',
+  );
+<span class="cstat-no" title="statement not covered" >  logEvent(state, 'event', `Blacksmith began forging ${order.label}`, building.campLabel ?? 'Blacksmith');</span>
+<span class="cstat-no" title="statement not covered" >  return state;</span>
+}
+&nbsp;
+/** Migrate saves that had iron gear via research-only rules or legacy forge booleans. */
+export function migrateVillageForgeOnLoad(state: WorldState): void {
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (!state) <span class="cstat-no" title="statement not covered" >return;</span>
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (!state.villageForge) {
+    const hasSmith = <span class="cstat-no" title="statement not covered" >hasCompletedBlacksmith(state);</span>
+    const hadSpears = <span class="cstat-no" title="statement not covered" >state.unlockedTechs?.includes(COMBAT_TECH.ironSpears) &amp;&amp; hasSmith;</span>
+    const hadShields = <span class="cstat-no" title="statement not covered" >state.unlockedTechs?.includes(COMBAT_TECH.ironShields) &amp;&amp; hasSmith;</span>
+<span class="cstat-no" title="statement not covered" >    state.villageForge = {</span>
+      activeOrder: null,
+      progress: 0,
+      completed: {
+        ...(hadSpears ? { iron_spears: true } : {}),
+        ...(hadShields ? { iron_shields: true } : {}),
+      },
+    };
+<span class="cstat-no" title="statement not covered" >    return;</span>
+  }
+  state.villageForge = normalizeForgeState(state.villageForge);
+}
+&nbsp;
+export function tickVillageForge(state: WorldState, buildings: Building[]): void {
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (!state?.villageForge) <span class="cstat-no" title="statement not covered" >return;</span>
+  state.villageForge = normalizeForgeState(state.villageForge);
+  const forge = state.villageForge;
+  <span class="missing-if-branch" title="else path not taken" >E</span>if (!forge.activeOrder) return;
+  const order = <span class="cstat-no" title="statement not covered" >getForgeOrder(forge.activeOrder);</span>
+<span class="cstat-no" title="statement not covered" >  if (!order) {</span>
+<span class="cstat-no" title="statement not covered" >    forge.activeOrder = null;</span>
+<span class="cstat-no" title="statement not covered" >    forge.progress = 0;</span>
+<span class="cstat-no" title="statement not covered" >    return;</span>
+  }
+&nbsp;
+  const smith = <span class="cstat-no" title="statement not covered" >buildings?.find(</span>
+<span class="fstat-no" title="function not covered" >    (b</span>) =&gt; <span class="cstat-no" title="statement not covered" >b.completed &amp;&amp; b.type === BuildingType.Blacksmith &amp;&amp; (b.occupants?.length ?? 0) &gt; 0,</span>
+  );
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (!smith) <span class="cstat-no" title="statement not covered" >return;</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >  if (!isProductionTick(state.tick, PRODUCTION_INTERVAL.workshop)) <span class="cstat-no" title="statement not covered" >return;</span></span>
+&nbsp;
+  // Extra staffed smiths speed the run (soft cap so 2–3 workers feel better than 1).
+  const crew = <span class="cstat-no" title="statement not covered" >Math.max(1, Math.min(3, smith.occupants?.length ?? 1));</span>
+  const pace = order.progressPerTick * (1 + (crew - 1) * 0.35);
+  forge.progress = Math.min(100, forge.progress + pace);
+&nbsp;
+  // Progress only on Blacksmith panel / Village Armament — one toast type on finish.
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (forge.progress &lt; 100) <span class="cstat-no" title="statement not covered" >return;</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >  forge.completed[order.id] = true;</span>
+<span class="cstat-no" title="statement not covered" >  forge.activeOrder = null;</span>
+<span class="cstat-no" title="statement not covered" >  forge.progress = 0;</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >  addNotification(</span>
+    state,
+    `${order.emoji} ${order.label} forged`,
+    order.description,
+    'success',
+  );
+<span class="cstat-no" title="statement not covered" >  logEvent(state, 'event', `Blacksmith finished forging ${order.label}`, order.label);</span>
+}</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-08-18T01:13:56.088Z
+            </div>
+        <script src="../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../sorter.js"></script>
+        <script src="../block-navigation.js"></script>
+    </body>
+</html>
+    
