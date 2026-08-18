@@ -1098,7 +1098,6 @@ export default function App() {
     setTutorialStep(0);
     setCampaignActive(tutorialChoice);
     setDismissedChapter(null);
-    setMomentCard({ id: 'founding', icon: '🌄', title: villageName || 'New Frontier', detail: 'A new settlement takes root in the wild valley.' });
     setShowMapSetup(false);
   }, [selectedMapSize, selectedMapPreset, tutorialsEnabled, tutorialChoice]);
 
