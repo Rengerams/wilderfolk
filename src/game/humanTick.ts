@@ -29,7 +29,6 @@ import { valleyStageIndex } from './ecologyStage';
 import { HUMAN_ADULT_MIN_AGE, HUMAN_ADULT_MAX_AGE, tryGraduateHumanChild, getColonyDay, setHumanBirthFromAge, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, ticksForDays, PREGNANCY_TICKS, REPRODUCTION_COOLDOWN_TICKS, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isWorkHour, isOnWorkShift, isOnInnkeeperShift, isOnMoonHowlerNightShift, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, rebuildChildrenIds, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, WORK_START, EVENING_START, TAVERN_SHIFT_START, isStartOfClockHour } from './dayCycle';
 import {
   chatHintsFromWorld,
-  maybeDialogueChat,
   sayHumanChatPhrase,
   tickHumanChat,
   tryAmbientRandomDialogue,
@@ -78,6 +77,7 @@ import {
   COMMUTE_SNAP_DISTANCE, commuteDistanceToBuilding, commuteHumanToBuilding, nearestActiveMoonHowler, snapHumanToBuilding,
 } from './simulation/humanMovement';
 import { fract, freeHuntFoodGain, humanEnergyLoss, isMealWindow } from './simulation/humanNeeds';
+import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
 import { recordFoodConsumed } from './economyLedger';
 import type { EntitySpatialGrid } from './spatialGrid';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
@@ -88,7 +88,7 @@ import { addHuntVisual } from './huntvisuals';
 import { inheritSettlerTraits, traitMultiplier } from './settlerTraits';
 import type { TickContext } from './simulation/simulationTypes';
 import { isValidHuntPrey } from './simulation/simulationEntities';
-import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_STAGGER, SOCIAL_GREETING_RADIUS, SOCIAL_BANTER_RADIUS, SOCIAL_FRIENDSHIP_RADIUS, SOCIAL_COURTSHIP_RADIUS, SOCIAL_AFFAIR_RADIUS } from './adaptiveSpatialQuery';
+import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_STAGGER, SOCIAL_GREETING_RADIUS, SOCIAL_FRIENDSHIP_RADIUS, SOCIAL_COURTSHIP_RADIUS, SOCIAL_AFFAIR_RADIUS } from './adaptiveSpatialQuery';
 import { AFFAIR_BUILDING_NEAR_RADIUS, AFFAIR_DAILY_TRYST_RADIUS, AFFAIR_SPOUSE_BLOCK_RADIUS, findCourtshipPartner, getAffairTrystBuilding, getBuildingCenter, hasAffairPartner, isAtMaritalHome, isEligibleToCourt, isNearBuilding, isSpouseNearby, isValidAffairTarget, isValidAffairTrystSite, onScandalCooldown, reconcileAffairPartner, recordAffairTrystSite, shouldLeadAffairPair, tryDailyAffairGossip, tryDailyConception, tryDailyHumanMortality, tryExposeCaughtAffairForPair, tryFormSchoolyardBond, trySchoolyardGossip } from './simulation/humanRelationships';
 import { humanDisplayName } from './citizenId';
 import { allLivingHumans, clearHuntersTargetingPrey, markWildlifeDead, pushNewEntity, syncEntityGrids } from './simulation/simulationEntities';
@@ -314,55 +314,23 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const partner = entityById.get(id);
     return isSettlerRelationshipEntity(partner) ? partner : null;
   };
+  // Thin adapters over simulation/humanSocial (logic moved there, behavior unchanged).
   const settlerChat = (
     entity: Entity,
     context: HumanChatContext,
     chance: number,
     partner: Entity | null = null,
-  ) => maybeDialogueChat(entity, partner, context, state.tick, chance, chatHints);
+  ) => simSettlerChat(entity, partner, context, chance, state.tick, chatHints);
   const settlerPairChat = (
     entityA: Entity,
     entityB: Entity,
     context: HumanChatContext,
     chance: number,
-  ) => {
-    if (entityA.id < entityB.id) settlerChat(entityA, context, chance, entityB);
-  };
+  ) => simSettlerPairChat(entityA, entityB, context, chance, state.tick, chatHints);
 
-  /** Nearby humans for random pair banter — prefer partner, kids, coworkers (small village). */
-  const ambientChatNeighbors = (self: Entity): Entity[] => {
-    // Ambient banter is staggered — each human scans 1 in SOCIAL_STAGGER ticks.
-    if ((state.tick + self.id) % SOCIAL_STAGGER !== 0) return [];
-    const out: Entity[] = [];
-    const prefer: Entity[] = [];
-    forEachAdaptiveInRadius(
-      humanSocialGrid,
-      allHumans,
-      self.x,
-      self.y,
-      SOCIAL_BANTER_RADIUS,
-      (other) => {
-        if (
-          other.id !== self.id
-          && other.alive
-          && other.type === EntityType.Human
-          && isPlayerHuman(other)
-          && (other.chatTicks ?? 0) <= 0
-        ) {
-          const isPartner = self.partnerId === other.id || other.partnerId === self.id;
-          const isKid = (self.childrenIds ?? []).includes(other.id)
-            || (other.childrenIds ?? []).includes(self.id);
-          const isCoworker = self.homeBuildingId != null
-            && other.homeBuildingId === self.homeBuildingId;
-          if (isPartner || isKid || isCoworker) prefer.push(other);
-          else out.push(other);
-        }
-      },
-      socialAdaptiveOptions('social', allHumans.length, width, height),
-    );
-    // Bonds first so dialogue trees fire between people who share a life.
-    return prefer.length > 0 ? [...prefer, ...out] : out;
-  };
+  /** Nearby humans for random pair banter — prefer partner, kids, coworkers. */
+  const ambientChatNeighbors = (self: Entity): Entity[] =>
+    simAmbientChatNeighbors(self, state.tick, humanSocialGrid, allHumans, width, height);
 
   // School enrollment is capped per school (SCHOOL_MAX_CHILDREN) — reserve seats
   // as children pick schools this pass so the first 10 get in.
