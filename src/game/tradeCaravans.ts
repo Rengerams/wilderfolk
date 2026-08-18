@@ -178,6 +178,12 @@ function spawnCaravan(state: WorldState, route: TradeRoute): boolean {
     return false;
   }
 
+  // ER-12: reserve the export goods at departure — the caravan physically loads
+  // them (no double-spend window, no empty-hand walks). If the carrier dies en
+  // route the goods are lost (deliberate: no refund; the route restarts and the
+  // next departure pays again).
+  deductExports(state, route);
+
   const hub = getTradeHubCenter(state);
   const carrier = createEntity(EntityType.Human, hub.x, hub.y, state.nextEntityId++, 300, false, {
     name: `${route.targetName} trader`,
@@ -264,18 +270,13 @@ export function tryAdvanceCaravanLeg(state: WorldState, entity: Entity): void {
     route.caravanWaitTicks = Math.max(0, (route.caravanWaitTicks ?? 0) - 1);
     if ((route.caravanWaitTicks ?? 0) > 0) return;
 
-    if (!canAffordExports(state, route)) {
-      addFloatingText(state, entity.x, entity.y - 16, 'Waiting for export goods…', '#ef4444');
-      route.caravanWaitTicks = EVENT_INTERVAL.tradeRoute / 4;
-      return;
-    }
+    // ER-12: exports were already reserved at departure — only imports need room.
     if (!canStoreImports(state, route, mult)) {
       addFloatingText(state, entity.x, entity.y - 16, 'Partner holding cargo — storage full', '#ef4444');
       route.caravanWaitTicks = EVENT_INTERVAL.tradeRoute / 4;
       return;
     }
 
-    deductExports(state, route);
     route.caravanLeg = 'inbound';
     route.caravanWaitTicks = 0;
     addFloatingText(state, entity.x, entity.y - 20, '🚚 Returning home…', '#a3e635');
