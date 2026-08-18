@@ -176,7 +176,7 @@ tutorialsEnabled,
         </div>
 
         <div
-          className="hud-chip flex items-center gap-1 rounded-lg px-1 py-0.5"
+          className="hud-chip flex items-center gap-1 rounded-lg px-1.5 py-1"
           title="Pause / speed — Space toggles pause"
         >
           <button
@@ -194,7 +194,7 @@ tutorialsEnabled,
                 key={`speed-${index}-${s}`}
                 type="button"
                 onClick={() => onSetSpeed(s)}
-                className={`rounded px-1.5 py-0.5 text-[9px] font-bold transition-colors ${world.speed === s ? 'bg-emerald-700/80 text-emerald-50' : 'text-stone-400 hover:bg-stone-700/60 hover:text-white'}`}
+                className={`rounded-md px-2 py-1 text-[10px] font-bold transition-colors ${world.speed === s ? 'bg-emerald-700/80 text-emerald-50 shadow-sm ring-1 ring-emerald-400/30' : 'text-stone-400 hover:bg-stone-700/60 hover:text-white'}`}
               >
                 {s}x
               </button>

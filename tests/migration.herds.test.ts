@@ -48,22 +48,22 @@ describe('autumn deer migration', () => {
     const arrival = migrationArrivalDay(seed);
     // Year 1: no memory → base herd
     setDay(state, 180); // before arrival
-    tickMigration(state);
+    tickMigration(state, state.entities);
     expect(state.activeMigration).toBeUndefined();
 
     setDay(state, arrival);
-    tickMigration(state);
+    tickMigration(state, state.entities);
     expect(state.activeMigration?.spawned).toBe(HERD_BASE_SIZE);
     expect(herdDeer(state, 0).length).toBe(HERD_BASE_SIZE);
 
     // Still active mid-window
     setDay(state, arrival + 3);
-    tickMigration(state);
+    tickMigration(state, state.entities);
     expect(state.activeMigration).toBeDefined();
 
     // Departs at window end
     setDay(state, arrival + MIGRATION_WINDOW_DAYS);
-    tickMigration(state);
+    tickMigration(state, state.entities);
     expect(state.activeMigration).toBeUndefined();
     expect(herdDeer(state, 0).length).toBe(0);
   });
@@ -73,7 +73,7 @@ describe('autumn deer migration', () => {
     const seed = state.worldMap!.seed;
     const arrival = migrationArrivalDay(seed);
     setDay(state, arrival);
-    tickMigration(state);
+    tickMigration(state, state.entities);
 
     // "Hunt" 6 of the 10 herd deer
     let killed = 0;
@@ -84,12 +84,12 @@ describe('autumn deer migration', () => {
       }
     }
     setDay(state, arrival + MIGRATION_WINDOW_DAYS);
-    tickMigration(state);
+    tickMigration(state, state.entities);
 
     expect(state.migrationNextHerdSize).toBe(HERD_BASE_SIZE - 6);
     // Next year's arrival uses the smaller herd
     setDay(state, arrival + DAYS_PER_YEAR);
-    tickMigration(state);
+    tickMigration(state, state.entities);
     expect(state.activeMigration?.spawned).toBe(HERD_BASE_SIZE - 6);
   });
 
@@ -98,12 +98,12 @@ describe('autumn deer migration', () => {
     const seed = state.worldMap!.seed;
     const arrival = migrationArrivalDay(seed);
     setDay(state, arrival);
-    tickMigration(state);
+    tickMigration(state, state.entities);
     setDay(state, arrival + MIGRATION_WINDOW_DAYS);
-    tickMigration(state);
+    tickMigration(state, state.entities);
     expect(state.migrationNextHerdSize).toBeUndefined(); // memory untouched
     setDay(state, arrival + DAYS_PER_YEAR);
-    tickMigration(state);
+    tickMigration(state, state.entities);
     expect(state.activeMigration?.spawned).toBe(HERD_BASE_SIZE);
   });
 
@@ -112,11 +112,11 @@ describe('autumn deer migration', () => {
     const seed = state.worldMap!.seed;
     const arrival = migrationArrivalDay(seed);
     setDay(state, arrival);
-    tickMigration(state);
+    tickMigration(state, state.entities);
     // Kill everything
     for (const d of herdDeer(state, 0)) d.alive = false;
     setDay(state, arrival + MIGRATION_WINDOW_DAYS);
-    tickMigration(state);
+    tickMigration(state, state.entities);
     expect(state.migrationNextHerdSize).toBe(HERD_MIN_SIZE);
     expect(state.migrationNextHerdSize).toBeLessThanOrEqual(HERD_MAX_SIZE);
   });
@@ -127,7 +127,7 @@ describe('autumn deer migration', () => {
     const arrival = migrationArrivalDay(seed);
     for (const day of [60, 150, 271, 350]) {
       setDay(state, day);
-      tickMigration(state);
+      tickMigration(state, state.entities);
       expect(state.activeMigration, `day ${day}`).toBeUndefined();
     }
     void arrival;

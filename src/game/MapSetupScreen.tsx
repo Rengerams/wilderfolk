@@ -263,7 +263,7 @@ export default function MapSetupScreen({
         <section>
           <div className="mb-2 flex items-baseline justify-between">
             <h2 className="text-xs font-bold uppercase tracking-widest text-emerald-400">Choose your land</h2>
-            <span className="text-[10px] text-stone-600">6 valleys, each with its own mood</span>
+            <span className="text-[10px] text-stone-500">6 valleys, each with its own mood</span>
           </div>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {presets.map((preset, i) => {
@@ -274,9 +274,9 @@ export default function MapSetupScreen({
                   key={preset}
                   type="button"
                   onClick={() => onPresetChange(preset)}
-                  className={`group relative overflow-hidden rounded-xl border text-left transition-all ${
+                  className={`ui-card-hover group relative overflow-hidden rounded-xl border text-left ${
                     selected
-                      ? 'border-emerald-400/60 bg-emerald-500/10 ring-2 ring-emerald-500/30'
+                      ? 'border-emerald-400/60 bg-emerald-500/10 ring-2 ring-emerald-500/30 ui-selected'
                       : 'border-stone-700 bg-stone-900/70 hover:border-stone-500 hover:bg-stone-800/80'
                   }`}
                 >
@@ -287,8 +287,8 @@ export default function MapSetupScreen({
                       <span className={`block text-sm font-bold ${selected ? 'text-emerald-200' : 'text-stone-100'}`}>
                         {info.label}
                       </span>
-                      <span className="mt-0.5 block text-[10px] leading-snug text-stone-500">{info.blurb}</span>
-                      <span className="mt-1 block text-[9px] font-semibold uppercase tracking-wider text-stone-600">
+                      <span className="mt-0.5 block text-[10px] leading-snug text-stone-400">{info.blurb}</span>
+                      <span className="mt-1 block text-[9px] font-semibold uppercase tracking-wider text-stone-500">
                         {info.forTag}
                       </span>
                     </span>
@@ -342,7 +342,12 @@ export default function MapSetupScreen({
           <section className="rounded-xl border border-stone-700/60 bg-stone-900/70 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-widest text-emerald-400">Tutorial tips</h2>
+                <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-400">
+                  💡 Tutorial tips
+                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/30">
+                    Tips
+                  </span>
+                </h2>
                 <p className="mt-0.5 text-[11px] text-stone-500">Help cards appear when something new happens.</p>
               </div>
               <label className="flex cursor-pointer items-center gap-2">
@@ -361,11 +366,16 @@ export default function MapSetupScreen({
         )}
 
         {onTutorialChoiceChange !== undefined && (
-          <section className="rounded-xl border border-emerald-700/40 bg-emerald-950/30 px-4 py-3">
+          <section className="rounded-xl border border-stone-700/60 bg-stone-900/70 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-widest text-emerald-300">🎓 First-spring guide</h2>
-                <p className="mt-0.5 text-[11px] text-stone-400">
+                <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-400">
+                  🎓 First-spring guide
+                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/30">
+                    Guide
+                  </span>
+                </h2>
+                <p className="mt-0.5 text-[11px] text-stone-500">
                   A step-by-step guide walks you through your first year — build a house, plant food, survive winter. You can skip it anytime.
                 </p>
               </div>
@@ -384,7 +394,7 @@ export default function MapSetupScreen({
           </section>
         )}
 
-        <p className="text-center text-[10px] leading-relaxed text-stone-600">
+        <p className="text-center text-[10px] leading-relaxed text-stone-500">
           Playtest build — bugs and features still in flux. Difficulty scales with the land you pick.
         </p>
       </main>

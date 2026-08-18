@@ -242,8 +242,12 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // composition actually changed; otherwise reuse this tick's buckets so the
   // object identity stays stable (lets the render catalog skip its rebuild).
   const deathsThisTick = aliveEntities.length - (allAlive.length - newEntities.length);
+  // BUG-1/BUG-6: untracked spawns (immigration, world events) grow allAlive without
+  // touching newEntities — deathsThisTick goes negative; rebuild instead of caching
+  // a byType that omits the newcomers.
+  const untrackedSpawns = deathsThisTick < 0;
   const typeChanged = ctx.byType !== byType;
-  if (deathsThisTick > 0 || newEntities.length > 0 || typeChanged) {
+  if (deathsThisTick > 0 || untrackedSpawns || newEntities.length > 0 || typeChanged) {
     state.entityByType = buildEntityByType(allAlive);
     stableByTypeByWorld.delete(state);
   } else {

@@ -478,8 +478,11 @@ export function collectGrassInViewport(
 ): Entity[] {
   const vp = viewportFromCamera(camX, camY, zoom, canvasW, canvasH);
   const visible: Entity[] = [];
+  // structuredClone strips class methods — a cloned grid must not be treated as a
+  // real EntitySpatialGrid (the sim rebuilds it next tick via resolveSpatialGrid).
   if (
     grassGrid
+    && typeof grassGrid.matchesLayout === 'function'
     && grassGrid.matchesLayout(mapWidth, mapHeight, GRASS_CELL_SIZE)
   ) {
     grassGrid.forEachInRect(vp.minX, vp.minY, vp.maxX, vp.maxY, (grass) => visible.push(grass));

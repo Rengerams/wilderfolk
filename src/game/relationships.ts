@@ -91,12 +91,15 @@ export function advanceSocialRelationships(state: WorldState, allAlive: Entity[]
     }
   }
 
-  // Feuds decay slowly; while live they drain both sides.
+  // Feuds decay slowly; while live they drain both sides. Both parties store the
+  // feud — process each from the lower-id side only so energy is drained once
+  // (BUG-11: it used to drain 2x per day).
   for (const p of people) {
     const feuds = p.feuds;
     if (!feuds) continue;
     for (const [key, val] of Object.entries(feuds)) {
       const otherId = Number(key.replace('feud_', ''));
+      if (p.id > otherId) continue;
       const other = byId.get(otherId);
       if (!other) {
         delete feuds[key];
@@ -130,10 +133,13 @@ export function startFeud(state: WorldState, wronged: Entity, wrongdoer: Entity,
   if (wronged.id === wrongdoer.id) return;
   wronged.feuds = wronged.feuds ?? {};
   wrongdoer.feuds = wrongdoer.feuds ?? {};
-  const before = wronged.feuds[feudKey(wrongdoer.id)] ?? 0;
-  wronged.feuds[feudKey(wrongdoer.id)] = Math.min(100, before + amount);
-  wrongdoer.feuds[feudKey(wronged.id)] = Math.min(100, before + amount);
-  if (before < 30 && wronged.feuds[feudKey(wrongdoer.id)] >= 30) {
+  // BUG-10: each side's score grows from its own previous value — using the
+  // wronged party's before value for both directions made reciprocal scores diverge.
+  const wrongedBefore = wronged.feuds[feudKey(wrongdoer.id)] ?? 0;
+  const wrongdoerBefore = wrongdoer.feuds[feudKey(wronged.id)] ?? 0;
+  wronged.feuds[feudKey(wrongdoer.id)] = Math.min(100, wrongedBefore + amount);
+  wrongdoer.feuds[feudKey(wronged.id)] = Math.min(100, wrongdoerBefore + amount);
+  if (wrongedBefore < 30 && wronged.feuds[feudKey(wrongdoer.id)] >= 30) {
     logEvent(state, 'scandal', `A feud is brewing between ${wronged.name ?? 'a settler'} and ${wrongdoer.name ?? 'another settler'}`);
   }
 }

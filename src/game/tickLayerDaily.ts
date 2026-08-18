@@ -837,7 +837,7 @@ export function tickLayerDaily(
   tickValleyEcologyStage(state);
 
   // Autumn deer migration — herds arrive, graze, and leave with memory
-  tickMigration(state);
+  tickMigration(state, allAlive);
 
   // Neighborhood beauty grid + village happiness (Phase 3.2)
   tickBeauty(state);

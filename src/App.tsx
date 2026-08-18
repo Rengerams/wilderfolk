@@ -20,7 +20,7 @@ import {
 } from './game/buildingActions';
 import { MapSize, MapPreset } from './game/gameTypes';
 import {
-  NIGHT_START, TICKS_PER_DAY, getHourOfDay, isNightHour, getAbsoluteCalendarDay,
+  NIGHT_START, TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, isNightHour, getAbsoluteCalendarDay,
 } from './game/dayCycle';
 import { getVisitorQuest } from './game/visitorQuest';
 import type { WorldState } from './game/gameEngine';
@@ -184,6 +184,9 @@ export default function App() {
   const [juiceEffectsEnabled, setJuiceEffectsEnabled] = useState(() => loadJuiceEffectsEnabled());
   const [showSimTick, setShowSimTick] = useState(() => loadShowSimTick());
   const [momentCard, setMomentCard] = useState<MomentCardData | null>(null);
+  // Last Valley Chronicle chapter the player has dismissed — lets the chapter card
+  // be derived purely in render (no effect/ref: `world` is a fresh object every tick).
+  const [dismissedChapter, setDismissedChapter] = useState<string | null>(null);
   const [showTutorial, setShowTutorial] = useState(() => {
     if (!loadTutorialsEnabled()) return false;
     try {
@@ -421,14 +424,18 @@ export default function App() {
     loopRef.current?.mutateWorld((w) => { w.paused = true; });
   }, [showTutorial, spritesLoaded, showIntro, showMapSetup]);
 
-  const isFirstGameDay = world.tick < TICKS_PER_DAY;
+  // The colony founds at 08:00 (tick = TICKS_PER_HOUR * 8) — day boundaries sit at
+  // tick 24, 96, 168… so "first game day" and the warning window anchor there.
+  const isFirstGameDay = world.tick < TICKS_PER_DAY + TICKS_PER_HOUR * 8;
 
   // First-night shelter reminder until a House is placed (or player dismisses)
   const showFirstNightWarning =
-    !firstNightWarningDismissed && !hasPlacedHouse && world.tick < TICKS_PER_DAY * 2;
+    !firstNightWarningDismissed && !hasPlacedHouse && world.tick < TICKS_PER_DAY * 2 + TICKS_PER_HOUR * 8;
 
   const hourNow = getHourOfDay(world.tick);
   const nightFallen = isNightHour(hourNow);
+  // "Sunset is approaching" only makes sense in the afternoon — not at 08:00.
+  const sunsetApproaching = isFirstGameDay && !nightFallen && hourNow >= NIGHT_START - 4;
   const firstNightWarningMessage = !nightFallen
     ? `Hour ${hourNow}:00 — night begins at ${NIGHT_START}:00. Place a House on the map and assign workers!`
     : `Night has fallen — place a House and assign workers so your pioneers have somewhere to sleep.`;
@@ -563,19 +570,23 @@ export default function App() {
     return TUTORIAL_CAMPAIGN.findIndex((s) => s.id === campaignStep.id);
   }, [campaignStep]);
 
-  // Valley Chronicle chapter moments — a title card when a new chapter unlocks.
-  const chapterMomentShown = useRef<string | null>(null);
-  useEffect(() => {
+  // Valley Chronicle chapter moments — derive the pending title card in render.
+  // Pure computation (no effect/ref): `world` is a fresh object every tick, and the
+  // card auto-dismisses via MomentTitleCard's own timers once `onDone` stays stable.
+  const pendingChapterCard = useMemo(() => {
     const ids = world?.chronicleChapters ?? [];
     const last = ids.length > 0 ? ids[ids.length - 1] : null;
-    if (!last || last === chapterMomentShown.current) return;
-    const t = window.setTimeout(() => {
-      chapterMomentShown.current = last;
-      const ch = VALLEY_CHAPTERS.find((c) => c.id === last);
-      if (ch) setMomentCard({ id: ch.id, icon: ch.icon, title: ch.title, detail: ch.detail });
-    }, 600);
-    return () => window.clearTimeout(t);
-  }, [world, world?.chronicleChapters?.length]);
+    if (!last || last === dismissedChapter) return null;
+    return VALLEY_CHAPTERS.find((c) => c.id === last) ?? null;
+  }, [world, dismissedChapter]);
+  const activeMoment = momentCard ?? pendingChapterCard;
+  const dismissMomentCard = useCallback(() => {
+    if (momentCard) {
+      setMomentCard(null);
+      return;
+    }
+    if (pendingChapterCard) setDismissedChapter(pendingChapterCard.id);
+  }, [momentCard, pendingChapterCard]);
 
   const handleToggleShowSimTick = useCallback(() => {
     const next = !showSimTick;
@@ -1086,7 +1097,7 @@ export default function App() {
     setShowTutorial(showQuickStart);
     setTutorialStep(0);
     setCampaignActive(tutorialChoice);
-    chapterMomentShown.current = null;
+    setDismissedChapter(null);
     setMomentCard({ id: 'founding', icon: '🌄', title: villageName || 'New Frontier', detail: 'A new settlement takes root in the wild valley.' });
     setShowMapSetup(false);
   }, [selectedMapSize, selectedMapPreset, tutorialsEnabled, tutorialChoice]);
@@ -1821,10 +1832,10 @@ export default function App() {
             <div className="pointer-events-auto absolute left-1/2 top-16 z-20 w-full max-w-md -translate-x-1/2 animate-in fade-in slide-in-from-top">
               <div className="rounded-xl border border-amber-500/40 bg-amber-950/90 p-3 shadow-xl backdrop-blur">
                 <div className="flex items-start gap-3">
-                  <Emoji className="text-2xl">{isFirstGameDay && !nightFallen ? '🌅' : '🌙'}</Emoji>
+                  <Emoji className="text-2xl">{sunsetApproaching ? '🌅' : '🌙'}</Emoji>
                   <div className="flex-1">
                     <h3 className="font-bold text-amber-200">
-                      {isFirstGameDay && !nightFallen ? 'Sunset is approaching' : 'Your pioneers need shelter'}
+                      {sunsetApproaching ? 'Sunset is approaching' : 'Your pioneers need shelter'}
                     </h3>
                     <p className="text-xs text-stone-300">
                       {firstNightWarningMessage}
@@ -1973,8 +1984,8 @@ export default function App() {
             />
           )}
 
-          {!showTutorial && momentCard && (
-            <MomentTitleCard moment={momentCard} onDone={() => setMomentCard(null)} />
+          {!showTutorial && activeMoment && (
+            <MomentTitleCard moment={activeMoment} onDone={dismissMomentCard} />
           )}
 
           {contextualTip && tutorialsEnabled && !showTutorial && (

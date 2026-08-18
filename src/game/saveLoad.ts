@@ -134,7 +134,9 @@ export function downloadSaveFile(world: WorldState, view: ViewState): SaveResult
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      URL.revokeObjectURL(url);
+      // BUG-4: revoking synchronously can cancel the download in some browsers
+      // (Firefox/older Chromium) — defer the revoke to the next task.
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
     }
     return { success: true };
   } catch (e) {

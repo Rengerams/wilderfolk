@@ -33,7 +33,7 @@ function isMigratedHerdDeer(e: Entity, herdYear: number): boolean {
   return e.type === EntityType.Deer && e.migrationTag === herdYear;
 }
 
-function spawnHerdAtEdge(state: WorldState, count: number, herdYear: number): void {
+function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYear: number): void {
   const { width, height } = state;
   const edge = Math.floor(Math.random() * 4);
   for (let i = 0; i < count; i++) {
@@ -52,7 +52,9 @@ function spawnHerdAtEdge(state: WorldState, count: number, herdYear: number): vo
       SPECIES_CONFIG[EntityType.Deer].spawnEnergy,
     );
     deer.migrationTag = herdYear;
-    state.entities.push(deer);
+    // BUG-12: gameTick replaces state.entities with allAlive after the daily layer —
+    // pushing into state.entities would discard the herd on arrival.
+    out.push(deer);
   }
 }
 
@@ -60,7 +62,7 @@ function spawnHerdAtEdge(state: WorldState, count: number, herdYear: number): vo
  * Daily migration step: arrive on the autumn window, depart at its end and
  * remember how many were taken. Call once per calendar day (tickLayerDaily).
  */
-export function tickMigration(state: WorldState): void {
+export function tickMigration(state: WorldState, allAlive: Entity[]): void {
   const day = getAbsoluteCalendarDay(state.tick);
   const dayInYear = day % DAYS_PER_YEAR;
   const year = Math.floor(day / DAYS_PER_YEAR);
@@ -92,7 +94,7 @@ export function tickMigration(state: WorldState): void {
   // Arrival: no active herd + it is the arrival day for this seed → the herd comes.
   if (!active && dayInYear === migrationArrivalDay(state.worldMap?.seed)) {
     const count = state.migrationNextHerdSize ?? HERD_BASE_SIZE;
-    spawnHerdAtEdge(state, count, year);
+    spawnHerdAtEdge(state, allAlive, count, year);
     state.activeMigration = { herdYear: year, endDay: day + MIGRATION_WINDOW_DAYS, spawned: count };
     addBigNews(
       state,

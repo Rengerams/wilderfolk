@@ -304,7 +304,9 @@ function commuteHumanToBuilding(
       target.x,
       target.y,
       moveSpeed * 0.72,
-      `c_${building.id}_${arrivingHome ? 'h' : 'w'}`,
+      // BUG-8: include origin — a path cached for one settler must not be reused
+      // for others starting elsewhere.
+      `c_${building.id}_${arrivingHome ? 'h' : 'w'}_${Math.round(entity.x)}_${Math.round(entity.y)}`,
     );
     if (handled === 'path') return false;
     if (handled === 'arrived') return true;
@@ -1057,7 +1059,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.huntTargetId = undefined;
         const foodGain = freeHuntFoodGain(closestPrey.type, state);
         addResource(state, 'food', foodGain);
-        const preyLabel = closestPrey.type === EntityType.Deer ? 'Deer' : 'Rabbit';
+        // BUG-2: label each prey type — Fox/Wolf kills were shown as 'Rabbit'
+        const preyLabel = closestPrey.type === EntityType.Deer
+          ? 'Deer'
+          : closestPrey.type === EntityType.Fox
+            ? 'Fox'
+            : closestPrey.type === EntityType.Wolf
+              ? 'Wolf'
+              : 'Rabbit';
         addFloatingText(state, closestPrey.x, closestPrey.y - 14, `Hunted ${preyLabel}! +${foodGain}`, '#f97316');
         entity.vx = 0;
         entity.vy = 0;

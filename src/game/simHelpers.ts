@@ -72,7 +72,9 @@ export function getMultiplier(state: WorldState, key: string): number {
 }
 
 export function addReputation(state: WorldState, amount: number): void {
-  state.villageReputation = Math.max(0, state.villageReputation + amount);
+  // BUG-14: cap at 100 like every other rep-gain site — an uncapped rep would
+  // inflate the population cap (populationGrowth: +1 per 10 reputation).
+  state.villageReputation = Math.min(100, Math.max(0, state.villageReputation + amount));
 }
 
 /**

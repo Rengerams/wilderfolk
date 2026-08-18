@@ -952,7 +952,9 @@ export function setNewLeaderPromise(state: WorldState): void {
   state.leaderPromise = {
     goal: pick.goal,
     label: pick.label,
-    target: pick.goal === 'buildings' ? current + pick.extra : pick.extra,
+    // BUG-7: food promise must be an improvement (like buildings), never below the
+    // floor — a leader elected with 60+ food should not fulfill it instantly.
+    target: pick.goal === 'buildings' ? current + pick.extra : Math.max(pick.extra, current + 3),
     startValue: current,
   };
 }

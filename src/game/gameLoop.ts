@@ -123,6 +123,10 @@ export class GameLoop {
   private workerTickChanged = false;
   /** Last time the worker delivered a tick/command result — watchdog input. */
   private lastWorkerActivity = 0;
+  /** When the last tick was requested from the worker — latency measurement. */
+  private lastWorkerTickRequest = 0;
+  /** Smoothed worker tick latency (ms) — makes the stall watchdog latency-adaptive. */
+  private workerTickLatencyMs = 0;
   private renderSoA: RenderSoAReaderV1 | null = null;
   private renderMetaBySlot: EntityRenderMeta[] | null = null;
   private scentReader: ScentGridReader | null = null;
@@ -174,6 +178,10 @@ export class GameLoop {
         this.workerHost.setTickResultHandler((nextWorld, _delta, render, changed) => {
           if (initGen !== this.sessionGen) return;
           this.lastWorkerActivity = performance.now();
+          if (this.lastWorkerTickRequest > 0) {
+            const measured = performance.now() - this.lastWorkerTickRequest;
+            this.workerTickLatencyMs = this.workerTickLatencyMs * 0.7 + measured * 0.3;
+          }
           this.world = nextWorld;
           this.catalog.rebuild(this.world.entities);
           if (render) {
@@ -571,8 +579,12 @@ export class GameLoop {
         // Watchdog: a requested tick that never answers = dead/stuck worker.
         // Dispose it and fall back to the main-thread sim so the game keeps
         // running instead of freezing silently (citizens stop moving, no errors).
+        // Latency-adaptive leash: a busy-but-alive worker at high population (ticks
+        // can take 100-400 ms) must never be killed for being slow; a genuinely dead
+        // worker still trips at max(2s, 4x its last observed tick latency).
+        const stallMs = Math.max(WORKER_STALL_TIMEOUT_MS, this.workerTickLatencyMs * 4);
         const stalled = this.workerHost.hasTickInFlight()
-          && performance.now() - this.lastWorkerActivity > WORKER_STALL_TIMEOUT_MS;
+          && performance.now() - this.lastWorkerActivity > stallMs;
         if (stalled) {
           console.warn('[GameLoop] Worker tick stalled — falling back to main-thread ticks');
           this.workerHost.dispose();
@@ -589,6 +601,7 @@ export class GameLoop {
             && this.workerHost.canPipelineTick()
           ) {
             if (this.workerHost.requestTick(focus)) {
+              this.lastWorkerTickRequest = performance.now();
               this.tickAccumulator -= msPerTick;
               steps++;
             } else {

@@ -368,8 +368,14 @@ export function getCombatPreview(
 
   const counterRaidRivalStrength = options?.rival ? getRivalDefenseStrength(options.rival) : null;
   if (counterRaidRivalStrength != null && options?.rival) {
+    // BUG-3: when options.attackerStrength is supplied (incoming-raid preview),
+    // rivalStrength holds the ATTACKER's strength — the camp-defense base shown in
+    // the text must be the rival's own raid strength, matching the computed value.
+    const defenseBase = options?.attackerStrength != null
+      ? getRivalRaidStrength(options.rival)
+      : (rivalStrength ?? getRivalRaidStrength(options.rival));
     breakdown.push(
-      `${options.rival.name} camp defense: ${rivalStrength ?? getRivalRaidStrength(options.rival)} × ${OUTGOING_RAID_DEFENSE_MULT} home turf = ${counterRaidRivalStrength}`,
+      `${options.rival.name} camp defense: ${defenseBase} × ${OUTGOING_RAID_DEFENSE_MULT} home turf = ${counterRaidRivalStrength}`,
     );
   }
 

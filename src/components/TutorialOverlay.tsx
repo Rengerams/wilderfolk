@@ -28,7 +28,8 @@ export default function TutorialOverlay({
       className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-black/65 backdrop-blur-sm"
       onClick={onFinish}
     >
-      <div className="mx-4 w-full max-w-sm rounded-2xl border border-stone-600 bg-stone-800 p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="mx-4 relative w-full max-w-sm overflow-hidden rounded-2xl border border-stone-600 bg-stone-800 p-5 shadow-[0_0_0_1px_rgba(52,211,153,0.12),0_24px_60px_rgba(0,0,0,0.6)]" onClick={(e) => e.stopPropagation()}>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-emerald-400 to-amber-500" aria-hidden />
         <div className="mb-3 flex items-start justify-between gap-2">
           <div>
             <h2 className="text-lg font-bold text-white">Quick start</h2>
@@ -44,8 +45,10 @@ export default function TutorialOverlay({
         </div>
 
         <div className="mb-4 rounded-xl bg-stone-900/60 p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <Emoji className="text-2xl">{QUICK_START_STEPS[tutorialStep].icon}</Emoji>
+          <div className="mb-2 flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-2xl ring-1 ring-emerald-500/25">
+              <Emoji>{QUICK_START_STEPS[tutorialStep].icon}</Emoji>
+            </span>
             <h3 className="text-base font-bold text-emerald-300">{QUICK_START_STEPS[tutorialStep].title}</h3>
           </div>
           <p className="text-sm leading-relaxed text-stone-300">{QUICK_START_STEPS[tutorialStep].detail}</p>
@@ -55,7 +58,7 @@ export default function TutorialOverlay({
           {QUICK_START_STEPS.map((_, i) => (
             <div
               key={i}
-              className={`h-1.5 rounded-full transition-all ${i === tutorialStep ? 'w-6 bg-emerald-500' : 'w-1.5 bg-stone-600'}`}
+              className={`h-2 rounded-full transition-all ${i === tutorialStep ? 'w-7 bg-emerald-500' : 'w-2 bg-stone-600'}`}
             />
           ))}
         </div>
@@ -64,7 +67,7 @@ export default function TutorialOverlay({
           {tutorialStep > 0 && (
             <button
               onClick={() => onSetTutorialStep((s) => s - 1)}
-              className="flex-1 rounded-lg border border-stone-600 py-2.5 text-sm font-semibold text-stone-300 hover:border-stone-500"
+              className="ui-btn ui-btn-ghost min-h-[2.75rem] flex-1 py-2.5 text-sm"
             >
               Back
             </button>
@@ -72,14 +75,14 @@ export default function TutorialOverlay({
           {tutorialStep < QUICK_START_STEPS.length - 1 ? (
             <button
               onClick={() => onSetTutorialStep((s) => s + 1)}
-              className="flex-1 rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-500"
+              className="ui-btn ui-btn-primary min-h-[2.75rem] flex-1 py-2.5 text-sm"
             >
               Next →
             </button>
           ) : (
             <button
               onClick={onFinish}
-              className="flex-1 rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-500"
+              className="ui-btn ui-btn-primary min-h-[2.75rem] flex-1 py-2.5 text-sm"
             >
               Start playing
             </button>

@@ -228,7 +228,8 @@ export function steerVisitorToHotel(
   const dist = Math.hypot(dx, dy) || 1;
   if (dist > 14) {
     // Route around water/mountains on the camp→hotel walk.
-    const handled = steerWithPath(visitor, tx, ty, speed * 0.7, `h_${hotel.id}`);
+    // BUG-8: include origin so different visitors don't reuse one cached path.
+    const handled = steerWithPath(visitor, tx, ty, speed * 0.7, `h_${hotel.id}_${Math.round(visitor.x)}_${Math.round(visitor.y)}`);
     if (handled === 'path') {
       visitor.x += visitor.vx;
       visitor.y += visitor.vy;
