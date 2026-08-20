@@ -1,0 +1,27 @@
+# Objective Plan Change — 2026-08-20 session
+
+- Date: 2026-08-20
+- Previous objective: NEXT_AGENT_OBJECTIVES.md ten-objective program (0.6.1-line regression proofing)
+- New objective: four evidence-driven objectives (A–D) generated per OBJECTIVE_GENERATION_PROTOCOL.md
+- Change type: retired (historical program) + replaced (new objectives for present repo state)
+- Evidence requiring the change:
+  - `docs/REGRESSION_PROOFING_COMPLETION.md` (2026-08-20) documents all ten historical objectives as **verified** — each has a regression test and a verification result; all bug reports in `BUG REPORTS/` are `verified` or `won't-fix`.
+  - Full-suite baseline this session was NOT green as claimed: 1 flaky failure (`demolish.roundtrip.test.ts` → `human 101 is pregnant without a valid pregnancyDueProgress`).
+  - Root cause is a **new bug** not covered by any of the ten objectives: `entityFactory.createEntity({pregnant:true})` never sets `pregnancyDueProgress`, so immigrant expecting couples (spawned by `worldGen.createImmigrantSettler` from `tickLayerDaily.tickImmigration`) violate the §5 pregnancy invariant. Deterministic probe: `pregnancyDueProgress: undefined`.
+  - `vitest.browser-worker.config.ts` references `src/test/game/simWorker/gameLoop.worker.test.ts` and `gameWorkerHost.test.ts`, which never existed post-repo-hoist and are not wired to any npm script; a real browser-Worker transport test is not runnable in the node vitest environment (`GameWorkerHost.init` requires `globalThis.Worker`; the node worker_threads shim does not boot under tsx).
+- What the previous objective failed to account for:
+  - The ten-objective program had no objective covering **entity-construction pregnancy state** (it covered conception and birth owners, not the leaf factory), so the immigrant spawn path could violate the invariant undetected until the full-suite run rolled the RNG.
+  - The completion record's "49 files / 322 tests green" claim was taken at face value; repeated full-suite runs were needed to surface the flaky case.
+- Owner and cadence of the new objective:
+  - Objective A/B owner: `entityFactory.ts` (entity construction state init) + tests. Cadence: entity construction (spawn/immigration), not a tick layer.
+  - Objective C owner: test config / `GameWorkerHost` transport. Cadence: n/a (test surface).
+  - Objective D owner: docs + `scripts/measure-relationship-feel.ts`. Cadence: measurement.
+- Player-visible impact:
+  - Fix is behavior-neutral for the player (pregnancy term formula identical to the conception owner; spawned immigrant pregnancies previously masked to `PREGNANCY_TICKS` via `?? ` now get the same 85%–115% term variance as colony pregnancies — a term-duration variance normalization, not a frequency change). Event rates re-measured to confirm (Objective D).
+- Tests or measurements required:
+  - `tests/simulation.invariants.test.ts` +2 regression tests (constructor path, immigrant couple path).
+  - Full suite ×3 green (49 files / 324 tests).
+  - `scripts/measure-relationship-feel.ts` 60-day seeded run (in progress).
+  - TypeScript `tsc -p tsconfig.vitest.json --noEmit` clean; ESLint clean.
+- Developer approval required: no — the changes preserve the authority (they enforce an existing invariant, remove a dead test config, and do not change cadence, save policy, or public gameplay contracts). No new tick layer, no second owner.
+- Developer approval/status: pending review (session report)

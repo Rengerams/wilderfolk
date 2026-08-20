@@ -203,6 +203,13 @@ export function startBuilding(
   building.spriteScale = 0;
   state.buildings.push(building);
 
+  // The unfinished Leader's House is not a residence yet. Keep its household in
+  // an existing completed home during construction; leaderHouse.ts moves them
+  // into the manor only after completion.
+  if (type === BuildingType.LeaderHouse) {
+    assignMissingResidences(listPlayerHumans(state), state.buildings, state.entities);
+  }
+
   // Trees under the footprint are cleared — you can't keep a forest inside a wall.
   const footprint = getBuildingFootprintForType(type, rotation);
   clearTreesUnderFootprint(state, x, y, footprint.width, footprint.height);

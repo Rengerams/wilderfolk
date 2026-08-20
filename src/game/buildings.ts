@@ -296,7 +296,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
   [BuildingType.LeaderHouse]: {
     width: 63, height: 53,
     cost: { wood: 0, stone: 0, gold: 0 },
-    buildTime: 6, maxOccupants: 12,
+    buildTime: 2, maxOccupants: 12,
     emoji: '👑', label: "Leader's House",
     description: "Official residence of the elected village leader — they move in with their family (12 beds). One per village, free, not upgradeable. The household moves out when leadership changes.",
     sprite: '/sprites/house_leader.png', backgroundColor: '#7c2d12', padShape: 'round',
