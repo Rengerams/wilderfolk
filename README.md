@@ -57,6 +57,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 **Performance**
 
 | Humans | avg tick | p95 tick | Gate |
+
 |--------|----------|----------|------|
 | 200 | 4.8 ms | 8.1 ms | ✅ ACCEPTABLE |
 | 400 | 7.5 ms | 13.3 ms | ✅ ACCEPTABLE |

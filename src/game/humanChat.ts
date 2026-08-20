@@ -54,6 +54,11 @@ export type ChatSpeaker = {
   name?: string;
 };
 
+/** A participant is busy while either a visible line or paired dialogue session is active. */
+export function isDialogueBusy(entity: Pick<ChatSpeaker, 'chatTicks' | 'chatDialogueSessionKey'>): boolean {
+  return (entity.chatTicks ?? 0) > 0 || entity.chatDialogueSessionKey != null;
+}
+
 export const CHAT_DEFAULT_DURATION_TICKS = 90;
 export const DIALOGUE_LINE_BASE_TICKS = 75;
 export const DIALOGUE_LINE_CHAR_TICKS = 1.8;

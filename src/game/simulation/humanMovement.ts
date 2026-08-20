@@ -2,6 +2,7 @@
  * Human movement — commuting to home/work, snapping, and Moon Howler proximity.
  * Extracted verbatim from humanTick.ts (humanTick-split plan, Task 1) — behavior unchanged.
  */
+import { TERRAIN_TILE_SIZE } from '../gameTypes';
 import type { Building, Entity } from '../gameTypes';
 import { isActiveMoonHowler } from '../moonHowler';
 import { steerWithPath } from '../pathfinding';
@@ -55,6 +56,15 @@ export function snapHumanToBuilding(entity: Entity, building: Building, arriving
   entity.vy = 0;
 }
 
+export function commutePathCacheKey(
+  buildingId: number,
+  arrivingHome: boolean,
+  x: number,
+  y: number,
+): string {
+  return `c_${buildingId}_${arrivingHome ? 'h' : 'w'}_${Math.floor(x / TERRAIN_TILE_SIZE)}_${Math.floor(y / TERRAIN_TILE_SIZE)}`;
+}
+
 export function commuteHumanToBuilding(
   entity: Entity,
   building: Building,
@@ -78,7 +88,7 @@ export function commuteHumanToBuilding(
       moveSpeed * 0.72,
       // BUG-8: include origin — a path cached for one settler must not be reused
       // for others starting elsewhere.
-      `c_${building.id}_${arrivingHome ? 'h' : 'w'}_${Math.round(entity.x)}_${Math.round(entity.y)}`,
+      commutePathCacheKey(building.id, arrivingHome, entity.x, entity.y),
     );
     if (handled === 'path') return false;
     if (handled === 'arrived') return true;

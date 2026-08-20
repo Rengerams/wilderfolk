@@ -2,6 +2,13 @@
 
 **One place for all documentation.** Everything lives under `docs/` from now on.
 
+> **Start here:** [WILDERFOLK_ONE_DOC_TO_FOLLOW.md](WILDERFOLK_ONE_DOC_TO_FOLLOW.md)
+>
+> This is the single operational playbook for coding sessions, audits, bug fixes,
+> and new feature development. The authority, bug-report, objective, architecture,
+> changelog, and README files below remain source records or detailed references;
+> they are not competing daily workflows.
+
 | Area | Path | Tracked? |
 |------|------|----------|
 | **Architecture** (how the game is wired) | `docs/ARCHITECTURE.md` | ✅ public |
@@ -14,6 +21,7 @@
 **Repo-root files stay at the root by convention** (GitHub shows them automatically): `README.md` (pitch/install) · `CHANGELOG.md` (release notes) · `ROADMAP.md` (shipped features) · `AGENTS.md` (agent guide). Everything else goes in `docs/`.
 
 **Key pointers**
+- Single operational playbook: `docs/WILDERFOLK_ONE_DOC_TO_FOLLOW.md`
 - Bug tracker with `<batch>-<item>` IDs (e.g. `EK-G4`): `docs/private/BUGS_TRACKER.md`
 - Open problems / gaps: `docs/private/OPEN_PROBLEMS.md`
 - Dev engine reference (archived): `docs/private/archive/TECHNICAL.md`

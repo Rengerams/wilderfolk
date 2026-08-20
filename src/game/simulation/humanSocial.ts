@@ -6,7 +6,7 @@
 import type { Entity } from '../gameTypes';
 import { EntityType } from '../gameTypes';
 import { isPlayerHuman } from '../playerHuman';
-import { maybeDialogueChat, type HumanChatContext, type ChatPickOptions } from '../humanChat';
+import { isDialogueBusy, maybeDialogueChat, type HumanChatContext, type ChatPickOptions } from '../humanChat';
 import {
   forEachAdaptiveInRadius,
   socialAdaptiveOptions,
@@ -64,7 +64,7 @@ export function simAmbientChatNeighbors(
         && other.alive
         && other.type === EntityType.Human
         && isPlayerHuman(other)
-        && (other.chatTicks ?? 0) <= 0
+        && !isDialogueBusy(other)
       ) {
         const isPartner = self.partnerId === other.id || other.partnerId === self.id;
         const isKid = (self.childrenIds ?? []).includes(other.id)

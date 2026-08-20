@@ -640,6 +640,16 @@ export class GameLoop {
           && performance.now() - this.lastWorkerActivity > stallMs;
         if (stalled) {
           console.warn('[GameLoop] Worker tick stalled — falling back to main-thread ticks');
+          // Recover the authoritative worker shadow before disposal. If a player
+          // command was optimistically shown, disposing the host first would make
+          // syncAfterWorkerMutation() unable to restore the pre-command state.
+          if (this.optimisticCommand) {
+            this.optimisticCommand = null;
+            this.syncAfterWorkerMutation();
+            this.catalog.rebuild(this.world.entities);
+            this.pruneStaleSelection();
+            this.notify(true, false, true);
+          }
           this.workerHost.dispose();
           this.workerHost = null;
           this.workerEnabled = false;

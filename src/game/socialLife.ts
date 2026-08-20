@@ -15,7 +15,7 @@ import {
   hasResidenceAssignment,
   personDayRoll,
 } from './dayCycle';
-import { sayHumanChatPhrase } from './humanChat';
+import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 
 export type SocialMotive =
   | 'sick_day'
@@ -326,11 +326,11 @@ export function tryWorkplaceBanter(
   onDayShift: boolean,
 ): void {
   if (!onDayShift || hour < 11 || hour > 13) return;
-  if ((entity.chatTicks ?? 0) > 0) return;
+  if (isDialogueBusy(entity)) return;
   // Intuitive settlers pick up on the room better — they banter more often.
   const banterChance = entity.traits?.includes('intuitive') ? 0.11 : 0.08;
   if (personDayRoll(entity.id, tick, 720) > banterChance) return;
-  const mate = coworkers.find((c) => c.id !== entity.id && (c.chatTicks ?? 0) <= 0);
+  const mate = coworkers.find((c) => c.id !== entity.id && !isDialogueBusy(c));
   if (!mate) {
     sayHumanChatPhrase(entity, personDayRoll(entity.id, tick, 721) < 0.5 ? 'Long morning.' : 'Almost midday.', 40);
     return;
@@ -348,7 +348,7 @@ export function tryNeighborGreeting(
 ): void {
   if (!other || other.id === entity.id) return;
   if (hour < 6 || hour > 9) return;
-  if ((entity.chatTicks ?? 0) > 0 || (other.chatTicks ?? 0) > 0) return;
+  if (isDialogueBusy(entity) || isDialogueBusy(other)) return;
   if (personDayRoll(entity.id, tick, 724 + other.id) > 0.12) return;
   const dist = Math.hypot(entity.x - other.x, entity.y - other.y);
   if (dist > 28 || dist < 4) return;
