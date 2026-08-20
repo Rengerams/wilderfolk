@@ -53,12 +53,12 @@ interface PresetModifiers {
 }
 
 const PRESET_MODIFIERS: Record<MapPreset, PresetModifiers> = {
-  verdant:     { elevationBias: -0.02, elevationScale: 0.95, moistureBias:  0.18, moistureScale: 1.25, temperatureBias:  0.02, waterLevel: 0.18, forestThreshold: 0.35 },
-  mountainous: { elevationBias:  0.22, elevationScale: 1.35, moistureBias: -0.05, moistureScale: 0.85, temperatureBias: -0.12, waterLevel: 0.20, forestThreshold: 0.48 },
-  coastal:     { elevationBias: -0.12, elevationScale: 0.85, moistureBias:  0.22, moistureScale: 1.20, temperatureBias:  0.08, waterLevel: 0.32, forestThreshold: 0.42 },
-  arid:        { elevationBias:  0.02, elevationScale: 1.05, moistureBias: -0.38, moistureScale: 0.55, temperatureBias:  0.22, waterLevel: 0.12, forestThreshold: 0.70 },
-  harsh:       { elevationBias:  0.18, elevationScale: 1.25, moistureBias: -0.22, moistureScale: 0.70, temperatureBias: -0.22, waterLevel: 0.16, forestThreshold: 0.55 },
-  riverlands:  { elevationBias: -0.08, elevationScale: 0.85, moistureBias:  0.30, moistureScale: 1.30, temperatureBias:  0.05, waterLevel: 0.26, forestThreshold: 0.30 },
+  verdant:     { elevationBias: -0.02, elevationScale: 0.95, moistureBias:  0.06, moistureScale: 1.05, temperatureBias:  0.02, waterLevel: 0.18, forestThreshold: 0.48 },
+  mountainous: { elevationBias:  0.12, elevationScale: 1.18, moistureBias: -0.05, moistureScale: 0.85, temperatureBias: -0.12, waterLevel: 0.20, forestThreshold: 0.48 },
+  coastal:     { elevationBias: -0.08, elevationScale: 0.88, moistureBias:  0.12, moistureScale: 1.00, temperatureBias:  0.08, waterLevel: 0.27, forestThreshold: 0.50 },
+  arid:        { elevationBias:  0.02, elevationScale: 1.05, moistureBias: -0.25, moistureScale: 0.75, temperatureBias:  0.22, waterLevel: 0.12, forestThreshold: 0.64 },
+  harsh:       { elevationBias:  0.10, elevationScale: 1.12, moistureBias: -0.22, moistureScale: 0.70, temperatureBias: -0.22, waterLevel: 0.16, forestThreshold: 0.55 },
+  riverlands:  { elevationBias: -0.08, elevationScale: 0.85, moistureBias:  0.14, moistureScale: 1.05, temperatureBias:  0.05, waterLevel: 0.22, forestThreshold: 0.45 },
 };
 
 // ─── Terrain assignment ──────────────────────────────────────────────────────
@@ -169,6 +169,9 @@ export function ensureCampClearing(
 
       const tile = tiles[ty]?.[tx];
       if (!tile) continue;
+      // A founding clearing may overlap a river, but it must not erase the
+      // authoritative water channel and create visual gaps across the map.
+      if (tile.type === TerrainType.River || tile.type === TerrainType.RiverBank) continue;
 
       const inner = dist < radiusTiles * 0.55;
       tile.type = inner
@@ -437,19 +440,38 @@ export function generateWorldMap(
 
     if (river.length > 10) {
       rivers.push(river);
-      // Skip the peak cell (mountain top stays land); the channel below it is water.
-      // Widen into a real river: each path cell's orthogonal AND diagonal
-      // neighbours become water where the valley floor is low enough — so a
-      // river reads as a whole-tile water band (3–5 tiles across in the
-      // lowlands) instead of a 1-tile thread. Only narrows on steep gorges
-      // where the walls rise above the water line.
+
+      // Skip the peak cell (mountain top stays land), but make the carved
+      // channel itself 4-connected. The downhill walk may move diagonally;
+      // without these bridge cells, a diagonal path renders as separated blue
+      // squares even though the path array is technically continuous.
+      const channelCells = new Set<string>();
       for (let i = 1; i < river.length; i++) {
-        const cx = Math.floor(river[i].x / 10);
-        const cy = Math.floor(river[i].y / 10);
-        acceptedRiverSet.add(`${cx},${cy}`);
+        const previous = river[i - 1];
+        const current = river[i];
+        const px = Math.floor(previous.x / 10);
+        const py = Math.floor(previous.y / 10);
+        const cx = Math.floor(current.x / 10);
+        const cy = Math.floor(current.y / 10);
+        channelCells.add(`${cx},${cy}`);
+
+        if (Math.abs(cx - px) === 1 && Math.abs(cy - py) === 1) {
+          channelCells.add(`${px},${cy}`);
+          channelCells.add(`${cx},${py}`);
+        }
+      }
+
+      // Widen the channel into a visible water body. Lowland river sections
+      // receive an orthogonal shoulder up to waterLevel + 0.14; diagonal
+      // shoulders use the narrower +0.08 threshold so banks remain legible.
+      for (const key of channelCells) {
+        const [cx, cy] = key.split(',').map(Number);
+        acceptedRiverSet.add(key);
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const) {
           const nt = tiles[cy + dy]?.[cx + dx];
-          if (nt && nt.elevation / 100 < pm.waterLevel + 0.08) {
+          if (!nt) continue;
+          const threshold = dx === 0 || dy === 0 ? pm.waterLevel + 0.14 : pm.waterLevel + 0.08;
+          if (nt.elevation / 100 < threshold) {
             acceptedRiverSet.add(`${cx + dx},${cy + dy}`);
           }
         }
