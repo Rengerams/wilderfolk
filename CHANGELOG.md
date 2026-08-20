@@ -5,8 +5,24 @@
 **Simulation governance, workforce authority, worker reliability, relationship
 truth, and Moon Howler rarity (Objectives 1–10 of the regression-proofing
 plan).** No version bump yet; save compatibility unchanged (still the 0.6.1
-exact-version policy). Suite: **49 test files / 322 tests, 0 lint/type
-errors**, 10 bug reports filed — all verified or closed (won't-fix).
+exact-version policy). Suite: **49 test files / 324 tests, 0 lint/type
+errors**, 11 bug reports filed — all verified or closed (won't-fix).
+
+Post-program fix (2026-08-20 session):
+- **Spawned-pregnancy invariant fix** — `entityFactory.createEntity({pregnant:true})`
+  now sets `pregnancyDueProgress` (same 85%–115% term formula as the conception
+  owner), closing a §5 invariant hole where immigrant expecting couples
+  (world-gen/immigration spawn path) were created pregnant without due progress,
+  silently masked to `PREGNANCY_TICKS` by the lifecycle fallback. Bug report:
+  `2026-08-20-immigrant-pregnancy-missing-due-progress.md`. Regression tests:
+  `tests/simulation.invariants.test.ts` (constructor + immigrant-couple paths).
+- **Dead worker-test config removed** — `vitest.browser-worker.config.ts`
+  referenced `src/test/game/simWorker/*` suites that never existed post-hoist
+  and is not runnable in the node vitest env (no `globalThis.Worker`); worker
+  command behavior stays proven by parity-by-construction through the shared
+  `applyWorkerCommand` (`workerCommand.roundtrip.test.ts`,
+  `gameLoop.commandDispatch.test.ts`). knip entry removed; CHANGELOG note
+  updated.
 
 Summary for the version bump:
 - **Governance** — role-aware simulation invariants checker, static
@@ -682,7 +698,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 - **`npm test`** — `vitest run` (**358** tests, **67** files, **0 skipped**)
 - **`npm run test:all`** — vitest + `tsc -p tsconfig.vitest.json --noEmit`; **`npm run test:types`** — typecheck only
-- **Vitest default config** — browser Web Worker suites (`gameLoop.worker.test.ts`, `gameWorkerHost.test.ts`) excluded from default run (Node has no `globalThis.Worker`); optional `npx vitest run --config vitest.browser-worker.config.ts`
+- **Vitest default config** — browser Web Worker suites (`gameLoop.worker.test.ts`, `gameWorkerHost.test.ts`) excluded from default run (Node has no `globalThis.Worker`); worker command behavior is proven by parity-by-construction through the shared `applyWorkerCommand` domain implementation (`workerCommand.roundtrip.test.ts`, `gameLoop.commandDispatch.test.ts`)
 - **`npm run` shortened (app)** — 24 scripts → **8**: `dev`, `build`, `test`, `test:watch`, `lint`, `preview`, `sim`, `bench`
 - **`sim` CLI** (`scripts/sim-cli.mjs`) — `npm run sim` lists profiles; `npm run sim -- <profile>` replaces `simulate`, `simulate:30min`, `simulate:20year`, `simulate:social`, `simulate:housing`, `simulate:housing:ticks`, `simulate:family`, `simulate:10year`, `simulate:10year:worker`, `simulate:20year:worker`, `balance:militia`, `benchmark:city`, `simulate:30min:city`, `sim:kill` (aliases: `simulate` → `5min`, `balance` → `militia`)
 - **`bench`** — `npm run bench` replaces `npm run benchmark:gate` (CI benchmark gate)

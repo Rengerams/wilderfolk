@@ -3,7 +3,6 @@
   "entry": [
     "src/game/simWorker/gameWorker.ts",
     "src/game/simWorker/gameWorker.node.ts!",
-    "vitest.browser-worker.config.ts",
     "scripts/**/*.{ts,mts,mjs,js}!"
   ],
   "project": [

@@ -7,6 +7,7 @@ import { EntityType, JobType } from './gameTypes';
 import {
   getColonyDay,
   HUMAN_ADULT_MIN_AGE,
+  PREGNANCY_TICKS,
   setHumanBirthFromAge,
 } from './dayCycle';
 import { getRandomName, getRandomSurname } from './nameLoader';
@@ -118,6 +119,10 @@ export function createEntity(
     if (opts?.pregnant && entGender === 'female') {
       entity.pregnant = true;
       entity.pregnancyProgress = opts.pregnancyProgress ?? 0;
+      // §5 invariant: a pregnant human must have a valid pregnancyDueProgress.
+      // Same term formula as the conception owner (humanRelationships) so
+      // spawned pregnancies (immigrants, world gen) hold the invariant too.
+      entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + Math.random() * 0.3));
       const fatherId = opts.pregnantById ?? opts.fatherId ?? opts.partnerId;
       if (fatherId != null) {
         entity.pregnantById = fatherId;
