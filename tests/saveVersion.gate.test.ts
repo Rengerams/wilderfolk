@@ -17,7 +17,7 @@ describe('save version gate', () => {
   });
 
   it('older saves are rejected (beta: no historical compatibility)', () => {
-    for (const v of ['0.5.4', '0.5.2', '0.5.1', '0.5.0', '0.4.2']) {
+    for (const v of ['0.6.1', '0.5.4', '0.5.2', '0.5.1', '0.5.0', '0.4.2']) {
       expect(parseSaveJson(JSON.stringify({ _version: v })).valid, v).toBe(false);
     }
   });

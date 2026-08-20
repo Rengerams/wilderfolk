@@ -128,7 +128,6 @@ export function pickWorkerToTransfer(
       isPlayerHuman(h)
       && h.alive
       && !h.isJuvenile
-      && h.occupation !== LEADER_OCCUPATION
       && !h.pregnant
       && h.homeBuildingId === fromBuilding.id,
   );
@@ -153,22 +152,16 @@ export function pickWorkerToTransfer(
  * prevention — the Objective 1 invariant). Re-assigning to the same building is
  * idempotent.
  *
- * Leader-aware: a leader assigned through the manual command path keeps
- * `occupation = LEADER_OCCUPATION` (office status survives work — authority:
- * "The leader may work in a normal workplace while retaining leader status").
- * Auto-staff never assigns the leader (`allowLeader` defaults to false).
+ * Leader-aware: the leader participates in normal workforce assignment like any
+ * other settler (authority §5, 2026-08-20) — assigning them keeps
+ * `occupation = LEADER_OCCUPATION` (office status survives work).
  */
-export function assignWorkerTransition(
-  human: Entity,
-  building: Building,
-  opts: { allowLeader?: boolean } = {},
-): boolean {
+export function assignWorkerTransition(human: Entity, building: Building): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
   if (!human.alive || human.faction || human.isJuvenile) return false;
   if (human.prisonBuildingId != null) return false;
   if (human.pregnant) return false;
-  if (human.occupation === LEADER_OCCUPATION && !opts.allowLeader) return false;
   if (human.homeBuildingId != null && human.homeBuildingId !== building.id) return false;
   if (building.occupants.includes(human.id)) return true; // idempotent
 
@@ -199,14 +192,13 @@ export function removeWorkerTransition(human: Entity, buildings: Building[]): vo
 
 /**
  * Named transition — put a settler on an incomplete building's construction
- * crew (occupants only; crew members hold no `homeBuildingId`). The leader
- * never joins a crew; a settler with a job must be released first.
+ * crew (occupants only; crew members hold no `homeBuildingId`). A settler with
+ * a job must be released first. The leader may join a crew like any settler.
  */
 export function addToConstructionCrew(human: Entity, building: Building): boolean {
   if (building.completed || building.faction === 'rival') return false;
   if (!human.alive || human.faction || human.isJuvenile) return false;
   if (human.prisonBuildingId != null) return false;
-  if (human.occupation === LEADER_OCCUPATION) return false;
   if (human.homeBuildingId != null) return false; // already working — release first
   if (building.occupants.includes(human.id)) return true;
   building.occupants.push(human.id);
@@ -290,7 +282,6 @@ export function assignWorkerInPlace(building: Building, humans: Entity[], buildi
       isPlayerHuman(h)
       && h.alive
       && !h.isJuvenile
-      && h.occupation !== LEADER_OCCUPATION
       && !hasWorkAssignment(h)
       && !isImprisoned(h)
       && !h.pregnant
@@ -323,7 +314,6 @@ export function assignBuilderInPlace(
       isPlayerHuman(h)
       && h.alive
       && !h.isJuvenile
-      && h.occupation !== LEADER_OCCUPATION
       && !hasWorkAssignment(h)
       && !isImprisoned(h)
       && !h.pregnant
@@ -515,7 +505,9 @@ export function countWorkingAndIdleSettlers(
   for (const e of humans) {
     if (!e.alive || e.faction || e.isJuvenile || e.type !== EntityType.Human) continue;
     if (isImprisoned(e)) continue;
-    if (hasWorkAssignment(e) || constructionWorkers.has(e.id) || e.occupation === LEADER_OCCUPATION) working++;
+    // The leader works like any other settler (authority §5, 2026-08-20):
+    // office alone does not count as working — an idle leader is idle.
+    if (hasWorkAssignment(e) || constructionWorkers.has(e.id)) working++;
     else idle++;
   }
   return { working, idle };

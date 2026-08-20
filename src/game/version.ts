@@ -1,4 +1,4 @@
-export const GAME_VERSION = '0.6.1';
+export const GAME_VERSION = '0.6.1.1';
 export const GAME_PHASE = 'Beta';
 export const GAME_TITLE = 'Wilderfolk';
 export const GAME_SUBTITLE = 'Where Beasts and Kin Unite';

@@ -39,14 +39,14 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-## Latest update — v0.6.1 (August 17, 2026)
+## Latest update — v0.6.1.1 (August 20, 2026)
 
-**The valley thinks faster — 1,200 settlers at ~38 ms/tick.**
+**Leader works, pregnancies stay honest, worker tests cleaned up.**
 
-* `GAME_VERSION` **0.6.1**
-* ⚠️ **Beta Save Policy:** This build loads only 0.6.1 saves.
+* `GAME_VERSION` **0.6.1.1**
+* ⚠️ **Beta Save Policy:** This build loads only 0.6.1.1 saves.
 * **Compatibility Dropped:** Historical-save compatibility is no longer supported.
-* **New Start Required:** Saves from other builds (including 0.6) are rejected, so please start a new settlement.
+* **New Start Required:** Saves from other builds (including 0.6.1) are rejected, so please start a new settlement.
 
 | Area | Highlights |
 |------|------------|

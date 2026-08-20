@@ -5,7 +5,6 @@ import {
   WORKSHOP_RECIPES, getWorkshopRecipe,
   HUNTING_SPOT_PREY_OPTIONS,
   WEREWOLF_CURSE_LINES,
-  LEADER_OCCUPATION,
 } from './gameTypes';
 import type { HuntingSpotPrey } from './gameTypes';
 import type { MineMode } from './buildings';
@@ -423,7 +422,6 @@ function applyBuilderAssignment(
     (e) =>
       isPlayerHuman(e) &&
       !e.isJuvenile &&
-      e.occupation !== LEADER_OCCUPATION &&
       !hasWorkAssignment(e) &&
       !isImprisoned(e) &&
       !building.occupants.includes(e.id) &&
@@ -642,8 +640,8 @@ export function assignIdleWorkerToBuilding(originalState: WorldState, buildingId
     }
   } else {
     // Manual assignment command — the leader may take a workplace here
-    // (authority: the leader can work while retaining office status).
-    assignWorkerTransition(idleHuman, building, { allowLeader: true });
+    // (authority §5, 2026-08-20: the leader works like any other settler).
+    assignWorkerTransition(idleHuman, building);
   }
 
   if (!idleHuman) {
@@ -715,7 +713,6 @@ export function listAssignableWorkersForBuilding(
       && e.alive
       && !e.isJuvenile
       && !e.pregnant
-      && e.occupation !== LEADER_OCCUPATION
       && !hasWorkAssignment(e)
       && !isImprisoned(e),
   );
@@ -756,7 +753,6 @@ export function canAssignWorkerToBuilding(state: WorldState, buildingId: number)
         h.alive
         && !h.isJuvenile
         && !h.pregnant
-        && h.occupation !== LEADER_OCCUPATION
         && !hasWorkAssignment(h)
         && !isImprisoned(h),
     )
