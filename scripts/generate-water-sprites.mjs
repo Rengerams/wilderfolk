@@ -144,7 +144,12 @@ function encodePng(W, H, px) {
 
 const shallow = buildTile(11, [126, 200, 217], 3, 9, 6, 0.2);
 const deep = buildTile(23, [63, 127, 166], 4, 13, 3, 0.15);
+// Ocean — saturated azure so water reads as clearly blue even under the
+// spring season wash (which tints the whole map green and drowned the old
+// light-cyan fills). Rivers/coast stamp this texture.
+const ocean = buildTile(7, [40, 110, 195], 3, 10, 6, 0.2);
 
 writeFileSync('public/sprites/terrain/water_shallow_fill.png', encodePng(SIZE, SIZE, shallow));
 writeFileSync('public/sprites/terrain/water_deep_fill.png', encodePng(SIZE, SIZE, deep));
-console.log('wrote water_shallow_fill.png + water_deep_fill.png (128x128 each)');
+writeFileSync('public/sprites/ocean.png', encodePng(SIZE, SIZE, ocean));
+console.log('wrote water_shallow_fill.png + water_deep_fill.png + ocean.png (128x128 each)');

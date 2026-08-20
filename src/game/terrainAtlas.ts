@@ -32,9 +32,15 @@ const WATER: AtlasFamily = 1;
  */
 export function atlasFamily(type: TerrainType): AtlasFamily | null {
   switch (type) {
+    // RiverBank counts as grass so a river channel can paint the atlas water
+    // tiles (the painted shore tiles carry the sandy bank look). Without this,
+    // every river tile bordering its bank fell back to the seamless fill
+    // sprite, which the spring season wash turns green — rivers read as land
+    // on the main canvas while the minimap showed them blue.
     case TerrainType.Grassland:
     case TerrainType.Forest:
     case TerrainType.DarkForest:
+    case TerrainType.RiverBank:
       return GRASS;
     case TerrainType.ShallowWater:
     case TerrainType.River:

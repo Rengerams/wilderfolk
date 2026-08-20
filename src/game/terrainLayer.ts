@@ -28,12 +28,22 @@ const TERRAIN_FILL_PATH: Partial<Record<TerrainType, string>> = {
   [TerrainType.Rocky]: '/sprites/tile_dirt.png',
   [TerrainType.Beach]: '/sprites/terrain/sand_fill.png',
   [TerrainType.RiverBank]: '/sprites/terrain/sand_fill.png',
-  [TerrainType.ShallowWater]: '/sprites/terrain/water_shallow_fill.png',
-  [TerrainType.River]: '/sprites/terrain/water_shallow_fill.png',
+  // River + shallow water stamp the saturated azure ocean texture — rivers
+  // read as solid blue water even under the green season wash (the old light
+  // cyan fills turned green in spring and rivers vanished next to the minimap).
+  [TerrainType.ShallowWater]: '/sprites/ocean.png',
+  [TerrainType.River]: '/sprites/ocean.png',
   [TerrainType.DeepWater]: '/sprites/terrain/water_deep_fill.png',
   [TerrainType.Snow]: '/sprites/terrain/sand_fill.png', // tinted cool via shade overlay
   [TerrainType.Mountains]: '/sprites/tile_dirt.png',
 };
+
+/**
+ * Translucent azure re-glaze over every water tile so atlas-navy and
+ * ocean-texture water read as one consistent, clearly-blue body of water
+ * (rivers must not look like land next to the minimap's blue).
+ */
+const WATER_GLAZE = 'rgba(38, 96, 178, 0.32)';
 
 /** Material family for transitions — same family = no edge blend needed. */
 type FillFamily = 'grass' | 'dirt' | 'sand' | 'water' | 'other';
@@ -698,13 +708,36 @@ export function bakeTerrainLayer(
   }
 
   // Phase D — full-map seasonal wash (after all tile stamps); blended during
-  // season transitions so the palette fades instead of snapping.
-  if (seasonBlend) {
-    applySeasonWash(ctx, seasonBlend.from, w, h, 1 - seasonBlend.t);
-    applySeasonWash(ctx, seasonBlend.to, w, h, seasonBlend.t);
-  } else {
-    applySeasonWash(ctx, season, w, h);
+  // season transitions so the palette fades instead of snapping. Water tiles
+  // are punched out of the wash — the seasons may tint the land, but water
+  // keeps its own blue color (rivers must not turn green in spring).
+  const waterRects: { x: number; y: number; w: number; h: number }[] = [];
+  for (const { tile, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
+    if (!isWater(tile.type)) continue;
+    waterRects.push({
+      x: x0,
+      y: y0,
+      w: Math.min(tileSize, w - x0),
+      h: Math.min(tileSize, h - y0),
+    });
   }
+  if (seasonBlend) {
+    applySeasonWash(ctx, seasonBlend.from, w, h, 1 - seasonBlend.t, waterRects);
+    applySeasonWash(ctx, seasonBlend.to, w, h, seasonBlend.t, waterRects);
+  } else {
+    applySeasonWash(ctx, season, w, h, 1, waterRects);
+  }
+
+  // Water glaze — a translucent azure over every water tile so atlas-navy and
+  // ocean-texture water read as one consistent, clearly-blue body of water
+  // (rivers must not look like land next to the minimap's blue).
+  ctx.save();
+  ctx.fillStyle = WATER_GLAZE;
+  for (const { tile, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
+    if (!isWater(tile.type)) continue;
+    ctx.fillRect(x0, y0, Math.min(tileSize, w - x0), Math.min(tileSize, h - y0));
+  }
+  ctx.restore();
 
   return {
     surface,
@@ -726,40 +759,57 @@ export function bakeTerrainLayer(
 /**
  * Full-layer seasonal grade — strong enough to read at a glance (was ~5–14% and easy to miss).
  * Uses Season enum values / string ids from gameTypes.
+ *
+ * Water tiles are passed as evenodd "holes" so the wash tints land only —
+ * water keeps its own color in every season (rivers must not turn green).
  */
-function applySeasonWash(ctx: CanvasContext2d, season: Season, w: number, h: number, alpha = 1): void {
+function applySeasonWash(
+  ctx: CanvasContext2d,
+  season: Season,
+  w: number,
+  h: number,
+  alpha = 1,
+  waterRects: { x: number; y: number; w: number; h: number }[] = [],
+): void {
+  // Fill the whole map, or everything except the water holes when present.
+  const fillMap = (color: string): void => {
+    ctx.fillStyle = color;
+    if (waterRects.length === 0) {
+      ctx.fillRect(0, 0, w, h);
+      return;
+    }
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    for (const r of waterRects) ctx.rect(r.x, r.y, r.w, r.h);
+    ctx.fill('evenodd');
+  };
   ctx.save();
   ctx.globalAlpha = alpha;
   switch (season) {
     case 'spring':
       // Fresh green lift
-      ctx.fillStyle = 'rgba(120, 220, 100, 0.16)';
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = 'rgba(255, 255, 200, 0.05)';
+      fillMap('rgba(120, 220, 100, 0.16)');
+      fillMap('rgba(255, 255, 200, 0.05)');
       break;
     case 'summer':
       // Hot dry gold / haze (must read vs spring green)
-      ctx.fillStyle = 'rgba(255, 210, 70, 0.18)';
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = 'rgba(180, 120, 40, 0.08)';
+      fillMap('rgba(255, 210, 70, 0.18)');
+      fillMap('rgba(180, 120, 40, 0.08)');
       break;
     case 'fall':
       // Amber / rust
-      ctx.fillStyle = 'rgba(210, 110, 40, 0.22)';
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = 'rgba(80, 40, 20, 0.06)';
+      fillMap('rgba(210, 110, 40, 0.22)');
+      fillMap('rgba(80, 40, 20, 0.06)');
       break;
     case 'winter':
       // Cold blue-grey + light snow veil
-      ctx.fillStyle = 'rgba(160, 190, 230, 0.28)';
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = 'rgba(240, 248, 255, 0.12)';
+      fillMap('rgba(160, 190, 230, 0.28)');
+      fillMap('rgba(240, 248, 255, 0.12)');
       break;
     default:
       ctx.restore();
       return;
   }
-  ctx.fillRect(0, 0, w, h);
   ctx.restore();
 }
 

@@ -14,11 +14,13 @@ import {
   terrainRiseAt,
 } from '../src/game/terrainAtlas';
 
-/** Tiny map builder — chars: G=grass, F=forest, W=water, H=hills, M=mountain. */
+/** Tiny map builder — chars: G=grass, F=forest, W=water, R=river, B=riverbank, H=hills, M=mountain. */
 function makeMap(rows: string[], seed = 7): WorldMap {
   const tile = (c: string): { type: TerrainType; elevation: number } => {
     switch (c) {
       case 'W': return { type: TerrainType.ShallowWater, elevation: 10 };
+      case 'R': return { type: TerrainType.River, elevation: 40 };
+      case 'B': return { type: TerrainType.RiverBank, elevation: 45 };
       case 'F': return { type: TerrainType.Forest, elevation: 45 };
       case 'H': return { type: TerrainType.Hills, elevation: 65 };
       case 'M': return { type: TerrainType.Mountains, elevation: 92 };
@@ -51,6 +53,15 @@ describe('atlasFamily', () => {
     expect(atlasFamily(TerrainType.DeepWater)).toBe(1);
   });
 
+  it('treats RiverBank as grass so river channels can paint atlas water', () => {
+    // Regression: rivers were invisible on the main canvas (visible on the
+    // minimap). Every river tile bordering a RiverBank tile failed the atlas
+    // 8-neighbour check and fell back to the seamless fill, which the spring
+    // season wash turns green. RiverBank as grass lets the river paint the
+    // blue atlas water tiles with painted sandy shores.
+    expect(atlasFamily(TerrainType.RiverBank)).toBe(0);
+  });
+
   it('returns null for families the atlas has no art for', () => {
     expect(atlasFamily(TerrainType.Hills)).toBeNull();
     expect(atlasFamily(TerrainType.Mountains)).toBeNull();
@@ -73,6 +84,16 @@ describe('pickAtlasTile', () => {
     const map = makeMap(['WWW', 'WWW', 'WWW']);
     const pick = pickAtlasTile(map, 1, 1);
     expect(pick).toEqual({ id: 61, flipH: false, flipV: false });
+  });
+
+  it('picks the all-water tile for a river channel between riverbanks', () => {
+    // Regression: rivers invisible on the main canvas. A river tile whose
+    // 8-neighbourhood is RiverBank (top/bottom) used to fail the atlas check
+    // (RiverBank had no family) and fell back to the fill sprite, which the
+    // spring wash turns green. With RiverBank as grass the channel paints the
+    // blue all-water atlas tile.
+    const map = makeMap(['BBB', 'RRR', 'BBB']);
+    expect(pickAtlasTile(map, 1, 1)).toEqual({ id: 61, flipH: false, flipV: false });
   });
 
   it('picks the grass-above-water edge when water is to the south', () => {

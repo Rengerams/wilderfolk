@@ -121,6 +121,9 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/terrain/sand_fill.png',
     '/sprites/terrain/water_shallow_fill.png',
     '/sprites/terrain/water_deep_fill.png',
+    // Saturated azure water texture — rivers + coast stamp this (survives the
+    // season wash where the light-cyan fills turned green).
+    '/sprites/ocean.png',
     // Painted terrain atlas (2.5D Painted Relief — grass biome tiles)
     '/sprites/tileset_grass.png',
     // Painted dirt (25×25 seamless) — hills/peaks relief surfaces
