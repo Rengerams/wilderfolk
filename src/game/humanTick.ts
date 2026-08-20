@@ -89,6 +89,10 @@ import { isValidHuntPrey } from './simulation/simulationEntities';
 import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_STAGGER, SOCIAL_GREETING_RADIUS, SOCIAL_FRIENDSHIP_RADIUS, SOCIAL_COURTSHIP_RADIUS, SOCIAL_AFFAIR_RADIUS } from './adaptiveSpatialQuery';
 import { AFFAIR_BUILDING_NEAR_RADIUS, AFFAIR_DAILY_TRYST_RADIUS, AFFAIR_SPOUSE_BLOCK_RADIUS, findCourtshipPartner, getAffairTrystBuilding, getBuildingCenter, hasAffairPartner, isAtMaritalHome, isEligibleToCourt, isNearBuilding, isSpouseNearby, isValidAffairTarget, isValidAffairTrystSite, onScandalCooldown, reconcileAffairPartner, recordAffairTrystSite, shouldLeadAffairPair, tryDailyAffairGossip, tryDailyConception, tryDailyHumanMortality, tryExposeCaughtAffairForPair, tryFormSchoolyardBond, trySchoolyardGossip } from './simulation/humanRelationships';
 import { humanDisplayName } from './citizenId';
+import { flushRelationshipDiagnostics, recordRelationshipDiagnostic, setRelationshipDiagnosticsEnabled } from './relationshipDiagnostics';
+
+// Temporary controlled-test instrumentation; disable after comparing the July cadence.
+setRelationshipDiagnosticsEnabled(true);
 import { clearHuntersTargetingPrey, markWildlifeDead, syncEntityGrids } from './simulation/simulationEntities';
 
 /** Live on-screen intimate tryst distance. */
@@ -131,7 +135,7 @@ function canPursueSecretAffair(
 }
 
 /** Once-per-day affair drift — runs even when settlers are off-screen (no movement sim). */
-function tryDailyAffairEncounter(
+export function tryDailyAffairEncounter(
   state: WorldState,
   entity: Entity,
   entityById: Map<number, Entity>,
@@ -145,6 +149,7 @@ function tryDailyAffairEncounter(
   height?: number,
 ): void {
   const config = SPECIES_CONFIG[EntityType.Human];
+  recordRelationshipDiagnostic('affairChecks');
   if (!isPlayerHuman(entity)) return;
   if (entity.prisonBuildingId != null) return;
   if (entity.relationshipStatus !== 'married' || entity.pregnant || entity.isJuvenile) return;
@@ -209,6 +214,7 @@ function tryDailyAffairEncounter(
   const bump = Math.round((16 + Math.floor(Math.random() * 12)) * socialMult);
   entity.affairProgress = Math.min(100, (entity.affairProgress || 0) + bump);
   paramour.affairProgress = Math.min(100, (paramour.affairProgress || 0) + bump);
+  recordRelationshipDiagnostic('affairProgressGains');
   recordAffairTrystSite(entity, paramour, state, buildingById);
 
   if ((entity.affairProgress ?? 0) >= 100 && (paramour.affairProgress ?? 0) >= 100) {
@@ -216,6 +222,7 @@ function tryDailyAffairEncounter(
     paramour.affairPartnerId = entity.id;
     entity.affairProgress = 100;
     paramour.affairProgress = 100;
+    recordRelationshipDiagnostic('affairsEstablished');
   }
 }
 
@@ -1020,6 +1027,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             entity.vx *= 0.6;
             entity.vy *= 0.6;
             suppressIdle = true;
+            entity.courtshipPartnerId = closest.id;
+            closest.courtshipPartnerId = entity.id;
             if (Math.random() < 0.4 * PER_TICK_RATE_SCALE) {
               settlerPairChat(entity, closest, 'courtship', 0.85);
             } else if (Math.random() < 0.5 * PER_TICK_RATE_SCALE) {
@@ -1068,11 +1077,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             ) {
               entity.relationshipStatus = 'married';
               entity.partnerId = closest.id;
+              entity.courtshipPartnerId = undefined;
               entity.courtshipProgress = 0;
               entity.affairPartnerId = undefined;
               entity.affairProgress = 0;
               closest.relationshipStatus = 'married';
               closest.partnerId = entity.id;
+              closest.courtshipPartnerId = undefined;
               closest.courtshipProgress = 0;
               closest.affairPartnerId = undefined;
               closest.affairProgress = 0;
@@ -1200,18 +1211,21 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
                 });
               }
 
-              if (entity.affairProgress >= 100 && paramour.affairProgress >= 100) {
-                entity.affairPartnerId = paramour.id;
-                paramour.affairPartnerId = entity.id;
-                entity.affairProgress = 100;
-                paramour.affairProgress = 100;
-              }
+              // Affair ESTABLISHMENT is the new-calendar-day owner's decision
+              // (SIMULATION_AUTHORITY §3/§4, BUG 2026-08-20-affair-establishment-dual-cadence):
+              // the staggered path advances tryst progress only and never writes
+              // affairPartnerId. The daily tryDailyAffairEncounter establishes
+              // once both sides reach 100.
             }
 
             if (
               (entity.affairProgress ?? 0) >= 45
               && (paramour.affairProgress ?? 0) >= 45
+              && hasAffairPartner(entity, entityById)
+              && entity.affairPartnerId === paramour.id
             ) {
+              // Scandal exposure requires an ESTABLISHED affair (architecture
+              // checklist) — unestablished flirtation never rolls a scandal.
               tryExposeCaughtAffairForPair(
                 state,
                 entity,
@@ -1221,7 +1235,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
                 updatedBuildings,
                 playerHumans,
                 churchStrength,
-                false,
+                true,
                 true,
                 hourOfDay,
               );
@@ -1913,5 +1927,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       logEvent(state, 'death', formatDeathLog(entity, 'succumbed to exhaustion'), formatCitizenName(entity));
     }
     syncEntityGrids(ctx, entity);
+  }
+  if (isNewCalendarDay) {
+    // Active pregnancies are computed from the authoritative state at flush —
+    // never inferred from pregnanciesStartedThisInterval (Objective 8).
+    const activePregnancies = state.entities.filter((e) => e.alive && e.pregnant).length;
+    flushRelationshipDiagnostics(state.tick, getAbsoluteCalendarDay(state.tick), activePregnancies);
   }
 }

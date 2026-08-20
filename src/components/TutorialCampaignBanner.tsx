@@ -25,12 +25,12 @@ export default function TutorialCampaignBanner({
         <Emoji className="text-2xl">{step.icon}</Emoji>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-xs font-bold text-emerald-300">{step.title}</h3>
-            <span className="shrink-0 text-[9px] font-semibold text-stone-500">
+            <h3 className="text-sm font-bold text-emerald-300">{step.title}</h3>
+            <span className="shrink-0 text-[11px] font-semibold text-stone-400">
               Guide {stepIndex + 1}/{total}
             </span>
           </div>
-          <p className="mt-0.5 text-[10px] leading-relaxed text-stone-300">{step.detail}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-stone-300">{step.detail}</p>
           <div className="mt-2 flex items-center justify-between gap-2">
             <div className="flex gap-1">
               {Array.from({ length: total }, (_, i) => (
@@ -45,7 +45,7 @@ export default function TutorialCampaignBanner({
             <button
               type="button"
               onClick={onSkip}
-              className="rounded-md px-2 py-0.5 text-[9px] font-semibold text-stone-400 hover:bg-stone-800 hover:text-stone-200"
+              className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-stone-400 hover:bg-stone-800 hover:text-stone-200"
             >
               Skip guide
             </button>

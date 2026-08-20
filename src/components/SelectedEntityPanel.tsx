@@ -128,8 +128,8 @@ export default function SelectedEntityPanel({
         <div className="mb-2 flex items-center gap-2 rounded-lg bg-amber-500/20 px-2 py-1.5 ring-1 ring-amber-400/50">
           <span className="text-base leading-none" aria-hidden>👑</span>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-amber-200">Village head</p>
-            <p className="text-[9px] text-amber-100/90">
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-200">Village head</p>
+            <p className="text-[11px] text-amber-100/90">
               In office since Year {state.leaderSinceYear}
               {state.pendingElectionYear != null ? ` · next vote Y${state.pendingElectionYear}` : ''}
             </p>
@@ -145,16 +145,16 @@ export default function SelectedEntityPanel({
            entity.type === EntityType.Tree ? '🌲' : '🌿'}
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className={`text-xs font-bold ${isVillageHead ? 'text-amber-100' : 'text-amber-200'}`}>
+          <h3 className={`text-sm font-bold ${isVillageHead ? 'text-amber-100' : 'text-amber-200'}`}>
             {isHuman || entity.type === EntityType.Werewolf
               ? `${isVillageHead ? '👑 ' : ''}${entity.name || 'Unnamed'} ${entity.surname || ''}${entity.title ? ` ${entity.title}` : ''}${entity.type === EntityType.Werewolf ? ' (Moon Howler)' : ''}`
               : entity.type}
           </h3>
           {isMoonHowler && (
-            <p className="text-[9px] font-semibold text-rose-300">🌝 Full moon form — curse NOT cured · hunting tonight</p>
+            <p className="text-[11px] font-semibold text-rose-300">🌝 Full moon form — curse NOT cured · hunting tonight</p>
           )}
           {isHuman && entity.moonHowlerCursed && (
-            <p className="text-[9px] font-semibold text-violet-300">🌝 Moon Howler curse — transforms again every 14 days until cured</p>
+            <p className="text-[11px] font-semibold text-violet-300">🌝 Moon Howler curse — transforms again every 14 days until cured</p>
           )}
           {isHuman && entity.traits && entity.traits.length > 0 && (
             <div className="mt-0.5 flex flex-wrap gap-1">
@@ -164,7 +164,7 @@ export default function SelectedEntityPanel({
                   <span
                     key={trait}
                     title={def.description}
-                    className="rounded bg-stone-700/60 px-1.5 py-0.5 text-[8px] font-semibold text-amber-100/90"
+                    className="rounded bg-stone-700/60 px-1.5 py-0.5 text-[10px] font-semibold text-amber-100/90"
                   >
                     {def.emoji} {def.label}
                   </span>
@@ -173,22 +173,22 @@ export default function SelectedEntityPanel({
             </div>
           )}
           {isVisitor && visitorGroup && (
-            <p className="text-[9px] text-cyan-300">Visiting — {visitorGroup.name} ({visitorGroup.daysLeft}d)</p>
+            <p className="text-[11px] text-cyan-300">Visiting — {visitorGroup.name} ({visitorGroup.daysLeft}d)</p>
           )}
           {isVisitor && visitorGroup && onOpenVisitorCamp && (
             <button
               type="button"
               onClick={() => onOpenVisitorCamp(visitorGroup)}
-              className="mt-1 rounded bg-cyan-900/60 px-2 py-0.5 text-[8px] font-bold text-cyan-100 hover:bg-cyan-800/60"
+              className="mt-1 rounded bg-cyan-900/60 px-2 py-0.5 text-[10px] font-bold text-cyan-100 hover:bg-cyan-800/60"
             >
               Open camp — trade &amp; talks
             </button>
           )}
           {isRival && rivalCamp && (
-            <p className="text-[9px] text-amber-300">Settler of {rivalCamp.name} · {rivalCamp.relationship}</p>
+            <p className="text-[11px] text-amber-300">Settler of {rivalCamp.name} · {rivalCamp.relationship}</p>
           )}
           {isHuman && !isVisitor && !isRival && (
-            <p className="text-[9px] text-amber-400">
+            <p className="text-[11px] text-amber-400">
               <span className="font-mono text-stone-400">Citizen #{entity.id}</span>
               {' · '}
               {entity.gender === 'male' ? '♂' : '♀'} {entity.relationshipStatus || 'child'}
@@ -214,24 +214,24 @@ export default function SelectedEntityPanel({
         )}
       </div>
       {isFavorite && onToggleFavorite && (
-        <p className="mb-2 rounded-lg border border-amber-500/30 bg-amber-950/40 px-2 py-1 text-[9px] text-amber-100/90">
+        <p className="mb-2 rounded-lg border border-amber-500/30 bg-amber-950/40 px-2 py-1 text-[11px] text-amber-100/90">
           Following on the map — camera stays with them. Tap ⭐ again to stop.
         </p>
       )}
 
       {/* Food Chain Role */}
-      <div className="mb-2 rounded bg-stone-800/60 p-2 text-[9px]">
+      <div className="mb-2 rounded bg-stone-800/60 p-2 text-[11px]">
         <div className="grid grid-cols-[3rem_1fr] gap-y-0.5">
-          <span className="text-stone-500">Role</span>
+          <span className="text-stone-400">Role</span>
           <strong className="text-amber-300">{ecology.role}</strong>
-          <span className="text-stone-500">Eats</span>
+          <span className="text-stone-400">Eats</span>
           <strong className="text-emerald-300">{ecology.eats}</strong>
-          <span className="text-stone-500">Hunted</span>
+          <span className="text-stone-400">Hunted</span>
           <strong className="text-rose-300">{ecology.huntedBy}</strong>
         </div>
       </div>
 
-      <div className="space-y-0.5 text-[10px] text-amber-200">
+      <div className="space-y-0.5 text-xs text-amber-200">
         <p>Energy: {Math.round(entity.energy)} / {entity.maxEnergy}</p>
         <p>Age: {getAgeInYears(entity, state)} years{entity.isJuvenile && ' (child)'} — b. {getBirthDateString(entity)}</p>
         {entity.huntTargetId && (
@@ -265,7 +265,7 @@ export default function SelectedEntityPanel({
                     ? 'Move into an empty house (spouse and your children come too)'
                     : 'Build and finish an empty house first'
                 }
-                className="mt-1 w-full rounded-lg bg-sky-700/80 px-2 py-1.5 text-[9px] font-bold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-stone-600 disabled:text-stone-400 transition-all"
+                className="mt-1 w-full rounded-lg bg-sky-700/80 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-stone-600 disabled:text-stone-400 transition-all"
               >
                 🏠 Move to own home ({HUMAN_MOVE_OUT_MIN_AGE}+)
               </button>
@@ -283,7 +283,7 @@ export default function SelectedEntityPanel({
               const label = jobSite ? getBuildingConfig(jobSite.type).label : 'Workplace';
               return <p className="text-emerald-300">🔨 Works at: {label}</p>;
             })() : !entity.isJuvenile && !entity.pregnant && (
-              <p className="text-stone-400">🔨 No job yet — build a Farm, Mill, etc.</p>
+              <p className="text-stone-300">🔨 No job yet — build a Farm, Mill, etc.</p>
             )}
             <p className="text-sky-300">👕 {getHumanVariantLabel(entity.gender, entity.spriteVariant ?? 0)}</p>
             {entity.occupation && entity.occupation !== 'settler' && <p>💼 {entity.occupation}</p>}
@@ -327,19 +327,19 @@ export default function SelectedEntityPanel({
       </div>
 
       {isMoonHowler && (
-        <p className="mt-2 text-[9px] text-rose-300">🌝 Curse NOT cured — hunting tonight. Staff a Church; the priest may break the curse while they are in Moon Howler form.</p>
+        <p className="mt-2 text-[11px] text-rose-300">🌝 Curse NOT cured — hunting tonight. Staff a Church; the priest may break the curse while they are in Moon Howler form.</p>
       )}
 
       {/* Taming */}
       {isTameable && (
         <div className="mt-2 space-y-1">
           {!canTameHere ? (
-            <p className="text-[9px] text-rose-400">Build a Taming Post nearby to tame.</p>
+            <p className="text-[11px] text-rose-400">Build a Taming Post nearby to tame.</p>
           ) : availableHumans.length === 0 ? (
-            <p className="text-[9px] text-stone-500">No adult settler available to tame.</p>
+            <p className="text-[11px] text-stone-300">No adult settler available to tame.</p>
           ) : (
             <div className="space-y-1">
-              <p className="text-[9px] text-stone-400">
+              <p className="text-[11px] text-stone-300">
                 Assign a settler to tame{tameFoodCost != null ? ` (${tameFoodCost} food)` : ''}:
               </p>
               <div className="grid grid-cols-2 gap-1">
@@ -348,7 +348,7 @@ export default function SelectedEntityPanel({
                     key={h.id}
                     onClick={() => onTame?.(h.id)}
                     disabled={tameFoodCost != null && state.resources.food < tameFoodCost}
-                    className="rounded bg-emerald-700 px-1.5 py-1 text-[8px] font-bold text-white hover:bg-emerald-600 transition-all disabled:cursor-not-allowed disabled:opacity-40"
+                    className="rounded bg-emerald-700 px-1.5 py-1 text-[10px] font-bold text-white hover:bg-emerald-600 transition-all disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     🦴 {h.name || 'Settler'}
                   </button>
@@ -362,13 +362,13 @@ export default function SelectedEntityPanel({
       {/* Family */}
       {family.length > 0 && (
         <div className="mt-2 border-t border-amber-600/20 pt-2">
-          <h4 className="mb-1 text-[9px] font-bold uppercase tracking-wider text-amber-400">Family</h4>
+          <h4 className="mb-1 text-[11px] font-bold uppercase tracking-wider text-amber-400">Family</h4>
           <div className="space-y-0.5">
             {family.map((m, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-[9px] text-amber-200">
+              <div key={i} className="flex items-center gap-1.5 text-[11px] text-amber-200">
                 <span>{m.label}</span>
                 <span className="font-semibold">{m.name}</span>
-                <span className="text-stone-500">({m.relation})</span>
+                <span className="text-stone-400">({m.relation})</span>
               </div>
             ))}
           </div>

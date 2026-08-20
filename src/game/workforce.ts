@@ -2,7 +2,7 @@
  * Workforce staffing: auto-assign, rebalance, workplace lookup, prisoner release.
  */
 import type { Building, Entity, WorldState } from './gameTypes';
-import { BuildingType, EntityType, BUILDING_CONFIGS, BUILDING_JOB_TYPES, JobType } from './gameTypes';
+import { BuildingType, EntityType, BUILDING_CONFIGS, BUILDING_JOB_TYPES, JobType, LEADER_OCCUPATION } from './gameTypes';
 import { getOccupationForBuilding, ensureEntitySkills, readSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
 import { assignMissingResidences, hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './dayCycle';
@@ -33,7 +33,13 @@ const AUTO_JOB_BUILDING_PRIORITY: BuildingType[] = [
 ];
 
 /** Job sites the player staffs manually (no auto-fill each tick). */
-const MANUAL_STAFF_BUILDINGS = new Set<BuildingType>([BuildingType.Church, BuildingType.Prison, BuildingType.Barracks, BuildingType.School]);
+const MANUAL_STAFF_BUILDINGS = new Set<BuildingType>([
+  BuildingType.Church,
+  BuildingType.Prison,
+  BuildingType.Barracks,
+  BuildingType.School,
+  BuildingType.TownHall,
+]);
 
 export function isManualStaffBuilding(type: BuildingType): boolean {
   return MANUAL_STAFF_BUILDINGS.has(type);
@@ -122,6 +128,7 @@ export function pickWorkerToTransfer(
       isPlayerHuman(h)
       && h.alive
       && !h.isJuvenile
+      && h.occupation !== LEADER_OCCUPATION
       && !h.pregnant
       && h.homeBuildingId === fromBuilding.id,
   );
@@ -135,6 +142,78 @@ export function pickWorkerToTransfer(
   return workers[0];
 }
 
+/**
+ * Named assignment transition — assign ONE living adult settler to a completed
+ * workplace. This is the single write path for `homeBuildingId`, workplace
+ * `occupants`, and workplace `occupation`/`job` consistency (SIMULATION_AUTHORITY
+ * §3 workforce row). Callers pick the candidate; this transition owns the write.
+ *
+ * Guards: completed job site, alive adult non-faction settler, not imprisoned,
+ * not pregnant, not already holding a DIFFERENT workplace (duplicate-assignment
+ * prevention — the Objective 1 invariant). Re-assigning to the same building is
+ * idempotent.
+ *
+ * Leader-aware: a leader assigned through the manual command path keeps
+ * `occupation = LEADER_OCCUPATION` (office status survives work — authority:
+ * "The leader may work in a normal workplace while retaining leader status").
+ * Auto-staff never assigns the leader (`allowLeader` defaults to false).
+ */
+export function assignWorkerTransition(
+  human: Entity,
+  building: Building,
+  opts: { allowLeader?: boolean } = {},
+): boolean {
+  const job = BUILDING_JOB_TYPES[building.type];
+  if (!job || !building.completed || building.faction === 'rival') return false;
+  if (!human.alive || human.faction || human.isJuvenile) return false;
+  if (human.prisonBuildingId != null) return false;
+  if (human.pregnant) return false;
+  if (human.occupation === LEADER_OCCUPATION && !opts.allowLeader) return false;
+  if (human.homeBuildingId != null && human.homeBuildingId !== building.id) return false;
+  if (building.occupants.includes(human.id)) return true; // idempotent
+
+  const keepOffice = human.occupation === LEADER_OCCUPATION;
+  building.occupants.push(human.id);
+  human.homeBuildingId = building.id;
+  human.occupation = keepOffice ? LEADER_OCCUPATION : getOccupationForBuilding(building.type);
+  human.job = job;
+  ensureEntitySkills(human)[job] = readSkill(human, job);
+  return true;
+}
+
+/**
+ * Named removal transition — release a settler from every workplace/crew
+ * occupants list and clear their assignment fields. Idempotent for unassigned
+ * settlers. Leader-safe: the office occupation survives removal.
+ */
+export function removeWorkerTransition(human: Entity, buildings: Building[]): void {
+  for (const building of buildings) {
+    if (building.occupants.includes(human.id)) {
+      building.occupants = building.occupants.filter((id) => id !== human.id);
+    }
+  }
+  human.homeBuildingId = undefined;
+  human.occupation = human.occupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
+  human.job = JobType.Settler;
+}
+
+/**
+ * Named transition — put a settler on an incomplete building's construction
+ * crew (occupants only; crew members hold no `homeBuildingId`). The leader
+ * never joins a crew; a settler with a job must be released first.
+ */
+export function addToConstructionCrew(human: Entity, building: Building): boolean {
+  if (building.completed || building.faction === 'rival') return false;
+  if (!human.alive || human.faction || human.isJuvenile) return false;
+  if (human.prisonBuildingId != null) return false;
+  if (human.occupation === LEADER_OCCUPATION) return false;
+  if (human.homeBuildingId != null) return false; // already working — release first
+  if (building.occupants.includes(human.id)) return true;
+  building.occupants.push(human.id);
+  return true;
+}
+
+/** Named reassign transition — move a worker between two completed workplaces. */
 export function transferWorkerBetweenBuildings(
   worker: Entity,
   fromBuilding: Building,
@@ -178,6 +257,21 @@ export function rebalanceJobWorkers(humans: Entity[], buildings: Building[]): vo
 export function syncJobBuildingOccupants(humans: Entity[], buildings: Building[]): void {
   for (const building of buildings) {
     if (!building.completed || building.faction === 'rival' || !BUILDING_JOB_TYPES[building.type]) continue;
+    if (building.type === BuildingType.Prison) {
+      // Prison occupants = guards (homeBuildingId) + prisoners (prisonBuildingId).
+      // The arrest/scandal owner and the Moon Howler restore both push prisoners
+      // into prison.occupants — a rebuild from homeBuildingId alone would wipe
+      // them on every assign pass (BUG 2026-08-20-prisoner-occupants-wiped).
+      building.occupants = humans
+        .filter(
+          (h) =>
+            h.alive
+            && !h.faction
+            && (h.homeBuildingId === building.id || h.prisonBuildingId === building.id),
+        )
+        .map((h) => h.id);
+      continue;
+    }
     building.occupants = humans
       .filter((h) => h.alive && !h.faction && h.homeBuildingId === building.id && h.prisonBuildingId == null)
       .map((h) => h.id);
@@ -196,6 +290,7 @@ export function assignWorkerInPlace(building: Building, humans: Entity[], buildi
       isPlayerHuman(h)
       && h.alive
       && !h.isJuvenile
+      && h.occupation !== LEADER_OCCUPATION
       && !hasWorkAssignment(h)
       && !isImprisoned(h)
       && !h.pregnant
@@ -205,26 +300,12 @@ export function assignWorkerInPlace(building: Building, humans: Entity[], buildi
   const worker = candidates[0];
   if (!worker) return false;
 
-  worker.homeBuildingId = building.id;
-  worker.occupation = getOccupationForBuilding(building.type);
-  worker.job = job;
-  ensureEntitySkills(worker)[job] = readSkill(worker, job);
-  if (!building.occupants.includes(worker.id)) building.occupants.push(worker.id);
-  return true;
+  return assignWorkerTransition(worker, building);
 }
 
 /** Clear a job assignment so a settler can join a construction crew. */
 function clearJobAssignment(human: Entity, buildings: Building[]): void {
-  const jobId = human.homeBuildingId;
-  if (jobId != null) {
-    const site = buildings.find((b) => b.id === jobId);
-    if (site) {
-      site.occupants = site.occupants.filter((id) => id !== human.id);
-    }
-  }
-  human.homeBuildingId = undefined;
-  human.occupation = 'settler';
-  human.job = JobType.Settler;
+  removeWorkerTransition(human, buildings);
 }
 
 export function assignBuilderInPlace(
@@ -242,6 +323,7 @@ export function assignBuilderInPlace(
       isPlayerHuman(h)
       && h.alive
       && !h.isJuvenile
+      && h.occupation !== LEADER_OCCUPATION
       && !hasWorkAssignment(h)
       && !isImprisoned(h)
       && !h.pregnant
@@ -304,6 +386,28 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
   for (const b of buildings) buildingById.set(b.id, b);
 
   for (const human of alive) {
+    // The office does not forbid a workplace (authority: the leader may work
+    // while retaining leader status and manor residency). Only repair a
+    // STALE leader assignment — missing/demolished/invalid workplace — exactly
+    // like any other worker; never repair away a valid one.
+    if (human.occupation === LEADER_OCCUPATION) {
+      if (human.homeBuildingId != null) {
+        const workplace = buildingById.get(human.homeBuildingId);
+        if (
+          !workplace
+          || !workplace.completed
+          || workplace.faction === 'rival'
+          || !BUILDING_JOB_TYPES[workplace.type]
+        ) {
+          if (workplace) {
+            workplace.occupants = workplace.occupants.filter((id) => id !== human.id);
+          }
+          human.homeBuildingId = undefined;
+          human.job = JobType.Settler;
+        }
+      }
+      continue;
+    }
     if (human.prisonBuildingId != null) {
       if (human.homeBuildingId != null) {
         human.homeBuildingId = undefined;
@@ -411,7 +515,7 @@ export function countWorkingAndIdleSettlers(
   for (const e of humans) {
     if (!e.alive || e.faction || e.isJuvenile || e.type !== EntityType.Human) continue;
     if (isImprisoned(e)) continue;
-    if (hasWorkAssignment(e) || constructionWorkers.has(e.id)) working++;
+    if (hasWorkAssignment(e) || constructionWorkers.has(e.id) || e.occupation === LEADER_OCCUPATION) working++;
     else idle++;
   }
   return { working, idle };

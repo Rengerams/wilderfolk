@@ -33,6 +33,7 @@ export const ENTITY_PERSISTED_FIELDS = [
   'moonHowlerCursed',
   'pregnantById',
   'pregnancyProgress',
+  'pregnancyDueProgress',
   'tamedBy',
   'migrationTag',
 ] as const satisfies readonly (keyof Entity)[];

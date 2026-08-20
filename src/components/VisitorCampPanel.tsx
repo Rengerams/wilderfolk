@@ -47,14 +47,14 @@ export default function VisitorCampPanel({
         <div className="flex min-w-0 items-center gap-2">
           <Emoji className="text-lg">{emoji}</Emoji>
           <div className="min-w-0">
-            <h3 className="truncate text-xs font-bold text-cyan-200">{group.name}</h3>
-            <p className="text-[9px] capitalize text-cyan-300/80">{group.kind} · {group.daysLeft}d · {group.entityIds.length} people · {group.gold ?? 0}💰</p>
+            <h3 className="truncate text-sm font-bold text-cyan-200">{group.name}</h3>
+            <p className="text-[11px] capitalize text-cyan-300/80">{group.kind} · {group.daysLeft}d · {group.entityIds.length} people · {group.gold ?? 0}💰</p>
           </div>
         </div>
         <button
           type="button"
           onClick={onFocusCamp}
-          className="shrink-0 rounded bg-cyan-900/50 px-2 py-1 text-[9px] font-bold text-cyan-100 hover:bg-cyan-800/50"
+          className="shrink-0 rounded bg-cyan-900/50 px-2 py-1 text-[11px] font-bold text-cyan-100 hover:bg-cyan-800/50"
           title="Center map on camp"
         >
           📍
@@ -65,18 +65,18 @@ export default function VisitorCampPanel({
         disabled={group.leaderTalked || !!talkMeta.unavailableReason}
         onClick={onTalkLeader}
         title={talkMeta.hint}
-        className="mb-2 w-full rounded bg-indigo-900 px-2 py-1.5 text-[9px] font-bold text-indigo-100 hover:bg-indigo-800 disabled:opacity-40"
+        className="mb-2 w-full rounded bg-indigo-900 px-2 py-1.5 text-[11px] font-bold text-indigo-100 hover:bg-indigo-800 disabled:opacity-40"
       >
         {talkMeta.buttonLabel}
       </button>
       {group.kind === 'refugees' && !(group.refugeeResolved ?? false) && (
         <div className="space-y-1">
-          <p className="text-[9px] text-stone-400">Families ask to join your village. Choose how to respond:</p>
+          <p className="text-[11px] text-stone-300">Families ask to join your village. Choose how to respond:</p>
           <button
             type="button"
             disabled={state.resources.food < 40 || state.humanPopulation >= state.maxHumanPopulation}
             onClick={() => onRefugeeChoice('welcome')}
-            className="w-full rounded bg-emerald-900 px-2 py-1 text-[8px] font-bold text-emerald-100 hover:bg-emerald-800 disabled:opacity-40"
+            className="w-full rounded bg-emerald-900 px-2 py-1 text-[10px] font-bold text-emerald-100 hover:bg-emerald-800 disabled:opacity-40"
           >
             🤝 Welcome all (40🍖) — up to 2 settlers
           </button>
@@ -84,26 +84,26 @@ export default function VisitorCampPanel({
             type="button"
             disabled={state.resources.food < 20 || state.humanPopulation >= state.maxHumanPopulation}
             onClick={() => onRefugeeChoice('screen')}
-            className="w-full rounded bg-stone-700 px-2 py-1 text-[8px] font-bold text-stone-200 hover:bg-stone-600 disabled:opacity-40"
+            className="w-full rounded bg-stone-700 px-2 py-1 text-[10px] font-bold text-stone-200 hover:bg-stone-600 disabled:opacity-40"
           >
             🔍 Screen applicants (20🍖) — maybe 1 stays
           </button>
           <button
             type="button"
             onClick={() => onRefugeeChoice('turn_away')}
-            className="w-full rounded bg-rose-900 px-2 py-1 text-[8px] font-bold text-rose-100 hover:bg-rose-800"
+            className="w-full rounded bg-rose-900 px-2 py-1 text-[10px] font-bold text-rose-100 hover:bg-rose-800"
           >
             🚪 Turn away — they leave early
           </button>
         </div>
       )}
       {group.kind === 'refugees' && (group.refugeeResolved ?? false) && (
-        <p className="text-[9px] text-stone-500">Refugee talks concluded for this group.</p>
+        <p className="text-[11px] text-stone-300">Refugee talks concluded for this group.</p>
       )}
       {canTradeKind && (
         <div className="grid grid-cols-1 gap-1">
           {state.villageReputation >= 80 || state.villageReputation <= 30 ? (
-            <p className={`text-[8px] font-semibold ${state.villageReputation >= 80 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            <p className={`text-[10px] font-semibold ${state.villageReputation >= 80 ? 'text-emerald-400' : 'text-rose-400'}`}>
               {state.villageReputation >= 80
                 ? '⭐ Reputation 80+ — friendly prices'
                 : '⚠️ Reputation 30 or less — they demand harsher terms'}
@@ -113,7 +113,7 @@ export default function VisitorCampPanel({
             type="button"
             disabled={!canBuyFood}
             onClick={() => onTrade('buy_food')}
-            className="w-full rounded bg-stone-700 px-2 py-1 text-[9px] font-bold text-stone-200 hover:bg-stone-600 disabled:opacity-40"
+            className="w-full rounded bg-stone-700 px-2 py-1 text-[11px] font-bold text-stone-200 hover:bg-stone-600 disabled:opacity-40"
           >
             Buy food · {buyFoodCost}💰 → 40🍖{foodRoom < 40 ? ` (${foodRoom}🍖 space)` : ''}
           </button>
@@ -121,7 +121,7 @@ export default function VisitorCampPanel({
             type="button"
             disabled={!canBuyWood}
             onClick={() => onTrade('buy_wood')}
-            className="w-full rounded bg-stone-700 px-2 py-1 text-[9px] font-bold text-stone-200 hover:bg-stone-600 disabled:opacity-40"
+            className="w-full rounded bg-stone-700 px-2 py-1 text-[11px] font-bold text-stone-200 hover:bg-stone-600 disabled:opacity-40"
           >
             Buy wood · {buyWoodCost}💰 → 30🪵{woodRoom < 30 ? ` (${woodRoom}🪵 space)` : ''}
           </button>
@@ -129,7 +129,7 @@ export default function VisitorCampPanel({
             type="button"
             disabled={!canSellFood}
             onClick={() => onTrade('sell_food')}
-            className="w-full rounded bg-amber-900 px-2 py-1 text-[9px] font-bold text-amber-100 hover:bg-amber-800 disabled:opacity-40"
+            className="w-full rounded bg-amber-900 px-2 py-1 text-[11px] font-bold text-amber-100 hover:bg-amber-800 disabled:opacity-40"
             title={(group.gold ?? 0) < sellFoodReward ? 'They have no gold left' : undefined}
           >
             Sell food · 30🍖 → {sellFoodReward}💰{(group.gold ?? 0) < sellFoodReward ? ' (out of gold)' : ''}
@@ -138,7 +138,7 @@ export default function VisitorCampPanel({
             type="button"
             disabled={!canSellWood}
             onClick={() => onTrade('sell_wood')}
-            className="w-full rounded bg-amber-900 px-2 py-1 text-[9px] font-bold text-amber-100 hover:bg-amber-800 disabled:opacity-40"
+            className="w-full rounded bg-amber-900 px-2 py-1 text-[11px] font-bold text-amber-100 hover:bg-amber-800 disabled:opacity-40"
             title={(group.gold ?? 0) < sellWoodReward ? 'They have no gold left' : undefined}
           >
             Sell wood · 40🪵 → {sellWoodReward}💰{(group.gold ?? 0) < sellWoodReward ? ' (out of gold)' : ''}
@@ -146,7 +146,7 @@ export default function VisitorCampPanel({
         </div>
       )}
       {!canTradeKind && group.kind !== 'refugees' && (
-        <p className="text-[9px] text-stone-500">Passive gifts each day while they camp nearby.</p>
+        <p className="text-[11px] text-stone-300">Passive gifts each day while they camp nearby.</p>
       )}
     </div>
   );

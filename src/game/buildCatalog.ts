@@ -17,7 +17,7 @@ export const BUILDING_CATEGORIES: BuildingCategoryDef[] = [
     label: 'Housing',
     icon: '🏠',
     color: 'bg-amber-500',
-    types: [BuildingType.House, BuildingType.Mansion],
+    types: [BuildingType.House, BuildingType.Mansion, BuildingType.LeaderHouse],
   },
   {
     id: 'food',

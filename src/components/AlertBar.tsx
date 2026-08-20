@@ -33,16 +33,16 @@ export default function AlertBar({ alerts, onAlert }: Props) {
           title={alert.detail}
           className={`flex max-w-[10rem] items-center gap-1 rounded-lg border px-2 py-0.5 text-left transition-colors ${SEVERITY_STYLE[alert.severity]}`}
         >
-          <Emoji className="text-xs">{alert.icon}</Emoji>
-          <span className="truncate text-[10px] font-semibold">{alert.title}</span>
-          <span className="shrink-0 text-[9px] opacity-60">→</span>
+          <Emoji className="text-sm">{alert.icon}</Emoji>
+          <span className="truncate text-xs font-semibold">{alert.title}</span>
+          <span className="shrink-0 text-[11px] opacity-60">→</span>
         </button>
       ))}
       {!expanded && hiddenCount > 0 && (
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="rounded-md px-2 py-0.5 text-[9px] font-semibold text-stone-400 hover:bg-stone-800 hover:text-stone-200"
+          className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-stone-400 hover:bg-stone-800 hover:text-stone-200"
         >
           +{hiddenCount} more
         </button>
@@ -51,7 +51,7 @@ export default function AlertBar({ alerts, onAlert }: Props) {
         <button
           type="button"
           onClick={() => setExpanded(false)}
-          className="rounded-md px-2 py-0.5 text-[9px] font-semibold text-stone-500 hover:text-stone-300"
+          className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-stone-400 hover:text-stone-300"
         >
           Less
         </button>

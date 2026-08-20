@@ -194,7 +194,10 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     hasHospital,
   };
 
-  // --- 4 layers ---
+  // --- 4 layers (FIXED order + cadence — see tests/gameTick.layerOrder.test.ts) ---
+  // realtime every tick → systems every LAYER_SYSTEMS_INTERVAL → assign every
+  // LAYER_ASSIGN_INTERVAL → daily once per TICKS_PER_DAY. Do not add a new
+  // tick layer here; new layers require an authority-document update (§4).
   tickLayerRealtime(state, ctx);
 
   if (state.tick % LAYER_SYSTEMS_INTERVAL === 0) {

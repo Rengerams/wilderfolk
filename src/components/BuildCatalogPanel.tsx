@@ -52,13 +52,13 @@ export default function BuildCatalogPanel({
         <div className="flex items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-bold text-white">Build</h2>
-            <p className="text-[11px] text-stone-500">{category.label}</p>
+            <p className="text-[13px] text-stone-300">{category.label}</p>
           </div>
           {selected && (
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-lg bg-rose-900/45 px-2 py-1 text-[11px] font-bold text-rose-200 hover:bg-rose-800/55"
+              className="rounded-lg bg-rose-900/45 px-2 py-1 text-[13px] font-bold text-rose-200 hover:bg-rose-800/55"
             >
               Cancel
             </button>
@@ -95,7 +95,7 @@ export default function BuildCatalogPanel({
 
         <div className="min-w-0 flex-1 overflow-y-auto p-2">
           {category.hint && (
-            <p className="mb-2 rounded-lg bg-stone-800/60 px-2 py-1.5 text-[10px] leading-relaxed text-stone-500">
+            <p className="mb-2 rounded-lg bg-stone-800/60 px-2 py-1.5 text-xs leading-relaxed text-stone-300">
               {category.hint}
             </p>
           )}
@@ -110,6 +110,7 @@ export default function BuildCatalogPanel({
                 && world.resources.gold >= config.cost.gold;
               const locked = config.unlockRequirement
                 && !world.unlockedTechs.includes(config.unlockRequirement);
+              const uniqueBuilt = !!config.unique && world.buildings.some((b) => b.type === type);
               const lockTech = locked && config.unlockRequirement
                 ? world.researchNodes.find((n) => n.id === config.unlockRequirement)
                 : undefined;
@@ -119,12 +120,13 @@ export default function BuildCatalogPanel({
                 <button
                   key={type}
                   type="button"
-                  onClick={() => (locked ? onLocked(type) : onSelect(type))}
-                  title={`${config.description}${hotkey ? ` · key ${hotkey}` : ''}`}
+                  onClick={() => (uniqueBuilt ? undefined : locked ? onLocked(type) : onSelect(type))}
+                  disabled={uniqueBuilt}
+                  title={uniqueBuilt ? `Only one ${config.label} per village — already built` : `${config.description}${hotkey ? ` · key ${hotkey}` : ''}`}
                   className={`flex w-full items-center gap-2.5 rounded-xl border-2 px-2.5 py-2 text-left transition-all ${
                     isSelected
                       ? 'border-emerald-400 bg-emerald-500/25 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-400/40'
-                      : locked
+                      : locked || uniqueBuilt
                         ? 'border-stone-700 bg-stone-800/50 opacity-50'
                         : affordable
                           ? 'border-stone-600 bg-stone-800/70 hover:border-emerald-500/45 hover:bg-stone-800'
@@ -143,25 +145,30 @@ export default function BuildCatalogPanel({
                         {config.label}
                       </span>
                       {hotkey && (
-                        <span className="rounded bg-stone-900 px-1.5 py-px text-[10px] font-bold text-emerald-400">
+                        <span className="rounded bg-stone-900 px-1.5 py-px text-xs font-bold text-emerald-400">
                           {hotkey}
                         </span>
                       )}
-                      {locked && <span className="text-[10px]" title="Locked">🔒</span>}
+                      {locked && <span className="text-xs" title="Locked">🔒</span>}
                     </span>
                     <ResourceCost
                       cost={{ wood: config.cost.wood, stone: config.cost.stone, gold: config.cost.gold }}
                       className="mt-0.5"
                       iconClassName="h-2.5 w-2.5"
-                      amountClassName="font-mono text-[10px] font-semibold leading-none"
+                      amountClassName="font-mono text-xs font-semibold leading-none"
                     />
                     {locked && lockTech && (
-                      <span className="mt-0.5 block text-[10px] font-medium text-amber-500/90">
+                      <span className="mt-0.5 block text-xs font-medium text-amber-500/90">
                         Needs {lockTech.name}
                       </span>
                     )}
+                    {uniqueBuilt && (
+                      <span className="mt-0.5 block text-xs font-medium text-amber-500/90">
+                        Already built — one per village
+                      </span>
+                    )}
                     {!locked && (
-                      <span className="mt-0.5 block text-[10px] leading-snug text-stone-600">
+                      <span className="mt-0.5 block text-xs leading-relaxed text-stone-400">
                         {config.description}
                       </span>
                     )}
@@ -175,7 +182,7 @@ export default function BuildCatalogPanel({
 
       {selected && BUILDING_CONFIGS[selected] && (
         <div className="shrink-0 border-t border-stone-700/60 bg-stone-900/40 p-1.5">
-          <p className="text-center text-[9px] font-medium text-stone-500">
+          <p className="text-center text-[11px] font-medium text-stone-300">
             Placing {BUILDING_CONFIGS[selected].label} — <kbd className="rounded bg-stone-800 px-1 text-stone-400">Esc</kbd> or right-click stops
           </p>
         </div>
@@ -185,7 +192,7 @@ export default function BuildCatalogPanel({
         <button
           type="button"
           onClick={onToggleGrid}
-          className={`w-full rounded-xl border px-3 py-2.5 text-xs font-bold transition-all ${
+          className={`w-full rounded-xl border px-3 py-2.5 text-sm font-bold transition-all ${
             showGrid
               ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
               : 'border-stone-700 bg-stone-800 text-stone-400 hover:border-stone-600 hover:text-stone-300'

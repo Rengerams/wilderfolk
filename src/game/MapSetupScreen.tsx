@@ -226,14 +226,14 @@ export default function MapSetupScreen({
           />
           <div>
             <h1 className="text-sm font-bold tracking-wide text-white sm:text-base">New settlement</h1>
-            <p className="text-[10px] text-stone-500">Choose your valley before the pioneers arrive</p>
+            <p className="text-xs text-stone-300">Choose your valley before the pioneers arrive</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="hidden rounded-full bg-amber-900/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300 ring-1 ring-amber-600/30 sm:inline">
+          <span className="hidden rounded-full bg-amber-900/40 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-300 ring-1 ring-amber-600/30 sm:inline">
             {GAME_PHASE}
           </span>
-          <span className="text-[10px] text-stone-600">v{GAME_VERSION}</span>
+          <span className="text-xs text-stone-600">v{GAME_VERSION}</span>
         </div>
       </header>
 
@@ -241,8 +241,8 @@ export default function MapSetupScreen({
         {/* Settlement name — slim signpost */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-widest text-emerald-400">Settlement name</h2>
-            <p className="mt-0.5 text-[11px] text-stone-500">Your pioneers will carry this name in the chronicle.</p>
+            <h2 className="text-sm font-bold uppercase tracking-widest text-emerald-400">Settlement name</h2>
+            <p className="mt-0.5 text-[13px] text-stone-300">Your pioneers will carry this name in the chronicle.</p>
           </div>
           <div className="relative sm:w-64">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm">🏷️</span>
@@ -262,8 +262,8 @@ export default function MapSetupScreen({
         {/* Choose your land — painted gallery */}
         <section>
           <div className="mb-2 flex items-baseline justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-emerald-400">Choose your land</h2>
-            <span className="text-[10px] text-stone-500">6 valleys, each with its own mood</span>
+            <h2 className="text-sm font-bold uppercase tracking-widest text-emerald-400">Choose your land</h2>
+            <span className="text-xs text-stone-400">6 valleys, each with its own mood</span>
           </div>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {presets.map((preset, i) => {
@@ -287,14 +287,14 @@ export default function MapSetupScreen({
                       <span className={`block text-sm font-bold ${selected ? 'text-emerald-200' : 'text-stone-100'}`}>
                         {info.label}
                       </span>
-                      <span className="mt-0.5 block text-[10px] leading-snug text-stone-400">{info.blurb}</span>
-                      <span className="mt-1 block text-[9px] font-semibold uppercase tracking-wider text-stone-500">
+                      <span className="mt-0.5 block text-xs leading-relaxed text-stone-300">{info.blurb}</span>
+                      <span className="mt-1 block text-[11px] font-semibold uppercase tracking-wider text-stone-400">
                         {info.forTag}
                       </span>
                     </span>
                   </div>
                   {selected && (
-                    <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-stone-950 shadow">
+                    <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-xs font-black text-stone-950 shadow">
                       ✓
                     </span>
                   )}
@@ -308,8 +308,8 @@ export default function MapSetupScreen({
         <section className="rounded-xl border border-stone-700/60 bg-stone-900/70 px-4 py-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xs font-bold uppercase tracking-widest text-emerald-400">Map size</h2>
-              <p className="mt-0.5 text-[11px] text-stone-500">Larger maps mean more wilderness — and more to manage.</p>
+              <h2 className="text-sm font-bold uppercase tracking-widest text-emerald-400">Map size</h2>
+              <p className="mt-0.5 text-[13px] text-stone-300">Larger maps mean more wilderness — and more to manage.</p>
             </div>
             <div className="flex gap-1 rounded-lg border border-stone-700 bg-stone-800/80 p-1">
               {sizes.map((size) => {
@@ -321,14 +321,14 @@ export default function MapSetupScreen({
                     key={size}
                     type="button"
                     onClick={() => onSizeChange(size)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                    className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-all ${
                       selected
                         ? 'bg-emerald-500/25 text-emerald-200 ring-1 ring-emerald-500/40'
                         : 'text-stone-400 hover:text-stone-200'
                     }`}
                   >
                     {label}
-                    <span className="ml-1 hidden text-[9px] font-normal opacity-70 sm:inline">
+                    <span className="ml-1 hidden text-[11px] font-normal opacity-70 sm:inline">
                       {dims.width}×{dims.height}
                     </span>
                   </button>
@@ -342,16 +342,16 @@ export default function MapSetupScreen({
           <section className="rounded-xl border border-stone-700/60 bg-stone-900/70 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-400">
+                <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-emerald-400">
                   💡 Tutorial tips
-                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/30">
+                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/30">
                     Tips
                   </span>
                 </h2>
-                <p className="mt-0.5 text-[11px] text-stone-500">Help cards appear when something new happens.</p>
+                <p className="mt-0.5 text-[13px] text-stone-300">Help cards appear when something new happens.</p>
               </div>
               <label className="flex cursor-pointer items-center gap-2">
-                <span className={`text-xs ${tutorialsEnabled !== false ? 'text-stone-200' : 'text-stone-500'}`}>
+                <span className={`text-sm ${tutorialsEnabled !== false ? 'text-stone-200' : 'text-stone-400'}`}>
                   {tutorialsEnabled !== false ? 'On' : 'Off'}
                 </span>
                 <input
@@ -369,18 +369,18 @@ export default function MapSetupScreen({
           <section className="rounded-xl border border-stone-700/60 bg-stone-900/70 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-400">
+                <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-emerald-400">
                   🎓 First-spring guide
-                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/30">
+                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/30">
                     Guide
                   </span>
                 </h2>
-                <p className="mt-0.5 text-[11px] text-stone-500">
+                <p className="mt-0.5 text-[13px] text-stone-300">
                   A step-by-step guide walks you through your first year — build a house, plant food, survive winter. You can skip it anytime.
                 </p>
               </div>
               <label className="flex cursor-pointer items-center gap-2">
-                <span className={`text-xs ${tutorialChoice !== false ? 'text-emerald-200' : 'text-stone-500'}`}>
+                <span className={`text-sm ${tutorialChoice !== false ? 'text-emerald-200' : 'text-stone-400'}`}>
                   {tutorialChoice !== false ? 'On' : 'Off'}
                 </span>
                 <input
@@ -394,7 +394,7 @@ export default function MapSetupScreen({
           </section>
         )}
 
-        <p className="text-center text-[10px] leading-relaxed text-stone-500">
+        <p className="text-center text-xs leading-relaxed text-stone-300">
           Playtest build — bugs and features still in flux. Difficulty scales with the land you pick.
         </p>
       </main>
@@ -405,7 +405,7 @@ export default function MapSetupScreen({
             <button
               type="button"
               onClick={onBack}
-              className="order-2 rounded-lg border border-stone-700 px-4 py-2.5 text-xs font-semibold text-stone-400 transition-all hover:border-stone-600 hover:text-stone-200 sm:order-1"
+              className="order-2 rounded-lg border border-stone-700 px-4 py-2.5 text-sm font-semibold text-stone-400 transition-all hover:border-stone-600 hover:text-stone-200 sm:order-1"
             >
               {backLabel}
             </button>

@@ -494,11 +494,20 @@ export function formatHour(hour: number): string {
 }
 
 export function isResidenceBuilding(b: Building): boolean {
-  return b.completed && (b.type === BuildingType.House || b.type === BuildingType.Mansion);
+  return b.completed && isResidenceBuildingType(b.type);
 }
 
 export function isResidenceBuildingType(type: BuildingType): boolean {
-  return type === BuildingType.House || type === BuildingType.Mansion;
+  return type === BuildingType.House || type === BuildingType.Mansion || type === BuildingType.LeaderHouse;
+}
+
+/**
+ * The Leader's House is reserved housing: the elected leader's household lives there
+ * by office (see leaderHouse.ts), so the general housing balancer must never move
+ * outsiders IN nor the resident household OUT. Every chooser below skips it.
+ */
+export function isLeaderHouseResidence(b: Building): boolean {
+  return b.type === BuildingType.LeaderHouse;
 }
 
 /** Base occupants + bonus from house/mansion upgrades (+2 slots per level above 1). */
@@ -640,6 +649,7 @@ function pickLeastCrowdedResidence(
   let best: Building | undefined;
   let bestCount = Infinity;
   for (const residence of residences) {
+    if (isLeaderHouseResidence(residence)) continue;
     if (options.forbidSinglesOnly && residenceHostsOnlySingles(residence.id, humans)) continue;
     const cap = getResidenceCapacity(residence);
     const count = countResidentsInBuilding(humans, residence.id, occupancy);
@@ -779,6 +789,7 @@ function pickOrphanResidence(
   let best: Building | undefined;
   let bestScore = Infinity;
   for (const residence of residences) {
+    if (isLeaderHouseResidence(residence)) continue;
     if (!residenceRoomFor(child, residence, alive)) continue;
     if (residenceHostsOnlySingles(residence.id, alive)) continue;
     const count = countResidentsInBuilding(alive, residence.id);
@@ -1031,12 +1042,19 @@ export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
   residences: Building[],
 ): void {
   let emptyHomeIds = residences
-    .filter((r) => countResidentsInBuilding(humans, r.id) === 0)
+    .filter((r) => !isLeaderHouseResidence(r) && countResidentsInBuilding(humans, r.id) === 0)
     .map((r) => r.id);
   if (emptyHomeIds.length === 0) return;
 
+  const leaderHouseIds = new Set(
+    residences.filter(isLeaderHouseResidence).map((r) => r.id),
+  );
   const candidates = humans
-    .filter((h) => isAdultChildAtHome(h, humans))
+    .filter(
+      (h) =>
+        isAdultChildAtHome(h, humans)
+        && (h.residenceBuildingId == null || !leaderHouseIds.has(h.residenceBuildingId)),
+    )
     .sort((a, b) => b.age - a.age || a.id - b.id);
 
   const moved = new Set<number>();
@@ -1196,7 +1214,8 @@ function hasEmptyResidenceForUnit(
 ): boolean {
   return residences.some(
     (r) =>
-      countResidentsInBuilding(humans, r.id, occupancy) === 0
+      !isLeaderHouseResidence(r)
+      && countResidentsInBuilding(humans, r.id, occupancy) === 0
       && familyFitsInResidence(unit, r, humans, occupancy),
   );
 }
@@ -1210,6 +1229,7 @@ function hasSinglesOnlyResidenceWithRoom(
   occupancy?: ResidenceOccupancy,
 ): boolean {
   return residences.some((r) => {
+    if (isLeaderHouseResidence(r)) return false;
     if (excludeResidenceId != null && r.id === excludeResidenceId) return false;
     if (!familyFitsInResidence(unit, r, humans, occupancy)) return false;
     const count = countResidentsInBuilding(humans, r.id, occupancy);
@@ -1238,6 +1258,10 @@ export function isUnnecessarilySharingHousing(
   if (!isFamilyHousingValid(unit, residences, humans, occupancy)) return false;
   const homeId = unitResidenceId(unit);
   if (homeId == null) return false;
+
+  const home = residences.find((r) => r.id === homeId);
+  // The leader's household is placed by office, never "unnecessarily sharing".
+  if (home && isLeaderHouseResidence(home)) return false;
 
   if (isLoneSettler(unit, humans)) {
     if (!loneSingleSharesWithFamily(unit, humans, homeId)) return false;
@@ -1290,6 +1314,10 @@ export function housingUnitNeedsReassignment(
   if (!isFamilyHousingValid(unit, residences, alive, occupancy)) return true;
   const homeId = unitResidenceId(unit);
   if (homeId == null) return true;
+
+  // The leader's household keeps the manor until leadership changes (leaderHouse.ts).
+  const home = residences.find((r) => r.id === homeId);
+  if (home && isLeaderHouseResidence(home)) return false;
 
   if (isLoneSettler(unit, alive)) {
     if (!unitSharesResidenceWithOutsiders(unit, alive, homeId)) return false;
@@ -1358,7 +1386,9 @@ function anyOpenBeds(
   occupancy?: ResidenceOccupancy,
 ): boolean {
   return residences.some(
-    (r) => countResidentsInBuilding(humans, r.id, occupancy) < getResidenceCapacity(r),
+    (r) =>
+      !isLeaderHouseResidence(r)
+      && countResidentsInBuilding(humans, r.id, occupancy) < getResidenceCapacity(r),
   );
 }
 
@@ -1373,6 +1403,7 @@ function pickSharedResidenceForFamily(
   let bestScore = Infinity;
 
   for (const residence of residences) {
+    if (isLeaderHouseResidence(residence)) continue;
     if (!familyFitsInResidence(family, residence, humans, occupancy)) continue;
 
     const count = countResidentsInBuilding(humans, residence.id, occupancy);
@@ -1402,13 +1433,14 @@ export function pickResidenceForFamily(
   const hasMinor = family.some((m) => isMinorChild(m));
   // Prefer map-backed empty checks when occupancy is provided (EK-E2).
   const anyEmptyHouse = residences.some(
-    (r) => countResidentsInBuilding(humans, r.id, occupancy) === 0,
+    (r) => !isLeaderHouseResidence(r) && countResidentsInBuilding(humans, r.id, occupancy) === 0,
   );
   const housingShortage = !anyEmptyHouse || !anyOpenBeds(humans, residences, occupancy);
 
   let best: Building | undefined;
   let bestScore = Infinity;
   for (const residence of residences) {
+    if (isLeaderHouseResidence(residence)) continue;
     if (!familyFitsInResidence(family, residence, humans, occupancy)) continue;
 
     const count = countResidentsInBuilding(humans, residence.id, occupancy);
@@ -1420,6 +1452,7 @@ export function pickResidenceForFamily(
     const singlesAlternative = residences.some(
       (r) =>
         r.id !== residence.id
+        && !isLeaderHouseResidence(r)
         && familyFitsInResidence(family, r, humans, occupancy)
         && (countResidentsInBuilding(humans, r.id, occupancy) === 0
           || residenceHostsOnlySingles(r.id, humans)),
@@ -1536,6 +1569,7 @@ function pickSharedResidence(
   let best: Building | undefined;
   let bestCount = Infinity;
   for (const residence of residences) {
+    if (isLeaderHouseResidence(residence)) continue;
     const cap = getResidenceCapacity(residence);
     let count = countResidentsInBuilding(humans, residence.id);
     let slots = needed;
@@ -1563,6 +1597,8 @@ export function rebalanceOvercrowdedResidences(
 ): boolean {
   let evicted = false;
   for (const residence of residences) {
+    // The leader's household is never overcrowd-evicted from the manor.
+    if (isLeaderHouseResidence(residence)) continue;
     const cap = getResidenceCapacity(residence);
     const occupants = humans.filter(
       (h) => h.alive && !h.faction && h.residenceBuildingId === residence.id,

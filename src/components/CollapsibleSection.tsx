@@ -41,18 +41,18 @@ export default function CollapsibleSection({
         {icon && <span className="text-sm leading-none">{icon}</span>}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-[11px] font-bold text-stone-200">{title}</h3>
+            <h3 className="text-[13px] font-bold text-stone-200">{title}</h3>
             {badge != null && badge !== '' && (
-              <span className="rounded-full bg-stone-700 px-1.5 py-0.5 text-[8px] font-bold text-stone-300">
+              <span className="rounded-full bg-stone-700 px-1.5 py-0.5 text-[10px] font-bold text-stone-300">
                 {badge}
               </span>
             )}
           </div>
           {subtitle && !open && (
-            <p className="truncate text-[11px] text-stone-500">{subtitle}</p>
+            <p className="truncate text-[13px] text-stone-300">{subtitle}</p>
           )}
         </div>
-        <span className={`shrink-0 text-[11px] text-stone-500 transition-transform ${open ? 'rotate-180' : ''}`}>
+        <span className={`shrink-0 text-[13px] text-stone-400 transition-transform ${open ? 'rotate-180' : ''}`}>
           ▾
         </span>
       </button>

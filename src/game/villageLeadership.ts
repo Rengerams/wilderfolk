@@ -8,6 +8,7 @@ import { isPlayerHuman } from './playerHuman';
 import { sayHumanChatPhrase } from './humanChat';
 import { ensureEntitySkills } from './skills';
 import { simulateElectionVotes } from './electionVotes';
+import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
 
 /**
  * Scheduled term length (colony years).
@@ -416,10 +417,13 @@ export function findFoundingColonyLeader(state: WorldState): Entity | null {
 
 /** First male pioneer leads at founding — no merit vote until Year ELECTION_INTERVAL_YEARS. */
 export function appointFoundingLeader(state: WorldState, entity: Entity): void {
+  const prevLeaderId = state.villageLeaderId;
   state.villageLeaderId = entity.id;
   state.leaderSinceYear = state.year;
   state.lastElectionYear = 0;
   state.pendingElectionYear = null;
+  applyLeaderOccupation(state, prevLeaderId);
+  syncLeaderHouseResidency(state);
   const name = formatSettlerName(entity);
   logEvent(
     state,
@@ -738,6 +742,8 @@ export function runVillageElection(
 
   state.villageLeaderId = winner.entityId;
   state.leaderSinceYear = year;
+  applyLeaderOccupation(state, prevId);
+  syncLeaderHouseResidency(state);
   if (reason === 'decennial' || reason === 'founding') {
     state.lastElectionYear = year;
   }
@@ -918,7 +924,12 @@ export function validateVillageLeaderOnLoad(state: WorldState): void {
     state.pendingElectionYear = null;
   }
   const leader = getVillageLeader(state);
-  if (leader) return;
+  if (leader) {
+    // Reconcile legacy saves that predate Leader's House wiring.
+    applyLeaderOccupation(state, null);
+    syncLeaderHouseResidency(state);
+    return;
+  }
   if (state.pendingElectionYear != null) return;
   if (state.lastElectionYear === 0) {
     const founder = findFoundingColonyLeader(state);

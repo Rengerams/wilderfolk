@@ -57,12 +57,12 @@ function FrontierPanel({
     const year = state.year ?? 0;
     return (
       <div className="rounded-xl border border-dashed border-stone-600 bg-stone-800/40 p-4 text-center">
-        <p className="text-[11px] text-stone-400">No caravans or rival camps yet.</p>
-        <p className="mt-1 text-[11px] text-stone-500">
+        <p className="text-[13px] text-stone-300">No caravans or rival camps yet.</p>
+        <p className="mt-1 text-[13px] text-stone-300">
           Grow your village — trade caravans arrive as reputation spreads.
         </p>
         {year < 2 && (
-          <p className="mt-2 text-[11px] text-amber-400/90">
+          <p className="mt-2 text-[13px] text-amber-400/90">
             Rival camps usually appear from Year 2 onward (you are Year {year}).
           </p>
         )}
@@ -73,35 +73,35 @@ function FrontierPanel({
   return (
     <div className="space-y-3">
       <div className="rounded-lg border border-slate-600/50 bg-slate-950/40 px-3 py-2">
-        <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">Village readiness</h4>
-        <p className="mb-2 text-[8px] leading-relaxed text-stone-500">
+        <h4 className="mb-1.5 text-[13px] font-bold uppercase tracking-wider text-slate-400">Village readiness</h4>
+        <p className="mb-2 text-[10px] leading-relaxed text-stone-300">
           Raids test prep you already made — no battle screen. Stock spears, walls, guards, and tribute food before they arrive.
         </p>
-        <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+        <div className="grid grid-cols-2 gap-1.5 text-[13px]">
           <div className="rounded bg-stone-800/80 px-2 py-1">
-            <div className="text-stone-500">Militia</div>
+            <div className="text-stone-400">Militia</div>
             <strong className="text-emerald-300">{militia.militiaStrength}</strong>
           </div>
           <div className="rounded bg-stone-800/80 px-2 py-1">
-            <div className="text-stone-500">Barricade</div>
+            <div className="text-stone-400">Barricade</div>
             <strong className="text-cyan-300">{militia.barricadeStrength}</strong>
           </div>
           <div className="rounded bg-stone-800/80 px-2 py-1">
-            <div className="text-stone-500">Guards</div>
+            <div className="text-stone-400">Guards</div>
             <strong className={guards > 0 ? 'text-violet-300' : 'text-amber-400'}>
               {guards}{barracksCount > 0 ? ` / ${barracksCount} barracks` : ''}
             </strong>
           </div>
           <div className="rounded bg-stone-800/80 px-2 py-1">
-            <div className="text-stone-500">Walls</div>
+            <div className="text-stone-400">Walls</div>
             <strong className="text-stone-300">{wallSegments} seg.</strong>
           </div>
         </div>
-        <p className="mt-1.5 text-[8px] text-stone-500">🏹 {armament} · assign guards in Barracks inspector</p>
+        <p className="mt-1.5 text-[10px] text-stone-300">🏹 {armament} · assign guards in Barracks inspector</p>
       </div>
 
       {(pendingRaidCount > 0 || pendingOutgoingRaidCount > 0 || pendingDiplomacyCount > 0) && (
-        <div className="rounded-lg border border-rose-500/30 bg-rose-950/25 px-3 py-2 text-[11px] text-rose-200">
+        <div className="rounded-lg border border-rose-500/30 bg-rose-950/25 px-3 py-2 text-[13px] text-rose-200">
           {pendingRaidCount > 0 && <p>⚔️ {pendingRaidCount} incoming raid(s) — respond in the map banner</p>}
           {pendingOutgoingRaidCount > 0 && (
             <p className={pendingRaidCount > 0 ? 'mt-0.5' : ''}>
@@ -132,7 +132,7 @@ function FrontierPanel({
 
       {state.visitorGroups.length > 0 && (
         <div>
-          <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-cyan-400">Visitors</h4>
+          <h4 className="mb-1.5 text-[13px] font-bold uppercase tracking-wider text-cyan-400">Visitors</h4>
           <div className="space-y-1.5">
             {state.visitorGroups.map((g) => (
               <button
@@ -142,12 +142,12 @@ function FrontierPanel({
                 className="flex w-full items-center justify-between gap-2 rounded-lg bg-stone-800/60 px-2.5 py-2 text-left transition-colors hover:bg-cyan-900/30"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-[11px] font-bold text-cyan-200">🧳 {g.name}</p>
-                  <p className="text-[11px] capitalize text-stone-500">
+                  <p className="truncate text-[13px] font-bold text-cyan-200">🧳 {g.name}</p>
+                  <p className="text-[13px] capitalize text-stone-300">
                     {g.kind} · {g.daysLeft}d · click for trade &amp; leader
                   </p>
                 </div>
-                <span className="shrink-0 text-[11px] text-cyan-500">→</span>
+                <span className="shrink-0 text-[13px] text-cyan-500">→</span>
               </button>
             ))}
           </div>
@@ -156,7 +156,7 @@ function FrontierPanel({
 
       {state.rivalSettlements.length > 0 && (
         <div>
-          <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-400">Rival camps</h4>
+          <h4 className="mb-1.5 text-[13px] font-bold uppercase tracking-wider text-amber-400">Rival camps</h4>
           <div className="space-y-1.5">
             {state.rivalSettlements.map((r) => {
               const hasRaid = pendingRaids.some((e) => e.rivalId === r.id);
@@ -175,16 +175,16 @@ function FrontierPanel({
                     className="flex w-full flex-col gap-1 text-left transition-colors hover:opacity-90"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-[11px] font-bold text-amber-200">🏕️ {r.name}</p>
-                      <span className="shrink-0 text-[11px] capitalize text-amber-400">{formatRivalRelationshipLabel(r)}</span>
+                      <p className="truncate text-[13px] font-bold text-amber-200">🏕️ {r.name}</p>
+                      <span className="shrink-0 text-[13px] capitalize text-amber-400">{formatRivalRelationshipLabel(r)}</span>
                     </div>
-                    <p className="text-[11px] text-stone-500">
+                    <p className="text-[13px] text-stone-300">
                       {formatRivalPopulationLabel(r)} · {formatCampDistance(getCampDistancePixels(state, state.buildings, r))}
                       · raid {raidFoodCost}🍖
                       {isRivalAtPeace(r) && <span className="text-cyan-400"> · 🕊️ {r.peaceTreatyDays}d</span>}
                     </p>
                     {(hasRaid || hasDiplo) && (
-                      <p className="text-[8px] font-bold text-rose-400">
+                      <p className="text-[10px] font-bold text-rose-400">
                         {(() => {
                           const pendingRaid = pendingRaids.find((e) => e.rivalId === r.id);
                           return hasRaid && pendingRaid
@@ -195,7 +195,7 @@ function FrontierPanel({
                         {hasDiplo ? '📜 Diplomacy pending' : ''}
                       </p>
                     )}
-                    <p className="text-[8px] text-stone-600">Open camp on map for gifts, peace, diplomacy →</p>
+                    <p className="text-[10px] text-stone-600">Open camp on map for gifts, peace, diplomacy →</p>
                   </button>
                   {onLaunchRaid && (
                     <button
@@ -206,7 +206,7 @@ function FrontierPanel({
                         e.stopPropagation();
                         onLaunchRaid(r.id);
                       }}
-                      className="mt-1.5 w-full rounded bg-orange-950 px-2 py-1 text-[8px] font-bold text-orange-100 hover:bg-orange-900 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="mt-1.5 w-full rounded bg-orange-950 px-2 py-1 text-[10px] font-bold text-orange-100 hover:bg-orange-900 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       🏹 {outgoingRaidAction.buttonLabel} ({raidFoodCost}🍖)
                     </button>

@@ -111,6 +111,8 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/bush.png',
     '/sprites/stump.png',
     '/sprites/tile_pavement.png',
+    // Leader's manor — not yet wired to a BuildingType, preloaded explicitly.
+    '/sprites/house_leader.png',
     '/sprites/human_male.png',
     '/sprites/human_female.png',
     // Seamless ground fills (Phase A terrain — stamped in bakeTerrainLayer)

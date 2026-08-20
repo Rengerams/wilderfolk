@@ -46,7 +46,7 @@ export default function ResourceCost({
   cost,
   className = '',
   iconClassName = 'h-3 w-3',
-  amountClassName = 'font-mono text-[10px] font-semibold leading-none',
+  amountClassName = 'font-mono text-xs font-semibold leading-none',
   emptyLabel = 'Free',
 }: Props) {
   const entries = resourceCostEntries(cost);
@@ -58,7 +58,7 @@ export default function ResourceCost({
     <span className={`inline-flex flex-wrap items-center gap-x-1 gap-y-0.5 ${className}`}>
       {entries.map(({ key, amount }, index) => (
         <Fragment key={key}>
-          {index > 0 && <span className="text-[9px] text-stone-600" aria-hidden>·</span>}
+          {index > 0 && <span className="text-[11px] text-stone-600" aria-hidden>·</span>}
           <span className={`inline-flex items-center gap-0.5 ${RESOURCE_TONE[key]}`}>
             <ResourceIcon resource={key} className={iconClassName} />
             <span className={amountClassName}>{amount}</span>

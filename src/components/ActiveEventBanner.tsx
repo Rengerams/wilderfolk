@@ -35,8 +35,8 @@ export default function ActiveEventBanner({
         <Emoji className="text-lg">{event.emoji}</Emoji>
         <div className="min-w-0">
           <h3 className="truncate text-sm font-bold text-white">{event.title}</h3>
-          <p className="line-clamp-2 text-[11px] text-stone-300">{event.description}</p>
-          <p className={`mt-0.5 truncate text-[10px] font-semibold ${
+          <p className="line-clamp-2 text-[13px] text-stone-300">{event.description}</p>
+          <p className={`mt-0.5 truncate text-xs font-semibold ${
             event.type === 'positive' ? 'text-emerald-400' :
             event.type === 'negative' ? 'text-rose-400' : 'text-amber-400'
           }`}>{event.effect}</p>

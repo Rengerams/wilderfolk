@@ -32,7 +32,7 @@ const EVENT_ICONS: Record<GameEventLog['type'], string> = {
 
 const EVENT_COLORS: Record<GameEventLog['type'], string> = {
   birth: 'text-pink-400',
-  death: 'text-stone-500',
+  death: 'text-stone-400',
   marriage: 'text-amber-400',
   scandal: 'text-rose-400',
   building: 'text-emerald-400',
@@ -122,7 +122,7 @@ export default function EventLogPanel({ events, meta }: Props) {
 
   if (events.length === 0) {
     return (
-      <div className="flex h-40 items-center justify-center text-[11px] text-stone-500">
+      <div className="flex h-40 items-center justify-center text-[13px] text-stone-400">
         <div className="text-center">
           <span className="mb-2 block text-2xl">📜</span>
           <p>No events yet.</p>
@@ -140,7 +140,7 @@ export default function EventLogPanel({ events, meta }: Props) {
             key={opt.id}
             type="button"
             onClick={() => setFilter(opt.id)}
-            className={`rounded px-1.5 py-0.5 text-[8px] font-semibold transition-all ${
+            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition-all ${
               filter === opt.id
                 ? 'bg-amber-600 text-white'
                 : 'bg-stone-800 text-stone-400 hover:bg-stone-700 hover:text-stone-200'
@@ -151,7 +151,7 @@ export default function EventLogPanel({ events, meta }: Props) {
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-stone-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-stone-400">
         <span>
           {allFiltered.length > IN_GAME_LOG_LIMIT
             ? `Showing ${filtered.length} of ${allFiltered.length.toLocaleString()} ${filter === 'all' ? '' : filter}`
@@ -190,7 +190,7 @@ export default function EventLogPanel({ events, meta }: Props) {
         </div>
       </div>
 
-      <label className="flex cursor-pointer items-start gap-2 text-[11px] text-stone-500">
+      <label className="flex cursor-pointer items-start gap-2 text-[13px] text-stone-400">
         <input
           type="checkbox"
           checked={exportOnSave}
@@ -206,9 +206,9 @@ export default function EventLogPanel({ events, meta }: Props) {
         {filtered.map((evt) => (
           <div
             key={evt.id}
-            className="flex items-start gap-1.5 rounded-lg bg-stone-800/40 px-2 py-1 text-[11px] transition-colors hover:bg-stone-700/60"
+            className="flex items-start gap-1.5 rounded-lg bg-stone-800/40 px-2 py-1 text-[13px] transition-colors hover:bg-stone-700/60"
           >
-            <span className="mt-0.5 shrink-0 text-xs" title={evt.type}>
+            <span className="mt-0.5 shrink-0 text-sm" title={evt.type}>
               {EVENT_ICONS[evt.type]}
             </span>
             <div className="min-w-0 flex-1">
@@ -222,11 +222,11 @@ export default function EventLogPanel({ events, meta }: Props) {
           </div>
         ))}
         {filtered.length === 0 && (
-          <p className="py-4 text-center text-[11px] text-stone-500">No events in this category.</p>
+          <p className="py-4 text-center text-[13px] text-stone-300">No events in this category.</p>
         )}
       </div>
 
-      <p className="text-[8px] leading-relaxed text-stone-600">
+      <p className="text-[10px] leading-relaxed text-stone-600">
         Newest first · {events.length.toLocaleString()} entries stored. In-game panel shows the latest {IN_GAME_LOG_LIMIT}; use Download to get the full data set.
       </p>
     </div>

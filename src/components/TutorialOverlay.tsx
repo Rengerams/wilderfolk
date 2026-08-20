@@ -33,12 +33,12 @@ export default function TutorialOverlay({
         <div className="mb-3 flex items-start justify-between gap-2">
           <div>
             <h2 className="text-lg font-bold text-white">Quick start</h2>
-            <p className="text-[11px] text-stone-400">Step {tutorialStep + 1} of {QUICK_START_STEPS.length}</p>
+            <p className="text-[13px] text-stone-300">Step {tutorialStep + 1} of {QUICK_START_STEPS.length}</p>
           </div>
           <button
             type="button"
             onClick={onFinish}
-            className="shrink-0 rounded-md px-2 py-1 text-[10px] font-semibold text-stone-400 hover:bg-stone-700 hover:text-stone-200"
+            className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-stone-400 hover:bg-stone-700 hover:text-stone-200"
           >
             Skip →
           </button>
@@ -91,7 +91,7 @@ export default function TutorialOverlay({
         <button
           type="button"
           onClick={onDisableAll}
-          className="mt-3 w-full text-center text-[10px] font-semibold text-stone-500 hover:text-stone-300"
+          className="mt-3 w-full text-center text-xs font-semibold text-stone-400 hover:text-stone-300"
         >
           Don&apos;t show tutorials again
         </button>

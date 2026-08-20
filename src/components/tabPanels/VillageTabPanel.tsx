@@ -21,7 +21,7 @@ interface StatBadgeProps {
 
 const StatBadge = memo(function StatBadge({ label, value, icon, title }: StatBadgeProps) {
   return (
-    <div title={title} className="flex items-center justify-between rounded bg-stone-600/30 px-2 py-1 text-[11px]">
+    <div title={title} className="flex items-center justify-between rounded bg-stone-600/30 px-2 py-1 text-[13px]">
       <span className="text-stone-400">{icon} {label}</span>
       <span className="font-bold text-stone-200">{value}</span>
     </div>
@@ -35,7 +35,7 @@ const FoodLedger = memo(function FoodLedger({ state }: { state: WorldState }) {
   const consumedEntries = ledger ? Object.entries(ledger.consumed) : [];
   if (producedEntries.length === 0 && consumedEntries.length === 0) {
     return (
-      <p className="text-[11px] text-stone-500">
+      <p className="text-[13px] text-stone-300">
         No food produced or eaten yet today — build farms or a hunting spot and staff them.
       </p>
     );
@@ -44,7 +44,7 @@ const FoodLedger = memo(function FoodLedger({ state }: { state: WorldState }) {
   const consumed = consumedEntries.reduce((sum, [, v]) => sum + v, 0);
   const net = produced - consumed;
   return (
-    <div className="space-y-1 text-[11px]">
+    <div className="space-y-1 text-[13px]">
       {producedEntries.map(([src, v]) => (
         <div key={`p-${src}`} className="flex items-center justify-between rounded bg-stone-600/30 px-2 py-1">
           <span className="text-stone-400">{ECONOMY_SOURCE_LABELS[src] ?? src}</span>
@@ -102,7 +102,7 @@ export default function VillageTabPanel({
 
   return (
     <div className="space-y-2.5">
-      <Suspense fallback={<p className="text-[11px] text-stone-500">Loading focus…</p>}>
+      <Suspense fallback={<p className="text-[13px] text-stone-300">Loading focus…</p>}>
         <FocusPanel
           state={state}
           buildings={state.buildings}
@@ -123,9 +123,9 @@ export default function VillageTabPanel({
             <div className="flex items-end justify-between gap-1">
               <p className="text-2xl font-black leading-none text-emerald-300">
                 {villageStats.total}
-                <span className="text-sm font-bold text-stone-500"> / {state.maxHumanPopulation}</span>
+                <span className="text-sm font-bold text-stone-400"> / {state.maxHumanPopulation}</span>
               </p>
-              <p className="text-[11px] text-stone-500">immigration cap</p>
+              <p className="text-[13px] text-stone-300">immigration cap</p>
             </div>
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-600">
               <div className="h-full rounded-full bg-emerald-500 transition-all"
@@ -136,9 +136,9 @@ export default function VillageTabPanel({
             <div className="flex items-end justify-between gap-1">
               <p className="text-2xl font-black leading-none text-sky-300">
                 {villageStats.beds}
-                <span className="text-sm font-bold text-stone-500"> beds</span>
+                <span className="text-sm font-bold text-stone-400"> beds</span>
               </p>
-              <p className="text-[11px] text-stone-500" title="Empty housing slots for assignment">
+              <p className="text-[13px] text-stone-300" title="Empty housing slots for assignment">
                 {villageStats.openBeds} open
               </p>
             </div>
@@ -148,25 +148,25 @@ export default function VillageTabPanel({
             </div>
           </div>
         </div>
-        <div className="mb-2 grid grid-cols-4 gap-1 text-[11px]">
+        <div className="mb-2 grid grid-cols-4 gap-1 text-[13px]">
           <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
             <div className="font-bold text-sky-300">{villageStats.working}</div>
-            <div className="text-stone-500">working</div>
+            <div className="text-stone-400">working</div>
           </div>
           <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
             <div className="font-bold text-amber-300">{villageStats.idle}</div>
-            <div className="text-stone-500">idle</div>
+            <div className="text-stone-400">idle</div>
           </div>
           <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
             <div className="font-bold text-slate-300">{villageStats.imprisoned}</div>
-            <div className="text-stone-500">jailed</div>
+            <div className="text-stone-400">jailed</div>
           </div>
           <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
             <div className="font-bold text-pink-300">{villageStats.children}</div>
-            <div className="text-stone-500">children</div>
+            <div className="text-stone-400">children</div>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+        <div className="grid grid-cols-2 gap-1.5 text-[13px]">
           <StatBadge label="Adults" value={villageStats.adults} icon="👤" />
           <StatBadge label="Reputation" value={state.villageReputation} icon="⭐" title="80+: cheaper visitor trade & fewer raids · 30 or less: harsher prices & more raids" />
           <StatBadge label="Buildings" value={state.buildings.filter(b => b.completed && b.faction !== 'rival').length} icon="🏗️" />
@@ -176,7 +176,7 @@ export default function VillageTabPanel({
           onClick={onRecruitSettler}
           disabled={!canRecruit}
           title={recruitTitle}
-          className="mt-2 w-full rounded-lg bg-emerald-600 py-1.5 text-[11px] font-bold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-stone-600 transition-all"
+          className="mt-2 w-full rounded-lg bg-emerald-600 py-1.5 text-[13px] font-bold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-stone-600 transition-all"
         >
           📯 Recruit Settler (30🍖 20💰)
         </button>
@@ -193,7 +193,7 @@ export default function VillageTabPanel({
       </CollapsibleSection>
 
       <CollapsibleSection icon="👑" title="Village leadership" accent="amber" defaultOpen={false}>
-        <Suspense fallback={<p className="text-[11px] text-stone-500">Loading leadership…</p>}>
+        <Suspense fallback={<p className="text-[13px] text-stone-300">Loading leadership…</p>}>
           <VillageLeadershipPanel state={state} />
         </Suspense>
       </CollapsibleSection>
@@ -205,7 +205,7 @@ export default function VillageTabPanel({
         accent="stone"
         defaultOpen={false}
       >
-        <Suspense fallback={<p className="text-[11px] text-stone-500">Loading families…</p>}>
+        <Suspense fallback={<p className="text-[13px] text-stone-300">Loading families…</p>}>
           <PopulationPanel
             state={state}
             favoriteEntityId={favoriteEntityId}
@@ -222,11 +222,11 @@ export default function VillageTabPanel({
         accent="orange"
         defaultOpen={false}
       >
-        <p className="mb-2 text-[11px] leading-relaxed text-stone-500">
+        <p className="mb-2 text-[13px] leading-relaxed text-stone-300">
           Stone/wood from Defense research. Iron spears & shields, then swords, scale mail & tower ballistae need research <strong className="text-stone-400">and</strong> a staffed Blacksmith forge run. Finish toast is a normal village alert.
         </p>
         {state.villageForge?.activeOrder && (
-          <p className="mb-2 rounded bg-orange-950/40 px-2 py-1 text-[11px] text-orange-200">
+          <p className="mb-2 rounded bg-orange-950/40 px-2 py-1 text-[13px] text-orange-200">
             🔨 Forging {getForgeOrder(state.villageForge.activeOrder)?.label ?? 'gear'} — {Math.round(state.villageForge.progress)}%
           </p>
         )}
@@ -243,9 +243,9 @@ export default function VillageTabPanel({
               ].includes(step.id)
               && smith;
             return (
-              <div key={step.id} className={`rounded px-2 py-1 text-[11px] ${step.done ? 'bg-emerald-900/30 text-emerald-300' : 'bg-stone-800/50 text-stone-400'}`}>
+              <div key={step.id} className={`rounded px-2 py-1 text-[13px] ${step.done ? 'bg-emerald-900/30 text-emerald-300' : 'bg-stone-800/50 text-stone-400'}`}>
                 <span>{step.done ? '✓' : '○'} {step.label}</span>
-                {!step.done && <p className="mt-0.5 text-[8px] text-stone-500">{step.detail}</p>}
+                {!step.done && <p className="mt-0.5 text-[10px] text-stone-300">{step.detail}</p>}
                 {showForgeGo && (
                   <button
                     type="button"
@@ -254,7 +254,7 @@ export default function VillageTabPanel({
                       smith.x + smith.width / 2,
                       smith.y + smith.height / 2,
                     )}
-                    className="mt-1 rounded bg-orange-900/50 px-1.5 py-0.5 text-[8px] font-bold text-orange-200 hover:bg-orange-800/60"
+                    className="mt-1 rounded bg-orange-900/50 px-1.5 py-0.5 text-[10px] font-bold text-orange-200 hover:bg-orange-800/60"
                   >
                     Open Blacksmith →
                   </button>
@@ -266,10 +266,10 @@ export default function VillageTabPanel({
       </CollapsibleSection>
 
       <details className="rounded-xl border border-stone-600/40 bg-stone-800/30 px-3 py-2">
-        <summary className="cursor-pointer text-[11px] font-semibold text-stone-400 hover:text-stone-300">
+        <summary className="cursor-pointer text-[13px] font-semibold text-stone-400 hover:text-stone-300">
           ⭐ How reputation grows
         </summary>
-        <p className="mt-2 text-[11px] leading-relaxed text-stone-500">
+        <p className="mt-2 text-[13px] leading-relaxed text-stone-300">
           Buildings (+2), festivals (+10), research (+3), staffed Hospital (+2) &amp; Town Hall (+3),
           {' '}
           {state.unlockedTechs.includes('architecture_2') || state.researchNodes.some((n) => n.id === 'architecture_2' && n.researched)

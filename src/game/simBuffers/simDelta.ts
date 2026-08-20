@@ -155,7 +155,7 @@ function deltaCloneOptional<T>(value: T | null | undefined, mode: SimDeltaCloneM
 const CATALOG_PATCH_KEYS = [
   'name', 'surname', 'chatPhrase', 'gender', 'spriteVariant', 'faction',
   'moonHowlerCursed', 'moonHowlerSaved', 'educated', 'pregnant', 'pregnantById',
-  'pregnancyProgress', 'courtshipProgress', 'relationshipStatus',
+  'pregnancyProgress', 'pregnancyDueProgress', 'courtshipProgress', 'relationshipStatus',
   'partnerId', 'homeBuildingId', 'residenceBuildingId', 'tamedBy', 'combatTicks',
   'job', 'occupation', 'skills', 'age', 'birthYear', 'birthMonth', 'birthDay', 'generation',
   'energy', 'maxEnergy', 'x', 'y', 'vx', 'vy',

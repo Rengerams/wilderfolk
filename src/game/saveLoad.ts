@@ -25,7 +25,7 @@ import { ensureEntitySkills } from './skills';
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
 import { syncResearchUnlocks } from './research';
-import { assignMissingWorkers } from './workforce';
+import { assignMissingWorkers, removeWorkerTransition } from './workforce';
 import { syncBigNewsIdFromState } from './simEffects';
 import { rebuildEntityByIdMap } from './entityIndex';
 import {
@@ -283,6 +283,40 @@ export function saveGame(world: WorldState, view: ViewState): SaveResult {
   }
 }
 
+/**
+ * One-time legacy migration — Church manual staffing.
+ *
+ * Older 0.6.1-line saves can contain Churches that were auto-filled before
+ * manual priest selection existed. The Church must start empty until the
+ * player assigns a priest (SIMULATION_AUTHORITY.md §5: "The Church has capacity
+ * for four but requires only the player-selected priest"; manual buildings are
+ * never filled by generic auto-staffing).
+ *
+ * Clears every occupant of a completed player Church through the workforce
+ * owner's removal transition and returns the number of cleared seats. Uses
+ * `removeWorkerTransition` so `homeBuildingId` / `occupation` / `job` stay
+ * consistent; occupants who were never the assigned worker are only dropped
+ * from the list.
+ */
+export function clearAutoFilledChurches(world: WorldState): number {
+  const churches = world.buildings.filter(
+    (b) => b.completed && b.type === BuildingType.Church && b.faction !== 'rival',
+  );
+  let cleared = 0;
+  for (const church of churches) {
+    for (const occupantId of [...church.occupants]) {
+      const human = world.entities.find((e) => e.id === occupantId);
+      if (human && human.alive && human.homeBuildingId === church.id) {
+        removeWorkerTransition(human, world.buildings);
+      } else {
+        church.occupants = church.occupants.filter((id) => id !== occupantId);
+      }
+      cleared++;
+    }
+  }
+  return cleared;
+}
+
 /** Hydrate a world+view from an already-parsed save object (browser or file). */
 export function loadGameFromParsed(parsed: Record<string, unknown>): { world: WorldState; view: ViewState } | null {
   try {
@@ -468,6 +502,17 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
       applySaveMigration(
         'v0.5.1',
         'Save migrated to v0.5.1 — clearer valley: fairer raid spoils and presentation polish.',
+      );
+    }
+
+    // Church manual staffing (one-time): older 0.6.1-line saves may carry
+    // Churches auto-filled before manual priest selection existed. The Church
+    // must be empty until the player assigns a priest — never auto-refilled.
+    const clearedChurchSeats = clearAutoFilledChurches(world);
+    if (clearedChurchSeats > 0) {
+      applySaveMigration(
+        'church-manual-staffing',
+        `Save migrated — ${clearedChurchSeats} auto-filled Church seat(s) cleared; assign a priest manually.`,
       );
     }
 

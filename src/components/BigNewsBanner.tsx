@@ -55,7 +55,7 @@ export default function BigNewsBanner({
             item.type === 'positive' ? 'text-emerald-300' :
             item.type === 'negative' ? 'text-rose-300' : 'text-amber-300'
           }`}>{item.title}</h3>
-          <p className="line-clamp-3 text-[11px] text-stone-200">{item.message}</p>
+          <p className="line-clamp-3 text-[13px] text-stone-200">{item.message}</p>
         </div>
       </div>
     </button>

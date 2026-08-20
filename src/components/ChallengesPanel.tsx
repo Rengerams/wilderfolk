@@ -16,7 +16,7 @@ function ChallengesPanel({ state }: { state: WorldState }) {
         return (
           <div
             key={c.id}
-            className={`flex items-start gap-2 rounded-lg p-1.5 text-[11px] ${
+            className={`flex items-start gap-2 rounded-lg p-1.5 text-[13px] ${
               c.completed
                 ? 'bg-emerald-500/10 text-emerald-400'
                 : isActive
@@ -29,13 +29,13 @@ function ChallengesPanel({ state }: { state: WorldState }) {
               <div className="font-bold">
                 {c.title}
                 {isActive && (
-                  <span className="ml-1 text-[8px] font-semibold uppercase text-amber-400">Active</span>
+                  <span className="ml-1 text-[10px] font-semibold uppercase text-amber-400">Active</span>
                 )}
               </div>
               <div className="opacity-70">{c.description}</div>
               {progress && (
                 <div className="mt-1.5">
-                  <div className="mb-0.5 flex justify-between text-[8px] text-stone-500">
+                  <div className="mb-0.5 flex justify-between text-[10px] text-stone-400">
                     <span>{progress.current} / {progress.target} {progress.unit}</span>
                     <span>{pct}%</span>
                   </div>
@@ -48,7 +48,7 @@ function ChallengesPanel({ state }: { state: WorldState }) {
                 </div>
               )}
               {c.rewardText && (
-                <div className={`mt-0.5 text-[11px] font-semibold ${c.completed ? 'text-emerald-300' : 'text-amber-400'}`}>
+                <div className={`mt-0.5 text-[13px] font-semibold ${c.completed ? 'text-emerald-300' : 'text-amber-400'}`}>
                   🎁 {c.rewardText}
                 </div>
               )}

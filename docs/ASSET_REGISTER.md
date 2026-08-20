@@ -8,7 +8,7 @@ and regenerated when art changes. Audio licensing lives in `docs/THIRD_PARTY_NOT
 Third-party OpenGameArt tracks — **see `docs/THIRD_PARTY_NOTICES.md`** for the full
 credit/license table (several CC-BY tracks require attribution when distributing).
 
-## Sprites (`public/sprites/`, 71 files)
+## Sprites (`public/sprites/`, 72 files)
 
 ### A. Procedurally generated — regenerable with a script
 
@@ -25,6 +25,7 @@ credit/license table (several CC-BY tracks require attribution when distributing
 |---|---|
 | `gate.png` · `wall.png` | **Reserved drafts** — intended replacements for the current procedural wall/gate; NOT wired, do NOT delete (`docs/private/OPEN_PROBLEMS.md`) |
 | `TilesetGrass/` (untracked) | Authoring scratch for the painted tileset (`.tsx`/`.tmx`/`.png`) — not shipped, kept as source |
+| `house_leader.png` | User-supplied art (source `house_leader.jpg` in repo root); backdrop made transparent via `scripts/make-sprite-transparent.py`. Not yet wired to a building |
 
 ### C. Legacy in-repo sprites — pending audit
 

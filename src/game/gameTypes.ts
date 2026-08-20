@@ -191,6 +191,12 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
 /** Max visitor guests who can sleep at one staffed hotel overnight. */
 export const HOTEL_GUEST_CAPACITY = 4;
 
+/**
+ * Occupation string of the sitting village leader — no workplace, no auto-assign
+ * (leading is the job; family members keep normal occupations). See leaderHouse.ts.
+ */
+export const LEADER_OCCUPATION = 'leader';
+
 export interface Entity {
   id: number;
   type: EntityType;
@@ -253,6 +259,8 @@ export interface Entity {
   /** After a partner dies — mourn until this tick (stay home, soft chat). */
   griefUntilTick?: number;
   lastMetPartner?: number;
+  /** Current mutual courtship partner before marriage; used for relationship feedback. */
+  courtshipPartnerId?: number;
   courtshipProgress?: number;
   /** Biological father when pregnancy is not from the legal spouse. */
   pregnantById?: number;

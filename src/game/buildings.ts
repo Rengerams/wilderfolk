@@ -23,6 +23,8 @@ export const BuildingType = {
   School: 'school',
   Hospital: 'hospital',
   TownHall: 'townHall',
+  /** Official residence of the elected village leader — unique, free, reserved housing. */
+  LeaderHouse: 'leaderHouse',
   Church: 'church',
   Prison: 'prison',
   Well: 'well',
@@ -127,6 +129,8 @@ export interface BuildingConfig {
   beauty?: number;
   /** Decor only — procedural draw + feeds the beauty grid; no sprite/staff. */
   decor?: boolean;
+  /** One per village — placement is rejected while any building of this type exists. */
+  unique?: boolean;
 }
 
 export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
@@ -258,6 +262,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     emoji: '🏰', label: 'Town Hall', description: 'Civic hub — taxes, trade, immigration, elections & festivals. Staffed officials hear petitions, grant small aid, and hold leader audiences.',
     sprite: '/sprites/townhall.png', backgroundColor: '#1d4ed8', padShape: 'round',
     unlockRequirement: 'architecture_2',
+    unique: true,
   },
   [BuildingType.Church]: {
     width: 50, height: 56,
@@ -287,6 +292,15 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     emoji: '🏯', label: 'Mansion', description: 'Large family home (base 8 beds; upgrades add capacity). Attracts more immigrants.',
     sprite: '/sprites/mansion.png', backgroundColor: '#b45309', padShape: 'round',
     unlockRequirement: 'architecture_1',
+  },
+  [BuildingType.LeaderHouse]: {
+    width: 63, height: 53,
+    cost: { wood: 0, stone: 0, gold: 0 },
+    buildTime: 6, maxOccupants: 12,
+    emoji: '👑', label: "Leader's House",
+    description: "Official residence of the elected village leader — they move in with their family (12 beds). One per village, free, not upgradeable. The household moves out when leadership changes.",
+    sprite: '/sprites/house_leader.png', backgroundColor: '#7c2d12', padShape: 'round',
+    unique: true,
   },
   [BuildingType.Prison]: {
     width: 50, height: 46,

@@ -135,6 +135,14 @@ export class GameLoop {
   private lastPausedSentToWorker: boolean | null = null;
   /** Serializes worker commands — GameWorkerHost rejects overlapping sendCommand. */
   private commandChain: Promise<void> = Promise.resolve();
+  /**
+   * A player command applied OPTIMISTICALLY to the display world, awaiting the
+   * authoritative commandResult (SIMULATION_AUTHORITY §2 amendment). While set,
+   * incoming tick results do not overwrite the display; the commandResult
+   * handler replaces it on success and reverts to the authoritative world on
+   * failure. Never written back to the worker.
+   */
+  private optimisticCommand: { cmd: WorkerCommand } | null = null;
   /** Cached 2d context — getContext every frame is not free. */
   private canvasCtx: CanvasRenderingContext2D | null = null;
   private canvasCtxFor: HTMLCanvasElement | null = null;
@@ -175,36 +183,7 @@ export class GameLoop {
         this.workerHost.importSave(this.world);
         this.workerEnabled = true;
         this.workerBooting = false;
-        this.workerHost.setTickResultHandler((nextWorld, _delta, render, changed) => {
-          if (initGen !== this.sessionGen) return;
-          this.lastWorkerActivity = performance.now();
-          if (this.lastWorkerTickRequest > 0) {
-            const measured = performance.now() - this.lastWorkerTickRequest;
-            this.workerTickLatencyMs = this.workerTickLatencyMs * 0.7 + measured * 0.3;
-          }
-          this.world = nextWorld;
-          this.catalog.rebuild(this.world.entities);
-          if (render) {
-            this.renderSoA = render.reader;
-            this.renderMetaBySlot = render.metaBySlot;
-            this.scentReader = render.scentReader;
-            patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
-          }
-          this.view = syncScreenShakeFromWorld(this.view, this.world);
-          clearScreenShakeImpulse(this.world);
-          this.workerTickChanged = changed;
-        });
-        this.workerHost.setCommandResultHandler((world, _delta, render) => {
-          if (initGen !== this.sessionGen) return;
-          this.lastWorkerActivity = performance.now();
-          this.world = world;
-          if (render) {
-            this.renderSoA = render.reader;
-            this.renderMetaBySlot = render.metaBySlot;
-            this.scentReader = render.scentReader;
-            patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
-          }
-        });
+        this.registerWorkerHandlers(initGen);
         console.info('[GameLoop] Sim worker active — gameTick + commands run off the main thread');
       }).catch((err) => {
         if (initGen !== this.sessionGen) return;
@@ -218,6 +197,61 @@ export class GameLoop {
         this.scentReader = null;
       });
     }
+  }
+
+  /**
+   * Wire the worker's tick/command result handlers to this loop. Called after a
+   * successful worker init; extracted so tests can register handlers on a fake
+   * worker host. `initGen` guards against a stale session binding.
+   */
+  private registerWorkerHandlers(initGen: number): void {
+    this.workerHost!.setTickResultHandler((nextWorld, _delta, render, changed) => {
+      if (initGen !== this.sessionGen) return;
+      this.lastWorkerActivity = performance.now();
+      if (this.lastWorkerTickRequest > 0) {
+        const measured = performance.now() - this.lastWorkerTickRequest;
+        this.workerTickLatencyMs = this.workerTickLatencyMs * 0.7 + measured * 0.3;
+      }
+      // While an optimistic command is pending, keep the instant-feedback
+      // display — the authoritative commandResult replaces it shortly
+      // (SIMULATION_AUTHORITY §2: "ticks that arrive while a command is pending
+      // do not overwrite the optimistic display").
+      if (!this.optimisticCommand) {
+        this.world = nextWorld;
+        this.catalog.rebuild(this.world.entities);
+      }
+      if (render) {
+        this.renderSoA = render.reader;
+        this.renderMetaBySlot = render.metaBySlot;
+        this.scentReader = render.scentReader;
+        patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
+      }
+      this.view = syncScreenShakeFromWorld(this.view, this.world);
+      clearScreenShakeImpulse(this.world);
+      this.workerTickChanged = changed;
+    });
+    this.workerHost!.setCommandResultHandler((world, _delta, render, ok, reason) => {
+      if (initGen !== this.sessionGen) return;
+      this.lastWorkerActivity = performance.now();
+      const hadOptimistic = this.optimisticCommand != null;
+      this.optimisticCommand = null;
+      // Authoritative binding — command applied (ok) or NOT applied (revert).
+      this.world = world;
+      if (render) {
+        this.renderSoA = render.reader;
+        this.renderMetaBySlot = render.metaBySlot;
+        this.scentReader = render.scentReader;
+        patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
+      }
+      if (hadOptimistic) {
+        this.catalog.rebuild(this.world.entities);
+        this.pruneStaleSelection();
+        this.notify(true, false, true);
+      }
+      if (!ok) {
+        console.warn('[GameLoop] Worker command failed — reverted to authoritative state', reason ?? 'unknown');
+      }
+    });
   }
 
   /**
@@ -317,27 +351,46 @@ export class GameLoop {
   /** Worker-authoritative player command (no full WorldState clone). */
   applyCommand(cmd: WorkerCommand): void {
     if (this.workerEnabled && this.workerHost?.isReady()) {
+      // OPTIMISTIC INSTANT-APPLY (SIMULATION_AUTHORITY §2 amendment): apply the
+      // command to the display world through the SAME domain implementation the
+      // worker uses, so the click's effect (e.g. a worker assigned) shows
+      // immediately. The authoritative commandResult replaces it on success and
+      // reverts on failure; ticks arriving while it is pending never overwrite
+      // the display (handled in the tickResult handler).
+      this.world = applyWorkerCommand(this.world, cmd);
+      this.catalog.rebuild(this.world.entities);
+      this.pruneStaleSelection();
+      this.notify(true, false, true);
+      this.optimisticCommand = { cmd };
+
       const cmdGen = this.sessionGen;
+      // Dispatch IMMEDIATELY — never wait for the worker pipeline to go idle
+      // (SIMULATION_AUTHORITY §5: commands are dispatched without waiting for an
+      // impossible permanently idle worker; §4 player-command must not wait).
+      // The worker processes messages FIFO, so the command applies to the
+      // post-tick authoritative state and its result arrives after the older
+      // in-flight tick deltas — a command result can never be overwritten by a
+      // stale tick delta. Full-world import/export may still wait for idle.
       this.commandChain = this.commandChain
         .then(() => {
           if (cmdGen !== this.sessionGen || !this.running || !this.workerHost?.isReady()) return;
-          return this.workerHost.whenIdle();
-        })
-        .then(() => {
-          if (cmdGen !== this.sessionGen || !this.running || !this.workerHost?.isReady()) return;
-          return this.workerHost.sendCommand(cmd);
-        })
-        .then((delta) => {
-          if (!delta || cmdGen !== this.sessionGen || !this.running) return;
-          this.syncAfterWorkerMutation();
-          this.catalog.rebuild(this.world.entities);
-          this.pruneStaleSelection();
-          this.notify(true, false, true);
+          // Chain stays Promise<void>; the authoritative binding happens in the
+          // commandResult handler (sendCommand's resolution is deliberately dropped).
+          return this.workerHost.sendCommand(cmd).then(() => undefined);
         })
         .catch((err) => {
           if (cmdGen !== this.sessionGen || !this.running) return;
-          console.warn('[GameLoop] Worker command failed — applying on main thread', err);
-          this.applyCommandLocal(cmd);
+          // A worker 'error' or disposal can reject without a commandResult — if
+          // the handler never cleared the optimistic state, revert to the
+          // authoritative worldRef (the command was never applied there).
+          if (this.optimisticCommand) {
+            this.optimisticCommand = null;
+            this.syncAfterWorkerMutation();
+            this.catalog.rebuild(this.world.entities);
+            this.pruneStaleSelection();
+            this.notify(true, false, true);
+          }
+          console.warn('[GameLoop] Worker command failed — reverted to authoritative state', err);
         });
       return;
     }

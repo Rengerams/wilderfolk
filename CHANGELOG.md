@@ -1,5 +1,182 @@
 # Changelog
 
+## <u>[Unreleased — 0.6.1-line development]</u> — 2026-08-20
+
+**Simulation governance, workforce authority, worker reliability, relationship
+truth, and Moon Howler rarity (Objectives 1–10 of the regression-proofing
+plan).** No version bump yet; save compatibility unchanged (still the 0.6.1
+exact-version policy). Suite: **49 test files / 322 tests, 0 lint/type
+errors**, 10 bug reports filed — all verified or closed (won't-fix).
+
+Summary for the version bump:
+- **Governance** — role-aware simulation invariants checker, static
+  one-owner-per-decision registry, locked tick-layer order (realtime → systems
+  every 4 → assign every 18 → daily every 72; 72 ticks/day).
+- **Workforce** — named owner transitions (`assignWorkerTransition` /
+  `removeWorkerTransition` / `addToConstructionCrew`), leader can hold a manual
+  workplace, Church manual-staffing save migration, demolition cleanup through
+  the owner.
+- **Worker commands** — dispatched immediately (no idle-wait dead clicks);
+  FIFO ordering guarantees command results are never overwritten by stale tick
+  deltas.
+- **Truth fixes** — prisoners no longer wiped from prison occupants; truthful
+  relationship diagnostics (interval vs active vs births); affair
+  establishment/scandal moved out of the realtime path into the daily owner;
+  Moon Howler replacement now a rare 15% roll (was guaranteed every full moon).
+- **UX commands apply instantly** — optimistic main-thread application with
+  authoritative reconcile (see Fixed below).
+
+### Technical
+- **Simulation invariants (`src/game/simulation/simulationInvariants.ts`)** — new
+  read-only `collectSimulationInvariantErrors(state)` + `assertSimulationInvariants()`
+  enforcing SIMULATION_AUTHORITY.md §5: duplicate workplace assignment, worker/
+  building mismatch (`homeBuildingId` ↔ occupants, role-aware for workplace /
+  residence / prison / crew), stale demolished-building references, pregnancy
+  without `pregnancyDueProgress`, non-pregnant humans retaining pregnancy state,
+  at most one living Moon Howler, and leader residency. Reports errors; never
+  repairs. Note: the collector is role-aware because a settler legitimately
+  appears in one residence AND one workplace occupants list (the §10 sample
+  would false-positive on every employed homeowner — documented in the file).
+  Tests: `tests/simulation.invariants.test.ts` (27 tests).
+- **Decision registry (`src/game/simulation/decisionRegistry.ts`)** — static
+  one-owner-per-decision table (workforce, **housing**, construction, production,
+  socialFeedback, courtship, affairs, conception, pregnancyBirth, moonHowler,
+  leadership, commands) with cadence, written fields, scheduling point, and
+  test files. No manager, no event bus, nothing imports it at runtime. Tests:
+  `tests/simulation.decisionRegistry.test.ts` (4 tests).
+- **Tick-layer schedule locked (`tests/gameTick.layerOrder.test.ts`)** — spies
+  on the four layers drive the real `gameTick` and pin the order
+  (realtime → systems every 4 → assign every 18 → daily every 72) and the
+  per-interval counts; `TICKS_PER_DAY === 72` asserted explicitly. Comment
+  added at the gameTick layer-call site.
+
+### Changed
+- **The leader can work (workforce authority).** Manual assignment now accepts
+  the elected leader: they keep `occupation = "leader"` and manor residency
+  while holding a normal workplace; auto-staff still never assigns the leader.
+  `prepareWorkforce` no longer wipes a valid leader workplace (only stale ones).
+- **Workforce writes consolidated into named transitions** in `workforce.ts` —
+  `assignWorkerTransition`, `removeWorkerTransition`, `addToConstructionCrew`,
+  plus the existing `transferWorkerBetweenBuildings`. `buildingActions.ts` now
+  delegates manual assign/remove/builder-crew writes to these transitions
+  instead of writing `occupants`/`homeBuildingId` directly; ~100 lines of
+  duplicated helpers (`pickWorkerToTransfer`, `findOverstaffedDonorBuilding`,
+  `completedJobBuildings`, `transferWorkerBetweenBuildings`,
+  `AUTO_JOB_BUILDING_PRIORITY`, …) deleted. Duplicate-assignment prevention is
+  now enforced at the transition, not just the candidate filter.
+- **Manual-staff donor semantics unified** — the manual reassign path now uses
+  the workforce donor list, which treats School and Town Hall as manual-staff
+  buildings too (previously only Church/Prison/Barracks), so auto-rebalance
+  never strips School/Town Hall workers. Perf (full sim, new transitions in the
+  hot assign path): 200 pop avg 1.27 ms / p95 2.25 ms, 400 pop avg 1.64 ms /
+  p95 2.82 ms — ACCEPTABLE (no regression).
+
+### Fixed
+- **Church removal verified** — removing a priest via the `removeWorker` command
+  clears the Church and the daily auto-staff pass does not refill it (manual
+  building rule). Covered by `tests/workforce.transitions.test.ts` (13 tests).
+- **Church legacy saves reconciled (Objective 5)** — new one-time
+  `church-manual-staffing` save migration (`clearAutoFilledChurches` in
+  `saveLoad.ts`, tracked in `appliedSaveMigrations`): a legacy 0.6.1-line save
+  whose Church was auto-filled before manual priest selection existed now loads
+  with an empty Church (seats cleared through the workforce owner's
+  `removeWorkerTransition`, so `homeBuildingId`/`occupation`/`job` stay
+  consistent). The Church never auto-fills on the daily pass or via rebalance.
+  Covered by `tests/church.manualStaffing.test.ts` (7 tests) and
+  `BUG REPORTS/2026-08-20-church-auto-staffing.md` (verified).
+- **Worker commands no longer wait for a busy pipeline (Objective 6)** —
+  `GameLoop.applyCommand` previously dispatched only after `whenIdle()`; with
+  4 ticks pipelined and refilled every frame, the worker could stay permanently
+  busy and every click dead-waited (assignment / priest / demolition / repair /
+  upgrade / modes). Commands now dispatch immediately — the worker processes
+  messages FIFO, so the command applies to the post-tick authoritative state
+  and its result arrives after older tick deltas (no stale overwrite).
+  Full-world import/export still waits for idle (sanctioned). Covered by
+  `tests/gameLoop.commandDispatch.test.ts` (3 tests) + `tests/workerCommand.roundtrip.test.ts`
+  (9 tests: assignment, priest selection, reassignment, demolition, repair,
+  upgrade, mine mode, workshop recipe) and
+  `BUG REPORTS/2026-08-20-command-waits-for-worker-idle.md` (verified).
+- **UX commands apply instantly (developer note resolved)** — `applyCommand`
+  now applies every player command OPTIMISTICALLY to the display world through
+  the same `applyWorkerCommand` domain implementation, so a click (e.g. manually
+  choosing a worker for a building) shows its effect immediately instead of
+  after the worker's FIFO queue drain. The authoritative `commandResult` (a
+  full-snapshot delta) replaces the optimistic display on success and reverts
+  to the authoritative world on failure; tick results arriving while a command
+  is pending never overwrite the display; worker errors/disposal revert too.
+  `SIMULATION_AUTHORITY.md` §2/§5 updated first (§13). Covered by
+  `tests/gameLoop.commandDispatch.test.ts` (+3 tests: instant optimistic apply,
+  tick-result non-overwrite + authoritative replace, revert on rejection).
+- **Demolition repaired completely (Objective 7)** — `demolishBuilding` now
+  cleans worker assignments through the workforce owner's
+  `removeWorkerTransition` (single-writer law) instead of direct field writes,
+  and decrements `totalBuildingsCompleted` for a completed player building so
+  the in-session stat matches the load-time recompute. The building is removed
+  once, stays removed across subsequent sim ticks (verified with 3 real days of
+  `gameTick`), and the inspector is cleared. Covered by
+  `tests/demolish.roundtrip.test.ts` (5 tests) and
+  `BUG REPORTS/2026-08-20-demolish-command-failure.md` (verified).
+- **Prisoners stay in prison occupants (discovered during demolition work)** —
+  `syncJobBuildingOccupants` rebuilt every job building's occupants from
+  `homeBuildingId` only, wiping prisoners (`prisonBuildingId`) from
+  `prison.occupants` on every assign pass. Prisons are now special-cased:
+  occupants = guards + prisoners. Covered by
+  `tests/workforce.transitions.test.ts` (+2 tests) and
+  `BUG REPORTS/2026-08-20-prisoner-occupants-wiped.md` (verified).
+- **Relationship diagnostics are truthful (Objective 8)** — interval counters
+  are now explicitly named (`conceptionCandidates`,
+  `conceptionEligibilityRejected`, `conceptionProximityBlocked`,
+  `conceptionEnergyBlocked`, `conceptionRollFailed`,
+  `pregnanciesStartedThisInterval`, `birthsCompletedThisInterval`) and
+  `activePregnancies` is computed from the authoritative state at flush (a
+  seeded/earlier pregnancy is visible there, never inferred from the interval
+  counters). `tryDailyConception` records the first gate that blocks each
+  candidate (behavior preserved — probabilities untouched). Covered by
+  `tests/relationshipDiagnostics.test.ts` (8 tests, incl. start→advance→birth
+  lifecycle) and `BUG REPORTS/2026-08-20-diagnostics-ambiguous-counters.md`
+  (verified).
+- **Affair cadence resolved — no more realtime establishment (Objective 9)** —
+  `SIMULATION_AUTHORITY.md` §3/§4 resolved (affair tryst progress = staggered;
+  establishment/gossip/scandal decisions = new-calendar-day; realtime caught-in-
+  the-act exposure only for established pairs). The realtime flirt path now
+  advances tryst progress only (progress may begin before establishment) and
+  never writes `affairPartnerId`; unestablished flirtation never rolls a
+  scandal; `tryDailyAffairEncounter` (daily gate) is the sole establisher.
+  Covered by `tests/affair.cadence.test.ts` (2 tests: golden no-establishment
+  run + deterministic daily establishment) and
+  `BUG REPORTS/2026-08-20-affair-establishment-dual-cadence.md` (verified).
+  Measurement (`scripts/measure-relationship-feel.ts`, 60 seeded days):
+  affairChecks/day 20.3, 27 establishments via the daily gate, 8 scandals,
+  conception candidates/day 20.3, 1 pregnancy started, 3 births (2 from
+  immigrant pregnancies — visible via activePregnancies), tick p50 0.4ms /
+  p95 1.8ms; perf-all @100 pop: avg 1.24ms / p95 2.86ms ACCEPTABLE.
+- **Moon Howler replacement is now rare, not guaranteed (Objective 10)** —
+  `shouldApplyNewMoonHowlerCurse` required a rare replacement roll
+  (`MOON_HOWLER_REPLACEMENT_CHANCE = 0.15`) on top of its base gates; RNG is
+  injectable through `tickMoonHowlerCycle` so quiet moons, survivor returns,
+  and rare replacements are deterministic in tests. A surviving Howler still
+  returns on later full moons (never a second curse); after a kill/cure, full
+  moons may be quiet. Covered by `tests/moonHowler.rare.test.ts` (7 tests) and
+  `BUG REPORTS/2026-08-20-moon-howler-replacement-not-rare.md` (verified).
+
+### Bug reports
+- `BUG REPORTS/2026-08-20-moon-howler-replacement-not-rare.md` — **verified**.
+- `BUG REPORTS/2026-08-20-diagnostics-ambiguous-counters.md` — **verified**.
+- `BUG REPORTS/2026-08-20-demolish-command-failure.md` — **verified**.
+- `BUG REPORTS/2026-08-20-prisoner-occupants-wiped.md` — **verified**.
+- `BUG REPORTS/2026-08-20-command-waits-for-worker-idle.md` — **verified**
+  (fixed: applyCommand dispatches immediately, no idle wait).
+- `BUG REPORTS/2026-08-20-church-auto-staffing.md` — **verified** (fixed by the
+  `church-manual-staffing` save migration).
+- `BUG REPORTS/2026-08-20-caravan-clears-workforce-fields.md` — closed
+  **won't-fix**: full-code audit proved caravan carriers are always spawned
+  `trade_caravan`-faction entities (excluded from village job systems), so the
+  flagged writes are entity creation/cleanup, not workforce mutations.
+- `BUG REPORTS/2026-08-20-affair-establishment-dual-cadence.md` — **verified**
+  (fixed: realtime path advances progress only; daily owner establishes).
+- `BUG REPORTS/2026-08-20-housing-owner-not-declared.md` — **verified** (housing
+  owner row added to SIMULATION_AUTHORITY.md §3 + decision registry `housing` key).
+
 ## <u>[0.6.1]</u> — 2026-08-17
 
 **The valley thinks faster — 1,200 settlers at ~70 ms/tick.**

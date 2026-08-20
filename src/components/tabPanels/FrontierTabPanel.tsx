@@ -23,7 +23,7 @@ export default function FrontierTabPanel({
   onLaunchRaid,
 }: FrontierTabPanelProps) {
   return (
-    <Suspense fallback={<p className="text-[11px] text-stone-500">Loading frontier…</p>}>
+    <Suspense fallback={<p className="text-[13px] text-stone-300">Loading frontier…</p>}>
       <FrontierPanel
         state={state}
         pendingRaidCount={pendingRaidCount}

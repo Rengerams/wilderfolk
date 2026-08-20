@@ -36,7 +36,7 @@ const WildlifeBar = memo(function WildlifeBar({ label, count, max, color, icon }
         <Emoji>{icon}</Emoji>
       </span>
       <div className="flex-1">
-        <div className="mb-0.5 flex justify-between text-[11px]">
+        <div className="mb-0.5 flex justify-between text-[13px]">
           <span className="text-stone-400">{label}</span>
           <span className="font-bold tabular-nums text-stone-200">{count}</span>
         </div>
@@ -119,37 +119,37 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
         <div className="mb-2 flex items-end justify-between gap-2">
           <div>
             <h3 className="text-sm font-bold text-stone-200">Wildlife populations</h3>
-            <p className="text-[10px] text-stone-500">
+            <p className="text-xs text-stone-300">
               Live counts · prey {preyTotal} · predators {predatorTotal} · grass {wc?.grass ?? 0}
             </p>
           </div>
-          <p className="shrink-0 text-[10px] text-stone-500" title="Season affects grass & animal energy">
+          <p className="shrink-0 text-xs text-stone-300" title="Season affects grass & animal energy">
             {SEASON_LABELS[state.season]}
           </p>
         </div>
-        <div className="mb-2 grid grid-cols-4 gap-1 text-center text-[10px]">
+        <div className="mb-2 grid grid-cols-4 gap-1 text-center text-xs">
           <div className="rounded-lg bg-stone-800/70 px-1 py-1.5">
             <div className="text-base leading-none"><Emoji>🐰</Emoji></div>
             <div className="mt-0.5 font-bold tabular-nums text-amber-200">{wc?.rabbits ?? 0}</div>
-            <div className="text-stone-500">rabbits</div>
+            <div className="text-stone-400">rabbits</div>
           </div>
           <div className="rounded-lg bg-stone-800/70 px-1 py-1.5">
             <div className="text-base leading-none"><Emoji>🦌</Emoji></div>
             <div className="mt-0.5 font-bold tabular-nums text-orange-200">{wc?.deer ?? 0}</div>
-            <div className="text-stone-500">deer</div>
+            <div className="text-stone-400">deer</div>
           </div>
           <div className="rounded-lg bg-stone-800/70 px-1 py-1.5">
             <div className="text-base leading-none"><Emoji>🐺</Emoji></div>
             <div className="mt-0.5 font-bold tabular-nums text-stone-200">{wc?.wolves ?? 0}</div>
-            <div className="text-stone-500">wolves</div>
+            <div className="text-stone-400">wolves</div>
           </div>
           <div className="rounded-lg bg-stone-800/70 px-1 py-1.5">
             <div className="text-base leading-none"><Emoji>🦊</Emoji></div>
             <div className="mt-0.5 font-bold tabular-nums text-orange-300">{wc?.foxes ?? 0}</div>
-            <div className="text-stone-500">foxes</div>
+            <div className="text-stone-400">foxes</div>
           </div>
         </div>
-        <div className="space-y-1 text-[11px]">
+        <div className="space-y-1 text-[13px]">
           <WildlifeBar label="Rabbits" count={wc?.rabbits ?? 0} max={120} color="bg-amber-600" icon="🐰" />
           <WildlifeBar label="Deer" count={wc?.deer ?? 0} max={60} color="bg-orange-700" icon="🦌" />
           <WildlifeBar label="Wolves" count={wc?.wolves ?? 0} max={25} color="bg-stone-500" icon="🐺" />
@@ -163,20 +163,20 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
             <WildlifeBar label="Wildkin" count={wc.wildkin} max={15} color="bg-lime-700" icon="🦌" />
           )}
         </div>
-        <p className="mt-2 text-[9px] leading-snug text-stone-500">
+        <p className="mt-2 text-[11px] leading-relaxed text-stone-300">
           Winter and heavy hunting thin herds. Soft recovery at the frontier if numbers stay low.
         </p>
       </div>
 
       <div className={`rounded-xl border p-3 ${STAGE_STYLES[stage]}`}>
-        <h3 className={`mb-1 text-xs font-bold ${STAGE_TITLE[stage]}`}>
+        <h3 className={`mb-1 text-sm font-bold ${STAGE_TITLE[stage]}`}>
           <Emoji className="mr-1">{valleyStageEmoji(stage)}</Emoji>
           Valley: {valleyStageLabel(stage)}
         </h3>
-        <p className="text-[11px] leading-relaxed text-stone-300">{valley.playerSummary}</p>
+        <p className="text-[13px] leading-relaxed text-stone-300">{valley.playerSummary}</p>
         <div className="mt-2 space-y-1">
           {valley.drivers.map((d) => (
-            <div key={d.id} className="flex items-start justify-between gap-2 text-[10px]">
+            <div key={d.id} className="flex items-start justify-between gap-2 text-xs">
               <span className="text-stone-400">{d.label}</span>
               <span className={`shrink-0 font-semibold uppercase ${DRIVER_BAND_COLOR[d.band]}`}>
                 {d.band}
@@ -185,8 +185,8 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
           ))}
         </div>
         {stage !== 'stable' && (
-          <div className="mt-2 rounded-lg bg-stone-950/30 px-2 py-1.5 text-[10px] text-stone-400">
-            <p className="mb-0.5 font-semibold uppercase tracking-wide text-stone-500">What helps</p>
+          <div className="mt-2 rounded-lg bg-stone-950/30 px-2 py-1.5 text-xs text-stone-400">
+            <p className="mb-0.5 font-semibold uppercase tracking-wide text-stone-300">What helps</p>
             <ul className="list-inside list-disc space-y-0.5">
               {valley.helpLines.map((line) => (
                 <li key={line}>{line}</li>
@@ -202,14 +202,14 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
             ? 'border-rose-500/40 bg-rose-950/40'
             : 'border-amber-500/40 bg-amber-950/30'
         }`}>
-          <h3 className={`mb-1 text-xs font-bold ${
+          <h3 className={`mb-1 text-sm font-bold ${
             grazingPressure.level === 'critical' ? 'text-rose-300' : 'text-amber-300'
           }`}>
             {grazingPressure.level === 'critical' ? '⚠️ Overgrazing warning' : '🦌 Grazing pressure rising'}
           </h3>
-          <p className="text-[11px] leading-relaxed text-stone-300">{grazingPressure.headline}</p>
-          <p className="mt-1.5 text-[11px] text-stone-400">{grazingPressure.advice}</p>
-          <div className="mt-2 grid grid-cols-2 gap-1 text-[11px] text-stone-500">
+          <p className="text-[13px] leading-relaxed text-stone-300">{grazingPressure.headline}</p>
+          <p className="mt-1.5 text-[13px] text-stone-300">{grazingPressure.advice}</p>
+          <div className="mt-2 grid grid-cols-2 gap-1 text-[13px] text-stone-400">
             <span><Emoji className="mr-0.5">🦌</Emoji> Deer: {grazingPressure.deerCount}</span>
             <span><Emoji className="mr-0.5">🌿</Emoji> Grass: {grazingPressure.grassCount}</span>
             <span>Demand/day: {grazingPressure.grazingDemandPerDay}</span>
@@ -223,7 +223,7 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
 
         <div className="mb-3 space-y-2">
           <div>
-            <div className="mb-1 flex justify-between text-[11px]">
+            <div className="mb-1 flex justify-between text-[13px]">
               <span className="text-stone-400">Health</span>
               <strong className={state.ecosystemHealth > 60 ? 'text-emerald-400' : state.ecosystemHealth > 30 ? 'text-amber-400' : 'text-rose-400'}>
                 {Math.round(state.ecosystemHealth)}%
@@ -237,7 +237,7 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
           </div>
 
           <div>
-            <div className="mb-1 flex justify-between text-[11px]">
+            <div className="mb-1 flex justify-between text-[13px]">
               <span className="text-stone-400">Pollution</span>
               <strong className="text-rose-400">{Math.round(state.pollutionLevel)}%</strong>
             </div>
@@ -247,29 +247,29 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-[11px]">
+        <div className="grid grid-cols-2 gap-2 text-[13px]">
           <div className="rounded bg-stone-600/30 p-2">
-            <div className="text-stone-500">Biodiversity</div>
+            <div className="text-stone-400">Biodiversity</div>
             <strong className="text-lg text-white">{state.biodiversityIndex.toFixed(2)}</strong>
           </div>
           <div className="rounded bg-stone-600/30 p-2">
-            <div className="text-stone-500">Weather</div>
+            <div className="text-stone-400">Weather</div>
             <strong className="text-lg text-white">{state.weather}</strong>
           </div>
         </div>
 
         <div className="mt-3 rounded-lg border border-stone-600/40 bg-stone-800/40 p-2.5">
-          <h4 className="mb-1 text-[11px] font-bold uppercase tracking-wider text-stone-400">Why this score</h4>
-          <p className="mb-2 text-[11px] leading-relaxed text-stone-400">{ecoBreakdown.summary}</p>
-          <div className="space-y-1 text-[11px]">
+          <h4 className="mb-1 text-[13px] font-bold uppercase tracking-wider text-stone-400">Why this score</h4>
+          <p className="mb-2 text-[13px] leading-relaxed text-stone-300">{ecoBreakdown.summary}</p>
+          <div className="space-y-1 text-[13px]">
             {ecoBreakdown.lines.map((line) => (
               <div key={line.label} className="flex items-start justify-between gap-2">
-                <span className="text-stone-500">{line.label}</span>
+                <span className="text-stone-400">{line.label}</span>
                 <span className="text-right">
                   <strong className={line.delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
                     {line.delta >= 0 ? '+' : ''}{Math.round(line.delta)}
                   </strong>
-                  <span className="block text-[8px] text-stone-600">{line.detail}</span>
+                  <span className="block text-[10px] text-stone-600">{line.detail}</span>
                 </span>
               </div>
             ))}
@@ -278,7 +278,7 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
               <span className="text-stone-200">{Math.round(ecoBreakdown.health)}%</span>
             </div>
           </div>
-          <p className="mt-2 text-[8px] text-stone-600">
+          <p className="mt-2 text-[10px] text-stone-600">
             Growing towns shed pristine wilderness — there is no player tree planting yet. Early food-chain balance still matters for hunting.
           </p>
         </div>
@@ -286,7 +286,7 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
 
       <div className="rounded-xl bg-stone-700/50 p-3">
         <h3 className="mb-2 text-sm font-bold text-stone-300">Season & Climate</h3>
-        <div className="space-y-1 text-[11px] text-stone-400">
+        <div className="space-y-1 text-[13px] text-stone-400">
           <p>
             <strong className={seasonTextClass(state.season)}>{SEASON_LABELS[state.season]}</strong>
             {' · '}
@@ -314,7 +314,7 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
         <div className="rounded-xl border border-rose-500/30 bg-rose-900/30 p-3">
           <h3 className="mb-2 text-sm font-bold text-rose-400">Active Disasters</h3>
           {state.disasters.map((d, i) => (
-            <div key={i} className="mb-1 text-[11px] text-rose-300">
+            <div key={i} className="mb-1 text-[13px] text-rose-300">
               ⚠️ {d.type.charAt(0).toUpperCase() + d.type.slice(1)} — {Math.round((1 - d.progress / d.duration) * 100)}% remaining
             </div>
           ))}

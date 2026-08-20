@@ -163,8 +163,8 @@ export default function MiniMap({
   return (
     <div className="minimap-frame pointer-events-auto absolute bottom-4 left-4 overflow-hidden shadow-2xl">
       <div className="flex items-center justify-between border-b border-stone-600/60 bg-stone-900/90 px-2 py-0.5">
-        <span className="text-[9px] font-bold tracking-wide text-stone-400">MAP</span>
-        <span className="text-[8px] text-stone-600">click to go</span>
+        <span className="text-[11px] font-bold tracking-wide text-stone-400">MAP</span>
+        <span className="text-[10px] text-stone-600">click to go</span>
       </div>
       <canvas
         ref={canvasRef}

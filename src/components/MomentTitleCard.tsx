@@ -42,7 +42,7 @@ export default function MomentTitleCard({ moment, onDone }: Props) {
         <h2 className="text-3xl font-black tracking-wide text-amber-200 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
           {moment.title}
         </h2>
-        <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-stone-200 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-stone-200 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
           {moment.detail}
         </p>
       </div>

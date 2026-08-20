@@ -45,6 +45,7 @@ import { startFeud } from '../relationships';
 import { logEvent } from '../eventLog';
 import { isPlayerHuman } from '../playerHuman';
 import { traitMultiplier } from '../settlerTraits';
+import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 
 // ============ HUMAN RELATIONSHIP HELPERS ============
 export const AFFAIR_SPOUSE_BLOCK_RADIUS = 22;
@@ -310,6 +311,7 @@ export function tryDailyAffairGossip(
   width?: number,
   height?: number,
 ): void {
+  recordRelationshipDiagnostic('gossipChecks');
   const lover = findAffairLover(entity, entityById, state.tick, humanSocialGrid, playerHumans, width, height);
   if (!lover) return;
   if (!shouldLeadAffairPair(entity, lover)) return;
@@ -331,6 +333,7 @@ export function tryDailyAffairGossip(
       }
       const reason = pickAffairExposureReason(state, entity, lover, playerHumans);
       exposeAffair(state, entity, lover, reason, entityById, buildings, playerHumans);
+      recordRelationshipDiagnostic('scandalExposures');
     }
     return;
   }
@@ -349,6 +352,7 @@ export function tryDailyAffairGossip(
     }
     const reason = pickAffairExposureReason(state, entity, lover, playerHumans);
     exposeAffair(state, entity, lover, reason, entityById, buildings, playerHumans);
+    recordRelationshipDiagnostic('scandalExposures');
   }
 }
 
@@ -386,6 +390,7 @@ export function trySchoolyardGossip(
 
     if (rng() < 0.35) {
       exposeAffair(state, parent, lover, 'rumor', entityById, buildings, playerHumans);
+    recordRelationshipDiagnostic('scandalExposures');
       const parentName = formatCitizenName(parent);
       addFloatingText(state, child.x, child.y - 22, '🤫 whispered…', '#fbbf24', 'brief');
       logEvent(state, 'event', `The children at school are whispering that ${parentName} sneaks out at night…`, child.name);
@@ -492,14 +497,43 @@ function startAffairPregnancy(state: WorldState, entity: Entity, lover: Entity):
 }
 
 /** Once-per-day conception — player settlers only; residence sharing, not clock hour. */
+type ConceptionGateOutcome = 'eligibility' | 'energy' | 'proximity' | 'roll';
+
+/** Record the FIRST conception gate that blocked a candidate (truthful funnel). */
+function recordConceptionGate(outcome: ConceptionGateOutcome): void {
+  switch (outcome) {
+    case 'eligibility':
+      recordRelationshipDiagnostic('conceptionEligibilityRejected');
+      break;
+    case 'energy':
+      recordRelationshipDiagnostic('conceptionEnergyBlocked');
+      break;
+    case 'proximity':
+      recordRelationshipDiagnostic('conceptionProximityBlocked');
+      break;
+    case 'roll':
+      recordRelationshipDiagnostic('conceptionRollFailed');
+      break;
+  }
+}
+
 export function tryDailyConception(
   state: WorldState,
   ctx: TickContext,
   entity: Entity,
 ): boolean {
   const config = SPECIES_CONFIG[EntityType.Human];
-  if (!isPlayerHuman(entity)) return false;
-  if (entity.gender !== 'female' || entity.pregnant || entity.reproductionCooldown > 0) return false;
+  recordRelationshipDiagnostic('conceptionCandidates');
+  let outcome: ConceptionGateOutcome | null = null;
+
+  if (!isPlayerHuman(entity)) {
+    recordConceptionGate('eligibility');
+    return false;
+  }
+  if (entity.gender !== 'female' || entity.pregnant || entity.reproductionCooldown > 0) {
+    recordConceptionGate('eligibility');
+    return false;
+  }
 
   if (
     entity.relationshipStatus === 'married'
@@ -522,10 +556,18 @@ export function tryDailyConception(
         // Lucky settlers have a bit better luck conceiving.
         if (Math.random() < baseChance * fertility * traitMultiplier(entity, 'lucky', 1.15)) {
           startMarriedPregnancy(state, entity, partner);
+          recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
           return true;
         }
+        outcome ??= 'roll';
+      } else {
+        outcome ??= 'proximity';
       }
+    } else {
+      outcome ??= 'proximity';
     }
+  } else if (entity.relationshipStatus === 'married' && entity.partnerId) {
+    outcome ??= 'energy';
   }
 
   if (
@@ -543,11 +585,21 @@ export function tryDailyConception(
       AFFAIR_BUILDING_NEAR_RADIUS,
     );
     const fertility = getFemaleFertility(entity.age);
-    if (tryst && fertility > 0 && Math.random() < HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE * fertility) {
-      startAffairPregnancy(state, entity, lover);
-      return true;
+    if (tryst && fertility > 0) {
+      if (Math.random() < HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE * fertility) {
+        startAffairPregnancy(state, entity, lover);
+        recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
+        return true;
+      }
+      outcome ??= 'roll';
+    } else {
+      outcome ??= 'proximity';
     }
+  } else if (hasAffairPartner(entity, ctx.entityById)) {
+    outcome ??= entity.energy <= config.reproductionEnergyThreshold * 0.65 ? 'energy' : 'proximity';
   }
+
+  recordConceptionGate(outcome ?? 'eligibility');
   return false;
 }
 

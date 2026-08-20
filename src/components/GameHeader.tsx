@@ -112,7 +112,7 @@ tutorialsEnabled,
           <h1 className="truncate text-sm font-bold tracking-tight text-stone-50">
             {world.villageName || gameTitle}
           </h1>
-          <p className="hidden truncate text-[9px] text-stone-500 sm:block">
+          <p className="hidden truncate text-[11px] text-stone-300 sm:block">
             {gameSubtitle || gamePhase}
           </p>
         </div>
@@ -127,13 +127,13 @@ tutorialsEnabled,
           >
             <span className="text-sm leading-none" aria-hidden>👑</span>
             <span className="min-w-0">
-              <span className="block text-[8px] font-semibold uppercase tracking-wide text-amber-500/90">Village head</span>
-              <span className="block truncate text-[11px] font-bold text-amber-100">{leaderLabel}</span>
+              <span className="block text-[10px] font-semibold uppercase tracking-wide text-amber-500/90">Village head</span>
+              <span className="block truncate text-[13px] font-bold text-amber-100">{leaderLabel}</span>
             </span>
           </button>
         ) : (
           <span
-            className="hidden items-center gap-1 rounded-lg bg-stone-900/50 px-2 py-1 text-[10px] text-stone-500 ring-1 ring-stone-700/60 sm:flex"
+            className="hidden items-center gap-1 rounded-lg bg-stone-900/50 px-2 py-1 text-xs text-stone-400 ring-1 ring-stone-700/60 sm:flex"
             title="No village head appointed yet"
           >
             <span aria-hidden>👑</span>
@@ -144,27 +144,27 @@ tutorialsEnabled,
 
       <div className="flex shrink-0 items-center gap-2">
         <div
-          className="hud-chip flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] sm:px-2.5 sm:text-[11px]"
+          className="hud-chip flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs sm:px-2.5 sm:text-[13px]"
           title={`${seasonLabel} · ${formatTemperatureC(dailyTempC)} · ${weekday}${weekend ? ' (free)' : ' (work 7–18)'} · Year ${world.year} · Day ${world.dayInYear}${world.weather !== 'clear' ? ` · ${WEATHER_CONFIGS[world.weather].label}` : ''}${world.festival ? ` · ${world.festival.name}` : ''} · sim tick ${world.tick} (day ${absoluteDay})${showSimTick ? '' : ' — enable “Show sim tick” in Menu → Settings to pin tick on the bar'}`}
         >
           <span className={seasonTextClass(world.season)}>{seasonLabel}</span>
           <span className="font-mono text-stone-200">{formatTemperatureC(dailyTempC)}</span>
-          <span className="text-stone-500">·</span>
+          <span className="text-stone-400">·</span>
           <span className={`font-semibold ${weekend ? 'text-emerald-400' : 'text-stone-300'}`}>{weekday}</span>
-          <span className="text-stone-500">·</span>
+          <span className="text-stone-400">·</span>
           <span className="text-stone-300">Y{world.year} D{world.dayInYear}</span>
-          <span className="text-stone-500">·</span>
+          <span className="text-stone-400">·</span>
           <Emoji>{isNight ? '🌙' : weekend ? '🌿' : '☀️'}</Emoji>
           <span className="font-mono text-white">{formatHour(hour)}</span>
           {world.weather !== 'clear' && <Emoji>{WEATHER_CONFIGS[world.weather].emoji}</Emoji>}
           {world.festival && <Emoji title={world.festival.name}>🎉</Emoji>}
           {showSimTick && (
             <>
-              <span className="text-stone-500">·</span>
+              <span className="text-stone-400">·</span>
               <button
                 type="button"
                 onClick={onToggleShowSimTick}
-                className="rounded bg-cyan-950/60 px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-cyan-300 ring-1 ring-cyan-700/50 hover:bg-cyan-900/50"
+                className="rounded bg-cyan-950/60 px-1.5 py-0.5 font-mono text-xs font-bold tabular-nums text-cyan-300 ring-1 ring-cyan-700/50 hover:bg-cyan-900/50"
                 title={`Simulation tick ${world.tick} · absolute day ${absoluteDay} (${TICKS_PER_DAY} ticks/day) · click to hide`}
                 aria-label={`Simulation tick ${world.tick}`}
               >
@@ -182,7 +182,7 @@ tutorialsEnabled,
           <button
             type="button"
             onClick={onTogglePause}
-            className={`rounded-md px-2.5 py-1 text-[11px] font-bold shadow-sm ${world.paused ? 'bg-emerald-600 text-white ring-1 ring-emerald-400/40' : 'bg-amber-600/95 text-white ring-1 ring-amber-400/30'}`}
+            className={`rounded-md px-2.5 py-1 text-[13px] font-bold shadow-sm ${world.paused ? 'bg-emerald-600 text-white ring-1 ring-emerald-400/40' : 'bg-amber-600/95 text-white ring-1 ring-amber-400/30'}`}
             title="Space — pause / resume"
             aria-label={world.paused ? 'Resume simulation' : 'Pause simulation'}
           >
@@ -194,7 +194,7 @@ tutorialsEnabled,
                 key={`speed-${index}-${s}`}
                 type="button"
                 onClick={() => onSetSpeed(s)}
-                className={`rounded-md px-2 py-1 text-[10px] font-bold transition-colors ${world.speed === s ? 'bg-emerald-700/80 text-emerald-50 shadow-sm ring-1 ring-emerald-400/30' : 'text-stone-400 hover:bg-stone-700/60 hover:text-white'}`}
+                className={`rounded-md px-2 py-1 text-xs font-bold transition-colors ${world.speed === s ? 'bg-emerald-700/80 text-emerald-50 shadow-sm ring-1 ring-emerald-400/30' : 'text-stone-400 hover:bg-stone-700/60 hover:text-white'}`}
               >
                 {s}x
               </button>
@@ -208,7 +208,7 @@ tutorialsEnabled,
           <button
             type="button"
             onClick={onOpenTrade}
-            className="flex items-center gap-0.5 rounded-md bg-violet-900/35 px-1.5 py-1 text-[11px] text-violet-200 hover:bg-violet-800/45"
+            className="flex items-center gap-0.5 rounded-md bg-violet-900/35 px-1.5 py-1 text-[13px] text-violet-200 hover:bg-violet-800/45"
             title={`Reputation ${world.villageReputation} — click for trade routes`}
           >
             <span>⭐</span>
@@ -216,14 +216,14 @@ tutorialsEnabled,
           </button>
 
           <span
-            className={`flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[11px] ${
+            className={`flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[13px] ${
               popNearCap ? 'bg-rose-900/40 text-rose-300' : 'bg-sky-900/40 text-sky-300'
             }`}
             title={`${population} settlers · immigration cap ${world.maxHumanPopulation} · 🛏️ ${beds} beds (${openBeds} open)`}
           >
             <span>👥</span>
             <span className="font-mono font-bold">{population}/{world.maxHumanPopulation}</span>
-            <span className="text-[9px] opacity-75" title={`${beds} beds total`}>🛏️{beds}</span>
+            <span className="text-[11px] opacity-75" title={`${beds} beds total`}>🛏️{beds}</span>
           </span>
 
           <div className="flex items-center gap-0.5">

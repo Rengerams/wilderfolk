@@ -29,7 +29,7 @@ export default function ShortcutsOverlay({ onClose }: { onClose: () => void }) {
           <h2 className="text-sm font-bold text-white">Keyboard shortcuts</h2>
           <button type="button" onClick={onClose} className="text-stone-400 hover:text-white">✕</button>
         </div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[10px]">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
           {rows.map(([key, desc]) => (
             <span key={key} className="contents">
               <strong className="text-emerald-300">{key}</strong>
@@ -37,7 +37,7 @@ export default function ShortcutsOverlay({ onClose }: { onClose: () => void }) {
             </span>
           ))}
         </div>
-        <p className="mt-3 text-[9px] text-stone-500">Alerts under the header are clickable — they jump you to raids, diplomacy, food, and trade.</p>
+        <p className="mt-3 text-[11px] text-stone-300">Alerts under the header are clickable — they jump you to raids, diplomacy, food, and trade.</p>
       </div>
     </div>
   );

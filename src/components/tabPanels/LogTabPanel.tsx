@@ -30,11 +30,11 @@ export default function LogTabPanel({ state, logSubTab, setLogSubTab }: LogTabPa
       {logSubTab === 'chronicle' ? (
         <>
           <h3 className="mb-2 text-sm font-bold text-amber-300">Village Chronicle</h3>
-          <p className="mb-2 text-[11px] leading-relaxed text-stone-500">
+          <p className="mb-2 text-[13px] leading-relaxed text-stone-300">
             Full history of your settlement — births, marriages, scandals, research, disasters, and more.
             Scroll to read older entries, filter by type, or <strong className="text-stone-400">Copy log</strong> to save it in a note. Saved with your game.
           </p>
-          <Suspense fallback={<p className="text-[11px] text-stone-500">Loading chronicle…</p>}>
+          <Suspense fallback={<p className="text-[13px] text-stone-300">Loading chronicle…</p>}>
             <EventLogPanel
               events={state.eventLog}
               meta={{
@@ -50,10 +50,10 @@ export default function LogTabPanel({ state, logSubTab, setLogSubTab }: LogTabPa
       ) : (
         <>
           <h3 className="mb-2 text-sm font-bold text-rose-300">Combat Chronicle</h3>
-          <p className="mb-2 text-[11px] leading-relaxed text-stone-500">
+          <p className="mb-2 text-[13px] leading-relaxed text-stone-300">
             Incoming raids, proactive strikes, counter-raids, militia battles, and barricades — dedicated combat log with export.
           </p>
-          <Suspense fallback={<p className="text-[11px] text-stone-500">Loading combat log…</p>}>
+          <Suspense fallback={<p className="text-[13px] text-stone-300">Loading combat log…</p>}>
             <CombatLogPanel
               events={state.eventLog}
               meta={{

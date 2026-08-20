@@ -23,6 +23,7 @@ import { addBigNews, addFloatingText, addNotification, createDeathParticles } fr
 import { logEvent } from '../eventLog';
 import { humanDisplayName } from '../citizenId';
 import { dampScandalReputationLoss } from '../townHall';
+import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 
 export interface BirthContext {
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;
@@ -54,8 +55,12 @@ export function tickPregnancyAndBirth(
 
     // Soft birth cost — was flat -50 and could kill low-energy mothers as "childbirth"
     entity.energy = Math.max(entity.maxEnergy * 0.18, entity.energy - 45);
+    // Birth completed (pregnancy reached term) — a separate counter from new
+    // conceptions: never infer births from pregnanciesStartedThisInterval.
+    recordRelationshipDiagnostic('birthsCompletedThisInterval');
     entity.pregnant = false;
     entity.pregnancyProgress = 0;
+    entity.pregnancyDueProgress = undefined;
     entity.pregnantById = undefined;
     entity.relationshipStatus = entity.partnerId != null ? 'married' : 'single';
     entity.reproductionCooldown = REPRODUCTION_COOLDOWN_TICKS;

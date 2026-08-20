@@ -1322,7 +1322,7 @@ export default function App() {
         <div className="text-center">
           <img src="/logo.png" alt="Wilderfolk" className="mx-auto mb-4 h-32 w-32 animate-pulse" style={{ filter: 'drop-shadow(0 0 30px rgba(34,197,94,0.4))' }} />
           <h1 className="mb-2 text-2xl font-bold text-white">{GAME_TITLE}</h1>
-          <p className="mb-4 text-stone-400">Loading pixel art assets...</p>
+          <p className="mb-4 text-stone-300">Loading pixel art assets...</p>
           <div className="mx-auto h-2 w-48 overflow-hidden rounded-full bg-stone-700">
             <div className="h-full animate-pulse rounded-full bg-emerald-500" style={{ width: '60%' }} />
           </div>
@@ -1412,14 +1412,14 @@ export default function App() {
         >
           <button
             onClick={() => setBuildPanelOpen((open) => !open)}
-            className="build-panel-toggle absolute -right-3 top-5 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-stone-600 bg-stone-850 text-xs font-bold text-stone-300 shadow-lg transition-all hover:border-emerald-500/50 hover:bg-stone-700 hover:text-emerald-300"
+            className="build-panel-toggle absolute -right-3 top-5 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-stone-600 bg-stone-850 text-sm font-bold text-stone-300 shadow-lg transition-all hover:border-emerald-500/50 hover:bg-stone-700 hover:text-emerald-300"
             title={buildPanelOpen ? 'Collapse build panel (B)' : 'Expand build panel (B)'}
           >
             {buildPanelOpen ? '‹' : '›'}
           </button>
 
           {buildPanelOpen ? (
-            <Suspense fallback={<p className="p-3 text-[10px] text-stone-500">Loading build catalog…</p>}>
+            <Suspense fallback={<p className="p-3 text-xs text-stone-300">Loading build catalog…</p>}>
               <BuildCatalogPanel
                 world={world}
                 selected={selectedBuildingType}
@@ -1445,7 +1445,7 @@ export default function App() {
                 className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition-all ${
                   view.showGrid
                     ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
-                    : 'border-stone-700 bg-stone-800/80 text-stone-500 hover:border-stone-600 hover:text-stone-300'
+                    : 'border-stone-700 bg-stone-800/80 text-stone-400 hover:border-stone-600 hover:text-stone-300'
                 }`}
                 title="Toggle grid (G)"
               >
@@ -1457,7 +1457,7 @@ export default function App() {
                   <div className="my-0.5 h-px w-7 bg-stone-700" />
                   <button
                     onClick={cancelBuildMode}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-800/50 bg-rose-950/40 text-[10px] text-rose-300 hover:bg-rose-900/50"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-800/50 bg-rose-950/40 text-xs text-rose-300 hover:bg-rose-900/50"
                     title={`Cancel ${getBuildingConfig(selectedBuildingType).label} (ESC)`}
                   >
                     ✕
@@ -1533,7 +1533,7 @@ export default function App() {
                   dismissNotification(n.id);
                 }}
                 title={n.focus ? (n.campKey ? 'Open camp · click to dismiss' : 'Focus location · click to dismiss') : 'Dismiss'}
-                className={`group relative w-full rounded-xl border-2 px-3 py-2 pr-8 text-left text-xs shadow-xl backdrop-blur-md transition-all animate-in slide-in-from-right hover:brightness-110 ${
+                className={`group relative w-full rounded-xl border-2 px-3 py-2 pr-8 text-left text-sm shadow-xl backdrop-blur-md transition-all animate-in slide-in-from-right hover:brightness-110 ${
                   n.type === 'success'
                     ? 'border-emerald-500/45 bg-emerald-950/92 text-emerald-100'
                     : n.type === 'warning'
@@ -1544,7 +1544,7 @@ export default function App() {
                 }`}
               >
                 <span className="block font-bold leading-tight">{n.title}</span>
-                <span className="mt-0.5 block text-[11px] leading-snug opacity-90">{n.message}</span>
+                <span className="mt-0.5 block text-[13px] leading-relaxed opacity-90">{n.message}</span>
                 <span className="absolute right-2 top-2 text-sm leading-none text-stone-400 group-hover:text-white">×</span>
               </button>
             ))}
@@ -1559,8 +1559,8 @@ export default function App() {
                     <Emoji className="text-2xl">{evt.emoji}</Emoji>
                     <div className="flex-1">
                       <h3 className="font-bold text-orange-100">{evt.title}</h3>
-                      <p className="text-xs text-stone-300">{evt.description}</p>
-                      <p className="mt-1 text-[9px] text-orange-300/90">
+                      <p className="text-sm text-stone-300">{evt.description}</p>
+                      <p className="mt-1 text-[11px] text-orange-300/90">
                         {evt.rivalResponse === 'payoff_offer'
                           ? `Offer: ${formatRaidLootSummary(raidEventLoot(evt))}`
                           : 'They chose to fight'}
@@ -1584,7 +1584,7 @@ export default function App() {
                                 choiceId: choice.id,
                               });
                             }}
-                            className="rounded-lg bg-stone-900/80 px-2 py-1.5 text-left text-[10px] font-semibold text-stone-100 hover:bg-stone-800"
+                            className="rounded-lg bg-stone-900/80 px-2 py-1.5 text-left text-xs font-semibold text-stone-100 hover:bg-stone-800"
                             title={choice.hint}
                           >
                             {choice.label}
@@ -1597,7 +1597,7 @@ export default function App() {
                           const rival = world.rivalSettlements.find((r) => r.id === evt.rivalId);
                           if (rival) focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0]);
                         }}
-                        className="mt-1.5 text-[9px] font-semibold text-cyan-400 hover:text-cyan-300"
+                        className="mt-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300"
                       >
                         📍 Open rival camp
                       </button>
@@ -1623,8 +1623,8 @@ export default function App() {
                     <Emoji className="text-2xl">{evt.emoji}</Emoji>
                     <div className="flex-1">
                       <h3 className="font-bold text-rose-100">{evt.title}</h3>
-                      <p className="text-xs text-stone-300">{evt.description}</p>
-                      <p className="mt-1 text-[9px] text-rose-300/90">
+                      <p className="text-sm text-stone-300">{evt.description}</p>
+                      <p className="mt-1 text-[11px] text-rose-300/90">
                         At risk: {formatRaidLootSummary(raidEventLoot(evt)) || `${evt.lootFood}🍖`}
                         {' · '}
                         <strong>{formatRaidDeadline(evt, world.tick)}</strong>
@@ -1633,7 +1633,7 @@ export default function App() {
                         )}
                       </p>
                       <div className="mt-2">
-                        <Suspense fallback={<p className="text-[9px] text-stone-500">Loading preview…</p>}>
+                        <Suspense fallback={<p className="text-[11px] text-stone-300">Loading preview…</p>}>
                           <CombatPreviewPanel
                             compact
                             preview={raidPreview}
@@ -1668,7 +1668,7 @@ export default function App() {
                               playClickSound();
                               applyGameAction({ proto: 1, op: 'respondToRaidEvent', eventId: evt.id, choiceId: choice.id });
                             }}
-                            className="rounded-lg bg-stone-900/80 px-2 py-1.5 text-left text-[10px] font-semibold text-stone-100 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="rounded-lg bg-stone-900/80 px-2 py-1.5 text-left text-xs font-semibold text-stone-100 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
                             title={blockReason ?? choice.hint}
                           >
                             <LabelWithResourceCost label={choice.label} cost={choice.cost} />
@@ -1682,7 +1682,7 @@ export default function App() {
                           const rival = world.rivalSettlements.find((r) => r.id === evt.rivalId);
                           if (rival) focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0]);
                         }}
-                        className="mt-1.5 text-[9px] font-semibold text-cyan-400 hover:text-cyan-300"
+                        className="mt-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300"
                       >
                         📍 Watch war-band on map
                       </button>
@@ -1703,7 +1703,7 @@ export default function App() {
                     <Emoji className="text-2xl">{evt.emoji}</Emoji>
                     <div className="flex-1">
                       <h3 className="font-bold text-emerald-100">{evt.title}</h3>
-                      <p className="mt-0.5 text-[11px] leading-snug text-emerald-200/80">{evt.description}</p>
+                      <p className="mt-0.5 text-[13px] leading-relaxed text-emerald-200/80">{evt.description}</p>
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {evt.choices.map((choice) => (
                           <button
@@ -1713,7 +1713,7 @@ export default function App() {
                               playClickSound();
                               applyGameAction({ proto: 1, op: 'respondToStoryEvent', eventId: evt.id, choiceId: choice.id });
                             }}
-                            className="rounded-lg bg-stone-900/80 px-2 py-1.5 text-left text-[10px] font-semibold text-emerald-100 hover:bg-stone-800"
+                            className="rounded-lg bg-stone-900/80 px-2 py-1.5 text-left text-xs font-semibold text-emerald-100 hover:bg-stone-800"
                             title={choice.detail}
                           >
                             {choice.label}
@@ -1736,7 +1736,7 @@ export default function App() {
                     <Emoji className="text-2xl">{evt.emoji}</Emoji>
                     <div className="flex-1">
                       <h3 className="font-bold text-amber-100">{evt.title}</h3>
-                      <p className="text-xs text-stone-300">{evt.description}</p>
+                      <p className="text-sm text-stone-300">{evt.description}</p>
                       <div className="mt-2 grid grid-cols-1 gap-1">
                         {evt.choices.map((choice) => {
                           const eligibility = getDiplomacyChoiceEligibility(world, evt, choice.id);
@@ -1750,7 +1750,7 @@ export default function App() {
                               playClickSound();
                               applyGameAction({ proto: 1, op: 'respondToDiplomacyEvent', eventId: evt.id, choiceId: choice.id });
                             }}
-                            className="rounded-lg bg-stone-800/80 px-2 py-1.5 text-left text-[10px] font-semibold text-stone-100 hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="rounded-lg bg-stone-800/80 px-2 py-1.5 text-left text-xs font-semibold text-stone-100 hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
                             title={eligibility.blockReason ?? choice.hint}
                           >
                             {choice.label}
@@ -1764,7 +1764,7 @@ export default function App() {
                           const rival = world.rivalSettlements.find((r) => r.id === evt.rivalId);
                           if (rival) focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0]);
                         }}
-                        className="mt-1.5 text-[9px] font-semibold text-cyan-400 hover:text-cyan-300"
+                        className="mt-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300"
                       >
                         📍 Show camp on map
                       </button>
@@ -1800,11 +1800,11 @@ export default function App() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="font-bold text-amber-200">{q.title}</h3>
-                        <span className="shrink-0 text-[10px] text-stone-500">{daysLeft}d left</span>
+                        <span className="shrink-0 text-xs text-stone-400">{daysLeft}d left</span>
                       </div>
-                      <p className="mt-0.5 text-xs leading-relaxed text-stone-300">{q.description}</p>
+                      <p className="mt-0.5 text-sm leading-relaxed text-stone-300">{q.description}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span className="text-[11px] font-semibold text-stone-400">
+                        <span className="text-[13px] font-semibold text-stone-400">
                           Needs {q.goalAmount} {resEmoji[q.goalResource] ?? q.goalResource} · you have {have}
                         </span>
                         <button
@@ -1814,7 +1814,7 @@ export default function App() {
                             playClickSound();
                             applyGameAction({ proto: 1, op: 'deliverVisitorQuest' });
                           }}
-                          className="ml-auto rounded-lg bg-amber-600 px-3 py-1 text-[11px] font-bold text-amber-50 hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-stone-700 disabled:text-stone-500"
+                          className="ml-auto rounded-lg bg-amber-600 px-3 py-1 text-[13px] font-bold text-amber-50 hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-stone-700 disabled:text-stone-500"
                         >
                           Deliver → +{q.rewardGold}💰 +{q.rewardReputation}⭐
                         </button>
@@ -1836,7 +1836,7 @@ export default function App() {
                     <h3 className="font-bold text-amber-200">
                       {sunsetApproaching ? 'Sunset is approaching' : 'Your pioneers need shelter'}
                     </h3>
-                    <p className="text-xs text-stone-300">
+                    <p className="text-sm text-stone-300">
                       {firstNightWarningMessage}
                     </p>
                     <button
@@ -1844,7 +1844,7 @@ export default function App() {
                         setFirstNightWarningDismissed(true);
                         saveFirstNightWarningDismissed(true);
                       }}
-                      className="mt-2 rounded-lg bg-amber-700/60 px-3 py-1 text-[10px] font-semibold text-amber-100 hover:bg-amber-600/60"
+                      className="mt-2 rounded-lg bg-amber-700/60 px-3 py-1 text-xs font-semibold text-amber-100 hover:bg-amber-600/60"
                     >
                       Got it
                     </button>
@@ -1905,7 +1905,7 @@ export default function App() {
                 })()
               }
               onChange={(e) => setZoomLevel(Number(e.target.value))}
-              className="h-7 w-8 cursor-pointer appearance-none rounded-md border-0 bg-stone-700/60 px-0 text-center text-[9px] font-semibold tabular-nums text-stone-200 hover:bg-stone-600/80 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+              className="h-7 w-9 cursor-pointer appearance-none rounded-md border-0 bg-stone-700/60 px-0 text-center text-[11px] font-semibold tabular-nums text-stone-200 hover:bg-stone-600/80 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
               title={`Zoom ${Math.round(clampCameraZoom(view.camera.targetZoom) * 100)}% — pick a preset`}
               aria-label="Zoom preset"
             >
@@ -1916,7 +1916,7 @@ export default function App() {
               ))}
             </select>
             <div
-              className="px-0.5 text-center text-[8px] font-medium tabular-nums text-stone-500"
+              className="px-0.5 text-center text-[10px] font-medium tabular-nums text-stone-400"
               title="Live zoom"
             >
               {Math.round(clampCameraZoom(view.camera.targetZoom) * 100)}%
@@ -1934,7 +1934,7 @@ export default function App() {
             <button
               type="button"
               onClick={resetZoom}
-              className="flex h-7 w-8 items-center justify-center rounded-md text-[11px] text-stone-400 hover:bg-stone-700/80 hover:text-stone-200"
+              className="flex h-7 w-8 items-center justify-center rounded-md text-[13px] text-stone-400 hover:bg-stone-700/80 hover:text-stone-200"
               title={`Reset zoom (${Math.round(CAMERA_ZOOM_DEFAULT * 100)}%)`}
               aria-label="Reset zoom"
             >
@@ -1959,7 +1959,7 @@ export default function App() {
 
           {/* Pause HUD — map stays clickable for inspect/build while frozen */}
           {world.paused && !showTutorial && (
-            <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full border border-amber-500/40 bg-stone-900/85 px-4 py-1 text-[11px] font-bold text-amber-200 shadow-lg backdrop-blur">
+            <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full border border-amber-500/40 bg-stone-900/85 px-4 py-1 text-[13px] font-bold text-amber-200 shadow-lg backdrop-blur">
               ⏸ Paused — Space to resume · ☰ menu to save
             </div>
           )}
@@ -2006,11 +2006,11 @@ export default function App() {
           {hasInspectorSelection && (
           <div className="shrink-0 border-b border-stone-700 bg-stone-900/50">
             <div className="flex items-center justify-between px-3 py-1.5">
-              <h2 className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Selected</h2>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-stone-400">Selected</h2>
               <div className="flex items-center gap-1">
                 <button
                   onClick={clearSelection}
-                  className="rounded px-1.5 py-0.5 text-[10px] text-stone-500 hover:bg-stone-700 hover:text-stone-200"
+                  className="rounded px-1.5 py-0.5 text-xs text-stone-400 hover:bg-stone-700 hover:text-stone-200"
                   title="Clear selection (ESC)"
                 >
                   ✕
@@ -2018,7 +2018,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setInspectorCollapsed((v) => !v)}
-                  className="rounded px-1.5 py-0.5 text-[10px] text-stone-500 hover:bg-stone-700 hover:text-stone-200"
+                  className="rounded px-1.5 py-0.5 text-xs text-stone-400 hover:bg-stone-700 hover:text-stone-200"
                   title={inspectorCollapsed ? 'Expand' : 'Collapse'}
                 >
                   {inspectorCollapsed ? '▾' : '▴'}
@@ -2089,7 +2089,7 @@ export default function App() {
                         }
                         loopRef.current?.patchView({ selectedEntityIds: [], selectedEntityId: null });
                       }}
-                      className="mb-2 w-full rounded-xl border-2 border-amber-400/60 bg-amber-400/15 px-3 py-2 text-left text-xs font-semibold text-amber-200 shadow-lg backdrop-blur-md transition-colors hover:bg-amber-400/25"
+                      className="mb-2 w-full rounded-xl border-2 border-amber-400/60 bg-amber-400/15 px-3 py-2 text-left text-sm font-semibold text-amber-200 shadow-lg backdrop-blur-md transition-colors hover:bg-amber-400/25"
                     >
                       👥 Assign {selectedSettlers.length} selected settlers here
                     </button>
@@ -2142,7 +2142,7 @@ export default function App() {
             </div>
             )}
             {inspectorCollapsed && (
-              <p className="truncate px-3 pb-2 text-[9px] text-stone-500">
+              <p className="truncate px-3 pb-2 text-[11px] text-stone-300">
                 {selectedVisitorCamp?.name ?? selectedBuilding?.type ?? selectedEntity?.name ?? 'Selected'}
               </p>
             )}
@@ -2156,11 +2156,11 @@ export default function App() {
                 key={tab.id}
                 type="button"
                 onClick={() => toggleTab(tab.id)}
-                className={`sidebar-tab relative ${openTabs.has(tab.id) ? 'sidebar-tab--active text-emerald-400' : 'text-stone-500 hover:text-stone-300'}`}
+                className={`sidebar-tab relative ${openTabs.has(tab.id) ? 'sidebar-tab--active text-emerald-400' : 'text-stone-400 hover:text-stone-300'}`}
                 title={tab.hint}
               >
                 <Emoji className="text-lg">{tab.icon}</Emoji>
-                <span className="text-[11px] font-bold leading-tight sm:text-xs">{tab.label}</span>
+                <span className="text-[13px] font-bold leading-tight sm:text-sm">{tab.label}</span>
                 {tab.id === 'frontier' && frontierAlertCount > 0 && (
                   <span className="sidebar-tab-badge">{frontierAlertCount}</span>
                 )}
@@ -2181,7 +2181,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => toggleTab('village')}
-                    className="text-xs text-stone-500 hover:text-stone-300"
+                    className="text-sm text-stone-400 hover:text-stone-300"
                     title="Close panel"
                   >
                     ✕
@@ -2212,7 +2212,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => toggleTab('frontier')}
-                    className="text-xs text-stone-500 hover:text-stone-300"
+                    className="text-sm text-stone-400 hover:text-stone-300"
                     title="Close panel"
                   >
                     ✕
@@ -2240,7 +2240,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => toggleTab('nature')}
-                    className="text-xs text-stone-500 hover:text-stone-300"
+                    className="text-sm text-stone-400 hover:text-stone-300"
                     title="Close panel"
                   >
                     ✕
@@ -2259,7 +2259,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => toggleTab('progress')}
-                    className="text-xs text-stone-500 hover:text-stone-300"
+                    className="text-sm text-stone-400 hover:text-stone-300"
                     title="Close panel"
                   >
                     ✕
@@ -2283,7 +2283,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => toggleTab('log')}
-                    className="text-xs text-stone-500 hover:text-stone-300"
+                    className="text-sm text-stone-400 hover:text-stone-300"
                     title="Close panel"
                   >
                     ✕
@@ -2304,7 +2304,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => toggleTab('more')}
-                    className="text-xs text-stone-500 hover:text-stone-300"
+                    className="text-sm text-stone-400 hover:text-stone-300"
                     title="Close panel"
                   >
                     ✕
@@ -2358,7 +2358,7 @@ function FavoriteFollowBanner({
     <div className="pointer-events-auto absolute left-1/2 top-14 z-20 -translate-x-1/2">
       <div className="flex items-center gap-2 rounded-full border border-amber-500/40 bg-stone-900/90 px-3 py-1.5 shadow-lg backdrop-blur">
         <span className="text-sm" aria-hidden>⭐</span>
-        <span className="text-[11px] font-semibold text-amber-100">
+        <span className="text-[13px] font-semibold text-amber-100">
           Following {label}
         </span>
         <button
@@ -2367,7 +2367,7 @@ function FavoriteFollowBanner({
             playClickSound();
             onStop(fav.id);
           }}
-          className="rounded-full bg-stone-700/80 px-2 py-0.5 text-[10px] font-bold text-stone-200 hover:bg-stone-600 hover:text-white"
+          className="rounded-full bg-stone-700/80 px-2 py-0.5 text-xs font-bold text-stone-200 hover:bg-stone-600 hover:text-white"
         >
           Stop
         </button>

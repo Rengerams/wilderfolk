@@ -188,6 +188,7 @@ export function canPlaceBuildingSnapshot(
   ) {
     return false;
   }
+  if (config.unique && snapshot.buildings.some((b) => b.type === type)) return false;
   if (!isFootprintOnBuildableTerrain(snapshot, width, height, x, y, type)) return false;
   if (overlapsPlayerBuilding(snapshot.buildings, width, height, x, y)) return false;
   return true;

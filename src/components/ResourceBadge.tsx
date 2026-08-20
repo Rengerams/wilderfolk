@@ -56,7 +56,7 @@ export default function ResourceBadge({ resource, value, max, className = '', al
 
   return (
     <span
-      className={`flex items-center gap-0.5 rounded-md border border-stone-800/60 px-1.5 py-1 text-[11px] font-medium transition-transform duration-200 ${tone} ${
+      className={`flex items-center gap-0.5 rounded-md border border-stone-800/60 px-1.5 py-1 text-[13px] font-medium transition-transform duration-200 ${tone} ${
         alert ? 'ring-1 ring-rose-500/50' : ''
       } ${popRing} ${className}`}
       title={title}

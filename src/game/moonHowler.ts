@@ -76,6 +76,15 @@ export const MOON_HOWLER_GUARD_PROTECT_RANGE = 220;
 /** Per-guard save chance when a failed rite would kill the priest (extra roll, not guaranteed). */
 export const MOON_HOWLER_GUARD_SAVE_CHANCE = 0.5;
 
+/**
+ * Chance that a full moon with NO active curse creates a REPLACEMENT Howler.
+ * SIMULATION_AUTHORITY §5: "A replacement Howler appears only through a rare
+ * replacement roll" — a full moon must NOT guarantee a new Howler. Survivor
+ * returns are handled by the return path; only a quiet moon after a kill/cure
+ * reaches this roll (~1-2 replacements per year, down from every full moon).
+ */
+export const MOON_HOWLER_REPLACEMENT_CHANCE = 0.15;
+
 export type MoonHowlerRiteOutcome = 'cured' | 'priest_killed' | 'priest_fled';
 
 export interface MoonHowlerRiteWeights {
@@ -135,18 +144,25 @@ export function daysUntilNextFullMoon(colonyDay: number): number {
   return mod === 0 ? 0 : DAYS_PER_MOON_CYCLE - mod;
 }
 
-/** New curse when no uncured settler is already carrying the moon (full moon, 8pm). */
+/**
+ * Replacement curse roll — full moon at nightfall with no active curse.
+ * Rare by design (§5): an existing survivor returns instead (never a second
+ * curse), and after a kill/cure a replacement appears only through
+ * MOON_HOWLER_REPLACEMENT_CHANCE. `rng` is injectable for deterministic tests.
+ */
 export function shouldApplyNewMoonHowlerCurse(
   colonyDay: number,
   hourOfDay: number,
   humanCount: number,
   activeCursed: number,
+  rng: () => number = Math.random,
 ): boolean {
   return (
     activeCursed === 0
     && humanCount > 5
     && hourOfDay === NIGHT_START
     && isFullMoonNight(colonyDay, hourOfDay)
+    && rng() < MOON_HOWLER_REPLACEMENT_CHANCE
   );
 }
 
@@ -918,6 +934,7 @@ export function tickMoonHowlerCycle(
   hourOfDay: number,
   entityById: Map<number, Entity>,
   initialByType?: EntityByType,
+  rng: () => number = Math.random,
 ): MoonHowlerTickResult {
   // Reuse the caller's byType index (already built from the same aliveEntities
   // in gameTick) instead of rebuilding it every tick — rebuild only when forms
@@ -981,9 +998,9 @@ export function tickMoonHowlerCycle(
 
   const activeMoonCurses = countActiveMoonHowlerCurses(aliveEntities);
   const humanPop = aliveEntities.filter((e) => e.alive && isPlayerHuman(e)).length;
-  if (shouldApplyNewMoonHowlerCurse(colonyDay, hourOfDay, humanPop, activeMoonCurses)) {
+  if (shouldApplyNewMoonHowlerCurse(colonyDay, hourOfDay, humanPop, activeMoonCurses, rng)) {
     const candidates = byType[EntityType.Human].filter((h) => isPlayerHuman(h) && canMoonHowlerCurse(h));
-    const human = candidates[Math.floor(Math.random() * candidates.length)];
+    const human = candidates[Math.floor(rng() * candidates.length)];
     if (human) {
       const who = human.name ? `${human.name}${human.surname ? ` ${human.surname}` : ''}` : 'A settler';
       curseMoonHowler(human);

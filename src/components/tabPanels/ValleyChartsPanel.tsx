@@ -6,7 +6,7 @@ function MiniTrend({
   color,
   height = 36,
 }: { data: number[]; color: string; height?: number }) {
-  if (data.length < 2) return <div className="text-[10px] text-stone-600">Waiting for data…</div>;
+  if (data.length < 2) return <div className="text-xs text-stone-600">Waiting for data…</div>;
   let max = 1;
   for (const v of data) if (v > max) max = v;
   const min = Math.min(0, ...data);
@@ -36,7 +36,7 @@ function SeriesChart({
   height = 64,
 }: { series: { label: string; color: string; data: number[] }[]; height?: number }) {
   const valid = series.filter((s) => s.data.length >= 2);
-  if (valid.length === 0) return <div className="text-[10px] text-stone-600">Waiting for data…</div>;
+  if (valid.length === 0) return <div className="text-xs text-stone-600">Waiting for data…</div>;
   const count = Math.max(...valid.map((s) => s.data.length));
   const step = 100 / (count - 1);
   // Normalize each series to its own range so every trend line is readable.
@@ -70,7 +70,7 @@ function SeriesChart({
       </svg>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
         {paths.map((p) => (
-          <span key={p.label} className="flex items-center gap-1 text-[10px] text-stone-400">
+          <span key={p.label} className="flex items-center gap-1 text-xs text-stone-400">
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: p.color }} />
             {p.label}
           </span>
@@ -106,13 +106,13 @@ export default function ValleyChartsPanel({ state }: { state: WorldState }) {
   ];
 
   return (
-    <div className="space-y-3 text-[11px] text-stone-300">
-      <p className="text-[10px] text-stone-500">
+    <div className="space-y-3 text-[13px] text-stone-300">
+      <p className="text-xs text-stone-300">
         Rolling view of the last ~40 days — how your valley is doing right now, not just at year's end.
       </p>
 
       <div className="rounded-xl bg-stone-700/50 p-3">
-        <h3 className="mb-2 text-xs font-bold text-amber-300">🐾 The food chain</h3>
+        <h3 className="mb-2 text-sm font-bold text-amber-300">🐾 The food chain</h3>
         <SeriesChart
           height={64}
           series={[
@@ -123,26 +123,26 @@ export default function ValleyChartsPanel({ state }: { state: WorldState }) {
             { label: '🦊 Foxes', color: '#ea580c', data: foxes },
           ]}
         />
-        <p className="mt-1 text-[10px] leading-relaxed text-stone-500">
+        <p className="mt-1 text-xs leading-relaxed text-stone-300">
           Grass feeds prey, prey feeds predators, predators keep the balance — and you're part of it.
           Don't kill all the wolves.
         </p>
       </div>
 
       <div className="rounded-xl bg-stone-700/50 p-3">
-        <h3 className="mb-2 text-xs font-bold text-emerald-300">🌍 Valley health</h3>
+        <h3 className="mb-2 text-sm font-bold text-emerald-300">🌍 Valley health</h3>
         <div className="grid grid-cols-2 gap-2">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-emerald-400">Ecosystem</span>
-              <span className="font-mono text-[10px]">{Math.round(eco[eco.length - 1] ?? 0)}%</span>
+              <span className="text-xs font-semibold text-emerald-400">Ecosystem</span>
+              <span className="font-mono text-xs">{Math.round(eco[eco.length - 1] ?? 0)}%</span>
             </div>
             <MiniTrend data={eco} color="#22c55e" height={34} />
           </div>
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-rose-400">Pollution</span>
-              <span className="font-mono text-[10px]">{Math.round(pollution[pollution.length - 1] ?? 0)}%</span>
+              <span className="text-xs font-semibold text-rose-400">Pollution</span>
+              <span className="font-mono text-xs">{Math.round(pollution[pollution.length - 1] ?? 0)}%</span>
             </div>
             <MiniTrend data={pollution} color="#ef4444" height={34} />
           </div>
@@ -150,13 +150,13 @@ export default function ValleyChartsPanel({ state }: { state: WorldState }) {
       </div>
 
       <div className="rounded-xl bg-stone-700/50 p-3">
-        <h3 className="mb-2 text-xs font-bold text-stone-300">📦 Resources</h3>
+        <h3 className="mb-2 text-sm font-bold text-stone-300">📦 Resources</h3>
         <div className="grid grid-cols-2 gap-2">
           {resourceCards.map((c) => (
             <div key={c.label}>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-semibold text-stone-300">{c.label}</span>
-                <span className="font-mono text-[10px] text-stone-200">{fmt(c.value)}</span>
+                <span className="text-xs font-semibold text-stone-300">{c.label}</span>
+                <span className="font-mono text-xs text-stone-200">{fmt(c.value)}</span>
               </div>
               <MiniTrend data={c.data} color={c.color} height={34} />
             </div>

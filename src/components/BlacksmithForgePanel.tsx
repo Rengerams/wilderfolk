@@ -26,14 +26,14 @@ export default function BlacksmithForgePanel({ state, buildingId, onQueueForge }
 
   return (
     <div className="mt-2 space-y-1.5 rounded-lg border border-orange-700/40 bg-orange-950/30 p-2">
-      <p className="text-[9px] font-semibold uppercase tracking-wider text-orange-300">Village forge</p>
-      <p className="text-[9px] leading-relaxed text-stone-400">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-300">Village forge</p>
+      <p className="text-[11px] leading-relaxed text-stone-300">
         Each order is a <strong className="text-stone-300">one-time village tier</strong> (not a stack of items). Research → staff smith → queue once. Higher weapons replace lower for all adults. Help: More → Guide → search &quot;forge&quot;.
       </p>
 
       {forge.activeOrder && activeOrder && (
         <div className="rounded border border-orange-600/30 bg-stone-900/60 px-2 py-1.5">
-          <p className="text-[10px] font-bold text-amber-200">
+          <p className="text-xs font-bold text-amber-200">
             🔨 Forging {activeOrder.label}
           </p>
           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-700">
@@ -42,7 +42,7 @@ export default function BlacksmithForgePanel({ state, buildingId, onQueueForge }
               style={{ width: `${forge.progress}%` }}
             />
           </div>
-          <p className="mt-0.5 text-[8px] text-stone-500">{Math.round(forge.progress)}% · progress only while staffed</p>
+          <p className="mt-0.5 text-[10px] text-stone-300">{Math.round(forge.progress)}% · progress only while staffed</p>
         </div>
       )}
 
@@ -60,7 +60,7 @@ export default function BlacksmithForgePanel({ state, buildingId, onQueueForge }
               disabled={active || !canQueue}
               title={block ?? (ready ? 'Already forged' : order.description)}
               onClick={() => onQueueForge(order.id)}
-              className={`rounded px-2 py-1.5 text-left text-[8px] transition-all ${
+              className={`rounded px-2 py-1.5 text-left text-[10px] transition-all ${
                 ready
                   ? 'border border-emerald-600/40 bg-emerald-950/40 text-emerald-300'
                   : active
@@ -69,23 +69,23 @@ export default function BlacksmithForgePanel({ state, buildingId, onQueueForge }
                       ? epic
                         ? 'border border-amber-600/40 bg-amber-950/30 text-amber-100 hover:bg-amber-900/40'
                         : 'bg-stone-800/80 text-stone-200 hover:bg-stone-700'
-                      : 'bg-stone-900/50 text-stone-500'
+                      : 'bg-stone-900/50 text-stone-400'
               }`}
             >
               <span className="font-bold">
                 {ready ? '✓ ' : ''}<Emoji>{order.emoji}</Emoji> {order.label}
-                {epic && !ready ? <span className="ml-1 text-[7px] font-semibold text-amber-400/90">tier 5</span> : null}
+                {epic && !ready ? <span className="ml-1 text-[10px] font-semibold text-amber-400/90">tier 5</span> : null}
               </span>
-              <span className="block text-[7px] opacity-80">{order.description}</span>
+              <span className="block text-[10px] opacity-90">{order.description}</span>
               <ResourceCost
                 cost={order.inputs}
                 className="mt-0.5"
                 iconClassName="h-2 w-2"
-                amountClassName="font-mono text-[7px] font-semibold leading-none"
+                amountClassName="font-mono text-[10px] font-semibold leading-none"
                 emptyLabel="—"
               />
               {!ready && !active && block && (
-                <span className="block text-[7px] text-amber-500/90">{block}</span>
+                <span className="block text-[10px] text-amber-500/90">{block}</span>
               )}
             </button>
           );
@@ -93,7 +93,7 @@ export default function BlacksmithForgePanel({ state, buildingId, onQueueForge }
       </div>
 
       {!staffed && !anyReady && (
-        <p className="text-[8px] text-amber-400">⚠️ Assign a worker — forge pauses when unstaffed.</p>
+        <p className="text-[10px] text-amber-400">⚠️ Assign a worker — forge pauses when unstaffed.</p>
       )}
     </div>
   );

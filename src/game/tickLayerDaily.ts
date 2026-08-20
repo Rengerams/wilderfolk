@@ -72,6 +72,7 @@ import {
 import { recordFoodProduced } from './economyLedger';
 import { tickVisitorQuest } from './visitorQuest';
 import { tickLeaderPromise } from './villageLeadership';
+import { syncLeaderHouseResidency } from './leaderHouse';
 import { getTerrainEfficiencyMultiplier, findHumanSpawnNear } from './terrainSystems';
 import {
   gainSkill,
@@ -228,6 +229,9 @@ function tickBuildingProgress(state: WorldState): void {
           createDeathParticles(state, building.x, building.y, '#ffd700', 12, 'star');
         }
         syncAdjacency(state, building, wasCompleted);
+        if (building.type === BuildingType.LeaderHouse) {
+          syncLeaderHouseResidency(state);
+        }
       }
       continue;
     }

@@ -400,10 +400,10 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
         style={{ transitionDuration: `${FADE_MS}ms` }}
         aria-hidden={!logoVisible}
       >
-        <span className="rounded-full bg-stone-900/75 px-3 py-1 text-[10px] font-bold tracking-widest uppercase text-amber-300 ring-1 ring-amber-600/35 backdrop-blur-sm">
+        <span className="rounded-full bg-stone-900/75 px-3 py-1 text-xs font-bold tracking-widest uppercase text-amber-300 ring-1 ring-amber-600/35 backdrop-blur-sm">
           {GAME_PHASE}
         </span>
-        <span className="rounded-full bg-emerald-950/80 px-2.5 py-1 text-[10px] font-black tracking-[0.14em] text-emerald-300 ring-1 ring-emerald-500/50 backdrop-blur-sm shadow-[0_0_20px_rgba(16,185,129,0.25)]">
+        <span className="rounded-full bg-emerald-950/80 px-2.5 py-1 text-xs font-black tracking-[0.14em] text-emerald-300 ring-1 ring-emerald-500/50 backdrop-blur-sm shadow-[0_0_20px_rgba(16,185,129,0.25)]">
           v{GAME_VERSION}
         </span>
       </div>
@@ -417,13 +417,13 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
         aria-hidden={!logoVisible}
       >
         <div className="rounded-2xl border border-emerald-500/35 bg-gradient-to-r from-emerald-950/90 via-stone-950/90 to-amber-950/80 px-4 py-2.5 text-center shadow-[0_8px_32px_rgba(0,0,0,0.45)] ring-1 ring-amber-500/20 backdrop-blur-md">
-          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-emerald-400/95">
+          <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-400/95">
             🌿 New milestone · v{GAME_VERSION}
           </p>
-          <p className="mt-1 text-[11px] font-semibold leading-snug text-amber-100/95 sm:text-xs">
+          <p className="mt-1 text-[13px] font-semibold leading-snug text-amber-100/95 sm:text-sm">
             {GAME_VERSION_TAGLINE}
           </p>
-          <p className="mt-0.5 text-[9px] leading-relaxed text-stone-400">
+          <p className="mt-0.5 text-[11px] leading-relaxed text-stone-300">
             Larger valleys · truer sim · forge-steel for the frontier
           </p>
         </div>
@@ -603,7 +603,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
                 style={{ animationDelay: chainVisible ? `${index * 220}ms` : '0ms' }}
               >
                 <span className="text-lg sm:text-xl">{item.icon}</span>
-                <span className="text-[9px] uppercase tracking-wider text-stone-500">
+                <span className="text-[11px] uppercase tracking-wider text-stone-400">
                   {item.label}
                 </span>
               </div>
@@ -641,14 +641,14 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
             Choose your land →
           </button>
 
-          <p className="max-w-sm text-center text-[11px] leading-relaxed text-stone-500">
+          <p className="max-w-sm text-center text-[13px] leading-relaxed text-stone-300">
             Press any key or click to continue
             {muted && (
               <span className="mt-1 block text-amber-400/90">Sound is off — tap 🔊 to unmute</span>
             )}
           </p>
 
-          <p className="max-w-md text-center text-[10px] font-medium leading-relaxed tracking-wide text-stone-500">
+          <p className="max-w-md text-center text-xs font-medium leading-relaxed tracking-wide text-stone-300">
             <span className="font-bold text-emerald-500/90">v{GAME_VERSION}</span>
             {' · '}
             {GAME_PHASE}
@@ -682,7 +682,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
           <button
             type="button"
             onClick={handleContinue}
-            className="rounded-lg border border-stone-700/80 bg-stone-900/70 px-4 py-2 text-xs text-stone-400 backdrop-blur-sm transition-all hover:border-stone-500 hover:text-stone-200"
+            className="rounded-lg border border-stone-700/80 bg-stone-900/70 px-4 py-2 text-sm text-stone-400 backdrop-blur-sm transition-all hover:border-stone-500 hover:text-stone-200"
           >
             Skip intro →
           </button>

@@ -1,15 +1,16 @@
 import type { WorldState, Entity, Building } from './gameTypes';
 import {
   BuildingType, EntityType, TerrainType,
-  BUILDING_CONFIGS, BUILDING_JOB_TYPES, JobType,
+  BUILDING_CONFIGS, BUILDING_JOB_TYPES,
   WORKSHOP_RECIPES, getWorkshopRecipe,
   HUNTING_SPOT_PREY_OPTIONS,
   WEREWOLF_CURSE_LINES,
+  LEADER_OCCUPATION,
 } from './gameTypes';
 import type { HuntingSpotPrey } from './gameTypes';
 import type { MineMode } from './buildings';
 import {
-  getOccupationForBuilding, readSkill, getWorkerSkillMultiplier,
+  readSkill, getWorkerSkillMultiplier,
 } from './skills';
 import { addResource } from './economy';
 import {
@@ -20,7 +21,16 @@ import {
   impulseScreenShake,
 } from './simEffects';
 import { getMultiplier } from './simHelpers';
-import { assignMissingWorkers } from './workforce';
+import {
+  addToConstructionCrew,
+  assignMissingWorkers,
+  assignWorkerTransition,
+  completedJobBuildings,
+  findOverstaffedDonorBuilding,
+  pickWorkerToTransfer,
+  removeWorkerTransition,
+  transferWorkerBetweenBuildings,
+} from './workforce';
 import { unindexAdjacency, ensureAdjacencyIndex, getAdjacencyMultiplierFromIndex } from './adjacencyIndex';
 import { getTerrainEfficiencyMultiplier } from './terrainSystems';
 import { indexLivingEntity } from './entityIndex';
@@ -113,17 +123,7 @@ export function canPlaceBuilding(
   y: number,
   rotation: BuildingRotation = 0,
 ): boolean {
-  const config = BUILDING_CONFIGS[type];
-  const { width, height } = getBuildingFootprintForType(type, rotation);
-  if (!isFootprintWithinMapBounds(width, height, x, y, state.width, state.height)) return false;
-  if (
-    config.unlockRequirement
-    && !isBuildingTechUnlocked(config.unlockRequirement, state.unlockedTechs, state.researchNodes)
-  ) {
-    return false;
-  }
-  if (!isFootprintOnBuildableTerrain(state, width, height, x, y, type)) return false;
-  return !overlapsAnyBuilding(state.buildings, width, height, x, y);
+  return getPlaceBuildingFailureReason(state, type, x, y, rotation) == null;
 }
 
 export function getPlaceBuildingFailureReason(
@@ -132,7 +132,7 @@ export function getPlaceBuildingFailureReason(
   x: number,
   y: number,
   rotation: BuildingRotation = 0,
-): 'terrain' | 'blocked' | 'research' | null {
+): 'terrain' | 'blocked' | 'research' | 'unique' | null {
   const config = BUILDING_CONFIGS[type];
   const { width, height } = getBuildingFootprintForType(type, rotation);
   if (!isFootprintWithinMapBounds(width, height, x, y, state.width, state.height)) return 'blocked';
@@ -142,6 +142,7 @@ export function getPlaceBuildingFailureReason(
   ) {
     return 'research';
   }
+  if (config.unique && state.buildings.some((b) => b.type === type)) return 'unique';
   if (!isFootprintOnBuildableTerrain(state, width, height, x, y, type)) return 'terrain';
   if (overlapsAnyBuilding(state.buildings, width, height, x, y)) return 'blocked';
   return null;
@@ -180,7 +181,11 @@ export function startBuilding(
       state,
       x,
       y,
-      placeFailure === 'terrain' ? 'Cannot build on water/terrain' : 'Cannot build here',
+      placeFailure === 'unique'
+        ? `Only one ${config.label} per village`
+        : placeFailure === 'terrain'
+          ? 'Cannot build on water/terrain'
+          : 'Cannot build here',
       '#ef4444',
     );
     return state;
@@ -418,6 +423,7 @@ function applyBuilderAssignment(
     (e) =>
       isPlayerHuman(e) &&
       !e.isJuvenile &&
+      e.occupation !== LEADER_OCCUPATION &&
       !hasWorkAssignment(e) &&
       !isImprisoned(e) &&
       !building.occupants.includes(e.id) &&
@@ -429,7 +435,7 @@ function applyBuilderAssignment(
     return state;
   }
 
-  building.occupants.push(builder.id);
+  addToConstructionCrew(builder, building);
   addFloatingText(state, building.x, building.y - 10, '✓ Builder', '#22c55e', 'brief');
   addNotification(
     state,
@@ -635,10 +641,9 @@ export function assignIdleWorkerToBuilding(originalState: WorldState, buildingId
       reassignedFrom = donor;
     }
   } else {
-    building.occupants.push(idleHuman.id);
-    idleHuman.homeBuildingId = building.id;
-    idleHuman.occupation = getOccupationForBuilding(building.type);
-    idleHuman.job = job;
+    // Manual assignment command — the leader may take a workplace here
+    // (authority: the leader can work while retaining office status).
+    assignWorkerTransition(idleHuman, building, { allowLeader: true });
   }
 
   if (!idleHuman) {
@@ -674,12 +679,8 @@ export function removeWorkerFromBuilding(originalState: WorldState, buildingId: 
   if (!building || !human) return state;
 
   if (!building.completed) {
-    building.occupants = building.occupants.filter((id) => id !== humanId);
-    if (human.homeBuildingId === buildingId) {
-      human.homeBuildingId = undefined;
-      human.occupation = 'settler';
-      human.job = JobType.Settler;
-    }
+    // Crew removal — release the settler from the crew (and any stale job).
+    removeWorkerTransition(human, state.buildings);
     assignMissingWorkers(listPlayerHumans(state), state.buildings);
     return state;
   }
@@ -688,10 +689,7 @@ export function removeWorkerFromBuilding(originalState: WorldState, buildingId: 
     return removeResidentFromBuilding(state, buildingId, humanId);
   }
 
-  building.occupants = building.occupants.filter(id => id !== humanId);
-  human.homeBuildingId = undefined;
-  human.occupation = 'settler';
-  human.job = JobType.Settler;
+  removeWorkerTransition(human, state.buildings);
   assignMissingWorkers(listPlayerHumans(state), state.buildings);
   return state;
 }
@@ -717,6 +715,7 @@ export function listAssignableWorkersForBuilding(
       && e.alive
       && !e.isJuvenile
       && !e.pregnant
+      && e.occupation !== LEADER_OCCUPATION
       && !hasWorkAssignment(e)
       && !isImprisoned(e),
   );
@@ -753,7 +752,13 @@ export function canAssignWorkerToBuilding(state: WorldState, buildingId: number)
   const humans = listPlayerHumans(state);
   if (
     humans.some(
-      (h) => h.alive && !h.isJuvenile && !h.pregnant && !hasWorkAssignment(h) && !isImprisoned(h),
+      (h) =>
+        h.alive
+        && !h.isJuvenile
+        && !h.pregnant
+        && h.occupation !== LEADER_OCCUPATION
+        && !hasWorkAssignment(h)
+        && !isImprisoned(h),
     )
   ) {
     return true;
@@ -796,6 +801,8 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
   const building = state.buildings.find(b => b.id === buildingId);
   if (!building || !building.completed) return state;
   if (building.level >= 3) return state;
+  // The Leader's House comes with the office fully built — no upgrades.
+  if (building.type === BuildingType.LeaderHouse) return state;
 
   const { wood: costWood, stone: costStone, gold: costGold } = getBuildingUpgradeCost(building);
 
@@ -940,21 +947,19 @@ export function demolishBuilding(originalState: WorldState, buildingId: number):
   addResource(state, 'gold', refundGold);
 
   state.entities = state.entities.map(e => {
-    const cleared: Partial<Entity> = {};
+    // Workforce cleanup through the owner's removal transition — keeps
+    // homeBuildingId / occupation / job consistent (§3 single-writer law).
     if (e.homeBuildingId === buildingId) {
-      cleared.homeBuildingId = undefined;
-      cleared.occupation = 'settler';
-      cleared.job = JobType.Settler;
+      removeWorkerTransition(e, state.buildings);
     }
     if (e.residenceBuildingId === buildingId) {
-      cleared.residenceBuildingId = undefined;
+      e.residenceBuildingId = undefined;
     }
     if (e.prisonBuildingId === buildingId) {
-      cleared.prisonBuildingId = undefined;
-      cleared.prisonerUntilTick = undefined;
-      cleared.prisonSentenceCrime = undefined;
+      e.prisonBuildingId = undefined;
+      e.prisonerUntilTick = undefined;
+      e.prisonSentenceCrime = undefined;
     }
-    if (Object.keys(cleared).length > 0) return { ...e, ...cleared };
     return e;
   });
 
@@ -969,6 +974,12 @@ export function demolishBuilding(originalState: WorldState, buildingId: number):
     state.roadAvoidanceStamp = undefined;
   }
   state.buildings = state.buildings.filter(b => b.id !== buildingId);
+  // Keep the denormalized completed-building counter consistent with the
+  // load-time recompute (saveLoad counts CURRENT completed buildings): a
+  // completed player building being demolished must decrement it.
+  if (building.completed && building.faction !== 'rival') {
+    state.totalBuildingsCompleted = Math.max(0, state.totalBuildingsCompleted - 1);
+  }
   const humans = listPlayerHumans(state);
   assignMissingResidences(humans, state.buildings, state.entities);
   assignMissingWorkers(humans, state.buildings);
@@ -1063,108 +1074,3 @@ export function tameEntity(originalState: WorldState, entityId: number, humanId:
   return state;
 }
 
-// Job-building helpers shared between assignment actions.
-const AUTO_JOB_BUILDING_PRIORITY: BuildingType[] = [
-  BuildingType.Farm,
-  BuildingType.Greenhouse,
-  BuildingType.HuntingSpot,
-  BuildingType.LumberMill,
-  BuildingType.Quarry,
-  BuildingType.Mine,
-  BuildingType.Blacksmith,
-  BuildingType.Workshop,
-  BuildingType.Store,
-  BuildingType.Market,
-  BuildingType.School,
-  BuildingType.Hospital,
-  BuildingType.TownHall,
-  BuildingType.Church,
-  BuildingType.Tavern,
-  BuildingType.Hotel,
-];
-
-function jobBuildingPriority(type: BuildingType): number {
-  const idx = AUTO_JOB_BUILDING_PRIORITY.indexOf(type);
-  return idx === -1 ? AUTO_JOB_BUILDING_PRIORITY.length : idx;
-}
-
-function countWorkersAtBuilding(humans: Entity[], buildingId: number): number {
-  return humans.filter((h) => h.alive && !h.faction && h.homeBuildingId === buildingId).length;
-}
-
-function completedJobBuildings(buildings: Building[]): Building[] {
-  return buildings
-    .filter((b) => {
-      if (!b.completed || b.faction === 'rival' || !BUILDING_JOB_TYPES[b.type]) return false;
-      return BUILDING_CONFIGS[b.type].maxOccupants > 0;
-    })
-    .sort((a, b) => {
-      const prio = jobBuildingPriority(a.type) - jobBuildingPriority(b.type);
-      if (prio !== 0) return prio;
-      return a.id - b.id;
-    });
-}
-
-function isManualStaffBuildingType(type: BuildingType): boolean {
-  return type === BuildingType.Church
-    || type === BuildingType.Prison
-    || type === BuildingType.Barracks;
-}
-
-function findOverstaffedDonorBuilding(
-  jobBuildings: Building[],
-  humans: Entity[],
-  excludeBuildingId: number,
-): Building | undefined {
-  return jobBuildings
-    .filter(
-      (b) =>
-        b.id !== excludeBuildingId
-        && !isManualStaffBuildingType(b.type)
-        && countWorkersAtBuilding(humans, b.id) >= 2,
-    )
-    .sort((a, b) => countWorkersAtBuilding(humans, a.id) - countWorkersAtBuilding(humans, b.id))[0];
-}
-
-function pickWorkerToTransfer(
-  humans: Entity[],
-  fromBuilding: Building,
-  toBuilding: Building,
-): Entity | undefined {
-  const toJob = BUILDING_JOB_TYPES[toBuilding.type];
-  const fromJob = BUILDING_JOB_TYPES[fromBuilding.type];
-  if (!toJob || !fromJob) return undefined;
-
-  const workers = humans.filter(
-    (h) =>
-      isPlayerHuman(h)
-      && h.alive
-      && !h.isJuvenile
-      && !h.pregnant
-      && h.homeBuildingId === fromBuilding.id,
-  );
-  if (workers.length === 0) return undefined;
-
-  workers.sort((a, b) => {
-    const aFit = readSkill(a, toJob) - readSkill(a, fromJob);
-    const bFit = readSkill(b, toJob) - readSkill(b, fromJob);
-    return bFit - aFit;
-  });
-  return workers[0];
-}
-
-function transferWorkerBetweenBuildings(
-  worker: Entity,
-  fromBuilding: Building,
-  toBuilding: Building,
-): void {
-  const job = BUILDING_JOB_TYPES[toBuilding.type];
-  if (!job) return;
-
-  fromBuilding.occupants = fromBuilding.occupants.filter((id) => id !== worker.id);
-  if (!toBuilding.occupants.includes(worker.id)) toBuilding.occupants.push(worker.id);
-
-  worker.homeBuildingId = toBuilding.id;
-  worker.occupation = getOccupationForBuilding(toBuilding.type);
-  worker.job = job;
-}
