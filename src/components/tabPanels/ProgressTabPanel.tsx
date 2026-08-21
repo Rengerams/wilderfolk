@@ -4,11 +4,10 @@ import type { WorldState } from '../../game/gameEngine';
 import { hasCompletedMarket } from '../../game/tradeCaravans';
 import { computeVillagePortrait } from '../../game/villagePortrait';
 
-type ProgressSubTab = 'research' | 'trade' | 'goals' | 'charts';
+type ProgressSubTab = 'research' | 'trade' | 'goals';
 
 const ChallengesPanel = lazy(() => import('../ChallengesPanel'));
 const StatisticsPanel = lazy(() => import('../../game/StatisticsPanel'));
-const ValleyChartsPanel = lazy(() => import('./ValleyChartsPanel'));
 const ValleyChroniclePanel = lazy(() => import('./ValleyChroniclePanel'));
 const DynastyPanel = lazy(() => import('./DynastyPanel'));
 
@@ -114,7 +113,7 @@ export default function ProgressTabPanel({
   return (
     <div className="space-y-3">
       <div className="progress-subnav">
-        {(['research', 'trade', 'goals', 'charts'] as ProgressSubTab[]).map((id) => (
+        {(['research', 'trade', 'goals'] as ProgressSubTab[]).map((id) => (
           <button
             key={id}
             type="button"
@@ -122,7 +121,7 @@ export default function ProgressTabPanel({
             data-active={progressSubTab === id}
             onClick={() => setProgressSubTab(id)}
           >
-            {id === 'research' ? '🔬 Research' : id === 'trade' ? '🤝 Trade' : id === 'charts' ? '📈 Charts' : '🎯 Goals'}
+            {id === 'research' ? '🔬 Research' : id === 'trade' ? '🤝 Trade' : '🎯 Goals'}
             {id === 'research' && state.activeResearch && (
               <span className="progress-subnav-dot" title="Research in progress" />
             )}
@@ -278,12 +277,6 @@ export default function ProgressTabPanel({
           </Suspense>
           <GoalsPortraitPanel state={state} />
         </>
-      )}
-
-      {progressSubTab === 'charts' && (
-        <Suspense fallback={<p className="text-[13px] text-stone-300">Loading charts…</p>}>
-          <ValleyChartsPanel state={state} />
-        </Suspense>
       )}
     </div>
   );

@@ -1,15 +1,23 @@
-
+import chaosDialogueJson from './data/chaos.json';
+import environmentDialogueJson from './data/environment.json';
+import existentialDialogueJson from './data/existential.json';
+import festivalDialogueJson from './data/festival.json';
+import needsDialogueJson from './data/needs.json';
+import socialDialogueJson from './data/social.json';
+import workDialogueJson from './data/work.json';
 import { readUtf8RelativeToModule } from './nodeRuntime';
-// Static import — always available as a hard guarantee (same bundle path as gameWorker).
-import dialogueBankJson from './data/sim_dialogue_trees.json';
 
-export type DialogueCategory =
-  | 'work'
-  | 'needs'
-  | 'social'
-  | 'existential'
-  | 'chaos'
-  | 'environment';
+export const DIALOGUE_CATEGORIES = [
+  'work',
+  'needs',
+  'social',
+  'existential',
+  'chaos',
+  'environment',
+  'festival',
+] as const;
+
+export type DialogueCategory = (typeof DIALOGUE_CATEGORIES)[number];
 
 export interface DialogueLine {
   speaker: string;
@@ -29,79 +37,141 @@ export interface DialogueBankFile {
   categories: DialogueCategory[];
 }
 
+interface DialogueSourceFile {
+  version: string;
+  category: DialogueCategory;
+  dialogue_trees: DialogueTree[];
+}
+
+const DIALOGUE_SOURCE_FILES: readonly DialogueSourceFile[] = [
+  chaosDialogueJson as unknown as DialogueSourceFile,
+  environmentDialogueJson as unknown as DialogueSourceFile,
+  existentialDialogueJson as unknown as DialogueSourceFile,
+  festivalDialogueJson as unknown as DialogueSourceFile,
+  needsDialogueJson as unknown as DialogueSourceFile,
+  socialDialogueJson as unknown as DialogueSourceFile,
+  workDialogueJson as unknown as DialogueSourceFile,
+];
+
+const DIALOGUE_SOURCE_FILE_NAMES = [
+  'chaos.json',
+  'environment.json',
+  'existential.json',
+  'festival.json',
+  'needs.json',
+  'social.json',
+  'work.json',
+] as const;
+
+function isDialogueCategory(value: string): value is DialogueCategory {
+  return (DIALOGUE_CATEGORIES as readonly string[]).includes(value);
+}
+
+function buildCanonicalDialogueBank(sources: readonly DialogueSourceFile[]): DialogueBankFile {
+  const dialogue_trees: DialogueTree[] = [];
+  const seenIds = new Set<string>();
+
+  for (const source of sources) {
+    if (!isDialogueCategory(source.category)) {
+      throw new Error(`[dialogue] Unsupported source category: ${source.category}`);
+    }
+    for (const tree of source.dialogue_trees) {
+      if (tree.category !== source.category) {
+        throw new Error(`[dialogue] Tree ${tree.id} is ${tree.category} inside ${source.category}.json`);
+      }
+      if (seenIds.has(tree.id)) {
+        throw new Error(`[dialogue] Duplicate dialogue tree id: ${tree.id}`);
+      }
+      seenIds.add(tree.id);
+      dialogue_trees.push(tree);
+    }
+  }
+
+  return {
+    version: 'split-1.1',
+    dialogue_trees,
+    categories: [...DIALOGUE_CATEGORIES],
+  };
+}
+
+/** Canonical content payload shared by the main thread and worker. */
+export const canonicalDialogueBank = buildCanonicalDialogueBank(DIALOGUE_SOURCE_FILES);
+
 let bank: DialogueBankFile | null = null;
 let treesByCategory = new Map<DialogueCategory, DialogueTree[]>();
 let treesById = new Map<string, DialogueTree>();
 let loadPromise: Promise<void> | null = null;
 
-/** Headless sims/tests (tsx/node) cannot rely on Vite async JSON chunks. */
+/** Headless sims/tests can read the same split sources from disk if imports are unavailable. */
 async function loadDialogueFromDisk(): Promise<boolean> {
-  const raw = await readUtf8RelativeToModule(import.meta.url, 'data', 'sim_dialogue_trees.json');
-  if (!raw) return false;
-  indexDialogueBank(JSON.parse(raw) as DialogueBankFile);
-  return bank !== null;
+  const rawSources = await Promise.all(
+    DIALOGUE_SOURCE_FILE_NAMES.map((fileName) => readUtf8RelativeToModule(import.meta.url, 'data', fileName)),
+  );
+  if (rawSources.some((source) => !source)) return false;
+  const parsedSources = rawSources.map((source) => JSON.parse(source!) as DialogueSourceFile);
+  indexDialogueBank(buildCanonicalDialogueBank(parsedSources));
+  return true;
 }
 
 function indexDialogueBank(next: DialogueBankFile): void {
-  bank = next;
-  treesByCategory = new Map();
-  treesById = new Map();
+  const nextTreesByCategory = new Map<DialogueCategory, DialogueTree[]>();
+  const nextTreesById = new Map<string, DialogueTree>();
+
   for (const tree of next.dialogue_trees) {
-    const list = treesByCategory.get(tree.category) ?? [];
+    if (!isDialogueCategory(tree.category)) {
+      throw new Error(`[dialogue] Unsupported tree category: ${tree.category}`);
+    }
+    if (nextTreesById.has(tree.id)) {
+      throw new Error(`[dialogue] Duplicate dialogue tree id: ${tree.id}`);
+    }
+    const list = nextTreesByCategory.get(tree.category) ?? [];
     list.push(tree);
-    treesByCategory.set(tree.category, list);
-    treesById.set(tree.id, tree);
+    nextTreesByCategory.set(tree.category, list);
+    nextTreesById.set(tree.id, tree);
   }
+
+  bank = {
+    ...next,
+    dialogue_trees: [...next.dialogue_trees],
+    categories: [...next.categories],
+  };
+  treesByCategory = nextTreesByCategory;
+  treesById = nextTreesById;
 }
 
-/** Install the bundled `sim_dialogue_trees.json` if nothing is loaded yet. */
+/** Install the statically bundled split dialogue sources if nothing is loaded yet. */
 export function ensureDialogueBankFromBundle(): boolean {
   if (bank && bank.dialogue_trees.length > 0) return true;
   try {
-    const payload = dialogueBankJson as unknown as DialogueBankFile;
-    indexDialogueBank(payload);
+    indexDialogueBank(canonicalDialogueBank);
     return Boolean(bank && bank.dialogue_trees.length > 0);
   } catch (err) {
-    console.error('[dialogue] Failed to install bundled sim_dialogue_trees.json', err);
+    console.error('[dialogue] Failed to install split dialogue bank', err);
     return false;
   }
 }
 
 export function isDialogueBankReady(): boolean {
-  return bank !== null && (bank.dialogue_trees?.length ?? 0) > 0;
+  return bank !== null && bank.dialogue_trees.length > 0;
 }
 
-/** Install pre-serialized dialogue data (e.g. worker static JSON bundle). */
+/** Install pre-serialized dialogue data (e.g. the worker’s canonical static bundle). */
 export function installDialogueBankPayload(payload: DialogueBankFile): void {
   indexDialogueBank(payload);
 }
 
-/**
- * Load dialogue JSON on demand.
- * Order: already loaded → disk (node) → dynamic chunk → static bundle fallback.
- */
+/** Load the canonical split dialogue bank on demand. */
 export async function preloadDialogueBank(): Promise<void> {
   if (isDialogueBankReady()) return;
   if (await loadDialogueFromDisk()) return;
-  if (loadPromise) {
-    await loadPromise;
-    if (isDialogueBankReady()) return;
-  }
-  loadPromise = import('./data/sim_dialogue_trees.json')
-    .then((mod) => {
-      indexDialogueBank(mod.default as unknown as DialogueBankFile);
-    })
-    .catch((err) => {
-      loadPromise = null;
-      console.warn('[dialogue] Dynamic JSON chunk failed — using static bundle', err);
-      ensureDialogueBankFromBundle();
+  if (!loadPromise) {
+    loadPromise = Promise.resolve().then(() => {
+      indexDialogueBank(canonicalDialogueBank);
     });
+  }
   await loadPromise;
   if (!isDialogueBankReady()) {
-    ensureDialogueBankFromBundle();
-  }
-  if (!isDialogueBankReady()) {
-    throw new Error('Dialogue bank failed to load (sim_dialogue_trees.json)');
+    throw new Error('Dialogue bank failed to load from split category files');
   }
 }
 
@@ -119,8 +189,7 @@ export function getDialogueTrees(): readonly DialogueTree[] {
   if (!isDialogueBankReady()) {
     ensureDialogueBankFromBundle();
   }
-  if (!bank) return [];
-  return bank.dialogue_trees;
+  return bank?.dialogue_trees ?? [];
 }
 
 export function getDialogueCategories(): readonly DialogueCategory[] {
@@ -137,7 +206,7 @@ const CONTEXT_CATEGORY: Partial<Record<string, DialogueCategory | DialogueCatego
   pregnant: 'needs',
   child: 'social',
   social: 'social',
-  festival: 'social',
+  festival: ['festival', 'social'],
   courtship: 'social',
   affair: 'chaos',
   visitor: 'social',
@@ -164,7 +233,7 @@ export function resolveDialogueCategories(
   const fallback: DialogueCategory[] = ['social'];
   const base: DialogueCategory[] = Array.isArray(mapped) ? mapped : mapped ? [mapped] : fallback;
   const out = new Set<DialogueCategory>(base);
-  if (hints?.festivalActive) out.add('social');
+  if (hints?.festivalActive) out.add('festival');
   if (hints?.foodLow) out.add('needs');
   if (hints?.season === 'winter') out.add('environment');
   if (hints?.weather === 'rain' || hints?.weather === 'snow' || hints?.weather === 'storm') {
@@ -186,20 +255,19 @@ export function pickDialogueTree(
 
   const categories = resolveDialogueCategories(context, hints);
   const pool: DialogueTree[] = [];
-  for (const cat of categories) {
-    const list = treesByCategory.get(cat);
+  for (const category of categories) {
+    const list = treesByCategory.get(category);
     if (list) pool.push(...list);
   }
-  // Prefer category pool; fall back to full bank so trees always play.
   const usePool = pool.length > 0 ? pool : [...trees];
 
   const seed = entityId * 47 + tick * 13;
-  let idx = Math.abs(seed) % usePool.length;
-  let tree = usePool[idx]!;
+  let index = Math.abs(seed) % usePool.length;
+  let tree = usePool[index]!;
   if (avoidTreeId && usePool.length > 1) {
     for (let attempt = 0; attempt < usePool.length && tree.id === avoidTreeId; attempt++) {
-      idx = (idx + 5 + entityId) % usePool.length;
-      tree = usePool[idx]!;
+      index = (index + 5 + entityId) % usePool.length;
+      tree = usePool[index]!;
     }
   }
   return tree;
@@ -214,5 +282,5 @@ export function speakerRoleIndex(tree: DialogueTree, line: DialogueLine): 0 | 1 
   return line.speaker === tree.speakers[0] ? 0 : 1;
 }
 
-// Eager install so the first chat tick never races preload.
+// Eager install keeps the first worker/main-thread chat tick deterministic.
 ensureDialogueBankFromBundle();

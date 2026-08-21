@@ -1,6 +1,6 @@
 # Bug: Relationship diagnostics counters conflate interval, active, and completed state
 
-- Status: verified
+- Status: resolved
 - Date discovered: 2026-08-20
 - Version/build: 0.6.1 (0.6.1-line development)
 - Reporter: Deep Code (Objective 8; originally flagged in reggresion_proofing_plan.md)

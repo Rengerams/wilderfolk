@@ -52,6 +52,68 @@ const DIRS = [
   [1, 1], [1, -1], [-1, 1], [-1, -1],
 ] as const;
 
+interface OpenSetEntry {
+  node: number;
+  g: number;
+  priority: number;
+}
+
+/**
+ * Deterministic binary min-heap for the A* open set.
+ *
+ * The prior array scan chose the next candidate in O(open-set size) time. This
+ * keeps the same synchronous, worker-safe A* contract while making each
+ * enqueue/dequeue O(log n). Entries may be superseded after a cheaper route is
+ * found; `findPath` ignores those stale entries by comparing their stored g.
+ * A library such as EasyStar would introduce its own asynchronous calculation
+ * queue and cadence, so the pathfinding owner keeps this small local structure.
+ */
+class OpenSetMinHeap {
+  private readonly entries: OpenSetEntry[] = [];
+
+  get length(): number {
+    return this.entries.length;
+  }
+
+  push(entry: OpenSetEntry): void {
+    const entries = this.entries;
+    entries.push(entry);
+    let index = entries.length - 1;
+    while (index > 0) {
+      const parent = (index - 1) >> 1;
+      if (!this.isHigherPriority(entries[index]!, entries[parent]!)) break;
+      [entries[index], entries[parent]] = [entries[parent]!, entries[index]!];
+      index = parent;
+    }
+  }
+
+  pop(): OpenSetEntry | undefined {
+    const entries = this.entries;
+    const first = entries[0];
+    const last = entries.pop();
+    if (!first) return undefined;
+    if (!last || entries.length === 0) return first;
+
+    entries[0] = last;
+    let index = 0;
+    while (true) {
+      const left = index * 2 + 1;
+      const right = left + 1;
+      let best = index;
+      if (left < entries.length && this.isHigherPriority(entries[left]!, entries[best]!)) best = left;
+      if (right < entries.length && this.isHigherPriority(entries[right]!, entries[best]!)) best = right;
+      if (best === index) break;
+      [entries[index], entries[best]] = [entries[best]!, entries[index]!];
+      index = best;
+    }
+    return first;
+  }
+
+  private isHigherPriority(a: OpenSetEntry, b: OpenSetEntry): boolean {
+    return a.priority < b.priority || (a.priority === b.priority && a.node < b.node);
+  }
+}
+
 /** A* over the grid — returns tile path (start..goal inclusive) or null. */
 export function findPath(
   grid: PathGrid,
@@ -71,24 +133,19 @@ export function findPath(
   const goal = ty * cols + tx;
   const gScore = new Float64Array(cols * rows).fill(Infinity);
   const came = new Int32Array(cols * rows).fill(-1);
+  const h = (x: number, y: number) => Math.max(Math.abs(x - tx), Math.abs(y - ty));
+  const open = new OpenSetMinHeap();
   gScore[start] = 0;
-  const open: number[] = [start];
+  open.push({ node: start, g: 0, priority: h(sx, sy) });
   let nodes = 0;
 
-  const h = (x: number, y: number) => Math.max(Math.abs(x - tx), Math.abs(y - ty));
-
-  while (open.length > 0 && nodes++ < maxNodes) {
-    let bi = 0;
-    let bf = Infinity;
-    for (let i = 0; i < open.length; i++) {
-      const idx = open[i];
-      const f = gScore[idx] + h(idx % cols, (idx / cols) | 0);
-      if (f < bf) {
-        bf = f;
-        bi = i;
-      }
-    }
-    const cur = open.splice(bi, 1)[0];
+  while (open.length > 0) {
+    const entry = open.pop();
+    if (!entry) break;
+    const cur = entry.node;
+    // A later route may have improved this node after the entry was queued.
+    if (entry.g !== gScore[cur]) continue;
+    if (nodes++ >= maxNodes) break;
     if (cur === goal) {
       const path: { x: number; y: number }[] = [];
       let c = cur;
@@ -113,7 +170,7 @@ export function findPath(
       if (ng < gScore[nIdx]) {
         gScore[nIdx] = ng;
         came[nIdx] = cur;
-        if (!open.includes(nIdx)) open.push(nIdx);
+        open.push({ node: nIdx, g: ng, priority: ng + h(nx, ny) });
       }
     }
   }

@@ -2,6 +2,9 @@ import type { CombatLogKind, GameEventLog, WorldState } from './gameTypes';
 
 let nextEventLogId = 1;
 
+/** Bound authoritative and presentation event history consistently. */
+export const EVENT_LOG_MAX_ENTRIES = 2000;
+
 /** Restore monotonic ids after loading a save. */
 export function syncEventLogIdFromState(state: Pick<WorldState, 'eventLog'>): void {
   if (state.eventLog.length > 0) {
@@ -26,7 +29,7 @@ export function logEvent(
     entityName,
     combatKind,
   });
-  if (state.eventLog.length > 2000) state.eventLog.pop();
+  if (state.eventLog.length > EVENT_LOG_MAX_ENTRIES) state.eventLog.pop();
 }
 
 /** Legacy fallback for saves logged before combatKind existed. */

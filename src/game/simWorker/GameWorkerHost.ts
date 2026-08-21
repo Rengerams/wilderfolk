@@ -37,6 +37,11 @@ export type CommandResultHandler = (
   reason?: string,
 ) => void;
 
+export type WorkerFaultHandler = (
+  source: 'tick' | 'command' | 'export' | 'general',
+  message: string,
+) => void;
+
 export type WorkerUiPatch = Pick<
   WorldState,
   | 'bigNews'
@@ -60,6 +65,7 @@ export class GameWorkerHost {
   private pendingFocus: SimulationFocus | undefined;
   private onTickResult: TickResultHandler | null = null;
   private onCommandResult: CommandResultHandler | null = null;
+  private onWorkerFault: WorkerFaultHandler | null = null;
   private worldRef: WorldState | null = null;
   private pendingCommand: {
     resolve: (delta: SimTickDelta) => void;
@@ -200,6 +206,7 @@ export class GameWorkerHost {
     this.pendingFocus = undefined;
     this.onTickResult = null;
     this.onCommandResult = null;
+    this.onWorkerFault = null;
     this.worldRef = null;
     this.lastPausedSent = null;
     this.lastSpeedSent = null;
@@ -262,6 +269,10 @@ export class GameWorkerHost {
 
   setCommandResultHandler(handler: CommandResultHandler | null): void {
     this.onCommandResult = handler;
+  }
+
+  setWorkerFaultHandler(handler: WorkerFaultHandler | null): void {
+    this.onWorkerFault = handler;
   }
 
   private releaseHeldRenderBuffer(): void {
@@ -442,6 +453,9 @@ export class GameWorkerHost {
       this.pendingExport?.reject(new Error(msg.message));
       this.pendingExport = null;
       this.resolveIdleWaiters();
+      if (msg.source === 'tick') {
+        this.onWorkerFault?.(msg.source, msg.message);
+      }
       return;
     }
 

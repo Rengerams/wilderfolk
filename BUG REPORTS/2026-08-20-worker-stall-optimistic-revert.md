@@ -1,6 +1,6 @@
 # Bug: Worker-stall fallback can leave an optimistic command visible
 
-- Status: verified
+- Status: resolved
 - Date discovered: 2026-08-20
 - Version/build: Wilderfolk 0.6.1.1
 - Reporter: Full worker-logic audit using `wilderfolk-simulation-audit`

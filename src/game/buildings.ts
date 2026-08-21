@@ -122,8 +122,10 @@ export interface BuildingConfig {
   sprite: string;
   backgroundColor: string;
   padShape: 'round' | 'rect' | 'circle' | 'road';
-  /** Extra multiplier so trimmed sprites fill their footprint on the map. */
+  /** Extra multiplier so a sprite fills its intended map footprint. */
   spriteDisplayScale?: number;
+  /** Visible-base anchor within the source sprite (0 = top, 1 = bottom). */
+  spriteAnchorY?: number;
   unlockRequirement?: string;
   /** Decor only — neighborhood beauty contribution (see beautyGrid). */
   beauty?: number;
@@ -300,6 +302,10 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     emoji: '👑', label: "Leader's House",
     description: "Official residence of the elected village leader — they move in with their family (12 beds). One per village, free, not upgradeable. The household moves out when leadership changes.",
     sprite: '/sprites/house_leader.png', backgroundColor: '#7c2d12', padShape: 'round',
+    // The manor art is a deep isometric compound, not a tightly framed cottage.
+    // Give it a larger, bottom-grounded visual without changing the world footprint.
+    spriteDisplayScale: 1.32,
+    spriteAnchorY: 0.97,
     unique: true,
   },
   [BuildingType.Prison]: {

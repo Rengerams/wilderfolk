@@ -40,9 +40,11 @@ function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: 
   drawRaidMarchLines(drawCtx, state, cw, ch);
   drawHuntChaseLines(drawCtx, state, cw, ch);
   drawHuntVisuals(drawCtx, state, cw, ch);
+  // Simulation notices remain visible, but active speech/name overlays are the
+  // higher-priority readable text directly above settlers.
+  drawFloatingTexts(drawCtx, state, cw, ch);
   drawHumans(drawCtx, state, cw, ch, true);
   drawParticles(drawCtx, state, cw, ch);
-  drawFloatingTexts(drawCtx, state, cw, ch);
 }
 
 function drawEntityFlashOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number): void {

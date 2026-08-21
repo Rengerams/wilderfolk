@@ -1,6 +1,6 @@
 # Full audit: movement and lifecycle on connected C:\wilderfolk
 
-- **Status:** fixed pending live play verification
+- Status: resolved — live verification pending
 - **Date:** 2026-08-20
 - **Version/build:** Wilderfolk 0.6.1.1
 - **Area:** Play | Truth | performance

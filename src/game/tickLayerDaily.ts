@@ -57,7 +57,14 @@ import { GRASS_GROWTH_PER_TICK } from './grassEcology';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { buildGrassPopulationSnapshot, grassPopulationTotal } from './simQueries';
 import { createEntity } from './entityFactory';
-import { pushNewEntity, syncEntityGrids, getGrassPopulationCap, markGrassDead } from './simulation/simulationEntities';
+import {
+  pushNewEntity,
+  syncEntityGrids,
+  getGrassPopulationCap,
+  markGrassDead,
+  markWildlifeDead,
+  clearHuntersTargetingPrey,
+} from './simulation/simulationEntities';
 
 import { getWeatherFarmMultiplier } from './grassEcology';
 import { applyDailyWeatherEffects } from './worldEvents';
@@ -404,12 +411,12 @@ function tickBuildingProduction(
           } else {
             recordFoodProduced(state, 'hunting', amount);
             const preyId = targetPrey.id;
-            targetPrey.alive = false;
+            // Keep Hunting Spot kills on the shared wildlife-death transition:
+            // it updates type/entity/spatial indexes and population accounting.
             targetPrey.energy = 0;
-            entityById.delete(preyId);
-            for (const e of entityById.values()) {
-              if (e.huntTargetId === preyId) e.huntTargetId = undefined;
-            }
+            markWildlifeDead(ctx, targetPrey, undefined, state.tick);
+            clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId);
+            syncEntityGrids(ctx, targetPrey);
             rewardProductionSkills(state, building, 0.2, entityById);
             addFloatingText(state, targetPrey.x, targetPrey.y - 12, `+${amount} meat`, '#ef4444', 'brief');
             const preyName =

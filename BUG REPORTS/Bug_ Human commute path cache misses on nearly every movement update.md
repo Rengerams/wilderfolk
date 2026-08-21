@@ -1,6 +1,6 @@
 # Bug: Human commute path cache misses on nearly every movement update
 
-- **Status:** fixed pending live movement verification
+- Status: resolved — live verification pending
 - **Date discovered:** 2026-08-20
 - **Version/build:** 0.6.1-line
 - **Reporter:** Human movement audit

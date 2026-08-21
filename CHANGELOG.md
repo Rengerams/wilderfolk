@@ -10,6 +10,7 @@ compatibility: **0.6.1.1 exact-version policy** — only this build's saves load
 lint/type errors**, 12 bug reports filed — all verified or closed (won't-fix).
 
 Post-program fixes (2026-08-20 session):
+- **Ambient dialogue-bank humor expanded (2026-08-21)** — added one original three-line frontier exchange to every canonical category: work, needs, social, environment, existential, chaos, and festival. The new banter covers a wandering fence, courage stew, a well-dressed crow, council-outsmarting frogs, debt-collecting clouds, a grain-shed goat, and a prize turnip. All content stays in the canonical split JSON bank with no simulation or worker behavior change. Updated `tests/dialogueTrees.splitBank.test.ts` to pin **115** unique trees and **6** festival trees. Validation: focused regression, TypeScript, scoped ESLint, full suite **62 files / 366 tests**, and production build passed. Existing circular-chunk and large-bundle warnings remain.
 - **Leader works like any other settler** — the office no longer strips a valid
   workplace: `applyLeaderOccupation` preserves it (stale-only repair),
   save-load keeps a manual/auto assignment, and auto-staff may assign an idle
@@ -85,6 +86,153 @@ Post-program fixes (2026-08-20 session):
   Added `tests/leaderHouse.construction.test.ts` and verified
   `BUG REPORTS/2026-08-20-leader-house-build-duration.md`. Focused tests passed:
   **4 files / 39 tests**; full suite passed: **52 test files**.
+- **Worker tick-error fallback repaired** — `GameWorkerHost` now reports tick-level
+  faults through a typed callback, and `GameLoop` reuses the existing
+  authoritative-shadow restore, worker disposal, and main-thread resume path used
+  for stalls. Added regression coverage in
+  `tests/gameLoop.commandDispatch.test.ts` and verified
+  `BUG REPORTS/2026-08-21-worker-tick-error-does-not-fallback.md`. Focused worker
+  tests passed: **2 files / 17 tests**; full suite passed: **51 files / 338 tests**.
+  Scoped ESLint passed. TypeScript/build checks remain blocked by the existing
+  `baseUrl` deprecation error in `tsconfig.app.json`.
+- **Festivals now visibly interrupt ordinary routines** — from **15:00 through
+  21:59** on an active festival day, non-innkeeper settlers leave normal work,
+  school, guard patrols, commute snapping, home-stay, and free hunting to gather
+  at performer camps, staffed Town Halls, or the village center. They drift and
+  socialize on arrival; Moon Howler danger/priest duty and election ceremonies
+  remain higher priority, while innkeepers continue running the festival tavern.
+  The daily festival owner, assignments, jobs, occupants, production rules, and
+  save schema are unchanged, so normal work resumes automatically at 22:00 or
+  when the festival expires. Added `tests/festival.behavior.test.ts`, extended
+  `tests/dayCycle.tavern.test.ts`, and verified
+  `BUG REPORTS/2026-08-21-festival-participants-keep-working.md`. Validation:
+  **52 test files / 341 tests**, TypeScript, and scoped ESLint passed.
+- **Hunting cleanup authority and Hunt Visual lifecycle repaired** — a successful
+  staffed Hunting Spot now delegates wildlife removal, reverse hunter-target
+  cleanup, and spatial-index synchronization to the shared simulation helpers,
+  instead of maintaining a partial daily-only death path. Hunt Visuals now prune
+  against their 1.4-second wall-clock visibility window rather than 45 simulation
+  ticks, preventing finished arrows from lingering in worker/render snapshots for
+  speed-dependent durations. Added `tests/huntingSpot.cleanup.test.ts` and
+  `tests/huntVisuals.lifecycle.test.ts`; verified reports:
+  `BUG REPORTS/2026-08-21-hunting-spot-bypasses-wildlife-cleanup.md` and
+  `BUG REPORTS/2026-08-21-hunt-visuals-expire-on-simulation-ticks.md`.
+  Validation: **54 test files / 344 tests**, TypeScript, scoped ESLint, and the
+  production build passed. Existing circular-chunk and large-bundle warnings
+  remain.
+- **Commute path-cache identity completed** — tile-local cache reuse now keys on
+  both A* endpoint tiles, not only building/mode and the start tile. The earlier
+  pixel-origin repair stopped almost-every-update cache misses; this follow-up
+  prevents settlers with distinct deterministic stand tiles at the same building
+  from sharing an incompatible cached route. Updated
+  `tests/humanMovement.test.ts` and added the verified report
+  `BUG REPORTS/2026-08-21-commute-path-cache-missing-target-tile.md`.
+  Validation: focused movement/pathfinding **2 files / 9 tests**, TypeScript,
+  scoped ESLint, full suite **54 files / 344 tests**, and production build passed.
+- **Bug-report audit completed** — reviewed every active report under
+  `BUG REPORTS/` against current owners, code, and tests. Restored the missing
+  `tests/socialLife.dialogueBusy.test.ts` regression for the dialogue-busy
+  predicate, then normalized the archive to a single **Resolved** status for
+  solved bugs. Reports with an outstanding player-facing confirmation now say
+  **Resolved — live verification pending**, while the caravan false positive
+  remains **won't-fix**. Added `docs/BUG_STATUS_OVERVIEW.md`, a single full
+  report table with the five remaining player test scenarios and closure steps.
+  Audit suite: **55 test files / 347 tests**, TypeScript, and scoped ESLint
+  passed.
+- **Protected write-site ownership guard added** —
+  `tests/simulation.writeOwnership.test.ts` now scans direct writes to
+  pregnancy state, workplace/residence assignment, Moon Howler curse state,
+  hunt targets, and village leadership. It freezes approved domain owners and
+  documented delegates, requires the canonical owner for each non-transient
+  decision, and confirms the legacy movement path remains a pure re-export.
+- **Grid A-star upgraded without an engine migration** —
+  `pathfinding.ts` keeps the sole realtime/worker-safe grid owner and now uses a
+  deterministic binary min-heap instead of a linear open-set scan. This preserves
+  8-way movement, blocked water/mountain cells, no diagonal corner-cutting, the
+  node budget, path cache, and direct-movement fallback. EasyStar.js was not
+  added because its asynchronous calculation queue would introduce a second
+  scheduling contract; Phaser was not added because it is a renderer/engine
+  migration rather than a pathfinding dependency. Added corner and budget
+  regressions in `tests/pathfinding.test.ts`.
+- **2.5D graphics roadmap added** — `docs/GRAPHICS_UPGRADE_ROADMAP.md`
+  documents a cache-safe visual direction for the existing Canvas renderer. The
+  first proposed bounded objective is contact shadows and occlusion depth;
+  Phaser/WebGL migration and simulation-affecting visual roads are explicitly
+  deferred pending measured need and separate ownership decisions.
+- **Simulation depth roadmap added** — `docs/SIMULATION_DEPTH_ROADMAP.md`
+  prioritizes player-readable village requests, festival outcomes, seasonal
+  preparation, ecology signals, apprenticeship, and abstract expeditions. It
+  defines the first bounded objective around existing `groupEvents.ts` ownership
+  and explicitly keeps new content inside the worker-authoritative, fixed-cadence
+  simulation contract.
+- **Right-side live charts removed** — the Progress Charts view and live history
+  graphs for population, ecosystem health, and pollution no longer appear in the
+  player menu. Current village/resources values and lifetime records remain;
+  underlying yearly statistics remain intact for save compatibility and internal
+  diagnostics.
+- **Chronicle worker propagation and filter parity repaired** — the event-log
+  audit verified that 28 simulation modules use the canonical logger and cover
+  all 13 supported Chronicle event categories. It also found and resolved two
+  player-facing defects: worker deltas previously sent the oldest 128 entries
+  and appended them in a newest-first log, so fresh authoritative worker events
+  could be absent from the UI; deltas now send the newest prefix, merge it at the
+  front without duplicate ids, and retain the shared 2,000-event bound. The UI
+  now provides a direct **Milestones** filter, completing one filter per event
+  category. Added `tests/simDelta.eventLog.test.ts` and
+  `tests/eventLogPanel.filters.test.ts`; verified reports:
+  `BUG REPORTS/2026-08-21-worker-event-log-tail-sends-oldest-events.md` and
+  `BUG REPORTS/2026-08-21-chronicle-milestones-cannot-be-filtered.md`.
+  Validation: **58 test files / 354 tests**, TypeScript, scoped ESLint, and the
+  production build passed. Existing circular-chunk and large-bundle warnings
+  remain.
+- **Building footprint and dialogue readability repaired** — the Canvas audit
+  found that one generic sprite anchor/scale made unusually framed building art
+  look compressed or poorly grounded, and independent overhead labels could
+  obscure conversations. `BuildingConfig` now supports render-only sprite scale
+  and bottom-anchor metadata; the Leader’s House uses a tuned 1.32 scale and
+  0.97 anchor consistently in preview, construction, and completed rendering.
+  Dialogue remains directly above its speaker’s head, has priority over the
+  temporary name plate, clears a leader crown, stacks nearby conversations, and
+  renders above floating simulation notices. Added
+  `tests/renderer.presentationLayout.test.ts`; verified reports:
+  `BUG REPORTS/2026-08-21-building-sprites-use-generic-footprint-layout.md` and
+  `BUG REPORTS/2026-08-21-overhead-dialogue-overlaps-labels-and-notices.md`.
+  A live local playtest placed a standard House and confirmed that the running
+  leader’s “Wood pile low.” dialogue bubble remained readable directly above the
+  speaker. Validation: **59 test files / 359 tests**, TypeScript, scoped ESLint,
+  and production build passed. Existing circular-chunk and large-bundle warnings
+  remain.
+- **Dialogue bubble lifetime normalized** — a short spoken phrase could remain
+  above one citizen for most of an in-game day because `humanChat.ts` retained
+  raw 24-tick-day display timers after the simulation moved to 72 ticks/day.
+  Dialogue-tree lines now use an explicit 2.5-hour base plus 0.08 hours per
+  character, while direct phrase callers convert their retained legacy duration
+  at the single chat lifecycle boundary. This preserves social selection and
+  simulation authority while making bubbles clear shortly after the line ends.
+  Added `tests/humanChat.duration.test.ts`; report:
+  `BUG REPORTS/2026-08-21-dialogue-bubbles-use-unscaled-legacy-ticks.md`.
+  Validation: **60 test files / 361 tests**, TypeScript, scoped ESLint, and
+  production build passed. A player live check is still pending.
+- **Ambient dialogue now pairs nearby settlers** — ordinary social speech no
+  longer randomly discards an available neighbor into a leader-only monologue.
+  The existing dialogue bank already provides alternating two-speaker trees; the
+  ambient entry point now always selects an eligible nearby participant when one
+  exists, reserving solo lines for isolated settlers. Added
+  `tests/humanChat.ambientPairing.test.ts`; report:
+  `BUG REPORTS/2026-08-21-ambient-dialogue-often-becomes-leader-monologue.md`.
+  Validation: **61 test files / 363 tests**, TypeScript, scoped ESLint, and
+  production build passed. A player live check is still pending.
+- **Dialogue content split into canonical categories** — the user-created
+  `chaos`, `environment`, `existential`, `festival`, `needs`, `social`, and
+  `work` files now form the only dialogue bank. The loader deterministically
+  validates and merges all seven files for both the main thread and simulation
+  worker; `festival` is now a first-class selection category. Five festival
+  tree IDs/categories were normalized to prevent silent duplicate shadowing,
+  and the retired `sim_dialogue_trees.json` monolith was deleted. Added
+  `tests/dialogueTrees.splitBank.test.ts`; report:
+  `BUG REPORTS/2026-08-21-split-dialogue-bank-has-duplicate-and-mismatched-categories.md`.
+  Validation: **62 test files / 365 tests**, TypeScript, scoped ESLint, and
+  production build passed.
 
 Summary for this release:
 - **Governance** — role-aware simulation invariants checker, static

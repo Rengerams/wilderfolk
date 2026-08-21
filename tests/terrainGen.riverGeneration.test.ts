@@ -49,6 +49,22 @@ describe('generateWorldMap rivers', () => {
     }
   });
 
+  it('carves one broad, banked river that crosses every map row', () => {
+    for (const preset of Object.values(MapPreset)) {
+      const map = generateWorldMap(MapSize.Medium, preset, 1234);
+      let banks = 0;
+      for (let ty = 0; ty < map.height; ty++) {
+        const riverWidth = map.tiles[ty].filter((tile) => tile.type === TerrainType.River).length;
+        expect(riverWidth, `${preset}: row ${ty} has no continuous river`).toBeGreaterThan(0);
+        if (ty > 2 && ty < map.height - 3) {
+          expect(riverWidth, `${preset}: row ${ty} river is too narrow to read`).toBeGreaterThanOrEqual(3);
+        }
+        banks += map.tiles[ty].filter((tile) => tile.type === TerrainType.RiverBank).length;
+      }
+      expect(banks, `${preset}: expected explicit river banks`).toBeGreaterThan(0);
+    }
+  });
+
   it('does not regress river generation across seeds', () => {
     for (const seed of [99, 777, 2026]) {
       const map = generateWorldMap(MapSize.Medium, MapPreset.Verdant, seed);

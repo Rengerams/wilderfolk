@@ -25,19 +25,21 @@ function werewolf(id: number, x: number, y: number, active: boolean): Entity {
 }
 
 describe('human movement helpers', () => {
-  it('keeps commute cache keys stable within a terrain tile', () => {
-    const first = commutePathCacheKey(building.id, false, 101, 81);
-    const sameTile = commutePathCacheKey(building.id, false, 109, 89);
-    const nextTile = commutePathCacheKey(building.id, false, 111, 81);
+  it('keeps commute cache keys stable only when both endpoint tiles match', () => {
+    const first = commutePathCacheKey(building.id, false, 101, 81, 200, 120);
+    const sameTiles = commutePathCacheKey(building.id, false, 109, 89, 207, 127);
+    const nextStartTile = commutePathCacheKey(building.id, false, 111, 81, 200, 120);
+    const nextTargetTile = commutePathCacheKey(building.id, false, 101, 81, 216, 120);
 
-    expect(first).toBe(sameTile);
-    expect(nextTile).not.toBe(first);
-    expect(commutePathCacheKey(building.id, true, 101, 81)).not.toBe(first);
+    expect(first).toBe(sameTiles);
+    expect(nextStartTile).not.toBe(first);
+    expect(nextTargetTile).not.toBe(first);
+    expect(commutePathCacheKey(building.id, true, 101, 81, 200, 120)).not.toBe(first);
   });
 
   it('keeps the legacy movement import path delegated to the authoritative owner', () => {
-    expect(legacyCommutePathCacheKey(building.id, false, 101, 81)).toBe(
-      commutePathCacheKey(building.id, false, 101, 81),
+    expect(legacyCommutePathCacheKey(building.id, false, 101, 81, 200, 120)).toBe(
+      commutePathCacheKey(building.id, false, 101, 81, 200, 120),
     );
   });
 

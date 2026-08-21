@@ -1,6 +1,6 @@
 # Bug: Duplicate human-movement implementations can drift
 
-- Status: verified
+- Status: resolved
 - Date discovered: 2026-08-20
 - Version/build: Wilderfolk 0.6.1.1
 - Reporter: Full-codebase audit using `wilderfolk-simulation-audit`

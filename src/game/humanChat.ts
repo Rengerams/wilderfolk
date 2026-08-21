@@ -6,6 +6,7 @@ import {
   speakerRoleIndex,
   type DialogueTree,
 } from './dialogueTrees';
+import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
 import type { Season, WeatherType } from './gameTypes';
 
 export type HumanChatContext =
@@ -59,9 +60,11 @@ export function isDialogueBusy(entity: Pick<ChatSpeaker, 'chatTicks' | 'chatDial
   return (entity.chatTicks ?? 0) > 0 || entity.chatDialogueSessionKey != null;
 }
 
-export const CHAT_DEFAULT_DURATION_TICKS = 90;
-export const DIALOGUE_LINE_BASE_TICKS = 75;
-export const DIALOGUE_LINE_CHAR_TICKS = 1.8;
+/** Legacy display duration from the 24-tick day; converted at the chat boundary. */
+export const CHAT_DEFAULT_DURATION_LEGACY_TICKS = 90;
+/** A spoken tree line remains visible for roughly 2.5–5 game hours. */
+export const DIALOGUE_LINE_BASE_HOURS = 2.5;
+export const DIALOGUE_LINE_CHAR_HOURS = 0.08;
 export const CHAT_BUBBLE_MAX_CHARS_PER_LINE = 38;
 export const CHAT_BUBBLE_MAX_LINES = 3;
 
@@ -149,7 +152,12 @@ export function formatChatLine(line: string, speaker?: Pick<ChatSpeaker, 'name'>
 }
 
 export function ticksForDialogueLine(text: string): number {
-  return Math.round(DIALOGUE_LINE_BASE_TICKS + text.length * DIALOGUE_LINE_CHAR_TICKS);
+  const durationHours = DIALOGUE_LINE_BASE_HOURS + text.length * DIALOGUE_LINE_CHAR_HOURS;
+  return Math.max(TICKS_PER_HOUR, Math.round(durationHours * TICKS_PER_HOUR));
+}
+
+function activeChatTicksFromLegacyDuration(legacyTicks: number): number {
+  return Math.max(1, Math.round(legacyTicks * PER_TICK_RATE_SCALE));
 }
 
 function sessionKeyFor(aId: number, bId: number): string {
@@ -314,12 +322,12 @@ function advanceDialogue(
 export function sayHumanChatPhrase(
   entity: ChatSpeaker,
   phrase: string,
-  durationTicks = 120,
+  legacyDurationTicks = 120,
 ): void {
   entity.chatDialogueSessionKey = undefined;
   entity.chatPartnerId = undefined;
   entity.chatPhrase = formatChatLine(phrase, entity);
-  entity.chatTicks = durationTicks;
+  entity.chatTicks = activeChatTicksFromLegacyDuration(legacyDurationTicks);
 }
 
 export function startHumanChat(
@@ -327,7 +335,7 @@ export function startHumanChat(
   context: HumanChatContext,
   entityId: number,
   tick: number,
-  _durationTicks = CHAT_DEFAULT_DURATION_TICKS,
+  _legacyDurationTicks = CHAT_DEFAULT_DURATION_LEGACY_TICKS,
   options: ChatPickOptions = {},
   partner: ChatSpeaker | null = null,
 ): void {
@@ -379,14 +387,14 @@ export function maybeDialogueChat(
   // Bank missing or empty — short emergency lines only (should be rare).
   if (!warnedMissingBank) {
     warnedMissingBank = true;
-    console.warn('[chat] Dialogue bank empty — using fallback phrases (sim_dialogue_trees.json not loaded)');
+    console.warn('[chat] Dialogue bank empty — using fallback phrases (split dialogue files not loaded)');
   }
   const fallback = FALLBACK_CHAT_LINES[context] ?? DEFAULT_FALLBACK_LINES;
   const phrase = fallback[(entity.id + tick) % fallback.length]!;
-  sayHumanChatPhrase(entity, phrase, CHAT_DEFAULT_DURATION_TICKS);
+  sayHumanChatPhrase(entity, phrase, CHAT_DEFAULT_DURATION_LEGACY_TICKS);
   if (partner) {
     const reply = fallback[(entity.id + tick + 1) % fallback.length]!;
-    sayHumanChatPhrase(partner, reply, CHAT_DEFAULT_DURATION_TICKS);
+    sayHumanChatPhrase(partner, reply, CHAT_DEFAULT_DURATION_LEGACY_TICKS);
   }
 }
 
@@ -445,10 +453,11 @@ export function tryAmbientRandomDialogue(
   const freePartners = nearbyCandidates.filter(
     (p) => p.id !== entity.id && (p.chatTicks ?? 0) <= 0,
   );
-  let partner: ChatSpeaker | null = null;
-  if (freePartners.length > 0 && Math.random() < 0.6) {
-    partner = freePartners[Math.floor(Math.random() * freePartners.length)]!;
-  }
+  // A nearby free settler makes this a visible exchange rather than an
+  // arbitrary monologue from whichever human tick happened to run first.
+  const partner = freePartners.length > 0
+    ? freePartners[Math.floor(Math.random() * freePartners.length)]!
+    : null;
   maybeDialogueChat(entity, partner, context, tick, 1, options);
 }
 
@@ -459,7 +468,7 @@ export function maybeHumanChat(
   _entityId: number,
   tick: number,
   chance: number,
-  _durationTicks = CHAT_DEFAULT_DURATION_TICKS,
+  _legacyDurationTicks = CHAT_DEFAULT_DURATION_LEGACY_TICKS,
   options: ChatPickOptions = {},
   partner: ChatSpeaker | null = null,
 ): void {
@@ -502,10 +511,10 @@ export function startPairedHumanChat(
   listener: ChatSpeaker,
   pair: readonly [string, string],
   _tick: number,
-  durationTicks = CHAT_DEFAULT_DURATION_TICKS,
+  legacyDurationTicks = CHAT_DEFAULT_DURATION_LEGACY_TICKS,
 ): void {
-  sayHumanChatPhrase(speaker, pair[0], durationTicks);
-  sayHumanChatPhrase(listener, pair[1], durationTicks);
+  sayHumanChatPhrase(speaker, pair[0], legacyDurationTicks);
+  sayHumanChatPhrase(listener, pair[1], legacyDurationTicks);
 }
 
 /** @deprecated Dialogue trees replace static pairs */

@@ -14,12 +14,14 @@ export function isHuntVisualActive(visual: HuntVisual, nowMs = Date.now()): bool
   return nowMs - visual.startedAtMs < HUNT_ANIM_MS + 400;
 }
 
-export function pruneHuntVisuals(state: WorldState): void {
+export function pruneHuntVisuals(state: WorldState, nowMs = Date.now()): void {
   if (!state.huntVisuals) {
     state.huntVisuals = [];
     return;
   }
-  state.huntVisuals = state.huntVisuals.filter((v) => state.tick - v.startedAtTick < 45);
+  // Rendering measures arrow flight in milliseconds, so retain the entry on the
+  // same wall-clock domain. Simulation speed must not shorten the visual.
+  state.huntVisuals = state.huntVisuals.filter((v) => isHuntVisualActive(v, nowMs));
 }
 
 export function addHuntVisual(

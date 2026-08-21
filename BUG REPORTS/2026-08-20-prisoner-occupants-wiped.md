@@ -1,6 +1,6 @@
 # Bug: Prisoners are wiped from prison occupants on every assign pass
 
-- Status: verified
+- Status: resolved
 - Date discovered: 2026-08-20
 - Version/build: 0.6.1 (0.6.1-line development)
 - Reporter: Deep Code (Objective 7 — caught by the demolition round-trip test)

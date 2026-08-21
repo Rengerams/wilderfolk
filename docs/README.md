@@ -22,6 +22,9 @@
 
 **Key pointers**
 - Single operational playbook: `docs/WILDERFOLK_ONE_DOC_TO_FOLLOW.md`
+- Player test checklist and full bug table: `docs/BUG_STATUS_OVERVIEW.md`
+- 2.5D visual upgrade roadmap: `docs/GRAPHICS_UPGRADE_ROADMAP.md`
+- Simulation depth and feature roadmap: `docs/SIMULATION_DEPTH_ROADMAP.md`
 - Bug tracker with `<batch>-<item>` IDs (e.g. `EK-G4`): `docs/private/BUGS_TRACKER.md`
 - Open problems / gaps: `docs/private/OPEN_PROBLEMS.md`
 - Dev engine reference (archived): `docs/private/archive/TECHNICAL.md`

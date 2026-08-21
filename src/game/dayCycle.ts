@@ -281,6 +281,15 @@ export const EVENING_START = 18;
 export const TAVERN_SHIFT_START = 17;
 export const TAVERN_SHIFT_END = 23;
 
+/**
+ * Festival gathering window — the village leaves ordinary daytime work early
+ * enough to visibly assemble, then disperses before night. Festival creation
+ * and expiry remain owned by the daily festival transition; this helper only
+ * answers the shared clock question used by realtime movement.
+ */
+export const FESTIVAL_GATHER_START = 15;
+export const FESTIVAL_GATHER_END = 22;
+
 /** Work hours per weekday (7am–6pm) — construction daily batch uses this. */
 export const WORK_HOURS_PER_DAY = WORK_END - WORK_START;
 
@@ -403,6 +412,11 @@ export function isTavernServiceHour(hour: number): boolean {
 /** Tavern open right now — festivals keep the pub open all day and night. */
 export function isTavernOpen(hour: number, festivalActive?: boolean): boolean {
   return festivalActive ? true : isTavernServiceHour(hour);
+}
+
+/** True while an active festival calls eligible villagers away from ordinary work. */
+export function isFestivalGatheringHour(hour: number, festivalActive?: boolean): boolean {
+  return festivalActive === true && hour >= FESTIVAL_GATHER_START && hour < FESTIVAL_GATHER_END;
 }
 
 /**

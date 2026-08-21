@@ -1,5 +1,6 @@
 import type { Building, Entity, WorldState } from '../gameTypes';
 import { EntityType } from '../gameTypes';
+import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
 import type { SimulationFocus } from '../simFocus';
 import type { EntityRenderMeta } from './entityRenderMeta';
 import { packRenderMetaForPacked } from './entityRenderMeta';
@@ -203,8 +204,9 @@ export function extractSimTickDelta(
     : options?.renderPacked
       ?? selectRenderEntities(aliveNow, RENDER_MAX_SLOTS, options?.focus).packed;
 
-  const tailStart = Math.max(0, world.eventLog.length - EVENT_LOG_DELTA_TAIL_MAX);
-  const eventLogTail = world.eventLog.slice(tailStart);
+  // `eventLog` is newest-first, so its bounded delta must use the leading
+  // prefix. Sending the array tail would repeatedly omit newly logged events.
+  const eventLogTail = world.eventLog.slice(0, EVENT_LOG_DELTA_TAIL_MAX);
 
   const delta: SimTickDelta = {
     proto: SIM_DELTA_PROTO,
@@ -382,13 +384,18 @@ export function applySimTickDelta(
   if (delta.eventLogTail.length > 0) {
     const existingIds = new Set(world.eventLog.map((e) => e.id));
     const seenTailIds = new Set<number>();
+    const newEntries: WorldState['eventLog'] = [];
     for (const entry of delta.eventLogTail) {
       if (seenTailIds.has(entry.id)) continue;
       seenTailIds.add(entry.id);
       if (!existingIds.has(entry.id)) {
-        world.eventLog.push(entry);
+        // Delta entries are newest-first, matching the Chronicle contract.
+        newEntries.push(entry);
         existingIds.add(entry.id);
       }
+    }
+    if (newEntries.length > 0) {
+      world.eventLog = [...newEntries, ...world.eventLog].slice(0, EVENT_LOG_MAX_ENTRIES);
     }
   }
 }

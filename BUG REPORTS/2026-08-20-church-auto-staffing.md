@@ -1,6 +1,6 @@
 # Bug: Church auto-staffing — legacy Churches stay full without a manual priest
 
-- Status: verified
+- Status: resolved
 - Date discovered: 2026-08-20
 - Version/build: 0.6.1 (0.6.1-line development)
 - Reporter: Deep Code (Objective 5)

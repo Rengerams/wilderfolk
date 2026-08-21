@@ -59,10 +59,16 @@ export function snapHumanToBuilding(entity: Entity, building: Building, arriving
 export function commutePathCacheKey(
   buildingId: number,
   arrivingHome: boolean,
-  x: number,
-  y: number,
+  startX: number,
+  startY: number,
+  targetX: number,
+  targetY: number,
 ): string {
-  return `c_${buildingId}_${arrivingHome ? 'h' : 'w'}_${Math.floor(x / TERRAIN_TILE_SIZE)}_${Math.floor(y / TERRAIN_TILE_SIZE)}`;
+  const startTileX = Math.floor(startX / TERRAIN_TILE_SIZE);
+  const startTileY = Math.floor(startY / TERRAIN_TILE_SIZE);
+  const targetTileX = Math.floor(targetX / TERRAIN_TILE_SIZE);
+  const targetTileY = Math.floor(targetY / TERRAIN_TILE_SIZE);
+  return `c_${buildingId}_${arrivingHome ? 'h' : 'w'}_${startTileX}_${startTileY}_${targetTileX}_${targetTileY}`;
 }
 
 export function commuteHumanToBuilding(
@@ -86,9 +92,16 @@ export function commuteHumanToBuilding(
       target.x,
       target.y,
       moveSpeed * 0.72,
-      // BUG-8: include origin — a path cached for one settler must not be reused
-      // for others starting elsewhere.
-      commutePathCacheKey(building.id, arrivingHome, entity.x, entity.y),
+      // Cache identity includes both A* endpoint tiles; settlers may have
+      // different deterministic stand positions at the same building.
+      commutePathCacheKey(
+        building.id,
+        arrivingHome,
+        entity.x,
+        entity.y,
+        target.x,
+        target.y,
+      ),
     );
     if (handled === 'path') return false;
     if (handled === 'arrived') return true;

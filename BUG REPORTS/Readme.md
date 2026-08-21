@@ -7,7 +7,7 @@ Copy the template below into a new dated file:
 ```md
 # Bug: <short name>
 
-- Status: open | investigating | fixed | verified | won't-fix
+- Status: open | investigating | resolved | resolved — live verification pending | won't-fix
 - Date discovered:
 - Version/build:
 - Reporter:
@@ -18,12 +18,15 @@ Copy the template below into a new dated file:
 ## Status history
 
 Track every status change with its date — the report always starts `open` on the
-date discovered, then moves through `investigating` / `fixed` / `verified` /
-`won't-fix` as the situation changes. Keep the full history after the fix so
-future readers see when and why the status changed.
+date discovered, then moves through `investigating` / `resolved` /
+`resolved — live verification pending` / `won't-fix` as the situation changes.
+Use `resolved` once the repair and required automated evidence are complete.
+Use `resolved — live verification pending` only when the code is solved but a
+specific player-facing browser/play check remains to be recorded. Keep the full
+history so future readers see when and why the status changed.
 
 - YYYY-MM-DD — open (how it was discovered)
-- YYYY-MM-DD — investigating / fixed / verified / won't-fix (reason)
+- YYYY-MM-DD — investigating / resolved / resolved — live verification pending / won't-fix (reason)
 
 ## Observed behavior
 

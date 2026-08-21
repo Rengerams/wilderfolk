@@ -44,6 +44,14 @@ const TERRAIN_FILL_PATH: Partial<Record<TerrainType, string>> = {
  * (rivers must not look like land next to the minimap's blue).
  */
 const WATER_GLAZE = 'rgba(38, 96, 178, 0.32)';
+/**
+ * Rivers need a stronger, simpler colour signal than ocean or marsh water.
+ * The minimap reads clearly because every river dot is saturated blue; this
+ * glaze gives the painted main map the same unmistakable channel silhouette
+ * without changing terrain topology, depth, or buildability.
+ */
+const RIVER_GLAZE = 'rgba(59, 130, 168, 0.48)';
+const RIVER_GLINT = 'rgba(218, 242, 255, 0.22)';
 
 /** Material family for transitions — same family = no edge blend needed. */
 type FillFamily = 'grass' | 'dirt' | 'sand' | 'water' | 'other';
@@ -736,6 +744,29 @@ export function bakeTerrainLayer(
   for (const { tile, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
     if (!isWater(tile.type)) continue;
     ctx.fillRect(x0, y0, Math.min(tileSize, w - x0), Math.min(tileSize, h - y0));
+  }
+  ctx.restore();
+
+  // River clarity pass — the main terrain contains painted texture, terrain
+  // relief, banks, trees, and props, so it needs a more legible blue channel
+  // than the broader water family. Keep this tile-bound (not a new geometry
+  // owner) so terrain generation remains authoritative and deterministic.
+  ctx.save();
+  ctx.fillStyle = RIVER_GLAZE;
+  for (const { tile, tx, ty, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
+    if (tile.type !== TerrainType.River) continue;
+    const fillW = Math.min(tileSize, w - x0);
+    const fillH = Math.min(tileSize, h - y0);
+    ctx.fillRect(x0, y0, fillW, fillH);
+
+    // Sparse horizontal glints make a broad channel read as flowing water at
+    // normal play zoom without turning every 10px cell into a visible grid.
+    if ((tx * 3 + ty * 5 + seed) % 4 === 0 && fillW >= 6 && fillH >= 5) {
+      ctx.fillStyle = RIVER_GLINT;
+      const glintY = y0 + Math.max(2, Math.floor(fillH * 0.42));
+      ctx.fillRect(x0 + Math.max(1, Math.floor(fillW * 0.18)), glintY, Math.max(2, Math.floor(fillW * 0.54)), 1);
+      ctx.fillStyle = RIVER_GLAZE;
+    }
   }
   ctx.restore();
 

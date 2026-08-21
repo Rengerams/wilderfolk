@@ -1,6 +1,6 @@
-# Bug: Leader cannot hold a workplace — job stripped at office-taking, on load, and by auto-staff exclusion
+# Bug: Leader cannot hold workplace
 
-- Status: fixed
+- Status: resolved
 - Date discovered: 2026-08-20
 - Version/build: 0.6.1-line (working tree, uncommitted)
 - Reporter: Developer report ("the leader doesn't take a job") + Deep Code session 2026-08-20
@@ -126,7 +126,7 @@ leader was jobless simply keep their office; new runs let the leader work.
 - Full suite green (49 files / 324+ tests).
 - TypeScript (`tsc -p tsconfig.vitest.json --noEmit`) clean; ESLint clean.
 - Deterministic probe: office preserves `homeBuildingId = 2 / occupation = leader / job = farmer`; load keeps it; auto-staff assigns an idle leader.
-- Status: fixed (awaiting developer review before verified).
+- Status: resolved by the 2026-08-21 bug-report audit: current direct leader/workforce regressions remain in place and the complete suite passed (55 files / 347 tests).
 
 ## Related commits or files
 

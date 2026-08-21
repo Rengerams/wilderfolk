@@ -94,19 +94,21 @@ export function getBuildingSpriteDrawBounds(
   h: number,
   spriteScale: number,
   displayScale = DEFAULT_SPRITE_DISPLAY_SCALE,
+  spriteAnchorY?: number,
 ): { drawW: number; drawH: number; anchorY: number } {
   const sc = Math.max(0.1, spriteScale);
+  const anchorY = spriteAnchorY ?? 0.92;
   if (type === BuildingType.Road) {
-    return { drawW: w * sc, drawH: h * sc, anchorY: 0.55 };
+    return { drawW: w * sc, drawH: h * sc, anchorY: spriteAnchorY ?? 0.55 };
   }
   if (ISO_PANEL_BUILDINGS.has(type)) {
     const base = Math.max(w, h) * sc * displayScale;
-    return { drawW: base, drawH: base, anchorY: 0.88 };
+    return { drawW: base, drawH: base, anchorY: spriteAnchorY ?? 0.88 };
   }
   return {
     drawW: w * sc * displayScale,
     drawH: h * sc * displayScale,
-    anchorY: 0.92,
+    anchorY,
   };
 }
 
@@ -121,8 +123,11 @@ export function drawBuildingSprite(
   spriteScale: number,
   rotation: BuildingRotation,
   displayScale = DEFAULT_SPRITE_DISPLAY_SCALE,
+  spriteAnchorY?: number,
 ) {
-  const { drawW, drawH, anchorY } = getBuildingSpriteDrawBounds(type, w, h, spriteScale, displayScale);
+  const { drawW, drawH, anchorY } = getBuildingSpriteDrawBounds(
+    type, w, h, spriteScale, displayScale, spriteAnchorY,
+  );
   drawSpriteFrame(ctx, frame, sx, sy, drawW, drawH, 0.5, anchorY, false, {}, 'contain', rotation);
 }
 

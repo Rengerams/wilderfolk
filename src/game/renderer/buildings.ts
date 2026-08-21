@@ -99,6 +99,8 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
           ctx, b.type, frame, sx, sy, w, h,
           Math.max(buildScale, b.spriteScale || 0.55),
           rot,
+          cfg.spriteDisplayScale ?? DEFAULT_SPRITE_DISPLAY_SCALE,
+          cfg.spriteAnchorY,
         );
       }
     }
@@ -167,6 +169,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
         b.spriteScale || 1,
         normalizeBuildingRotation(b.rotation),
         cfg.spriteDisplayScale ?? DEFAULT_SPRITE_DISPLAY_SCALE,
+        cfg.spriteAnchorY,
       );
     } else {
       ctx.fillStyle = '#e7e5e4';

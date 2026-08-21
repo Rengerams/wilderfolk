@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { GameEventLog } from './gameTypes';
+import { EVENT_LOG_FILTER_OPTIONS } from './eventLogFilters';
 import {
   downloadChronicleCSV,
   downloadChronicleJSON,
@@ -45,22 +46,6 @@ const EVENT_COLORS: Record<GameEventLog['type'], string> = {
   combat: 'text-rose-400',
   milestone: 'text-amber-300',
 };
-
-const FILTER_OPTIONS: Array<{ id: 'all' | GameEventLog['type']; label: string }> = [
-  { id: 'all', label: 'All' },
-  { id: 'birth', label: 'Births' },
-  { id: 'death', label: 'Deaths (age, illness, exhaustion, raid)' },
-  { id: 'marriage', label: 'Marriages' },
-  { id: 'scandal', label: 'Scandals' },
-  { id: 'building', label: 'Buildings' },
-  { id: 'research', label: 'Research' },
-  { id: 'trade', label: 'Trade' },
-  { id: 'migration', label: 'Visitors' },
-  { id: 'disaster', label: 'Disasters' },
-  { id: 'combat', label: 'Combat' },
-  { id: 'event', label: 'Events' },
-  { id: 'season', label: 'Seasons' },
-];
 
 const IN_GAME_LOG_LIMIT = 500;
 
@@ -135,7 +120,7 @@ export default function EventLogPanel({ events, meta }: Props) {
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-1">
-        {FILTER_OPTIONS.map((opt) => (
+        {EVENT_LOG_FILTER_OPTIONS.map((opt) => (
           <button
             key={opt.id}
             type="button"

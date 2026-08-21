@@ -23,6 +23,14 @@ import { terrainRiseAt } from '../terrainAtlas';
 import { getRenderSoABuckets } from '../simBuffers/renderSoAEntities';
 import { huntAnimProgress } from '../huntvisuals';
 import { getCachedNameWidth, isDrawableSpriteFrame, renderTime, roundRect } from './shared';
+import {
+  getSpeechBubbleFontSize,
+  getSpeechBubbleHeadClearance,
+  resolveSpeechBubbleRect,
+  shouldDrawHumanNameLabel,
+  type OverheadRect,
+} from './overheadLayout';
+
 import { _cachedHumans, _cachedPartnerById, _renderSoABuckets, _tickAnimals, _tickHumans } from './entityCache';
 import { drawSpriteFrame, getHumanWalkMotion } from './spriteDrawing';
 
@@ -51,13 +59,15 @@ function drawSpeechBubble(
   tick: number,
   entityId: number,
   zoom: number,
+  hasLeaderCrown: boolean,
+  occupiedBubbleRects: OverheadRect[],
 ) {
   // Tree lines are long — show bubbles a bit earlier when zooming out.
   if (zoom < 0.36 || !text) return;
 
   ctx.save();
   const bob = Math.sin(tick * 0.14 + entityId) * 1.5;
-  const fontSize = Math.max(6, Math.min(8.5, 7 * zoom));
+  const fontSize = getSpeechBubbleFontSize(zoom);
   ctx.font = `600 ${fontSize}px "Segoe UI", system-ui, sans-serif`;
   const padX = 7;
   const padY = 5;
@@ -65,7 +75,7 @@ function drawSpeechBubble(
   // formatChatLine already wraps; split on newlines, re-wrap single blobs.
   const lines = text.includes('\n')
     ? text.split('\n').filter(Boolean)
-    : wrapChatLines(text, 36, 3);
+    : wrapChatLines(text, 30, 3);
   let maxLineW = 0;
   for (const line of lines) {
     maxLineW = Math.max(maxLineW, ctx.measureText(line).width);
@@ -75,8 +85,15 @@ function drawSpeechBubble(
   const bw = Math.ceil(Math.min(maxBw, maxLineW + padX * 2));
   const lineH = fontSize + lineGap;
   const bh = Math.ceil(padY * 2 + lines.length * lineH - lineGap);
-  const bx = Math.round(sx - bw / 2);
-  const by = Math.round(sy - size - bh - 14 + bob);
+  const desiredRect: OverheadRect = {
+    x: Math.round(sx - bw / 2),
+    y: Math.round(sy - bh - getSpeechBubbleHeadClearance(size, zoom, hasLeaderCrown) + bob),
+    width: bw,
+    height: bh,
+  };
+  const resolvedRect = resolveSpeechBubbleRect(desiredRect, occupiedBubbleRects);
+  occupiedBubbleRects.push(resolvedRect);
+  const { x: bx, y: by } = resolvedRect;
 
   // Soft shadow
   ctx.fillStyle = 'rgba(0,0,0,0.18)';
@@ -393,6 +410,7 @@ export function drawHumans(
   const tick = state.tick;
   const cam = state.camera;
   const statusCtx = buildHumanStatusIconContext(state, _cachedHumans);
+  const occupiedBubbleRects: OverheadRect[] = [];
 
   for (const human of _cachedHumans) {
     const sx = (human.x - cam.x) * cam.zoom + cw / 2;
@@ -457,17 +475,20 @@ export function drawHumans(
     }
 
     const isTalking = (human.chatTicks ?? 0) > 0;
-    if (isTalking) {
-      drawTalkingMouth(ctx, sx, headY + spriteH * 0.12, drawSize, flipX, human.animFrame ?? 0);
-      const bubbleText = getChatBubbleText(human, tick);
-      drawSpeechBubble(ctx, sx, headY, drawSize, bubbleText, tick, human.id, cam.zoom);
-    }
-
     // Village leader — gold ring + crown (visible even zoomed out)
     const isLeader =
       state.villageLeaderId != null
       && human.id === state.villageLeaderId
       && !human.faction;
+    if (isTalking) {
+      drawTalkingMouth(ctx, sx, headY + spriteH * 0.12, drawSize, flipX, human.animFrame ?? 0);
+      const bubbleText = getChatBubbleText(human, tick);
+      drawSpeechBubble(
+        ctx, sx, headY, drawSize, bubbleText, tick, human.id, cam.zoom,
+        isLeader, occupiedBubbleRects,
+      );
+    }
+
     if (isLeader && cam.zoom > 0.22) {
       ctx.save();
       const pulse = 0.55 + Math.sin(renderTime * 2.8 + human.id) * 0.2;
@@ -520,7 +541,7 @@ export function drawHumans(
     }
 
     // Name label — leaders keep a gold plate at lower zoom
-    const labelY = headY - (isTalking ? 22 : 4) - (isLeader && cam.zoom > 0.22 ? Math.max(10, 12 * cam.zoom) : 0);
+    const labelY = headY - 4 - (isLeader && cam.zoom > 0.22 ? Math.max(10, 12 * cam.zoom) : 0);
     if (human.faction && cam.zoom > 0.55) {
       ctx.strokeStyle = human.faction === 'visitor' ? '#22d3ee' : '#fb923c';
       ctx.lineWidth = 1.5;
@@ -530,7 +551,7 @@ export function drawHumans(
     }
 
     const nameZoomMin = isLeader ? 0.28 : (human.isJuvenile ? 0.38 : 0.45);
-    if ((human.name || human.surname || isLeader) && cam.zoom > nameZoomMin) {
+    if (shouldDrawHumanNameLabel(isTalking) && (human.name || human.surname || isLeader) && cam.zoom > nameZoomMin) {
       const prefix = isLeader
         ? '👑 '
         : human.faction === 'visitor'

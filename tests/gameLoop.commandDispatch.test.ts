@@ -170,6 +170,7 @@ describe('GameLoop command transport', () => {
     let cmdHandler:
       | ((w: WorldState, d: SimTickDelta | null, r: unknown, ok: boolean, reason?: string) => void)
       | null = null;
+    let faultHandler: ((source: 'tick' | 'command' | 'export' | 'general', message: string) => void) | null = null;
     return {
       host: {
         isReady: () => true,
@@ -182,9 +183,13 @@ describe('GameLoop command transport', () => {
         setCommandResultHandler: (h: unknown) => {
           cmdHandler = h as typeof cmdHandler;
         },
+        setWorkerFaultHandler: (h: unknown) => {
+          faultHandler = h as typeof faultHandler;
+        },
       },
       fireTick: (w: WorldState) => tickHandler!(w, null, null, true),
       fireCommandResult: (w: WorldState, ok: boolean) => cmdHandler!(w, null, null, ok),
+      fireFault: (source: 'tick' | 'command' | 'export' | 'general', message: string) => faultHandler!(source, message),
     };
   }
 
@@ -313,6 +318,30 @@ describe('GameLoop command transport', () => {
       now.mockRestore();
       vi.unstubAllGlobals();
     }
+  });
+
+  it('falls back immediately on a worker tick fault and restores authoritative state', async () => {
+    const world = makeWorld([human(1)], [building(4, BuildingType.Church)]);
+    const authoritative = structuredClone(world);
+    const loop = new GameLoop(world, createInitialView(400, 300), () => null);
+    await settleLoop(loop);
+    const fake = makeFakeHost(authoritative);
+    const dispose = vi.fn();
+    const host = { ...fake.host, dispose };
+    (loop as unknown as { workerEnabled: boolean }).workerEnabled = true;
+    (loop as unknown as { workerHost: unknown }).workerHost = host;
+    (loop as unknown as { registerWorkerHandlers: (g: number) => void }).registerWorkerHandlers(0);
+
+    loop.applyCommand({ proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: 4, humanId: 1 });
+    expect(loop.getWorld().entities.find((e) => e.id === 1)!.homeBuildingId).toBe(4);
+
+    fake.fireFault('tick', 'simulated tick failure');
+
+    expect(dispose).toHaveBeenCalledOnce();
+    expect((loop as unknown as { workerHost: unknown }).workerHost).toBeNull();
+    expect(loop.isUsingSimWorker()).toBe(false);
+    expect(loop.getWorld().entities.find((e) => e.id === 1)!.homeBuildingId).toBeUndefined();
+    expect(loop.getWorld().buildings.find((b) => b.id === 4)!.occupants).toEqual([]);
   });
 
   it('clears stale building selection after a demolish command', async () => {

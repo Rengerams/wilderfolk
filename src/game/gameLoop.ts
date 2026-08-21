@@ -230,6 +230,10 @@ export class GameLoop {
       clearScreenShakeImpulse(this.world);
       this.workerTickChanged = changed;
     });
+    this.workerHost!.setWorkerFaultHandler((source, message) => {
+      if (initGen !== this.sessionGen) return;
+      this.fallbackFromWorker(`Worker ${source} error: ${message}`);
+    });
     this.workerHost!.setCommandResultHandler((world, _delta, render, ok, reason) => {
       if (initGen !== this.sessionGen) return;
       this.lastWorkerActivity = performance.now();
@@ -252,6 +256,26 @@ export class GameLoop {
         console.warn('[GameLoop] Worker command failed — reverted to authoritative state', reason ?? 'unknown');
       }
     });
+  }
+
+  /** Restore the authoritative shadow and continue simulation on the main thread. */
+  private fallbackFromWorker(reason: string): void {
+    if (!this.workerEnabled && !this.workerBooting) return;
+    console.warn(`[GameLoop] ${reason} — falling back to main-thread ticks`);
+    if (this.optimisticCommand) {
+      this.optimisticCommand = null;
+      this.syncAfterWorkerMutation();
+      this.catalog.rebuild(this.world.entities);
+      this.pruneStaleSelection();
+      this.notify(true, false, true);
+    }
+    this.workerHost?.dispose();
+    this.workerHost = null;
+    this.workerEnabled = false;
+    this.workerBooting = false;
+    this.renderSoA = null;
+    this.renderMetaBySlot = null;
+    this.scentReader = null;
   }
 
   /**
@@ -639,24 +663,7 @@ export class GameLoop {
         const stalled = this.workerHost.hasTickInFlight()
           && performance.now() - this.lastWorkerActivity > stallMs;
         if (stalled) {
-          console.warn('[GameLoop] Worker tick stalled — falling back to main-thread ticks');
-          // Recover the authoritative worker shadow before disposal. If a player
-          // command was optimistically shown, disposing the host first would make
-          // syncAfterWorkerMutation() unable to restore the pre-command state.
-          if (this.optimisticCommand) {
-            this.optimisticCommand = null;
-            this.syncAfterWorkerMutation();
-            this.catalog.rebuild(this.world.entities);
-            this.pruneStaleSelection();
-            this.notify(true, false, true);
-          }
-          this.workerHost.dispose();
-          this.workerHost = null;
-          this.workerEnabled = false;
-          this.workerBooting = false;
-          this.renderSoA = null;
-          this.renderMetaBySlot = null;
-          this.scentReader = null;
+          this.fallbackFromWorker('Worker tick stalled');
         } else {
           while (
             this.tickAccumulator >= msPerTick

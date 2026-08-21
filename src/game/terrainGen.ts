@@ -376,6 +376,8 @@ export function generateWorldMap(
   const riverSet = new Set<string>();
   /** Cells of rivers long enough to keep — these render as real flowing water. */
   const acceptedRiverSet = new Set<string>();
+  /** One tile of non-water bank around carved channels, applied in the final pass. */
+  const riverBankSet = new Set<string>();
 
   for (const peak of topPeaks) {
     const river: { x: number; y: number }[] = [];
@@ -479,6 +481,56 @@ export function generateWorldMap(
     }
   }
 
+  // ── Guaranteed primary river ──
+  // Peak-fed tributaries add variety, but they may end in interior basins and
+  // read as ponds at normal zoom. Every preset therefore receives one broad,
+  // deterministic north-to-south river spine. It stays away from the founding
+  // centre, meanders by at most one tile per row, and is carved independently
+  // of elevation so it remains continuous across the whole playable map.
+  const primaryRadius = preset === 'riverlands' || preset === 'coastal' ? 2 : 1;
+  const side = rng() < 0.5 ? 0.28 : 0.72;
+  const margin = primaryRadius + 3;
+  const baseX = Math.max(margin, Math.min(tileW - margin - 1, Math.round(tileW * side)));
+  const phase = rng() * Math.PI * 2;
+  let primaryX = baseX;
+  for (let ty = 0; ty < tileH; ty++) {
+    const meander = Math.round(
+      Math.sin(ty * 0.18 + phase) * 3
+      + (noise(baseX * 10, ty * 10, seed + 7100) - 0.5) * 4,
+    );
+    const targetX = Math.max(margin, Math.min(tileW - margin - 1, baseX + meander));
+    if (targetX > primaryX) primaryX++;
+    else if (targetX < primaryX) primaryX--;
+
+    riverSet.add(`${primaryX},${ty}`);
+    for (let dy = -primaryRadius; dy <= primaryRadius; dy++) {
+      for (let dx = -primaryRadius; dx <= primaryRadius; dx++) {
+        if (dx * dx + dy * dy > primaryRadius * primaryRadius + 0.25) continue;
+        const rx = primaryX + dx;
+        const ry = ty + dy;
+        if (rx < 0 || ry < 0 || rx >= tileW || ry >= tileH) continue;
+        acceptedRiverSet.add(`${rx},${ry}`);
+      }
+    }
+  }
+
+  // Mark an explicit shore ring around every water cell. The atlas treats this
+  // as land for painted water edges, while the terrain model keeps it separate
+  // from generic grass/forest so rivers remain readable and unbuildable.
+  for (const key of acceptedRiverSet) {
+    const [cx, cy] = key.split(',').map(Number);
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const bx = cx + dx;
+        const by = cy + dy;
+        const bankKey = `${bx},${by}`;
+        if (bx < 0 || by < 0 || bx >= tileW || by >= tileH || acceptedRiverSet.has(bankKey)) continue;
+        riverBankSet.add(bankKey);
+      }
+    }
+  }
+
   // ── Second pass: assign terrain types ──
   for (let ty = 0; ty < tileH; ty++) {
     for (let tx = 0; tx < tileW; tx++) {
@@ -514,9 +566,14 @@ export function generateWorldMap(
       // downhill walk from peaks never drops below the strict River threshold
       // (elevation < waterLevel*0.75) and rivers rendered as land: verdant maps
       // had almost no visible water. Bridges can now span these real rivers.
-      tile.type = acceptedRiverSet.has(`${tx},${ty}`)
+      const terrainType = getTerrainType(elevNorm, moistNorm, tempNorm, nearRiver, nearMountain, preset);
+      const key = `${tx},${ty}`;
+      const naturalWater = terrainType === TerrainType.DeepWater || terrainType === TerrainType.ShallowWater;
+      tile.type = acceptedRiverSet.has(key)
         ? TerrainType.River
-        : getTerrainType(elevNorm, moistNorm, tempNorm, nearRiver, nearMountain, preset);
+        : riverBankSet.has(key) && !naturalWater
+          ? TerrainType.RiverBank
+          : terrainType;
     }
   }
 

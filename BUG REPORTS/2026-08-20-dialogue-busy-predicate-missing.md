@@ -1,6 +1,6 @@
 # Bug: Connected humanChat lacks the dialogue-busy predicate required by social selection
 
-- **Status:** fixed pending live verification
+- Status: resolved — live verification pending
 - **Date discovered:** 2026-08-20
 - **Version/build:** Wilderfolk 0.6.1.1
 - **Reporter:** Full movement and lifecycle audit
@@ -48,10 +48,10 @@ None. This is a transient dialogue API repair.
 
 ## Verification result
 
-- Focused social/dialogue validation passed.
-- Full suite after repair: 51 files / 334 tests passed.
+- Restored focused `tests/socialLife.dialogueBusy.test.ts` regression passed (3 tests): active line, active paired session, and idle state.
+- Full bug-report audit suite: 55 files / 347 tests passed on 2026-08-21.
 - TypeScript validation: passed.
-- ESLint: passed.
+- Focused ESLint: passed.
 - Live dialogue verification: pending.
 
 ## Related files

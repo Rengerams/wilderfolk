@@ -1,6 +1,6 @@
 # Bug: Immigrant pregnancy missing pregnancyDueProgress
 
-- Status: fixed
+- Status: resolved
 - Date discovered: 2026-08-20
 - Version/build: 0.6.1-line (working tree, uncommitted)
 - Reporter: Deep Code (coding agent session 2026-08-20)
@@ -85,7 +85,7 @@ None. `pregnancyDueProgress` is already in `saveSchema.ts` (line 36); the fix on
 - Full suite green on 3 consecutive runs (49 files / 324 tests, includes the 2 new regression tests).
 - TypeScript (`tsc -p tsconfig.vitest.json --noEmit`) clean; ESLint clean.
 - 60-day seeded relationship-feel measurement (`scripts/measure-relationship-feel.ts`): affairChecks/day 15.4, 27 affairs established, 5 scandals, tick p50 0.4 ms / p95 1.4 ms at 18 colonists — consistent with the pre-fix baseline (20.3 checks/day, 27 established, 8 scandals, p50 0.4 / p95 1.8 ms at 26 colonists); the fix changes pregnancy term variance, not event frequencies.
-- Status: fixed (awaiting developer review before verified).
+- Status: resolved by the 2026-08-21 bug-report audit: constructor and immigrant-spawn regressions remain in place and the complete suite passed (55 files / 347 tests).
 
 ## Related commits or files
 

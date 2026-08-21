@@ -54,6 +54,16 @@ describe('pathfinding', () => {
     expect(findPath(grid, 0, 5, 5, 5)).toBeNull();
   });
 
+  it('does not cut diagonally through two blocked orthogonal corners', () => {
+    const grid = getPathGrid(makeMap(3, 3, 6, (x, y) => (x === 1 && y === 0) || (x === 0 && y === 1)));
+    expect(findPath(grid, 0, 0, 2, 2)).toBeNull();
+  });
+
+  it('respects the bounded-search guard on an otherwise open grid', () => {
+    const grid = getPathGrid(makeMap(10, 10, 7, () => false));
+    expect(findPath(grid, 0, 0, 9, 9, 5)).toBeNull();
+  });
+
   it('lineCrossesBlocked detects a river between two points', () => {
     const grid = getPathGrid(makeMap(20, 20, 5, (x) => x === 10));
     const sx = 2 * TERRAIN_TILE_SIZE;

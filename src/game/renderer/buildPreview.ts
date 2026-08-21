@@ -72,6 +72,7 @@ export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSna
       ctx, state.buildMode, previewFrame, sx, sy - h * 0.06 + bob, w, h, 1,
       state.buildRotation,
       cfg.spriteDisplayScale ?? DEFAULT_SPRITE_DISPLAY_SCALE,
+      cfg.spriteAnchorY,
     );
   } else {
     ctx.fillStyle = valid ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)';

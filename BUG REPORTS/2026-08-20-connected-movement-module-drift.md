@@ -1,6 +1,6 @@
 # Bug: Connected project executes a stale duplicate human-movement module
 
-- **Status:** fixed pending live verification
+- Status: resolved — live verification pending
 - **Date discovered:** 2026-08-20
 - **Version/build:** Wilderfolk 0.6.1.1
 - **Reporter:** Full movement and lifecycle audit

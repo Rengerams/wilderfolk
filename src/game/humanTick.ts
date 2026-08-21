@@ -25,7 +25,7 @@ import { isPlayerHuman } from './playerHuman';
 import { isSettlerRelationshipEntity } from './moonHowler';
 import { getElectionGatherTarget } from './villageLeadership';
 import { valleyStageIndex } from './ecologyStage';
-import { HUMAN_ADULT_MIN_AGE, HUMAN_ADULT_MAX_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, PREGNANCY_TICKS, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isWorkHour, isOnWorkShift, isOnInnkeeperShift, isOnMoonHowlerNightShift, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, WORK_START, EVENING_START, TAVERN_SHIFT_START, isStartOfClockHour } from './dayCycle';
+import { HUMAN_ADULT_MIN_AGE, HUMAN_ADULT_MAX_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, PREGNANCY_TICKS, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isWorkHour, isOnWorkShift, isOnInnkeeperShift, isOnMoonHowlerNightShift, isFestivalGatheringHour, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, WORK_START, EVENING_START, TAVERN_SHIFT_START, isStartOfClockHour } from './dayCycle';
 import {
   chatHintsFromWorld,
   sayHumanChatPhrase,
@@ -616,7 +616,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && workplace.completed;
 
     // Innkeepers work evenings (every day); everyone else uses the daytime Mon–Fri shift.
-    const onDayJobShift = goWorkTime && !isInnkeeper && (
+    const festivalGathering = isFestivalGatheringHour(hourOfDay, state.festival?.active)
+      && !isInnkeeper;
+    const onDayJobShift = !festivalGathering && goWorkTime && !isInnkeeper && (
       workplace != null
       || schoolTarget != null
       || (entity.job === JobType.Guard && isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings))
@@ -631,9 +633,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Per-person daily mood: some evenings out, some nights in; weekends lazy or busy.
     // Innkeepers on duty ignore "stay in" — the pub needs them.
-    const stayIn = !onTavernShift && !onMoonPriestShift && prefersHomeTonight(entity.id, state.tick, hourOfDay);
+    const stayIn = !festivalGathering && !onTavernShift && !onMoonPriestShift
+      && prefersHomeTonight(entity.id, state.tick, hourOfDay);
     // Free roam when not on the job and not choosing a quiet home stretch.
-    const allowFreeRoam = !onJobShift && !stayIn;
+    const allowFreeRoam = festivalGathering || (!onJobShift && !stayIn);
     // Day-job holders aren't "free" during work hours; innkeepers only lock evenings.
     const socialBlockedByJob = isInnkeeper
       ? onTavernShift
@@ -699,12 +702,39 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
       suppressIdle = true;
       onSchedule = true;
+    } else if (festivalGathering) {
+      // Festival creation and expiry belong to the daily layer. The realtime
+      // human owner only turns that authoritative state into a visible daily
+      // gathering, with danger and Moon-Howler duties retaining higher priority.
+      const performers = state.visitorGroups.find((group) => group.kind === 'performers' && group.daysLeft > 0);
+      const hall = staffedTownHalls.length > 0
+        ? staffedTownHalls[entity.id % staffedTownHalls.length]
+        : undefined;
+      const targetX = performers?.campX ?? (hall ? hall.x + hall.width / 2 : width * 0.5);
+      const targetY = performers?.campY ?? (hall ? hall.y + hall.height + 20 : height * 0.5);
+      const offsetX = ((entity.id % 7) - 3) * 11;
+      const offsetY = ((Math.floor(entity.id / 7) % 5) - 2) * 9;
+      const dx = targetX + offsetX - entity.x;
+      const dy = targetY + offsetY - entity.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      if (dist > 18) {
+        entity.vx = (dx / dist) * config.speed * 0.72;
+        entity.vy = (dy / dist) * config.speed * 0.72;
+        entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+      } else {
+        entity.vx = Math.sin(state.tick * 0.04 + entity.id) * config.speed * 0.12;
+        entity.vy = Math.cos(state.tick * 0.035 + entity.id) * config.speed * 0.12;
+        settlerChat(entity, 'social', 0.12 * PER_TICK_RATE_SCALE);
+      }
+      suppressIdle = true;
+      onSchedule = true;
     }
 
     // Long commutes: snap at shift start so workers aren't walking all day
     if (
       !huntingWere
-      && !inElectionCeremony
+      &&       !inElectionCeremony
+      && !festivalGathering
       && workplace
       && isStartOfClockHour(state.tick)
       && (
@@ -719,7 +749,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     } else if (
       !huntingWere
-      && !inElectionCeremony
+      &&       !inElectionCeremony
+      && !festivalGathering
       && hourOfDay === EVENING_START
       && isStartOfClockHour(state.tick)
       && stayIn
@@ -738,7 +769,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Home when they choose a quiet stretch (varies by person/day); work still overrides below.
     if (
       !huntingWere
-      && !inElectionCeremony
+      &&       !inElectionCeremony
+      && !festivalGathering
       && !onJobShift
       && stayIn
       && hasResidenceAssignment(entity)
@@ -751,7 +783,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     } else if (
       !huntingWere
-      && !inElectionCeremony
+      &&       !inElectionCeremony
+      && !festivalGathering
       && goWorkTime
       && workplace
       && entity.job === JobType.Guard
@@ -783,7 +816,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         onSchedule = true;
         suppressIdle = true;
       }
-    } else if (!huntingWere && !inElectionCeremony && goWorkTime && !isInnkeeper && schoolTarget) {
+    } else if (!huntingWere && !inElectionCeremony && !festivalGathering && goWorkTime && !isInnkeeper && schoolTarget) {
       commuteHumanToBuilding(entity, schoolTarget, config.speed, false, 3.2);
       onSchedule = true;
       suppressIdle = true;
@@ -794,7 +827,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onSchedule = true;
       suppressIdle = true;
       if (Math.random() < 0.04 * PER_TICK_RATE_SCALE) settlerChat(entity, 'work', 0.12);
-    } else if (!huntingWere && !inElectionCeremony && goWorkTime && !isInnkeeper && workplace) {
+    } else if (!huntingWere && !inElectionCeremony && !festivalGathering && goWorkTime && !isInnkeeper && workplace) {
       commuteHumanToBuilding(
         entity,
         workplace,
@@ -823,7 +856,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         ? entity.energy < entity.maxEnergy * 0.6
         : entity.energy < entity.maxEnergy * 0.38;
     if (
-      (allowFreeRoam || famine)
+      !festivalGathering
+      && (allowFreeRoam || famine)
       && isPlayerHuman(entity)
       && !ateMeal
       && !entity.isJuvenile

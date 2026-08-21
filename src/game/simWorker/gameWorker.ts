@@ -1,10 +1,9 @@
 /// <reference lib="webworker" />
-import dialogueBankJson from '../data/sim_dialogue_trees.json';
-import { installDialogueBankPayload } from '../dialogueTrees';
+import { canonicalDialogueBank, installDialogueBankPayload } from '../dialogueTrees';
 import { gameTick } from '../gameTick';
 import { GAME_VERSION } from '../version';
 
-installDialogueBankPayload(dialogueBankJson as unknown as Parameters<typeof installDialogueBankPayload>[0]);
+installDialogueBankPayload(canonicalDialogueBank);
 import type { Entity, WorldState } from '../gameTypes';
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool } from '../simBuffers/renderBufferPool';

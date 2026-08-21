@@ -3,7 +3,7 @@
  * all day and night during festivals (the innkeeper works the party).
  */
 import { describe, it, expect } from 'vitest';
-import { isOnInnkeeperShift, isTavernOpen } from '../src/game/dayCycle';
+import { isFestivalGatheringHour, isOnInnkeeperShift, isTavernOpen } from '../src/game/dayCycle';
 
 describe('tavern festival hours', () => {
   it('is open in the evening, closed in the morning', () => {
@@ -23,5 +23,13 @@ describe('tavern festival hours', () => {
     expect(isOnInnkeeperShift(72 * 10, 9, true)).toBe(true); // mid-day, festival
     expect(isOnInnkeeperShift(72 * 10, 9)).toBe(false); // same hour, no festival
     expect(isOnInnkeeperShift(72 * 10, 19)).toBe(true); // evening shift always
+  });
+
+  it('defines a bounded afternoon-to-evening gathering window only for active festivals', () => {
+    expect(isFestivalGatheringHour(14, true)).toBe(false);
+    expect(isFestivalGatheringHour(15, true)).toBe(true);
+    expect(isFestivalGatheringHour(21, true)).toBe(true);
+    expect(isFestivalGatheringHour(22, true)).toBe(false);
+    expect(isFestivalGatheringHour(17, false)).toBe(false);
   });
 });
