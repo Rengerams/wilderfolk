@@ -46,6 +46,9 @@ docs/superpowers/
 
 # Deep Code CLI local config + skills (not project files)
 .deepcode/
+.tmp/
+.agents/
+BUG_REPORTS/
 skills/
 
 # Local-only session transcript (not for GitHub)
