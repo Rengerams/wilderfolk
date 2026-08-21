@@ -65,7 +65,10 @@ export function drawCampMarkers(ctx: CanvasRenderingContext2D, state: RenderSnap
       ctx.fillText(rival.name, sx, sy - Math.max(12, 16 * cam.zoom));
       ctx.fillStyle = '#fdba74';
       ctx.font = `${Math.max(6, 7 * cam.zoom)}px sans-serif`;
-      ctx.fillText(`${rival.population} · ${rival.relationship}`, sx, sy + Math.max(14, 18 * cam.zoom));
+      const action = rival.profile?.lastAction && rival.profile.lastAction !== 'none'
+        ? rival.profile.lastAction.replace('_', ' ')
+        : rival.peaceTreatyDays > 0 ? 'treaty' : 'quiet';
+      ctx.fillText(`${rival.population} · ${rival.relationship} · ${action}`, sx, sy + Math.max(14, 18 * cam.zoom));
     }
   }
 }

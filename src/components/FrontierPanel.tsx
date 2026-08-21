@@ -19,6 +19,8 @@ import {
 import { getBarracksGuardCount, countCompletedDefenseBuildings } from '../game/defenseStructures';
 import { BuildingType } from '../game/gameTypes';
 import { computeMilitiaBreakdown } from '../game/militiaBalance';
+import { normalizeRivalProfile, getRivalProfileLabel } from '../game/rivalProfiles';
+import { getRivalPresenceSummary } from '../game/rivalPresence';
 
 interface Props {
   state: WorldState;
@@ -164,6 +166,8 @@ function FrontierPanel({
               const raidEligibility = canLaunchRaidOnRival(state, r);
               const raidFoodCost = getOutgoingRaidFoodCostForRival(state, r);
               const outgoingRaidAction = getOutgoingRaidActionLabel(state, r.id);
+              const profile = normalizeRivalProfile(r);
+              const presence = getRivalPresenceSummary(state, r);
               return (
                 <div
                   key={r.id}
@@ -183,6 +187,11 @@ function FrontierPanel({
                       · raid {raidFoodCost}🍖
                       {isRivalAtPeace(r) && <span className="text-cyan-400"> · 🕊️ {r.peaceTreatyDays}d</span>}
                     </p>
+                    <p className="text-[10px] capitalize text-amber-300/80">{getRivalProfileLabel(profile)} · {presence.stanceLabel}</p>
+                    <p className="text-[10px] text-cyan-300/80">Activity: {presence.modeLabel}</p>
+                    <p className="text-[10px] text-stone-400">Ledger: {profile.ledger.food} food · {profile.ledger.wood} wood · {profile.ledger.gold} gold · morale {profile.ledger.morale}% · recovery {profile.ledger.recovery}%</p>
+                    <p className="text-[10px] text-stone-400">Latest contact: {presence.latestContact}</p>
+                    {presence.history.length > 1 && <p className="text-[10px] text-stone-500">History: {presence.history.slice(1, 3).join(' · ')}</p>}
                     {(hasRaid || hasDiplo) && (
                       <p className="text-[10px] font-bold text-rose-400">
                         {(() => {

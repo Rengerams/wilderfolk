@@ -788,7 +788,12 @@ export function tickLayerDaily(
 
   if (isNewCalendarDayTick(state)) {
     for (const human of ctx.playerHumans) {
-      if (human.alive && !human.isJuvenile) resolveDailyScheduleFatigue(human, state);
+      if (!human.alive || human.isJuvenile) continue;
+      const result = resolveDailyScheduleFatigue(human, state);
+      if (Math.abs(result.fatigueAfter - result.fatigueBefore) >= 8) {
+        const direction = result.fatigueAfter > result.fatigueBefore ? 'rose' : 'recovered';
+        logEvent(state, 'event', `Schedule fatigue ${direction} to ${Math.round(result.fatigueAfter)}% after ${result.workedHours.toFixed(1)} hours of work.`);
+      }
     }
   }
 

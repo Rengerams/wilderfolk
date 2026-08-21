@@ -209,10 +209,14 @@ export default function SelectedBuildingPanel({
             </div>
           </div>
         ))}
-        {pendingForRival.map((evt) => (
+        {pendingForRival.map((evt) => {
+          const expiresAtTick = evt.expiresAtTick ?? evt.createdAtTick + 14 * TICKS_PER_DAY;
+          const daysRemaining = Math.max(0, Math.ceil((expiresAtTick - state.tick) / TICKS_PER_DAY));
+          return (
           <div key={evt.id} className="mb-2 rounded-lg border border-amber-600/30 bg-amber-950/30 p-2">
             <p className="text-xs font-bold text-amber-200">{evt.emoji} {evt.title}</p>
             <p className="text-[11px] text-stone-300">{evt.description}</p>
+            <p className="text-[10px] text-amber-300/80">Expires in {daysRemaining} day{daysRemaining === 1 ? '' : 's'} · choose a response to apply the shown cost and consequence.</p>
             <div className="mt-1.5 grid grid-cols-1 gap-1">
               {evt.choices.map((choice) => {
                 const eligibility = getDiplomacyChoiceEligibility(state, evt, choice.id);
@@ -234,7 +238,8 @@ export default function SelectedBuildingPanel({
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
         {rival && onDiplomacyAction && (
           <div className="grid grid-cols-1 gap-1">
             <button

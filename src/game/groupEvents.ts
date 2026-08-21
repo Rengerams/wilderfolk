@@ -30,6 +30,7 @@ import { clearFactionWanderState } from './factionWander';
 import { getRefugeeWelcomeBonus } from './townHall';
 import { addNotification } from './simEffects';
 import { tickRivalSettlements as tickRivalEvents } from './rivalEvents';
+import { createRivalProfile, ensureRivalProfile } from './rivalProfiles';
 
 let newsSeq = 0;
 
@@ -477,6 +478,7 @@ export function spawnRivalSettlement(
     daysUntilAction: 30 + Math.floor(Math.random() * 30),
     raidCooldownDays: 45 + Math.floor(Math.random() * 30),
     peaceTreatyDays: 0,
+    profile: createRivalProfile(groupId.length + state.year + pop, relationship),
   });
 
   const relText = {
@@ -857,6 +859,7 @@ function maybeQueueDiplomacyEvent(state: WorldState, rival: RivalSettlement): vo
     ...meta,
     choices: diplomacyChoicesFor(kind, rival.name),
     createdAtTick: state.tick,
+    expiresAtTick: state.tick + 14 * TICKS_PER_DAY,
   };
   state.pendingDiplomacyEvents.push(event);
   pushNews(state, `${meta.emoji} Diplomacy needed`, `${rival.name}: ${meta.title}. Respond in the inspector or event banner.`, 'neutral');
@@ -868,7 +871,7 @@ export function tickPendingDiplomacyEvents(state: WorldState): void {
   const expireAfter = 14 * TICKS_PER_DAY;
   const before = state.pendingDiplomacyEvents.length;
   state.pendingDiplomacyEvents = state.pendingDiplomacyEvents.filter(
-    (e) => state.tick - e.createdAtTick < expireAfter,
+    (e) => state.tick < (e.expiresAtTick ?? e.createdAtTick + expireAfter),
   );
   if (state.pendingDiplomacyEvents.length < before) {
     logEvent(state, 'event', 'An unanswered diplomacy message faded — neighbors grew impatient');
@@ -934,6 +937,12 @@ export function respondToDiplomacyEvent(
   };
 
   let resolved = false;
+
+  if (state.tick >= (event.expiresAtTick ?? event.createdAtTick + 14 * TICKS_PER_DAY)) {
+    removeEvent();
+    logEvent(state, 'event', `Diplomacy message from ${rival.name} expired`, rival.name);
+    return state;
+  }
 
   switch (event.kind) {
     case 'tribute':
@@ -1070,6 +1079,8 @@ export function respondToDiplomacyEvent(
   }
 
   if (resolved) {
+    const profile = ensureRivalProfile(rival);
+    profile.contactCount = Math.min(999, profile.contactCount + 1);
     rival.daysUntilAction = Math.max(rival.daysUntilAction, 21);
     removeEvent();
   }

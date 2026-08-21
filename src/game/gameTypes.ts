@@ -418,9 +418,34 @@ export interface DiplomacyEvent {
   emoji: string;
   choices: DiplomacyChoice[];
   createdAtTick: number;
+  /** Absolute expiry tick; optional for legacy saved diplomacy events. */
+  expiresAtTick?: number;
 }
 
 export type RivalRelationship = 'friendly' | 'neutral' | 'competitive' | 'tense';
+export type RivalTemperament = 'welcoming' | 'pragmatic' | 'ambitious' | 'warlike';
+export type RivalPriority = 'food' | 'trade' | 'security' | 'shelter';
+
+export interface RivalLedger {
+  food: number;
+  wood: number;
+  gold: number;
+  morale: number;
+  recovery: number;
+}
+
+export type RivalDailyAction = 'recover' | 'gather' | 'trade' | 'fortify' | 'scout' | 'cool_down' | 'none';
+
+export interface RivalProfile {
+  temperament: RivalTemperament;
+  priority: RivalPriority;
+  ledger: RivalLedger;
+  /** Bounded count of meaningful stance-changing contacts. */
+  contactCount: number;
+  /** Latest bounded daily action summary for player-facing feedback. */
+  lastAction?: RivalDailyAction;
+  lastActionDay?: number;
+}
 
 export interface RivalSettlement {
   id: string;
@@ -437,6 +462,8 @@ export interface RivalSettlement {
   raidCooldownDays: number;
   /** Days remaining on a signed peace treaty (no raids either direction). */
   peaceTreatyDays: number;
+  /** Optional for legacy saves; normalized at read/creation boundaries. */
+  profile?: RivalProfile;
 }
 
 /** Transient screen particles — deaths, confetti, smoke (stored on `WorldState.deathParticles`). */
