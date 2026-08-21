@@ -13,9 +13,8 @@ import { countWorkersAtBuilding } from '../workforce';
 import { getValleyIllnessChanceBonus } from '../ecologyStage';
 import {
   HUMAN_ADULT_MIN_AGE,
-  HUMAN_ADULT_MAX_AGE,
-  HUMAN_MOVE_OUT_MIN_AGE,
   HUMAN_MAX_LIFESPAN_YEARS,
+  HUMAN_MOVE_OUT_MIN_AGE,
   getColonyDay,
   TICKS_PER_DAY,
   HUMAN_DAILY_ILLNESS_CHANCE,
@@ -626,7 +625,7 @@ export function isValidAffairTarget(entity: Entity, target: Entity, tick: number
   if (entity.prisonBuildingId != null || target.prisonBuildingId != null) return false;
   if (!entity.gender || target.gender === entity.gender || target.id === entity.id) return false;
   if (target.id === entity.partnerId || entity.id === target.partnerId) return false;
-  if (target.age < HUMAN_ADULT_MIN_AGE || target.age >= HUMAN_ADULT_MAX_AGE) return false;
+  if (target.age < HUMAN_ADULT_MIN_AGE || target.age >= HUMAN_MAX_LIFESPAN_YEARS) return false;
   if (entity.affairPartnerId != null && target.id !== entity.affairPartnerId) return false;
   if (target.affairPartnerId != null && target.affairPartnerId !== entity.id) return false;
   if (onScandalCooldown(entity, tick) || onScandalCooldown(target, tick)) return false;
@@ -1187,7 +1186,7 @@ export function isEligibleToCourt(entity: Entity): boolean {
     && entity.youthLovePartnerId == null
     && entity.relationshipStatus === 'single'
     && entity.age >= HUMAN_ADULT_MIN_AGE
-    && entity.age < HUMAN_ADULT_MAX_AGE
+    && entity.age < HUMAN_MAX_LIFESPAN_YEARS
   );
 }
 

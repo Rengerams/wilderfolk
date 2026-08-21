@@ -1,6 +1,6 @@
 // Entity types as const object
 import type { Resources, ResourceKey } from './resourceTypes';
-import type { ValleyStage } from './ecologyStage';
+import type { ValleyStage } from './ecologyTypes';
 import type { YearlyStats, LifetimeStats } from './stats';
 import type { ScentGrid } from './scentGrid';
 import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
@@ -15,7 +15,6 @@ export { HUNTING_SPOT_PREY_OPTIONS } from './huntingSpots';
 export type { HuntingSpotPrey } from './huntingSpots';
 export { WORKSHOP_RECIPES, DEFAULT_WORKSHOP_RECIPE_ID, getWorkshopRecipe, formatRecipeInputs } from './workshops';
 export type { WorkshopRecipe } from './workshops';
-export { INITIAL_CHALLENGES } from './challenges';
 export type { Challenge } from './challenges';
 
 /** One letter of the Renffr sky omen (see renffrStar). */
@@ -222,6 +221,10 @@ export interface Entity {
   schoolDays?: number;
   /** Work-hour ticks accumulated today toward the next school day. */
   schoolTicksToday?: number;
+  /** Ordinary/venue work ticks accumulated for the current colony day. */
+  scheduleWorkedTicksToday?: number;
+  /** Bounded carry-over fatigue from prior schedule days (0–100). */
+  scheduleFatigue?: number;
   /** Set on graduation — grants skills, stamina, and village research bonus. */
   educated?: boolean;
   /** Personality traits (settler only) — subtle behavioral modifiers. */
@@ -516,7 +519,7 @@ export interface StoryEvent {
   createdAtTick: number;
   expiresAtTick: number;
   /** Which authored story this resolves — keeps the responder data-driven-safe. */
-  storyKey: 'welcome' | 'wolf_choice' | 'ranger_visit' | 'howler_rumor' | 'grief_beat' | 'winter_prep' | 'valley_debate';
+  storyKey: 'welcome' | 'wolf_choice' | 'ranger_visit' | 'howler_rumor' | 'grief_beat' | 'winter_prep' | 'valley_debate' | 'children_shelter';
 }
 
 /** @deprecated Prefer PopulationHistoryEntry (same shape, richer optional fields). */
@@ -723,6 +726,12 @@ export interface WorldState {
   /** ⚠️ Denormalized — must stay in sync with `entities` each tick. */
   idleSettlers: number;
   villageName: string;
+  /** Global ordinary weekday work window; absent legacy saves use 07:00–18:00. */
+  workSchedule?: import('./workSchedule').WorkSchedule;
+  /** Independent Tavern service window; legacy saves use the canonical default. */
+  tavernSchedule?: import('./venueSchedule').VenueSchedule;
+  /** Independent Hotel service window; legacy saves use the canonical default. */
+  hotelSchedule?: import('./venueSchedule').VenueSchedule;
   villageReputation: number;
   resources: Resources;
   storageMax: Resources;

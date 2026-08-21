@@ -7,6 +7,7 @@ import type { WorldState, Entity } from '../../game/gameEngine';
 import type { VillageStatsSummary } from '../../game/uiSimSummary';
 import type { FocusHintAction } from '../../game/focusHints';
 import CollapsibleSection from '../CollapsibleSection';
+import { collectHousingDiagnostics, isHousingDiagnosticsHealthy } from '../../game/housingDiagnostics';
 
 const FocusPanel = lazy(() => import('../../game/FocusPanel'));
 const VillageLeadershipPanel = lazy(() => import('../../game/VillageLeadershipPanel'));
@@ -25,6 +26,39 @@ const StatBadge = memo(function StatBadge({ label, value, icon, title }: StatBad
       <span className="text-stone-400">{icon} {label}</span>
       <span className="font-bold text-stone-200">{value}</span>
     </div>
+  );
+});
+
+const HousingDiagnostics = memo(function HousingDiagnostics({ state }: { state: WorldState }) {
+  const housing = collectHousingDiagnostics(state);
+  const healthy = isHousingDiagnosticsHealthy(housing);
+  return (
+    <CollapsibleSection
+      icon="🏠"
+      title="Housing diagnostics"
+      subtitle={`${housing.openBeds} open beds · ${housing.housingPressure} pressure`}
+      accent={healthy ? 'cyan' : 'orange'}
+      defaultOpen={false}
+    >
+      <div className="grid grid-cols-2 gap-1.5 text-[13px]">
+        <StatBadge label="Beds" value={housing.totalBeds} icon="🛏️" />
+        <StatBadge label="Occupied" value={housing.occupiedBeds} icon="👥" />
+        <StatBadge label="Residences" value={housing.residences} icon="🏘️" />
+        <StatBadge label="Unassigned" value={housing.unassignedPlayerHumans} icon="⚠️" />
+      </div>
+      <div className="mt-2 space-y-1 text-[12px]">
+        <div className="flex justify-between rounded bg-stone-600/30 px-2 py-1">
+          <span className="text-stone-400">Player-house beds</span><span className="font-bold text-sky-300">{housing.playerHouseBeds}</span>
+        </div>
+        <div className="flex justify-between rounded bg-stone-600/30 px-2 py-1">
+          <span className="text-stone-400">Leader-house reserved</span><span className="font-bold text-amber-300">{housing.reservedLeaderHouseBeds}/{housing.leaderHouseBeds}</span>
+        </div>
+        <div className={`flex justify-between rounded px-2 py-1 ${healthy ? 'bg-emerald-950/30 text-emerald-300' : 'bg-rose-950/30 text-rose-300'}`}>
+          <span>{healthy ? '✓ Residence references healthy' : '⚠ Residence references need review'}</span>
+          <span>{housing.overCapacityResidences + housing.orphanedResidenceReferences + housing.occupantListMismatches}</span>
+        </div>
+      </div>
+    </CollapsibleSection>
   );
 });
 
@@ -181,6 +215,8 @@ export default function VillageTabPanel({
           📯 Recruit Settler (30🍖 20💰)
         </button>
       </CollapsibleSection>
+
+      <HousingDiagnostics state={state} />
 
       <CollapsibleSection
         icon="🍖"

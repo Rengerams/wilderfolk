@@ -18,6 +18,8 @@ import {
   maybeOfferGriefBeat,
   maybeOfferHowlerRumor,
   maybeOfferWinterPrep,
+  maybeOfferChildrenShelter,
+  tickChildrenShelter,
   maybeOfferValleyDebate,
   respondToStoryEvent,
   tickPendingStoryEvents,
@@ -385,5 +387,94 @@ describe('story event lifecycle', () => {
 
   it('ticks past a full day boundary are covered by TICKS_PER_DAY sanity', () => {
     expect(TICKS_PER_DAY).toBeGreaterThan(0);
+  });
+});
+
+
+describe('ten children shelter quest', () => {
+  function shelterWorld() {
+    const state = initGame({ villageName: 'ShelterVale', size: MapSize.Small });
+    state.rivalSettlements.push({
+      id: 'rival-shelter',
+      name: 'Ashbrook Clan',
+      campX: 700,
+      campY: 500,
+      population: 8,
+      entityIds: [],
+      buildingIds: [],
+      relationship: 'neutral',
+      foundedYear: 0,
+      daysUntilAction: 20,
+      raidCooldownDays: 20,
+      peaceTreatyDays: 0,
+    });
+    state.buildings.push(
+      {
+        id: state.nextBuildingId++, type: BuildingType.House, x: 100, y: 100,
+        width: 46, height: 40, occupants: [], level: 1, constructionProgress: 100,
+        completed: true, health: 100, maxHealth: 100,
+      } as never,
+      {
+        id: state.nextBuildingId++, type: BuildingType.House, x: 180, y: 100,
+        width: 46, height: 40, occupants: [], level: 1, constructionProgress: 100,
+        completed: true, health: 100, maxHealth: 100,
+      } as never,
+    );
+    return state;
+  }
+
+  it('offers once at or after colony day 10 and keeps the rival outcome hidden', () => {
+    const state = shelterWorld();
+    state.dayInYear = 9;
+    maybeOfferChildrenShelter(state);
+    expect(state.pendingStoryEvents?.length ?? 0).toBe(0);
+    state.dayInYear = 10;
+    maybeOfferChildrenShelter(state);
+    const event = state.pendingStoryEvents![0];
+    expect(event.storyKey).toBe('children_shelter');
+    expect(event.description).not.toMatch(/friend|war|ally|hostil/i);
+    expect(event.choices.map((choice) => choice.id)).toEqual(['help', 'refuse']);
+    maybeOfferChildrenShelter(state);
+    expect(state.pendingStoryEvents).toHaveLength(1);
+  });
+
+  it('rejects help atomically when ten free beds are unavailable', () => {
+    const state = shelterWorld();
+    state.dayInYear = 10;
+    state.buildings[0].occupants = [1, 2, 3, 4, 5];
+    state.buildings[1].occupants = [6, 7, 8, 9, 10, 11];
+    maybeOfferChildrenShelter(state);
+    const next = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'help');
+    expect(next.pendingStoryEvents).toHaveLength(1);
+    expect(next.storyFlags?.children_shelter_started).toBeUndefined();
+  });
+
+  it('turning them away reveals war only after the five-day shelter window', () => {
+    const state = shelterWorld();
+    state.dayInYear = 10;
+    maybeOfferChildrenShelter(state);
+    const next = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'refuse');
+    expect(next.rivalSettlements[0].relationship).toBe('neutral');
+    next.tick = next.storyFlags!.children_shelter_until! - 1;
+    tickChildrenShelter(next);
+    expect(next.rivalSettlements[0].relationship).toBe('neutral');
+    next.tick++;
+    tickChildrenShelter(next);
+    expect(next.rivalSettlements[0].relationship).toBe('tense');
+    expect(next.storyFlags?.children_shelter_resolved).toBe(next.tick);
+  });
+
+  it('helping reveals friendship only after five days', () => {
+    const state = shelterWorld();
+    state.dayInYear = 10;
+    maybeOfferChildrenShelter(state);
+    const next = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'help');
+    expect(next.rivalSettlements[0].relationship).toBe('neutral');
+    expect(next.storyFlags?.children_shelter_house_count).toBe(2);
+    next.tick = next.storyFlags!.children_shelter_until!;
+    tickChildrenShelter(next);
+    expect(next.rivalSettlements[0].relationship).toBe('friendly');
+    tickChildrenShelter(next);
+    expect(next.rivalSettlements[0].relationship).toBe('friendly');
   });
 });

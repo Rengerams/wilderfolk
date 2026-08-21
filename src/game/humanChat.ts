@@ -6,7 +6,7 @@ import {
   speakerRoleIndex,
   type DialogueTree,
 } from './dialogueTrees';
-import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
+import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycleClock';
 import type { Season, WeatherType } from './gameTypes';
 
 export type HumanChatContext =

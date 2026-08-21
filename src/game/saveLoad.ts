@@ -1,5 +1,6 @@
 import type { WorldState, Entity } from './gameTypes';
-import { EntityType, BuildingType, DEFAULT_WORKSHOP_RECIPE_ID, INITIAL_CHALLENGES } from './gameTypes';
+import { EntityType, BuildingType, DEFAULT_WORKSHOP_RECIPE_ID } from './gameTypes';
+import { INITIAL_CHALLENGES } from './challenges';
 import { createEmptyLifetimeStats } from './stats';
 import {
   mergeForSave,
@@ -22,6 +23,7 @@ import { migrateLegacyMoonHowler, syncMoonHowlerForms } from './moonHowler';
 import { isPlayerHuman } from './playerHuman';
 import { GAME_VERSION } from './version';
 import { ensureEntitySkills } from './skills';
+import { normalizeWorkSchedule } from './workSchedule';
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
 import { syncResearchUnlocks } from './research';
@@ -337,6 +339,7 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
       buildings: worldData.buildings ?? [],
       scentGrid: undefined,
       autoSave,
+      workSchedule: normalizeWorkSchedule(worldData.workSchedule),
       tick: loadedTick,
       lastProcessedCalendarDay: typeof worldData.lastProcessedCalendarDay === 'number'
         ? worldData.lastProcessedCalendarDay

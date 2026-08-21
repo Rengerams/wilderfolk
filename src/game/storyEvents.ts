@@ -1,6 +1,6 @@
 import type { WorldState, StoryEvent } from './gameTypes';
 import { BuildingType } from './gameTypes';
-import { TICKS_PER_DAY } from './dayCycle';
+import { TICKS_PER_DAY, getColonyDay, getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { addCappedResource } from './resourceUtils';
 import { isPlayerHuman } from './playerHuman';
@@ -34,6 +34,43 @@ export function offerStoryEvent(state: WorldState, event: StoryEvent): void {
 }
 
 /** Drop expired unanswered stories — the moment passes quietly. */
+export function tickChildrenShelter(state: WorldState): void {
+  const started = state.storyFlags?.children_shelter_started ?? 0;
+  const until = state.storyFlags?.children_shelter_until ?? 0;
+  if (started <= 0 || until <= 0 || state.tick < until) return;
+  if ((state.storyFlags?.children_shelter_resolved ?? 0) > 0) return;
+
+  const rival = state.rivalSettlements[0];
+  state.storyFlags = { ...state.storyFlags, children_shelter_resolved: state.tick };
+  if (!rival) return;
+
+  const helped = (state.storyFlags?.children_shelter_helped ?? 0) === 1;
+  if (helped) {
+    rival.relationship = 'friendly';
+    rival.peaceTreatyDays = Math.max(rival.peaceTreatyDays, 180);
+    addBigNews(
+      state,
+      '🕊️ A clan remembers your shelter',
+      `${rival.name} has taken the children home. Their elders answer your kindness with friendship — the valley has gained a new ally.`,
+      'positive',
+    );
+    addNotification(state, `${rival.name} is now friendly`, 'The children returned safely after five days under your roofs.', 'success');
+    logEvent(state, 'event', `${rival.name} became friendly after ${state.villageName} sheltered ten displaced children`, rival.name);
+  } else {
+    rival.relationship = 'tense';
+    rival.peaceTreatyDays = 0;
+    rival.raidCooldownDays = 0;
+    addBigNews(
+      state,
+      '⚔️ A clan turns away',
+      `${rival.name} has declared war after the children were turned away. The reason is only clear now: the valley refused their plea.`,
+      'negative',
+    );
+    addNotification(state, `${rival.name} has declared war`, 'Their hostility was hidden until the children’s five-day journey ended.', 'warning');
+    logEvent(state, 'event', `${rival.name} declared war after ${state.villageName} refused shelter to ten displaced children`, rival.name);
+  }
+}
+
 export function tickPendingStoryEvents(state: WorldState): void {
   if (!state.pendingStoryEvents?.length) return;
   state.pendingStoryEvents = state.pendingStoryEvents.filter(
@@ -78,11 +115,80 @@ export function respondToStoryEvent(
         addBigNews(state, '❄️ The test is set', 'Old Kaia marks the day — 120 wood and 180 food before the first freeze.', 'neutral');
       }
       break;
-    case 'valley_debate':
+        case 'valley_debate':
       resolveValleyDebate(state, choiceId);
       break;
+    case 'children_shelter': {
+      const accepted = resolveChildrenShelter(state, choiceId);
+      if (!accepted) {
+        state.pendingStoryEvents ??= [];
+        state.pendingStoryEvents.push(event);
+      }
+      break;
+    }
+
   }
   return state;
+}
+
+// ---------------------------------------------------------------------------
+// Story 0 — Ten children at the gate
+// ---------------------------------------------------------------------------
+
+/**
+ * One-time request after colony day 10. The rival consequence is deliberately
+ * not disclosed in the choices; it resolves only after five shelter days.
+ */
+export function maybeOfferChildrenShelter(state: WorldState): void {
+  if ((state.storyFlags?.children_shelter_offered ?? 0) > 0) return;
+  if (getColonyDay(state) < 10 || state.rivalSettlements.length === 0) return;
+
+  state.storyFlags = { ...state.storyFlags, children_shelter_offered: state.tick };
+  offerStoryEvent(state, {
+    id: `children_shelter_${state.tick}`,
+    emoji: '🧳',
+    storyKey: 'children_shelter',
+    title: 'Ten children at the gate',
+    description: 'Ten frightened children arrive at the edge of the valley. They ask for shelter for five days while their people cross dangerous ground to bring them home.',
+    choices: [
+      { id: 'help', label: 'Open the houses', detail: 'Use available beds to shelter all ten children for five days.' },
+      { id: 'refuse', label: 'Turn them away', detail: 'Keep the village’s beds and supplies for your own people.' },
+    ],
+    createdAtTick: state.tick,
+    expiresAtTick: state.tick + TICKS_PER_DAY * 3,
+  });
+}
+
+function resolveChildrenShelter(state: WorldState, choiceId: string): boolean {
+  if (choiceId === 'refuse') {
+    state.storyFlags = { ...state.storyFlags, children_shelter_helped: 0, children_shelter_started: state.tick, children_shelter_until: state.tick + TICKS_PER_DAY * 5 };
+    addNotification(state, 'The children leave', 'Their five-day journey continues beyond the valley.', 'warning');
+    return true;
+  }
+  if (choiceId !== 'help') return true;
+
+  const freeBeds = state.buildings
+    .filter((building) => isResidenceBuilding(building) && !isLeaderHouseResidence(building) && building.faction !== 'rival')
+    .reduce((total, building) => total + Math.max(0, getResidenceCapacity(building) - building.occupants.length), 0);
+  if (freeBeds < 10) {
+    addNotification(state, 'Not enough shelter', `Ten children need ten free beds; the village has only ${freeBeds}. No decision was made.`, 'warning');
+    return false;
+  }
+
+  const shelterHouses = state.buildings.filter(
+    (building) => isResidenceBuilding(building) && !isLeaderHouseResidence(building) && building.faction !== 'rival'
+      && getResidenceCapacity(building) - building.occupants.length > 0,
+  ).length;
+  state.storyFlags = {
+    ...state.storyFlags,
+    children_shelter_helped: 1,
+    children_shelter_started: state.tick,
+    children_shelter_until: state.tick + TICKS_PER_DAY * 5,
+    children_shelter_house_count: shelterHouses,
+  };
+  addBigNews(state, '🧳 Ten children find shelter', `The children are placed temporarily across ${shelterHouses} free ${shelterHouses === 1 ? 'house' : 'houses'} for five days. What follows is unknown.`, 'neutral');
+  addNotification(state, 'Shelter provided', 'Ten children are safe for five days. The village will learn what this means when they return.', 'success');
+  return true;
 }
 
 // ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@ const TUTORIALS_ENABLED_KEY = 'wilderfolk-tutorials-enabled';
 const JUICE_EFFECTS_KEY = 'wilderfolk-juice-effects';
 const FIRST_NIGHT_WARNING_KEY = 'wilderfolk-first-night-warning-dismissed';
 const SHOW_SIM_TICK_KEY = 'wilderfolk-show-sim-tick';
+const SHOW_FPS_KEY = 'wilderfolk-show-fps';
 
 let cachedJuiceEffects: boolean | null = null;
 
@@ -88,4 +89,12 @@ export function saveShowSimTick(enabled: boolean): void {
   try {
     localStorage.setItem(SHOW_SIM_TICK_KEY, enabled ? '1' : '0');
   } catch { /* ignore */ }
+}
+
+export function loadShowFps(): boolean {
+  return readBoolPreference(SHOW_FPS_KEY, false);
+}
+
+export function saveShowFps(enabled: boolean): void {
+  writeBoolPreference(SHOW_FPS_KEY, enabled);
 }

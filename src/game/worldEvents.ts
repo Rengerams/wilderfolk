@@ -10,9 +10,8 @@ import {
   addNotification,
   addFloatingText,
   impulseScreenShake,
-  getMultiplier,
-  hasTech,
-} from './gameEngine';
+} from './simEffects';
+import { getMultiplier, hasTech } from './simHelpers';
 
 type DisasterType = 'fire' | 'flood' | 'plague' | 'tornado' | 'earthquake';
 

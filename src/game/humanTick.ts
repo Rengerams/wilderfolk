@@ -25,7 +25,8 @@ import { isPlayerHuman } from './playerHuman';
 import { isSettlerRelationshipEntity } from './moonHowler';
 import { getElectionGatherTarget } from './villageLeadership';
 import { valleyStageIndex } from './ecologyStage';
-import { HUMAN_ADULT_MIN_AGE, HUMAN_ADULT_MAX_AGE, HUMAN_MOVE_OUT_MIN_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, PREGNANCY_TICKS, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isWorkHour, isOnWorkShift, isOnInnkeeperShift, isOnMoonHowlerNightShift, isFestivalGatheringHour, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, WORK_START, EVENING_START, TAVERN_SHIFT_START, isStartOfClockHour } from './dayCycle';
+import { getWorkSchedule, isOnWorkScheduleShift, isWorkScheduleHour } from './workSchedule';
+import {   HUMAN_ADULT_MIN_AGE, HUMAN_MAX_LIFESPAN_YEARS, HUMAN_MOVE_OUT_MIN_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, PREGNANCY_TICKS, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isOnWorkShift, isOnMoonHowlerNightShift, isFestivalGatheringHour, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
 import {
   chatHintsFromWorld,
   sayHumanChatPhrase,
@@ -91,6 +92,8 @@ import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOpt
 import { AFFAIR_BUILDING_NEAR_RADIUS, AFFAIR_DAILY_TRYST_RADIUS, AFFAIR_SPOUSE_BLOCK_RADIUS, findCourtshipPartner, getAffairTrystBuilding, getBuildingCenter, hasAffairPartner, isAtMaritalHome, isEligibleToCourt, isNearBuilding, isSpouseNearby, isValidAffairTarget, isValidAffairTrystSite, onScandalCooldown, reconcileAffairPartner, recordAffairTrystSite, shouldLeadAffairPair, tryDailyAffairGossip, tryDailyConception, tryDailyHumanMortality, tryExposeCaughtAffairForPair, tryFormSchoolyardBond, trySchoolyardGossip } from './simulation/humanRelationships';
 import { humanDisplayName } from './citizenId';
 import { flushRelationshipDiagnostics, recordRelationshipDiagnostic, setRelationshipDiagnosticsEnabled } from './relationshipDiagnostics';
+import { isVenueServiceHour, isVenueScheduleStartTick } from './venueSchedule';
+import { recordScheduleWorkTick } from './scheduleFatigue';
 
 // Temporary controlled-test instrumentation; disable after comparing the July cadence.
 setRelationshipDiagnosticsEnabled(true);
@@ -117,12 +120,13 @@ function canPursueSecretAffair(
   buildings: Building[],
   entityById: Map<number, Entity>,
   tick: number,
+  workSchedule = getWorkSchedule({ workSchedule: undefined }),
 ): boolean {
   if (onScandalCooldown(entity, tick)) return false;
   // Tight radius — a whole compact village fits inside 52 units, which blocked all affairs.
   if (isSpouseNearby(entity, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)) return false;
   if (allowSocialLife(hourOfDay, workplace != null)) return true;
-  if (!isWorkHour(hourOfDay) || entity.partnerId == null) return false;
+  if (!isWorkScheduleHour(workSchedule, hourOfDay) || entity.partnerId == null) return false;
 
   const spouse = getLivingEntity(entity.partnerId, entityById);
   if (!spouse) return true;
@@ -154,11 +158,11 @@ export function tryDailyAffairEncounter(
   if (!isPlayerHuman(entity)) return;
   if (entity.prisonBuildingId != null) return;
   if (entity.relationshipStatus !== 'married' || entity.pregnant || entity.isJuvenile) return;
-  if (!entity.gender || entity.age < HUMAN_ADULT_MIN_AGE || entity.age >= HUMAN_ADULT_MAX_AGE) return;
+  if (!entity.gender || entity.age < HUMAN_ADULT_MIN_AGE || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
   if (entity.energy <= config.reproductionEnergyThreshold * 0.5) return;
   if (onScandalCooldown(entity, state.tick)) return;
   const workplace = findHumanWorkplace(entity, buildings, { buildingById });
-  if (!canPursueSecretAffair(entity, hourOfDay, workplace, buildings, entityById, state.tick)) return;
+  if (!canPursueSecretAffair(entity, hourOfDay, workplace, buildings, entityById, state.tick, getWorkSchedule(state))) return;
 
   if (isAtMaritalHome(entity, entityById, buildingById)) return;
 
@@ -246,7 +250,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const anyActiveHowler = (byType[EntityType.Werewolf] ?? []).some(isActiveMoonHowler);
 
   // Clock buckets (not per-person yet — refined per human below).
-  const goWorkTime = isOnWorkShift(state.tick, hourOfDay);
+  const workSchedule = getWorkSchedule(state);
+  const goWorkTime = isOnWorkScheduleShift(state, hourOfDay);
   const weekend = isWeekend(state.tick);
   const isNewCalendarDay = isNewCalendarDayTick(state);
   const humanFleeMult = getHumanFleeSpeedMultiplier(state);
@@ -616,21 +621,30 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && workplace?.type === BuildingType.Tavern
       && workplace.completed;
 
-    // Innkeepers work evenings (every day); everyone else uses the daytime Mon–Fri shift.
+    // Innkeepers, schools, churches, and Town Halls retain their existing fixed schedules.
     const festivalGathering = isFestivalGatheringHour(hourOfDay, state.festival?.active)
       && !isInnkeeper;
-    const onDayJobShift = !festivalGathering && goWorkTime && !isInnkeeper && (
-      workplace != null
-      || schoolTarget != null
-      || (entity.job === JobType.Guard && isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings))
+    const ordinaryWorkplace = workplace != null
+      && workplace.type !== BuildingType.Church
+      && workplace.type !== BuildingType.TownHall;
+    const onSchoolShift = schoolTarget != null && isOnWorkShift(state.tick, hourOfDay);
+    const onDayJobShift = !festivalGathering && (
+      (goWorkTime && !isInnkeeper && (ordinaryWorkplace
+        || (entity.job === JobType.Guard && isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings))))
+      || onSchoolShift
     );
-    const onTavernShift = isInnkeeper && isOnInnkeeperShift(state.tick, hourOfDay, state.festival?.active === true);
+    const onTavernShift = isInnkeeper && isVenueServiceHour(state, 'tavern', hourOfDay, state.festival?.active === true);
     // Priests work the exorcism shift on full-moon nights — they leave home to hunt the Moon Howler.
     const onMoonPriestShift = entity.job === JobType.Priest
       && workplace?.type === BuildingType.Church
       && workplace.completed
       && isOnMoonHowlerNightShift(state.tick, hourOfDay);
-    const onJobShift = onDayJobShift || onTavernShift || onMoonPriestShift;
+    const isHotelier = entity.job === JobType.Hotelier
+      && workplace?.type === BuildingType.Hotel
+      && workplace.completed;
+    const onHotelShift = isHotelier && isVenueServiceHour(state, 'hotel', hourOfDay);
+    const onJobShift = onDayJobShift || onTavernShift || onHotelShift || onMoonPriestShift;
+    if (onJobShift && isPlayerHuman(entity)) recordScheduleWorkTick(entity);
 
     // Per-person daily mood: some evenings out, some nights in; weekends lazy or busy.
     // Innkeepers on duty ignore "stay in" — the pub needs them.
@@ -641,7 +655,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Day-job holders aren't "free" during work hours; innkeepers only lock evenings.
     const socialBlockedByJob = isInnkeeper
       ? onTavernShift
-      : (workplace != null && !isInnkeeper && isWorkHour(hourOfDay) && isOnWorkShift(state.tick, hourOfDay));
+      : (ordinaryWorkplace && isWorkScheduleHour(workSchedule, hourOfDay) && goWorkTime);
     const socialTime = (!socialBlockedByJob && allowSocialLife(hourOfDay, false, state.tick))
       || (allowFreeRoam && isPlayerHuman(entity));
 
@@ -740,9 +754,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && isStartOfClockHour(state.tick)
       && (
         // Day jobs + construction at 7am
-        (hourOfDay === WORK_START && !isInnkeeper && (hasWorkAssignment(entity) || !workplace.completed))
-        // Innkeeper opens the tavern at 5pm
-        || (hourOfDay === TAVERN_SHIFT_START && isInnkeeper)
+        (hourOfDay === workSchedule.startHour && !isInnkeeper && (hasWorkAssignment(entity) || !workplace.completed))
+        // Venue staff snap to their independently configured service start.
+        || (isInnkeeper && isVenueScheduleStartTick(state, 'tavern'))
+        || (isHotelier && isVenueScheduleStartTick(state, 'hotel'))
       )
     ) {
       if (commuteDistanceToBuilding(entity, workplace, false) > COMMUTE_SNAP_DISTANCE) {
@@ -817,7 +832,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         onSchedule = true;
         suppressIdle = true;
       }
-    } else if (!huntingWere && !inElectionCeremony && !festivalGathering && goWorkTime && !isInnkeeper && schoolTarget) {
+    } else if (!huntingWere && !inElectionCeremony && !festivalGathering && onSchoolShift && !isInnkeeper && schoolTarget) {
       commuteHumanToBuilding(entity, schoolTarget, config.speed, false, 3.2);
       onSchedule = true;
       suppressIdle = true;
@@ -1199,7 +1214,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && !entity.pregnant
       && entity.gender
       && entity.age >= HUMAN_ADULT_MIN_AGE
-      && entity.age < HUMAN_ADULT_MAX_AGE
+      && entity.age < HUMAN_MAX_LIFESPAN_YEARS
       && entity.energy > config.reproductionEnergyThreshold * 0.5
       && entity.relationshipStatus === 'married'
       && !isAtMaritalHome(entity, entityById, buildingById)
@@ -1359,7 +1374,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Hotelier on duty — greet guests / tend front desk
-    if (onDayJobShift && isPlayerHuman(entity) && entity.job === JobType.Hotelier) {
+    if (onHotelShift && isPlayerHuman(entity) && entity.job === JobType.Hotelier) {
       const hotel = isHotelierAtHotel(entity, buildingById);
       if (hotel) {
         hotelierGreetGuests(state, entity, hotel);
@@ -1478,7 +1493,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const father = entity.fatherId != null ? livingHumanAt(entity.fatherId) : undefined;
         const freeParent = [mother, father].find(
           (p) => p?.alive && isPlayerHuman(p) && !prefersHomeTonight(p.id, state.tick, hourOfDay)
-            && !isOnWorkShift(state.tick, hourOfDay),
+            && !isOnWorkScheduleShift(state, hourOfDay),
         ) ?? [mother, father].find((p) => p?.alive);
         const follow = freeParent ?? getChildCustodian(entity, allHumans);
         if (follow?.alive && personDayRoll(entity.id, state.tick, 601) > 0.22) {
@@ -1977,7 +1992,25 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   if (isNewCalendarDay) {
     // Active pregnancies are computed from the authoritative state at flush —
     // never inferred from pregnanciesStartedThisInterval (Objective 8).
-    const activePregnancies = state.entities.filter((e) => e.alive && e.pregnant).length;
-    flushRelationshipDiagnostics(state.tick, getAbsoluteCalendarDay(state.tick), activePregnancies);
+    const activeHumans = state.entities.filter((e) => e.alive && isPlayerHuman(e));
+    const activePregnancies = activeHumans.filter((e) => e.pregnant).length;
+    const activeMarriages = activeHumans.filter(
+      (e) => e.relationshipStatus === 'married' && e.partnerId != null && e.id < e.partnerId,
+    ).length;
+    const activeCourtships = activeHumans.filter(
+      (e) => e.courtshipPartnerId != null && e.id < e.courtshipPartnerId,
+    ).length;
+    const activeYouthLovePairs = activeHumans.filter(
+      (e) => e.youthLovePartnerId != null && e.id < e.youthLovePartnerId,
+    ).length;
+    const activeAffairs = activeHumans.filter(
+      (e) => e.affairPartnerId != null && e.id < e.affairPartnerId,
+    ).length;
+    flushRelationshipDiagnostics(state.tick, getAbsoluteCalendarDay(state.tick), activePregnancies, {
+      activeMarriages,
+      activeCourtships,
+      activeYouthLovePairs,
+      activeAffairs,
+    });
   }
 }

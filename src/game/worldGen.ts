@@ -4,13 +4,14 @@ import type {
 import {
   BuildingType, EntityType, TerrainType,
   Season, WeatherType,
-  BUILDING_CONFIGS, INITIAL_CHALLENGES,
+  BUILDING_CONFIGS,
   createInitialResearchNodes,
   MapSize, MAP_SIZE_DIMENSIONS,
   DEFAULT_WORKSHOP_RECIPE_ID,
 } from './gameTypes';
 import { generateWorldMap, findCampSite } from './terrainGen';
 import { loadAutoSavePreference } from './preferences';
+import { INITIAL_CHALLENGES } from './challenges';
 import { ensureNamesLoaded, getRandomName, getRandomSurname } from './nameLoader';
 import {
   getColonyDay,
@@ -408,6 +409,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     workingSettlers: 0,
     idleSettlers: 0,
     villageName: villageName || 'New Frontier',
+    workSchedule: { startHour: 7, endHour: 18 },
     villageReputation: 10,
     resources: { wood: 220, stone: 70, food: 530, gold: 80, iron: 0 },
     storageMax: { wood: 800, stone: 300, food: 800, gold: 20000, iron: 300 },

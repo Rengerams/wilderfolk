@@ -203,6 +203,7 @@ export {
   initTradeRoutes,
   ensureFullTradeRoutes,
 } from './economy';
+export { establishTradeRoute, hasCompletedMarket } from './tradeCaravans';
 export {
   syncResearchUnlocks,
   notifyBuildingLocked,

@@ -3,9 +3,6 @@ import { BuildingType, Season } from './gameTypes';
 import { addCappedResource } from './resourceUtils';
 import { addFloatingText } from './simEffects';
 
-/** Canonical implementation lives in tradeCaravans (Market gate + caravan schedule). */
-export { establishTradeRoute, hasCompletedMarket } from './tradeCaravans';
-
 export function updateStorageCaps(state: WorldState) {
   const barns = state.buildings.filter(b => b.completed && b.type === BuildingType.Barn).length;
   const silos = state.buildings.filter(b => b.completed && b.type === BuildingType.Silo).length;

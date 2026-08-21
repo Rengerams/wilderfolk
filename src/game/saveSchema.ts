@@ -5,7 +5,7 @@ export const WORLD_STATE_SAVE_KEYS = [
   'entities', 'buildings', 'tick', 'season', 'year', 'dayInYear', 'populationHistory',
   'width', 'height', 'nextEntityId', 'nextBuildingId', 'nextFloatingTextId',
   'paused', 'speed', 'activeEvent', 'lastEventYear', 'bountifulHarvest',
-  'humanPopulation', 'maxHumanPopulation', 'wildlifeCounts', 'villageName', 'villageReputation',
+  'humanPopulation', 'maxHumanPopulation', 'wildlifeCounts', 'villageName', 'workSchedule', 'tavernSchedule', 'hotelSchedule', 'villageReputation',
   'resources', 'storageMax', 'foodSpoilageRate', 'ecosystemHealth', 'biodiversityIndex',
   'pollutionLevel', 'valleyStage', 'valleyStageSinceDay', 'valleyRawStressStreakDays',
   'valleyRawCalmStreakDays', 'valleyLastStageNotifyDay',

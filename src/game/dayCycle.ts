@@ -4,6 +4,8 @@ import { finalizeMoonHowlerDeath } from './moonHowler';
 import { cleanupEntityDialogueState } from './humanChat';
 
 import { HUMAN_ADULT_MIN_AGE, isNightHour, isFullMoonNight } from './dayCycleConstants';
+import { TICKS_PER_HOUR, TICKS_PER_DAY, DAYS_PER_YEAR, getTickOfDay, getHourOfDay, getAbsoluteCalendarDay, isWeekend, isWorkDay } from './dayCycleClock';
+export { TICKS_PER_HOUR, TICKS_PER_DAY, DAYS_PER_YEAR, PER_TICK_RATE_SCALE, getTickOfDay, getHourOfDay, getCalendarDay, getAbsoluteCalendarDay, getWeekday, getWeekdayLabel, isWeekend, isWorkDay } from './dayCycleClock';
 
 export {
   DAYS_PER_MOON_CYCLE,
@@ -24,20 +26,8 @@ export {
  * - Per-tick energy / wildlife rates use {@link PER_TICK_RATE_SCALE} so daily totals stay balanced
  * - Real-time: gameLoop BASE_TICKS_PER_SECOND × speed; at 1.5 ticks/s a day ≈ 48 real seconds at 1×
  */
-export const TICKS_PER_HOUR = 3;
 /** Legacy day length (1 tick = 1 hour). Used when migrating old saves. */
 export const LEGACY_TICKS_PER_DAY = 24;
-export const TICKS_PER_DAY = 24 * TICKS_PER_HOUR;
-/**
- * Multiply legacy **per-tick** rates (written when 1 tick = 1 hour) so daily
- * totals stay the same after increasing {@link TICKS_PER_HOUR}.
- *
- * Use this for values applied every sim tick or every systems pulse when the
- * original author assumed ~24 pulses/day. Prefer this constant over raw
- * `* TICKS_PER_HOUR` / `/ 3` sprinkled at call sites.
- */
-export const PER_TICK_RATE_SCALE = 1 / TICKS_PER_HOUR;
-export const DAYS_PER_YEAR = 360;
 export const GAME_YEAR_OFFSET = 1700;
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -62,11 +52,6 @@ export function nextTickAtClockHour(fromTick: number, hour: number): number {
   let target = dayStart + h * TICKS_PER_HOUR;
   if (fromTick >= target) target += TICKS_PER_DAY;
   return target;
-}
-
-/** Tick index within the current day, 0 .. TICKS_PER_DAY-1. */
-export function getTickOfDay(tick: number): number {
-  return ((tick % TICKS_PER_DAY) + TICKS_PER_DAY) % TICKS_PER_DAY;
 }
 
 /** True on the first sub-hour tick of a clock hour (e.g. 07:00.0, not 07:20). */
@@ -148,9 +133,6 @@ export const ADULT_DAYS_PER_AGE_YEAR = DAYS_PER_YEAR;
 export const HUMAN_VENERABLE_AGE = 60;
 export const HUMAN_MAX_LIFESPAN_YEARS = 90;
 /** Upper bound for courtship / affairs — matches life-year lifespan cap. */
-export const HUMAN_ADULT_MAX_AGE = HUMAN_MAX_LIFESPAN_YEARS;
-/** @deprecated Use HUMAN_MAX_LIFESPAN_YEARS — life-years, not colony days. */
-export const HUMAN_MAX_LIFESPAN_DAYS = HUMAN_MAX_LIFESPAN_YEARS;
 
 export function getColonyDay(state: { year: number; dayInYear: number }): number {
   return state.year * DAYS_PER_YEAR + state.dayInYear;
@@ -320,8 +302,6 @@ export function buildWorkHours(buildDays: number): number {
   return Math.max(WORK_HOURS_PER_DAY, Math.round(buildDays * WORK_HOURS_PER_DAY));
 }
 
-/** @deprecated Use {@link buildWorkHours} — name implied sim ticks; returns work hours. */
-export const buildWorkTicks = buildWorkHours;
 
 /**
  * Calendar-aligned production / rare-event gate.
@@ -344,39 +324,7 @@ export function isProductionTick(tick: number, interval: number): boolean {
   return true;
 }
 
-/** Clock hour 0–23 for the current sim tick. */
-export function getHourOfDay(tick: number): number {
-  return Math.floor(getTickOfDay(tick) / TICKS_PER_HOUR);
-}
 
-export function getCalendarDay(tick: number): number {
-  if (tick <= 0) return 0;
-  return Math.floor(tick / TICKS_PER_DAY) % DAYS_PER_YEAR;
-}
-
-/** Monotonic colony day index (never wraps within a save). */
-export function getAbsoluteCalendarDay(tick: number): number {
-  return Math.floor(tick / TICKS_PER_DAY);
-}
-
-/** 0=Mon … 6=Sun from absolute colony day. */
-export function getWeekday(tick: number): number {
-  return ((getAbsoluteCalendarDay(tick) % 7) + 7) % 7;
-}
-
-export function getWeekdayLabel(tick: number): string {
-  return WEEKDAY_LABELS[getWeekday(tick)] ?? 'Mon';
-}
-
-/** Saturday (5) or Sunday (6) — full free day, no work commute. */
-export function isWeekend(tick: number): boolean {
-  const d = getWeekday(tick);
-  return d === 5 || d === 6;
-}
-
-export function isWorkDay(tick: number): boolean {
-  return !isWeekend(tick);
-}
 
 /** True once per in-game day; skips reload mid-day and duplicate same-tick calls. */
 export function isNewCalendarDayTick(state: import('./gameTypes').WorldState): boolean {

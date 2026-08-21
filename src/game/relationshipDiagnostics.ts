@@ -22,6 +22,10 @@
 export interface RelationshipDiagnosticsSnapshot {
   tick: number;
   calendarDay: number;
+  activeMarriages: number;
+  activeCourtships: number;
+  activeYouthLovePairs: number;
+  activeAffairs: number;
   // Interval counters (reset on flush):
   conceptionCandidates: number;
   conceptionEligibilityRejected: number;
@@ -57,6 +61,8 @@ type IntervalCounters = Record<RelationshipDiagnosticKey, number>;
 
 let enabled = false;
 let counters: IntervalCounters = emptyCounters();
+const snapshotHistory: RelationshipDiagnosticsSnapshot[] = [];
+const MAX_HISTORY = 30;
 
 function emptyCounters(): IntervalCounters {
   return {
@@ -96,23 +102,48 @@ export function recordRelationshipDiagnostic(key: RelationshipDiagnosticKey): vo
  * world read). A value of 0 here means "no pregnancy exists right now"; it is
  * never derived from `pregnanciesStartedThisInterval`.
  */
+export interface ActiveRelationshipDiagnostics {
+  activeMarriages: number;
+  activeCourtships: number;
+  activeYouthLovePairs: number;
+  activeAffairs: number;
+}
+
 export function flushRelationshipDiagnostics(
   tick: number,
   calendarDay: number,
   activePregnancies: number,
+  activeRelationships: ActiveRelationshipDiagnostics = {
+    activeMarriages: 0,
+    activeCourtships: 0,
+    activeYouthLovePairs: 0,
+    activeAffairs: 0,
+  },
 ): RelationshipDiagnosticsSnapshot | null {
   if (!enabled) return null;
   const snapshot: RelationshipDiagnosticsSnapshot = {
     tick,
     calendarDay,
+    ...activeRelationships,
     ...counters,
     activePregnancies,
   };
+  snapshotHistory.push(snapshot);
+  if (snapshotHistory.length > MAX_HISTORY) snapshotHistory.shift();
   console.info('[Wilderfolk relationship diagnostics]', snapshot);
   counters = emptyCounters();
   return snapshot;
 }
 
+export function getLatestRelationshipDiagnostics(): RelationshipDiagnosticsSnapshot | null {
+  return snapshotHistory[snapshotHistory.length - 1] ?? null;
+}
+
+export function getRelationshipDiagnosticsHistory(): readonly RelationshipDiagnosticsSnapshot[] {
+  return snapshotHistory;
+}
+
 export function resetRelationshipDiagnostics(): void {
   counters = emptyCounters();
+  snapshotHistory.length = 0;
 }

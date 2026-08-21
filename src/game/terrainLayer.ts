@@ -11,10 +11,16 @@ import {
   ATLAS_TILE_SIZE,
   atlasSourceRect,
   pickAtlasTile,
+  pickSandWaterOverlay,
   reliefY,
+  sandWaterOverlayReady,
+  sandWaterOverlaySourceRect,
+  SAND_WATER_OVERLAY_PATH,
   terrainAtlasReady,
   TERRAIN_ATLAS_PATH,
+  TERRAIN_MATERIAL_ATLAS_REVISION,
   type AtlasPick,
+  type SandWaterOverlayPick,
 } from './terrainAtlas';
 
 /** Seamless fills under public/sprites/ (terrain/ = procedural, root = painted). */
@@ -205,6 +211,29 @@ function drawAtlasTile(
 }
 
 /**
+ * Stamp one transparent sand-water boundary mask on the already painted base
+ * tile. This writes into the current terrain bake; it never creates another
+ * whole-map Canvas surface or adds per-frame terrain work.
+ */
+function drawSandWaterOverlay(
+  ctx: CanvasContext2d,
+  img: HTMLImageElement,
+  pick: SandWaterOverlayPick,
+  x0: number,
+  y0: number,
+  fillW: number,
+  fillH: number,
+): boolean {
+  const { sx, sy } = sandWaterOverlaySourceRect(pick.id);
+  try {
+    ctx.drawImage(img, sx, sy, ATLAS_TILE_SIZE, ATLAS_TILE_SIZE, x0, y0, fillW, fillH);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 2.5D relief — the shaded earth face under a raised tile. Spans
  * [y0 + fillH − raise, y0 + fillH] with a sun-lit lip on its top edge, so a
  * hillside reads as a cliff dropping to the lower ground / water below.
@@ -251,6 +280,8 @@ export interface TerrainLayerCache {
   fills: boolean;
   /** True when this bake stamped the painted terrain atlas tiles. */
   atlas: boolean;
+  /** Material-overlay contract baked into this surface, or 0 for pre-overlay art. */
+  materialAtlasRevision: number;
 }
 
 /** World-pixel decor (rivers + map border + ground props) — static until map seed/preset changes. */
@@ -286,6 +317,12 @@ export function terrainLayerNeedsRebuild(
   }
   // Same for the painted atlas — bake flat once, then re-bake painted
   if (terrainAtlasReady() && !cache.atlas) {
+    return true;
+  }
+  // The overlay is baked into the existing base surface. A later sprite-ready
+  // transition or contract revision must request exactly one replacement bake.
+  if (sandWaterOverlayReady()
+    && cache.materialAtlasRevision !== TERRAIN_MATERIAL_ATLAS_REVISION) {
     return true;
   }
   return cache.worldWidth !== worldWidth
@@ -484,6 +521,7 @@ export function bakeTerrainLayer(
   ctx.fillRect(0, 0, w, h);
 
   const atlasReady = terrainAtlasReady();
+  const overlayReady = sandWaterOverlayReady();
   const reliefTiles: {
     tile: TerrainTile;
     tx: number;
@@ -533,6 +571,14 @@ export function bakeTerrainLayer(
         : drawTerrainFill(ctx, tile.type, x0, y0, fillW, fillH, tx, ty);
 
       if (atlasPick) {
+        // A bank gets at most one transparent shoreline mask, stamped into
+        // this same base cache after the atlas tile and before lighting.
+        const overlayPick = overlayReady ? pickSandWaterOverlay(map, tx, ty) : null;
+        const overlayImg = overlayPick ? getSprite(SAND_WATER_OVERLAY_PATH) : null;
+        if (overlayImg && overlayPick) {
+          drawSandWaterOverlay(ctx, overlayImg, overlayPick, x0, y0, fillW, fillH);
+        }
+
         // Painted tile is self-contained — relief light + canopy tint only
         // (no feather/bevel/variation: the art carries the form).
         ctx.fillStyle = tint;
@@ -784,6 +830,7 @@ export function bakeTerrainLayer(
     seasonBlendT: seasonBlend ? Math.round(seasonBlend.t * 100) : undefined,
     fills: terrainFillSpritesReady(),
     atlas: atlasReady,
+    materialAtlasRevision: overlayReady ? TERRAIN_MATERIAL_ATLAS_REVISION : 0,
   };
 }
 

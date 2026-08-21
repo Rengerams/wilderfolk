@@ -15,9 +15,18 @@ import { TerrainType, TERRAIN_TILE_SIZE, type WorldMap } from './gameTypes';
 import { getSprite } from './spriteLoader';
 
 export const TERRAIN_ATLAS_PATH = '/sprites/tileset_grass.png';
+/** Transparent 4×4 sand-bank/water boundary masks stamped over a sand base tile. */
+export const SAND_WATER_OVERLAY_PATH = '/sprites/terrain/sand_water_overlay.png';
 /** Atlas tile edge (px) in the source PNG. */
 export const ATLAS_TILE_SIZE = 16;
 const ATLAS_COLUMNS = 12;
+const SAND_WATER_OVERLAY_COLUMNS = 4;
+
+/**
+ * Bump only when the overlay sheet's mask ordering or material meaning changes.
+ * It is a render-cache contract, not simulation or save state.
+ */
+export const TERRAIN_MATERIAL_ATLAS_REVISION = 1;
 
 /** Atlas terrain families we can paint. */
 export type AtlasFamily = 0 | 1; // 0 = grass, 1 = water
@@ -58,6 +67,12 @@ export interface AtlasPick {
   id: number;
   flipH: boolean;
   flipV: boolean;
+}
+
+/** One transparent overlay tile from the row-major 4×4 sand-water mask sheet. */
+export interface SandWaterOverlayPick {
+  /** Corner-mask id: 8=TL, 4=TR, 2=BL, 1=BR. */
+  id: number;
 }
 
 interface AtlasTileRef {
@@ -158,9 +173,43 @@ export function pickAtlasTile(map: WorldMap, tx: number, ty: number): AtlasPick 
   return { id: ref.id, flipH: ref.flipH ?? false, flipV: ref.flipV ?? false };
 }
 
-/** True once the atlas PNG is in the sprite cache (bake waits for it). */
+/**
+ * Pick exactly one sand-water overlay for a beach or river-bank base cell.
+ * Water is detected with the same four-corner union rule as the painted atlas.
+ * A bank may border meadow as well as water, so meadow neighbours do not suppress
+ * the overlay; the overlay only communicates where water reaches the bank.
+ */
+export function pickSandWaterOverlay(map: WorldMap, tx: number, ty: number): SandWaterOverlayPick | null {
+  const self = map.tiles[ty]?.[tx];
+  if (!self || (self.type !== TerrainType.Beach && self.type !== TerrainType.RiverBank)) {
+    return null;
+  }
+
+  const hasWaterAtCorner = (dx: number, dy: number): boolean => {
+    for (let cy = 0; cy <= 1; cy++) {
+      for (let cx = 0; cx <= 1; cx++) {
+        const neighbour = map.tiles[ty + dy + cy]?.[tx + dx + cx];
+        if (neighbour && atlasFamily(neighbour.type) === WATER) return true;
+      }
+    }
+    return false;
+  };
+
+  const id = (hasWaterAtCorner(-1, -1) ? 8 : 0)
+    | (hasWaterAtCorner(0, -1) ? 4 : 0)
+    | (hasWaterAtCorner(-1, 0) ? 2 : 0)
+    | (hasWaterAtCorner(0, 0) ? 1 : 0);
+  return id === 0 ? null : { id };
+}
+
+/** True once the painted grass/water atlas PNG is in the sprite cache. */
 export function terrainAtlasReady(): boolean {
   return getSprite(TERRAIN_ATLAS_PATH) != null;
+}
+
+/** True once the optional transparent sand-water overlay sheet is ready to bake. */
+export function sandWaterOverlayReady(): boolean {
+  return getSprite(SAND_WATER_OVERLAY_PATH) != null;
 }
 
 /**
@@ -205,6 +254,14 @@ export function terrainRiseAt(map: WorldMap | null, x: number, y: number): numbe
 /** Source rect for an atlas tile id (0-based, 12-column grid). */
 export function atlasSourceRect(id: number): { sx: number; sy: number } {
   return { sx: (id % ATLAS_COLUMNS) * ATLAS_TILE_SIZE, sy: Math.floor(id / ATLAS_COLUMNS) * ATLAS_TILE_SIZE };
+}
+
+/** Source rect for a row-major transparent sand-water overlay mask. */
+export function sandWaterOverlaySourceRect(id: number): { sx: number; sy: number } {
+  return {
+    sx: (id % SAND_WATER_OVERLAY_COLUMNS) * ATLAS_TILE_SIZE,
+    sy: Math.floor(id / SAND_WATER_OVERLAY_COLUMNS) * ATLAS_TILE_SIZE,
+  };
 }
 
 /** Runtime scale — atlas tile px → baked tile px. */

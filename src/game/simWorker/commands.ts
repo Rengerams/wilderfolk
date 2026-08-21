@@ -11,6 +11,8 @@ import {
   resolveVillageRequest,
 } from '../groupEvents';
 import type { ForgeOrderId } from '../gameTypes';
+import { setWorkSchedule, validateWorkSchedule } from '../workSchedule';
+import { setVenueSchedule, validateVenueSchedule, type VenueScheduleKind } from '../venueSchedule';
 import {
   startBuilding,
   placeStripChain,
@@ -64,8 +66,6 @@ export type WorkerCommand =
   | { proto: 1; op: 'setWorkshopRecipe'; buildingId: number; recipeId: string }
   | { proto: 1; op: 'setHuntingSpotPrey'; buildingId: number; prey: HuntingSpotPrey }
   | { proto: 1; op: 'setMineMode'; buildingId: number; mode: 'stone' | 'iron' }
-  | { proto: 1; op: 'setMineMode'; buildingId: number; mode: 'stone' | 'iron' }
-  | { proto: 1; op: 'setMineMode'; buildingId: number; mode: 'stone' | 'iron' }
   | { proto: 1; op: 'queueForgeOrder'; buildingId: number; orderId: ForgeOrderId }
   | { proto: 1; op: 'recruitSettler' }
   | { proto: 1; op: 'moveOutOfFamilyHome'; humanId: number }
@@ -88,7 +88,9 @@ export type WorkerCommand =
   | { proto: 1; op: 'startResearch'; researchId: string }
   | { proto: 1; op: 'establishTradeRoute'; routeId: string }
   | { proto: 1; op: 'hostTownFestival'; buildingId: number }
-  | { proto: 1; op: 'spawnMoonHowlerDebug' };
+  | { proto: 1; op: 'spawnMoonHowlerDebug' }
+  | { proto: 1; op: 'setWorkSchedule'; startHour: number; endHour: number }
+  | { proto: 1; op: 'setVenueSchedule'; venue: VenueScheduleKind; startHour: number; endHour: number };
 
 const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'startBuilding',
@@ -101,8 +103,6 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'demolishBuilding',
   'setWorkshopRecipe',
   'setHuntingSpotPrey',
-  'setMineMode',
-  'setMineMode',
   'setMineMode',
   'queueForgeOrder',
   'recruitSettler',
@@ -127,6 +127,8 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'establishTradeRoute',
   'hostTownFestival',
   'spawnMoonHowlerDebug',
+  'setWorkSchedule',
+  'setVenueSchedule',
 ]);
 
 const BUILDING_TYPE_VALUES = new Set<string>(Object.values(BuildingType));
@@ -203,6 +205,11 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
     case 'autoStaffWorkers':
     case 'spawnMoonHowlerDebug':
       return true;
+    case 'setWorkSchedule':
+      return validateWorkSchedule(cmd.startHour, cmd.endHour).ok;
+    case 'setVenueSchedule':
+      return (cmd.venue === 'tavern' || cmd.venue === 'hotel')
+        && validateVenueSchedule(cmd.startHour, cmd.endHour).ok;
     case 'moveOutOfFamilyHome':
       return isFiniteNumber(cmd.humanId);
     case 'tameEntity':
@@ -344,6 +351,10 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return hostTownFestival(world, cmd.buildingId);
     case 'spawnMoonHowlerDebug':
       return spawnMoonHowlerDebug(world);
+    case 'setWorkSchedule':
+      return setWorkSchedule(world, cmd.startHour, cmd.endHour);
+    case 'setVenueSchedule':
+      return setVenueSchedule(world, cmd.venue, cmd.startHour, cmd.endHour);
     default: {
       const unknown = cmd as { op?: string };
       console.warn('[WorkerCommand] Unknown op', unknown.op ?? '?');

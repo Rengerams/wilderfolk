@@ -95,7 +95,6 @@ export async function loadHumanWalkSheets(): Promise<void> {
   humanSpritesReady = true;
 }
 
-export const generateHumanSprites = loadHumanWalkSheets;
 
 export function preloadAllSprites(): Promise<void> {
   const wildlifeAndHumans = [
@@ -127,6 +126,8 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/ocean.png',
     // Painted terrain atlas (2.5D Painted Relief — grass biome tiles)
     '/sprites/tileset_grass.png',
+    // Transparent 4×4 sand-bank/water masks, baked into the existing terrain cache.
+    '/sprites/terrain/sand_water_overlay.png',
     // Painted dirt (25×25 seamless) — hills/peaks relief surfaces
     '/sprites/tile_dirt.png',
   ];

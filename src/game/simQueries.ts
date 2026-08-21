@@ -152,8 +152,6 @@ export function forEachInEntityGrid(
   );
 }
 
-/** @deprecated Use forEachInEntityGrid */
-export const forEachEntityInRadius = forEachInEntityGrid;
 
 export function queryIsNearRoad(
   roadAvoidance: RoadAvoidanceIndex | undefined,

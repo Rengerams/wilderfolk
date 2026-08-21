@@ -1,4 +1,5 @@
-import type { Building, Entity, WorldState } from '../gameTypes';
+import type { WorldState, Entity, Building } from '../gameTypes';
+import { getWorkSchedule } from '../workSchedule';
 import { EntityType } from '../gameTypes';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
 import type { SimulationFocus } from '../simFocus';
@@ -69,6 +70,7 @@ export interface SimTickDelta {
   valleyRawCalmStreakDays: number | undefined;
   valleyLastStageNotifyDay: number | undefined;
   villageReputation: number;
+  workSchedule: WorldState['workSchedule'];
   screenShakeImpulse: number;
   floatingTexts: WorldState['floatingTexts'];
   deathParticles: WorldState['deathParticles'];
@@ -233,6 +235,7 @@ export function extractSimTickDelta(
     valleyRawCalmStreakDays: world.valleyRawCalmStreakDays,
     valleyLastStageNotifyDay: world.valleyLastStageNotifyDay,
     villageReputation: world.villageReputation,
+    workSchedule: getWorkSchedule(world),
     screenShakeImpulse: world.screenShakeImpulse,
     floatingTexts: deltaClone(world.floatingTexts, cloneMode),
     deathParticles: deltaClone(world.deathParticles, cloneMode),
@@ -305,6 +308,9 @@ export function applySimTickDelta(
   options?: ApplySimTickDeltaOptions,
 ): void {
   const cloneMode = options?.cloneMode ?? 'isolated';
+  if (delta.proto !== SIM_DELTA_PROTO) {
+    throw new Error(`Invalid SimTickDelta protocol: ${String(delta.proto)}`);
+  }
 
   world.tick = delta.tick;
   world.year = delta.year;
@@ -326,6 +332,7 @@ export function applySimTickDelta(
   world.valleyRawCalmStreakDays = delta.valleyRawCalmStreakDays;
   world.valleyLastStageNotifyDay = delta.valleyLastStageNotifyDay;
   world.villageReputation = delta.villageReputation;
+  world.workSchedule = delta.workSchedule ? { ...delta.workSchedule } : getWorkSchedule(world);
   world.screenShakeImpulse = delta.screenShakeImpulse;
   world.floatingTexts = deltaClone(delta.floatingTexts, cloneMode);
   world.deathParticles = deltaClone(delta.deathParticles, cloneMode);

@@ -10,11 +10,11 @@ export function getJobForBuilding(type: BuildingType): JobType | undefined {
   return BUILDING_JOB_TYPES[type];
 }
 
-export function ensureEntitySkills(entity: { skills?: Partial<Record<JobType, number>> }): Record<JobType, number> {
+export function ensureEntitySkills(entity: { skills?: Partial<Record<JobType, number>> }): Partial<Record<JobType, number>> {
   if (!entity.skills || typeof entity.skills !== 'object') {
     entity.skills = {};
   }
-  return entity.skills as Record<JobType, number>;
+  return entity.skills;
 }
 
 export function readSkill(entity: { skills?: Partial<Record<JobType, number>> }, job: JobType): number {

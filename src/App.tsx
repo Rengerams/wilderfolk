@@ -80,6 +80,7 @@ import {
   loadTutorialsEnabled,
   loadJuiceEffectsEnabled,
   loadShowSimTick,
+  loadShowFps,
   loadFirstNightWarningDismissed,
   loadTutorialChoice,
   saveTutorialChoice,
@@ -87,11 +88,14 @@ import {
   saveTutorialsEnabled,
   saveJuiceEffectsEnabled,
   saveShowSimTick,
+  saveShowFps,
   saveFirstNightWarningDismissed,
 } from './game/preferences';
 import { LabelWithResourceCost } from './components/ResourceCost';
 import { BARRICADE_RAID_COST, canAffordResourceCost, formatResourceCostNeed } from './game/resourceCost';
 import VillageTabPanel from './components/tabPanels/VillageTabPanel';
+import WorkSchedulePanel from './components/WorkSchedulePanel';
+import VenueSchedulePanel from './components/VenueSchedulePanel';
 import FrontierTabPanel from './components/tabPanels/FrontierTabPanel';
 import NatureTabPanel from './components/tabPanels/NatureTabPanel';
 import ProgressTabPanel from './components/tabPanels/ProgressTabPanel';
@@ -102,6 +106,7 @@ import MoreTabPanel from './components/tabPanels/MoreTabPanel';
 import AlertBar from './components/AlertBar';
 import Emoji from './components/Emoji';
 import GameHeader from './components/GameHeader';
+import { useFpsMeter } from './hooks/useFpsMeter';
 
 import { getPriorityAlerts, type PriorityAlert } from './game/priorityAlerts';
 import type { FocusHintAction } from './game/focusHints';
@@ -116,7 +121,7 @@ import { getBuildingConfig } from './game/buildingConfig';
 
 const SPEED_OPTIONS = [0.5, 1, 2, 3, 5, 10];
 
-type SidebarTab = 'village' | 'frontier' | 'nature' | 'progress' | 'log' | 'more';
+type SidebarTab = 'village' | 'schedule' | 'frontier' | 'nature' | 'progress' | 'log' | 'more';
 type LogSubTab = 'chronicle' | 'combat';
 
 type ProgressSubTab = 'research' | 'trade' | 'goals';
@@ -124,6 +129,7 @@ type MoreSubTab = 'guide' | 'roadmap';
 
 const SIDEBAR_TABS: { id: SidebarTab; icon: string; label: string; hint: string }[] = [
   { id: 'village', icon: '🏘️', label: 'Village', hint: 'People, leadership, armament' },
+  { id: 'schedule', icon: '🕰️', label: 'Hours', hint: 'Set ordinary weekday work hours' },
   { id: 'frontier', icon: '🏕️', label: 'Frontier', hint: 'Visitors, rivals, raids' },
   { id: 'nature', icon: '🌿', label: 'Nature', hint: 'Ecosystem & wildlife' },
   { id: 'progress', icon: '📊', label: 'Progress', hint: 'Research · Trade · Goals — press P' },
@@ -184,6 +190,8 @@ export default function App() {
   const [campaignActive, setCampaignActive] = useState(false);
   const [juiceEffectsEnabled, setJuiceEffectsEnabled] = useState(() => loadJuiceEffectsEnabled());
   const [showSimTick, setShowSimTick] = useState(() => loadShowSimTick());
+  const [showFps, setShowFps] = useState(() => loadShowFps());
+  const fps = useFpsMeter(showFps);
   const [momentCard, setMomentCard] = useState<MomentCardData | null>(null);
   // Last Valley Chronicle chapter the player has dismissed — lets the chapter card
   // be derived purely in render (no effect/ref: `world` is a fresh object every tick).
@@ -594,6 +602,12 @@ export default function App() {
     saveShowSimTick(next);
     setShowSimTick(next);
   }, [showSimTick]);
+
+  const handleToggleShowFps = useCallback(() => {
+    const next = !showFps;
+    saveShowFps(next);
+    setShowFps(next);
+  }, [showFps]);
 
   const finishTutorial = useCallback(() => {
     try {
@@ -1390,10 +1404,12 @@ export default function App() {
         tutorialsEnabled={tutorialsEnabled}
         juiceEffectsEnabled={juiceEffectsEnabled}
         showSimTick={showSimTick}
+        showFps={showFps}
         onToggleAutoSave={toggleAutoSave}
         onToggleTutorials={handleToggleTutorials}
         onToggleJuiceEffects={handleToggleJuiceEffects}
         onToggleShowSimTick={handleToggleShowSimTick}
+        onToggleShowFps={handleToggleShowFps}
         onToggleMute={handleToggleMute}
         onVolumePreset={handleVolumePreset}
         onOpenGuide={handleOpenGuide}
@@ -1498,6 +1514,11 @@ export default function App() {
             className="map-canvas"
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', imageRendering: 'pixelated', cursor: canvasCursor, display: 'block' }}
           />
+          {showFps && fps != null && (
+            <div className="pointer-events-none absolute bottom-3 right-3 z-[35] rounded-md border border-emerald-400/30 bg-stone-950/80 px-2 py-1 font-mono text-xs font-bold tabular-nums text-emerald-300 shadow-lg backdrop-blur" aria-live="polite">
+              {fps} FPS
+            </div>
+          )}
           {/* UI vignette frame over the map (does not block hits except children) */}
           <div className="map-frame-overlay pointer-events-none absolute inset-0 z-[5]" aria-hidden />
 
@@ -2211,6 +2232,32 @@ export default function App() {
                   onHintAction={handleHintAction}
                   suppressHintIds={campaignStep?.id === 'build_house' ? ['build_house'] : []}
                 />
+              </div>
+            )}
+
+            {openTabs.has('schedule') && (
+              <div className="mb-3 rounded-xl border border-stone-600/30 bg-stone-800/20 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-stone-300">🕰️ Work hours</h3>
+                  <button
+                    type="button"
+                    onClick={() => toggleTab('schedule')}
+                    className="text-sm text-stone-400 hover:text-stone-300"
+                    title="Close panel"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <WorkSchedulePanel
+                  state={world}
+                  onApply={(startHour, endHour) => applyGameAction({ proto: 1, op: 'setWorkSchedule', startHour, endHour })}
+                />
+                <div className="my-4 border-t border-stone-700/60 pt-4">
+                  <VenueSchedulePanel
+                    state={world}
+                    onApply={(venue, startHour, endHour) => applyGameAction({ proto: 1, op: 'setVenueSchedule', venue, startHour, endHour })}
+                  />
+                </div>
               </div>
             )}
 

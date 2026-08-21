@@ -15,6 +15,7 @@ autoSave: boolean;
   tutorialsEnabled: boolean;
   juiceEffectsEnabled: boolean;
   showSimTick: boolean;
+  showFps: boolean;
   muted: boolean;
   volumePreset: VolumePreset;
   onSave: () => void;
@@ -27,6 +28,7 @@ autoSave: boolean;
   onToggleTutorials: () => void;
   onToggleJuiceEffects: () => void;
   onToggleShowSimTick: () => void;
+  onToggleShowFps: () => void;
   onToggleMute: () => void;
   onVolumePreset: (v: VolumePreset) => void;
   onOpenGuide: () => void;
@@ -148,6 +150,7 @@ autoSave,
   tutorialsEnabled,
   juiceEffectsEnabled,
   showSimTick,
+  showFps,
   muted,
   volumePreset,
   onSave,
@@ -158,6 +161,7 @@ autoSave,
   onToggleTutorials,
   onToggleJuiceEffects,
   onToggleShowSimTick,
+  onToggleShowFps,
   onToggleMute,
   onVolumePreset,
   onOpenGuide,
@@ -355,6 +359,13 @@ autoSave,
                   hint="Raw tick + absolute day on the clock bar (72 ticks = 1 day)"
                   checked={showSimTick}
                   onChange={onToggleShowSimTick}
+                />
+                <MenuToggle
+                  icon="📈"
+                  label="Show FPS"
+                  hint="Presentation frame rate in the map corner"
+                  checked={showFps}
+                  onChange={onToggleShowFps}
                 />
               </MenuSection>
 

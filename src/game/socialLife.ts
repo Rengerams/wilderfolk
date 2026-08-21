@@ -9,13 +9,13 @@ import {
   EVENING_START,
   HUMAN_VENERABLE_AGE,
   TICKS_PER_DAY,
-  WORK_START,
   getHourOfDay,
   getWeekday,
   hasResidenceAssignment,
   personDayRoll,
 } from './dayCycle';
 import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
+import { getWorkSchedule, isWorkScheduleHour } from './workSchedule';
 
 export type SocialMotive =
   | 'sick_day'
@@ -264,8 +264,8 @@ export function pickSocialImpulse(
 
   // 8) Market errand — stable daily chance in free daylight
   if (
-    hour >= WORK_START
-    && hour < EVENING_START
+    isWorkScheduleHour(getWorkSchedule(state), hour)
+    && hour < getWorkSchedule(state).endHour
     && personDayRoll(entity.id, tick, 713) < 0.28
   ) {
     const market = pickBuilding(

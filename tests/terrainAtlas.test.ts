@@ -10,7 +10,9 @@ import {
   atlasFamily,
   elevationAt,
   pickAtlasTile,
+  pickSandWaterOverlay,
   reliefY,
+  sandWaterOverlaySourceRect,
   terrainRiseAt,
 } from '../src/game/terrainAtlas';
 
@@ -24,6 +26,7 @@ function makeMap(rows: string[], seed = 7): WorldMap {
       case 'F': return { type: TerrainType.Forest, elevation: 45 };
       case 'H': return { type: TerrainType.Hills, elevation: 65 };
       case 'M': return { type: TerrainType.Mountains, elevation: 92 };
+      case 'S': return { type: TerrainType.Beach, elevation: 28 };
       default: return { type: TerrainType.Grassland, elevation: 40 };
     }
   };
@@ -119,6 +122,30 @@ describe('pickAtlasTile', () => {
   it('falls back to null on a mountain tile', () => {
     const map = makeMap(['MMM', 'MGM', 'MMM']);
     expect(pickAtlasTile(map, 1, 1)).toBeNull();
+  });
+});
+
+describe('pickSandWaterOverlay', () => {
+  it('selects one bottom-edge mask for a riverbank directly north of water', () => {
+    const map = makeMap(['BBB', 'BBB', 'RRR']);
+    // The bank at (1,1) touches water on both lower corners only.
+    expect(pickSandWaterOverlay(map, 1, 1)).toEqual({ id: 0b0011 });
+  });
+
+  it('selects a single top-left corner mask for a diagonal river contact', () => {
+    const map = makeMap(['RBB', 'BBB', 'BBB']);
+    expect(pickSandWaterOverlay(map, 1, 1)).toEqual({ id: 0b1000 });
+  });
+
+  it('does not paint an overlay on water or on a bank without water contact', () => {
+    const map = makeMap(['BBB', 'BBB', 'BBB']);
+    expect(pickSandWaterOverlay(map, 1, 1)).toBeNull();
+    expect(pickSandWaterOverlay(makeMap(['WWW', 'WWW', 'WWW']), 1, 1)).toBeNull();
+  });
+
+  it('maps the row-major mask id to the matching transparent-sheet source cell', () => {
+    expect(sandWaterOverlaySourceRect(0b0011)).toEqual({ sx: 48, sy: 0 });
+    expect(sandWaterOverlaySourceRect(0b1101)).toEqual({ sx: 16, sy: 48 });
   });
 });
 

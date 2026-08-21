@@ -14,15 +14,24 @@ Follow these rules in order:
 
 | Priority | Document or rule | Purpose |
 |---:|---|---|
+| 0 | **Explicit developer instruction** | The developer controls game design, scope, versioning, release, privacy, and whether work is committed or published. It overrides every repository document and prior plan. |
 | 1 | This document | One session workflow and decision checklist |
-| 2 | `docs/SIMULATION_AUTHORITY.md` | Immutable ownership, cadence, mutation, invariant, and worker rules |
-| 3 | `BUG REPORTS/Readme.md` | Required bug-report format and status history |
-| 4 | Section 14 of `docs/AGENTS.md` | Required end-of-session changelog and README update |
+| 2 | `docs/SIMULATION_AUTHORITY.md` | Ownership, cadence, mutation, invariant, and worker rules; follow unless the developer explicitly changes a rule. |
+| 3 | `BUG REPORTS/Readme.md` | Required local bug-report format and status history |
+| 4 | Section 14 of `docs/AGENTS.md` | End-of-session documentation guidance, subject to the developer's release and privacy decisions |
 | 5 | `docs/Objective_Generation_Protocol.md` | Evidence-based objective generation and lifecycle |
-| 6 | `CHANGELOG.md` and `README.md` | Versioned public record and current project summary |
+| 6 | `CHANGELOG.md` and `README.md` | Versioned public record and current project summary, updated only when the developer directs it |
 | 7 | Audit, architecture, completion, and roadmap documents | Evidence, history, and context; they do not silently override the authority |
 
-If two documents conflict, stop. Preserve `SIMULATION_AUTHORITY.md`, record the conflict in the current audit or objective-plan change record, and ask the developer before changing the authority itself.
+### 1.1 Developer authority, game design, release control, and privacy
+
+Wilderfolk is a game. The developer decides its rules, tone, and fictional outcomes. Agents must not reject, dilute, or reinterpret a developer-approved game-design choice merely because an older repository document suggests a different design preference. Normal safety, platform, and legal requirements still apply, but the repository’s architecture documents are implementation constraints, not a higher creative authority than the developer.
+
+Agents must **never automatically** bump `GAME_VERSION`, the package version, or a save-compatibility label; create a release heading; tag; commit; push; publish; or declare a release complete. A target named in a roadmap is only a planning label. Each of those actions requires a separate explicit developer instruction at the time of the action.
+
+Detailed bug reports are private local working records. Keep them under `BUG REPORTS/` with their evidence and verification history, but do **not** stage, commit, push, upload, or copy their detailed contents into public release material unless the developer explicitly asks. A public changelog may later state a concise player-visible fix and its regression coverage without exposing private diagnostics, saves, screenshots, or investigation notes.
+
+If two repository documents conflict, preserve the stronger simulation protection until the developer decides. If an explicit developer instruction conflicts with a repository document, follow the developer instruction and record the resulting owner, cadence, state, test, or release decision where appropriate.
 
 ## 2. Start every session this way
 
@@ -76,9 +85,9 @@ The following must remain true:
 
 ## 5. Bug process
 
-Every discovered bug gets a Markdown report under `BUG REPORTS/` before or at the same time as the fix. Use one report per bug and follow `BUG REPORTS/Readme.md`.
+Every discovered bug gets a detailed local Markdown report under `BUG REPORTS/` before or at the same time as the fix. Use one report per bug and follow `BUG REPORTS/Readme.md`. Detailed reports are private by default: never stage, commit, push, upload, or quote their diagnostics in public documentation without explicit developer instruction.
 
-Every report must include status, discovery date, version, area, owner, cadence, observed behavior, expected behavior, reproduction steps, evidence, root cause, fix, regression test, invariants checked, save/migration impact, verification result, related files, and a dated status history. Keep the report after verification.
+Every local report must include status, discovery date, version, area, owner, cadence, observed behavior, expected behavior, reproduction steps, evidence, root cause, fix, regression test, invariants checked, save/migration impact, verification result, related files, and a dated status history. Keep the local report after verification. A public changelog may contain only a concise player-facing summary when the developer chooses to release it.
 
 If a bug is discovered while working on an objective and affects the same owner, state, cadence, or player-visible behavior, it belongs to that objective. It is not silently out of scope.
 
@@ -124,14 +133,14 @@ Do not merge a change whose owner, cadence, writes, tests, or rollback cannot be
 Before ending a session:
 
 1. Refresh repository status and confirm the files changed on disk.
-2. Update every affected bug report with its status history and verification result.
+2. Update every affected **local** bug report with its status history and verification result; do not stage it by default.
 3. Write or update the objective report and Simulation Change Record.
-4. Update the project-root `CHANGELOG.md` with the version, date, what changed, where it changed, why it changed, tests, and known remaining risks.
-5. Update the project-root `README.md` with the current release/session summary when the session changes behavior, architecture, validation, or developer workflow.
+4. Update the project-root `CHANGELOG.md` only when the developer explicitly directs a release note or changelog update; never create a new release version or heading automatically.
+5. Update the project-root `README.md` only when the developer explicitly asks for a player-facing update or release summary.
 6. Run the final validation required by the change.
-7. Report the exact paths changed and the final test results.
+7. Report the exact paths changed, the final test results, and whether anything remains intentionally local and uncommitted.
 
-The changelog and README update is mandatory even when the code change is small. Do not claim a session is complete until both files are updated on disk.
+Accurate changelog and README updates are required when the developer requests public release documentation. They do not authorize an automatic version bump, release, commit, push, tag, publish action, or public upload of detailed bug reports.
 
 ## 10. Adding a new feature
 

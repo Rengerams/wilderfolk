@@ -25,11 +25,11 @@ import {
   cancelPendingOutgoingRaidsForRival,
   cancelPendingRaidsForRival,
   getPlayerCampCenter,
-  maybeQueueRaid,
 } from './frontierCombat';
 import { clearFactionWanderState } from './factionWander';
 import { getRefugeeWelcomeBonus } from './townHall';
 import { addNotification } from './simEffects';
+import { tickRivalSettlements as tickRivalEvents } from './rivalEvents';
 
 let newsSeq = 0;
 
@@ -602,7 +602,6 @@ function relationshipLabel(rel: RivalRelationship): string {
 }
 
 export { isRivalAtPeace } from './rivalPeace';
-import { isRivalAtPeace } from './rivalPeace';
 
 const PEACE_TREATY_PLAYER_DAYS = 60;
 const PEACE_TREATY_EVENT_DAYS = 45;
@@ -1484,225 +1483,17 @@ export function hitTestCamp(
   return null;
 }
 
-/** Light living camps — max buildings total (spawn starts with 3). */
-const RIVAL_CAMP_MAX_BUILDINGS = 7;
-
-/** Offsets around camp center for new structures (keep them clustered). */
-const RIVAL_EXPAND_SLOTS: { dx: number; dy: number }[] = [
-  { dx: 0, dy: 0 },
-  { dx: 55, dy: 10 },
-  { dx: -40, dy: 25 },
-  { dx: 35, dy: -45 },
-  { dx: -55, dy: -20 },
-  { dx: 70, dy: 40 },
-  { dx: -20, dy: 55 },
-  { dx: 20, dy: 70 },
-];
-
-function rivalBuildingTypes(state: WorldState, rival: RivalSettlement): Map<BuildingType, number> {
-  const counts = new Map<BuildingType, number>();
-  for (const id of rival.buildingIds) {
-    const b = state.buildings.find((x) => x.id === id);
-    if (!b) continue;
-    counts.set(b.type, (counts.get(b.type) ?? 0) + 1);
-  }
-  return counts;
-}
-
-/**
- * Pick a peaceful / mood-aware building for light camp growth.
- * Friendly camps look prosperous; tense camps get defensive stubs — not always hostile.
- */
-function pickRivalExpansionType(
-  rival: RivalSettlement,
-  counts: Map<BuildingType, number>,
-): BuildingType | null {
-  const houses = counts.get(BuildingType.House) ?? 0;
-  const farms = counts.get(BuildingType.Farm) ?? 0;
-  const wells = counts.get(BuildingType.Well) ?? 0;
-  const towers = counts.get(BuildingType.Watchtower) ?? 0;
-  const markets = counts.get(BuildingType.Market) ?? 0;
-
-  // Shared needs first — more people need shelter/food
-  if (houses < 2 && rival.population >= 6) return BuildingType.House;
-  if (farms < 2 && rival.population >= 5) return BuildingType.Farm;
-  if (wells < 1) return BuildingType.Well;
-  if (houses < 3 && rival.population >= 9) return BuildingType.House;
-
-  switch (rival.relationship) {
-    case 'friendly':
-      if (markets < 1) return BuildingType.Market;
-      if (houses < 3) return BuildingType.House;
-      if (farms < 2) return BuildingType.Farm;
-      return null;
-    case 'neutral':
-      if (houses < 3) return BuildingType.House;
-      if (farms < 2) return BuildingType.Farm;
-      return null;
-    case 'competitive':
-      if (farms < 2) return BuildingType.Farm;
-      if (towers < 1) return BuildingType.Watchtower;
-      if (houses < 2) return BuildingType.House;
-      return null;
-    case 'tense':
-      if (towers < 1) return BuildingType.Watchtower;
-      if (towers < 2 && rival.population >= 8) return BuildingType.Watchtower;
-      if (houses < 2) return BuildingType.House;
-      return null;
-    default:
-      return null;
-  }
-}
-
-function findFreeRivalSlot(
-  state: WorldState,
-  rival: RivalSettlement,
-  type: BuildingType,
-): { x: number; y: number } | null {
-  const cfg = BUILDING_CONFIGS[type];
-  const margin = 12;
-  for (const slot of RIVAL_EXPAND_SLOTS) {
-    const x = rival.campX + slot.dx - cfg.width / 2;
-    const y = rival.campY + slot.dy - cfg.height / 2;
-    if (x < margin || y < margin || x + cfg.width > state.width - margin || y + cfg.height > state.height - margin) {
-      continue;
-    }
-    const overlaps = state.buildings.some((b) => {
-      const pad = 8;
-      return !(
-        x + cfg.width + pad < b.x
-        || b.x + b.width + pad < x
-        || y + cfg.height + pad < b.y
-        || b.y + b.height + pad < y
-      );
-    });
-    if (!overlaps) return { x, y };
-  }
-  return null;
-}
-
-/** Light camp growth — other tribes build near their camp over time (mood shapes what). */
-function maybeExpandRivalCamp(state: WorldState, rival: RivalSettlement, buildings: Building[]): void {
-  if (rival.buildingIds.length >= RIVAL_CAMP_MAX_BUILDINGS) return;
-  // Don't sprawl the day they spawn
-  if (state.year < rival.foundedYear) return;
-  if (state.year === rival.foundedYear && state.dayInYear < 20) return;
-
-  const chance =
-    rival.relationship === 'friendly' ? 0.14
-      : rival.relationship === 'neutral' ? 0.10
-        : rival.relationship === 'competitive' ? 0.12
-          : 0.11;
-  if (Math.random() > chance) return;
-
-  const counts = rivalBuildingTypes(state, rival);
-  const type = pickRivalExpansionType(rival, counts);
-  if (!type) return;
-
-  const pos = findFreeRivalSlot(state, rival, type);
-  if (!pos) return;
-
-  const b = createRivalBuilding(state, type, pos.x, pos.y, rival.id, rival.name);
-  buildings.push(b);
-  rival.buildingIds.push(b.id);
-
-  const label = BUILDING_CONFIGS[type]?.label ?? type;
-  const peaceful = rival.relationship === 'friendly' || rival.relationship === 'neutral';
-  pushFloat(state, rival.campX, rival.campY - 28, `+${label}`, peaceful ? '#67e8f9' : '#fb923c');
-  logEvent(
-    state,
-    'event',
-    `${rival.name} raised a ${label.toLowerCase()} at their camp`,
-    rival.name,
-  );
-  if (type === BuildingType.Watchtower || type === BuildingType.Market) {
-    pushNews(
-      state,
-      peaceful ? '🏕️ Neighbors grow' : '🏕️ Camp expands',
-      `${rival.name} built a ${label.toLowerCase()} (${rival.relationship}).`,
-      peaceful ? 'neutral' : 'negative',
-    );
-  }
-}
-
 export function tickRivalSettlements(state: WorldState, allAlive: Entity[]): void {
-  const newCalendarDay = isNewCalendarDayTick(state);
-  if (!newCalendarDay) return;
-
-  tickPendingDiplomacyEvents(state);
-
-  const aliveById = buildAliveEntityIndex(allAlive);
-  const nextDeer = makeNextAliveDeer(buildAliveDeerList(allAlive));
-  const buildings = state.buildings;
-
-  let tenseRepDrainToday = 0;
-  const maxTenseRepDrainPerDay = 2;
-
-  for (const rival of state.rivalSettlements) {
-    let pop = 0;
-    for (const id of rival.entityIds) {
-      const ent = aliveById.get(id);
-      if (ent?.alive) pop++;
-    }
-    rival.population = pop;
-
-    if (rival.raidCooldownDays > 0) rival.raidCooldownDays--;
-    if (rival.peaceTreatyDays > 0) {
-      rival.peaceTreatyDays--;
-      if (rival.peaceTreatyDays === 0) {
-        logEvent(state, 'event', `Peace treaty with ${rival.name} expired`, rival.name);
-      }
-    }
-
-    // Living camps: slow building growth every day (independent of raid timer)
-    maybeExpandRivalCamp(state, rival, buildings);
-
-    rival.daysUntilAction--;
-    if (rival.daysUntilAction > 0) continue;
-    rival.daysUntilAction = 45 + Math.floor(Math.random() * 45);
-
-    if (!isRivalAtPeace(rival)) {
-      maybeQueueRaid(state, rival, allAlive);
-    }
-
-    if (Math.random() < 0.35) {
-      maybeQueueDiplomacyEvent(state, rival);
-    }
-
-    if (rival.relationship === 'friendly' && Math.random() < 0.6) {
-      const gold = 12 + Math.floor(Math.random() * 18);
-      state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + gold);
-      pushFloat(state, rival.campX, rival.campY - 20, `Trade +${gold}g`, '#22d3ee');
-      logEvent(state, 'trade', `${rival.name} sent a trade gift (+${gold} gold)`, rival.name);
-    } else if (rival.relationship === 'competitive') {
-      const deer = nextDeer();
-      if (deer && Math.random() < 0.5) {
-        killWildGameForPoach(state, deer);
-        pushFloat(state, deer.x, deer.y - 15, `${rival.name} hunted`, '#fb923c');
-        logEvent(state, 'event', `${rival.name} hunters took game from the shared wilds`, rival.name);
-      }
-      state.pollutionLevel = Math.min(100, state.pollutionLevel + 0.5);
-    } else if (
-      rival.relationship === 'tense'
-      && tenseRepDrainToday < maxTenseRepDrainPerDay
-      && Math.random() < 0.4
-    ) {
-      state.villageReputation = Math.max(0, state.villageReputation - 2);
-      tenseRepDrainToday++;
-      pushNews(state, '⚡ Border Tension', `${rival.name} grumbles about your expansion. Reputation -2.`, 'negative');
-    } else if (rival.relationship === 'neutral' && Math.random() < 0.3) {
-      logEvent(state, 'event', `${rival.name} scouts were seen mapping the river bend`, rival.name);
-    }
-
-    if (state.year > rival.foundedYear + 1 && rival.population < 12 && Math.random() < 0.2) {
-      const ent = createFactionHuman(state, rival.campX, rival.campY, 'rival', rival.id, rival.name);
-      rival.entityIds.push(ent.id);
-      rival.population++;
-      allAlive.push(ent);
-      indexLivingEntity(state, ent);
-      logEvent(state, 'migration', `${rival.name} welcomed a new family`, rival.name);
-    }
-  }
+  tickRivalEvents(state, allAlive, {
+    pushNews,
+    pushFloat,
+    logEvent,
+    tickPendingDiplomacyEvents,
+    queueDiplomacyEvent: maybeQueueDiplomacyEvent,
+    createFactionHuman,
+    createRivalBuilding,
+    killWildGameForPoach,
+  });
 }
 
 export type WorldEventId =

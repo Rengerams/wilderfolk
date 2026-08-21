@@ -33,6 +33,7 @@ tutorialsEnabled: boolean;
   juiceEffectsEnabled: boolean;
   /** Show raw sim tick (and absolute day) next to the clock. */
   showSimTick: boolean;
+  showFps: boolean;
   speedOptions: number[];
   onTogglePause: () => void;
   onSetSpeed: (speed: number) => void;
@@ -45,6 +46,7 @@ tutorialsEnabled: boolean;
   onToggleTutorials: () => void;
   onToggleJuiceEffects: () => void;
   onToggleShowSimTick: () => void;
+  onToggleShowFps: () => void;
   onToggleMute: () => void;
   onVolumePreset: (v: 'soft' | 'normal' | 'loud') => void;
   onOpenGuide: () => void;
@@ -67,6 +69,7 @@ export default function GameHeader({
 tutorialsEnabled,
   juiceEffectsEnabled,
   showSimTick,
+  showFps,
   speedOptions,
   onTogglePause,
   onSetSpeed,
@@ -79,6 +82,7 @@ tutorialsEnabled,
   onToggleTutorials,
   onToggleJuiceEffects,
   onToggleShowSimTick,
+  onToggleShowFps,
   onToggleMute,
   onVolumePreset,
   onOpenGuide,
@@ -264,6 +268,7 @@ tutorialsEnabled,
           tutorialsEnabled={tutorialsEnabled}
           juiceEffectsEnabled={juiceEffectsEnabled}
           showSimTick={showSimTick}
+          showFps={showFps}
           muted={muted}
           volumePreset={volumePreset}
           onSave={onSave}
@@ -274,6 +279,7 @@ tutorialsEnabled,
           onToggleTutorials={onToggleTutorials}
           onToggleJuiceEffects={onToggleJuiceEffects}
           onToggleShowSimTick={onToggleShowSimTick}
+          onToggleShowFps={onToggleShowFps}
           onToggleMute={onToggleMute}
           onVolumePreset={onVolumePreset}
           onOpenGuide={onOpenGuide}

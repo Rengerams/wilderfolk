@@ -10,7 +10,9 @@
 
 # Read before editing: Any file under src/game/, src/components/ that sends simulation commands, worker code, simulation tests, benchmarks, or save/migration code
 
-# Authority level: This document overrides local assumptions, previous temporary experiments, and undocumented optimization decisions
+# Authority level: Explicit developer instructions override this document, every roadmap, and prior assumptions. Subject to that priority, this document overrides local assumptions, previous temporary experiments, and undocumented optimization decisions.
+
+# Developer control and privacy: Wilderfolk is a game and the developer decides its rules, tone, fictional outcomes, scope, version, and release timing. Coding assistants must never automatically bump versions, create release notes, commit, push, tag, publish, or declare a release complete. Detailed bug reports are local private records: write them when required, but do not stage, commit, push, upload, or quote their diagnostics publicly unless the developer explicitly asks.
 
 # 
 
@@ -32,7 +34,7 @@
 
 # 
 
-# Mandatory bug-report rule: Every discovered bug must receive a written bug report before, or at the same time as, the code fix. A bug report is required even when the fix appears obvious. The report must describe the observed behavior, expected behavior, reproduction steps, affected owner/cadence, root cause, fix, regression test, and save/migration impact. Do not silently patch a symptom and move on.
+# Mandatory bug-report rule: Every discovered bug must receive a detailed local written bug report before, or at the same time as, the code fix. A bug report is required even when the fix appears obvious. The local report must describe the observed behavior, expected behavior, reproduction steps, affected owner/cadence, root cause, fix, regression test, and save/migration impact. Do not silently patch a symptom and move on. Keep detailed reports private by default; do not stage, commit, push, upload, or copy their diagnostics into public material unless the developer explicitly asks.
 
 # 
 
@@ -1430,10 +1432,11 @@ Headless sims: `npx tsx scripts/<file>.mts`. Regenerate procedural art: `node sc
 
 ## Commit \& Pull Request Guidelines
 
-* Conventional commits (`feat:`, `fix:`, `chore:`) with optional scope, e.g. `feat(A1 water): flowing wave bands`. Remote: `origin` → `github.com/Rengerams/wilderfolk`, branch `main` (LF-normalized via `.gitattributes`).
-* Bump `GAME\_VERSION` and update `CHANGELOG.md` In beta version save games are not guaranteed comptabile.
+* Conventional commits (`feat:`, `fix:`, `chore:`) with optional scope, e.g. `feat(A1 water): flowing wave bands`. Remote: `origin` → `github.com/Rengerams/wilderfolk`, branch `main` (LF-normalized via `.gitattributes`). **Do not commit, push, tag, or publish unless the developer explicitly instructs that action.**
+* **Do not automatically bump** `GAME\_VERSION`, the package version, save-compatibility policy, or release heading. The developer decides if and when a version is released; a roadmap label is not release approval.
+* Keep detailed bug reports and diagnostics private in the local `BUG REPORTS/` workspace. Public release material may contain only a concise player-facing summary when the developer explicitly requests it.
 * Track bugs with `<batch>-<item>` IDs (e.g., `EK-G4`) in `docs/private/BUGS\_TRACKER.md`; closed work moves to `docs/private/archive/`.
-* Run `npm test`, `npm run lint`, `npm run audit` before pushing; keep PRs focused on one system.
+* Run `npm test`, `npm run lint`, `npm run audit` before any developer-approved push; keep PRs focused on one system.
 
 ## Graphics \& Configuration Tips
 

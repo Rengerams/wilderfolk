@@ -34,7 +34,7 @@ import { advanceSocialRelationships } from './relationships';
 import { advanceYouthLove } from './simulation/humanRelationships';
 import { advanceApprenticeships } from './apprenticeships';
 import { tickMigration } from './migration';
-import { tickPendingStoryEvents, maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, tickWinterFreezeCheck } from './storyEvents';
+import { tickPendingStoryEvents, tickChildrenShelter, maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, maybeOfferChildrenShelter, tickWinterFreezeCheck } from './storyEvents';
 import { tickBeauty } from './beautyGrid';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getLumberMillTreeMultiplier } from './treeProximity';
@@ -48,8 +48,6 @@ import {
   IMMIGRATION_CHECK_TICKS,
   getResidenceCapacity,
   assignMissingResidences,
-  buildWorkHours,
-  WORK_HOURS_PER_DAY,
   getAbsoluteCalendarDay,
   DAYS_PER_YEAR,
 } from './dayCycle';
@@ -93,6 +91,7 @@ import {
 import { assignMissingWorkers, getSmithBonus } from './workforce';
 import { isPlayerHuman } from './playerHuman';
 import { tickHospitalDailyCare } from './hospitalCare';
+import { resolveDailyScheduleFatigue, getScheduleProductivityMultiplier } from './scheduleFatigue';
 import { tickTownHallAudiences } from './townHall';
 import {
   tickValleyEcologyStage,
@@ -131,6 +130,7 @@ import { isChallengeComplete } from './challenges';
 import { addHuntVisual } from './huntvisuals';
 import { spawnBuildCompleteParticles } from './juiceEffects';
 import { loadJuiceEffectsEnabled } from './preferences';
+import { getWorkSchedule, getWorkScheduleHours } from './workSchedule';
 
 /**
  * Winter heating — burns wood once per colony day, stores result on state for the whole day.
@@ -182,13 +182,14 @@ function tickBuildingProgress(state: WorldState): void {
 
   const isWinter = state.season === Season.Winter;
   const globalMult = getMultiplier(state, 'global_efficiency');
+  const ordinaryWorkHours = getWorkScheduleHours(getWorkSchedule(state));
   let completedAny = false;
 
   for (const building of state.buildings) {
     if (!building.completed && building.constructionProgress < 100) {
       const workers = building.occupants.length;
       const buildDays = BUILDING_CONFIGS[building.type].buildTime;
-      const totalWorkHours = buildWorkHours(buildDays);
+      const totalWorkHours = Math.max(ordinaryWorkHours, Math.round(buildDays * ordinaryWorkHours));
       const baseRate = 100 / totalWorkHours;
       // Unstaffed production buildings crawl; houses/roads/wells still self-build slowly.
       const buildMultiplier = workers > 0
@@ -200,8 +201,8 @@ function tickBuildingProgress(state: WorldState): void {
         * buildMultiplier
         * globalMult
         * skillMult
-        * WORK_HOURS_PER_DAY;
-      building.buildAnimTimer += WORK_HOURS_PER_DAY * 0.1;
+        * ordinaryWorkHours;
+      building.buildAnimTimer += ordinaryWorkHours * 0.1;
 
       if (workers > 0) {
         const job = getJobForBuilding(building.type) ?? JobType.Builder;
@@ -320,12 +321,17 @@ function tickBuildingProduction(
       ? getAdjacencyMultiplierFromIndex(adjacencyIndex, building)
       : 1;
     const skillMult = getWorkerSkillMultiplier(state, building, entityById);
-    const totalMult = levelMult * terrainMult * adjacencyMult * festivalMult * skillMult;
     const productionJob = getJobForBuilding(building.type);
 
     const workers = BUILDING_JOB_TYPES[building.type]
       ? (workersByBuildingId.get(building.id) ?? 0)
       : 0;
+    const fatigueMult = workers > 0
+      ? playerWorkers
+        .filter((worker) => worker.homeBuildingId === building.id)
+        .reduce((sum, worker) => sum + getScheduleProductivityMultiplier(worker), 0) / workers
+      : 1;
+    const totalMult = levelMult * terrainMult * adjacencyMult * festivalMult * skillMult * fatigueMult;
     const staffed = !BUILDING_JOB_TYPES[building.type] || workers > 0;
 
     if (building.completed && staffed && building.type === BuildingType.Farm && isProductionTick(state.tick, PRODUCTION_INTERVAL.farm)) {
@@ -780,6 +786,12 @@ export function tickLayerDaily(
 ): void {
   // Winter heating runs once in gameTick (sets ctx.canHeat) — do not burn wood again here.
 
+  if (isNewCalendarDayTick(state)) {
+    for (const human of ctx.playerHumans) {
+      if (human.alive && !human.isJuvenile) resolveDailyScheduleFatigue(human, state);
+    }
+  }
+
   // Phase 7 social layers — friendships, feuds and apprenticeships pulse daily.
   if (state.tick > 0) {
     advanceSocialRelationships(state, allAlive);
@@ -831,6 +843,8 @@ export function tickLayerDaily(
     tickWinterFreezeCheck(state);
   }
   tickPendingStoryEvents(state);
+  maybeOfferChildrenShelter(state);
+  tickChildrenShelter(state);
   tickRivalSettlements(state, allAlive);
 
   // Remove any entities that died during frontier resolution before counts are reused.

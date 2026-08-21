@@ -1,5 +1,7 @@
 import type { WorldState } from '../gameTypes';
 import { normalizeForgeState } from '../forge';
+import { getWorkSchedule } from '../workSchedule';
+import { getVenueSchedule } from '../venueSchedule';
 
 /**
  * Mutable sim slices updated before each headless worker tick (excludes worldMap).
@@ -55,7 +57,10 @@ type SimPrepKeys =
   | 'nextFloatingTextId'
   | 'totalBuildingsCompleted'
   | 'ecoHealthYearsAbove80'
-  | 'villageReputation';
+  | 'villageReputation'
+  | 'workSchedule'
+  | 'tavernSchedule'
+  | 'hotelSchedule';
 
 export type SimPrepPayload = Omit<Required<Pick<WorldState, SimPrepKeys>>, 'activeVillageRequest'> & {
   // Absence is a valid authoritative state: no request card is active.
@@ -111,6 +116,9 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     totalBuildingsCompleted: state.totalBuildingsCompleted,
     ecoHealthYearsAbove80: state.ecoHealthYearsAbove80 ?? 0,
     villageReputation: state.villageReputation ?? 0,
+    workSchedule: getWorkSchedule(state),
+    tavernSchedule: getVenueSchedule(state, 'tavern'),
+    hotelSchedule: getVenueSchedule(state, 'hotel'),
   };
 }
 
@@ -166,4 +174,7 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.totalBuildingsCompleted = prep.totalBuildingsCompleted;
   world.ecoHealthYearsAbove80 = prep.ecoHealthYearsAbove80;
   world.villageReputation = prep.villageReputation;
+  world.workSchedule = prep.workSchedule;
+  world.tavernSchedule = prep.tavernSchedule;
+  world.hotelSchedule = prep.hotelSchedule;
 }

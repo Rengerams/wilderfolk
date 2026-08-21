@@ -58,8 +58,6 @@ export const MOON_HOWLER_CURE_BONUS_PER_PRIEST = 0.12;
 /** Cap on cure weight even with many priests. */
 export const MOON_HOWLER_CURE_CHANCE_MAX = 0.78;
 
-/** @deprecated UI compat — base cure with 1 priest */
-export const MOON_HOWLER_CHURCH_CURE_CHANCE = MOON_HOWLER_OUTCOME_CURE;
 /** @deprecated UI compat — kill share among failures at base weights */
 export const MOON_HOWLER_PRIEST_KILL_CHANCE =
   MOON_HOWLER_OUTCOME_KILL_PRIEST / (MOON_HOWLER_OUTCOME_KILL_PRIEST + MOON_HOWLER_OUTCOME_FLEE);

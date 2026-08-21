@@ -4,13 +4,15 @@
  * effects scale only after sustained stress (see design spec 2026-07-30).
  */
 import type { WorldState } from './gameTypes';
+import type { ValleyStage } from './ecologyTypes';
+export type { ValleyStage } from './ecologyTypes';
 import { BuildingType } from './gameTypes';
 import { getAbsoluteCalendarDay } from './dayCycle';
 import { getGrazingPressureReport } from './ecosystemPressure';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 
-export type ValleyStage = 'stable' | 'strained' | 'damaged' | 'collapse';
+
 export type EcologyDriverId = 'grazing' | 'predators' | 'overhunt' | 'footprint';
 export type DriverBand = 'good' | 'caution' | 'bad';
 
