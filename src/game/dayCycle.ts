@@ -92,8 +92,8 @@ export function isStartOfClockHour(tick: number): boolean {
  * Housing minors: `isJuvenile || age < MOVE_OUT` **except** partnered settlers
  * are emancipated (EK-E1). Adoptive guardians use ADULT_MIN_AGE (EK-E3).
  * Ages 12–13: graduated body, not social adults. Ages 14–15 may form school-influenced
- * youth relationships but cannot marry. Ages 16–17 enter adult courtship while still
- * housing-dependent; marriage remains gated until age 18.
+ * youth relationships and may conceive only through the low-probability mutual-youth-love rule.
+ * Ages 16–17 enter adult courtship while still housing-dependent; marriage remains gated until age 18.
  *
  * Childhood matures in ~1 game year (fast juvenile calendar); adults gain
  * 1 life-year per game year — see JUVENILE_DAYS_PER_AGE_YEAR / ADULT_*.
@@ -117,8 +117,15 @@ export function tryGraduateHumanChild(
 /** Adult children may leave the parental home at this age when a house is free. */
 export const HUMAN_MOVE_OUT_MIN_AGE = 18;
 
-/** Female fertility window. Fertility is 1.0 until peak end, then linearly declines to 0. */
-export const HUMAN_FERTILITY_START = 12;
+/** Female fertility window. Fertility begins at the game's age-14 youth threshold. */
+export const HUMAN_FERTILITY_START = 14;
+export const HUMAN_YOUTH_FERTILITY_END = 18;
+const YOUTH_CONCEPTION_MULTIPLIERS: Readonly<Record<number, number>> = {
+  14: 0.12,
+  15: 0.18,
+  16: 0.24,
+  17: 0.30,
+};
 export const HUMAN_FERTILITY_PEAK_END = 35;
 export const HUMAN_FERTILITY_END = 50;
 
@@ -126,6 +133,11 @@ export function getFemaleFertility(age: number): number {
   if (age < HUMAN_FERTILITY_START || age >= HUMAN_FERTILITY_END) return 0;
   if (age <= HUMAN_FERTILITY_PEAK_END) return 1;
   return 1 - (age - HUMAN_FERTILITY_PEAK_END) / (HUMAN_FERTILITY_END - HUMAN_FERTILITY_PEAK_END);
+}
+
+/** Reduced nearby-conception multiplier for ages 14–17; adult paths use 1. */
+export function getYouthConceptionMultiplier(age: number): number {
+  return YOUTH_CONCEPTION_MULTIPLIERS[age] ?? 0;
 }
 
 /** Children age faster so they mature in ~1 game year; adults age 1 year per game year. */
@@ -233,9 +245,9 @@ export const HUMAN_DAILY_ILLNESS_CHANCE = 0.00012;
  * Once-per-calendar-day conception rolls (not per tick).
  * Tuned for ~1 birth per married couple per game year when housed together.
  */
-export const HUMAN_DAILY_PREGNANCY_CHANCE_HOME = 0.008;
+export const HUMAN_DAILY_PREGNANCY_CHANCE_HOME = 0.15;
 export const HUMAN_DAILY_PREGNANCY_CHANCE_NEAR = 0.003;
-export const HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE = 0.01;
+export const HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE = 0.09;
 
 export const PREGNANCY_TICKS = ticksForDays(24);
 export const REPRODUCTION_COOLDOWN_TICKS = ticksForDays(150);

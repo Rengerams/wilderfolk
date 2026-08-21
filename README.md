@@ -39,20 +39,24 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-## Latest update — v0.6.2 (August 21, 2026)
+## Latest update — v0.6.2.1 (August 21, 2026)
 
-**A village that works, celebrates, talks, and grows up.**
+**A village that listens, remembers, and gives you meaningful choices.**
 
-* `GAME_VERSION` **0.6.2**
-* ⚠️ **Beta Save Policy:** This build loads only **0.6.2** saves.
+* `GAME_VERSION` **0.6.2.1**
+* ⚠️ **Beta Save Policy:** This build loads only **0.6.2.1** saves.
 * **Compatibility Dropped:** Historical-save compatibility is no longer supported.
-* **New Start Required:** Saves from any other build, including 0.6.1.1 and 0.6.1.2, are rejected; please begin a new settlement.
+* **New Start Required:** Saves from any other build, including 0.6.2, are rejected; please begin a new settlement.
 
 | Area | Highlights |
 |------|------------|
+| 🥣 **Your first Village Request** | A trader caravan can now make a timed **Caravan Provisions Offer**. Accept it to trade **15 gold** for **30 food** and **+2 reputation**, decline with a small reputation cost, or let it expire when the caravan leaves. The card, Chronicle, feedback, command, save, and worker state all describe the same authoritative decision. |
+| 🧪 **Stronger village truth** | Births now have direct golden-contract coverage for ordinary children, stillbirth, rare Wildkin, biological lineage, bastard outcomes, and pregnant immigrants. An actual isolated worker thread now proves ready, tick, command, rejection, and export transport end to end. |
+| 🌄 **Grounded 2.5D depth** | Humans, wildlife, trees, and buildings now share contact shadows with a gentle south-east cast direction, so the settlement sits in the valley instead of on top of it. Reduced cosmetic effects keep a compact shadow but remove the extra tail and heavier ambient darkening. |
+| 🫐 **Rare blueberry trees** | New settlements receive only **1–3** visible blueberry trees, depending on map size. Hungry free-time settlers can walk to a nearby ripe tree for a small food-and-energy boost; portions regrow slowly outside winter, so berries help but never replace farms or hunting. |
 | 🛠️ **A village that responds** | Worker assignments, priest selection, demolition, repairs, upgrades, and building modes now reach the authoritative simulation immediately. The leader can hold a normal job, and the Leader’s House builds in **two** work-days instead of leaving the founding household outside for nearly a week. |
 | 🎉 **Festivals feel alive** | From **15:00–21:59** on festival days, settlers leave ordinary work, school, patrols, and free hunting to gather at the green, Town Hall, or performer camp. The tavern stays open; ordinary routines return afterward. |
-| 💗 **First loves grow with the village** | From age **14**, nearby teens may become school-influenced sweethearts. Shared school days and childhood friendships help; some relationships fade naturally, while lasting pairs enter adult courtship at **18**. Marriage, homes, work, and pregnancy remain adult-only. |
+| 💗 **First loves and family life** | From age **14**, nearby teens may become school-influenced sweethearts. Shared school days and childhood friendships help; some relationships fade naturally, while lasting pairs enter adult courtship at **18**. Fertility now begins at 14 through a mutual, nearby youth-love pair at a deliberately lower chance; marriage, homes, and work remain adult-only. |
 | 💬 **A chattier frontier** | The seven-category dialogue bank adds oddball village banter, and nearby settlers now reliably join conversations instead of turning every exchange into a leader monologue. Speech bubbles have readable game-hour lifetimes, sit above speakers, and stack cleanly. |
 | 📜 **A Chronicle that keeps up** | Worker-generated events now arrive newest-first, without duplicate merges, and the Chronicle includes a dedicated **Milestones** filter. |
 | 🏹 **Sharper movement and hunts** | Deterministic heap-backed A* improves route finding; commute caches respect each settler’s target tile. Hunting Spots use shared wildlife cleanup, while arrow visuals expire by their actual wall-clock lifetime. |
@@ -83,6 +87,41 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 - **2,600 settlers** stay ACCEPTABLE (p95 329 ms) — the engine can now run almost 100% more citizens.
 
 
+
+---
+
+## Previous release — v0.6.1.1 (August 20, 2026)
+
+**The valley makes sense: trustworthy workers, structured simulation, and a rarer night threat.**
+
+* `GAME_VERSION` **0.6.1.1**
+* ⚠️ **Beta Save Policy:** This historical build loaded only 0.6.1.1 saves.
+* **New Start Required:** 0.6.1 and earlier saves were rejected.
+
+| Area | Highlights |
+|------|------------|
+| **🧭 One source of truth** | The simulation gained explicit owners, invariants, and a fixed cadence: realtime movement, regular systems, assignment reconciliation, and one daily decision layer. This made work, relationships, births, leadership, and Moon Howler rules easier to trust and test. |
+| **👷 Workers answer orders** | Manual assignments, priest selection, demolition, repair, upgrades, and building modes stopped waiting behind an endlessly busy worker queue. Commands now apply promptly and reconcile with the worker-authoritative result. |
+| **👑 A leader who helps** | The elected leader can hold a normal workplace while remaining leader, and the Leader’s House was brought down to a two-work-day build so the founding household receives housing early. |
+| **⛪ Manual civic staffing** | Church capacity remains four, but the player decides who serves; automatic staffing no longer immediately refills a priest the player removed. |
+| **💞 Relationship truth** | Relationship diagnostics distinguish conception attempts, successful new pregnancies, active pregnancies, and births. Affairs, gossip, and scandal decisions use their declared daily/social cadence instead of competing realtime rules. |
+| **🌕 Moon Howlers as events** | A surviving cursed settler returns on later full moons; a replacement is a rare roll after the Howler is gone instead of a guaranteed monthly monster. |
+
+## Previous release — v0.6.1 (August 17, 2026)
+
+**The valley thinks faster — population-scale social life without losing its character.**
+
+* `GAME_VERSION` **0.6.1**
+* ⚠️ **Beta Save Policy:** This historical build loaded only 0.6.1 saves.
+* **New Start Required:** 0.6 and older saves were rejected.
+
+| Area | Highlights |
+|------|------------|
+| **🚀 Social performance** | A dedicated living-human spatial grid, adaptive grid-versus-array searches, staggered ambient scans, and behavior-specific radii made social life much cheaper at population scale. At release, a 1,200-settler full simulation improved from roughly **192 ms to 70 ms per tick** on the recorded benchmark. |
+| **🧩 Clearer simulation modules** | The former life-simulation monolith split into focused entity, relationship, human-tick, and scheduled-layer modules; grass and wildlife moved to their appropriate existing cadence layers. |
+| **🎨 Focused renderer** | The renderer split into focused grid, marker, particle, night, preview, weather, scent, entity-composite, and overlay modules, keeping the main renderer as an orchestrator. |
+| **🌙 Correct night atmosphere** | Duplicate night darkness and building glow were removed so evening scenes no longer double-darken or over-apply glow. |
+| **🌿 Cleaner ecosystem overlay** | Off-screen ecosystem connection lines gained vertical as well as horizontal culling, avoiding unnecessary work beyond the visible map. |
 
 ---
 ## v0.6 (August 17, 2026)

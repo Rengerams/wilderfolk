@@ -76,6 +76,7 @@ import {
 import { fract, freeHuntFoodGain, humanEnergyLoss, isMealWindow } from './simulation/humanNeeds';
 import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
+import { tryTickBlueberryForaging } from './blueberryForaging';
 import { recordFoodConsumed } from './economyLedger';
 import type { EntitySpatialGrid } from './spatialGrid';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
@@ -855,8 +856,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       : famine
         ? entity.energy < entity.maxEnergy * 0.6
         : entity.energy < entity.maxEnergy * 0.38;
+    const blueberryForaging = !isJobHunter && tryTickBlueberryForaging(state, ctx, entity, {
+      freeTime: allowFreeRoam && !onSchedule,
+      ateMeal,
+      festivalGathering,
+      famine,
+      speed: config.speed,
+    });
+
     if (
-      !festivalGathering
+      !blueberryForaging
+      && !festivalGathering
       && (allowFreeRoam || famine)
       && isPlayerHuman(entity)
       && !ateMeal

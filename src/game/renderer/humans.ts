@@ -32,7 +32,7 @@ import {
 } from './overheadLayout';
 
 import { _cachedHumans, _cachedPartnerById, _renderSoABuckets, _tickAnimals, _tickHumans } from './entityCache';
-import { drawSpriteFrame, getHumanWalkMotion } from './spriteDrawing';
+import { drawContactShadow, drawSpriteFrame, getHumanWalkMotion } from './spriteDrawing';
 
 function drawTalkingMouth(
   ctx: CanvasRenderingContext2D,
@@ -433,10 +433,14 @@ export function drawHumans(
     const bobY = walkMotion.bobY ?? 0;
 
     const shadowScale = speed > 0.1 ? 1.1 : 1;
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath();
-    ctx.ellipse(sx + size * 0.08, footY + 2, size * 0.46 * shadowScale, size * 0.13, 0.12, 0, Math.PI * 2);
-    ctx.fill();
+    drawContactShadow(
+      ctx,
+      sx,
+      footY,
+      size * 0.46 * shadowScale,
+      size * 0.13,
+      { offsetX: size * 0.08, offsetY: 2, alpha: 0.3, enhanced: state.juiceEffectsEnabled },
+    );
 
     const drawHuman = () => {
       const gender = (human.gender ?? 'male') as HumanGender;

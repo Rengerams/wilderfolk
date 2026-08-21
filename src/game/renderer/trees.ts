@@ -1,14 +1,16 @@
 import type { RenderSnapshot } from '../renderSnapshot';
 import { getSpriteFrame } from '../spriteLoader';
 import { isDrawableSpriteFrame } from './shared';
-import { drawGroundAO, drawSpriteFrame } from './spriteDrawing';
+import { drawContactShadow, drawGroundAO, drawSpriteFrame } from './spriteDrawing';
 import { _cachedTrees } from './entityCache';
 
 const TREE_SPRITE_PATHS = ['/sprites/tree.png', '/sprites/tree2.png'] as const;
+const BLUEBERRY_TREE_SPRITE_PATH = '/sprites/blueberry_tree.png';
 
 export function drawTrees(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;
   const treeFrames = TREE_SPRITE_PATHS.map((p) => getSpriteFrame(p));
+  const blueberryTreeFrame = getSpriteFrame(BLUEBERRY_TREE_SPRITE_PATH);
   const bushFrame = getSpriteFrame('/sprites/bush.png');
   const stumpFrame = getSpriteFrame('/sprites/stump.png');
 
@@ -46,25 +48,29 @@ export function drawTrees(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
       }
     }
 
-    // 2.5D contact shadow (offset SE) + soft canopy pool
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    ctx.beginPath();
-    ctx.ellipse(sx + size * 0.14, sy + size * 0.34, size * 0.58, size * 0.18, 0.15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.1)';
-    ctx.beginPath();
-    ctx.ellipse(sx + size * 0.06, sy + size * 0.22, size * 0.42, size * 0.14, 0, 0, Math.PI * 2);
-    ctx.fill();
+    // Shared 2.5D canopy contact shadow plus a small AO pool under the trunk.
+    drawContactShadow(
+      ctx,
+      sx,
+      sy + size * 0.18,
+      size * 0.58,
+      size * 0.18,
+      { offsetX: size * 0.14, offsetY: size * 0.16, alpha: 0.28, enhanced: state.juiceEffectsEnabled },
+    );
 
     // Soft ambient-occlusion pool — the ground darkens right under the canopy.
-    drawGroundAO(ctx, sx + size * 0.05, sy + size * 0.18, size * 0.62, 0.10);
+    drawGroundAO(ctx, sx + size * 0.05, sy + size * 0.18, size * 0.62, state.juiceEffectsEnabled ? 0.10 : 0.06);
 
-    // Oak vs pine by entity id for map variety
-    const treeFrame = treeFrames[tree.id % treeFrames.length];
+    // Ripe blueberry trees are a rare visual landmark; depleted trees read as ordinary foliage.
+    const isRipeBlueberry = tree.forageKind === 'blueberry' && (tree.blueberryYield ?? 0) > 0;
+    const fallbackFrame = treeFrames[tree.id % TREE_SPRITE_PATHS.length];
+    const treeFrame = isRipeBlueberry && isDrawableSpriteFrame(blueberryTreeFrame)
+      ? blueberryTreeFrame
+      : fallbackFrame;
     if (isDrawableSpriteFrame(treeFrame)) {
       const isPine = (tree.id % TREE_SPRITE_PATHS.length) === 1;
-      const drawW = size * (isPine ? 1.65 : 2.05);
-      const drawH = size * (isPine ? 2.55 : 2.3);
+      const drawW = isRipeBlueberry ? size * 1.82 : size * (isPine ? 1.65 : 2.05);
+      const drawH = isRipeBlueberry ? size * 2.45 : size * (isPine ? 2.55 : 2.3);
       drawSpriteFrame(ctx, treeFrame, sx, sy - size * 0.08, drawW, drawH, 0.5, 0.92);
     } else {
       // Procedural fallback: trunk + canopy

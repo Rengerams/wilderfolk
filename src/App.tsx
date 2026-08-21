@@ -62,6 +62,7 @@ const MapSetupScreen = lazy(() => import('./game/MapSetupScreen'));
 const CombatPreviewPanel = lazy(() => import('./game/CombatPreviewPanel'));
 const BuildCatalogPanel = lazy(() => import('./components/BuildCatalogPanel'));
 import ActiveEventBanner from './components/ActiveEventBanner';
+import VillageRequestCard from './components/VillageRequestCard';
 import BigNewsBanner from './components/BigNewsBanner';
 import ShortcutsOverlay from './components/ShortcutsOverlay';
 import VisitorCampPanel from './components/VisitorCampPanel';
@@ -1340,8 +1341,16 @@ export default function App() {
   const activeEventForBanner = world.activeEvent && !hiddenActiveEventIds.has(world.activeEvent.id)
     ? world.activeEvent
     : null;
+  const activeVillageRequest = world.activeVillageRequest;
+  const showVillageRequest = !!(
+    activeVillageRequest
+    && pendingDiplomacy.length === 0
+    && pendingRaids.length === 0
+    && pendingOutgoingRaids.length === 0
+  );
   const showActiveEventBanner = !!(
     activeEventForBanner
+    && !showVillageRequest
     && pendingDiplomacy.length === 0
     && pendingRaids.length === 0
   );
@@ -2324,11 +2333,23 @@ export default function App() {
         </aside>
         </div>
 
+      {showVillageRequest && activeVillageRequest && (
+        <VillageRequestCard
+          request={activeVillageRequest}
+          onResolve={(requestId, choice) => applyGameAction({
+            proto: 1,
+            op: 'resolveVillageRequest',
+            requestId,
+            choice,
+          })}
+        />
+      )}
+
       {showActiveEventBanner && activeEventForBanner && (
         <ActiveEventBanner event={activeEventForBanner} onDismiss={dismissActiveEvent} />
       )}
 
-      {activeBigNews.length > 0 && !showActiveEventBanner && (
+      {activeBigNews.length > 0 && !showActiveEventBanner && !showVillageRequest && (
         <BigNewsBanner
           news={activeBigNews}
           onDismiss={dismissBigNewsItem}

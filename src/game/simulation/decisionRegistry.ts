@@ -55,6 +55,7 @@ export type DecisionKey =
   | 'housing'
   | 'construction'
   | 'production'
+  | 'villageRequests'
   | 'socialFeedback'
   | 'courtship'
   | 'affairs'
@@ -96,6 +97,14 @@ export const SIMULATION_DECISIONS = {
     writes: ['resources', 'economyLedger.produced', 'foodSpoilageRate', 'human.skills (gainSkill)', 'storageMax'],
     scheduledFrom: 'tickLayerDaily',
     testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts',
+  },
+  villageRequests: {
+    owner: 'groupEvents.ts — tickVillageRequests, resolveVillageRequest (ONLY request generation, expiry, and resolution owner)',
+    cadence: 'new-calendar-day',
+    cadenceNote: 'daily generation/expiry; typed player-command delegates into the same owner through commands.ts',
+    writes: ['activeVillageRequest', 'villageRequestCooldownUntilDay', 'villageRequestHistory', 'documented resources/reputation effects', 'source visitor-group counters', 'eventLog/bigNews/floatingTexts'],
+    scheduledFrom: 'tickLayerDaily.ts after tickVisitorGroups; commands.ts "resolveVillageRequest" → groupEvents.resolveVillageRequest',
+    testFile: 'tests/villageRequests.test.ts, tests/workerCommand.roundtrip.test.ts, tests/gameWorker.transport.test.ts',
   },
   socialFeedback: {
     owner: 'humanSocial.ts — simSettlerChat, simSettlerPairChat, simAmbientChatNeighbors',

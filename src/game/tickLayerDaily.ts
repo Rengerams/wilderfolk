@@ -80,6 +80,7 @@ import {
 import { recordFoodProduced } from './economyLedger';
 import { tickVisitorQuest } from './visitorQuest';
 import { tickLeaderPromise } from './villageLeadership';
+import { tickBlueberryRegrowth } from './blueberryForaging';
 import { syncLeaderHouseResidency } from './leaderHouse';
 import { getTerrainEfficiencyMultiplier, findHumanSpawnNear } from './terrainSystems';
 import {
@@ -104,6 +105,7 @@ import {
   tryMidYearVisitorEvent,
   tickRivalSettlements,
   tickVisitorGroups,
+  tickVillageRequests,
 } from './groupEvents';
 import {
   tickElectionGossip,
@@ -807,9 +809,11 @@ export function tickLayerDaily(
 
   // Static / daily bookkeeping
   tickStaticDaily(state, ctx.season);
+  tickBlueberryRegrowth(state);
 
   // Frontier systems
   tickVisitorGroups(state, allAlive);
+  tickVillageRequests(state);
   tickVisitorQuest(state);
   tickLeaderPromise(state);
   tickPendingRaidEvents(state, allAlive, ctx.updatedBuildings);

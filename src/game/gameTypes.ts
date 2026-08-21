@@ -280,6 +280,14 @@ export interface Entity {
   adoptiveFatherId?: number;
   /** Optional for non-human entities. Spawn utilities should default to `[]`. */
   childrenIds?: number[];
+  /** Rare static tree resource; blueberry trees remain ordinary `EntityType.Tree` entries. */
+  forageKind?: 'blueberry';
+  /** Remaining ripe blueberry portions (0–6) on a blueberry tree. */
+  blueberryYield?: number;
+  /** Absolute colony day on which one blueberry portion may regrow. */
+  blueberryNextRegrowthDay?: number;
+  /** Transient nearby blueberry-tree target for a free-time player settler. */
+  blueberryForageTargetId?: number;
   name?: string;
   surname?: string;
   /** Honorific earned for deeds — e.g. "Moonslayer" (killed a Moon Howler) or "Howlerbane" (broke a curse). */
@@ -808,6 +816,12 @@ export interface WorldState {
   economyLedger?: DailyEconomyLedger;
   /** One active visitor quest (traveling smith) — delivered via the quest card. */
   visitorQuest?: VisitorQuest;
+  /** One player-facing Village Request; generation and resolution belong only to groupEvents.ts. */
+  activeVillageRequest?: VillageRequest;
+  /** Absolute calendar day before another Village Request can be offered. */
+  villageRequestCooldownUntilDay?: number;
+  /** Latest bounded request outcomes for save diagnostics and later history UI. */
+  villageRequestHistory?: VillageRequestHistoryEntry[];
   /** The village head's election promise — fulfilled or broken before next vote. */
   leaderPromise?: LeaderPromise;
   /** Colony day of last wildlife replenish event-log entry (throttles meadow spam). */
@@ -910,6 +924,36 @@ export interface VisitorQuest {
   rewardReputation: number;
   /** Absolute calendar day after which the quest expires. */
   expiresDay: number;
+}
+
+/** One declared player choice on an active Village Request. */
+export interface VillageRequestChoice {
+  id: 'accept' | 'decline';
+  label: string;
+  detail: string;
+}
+
+/** A bounded daily offer that awaits one player command. */
+export interface VillageRequest {
+  id: string;
+  kind: 'caravan_provisions';
+  sourceVisitorGroupId: string;
+  sourceName: string;
+  emoji: string;
+  title: string;
+  description: string;
+  choices: VillageRequestChoice[];
+  createdDay: number;
+  expiresDay: number;
+}
+
+/** Retained, bounded request outcome record for save diagnostics and future history UI. */
+export interface VillageRequestHistoryEntry {
+  id: string;
+  kind: VillageRequest['kind'];
+  sourceName: string;
+  outcome: 'accepted' | 'declined' | 'expired';
+  resolvedDay: number;
 }
 
 export interface GameNotification {

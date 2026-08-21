@@ -22,6 +22,9 @@ import {
   HUMAN_DAILY_PREGNANCY_CHANCE_HOME,
   HUMAN_DAILY_PREGNANCY_CHANCE_NEAR,
   HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE,
+  HUMAN_FERTILITY_START,
+  HUMAN_YOUTH_FERTILITY_END,
+  getYouthConceptionMultiplier,
   hasResidenceAssignment,
   getAbsoluteCalendarDay,
   isNearResidence,
@@ -655,6 +658,20 @@ function startMarriedPregnancy(state: WorldState, entity: Entity, partner: Entit
   addNotification(state, 'Expecting', `${entity.name || 'A settler'} is expecting a child`, 'success');
 }
 
+function startYouthPregnancy(state: WorldState, entity: Entity, partner: Entity): void {
+  entity.pregnant = true;
+  entity.pregnantById = partner.id;
+  entity.pregnancyProgress = 0;
+  entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + Math.random() * 0.3));
+  // Do not promote this pair to marriage or housing. The existing youth-love
+  // lifecycle remains the relationship owner until the normal adult handoff.
+  entity.flash = 12;
+  partner.flash = 12;
+  createDeathParticles(state, entity.x, entity.y - 8, '#f9a8d4', 7, 'heart');
+  addFloatingText(state, entity.x, entity.y - 20, 'Expecting!', '#ff69b4');
+  addNotification(state, 'Expecting', `${entity.name || 'A settler'} is expecting a child`, 'success');
+}
+
 function startAffairPregnancy(state: WorldState, entity: Entity, lover: Entity): void {
   entity.pregnant = true;
   entity.pregnantById = lover.id;
@@ -739,6 +756,42 @@ export function tryDailyConception(
     }
   } else if (entity.relationshipStatus === 'married' && entity.partnerId) {
     outcome ??= 'energy';
+  }
+
+  const youthPartner = entity.youthLovePartnerId == null
+    ? undefined
+    : getLivingEntity(entity.youthLovePartnerId, ctx.entityById);
+  if (
+    entity.age >= HUMAN_FERTILITY_START
+    && entity.age < HUMAN_YOUTH_FERTILITY_END
+    && youthPartner
+    && isPlayerHuman(youthPartner)
+    && youthPartner.gender === 'male'
+    && youthPartner.age >= HUMAN_FERTILITY_START
+    && youthPartner.youthLovePartnerId === entity.id
+    && !youthPartner.pregnant
+  ) {
+    if (entity.energy <= config.reproductionEnergyThreshold * 0.75 || youthPartner.energy <= config.reproductionEnergyThreshold * 0.6) {
+      outcome ??= 'energy';
+    } else {
+      const nearYouthPartner = Math.hypot(youthPartner.x - entity.x, youthPartner.y - entity.y) < 22;
+      const fertility = getFemaleFertility(entity.age);
+      const youthMultiplier = getYouthConceptionMultiplier(entity.age);
+      if (nearYouthPartner && fertility > 0 && youthMultiplier > 0) {
+        const chance = HUMAN_DAILY_PREGNANCY_CHANCE_NEAR
+          * youthMultiplier
+          * fertility
+          * traitMultiplier(entity, 'lucky', 1.15);
+        if (Math.random() < chance) {
+          startYouthPregnancy(state, entity, youthPartner);
+          recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
+          return true;
+        }
+        outcome ??= 'roll';
+      } else {
+        outcome ??= 'proximity';
+      }
+    }
   }
 
   if (

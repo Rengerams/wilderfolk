@@ -1,6 +1,6 @@
 import type {
   WorldState, Entity, Building, GameEvent, VisitorGroup, RivalSettlement, VisitorKind,
-  DiplomacyEvent, DiplomacyEventKind, DiplomacyChoice,
+  DiplomacyEvent, DiplomacyEventKind, DiplomacyChoice, VillageRequest, VillageRequestHistoryEntry,
 } from './gameTypes';
 import { EntityType, BuildingType, BUILDING_CONFIGS, JobType } from './gameTypes';
 import {
@@ -51,6 +51,149 @@ function pushFloat(state: WorldState, x: number, y: number, text: string, color:
     x, y, text, color,
     life: 24, maxLife: 24, scale: 1,
   });
+}
+
+// Village Requests — one bounded daily offer system. This stays in groupEvents
+// because it derives from a live caravan and resolves through the same typed
+// command/domain boundary as visitor trade. It is deliberately not a generic
+// event manager or second economy owner.
+export const VILLAGE_REQUEST_PROVISIONS_COST_GOLD = 15;
+export const VILLAGE_REQUEST_PROVISIONS_FOOD = 30;
+export const VILLAGE_REQUEST_PROVISIONS_REPUTATION = 2;
+export const VILLAGE_REQUEST_DECLINE_REPUTATION = 1;
+export const VILLAGE_REQUEST_EXPIRY_DAYS = 3;
+export const VILLAGE_REQUEST_COOLDOWN_DAYS = 7;
+export type VillageRequestChoiceId = 'accept' | 'decline';
+
+function findLiveRequestSource(state: WorldState, request: VillageRequest): VisitorGroup | undefined {
+  return state.visitorGroups.find((group) => (
+    group.id === request.sourceVisitorGroupId
+    && group.kind === 'traders'
+    && group.daysLeft > 0
+  ));
+}
+
+function appendVillageRequestHistory(state: WorldState, entry: VillageRequestHistoryEntry): void {
+  const history = state.villageRequestHistory ?? [];
+  state.villageRequestHistory = [...history, entry].slice(-20);
+}
+
+function finishVillageRequest(
+  state: WorldState,
+  request: VillageRequest,
+  outcome: VillageRequestHistoryEntry['outcome'],
+  resolvedDay: number,
+): void {
+  appendVillageRequestHistory(state, {
+    id: request.id,
+    kind: request.kind,
+    sourceName: request.sourceName,
+    outcome,
+    resolvedDay,
+  });
+  state.activeVillageRequest = undefined;
+  state.villageRequestCooldownUntilDay = resolvedDay + VILLAGE_REQUEST_COOLDOWN_DAYS;
+}
+
+function expireVillageRequest(state: WorldState, request: VillageRequest, day: number): void {
+  const source = findLiveRequestSource(state, request);
+  finishVillageRequest(state, request, 'expired', day);
+  const x = source?.campX ?? state.width / 2;
+  const y = source?.campY ?? state.height / 2;
+  pushFloat(state, x, y - 18, 'Offer expired', '#f59e0b');
+  logEvent(state, 'event', `${request.sourceName}'s provisions offer expired`, request.sourceName);
+}
+
+/** Daily owner: expire stale offers or generate one caravan offer at most. */
+export function tickVillageRequests(state: WorldState): void {
+  const day = getAbsoluteCalendarDay(state.tick);
+  const active = state.activeVillageRequest;
+  if (active) {
+    if (day > active.expiresDay || !findLiveRequestSource(state, active)) {
+      expireVillageRequest(state, active, day);
+    }
+    return;
+  }
+
+  if (day < (state.villageRequestCooldownUntilDay ?? 0)) return;
+  const trader = state.visitorGroups.find((group) => group.kind === 'traders' && group.daysLeft > 0);
+  if (!trader) return;
+
+  state.activeVillageRequest = {
+    id: `vreq_caravan_provisions_${trader.id}_${day}`,
+    kind: 'caravan_provisions',
+    sourceVisitorGroupId: trader.id,
+    sourceName: trader.name,
+    emoji: '🥣',
+    title: 'Caravan Provisions Offer',
+    description: `${trader.name} offers preserved food before the road turns harsh.`,
+    choices: [
+      {
+        id: 'accept',
+        label: 'Accept provisions',
+        detail: `Pay ${VILLAGE_REQUEST_PROVISIONS_COST_GOLD} gold → receive ${VILLAGE_REQUEST_PROVISIONS_FOOD} food and +${VILLAGE_REQUEST_PROVISIONS_REPUTATION} reputation.`,
+      },
+      {
+        id: 'decline',
+        label: 'Decline politely',
+        detail: `Keep your supplies; lose ${VILLAGE_REQUEST_DECLINE_REPUTATION} reputation.`,
+      },
+    ],
+    createdDay: day,
+    expiresDay: day + VILLAGE_REQUEST_EXPIRY_DAYS,
+  };
+  pushNews(state, '🥣 Caravan offer', `${trader.name} offers food for a fair price.`, 'neutral');
+  logEvent(state, 'event', `${trader.name} offered caravan provisions`, trader.name);
+}
+
+/** Player-command resolution for the sole active Village Request. */
+export function resolveVillageRequest(
+  originalState: WorldState,
+  requestId: string,
+  choice: VillageRequestChoiceId,
+): WorldState {
+  const preview = originalState.activeVillageRequest;
+  if (!preview || preview.id !== requestId || (choice !== 'accept' && choice !== 'decline')) {
+    return originalState;
+  }
+
+  const state = cloneWorldStateForAction(originalState);
+  const request = state.activeVillageRequest;
+  if (!request || request.id !== requestId) return state;
+  const day = getAbsoluteCalendarDay(state.tick);
+  const source = findLiveRequestSource(state, request);
+  if (day > request.expiresDay || !source) {
+    expireVillageRequest(state, request, day);
+    return state;
+  }
+
+  if (choice === 'decline') {
+    state.villageReputation = Math.max(0, state.villageReputation - VILLAGE_REQUEST_DECLINE_REPUTATION);
+    finishVillageRequest(state, request, 'declined', day);
+    pushFloat(state, source.campX, source.campY - 18, 'Offer declined', '#94a3b8');
+    logEvent(state, 'event', `Declined ${source.name}'s provisions offer`, source.name);
+    return state;
+  }
+
+  if (state.resources.gold < VILLAGE_REQUEST_PROVISIONS_COST_GOLD) {
+    pushNews(state, 'Offer unavailable', `Need ${VILLAGE_REQUEST_PROVISIONS_COST_GOLD} gold for ${source.name}'s provisions.`, 'negative');
+    pushFloat(state, source.campX, source.campY - 18, `Need ${VILLAGE_REQUEST_PROVISIONS_COST_GOLD} gold`, '#f97316');
+    return state;
+  }
+  if (storageRoom(state, 'food') < VILLAGE_REQUEST_PROVISIONS_FOOD) {
+    pushNews(state, 'Offer unavailable', 'Food storage is too full for the caravan provisions.', 'negative');
+    pushFloat(state, source.campX, source.campY - 18, 'Food storage full', '#f97316');
+    return state;
+  }
+
+  state.resources.gold -= VILLAGE_REQUEST_PROVISIONS_COST_GOLD;
+  addCappedResource(state, 'food', VILLAGE_REQUEST_PROVISIONS_FOOD);
+  state.villageReputation = Math.min(100, state.villageReputation + VILLAGE_REQUEST_PROVISIONS_REPUTATION);
+  source.tradesCompleted++;
+  finishVillageRequest(state, request, 'accepted', day);
+  pushFloat(state, source.campX, source.campY - 18, `-${VILLAGE_REQUEST_PROVISIONS_COST_GOLD} gold +${VILLAGE_REQUEST_PROVISIONS_FOOD} food`, '#22c55e');
+  logEvent(state, 'trade', `Accepted ${source.name}'s provisions offer (+${VILLAGE_REQUEST_PROVISIONS_FOOD} food)`, source.name);
+  return state;
 }
 
 export { isPlayerHuman, playerHumanCount } from './playerHuman';

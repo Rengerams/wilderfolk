@@ -64,11 +64,13 @@ Every important gameplay decision has exactly one owner. Other modules may read 
 |Housing and residence assignment|`dayCycle.ts` residence functions (`assignMissingResidences`, `syncResidenceOccupants`, `syncPartnerResidence`, death cleanup) scheduled from `tickLayerAssign.ts`; immediate player entry `buildingActions.assignResidentToBuilding`|Assignment (`tickLayerAssign`, ~4×/day) + immediate on place/recruit/death/divorce/arrest|`residenceBuildingId`, residence `occupants`, household membership (couple + minor children)|
 |Construction|Construction functions called from the construction layer|Work cadence|Construction progress, builder membership|
 |Economy and production|`tickLayerSystems.ts` and daily economy owners|System/daily|Resources, production counters, spoilage|
+|Village Requests|`groupEvents.ts` only; command entry delegates from `commands.ts`|New-calendar-day generation/expiry + player-command resolution|One `activeVillageRequest`, request cooldown/history, documented resource/reputation effects, source-event counters, ordinary event/feedback fields|
+|Blueberry foraging|`blueberryForaging.ts`; called from the existing human tick and daily layer|Staggered realtime target/movement/pick + new-calendar-day regrowth|Blueberry-tree yield/regrowth date, temporary human target/movement, existing food/energy/feedback fields|
 |Casual social feedback|A single social-feel owner extracted from `humanTick.ts`|Staggered social|Dialogue, heart feedback, small social progress|
 |Youth love (ages 14–17)|`humanRelationships.ts`|New-calendar-day|Mutual youth-love links, youth progress, natural breakups, and handoff into adult courtship|
 |Courtship and marriage|`humanRelationships.ts`|Social/daily|Courtship progress, relationship status, partner IDs|
 |Affairs and scandals|`humanRelationships.ts`|Staggered (tryst progress/feedback only) + new-calendar-day (establishment, gossip, scandal decisions)|Affair progress, affair partners, scandal outcomes|
-|New conception|`humanRelationships.ts` only|Once per colony day|Pregnancy state and due progress|
+|New conception|`humanRelationships.ts` only|Once per colony day|Pregnancy state and due progress; age-14–17 youth conception only through the documented low-probability mutual-youth-love gate|
 |Pregnancy progress and birth|`humanLifecycle.ts` only|Pregnancy cadence|Pregnancy progress, child creation, birth event|
 |Moon Howler lifecycle|`moonHowler.ts` only|Full-moon event|Curse, transformation, return, cure, replacement event|
 |Leader residency|`leaderHouse.ts` called by the daily layer|Daily/idempotent|Leader household residence; preserve valid work assignment|
@@ -105,9 +107,9 @@ Every decision must have one declared cadence. Performance work may reduce the a
 
 |Cadence|May do|Must not do|
 |-|-|-|
-|`realtime`|Movement, animation, cached target following|Pregnancy rolls, global affair searches, scandals|
+|`realtime`|Movement, animation, cached target following, staggered blueberry target/pick behavior|Pregnancy rolls, global affair searches, scandals|
 |`staggered-social`|Nearby dialogue, flirt feedback, heart lines, small progress|Births, scandal decisions, global scans|
-|`new-calendar-day`|Conception, affair establishment, gossip, youth-love decisions, daily economy|Repeated full-population social work|
+|`new-calendar-day`|Conception, affair establishment, gossip, youth-love decisions, daily economy, bounded Village Request generation/expiry|Repeated full-population social work|
 |`pregnancy-progress`|Advance existing pregnancy and create a birth|Start a second pregnancy path|
 |`full-moon-event`|Return an existing Howler; roll a rare replacement event|Guarantee a new Howler every full moon|
 |`player-command`|Assignment, demolition, repair, upgrade, recipes, modes|Wait for a worker pipeline to become permanently idle|
@@ -135,16 +137,33 @@ These are hard invariants. They are not suggestions or tuning targets.
 ### Youth-love invariants
 
 * A youth-love link is mutual, joins two living colony settlers, and is owned only by `humanRelationships.ts`.
-* Youth love begins only from age 14 through 17; it has no pregnancy, housing, workforce, or marriage side effect.
+* Youth love begins only from age 14 through 17; it has no automatic housing, workforce, or marriage side effect. A low-probability age-14–17 conception is allowed only through the sole daily conception owner, with a valid mutual youth-love partner, and does not create a second relationship or birth path.
 * Attendance history and mutual schoolyard bonds may affect youth-love odds, but school attendance remains owned by `education.ts`.
 * A youth pair may transfer to adult courtship only when both settlers are at least 18 and still otherwise eligible; the existing adult courtship path alone may create a marriage.
 * A stale, dead, invalid, or one-sided youth-love link is cleared by the youth-love owner at its daily reconciliation.
+
+### Village Request invariants
+
+* At most one `activeVillageRequest` exists at a time; the request owner is `groupEvents.ts`.
+* A request has a unique id, a valid source event/entity where required, a bounded expiry day, and one declared choice set.
+* Only the request owner may generate, expire, or resolve a request; UI code only sends a typed command.
+* A stale, unknown, unaffordable, storage-blocked, or repeated command leaves the request and all economic state valid without partial mutation.
+* Active request state is included in worker preparation, rollback, delta reconciliation, and save/load paths before any card is shown.
+
+### Blueberry-foraging invariants
+
+* A blueberry source is a normal living `EntityType.Tree` with `forageKind: 'blueberry'`; it remains in the existing tree spatial grid and has no separate entity type or grid.
+* New maps contain at most three blueberry trees. Only `worldGen.ts` creates them; no daily, realtime, or render path spawns another tree.
+* `blueberryYield` stays in the inclusive range 0–6. The foraging owner alone may decrement it on a successful pick or restore one portion at its declared daily regrowth time outside winter.
+* A player settler may forage only while free, hungry, not freshly fed, and not festival-gathering. Work, school, sleep, meals, hunting urgency, and the normal movement owner retain priority.
+* A target search uses the existing `treeGrid` and staggered cadence; no human may scan all trees every tick. An invalid, dead, depleted, or out-of-range target is cleared without changing resources.
+* The renderer may choose ripe/depleted blueberry art but may never mutate yield, regrowth, food, energy, movement, or storage.
 
 ### Pregnancy invariants
 
 * A pregnant human has a valid `pregnancyDueProgress`.
 * A non-pregnant human has no active pregnancy parent/progress state.
-* New pregnancy is created only by the conception owner.
+* New pregnancy is created only by the conception owner. At ages 14–17 it requires the documented mutual youth-love, nearby, energy, and reduced-probability gate; adult married and affair rates remain unchanged.
 * Birth is created only by the lifecycle owner.
 * A conception counter never means “active pregnancies.” Diagnostics must distinguish new conceptions, active pregnancies, and completed births.
 

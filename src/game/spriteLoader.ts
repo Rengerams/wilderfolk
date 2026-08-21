@@ -106,6 +106,7 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/fox.png',
     '/sprites/tree.png',
     '/sprites/tree2.png',
+    '/sprites/blueberry_tree.png',
     '/sprites/grass.png',
     '/sprites/grass2.png',
     '/sprites/bush.png',

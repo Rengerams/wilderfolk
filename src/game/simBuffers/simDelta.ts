@@ -83,6 +83,9 @@ export interface SimTickDelta {
   festival: WorldState['festival'];
   townHallFestivalCooldownUntilTick: number;
   visitorGroups: WorldState['visitorGroups'];
+  activeVillageRequest: WorldState['activeVillageRequest'];
+  villageRequestCooldownUntilDay: number;
+  villageRequestHistory: NonNullable<WorldState['villageRequestHistory']>;
   rivalSettlements: WorldState['rivalSettlements'];
   pendingRaidEvents: WorldState['pendingRaidEvents'];
   pendingOutgoingRaidEvents: WorldState['pendingOutgoingRaidEvents'];
@@ -243,6 +246,9 @@ export function extractSimTickDelta(
     festival: deltaCloneOptional(world.festival, cloneMode),
     townHallFestivalCooldownUntilTick: world.townHallFestivalCooldownUntilTick ?? 0,
     visitorGroups: deltaClone(world.visitorGroups, cloneMode),
+    activeVillageRequest: deltaCloneOptional(world.activeVillageRequest, cloneMode) ?? undefined,
+    villageRequestCooldownUntilDay: world.villageRequestCooldownUntilDay ?? 0,
+    villageRequestHistory: deltaClone(world.villageRequestHistory ?? [], cloneMode),
     rivalSettlements: deltaClone(world.rivalSettlements, cloneMode),
     pendingRaidEvents: deltaClone(world.pendingRaidEvents ?? [], cloneMode),
     pendingOutgoingRaidEvents: deltaClone(world.pendingOutgoingRaidEvents ?? [], cloneMode),
@@ -336,6 +342,9 @@ export function applySimTickDelta(
   world.festival = deltaCloneOptional(delta.festival, cloneMode);
   world.townHallFestivalCooldownUntilTick = delta.townHallFestivalCooldownUntilTick;
   world.visitorGroups = deltaClone(delta.visitorGroups, cloneMode);
+  world.activeVillageRequest = deltaCloneOptional(delta.activeVillageRequest, cloneMode) ?? undefined;
+  world.villageRequestCooldownUntilDay = delta.villageRequestCooldownUntilDay;
+  world.villageRequestHistory = deltaClone(delta.villageRequestHistory, cloneMode);
   world.rivalSettlements = deltaClone(delta.rivalSettlements, cloneMode);
   world.pendingRaidEvents = deltaClone(delta.pendingRaidEvents, cloneMode);
   world.pendingOutgoingRaidEvents = deltaClone(delta.pendingOutgoingRaidEvents, cloneMode);

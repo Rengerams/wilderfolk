@@ -20,6 +20,7 @@ import {
   drawBuildingLevelUpgrades,
   drawBuildingPad,
   drawBuildingSprite,
+  drawContactShadow,
   drawGroundAO,
 } from './spriteDrawing';
 
@@ -134,20 +135,18 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     const sel = state.selectedBuilding?.id === b.id;
     const hover = isHovered(b);
 
-    // Long soft cast shadow (SE sun) — reads as volume under the sprite
-    ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.32)';
-    ctx.beginPath();
-    ctx.ellipse(sx + w * 0.08, sy + h * 0.32, w * 0.48, h * 0.16, 0.12, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.12)';
-    ctx.beginPath();
-    ctx.ellipse(sx + w * 0.14, sy + h * 0.36, w * 0.38, h * 0.1, 0.2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    // Shared long contact/cast shadow establishes one SE light direction for every visible subject.
+    drawContactShadow(
+      ctx,
+      sx,
+      sy + h * 0.24,
+      w * 0.48,
+      h * 0.16,
+      { offsetX: w * 0.08, offsetY: h * 0.08, alpha: 0.32, enhanced: state.juiceEffectsEnabled },
+    );
 
     // Soft ambient-occlusion pool — the ground darkens right under the pad.
-    drawGroundAO(ctx, sx, sy + h * 0.34, Math.max(w, h) * 0.8, 0.10);
+    drawGroundAO(ctx, sx, sy + h * 0.34, Math.max(w, h) * 0.8, state.juiceEffectsEnabled ? 0.10 : 0.06);
 
     // Category-colored raised foundation pad (2.5D platform)
     const pad = Math.max(2, Math.min(w, h) * 0.1);

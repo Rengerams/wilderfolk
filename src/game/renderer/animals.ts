@@ -7,7 +7,7 @@ import { getSpriteFrame } from '../spriteLoader';
 import { terrainRiseAt } from '../terrainAtlas';
 import { isDrawableSpriteFrame, renderTime } from './shared';
 import { _cachedAnimals } from './entityCache';
-import { drawSpriteFrame } from './spriteDrawing';
+import { drawContactShadow, drawSpriteFrame } from './spriteDrawing';
 import { drawCombatBurst } from './humans';
 
 export function drawAnimals(
@@ -33,11 +33,15 @@ export function drawAnimals(
     const flipX = e.vx < 0;
     const frame = getSpriteFrame(cfg.sprite);
 
-    // Soft contact shadow (SE offset for 2.5D volume)
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    ctx.beginPath();
-    ctx.ellipse(sx + shadowW * 0.08, sy + shadowY + 1, shadowW * 0.5, shadowW * 0.15, 0.1, 0, Math.PI * 2);
-    ctx.fill();
+    // Shared SE contact shadow keeps wildlife grounded without touching pathing or hit geometry.
+    drawContactShadow(
+      ctx,
+      sx,
+      sy + shadowY,
+      shadowW * 0.5,
+      shadowW * 0.15,
+      { offsetX: shadowW * 0.08, offsetY: 1, alpha: 0.28, enhanced: state.juiceEffectsEnabled },
+    );
 
     const drawAnimal = () => {
       if (isDrawableSpriteFrame(frame)) {

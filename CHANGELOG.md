@@ -1,5 +1,63 @@
 # Changelog
 
+## <u>[0.6.2.1]</u> — 2026-08-21
+
+**A village that listens, remembers, and gives one clear frontier decision.** Save compatibility: **0.6.2.1 exact-version policy** — begin a new settlement when updating from any other build.
+
+- **Village Requests S1a — Caravan Provisions Offer** — `groupEvents.ts` now owns one bounded daily player decision. A live trader caravan can offer 30 food for 15 gold and +2 reputation; the player may accept, decline for -1 reputation, or let the offer expire when the caravan leaves. The card is read-only UI: it sends only the typed `resolveVillageRequest` command, whose worker/main-thread path delegates to the same owner.
+- **One source of truth across saves and workers** — request state is persisted in `WorldState`, initialization, save allow-list, worker preparation/rollback, and sim delta reconciliation. One active request maximum, source validity, expiry, stale-command safety, and no-partial-payment behavior are documented in `SIMULATION_AUTHORITY.md`, `decisionRegistry.ts`, and `docs/VILLAGE_REQUESTS_S1A.md`.
+- **Lifecycle golden contracts** — added `tests/humanLifecycle.test.ts` covering ordinary births, stillbirths, rare Wildkin outcomes, biological lineage/bastard outcomes, and pregnant-immigrant constructor invariants. These deterministic tests protect the lifecycle owner rather than inferring births from conception diagnostics.
+- **Actual worker-runtime proof** — added `tests/gameWorker.transport.test.ts`, which launches the shared worker runtime through the Node `worker_threads` adapter and proves the ready handshake, headless tick, valid command, invalid-command rejection, and export transport end to end. Browser-host live verification remains a release checklist item rather than being misrepresented by fake-host unit tests.
+- **Focused coverage** — added `tests/villageRequests.test.ts` for generation, cooldown, accepted/declined/expired outcomes, insufficient-resource/storage rejection, idempotence, command validation, worker prep, and delta reconciliation. Extended the decision-registry contract with the single Village Request owner.
+- **Graphics Objective G1 — grounded 2.5D depth** — introduced `drawContactShadow()` in `renderer/spriteDrawing.ts` and applied it after existing viewport culling in the human, animal, tree, and completed-building passes. The shared helper adds a compact contact shadow and a restrained south-east cast tail; reduced cosmetic effects retain the compact anchor while suppressing the tail and lower stronger tree/building AO. No simulation fields, collision, pathing, click targets, worker state, or terrain/entity cache invalidation changed. `tests/renderer.presentationLayout.test.ts` now verifies the helper and all four subject renderers.
+- **Blueberry Foraging F1 — scarce free-time food** — new maps now spawn exactly one, two, or three rare blueberry trees for small, medium, or large maps. They remain ordinary static tree entities in the existing tree grid, begin with six portions, regrow one portion every four non-winter days, and offer hungry off-duty non-hunters 4 stored food plus 45 energy per nearby pick. `blueberryForaging.ts` is the only harvest/regrowth owner; rendering uses the supplied `public/sprites/blueberry_tree.png` only while a tree is ripe. `tests/blueberryForaging.test.ts` pins scarcity, gates, yield, food/energy, winter pause, cap, and sprite wiring.
+- **Age-14 Fertility F1 — low-probability youth conception** — the existing `tryDailyConception()` owner now permits a non-explicit pregnancy outcome from age 14 only when a living female settler has a mutual nearby youth-love partner aged at least 14, both satisfy energy gates, and the existing daily roll succeeds at a reduced age-based multiplier (14: 0.12; 15: 0.18; 16: 0.24; 17: 0.30 of the nearby adult rate). It preserves `pregnantById` lineage but does not create marriage, housing, work, or a second birth lifecycle. Adult married and affair rates remain unchanged. `tests/youthFertility.lifecycle.test.ts` pins the boundary, multiplier, valid mutual pair, rejection paths, and adult regression.
+- **Tavern evening-hour regression repair** — restored `TAVERN_SHIFT_START` from 19:00 to the documented 17:00 boundary, retaining the exclusive 23:00 close and all-day festival override. This restores innkeeper availability at 18:00 through the one existing clock predicate; no state, save, worker, or cadence was added. `tests/dayCycle.tavern.test.ts` and the resolved report at `BUG REPORTS/2026-08-21-tavern-evening-service-opens-too-late.md` record the contract and evidence.
+
+### Simulation Change Record
+
+- **Owner module:** `src/game/groupEvents.ts`
+- **Decision changed:** Generate, expire, and resolve the single `caravan_provisions` Village Request.
+- **Cadence:** New-calendar-day after visitor advancement; player-command resolution through `commands.ts`.
+- **State fields written:** `activeVillageRequest`, `villageRequestCooldownUntilDay`, `villageRequestHistory`, declared food/gold/reputation result, source caravan trade counter, ordinary Chronicle/feedback state.
+- **Why the change is needed:** Visitor caravans and trade existed, but did not create a focused, named, timed decision that shows its result in the village story.
+- **Player-visible behavior before:** Caravans could be selected and traded with, but offered no bounded village-level decision card.
+- **Player-visible behavior after:** A trader can make one transparent provisions offer that can be accepted, declined, or allowed to expire with visible results.
+- **Performance impact:** One daily scan over the bounded visitor-group list; no realtime population scan or new tick layer.
+- **New or updated tests:** `tests/villageRequests.test.ts`, `tests/humanLifecycle.test.ts`, `tests/gameWorker.transport.test.ts`, and `tests/simulation.decisionRegistry.test.ts`.
+- **Invariants checked:** One request maximum; live source; typed/stale/repeated command safety; storage/payment preflight; request state in worker rollback, delta, and saves.
+- **Save/migration impact:** Added persisted request fields; exact-version beta policy requires a fresh settlement across builds.
+- **Rollback plan:** Remove the daily request-owner hook, command, and card; existing visitor trade/caravan behavior remains intact.
+
+### Blueberry Foraging Change Record
+
+- **Owner module:** `src/game/blueberryForaging.ts`.
+- **Decision changed:** Spawn rare blueberry trees, select a nearby ripe tree only while a non-hunter is free and hungry, resolve one pick, and replenish one portion on the daily cadence outside winter.
+- **Cadence:** Staggered existing human realtime behavior for target/movement/pick; new-calendar-day regrowth from `tickLayerDaily.ts`.
+- **State fields written:** Tree `forageKind`, `blueberryYield`, and `blueberryNextRegrowthDay`; transient human `blueberryForageTargetId`; existing capped food, energy, and floating feedback.
+- **Performance impact:** Existing `treeGrid` lookup, staggered at 18 ticks, plus at most three blueberry trees per world; no map-wide tree scan per human per tick and no new tick layer.
+- **Save/migration impact:** Tree identity/yield/regrowth are in the entity save allow-list and worker render-meta sidecar. Exact-version policy still requires a fresh settlement.
+- **Rollback plan:** Remove the daily hook, human owner call, and marked rare trees; ordinary trees, hunting, farms, and food storage remain intact.
+
+### Age-14 Fertility Change Record
+
+- **Owner module:** `src/game/simulation/humanRelationships.ts`; birth remains exclusively in `src/game/simulation/humanLifecycle.ts`.
+- **Decision changed:** Youth-love pairs may pass one lower-probability daily conception gate beginning at age 14.
+- **Cadence:** Existing once-per-calendar-day conception call; no realtime relationship roll or new lifecycle path.
+- **State fields written:** Existing pregnancy fields and `pregnantById` only; no marriage, residence, workforce, or youth-love field is created by conception.
+- **Guardrails:** Mutual living player pair, female aged 14–17, male partner aged 14+, proximity under 22, energy gates, existing cooldown, and reduced age multiplier. Adult married and affair behavior is unchanged.
+- **Rollback plan:** Remove the youth branch and fertility multiplier helper; adult conception and the lifecycle owner remain intact.
+
+### Graphics Change Record
+
+- **Render owners:** `renderer/spriteDrawing.ts`, `renderer/humans.ts`, `renderer/animals.ts`, `renderer/trees.ts`, and `renderer/buildings.ts`.
+- **Change:** Shared contact/cast shadows and restrained AO intensity for visible subjects.
+- **Cadence:** Presentation-only, after existing per-subject viewport culling in the cached entity passes.
+- **Simulation impact:** None. No `WorldState` writes, worker messages, navigation, collision, click targets, or pathing changes.
+- **Accessibility/performance:** Existing reduced cosmetic-effects preference removes the cast tail and reduces AO strength; no terrain or entity cache is invalidated solely for the effect.
+- **Regression coverage:** `tests/renderer.presentationLayout.test.ts`.
+- **Rollback plan:** Restore the former per-renderer ellipse calls; no save or migration work is required.
+
 ## <u>[0.6.2]</u> — 2026-08-21
 
 **A village that works, celebrates, talks, and grows up.** This release promotes the player-facing work completed after v0.6.1.1: reliable worker commands, living festivals, readable social life, Chronicle parity, pathing and hunt repairs, clearer building presentation, expanded dialogue, and youth love. Save compatibility: **0.6.2 exact-version policy** — start a new settlement when updating from another build.

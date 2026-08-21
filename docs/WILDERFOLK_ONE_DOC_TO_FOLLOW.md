@@ -4,7 +4,7 @@
 
 **Applies to:** All contributors, coding assistants, reviewers, and developers modifying Wilderfolk code, tests, workers, saves, rendering, or simulation documentation.
 
-**Current release:** `0.6.2`
+**Current release:** `0.6.2.1`
 
 This is the single operational playbook for a Wilderfolk work session. It consolidates the practical rules from the simulation authority, objective-generation protocol, regression-proofing plan, architecture notes, bug-report README, changelog requirement, and audit records. Historical documents remain in the repository for traceability; do not treat them as competing daily instructions.
 

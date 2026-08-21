@@ -20,6 +20,7 @@ const REQUIRED_DECISIONS = [
   'housing',
   'construction',
   'production',
+  'villageRequests',
   'socialFeedback',
   'courtship',
   'affairs',

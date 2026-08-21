@@ -56,6 +56,48 @@ function isPassableWildlifePosition(state: WorldState, x: number, y: number, mar
   return true;
 }
 
+const BLUEBERRY_TREE_INITIAL_YIELD = 6;
+const BLUEBERRY_TREE_SPAWN_BY_MAP_SIZE: Record<MapSize, number> = {
+  [MapSize.Small]: 1,
+  [MapSize.Medium]: 2,
+  [MapSize.Large]: 3,
+};
+
+/**
+ * Rare forage landmarks, deliberately separate from the ordinary forest loops.
+ * The cap is part of the balance contract: blueberries are a local fallback,
+ * never a generated food forest.
+ */
+function spawnBlueberryTrees(
+  state: WorldState,
+  size: MapSize,
+  campX: number,
+  campY: number,
+): void {
+  const target = BLUEBERRY_TREE_SPAWN_BY_MAP_SIZE[size];
+  let spawned = 0;
+  for (let attempt = 0; attempt < target * 72 && spawned < target; attempt++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 155 + Math.random() * Math.min(state.width, state.height) * 0.28;
+    const x = campX + Math.cos(angle) * dist;
+    const y = campY + Math.sin(angle) * dist;
+    if (!isPassableWildlifePosition(state, x, y, 18)) continue;
+    const tooNearAnotherBlueberry = state.entities.some((entity) => (
+      entity.alive
+      && entity.forageKind === 'blueberry'
+      && Math.hypot(entity.x - x, entity.y - y) < 165
+    ));
+    if (tooNearAnotherBlueberry) continue;
+
+    const tree = createEntity(EntityType.Tree, x, y, state.nextEntityId++);
+    tree.forageKind = 'blueberry';
+    tree.blueberryYield = BLUEBERRY_TREE_INITIAL_YIELD;
+    tree.blueberryNextRegrowthDay = 4;
+    state.entities.push(tree);
+    spawned++;
+  }
+}
+
 /** Max ring radius before spawns clip against map edges. */
 function maxRingRadiusFromCenter(
   cx: number,
@@ -389,6 +431,9 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     festival: null,
     townHallFestivalCooldownUntilTick: 0,
     visitorGroups: [],
+    activeVillageRequest: undefined,
+    villageRequestCooldownUntilDay: 0,
+    villageRequestHistory: [],
     rivalSettlements: [],
     pendingDiplomacyEvents: [],
     pendingRaidEvents: [],
@@ -483,6 +528,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   // Pioneering couple — founding family (high energy to survive initial days)
   const centerX = camp.x;
   const centerY = camp.y;
+  spawnBlueberryTrees(state, size, centerX, centerY);
   const surname = getRandomSurname();
   const father = createEntity(EntityType.Human, centerX - 12, centerY, state.nextEntityId++, 400, false, {
     gender: 'male', generation: 1, surname, ageYears: 30, colonyDay: 0,

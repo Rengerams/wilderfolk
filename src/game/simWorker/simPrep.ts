@@ -31,6 +31,9 @@ type SimPrepKeys =
   | 'researchProgress'
   | 'unlockedTechs'
   | 'visitorGroups'
+  | 'activeVillageRequest'
+  | 'villageRequestCooldownUntilDay'
+  | 'villageRequestHistory'
   | 'rivalSettlements'
   | 'pendingRaidEvents'
   | 'pendingOutgoingRaidEvents'
@@ -54,7 +57,10 @@ type SimPrepKeys =
   | 'ecoHealthYearsAbove80'
   | 'villageReputation';
 
-export type SimPrepPayload = Required<Pick<WorldState, SimPrepKeys>>;
+export type SimPrepPayload = Omit<Required<Pick<WorldState, SimPrepKeys>>, 'activeVillageRequest'> & {
+  // Absence is a valid authoritative state: no request card is active.
+  activeVillageRequest: WorldState['activeVillageRequest'];
+};
 
 export function extractSimPrep(state: WorldState): SimPrepPayload {
   // Shallow-clone every mutable collection so the worker gets its own copy.
@@ -80,6 +86,9 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     researchProgress: state.researchProgress,
     unlockedTechs: [...state.unlockedTechs],
     visitorGroups: [...state.visitorGroups],
+    activeVillageRequest: state.activeVillageRequest ? structuredClone(state.activeVillageRequest) : undefined,
+    villageRequestCooldownUntilDay: state.villageRequestCooldownUntilDay ?? 0,
+    villageRequestHistory: structuredClone(state.villageRequestHistory ?? []),
     rivalSettlements: [...state.rivalSettlements],
     pendingRaidEvents: [...(state.pendingRaidEvents ?? [])],
     pendingOutgoingRaidEvents: [...(state.pendingOutgoingRaidEvents ?? [])],
@@ -132,6 +141,9 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.researchProgress = prep.researchProgress;
   world.unlockedTechs = prep.unlockedTechs;
   world.visitorGroups = prep.visitorGroups;
+  world.activeVillageRequest = prep.activeVillageRequest;
+  world.villageRequestCooldownUntilDay = prep.villageRequestCooldownUntilDay;
+  world.villageRequestHistory = prep.villageRequestHistory;
   world.rivalSettlements = prep.rivalSettlements;
   world.pendingRaidEvents = prep.pendingRaidEvents;
   world.pendingOutgoingRaidEvents = prep.pendingOutgoingRaidEvents;

@@ -3,7 +3,13 @@ import { BuildingType, HUNTING_SPOT_PREY_OPTIONS } from '../gameTypes';
 import type { HuntingSpotPrey } from '../gameTypes';
 import type { BuildingRotation } from '../buildingRotation';
 import type { StripSegment } from '../stripBuild';
-import { VISITOR_TRADE_COSTS, type VisitorTradeAction, type RefugeeChoice } from '../groupEvents';
+import {
+  VISITOR_TRADE_COSTS,
+  type VisitorTradeAction,
+  type RefugeeChoice,
+  type VillageRequestChoiceId,
+  resolveVillageRequest,
+} from '../groupEvents';
 import type { ForgeOrderId } from '../gameTypes';
 import {
   startBuilding,
@@ -71,6 +77,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'respondToStoryEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'talkToVisitorLeader'; groupId: string }
   | { proto: 1; op: 'tradeWithVisitors'; groupId: string; action: VisitorTradeAction }
+  | { proto: 1; op: 'resolveVillageRequest'; requestId: string; choice: VillageRequestChoiceId }
   | { proto: 1; op: 'deliverVisitorQuest' }
   | { proto: 1; op: 'negotiateRefugees'; groupId: string; choice: RefugeeChoice }
   | { proto: 1; op: 'sendRivalGift'; rivalId: string }
@@ -108,6 +115,7 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'respondToStoryEvent',
   'talkToVisitorLeader',
   'tradeWithVisitors',
+  'resolveVillageRequest',
   'deliverVisitorQuest',
   'negotiateRefugees',
   'sendRivalGift',
@@ -130,6 +138,7 @@ const BUILDING_TYPE_VALUES = new Set<string>(Object.values(BuildingType));
 const FORGE_ORDER_IDS = new Set<string>(FORGE_ORDERS.map((o) => o.id));
 const VISITOR_TRADE_ACTIONS = new Set<string>(Object.keys(VISITOR_TRADE_COSTS));
 const REFUGEE_CHOICES = new Set<string>(['welcome', 'screen', 'turn_away']);
+const VILLAGE_REQUEST_CHOICES = new Set<string>(['accept', 'decline']);
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -209,6 +218,10 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       return isNonEmptyString(cmd.groupId);
     case 'tradeWithVisitors':
       return isNonEmptyString(cmd.groupId) && typeof cmd.action === 'string' && VISITOR_TRADE_ACTIONS.has(cmd.action);
+    case 'resolveVillageRequest':
+      return isNonEmptyString(cmd.requestId)
+        && typeof cmd.choice === 'string'
+        && VILLAGE_REQUEST_CHOICES.has(cmd.choice);
     case 'deliverVisitorQuest':
       return true;
     case 'negotiateRefugees':
@@ -301,6 +314,8 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return talkToVisitorLeader(world, cmd.groupId);
     case 'tradeWithVisitors':
       return tradeWithVisitors(world, cmd.groupId, cmd.action);
+    case 'resolveVillageRequest':
+      return resolveVillageRequest(world, cmd.requestId, cmd.choice);
     case 'deliverVisitorQuest': {
       const done = deliverVisitorQuest(world);
       if (done) {

@@ -13,7 +13,7 @@ import {
   resolveSpeechBubbleRect,
   shouldDrawHumanNameLabel,
 } from '../src/game/renderer/overheadLayout';
-import { getBuildingSpriteDrawBounds } from '../src/game/renderer/spriteDrawing';
+import { drawContactShadow, getBuildingSpriteDrawBounds } from '../src/game/renderer/spriteDrawing';
 
 describe('building sprite presentation geometry', () => {
   it('uses the Leader’s House catalog scale and bottom anchor rather than generic sprite geometry', () => {
@@ -32,6 +32,42 @@ describe('building sprite presentation geometry', () => {
     expect(tuned.drawW).toBeGreaterThan(generic.drawW);
     expect(tuned.drawH).toBeGreaterThan(generic.drawH);
     expect(tuned.anchorY).toBe(0.97);
+  });
+});
+
+describe('grounded 2.5D depth pass', () => {
+  it('uses a compact contact shadow and suppresses the cosmetic cast tail when effects are reduced', () => {
+    const calls: Array<{ kind: string; args?: number[] }> = [];
+    const ctx = {
+      fillStyle: '',
+      save: () => calls.push({ kind: 'save' }),
+      restore: () => calls.push({ kind: 'restore' }),
+      beginPath: () => calls.push({ kind: 'begin' }),
+      ellipse: (...args: number[]) => calls.push({ kind: 'ellipse', args }),
+      fill: () => calls.push({ kind: 'fill' }),
+    } as unknown as CanvasRenderingContext2D;
+
+    drawContactShadow(ctx, 40, 60, 12, 3, { enhanced: true });
+    expect(calls.filter((call) => call.kind === 'ellipse')).toHaveLength(2);
+    expect(calls.filter((call) => call.kind === 'save')).toHaveLength(1);
+    expect(calls.filter((call) => call.kind === 'restore')).toHaveLength(1);
+
+    calls.length = 0;
+    drawContactShadow(ctx, 40, 60, 12, 3, { enhanced: false });
+    expect(calls.filter((call) => call.kind === 'ellipse')).toHaveLength(1);
+  });
+
+  it('keeps human, animal, tree, and building renderers on the shared contact-shadow helper', () => {
+    for (const rendererPath of [
+      'src/game/renderer/humans.ts',
+      'src/game/renderer/animals.ts',
+      'src/game/renderer/trees.ts',
+      'src/game/renderer/buildings.ts',
+    ]) {
+      const source = readFileSync(resolve(process.cwd(), rendererPath), 'utf8');
+      expect(source).toContain('drawContactShadow(');
+      expect(source).toContain('state.juiceEffectsEnabled');
+    }
   });
 });
 

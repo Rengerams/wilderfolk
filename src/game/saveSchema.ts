@@ -13,7 +13,8 @@ export const WORLD_STATE_SAVE_KEYS = [
   'unlockedTechs', 'activeResearch', 'researchProgress', 'soundEnabled', 'musicEnabled',
   'tradeRoutes', 'totalBuildingsCompleted', 'lastProcessedCalendarDay', 'yearlyStats',
   'lifetimeStats', 'eventLog', 'chronicleChapters', 'festival', 'townHallFestivalCooldownUntilTick',
-  'visitorGroups', 'rivalSettlements', 'pendingDiplomacyEvents', 'pendingRaidEvents', 'pendingOutgoingRaidEvents',
+  'visitorGroups', 'activeVillageRequest', 'villageRequestCooldownUntilDay', 'villageRequestHistory',
+  'rivalSettlements', 'pendingDiplomacyEvents', 'pendingRaidEvents', 'pendingOutgoingRaidEvents',
   'renffrOmen', 'renffrChatterUntilTick',
   'activeMigration', 'migrationNextHerdSize',
   'ecoHealthYearsAbove80', 'firstWeekVisitorSpawned', 'villageLeaderId', 'leaderSinceYear',
@@ -36,6 +37,9 @@ export const ENTITY_PERSISTED_FIELDS = [
   'pregnancyDueProgress',
   'tamedBy',
   'migrationTag',
+  'forageKind',
+  'blueberryYield',
+  'blueberryNextRegrowthDay',
 ] as const satisfies readonly (keyof Entity)[];
 
 export function pickWorldFieldsForSave(world: WorldState): Record<string, unknown> {

@@ -34,6 +34,8 @@ export interface EntityRenderMeta {
   tamedBy?: number;
   skills?: Entity['skills'];
   combatTicks?: number;
+  forageKind?: Entity['forageKind'];
+  blueberryYield?: number;
 }
 
 export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
@@ -54,6 +56,8 @@ export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
     tamedBy: entity.tamedBy,
     skills: entity.skills,
     combatTicks: entity.combatTicks,
+    forageKind: entity.forageKind,
+    blueberryYield: entity.blueberryYield,
   };
 }
 
@@ -117,6 +121,8 @@ export function buildRenderEntityShim(
     partnerId: meta?.partnerId,
     skills: meta?.skills ? { ...meta.skills } : {},
     combatTicks: meta?.combatTicks ?? ((flags & RENDER_FLAG_COMBAT) ? 1 : 0),
+    forageKind: meta?.forageKind,
+    blueberryYield: meta?.blueberryYield,
     alive: !!(flags & RENDER_FLAG_ALIVE),
     energy: 0,
     maxEnergy: 1,

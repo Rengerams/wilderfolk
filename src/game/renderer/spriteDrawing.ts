@@ -150,6 +150,53 @@ export function drawGroundAO(
 }
 
 /**
+ * Shared 2.5D grounding cue. It draws a compact foot shadow plus a subtle
+ * south-east cast tail, matching the established north-west light direction.
+ * Call only after viewport culling; `enhanced` respects the existing reduced
+ * cosmetic-effects preference without changing any simulation or hit geometry.
+ */
+export function drawContactShadow(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radiusX: number,
+  radiusY: number,
+  options: {
+    offsetX?: number;
+    offsetY?: number;
+    alpha?: number;
+    enhanced?: boolean;
+  } = {},
+): void {
+  if (radiusX <= 0 || radiusY <= 0) return;
+  const offsetX = options.offsetX ?? radiusX * 0.16;
+  const offsetY = options.offsetY ?? Math.max(1, radiusY * 0.65);
+  const alpha = options.alpha ?? 0.28;
+  const enhanced = options.enhanced ?? true;
+
+  ctx.save();
+  if (enhanced) {
+    ctx.fillStyle = `rgba(5, 10, 8, ${Math.max(0, alpha * 0.34)})`;
+    ctx.beginPath();
+    ctx.ellipse(
+      x + offsetX * 1.7,
+      y + offsetY * 1.5,
+      radiusX * 1.22,
+      radiusY * 0.7,
+      0.14,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  ctx.fillStyle = `rgba(5, 10, 8, ${alpha})`;
+  ctx.beginPath();
+  ctx.ellipse(x + offsetX, y + offsetY, radiusX, radiusY, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
  * Procedural level upgrades (no new art) — an upgraded building reads at a
  * glance: Lv2 gets a warm fresh roof + a chimney, Lv3 a stronger roof and a
  * soft gold rim. Overlays the footprint rect, safe for every sprite shape.
