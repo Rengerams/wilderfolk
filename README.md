@@ -39,6 +39,29 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
+## Latest update — v0.6.2.2 (August 21, 2026)
+
+**A village with healthier rhythms, deeper rivalries, and more stories to remember.**
+
+* `GAME_VERSION` **0.6.2.2**
+
+| Area | Highlights |
+|------|------------|
+| 🕰️ **Workday control** | Set practical work hours for your settlers so the village can follow a clearer daily rhythm. Settlers now respond to work windows with improved rest, recovery, and fatigue feedback. |
+| 🍺 **Independent venue hours** | The Tavern and Hotel keep their own opening schedules, so hospitality continues to feel like a living part of the settlement rather than a copy of the general workday. |
+| 😴 **Rest and recovery** | Work intensity, fatigue, and recovery now communicate more clearly, helping you balance productivity with the wellbeing of your people. |
+| 🛡️ **Rival clans remember** | Rival clans now keep persistent profiles and ledgers, develop their own daily priorities, and respond to the colony’s choices over time. |
+| 🤝 **Diplomacy with consequences** | Rival demands, offers, treaties, recovery and preparation form a continuing diplomatic conversation. Choices can improve relations, create pressure, or change the character of the frontier. |
+| 🗺️ **A more readable frontier** | Rival camps now have stronger map presence, visible activity cues, relationship stances, latest-contact details, and Chronicle history so the wider valley is easier to understand. |
+| 📜 **Rival history in the Chronicle** | Important rival contacts and changing relationships are easier to follow, giving diplomacy a memory instead of making every encounter feel isolated. |
+| 🏚️ **Ten children at the gate** | After the settlement has had time to grow, a one-time shelter story can bring ten children seeking help. Your decision creates a meaningful act of kindness with consequences that unfold later in the frontier. |
+| 💞 **Deeper relationship diagnostics** | Relationship information now offers clearer insight into household bonds, social connections, and the living stories developing among settlers. |
+| 🏠 **Housing diagnostics** | Housing feedback makes residence assignments and household conditions easier to understand when the colony becomes more crowded. |
+| 📊 **Optional FPS display** | A persistent FPS toggle in Settings lets you keep an eye on presentation performance while playing, without interrupting the settlement experience. |
+| 🧭 **A more dependable simulation** | The worker, command, schedule, diplomacy, and presentation systems now share clearer boundaries and stronger regression coverage, supporting a more trustworthy valley as it grows. |
+
+---
+
 ## Latest update — v0.6.2.1 (August 21, 2026)
 
 **A village that listens, remembers, and gives you meaningful choices.**
