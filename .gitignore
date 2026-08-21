@@ -33,6 +33,12 @@ log.txt
 docs/private/
 
 /playtest/
+/docs/
+/skills/
+/BUG reports/
+./deepcode/
+./agents/
+./tmp/
 
 
 # Local agent/design specs (not for GitHub)

@@ -262,6 +262,12 @@ export interface Entity {
   /** Current mutual courtship partner before marriage; used for relationship feedback. */
   courtshipPartnerId?: number;
   courtshipProgress?: number;
+  /** Mutual adolescent sweetheart (ages 14–17); never creates a marriage or household. */
+  youthLovePartnerId?: number;
+  /** Slow daily attachment score for the current youth-love pair. */
+  youthLoveProgress?: number;
+  /** Absolute colony day on which the current youth-love pair began. */
+  youthLoveStartedDay?: number;
   /** Biological father when pregnancy is not from the legal spouse. */
   pregnantById?: number;
   // Family
@@ -335,6 +341,9 @@ export interface Entity {
     affairPartnerId?: number;
     affairProgress?: number;
     courtshipProgress?: number;
+    youthLovePartnerId?: number;
+    youthLoveProgress?: number;
+    youthLoveStartedDay?: number;
     pregnant?: boolean;
     pregnantById?: number;
     pregnancyProgress?: number;

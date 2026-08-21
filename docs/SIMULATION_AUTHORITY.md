@@ -65,6 +65,7 @@ Every important gameplay decision has exactly one owner. Other modules may read 
 |Construction|Construction functions called from the construction layer|Work cadence|Construction progress, builder membership|
 |Economy and production|`tickLayerSystems.ts` and daily economy owners|System/daily|Resources, production counters, spoilage|
 |Casual social feedback|A single social-feel owner extracted from `humanTick.ts`|Staggered social|Dialogue, heart feedback, small social progress|
+|Youth love (ages 14–17)|`humanRelationships.ts`|New-calendar-day|Mutual youth-love links, youth progress, natural breakups, and handoff into adult courtship|
 |Courtship and marriage|`humanRelationships.ts`|Social/daily|Courtship progress, relationship status, partner IDs|
 |Affairs and scandals|`humanRelationships.ts`|Staggered (tryst progress/feedback only) + new-calendar-day (establishment, gossip, scandal decisions)|Affair progress, affair partners, scandal outcomes|
 |New conception|`humanRelationships.ts` only|Once per colony day|Pregnancy state and due progress|
@@ -106,7 +107,7 @@ Every decision must have one declared cadence. Performance work may reduce the a
 |-|-|-|
 |`realtime`|Movement, animation, cached target following|Pregnancy rolls, global affair searches, scandals|
 |`staggered-social`|Nearby dialogue, flirt feedback, heart lines, small progress|Births, scandal decisions, global scans|
-|`new-calendar-day`|Conception, affair establishment, gossip, daily economy|Repeated full-population social work|
+|`new-calendar-day`|Conception, affair establishment, gossip, youth-love decisions, daily economy|Repeated full-population social work|
 |`pregnancy-progress`|Advance existing pregnancy and create a birth|Start a second pregnancy path|
 |`full-moon-event`|Return an existing Howler; roll a rare replacement event|Guarantee a new Howler every full moon|
 |`player-command`|Assignment, demolition, repair, upgrade, recipes, modes|Wait for a worker pipeline to become permanently idle|
@@ -130,6 +131,14 @@ These are hard invariants. They are not suggestions or tuning targets.
 * The Church has capacity for four but requires only the player-selected priest for its normal staffed state.
 * The leader participates in normal workforce assignment like any other settler while retaining leader status and manor residency: office-taking preserves a valid workplace, auto-staff may assign an idle leader, and save-load keeps the assignment. During special events (election ceremony) the movement layer already gathers settlers; no job-level gate is required. (2026-08-20 decision — see BUG_REPORTS/2026-08-20-leader-cannot-hold-workplace.md)
 * Demolishing a building removes it from authoritative state, cleans its assignments, and clears stale selection.
+
+### Youth-love invariants
+
+* A youth-love link is mutual, joins two living colony settlers, and is owned only by `humanRelationships.ts`.
+* Youth love begins only from age 14 through 17; it has no pregnancy, housing, workforce, or marriage side effect.
+* Attendance history and mutual schoolyard bonds may affect youth-love odds, but school attendance remains owned by `education.ts`.
+* A youth pair may transfer to adult courtship only when both settlers are at least 18 and still otherwise eligible; the existing adult courtship path alone may create a marriage.
+* A stale, dead, invalid, or one-sided youth-love link is cleared by the youth-love owner at its daily reconciliation.
 
 ### Pregnancy invariants
 

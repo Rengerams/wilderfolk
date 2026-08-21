@@ -25,7 +25,7 @@ import { isPlayerHuman } from './playerHuman';
 import { isSettlerRelationshipEntity } from './moonHowler';
 import { getElectionGatherTarget } from './villageLeadership';
 import { valleyStageIndex } from './ecologyStage';
-import { HUMAN_ADULT_MIN_AGE, HUMAN_ADULT_MAX_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, PREGNANCY_TICKS, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isWorkHour, isOnWorkShift, isOnInnkeeperShift, isOnMoonHowlerNightShift, isFestivalGatheringHour, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, WORK_START, EVENING_START, TAVERN_SHIFT_START, isStartOfClockHour } from './dayCycle';
+import { HUMAN_ADULT_MIN_AGE, HUMAN_ADULT_MAX_AGE, HUMAN_MOVE_OUT_MIN_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, PREGNANCY_TICKS, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isWorkHour, isOnWorkShift, isOnInnkeeperShift, isOnMoonHowlerNightShift, isFestivalGatheringHour, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, WORK_START, EVENING_START, TAVERN_SHIFT_START, isStartOfClockHour } from './dayCycle';
 import {
   chatHintsFromWorld,
   sayHumanChatPhrase,
@@ -1106,6 +1106,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               && entity.gender !== closest.gender
               && (entity.courtshipProgress ?? 0) >= 100
               && (closest.courtshipProgress ?? 0) >= 100
+              && entity.age >= HUMAN_MOVE_OUT_MIN_AGE
+              && closest.age >= HUMAN_MOVE_OUT_MIN_AGE
               && isEligibleToCourt(entity)
               && isEligibleToCourt(closest)
             ) {

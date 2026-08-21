@@ -14,6 +14,7 @@ import { getValleyIllnessChanceBonus } from '../ecologyStage';
 import {
   HUMAN_ADULT_MIN_AGE,
   HUMAN_ADULT_MAX_AGE,
+  HUMAN_MOVE_OUT_MIN_AGE,
   HUMAN_MAX_LIFESPAN_YEARS,
   getColonyDay,
   TICKS_PER_DAY,
@@ -45,6 +46,7 @@ import { startFeud } from '../relationships';
 import { logEvent } from '../eventLog';
 import { isPlayerHuman } from '../playerHuman';
 import { traitMultiplier } from '../settlerTraits';
+import { SCHOOL_GRADUATION_DAYS } from '../education';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 
 // ============ HUMAN RELATIONSHIP HELPERS ============
@@ -445,6 +447,175 @@ export function tryFormSchoolyardBond(
     `${formatCitizenName(child)} and ${formatCitizenName(friend)} became friends at school`,
     child.name,
   );
+}
+
+export const YOUTH_LOVE_MIN_AGE = 14;
+export const YOUTH_LOVE_MAX_AGE_EXCLUSIVE = HUMAN_MOVE_OUT_MIN_AGE;
+export const YOUTH_LOVE_MAX_AGE_GAP = 2;
+/** Uneducated pairs can still meet; shared school experience makes it likelier. */
+export const YOUTH_LOVE_DAILY_START_CHANCE = 0.0005;
+export const YOUTH_LOVE_DAILY_SCHOOL_BONUS = 0.001;
+/** Around a 30% chance over four school years for a well-supported first love to end naturally. */
+export const YOUTH_LOVE_DAILY_BREAKUP_CHANCE = 0.00025;
+
+function hasSharedSchoolBond(a: Entity, b: Entity): boolean {
+  return (a.childhoodFriendsIds ?? []).includes(b.id)
+    || (b.childhoodFriendsIds ?? []).includes(a.id);
+}
+
+function schoolAffinity(a: Entity, b: Entity): number {
+  const sharedDays = Math.min(a.schoolDays ?? 0, b.schoolDays ?? 0);
+  const attendance = Math.min(1, sharedDays / SCHOOL_GRADUATION_DAYS);
+  return hasSharedSchoolBond(a, b) ? Math.min(1, attendance + 0.35) : attendance;
+}
+
+function clearYouthLovePair(a: Entity, b?: Entity): void {
+  a.youthLovePartnerId = undefined;
+  a.youthLoveProgress = undefined;
+  a.youthLoveStartedDay = undefined;
+  if (b) {
+    b.youthLovePartnerId = undefined;
+    b.youthLoveProgress = undefined;
+    b.youthLoveStartedDay = undefined;
+  }
+}
+
+/** Starts must be 14–17; an existing pair may bridge a birthday until both can enter adult courtship. */
+export function isEligibleForYouthLove(entity: Entity): boolean {
+  return (
+    isPlayerHuman(entity)
+    && entity.alive
+    && entity.age >= YOUTH_LOVE_MIN_AGE
+    && entity.age < YOUTH_LOVE_MAX_AGE_EXCLUSIVE
+    && entity.prisonBuildingId == null
+    && !entity.pregnant
+    && entity.partnerId == null
+    && entity.relationshipStatus === 'single'
+    && entity.youthLovePartnerId == null
+    && !!entity.gender
+  );
+}
+
+function isValidYouthLoveTarget(entity: Entity, candidate: Entity): boolean {
+  return (
+    isEligibleForYouthLove(candidate)
+    && candidate.id !== entity.id
+    && !!entity.gender
+    && candidate.gender !== entity.gender
+    && Math.abs(candidate.age - entity.age) <= YOUTH_LOVE_MAX_AGE_GAP
+  );
+}
+
+/** Clears dead, one-sided, incompatible, or expired youth-love state before another daily decision. */
+export function reconcileYouthLove(entity: Entity, entityById: Map<number, Entity>): void {
+  const partnerId = entity.youthLovePartnerId;
+  if (partnerId == null) return;
+  const partner = getLivingEntity(partnerId, entityById);
+  if (
+    !partner
+    || partner.youthLovePartnerId !== entity.id
+    || entity.prisonBuildingId != null
+    || partner.prisonBuildingId != null
+    || entity.partnerId != null
+    || partner.partnerId != null
+    || entity.relationshipStatus !== 'single'
+    || partner.relationshipStatus !== 'single'
+    || Math.abs(entity.age - partner.age) > YOUTH_LOVE_MAX_AGE_GAP
+    || Math.max(entity.age, partner.age) > HUMAN_MOVE_OUT_MIN_AGE
+  ) {
+    clearYouthLovePair(entity, partner);
+  }
+}
+
+function promoteYouthLoveToCourtship(state: WorldState, a: Entity, b: Entity): void {
+  const carriedProgress = Math.min(70, Math.max(25, Math.round(Math.min(
+    a.youthLoveProgress ?? 0,
+    b.youthLoveProgress ?? 0,
+  ) * 0.7)));
+  clearYouthLovePair(a, b);
+  a.courtshipPartnerId = b.id;
+  b.courtshipPartnerId = a.id;
+  a.courtshipProgress = carriedProgress;
+  b.courtshipProgress = carriedProgress;
+  createDeathParticles(state, (a.x + b.x) / 2, (a.y + b.y) / 2 - 12, '#f9a8d4', 9, 'heart');
+  logEvent(
+    state,
+    'event',
+    `${formatCitizenName(a)} and ${formatCitizenName(b)} are growing up together`,
+    a.name,
+  );
+}
+
+/**
+ * One bounded daily pass for youth love. It reuses the social grid for local
+ * candidate discovery and leaves school attendance, adult courtship, marriage,
+ * housing, conception, and worker authority with their existing owners.
+ */
+export function advanceYouthLove(
+  state: WorldState,
+  ctx: Pick<TickContext, 'entityById' | 'humanSocialGrid' | 'playerHumans' | 'width' | 'height'>,
+  rng: () => number = Math.random,
+): void {
+  const { entityById, humanSocialGrid, playerHumans, width, height } = ctx;
+  const day = getAbsoluteCalendarDay(state.tick);
+
+  for (const entity of playerHumans) {
+    reconcileYouthLove(entity, entityById);
+  }
+
+  for (const entity of playerHumans) {
+    const partner = entity.youthLovePartnerId != null
+      ? getLivingEntity(entity.youthLovePartnerId, entityById)
+      : undefined;
+    if (partner) {
+      if (!shouldLeadAffairPair(entity, partner)) continue;
+      if (entity.age >= HUMAN_MOVE_OUT_MIN_AGE && partner.age >= HUMAN_MOVE_OUT_MIN_AGE) {
+        promoteYouthLoveToCourtship(state, entity, partner);
+        continue;
+      }
+      if (entity.age < YOUTH_LOVE_MIN_AGE || partner.age < YOUTH_LOVE_MIN_AGE) {
+        clearYouthLovePair(entity, partner);
+        continue;
+      }
+
+      const affinity = schoolAffinity(entity, partner);
+      const breakupChance = YOUTH_LOVE_DAILY_BREAKUP_CHANCE * (1.45 - affinity * 0.6);
+      if (rng() < breakupChance) {
+        clearYouthLovePair(entity, partner);
+        addFloatingText(state, (entity.x + partner.x) / 2, (entity.y + partner.y) / 2 - 16, 'Moved on', '#94a3b8', 'brief');
+        logEvent(state, 'event', `${formatCitizenName(entity)} and ${formatCitizenName(partner)} grew apart`, entity.name);
+        continue;
+      }
+
+      const progress = 0.55 + affinity * 0.75;
+      entity.youthLoveProgress = Math.min(100, (entity.youthLoveProgress ?? 0) + progress);
+      partner.youthLoveProgress = Math.min(100, (partner.youthLoveProgress ?? 0) + progress);
+      continue;
+    }
+
+    if (!isEligibleForYouthLove(entity)) continue;
+    const candidate = findClosestAdaptiveInRadius(
+      humanSocialGrid,
+      playerHumans,
+      entity.x,
+      entity.y,
+      150,
+      (other) => isValidYouthLoveTarget(entity, other),
+      socialAdaptiveOptions('social', playerHumans.length, width, height),
+    );
+    if (!candidate || !shouldLeadAffairPair(entity, candidate)) continue;
+
+    const affinity = schoolAffinity(entity, candidate);
+    if (rng() >= YOUTH_LOVE_DAILY_START_CHANCE + affinity * YOUTH_LOVE_DAILY_SCHOOL_BONUS) continue;
+    entity.youthLovePartnerId = candidate.id;
+    candidate.youthLovePartnerId = entity.id;
+    entity.youthLoveProgress = 1;
+    candidate.youthLoveProgress = 1;
+    entity.youthLoveStartedDay = day;
+    candidate.youthLoveStartedDay = day;
+    createDeathParticles(state, (entity.x + candidate.x) / 2, (entity.y + candidate.y) / 2 - 12, '#f9a8d4', 7, 'heart');
+    logEvent(state, 'event', `${formatCitizenName(entity)} and ${formatCitizenName(candidate)} became sweethearts`, entity.name);
+  }
 }
 
 export function isValidAffairTarget(entity: Entity, target: Entity, tick: number): boolean {
@@ -960,6 +1131,7 @@ export function isEligibleToCourt(entity: Entity): boolean {
     && !entity.pregnant
     && entity.prisonBuildingId == null
     && entity.partnerId == null
+    && entity.youthLovePartnerId == null
     && entity.relationshipStatus === 'single'
     && entity.age >= HUMAN_ADULT_MIN_AGE
     && entity.age < HUMAN_ADULT_MAX_AGE

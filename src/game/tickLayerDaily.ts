@@ -31,6 +31,7 @@ import {
 import { logEvent } from './eventLog';
 import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
 import { advanceSocialRelationships } from './relationships';
+import { advanceYouthLove } from './simulation/humanRelationships';
 import { advanceApprenticeships } from './apprenticeships';
 import { tickMigration } from './migration';
 import { tickPendingStoryEvents, maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, tickWinterFreezeCheck } from './storyEvents';
@@ -780,6 +781,7 @@ export function tickLayerDaily(
   // Phase 7 social layers — friendships, feuds and apprenticeships pulse daily.
   if (state.tick > 0) {
     advanceSocialRelationships(state, allAlive);
+    advanceYouthLove(state, ctx);
     advanceApprenticeships(state, allAlive);
   }
 
