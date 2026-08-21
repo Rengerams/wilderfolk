@@ -184,6 +184,9 @@ export interface MoonHowlerSavedState {
   affairPartnerId?: number;
   affairProgress?: number;
   courtshipProgress?: number;
+  youthLovePartnerId?: number;
+  youthLoveProgress?: number;
+  youthLoveStartedDay?: number;
   pregnant?: boolean;
   pregnantById?: number;
   pregnancyProgress?: number;
@@ -347,6 +350,9 @@ export function transformToWerewolfForm(human: Entity, buildings?: Building[]): 
     affairPartnerId: human.affairPartnerId,
     affairProgress: human.affairProgress,
     courtshipProgress: human.courtshipProgress,
+    youthLovePartnerId: human.youthLovePartnerId,
+    youthLoveProgress: human.youthLoveProgress,
+    youthLoveStartedDay: human.youthLoveStartedDay,
     pregnant: human.pregnant,
     pregnantById: human.pregnantById,
     pregnancyProgress: human.pregnancyProgress,
@@ -410,6 +416,9 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   were.affairPartnerId = saved?.affairPartnerId;
   were.affairProgress = saved?.affairProgress ?? 0;
   were.courtshipProgress = saved?.courtshipProgress ?? 0;
+  were.youthLovePartnerId = saved?.youthLovePartnerId;
+  were.youthLoveProgress = saved?.youthLoveProgress;
+  were.youthLoveStartedDay = saved?.youthLoveStartedDay;
   were.pregnant = saved?.pregnant;
   were.pregnantById = saved?.pregnantById;
   were.pregnancyProgress = saved?.pregnancyProgress;

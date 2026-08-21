@@ -39,22 +39,25 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-## Latest update — v0.6.1.1 (August 21, 2026)
+## Latest update — v0.6.2 (August 21, 2026)
 
-**Leader works, pregnancies stay honest, and village banter gets stranger.**
+**A village that works, celebrates, talks, and grows up.**
 
-* `GAME_VERSION` **0.6.1.1**
-* ⚠️ **Beta Save Policy:** This build loads only 0.6.1.1 saves.
+* `GAME_VERSION` **0.6.2**
+* ⚠️ **Beta Save Policy:** This build loads only **0.6.2** saves.
 * **Compatibility Dropped:** Historical-save compatibility is no longer supported.
-* **New Start Required:** Saves from other builds (including 0.6.1) are rejected, so please start a new settlement.
+* **New Start Required:** Saves from any other build, including 0.6.1.1 and 0.6.1.2, are rejected; please begin a new settlement.
 
 | Area | Highlights |
 |------|------------|
-| 🚀 **Perf gate passed** | 1,200 humans **~192 ms → ~38 ms/tick** (p95 362 → 65 ms); every tier 200–2,600 is ACCEPTABLE |
-| 🧮 **Smarter social sim** | social queries use a **living-humans-only grid**, **adaptive grid-vs-array scanning**, **staggered ambient scans** (banter/greetings 1-in-6 ticks) and **behavior-specific radii** — the valley feels the same, runs much lighter |
-| 🧩 **Cleaner sim code** | `lifeSimulation.ts` split into domain modules (`simulation/types · entities · relationships`, `humanTick`), grass lives in the daily tick layer, wildlife in the systems layer |
-| 🎉 **Festivals feel alive** | During a festival, settlers leave ordinary routines in the afternoon to gather, talk, and celebrate at the village green, Town Hall, or performer camp; the tavern stays open and everyday work returns afterward |
-| 💬 **More frontier banter** | Settlers now have more short, oddball conversations about lost gloves, stubborn fences, courage stew, weather-wise frogs, clever goats, debt-collecting clouds, and competitive turnips — one new exchange in every dialogue category |
+| 🛠️ **A village that responds** | Worker assignments, priest selection, demolition, repairs, upgrades, and building modes now reach the authoritative simulation immediately. The leader can hold a normal job, and the Leader’s House builds in **two** work-days instead of leaving the founding household outside for nearly a week. |
+| 🎉 **Festivals feel alive** | From **15:00–21:59** on festival days, settlers leave ordinary work, school, patrols, and free hunting to gather at the green, Town Hall, or performer camp. The tavern stays open; ordinary routines return afterward. |
+| 💗 **First loves grow with the village** | From age **14**, nearby teens may become school-influenced sweethearts. Shared school days and childhood friendships help; some relationships fade naturally, while lasting pairs enter adult courtship at **18**. Marriage, homes, work, and pregnancy remain adult-only. |
+| 💬 **A chattier frontier** | The seven-category dialogue bank adds oddball village banter, and nearby settlers now reliably join conversations instead of turning every exchange into a leader monologue. Speech bubbles have readable game-hour lifetimes, sit above speakers, and stack cleanly. |
+| 📜 **A Chronicle that keeps up** | Worker-generated events now arrive newest-first, without duplicate merges, and the Chronicle includes a dedicated **Milestones** filter. |
+| 🏹 **Sharper movement and hunts** | Deterministic heap-backed A* improves route finding; commute caches respect each settler’s target tile. Hunting Spots use shared wildlife cleanup, while arrow visuals expire by their actual wall-clock lifetime. |
+| 🎨 **Clearer frontier presentation** | Building art supports per-building scale and ground anchors, so the Leader’s House reads properly in previews and in the world. Live right-side charts were removed to keep the menu focused on village decisions. |
+| 🚀 **Performance retained** | The worker-safe social grid, adaptive spatial queries, and fixed 72-tick day preserve active social life and reliable player commands without surrendering the performance gains. |
 
 **Performance**
 

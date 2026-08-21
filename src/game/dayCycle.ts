@@ -81,8 +81,9 @@ export function isStartOfClockHour(tick: number): boolean {
  * |----:|------------------------------|---------|
  * |  12 | HUMAN_CHILDHOOD_DAYS         | Clear `isJuvenile`; adult size/speed (`tryGraduateHumanChild`) |
  * |  12 | HUMAN_FERTILITY_START        | Female fertility opens (same life-year as graduation) |
- * |  16 | HUMAN_ADULT_MIN_AGE          | Social adult: courtship pool, adoptive singles, recruit ages |
- * |  18 | HUMAN_MOVE_OUT_MIN_AGE       | May leave parental home; housing “minor” until then unless partnered |
+ * |  14 | YOUTH_LOVE_MIN_AGE           | May begin a school-influenced youth relationship; no marriage or household change |
+ * |  16 | HUMAN_ADULT_MIN_AGE          | Social adult: adult courtship pool, adoptive singles, recruit ages |
+ * |  18 | HUMAN_MOVE_OUT_MIN_AGE       | May leave parental home and marry; housing “minor” until then unless partnered |
  * |  35 | HUMAN_FERTILITY_PEAK_END     | Fertility stays 1.0 through this age |
  * |  50 | HUMAN_FERTILITY_END          | Fertility reaches 0 |
  * |  60 | HUMAN_VENERABLE_AGE          | Old-age death chance begins |
@@ -90,8 +91,9 @@ export function isStartOfClockHour(tick: number): boolean {
  *
  * Housing minors: `isJuvenile || age < MOVE_OUT` **except** partnered settlers
  * are emancipated (EK-E1). Adoptive guardians use ADULT_MIN_AGE (EK-E3).
- * Ages 12–15: graduated body, not social adults. Ages 16–17: social adults,
- * still housing-dependent unless married/partnered.
+ * Ages 12–13: graduated body, not social adults. Ages 14–15 may form school-influenced
+ * youth relationships but cannot marry. Ages 16–17 enter adult courtship while still
+ * housing-dependent; marriage remains gated until age 18.
  *
  * Childhood matures in ~1 game year (fast juvenile calendar); adults gain
  * 1 life-year per game year — see JUVENILE_DAYS_PER_AGE_YEAR / ADULT_*.

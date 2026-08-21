@@ -213,6 +213,19 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
       }
     }
 
+    // Youth-love invariants — daily reconciliation repairs stale links; this collector only reports them.
+    if (entity.youthLovePartnerId != null) {
+      const sweetheart = entityById.get(entity.youthLovePartnerId);
+      if (!sweetheart || !isSettlerEntity(sweetheart)) {
+        errors.push(`human ${id} youthLovePartnerId ${entity.youthLovePartnerId} references a missing or invalid settler`);
+      } else if (sweetheart.youthLovePartnerId !== id) {
+        errors.push(`human ${id} youth-love link with ${sweetheart.id} is not mutual`);
+      }
+      if (entity.partnerId != null) {
+        errors.push(`human ${id} has both a youth-love partner and an adult partner`);
+      }
+    }
+
     // Pregnancy invariants (humanLifecycle clears these fields at birth).
     if (entity.pregnant) {
       const due = entity.pregnancyDueProgress;

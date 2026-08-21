@@ -1,9 +1,9 @@
-export const GAME_VERSION = '0.6.1.1';
+export const GAME_VERSION = '0.6.2';
 export const GAME_PHASE = 'Beta';
 export const GAME_TITLE = 'Wilderfolk';
 export const GAME_SUBTITLE = 'Where Beasts and Kin Unite';
 /** Intro / splash line for this release beat (2.5D painted relief, rivers, upgrades). */
-export const GAME_VERSION_TAGLINE = 'The valley rises — painted relief, rivers that run, and upgrades you can see.';
+export const GAME_VERSION_TAGLINE = 'The village comes alive — first loves, lively festivals, and a frontier that remembers.';
 
 export const ECOLOGICAL_FACTS = [
   'Apex predators like wolves help regulate prey populations and maintain ecosystem balance.',

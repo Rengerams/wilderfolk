@@ -1,5 +1,31 @@
 # Changelog
 
+## <u>[0.6.2]</u> — 2026-08-21
+
+**A village that works, celebrates, talks, and grows up.** This release promotes the player-facing work completed after v0.6.1.1: reliable worker commands, living festivals, readable social life, Chronicle parity, pathing and hunt repairs, clearer building presentation, expanded dialogue, and youth love. Save compatibility: **0.6.2 exact-version policy** — start a new settlement when updating from another build.
+
+- **Post-v0.6.1.1 release highlights** — worker commands no longer wait behind a permanently busy worker pipeline; leaders can work and receive early housing; festivals visibly interrupt ordinary routines; Chronicle events arrive newest-first with a Milestones filter; building anchors, dialogue bubbles, hunting visuals, and commute paths are repaired; live right-side charts are removed; and the split dialogue bank now carries 115 trees across seven categories.
+- **Youth love begins at 14** — eligible single settlers aged 14–17 can become mutual sweethearts. Shared school attendance and childhood friendships increase the chance; a relationship never creates a marriage, household, pregnancy, workforce assignment, or scandal.
+- **First loves can end naturally** — youth pairs receive a daily, school-sensitive breakup check, allowing them to grow apart without affecting adult relationship state.
+- **Growing up together is possible** — if both sweethearts reach 18, their mutual youth link converts once into the existing adult courtship path with carried progress. That path alone can create a marriage, so settlers now never marry before 18.
+- **Authoritative daily ownership and save safety** — `humanRelationships.ts` owns youth state; `tickLayerDaily.ts` runs the bounded daily decision using the existing human social grid; optional entity fields preserve old saves structurally, while full-moon transformation also preserves active youth-love state. `simulationInvariants.ts` now reports one-sided or adult-overlapping youth links without mutating them.
+- **Regression coverage** — added `tests/youthLove.lifecycle.test.ts` for the age gate, school influence, non-marital breakup, invariant reporting, and adult handoff. Extended the authority’s owner table, cadence contract, age ladder, and invariants. Validation: focused **3 files / 40 tests**, TypeScript, scoped ESLint, full suite **63 files / 371 tests**, and production build passed. The existing circular-chunk and large-bundle build warnings remain.
+
+### Simulation Change Record
+
+- **Owner module:** `src/game/simulation/humanRelationships.ts`
+- **Decision changed:** Youth relationship formation, persistence, natural breakup, and transfer to adult courtship.
+- **Cadence:** New-calendar-day through `tickLayerDaily.ts`.
+- **State fields written:** `youthLovePartnerId`, `youthLoveProgress`, `youthLoveStartedDay`; existing `courtshipPartnerId` and `courtshipProgress` only at the age-18 handoff.
+- **Why the change is needed:** Settlers previously skipped directly from childhood school bonds to adult courtship, with no visible first-love phase or school effect.
+- **Player-visible behavior before:** School friendships only made a later adult candidate feel closer; marriage could occur from age 16.
+- **Player-visible behavior after:** Teen sweethearts may form after age 14, may drift apart, and can become adult courtship at 18; marriage is not possible earlier.
+- **Performance impact:** One daily pass over existing player-human arrays with local social-grid queries; no realtime full-population scan or new tick layer.
+- **New or updated tests:** `tests/youthLove.lifecycle.test.ts`; existing school-bond and simulation-invariant coverage.
+- **Invariants checked:** Mutual youth links, no adult partner overlap, no direct youth marriage/pregnancy/housing/workforce state, adult handoff only at 18.
+- **Save/migration impact:** New fields are optional, but the beta build retains the project’s exact-version save policy and therefore requires a new settlement when moving between builds, including v0.6.1.1 and v0.6.1.2.
+- **Rollback plan:** Remove the daily `advanceYouthLove` call and optional youth fields; existing adult courtship remains intact.
+
 ## <u>[0.6.1.1]</u> — 2026-08-20
 
 **Simulation governance, workforce authority, worker reliability, relationship

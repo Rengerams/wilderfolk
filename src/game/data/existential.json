@@ -1,0 +1,286 @@
+{
+  "version": "1.1",
+  "game": "Wilderfolk Sim",
+  "category": "existential",
+  "dialogue_trees": [
+    {
+      "id": "dt_seam",
+      "category": "existential",
+      "speakers": [
+        "npc_aware",
+        "npc_denier"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_aware",
+          "text": "Pretty sure I saw a loading seam in the mountains yesterday."
+        },
+        {
+          "speaker": "npc_denier",
+          "text": "You should report that."
+        },
+        {
+          "speaker": "npc_aware",
+          "text": "I pretended I didn't. We all pretend."
+        }
+      ]
+    },
+    {
+      "id": "dt_shirts",
+      "category": "existential",
+      "speakers": [
+        "npc_hoarder",
+        "npc_minimalist"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_hoarder",
+          "text": "I have 47 identical shirts in my inventory."
+        },
+        {
+          "speaker": "npc_minimalist",
+          "text": "Why?"
+        },
+        {
+          "speaker": "npc_hoarder",
+          "text": "I will defend each one with my life. Do not test me."
+        }
+      ]
+    },
+    {
+      "id": "dt_personality",
+      "category": "existential",
+      "speakers": [
+        "npc_wind",
+        "npc_shallow"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_wind",
+          "text": "My entire personality is 'Likes Wind.'"
+        },
+        {
+          "speaker": "npc_shallow",
+          "text": "That's... it?"
+        },
+        {
+          "speaker": "npc_wind",
+          "text": "This is all I am. I have accepted it."
+        }
+      ]
+    },
+    {
+      "id": "dt_stare",
+      "category": "existential",
+      "speakers": [
+        "npc_thinker",
+        "npc_player_proxy"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_thinker",
+          "text": "Sometimes I stop in the middle of the road and stare at the sky."
+        },
+        {
+          "speaker": "npc_player_proxy",
+          "text": "Are you broken?"
+        },
+        {
+          "speaker": "npc_thinker",
+          "text": "I'm just thinking. The player probably thinks I'm broken too."
+        }
+      ]
+    },
+    {
+      "id": "wf_renffr_stars",
+      "category": "existential",
+      "speakers": [
+        "gossip",
+        "skeptic"
+      ],
+      "lines": [
+        {
+          "speaker": "gossip",
+          "text": "I saw Renffr in the stars…"
+        },
+        {
+          "speaker": "skeptic",
+          "text": "Did anyone else see the sky?"
+        },
+        {
+          "speaker": "gossip",
+          "text": "Just a shepherd's tale… right?"
+        }
+      ]
+    },
+    {
+      "id": "wf_renffr_mark",
+      "category": "existential",
+      "speakers": [
+        "believer",
+        "doubter"
+      ],
+      "lines": [
+        {
+          "speaker": "believer",
+          "text": "The mark of Renffr… plentiful harvest?"
+        },
+        {
+          "speaker": "doubter",
+          "text": "Grandmother feared that name."
+        },
+        {
+          "speaker": "believer",
+          "text": "Something wrote Renffr up there."
+        }
+      ]
+    },
+    {
+      "id": "wf_renffr_letters",
+      "category": "existential",
+      "speakers": [
+        "scholar",
+        "farmer"
+      ],
+      "lines": [
+        {
+          "speaker": "scholar",
+          "text": "The letters scattered…"
+        },
+        {
+          "speaker": "farmer",
+          "text": "Renffr — old valley omen."
+        },
+        {
+          "speaker": "scholar",
+          "text": "Did anyone else see the sky?"
+        }
+      ]
+    },
+    {
+      "id": "wf_election_vote",
+      "category": "existential",
+      "speakers": [
+        "voter_a",
+        "voter_b"
+      ],
+      "lines": [
+        {
+          "speaker": "voter_a",
+          "text": "Who'll lead us?"
+        },
+        {
+          "speaker": "voter_b",
+          "text": "My vote's cast."
+        },
+        {
+          "speaker": "voter_a",
+          "text": "Decennial year!"
+        }
+      ]
+    },
+    {
+      "id": "wf_election_speech",
+      "category": "existential",
+      "speakers": [
+        "voter",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "voter",
+          "text": "Heard the speeches?"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Town meeting soon."
+        },
+        {
+          "speaker": "voter",
+          "text": "New leader, new luck."
+        }
+      ]
+    },
+    {
+      "id": "wf_election_incumbent",
+      "category": "existential",
+      "speakers": [
+        "voter_a",
+        "voter_b"
+      ],
+      "lines": [
+        {
+          "speaker": "voter_a",
+          "text": "Incumbent again?"
+        },
+        {
+          "speaker": "voter_b",
+          "text": "Who'll lead us?"
+        },
+        {
+          "speaker": "voter_a",
+          "text": "Heard the speeches?"
+        }
+      ]
+    },
+    {
+      "id": "wf_existential_echo",
+      "category": "existential",
+      "speakers": [
+        "npc_echo",
+        "npc_skeptic"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_echo",
+          "text": "The valley repeated my name before I said it."
+        },
+        {
+          "speaker": "npc_skeptic",
+          "text": "That is called an echo."
+        },
+        {
+          "speaker": "npc_echo",
+          "text": "An echo repeats what has already happened."
+        },
+        {
+          "speaker": "npc_skeptic",
+          "text": "Perhaps you said your name yesterday."
+        },
+        {
+          "speaker": "npc_echo",
+          "text": "Then why did it sound disappointed?"
+        },
+        {
+          "speaker": "npc_skeptic",
+          "text": "Because even the valley has standards."
+        }
+      ]
+    },
+    {
+      "id": "wf_funny_existential_cloud",
+      "category": "existential",
+      "speakers": [
+        "dreamer",
+        "practical_one"
+      ],
+      "lines": [
+        {
+          "speaker": "dreamer",
+          "text": "Do you think clouds remember the valleys they leave?"
+        },
+        {
+          "speaker": "practical_one",
+          "text": "Only if the valley owes them money."
+        },
+        {
+          "speaker": "dreamer",
+          "text": "That explains the storm."
+        }
+      ]
+    }
+  ],
+  "categories": [
+    "existential"
+  ]
+}

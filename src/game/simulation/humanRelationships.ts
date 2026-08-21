@@ -1159,6 +1159,17 @@ export function findCourtshipPartner(
   width?: number,
   height?: number,
 ): Entity | undefined {
+  const currentCourtship = entity.courtshipPartnerId != null
+    ? fallbackHumans?.find((candidate) => candidate.id === entity.courtshipPartnerId)
+    : undefined;
+  if (
+    currentCourtship
+    && currentCourtship.courtshipPartnerId === entity.id
+    && isCourtshipCandidate(entity, currentCourtship)
+  ) {
+    return currentCourtship;
+  }
+
   let closest: Entity | undefined;
   let closestDistSq = courtRange * courtRange;
 
