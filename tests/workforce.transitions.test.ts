@@ -305,7 +305,7 @@ describe('invariant consistency across a full assignment cycle', () => {
 
 describe('prison occupant reconciliation (BUG 2026-08-20-prisoner-occupants-wiped)', () => {
   it('keeps prisoners in prison occupants across syncJobBuildingOccupants', () => {
-    const guard = human(1, { homeBuildingId: 8, job: JobType.Guard });
+    const guard = human(1, { homeBuildingId: 8, job: JobType.PrisonGuard });
     const prisoner = human(2, { prisonBuildingId: 8 });
     const prison = building(8, BuildingType.Prison, { occupants: [1, 2] });
 

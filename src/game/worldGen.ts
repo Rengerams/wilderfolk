@@ -31,6 +31,7 @@ import { clearAllFactionWanderStates } from './factionWander';
 import { createInitialForgeState } from './forge';
 import { getBuildingFootprint } from './buildingRotation';
 import { createEmptyLifetimeStats } from './stats';
+import { createGuidedCampaignState } from './guidedCampaign';
 
 export { createEntity, finalizeSettlerAge } from './entityFactory';
 
@@ -453,6 +454,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     totalBuildingsCompleted: 0,
     lastProcessedCalendarDay: 0,
     worldMap: null,
+    guidedCampaign: createGuidedCampaignState(),
     yearlyStats: [],
     lifetimeStats: createEmptyLifetimeStats(),
     eventLog: [{ id: 0, tick: 0, year: 0, day: 0, type: 'season', message: 'The pioneers have arrived. A new settlement begins.' }],

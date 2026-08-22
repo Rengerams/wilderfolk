@@ -367,12 +367,12 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
 
   return (
     <div
-      className="intro-root fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain"
+      className="intro-root fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-[var(--intro-forest-deep)] text-stone-100"
       style={{ cursor: phase === 'ready' ? 'pointer' : 'default' }}
     >
       {/* Base + aurora wash */}
       <div
-        className="absolute inset-0 bg-black transition-opacity ease-out"
+        className="absolute inset-0 bg-[var(--intro-ink)] transition-opacity ease-out"
         style={{
           opacity: auroraVisible ? 0 : 1,
           transitionDuration: `${FADE_MS}ms`,
@@ -461,7 +461,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
         }}
       />
 
-      <div className="relative z-10 my-auto flex w-full max-w-4xl flex-col items-center px-4 py-12 text-center sm:py-16">
+      <div className="intro-surface relative z-10 my-auto flex w-[min(94vw,56rem)] max-w-4xl flex-col items-center rounded-xl px-4 py-12 text-center shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur-[8px] sm:py-16">
         {/* Logo — emerges first, alone */}
         <div
           className={`mb-5 flex justify-center transition-all ease-out ${
@@ -473,7 +473,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
           <img
             src="/logo.png"
             alt="Wilderfolk"
-            className="h-28 w-28 rounded-full object-contain sm:h-40 sm:w-40"
+            className="h-28 w-28 rounded-full object-contain ring-1 ring-amber-100/15 sm:h-40 sm:w-40"
             style={{
               filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.55))',
               boxShadow: logoVisible
@@ -494,8 +494,13 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
           }}
           aria-hidden={!titleVisible}
         >
+          <div className="mb-3 flex items-center justify-center gap-3 text-[10px] font-bold uppercase tracking-[0.38em] text-amber-200/65 sm:text-xs">
+            <span className="h-px w-8 bg-gradient-to-r from-transparent to-amber-300/70 sm:w-12" />
+            <span>Where the wild remembers</span>
+            <span className="h-px w-8 bg-gradient-to-l from-transparent to-emerald-300/70 sm:w-12" />
+          </div>
           <h1
-            className="intro-title mb-3 text-6xl font-black tracking-tight text-white sm:text-8xl"
+            className="intro-title mb-3 bg-gradient-to-b from-amber-50 via-white to-emerald-200 bg-clip-text text-6xl font-black tracking-tight text-transparent sm:text-8xl"
             style={{
               textShadow:
                 '0 0 40px rgba(34,197,94,0.35), 0 0 80px rgba(34,197,94,0.15), 0 4px 8px rgba(0,0,0,0.85)',
@@ -526,7 +531,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
                 width: titleVisible ? '100%' : '0%',
                 transitionDuration: '3200ms',
                 transitionDelay: titleVisible ? '600ms' : '0ms',
-                background: 'linear-gradient(90deg, transparent, #22c55e, #d97706, #22c55e, transparent)',
+                background: 'linear-gradient(90deg, transparent, #86efac, #fbbf24, #34d399, transparent)',
               }}
             />
           </div>
@@ -546,7 +551,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
           aria-hidden={!subtitleVisible}
         >
           <p
-            className="text-lg font-light tracking-[0.28em] uppercase text-stone-300 sm:text-2xl"
+            className="text-lg font-light tracking-[0.28em] uppercase text-emerald-100/80 sm:text-2xl"
             style={{ textShadow: '0 2px 6px rgba(0,0,0,0.85)', minHeight: '2.25rem' }}
           >
             {subtitleText}
@@ -568,7 +573,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
           aria-hidden={!hookVisible}
         >
           <p
-            className="intro-hook text-base font-semibold uppercase tracking-[0.14em] text-amber-200 sm:text-xl"
+            className="intro-hook text-base font-semibold uppercase tracking-[0.14em] text-amber-100 sm:text-xl"
             style={{ textShadow: '0 0 28px rgba(251,191,36,0.3)' }}
           >
             {HOOK_LINE}
@@ -597,19 +602,19 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
           {FOOD_CHAIN.map((item, index) => (
             <div key={item.label} className="flex items-center gap-1 sm:gap-2">
               <div
-                className={`intro-chain-item flex flex-col items-center rounded-lg border border-stone-700/45 bg-stone-900/45 px-2 py-1.5 backdrop-blur-sm sm:px-3 ${
+                className={`intro-chain-item flex flex-col items-center rounded-lg border border-emerald-200/15 bg-[#10251d]/65 px-2 py-1.5 backdrop-blur-sm sm:px-3 ${
                   chainVisible ? 'intro-chain-visible' : ''
                 }`}
                 style={{ animationDelay: chainVisible ? `${index * 220}ms` : '0ms' }}
               >
                 <span className="text-lg sm:text-xl">{item.icon}</span>
-                <span className="text-[11px] uppercase tracking-wider text-stone-400">
+                <span className="text-[11px] uppercase tracking-wider text-emerald-100/65">
                   {item.label}
                 </span>
               </div>
               {index < FOOD_CHAIN.length - 1 && (
                 <span
-                  className="text-stone-600 transition-opacity duration-700"
+                  className="text-amber-300/60 transition-opacity duration-700"
                   style={{
                     opacity: chainVisible ? 1 : 0,
                     transitionDelay: chainVisible ? `${index * 220 + 110}ms` : '0ms',
@@ -636,19 +641,19 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
           <button
             type="button"
             onClick={handleContinue}
-            className="intro-control intro-cta cursor-pointer rounded-full border border-emerald-500/40 bg-emerald-600/90 px-10 py-3.5 text-sm font-bold tracking-widest uppercase text-white backdrop-blur-sm transition-all hover:bg-emerald-500"
+            className="ui-btn ui-btn-primary intro-primary intro-cta intro-ink cursor-pointer rounded-lg px-10 py-3.5 text-sm tracking-widest uppercase backdrop-blur-sm transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--intro-forest-deep)]"
           >
             Choose your land →
           </button>
 
-          <p className="max-w-sm text-center text-[13px] leading-relaxed text-stone-300">
+          <p className="max-w-sm text-center text-[13px] leading-relaxed text-emerald-50/70">
             Press any key or click to continue
             {muted && (
               <span className="mt-1 block text-amber-400/90">Sound is off — tap 🔊 to unmute</span>
             )}
           </p>
 
-          <p className="max-w-md text-center text-xs font-medium leading-relaxed tracking-wide text-stone-300">
+          <p className="max-w-md text-center text-xs font-medium leading-relaxed tracking-wide text-emerald-50/65">
             <span className="font-bold text-emerald-500/90">v{GAME_VERSION}</span>
             {' · '}
             {GAME_PHASE}
@@ -663,7 +668,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
         aria-hidden
       >
         <div
-          className="intro-progress h-full bg-gradient-to-r from-emerald-900/60 via-emerald-500/70 to-amber-600/50"
+          className="intro-progress h-full bg-gradient-to-r from-emerald-700/80 via-teal-400/90 to-amber-300/90"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -672,7 +677,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
         <button
           type="button"
           onClick={handleToggleMute}
-          className="rounded-lg border border-stone-700/80 bg-stone-900/70 px-3 py-2 text-sm text-stone-300 backdrop-blur-sm transition-all hover:border-stone-500 hover:text-white"
+          className="intro-control-surface rounded-lg px-3 py-2 text-sm text-emerald-50/75 backdrop-blur-sm transition-all hover:border-amber-200/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
           title={muted ? 'Unmute' : 'Mute'}
           aria-label={muted ? 'Unmute' : 'Mute'}
         >
@@ -682,7 +687,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
           <button
             type="button"
             onClick={handleContinue}
-            className="rounded-lg border border-stone-700/80 bg-stone-900/70 px-4 py-2 text-sm text-stone-400 backdrop-blur-sm transition-all hover:border-stone-500 hover:text-stone-200"
+            className="intro-control-surface rounded-lg px-4 py-2 text-sm text-emerald-50/60 backdrop-blur-sm transition-all hover:border-amber-200/40 hover:text-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
           >
             Skip intro →
           </button>
@@ -691,7 +696,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
 
       <div
         className="pointer-events-none absolute bottom-0 left-0 right-0 z-[1] h-36"
-        style={{ background: 'linear-gradient(to top, rgba(34,197,94,0.06), transparent)' }}
+        style={{ background: 'linear-gradient(to top, rgba(16,185,129,0.1), rgba(251,191,36,0.025), transparent)' }}
       />
     </div>
   );

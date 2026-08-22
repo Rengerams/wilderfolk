@@ -1,5 +1,5 @@
 import type { WorldState, Entity } from './gameTypes';
-import { EntityType, BuildingType, DEFAULT_WORKSHOP_RECIPE_ID } from './gameTypes';
+import { EntityType, BuildingType, JobType, DEFAULT_WORKSHOP_RECIPE_ID } from './gameTypes';
 import { INITIAL_CHALLENGES } from './challenges';
 import { createEmptyLifetimeStats } from './stats';
 import {
@@ -193,6 +193,22 @@ function stripRuntimeWorldFields(world: WorldState): WorldState {
 function scaleTickValue(value: unknown, scale: number): number | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
   return Math.round(value * scale);
+}
+
+/** Split the old shared Guard job using the worker's authoritative workplace. */
+export function migrateLegacySecurityRoles(world: WorldState): void {
+  const buildingsById = new Map((world.buildings ?? []).map((building) => [building.id, building]));
+  for (const entity of world.entities ?? []) {
+    if (entity.type !== EntityType.Human || entity.job !== JobType.Guard) continue;
+    const workplace = entity.homeBuildingId == null ? undefined : buildingsById.get(entity.homeBuildingId);
+    if (workplace?.type === BuildingType.Barracks) {
+      entity.job = JobType.Soldier;
+      continue;
+    }
+    if (workplace?.type === BuildingType.Prison) {
+      entity.job = JobType.PrisonGuard;
+    }
+  }
 }
 
 /**
@@ -466,6 +482,7 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
       { forceCalendar: forceAgeMigration },
     );
     rebuildChildrenIds(world.entities);
+    migrateLegacySecurityRoles(world);
     assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities);
     assignMissingWorkers(world.entities.filter(isPlayerHuman), world.buildings);
 

@@ -169,6 +169,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
         normalizeBuildingRotation(b.rotation),
         cfg.spriteDisplayScale ?? DEFAULT_SPRITE_DISPLAY_SCALE,
         cfg.spriteAnchorY,
+        b.type === BuildingType.Watchtower && normalizeBuildingRotation(b.rotation) === 90,
       );
     } else {
       ctx.fillStyle = '#e7e5e4';

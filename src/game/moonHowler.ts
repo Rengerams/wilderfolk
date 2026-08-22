@@ -55,8 +55,8 @@ export const MOON_HOWLER_OUTCOME_FLEE = 0.25;
 
 /** Extra cure weight per priest beyond the first. */
 export const MOON_HOWLER_CURE_BONUS_PER_PRIEST = 0.12;
-/** Cap on cure weight even with many priests. */
-export const MOON_HOWLER_CURE_CHANCE_MAX = 0.78;
+/** Maximum cure weight for the unique Church's four-priest capacity. */
+export const MOON_HOWLER_CURE_CHANCE_MAX = 0.71;
 
 /** @deprecated UI compat — kill share among failures at base weights */
 export const MOON_HOWLER_PRIEST_KILL_CHANCE =
@@ -599,7 +599,7 @@ function guardsNearPriest(priest: Entity, entities: Entity[], buildings: Buildin
   const rangeSq = MOON_HOWLER_GUARD_PROTECT_RANGE * MOON_HOWLER_GUARD_PROTECT_RANGE;
   const guards: Entity[] = [];
   for (const e of entities) {
-    if (!e.alive || e.type !== EntityType.Human || e.job !== JobType.Guard) continue;
+    if (!e.alive || e.type !== EntityType.Human || e.job !== JobType.Soldier) continue;
     if (!isBarracksGuard(e.id, e.homeBuildingId, buildings)) continue;
     const dx = e.x - priest.x;
     const dy = e.y - priest.y;

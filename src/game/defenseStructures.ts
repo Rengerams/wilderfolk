@@ -104,7 +104,7 @@ export function getBarracksGuardCount(state: WorldState, buildings: Building[]):
 
     for (const humanId of b.occupants) {
       const human = entityById.get(humanId);
-      if (human && human.alive && human.job === JobType.Guard && !isImprisoned(human)) {
+      if (human && human.alive && human.job === JobType.Soldier && !isImprisoned(human)) {
         guards += 1;
       }
     }
@@ -128,7 +128,7 @@ export function pruneDeadBarracksOccupants(state: WorldState, buildings: Buildin
     const liveOccupants: number[] = [];
     for (const humanId of b.occupants) {
       const human = entityById.get(humanId);
-      if (human && human.alive && human.job === JobType.Guard && !isImprisoned(human)) {
+      if (human && human.alive && human.job === JobType.Soldier && !isImprisoned(human)) {
         liveOccupants.push(humanId);
       }
     }

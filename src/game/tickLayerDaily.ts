@@ -35,6 +35,7 @@ import { advanceYouthLove } from './simulation/humanRelationships';
 import { advanceApprenticeships } from './apprenticeships';
 import { tickMigration } from './migration';
 import { tickPendingStoryEvents, tickChildrenShelter, maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, maybeOfferChildrenShelter, tickWinterFreezeCheck } from './storyEvents';
+import { tickGuidedCampaign } from './guidedCampaign';
 import { tickBeauty } from './beautyGrid';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getLumberMillTreeMultiplier } from './treeProximity';
@@ -850,6 +851,7 @@ export function tickLayerDaily(
   tickPendingStoryEvents(state);
   maybeOfferChildrenShelter(state);
   tickChildrenShelter(state);
+  tickGuidedCampaign(state);
   tickRivalSettlements(state, allAlive);
 
   // Remove any entities that died during frontier resolution before counts are reused.

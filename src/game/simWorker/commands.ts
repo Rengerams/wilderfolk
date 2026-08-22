@@ -48,6 +48,8 @@ import {
 } from '../groupEvents';
 import { respondToOutgoingRaidEvent, respondToRaidEvent, launchRaidOnRival } from '../frontierCombat';
 import { respondToStoryEvent } from '../storyEvents';
+import { startGuidedCampaign, recordGuidedCampaignChoice, type GuidedCampaignChapterId } from '../guidedCampaign';
+
 import { hostTownFestival } from '../townHall';
 import { extractSimTickDelta, type SimTickDelta } from '../simBuffers/simDelta';
 
@@ -74,7 +76,10 @@ export type WorkerCommand =
   | { proto: 1; op: 'respondToRaidEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'respondToOutgoingRaidEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'respondToDiplomacyEvent'; eventId: string; choiceId: string }
-  | { proto: 1; op: 'respondToStoryEvent'; eventId: string; choiceId: string }
+    | { proto: 1; op: 'respondToStoryEvent'; eventId: string; choiceId: string }
+  | { proto: 1; op: 'startGuidedCampaign' }
+  | { proto: 1; op: 'recordGuidedCampaignChoice'; chapterId: GuidedCampaignChapterId; choiceId: string }
+
   | { proto: 1; op: 'talkToVisitorLeader'; groupId: string }
   | { proto: 1; op: 'tradeWithVisitors'; groupId: string; action: VisitorTradeAction }
   | { proto: 1; op: 'resolveVillageRequest'; requestId: string; choice: VillageRequestChoiceId }
@@ -112,7 +117,10 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'respondToRaidEvent',
   'respondToOutgoingRaidEvent',
   'respondToDiplomacyEvent',
-  'respondToStoryEvent',
+    'respondToStoryEvent',
+  'startGuidedCampaign',
+  'recordGuidedCampaignChoice',
+
   'talkToVisitorLeader',
   'tradeWithVisitors',
   'resolveVillageRequest',
@@ -219,8 +227,13 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
     case 'respondToRaidEvent':
     case 'respondToOutgoingRaidEvent':
     case 'respondToDiplomacyEvent':
-    case 'respondToStoryEvent':
+        case 'respondToStoryEvent':
       return isNonEmptyString(cmd.eventId) && isNonEmptyString(cmd.choiceId);
+    case 'startGuidedCampaign':
+      return true;
+    case 'recordGuidedCampaignChoice':
+      return isNonEmptyString(cmd.chapterId) && isNonEmptyString(cmd.choiceId);
+
     case 'talkToVisitorLeader':
       return isNonEmptyString(cmd.groupId);
     case 'tradeWithVisitors':
@@ -313,8 +326,19 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return respondToRaidEvent(world, cmd.eventId, cmd.choiceId);
     case 'respondToOutgoingRaidEvent':
       return respondToOutgoingRaidEvent(world, cmd.eventId, cmd.choiceId);
-    case 'respondToStoryEvent':
+        case 'respondToStoryEvent':
       return respondToStoryEvent(world, cmd.eventId, cmd.choiceId);
+    case 'startGuidedCampaign': {
+      const next = structuredClone(world);
+      startGuidedCampaign(next);
+      return next;
+    }
+    case 'recordGuidedCampaignChoice': {
+      const next = structuredClone(world);
+      recordGuidedCampaignChoice(next, cmd.chapterId, cmd.choiceId);
+      return next;
+    }
+
     case 'respondToDiplomacyEvent':
       return respondToDiplomacyEvent(world, cmd.eventId, cmd.choiceId);
     case 'talkToVisitorLeader':

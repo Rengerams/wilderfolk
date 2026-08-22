@@ -13,10 +13,10 @@ import { pickWorldFieldsForSave } from '../src/game/saveSchema';
 
 
 describe('ordinary work schedule', () => {
-  it('uses the 07:00–18:00 default for new and legacy-shaped worlds', () => {
+  it('uses the 07:00–16:00 default for new and legacy-shaped worlds', () => {
     const world = initGame({ skipTerrain: true });
     expect(getWorkSchedule(world)).toEqual({ startHour: DEFAULT_WORK_START_HOUR, endHour: DEFAULT_WORK_END_HOUR });
-    expect(getWorkSchedule({ workSchedule: undefined })).toEqual({ startHour: 7, endHour: 18 });
+    expect(getWorkSchedule({ workSchedule: undefined })).toEqual({ startHour: 7, endHour: 16 });
   });
 
   it('accepts bounded non-wrapping windows and rejects unsafe windows', () => {

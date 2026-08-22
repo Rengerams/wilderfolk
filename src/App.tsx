@@ -125,7 +125,7 @@ type SidebarTab = 'village' | 'schedule' | 'frontier' | 'nature' | 'progress' | 
 type LogSubTab = 'chronicle' | 'combat';
 
 type ProgressSubTab = 'research' | 'trade' | 'goals';
-type MoreSubTab = 'guide' | 'roadmap';
+type MoreSubTab = 'guide' | 'roadmap' | 'campaign';
 
 const SIDEBAR_TABS: { id: SidebarTab; icon: string; label: string; hint: string }[] = [
   { id: 'village', icon: '🏘️', label: 'Village', hint: 'People, leadership, armament' },
@@ -2373,6 +2373,8 @@ export default function App() {
                   onReplayTutorial={() => { setTutorialStep(0); setShowTutorial(true); }}
                   onToggleTutorials={handleToggleTutorials}
                   onSpawnMoonHowlerDebug={() => applyGameAction({ proto: 1, op: 'spawnMoonHowlerDebug' })}
+                  state={world}
+                  onStartGuidedCampaign={() => applyGameAction({ proto: 1, op: 'startGuidedCampaign' })}
                 />
               </div>
             )}

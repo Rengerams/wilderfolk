@@ -11,7 +11,10 @@ export const HUMAN_BASE_SPRITES: Record<HumanGender, string> = {
   female: '/sprites/human_female.png',
 };
 
-export const WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
+/** Reversible preview switch. Set false to restore the legacy adult art without changing save data. */
+export const USE_NEW_SETTLER_ART_PREVIEW = true;
+
+const LEGACY_WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
   male: [
     '/sprites/human_male_v0.png',
     '/sprites/human_male_v1.png',
@@ -34,10 +37,39 @@ export const WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
   ],
 } as const;
 
-/** Dedicated juvenile sprites — drawn instead of the scaled adult when set. */
-export const JUVENILE_SPRITE_PATHS: Record<HumanGender, string> = {
-  male: '/sprites/human_male_toddler_v1.png',
-  female: '/sprites/human_female_toddler_v1.png',
+/** Five new adult portraits plus three legacy slots until the preview is accepted. */
+const PREVIEW_WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
+  male: [
+    '/sprites/new_male_set/male_craftsman.png',
+    '/sprites/new_male_set/male_farmhand.png',
+    '/sprites/new_male_set/male_merchant.png',
+    '/sprites/new_male_set/male_poor_labourer.png',
+    '/sprites/new_male_set/male_prosperous_farmer.png',
+    ...LEGACY_WALK_SHEET_PATHS.male.slice(5),
+  ],
+  female: [
+    '/sprites/new_female_set_v2/female_poor_homeworker.png',
+    '/sprites/new_female_set_v2/female_farmgirl.png',
+    '/sprites/new_female_set_v2/female_bakerswife.png',
+    '/sprites/new_female_set_v2/female_merchantswife.png',
+    '/sprites/new_female_set_v2/female_doctorswife.png',
+    ...LEGACY_WALK_SHEET_PATHS.female.slice(5),
+  ],
+} as const;
+
+export const WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> =
+  USE_NEW_SETTLER_ART_PREVIEW ? PREVIEW_WALK_SHEET_PATHS : LEGACY_WALK_SHEET_PATHS;
+
+/** Dedicated juvenile sprites, with two visual variants per gender for the preview. */
+export const JUVENILE_SPRITE_PATHS: Record<HumanGender, readonly string[]> = {
+  male: [
+    '/sprites/new_child_set/child_boy_bakersboy.png',
+    '/sprites/new_child_set/child_boy_merchantson.png',
+  ],
+  female: [
+    '/sprites/new_child_set/child_girl_doctorsdaughter.png',
+    '/sprites/new_child_set/child_girl_poorservant.png',
+  ],
 } as const;
 
 export const HUMAN_VARIANT_LABELS: Record<HumanGender, readonly string[]> = {
@@ -270,9 +302,11 @@ export function getHumanSpriteFrame(
 }
 
 /** Dedicated child sprite (toddler art) — single frame, no slicing. */
-export function getJuvenileSpriteFrame(gender: HumanGender | undefined): SpriteFrame | null {
+export function getJuvenileSpriteFrame(gender: HumanGender | undefined, variant = 0): SpriteFrame | null {
   if (!isHumanSpritesReady()) return null;
-  return getSpriteFrame(JUVENILE_SPRITE_PATHS[gender ?? 'male']);
+  const paths = JUVENILE_SPRITE_PATHS[gender ?? 'male'];
+  const index = ((Math.floor(variant) % paths.length) + paths.length) % paths.length;
+  return getSpriteFrame(paths[index]);
 }
 
 /** Match renderer HUMAN_WALK_SPEED_THRESHOLD — idle settlers must not advance walk frames. */

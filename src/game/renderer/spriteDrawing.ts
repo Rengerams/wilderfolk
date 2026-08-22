@@ -124,11 +124,12 @@ export function drawBuildingSprite(
   rotation: BuildingRotation,
   displayScale = DEFAULT_SPRITE_DISPLAY_SCALE,
   spriteAnchorY?: number,
+  flipX = false,
 ) {
   const { drawW, drawH, anchorY } = getBuildingSpriteDrawBounds(
     type, w, h, spriteScale, displayScale, spriteAnchorY,
   );
-  drawSpriteFrame(ctx, frame, sx, sy, drawW, drawH, 0.5, anchorY, false, {}, 'contain', rotation);
+  drawSpriteFrame(ctx, frame, sx, sy, drawW, drawH, 0.5, anchorY, flipX, {}, 'contain', rotation);
 }
 
 /** Soft ambient-occlusion pool — darkens the ground right under an object. */

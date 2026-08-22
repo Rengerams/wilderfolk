@@ -1,8 +1,10 @@
 import { Suspense, lazy, useMemo, useState } from 'react';
 import { GAME_PHASE, GAME_VERSION } from '../../game/gameEngine';
 import { searchGuideHelp } from '../../game/guideHelp';
+import GuidedCampaignPanel from '../GuidedCampaignPanel';
+import type { WorldState } from '../../game/gameTypes';
 
-type MoreSubTab = 'guide' | 'roadmap';
+type MoreSubTab = 'guide' | 'roadmap' | 'campaign';
 
 const RoadmapPanel = lazy(() => import('../../game/RoadmapPanel'));
 
@@ -13,6 +15,8 @@ export interface MoreTabPanelProps {
   onReplayTutorial: () => void;
   onToggleTutorials: () => void;
   onSpawnMoonHowlerDebug: () => void;
+  state: WorldState;
+  onStartGuidedCampaign: () => void;
 }
 
 export default function MoreTabPanel({
@@ -22,6 +26,8 @@ export default function MoreTabPanel({
   onReplayTutorial,
   onToggleTutorials,
   onSpawnMoonHowlerDebug,
+  state,
+  onStartGuidedCampaign,
 }: MoreTabPanelProps) {
   const [helpQuery, setHelpQuery] = useState('');
   const helpHits = useMemo(() => searchGuideHelp(helpQuery), [helpQuery]);
@@ -29,17 +35,21 @@ export default function MoreTabPanel({
   return (
     <div className="space-y-3">
       <div className="progress-subnav">
-        {(['guide', 'roadmap'] as MoreSubTab[]).map((id) => (
+        {(['guide', 'campaign', 'roadmap'] as MoreSubTab[]).map((id) => (
           <button
             key={id}
             type="button"
             data-active={moreSubTab === id}
             onClick={() => setMoreSubTab(id)}
           >
-            {id === 'guide' ? '❓ Guide' : '🗺️ Roadmap'}
+            {id === 'guide' ? '❓ Guide' : id === 'campaign' ? '📖 Campaign' : '🗺️ Roadmap'}
           </button>
         ))}
       </div>
+
+      {moreSubTab === 'campaign' && (
+        <GuidedCampaignPanel state={state} onStart={onStartGuidedCampaign} />
+      )}
 
       {moreSubTab === 'roadmap' && (
         <Suspense fallback={<p className="text-[13px] text-stone-300">Loading roadmap…</p>}>

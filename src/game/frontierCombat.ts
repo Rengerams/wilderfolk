@@ -516,7 +516,7 @@ function counterRaidToReward(tier: CounterRaidTier): RaidExperienceTier {
   return 'outgoing_fail';
 }
 
-/** Grant Guard skill XP to everyone in the fight; leader earns extra XP and rep on victories. */
+/** Grant Soldier skill XP to everyone in the fight; leader earns extra XP and rep on victories. */
 function rewardRaidParticipants(
   state: WorldState,
   participants: Entity[],
@@ -530,10 +530,10 @@ function rewardRaidParticipants(
   let leaderInFight = false;
 
   for (const fighter of participants) {
-    gainSkill(state, fighter.id, JobType.Guard, baseXp);
+    gainSkill(state, fighter.id, JobType.Soldier, baseXp);
     if (fighter.id === leaderId) {
       leaderInFight = true;
-      gainSkill(state, fighter.id, JobType.Guard, RAID_LEADER_GUARD_XP_BONUS);
+      gainSkill(state, fighter.id, JobType.Soldier, RAID_LEADER_GUARD_XP_BONUS);
     }
   }
 

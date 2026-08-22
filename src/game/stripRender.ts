@@ -6,6 +6,13 @@ import type { JunctionKind, StripJunctionInfo } from './stripJunction';
 import { getSpriteFrame } from './spriteLoader';
 
 const PAVEMENT_SPRITE = '/sprites/tile_pavement.png';
+const ROAD_STRAIGHT_HORIZONTAL = '/sprites/roads/road_straight_1.png';
+const ROAD_STRAIGHT_VERTICAL = '/sprites/roads/road_straight_2.png';
+const ROAD_CROSS = '/sprites/roads/road_cross.png';
+const ROAD_TEE = ['/sprites/roads/road_tee_1.png', '/sprites/roads/road_tee_2.png'] as const;
+const ROAD_CORNER = ['/sprites/roads/road_corner_1.png', '/sprites/roads/road_corner_2.png', '/sprites/roads/road_corner_3.png', '/sprites/roads/road_corner_4.png'] as const;
+const WALL_ISOMETRIC_SPRITE = '/sprites/wall_isometric.png';
+const GATE_ISOMETRIC_SPRITE = '/sprites/gate_isometric.png';
 
 /**
  * Tile the seamless pavement texture across a strip rect (rotation already
@@ -94,7 +101,28 @@ function drawPalisadeArm(
   strokePalisadeRails(ctx, ax, ay, aw, ah);
 }
 
-/** Top-down cobble road — no sprite required. */
+/** Draw one of the user's hand-made road pieces, falling back when not loaded. */
+function paintRoadSprite(
+  ctx: CanvasRenderingContext2D,
+  spritePath: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  rotation: number,
+): boolean {
+  const frame = getSpriteFrame(spritePath);
+  const img = frame?.image;
+  if (!img) return false;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate((rotation * Math.PI) / 180);
+  ctx.drawImage(img as CanvasImageSource, -w / 2, -h / 2, w, h);
+  ctx.restore();
+  return true;
+}
+
+/** Top-down cobble road — uses the hand-made path pieces with procedural fallback. */
 export function drawProceduralRoad(
   ctx: CanvasRenderingContext2D,
   sx: number,
@@ -106,7 +134,8 @@ export function drawProceduralRoad(
 ): void {
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
 
-  if (!paintPavementPattern(ctx, x0, y0, rw, rh)) {
+  const roadSprite = rotation === 0 ? ROAD_STRAIGHT_HORIZONTAL : ROAD_STRAIGHT_VERTICAL;
+  if (!paintRoadSprite(ctx, roadSprite, 0, 0, rw, rh, 0) && !paintPavementPattern(ctx, x0, y0, rw, rh)) {
     // Fallback flat road (tile not loaded yet)
     ctx.fillStyle = '#3f3a33';
     ctx.fillRect(x0, y0, rw, rh);
@@ -135,7 +164,42 @@ export function drawProceduralRoad(
   ctx.restore();
 }
 
-/** Palisade wall segment — readable at map zoom. */
+/** Draw a supplied isometric defense asset inside the existing logical strip footprint. */
+function drawIsometricDefenseAsset(
+  ctx: CanvasRenderingContext2D,
+  spritePath: string,
+  sx: number,
+  sy: number,
+  w: number,
+  h: number,
+  rotation: BuildingRotation,
+  alpha: number,
+  scale: number,
+): boolean {
+  const frame = getSpriteFrame(spritePath);
+  if (!frame?.image) return false;
+  const drawSize = Math.max(8, Math.max(w, h) * scale);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(sx, sy);
+  if (rotation === 90) ctx.rotate(Math.PI / 2);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    frame.image,
+    frame.sx,
+    frame.sy,
+    frame.sw,
+    frame.sh,
+    Math.round(-drawSize / 2),
+    Math.round(-drawSize * 0.58),
+    Math.round(drawSize),
+    Math.round(drawSize),
+  );
+  ctx.restore();
+  return true;
+}
+
+/** Palisade wall segment — supplied isometric art with procedural fallback. */
 export function drawProceduralWall(
   ctx: CanvasRenderingContext2D,
   sx: number,
@@ -146,6 +210,10 @@ export function drawProceduralWall(
   isGate: boolean,
   alpha = 1,
 ): void {
+  const asset = isGate ? GATE_ISOMETRIC_SPRITE : WALL_ISOMETRIC_SPRITE;
+  const assetScale = isGate ? 1.42 : 1.18;
+  if (drawIsometricDefenseAsset(ctx, asset, sx, sy, w, h, rotation, alpha, assetScale)) return;
+
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
 
   ctx.fillStyle = 'rgba(0,0,0,0.18)';
@@ -274,6 +342,7 @@ export function drawProceduralRoadJunction(
   h: number,
   kind: JunctionKind,
   alpha = 1,
+  rotation = 0,
 ): void {
   if (kind === 'end' || kind === 'straight') return;
   ctx.save();
@@ -282,8 +351,13 @@ export function drawProceduralRoadJunction(
 
   const size = Math.max(w, h);
   const cap = size * (kind === 'cross' ? 0.52 : 0.44);
+  const spritePath = kind === 'cross'
+    ? ROAD_CROSS
+    : kind === 'tee'
+      ? ROAD_TEE[Math.abs(Math.round(rotation / 90)) % ROAD_TEE.length]
+      : ROAD_CORNER[Math.abs(Math.round(rotation / 90)) % ROAD_CORNER.length];
 
-  if (!paintPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)) {
+  if (!paintRoadSprite(ctx, spritePath, 0, 0, cap, cap, 0) && !paintPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)) {
     ctx.fillStyle = '#3f3a33';
     ctx.fillRect(-cap / 2, -cap / 2, cap, cap);
     ctx.fillStyle = '#5c5346';
@@ -366,7 +440,7 @@ export function drawStripJunctionOverlay(
   alpha = 1,
 ): void {
   if (type === BuildingType.Road) {
-    drawProceduralRoadJunction(ctx, sx, sy, w, h, info.kind, alpha);
+    drawProceduralRoadJunction(ctx, sx, sy, w, h, info.kind, alpha, info.cornerRotation);
     return;
   }
   if (type === BuildingType.WallCorner) {

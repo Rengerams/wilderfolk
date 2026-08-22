@@ -30,6 +30,11 @@ const HUMAN_SPRITE_PATHS = new Set<string>([
   '/sprites/human_male_v5.png',
   '/sprites/human_male_v6.png',
   '/sprites/human_male_v7.png',
+  '/sprites/new_male_set/male_craftsman.png',
+  '/sprites/new_male_set/male_farmhand.png',
+  '/sprites/new_male_set/male_merchant.png',
+  '/sprites/new_male_set/male_poor_labourer.png',
+  '/sprites/new_male_set/male_prosperous_farmer.png',
   '/sprites/human_female_v0.png',
   '/sprites/human_female_v1.png',
   '/sprites/human_female_v2.png',
@@ -38,6 +43,15 @@ const HUMAN_SPRITE_PATHS = new Set<string>([
   '/sprites/human_female_v5.png',
   '/sprites/human_female_v6.png',
   '/sprites/human_female_v7.png',
+  '/sprites/new_female_set_v2/female_poor_homeworker.png',
+  '/sprites/new_female_set_v2/female_farmgirl.png',
+  '/sprites/new_female_set_v2/female_bakerswife.png',
+  '/sprites/new_female_set_v2/female_merchantswife.png',
+  '/sprites/new_female_set_v2/female_doctorswife.png',
+  '/sprites/new_child_set/child_boy_bakersboy.png',
+  '/sprites/new_child_set/child_boy_merchantson.png',
+  '/sprites/new_child_set/child_girl_doctorsdaughter.png',
+  '/sprites/new_child_set/child_girl_poorservant.png',
 ]);
 
 export function loadSprite(src: string): Promise<SpriteFrame> {

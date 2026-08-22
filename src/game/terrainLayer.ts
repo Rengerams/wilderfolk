@@ -338,7 +338,8 @@ function landscapePropSpritesReady(): boolean {
   return (
     getSprite('/sprites/bush.png') != null
     || getSprite('/sprites/stump.png') != null
-    || getSprite('/sprites/grass.png') != null
+    ||     getSprite('/sprites/grass.png') != null
+    || getSprite('/sprites/grass2.png') != null
   );
 }
 

@@ -630,7 +630,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const onSchoolShift = schoolTarget != null && isOnWorkShift(state.tick, hourOfDay);
     const onDayJobShift = !festivalGathering && (
       (goWorkTime && !isInnkeeper && (ordinaryWorkplace
-        || (entity.job === JobType.Guard && isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings))))
+        || (entity.job === JobType.Soldier && isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings))))
       || onSchoolShift
     );
     const onTavernShift = isInnkeeper && isVenueServiceHour(state, 'tavern', hourOfDay, state.festival?.active === true);
@@ -803,7 +803,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && !festivalGathering
       && goWorkTime
       && workplace
-      && entity.job === JobType.Guard
+      && entity.job === JobType.Soldier
       && isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings)
     ) {
       const anchor = getPlayerCampCenter(state, updatedBuildings);

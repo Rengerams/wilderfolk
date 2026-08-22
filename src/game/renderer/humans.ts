@@ -446,7 +446,8 @@ export function drawHumans(
       const gender = (human.gender ?? 'male') as HumanGender;
       const variant = human.spriteVariant ?? pickHumanVariant(human.id, gender);
       const frame = human.isJuvenile
-        ? getJuvenileSpriteFrame(gender)
+                ? getJuvenileSpriteFrame(gender, variant)
+
         : isWalking
           ? getHumanSpriteFrame(gender, variant, walkFrame)
           : getHumanSpriteFrame(gender, variant, 0);

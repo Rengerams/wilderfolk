@@ -272,6 +272,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     buildTime: 4, maxOccupants: 4,
     emoji: '⛪', label: 'Church', description: 'Staffed church boosts courtship and morals. Full-moon nights: up to 4 priests leave home to hunt the Moon Howler — more priests raise cure odds (35% → 71%); Barracks guards nearby can protect a priest from a failed rite.',
     sprite: '/sprites/church.png', backgroundColor: '#4f46e5', padShape: 'round',
+    unique: true,
   },
   [BuildingType.Well]: {
     width: 30, height: 30,
@@ -329,7 +330,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     cost: { wood: 8, stone: 14, gold: 0 },
     buildTime: 1, maxOccupants: 0,
     emoji: '🧱', label: 'Wall', description: 'Stone palisade segment — +8 barricade strength each (cap +72).',
-    sprite: '/sprites/wall_straight.png', backgroundColor: '#64748b', padShape: 'rect',
+    sprite: '/sprites/wall_isometric.png', backgroundColor: '#64748b', padShape: 'rect',
     unlockRequirement: 'defense_1',
   },
   [BuildingType.WallCorner]: {
@@ -345,7 +346,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     cost: { wood: 18, stone: 28, gold: 8 },
     buildTime: 2, maxOccupants: 0,
     emoji: '🚪', label: 'Wall Gate', description: 'Gated entrance — strong wall segment with drawbridge flair.',
-    sprite: '/sprites/wall_gate.png', backgroundColor: '#64748b', padShape: 'rect',
+    sprite: '/sprites/gate_isometric.png', backgroundColor: '#64748b', padShape: 'rect',
     unlockRequirement: 'defense_1',
   },
   [BuildingType.Watchtower]: {
@@ -353,7 +354,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     cost: { wood: 28, stone: 42, gold: 12 },
     buildTime: 4, maxOccupants: 0,
     emoji: '🗼', label: 'Watchtower', description: 'Overwatch post — +15 barricade strength and early raid warning.',
-    sprite: '/sprites/watchtower.png', backgroundColor: '#475569', padShape: 'rect',
+    sprite: '/sprites/watchtower_isometric.png', backgroundColor: '#475569', padShape: 'rect',
     unlockRequirement: 'defense_1',
   },
   [BuildingType.Barracks]: {

@@ -114,15 +114,15 @@ describe('Moon Howler exorcism overhaul', () => {
     expect(f.priest.title).toBe('Howlerbane');
   });
 
-  it('a nearby Barracks guard rolls to save the priest (extra roll, not guaranteed)', () => {
+  it('a nearby Barracks Soldier rolls to save the priest (extra roll, not guaranteed)', () => {
     const f = exorcismFixture(150);
-    // Guard within MOON_HOWLER_GUARD_PROTECT_RANGE of the priest at (100,100).
+    // Soldier within MOON_HOWLER_GUARD_PROTECT_RANGE of the priest at (100,100).
     const guard: Entity = {
       ...f.priest,
       id: 9002,
       name: 'Sven',
-      job: JobType.Guard,
-      occupation: 'guard',
+      job: JobType.Soldier,
+      occupation: 'Soldier',
       x: 120,
       y: 90,
       homeBuildingId: 8001,

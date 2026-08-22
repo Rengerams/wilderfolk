@@ -2,7 +2,7 @@ import type { WorldState } from './gameTypes';
 import { TICKS_PER_HOUR, getHourOfDay, isWorkDay } from './dayCycleClock';
 
 export const DEFAULT_WORK_START_HOUR = 7;
-export const DEFAULT_WORK_END_HOUR = 18;
+export const DEFAULT_WORK_END_HOUR = 16;
 export const MIN_STANDARD_WORK_HOURS = 6;
 export const MAX_STANDARD_WORK_HOURS = 12;
 

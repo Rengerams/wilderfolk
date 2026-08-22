@@ -9,7 +9,7 @@ import type { TickContext } from './simulationTypes';
 import type { EntitySpatialGrid } from '../spatialGrid';
 import { SPECIES_CONFIG } from '../speciesConfig';
 import { addFloatingText, addNotification, createDeathParticles } from '../simEffects';
-import { countWorkersAtBuilding } from '../workforce';
+
 import { getValleyIllnessChanceBonus } from '../ecologyStage';
 import {
   HUMAN_ADULT_MIN_AGE,
@@ -963,12 +963,14 @@ function tryDivorceOnCaughtCheater(
 }
 
 function countGuardsAtPrison(humans: Entity[], prison: Building): number {
-  const byAssignment = countWorkersAtBuilding(humans, prison.id);
-  if (byAssignment > 0) return byAssignment;
-  return prison.occupants.filter((id) => {
-    const worker = humans.find((h) => h.id === id && h.alive && !h.faction);
-    return worker != null && worker.prisonBuildingId == null;
-  }).length;
+  return humans.filter(
+    (human) =>
+      human.alive
+      && !human.faction
+      && human.job === JobType.PrisonGuard
+      && human.homeBuildingId === prison.id
+      && human.prisonBuildingId == null,
+  ).length;
 }
 
 function hasStaffedPrison(state: WorldState): boolean {

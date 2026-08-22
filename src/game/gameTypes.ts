@@ -124,7 +124,10 @@ export const JobType = {
   Priest: 'priest',
   Hunter: 'hunter',
   Builder: 'builder',
+  /** @deprecated Legacy saves only; new assignments use Soldier or PrisonGuard. */
   Guard: 'guard',
+  Soldier: 'soldier',
+  PrisonGuard: 'prison_guard',
   Innkeeper: 'innkeeper',
   Hotelier: 'hotelier',
 } as const;
@@ -160,7 +163,10 @@ export const JOB_LABELS: Record<JobType, string> = {
   [JobType.Priest]: 'Priest',
   [JobType.Hunter]: 'Hunter',
   [JobType.Builder]: 'Builder',
-  [JobType.Guard]: 'Guard',
+  /** @deprecated Displayed only for unmigrated legacy assignments. */
+  [JobType.Guard]: 'Guard (legacy)',
+  [JobType.Soldier]: 'Soldier',
+  [JobType.PrisonGuard]: 'Prison Guard',
   [JobType.Innkeeper]: 'Innkeeper',
   [JobType.Hotelier]: 'Hotelier',
 };
@@ -179,8 +185,8 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
   [BuildingType.Hospital]: JobType.Doctor,
   [BuildingType.TownHall]: JobType.Official,
   [BuildingType.Church]: JobType.Priest,
-  [BuildingType.Prison]: JobType.Guard,
-  [BuildingType.Barracks]: JobType.Guard,
+  [BuildingType.Prison]: JobType.PrisonGuard,
+  [BuildingType.Barracks]: JobType.Soldier,
   [BuildingType.HuntingSpot]: JobType.Hunter,
   [BuildingType.FishingSpot]: JobType.Hunter,
   [BuildingType.Tavern]: JobType.Innkeeper,
@@ -805,6 +811,8 @@ export interface WorldState {
    */
   villageCanHeat?: boolean;
   worldMap: WorldMap | null;
+  /** Separate authored campaign progression; sandbox story events remain independent. */
+  guidedCampaign?: import('./guidedCampaign').GuidedCampaignState;
   yearlyStats: YearlyStats[];
   lifetimeStats: LifetimeStats;
   eventLog: GameEventLog[];
