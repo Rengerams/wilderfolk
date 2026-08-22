@@ -371,6 +371,10 @@ export interface Entity {
   tamedBy?: number;
   /** Non-player humans: visitors, rivals, or trade-route merchants */
   faction?: 'visitor' | 'rival' | 'trade_caravan';
+  /** Hostile rival raiders are hidden until a Soldier patrol discovers them. */
+  hiddenFromPlayer?: boolean;
+  /** Set by Simulation Authority when a Soldier patrol discovers this rival group. */
+  detectedByPatrol?: boolean;
   groupId?: string;
   /** Visitor lodging at a player Hotel (not staff occupants). */
   hotelStayBuildingId?: number;

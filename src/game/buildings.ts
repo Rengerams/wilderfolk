@@ -306,10 +306,10 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     cost: { wood: 0, stone: 0, gold: 0 },
     buildTime: 2, maxOccupants: 12,
     emoji: '👑', label: "Leader's House",
-    description: "Official residence of the elected village leader — they move in with their family (12 beds). One per village, free, not upgradeable. The household moves out when leadership changes.",
+    description: "Official residence of the elected village leader",
     sprite: '/sprites/house_leader.png', backgroundColor: '#7c2d12', padShape: 'round',
-    // The manor art is a deep isometric compound, not a tightly framed cottage.
-    // Give it a larger, bottom-grounded visual without changing the world footprint.
+    
+ 
     spriteDisplayScale: 1.32,
     spriteAnchorY: 0.97,
     unique: true,

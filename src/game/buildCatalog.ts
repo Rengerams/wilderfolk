@@ -66,7 +66,6 @@ export const BUILDING_CATEGORIES: BuildingCategoryDef[] = [
     hint: 'Walls boost barricade · R rotates walls & gates · Barracks adds militia',
     types: [
       BuildingType.Wall,
-      BuildingType.WallCorner,
       BuildingType.WallGate,
       BuildingType.Watchtower,
       BuildingType.Barracks,

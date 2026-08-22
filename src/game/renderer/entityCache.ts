@@ -83,7 +83,7 @@ function entityInViewport(entity: Entity, cam: Camera, cw: number, ch: number, p
 }
 
 function filterEntitiesInViewport(entities: Entity[], cam: Camera, cw: number, ch: number): Entity[] {
-  return entities.filter((entity) => entityInViewport(entity, cam, cw, ch));
+  return entities.filter((entity) => !entity.hiddenFromPlayer && entityInViewport(entity, cam, cw, ch));
 }
 
 function syncGrassDrawCache(

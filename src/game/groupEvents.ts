@@ -285,6 +285,7 @@ function createFactionHuman(
     { surname, ageYears: age, colonyDay: getColonyDay(state) },
   );
   ent.faction = faction;
+  ent.hiddenFromPlayer = false;
   ent.groupId = groupId;
   ent.occupation = faction === 'visitor' ? 'visitor' : 'settler';
   ent.job = JobType.Settler;

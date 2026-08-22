@@ -24,7 +24,10 @@ export interface EntityRenderMeta {
   chatPhrase?: string;
   gender?: 'male' | 'female';
   spriteVariant?: number;
-  faction?: Entity['faction'];
+    faction?: Entity['faction'];
+  hiddenFromPlayer?: boolean;
+  detectedByPatrol?: boolean;
+
   moonHowlerCursed?: boolean;
   pregnant?: boolean;
   courtshipProgress?: number;
@@ -46,7 +49,10 @@ export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
     chatPhrase: entity.chatPhrase,
     gender: entity.gender,
     spriteVariant: entity.spriteVariant,
-    faction: entity.faction,
+        faction: entity.faction,
+    hiddenFromPlayer: entity.hiddenFromPlayer,
+    detectedByPatrol: entity.detectedByPatrol,
+
     moonHowlerCursed: entity.moonHowlerCursed,
     pregnant: entity.pregnant,
     courtshipProgress: entity.courtshipProgress,
@@ -110,7 +116,10 @@ export function buildRenderEntityShim(
     chatPhrase: meta?.chatPhrase,
     gender: meta?.gender ?? (flags & RENDER_FLAG_FEMALE ? 'female' : flags & RENDER_FLAG_MALE ? 'male' : undefined),
     spriteVariant: meta?.spriteVariant,
-    faction: meta?.faction ?? factionFromFlags(flags),
+        faction: meta?.faction ?? factionFromFlags(flags),
+    hiddenFromPlayer: meta?.hiddenFromPlayer,
+    detectedByPatrol: meta?.detectedByPatrol,
+
     moonHowlerCursed: meta?.moonHowlerCursed ?? !!(flags & RENDER_FLAG_MOON_HOWLER),
     pregnant: meta?.pregnant ?? !!(flags & RENDER_FLAG_PREGNANT),
     educated: !!(flags & RENDER_FLAG_EDUCATED),

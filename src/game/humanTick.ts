@@ -101,6 +101,35 @@ import { clearHuntersTargetingPrey, markWildlifeDead, syncEntityGrids } from './
 
 /** Live on-screen intimate tryst distance. */
 const AFFAIR_INTIMATE_RADIUS = 22;
+const PATROL_DETECTION_RADIUS = 150;
+
+function detectRaidersForPatrol(state: WorldState, soldier: Entity, humans: Entity[]): void {
+  const detectedGroups = new Set<string>();
+  for (const rival of humans) {
+    if (
+      !rival.alive
+      || rival.faction !== 'rival'
+      || !rival.groupId
+      || !isRaidMarchingForRival(state, rival.groupId)
+      || Math.hypot(rival.x - soldier.x, rival.y - soldier.y) > PATROL_DETECTION_RADIUS
+    ) continue;
+    detectedGroups.add(rival.groupId);
+  }
+  for (const groupId of detectedGroups) {
+    let newlyDetected = false;
+    for (const rival of humans) {
+      if (rival.alive && rival.faction === 'rival' && rival.groupId === groupId) {
+        if (rival.hiddenFromPlayer) newlyDetected = true;
+        rival.hiddenFromPlayer = false;
+        rival.detectedByPatrol = true;
+      }
+    }
+    if (newlyDetected) {
+      logEvent(state, 'event', `Soldier patrol spotted hostile raiders from ${groupId}`, groupId);
+      addFloatingText(state, soldier.x, soldier.y - 18, 'Enemy spotted', '#f97316');
+    }
+  }
+}
 
 function getAffairTrystTarget(
   cheater: Entity,
@@ -542,6 +571,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         : state.rivalSettlements.find((r) => r.id === entity.groupId);
       if (camp) {
         const marching = entity.faction === 'rival' && entity.groupId && isRaidMarchingForRival(state, entity.groupId);
+        if (entity.faction === 'rival') {
+          entity.hiddenFromPlayer = Boolean(marching && !entity.detectedByPatrol);
+        }
         const playerCenter = marching ? getPlayerCampCenter(state, updatedBuildings) : null;
         const cx = marching && playerCenter ? playerCenter.x : ('campX' in camp ? camp.campX : 0);
         const cy = marching && playerCenter ? playerCenter.y : ('campY' in camp ? camp.campY : 0);
@@ -821,6 +853,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     ) {
       const anchor = getPlayerCampCenter(state, updatedBuildings);
       if (anchor) {
+        detectRaidersForPatrol(state, entity, byType[EntityType.Human] ?? []);
         const radius = 95 + (entity.id % 6) * 10;
         // Legacy 0.028 rad/tick assumed 1 tick = 1 hour; scale so patrol speed is calendar-stable.
         const angle = state.tick * 0.028 * PER_TICK_RATE_SCALE + entity.id * 2.1;

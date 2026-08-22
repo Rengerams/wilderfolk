@@ -70,7 +70,7 @@ export function updateRenderSoABuckets(
       if (!reader.isKnownType(slot)) return;
 
       const shim = buildRenderEntityShim(reader, slot, metaBySlot?.[slot]);
-      if (!shim) return;
+      if (!shim || shim.hiddenFromPlayer) return;
 
       const type = reader.type(slot)!;
       switch (getRenderEntityLayer(type)) {
