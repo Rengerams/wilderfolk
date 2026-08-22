@@ -36,7 +36,7 @@ docs/
 playtest/
 kimi/
 daimon-share/
-tools
+/tools/
 
 
 ./deepcode/
