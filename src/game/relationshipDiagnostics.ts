@@ -59,10 +59,10 @@ export type RelationshipDiagnosticKey =
 
 type IntervalCounters = Record<RelationshipDiagnosticKey, number>;
 
-let enabled = false;
+let enabled = true;
 let counters: IntervalCounters = emptyCounters();
 const snapshotHistory: RelationshipDiagnosticsSnapshot[] = [];
-const MAX_HISTORY = 30;
+const MAX_HISTORY = 400;
 
 function emptyCounters(): IntervalCounters {
   return {

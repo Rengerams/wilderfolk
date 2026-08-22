@@ -20,24 +20,34 @@ Follow these rules in order:
 | 3 | `BUG_REPORTS/Readme.md` | Required local bug-report format and status history |
 | 4 | Section 14 of `docs/AGENTS.md` | End-of-session documentation guidance, subject to the developer's release and privacy decisions |
 | 5 | `docs/Objective_Generation_Protocol.md` | Evidence-based objective generation and lifecycle |
-| 6 | `CHANGELOG.md` and `README.md` | Versioned public record and current project summary, updated only when the developer directs it |
+| 6 | `CHANGELOG.md` and `README.md` in c:\wi | Versioned public record and current project summary, updated only when the developer directs it |
 | 7 | Audit, architecture, completion, and roadmap documents | Evidence, history, and context; they do not silently override the authority |
+| 8 | The current roadmap at the Wilderfolk project root is the version-planning starting point. Use it to confirm the active work and record feature work that requires code changes. |
+
 
 ### 1.1 Developer authority, game design, release control, and privacy
 
 Wilderfolk is a game. The developer decides its rules, tone, and fictional outcomes. Agents must not reject, dilute, or reinterpret a developer-approved game-design choice merely because an older repository document suggests a different design preference. Normal safety, platform, and legal requirements still apply, but the repository’s architecture documents are implementation constraints, not a higher creative authority than the developer.
 
-Agents must **never automatically** bump `GAME_VERSION`, the package version, or a save-compatibility label; create a release heading; tag; commit; push; publish; or declare a release complete. A target named in a roadmap is only a planning label. Each of those actions requires a separate explicit developer instruction at the time of the action.
+Agents must **never automatically** bump `GAME_VERSION`, the package version, or a save-compatibility label; create a release heading; tag; commit; push; publish; or declare a release complete. A roadmap target label is not release approval. Current-roadmap implementation items are approved as described in Section 1.2, while each release or repository action still requires a separate explicit developer instruction at the time of the action.
 
 Detailed bug reports are development records. Keep them under `BUG_REPORTS/` with their evidence and verification history. They may be included in the project when appropriate; the changelog should still contain only a concise player-facing summary, while sensitive saves, screenshots, or personal diagnostics should not be published unless the developer explicitly asks.
 
 If two repository documents conflict, preserve the stronger simulation protection until the developer decides. If an explicit developer instruction conflicts with a repository document, follow the developer instruction and record the resulting owner, cadence, state, test, or release decision where appropriate.
 
+### 1.2 Roadmap approval and informed-risk decisions
+
+A function, feature, repair, or refactor explicitly listed for implementation in the **current project-root roadmap** is developer-approved to enter implementation. That approval authorizes necessary code changes within the item’s stated purpose, owner, cadence, non-goals, and acceptance criteria. An agent must still prepare the Simulation Change Record, identify affected state and tests, and preserve the worker-authoritative boundary; those are implementation disciplines, not an extra approval gate.
+
+Wilderfolk is not limited to the safest possible option. A code change may deliberately accept measured technical, design, performance, save, or balance risk when its expected benefit to the game justifies that choice. The agent must make the trade-off visible before or alongside implementation: player benefit, concrete risks, affected owner/cadence/state, alternatives considered, invariant/save impact, validation plan, and rollback path. The **developer decides** whether to accept, reduce, defer, or reject that risk. Do not silently choose a conservative option merely because it is safer, and do not silently take a material risk without recording it for the developer.
+
+A roadmap entry does not automatically approve a version bump, save-policy change, commit, push, tag, publication, or release declaration. Those remain separate developer decisions.
+
 ## 2. Start every session this way
 
 At the beginning of a session, read this document once, then read `SIMULATION_AUTHORITY.md` once and `BUG_REPORTS/Readme.md` once. Read the current handoff or completion record only when the task requires it. Then inspect the repository status, current diff, package scripts, test baseline, open bug reports, and relevant owner modules.
 
-Do not begin a behavior change from an old objective list. Generate the next **three to five objectives** from current evidence. Evidence is ranked as follows: failing tests or invariants first, reproducible player bugs second, save or worker failures third, seeded simulation mismatches fourth, measured performance regressions fifth, supported player-facing friction sixth, and speculative features last.
+Do not begin a behavior change from an old objective list. Start with the current project-root roadmap and its status table. A roadmap-listed implementation function is already approved under Section 1.2; generate the next **three to five objectives** from current evidence only when the developer requests work that is not already listed. Evidence is ranked as follows: failing tests or invariants first, reproducible player bugs second, save or worker failures third, seeded simulation mismatches fourth, measured performance regressions fifth, supported player-facing friction sixth, and speculative features last.
 
 The authority acknowledgment is required once per session. Do not repeat it after every objective.
 
@@ -47,24 +57,48 @@ For every proposed change, identify the decision owner, cadence, fields it may w
 
 The worker-owned `WorldState` is authoritative when the worker is active. Simulation state may change only through `gameTick()`, `applyWorkerCommand()`, or a named transition called by one of those boundaries. UI components, render helpers, diagnostics, and performance shortcuts must not create a second mutation path.
 
-Every important decision has one owner:
+Every important decision has one owner. The table below is the current v0.6.3 map. A row may name a scheduler or command boundary, but that boundary does not own the domain decision. **The Prison custody row is the one known legacy split boundary; do not add a third custody mutation path before it is consolidated through a named Prison transition.**
 
 | Decision | Owner | Cadence |
 |---|---|---|
-| Movement and pathfinding | `tickLayerRealtime.ts` and movement helpers | Realtime |
-| Workforce and assignments | `workforce.ts` named transitions | Command/assignment |
-| Housing and residence | `dayCycle.ts` functions through assignment layer | Assignment/immediate transitions |
-| Construction | Construction functions through construction layer | Work cadence |
-| Economy, production, ecology, and combat | Systems and daily owners | Systems/daily |
-| Casual social feedback | Social-feel owner | Staggered social |
-| Courtship and marriage | `humanRelationships.ts` | Social/daily |
-| Affairs and scandals | `humanRelationships.ts` | Staggered progress; daily decisions |
+| Movement and pathfinding | `tickLayerRealtime.ts`, `humanTick.ts`, and named movement helpers | Realtime |
+| Workforce and assignments | `workforce.ts` named transitions | Command/assignment; bounded assignment pulses |
+| Housing and residence | `dayCycle.ts` residence helpers through the assignment layer | Assignment/immediate transitions |
+| Construction | `buildingActions.ts` / `workforce.ts` for crews; `tickLayerDaily.tickBuildingProgress` for progress | Command/assignment; daily progress |
+| Economy, production, ecology, and combat | Existing systems and daily domain owners; production ledger is `tickLayerDaily.tickBuildingProduction` / `economy.ts` | Systems/daily |
+| Ordinary work schedule | `workSchedule.ts` | Player command; realtime schedule query; daily consumers |
+| Tavern and Hotel service schedules | `venueSchedule.ts` | Player command; realtime service query |
+| Schedule fatigue and recovery | `scheduleFatigue.ts` | Realtime work accounting; daily resolution |
+| Festival lifecycle | `tickLayerDaily.tickFestivals` for automatic start/expiry; named creators such as `townHall.hostTownFestival` retain their command/event entry | Daily lifecycle; player-command or event creation |
+| Permanent human removal and survivor family cleanup | `dayCycle.killHuman()` and `reconcileFamilyReferencesAfterRemoval()` | Immediate lifecycle/removal transition |
+| Prison sentence entry, release, and confinement | **Known split:** `humanRelationships.ts` decides/enters a scandal sentence; `workforce.releasePrisoners()` releases; `humanTick.ts` enforces movement confinement | Daily/scandal entry; realtime release and confinement |
+| Barracks patrol detection and standing militia | `humanTick.ts` patrol reveal; `defenseStructures.ts` militia calculation | Realtime patrol; systems/combat consumption |
+| Casual social feedback | `humanSocial.ts` | Staggered social |
+| Courtship and marriage | `humanRelationships.ts` | Staggered social; daily eligibility |
+| Affairs and scandals | `humanRelationships.ts` | Staggered progress; daily decisions; bounded realtime caught-in-act check |
 | Conception | `humanRelationships.ts` only | Once per colony day |
 | Pregnancy and birth | `humanLifecycle.ts` only | Pregnancy cadence |
 | Moon Howler lifecycle | `moonHowler.ts` only | Full-moon event |
-| Leader residency | `leaderHouse.ts` through daily layer | Daily/idempotent |
-| Player commands | `commands.ts` plus domain owner | On command |
-| Diagnostics | `relationshipDiagnostics.ts` and named diagnostic owners | Flush cadence |
+| Leader residency and election state | `leaderHouse.ts` for residency; `villageLeadership.ts` for election state | Daily/idempotent; election cadence |
+| Guided Campaign journal projection | `guidedCampaign.ts` only; it observes real story flags and does not own authored-story outcomes | Daily projection; typed campaign commands |
+| Save/load normalization | `saveLoad.ts` | Load/import boundary |
+| Player commands | `simWorker/commands.ts` delegates to the named domain owner; main-thread fallback uses the same implementation | Player command |
+| Diagnostics | `relationshipDiagnostics.ts` and named read-only diagnostic owners | Flush cadence |
+
+### Approved roadmap implementation owners
+
+The current project-root roadmap explicitly approves the following implementation functions. The named module owns the new story/care state and transition; it delegates an effect to an existing owner rather than recreating ecology, visitors, diplomacy, apprenticeships, social state, resources, or animal movement.
+
+| Approved roadmap function | Implementation owner | Cadence and delegation boundary |
+|---|---|---|
+| **S1 — The Deer Parliament** | `storyEvents.ts` — new named Deer Parliament offer/resolution transition | Daily ecology eligibility through `tickLayerDaily`; ecological effects delegate to the existing ecology/hunting owner. |
+| **S2 — The Traveling Theatre Company** | `storyEvents.ts` — new named Theatre story transition tied to an existing visitor group | Visitor lifecycle and daily expiry; visitor state remains owned by `groupEvents.ts`. |
+| **S3 — The Wedding That Nearly Started a War** | `groupEvents.ts` — new named Wedding diplomacy chain/transition | Existing rival/diplomacy daily and player-command boundaries; rival state remains in the rival/diplomacy owners. |
+| **S4 — The Apprentice’s Terrible Invention Fair** | `storyEvents.ts` — new named Invention Fair transition | Annual/daily eligibility through `tickLayerDaily`; apprenticeship and workshop effects delegate to `apprenticeships.ts`, `workshops.ts`, and their existing owners. |
+| **S5 — The Rumour Ledger** | `storyEvents.ts` — new named Rumour Ledger evaluation/resolution transition | Bounded weekly evaluation from the existing daily layer; facts are read from the event log/Chronicle and effects delegate to existing social, reputation, or rival owners. |
+| **A1 — Post-taming animal care** | `animalCare.ts` — new named animal-care domain owner | Bounded daily care decision scheduled from `tickLayerDaily`; taming entry remains in `buildingActions.ts` and follow behavior remains in `tickLayerSystems.ts`. |
+
+These owner assignments approve implementation of the named roadmap functions. Before the first source edit, record their exact state fields, command/tick entry point, explicit failure behavior, save/worker transport work, focused tests, and risk decision in the Simulation Change Record. The Guided Campaign remains a projection of real resolved flags and must not become a substitute story owner.
 
 Reuse the existing tick layers. Do not create a convenience layer such as `tickLayerSocial.ts`, `tickLayerPregnancy.ts`, or `tickLayerMoonHowler.ts`. A new layer requires an authority-document update, a measured correctness or performance reason, an owner, cadence, invariants, diagnostics, tests, and developer approval.
 

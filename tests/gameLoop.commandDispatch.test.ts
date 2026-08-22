@@ -26,9 +26,14 @@ import {
 } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { GameLoop } from '../src/game/gameLoop';
+import { initGame } from '../src/game/gameEngine';
 import { createInitialView } from '../src/game/viewState';
 import { applyWorkerCommand, WORKER_CMD_PROTO } from '../src/game/simWorker/commands';
-import type { SimTickDelta } from '../src/game/simBuffers/simDelta';
+import {
+  applySimTickDelta,
+  simTickDeltaFromWorld,
+  type SimTickDelta,
+} from '../src/game/simBuffers/simDelta';
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
   return {
@@ -237,6 +242,63 @@ describe('GameLoop command transport', () => {
     expect(loop.getWorld()).toBe(authoritative);
   });
 
+  /**
+   * Regression: venue schedules were prepared for worker startup but omitted
+   * from SimTickDelta. A successful command then looked correct optimistically
+   * before the worker command result restored stale host-side hours.
+   */
+  it('keeps authoritative Tavern and Hotel hours after worker reconciliation', async () => {
+    const world = initGame({ villageName: 'WorkerVenueResult', size: 'small' });
+    const workerAfterTavern = applyWorkerCommand(structuredClone(world), {
+      proto: WORKER_CMD_PROTO,
+      op: 'setVenueSchedule',
+      venue: 'tavern',
+      startHour: 12,
+      endHour: 20,
+    });
+    const workerAfterBoth = applyWorkerCommand(workerAfterTavern, {
+      proto: WORKER_CMD_PROTO,
+      op: 'setVenueSchedule',
+      venue: 'hotel',
+      startHour: 8,
+      endHour: 18,
+    });
+    const hostAfterWorkerResult = structuredClone(world);
+    applySimTickDelta(hostAfterWorkerResult, simTickDeltaFromWorld(workerAfterBoth));
+
+    const loop = new GameLoop(world, createInitialView(world.width, world.height), () => null);
+    await settleLoop(loop);
+    const fake = makeFakeHost(hostAfterWorkerResult);
+    (loop as unknown as { workerEnabled: boolean }).workerEnabled = true;
+    (loop as unknown as { workerHost: unknown }).workerHost = fake.host;
+    (loop as unknown as { registerWorkerHandlers: (g: number) => void }).registerWorkerHandlers(0);
+
+    loop.applyCommand({
+      proto: WORKER_CMD_PROTO,
+      op: 'setVenueSchedule',
+      venue: 'tavern',
+      startHour: 12,
+      endHour: 20,
+    });
+    loop.applyCommand({
+      proto: WORKER_CMD_PROTO,
+      op: 'setVenueSchedule',
+      venue: 'hotel',
+      startHour: 8,
+      endHour: 18,
+    });
+    expect(loop.getWorld().tavernSchedule).toEqual({ startHour: 12, endHour: 20 });
+    expect(loop.getWorld().hotelSchedule).toEqual({ startHour: 8, endHour: 18 });
+
+    fake.fireCommandResult(hostAfterWorkerResult, true);
+    expect(loop.getWorld().tavernSchedule).toEqual({ startHour: 12, endHour: 20 });
+    expect(loop.getWorld().hotelSchedule).toEqual({ startHour: 8, endHour: 18 });
+
+    fake.fireTick(hostAfterWorkerResult);
+    expect(loop.getWorld().tavernSchedule).toEqual({ startHour: 12, endHour: 20 });
+    expect(loop.getWorld().hotelSchedule).toEqual({ startHour: 8, endHour: 18 });
+  });
+
   it('reverts to the authoritative world when the worker rejects the command', async () => {
     const world = makeWorld([human(1)], [building(4, BuildingType.Church)]);
     const loop = new GameLoop(world, createInitialView(400, 300), () => null);
@@ -272,6 +334,31 @@ describe('GameLoop command transport', () => {
     expect(priestDirect.homeBuildingId).toBe(4);
     expect(viaLoop.buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
     expect(viaDirect.buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
+  });
+
+  it('uses the venue schedule owner in the main-thread fallback', async () => {
+    const world = initGame({ villageName: 'FallbackVenueHours', size: 'small' });
+    const loop = new GameLoop(world, createInitialView(world.width, world.height), () => null);
+    await settleLoop(loop);
+    expect(loop.isUsingSimWorker()).toBe(false);
+
+    loop.applyCommand({
+      proto: WORKER_CMD_PROTO,
+      op: 'setVenueSchedule',
+      venue: 'tavern',
+      startHour: 12,
+      endHour: 20,
+    });
+    loop.applyCommand({
+      proto: WORKER_CMD_PROTO,
+      op: 'setVenueSchedule',
+      venue: 'hotel',
+      startHour: 8,
+      endHour: 18,
+    });
+
+    expect(loop.getWorld().tavernSchedule).toEqual({ startHour: 12, endHour: 20 });
+    expect(loop.getWorld().hotelSchedule).toEqual({ startHour: 8, endHour: 18 });
   });
 
   it('reverts an optimistic command before disposing a stalled worker', async () => {

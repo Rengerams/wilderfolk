@@ -285,13 +285,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     buildTime: 1, maxOccupants: 0,
     emoji: '🌊', label: 'Well', description: 'Reduces human energy consumption.',
     sprite: '/sprites/well.png', backgroundColor: '#0891b2', padShape: 'circle',
-  },
-  [BuildingType.Road]: {
-    width: 66, height: 26,
-    cost: { wood: 5, stone: 5, gold: 0 },
-    buildTime: 1, maxOccupants: 0,
-    emoji: '🛤️', label: 'Road', description: 'Speeds up travel, fragments wildlife habitat.',
-    sprite: '/sprites/road.png', backgroundColor: '#4b5563', padShape: 'road',
+
   },
   [BuildingType.Mansion]: {
     width: 59, height: 50,
@@ -308,8 +302,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     emoji: '👑', label: "Leader's House",
     description: "Official residence of the elected village leader",
     sprite: '/sprites/house_leader.png', backgroundColor: '#7c2d12', padShape: 'round',
-    
- 
+
     spriteDisplayScale: 1.32,
     spriteAnchorY: 0.97,
     unique: true,
@@ -328,22 +321,23 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     buildTime: 3, maxOccupants: 2,
     emoji: '🦴', label: 'Taming Post',
     description: 'Lets settlers tame nearby wildlife. No permanent staff — builders only during construction.',
-    sprite: '/sprites/stump.png', backgroundColor: '#7c3aed', padShape: 'circle',
+    sprite: '/sprites/taming_post.png', backgroundColor: '#7c3aed', padShape: 'circle',
   },
+
+  [BuildingType.Road]: {
+    width: 66, height: 26,
+    cost: { wood: 5, stone: 5, gold: 0 },
+    buildTime: 1, maxOccupants: 0,
+    emoji: '🛤️', label: 'Road', description: 'Speeds up travel, fragments wildlife habitat.',
+    sprite: '/sprites/road.png', backgroundColor: '#4b5563', padShape: 'road',
+  },
+
   [BuildingType.Wall]: {
     width: 60, height: 40,
     cost: { wood: 8, stone: 14, gold: 0 },
     buildTime: 1, maxOccupants: 0,
     emoji: '🧱', label: 'Wall', description: 'Stone palisade segment — +8 barricade strength each (cap +72).',
     sprite: '/sprites/wall_isometric.png', backgroundColor: '#64748b', padShape: 'rect',
-    unlockRequirement: 'defense_1',
-  },
-  [BuildingType.WallCorner]: {
-    width: 48, height: 48,
-    cost: { wood: 10, stone: 16, gold: 0 },
-    buildTime: 1, maxOccupants: 0,
-    emoji: '↪️', label: 'Wall Corner', description: 'L-shaped wall junction — counts as a wall segment for defense.',
-    sprite: '/sprites/wall_corner.png', backgroundColor: '#64748b', padShape: 'rect',
     unlockRequirement: 'defense_1',
   },
   [BuildingType.WallGate]: {

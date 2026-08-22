@@ -63,12 +63,12 @@ export const WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> =
 /** Dedicated juvenile sprites, with two visual variants per gender for the preview. */
 export const JUVENILE_SPRITE_PATHS: Record<HumanGender, readonly string[]> = {
   male: [
-    '/sprites/new_child_set/child_boy_bakersboy.png',
-    '/sprites/new_child_set/child_boy_merchantson.png',
+    '/sprites/new_child_set/new/child_boy_bakersboy.png',
+    '/sprites/new_child_set/new/child_boy_merchantson.png',
   ],
   female: [
-    '/sprites/new_child_set/child_girl_doctorsdaughter.png',
-    '/sprites/new_child_set/child_girl_poorservant.png',
+    '/sprites/new_child_set/new/child_girl_doctorsdaughter.png',
+    '/sprites/new_child_set/new/child_girl_poorservant.png',
   ],
 } as const;
 

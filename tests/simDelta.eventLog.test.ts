@@ -43,4 +43,19 @@ describe('worker event-log delta propagation', () => {
     applySimTickDelta(mainWorld, delta);
     expect(mainWorld.eventLog.map((event) => event.id)).toEqual(allEvents.map((event) => event.id));
   });
+
+  it('reconciles independently changed Tavern and Hotel schedules from the worker', () => {
+    const workerWorld = initGame({ villageName: 'WorkerVenueHours', size: 'small' });
+    const hostWorld = initGame({ villageName: 'HostVenueHours', size: 'small' });
+    workerWorld.tavernSchedule = { startHour: 12, endHour: 20 };
+    workerWorld.hotelSchedule = { startHour: 8, endHour: 18 };
+
+    const delta = simTickDeltaFromWorld(workerWorld);
+    applySimTickDelta(hostWorld, delta);
+
+    expect(delta.tavernSchedule).toEqual({ startHour: 12, endHour: 20 });
+    expect(delta.hotelSchedule).toEqual({ startHour: 8, endHour: 18 });
+    expect(hostWorld.tavernSchedule).toEqual({ startHour: 12, endHour: 20 });
+    expect(hostWorld.hotelSchedule).toEqual({ startHour: 8, endHour: 18 });
+  });
 });

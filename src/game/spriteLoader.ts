@@ -48,10 +48,10 @@ const HUMAN_SPRITE_PATHS = new Set<string>([
   '/sprites/new_female_set_v2/female_bakerswife.png',
   '/sprites/new_female_set_v2/female_merchantswife.png',
   '/sprites/new_female_set_v2/female_doctorswife.png',
-  '/sprites/new_child_set/child_boy_bakersboy.png',
-  '/sprites/new_child_set/child_boy_merchantson.png',
-  '/sprites/new_child_set/child_girl_doctorsdaughter.png',
-  '/sprites/new_child_set/child_girl_poorservant.png',
+  '/sprites/new_child_set/new/child_boy_bakersboy.png',
+  '/sprites/new_child_set/new/child_boy_merchantson.png',
+  '/sprites/new_child_set/new/child_girl_doctorsdaughter.png',
+  '/sprites/new_child_set/new/child_girl_poorservant.png',
 ]);
 
 export function loadSprite(src: string): Promise<SpriteFrame> {

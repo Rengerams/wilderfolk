@@ -31,11 +31,12 @@ log.txt
 
 # Local-only notes (not for GitHub) — lives under docs/private/
 docs/private/
+docs/archive/
+docs/
+playtest/
+kimi/
 
-/playtest/
 
-/skills/
-/BUG reports/
 ./deepcode/
 ./agents/
 ./tmp/

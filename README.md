@@ -52,7 +52,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 | 🛡️ **Distinct duties** | Barracks soldiers and Prison Guards now have separate responsibilities, making village defense and prison security easier to understand. |
 | 👨‍👩‍👧 **More settlers to meet** | New adult settlers and children add visual variety to the growing community, with the existing fallback art retained during the preview period. |
 | 🛤️ **Paths with character** | Hand-made footpath pieces add a warmer visual thread through the settlement. They are purely decorative and never change movement or simulation rules. |
-| 🌲 **A steadier living valley** | Wildlife, family relationships, and long-running settlement stories now remain more consistent as the simulation advances. |
+| 🌲 **A steadier living valley** | Wildlife, family relationships, and long-running settlement stories now remain more consistent as the simulation advances. When a settler is permanently lost, stale child, partner, affair, and pregnancy references are now cleared from the surviving village. |
 | ⚙️ **Player-friendly control** | Automatic staffing remains available as a convenience, while manual building control is always available when you want to make the decision yourself. |
 
 ---

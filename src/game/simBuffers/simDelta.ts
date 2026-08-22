@@ -1,5 +1,6 @@
 import type { WorldState, Entity, Building } from '../gameTypes';
 import { getWorkSchedule } from '../workSchedule';
+import { getVenueSchedule } from '../venueSchedule';
 import { EntityType } from '../gameTypes';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
 import type { SimulationFocus } from '../simFocus';
@@ -71,6 +72,9 @@ export interface SimTickDelta {
   valleyLastStageNotifyDay: number | undefined;
   villageReputation: number;
   workSchedule: WorldState['workSchedule'];
+  /** Canonical venue schedules so worker command results cannot revert host hours. */
+  tavernSchedule: WorldState['tavernSchedule'];
+  hotelSchedule: WorldState['hotelSchedule'];
   screenShakeImpulse: number;
   floatingTexts: WorldState['floatingTexts'];
   deathParticles: WorldState['deathParticles'];
@@ -236,6 +240,8 @@ export function extractSimTickDelta(
     valleyLastStageNotifyDay: world.valleyLastStageNotifyDay,
     villageReputation: world.villageReputation,
     workSchedule: getWorkSchedule(world),
+    tavernSchedule: getVenueSchedule(world, 'tavern'),
+    hotelSchedule: getVenueSchedule(world, 'hotel'),
     screenShakeImpulse: world.screenShakeImpulse,
     floatingTexts: deltaClone(world.floatingTexts, cloneMode),
     deathParticles: deltaClone(world.deathParticles, cloneMode),
@@ -333,6 +339,8 @@ export function applySimTickDelta(
   world.valleyLastStageNotifyDay = delta.valleyLastStageNotifyDay;
   world.villageReputation = delta.villageReputation;
   world.workSchedule = delta.workSchedule ? { ...delta.workSchedule } : getWorkSchedule(world);
+  world.tavernSchedule = delta.tavernSchedule ? { ...delta.tavernSchedule } : getVenueSchedule(world, 'tavern');
+  world.hotelSchedule = delta.hotelSchedule ? { ...delta.hotelSchedule } : getVenueSchedule(world, 'hotel');
   world.screenShakeImpulse = delta.screenShakeImpulse;
   world.floatingTexts = deltaClone(delta.floatingTexts, cloneMode);
   world.deathParticles = deltaClone(delta.deathParticles, cloneMode);

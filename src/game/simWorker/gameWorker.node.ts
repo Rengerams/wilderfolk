@@ -53,8 +53,9 @@ if (!isMainThread && parentPort) {
 }
 
 try {
-  const { preloadDialogueBank } = await import('../dialogueTrees');
-  await preloadDialogueBank();
+  // gameWorker.ts installs the canonical bundled dialogue bank synchronously.
+  // Avoid the disk preload here: it adds variable startup I/O to the Node
+  // transport adapter without changing the authoritative worker state.
   await import('./gameWorker.ts');
 } catch (err) {
   const message = err instanceof Error ? err.message : String(err);
