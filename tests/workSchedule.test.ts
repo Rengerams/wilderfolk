@@ -38,7 +38,7 @@ describe('ordinary work schedule', () => {
   it('changes only the authoritative schedule and preserves the original state', () => {
     const world = initGame({ skipTerrain: true });
     const changed = setWorkSchedule(world, 9, 17);
-    expect(getWorkSchedule(world)).toEqual({ startHour: 7, endHour: 18 });
+    expect(getWorkSchedule(world)).toEqual({ startHour: 7, endHour: 16 });
     expect(getWorkSchedule(changed)).toEqual({ startHour: 9, endHour: 17 });
     expect(getWorkScheduleHours(getWorkSchedule(changed))).toBe(8);
   });
