@@ -4,7 +4,7 @@
 
 **Applies to:** All contributors, coding assistants, reviewers, and developers modifying Wilderfolk code, tests, workers, saves, rendering, or simulation documentation.
 
-**Current release:** `0.6.2.2`
+**Current development target:** `0.6.3` (unreleased)
 
 This is the single operational playbook for a Wilderfolk work session. It consolidates the practical rules from the simulation authority, objective-generation protocol, regression-proofing plan, architecture notes, bug-report README, changelog requirement, and audit records. Historical documents remain in the repository for traceability; do not treat them as competing daily instructions.
 
@@ -17,7 +17,7 @@ Follow these rules in order:
 | 0 | **Explicit developer instruction** | The developer controls game design, scope, versioning, release, privacy, and whether work is committed or published. It overrides every repository document and prior plan. |
 | 1 | This document | One session workflow and decision checklist |
 | 2 | `docs/SIMULATION_AUTHORITY.md` | Ownership, cadence, mutation, invariant, and worker rules; follow unless the developer explicitly changes a rule. |
-| 3 | `BUG REPORTS/Readme.md` | Required local bug-report format and status history |
+| 3 | `BUG_REPORTS/Readme.md` | Required local bug-report format and status history |
 | 4 | Section 14 of `docs/AGENTS.md` | End-of-session documentation guidance, subject to the developer's release and privacy decisions |
 | 5 | `docs/Objective_Generation_Protocol.md` | Evidence-based objective generation and lifecycle |
 | 6 | `CHANGELOG.md` and `README.md` | Versioned public record and current project summary, updated only when the developer directs it |
@@ -29,13 +29,13 @@ Wilderfolk is a game. The developer decides its rules, tone, and fictional outco
 
 Agents must **never automatically** bump `GAME_VERSION`, the package version, or a save-compatibility label; create a release heading; tag; commit; push; publish; or declare a release complete. A target named in a roadmap is only a planning label. Each of those actions requires a separate explicit developer instruction at the time of the action.
 
-Detailed bug reports are private local working records. Keep them under `BUG REPORTS/` with their evidence and verification history, but do **not** stage, commit, push, upload, or copy their detailed contents into public release material unless the developer explicitly asks. A public changelog may later state a concise player-visible fix and its regression coverage without exposing private diagnostics, saves, screenshots, or investigation notes.
+Detailed bug reports are development records. Keep them under `BUG_REPORTS/` with their evidence and verification history. They may be included in the project when appropriate; the changelog should still contain only a concise player-facing summary, while sensitive saves, screenshots, or personal diagnostics should not be published unless the developer explicitly asks.
 
 If two repository documents conflict, preserve the stronger simulation protection until the developer decides. If an explicit developer instruction conflicts with a repository document, follow the developer instruction and record the resulting owner, cadence, state, test, or release decision where appropriate.
 
 ## 2. Start every session this way
 
-At the beginning of a session, read this document once, then read `SIMULATION_AUTHORITY.md` once and `BUG REPORTS/Readme.md` once. Read the current handoff or completion record only when the task requires it. Then inspect the repository status, current diff, package scripts, test baseline, open bug reports, and relevant owner modules.
+At the beginning of a session, read this document once, then read `SIMULATION_AUTHORITY.md` once and `BUG_REPORTS/Readme.md` once. Read the current handoff or completion record only when the task requires it. Then inspect the repository status, current diff, package scripts, test baseline, open bug reports, and relevant owner modules.
 
 Do not begin a behavior change from an old objective list. Generate the next **three to five objectives** from current evidence. Evidence is ranked as follows: failing tests or invariants first, reproducible player bugs second, save or worker failures third, seeded simulation mismatches fourth, measured performance regressions fifth, supported player-facing friction sixth, and speculative features last.
 
@@ -85,7 +85,7 @@ The following must remain true:
 
 ## 5. Bug process
 
-Every discovered bug gets a detailed local Markdown report under `BUG REPORTS/` before or at the same time as the fix. Use one report per bug and follow `BUG REPORTS/Readme.md`. Detailed reports are private by default: never stage, commit, push, upload, or quote their diagnostics in public documentation without explicit developer instruction.
+Every discovered bug gets a detailed local Markdown report under `BUG_REPORTS/` before or at the same time as the fix. Use one report per bug and follow `BUG_REPORTS/Readme.md`. Detailed reports may be tracked with the project when appropriate, but sensitive saves, screenshots, or personal diagnostics must not be published without explicit developer instruction.
 
 Every local report must include status, discovery date, version, area, owner, cadence, observed behavior, expected behavior, reproduction steps, evidence, root cause, fix, regression test, invariants checked, save/migration impact, verification result, related files, and a dated status history. Keep the local report after verification. A public changelog may contain only a concise player-facing summary when the developer chooses to release it.
 
@@ -211,6 +211,6 @@ The following documents remain useful as evidence or historical detail:
 - `docs/WORKER_LOGIC_AUDIT_2026-08-20.md` — latest worker audit.
 - `docs/OBJECTIVE_PLAN_FULL_AUDIT_2026-08-20.md` — current evidence-based objectives.
 - `CHANGELOG.md` — versioned history.
-- `BUG REPORTS/` — bug history and verification evidence.
+- `BUG_REPORTS/` — bug history and verification evidence.
 
 When starting a normal coding session, start with this document. Open the linked source document only when the task requires its detailed evidence or exact template.

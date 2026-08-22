@@ -7,6 +7,9 @@
 - **Unique Church and Moon Howler cure ceiling** — made the player Church unique, preserving its four-priest capacity, and aligned the authoritative cure calculation to the intended progression of 35% → 47% → 59% → 71%. Additional priest counts are now capped at 71%, preventing multiple Churches or excess priest assignments from producing an unreachable 78% outcome. Added focused regression coverage for the unique building rule and cure progression.
 - **Split security roles** — separated the shared `Guard` job into `Soldier` for Barracks defense and `Prison Guard` for Prison staffing. Barracks defense, patrol behavior, Moon Howler soldier protection, raid skill gain, Prison staffing, combat status indicators, and workforce labels now use the correct role. Added deterministic migration for legacy `Guard` assignments based on workplace and focused role regression tests.
 - **Hand-made footpath visual prototype** — staged the user's current straight, corner, T-junction, and cross-junction path pieces in `public/sprites/roads/`. Road rendering now uses the authored pieces where available, rotates the existing corner orientation, preserves the complementary straight-piece pair, and falls back to the procedural pavement when an asset is unavailable. The feature is cosmetic-only and does not alter simulation authority or movement rules.
+- **Per-building staffing control** — added reversible Auto/Manual staffing modes to staffed buildings. Auto-fill continues to provide convenience, while a manually controlled building is protected from automatic reassignment and can later be returned to Auto. Existing special-building defaults remain compatible.
+- **Clearer workday and venue coverage** — ordinary work uses the agreed 9-hour default of 07:00–16:00, while the Tavern remains on its independent 17:00–23:00 service window and the Hotel retains its own long service window. Venue workers follow the service schedule rather than inheriting an unsuitable ordinary-work window.
+- **More consistent long-running simulation** — strengthened family-reference cleanup and same-tick wildlife/index reconciliation so long settlement histories preserve valid relationships, population counts, and living-entity indexes. Focused checks and repeated one-year invariant runs passed.
 
 ## <u>[0.6.2.2]</u> — 2026-08-21
 
@@ -35,8 +38,8 @@
 - **W1/T4 owner:** `src/game/workSchedule.ts` with `src/game/simWorker/commands.ts` as the typed command authority.
 - **Decision changed:** Player-selected ordinary weekday start/end hours for adult workplaces and construction.
 - **Cadence:** Existing human realtime ticks and daily construction batch; no new scheduler or tick layer.
-- **State and persistence:** Optional `WorldState.workSchedule`, saved through `WORLD_STATE_SAVE_KEYS`, normalized to 07:00–18:00 for legacy or malformed saves, and carried through worker prep and sim deltas.
-- **Protected schedules:** School, church, Town Hall, tavern, and hotel schedules were intentionally not routed through the W1 global field.
+- **State and persistence:** Optional `WorldState.workSchedule`, saved through `WORLD_STATE_SAVE_KEYS`, normalized to 07:00–16:00 for legacy or malformed saves, and carried through worker prep and sim deltas.
+- **Protected schedules:** School, church, Town Hall, Tavern, and Hotel schedules remain independent of the ordinary 07:00–16:00 work window.
 - **Rollback plan:** Remove the Hours panel, `setWorkSchedule` command, schedule field/transport, and ordinary-work query consumers; existing fixed venue predicates remain intact.
 
 ### T2 Dependency-Cycle Change Record

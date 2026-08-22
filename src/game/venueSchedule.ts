@@ -11,6 +11,7 @@ export const DEFAULT_TAVERN_SCHEDULE: VenueSchedule = Object.freeze({ startHour:
 export const DEFAULT_HOTEL_SCHEDULE: VenueSchedule = Object.freeze({ startHour: 6, endHour: 22 });
 export const MIN_VENUE_SERVICE_HOURS = 4;
 export const MAX_VENUE_SERVICE_HOURS = 18;
+export const STANDARD_WORK_HOURS = 9;
 
 function defaultFor(kind: VenueScheduleKind): VenueSchedule {
   return kind === 'tavern' ? DEFAULT_TAVERN_SCHEDULE : DEFAULT_HOTEL_SCHEDULE;
@@ -51,6 +52,32 @@ export function setVenueSchedule(state: WorldState, kind: VenueScheduleKind, sta
 
 export function getVenueScheduleHours(schedule: VenueSchedule): number {
   return schedule.endHour - schedule.startHour;
+}
+
+/** Minimum Auto staff needed to cover a venue without assigning a worker beyond the standard shift. */
+export function getVenueAutoStaffingTarget(
+  state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+  kind: VenueScheduleKind,
+  maxStaff: number,
+): number {
+  const hours = getVenueScheduleHours(getVenueSchedule(state, kind));
+  return Math.min(maxStaff, Math.max(1, Math.ceil(hours / STANDARD_WORK_HOURS)));
+}
+
+/** Returns whether a venue worker's assigned shift is active for the current hour. */
+export function isVenueWorkerServiceHour(
+  state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+  kind: VenueScheduleKind,
+  hour: number,
+  workerIndex: number,
+  workerCount: number,
+): boolean {
+  const schedule = getVenueSchedule(state, kind);
+  const count = Math.max(1, workerCount);
+  const duration = getVenueScheduleHours(schedule) / count;
+  const start = schedule.startHour + workerIndex * duration;
+  const end = Math.min(schedule.endHour, start + duration);
+  return hour >= start && hour < end;
 }
 
 export function isVenueServiceHour(state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind, hour: number, festivalActive = false): boolean {

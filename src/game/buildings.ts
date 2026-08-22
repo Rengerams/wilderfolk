@@ -60,6 +60,9 @@ export const BuildingType = {
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 
+/** Player-controlled staffing policy for a completed workplace. */
+export type StaffingMode = 'auto' | 'manual';
+
 /** What a Mine extracts — stone (default) or iron. */
 export type MineMode = 'stone' | 'iron';
 export interface Building {
@@ -70,6 +73,8 @@ export interface Building {
   width: number;
   height: number;
   occupants: number[];
+  /** Optional for save compatibility; absent means the legacy default policy. */
+  staffingMode?: StaffingMode;
   level: number;
   constructionProgress: number;
   completed: boolean;

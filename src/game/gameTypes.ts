@@ -10,7 +10,7 @@ import type { Building } from './buildings';
 import type { Challenge } from './challenges';
 
 export { BuildingType, BUILDING_CONFIGS } from './buildings';
-export type { Building, BuildingConfig } from './buildings';
+export type { Building, BuildingConfig, StaffingMode } from './buildings';
 export { HUNTING_SPOT_PREY_OPTIONS } from './huntingSpots';
 export type { HuntingSpotPrey } from './huntingSpots';
 export { WORKSHOP_RECIPES, DEFAULT_WORKSHOP_RECIPE_ID, getWorkshopRecipe, formatRecipeInputs } from './workshops';

@@ -226,6 +226,14 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     tickLayerDaily(state, ctx, allAlive, counts);
   }
 
+  // Daily systems may append authoritative entities through ctx.newEntities
+  // after the pre-daily population snapshot was built. Retain those entities
+  // and refresh denormalized counts before the invariant boundary.
+  for (const entity of newEntities) {
+    if (entity.alive && !allAlive.includes(entity)) allAlive.push(entity);
+  }
+  const finalCounts = computePopulationCounts(allAlive);
+
   // --- Post ---
   state.buildings = updatedBuildings;
   state.entities = allAlive;
@@ -245,12 +253,13 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // composition actually changed; otherwise reuse this tick's buckets so the
   // object identity stays stable (lets the render catalog skip its rebuild).
   const deathsThisTick = aliveEntities.length - (allAlive.length - newEntities.length);
+  const dailyLayerRan = state.tick % TICKS_PER_DAY === 0;
   // BUG-1/BUG-6: untracked spawns (immigration, world events) grow allAlive without
   // touching newEntities — deathsThisTick goes negative; rebuild instead of caching
   // a byType that omits the newcomers.
   const untrackedSpawns = deathsThisTick < 0;
   const typeChanged = ctx.byType !== byType;
-  if (deathsThisTick > 0 || untrackedSpawns || newEntities.length > 0 || typeChanged) {
+  if (deathsThisTick > 0 || untrackedSpawns || newEntities.length > 0 || typeChanged || dailyLayerRan) {
     state.entityByType = buildEntityByType(allAlive);
     stableByTypeByWorld.delete(state);
   } else {
@@ -260,8 +269,8 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   if (USE_SPATIAL_GRID) state.mobileGrid = ctx.mobileGrid;
   state.buildings = updatedBuildings;
   state.season = season;
-  state.humanPopulation = counts.humans;
-  state.wildlifeCounts = wildlifeCountsFromPopulation(counts);
+  state.humanPopulation = finalCounts.humans;
+  state.wildlifeCounts = wildlifeCountsFromPopulation(finalCounts);
   markCalendarDayProcessed(state);
   if (isSpatialQueryMetricsEnabled()) flushSpatialQueryTickToSession();
 

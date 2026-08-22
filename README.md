@@ -39,6 +39,24 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
+## Latest update — v0.6.3 (August 22, 2026) — Unreleased
+
+**A clearer working day, more distinctive settlers, and a valley that holds together over time.**
+
+* `GAME_VERSION` **0.6.3**
+* **Development build:** v0.6.3 is the current unreleased development target.
+
+| Area | Highlights |
+|------|------------|
+| 🕰️ **A clearer working day** | Settlers with ordinary jobs now follow a readable 9-hour workday, while the Tavern and Hotel keep their own service hours. Buildings can be managed automatically or assigned by hand, one building at a time. |
+| 🛡️ **Distinct duties** | Barracks soldiers and Prison Guards now have separate responsibilities, making village defense and prison security easier to understand. |
+| 👨‍👩‍👧 **More settlers to meet** | New adult settlers and children add visual variety to the growing community, with the existing fallback art retained during the preview period. |
+| 🛤️ **Paths with character** | Hand-made footpath pieces add a warmer visual thread through the settlement. They are purely decorative and never change movement or simulation rules. |
+| 🌲 **A steadier living valley** | Wildlife, family relationships, and long-running settlement stories now remain more consistent as the simulation advances. |
+| ⚙️ **Player-friendly control** | Automatic staffing remains available as a convenience, while manual building control is always available when you want to make the decision yourself. |
+
+---
+
 ## Latest update — v0.6.2.2 (August 21, 2026)
 
 **A village with healthier rhythms, deeper rivalries, and more stories to remember.**

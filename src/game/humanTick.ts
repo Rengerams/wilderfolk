@@ -92,7 +92,7 @@ import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOpt
 import { AFFAIR_BUILDING_NEAR_RADIUS, AFFAIR_DAILY_TRYST_RADIUS, AFFAIR_SPOUSE_BLOCK_RADIUS, findCourtshipPartner, getAffairTrystBuilding, getBuildingCenter, hasAffairPartner, isAtMaritalHome, isEligibleToCourt, isNearBuilding, isSpouseNearby, isValidAffairTarget, isValidAffairTrystSite, onScandalCooldown, reconcileAffairPartner, recordAffairTrystSite, shouldLeadAffairPair, tryDailyAffairGossip, tryDailyConception, tryDailyHumanMortality, tryExposeCaughtAffairForPair, tryFormSchoolyardBond, trySchoolyardGossip } from './simulation/humanRelationships';
 import { humanDisplayName } from './citizenId';
 import { flushRelationshipDiagnostics, recordRelationshipDiagnostic, setRelationshipDiagnosticsEnabled } from './relationshipDiagnostics';
-import { isVenueServiceHour, isVenueScheduleStartTick } from './venueSchedule';
+import { isVenueServiceHour, isVenueScheduleStartTick, isVenueWorkerServiceHour } from './venueSchedule';
 import { recordScheduleWorkTick } from './scheduleFatigue';
 
 // Temporary controlled-test instrumentation; disable after comparing the July cadence.
@@ -633,7 +633,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         || (entity.job === JobType.Soldier && isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings))))
       || onSchoolShift
     );
-    const onTavernShift = isInnkeeper && isVenueServiceHour(state, 'tavern', hourOfDay, state.festival?.active === true);
+    const venueWorkerIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
+    const venueWorkerCount = workplace?.occupants.length ?? 0;
+    const usesAutoVenueShifts = workplace?.staffingMode !== 'manual';
+    const onTavernShift = isInnkeeper && (
+      state.festival?.active === true
+        ? isVenueServiceHour(state, 'tavern', hourOfDay, true)
+        : venueWorkerIndex >= 0 && usesAutoVenueShifts
+          ? isVenueWorkerServiceHour(state, 'tavern', hourOfDay, venueWorkerIndex, venueWorkerCount)
+          : isVenueServiceHour(state, 'tavern', hourOfDay)
+    );
     // Priests work the exorcism shift on full-moon nights — they leave home to hunt the Moon Howler.
     const onMoonPriestShift = entity.job === JobType.Priest
       && workplace?.type === BuildingType.Church
@@ -642,7 +651,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const isHotelier = entity.job === JobType.Hotelier
       && workplace?.type === BuildingType.Hotel
       && workplace.completed;
-    const onHotelShift = isHotelier && isVenueServiceHour(state, 'hotel', hourOfDay);
+    const onHotelShift = isHotelier && (
+      venueWorkerIndex >= 0 && usesAutoVenueShifts
+        ? isVenueWorkerServiceHour(state, 'hotel', hourOfDay, venueWorkerIndex, venueWorkerCount)
+        : isVenueServiceHour(state, 'hotel', hourOfDay)
+    );
     const onJobShift = onDayJobShift || onTavernShift || onHotelShift || onMoonPriestShift;
     if (onJobShift && isPlayerHuman(entity)) recordScheduleWorkTick(entity);
 

@@ -26,6 +26,7 @@ import {
   setWorkshopRecipe,
   setHuntingSpotPrey,
   setMineMode,
+  setBuildingStaffingMode,
   recruitSettler,
   moveOutOfFamilyHome,
   tameEntity,
@@ -67,7 +68,8 @@ export type WorkerCommand =
   | { proto: 1; op: 'demolishBuilding'; buildingId: number }
   | { proto: 1; op: 'setWorkshopRecipe'; buildingId: number; recipeId: string }
   | { proto: 1; op: 'setHuntingSpotPrey'; buildingId: number; prey: HuntingSpotPrey }
-  | { proto: 1; op: 'setMineMode'; buildingId: number; mode: 'stone' | 'iron' }
+    | { proto: 1; op: 'setMineMode'; buildingId: number; mode: 'stone' | 'iron' }
+  | { proto: 1; op: 'setBuildingStaffingMode'; buildingId: number; mode: 'auto' | 'manual' }
   | { proto: 1; op: 'queueForgeOrder'; buildingId: number; orderId: ForgeOrderId }
   | { proto: 1; op: 'recruitSettler' }
   | { proto: 1; op: 'moveOutOfFamilyHome'; humanId: number }
@@ -207,6 +209,8 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
     case 'setMineMode':
       return isFiniteNumber(cmd.buildingId)
         && (cmd.mode === 'stone' || cmd.mode === 'iron');
+    case 'setBuildingStaffingMode':
+      return isFiniteNumber(cmd.buildingId) && (cmd.mode === 'auto' || cmd.mode === 'manual');
     case 'queueForgeOrder':
       return isFiniteNumber(cmd.buildingId) && typeof cmd.orderId === 'string' && FORGE_ORDER_IDS.has(cmd.orderId);
     case 'recruitSettler':
@@ -312,6 +316,8 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return setHuntingSpotPrey(world, cmd.buildingId, cmd.prey);
     case 'setMineMode':
       return setMineMode(world, cmd.buildingId, cmd.mode);
+    case 'setBuildingStaffingMode':
+      return setBuildingStaffingMode(world, cmd.buildingId, cmd.mode);
     case 'queueForgeOrder':
       return queueForgeOrder(world, cmd.buildingId, cmd.orderId);
     case 'recruitSettler':

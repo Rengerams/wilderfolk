@@ -118,7 +118,14 @@ function spawnWildlifeAtRandomPassable(
   state: WorldState,
   type: EntityType,
   count: number,
-  opts?: { cx?: number; cy?: number; minDist?: number; maxDist?: number; recordBirthYear?: boolean },
+  opts?: {
+    cx?: number;
+    cy?: number;
+    minDist?: number;
+    maxDist?: number;
+    recordBirthYear?: boolean;
+    onSpawn?: (entity: Entity) => void;
+  },
 ): void {
   const margin = 16;
   const cx = opts?.cx ?? state.width / 2;
@@ -142,8 +149,11 @@ function spawnWildlifeAtRandomPassable(
     consecutiveFails = 0;
     const spawnedEntity = createEntity(type, x, y, state.nextEntityId++, SPECIES_CONFIG[type].spawnEnergy);
     if (opts?.recordBirthYear) spawnedEntity.birthYear = state.year;
-    state.entities.push(spawnedEntity);
-    indexLivingEntity(state, spawnedEntity);
+    if (opts?.onSpawn) opts.onSpawn(spawnedEntity);
+    else {
+      state.entities.push(spawnedEntity);
+      indexLivingEntity(state, spawnedEntity);
+    }
     spawned++;
   }
 }
@@ -216,19 +226,23 @@ export function spawnWildlifeRing(
   count: number,
   minDist: number,
   maxDist: number,
-  opts?: { recordBirthYear?: boolean },
+  opts?: { recordBirthYear?: boolean; onSpawn?: (entity: Entity) => void },
 ): void {
   const { width, height } = state;
   const margin = 16;
   const maxRadius = maxRingRadiusFromCenter(cx, cy, width, height, margin);
   if (maxRadius <= 0) {
-    spawnWildlifeAtRandomPassable(state, type, count, { cx, cy, minDist, maxDist, recordBirthYear: opts?.recordBirthYear });
+    spawnWildlifeAtRandomPassable(state, type, count, {
+      cx, cy, minDist, maxDist, recordBirthYear: opts?.recordBirthYear, onSpawn: opts?.onSpawn,
+    });
     return;
   }
   const effMax = Math.min(maxDist, maxRadius);
   const effMin = Math.min(Math.max(0, minDist), effMax);
   if (effMax <= 0) {
-    spawnWildlifeAtRandomPassable(state, type, count, { cx, cy, minDist, maxDist, recordBirthYear: opts?.recordBirthYear });
+    spawnWildlifeAtRandomPassable(state, type, count, {
+      cx, cy, minDist, maxDist, recordBirthYear: opts?.recordBirthYear, onSpawn: opts?.onSpawn,
+    });
     return;
   }
 
@@ -243,8 +257,11 @@ export function spawnWildlifeRing(
       if (state.worldMap && !isPassableWildlifePosition(state, sx, sy, margin)) continue;
       const spawnedEntity = createEntity(type, sx, sy, state.nextEntityId++, SPECIES_CONFIG[type].spawnEnergy);
       if (opts?.recordBirthYear) spawnedEntity.birthYear = state.year;
-      state.entities.push(spawnedEntity);
-      indexLivingEntity(state, spawnedEntity);
+      if (opts?.onSpawn) opts.onSpawn(spawnedEntity);
+      else {
+        state.entities.push(spawnedEntity);
+        indexLivingEntity(state, spawnedEntity);
+      }
       spawned++;
       placed = true;
       break;
@@ -253,13 +270,17 @@ export function spawnWildlifeRing(
   }
   if (spawned < count) {
     spawnWildlifeAtRandomPassable(state, type, count - spawned, {
-      cx, cy, minDist: effMin, maxDist: effMax, recordBirthYear: opts?.recordBirthYear,
+      cx, cy, minDist: effMin, maxDist: effMax,
+      recordBirthYear: opts?.recordBirthYear, onSpawn: opts?.onSpawn,
     });
   }
 }
 
 /** Repopulate wildlife when starvation or hunting wiped the map clean. */
-export function replenishDepletedWildlife(state: WorldState): boolean {
+export function replenishDepletedWildlife(
+  state: WorldState,
+  onSpawn?: (entity: Entity) => void,
+): boolean {
   const counts = state.wildlifeCounts;
   const rabbits = counts.rabbits;
   const deer = counts.deer;
@@ -295,21 +316,29 @@ export function replenishDepletedWildlife(state: WorldState): boolean {
 
   let wildlifeSpawned = false;
   if (needsRabbits) {
-    spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, Math.max(0, 22 - rabbits), 160, 420, { recordBirthYear: true });
+    spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, Math.max(0, 22 - rabbits), 160, 420, {
+      recordBirthYear: true, onSpawn,
+    });
     wildlifeSpawned = true;
   }
   if (needsDeer) {
-    spawnWildlifeRing(state, EntityType.Deer, cx, cy, Math.max(0, 12 - deer), 200, 480, { recordBirthYear: true });
+    spawnWildlifeRing(state, EntityType.Deer, cx, cy, Math.max(0, 12 - deer), 200, 480, {
+      recordBirthYear: true, onSpawn,
+    });
     wildlifeSpawned = true;
   }
   // Only top up predators when prey is healthy enough to support them
   const preyHealthyForPredators = rabbits + deer >= 20;
   if (preyHealthyForPredators && wolves < 1) {
-    spawnWildlifeRing(state, EntityType.Wolf, cx, cy, 1, 320, 520, { recordBirthYear: true });
+    spawnWildlifeRing(state, EntityType.Wolf, cx, cy, 1, 320, 520, {
+      recordBirthYear: true, onSpawn,
+    });
     wildlifeSpawned = true;
   }
   if (preyHealthyForPredators && foxes < 2) {
-    spawnWildlifeRing(state, EntityType.Fox, cx, cy, 2 - foxes, 280, 500, { recordBirthYear: true });
+    spawnWildlifeRing(state, EntityType.Fox, cx, cy, 2 - foxes, 280, 500, {
+      recordBirthYear: true, onSpawn,
+    });
     wildlifeSpawned = true;
   }
 

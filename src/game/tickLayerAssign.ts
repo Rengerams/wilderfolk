@@ -40,5 +40,6 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
 
   syncResidenceOccupants(allHumans, updatedBuildings);
   assignMissingResidences(playerHumans, updatedBuildings, allHumans);
-  assignMissingWorkers(playerHumans, updatedBuildings);
+    assignMissingWorkers(playerHumans, updatedBuildings, world);
+
 }

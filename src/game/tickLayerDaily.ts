@@ -179,6 +179,7 @@ function tickBuildingProgress(state: WorldState): void {
   assignMissingWorkers(
     state.entities.filter((e) => e.alive && isPlayerHuman(e)),
     state.buildings,
+    state,
   );
 
   const isWinter = state.season === Season.Winter;
@@ -865,7 +866,7 @@ export function tickLayerDaily(
 
   // Every 3 days — soft wildlife floor so passive play doesn't empty the map by mid-year
   if (state.tick > 0 && state.tick % (TICKS_PER_DAY * 3) === 0) {
-    replenishDepletedWildlife(state);
+    replenishDepletedWildlife(state, (entity) => pushNewEntity(state, ctx, entity));
   }
 
   // Eco indexes refresh once per day (before the valley stage consumes them)

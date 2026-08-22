@@ -86,6 +86,7 @@ export interface SelectedBuildingPanelProps {
   onSetWorkshopRecipe?: (recipeId: string) => void;
   onSetHuntingPrey?: (prey: HuntingSpotPrey) => void;
   onSetMineMode?: (mode: 'stone' | 'iron') => void;
+  onSetStaffingMode?: (mode: 'auto' | 'manual') => void;
   onQueueForge?: (orderId: ForgeOrderId) => void;
   idleWorkers: number;
   canAssignWorker: boolean;
@@ -95,7 +96,7 @@ export interface SelectedBuildingPanelProps {
 }
 
 export default function SelectedBuildingPanel({
-  building, state, onAssign, onAutoStaffAll, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onQueueForge, idleWorkers, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
+  building, state, onAssign, onAutoStaffAll, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onSetStaffingMode, onQueueForge, idleWorkers, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
 }: SelectedBuildingPanelProps) {
   if (building.faction === 'rival') {
     const rival = state.rivalSettlements.find((r) => r.id === building.groupId);
@@ -646,8 +647,26 @@ export default function SelectedBuildingPanel({
               + {!building.completed ? 'Fill builders' : idleWorkers > 0 ? `Fill workers (${idleWorkers})` : 'Fill workers'}
             </button>
           )}
-          {building.completed && BUILDING_JOB_TYPES[building.type]
-            && building.type !== BuildingType.Church
+          {building.completed && BUILDING_JOB_TYPES[building.type] && (
+            <>
+            <div className="col-span-2 rounded border border-sky-700/40 bg-sky-950/30 p-1.5">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-sky-300">Staffing</p>
+              <div className="grid grid-cols-2 gap-1">
+                {(['auto', 'manual'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => onSetStaffingMode?.(mode)}
+                    className={`rounded px-1.5 py-1 text-[10px] font-semibold ${
+                      (building.staffingMode ?? (building.type === BuildingType.Church || building.type === BuildingType.Prison || building.type === BuildingType.Barracks || building.type === BuildingType.School || building.type === BuildingType.TownHall ? 'manual' : 'auto')) === mode
+                        ? 'bg-sky-600 text-white ring-1 ring-sky-300'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >{mode === 'auto' ? 'Auto-fill' : 'Handmatig'}</button>
+                ))}
+              </div>
+            </div>
+            {building.type !== BuildingType.Church
             && building.type !== BuildingType.Prison
             && building.type !== BuildingType.Barracks && (
             <button
@@ -657,6 +676,8 @@ export default function SelectedBuildingPanel({
             >
               Auto-staff all job buildings
             </button>
+            )}
+            </>
           )}
           {!canAssignWorker && building.occupants.length < config.maxOccupants && (
             <p className="col-span-2 text-[11px] text-stone-300">

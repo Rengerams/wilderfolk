@@ -363,7 +363,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
   }, [phase, handleContinue]);
 
   const subtitleTyping = subtitleVisible && subtitleText.length < FULL_SUBTITLE.length;
-  const showSkipButton = logoVisible && phase !== 'ready';
+  const showSkipButton = phase !== 'ready';
 
   return (
     <div
@@ -503,7 +503,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
             className="intro-title mb-3 bg-gradient-to-b from-amber-50 via-white to-emerald-200 bg-clip-text text-6xl font-black tracking-tight text-transparent sm:text-8xl"
             style={{
               textShadow:
-                '0 0 40px rgba(34,197,94,0.35), 0 0 80px rgba(34,197,94,0.15), 0 4px 8px rgba(0,0,0,0.85)',
+                '0 2px 0 rgba(0,0,0,0.92), 0 0 14px rgba(34,197,94,0.14)',
             }}
           >
             {'Wilderfolk'.split('').map((char, index) => (
@@ -687,7 +687,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
           <button
             type="button"
             onClick={handleContinue}
-            className="intro-control-surface rounded-lg px-4 py-2 text-sm text-emerald-50/60 backdrop-blur-sm transition-all hover:border-amber-200/40 hover:text-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
+            className="intro-control-surface rounded-lg px-4 py-2 text-sm text-emerald-50/75 backdrop-blur-sm transition-all hover:border-amber-200/40 hover:text-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
           >
             Skip intro →
           </button>

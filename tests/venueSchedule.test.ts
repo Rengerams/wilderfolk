@@ -4,6 +4,8 @@ import {
   DEFAULT_HOTEL_SCHEDULE,
   DEFAULT_TAVERN_SCHEDULE,
   getVenueSchedule,
+  getVenueAutoStaffingTarget,
+  isVenueWorkerServiceHour,
   isVenueServiceHour,
   isVenueScheduleStartTick,
   setVenueSchedule,
@@ -34,6 +36,22 @@ describe('independent venue schedules', () => {
     const both = setVenueSchedule(tavern as never, 'hotel', 8, 18);
     expect(getVenueSchedule(both, 'tavern')).toEqual({ startHour: 12, endHour: 20 });
     expect(getVenueSchedule(both, 'hotel')).toEqual({ startHour: 8, endHour: 18 });
+  });
+
+  it('calculates minimum Auto staffing from venue hours and the 9-hour standard', () => {
+    expect(getVenueAutoStaffingTarget(base, 'tavern', 2)).toBe(1);
+    expect(getVenueAutoStaffingTarget(base, 'hotel', 2)).toBe(2);
+    expect(getVenueAutoStaffingTarget({ ...base, hotelSchedule: { startHour: 7, endHour: 16 } }, 'hotel', 2)).toBe(1);
+  });
+
+  it('splits Auto venue coverage into bounded worker shifts', () => {
+    expect(isVenueWorkerServiceHour(base, 'hotel', 6, 0, 2)).toBe(true);
+    expect(isVenueWorkerServiceHour(base, 'hotel', 13, 0, 2)).toBe(true);
+    expect(isVenueWorkerServiceHour(base, 'hotel', 14, 0, 2)).toBe(false);
+    expect(isVenueWorkerServiceHour(base, 'hotel', 14, 1, 2)).toBe(true);
+    expect(isVenueWorkerServiceHour(base, 'hotel', 22, 1, 2)).toBe(false);
+    expect(isVenueWorkerServiceHour(base, 'tavern', 17, 0, 1)).toBe(true);
+    expect(isVenueWorkerServiceHour(base, 'tavern', 23, 0, 1)).toBe(false);
   });
 
   it('recognizes the configured start tick', () => {

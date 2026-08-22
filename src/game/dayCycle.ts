@@ -1736,6 +1736,33 @@ function reassignOrphansAfterDeath(
 }
 
 /** Player settler eligible for human death cleanup (human or cursed full-moon werewolf form). */
+/** Remove references to a permanently removed settler from all surviving entities. */
+export function reconcileFamilyReferencesAfterRemoval(
+  removedId: number,
+  entityById: ReadonlyMap<number, Entity>,
+): void {
+  for (const survivor of entityById.values()) {
+    if (!survivor.alive) continue;
+    if (survivor.partnerId === removedId) {
+      survivor.partnerId = undefined;
+      if (survivor.relationshipStatus === 'married') {
+        survivor.relationshipStatus = survivor.pregnant ? 'expecting' : 'single';
+      }
+    }
+    if (survivor.affairPartnerId === removedId) {
+      survivor.affairPartnerId = undefined;
+      survivor.affairProgress = 0;
+      survivor.lastAffairSiteDay = undefined;
+      survivor.lastAffairSiteX = undefined;
+      survivor.lastAffairSiteY = undefined;
+    }
+    if (survivor.pregnantById === removedId) survivor.pregnantById = undefined;
+    if (survivor.childrenIds?.includes(removedId)) {
+      survivor.childrenIds = survivor.childrenIds.filter((id) => id !== removedId);
+    }
+  }
+}
+
 export function isKillableSettlerEntity(entity: Entity): boolean {
   return (
     entity.type === EntityType.Human
@@ -1755,6 +1782,7 @@ export function killHuman(
   if (entityById instanceof Map) entityById.delete(entity.id);
   finalizeMoonHowlerDeath(entity);
   finalizeHumanDeath(entity, buildings, entityById, tick);
+  if (entityById) reconcileFamilyReferencesAfterRemoval(entity.id, entityById);
   // entityById is required so we can walk living settlers for adoption/housing.
   if (entityById) reassignOrphansAfterDeath(entity, buildings, entityById);
 }

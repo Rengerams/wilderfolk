@@ -8,6 +8,7 @@ import { isPlayerHuman } from './playerHuman';
 import { assignMissingResidences, hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './dayCycle';
 import { logEvent } from './eventLog';
 import { addFloatingText } from './simEffects';
+import { getVenueAutoStaffingTarget } from './venueSchedule';
 
 function isOnConstructionCrew(human: Entity, buildings: Building[]): boolean {
   return buildings.some((b) => !b.completed && b.occupants.includes(human.id));
@@ -43,6 +44,12 @@ const MANUAL_STAFF_BUILDINGS = new Set<BuildingType>([
 
 export function isManualStaffBuilding(type: BuildingType): boolean {
   return MANUAL_STAFF_BUILDINGS.has(type);
+}
+
+/** Per-building override, with legacy special buildings remaining manual by default. */
+export function isManualStaffingBuilding(building: Pick<Building, 'type' | 'staffingMode'>): boolean {
+  return building.staffingMode === 'manual'
+    || (building.staffingMode == null && isManualStaffBuilding(building.type));
 }
 
 export function jobBuildingPriority(type: BuildingType): number {
@@ -108,7 +115,7 @@ export function findOverstaffedDonorBuilding(
     .filter(
       (b) =>
         b.id !== excludeBuildingId
-        && !isManualStaffBuilding(b.type) // never strip Church / Prison / Barracks for farms
+        && !isManualStaffingBuilding(b) // never strip protected/manual buildings for farms
         && countWorkersAtBuilding(humans, b.id) >= 2,
     )
     .sort((a, b) => countWorkersAtBuilding(humans, a.id) - countWorkersAtBuilding(humans, b.id))[0];
@@ -230,7 +237,7 @@ export function rebalanceJobWorkers(humans: Entity[], buildings: Building[]): vo
   while (changed) {
     changed = false;
     for (const needy of jobBuildings) {
-      if (isManualStaffBuilding(needy.type)) continue;
+      if (isManualStaffingBuilding(needy)) continue;
       if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
       if (countWorkersAtBuilding(humans, needy.id) !== 0) continue;
 
@@ -270,11 +277,27 @@ export function syncJobBuildingOccupants(humans: Entity[], buildings: Building[]
   }
 }
 
-export function assignWorkerInPlace(building: Building, humans: Entity[], buildings: Building[]): boolean {
+export function assignWorkerInPlace(
+  building: Building,
+  humans: Entity[],
+  buildings: Building[],
+  venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
 
-  const cap = BUILDING_CONFIGS[building.type].maxOccupants;
+  const configuredCap = BUILDING_CONFIGS[building.type].maxOccupants;
+  const isAutoBuilding = !isManualStaffingBuilding(building);
+  const venueKind = building.type === BuildingType.Tavern
+    ? 'tavern'
+    : building.type === BuildingType.Hotel ? 'hotel' : undefined;
+  const cap = venueKind && isAutoBuilding
+    ? getVenueAutoStaffingTarget(
+      venueSchedules ?? { tavernSchedule: undefined, hotelSchedule: undefined },
+      venueKind,
+      configuredCap,
+    )
+    : configuredCap;
   if (countWorkersAtBuilding(humans, building.id) >= cap) return false;
 
   const candidates = humans.filter(
@@ -352,7 +375,7 @@ export function assignBuilderInPlace(
     .find((h) => {
       const site = allBuildings.find((b) => b.id === h.homeBuildingId);
       if (!site || !site.completed) return false;
-      if (isManualStaffBuilding(site.type)) return false;
+      if (isManualStaffingBuilding(site)) return false;
       const staffed = countWorkersAtBuilding(humans, site.id);
       // Never leave food production empty
       if (
@@ -460,12 +483,17 @@ export function staffConstructionCrews(alive: Entity[], buildings: Building[]): 
   }
 }
 
-export function staffJobBuildings(alive: Entity[], buildings: Building[], includeManualStaff: boolean): void {
+export function staffJobBuildings(
+  alive: Entity[],
+  buildings: Building[],
+  includeManualStaff: boolean,
+  venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+): void {
   const jobBuildings = completedJobBuildings(buildings);
 
   for (const building of jobBuildings) {
-    if (!includeManualStaff && isManualStaffBuilding(building.type)) continue;
-    while (assignWorkerInPlace(building, alive, buildings)) {
+    if (!includeManualStaff && isManualStaffingBuilding(building)) continue;
+    while (assignWorkerInPlace(building, alive, buildings, venueSchedules)) {
       // fill open job slots
     }
   }
@@ -477,17 +505,21 @@ export function staffJobBuildings(alive: Entity[], buildings: Building[], includ
 }
 
 /** Auto-staff construction sites and job buildings so settlers work instead of wandering. */
-export function assignMissingWorkers(humans: Entity[], buildings: Building[]): void {
+export function assignMissingWorkers(
+  humans: Entity[],
+  buildings: Building[],
+  venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+): void {
   const alive = prepareWorkforce(humans, buildings);
   staffConstructionCrews(alive, buildings);
-  staffJobBuildings(alive, buildings, false);
+  staffJobBuildings(alive, buildings, false, venueSchedules);
 }
 
 /** Headless balance sims — fill every job slot including church, prison, and barracks. */
 export function assignAllWorkers(humans: Entity[], buildings: Building[]): void {
   const alive = prepareWorkforce(humans, buildings);
   staffConstructionCrews(alive, buildings);
-  staffJobBuildings(alive, buildings, true);
+  staffJobBuildings(alive, buildings, true, undefined);
 }
 
 export function countWorkingAndIdleSettlers(

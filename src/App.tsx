@@ -2151,6 +2151,10 @@ export default function App() {
                   playClickSound();
                   applyGameAction({ proto: 1, op: 'setMineMode', buildingId: selectedBuilding.id, mode });
                 }}
+                onSetStaffingMode={(mode) => {
+                  playClickSound();
+                  applyGameAction({ proto: 1, op: 'setBuildingStaffingMode', buildingId: selectedBuilding.id, mode });
+                }}
                 onQueueForge={(orderId) => {
                   playClickSound();
                   applyGameAction({ proto: 1, op: 'queueForgeOrder', buildingId: selectedBuilding.id, orderId });
