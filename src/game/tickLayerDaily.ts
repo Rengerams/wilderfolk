@@ -37,6 +37,7 @@ import { tickMigration } from './migration';
 import { tickPendingStoryEvents, tickChildrenShelter, maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, maybeOfferChildrenShelter, tickWinterFreezeCheck } from './storyEvents';
 import { tickGuidedCampaign } from './guidedCampaign';
 import { detectRaidersFromWatchtowers } from './watchtowerDetection';
+import { maybeOfferTravelingTheatre } from './travelingTheatre';
 import { tickBeauty } from './beautyGrid';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getLumberMillTreeMultiplier } from './treeProximity';
@@ -856,6 +857,7 @@ export function tickLayerDaily(
   tickPendingStoryEvents(state);
   maybeOfferChildrenShelter(state);
   tickChildrenShelter(state);
+  maybeOfferTravelingTheatre(state);
   tickGuidedCampaign(state);
   // Watchtowers reveal marching raiders earlier than patrols (daily, bounded).
   detectRaidersFromWatchtowers(state, allAlive);
