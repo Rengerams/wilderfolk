@@ -6,6 +6,7 @@
  * Approved direction: the shared food stock represents a fish-capable ration.
  */
 import type { WorldState } from './gameTypes';
+import { EntityType } from './gameTypes';
 import { getColonyDay } from './dayCycle';
 import { addNotification } from './simEffects';
 
@@ -27,6 +28,8 @@ export const HUMAN_DAILY_FOOD_CONSUMPTION = 2;
 /** Tamed animals eat 10% of a human's normal daily consumption. */
 export const ANIMAL_FOOD_RATIO_OF_HUMAN = 0.1;
 export const ANIMAL_DAILY_FOOD = HUMAN_DAILY_FOOD_CONSUMPTION * ANIMAL_FOOD_RATIO_OF_HUMAN;
+/** Energy restored to a tamed animal's owner each fed day (per animal). */
+export const TAMED_ANIMAL_OWNER_ENERGY_BONUS = 8;
 
 export function countTamedAnimals(state: WorldState): number {
   let count = 0;
@@ -63,6 +66,17 @@ export function tickAnimalCare(state: WorldState): void {
     };
     if (previousStatus === 'shortage' || previousStatus === 'warning') {
       addNotification(state, '🐾 Animals fed again', 'The tamed animals are back on rations.', 'success');
+    }
+    // Tamed animals are not just a food sink — a fed pet gives its owner a
+    // small daily energy lift so taming has a real gameplay benefit.
+    for (const animal of state.entities) {
+      if (!animal.alive || animal.tamedBy == null) continue;
+      const owner = state.entities.find(
+        (h) => h.alive && h.type === EntityType.Human && h.id === animal.tamedBy,
+      );
+      if (owner) {
+        owner.energy = Math.min(owner.maxEnergy, owner.energy + TAMED_ANIMAL_OWNER_ENERGY_BONUS);
+      }
     }
     return;
   }

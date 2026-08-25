@@ -148,6 +148,29 @@ export function isFootprintBuildable(
   return true;
 }
 
+/** Iterate tiles within a radius around a world point (shared by clear helpers). */
+function forEachTileInRadius(
+  tiles: TerrainTile[][],
+  tileW: number,
+  tileH: number,
+  worldX: number,
+  worldY: number,
+  radiusTiles: number,
+  cb: (tile: TerrainTile, tx: number, ty: number, dist: number) => void,
+): void {
+  const cx = Math.floor(worldX / 10);
+  const cy = Math.floor(worldY / 10);
+  for (let ty = 0; ty < tileH; ty++) {
+    for (let tx = 0; tx < tileW; tx++) {
+      const dist = Math.hypot(tx - cx, ty - cy);
+      if (dist > radiusTiles) continue;
+      const tile = tiles[ty]?.[tx];
+      if (!tile) continue;
+      cb(tile, tx, ty, dist);
+    }
+  }
+}
+
 /** Carve dry buildable land for the founding camp. */
 export function ensureCampClearing(
   tiles: TerrainTile[][],
@@ -160,30 +183,20 @@ export function ensureCampClearing(
 ): void {
   if (!tiles?.length || tileW <= 0 || tileH <= 0) return;
 
-  const cx = Math.floor(worldX / 10);
-  const cy = Math.floor(worldY / 10);
+  forEachTileInRadius(tiles, tileW, tileH, worldX, worldY, radiusTiles, (tile, _tx, _ty, dist) => {
+    // A founding clearing may overlap a river, but it must not erase the
+    // authoritative water channel and create visual gaps across the map.
+    if (tile.type === TerrainType.River || tile.type === TerrainType.RiverBank) return;
 
-  for (let ty = 0; ty < tileH; ty++) {
-    for (let tx = 0; tx < tileW; tx++) {
-      const dist = Math.hypot(tx - cx, ty - cy);
-      if (dist > radiusTiles) continue;
-
-      const tile = tiles[ty]?.[tx];
-      if (!tile) continue;
-      // A founding clearing may overlap a river, but it must not erase the
-      // authoritative water channel and create visual gaps across the map.
-      if (tile.type === TerrainType.River || tile.type === TerrainType.RiverBank) continue;
-
-      const inner = dist < radiusTiles * 0.55;
-      tile.type = inner
-        ? TerrainType.Grassland
-        : preset === 'coastal'
-          ? TerrainType.Beach
-          : TerrainType.Grassland;
-      tile.elevation = inner ? 48 : 42;
-      tile.moisture = inner ? 45 : preset === 'coastal' ? 70 : 50;
-    }
-  }
+    const inner = dist < radiusTiles * 0.55;
+    tile.type = inner
+      ? TerrainType.Grassland
+      : preset === 'coastal'
+        ? TerrainType.Beach
+        : TerrainType.Grassland;
+    tile.elevation = inner ? 48 : 42;
+    tile.moisture = inner ? 45 : preset === 'coastal' ? 70 : 50;
+  });
 }
 
 /**
@@ -199,19 +212,11 @@ function clearStartAreaForest(
   worldY: number,
   radiusTiles: number,
 ): void {
-  const cx = Math.floor(worldX / 10);
-  const cy = Math.floor(worldY / 10);
-  for (let ty = 0; ty < tileH; ty++) {
-    for (let tx = 0; tx < tileW; tx++) {
-      const dist = Math.hypot(tx - cx, ty - cy);
-      if (dist > radiusTiles) continue;
-      const tile = tiles[ty]?.[tx];
-      if (!tile) continue;
-      if (tile.type === TerrainType.Forest || tile.type === TerrainType.DarkForest) {
-        tile.type = TerrainType.Grassland;
-      }
+  forEachTileInRadius(tiles, tileW, tileH, worldX, worldY, radiusTiles, (tile) => {
+    if (tile.type === TerrainType.Forest || tile.type === TerrainType.DarkForest) {
+      tile.type = TerrainType.Grassland;
     }
-  }
+  });
 }
 
 export function findCampSite(
