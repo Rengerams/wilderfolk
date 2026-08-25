@@ -25,23 +25,34 @@ if (!isMainThread && parentPort) {
     for (const listener of messageListeners) listener(event);
   };
 
-  const scope = {
-    postMessage(message: unknown, transfer?: Transferable[]): void {
-      parentPort!.postMessage(message, transfer);
+  const scope = new Proxy(globalThis, {
+    get(target, prop, receiver) {
+      if (prop === 'postMessage') {
+        return (message: unknown, transfer?: Transferable[]) => {
+          parentPort!.postMessage(message, transfer as never);
+        };
+      }
+      if (prop === 'onmessage') return messageHandler;
+      if (prop === 'addEventListener') {
+        return (type: string, handler: (event: MessageEvent) => void) => {
+          if (type === 'message') messageListeners.add(handler);
+        };
+      }
+      if (prop === 'removeEventListener') {
+        return (type: string, handler: (event: MessageEvent) => void) => {
+          if (type === 'message') messageListeners.delete(handler);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
     },
-    get onmessage(): ((event: MessageEvent) => void) | null {
-      return messageHandler;
+    set(target, prop, value) {
+      if (prop === 'onmessage') {
+        messageHandler = value as ((event: MessageEvent) => void) | null;
+        return true;
+      }
+      return Reflect.set(target, prop, value);
     },
-    set onmessage(handler: ((event: MessageEvent) => void) | null) {
-      messageHandler = handler;
-    },
-    addEventListener(type: string, handler: (event: MessageEvent) => void): void {
-      if (type === 'message') messageListeners.add(handler);
-    },
-    removeEventListener(type: string, handler: (event: MessageEvent) => void): void {
-      if (type === 'message') messageListeners.delete(handler);
-    },
-  };
+  });
 
   Object.defineProperty(globalThis, 'self', {
     value: scope,
