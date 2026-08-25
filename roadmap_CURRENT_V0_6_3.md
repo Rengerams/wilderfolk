@@ -33,7 +33,7 @@ Status: development working tree (2026-08-24)
 |---|---|---|
 | Worker movement | Citizens assigned to a workplace may leave during work hours (B1). | Reproduce with the per-human status display, then fix the realtime work-movement owner. |
 | Technical debt | Circular renderer/game chunk and large game chunk remain (T1). | Measure an import boundary before any further chunk experiment; do as latest. |
-| Polish | UX-02/05/07 accepted as done by dev; live narrow/desktop browser review recommended. | Optional browser review before release. |
+| Polish | UX-02/05/07 fully implemented (inspector hierarchy, village details disclosure, disclosure-state memory); live narrow/desktop browser review recommended. | Optional browser review before release. |
 
 ## Decisions
 
