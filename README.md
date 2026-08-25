@@ -40,6 +40,8 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 ---
 
 ## Latest update — v0.6.3 (August 25, 2026)
+* ⚠️ **Beta Save Policy:** This build loads only **0.6.3** saves.
+* **Compatibility Dropped:** Historical-save compatibility is no longer supported.
 
 **A richer frontier, livelier families, and a valley that remembers what you do.**
 
