@@ -158,7 +158,7 @@ export default function App() {
       (b) => b.type === BuildingType.House && (b.completed || b.constructionProgress > 0),
     ),
   );
-  const [selectedMapSize, setSelectedMapSize] = useState<MapSize>(MapSize.Small);
+  const [selectedMapSize, setSelectedMapSize] = useState<MapSize>(MapSize.Medium);
   const [selectedMapPreset, setSelectedMapPreset] = useState<MapPreset>(MapPreset.Verdant);
   const [selectedBuildingType, setSelectedBuildingType] = useState<BuildingType | null>(null);
 

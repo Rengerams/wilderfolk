@@ -1115,16 +1115,16 @@ export const MapPreset = {
 export type MapPreset = (typeof MapPreset)[keyof typeof MapPreset];
 
 export const MapSize = {
-  Small: 'small',
   Medium: 'medium',
   Large: 'large',
+  Huge: 'huge',
 } as const;
 export type MapSize = (typeof MapSize)[keyof typeof MapSize];
 
 export const MAP_SIZE_DIMENSIONS: Record<MapSize, { width: number; height: number }> = {
-  [MapSize.Small]: { width: 800, height: 600 },
   [MapSize.Medium]: { width: 1200, height: 900 },
   [MapSize.Large]: { width: 1600, height: 1200 },
+  [MapSize.Huge]: { width: 2560, height: 1920 },
 };
 
 export interface WorldMap {

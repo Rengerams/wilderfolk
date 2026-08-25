@@ -1,7 +1,7 @@
 import { addResource } from './economy';
 import { getAbsoluteCalendarDay } from './dayCycle';
 import { addFloatingText } from './simEffects';
-import { EntityType, Season } from './gameTypes';
+import { EntityType } from './gameTypes';
 import type { Entity, WorldState } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { findClosestEntityInRadius } from './simQueries';
@@ -31,11 +31,10 @@ function clearBlueberryTarget(settler: Entity): void {
 }
 
 /**
- * Daily owner for the slow, small blueberry renewal loop. Trees do not produce
- * berries during winter and replenish one portion at a time, never above six.
+ * Daily owner for the slow, small blueberry renewal loop. Trees replenish one
+ * portion at a time, never above six, and stay edible all year round.
  */
 export function tickBlueberryRegrowth(state: WorldState): void {
-  if (state.season === Season.Winter) return;
   const day = getAbsoluteCalendarDay(state.tick);
   for (const entity of state.entities) {
     if (!isBlueberryTree(entity)) continue;

@@ -66,9 +66,9 @@ function isPassableWildlifePosition(state: WorldState, x: number, y: number, mar
 
 const BLUEBERRY_TREE_INITIAL_YIELD = 6;
 const BLUEBERRY_TREE_SPAWN_BY_MAP_SIZE: Record<MapSize, number> = {
-  [MapSize.Small]: 1,
-  [MapSize.Medium]: 2,
-  [MapSize.Large]: 3,
+  [MapSize.Medium]: 4,
+  [MapSize.Large]: 6,
+  [MapSize.Huge]: 10,
 };
 
 /**
@@ -426,7 +426,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   clearAllFactionWanderStates();
   ensureNamesLoaded();
   const {
-    size = MapSize.Small,
+    size = MapSize.Medium,
     preset,
     villageName,
     seed,

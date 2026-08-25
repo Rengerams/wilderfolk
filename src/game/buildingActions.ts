@@ -1,6 +1,6 @@
 import type { WorldState, Entity, Building } from './gameTypes';
 import {
-  BuildingType, EntityType, TerrainType,
+  BuildingType, EntityType, TerrainType, TERRAIN_TILE_SIZE,
   BUILDING_CONFIGS, BUILDING_JOB_TYPES,
   WORKSHOP_RECIPES, getWorkshopRecipe,
   HUNTING_SPOT_PREY_OPTIONS,
@@ -157,6 +157,24 @@ function clearTreesUnderFootprint(
   for (const e of state.entities) {
     if (!e.alive || e.type !== EntityType.Tree) continue;
     if (e.x >= x && e.x < x + width && e.y >= y && e.y < y + height) e.alive = false;
+  }
+
+  // Also clear the forest terrain under the footprint — a building should sit on
+  // open ground, not leave a painted tree canopy underneath it.
+  const tiles = state.worldMap?.tiles;
+  if (!tiles?.length) return;
+  const startTx = Math.max(0, Math.floor(x / TERRAIN_TILE_SIZE));
+  const endTx = Math.min(tiles[0]?.length ?? 0, Math.ceil((x + width) / TERRAIN_TILE_SIZE));
+  const startTy = Math.max(0, Math.floor(y / TERRAIN_TILE_SIZE));
+  const endTy = Math.min(tiles.length, Math.ceil((y + height) / TERRAIN_TILE_SIZE));
+  for (let ty = startTy; ty < endTy; ty++) {
+    for (let tx = startTx; tx < endTx; tx++) {
+      const tile = tiles[ty]?.[tx];
+      if (!tile) continue;
+      if (tile.type === TerrainType.Forest || tile.type === TerrainType.DarkForest) {
+        tile.type = TerrainType.Grassland;
+      }
+    }
   }
 }
 

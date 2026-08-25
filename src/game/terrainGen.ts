@@ -186,6 +186,34 @@ export function ensureCampClearing(
   }
 }
 
+/**
+ * Convert Forest/DarkForest tiles inside the starting radius to Grassland so
+ * the camp centre does not start behind a dense wall of trees. Rivers, water,
+ * hills, and mountains are left untouched.
+ */
+function clearStartAreaForest(
+  tiles: TerrainTile[][],
+  tileW: number,
+  tileH: number,
+  worldX: number,
+  worldY: number,
+  radiusTiles: number,
+): void {
+  const cx = Math.floor(worldX / 10);
+  const cy = Math.floor(worldY / 10);
+  for (let ty = 0; ty < tileH; ty++) {
+    for (let tx = 0; tx < tileW; tx++) {
+      const dist = Math.hypot(tx - cx, ty - cy);
+      if (dist > radiusTiles) continue;
+      const tile = tiles[ty]?.[tx];
+      if (!tile) continue;
+      if (tile.type === TerrainType.Forest || tile.type === TerrainType.DarkForest) {
+        tile.type = TerrainType.Grassland;
+      }
+    }
+  }
+}
+
 export function findCampSite(
   tiles: TerrainTile[][],
   tileW: number,
@@ -643,6 +671,10 @@ export function generateWorldMap(
   ) {
     ensureCampClearing(tiles, tileW, tileH, campX, campY, preset === 'coastal' ? 18 : 12, preset);
   }
+
+  // Keep the starting area open — no dense forest wall around the camp centre.
+  const startForestRadius = Math.max(14, Math.round(Math.min(tileW, tileH) * 0.22));
+  clearStartAreaForest(tiles, tileW, tileH, campX, campY, startForestRadius);
 
   return { tiles, width: tileW, height: tileH, seed, rivers, preset, size };
 }
