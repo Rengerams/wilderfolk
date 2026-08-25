@@ -22,7 +22,7 @@ Status: development working tree (2026-08-24)
 | 14 | **S3** | The Wedding That Nearly Started a War | One-time rival diplomacy chain: gift → delayed response → feast/delegation/fortify. | `src/game/weddingDiplomacy.ts` | ✅ Done |
 | 15 | **S4** | The Apprentice’s Terrible Invention Fair | One-time workshop story: three inventions, fund/redesign, delayed demo, keep/improve/dismantle. | `src/game/inventionFair.ts` | ✅ Done |
 | 16 | **S5** | The Rumour Ledger | One-time social story: recent event → rumour → correct/encourage/ignore/investigate. | `src/game/rumourLedger.ts` | ✅ Done |
-| 17 | **A1** | Post-taming animal care | Tamed animals consume 0.2 food/day each (10% of human daily 2 food); fed → warning → shortage → fed. First slice in code; full per-animal contract (per-animal fields, owner_lost, panel status) open. | `src/game/animalCare.ts` | ⏳ First slice — full contract open |
+| 17 | **A1** | Post-taming animal care | Tamed animals consume 0.2 food/day each based on total tamed count (10% of human daily 2 food); global fed → warning → shortage → fed. Per-animal fields not needed (dev decision). | `src/game/animalCare.ts` | ✅ Done |
 | 18 | **C1** | Guided Campaign story integration | All five story chapters complete from real story flags. | `src/game/guidedCampaign.ts` + story flags | ✅ Done |
 | 19 | **E1** | Election campaign promises | Deterministic promises at election start; mid-term evaluation with reputation effects. | `src/game/electionPromises.ts`, `src/game/villageLeadership.ts` | ✅ Done |
 | 20 | **BAL** | Fertility + relationship chaos balance | Youth conception 14–17 raised (0.25/0.35/0.50/0.70); normal/affair pregnancy and affair/scandal/divorce rates raised. | `dayCycle.ts`, `simulation/humanRelationships.ts`, `humanTick.ts` | ✅ Done |
@@ -32,7 +32,6 @@ Status: development working tree (2026-08-24)
 | Area | Finding | Next step |
 |---|---|---|
 | Worker movement | Citizens assigned to a workplace may leave during work hours (B1). | Reproduce with the per-human status display, then fix the realtime work-movement owner. |
-| Animal care | A1 full per-animal contract not implemented yet (first slice: 0.2 food/day each, global status). | Implement per-animal care fields, owner_lost, `Animal care` ledger entry, selected-animal panel status. |
 | Technical debt | Circular renderer/game chunk and large game chunk remain (T1). | Measure an import boundary before any further chunk experiment; do as latest. |
 | Polish | UX-02/05/07 fully implemented (inspector hierarchy, village details disclosure, disclosure-state memory); live narrow/desktop browser review recommended. | Optional browser review before release. |
 
