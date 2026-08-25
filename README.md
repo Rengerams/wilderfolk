@@ -39,21 +39,26 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-## Latest update — v0.6.3 (August 22, 2026) — Unreleased
+## Latest update — v0.6.3 (August 25, 2026)
 
-**A clearer working day, more distinctive settlers, and a valley that holds together over time.**
+**A richer frontier, livelier families, and a valley that remembers what you do.**
 
 * `GAME_VERSION` **0.6.3**
-* **Development build:** v0.6.3 is the current unreleased development target.
+* **Beta build:** v0.6.3 is the current game version.
 
 | Area | Highlights |
 |------|------------|
-| 🕰️ **A clearer working day** | Settlers with ordinary jobs now follow a readable 9-hour workday, while the Tavern and Hotel keep their own service hours. Buildings can be managed automatically or assigned by hand, one building at a time. |
-| 🛡️ **Distinct duties** | Barracks soldiers and Prison Guards now have separate responsibilities, making village defense and prison security easier to understand. |
-| 👨‍👩‍👧 **More settlers to meet** | New adult settlers and children add visual variety to the growing community, with the existing fallback art retained during the preview period. |
-| 🛤️ **Paths with character** | Hand-made footpath pieces add a warmer visual thread through the settlement. They are purely decorative and never change movement or simulation rules. |
-| 🌲 **A steadier living valley** | Wildlife, family relationships, and long-running settlement stories now remain more consistent as the simulation advances. When a settler is permanently lost, stale child, partner, affair, and pregnancy references are now cleared from the surviving village. |
-| ⚙️ **Player-friendly control** | Automatic staffing remains available as a convenience, while manual building control is always available when you want to make the decision yourself. |
+| 📜 **Five stories to discover** | The Deer Parliament, Traveling Theatre, Wedding Diplomacy, Invention Fair, and Rumour Ledger bring memorable multi-stage stories to the valley, with choices that shape your settlement’s history. |
+| 🧭 **A guided campaign** | The Valley Remembers connects your important decisions into a gentle, optional campaign with chapters, memories, and milestones. |
+| 🗳️ **Elections with consequences** | Village leaders now make promises that can be fulfilled through good planning, giving elections a lasting effect on reputation and community life. |
+| 🕰️ **A clearer working day** | Settlers follow a readable 9-hour workday, while the Tavern and Hotel keep their own service hours. Buildings can be managed automatically or assigned by hand. |
+| 👨‍👩‍👧 **More family life** | New adult settlers and children add variety to the community, while courtship, marriage, pregnancy, birth, family memories, and amicable changes in relationships make the village feel personal. |
+| 🐾 **Care for the animals** | Tamed animals now need regular food and reward good care, making stewardship a meaningful part of living alongside the valley’s wildlife. |
+| 🌲 **A living valley that remembers** | Seeded worlds, steadier wildlife, clearer relationship stories, and lasting Chronicle events help the settlement feel consistent from one season to the next. |
+| 🛡️ **Stronger frontier choices** | Walls, gates, watchtowers, soldiers, prison guards, rival diplomacy, and raid preparation give the settlement more ways to respond to danger. |
+| 🗺️ **Bigger, more beautiful maps** | Medium, Large, and Huge valleys provide more room to grow, with clustered mountain ranges, clearer starting areas, more blueberries, and warmer hand-made footpaths. |
+| 🎨 **A more distinctive community** | New adult and child character art, improved buildings, defensive visuals, terrain details, and clearer panels make people and places easier to recognize at a glance. |
+| ⚙️ **Player-friendly control** | Automatic staffing remains available as a convenience, while manual building control, clearer work hours, human activity status, and housing feedback help you make decisions with confidence. |
 
 ---
 

@@ -60,6 +60,7 @@ export type RelationshipDiagnosticKey =
 type IntervalCounters = Record<RelationshipDiagnosticKey, number>;
 
 let enabled = true;
+let consoleLoggingEnabled = true;
 let counters: IntervalCounters = emptyCounters();
 const snapshotHistory: RelationshipDiagnosticsSnapshot[] = [];
 const MAX_HISTORY = 400;
@@ -87,6 +88,11 @@ export function setRelationshipDiagnosticsEnabled(value: boolean): void {
 
 export function isRelationshipDiagnosticsEnabled(): boolean {
   return enabled;
+}
+
+/** Enable or suppress console emission without disabling diagnostic collection. */
+export function setRelationshipDiagnosticsConsoleLoggingEnabled(value: boolean): void {
+  consoleLoggingEnabled = value;
 }
 
 export function recordRelationshipDiagnostic(key: RelationshipDiagnosticKey): void {
@@ -130,7 +136,9 @@ export function flushRelationshipDiagnostics(
   };
   snapshotHistory.push(snapshot);
   if (snapshotHistory.length > MAX_HISTORY) snapshotHistory.shift();
-  console.info('[Wilderfolk relationship diagnostics]', snapshot);
+  if (consoleLoggingEnabled) {
+    console.info('[Wilderfolk relationship diagnostics]', snapshot);
+  }
   counters = emptyCounters();
   return snapshot;
 }
@@ -145,5 +153,6 @@ export function getRelationshipDiagnosticsHistory(): readonly RelationshipDiagno
 
 export function resetRelationshipDiagnostics(): void {
   counters = emptyCounters();
+  consoleLoggingEnabled = true;
   snapshotHistory.length = 0;
 }
