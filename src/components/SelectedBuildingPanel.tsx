@@ -61,7 +61,7 @@ const BUILDING_OUTPUT_HINTS: Partial<Record<BuildingType, string>> = {
   [BuildingType.WallCorner]: 'Counts as a wall segment for raid barricade bonus.',
   [BuildingType.WallGate]: 'Gated wall segment — same defense bonus as straight walls.',
   [BuildingType.Watchtower]: '+15 barricade strength. Pairs well with walls around your core.',
-  [BuildingType.Barracks]: 'Assign Guards — each patrols the village (+12 militia strength).',
+  [BuildingType.Barracks]: 'Assign Soldiers — each patrols the village (+14 militia strength).',
 };
 
 function canAffordRecipe(resources: WorldState['resources'], recipe: ReturnType<typeof getWorkshopRecipe>): boolean {
@@ -401,7 +401,7 @@ export default function SelectedBuildingPanel({
           <p className="text-[11px] text-violet-300">Guard is manual only — assign one below, or the cells stay empty.</p>
         )}
         {building.completed && building.type === BuildingType.Barracks && (
-          <p className="text-[11px] text-violet-300">Guards are manual only — assign below; each patrols the village (+12 militia strength).</p>
+          <p className="text-[11px] text-violet-300">Soldiers are manual only — assign below; each patrols the village (+14 militia strength).</p>
         )}
         {!building.completed && (
           <p className="text-[11px] text-sky-300">Builders work 7am–7pm only — auto-assigned each morning.</p>

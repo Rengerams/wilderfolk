@@ -360,7 +360,7 @@ export const BUILDING_CONFIGS: Record<BuildingType, BuildingConfig> = {
     width: 56, height: 50,
     cost: { wood: 85, stone: 65, gold: 35 },
     buildTime: 6, maxOccupants: 4,
-    emoji: '⚔️', label: 'Barracks', description: 'Staff Guards to patrol the village (+12 militia strength each).',
+    emoji: '⚔️', label: 'Barracks', description: 'Staff Soldiers to patrol the village (+14 militia strength each).',
     sprite: '/sprites/barracks.png', backgroundColor: '#57534e', padShape: 'rect',
     unlockRequirement: 'defense_2',
   },
