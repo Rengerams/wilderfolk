@@ -28,7 +28,6 @@ const WALLS_REQUIREMENT = 5;
 const FORGE_ORDERS_REQUIREMENT = 3;
 
 const PROMISE_COUNT = 2;
-const ALL_PROMISES = [PROMISE_CODES.fill_granary, PROMISE_CODES.build_walls, PROMISE_CODES.run_forge] as const;
 
 const FLAG_PREFIX = 'election_promises';
 
@@ -51,13 +50,32 @@ function hashSeed(seed: number, year: number): number {
   return (h ^ (h >>> 16)) >>> 0;
 }
 
-/** Deterministic pick of two distinct promises from the three options. */
-function selectPromiseCodes(mapSeed: number | undefined, year: number): number[] {
-  const r = hashSeed((mapSeed ?? 1) >>> 0, year);
-  const first = ALL_PROMISES[r % ALL_PROMISES.length]!;
-  const remaining = ALL_PROMISES.filter((c) => c !== first);
-  const second = remaining[(r >>> 8) % remaining.length]!;
-  return [first, second];
+/** Deterministic tie-break between equally urgent promises. */
+function tieBreak(code: number, mapSeed: number | undefined, year: number): number {
+  return hashSeed((mapSeed ?? 1) >>> 0, year + code * 7919);
+}
+
+/**
+ * Pick the TWO promises that address what is going worst in the village.
+ * If the village is thriving everywhere, fall back to a deterministic pair.
+ */
+function selectPromiseCodes(state: WorldState, year: number): number[] {
+  const foodNeed = Math.max(0, GRANARY_FOOD_REQUIREMENT - state.resources.food);
+  const wallsNeed = Math.max(0, WALLS_REQUIREMENT - countCompletedWalls(state));
+  const forgeNeed = Math.max(0, FORGE_ORDERS_REQUIREMENT - countCompletedForgeOrders(state));
+
+  const needs: { code: number; need: number }[] = [
+    { code: PROMISE_CODES.fill_granary, need: foodNeed },
+    { code: PROMISE_CODES.build_walls, need: wallsNeed },
+    { code: PROMISE_CODES.run_forge, need: forgeNeed },
+  ];
+
+  needs.sort((a, b) => {
+    if (b.need !== a.need) return b.need - a.need;
+    return tieBreak(a.code, state.worldMap?.seed, year) - tieBreak(b.code, state.worldMap?.seed, year);
+  });
+
+  return [needs[0]!.code, needs[1]!.code];
 }
 
 /** Read-only projection of the two promises recorded for a year. */
@@ -73,7 +91,7 @@ export function electionPromisesForYear(state: WorldState, year: number): number
 /** Called by the election ceremony owner when a new leader is sworn in. */
 export function recordElectionPromises(state: WorldState, year: number): void {
   const colonyDay = getColonyDay(state);
-  const [first, second] = selectPromiseCodes(state.worldMap?.seed, year);
+  const [first, second] = selectPromiseCodes(state, year);
   setStoryFlags(state, {
     [promiseKey(year, 0)]: first,
     [promiseKey(year, 1)]: second,
