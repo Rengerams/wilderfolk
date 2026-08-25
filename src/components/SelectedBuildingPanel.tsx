@@ -702,10 +702,26 @@ export default function SelectedBuildingPanel({
               No idle settlers — recruit or free up workers.
             </p>
           )}
-          {!isHousing && building.occupants.length > 0 && (
-            <button onClick={() => onRemove(building.occupants[building.occupants.length - 1])} className="rounded bg-amber-600 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-amber-500">
-              − Remove {!building.completed ? 'builder' : 'worker'}
-            </button>
+          {!isHousing && isManualStaffing && building.occupants.length > 0 && (
+            <div className="col-span-2 space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Current workers</p>
+              {building.occupants.map((occupantId) => {
+                const worker = state.entities.find((e) => e.id === occupantId);
+                return (
+                  <div key={occupantId} className="flex items-center justify-between gap-2 rounded bg-stone-700/40 px-2 py-1">
+                    <span className="truncate text-[11px] font-semibold text-white">
+                      {worker?.name || 'Settler'}{worker?.surname ? ` ${worker.surname}` : ''}
+                    </span>
+                    <button
+                      onClick={() => onRemove(occupantId)}
+                      className="shrink-0 rounded bg-amber-600 px-2 py-0.5 text-[10px] font-bold text-white hover:bg-amber-500"
+                    >
+                      − Remove
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           )}
           </div>
         </CollapsibleSection>
