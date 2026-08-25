@@ -27,6 +27,10 @@ Status: development working tree (2026-08-25)
 | 18 | **E1** | Election campaign promises | Makes leadership elections feel consequential: promises and success/fail consequences. | `electionPromises.ts`; `villageLeadership.ts`. | Deterministic promises + mid-term evaluation. | ✅ Done — reputation effects wired. |
 | 19 | **BAL** | Fertility + relationship chaos balance | More chaos: youth fertility 14–17, normal/affair pregnancy, affair/scandal/divorce rates. | `dayCycle.ts`, `humanRelationships.ts`, `humanTick.ts`. | Youth multipliers 0.25/0.35/0.50/0.70; pregnancy/affair bumps. | ✅ Done. |
 | 20 | **REL** | Amicable divorce without cheating | Married couples can grow apart without an affair or scandal; children stay with the mother. | `humanRelationships.ts` daily relationship owner; `nameLoader.ts` marriage links. | One daily roll per couple; 7.5% per game year (×10 real 7.5‰); mother keeps home + kids; maiden name restored. | ✅ Done — commit `8f96686`. |
+| 21 | **MAP** | Map sizes: remove Small, add Huge | The playable world should feel like a real colony map. | `MapSize` enum, `MAP_SIZE_DIMENSIONS`, `MapSetupScreen`. | Small removed; Huge 2560×1920 (~49k tiles ≈ AoE2 Large 220×220); initGame default Medium. | ✅ Done — commit `02d6264`. |
+| 22 | **MTN** | Mountain terrain clusters + visible peaks | Mountains must look like mountains and sit in connected ranges like water. | `terrainGen.ts` cluster pass; `terrainLayer.ts` decor bake. | Edge-connected mountain regions (no lone 1-tile peaks); CC-BY-SA Unknown Horizons peak sprites (4 rotations). | ✅ Done — commit `3359a4c`. |
+| 23 | **TR** | Starting-area forest + building tree clearing | The camp centre must be open, and buildings must clear trees under their footprint. | `terrainGen.ts` start clearing; `buildingActions.ts` footprint clearing. | Forest/DarkForest cleared around camp (radius scaled to map); building footprints convert forest terrain to grassland. | ✅ Done — commit `02d6264`. |
+| 24 | **BLU** | More blueberries, always edible | Blueberries should be a reliable, year-round food source. | `worldGen.ts` spawn counts; `blueberryForaging.ts` regrowth. | Medium 4 / Large 6 / Huge 10 bushes; winter no longer pauses regrowth. | ✅ Done — commit `02d6264`. |
 
 ## Still open before a v0.6.3 release claim
 
@@ -46,6 +50,9 @@ Status: development working tree (2026-08-25)
 6. **Footpath road-end** — not connected by design; a footpath may simply end.
 7. **WallCorner removed** — walls are straight vertical/horizontal only (R-rotation); corners emerge naturally where segments cross. No separate corner building type.
 8. **Walls block pathfinding; gates are passable** — completed player walls block humans; WallGate stays a passable opening. Water/mountains block at every distance (no short-hop shortcut).
+9. **Map sizes** — Small removed (never played); Medium/Large/Huge = 1200×900 / 1600×1200 / 2560×1920; `initGame` defaults to Medium.
+10. **Mountains cluster + sprite** — mountains are edge-connected like water; peaks use CC-BY-SA 3.0 Unknown Horizons sprites (`public/sprites/mountains/CREDITS.txt`).
+11. **Blueberries year-round** — no winter production pause; bushes are always edible and regrow every 4 days.
 
 ## References
 
