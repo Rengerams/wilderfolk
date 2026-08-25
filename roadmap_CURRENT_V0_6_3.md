@@ -26,6 +26,7 @@ Status: development working tree (2026-08-25)
 | 17 | **B2** | Worker assignment panel truth (auto/manual) | Auto mode stops offering a manual pick list; manual mode shows only unemployed adults + per-worker remove. | `SelectedBuildingPanel.tsx`; `buildingActions.ts`. | Manual pick list hidden in auto; only unemployed in manual; per-worker remove buttons. | ✅ Done — focused test added; per-worker remove (commit `a877e6e`). |
 | 18 | **E1** | Election campaign promises | Makes leadership elections feel consequential: promises and success/fail consequences. | `electionPromises.ts`; `villageLeadership.ts`. | Deterministic promises + mid-term evaluation. | ✅ Done — reputation effects wired. |
 | 19 | **BAL** | Fertility + relationship chaos balance | More chaos: youth fertility 14–17, normal/affair pregnancy, affair/scandal/divorce rates. | `dayCycle.ts`, `humanRelationships.ts`, `humanTick.ts`. | Youth multipliers 0.25/0.35/0.50/0.70; pregnancy/affair bumps. | ✅ Done. |
+| 20 | **REL** | Amicable divorce without cheating | Married couples can grow apart without an affair or scandal; children stay with the mother. | `humanRelationships.ts` daily relationship owner; `nameLoader.ts` marriage links. | One daily roll per couple; 7.5% per game year (×10 real 7.5‰); mother keeps home + kids; maiden name restored. | ✅ Done — commit `8f96686`. |
 
 ## Still open before a v0.6.3 release claim
 
