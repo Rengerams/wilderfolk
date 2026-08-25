@@ -252,6 +252,54 @@ export interface GenerateWorldMapOptions {
   height?: number;
 }
 
+/**
+ * Mountains must form connected regions like water — isolated single-peak
+ * tiles look like noise. Two passes with edge-connected (4-direction) rules:
+ * drop peaks with no edge-connected mountain neighbour (downgrade to
+ * Rocky/Hills) and fill high-elevation gaps with an edge-connected mountain
+ * neighbour so ridges stay contiguous.
+ */
+function clusterMountainRegions(tiles: TerrainTile[][], tileW: number, tileH: number): void {
+  const types = tiles.map((row) => row.map((t) => t.type));
+  const edgeMountainNeighbours = (tx: number, ty: number): number => {
+    let count = 0;
+    if (types[ty]?.[tx - 1] === TerrainType.Mountains) count++;
+    if (types[ty]?.[tx + 1] === TerrainType.Mountains) count++;
+    if (types[ty - 1]?.[tx] === TerrainType.Mountains) count++;
+    if (types[ty + 1]?.[tx] === TerrainType.Mountains) count++;
+    return count;
+  };
+
+  // Pass 1 — remove isolated peaks (no edge-connected mountain neighbour).
+  for (let ty = 0; ty < tileH; ty++) {
+    for (let tx = 0; tx < tileW; tx++) {
+      if (types[ty]?.[tx] !== TerrainType.Mountains) continue;
+      if (edgeMountainNeighbours(tx, ty) < 1) {
+        const tile = tiles[ty][tx];
+        tile.type = tile.elevation > 70 ? TerrainType.Rocky : TerrainType.Hills;
+      }
+    }
+  }
+
+  // Refresh snapshot after removal.
+  for (let ty = 0; ty < tileH; ty++) {
+    for (let tx = 0; tx < tileW; tx++) {
+      types[ty][tx] = tiles[ty][tx].type;
+    }
+  }
+
+  // Pass 2 — fill high-elevation gaps so ridges stay connected.
+  for (let ty = 0; ty < tileH; ty++) {
+    for (let tx = 0; tx < tileW; tx++) {
+      const tile = tiles[ty][tx];
+      if (!tile || tile.type === TerrainType.Mountains) continue;
+      if (tile.elevation > 78 && edgeMountainNeighbours(tx, ty) >= 1) {
+        tile.type = TerrainType.Mountains;
+      }
+    }
+  }
+}
+
 /** Preferred: `generateWorldMap(MapSize.Medium, MapPreset.Verdant, seed)`. */
 export function generateWorldMap(size: MapSize, preset?: MapPreset, seed?: number): WorldMap;
 /** Legacy pixel dimensions — prefer MapSize overload. */
@@ -577,6 +625,9 @@ export function generateWorldMap(
           : terrainType;
     }
   }
+
+  // Mountains must form connected regions like water — never lone 1-tile peaks.
+  clusterMountainRegions(tiles, tileW, tileH);
 
   // ── Camp clearing ──
   // FIX: use the actual width/height, not MAP_SIZE_DIMENSIONS[size].

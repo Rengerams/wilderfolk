@@ -294,6 +294,8 @@ export interface TerrainDecorCache {
   preset: string;
   /** True when bush/stump/grass prop sprites were stamped this bake. */
   props: boolean;
+  /** True when CC-BY-SA mountain peak sprites were stamped this bake. */
+  mountains: boolean;
 }
 
 /** True when seamless fill sprites are in the sprite cache (rebuild once after preload). */
@@ -343,6 +345,10 @@ function landscapePropSpritesReady(): boolean {
   );
 }
 
+function mountainSpritesReady(): boolean {
+  return [45, 135, 225, 315].every((rot) => getSprite(`/sprites/mountains/${rot}.png`) != null);
+}
+
 export function terrainDecorNeedsRebuild(
   cache: TerrainDecorCache | null,
   map: WorldMap,
@@ -351,6 +357,7 @@ export function terrainDecorNeedsRebuild(
 ): boolean {
   if (!cache) return true;
   if (landscapePropSpritesReady() && !cache.props) return true;
+  if (mountainSpritesReady() && !cache.mountains) return true;
   return cache.width !== worldWidth
     || cache.height !== worldHeight
     || cache.seed !== map.seed
@@ -939,6 +946,9 @@ export function bakeTerrainDecor(map: WorldMap, worldWidth: number, worldHeight:
   // Phase C — ground clutter (deterministic by tile + seed; not sim entities)
   stampLandscapeProps(ctx, map, w, h);
 
+  // Phase D — mountain peaks on topmost ridge tiles (CC-BY-SA Unknown Horizons).
+  stampMountainPeaks(ctx, map, w, h);
+
   // Map rim — soft outer shadow + inner highlight (tabletop edge)
   ctx.strokeStyle = 'rgba(0,0,0,0.45)';
   ctx.lineWidth = 4;
@@ -955,6 +965,7 @@ export function bakeTerrainDecor(map: WorldMap, worldWidth: number, worldHeight:
     seed: map.seed,
     preset: map.preset,
     props: landscapePropSpritesReady(),
+    mountains: mountainSpritesReady(),
   };
 }
 
@@ -1074,6 +1085,45 @@ function stampLandscapeProps(
           drawRockCluster(ctx, cx, cy, r0, r1, r2);
         }
       }
+    }
+  }
+}
+
+/**
+ * Stamp CC-BY-SA Unknown Horizons mountain peaks on the topmost tile of each
+ * vertical ridge (north neighbour is not Mountains). Skipped on ~35% of ridges
+ * and rotated deterministically so ranges read as varied, not a wall of copies.
+ */
+function stampMountainPeaks(
+  ctx: CanvasContext2d,
+  map: WorldMap,
+  worldW: number,
+  worldH: number,
+): void {
+  const tileSize = TERRAIN_TILE_SIZE;
+  const seed = typeof map.seed === 'number' ? map.seed : 1;
+
+  for (let ty = 0; ty < map.height; ty++) {
+    for (let tx = 0; tx < map.width; tx++) {
+      const tile = map.tiles[ty]?.[tx];
+      if (!tile || tile.type !== TerrainType.Mountains) continue;
+
+      // Only the topmost tile of a vertical ridge gets a peak sprite.
+      const north = map.tiles[ty - 1]?.[tx];
+      if (north && north.type === TerrainType.Mountains) continue;
+
+      const roll = hash01(tx, ty, seed + 77);
+      if (roll < 0.35) continue; // leave some ridge caps bare
+
+      const drawW = Math.max(56, tileSize * 7);
+      const drawH = drawW;
+      const cx = tx * tileSize + tileSize * (0.45 + roll * 0.1);
+      const cy = ty * tileSize + tileSize * 0.6 - reliefY(tile.type, tile.elevation) * tileSize;
+      if (cx < 12 || cy < 12 || cx > worldW - 12 || cy > worldH - 12) continue;
+
+      const rotations = [45, 135, 225, 315];
+      const rot = rotations[Math.floor(roll * rotations.length) % rotations.length];
+      stampPropSprite(ctx, `/sprites/mountains/${rot}.png`, cx, cy, drawW, drawH, roll > 0.5);
     }
   }
 }

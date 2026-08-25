@@ -1,0 +1,4 @@
+Mountain sprites (as_mountain5x5) from Unknown Horizons
+License: CC-BY-SA 3.0
+Source: user-provided natural-resources-mines.zip (2011)
+These sprites are used for mountain terrain visuals.
