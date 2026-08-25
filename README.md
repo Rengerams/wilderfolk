@@ -42,6 +42,8 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 ## Latest update — v0.6.3 (August 25, 2026)
 * ⚠️ **Beta Save Policy:** This build loads only **0.6.3** saves.
 * **Compatibility Dropped:** Historical-save compatibility is no longer supported.
+* **New Start Required:** Saves from any other build, including 0.6.2.2, are rejected; please begin a new settlement.
+
 
 **A richer frontier, livelier families, and a valley that remembers what you do.**
 
@@ -69,6 +71,9 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 **A village with healthier rhythms, deeper rivalries, and more stories to remember.**
 
 * `GAME_VERSION` **0.6.2.2**
+* ⚠️ **Beta Save Policy:** This build loads only **0.6.2.2** saves.
+* **Compatibility Dropped:** Historical-save compatibility is no longer supported.
+* **New Start Required:** Saves from any other build, including 0.6.2.1, are rejected; please begin a new settlement.
 
 | Area | Highlights |
 |------|------------|
