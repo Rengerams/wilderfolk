@@ -887,21 +887,33 @@ export function tickPendingRaidEvents(
   for (const evt of expired) {
     const rival = state.rivalSettlements.find((r) => r.id === evt.rivalId);
     if (!rival) continue;
-    const taken = applyRaidLootTaken(state, raidEventLoot(evt), 1);
-    damageRandomPlayerBuilding(state, 12);
+    // Static defenses matter even when the raid is not answered in time: walls
+    // and watchtowers blunt the loot, building damage, and casualties.
+    const structureBonus = computeMilitiaBreakdown(state, allAlive).structureBonus;
+    const defenseFactor = Math.max(0.3, 1 - structureBonus / 240);
+    const taken = applyRaidLootTaken(state, raidEventLoot(evt), defenseFactor);
+    damageRandomPlayerBuilding(state, Math.max(4, Math.round(12 * defenseFactor)));
     state.villageReputation = Math.max(0, state.villageReputation - 4);
     rival.relationship = 'tense';
     const camp = getPlayerCampCenter(state, buildings);
     pushFloat(state, camp.x, camp.y - 25, formatLootParts(taken, '-') || 'Raid!', '#f87171');
     const lootNote = formatLootParts(taken);
+    const defendedNote = structureBonus > 0
+      ? ` — defenses (${structureBonus} structure strength) limited the damage`
+      : ' — no response in time';
     logEvent(
       state,
       'combat',
-      `Raid from ${evt.rivalName} succeeded — no response in time${lootNote ? ` (lost ${lootNote})` : ''}`,
+      `Raid from ${evt.rivalName} succeeded${defendedNote}${lootNote ? ` (lost ${lootNote})` : ''}`,
       evt.rivalName,
       'incoming_raid',
     );
-    applyRaidCasualties(state, allAlive, 'heavy', evt.rivalName);
+    applyRaidCasualties(
+      state,
+      allAlive,
+      defenseFactor < 0.55 ? 'moderate' : 'heavy',
+      evt.rivalName,
+    );
   }
 }
 

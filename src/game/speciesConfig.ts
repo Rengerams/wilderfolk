@@ -69,7 +69,7 @@ export const SPECIES_CONFIG: Record<EntityType, SpeciesConfig> = {
   [EntityType.Human]: {
     maxEnergy: 500, energyLossPerTick: 4.2 * PER_TICK_RATE_SCALE, energyGain: { deer: 350, rabbit: 150 },
     // Slightly faster walk so mid-village commutes fit a work morning
-    maxAge: 90, speed: 2.55, size: 10,
+    maxAge: 90, speed: 3.0, size: 10,
     reproductionCooldown: cd(3600), reproductionEnergyThreshold: 180, reproductionChance: 0.02, spawnEnergy: 180,
     color: '#f5d0a9', fleeRange: 50, huntRange: 105, wanderRadius: 100,
     sprite: '/sprites/human_male.png',
