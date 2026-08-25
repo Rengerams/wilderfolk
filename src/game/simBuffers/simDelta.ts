@@ -131,6 +131,12 @@ export interface SimTickDelta {
   renderMetaBySlot?: EntityRenderMeta[];
   /** Human entities for EntityCatalog — avoids full-world scan. */
   catalogEntities?: Entity[];
+  /** Authored-story flags (S1–S5, E1, A1, children shelter, etc.). */
+  storyFlags: WorldState['storyFlags'];
+  /** Pending authored-story cards shown to the player. */
+  pendingStoryEvents: NonNullable<WorldState['pendingStoryEvents']>;
+  /** Guided Campaign chapter projection state. */
+  guidedCampaign: WorldState['guidedCampaign'];
 }
 
 /** How nested delta payloads are copied between threads. */
@@ -295,6 +301,9 @@ export function extractSimTickDelta(
     renffrChatterUntilTick: world.renffrChatterUntilTick ?? 0,
     lastProcessedCalendarDay: world.lastProcessedCalendarDay ?? 0,
     lastWildlifeReplenishLogDay: world.lastWildlifeReplenishLogDay ?? 0,
+    storyFlags: deltaClone(world.storyFlags ?? {}, cloneMode),
+    pendingStoryEvents: deltaClone(world.pendingStoryEvents ?? [], cloneMode),
+    guidedCampaign: deltaCloneOptional(world.guidedCampaign, cloneMode) ?? undefined,
   };
 
   if (!headless && renderPacked) {
@@ -398,6 +407,9 @@ export function applySimTickDelta(
   world.renffrChatterUntilTick = delta.renffrChatterUntilTick;
   world.lastProcessedCalendarDay = delta.lastProcessedCalendarDay;
   world.lastWildlifeReplenishLogDay = delta.lastWildlifeReplenishLogDay;
+  world.storyFlags = deltaClone(delta.storyFlags, cloneMode);
+  world.pendingStoryEvents = deltaClone(delta.pendingStoryEvents, cloneMode);
+  world.guidedCampaign = deltaCloneOptional(delta.guidedCampaign, cloneMode) ?? undefined;
 
   world.entities = deltaClone(delta.aliveEntities, cloneMode);
 

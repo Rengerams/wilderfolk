@@ -168,11 +168,13 @@ export function findPath(
 
   const start = sy * cols + sx;
   const goal = ty * cols + tx;
-  const gScore = new Float64Array(cols * rows).fill(Infinity);
-  const came = new Int32Array(cols * rows).fill(-1);
+  // Sparse maps — a Huge map would otherwise allocate full-grid arrays (~59 MB)
+  // even though A* stops after `maxNodes`.
+  const gScore = new Map<number, number>();
+  const came = new Map<number, number>();
   const h = (x: number, y: number) => Math.max(Math.abs(x - tx), Math.abs(y - ty));
   const open = new OpenSetMinHeap();
-  gScore[start] = 0;
+  gScore.set(start, 0);
   open.push({ node: start, g: 0, priority: h(sx, sy) });
   let nodes = 0;
 
@@ -181,14 +183,14 @@ export function findPath(
     if (!entry) break;
     const cur = entry.node;
     // A later route may have improved this node after the entry was queued.
-    if (entry.g !== gScore[cur]) continue;
+    if (entry.g !== (gScore.get(cur) ?? Infinity)) continue;
     if (nodes++ >= maxNodes) break;
     if (cur === goal) {
       const path: { x: number; y: number }[] = [];
       let c = cur;
       while (c !== start && c >= 0) {
         path.push({ x: c % cols, y: (c / cols) | 0 });
-        c = came[c];
+        c = came.get(c) ?? -1;
       }
       path.push({ x: sx, y: sy });
       path.reverse();
@@ -203,10 +205,10 @@ export function findPath(
       if (blocked[ny * cols + nx]) continue;
       if (dx !== 0 && dy !== 0 && (blocked[cy * cols + nx] || blocked[ny * cols + cx])) continue;
       const nIdx = ny * cols + nx;
-      const ng = gScore[cur] + (dx !== 0 && dy !== 0 ? 1.4142 : 1);
-      if (ng < gScore[nIdx]) {
-        gScore[nIdx] = ng;
-        came[nIdx] = cur;
+      const ng = (gScore.get(cur) ?? Infinity) + (dx !== 0 && dy !== 0 ? 1.4142 : 1);
+      if (ng < (gScore.get(nIdx) ?? Infinity)) {
+        gScore.set(nIdx, ng);
+        came.set(nIdx, cur);
         open.push({ node: nIdx, g: ng, priority: ng + h(nx, ny) });
       }
     }

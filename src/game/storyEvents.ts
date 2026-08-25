@@ -207,15 +207,27 @@ export function respondToStoryEvent(
       }
       break;
     }
-    case 'traveling_theatre':
-      resolveTravelingTheatre(state, choiceId);
+    case 'traveling_theatre': {
+      if (!resolveTravelingTheatre(state, choiceId)) {
+        state.pendingStoryEvents ??= [];
+        state.pendingStoryEvents.push(event);
+      }
       break;
-    case 'deer_parliament':
-      resolveDeerParliament(state, choiceId);
+    }
+    case 'deer_parliament': {
+      if (!resolveDeerParliament(state, choiceId)) {
+        state.pendingStoryEvents ??= [];
+        state.pendingStoryEvents.push(event);
+      }
       break;
-    case 'wedding_diplomacy':
-      resolveWeddingDiplomacy(state, choiceId);
+    }
+    case 'wedding_diplomacy': {
+      if (!resolveWeddingDiplomacy(state, choiceId)) {
+        state.pendingStoryEvents ??= [];
+        state.pendingStoryEvents.push(event);
+      }
       break;
+    }
     case 'invention_fair': {
       const accepted = resolveInventionFair(state, choiceId);
       if (!accepted) {
@@ -224,9 +236,13 @@ export function respondToStoryEvent(
       }
       break;
     }
-    case 'rumour_ledger':
-      resolveRumourLedger(state, choiceId);
+    case 'rumour_ledger': {
+      if (!resolveRumourLedger(state, choiceId)) {
+        state.pendingStoryEvents ??= [];
+        state.pendingStoryEvents.push(event);
+      }
       break;
+    }
 
   }
   return state;

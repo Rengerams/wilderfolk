@@ -58,6 +58,8 @@ export function tickAnimalCare(state: WorldState): void {
       ...state.storyFlags,
       [FLAG_FED_DAY]: colonyDay,
       [FLAG_STATUS]: STATUS_CODES.fed,
+      [FLAG_WARNING_DAY]: -1,
+      [FLAG_SHORTAGE_DAY]: -1,
     };
     if (previousStatus === 'shortage' || previousStatus === 'warning') {
       addNotification(state, '🐾 Animals fed again', 'The tamed animals are back on rations.', 'success');
@@ -66,11 +68,12 @@ export function tickAnimalCare(state: WorldState): void {
   }
 
   if (!alreadyFedToday) {
-    const shortageDay = state.storyFlags?.[FLAG_SHORTAGE_DAY] ?? -1;
     const warningDay = state.storyFlags?.[FLAG_WARNING_DAY] ?? -1;
-    if (shortageDay >= 0 && colonyDay - shortageDay >= 2) {
+    if (warningDay >= 0 && colonyDay - warningDay >= 2) {
+      // Two consecutive days without food → shortage.
       state.storyFlags = {
         ...state.storyFlags,
+        [FLAG_SHORTAGE_DAY]: colonyDay,
         [FLAG_STATUS]: STATUS_CODES.shortage,
       };
       addNotification(state, '🐾 Animal shortage', 'Tamed animals are hungry — food is needed.', 'warning');

@@ -22,6 +22,7 @@ export const WORLD_STATE_SAVE_KEYS = [
   'villageForge', 'tutorialSeen', 'dismissedBigNewsIds', 'dismissedActiveEventIds',
   'dismissedNotificationIds', 'lastWildlifeReplenishLogDay', 'eventsThisYear',
   'appliedSaveMigrations',
+  'storyFlags', 'pendingStoryEvents', 'guidedCampaign',
 ] as const satisfies readonly (keyof WorldState)[];
 
 /**
