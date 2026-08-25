@@ -36,8 +36,9 @@ docs/
 playtest/
 kimi/
 daimon-share/
-/tools/
-
+tools/
+tests/
+bug-reports/
 
 ./deepcode/
 ./agents/
