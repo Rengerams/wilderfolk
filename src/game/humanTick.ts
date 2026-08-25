@@ -75,7 +75,7 @@ import { setCurrentPathMap } from './pathfinding';
 import {
   COMMUTE_SNAP_DISTANCE, commuteDistanceToBuilding, commuteHumanToBuilding, nearestActiveMoonHowler, snapHumanToBuilding,
 } from './simulation/humanMovement';
-import { fract, freeHuntFoodGain, humanEnergyLoss, isMealWindow } from './simulation/humanNeeds';
+import { fract, freeHuntFoodGain, humanEnergyLoss, isMealCheckHour, HUNGER_MEAL_THRESHOLD } from './simulation/humanNeeds';
 import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
 import { tryTickBlueberryForaging } from './blueberryForaging';
@@ -530,10 +530,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       // Colony larder meals are player settlers only (visitors/rivals must not drain food)
       if (
         isPlayerHuman(entity)
-        && isMealWindow(hourOfDay)
+        && isMealCheckHour(hourOfDay)
         && isStartOfClockHour(state.tick)
         && state.resources.food >= 1
-        && entity.energy < entity.maxEnergy * 0.9
+        && entity.energy < entity.maxEnergy * HUNGER_MEAL_THRESHOLD
       ) {
         state.resources.food -= 1;
         recordFoodConsumed(state, 'meals', 1);
@@ -635,12 +635,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     let ateMeal = false;
 
-    // Meals twice per day (8–10am & 6–8pm) — once per clock hour, 1 food ≈ 65 energy
+    // Meals every 4 hours when hungry (energy < 80% max) — 1 food ≈ 65 energy
     if (
-      isMealWindow(hourOfDay)
+      isMealCheckHour(hourOfDay)
       && isStartOfClockHour(state.tick)
       && state.resources.food >= 1
-      && entity.energy < entity.maxEnergy * 0.9
+      && entity.energy < entity.maxEnergy * HUNGER_MEAL_THRESHOLD
     ) {
       state.resources.food -= 1;
       recordFoodConsumed(state, 'meals', 1);

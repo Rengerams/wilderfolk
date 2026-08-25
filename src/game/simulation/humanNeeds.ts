@@ -10,8 +10,13 @@ import { traitMultiplier } from '../settlerTraits';
 import { prefersHomeTonight, hasResidenceAssignment } from '../dayCycle';
 import type { SpeciesConfig } from '../speciesConfig';
 
-export function isMealWindow(hourOfDay: number): boolean {
-  return (hourOfDay >= 8 && hourOfDay <= 10) || (hourOfDay >= 18 && hourOfDay <= 20);
+/** Meal checks run every 4 clock hours (00, 04, 08, 12, 16, 20). */
+export const MEAL_CHECK_INTERVAL_HOURS = 4;
+/** A human eats when energy drops below this fraction of max energy. */
+export const HUNGER_MEAL_THRESHOLD = 0.8;
+
+export function isMealCheckHour(hourOfDay: number): boolean {
+  return hourOfDay % MEAL_CHECK_INTERVAL_HOURS === 0;
 }
 
 export function fract(value: number): number {
