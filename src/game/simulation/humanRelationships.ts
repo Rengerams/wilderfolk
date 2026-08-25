@@ -916,31 +916,67 @@ function reassignDivorcedResidences(
   villagers: Entity[],
 ): void {
   const residences = buildings.filter(isResidenceBuilding);
+
+  // Custody default: the mother (wife) keeps the home; the other spouse leaves.
+  const wife = a.gender === 'female' ? a : b.gender === 'female' ? b : null;
+  const custodian = wife ?? a;
+  const leaver = wife ? (a === wife ? b : a) : b;
+
   const formerHomes = new Set<number>();
-  for (const resident of [a, b]) {
+  for (const resident of [custodian, leaver]) {
     if (resident.residenceBuildingId != null) {
       formerHomes.add(resident.residenceBuildingId);
-      const oldHome = buildings.find((building) => building.id === resident.residenceBuildingId);
-      if (oldHome) {
-        oldHome.occupants = oldHome.occupants.filter((id) => id !== resident.id);
-      }
+    }
+  }
+
+  // Only the leaver leaves the former shared home; the custodian stays put.
+  if (leaver.residenceBuildingId != null) {
+    const oldHome = buildings.find((building) => building.id === leaver.residenceBuildingId);
+    if (oldHome) {
+      oldHome.occupants = oldHome.occupants.filter((id) => id !== leaver.id);
     }
   }
 
   if (residences.length === 0) {
-    a.residenceBuildingId = undefined;
-    b.residenceBuildingId = undefined;
+    custodian.residenceBuildingId = undefined;
+    leaver.residenceBuildingId = undefined;
     return;
   }
 
-  a.residenceBuildingId = pickResidenceForHuman(a, villagers, residences);
-  if (b.prisonBuildingId == null) {
-    const excludeHomes = new Set(formerHomes);
-    if (a.residenceBuildingId != null) excludeHomes.add(a.residenceBuildingId);
-    b.residenceBuildingId = pickResidenceForHumanExcluding(b, villagers, residences, excludeHomes);
-  } else {
-    b.residenceBuildingId = undefined;
+  // Custodian keeps a valid current home when possible.
+  const custodianHome = custodian.residenceBuildingId != null
+    ? buildings.find((building) => building.id === custodian.residenceBuildingId)
+    : undefined;
+  if (!custodianHome || !isResidenceBuilding(custodianHome) || !custodianHome.completed) {
+    custodian.residenceBuildingId = pickResidenceForHuman(custodian, villagers, residences);
   }
+
+  // Leaver moves out — never back into the former shared home or the custodian's home.
+  if (leaver.prisonBuildingId == null) {
+    const excludeHomes = new Set(formerHomes);
+    if (custodian.residenceBuildingId != null) excludeHomes.add(custodian.residenceBuildingId);
+    leaver.residenceBuildingId = pickResidenceForHumanExcluding(leaver, villagers, residences, excludeHomes);
+  } else {
+    leaver.residenceBuildingId = undefined;
+  }
+
+  // Children stay with the mother (custodian).
+  if (custodian.residenceBuildingId != null) {
+    const custodianHome = buildings.find((building) => building.id === custodian.residenceBuildingId);
+    const children = villagers.filter(
+      (child) =>
+        child.alive
+        && child.isJuvenile
+        && (child.motherId === custodian.id || child.adoptiveMotherId === custodian.id),
+    );
+    for (const child of children) {
+      child.residenceBuildingId = custodian.residenceBuildingId;
+      if (custodianHome && !custodianHome.occupants.includes(child.id)) {
+        custodianHome.occupants.push(child.id);
+      }
+    }
+  }
+
   syncResidenceOccupants(villagers, buildings);
 }
 
