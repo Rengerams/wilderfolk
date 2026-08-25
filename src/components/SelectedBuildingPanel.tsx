@@ -58,7 +58,6 @@ const BUILDING_OUTPUT_HINTS: Partial<Record<BuildingType, string>> = {
   [BuildingType.Well]: 'Lowers settler energy drain for the whole village.',
   [BuildingType.Prison]: 'Staffed by a Guard. Caught adulterers may be sentenced here for a few days.',
   [BuildingType.Wall]: '+8 barricade strength per segment (max +72 from all wall pieces).',
-  [BuildingType.WallCorner]: 'Counts as a wall segment for raid barricade bonus.',
   [BuildingType.WallGate]: 'Gated wall segment — same defense bonus as straight walls.',
   [BuildingType.Watchtower]: '+15 barricade strength. Pairs well with walls around your core.',
   [BuildingType.Barracks]: 'Assign Soldiers — each patrols the village (+14 militia strength).',
@@ -123,7 +122,11 @@ export default function SelectedBuildingPanel({
     return (
       <div className="rounded-xl border border-indigo-600/40 bg-indigo-950/30 p-3">
         <div className="mb-2 flex items-center gap-2">
-          <img src={config.sprite} alt={config.label} className="h-8 w-8 object-contain opacity-90" />
+          {config.sprite ? (
+            <img src={config.sprite} alt={config.label} className="h-8 w-8 object-contain opacity-90" />
+          ) : (
+            <span className="text-xl leading-none opacity-90">{config.emoji}</span>
+          )}
           <div>
             <h3 className="text-sm font-bold text-indigo-200">{rival?.name ?? building.campLabel ?? 'Rival Camp'}</h3>
             <p className="text-[11px] text-indigo-300/80">
@@ -325,7 +328,11 @@ export default function SelectedBuildingPanel({
   return (
     <div className="rounded-xl border border-amber-600/30 bg-amber-900/20 p-3">
       <div className="mb-2 flex items-center gap-2">
-        <img src={config.sprite} alt={config.label} className="h-8 w-8 object-contain" />
+        {config.sprite ? (
+          <img src={config.sprite} alt={config.label} className="h-8 w-8 object-contain" />
+        ) : (
+          <span className="text-2xl leading-none">{config.emoji}</span>
+        )}
         <div>
           <h3 className="text-base font-bold text-amber-200">{config.label} {building.level > 1 && `(Lv.${building.level})`}</h3>
           <p className="text-[11px] text-amber-400">{config.description}</p>

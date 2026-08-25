@@ -208,7 +208,6 @@ export function computeMilitiaBreakdown(
   if (includeStructures && structureBonus > 0) {
     const walls = countCompletedDefenseBuildings(state.buildings, [
       BuildingType.Wall,
-      BuildingType.WallCorner,
       BuildingType.WallGate,
     ]);
     if (walls > 0) {

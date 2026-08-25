@@ -401,7 +401,7 @@ export function maybeDialogueChat(
 
 /** Weighted pool of chat contexts — random pick, optional light bias from world state. */
 export function pickRandomChatContext(
-  entity: Pick<ChatSpeaker, 'isJuvenile'>,
+  entity: Pick<ChatSpeaker, 'isJuvenile' | 'id'>,
   tick: number,
   options: ChatPickOptions = {},
   extra?: {

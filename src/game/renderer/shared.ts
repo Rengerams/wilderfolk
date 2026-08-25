@@ -125,7 +125,6 @@ export const DEFAULT_SPRITE_DISPLAY_SCALE = 1.15;
 
 export const ISO_PANEL_BUILDINGS = new Set<BuildingType>([
   BuildingType.Wall,
-  BuildingType.WallCorner,
   BuildingType.WallGate,
 ]);
 

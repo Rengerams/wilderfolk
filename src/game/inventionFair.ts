@@ -78,10 +78,7 @@ function hasWorkshop(state: WorldState): boolean {
   return state.buildings.some(
     (b) =>
       b.completed &&
-      (b.type === BuildingType.Workshop ||
-        b.type === BuildingType.Blacksmith ||
-        b.type === BuildingType.ResearchLab ||
-        b.type === BuildingType.Forge),
+      (b.type === BuildingType.Workshop || b.type === BuildingType.Blacksmith),
   );
 }
 
@@ -141,7 +138,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
   const colonyDay = getColonyDay(state);
   let inventionId: string | null = null;
   let cost = 0;
-  let riskMode = RISK.experimental;
+  let riskMode: number = RISK.experimental;
 
   switch (choice) {
     case 'fund_granary':

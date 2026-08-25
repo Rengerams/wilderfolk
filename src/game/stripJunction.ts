@@ -27,7 +27,6 @@ export interface StripJunctionInfo {
 const WALL_TYPES = new Set<BuildingType>([
   BuildingType.Wall,
   BuildingType.WallGate,
-  BuildingType.WallCorner,
 ]);
 
 const ROAD_TYPES = new Set<BuildingType>([BuildingType.Road]);
@@ -87,10 +86,6 @@ export function straightRotationFromConnections(c: JunctionConnections): Buildin
 type StripCenter = { x: number; y: number };
 
 function buildingStripRotation(b: Building): BuildingRotation {
-  if (b.type === BuildingType.WallCorner) {
-    const c = normalizeCornerRotation(b.rotation);
-    return c === 90 || c === 270 ? 90 : 0;
-  }
   return normalizeBuildingRotation(b.rotation);
 }
 
@@ -134,26 +129,13 @@ export function collectStripCenters(
 
   for (const b of buildings) {
     if (!b.completed || b.faction === 'rival' || !types.has(b.type)) continue;
-    if (b.type === BuildingType.WallCorner) {
-      const arms = cornerArms(normalizeCornerRotation(b.rotation));
-      const snapped = snapBuildingCenter(BuildingType.WallCorner, b.x, b.y, 0);
-      if (arms.east || arms.west) hList.push(snapped);
-      if (arms.north || arms.south) vList.push(snapped);
-      continue;
-    }
     const t = b.type === BuildingType.WallGate ? BuildingType.WallGate : b.type;
     pushBuilding(t, b.x, b.y, buildingStripRotation(b));
   }
 
   for (const e of extra) {
-    if (e.type === BuildingType.WallCorner) {
-      const arms = cornerArms(normalizeCornerRotation(e.rotation as CornerRotation));
-      const snapped = snapBuildingCenter(BuildingType.WallCorner, e.x, e.y, 0);
-      if (arms.east || arms.west) hList.push(snapped);
-      if (arms.north || arms.south) vList.push(snapped);
-      continue;
-    }
-    pushBuilding(e.type, e.x, e.y, e.rotation as BuildingRotation);
+    const t = e.type === BuildingType.WallGate ? BuildingType.WallGate : e.type;
+    pushBuilding(t, e.x, e.y, normalizeBuildingRotation(e.rotation));
   }
 
   return { hList, vList, along };

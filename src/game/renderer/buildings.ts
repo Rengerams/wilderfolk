@@ -8,7 +8,6 @@ import type { RenderSnapshot } from '../renderSnapshot';
 import { getSpriteFrame } from '../spriteLoader';
 import {
   drawProceduralStripBuilding,
-  drawProceduralWallJunction,
   drawStripJunctionOverlay,
 } from '../stripRender';
 import { isStripBuildType } from '../stripBuild';
@@ -58,21 +57,10 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     if (!ISO_PANEL_BUILDINGS.has(b.type) || !b.completed) continue;
     const { sx, sy, w, h } = getBuildingScreenRect(b);
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
-    const rot = b.type === BuildingType.WallCorner
-      ? (b.rotation ?? 0)
-      : normalizeBuildingRotation(b.rotation);
+    const rot = normalizeBuildingRotation(b.rotation);
     const hover = isHovered(b);
     const alpha = hover ? 1 : 0.94;
-    if (b.type === BuildingType.WallCorner) {
-      const wallJunction = detectBuildingJunction(state.buildings, b, 'wall');
-      if (wallJunction.kind === 'tee' || wallJunction.kind === 'cross') {
-        drawProceduralWallJunction(ctx, sx, sy, w, h, wallJunction, alpha);
-      } else {
-        drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, alpha);
-      }
-    } else {
-      drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, alpha);
-    }
+    drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, alpha);
   }
 
   // Under construction

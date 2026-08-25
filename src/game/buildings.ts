@@ -32,7 +32,6 @@ export const BuildingType = {
   Mansion: 'mansion',
   TamingPost: 'tamingPost',
   Wall: 'wall',
-  WallCorner: 'wallCorner',
   WallGate: 'wallGate',
   Watchtower: 'watchtower',
   Barracks: 'barracks',

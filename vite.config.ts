@@ -35,6 +35,34 @@ function manualChunks(id: string): string | undefined {
   if (normalized.includes('/src/game/data/')) {
     return 'game-data'
   }
+  // Leaf core: types + building catalog only (no runtime imports back into game).
+  if (normalized.includes('/src/game/gameTypes') || normalized.includes('/src/game/buildings')) {
+    return 'game-core'
+  }
+  if (normalized.includes('/src/audio/')) {
+    return 'game-audio'
+  }
+  if (normalized.includes('/src/game/simulation/')) {
+    return 'game-sim'
+  }
+  if (
+    normalized.includes('/src/game/frontierCombat') ||
+    normalized.includes('/src/game/rivalEvents') ||
+    normalized.includes('/src/game/defenseStructures') ||
+    normalized.includes('/src/game/militiaBalance') ||
+    normalized.includes('/src/game/groupEvents') ||
+    normalized.includes('/src/game/watchtowerDetection')
+  ) {
+    return 'game-combat'
+  }
+  if (
+    normalized.includes('/src/game/worldGen') ||
+    normalized.includes('/src/game/entityFactory') ||
+    normalized.includes('/src/game/migration') ||
+    normalized.includes('/src/game/terrainGen')
+  ) {
+    return 'game-world'
+  }
   if (normalized.includes('/src/game/renderer/') || normalized.includes('/src/game/huntrenderer')) {
     return 'game-render'
   }

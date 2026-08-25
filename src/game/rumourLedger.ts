@@ -83,11 +83,11 @@ export function rumourLedgerEligibleDay(mapSeed: number | undefined): number {
 
 function recentSourceKind(state: WorldState): SourceKind | null {
   const recent = state.eventLog.slice(-30);
-  if (recent.some((e) => e.type === 'birth' || e.type === 'family')) return 'family';
-  if (recent.some((e) => e.type === 'election' || e.type === 'civic')) return 'civic';
-  if (recent.some((e) => e.type === 'ecology' || e.type === 'hunt')) return 'ecology';
-  if (recent.some((e) => e.type === 'raid' || e.type === 'frontier')) return 'frontier';
-  if (recent.some((e) => e.type === 'scandal' || e.type === 'prison')) return 'scandal';
+  if (recent.some((e) => e.type === 'birth' || e.type === 'marriage')) return 'family';
+  if (recent.some((e) => e.type === 'milestone' || e.type === 'research')) return 'civic';
+  if (recent.some((e) => e.type === 'season')) return 'ecology';
+  if (recent.some((e) => e.type === 'combat' || e.type === 'trade')) return 'frontier';
+  if (recent.some((e) => e.type === 'scandal')) return 'scandal';
   return null;
 }
 
@@ -158,9 +158,16 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
     addNotification(state, '📜 Investigation complete', `The scribe reports the rumour is ${truthText}.`, 'info');
   }
 
+  const responseMap: Record<Stage1Choice, number> = {
+    correct_record: RESPONSE.correct,
+    encourage: RESPONSE.encourage,
+    ignore: RESPONSE.ignore,
+    investigate: RESPONSE.investigate,
+  };
+
   setStoryFlags(state, {
     [FLAG_STATUS]: STATUS.responded,
-    [FLAG_RESPONSE]: RESPONSE[choice] ?? RESPONSE.ignore,
+    [FLAG_RESPONSE]: responseMap[choice],
     [FLAG_RESOLVE_DAY]: colonyDay + 2 + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('rumour-resolution')) * 3),
     ...(choice === 'encourage'
       ? { [AUTHORED_STORY_COOLDOWN_FLAG]: colonyDay + 28 }

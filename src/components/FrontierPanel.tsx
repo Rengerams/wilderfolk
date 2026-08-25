@@ -50,7 +50,6 @@ function FrontierPanel({
   const barracksCount = countCompletedDefenseBuildings(state.buildings, BuildingType.Barracks);
   const wallSegments = countCompletedDefenseBuildings(state.buildings, [
     BuildingType.Wall,
-    BuildingType.WallCorner,
     BuildingType.WallGate,
   ]);
   const armament = hasIronSpears(state) ? 'Iron spears' : hasStoneSpears(state) ? 'Stone spears' : 'Unarmed adults';

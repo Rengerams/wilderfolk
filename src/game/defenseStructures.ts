@@ -38,7 +38,6 @@ const EMPTY_FORGE: VillageForgeState = {
 
 const WALL_TYPES = new Set<BuildingType>([
   BuildingType.Wall,
-  BuildingType.WallCorner,
   BuildingType.WallGate,
 ]);
 
@@ -64,7 +63,6 @@ export function getWallSegmentBonus(
   if (!buildings?.length) return 0;
   const segments = countCompletedDefenseBuildings(buildings, [
     BuildingType.Wall,
-    BuildingType.WallCorner,
     BuildingType.WallGate,
   ]);
   if (segments === 0) return 0;
@@ -154,7 +152,6 @@ export function getDefenseStructureBreakdown(state: WorldState, buildings: Build
   const lines: string[] = [];
   const walls = countCompletedDefenseBuildings(buildings, [
     BuildingType.Wall,
-    BuildingType.WallCorner,
     BuildingType.WallGate,
   ]);
   const wallBonus = getWallSegmentBonus(buildings, state);

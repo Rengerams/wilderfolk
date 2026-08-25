@@ -418,10 +418,6 @@ export function drawProceduralStripBuilding(
     drawProceduralRoad(ctx, sx, sy, w, h, rotation as BuildingRotation, alpha);
     return;
   }
-  if (type === BuildingType.WallCorner) {
-    drawProceduralWallCorner(ctx, sx, sy, w, h, normalizeCornerRotation(rotation), alpha);
-    return;
-  }
   if (type === BuildingType.Fence) {
     drawProceduralFence(ctx, sx, sy, w, h, rotation as BuildingRotation, alpha);
     return;
@@ -442,8 +438,5 @@ export function drawStripJunctionOverlay(
   if (type === BuildingType.Road) {
     drawProceduralRoadJunction(ctx, sx, sy, w, h, info.kind, alpha, info.cornerRotation);
     return;
-  }
-  if (type === BuildingType.WallCorner) {
-    drawProceduralWallJunction(ctx, sx, sy, w, h, info, alpha);
   }
 }

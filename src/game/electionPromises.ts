@@ -4,6 +4,7 @@
  * window the village either rewards kept promises or punishes broken ones.
  */
 import type { WorldState } from './gameTypes';
+import { BuildingType } from './gameTypes';
 import { getColonyDay } from './dayCycle';
 import { addBigNews } from './simEffects';
 import { logEvent } from './eventLog';
@@ -50,10 +51,10 @@ function promiseKept(state: WorldState, year: number, index: number): boolean {
       return state.resources.food >= 300;
     case PROMISE_CODES.build_walls:
       return state.buildings.some(
-        (b) => b.completed && (b.type === 'Wall' || b.type === 'WallGate' || b.type === 'Watchtower'),
+        (b) => b.completed && (b.type === BuildingType.Wall || b.type === BuildingType.WallGate || b.type === BuildingType.Watchtower),
       );
     case PROMISE_CODES.run_forge:
-      return state.buildings.some((b) => b.completed && b.type === 'Blacksmith');
+      return state.buildings.some((b) => b.completed && b.type === BuildingType.Blacksmith);
     default:
       return false;
   }

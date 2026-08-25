@@ -268,8 +268,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     entityById, buildingById, mobileGrid, humanSocialGrid,
   } = ctx;
 
-  // Current terrain for pathfinding (routing around water/mountains).
-  setCurrentPathMap(state.worldMap);
+  // Current terrain + walls for pathfinding (routing around water/mountains and walled-in areas).
+  setCurrentPathMap(state.worldMap, state.buildings);
 
   const config = SPECIES_CONFIG[EntityType.Human];
   const isWinter = season === Season.Winter;

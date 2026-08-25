@@ -5,7 +5,6 @@ import {
   snapBuildingCenter,
   type BuildingRotation,
   type CornerRotation,
-  normalizeCornerRotation,
   normalizeBuildingRotation,
 } from './buildingRotation';
 import { computeStripSegmentCenters, isStripBuildType, type EnclosedArea } from './stripBuild';
@@ -14,7 +13,6 @@ import {
   collectStripCenters,
   JUNCTION_PROXIMITY,
   resolveJunctionCenter,
-  straightRotationFromConnections,
   type StripJunctionInfo,
 } from './stripJunction';
 
@@ -23,7 +21,6 @@ export const STRIP_SNAP_RADIUS = 38;
 const WALL_STRIP_TYPES = new Set<BuildingType>([
   BuildingType.Wall,
   BuildingType.WallGate,
-  BuildingType.WallCorner,
 ]);
 
 const ROAD_STRIP_TYPES = new Set<BuildingType>([BuildingType.Road]);
@@ -63,10 +60,6 @@ export function getStripSegmentEndpoints(
 }
 
 function buildingStripRotation(b: Building): BuildingRotation {
-  if (b.type === BuildingType.WallCorner) {
-    const c = normalizeCornerRotation(b.rotation);
-    return c === 90 || c === 270 ? 90 : 0;
-  }
   return normalizeBuildingRotation(b.rotation);
 }
 
@@ -75,10 +68,6 @@ function collectSnapPoints(buildings: Building[], family: 'wall' | 'road'): { x:
   const types = family === 'wall' ? WALL_STRIP_TYPES : ROAD_STRIP_TYPES;
   for (const b of buildings) {
     if (!b.completed || b.faction === 'rival' || !types.has(b.type)) continue;
-    if (b.type === BuildingType.WallCorner) {
-      points.push({ x: b.x, y: b.y });
-      continue;
-    }
     const rot = buildingStripRotation(b);
     const sampleType = b.type === BuildingType.WallGate ? BuildingType.WallGate : b.type;
     const [a, c] = getStripSegmentEndpoints(sampleType, b.x, b.y, rot);
@@ -142,19 +131,6 @@ export interface StripPlacementPiece {
   replacesBuildingId?: number;
 }
 
-function needsReplacement(
-  existing: Building | undefined,
-  placeType: BuildingType,
-  rotation: BuildingRotation | CornerRotation,
-): boolean {
-  if (!existing) return false;
-  if (placeType === BuildingType.WallCorner) {
-    if (existing.type !== BuildingType.WallCorner) return true;
-    return normalizeCornerRotation(existing.rotation) !== normalizeCornerRotation(rotation);
-  }
-  return existing.type === BuildingType.WallCorner;
-}
-
 export function resolveWallStripPlan(
   state: WorldState,
   stripType: BuildingType,
@@ -167,7 +143,7 @@ export function resolveWallStripPlan(
     rotation: stripRotation,
     type: stripType,
   }));
-  const { hList, vList, along } = collectStripCenters(state.buildings, 'wall', extra);
+  const { hList, vList } = collectStripCenters(state.buildings, 'wall', extra);
 
   const pieces: StripPlacementPiece[] = [];
   const emitted = new Set<string>();
@@ -178,50 +154,7 @@ export function resolveWallStripPlan(
     if (emitted.has(key)) continue;
 
     const junctionPt = resolveJunctionCenter(snapped.x, snapped.y, hList, vList);
-    const info = analyzeStripJunction(junctionPt.x, junctionPt.y, hList, vList, along);
     const existing = findStripBuildingAt(state, junctionPt.x, junctionPt.y, JUNCTION_PROXIMITY * 0.75, 'wall');
-
-    if (info.kind === 'elbow' || info.kind === 'tee' || info.kind === 'cross') {
-      if (
-        existing?.type === BuildingType.WallCorner
-        && normalizeCornerRotation(existing.rotation) === info.cornerRotation
-        && info.kind === 'elbow'
-      ) {
-        emitted.add(key);
-        continue;
-      }
-      const cornerSnap = snapBuildingCenter(BuildingType.WallCorner, junctionPt.x, junctionPt.y, 0);
-      const cornerKey = cellKey(cornerSnap.x, cornerSnap.y);
-      if (emitted.has(cornerKey)) continue;
-      pieces.push({
-        type: BuildingType.WallCorner,
-        x: cornerSnap.x,
-        y: cornerSnap.y,
-        rotation: info.cornerRotation,
-        junctionInfo: info,
-        replacesBuildingId: needsReplacement(existing, BuildingType.WallCorner, info.cornerRotation)
-          ? existing?.id
-          : undefined,
-      });
-      emitted.add(cornerKey);
-      emitted.add(key);
-      continue;
-    }
-
-    if (info.kind === 'straight') {
-      const rot = straightRotationFromConnections(info.connections);
-      if (existing?.type === BuildingType.WallCorner) {
-        pieces.push({
-          type: stripType,
-          x: snapped.x,
-          y: snapped.y,
-          rotation: rot,
-          replacesBuildingId: existing.id,
-        });
-        emitted.add(key);
-        continue;
-      }
-    }
 
     if (existing && (existing.type === stripType || existing.type === BuildingType.Wall)) {
       emitted.add(key);
@@ -446,7 +379,7 @@ export function buildStripPlanFromDrag(
   );
   const plan = resolveStripPlan(state, type, centers, rotation);
   const enclosedAreas = isWallStripType(type)
-    ? findEnclosedWallAreas(state, plan.filter((p) => p.type !== BuildingType.WallCorner).map((p) => ({ x: p.x, y: p.y })))
+    ? findEnclosedWallAreas(state, plan.map((p) => ({ x: p.x, y: p.y })))
     : [];
   return { plan, enclosedAreas };
 }

@@ -68,7 +68,6 @@ import {
 import { buildStripPlanFromDrag } from './stripTopology';
 import {
   normalizeBuildingRotation,
-  normalizeCornerRotation,
   type CornerRotation,
 } from './buildingRotation';
 import { createEntity } from './entityFactory';
@@ -240,13 +239,9 @@ function refundHalfBuildingCost(state: WorldState, type: BuildingType): void {
 }
 
 function segmentRotationForPlacement(
-  placeType: BuildingType,
+  _placeType: BuildingType,
   rotation: BuildingRotation | CornerRotation,
 ): BuildingRotation {
-  if (placeType === BuildingType.WallCorner) {
-    const c = normalizeCornerRotation(rotation);
-    return c === 90 || c === 270 ? 90 : 0;
-  }
   return normalizeBuildingRotation(rotation);
 }
 
@@ -353,9 +348,7 @@ export function placeStripChain(
     state.resources.stone -= config.cost.stone;
     state.resources.gold -= config.cost.gold;
 
-    const cornerRot = placeType === BuildingType.WallCorner
-      ? normalizeCornerRotation(placeRot)
-      : normalizeBuildingRotation(placeRot);
+    const cornerRot = normalizeBuildingRotation(placeRot);
     const building = createBuilding(
       placeType,
       seg.x,

@@ -80,13 +80,13 @@ function hasPerformerGroup(state: WorldState): boolean {
 function availableScripts(state: WorldState): Stage1Choice[] {
   const recent = state.eventLog.slice(-40);
   const scripts: Stage1Choice[] = [];
-  if (recent.some((e) => e.type === 'winter' || e.type === 'freeze' || e.type === 'heating')) {
+  if (recent.some((e) => e.type === 'disaster' || e.type === 'season')) {
     scripts.push('first_winter');
   }
-  if (recent.some((e) => e.type === 'wolf' || e.type === 'hunt' || e.type === 'ecology')) {
+  if (recent.some((e) => e.type === 'season' || e.type === 'combat')) {
     scripts.push('wolf_mistake');
   }
-  if (recent.some((e) => e.type === 'election' || e.type === 'scandal' || e.type === 'civic')) {
+  if (recent.some((e) => e.type === 'milestone' || e.type === 'research' || e.type === 'scandal')) {
     scripts.push('town_hall_scandal');
   }
   return scripts;

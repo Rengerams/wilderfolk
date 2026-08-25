@@ -8,8 +8,8 @@
  * origin-target pair with a bounded cache. Every pathing call falls back to
  * direct movement when no path exists, so nothing can ever deadlock.
  */
-import type { Entity, WorldMap } from './gameTypes';
-import { TERRAIN_TILE_SIZE, TerrainType } from './gameTypes';
+import type { Building, Entity, WorldMap } from './gameTypes';
+import { BuildingType, TERRAIN_TILE_SIZE, TerrainType } from './gameTypes';
 
 /** Terrain that blocks walking (water + mountains). Snowy ground stays walkable. */
 const BLOCKED_TERRAIN = new Set<TerrainType>([
@@ -19,6 +19,36 @@ const BLOCKED_TERRAIN = new Set<TerrainType>([
   TerrainType.Mountains,
 ]);
 
+/** Completed player walls block walking; gates are passable openings. */
+function isBlockingWall(b: Building): boolean {
+  return b.completed && b.faction !== 'rival' && b.type === BuildingType.Wall;
+}
+
+function markBuildingBlocked(blocked: Uint8Array, cols: number, rows: number, b: Building): void {
+  const x0 = Math.max(0, Math.floor(b.x / TERRAIN_TILE_SIZE));
+  const y0 = Math.max(0, Math.floor(b.y / TERRAIN_TILE_SIZE));
+  const x1 = Math.min(cols - 1, Math.ceil((b.x + b.width) / TERRAIN_TILE_SIZE));
+  const y1 = Math.min(rows - 1, Math.ceil((b.y + b.height) / TERRAIN_TILE_SIZE));
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      blocked[y * cols + x] = 1;
+    }
+  }
+}
+
+/** Lightweight buildings signature so the grid rebuilds only when walls change. */
+function buildingSignature(buildings: Building[] | undefined): string {
+  if (!buildings?.length) return '';
+  let hash = 0;
+  let count = 0;
+  for (const b of buildings) {
+    if (!isBlockingWall(b)) continue;
+    hash = (hash + b.id * 31 + Math.round(b.x) * 17 + Math.round(b.y) * 13 + (b.rotation ?? 0) * 7) >>> 0;
+    count++;
+  }
+  return `${count}:${hash}`;
+}
+
 export interface PathGrid {
   cols: number;
   rows: number;
@@ -26,11 +56,13 @@ export interface PathGrid {
 }
 
 let gridCache: PathGrid | null = null;
-let gridCacheSeed = -1;
+let gridCacheSeed = '';
 
-export function getPathGrid(map: WorldMap): PathGrid {
+export function getPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
   const seed = typeof map.seed === 'number' ? map.seed : 1;
-  if (gridCache && gridCacheSeed === seed && gridCache.cols === map.width && gridCache.rows === map.height) {
+  const bldSig = buildingSignature(buildings);
+  const cacheKey = `${seed}|${bldSig}|${map.width}x${map.height}`;
+  if (gridCache && gridCacheSeed === cacheKey) {
     return gridCache;
   }
   const cols = map.width;
@@ -42,8 +74,13 @@ export function getPathGrid(map: WorldMap): PathGrid {
       if (t && BLOCKED_TERRAIN.has(t.type)) blocked[y * cols + x] = 1;
     }
   }
+  if (buildings) {
+    for (const b of buildings) {
+      if (isBlockingWall(b)) markBuildingBlocked(blocked, cols, rows, b);
+    }
+  }
   gridCache = { cols, rows, blocked };
-  gridCacheSeed = seed;
+  gridCacheSeed = cacheKey;
   return gridCache;
 }
 
@@ -191,7 +228,8 @@ export function lineCrossesBlocked(
   x1: number,
   y1: number,
 ): boolean {
-  const steps = Math.max(4, Math.min(24, (Math.abs(x1 - x0) / TERRAIN_TILE_SIZE) | 0));
+  const span = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+  const steps = Math.max(4, Math.min(96, Math.ceil(span / TERRAIN_TILE_SIZE) + 1));
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
     const px = x0 + (x1 - x0) * t;
@@ -208,8 +246,8 @@ export function lineCrossesBlocked(
 let currentGrid: PathGrid | null = null;
 const pathCache = new Map<string, { x: number; y: number }[] | null>();
 
-export function setCurrentPathMap(map: WorldMap | null): void {
-  const next = map ? getPathGrid(map) : null;
+export function setCurrentPathMap(map: WorldMap | null, buildings?: Building[]): void {
+  const next = map ? getPathGrid(map, buildings) : null;
   if (next !== currentGrid) {
     currentGrid = next;
     pathCache.clear();
@@ -239,7 +277,7 @@ export function steerWithPath(
     entity.vy = 0;
     return 'arrived';
   }
-  if (!currentGrid || dist <= 90) return 'direct';
+  if (!currentGrid) return 'direct';
 
   if (lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY)) {
     let wp = pathCache.get(cacheKey);

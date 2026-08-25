@@ -1,4 +1,3 @@
-import { BuildingType } from '../buildings';
 import { GRID_SIZE, TERRAIN_TILE_SIZE, snapToGrid } from '../gameTypes';
 import { isNightHour } from '../dayCycle';
 import { getBuildingFootprintForType, snapBuildingCenter } from '../buildingRotation';
@@ -6,7 +5,6 @@ import { canPlaceBuildingSnapshot, isUnbuildableTerrainType, isWaterTerrainType 
 import { isStripBuildType } from '../stripBuild';
 import {
   drawProceduralStripBuilding,
-  drawProceduralWallJunction,
   drawStripJunctionOverlay,
 } from '../stripRender';
 import { worldToScreen as w2s } from '../viewState';
@@ -289,17 +287,9 @@ export function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, c
       const bw = footprint.width * cam.zoom;
       const bh = footprint.height * cam.zoom;
       const alpha = seg.valid ? 0.72 : 0.45;
-      if (
-        placeType === BuildingType.WallCorner
-        && seg.junctionInfo
-        && (seg.junctionInfo.kind === 'tee' || seg.junctionInfo.kind === 'cross')
-      ) {
-        drawProceduralWallJunction(ctx, gx, gy, bw, bh, seg.junctionInfo, alpha);
-      } else {
-        drawProceduralStripBuilding(ctx, placeType, gx, gy, bw, bh, segRot, alpha);
-        if (seg.junctionInfo) {
-          drawStripJunctionOverlay(ctx, placeType, gx, gy, bw, bh, seg.junctionInfo, alpha);
-        }
+      drawProceduralStripBuilding(ctx, placeType, gx, gy, bw, bh, segRot, alpha);
+      if (seg.junctionInfo) {
+        drawStripJunctionOverlay(ctx, placeType, gx, gy, bw, bh, seg.junctionInfo, alpha);
       }
       ctx.strokeStyle = seg.valid ? 'rgba(34, 197, 94, 0.9)' : 'rgba(239, 68, 68, 0.85)';
       ctx.lineWidth = Math.max(1.2, 1.8 / cam.zoom);

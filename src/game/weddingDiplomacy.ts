@@ -4,7 +4,7 @@
  * invitation gift → delayed rival response → feast/delegation/fortify → outcome.
  */
 import type { WorldState, StoryEvent } from './gameTypes';
-import { BuildingType } from './gameTypes';
+import { BuildingType, EntityType } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
@@ -90,23 +90,23 @@ function pushCard(state: WorldState, event: StoryEvent): void {
 }
 
 function rivalName(state: WorldState): string {
-  const id = storyFlag(state, FLAG_RIVAL);
-  const rival = state.rivalSettlements.find((r) => r.id === id) ?? state.rivalSettlements[0];
+  const rivalIndex = storyFlag(state, FLAG_RIVAL);
+  const rival = state.rivalSettlements[rivalIndex] ?? state.rivalSettlements[0];
   return rival?.name ?? 'the rival settlement';
 }
 
 function relationshipIndex(state: WorldState): number {
   const order: string[] = ['tense', 'competitive', 'neutral', 'friendly'];
-  const rival = state.rivalSettlements.find((r) => r.id === storyFlag(state, FLAG_RIVAL))
-    ?? state.rivalSettlements[0];
+  const rivalIndex = storyFlag(state, FLAG_RIVAL);
+  const rival = state.rivalSettlements[rivalIndex] ?? state.rivalSettlements[0];
   const idx = rival ? order.indexOf(rival.relationship) : 1;
   return idx < 0 ? 1 : idx;
 }
 
 function shiftRelationship(state: WorldState, steps: number): void {
   const order: string[] = ['tense', 'competitive', 'neutral', 'friendly'];
-  const rival = state.rivalSettlements.find((r) => r.id === storyFlag(state, FLAG_RIVAL))
-    ?? state.rivalSettlements[0];
+  const rivalIndex = storyFlag(state, FLAG_RIVAL);
+  const rival = state.rivalSettlements[rivalIndex] ?? state.rivalSettlements[0];
   if (!rival) return;
   const idx = order.indexOf(rival.relationship);
   const next = Math.max(0, Math.min(order.length - 1, (idx < 0 ? 1 : idx) + steps));
@@ -123,16 +123,17 @@ export function maybeOfferWeddingDiplomacy(state: WorldState): void {
   if (state.rivalSettlements.length === 0) return;
 
   const rival = state.rivalSettlements[0];
+  const rivalIndex = state.rivalSettlements.indexOf(rival);
   setStoryFlags(state, {
     [FLAG_OFFERED]: state.tick,
     [FLAG_STATUS]: STATUS.offered,
-    [FLAG_RIVAL]: rival.id,
+    [FLAG_RIVAL]: rivalIndex,
     [FLAG_STARTED_DAY]: colonyDay,
     [AUTHORED_STORY_COOLDOWN_FLAG]: colonyDay + AUTHORED_STORY_COOLDOWN_DAYS,
   });
 
   const envoyAvailable = state.entities.some(
-    (e) => e.alive && e.type === 'Human' && !e.isJuvenile && e.faction !== 'rival',
+    (e) => e.alive && e.type === EntityType.Human && !e.isJuvenile && e.faction !== 'rival',
   );
   const event: StoryEvent = {
     id: `wedding_stage1_${state.tick}`,
@@ -214,7 +215,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
     }
     case 'envoy': {
       const envoy = state.entities.find(
-        (e) => e.alive && e.type === 'Human' && !e.isJuvenile && e.faction !== 'rival',
+        (e) => e.alive && e.type === EntityType.Human && !e.isJuvenile && e.faction !== 'rival',
       );
       if (!envoy) {
         addNotification(state, 'No envoy available', 'No adult settler can attend the wedding.', 'warning');
