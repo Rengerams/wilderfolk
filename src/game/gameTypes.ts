@@ -556,7 +556,7 @@ export interface StoryEvent {
   createdAtTick: number;
   expiresAtTick: number;
   /** Which authored story this resolves — keeps the responder data-driven-safe. */
-  storyKey: 'welcome' | 'wolf_choice' | 'ranger_visit' | 'howler_rumor' | 'grief_beat' | 'winter_prep' | 'valley_debate' | 'children_shelter' | 'traveling_theatre';
+  storyKey: 'welcome' | 'wolf_choice' | 'ranger_visit' | 'howler_rumor' | 'grief_beat' | 'winter_prep' | 'valley_debate' | 'children_shelter' | 'traveling_theatre' | 'wedding_diplomacy' | 'invention_fair' | 'rumour_ledger';
 }
 
 /** @deprecated Prefer PopulationHistoryEntry (same shape, richer optional fields). */

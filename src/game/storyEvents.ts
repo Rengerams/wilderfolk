@@ -6,6 +6,9 @@ import { addCappedResource } from './resourceUtils';
 import { isPlayerHuman } from './playerHuman';
 import { logEvent } from './eventLog';
 import { resolveTravelingTheatre } from './travelingTheatre';
+import { resolveWeddingDiplomacy } from './weddingDiplomacy';
+import { resolveInventionFair } from './inventionFair';
+import { resolveRumourLedger } from './rumourLedger';
 
 /**
  * Authored cross-system stories (v0.6.1+ "signature stories") — visible choices
@@ -129,6 +132,20 @@ export function respondToStoryEvent(
     }
     case 'traveling_theatre':
       resolveTravelingTheatre(state, choiceId);
+      break;
+    case 'wedding_diplomacy':
+      resolveWeddingDiplomacy(state, choiceId);
+      break;
+    case 'invention_fair': {
+      const accepted = resolveInventionFair(state, choiceId);
+      if (!accepted) {
+        state.pendingStoryEvents ??= [];
+        state.pendingStoryEvents.push(event);
+      }
+      break;
+    }
+    case 'rumour_ledger':
+      resolveRumourLedger(state, choiceId);
       break;
 
   }

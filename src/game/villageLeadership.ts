@@ -1,5 +1,6 @@
 import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState } from './gameTypes';
 import { maybeOfferValleyDebate } from './storyEvents';
+import { recordElectionPromises } from './electionPromises';
 import { BuildingType, EntityType } from './gameTypes';
 import { getAgeInYears, HUMAN_ADULT_MIN_AGE, isImprisoned, TICKS_PER_DAY } from './dayCycle';
 import { logEvent } from './eventLog';
@@ -589,6 +590,7 @@ export function startElectionCeremony(
 
   const winner = ranked[0];
   const site = getElectionGatherSite(state);
+  recordElectionPromises(state, year);
   state.electionCeremony = {
     phase: 'gathering',
     phaseTicksLeft: getPhaseTicks('gathering'),
