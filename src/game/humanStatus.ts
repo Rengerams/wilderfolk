@@ -67,5 +67,15 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
     return `At ${label}`;
   }
 
+  // Not near any building but has a home → likely walking home (or away).
+  if (entity.residenceBuildingId != null) {
+    const home = state.buildings.find((b) => b.id === entity.residenceBuildingId);
+    if (home) {
+      const target = humanBuildingTarget(home, entity.id, true);
+      const dist = Math.hypot(target.x - entity.x, target.y - entity.y);
+      if (dist > WORK_ARRIVE_DISTANCE) return 'Walking home';
+    }
+  }
+
   return 'Idle';
 }
