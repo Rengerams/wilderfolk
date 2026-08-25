@@ -144,6 +144,8 @@ const TUTORIAL_DONE_KEY = 'wilderfolk-tutorial-done';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const debugMode = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('debug') === '1';
   const [world, setWorld] = useState<WorldState>(() => {
     const s = initGame();
     s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
@@ -2017,7 +2019,7 @@ export default function App() {
 
         {/* Right sidebar */}
         <aside className="side-panel flex w-[18.5rem] flex-col border-l border-stone-700/80">
-          <SimulationDiagnosticsPanel loop={loopRef.current} />
+          <SimulationDiagnosticsPanel loop={loopRef.current} debugMode={debugMode} />
           {hasInspectorSelection && (
           <div className="shrink-0 border-b border-stone-700 bg-stone-900/50">
             <div className="flex items-center justify-between px-3 py-1.5">

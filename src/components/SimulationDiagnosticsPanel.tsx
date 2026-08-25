@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { GameLoop, GameLoopDiagnostics } from '../game/gameLoop';
+import { EntityType } from '../game/gameTypes';
 
 type Props = {
   loop: GameLoop | null;
+  debugMode?: boolean;
 };
 
 function formatLatency(value: number): string {
@@ -16,7 +18,42 @@ function formatAge(value: number | null): string {
   return `${(value / 1000).toFixed(1)} s ago`;
 }
 
-export default function SimulationDiagnosticsPanel({ loop }: Props) {
+function getLifecycleAlignment(loop: GameLoop | null) {
+  const humans = loop?.getWorld().entities.filter(
+    (entity) => entity.type === EntityType.Human && entity.alive && !entity.faction,
+  ) ?? [];
+  const pregnant = humans.filter((human) => human.pregnant);
+  const expectingMismatch = humans.filter(
+    (human) => human.relationshipStatus === 'expecting' && !human.pregnant,
+  );
+  const partnerMismatch = humans.filter(
+    (human) => human.partnerId != null && !humans.some((partner) => partner.id === human.partnerId),
+  );
+  const missingParentLinks = humans.filter(
+    (human) => human.isJuvenile && human.motherId == null && human.fatherId == null,
+  );
+  const dueSoon = pregnant.filter(
+    (human) => human.pregnancyProgress != null
+      && human.pregnancyDueProgress != null
+      && human.pregnancyDueProgress - human.pregnancyProgress <= 10,
+  );
+  const progressValues = pregnant
+    .map((human) => human.pregnancyProgress)
+    .filter((value): value is number => value != null && Number.isFinite(value));
+  return {
+    population: humans.length,
+    pregnant: pregnant.length,
+    dueSoon: dueSoon.length,
+    progress: progressValues.length > 0
+      ? `${Math.min(...progressValues).toFixed(0)}–${Math.max(...progressValues).toFixed(0)}`
+      : '—',
+    expectingMismatch: expectingMismatch.length,
+    partnerMismatch: partnerMismatch.length,
+    missingParentLinks: missingParentLinks.length,
+  };
+}
+
+export default function SimulationDiagnosticsPanel({ loop, debugMode = false }: Props) {
   const [open, setOpen] = useState(false);
   const [diagnostics, setDiagnostics] = useState<GameLoopDiagnostics | null>(null);
 
@@ -68,6 +105,22 @@ export default function SimulationDiagnosticsPanel({ loop }: Props) {
                   </>
                 )}
               </div>
+              {debugMode && (() => {
+                const lifecycle = getLifecycleAlignment(loop);
+                return (
+                  <div className="rounded-lg border border-cyan-900/70 bg-cyan-950/20 p-2">
+                    <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-cyan-300">Lifecycle alignment</div>
+                    <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                      <span className="text-stone-500">Living settlers</span><span>{lifecycle.population}</span>
+                      <span className="text-stone-500">Pregnant</span><span>{lifecycle.pregnant} · due soon {lifecycle.dueSoon}</span>
+                      <span className="text-stone-500">Progress range</span><span>{lifecycle.progress}</span>
+                      <span className="text-stone-500">Expecting mismatch</span><span className={lifecycle.expectingMismatch === 0 ? 'text-emerald-300' : 'text-amber-300'}>{lifecycle.expectingMismatch}</span>
+                      <span className="text-stone-500">Partner mismatch</span><span className={lifecycle.partnerMismatch === 0 ? 'text-emerald-300' : 'text-amber-300'}>{lifecycle.partnerMismatch}</span>
+                      <span className="text-stone-500">Missing parent links</span><span className={lifecycle.missingParentLinks === 0 ? 'text-emerald-300' : 'text-amber-300'}>{lifecycle.missingParentLinks}</span>
+                    </div>
+                  </div>
+                );
+              })()}
               <p className="text-[10px] leading-relaxed text-stone-500">
                 Read-only view of the active simulation boundary. It does not change cadence, ownership, or world state.
               </p>
