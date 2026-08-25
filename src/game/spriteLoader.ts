@@ -16,6 +16,13 @@ const loadingPromises = new Map<string, Promise<SpriteFrame>>();
 
 let humanSpritesReady = false;
 
+export const MOUNTAIN_SPRITE_PATHS = [
+  '/sprites/mountains/45.png',
+  '/sprites/mountains/135.png',
+  '/sprites/mountains/225.png',
+  '/sprites/mountains/315.png',
+] as const;
+
 /** Kept in sync with humanSprites path constants (no import — avoids circular dep). */
 const HUMAN_SPRITE_PATHS = new Set<string>([
   '/sprites/human_male.png',
@@ -144,6 +151,8 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/terrain/sand_water_overlay.png',
     // Painted dirt (25×25 seamless) — hills/peaks relief surfaces
     '/sprites/tile_dirt.png',
+    // Mountain peak overlays stamped on Mountainous terrain ridge caps.
+    ...MOUNTAIN_SPRITE_PATHS,
   ];
   // Decor buildings draw procedurally — they reference no real sprite file.
   const buildingSprites = Object.values(BUILDING_CONFIGS)

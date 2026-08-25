@@ -1,5 +1,18 @@
 # Changelog
 
+## <u>[0.6.3.1]</u> — 2026-08-28
+-
+-
+-
+-
+-
+-
+
+
+
+
+
+
 ## <u>[0.6.3]</u> — 2026-08-25
 
 - **D1 — deterministic simulation seed** — added `simRng.ts` with per-owner mulberry32 streams and a seeded global fallback. `initGame({ seed })` reproduces the same world; world-gen/entity/terrain/migration use own streams. **Root-cause of the D1 deviation:** the random picks for ambient chats and social interactions consumed the same global seeded stream as the wildlife pass, so a small ordering shift in which citizen chatted first changed the stream and gave e.g. rabbit 417 a different movement roll at tick 20. Fixed by making chat/social rolls context-seeded via `seededRandomForRun()` (salts like `chat-roll:<entityId>:<tick>`, `chat-context`, `chat-partner`, `chat-bubble`), so they no longer shift the shared stream. Same-seed 100-tick replay is in the suite; a manual 300-tick replay was verified deterministic.

@@ -67,6 +67,7 @@ import BigNewsBanner from './components/BigNewsBanner';
 import ShortcutsOverlay from './components/ShortcutsOverlay';
 import VisitorCampPanel from './components/VisitorCampPanel';
 import SelectedEntityPanel from './components/SelectedEntityPanel';
+import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel';
 
 
 import { downloadChronicleLog, loadExportChronicleOnSave } from './game/eventLogExport';
@@ -2016,6 +2017,7 @@ export default function App() {
 
         {/* Right sidebar */}
         <aside className="side-panel flex w-[18.5rem] flex-col border-l border-stone-700/80">
+          <SimulationDiagnosticsPanel loop={loopRef.current} />
           {hasInspectorSelection && (
           <div className="shrink-0 border-b border-stone-700 bg-stone-900/50">
             <div className="flex items-center justify-between px-3 py-1.5">

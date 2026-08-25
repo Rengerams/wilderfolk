@@ -1,5 +1,6 @@
 import type { WorldState } from './gameTypes';
 import { gameTick, computeSimulationFocus, type SimulationFocus } from './gameEngine';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycle';
 import { EntityCatalog } from './entityCatalog';
 import { renderGame, resetRendererCaches } from './rendererLoader';
 import { buildRenderSnapshot } from './renderSnapshot';
@@ -52,6 +53,21 @@ export type SessionListener = (
   tickChanged: boolean,
   catalog: EntityCatalog,
 ) => void;
+
+export interface GameLoopDiagnostics {
+  workerMode: 'worker' | 'main-thread';
+  workerBooting: boolean;
+  tick: number;
+  inGameDay: number;
+  hour: number;
+  paused: boolean;
+  speed: number;
+  ticksInFlight: number;
+  commandInFlight: boolean;
+  tickLatencyMs: number;
+  lastWorkerActivityMsAgo: number | null;
+  lastDailyBoundaryTick: number;
+}
 
 function extractUiPatch(world: WorldState): WorkerUiPatch {
   return {
@@ -127,6 +143,8 @@ export class GameLoop {
   private lastWorkerActivity = 0;
   /** When the last tick was requested from the worker — latency measurement. */
   private lastWorkerTickRequest = 0;
+  /** Last daily boundary observed by the presentation loop; never written to WorldState. */
+  private lastDailyBoundaryTick = 0;
   /** Smoothed worker tick latency (ms) — makes the stall watchdog latency-adaptive. */
   private workerTickLatencyMs = 0;
   private renderSoA: RenderSoAReaderV1 | null = null;
@@ -162,6 +180,7 @@ export class GameLoop {
     this.view = view;
     this.getCanvas = getCanvas;
     this.catalog.rebuild(world.entities);
+    this.lastDailyBoundaryTick = Math.floor(world.tick / TICKS_PER_DAY) * TICKS_PER_DAY;
     this.lastNotifiedTick = world.tick;
 
     if (isGameWorkerEnabled()) {
@@ -221,6 +240,7 @@ export class GameLoop {
       // display — the authoritative commandResult replaces it shortly
       // (SIMULATION_AUTHORITY §2: "ticks that arrive while a command is pending
       // do not overwrite the optimistic display").
+      this.observeDailyBoundary(nextWorld.tick);
       if (!this.optimisticCommand) {
         this.world = nextWorld;
         this.catalog.rebuild(this.world.entities);
@@ -296,6 +316,31 @@ export class GameLoop {
     return this.workerBooting;
   }
 
+  private observeDailyBoundary(tick: number): void {
+    const boundary = Math.floor(tick / TICKS_PER_DAY) * TICKS_PER_DAY;
+    if (boundary > this.lastDailyBoundaryTick) this.lastDailyBoundaryTick = boundary;
+  }
+
+  getDiagnostics(now = performance.now()): GameLoopDiagnostics {
+    const worker = this.isUsingSimWorker();
+    return {
+      workerMode: worker ? 'worker' : 'main-thread',
+      workerBooting: this.workerBooting,
+      tick: this.world.tick,
+      inGameDay: Math.floor(this.world.tick / TICKS_PER_DAY) + 1,
+      hour: Math.floor((this.world.tick % TICKS_PER_DAY) / TICKS_PER_HOUR),
+      paused: this.world.paused,
+      speed: this.world.speed,
+      ticksInFlight: worker ? (this.workerHost?.getTicksInFlight?.() ?? 0) : 0,
+      commandInFlight: worker ? (this.workerHost?.hasCommandInFlight?.() ?? false) : false,
+      tickLatencyMs: this.workerTickLatencyMs,
+      lastWorkerActivityMsAgo: worker && this.lastWorkerActivity > 0
+        ? Math.max(0, now - this.lastWorkerActivity)
+        : null,
+      lastDailyBoundaryTick: this.lastDailyBoundaryTick,
+    };
+  }
+
   getWorld(): WorldState {
     return this.world;
   }
@@ -319,6 +364,7 @@ export class GameLoop {
     this.world = world;
     this.view = view;
     this.lastNotifiedTick = world.tick;
+    this.lastDailyBoundaryTick = Math.floor(world.tick / TICKS_PER_DAY) * TICKS_PER_DAY;
     this.catalog.rebuild(world.entities);
     this.renderSoA = null;
     this.renderMetaBySlot = null;
@@ -692,7 +738,8 @@ export class GameLoop {
       }
       if (!this.workerEnabled && !this.workerBooting) {
         while (this.tickAccumulator >= msPerTick && steps < MAX_CATCHUP_STEPS) {
-          gameTick(this.world, focus);
+                    gameTick(this.world, focus);
+          this.observeDailyBoundary(this.world.tick);
           // P1 (BUG-2): gameTick keeps identity-stable entity buckets on
           // no-change ticks — rebuild the catalog only when that identity
           // actually changed (birth/death/type-change), not every tick.

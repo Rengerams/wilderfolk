@@ -6,7 +6,7 @@ This roadmap carries forward the completed v0.6.3 work and turns the whole-game 
 
 | Priority | ID | Upgrade or feature | Main value | Primary owner/cadence | First-slice outcome | Status |
 |---|---|---|---|---|---|---|
-| 0 | **O1** | Player-visible Simulation Diagnostics | Makes the worker/main-thread mode, current tick, selected settler activity, workplace, home, and blocked reason understandable during play. | Presentation-only projection from existing diagnostics; no new simulation owner. | A compact optional drawer explains what the simulation is doing and why a selected settler is where they are. | Planned |
+| 0 | **O1** | Player-visible Simulation Diagnostics | Makes the worker/main-thread mode, current tick, selected settler activity, workplace, home, and blocked reason understandable during play. | Presentation-only projection from existing diagnostics; no new simulation owner. | A compact optional drawer explains what the simulation is doing and why a selected settler is where they are. | In progress — diagnostics drawer vertical slice implemented |
 | 0 | **O2** | Explainable Story Choices | Keeps an unaffordable story card visible and explains the missing resource or condition. | Existing story owners and typed player commands. | Every blocked story choice gives a clear reason and remains available until the player can act. | Planned |
 | 0 | **O3** | Save and Worker Truth Contract | Keeps important story, campaign, election, animal-care, residence, and staffing state consistent across worker updates and saves. | Existing `SimTickDelta`, save/load, and migration owners. | A single contract matrix covers extract/apply and save/load round trips for durable state. | Planned |
 | 0 | **O4** | Selected Settler Inspector Completion | Turns the human status display into a dependable follow view for home, commute, work, leisure, and interruptions. | Authoritative world projection; existing human-status owner. | Selecting one settler shows live activity, home, workplace, schedule, target, and the latest transition. | Planned |
@@ -30,6 +30,73 @@ This roadmap carries forward the completed v0.6.3 work and turns the whole-game 
 | 3 | **F6** | Preparation-Window Crises | Adds strategic tension without hidden punishment. | Existing daily event ownership and deterministic seeded outcomes. | A clearly telegraphed winter, embargo, disease risk, harvest failure, or fire risk offers preparation time and multiple responses. | Recommended |
 | 3 | **F7** | Replay and “What Changed?” Mode | Makes the deterministic simulation useful to both players and developers. | Existing seeded state, event history, save state, and diagnostics. | A short history compares daily changes in food, housing, assignments, relationships, stories, and threats. | Recommended |
 | 3 | **F8** | Shared “Why?” Interaction Layer | Turns complex simulation state into understandable choices. | Presentation-only readers over existing authoritative owners. | Selecting a settler, building, resource, or warning explains the current reason, consequence, and available recovery action. | Recommended |
+
+## Evidence-based todo execution plan
+
+The following five objectives turn the roadmap priorities into implementation-ready work. They are based on the canonical design document, the simulation authority, the whole-game audit, the current source tree, and the existing test inventory. They deliberately prioritize integration confidence over adding another large simulation subsystem.
+
+### Objective O1 — Truth Surface and Selected Settler Inspector
+
+- **Status:** In progress; **priority:** P0.
+- **Evidence:** Worker transport, human activity status, and inspector foundations exist, but stale presentation projections were previously identified as a real integration failure class. The current roadmap already identifies diagnostics and inspector completion as the first stabilization work. The first vertical slice now exposes read-only worker authority, game time, tick, response latency, in-flight work, and command-pending state.
+- **Owner and cadence:** Read-only presentation projection over the existing `gameLoop`, worker diagnostics, authoritative `WorldState`, `humanStatus`, movement, workforce, housing, and schedule owners. No new simulation owner or tick layer.
+- **Scope:** Complete an optional diagnostics drawer and selected-settler inspector fields for worker/main-thread mode, current tick, tick latency or last response, last daily boundary, activity, home, workplace, current target, schedule state, blocked reason, and latest meaningful transition. Resolve selected entities from authoritative `WorldState` first while the worker is active.
+- **Non-goals:** Do not change movement rules, work schedules, cadence, watchdog thresholds, or simulation state writes. Do not enable permanent verbose logging during normal play.
+- **Acceptance:** A browser check must show a selected settler changing correctly through commute, work, leisure, interruption, and return-home states. Pausing, speed changes, and worker fallback must not leave contradictory status text. The diagnostics drawer must be optional and useful in debug mode.
+- **Tests and evidence:** Reuse human-status, game-loop, worker-transport, and renderer coverage; add an integration projection test if authoritative-world precedence is not already proven. Record map preset, day/time, selected entity, expected transition, observed transition, and screenshot or console evidence.
+- **Save and rollback:** No save impact. Roll back by removing the presentation drawer and extra inspector fields while retaining the existing status helper and worker implementation.
+
+### Objective O2 — Explainable and Recoverable Blocked Actions
+
+- **Status:** Proposed; **priority:** P0.
+- **Evidence:** Unaffordable story choices, staffing rejection, and blocked movement are identified as major player-facing friction. Existing story, command-validation, village-request, workforce, construction, housing, and animal-care owners provide the required boundaries.
+- **Owner and cadence:** Existing story resolvers and named domain owners through typed player commands. Presentation consumes a typed accepted, blocked, or rejected result.
+- **Scope:** Define a common result shape containing outcome, stable reason code, human-readable explanation, current value, required value, and recovery hint where available. Preserve a pending story card when the player cannot currently satisfy a choice, unless the authored story explicitly defines expiry. Display current authoritative values.
+- **Non-goals:** No hidden resource grants, automatic choice selection, new economy owner, or balance tuning before rejection behavior is correct.
+- **Acceptance:** An unaffordable story choice remains available when intended and explains the missing resource or condition. Staffing rejection identifies the actual gate, such as capacity, duplicate assignment, manual protection, juvenile status, imprisonment, or invalid workplace. Construction and housing failures explain known missing conditions.
+- **Tests and evidence:** Add focused tests for each exposed reason code, extend worker round-trip coverage for result payloads, and perform one live browser click on an unavailable action.
+- **Save and rollback:** Normally no save impact; pending-card persistence must be checked against existing story fields. Roll back to the former rejection display if typed outcomes prove unsafe without removing valid owner behavior.
+
+### Objective O3 — Worker, Delta, and Save Truth Contract
+
+- **Status:** Proposed; **priority:** P0.
+- **Evidence:** Worker transport and story delta round-trip tests exist, but the audit warns that locally correct systems can fail when fields are omitted from deltas, saves, or UI projections. The canonical document treats worker/main-thread and save/load parity as release evidence.
+- **Owner and cadence:** Existing `SimTickDelta`, save/load, migration, and named domain owners. No new state owner.
+- **Scope:** Create one contract matrix for stories/campaign, elections, animal care, residence, workforce/staffing, relationships/family, pregnancy, defense, and any persisted diagnostic state. For each field, record mutation owner, delta extraction, delta application, serialization, load normalization, UI reader, and invalid-input behavior. Add seeded worker-versus-main-thread parity checks.
+- **Non-goals:** No save-version bump, migration-policy change, `WorldState` redesign, or broad serialization rewrite.
+- **Acceptance:** Every high-value durable field has an owner and save/delta decision. A seeded scenario produces equivalent meaningful state in worker and main-thread fallback paths. Save/load preserves required durable fields or applies an explicit normalization rule. Malformed payloads fail safely according to the existing save policy.
+- **Tests and evidence:** Extend only the existing `simDelta.*`, save migration, worker round-trip, relationship, story, animal-care, workforce, and invariant tests where the matrix finds a gap.
+- **Save and rollback:** High review importance but no compatibility-policy change without explicit approval. Roll back newly added assertions or matrix tooling only; do not remove existing save fields.
+
+### Objective O4 — Seeded Colony Health and Huge-Map Performance Baseline
+
+- **Status:** Proposed; **priority:** P1.
+- **Evidence:** The repository has a full-year integration runner and broad headless tests, but headless success does not prove browser-worker behavior or scale performance. The roadmap calls for seeded colony-health and one-year performance scenarios.
+- **Owner and cadence:** Existing game tick, worker, diagnostics, pathfinding, and invariant owners. The scenario harness observes and reports; it does not create a second simulation.
+- **Scope:** Add a repeatable seeded 100-day scenario and a Huge-map run. Capture food/housing/workforce health, births/deaths, relationships, stories/elections, animal care, threats, invariant violations, tick p50/p95/max, path calls, delta bytes, fallback count, memory trend where available, and console volume. Keep 90-day or seasonal checkpoints.
+- **Non-goals:** No balance changes, cadence changes, watchdog tuning based on one run, or claim that a headless benchmark replaces browser acceptance.
+- **Acceptance:** Results are reproducible enough to review by seed and checkpoint. Reports distinguish conceptions, active pregnancies, births, deaths, assignments, and relationship transitions. Worker fallback, stalled ticks, serialization spikes, and invariant violations are counted separately. Normal mode remains bounded and detailed output is opt-in.
+- **Tests and evidence:** Extend `fullYear.integration.test.ts` and related worker, invariant, pathfinding, lifecycle, workforce, and diagnostics coverage only where needed. Pair the baseline with at least one browser run.
+- **Save and rollback:** No save impact unless checkpoints use existing save APIs. Remove scenario instrumentation if necessary without changing production simulation behavior.
+
+### Objective O5 — Bundle and Dependency Audit with a Safe Optimization Slice
+
+- **Status:** Proposed; **priority:** P2.
+- **Evidence:** Production builds pass but still report a large game chunk. Existing UI lazy imports prove that some boundaries exist, while dependency-cycle output has not been fully trustworthy for the installed TypeScript toolchain.
+- **Owner and cadence:** Build configuration and module boundaries only; no simulation cadence or state writes.
+- **Scope:** Measure current chunks and import graph, identify one safe boundary for a non-startup panel or data-heavy feature, and correct or replace the unsupported dependency-cycle check. Validate worker startup and first render before and after any split.
+- **Non-goals:** No speculative manual-chunk rewrite, imports rearranged merely to silence a warning, or acceptance based only on lower kilobytes if startup or runtime behavior regresses.
+- **Acceptance:** The warning is recorded with exact chunk sizes and configuration. The dependency check produces meaningful output. Any split preserves worker initialization, first playable render, asset loading, and normal frame behavior. If no safe split meets the evidence threshold, document the warning as deferred.
+- **Tests and evidence:** Run build, source checks, worker startup/transport, renderer presentation, and browser smoke acceptance.
+- **Save and rollback:** No save impact. Keep the optimization isolated and reversible.
+
+### Execution dependencies and repository hygiene
+
+Implement O1 first because it provides player-facing evidence for the remaining objectives. Follow with O2, then O3 before any durable feature expands state. Run O4 before accepting performance or balance changes. Run O5 as a measured, isolated technical slice after the runtime baseline.
+
+Before implementation begins, resolve the current working-tree situation. The repository inspection found a modified `CHANGELOG.md` and an untracked `Wilderfolk_Creative_Brainstorm_Report.pdf`, while `main` matched `origin/main`. Decide whether those files belong in the repository, should be reverted, or should remain local. Do not mix that decision silently into the first stabilization commit.
+
+Each objective requires a Simulation Change Record before behavior changes, including owner, cadence, fields written, invalid-input behavior, tests, invariants, diagnostics, save impact, risk decision, acceptance evidence, and rollback path. No version bump, save-policy change, commit, push, tag, or release declaration is implied by this roadmap update.
 
 ## v0.6.3 foundations carried forward
 

@@ -24,7 +24,8 @@ import { getHumanVariantLabel } from '../game/humanSprites';
 import { getTameFoodCost } from '../game/buildingActions';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { isPlayerHuman } from '../game/playerHuman';
-import { getHumanActivityStatus } from '../game/humanStatus';
+import { useEffect, useRef } from 'react';
+import { getHumanActivityProjection } from '../game/humanStatus';
 
 function getFamilyMembers(entity: Entity, allEntities: Entity[]): { label: string; name: string; relation: string }[] {
   const members: { label: string; name: string; relation: string }[] = [];
@@ -89,8 +90,20 @@ export default function SelectedEntityPanel({
   onMoveOut?: () => void;
   onOpenVisitorCamp?: (group: VisitorGroup) => void;
 }) {
+  const previousActivityRef = useRef<{ entityId: number; activity: string } | null>(null);
   const isVillageHead = isVillageLeader(state, entity.id);
   const isHuman = entity.type === EntityType.Human;
+  const previousActivity = previousActivityRef.current?.entityId === entity.id
+    ? previousActivityRef.current.activity
+    : undefined;
+  const activityProjection = isHuman || entity.type === EntityType.Werewolf
+    ? getHumanActivityProjection(state, entity, previousActivity)
+    : null;
+  useEffect(() => {
+    if (activityProjection) {
+      previousActivityRef.current = { entityId: entity.id, activity: activityProjection.activity };
+    }
+  }, [activityProjection?.activity, entity.id]);
   const isVisitor = entity.faction === 'visitor';
   const isRival = entity.faction === 'rival';
   const visitorGroup = isVisitor ? state.visitorGroups.find((g) => g.id === entity.groupId) : null;
@@ -153,8 +166,29 @@ export default function SelectedEntityPanel({
           </h3>
           {(isHuman || entity.type === EntityType.Werewolf) && (
             <p className="text-[11px] font-semibold text-lime-300">
-              🕐 {getHumanActivityStatus(state, entity)}
+              🕐 {activityProjection?.activity}
             </p>
+          )}
+          {activityProjection && (
+            <div className="mt-1 rounded-lg border border-sky-700/40 bg-sky-950/25 p-1.5 text-[10px] text-sky-100">
+              <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+                <span className="text-sky-300/70">Schedule</span>
+                <span>{activityProjection.schedule.label} · {activityProjection.schedule.onShift ? 'on shift' : 'off shift'}</span>
+                <span className="text-sky-300/70">Target</span>
+                <span>{activityProjection.target ? `${activityProjection.target.label} (${activityProjection.target.kind})` : 'None'}</span>
+                <span className="text-sky-300/70">Observed</span>
+                <span>Tick {activityProjection.observedAtTick.toLocaleString()}</span>
+                {activityProjection.transition && (
+                  <>
+                    <span className="text-sky-300/70">Changed</span>
+                    <span>{activityProjection.transition.from} → {activityProjection.transition.to}</span>
+                  </>
+                )}
+              </div>
+              {activityProjection.blockedReason && (
+                <p className="mt-1 rounded bg-rose-950/50 px-1.5 py-1 text-rose-200">Blocked: {activityProjection.blockedReason}</p>
+              )}
+            </div>
           )}
           {isMoonHowler && (
             <p className="text-[11px] font-semibold text-rose-300">🌝 Full moon form — curse NOT cured · hunting tonight</p>
