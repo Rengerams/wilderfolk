@@ -39,18 +39,78 @@ export function offerStoryEvent(state: WorldState, event: StoryEvent): void {
 }
 
 /** Drop expired unanswered stories — the moment passes quietly. */
+const CHILDREN_SHELTER_CHILDREN = 10;
+const CHILDREN_SHELTER_FOOD_PER_DAY = 10; // 1 food per child per day
+
+function countFreeShelterBeds(state: WorldState): number {
+  return state.buildings
+    .filter((building) => isResidenceBuilding(building) && !isLeaderHouseResidence(building) && building.faction !== 'rival')
+    .reduce((total, building) => total + Math.max(0, getResidenceCapacity(building) - building.occupants.length), 0);
+}
+
+function failChildrenShelter(state: WorldState, reason: 'not enough shelter' | 'not enough food'): void {
+  state.storyFlags = { ...state.storyFlags, children_shelter_resolved: state.tick, children_shelter_failed: 1 };
+  state.villageReputation = Math.max(0, state.villageReputation - 4);
+  const rival = state.rivalSettlements[0];
+  if (rival) {
+    rival.relationship = 'tense';
+    rival.peaceTreatyDays = 0;
+    rival.raidCooldownDays = 0;
+  }
+  const message = reason === 'not enough shelter'
+    ? 'There were not enough roofs to keep the ten children safe.'
+    : 'The village could not feed the ten children.';
+  addBigNews(state, '🕯️ The children did not survive', `${message} The quest has failed.`, 'negative');
+  addNotification(
+    state,
+    'Quest failed',
+    reason === 'not enough shelter' ? 'The children froze without shelter.' : 'The children starved without food.',
+    'warning',
+  );
+  logEvent(
+    state,
+    'event',
+    reason === 'not enough shelter'
+      ? 'Ten sheltered children died because the village lacked beds'
+      : 'Ten sheltered children died because the village lacked food',
+    undefined,
+  );
+}
+
 export function tickChildrenShelter(state: WorldState): void {
   const started = state.storyFlags?.children_shelter_started ?? 0;
   const until = state.storyFlags?.children_shelter_until ?? 0;
-  if (started <= 0 || until <= 0 || state.tick < until) return;
+  if (started <= 0 || until <= 0) return;
   if ((state.storyFlags?.children_shelter_resolved ?? 0) > 0) return;
+
+  const helped = (state.storyFlags?.children_shelter_helped ?? 0) === 1;
+
+  // Daily feeding + shelter-capacity check while the children are here.
+  if (helped && state.tick < until) {
+    const dayIndex = Math.floor((state.tick - started) / TICKS_PER_DAY);
+    if ((state.storyFlags?.children_shelter_last_fed_day ?? -1) < dayIndex) {
+      if (countFreeShelterBeds(state) < CHILDREN_SHELTER_CHILDREN) {
+        failChildrenShelter(state, 'not enough shelter');
+        return;
+      }
+      if (state.resources.food < CHILDREN_SHELTER_FOOD_PER_DAY) {
+        failChildrenShelter(state, 'not enough food');
+        return;
+      }
+      state.resources.food -= CHILDREN_SHELTER_FOOD_PER_DAY;
+      state.storyFlags = { ...state.storyFlags, children_shelter_last_fed_day: dayIndex };
+    }
+    return;
+  }
+
+  if (state.tick < until) return;
 
   const rival = state.rivalSettlements[0];
   state.storyFlags = { ...state.storyFlags, children_shelter_resolved: state.tick };
   if (!rival) return;
 
-  const helped = (state.storyFlags?.children_shelter_helped ?? 0) === 1;
-  if (helped) {
+  const failed = (state.storyFlags?.children_shelter_failed ?? 0) === 1;
+  if (helped && !failed) {
     rival.relationship = 'friendly';
     rival.peaceTreatyDays = Math.max(rival.peaceTreatyDays, 180);
     addBigNews(
@@ -68,11 +128,25 @@ export function tickChildrenShelter(state: WorldState): void {
     addBigNews(
       state,
       '⚔️ A clan turns away',
-      `${rival.name} has declared war after the children were turned away. The reason is only clear now: the valley refused their plea.`,
+      `${rival.name} has declared war after the children were ${failed ? 'lost' : 'turned away'}. The reason is only clear now.`,
       'negative',
     );
-    addNotification(state, `${rival.name} has declared war`, 'Their hostility was hidden until the children’s five-day journey ended.', 'warning');
-    logEvent(state, 'event', `${rival.name} declared war after ${state.villageName} refused shelter to ten displaced children`, rival.name);
+    addNotification(
+      state,
+      `${rival.name} has declared war`,
+      failed
+        ? 'Their children were under your care and did not survive.'
+        : 'Their hostility was hidden until the children’s five-day journey ended.',
+      'warning',
+    );
+    logEvent(
+      state,
+      'event',
+      failed
+        ? `${rival.name} declared war after ${state.villageName} failed to protect ten displaced children`
+        : `${rival.name} declared war after ${state.villageName} refused shelter to ten displaced children`,
+      rival.name,
+    );
   }
 }
 
@@ -176,7 +250,7 @@ export function maybeOfferChildrenShelter(state: WorldState): void {
     title: 'Ten children at the gate',
     description: 'Ten frightened children arrive at the edge of the valley. They ask for shelter for five days while their people cross dangerous ground to bring them home.',
     choices: [
-      { id: 'help', label: 'Open the houses', detail: 'Use available beds to shelter all ten children for five days.' },
+      { id: 'help', label: 'Open the houses', detail: 'Shelter and feed all ten children for five days.' },
       { id: 'refuse', label: 'Turn them away', detail: 'Keep the village’s beds and supplies for your own people.' },
     ],
     createdAtTick: state.tick,
@@ -192,14 +266,6 @@ function resolveChildrenShelter(state: WorldState, choiceId: string): boolean {
   }
   if (choiceId !== 'help') return true;
 
-  const freeBeds = state.buildings
-    .filter((building) => isResidenceBuilding(building) && !isLeaderHouseResidence(building) && building.faction !== 'rival')
-    .reduce((total, building) => total + Math.max(0, getResidenceCapacity(building) - building.occupants.length), 0);
-  if (freeBeds < 10) {
-    addNotification(state, 'Not enough shelter', `Ten children need ten free beds; the village has only ${freeBeds}. No decision was made.`, 'warning');
-    return false;
-  }
-
   const shelterHouses = state.buildings.filter(
     (building) => isResidenceBuilding(building) && !isLeaderHouseResidence(building) && building.faction !== 'rival'
       && getResidenceCapacity(building) - building.occupants.length > 0,
@@ -211,8 +277,8 @@ function resolveChildrenShelter(state: WorldState, choiceId: string): boolean {
     children_shelter_until: state.tick + TICKS_PER_DAY * 5,
     children_shelter_house_count: shelterHouses,
   };
-  addBigNews(state, '🧳 Ten children find shelter', `The children are placed temporarily across ${shelterHouses} free ${shelterHouses === 1 ? 'house' : 'houses'} for five days. What follows is unknown.`, 'neutral');
-  addNotification(state, 'Shelter provided', 'Ten children are safe for five days. The village will learn what this means when they return.', 'success');
+  addBigNews(state, '🧳 Ten children find shelter', `The children are taken in for five days. The village must shelter and feed them — ${shelterHouses} free ${shelterHouses === 1 ? 'house has' : 'houses have'} room now.`, 'neutral');
+  addNotification(state, 'Shelter accepted', 'Ten children are under your care for five days. They must be sheltered and fed every day.', 'success');
   return true;
 }
 
