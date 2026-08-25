@@ -327,12 +327,12 @@ export default function SelectedBuildingPanel({
       <div className="mb-2 flex items-center gap-2">
         <img src={config.sprite} alt={config.label} className="h-8 w-8 object-contain" />
         <div>
-          <h3 className="text-sm font-bold text-amber-200">{config.label} {building.level > 1 && `(Lv.${building.level})`}</h3>
+          <h3 className="text-base font-bold text-amber-200">{config.label} {building.level > 1 && `(Lv.${building.level})`}</h3>
           <p className="text-[11px] text-amber-400">{config.description}</p>
         </div>
       </div>
 
-      <CollapsibleSection title="Overview" defaultOpen>
+      <CollapsibleSection title="Overview" defaultOpen storageKey={`building-overview-${building.id}`}>
         <div className="space-y-0.5 text-xs text-amber-200">
           <p>Health: {Math.round(building.health)} / {building.maxHealth}</p>
         {isHousing && building.completed ? (
@@ -630,7 +630,7 @@ export default function SelectedBuildingPanel({
       </CollapsibleSection>
 
       {((!building.completed && config.maxOccupants > 0) || (building.completed && BUILDING_JOB_TYPES[building.type])) && (
-        <CollapsibleSection title={!building.completed ? 'Construction' : 'Workers'} defaultOpen>
+        <CollapsibleSection title={!building.completed ? 'Construction' : 'Workers'} defaultOpen storageKey={`building-workers-${building.id}`}>
           {building.completed && BUILDING_JOB_TYPES[building.type] && isManualStaffing && assignableWorkers.length > 0 && building.occupants.length < config.maxOccupants && (
             <div className="mb-1 max-h-28 space-y-1 overflow-y-auto">
               <p className="text-[10px] text-stone-300">
@@ -703,7 +703,7 @@ export default function SelectedBuildingPanel({
           </div>
         </CollapsibleSection>
       )}
-      <CollapsibleSection title="Building actions" defaultOpen>
+      <CollapsibleSection title="Building actions" defaultOpen storageKey={`building-actions-${building.id}`}>
         <div className="grid grid-cols-2 gap-1">
           {building.health < building.maxHealth && (
             <button onClick={onRepair} className="rounded bg-amber-700 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-600">
@@ -720,7 +720,7 @@ export default function SelectedBuildingPanel({
           )}
         </div>
       </CollapsibleSection>
-      <CollapsibleSection title="Advanced actions" defaultOpen={false}>
+      <CollapsibleSection title="Advanced actions" defaultOpen={false} storageKey={`building-advanced-${building.id}`}>
         {confirmDemolish ? (
           <div className="rounded-lg border border-rose-500/40 bg-rose-950/40 p-2">
             <p className="text-[11px] font-semibold text-rose-200">

@@ -151,6 +151,7 @@ export default function VillageTabPanel({
         subtitle={`${villageStats.total}/${state.maxHumanPopulation} cap · 🛏️ ${villageStats.beds} beds · ${villageStats.working} working · ⭐${state.villageReputation}`}
         accent="emerald"
         defaultOpen={false}
+        storageKey="village-population"
       >
         <div className="mb-2 grid grid-cols-2 gap-2">
           <div>
@@ -200,12 +201,19 @@ export default function VillageTabPanel({
             <div className="text-stone-400">children</div>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-1.5 text-[13px]">
-          <StatBadge label="Adults" value={villageStats.adults} icon="👤" />
-          <StatBadge label="Reputation" value={state.villageReputation} icon="⭐" title="80+: cheaper visitor trade & fewer raids · 30 or less: harsher prices & more raids" />
-          <StatBadge label="Buildings" value={state.buildings.filter(b => b.completed && b.faction !== 'rival').length} icon="🏗️" />
-          <StatBadge label="Techs" value={state.unlockedTechs.length} icon="🔬" />
-        </div>
+        <CollapsibleSection
+          title="Details"
+          defaultOpen={false}
+          storageKey="village-population-details"
+          accent="stone"
+        >
+          <div className="grid grid-cols-2 gap-1.5 text-[13px]">
+            <StatBadge label="Adults" value={villageStats.adults} icon="👤" />
+            <StatBadge label="Reputation" value={state.villageReputation} icon="⭐" title="80+: cheaper visitor trade & fewer raids · 30 or less: harsher prices & more raids" />
+            <StatBadge label="Buildings" value={state.buildings.filter(b => b.completed && b.faction !== 'rival').length} icon="🏗️" />
+            <StatBadge label="Techs" value={state.unlockedTechs.length} icon="🔬" />
+          </div>
+        </CollapsibleSection>
         <button
           onClick={onRecruitSettler}
           disabled={!canRecruit}

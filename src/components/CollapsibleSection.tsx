@@ -8,6 +8,8 @@ interface Props {
   badge?: string | number;
   children: ReactNode;
   accent?: 'emerald' | 'amber' | 'cyan' | 'orange' | 'indigo' | 'stone';
+  /** Stable identity — open/closed state is remembered for the session. */
+  storageKey?: string;
 }
 
 const ACCENT: Record<NonNullable<Props['accent']>, string> = {
@@ -19,6 +21,9 @@ const ACCENT: Record<NonNullable<Props['accent']>, string> = {
   stone: 'border-stone-600/40 bg-stone-800/30',
 };
 
+/** Session-scoped disclosure memory (UI only — never simulation state). */
+const rememberedOpen = new Map<string, boolean>();
+
 export default function CollapsibleSection({
   title,
   icon,
@@ -27,14 +32,23 @@ export default function CollapsibleSection({
   badge,
   children,
   accent = 'stone',
+  storageKey,
 }: Props) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(
+    storageKey ? (rememberedOpen.get(storageKey) ?? defaultOpen) : defaultOpen,
+  );
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (storageKey) rememberedOpen.set(storageKey, next);
+  };
 
   return (
     <section className={`rounded-xl border ${ACCENT[accent]} overflow-hidden`}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-stone-800/40"
         aria-expanded={open}
       >
