@@ -12,6 +12,7 @@ import { getSimFocus } from './simFocus';
 import { preloadDialogueBank } from '../src/game/dialogueTrees';
 import { createEntity } from '../src/game/worldGen';
 import { WORKER_PROTO, type WorkerRequest, type WorkerResponse } from '../src/game/simWorker/protocol';
+import type { WorkerCommand } from '../src/game/simWorker/commands';
 
 const TICKS = 6000;
 const HUMANS = 120;
@@ -54,7 +55,7 @@ async function main(): Promise<void> {
   let lastActivity = performance.now();
   let maxGap = 0;
   let lastTick = -1;
-  let pendingCommand: { cmd: unknown; t0: number } | null = null;
+  let pendingCommand: { cmd: WorkerCommand; t0: number } | null = null;
   let lastError: string | null = null;
   let stallLoggedAt = -1;
   const commandPending = () => pendingCommand != null;
@@ -174,11 +175,11 @@ async function main(): Promise<void> {
     exported = true;
     await new Promise((r) => setTimeout(r, 10));
   }
-  worker.terminate();
+  void worker.terminate();
 
   console.log('==========================================');
   console.log(`requested=${ticksRequested} results=${results} doneTick=${finalTick}`);
-  console.log(`errors=${errors}${lastError ? ` lastError="${lastError}"` : ''}`);
+  console.log(`errors=${errors}${lastError ? ` lastError="${String(lastError)}"` : ''}`);
   console.log(`maxGapMs=${Math.round(maxGap)} stallLogged=${stallLoggedAt >= 0}`);
   if (finalTick < TICKS) console.error('[RESULT] STALL: worker did not complete the requested ticks');
   else console.log('[RESULT] no stall observed');

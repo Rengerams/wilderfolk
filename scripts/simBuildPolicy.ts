@@ -5,14 +5,12 @@ import type { BuildingType as BuildingTypeName } from '../src/game/gameTypes';
 export const SIM_BUILD_PRESETS: Record<string, BuildingTypeName[]> = {
   defense: [
     BuildingType.Wall,
-    BuildingType.WallCorner,
     BuildingType.WallGate,
     BuildingType.Watchtower,
     BuildingType.Barracks,
   ],
   security: [
     BuildingType.Wall,
-    BuildingType.WallCorner,
     BuildingType.WallGate,
     BuildingType.Watchtower,
     BuildingType.Barracks,

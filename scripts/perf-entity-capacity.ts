@@ -20,10 +20,6 @@ TIERS.push(1200);
 
 const GC_BETWEEN = process.env.SIM_GC === '1';
 
-declare global {
-  function gc(): void;
-}
-
 function seedHumans(state: ReturnType<typeof initGame>, pop: number): void {
   for (let i = 0; i < pop; i++) {
     const h = createEntity(

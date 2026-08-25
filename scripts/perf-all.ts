@@ -302,7 +302,7 @@ async function runTier(pop: number, detailed: boolean): Promise<TierResult> {
 
   setSpatialQueryMetricsEnabled(false);
   for (let i = 0; i < WARMUP; i++) {
-    gameTick(state, FULL_SIM ? undefined : state);
+    gameTick(state);
   }
 
   resetSpatialQuerySession();
@@ -320,7 +320,7 @@ async function runTier(pop: number, detailed: boolean): Promise<TierResult> {
 
   for (let i = 0; i < TICKS; i++) {
     const startedTick = performance.now();
-    gameTick(state, FULL_SIM ? undefined : state);
+    gameTick(state);
     times.push(performance.now() - startedTick);
   }
 
@@ -335,7 +335,7 @@ async function runTier(pop: number, detailed: boolean): Promise<TierResult> {
   const p95 = percentile(times, 0.95);
   const averageMs = wall / TICKS;
   const status = statusFor(p95);
-  const scenery = new Set([EntityType.Tree, EntityType.Grass]);
+  const scenery = new Set<EntityType>([EntityType.Tree, EntityType.Grass]);
   const alive = state.entities.filter(
     (entity) => entity.alive && !scenery.has(entity.type),
   ).length;
@@ -425,4 +425,3 @@ main().catch((error) => {
   process.exit(1);
 });
 
-export {};

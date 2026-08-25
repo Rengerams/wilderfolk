@@ -82,7 +82,7 @@ for (let x = 0; x < W; x += 8) {
 }
 
 // Railings: dark runner on the two long edges + posts every 16px.
-function drawRailing(edgeY, postOffset) {
+function drawRailing(edgeY, _postOffset) {
   for (let x = 0; x < W; x++) {
     for (let d = 0; d < 3; d++) {
       const y = edgeY + d;

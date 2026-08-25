@@ -36,7 +36,7 @@ function adults(n: number): Entity[] {
     size: 10,
     isJuvenile: false,
     faction: 'player' as const,
-  }));
+  })) as unknown as Entity[];
 }
 
 function withTech(
@@ -82,6 +82,9 @@ const rival: RivalSettlement = {
   daysUntilAction: 10,
   raidCooldownDays: 0,
   peaceTreatyDays: 0,
+  entityIds: [],
+  buildingIds: [],
+  foundedYear: 0,
 };
 
 const raidPower = getRivalRaidStrength(rival);

@@ -486,7 +486,7 @@ export default function App() {
     const wasPaused = loop.getWorld().paused;
     loop.mutateWorld((w) => { w.paused = !w.paused; });
     if (wasPaused) {
-      void loop.applyCommand({ proto: 1, op: 'autoStaffWorkers' });
+      loop.applyCommand({ proto: 1, op: 'autoStaffWorkers' });
     }
   }, []);
 

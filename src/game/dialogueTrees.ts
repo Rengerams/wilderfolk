@@ -73,7 +73,7 @@ function buildCanonicalDialogueBank(sources: readonly DialogueSourceFile[]): Dia
 
   for (const source of sources) {
     if (!isDialogueCategory(source.category)) {
-      throw new Error(`[dialogue] Unsupported source category: ${source.category}`);
+      throw new Error(`[dialogue] Unsupported source category: ${String(source.category)}`);
     }
     for (const tree of source.dialogue_trees) {
       if (tree.category !== source.category) {
@@ -119,7 +119,7 @@ function indexDialogueBank(next: DialogueBankFile): void {
 
   for (const tree of next.dialogue_trees) {
     if (!isDialogueCategory(tree.category)) {
-      throw new Error(`[dialogue] Unsupported tree category: ${tree.category}`);
+      throw new Error(`[dialogue] Unsupported tree category: ${String(tree.category)}`);
     }
     if (nextTreesById.has(tree.id)) {
       throw new Error(`[dialogue] Duplicate dialogue tree id: ${tree.id}`);

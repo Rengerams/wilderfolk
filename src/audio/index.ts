@@ -57,7 +57,7 @@ export async function beginAudio(): Promise<void> {
 }
 
 export function startIntroSong(): void {
-  if (!soundDirector.getMuteState()) introMusic.start();
+  if (!soundDirector.getMuteState()) void introMusic.start();
 }
 
 export function stopIntroSong(): void {

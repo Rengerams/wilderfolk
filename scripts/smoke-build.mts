@@ -3,7 +3,7 @@ import { initGame } from '../src/game/worldGen.ts';
 import { MapSize, BuildingType } from '../src/game/gameTypes.ts';
 import { startBuilding, canPlaceBuilding } from '../src/game/buildingActions.ts';
 import { gameTick } from '../src/game/gameTick.ts';
-import { assignMissingWorkers, findHumanWorkplace } from '../src/game/workforce.ts';
+import { findHumanWorkplace } from '../src/game/workforce.ts';
 import { isPlayerHuman } from '../src/game/playerHuman.ts';
 
 const log: string[] = [];

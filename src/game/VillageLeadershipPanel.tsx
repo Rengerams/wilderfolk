@@ -23,7 +23,7 @@ export default function VillageLeadershipPanel({ state }: { state: WorldState })
     <div className="rounded-xl border border-amber-600/30 bg-amber-950/20 p-3">
       <h3 className="mb-1 text-sm font-bold text-amber-200">👑 Village head</h3>
       <p className="mb-2 text-[13px] leading-relaxed text-stone-300">
-        The founding male leads until Year {ELECTION_INTERVAL_YEARS}. After that, merit elections every {ELECTION_INTERVAL_YEARS} years — men and women compete equally. The sitting head always runs when eligible; skills and experience decide most races, with a modest record bonus or penalty from economy, scandals, and village health. A standout challenger can still win. If the head dies, a new election is held {VACANCY_ELECTION_DELAY_YEARS === 1 ? 'one year later' : `${VACANCY_ELECTION_DELAY_YEARS} years later`}.
+        The founding male leads until Year {ELECTION_INTERVAL_YEARS}. After that, merit elections every {ELECTION_INTERVAL_YEARS} years — men and women compete equally. The sitting head always runs when eligible; skills and experience decide most races, with a modest record bonus or penalty from economy, scandals, and village health. A standout challenger can still win. If the head dies, a new election is held {VACANCY_ELECTION_DELAY_YEARS === 1 ? 'one year later' : `${String(VACANCY_ELECTION_DELAY_YEARS)} years later`}.
       </p>
 
       {ceremonyStatus && (

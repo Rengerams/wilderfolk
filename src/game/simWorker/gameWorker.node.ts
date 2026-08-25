@@ -20,7 +20,7 @@ if (!isMainThread && parentPort) {
   const messageListeners = new Set<(event: MessageEvent) => void>();
 
   const dispatchMessage = (data: unknown): void => {
-    const event = { data, target: scope, currentTarget: scope, ports: [] } as MessageEvent;
+    const event = { data, target: scope, currentTarget: scope, ports: [] } as unknown as MessageEvent;
     messageHandler?.(event);
     for (const listener of messageListeners) listener(event);
   };

@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import path from "node:path";
 
 const snapshotPath = process.argv[2] ?? "docs/_roadmap_t1_dependency_snapshot.json";
 const outputPath = process.argv[3] ?? "docs/V0_6_2_2_T1_IMPORT_TRACE_AND_CYCLE_LEDGER.md";
@@ -47,7 +46,7 @@ function connect(node) {
       component.push(current);
     } while (current !== node);
     if (component.length > 1 || (graph.get(component[0]) ?? []).includes(component[0])) {
-      components.push(component.sort());
+      components.push(component.sort((a, b) => String(a).localeCompare(String(b))));
     }
   }
 }

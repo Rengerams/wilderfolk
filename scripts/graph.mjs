@@ -23,7 +23,7 @@ const OUT = resolve(appRoot, 'src/graph.md');
 // module's backslash path relative to the project root.
 function nodeIdFor(file) {
   const name = basename(file, extname(file)) || 'unknown';
-  return name === 'graph' ? 'graph_xx' : name.replace(/[\[\]]/g, '_');
+  return name === 'graph' ? 'graph_xx' : name.replace(/[[\]]/g, '_');
 }
 const labelFor = (file) => relative(appRoot, file).replace(/\//g, '\\');
 const isSource = (file) => /\.(ts|tsx)$/.test(file);

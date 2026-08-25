@@ -32,7 +32,7 @@ function visit(node) {
       onStack.delete(item);
       component.push(item);
     } while (item !== node);
-    if (component.length > 1) components.push(component.sort());
+    if (component.length > 1) components.push(component.sort((a, b) => String(a).localeCompare(String(b))));
   }
 }
 

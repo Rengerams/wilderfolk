@@ -98,7 +98,7 @@ export function startResearch(state: WorldState, researchId: string): WorldState
   const prereqsMet = node.prerequisites.every(p => state.unlockedTechs.includes(p));
   if (!prereqsMet) return state;
 
-  const { wood = 0, stone = 0, gold = 0 } = node.cost;
+  const { wood, stone, gold } = node.cost;
   if (state.resources.wood >= wood && state.resources.stone >= stone && state.resources.gold >= gold) {
     state.resources.wood -= wood;
     state.resources.stone -= stone;
