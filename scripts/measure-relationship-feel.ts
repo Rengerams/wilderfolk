@@ -41,7 +41,7 @@ function placeBuilding(state: WorldState, type: BuildingType, x: number, y: numb
 
 async function main(): Promise<void> {
   await preloadDialogueBank();
-  const state = initGame({ villageName: 'Feelville', size: MapSize.Small });
+  const state = initGame({ villageName: 'Feelville', size: MapSize.Medium });
   state.resources.food = 3000;
   state.resources.wood = 3000;
   state.resources.stone = 1500;

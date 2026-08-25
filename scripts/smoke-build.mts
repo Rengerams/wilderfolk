@@ -29,7 +29,7 @@ function tryPlace(s: ReturnType<typeof initGame>, type: BuildingType, ox: number
 }
 
 p('init...');
-let s = initGame({ size: MapSize.Small, villageName: 'Test' });
+let s = initGame({ size: MapSize.Medium, villageName: 'Test' });
 const pioneers = s.entities.filter(isPlayerHuman);
 p(`humans=${pioneers.length} camp≈${pioneers[0]?.x},${pioneers[0]?.y} wood=${s.resources.wood}`);
 

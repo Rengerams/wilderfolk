@@ -222,7 +222,7 @@ export default function MapSetupScreen({
             src="/logo.png"
             alt=""
             className="h-10 w-10 rounded-full object-contain ring-1 ring-emerald-500/30"
-            style={{ imageRendering: 'pixelated' }}
+            style={{ width: '40px', height: '40px', flexShrink: 0, imageRendering: 'pixelated' }}
           />
           <div>
             <h1 className="text-sm font-bold tracking-wide text-white sm:text-base">New settlement</h1>

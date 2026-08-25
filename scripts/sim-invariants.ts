@@ -38,7 +38,7 @@ async function main(): Promise<void> {
   const originalRandom = Math.random;
   Math.random = createSeededRandom(SEED);
   try {
-    let state = initGame({ villageName: 'Invariantville', size: MapSize.Small });
+    let state = initGame({ villageName: 'Invariantville', size: MapSize.Medium });
     state.resources.food = 2000;
     state.resources.wood = 2000;
     state.resources.stone = 1000;

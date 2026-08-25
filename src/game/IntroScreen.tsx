@@ -39,7 +39,7 @@ const TYPEWRITER_MS = 98;
 const FADE_MS = 3200;
 const TITLE_LETTER_MS = 115;
 
-/** ~20s unhurried intro — each beat gets room to breathe. */
+/** Short intro reveal — the player can start promptly without losing the atmosphere. */
 const INTRO_TIMELINE_MS = {
   aurora: 900,
   logo: 3800,
@@ -48,7 +48,7 @@ const INTRO_TIMELINE_MS = {
   hook: 14200,
   hookDetail: 15900,
   chain: 17600,
-  ready: 19800,
+  ready: 6000,
 } as const;
 
 const INTRO_DURATION_MS = INTRO_TIMELINE_MS.ready;
@@ -473,7 +473,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
           <img
             src="/logo.png"
             alt="Wilderfolk"
-            className="h-28 w-28 rounded-full object-contain sm:h-40 sm:w-40"
+            className="h-20 w-20 rounded-full object-contain sm:h-28 sm:w-28"
             style={{
               filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.55))',
               boxShadow: logoVisible
