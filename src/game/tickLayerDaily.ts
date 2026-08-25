@@ -37,10 +37,10 @@ import { tickMigration } from './migration';
 import { tickPendingStoryEvents, tickChildrenShelter, maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, maybeOfferChildrenShelter, tickWinterFreezeCheck } from './storyEvents';
 import { tickGuidedCampaign } from './guidedCampaign';
 import { detectRaidersFromWatchtowers } from './watchtowerDetection';
-import { maybeOfferTravelingTheatre } from './travelingTheatre';
-import { maybeOfferWeddingDiplomacy } from './weddingDiplomacy';
-import { maybeOfferInventionFair } from './inventionFair';
-import { maybeOfferRumourLedger } from './rumourLedger';
+import { maybeOfferTravelingTheatre, tickTravelingTheatre } from './travelingTheatre';
+import { maybeOfferWeddingDiplomacy, tickWeddingDiplomacy } from './weddingDiplomacy';
+import { maybeOfferInventionFair, tickInventionFair } from './inventionFair';
+import { maybeOfferRumourLedger, tickRumourLedger } from './rumourLedger';
 import { tickElectionPromises } from './electionPromises';
 import { tickBeauty } from './beautyGrid';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
@@ -862,9 +862,13 @@ export function tickLayerDaily(
   maybeOfferChildrenShelter(state);
   tickChildrenShelter(state);
   maybeOfferTravelingTheatre(state);
+  tickTravelingTheatre(state);
   maybeOfferWeddingDiplomacy(state);
+  tickWeddingDiplomacy(state);
   maybeOfferInventionFair(state);
+  tickInventionFair(state);
   maybeOfferRumourLedger(state);
+  tickRumourLedger(state);
   tickElectionPromises(state);
   tickGuidedCampaign(state);
   // Watchtowers reveal marching raiders earlier than patrols (daily, bounded).
