@@ -44,6 +44,8 @@ const MAX_CATCHUP_STEPS = 12;
 // Large browser worlds can spend several seconds in the first render-packed tick.
 // Keep the fallback safety net, but do not classify a slow healthy worker as dead.
 const WORKER_STALL_TIMEOUT_MS = 10000;
+const WORKER_RECOVERY_INITIAL_DELAY_MS = 2000;
+const WORKER_RECOVERY_MAX_DELAY_MS = 30000;
 
 export type { WorkerCommand } from './simWorker/commands';
 
@@ -147,6 +149,10 @@ export class GameLoop {
   private lastDailyBoundaryTick = 0;
   /** Smoothed worker tick latency (ms) — makes the stall watchdog latency-adaptive. */
   private workerTickLatencyMs = 0;
+  /** Automatic recovery is serialized so only one replacement worker can boot. */
+  private workerRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
+  private workerRecoveryDelayMs = WORKER_RECOVERY_INITIAL_DELAY_MS;
+  private workerRecoveryInFlight = false;
   private renderSoA: RenderSoAReaderV1 | null = null;
   private renderMetaBySlot: EntityRenderMeta[] | null = null;
   private scentReader: ScentGridReader | null = null;
@@ -219,8 +225,72 @@ export class GameLoop {
         this.renderSoA = null;
         this.renderMetaBySlot = null;
         this.scentReader = null;
+        this.scheduleWorkerRecovery();
       });
     }
+  }
+
+  /** Retry a failed/stalled worker without ever running it alongside main-thread ticks. */
+  private scheduleWorkerRecovery(): void {
+    if (!this.running || !isGameWorkerEnabled() || this.workerRecoveryTimer || this.workerRecoveryInFlight) return;
+    this.workerRecoveryTimer = setTimeout(() => {
+      this.workerRecoveryTimer = null;
+      this.attemptWorkerRecovery();
+    }, this.workerRecoveryDelayMs);
+  }
+
+  private attemptWorkerRecovery(): void {
+    if (!this.running || !isGameWorkerEnabled() || this.workerHost || this.workerBooting || this.workerRecoveryInFlight) return;
+
+    const recoveryGen = this.sessionGen;
+    const recoveryHost = new GameWorkerHost();
+    this.workerRecoveryInFlight = true;
+    this.workerBooting = true;
+    this.workerHost = recoveryHost;
+
+    void recoveryHost.init(this.world).then(() => {
+      if (
+        recoveryGen !== this.sessionGen
+        || !this.running
+        || this.workerHost !== recoveryHost
+      ) {
+        recoveryHost.dispose();
+        if (this.workerHost === recoveryHost) {
+          this.workerHost = null;
+          this.workerBooting = false;
+          this.workerRecoveryInFlight = false;
+        }
+        return;
+      }
+      // The main-thread fallback may have advanced the shadow while the old worker
+      // was being terminated, so always initialize from the latest shadow state.
+      recoveryHost.importSave(this.world);
+      this.workerEnabled = true;
+      this.workerBooting = false;
+      this.workerRecoveryInFlight = false;
+      this.workerRecoveryDelayMs = WORKER_RECOVERY_INITIAL_DELAY_MS;
+      this.lastWorkerActivity = performance.now();
+      this.lastWorkerTickRequest = 0;
+      this.workerTickLatencyMs = 0;
+      this.registerWorkerHandlers(recoveryGen);
+      console.info('[GameLoop] Sim worker recovered automatically');
+    }).catch((err) => {
+      if (this.workerHost === recoveryHost) {
+        recoveryHost.dispose();
+        this.workerHost = null;
+        this.workerEnabled = false;
+        this.workerBooting = false;
+        this.workerRecoveryInFlight = false;
+        this.renderSoA = null;
+        this.renderMetaBySlot = null;
+        this.scentReader = null;
+      }
+      if (recoveryGen === this.sessionGen && this.running) {
+        this.workerRecoveryDelayMs = Math.min(this.workerRecoveryDelayMs * 2, WORKER_RECOVERY_MAX_DELAY_MS);
+        console.warn('[GameLoop] Automatic worker recovery failed; retrying', err);
+        this.scheduleWorkerRecovery();
+      }
+    });
   }
 
   /**
@@ -301,6 +371,7 @@ export class GameLoop {
     this.renderSoA = null;
     this.renderMetaBySlot = null;
     this.scentReader = null;
+    this.scheduleWorkerRecovery();
   }
 
   /**
@@ -594,12 +665,18 @@ export class GameLoop {
     this.running = true;
     this.lastFrameTime = 0;
     this.tickAccumulator = 0;
+    if (!this.workerHost && !this.workerBooting) this.scheduleWorkerRecovery();
     this.rafId = requestAnimationFrame(this.frame);
   }
 
   stop(): void {
     this.running = false;
     this.sessionGen++;
+    if (this.workerRecoveryTimer) {
+      clearTimeout(this.workerRecoveryTimer);
+      this.workerRecoveryTimer = null;
+    }
+    this.workerRecoveryInFlight = false;
     this.commandChain = Promise.resolve();
     if (this.rafId) cancelAnimationFrame(this.rafId);
     this.rafId = 0;
