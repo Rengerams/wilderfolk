@@ -149,6 +149,9 @@ export function tickElectionPromises(state: WorldState): void {
   const repDelta = kept * 3 - failed * 2;
   state.villageReputation = Math.max(0, state.villageReputation + repDelta);
   setStoryFlags(state, { [evaluatedKey(year)]: state.tick });
+  if (failed > 0) {
+    logEvent(state, 'scandal', `Broken election promises are the talk of the village (year ${year}).`, undefined);
+  }
   addBigNews(
     state,
     '🗳️ Promises judged',
