@@ -4,7 +4,7 @@ import { gameTick } from '../gameTick';
 import { GAME_VERSION } from '../version';
 
 installDialogueBankPayload(canonicalDialogueBank);
-import type { Entity, WorldState } from '../gameTypes';
+import type { Building, Entity, WorldState } from '../gameTypes';
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool } from '../simBuffers/renderBufferPool';
 import { extractSimTickDelta } from '../simBuffers/simDelta';
@@ -24,6 +24,8 @@ let world: WorldState | null = null;
 let bufferPool: RenderBufferPool | null = null;
 let headlessMode = false;
 let lastFocus: import('../gameEngine').SimulationFocus | undefined;
+/** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
+let prevBuildingsSnapshot: Map<number, Building> | null = null;
 
 function postError(
   message: string,
@@ -52,7 +54,9 @@ function packAndPostTickResult(
       renderPacked: pack.packedEntities,
       focus: lastFocus,
       cloneMode: 'transfer',
+      prevBuildings: prevBuildingsSnapshot,
     });
+    prevBuildingsSnapshot = new Map(world.buildings.map((b) => [b.id, structuredClone(b)]));
     // Impulse is one-shot — clear on worker so it is not re-sent every tick.
     world.screenShakeImpulse = 0;
 

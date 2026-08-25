@@ -78,7 +78,12 @@ export interface SimTickDelta {
   screenShakeImpulse: number;
   floatingTexts: WorldState['floatingTexts'];
   deathParticles: WorldState['deathParticles'];
-  buildings: Building[];
+  /** Full buildings snapshot (default). Diff mode sends only changed buildings. */
+  buildings?: Building[];
+  /** Diff mode: buildings added/changed this tick. */
+  changedBuildings?: Building[];
+  /** Diff mode: building ids removed this tick. */
+  removedBuildingIds?: number[];
   /** Worker-compacted alive entity list — replaces main-thread entities each tick. */
   aliveEntities: Entity[];
   diedIds: number[];
@@ -153,6 +158,8 @@ export interface ExtractSimTickDeltaOptions {
    * `transfer` — rely on postMessage as the single isolation boundary (worker ticks).
    */
   cloneMode?: SimDeltaCloneMode;
+  /** Previous buildings snapshot for diff mode; when set, only changed buildings are shipped. */
+  prevBuildings?: ReadonlyMap<number, Building> | null;
 }
 
 export interface ApplySimTickDeltaOptions {
@@ -166,6 +173,11 @@ function deltaClone<T>(value: T, mode: SimDeltaCloneMode): T {
 function deltaCloneOptional<T>(value: T | null | undefined, mode: SimDeltaCloneMode): T | null {
   if (value == null) return value ?? null;
   return mode === 'isolated' ? structuredClone(value) : value;
+}
+
+/** Cheap deterministic fingerprint used to detect changed buildings in diff mode. */
+function buildingFingerprint(building: Building): string {
+  return JSON.stringify(building);
 }
 
 const CATALOG_PATCH_KEYS = [
@@ -223,6 +235,27 @@ export function extractSimTickDelta(
   // prefix. Sending the array tail would repeatedly omit newly logged events.
   const eventLogTail = world.eventLog.slice(0, EVENT_LOG_DELTA_TAIL_MAX);
 
+  // Diff mode: when the caller supplies the previous buildings snapshot, ship
+  // only changed/added/removed buildings instead of the full array each tick.
+  const prevBuildings = options?.prevBuildings;
+  let changedBuildings: Building[] | undefined;
+  let removedBuildingIds: number[] | undefined;
+  if (prevBuildings) {
+    changedBuildings = [];
+    removedBuildingIds = [];
+    const currentIds = new Set<number>();
+    for (const building of world.buildings) {
+      currentIds.add(building.id);
+      const prev = prevBuildings.get(building.id);
+      if (!prev || buildingFingerprint(prev) !== buildingFingerprint(building)) {
+        changedBuildings.push(building);
+      }
+    }
+    for (const id of prevBuildings.keys()) {
+      if (!currentIds.has(id)) removedBuildingIds.push(id);
+    }
+  }
+
   const delta: SimTickDelta = {
     proto: SIM_DELTA_PROTO,
     tick: world.tick,
@@ -251,7 +284,6 @@ export function extractSimTickDelta(
     screenShakeImpulse: world.screenShakeImpulse,
     floatingTexts: deltaClone(world.floatingTexts, cloneMode),
     deathParticles: deltaClone(world.deathParticles, cloneMode),
-    buildings: deltaClone(world.buildings, cloneMode),
     aliveEntities: deltaClone(aliveNow, cloneMode),
     diedIds,
     newEntities: deltaClone(newEntities, cloneMode),
@@ -306,6 +338,13 @@ export function extractSimTickDelta(
     guidedCampaign: deltaCloneOptional(world.guidedCampaign, cloneMode) ?? undefined,
   };
 
+  if (changedBuildings) {
+    delta.changedBuildings = deltaClone(changedBuildings, cloneMode);
+    delta.removedBuildingIds = removedBuildingIds;
+  } else {
+    delta.buildings = deltaClone(world.buildings, cloneMode);
+  }
+
   if (!headless && renderPacked) {
     delta.renderMetaBySlot = packRenderMetaForPacked(renderPacked);
     delta.catalogEntities = deltaClone(
@@ -353,7 +392,18 @@ export function applySimTickDelta(
   world.screenShakeImpulse = delta.screenShakeImpulse;
   world.floatingTexts = deltaClone(delta.floatingTexts, cloneMode);
   world.deathParticles = deltaClone(delta.deathParticles, cloneMode);
-  world.buildings = deltaClone(delta.buildings, cloneMode);
+  if (delta.changedBuildings) {
+    // Diff mode — merge changed/removed buildings into the host world.
+    const removed = new Set(delta.removedBuildingIds ?? []);
+    world.buildings = world.buildings.filter((b) => !removed.has(b.id));
+    const byId = new Map(world.buildings.map((b) => [b.id, b] as const));
+    for (const building of deltaClone(delta.changedBuildings, cloneMode)) {
+      byId.set(building.id, building);
+    }
+    world.buildings = Array.from(byId.values());
+  } else {
+    world.buildings = deltaClone(delta.buildings ?? [], cloneMode);
+  }
   world.bigNews = preserveBigNewsDismissals(
     world.bigNews,
     deltaClone(delta.bigNews, cloneMode),
