@@ -1,6 +1,7 @@
 /**
  * A1 — Post-taming animal care (roadmap v0.6.3).
- * Bounded daily stewardship: tamed animals consume one food ration per day.
+ * Bounded daily stewardship: each tamed animal consumes 10% of a human's
+ * normal daily food consumption (2 food/day) = 0.2 food per animal per day.
  * Status transitions: fed → warning (low food) → shortage (no food) → fed.
  * Approved direction: the shared food stock represents a fish-capable ration.
  */
@@ -20,6 +21,12 @@ const STATUS_CODES: Record<AnimalCareStatus, number> = {
   warning: 2,
   shortage: 3,
 };
+
+/** A player human eats 1 food per meal window, twice per day. */
+export const HUMAN_DAILY_FOOD_CONSUMPTION = 2;
+/** Tamed animals eat 10% of a human's normal daily consumption. */
+export const ANIMAL_FOOD_RATIO_OF_HUMAN = 0.1;
+export const ANIMAL_DAILY_FOOD = HUMAN_DAILY_FOOD_CONSUMPTION * ANIMAL_FOOD_RATIO_OF_HUMAN;
 
 export function countTamedAnimals(state: WorldState): number {
   let count = 0;
@@ -43,9 +50,10 @@ export function tickAnimalCare(state: WorldState): void {
   const lastFedDay = state.storyFlags?.[FLAG_FED_DAY] ?? -1;
   const alreadyFedToday = lastFedDay === colonyDay;
   const previousStatus = getAnimalCareStatus(state);
+  const cost = tamed * ANIMAL_DAILY_FOOD;
 
-  if (!alreadyFedToday && state.resources.food >= 1) {
-    state.resources.food -= 1;
+  if (!alreadyFedToday && state.resources.food >= cost) {
+    state.resources.food -= cost;
     state.storyFlags = {
       ...state.storyFlags,
       [FLAG_FED_DAY]: colonyDay,
