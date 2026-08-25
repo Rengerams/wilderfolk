@@ -106,10 +106,10 @@ export const HUMAN_MOVE_OUT_MIN_AGE = 18;
 export const HUMAN_FERTILITY_START = 14;
 export const HUMAN_YOUTH_FERTILITY_END = 18;
 const YOUTH_CONCEPTION_MULTIPLIERS: Readonly<Record<number, number>> = {
-  14: 0.12,
-  15: 0.18,
-  16: 0.24,
-  17: 0.30,
+  14: 0.25,
+  15: 0.35,
+  16: 0.50,
+  17: 0.70,
 };
 export const HUMAN_FERTILITY_PEAK_END = 35;
 export const HUMAN_FERTILITY_END = 50;
@@ -227,9 +227,9 @@ export const HUMAN_DAILY_ILLNESS_CHANCE = 0.00012;
  * Once-per-calendar-day conception rolls (not per tick).
  * Tuned for ~1 birth per married couple per game year when housed together.
  */
-export const HUMAN_DAILY_PREGNANCY_CHANCE_HOME = 0.15;
-export const HUMAN_DAILY_PREGNANCY_CHANCE_NEAR = 0.003;
-export const HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE = 0.09;
+export const HUMAN_DAILY_PREGNANCY_CHANCE_HOME = 0.18;
+export const HUMAN_DAILY_PREGNANCY_CHANCE_NEAR = 0.0045;
+export const HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE = 0.14;
 
 export const PREGNANCY_TICKS = ticksForDays(24);
 export const REPRODUCTION_COOLDOWN_TICKS = ticksForDays(150);

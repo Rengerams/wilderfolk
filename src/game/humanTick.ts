@@ -1298,7 +1298,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               settlerPairChat(entity, paramour, 'affair', 0.18);
 
               const churchPenalty = churchStrength > 0 ? 0.72 + (1 - churchStrength) * 0.28 : 1;
-              const affairRate = (churchStrength > 0 ? 4 : 6)
+              const affairRate = (churchStrength > 0 ? 5 : 8)
                 * (state.festival?.active ? 1.4 : 1)
                 * churchPenalty
                 * PER_TICK_RATE_SCALE;

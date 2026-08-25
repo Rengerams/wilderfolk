@@ -331,7 +331,7 @@ export function tryDailyAffairGossip(
 
   if (churchStrength <= 0) {
     if ((entity.affairProgress ?? 0) < 85 && (lover.affairProgress ?? 0) < 85) return;
-    if (Math.random() < 0.04) {
+    if (Math.random() < 0.06) {
       if (isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) {
         recordAffairTrystSite(entity, lover, state, buildingById);
       }
@@ -349,7 +349,7 @@ export function tryDailyAffairGossip(
     return;
   }
 
-  const chance = churchStrength >= 1 ? 0.16 : 0.08;
+  const chance = churchStrength >= 1 ? 0.22 : 0.12;
   if (Math.random() < chance) {
     if (isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) {
       recordAffairTrystSite(entity, lover, state, buildingById);
@@ -457,8 +457,8 @@ export const YOUTH_LOVE_MAX_AGE_GAP = 2;
 /** Uneducated pairs can still meet; shared school experience makes it likelier. */
 export const YOUTH_LOVE_DAILY_START_CHANCE = 0.0005;
 export const YOUTH_LOVE_DAILY_SCHOOL_BONUS = 0.001;
-/** Around a 30% chance over four school years for a well-supported first love to end naturally. */
-export const YOUTH_LOVE_DAILY_BREAKUP_CHANCE = 0.00025;
+/** Around a 40% chance over four school years for a well-supported first love to end naturally. */
+export const YOUTH_LOVE_DAILY_BREAKUP_CHANCE = 0.0004;
 
 function hasSharedSchoolBond(a: Entity, b: Entity): boolean {
   return (a.childhoodFriendsIds ?? []).includes(b.id)
@@ -853,7 +853,7 @@ export function tryDailyHumanMortality(
 }
 
 /** Either spouse may divorce after catching the other cheating — chance applies to gossip only. */
-const DIVORCE_ON_CAUGHT_CHANCE = 0.55;
+const DIVORCE_ON_CAUGHT_CHANCE = 0.7;
 /** Game-days before the same settler can headline another scandal. */
 function getScandalCooldownTicks(): number {
   return TICKS_PER_DAY * 21;
