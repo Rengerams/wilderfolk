@@ -22,8 +22,8 @@ Status: development working tree (2026-08-25)
 | 13 | **T2** | Worker transport test timeout | Makes `tests/gameWorker.transport.test.ts` deterministic under the full suite. | `gameWorker.node.ts` self-Proxy fix; full-suite validation. | Repeated full-suite runs pass within timeout. | ✅ Done — two+ consecutive green runs. |
 | 14 | **D1** | Deterministic production simulation seed | Makes long-horizon simulation replayable from a world seed. | `simRng.ts` per-owner streams + context-seeded chat rolls. | Same seed → same world + 300-tick replay. | ✅ Done — 100-tick test in suite; manual 300-tick verified. |
 | 15 | **U1** | UX/UI density and hierarchy | Makes the narrow sidebar/selected-building inspector readable without losing map context. | Sidebar presentation, `SelectedBuildingPanel`, `VillageTabPanel`, `CollapsibleSection`. | UX-01..UX-07 fully implemented. | ✅ Done — UX-01/03/04/06 + UX-02/05/07 implemented. |
-| 16 | **B1** | Citizens stay at their workplace during work hours | Stops assigned workers leaving job buildings during the configured work window. | `humanTick.ts` realtime work movement. | Status display + root-cause fix. | 🔍 Investigating — status display added; dev to verify in-game. |
-| 17 | **B2** | Worker assignment panel truth (auto/manual) | Auto mode stops offering a manual pick list; manual mode shows only unemployed adults. | `SelectedBuildingPanel.tsx`; `buildingActions.ts`. | Manual pick list hidden in auto; only unemployed in manual. | ✅ Done — focused test added. |
+| 16 | **B1** | Citizens stay at their workplace during work hours | Stops assigned workers leaving job buildings during the configured work window. | `humanTick.ts` realtime work movement. | Status display + root-cause fix. | 🔍 Investigating — status display added (building-label based, incl. "Walking home"); dev to verify in-game. |
+| 17 | **B2** | Worker assignment panel truth (auto/manual) | Auto mode stops offering a manual pick list; manual mode shows only unemployed adults + per-worker remove. | `SelectedBuildingPanel.tsx`; `buildingActions.ts`. | Manual pick list hidden in auto; only unemployed in manual; per-worker remove buttons. | ✅ Done — focused test added; per-worker remove (commit `a877e6e`). |
 | 18 | **E1** | Election campaign promises | Makes leadership elections feel consequential: promises and success/fail consequences. | `electionPromises.ts`; `villageLeadership.ts`. | Deterministic promises + mid-term evaluation. | ✅ Done — reputation effects wired. |
 | 19 | **BAL** | Fertility + relationship chaos balance | More chaos: youth fertility 14–17, normal/affair pregnancy, affair/scandal/divorce rates. | `dayCycle.ts`, `humanRelationships.ts`, `humanTick.ts`. | Youth multipliers 0.25/0.35/0.50/0.70; pregnancy/affair bumps. | ✅ Done. |
 
@@ -43,6 +43,8 @@ Status: development working tree (2026-08-25)
 4. **D1 deterministic seed** — per-owner streams + context-seeded chat rolls; 300-tick replay verified.
 5. **S1–S5** — full multi-stage chains per `docs/archive/story/STORY_*.md`.
 6. **Footpath road-end** — not connected by design; a footpath may simply end.
+7. **WallCorner removed** — walls are straight vertical/horizontal only (R-rotation); corners emerge naturally where segments cross. No separate corner building type.
+8. **Walls block pathfinding; gates are passable** — completed player walls block humans; WallGate stays a passable opening. Water/mountains block at every distance (no short-hop shortcut).
 
 ## References
 
