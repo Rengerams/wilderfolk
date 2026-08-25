@@ -23,10 +23,10 @@ const STATUS_CODES: Record<AnimalCareStatus, number> = {
   shortage: 3,
 };
 
-/** A player human eats 1 food per meal window, twice per day. */
-export const HUMAN_DAILY_FOOD_CONSUMPTION = 2;
-/** Tamed animals eat 10% of a human's normal daily consumption. */
-export const ANIMAL_FOOD_RATIO_OF_HUMAN = 0.1;
+/** A player human eats 1 food per meal window, up to several meals per day. */
+export const HUMAN_DAILY_FOOD_CONSUMPTION = 3;
+/** Tamed animals eat 15% of a human's normal daily consumption. */
+export const ANIMAL_FOOD_RATIO_OF_HUMAN = 0.15;
 export const ANIMAL_DAILY_FOOD = HUMAN_DAILY_FOOD_CONSUMPTION * ANIMAL_FOOD_RATIO_OF_HUMAN;
 /** Energy restored to a tamed animal's owner each fed day (per animal). */
 export const TAMED_ANIMAL_OWNER_ENERGY_BONUS = 8;
