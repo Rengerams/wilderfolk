@@ -164,7 +164,22 @@ export function shouldApplyNewMoonHowlerCurse(
   );
 }
 
-export interface MoonHowlerSavedState {
+export interface MoonHowlerSavedState
+  extends Pick<Entity,
+    'relationshipStatus'
+    | 'partnerId'
+    | 'affairPartnerId'
+    | 'affairProgress'
+    | 'courtshipProgress'
+    | 'youthLovePartnerId'
+    | 'youthLoveProgress'
+    | 'youthLoveStartedDay'
+    | 'pregnant'
+    | 'pregnantById'
+    | 'pregnancyProgress'
+    | 'huntTargetId'
+    | 'combatTicks'
+  > {
   energy: number;
   maxEnergy: number;
   speed: number;
@@ -177,19 +192,6 @@ export interface MoonHowlerSavedState {
   prisonBuildingId?: number;
   prisonerUntilTick?: number;
   prisonSentenceCrime?: Entity['prisonSentenceCrime'];
-  relationshipStatus?: Entity['relationshipStatus'];
-  partnerId?: number;
-  affairPartnerId?: number;
-  affairProgress?: number;
-  courtshipProgress?: number;
-  youthLovePartnerId?: number;
-  youthLoveProgress?: number;
-  youthLoveStartedDay?: number;
-  pregnant?: boolean;
-  pregnantById?: number;
-  pregnancyProgress?: number;
-  huntTargetId?: number;
-  combatTicks?: number;
 }
 
 function detachEntityFromBuildingOccupants(buildings: Building[], buildingId: number | undefined, entityId: number): void {

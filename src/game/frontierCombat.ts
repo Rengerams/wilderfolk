@@ -1,4 +1,4 @@
-import type { Building, Entity, RivalSettlement, WorldState } from './gameTypes';
+import type { Building, Entity, RivalSettlement, WorldState, RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
 import { TICKS_PER_DAY, killHuman } from './dayCycle';
 import { ensureEntityByIdMap } from './entityIndex';
@@ -14,68 +14,9 @@ import {
   getMilitiaSpearTier,
 } from './militiaBalance';
 
-import type { ResourceCostAmount } from './resourceCost';
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
 
-export interface RaidChoice {
-  id: string;
-  label: string;
-  hint: string;
-  cost?: ResourceCostAmount;
-}
-
-export interface RaidLootBundle {
-  food: number;
-  wood: number;
-  stone: number;
-  gold: number;
-}
-
-export interface RaidEvent {
-  id: string;
-  rivalId: string;
-  rivalName: string;
-  title: string;
-  description: string;
-  emoji: string;
-  choices: RaidChoice[];
-  createdAtTick: number;
-  /** Tick when unanswered raid auto-resolves (distance-scaled march time). */
-  expiresAtTick: number;
-  /** Camp distance in tiles when the raid was declared. */
-  marchDistanceTiles: number;
-  attackerStrength: number;
-  lootFood: number;
-  lootGold: number;
-  lootWood: number;
-  lootStone: number;
-}
-
-export type OutgoingRaidRivalResponse = 'payoff_offer' | 'fight';
-
-/** Player war-band marching on a rival camp — rival may buy you off or fight. */
-export interface OutgoingRaidEvent {
-  id: string;
-  rivalId: string;
-  rivalName: string;
-  title: string;
-  description: string;
-  emoji: string;
-  choices: RaidChoice[];
-  createdAtTick: number;
-  expiresAtTick: number;
-  marchDistanceTiles: number;
-  /** Provisions already spent when the march began. */
-  marchFoodCost: number;
-  isCounterRaid: boolean;
-  rivalResponse: OutgoingRaidRivalResponse;
-  attackerStrength: number;
-  defenderStrength: number;
-  lootFood: number;
-  lootGold: number;
-  lootWood: number;
-  lootStone: number;
-}
+export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 
 const RAID_RESPONSE_MIN_DAYS = 2;
 const RAID_RESPONSE_MAX_DAYS = 6;

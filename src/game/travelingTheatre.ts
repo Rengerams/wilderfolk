@@ -7,7 +7,7 @@ import type { WorldState, StoryEvent } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
-import { storyFlag, setStoryFlags, bumpVillageReputation } from './storyHelpers';
+import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard } from './storyHelpers';
 
 export const STORY_KEY = 'traveling_theatre';
 export const AUTHORED_STORY_COOLDOWN_FLAG = 'authored_story_cd_until';
@@ -50,27 +50,8 @@ type Stage3Choice = 'correct_story' | 'let_legend_grow' | 'interrupt';
 const HOSPITALITY_FOOD = 20;
 const VENUE_WOOD = 15;
 
-function seededRoll(seed: number, salt: number): number {
-  let s = (seed ^ salt) >>> 0;
-  s = (s + 0x6d2b79f5) >>> 0;
-  let t = s;
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-}
-
-function hashSalt(text: string): number {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 16777619) >>> 0;
-  }
-  return h >>> 0;
-}
-
 export function travelingTheatreEligibleDay(mapSeed: number | undefined): number {
-  const seed = (mapSeed ?? 1) >>> 0;
-  return MIN_DAY + Math.floor(seededRoll(seed, hashSalt(STORY_KEY)) * WINDOW_DAYS);
+  return eligibleDayForStory(mapSeed, STORY_KEY, MIN_DAY, WINDOW_DAYS);
 }
 
 function hasPerformerGroup(state: WorldState): boolean {
@@ -90,13 +71,6 @@ function availableScripts(state: WorldState): Stage1Choice[] {
     scripts.push('town_hall_scandal');
   }
   return scripts;
-}
-
-function pushCard(state: WorldState, event: StoryEvent): void {
-  state.pendingStoryEvents ??= [];
-  if (!state.pendingStoryEvents.some((e) => e.id === event.id)) {
-    state.pendingStoryEvents.push(event);
-  }
 }
 
 export function maybeOfferTravelingTheatre(state: WorldState): void {
@@ -136,7 +110,7 @@ export function maybeOfferTravelingTheatre(state: WorldState): void {
     createdAtTick: state.tick,
     expiresAtTick: state.tick + TICKS_PER_DAY * CARD_DURATION_DAYS,
   };
-  pushCard(state, event);
+  pushStoryCard(state, event);
   addNotification(state, '🎭 The Traveling Theatre', 'A troupe offers to stage the valley’s story.', 'info');
 }
 
@@ -170,7 +144,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
     createdAtTick: state.tick,
     expiresAtTick: state.tick + TICKS_PER_DAY * CARD_DURATION_DAYS,
   };
-  pushCard(state, event);
+  pushStoryCard(state, event);
   addNotification(state, '🎭 Building the production', 'The troupe needs a support package.', 'info');
   return true;
 }
@@ -237,7 +211,7 @@ export function tickTravelingTheatre(state: WorldState): void {
     createdAtTick: state.tick,
     expiresAtTick: state.tick + TICKS_PER_DAY * CARD_DURATION_DAYS,
   };
-  pushCard(state, event);
+  pushStoryCard(state, event);
   addNotification(state, '🎭 Opening night', 'The play is about to begin.', 'info');
 }
 

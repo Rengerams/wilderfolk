@@ -8,7 +8,7 @@ import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
-import { storyFlag, setStoryFlags, bumpVillageReputation } from './storyHelpers';
+import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard } from './storyHelpers';
 
 export const STORY_KEY = 'rumour_ledger';
 export const AUTHORED_STORY_COOLDOWN_FLAG = 'authored_story_cd_until';
@@ -58,27 +58,8 @@ const RUMOUR_TEXT: Record<SourceKind, string> = {
 
 type Stage1Choice = 'correct_record' | 'encourage' | 'ignore' | 'investigate';
 
-function seededRoll(seed: number, salt: number): number {
-  let s = (seed ^ salt) >>> 0;
-  s = (s + 0x6d2b79f5) >>> 0;
-  let t = s;
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-}
-
-function hashSalt(text: string): number {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 16777619) >>> 0;
-  }
-  return h >>> 0;
-}
-
 export function rumourLedgerEligibleDay(mapSeed: number | undefined): number {
-  const seed = (mapSeed ?? 1) >>> 0;
-  return MIN_DAY + Math.floor(seededRoll(seed, hashSalt(STORY_KEY)) * WINDOW_DAYS);
+  return eligibleDayForStory(mapSeed, STORY_KEY, MIN_DAY, WINDOW_DAYS);
 }
 
 function recentSourceKind(state: WorldState): SourceKind | null {
@@ -93,13 +74,6 @@ function recentSourceKind(state: WorldState): SourceKind | null {
 
 function hasTownHall(state: WorldState): boolean {
   return state.buildings.some((b) => b.completed && b.type === BuildingType.TownHall);
-}
-
-function pushCard(state: WorldState, event: StoryEvent): void {
-  state.pendingStoryEvents ??= [];
-  if (!state.pendingStoryEvents.some((e) => e.id === event.id)) {
-    state.pendingStoryEvents.push(event);
-  }
 }
 
 export function maybeOfferRumourLedger(state: WorldState): void {
@@ -139,7 +113,7 @@ export function maybeOfferRumourLedger(state: WorldState): void {
     createdAtTick: state.tick,
     expiresAtTick: state.tick + TICKS_PER_DAY * CARD_DURATION_DAYS,
   };
-  pushCard(state, event);
+  pushStoryCard(state, event);
   addNotification(state, '📜 The Rumour Ledger', 'The scribe brings a rumour to the Town Hall.', 'info');
 }
 

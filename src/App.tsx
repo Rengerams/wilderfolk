@@ -969,28 +969,39 @@ export default function App() {
 
   const applyZoomRef = useRef(applyZoom);
 
-  const resetZoom = useCallback(() => {
+  const zoomCameraTo = useCallback((targetZoom: number) => {
     const loop = loopRef.current;
     const canvas = canvasRef.current;
     if (!loop || !canvas) return;
     const world = loop.getWorld();
     const { width: cw, height: ch } = canvas.getBoundingClientRect();
     const cam = loop.getView().camera;
-    const next = focusCameraOn(loop.getView(), cam.targetX, cam.targetY, CAMERA_ZOOM_DEFAULT);
+    const next = focusCameraOn(loop.getView(), cam.targetX, cam.targetY, targetZoom);
     loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height, cw, ch) });
   }, []);
 
+  const resetZoom = useCallback(() => {
+    zoomCameraTo(CAMERA_ZOOM_DEFAULT);
+  }, [zoomCameraTo]);
+
   /** Jump to a preset zoom level (keeps camera center). */
   const setZoomLevel = useCallback((zoom: number) => {
+    zoomCameraTo(clampCameraZoom(zoom));
+  }, [zoomCameraTo]);
+
+  /** Focus camera on a world point and clamp to map bounds (notifications/minimap share). */
+  const focusWorldCamera = useCallback((x: number, y: number, zoom = 1.5) => {
     const loop = loopRef.current;
-    const canvas = canvasRef.current;
-    if (!loop || !canvas) return;
-    const world = loop.getWorld();
-    const { width: cw, height: ch } = canvas.getBoundingClientRect();
-    const cam = loop.getView().camera;
-    const next = focusCameraOn(loop.getView(), cam.targetX, cam.targetY, clampCameraZoom(zoom));
-    loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height, cw, ch) });
-  }, []);
+    if (!loop) return;
+    const nextView = focusCameraOn(loop.getView(), x, y, zoom);
+    const rect = canvasRef.current?.getBoundingClientRect();
+    loop.patchView({
+      camera: clampCameraTarget(
+        nextView.camera, world.width, world.height,
+        rect?.width ?? world.width, rect?.height ?? world.height,
+      ),
+    });
+  }, [world.width, world.height]);
 
   // passive:false — React onWheel cannot preventDefault on modern browsers
   useEffect(() => {
@@ -1537,17 +1548,7 @@ export default function App() {
                 type="button"
                 onClick={() => {
                   if (n.focus) {
-                    const loop = loopRef.current;
-                    if (loop) {
-                      const nextView = focusCameraOn(loop.getView(), n.focus.x, n.focus.y, 1.5);
-                      const rect = canvasRef.current?.getBoundingClientRect();
-                      loop.patchView({
-                        camera: clampCameraTarget(
-                          nextView.camera, world.width, world.height,
-                          rect?.width ?? world.width, rect?.height ?? world.height,
-                        ),
-                      });
-                    }
+                    focusWorldCamera(n.focus.x, n.focus.y, 1.5);
                   }
                   // Visitor/rival camp notification — select the camp so the
                   // inspector opens with its talk/trade actions visible.
@@ -1706,16 +1707,12 @@ export default function App() {
                           );
                         })}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const rival = world.rivalSettlements.find((r) => r.id === evt.rivalId);
-                          if (rival) focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0]);
-                        }}
-                        className="mt-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300"
-                      >
-                        📍 Watch war-band on map
-                      </button>
+                      <RivalFocusButton
+                        world={world}
+                        rivalId={evt.rivalId}
+                        label="Watch war-band on map"
+                        onFocus={(rival) => focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0])}
+                      />
                     </div>
                   </div>
                 </div>
@@ -1788,16 +1785,12 @@ export default function App() {
                           );
                         })}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const rival = world.rivalSettlements.find((r) => r.id === evt.rivalId);
-                          if (rival) focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0]);
-                        }}
-                        className="mt-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300"
-                      >
-                        📍 Show camp on map
-                      </button>
+                      <RivalFocusButton
+                        world={world}
+                        rivalId={evt.rivalId}
+                        label="Show camp on map"
+                        onFocus={(rival) => focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0])}
+                      />
                     </div>
                   </div>
                 </div>
@@ -1888,19 +1881,7 @@ export default function App() {
           <MiniMap
             worldRef={worldRef}
             viewRef={viewRef}
-            onNavigate={(wx, wy) => {
-              const loop = loopRef.current;
-              if (loop) {
-                const nextView = focusCameraOn(loop.getView(), wx, wy);
-                const rect = canvasRef.current?.getBoundingClientRect();
-                loop.patchView({
-                  camera: clampCameraTarget(
-                    nextView.camera, world.width, world.height,
-                    rect?.width ?? world.width, rect?.height ?? world.height,
-                  ),
-                });
-              }
-            }}
+            onNavigate={(wx, wy) => focusWorldCamera(wx, wy)}
           />
 
           {/* Zoom controls — wider range; speech bubbles visible from ~28% zoom */}
@@ -2419,6 +2400,31 @@ export default function App() {
 }
 
 // ============ SUB-COMPONENTS ============
+
+function RivalFocusButton({
+  world,
+  rivalId,
+  label,
+  onFocus,
+}: {
+  world: WorldState;
+  rivalId: string;
+  label: string;
+  onFocus: (rival: { id: string; campX: number; campY: number; buildingIds: number[] }) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const rival = world.rivalSettlements.find((r) => r.id === rivalId);
+        if (rival) onFocus(rival);
+      }}
+      className="mt-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300"
+    >
+      📍 {label}
+    </button>
+  );
+}
 
 function FavoriteFollowBanner({
   fav,
