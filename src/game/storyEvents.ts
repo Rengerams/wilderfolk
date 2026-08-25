@@ -5,6 +5,7 @@ import { addBigNews, addNotification } from './simEffects';
 import { addCappedResource } from './resourceUtils';
 import { isPlayerHuman } from './playerHuman';
 import { logEvent } from './eventLog';
+import { HUMAN_DAILY_FOOD_CONSUMPTION } from './animalCare';
 import { resolveDeerParliament } from './deerParliament';
 import { resolveTravelingTheatre } from './travelingTheatre';
 import { resolveWeddingDiplomacy } from './weddingDiplomacy';
@@ -40,7 +41,8 @@ export function offerStoryEvent(state: WorldState, event: StoryEvent): void {
 
 /** Drop expired unanswered stories — the moment passes quietly. */
 const CHILDREN_SHELTER_CHILDREN = 10;
-const CHILDREN_SHELTER_FOOD_PER_DAY = 10; // 1 food per child per day
+/** Children consume food like ordinary city humans: 2 food/day each. */
+const CHILDREN_SHELTER_FOOD_PER_DAY = CHILDREN_SHELTER_CHILDREN * HUMAN_DAILY_FOOD_CONSUMPTION;
 
 function countFreeShelterBeds(state: WorldState): number {
   return state.buildings
