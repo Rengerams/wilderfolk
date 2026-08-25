@@ -17,6 +17,7 @@ import {
   HUMAN_MOVE_OUT_MIN_AGE,
   getColonyDay,
   TICKS_PER_DAY,
+  DAYS_PER_YEAR,
   HUMAN_DAILY_ILLNESS_CHANCE,
   HUMAN_DAILY_PREGNANCY_CHANCE_HOME,
   HUMAN_DAILY_PREGNANCY_CHANCE_NEAR,
@@ -854,6 +855,47 @@ export function tryDailyHumanMortality(
 
 /** Either spouse may divorce after catching the other cheating — chance applies to gossip only. */
 const DIVORCE_ON_CAUGHT_CHANCE = 0.7;
+
+/**
+ * Amicable divorce without any affair.
+ * Real-world baseline ~7.5‰ marriages/year; game years are short so we scale
+ * it ×10 → 7.5% per game year (~1 per 13 game years per couple).
+ */
+export const MARRIAGE_ANNUAL_AMICABLE_DIVORCE_RATE = 0.075;
+export const MARRIAGE_DAILY_AMICABLE_DIVORCE_CHANCE = MARRIAGE_ANNUAL_AMICABLE_DIVORCE_RATE / DAYS_PER_YEAR;
+
+/**
+ * One bounded daily roll per married couple. No affair, no scandal, no prison
+ * or pregnancy drama — two settlers simply grow apart. One roll per pair per
+ * day (lower entity id leads), deterministic-safe under the seeded fallback.
+ */
+export function tryDailyAmicableDivorce(
+  state: WorldState,
+  entity: Entity,
+  entityById: Map<number, Entity>,
+  buildings: Building[],
+  playerHumans: readonly Entity[],
+  rng: () => number = Math.random,
+): void {
+  if (!isPlayerHuman(entity) || !entity.alive) return;
+  if (entity.relationshipStatus !== 'married' || entity.partnerId == null) return;
+  if (entity.prisonBuildingId != null) return;
+  const spouse = getLivingEntity(entity.partnerId, entityById);
+  if (!spouse || !isPlayerHuman(spouse) || !spouse.alive || spouse.prisonBuildingId != null) return;
+  if (entity.pregnant || spouse.pregnant) return;
+  if (!shouldLeadAffairPair(entity, spouse)) return;
+  if (rng() >= MARRIAGE_DAILY_AMICABLE_DIVORCE_CHANCE) return;
+
+  dissolveMarriage(entity, spouse);
+  const villagers = playerHumans.filter(isPlayerHuman);
+  reassignDivorcedResidences(entity, spouse, buildings, villagers);
+
+  const aName = humanDisplayName(entity);
+  const bName = humanDisplayName(spouse);
+  logEvent(state, 'marriage', `${aName} and ${bName} divorced amicably`, aName);
+  addNotification(state, 'Divorce', `${aName} and ${bName} went their separate ways`, 'info');
+  addFloatingText(state, (entity.x + spouse.x) / 2, (entity.y + spouse.y) / 2 - 22, 'Divorced', '#94a3b8');
+}
 /** Game-days before the same settler can headline another scandal. */
 function getScandalCooldownTicks(): number {
   return TICKS_PER_DAY * 21;
