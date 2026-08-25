@@ -38,10 +38,12 @@ import { tickPendingStoryEvents, tickChildrenShelter, maybeOfferWelcome, maybeOf
 import { tickGuidedCampaign } from './guidedCampaign';
 import { detectRaidersFromWatchtowers } from './watchtowerDetection';
 import { maybeOfferTravelingTheatre, tickTravelingTheatre } from './travelingTheatre';
+import { maybeOfferDeerParliament, tickDeerParliament } from './deerParliament';
 import { maybeOfferWeddingDiplomacy, tickWeddingDiplomacy } from './weddingDiplomacy';
 import { maybeOfferInventionFair, tickInventionFair } from './inventionFair';
 import { maybeOfferRumourLedger, tickRumourLedger } from './rumourLedger';
 import { tickElectionPromises } from './electionPromises';
+import { tickAnimalCare } from './animalCare';
 import { tickBeauty } from './beautyGrid';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getLumberMillTreeMultiplier } from './treeProximity';
@@ -863,12 +865,15 @@ export function tickLayerDaily(
   tickChildrenShelter(state);
   maybeOfferTravelingTheatre(state);
   tickTravelingTheatre(state);
+  maybeOfferDeerParliament(state);
+  tickDeerParliament(state);
   maybeOfferWeddingDiplomacy(state);
   tickWeddingDiplomacy(state);
   maybeOfferInventionFair(state);
   tickInventionFair(state);
   maybeOfferRumourLedger(state);
   tickRumourLedger(state);
+  tickAnimalCare(state);
   tickElectionPromises(state);
   tickGuidedCampaign(state);
   // Watchtowers reveal marching raiders earlier than patrols (daily, bounded).

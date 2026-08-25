@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import CollapsibleSection from './CollapsibleSection';
 import {
   BuildingType, EntityType, BUILDING_JOB_TYPES, WORKSHOP_RECIPES, getWorkshopRecipe, formatRecipeInputs,
@@ -98,6 +98,8 @@ export interface SelectedBuildingPanelProps {
 export default function SelectedBuildingPanel({
   building, state, onAssign, onAutoStaffAll, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onSetStaffingMode, onQueueForge, idleWorkers, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
 }: SelectedBuildingPanelProps) {
+  const [confirmDemolish, setConfirmDemolish] = useState(false);
+  useEffect(() => setConfirmDemolish(false), [building.id]);
   if (building.faction === 'rival') {
     const rival = state.rivalSettlements.find((r) => r.id === building.groupId);
     const config = getBuildingConfig(building.type);
@@ -295,6 +297,15 @@ export default function SelectedBuildingPanel({
 
   const config = getBuildingConfig(building.type);
   const isHousing = isResidenceBuildingType(building.type);
+  const isManualStaffing =
+    (building.staffingMode ??
+      (building.type === BuildingType.Church ||
+      building.type === BuildingType.Prison ||
+      building.type === BuildingType.Barracks ||
+      building.type === BuildingType.School ||
+      building.type === BuildingType.TownHall
+        ? 'manual'
+        : 'auto')) === 'manual';
   const residenceCap = isHousing ? getResidenceCapacity(building) : config.maxOccupants;
   const upgradeCost = building.completed && building.level < 3 && building.type !== BuildingType.LeaderHouse
     ? getBuildingUpgradeCost(building)
@@ -620,7 +631,7 @@ export default function SelectedBuildingPanel({
 
       {((!building.completed && config.maxOccupants > 0) || (building.completed && BUILDING_JOB_TYPES[building.type])) && (
         <CollapsibleSection title={!building.completed ? 'Construction' : 'Workers'} defaultOpen>
-          {building.completed && BUILDING_JOB_TYPES[building.type] && assignableWorkers.length > 0 && building.occupants.length < config.maxOccupants && (
+          {building.completed && BUILDING_JOB_TYPES[building.type] && isManualStaffing && assignableWorkers.length > 0 && building.occupants.length < config.maxOccupants && (
             <div className="mb-1 max-h-28 space-y-1 overflow-y-auto">
               <p className="text-[10px] text-stone-300">
                 {building.type === BuildingType.Church ? 'Choose priest:' : 'Choose worker:'}
@@ -707,10 +718,41 @@ export default function SelectedBuildingPanel({
                 : '⬆ Upgrade'}
             </button>
           )}
-          <button onClick={onDemolish} className="col-span-full rounded bg-rose-700 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-rose-600">
-            🗑 Demolish{isHousing && residents.length > 0 ? ' (evicts residents)' : ''}
-          </button>
         </div>
+      </CollapsibleSection>
+      <CollapsibleSection title="Advanced actions" defaultOpen={false}>
+        {confirmDemolish ? (
+          <div className="rounded-lg border border-rose-500/40 bg-rose-950/40 p-2">
+            <p className="text-[11px] font-semibold text-rose-200">
+              Demolish{' '}
+              {isHousing && residents.length > 0
+                ? `evicts ${residents.length} resident${residents.length === 1 ? '' : 's'}`
+                : 'this building'}{' '}
+              permanently. This cannot be undone.
+            </p>
+            <div className="mt-1.5 grid grid-cols-2 gap-1">
+              <button
+                onClick={onDemolish}
+                className="rounded bg-rose-600 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-rose-500"
+              >
+                🗑 Confirm demolish
+              </button>
+              <button
+                onClick={() => setConfirmDemolish(false)}
+                className="rounded bg-stone-700 px-2 py-1.5 text-[11px] font-bold text-stone-200 hover:bg-stone-600"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmDemolish(true)}
+            className="w-full rounded bg-rose-700 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-rose-600"
+          >
+            🗑 Demolish{isHousing && residents.length > 0 ? ` (evicts ${residents.length})` : ''}
+          </button>
+        )}
       </CollapsibleSection>
     </div>
   );

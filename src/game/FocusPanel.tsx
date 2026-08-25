@@ -48,7 +48,7 @@ export default function FocusPanel({ state, buildings, onOpenGoals, onHintAction
               <button
                 type="button"
                 onClick={() => onHintAction(hint.action!)}
-                className="mt-1.5 w-full rounded-md bg-emerald-800/50 py-1 text-[13px] font-bold text-emerald-200 hover:bg-emerald-700/50"
+                className="mt-1.5 w-full rounded-md bg-emerald-700 px-3 py-2 text-[13px] font-bold text-white shadow-md hover:bg-emerald-600"
               >
                 {hint.action.label} →
               </button>

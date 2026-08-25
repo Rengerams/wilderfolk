@@ -2192,6 +2192,8 @@ export default function App() {
                 onClick={() => toggleTab(tab.id)}
                 className={`sidebar-tab relative ${openTabs.has(tab.id) ? 'sidebar-tab--active text-emerald-400' : 'text-stone-400 hover:text-stone-300'}`}
                 title={tab.hint}
+                aria-label={tab.hint}
+                aria-pressed={openTabs.has(tab.id)}
               >
                 <Emoji className="text-lg">{tab.icon}</Emoji>
                 <span className="text-[13px] font-bold leading-tight sm:text-sm">{tab.label}</span>

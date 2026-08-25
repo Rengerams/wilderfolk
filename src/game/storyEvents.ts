@@ -5,6 +5,7 @@ import { addBigNews, addNotification } from './simEffects';
 import { addCappedResource } from './resourceUtils';
 import { isPlayerHuman } from './playerHuman';
 import { logEvent } from './eventLog';
+import { resolveDeerParliament } from './deerParliament';
 import { resolveTravelingTheatre } from './travelingTheatre';
 import { resolveWeddingDiplomacy } from './weddingDiplomacy';
 import { resolveInventionFair } from './inventionFair';
@@ -132,6 +133,9 @@ export function respondToStoryEvent(
     }
     case 'traveling_theatre':
       resolveTravelingTheatre(state, choiceId);
+      break;
+    case 'deer_parliament':
+      resolveDeerParliament(state, choiceId);
       break;
     case 'wedding_diplomacy':
       resolveWeddingDiplomacy(state, choiceId);
