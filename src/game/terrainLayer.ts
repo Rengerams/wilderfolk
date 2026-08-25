@@ -274,6 +274,9 @@ export interface TerrainLayerCache {
   season: Season;
   /** Bake resolution factor — 2 when zoomed in close so tiles get fine detail. */
   lod: number;
+  /** World-pixel offset of this surface (0 for a full-map bake; chunk origin for chunked bakes). */
+  offsetX: number;
+  offsetY: number;
   /** Season-lerp progress ×100 (0-100) — cache invalidates as the palette fades. */
   seasonBlendT?: number;
   /** True when this bake used seamless fill sprites (not flat RGB only). */
@@ -452,21 +455,29 @@ type TileEntry = {
 };
 
 /**
- * Iterate every terrain tile with its pixel origin (skips out-of-bounds).
+ * Iterate terrain tiles with their pixel origin (skips out-of-bounds).
  * Generator form so call sites stay plain for-of loops without re-indenting.
+ * Optional `viewRect` + origin scope a bake to a world-pixel chunk.
  */
 function *terrainTiles(
   map: WorldMap,
   tileSize: number,
   w: number,
   h: number,
+  viewRect?: { x: number; y: number; width: number; height: number },
+  originX = 0,
+  originY = 0,
 ): Generator<TileEntry> {
-  for (let ty = 0; ty < map.height; ty++) {
-    for (let tx = 0; tx < map.width; tx++) {
+  const startTx = viewRect ? Math.max(0, Math.floor(viewRect.x / TERRAIN_TILE_SIZE)) : 0;
+  const endTx = viewRect ? Math.min(map.width, Math.ceil((viewRect.x + viewRect.width) / TERRAIN_TILE_SIZE)) : map.width;
+  const startTy = viewRect ? Math.max(0, Math.floor(viewRect.y / TERRAIN_TILE_SIZE)) : 0;
+  const endTy = viewRect ? Math.min(map.height, Math.ceil((viewRect.y + viewRect.height) / TERRAIN_TILE_SIZE)) : map.height;
+  for (let ty = startTy; ty < endTy; ty++) {
+    for (let tx = startTx; tx < endTx; tx++) {
       const tile = map.tiles[ty]?.[tx];
       if (!tile) continue;
-      const x0 = tx * tileSize;
-      const y0 = ty * tileSize;
+      const x0 = tx * tileSize - originX;
+      const y0 = ty * tileSize - originY;
       if (x0 >= w || y0 >= h) continue;
       yield { tile, tx, ty, x0, y0 };
     }
@@ -502,9 +513,14 @@ export function bakeTerrainLayer(
   colorAt: (type: TerrainType, season: Season, variation: number, preset?: MapPreset) => string,
   lod = 1,
   seasonBlend?: { from: Season; to: Season; t: number },
+  viewRect?: { x: number; y: number; width: number; height: number },
 ): TerrainLayerCache {
-  const w = Math.max(1, Math.floor(worldWidth * lod));
-  const h = Math.max(1, Math.floor(worldHeight * lod));
+  const viewW = viewRect ? viewRect.width : worldWidth;
+  const viewH = viewRect ? viewRect.height : worldHeight;
+  const w = Math.max(1, Math.floor(viewW * lod));
+  const h = Math.max(1, Math.floor(viewH * lod));
+  const originX = viewRect ? viewRect.x * lod : 0;
+  const originY = viewRect ? viewRect.y * lod : 0;
   const surface = createCanvasSurface(w, h);
   const ctx = getCanvasContext(surface);
   const tileSize = TERRAIN_TILE_SIZE * lod;
@@ -541,7 +557,7 @@ export function bakeTerrainLayer(
     raise: number;
   }[] = [];
 
-  for (const { tile, tx, ty, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
+  for (const { tile, tx, ty, x0, y0 } of terrainTiles(map, tileSize, w, h, viewRect, originX, originY)) {
       const fillW = Math.min(tileSize, w - x0);
       const fillH = Math.min(tileSize, h - y0);
 
@@ -732,7 +748,7 @@ export function bakeTerrainLayer(
 
   // Shallow↔deep water transition — rivers fade into deeper water instead of a
   // hard color seam (same material family, so blendNeighborEdge skips them).
-  for (const { tile, tx, ty, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
+  for (const { tile, tx, ty, x0, y0 } of terrainTiles(map, tileSize, w, h, viewRect, originX, originY)) {
     if (!isWater(tile.type)) continue;
     const selfDeep = tile.type === TerrainType.DeepWater;
     forEachCardinalNeighbor(map, tx, ty, (dir, nb) => {
@@ -758,7 +774,7 @@ export function bakeTerrainLayer(
     const cells = 4;
     const cw = tileSize / cells;
     const chh = tileSize / cells;
-    for (const { tx, ty, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
+    for (const { tx, ty, x0, y0 } of terrainTiles(map, tileSize, w, h, viewRect, originX, originY)) {
         for (let cy = 0; cy < cells; cy++) {
           for (let cx = 0; cx < cells; cx++) {
             const hsh = hash01(tx * 97 + cx * 7 + cy * 3, ty * 113 + cy * 5 + cx, seed + 11);
@@ -774,7 +790,7 @@ export function bakeTerrainLayer(
   // are punched out of the wash — the seasons may tint the land, but water
   // keeps its own blue color (rivers must not turn green in spring).
   const waterRects: { x: number; y: number; w: number; h: number }[] = [];
-  for (const { tile, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
+  for (const { tile, x0, y0 } of terrainTiles(map, tileSize, w, h, viewRect, originX, originY)) {
     if (!isWater(tile.type)) continue;
     waterRects.push({
       x: x0,
@@ -795,7 +811,7 @@ export function bakeTerrainLayer(
   // (rivers must not look like land next to the minimap's blue).
   ctx.save();
   ctx.fillStyle = WATER_GLAZE;
-  for (const { tile, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
+  for (const { tile, x0, y0 } of terrainTiles(map, tileSize, w, h, viewRect, originX, originY)) {
     if (!isWater(tile.type)) continue;
     ctx.fillRect(x0, y0, Math.min(tileSize, w - x0), Math.min(tileSize, h - y0));
   }
@@ -807,7 +823,7 @@ export function bakeTerrainLayer(
   // owner) so terrain generation remains authoritative and deterministic.
   ctx.save();
   ctx.fillStyle = RIVER_GLAZE;
-  for (const { tile, tx, ty, x0, y0 } of terrainTiles(map, tileSize, w, h)) {
+  for (const { tile, tx, ty, x0, y0 } of terrainTiles(map, tileSize, w, h, viewRect, originX, originY)) {
     if (tile.type !== TerrainType.River) continue;
     const fillW = Math.min(tileSize, w - x0);
     const fillH = Math.min(tileSize, h - y0);
@@ -829,8 +845,10 @@ export function bakeTerrainLayer(
     ctx,
     width: w,
     height: h,
-    worldWidth,
-    worldHeight,
+    worldWidth: viewW,
+    worldHeight: viewH,
+    offsetX: viewRect?.x ?? 0,
+    offsetY: viewRect?.y ?? 0,
     seed: map.seed,
     preset: map.preset,
     season,

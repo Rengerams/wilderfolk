@@ -7,12 +7,11 @@ import {
   bakeTerrainDecor,
   disposeTerrainLayer,
   disposeTerrainDecor,
-  terrainLayerNeedsRebuild,
   terrainDecorNeedsRebuild,
   type TerrainLayerCache,
   type TerrainDecorCache,
 } from '../terrainLayer';
-import { worldToScreen as w2s } from '../viewState';
+import { worldToScreen as w2s, screenToWorld } from '../viewState';
 
 // ============ TERRAIN COLOR PALETTE ============
 const TERRAIN_COLORS: Record<TerrainType, number> = {
@@ -63,14 +62,18 @@ const PRESET_TERRAIN_COLORS: Partial<Record<MapPreset, Partial<Record<TerrainTyp
   },
 };
 
-// ============ TERRAIN CACHE (OffscreenCanvas — static ground) ============
-let terrainCache: TerrainLayerCache | null = null;
+// ============ TERRAIN CACHE (chunked OffscreenCanvas — lazy per-viewport) ============
+const TERRAIN_CHUNK_SIZE = 1024; // world px per chunk
+const TERRAIN_CHUNK_MARGIN = 1; // keep one chunk of margin around the viewport
+const terrainChunkCache = new Map<string, TerrainLayerCache>();
+let terrainChunkCacheKey = '';
 let terrainDecorCache: TerrainDecorCache | null = null;
 
 /** Release terrain caches. Called by {@link resetRendererCaches}. */
 export function resetTerrainCaches(): void {
-  disposeTerrainLayer(terrainCache);
-  terrainCache = null;
+  for (const cache of terrainChunkCache.values()) disposeTerrainLayer(cache);
+  terrainChunkCache.clear();
+  terrainChunkCacheKey = '';
   disposeTerrainDecor(terrainDecorCache);
   terrainDecorCache = null;
 }
@@ -116,7 +119,7 @@ function getTerrainColor(type: TerrainType, variation: number, preset?: MapPrese
   return `rgb(${Math.min(255, Math.max(0, r)) | 0},${Math.min(255, Math.max(0, g)) | 0},${Math.min(255, Math.max(0, b)) | 0})`;
 }
 
-function buildTerrainCache(state: RenderSnapshot) {
+function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
   if (!state.worldMap) return;
   const season = state.season ?? SeasonEnum.Spring;
   // Higher bake resolution when zoomed in close so the ground isn't blocky.
@@ -124,18 +127,61 @@ function buildTerrainCache(state: RenderSnapshot) {
   // Season transitions fade the palette over a few days instead of snapping.
   const blend = seasonBlendForDay(state.dayInYear ?? 0);
   const blendT = blend ? Math.round(blend.t * 100) : undefined;
-  if (terrainLayerNeedsRebuild(terrainCache, state.worldMap, season, state.width, state.height, lod, blendT)) {
-    disposeTerrainLayer(terrainCache);
-    terrainCache = bakeTerrainLayer(
-      state.worldMap,
-      state.width,
-      state.height,
-      season,
-      (type, seas, variation, preset) => getTerrainColor(type, variation, preset, seas ?? season),
-      lod,
-      blend ?? undefined,
-    );
+  const cacheKey = `${state.worldMap.seed}|${state.worldMap.preset}|${season}|${lod}|${blendT ?? ''}`;
+  if (terrainChunkCacheKey !== cacheKey) {
+    for (const cache of terrainChunkCache.values()) disposeTerrainLayer(cache);
+    terrainChunkCache.clear();
+    terrainChunkCacheKey = cacheKey;
   }
+
+  // Visible world rect + margin — only chunks intersecting it are baked.
+  const cam = state.camera;
+  const [tlX, tlY] = screenToWorld(0, 0, cam, cw, ch);
+  const [brX, brY] = screenToWorld(cw, ch, cam, cw, ch);
+  const vx = Math.min(tlX, brX);
+  const vy = Math.min(tlY, brY);
+  const vw = Math.abs(brX - tlX);
+  const vh = Math.abs(brY - tlY);
+  const margin = TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_MARGIN;
+  const minX = Math.max(0, Math.floor((vx - margin) / TERRAIN_CHUNK_SIZE) * TERRAIN_CHUNK_SIZE);
+  const minY = Math.max(0, Math.floor((vy - margin) / TERRAIN_CHUNK_SIZE) * TERRAIN_CHUNK_SIZE);
+  const maxX = Math.min(state.width, Math.ceil((vx + vw + margin) / TERRAIN_CHUNK_SIZE) * TERRAIN_CHUNK_SIZE);
+  const maxY = Math.min(state.height, Math.ceil((vy + vh + margin) / TERRAIN_CHUNK_SIZE) * TERRAIN_CHUNK_SIZE);
+
+  const keep = new Set<string>();
+  for (let cx = minX; cx < maxX; cx += TERRAIN_CHUNK_SIZE) {
+    for (let cy = minY; cy < maxY; cy += TERRAIN_CHUNK_SIZE) {
+      const key = `${cx},${cy}`;
+      keep.add(key);
+      if (terrainChunkCache.has(key)) continue;
+      terrainChunkCache.set(
+        key,
+        bakeTerrainLayer(
+          state.worldMap,
+          state.width,
+          state.height,
+          season,
+          (type, seas, variation, preset) => getTerrainColor(type, variation, preset, seas ?? season),
+          lod,
+          blend ?? undefined,
+          {
+            x: cx,
+            y: cy,
+            width: Math.min(TERRAIN_CHUNK_SIZE, state.width - cx),
+            height: Math.min(TERRAIN_CHUNK_SIZE, state.height - cy),
+          },
+        ),
+      );
+    }
+  }
+  // Prune chunks that moved out of the viewport + margin.
+  for (const [key, cache] of terrainChunkCache) {
+    if (!keep.has(key)) {
+      disposeTerrainLayer(cache);
+      terrainChunkCache.delete(key);
+    }
+  }
+
   if (terrainDecorNeedsRebuild(terrainDecorCache, state.worldMap, state.width, state.height)) {
     disposeTerrainDecor(terrainDecorCache);
     terrainDecorCache = bakeTerrainDecor(state.worldMap, state.width, state.height);
@@ -184,11 +230,11 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   ctx.fillStyle = voidGrad;
   ctx.fillRect(0, 0, cw, ch);
 
-  if (state.worldMap && terrainCache) {
+  if (state.worldMap && terrainChunkCache.size > 0) {
     const [sx0, sy0] = w2s(0, 0, cam, cw, ch);
     // Draw at WORLD scale — the baked surface may be lod× larger than the world.
-    const drawW = terrainCache.worldWidth * cam.zoom;
-    const drawH = terrainCache.worldHeight * cam.zoom;
+    const drawW = state.width * cam.zoom;
+    const drawH = state.height * cam.zoom;
 
     // Drop shadow under the whole map slab (2.5D floating board)
     ctx.save();
@@ -204,13 +250,17 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     }
     ctx.restore();
 
-    ctx.drawImage(
-      terrainCache.surface as CanvasImageSource,
-      sx0,
-      sy0,
-      drawW,
-      drawH,
-    );
+    // Chunked terrain — draw only the baked chunks (lazy, viewport-bounded).
+    for (const cache of terrainChunkCache.values()) {
+      const [chunkSx, chunkSy] = w2s(cache.offsetX, cache.offsetY, cam, cw, ch);
+      ctx.drawImage(
+        cache.surface as CanvasImageSource,
+        chunkSx,
+        chunkSy,
+        cache.worldWidth * cam.zoom,
+        cache.worldHeight * cam.zoom,
+      );
+    }
 
     if (terrainDecorCache) {
       ctx.drawImage(
@@ -246,7 +296,7 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
 
 export function drawGround(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (state.worldMap) {
-    buildTerrainCache(state);
+    buildTerrainCache(state, cw, ch);
     drawProceduralGround(ctx, state, cw, ch);
     return;
   }
