@@ -140,10 +140,15 @@ export function pickWorkerToTransfer(
   );
   if (workers.length === 0) return undefined;
 
+  const toX = toBuilding.x + toBuilding.width / 2;
+  const toY = toBuilding.y + toBuilding.height / 2;
   workers.sort((a, b) => {
     const aFit = readSkill(a, toJob) - readSkill(a, fromJob);
     const bFit = readSkill(b, toJob) - readSkill(b, fromJob);
-    return bFit - aFit;
+    if (bFit !== aFit) return bFit - aFit;
+    const da = Math.hypot(a.x - toX, a.y - toY);
+    const db = Math.hypot(b.x - toX, b.y - toY);
+    return da - db;
   });
   return workers[0];
 }
@@ -310,7 +315,17 @@ export function assignWorkerInPlace(
       && !h.pregnant
       && !isOnConstructionCrew(h, buildings),
   );
-  candidates.sort((a, b) => readSkill(b, job) - readSkill(a, job));
+  // Distance-aware assignment: prefer the closest available settler so workers
+  // on large maps do not spend the whole workday commuting. Skill is the
+  // tiebreaker for equally close candidates.
+  const buildingX = building.x + building.width / 2;
+  const buildingY = building.y + building.height / 2;
+  candidates.sort((a, b) => {
+    const da = Math.hypot(a.x - buildingX, a.y - buildingY);
+    const db = Math.hypot(b.x - buildingX, b.y - buildingY);
+    if (da !== db) return da - db;
+    return readSkill(b, job) - readSkill(a, job);
+  });
   const worker = candidates[0];
   if (!worker) return false;
 
