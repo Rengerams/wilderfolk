@@ -25,6 +25,7 @@ Status: development working tree (2026-08-24)
 | 17 | **A1** | Post-taming animal care | Tamed animals consume one daily ration; fed → warning → shortage → fed. | `src/game/animalCare.ts` | ✅ Done |
 | 18 | **C1** | Guided Campaign story integration | All five story chapters complete from real story flags. | `src/game/guidedCampaign.ts` + story flags | ✅ Done |
 | 19 | **E1** | Election campaign promises | Deterministic promises at election start; mid-term evaluation with reputation effects. | `src/game/electionPromises.ts`, `src/game/villageLeadership.ts` | ✅ Done |
+| 20 | **BAL** | Fertility + relationship chaos balance | Youth conception 14–17 raised (0.25/0.35/0.50/0.70); normal/affair pregnancy and affair/scandal/divorce rates raised. | `dayCycle.ts`, `simulation/humanRelationships.ts`, `humanTick.ts` | ✅ Done |
 
 ## Still open before a v0.6.3 release claim
 
