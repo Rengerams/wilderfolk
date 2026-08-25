@@ -112,7 +112,7 @@ export class GameWorkerHost {
           settled = true;
           reject(new Error('Worker init timeout'));
         }
-      }, 3000);
+      }, 15000);
 
       const onError = (event: ErrorEvent) => {
         // Worker script failed to load/execute (dev chunk error, top-level throw).

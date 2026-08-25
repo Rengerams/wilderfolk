@@ -40,7 +40,9 @@ const MAX_CATCHUP_STEPS = 12;
  * tickResult arrives within this window, the worker is assumed dead: dispose it
  * and fall back to main-thread gameTick so the sim never freezes silently.
  */
-const WORKER_STALL_TIMEOUT_MS = 2000;
+// Large browser worlds can spend several seconds in the first render-packed tick.
+// Keep the fallback safety net, but do not classify a slow healthy worker as dead.
+const WORKER_STALL_TIMEOUT_MS = 10000;
 
 export type { WorkerCommand } from './simWorker/commands';
 
@@ -182,6 +184,9 @@ export class GameLoop {
         // init() already posted the world; re-sync so any pre-ready mutations are authoritative.
         this.workerHost.importSave(this.world);
         this.workerEnabled = true;
+        // Start watchdog timing at worker activation; otherwise the first tick
+        // is compared with timestamp 0 and is falsely declared stalled.
+        this.lastWorkerActivity = performance.now();
         this.workerBooting = false;
         this.registerWorkerHandlers(initGen);
         console.info('[GameLoop] Sim worker active — gameTick + commands run off the main thread');
@@ -658,11 +663,12 @@ export class GameLoop {
         // running instead of freezing silently (citizens stop moving, no errors).
         // Latency-adaptive leash: a busy-but-alive worker at high population (ticks
         // can take 100-400 ms) must never be killed for being slow; a genuinely dead
-        // worker still trips at max(2s, 4x its last observed tick latency).
+        // worker still trips at max(10s, 4x its last observed tick latency).
         const stallMs = Math.max(WORKER_STALL_TIMEOUT_MS, this.workerTickLatencyMs * 4);
         const stalled = this.workerHost.hasTickInFlight()
           && performance.now() - this.lastWorkerActivity > stallMs;
         if (stalled) {
+          console.warn(`[GameLoop] Worker tick exceeded ${stallMs.toFixed(0)}ms (in-flight=${this.workerHost.getTicksInFlight?.() ?? 'unknown'}, observed=${this.workerTickLatencyMs.toFixed(0)}ms)`);
           this.fallbackFromWorker('Worker tick stalled');
         } else {
           while (

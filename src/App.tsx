@@ -1357,8 +1357,10 @@ export default function App() {
     );
   }
 
-  const selectedEntity = catalog?.get(view.selectedEntityId)
-    ?? resolveEntity(world, view.selectedEntityId);
+  // Inspector data must come from the authoritative world first; the catalog is
+  // optimized for identity/kinematics and can lag residence/job/status fields.
+  const selectedEntity = resolveEntity(world, view.selectedEntityId)
+    ?? catalog?.get(view.selectedEntityId);
   const selectedBuilding = resolveBuilding(world, view.selectedBuildingId);
   const pendingDiplomacy = world.pendingDiplomacyEvents ?? [];
   const pendingRaids = world.pendingRaidEvents ?? [];
@@ -2060,7 +2062,7 @@ export default function App() {
             ) : selectedEntity ? (
               <SelectedEntityPanel
                 entity={selectedEntity}
-                allEntities={catalog?.getAlive() ?? world.entities}
+                allEntities={world.entities}
                 state={world}
                 isFavorite={view.favoriteEntityId === selectedEntity.id}
                 onToggleFavorite={
