@@ -1,4 +1,5 @@
 import { TerrainType, type TerrainTile, type WorldMap, type MapPreset, MapSize, MAP_SIZE_DIMENSIONS, TERRAIN_TILE_SIZE } from './gameTypes';
+import { getSimRng } from './simRng';
 
 // ─── Seeded PRNG ─────────────────────────────────────────────────────────────
 // Park-Miller LCG. Seed 0 is fatal (0 * 16807 % N = 0), so we coerce it.
@@ -274,12 +275,12 @@ export function generateWorldMap(
     height = dims.height;
     size = widthOrSize;
     preset = typeof heightOrPreset === 'string' ? heightOrPreset : presetArg;
-    seed = seedOrUndefined ?? Math.floor(Math.random() * 100000);
+    seed = seedOrUndefined ?? Math.floor(getSimRng('terrainGen')() * 100000);
   } else {
     width = widthOrSize;
     height = typeof heightOrPreset === 'number' ? heightOrPreset : 900;
     preset = typeof heightOrPreset === 'string' ? heightOrPreset : presetArg;
-    seed = seedOrUndefined ?? Math.floor(Math.random() * 100000);
+    seed = seedOrUndefined ?? Math.floor(getSimRng('terrainGen')() * 100000);
 
     if (sizeArg) {
       size = sizeArg;

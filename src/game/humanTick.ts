@@ -10,6 +10,7 @@ import type { WorldState, Entity, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
+import { seededRandomForRun } from './simRng';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import {
   addFloatingText,
@@ -888,7 +889,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       commuteHumanToBuilding(entity, workplace, config.speed, false, 3.2);
       onSchedule = true;
       suppressIdle = true;
-      if (Math.random() < 0.04 * PER_TICK_RATE_SCALE) settlerChat(entity, 'work', 0.12);
+      if (seededRandomForRun(`chat-work:${entity.id}:${state.tick}`) < 0.04 * PER_TICK_RATE_SCALE) settlerChat(entity, 'work', 0.12);
     } else if (!huntingWere && !inElectionCeremony && !festivalGathering && goWorkTime && !isInnkeeper && workplace) {
       commuteHumanToBuilding(
         entity,
@@ -1134,9 +1135,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             suppressIdle = true;
             entity.courtshipPartnerId = closest.id;
             closest.courtshipPartnerId = entity.id;
-            if (Math.random() < 0.4 * PER_TICK_RATE_SCALE) {
+            if (seededRandomForRun(`chat-court1:${entity.id}:${state.tick}`) < 0.4 * PER_TICK_RATE_SCALE) {
               settlerPairChat(entity, closest, 'courtship', 0.85);
-            } else if (Math.random() < 0.5 * PER_TICK_RATE_SCALE) {
+            } else if (seededRandomForRun(`chat-court2:${entity.id}:${state.tick}`) < 0.5 * PER_TICK_RATE_SCALE) {
               settlerPairChat(entity, closest, 'courtship', 0.1);
             }
             // Only the lower-id partner applies progress (avoids 2× when both tick)
@@ -1635,7 +1636,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         [],
       );
       if (impulse.motive !== 'none') {
-        if (impulse.bubble && Math.random() < 0.08 * PER_TICK_RATE_SCALE) {
+        if (impulse.bubble && seededRandomForRun(`chat-bubble:${entity.id}:${state.tick}`) < 0.08 * PER_TICK_RATE_SCALE) {
           sayHumanChatPhrase(entity, impulse.bubble, 55);
         }
         if (impulse.stayHome && hasResidenceAssignment(entity)) {
@@ -1692,7 +1693,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           } else if (impulse.motive === 'sunday_service' || impulse.motive === 'grief') {
             entity.vx *= 0.2;
             entity.vy *= 0.2;
-            if (Math.random() < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1);
+            if (seededRandomForRun(`chat-social:${entity.id}:${state.tick}`) < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1);
           } else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') {
             entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.2 * PER_TICK_RATE_SCALE);
             settlerChat(entity, 'social', 0.1);

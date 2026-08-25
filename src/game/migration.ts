@@ -14,6 +14,7 @@ import { createEntity } from './entityFactory';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
+import { getSimRng } from './simRng';
 
 export const MIGRATION_WINDOW_DAYS = 7;
 export const HERD_BASE_SIZE = 10;
@@ -35,7 +36,7 @@ function isMigratedHerdDeer(e: Entity, herdYear: number): boolean {
 
 function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYear: number): void {
   const { width, height } = state;
-  const edge = Math.floor(Math.random() * 4);
+  const edge = Math.floor(getSimRng('migration')() * 4);
   for (let i = 0; i < count; i++) {
     const spread = (i - (count - 1) / 2) * 30;
     let x: number;

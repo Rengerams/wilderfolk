@@ -14,6 +14,12 @@ import { getRandomName, getRandomSurname } from './nameLoader';
 import { pickHumanVariant } from './humanSprites';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { rollSettlerTraits } from './settlerTraits';
+import { getSimRng } from './simRng';
+
+/** D1 — entity-factory owner stream derived from the current run seed. */
+function simRandom(): number {
+  return getSimRng('entityFactory')();
+}
 
 export function createEntity(
   type: EntityType,
@@ -44,7 +50,7 @@ export function createEntity(
 ): Entity {
   const config = SPECIES_CONFIG[type];
   const isHuman = type === EntityType.Human;
-  const entGender = opts?.gender ?? (isHuman ? (Math.random() > 0.5 ? 'male' : 'female') : undefined);
+  const entGender = opts?.gender ?? (isHuman ? (simRandom() > 0.5 ? 'male' : 'female') : undefined);
   const gen = opts?.generation ?? 0;
   let name: string | undefined;
   if (isHuman) {
@@ -60,7 +66,7 @@ export function createEntity(
       ? 0
       : isJuvenile
         ? 0
-        : Math.floor(Math.random() * config.maxAge * 0.3),
+        : Math.floor(simRandom() * config.maxAge * 0.3),
     birthYear: isHuman ? 0 : -1,
     birthMonth: 0,
     birthDay: 0,
@@ -68,7 +74,7 @@ export function createEntity(
     speed: config.speed,
     size: isJuvenile ? config.size * 0.5 : config.size,
     vx: 0, vy: 0,
-    reproductionCooldown: type === EntityType.Grass ? 0 : Math.random() * 100,
+    reproductionCooldown: type === EntityType.Grass ? 0 : simRandom() * 100,
     alive: true,
     flash: 0,
     gender: isHuman ? entGender : undefined,
@@ -104,7 +110,7 @@ export function createEntity(
     adoptiveMotherId: undefined,
     adoptiveFatherId: undefined,
     lastMetPartner: 0,
-    spriteAngle: Math.random() * Math.PI * 2,
+    spriteAngle: simRandom() * Math.PI * 2,
     animFrame: 0,
     combatRollSeed: ((id * 2654435761) ^ 0x9e3779b9) >>> 0,
     spriteVariant: isHuman && entGender
@@ -122,7 +128,7 @@ export function createEntity(
       // §5 invariant: a pregnant human must have a valid pregnancyDueProgress.
       // Same term formula as the conception owner (humanRelationships) so
       // spawned pregnancies (immigrants, world gen) hold the invariant too.
-      entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + Math.random() * 0.3));
+      entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + simRandom() * 0.3));
       const fatherId = opts.pregnantById ?? opts.fatherId ?? opts.partnerId;
       if (fatherId != null) {
         entity.pregnantById = fatherId;
@@ -139,7 +145,7 @@ export function finalizeSettlerAge(entity: Entity, state: Pick<WorldState, 'year
   const colonyDay = getColonyDay(state);
   const targetAge = Math.max(
     HUMAN_ADULT_MIN_AGE,
-    entity.age > 0 ? entity.age : HUMAN_ADULT_MIN_AGE + Math.floor(Math.random() * 20),
+    entity.age > 0 ? entity.age : HUMAN_ADULT_MIN_AGE + Math.floor(simRandom() * 20),
   );
   setHumanBirthFromAge(entity, targetAge, colonyDay);
   entity.isJuvenile = false;

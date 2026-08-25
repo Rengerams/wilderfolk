@@ -1,3 +1,4 @@
+import { seededRandomForRun } from './simRng';
 import {
   ensureDialogueBankFromBundle,
   getDialogueTreeById,
@@ -374,7 +375,7 @@ export function maybeDialogueChat(
 ): void {
   if ((entity.chatTicks ?? 0) > 0) return;
   if (partner && (partner.chatTicks ?? 0) > 0) return;
-  if (Math.random() > chance) return;
+  if (seededRandomForRun(`chat-roll:${entity.id}:${tick}`) > chance) return;
 
   if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
 
@@ -401,6 +402,7 @@ export function maybeDialogueChat(
 /** Weighted pool of chat contexts — random pick, optional light bias from world state. */
 export function pickRandomChatContext(
   entity: Pick<ChatSpeaker, 'isJuvenile'>,
+  tick: number,
   options: ChatPickOptions = {},
   extra?: {
     pregnant?: boolean;
@@ -424,7 +426,7 @@ export function pickRandomChatContext(
   if (extra?.workHour) pool.push('work', 'work');
   if (extra?.night) pool.push('home', 'sleep', 'sleep');
   if (options.weather === 'rain' || options.weather === 'storm') pool.push('winter');
-  return pool[Math.floor(Math.random() * pool.length)]!;
+  return pool[Math.floor(seededRandomForRun(`chat-context:${entity.id}:${tick}`) * pool.length)]!;
 }
 
 /**
@@ -447,16 +449,16 @@ export function tryAmbientRandomDialogue(
   },
 ): void {
   if ((entity.chatTicks ?? 0) > 0) return;
-  if (Math.random() > chancePerTick) return;
+  if (seededRandomForRun(`chat-ambient:${entity.id}:${tick}`) > chancePerTick) return;
 
-  const context = pickRandomChatContext(entity, options, extra);
+  const context = pickRandomChatContext(entity, tick, options, extra);
   const freePartners = nearbyCandidates.filter(
     (p) => p.id !== entity.id && (p.chatTicks ?? 0) <= 0,
   );
   // A nearby free settler makes this a visible exchange rather than an
   // arbitrary monologue from whichever human tick happened to run first.
   const partner = freePartners.length > 0
-    ? freePartners[Math.floor(Math.random() * freePartners.length)]!
+    ? freePartners[Math.floor(seededRandomForRun(`chat-partner:${entity.id}:${tick}`) * freePartners.length)]!
     : null;
   maybeDialogueChat(entity, partner, context, tick, 1, options);
 }
@@ -500,7 +502,7 @@ export function maybeHousemateChat(
     maybeDialogueChat(entity, null, housemateChatContext(entity, null, options), tick, chance * 0.6, options);
     return;
   }
-  if (Math.random() > chance) return;
+  if (seededRandomForRun(`chat-home:${entity.id}:${tick}`) > chance) return;
   const mate = others[(entity.id + Math.floor(tick / 40)) % others.length]!;
   maybeDialogueChat(entity, mate, housemateChatContext(entity, mate, options), tick, 1, options);
 }
