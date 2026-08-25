@@ -36,6 +36,7 @@ import { advanceApprenticeships } from './apprenticeships';
 import { tickMigration } from './migration';
 import { tickPendingStoryEvents, tickChildrenShelter, maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, maybeOfferChildrenShelter, tickWinterFreezeCheck } from './storyEvents';
 import { tickGuidedCampaign } from './guidedCampaign';
+import { detectRaidersFromWatchtowers } from './watchtowerDetection';
 import { tickBeauty } from './beautyGrid';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getLumberMillTreeMultiplier } from './treeProximity';
@@ -131,7 +132,7 @@ import { isChallengeComplete } from './challenges';
 import { addHuntVisual } from './huntvisuals';
 import { spawnBuildCompleteParticles } from './juiceEffects';
 import { loadJuiceEffectsEnabled } from './preferences';
-import { getWorkSchedule, getWorkScheduleHours } from './workSchedule';
+import { getWorkSchedule, getWorkScheduleHours, getWorkHourProductionMultiplier } from './workSchedule';
 
 /**
  * Winter heating — burns wood once per colony day, stores result on state for the whole day.
@@ -305,6 +306,9 @@ function tickBuildingProduction(
   const globalEff = getMultiplier(state, 'global_efficiency')
     * getTownHallGovernanceEfficiency(state, updatedBuildings);
   const festivalMult = state.festival?.active ? 1.5 : 1;
+  const workHourMult = getWorkHourProductionMultiplier(
+    getWorkScheduleHours(getWorkSchedule(state)),
+  );
   const playerWorkers = allAlive.filter(isPlayerHuman);
   const workersByBuildingId = new Map<number, number>();
   for (const h of playerWorkers) {
@@ -333,7 +337,7 @@ function tickBuildingProduction(
         .filter((worker) => worker.homeBuildingId === building.id)
         .reduce((sum, worker) => sum + getScheduleProductivityMultiplier(worker), 0) / workers
       : 1;
-    const totalMult = levelMult * terrainMult * adjacencyMult * festivalMult * skillMult * fatigueMult;
+    const totalMult = levelMult * terrainMult * adjacencyMult * festivalMult * skillMult * fatigueMult * workHourMult;
     const staffed = !BUILDING_JOB_TYPES[building.type] || workers > 0;
 
     if (building.completed && staffed && building.type === BuildingType.Farm && isProductionTick(state.tick, PRODUCTION_INTERVAL.farm)) {
@@ -853,6 +857,8 @@ export function tickLayerDaily(
   maybeOfferChildrenShelter(state);
   tickChildrenShelter(state);
   tickGuidedCampaign(state);
+  // Watchtowers reveal marching raiders earlier than patrols (daily, bounded).
+  detectRaidersFromWatchtowers(state, allAlive);
   tickRivalSettlements(state, allAlive);
 
   // Remove any entities that died during frontier resolution before counts are reused.

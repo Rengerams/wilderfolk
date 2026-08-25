@@ -24,6 +24,7 @@ import { getHumanVariantLabel } from '../game/humanSprites';
 import { getTameFoodCost } from '../game/buildingActions';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { isPlayerHuman } from '../game/playerHuman';
+import { getHumanActivityStatus } from '../game/humanStatus';
 
 function getFamilyMembers(entity: Entity, allEntities: Entity[]): { label: string; name: string; relation: string }[] {
   const members: { label: string; name: string; relation: string }[] = [];
@@ -150,6 +151,11 @@ export default function SelectedEntityPanel({
               ? `${isVillageHead ? '👑 ' : ''}${entity.name || 'Unnamed'} ${entity.surname || ''}${entity.title ? ` ${entity.title}` : ''}${entity.type === EntityType.Werewolf ? ' (Moon Howler)' : ''}`
               : entity.type}
           </h3>
+          {(isHuman || entity.type === EntityType.Werewolf) && (
+            <p className="text-[11px] font-semibold text-lime-300">
+              🕐 {getHumanActivityStatus(state, entity)}
+            </p>
+          )}
           {isMoonHowler && (
             <p className="text-[11px] font-semibold text-rose-300">🌝 Full moon form — curse NOT cured · hunting tonight</p>
           )}

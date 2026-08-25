@@ -39,6 +39,18 @@ export function getWorkScheduleHours(schedule: WorkSchedule): number {
   return schedule.endHour - schedule.startHour;
 }
 
+/** Baseline work window for production scaling — 9 hours = 1.0 output. */
+export const STANDARD_PRODUCTION_WORK_HOURS = 9;
+
+/**
+ * Production scales directly with the configured work window:
+ * 9h → 1.0, shorter → lower, longer → higher (with existing fatigue downsides).
+ */
+export function getWorkHourProductionMultiplier(scheduleHours: number): number {
+  if (!Number.isFinite(scheduleHours) || scheduleHours <= 0) return 0;
+  return scheduleHours / STANDARD_PRODUCTION_WORK_HOURS;
+}
+
 export function validateWorkSchedule(startHour: unknown, endHour: unknown): WorkScheduleValidation {
   if (!isWholeClockHour(startHour) || !isWholeClockHour(endHour)) {
     return { ok: false, status: 'blocked', reason: 'Work hours must use whole clock hours from 0 through 23.' };

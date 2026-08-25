@@ -11,6 +11,7 @@ const ROTATABLE = new Set<BuildingType>([
   BuildingType.Bridge,
   BuildingType.Wall,
   BuildingType.WallGate,
+  BuildingType.Watchtower,
 ]);
 
 /** Strip buildings snap along their long axis so segments chain edge-to-edge. */
