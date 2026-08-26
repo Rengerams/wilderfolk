@@ -12,6 +12,7 @@ import {
   type TerrainDecorCache,
 } from '../terrainLayer';
 import { worldToScreen as w2s, screenToWorld } from '../viewState';
+import { renderPixiTerrain, resetPixiTerrain } from './pixiTerrain';
 
 // ============ TERRAIN COLOR PALETTE ============
 const TERRAIN_COLORS: Record<TerrainType, number> = {
@@ -71,6 +72,7 @@ let terrainDecorCache: TerrainDecorCache | null = null;
 
 /** Release terrain caches. Called by {@link resetRendererCaches}. */
 export function resetTerrainCaches(): void {
+  resetPixiTerrain();
   for (const cache of terrainChunkCache.values()) disposeTerrainLayer(cache);
   terrainChunkCache.clear();
   terrainChunkCacheKey = '';
@@ -296,6 +298,7 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
 
 export function drawGround(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (state.worldMap) {
+    if (renderPixiTerrain(ctx, state, cw, ch)) return;
     buildTerrainCache(state, cw, ch);
     drawProceduralGround(ctx, state, cw, ch);
     return;

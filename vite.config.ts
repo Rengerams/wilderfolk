@@ -4,74 +4,14 @@ import { defineConfig } from "vite"
 
 /** Pre-game / sidebar panels — safe to load after the simulation core. */
 const GAME_UI_MODULES = [
-  "IntroScreen",
-  "MapSetupScreen",
-  "StatisticsPanel",
-  "EventLogPanel",
-  "FocusPanel",
-  "PopulationPanel",
-  "VillageLeadershipPanel",
-  "RoadmapPanel",
-  "CombatPreviewPanel",
-  "BuildCatalogPanel",
-  "BlacksmithForgePanel",
-  "ChallengesPanel",
-  "CombatLogPanel",
-  "FrontierPanel",
+  "IntroScreen", "MapSetupScreen", "StatisticsPanel", "EventLogPanel", 
+  "FocusPanel", "PopulationPanel", "VillageLeadershipPanel", "RoadmapPanel", 
+  "CombatPreviewPanel", "BuildCatalogPanel", "BlacksmithForgePanel", 
+  "ChallengesPanel", "CombatLogPanel", "FrontierPanel"
 ]
 
-function manualChunks(id: string): string | undefined {
-  const normalized = id.replace(/\\/g, '/')
-
-  if (normalized.includes('/node_modules/react/') || normalized.includes('/node_modules/react-dom/')) {
-    return 'react'
-  }
-  if (normalized.includes('/node_modules/react-router/')) {
-    return 'router'
-  }
-  if (GAME_UI_MODULES.some((name) => normalized.includes(`/src/components/${name}`) || normalized.includes(`/src/game/${name}`))) {
-    return 'game-ui'
-  }
-  if (normalized.includes('/src/game/data/')) {
-    return 'game-data'
-  }
-  // Leaf core: types + building catalog only (no runtime imports back into game).
-  if (normalized.includes('/src/game/gameTypes') || normalized.includes('/src/game/buildings')) {
-    return 'game-core'
-  }
-  if (normalized.includes('/src/audio/')) {
-    return 'game-audio'
-  }
-  if (normalized.includes('/src/game/simulation/')) {
-    return 'game-sim'
-  }
-  if (
-    normalized.includes('/src/game/frontierCombat') ||
-    normalized.includes('/src/game/rivalEvents') ||
-    normalized.includes('/src/game/defenseStructures') ||
-    normalized.includes('/src/game/militiaBalance') ||
-    normalized.includes('/src/game/groupEvents') ||
-    normalized.includes('/src/game/watchtowerDetection')
-  ) {
-    return 'game-combat'
-  }
-  if (
-    normalized.includes('/src/game/worldGen') ||
-    normalized.includes('/src/game/entityFactory') ||
-    normalized.includes('/src/game/migration') ||
-    normalized.includes('/src/game/terrainGen')
-  ) {
-    return 'game-world'
-  }
-  if (normalized.includes('/src/game/renderer/') || normalized.includes('/src/game/huntrenderer')) {
-    return 'game-render'
-  }
-  if (normalized.includes('/src/game/') || normalized.includes('/src/audio/')) {
-    return 'game'
-  }
-
-  return undefined
-}
+// Dynamische regex bouwen voor alle GAME_UI_MODULES
+const gameUiRegex = new RegExp(`src/(components|game)/(${GAME_UI_MODULES.join('|')})`)
 
 export default defineConfig({
   base: './',
@@ -94,12 +34,72 @@ export default defineConfig({
     },
   },
   build: {
-    chunkSizeWarningLimit: 500,
-    rollupOptions: {
+    chunkSizeWarningLimit: 800,
+    // Rolldown specifieke configuratie voor Vite 8
+    rolldownOptions: {
       output: {
-        manualChunks,
         minifyInternalExports: true,
-      },
-    },
-  },
+        codeSplitting: {
+          // Prioriteit werkt van hoog (eerst matchen) naar laag
+          groups: [
+            {
+              name: 'react',
+              test: /node_modules\/(react|react-dom)\//,
+              priority: 100
+            },
+            {
+              name: 'router',
+              test: /node_modules\/react-router\//,
+              priority: 90
+            },
+            {
+              name: 'game-ui',
+              test: gameUiRegex,
+              priority: 80
+            },
+            {
+              name: 'game-data',
+              test: /src\/game\/data\//,
+              priority: 70
+            },
+            {
+              name: 'game-core',
+              test: /src\/game\/(gameTypes|buildings)/,
+              priority: 60
+            },
+            {
+              name: 'game-audio',
+              test: /src\/audio\//,
+              priority: 50
+            },
+            {
+              name: 'game-sim',
+              test: /src\/game\/simulation\//,
+              priority: 40
+            },
+            {
+              name: 'game-combat',
+              test: /src\/game\/(frontierCombat|rivalEvents|defenseStructures|militiaBalance|groupEvents|watchtowerDetection)/,
+              priority: 30
+            },
+            {
+              name: 'game-world',
+              test: /src\/game\/(worldGen|entityFactory|migration|terrainGen)/,
+              priority: 25
+            },
+            {
+              name: 'game-render',
+              test: /src\/game\/(renderer\/|huntrenderer)/,
+              priority: 20
+            },
+            {
+              name: 'game',
+              test: /src\/(game|audio)\//,
+              priority: 10
+            }
+          ]
+        }
+      }
+    }
+  }
 })

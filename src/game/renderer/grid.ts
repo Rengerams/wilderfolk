@@ -378,37 +378,18 @@ export function drawGridTopOverlay(ctx: CanvasRenderingContext2D, state: RenderS
 
   if (inBuildMode) {
     // Softer etched lines — sit on the ground, not neon wireframe
-    const minorW = Math.max(0.7, 0.95 / cam.zoom);
-    const majorW = Math.max(1.0, 1.5 / cam.zoom);
-    strokeGridLines(ctx, vp, cam, cw, ch, gs, true, 'rgba(110, 231, 183, 0.28)', 'rgba(0,0,0,0.22)', minorW);
-    strokeGridLines(ctx, vp, cam, cw, ch, majorGs, false, 'rgba(52, 211, 153, 0.5)', 'rgba(0,0,0,0.32)', majorW);
-    if (cam.zoom >= 0.4) {
-      // Major intersections as tiny diamonds (2.5D pegs)
-      const hw = Math.max(2.2, 2.8 * cam.zoom);
-      const hh = Math.max(1.3, 1.7 * cam.zoom);
-      ctx.save();
-      for (let x = vp.mx0; x <= vp.majorEx; x += majorGs) {
-        for (let y = vp.my0; y <= vp.majorEy; y += majorGs) {
-          const px = worldToScreenX(x, cam, cw);
-          const py = worldToScreenY(y, cam, ch);
-          if (px < -8 || px > cw + 8 || py < -8 || py > ch + 8) continue;
-          drawIsoCellMarker(
-            ctx, px, py, hw, hh,
-            'rgba(167, 243, 208, 0.75)',
-            'rgba(6, 78, 59, 0.55)',
-            1,
-          );
-        }
-      }
-      ctx.restore();
-    }
+    const minorW = Math.max(0.55, 0.7 / cam.zoom);
+    const majorW = Math.max(0.75, 1.0 / cam.zoom);
+    // Build guides remain readable but never overpower the terrain artwork.
+    strokeGridLines(ctx, vp, cam, cw, ch, gs, true, 'rgba(190, 220, 205, 0.11)', 'rgba(20, 45, 35, 0.08)', minorW);
+    strokeGridLines(ctx, vp, cam, cw, ch, majorGs, false, 'rgba(125, 165, 145, 0.22)', 'rgba(20, 45, 35, 0.12)', majorW);
     return;
   }
 
   // Phase D — quieter play grid so painted ground reads first
   const majorW = Math.max(0.7, 1.0 / cam.zoom);
   const lineColor = isNight
-    ? 'rgba(226, 232, 240, 0.16)'
-    : 'rgba(31, 56, 28, 0.11)';
-  strokeGridLines(ctx, vp, cam, cw, ch, majorGs, false, lineColor, 'rgba(0,0,0,0.08)', majorW);
+    ? 'rgba(226, 232, 240, 0.10)'
+    : 'rgba(31, 56, 28, 0.07)';
+  strokeGridLines(ctx, vp, cam, cw, ch, majorGs, false, lineColor, 'rgba(0,0,0,0.04)', majorW);
 }

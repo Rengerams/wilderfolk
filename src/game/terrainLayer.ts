@@ -26,12 +26,12 @@ import {
 /** Seamless fills under public/sprites/ (terrain/ = procedural, root = painted). */
 const TERRAIN_FILL_PATH: Partial<Record<TerrainType, string>> = {
   [TerrainType.Grassland]: '/sprites/terrain/grass_fill.png',
-  [TerrainType.Forest]: '/sprites/terrain/grass_fill.png',
-  [TerrainType.DarkForest]: '/sprites/terrain/grass_fill.png',
+  [TerrainType.Forest]: '/sprites/terrain/forest.png',
+  [TerrainType.DarkForest]: '/sprites/terrain/forest.png',
   // Painted dirt (25×25 seamless) — hills/peaks read as painted soil on the
   // 2.5D relief surfaces (dirt_fill.png stays as the offline fallback sprite).
-  [TerrainType.Hills]: '/sprites/tile_dirt.png',
-  [TerrainType.Rocky]: '/sprites/tile_dirt.png',
+  [TerrainType.Hills]: '/sprites/terrain/dirt.png',
+  [TerrainType.Rocky]: '/sprites/terrain/dirt.png',
   [TerrainType.Beach]: '/sprites/terrain/sand_fill.png',
   [TerrainType.RiverBank]: '/sprites/terrain/sand_fill.png',
   // River + shallow water stamp the saturated azure ocean texture — rivers
@@ -40,8 +40,8 @@ const TERRAIN_FILL_PATH: Partial<Record<TerrainType, string>> = {
   [TerrainType.ShallowWater]: '/sprites/ocean.png',
   [TerrainType.River]: '/sprites/ocean.png',
   [TerrainType.DeepWater]: '/sprites/terrain/water_deep_fill.png',
-  [TerrainType.Snow]: '/sprites/terrain/sand_fill.png', // tinted cool via shade overlay
-  [TerrainType.Mountains]: '/sprites/tile_dirt.png',
+  [TerrainType.Snow]: '/sprites/terrain/snow.png',
+  [TerrainType.Mountains]: '/sprites/terrain/mntn_brown_d.jpg',
 };
 
 /**
@@ -635,6 +635,13 @@ export function bakeTerrainLayer(
           ctx.fillStyle = 'rgba(20,40,15,0.28)';
           ctx.fillRect(x0, y0, fillW, fillH);
         }
+      }
+
+      // Forest uses the same approved grass fill as grassland, but with a clear
+      // deep-green wash so the biome reads differently without a fake atlas tile.
+      if (tile.type === TerrainType.Forest) {
+        ctx.fillStyle = 'rgba(18, 67, 32, 0.42)';
+        ctx.fillRect(x0, y0, fillW, fillH);
       }
 
       if (!atlasPick) {

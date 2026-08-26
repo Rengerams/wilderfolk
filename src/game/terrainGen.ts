@@ -100,8 +100,7 @@ function getTerrainType(
 
   if (elevation > 0.6) return TerrainType.Hills;
 
-  // Forest tiers
-  if (moisture > pm.forestThreshold + 0.15) return TerrainType.DarkForest;
+  // Forest biome — DarkForest was a leftover type and is intentionally not generated.
   if (moisture > pm.forestThreshold) return TerrainType.Forest;
 
   // Dry grassland / savanna

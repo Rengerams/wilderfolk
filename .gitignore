@@ -6,6 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+.gypi
 Session.txt
 node_modules
 dist
@@ -46,6 +47,9 @@ bug-reports/
 ./deepcode/
 ./agents/
 ./tmp/
+kimi/
+genie-rms/
+daimon-share/
 
 
 # Local agent/design specs (not for GitHub)
