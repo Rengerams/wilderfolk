@@ -6,7 +6,7 @@ import {
   type CanvasContext2d,
   type CanvasSurface,
 } from './canvasLayer';
-import { getSprite } from './spriteLoader';
+import { getSprite, MOUNTAIN_SPRITE_PATHS } from './spriteLoader';
 import {
   ATLAS_TILE_SIZE,
   atlasSourceRect,
@@ -349,7 +349,7 @@ function landscapePropSpritesReady(): boolean {
 }
 
 function mountainSpritesReady(): boolean {
-  return [45, 135, 225, 315].every((rot) => getSprite(`/sprites/mountains/${rot}.png`) != null);
+  return MOUNTAIN_SPRITE_PATHS.every((path) => getSprite(path) != null);
 }
 
 export function terrainDecorNeedsRebuild(

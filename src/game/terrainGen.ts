@@ -86,8 +86,11 @@ function getTerrainType(
   if (elevation < waterLevel + 0.08) return TerrainType.Beach;
 
   // High peaks FIRST — before Rocky foothills, so snow-capped peaks aren't
-  // downgraded to Rocky just because they sit near another mountain.
-  if (elevation > 0.85) {
+  // downgraded to Rocky just because they sit near another mountain. The
+  // Mountainous preset uses a higher threshold so ranges frame the valley
+  // instead of covering the playable map like a second forest layer.
+  const mountainThreshold = preset === 'mountainous' ? 0.94 : 0.85;
+  if (elevation > mountainThreshold) {
     if (temperature < 0.3) return TerrainType.Snow;
     return TerrainType.Mountains;
   }
@@ -292,7 +295,12 @@ export interface GenerateWorldMapOptions {
  * Rocky/Hills) and fill high-elevation gaps with an edge-connected mountain
  * neighbour so ridges stay contiguous.
  */
-function clusterMountainRegions(tiles: TerrainTile[][], tileW: number, tileH: number): void {
+function clusterMountainRegions(
+  tiles: TerrainTile[][],
+  tileW: number,
+  tileH: number,
+  preset: MapPreset,
+): void {
   const types = tiles.map((row) => row.map((t) => t.type));
   const edgeMountainNeighbours = (tx: number, ty: number): number => {
     let count = 0;
@@ -326,7 +334,8 @@ function clusterMountainRegions(tiles: TerrainTile[][], tileW: number, tileH: nu
     for (let tx = 0; tx < tileW; tx++) {
       const tile = tiles[ty][tx];
       if (!tile || tile.type === TerrainType.Mountains) continue;
-      if (tile.elevation > 78 && edgeMountainNeighbours(tx, ty) >= 1) {
+      const fillThreshold = preset === 'mountainous' ? 88 : 78;
+      if (tile.elevation > fillThreshold && edgeMountainNeighbours(tx, ty) >= 1) {
         tile.type = TerrainType.Mountains;
       }
     }
@@ -660,7 +669,7 @@ export function generateWorldMap(
   }
 
   // Mountains must form connected regions like water — never lone 1-tile peaks.
-  clusterMountainRegions(tiles, tileW, tileH);
+  clusterMountainRegions(tiles, tileW, tileH, preset);
 
   // ── Camp clearing ──
   // FIX: use the actual width/height, not MAP_SIZE_DIMENSIONS[size].
