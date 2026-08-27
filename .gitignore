@@ -73,3 +73,6 @@ public/sprites/
 .env
 .env.*
 !.env.example
+
+skills/
+
