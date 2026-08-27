@@ -24,6 +24,7 @@ public/sprites/
 .idea
 .DS_Store
 *.suo
+
 *.ntvs*
 *.njsproj
 *.sln
