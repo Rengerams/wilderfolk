@@ -70,7 +70,7 @@ import SelectedEntityPanel from './components/SelectedEntityPanel';
 import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel';
 
 
-import { downloadChronicleLog, loadExportChronicleOnSave } from './game/eventLogExport';
+import { useGamePersistence } from './hooks/useGamePersistence';
 import { beginAudio, primeAudioUnlock, playClickSound, stopIntroSong } from './audio';
 import { useGameAudio } from './hooks/useGameAudio';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
@@ -165,7 +165,6 @@ export default function App() {
   const [selectedMapPreset, setSelectedMapPreset] = useState<MapPreset>(MapPreset.Verdant);
   const [selectedBuildingType, setSelectedBuildingType] = useState<BuildingType | null>(null);
 
-  const [saveToast, setSaveToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [spritesLoaded, setSpritesLoaded] = useState(false);
   const [openTabs, setOpenTabs] = useState<Set<SidebarTab>>(() => new Set(['village']));
   const activeTab = useMemo(() => {
@@ -244,6 +243,21 @@ export default function App() {
   const loopRef = useRef<GameLoop | null>(null);
   const catalogRef = useRef<EntityCatalog | null>(null);
   const audioStartedRef = useRef(false);
+  const markGameSaved = useCallback(() => {
+    setHasSavedGame(true);
+  }, []);
+  const {
+    dismissSaveToast,
+    persistCurrentGame,
+    persistCurrentGameRef,
+    saveToast,
+    showSaveToast,
+  } = useGamePersistence({
+    loopRef,
+    worldRef,
+    viewRef,
+    onGameSaved: markGameSaved,
+  });
 
   useEffect(() => {
     worldRef.current = world;
@@ -271,9 +285,6 @@ export default function App() {
   const topBigNewsIdRef = useRef<string | null>(null);
   const hasActiveEventRef = useRef(false);
   const hasContextualTipRef = useRef(false);
-  const persistCurrentGameRef = useRef<
-    (options?: { chronicle?: boolean; feedback?: boolean }) => Promise<boolean>
-  >(async () => false);
 
   useLayoutEffect(() => {
     selectedBuildingTypeRef.current = selectedBuildingType;
@@ -298,96 +309,6 @@ export default function App() {
         ensureDialogueBankFromBundle();
         setSpritesLoaded(true);
       });
-  }, []);
-
-  useEffect(() => {
-    if (!saveToast) return;
-    const timer = setTimeout(() => setSaveToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [saveToast]);
-
-  const persistCurrentGame = useCallback(async (options?: {
-    chronicle?: boolean;
-    feedback?: boolean;
-  }) => {
-    const chronicle = options?.chronicle ?? false;
-    const feedback = options?.feedback ?? true;
-    const loop = loopRef.current;
-    const view = loop?.getView() ?? viewRef.current;
-    if (!view) return false;
-    let worldToSave = worldRef.current;
-    if (loop) {
-      worldToSave = await loop.exportAuthoritativeWorld();
-    }
-    const result = saveGame(worldToSave, view);
-    if (!result.success) {
-      if (feedback) setSaveToast({ message: result.error, type: 'error' });
-      return false;
-    }
-    if (chronicle && loadExportChronicleOnSave()) {
-      try {
-        downloadChronicleLog(worldToSave.eventLog, {
-          villageName: worldToSave.villageName,
-          year: worldToSave.year,
-          day: worldToSave.dayInYear,
-          tick: worldToSave.tick,
-          population: worldToSave.humanPopulation,
-        });
-      } catch {
-        /* localStorage save succeeded */
-      }
-    }
-    setHasSavedGame(true);
-    if (feedback) {
-      loopRef.current?.mutateWorld((prev) => {
-        const id = prev.nextFloatingTextId++;
-        prev.floatingTexts.push({
-          id,
-          x: prev.width / 2,
-          y: prev.height / 2 - 50,
-          text: 'Game Saved! 💾',
-          color: '#22c55e',
-          life: 60,
-          maxLife: 60,
-          scale: 1.5,
-        });
-      });
-      setSaveToast({
-        message: chronicle && loadExportChronicleOnSave()
-          ? 'Game saved · chronicle .txt downloaded'
-          : 'Game saved successfully',
-        type: 'success',
-      });
-    }
-    return true;
-  }, []);
-
-  useLayoutEffect(() => {
-    persistCurrentGameRef.current = persistCurrentGame;
-  }, [persistCurrentGame]);
-
-  const autoSaveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Auto-save every 30 seconds (stable interval via ref guard)
-  useEffect(() => {
-    if (autoSaveIntervalRef.current) return;
-    autoSaveIntervalRef.current = setInterval(() => {
-      const loop = loopRef.current;
-      if (!loop) return;
-      const snapshot = loop.getWorld();
-      if (!snapshot.autoSave) return;
-      void persistCurrentGameRef.current({ chronicle: false, feedback: false }).then((ok) => {
-        if (!ok) {
-          setSaveToast({ message: 'Auto-save failed — try manual save from the menu', type: 'error' });
-        }
-      });
-    }, 30000);
-    return () => {
-      if (autoSaveIntervalRef.current) {
-        clearInterval(autoSaveIntervalRef.current);
-        autoSaveIntervalRef.current = null;
-      }
-    };
   }, []);
 
   // Auto-dismiss big news after ~15s (360 ticks) — stable interval, no length dep
@@ -417,17 +338,6 @@ export default function App() {
       });
     }, 2000);
     return () => clearInterval(timer);
-  }, []);
-
-  // Best-effort save on unmount when a session is still active
-  useEffect(() => {
-    return () => {
-      const loop = loopRef.current;
-      if (!loop) return;
-      const view = loop.getView() ?? viewRef.current;
-      if (!view) return;
-      void persistCurrentGameRef.current({ chronicle: false, feedback: false });
-    };
   }, []);
 
   // Keep the sim frozen while Quick Start or map setup is open
@@ -1168,17 +1078,17 @@ export default function App() {
     const loaded = loadGame();
     if (loaded) {
       applyLoadedSession(loaded);
-      setSaveToast({ message: 'Game loaded', type: 'success' });
+      showSaveToast({ message: 'Game loaded', type: 'success' });
     } else {
       setHasSavedGame(hasSave());
-      setSaveToast({
+      showSaveToast({
         message: hasSave()
           ? 'Could not load save — file may be corrupted'
           : 'No browser save — use Load from file',
         type: 'error',
       });
     }
-  }, [applyLoadedSession]);
+  }, [applyLoadedSession, showSaveToast]);
 
   const handleSaveToFile = useCallback(async () => {
     const loop = loopRef.current;
@@ -1190,19 +1100,19 @@ export default function App() {
     }
     const result = downloadSaveFile(worldToSave, view);
     if (!result.success) {
-      setSaveToast({ message: result.error, type: 'error' });
+      showSaveToast({ message: result.error, type: 'error' });
       return;
     }
     setHasSavedGame(true);
-    setSaveToast({
+    showSaveToast({
       message: 'Save downloaded — keep the .json file safe',
       type: 'success',
     });
-  }, []);
+  }, [showSaveToast]);
 
   const handleLoadFromFile = useCallback((jsonText: string) => {
     if (!jsonText.trim()) {
-      setSaveToast({ message: 'Could not read that file', type: 'error' });
+      showSaveToast({ message: 'Could not read that file', type: 'error' });
       return;
     }
     const loaded = loadGameFromFileText(jsonText);
@@ -1216,14 +1126,14 @@ export default function App() {
       } catch {
         /* ignore */
       }
-      setSaveToast({ message: 'Colony loaded from file', type: 'success' });
+      showSaveToast({ message: 'Colony loaded from file', type: 'success' });
     } else {
-      setSaveToast({
+      showSaveToast({
         message: 'Save from a different build — beta keeps only current-build saves. Start a new settlement.',
         type: 'error',
       });
     }
-  }, [applyLoadedSession]);
+  }, [applyLoadedSession, showSaveToast]);
 
   const handleLoadFromSetup = useCallback(() => {
     const loaded = loadGame();
@@ -1962,7 +1872,7 @@ export default function App() {
           {saveToast && (
             <button
               type="button"
-              onClick={() => setSaveToast(null)}
+              onClick={dismissSaveToast}
               title="Dismiss"
               className={`pointer-events-auto absolute bottom-16 left-1/2 z-30 -translate-x-1/2 rounded-lg border px-4 py-2 text-sm font-semibold shadow-2xl backdrop-blur hover:brightness-110 ${
               saveToast.type === 'success'

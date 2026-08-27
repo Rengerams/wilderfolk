@@ -1,0 +1,48 @@
+src\game\simulation\humanRelationships.ts:970: && human.job === JobType.PrisonGuard
+src\game\simWorker\simPrep.ts:62: | 'tavernSchedule'
+src\game\simWorker\simPrep.ts:63: | 'hotelSchedule';
+src\game\simWorker\simPrep.ts:120: tavernSchedule: getVenueSchedule(state, 'tavern'),
+src\game\simWorker\simPrep.ts:121: hotelSchedule: getVenueSchedule(state, 'hotel'),
+src\game\simWorker\simPrep.ts:178: world.tavernSchedule = prep.tavernSchedule;
+src\game\simWorker\simPrep.ts:179: world.hotelSchedule = prep.hotelSchedule;
+src\game\gameTypes.ts:169: [JobType.PrisonGuard]: 'Prison Guard',
+src\game\gameTypes.ts:171: [JobType.Hotelier]: 'Hotelier',
+src\game\gameTypes.ts:188: [BuildingType.Prison]: JobType.PrisonGuard,
+src\game\gameTypes.ts:193: [BuildingType.Hotel]: JobType.Hotelier,
+src\game\gameTypes.ts:769: tavernSchedule?: import('./venueSchedule').VenueSchedule;
+src\game\gameTypes.ts:771: hotelSchedule?: import('./venueSchedule').VenueSchedule;
+src\game\hotelStay.ts:40: if (entity.job !== JobType.Hotelier || entity.homeBuildingId == null) return undefined;
+src\game\hotelStay.ts:129: gainSkill(state, id, JobType.Hotelier, 0.12);
+src\game\humanTick.ts:28: import { getWorkSchedule, isOnWorkScheduleShift, isWorkScheduleHour } from './workSchedule';
+src\game\humanTick.ts:95: import { isVenueServiceHour, isVenueScheduleStartTick, isVenueWorkerServiceHour } from './venueSchedule';
+src\game\humanTick.ts:158: if (!isWorkScheduleHour(workSchedule, hourOfDay) || entity.partnerId == null) return false;
+src\game\humanTick.ts:673: ? isVenueServiceHour(state, 'tavern', hourOfDay, true)
+src\game\humanTick.ts:675: ? isVenueWorkerServiceHour(state, 'tavern', hourOfDay, venueWorkerIndex, venueWorkerCount)
+src\game\humanTick.ts:676: : isVenueServiceHour(state, 'tavern', hourOfDay)
+src\game\humanTick.ts:683: const isHotelier = entity.job === JobType.Hotelier
+src\game\humanTick.ts:688: ? isVenueWorkerServiceHour(state, 'hotel', hourOfDay, venueWorkerIndex, venueWorkerCount)
+src\game\humanTick.ts:689: : isVenueServiceHour(state, 'hotel', hourOfDay)
+src\game\humanTick.ts:703: : (ordinaryWorkplace && isWorkScheduleHour(workSchedule, hourOfDay) && goWorkTime);
+src\game\humanTick.ts:1423: if (onHotelShift && isPlayerHuman(entity) && entity.job === JobType.Hotelier) {
+src\game\saveLoad.ts:209: entity.job = JobType.PrisonGuard;
+src\game\saveSchema.ts:8: 'humanPopulation', 'maxHumanPopulation', 'wildlifeCounts', 'villageName', 'workSchedule', 'tavernSchedule', 'hotelSchedule', 'villageReputation',
+src\game\socialLife.ts:18: import { getWorkSchedule, isWorkScheduleHour } from './workSchedule';
+src\game\socialLife.ts:267: isWorkScheduleHour(getWorkSchedule(state), hour)
+src\game\venueSchedule.ts:20: function readSchedule(state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind): unknown {
+src\game\venueSchedule.ts:21: return kind === 'tavern' ? state.tavernSchedule : state.hotelSchedule;
+src\game\venueSchedule.ts:24: export function getVenueSchedule(state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind): VenueSchedule {
+src\game\venueSchedule.ts:48: if (kind === 'tavern') next.tavernSchedule = result.schedule;
+src\game\venueSchedule.ts:49: else next.hotelSchedule = result.schedule;
+src\game\venueSchedule.ts:59: state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+src\game\venueSchedule.ts:68: export function isVenueWorkerServiceHour(
+src\game\venueSchedule.ts:69: state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+src\game\venueSchedule.ts:83: export function isVenueServiceHour(state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind, hour: number, festivalActive = false): boolean {
+src\game\venueSchedule.ts:89: export function isVenueServiceTick(state: Pick<WorldState, 'tick' | 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind, hour?: number, festivalActive = false): boolean {
+src\game\venueSchedule.ts:90: return isVenueServiceHour(state, kind, hour ?? getHourOfDay(state.tick), festivalActive);
+src\game\venueSchedule.ts:93: export function isVenueScheduleStartTick(state: Pick<WorldState, 'tick' | 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind): boolean {
+src\game\workforce.ts:284: venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+src\game\workforce.ts:296: venueSchedules ?? { tavernSchedule: undefined, hotelSchedule: undefined },
+src\game\workforce.ts:490: venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+src\game\workforce.ts:511: venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+src\game\workSchedule.ts:76: export function isWorkScheduleHour(schedule: WorkSchedule, hour: number): boolean {
+src\game\workSchedule.ts:86: return isWorkScheduleHour(schedule, hour ?? getHourOfDay(state.tick));

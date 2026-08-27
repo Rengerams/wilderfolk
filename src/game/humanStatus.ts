@@ -8,7 +8,7 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
 import { getHourOfDay } from './dayCycleClock';
-import { isFestivalGatheringHour } from './dayCycle';
+import { EVENING_START, isFestivalGatheringHour, prefersHomeTonight } from './dayCycle';
 import { getWorkSchedule, getWorkScheduleLabel, isOnWorkScheduleShift } from './workSchedule';
 import { findHumanWorkplace } from './workforce';
 import { humanBuildingTarget } from './simulation/humanMovement';
@@ -88,6 +88,15 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
     return dist <= WORK_ARRIVE_DISTANCE ? `Working at ${label}` : `Commuting to ${label}`;
   }
 
+  // Evening social outings are an intentional free-time state, not a failed
+  // home return. Surface it before nearby-building inference so the inspector
+  // explains why a resident is away from home.
+  const isEveningOuting = hourOfDay >= EVENING_START
+    && hourOfDay < 23
+    && !prefersHomeTonight(entity.id, state.tick, hourOfDay)
+    && !(workplace && isOnWorkScheduleShift(state, hourOfDay));
+  if (isEveningOuting) return 'Socialising — evening outing';
+
   // Otherwise: use the building the human is standing near.
   const near = nearestBuilding(state, entity);
   if (near) {
@@ -134,6 +143,13 @@ export function getHumanActivityProjection(
       const point = humanBuildingTarget(workplace, entity.id, false);
       return { kind: 'workplace', label: labelFor(workplace), buildingId: workplace.id, ...point };
     }
+    const eveningOuting = hour >= EVENING_START
+      && hour < 23
+      && !prefersHomeTonight(entity.id, state.tick, hour)
+      && !(workplace && isOnWorkScheduleShift(state, hour));
+    if (eveningOuting) {
+      return { kind: 'nearby-building', label: 'Evening outing', x: entity.x, y: entity.y };
+    }
     if (entity.huntTargetId != null) {
       const huntTarget = state.entities.find((candidate) => candidate.id === entity.huntTargetId && candidate.alive);
       if (huntTarget) {
@@ -160,9 +176,13 @@ export function getHumanActivityProjection(
   })();
 
   let blockedReason: string | null = null;
+  const assignedWorkplace = entity.homeBuildingId == null
+    ? null
+    : state.buildings.find((building) => building.id === entity.homeBuildingId) ?? null;
+  const isAssignedConstruction = Boolean(workplace && !workplace.completed && workplace.occupants.includes(entity.id));
   if (entity.residenceBuildingId != null && !homeBuilding) blockedReason = 'Assigned home is unavailable';
-  else if (entity.homeBuildingId != null && !workplace) blockedReason = 'Assigned workplace is unavailable';
-  else if (workplace && !workplace.completed) blockedReason = 'Workplace is not complete';
+  else if (entity.homeBuildingId != null && !assignedWorkplace && !isAssignedConstruction) blockedReason = 'Assigned workplace is unavailable';
+  else if (workplace && !workplace.completed && !isAssignedConstruction) blockedReason = 'Construction site is unavailable';
 
   return {
     activity,

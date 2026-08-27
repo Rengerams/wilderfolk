@@ -136,16 +136,12 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     // Soft ambient-occlusion pool — the ground darkens right under the pad.
     drawGroundAO(ctx, sx, sy + h * 0.34, Math.max(w, h) * 0.8, state.juiceEffectsEnabled ? 0.10 : 0.06);
 
-    // Category-colored raised foundation pad (2.5D platform)
-    const pad = Math.max(2, Math.min(w, h) * 0.1);
-    const padW = w + pad * 2;
-    const padH = h + pad * 2;
+    // Completed buildings already have a contact shadow and ambient occlusion
+    // above. Do not paint a large category-coloured foundation here: it reads as
+    // an opaque terrain slab and can extend far beyond the sprite footprint.
+    // Foundations remain visible for incomplete buildings in the construction pass.
     const isRival = b.faction === 'rival';
     const tint = isRival ? '#312e81' : cfg.backgroundColor;
-    const border = isRival ? '#6366f1' : darkerColor(tint, 0.4);
-    const dash = categoryBorderDashForType(b.type);
-    const baseAlpha = hover ? 0.72 : isRival ? 0.58 : 0.55;
-    drawBuildingPad(ctx, cfg.padShape, sx, sy + h * 0.06, padW, padH * 0.72, tint, border, baseAlpha, dash, isRival ? 2 : 1.5);
 
     if (isDecorType(b.type)) {
       drawProceduralDecor(ctx, b.type, sx, sy - h * 0.04, w, h, isNightHour(state.hourOfDay));

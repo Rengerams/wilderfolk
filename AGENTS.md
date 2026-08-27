@@ -1,1477 +1,346 @@
-# WILDERFOLK SIMULATION AUTHORITY
+# Wilderfolk Project Authority
 
-#
+Last update: 28 august 2026 by Developer.
 
-# Status: Mandatory project authority
 
-# Applies to: Wilderfolk 0.6.x and all later versions
+> **Purpose.** This is the complete working authority for Wilderfolk. It protects a coherent, truthful simulation while encouraging creative features, experiments, redesigns, and ambitious improvements.
 
-# Audience: The solo developer, human contributors, coding assistants, reviewers, and anyone modifying simulation-related code
+| Field | Rule |
+|---|---|
+| **Status** | Mandatory project authority |
+| **Applies to** | Wilderfolk 0.6.x and later |
+| **Audience** | Solo developer, contributors, coding assistants, reviewers, and anyone changing the project |
+| **Read before editing** | Simulation code; components that issue simulation commands; worker code; simulation tests; benchmarks; saves or migrations |
+| **Authority order** | Explicit developer instructions override this file. This file overrides local assumptions, temporary experiments, and undocumented optimizations. |
+| **Source of truth** | This file is the complete project authority. Supporting documents may explain, plan, or record work, but may not silently contradict it. |
 
-# Read before editing: Any file under src/game/, src/components/ that sends simulation commands, worker code, simulation tests, benchmarks, or save/migration code
+## 1. The project is allowed to evolve
 
-# Authority level: Explicit developer instructions override this document, every roadmap, and prior assumptions. Subject to that priority, this document overrides local assumptions, previous temporary experiments, and undocumented optimization decisions.
+Wilderfolk should grow through imaginative design, experimentation, and deliberate replacement of systems that no longer serve the game. **Creativity is not a risk to be contained.** Unowned state changes, accidental cadence changes, and untested permanent behavior are the risks to be contained.
 
-# Developer control and privacy: Wilderfolk is a game and the developer decides its rules, tone, fictional outcomes, scope, version, and release timing. Coding assistants must never automatically bump versions, create release notes, commit, push, tag, publish, or declare a release complete. Detailed bug reports are local private records: write them when required, but do not stage, commit, push, upload, or quote their diagnostics publicly unless the developer explicitly asks.
+A contributor may freely explore a new mechanic, story system, visual direction, balance idea, AI behavior, building type, event, or architectural approach. Prototype code, feature flags, isolated test worlds, developer controls, temporary instrumentation, and reversible spikes are encouraged when they help discover the better design.
 
-#
+> **Rule of thumb:** Explore broadly; make permanent behavior deliberately.
 
-#
+The rules below do not require a contributor to avoid a large improvement. They explain how to make that improvement understandable, testable, save-safe, and compatible with the rest of the simulation.
 
-#
+Every permanent gameplay change must preserve both of these qualities unless the developer deliberately changes the design:
 
-#
+| Quality | Meaning |
+|---|---|
+| **Play** | The game remains responsive, readable, understandable, and enjoyable to play. |
+| **Truth** | The simulation remains internally consistent, fair, explainable, and faithful to its declared rules. |
 
-# 1\. Mandatory rule
+A performance improvement that makes the game faster by silently removing pregnancy, social life, manual staffing, rare events, reliable commands, or another intended game system is a **behavior regression**, not a successful optimization.
 
-#
+## 2. Change modes and when to inform the developer
 
-# No person or coding assistant may modify simulation behavior before reading this document.
+The default is to proceed with ordinary work. Do not treat this document as a reason to decline, postpone, or silently narrow a requested feature.
 
-#
+| Change mode | Examples | What to do |
+|---|---|---|
+| **Routine change** | Focused bug fix, new UI, a domain-rule addition within an existing owner, visual work, isolated refactor, test improvement | Proceed. Follow the relevant owner and validate proportionately. |
+| **Creative experiment** | Prototype, sandbox mode, feature flag, trial design, throwaway spike, temporary telemetry | Proceed freely. Keep it isolated and labelled; do not let experimental state become an undocumented permanent authority. |
+| **Major permanent change** | New or reordered tick layer; worker/main-thread authority change; save format or migration; broad subsystem replacement; change to a hard invariant; global balance/probability redesign; new cross-domain manager/event bus | Give the developer a concise impact notice before making it permanent. Do not silently evade the work. |
+| **Irreversible or ambiguous change** | Data-lossy migration, removal of an established system, a change that chooses an unstated core game direction, public release action | Explain the impact and wait for direction before the irreversible step. |
 
-# Before making a change, the contributor must understand which system owns the decision, which cadence it uses, which state fields it may write, and which tests prove that the behavior remains valid. “The code compiled” is not sufficient evidence that a simulation change is safe.
+A **major-change notice** is information, not a veto request. It should state the intent, affected owners/cadences and state, player-facing effect, save or compatibility implications, rollback path where useful, and validation plan. When the developer has explicitly requested the major outcome, the contributor may implement it after giving the notice unless a genuine design ambiguity or irreversible data loss needs clarification.
 
-#
+Stop and ask only when one of these is true:
 
-# Mandatory bug-report rule: Every discovered bug must receive a detailed local written bug report before, or at the same time as, the code fix. A bug report is required even when the fix appears obvious. The local report must describe the observed behavior, expected behavior, reproduction steps, affected owner/cadence, root cause, fix, regression test, and save/migration impact. Do not silently patch a symptom and move on. Keep detailed reports private by default; do not stage, commit, push, upload, or copy their diagnostics into public material unless the developer explicitly asks.
+1. Two modules would own the same gameplay decision and the desired owner is unclear.
+2. The requested change conflicts with an explicit developer instruction or a hard safety/data-integrity invariant.
+3. A permanent choice would discard saves, remove player-created data, or choose a core design direction the developer has not specified.
+4. Evidence shows that the proposed mechanism cannot meet its intended player-facing behavior.
 
-#
+Do **not** stop merely because a feature is novel, large, risky, or requires an architecture change. Surface the impact, design a safe path, and continue when the direction is clear.
 
-# Every change must preserve both:
+## 3. Developer control, privacy, and releases
 
-#
+Wilderfolk is a game. The developer decides its rules, tone, fictional outcomes, scope, version, and release timing.
 
-# 1\.
+Coding assistants must not automatically bump versions, create release notes, commit, push, tag, publish, submit, or declare a release complete. They must also not upload, stage, commit, push, or publicly quote detailed private diagnostics unless the developer explicitly asks.
 
-# Play: the game remains responsive and understandable to play.
+Bug reports and diagnostic records are private local project records by default. Keep them local and preserve them after resolution; `BUG_REPORTS/` is intentionally ignored by Git. A report must not be deleted merely because the code is fixed.
 
-#
+## 4. Mandatory simulation decision check
 
-# 2\.
+Before changing permanent simulation behavior, identify:
 
-# Truth: the simulation remains internally consistent, fair, readable, and faithful to its declared rules.
+1. **Owner:** which one system makes the decision.
+2. **Cadence:** when that decision is allowed to occur.
+3. **Writes:** which authoritative state fields may change.
+4. **Boundary:** whether the change flows through `gameTick()`, `applyWorkerCommand()`, or a named transition called by one of them.
+5. **Evidence:** which test, deterministic reproduction, visual check, or diagnostic proves the intended behavior.
+6. **Persistence:** whether existing saves, worker deltas, import/export, or migrations are affected.
 
-#
+“The code compiled” is not sufficient evidence that a simulation change is safe. A small change may use a short check; a large change needs evidence proportionate to its impact.
 
-# A performance improvement that makes the game faster but removes pregnancy, social life, manual staffing, rare events, or reliable commands is a behavior regression, not a successful optimization.
+## 5. Single source of truth and worker authority
 
-#
+When the simulation worker is active, the worker-owned `WorldState` is authoritative. The main thread owns **presentation state only**: camera, selection, tabs, inspector state, render caches, local preferences, and temporary display feedback.
 
-#
+The main thread must not directly mutate authoritative entities, buildings, resources, relationships, pregnancies, events, or worker assignments while the worker is active. It sends a typed command and accepts the worker result.
 
-#
+Authoritative simulation state may change only through these boundaries:
 
-#
+```text
+gameTick()
+applyWorkerCommand()
+a named simulation transition called by one of those entry points
+```
 
-# 2\. Single source of truth
+No UI component, render helper, diagnostic helper, or performance shortcut may create an unowned second mutation path.
 
-#
+### Optimistic command feedback
 
-# When the simulation worker is active, the worker-owned WorldState is authoritative. The main thread owns presentation state only: camera, selection, tabs, inspector state, render caches, and preferences.
+While the worker is active, the main thread may apply a player command to its **display copy** through the same domain implementation, `applyWorkerCommand()`, for immediate UI feedback. This temporary display state is never authoritative: the worker’s full-snapshot `commandResult` replaces it on success, and the display reverts to the authoritative world on failure. Pending ticks must not overwrite the optimistic display; the authoritative command result always wins.
 
-#
+## 6. Ownership law
 
-# The main thread must never directly mutate simulation entities, buildings, resources, relationships, pregnancies, events, or worker assignments while the worker is active. It must send a typed command and wait for the authoritative worker result.
+Every important gameplay decision has exactly one authoritative owner. Other modules may read or present the result, but may not recreate or overwrite the decision.
+
+| Decision | Authoritative owner | Cadence | Allowed writes |
+|---|---|---|---|
+| Movement and pathfinding | `tickLayerRealtime.ts` and movement helpers | Realtime | Position, velocity, movement targets |
+| Workforce and work assignments | `workforce.ts` through named assignment transitions | Command/assignment | Building occupants, `homeBuildingId`, occupation, job |
+| Housing and residence assignment | `dayCycle.ts` residence functions, scheduled by `tickLayerAssign.ts`; immediate command entry through `buildingActions.assignResidentToBuilding` | Assignment plus immediate place/recruit/death/divorce/arrest | `residenceBuildingId`, residence occupants, household membership |
+| Construction | Construction functions called by the construction layer | Work cadence | Construction progress, builder membership |
+| Economy and production | `tickLayerSystems.ts` and daily economy owners | System/daily | Resources, production counters, spoilage |
+| Village Requests | `groupEvents.ts`; command entry delegates from `commands.ts` | Daily generation/expiry; player-command resolution | One active request, cooldown/history, effects, source counters, feedback |
+| Blueberry foraging | `blueberryForaging.ts`, called from existing human tick and daily layer | Staggered realtime pick; daily regrowth | Tree yield/regrowth, temporary target/movement, existing food/energy/feedback |
+| Casual social feedback | The dedicated social-feel owner extracted from `humanTick.ts` | Staggered social | Dialogue, heart feedback, small social progress |
+| Youth love, ages 14–17 | `humanRelationships.ts` | New calendar day | Mutual youth links, progress, breakups, adult-courtship handoff |
+| Courtship and marriage | `humanRelationships.ts` | Social/daily | Courtship progress, relationship status, partner IDs |
+| Affairs and scandals | `humanRelationships.ts` | Staggered feedback; daily establishment/gossip/scandal | Affair progress, affair partners, scandal outcomes |
+| New conception | `humanRelationships.ts` only | Once per colony day | Pregnancy state and due progress |
+| Pregnancy progress and birth | `humanLifecycle.ts` only | Pregnancy cadence | Pregnancy progress, child creation, birth event |
+| Moon Howler lifecycle | `moonHowler.ts` only | Full-moon event | Curse, transformation, return, cure, replacement event |
+| Leader residency | `leaderHouse.ts`, called by daily layer | Daily/idempotent | Leader household residence; preserve valid work assignment |
+| Player commands | `commands.ts` plus the owning domain | On command | Validated requested state transition |
+| Diagnostics | `relationshipDiagnostics.ts` and future diagnostics | Flush cadence | Counters and snapshots only; never gameplay state |
+
+If a design needs two owners, resolve the boundary deliberately. A domain may collaborate with another domain through a typed transition or read-only data, but one module must retain authority over each decision.
+
+## 7. Tick layers and cadence
+
+The current simulation schedule is intentionally simple. `gameTick.ts` orchestrates exactly four layers in fixed order:
+
+```text
+realtime every tick
+→ systems every LAYER_SYSTEMS_INTERVAL
+→ assignment every LAYER_ASSIGN_INTERVAL
+→ daily once per TICKS_PER_DAY
+```
+
+| Layer | Sole responsibility | Must not become |
+|---|---|---|
+| `tickLayerRealtime.ts` | Movement, pathfinding, animation, realtime spatial behavior | A second daily relationship or economy layer |
+| `tickLayerSystems.ts` | Normal-cadence systems: needs, production, ecology, combat, and bounded system work | A replacement for daily rules or UI commands |
+| `tickLayerAssign.ts` | Assignment and reassignment reconciliation using the workforce owner | A second workforce rules engine |
+| `tickLayerDaily.ts` | Daily economy, lifecycle triggers, relationship decisions, leadership/residency reconciliation, maintenance | Realtime movement or repeated full-population work |
+| `gameTick.ts` | Fixed orchestration and ordering | A home for domain rules that belong in an owner module |
+
+Do not create `tickLayerSocial.ts`, `tickLayerPregnancy.ts`, `tickLayerMoonHowler.ts`, `tickLayerBuildings.ts`, or another layer merely to avoid choosing an existing cadence and owner.
+
+A new tick layer remains possible. Treat it as a **major permanent change**: inform the developer of the proposal, identify the state and decisions moving, explain the correctness or measured performance reason, define its ordering and cadence, preserve/migrate affected behavior, add diagnostics and tests, then update this file as part of making the new architecture permanent.
+
+Every decision has one declared cadence. Performance work may reduce work **inside** a cadence but may not silently move the decision to another cadence.
+
+| Cadence | May do | Must not do |
+|---|---|---|
+| `realtime` | Movement, animation, cached target following, staggered blueberry target/pick behavior | Pregnancy rolls, global affair searches, general scandal decisions |
+| `staggered-social` | Nearby dialogue, flirt feedback, heart lines, small progress | Births, global scans, establishment/scandal decisions |
+| `new-calendar-day` | Conception, affair establishment, gossip, youth-love decisions, daily economy, bounded Village Request generation/expiry | Repeated full-population social work |
+| `pregnancy-progress` | Advance an existing pregnancy and create a birth | Start a separate pregnancy path |
+| `full-moon-event` | Return an existing Howler; make a rare replacement roll | Guarantee a new Howler every full moon |
+| `player-command` | Assignment, demolition, repair, upgrade, recipes, modes | Wait for a worker pipeline to become permanently idle |
+
+Production cadence is **72 simulation ticks per in-game day**. A temporary benchmark cadence must not become production behavior without a deliberate design decision and updated evidence.
+
+Affair tryst **progress** and nearby feedback may occur during staggered social work. Affair **establishment** (`affairPartnerId`), gossip, and ordinary scandal decisions belong to the daily owner. A realtime path may only expose an already-established pair through a spatial caught-in-the-act event, such as a spouse or guard being physically present. Unestablished flirtation must not generate a general scandal roll.
+
+## 8. Hard state invariants
+
+These invariants are permanent truths of the current design. A deliberate redesign may change one, but only as a major permanent change with a clear replacement invariant, migration impact, and validation.
+
+### Workforce
+
+- A living human appears in at most one building’s `occupants` list.
+- A building occupant has `homeBuildingId` equal to that building’s ID.
+- A human with `homeBuildingId` appears in that building’s occupants.
+- Manual buildings are never filled by generic auto-staffing.
+- The Church has capacity for four but normally requires only the player-selected priest.
+- The leader may hold a normal workplace while retaining leader status and manor residency. Valid work must survive office-taking and save/load; special-event gathering requires no job-level gate.
+- Demolishing a building removes it from authoritative state, cleans assignments, and clears stale selection.
+
+### Youth love and pregnancy
+
+- A youth-love link is mutual, joins two living colony settlers, and is owned only by `humanRelationships.ts`.
+- Youth love begins only from age 14 through 17. It has no automatic housing, workforce, or marriage side effect.
+- A youth pair may transfer to adult courtship only when both people are at least 18 and remain eligible. Only the adult path may create a marriage.
+- A stale, dead, invalid, or one-sided youth link is cleared by the youth-love owner during daily reconciliation.
+- A pregnant human has valid `pregnancyDueProgress`.
+- A non-pregnant human has no active pregnancy parent or progress state.
+- New pregnancy is created only by the conception owner. Ages 14–17 require a documented mutual youth-love, proximity, energy, and reduced-probability gate; adult marriage and affair rates retain their intended design.
+- Birth is created only by the lifecycle owner.
+- Diagnostics distinguish new conceptions, active pregnancies, and completed births; a conception counter never means active pregnancies.
+
+### Village Requests and blueberry foraging
+
+- At most one `activeVillageRequest` exists. `groupEvents.ts` owns its creation, expiry, and resolution.
+- A request has a unique ID, valid source where required, bounded expiry day, and one declared choice set.
+- UI code sends typed commands only. Invalid, unaffordable, stale, storage-blocked, unknown, or repeated commands leave the request and economic state valid without partial mutation.
+- Active request state must flow safely through worker preparation, rollback, delta reconciliation, and save/load before a card is shown.
+- A blueberry source is a normal living `EntityType.Tree` with `forageKind: 'blueberry'`; it remains in the existing tree grid.
+- New maps contain at most three blueberry trees. Only `worldGen.ts` creates them.
+- `blueberryYield` remains in the inclusive range 0–6. The foraging owner decrements it on a successful pick or restores one portion during declared daily regrowth outside winter.
+- A player settler forages only when free, hungry, not freshly fed, and not festival-gathering. Work, school, sleep, meals, hunting urgency, and normal movement retain priority.
+- Target searches use the existing `treeGrid` and staggered cadence. No person scans all trees every tick.
+- Rendering may choose ripe/depleted art but may not mutate yield, regrowth, food, energy, movement, or storage.
 
-#
+### Moon Howler
+
+- At most one living cursed Moon Howler exists.
+- If a cursed Howler survives, that same Howler returns on later full moons.
+- If the Howler is killed or cured, later full moons may be quiet.
+- A replacement appears only through a rare replacement roll.
+- A full moon never guarantees a new Howler.
+
+### Worker authority
+
+- A command result cannot be overwritten by an older tick delta.
+- Ordinary player commands dispatch without waiting for an impossible permanently idle worker.
+- Full-world import/export may wait for idle; ordinary player commands may not.
+- Main-thread fallback uses the same domain command implementation as the worker.
+- Optimistic display state is temporary and is replaced by the authoritative `commandResult` on success or reverted on failure. It never writes back to the worker.
 
-# Simulation state may change only through one of these boundaries:
+## 9. Unsafe shortcuts to avoid
 
-#
+The following are unsafe shortcuts, not bans on redesign. A deliberate replacement is allowed when it follows the major-change process and provides equivalent or better authority, evidence, and player-facing behavior.
 
-# Plain Text
+| Unsafe shortcut | Why it is unsafe |
+|---|---|
+| Add a second conception implementation | Produces pregnancies that diagnostics and lifecycle cannot explain |
+| Write `building.occupants` from a UI component | Bypasses assignment validation and worker authority |
+| Put the Church in generic auto-staffing | Breaks manual priest selection |
+| Spawn Moon Howlers in a daily layer | Breaks rare-event lifecycle and one-Howler limit |
+| Move a daily decision into realtime solely for speed | Changes probability and player-visible pacing |
+| Change tick cadence without a migration and test decision | Breaks calendar, pregnancy, and event timing |
+| Rename/reinterpret a diagnostic counter without updating consumers | Produces false conclusions from logs |
+| Remove a gameplay gate merely to optimise | May silently change game rules |
+| Add a broad manager/event bus before a real need is shown | Adds architecture without resolving ownership |
 
-#
+## 10. DRY and deliberate-WET engineering
 
-#
+Wilderfolk uses **DRY** (*Don't Repeat Yourself*) for stable knowledge, shared rules, type shapes, constants, and behavior that must stay consistent. It also permits **deliberate WET** (*Write Everything Twice*) when local duplication makes a feature clearer, keeps domains independent, avoids a premature abstraction, or allows similar mechanics to evolve in different directions.
 
-# gameTick()
+> **Prefer a clear local implementation over a clever shared abstraction. Extract only after the shared concept is real, stable, and demonstrated by more than one use.**
 
-# applyWorkerCommand()
+| Use DRY when | Prefer deliberate WET when |
+|---|---|
+| A rule, invariant, conversion, validation, or state transition must remain identical everywhere | Two features only look similar today but have different owners, cadence, player meaning, or likely future direction |
+| A repeated type shape, constant, or calculation represents one stable domain concept | A generic helper would add flags, callbacks, conditionals, or cross-domain dependencies that obscure the code |
+| Shared test setup describes one common scenario and improves test readability | Separate tests need to state their scenario independently and duplication is shorter than an opaque test framework |
+| A bug fix would need to be repeated in several locations if left duplicated | A prototype or experimental branch needs to remain isolated and easy to discard |
 
-# a named simulation transition called by one of those entry points
+Do not use DRY to centralize unrelated gameplay rules into a broad manager, utility dump, event bus, or god file. Shared code must have a clear owner and a narrow, meaningful name. Do not use WET as an excuse to duplicate an authoritative simulation decision: a decision still has one owner, one cadence, and one authoritative mutation path.
 
-#
+For detailed TypeScript examples and further guidance, see [`References.md`](References.md). Its examples are supporting material; the ownership, cadence, worker-authority, and major-change rules in this file remain controlling.
 
-#
+## 11. God files: do not add new responsibilities
 
-#
+The following files are currently designated **god files**. They contain too many responsibilities, have broad dependency surfaces, or are frequent change bottlenecks. **Do not add a new feature, subsystem, independent behavior, or unrelated responsibility to these files.** Place new code in a clearly named adjacent module that owns the new concern, then call it from the existing file only where coordination is required.
 
-# No UI component, render helper, diagnostics helper, or performance shortcut may create a second mutation path.
+| God file | Why it is protected | Put new work in |
+|---|---|---|
+| `src/App.tsx` | Application shell; currently combines session, UI state, persistence, input, audio, overlays, and layout | Focused hooks, feature components, or a named application-shell module |
+| `src/game/humanTick.ts` | Realtime human coordinator; already combines work, movement, hunting, care, social life, leisure, effects, and diagnostics | A named human-behavior module, still called from the existing realtime human pipeline |
+| `src/game/dayCycle.ts` | Shared calendar, schedule, residency, and lifecycle utility hub | A focused clock, schedule, residency, lifecycle-cleanup, or per-person-decision module |
+| `src/game/tickLayerDaily.ts` | Daily coordinator; must expose scheduling order rather than accumulate domain policy | A named daily domain helper, such as ecology, building economy, population, events, or challenges |
+| `src/game/buildingActions.ts` | Broad player-command facade for placement, staffing, residency, upkeep, configuration, and interaction actions | A focused placement, staffing, residency, maintenance, configuration, or settler-action module |
 
-#
+This rule does **not** prohibit maintenance, targeted bug fixes, type-only changes, deletion, or extracting existing code from a god file. It prevents the file from receiving another independent responsibility. Preserve the existing public entry point during a staged extraction when it avoids unnecessary churn.
 
-#
+Do not solve a god-file problem by creating a generic manager, utility dump, broad event bus, or extra tick layer. Prefer a narrow module with one understandable concern, a clear owner, and a name that describes what it does.
 
-#
+## 12. Verification and performance
 
-#
+Evidence should match risk. Do not require a full audit for a cosmetic change, and do not accept a compile-only check for a simulation rewrite.
 
-# 3\. Ownership law
+| Change type | Minimum evidence |
+|---|---|
+| Visual or UI behavior | Targeted manual check or screenshot; verify that presentation does not mutate simulation state |
+| Isolated domain rule | Targeted test or deterministic reproduction of the behavior and its edge case |
+| Simulation, worker, command, or invariant change | Focused regression test plus checks for affected ownership, cadence, and delta behavior |
+| Save/migration/world-state schema | Load/import and round-trip evidence, migration coverage, and compatibility impact stated clearly |
+| Major permanent change | The above evidence plus an impact notice, player-facing verification, and a rollback or containment plan where practical |
+| Performance work | Before/after measurement and evidence that intended gameplay behavior still occurs |
 
-#
+Tests, diagnostics, and visual checks exist to help creative work become trustworthy. They must not be used as a reason to omit an ambitious feature; scale the validation to the change.
 
-# Every important gameplay decision has exactly one owner. Other modules may read the result but may not recreate or overwrite the decision.
+## 13. Private bug records
 
-#
+Read c:\bug_reports\readme.md for the template for filing a bug report, for all big bugs wo require a overhual of the code you need to fill a bug report conform this rules.
 
-# Decision
+Every reproducible defect receives a local bug record before or alongside the fix. A short record is sufficient for contained visual, test-tooling, or minor UI defects. A **detailed** record is required for simulation truth, worker/command behavior, data integrity, saves/migrations, crashes, a player-blocking issue, an architectural regression, or any defect whose cause or impact is not clearly contained.
 
-# Authoritative owner
+Store one local private record per bug under `BUG_REPORTS/`, for example:
 
-# Cadence
+```text
+BUG_REPORTS/2026-08-28-worker-command-order.md
+```
 
-# Allowed writes
+Use this format and add detail as the impact requires:
 
-# Movement and pathfinding
+```md
+# Bug: <short name>
 
-# tickLayerRealtime.ts and its movement helpers
+- Status: open | investigating | resolved | resolved — live verification pending | won't-fix
+- Date discovered:
+- Version/build:
+- Reporter:
+- Area: Play | Truth | worker | UI | save/migration | performance
+- Owner module: (optional for contained non-simulation defects)
+- Cadence: (optional for contained non-simulation defects)
 
-# Realtime
+## Status history
+- YYYY-MM-DD — open (how it was discovered)
 
-# Position, velocity, movement targets
+## Observed behavior
 
-# Workforce and assignments
+## Expected behavior
 
-# workforce.ts through named assignment transitions
+## Reproduction steps
+1.
+2.
+3.
 
-# Command/assignment phase
+## Evidence
 
-# Building occupants, homeBuildingId, occupation, job
+## Root cause
 
-# Construction
+## Fix
 
-# Construction functions called from the construction layer
+## Regression test
 
-# Work cadence
+## Invariants checked
 
-# Construction progress, builder membership
+## Save/migration impact
 
-# Economy and production
+## Verification result
 
-# tickLayerSystems.ts and daily economy owners
+## Related files
+```
 
-# System/daily
+For a short record, mark inapplicable sections as `Not applicable — contained visual/tooling defect.` Do not invent an invariant or migration impact merely to satisfy a template. For a detailed report, explain affected owner/cadence, root cause, fix, regression protection, and persistence impact.
 
-# Resources, production counters, spoilage
+Keep reports private and local by default. Do not stage, commit, push, upload, or quote their diagnostics publicly unless the developer explicitly asks. Preserve resolved reports as historical context.
 
-# Casual social feedback
+## 14. Working standard
 
-# A single social-feel owner extracted from humanTick.ts
+A good Wilderfolk change is not merely one that passes tests. It is one that expresses an intentional piece of the game: it has a clear home, behaves on the intended cadence, survives the worker and save boundaries, is visible and understandable to the player, and leaves room for the next creative improvement.
 
-# Staggered social
+When a rule in this document appears to make a good idea impossible, do not abandon the idea. Identify the constraint it protects, propose a safe replacement, inform the developer if the change is major, and evolve the design deliberately.
 
-# Dialogue, heart feedback, small social progress
-
-# Courtship and marriage
-
-# humanRelationships.ts
-
-# Social/daily
-
-# Courtship progress, relationship status, partner IDs
-
-# Affairs and scandals
-
-# humanRelationships.ts
-
-# Staggered/daily
-
-# Affair progress, affair partners, scandal outcomes
-
-# New conception
-
-# humanRelationships.ts only
-
-# Once per colony day
-
-# Pregnancy state and due progress
-
-# Pregnancy progress and birth
-
-# humanLifecycle.ts only
-
-# Pregnancy cadence
-
-# Pregnancy progress, child creation, birth event
-
-# Moon Howler lifecycle
-
-# moonHowler.ts only
-
-# Full-moon event
-
-# Curse, transformation, return, cure, replacement event
-
-# Leader residency
-
-# leaderHouse.ts called by the daily layer
-
-# Daily/idempotent
-
-# Leader household residence; preserve valid work assignment
-
-# Player commands
-
-# commands.ts plus domain owner
-
-# On command
-
-# Validated requested state transition
-
-# Diagnostics
-
-# relationshipDiagnostics.ts and future simulation diagnostics
-
-# Flush cadence
-
-# Counters and snapshots only; never gameplay state
-
-#
-
-#
-
-#
-
-#
-
-# If a change appears to require two owners, stop and resolve the ownership conflict before coding.
-
-#
-
-#
-
-#
-
-#
-
-# 4\. Tick-layer authority and cadence law
-
-#
-
-# The existing tick-layer structure is the simulation schedule. Reuse it; do not create a new tick layer for convenience.
-
-#
-
-# Existing layer
-
-# Sole responsibility
-
-# Must not become
-
-# tickLayerRealtime.ts
-
-# Movement, pathfinding, animation, realtime spatial behavior
-
-# A second daily relationship or economy layer
-
-# tickLayerSystems.ts
-
-# Systems that run on the normal simulation cadence: needs, production, ecology, combat, and other bounded system work
-
-# A replacement for daily rules or UI commands
-
-# tickLayerDaily.ts
-
-# Once-per-calendar-day economy, lifecycle triggers, relationship daily decisions, leadership/residency reconciliation, and daily maintenance
-
-# A place for realtime movement or repeated full-population scans
-
-# tickLayerAssign.ts
-
-# Assignment/reassignment reconciliation using the workforce owner
-
-# A second workforce rules engine
-
-# gameTick.ts
-
-# Fixed orchestration and ordering of the existing layers
-
-# A place for gameplay rules that belong to a domain owner
-
-#
-
-#
-
-#
-
-#
-
-# The layer outline above is fixed for the current architecture. Do not create tickLayerSocial.ts, tickLayerPregnancy.ts, tickLayerMoonHowler.ts, tickLayerBuildings.ts, or any other new tick layer merely to avoid deciding where code belongs. Put the logic in the existing layer that owns its cadence and delegate the actual rule to the named domain owner.
-
-#
-
-# A new tick layer is allowed only when all of the following are true:
-
-#
-
-# 1\.
-
-# The existing layers cannot express the required cadence or ordering.
-
-#
-
-# 2\.
-
-# The proposal identifies the state and decisions that would move.
-
-#
-
-# 3\.
-
-# The proposal includes a measured performance or correctness reason.
-
-#
-
-# 4\.
-
-# The Simulation Authority Document is updated first.
-
-#
-
-# 5\.
-
-# The new layer has owner, cadence, invariants, diagnostics, and tests.
-
-#
-
-# Every decision must have one declared cadence. Performance work may reduce the amount of work inside a cadence, but it may not silently move a decision to another cadence.
-
-#
-
-# Cadence
-
-# May do
-
-# Must not do
-
-# realtime
-
-# Movement, animation, cached target following
-
-# Pregnancy rolls, global affair searches, scandals
-
-# staggered-social
-
-# Nearby dialogue, flirt feedback, heart lines, small progress
-
-# Births, scandal decisions, global scans
-
-# new-calendar-day
-
-# Conception, affair establishment, gossip, daily economy
-
-# Repeated full-population social work
-
-# pregnancy-progress
-
-# Advance existing pregnancy and create a birth
-
-# Start a second pregnancy path
-
-# full-moon-event
-
-# Return an existing Howler; roll a rare replacement event
-
-# Guarantee a new Howler every full moon
-
-# player-command
-
-# Assignment, demolition, repair, upgrade, recipes, modes
-
-# Wait for a worker pipeline to become permanently idle
-
-#
-
-#
-
-#
-
-#
-
-# Production cadence is 72 simulation ticks per in-game day. A temporary benchmark cadence must never be committed as production behavior without an explicit decision and updated tests.
-
-#
-
-#
-
-#
-
-#
-
-# 5\. State invariants: always true
-
-#
-
-# These are hard invariants. They are not suggestions or tuning targets.
-
-#
-
-# Workforce invariants
-
-#
-
-# •
-
-# A living human may appear in at most one building’s occupants list.
-
-#
-
-# •
-
-# A building occupant must have homeBuildingId equal to that building’s ID.
-
-#
-
-# •
-
-# A human with homeBuildingId must appear in that building’s occupants.
-
-#
-
-# •
-
-# Manual buildings are never filled by generic auto-staffing.
-
-#
-
-# •
-
-# The Church has capacity for four but requires only the player-selected priest for its normal staffed state.
-
-#
-
-# •
-
-# The leader may work in a normal workplace while retaining leader status and manor residency.
-
-#
-
-# •
-
-# Demolishing a building removes it from authoritative state, cleans its assignments, and clears stale selection.
-
-#
-
-# Pregnancy invariants
-
-#
-
-# •
-
-# A pregnant human has a valid pregnancyDueProgress.
-
-#
-
-# •
-
-# A non-pregnant human has no active pregnancy parent/progress state.
-
-#
-
-# •
-
-# New pregnancy is created only by the conception owner.
-
-#
-
-# •
-
-# Birth is created only by the lifecycle owner.
-
-#
-
-# •
-
-# A conception counter never means “active pregnancies.” Diagnostics must distinguish new conceptions, active pregnancies, and completed births.
-
-#
-
-# Moon Howler invariants
-
-#
-
-# •
-
-# There is at most one living cursed Moon Howler.
-
-#
-
-# •
-
-# If a cursed Howler survives, that same Howler returns on later full moons.
-
-#
-
-# •
-
-# If the Howler is killed or cured, later full moons may be quiet.
-
-#
-
-# •
-
-# A replacement Howler appears only through a rare replacement roll.
-
-#
-
-# •
-
-# A full moon must not guarantee a new Howler.
-
-#
-
-# Worker authority invariants
-
-#
-
-# •
-
-# A command result cannot be overwritten by an older tick delta.
-
-#
-
-# •
-
-# Commands are dispatched without waiting for an impossible permanently idle worker.
-
-#
-
-# •
-
-# Full-world import/export may wait for idle; ordinary player commands may not.
-
-#
-
-# •
-
-# Main-thread fallback must use the same domain command implementation as the worker.
-
-#
-
-#
-
-#
-
-#
-
-# 6\. Forbidden changes
-
-#
-
-# The following are prohibited unless this document is updated and the change is explicitly approved.
-
-#
-
-# Forbidden change
-
-# Reason
-
-# Adding a second conception implementation
-
-# Creates pregnancies that diagnostics and lifecycle cannot explain
-
-# Writing building.occupants from a UI component
-
-# Bypasses assignment validation and worker authority
-
-# Adding Church to generic auto-staffing
-
-# Violates manual priest selection
-
-# Adding Moon Howler spawning to a daily layer
-
-# Breaks rare-event lifecycle and one-Howler limit
-
-# Moving a daily rule into realtime code for performance
-
-# Changes probability and player-visible pacing
-
-# Changing tick cadence without a migration/test decision
-
-# Breaks calendar, pregnancy, and event timing
-
-# Renaming or reinterpreting a diagnostic counter without updating consumers
-
-# Creates false conclusions from live logs
-
-# Optimizing by removing a gate without a behavior test
-
-# Can restore speed while silently changing game rules
-
-# Introducing a broad new manager/event bus before proving need
-
-# Adds architecture without solving ownership
-
-#
-
-#
-
-#
-
-#
-
-#
-
-#
-
-#
-
-# 7\. Mandatory bug report
-
-#
-
-# Every bug must be recorded in a Markdown file under:
-
-#
-
-# Plain Text
-
-#
-
-#
-
-# BUG\_REPORTS/
-
-#
-
-#
-
-#
-
-# Use one file per bug, for example:
-
-#
-
-# Plain Text
-
-#
-
-#
-
-# BUG\_REPORTS/2026-08-18-church-auto-staffing.md
-
-#
-
-#
-
-#
-
-# The minimum format is:
-
-#
-
-# Plain Text
-
-#
-
-#
-
-# \# Bug: <short name>
-
-#
-
-# \- Status: open | investigating | fixed | verified | won't-fix
-
-# \- Date discovered:
-
-# \- Version/build:
-
-# \- Reporter:
-
-# \- Area: Play | Truth | worker | UI | save/migration | performance
-
-# \- Owner module:
-
-# \- Cadence:
-
-#
-
-# \## Observed behavior
-
-#
-
-# \## Expected behavior
-
-#
-
-# \## Reproduction steps
-
-#
-
-# 1\.
-
-# 2\.
-
-# 3\.
-
-#
-
-# \## Evidence
-
-#
-
-# Console output, screenshot, save identifier, diagnostic output, or test fixture.
-
-#
-
-# \## Root cause
-
-#
-
-# \## Fix
-
-#
-
-# \## Regression test
-
-#
-
-# \## Invariants checked
-
-#
-
-# \## Save/migration impact
-
-#
-
-# \## Verification result
-
-#
-
-# \## Related commits or files
-
-#
-
-#
-
-#
-
-# The bug report must remain in the repository after the fix. It is the historical explanation for why the code has its current guard or test. Do not delete it because the issue is fixed.
-
-#
-
-# 8\. Required change record
-
-#
-
-# Every simulation change must include this short record in the pull request, commit message, or change note:
-
-#
-
-# Plain Text
-
-#
-
-#
-
-# \## Simulation Change Record
-
-#
-
-# \- Owner module:
-
-# \- Decision changed:
-
-# \- Cadence:
-
-# \- State fields written:
-
-# \- Why the change is needed:
-
-# \- Player-visible behavior before:
-
-# \- Player-visible behavior after:
-
-# \- Performance impact:
-
-# \- New or updated tests:
-
-# \- Invariants checked:
-
-# \- Save/migration impact:
-
-# \- Rollback plan:
-
-#
-
-#
-
-#
-
-# A change that cannot fill in this record is not sufficiently understood to merge.
-
-#
-
-#
-
-#
-
-#
-
-# 9\. Mandatory pre-merge checklist
-
-#
-
-# Before editing
-
-#
-
-#
-
-#
-
-#
-
-# This document was read.
-
-#
-
-#
-
-#
-
-#
-
-# The owner row for the decision was identified.
-
-#
-
-#
-
-#
-
-#
-
-# The cadence was identified.
-
-#
-
-#
-
-#
-
-#
-
-# Existing tests and diagnostics for the decision were read.
-
-#
-
-#
-
-#
-
-#
-
-# The proposed change is not duplicating another owner.
-
-#
-
-# During editing
-
-#
-
-#
-
-#
-
-#
-
-# All simulation writes remain behind the authoritative boundary.
-
-#
-
-#
-
-#
-
-#
-
-# No UI component directly mutates simulation state.
-
-#
-
-#
-
-#
-
-#
-
-# No new full-population scan was added to a realtime path.
-
-#
-
-#
-
-#
-
-#
-
-# New spatial queries use the spatial grid or document why they do not.
-
-#
-
-#
-
-#
-
-#
-
-# Existing command and worker ordering semantics are preserved.
-
-#
-
-#
-
-#
-
-#
-
-# Diagnostics report the actual stage being measured.
-
-#
-
-# Before merge
-
-#
-
-#
-
-#
-
-#
-
-# TypeScript passes.
-
-#
-
-#
-
-#
-
-#
-
-# Focused tests pass.
-
-#
-
-#
-
-#
-
-#
-
-# Full regression tests pass.
-
-#
-
-#
-
-#
-
-#
-
-# Workforce invariants pass.
-
-#
-
-#
-
-#
-
-#
-
-# Pregnancy/birth invariants pass.
-
-#
-
-#
-
-#
-
-#
-
-# Moon Howler invariants pass.
-
-#
-
-#
-
-#
-
-#
-
-# Worker command round-trip tests pass.
-
-#
-
-#
-
-#
-
-#
-
-# Benchmark p50/p95 is recorded at the agreed population tiers.
-
-#
-
-#
-
-#
-
-#
-
-# Gameplay event rates are recorded for the affected system.
-
-#
-
-#
-
-#
-
-#
-
-# Save/load behavior is tested if state fields changed.
-
-#
-
-#
-
-#
-
-#
-
-# The Simulation Change Record is complete.
-
-#
-
-# After merge
-
-#
-
-#
-
-#
-
-#
-
-# The live console has no new worker-stall, duplicate-key, or invariant warnings.
-
-#
-
-#
-
-#
-
-#
-
-# A short seeded playtest confirms the intended player-visible behavior.
-
-#
-
-#
-
-#
-
-#
-
-# If behavior differs from the previous version, the changelog says so explicitly.
-
-#
-
-#
-
-#
-
-#
-
-# 10\. Minimal invariant implementation
-
-#
-
-# Add:
-
-#
-
-# Plain Text
-
-#
-
-#
-
-# src/game/simulation/simulationInvariants.ts
-
-# tests/simulation.invariants.test.ts
-
-#
-
-#
-
-#
-
-# The first implementation should collect errors so tests can inspect them and development mode can throw clearly:
-
-#
-
-# Plain Text
-
-#
-
-#
-
-# export function collectSimulationInvariantErrors(state: WorldState): string\[] {
-
-# &#x20; const errors: string\[] = \[];
-
-# &#x20; const assignedTo = new Map<number, number>();
-
-#
-
-# &#x20; for (const building of state.buildings) {
-
-# &#x20;   for (const humanId of building.occupants) {
-
-# &#x20;     if (assignedTo.has(humanId)) {
-
-# &#x20;       errors.push(`human ${humanId} assigned to multiple buildings`);
-
-# &#x20;     }
-
-# &#x20;     assignedTo.set(humanId, building.id);
-
-# &#x20;   }
-
-# &#x20; }
-
-#
-
-# &#x20; for (const human of state.entities) {
-
-# &#x20;   if (!human.alive || human.type !== EntityType.Human) continue;
-
-# &#x20;   if (assignedTo.get(human.id) !== human.homeBuildingId) {
-
-# &#x20;     errors.push(`human ${human.id} workplace mismatch`);
-
-# &#x20;   }
-
-# &#x20;   if (human.pregnant \&\& human.pregnancyDueProgress == null) {
-
-# &#x20;     errors.push(`human ${human.id} pregnant without due progress`);
-
-# &#x20;   }
-
-# &#x20; }
-
-#
-
-# &#x20; const howlers = state.entities.filter(
-
-# &#x20;   (entity) => entity.alive \&\& entity.moonHowlerCursed,
-
-# &#x20; );
-
-# &#x20; if (howlers.length > 1) {
-
-# &#x20;   errors.push(`multiple living Moon Howlers: ${howlers.length}`);
-
-# &#x20; }
-
-#
-
-# &#x20; return errors;
-
-# }
-
-#
-
-#
-
-#
-
-# Do not put gameplay repairs into the invariant checker. It detects and reports; the owning transition performs the repair.
-
-#
-
-#
-
-#
-
-#
-
-# 11\. Refactor order from the current codebase
-
-#
-
-# The refactor must stop at a green state after each step.
-
-#
-
-# Step 1 — Governance, no behavior change
-
-#
-
-# Add this document, the change-record template, the owner registry, and invariant tests. Do not change probabilities or cadence.
-
-#
-
-# Step 2 — Workforce authority
-
-#
-
-# Keep workforce.ts as the owner. Route manual assignment, reassignment, demolition cleanup, and leader work through named workforce transitions. Add Church and duplicate-assignment tests.
-
-#
-
-# Step 3 — Pregnancy authority
-
-#
-
-# Keep humanRelationships.ts as the only conception owner. Keep humanLifecycle.ts as the only birth owner. Add activePregnancies and birthsCompletedThisInterval diagnostics.
-
-#
-
-# Step 4 — Moon Howler authority
-
-#
-
-# Keep all spawn, return, cure, and replacement decisions in moonHowler.ts. Inject RNG so quiet full moons and rare replacement events are testable.
-
-#
-
-# Step 5 — Relationship authority
-
-#
-
-# Extract cheap social feedback from humanTick.ts into one social-feel owner. Keep daily conception, affair establishment, and scandal decisions in humanRelationships.ts.
-
-#
-
-# Step 6 — Worker command authority
-
-#
-
-# Keep GameWorkerHost responsible only for transport, ordering, and deltas. Keep command meaning in commands.ts and domain owners. Test assignment, priest selection, demolition, and upgrades end-to-end.
-
-#
-
-# Step 7 — Performance authority
-
-#
-
-# A performance change must report both timing and behavior:
-
-#
-
-# Plain Text
-
-#
-
-#
-
-# p50/p95 tick time
-
-# social events/day
-
-# conception candidates/day
-
-# pregnancies/30 days
-
-# births/30 days
-
-# scandals/30 days
-
-# Moon Howler events/year
-
-#
-
-#
-
-#
-
-# Faster is not accepted if the declared behavior budget is broken.
-
-#
-
-#
-
-#
-
-#
-
-# 12\. Required acknowledgment
-
-#
-
-# Before modifying simulation code, the contributor must add this statement to the change record:
-
-#
-
-# Plain Text
-
-#
-
-#
-
-# I have read SIMULATION\_AUTHORITY.md. I identified the owner and cadence of the decision I am changing, preserved the authoritative worker-state boundary, and will not introduce a second mutation path.
-
-#
-
-#
-
-#
-
-# For a coding assistant, the task prompt should explicitly include:
-
-#
-
-# Plain Text
-
-#
-
-#
-
-# Read SIMULATION\_AUTHORITY.md before inspecting or editing simulation code.
-
-# Do not modify simulation code until the owner, cadence, invariants, and required tests are identified.
-
-#
-
-#
-
-#
-
-#
-
-#
-
-#
-
-# 13\. Definition of authority
-
-#
-
-# This document is the project’s simulation contract. Code may evolve, file names may change, and implementation details may be optimized, but the following may not change silently:
-
-#
-
-# •
-
-# who owns a decision;
-
-#
-
-# •
-
-# when the decision is made;
-
-#
-
-# •
-
-# which state is authoritative;
-
-#
-
-# •
-
-# which invariants must hold;
-
-#
-
-# •
-
-# what the player is guaranteed to observe.
-
-#
-
-# If the design must change, update this document first, then update the owner registry, tests, diagnostics, and implementation together.
-
-#
-
-
-
-Repository Guidelines
-===
-
-Wilderfolk is a client-only frontier colony sim: **React 19 + TypeScript + Vite + Canvas 2D**, with an optional Web Worker sim (opt-in via `VITE\_USE\_GAME\_WORKER=1`). Player docs: `README.md` · `CHANGELOG.md` · `ROADMAP.md`. Technical design: `docs/ARCHITECTURE.md`.
-
-## Project Structure \& Module Organization
-
-* `src/game/` — simulation + rendering. One file per system (`dayCycle.ts`, `combat.ts`, `economy.ts`), plus `data/` (catalogs), `simWorker/`, and the renderer: `renderer.ts` (Canvas 2D) via `rendererLoader.ts` (pass-through).
-* `src/components/` — React UI (PascalCase `.tsx`); tab panels in `tabPanels/`. Plus `src/hooks/`, `src/audio/`.
-* `scripts/` — tooling: headless sims via `tsx`, asset generators via plain Node (`generate-bridge-sprite.mjs`, `generate-water-sprites.mjs`, no deps), Playwright playtests (`playtest\*.py`).
-* `public/` — static assets (sprites, incl. self-generated art). `docs/` is the single docs home; `docs/private/` holds gitignored local dev notes.
-* Import via the `@/\*` alias (e.g., `@/game/dayCycle`).
-
-## Build, Test, and Development Commands
-
-|Command|Purpose|
-|-|-|
-|`npm run dev`|Vite dev server at `http://localhost:5173`|
-|`npm run build`|Type-check (`tsc -b`) then production build|
-|`npm test` / `npm run test:watch`|Vitest once / watch mode|
-|`npm run lint`|ESLint (flat config, `eslint.config.js`)|
-|`npm run audit`|Knip (dead code) + dependency-cruiser (import cycles)|
-
-Headless sims: `npx tsx scripts/<file>.mts`. Regenerate procedural art: `node scripts/generate-water-sprites.mjs`.
-
-## Coding Style \& Naming Conventions
-
-* TypeScript is strict (`noUnusedLocals`, `noUnusedParameters`, `verbatimModuleSyntax`, `erasableSyntaxOnly`); unused variables are errors — prefix intentional ones with `\_`.
-* Naming: camelCase logic modules, PascalCase components, `useX` hooks, `BuildingType`-style enums.
-* UI never mutates world state ad hoc — send commands into the GameLoop and read published snapshots.
-* Sim cadence is **72 ticks/day** (`TICKS\_PER\_HOUR = 3`); scale systems with `dayTicks()` / `PER\_TICK\_RATE\_SCALE`, never local `\* TICKS\_PER\_HOUR` factors.
-
-## Testing Guidelines
-
-* Vitest (node environment), tests colocated beside code: `<module>.<scenario>.test.ts` (e.g., `frontierCombat.raidGold.test.ts`). Current gate: 7 files / 31 tests, 0 skipped; `npm run lint` 0 errors.
-* Regression tests get a comment header explaining the bug (see `hotkeys.test.ts`).
-* Browser playtests: `python .deepcode/skills/webapp-testing/scripts/with\_server.py --server "npm run dev" --port 5173 -- python scripts/playtest.py` (screenshots land in `playtest/`).
-
-## Commit \& Pull Request Guidelines
-
-* Conventional commits (`feat:`, `fix:`, `chore:`) with optional scope, e.g. `feat(A1 water): flowing wave bands`. Remote: `origin` → `github.com/Rengerams/wilderfolk`, branch `main` (LF-normalized via `.gitattributes`). **Do not commit, push, tag, or publish unless the developer explicitly instructs that action.**
-* **Do not automatically bump** `GAME\_VERSION`, the package version, save-compatibility policy, or release heading. The developer decides if and when a version is released; a roadmap label is not release approval.
-* Keep detailed bug reports and diagnostics private in the local `BUG REPORTS/` workspace. Public release material may contain only a concise player-facing summary when the developer explicitly requests it.
-* Track bugs with `<batch>-<item>` IDs (e.g., `EK-G4`) in `docs/private/BUGS\_TRACKER.md`; closed work moves to `docs/private/archive/`.
-* Run `npm test`, `npm run lint`, `npm run audit` before any developer-approved push; keep PRs focused on one system.
-
-## Graphics \& Configuration Tips
-
-* Any new render FX must flow through `RenderSnapshot` or it is never drawn.
-* `.env` holds local config — never commit secrets. Gitignored: `docs/private/`, `.deepcode/`, `skills/`, `playtest/`, `test-results/`.
-
-Respond always in the english language!!
-
-
-
-# Guidance for AI Agents Working in This Repo
-
-This repository contains **Agent Skills** for AI coding agents. When editing or adding skills, follow these rules.
-
-## Repo structure
-
-* **skills/** — Each subdirectory is one skill. The CLI and agents discover skills by scanning `skills/` for directories that contain `SKILL.md`.
-* **Skill directory name** must exactly match the `name` in that skill’s frontmatter (e.g. `skills/webapp-testing/` ↔ `name: webapp-testing`).
-
-## SKILL.md requirements
-
-* **Frontmatter (YAML):**
-
-  * `name` (required): lowercase, hyphens only, max 64 chars, must match parent directory name.
-  * `description` (required): what the skill does and when to use it; include trigger terms so agents know when to apply it. Max 1024 chars.
-  * `license` (optional): e.g. `MIT` if the skill is under the repo license.
-* **Body:** Markdown instructions. Keep under \~500 lines; put long reference material in `references/` or `scripts/` and link from SKILL.md.
-
-## Conventions
-
-* Write descriptions in **third person** (e.g. "Use when…" not "You can use when…").
-* Be concise; avoid restating general framework docs. Focus on correct API usage and common pitfalls.
-* When adding a new skill: create `skills/<skill-name>/SKILL.md`, then update README.md "Skills" table and "Structure" section.
-
-## References
-
-* [Agent Skills specification](https://agentskills.io/specification.md)
-* [skills CLI (discovery, install)](https://github.com/vercel-labs/skills)
+**Build boldly. Keep the world coherent.**

@@ -1,0 +1,291 @@
+src\components\tabPanels\MoreTabPanel.tsx:263: <p>• <strong className="text-amber-200">Town Hall</strong> — After <strong className="text-stone-200">Urban Planning</strong>. Staff officials for taxes, trade &amp; immigration boosts, election site, scandal buffer, and hosted festivals.</p>
+src\components\tabPanels\MoreTabPanel.tsx:267: <p>• <strong className="text-amber-200">Reputation ⭐</strong> — Village header &amp; Progress → Trade. From Town Hall, Hospital, pilgrims, festivals, and avoiding scandals. Unlocks trade routes.</p>
+src\components\tabPanels\VillageTabPanel.tsx:309: Buildings (+2), festivals (+10), research (+3), staffed Hospital (+2) &amp; Town Hall (+3),
+src\components\GameHeader.tsx:152: title={`${seasonLabel} · ${formatTemperatureC(dailyTempC)} · ${weekday}${weekend ? ' (free)' : ' (work 7–18)'} · Year ${world.year} · Day ${world.dayInYear}${world.weather !== 'clear' ? ` · ${WEATHER_CONFIGS[world.weather].label}` : ''}${world.festival ? ` · ${world.festival.name}` : ''} · sim tick ${world.tick} (day ${absoluteDay})${showSimTick ? '' : ' — enable “Show sim tick” in Menu → Settings to pin tick on the bar'}`}
+src\components\GameHeader.tsx:164: {world.festival && <Emoji title={world.festival.name}>🎉</Emoji>}
+src\components\SelectedBuildingPanel.tsx:22: import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
+src\components\SelectedBuildingPanel.tsx:57: [BuildingType.TownHall]: 'Staff officials — taxes, trade & immigration boost, elections, scandal buffer, host festivals.',
+src\components\SelectedBuildingPanel.tsx:480: const fest = canHostTownFestival(state, building);
+src\components\SelectedBuildingPanel.tsx:483: Math.ceil(((state.townHallFestivalCooldownUntilTick ?? 0) - state.tick) / TICKS_PER_DAY),
+src\components\SelectedBuildingPanel.tsx:489: title={fest.reason ?? `Costs ${TOWN_HALL_FESTIVAL_COST.food} food & ${TOWN_HALL_FESTIVAL_COST.gold} gold`}
+src\components\SelectedBuildingPanel.tsx:490: onClick={() => onTownHallAction({ proto: 1, op: 'hostTownFestival', buildingId: building.id })}
+src\components\SelectedBuildingPanel.tsx:493: 🎉 Host town festival ({TOWN_HALL_FESTIVAL_DAYS}d)
+src\components\VenueSchedulePanel.tsx:24: const festivalStatus = venue === 'tavern' && state.festival?.active === true ? 'Festival override: Tavern remains open all day while the festival is active.' : 'No temporary override is active.';
+src\components\VenueSchedulePanel.tsx:30: <p className="mt-1 text-xs leading-relaxed text-stone-400">Set separate windows for Tavern and Hotel staff. Guests are not employees, and festivals can still keep the Tavern open all day.</p>
+src\components\VenueSchedulePanel.tsx:49: <div className="rounded border border-stone-700/70 bg-stone-900/40 px-2.5 py-2 text-xs"><div className="flex items-center justify-between"><span>Preview</span><strong className="text-stone-200">{preview.expectedHours}h · {preview.affectedWorkplaces} venues</strong></div><p className="mt-1 text-stone-400">{preview.assignedWorkers} assigned staff are affected. {preview.warning}</p><p className="mt-1 text-sky-300">{festivalStatus}</p></div>
+src\game\simBuffers\simDelta.ts:85: festival: WorldState['festival'];
+src\game\simBuffers\simDelta.ts:86: townHallFestivalCooldownUntilTick: number;
+src\game\simBuffers\simDelta.ts:249: festival: deltaCloneOptional(world.festival, cloneMode),
+src\game\simBuffers\simDelta.ts:250: townHallFestivalCooldownUntilTick: world.townHallFestivalCooldownUntilTick ?? 0,
+src\game\simBuffers\simDelta.ts:349: world.festival = deltaCloneOptional(delta.festival, cloneMode);
+src\game\simBuffers\simDelta.ts:350: world.townHallFestivalCooldownUntilTick = delta.townHallFestivalCooldownUntilTick;
+src\game\simWorker\commands.ts:54: import { hostTownFestival } from '../townHall';
+src\game\simWorker\commands.ts:97: | { proto: 1; op: 'hostTownFestival'; buildingId: number }
+src\game\simWorker\commands.ts:138: 'hostTownFestival',
+src\game\simWorker\commands.ts:201: case 'hostTownFestival':
+src\game\simWorker\commands.ts:380: case 'hostTownFestival':
+src\game\simWorker\commands.ts:381: return hostTownFestival(world, cmd.buildingId);
+src\game\simWorker\simPrep.ts:46: | 'festival'
+src\game\simWorker\simPrep.ts:47: | 'townHallFestivalCooldownUntilTick'
+src\game\simWorker\simPrep.ts:104: festival: state.festival ? { ...state.festival } : null,
+src\game\simWorker\simPrep.ts:105: townHallFestivalCooldownUntilTick: state.townHallFestivalCooldownUntilTick ?? 0,
+src\game\simWorker\simPrep.ts:162: world.festival = prep.festival;
+src\game\simWorker\simPrep.ts:163: world.townHallFestivalCooldownUntilTick = prep.townHallFestivalCooldownUntilTick;
+src\game\blueberryForaging.ts:56: festivalGathering: boolean;
+src\game\blueberryForaging.ts:64: * school, meals, festivals, or urgent famine hunting.
+src\game\blueberryForaging.ts:76: || options.festivalGathering
+src\game\buildingActions.ts:905: const festivalMult = state.festival?.active ? 1.5 : 1;
+src\game\buildingActions.ts:908: const outputMult = (1 + workers * 0.5) * levelMult * terrainMult * adjacencyMult * festivalMult * skillMult * goldMult * globalEff;
+src\game\buildings.ts:269: emoji: '🏰', label: 'Town Hall', description: 'Civic hub — taxes, trade, immigration, elections & festivals. Staffed officials hear petitions, grant small aid, and hold leader audiences.',
+src\game\buildings.ts:394: emoji: '🍺', label: 'Tavern', description: 'Village pub — guests visit after work and on free days. Staff an Innkeeper who works evenings (5pm–11pm) and all day and night during festivals.',
+src\game\contextualTutorial.ts:35: | 'festival_started'
+src\game\contextualTutorial.ts:121: detail: 'Traveling players lift spirits and can start a short festival. Toast the troupe leader for extra reputation and revelry.',
+src\game\contextualTutorial.ts:225: detail: 'Couples share homes and may expect children. Courtship happens near workplaces and festivals — check the Log for village drama.',
+src\game\contextualTutorial.ts:228: festival_started: {
+src\game\contextualTutorial.ts:229: id: 'festival_started',
+src\game\contextualTutorial.ts:231: title: 'Festival in the village',
+src\game\contextualTutorial.ts:232: detail: 'Revelry boosts courtship and reputation for a few days. Performers or your own events can start festivals.',
+src\game\contextualTutorial.ts:304: if (state.festival?.active) seen.add('festival_started');
+src\game\contextualTutorial.ts:435: if (!prev.festival?.active && curr.festival?.active) queue('festival_started');
+src\game\dayCycle.ts:255: export const FESTIVAL_CHECK_TICKS = ticksForDays(50);
+src\game\dayCycle.ts:281: * Festival gathering window — the village leaves ordinary daytime work early
+src\game\dayCycle.ts:282: * enough to visibly assemble, then disperses before night. Festival creation
+src\game\dayCycle.ts:283: * and expiry remain owned by the daily festival transition; this helper only
+src\game\dayCycle.ts:286: export const FESTIVAL_GATHER_START = 15;
+src\game\dayCycle.ts:287: export const FESTIVAL_GATHER_END = 22;
+src\game\dayCycle.ts:374: /** Tavern open right now — festivals keep the pub open all day and night. */
+src\game\dayCycle.ts:375: export function isTavernOpen(hour: number, festivalActive?: boolean): boolean {
+src\game\dayCycle.ts:376: return festivalActive ? true : isTavernServiceHour(hour);
+src\game\dayCycle.ts:379: /** True while an active festival calls eligible villagers away from ordinary work. */
+src\game\dayCycle.ts:380: export function isFestivalGatheringHour(hour: number, festivalActive?: boolean): boolean {
+src\game\dayCycle.ts:381: return festivalActive === true && hour >= FESTIVAL_GATHER_START && hour < FESTIVAL_GATHER_END;
+src\game\dayCycle.ts:386: * Not the daytime farm/mill shift. During festivals the innkeeper works around
+src\game\dayCycle.ts:389: export function isOnInnkeeperShift(tick: number, hour?: number, festivalActive?: boolean): boolean {
+src\game\dayCycle.ts:391: return isTavernOpen(h, festivalActive);
+src\game\dialogueTrees.ts:4: import festivalDialogueJson from './data/festival.json';
+src\game\dialogueTrees.ts:17: 'festival',
+src\game\dialogueTrees.ts:50: festivalDialogueJson as unknown as DialogueSourceFile,
+src\game\dialogueTrees.ts:60: 'festival.json',
+src\game\dialogueTrees.ts:209: festival: ['festival', 'social'],
+src\game\dialogueTrees.ts:224: festivalActive?: boolean;
+src\game\dialogueTrees.ts:236: if (hints?.festivalActive) out.add('festival');
+src\game\focusHints.ts:210: detail: `Raise ⭐ for ${nextRoute.targetName} — staff Town Hall & Hospital, host festivals, avoid scandals.`,
+src\game\focusHints.ts:299: detail: 'Research Urban Planning → Town Hall: staff officials for taxes, trade, immigration, elections, and hosted festivals.',
+src\game\gameTypes.ts:825: festival: { active: boolean; name: string; daysLeft: number } | null;
+src\game\gameTypes.ts:826: /** Tick after which the player can host another Town Hall festival. */
+src\game\gameTypes.ts:827: townHallFestivalCooldownUntilTick?: number;
+src\game\groupEvents.ts:1120: hint: 'Once per visit: revelry lifts spirits (+6 rep, mini festival 3d).',
+src\game\groupEvents.ts:1189: if (!state.festival) {
+src\game\groupEvents.ts:1190: state.festival = { active: true, name: 'Visitor Revelry', daysLeft: 3 };
+src\game\groupEvents.ts:1192: state.festival.daysLeft = Math.min(14, state.festival.daysLeft + 2);
+src\game\groupEvents.ts:1194: pushFloat(state, group.campX, group.campY - 20, '🎭 Festival!', '#f472b6');
+src\game\humanChat.ts:28: | 'festival'
+src\game\humanChat.ts:36: festivalActive?: boolean;
+src\game\humanChat.ts:44: festivalActive?: boolean;
+src\game\humanChat.ts:97: festivalActive: world.festivalActive,
+src\game\humanChat.ts:420: if (options.festivalActive) pool.push('festival', 'festival');
+src\game\humanTick.ts:29: import {   HUMAN_ADULT_MIN_AGE, HUMAN_MAX_LIFESPAN_YEARS, HUMAN_MOVE_OUT_MIN_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, PREGNANCY_TICKS, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isOnWorkShift, isOnMoonHowlerNightShift, isFestivalGatheringHour, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
+src\game\humanTick.ts:237: const festivalMult = state.festival?.active ? 1.4 : 1;
+src\game\humanTick.ts:244: const socialMult = festivalMult * performerMult * cohabitMult;
+src\game\humanTick.ts:350: festivalActive: state.festival?.active,
+src\game\humanTick.ts:657: const festivalGathering = isFestivalGatheringHour(hourOfDay, state.festival?.active)
+src\game\humanTick.ts:663: const onDayJobShift = !festivalGathering && (
+src\game\humanTick.ts:672: state.festival?.active === true
+src\game\humanTick.ts:696: const stayIn = !festivalGathering && !onTavernShift && !onMoonPriestShift
+src\game\humanTick.ts:699: const allowFreeRoam = festivalGathering || (!onJobShift && !stayIn);
+src\game\humanTick.ts:765: } else if (festivalGathering) {
+src\game\humanTick.ts:766: // Festival creation and expiry belong to the daily layer. The realtime
+src\game\humanTick.ts:797: && !festivalGathering
+src\game\humanTick.ts:814: && !festivalGathering
+src\game\humanTick.ts:834: && !festivalGathering
+src\game\humanTick.ts:848: && !festivalGathering
+src\game\humanTick.ts:881: } else if (!huntingWere && !inElectionCeremony && !festivalGathering && onSchoolShift && !isInnkeeper && schoolTarget) {
+src\game\humanTick.ts:892: } else if (!huntingWere && !inElectionCeremony && !festivalGathering && goWorkTime && !isInnkeeper && workplace) {
+src\game\humanTick.ts:923: festivalGathering,
+src\game\humanTick.ts:930: && !festivalGathering
+src\game\humanTick.ts:1146: * (state.festival?.active ? 2 : 1)
+src\game\humanTick.ts:1301: * (state.festival?.active ? 1.4 : 1)
+src\game\humanTick.ts:1922: // Festival / village green
+src\game\humanTick.ts:1925: if (state.festival?.active) {
+src\game\populationGrowth.ts:183: if (!state.festival?.active && state.villageReputation < 60) {
+src\game\populationGrowth.ts:184: reasons.push('Festivals, a staffed Town Hall, and more housing speed immigration checks.');
+src\game\renderSnapshot.ts:54: readonly festival: WorldState['festival'];
+src\game\renderSnapshot.ts:135: festival: world.festival,
+src\game\roadmapContent.ts:187: DONE('Defense research tiers; visitors, rivals, festivals, Moon Howlers'),
+src\game\saveLoad.ts:233: scaleField(world as unknown as Record<string, unknown>, 'townHallFestivalCooldownUntilTick');
+src\game\saveLoad.ts:283: if (world.festival) {
+src\game\saveLoad.ts:284: const rec = world.festival as unknown as Record<string, unknown>;
+src\game\saveLoad.ts:369: festival: worldData.festival ?? null,
+src\game\saveLoad.ts:370: townHallFestivalCooldownUntilTick: worldData.townHallFestivalCooldownUntilTick ?? 0,
+src\game\saveSchema.ts:15: 'lifetimeStats', 'eventLog', 'chronicleChapters', 'festival', 'townHallFestivalCooldownUntilTick',
+src\game\storyEvents.ts:508: { id: 'festivals', label: 'Feast and celebrate', detail: 'Morale and festivals — a happy village, whatever the ledger says.' },
+src\game\storyEvents.ts:536: addBigNews(state, '🎉 The festival mandate', 'The election settled it: feast and celebrate. Morale soars — a happy village spends more.', 'positive');
+src\game\tickLayerDaily.ts:48: FESTIVAL_CHECK_TICKS,
+src\game\tickLayerDaily.ts:121: getTownHallFestivalCooldownTicks,
+src\game\tickLayerDaily.ts:307: const festivalMult = state.festival?.active ? 1.5 : 1;
+src\game\tickLayerDaily.ts:336: const totalMult = levelMult * terrainMult * adjacencyMult * festivalMult * skillMult * fatigueMult;
+src\game\tickLayerDaily.ts:596: function tickFestivals(state: WorldState, counts: PopulationCounts): void {
+src\game\tickLayerDaily.ts:597: const townHallFestivalBoost = state.buildings.some(
+src\game\tickLayerDaily.ts:603: let festivalStartedThisTick = false;
+src\game\tickLayerDaily.ts:605: // Seasonal festivals — 5 days at the start of each season: 20 guaranteed
+src\game\tickLayerDaily.ts:606: // festival days per year (Spring Revel · Midsummer Feast · Harvest Festival ·
+src\game\tickLayerDaily.ts:607: // Frostfall Feast), on top of the random festivals.
+src\game\tickLayerDaily.ts:610: if (!state.festival && dayInYear === seasonalStart + 3 && counts.humans >= 2) {
+src\game\tickLayerDaily.ts:614: 180: 'Harvest Festival',
+src\game\tickLayerDaily.ts:617: const name = seasonalNames[seasonalStart] ?? 'Village Festival';
+src\game\tickLayerDaily.ts:618: state.festival = { active: true, name, daysLeft: 5 };
+src\game\tickLayerDaily.ts:620: addBigNews(state, '🎉 Festival!', `${name} has begun! Production, courtship, and immigration are boosted for 5 days.`, 'positive');
+src\game\tickLayerDaily.ts:621: logEvent(state, 'season', `${name} festival began in the village`);
+src\game\tickLayerDaily.ts:622: festivalStartedThisTick = true;
+src\game\tickLayerDaily.ts:626: !state.festival
+src\game\tickLayerDaily.ts:627: && state.tick >= (state.townHallFestivalCooldownUntilTick ?? 0)
+src\game\tickLayerDaily.ts:628: && state.tick % FESTIVAL_CHECK_TICKS === 0
+src\game\tickLayerDaily.ts:630: && Math.random() < 0.25 * townHallFestivalBoost
+src\game\tickLayerDaily.ts:632: const festivalNames = ['Harvest Festival', 'Moonlight Feast', 'Founders Day', 'Spring Revel', 'Trade Fair'];
+src\game\tickLayerDaily.ts:633: const name = festivalNames[Math.floor(Math.random() * festivalNames.length)];
+src\game\tickLayerDaily.ts:634: state.festival = { active: true, name, daysLeft: 20 + Math.floor(Math.random() * 20) };
+src\game\tickLayerDaily.ts:635: state.townHallFestivalCooldownUntilTick = state.tick + getTownHallFestivalCooldownTicks();
+src\game\tickLayerDaily.ts:637: addBigNews(state, '🎉 Festival!', `${name} has begun! Production, courtship, and immigration are boosted for ${state.festival.daysLeft} days.`, 'positive');
+src\game\tickLayerDaily.ts:638: logEvent(state, 'season', `${name} festival began in the village`);
+src\game\tickLayerDaily.ts:639: festivalStartedThisTick = true;
+src\game\tickLayerDaily.ts:642: // Don't burn a day on the same tick the festival starts
+src\game\tickLayerDaily.ts:643: if (state.festival && !festivalStartedThisTick && state.tick > 0 && state.tick % TICKS_PER_DAY === 0) {
+src\game\tickLayerDaily.ts:644: state.festival.daysLeft--;
+src\game\tickLayerDaily.ts:645: if (state.festival.daysLeft <= 0) {
+src\game\tickLayerDaily.ts:646: addBigNews(state, '🎉 Festival Ended', `${state.festival.name} is over. The village returns to normal.`, 'neutral');
+src\game\tickLayerDaily.ts:647: state.festival = null;
+src\game\tickLayerDaily.ts:648: state.townHallFestivalCooldownUntilTick = state.tick + getTownHallFestivalCooldownTicks();
+src\game\tickLayerDaily.ts:672: * (state.festival?.active ? 1.5 : 1)
+src\game\tickLayerDaily.ts:864: tickFestivals(state, counts);
+src\game\townHall.ts:13: export function getTownHallFestivalCooldownTicks(): number {
+src\game\townHall.ts:16: export const TOWN_HALL_FESTIVAL_COST = { food: 25, gold: 20 };
+src\game\townHall.ts:17: export const TOWN_HALL_FESTIVAL_DAYS = 14;
+src\game\townHall.ts:104: export function canHostTownFestival(
+src\game\townHall.ts:114: if (state.festival?.active) {
+src\game\townHall.ts:115: return { ok: false, reason: 'A festival is already running' };
+src\game\townHall.ts:117: if (state.tick < (state.townHallFestivalCooldownUntilTick ?? 0)) {
+src\game\townHall.ts:118: return { ok: false, reason: 'Town festival on cooldown' };
+src\game\townHall.ts:120: if (state.resources.food < TOWN_HALL_FESTIVAL_COST.food) {
+src\game\townHall.ts:121: return { ok: false, reason: `Need ${TOWN_HALL_FESTIVAL_COST.food} food` };
+src\game\townHall.ts:123: if (state.resources.gold < TOWN_HALL_FESTIVAL_COST.gold) {
+src\game\townHall.ts:124: return { ok: false, reason: `Need ${TOWN_HALL_FESTIVAL_COST.gold} gold` };
+src\game\townHall.ts:129: export function hostTownFestival(originalState: WorldState, buildingId: number): WorldState {
+src\game\townHall.ts:134: const check = canHostTownFestival(state, building);
+src\game\townHall.ts:136: addNotification(state, 'Cannot host festival', check.reason ?? 'Unavailable', 'warning');
+src\game\townHall.ts:140: state.resources.food -= TOWN_HALL_FESTIVAL_COST.food;
+src\game\townHall.ts:141: state.resources.gold -= TOWN_HALL_FESTIVAL_COST.gold;
+src\game\townHall.ts:142: state.festival = { active: true, name: 'Town Hall Festival', daysLeft: TOWN_HALL_FESTIVAL_DAYS };
+src\game\townHall.ts:144: state.townHallFestivalCooldownUntilTick = state.tick + getTownHallFestivalCooldownTicks();
+src\game\townHall.ts:147: 'Town Festival',
+src\game\townHall.ts:148: `Officials hosted ${TOWN_HALL_FESTIVAL_DAYS} days of revelry — production & immigration boosted`,
+src\game\townHall.ts:151: logEvent(state, 'season', 'Town Hall hosted a village festival');
+src\game\townHall.ts:157: return 'Assign officials (Official job) to collect taxes, grow trade & immigration, and host festivals. Settlers petition the hall for aid & audiences.';
+src\game\townHall.ts:159: return 'Every 3 days: +rep & tax gold · trade · immigration · efficiency · softer scandals · petitions & leader audiences · host festivals below';
+src\game\venueSchedule.ts:83: export function isVenueServiceHour(state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind, hour: number, festivalActive = false): boolean {
+src\game\venueSchedule.ts:84: if (kind === 'tavern' && festivalActive) return true;
+src\game\venueSchedule.ts:89: export function isVenueServiceTick(state: Pick<WorldState, 'tick' | 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind, hour?: number, festivalActive = false): boolean {
+src\game\venueSchedule.ts:90: return isVenueServiceHour(state, kind, hour ?? getHourOfDay(state.tick), festivalActive);
+src\game\villageLeadership.ts:681: state.festival = {
+src\game\worldGen.ts:463: festival: null,
+src\game\worldGen.ts:464: townHallFestivalCooldownUntilTick: 0,
+src\hooks\useContextualTutorial.ts:87: world.festival,
+tests\blueberryForaging.test.ts:81: festivalGathering: false,
+tests\blueberryForaging.test.ts:93: it('does not forage when a routine, meal, festival, or famine rule has priority', () => {
+tests\blueberryForaging.test.ts:95: { freeTime: false, ateMeal: false, festivalGathering: false, famine: false },
+tests\blueberryForaging.test.ts:96: { freeTime: true, ateMeal: true, festivalGathering: false, famine: false },
+tests\blueberryForaging.test.ts:97: { freeTime: true, ateMeal: false, festivalGathering: true, famine: false },
+tests\blueberryForaging.test.ts:98: { freeTime: true, ateMeal: false, festivalGathering: false, famine: true },
+tests\dayCycle.tavern.test.ts:3: * all day and night during festivals (the innkeeper works the party).
+tests\dayCycle.tavern.test.ts:6: import { isFestivalGatheringHour, isOnInnkeeperShift, isTavernOpen } from '../src/game/dayCycle';
+tests\dayCycle.tavern.test.ts:8: describe('tavern festival hours', () => {
+tests\dayCycle.tavern.test.ts:16: it('stays open all day and night during a festival', () => {
+tests\dayCycle.tavern.test.ts:22: it('innkeeper works the festival around the clock', () => {
+tests\dayCycle.tavern.test.ts:23: expect(isOnInnkeeperShift(72 * 10, 9, true)).toBe(true); // mid-day, festival
+tests\dayCycle.tavern.test.ts:24: expect(isOnInnkeeperShift(72 * 10, 9)).toBe(false); // same hour, no festival
+tests\dayCycle.tavern.test.ts:28: it('defines a bounded afternoon-to-evening gathering window only for active festivals', () => {
+tests\dayCycle.tavern.test.ts:29: expect(isFestivalGatheringHour(14, true)).toBe(false);
+tests\dayCycle.tavern.test.ts:30: expect(isFestivalGatheringHour(15, true)).toBe(true);
+tests\dayCycle.tavern.test.ts:31: expect(isFestivalGatheringHour(21, true)).toBe(true);
+tests\dayCycle.tavern.test.ts:32: expect(isFestivalGatheringHour(22, true)).toBe(false);
+tests\dayCycle.tavern.test.ts:33: expect(isFestivalGatheringHour(17, false)).toBe(false);
+tests\dialogueTrees.splitBank.test.ts:35: expect(getDialogueTreeById('wf_funny_festival_turnip')?.category).toBe('festival');
+tests\dialogueTrees.splitBank.test.ts:38: it('keeps festival content as a first-class dialogue category', () => {
+tests\dialogueTrees.splitBank.test.ts:39: expect(resolveDialogueCategories('festival', { festivalActive: true })).toContain('festival');
+tests\dialogueTrees.splitBank.test.ts:40: expect(getDialogueTrees().filter((tree) => tree.category === 'festival')).toHaveLength(6);
+tests\dialogueTrees.splitBank.test.ts:41: expect(getDialogueTreeById('wf_festival_feast_scene')?.category).toBe('festival');
+tests\dialogueTrees.splitBank.test.ts:42: expect(pickDialogueTree('festival', 0, 0, { festivalActive: true })?.category).toBe('festival');
+tests\festival.behavior.test.ts:2: * Festival behavior regression — BUG 2026-08-21-festival-participants-keep-working.
+tests\festival.behavior.test.ts:4: * A festival is not only an economic multiplier. During its daily gathering
+tests\festival.behavior.test.ts:69: function makeState(festivalActive: boolean): { state: WorldState; worker: Entity } {
+tests\festival.behavior.test.ts:103: villageName: 'Festival Vale',
+tests\festival.behavior.test.ts:136: festival: festivalActive ? { active: true, name: 'Test Festival', daysLeft: 3 } : null,
+tests\festival.behavior.test.ts:141: describe('festival participant behavior', () => {
+tests\festival.behavior.test.ts:144: const festival = makeState(true);
+tests\festival.behavior.test.ts:147: const festivalAfter = gameTick(festival.state).entities.find((entity) => entity.id === festival.worker.id)!;
+tests\festival.behavior.test.ts:149: // Without a festival, the farm is left/down from the worker. During a
+tests\festival.behavior.test.ts:150: // festival, the staffed Town Hall is right/down and wins the movement choice.
+tests\festival.behavior.test.ts:152: expect(festivalAfter.vx).toBeGreaterThan(0);
+tests\festival.behavior.test.ts:153: expect(festivalAfter.vy).toBeGreaterThan(0);
+tests\festival.behavior.test.ts:154: expect(festivalAfter.homeBuildingId).toBe(10);
+tests\festival.behavior.test.ts:155: expect(festival.state.buildings.find((entry) => entry.id === 10)?.occupants).toEqual([1]);
+tests\huntingSpot.cleanup.test.ts:178: festival: null,
+tests\storyEvents.test.ts:180: it('resolves festivals: reputation up, eco unchanged', () => {
+tests\storyEvents.test.ts:186: const next = respondToStoryEvent(state, id, 'festivals');
+tests\tamingFollow.behavior.test.ts:128: festival: null,
+tests\venueSchedule.test.ts:29: it('keeps Tavern festival override local to Tavern', () => {
+docs\archive\marketing\sneak-preview-lyrics.md:67: Festival fires — we're doing well
+docs\archive\marketing\sneak-preview-storyboard.md:60: | *(HEY!)* | Punch cut: festival fire crack. | Shake. |
+docs\archive\marketing\sneak-preview-storyboard.md:96: | *"Festival fires — we're doing well"* | **Festival**: dancing settlers, confetti, bonfire glow. | Hand-held energy, 1×. |
+docs\archive\marketing\sneak-preview-storyboard.md:132: - **Grade:** cool blue for night/moon, warm gold for festival/tavern/chorus. The game's season lerp + light pools do half the work.
+docs\archive\JS_DIALOGUE_PACKAGE_RESEARCH_2026-08-21.md:8: > **Do not replace the current runtime with a package now.** Retain the existing compact JSON dialogue-tree runtime for ambient settler conversations. If a writer-facing branching authoring workflow becomes necessary, trial **Ink + `inkjs`** only for bounded authored events such as petitions, elections, festival scenes, and quest-like village requests.
+docs\archive\SIMULATION_DEPTH_ROADMAP.md:10: Wilderfolk already has more simulation material than a new system should duplicate: households, work and manual staffing, housing, school, weather consequences, beauty, trade, visitors, reputation, raids, quests, festivals, social chat, courtship, affairs, pregnancy, birth, leadership, wildlife, hunting, and a day/year calendar.
+docs\archive\SIMULATION_DEPTH_ROADMAP.md:18: | Beauty, houses, tavern, festival | Neighborhood life and morale | A permanent hidden happiness tax |
+docs\archive\SIMULATION_DEPTH_ROADMAP.md:44: | S8 | **Festival Roles and Results** | Festivals become distinct: harvest fair, memorial, election feast, hunter’s rite | Festival lifecycle owner; active festival window | Existing gathering behavior; small event summary | Low |
+docs\archive\SIMULATION_DEPTH_ROADMAP.md:56: | 2 | **S8 — Festival Roles and Results** | High | Low | The festival gathering behavior already exists; this makes it feel intentional and memorable. |
+docs\archive\SIMULATION_DEPTH_ROADMAP.md:77: | Festival proposal | Festival date is approaching and food/beauty are sufficient | Sponsor a feast, keep it modest, or cancel | Mood/reputation/social feedback with visible resource cost |
+docs\archive\SIMULATION_DEPTH_ROADMAP.md:107: - **Separate visual and simulation work.** A festival banner, smoke plume, road decal, or dialogue line must be derived from the render snapshot, not become a second state mutation path.
+docs\archive\SIMULATION_DEPTH_ROADMAP.md:111: Do not add a broad “life simulation manager” that owns social, work, needs, ecology, festivals, and events. That would recreate the earlier ownership problem in one large file.
+docs\archive\V0_6_2_1_ROADMAP.md:90: | **Festival proposal** | A festival is approaching and food/beauty prerequisites are met. | Sponsor; keep it modest; cancel. | Existing festival starts with a declared variant and resource cost; a closing summary reports the outcome. |
+docs\archive\V0_6_2_1_ROADMAP.md:102: | State | One explicit `activeVillageRequest` record, cooldown, and resolved-history summary. Reuse existing resources, reputation, festival, visitor, housing, and construction state. |
+docs\archive\V0_6_2_1_ROADMAP.md:114: | Cancellation | A vanished visitor, completed house, or ended festival resolves visibly and safely. |
+docs\archive\V0_6_2_1_ROADMAP.md:160: | **v0.6.2.2** | Distinct gatherings and visual materials | S8 Festival Roles and Results; terrain-material bake or water-glint pass, not both if profiling is weak. |
+docs\archive\VILLAGE_REQUESTS_S1A.md:9: > This feature turns a current visitor into one small, readable decision. It does not create another event manager, economy manager, trade system, festival owner, or relationship owner.
+docs\archive\VILLAGE_REQUESTS_S1A.md:101: S1a does not add household construction priority, automatic temporary housing, request chains, promises, deferred festivals, seasonal preparation, personal relationship requests, or a general rule engine. Those require separate owner contracts after this vertical slice proves that player choice, worker authority, expiry, and player feedback all agree.
+docs\archive\YOUTH_LOVE_FEATURE.md:226: | Festival social boost | Apply a clearly declared multiplier through the daily owner, with tests and cooldown review. | Run repeated festival romance rolls in realtime. |
+docs\private\archive\2026-08-21-historical-audits\BLUEBERRY_FORAGING_F1.md:12: | Free-time gate | Only living player settlers who are off schedule, not festival-gathering, have not just eaten, and are below 72% energy may seek berries. | Work, school, sleep, festivals, normal meals, and urgent hunting retain priority. |
+docs\private\archive\2026-08-21-historical-audits\BLUEBERRY_FORAGING_F1.md:48: | No new food source during work, school, sleep, or a festival. | Focused tests cover the free-time gate. |
+docs\private\archive\2026-08-21-historical-audits\BLUEBERRY_FORAGING_F1.md:60: The feature requires focused tests for spawn cap, harvest energy/food/yield result, non-harvest on work/festival/meal gates, winter regrowth pause, non-winter timed regrowth, target invalidation, and sprite selection. It also requires the existing type check, scoped lint, full suite, and production build.
+docs\private\archive\election-ceremony-v0.5.md:44: | **4. Reveal** | 1 moment | ✅ `runVillageElection` + announcement + 3-day festival start |
+docs\private\archive\election-ceremony-v0.5.md:45: | **5. Party** | **3 game days** | ✅ `Election Revelry` via `state.festival` |
+docs\private\archive\election-ceremony-v0.5.md:53: - `electionCeremony: ElectionCeremonyState | null` — phases: gathering → gossip → tension → reveal (party uses `state.festival`)
+docs\private\archive\election-ceremony-v0.5.md:65: - [x] 3-day festival after reveal
+docs\private\archive\TECHNICAL.md:408: | `dialogueTrees.ts` | Load JSON; map `HumanChatContext` → `DialogueCategory`; `pickDialogueTree()` with season/weather/festival/`foodLow` hints |
+docs\private\archive\TECHNICAL.md:414: **Context → category (examples):** `work`/`guard`/`hunt` → work; `home`/`sleep`/`food`/`pregnant` → needs; `social`/`courtship`/`festival`/`school`/`child` → social; `fear`/`affair` → chaos; `renffr`/`election` → existential; winter/rain/drought hints widen the pool.
+docs\private\archive\TECHNICAL.md:957: | Reputation too hard to earn | +2 per building, +10 festival, +3 research | `gameEngine.ts` |
+docs\private\readme\README.md:52: | **Social** | Settlers chat in **3-line dialogue trees** (work, home, courtship, fear, festivals); election gossip + marriage `Yes!` scripted moments |
+docs\private\BUGS_TRACKER.md:25: | B | 22 | sprites, festival, forge, exports, worker sync, low-severity hygiene |
+docs\private\BUGS_TRACKER.md:227: | EK-D4 | 🟠 | Festival burns a day on start tick | **fixed** | skip daysLeft-- on start tick |
+docs\private\BUGS_TRACKER.md:607: | 2 | gameEngine.ts | 🔴 | Festival `daysLeft` not decremented on start day boundary | fixed (always decrement on day tick) |
+docs\private\BUGS_TRACKER.md:621: | 16 | gameEngine.ts | 🟢 | `townHallFestivalCooldownUntilTick` never read/written in sim | fixed (cooldown on random fest start/end) |
+docs\private\BUGS_TRACKER.md:1199: | 2026-07-07 | **Batch B (22):** humanSprites ready, festival daysLeft/cooldown, forge jam, CSV escape, raid queue, worker import, EventLogPanel feedback, challenge pop count, SPECIES_CONFIG imports, raid camp center, wander prune, repair wood, tribute cap, addBigNews Node-safe, light raid casualties; deleted kopie files |
+docs\private\consumer-engine-research-2026-08-21.md:78: | **Festival roles and results** | `SIMULATION_DEPTH_ROADMAP.md` S8 | Existing festival gathering already interrupts routines. Giving festivals a distinct purpose, cost, role, and closing result is a small, readable vertical slice. | Add after schedule work or as an alternative early v0.6.2.2 feature. |
+docs\private\consumer-engine-research-2026-08-21.md:102: 4. Product path: schedules/fatigue and rival daily actions first; festival outcomes and ecology signals are the highest-value additions from the old backlog.
+docs\private\ECONOMY_AUDIT_2026-08-17.md:45: **Recruit settler:** 30 food + 20 gold. **Festival:** 25 food + 20 gold.
+docs\BUG_STATUS_OVERVIEW.md:58: | 18 | [Festival participants kept working](../BUG%20REPORTS/2026-08-21-festival-participants-keep-working.md) | Festivals | Resolved | No |
+docs\FIRST_YEAR_IN_WILDERFOLK.md:109: Free-time settlers who were hungry could forage nearby. Foraging did not replace meals, work, school, festivals, or urgent famine behavior. It was a cushion. It was never the whole economy, no matter how lovingly Tovin spoke to the tree.
+docs\GRAPHICS_UPGRADE_ROADMAP.md:92: - **Night identity:** place warm, low-radius lantern/glow points at occupied civic buildings and festival locations. Do not add new settlement-state mutation for this; derive it from current snapshot fields.
+docs\ROADMAP.md:161: | 🟢 | Defense research tiers; visitors, rivals, festivals, Moon Howlers |
+docs\SIMULATION_AUTHORITY.md:158: * A player settler may forage only while free, hungry, not freshly fed, and not festival-gathering. Work, school, sleep, meals, hunting urgency, and the normal movement owner retain priority.
+docs\STORY_APPRENTICE_INVENTION_FAIR.md:66: The device fails at its intended purpose but creates a different benefit. The “Emergency Bell” may not improve alerts but could improve festival attendance because everyone hears it.
+docs\V0_6_2_2_ROADMAP.md:30: | 4 | **W2** | Independent tavern and hotel service hours | Lets hospitality service follow a different schedule from ordinary work. | `workSchedule` / `venueSchedule` domain; realtime service-shift query. | Separate tavern and hotel windows, with staff following their venue’s schedule. | **Complete** — typed worker command, backward-compatible save/prep fields, Settings controls, Tavern festival preservation, Hotel service window, focused coverage, 72-file/416-test regression, build, lint, and diff checks passed. See `docs/W2_VENUE_SCHEDULE_REPORT_2026-08-21.md`. |
+docs\V0_6_2_2_ROADMAP.md:32: | 6 | **W4** | Schedule feedback and workforce safeguards | Makes effects understandable before and after a player changes a schedule. | `scheduleFeedback.ts`; existing schedule panels, typed command path, and daily event-log owner. | Preview of hours/workplaces/staff, blocked/unchanged/accepted status, festival override visibility, and concise daily fatigue feedback. | **Complete** — 74 files / 423 tests, TypeScript, production build, ESLint, and diff checks passed. See `docs/W4_SCHEDULE_FEEDBACK_REPORT_2026-08-21.md`. |
+docs\V0_6_2_2_ROADMAP.md:87: **Status: verified (2026-08-21).** Tavern and Hotel now have separate bounded non-wrapping service windows in the existing schedule UI. Legacy saves use canonical defaults of 17:00–23:00 for Tavern and 06:00–22:00 for Hotel. `setVenueSchedule` is validated and applied only through the existing typed worker-command boundary, transported through `simPrep`, and included in the save allow-list. `humanTick.ts` uses the venue schedule for Innkeeper and Hotelier service movement; school, Church, Town Hall, ordinary workplaces, and hotel guests are unchanged. Tavern festivals retain their existing all-day override. The objective report is `docs/W2_VENUE_SCHEDULE_REPORT_2026-08-21.md`.
+docs\V0_6_2_2_ROADMAP.md:90: Taverns and hotels require their own service windows because hospitality is not ordinary farm or workshop labour. The player sets a bounded service start/end for taverns and a separate start/end for hotels. The existing normal-service window remains the initial default; a festival may temporarily override the venue schedule only through an explicit and visible rule.
+docs\V0_6_2_2_ROADMAP.md:112: **Status: verified (2026-08-21).** Ordinary, Tavern, and Hotel schedule panels now show expected hours, affected workplaces/venues, assigned staff, plain-language fatigue warnings, and explicit blocked/unchanged/accepted local command status. Tavern festival overrides are visible. Meaningful daily fatigue changes are recorded through the existing event-log/Chronicle stream. The UI remains read-only and no School, Church, Town Hall, staffing, pregnancy, mortality, relationship, or cadence behavior was changed. See `docs/W4_SCHEDULE_FEEDBACK_REPORT_2026-08-21.md`.
+docs\V0_6_2_2_ROADMAP.md:115: The schedule panel must show the current ordinary, tavern, and hotel hours; affected workplaces; expected hour count; and a plain-language warning before a longer shift is sent. The authoritative command result should distinguish **accepted**, **blocked by bounds**, **unchanged**, and **temporarily overridden by a festival**.
+docs\V0_6_2_2_ROADMAP.md:206: Automated worker transport proof exists, but each new schedule/rival field needs a player-path check in an actual browser worker session. The checks should cover worker start, schedule command acceptance/rejection, delta reconciliation, temporary festival handling, overnight daily fatigue result, rival contact acceptance/expiry, export/import, and fallback without duplicated payment or schedule state.
+docs\W2_VENUE_SCHEDULE_REPORT_2026-08-21.md:6: **Cadence:** player-command for schedule changes; realtime service-shift queries; existing festival override and daily systems remain unchanged
+docs\W2_VENUE_SCHEDULE_REPORT_2026-08-21.md:10: The first W2 slice adds independent, bounded service windows for the Tavern and Hotel. The existing Settings schedule panel now lets the player switch between Tavern and Hotel, choose whole-hour opening and closing times, and submit one typed worker command. Tavern defaults to 17:00–23:00 and retains its festival all-day override. Hotel defaults to 06:00–22:00 and has no festival override. School, Church, Town Hall, ordinary work, and hotel guests remain outside this schedule decision.
+docs\W2_VENUE_SCHEDULE_REPORT_2026-08-21.md:18: - Cadence: Player command for changes; realtime hour query for staff; festival override remains existing festival state.
+docs\W2_VENUE_SCHEDULE_REPORT_2026-08-21.md:42: Longer service days requiring staff rotation, per-worker shift coverage, split or overnight windows, festival Hotel overrides, automatic staffing, and Q2 live browser-worker scenarios remain open roadmap work.
+docs\W4_SCHEDULE_FEEDBACK_REPORT_2026-08-21.md:10: The schedule UI now previews expected hours, affected workplaces or venues, assigned staff, and the consequence of a longer or shorter window before the player applies a command. Invalid windows are explicitly shown as **Blocked**, unchanged windows as **Unchanged — no command will be sent**, and valid windows as **Accepted by bounds**. Tavern and Hotel panels also show whether the Tavern festival override is active.

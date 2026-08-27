@@ -1,0 +1,206 @@
+src\audio\workDetect.ts:8: import { isWorkHour } from '../game/dayCycle';
+src\audio\workDetect.ts:24: * first staffed, completed production building during work hours, else null.
+src\audio\workDetect.ts:27: if (!isWorkHour(hourOfDay)) return null;
+src\components\SelectedBuildingPanel.tsx:305: const prisoners = building.type === BuildingType.Prison
+src\components\SelectedBuildingPanel.tsx:587: {building.type === BuildingType.Prison && prisoners.length > 0 && (
+src\components\SelectedBuildingPanel.tsx:589: <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Prisoners</p>
+src\components\SelectedBuildingPanel.tsx:590: {prisoners.map((p) => {
+src\components\SelectedBuildingPanel.tsx:591: const daysLeft = p.prisonerUntilTick ? Math.max(0, Math.ceil((p.prisonerUntilTick - state.tick) / TICKS_PER_DAY)) : 0;
+src\components\SelectedEntityPanel.tsx:275: const daysLeft = entity.prisonerUntilTick ? Math.max(0, Math.ceil((entity.prisonerUntilTick - state.tick) / TICKS_PER_DAY)) : 0;
+src\components\WorkSchedulePanel.tsx:84: Apply ordinary work hours
+src\game\renderer\humans.ts:2: import { isWorkHour, shouldBeAtHome } from '../dayCycle';
+src\game\renderer\humans.ts:191: if (school && isWorkHour(ctx.hourOfDay)) {
+src\game\renderer\humans.ts:199: if (isWorkHour(ctx.hourOfDay) && (human.homeBuildingId || ctx.constructionWorkerIds.has(human.id))) return '🔨';
+src\game\simBuffers\simDelta.ts:170: 'prisonBuildingId', 'prisonerUntilTick', 'prisonSentenceCrime', 'affairPartnerId',
+src\game\simulation\decisionRegistry.ts:70: owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; player-command entry: buildingActions.assignIdleWorkerToBuilding',
+src\game\simulation\humanRelationships.ts:1105: function countPrisonersAt(state: WorldState, prisonId: number): number {
+src\game\simulation\humanRelationships.ts:1126: const prisonerCap = Math.max(1, BUILDING_CONFIGS[BuildingType.Prison].maxOccupants - 1);
+src\game\simulation\humanRelationships.ts:1127: const prison = prisons.find((b) => countPrisonersAt(state, b.id) < prisonerCap) ?? prisons[0];
+src\game\simulation\humanRelationships.ts:1128: if (countPrisonersAt(state, prison.id) >= prisonerCap && offender.prisonBuildingId == null) return;
+src\game\simulation\humanRelationships.ts:1136: offender.prisonerUntilTick = Math.max(offender.prisonerUntilTick ?? 0, newReleaseTick);
+src\game\simulation\humanRelationships.ts:1159: offender.prisonerUntilTick = newReleaseTick;
+src\game\simulation\simulationInvariants.ts:24: *   - prison (completed): guards via `homeBuildingId` + prisoners via
+src\game\simulation\simulationInvariants.ts:140: const isPrisoner = occupant.prisonBuildingId === building.id;
+src\game\simulation\simulationInvariants.ts:142: if (!isPrisoner && !isGuard) {
+src\game\simulation\simulationInvariants.ts:144: `human ${occupantId} in prison #${building.id} is neither prisoner (prisonBuildingId) nor guard (homeBuildingId)`,
+src\game\buildingActions.ts:971: e.prisonerUntilTick = undefined;
+src\game\buildings.ts:116: * - **Prison**: guard + prisoner slots share this cap (prisoners typically leave one
+src\game\contextualTutorial.ts:65: detail: 'Assigned settlers commute during work hours. Idle settlers eat food but produce nothing — check the Village tab for who is working.',
+src\game\dayCycle.ts:289: /** Work hours per weekday (7am–6pm) — construction daily batch uses this. */
+src\game\dayCycle.ts:296: * Total on-site **work hours** to finish a building (not sim ticks).
+src\game\dayCycle.ts:301: export function buildWorkHours(buildDays: number): number {
+src\game\dayCycle.ts:354: export function isWorkHour(hour: number): boolean {
+src\game\dayCycle.ts:359: * True when a settler should be on the job: weekday + work hours.
+src\game\dayCycle.ts:366: return isWorkHour(h);
+src\game\dayCycle.ts:426: * - Weekday work hours: not used (work AI owns that)
+src\game\dayCycle.ts:541: * Weekends are always free; weekdays free outside work hours or without a workplace.
+src\game\dayCycle.ts:545: return !(isWorkHour(hour) && hasWorkplace);
+src\game\dayCycle.ts:1643: entity.prisonerUntilTick = undefined;
+src\game\education.ts:3: import { WORK_HOURS_PER_DAY, isOnWorkShift, isWorkHour } from './dayCycle';
+src\game\education.ts:97: // No school on weekends; weekday work hours only.
+src\game\education.ts:100: : isWorkHour(hourOfDay);
+src\game\entityFactory.ts:99: prisonerUntilTick: undefined,
+src\game\gameEngine.ts:92: releasePrisoners,
+src\game\gameTypes.ts:231: scheduleWorkedTicksToday?: number;
+src\game\gameTypes.ts:249: prisonerUntilTick?: number;
+src\game\gameTypes.ts:354: prisonerUntilTick?: number;
+src\game\humanChat.ts:408: workHour?: boolean;
+src\game\humanChat.ts:424: if (extra?.workHour) pool.push('work', 'work');
+src\game\humanChat.ts:432: * Not gated to work hours / evening / “arrived at building”.
+src\game\humanChat.ts:445: workHour?: boolean;
+src\game\humanTick.ts:410: const isPrisoner = entity.prisonBuildingId != null;
+src\game\humanTick.ts:420: if (isNewCalendarDay && !isPrisoner && isPlayerHuman(entity)) {
+src\game\humanTick.ts:464: const active = !isPrisoner && (
+src\game\humanTick.ts:474: if (isPrisoner) {
+src\game\humanTick.ts:515: workHour: goWorkTime,
+src\game\humanTick.ts:700: // Day-job holders aren't "free" during work hours; innkeepers only lock evenings.
+src\game\humanTick.ts:1432: // time, and near labor (>85%) they head to the ward even during work hours.
+src\game\moonHowler.ts:178: prisonerUntilTick?: number;
+src\game\moonHowler.ts:201: function countPrisonersAtBuilding(humans: Entity[], prisonId: number, excludeId?: number): number {
+src\game\moonHowler.ts:211: /** Scandal / sentence prisoner cap — match arrestForScandal (guards use maxOccupants slots). */
+src\game\moonHowler.ts:212: function prisonPrisonerCap(): number {
+src\game\moonHowler.ts:307: && (saved.prisonBuildingId != null || saved.prisonerUntilTick != null)
+src\game\moonHowler.ts:310: entity.prisonerUntilTick = undefined;
+src\game\moonHowler.ts:344: prisonerUntilTick: human.prisonerUntilTick,
+src\game\moonHowler.ts:382: human.prisonerUntilTick = undefined;
+src\game\moonHowler.ts:434: were.prisonerUntilTick = undefined;
+src\game\moonHowler.ts:444: && saved.prisonerUntilTick != null
+src\game\moonHowler.ts:445: && (tick == null || tick < saved.prisonerUntilTick);
+src\game\moonHowler.ts:448: were.prisonerUntilTick = saved.prisonerUntilTick;
+src\game\moonHowler.ts:461: && saved.prisonerUntilTick != null
+src\game\moonHowler.ts:462: && (tick == null || tick < saved.prisonerUntilTick);
+src\game\moonHowler.ts:469: const cap = prisonPrisonerCap();
+src\game\moonHowler.ts:470: const held = countPrisonersAtBuilding(humans, prison.id, were.id);
+src\game\moonHowler.ts:473: were.prisonerUntilTick = saved.prisonerUntilTick;
+src\game\roadmapContent.ts:172: DONE('Prison + Guard job + prisoner UI'),
+src\game\saveLoad.ts:238: scaleField(rec, 'prisonerUntilTick');
+src\game\scheduleFatigue.ts:21: entity.scheduleWorkedTicksToday = (entity.scheduleWorkedTicksToday ?? 0) + 1;
+src\game\scheduleFatigue.ts:28: const workedHours = (entity.scheduleWorkedTicksToday ?? 0) / TICKS_PER_HOUR;
+src\game\scheduleFatigue.ts:37: entity.scheduleWorkedTicksToday = 0;
+src\game\tickLayerDaily.ts:187: const ordinaryWorkHours = getWorkScheduleHours(getWorkSchedule(state));
+src\game\tickLayerDaily.ts:194: const totalWorkHours = Math.max(ordinaryWorkHours, Math.round(buildDays * ordinaryWorkHours));
+src\game\tickLayerDaily.ts:195: const baseRate = 100 / totalWorkHours;
+src\game\tickLayerDaily.ts:206: * ordinaryWorkHours;
+src\game\tickLayerDaily.ts:207: building.buildAnimTimer += ordinaryWorkHours * 0.1;
+src\game\tickLayerRealtime.ts:4: * Prisoner release, moon howler, renffr, spatial/scent, human AI,
+src\game\tickLayerRealtime.ts:24: import { releasePrisoners } from './workforce';
+src\game\tickLayerRealtime.ts:68: releasePrisoners(state);
+src\game\townHall.ts:3: import { ticksForDays, personDayRoll, TICKS_PER_DAY, getHourOfDay, isWorkHour } from './dayCycle';
+src\game\townHall.ts:218: const openHours = isWorkHour(hour) || (hour >= 16 && hour < 19);
+src\game\workforce.ts:2: * Workforce staffing: auto-assign, rebalance, workplace lookup, prisoner release.
+src\game\workforce.ts:260: // Prison occupants = guards (homeBuildingId) + prisoners (prisonBuildingId).
+src\game\workforce.ts:261: // The arrest/scandal owner and the Moon Howler restore both push prisoners
+src\game\workforce.ts:263: // them on every assign pass (BUG 2026-08-20-prisoner-occupants-wiped).
+src\game\workforce.ts:588: export function releasePrisoners(state: WorldState): void {
+src\game\workforce.ts:592: if (entity.prisonBuildingId == null || entity.prisonerUntilTick == null) continue;
+src\game\workforce.ts:593: if (state.tick < entity.prisonerUntilTick) continue;
+src\game\workforce.ts:599: entity.prisonerUntilTick = undefined;
+src\game\workSchedule.ts:44: return { ok: false, status: 'blocked', reason: 'Work hours must use whole clock hours from 0 through 23.' };
+src\App.tsx:132: { id: 'schedule', icon: '🕰️', label: 'Hours', hint: 'Set ordinary weekday work hours' },
+src\App.tsx:2245: <h3 className="text-sm font-bold text-stone-300">🕰️ Work hours</h3>
+tests\audio.workDetect.test.ts:3: * staffed production buildings pick the work sound during work hours, and a
+tests\audio.workDetect.test.ts:14: import { isWorkHour } from '../src/game/dayCycle';
+tests\audio.workDetect.test.ts:44: it('a staffed lumber mill means chopping during work hours', () => {
+tests\audio.workDetect.test.ts:45: const workHour = [...Array(24).keys()].find((h) => isWorkHour(h)) ?? 9;
+tests\audio.workDetect.test.ts:46: expect(detectWorkActivity([stubBuilding(BuildingType.LumberMill, 2)], workHour)).toBe('chop');
+tests\audio.workDetect.test.ts:50: const workHour = 9;
+tests\audio.workDetect.test.ts:51: expect(detectWorkActivity([stubBuilding(BuildingType.Quarry, 1)], workHour)).toBe('mine');
+tests\audio.workDetect.test.ts:52: expect(detectWorkActivity([stubBuilding(BuildingType.Blacksmith, 1)], workHour)).toBe('hammer');
+tests\audio.workDetect.test.ts:53: expect(detectWorkActivity([stubBuilding(BuildingType.Farm, 1)], workHour)).toBe('farm');
+tests\audio.workDetect.test.ts:54: expect(detectWorkActivity([stubBuilding(BuildingType.HuntingSpot, 1)], workHour)).toBe('gather');
+tests\audio.workDetect.test.ts:58: const workHour = 9;
+tests\audio.workDetect.test.ts:59: expect(detectWorkActivity([stubBuilding(BuildingType.LumberMill, 0)], workHour)).toBeNull();
+tests\audio.workDetect.test.ts:62: expect(detectWorkActivity([unbuilt], workHour)).toBeNull();
+tests\audio.workDetect.test.ts:63: expect(detectWorkActivity([stubBuilding(BuildingType.House, 3)], workHour)).toBeNull();
+tests\audio.workDetect.test.ts:66: it('no work sounds outside work hours', () => {
+tests\audio.workDetect.test.ts:67: const nightHour = [...Array(24).keys()].find((h) => !isWorkHour(h)) ?? 20;
+tests\demolish.roundtrip.test.ts:164: it('cleans a resident and a prisoner of the demolished building', () => {
+tests\demolish.roundtrip.test.ts:166: const prisoner = human(2, { prisonBuildingId: 4, prisonerUntilTick: 999, prisonSentenceCrime: 'scandal' });
+tests\demolish.roundtrip.test.ts:169: const world = makeWorld([resident, prisoner], [house, prison], { totalBuildingsCompleted: 2 });
+tests\scheduleFatigue.test.ts:10: const human = (overrides: Partial<{ scheduleFatigue: number; scheduleWorkedTicksToday: number }> = {}) => ({
+tests\scheduleFatigue.test.ts:15: scheduleWorkedTicksToday: 0,
+tests\scheduleFatigue.test.ts:21: const worker = human({ scheduleWorkedTicksToday: 10 * TICKS_PER_HOUR });
+tests\scheduleFatigue.test.ts:26: expect(worker.scheduleWorkedTicksToday).toBe(0);
+tests\scheduleFatigue.test.ts:30: const worker = human({ scheduleFatigue: 5, scheduleWorkedTicksToday: 4 * TICKS_PER_HOUR });
+tests\scheduleFatigue.test.ts:37: const worker = human({ scheduleFatigue: 30, scheduleWorkedTicksToday: 8 * TICKS_PER_HOUR });
+tests\securityRoles.split.test.ts:90: it('keeps PrisonGuard and prisoner entries synchronized without treating the prisoner as staff', () => {
+tests\securityRoles.split.test.ts:92: const prisoner = human(2, {
+tests\securityRoles.split.test.ts:95: prisonerUntilTick: 100,
+tests\securityRoles.split.test.ts:99: syncJobBuildingOccupants([prisonGuard, prisoner], [prison]);
+tests\securityRoles.split.test.ts:103: expect(prisoner.job).toBe(JobType.Settler);
+tests\securityRoles.split.test.ts:105: { entities: [prisonGuard, prisoner], buildings: [prison] } as WorldState,
+tests\simulation.invariants.test.ts:6: * guards+prisoners, construction crews, no-occupant buildings). A settler
+tests\simulation.invariants.test.ts:135: const prisoner = human(1, { prisonBuildingId: 99 });
+tests\simulation.invariants.test.ts:137: collectSimulationInvariantErrors(state([prisoner], [])).some((e) =>
+tests\simulation.invariants.test.ts:186: it('accepts a prison holding one guard and one prisoner', () => {
+tests\simulation.invariants.test.ts:188: const prisoner = human(2, { prisonBuildingId: 8 });
+tests\simulation.invariants.test.ts:190: expect(collectSimulationInvariantErrors(state([guard, prisoner], [prison]))).toEqual([]);
+tests\workforce.transitions.test.ts:306: describe('prison occupant reconciliation (BUG 2026-08-20-prisoner-occupants-wiped)', () => {
+tests\workforce.transitions.test.ts:307: it('keeps prisoners in prison occupants across syncJobBuildingOccupants', () => {
+tests\workforce.transitions.test.ts:309: const prisoner = human(2, { prisonBuildingId: 8 });
+tests\workforce.transitions.test.ts:312: syncJobBuildingOccupants([guard, prisoner], [prison]);
+tests\workforce.transitions.test.ts:315: expect(collectSimulationInvariantErrors(makeWorld([guard, prisoner], [prison]))).toEqual([]);
+tests\workforce.transitions.test.ts:318: it('drops a released prisoner from prison occupants', () => {
+tests\workforce.transitions.test.ts:319: const prisoner = human(2, { prisonBuildingId: 8 });
+tests\workforce.transitions.test.ts:322: prisoner.prisonBuildingId = undefined; // released
+tests\workforce.transitions.test.ts:323: syncJobBuildingOccupants([prisoner], [prison]);
+docs\archive\DUPLICATE_EXPORT_REVIEW_2026-08-21.md:13: | Bouwduur | `buildWorkHours` | `buildWorkTicks` is een deprecated alias die exact naar `buildWorkHours` wijst. | Geen actuele productie- of testcaller voor `buildWorkTicks`; `buildWorkHours` wordt alleen lokaal gedeclareerd/exported volgens de repository-trace. | `buildWorkTicks` verwijderen is laag risico in de huidige repository, maar behoud eventueel tijdelijk als publieke compatibiliteitsnaam. |
+docs\archive\DUPLICATE_EXPORT_REVIEW_2026-08-21.md:28: `buildWorkTicks` is geen afzonderlijke berekening. Het is een directe alias naar `buildWorkHours` met een expliciete deprecated-JSDoc omdat de waarde werkuren retourneert en geen simulatieticks. Er zijn geen actuele callers gevonden. De cleanup is semantisch veilig binnen de repository, maar een externe import zou een API-breuk veroorzaken.
+docs\archive\DUPLICATE_EXPORT_REVIEW_2026-08-21.md:44: De laagste-risico-opruiming is: eerst controleren of er geen externe imports zijn, daarna `HUMAN_MAX_LIFESPAN_DAYS`, `buildWorkTicks`, `MOON_HOWLER_CHURCH_CURE_CHANCE`, `forEachEntityInRadius` en `generateHumanSprites` verwijderen in afzonderlijke kleine wijzigingen. `HUMAN_ADULT_MAX_AGE` moet pas later worden gemigreerd, omdat het nog door reproductie- en volwassenheidsgates wordt gebruikt.
+docs\archive\DUPLICATE_EXPORT_REVIEW_2026-08-21.md:50: Op 2026-08-21 zijn `buildWorkTicks` en `MOON_HOWLER_CHURCH_CURE_CHANCE` verwijderd. Er waren geen actuele callers in `src/`, `tests/` of scripts; alleen historische documentatie verwees naar de oude namen. De canonical exports `buildWorkHours` en `MOON_HOWLER_OUTCOME_CURE` blijven ongewijzigd.
+docs\archive\REGRESSION_PROOFING_COMPLETION.md:41: | 7 | Demolition repaired: cleanup via `removeWorkerTransition` (single-writer), `totalBuildingsCompleted` decrement, no reappearance across sim ticks, selection cleared; PLUS discovered + fixed prisoners being wiped from `prison.occupants` every assign pass | `buildingActions.ts` + `workforce.ts` | `demolish.roundtrip.test.ts` (5) + prison tests | `2026-08-20-demolish-command-failure.md`, `2026-08-20-prisoner-occupants-wiped.md` | verified |
+docs\private\archive\CHANGELOG_PRIVATE.md:940: **Scandals:** Affairs required `socialTime`, which is **off** during work hours — employed couples were home together every evening, so almost no tryst window. `exposeAffair(..., 'rumor')` was never called (church gossip dead).
+docs\private\archive\gameEngine-split.md:12: | `workforce.ts` | ~350 | Staffing / workplace / prisoners |
+docs\private\BUGS_TRACKER.md:93: | EM-4 | 🟠 | Hospital had no purpose: pregnant/employed settlers never visited during work hours (`!onJobShift` + `workplace == null` gates) | **fixed** | `needsMedicalCare` settlers may walk to the ward and be treated on arrival during work hours (`008b2a8`) |
+docs\private\BUGS_TRACKER.md:197: | EK-B2 | 🟠 | `releasePrisoners` rehouses only — no restaff | **fixed** | + assignMissingWorkers |
+docs\private\BUGS_TRACKER.md:201: | EK-B6 | 🟡 | Cap uses `occupants.length` vs `homeBuildingId` (prisoners inflate) |**fixed** | leisure energy * PER_TICK_RATE_SCALE  | |
+docs\private\BUGS_TRACKER.md:243: | EK-E7 | 🟡 | `buildWorkTicks` name vs hour units trap | **fixed** | renamed `buildWorkHours` (+ deprecated alias) |
+docs\private\BUGS_TRACKER.md:381: | 10 | 🟢 | releasePrisoners undefined vs null | fixed (clears with `undefined`) |
+docs\private\BUGS_TRACKER.md:499: | 8 | 🟡 | Prisoners keep house key | fixed (arrest clears residence occupants) |
+docs\BUG_STATUS_OVERVIEW.md:55: | 15 | [Prisoner occupants wiped](../BUG%20REPORTS/2026-08-20-prisoner-occupants-wiped.md) | Workforce / prison | Resolved | No |
+docs\FIRST_YEAR_IN_WILDERFOLK.md:149: A staffed school could teach up to **ten children**. School time was counted during weekday work hours. Education accumulated through school days. Maturation and later graduation benefits came through established progression points rather than one grand lesson.
+docs\MARA_FIRST_NIGHT_TAVERN.md:173: *Author’s note: Hester’s tavern schedule and the separation between ordinary work hours and venue service are simulation-backed. The people, conversation, stew, bad chair, and questionable song belong to Mara’s account.*
+docs\PRISON_FUNCTION_AUDIT.md:11: The prison feature is **functionally coherent and well regression-tested**, but its ownership boundary is too distributed. Scandal code creates sentences, workforce code reconciles prison occupants and releases prisoners, Moon Howler code temporarily removes and restores prison state, realtime human ticking enforces confinement, invariant code validates only part of the contract, and UI components independently reconstruct prison counts. The result currently works, but future changes are likely to create a second mutation path or subtly desynchronize entity fields and building occupants.
+docs\PRISON_FUNCTION_AUDIT.md:27: | `humanRelationships.ts` | `countPrisonersAt` | Counts prisoners by prison ID | Duplicates the same concept as Moon Howler's counter. |
+docs\PRISON_FUNCTION_AUDIT.md:31: | `workforce.ts` | `syncJobBuildingOccupants` | Rebuilds prison occupants from guards plus prisoners | Necessary reconciliation, but mixed occupancy semantics make this function special-case the prison. |
+docs\PRISON_FUNCTION_AUDIT.md:33: | `workforce.ts` | `releasePrisoners` | Releases due prisoners and triggers reassignment | Sole release implementation, but it also performs residence/work assignment side effects. |
+docs\PRISON_FUNCTION_AUDIT.md:35: | `moonHowler.ts` | `countPrisonersAtBuilding` | Counts prisoners during restoration | Duplicate of `countPrisonersAt`. |
+docs\PRISON_FUNCTION_AUDIT.md:36: | `moonHowler.ts` | `prisonPrisonerCap` | Recomputes prison prisoner capacity | Duplicate of the arrest formula. |
+docs\PRISON_FUNCTION_AUDIT.md:41: | `humanTick.ts` | prisoner branch | Zeroes velocity, pulls prisoner toward prison, skips social/reproductive AI, short-circuits | Clear realtime behavior; should remain movement-owned and read-only with respect to sentence state. |
+docs\PRISON_FUNCTION_AUDIT.md:43: | `SelectedBuildingPanel.tsx` | prisoner filtering and manual-guard hint | Displays prison contents and staffing instruction | Clear basic discoverability; independently scans entities. |
+docs\PRISON_FUNCTION_AUDIT.md:60: `transformToWerewolfForm` clears prison fields, `forceMoonHowlerOutside` conditionally clears live prison fields, and `revertToHumanForm` restores prison state and appends to prison occupants. This complexity is justified by the declared rare-event contract, but the functions directly implement prison policy that is also implemented in `arrestForScandal`, `releasePrisoners`, and `syncJobBuildingOccupants`.
+docs\PRISON_FUNCTION_AUDIT.md:64: ### 3. DRY: prisoner count is duplicated
+docs\PRISON_FUNCTION_AUDIT.md:66: `humanRelationships.ts` defines `countPrisonersAt`, while `moonHowler.ts` defines `countPrisonersAtBuilding`. Both filter living human entities by `prisonBuildingId`; one supports excluding the entity being restored and the other does not.
+docs\PRISON_FUNCTION_AUDIT.md:68: **Recommendation:** replace both with one read-only selector, for example `countPrisonersAtBuilding(humans, prisonId, excludeId?)`. Do not over-generalize it into a universal occupancy function: guards and prisoners have intentionally different semantics.
+docs\PRISON_FUNCTION_AUDIT.md:70: ### 4. DRY: prisoner-capacity formula is duplicated
+docs\PRISON_FUNCTION_AUDIT.md:72: The arrest path uses `Math.max(1, BUILDING_CONFIGS[BuildingType.Prison].maxOccupants - 1)`, while Moon Howler uses the same expression in `prisonPrisonerCap`. This is a real DRY violation because a capacity rule change can update one path and not the other.
+docs\PRISON_FUNCTION_AUDIT.md:74: **Recommendation:** define one named selector, such as `getPrisonerCapacity(building)`, that documents the current rule: total prison slots minus the guard slot, with the current minimum behavior. Use the building argument rather than a global config lookup so upgrades or future prison variants cannot silently use the wrong capacity.
+docs\PRISON_FUNCTION_AUDIT.md:80: **Recommendation:** provide read-only selectors for `getPrisonersAtBuilding`, `countImprisonedHumans`, and `getRemainingSentenceDays`. UI should use selectors, while authoritative simulation reconciliation may use a separate mutation function. Do not make UI read `building.occupants` alone, because prison occupants intentionally contain both guards and prisoners.
+docs\PRISON_FUNCTION_AUDIT.md:84: The current code has several explicit prison-specific branches, especially in `syncJobBuildingOccupants`, `revertToHumanForm`, and the invariant checker. Those branches are not automatically bad WET. They expose a real domain distinction: a prison building has two occupant roles, a manually assigned guard, and sentenced non-staff prisoners.
+docs\PRISON_FUNCTION_AUDIT.md:96: `BUILDING_CONFIGS[BuildingType.Prison].maxOccupants` represents total slots, while the gameplay rule reserves one slot for a guard and derives the prisoner capacity by subtraction. This is understandable at the current two-slot design, but the meaning differs from ordinary workplaces.
+docs\PRISON_FUNCTION_AUDIT.md:98: **Recommendation:** do not change the save schema or public gameplay contract in this audit. Introduce a named selector that makes the mixed semantics explicit. Only add separate `guardCapacity` and `prisonerCapacity` fields if a real feature requires independent capacities and migration/testing is approved.
+docs\PRISON_FUNCTION_AUDIT.md:104: | Clarity | Moderate to good | Building UI says the guard is manual-only; entity UI shows prison and remaining sentence; population UI marks jailed people. | The player is not clearly told why a scandal became a formal arrest, what the guard enables beyond empty cells, or why a full prison rejects a sentence. | Add concise feedback for rejected/full/no-staff cases and expose current guard/prisoner counts in the prison panel. |
+docs\PRISON_FUNCTION_AUDIT.md:106: | Response | Weak-to-moderate | Player assigns a guard manually; arrest and release happen automatically; prisoner movement is constrained. | There is no direct player action to inspect or influence a sentence, and release feedback is passive. | Add clear event-log/notification links or selection behavior before considering sentence controls. |
+docs\PRISON_FUNCTION_AUDIT.md:117: | High | Prison reverse validation checks that `prisonBuildingId` points to a prison and is mirrored in occupants, but does not require active sentence metadata. | A human can be marked imprisoned without `prisonerUntilTick` or `prisonSentenceCrime`, making release and diagnostics ambiguous. | Add invariant coverage for active prison state requiring `prisonerUntilTick`; decide explicitly whether `prisonSentenceCrime` is mandatory for all sentences. |
+docs\PRISON_FUNCTION_AUDIT.md:133: Centralize prisoner counting and prisoner capacity. Add read-only selectors for UI summaries. Keep prison-specific branches where they express the two-role occupancy rule; do not abstract them into ordinary workplace logic.
+docs\PRISON_FUNCTION_AUDIT.md:139: Require a prison occupant to be either a valid `PrisonGuard` assigned to that prison or a prisoner whose `prisonBuildingId` matches. Validate active sentence metadata and reject simultaneous workplace/residence membership unless explicitly documented.
+docs\PRISON_FUNCTION_AUDIT.md:141: Acceptance criteria: malformed states produce precise diagnostics; valid guard-plus-prisoner states remain accepted; save migration tests cover legacy role conversion.
+docs\PRISON_FUNCTION_AUDIT.md:145: Keep the existing consequence-driven prison design. Add explicit feedback for staffed-prison gating, capacity rejection, sentence duration, and release. Display a prison overview such as `guards / prisoners / prisoner capacity` using selectors.
+docs\PRISON_FUNCTION_AUDIT.md:151: Use five short scenarios: a new player builds a prison and sees why a guard is required; a staffed prison catches a married affair; a full prison rejects a new sentence without partial mutation; a prisoner is released and becomes eligible for assignment; a Moon Howler transforms while imprisoned and returns before the sentence ends. Repeat each with a demolished or missing prison where relevant.
+docs\PRISON_FUNCTION_AUDIT.md:159: | `workforce.ts` | Keep assignment reconciliation and post-release reassignment; consume prison selectors/transition. | Do not make generic staffing infer prisoner rules. |
+docs\PRISON_FUNCTION_AUDIT.md:181: [2]: `src/game/workforce.ts` — prison occupancy reconciliation, staffing rules, and prisoner release.
+docs\PRISON_FUNCTION_AUDIT.md:185: [4]: `src/game/humanTick.ts` — realtime prisoner movement and simulation short-circuit.
+docs\ROADMAP.md:144: | 🟢 | Prison + Guard job + prisoner UI |
+docs\SECOND_YEAR_IN_WILDERFOLK.md:161: ## Prisoners, soldiers, and the trouble with one word
+docs\SECOND_YEAR_IN_WILDERFOLK.md:165: Before the change, a person listed as Guard could be assigned to a Barracks or a Prison. The ledger understood the word. People did not. A Prison Guard might be counted as part of the settlement’s defense. A soldier might be sent to watch a prisoner because someone had mistaken a shared label for shared duty.
+docs\SECOND_YEAR_IN_WILDERFOLK.md:169: A **Soldier** belonged to the Barracks. A **Prison Guard** belonged to the Prison. The Prison held prisoners, not workers with inconvenient sleeping arrangements. The Barracks held soldiers, not men who had been placed there because nobody knew where else to put them.
+docs\SECOND_YEAR_IN_WILDERFOLK.md:394: The Church kept its four priests ready. The Barracks kept its soldiers separate from the Prison Guards. The Prison held its prisoners under watch. The walls stood where we had put them. The gate nearest the tavern remained the gate everyone used.
+docs\SECOND_YEAR_IN_WILDERFOLK.md:493: | Prisoners | Prisoners occupy Prison state and are not ordinary workers. | Prison walls become taller when someone says they are easy to climb. |
+docs\V0_6_2_2_ROADMAP.md:15: | **The village keeps the hours you choose** | The player can set ordinary work hours and separate tavern/hotel service hours, with visible trade-offs. | A single schedule owner answers shift questions; UI does not mutate work state directly; the 72-tick day remains unchanged. |
+docs\V0_6_2_2_ROADMAP.md:29: | 3 | **W1** | Player-set standard work hours | Lets the player set when ordinary workplaces open and close. | New `workSchedule` domain; schedule query in realtime plus daily reconciliation. | One global weekday work window with a schedule panel and safe validation. | **Complete** — ordinary weekday window, typed command, persistence, worker transport, panel, and tests. School, church, Town Hall, tavern, and hotel schedules remain unchanged by directive. |
+docs\V0_6_2_2_ROADMAP.md:79: ### W1 — player-set standard work hours
+docs\V0_6_2_2_ROADMAP.md:96: **Status: verified (2026-08-21).** `scheduleFatigue.ts` now records bounded work-load state, resolves prior-day fatigue at the existing calendar-day boundary, and supplies a capped staffed-production multiplier. Work ticks are recorded by `humanTick.ts`; the daily owner resolves fatigue using an eight-hour neutral target, excess-hour cost, short-day recovery, and baseline recovery. Fatigue is bounded to 0–100 and production reliability is bounded to 0.65–1.00. The existing Work hours panel shows the colony average. No new tick layer, pregnancy/mortality/relationship effect, automatic staffing, or cadence change was introduced. See `docs/W3_FATIGUE_RECOVERY_REPORT_2026-08-21.md`.
+docs\V0_6_2_2_ROADMAP.md:179: **Completed Q1 batch — duplicate-export harmonization (2026-08-21).** The five identified duplicate-export groups were resolved by migrating callers to canonical names and removing confirmed stale aliases rather than silently deleting canonical entry points. This included `buildWorkTicks` → `buildWorkHours`, `MOON_HOWLER_CHURCH_CURE_CHANCE` → `MOON_HOWLER_OUTCOME_CURE`, `forEachEntityInRadius` → `forEachInEntityGrid`, `generateHumanSprites` → `loadHumanWalkSheets`, and the lifespan group: active `HUMAN_ADULT_MAX_AGE` callers were migrated to `HUMAN_MAX_LIFESPAN_YEARS`, after which `HUMAN_ADULT_MAX_AGE` and `HUMAN_MAX_LIFESPAN_DAYS` were removed. No simulation values, ownership boundaries, cadence, or invariant protections changed. Validation passed with the full regression suite (**70 files / 404 tests**), focused final lifecycle validation (**4 files / 22 tests**), production build, ESLint, and `git diff --check`. The final Knip audit reports no duplicate-export groups. Detailed evidence is recorded in `docs/DUPLICATE_EXPORT_REVIEW_2026-08-21.md`; unused-file/export triage remains separate follow-up work.
+docs\V0_6_2_2_T4_OBJECTIVE_REPORT.md:21: | School attendance and school-day credit | **Unchanged fixed logic.** School continues to use the existing `isOnWorkShift` / `isWorkHour` behavior and fixed school-day threshold. |
+docs\W3_FATIGUE_RECOVERY_REPORT_2026-08-21.md:10: Longer ordinary or venue service shifts now carry a bounded fatigue cost into the next day. Shorter workdays recover fatigue faster, while a neutral eight-hour day receives baseline recovery. Fatigue is visible in the existing Work hours panel as a colony average and is applied as a capped productivity multiplier to staffed production. The multiplier ranges from 1.00 at zero fatigue to a safety floor of 0.65 at maximum fatigue.
+docs\W3_FATIGUE_RECOVERY_REPORT_2026-08-21.md:19: - State fields written: Optional `Entity.scheduleWorkedTicksToday` and `Entity.scheduleFatigue`, written only by simulation owners through existing tick boundaries.

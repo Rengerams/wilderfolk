@@ -1,0 +1,389 @@
+src\components\tabPanels\MoreTabPanel.tsx:138: <p><strong className="text-stone-200">Alert strip</strong> — Under the header. Click raids, diplomacy, low food, or ready trade routes to jump there.</p>
+src\components\tabPanels\MoreTabPanel.tsx:263: <p>• <strong className="text-amber-200">Town Hall</strong> — After <strong className="text-stone-200">Urban Planning</strong>. Staff officials for taxes, trade &amp; immigration boosts, election site, scandal buffer, and hosted festivals.</p>
+src\components\tabPanels\MoreTabPanel.tsx:267: <p>• <strong className="text-amber-200">Reputation ⭐</strong> — Village header &amp; Progress → Trade. From Town Hall, Hospital, pilgrims, festivals, and avoiding scandals. Unlocks trade routes.</p>
+src\components\tabPanels\VillageTabPanel.tsx:262: Stone/wood from Defense research. Iron spears & shields, then swords, scale mail & tower ballistae need research <strong className="text-stone-400">and</strong> a staffed Blacksmith forge run. Finish toast is a normal village alert.
+src\components\tabPanels\VillageTabPanel.tsx:309: Buildings (+2), festivals (+10), research (+3), staffed Hospital (+2) &amp; Town Hall (+3),
+src\components\AlertBar.tsx:3: import type { PriorityAlert, PriorityAlertSeverity } from '../game/priorityAlerts';
+src\components\AlertBar.tsx:5: const SEVERITY_STYLE: Record<PriorityAlertSeverity, string> = {
+src\components\AlertBar.tsx:14: alerts: PriorityAlert[];
+src\components\AlertBar.tsx:15: onAlert: (alert: PriorityAlert) => void;
+src\components\AlertBar.tsx:18: export default function AlertBar({ alerts, onAlert }: Props) {
+src\components\AlertBar.tsx:21: if (alerts.length === 0) return null;
+src\components\AlertBar.tsx:23: const visible = expanded ? alerts : alerts.slice(0, VISIBLE_LIMIT);
+src\components\AlertBar.tsx:24: const hiddenCount = alerts.length - VISIBLE_LIMIT;
+src\components\AlertBar.tsx:28: {visible.map((alert) => (
+src\components\AlertBar.tsx:30: key={alert.id}
+src\components\AlertBar.tsx:32: onClick={() => onAlert(alert)}
+src\components\AlertBar.tsx:33: title={alert.detail}
+src\components\AlertBar.tsx:34: className={`flex max-w-[10rem] items-center gap-1 rounded-lg border px-2 py-0.5 text-left transition-colors ${SEVERITY_STYLE[alert.severity]}`}
+src\components\AlertBar.tsx:36: <Emoji className="text-sm">{alert.icon}</Emoji>
+src\components\AlertBar.tsx:37: <span className="truncate text-xs font-semibold">{alert.title}</span>
+src\components\AlertBar.tsx:50: {expanded && alerts.length > VISIBLE_LIMIT && (
+src\components\CombatLogPanel.tsx:43: Raid outcomes after your preparation choices — no battle screen. Entries appear once raids resolve.
+src\components\GameHeader.tsx:28: foodAlert: boolean;
+src\components\GameHeader.tsx:65: foodAlert,
+src\components\GameHeader.tsx:152: title={`${seasonLabel} · ${formatTemperatureC(dailyTempC)} · ${weekday}${weekend ? ' (free)' : ' (work 7–18)'} · Year ${world.year} · Day ${world.dayInYear}${world.weather !== 'clear' ? ` · ${WEATHER_CONFIGS[world.weather].label}` : ''}${world.festival ? ` · ${world.festival.name}` : ''} · sim tick ${world.tick} (day ${absoluteDay})${showSimTick ? '' : ' — enable “Show sim tick” in Menu → Settings to pin tick on the bar'}`}
+src\components\GameHeader.tsx:164: {world.festival && <Emoji title={world.festival.name}>🎉</Emoji>}
+src\components\GameHeader.tsx:238: alert={foodAlert}
+src\components\ResourceBadge.tsx:19: const ALERT_STYLES: Partial<Record<ResourceKey, string>> = {
+src\components\ResourceBadge.tsx:28: alert?: boolean;
+src\components\ResourceBadge.tsx:31: export default function ResourceBadge({ resource, value, max, className = '', alert = false }: Props) {
+src\components\ResourceBadge.tsx:36: const tone = alert && ALERT_STYLES[resource] ? ALERT_STYLES[resource] : RESOURCE_STYLES[resource];
+src\components\ResourceBadge.tsx:60: alert ? 'ring-1 ring-rose-500/50' : ''
+src\components\SelectedBuildingPanel.tsx:22: import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
+src\components\SelectedBuildingPanel.tsx:57: [BuildingType.TownHall]: 'Staff officials — taxes, trade & immigration boost, elections, scandal buffer, host festivals.',
+src\components\SelectedBuildingPanel.tsx:64: [BuildingType.Barracks]: 'Assign Guards — each patrols the village (+12 militia strength).',
+src\components\SelectedBuildingPanel.tsx:393: <p className="text-[11px] text-violet-300">Guards are manual only — assign below; each patrols the village (+12 militia strength).</p>
+src\components\SelectedBuildingPanel.tsx:480: const fest = canHostTownFestival(state, building);
+src\components\SelectedBuildingPanel.tsx:483: Math.ceil(((state.townHallFestivalCooldownUntilTick ?? 0) - state.tick) / TICKS_PER_DAY),
+src\components\SelectedBuildingPanel.tsx:489: title={fest.reason ?? `Costs ${TOWN_HALL_FESTIVAL_COST.food} food & ${TOWN_HALL_FESTIVAL_COST.gold} gold`}
+src\components\SelectedBuildingPanel.tsx:490: onClick={() => onTownHallAction({ proto: 1, op: 'hostTownFestival', buildingId: building.id })}
+src\components\SelectedBuildingPanel.tsx:493: 🎉 Host town festival ({TOWN_HALL_FESTIVAL_DAYS}d)
+src\components\SelectedBuildingPanel.tsx:501: <p className="text-[11px] text-amber-400">⚠️ No guards assigned — militia bonus inactive until you staff the barracks.</p>
+src\components\ShortcutsOverlay.tsx:40: <p className="mt-3 text-[11px] text-stone-300">Alerts under the header are clickable — they jump you to raids, diplomacy, food, and trade.</p>
+src\components\TutorialOverlay.tsx:6: { icon: '💡', title: 'Tips appear as you play', detail: 'When something new happens — traders, rivals, winter, raids — a tip card appears on the map. Alerts under the header jump to urgent issues. Press ? for shortcuts.' },
+src\components\VenueSchedulePanel.tsx:24: const festivalStatus = venue === 'tavern' && state.festival?.active === true ? 'Festival override: Tavern remains open all day while the festival is active.' : 'No temporary override is active.';
+src\components\VenueSchedulePanel.tsx:30: <p className="mt-1 text-xs leading-relaxed text-stone-400">Set separate windows for Tavern and Hotel staff. Guests are not employees, and festivals can still keep the Tavern open all day.</p>
+src\components\VenueSchedulePanel.tsx:49: <div className="rounded border border-stone-700/70 bg-stone-900/40 px-2.5 py-2 text-xs"><div className="flex items-center justify-between"><span>Preview</span><strong className="text-stone-200">{preview.expectedHours}h · {preview.affectedWorkplaces} venues</strong></div><p className="mt-1 text-stone-400">{preview.assignedWorkers} assigned staff are affected. {preview.warning}</p><p className="mt-1 text-sky-300">{festivalStatus}</p></div>
+src\game\simBuffers\entityRenderMeta.ts:29: detectedByPatrol?: boolean;
+src\game\simBuffers\entityRenderMeta.ts:54: detectedByPatrol: entity.detectedByPatrol,
+src\game\simBuffers\entityRenderMeta.ts:121: detectedByPatrol: meta?.detectedByPatrol,
+src\game\simBuffers\simDelta.ts:85: festival: WorldState['festival'];
+src\game\simBuffers\simDelta.ts:86: townHallFestivalCooldownUntilTick: number;
+src\game\simBuffers\simDelta.ts:249: festival: deltaCloneOptional(world.festival, cloneMode),
+src\game\simBuffers\simDelta.ts:250: townHallFestivalCooldownUntilTick: world.townHallFestivalCooldownUntilTick ?? 0,
+src\game\simBuffers\simDelta.ts:349: world.festival = deltaCloneOptional(delta.festival, cloneMode);
+src\game\simBuffers\simDelta.ts:350: world.townHallFestivalCooldownUntilTick = delta.townHallFestivalCooldownUntilTick;
+src\game\simulation\decisionRegistry.ts:70: owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; player-command entry: buildingActions.assignIdleWorkerToBuilding',
+src\game\simWorker\commands.ts:54: import { hostTownFestival } from '../townHall';
+src\game\simWorker\commands.ts:97: | { proto: 1; op: 'hostTownFestival'; buildingId: number }
+src\game\simWorker\commands.ts:138: 'hostTownFestival',
+src\game\simWorker\commands.ts:201: case 'hostTownFestival':
+src\game\simWorker\commands.ts:380: case 'hostTownFestival':
+src\game\simWorker\commands.ts:381: return hostTownFestival(world, cmd.buildingId);
+src\game\simWorker\simPrep.ts:46: | 'festival'
+src\game\simWorker\simPrep.ts:47: | 'townHallFestivalCooldownUntilTick'
+src\game\simWorker\simPrep.ts:104: festival: state.festival ? { ...state.festival } : null,
+src\game\simWorker\simPrep.ts:105: townHallFestivalCooldownUntilTick: state.townHallFestivalCooldownUntilTick ?? 0,
+src\game\simWorker\simPrep.ts:162: world.festival = prep.festival;
+src\game\simWorker\simPrep.ts:163: world.townHallFestivalCooldownUntilTick = prep.townHallFestivalCooldownUntilTick;
+src\game\blueberryForaging.ts:56: festivalGathering: boolean;
+src\game\blueberryForaging.ts:64: * school, meals, festivals, or urgent famine hunting.
+src\game\blueberryForaging.ts:76: || options.festivalGathering
+src\game\buildingActions.ts:905: const festivalMult = state.festival?.active ? 1.5 : 1;
+src\game\buildingActions.ts:908: const outputMult = (1 + workers * 0.5) * levelMult * terrainMult * adjacencyMult * festivalMult * skillMult * goldMult * globalEff;
+src\game\buildings.ts:269: emoji: '🏰', label: 'Town Hall', description: 'Civic hub — taxes, trade, immigration, elections & festivals. Staffed officials hear petitions, grant small aid, and hold leader audiences.',
+src\game\buildings.ts:363: emoji: '⚔️', label: 'Barracks', description: 'Staff Guards to patrol the village (+12 militia strength each).',
+src\game\buildings.ts:394: emoji: '🍺', label: 'Tavern', description: 'Village pub — guests visit after work and on free days. Staff an Innkeeper who works evenings (5pm–11pm) and all day and night during festivals.',
+src\game\CombatPreviewPanel.tsx:4: RAID_OUTCOME_LABELS, RAID_PREPARATION_HINT,
+src\game\CombatPreviewPanel.tsx:56: {RAID_PREPARATION_HINT}
+src\game\contextualTutorial.ts:35: | 'festival_started'
+src\game\contextualTutorial.ts:121: detail: 'Traveling players lift spirits and can start a short festival. Toast the troupe leader for extra reputation and revelry.',
+src\game\contextualTutorial.ts:128: detail: 'Another group claimed land nearby. Click their camp to send gifts, sign peace, trade pacts, or prepare for raids. Relationship matters.',
+src\game\contextualTutorial.ts:135: detail: 'A rival demands your response. Click the alert banner or their camp in the inspector to choose pay, negotiate, refuse, or other options.',
+src\game\contextualTutorial.ts:142: detail: 'A rival marches on your village. Open the Frontier tab or click the alert to defend, barricade, or pay them off before they arrive.',
+src\game\contextualTutorial.ts:225: detail: 'Couples share homes and may expect children. Courtship happens near workplaces and festivals — check the Log for village drama.',
+src\game\contextualTutorial.ts:228: festival_started: {
+src\game\contextualTutorial.ts:229: id: 'festival_started',
+src\game\contextualTutorial.ts:231: title: 'Festival in the village',
+src\game\contextualTutorial.ts:232: detail: 'Revelry boosts courtship and reputation for a few days. Performers or your own events can start festivals.',
+src\game\contextualTutorial.ts:304: if (state.festival?.active) seen.add('festival_started');
+src\game\contextualTutorial.ts:435: if (!prev.festival?.active && curr.festival?.active) queue('festival_started');
+src\game\dayCycle.ts:255: export const FESTIVAL_CHECK_TICKS = ticksForDays(50);
+src\game\dayCycle.ts:281: * Festival gathering window — the village leaves ordinary daytime work early
+src\game\dayCycle.ts:282: * enough to visibly assemble, then disperses before night. Festival creation
+src\game\dayCycle.ts:283: * and expiry remain owned by the daily festival transition; this helper only
+src\game\dayCycle.ts:286: export const FESTIVAL_GATHER_START = 15;
+src\game\dayCycle.ts:287: export const FESTIVAL_GATHER_END = 22;
+src\game\dayCycle.ts:374: /** Tavern open right now — festivals keep the pub open all day and night. */
+src\game\dayCycle.ts:375: export function isTavernOpen(hour: number, festivalActive?: boolean): boolean {
+src\game\dayCycle.ts:376: return festivalActive ? true : isTavernServiceHour(hour);
+src\game\dayCycle.ts:379: /** True while an active festival calls eligible villagers away from ordinary work. */
+src\game\dayCycle.ts:380: export function isFestivalGatheringHour(hour: number, festivalActive?: boolean): boolean {
+src\game\dayCycle.ts:381: return festivalActive === true && hour >= FESTIVAL_GATHER_START && hour < FESTIVAL_GATHER_END;
+src\game\dayCycle.ts:386: * Not the daytime farm/mill shift. During festivals the innkeeper works around
+src\game\dayCycle.ts:389: export function isOnInnkeeperShift(tick: number, hour?: number, festivalActive?: boolean): boolean {
+src\game\dayCycle.ts:391: return isTavernOpen(h, festivalActive);
+src\game\dialogueTrees.ts:4: import festivalDialogueJson from './data/festival.json';
+src\game\dialogueTrees.ts:17: 'festival',
+src\game\dialogueTrees.ts:50: festivalDialogueJson as unknown as DialogueSourceFile,
+src\game\dialogueTrees.ts:60: 'festival.json',
+src\game\dialogueTrees.ts:209: festival: ['festival', 'social'],
+src\game\dialogueTrees.ts:224: festivalActive?: boolean;
+src\game\dialogueTrees.ts:236: if (hints?.festivalActive) out.add('festival');
+src\game\ecologyStage.ts:250: : ['Keep wolves, deer, and grass in a healthy band.', 'Open Nature when alerts appear.'];
+src\game\focusHints.ts:210: detail: `Raise ⭐ for ${nextRoute.targetName} — staff Town Hall & Hospital, host festivals, avoid scandals.`,
+src\game\focusHints.ts:299: detail: 'Research Urban Planning → Town Hall: staff officials for taxes, trade, immigration, elections, and hosted festivals.',
+src\game\frontierCombat.ts:80: const RAID_RESPONSE_MIN_DAYS = 2;
+src\game\frontierCombat.ts:81: const RAID_RESPONSE_MAX_DAYS = 6;
+src\game\frontierCombat.ts:111: export function getIncomingRaidResponseDays(distanceTiles: number): number {
+src\game\frontierCombat.ts:114: RAID_RESPONSE_MAX_DAYS,
+src\game\frontierCombat.ts:115: Math.max(RAID_RESPONSE_MIN_DAYS, RAID_RESPONSE_MIN_DAYS + extra),
+src\game\frontierCombat.ts:120: return getIncomingRaidResponseDays(getCampDistanceTiles(distancePixels)) * TICKS_PER_DAY;
+src\game\frontierCombat.ts:131: export function getRaidDaysRemaining(evt: RaidEvent, currentTick: number): number {
+src\game\frontierCombat.ts:132: return Math.max(0, Math.ceil(getRaidTicksRemaining(evt, currentTick) / TICKS_PER_DAY));
+src\game\frontierCombat.ts:136: const days = getRaidDaysRemaining(evt, currentTick);
+src\game\frontierCombat.ts:304: export const RAID_PREPARATION_HINT =
+src\game\frontierCombat.ts:305: 'Raids test preparation you already made — walls, forge tier, guards, and food for tribute. There is no battle screen; outcomes resolve from strength ratios.';
+src\game\frontierCombat.ts:476: const RAID_GUARD_XP: Record<RaidExperienceTier, number> = {
+src\game\frontierCombat.ts:879: if (rival.raidCooldownDays > 0) return;
+src\game\frontierCombat.ts:899: const responseDays = getIncomingRaidResponseDays(marchDistanceTiles);
+src\game\frontierCombat.ts:922: rival.raidCooldownDays = 21;
+src\game\frontierCombat.ts:1003: rival.raidCooldownDays = 14;
+src\game\frontierCombat.ts:1056: if (rival) rival.raidCooldownDays = 18;
+src\game\frontierCombat.ts:1088: rival.raidCooldownDays = 28;
+src\game\frontierCombat.ts:1098: if (rival) rival.raidCooldownDays = 20;
+src\game\frontierCombat.ts:1169: rival.raidCooldownDays = 10;
+src\game\frontierCombat.ts:1185: rival.raidCooldownDays = 14;
+src\game\frontierCombat.ts:1206: // Queue strike-back *before* cooldown — maybeQueueRaid bails when raidCooldownDays > 0
+src\game\frontierCombat.ts:1208: rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 7);
+src\game\frontierCombat.ts:1283: rival.raidCooldownDays = 12;
+src\game\frontierCombat.ts:1349: const responseDays = getIncomingRaidResponseDays(marchDistanceTiles);
+src\game\gameTypes.ts:374: /** Hostile rival raiders are hidden until a Soldier patrol discovers them. */
+src\game\gameTypes.ts:376: /** Set by Simulation Authority when a Soldier patrol discovers this rival group. */
+src\game\gameTypes.ts:377: detectedByPatrol?: boolean;
+src\game\gameTypes.ts:472: raidCooldownDays: number;
+src\game\gameTypes.ts:825: festival: { active: boolean; name: string; daysLeft: number } | null;
+src\game\gameTypes.ts:826: /** Tick after which the player can host another Town Hall festival. */
+src\game\gameTypes.ts:827: townHallFestivalCooldownUntilTick?: number;
+src\game\groupEvents.ts:480: raidCooldownDays: 45 + Math.floor(Math.random() * 30),
+src\game\groupEvents.ts:730: /** Player-initiated peace — halts raids for 60 days. */
+src\game\groupEvents.ts:749: rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PEACE_TREATY_PLAYER_DAYS);
+src\game\groupEvents.ts:1042: rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PEACE_TREATY_EVENT_DAYS);
+src\game\groupEvents.ts:1058: rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 21);
+src\game\groupEvents.ts:1120: hint: 'Once per visit: revelry lifts spirits (+6 rep, mini festival 3d).',
+src\game\groupEvents.ts:1189: if (!state.festival) {
+src\game\groupEvents.ts:1190: state.festival = { active: true, name: 'Visitor Revelry', daysLeft: 3 };
+src\game\groupEvents.ts:1192: state.festival.daysLeft = Math.min(14, state.festival.daysLeft + 2);
+src\game\groupEvents.ts:1194: pushFloat(state, group.campX, group.campY - 20, '🎭 Festival!', '#f472b6');
+src\game\humanChat.ts:28: | 'festival'
+src\game\humanChat.ts:36: festivalActive?: boolean;
+src\game\humanChat.ts:44: festivalActive?: boolean;
+src\game\humanChat.ts:97: festivalActive: world.festivalActive,
+src\game\humanChat.ts:420: if (options.festivalActive) pool.push('festival', 'festival');
+src\game\humanTick.ts:29: import {   HUMAN_ADULT_MIN_AGE, HUMAN_MAX_LIFESPAN_YEARS, HUMAN_MOVE_OUT_MIN_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, PREGNANCY_TICKS, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isOnWorkShift, isOnMoonHowlerNightShift, isFestivalGatheringHour, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
+src\game\humanTick.ts:95: import { isVenueServiceHour, isVenueScheduleStartTick, isVenueWorkerServiceHour } from './venueSchedule';
+src\game\humanTick.ts:104: const PATROL_DETECTION_RADIUS = 150;
+src\game\humanTick.ts:106: function detectRaidersForPatrol(state: WorldState, soldier: Entity, humans: Entity[]): void {
+src\game\humanTick.ts:114: || Math.hypot(rival.x - soldier.x, rival.y - soldier.y) > PATROL_DETECTION_RADIUS
+src\game\humanTick.ts:124: rival.detectedByPatrol = true;
+src\game\humanTick.ts:128: logEvent(state, 'event', `Soldier patrol spotted hostile raiders from ${groupId}`, groupId);
+src\game\humanTick.ts:237: const festivalMult = state.festival?.active ? 1.4 : 1;
+src\game\humanTick.ts:244: const socialMult = festivalMult * performerMult * cohabitMult;
+src\game\humanTick.ts:350: festivalActive: state.festival?.active,
+src\game\humanTick.ts:575: entity.hiddenFromPlayer = Boolean(marching && !entity.detectedByPatrol);
+src\game\humanTick.ts:657: const festivalGathering = isFestivalGatheringHour(hourOfDay, state.festival?.active)
+src\game\humanTick.ts:663: const onDayJobShift = !festivalGathering && (
+src\game\humanTick.ts:672: state.festival?.active === true
+src\game\humanTick.ts:675: ? isVenueWorkerServiceHour(state, 'tavern', hourOfDay, venueWorkerIndex, venueWorkerCount)
+src\game\humanTick.ts:688: ? isVenueWorkerServiceHour(state, 'hotel', hourOfDay, venueWorkerIndex, venueWorkerCount)
+src\game\humanTick.ts:696: const stayIn = !festivalGathering && !onTavernShift && !onMoonPriestShift
+src\game\humanTick.ts:699: const allowFreeRoam = festivalGathering || (!onJobShift && !stayIn);
+src\game\humanTick.ts:765: } else if (festivalGathering) {
+src\game\humanTick.ts:766: // Festival creation and expiry belong to the daily layer. The realtime
+src\game\humanTick.ts:797: && !festivalGathering
+src\game\humanTick.ts:814: && !festivalGathering
+src\game\humanTick.ts:834: && !festivalGathering
+src\game\humanTick.ts:848: && !festivalGathering
+src\game\humanTick.ts:856: detectRaidersForPatrol(state, entity, byType[EntityType.Human] ?? []);
+src\game\humanTick.ts:858: // Legacy 0.028 rad/tick assumed 1 tick = 1 hour; scale so patrol speed is calendar-stable.
+src\game\humanTick.ts:881: } else if (!huntingWere && !inElectionCeremony && !festivalGathering && onSchoolShift && !isInnkeeper && schoolTarget) {
+src\game\humanTick.ts:892: } else if (!huntingWere && !inElectionCeremony && !festivalGathering && goWorkTime && !isInnkeeper && workplace) {
+src\game\humanTick.ts:923: festivalGathering,
+src\game\humanTick.ts:930: && !festivalGathering
+src\game\humanTick.ts:1146: * (state.festival?.active ? 2 : 1)
+src\game\humanTick.ts:1301: * (state.festival?.active ? 1.4 : 1)
+src\game\humanTick.ts:1922: // Festival / village green
+src\game\humanTick.ts:1925: if (state.festival?.active) {
+src\game\leaderHouse.ts:65: * repaired, mirroring workforce.prepareWorkforce. The living predecessor
+src\game\populationGrowth.ts:183: if (!state.festival?.active && state.villageReputation < 60) {
+src\game\populationGrowth.ts:184: reasons.push('Festivals, a staffed Town Hall, and more housing speed immigration checks.');
+src\game\priorityAlerts.ts:12: export type PriorityAlertSeverity = 'critical' | 'warning' | 'info';
+src\game\priorityAlerts.ts:14: export type PriorityAlertAction =
+src\game\priorityAlerts.ts:21: export interface PriorityAlert {
+src\game\priorityAlerts.ts:23: severity: PriorityAlertSeverity;
+src\game\priorityAlerts.ts:27: action: PriorityAlertAction;
+src\game\priorityAlerts.ts:30: const SEVERITY_RANK: Record<PriorityAlertSeverity, number> = {
+src\game\priorityAlerts.ts:37: export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
+src\game\priorityAlerts.ts:38: const alerts: PriorityAlert[] = [];
+src\game\priorityAlerts.ts:46: alerts.push({
+src\game\priorityAlerts.ts:64: alerts.push({
+src\game\priorityAlerts.ts:78: alerts.push({
+src\game\priorityAlerts.ts:91: alerts.push({
+src\game\priorityAlerts.ts:102: alerts.push({
+src\game\priorityAlerts.ts:116: alerts.push({
+src\game\priorityAlerts.ts:132: if (outstandingForge && alerts.length < 4) {
+src\game\priorityAlerts.ts:135: alerts.push({
+src\game\priorityAlerts.ts:149: alerts.push({
+src\game\priorityAlerts.ts:164: alerts.push({
+src\game\priorityAlerts.ts:177: alerts.push({
+src\game\priorityAlerts.ts:189: if (activeChallenge && alerts.length < 4) {
+src\game\priorityAlerts.ts:190: alerts.push({
+src\game\priorityAlerts.ts:200: alerts.sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
+src\game\priorityAlerts.ts:201: return alerts.slice(0, 4);
+src\game\renderSnapshot.ts:54: readonly festival: WorldState['festival'];
+src\game\renderSnapshot.ts:135: festival: world.festival,
+src\game\resourceUtils.ts:13: export function isFoodAlert(world: Pick<WorldState, 'resources' | 'humanPopulation'>): boolean {
+src\game\rivalEvents.ts:217: if (rival.raidCooldownDays > 0) rival.raidCooldownDays--;
+src\game\roadmapContent.ts:128: DONE('6-tab sidebar, alert strip, map build hotbar, tab hotkeys V/F/N/P/L/M'),
+src\game\roadmapContent.ts:131: DONE('Frontier raid polish — 2–6 day deadline by distance, slower distant march'),
+src\game\roadmapContent.ts:133: DONE('Walls, watchtowers, barracks; guard patrols; combat log + export'),
+src\game\roadmapContent.ts:187: DONE('Defense research tiers; visitors, rivals, festivals, Moon Howlers'),
+src\game\roadmapContent.ts:190: DONE('Sidebar → 6 tabs; alert strip; map hotbar'),
+src\game\saveLoad.ts:233: scaleField(world as unknown as Record<string, unknown>, 'townHallFestivalCooldownUntilTick');
+src\game\saveLoad.ts:283: if (world.festival) {
+src\game\saveLoad.ts:284: const rec = world.festival as unknown as Record<string, unknown>;
+src\game\saveLoad.ts:369: festival: worldData.festival ?? null,
+src\game\saveLoad.ts:370: townHallFestivalCooldownUntilTick: worldData.townHallFestivalCooldownUntilTick ?? 0,
+src\game\saveLoad.ts:386: raidCooldownDays: r.raidCooldownDays ?? 30,
+src\game\saveSchema.ts:15: 'lifetimeStats', 'eventLog', 'chronicleChapters', 'festival', 'townHallFestivalCooldownUntilTick',
+src\game\storyEvents.ts:62: rival.raidCooldownDays = 0;
+src\game\storyEvents.ts:508: { id: 'festivals', label: 'Feast and celebrate', detail: 'Morale and festivals — a happy village, whatever the ledger says.' },
+src\game\storyEvents.ts:536: addBigNews(state, '🎉 The festival mandate', 'The election settled it: feast and celebrate. Morale soars — a happy village spends more.', 'positive');
+src\game\tickLayerDaily.ts:48: FESTIVAL_CHECK_TICKS,
+src\game\tickLayerDaily.ts:121: getTownHallFestivalCooldownTicks,
+src\game\tickLayerDaily.ts:307: const festivalMult = state.festival?.active ? 1.5 : 1;
+src\game\tickLayerDaily.ts:336: const totalMult = levelMult * terrainMult * adjacencyMult * festivalMult * skillMult * fatigueMult;
+src\game\tickLayerDaily.ts:596: function tickFestivals(state: WorldState, counts: PopulationCounts): void {
+src\game\tickLayerDaily.ts:597: const townHallFestivalBoost = state.buildings.some(
+src\game\tickLayerDaily.ts:603: let festivalStartedThisTick = false;
+src\game\tickLayerDaily.ts:605: // Seasonal festivals — 5 days at the start of each season: 20 guaranteed
+src\game\tickLayerDaily.ts:606: // festival days per year (Spring Revel · Midsummer Feast · Harvest Festival ·
+src\game\tickLayerDaily.ts:607: // Frostfall Feast), on top of the random festivals.
+src\game\tickLayerDaily.ts:610: if (!state.festival && dayInYear === seasonalStart + 3 && counts.humans >= 2) {
+src\game\tickLayerDaily.ts:614: 180: 'Harvest Festival',
+src\game\tickLayerDaily.ts:617: const name = seasonalNames[seasonalStart] ?? 'Village Festival';
+src\game\tickLayerDaily.ts:618: state.festival = { active: true, name, daysLeft: 5 };
+src\game\tickLayerDaily.ts:620: addBigNews(state, '🎉 Festival!', `${name} has begun! Production, courtship, and immigration are boosted for 5 days.`, 'positive');
+src\game\tickLayerDaily.ts:621: logEvent(state, 'season', `${name} festival began in the village`);
+src\game\tickLayerDaily.ts:622: festivalStartedThisTick = true;
+src\game\tickLayerDaily.ts:626: !state.festival
+src\game\tickLayerDaily.ts:627: && state.tick >= (state.townHallFestivalCooldownUntilTick ?? 0)
+src\game\tickLayerDaily.ts:628: && state.tick % FESTIVAL_CHECK_TICKS === 0
+src\game\tickLayerDaily.ts:630: && Math.random() < 0.25 * townHallFestivalBoost
+src\game\tickLayerDaily.ts:632: const festivalNames = ['Harvest Festival', 'Moonlight Feast', 'Founders Day', 'Spring Revel', 'Trade Fair'];
+src\game\tickLayerDaily.ts:633: const name = festivalNames[Math.floor(Math.random() * festivalNames.length)];
+src\game\tickLayerDaily.ts:634: state.festival = { active: true, name, daysLeft: 20 + Math.floor(Math.random() * 20) };
+src\game\tickLayerDaily.ts:635: state.townHallFestivalCooldownUntilTick = state.tick + getTownHallFestivalCooldownTicks();
+src\game\tickLayerDaily.ts:637: addBigNews(state, '🎉 Festival!', `${name} has begun! Production, courtship, and immigration are boosted for ${state.festival.daysLeft} days.`, 'positive');
+src\game\tickLayerDaily.ts:638: logEvent(state, 'season', `${name} festival began in the village`);
+src\game\tickLayerDaily.ts:639: festivalStartedThisTick = true;
+src\game\tickLayerDaily.ts:642: // Don't burn a day on the same tick the festival starts
+src\game\tickLayerDaily.ts:643: if (state.festival && !festivalStartedThisTick && state.tick > 0 && state.tick % TICKS_PER_DAY === 0) {
+src\game\tickLayerDaily.ts:644: state.festival.daysLeft--;
+src\game\tickLayerDaily.ts:645: if (state.festival.daysLeft <= 0) {
+src\game\tickLayerDaily.ts:646: addBigNews(state, '🎉 Festival Ended', `${state.festival.name} is over. The village returns to normal.`, 'neutral');
+src\game\tickLayerDaily.ts:647: state.festival = null;
+src\game\tickLayerDaily.ts:648: state.townHallFestivalCooldownUntilTick = state.tick + getTownHallFestivalCooldownTicks();
+src\game\tickLayerDaily.ts:672: * (state.festival?.active ? 1.5 : 1)
+src\game\tickLayerDaily.ts:864: tickFestivals(state, counts);
+src\game\townHall.ts:13: export function getTownHallFestivalCooldownTicks(): number {
+src\game\townHall.ts:16: export const TOWN_HALL_FESTIVAL_COST = { food: 25, gold: 20 };
+src\game\townHall.ts:17: export const TOWN_HALL_FESTIVAL_DAYS = 14;
+src\game\townHall.ts:104: export function canHostTownFestival(
+src\game\townHall.ts:114: if (state.festival?.active) {
+src\game\townHall.ts:115: return { ok: false, reason: 'A festival is already running' };
+src\game\townHall.ts:117: if (state.tick < (state.townHallFestivalCooldownUntilTick ?? 0)) {
+src\game\townHall.ts:118: return { ok: false, reason: 'Town festival on cooldown' };
+src\game\townHall.ts:120: if (state.resources.food < TOWN_HALL_FESTIVAL_COST.food) {
+src\game\townHall.ts:121: return { ok: false, reason: `Need ${TOWN_HALL_FESTIVAL_COST.food} food` };
+src\game\townHall.ts:123: if (state.resources.gold < TOWN_HALL_FESTIVAL_COST.gold) {
+src\game\townHall.ts:124: return { ok: false, reason: `Need ${TOWN_HALL_FESTIVAL_COST.gold} gold` };
+src\game\townHall.ts:129: export function hostTownFestival(originalState: WorldState, buildingId: number): WorldState {
+src\game\townHall.ts:134: const check = canHostTownFestival(state, building);
+src\game\townHall.ts:136: addNotification(state, 'Cannot host festival', check.reason ?? 'Unavailable', 'warning');
+src\game\townHall.ts:140: state.resources.food -= TOWN_HALL_FESTIVAL_COST.food;
+src\game\townHall.ts:141: state.resources.gold -= TOWN_HALL_FESTIVAL_COST.gold;
+src\game\townHall.ts:142: state.festival = { active: true, name: 'Town Hall Festival', daysLeft: TOWN_HALL_FESTIVAL_DAYS };
+src\game\townHall.ts:144: state.townHallFestivalCooldownUntilTick = state.tick + getTownHallFestivalCooldownTicks();
+src\game\townHall.ts:147: 'Town Festival',
+src\game\townHall.ts:148: `Officials hosted ${TOWN_HALL_FESTIVAL_DAYS} days of revelry — production & immigration boosted`,
+src\game\townHall.ts:151: logEvent(state, 'season', 'Town Hall hosted a village festival');
+src\game\townHall.ts:157: return 'Assign officials (Official job) to collect taxes, grow trade & immigration, and host festivals. Settlers petition the hall for aid & audiences.';
+src\game\townHall.ts:159: return 'Every 3 days: +rep & tax gold · trade · immigration · efficiency · softer scandals · petitions & leader audiences · host festivals below';
+src\game\tutorialCampaign.ts:64: title: 'Prepare for winter',
+src\game\venueSchedule.ts:68: export function isVenueWorkerServiceHour(
+src\game\venueSchedule.ts:83: export function isVenueServiceHour(state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind, hour: number, festivalActive = false): boolean {
+src\game\venueSchedule.ts:84: if (kind === 'tavern' && festivalActive) return true;
+src\game\venueSchedule.ts:89: export function isVenueServiceTick(state: Pick<WorldState, 'tick' | 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind, hour?: number, festivalActive = false): boolean {
+src\game\venueSchedule.ts:90: return isVenueServiceHour(state, kind, hour ?? getHourOfDay(state.tick), festivalActive);
+src\game\villageLeadership.ts:681: state.festival = {
+src\game\workforce.ts:396: export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entity[] {
+src\game\workforce.ts:513: const alive = prepareWorkforce(humans, buildings);
+src\game\workforce.ts:520: const alive = prepareWorkforce(humans, buildings);
+src\game\worldGen.ts:463: festival: null,
+src\game\worldGen.ts:464: townHallFestivalCooldownUntilTick: 0,
+src\hooks\useContextualTutorial.ts:87: world.festival,
+src\App.tsx:33: import { isFoodAlert } from './game/resourceUtils';
+src\App.tsx:106: import AlertBar from './components/AlertBar';
+src\App.tsx:111: import { getPriorityAlerts, type PriorityAlert } from './game/priorityAlerts';
+src\App.tsx:902: const handlePriorityAlert = useCallback((alert: PriorityAlert) => {
+src\App.tsx:904: const action = alert.action;
+src\App.tsx:1251: const priorityAlerts = getPriorityAlerts(world);
+src\App.tsx:1259: const progressTabAlert = world.activeResearch != null || tradeReadyCount > 0;
+src\App.tsx:1260: const foodAlert = isFoodAlert(world);
+src\App.tsx:1372: const frontierAlertCount = pendingRaids.length + pendingOutgoingRaids.length + pendingDiplomacy.length;
+src\App.tsx:1392: foodAlert={foodAlert}
+src\App.tsx:1428: <AlertBar alerts={priorityAlerts} onAlert={handlePriorityAlert} />
+src\App.tsx:2198: {tab.id === 'frontier' && frontierAlertCount > 0 && (
+src\App.tsx:2199: <span className="sidebar-tab-badge">{frontierAlertCount}</span>
+src\App.tsx:2201: {tab.id === 'progress' && progressTabAlert && (
+tests\blueberryForaging.test.ts:81: festivalGathering: false,
+tests\blueberryForaging.test.ts:93: it('does not forage when a routine, meal, festival, or famine rule has priority', () => {
+tests\blueberryForaging.test.ts:95: { freeTime: false, ateMeal: false, festivalGathering: false, famine: false },
+tests\blueberryForaging.test.ts:96: { freeTime: true, ateMeal: true, festivalGathering: false, famine: false },
+tests\blueberryForaging.test.ts:97: { freeTime: true, ateMeal: false, festivalGathering: true, famine: false },
+tests\blueberryForaging.test.ts:98: { freeTime: true, ateMeal: false, festivalGathering: false, famine: true },
+tests\dayCycle.tavern.test.ts:3: * all day and night during festivals (the innkeeper works the party).
+tests\dayCycle.tavern.test.ts:6: import { isFestivalGatheringHour, isOnInnkeeperShift, isTavernOpen } from '../src/game/dayCycle';
+tests\dayCycle.tavern.test.ts:8: describe('tavern festival hours', () => {
+tests\dayCycle.tavern.test.ts:16: it('stays open all day and night during a festival', () => {
+tests\dayCycle.tavern.test.ts:22: it('innkeeper works the festival around the clock', () => {
+tests\dayCycle.tavern.test.ts:23: expect(isOnInnkeeperShift(72 * 10, 9, true)).toBe(true); // mid-day, festival
+tests\dayCycle.tavern.test.ts:24: expect(isOnInnkeeperShift(72 * 10, 9)).toBe(false); // same hour, no festival
+tests\dayCycle.tavern.test.ts:28: it('defines a bounded afternoon-to-evening gathering window only for active festivals', () => {
+tests\dayCycle.tavern.test.ts:29: expect(isFestivalGatheringHour(14, true)).toBe(false);
+tests\dayCycle.tavern.test.ts:30: expect(isFestivalGatheringHour(15, true)).toBe(true);
+tests\dayCycle.tavern.test.ts:31: expect(isFestivalGatheringHour(21, true)).toBe(true);
+tests\dayCycle.tavern.test.ts:32: expect(isFestivalGatheringHour(22, true)).toBe(false);
+tests\dayCycle.tavern.test.ts:33: expect(isFestivalGatheringHour(17, false)).toBe(false);
+tests\dialogueTrees.splitBank.test.ts:35: expect(getDialogueTreeById('wf_funny_festival_turnip')?.category).toBe('festival');
+tests\dialogueTrees.splitBank.test.ts:38: it('keeps festival content as a first-class dialogue category', () => {
+tests\dialogueTrees.splitBank.test.ts:39: expect(resolveDialogueCategories('festival', { festivalActive: true })).toContain('festival');
+tests\dialogueTrees.splitBank.test.ts:40: expect(getDialogueTrees().filter((tree) => tree.category === 'festival')).toHaveLength(6);
+tests\dialogueTrees.splitBank.test.ts:41: expect(getDialogueTreeById('wf_festival_feast_scene')?.category).toBe('festival');
+tests\dialogueTrees.splitBank.test.ts:42: expect(pickDialogueTree('festival', 0, 0, { festivalActive: true })?.category).toBe('festival');
+tests\festival.behavior.test.ts:2: * Festival behavior regression — BUG 2026-08-21-festival-participants-keep-working.
+tests\festival.behavior.test.ts:4: * A festival is not only an economic multiplier. During its daily gathering
+tests\festival.behavior.test.ts:69: function makeState(festivalActive: boolean): { state: WorldState; worker: Entity } {
+tests\festival.behavior.test.ts:103: villageName: 'Festival Vale',
+tests\festival.behavior.test.ts:136: festival: festivalActive ? { active: true, name: 'Test Festival', daysLeft: 3 } : null,
+tests\festival.behavior.test.ts:141: describe('festival participant behavior', () => {
+tests\festival.behavior.test.ts:144: const festival = makeState(true);
+tests\festival.behavior.test.ts:147: const festivalAfter = gameTick(festival.state).entities.find((entity) => entity.id === festival.worker.id)!;
+tests\festival.behavior.test.ts:149: // Without a festival, the farm is left/down from the worker. During a
+tests\festival.behavior.test.ts:150: // festival, the staffed Town Hall is right/down and wins the movement choice.
+tests\festival.behavior.test.ts:152: expect(festivalAfter.vx).toBeGreaterThan(0);
+tests\festival.behavior.test.ts:153: expect(festivalAfter.vy).toBeGreaterThan(0);
+tests\festival.behavior.test.ts:154: expect(festivalAfter.homeBuildingId).toBe(10);
+tests\festival.behavior.test.ts:155: expect(festival.state.buildings.find((entry) => entry.id === 10)?.occupants).toEqual([1]);
+tests\huntingSpot.cleanup.test.ts:178: festival: null,
+tests\rivalProfiles.test.ts:8: daysUntilAction: 10, raidCooldownDays: 10, peaceTreatyDays: 0, profile,
+tests\storyEvents.test.ts:180: it('resolves festivals: reputation up, eco unchanged', () => {
+tests\storyEvents.test.ts:186: const next = respondToStoryEvent(state, id, 'festivals');
+tests\storyEvents.test.ts:408: raidCooldownDays: 20,
+tests\tamingFollow.behavior.test.ts:128: festival: null,
+tests\venueSchedule.test.ts:8: isVenueWorkerServiceHour,
+tests\venueSchedule.test.ts:29: it('keeps Tavern festival override local to Tavern', () => {
+tests\venueSchedule.test.ts:48: expect(isVenueWorkerServiceHour(base, 'hotel', 6, 0, 2)).toBe(true);
+tests\venueSchedule.test.ts:49: expect(isVenueWorkerServiceHour(base, 'hotel', 13, 0, 2)).toBe(true);
+tests\venueSchedule.test.ts:50: expect(isVenueWorkerServiceHour(base, 'hotel', 14, 0, 2)).toBe(false);
+tests\venueSchedule.test.ts:51: expect(isVenueWorkerServiceHour(base, 'hotel', 14, 1, 2)).toBe(true);
+tests\venueSchedule.test.ts:52: expect(isVenueWorkerServiceHour(base, 'hotel', 22, 1, 2)).toBe(false);
+tests\venueSchedule.test.ts:53: expect(isVenueWorkerServiceHour(base, 'tavern', 17, 0, 1)).toBe(true);
+tests\venueSchedule.test.ts:54: expect(isVenueWorkerServiceHour(base, 'tavern', 23, 0, 1)).toBe(false);
+tests\workforce.transitions.test.ts:30: prepareWorkforce,
+tests\workforce.transitions.test.ts:161: it('preserves a valid leader workplace through prepareWorkforce', () => {
+tests\workforce.transitions.test.ts:169: const alive = prepareWorkforce([leader], [farm]);
+tests\workforce.transitions.test.ts:177: it('clears a stale leader workplace through prepareWorkforce', () => {
+tests\workforce.transitions.test.ts:185: prepareWorkforce([leader], [farm]);

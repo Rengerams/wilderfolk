@@ -1,0 +1,126 @@
+src\components\tabPanels\MoreTabPanel.tsx:68: placeholder="Type: swords, forge, raid, barracks…"
+src\components\tabPanels\MoreTabPanel.tsx:210: <p className="text-stone-300 italic">Raids use strength ratios (not a battle screen). Peace treaties block attacks; prep walls, barracks, and spears.</p>
+src\components\FrontierPanel.tsx:19: import { getBarracksGuardCount, countCompletedDefenseBuildings } from '../game/defenseStructures';
+src\components\FrontierPanel.tsx:49: const guards = getBarracksGuardCount(state, state.buildings);
+src\components\FrontierPanel.tsx:50: const barracksCount = countCompletedDefenseBuildings(state.buildings, BuildingType.Barracks);
+src\components\FrontierPanel.tsx:94: {guards}{barracksCount > 0 ? ` / ${barracksCount} barracks` : ''}
+src\components\FrontierPanel.tsx:102: <p className="mt-1.5 text-[10px] text-stone-300">🏹 {armament} · assign guards in Barracks inspector</p>
+src\components\SelectedBuildingPanel.tsx:64: [BuildingType.Barracks]: 'Assign Guards — each patrols the village (+12 militia strength).',
+src\components\SelectedBuildingPanel.tsx:354: {building.completed && BUILDING_JOB_TYPES[building.type] && building.type !== BuildingType.Church && building.type !== BuildingType.Prison && building.type !== BuildingType.Barracks && (
+src\components\SelectedBuildingPanel.tsx:392: {building.completed && building.type === BuildingType.Barracks && (
+src\components\SelectedBuildingPanel.tsx:500: {building.completed && building.type === BuildingType.Barracks && building.occupants.length === 0 && (
+src\components\SelectedBuildingPanel.tsx:501: <p className="text-[11px] text-amber-400">⚠️ No guards assigned — militia bonus inactive until you staff the barracks.</p>
+src\components\SelectedBuildingPanel.tsx:661: (building.staffingMode ?? (building.type === BuildingType.Church || building.type === BuildingType.Prison || building.type === BuildingType.Barracks || building.type === BuildingType.School || building.type === BuildingType.TownHall ? 'manual' : 'auto')) === mode
+src\components\SelectedBuildingPanel.tsx:671: && building.type !== BuildingType.Barracks && (
+src\game\buildCatalog.ts:66: hint: 'Walls boost barricade · R rotates walls & gates · Barracks adds militia',
+src\game\buildCatalog.ts:71: BuildingType.Barracks,
+src\game\buildings.ts:38: Barracks: 'barracks',
+src\game\buildings.ts:113: * - **Staffed workplaces** (Farm, Church, Barracks, …): max assigned **workers/staff**
+src\game\buildings.ts:278: emoji: '⛪', label: 'Church', description: 'Staffed church boosts courtship and morals. Full-moon nights: up to 4 priests leave home to hunt the Moon Howler — more priests raise cure odds (35% → 71%); Barracks guards nearby can protect a priest from a failed rite.',
+src\game\buildings.ts:359: [BuildingType.Barracks]: {
+src\game\buildings.ts:363: emoji: '⚔️', label: 'Barracks', description: 'Staff Guards to patrol the village (+12 militia strength each).',
+src\game\buildings.ts:364: sprite: '/sprites/barracks.png', backgroundColor: '#57534e', padShape: 'rect',
+src\game\combat.ts:281: barracksGuardKeys: Set<string>;
+src\game\combat.ts:294: const barracksGuardKeys = new Set<string>();
+src\game\combat.ts:296: if (!b.completed || b.type !== BuildingType.Barracks) continue;
+src\game\combat.ts:297: for (const id of b.occupants) barracksGuardKeys.add(`${id}:${b.id}`);
+src\game\combat.ts:300: barracksGuardKeys,
+src\game\combat.ts:311: human.job === JobType.Soldier
+src\game\combat.ts:313: && flags.barracksGuardKeys.has(`${human.id}:${human.homeBuildingId}`)
+src\game\contextualTutorial.ts:184: detail: 'A settler carries the curse — human most nights, dangerous every 14 days on full moons. Staff a Church; on full-moon nights (20:00–06:00) the priest leaves home to hunt the Moon Howler and may break the curse while it is still in 🌝 form — Barracks guards nearby can protect the priest.',
+src\game\contextualTutorial.ts:190: detail: 'On full-moon nights cursed settlers hunt your people. Barracks guards, walls, and spears help. Check Nature tab for ecosystem balance.',
+src\game\defenseStructures.ts:9: export const MILITIA_BALANCE = {
+src\game\defenseStructures.ts:20: * Trained barracks guards — bonus ON TOP of their adult base.
+src\game\defenseStructures.ts:92: * in completed barracks. Does NOT mutate buildings.
+src\game\defenseStructures.ts:94: export function getBarracksGuardCount(state: WorldState, buildings: Building[]): number {
+src\game\defenseStructures.ts:102: if (!b.completed || b.type !== BuildingType.Barracks || b.faction === 'rival') continue;
+src\game\defenseStructures.ts:107: if (human && human.alive && human.job === JobType.Soldier && !isImprisoned(human)) {
+src\game\defenseStructures.ts:116: * Removes dead / missing occupants from barracks. Call this during tick
+src\game\defenseStructures.ts:119: export function pruneDeadBarracksOccupants(state: WorldState, buildings: Building[]): void {
+src\game\defenseStructures.ts:125: if (!b.completed || b.type !== BuildingType.Barracks || b.faction === 'rival') continue;
+src\game\defenseStructures.ts:131: if (human && human.alive && human.job === JobType.Soldier && !isImprisoned(human)) {
+src\game\defenseStructures.ts:141: export function getBarracksGuardBonus(state: WorldState, buildings: Building[]): number {
+src\game\defenseStructures.ts:142: const guards = getBarracksGuardCount(state, buildings);
+src\game\defenseStructures.ts:145: const perGuard = MILITIA_BALANCE.guardBonusPerGuard + (
+src\game\defenseStructures.ts:170: const guards = getBarracksGuardCount(state, buildings);
+src\game\defenseStructures.ts:171: const guardBonus = getBarracksGuardBonus(state, buildings);
+src\game\defenseStructures.ts:173: lines.push(`+ ${guardBonus} barracks guards (${guards} staffed)`);
+src\game\defenseStructures.ts:178: export function isBarracksGuard(
+src\game\defenseStructures.ts:186: && workplace.type === BuildingType.Barracks
+src\game\forge.ts:57: description: `+${FORGE_BONUSES.guardHalberdPerGuard} militia per staffed barracks guard (stacks with base guard bonus).`,
+src\game\frontierCombat.ts:476: const RAID_GUARD_XP: Record<RaidExperienceTier, number> = {
+src\game\frontierCombat.ts:528: const baseXp = RAID_GUARD_XP[tier];
+src\game\frontierCombat.ts:533: gainSkill(state, fighter.id, JobType.Soldier, baseXp);
+src\game\frontierCombat.ts:536: gainSkill(state, fighter.id, JobType.Soldier, RAID_LEADER_GUARD_XP_BONUS);
+src\game\gameTypes.ts:168: [JobType.Soldier]: 'Soldier',
+src\game\gameTypes.ts:189: [BuildingType.Barracks]: JobType.Soldier,
+src\game\gameTypes.ts:1072: { id: 'defense_2', type: ResearchType.Defense, name: 'Stone Spears', description: 'Unlocks Barracks · settlers hunt farther (+20% range) and bring home more meat (+25% food)', cost: { wood: 40, stone: 25, food: 0, gold: 20, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_1'], effects: [{ target: 'hunt_range', multiplier: 1.2 }, { target: 'hunt_food', multiplier: 1.25 }], icon: '🏹', tier: 2 },
+src\game\gameTypes.ts:1076: { id: 'defense_6', type: ResearchType.Defense, name: 'Militia Drill', description: 'Unlocks Guard Halberds forge order — +6 militia per staffed barracks guard', cost: { wood: 90, stone: 55, food: 0, gold: 100, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_4'], effects: [], icon: '🪖', tier: 4 },
+src\game\guideHelp.ts:26: title: 'Who fights / barracks',
+src\game\guideHelp.ts:27: keywords: 'militia raid strength barracks guard defend armament army',
+src\game\guideHelp.ts:28: body: 'On raids, all adults fight using the village gear tier. Barracks only add extra strength for staffed Guards (empty barracks do nothing). Walls help Barricade more than open Defend.',
+src\game\humanTick.ts:11: import { isBarracksGuard } from './defenseStructures';
+src\game\humanTick.ts:665: || (entity.job === JobType.Soldier && isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings))))
+src\game\humanTick.ts:851: && entity.job === JobType.Soldier
+src\game\humanTick.ts:852: && isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings)
+src\game\militiaBalance.ts:17: getBarracksGuardBonus,
+src\game\militiaBalance.ts:18: getBarracksGuardCount,
+src\game\militiaBalance.ts:22: MILITIA_BALANCE,
+src\game\militiaBalance.ts:60: if (tier === 'sword') return MILITIA_BALANCE.ironSwordMult;
+src\game\militiaBalance.ts:61: if (tier === 'iron') return MILITIA_BALANCE.ironSpearMult;
+src\game\militiaBalance.ts:62: if (tier === 'stone') return MILITIA_BALANCE.stoneSpearMult;
+src\game\militiaBalance.ts:67: if (tier === 'scale') return MILITIA_BALANCE.scaleMailPerAdult;
+src\game\militiaBalance.ts:68: if (tier === 'iron') return MILITIA_BALANCE.ironShieldPerAdult;
+src\game\militiaBalance.ts:69: if (tier === 'wooden') return MILITIA_BALANCE.woodenShieldPerAdult;
+src\game\militiaBalance.ts:117: const guardCount = getBarracksGuardCount(state, state.buildings);
+src\game\militiaBalance.ts:142: const base = adultCount * MILITIA_BALANCE.basePerAdult;
+src\game\militiaBalance.ts:143: lines.push(`${adultCount} adults × ${MILITIA_BALANCE.basePerAdult} = ${base}`);
+src\game\militiaBalance.ts:148: lines.push(`× ${MILITIA_BALANCE.ironSwordMult} iron swords (replaces spears) → ${Math.round(rawTotal)}`);
+src\game\militiaBalance.ts:150: lines.push(`× ${MILITIA_BALANCE.ironSpearMult} iron spears (replaces stone) → ${Math.round(rawTotal)}`);
+src\game\militiaBalance.ts:152: lines.push(`× ${MILITIA_BALANCE.stoneSpearMult} stone spears → ${Math.round(rawTotal)}`);
+src\game\militiaBalance.ts:158: const add = adultCount * MILITIA_BALANCE.scaleMailPerAdult;
+src\game\militiaBalance.ts:162: const add = adultCount * MILITIA_BALANCE.ironShieldPerAdult;
+src\game\militiaBalance.ts:166: const add = adultCount * MILITIA_BALANCE.woodenShieldPerAdult;
+src\game\militiaBalance.ts:174: const guardBonus = getBarracksGuardBonus(state, state.buildings);
+src\game\militiaBalance.ts:178: lines.push(`+ ${guardBonus} barracks guards (${guardCount} staffed × ${perGuard.toFixed(1)})`);
+src\game\militiaBalance.ts:202: militiaStrength * MILITIA_BALANCE.barricadeMilitiaFactor
+src\game\militiaBalance.ts:203: + MILITIA_BALANCE.barricadeFlatBonus
+src\game\moonHowler.ts:36: import { isBarracksGuard } from './defenseStructures';
+src\game\moonHowler.ts:71: /** Barracks guards within this distance (world px) of the priest can roll to save them. */
+src\game\moonHowler.ts:595: * Barracks guards near the priest who can cover a failed rite. A guard must be
+src\game\moonHowler.ts:596: * alive, an assigned Barracks guard, and within MOON_HOWLER_GUARD_PROTECT_RANGE.
+src\game\moonHowler.ts:602: if (!e.alive || e.type !== EntityType.Human || e.job !== JobType.Soldier) continue;
+src\game\moonHowler.ts:603: if (!isBarracksGuard(e.id, e.homeBuildingId, buildings)) continue;
+src\game\moonHowler.ts:769: // Barracks guards nearby roll to protect the priest (extra roll, not guaranteed).
+src\game\moonHowler.ts:784: `A Barracks guard covered priest ${priestName} — the Moon Howler's strike was turned, curse unbroken`,
+src\game\roadmapContent.ts:74: DONE('Barracks guards roll to save the priest from a failed rite · scared survivors retreat'),
+src\game\roadmapContent.ts:133: DONE('Walls, watchtowers, barracks; guard patrols; combat log + export'),
+src\game\saveLoad.ts:204: if (workplace?.type === BuildingType.Barracks) {
+src\game\saveLoad.ts:205: entity.job = JobType.Soldier;
+src\game\workforce.ts:40: BuildingType.Barracks,
+src\game\workforce.ts:518: /** Headless balance sims — fill every job slot including church, prison, and barracks. */
+tests\leaderHouse.workforce.test.ts:149: BuildingType.Barracks,
+tests\moonHowler.exorcism.test.ts:5: *   • Barracks guards nearby roll (extra roll, not guaranteed) to save the priest
+tests\moonHowler.exorcism.test.ts:117: it('a nearby Barracks Soldier rolls to save the priest (extra roll, not guaranteed)', () => {
+tests\moonHowler.exorcism.test.ts:124: job: JobType.Soldier,
+tests\moonHowler.exorcism.test.ts:130: const barracks: Building = {
+tests\moonHowler.exorcism.test.ts:133: type: BuildingType.Barracks,
+tests\moonHowler.exorcism.test.ts:141: const buildings = [...f.buildings, barracks];
+tests\securityRoles.migration.test.ts:55: const barracksSoldier = legacyHuman(1, 10);
+tests\securityRoles.migration.test.ts:59: entities: [barracksSoldier, prisonGuard, unassigned],
+tests\securityRoles.migration.test.ts:61: building(10, BuildingType.Barracks),
+tests\securityRoles.migration.test.ts:68: expect(barracksSoldier.job).toBe(JobType.Soldier);
+tests\securityRoles.split.test.ts:10: import { getBarracksGuardCount, getBarracksGuardBonus } from '../src/game/defenseStructures';
+tests\securityRoles.split.test.ts:60: it('maps Barracks to Soldier and Prison to PrisonGuard', () => {
+tests\securityRoles.split.test.ts:61: expect(BUILDING_JOB_TYPES[BuildingType.Barracks]).toBe(JobType.Soldier);
+tests\securityRoles.split.test.ts:68: const barracks = building(10, BuildingType.Barracks);
+tests\securityRoles.split.test.ts:71: expect(assignWorkerTransition(soldier, barracks)).toBe(true);
+tests\securityRoles.split.test.ts:73: expect(soldier.job).toBe(JobType.Soldier);
+tests\securityRoles.split.test.ts:75: expect(soldier.homeBuildingId).toBe(barracks.id);
+tests\securityRoles.split.test.ts:79: it('counts Soldiers for Barracks defense but excludes PrisonGuards', () => {
+tests\securityRoles.split.test.ts:80: const soldier = human(1, { job: JobType.Soldier, homeBuildingId: 10 });
+tests\securityRoles.split.test.ts:82: const barracks = building(10, BuildingType.Barracks, [1]);
+tests\securityRoles.split.test.ts:84: const state = { entities: [soldier, prisonGuard], buildings: [barracks, prison] } as WorldState;
+tests\securityRoles.split.test.ts:86: expect(getBarracksGuardCount(state, state.buildings)).toBe(1);
+tests\securityRoles.split.test.ts:87: expect(getBarracksGuardBonus(state, state.buildings)).toBe(14);
+tests\securityRoles.split.test.ts:104: expect(getBarracksGuardCount(

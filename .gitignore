@@ -18,7 +18,7 @@ target/
 src-tauri/target/
 src-tauri/gen/schemas/
 *.tsbuildinfo
-
+docs/
 # Generated analysis output
 dependency-graph.dot
 dependency-graph.svg
