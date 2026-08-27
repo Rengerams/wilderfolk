@@ -1,7 +1,7 @@
 {
   "name": "wilderfolk",
   "private": true,
-  "version": "0.6.3",
+  "version": "0.6.4",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -23,7 +23,10 @@
     "audit:deps": "depcruise src --config .dependency-cruiser.cjs --ts-config tsconfig.app.json",
     "audit:deps:cycles": "depcruise src --config .dependency-cruiser.cjs --ts-config tsconfig.app.json --output-type err-long --focus \"circular\"",
     "audit:deps:graph": "depcruise src --config .dependency-cruiser.cjs --ts-config tsconfig.app.json --output-type dot > dependency-graph.dot",
-    "audit": "npm run audit:knip && npm run audit:deps"
+    "audit": "npm run audit:knip && npm run audit:deps",
+    "tauri:dev": "tauri dev",
+    "tauri:dev:log": "node scripts/run-tauri-dev-log.mjs",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "pixi.js": "^8.20.0",
@@ -33,6 +36,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
+    "@tauri-apps/cli": "^2.11.4",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",

@@ -26,6 +26,12 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 > **Early alpha today** — playtest the trail in your browser. **Installer and Steam** are the destination; this repo is the open development build.
 
+### Choose how to play
+
+- **Windows desktop:** Download `Wilderfolk_0.6.4_x64-setup.exe` from the [GitHub Releases](https://github.com/Rengerams/wilderfolk/releases) page. The Tauri desktop build opens in a maximized window and does not require Chrome, Node.js, Rust, or the repository source.
+- **Browser:** Clone or download this repository, install dependencies with `npm install`, and run `npm run dev`. Open the local URL shown by Vite.
+- **Developer desktop mode:** Run `npm run tauri:dev` for a separate Tauri window with hot reload, or `npm run tauri:dev:log` to capture a timestamped development log under `logs/`.
+
 | You get | Why it matters |
 |---------|----------------|
 | **Living food chain** | Grass, prey, predators, and your village share one ecology — balance or collapse |
@@ -39,16 +45,19 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-## Latest update — v0.6.3 (August 25, 2026)
-* ⚠️ **Beta Save Policy:** This build loads only **0.6.3** saves.
+## Latest update — v0.6.4 (August 27, 2026)
+* ⚠️ **Beta Save Policy:** This build loads only **0.6.4** saves.
 * **Compatibility Dropped:** Historical-save compatibility is no longer supported.
-* **New Start Required:** Saves from any other build, including 0.6.2.2, are rejected; please begin a new settlement.
+* **New Start Required:** Saves from any other build, including 0.6.3 and earlier, are rejected; please begin a new settlement.
 
 
 **A richer frontier, livelier families, and a valley that remembers what you do.**
 
-* `GAME_VERSION` **0.6.3**
-* **Beta build:** v0.6.3 is the current game version.
+**Tauri desktop integration:** Windows users can download the standalone `.exe` installer from GitHub Releases; the browser version remains available for playtesting.
+
+* `GAME_VERSION` **0.6.4**
+* **Package version:** **0.6.4**
+* **Beta build:** v0.6.4 is the current game version; this release adds the Tauri desktop integration.
 
 | Area | Highlights |
 |------|------------|
@@ -322,3 +331,4 @@ Source code is [MIT](LICENSE) — Copyright (c) 2026 Renffr. Audio assets have s
   <em>Don't kill all the wolves.</em><br>
   <em>Build inside the food chain — or watch it collapse.</em>
 </p>
+
