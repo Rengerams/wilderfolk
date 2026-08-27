@@ -1,5 +1,14 @@
 # Changelog
 
+## <u>[0.6.4]</u> — 2026-08-27
+
+- **Windows desktop distribution** — published the first standalone Wilderfolk Windows desktop build using Tauri v2. The release includes NSIS `.exe` and MSI installers, a bundled Wilderfolk icon, and maximized startup.
+- **Developer desktop workflow** — added `npm run tauri:dev` for a separate Tauri development window with hot reload, plus `npm run tauri:dev:log` for a single timestamped development log under `logs/`.
+- **Browser path preserved** — the existing Vite browser launch remains available for quick playtesting and web development.
+- **Release verification** — the source-integrity guard, Oxlint, TypeScript checks, production browser build, and Windows x64 Tauri bundle build passed before publication.
+- **Release assets** — Windows installers are available from the [GitHub Release for v0.6.4](https://github.com/Rengerams/wilderfolk/releases/tag/v0.6.4).
+- **Scope note** — this release is limited to desktop distribution. The terrain overhaul, Settler Inspector, Oracle advice system, connected formations, and weather-layer work remain separate development tracks.
+
 ## <u>[0.6.3.1]</u> — 2026-08-28
 -
 -
