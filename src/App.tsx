@@ -24,8 +24,6 @@ import {
 import { getVisitorQuest } from './game/visitorQuest';
 import type { WorldState } from './game/gameEngine';
 
-import { GameLoop } from './game/gameLoop';
-import type { WorkerCommand } from './game/simWorker/commands';
 import type { EntityCatalog } from './game/entityCatalog';
 import { resolveAliveHumans } from './game/entityCatalog';
 import { computeVillageStats, type VillageStatsSummary } from './game/uiSimSummary';
@@ -72,6 +70,7 @@ import GamePlayLayout from './components/GamePlayLayout';
 
 import { useGamePersistence } from './hooks/useGamePersistence';
 import { useTransientGameFeedback } from './hooks/useTransientGameFeedback';
+import { useGameSession } from './hooks/useGameSession';
 import {
   TUTORIAL_DONE_STORAGE_KEY as TUTORIAL_DONE_KEY,
   useGameShellState,
@@ -200,6 +199,26 @@ export default function App() {
   const [spritesLoaded, setSpritesLoaded] = useState(false);
   const fps = useFpsMeter(showFps);
   const [hasSavedGame, setHasSavedGame] = useState(hasSave());
+  const {
+    applyGameAction,
+    catalogRef,
+    loopRef,
+    replaceSession,
+    viewRef,
+    worldRef,
+  } = useGameSession({
+    canvasRef,
+    initialWorld: world,
+    initialView: view,
+    spritesLoaded,
+    showIntro,
+    showMapSetup,
+    setWorld,
+    setView,
+    setVillageStats,
+    setCatalog,
+    setHasPlacedHouse,
+  });
   const gameplayActive = !showIntro && !showMapSetup && spritesLoaded;
   const { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset } = useGameAudio(world, gameplayActive);
 
@@ -216,10 +235,6 @@ export default function App() {
     world,
     gameplayActive && tutorialsEnabled && !showTutorial,
   );
-  const worldRef = useRef(world);
-  const viewRef = useRef(view);
-  const loopRef = useRef<GameLoop | null>(null);
-  const catalogRef = useRef<EntityCatalog | null>(null);
   const audioStartedRef = useRef(false);
   const markGameSaved = useCallback(() => {
     setHasSavedGame(true);
@@ -252,11 +267,6 @@ export default function App() {
     worldRef,
     loopRef,
     onFeedbackInteraction: playClickSound,
-  });
-
-  useEffect(() => {
-    worldRef.current = world;
-    viewRef.current = view;
   });
 
   const isDraggingRef = useRef(false);
@@ -322,37 +332,6 @@ export default function App() {
   const firstNightWarningMessage = !nightFallen
     ? `Hour ${hourNow}:00 — night begins at ${NIGHT_START}:00. Place a House on the map and assign workers!`
     : `Night has fallen — place a House and assign workers so your pioneers have somewhere to sleep.`;
-
-  // Simulation + render loop (decoupled from React render cycle)
-  useEffect(() => {
-    if (!spritesLoaded || showIntro || showMapSetup) {
-      loopRef.current?.stop();
-      loopRef.current = null;
-      return;
-    }
-    const loop = new GameLoop(worldRef.current, viewRef.current, () => canvasRef.current);
-    loopRef.current = loop;
-    const unsub = loop.subscribe((nextWorld, nextView, simChanged, nextCatalog) => {
-      worldRef.current = nextWorld;
-      viewRef.current = nextView;
-      catalogRef.current = nextCatalog;
-      // Canvas/minimap read refs every frame — skip React commits on 100ms periodic polls.
-      if (!simChanged) return;
-      setCatalog(nextCatalog);
-      setVillageStats(computeVillageStats(nextWorld, nextCatalog));
-      setHasPlacedHouse((prev) => prev || nextWorld.buildings.some(
-        (b) => b.type === BuildingType.House && (b.completed || b.constructionProgress > 0),
-      ));
-      setWorld(nextWorld);
-      setView(nextView);
-    });
-    loop.start();
-    return () => {
-      unsub();
-      loop.stop();
-      loopRef.current = null;
-    };
-  }, [spritesLoaded, showIntro, showMapSetup]);
 
   const togglePause = useCallback(() => {
     const loop = loopRef.current;
@@ -730,14 +709,6 @@ export default function App() {
     }
   }, [selectBuildingType, focusCampOnMap, focusBuildingOnMap, openTab]);
 
-  const applyGameAction = useCallback((action: WorkerCommand | ((w: WorldState) => WorldState)) => {
-    if (typeof action === 'function') {
-      loopRef.current?.applyAction(action);
-    } else {
-      loopRef.current?.applyCommand(action);
-    }
-  }, []);
-
   const getViewCamera = useCallback(() => {
     return loopRef.current?.getView().camera ?? viewRef.current.camera;
   }, []);
@@ -912,12 +883,8 @@ export default function App() {
     s.paused = showQuickStart;
     s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
     const nextView = createInitialView(s.width, s.height);
-    worldRef.current = s;
-    viewRef.current = nextView;
     resetTransientFeedbackForNewSession();
-    setWorld(s);
-    setView(nextView);
-    loopRef.current?.setSession(s, nextView);
+    replaceSession(s, nextView);
     setSelectedBuildingType(null);
     setHasSavedGame(false);
     setFirstNightWarningDismissed(false);
@@ -932,6 +899,7 @@ export default function App() {
     tutorialsEnabled,
     tutorialChoice,
     resetTransientFeedbackForNewSession,
+    replaceSession,
   ]);
 
   const startNewGame = useCallback(() => {
@@ -955,14 +923,10 @@ export default function App() {
       loaded.world.tradeRoutes.length > 0 ? loaded.world.tradeRoutes : initTradeRoutes(),
     );
     fixDefaultNames(loaded.world);
-    worldRef.current = loaded.world;
-    viewRef.current = loaded.view;
     synchronizeTransientFeedbackFromWorld(loaded.world);
-    setWorld(loaded.world);
-    setView(loaded.view);
-    loopRef.current?.setSession(loaded.world, loaded.view);
+    replaceSession(loaded.world, loaded.view);
     setHasSavedGame(true);
-  }, [synchronizeTransientFeedbackFromWorld]);
+  }, [replaceSession, synchronizeTransientFeedbackFromWorld]);
 
   const handleLoad = useCallback(() => {
     const loaded = loadGame();
