@@ -80,11 +80,22 @@ The browser version remains available for quick playtesting. Developers can use 
 
 This release is focused on desktop distribution. The terrain overhaul, Settler Inspector, Oracle advice system, connected formations, and weather-layer work remain separate development tracks.
 
-**A richer frontier, livelier families, and a valley that remembers what you do.**
-
 - `GAME_VERSION`: **0.6.4**
 - Package version: **0.6.4**
 - Save policy: **0.6.4 saves only**; saves from earlier builds are not compatible.
+
+---
+
+## Latest update — v0.6.3 (August 25, 2026)
+
+> **Beta Save Policy:** This build loads only **0.6.3** saves.
+>
+> **Compatibility note:** Historical-save compatibility is no longer supported. Saves from other builds, including 0.6.2.2 and earlier, are rejected; begin a new settlement for this version.
+
+**A richer frontier, livelier families, and a valley that remembers what you do.**
+
+- `GAME_VERSION`: **0.6.3**
+- **Beta build:** v0.6.3 was the current game version for this update.
 
 | Area | Highlights |
 |------|------------|
@@ -101,7 +112,6 @@ This release is focused on desktop distribution. The terrain overhaul, Settler I
 | ⚙️ **Player-friendly control** | Automatic staffing remains available as a convenience, while manual building control, clearer work hours, human activity status, and housing feedback help you make decisions with confidence. |
 
 ---
-
 ## Latest update — v0.6.2.2 (August 21, 2026)
 
 **A village with healthier rhythms, deeper rivalries, and more stories to remember.**
