@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-Wilderfolk's source code is [MIT](LICENSE) — Copyright (c) 2026 Renffr.
+Wilderfolk's source code and original materials are subject to the [Wilderfolk Permission-Required License](LICENSE) — Copyright (c) 2026 Renffr. Permission must be requested before reuse, modification, redistribution, or commercial use.
 This file lists every third-party asset shipped with the game and its license.
 
 ## Audio (OpenGameArt.org)
