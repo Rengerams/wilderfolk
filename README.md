@@ -33,6 +33,8 @@ Tauri gives Wilderfolk a focused Windows application shell around the same game 
 
 For ordinary players, the practical result is simple: install Wilderfolk, launch it as a normal Windows application, and play without opening a separate Chrome window. Developers can still use the browser path when they need the fastest web iteration loop.
 
+Wilderfolk is gradually moving toward its **first proper release**, so ease of access matters as much as new features. Tauri is part of that release-readiness work: players should be able to download one package, install the game, and start playing without first understanding Node.js, Rust, Vite, browser tabs, or the project’s development setup. The browser version remains important for development and testing, while the desktop package provides the simpler path for everyday players.
+
 ## What is Wilderfolk?
 
 Most settlement games ask you to **tame** the wild. Wilderfolk asks you to **move into it** — and not wreck the neighborhood on your way in.
