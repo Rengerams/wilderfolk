@@ -71,6 +71,7 @@ import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel'
 
 
 import { useGamePersistence } from './hooks/useGamePersistence';
+import { useTransientGameFeedback } from './hooks/useTransientGameFeedback';
 import { beginAudio, primeAudioUnlock, playClickSound, stopIntroSong } from './audio';
 import { useGameAudio } from './hooks/useGameAudio';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
@@ -115,9 +116,8 @@ import './App.css';
 import { BUILDING_HOTKEYS } from './game/hotkeys';
 import TutorialOverlay from './components/TutorialOverlay';
 import TutorialCampaignBanner from './components/TutorialCampaignBanner';
-import MomentTitleCard, { type MomentCardData } from './components/MomentTitleCard';
+import MomentTitleCard from './components/MomentTitleCard';
 import { currentCampaignStep, TUTORIAL_CAMPAIGN } from './game/tutorialCampaign';
-import { VALLEY_CHAPTERS } from './game/valleyChronicle';
 import { getBuildingConfig } from './game/buildingConfig';
 
 const SPEED_OPTIONS = [0.5, 1, 2, 3, 5, 10];
@@ -194,10 +194,6 @@ export default function App() {
   const [showSimTick, setShowSimTick] = useState(() => loadShowSimTick());
   const [showFps, setShowFps] = useState(() => loadShowFps());
   const fps = useFpsMeter(showFps);
-  const [momentCard, setMomentCard] = useState<MomentCardData | null>(null);
-  // Last Valley Chronicle chapter the player has dismissed — lets the chapter card
-  // be derived purely in render (no effect/ref: `world` is a fresh object every tick).
-  const [dismissedChapter, setDismissedChapter] = useState<string | null>(null);
   const [showTutorial, setShowTutorial] = useState(() => {
     if (!loadTutorialsEnabled()) return false;
     try {
@@ -211,8 +207,6 @@ export default function App() {
   const [showMapSetup, setShowMapSetup] = useState(false);
   const [mapSetupSource, setMapSetupSource] = useState<'intro' | 'game'>('intro');
   const [hasSavedGame, setHasSavedGame] = useState(hasSave());
-  const [hiddenBigNewsIds, setHiddenBigNewsIds] = useState<ReadonlySet<string>>(() => new Set());
-  const [hiddenActiveEventIds, setHiddenActiveEventIds] = useState<ReadonlySet<string>>(() => new Set());
   const gameplayActive = !showIntro && !showMapSetup && spritesLoaded;
   const { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset } = useGameAudio(world, gameplayActive);
 
@@ -257,6 +251,23 @@ export default function App() {
     worldRef,
     viewRef,
     onGameSaved: markGameSaved,
+  });
+  const {
+    activeBigNews,
+    activeEventDismissible,
+    activeEventForBanner,
+    activeMoment,
+    dismissActiveEvent,
+    dismissBigNewsItem,
+    dismissMomentCard,
+    dismissNotification,
+    resetTransientFeedbackForNewSession,
+    synchronizeTransientFeedbackFromWorld,
+  } = useTransientGameFeedback({
+    world,
+    worldRef,
+    loopRef,
+    onFeedbackInteraction: playClickSound,
   });
 
   useEffect(() => {
@@ -309,35 +320,6 @@ export default function App() {
         ensureDialogueBankFromBundle();
         setSpritesLoaded(true);
       });
-  }, []);
-
-  // Auto-dismiss big news after ~15s (360 ticks) — stable interval, no length dep
-  useEffect(() => {
-    const timer = setInterval(() => {
-      loopRef.current?.mutateWorld((prev) => {
-        if (prev.bigNews.length === 0) return;
-        const now = prev.tick;
-        const updated = prev.bigNews
-          .map((n) => ({ ...n, dismissed: n.dismissed || now - n.createdAt > 360 }))
-          .filter((n) => !n.dismissed || now - n.createdAt < 600);
-        const changed = updated.length !== prev.bigNews.length
-          || updated.some((n, i) => n.dismissed !== prev.bigNews[i]?.dismissed);
-        if (changed) prev.bigNews = updated;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Fade out toast notifications after ~12s unless the player dismisses them first
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const cutoff = Date.now() - 12_000;
-      loopRef.current?.mutateWorld((w) => {
-        const next = w.notifications.filter((n) => n.createdAt > cutoff);
-        if (next.length !== w.notifications.length) w.notifications = next;
-      });
-    }, 2000);
-    return () => clearInterval(timer);
   }, []);
 
   // Keep the sim frozen while Quick Start or map setup is open
@@ -492,24 +474,6 @@ export default function App() {
     return TUTORIAL_CAMPAIGN.findIndex((s) => s.id === campaignStep.id);
   }, [campaignStep]);
 
-  // Valley Chronicle chapter moments — derive the pending title card in render.
-  // Pure computation (no effect/ref): `world` is a fresh object every tick, and the
-  // card auto-dismisses via MomentTitleCard's own timers once `onDone` stays stable.
-  const pendingChapterCard = useMemo(() => {
-    const ids = world?.chronicleChapters ?? [];
-    const last = ids.length > 0 ? ids[ids.length - 1] : null;
-    if (!last || last === dismissedChapter) return null;
-    return VALLEY_CHAPTERS.find((c) => c.id === last) ?? null;
-  }, [world, dismissedChapter]);
-  const activeMoment = momentCard ?? pendingChapterCard;
-  const dismissMomentCard = useCallback(() => {
-    if (momentCard) {
-      setMomentCard(null);
-      return;
-    }
-    if (pendingChapterCard) setDismissedChapter(pendingChapterCard.id);
-  }, [momentCard, pendingChapterCard]);
-
   const handleToggleShowSimTick = useCallback(() => {
     const next = !showSimTick;
     saveShowSimTick(next);
@@ -530,59 +494,6 @@ export default function App() {
     setTutorialStep(0);
     resumeAfterTutorialOverlay();
   }, [resumeAfterTutorialOverlay]);
-
-  const dismissNotification = useCallback((id: string) => {
-    playClickSound();
-    loopRef.current?.mutateWorld((w) => {
-      w.dismissedNotificationIds = [...new Set([...(w.dismissedNotificationIds ?? []), id])];
-      w.notifications = w.notifications.filter((n) => n.id !== id);
-    });
-  }, []);
-
-  const dismissBigNewsItem = useCallback((id: string) => {
-    playClickSound();
-    setHiddenBigNewsIds((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-    loopRef.current?.mutateWorld((w) => {
-      w.dismissedBigNewsIds = [...new Set([...(w.dismissedBigNewsIds ?? []), id])];
-      w.bigNews = w.bigNews.filter((n) => n.id !== id);
-    });
-  }, []);
-
-  const dismissActiveEvent = useCallback(() => {
-    const w = worldRef.current;
-    const evt = w.activeEvent;
-    if (!evt) return;
-    playClickSound();
-    const visitorNewsIds = evt.id.startsWith('visitor_')
-      ? w.bigNews.filter((n) => n.title.includes('Visitors Arrived')).map((n) => n.id)
-      : [];
-    setHiddenActiveEventIds((prev) => {
-      if (prev.has(evt.id)) return prev;
-      const next = new Set(prev);
-      next.add(evt.id);
-      return next;
-    });
-    if (visitorNewsIds.length > 0) {
-      setHiddenBigNewsIds((prev) => {
-        const next = new Set(prev);
-        for (const id of visitorNewsIds) next.add(id);
-        return next;
-      });
-    }
-    loopRef.current?.mutateWorld((session) => {
-      session.dismissedActiveEventIds = [...new Set([...(session.dismissedActiveEventIds ?? []), evt.id])];
-      session.activeEvent = null;
-      if (visitorNewsIds.length > 0) {
-        session.dismissedBigNewsIds = [...new Set([...(session.dismissedBigNewsIds ?? []), ...visitorNewsIds])];
-        session.bigNews = session.bigNews.filter((n) => !visitorNewsIds.includes(n.id));
-      }
-    });
-  }, []);
 
   const toggleGrid = useCallback(() => {
     const loop = loopRef.current;
@@ -1024,8 +935,7 @@ export default function App() {
     const nextView = createInitialView(s.width, s.height);
     worldRef.current = s;
     viewRef.current = nextView;
-    setHiddenBigNewsIds(new Set());
-    setHiddenActiveEventIds(new Set());
+    resetTransientFeedbackForNewSession();
     setWorld(s);
     setView(nextView);
     loopRef.current?.setSession(s, nextView);
@@ -1036,9 +946,14 @@ export default function App() {
     setShowTutorial(showQuickStart);
     setTutorialStep(0);
     setCampaignActive(tutorialChoice);
-    setDismissedChapter(null);
     setShowMapSetup(false);
-  }, [selectedMapSize, selectedMapPreset, tutorialsEnabled, tutorialChoice]);
+  }, [
+    selectedMapSize,
+    selectedMapPreset,
+    tutorialsEnabled,
+    tutorialChoice,
+    resetTransientFeedbackForNewSession,
+  ]);
 
   const startNewGame = useCallback(() => {
     setMapSetupSource('game');
@@ -1063,16 +978,12 @@ export default function App() {
     fixDefaultNames(loaded.world);
     worldRef.current = loaded.world;
     viewRef.current = loaded.view;
-    setHiddenBigNewsIds(new Set([
-      ...(loaded.world.dismissedBigNewsIds ?? []),
-      ...loaded.world.bigNews.filter((n) => n.dismissed).map((n) => n.id),
-    ]));
-    setHiddenActiveEventIds(new Set(loaded.world.dismissedActiveEventIds ?? []));
+    synchronizeTransientFeedbackFromWorld(loaded.world);
     setWorld(loaded.world);
     setView(loaded.view);
     loopRef.current?.setSession(loaded.world, loaded.view);
     setHasSavedGame(true);
-  }, []);
+  }, [synchronizeTransientFeedbackFromWorld]);
 
   const handleLoad = useCallback(() => {
     const loaded = loadGame();
@@ -1144,13 +1055,6 @@ export default function App() {
       setHasSavedGame(hasSave());
     }
   }, [applyLoadedSession]);
-
-  const activeBigNews = world.bigNews.filter(
-    (n) => !n.dismissed && !hiddenBigNewsIds.has(n.id),
-  );
-  const activeEventDismissible = !!(
-    world.activeEvent && !hiddenActiveEventIds.has(world.activeEvent.id)
-  );
 
   useLayoutEffect(() => {
     dismissBigNewsRef.current = dismissBigNewsItem;
@@ -1278,9 +1182,6 @@ export default function App() {
   const pendingDiplomacy = world.pendingDiplomacyEvents ?? [];
   const pendingRaids = world.pendingRaidEvents ?? [];
   const pendingOutgoingRaids = world.pendingOutgoingRaidEvents ?? [];
-  const activeEventForBanner = world.activeEvent && !hiddenActiveEventIds.has(world.activeEvent.id)
-    ? world.activeEvent
-    : null;
   const activeVillageRequest = world.activeVillageRequest;
   const showVillageRequest = !!(
     activeVillageRequest
