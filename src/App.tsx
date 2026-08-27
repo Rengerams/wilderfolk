@@ -67,6 +67,7 @@ import ShortcutsOverlay from './components/ShortcutsOverlay';
 import VisitorCampPanel from './components/VisitorCampPanel';
 import SelectedEntityPanel from './components/SelectedEntityPanel';
 import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel';
+import GamePlayLayout from './components/GamePlayLayout';
 
 
 import { useGamePersistence } from './hooks/useGamePersistence';
@@ -1186,55 +1187,53 @@ export default function App() {
       : 'default';
 
   return (
-    <div className="game-shell flex h-screen w-screen flex-col overflow-hidden text-stone-100">
-      <GameHeader
-        world={world}
-        population={villageStats.total}
-        gameTitle={GAME_TITLE}
-        gameVersion={GAME_VERSION}
-        gamePhase={GAME_PHASE}
-        gameSubtitle={GAME_SUBTITLE}
-        foodAlert={foodAlert}
-        muted={muted}
-        volumePreset={volumePreset}
-        hasSavedGame={hasSavedGame || hasSave()}
-        speedOptions={SPEED_OPTIONS}
-        onTogglePause={togglePause}
-        onSetSpeed={setSpeed}
-        onOpenTrade={handleOpenTrade}
-        onSave={handleSave}
-        onLoad={handleLoad}
-        onSaveToFile={() => { void handleSaveToFile(); }}
-        onLoadFromFile={handleLoadFromFile}
-        tutorialsEnabled={tutorialsEnabled}
-        juiceEffectsEnabled={juiceEffectsEnabled}
-        showSimTick={showSimTick}
-        showFps={showFps}
-        onToggleAutoSave={toggleAutoSave}
-        onToggleTutorials={handleToggleTutorials}
-        onToggleJuiceEffects={handleToggleJuiceEffects}
-        onToggleShowSimTick={handleToggleShowSimTick}
-        onToggleShowFps={handleToggleShowFps}
-        onToggleMute={handleToggleMute}
-        onVolumePreset={handleVolumePreset}
-        onOpenGuide={handleOpenGuide}
-        onStartNewGame={startNewGame}
-        onFocusLeader={() => {
-          const leaderId = world.villageLeaderId;
-          if (leaderId == null) return;
-          const leader =
-            catalog?.get(leaderId)
-            ?? resolveEntity(world, leaderId)
-            ?? world.entities.find((e) => e.id === leaderId);
-          if (leader?.alive) focusCitizenOnMap(leader);
-        }}
-      />
-
-      <AlertBar alerts={priorityAlerts} onAlert={handlePriorityAlert} />
-
-      {/* Main content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar — collapsible construction panel */}
+    <GamePlayLayout
+      header={(
+        <GameHeader
+          world={world}
+          population={villageStats.total}
+          gameTitle={GAME_TITLE}
+          gameVersion={GAME_VERSION}
+          gamePhase={GAME_PHASE}
+          gameSubtitle={GAME_SUBTITLE}
+          foodAlert={foodAlert}
+          muted={muted}
+          volumePreset={volumePreset}
+          hasSavedGame={hasSavedGame || hasSave()}
+          speedOptions={SPEED_OPTIONS}
+          onTogglePause={togglePause}
+          onSetSpeed={setSpeed}
+          onOpenTrade={handleOpenTrade}
+          onSave={handleSave}
+          onLoad={handleLoad}
+          onSaveToFile={() => { void handleSaveToFile(); }}
+          onLoadFromFile={handleLoadFromFile}
+          tutorialsEnabled={tutorialsEnabled}
+          juiceEffectsEnabled={juiceEffectsEnabled}
+          showSimTick={showSimTick}
+          showFps={showFps}
+          onToggleAutoSave={toggleAutoSave}
+          onToggleTutorials={handleToggleTutorials}
+          onToggleJuiceEffects={handleToggleJuiceEffects}
+          onToggleShowSimTick={handleToggleShowSimTick}
+          onToggleShowFps={handleToggleShowFps}
+          onToggleMute={handleToggleMute}
+          onVolumePreset={handleVolumePreset}
+          onOpenGuide={handleOpenGuide}
+          onStartNewGame={startNewGame}
+          onFocusLeader={() => {
+            const leaderId = world.villageLeaderId;
+            if (leaderId == null) return;
+            const leader =
+              catalog?.get(leaderId)
+              ?? resolveEntity(world, leaderId)
+              ?? world.entities.find((e) => e.id === leaderId);
+            if (leader?.alive) focusCitizenOnMap(leader);
+          }}
+        />
+      )}
+      alertBar={<AlertBar alerts={priorityAlerts} onAlert={handlePriorityAlert} />}
+      buildRail={(
         <aside
           className={`build-panel side-panel relative flex shrink-0 flex-col border-r border-stone-700/80 transition-[width] duration-150 ease-in-out ${
             buildPanelOpen ? 'w-[15.5rem]' : 'w-12'
@@ -1305,9 +1304,9 @@ export default function App() {
             </div>
           )}
         </aside>
-
-        {/* Center - Canvas */}
-        <main className="map-stage relative" style={{ flex: '1 1 0%', minHeight: 0, minWidth: 0 }}>
+      )}
+      mapStage={(
+        <>
           <canvas
             ref={canvasRef}
             onClick={handleCanvasClick}
@@ -1804,9 +1803,9 @@ export default function App() {
             />
           )}
 
-        </main>
-
-        {/* Right sidebar */}
+        </>
+      )}
+      inspector={(
         <aside className="side-panel flex w-[18.5rem] flex-col border-l border-stone-700/80">
           <SimulationDiagnosticsPanel loop={loopRef.current} debugMode={debugMode} />
           {hasInspectorSelection && (
@@ -2162,8 +2161,9 @@ export default function App() {
             )}
           </div>
         </aside>
-        </div>
-
+      )}
+      overlays={(
+        <>
       {showVillageRequest && activeVillageRequest && (
         <VillageRequestCard
           request={activeVillageRequest}
@@ -2190,7 +2190,9 @@ export default function App() {
       {showShortcuts && (
         <ShortcutsOverlay onClose={() => setShowShortcuts(false)} />
       )}
-    </div>
+        </>
+      )}
+    />
   );
 }
 
