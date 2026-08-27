@@ -28,6 +28,7 @@ public/sprites/
 *.njsproj
 *.sln
 *.sw?
+tmp/
 
 # IDE / agent session logs (not project files)
 terminals/
