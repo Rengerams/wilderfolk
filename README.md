@@ -30,7 +30,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 **Build homes. Assign workers. Watch families grow.** Every settler carries three personality traits from a pool of fourteen — 💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful, 🦁 Chivalrous, 🔨 Resourceful, 🏔️ Stoic, ✨ Graceful, 🦉 Intuitive, 🔥 Fierce — inherited from their parents, DNA-style, so the brave father's daughter carries his fire. Meet neighbor tribes on the map, queue iron at the Blacksmith, survive Moon Howlers, and shape your own legacy. The valley feels alive because the sim treats predators, prey, and people as one system.
 
-> **Early alpha today** — playtest the trail in your browser. **Installer and Steam** are the destination; this repo is the open development build.
+> **v0.6.4 Windows package available** — download the standalone desktop installer from the [GitHub Release](https://github.com/Rengerams/wilderfolk/releases/tag/v0.6.4), or continue playtesting in your browser.
 
 ### Choose how to play
 
@@ -52,18 +52,22 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 ---
 
 ## Latest update — v0.6.4 (August 27, 2026)
-* ⚠️ **Beta Save Policy:** This build loads only **0.6.4** saves.
-* **Compatibility Dropped:** Historical-save compatibility is no longer supported.
-* **New Start Required:** Saves from any other build, including 0.6.3 and earlier, are rejected; please begin a new settlement.
 
-**Tauri desktop integration:** Windows users can download the standalone `.exe` installer from GitHub Releases. The browser version remains available for playtesting, while developers can use Tauri development mode with hot reload and diagnostics.
+**Windows desktop distribution is now available.** The first standalone Wilderfolk package uses Tauri v2, opens in a maximized window, includes the Wilderfolk application icon, and is published with both `.exe` and `.msi` installers.
 
+- **Recommended Windows installer:** [Download `Wilderfolk_0.6.4_x64-setup.exe`](https://github.com/Rengerams/wilderfolk/releases/download/v0.6.4/Wilderfolk_0.6.4_x64-setup.exe)
+- **MSI package:** [Download `Wilderfolk_0.6.4_x64_en-US.msi`](https://github.com/Rengerams/wilderfolk/releases/download/v0.6.4/Wilderfolk_0.6.4_x64_en-US.msi)
+- **Release notes:** [View GitHub Release v0.6.4](https://github.com/Rengerams/wilderfolk/releases/tag/v0.6.4)
+
+The browser version remains available for quick playtesting. Developers can use `npm run tauri:dev` for a separate desktop window with hot reload or `npm run tauri:dev:log` for timestamped development logging.
+
+This release is focused on desktop distribution. The terrain overhaul, Settler Inspector, Oracle advice system, connected formations, and weather-layer work remain separate development tracks.
 
 **A richer frontier, livelier families, and a valley that remembers what you do.**
 
-* `GAME_VERSION` **0.6.4**
-* **Package version:** **0.6.4**
-* **Beta build:** v0.6.4 is the current game version; the 0.6.4 change is the Tauri desktop integration.
+- `GAME_VERSION`: **0.6.4**
+- Package version: **0.6.4**
+- Save policy: **0.6.4 saves only**; saves from earlier builds are not compatible.
 
 | Area | Highlights |
 |------|------------|
