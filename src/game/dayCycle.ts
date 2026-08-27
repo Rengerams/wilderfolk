@@ -3,12 +3,37 @@ import type { Building, Entity } from './gameTypes';
 import { finalizeMoonHowlerDeath } from './moonHowler';
 import { cleanupEntityDialogueState } from './humanChat';
 
-import { HUMAN_ADULT_MIN_AGE, isNightHour, isFullMoonNight } from './dayCycleConstants';
-import { TICKS_PER_DAY, DAYS_PER_YEAR, getHourOfDay, getAbsoluteCalendarDay, isWeekend, isWorkDay, ticksForDays } from './dayCycleClock';
+import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { TICKS_PER_DAY, DAYS_PER_YEAR, getAbsoluteCalendarDay, ticksForDays } from './dayCycleClock';
 export { DAYS_PER_YEAR, LEGACY_TICKS_PER_DAY, PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR, getAbsoluteCalendarDay, getCalendarDay, getHourOfDay, getTickOfDay, getWeekday, getWeekdayLabel, isNewCalendarDayTick, isProductionTick, isStartOfClockHour, isWeekend, isWorkDay, nextTickAtClockHour, systemsPulsesFromLegacy, ticksForDays } from './dayCycleClock';
 
 const GAME_YEAR_OFFSET = 1700;
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+export {
+  EVENING_START,
+  FESTIVAL_GATHER_END,
+  FESTIVAL_GATHER_START,
+  TAVERN_SHIFT_END,
+  TAVERN_SHIFT_START,
+  WORK_END,
+  WORK_HOURS_PER_DAY,
+  WORK_START,
+  allowSocialLife,
+  buildWorkHours,
+  formatHour,
+  isActiveFreeDay,
+  isFestivalGatheringHour,
+  isOnInnkeeperShift,
+  isOnMoonHowlerNightShift,
+  isOnWorkShift,
+  isTavernOpen,
+  isTavernServiceHour,
+  isWorkHour,
+  personDayRoll,
+  prefersHomeTonight,
+  shouldBeAtHome,
+} from './humanSchedule';
 
 export {
   DAYS_PER_MOON_CYCLE,
@@ -233,46 +258,6 @@ export const EVENT_INTERVAL = {
   tamedHuntAssist: ticksForDays(3),
 } as const;
 
-/** Shift start (07:00). Clock hour 0–23 via {@link getHourOfDay}. */
-export const WORK_START = 7;
-/** Shift end exclusive — free from 18:00 onward (not working during hour 18). */
-export const WORK_END = 18;
-/** After work / head home. Matches WORK_END so evenings start when the shift ends. */
-export const EVENING_START = 18;
-
-/**
- * Tavern / Innkeeper service window — open for the evening rush through late night.
- * Inclusive start, exclusive end (hours 17–22).
- */
-export const TAVERN_SHIFT_START = 17;
-export const TAVERN_SHIFT_END = 23;
-
-/**
- * Festival gathering window — the village leaves ordinary daytime work early
- * enough to visibly assemble, then disperses before night. Festival creation
- * and expiry remain owned by the daily festival transition; this helper only
- * answers the shared clock question used by realtime movement.
- */
-export const FESTIVAL_GATHER_START = 15;
-export const FESTIVAL_GATHER_END = 22;
-
-/** Work hours per weekday (7am–6pm) — construction daily batch uses this. */
-export const WORK_HOURS_PER_DAY = WORK_END - WORK_START;
-
-/** Mon=0 … Sun=6 (colony day 0 = Monday). */
-export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
-
-/**
- * Total on-site **work hours** to finish a building (not sim ticks).
- * `buildTime` in BuildingConfig is calendar game-days; each weekday contributes
- * {@link WORK_HOURS_PER_DAY} hours. Daily construction multiplies the per-hour
- * rate by WORK_HOURS_PER_DAY (see tickLayerDaily).
- */
-export function buildWorkHours(buildDays: number): number {
-  return Math.max(WORK_HOURS_PER_DAY, Math.round(buildDays * WORK_HOURS_PER_DAY));
-}
-
-
 /** Marks the current calendar day as processed after the daily layer succeeds. */
 export function markCalendarDayProcessed(state: import('./gameTypes').WorldState): void {
   if (state.tick > 0 && state.tick % TICKS_PER_DAY === 0) {
@@ -289,125 +274,6 @@ export function getBirthDateString(entity: { birthYear: number; birthMonth: numb
   const month = ((monthIndex % 12) + 12) % 12;
   const dayOfMonth = (entity.birthDay % 30) + 1;
   return `${MONTH_NAMES[month]} ${dayOfMonth}, ${realYear}`;
-}
-
-/** True for clock hours 07:00–17:59 (hour 7..17). Does not check weekends. */
-export function isWorkHour(hour: number): boolean {
-  return hour >= WORK_START && hour < WORK_END;
-}
-
-/**
- * True when a settler should be on the job: weekday + work hours.
- * Use this for commute / workplace AI. Weekends are always free.
- * (Innkeepers use {@link isOnInnkeeperShift} instead — evenings every day.)
- */
-export function isOnWorkShift(tick: number, hour?: number): boolean {
-  if (!isWorkDay(tick)) return false;
-  const h = hour ?? getHourOfDay(tick);
-  return isWorkHour(h);
-}
-
-/** Hours the tavern is open (17:00–22:59). */
-export function isTavernServiceHour(hour: number): boolean {
-  return hour >= TAVERN_SHIFT_START && hour < TAVERN_SHIFT_END;
-}
-
-/** Tavern open right now — festivals keep the pub open all day and night. */
-export function isTavernOpen(hour: number, festivalActive?: boolean): boolean {
-  return festivalActive ? true : isTavernServiceHour(hour);
-}
-
-/** True while an active festival calls eligible villagers away from ordinary work. */
-export function isFestivalGatheringHour(hour: number, festivalActive?: boolean): boolean {
-  return festivalActive === true && hour >= FESTIVAL_GATHER_START && hour < FESTIVAL_GATHER_END;
-}
-
-/**
- * Innkeeper shift: evenings every day (including weekends) when guests drink & chat.
- * Not the daytime farm/mill shift. During festivals the innkeeper works around
- * the clock — the party does not close.
- */
-export function isOnInnkeeperShift(tick: number, hour?: number, festivalActive?: boolean): boolean {
-  const h = hour ?? getHourOfDay(tick);
-  return isTavernOpen(h, festivalActive);
-}
-
-/**
- * Priest exorcism shift: full-moon nights (20:00 → before 06:00), when the
- * cursed settler is in 🌝 form. Mirrors the innkeeper pattern — priests leave
- * home to work the night so they can hunt the Moon Howler.
- */
-export function isOnMoonHowlerNightShift(tick: number, hour?: number): boolean {
-  const h = hour ?? getHourOfDay(tick);
-  return isFullMoonNight(getAbsoluteCalendarDay(tick), h);
-}
-
-export function shouldBeAtHome(hour: number): boolean {
-  return isNightHour(hour) || hour >= EVENING_START || hour < WORK_START;
-}
-
-/**
- * Stable 0..1 roll for one person on one colony day (same result all day).
- * Used so evening/weekend plans feel human: different choices day-to-day, not RNG flicker each tick.
- */
-export function personDayRoll(entityId: number, tick: number, salt = 0): number {
-  const day = getAbsoluteCalendarDay(tick);
-  let h = (Math.imul(entityId | 0, 374761393) ^ Math.imul(day | 0, 668265263) ^ Math.imul(salt | 0, 1274126177)) >>> 0;
-  h = Math.imul(h ^ (h >>> 16), 2246822519) >>> 0;
-  return (h % 10000) / 10000;
-}
-
-/**
- * Human-like “should I stay in?” for this hour — varies by person and day.
- *
- * - Late night / pre-dawn: almost always home (rare night walk)
- * - Evening 18–22: ~half stay in, half go out
- * - 22–23: mostly home; few night-owls
- * - Weekend daytime: some lazy home days, many active days
- * - Weekday work hours: not used (work AI owns that)
- */
-export function prefersHomeTonight(
-  entityId: number,
-  tick: number,
-  hour: number,
-): boolean {
-  const weekend = isWeekend(tick);
-  const r = (salt: number) => personDayRoll(entityId, tick, salt);
-
-  // Deep night / early morning — nearly always sleep
-  if (hour >= 23 || hour < 5) return r(101) > 0.07;
-  if (hour >= 5 && hour < WORK_START) return r(102) > 0.12;
-
-  // After work / evening social window — varied: out some nights, in others
-  if (hour >= EVENING_START && hour < 22) {
-    // Higher roll → more homebody that evening
-    return r(103) < 0.50;
-  }
-
-  // Late evening wind-down
-  if (hour >= 22 && hour < 23) return r(104) > 0.20;
-
-  // Weekend daytime: ~30% quiet days at home, rest out and about
-  if (weekend && hour >= WORK_START && hour < EVENING_START) {
-    return r(105) < 0.30;
-  }
-
-  // Unemployed / free weekday daytime — don't force home
-  return false;
-}
-
-/** True when this person is having an “active free day” (leisure bias). */
-export function isActiveFreeDay(entityId: number, tick: number): boolean {
-  if (isWeekend(tick)) return personDayRoll(entityId, tick, 201) >= 0.30;
-  // Weekday evening out
-  return !prefersHomeTonight(entityId, tick, EVENING_START + 1);
-}
-
-export function formatHour(hour: number): string {
-  const h = ((hour % 24) + 24) % 24;
-  const suffix = h < 12 ? 'am' : 'pm';
-  const display = h % 12 === 0 ? 12 : h % 12;
-  return `${display}${suffix}`;
 }
 
 export function isResidenceBuilding(b: Building): boolean {
@@ -474,16 +340,6 @@ export function isNearResidence(
   const cx = residence.x + residence.width / 2;
   const cy = residence.y + residence.height / 2;
   return Math.hypot(human.x - cx, human.y - cy) <= maxDist;
-}
-
-/** Evening/night/morning or unemployed — not while on a workplace commute. */
-/**
- * Free time for leisure / social AI.
- * Weekends are always free; weekdays free outside work hours or without a workplace.
- */
-export function allowSocialLife(hour: number, hasWorkplace: boolean, tick?: number): boolean {
-  if (tick != null && isWeekend(tick)) return true;
-  return !(isWorkHour(hour) && hasWorkplace);
 }
 
 /** Per-residence resident counts for O(1) capacity checks during housing assign. */

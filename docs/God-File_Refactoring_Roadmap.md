@@ -1,6 +1,6 @@
 # God-File Refactoring Roadmap
 
-**Status:** Phases 1, 2.1, 3.1, 4.1, and 5.1 complete; Phase 5.2 major-change checkpoint
+**Status:** Phases 1, 2.1, 3.1, 4.1, 5.1, and 5.2 complete; Phase 5.3 major-change checkpoint
 **Scope:** Break down the five god files named in [`AGENTS.md`](../../AGENTS.md) without changing intentional gameplay, worker authority, cadence, or save behavior.
 **Approach:** One small, behavior-preserving extraction at a time. This is a growth plan, not a feature freeze.
 
@@ -224,7 +224,7 @@ Use this checklist before declaring an extraction complete.
 
 ## 13. Recommended next action
 
-Continue with **Phase 5.2: extract `humanSchedule` from `dayCycle.ts`** only after the required concise major-change notice. Preserve every public export through a compatibility re-export, retain existing shift/festival/home-preference outcomes, and do not change worker or realtime ownership, cadence, save state, or schedule semantics.
+Before continuing with residency or lifecycle cleanup from `dayCycle.ts`, issue a fresh concise major-change notice naming the exact ownership boundary, all affected consumers, compatibility strategy, state/save impact, deterministic validation plan, and rollback approach. Do not make the remaining high-fan-in extraction permanent without that notice.
 
 
 ## 14. Validation
@@ -234,7 +234,7 @@ After each god-file extraction, add focused regression coverage for the moved re
 ## 15. Implementation status
 
 **Last updated:** 28 August 2026
-**Current slice:** Phase 5.1 — `simulationClock` completed; Phase 5.2 — `humanSchedule` requires the major-change notice before implementation.
+**Current slice:** Phase 5.2 — `humanSchedule` completed; Phase 5.3 — residency or lifecycle cleanup requires a new major-change notice before implementation.
 
 | Item | Status | What was completed | Validation evidence | What remains |
 |---|---|---|---|---|
@@ -248,10 +248,11 @@ After each god-file extraction, add focused regression coverage for the moved re
 | `humanTick.ts` hospital and venue extraction | Complete | Added `src/game/humanHospitalBehavior.ts` and `src/game/humanVenueBehavior.ts`. `humanTick.ts` retains the exact realtime priority points while focused modules coordinate existing hospital-care, tavern, town-hall, and hotel domain helpers. | Type checking, linting, three focused gating tests, the complete test suite, and a production build completed successfully. | Continue later human behavior extraction only when feature pressure justifies it. |
 | `tickLayerDaily.ts` ecology extraction | Complete | Added `src/game/dailyEcology.ts`. The module owns the existing industrial pollution, ecosystem-health, wildlife-preserve, and biodiversity formulas, while `tickLayerDaily()` retains one call immediately before the valley ecology stage. | Type checking, linting, two deterministic biodiversity tests, the complete test suite, and a production build completed successfully. | The next planned slice is placement and strip-topology actions. |
 | `buildingActions.ts` placement extraction | Complete | Added `src/game/buildingPlacementActions.ts` and reduced `buildingActions.ts` to compatibility exports for placement validation, construction start, strip preview, and strip-chain placement. | Type checking, linting, focused public-entry-point coverage, the complete test suite, and a production build completed successfully. | The next planned slice is the low-risk simulation clock extraction. |
-| `dayCycle.ts` simulation-clock extraction | Complete | Extended `src/game/dayCycleClock.ts` with the remaining pure conversion, clock-boundary, production-gate, and calendar-day predicates; `dayCycle.ts` now re-exports them immediately while retaining mutable day-processing state. | Type checking, linting, focused compatibility and boundary tests, the complete test suite, and a production build completed successfully. | The next seam, human scheduling, is a major permanent change and requires the roadmap notice before implementation. |
+| `dayCycle.ts` simulation-clock extraction | Complete | Extended `src/game/dayCycleClock.ts` with the remaining pure conversion, clock-boundary, production-gate, and calendar-day predicates; `dayCycle.ts` now re-exports them immediately while retaining mutable day-processing state. | Type checking, linting, focused compatibility and boundary tests, the complete test suite, and a production build completed successfully. | Human scheduling was the next completed major slice. |
+| `dayCycle.ts` human-schedule extraction | Complete | Added `src/game/humanSchedule.ts` for the existing work, tavern, festival, Moon-Howler, evening/home-preference, free-time, and deterministic per-person daily-decision helpers; `dayCycle.ts` immediately re-exports every moved API. | Type checking, linting, focused compatibility and boundary tests, the complete test suite, and a production build completed successfully. | Residency and lifecycle cleanup remain separate major seams requiring a fresh impact notice. |
 
-**Phases 1, 2.1, 3.1, 4.1, and 5.1 are complete.** `App.tsx` composes focused persistence, transient-feedback, shell-state, game-session, and declarative-layout modules; `humanTick.ts` delegates hospital and venue behavior while remaining the sole realtime coordinator; `tickLayerDaily.ts` delegates daily ecology while retaining its visible schedule order; `buildingActions.ts` exposes placement behavior through a compatibility facade; and `dayCycle.ts` re-exports its extracted pure clock helpers. The completed extractions preserved worker authority, command and snapshot boundaries, lifecycle cleanup, DOM behavior, cadence, save semantics, ecology formulas, placement outcomes, and time-conversion behavior. No discrepancy requiring a private bug record was discovered.
+**Phases 1, 2.1, 3.1, 4.1, 5.1, and 5.2 are complete.** `App.tsx` composes focused persistence, transient-feedback, shell-state, game-session, and declarative-layout modules; `humanTick.ts` delegates hospital and venue behavior while remaining the sole realtime coordinator; `tickLayerDaily.ts` delegates daily ecology while retaining its visible schedule order; `buildingActions.ts` exposes placement behavior through a compatibility facade; and `dayCycle.ts` re-exports extracted clock and human-schedule helpers. The completed extractions preserved worker authority, command and snapshot boundaries, lifecycle cleanup, DOM behavior, cadence, save semantics, ecology formulas, placement outcomes, time conversion, and schedule behavior. No discrepancy requiring a private bug record was discovered.
 
 ### Next action
 
-Before Phase 5.2, issue the required concise impact notice for the `humanSchedule` extraction. After notice, retain `dayCycle.ts` compatibility re-exports, preserve schedule behavior and ownership, add focused schedule boundary coverage, and use the same validation and commit loop.
+Before another high-fan-in `dayCycle.ts` extraction, issue a fresh major-change notice for either residency or lifecycle cleanup. Keep the compatibility facade, declare the new owner, preserve state and save boundaries, add deterministic regression coverage, and use the same validation and commit loop.
