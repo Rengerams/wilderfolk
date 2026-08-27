@@ -10,6 +10,9 @@ lerna-debug.log*
 Session.txt
 node_modules
 dist
+target/
+tauri-src/gen/schemas
+
 dist-ssr
 *.local
 dependency-graph.dot
@@ -24,7 +27,8 @@ public/sprites/
 .idea
 .DS_Store
 *.suo
-
+src-tauri/gen/schemas/
+src-tauri/target/
 *.ntvs*
 *.njsproj
 *.sln
