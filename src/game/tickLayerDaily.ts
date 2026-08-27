@@ -4,7 +4,7 @@
  * Grass ecology (growth/spread), static bookkeeping, building production,
  * frontier systems, and daily-gated world events. Trees have no sim tick.
  */
-import type { WorldState, Entity, Building } from './gameTypes';
+import type { WorldState, Entity } from './gameTypes';
 import {
   BuildingType,
   BUILDING_CONFIGS,
@@ -76,7 +76,7 @@ import {
 
 import { getWeatherFarmMultiplier } from './grassEcology';
 import { applyDailyWeatherEffects } from './worldEvents';
-import { getMultiplier, addReputation, getPollutionProductionMultiplier, hasTech } from './simHelpers';
+import { getMultiplier, addReputation, getPollutionProductionMultiplier } from './simHelpers';
 import {
   addFloatingText,
   addBigNews,
@@ -107,6 +107,7 @@ import {
   getValleyHuntYieldMultiplier,
   getValleyFarmYieldMultiplier,
 } from './ecologyStage';
+import { tickEcosystemMetrics } from './dailyEcology';
 import {
   rollYearlyWorldEvent,
   tryFirstWeekVisitor,
@@ -730,66 +731,6 @@ function tickImmigration(
 }
 
 // ==================== DAILY LAYER ENTRYPOINT ====================
-
-const INDUSTRIAL_BUILDING_TYPES: BuildingType[] = [
-  BuildingType.Blacksmith,
-  BuildingType.Mill,
-  BuildingType.Workshop,
-  BuildingType.Mine,
-  BuildingType.Quarry,
-  BuildingType.LumberMill,
-];
-
-const IDEAL_WILDLIFE = 80;
-
-/**
- * Pollution / eco health / biodiversity — daily cadence only. These are
- * derived indexes that only meaningfully change at day boundaries; the valley
- * ecology stage (which consumes them) also runs daily, so computing them more
- * often is pure waste.
- */
-function tickEcosystemMetrics(
-  state: WorldState,
-  counts: PopulationCounts,
-  buildings: Building[],
-): void {
-  let industrialCount = 0;
-  let playerCompletedBuildings = 0;
-  for (const b of buildings) {
-    if (!b.completed) continue;
-    if (b.faction !== 'rival') playerCompletedBuildings++;
-    if (INDUSTRIAL_BUILDING_TYPES.includes(b.type)) industrialCount++;
-  }
-  const pollutionMult = hasTech(state, 'forestry_2') ? 0.5 : 1;
-  state.pollutionLevel = Math.min(
-    100,
-    Math.floor(industrialCount * 4 * pollutionMult + counts.humans / 3),
-  );
-
-  const totalWildlife = counts.rabbits + counts.deer + counts.wolves + counts.foxes;
-  const wildlifeRatio = Math.min(1, totalWildlife / IDEAL_WILDLIFE);
-  const buildingImpact = playerCompletedBuildings * 2;
-  const pollutionPenalty = Math.floor(state.pollutionLevel / 2);
-  let preserveBonus = 0;
-  for (const b of state.buildings) {
-    if (b.completed && b.type === BuildingType.WildlifePreserve) preserveBonus += 4;
-  }
-  state.ecosystemHealth = Math.max(
-    0,
-    Math.min(100, 100 - buildingImpact - pollutionPenalty + preserveBonus + (wildlifeRatio * 30 - 20)),
-  );
-
-  const species = [counts.rabbits, counts.deer, counts.wolves, counts.foxes].filter((c) => c > 0);
-  const total = species.reduce((a, b) => a + b, 0);
-  if (total > 0) {
-    state.biodiversityIndex = species.reduce((sum, count) => {
-      const p = count / total;
-      return sum - p * Math.log(p);
-    }, 0);
-  } else {
-    state.biodiversityIndex = 0;
-  }
-}
 
 export function tickLayerDaily(
   state: WorldState,
