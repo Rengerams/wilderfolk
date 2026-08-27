@@ -1,8 +1,8 @@
-export const GAME_VERSION = '0.6.3';
+export const GAME_VERSION = '0.6.4';
 export const GAME_PHASE = 'Beta';
 export const GAME_TITLE = 'Wilderfolk';
 export const GAME_SUBTITLE = 'Where Beasts and Kin Unite';
-/** Intro / splash line for the v0.6.3 release beat. */
+/** Intro / splash line for the v0.6.4 release beat. */
 export const GAME_VERSION_TAGLINE = 'A richer frontier, livelier families, and a valley that remembers what you do.';
 
 export const ECOLOGICAL_FACTS = [

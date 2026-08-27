@@ -15,14 +15,25 @@ function postStartupError(message: string): void {
   parentPort.postMessage(response);
 }
 
+let workerLoaded = false;
+const queuedMessages: unknown[] = [];
+
 if (!isMainThread && parentPort) {
   let messageHandler: ((event: MessageEvent) => void) | null = null;
   const messageListeners = new Set<(event: MessageEvent) => void>();
 
-  const dispatchMessage = (data: unknown): void => {
+  const deliverMessage = (data: unknown): void => {
     const event = { data, target: scope, currentTarget: scope, ports: [] } as unknown as MessageEvent;
     messageHandler?.(event);
     for (const listener of messageListeners) listener(event);
+  };
+
+  const dispatchMessage = (data: unknown): void => {
+    if (!workerLoaded) {
+      queuedMessages.push(data);
+      return;
+    }
+    deliverMessage(data);
   };
 
   const scope = new Proxy(globalThis, {
@@ -61,16 +72,22 @@ if (!isMainThread && parentPort) {
   });
 
   parentPort.on('message', dispatchMessage);
-}
 
-try {
-  // gameWorker.ts installs the canonical bundled dialogue bank synchronously.
-  // Avoid the disk preload here: it adds variable startup I/O to the Node
-  // transport adapter without changing the authoritative worker state.
-  await import('./gameWorker.ts');
-} catch (err) {
-  const message = err instanceof Error ? err.message : String(err);
-  console.error('[gameWorker.node] Startup failed:', message);
-  postStartupError(`Worker startup failed: ${message}`);
-  throw err;
+  async function bootstrapWorker(): Promise<void> {
+    try {
+      // gameWorker.ts installs the canonical bundled dialogue bank synchronously.
+      // Avoid the disk preload here: it adds variable startup I/O to the Node
+      // transport adapter without changing the authoritative worker state.
+      await import('./gameWorker.ts');
+      workerLoaded = true;
+      for (const data of queuedMessages.splice(0)) deliverMessage(data);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[gameWorker.node] Startup failed:', message);
+      postStartupError(`Worker startup failed: ${message}`);
+      throw err;
+    }
+  }
+
+  void bootstrapWorker();
 }

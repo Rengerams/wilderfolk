@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
-const cacheDir = path.resolve(__dirname, 'node_modules/.cache');
+const cacheDir = path.resolve(import.meta.dirname, 'node_modules/.cache');
 const storageFile = path.join(cacheDir, 'wilderfolk-vitest-localstorage.json');
 mkdirSync(cacheDir, { recursive: true });
 if (!existsSync(storageFile)) {
