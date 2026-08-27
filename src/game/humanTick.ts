@@ -27,7 +27,7 @@ import { isSettlerRelationshipEntity } from './moonHowler';
 import { getElectionGatherTarget } from './villageLeadership';
 import { valleyStageIndex } from './ecologyStage';
 import { getWorkSchedule, isOnWorkScheduleShift, isWorkScheduleHour } from './workSchedule';
-import {   HUMAN_ADULT_MIN_AGE, HUMAN_MAX_LIFESPAN_YEARS, HUMAN_MOVE_OUT_MIN_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, PREGNANCY_TICKS, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isOnWorkShift, isOnMoonHowlerNightShift, isFestivalGatheringHour, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
+import {   HUMAN_ADULT_MIN_AGE, HUMAN_MAX_LIFESPAN_YEARS, HUMAN_MOVE_OUT_MIN_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isOnWorkShift, isOnMoonHowlerNightShift, isFestivalGatheringHour, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
 import {
   chatHintsFromWorld,
   sayHumanChatPhrase,
@@ -59,18 +59,16 @@ import {
   tryNeighborGreeting,
   tryWorkplaceBanter,
 } from './socialLife';
-import { doctorTreatNearby, isDoctorAtHospital, needsMedicalCare, pickHospitalWalkTarget, treatPatientAtHospital } from './hospitalCare';
 import {
-  isOfficialAtHall,
-  officialHandlePetitioners,
-  resolveCivicPetition,
-  wantsCivicAudience,
-} from './townHall';
+  tickHumanDoctorHospitalService,
+  tickHumanHospitalPatientCare,
+} from './humanHospitalBehavior';
 import {
-  hotelierGreetGuests,
-  isHotelierAtHotel,
-  steerVisitorToHotel,
-} from './hotelStay';
+  tickHumanCivicVenueService,
+  tickHumanFreeTimeCivicPetition,
+  tickTavernService,
+} from './humanVenueBehavior';
+import { steerVisitorToHotel } from './hotelStay';
 import { setCurrentPathMap } from './pathfinding';
 import {
   COMMUTE_SNAP_DISTANCE, commuteDistanceToBuilding, commuteHumanToBuilding, nearestActiveMoonHowler, snapHumanToBuilding,
@@ -885,12 +883,19 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onSchedule = true;
       suppressIdle = true;
       recordChildSchoolTick(entity, schoolTarget, hourOfDay, state.tick);
-    } else if (!huntingWere && !inElectionCeremony && onTavernShift && workplace) {
-      // Innkeeper tends the bar evenings (weekdays + weekends)
-      commuteHumanToBuilding(entity, workplace, config.speed, false, 3.2);
-      onSchedule = true;
-      suppressIdle = true;
-      if (seededRandomForRun(`chat-work:${entity.id}:${state.tick}`) < 0.04 * PER_TICK_RATE_SCALE) settlerChat(entity, 'work', 0.12);
+    } else if (tickTavernService({
+      entity,
+      workplace,
+      onTavernShift,
+      huntingWere: !!huntingWere,
+      inElectionCeremony,
+      speed: config.speed,
+      tick: state.tick,
+      onSchedule: () => { onSchedule = true; },
+      onSuppressIdle: () => { suppressIdle = true; },
+      onWorkChat: () => settlerChat(entity, 'work', 0.12),
+    })) {
+      // Innkeeper service completed in the focused venue owner.
     } else if (!huntingWere && !inElectionCeremony && !festivalGathering && goWorkTime && !isInnkeeper && workplace) {
       commuteHumanToBuilding(
         entity,
@@ -1405,83 +1410,36 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       tryWorkplaceBanter(entity, shiftMates, state.tick, hourOfDay, true);
     }
 
-    // Doctor on duty — treat sick / pregnant settlers near the hospital
-    if (onDayJobShift && isPlayerHuman(entity) && entity.job === JobType.Doctor) {
-      const ward = isDoctorAtHospital(entity, updatedBuildings);
-      if (ward) {
-        doctorTreatNearby(state, entity, ward, allHumans);
-      }
-    }
-
-    // Official on duty — hear petitioners at the town hall
-    if (onDayJobShift && isPlayerHuman(entity) && entity.job === JobType.Official) {
-      const hall = isOfficialAtHall(entity, updatedBuildings);
-      if (hall) {
-        officialHandlePetitioners(state, entity, hall, allHumans);
-      }
-    }
-
-    // Hotelier on duty — greet guests / tend front desk
-    if (onHotelShift && isPlayerHuman(entity) && entity.job === JobType.Hotelier) {
-      const hotel = isHotelierAtHotel(entity, buildingById);
-      if (hotel) {
-        hotelierGreetGuests(state, entity, hotel);
-      }
-    }
-
-
-    // Pregnant settlers walk to the nearest staffed hospital — check-ups in free
-    // time, and near labor (>85%) they head to the ward even during work hours.
-    if (
-      entity.pregnant
-      && isPlayerHuman(entity)
-      && staffedHospitals.length > 0
-      && (!onJobShift || (entity.pregnancyProgress ?? 0) > PREGNANCY_TICKS * 0.85)
-    ) {
-      const best = pickHospitalWalkTarget(entity, staffedHospitals);
-      if (best) {
-        const dx = best.x + best.width / 2 - entity.x;
-        const dy = best.y + best.height / 2 - entity.y;
-        const dist = Math.hypot(dx, dy) || 1;
-        entity.vx = (dx / dist) * config.speed * 0.55;
-        entity.vy = (dy / dist) * config.speed * 0.55;
-        entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
-        entity.x += entity.vx;
-        entity.y += entity.vy;
-      }
-    }
-
-    // Patient arrived at hospital — free time, or a needy settler who took a
-    // work-hours clinic visit (matched by the walk-to-hospital gate above).
-    if (
-      (needsMedicalCare(entity) || entity.pregnant || !onJobShift)
-      && isPlayerHuman(entity)
-      && (entity.energy < entity.maxEnergy * 0.5 || entity.pregnant)
-      && staffedHospitals.length > 0
-    ) {
-      const hospital = staffedHospitals.find(
-        (b) => Math.hypot(entity.x - (b.x + b.width / 2), entity.y - (b.y + b.height / 2)) < 36,
-      );
-      if (hospital && personDayRoll(entity.id, state.tick, 840) < 0.2) {
-        treatPatientAtHospital(state, entity, hospital);
-      }
-    }
-
-    // Settler petitioning at town hall (free time near hall)
-    if (
-      allowFreeRoam
-      && isPlayerHuman(entity)
-      && !entity.isJuvenile
-      && wantsCivicAudience(entity, state)
-      && staffedTownHalls.length > 0
-    ) {
-      const hall = staffedTownHalls.find(
-        (b) => Math.hypot(entity.x - (b.x + b.width / 2), entity.y - (b.y + b.height / 2)) < 40,
-      );
-      if (hall && personDayRoll(entity.id, state.tick, 841) < 0.18) {
-        resolveCivicPetition(state, entity, hall);
-      }
-    }
+    // Hospital and civic venue behavior remains in this exact realtime priority position.
+    tickHumanDoctorHospitalService({
+      state,
+      entity,
+      allHumans,
+      updatedBuildings,
+      onDayJobShift,
+    });
+    tickHumanCivicVenueService({
+      state,
+      entity,
+      allHumans,
+      updatedBuildings,
+      buildingById,
+      onDayJobShift,
+      onHotelShift,
+    });
+    tickHumanHospitalPatientCare({
+      state,
+      entity,
+      staffedHospitals,
+      onJobShift,
+      speed: config.speed,
+    });
+    tickHumanFreeTimeCivicPetition({
+      state,
+      entity,
+      staffedTownHalls,
+      allowFreeRoam,
+    });
 
     // Morning greetings when free settlers pass near each other
     if (

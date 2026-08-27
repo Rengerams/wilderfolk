@@ -1,6 +1,6 @@
 # God-File Refactoring Roadmap
 
-**Status:** Phase 1 complete; Phase 2.1 next
+**Status:** Phase 1 and Phase 2.1 complete; Phase 3.1 next
 **Scope:** Break down the five god files named in [`AGENTS.md`](../../AGENTS.md) without changing intentional gameplay, worker authority, cadence, or save behavior.
 **Approach:** One small, behavior-preserving extraction at a time. This is a growth plan, not a feature freeze.
 
@@ -224,7 +224,7 @@ Use this checklist before declaring an extraction complete.
 
 ## 13. Recommended next action
 
-Continue with **Phase 2.1: extract hospital and venue behavior from `humanTick.ts`**. Move only the existing doctor, hospital routing/treatment, innkeeper, official, and hotelier service blocks into focused behavior modules. Preserve the current realtime owner, priority ordering, work-hour and free-time gates, and existing helpers; do not add a tick loop or retune gameplay.
+Continue with **Phase 3.1: extract daily ecology from `tickLayerDaily.ts`**. Move only `tickEcosystemMetrics()` and its local constants into `dailyEcology.ts`, retaining one call at the exact current daily schedule position. Do not retune pollution, biodiversity, grass, wildlife, or valley-stage formulas.
 
 
 ## 14. Validation
@@ -234,7 +234,7 @@ After each god-file extraction, add focused regression coverage for the moved re
 ## 15. Implementation status
 
 **Last updated:** 28 August 2026
-**Current slice:** Phase 1.6 — `useGameSession` completed; Phase 2.1 — extract hospital and venue behavior from `humanTick.ts`.
+**Current slice:** Phase 2.1 — hospital and venue behavior completed; Phase 3.1 — extract daily ecology from `tickLayerDaily.ts`.
 
 | Item | Status | What was completed | Validation evidence | What remains |
 |---|---|---|---|---|
@@ -245,9 +245,10 @@ After each god-file extraction, add focused regression coverage for the moved re
 | `App.tsx` shell-state extraction | Complete | Added `src/hooks/useGameShellState.ts`. The hook owns map-setup selection, tabs and sub-tabs, introductory/setup/tutorial state, local display preferences, the collapsible build and inspector panels, and their existing local-storage behavior. | Type checking, linting, three focused tab-state tests, the complete test suite, and a production build completed successfully. | The next planned `App.tsx` slice is declarative layout composition. |
 | `App.tsx` declarative-layout extraction | Complete | Added `src/components/GamePlayLayout.tsx`. The component now owns the stable outer gameplay hierarchy and receives explicit header, alert, construction-rail, map-stage, inspector, and overlay slots; all lifecycle and state policy remain in `App.tsx` and focused hooks. | Type checking, linting, focused render-contract coverage, the complete test suite, and a production build completed successfully. | The remaining Phase 1 seam is game-session lifecycle and worker subscription wiring. |
 | `App.tsx` game-session extraction | Complete | Added `src/hooks/useGameSession.ts`. The hook now owns the existing GameLoop lifecycle, authoritative world/view/catalog refs, worker snapshot subscription, generic command/action dispatch, and session replacement path. | Type checking, linting, focused lifecycle-gate coverage, the complete test suite, and a production build completed successfully. | Phase 1 is complete; preserve these worker boundaries during future feature work. |
+| `humanTick.ts` hospital and venue extraction | Complete | Added `src/game/humanHospitalBehavior.ts` and `src/game/humanVenueBehavior.ts`. `humanTick.ts` retains the exact realtime priority points while focused modules coordinate existing hospital-care, tavern, town-hall, and hotel domain helpers. | Type checking, linting, three focused gating tests, the complete test suite, and a production build completed successfully. | Continue later human behavior extraction only when feature pressure justifies it. |
 
-**Phase 1 is complete.** `App.tsx` now composes focused persistence, transient-feedback, shell-state, game-session, and declarative-layout modules. The game-session extraction preserved worker authority, existing command and snapshot boundaries, lifecycle cleanup, DOM behavior, cadence, and save semantics. No discrepancy requiring a private bug record was discovered.
+**Phase 1 and Phase 2.1 are complete.** `App.tsx` now composes focused persistence, transient-feedback, shell-state, game-session, and declarative-layout modules. `humanTick.ts` now delegates hospital and venue behavior while remaining the sole realtime coordinator. The completed extractions preserved worker authority, existing command and snapshot boundaries, lifecycle cleanup, DOM behavior, cadence, and save semantics. No discrepancy requiring a private bug record was discovered.
 
 ### Next action
 
-Begin Phase 2.1: extract `humanHospitalBehavior` and `humanVenueBehavior` from `humanTick.ts`. Keep `tickHumans()` as the sole realtime coordinator, preserve its exact priority ordering and helper inputs, add focused runtime coverage, and use the same baseline, static-check, full-suite, and production-build loop.
+Begin Phase 3.1: extract `dailyEcology` from `tickLayerDaily.ts`. Retain `tickLayerDaily()` as the visible daily schedule, move only ecology policy and its local constants, preserve the existing call order and cadence, add deterministic ecology coverage, and use the same validation and commit loop.
