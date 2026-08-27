@@ -18,6 +18,21 @@
 
 The desktop build runs in a separate maximized Tauri window and does not require Chrome, Node.js, Rust, or the repository source. The browser version remains available for development and quick playtesting.
 
+### Why use the Tauri desktop build?
+
+Tauri gives Wilderfolk a focused Windows application shell around the same game frontend and authoritative simulation. It does not replace the simulation or magically make every system faster, but it removes much of the overhead and distraction of running a demanding game inside a general-purpose browser session.
+
+| Benefit | What it means for Wilderfolk |
+|---|---|
+| **More focused play session** | Wilderfolk runs in its own maximized window instead of sharing space with browser tabs, extensions, and unrelated pages. |
+| **More predictable desktop environment** | The packaged app uses a dedicated application window and avoids browser-session overhead that can make performance diagnosis difficult. |
+| **Native Windows distribution** | Players can install a versioned `.exe` or `.msi` package rather than cloning the repository or setting up a development environment. |
+| **Better performance headroom** | The desktop shell reduces browser overhead around the game. The simulation, worker, and renderer still need their own optimization, so this is improved operating context—not a promise of unlimited FPS. |
+| **Clearer diagnostics for development** | Tauri development mode supports hot reload and a single timestamped log runner, making startup, worker, and rendering issues easier to investigate. |
+| **Same game authority** | Packaging does not create a second simulation. The existing worker-authoritative game state and save rules remain the source of truth. |
+
+For ordinary players, the practical result is simple: install Wilderfolk, launch it as a normal Windows application, and play without opening a separate Chrome window. Developers can still use the browser path when they need the fastest web iteration loop.
+
 ## What is Wilderfolk?
 
 Most settlement games ask you to **tame** the wild. Wilderfolk asks you to **move into it** — and not wreck the neighborhood on your way in.
