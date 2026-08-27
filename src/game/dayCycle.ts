@@ -4,8 +4,11 @@ import { finalizeMoonHowlerDeath } from './moonHowler';
 import { cleanupEntityDialogueState } from './humanChat';
 
 import { HUMAN_ADULT_MIN_AGE, isNightHour, isFullMoonNight } from './dayCycleConstants';
-import { TICKS_PER_HOUR, TICKS_PER_DAY, DAYS_PER_YEAR, getTickOfDay, getHourOfDay, getAbsoluteCalendarDay, isWeekend, isWorkDay } from './dayCycleClock';
-export { TICKS_PER_HOUR, TICKS_PER_DAY, DAYS_PER_YEAR, PER_TICK_RATE_SCALE, getTickOfDay, getHourOfDay, getCalendarDay, getAbsoluteCalendarDay, getWeekday, getWeekdayLabel, isWeekend, isWorkDay } from './dayCycleClock';
+import { TICKS_PER_DAY, DAYS_PER_YEAR, getHourOfDay, getAbsoluteCalendarDay, isWeekend, isWorkDay, ticksForDays } from './dayCycleClock';
+export { DAYS_PER_YEAR, LEGACY_TICKS_PER_DAY, PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR, getAbsoluteCalendarDay, getCalendarDay, getHourOfDay, getTickOfDay, getWeekday, getWeekdayLabel, isNewCalendarDayTick, isProductionTick, isStartOfClockHour, isWeekend, isWorkDay, nextTickAtClockHour, systemsPulsesFromLegacy, ticksForDays } from './dayCycleClock';
+
+const GAME_YEAR_OFFSET = 1700;
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export {
   DAYS_PER_MOON_CYCLE,
@@ -26,39 +29,6 @@ export {
  * - Per-tick energy / wildlife rates use {@link PER_TICK_RATE_SCALE} so daily totals stay balanced
  * - Real-time: gameLoop BASE_TICKS_PER_SECOND × speed; at 1.5 ticks/s a day ≈ 48 real seconds at 1×
  */
-/** Legacy day length (1 tick = 1 hour). Used when migrating old saves. */
-export const LEGACY_TICKS_PER_DAY = 24;
-export const GAME_YEAR_OFFSET = 1700;
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-export function ticksForDays(days: number): number {
-  return Math.round(days * TICKS_PER_DAY);
-}
-
-/**
- * Scale a **legacy systems-layer step count** (weather intervals, disaster
- * duration in systems pulses, etc.) so calendar length matches the 24-tick-day era.
- *
- * Do not invent local `* TICKS_PER_HOUR` factors for systems cadence — use this.
- */
-export function systemsPulsesFromLegacy(legacyPulses: number): number {
-  return Math.max(1, Math.round(legacyPulses * TICKS_PER_HOUR));
-}
-
-/** Absolute sim tick when clock `hour` (0–23) next starts at or after `fromTick`. */
-export function nextTickAtClockHour(fromTick: number, hour: number): number {
-  const h = ((hour % 24) + 24) % 24;
-  const dayStart = Math.floor(fromTick / TICKS_PER_DAY) * TICKS_PER_DAY;
-  let target = dayStart + h * TICKS_PER_HOUR;
-  if (fromTick >= target) target += TICKS_PER_DAY;
-  return target;
-}
-
-/** True on the first sub-hour tick of a clock hour (e.g. 07:00.0, not 07:20). */
-export function isStartOfClockHour(tick: number): boolean {
-  return getTickOfDay(tick) % TICKS_PER_HOUR === 0;
-}
-
 /**
  * Human age ladders (life-years; intentional, not identical thresholds) — EK-E4
  *
@@ -303,36 +273,7 @@ export function buildWorkHours(buildDays: number): number {
 }
 
 
-/**
- * Calendar-aligned production / rare-event gate.
- *
- * Fires on the **day boundary** (`tick % TICKS_PER_DAY === 0`) so it matches the
- * daily layer host in `gameTick` (and systems layer, since TICKS_PER_DAY is a
- * multiple of LAYER_SYSTEMS_INTERVAL).
- *
- * - Daily work (interval ≤ 1 day): weekdays only (farms rest weekends).
- * - Multi-day buildings (store/market every 2d, etc.): every N **calendar** days
- *   including weekends so modulo does not starve output when it lands on Sat/Sun.
- */
-export function isProductionTick(tick: number, interval: number): boolean {
-  if (tick <= 0 || interval <= 0) return false;
-  if (tick % TICKS_PER_DAY !== 0) return false;
-  const dayIndex = getAbsoluteCalendarDay(tick);
-  const intervalDays = Math.max(1, Math.round(interval / TICKS_PER_DAY));
-  if (dayIndex % intervalDays !== 0) return false;
-  if (intervalDays <= 1 && !isWorkDay(tick)) return false;
-  return true;
-}
-
-
-
-/** True once per in-game day; skips reload mid-day and duplicate same-tick calls. */
-export function isNewCalendarDayTick(state: import('./gameTypes').WorldState): boolean {
-  if (state.tick <= 0 || state.tick % TICKS_PER_DAY !== 0) return false;
-  const day = getAbsoluteCalendarDay(state.tick);
-  return day > (state.lastProcessedCalendarDay ?? -1);
-}
-
+/** Marks the current calendar day as processed after the daily layer succeeds. */
 export function markCalendarDayProcessed(state: import('./gameTypes').WorldState): void {
   if (state.tick > 0 && state.tick % TICKS_PER_DAY === 0) {
     state.lastProcessedCalendarDay = getAbsoluteCalendarDay(state.tick);
