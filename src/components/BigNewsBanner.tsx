@@ -1,3 +1,7 @@
+import { useEffect } from 'react';
+
+export const BIG_NEWS_DISPLAY_MS = 8_000;
+
 export interface BigNewsItem {
   id: string;
   title: string;
@@ -31,8 +35,15 @@ export default function BigNewsBanner({
   news: BigNewsItem[];
   onDismiss: (id: string) => void;
 }) {
-  if (news.length === 0) return null;
   const item = news[news.length - 1];
+
+  useEffect(() => {
+    if (!item) return undefined;
+    const timeout = window.setTimeout(() => onDismiss(item.id), BIG_NEWS_DISPLAY_MS);
+    return () => window.clearTimeout(timeout);
+  }, [item?.id, onDismiss]);
+
+  if (!item) return null;
   return (
     <button
       type="button"
@@ -41,6 +52,8 @@ export default function BigNewsBanner({
         e.stopPropagation();
         onDismiss(item.id);
       }}
+      role="status"
+      aria-live="polite"
       className={`pointer-events-auto fixed left-1/2 top-24 z-[200] w-[min(100%-1.5rem,22rem)] -translate-x-1/2 cursor-pointer rounded-lg border p-2.5 pr-8 text-left shadow-lg backdrop-blur hover:brightness-110 ${
         item.type === 'positive' ? 'border-emerald-400/50 bg-emerald-950/90' :
         item.type === 'negative' ? 'border-rose-400/50 bg-rose-950/90' :

@@ -18,7 +18,6 @@ import {
   canAssignWorkerToBuilding,
   listAssignableWorkersForBuilding,
 } from './game/buildingActions';
-import { MapSize, MapPreset } from './game/gameTypes';
 import {
   NIGHT_START, TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, isNightHour, getAbsoluteCalendarDay,
 } from './game/dayCycle';
@@ -72,6 +71,11 @@ import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel'
 
 import { useGamePersistence } from './hooks/useGamePersistence';
 import { useTransientGameFeedback } from './hooks/useTransientGameFeedback';
+import {
+  TUTORIAL_DONE_STORAGE_KEY as TUTORIAL_DONE_KEY,
+  useGameShellState,
+  type SidebarTab,
+} from './hooks/useGameShellState';
 import { beginAudio, primeAudioUnlock, playClickSound, stopIntroSong } from './audio';
 import { useGameAudio } from './hooks/useGameAudio';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
@@ -79,12 +83,6 @@ import { useCanvasInteractions } from './hooks/useCanvasInteractions';
 import { useContextualTutorial } from './hooks/useContextualTutorial';
 import ContextualTutorialCard from './components/ContextualTutorialCard';
 import {
-  loadTutorialsEnabled,
-  loadJuiceEffectsEnabled,
-  loadShowSimTick,
-  loadShowFps,
-  loadFirstNightWarningDismissed,
-  loadTutorialChoice,
   saveTutorialChoice,
   saveAutoSavePreference,
   saveTutorialsEnabled,
@@ -122,12 +120,6 @@ import { getBuildingConfig } from './game/buildingConfig';
 
 const SPEED_OPTIONS = [0.5, 1, 2, 3, 5, 10];
 
-type SidebarTab = 'village' | 'schedule' | 'frontier' | 'nature' | 'progress' | 'log' | 'more';
-type LogSubTab = 'chronicle' | 'combat';
-
-type ProgressSubTab = 'research' | 'trade' | 'goals';
-type MoreSubTab = 'guide' | 'roadmap' | 'campaign';
-
 const SIDEBAR_TABS: { id: SidebarTab; icon: string; label: string; hint: string }[] = [
   { id: 'village', icon: '🏘️', label: 'Village', hint: 'People, leadership, armament' },
   { id: 'schedule', icon: '🕰️', label: 'Hours', hint: 'Set ordinary weekday work hours' },
@@ -137,10 +129,6 @@ const SIDEBAR_TABS: { id: SidebarTab; icon: string; label: string; hint: string 
   { id: 'log', icon: '📜', label: 'Log', hint: 'Village chronicle' },
   { id: 'more', icon: '⋯', label: 'More', hint: 'Guide & roadmap' },
 ];
-
-const TUTORIAL_DONE_KEY = 'wilderfolk-tutorial-done';
-
-
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -161,51 +149,55 @@ export default function App() {
       (b) => b.type === BuildingType.House && (b.completed || b.constructionProgress > 0),
     ),
   );
-  const [selectedMapSize, setSelectedMapSize] = useState<MapSize>(MapSize.Medium);
-  const [selectedMapPreset, setSelectedMapPreset] = useState<MapPreset>(MapPreset.Verdant);
   const [selectedBuildingType, setSelectedBuildingType] = useState<BuildingType | null>(null);
-
+  const {
+    activeTab,
+    buildPanelOpen,
+    campaignActive,
+    firstNightWarningDismissed,
+    inspectorCollapsed,
+    juiceEffectsEnabled,
+    logSubTab,
+    mapSetupSource,
+    moreSubTab,
+    openTab,
+    openTabs,
+    progressSubTab,
+    selectedMapPreset,
+    selectedMapSize,
+    setBuildPanelOpen,
+    setCampaignActive,
+    setFirstNightWarningDismissed,
+    setInspectorCollapsed,
+    setLogSubTab,
+    setMapSetupSource,
+    setMoreSubTab,
+    setProgressSubTab,
+    setSelectedMapPreset,
+    setSelectedMapSize,
+    setShowFps,
+    setShowIntro,
+    setShowMapSetup,
+    setShowShortcuts,
+    setShowSimTick,
+    setShowTutorial,
+    setTutorialChoice,
+    setTutorialStep,
+    setTutorialsEnabled,
+    setJuiceEffectsEnabled,
+    showFps,
+    showIntro,
+    showMapSetup,
+    showShortcuts,
+    showSimTick,
+    showTutorial,
+    toggleTab,
+    tutorialChoice,
+    tutorialsEnabled,
+    tutorialStep,
+  } = useGameShellState();
   const [spritesLoaded, setSpritesLoaded] = useState(false);
-  const [openTabs, setOpenTabs] = useState<Set<SidebarTab>>(() => new Set(['village']));
-  const activeTab = useMemo(() => {
-    const tabs = Array.from(openTabs);
-    return tabs[tabs.length - 1] ?? 'village';
-  }, [openTabs]);
-  const openTab = useCallback((tab: SidebarTab) => {
-    setOpenTabs((prev) => new Set(prev).add(tab));
-  }, []);
-  const toggleTab = useCallback((tab: SidebarTab) => {
-    setOpenTabs((prev) => {
-      const next = new Set(prev);
-      if (next.has(tab)) next.delete(tab);
-      else next.add(tab);
-      return next;
-    });
-  }, []);
-  const [progressSubTab, setProgressSubTab] = useState<ProgressSubTab>('research');
-  const [moreSubTab, setMoreSubTab] = useState<MoreSubTab>('guide');
-  const [logSubTab, setLogSubTab] = useState<LogSubTab>('chronicle');
-  const [inspectorCollapsed, setInspectorCollapsed] = useState(true);
-  const [showShortcuts, setShowShortcuts] = useState(false);
-  const [tutorialsEnabled, setTutorialsEnabled] = useState(() => loadTutorialsEnabled());
-  const [tutorialChoice, setTutorialChoice] = useState(() => loadTutorialChoice());
-  const [campaignActive, setCampaignActive] = useState(false);
-  const [juiceEffectsEnabled, setJuiceEffectsEnabled] = useState(() => loadJuiceEffectsEnabled());
-  const [showSimTick, setShowSimTick] = useState(() => loadShowSimTick());
-  const [showFps, setShowFps] = useState(() => loadShowFps());
   const fps = useFpsMeter(showFps);
-  const [showTutorial, setShowTutorial] = useState(() => {
-    if (!loadTutorialsEnabled()) return false;
-    try {
-      return localStorage.getItem(TUTORIAL_DONE_KEY) !== '1';
-    } catch {
-      return true;
-    }
-  });
-  const [tutorialStep, setTutorialStep] = useState(0);
-  const [showIntro, setShowIntro] = useState(true);
-  const [showMapSetup, setShowMapSetup] = useState(false);
-  const [mapSetupSource, setMapSetupSource] = useState<'intro' | 'game'>('intro');
   const [hasSavedGame, setHasSavedGame] = useState(hasSave());
   const gameplayActive = !showIntro && !showMapSetup && spritesLoaded;
   const { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset } = useGameAudio(world, gameplayActive);
@@ -223,15 +215,6 @@ export default function App() {
     world,
     gameplayActive && tutorialsEnabled && !showTutorial,
   );
-  const [buildPanelOpen, setBuildPanelOpen] = useState(() => {
-    try {
-      return localStorage.getItem('wilderfolk-build-panel') === 'open';
-    } catch {
-      return false;
-    }
-  });
-  const [firstNightWarningDismissed, setFirstNightWarningDismissed] = useState(loadFirstNightWarningDismissed);
-
   const worldRef = useRef(world);
   const viewRef = useRef(view);
   const loopRef = useRef<GameLoop | null>(null);
@@ -275,11 +258,6 @@ export default function App() {
     viewRef.current = view;
   });
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('wilderfolk-build-panel', buildPanelOpen ? 'open' : 'collapsed');
-    } catch { /* ignore */ }
-  }, [buildPanelOpen]);
   const isDraggingRef = useRef(false);
   const cameraDragStartRef = useRef<{ x: number; y: number } | null>(null);
   const clickOriginRef = useRef<{ x: number; y: number } | null>(null);

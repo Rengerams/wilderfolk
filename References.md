@@ -630,3 +630,58 @@ In the refactored code, the validation logic is centralized in a single function
 Conclusion: Harmonizing Principles for Optimal Coding 🌟
 Mastering TypeScript involves not just understanding its syntax and features but also knowing how to apply design principles effectively. By judiciously applying DRY and WET principles, developers can create TypeScript code that is not only efficient and maintainable but also clear and adaptable. The key is to balance the need for abstraction and reusability with the need for simplicity and clarity, thereby building a robust and scalable codebase.
 
+
+
+## 3. Architecture and Change Design for Wilderfolk
+
+The goal of architecture is to make creative changes easier to understand, build, test, and reverse when necessary. It is not to introduce layers, services, queues, or abstractions for their own sake. Before a non-trivial feature or refactor becomes permanent, identify the intended player outcome, the state it affects, the components it crosses, and the smallest structure that can meet that need. This follows the design-context approach described by SystemsArchitect.io.[1]
+
+### Start from context, then choose a shape
+
+Use this short decision check for a new subsystem, cross-cutting feature, or major refactor. It is an aid to clear implementation, not a pre-approval gate for creativity.
+
+| Question | Wilderfolk application |
+|---|---|
+| What is the player-facing outcome? | State the experience or gameplay behavior first, not only the desired code structure. |
+| Which existing owner, cadence, and state are affected? | Follow `AGENTS.md`: one authoritative owner for each simulation decision, one declared cadence, and no second mutation path. |
+| Which boundary is crossed? | Identify presentation, typed command, simulation/worker, rendering, and save/load effects before the implementation becomes permanent. |
+| What is the simplest viable module shape? | Prefer a focused in-process TypeScript module or React hook/component when it meets the need. |
+| What would prove the choice wrong? | Name a targeted test, deterministic scenario, performance measurement, visual check, or save round trip. |
+| What must remain easy to change? | Keep experimental mechanics, UI concepts, and feature-local rules reversible until the domain concept has stabilised. |
+
+### Prefer proportional architecture
+
+SystemsArchitect.io describes how higher-complexity patterns can add decoupling, scale, and reliability while also increasing setup and operational complexity.[2] For Wilderfolk, the appropriate default is a **modular in-process game architecture**: focused modules, a presentation layer, typed commands, an authoritative simulation/worker boundary, and explicit save/load handling.
+
+| Prefer this first | Add this only after a demonstrated need |
+|---|---|
+| A named TypeScript module with one domain responsibility | A broad manager, generic service layer, or utility dump |
+| A direct typed call across an existing local boundary | A general event bus or queue used only to avoid defining ownership |
+| A focused React hook or component | A global UI store for feature-local state |
+| A pure helper plus explicit inputs/outputs | A hidden singleton or shared mutable state |
+| An existing simulation cadence and owner | An additional tick layer or parallel simulation loop |
+
+Do not interpret this as a ban on larger architecture. Use a major architectural pattern when measurable concurrency, performance, reliability, distribution, or team-scale requirements require it. The decision should be visible, intentional, and proportionate to the problem.
+
+### Test by risk, not by ritual
+
+Coverage is a useful signal, but it does not prove behavior is correct. SystemsArchitect.io recommends combining automated checks with realistic scenarios and distinguishes unit, integration, functional, regression, performance, usability, compatibility, and exploratory testing.[3] For Wilderfolk, choose the smallest test mix that can expose the most likely regression.
+
+| Change | Proportionate evidence |
+|---|---|
+| Pure calculation, selector, or conversion | Unit test with normal, boundary, and invalid input where relevant |
+| Interaction between local modules | Integration test or deterministic simulation scenario |
+| Player-visible UI or gameplay flow | Manual play check or screenshot in addition to focused automated coverage |
+| Worker command, delta, save/load, or migration behavior | Command/result verification plus a representative save/import round trip |
+| Performance-sensitive simulation loop | Before/after measurement together with a behavior-regression check |
+| Creative prototype | A short exploratory play check; add durable tests only when the behavior is kept |
+
+A valuable reassessment after a change is brief: did the chosen boundary stay clear, did the implementation introduce a new source of truth or duplicated decision, did the expected player behavior occur, and did the change make the next related feature easier or harder? If the answer reveals a design problem, improve the seam rather than adding a broad workaround.
+
+### Sources
+
+[1] [SystemsArchitect.io, *Getting Started*](https://www.systemsarchitect.io/docs) — the framework identifies request, requirements, review, resolution, implementation, and reassessment workflows, together with an architecture-pattern checklist. Accessed 2026-08-28.
+
+[2] [SystemsArchitect.io, *Design Funnel / Design Pattern Heuristics*](https://www.systemsarchitect.io/docs/requirements/systems/design-funnel) — describes the increasing complexity and trade-offs of n-tier, microservice, queue-based, and event-driven approaches. Accessed 2026-08-28.
+
+[3] [SystemsArchitect.io, *Testing Checklist*](https://www.systemsarchitect.io/docs/requirements/systems/testing) — describes complementary testing modes and cautions that coverage alone does not establish correctness. Accessed 2026-08-28.
