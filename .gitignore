@@ -1,88 +1,75 @@
-# Logs
-logs
+# Runtime and development logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-.gypi
+log.txt
 Session.txt
-node_modules
-dist
-target/
-tauri-src/gen/schemas
+Wilderfolk.txt
 
-dist-ssr
-*.local
-dependency-graph.dot
-dependency-graph.svg
-public/sprites/
-# TypeScript incremental build cache
+# Dependencies and build output
+node_modules/
+dist/
+dist-ssr/
+target/
+src-tauri/target/
+src-tauri/gen/schemas/
 *.tsbuildinfo
 
-# Editor directories and files
+# Generated analysis output
+dependency-graph.dot
+dependency-graph.svg
+
+# Local configuration and generated tooling files
+*.local
+*.gypi
+.tmp/
+.deepcode/
+.agents/
+terminals/
+tools/
+
+# Editor and operating-system files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
-src-tauri/gen/schemas/
-src-tauri/target/
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-tmp/
-
-# IDE / agent session logs (not project files)
-terminals/
-log.txt
-
-# Local-only notes (not for GitHub) — lives under docs/private/
-docs/private/
-docs/archive/
-docs/
-playtest/
-kimi/
-daimon-share/
-tools/
-tests/
-bug-reports/
-
-./deepcode/
-./agents/
-./tmp/
-kimi/
-genie-rms/
-daimon-share/
-
-
-# Local agent/design specs (not for GitHub)
-docs/superpowers/
-
-# Deep Code CLI local config + skills (not project files)
-.deepcode/
-.tmp/
-.agents/
-BUG_REPORTS/
-skills/
-
-# Local-only session transcript (not for GitHub)
-Wilderfolk.txt
-
-# Local config with secrets — never commit
-.env
-
-# Git worktrees
-.worktrees
-
-# Windows shortcut (accidental local file)
 *.lnk
 
-# Playwright / playtest artifacts
+# Local-only working directories and test artifacts
+tmp/
 playtest/
 test-results/
 playwright-report/
-
 .bug-hunter/
+kimi/
+daimon-share/
+genie-rms/
+deepcode/
+agents/
+BUG_REPORTS/
+bug-reports/
+tests/
+
+# Local/private design documents; public docs remain trackable
+docs/private/
+docs/superpowers/
+
+# Large or local-only sprite source tree; already-tracked sprites remain tracked
+public/sprites/
+
+# Git worktrees
+.worktrees/
+
+# Local environment files
+.env
+.env.*
+!.env.example
