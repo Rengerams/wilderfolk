@@ -59,6 +59,7 @@ agents/
 BUG_REPORTS/
 bug-reports/
 tests/
+scripts/
 
 # Local/private design documents; public docs remain trackable
 docs/private/
