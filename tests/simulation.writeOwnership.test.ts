@@ -64,7 +64,7 @@ const APPROVED_WRITERS: Record<ProtectedField, readonly string[]> = {
   // sanctioned player-command, demolition, lifecycle, leader, transformation,
   // relationship, caravan, and worker-snapshot boundaries documented here.
   residenceBuildingId: [
-    'src/game/buildingActions.ts',
+    'src/game/buildingMaintenanceActions.ts',
     'src/game/buildingResidencyActions.ts',
     'src/game/humanLifecycleCleanup.ts',
     'src/game/leaderHouse.ts',

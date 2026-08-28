@@ -1,7 +1,7 @@
 import type { WorldState, Entity, Building } from './gameTypes';
 import {
   BuildingType, EntityType,
-  BUILDING_CONFIGS, BUILDING_JOB_TYPES,
+  BUILDING_JOB_TYPES,
   WORKSHOP_RECIPES, getWorkshopRecipe,
   HUNTING_SPOT_PREY_OPTIONS,
   WEREWOLF_CURSE_LINES,
@@ -9,16 +9,14 @@ import {
 import type { HuntingSpotPrey, StaffingMode } from './gameTypes';
 import type { MineMode } from './buildings';
 import { getWorkerSkillMultiplier } from './skills';
-import { addResource } from './economy';
 import {
   addFloatingText,
-  addNotification,
   addBigNews,
   createDeathParticles,
   impulseScreenShake,
 } from './simEffects';
 import { getMultiplier } from './simHelpers';
-import { assignMissingWorkers, removeWorkerTransition } from './workforce';
+import { assignMissingWorkers } from './workforce';
 import {
   assignIdleWorkerToBuilding as assignStaffingWorkerToBuilding,
   removeWorkerFromBuilding as removeStaffingWorkerFromBuilding,
@@ -27,13 +25,12 @@ import {
   assignResidentToBuilding as assignResidentToResidence,
   removeResidentFromBuilding as removeResidentFromResidence,
 } from './buildingResidencyActions';
-import { unindexAdjacency, ensureAdjacencyIndex, getAdjacencyMultiplierFromIndex } from './adjacencyIndex';
+import { ensureAdjacencyIndex, getAdjacencyMultiplierFromIndex } from './adjacencyIndex';
 import { getTerrainEfficiencyMultiplier } from './terrainSystems';
 import { indexLivingEntity } from './entityIndex';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import {
   assignMissingResidences,
-  getResidenceCapacity,
   isResidenceBuilding,
   isResidenceBuildingType,
 } from './residency';
@@ -115,80 +112,12 @@ export {
   removeResidentFromBuilding,
 } from './buildingResidencyActions';
 
-
-
-export function repairBuilding(originalState: WorldState, buildingId: number): WorldState {
-  const state = structuredClone(originalState);
-  const building = state.buildings.find(b => b.id === buildingId);
-  if (!building || !building.completed || building.health >= building.maxHealth) return state;
-
-  const costWood = 10;
-  const costStone = 5;
-
-  if (state.resources.wood < costWood || state.resources.stone < costStone) {
-    addFloatingText(state, building.x + building.width / 2, building.y, `Need ${costWood}w ${costStone}s`, '#ef4444');
-    return state;
-  }
-
-  state.resources.wood -= costWood;
-  state.resources.stone -= costStone;
-  building.health = building.maxHealth;
-  createDeathParticles(state, building.x + building.width / 2, building.y, '#22c55e', 10, 'sparkle');
-  addFloatingText(state, building.x, building.y - 10, 'Repaired!', '#22c55e');
-  return state;
-}
-
-export function getBuildingUpgradeCost(building: Building): { wood: number; stone: number; gold: number } {
-  return {
-    wood: 50 * building.level,
-    stone: 25 * building.level,
-    gold: 50 * building.level,
-  };
-}
-
-export function upgradeBuilding(originalState: WorldState, buildingId: number): WorldState {
-  const state = structuredClone(originalState);
-  const building = state.buildings.find(b => b.id === buildingId);
-  if (!building || !building.completed) return state;
-  if (building.level >= 3) return state;
-  // The Leader's House comes with the office fully built — no upgrades.
-  if (building.type === BuildingType.LeaderHouse) return state;
-
-  const { wood: costWood, stone: costStone, gold: costGold } = getBuildingUpgradeCost(building);
-
-  if (state.resources.wood < costWood || state.resources.stone < costStone || state.resources.gold < costGold) {
-    addFloatingText(state, building.x + building.width / 2, building.y, `Need ${costWood}w ${costStone}s ${costGold}g`, '#ef4444');
-    return state;
-  }
-
-  state.resources.wood -= costWood;
-  state.resources.stone -= costStone;
-  state.resources.gold -= costGold;
-  building.level += 1;
-
-  const isHousing = isResidenceBuildingType(building.type);
-  if (isHousing) {
-    const cap = getResidenceCapacity(building);
-    assignMissingResidences(
-      listPlayerHumans(state),
-      state.buildings,
-      state.entities,
-    );
-    addFloatingText(state, building.x, building.y - 15, `Expanded! Fits ${cap} residents`, '#3b82f6');
-    addNotification(
-      state,
-      'Home expanded',
-      `${BUILDING_CONFIGS[building.type].label} now holds ${cap} family members.`,
-      'success',
-    );
-  } else {
-    addFloatingText(state, building.x, building.y - 15, `Upgraded to Lv.${building.level}!`, '#3b82f6');
-  }
-
-  createDeathParticles(state, building.x + building.width / 2, building.y, '#3b82f6', 15, 'star');
-  impulseScreenShake(state, 3);
-  return state;
-}
+export {
+  demolishBuilding,
+  getBuildingUpgradeCost,
+  repairBuilding,
+  upgradeBuilding,
+} from './buildingMaintenanceActions';
 
 export function recruitSettler(originalState: WorldState): WorldState {
   const state = structuredClone(originalState);
@@ -287,60 +216,6 @@ export function setHuntingSpotPrey(originalState: WorldState, buildingId: number
   const building = state.buildings.find((b) => b.id === buildingId);
   if (!building || building.type !== BuildingType.HuntingSpot || building.faction === 'rival') return originalState;
   building.huntingSpotPrey = prey;
-  return state;
-}
-
-export function demolishBuilding(originalState: WorldState, buildingId: number): WorldState {
-  const state = structuredClone(originalState);
-  const building = state.buildings.find(b => b.id === buildingId);
-  if (!building) return state;
-
-  const config = BUILDING_CONFIGS[building.type];
-  const refundWood = Math.floor(config.cost.wood * 0.5);
-  const refundStone = Math.floor(config.cost.stone * 0.5);
-  const refundGold = Math.floor(config.cost.gold * 0.5);
-
-  addResource(state, 'wood', refundWood);
-  addResource(state, 'stone', refundStone);
-  addResource(state, 'gold', refundGold);
-
-  state.entities = state.entities.map(e => {
-    // Workforce cleanup through the owner's removal transition — keeps
-    // homeBuildingId / occupation / job consistent (§3 single-writer law).
-    if (e.homeBuildingId === buildingId) {
-      removeWorkerTransition(e, state.buildings);
-    }
-    if (e.residenceBuildingId === buildingId) {
-      e.residenceBuildingId = undefined;
-    }
-    if (e.prisonBuildingId === buildingId) {
-      e.prisonBuildingId = undefined;
-      e.prisonerUntilTick = undefined;
-      e.prisonSentenceCrime = undefined;
-    }
-    return e;
-  });
-
-  createDeathParticles(state, building.x + building.width / 2, building.y + building.height / 2, '#71717a', 25, 'smoke');
-  addFloatingText(state, building.x, building.y - 10, `Refunded: ${refundWood}w ${refundStone}s`, '#eab308');
-  impulseScreenShake(state, 4);
-
-  unindexAdjacency(state, buildingId);
-  state.adjacency = undefined;
-  if (building.type === BuildingType.Road) {
-    state.roadAvoidance = undefined;
-    state.roadAvoidanceStamp = undefined;
-  }
-  state.buildings = state.buildings.filter(b => b.id !== buildingId);
-  // Keep the denormalized completed-building counter consistent with the
-  // load-time recompute (saveLoad counts CURRENT completed buildings): a
-  // completed player building being demolished must decrement it.
-  if (building.completed && building.faction !== 'rival') {
-    state.totalBuildingsCompleted = Math.max(0, state.totalBuildingsCompleted - 1);
-  }
-  const humans = listPlayerHumans(state);
-  assignMissingResidences(humans, state.buildings, state.entities);
-  assignMissingWorkers(humans, state.buildings);
   return state;
 }
 

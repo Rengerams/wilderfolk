@@ -1,6 +1,6 @@
 # Serial God-File Decommissioning Plan
 
-**Status:** Active serial roadmap. File 1, slices 1.1 staffing actions and 1.2 residency actions are complete; do not begin the next file until all `buildingActions.ts` slices pass the decommissioning gate.
+**Status:** Active serial roadmap. File 1, slices 1.1 staffing, 1.2 residency, and 1.3 maintenance actions are complete; do not begin the next file until all `buildingActions.ts` slices pass the decommissioning gate.
 **Scope:** Fully decommission exactly one protected god file before beginning the next.
 **Current starting point:** `dayCycle.ts` is already decommissioned as a god file and remains a controlled compatibility facade. The active protected files are `buildingActions.ts`, `App.tsx`, `tickLayerDaily.ts`, `humanTick.ts`, and the successor module `residency.ts`.
 
@@ -49,7 +49,7 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 4. File 1 — fully decommission `buildingActions.ts`
 
-**Current state:** `buildingPlacementActions.ts` owns placement and strip topology; `buildingStaffingActions.ts` owns builder assignment, worker assignment/removal, automatic staffing, and assignable-worker queries; and `buildingResidencyActions.ts` owns resident assignment/removal and adult move-out commands. `buildingActions.ts` now retains compatibility exports plus only the deliberately explicit legacy construction/job-versus-residence routing; it must not receive another feature.
+**Current state:** `buildingPlacementActions.ts` owns placement and strip topology; `buildingStaffingActions.ts` owns builder assignment, worker assignment/removal, automatic staffing, and assignable-worker queries; `buildingResidencyActions.ts` owns resident assignment/removal and adult move-out commands; and `buildingMaintenanceActions.ts` owns repair, upgrades, demolition, refunds, and necessary assignment/adjacency cleanup. `buildingActions.ts` now retains compatibility exports plus only the deliberately explicit legacy construction/job-versus-residence routing; it must not receive another feature.
 
 ### Implementation status
 
@@ -57,11 +57,13 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 **Slice 1.2 — Complete (28 August 2026).** The residency command domain moved into `src/game/buildingResidencyActions.ts`. It preserves the existing post-command order—residence synchronization, housing reconciliation, then workforce reconciliation—behind a named helper, and `buildingActions.ts` forwards every direct residency API. The compatibility façade retains the legacy generic routing so completed residence actions use the residency owner while unfinished buildings remain construction assignments. Focused command/occupancy tests, worker-command round-trip coverage, type checking, linting, the complete test suite, and the production build passed. No state shape, save format, worker boundary, or assignment cadence changed; no deterministic save/load round-trip was claimed for this extraction.
 
+**Slice 1.3 — Complete (28 August 2026).** The maintenance command domain moved into `src/game/buildingMaintenanceActions.ts`. The refactor gives repair costs and refund ratio explicit names, centralizes player-human reconciliation after building removal, and makes demolition assignment cleanup an explicit bounded step. The existing cleanup order and writes remain unchanged: workforce transitions, residence/prison reference clearing, adjacency invalidation, road-cache invalidation, building removal, completed-building counter repair, then housing/workforce reconciliation. Focused repair-cost and demolition-cleanup tests, command-boundary tests, the protected write-site audit, type checking, linting, the complete test suite, and the production build passed. No state shape, save format, worker boundary, or cadence changed; no deterministic save/load round-trip was claimed for this extraction.
+
 | Serial slice | Destination module | Move from `buildingActions.ts` | Validation |
 |---:|---|---|---|
 | 1.1 | `buildingStaffingActions.ts` | Builder assignment, worker assignment/removal, auto-staff, eligibility and assignable-worker queries | **Complete.** Manual/automatic staffing, Church manual-priest rule, worker command response, and construction-crew exclusion from job previews all passed. |
 | 1.2 | `buildingResidencyActions.ts` | Resident assignment/removal and adult move-out actions | **Complete.** Household placement, capacity, occupant synchronization, compatibility routing, and worker-command round-trip coverage passed. |
-| 1.3 | `buildingMaintenanceActions.ts` | Repair, upgrades, demolition, required cleanup and feedback | Costs, construction/repair status, building deletion, stale selection cleanup |
+| 1.3 | `buildingMaintenanceActions.ts` | Repair, upgrades, demolition, required cleanup and feedback | **Complete.** Repair-cost validation, worker/residence/prison cleanup, refunds, adjacency invalidation, building deletion, command boundary, and write ownership passed. |
 | 1.4 | `buildingConfigurationActions.ts` | Workshop recipe, staffing mode, mine mode, hunting-prey configuration | Command validation, invalid state rejection, persisted configuration |
 | 1.5 | `settlerInteractionActions.ts` | Recruit, tame, and clearly isolated debug-only actions | Recruitment/taming outcomes; developer-only action isolation |
 | 1.6 | `buildingActions.ts` facade decision | Retain only deliberate compatibility re-exports or remove it after imports migrate | Import graph, command dispatch, complete building-action smoke path |
@@ -135,10 +137,10 @@ A file enters the protected list only when it has accumulated multiple independe
 
 ## 10. Next implementation session
 
-Remain on **File 1: `buildingActions.ts`** and proceed with **Slice 1.3 — `buildingMaintenanceActions.ts`**.
+Remain on **File 1: `buildingActions.ts`** and proceed with **Slice 1.4 — `buildingConfigurationActions.ts`**.
 
-1. Baseline repair, upgrade, demolition, cleanup, refund, and selection consequences.
-2. Move only maintenance actions and their necessary authoritative cleanup into the named owner.
+1. Baseline workshop recipe, staffing mode, mine mode, and hunting-prey command validation.
+2. Move only persisted building-configuration actions and their validation into the named owner.
 3. Keep `buildingActions.ts` as a narrow compatibility export/call site.
-4. Test cost validation, building deletion, stale-selection cleanup, and worker/residence cleanup through the existing command boundary.
+4. Test valid and invalid configuration requests through the existing worker-command boundary; confirm stored configuration remains save-compatible.
 5. Do not start an `App.tsx`, daily, human, or residency refactor until `buildingActions.ts` has passed the full decommissioning gate.
