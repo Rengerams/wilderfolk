@@ -1,6 +1,6 @@
-import path from "path"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
+import { srcAlias } from "./config/vite.shared.ts"
 
 /** Pre-game / sidebar panels — safe to load after the simulation core. */
 const GAME_UI_MODULES = [
@@ -30,7 +30,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "./src"),
+      ...srcAlias,
     },
   },
   build: {

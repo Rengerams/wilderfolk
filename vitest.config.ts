@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'vitest/config';
+import { srcAlias } from './config/vite.shared.ts';
 
 const cacheDir = path.resolve(import.meta.dirname, 'node_modules/.cache');
 const storageFile = path.join(cacheDir, 'wilderfolk-vitest-localstorage.json');
@@ -24,7 +25,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(import.meta.dirname, './src'),
+      ...srcAlias,
     },
   },
 });
