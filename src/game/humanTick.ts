@@ -52,12 +52,12 @@ import {
 } from './education';
 import { getPlayerCampCenter, isRaidMarchingForRival } from './frontierCombat';
 import { detectRaidersForPatrol } from './humanPatrolBehavior';
-import { tickHumanChildLeisure } from './humanLeisureBehavior';
+import { tickHumanChildLeisure, tickAdultLeisureMotive } from './humanLeisureBehavior';
 import { tickHumanHunting } from './humanHuntingBehavior';
 import { getCaravanMoveTarget, tryAdvanceCaravanLeg } from './tradeCaravans';
 import { tickFactionCampWander } from './factionWander';
 import {
-  pickSocialImpulse,
+  
   tryNeighborGreeting,
   tryWorkplaceBanter,
 } from './socialLife';
@@ -1372,102 +1372,24 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         return pool[(entity.id + leisureSlot) % pool.length];
       };
 
-      // --- Human motives (sick, grief, weather, Sunday, errands, care…) ---
-      // Grid query instead of an O(H) distance filter per free-roaming human.
-      // v0.6 perf: radius 1.5x → 1.1x socialScanRadius (4.4 cells) — the nearby pool
-      // stays rich at village density; the visited area at clustered scale drops ~1.8x.
-      const nearbyAdults: Entity[] = [];
-      if ((state.tick + entity.id) % SOCIAL_STAGGER === 0) {
-        forEachAdaptiveInRadius(
-          humanSocialGrid,
-          allHumans,
-          entity.x,
-          entity.y,
-          SOCIAL_FRIENDSHIP_RADIUS,
-          (h) => {
-            if (h.alive && isPlayerHuman(h) && !h.isJuvenile) nearbyAdults.push(h);
-          },
-          socialAdaptiveOptions('social', allHumans.length, width, height),
-        );
-      }
-      // Ensure spouse is considered even if slightly farther
-      const spouseEarly = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
-      if (spouseEarly?.alive && !nearbyAdults.some((h) => h.id === spouseEarly.id)) {
-        nearbyAdults.push(spouseEarly);
-      }
-      const impulse = pickSocialImpulse(
-        entity,
+      const adultLeisure = tickAdultLeisureMotive({
         state,
+        entity,
+        speed: config.speed,
+        hourOfDay,
+        allHumans,
         updatedBuildings,
-        nearbyAdults,
-        [],
-      );
-      if (impulse.motive !== 'none') {
-        if (impulse.bubble && seededRandomForRun(`chat-bubble:${entity.id}:${state.tick}`) < 0.08 * PER_TICK_RATE_SCALE) {
-          sayHumanChatPhrase(entity, impulse.bubble, 55);
-        }
-        if (impulse.stayHome && hasResidenceAssignment(entity)) {
-          const home = buildingById.get(entity.residenceBuildingId!);
-          if (home?.completed) {
-            commuteHumanToBuilding(entity, home, config.speed * (impulse.motive === 'sick_day' ? 0.7 : 0.9), true, 2.2);
-            if (impulse.motive === 'sick_day') {
-              entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.25 * PER_TICK_RATE_SCALE);
-            }
-            suppressIdle = true;
-          }
-        } else if (impulse.company?.alive && impulse.building) {
-          const b = impulse.building;
-          const cx = b.x + b.width / 2;
-          const cy = b.y + b.height * 0.92;
-          // Walk with company toward a place of care
-          const midX = (impulse.company.x + cx) / 2;
-          const midY = (impulse.company.y + cy) / 2;
-          const dx = midX - entity.x;
-          const dy = midY - entity.y;
-          const dist = Math.hypot(dx, dy) || 1;
-          if (dist > 16) {
-            entity.vx = (dx / dist) * config.speed * 0.48;
-            entity.vy = (dy / dist) * config.speed * 0.48;
-            entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
-          } else {
-            settlerPairChat(entity, impulse.company, 'home', 0.1);
-          }
-          suppressIdle = true;
-        } else if (impulse.company?.alive) {
-          const c = impulse.company;
-          const dx = c.x - entity.x;
-          const dy = c.y - entity.y;
-          const dist = Math.hypot(dx, dy) || 1;
-          if (dist > 16) {
-            entity.vx = (dx / dist) * config.speed * 0.5;
-            entity.vy = (dy / dist) * config.speed * 0.5;
-            entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
-          } else if (impulse.motive === 'comfort_neighbor') {
-            settlerPairChat(entity, c, 'social', 0.12);
-            c.energy = Math.min(c.maxEnergy, c.energy + 0.15 * PER_TICK_RATE_SCALE);
-          } else if (impulse.motive === 'care_pregnant') {
-            settlerPairChat(entity, c, 'home', 0.12);
-          }
-          suppressIdle = true;
-        } else if (impulse.building) {
-          const b = impulse.building;
-          const arrived = Math.hypot(
-            entity.x - (b.x + b.width / 2),
-            entity.y - (b.y + b.height * 0.92),
-          ) < 20;
-          if (!arrived) {
-            commuteHumanToBuilding(entity, b, config.speed * 0.5, false, 2.8);
-          } else if (impulse.motive === 'sunday_service' || impulse.motive === 'grief') {
-            entity.vx *= 0.2;
-            entity.vy *= 0.2;
-            if (seededRandomForRun(`chat-social:${entity.id}:${state.tick}`) < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1);
-          } else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') {
-            entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.2 * PER_TICK_RATE_SCALE);
-            settlerChat(entity, 'social', 0.1);
-          }
-          suppressIdle = true;
-        }
-      }
+        buildingById,
+        humanSocialGrid,
+        width,
+        height,
+        livingHumanAt,
+        settlerChat,
+        settlerPairChat,
+        suppressIdleInitial: suppressIdle,
+      });
+      suppressIdle = adultLeisure.suppressIdle;
+      const spouseEarly = adultLeisure.spouseEarly;
 
       if (!suppressIdle) {
       // --- Bonds: partner, kids, coworkers (same workplace) ---
