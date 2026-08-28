@@ -64,6 +64,7 @@ import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel'
 import GamePlayLayout from './components/GamePlayLayout';
 import GameInspector from './components/GameInspector';
 import GameOverlays from './components/GameOverlays';
+import GameSidebar from './components/GameSidebar';
 
 import GameBuildRail from './components/GameBuildRail';
 
@@ -1764,6 +1765,7 @@ export default function App() {
 
 
         </GameInspector>
+      <GameSidebar>
       {/* Tabs */}
           <div className="sidebar-tabs shrink-0">
             {SIDEBAR_TABS.map(tab => (
@@ -1966,6 +1968,7 @@ export default function App() {
               </div>
             )}
           </div>
+      </GameSidebar>
         </aside>
       )}
             overlays={(

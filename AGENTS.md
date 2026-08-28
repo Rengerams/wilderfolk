@@ -254,7 +254,6 @@ The following files are currently designated **god files**. They contain too man
 
 | God file | Why it is protected | Put new work in |
 |---|---|---|
-| `src/App.tsx` | Application shell; still combines significant session, display, interaction, and composition responsibility | Focused hooks, feature components, or a named application-shell module |
 | `src/game/humanTick.ts` | Realtime human coordinator; still combines work, movement, hunting, care, social life, leisure, effects, and diagnostics | A named human-behavior module, still called from the existing realtime human pipeline |
 | `src/game/tickLayerDaily.ts` | Daily coordinator; still contains embedded building, population, world-event, and challenge policy | A named daily domain helper, such as building economy, population, events, or challenges |
 | `src/game/residency.ts` | Successor hub for occupancy, household composition, home selection, and reconciliation | A focused residency occupancy, household-composition, selection, or reconciliation module |

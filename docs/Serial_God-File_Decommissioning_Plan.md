@@ -78,7 +78,7 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 5. File 2 — fully decommission `App.tsx`
 
-**Current state:** `useGamePersistence`, `useGameSession`, `useGameShellState`, `useTransientGameFeedback`, `GamePlayLayout`, `GameMapStage`, `GameBuildRail`, `GameInspector`, and `GameOverlays` exist and are wired. Input orchestration has been assessed; the remaining work is the final App composition-root decision.
+**Current state:** `useGamePersistence`, `useGameSession`, `useGameShellState`, `useTransientGameFeedback`, `GamePlayLayout`, `GameMapStage`, `GameBuildRail`, `GameInspector`, `GameOverlays`, and `GameSidebar` exist and are wired. App is now a composition root: it assembles focused hooks/components and retains only explicit cross-feature callback wiring and route/screen choice.
 
 ### Implementation status
 
@@ -92,6 +92,8 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 **Slice 2.5 — Complete (28 August 2026).** Assessment found no remaining cohesive input subsystem in `App.tsx` that should be extracted. Global keyboard policy and cleanup remain in `useKeyboardControls`; canvas pointer, camera, selection, and build-placement policy remain in `useCanvasInteractions`. Creating `useGameInputBindings.ts` would duplicate ownership rather than reduce it, so no new input module was introduced. Existing hotkey and focused component tests passed.
 
+**Slice 2.6 — Complete (28 August 2026).** Final review confirms that App now composes focused shell, map, build, inspector, overlay, and sidebar presentation components. The remaining inline code is explicit cross-feature wiring and selection/action callback assembly; it does not add a second input owner, persistence implementation, simulation mutation path, or tick layer. App is removed from the active protected-file list in `AGENTS.md`. Full type, lint, focused regression, and production-build gates passed for the completed File 2 sequence.
+
 | Serial slice | Destination module/component | Move from `App.tsx` | Validation |
 |---:|---|---|---|
 | 2.1 | `GameMapStage.tsx` | Canvas wrapper, map-stage composition, and display-only map controls | **Complete.** Canvas surface, FPS, minimap navigation, zoom preset/clamping presentation, and layout contract passed. |
@@ -99,9 +101,9 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 | 2.3 | `GameInspector.tsx` | Selected entity/building inspector composition | **Complete.** Selection header, diagnostics placement, collapse/clear controls, compact label, and accessibility contract passed. |
 | 2.4 | `GameOverlays.tsx` | Tutorial, banner, moment card, notifications, shortcut and modal composition | **Complete.** Existing overlay order/callbacks preserved and accessible overlay landmark passed. |
 | 2.5 | `useGameInputBindings.ts` only if needed | Remaining App-owned keyboard/mouse orchestration not already in a focused hook | **Complete — not needed.** Existing `useKeyboardControls` and `useCanvasInteractions` already own the relevant policy and cleanup. |
-| 2.6 | `App.tsx` composition decision | Keep only application boot, session/shell hook composition, and high-level route/screen choice | **Assessment pending final gate.** The extracted major slots are wired; remaining inline sidebar-tab composition must be reviewed before removing App from the protected list. |
+| 2.6 | `App.tsx` composition decision | Keep application boot, session/shell hook composition, major screen slots, and high-level route/screen choice | **Complete.** App remains the composition root; focused presentation slots and existing policy owners are wired without a second authority. |
 
-**Completion condition:** `App.tsx` reads as a small composition root. It creates/wires focused hooks and major screen components, but does not contain a second UI subsystem, input policy, persistence implementation, or large JSX regions. Update `AGENTS.md`, then begin `tickLayerDaily.ts`.
+**Completion condition — passed (28 August 2026):** `App.tsx` reads as the application composition root. It creates/wires focused hooks and major screen components, while input, persistence, transient feedback, canvas interaction, and simulation authority remain in their existing owners. `AGENTS.md` removes App from the active god-file list; the next protected-file work may begin with `tickLayerDaily.ts`.
 
 ## 6. File 3 — fully decommission `tickLayerDaily.ts`
 
@@ -155,10 +157,4 @@ A file enters the protected list only when it has accumulated multiple independe
 
 ## 10. Next implementation session
 
-Remain on **File 2: `App.tsx`** and perform the **Slice 2.6 final composition-root gate**.
-
-1. Review App’s remaining inline sidebar-tab and composition responsibilities against the completion condition.
-2. Retain App as the composition root only for high-level wiring and route/screen choice.
-3. If the sidebar-tab region remains independently evolving, extract it before declaring File 2 decommissioned.
-4. Validate the final App boundary with the complete test, type, lint, and build gates.
-5. Update `AGENTS.md` only if App genuinely leaves the protected list.
+File 2 (`App.tsx`) is complete. Begin File 3 (`tickLayerDaily.ts`) only after verifying the committed App boundary and preserving the documented worker/cadence invariants.
