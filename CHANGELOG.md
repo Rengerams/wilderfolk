@@ -1,5 +1,12 @@
 # Changelog
 
+## <u>[0.6.4.1]</u> — 2026-08-28
+
+- **Large-file decommissioning — completed slices** — reduced the simulation’s largest god-file responsibilities by extracting building commands from `buildingActions.ts`, daily orchestration from `App.tsx`, daily-system ownership from `tickLayerDaily.ts`, and residency ownership from `residency.ts` into focused modules with compatibility facades where needed.
+- **Residency ownership** — completed selection and scoring (`residencySelection.ts`) plus occupant, partner-transition, event/death/recruitment, and import/load reconciliation (`residencyReconciliation.ts`). `residency.ts` now remains only as a public compatibility facade and re-export surface.
+- **Truth and regression coverage** — updated ownership governance and the decommissioning plan, preserved worker-command and save/load boundaries, and validated the completed residency slices with TypeScript, Oxlint, targeted simulation tests, deterministic long-run coverage, and production build checks.
+- **Scope note** — `humanTick.ts` remains an active follow-up decommissioning track; its remaining adult leisure, realtime social-runtime, work-boundary review, and coordinator-reduction slices are not included in this 6.4.1 entry.
+
 ## <u>[0.6.4]</u> — 2026-08-27
 
 - **Windows desktop distribution** — published the first standalone Wilderfolk Windows desktop build using Tauri v2. The release includes NSIS `.exe` and MSI installers, a bundled Wilderfolk icon, and maximized startup.

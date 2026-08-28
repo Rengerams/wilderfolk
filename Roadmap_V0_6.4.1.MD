@@ -1,8 +1,16 @@
-# Wilderfolk Roadmap — v0.6.3.1
+# Wilderfolk Roadmap — v0.6.4.1
 
-Status: development working tree (2026-08-25)
+Status: development working tree (2026-08-28)
 
 This roadmap carries forward the completed v0.6.3 work and turns the whole-game audit into a focused next step: make the living valley easier to understand, easier to verify, and richer in meaningful decisions without adding duplicate simulation owners or changing the established cadence.
+
+## 6.4.1 large-file decommissioning update
+
+The first decommissioning wave is complete for `buildingActions.ts`, `App.tsx`, `tickLayerDaily.ts`, and `residency.ts`. Their major responsibilities now live behind focused domain modules while existing public entry points, worker command paths, save/load boundaries, cadence ownership, and compatibility re-exports remain intact.
+
+The residency split is complete: `residencySelection.ts` owns candidate scoring, home choice, empty-home preference, shared-housing logic, and overcrowding/rebalance selection; `residencyReconciliation.ts` owns occupant synchronization, partner transitions, and event, death, recruitment, import, and load reconciliation; and `residency.ts` is retained only as the public compatibility facade. Governance and write-ownership tests were updated to prevent a secondary residency owner from returning.
+
+The work is validated by TypeScript checks, Oxlint, targeted residency and ownership tests, deterministic long-run simulation coverage, and a production build. `humanTick.ts` remains the next decommissioning track: adult landmark/bond leisure, realtime social runtime, work-behavior boundary review, and final coordinator reduction are still planned rather than complete.
 
 | Priority | ID | Upgrade or feature | Main value | Primary owner/cadence | First-slice outcome | Status |
 |---|---|---|---|---|---|---|
