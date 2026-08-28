@@ -74,7 +74,6 @@ export function tickAdultLeisureMotive(args: {
   state: WorldState;
   entity: Entity;
   speed: number;
-  hourOfDay: number;
   allHumans: Entity[];
   updatedBuildings: Building[];
   buildingById: Map<number, Building>;
@@ -86,7 +85,7 @@ export function tickAdultLeisureMotive(args: {
   settlerPairChat: (entityA: Entity, entityB: Entity, context: 'social' | 'home', chance: number) => void;
   suppressIdleInitial: boolean;
 }): { suppressIdle: boolean; spouseEarly?: Entity } {
-  const { state, entity, speed, hourOfDay, allHumans, updatedBuildings, buildingById, humanSocialGrid, width, height, livingHumanAt, settlerChat, settlerPairChat } = args;
+  const { state, entity, speed, allHumans, updatedBuildings, buildingById, humanSocialGrid, width, height, livingHumanAt, settlerChat, settlerPairChat } = args;
   const nearbyAdults: Entity[] = [];
   if ((state.tick + entity.id) % SOCIAL_STAGGER === 0) {
     forEachAdaptiveInRadius(humanSocialGrid, allHumans, entity.x, entity.y, SOCIAL_FRIENDSHIP_RADIUS, (h) => {
