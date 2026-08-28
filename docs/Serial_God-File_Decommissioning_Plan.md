@@ -107,13 +107,13 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 6. File 3 — fully decommission `tickLayerDaily.ts`
 
-**Current state:** `dailyEcology.ts`, `dailyBuildingEconomy.ts`, `dailyPopulation.ts`, and `dailyChallenges.ts` are extracted. The daily layer must continue to reveal the order of daily work, but its remaining world-event mechanics need a named home.
+**Current state:** `dailyEcology.ts`, `dailyBuildingEconomy.ts`, `dailyPopulation.ts`, `dailyChallenges.ts`, and `dailyWorldEvents.ts` are extracted. The daily layer must continue to reveal the order of daily work, but its remaining schedule assembly needs to be reduced to explicit ordered delegates.
 
 | Serial slice | Destination module | Move from `tickLayerDaily.ts` | Ordering rule and validation |
 |---:|---|---|---|
 | 3.1 | `dailyBuildingEconomy.ts` | Construction progress, repair/decay, building production and forge-related daily work | **Complete.** Construction, repair, static bookkeeping, blueberry regrowth, and production order preserved; focused daily-layer and full-year integration tests passed. |
 | 3.2 | `dailyPopulation.ts` | Immigration, dead-entity pruning, faction-wander cleanup, relevant population reconciliation | **Complete.** Population cap/immigration, all-alive pruning, faction-wander cleanup, and entity indexing preserved; focused daily-layer regressions passed. |
-| 3.3 | `dailyWorldEvents.ts` | Yearly, first-week, and mid-year event scheduling plus notification creation | Calendar boundary, event cooldown, same notification/event results |
+| 3.3 | `dailyWorldEvents.ts` | Frontier, festival, yearly, first-week, mid-year, and election-event scheduling plus notification creation | **Complete.** Calendar boundaries, event cooldowns, event state, notification creation, and established call ordering preserved; focused story and full-year tests passed. |
 | 3.4 | `dailyChallenges.ts` | Challenge evaluation, reward grants, feedback and completion state | **Complete.** Rewards, feedback, completion state, and save-visible challenge state preserved; focused daily-layer and full-year tests passed. |
 | 3.5 | `tickLayerDaily.ts` schedule decision | Retain one ordered call per daily domain and necessary context assembly only | Full in-game day, worker delta path, no extra tick layer, type checks |
 
