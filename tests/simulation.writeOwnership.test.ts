@@ -53,7 +53,7 @@ const APPROVED_WRITERS: Record<ProtectedField, readonly string[]> = {
   // bounded cleanup/temporary reassignment for housing, transformations,
   // relationship events, or non-settler caravan lifecycle.
   homeBuildingId: [
-    'src/game/dayCycle.ts',
+    'src/game/humanLifecycleCleanup.ts',
     'src/game/leaderHouse.ts',
     'src/game/moonHowler.ts',
     'src/game/simulation/humanRelationships.ts',
@@ -62,11 +62,10 @@ const APPROVED_WRITERS: Record<ProtectedField, readonly string[]> = {
   ],
   // residency owns normal residence assignment. The listed delegates are the
   // sanctioned demolition, lifecycle, leader, transformation, relationship,
-  // caravan, and worker-snapshot boundaries documented in the registry. dayCycle
-  // remains the temporary death/birth lifecycle delegate pending the next seam.
+  // caravan, and worker-snapshot boundaries documented in the registry.
   residenceBuildingId: [
     'src/game/buildingActions.ts',
-    'src/game/dayCycle.ts',
+    'src/game/humanLifecycleCleanup.ts',
     'src/game/leaderHouse.ts',
     'src/game/moonHowler.ts',
     'src/game/residency.ts',
