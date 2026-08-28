@@ -78,7 +78,7 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 5. File 2 — fully decommission `App.tsx`
 
-**Current state:** `useGamePersistence`, `useGameSession`, `useGameShellState`, `useTransientGameFeedback`, `GamePlayLayout`, `GameMapStage`, `GameBuildRail`, `GameInspector`, and `GameOverlays` exist and are wired. The remaining task is to assess input orchestration and finalize the composition root.
+**Current state:** `useGamePersistence`, `useGameSession`, `useGameShellState`, `useTransientGameFeedback`, `GamePlayLayout`, `GameMapStage`, `GameBuildRail`, `GameInspector`, and `GameOverlays` exist and are wired. Input orchestration has been assessed; the remaining work is the final App composition-root decision.
 
 ### Implementation status
 
@@ -90,14 +90,16 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 **Slice 2.4 — Complete (28 August 2026).** The overlay slot presentation moved into `src/components/GameOverlays.tsx`, preserving the existing child order and all established dismissal, priority, Big News, tutorial, raid/event, and shortcut callbacks. It adds an accessible overlay landmark without changing transient-feedback ownership or overlay policy. Focused overlay, inspector, layout, and hotkey tests, type checking, linting, and the production build passed. No simulation state, save format, worker authority, cadence, or command behavior changed.
 
+**Slice 2.5 — Complete (28 August 2026).** Assessment found no remaining cohesive input subsystem in `App.tsx` that should be extracted. Global keyboard policy and cleanup remain in `useKeyboardControls`; canvas pointer, camera, selection, and build-placement policy remain in `useCanvasInteractions`. Creating `useGameInputBindings.ts` would duplicate ownership rather than reduce it, so no new input module was introduced. Existing hotkey and focused component tests passed.
+
 | Serial slice | Destination module/component | Move from `App.tsx` | Validation |
 |---:|---|---|---|
 | 2.1 | `GameMapStage.tsx` | Canvas wrapper, map-stage composition, and display-only map controls | **Complete.** Canvas surface, FPS, minimap navigation, zoom preset/clamping presentation, and layout contract passed. |
 | 2.2 | `GameBuildRail.tsx` | Build palette/rail presentation and feature-local UI callbacks | **Complete.** Collapsed rail, grid toggle, selected-building cancellation, and catalog-open contract passed. |
 | 2.3 | `GameInspector.tsx` | Selected entity/building inspector composition | **Complete.** Selection header, diagnostics placement, collapse/clear controls, compact label, and accessibility contract passed. |
 | 2.4 | `GameOverlays.tsx` | Tutorial, banner, moment card, notifications, shortcut and modal composition | **Complete.** Existing overlay order/callbacks preserved and accessible overlay landmark passed. |
-| 2.5 | `useGameInputBindings.ts` only if needed | Remaining App-owned keyboard/mouse orchestration not already in a focused hook | Keyboard shortcuts, pointer/camera interactions, cleanup on unmount |
-| 2.6 | `App.tsx` composition decision | Keep only application boot, session/shell hook composition, and high-level route/screen choice | New/load game, save, worker lifecycle, intro/map setup/gameplay transitions |
+| 2.5 | `useGameInputBindings.ts` only if needed | Remaining App-owned keyboard/mouse orchestration not already in a focused hook | **Complete — not needed.** Existing `useKeyboardControls` and `useCanvasInteractions` already own the relevant policy and cleanup. |
+| 2.6 | `App.tsx` composition decision | Keep only application boot, session/shell hook composition, and high-level route/screen choice | **Assessment pending final gate.** The extracted major slots are wired; remaining inline sidebar-tab composition must be reviewed before removing App from the protected list. |
 
 **Completion condition:** `App.tsx` reads as a small composition root. It creates/wires focused hooks and major screen components, but does not contain a second UI subsystem, input policy, persistence implementation, or large JSX regions. Update `AGENTS.md`, then begin `tickLayerDaily.ts`.
 
@@ -153,10 +155,10 @@ A file enters the protected list only when it has accumulated multiple independe
 
 ## 10. Next implementation session
 
-Remain on **File 2: `App.tsx`** and proceed with **Slice 2.5 — input-binding assessment**.
+Remain on **File 2: `App.tsx`** and perform the **Slice 2.6 final composition-root gate**.
 
-1. Baseline remaining App-owned keyboard/mouse orchestration against `useKeyboardControls` and `useCanvasInteractions`.
-2. Extract only a genuinely cohesive presentation-free input-binding seam if one remains.
-3. Do not duplicate keyboard, pointer, camera, selection, or build-placement policy.
-4. Validate cleanup and shortcut behavior before deciding whether a new module is warranted.
-5. Do not begin another protected file until Slice 2.5 is assessed and committed or explicitly recorded as unnecessary.
+1. Review App’s remaining inline sidebar-tab and composition responsibilities against the completion condition.
+2. Retain App as the composition root only for high-level wiring and route/screen choice.
+3. If the sidebar-tab region remains independently evolving, extract it before declaring File 2 decommissioned.
+4. Validate the final App boundary with the complete test, type, lint, and build gates.
+5. Update `AGENTS.md` only if App genuinely leaves the protected list.
