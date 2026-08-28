@@ -254,18 +254,22 @@ The following files are deliberately retained as **protected legacy/legend files
 
 | Protected legacy/legend file | Why it is protected | Required destination for new work |
 |---|---|---|
-| `src/game/humanTick.ts` | Realtime human coordinator; still combines work, movement, hunting, care, social life, leisure, effects, and diagnostics | A named human-behavior module, still called from the existing realtime human pipeline |
-| `src/game/residency.ts` | Successor hub for occupancy, household composition, home selection, and reconciliation | A focused residency occupancy, household-composition, selection, or reconciliation module |
+| `src/game/buildingActions.ts` | Legacy command facade retained for public compatibility after its action domains were split | The focused building command owner; do not add new command policy here |
+| `src/game/dayCycle.ts` | Legacy calendar/schedule facade retained for compatibility after clock, schedule, residency, and lifecycle behavior were split | `dayCycleClock.ts`, `dayCycleConstants.ts`, `humanSchedule.ts`, `residency.ts`, or the focused lifecycle owner |
+| `src/App.tsx` | Legacy application composition root retained for route and callback compatibility after presentation seams were split | The focused shell, map, build, inspector, overlay, sidebar, or hook owner |
+| `src/game/tickLayerDaily.ts` | Legacy ordered daily-schedule facade retained after daily economy, population, challenge, event, and ecology policy were split | The appropriate existing daily owner; do not add a new tick layer |
+| `src/game/humanTick.ts` | Realtime human coordinator retained for priority and shared-context compatibility while behavior slices are split | A named human-behavior module, still called from the existing realtime human pipeline |
+| `src/game/residency.ts` | Legacy residency authority retained for occupancy, household composition, home selection, and reconciliation while focused helpers are split | A focused residency occupancy, household-composition, selection, or reconciliation module |
 
 This rule does **not** prohibit maintenance, targeted bug fixes, type-only changes, deletion, or extracting existing code from a protected legacy/legend file. It prevents the file from receiving any new independent responsibility or new data. Preserve the existing public entry point during staged extraction when it avoids unnecessary churn; do not use a protected file as a convenient home for future features.
 
-### Locked migration facade: `src/game/buildingActions.ts`
+### Protected legacy/legend boundary: `src/game/buildingActions.ts`
 
-`buildingActions.ts` is **no longer an active god file**. It is a small, public compatibility façade over placement, staffing, residency, maintenance, configuration, settler-interaction, workshop-economy, and legacy generic-routing owners. It must not receive action policy, direct authoritative writes, new features, state fields, constants, or independent functions. New command behavior belongs in the focused domain owner; legacy exports may remain only while callers migrate.
+`buildingActions.ts` is **a protected legacy/legend file and no longer an active god file**. It is a small, public compatibility façade over placement, staffing, residency, maintenance, configuration, settler-interaction, workshop-economy, and legacy generic-routing owners. It must not receive action policy, direct authoritative writes, new features, state fields, constants, or independent functions. New command behavior belongs in the focused domain owner; legacy exports may remain only while callers migrate.
 
-### Locked migration facade: `src/game/dayCycle.ts`
+### Protected legacy/legend boundary: `src/game/dayCycle.ts`
 
-`dayCycle.ts` is **no longer an active god file**. It has been decomposed into a narrow compatibility facade and must not receive **new data, state fields, domain rules, gameplay features, constants, or independent functions**. It may only change to move existing legacy behavior out, remove a completed compatibility export, or retain a deliberate forwarding export during migration.
+`dayCycle.ts` is **a protected legacy/legend file and no longer an active god file**. It has been decomposed into a narrow compatibility facade and must not receive **new data, state fields, domain rules, gameplay features, constants, or independent functions**. It may only change to move existing legacy behavior out, remove a completed compatibility export, or retain a deliberate forwarding export during migration.
 
 | New concern | Required destination |
 |---|---|
