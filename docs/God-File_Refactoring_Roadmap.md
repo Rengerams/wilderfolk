@@ -1,6 +1,6 @@
 # God-File Refactoring Roadmap
 
-**Status:** Phases 1, 2.1, 3.1, 4.1, 5.1, and 5.2 complete; Phase 5.3 major-change checkpoint
+**Status:** Phases 1, 2.1, 3.1, 4.1, 5.1, 5.2, and 5.3 (residency) complete; lifecycle cleanup remains a major-change checkpoint
 **Scope:** Break down the five god files named in [`AGENTS.md`](../../AGENTS.md) without changing intentional gameplay, worker authority, cadence, or save behavior.
 **Approach:** One small, behavior-preserving extraction at a time. This is a growth plan, not a feature freeze.
 
@@ -224,7 +224,7 @@ Use this checklist before declaring an extraction complete.
 
 ## 13. Recommended next action
 
-Before continuing with residency or lifecycle cleanup from `dayCycle.ts`, issue a fresh concise major-change notice naming the exact ownership boundary, all affected consumers, compatibility strategy, state/save impact, deterministic validation plan, and rollback approach. Do not make the remaining high-fan-in extraction permanent without that notice.
+Before continuing with lifecycle cleanup from `dayCycle.ts`, issue a fresh concise major-change notice naming the exact ownership boundary, all affected consumers, compatibility strategy, state/save impact, deterministic validation plan, and rollback approach. Do not make the remaining high-fan-in extraction permanent without that notice.
 
 
 ## 14. Validation
@@ -234,7 +234,7 @@ After each god-file extraction, add focused regression coverage for the moved re
 ## 15. Implementation status
 
 **Last updated:** 28 August 2026
-**Current slice:** Phase 5.2 — `humanSchedule` completed; Phase 5.3 — residency or lifecycle cleanup requires a new major-change notice before implementation.
+**Current slice:** Phase 5.3 — `residency` completed; lifecycle cleanup remains a separate high-risk seam requiring a fresh major-change notice before implementation.
 
 | Item | Status | What was completed | Validation evidence | What remains |
 |---|---|---|---|---|
@@ -250,9 +250,10 @@ After each god-file extraction, add focused regression coverage for the moved re
 | `buildingActions.ts` placement extraction | Complete | Added `src/game/buildingPlacementActions.ts` and reduced `buildingActions.ts` to compatibility exports for placement validation, construction start, strip preview, and strip-chain placement. | Type checking, linting, focused public-entry-point coverage, the complete test suite, and a production build completed successfully. | The next planned slice is the low-risk simulation clock extraction. |
 | `dayCycle.ts` simulation-clock extraction | Complete | Extended `src/game/dayCycleClock.ts` with the remaining pure conversion, clock-boundary, production-gate, and calendar-day predicates; `dayCycle.ts` now re-exports them immediately while retaining mutable day-processing state. | Type checking, linting, focused compatibility and boundary tests, the complete test suite, and a production build completed successfully. | Human scheduling was the next completed major slice. |
 | `dayCycle.ts` human-schedule extraction | Complete | Added `src/game/humanSchedule.ts` for the existing work, tavern, festival, Moon-Howler, evening/home-preference, free-time, and deterministic per-person daily-decision helpers; `dayCycle.ts` immediately re-exports every moved API. | Type checking, linting, focused compatibility and boundary tests, the complete test suite, and a production build completed successfully. | Residency and lifecycle cleanup remain separate major seams requiring a fresh impact notice. |
+| `dayCycle.ts` residency extraction | Complete | Added `src/game/residency.ts` for the existing residence capacity, assignment, occupant synchronization, household/custody/adoption, adult move-out, partner-residence, and rebalance rules. `dayCycle.ts` immediately re-exports the public residency API and retains only its temporary death/birth lifecycle delegation. The write-ownership registry now names `residency.ts` as the canonical normal residence-assignment owner. | Major-change notice was issued before implementation. Focused façade/capacity/occupant-synchronization tests, write-ownership coverage, type checking, linting, the complete 103-file / 513-test suite, and a production build completed successfully. | Extract the remaining lifecycle cleanup only under a new major-change notice; first make the custody/adoption boundary unambiguous so it has one owner. |
 
-**Phases 1, 2.1, 3.1, 4.1, 5.1, and 5.2 are complete.** `App.tsx` composes focused persistence, transient-feedback, shell-state, game-session, and declarative-layout modules; `humanTick.ts` delegates hospital and venue behavior while remaining the sole realtime coordinator; `tickLayerDaily.ts` delegates daily ecology while retaining its visible schedule order; `buildingActions.ts` exposes placement behavior through a compatibility facade; and `dayCycle.ts` re-exports extracted clock and human-schedule helpers. The completed extractions preserved worker authority, command and snapshot boundaries, lifecycle cleanup, DOM behavior, cadence, save semantics, ecology formulas, placement outcomes, time conversion, and schedule behavior. No discrepancy requiring a private bug record was discovered.
+**Phases 1, 2.1, 3.1, 4.1, 5.1, 5.2, and 5.3 (residency) are complete.** `App.tsx` composes focused persistence, transient-feedback, shell-state, game-session, and declarative-layout modules; `humanTick.ts` delegates hospital and venue behavior while remaining the sole realtime coordinator; `tickLayerDaily.ts` delegates daily ecology while retaining its visible schedule order; `buildingActions.ts` exposes placement behavior through a compatibility facade; and `dayCycle.ts` re-exports extracted clock, human-schedule, and residency APIs. The completed extractions preserved worker authority, command and snapshot boundaries, lifecycle cleanup, DOM behavior, cadence, save semantics, ecology formulas, placement outcomes, time conversion, schedule behavior, and residency state shape. No discrepancy requiring a private bug record was discovered.
 
 ### Next action
 
-Before another high-fan-in `dayCycle.ts` extraction, issue a fresh major-change notice for either residency or lifecycle cleanup. Keep the compatibility facade, declare the new owner, preserve state and save boundaries, add deterministic regression coverage, and use the same validation and commit loop.
+Before the remaining high-fan-in `dayCycle.ts` lifecycle-cleanup extraction, issue a fresh major-change notice. Resolve whether adoption stays with residency or moves with lifecycle cleanup, keep the compatibility facade, declare one clear owner, preserve state and save boundaries, add deterministic regression coverage, and use the same validation and commit loop.

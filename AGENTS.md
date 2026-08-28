@@ -104,7 +104,7 @@ Every important gameplay decision has exactly one authoritative owner. Other mod
 |---|---|---|---|
 | Movement and pathfinding | `tickLayerRealtime.ts` and movement helpers | Realtime | Position, velocity, movement targets |
 | Workforce and work assignments | `workforce.ts` through named assignment transitions | Command/assignment | Building occupants, `homeBuildingId`, occupation, job |
-| Housing and residence assignment | `dayCycle.ts` residence functions, scheduled by `tickLayerAssign.ts`; immediate command entry through `buildingActions.assignResidentToBuilding` | Assignment plus immediate place/recruit/death/divorce/arrest | `residenceBuildingId`, residence occupants, household membership |
+| Housing and residence assignment | `residency.ts` residence functions, scheduled by `tickLayerAssign.ts`; `dayCycle.ts` remains the compatibility façade; immediate command entry through `buildingActions.assignResidentToBuilding` | Assignment plus immediate place/recruit/death/divorce/arrest | `residenceBuildingId`, residence occupants, household membership |
 | Construction | Construction functions called by the construction layer | Work cadence | Construction progress, builder membership |
 | Economy and production | `tickLayerSystems.ts` and daily economy owners | System/daily | Resources, production counters, spoilage |
 | Village Requests | `groupEvents.ts`; command entry delegates from `commands.ts` | Daily generation/expiry; player-command resolution | One active request, cooldown/history, effects, source counters, feedback |
