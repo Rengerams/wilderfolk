@@ -15,7 +15,7 @@ node_modules/
 dist/
 dist-ssr/
 target/
-tests/
+tests/*
 src-tauri/target/
 src-tauri/gen/schemas/
 *.tsbuildinfo
