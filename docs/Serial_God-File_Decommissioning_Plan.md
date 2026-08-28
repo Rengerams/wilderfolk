@@ -21,6 +21,22 @@ For every file, work through the same cycle: establish a behavior baseline, extr
 
 During this program, an urgent bug fix in another file is allowed, but no new subsystem, feature, or unrelated responsibility is added to a non-active god file. Create the focused destination module instead.
 
+## Roadmap rationale and ownership decisions
+
+The roadmap is intentionally serial rather than parallel. Each protected file must be reduced to a clear coordinator or compatibility facade before the next protected file becomes active. This prevents two modules from becoming competing authorities for the same simulation decision and makes each behavior change auditable.
+
+The sequence begins with `buildingActions.ts` because it was the smallest and clearest command facade. Staffing, residency, maintenance, configuration, settler interaction, generic routing, and workshop estimates had separable policy boundaries, while the original public exports and worker command protocol could remain compatible through a forwarding facade.
+
+`App.tsx` follows because its existing hooks and layout slots provide low-risk presentation seams. `GameMapStage`, `GameBuildRail`, `GameInspector`, `GameOverlays`, and `GameSidebar` may own presentation structure, but selection state, keyboard policy, canvas interaction, build placement, worker commands, and transient-feedback lifecycle remain in their existing owners. A second input or notification authority would duplicate policy rather than decommission it.
+
+`tickLayerDaily.ts` precedes `humanTick.ts` so daily ownership is explicit before the realtime human pass is changed. Building economy, population reconciliation, challenges, world events, and ecology move into focused owners, while the reduced coordinator retains the exact ordered daily schedule and the 72-tick production cadence. Daily conception, affair establishment, gossip, ordinary scandal, economy, and lifecycle decisions must not migrate into realtime behavior merely because their callers are nearby.
+
+`humanTick.ts` is handled after the daily layer because it is the largest realtime behavior hub. Its shared context creation, per-human iteration, priority ordering, final movement, and spatial synchronization remain coordinator responsibilities. Cohesive policy clusters such as patrol detection, hunting, leisure, and realtime social feedback may move to named owners only when their context and cadence boundaries are explicit. A long file is not itself a failure; hidden policy clusters and ambiguous ownership are.
+
+`residency.ts` is last because it is a stateful and save-sensitive domain. Occupancy, household composition, residence selection, and reconciliation are divided internally while retaining one residency authority. The residency work requires a major-change notice and deterministic save/load, worker-command, occupancy, and partner-transition validation before its protected status can be removed.
+
+The roadmap deliberately avoids creating duplicate keyboard, canvas, daily-tick, residency, or generic event-bus owners. Existing focused owners are retained when they already hold the correct policy. A new module is justified only when it removes an independently evolving responsibility without changing authority, cadence, command boundaries, save schema, or player-visible behavior.
+
 ## 2. Decommissioning gate
 
 A file is decommissioned only when it passes **all** of these conditions. Line count is evidence, not the criterion.
