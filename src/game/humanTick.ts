@@ -16,16 +16,15 @@ import {
   addFloatingText,
   addNotification,
   createDeathParticles,
-  impulseScreenShake,
+  
 } from './simEffects';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { getChurchStrength, findHumanWorkplace, buildConstructionCrewIndex } from './workforce';
-import { addResource } from './economy';
 
 import { isPlayerHuman } from './playerHuman';
 import { isSettlerRelationshipEntity } from './moonHowler';
 import { getElectionGatherTarget } from './villageLeadership';
-import { valleyStageIndex } from './ecologyStage';
+
 import { getWorkSchedule, isOnWorkScheduleShift, isWorkScheduleHour } from './workSchedule';
 import {   HUMAN_ADULT_MIN_AGE, HUMAN_MAX_LIFESPAN_YEARS, HUMAN_MOVE_OUT_MIN_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isOnWorkShift, isOnMoonHowlerNightShift, isFestivalGatheringHour, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
 import {
@@ -39,7 +38,7 @@ import { advanceHumanWalkAnim } from './humanSprites';
 import { formatCitizenName, formatDeathLog } from './citizenId';
 import { syncMarriageSurnames } from './nameLoader';
 import { isRenffrGossipActive } from './renffrStar';
-import { getHumanHuntRange, getHumanFleeSpeedMultiplier } from './combat';
+import { getHumanFleeSpeedMultiplier } from './combat';
 import { isActiveMoonHowler } from './moonHowler';
 import { isEntityOnBuilding } from './buildingRotation';
 import { logEvent } from './eventLog';
@@ -53,6 +52,7 @@ import {
 } from './education';
 import { getPlayerCampCenter, isRaidMarchingForRival } from './frontierCombat';
 import { detectRaidersForPatrol } from './humanPatrolBehavior';
+import { tickHumanHunting } from './humanHuntingBehavior';
 import { getCaravanMoveTarget, tryAdvanceCaravanLeg } from './tradeCaravans';
 import { tickFactionCampWander } from './factionWander';
 import {
@@ -74,20 +74,20 @@ import { setCurrentPathMap } from './pathfinding';
 import {
   COMMUTE_SNAP_DISTANCE, commuteDistanceToBuilding, commuteHumanToBuilding, nearestActiveMoonHowler, snapHumanToBuilding,
 } from './simulation/humanMovement';
-import { fract, freeHuntFoodGain, humanEnergyLoss, isMealCheckHour, HUNGER_MEAL_THRESHOLD } from './simulation/humanNeeds';
+import { fract, humanEnergyLoss, isMealCheckHour, HUNGER_MEAL_THRESHOLD } from './simulation/humanNeeds';
 import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
-import { tryTickBlueberryForaging } from './blueberryForaging';
+
 import { recordFoodConsumed } from './economyLedger';
 import type { EntitySpatialGrid } from './spatialGrid';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
-import { buildResidenceOccupantIndex, findClosestEntityInRadius, findClosestInEntityGrid, queryIsNearRoad, getLivingEntity } from './simQueries';
+import { buildResidenceOccupantIndex, findClosestEntityInRadius, queryIsNearRoad, getLivingEntity } from './simQueries';
 
 
-import { addHuntVisual } from './huntvisuals';
+
 import { traitMultiplier } from './settlerTraits';
 import type { TickContext } from './simulation/simulationTypes';
-import { isValidHuntPrey } from './simulation/simulationEntities';
+
 import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_STAGGER, SOCIAL_GREETING_RADIUS, SOCIAL_FRIENDSHIP_RADIUS, SOCIAL_COURTSHIP_RADIUS, SOCIAL_AFFAIR_RADIUS } from './adaptiveSpatialQuery';
 import { AFFAIR_BUILDING_NEAR_RADIUS, AFFAIR_DAILY_TRYST_RADIUS, AFFAIR_SPOUSE_BLOCK_RADIUS, findCourtshipPartner, getAffairTrystBuilding, getBuildingCenter, hasAffairPartner, isAtMaritalHome, isEligibleToCourt, isNearBuilding, isSpouseNearby, isValidAffairTarget, isValidAffairTrystSite, onScandalCooldown, reconcileAffairPartner, recordAffairTrystSite, shouldLeadAffairPair, tryDailyAffairGossip, tryDailyAmicableDivorce, tryDailyConception, tryDailyHumanMortality, tryExposeCaughtAffairForPair, tryFormSchoolyardBond, trySchoolyardGossip } from './simulation/humanRelationships';
 import { humanDisplayName } from './citizenId';
@@ -97,7 +97,7 @@ import { recordScheduleWorkTick } from './scheduleFatigue';
 
 // Temporary controlled-test instrumentation; disable after comparing the July cadence.
 setRelationshipDiagnosticsEnabled(true);
-import { clearHuntersTargetingPrey, markWildlifeDead, syncEntityGrids } from './simulation/simulationEntities';
+import { syncEntityGrids } from './simulation/simulationEntities';
 
 /** Live on-screen intimate tryst distance. */
 const AFFAIR_INTIMATE_RADIUS = 22;
@@ -885,146 +885,21 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.vy *= 0.85;
     }
 
-    // Free-roam hunting — player settlers only (visitors/rivals do not farm the valley).
-    // Hunters chase game when moderately hungry; other jobs only when starving.
-    const isJobHunter = entity.job === JobType.Hunter;
-    // Famine overrides: with no food in stores a hungry settler hunts whatever
-    // nature offers, even off-schedule — hunger wins over the daily routine.
-    const famine = state.resources.food <= 0;
-    const freeHuntHungry = isJobHunter
-      ? entity.energy < entity.maxEnergy * 0.85
-      : famine
-        ? entity.energy < entity.maxEnergy * 0.6
-        : entity.energy < entity.maxEnergy * 0.38;
-    const blueberryForaging = !isJobHunter && tryTickBlueberryForaging(state, ctx, entity, {
-      freeTime: allowFreeRoam && !onSchedule,
+    const huntingSuppressIdle = tickHumanHunting(
+      state,
+      ctx,
+      entity,
+      config,
+      allowFreeRoam,
+      onSchedule,
       ateMeal,
       festivalGathering,
-      famine,
-      speed: config.speed,
-    });
-
-    if (
-      !blueberryForaging
-      && !festivalGathering
-      && (allowFreeRoam || famine)
-      && isPlayerHuman(entity)
-      && !ateMeal
-      && !entity.isJuvenile
-      && freeHuntHungry
-    ) {
-      const preyTypes = new Set<EntityType>(famine
-        ? [EntityType.Deer, EntityType.Rabbit, EntityType.Fox, EntityType.Wolf]
-        : [EntityType.Deer, EntityType.Rabbit]);
-      // Assigned hunters range farther; everyone else is opportunistic
-      const huntRange = getHumanHuntRange(
-        state,
-        config.huntRange * (isJobHunter ? 1.2 : 0.75) * traitMultiplier(entity, 'brave', 1.25),
-      );
-      let closestPrey: Entity | null = null;
-      let closestDist = Infinity;
-
-      const preyFallback = famine
-        ? [
-            ...byType[EntityType.Deer],
-            ...byType[EntityType.Rabbit],
-            ...byType[EntityType.Fox],
-            ...byType[EntityType.Wolf],
-          ]
-        : [
-            ...byType[EntityType.Deer],
-            ...byType[EntityType.Rabbit],
-          ];
-      const huntHit = findClosestInEntityGrid(
-        mobileGrid,
-        entity.x,
-        entity.y,
-        huntRange,
-        (prey) => preyTypes.has(prey.type) && isValidHuntPrey(prey, prey.type, entity.id),
-        'hunt',
-        preyFallback,
-      );
-      if (huntHit) {
-        closestPrey = huntHit.entity;
-        closestDist = Math.sqrt(huntHit.distSq);
-      }
-
-      if (closestPrey?.alive && closestDist < config.size + closestPrey.size) {
-        const preyId = closestPrey.id;
-        markWildlifeDead(ctx, closestPrey);
-        clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId);
-        createDeathParticles(state, closestPrey.x, closestPrey.y, '#8a2a2a', 10);
-        syncEntityGrids(ctx, closestPrey);
-        // Arrow flight for free-roam hunting too (same FX as Hunting Spots)
-        addHuntVisual(state, {
-          hunterId: entity.id,
-          preyType: closestPrey.type,
-          fromX: entity.x,
-          fromY: entity.y,
-          toX: closestPrey.x,
-          toY: closestPrey.y,
-          startedAtTick: state.tick,
-          startedAtMs: Date.now(),
-          success: true,
-          foughtBack: false,
-        });
-        const energyBite = config.energyGain[closestPrey.type] ?? (closestPrey.type === EntityType.Deer ? 350 : 150);
-        entity.energy = Math.min(entity.maxEnergy, entity.energy + energyBite);
-        entity.flash = 10;
-        entity.combatTicks = 16;
-        entity.huntTargetId = undefined;
-        const foodGain = freeHuntFoodGain(closestPrey.type, state);
-        addResource(state, 'food', foodGain);
-        // BUG-2: label each prey type — Fox/Wolf kills were shown as 'Rabbit'
-        const preyLabel = closestPrey.type === EntityType.Deer
-          ? 'Deer'
-          : closestPrey.type === EntityType.Fox
-            ? 'Fox'
-            : closestPrey.type === EntityType.Wolf
-              ? 'Wolf'
-              : 'Rabbit';
-        addFloatingText(state, closestPrey.x, closestPrey.y - 14, `Hunted ${preyLabel}! +${foodGain}`, '#f97316');
-        entity.vx = 0;
-        entity.vy = 0;
-        impulseScreenShake(state, 2);
-      } else if (closestPrey?.alive) {
-        entity.huntTargetId = closestPrey.id;
-        const dx = closestPrey.x - entity.x;
-        const dy = closestPrey.y - entity.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        // Hunters pursue faster; casual foragers jog; brave settlers push harder
-        const chaseMult = (isJobHunter ? 0.72 : 0.5) * traitMultiplier(entity, 'brave', 1.2);
-        entity.vx = (dx / dist) * config.speed * chaseMult;
-        entity.vy = (dy / dist) * config.speed * chaseMult;
-        entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
-        suppressIdle = true;
-        // Strained+ valley: rare chatter so yield dips don't read as pure RNG
-        if (
-          valleyStageIndex(state.valleyStage ?? 'stable') >= 1
-          && isJobHunter
-          && personDayRoll(entity.id, state.tick, 811) < 0.012
-        ) {
-          sayHumanChatPhrase(entity, "Game's getting scarce…", 48);
-        }
-      } else {
-        entity.huntTargetId = undefined;
-        if (
-          valleyStageIndex(state.valleyStage ?? 'stable') >= 1
-          && isJobHunter
-          && personDayRoll(entity.id, state.tick, 812) < 0.02
-        ) {
-          sayHumanChatPhrase(entity, 'Thin trails today…', 40);
-        }
-      }
-    } else if (
-      !allowFreeRoam
-      || ateMeal
-      || !isPlayerHuman(entity)
-      || entity.isJuvenile
-      || !freeHuntHungry
-    ) {
-      entity.huntTargetId = undefined;
-    }
+      byType,
+      mobileGrid,
+      entityById,
+      suppressIdle,
+    );
+        suppressIdle = huntingSuppressIdle;
 
     if (
       isPlayerHuman(entity)

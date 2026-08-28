@@ -121,12 +121,12 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 7. File 4 — fully decommission `humanTick.ts`
 
-**Current state:** `humanHospitalBehavior.ts`, `humanVenueBehavior.ts`, and `humanPatrolBehavior.ts` are extracted. `humanTick.ts` remains the sole realtime coordinator and must stay that way, but the remaining behavior policy must leave the file.
+**Current state:** `humanHospitalBehavior.ts`, `humanVenueBehavior.ts`, `humanPatrolBehavior.ts`, and `humanHuntingBehavior.ts` are extracted. `humanTick.ts` remains the sole realtime coordinator and must stay that way, but the remaining behavior policy must leave the file.
 
 | Serial slice | Destination module | Move from `humanTick.ts` | Owner/cadence constraint |
 |---:|---|---|---|
 | 4.1 | `humanPatrolBehavior.ts` | Patrol detection of marching rival raiders and existing reveal feedback | Detection radius, rival visibility mutation, and event feedback unchanged; focused patrol and full-year tests passed |
-| 4.2 | `humanHuntingBehavior.ts` | Hunger-triggered hunt decisions, prey selection, chase, kill/visual triggers and food gain | Retain existing hunger/work/danger priorities; no daily relationship logic |
+| 4.2 | `humanHuntingBehavior.ts` | Hunger-triggered hunt decisions, prey selection, chase, kill/visual triggers and food gain | **Complete.** Hunger/famine thresholds, prey selection, chase, kill resolution, food/energy accounting, visuals, and target cleanup preserved; focused hunting, movement, social, and full-year tests passed. |
 | 4.3 | `humanLeisureBehavior.ts` | Free-time routing, family/coworker visits, beauty spots, festivals, child play, wandering | Must not override danger, hunger, sleep, shift, or active relationship behavior |
 | 4.4 | `humanSocialRuntime.ts` | Nearby chat, heart feedback, local low-cost social progress | Daily courtship, affair establishment, conception, birth, and ordinary scandal decisions stay with their owners |
 | 4.5 | `humanWorkBehavior.ts`, if a remaining cohesive cluster exists | Shift-specific movement and job execution only when it remains mixed into the coordinator | Workforce keeps assignment authority; this executes existing realtime intent |
