@@ -54,3 +54,30 @@ export function getChildCustodian(child: Entity, humans: Entity[]): Entity | und
   const adoptiveMother = livingHuman(humans, child.adoptiveMotherId);
   return adoptiveMother ?? livingHuman(humans, child.adoptiveFatherId);
 }
+/** Collect a connected family graph for household-unit formation. */
+export function collectFamilyMembers(seed: Entity, humans: Entity[], visited: Set<number>): Entity[] {
+  const family: Entity[] = [];
+  const queue: Entity[] = [seed];
+  while (queue.length > 0) {
+    const human = queue.pop()!;
+    if (visited.has(human.id)) continue;
+    visited.add(human.id);
+    family.push(human);
+    const partner = livingHuman(humans, human.partnerId);
+    if (partner && !visited.has(partner.id)) queue.push(partner);
+    const mother = livingHuman(humans, human.motherId);
+    if (mother && !visited.has(mother.id)) queue.push(mother);
+    const father = livingHuman(humans, human.fatherId);
+    if (father && !visited.has(father.id)) queue.push(father);
+    for (const childId of human.childrenIds ?? []) {
+      const child = livingHuman(humans, childId);
+      if (child && !visited.has(child.id)) queue.push(child);
+    }
+    for (const other of humans) {
+      if ((other.motherId === human.id || other.fatherId === human.id) && !visited.has(other.id)) {
+        queue.push(other);
+      }
+    }
+  }
+  return family;
+}

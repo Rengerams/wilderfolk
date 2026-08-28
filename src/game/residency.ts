@@ -1,8 +1,8 @@
 import type { Building, Entity } from './gameTypes';
 import { BuildingType, EntityType } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
-import { collectOwnHousehold, getChildCustodian, isMinorChild } from './householdComposition';
-export { collectOwnHousehold, getChildCustodian, isMinorChild } from './householdComposition';
+import { collectFamilyMembers, collectOwnHousehold, getChildCustodian, isMinorChild } from './householdComposition';
+export { collectFamilyMembers, collectOwnHousehold, getChildCustodian, isMinorChild } from './householdComposition';
 
 import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 import {
@@ -271,45 +271,6 @@ export function pickResidenceFromChildCustodian(
   const residence = residences.find((b) => b.id === custodian.residenceBuildingId);
   if (!residence || !residenceRoomFor(child, residence, humans)) return undefined;
   return custodian.residenceBuildingId;
-}
-
-/** Married couples + children form one household; lone settlers are a household of one. */
-export function collectFamilyMembers(
-  seed: Entity,
-  humans: Entity[],
-  visited: Set<number>,
-): Entity[] {
-  const family: Entity[] = [];
-  const queue: Entity[] = [seed];
-
-  while (queue.length > 0) {
-    const human = queue.pop()!;
-    if (visited.has(human.id)) continue;
-    visited.add(human.id);
-    family.push(human);
-
-    const partner = livingHuman(humans, human.partnerId);
-    if (partner && !visited.has(partner.id)) queue.push(partner);
-
-    const mother = livingHuman(humans, human.motherId);
-    if (mother && !visited.has(mother.id)) queue.push(mother);
-
-    const father = livingHuman(humans, human.fatherId);
-    if (father && !visited.has(father.id)) queue.push(father);
-
-    for (const childId of human.childrenIds ?? []) {
-      const child = livingHuman(humans, childId);
-      if (child && !visited.has(child.id)) queue.push(child);
-    }
-
-    for (const other of humans) {
-      if (other.motherId === human.id || other.fatherId === human.id) {
-        if (!visited.has(other.id)) queue.push(other);
-      }
-    }
-  }
-
-  return family;
 }
 
 
