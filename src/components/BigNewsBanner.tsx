@@ -1,7 +1,3 @@
-import { useEffect } from 'react';
-
-export const BIG_NEWS_DISPLAY_MS = 8_000;
-
 export interface BigNewsItem {
   id: string;
   title: string;
@@ -37,11 +33,8 @@ export default function BigNewsBanner({
 }) {
   const item = news[news.length - 1];
 
-  useEffect(() => {
-    if (!item) return undefined;
-    const timeout = window.setTimeout(() => onDismiss(item.id), BIG_NEWS_DISPLAY_MS);
-    return () => window.clearTimeout(timeout);
-  }, [item?.id, onDismiss]);
+  // The transient-feedback owner schedules wall-clock dismissal. Keeping this
+  // component presentation-only prevents conditional mounting from resetting it.
 
   if (!item) return null;
   return (

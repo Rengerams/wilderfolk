@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type RefObject,
 } from 'react';
@@ -10,6 +11,7 @@ import { GameLoop } from '../game/gameLoop';
 import type { MomentCardData } from '../components/MomentTitleCard';
 import { VALLEY_CHAPTERS } from '../game/valleyChronicle';
 
+export const BIG_NEWS_DISPLAY_MS = 8_000;
 const BIG_NEWS_DISMISS_AFTER_TICKS = 360;
 const BIG_NEWS_REMOVE_AFTER_TICKS = 600;
 const BIG_NEWS_CLEANUP_INTERVAL_MS = 1_000;
@@ -23,7 +25,7 @@ type UseTransientGameFeedbackOptions = {
   onFeedbackInteraction: () => void;
 };
 
-/** Removes expired big-news records using the existing simulation-tick thresholds. */
+/** Removes expired big-news records using the existing simulation-tick retention thresholds. */
 export function expireBigNews(world: Pick<WorldState, 'bigNews' | 'tick'>): void {
   if (world.bigNews.length === 0) return;
   const now = world.tick;
@@ -36,6 +38,16 @@ export function expireBigNews(world: Pick<WorldState, 'bigNews' | 'tick'>): void
   const changed = updated.length !== world.bigNews.length
     || updated.some((news, index) => news.dismissed !== world.bigNews[index]?.dismissed);
   if (changed) world.bigNews = updated;
+}
+
+/** Lists undismissed Big News records that require independent wall-clock auto-dismissal. */
+export function getBigNewsAutoDismissIds(
+  world: Pick<WorldState, 'bigNews'>,
+  hiddenBigNewsIds: ReadonlySet<string> = new Set(),
+): string[] {
+  return world.bigNews
+    .filter((news) => !news.dismissed && !hiddenBigNewsIds.has(news.id))
+    .map((news) => news.id);
 }
 
 /** Removes notifications that have exceeded the existing wall-clock display lifetime. */
@@ -73,8 +85,15 @@ export function useTransientGameFeedback({
   const [dismissedChapter, setDismissedChapter] = useState<string | null>(null);
   const [hiddenBigNewsIds, setHiddenBigNewsIds] = useState<ReadonlySet<string>>(() => new Set());
   const [hiddenActiveEventIds, setHiddenActiveEventIds] = useState<ReadonlySet<string>>(() => new Set());
+  const bigNewsTimersRef = useRef<Map<string, number>>(new Map());
+  const dismissBigNewsItemRef = useRef<(id: string, playFeedback?: boolean) => void>(() => {});
 
-  // Auto-dismiss big news after ~15s (360 ticks) — stable interval, no length dep.
+  const clearBigNewsTimers = useCallback(() => {
+    for (const timeout of bigNewsTimersRef.current.values()) window.clearTimeout(timeout);
+    bigNewsTimersRef.current.clear();
+  }, []);
+
+  // Retain the established simulation-tick cleanup for long-lived/restored news.
   useEffect(() => {
     const timer = setInterval(() => {
       loopRef.current?.mutateWorld(expireBigNews);
@@ -82,13 +101,15 @@ export function useTransientGameFeedback({
     return () => clearInterval(timer);
   }, [loopRef]);
 
-  // Fade out toast notifications after ~12s unless the player dismisses them first.
+  // Fade out ordinary toast notifications after ~12s unless dismissed first.
   useEffect(() => {
     const timer = setInterval(() => {
       loopRef.current?.mutateWorld((currentWorld) => expireNotifications(currentWorld));
     }, NOTIFICATION_CLEANUP_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [loopRef]);
+
+  useEffect(() => clearBigNewsTimers, [clearBigNewsTimers]);
 
   // Valley Chronicle chapter moments remain derived during render.
   const pendingChapterCard = useMemo(
@@ -115,8 +136,11 @@ export function useTransientGameFeedback({
     });
   }, [loopRef, onFeedbackInteraction]);
 
-  const dismissBigNewsItem = useCallback((id: string) => {
-    onFeedbackInteraction();
+  const dismissBigNewsItem = useCallback((id: string, playFeedback = true) => {
+    if (playFeedback) onFeedbackInteraction();
+    const timeout = bigNewsTimersRef.current.get(id);
+    if (timeout !== undefined) window.clearTimeout(timeout);
+    bigNewsTimersRef.current.delete(id);
     setHiddenBigNewsIds((previous) => {
       if (previous.has(id)) return previous;
       const next = new Set(previous);
@@ -130,6 +154,30 @@ export function useTransientGameFeedback({
       currentWorld.bigNews = currentWorld.bigNews.filter((news) => news.id !== id);
     });
   }, [loopRef, onFeedbackInteraction]);
+
+  useEffect(() => {
+    dismissBigNewsItemRef.current = dismissBigNewsItem;
+  }, [dismissBigNewsItem]);
+
+  // The deadline belongs to this persistent feedback owner, never to a conditionally
+  // mounted banner. Existing timers survive map overlay visibility changes.
+  useEffect(() => {
+    const eligibleIds = new Set(getBigNewsAutoDismissIds(world, hiddenBigNewsIds));
+    for (const [id, timeout] of bigNewsTimersRef.current) {
+      if (!eligibleIds.has(id)) {
+        window.clearTimeout(timeout);
+        bigNewsTimersRef.current.delete(id);
+      }
+    }
+    for (const id of eligibleIds) {
+      if (bigNewsTimersRef.current.has(id)) continue;
+      const timeout = window.setTimeout(() => {
+        bigNewsTimersRef.current.delete(id);
+        dismissBigNewsItemRef.current(id, false);
+      }, BIG_NEWS_DISPLAY_MS);
+      bigNewsTimersRef.current.set(id, timeout);
+    }
+  }, [hiddenBigNewsIds, world]);
 
   const dismissActiveEvent = useCallback(() => {
     const currentWorld = worldRef.current;
@@ -168,18 +216,20 @@ export function useTransientGameFeedback({
   }, [loopRef, onFeedbackInteraction, worldRef]);
 
   const resetTransientFeedbackForNewSession = useCallback(() => {
+    clearBigNewsTimers();
     setHiddenBigNewsIds(new Set());
     setHiddenActiveEventIds(new Set());
     setDismissedChapter(null);
-  }, []);
+  }, [clearBigNewsTimers]);
 
   const synchronizeTransientFeedbackFromWorld = useCallback((loadedWorld: WorldState) => {
+    clearBigNewsTimers();
     setHiddenBigNewsIds(new Set([
       ...(loadedWorld.dismissedBigNewsIds ?? []),
       ...loadedWorld.bigNews.filter((news) => news.dismissed).map((news) => news.id),
     ]));
     setHiddenActiveEventIds(new Set(loadedWorld.dismissedActiveEventIds ?? []));
-  }, []);
+  }, [clearBigNewsTimers]);
 
   const activeBigNews = world.bigNews.filter(
     (news) => !news.dismissed && !hiddenBigNewsIds.has(news.id),
