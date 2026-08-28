@@ -78,7 +78,7 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 5. File 2 — fully decommission `App.tsx`
 
-**Current state:** `useGamePersistence`, `useGameSession`, `useGameShellState`, `useTransientGameFeedback`, `GamePlayLayout`, `GameMapStage`, and `GameBuildRail` exist and are wired. The remaining task is to move the inline inspector, overlay, input, and composition clusters out of the application root.
+**Current state:** `useGamePersistence`, `useGameSession`, `useGameShellState`, `useTransientGameFeedback`, `GamePlayLayout`, `GameMapStage`, `GameBuildRail`, and `GameInspector` exist and are wired. The remaining task is to move the inline overlay, input, and composition clusters out of the application root.
 
 ### Implementation status
 
@@ -86,11 +86,13 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 **Slice 2.2 — Complete (28 August 2026).** The build-rail presentation moved into `src/components/GameBuildRail.tsx`. It receives the App-owned shell/build state and established callbacks, without creating another build-mode owner. The component keeps the collapsed rail, build catalog loading fallback, grid toggle, selection cancellation, and locked-building command route unchanged. Focused build-rail, map-stage, and layout rendering tests, type checking, linting, the complete test suite, and the production build passed. No simulation state, save format, worker authority, keyboard policy, canvas interaction, or command behavior changed.
 
+**Slice 2.3 — Complete (28 August 2026).** The inspector frame, diagnostics placement, selection header, clear/collapse controls, and compact collapsed label moved into `src/components/GameInspector.tsx`; App retains selection derivation and all feature-specific panel/action callbacks. The presentation improvement adds explicit button types and accessible labels/expanded state without changing behavior. Focused inspector, layout, map-stage, and hotkey tests, type checking, linting, and the production build passed. No simulation state, save format, worker authority, selection ownership, or command behavior changed.
+
 | Serial slice | Destination module/component | Move from `App.tsx` | Validation |
 |---:|---|---|---|
 | 2.1 | `GameMapStage.tsx` | Canvas wrapper, map-stage composition, and display-only map controls | **Complete.** Canvas surface, FPS, minimap navigation, zoom preset/clamping presentation, and layout contract passed. |
 | 2.2 | `GameBuildRail.tsx` | Build palette/rail presentation and feature-local UI callbacks | **Complete.** Collapsed rail, grid toggle, selected-building cancellation, and catalog-open contract passed. |
-| 2.3 | `GameInspector.tsx` | Selected entity/building inspector composition | Selection changes, panel collapse, building/entity action callbacks |
+| 2.3 | `GameInspector.tsx` | Selected entity/building inspector composition | **Complete.** Selection header, diagnostics placement, collapse/clear controls, compact label, and accessibility contract passed. |
 | 2.4 | `GameOverlays.tsx` | Tutorial, banner, moment card, notifications, shortcut and modal composition | Dismissal state, z-order, no duplicate overlays, first-session flow |
 | 2.5 | `useGameInputBindings.ts` only if needed | Remaining App-owned keyboard/mouse orchestration not already in a focused hook | Keyboard shortcuts, pointer/camera interactions, cleanup on unmount |
 | 2.6 | `App.tsx` composition decision | Keep only application boot, session/shell hook composition, and high-level route/screen choice | New/load game, save, worker lifecycle, intro/map setup/gameplay transitions |
@@ -149,10 +151,10 @@ A file enters the protected list only when it has accumulated multiple independe
 
 ## 10. Next implementation session
 
-Remain on **File 2: `App.tsx`** and proceed with **Slice 2.3 — `GameInspector.tsx`**.
+Remain on **File 2: `App.tsx`** and proceed with **Slice 2.4 — `GameOverlays.tsx`**.
 
-1. Baseline selected entity/building/camp inspector composition and collapse behavior.
-2. Move only inspector presentation and feature-local callbacks into the named component.
-3. Keep authoritative selection updates in the existing view/session pathway.
-4. Test selection switching, collapsed content, and callback routing without duplicating inspector state.
-5. Do not begin overlays, input, or another protected file until Slice 2.3 is validated and committed.
+1. Baseline tutorial, notification, raid/event, save-toast, and moment overlay composition.
+2. Move only overlay presentation and established callback wiring into the named component.
+3. Keep transient feedback ownership and worker command routes in existing hooks/App handlers.
+4. Test overlay ordering, dismissal routing, and mutually exclusive priority presentation.
+5. Do not begin input or another protected file until Slice 2.4 is validated and committed.

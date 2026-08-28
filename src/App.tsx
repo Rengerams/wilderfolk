@@ -62,6 +62,7 @@ import VisitorCampPanel from './components/VisitorCampPanel';
 import SelectedEntityPanel from './components/SelectedEntityPanel';
 import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel';
 import GamePlayLayout from './components/GamePlayLayout';
+import GameInspector from './components/GameInspector';
 import GameBuildRail from './components/GameBuildRail';
 
 
@@ -1633,31 +1634,15 @@ export default function App() {
       )}
       inspector={(
         <aside className="side-panel flex w-[18.5rem] flex-col border-l border-stone-700/80">
-          <SimulationDiagnosticsPanel loop={loopRef.current} debugMode={debugMode} />
-          {hasInspectorSelection && (
-          <div className="shrink-0 border-b border-stone-700 bg-stone-900/50">
-            <div className="flex items-center justify-between px-3 py-1.5">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-stone-400">Selected</h2>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={clearSelection}
-                  className="rounded px-1.5 py-0.5 text-xs text-stone-400 hover:bg-stone-700 hover:text-stone-200"
-                  title="Clear selection (ESC)"
-                >
-                  ✕
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setInspectorCollapsed((v) => !v)}
-                  className="rounded px-1.5 py-0.5 text-xs text-stone-400 hover:bg-stone-700 hover:text-stone-200"
-                  title={inspectorCollapsed ? 'Expand' : 'Collapse'}
-                >
-                  {inspectorCollapsed ? '▾' : '▴'}
-                </button>
-              </div>
-            </div>
-            {!inspectorCollapsed && (
-            <div className="inspector-panel px-3 pb-3">
+        <GameInspector
+          hasSelection={hasInspectorSelection}
+          collapsed={inspectorCollapsed}
+          selectedLabel={selectedVisitorCamp?.name ?? selectedBuilding?.type ?? selectedEntity?.name ?? 'Selected'}
+          onClear={clearSelection}
+          onToggleCollapsed={() => setInspectorCollapsed((v) => !v)}
+          diagnostics={<SimulationDiagnosticsPanel loop={loopRef.current} debugMode={debugMode} />}
+        >
+
             {selectedVisitorCamp ? (
               <VisitorCampPanel
                 group={selectedVisitorCamp}
@@ -1774,17 +1759,10 @@ export default function App() {
               />
               </>
             ) : null}
-            </div>
-            )}
-            {inspectorCollapsed && (
-              <p className="truncate px-3 pb-2 text-[11px] text-stone-300">
-                {selectedVisitorCamp?.name ?? selectedBuilding?.type ?? selectedEntity?.name ?? 'Selected'}
-              </p>
-            )}
-          </div>
-          )}
 
-          {/* Tabs */}
+
+        </GameInspector>
+      {/* Tabs */}
           <div className="sidebar-tabs shrink-0">
             {SIDEBAR_TABS.map(tab => (
               <button
