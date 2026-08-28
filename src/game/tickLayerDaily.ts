@@ -12,9 +12,7 @@ import {
   BuildingType,
   EntityType,
 } from './gameTypes';
-import {
-  indexEntity,
-} from './entityIndex';
+
 import type {
   PopulationCounts,
 } from './entityCounts';
@@ -92,9 +90,7 @@ import {
   isNewCalendarDayTick,
   getCalendarDay,
   FESTIVAL_CHECK_TICKS,
-  IMMIGRATION_CHECK_TICKS,
-  getResidenceCapacity,
-  assignMissingResidences,
+  
   getAbsoluteCalendarDay,
   DAYS_PER_YEAR,
 } from './dayCycle';
@@ -139,15 +135,11 @@ import {
 import {
   tickLeaderPromise,
 } from './villageLeadership';
-import {
-  findHumanSpawnNear,
-} from './terrainSystems';
+
 import {
   decayIdleSkills,
 } from './skills';
-import {
-  isPlayerHuman,
-} from './playerHuman';
+
 import {
   resolveDailyScheduleFatigue,
 } from './scheduleFatigue';
@@ -175,20 +167,18 @@ import {
   trackYearEvent,
 } from './stats';
 import {
-  getTownHallFestivalCooldownTicks,
-  getTownHallImmigrationMultiplier,
+    getTownHallFestivalCooldownTicks,
+
 } from './townHall';
 import {
   tickPendingOutgoingRaidEvents,
   tickPendingRaidEvents,
 } from './frontierCombat';
+
 import {
-  pruneFactionWanderStates,
-} from './factionWander';
-import {
-  createImmigrantSettler,
   replenishDepletedWildlife,
 } from './worldGen';
+
 import {
   isChallengeComplete,
 } from './challenges';
@@ -285,73 +275,7 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
   }
 }
 
-function tickImmigration(
-  state: WorldState,
-  ctx: TickContext,
-  allAlive: Entity[],
-  counts: PopulationCounts,
-): void {
-  const { updatedBuildings, entityById, width, height } = ctx;
-
-  const housingCap = updatedBuildings
-    .filter((b) => b.completed && (b.type === BuildingType.House || b.type === BuildingType.Mansion))
-    .reduce((sum, b) => sum + getResidenceCapacity(b), 0);
-  state.maxHumanPopulation = 5 + housingCap + Math.floor(state.villageReputation / 10);
-
-  const completedHousing = updatedBuildings.filter(
-    (b) => b.completed && (b.type === BuildingType.House || b.type === BuildingType.Mansion),
-  ).length;
-  const immigrationChance = Math.min(
-    0.95,
-    (0.05 + state.villageReputation / 120 + completedHousing * 0.03)
-      * (state.festival?.active ? 1.5 : 1)
-      * getTownHallImmigrationMultiplier(updatedBuildings),
-  );
-
-  const openSlots = state.maxHumanPopulation - counts.humans;
-  if (
-    state.tick > 0
-    && state.tick % IMMIGRATION_CHECK_TICKS === 0
-    && openSlots > 0
-    && Math.random() < immigrationChance
-  ) {
-    let spawnX = width / 2;
-    let spawnY = height / 2;
-    const homes = updatedBuildings.filter(
-      (b) => b.completed && (b.type === BuildingType.House || b.type === BuildingType.Mansion),
-    );
-    if (homes.length > 0) {
-      const home = homes[Math.floor(Math.random() * homes.length)];
-      spawnX = home.x + home.width / 2;
-      spawnY = home.y + home.height / 2;
-    }
-    const rawSpawnX = spawnX + (Math.random() - 0.5) * 40;
-    const rawSpawnY = spawnY + (Math.random() - 0.5) * 40;
-    const spawn = findHumanSpawnNear(state, rawSpawnX, rawSpawnY);
-    // Cap members so a couple cannot overshoot maxHumanPopulation
-    const newcomers = createImmigrantSettler(state, spawn.x, spawn.y, openSlots);
-    let admitted = 0;
-    for (const newcomer of newcomers) {
-      if (counts.humans >= state.maxHumanPopulation) break;
-      allAlive.push(newcomer);
-      indexEntity(entityById, newcomer);
-      counts.humans++;
-      admitted++;
-    }
-    if (admitted > 0) {
-      assignMissingResidences(allAlive.filter(isPlayerHuman), updatedBuildings, allAlive);
-      const label = admitted === 1 ? '+1 Settler arrived' : `+${admitted} Settlers arrived`;
-      addFloatingText(state, spawnX, spawnY - 18, label, '#22c55e');
-      addNotification(
-        state,
-        'New Settler',
-        label,
-        'success',
-        { x: spawnX, y: spawnY },
-      );
-    }
-  }
-}
+import { tickDailyPopulation } from './dailyPopulation';
 
 // ==================== DAILY LAYER ENTRYPOINT ====================
 
@@ -441,14 +365,10 @@ export function tickLayerDaily(
   detectRaidersFromWatchtowers(state, allAlive);
   tickRivalSettlements(state, allAlive);
 
-  // Remove any entities that died during frontier resolution before counts are reused.
-  for (let i = allAlive.length - 1; i >= 0; i--) {
-    if (!allAlive[i].alive) allAlive.splice(i, 1);
-  }
-  pruneFactionWanderStates(allAlive.map((e) => e.id));
+  // Population cleanup and immigration remain in the daily population owner.
+  tickDailyPopulation(state, ctx, allAlive, counts);
 
   tickFestivals(state, counts);
-  tickImmigration(state, ctx, allAlive, counts);
 
   // Every 3 days — soft wildlife floor so passive play doesn't empty the map by mid-year
   if (state.tick > 0 && state.tick % (TICKS_PER_DAY * 3) === 0) {
