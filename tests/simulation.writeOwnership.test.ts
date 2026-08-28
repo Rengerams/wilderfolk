@@ -60,16 +60,18 @@ const APPROVED_WRITERS: Record<ProtectedField, readonly string[]> = {
     'src/game/tradeCaravans.ts',
     'src/game/workforce.ts',
   ],
-  // residency owns normal residence assignment. The listed delegates are the
-  // sanctioned player-command, demolition, lifecycle, leader, transformation,
-  // relationship, caravan, and worker-snapshot boundaries documented here.
+  // residency selection/reconciliation own normal residence assignment. The
+  // listed delegates are the sanctioned player-command, demolition, lifecycle,
+  // leader, transformation, relationship, caravan, and worker-snapshot
+  // boundaries documented here.
   residenceBuildingId: [
     'src/game/buildingMaintenanceActions.ts',
     'src/game/buildingResidencyActions.ts',
     'src/game/humanLifecycleCleanup.ts',
     'src/game/leaderHouse.ts',
     'src/game/moonHowler.ts',
-    'src/game/residency.ts',
+    'src/game/residencyReconciliation.ts',
+    'src/game/residencySelection.ts',
     'src/game/simBuffers/applyKinematics.ts',
     'src/game/simulation/humanLifecycle.ts',
     'src/game/simulation/humanRelationships.ts',
@@ -109,7 +111,10 @@ const REQUIRED_CANONICAL_WRITERS: Partial<Record<ProtectedField, readonly string
     'src/game/simulation/humanLifecycle.ts',
   ],
   homeBuildingId: ['src/game/workforce.ts'],
-  residenceBuildingId: ['src/game/residency.ts'],
+  residenceBuildingId: [
+    'src/game/residencyReconciliation.ts',
+    'src/game/residencySelection.ts',
+  ],
   moonHowlerCursed: ['src/game/moonHowler.ts'],
   villageLeaderId: ['src/game/villageLeadership.ts'],
 };

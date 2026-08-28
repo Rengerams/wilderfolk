@@ -259,13 +259,16 @@ The following files are deliberately retained as **protected legacy/legend files
 | `src/App.tsx` | Legacy application composition root retained for route and callback compatibility after presentation seams were split | The focused shell, map, build, inspector, overlay, sidebar, or hook owner |
 | `src/game/tickLayerDaily.ts` | Legacy ordered daily-schedule facade retained after daily economy, population, challenge, event, and ecology policy were split | The appropriate existing daily owner; do not add a new tick layer |
 | `src/game/humanTick.ts` | Realtime human coordinator retained for priority and shared-context compatibility while behavior slices are split | A named human-behavior module, still called from the existing realtime human pipeline |
-| `src/game/residency.ts` | Legacy residency authority retained for occupancy, household composition, home selection, and reconciliation while focused helpers are split | A focused residency occupancy, household-composition, selection, or reconciliation module |
 
 This rule does **not** prohibit maintenance, targeted bug fixes, type-only changes, deletion, or extracting existing code from a protected legacy/legend file. It prevents the file from receiving any new independent responsibility or new data. Preserve the existing public entry point during staged extraction when it avoids unnecessary churn; do not use a protected file as a convenient home for future features.
 
 ### Protected legacy/legend boundary: `src/game/buildingActions.ts`
 
 `buildingActions.ts` is **a protected legacy/legend file and no longer an active god file**. It is a small, public compatibility façade over placement, staffing, residency, maintenance, configuration, settler-interaction, workshop-economy, and legacy generic-routing owners. It must not receive action policy, direct authoritative writes, new features, state fields, constants, or independent functions. New command behavior belongs in the focused domain owner; legacy exports may remain only while callers migrate.
+
+### Protected legacy/legend boundary: `src/game/residency.ts`
+
+`residency.ts` is **a protected legacy/legend file and no longer an active god file**. It is a narrow public compatibility facade over `residencyOccupancy.ts`, `householdComposition.ts`, `residencySelection.ts`, and `residencyReconciliation.ts`. Housing remains one authoritative domain owner; the focused modules divide internals without changing residence fields, save schema, worker boundaries, or assignment cadence. New residence policy belongs in the appropriate focused module, not in the facade.
 
 ### Protected legacy/legend boundary: `src/game/dayCycle.ts`
 

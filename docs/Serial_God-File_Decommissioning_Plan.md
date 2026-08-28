@@ -152,7 +152,9 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 8. File 5 — fully decommission `residency.ts`
 
-**Current state:** `residency.ts` successfully replaced much of the former `dayCycle.ts` hub but is now large enough to be a protected successor. This is a major permanent change because it touches households, residents, event transitions, and save-relevant state.
+**Current state:** `residency.ts` is a small public compatibility facade over the single residency domain owner’s focused occupancy, household-composition, selection, and reconciliation modules. This is a major permanent change because it touches households, residents, event transitions, and save-relevant state.
+
+**Implementation status — complete (28 August 2026).** Slices 5.3–5.5 split candidate selection and reconciliation while preserving the public residency API, residence fields, save schema, worker command boundaries, assignment cadence, and one authoritative residency owner. Targeted residency and command tests, the 360-day integration test, type checking, and linting passed. `AGENTS.md` now records `residency.ts` as a completed no-policy compatibility facade.
 
 > **Major-change notice before starting:** State that residency will be split internally while retaining one residency owner; list affected exports/callers; confirm no residence field, save schema, or assignment cadence will change; define the compatibility and deterministic-save validation plan.
 
@@ -160,11 +162,11 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 |---:|---|---|---|
 | 5.1 | `residencyOccupancy.ts` | Occupancy index, capacity predicates, occupancy move accounting, building/resident consistency queries | Capacity boundaries, building ID `0`, occupant/index consistency |
 | 5.2 | `householdComposition.ts` | Family grouping, household unit formation, child custodianship, adult-child independence rules | **Helper sub-slices validated.** Minor classification, adult-led household collection, child-custodian resolution, connected family-graph collection, and adult-child-at-home classification moved; focused residency, command, and write-ownership tests passed. Orphan/adoption and full housing-unit formation remain. |
-| 5.3 | `residencySelection.ts` | Candidate scoring, home choice, empty-home preference, shared-housing logic, overcrowding/rebalance choice | Deterministic household placement across representative worlds |
-| 5.4 | `residencyReconciliation.ts` | Residence occupant synchronisation, partner transitions, event/death/recruitment reconciliation entry points | Worker command path, entity removal, partner move, load/import round trip |
-| 5.5 | `residency.ts` façade decision | Keep only the one residency owner’s public API/re-exports or retire it after migration | All residency tests, save/load scenarios, no secondary owner introduced |
+| 5.3 | `residencySelection.ts` | Candidate scoring, home choice, empty-home preference, shared-housing logic, overcrowding/rebalance choice | **Complete.** Selection and placement policy moved with deterministic tie-breaking preserved; residency, command, and full-year integration tests passed. |
+| 5.4 | `residencyReconciliation.ts` | Residence occupant synchronisation, partner transitions, event/death/recruitment reconciliation entry points | **Complete.** Reconciliation, occupant sync, partner transitions, and assignment entry points moved; type checking, linting, command-path, residency, and full-year tests passed. |
+| 5.5 | `residency.ts` façade decision | Keep only the one residency owner’s public API/re-exports or retire it after migration | **Complete.** Kept as the single public compatibility facade over occupancy, household composition, selection, and reconciliation; governance updated and no secondary residency owner introduced. |
 
-**Completion condition:** one residency domain owner remains, but its internals are divided by occupancy, household composition, selection, and reconciliation. `residency.ts` is a small, intentional facade; it no longer combines every algorithm and transition itself. Update `AGENTS.md` to remove it from the active god-file list.
+**Completion condition — passed (28 August 2026):** One residency domain owner remains, with internals divided by occupancy, household composition, selection, and reconciliation. `residency.ts` is a small intentional facade and no longer combines the algorithms and transitions. `AGENTS.md` removes it from the active god-file table.
 
 ## 9. Final completion and maintenance rule
 
