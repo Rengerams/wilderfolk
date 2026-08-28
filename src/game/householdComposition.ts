@@ -81,3 +81,15 @@ export function collectFamilyMembers(seed: Entity, humans: Entity[], visited: Se
   }
   return family;
 }
+
+import { hasResidenceAssignment } from './residencyOccupancy';
+
+export function isAdultChildAtHome(human: Entity, humans: Entity[]): boolean {
+  if (!human.alive || human.faction || human.isJuvenile) return false;
+  if (human.age < HUMAN_MOVE_OUT_MIN_AGE || !hasResidenceAssignment(human)) return false;
+  const parents = [
+    humans.find((candidate) => candidate.id === human.motherId && candidate.alive),
+    humans.find((candidate) => candidate.id === human.fatherId && candidate.alive),
+  ].filter((parent): parent is Entity => !!parent && hasResidenceAssignment(parent));
+  return parents.some((parent) => parent.residenceBuildingId === human.residenceBuildingId);
+}

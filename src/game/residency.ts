@@ -1,8 +1,8 @@
 import type { Building, Entity } from './gameTypes';
 import { BuildingType, EntityType } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
-import { collectFamilyMembers, collectOwnHousehold, getChildCustodian, isMinorChild } from './householdComposition';
-export { collectFamilyMembers, collectOwnHousehold, getChildCustodian, isMinorChild } from './householdComposition';
+import { collectFamilyMembers, collectOwnHousehold, getChildCustodian, isAdultChildAtHome, isMinorChild } from './householdComposition';
+export { collectFamilyMembers, collectOwnHousehold, getChildCustodian, isAdultChildAtHome, isMinorChild } from './householdComposition';
 
 import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 import {
@@ -321,16 +321,7 @@ export function buildHousingUnits(humans: Entity[]): Entity[][] {
   return units;
 }
 
-export function isAdultChildAtHome(human: Entity, humans: Entity[]): boolean {
-  if (!human.alive || human.faction || human.isJuvenile) return false;
-  if (human.age < HUMAN_MOVE_OUT_MIN_AGE) return false;
-  if (!hasResidenceAssignment(human)) return false;
 
-  const parents = [livingHuman(humans, human.motherId), livingHuman(humans, human.fatherId)]
-    .filter((p): p is Entity => !!p && hasResidenceAssignment(p));
-
-  return parents.some((p) => p.residenceBuildingId === human.residenceBuildingId);
-}
 
 export function canMoveOutOfFamilyHome(
   human: Entity,
