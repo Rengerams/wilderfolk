@@ -1,13 +1,9 @@
 import type { WorldState, Entity, Building } from './gameTypes';
 import {
   BuildingType, EntityType,
-  BUILDING_JOB_TYPES,
-  WORKSHOP_RECIPES, getWorkshopRecipe,
-  HUNTING_SPOT_PREY_OPTIONS,
+  getWorkshopRecipe,
   WEREWOLF_CURSE_LINES,
 } from './gameTypes';
-import type { HuntingSpotPrey, StaffingMode } from './gameTypes';
-import type { MineMode } from './buildings';
 import { getWorkerSkillMultiplier } from './skills';
 import {
   addFloatingText,
@@ -119,6 +115,13 @@ export {
   upgradeBuilding,
 } from './buildingMaintenanceActions';
 
+export {
+  setBuildingStaffingMode,
+  setHuntingSpotPrey,
+  setMineMode,
+  setWorkshopRecipe,
+} from './buildingConfigurationActions';
+
 export function recruitSettler(originalState: WorldState): WorldState {
   const state = structuredClone(originalState);
   const costFood = 30;
@@ -183,40 +186,6 @@ export function estimateWorkshopGold(state: WorldState, building: Building): num
   const globalEff = getMultiplier(state, 'global_efficiency');
   const outputMult = (1 + workers * 0.5) * levelMult * terrainMult * adjacencyMult * festivalMult * skillMult * goldMult * globalEff;
   return Math.max(1, Math.floor(recipe.baseGold * outputMult));
-}
-
-export function setWorkshopRecipe(originalState: WorldState, buildingId: number, recipeId: string): WorldState {
-  if (!WORKSHOP_RECIPES.some((r) => r.id === recipeId)) return originalState;
-  const state = structuredClone(originalState);
-  const building = state.buildings.find((b) => b.id === buildingId);
-  if (!building || building.type !== BuildingType.Workshop || building.faction === 'rival') return originalState;
-  building.workshopRecipeId = recipeId;
-  return state;
-}
-
-export function setBuildingStaffingMode(originalState: WorldState, buildingId: number, mode: StaffingMode): WorldState {
-  const state = structuredClone(originalState);
-  const building = state.buildings.find((b) => b.id === buildingId);
-  if (!building || building.faction === 'rival' || !BUILDING_JOB_TYPES[building.type]) return originalState;
-  building.staffingMode = mode;
-  return state;
-}
-
-export function setMineMode(originalState: WorldState, buildingId: number, mode: MineMode): WorldState {
-  const state = structuredClone(originalState);
-  const building = state.buildings.find((b) => b.id === buildingId);
-  if (!building || building.type !== BuildingType.Mine) return state;
-  building.mineMode = mode;
-  return state;
-}
-
-export function setHuntingSpotPrey(originalState: WorldState, buildingId: number, prey: HuntingSpotPrey): WorldState {
-  if (!HUNTING_SPOT_PREY_OPTIONS.some((o) => o.id === prey)) return originalState;
-  const state = structuredClone(originalState);
-  const building = state.buildings.find((b) => b.id === buildingId);
-  if (!building || building.type !== BuildingType.HuntingSpot || building.faction === 'rival') return originalState;
-  building.huntingSpotPrey = prey;
-  return state;
 }
 
 /** Debug/testing: curse a random adult settler as a Moon Howler. */
