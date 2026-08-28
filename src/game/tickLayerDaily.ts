@@ -16,9 +16,7 @@ import {
 import type {
   PopulationCounts,
 } from './entityCounts';
-import {
-  addResource,
-} from './economy';
+
 import {
   logEvent,
 } from './eventLog';
@@ -123,12 +121,10 @@ import {
 import {
   addFloatingText,
   addBigNews,
-  addNotification,
-  impulseScreenShake,
+    addNotification,
+
 } from './simEffects';
-import {
-  recordFoodProduced,
-} from './economyLedger';
+
 import {
   tickVisitorQuest,
 } from './visitorQuest';
@@ -179,9 +175,7 @@ import {
   replenishDepletedWildlife,
 } from './worldGen';
 
-import {
-  isChallengeComplete,
-} from './challenges';
+
 /**
  * Winter heating — burns wood once per colony day, stores result on state for the whole day.
  * Call from gameTick only (not from daily layer again).
@@ -276,6 +270,7 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
 }
 
 import { tickDailyPopulation } from './dailyPopulation';
+import { tickDailyChallenges } from './dailyChallenges';
 
 // ==================== DAILY LAYER ENTRYPOINT ====================
 
@@ -480,29 +475,8 @@ export function tickLayerDaily(
     }
   }
 
-  // Challenges
-  const challengeHumanCount = counts.humans;
-  const challengeState: WorldState = { ...state, ecoHealthYearsAbove80: state.ecoHealthYearsAbove80 };
-  state.challenges = state.challenges.map((c) => {
-    if (c.completed) return c;
-    const completed = isChallengeComplete(c, challengeState, challengeHumanCount, ctx.updatedBuildings);
-
-    if (completed && c.reward) {
-      addResource(state, 'wood', c.reward.wood || 0);
-      addResource(state, 'stone', c.reward.stone || 0);
-      recordFoodProduced(state, 'challenges', c.reward.food || 0);
-      addResource(state, 'food', c.reward.food || 0);
-      addResource(state, 'gold', c.reward.gold || 0);
-      addFloatingText(state, state.width / 2, state.height / 2 - 40, `Challenge: ${c.title}!`, '#fbbf24');
-      if (c.rewardText) {
-        addFloatingText(state, state.width / 2, state.height / 2 - 25, c.rewardText, '#22c55e');
-      }
-      addNotification(state, 'Challenge Complete!', `${c.title} - ${c.rewardText || 'Rewards granted!'}`, 'success');
-      impulseScreenShake(state, 4);
-    }
-
-    return { ...c, completed: completed || c.completed };
-  });
+    // Challenge evaluation and rewards remain in the daily challenge owner.
+  tickDailyChallenges(state, ctx, counts);
 }
 
 // ============ TICK GRASS (once per day) ============
