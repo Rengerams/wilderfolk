@@ -33,11 +33,8 @@ import {
   zoomCameraViewAt,
   focusCameraOn,
   CAMERA_ZOOM_DEFAULT,
-  CAMERA_ZOOM_MIN,
-  CAMERA_ZOOM_MAX,
   CAMERA_ZOOM_STEP_IN,
   CAMERA_ZOOM_STEP_OUT,
-  CAMERA_ZOOM_PRESETS,
   clampCameraZoom,
   clampCameraTarget,
   resolveEntity,
@@ -49,7 +46,7 @@ import { isRotatableBuildingType, toggleBuildingRotation } from './game/building
 import { preloadAllSprites } from './game/spriteLoader';
 import { formatRaidDeadlineSafe } from './game/raidUtils';
 import SelectedBuildingPanel from './components/SelectedBuildingPanel';
-import MiniMap from './components/MiniMap';
+import GameMapStage from './components/GameMapStage';
 import { isPlayerHuman } from './game/playerHuman';
 import { loadNames, fixDefaultNames } from './game/nameLoader';
 import { ensureDialogueBankFromBundle, preloadDialogueBank } from './game/dialogueTrees';
@@ -1271,24 +1268,25 @@ export default function App() {
       )}
       mapStage={(
         <>
-          <canvas
-            ref={canvasRef}
+          <GameMapStage
+            canvasRef={canvasRef}
+            canvasCursor={canvasCursor}
+            fps={fps}
+            showFps={showFps}
+            worldRef={worldRef}
+            viewRef={viewRef}
+            cameraTargetZoom={view.camera.targetZoom}
+            onNavigate={focusWorldCamera}
+            onApplyZoom={applyZoom}
+            onSetZoomLevel={setZoomLevel}
+            onResetZoom={resetZoom}
             onClick={handleCanvasClick}
             onMouseMove={handleMouseMove}
             onMouseDown={handleMouseDown}
-            onMouseUp={(e) => handleMouseUp(e)}
+            onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
             onContextMenu={handleContextMenu}
-            className="map-canvas"
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', imageRendering: 'pixelated', cursor: canvasCursor, display: 'block' }}
           />
-          {showFps && fps != null && (
-            <div className="pointer-events-none absolute bottom-3 right-3 z-[35] rounded-md border border-emerald-400/30 bg-stone-950/80 px-2 py-1 font-mono text-xs font-bold tabular-nums text-emerald-300 shadow-lg backdrop-blur" aria-live="polite">
-              {fps} FPS
-            </div>
-          )}
-          {/* UI vignette frame over the map (does not block hits except children) */}
-          <div className="map-frame-overlay pointer-events-none absolute inset-0 z-[5]" aria-hidden />
 
           <div className="pointer-events-none absolute inset-0 z-10">
           {/* Build mode is shown by the building ghost following the cursor —
@@ -1633,82 +1631,6 @@ export default function App() {
               </div>
             </div>
           )}
-
-          {/* Minimap — click anywhere to jump the camera there */}
-          <MiniMap
-            worldRef={worldRef}
-            viewRef={viewRef}
-            onNavigate={(wx, wy) => focusWorldCamera(wx, wy)}
-          />
-
-          {/* Zoom controls — wider range; speech bubbles visible from ~28% zoom */}
-          <div className="pointer-events-auto absolute bottom-4 right-4 z-20 flex flex-col items-stretch gap-0.5 rounded-lg border border-stone-600 bg-stone-800/85 p-1 shadow-xl backdrop-blur">
-            <button
-              type="button"
-              onClick={() => applyZoom(CAMERA_ZOOM_STEP_IN)}
-              disabled={view.camera.targetZoom >= CAMERA_ZOOM_MAX - 1e-3}
-              className="flex h-8 w-8 items-center justify-center rounded-md text-lg font-bold text-stone-200 hover:bg-stone-700/80 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
-              title="Zoom in (+)"
-              aria-label="Zoom in"
-            >
-              +
-            </button>
-            <label className="sr-only" htmlFor="camera-zoom-preset">Zoom level</label>
-            <select
-              id="camera-zoom-preset"
-              value={
-                // Snap select to nearest preset for display
-                (() => {
-                  const z = clampCameraZoom(view.camera.targetZoom);
-                  let best = CAMERA_ZOOM_PRESETS[0];
-                  let bestD = Math.abs(z - best);
-                  for (const p of CAMERA_ZOOM_PRESETS) {
-                    const d = Math.abs(z - p);
-                    if (d < bestD) {
-                      best = p;
-                      bestD = d;
-                    }
-                  }
-                  return String(best);
-                })()
-              }
-              onChange={(e) => setZoomLevel(Number(e.target.value))}
-              className="h-7 w-9 cursor-pointer appearance-none rounded-md border-0 bg-stone-700/60 px-0 text-center text-[11px] font-semibold tabular-nums text-stone-200 hover:bg-stone-600/80 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
-              title={`Zoom ${Math.round(clampCameraZoom(view.camera.targetZoom) * 100)}% — pick a preset`}
-              aria-label="Zoom preset"
-            >
-              {CAMERA_ZOOM_PRESETS.map((p) => (
-                <option key={p} value={p}>
-                  {Math.round(p * 100)}%
-                </option>
-              ))}
-            </select>
-            <div
-              className="px-0.5 text-center text-[10px] font-medium tabular-nums text-stone-400"
-              title="Live zoom"
-            >
-              {Math.round(clampCameraZoom(view.camera.targetZoom) * 100)}%
-            </div>
-            <button
-              type="button"
-              onClick={() => applyZoom(CAMERA_ZOOM_STEP_OUT)}
-              disabled={view.camera.targetZoom <= CAMERA_ZOOM_MIN + 1e-3}
-              className="flex h-8 w-8 items-center justify-center rounded-md text-lg font-bold text-stone-200 hover:bg-stone-700/80 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
-              title="Zoom out (-)"
-              aria-label="Zoom out"
-            >
-              −
-            </button>
-            <button
-              type="button"
-              onClick={resetZoom}
-              className="flex h-7 w-8 items-center justify-center rounded-md text-[13px] text-stone-400 hover:bg-stone-700/80 hover:text-stone-200"
-              title={`Reset zoom (${Math.round(CAMERA_ZOOM_DEFAULT * 100)}%)`}
-              aria-label="Reset zoom"
-            >
-              ⟲
-            </button>
-          </div>
 
           {/* Save toast */}
           {saveToast && (
