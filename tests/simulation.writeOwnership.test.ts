@@ -61,10 +61,11 @@ const APPROVED_WRITERS: Record<ProtectedField, readonly string[]> = {
     'src/game/workforce.ts',
   ],
   // residency owns normal residence assignment. The listed delegates are the
-  // sanctioned demolition, lifecycle, leader, transformation, relationship,
-  // caravan, and worker-snapshot boundaries documented in the registry.
+  // sanctioned player-command, demolition, lifecycle, leader, transformation,
+  // relationship, caravan, and worker-snapshot boundaries documented here.
   residenceBuildingId: [
     'src/game/buildingActions.ts',
+    'src/game/buildingResidencyActions.ts',
     'src/game/humanLifecycleCleanup.ts',
     'src/game/leaderHouse.ts',
     'src/game/moonHowler.ts',

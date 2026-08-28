@@ -23,21 +23,22 @@ import {
   assignIdleWorkerToBuilding as assignStaffingWorkerToBuilding,
   removeWorkerFromBuilding as removeStaffingWorkerFromBuilding,
 } from './buildingStaffingActions';
+import {
+  assignResidentToBuilding as assignResidentToResidence,
+  removeResidentFromBuilding as removeResidentFromResidence,
+} from './buildingResidencyActions';
 import { unindexAdjacency, ensureAdjacencyIndex, getAdjacencyMultiplierFromIndex } from './adjacencyIndex';
 import { getTerrainEfficiencyMultiplier } from './terrainSystems';
 import { indexLivingEntity } from './entityIndex';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import {
   assignMissingResidences,
-  collectOwnHousehold,
-  isAdultChildAtHome,
+  getResidenceCapacity,
   isResidenceBuilding,
   isResidenceBuildingType,
-  getResidenceCapacity,
-  syncResidenceOccupants,
-  tryMoveOutOfFamilyHome,
+} from './residency';
+import {
   HUMAN_ADULT_MIN_AGE,
-  HUMAN_MOVE_OUT_MIN_AGE,
   getAbsoluteCalendarDay,
   getColonyDay,
   getHourOfDay,
@@ -90,7 +91,7 @@ export function assignIdleWorkerToBuilding(
 ): WorldState {
   const building = originalState.buildings.find((candidate) => candidate.id === buildingId);
   if (building?.completed && isResidenceBuildingType(building.type)) {
-    return applyResidentAssignment(structuredClone(originalState), buildingId);
+    return assignResidentToResidence(originalState, buildingId);
   }
   return assignStaffingWorkerToBuilding(originalState, buildingId, preferredHumanId);
 }
@@ -103,87 +104,16 @@ export function removeWorkerFromBuilding(
 ): WorldState {
   const building = originalState.buildings.find((candidate) => candidate.id === buildingId);
   if (building?.completed && isResidenceBuilding(building)) {
-    return removeResidentFromBuilding(originalState, buildingId, humanId);
+    return removeResidentFromResidence(originalState, buildingId, humanId);
   }
   return removeStaffingWorkerFromBuilding(originalState, buildingId, humanId);
 }
 
-/** Mutates state — re-run automatic housing assignment for a residence. */
-function applyResidentAssignment(state: WorldState, buildingId: number): WorldState {
-  const building = state.buildings.find((b) => b.id === buildingId);
-  if (!building || building.faction === 'rival' || !isResidenceBuilding(building)) return state;
-
-  assignMissingResidences(
-    listPlayerHumans(state),
-    state.buildings,
-    state.entities,
-  );
-  assignMissingWorkers(listPlayerHumans(state), state.buildings);
-  return state;
-}
-
-/** Re-run automatic housing assignment (settlers pick homes by themselves). */
-export function assignResidentToBuilding(
-  originalState: WorldState,
-  buildingId: number,
-): WorldState {
-  return applyResidentAssignment(structuredClone(originalState), buildingId);
-}
-
-/** Move an adult child (18+) and their own household into a free house. */
-export function moveOutOfFamilyHome(originalState: WorldState, humanId: number): WorldState {
-  const state = structuredClone(originalState);
-  const human = state.entities.find((e) => e.id === humanId);
-  if (!human || !isPlayerHuman(human)) return state;
-
-  const humans = listPlayerHumans(state);
-  const residences = state.buildings.filter(isResidenceBuilding);
-  if (!tryMoveOutOfFamilyHome(human, humans, residences)) {
-    const reason = !isAdultChildAtHome(human, humans)
-      ? `Must be ${HUMAN_MOVE_OUT_MIN_AGE}+ and living with parents`
-      : 'No empty house available';
-    addFloatingText(state, human.x, human.y - 12, reason, '#ef4444');
-    return state;
-  }
-
-  syncResidenceOccupants(state.entities, state.buildings);
-  assignMissingResidences(humans, state.buildings, state.entities);
-
-  const household = collectOwnHousehold(human, humans);
-  const who = human.name
-    ? `${human.name}${human.surname ? ` ${human.surname}` : ''}`
-    : 'Settler';
-  const extra = household.length > 1 ? ` (+${household.length - 1} family)` : '';
-  addFloatingText(state, human.x, human.y - 12, `${who} moved to own home${extra}`, '#3b82f6');
-  addNotification(
-    state,
-    'New household',
-    `${who}${extra} moved into their own home.`,
-    'success',
-  );
-  return state;
-}
-
-export function removeResidentFromBuilding(
-  originalState: WorldState,
-  buildingId: number,
-  humanId: number,
-): WorldState {
-  const state = structuredClone(originalState);
-  const building = state.buildings.find((b) => b.id === buildingId);
-  const human = state.entities.find((e) => e.id === humanId);
-  if (!building || !human || human.residenceBuildingId !== buildingId) return state;
-
-  human.residenceBuildingId = undefined;
-  syncResidenceOccupants(state.entities, state.buildings);
-  assignMissingResidences(
-    listPlayerHumans(state),
-    state.buildings,
-    state.entities,
-  );
-  assignMissingWorkers(listPlayerHumans(state), state.buildings);
-  return state;
-}
+export {
+  assignResidentToBuilding,
+  moveOutOfFamilyHome,
+  removeResidentFromBuilding,
+} from './buildingResidencyActions';
 
 
 
