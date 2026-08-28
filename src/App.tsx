@@ -63,6 +63,8 @@ import SelectedEntityPanel from './components/SelectedEntityPanel';
 import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel';
 import GamePlayLayout from './components/GamePlayLayout';
 import GameInspector from './components/GameInspector';
+import GameOverlays from './components/GameOverlays';
+
 import GameBuildRail from './components/GameBuildRail';
 
 
@@ -1966,8 +1968,8 @@ export default function App() {
           </div>
         </aside>
       )}
-      overlays={(
-        <>
+            overlays={(
+        <GameOverlays>
       {showVillageRequest && activeVillageRequest && (
         <VillageRequestCard
           request={activeVillageRequest}
@@ -1994,7 +1996,7 @@ export default function App() {
       {showShortcuts && (
         <ShortcutsOverlay onClose={() => setShowShortcuts(false)} />
       )}
-        </>
+        </GameOverlays>
       )}
     />
   );

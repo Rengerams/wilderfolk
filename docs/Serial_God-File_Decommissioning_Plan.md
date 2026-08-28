@@ -78,7 +78,7 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 5. File 2 — fully decommission `App.tsx`
 
-**Current state:** `useGamePersistence`, `useGameSession`, `useGameShellState`, `useTransientGameFeedback`, `GamePlayLayout`, `GameMapStage`, `GameBuildRail`, and `GameInspector` exist and are wired. The remaining task is to move the inline overlay, input, and composition clusters out of the application root.
+**Current state:** `useGamePersistence`, `useGameSession`, `useGameShellState`, `useTransientGameFeedback`, `GamePlayLayout`, `GameMapStage`, `GameBuildRail`, `GameInspector`, and `GameOverlays` exist and are wired. The remaining task is to assess input orchestration and finalize the composition root.
 
 ### Implementation status
 
@@ -88,12 +88,14 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 **Slice 2.3 — Complete (28 August 2026).** The inspector frame, diagnostics placement, selection header, clear/collapse controls, and compact collapsed label moved into `src/components/GameInspector.tsx`; App retains selection derivation and all feature-specific panel/action callbacks. The presentation improvement adds explicit button types and accessible labels/expanded state without changing behavior. Focused inspector, layout, map-stage, and hotkey tests, type checking, linting, and the production build passed. No simulation state, save format, worker authority, selection ownership, or command behavior changed.
 
+**Slice 2.4 — Complete (28 August 2026).** The overlay slot presentation moved into `src/components/GameOverlays.tsx`, preserving the existing child order and all established dismissal, priority, Big News, tutorial, raid/event, and shortcut callbacks. It adds an accessible overlay landmark without changing transient-feedback ownership or overlay policy. Focused overlay, inspector, layout, and hotkey tests, type checking, linting, and the production build passed. No simulation state, save format, worker authority, cadence, or command behavior changed.
+
 | Serial slice | Destination module/component | Move from `App.tsx` | Validation |
 |---:|---|---|---|
 | 2.1 | `GameMapStage.tsx` | Canvas wrapper, map-stage composition, and display-only map controls | **Complete.** Canvas surface, FPS, minimap navigation, zoom preset/clamping presentation, and layout contract passed. |
 | 2.2 | `GameBuildRail.tsx` | Build palette/rail presentation and feature-local UI callbacks | **Complete.** Collapsed rail, grid toggle, selected-building cancellation, and catalog-open contract passed. |
 | 2.3 | `GameInspector.tsx` | Selected entity/building inspector composition | **Complete.** Selection header, diagnostics placement, collapse/clear controls, compact label, and accessibility contract passed. |
-| 2.4 | `GameOverlays.tsx` | Tutorial, banner, moment card, notifications, shortcut and modal composition | Dismissal state, z-order, no duplicate overlays, first-session flow |
+| 2.4 | `GameOverlays.tsx` | Tutorial, banner, moment card, notifications, shortcut and modal composition | **Complete.** Existing overlay order/callbacks preserved and accessible overlay landmark passed. |
 | 2.5 | `useGameInputBindings.ts` only if needed | Remaining App-owned keyboard/mouse orchestration not already in a focused hook | Keyboard shortcuts, pointer/camera interactions, cleanup on unmount |
 | 2.6 | `App.tsx` composition decision | Keep only application boot, session/shell hook composition, and high-level route/screen choice | New/load game, save, worker lifecycle, intro/map setup/gameplay transitions |
 
@@ -151,10 +153,10 @@ A file enters the protected list only when it has accumulated multiple independe
 
 ## 10. Next implementation session
 
-Remain on **File 2: `App.tsx`** and proceed with **Slice 2.4 — `GameOverlays.tsx`**.
+Remain on **File 2: `App.tsx`** and proceed with **Slice 2.5 — input-binding assessment**.
 
-1. Baseline tutorial, notification, raid/event, save-toast, and moment overlay composition.
-2. Move only overlay presentation and established callback wiring into the named component.
-3. Keep transient feedback ownership and worker command routes in existing hooks/App handlers.
-4. Test overlay ordering, dismissal routing, and mutually exclusive priority presentation.
-5. Do not begin input or another protected file until Slice 2.4 is validated and committed.
+1. Baseline remaining App-owned keyboard/mouse orchestration against `useKeyboardControls` and `useCanvasInteractions`.
+2. Extract only a genuinely cohesive presentation-free input-binding seam if one remains.
+3. Do not duplicate keyboard, pointer, camera, selection, or build-placement policy.
+4. Validate cleanup and shortcut behavior before deciding whether a new module is warranted.
+5. Do not begin another protected file until Slice 2.5 is assessed and committed or explicitly recorded as unnecessary.
