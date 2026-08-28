@@ -1,6 +1,6 @@
 # Serial God-File Decommissioning Plan
 
-**Status:** Active serial roadmap. File 1, slices 1.1 staffing, 1.2 residency, 1.3 maintenance, and 1.4 configuration actions are complete; do not begin the next file until all `buildingActions.ts` slices pass the decommissioning gate.
+**Status:** Active serial roadmap. File 1, slices 1.1 staffing, 1.2 residency, 1.3 maintenance, 1.4 configuration, and 1.5 settler interaction actions are complete; do not begin the next file until all `buildingActions.ts` slices pass the decommissioning gate.
 **Scope:** Fully decommission exactly one protected god file before beginning the next.
 **Current starting point:** `dayCycle.ts` is already decommissioned as a god file and remains a controlled compatibility facade. The active protected files are `buildingActions.ts`, `App.tsx`, `tickLayerDaily.ts`, `humanTick.ts`, and the successor module `residency.ts`.
 
@@ -49,7 +49,7 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 4. File 1 — fully decommission `buildingActions.ts`
 
-**Current state:** `buildingPlacementActions.ts` owns placement and strip topology; `buildingStaffingActions.ts` owns builder assignment, worker assignment/removal, automatic staffing, and assignable-worker queries; `buildingResidencyActions.ts` owns resident assignment/removal and adult move-out commands; `buildingMaintenanceActions.ts` owns repair, upgrades, demolition, refunds, and necessary assignment/adjacency cleanup; and `buildingConfigurationActions.ts` owns workshop recipes, staffing mode, Mine mode, and Hunting Spot prey configuration. `buildingActions.ts` now retains compatibility exports plus only the deliberately explicit legacy construction/job-versus-residence routing; it must not receive another feature.
+**Current state:** `buildingPlacementActions.ts` owns placement and strip topology; `buildingStaffingActions.ts` owns builder assignment, worker assignment/removal, automatic staffing, and assignable-worker queries; `buildingResidencyActions.ts` owns resident assignment/removal and adult move-out commands; `buildingMaintenanceActions.ts` owns repair, upgrades, demolition, refunds, and necessary assignment/adjacency cleanup; `buildingConfigurationActions.ts` owns workshop recipes, staffing mode, Mine mode, and Hunting Spot prey configuration; and `settlerInteractionActions.ts` owns recruitment, taming, and the explicitly debug-only Moon Howler command. `buildingActions.ts` now retains compatibility exports plus only the deliberately explicit legacy construction/job-versus-residence routing and the workshop estimate; it must not receive another feature.
 
 ### Implementation status
 
@@ -61,13 +61,15 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 **Slice 1.4 — Complete (28 August 2026).** The persisted building-configuration command domain moved into `src/game/buildingConfigurationActions.ts`, with immediate `buildingActions.ts` forwarding exports. The action boundary now explicitly validates the declared staffing and Mine modes, retaining the worker protocol’s constraints for direct callers as well. It also fixes a verified authorization gap: valid Mine-mode commands now reject rival-owned Mines, matching the established ownership guards for workshop recipes, staffing mode, and Hunting Spot prey. A private local bug record preserves the diagnosis and regression rationale. Focused valid/invalid configuration and worker-command tests, type checking, linting, the complete test suite, and the production build passed. No state shape, save format, worker boundary, or cadence changed.
 
+**Slice 1.5 — Complete (28 August 2026).** Recruitment, taming, tame-food lookup, and the clearly labelled debug-only Moon Howler command moved into `src/game/settlerInteractionActions.ts`, with immediate `buildingActions.ts` forwarding exports. The extraction replaces duplicated interaction lists and magic resource costs with named immutable definitions. It also fixes a verified ownership gap: taming now requires a nearby completed player-owned Taming Post, so a rival building cannot unlock a player command. A private local bug record preserves the diagnosis and regression rationale. Focused recruitment/taming, command-validation, and Moon Howler compatibility tests; type checking; linting; the complete test suite; and the production build passed. No state shape, save format, worker boundary, or cadence changed.
+
 | Serial slice | Destination module | Move from `buildingActions.ts` | Validation |
 |---:|---|---|---|
 | 1.1 | `buildingStaffingActions.ts` | Builder assignment, worker assignment/removal, auto-staff, eligibility and assignable-worker queries | **Complete.** Manual/automatic staffing, Church manual-priest rule, worker command response, and construction-crew exclusion from job previews all passed. |
 | 1.2 | `buildingResidencyActions.ts` | Resident assignment/removal and adult move-out actions | **Complete.** Household placement, capacity, occupant synchronization, compatibility routing, and worker-command round-trip coverage passed. |
 | 1.3 | `buildingMaintenanceActions.ts` | Repair, upgrades, demolition, required cleanup and feedback | **Complete.** Repair-cost validation, worker/residence/prison cleanup, refunds, adjacency invalidation, building deletion, command boundary, and write ownership passed. |
 | 1.4 | `buildingConfigurationActions.ts` | Workshop recipe, staffing mode, Mine mode, Hunting Spot prey configuration | **Complete.** Valid player-owned configuration, invalid mode rejection, rival-Mine authorization rejection, and worker-command coverage passed. |
-| 1.5 | `settlerInteractionActions.ts` | Recruit, tame, and clearly isolated debug-only actions | Recruitment/taming outcomes; developer-only action isolation |
+| 1.5 | `settlerInteractionActions.ts` | Recruit, tame, tame-food lookup, and clearly isolated debug-only actions | **Complete.** Recruitment cost/population result, player-owned Taming Post authorization, food cost, debug compatibility, and command validation passed. |
 | 1.6 | `buildingActions.ts` facade decision | Retain only deliberate compatibility re-exports or remove it after imports migrate | Import graph, command dispatch, complete building-action smoke path |
 
 **Completion condition:** `buildingActions.ts` is a small forwarding facade or is retired. It contains no action policy or independent state transition. Update `AGENTS.md` to remove it from the active god-file table, then begin `App.tsx`.
@@ -139,10 +141,10 @@ A file enters the protected list only when it has accumulated multiple independe
 
 ## 10. Next implementation session
 
-Remain on **File 1: `buildingActions.ts`** and proceed with **Slice 1.5 — `settlerInteractionActions.ts`**.
+Remain on **File 1: `buildingActions.ts`** and complete **Slice 1.6 — facade endpoint decision**.
 
-1. Baseline recruitment, taming, and the debug-only Moon Howler command.
-2. Move only settler interaction and clearly isolated debug actions into the named owner.
-3. Keep `buildingActions.ts` as a narrow compatibility export/call site.
-4. Test recruitment/taming outcomes and command validation through the existing worker-command boundary; ensure debug isolation is explicit.
-5. Do not start an `App.tsx`, daily, human, or residency refactor until `buildingActions.ts` has passed the full decommissioning gate.
+1. Map all remaining `buildingActions.ts` consumers and the remaining workshop-estimate helper.
+2. Move the workshop estimate to its narrowest existing owner if that does not introduce a new manager or cross-domain cycle; otherwise retain only documented forwarding compatibility.
+3. Decide whether the legacy generic construction/job-versus-residence routes remain necessary public compatibility APIs or can be migrated safely.
+4. Verify the import graph, complete building command path, and full File 1 decommissioning gate before marking `buildingActions.ts` as a controlled façade or retiring it.
+5. Only after the File 1 gate passes, update `AGENTS.md` and begin the next protected god file.
