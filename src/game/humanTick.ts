@@ -52,6 +52,7 @@ import {
   recordChildSchoolTick,
 } from './education';
 import { getPlayerCampCenter, isRaidMarchingForRival } from './frontierCombat';
+import { detectRaidersForPatrol } from './humanPatrolBehavior';
 import { getCaravanMoveTarget, tryAdvanceCaravanLeg } from './tradeCaravans';
 import { tickFactionCampWander } from './factionWander';
 import {
@@ -100,35 +101,6 @@ import { clearHuntersTargetingPrey, markWildlifeDead, syncEntityGrids } from './
 
 /** Live on-screen intimate tryst distance. */
 const AFFAIR_INTIMATE_RADIUS = 22;
-const PATROL_DETECTION_RADIUS = 150;
-
-function detectRaidersForPatrol(state: WorldState, soldier: Entity, humans: Entity[]): void {
-  const detectedGroups = new Set<string>();
-  for (const rival of humans) {
-    if (
-      !rival.alive
-      || rival.faction !== 'rival'
-      || !rival.groupId
-      || !isRaidMarchingForRival(state, rival.groupId)
-      || Math.hypot(rival.x - soldier.x, rival.y - soldier.y) > PATROL_DETECTION_RADIUS
-    ) continue;
-    detectedGroups.add(rival.groupId);
-  }
-  for (const groupId of detectedGroups) {
-    let newlyDetected = false;
-    for (const rival of humans) {
-      if (rival.alive && rival.faction === 'rival' && rival.groupId === groupId) {
-        if (rival.hiddenFromPlayer) newlyDetected = true;
-        rival.hiddenFromPlayer = false;
-        rival.detectedByPatrol = true;
-      }
-    }
-    if (newlyDetected) {
-      logEvent(state, 'event', `Soldier patrol spotted hostile raiders from ${groupId}`, groupId);
-      addFloatingText(state, soldier.x, soldier.y - 18, 'Enemy spotted', '#f97316');
-    }
-  }
-}
 
 function getAffairTrystTarget(
   cheater: Entity,

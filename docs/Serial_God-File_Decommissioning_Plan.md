@@ -121,15 +121,16 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 7. File 4 — fully decommission `humanTick.ts`
 
-**Current state:** `humanHospitalBehavior.ts` and `humanVenueBehavior.ts` are extracted. `humanTick.ts` remains the sole realtime coordinator and must stay that way, but the remaining behavior policy must leave the file.
+**Current state:** `humanHospitalBehavior.ts`, `humanVenueBehavior.ts`, and `humanPatrolBehavior.ts` are extracted. `humanTick.ts` remains the sole realtime coordinator and must stay that way, but the remaining behavior policy must leave the file.
 
 | Serial slice | Destination module | Move from `humanTick.ts` | Owner/cadence constraint |
 |---:|---|---|---|
-| 4.1 | `humanHuntingBehavior.ts` | Hunger-triggered hunt decisions, prey selection, chase, kill/visual triggers and food gain | Retain existing hunger/work/danger priorities; no daily relationship logic |
-| 4.2 | `humanLeisureBehavior.ts` | Free-time routing, family/coworker visits, beauty spots, festivals, child play, wandering | Must not override danger, hunger, sleep, shift, or active relationship behavior |
-| 4.3 | `humanSocialRuntime.ts` | Nearby chat, heart feedback, local low-cost social progress | Daily courtship, affair establishment, conception, birth, and ordinary scandal decisions stay with their owners |
-| 4.4 | `humanWorkBehavior.ts`, if a remaining cohesive cluster exists | Shift-specific movement and job execution only when it remains mixed into the coordinator | Workforce keeps assignment authority; this executes existing realtime intent |
-| 4.5 | `humanTick.ts` coordinator decision | Keep priority order, shared context creation, and named behavior calls only | Deterministic human simulation run, behavior priority tests, worker path, visual smoke check |
+| 4.1 | `humanPatrolBehavior.ts` | Patrol detection of marching rival raiders and existing reveal feedback | Detection radius, rival visibility mutation, and event feedback unchanged; focused patrol and full-year tests passed |
+| 4.2 | `humanHuntingBehavior.ts` | Hunger-triggered hunt decisions, prey selection, chase, kill/visual triggers and food gain | Retain existing hunger/work/danger priorities; no daily relationship logic |
+| 4.3 | `humanLeisureBehavior.ts` | Free-time routing, family/coworker visits, beauty spots, festivals, child play, wandering | Must not override danger, hunger, sleep, shift, or active relationship behavior |
+| 4.4 | `humanSocialRuntime.ts` | Nearby chat, heart feedback, local low-cost social progress | Daily courtship, affair establishment, conception, birth, and ordinary scandal decisions stay with their owners |
+| 4.5 | `humanWorkBehavior.ts`, if a remaining cohesive cluster exists | Shift-specific movement and job execution only when it remains mixed into the coordinator | Workforce keeps assignment authority; this executes existing realtime intent |
+| 4.6 | `humanTick.ts` coordinator decision | Keep priority order, shared context creation, and named behavior calls only | Deterministic human simulation run, behavior priority tests, worker path, visual smoke check |
 
 **Completion condition:** `humanTick.ts` describes the realtime priority pipeline rather than implementing multiple feature policies. It makes ordered calls to focused behavior modules and has no independent hunting, leisure, care, service, or relationship rules inline. Update `AGENTS.md`, then begin `residency.ts`.
 
