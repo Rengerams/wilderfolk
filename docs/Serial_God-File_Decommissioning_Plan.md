@@ -1,8 +1,8 @@
 # Serial God-File Decommissioning Plan
 
-**Status:** Active serial roadmap. File 1, slices 1.1 staffing, 1.2 residency, 1.3 maintenance, 1.4 configuration, and 1.5 settler interaction actions are complete; do not begin the next file until all `buildingActions.ts` slices pass the decommissioning gate.
+**Status:** File 1 (`buildingActions.ts`) has passed the decommissioning gate. It is now a controlled compatibility façade; the next protected file may begin only under a separate focused slice.
 **Scope:** Fully decommission exactly one protected god file before beginning the next.
-**Current starting point:** `dayCycle.ts` is already decommissioned as a god file and remains a controlled compatibility facade. The active protected files are `buildingActions.ts`, `App.tsx`, `tickLayerDaily.ts`, `humanTick.ts`, and the successor module `residency.ts`.
+**Current starting point:** `dayCycle.ts` is already decommissioned as a god file and remains a controlled compatibility facade. The active protected files are `App.tsx`, `tickLayerDaily.ts`, `humanTick.ts`, and the successor module `residency.ts`. `buildingActions.ts` is now a controlled compatibility façade.
 
 > **Protected does not mean frozen.** It means new independent behavior must be placed in a focused adjacent module while the protected file is steadily reduced. No work begins on the next god file until the current one passes its decommissioning gate.
 
@@ -49,7 +49,7 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 4. File 1 — fully decommission `buildingActions.ts`
 
-**Current state:** `buildingPlacementActions.ts` owns placement and strip topology; `buildingStaffingActions.ts` owns builder assignment, worker assignment/removal, automatic staffing, and assignable-worker queries; `buildingResidencyActions.ts` owns resident assignment/removal and adult move-out commands; `buildingMaintenanceActions.ts` owns repair, upgrades, demolition, refunds, and necessary assignment/adjacency cleanup; `buildingConfigurationActions.ts` owns workshop recipes, staffing mode, Mine mode, and Hunting Spot prey configuration; and `settlerInteractionActions.ts` owns recruitment, taming, and the explicitly debug-only Moon Howler command. `buildingActions.ts` now retains compatibility exports plus only the deliberately explicit legacy construction/job-versus-residence routing and the workshop estimate; it must not receive another feature.
+**Current state:** `buildingPlacementActions.ts` owns placement and strip topology; `buildingStaffingActions.ts` owns builder assignment, worker assignment/removal, automatic staffing, and assignable-worker queries; `buildingResidencyActions.ts` owns resident assignment/removal and adult move-out commands; `buildingMaintenanceActions.ts` owns repair, upgrades, demolition, refunds, and necessary assignment/adjacency cleanup; `buildingConfigurationActions.ts` owns workshop recipes, staffing mode, Mine mode, and Hunting Spot prey configuration; and `settlerInteractionActions.ts` owns recruitment, taming, and the explicitly debug-only Moon Howler command. `buildingActions.ts` is now a 53-line compatibility façade with no action policy or direct authoritative writes. It forwards each focused domain API, retains only the deliberately explicit legacy construction/job-versus-residence routes, and forwards the workshop estimate to its own narrow owner.
 
 ### Implementation status
 
@@ -63,6 +63,8 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 **Slice 1.5 — Complete (28 August 2026).** Recruitment, taming, tame-food lookup, and the clearly labelled debug-only Moon Howler command moved into `src/game/settlerInteractionActions.ts`, with immediate `buildingActions.ts` forwarding exports. The extraction replaces duplicated interaction lists and magic resource costs with named immutable definitions. It also fixes a verified ownership gap: taming now requires a nearby completed player-owned Taming Post, so a rival building cannot unlock a player command. A private local bug record preserves the diagnosis and regression rationale. Focused recruitment/taming, command-validation, and Moon Howler compatibility tests; type checking; linting; the complete test suite; and the production build passed. No state shape, save format, worker boundary, or cadence changed.
 
+**Slice 1.6 — Complete (28 August 2026).** The legacy generic construction/job-versus-residence routes moved into `src/game/buildingActionRouting.ts`; the remaining pure workshop output estimate moved into `src/game/workshopEconomy.ts`. `buildingActions.ts` is now a 53-line export-only compatibility façade. All original public exports remain available; no consumer migration or command-protocol change was required. Focused façade, staffing, residency, maintenance, configuration, interaction, and worker-command tests; type checking; linting; the complete test suite; and the production build passed. The AGENTS authority table now removes `buildingActions.ts` from active god files and locks it as a no-policy façade.
+
 | Serial slice | Destination module | Move from `buildingActions.ts` | Validation |
 |---:|---|---|---|
 | 1.1 | `buildingStaffingActions.ts` | Builder assignment, worker assignment/removal, auto-staff, eligibility and assignable-worker queries | **Complete.** Manual/automatic staffing, Church manual-priest rule, worker command response, and construction-crew exclusion from job previews all passed. |
@@ -70,9 +72,9 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 | 1.3 | `buildingMaintenanceActions.ts` | Repair, upgrades, demolition, required cleanup and feedback | **Complete.** Repair-cost validation, worker/residence/prison cleanup, refunds, adjacency invalidation, building deletion, command boundary, and write ownership passed. |
 | 1.4 | `buildingConfigurationActions.ts` | Workshop recipe, staffing mode, Mine mode, Hunting Spot prey configuration | **Complete.** Valid player-owned configuration, invalid mode rejection, rival-Mine authorization rejection, and worker-command coverage passed. |
 | 1.5 | `settlerInteractionActions.ts` | Recruit, tame, tame-food lookup, and clearly isolated debug-only actions | **Complete.** Recruitment cost/population result, player-owned Taming Post authorization, food cost, debug compatibility, and command validation passed. |
-| 1.6 | `buildingActions.ts` facade decision | Retain only deliberate compatibility re-exports or remove it after imports migrate | Import graph, command dispatch, complete building-action smoke path |
+| 1.6 | `buildingActions.ts` façade decision | **Complete.** Legacy generic routes now have an explicit routing owner and the pure workshop estimate has a narrow owner; the façade is export-only. | Focused façade/domain tests, worker command path, full suite, build, and AGENTS façade lock passed. |
 
-**Completion condition:** `buildingActions.ts` is a small forwarding facade or is retired. It contains no action policy or independent state transition. Update `AGENTS.md` to remove it from the active god-file table, then begin `App.tsx`.
+**Completion condition — passed (28 August 2026):** `buildingActions.ts` is a small, export-only forwarding façade with no action policy or direct authoritative state transition. `AGENTS.md` removes it from the active god-file table and locks it as a compatibility façade. The next protected-file work must start as a separately planned slice.
 
 ## 5. File 2 — fully decommission `App.tsx`
 
@@ -141,10 +143,4 @@ A file enters the protected list only when it has accumulated multiple independe
 
 ## 10. Next implementation session
 
-Remain on **File 1: `buildingActions.ts`** and complete **Slice 1.6 — facade endpoint decision**.
-
-1. Map all remaining `buildingActions.ts` consumers and the remaining workshop-estimate helper.
-2. Move the workshop estimate to its narrowest existing owner if that does not introduce a new manager or cross-domain cycle; otherwise retain only documented forwarding compatibility.
-3. Decide whether the legacy generic construction/job-versus-residence routes remain necessary public compatibility APIs or can be migrated safely.
-4. Verify the import graph, complete building command path, and full File 1 decommissioning gate before marking `buildingActions.ts` as a controlled façade or retiring it.
-5. Only after the File 1 gate passes, update `AGENTS.md` and begin the next protected god file.
+**File 1 is complete.** Select the next protected file deliberately, beginning with a fresh focused plan and baseline behavior coverage. The current priority order is `App.tsx`, `tickLayerDaily.ts`, `humanTick.ts`, then the successor hub `residency.ts`; do not begin more than one at once.

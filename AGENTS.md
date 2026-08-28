@@ -257,10 +257,13 @@ The following files are currently designated **god files**. They contain too man
 | `src/App.tsx` | Application shell; still combines significant session, display, interaction, and composition responsibility | Focused hooks, feature components, or a named application-shell module |
 | `src/game/humanTick.ts` | Realtime human coordinator; still combines work, movement, hunting, care, social life, leisure, effects, and diagnostics | A named human-behavior module, still called from the existing realtime human pipeline |
 | `src/game/tickLayerDaily.ts` | Daily coordinator; still contains embedded building, population, world-event, and challenge policy | A named daily domain helper, such as building economy, population, events, or challenges |
-| `src/game/buildingActions.ts` | Broad player-command facade; placement is extracted, but staffing, residency, maintenance, configuration, and interactions remain | A focused staffing, residency, maintenance, configuration, or settler-action module |
 | `src/game/residency.ts` | Successor hub for occupancy, household composition, home selection, and reconciliation | A focused residency occupancy, household-composition, selection, or reconciliation module |
 
 This rule does **not** prohibit maintenance, targeted bug fixes, type-only changes, deletion, or extracting existing code from a god file. It prevents the file from receiving another independent responsibility. Preserve the existing public entry point during a staged extraction when it avoids unnecessary churn.
+
+### Locked migration facade: `src/game/buildingActions.ts`
+
+`buildingActions.ts` is **no longer an active god file**. It is a small, public compatibility façade over placement, staffing, residency, maintenance, configuration, settler-interaction, workshop-economy, and legacy generic-routing owners. It must not receive action policy, direct authoritative writes, new features, state fields, constants, or independent functions. New command behavior belongs in the focused domain owner; legacy exports may remain only while callers migrate.
 
 ### Locked migration facade: `src/game/dayCycle.ts`
 
