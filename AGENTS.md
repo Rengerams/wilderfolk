@@ -254,13 +254,27 @@ The following files are currently designated **god files**. They contain too man
 
 | God file | Why it is protected | Put new work in |
 |---|---|---|
-| `src/App.tsx` | Application shell; currently combines session, UI state, persistence, input, audio, overlays, and layout | Focused hooks, feature components, or a named application-shell module |
-| `src/game/humanTick.ts` | Realtime human coordinator; already combines work, movement, hunting, care, social life, leisure, effects, and diagnostics | A named human-behavior module, still called from the existing realtime human pipeline |
-| `src/game/dayCycle.ts` | Shared calendar, schedule, residency, and lifecycle utility hub | A focused clock, schedule, residency, lifecycle-cleanup, or per-person-decision module |
-| `src/game/tickLayerDaily.ts` | Daily coordinator; must expose scheduling order rather than accumulate domain policy | A named daily domain helper, such as ecology, building economy, population, events, or challenges |
-| `src/game/buildingActions.ts` | Broad player-command facade for placement, staffing, residency, upkeep, configuration, and interaction actions | A focused placement, staffing, residency, maintenance, configuration, or settler-action module |
+| `src/App.tsx` | Application shell; still combines significant session, display, interaction, and composition responsibility | Focused hooks, feature components, or a named application-shell module |
+| `src/game/humanTick.ts` | Realtime human coordinator; still combines work, movement, hunting, care, social life, leisure, effects, and diagnostics | A named human-behavior module, still called from the existing realtime human pipeline |
+| `src/game/tickLayerDaily.ts` | Daily coordinator; still contains embedded building, population, world-event, and challenge policy | A named daily domain helper, such as building economy, population, events, or challenges |
+| `src/game/buildingActions.ts` | Broad player-command facade; placement is extracted, but staffing, residency, maintenance, configuration, and interactions remain | A focused staffing, residency, maintenance, configuration, or settler-action module |
+| `src/game/residency.ts` | Successor hub for occupancy, household composition, home selection, and reconciliation | A focused residency occupancy, household-composition, selection, or reconciliation module |
 
 This rule does **not** prohibit maintenance, targeted bug fixes, type-only changes, deletion, or extracting existing code from a god file. It prevents the file from receiving another independent responsibility. Preserve the existing public entry point during a staged extraction when it avoids unnecessary churn.
+
+### Locked migration facade: `src/game/dayCycle.ts`
+
+`dayCycle.ts` is **no longer an active god file**. It has been decomposed into a narrow compatibility facade and must not receive **new data, state fields, domain rules, gameplay features, constants, or independent functions**. It may only change to move existing legacy behavior out, remove a completed compatibility export, or retain a deliberate forwarding export during migration.
+
+| New concern | Required destination |
+|---|---|
+| Calendar arithmetic, tick/day/hour conversion, or calendar constants | `dayCycleClock.ts` or `dayCycleConstants.ts` |
+| Work shifts, social hours, or home-preference behavior | `humanSchedule.ts` |
+| Household, occupancy, capacity, placement, partner residence, or residence reconciliation | `residency.ts` or one of its focused successor modules |
+| Death cleanup, family-reference cleanup, grief, custody, or adoption | `humanLifecycleCleanup.ts` |
+| New life-stage, age, fertility, or lifespan data/rules | A new focused lifecycle-timing module, such as `humanLifecycleTiming.ts` |
+
+Do not treat the facade as a convenient shared location. If a new concern has no listed destination, create a narrowly named module for that concern rather than adding it to `dayCycle.ts`.
 
 Do not solve a god-file problem by creating a generic manager, utility dump, broad event bus, or extra tick layer. Prefer a narrow module with one understandable concern, a clear owner, and a name that describes what it does.
 
