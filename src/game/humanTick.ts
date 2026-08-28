@@ -26,7 +26,7 @@ import { isSettlerRelationshipEntity } from './moonHowler';
 import { getElectionGatherTarget } from './villageLeadership';
 
 import { getWorkSchedule, isOnWorkScheduleShift, isWorkScheduleHour } from './workSchedule';
-import {   HUMAN_ADULT_MIN_AGE, HUMAN_MAX_LIFESPAN_YEARS, HUMAN_MOVE_OUT_MIN_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isOnWorkShift, isOnMoonHowlerNightShift, isFestivalGatheringHour, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, getChildCustodian, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
+import {   HUMAN_ADULT_MIN_AGE, HUMAN_MAX_LIFESPAN_YEARS, HUMAN_MOVE_OUT_MIN_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isOnWorkShift, isOnMoonHowlerNightShift, isFestivalGatheringHour, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
 import {
   chatHintsFromWorld,
   sayHumanChatPhrase,
@@ -52,6 +52,7 @@ import {
 } from './education';
 import { getPlayerCampCenter, isRaidMarchingForRival } from './frontierCombat';
 import { detectRaidersForPatrol } from './humanPatrolBehavior';
+import { tickHumanChildLeisure } from './humanLeisureBehavior';
 import { tickHumanHunting } from './humanHuntingBehavior';
 import { getCaravanMoveTarget, tryAdvanceCaravanLeg } from './tradeCaravans';
 import { tickFactionCampWander } from './factionWander';
@@ -1317,59 +1318,19 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // === FREE-TIME / LEISURE — small-world bonds (family, coworkers) ===
     // Affairs/courtship above already set suppressIdle when active — we never override those.
     // Cheating stays intact: secret trysts run first; this is open-village life around them.
-    if (!onSchedule && entity.isJuvenile && isPlayerHuman(entity)) {
-      // Kids: play with other kids first, then free parent, then home.
-      const playmates = allHumans.filter(
-        (h) => h.alive && h.isJuvenile && h.id !== entity.id && isPlayerHuman(h),
-      );
-      const kidImpulse = pickSocialImpulse(entity, state, updatedBuildings, [], playmates);
-      if (kidImpulse.motive === 'kid_play' && kidImpulse.company?.alive) {
-        const play = kidImpulse.company;
-        const pdx = play.x - entity.x;
-        const pdy = play.y - entity.y;
-        const pdist = Math.hypot(pdx, pdy) || 1;
-        if (pdist > 16) {
-          entity.vx = (pdx / pdist) * config.speed * 0.7;
-          entity.vy = (pdy / pdist) * config.speed * 0.7;
-        } else {
-          // Circle / tag weave
-          entity.vx = Math.sin(state.tick * 0.2 + entity.id) * config.speed * 0.45;
-          entity.vy = Math.cos(state.tick * 0.18 + play.id) * config.speed * 0.45;
-          if (kidImpulse.bubble && Math.random() < 0.06 * PER_TICK_RATE_SCALE) {
-            sayHumanChatPhrase(entity, kidImpulse.bubble, 40);
-          }
-        }
-        entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
-        suppressIdle = true;
-      } else {
-        const mother = entity.motherId != null ? livingHumanAt(entity.motherId) : undefined;
-        const father = entity.fatherId != null ? livingHumanAt(entity.fatherId) : undefined;
-        const freeParent = [mother, father].find(
-          (p) => p?.alive && isPlayerHuman(p) && !prefersHomeTonight(p.id, state.tick, hourOfDay)
-            && !isOnWorkScheduleShift(state, hourOfDay),
-        ) ?? [mother, father].find((p) => p?.alive);
-        const follow = freeParent ?? getChildCustodian(entity, allHumans);
-        if (follow?.alive && personDayRoll(entity.id, state.tick, 601) > 0.22) {
-          const pdx = follow.x - entity.x;
-          const pdy = follow.y - entity.y;
-          const pdist = Math.hypot(pdx, pdy) || 1;
-          if (pdist > 22) {
-            entity.vx = (pdx / pdist) * config.speed * 0.55;
-            entity.vy = (pdy / pdist) * config.speed * 0.55;
-            entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
-          } else if (pdist > 8) {
-            entity.vx = (pdx / pdist) * config.speed * 0.18;
-            entity.vy = (pdy / pdist) * config.speed * 0.18;
-          }
-          suppressIdle = true;
-        } else if (hasResidenceAssignment(entity)) {
-          const residence = buildingById.get(entity.residenceBuildingId!);
-          if (residence?.completed) {
-            commuteHumanToBuilding(entity, residence, config.speed, true);
-            suppressIdle = true;
-          }
-        }
-      }
+    if (tickHumanChildLeisure({
+      state,
+      entity,
+      speed: config.speed,
+      hourOfDay,
+      onSchedule,
+      allHumans,
+      updatedBuildings,
+      buildingById,
+      livingHumanAt,
+      suppressIdleInitial: suppressIdle,
+    })) {
+      suppressIdle = true;
     } else if (allowFreeRoam && !suppressIdle && isPlayerHuman(entity) && !entity.isJuvenile) {
       const tick = state.tick;
       const absDay = getAbsoluteCalendarDay(tick);
