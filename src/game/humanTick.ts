@@ -1376,7 +1376,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         state,
         entity,
         speed: config.speed,
-        hourOfDay,
         allHumans,
         updatedBuildings,
         buildingById,

@@ -1,5 +1,5 @@
 import type { Entity } from './gameTypes';
-import { HUMAN_MOVE_OUT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_MOVE_OUT_MIN_AGE } from './dayCycle';
 
 /** Married or partnered settlers are emancipated for housing. */
 export function isMinorChild(child: Entity): boolean {
