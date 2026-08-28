@@ -250,12 +250,11 @@ For detailed TypeScript examples and further guidance, see [`References.md`](Ref
 
 ## 11. God files: do not add new responsibilities
 
-The following files are currently designated **god files**. They contain too many responsibilities, have broad dependency surfaces, or are frequent change bottlenecks. **Do not add a new feature, subsystem, independent behavior, or unrelated responsibility to these files.** Place new code in a clearly named adjacent module that owns the new concern, then call it from the existing file only where coordination is required.
+The following files are currently designated **god files**. They contain too many responsibilities, have broad dependency surfaces, or are frequent change bottlenecks. `src/game/tickLayerDaily.ts` has completed its serial decommissioning and remains an ordered daily schedule facade. **Do not add a new feature, subsystem, independent behavior, or unrelated responsibility to these files.** Place new code in a clearly named adjacent module that owns the new concern, then call it from the existing file only where coordination is required.
 
 | God file | Why it is protected | Put new work in |
 |---|---|---|
 | `src/game/humanTick.ts` | Realtime human coordinator; still combines work, movement, hunting, care, social life, leisure, effects, and diagnostics | A named human-behavior module, still called from the existing realtime human pipeline |
-| `src/game/tickLayerDaily.ts` | Daily coordinator; still contains embedded building, population, world-event, and challenge policy | A named daily domain helper, such as building economy, population, events, or challenges |
 | `src/game/residency.ts` | Successor hub for occupancy, household composition, home selection, and reconciliation | A focused residency occupancy, household-composition, selection, or reconciliation module |
 
 This rule does **not** prohibit maintenance, targeted bug fixes, type-only changes, deletion, or extracting existing code from a god file. It prevents the file from receiving another independent responsibility. Preserve the existing public entry point during a staged extraction when it avoids unnecessary churn.

@@ -107,7 +107,7 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 6. File 3 — fully decommission `tickLayerDaily.ts`
 
-**Current state:** `dailyEcology.ts`, `dailyBuildingEconomy.ts`, `dailyPopulation.ts`, `dailyChallenges.ts`, and `dailyWorldEvents.ts` are extracted. The daily layer must continue to reveal the order of daily work, but its remaining schedule assembly needs to be reduced to explicit ordered delegates.
+**Current state:** `dailyEcology.ts`, `dailyBuildingEconomy.ts`, `dailyPopulation.ts`, `dailyChallenges.ts`, and `dailyWorldEvents.ts` are extracted. `tickLayerDaily.ts` is now an explicit ordered daily schedule facade, retaining only cadence-bound social, chronicle, weather, grass, domain-delegate, and skill coordination.
 
 | Serial slice | Destination module | Move from `tickLayerDaily.ts` | Ordering rule and validation |
 |---:|---|---|---|
@@ -115,9 +115,9 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 | 3.2 | `dailyPopulation.ts` | Immigration, dead-entity pruning, faction-wander cleanup, relevant population reconciliation | **Complete.** Population cap/immigration, all-alive pruning, faction-wander cleanup, and entity indexing preserved; focused daily-layer regressions passed. |
 | 3.3 | `dailyWorldEvents.ts` | Frontier, festival, yearly, first-week, mid-year, and election-event scheduling plus notification creation | **Complete.** Calendar boundaries, event cooldowns, event state, notification creation, and established call ordering preserved; focused story and full-year tests passed. |
 | 3.4 | `dailyChallenges.ts` | Challenge evaluation, reward grants, feedback and completion state | **Complete.** Rewards, feedback, completion state, and save-visible challenge state preserved; focused daily-layer and full-year tests passed. |
-| 3.5 | `tickLayerDaily.ts` schedule decision | Retain one ordered call per daily domain and necessary context assembly only | Full in-game day, worker delta path, no extra tick layer, type checks |
+| 3.5 | `tickLayerDaily.ts` schedule decision | Retain one ordered call per daily domain and necessary context assembly only | **Complete.** Daily facade preserves the fixed schedule, public `tickGrassDaily` compatibility export, worker path, and 72-tick day; focused layer-order and full-year tests passed. |
 
-**Completion condition:** `tickLayerDaily.ts` is an explicit, ordered daily schedule. It does not contain feature calculations, player reward policy, world-event policy, or population policy inline. Update `AGENTS.md`, then begin `humanTick.ts`.
+**Completion condition — passed (28 August 2026):** `tickLayerDaily.ts` is an explicit, ordered daily schedule. It contains no inline building, population, world-event, or challenge policy. `AGENTS.md` removes it from the active god-file list; the next protected-file work may begin with `humanTick.ts`.
 
 ## 7. File 4 — fully decommission `humanTick.ts`
 
@@ -157,4 +157,4 @@ A file enters the protected list only when it has accumulated multiple independe
 
 ## 10. Next implementation session
 
-File 2 (`App.tsx`) is complete. Begin File 3 (`tickLayerDaily.ts`) only after verifying the committed App boundary and preserving the documented worker/cadence invariants.
+File 3 (`tickLayerDaily.ts`) is complete. Begin File 4 (`humanTick.ts`) only after verifying the committed daily facade and preserving the documented worker/cadence invariants.
