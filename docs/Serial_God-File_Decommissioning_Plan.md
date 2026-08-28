@@ -107,11 +107,11 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 6. File 3 — fully decommission `tickLayerDaily.ts`
 
-**Current state:** `dailyEcology.ts` is already extracted. The daily layer must continue to reveal the order of daily work, but its internal mechanics need named homes.
+**Current state:** `dailyEcology.ts` and `dailyBuildingEconomy.ts` are extracted. The daily layer must continue to reveal the order of daily work, but its remaining population, event, and challenge mechanics need named homes.
 
 | Serial slice | Destination module | Move from `tickLayerDaily.ts` | Ordering rule and validation |
 |---:|---|---|---|
-| 3.1 | `dailyBuildingEconomy.ts` | Construction progress, repair/decay, building production and forge-related daily work | Preserve resource/production order; compare deterministic day snapshots |
+| 3.1 | `dailyBuildingEconomy.ts` | Construction progress, repair/decay, building production and forge-related daily work | **Complete.** Construction, repair, static bookkeeping, blueberry regrowth, and production order preserved; focused daily-layer and full-year integration tests passed. |
 | 3.2 | `dailyPopulation.ts` | Immigration, dead-entity pruning, faction-wander cleanup, relevant population reconciliation | Preserve all-alive array hand-off and entity-index consistency |
 | 3.3 | `dailyWorldEvents.ts` | Yearly, first-week, and mid-year event scheduling plus notification creation | Calendar boundary, event cooldown, same notification/event results |
 | 3.4 | `dailyChallenges.ts` | Challenge evaluation, reward grants, feedback and completion state | Rewards only once; resources, feedback, and saves stay consistent |

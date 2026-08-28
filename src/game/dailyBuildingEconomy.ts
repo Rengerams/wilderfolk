@@ -4,7 +4,10 @@
  * Grass ecology (growth/spread), static bookkeeping, building production,
  * frontier systems, and daily-gated world events. Trees have no sim tick.
  */
-import type { WorldState, Entity } from './gameTypes';
+import type {
+  WorldState,
+  Entity,
+} from './gameTypes';
 import {
   BuildingType,
   BUILDING_CONFIGS,
@@ -20,127 +23,108 @@ import {
   getAdjacencyMultiplierFromIndex,
   syncAdjacency,
 } from './adjacencyIndex';
-import { indexEntity } from './entityIndex';
-import type { PopulationCounts } from './entityCounts';
 import {
   addResource,
   canAffordWorkshopRecipe,
   consumeWorkshopRecipeInputs,
   applyFoodSpoilage,
 } from './economy';
-import { logEvent } from './eventLog';
-import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
-import { advanceSocialRelationships } from './relationships';
-import { advanceYouthLove } from './simulation/humanRelationships';
-import { advanceApprenticeships } from './apprenticeships';
-import { tickMigration } from './migration';
-import { tickPendingStoryEvents, tickChildrenShelter, maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, maybeOfferChildrenShelter, tickWinterFreezeCheck } from './storyEvents';
-import { tickGuidedCampaign } from './guidedCampaign';
-import { detectRaidersFromWatchtowers } from './watchtowerDetection';
-import { maybeOfferTravelingTheatre, tickTravelingTheatre } from './travelingTheatre';
-import { maybeOfferDeerParliament, tickDeerParliament } from './deerParliament';
-import { maybeOfferWeddingDiplomacy, tickWeddingDiplomacy } from './weddingDiplomacy';
-import { maybeOfferInventionFair, tickInventionFair } from './inventionFair';
-import { maybeOfferRumourLedger, tickRumourLedger } from './rumourLedger';
-import { tickElectionPromises } from './electionPromises';
-import { tickAnimalCare } from './animalCare';
-import { tickBeauty } from './beautyGrid';
-import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
-import { getLumberMillTreeMultiplier } from './treeProximity';
+import {
+  logEvent,
+} from './eventLog';
+import {
+  getForgeQuarryMultiplier,
+  tickVillageForge,
+} from './forge';
+import {
+  getLumberMillTreeMultiplier,
+} from './treeProximity';
 import {
   isProductionTick,
   PRODUCTION_INTERVAL,
   TICKS_PER_DAY,
-  isNewCalendarDayTick,
-  getCalendarDay,
-  FESTIVAL_CHECK_TICKS,
-  IMMIGRATION_CHECK_TICKS,
-  getResidenceCapacity,
-  assignMissingResidences,
-  getAbsoluteCalendarDay,
-  DAYS_PER_YEAR,
 } from './dayCycle';
-import type { TickContext } from './simulation/simulationTypes';
-import { GRASS_GROWTH_PER_TICK } from './grassEcology';
-import { SPECIES_CONFIG } from './speciesConfig';
-import { buildGrassPopulationSnapshot, grassPopulationTotal } from './simQueries';
-import { createEntity } from './entityFactory';
+import type {
+  TickContext,
+} from './simulation/simulationTypes';
 import {
-  pushNewEntity,
   syncEntityGrids,
-  getGrassPopulationCap,
-  markGrassDead,
   markWildlifeDead,
   clearHuntersTargetingPrey,
 } from './simulation/simulationEntities';
 
-import { getWeatherFarmMultiplier } from './grassEcology';
-import { applyDailyWeatherEffects } from './worldEvents';
-import { getMultiplier, addReputation, getPollutionProductionMultiplier } from './simHelpers';
+import {
+  getWeatherFarmMultiplier,
+} from './grassEcology';
+import {
+  getMultiplier,
+  addReputation,
+  getPollutionProductionMultiplier,
+} from './simHelpers';
 import {
   addFloatingText,
-  addBigNews,
-  addNotification,
   impulseScreenShake,
   createDeathParticles,
 } from './simEffects';
-import { recordFoodProduced } from './economyLedger';
-import { tickVisitorQuest } from './visitorQuest';
-import { tickLeaderPromise } from './villageLeadership';
-import { tickBlueberryRegrowth } from './blueberryForaging';
-import { syncLeaderHouseResidency } from './leaderHouse';
-import { getTerrainEfficiencyMultiplier, findHumanSpawnNear } from './terrainSystems';
+import {
+  recordFoodProduced,
+} from './economyLedger';
+import {
+  tickBlueberryRegrowth,
+} from './blueberryForaging';
+import {
+  syncLeaderHouseResidency,
+} from './leaderHouse';
+import {
+  getTerrainEfficiencyMultiplier,
+} from './terrainSystems';
 import {
   gainSkill,
   getJobForBuilding,
   rewardProductionSkills,
-  decayIdleSkills,
   getWorkerSkillMultiplier,
 } from './skills';
-import { assignMissingWorkers, getSmithBonus } from './workforce';
-import { isPlayerHuman } from './playerHuman';
-import { tickHospitalDailyCare } from './hospitalCare';
-import { resolveDailyScheduleFatigue, getScheduleProductivityMultiplier } from './scheduleFatigue';
-import { tickTownHallAudiences } from './townHall';
 import {
-  tickValleyEcologyStage,
+  assignMissingWorkers,
+  getSmithBonus,
+} from './workforce';
+import {
+  isPlayerHuman,
+} from './playerHuman';
+import {
+  tickHospitalDailyCare,
+} from './hospitalCare';
+import {
+  getScheduleProductivityMultiplier,
+} from './scheduleFatigue';
+import {
+  tickTownHallAudiences,
+} from './townHall';
+import {
   getValleyHuntYieldMultiplier,
   getValleyFarmYieldMultiplier,
 } from './ecologyStage';
-import { tickEcosystemMetrics } from './dailyEcology';
-import {
-  rollYearlyWorldEvent,
-  tryFirstWeekVisitor,
-  tryMidYearVisitorEvent,
-  tickRivalSettlements,
-  tickVisitorGroups,
-  tickVillageRequests,
-} from './groupEvents';
 import {
   tickElectionGossip,
-  tickElectionBuildup,
-  tickLeaderVacancy,
-  tryStartDecennialElectionCeremony,
-  tryStartVacancyElectionCeremony,
 } from './villageLeadership';
-import { trackYearEvent } from './stats';
 import {
   getTownHallGovernanceEfficiency,
   tickTownHallCivic,
-  getTownHallFestivalCooldownTicks,
-  getTownHallImmigrationMultiplier,
 } from './townHall';
 import {
-  tickPendingOutgoingRaidEvents,
-  tickPendingRaidEvents,
-} from './frontierCombat';
-import { pruneFactionWanderStates } from './factionWander';
-import { createImmigrantSettler, replenishDepletedWildlife } from './worldGen';
-import { isChallengeComplete } from './challenges';
-import { addHuntVisual } from './huntvisuals';
-import { spawnBuildCompleteParticles } from './juiceEffects';
-import { loadJuiceEffectsEnabled } from './preferences';
-import { getWorkSchedule, getWorkScheduleHours, getWorkHourProductionMultiplier } from './workSchedule';
+  addHuntVisual,
+} from './huntvisuals';
+import {
+  spawnBuildCompleteParticles,
+} from './juiceEffects';
+import {
+  loadJuiceEffectsEnabled,
+} from './preferences';
+import {
+  getWorkSchedule,
+  getWorkScheduleHours,
+  getWorkHourProductionMultiplier,
+} from './workSchedule';
 
 /**
  * Winter heating — burns wood once per colony day, stores result on state for the whole day.
@@ -299,7 +283,18 @@ function tickStaticDaily(state: WorldState, season: Season): void {
   if (!state.electionCeremony) tickElectionGossip(state);
 }
 
-// ==================== BUILDING PRODUCTION ====================
+export function tickDailyBuildingEconomy(
+  state: WorldState,
+  ctx: TickContext,
+  allAlive: Entity[],
+): void {
+  tickBuildingProgress(state);
+  tickStaticDaily(state, ctx.season);
+  tickBlueberryRegrowth(state);
+  tickBuildingProduction(state, ctx, allAlive);
+}
+
+// ==================== FRONTIER SYSTEMS ====================
 
 function tickBuildingProduction(
   state: WorldState,
