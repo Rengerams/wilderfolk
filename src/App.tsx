@@ -54,7 +54,6 @@ import { preloadRenderer } from './game/rendererLoader';
 const IntroScreen = lazy(() => import('./game/IntroScreen'));
 const MapSetupScreen = lazy(() => import('./game/MapSetupScreen'));
 const CombatPreviewPanel = lazy(() => import('./game/CombatPreviewPanel'));
-const BuildCatalogPanel = lazy(() => import('./components/BuildCatalogPanel'));
 import ActiveEventBanner from './components/ActiveEventBanner';
 import VillageRequestCard from './components/VillageRequestCard';
 import BigNewsBanner from './components/BigNewsBanner';
@@ -63,6 +62,7 @@ import VisitorCampPanel from './components/VisitorCampPanel';
 import SelectedEntityPanel from './components/SelectedEntityPanel';
 import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel';
 import GamePlayLayout from './components/GamePlayLayout';
+import GameBuildRail from './components/GameBuildRail';
 
 
 import { useGamePersistence } from './hooks/useGamePersistence';
@@ -108,12 +108,10 @@ import { useFpsMeter } from './hooks/useFpsMeter';
 import { getPriorityAlerts, type PriorityAlert } from './game/priorityAlerts';
 import type { FocusHintAction } from './game/focusHints';
 import './App.css';
-import { BUILDING_HOTKEYS } from './game/hotkeys';
 import TutorialOverlay from './components/TutorialOverlay';
 import TutorialCampaignBanner from './components/TutorialCampaignBanner';
 import MomentTitleCard from './components/MomentTitleCard';
 import { currentCampaignStep, TUTORIAL_CAMPAIGN } from './game/tutorialCampaign';
-import { getBuildingConfig } from './game/buildingConfig';
 
 const SPEED_OPTIONS = [0.5, 1, 2, 3, 5, 10];
 
@@ -1195,76 +1193,18 @@ export default function App() {
       )}
       alertBar={<AlertBar alerts={priorityAlerts} onAlert={handlePriorityAlert} />}
       buildRail={(
-        <aside
-          className={`build-panel side-panel relative flex shrink-0 flex-col border-r border-stone-700/80 transition-[width] duration-150 ease-in-out ${
-            buildPanelOpen ? 'w-[15.5rem]' : 'w-12'
-          }`}
-        >
-          <button
-            onClick={() => setBuildPanelOpen((open) => !open)}
-            className="build-panel-toggle absolute -right-3 top-5 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-stone-600 bg-stone-850 text-sm font-bold text-stone-300 shadow-lg transition-all hover:border-emerald-500/50 hover:bg-stone-700 hover:text-emerald-300"
-            title={buildPanelOpen ? 'Collapse build panel (B)' : 'Expand build panel (B)'}
-          >
-            {buildPanelOpen ? '‹' : '›'}
-          </button>
-
-          {buildPanelOpen ? (
-            <Suspense fallback={<p className="p-3 text-xs text-stone-300">Loading build catalog…</p>}>
-              <BuildCatalogPanel
-                world={world}
-                selected={selectedBuildingType}
-                showGrid={view.showGrid}
-                hotkeys={BUILDING_HOTKEYS}
-                onSelect={selectBuildingType}
-                onLocked={(type) => applyGameAction({ proto: 1, op: 'notifyBuildingLocked', type })}
-                onCancel={cancelBuildMode}
-                onToggleGrid={toggleGrid}
-              />
-            </Suspense>
-          ) : (
-            <div className="flex h-full flex-col items-center gap-2 py-3">
-              <span
-                className="text-base"
-                title="Build catalog on the left · press B"
-              >
-                🏗️
-              </span>
-
-              <button
-                onClick={toggleGrid}
-                className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition-all ${
-                  view.showGrid
-                    ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
-                    : 'border-stone-700 bg-stone-800/80 text-stone-400 hover:border-stone-600 hover:text-stone-300'
-                }`}
-                title="Toggle grid (G)"
-              >
-                ⊞
-              </button>
-
-              {selectedBuildingType && (
-                <>
-                  <div className="my-0.5 h-px w-7 bg-stone-700" />
-                  <button
-                    onClick={cancelBuildMode}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-800/50 bg-rose-950/40 text-xs text-rose-300 hover:bg-rose-900/50"
-                    title={`Cancel ${getBuildingConfig(selectedBuildingType).label} (ESC)`}
-                  >
-                    ✕
-                  </button>
-                </>
-              )}
-
-              <button
-                onClick={() => setBuildPanelOpen(true)}
-                className="mt-auto flex h-8 w-8 items-center justify-center rounded-lg border border-stone-700 bg-stone-800/80 text-stone-400 hover:border-emerald-500/40 hover:text-emerald-300"
-                title="Full build catalog (B)"
-              >
-                »
-              </button>
-            </div>
-          )}
-        </aside>
+        <GameBuildRail
+          world={world}
+          buildPanelOpen={buildPanelOpen}
+          selectedBuildingType={selectedBuildingType}
+          showGrid={view.showGrid}
+          onToggleOpen={() => setBuildPanelOpen((open) => !open)}
+          onOpen={() => setBuildPanelOpen(true)}
+          onSelect={selectBuildingType}
+          onLocked={(type) => applyGameAction({ proto: 1, op: 'notifyBuildingLocked', type })}
+          onCancel={cancelBuildMode}
+          onToggleGrid={toggleGrid}
+        />
       )}
       mapStage={(
         <>

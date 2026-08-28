@@ -1,6 +1,6 @@
 # Serial God-File Decommissioning Plan
 
-**Status:** File 1 (`buildingActions.ts`) has passed the decommissioning gate. File 2 (`App.tsx`) is active; Slice 2.1 map-stage presentation is complete.
+**Status:** File 1 (`buildingActions.ts`) has passed the decommissioning gate. File 2 (`App.tsx`) is active; Slices 2.1 map-stage and 2.2 build-rail presentation are complete.
 **Scope:** Fully decommission exactly one protected god file before beginning the next.
 **Current starting point:** `dayCycle.ts` is already decommissioned as a god file and remains a controlled compatibility facade. The active protected files are `App.tsx`, `tickLayerDaily.ts`, `humanTick.ts`, and the successor module `residency.ts`. `buildingActions.ts` is now a controlled compatibility façade.
 
@@ -78,16 +78,18 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 
 ## 5. File 2 — fully decommission `App.tsx`
 
-**Current state:** `useGamePersistence`, `useGameSession`, `useGameShellState`, `useTransientGameFeedback`, `GamePlayLayout`, and `GameMapStage` exist and are wired. The remaining task is to move the inline build rail, inspector, overlay, input, and composition clusters out of the application root.
+**Current state:** `useGamePersistence`, `useGameSession`, `useGameShellState`, `useTransientGameFeedback`, `GamePlayLayout`, `GameMapStage`, and `GameBuildRail` exist and are wired. The remaining task is to move the inline inspector, overlay, input, and composition clusters out of the application root.
 
 ### Implementation status
 
 **Slice 2.1 — Complete (28 August 2026).** The display-only canvas surface, FPS meter, map frame, minimap, zoom controls, and nearest-preset derivation moved into `src/components/GameMapStage.tsx`. Canvas click, pointer, drag, selection, and build-placement policy remains in the existing `useCanvasInteractions` hook; `App.tsx` passes those established handlers and camera callbacks through unchanged. Focused map-stage and layout rendering tests, type checking, linting, the complete test suite, and the production build passed. No simulation state, save format, worker authority, or input-policy behavior changed.
 
+**Slice 2.2 — Complete (28 August 2026).** The build-rail presentation moved into `src/components/GameBuildRail.tsx`. It receives the App-owned shell/build state and established callbacks, without creating another build-mode owner. The component keeps the collapsed rail, build catalog loading fallback, grid toggle, selection cancellation, and locked-building command route unchanged. Focused build-rail, map-stage, and layout rendering tests, type checking, linting, the complete test suite, and the production build passed. No simulation state, save format, worker authority, keyboard policy, canvas interaction, or command behavior changed.
+
 | Serial slice | Destination module/component | Move from `App.tsx` | Validation |
 |---:|---|---|---|
 | 2.1 | `GameMapStage.tsx` | Canvas wrapper, map-stage composition, and display-only map controls | **Complete.** Canvas surface, FPS, minimap navigation, zoom preset/clamping presentation, and layout contract passed. |
-| 2.2 | `GameBuildRail.tsx` | Build palette/rail presentation and feature-local UI callbacks | Building selection, disabled states, keyboard/UI behavior |
+| 2.2 | `GameBuildRail.tsx` | Build palette/rail presentation and feature-local UI callbacks | **Complete.** Collapsed rail, grid toggle, selected-building cancellation, and catalog-open contract passed. |
 | 2.3 | `GameInspector.tsx` | Selected entity/building inspector composition | Selection changes, panel collapse, building/entity action callbacks |
 | 2.4 | `GameOverlays.tsx` | Tutorial, banner, moment card, notifications, shortcut and modal composition | Dismissal state, z-order, no duplicate overlays, first-session flow |
 | 2.5 | `useGameInputBindings.ts` only if needed | Remaining App-owned keyboard/mouse orchestration not already in a focused hook | Keyboard shortcuts, pointer/camera interactions, cleanup on unmount |
@@ -147,10 +149,10 @@ A file enters the protected list only when it has accumulated multiple independe
 
 ## 10. Next implementation session
 
-Remain on **File 2: `App.tsx`** and proceed with **Slice 2.2 — `GameBuildRail.tsx`**.
+Remain on **File 2: `App.tsx`** and proceed with **Slice 2.3 — `GameInspector.tsx`**.
 
-1. Baseline building-palette selection, disabled states, build-panel opening, grid toggle, cancellation, and keyboard-aligned callbacks.
-2. Move only build-rail presentation and feature-local callback wiring into the named component.
-3. Keep build placement, canvas interaction, and worker commands in their existing owners.
-4. Test rail rendering and callback routing without introducing a second build-mode state owner.
-5. Do not begin the inspector, overlays, input, or another protected file until Slice 2.2 is validated and committed.
+1. Baseline selected entity/building/camp inspector composition and collapse behavior.
+2. Move only inspector presentation and feature-local callbacks into the named component.
+3. Keep authoritative selection updates in the existing view/session pathway.
+4. Test selection switching, collapsed content, and callback routing without duplicating inspector state.
+5. Do not begin overlays, input, or another protected file until Slice 2.3 is validated and committed.
