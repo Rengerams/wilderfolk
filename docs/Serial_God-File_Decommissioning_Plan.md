@@ -159,7 +159,7 @@ The sequence begins with the smallest, clearest command façade, progresses thro
 | Serial slice | Destination module | Move from `residency.ts` | Validation |
 |---:|---|---|---|
 | 5.1 | `residencyOccupancy.ts` | Occupancy index, capacity predicates, occupancy move accounting, building/resident consistency queries | Capacity boundaries, building ID `0`, occupant/index consistency |
-| 5.2 | `householdComposition.ts` | Family grouping, household unit formation, child custodianship, adult-child independence rules | Couples, minors, death/custody, adult move-out cases |
+| 5.2 | `householdComposition.ts` | Family grouping, household unit formation, child custodianship, adult-child independence rules | **Initial helper sub-slices complete.** Minor classification, adult-led household collection, and child-custodian resolution moved; focused residency, command, and write-ownership tests passed. Orphan/adoption and full housing-unit formation remain. |
 | 5.3 | `residencySelection.ts` | Candidate scoring, home choice, empty-home preference, shared-housing logic, overcrowding/rebalance choice | Deterministic household placement across representative worlds |
 | 5.4 | `residencyReconciliation.ts` | Residence occupant synchronisation, partner transitions, event/death/recruitment reconciliation entry points | Worker command path, entity removal, partner move, load/import round trip |
 | 5.5 | `residency.ts` façade decision | Keep only the one residency owner’s public API/re-exports or retire it after migration | All residency tests, save/load scenarios, no secondary owner introduced |

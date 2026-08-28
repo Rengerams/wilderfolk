@@ -1,6 +1,9 @@
 import type { Building, Entity } from './gameTypes';
 import { BuildingType, EntityType } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
+import { collectOwnHousehold, getChildCustodian, isMinorChild } from './householdComposition';
+export { collectOwnHousehold, getChildCustodian, isMinorChild } from './householdComposition';
+
 import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 import {
   HUMAN_MOVE_OUT_MIN_AGE,
@@ -82,11 +85,7 @@ function humanById(humans: Entity[], id: number | undefined): Entity | undefined
   return humans.find((h) => h.id === id);
 }
 
-export function isMinorChild(child: Entity): boolean {
-  // Married / partnered settlers are emancipated for housing (EK-E1)
-  if (child.partnerId != null) return false;
-  return child.isJuvenile || child.age < HUMAN_MOVE_OUT_MIN_AGE;
-}
+
 
 function livingAdoptiveCustodian(child: Entity, humans: Entity[]): Entity | undefined {
   const adoptiveMother = livingHuman(humans, child.adoptiveMotherId);
@@ -145,33 +144,7 @@ function pickRandomAdoptiveGuardian(child: Entity, humans: Entity[]): Entity | u
   return singles[Math.abs(child.id * 7919) % singles.length];
 }
 
-/**
- * Who a child lives with: mother, then father.
- * Bastards with no living parents follow grandmother (maternal, then paternal).
- * If no kin remain, an adoptive village couple (stable random pick per child).
- */
-export function getChildCustodian(child: Entity, humans: Entity[]): Entity | undefined {
-  const mother = livingHuman(humans, child.motherId);
-  if (mother) return mother;
 
-  const father = livingHuman(humans, child.fatherId);
-  if (father) return father;
-
-  if (child.isBastard) {
-    const motherRecord = humanById(humans, child.motherId);
-    if (motherRecord?.motherId != null) {
-      const maternalGrandmother = livingHuman(humans, motherRecord.motherId);
-      if (maternalGrandmother) return maternalGrandmother;
-    }
-    const fatherRecord = humanById(humans, child.fatherId);
-    if (fatherRecord?.motherId != null) {
-      const paternalGrandmother = livingHuman(humans, fatherRecord.motherId);
-      if (paternalGrandmother) return paternalGrandmother;
-    }
-  }
-
-  return livingAdoptiveCustodian(child, humans);
-}
 
 function hasLivingNaturalCustodian(child: Entity, humans: Entity[]): boolean {
   if (livingHuman(humans, child.motherId)) return true;
@@ -339,22 +312,7 @@ export function collectFamilyMembers(
   return family;
 }
 
-/** One adult-led home: settler + spouse + their children (not parents or siblings). */
-export function collectOwnHousehold(seed: Entity, humans: Entity[]): Entity[] {
-  const household: Entity[] = [];
-  const add = (human?: Entity) => {
-    if (human?.alive && !household.some((m) => m.id === human.id)) household.push(human);
-  };
 
-  add(seed);
-  const partner = livingHuman(humans, seed.partnerId);
-  add(partner);
-  for (const childId of seed.childrenIds ?? []) add(livingHuman(humans, childId));
-  if (partner) {
-    for (const childId of partner.childrenIds ?? []) add(livingHuman(humans, childId));
-  }
-  return household;
-}
 
 /** Housing assignment units — minors follow custodian; adults 18+ form their own household. */
 export function buildHousingUnits(humans: Entity[]): Entity[][] {

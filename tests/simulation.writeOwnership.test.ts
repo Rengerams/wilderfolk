@@ -81,6 +81,7 @@ const APPROVED_WRITERS: Record<ProtectedField, readonly string[]> = {
   // snapshot application each have a bounded documented reason to update it.
   huntTargetId: [
     'src/game/groupEvents.ts',
+    'src/game/humanHuntingBehavior.ts',
     'src/game/humanTick.ts',
     'src/game/moonHowler.ts',
     'src/game/simBuffers/applyKinematics.ts',
