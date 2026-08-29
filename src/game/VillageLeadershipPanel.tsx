@@ -1,7 +1,6 @@
 import type { WorldState } from './gameTypes';
 import {
   ELECTION_INTERVAL_YEARS,
-  VACANCY_ELECTION_DELAY_YEARS,
   formatSettlerName,
   getElectionCeremonyStatus,
   getIncumbentRecordAssessment,

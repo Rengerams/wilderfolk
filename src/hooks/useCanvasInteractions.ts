@@ -144,7 +144,7 @@ export function useCanvasInteractions({
               proto: 1,
               op: 'placeStripChain',
               type: selectedBuildingType,
-              segments: preview.segments,
+              segments: [...preview.segments],
               rotation: preview.rotation,
             });
           }
@@ -487,7 +487,7 @@ export function useCanvasInteractions({
             proto: 1,
             op: 'placeStripChain',
             type: selectedBuildingType,
-            segments: preview.segments,
+            segments: [...preview.segments],
             rotation: preview.rotation,
           });
         }

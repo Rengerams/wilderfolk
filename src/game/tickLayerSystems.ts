@@ -84,7 +84,7 @@ function isWildlifePredator(entity: Entity): boolean {
       entity.type === EntityType.Werewolf ||
       (entity.type === EntityType.Human &&
         !entity.isJuvenile &&
-        (isPlayerHuman(entity) || entity.faction === 'rival')))
+        (isPlayerHuman(entity) || (entity as Entity).faction === 'rival')))
   );
 }
 

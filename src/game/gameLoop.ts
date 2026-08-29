@@ -617,9 +617,9 @@ export class GameLoop {
     if (next !== this.world) {
       this.world = next;
     }
-    this.catalog.rebuild(this.world.entities);
-    this.workerHost?.syncWorld(this.world);
-    this.pruneStaleSelection();
+this.catalog.rebuild(this.world.entities);
+void this.workerHost?.syncWorld(this.world); // <-- 'void' toegevoegd
+this.pruneStaleSelection();
     this.notify(true);
   }
 

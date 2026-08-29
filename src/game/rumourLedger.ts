@@ -89,8 +89,8 @@ function recentSourceKind(state: WorldState): SourceKind | null {
     if (type === 'birth' || type === 'marriage') return 'family';
     if (type === 'milestone' || type === 'research') return 'civic';
     if (type === 'season' || type === 'disaster') return 'ecology';
-    if (type === 'combat' || type === 'trade' || type === 'diplomacy') return 'frontier';
-    if (type === 'scandal' || type === 'crime') return 'scandal';
+    if (type === 'combat' || type === 'trade') return 'frontier';
+    if (type === 'scandal') return 'scandal';
   }
   return null;
 }

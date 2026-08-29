@@ -1,6 +1,6 @@
 import { pruneHuntVisuals } from './huntvisuals';
 import type {
-  WorldState, DeathParticle, FloatingText, PopulationHistoryEntry, Entity,
+  WorldState, PopulationHistoryEntry, Entity,
 } from './gameTypes';
 import { EntityType, BuildingType } from './gameTypes';
 import {

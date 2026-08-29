@@ -7,7 +7,7 @@
  * Chat/courtship = Realtime; house/job fill = Assign (not “social”).
  */
 import type {
-  WorldState, Entity, Building, EntityByType,
+  WorldState, Entity, Building, 
 } from './gameTypes';
 import {
   BuildingType,
@@ -233,8 +233,9 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // Reuse playerHumans + any newly born player settlers this tick (avoid full allAlive filter)
   let endTickHumans = playerHumans;
   if (newEntities.length > 0) {
-    const bornPlayers = newEntities.filter((e) => e.alive && isPlayerHuman(e));
-    if (bornPlayers.length > 0) endTickHumans = playerHumans.concat(bornPlayers);
+    // Gebruik 'as typeof playerHumans' zodat de typen exact overeenkomen
+    const bornPlayers = newEntities.filter((e) => e.alive && isPlayerHuman(e)) as typeof playerHumans;
+    if (bornPlayers.length > 0) endTickHumans = [...playerHumans, ...bornPlayers];
   }
   const workforceCounts = countWorkingAndIdleSettlers(endTickHumans, updatedBuildings);
   state.workingSettlers = workforceCounts.working;
@@ -259,6 +260,8 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     state.entityByType = byType;
   }
   if (USE_SPATIAL_GRID) state.mobileGrid = ctx.mobileGrid;
+  
+  // Eén keer toewijzen aan het einde is voldoende
   state.buildings = updatedBuildings;
   state.season = season;
   state.humanPopulation = finalCounts.humans;

@@ -157,18 +157,12 @@ export function resolveBuilding(world: WorldState, id: number | null): Building 
   if (id == null) return null;
 
   // 1. O(1) building lookup map if available
-  if (new Map(world.buildings.map(b => [b.id, b]))) {
-    const b = new Map(world.buildings.map(b => [b.id, b])).get(id);
-    if (b) return b;
-  }
-
-  // 2. Linear scan fallback
-  for (let i = 0; i < world.buildings.length; i++) {
-    const b = world.buildings[i];
-    if (b.id === id) {
-      return b;
-    }
-  }
+  const buildingMap = new Map<number, Building>(
+    world.buildings.map((b: Building) => [b.id, b])
+  );
+  
+  const b = buildingMap.get(id);
+  if (b) return b;
 
   return null;
 }

@@ -1015,6 +1015,8 @@ export interface GameNotification {
   focus?: { x: number; y: number };
   /** Visitor/rival camp key (e.g. `visitor:xxx`) to select when clicked (optional). */
   campKey?: string;
+  /** Whether the user dismissed this notification. */
+  dismissed?: boolean;
 }
 
 export interface BigNewsItem {
