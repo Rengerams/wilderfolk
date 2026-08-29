@@ -51,6 +51,7 @@ export const EntityType = {
 } as const;
 export type EntityType = (typeof EntityType)[keyof typeof EntityType];
 
+
 /** Alive entities bucketed by `entity.type` — rebuilt each sim tick, not saved. */
 export type EntityByType = Record<EntityType, Entity[]>;
 
