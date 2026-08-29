@@ -1,18 +1,18 @@
-import type { WorldState } from '../gameTypes';
-import { gameTick, computeSimulationFocus, type SimulationFocus } from '../gameEngine';
-import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../dayCycle';
-import { EntityCatalog } from '../entityCatalog';
-import { renderGame, resetRendererCaches } from '../rendererLoader';
-import { buildRenderSnapshot, type RenderSnapshot } from '../renderSnapshot';
+import type { WorldState } from './gameTypes';
+import { gameTick, computeSimulationFocus, type SimulationFocus } from './gameEngine';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycle';
+import { EntityCatalog } from './entityCatalog';
+import { renderGame, resetRendererCaches } from './rendererLoader';
+import { buildRenderSnapshot, type RenderSnapshot } from './renderSnapshot';
 import { patchCatalogKinematicsFromRenderSoA } from './simBuffers/applyKinematics';
 import type { EntityRenderMeta } from './simBuffers/entityRenderMeta';
 import type { RenderSoAReaderV1 } from './simBuffers/renderSoAReader';
-import { clearAllFactionWanderStates } from '../factionWander';
+import { clearAllFactionWanderStates } from './factionWander';
 import { GameWorkerHost, isGameWorkerEnabled, type WorkerUiPatch } from './simWorker/GameWorkerHost';
 import type { WorkerCommand } from './simWorker/commands';
 import { applyWorkerCommand } from './simWorker/commands';
-import { createOptimisticDisplayWorld, hydrateWorldRuntimeCaches } from '../worldRuntimeCaches';
-import type { ScentGridReader } from '../scentGrid';
+import { hydrateWorldRuntimeCaches } from './worldRuntimeCaches';
+import type { ScentGridReader } from './scentGrid';
 import {
   clearScreenShakeImpulse,
   createInitialView,
@@ -21,7 +21,7 @@ import {
   syncScreenShakeFromWorld,
   updateView,
   type ViewState,
-} from '../viewState';
+} from './viewState';
 
 const BASE_TICKS_PER_SECOND = 1.5;
 const UI_UPDATE_MS = 200;
@@ -185,7 +185,7 @@ export class GameLoop {
           this.registerWorkerHandlers(activeGen);
           this.flushDeferredWorkerCommands();
         })
-        .catch((err) => {
+        .catch((_err) => {
           if (initGen !== this.sessionGen) return;
           this.workerHost?.dispose();
           this.workerHost = null;
@@ -285,7 +285,7 @@ export class GameLoop {
         this.registerWorkerHandlers(activeGen);
         this.flushDeferredWorkerCommands();
       })
-      .catch((err) => {
+      .catch((_err) => {
         if (this.workerHost === recoveryHost) {
           recoveryHost.dispose();
           this.workerHost = null;
@@ -608,7 +608,7 @@ getWorld(): WorldState {
       this.world = next;
     }
     this.catalog.rebuild(this.world.entities);
-    this.workerHost?.syncWorld(this.world);
+    void this.workerHost?.syncWorld(this.world);
     this.pruneStaleSelection();
     this.notify(true);
   }
