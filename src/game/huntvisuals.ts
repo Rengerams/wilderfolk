@@ -15,13 +15,24 @@ export function isHuntVisualActive(visual: HuntVisual, nowMs = Date.now()): bool
 }
 
 export function pruneHuntVisuals(state: WorldState, nowMs = Date.now()): void {
-  if (!state.huntVisuals) {
-    state.huntVisuals = [];
+  const visuals = state.huntVisuals;
+  
+  // Early exit if undefined or empty
+  if (!visuals || visuals.length === 0) {
+    if (!visuals) state.huntVisuals = [];
     return;
   }
-  // Rendering measures arrow flight in milliseconds, so retain the entry on the
-  // same wall-clock domain. Simulation speed must not shorten the visual.
-  state.huntVisuals = state.huntVisuals.filter((v) => isHuntVisualActive(v, nowMs));
+
+  // 🚀 OPTIMIZED: Zero-allocation in-place filtering
+  let writeIdx = 0;
+  for (let i = 0; i < visuals.length; i++) {
+    if (isHuntVisualActive(visuals[i], nowMs)) {
+      visuals[writeIdx++] = visuals[i];
+    }
+  }
+  
+  // Truncate the array to remove stale references, zero GC pressure
+  visuals.length = writeIdx;
 }
 
 export function addHuntVisual(
@@ -31,6 +42,7 @@ export function addHuntVisual(
   if (!state.huntVisuals) {
     state.huntVisuals = [];
   }
+  
   const entry: HuntVisual = {
     id: visual.id ?? `hunt-${state.tick}-${visual.hunterId}-${state.huntVisuals.length}`,
     hunterId: visual.hunterId,
@@ -44,8 +56,12 @@ export function addHuntVisual(
     success: visual.success,
     foughtBack: visual.foughtBack,
   };
+  
+  // Unshift adds the newest visual to the front (index 0)
   state.huntVisuals.unshift(entry);
+  
+  // 🚀 OPTIMIZED: Direct length truncation is cleaner and marginally faster than .pop()
   if (state.huntVisuals.length > 8) {
-    state.huntVisuals.pop();
+    state.huntVisuals.length = 8;
   }
 }

@@ -30,16 +30,28 @@ export function isOnConstructionCrew(
   );
 }
 
+/** 
+ * 🚀 OPTIMIZED: Single-pass search for a preferred settler, falling back to the first match.
+ */
 export function pickAdultSettler(
   state: WorldState,
   preferredHumanId: number | undefined,
   filter: (entity: Entity) => boolean,
 ): Entity | undefined {
-  if (preferredHumanId !== undefined) {
-    const preferred = state.entities.find((entity) => entity.id === preferredHumanId && filter(entity));
-    if (preferred) return preferred;
+  let fallback: Entity | undefined;
+
+  for (const entity of state.entities) {
+    if (!filter(entity)) continue;
+    
+    if (entity.id === preferredHumanId) {
+      return entity; // Early exit: found the exact preferred match
+    }
+    if (!fallback) {
+      fallback = entity; // Remember the first valid fallback
+    }
   }
-  return state.entities.find(filter);
+  
+  return fallback;
 }
 
 /** One shared definition prevents manual, automatic, and preview paths from drifting apart. */
@@ -55,8 +67,11 @@ function isEligibleIdleWorker(entity: Entity, state: WorldState): boolean {
   );
 }
 
-/** Mutates state — assign a settler to help build an unfinished structure. */
-function applyBuilderAssignment(
+/** 
+ * Mutates state — assign a settler to help build an unfinished structure. 
+ * Internal mutating version to avoid redundant structuredClone in loops.
+ */
+function _applyBuilderAssignmentMut(
   state: WorldState,
   buildingId: number,
   preferredHumanId?: number,
@@ -101,73 +116,23 @@ export function assignBuilderToBuilding(
   buildingId: number,
   preferredHumanId?: number,
 ): WorldState {
-  return applyBuilderAssignment(structuredClone(originalState), buildingId, preferredHumanId);
+  return _applyBuilderAssignmentMut(structuredClone(originalState), buildingId, preferredHumanId);
 }
 
-/** Fill every open worker/builder slot on one building (one click). */
-export function fillBuildingWorkers(
-  originalState: WorldState,
+/** 
+ * Mutates state — assign an idle worker to a building.
+ * Internal mutating version to avoid redundant structuredClone in loops.
+ */
+function _assignIdleWorkerToBuildingMut(
+  state: WorldState,
   buildingId: number,
   preferredHumanId?: number,
 ): WorldState {
-  let state = originalState;
-  const preview = state.buildings.find((building) => building.id === buildingId);
-  if (!preview || preview.faction === 'rival') return state;
-
-  const cap = BUILDING_CONFIGS[preview.type].maxOccupants;
-  let guard = 0;
-  while (guard++ < Math.max(cap * 3, 6)) {
-    const building = state.buildings.find((candidate) => candidate.id === buildingId);
-    if (!building || building.occupants.length >= cap) break;
-    const before = building.occupants.length;
-    state = assignIdleWorkerToBuilding(state, buildingId, preferredHumanId);
-    const afterBuilding = state.buildings.find((candidate) => candidate.id === buildingId);
-    if (!afterBuilding || afterBuilding.occupants.length <= before) break;
-    preferredHumanId = undefined;
-  }
-  return state;
-}
-
-export function autoStaffAllWorkers(originalState: WorldState): WorldState {
-  const state = structuredClone(originalState);
-  const countAssigned = () => listPlayerHumans(state).filter((human) => human.homeBuildingId != null).length;
-  const before = countAssigned();
-  assignMissingWorkers(listPlayerHumans(state), state.buildings);
-  const after = countAssigned();
-  const assigned = after - before;
-
-  if (assigned > 0) {
-    addNotification(
-      state,
-      '⚒️ Auto-staff complete',
-      `${assigned} settler${assigned === 1 ? '' : 's'} assigned to job buildings.`,
-      'success',
-    );
-  } else {
-    // Still confirm the button did something — nothing idle to assign.
-    addNotification(
-      state,
-      '⚒️ Auto-staff',
-      before > 0
-        ? 'All job buildings are already staffed — no idle settlers to assign.'
-        : 'No settlers available to assign yet.',
-      'info',
-    );
-  }
-  return state;
-}
-
-export function assignIdleWorkerToBuilding(
-  originalState: WorldState,
-  buildingId: number,
-  preferredHumanId?: number,
-): WorldState {
-  const state = structuredClone(originalState);
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
   if (!building || building.faction === 'rival') return state;
 
   if (!building.completed) {
-    return applyBuilderAssignment(state, buildingId, preferredHumanId);
+    return _applyBuilderAssignmentMut(state, buildingId, preferredHumanId);
   }
 
   if (isResidenceBuildingType(building.type)) return state;
@@ -184,10 +149,20 @@ export function assignIdleWorkerToBuilding(
     (entity) => isEligibleIdleWorker(entity, state),
   );
 
+  // 🚀 OPTIMIZED: O(N) scan for best skill instead of O(N log N) full array sort
   if (!idleHuman && preferredHumanId === undefined) {
-    const candidates = state.entities.filter((entity) => isEligibleIdleWorker(entity, state));
-    candidates.sort((a, b) => readSkill(b, job) - readSkill(a, job));
-    idleHuman = candidates[0];
+    let bestCandidate: Entity | undefined;
+    let bestSkill = -1;
+    for (const entity of state.entities) {
+      if (isEligibleIdleWorker(entity, state)) {
+        const skill = readSkill(entity, job);
+        if (skill > bestSkill) {
+          bestSkill = skill;
+          bestCandidate = entity;
+        }
+      }
+    }
+    idleHuman = bestCandidate;
   }
 
   let reassignedFrom: Building | undefined;
@@ -229,6 +204,73 @@ export function assignIdleWorkerToBuilding(
     'info',
   );
 
+  return state;
+}
+
+export function assignIdleWorkerToBuilding(
+  originalState: WorldState,
+  buildingId: number,
+  preferredHumanId?: number,
+): WorldState {
+  return _assignIdleWorkerToBuildingMut(structuredClone(originalState), buildingId, preferredHumanId);
+}
+
+/** Fill every open worker/builder slot on one building (one click). */
+export function fillBuildingWorkers(
+  originalState: WorldState,
+  buildingId: number,
+  preferredHumanId?: number,
+): WorldState {
+  const preview = originalState.buildings.find((building) => building.id === buildingId);
+  if (!preview || preview.faction === 'rival') return originalState;
+
+  const cap = BUILDING_CONFIGS[preview.type].maxOccupants;
+  
+  // 🚀 OPTIMIZED: Clone ONCE to avoid O(N) deep clones in the while loop
+  let state = structuredClone(originalState);
+  let guard = 0;
+  
+  while (guard++ < Math.max(cap * 3, 6)) {
+    const building = state.buildings.find((candidate) => candidate.id === buildingId);
+    if (!building || building.occupants.length >= cap) break;
+    
+    const before = building.occupants.length;
+    state = _assignIdleWorkerToBuildingMut(state, buildingId, preferredHumanId);
+    
+    const afterBuilding = state.buildings.find((candidate) => candidate.id === buildingId);
+    if (!afterBuilding || afterBuilding.occupants.length <= before) break;
+    
+    preferredHumanId = undefined; // Only prefer the first one, then fill with anyone
+  }
+  
+  return state;
+}
+
+export function autoStaffAllWorkers(originalState: WorldState): WorldState {
+  const state = structuredClone(originalState);
+  const countAssigned = () => listPlayerHumans(state).filter((human) => human.homeBuildingId != null).length;
+  const before = countAssigned();
+  assignMissingWorkers(listPlayerHumans(state), state.buildings);
+  const after = countAssigned();
+  const assigned = after - before;
+
+  if (assigned > 0) {
+    addNotification(
+      state,
+      '⚒️ Auto-staff complete',
+      `${assigned} settler${assigned === 1 ? '' : 's'} assigned to job buildings.`,
+      'success',
+    );
+  } else {
+    addNotification(
+      state,
+      '⚒️ Auto-staff',
+      before > 0
+        ? 'All job buildings are already staffed — no idle settlers to assign.'
+        : 'No settlers available to assign yet.',
+      'info',
+    );
+  }
   return state;
 }
 

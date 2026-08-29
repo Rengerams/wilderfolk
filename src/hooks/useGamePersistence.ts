@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type RefObject,
@@ -15,43 +16,42 @@ import type { ViewState } from '../game/viewState';
 const AUTO_SAVE_INTERVAL_MS = 30_000;
 const AUTO_SAVE_FAILURE_MESSAGE = 'Auto-save failed — try manual save from the menu';
 
-export type SaveToast = {
+export interface SaveToast {
   message: string;
   type: 'success' | 'error';
-};
+}
 
-export type PersistCurrentGameOptions = {
+export interface PersistCurrentGameOptions {
   chronicle?: boolean;
   feedback?: boolean;
-};
+}
 
 type PersistenceLoop = Pick<
   GameLoop,
   'exportAuthoritativeWorld' | 'getView' | 'getWorld' | 'mutateWorld'
 >;
 
-export type GamePersistenceAccessors = {
+export interface GamePersistenceAccessors {
   getLoop: () => PersistenceLoop | null;
   getWorld: () => WorldState;
   getView: () => ViewState | null;
-};
+}
 
-type PersistGameCallbacks = {
+export interface PersistGameCallbacks {
   markGameSaved: () => void;
   showToast: (toast: SaveToast) => void;
-};
+}
 
-type UseGamePersistenceOptions = {
+export interface UseGamePersistenceOptions {
   loopRef: RefObject<GameLoop | null>;
   worldRef: RefObject<WorldState>;
   viewRef: RefObject<ViewState>;
   onGameSaved: () => void;
-};
+}
 
 /**
- * Persists the authoritative game snapshot without claiming any simulation ownership.
- * The caller supplies the current loop and display-world accessors so the worker remains
- * the sole source of truth whenever it is active.
+ * Persists the authoritative game snapshot.
+ * Coordinates directly with the web worker / GameLoop to guarantee authoritative state.
  */
 export async function persistGame(
   accessors: GamePersistenceAccessors,
@@ -85,11 +85,12 @@ export async function persistGame(
         population: worldToSave.humanPopulation,
       });
     } catch {
-      /* localStorage save succeeded */
+      /* Storage save succeeded, export download failed gracefully */
     }
   }
 
   callbacks.markGameSaved();
+
   if (feedback) {
     accessors.getLoop()?.mutateWorld((world) => {
       const id = world.nextFloatingTextId++;
@@ -104,10 +105,12 @@ export async function persistGame(
         scale: 1.5,
       });
     });
+
     callbacks.showToast({
-      message: chronicle && loadExportChronicleOnSave()
-        ? 'Game saved · chronicle .txt downloaded'
-        : 'Game saved successfully',
+      message:
+        chronicle && loadExportChronicleOnSave()
+          ? 'Game saved · chronicle .txt downloaded'
+          : 'Game saved successfully',
       type: 'success',
     });
   }
@@ -116,8 +119,7 @@ export async function persistGame(
 }
 
 /**
- * Owns browser persistence feedback and lifecycle behavior while leaving simulation
- * authority with the game loop and its worker-owned world snapshot.
+ * Owns browser persistence feedback, periodic auto-save intervals, and unmount lifecycle saves.
  */
 export function useGamePersistence({
   loopRef,
@@ -138,19 +140,23 @@ export function useGamePersistence({
     setSaveToast(null);
   }, []);
 
-  const persistenceAccessors: GamePersistenceAccessors = {
-    getLoop: () => loopRef.current,
-    getWorld: () => worldRef.current,
-    getView: () => viewRef.current,
-  };
+  const persistenceAccessors = useMemo<GamePersistenceAccessors>(
+    () => ({
+      getLoop: () => loopRef.current,
+      getWorld: () => worldRef.current,
+      getView: () => viewRef.current,
+    }),
+    [loopRef, worldRef, viewRef],
+  );
 
   const persistCurrentGame = useCallback(
-    (options?: PersistCurrentGameOptions) => persistGame(
-      persistenceAccessors,
-      { markGameSaved: onGameSaved, showToast: showSaveToast },
-      options,
-    ),
-    [onGameSaved, showSaveToast],
+    (options?: PersistCurrentGameOptions) =>
+      persistGame(
+        persistenceAccessors,
+        { markGameSaved: onGameSaved, showToast: showSaveToast },
+        options,
+      ),
+    [persistenceAccessors, onGameSaved, showSaveToast],
   );
 
   useEffect(() => {
@@ -163,18 +169,25 @@ export function useGamePersistence({
     persistCurrentGameRef.current = persistCurrentGame;
   }, [persistCurrentGame]);
 
-  // Auto-save every 30 seconds (stable interval via ref guard).
+  // Periodic Auto-Save
   const autoSaveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
     if (autoSaveIntervalRef.current) return;
+
     autoSaveIntervalRef.current = setInterval(() => {
       const loop = loopRef.current;
       if (!loop) return;
+
       const snapshot = loop.getWorld();
       if (!snapshot.autoSave) return;
-      void persistCurrentGameRef.current({ chronicle: false, feedback: false }).then((ok) => {
-        if (!ok) showSaveToast({ message: AUTO_SAVE_FAILURE_MESSAGE, type: 'error' });
-      });
+
+      void persistCurrentGameRef.current({ chronicle: false, feedback: false })
+        .then((ok) => {
+          if (!ok) showSaveToast({ message: AUTO_SAVE_FAILURE_MESSAGE, type: 'error' });
+        })
+        .catch(() => {
+          showSaveToast({ message: AUTO_SAVE_FAILURE_MESSAGE, type: 'error' });
+        });
     }, AUTO_SAVE_INTERVAL_MS);
 
     return () => {
@@ -185,13 +198,15 @@ export function useGamePersistence({
     };
   }, [loopRef, showSaveToast]);
 
-  // Best-effort save on unmount when a session is still active.
-  useEffect(() => () => {
-    const loop = loopRef.current;
-    if (!loop) return;
-    const view = loop.getView() ?? viewRef.current;
-    if (!view) return;
-    void persistCurrentGameRef.current({ chronicle: false, feedback: false });
+  // Best-effort save on component unmount
+  useEffect(() => {
+    return () => {
+      const loop = loopRef.current;
+      if (!loop) return;
+      const view = loop.getView() ?? viewRef.current;
+      if (!view) return;
+      void persistCurrentGameRef.current({ chronicle: false, feedback: false });
+    };
   }, [loopRef, viewRef]);
 
   return {

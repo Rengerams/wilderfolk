@@ -291,7 +291,7 @@ aside {
 /* Sidebar tab bar */
 .sidebar-tabs {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 3px;
   padding: 6px 4px;
   background: rgba(28, 25, 23, 0.85);
@@ -417,6 +417,128 @@ aside {
 }
 .build-panel-toggle {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* Focused game views — open a clear, wide destination over the map instead of
+   permanently squeezing the playable world into side columns. */
+.game-view-drawer {
+  position: absolute;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 30;
+  overflow: hidden;
+  border: 1px solid rgba(87, 83, 78, 0.9);
+  background:
+    linear-gradient(150deg, rgba(28, 25, 23, 0.98), rgba(12, 10, 9, 0.97)),
+    rgba(12, 10, 9, 0.97);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.48), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  transition: width 180ms ease, transform 180ms ease, opacity 180ms ease;
+}
+
+.game-view-drawer--info {
+  right: 0.75rem;
+  width: min(46rem, calc(100vw - 2rem));
+  border-radius: 1rem;
+}
+
+.game-view-drawer--build {
+  left: 0.75rem;
+  width: min(26rem, calc(100vw - 2rem));
+  border-radius: 1rem;
+}
+
+.game-view-drawer--open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.game-view-drawer--dock {
+  top: 0.75rem;
+  bottom: auto;
+  width: 4.5rem;
+  min-height: 26rem;
+  opacity: 0.97;
+}
+
+.game-view-drawer--dock .sidebar-tabs {
+  grid-template-columns: 1fr;
+  gap: 0.25rem;
+  padding: 0.4rem;
+  border-top: 0;
+}
+
+.game-view-drawer--dock .sidebar-tab {
+  min-height: 3.25rem;
+  padding-inline: 0.25rem;
+}
+
+.game-view-drawer--dock .sidebar-tab > span:not(.sidebar-tab-badge):not(.sidebar-tab-dot) {
+  display: none;
+}
+
+.game-view-drawer--dock .game-view-content {
+  display: none;
+}
+
+.game-view-drawer--rail {
+  bottom: auto;
+  width: 3.2rem;
+  min-height: 20rem;
+  opacity: 0.97;
+}
+
+.game-view-drawer--rail .build-panel-toggle {
+  right: -0.75rem;
+}
+
+.game-view-content {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.game-view-section {
+  min-height: 100%;
+  border: 1px solid rgba(87, 83, 78, 0.52);
+  border-radius: 0.9rem;
+  background: rgba(28, 25, 23, 0.58);
+  padding: 1rem;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.035) inset;
+}
+
+.game-view-section > div:first-child {
+  position: sticky;
+  top: -1rem;
+  z-index: 2;
+  margin: -1rem -1rem 0.9rem;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(87, 83, 78, 0.38);
+  background: rgba(28, 25, 23, 0.97);
+}
+
+@media (max-width: 720px) {
+  .game-view-drawer--info,
+  .game-view-drawer--build {
+    top: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    width: auto;
+    border-radius: 0.75rem;
+  }
+
+  .game-view-drawer--dock,
+  .game-view-drawer--rail {
+    top: 0.5rem;
+    right: 0.5rem;
+    bottom: auto;
+    left: auto;
+    width: 3.35rem;
+    min-height: 0;
+  }
+
+  .game-view-drawer--dock .sidebar-tabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* Custom focus styles */

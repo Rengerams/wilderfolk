@@ -1,19 +1,23 @@
-/**
- * Workshop recipe catalog + helpers. Leaf module (imports only resourceTypes).
- */
 import type { Resources } from './resourceTypes';
 
-export interface WorkshopRecipe {
-  id: string;
-  label: string;
-  emoji: string;
-  description: string;
-  inputs: Partial<Resources>;
-  baseGold: number;
-}
-export const DEFAULT_WORKSHOP_RECIPE_ID = 'wooden_goods';
+export type WorkshopRecipeId =
+  | 'wooden_goods'
+  | 'stone_tools'
+  | 'furniture'
+  | 'trade_trinkets';
 
-export const WORKSHOP_RECIPES: WorkshopRecipe[] = [
+export interface WorkshopRecipe {
+  readonly id: WorkshopRecipeId;
+  readonly label: string;
+  readonly emoji: string;
+  readonly description: string;
+  readonly inputs: Readonly<Partial<Resources>>;
+  readonly baseGold: number;
+}
+
+export const DEFAULT_WORKSHOP_RECIPE_ID: WorkshopRecipeId = 'wooden_goods';
+
+export const WORKSHOP_RECIPES: readonly WorkshopRecipe[] = [
   {
     id: 'wooden_goods',
     label: 'Wooden goods',
@@ -46,16 +50,63 @@ export const WORKSHOP_RECIPES: WorkshopRecipe[] = [
     inputs: { wood: 2 },
     baseGold: 2,
   },
-];
+] as const;
+
+/** O(1) fast lookup index by recipe ID. */
+const RECIPES_BY_ID = new Map<string, WorkshopRecipe>(
+  WORKSHOP_RECIPES.map((r) => [r.id, r]),
+);
+
+/**
+ * Retrieves a workshop recipe by ID with a guaranteed default fallback.
+ */
 export function getWorkshopRecipe(recipeId?: string): WorkshopRecipe {
-  return WORKSHOP_RECIPES.find((r) => r.id === recipeId) ?? WORKSHOP_RECIPES[0];
+  if (!recipeId) return WORKSHOP_RECIPES[0];
+  return RECIPES_BY_ID.get(recipeId) ?? WORKSHOP_RECIPES[0];
 }
 
-export function formatRecipeInputs(inputs: Partial<Resources>): string {
+/**
+ * Validates whether a string corresponds to a registered workshop recipe ID.
+ */
+export function isValidWorkshopRecipeId(id: unknown): id is WorkshopRecipeId {
+  return typeof id === 'string' && RECIPES_BY_ID.has(id);
+}
+
+const RESOURCE_LABELS: Record<keyof Resources, string> = {
+  wood: '🪵 wood',
+  stone: '🪨 stone',
+  food: '🍖 food',
+  gold: '💰 gold',
+  iron: '🔩 iron',
+};
+
+/**
+ * Formats a recipe's input requirements into a human-readable string (e.g., "5 🪵 wood + 2 🪨 stone").
+ */
+export function formatRecipeInputs(inputs: Readonly<Partial<Resources>>): string {
   const parts: string[] = [];
-  if (inputs.wood) parts.push(`${inputs.wood} wood`);
-  if (inputs.stone) parts.push(`${inputs.stone} stone`);
-  if (inputs.food) parts.push(`${inputs.food} food`);
-  if (inputs.gold) parts.push(`${inputs.gold} gold`);
+
+  if (inputs.wood && inputs.wood > 0) parts.push(`${inputs.wood} ${RESOURCE_LABELS.wood}`);
+  if (inputs.stone && inputs.stone > 0) parts.push(`${inputs.stone} ${RESOURCE_LABELS.stone}`);
+  if (inputs.iron && inputs.iron > 0) parts.push(`${inputs.iron} ${RESOURCE_LABELS.iron}`);
+  if (inputs.food && inputs.food > 0) parts.push(`${inputs.food} ${RESOURCE_LABELS.food}`);
+  if (inputs.gold && inputs.gold > 0) parts.push(`${inputs.gold} ${RESOURCE_LABELS.gold}`);
+
   return parts.join(' + ') || '—';
+}
+
+/**
+ * Checks whether the colony currently possesses sufficient input materials to produce a recipe.
+ */
+export function canAffordWorkshopRecipe(
+  available: Readonly<Resources>,
+  recipe: WorkshopRecipe,
+): boolean {
+  for (const [key, amount] of Object.entries(recipe.inputs)) {
+    const resKey = key as keyof Resources;
+    if (amount && (available[resKey] ?? 0) < amount) {
+      return false;
+    }
+  }
+  return true;
 }

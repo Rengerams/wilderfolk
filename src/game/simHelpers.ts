@@ -3,12 +3,16 @@
  */
 import type { WorldState } from './gameTypes';
 import { Season } from './gameTypes';
-import type { Season as SeasonType } from './gameTypes';
 
-export function getSeason(dayInYear: number): SeasonType {
-  if (dayInYear < 90) return Season.Spring;
-  if (dayInYear < 180) return Season.Summer;
-  if (dayInYear < 270) return Season.Fall;
+export const DAYS_PER_SEASON = 90;
+export const DAYS_PER_YEAR = 360;
+
+/** Retrieves the active season based on the day of the year (0–359). */
+export function getSeason(dayInYear: number): Season {
+  const normalizedDay = ((dayInYear % DAYS_PER_YEAR) + DAYS_PER_YEAR) % DAYS_PER_YEAR;
+  if (normalizedDay < DAYS_PER_SEASON) return Season.Spring;
+  if (normalizedDay < DAYS_PER_SEASON * 2) return Season.Summer;
+  if (normalizedDay < DAYS_PER_SEASON * 3) return Season.Fall;
   return Season.Winter;
 }
 
@@ -20,21 +24,26 @@ export function getSeason(dayInYear: number): SeasonType {
 export function seasonBlendForDay(
   dayInYear: number,
   blendDays = 5,
-): { from: SeasonType; to: SeasonType; t: number } | null {
+): { from: Season; to: Season; t: number } | null {
+  const normalizedDay = ((dayInYear % DAYS_PER_YEAR) + DAYS_PER_YEAR) % DAYS_PER_YEAR;
   const boundaries = [90, 180, 270, 360];
-  for (const boundary of boundaries) {
-    const until = boundary - dayInYear;
+
+  for (let i = 0; i < boundaries.length; i++) {
+    const boundary = boundaries[i];
+    const until = boundary - normalizedDay;
     if (until <= 0 || until > blendDays) continue;
+
     return {
       from: getSeason(boundary - 1),
-      to: getSeason(boundary % 360),
+      to: getSeason(boundary % DAYS_PER_YEAR),
       t: 1 - until / blendDays,
     };
   }
+
   return null;
 }
 
-export function getReproductionMultiplier(season: SeasonType): number {
+export function getReproductionMultiplier(season: Season): number {
   switch (season) {
     case Season.Spring:
       return 1.4;
@@ -53,13 +62,23 @@ export function hasTech(state: WorldState, techId: string): boolean {
   return state.unlockedTechs.includes(techId);
 }
 
+/**
+ * Calculates compound technology bonuses (multipliers and flat additions)
+ * for a specific effect key across all unlocked research nodes.
+ */
 export function getMultiplier(state: WorldState, key: string): number {
   let multiplier = 1;
   let add = 0;
-  for (const node of state.researchNodes) {
-    if (!node.researched) continue;
-    for (const effect of node.effects) {
+
+  const nodes = state.researchNodes;
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    if (!node.researched || !node.effects) continue;
+
+    for (let j = 0; j < node.effects.length; j++) {
+      const effect = node.effects[j];
       if (effect.target !== key) continue;
+
       if (typeof effect.multiplier === 'number') {
         multiplier *= effect.multiplier;
       }
@@ -68,20 +87,22 @@ export function getMultiplier(state: WorldState, key: string): number {
       }
     }
   }
+
   return multiplier + add;
 }
 
+/** Clamps reputation strictly between 0 and 100. */
 export function addReputation(state: WorldState, amount: number): void {
-  // BUG-14: cap at 100 like every other rep-gain site — an uncapped rep would
-  // inflate the population cap (populationGrowth: +1 per 10 reputation).
-  state.villageReputation = Math.min(100, Math.max(0, state.villageReputation + amount));
+  const current = state.villageReputation ?? 0;
+  state.villageReputation = Math.max(0, Math.min(100, current + amount));
 }
 
 /**
  * Production penalty from pollution.
  * At 0% pollution: 1.0 · At 100% pollution: 0.5.
- * Lives here (not in a layer file) so daily production can import without coupling layers.
+ * Lives here so daily production can import without coupling layers.
  */
 export function getPollutionProductionMultiplier(state: WorldState): number {
-  return Math.max(0.5, 1 - state.pollutionLevel / 200);
+  const pollution = state.pollutionLevel ?? 0;
+  return Math.max(0.5, 1 - pollution / 200);
 }

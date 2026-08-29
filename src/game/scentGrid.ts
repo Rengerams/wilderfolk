@@ -74,7 +74,11 @@ export class ScentGrid implements ScentGridRuntime {
   }
 
   static fromRuntime(runtime: ScentGridRuntime): ScentGrid {
-    const grid = new ScentGrid(runtime.cols * runtime.cellSize, runtime.rows * runtime.cellSize, runtime.cellSize);
+    const grid = new ScentGrid(
+      runtime.cols * runtime.cellSize,
+      runtime.rows * runtime.cellSize,
+      runtime.cellSize,
+    );
     grid.values.set(runtime.values);
     return grid;
   }
@@ -94,6 +98,14 @@ export class ScentGrid implements ScentGridRuntime {
     return grid as ScentGrid;
   }
 
+  clone(): ScentGrid {
+    return ScentGrid.fromRuntime(this);
+  }
+
+  clear(): void {
+    this.values.fill(0);
+  }
+
   private index(col: number, row: number): number {
     return row * this.cols + col;
   }
@@ -105,8 +117,9 @@ export class ScentGrid implements ScentGridRuntime {
   }
 
   decay(factor = SCENT_DECAY_PER_TICK): void {
-    for (let i = 0; i < this.values.length; i++) {
-      this.values[i] *= factor;
+    const vals = this.values;
+    for (let i = 0; i < vals.length; i++) {
+      vals[i] *= factor;
     }
   }
 
@@ -123,17 +136,20 @@ export class ScentGrid implements ScentGridRuntime {
       if (!entity.alive) continue;
       const type = entity.type;
       if (
-        type !== EntityType.Wolf
-        && type !== EntityType.Fox
-        && type !== EntityType.Werewolf
+        type !== EntityType.Wolf &&
+        type !== EntityType.Fox &&
+        type !== EntityType.Werewolf
       ) {
         continue;
       }
       let amount = 0;
       if (type === EntityType.Wolf) amount = WOLF_SCENT_DEPOSIT;
       else if (type === EntityType.Fox) amount = FOX_SCENT_DEPOSIT;
-      else if (type === EntityType.Werewolf && isActiveMoonHowler(entity)) amount = WEREWOLF_SCENT_DEPOSIT;
-      else continue;
+      else if (type === EntityType.Werewolf && isActiveMoonHowler(entity)) {
+        amount = WEREWOLF_SCENT_DEPOSIT;
+      } else {
+        continue;
+      }
       this.deposit(entity.x, entity.y, amount);
     }
   }
@@ -144,24 +160,40 @@ export class ScentGrid implements ScentGridRuntime {
   }
 
   /**
-   * Sample 3×3 neighborhood — grazers move opposite the scent gradient.
-   * Returns zero vector when scent is below threshold.
+   * Sample 3×3 neighborhood into a pre-allocated sample object (zero-allocation).
    */
-  sampleFleeGradient(x: number, y: number, sensitivity = 1): ScentGradientSample {
+  sampleFleeGradientInto(
+    x: number,
+    y: number,
+    sensitivity: number,
+    out: ScentGradientSample,
+  ): ScentGradientSample {
     const { col: cx, row: cy } = this.cellCoords(x, y);
     let sum = 0;
     let gradX = 0;
     let gradY = 0;
     let count = 0;
 
-    for (let row = Math.max(0, cy - 1); row <= Math.min(this.rows - 1, cy + 1); row++) {
-      for (let col = Math.max(0, cx - 1); col <= Math.min(this.cols - 1, cx + 1); col++) {
-        const scent = this.values[this.index(col, row)];
-        if (!Number.isFinite(scent) || scent <= 0) continue;
-        const cellCenterX = (col + 0.5) * this.cellSize;
-        const cellCenterY = (row + 0.5) * this.cellSize;
-        gradX += scent * (cellCenterX - x);
-        gradY += scent * (cellCenterY - y);
+    const minRow = Math.max(0, cy - 1);
+    const maxRow = Math.min(this.rows - 1, cy + 1);
+    const minCol = Math.max(0, cx - 1);
+    const maxCol = Math.min(this.cols - 1, cx + 1);
+    const cellSize = this.cellSize;
+
+    for (let row = minRow; row <= maxRow; row++) {
+      const rowOffset = row * this.cols;
+      const cellCenterY = (row + 0.5) * cellSize;
+      const dy = cellCenterY - y;
+
+      for (let col = minCol; col <= maxCol; col++) {
+        const scent = this.values[rowOffset + col];
+        if (scent <= 0 || !Number.isFinite(scent)) continue;
+
+        const cellCenterX = (col + 0.5) * cellSize;
+        const dx = cellCenterX - x;
+
+        gradX += scent * dx;
+        gradY += scent * dy;
         sum += scent;
         count++;
       }
@@ -169,15 +201,25 @@ export class ScentGrid implements ScentGridRuntime {
 
     const strength = count > 0 ? (sum / count) * sensitivity : 0;
     if (strength < SCENT_FLEE_MIN) {
-      return { awayX: 0, awayY: 0, strength: 0 };
+      out.awayX = 0;
+      out.awayY = 0;
+      out.strength = 0;
+      return out;
     }
 
-    const mag = Math.hypot(gradX, gradY) || 1;
-    return {
-      awayX: -gradX / mag,
-      awayY: -gradY / mag,
-      strength,
-    };
+    const mag = Math.hypot(gradX, gradY) || 1.0;
+    out.awayX = -gradX / mag;
+    out.awayY = -gradY / mag;
+    out.strength = strength;
+    return out;
+  }
+
+  /**
+   * Sample 3×3 neighborhood — grazers move opposite the scent gradient.
+   * Returns zero vector when scent is below threshold.
+   */
+  sampleFleeGradient(x: number, y: number, sensitivity = 1): ScentGradientSample {
+    return this.sampleFleeGradientInto(x, y, sensitivity, { awayX: 0, awayY: 0, strength: 0 });
   }
 
   packSidecar(tick: number, into?: ArrayBuffer): ArrayBuffer {
@@ -257,11 +299,14 @@ export function isScentGridRuntime(value: unknown): value is ScentGridRuntime {
   if (!value || typeof value !== 'object') return false;
   const grid = value as ScentGridRuntime;
   return (
-    Number.isFinite(grid.cols) && grid.cols > 0
-    && Number.isFinite(grid.rows) && grid.rows > 0
-    && Number.isFinite(grid.cellSize) && grid.cellSize > 0
-    && grid.values instanceof Float32Array
-    && grid.values.length === grid.cols * grid.rows
+    Number.isFinite(grid.cols) &&
+    grid.cols > 0 &&
+    Number.isFinite(grid.rows) &&
+    grid.rows > 0 &&
+    Number.isFinite(grid.cellSize) &&
+    grid.cellSize > 0 &&
+    grid.values instanceof Float32Array &&
+    grid.values.length === grid.cols * grid.rows
   );
 }
 
@@ -274,14 +319,12 @@ export function ensureScentGrid(
 
   const existing = state.scentGrid;
   if (
-    isScentGridRuntime(existing)
-    && existing.cols === cols
-    && existing.rows === rows
-    && existing.cellSize === cellSize
+    isScentGridRuntime(existing) &&
+    existing.cols === cols &&
+    existing.rows === rows &&
+    existing.cellSize === cellSize
   ) {
-    const grid = existing instanceof ScentGrid
-      ? existing
-      : ScentGrid.adoptRuntime(existing);
+    const grid = existing instanceof ScentGrid ? existing : ScentGrid.adoptRuntime(existing);
     state.scentGrid = grid;
     return grid;
   }

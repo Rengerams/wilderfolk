@@ -178,10 +178,14 @@ export function syncAdjacency(
 }
 
 export function unindexAdjacency(
-  state: { adjacency?: AdjacencyIndex },
+  state: { buildings: Building[]; adjacency?: AdjacencyIndex },
   buildingId: number,
 ): void {
-  state.adjacency?.removeById(buildingId);
+  // `structuredClone` preserves a truthy object but removes AdjacencyIndex's
+  // prototype. Rebuild only when a cache was present; callers with no cache do
+  // not need one solely to remove an already-unindexed building.
+  if (!state.adjacency) return;
+  ensureAdjacencyIndex(state).removeById(buildingId);
 }
 
 /** Full rebuild helper — tests and one-off estimates. */

@@ -155,6 +155,16 @@ export {
   wildlifeCountsFromPopulation,
   formatPopulationBrief,
 } from './entityCounts';
+export type { ViewState } from './viewState';
+
+export { EntityCatalog } from './entityCatalog';
+export { computeVillageStats } from './uiSimSummary';
+export type { VillageStatsSummary } from './uiSimSummary';
+export { getPriorityAlerts } from './priorityAlerts';
+export type { PriorityAlert } from './priorityAlerts';
+export { getFocusHints } from './focusHints';
+export type { FocusHintAction } from './focusHints';
+
 export type { PopulationCounts } from './entityCounts';
 export {
   saveGame,

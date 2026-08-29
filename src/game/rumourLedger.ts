@@ -8,7 +8,15 @@ import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
-import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard } from './storyHelpers';
+import {
+  storyFlag,
+  setStoryFlags,
+  bumpVillageReputation,
+  eligibleDayForStory,
+  seededRoll,
+  hashSalt,
+  pushStoryCard,
+} from './storyHelpers';
 
 export const STORY_KEY = 'rumour_ledger';
 export const AUTHORED_STORY_COOLDOWN_FLAG = 'authored_story_cd_until';
@@ -50,25 +58,40 @@ type SourceKind = (typeof SOURCE_KINDS)[number];
 
 const RUMOUR_TEXT: Record<SourceKind, string> = {
   family: 'The child carries an unusually lucky bloodline.',
-  civic: 'The officials are hiding grain in the Town Hall.',
-  ecology: 'The wolves have chosen a new leader.',
-  frontier: 'The rival settlement is afraid of our guards.',
-  scandal: 'The entire family is planning a coup.',
+  civic: 'The officials are hiding surplus grain in the Town Hall cellar.',
+  ecology: 'The forest predators are gathering under a cunning new alpha.',
+  frontier: 'The rival settlement is terrified of our frontier guards.',
+  scandal: 'A prominent local family is secretly planning a village coup.',
 };
 
 type Stage1Choice = 'correct_record' | 'encourage' | 'ignore' | 'investigate';
+
+const VALID_CHOICES: ReadonlySet<string> = new Set<Stage1Choice>([
+  'correct_record',
+  'encourage',
+  'ignore',
+  'investigate',
+]);
 
 export function rumourLedgerEligibleDay(mapSeed: number | undefined): number {
   return eligibleDayForStory(mapSeed, STORY_KEY, MIN_DAY, WINDOW_DAYS);
 }
 
+/**
+ * Scans backwards through the event log to find the most recent matching event category.
+ */
 function recentSourceKind(state: WorldState): SourceKind | null {
-  const recent = state.eventLog.slice(-30);
-  if (recent.some((e) => e.type === 'birth' || e.type === 'marriage')) return 'family';
-  if (recent.some((e) => e.type === 'milestone' || e.type === 'research')) return 'civic';
-  if (recent.some((e) => e.type === 'season')) return 'ecology';
-  if (recent.some((e) => e.type === 'combat' || e.type === 'trade')) return 'frontier';
-  if (recent.some((e) => e.type === 'scandal')) return 'scandal';
+  const log = state.eventLog;
+  const scanLimit = Math.max(0, log.length - 40);
+
+  for (let i = log.length - 1; i >= scanLimit; i--) {
+    const type = log[i].type;
+    if (type === 'birth' || type === 'marriage') return 'family';
+    if (type === 'milestone' || type === 'research') return 'civic';
+    if (type === 'season' || type === 'disaster') return 'ecology';
+    if (type === 'combat' || type === 'trade' || type === 'diplomacy') return 'frontier';
+    if (type === 'scandal' || type === 'crime') return 'scandal';
+  }
   return null;
 }
 
@@ -78,15 +101,18 @@ function hasTownHall(state: WorldState): boolean {
 
 export function maybeOfferRumourLedger(state: WorldState): void {
   if (storyFlag(state, FLAG_OFFERED) > 0) return;
+
   const colonyDay = getColonyDay(state);
   if (colonyDay < rumourLedgerEligibleDay(state.worldMap?.seed)) return;
   if (storyFlag(state, AUTHORED_STORY_COOLDOWN_FLAG) > colonyDay) return;
   if ((state.pendingStoryEvents ?? []).length > 0) return;
   if (!hasTownHall(state)) return;
+
   const sourceKind = recentSourceKind(state);
   if (!sourceKind) return;
 
-  const truthRoll = seededRoll(state.worldMap?.seed ?? 1, hashSalt(`rumour-truth-${colonyDay}`));
+  const seed = state.worldMap?.seed ?? 1;
+  const truthRoll = seededRoll(seed, hashSalt(`rumour-truth-${colonyDay}`));
   const truth = truthRoll < 0.3 ? TRUTH.true : truthRoll < 0.7 ? TRUTH.exaggerated : TRUTH.false;
 
   setStoryFlags(state, {
@@ -103,33 +129,66 @@ export function maybeOfferRumourLedger(state: WorldState): void {
     emoji: '📜',
     storyKey: STORY_KEY,
     title: 'The Rumour Ledger',
-    description: `Several villagers insist that: “${RUMOUR_TEXT[sourceKind]}”`,
+    description: `Whispers spread through the commons: “${RUMOUR_TEXT[sourceKind]}”`,
     choices: [
-      { id: 'correct_record', label: 'Correct the record', detail: 'Reduces rumour strength; improves trust.' },
-      { id: 'encourage', label: 'Encourage the rumour', detail: 'Temporary morale; future exaggeration.' },
-      { id: 'ignore', label: 'Ignore it', detail: 'It may fade — or spread.' },
-      { id: 'investigate', label: 'Investigate', detail: 'Reveals whether the rumour is true, partly true, or false.' },
+      {
+        id: 'correct_record',
+        label: 'Correct the record',
+        detail: 'Dispel gossip with official statements. Restores calm and institutional trust.',
+      },
+      {
+        id: 'encourage',
+        label: 'Encourage the rumour',
+        detail: 'Fuel the fire for immediate morale, though falsehoods will backfire later.',
+      },
+      {
+        id: 'ignore',
+        label: 'Ignore it',
+        detail: 'Allow gossip to take its natural course without official interference.',
+      },
+      {
+        id: 'investigate',
+        label: 'Investigate discreetly',
+        detail: 'Task town scribes with determining whether the claim holds any truth.',
+      },
     ],
     createdAtTick: state.tick,
     expiresAtTick: state.tick + TICKS_PER_DAY * CARD_DURATION_DAYS,
   };
+
   pushStoryCard(state, event);
-  addNotification(state, '📜 The Rumour Ledger', 'The scribe brings a rumour to the Town Hall.', 'info');
+  addNotification(state, '📜 The Rumour Ledger', 'Town scribes bring widespread village rumours to your attention.', 'info');
 }
 
 export function resolveRumourLedger(state: WorldState, choiceId: string): boolean {
   const status = storyFlag(state, FLAG_STATUS);
-  if (status === STATUS.offered) return resolveStage1(state, choiceId as Stage1Choice);
-  return true;
+  if (status !== STATUS.offered) return true;
+
+  const safeChoice: Stage1Choice = VALID_CHOICES.has(choiceId)
+    ? (choiceId as Stage1Choice)
+    : 'ignore';
+
+  return resolveStage1(state, safeChoice);
 }
 
 function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
   const colonyDay = getColonyDay(state);
   const truth = storyFlag(state, FLAG_TRUTH);
+  const seed = state.worldMap?.seed ?? 1;
 
   if (choice === 'investigate') {
-    const truthText = truth === TRUTH.true ? 'mostly true' : truth === TRUTH.exaggerated ? 'partly true' : 'false';
-    addNotification(state, '📜 Investigation complete', `The scribe reports the rumour is ${truthText}.`, 'info');
+    const truthText =
+      truth === TRUTH.true
+        ? 'entirely true'
+        : truth === TRUTH.exaggerated
+          ? 'partially true, but heavily embellished'
+          : 'completely fabricated';
+    addNotification(
+      state,
+      '📜 Investigation Complete',
+      `The scribes conclude the rumour was ${truthText}.`,
+      'info',
+    );
   }
 
   const responseMap: Record<Stage1Choice, number> = {
@@ -139,52 +198,80 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
     investigate: RESPONSE.investigate,
   };
 
+  const delayDays = 2 + Math.floor(seededRoll(seed, hashSalt(`rumour-resolution-${colonyDay}`)) * 3);
+
   setStoryFlags(state, {
     [FLAG_STATUS]: STATUS.responded,
     [FLAG_RESPONSE]: responseMap[choice],
-    [FLAG_RESOLVE_DAY]: colonyDay + 2 + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('rumour-resolution')) * 3),
+    [FLAG_RESOLVE_DAY]: colonyDay + delayDays,
     ...(choice === 'encourage'
       ? { [AUTHORED_STORY_COOLDOWN_FLAG]: colonyDay + 28 }
       : {}),
   });
+
   return true;
 }
 
 export function tickRumourLedger(state: WorldState): void {
   if (storyFlag(state, FLAG_RESOLVED) > 0) return;
   if (storyFlag(state, FLAG_STATUS) !== STATUS.responded) return;
+
   const colonyDay = getColonyDay(state);
   const resolveDay = storyFlag(state, FLAG_RESOLVE_DAY);
   if (resolveDay <= 0 || colonyDay < resolveDay) return;
 
   const response = storyFlag(state, FLAG_RESPONSE);
   const truth = storyFlag(state, FLAG_TRUTH);
-  const colonyDayNow = getColonyDay(state);
+
   let repDelta = 0;
-  let headline = '📜 The rumour fades';
+  let headline = '📜 The Rumour Fades';
+  let detail = 'The talk around the village square has quietly died down.';
 
   switch (response) {
     case RESPONSE.correct:
       repDelta = 2;
-      headline = '📜 The record is corrected';
+      headline = '📜 The Record Restored';
+      detail = 'Clear communication dispelled confusion and reinforced trust in village leadership.';
       break;
+
     case RESPONSE.encourage:
-      repDelta = truth === TRUTH.false ? -1 : 2;
-      headline = truth === TRUTH.false ? '📜 The lie is exposed' : '📜 The rumour helps';
+      if (truth === TRUTH.false) {
+        repDelta = -2;
+        headline = '📜 Fabrication Exposed';
+        detail = 'The endorsed rumour unraveled as a falsehood, causing embarrassment and cynicism.';
+      } else {
+        repDelta = 2;
+        headline = '📜 Folk Legend Affirmed';
+        detail = 'The popular tale captured the imagination of the settlement, boosting morale.';
+      }
       break;
+
     case RESPONSE.investigate:
       repDelta = truth === TRUTH.false ? 2 : 1;
-      headline = '📜 The truth is known';
+      headline = '📜 Truth Clarified';
+      detail = 'The town council acted on verifiable facts, earning respect from the settlers.';
       break;
+
+    case RESPONSE.ignore:
     default:
+      repDelta = truth === TRUTH.false ? 0 : -1;
+      headline = '📜 Unchecked Whispers';
+      detail = 'Lacking official comment, the rumors left subtle unease throughout the village.';
       break;
   }
 
-  if (repDelta !== 0) bumpVillageReputation(state, repDelta);
+  if (repDelta !== 0) {
+    bumpVillageReputation(state, repDelta);
+  }
+
   setStoryFlags(state, {
     [FLAG_RESOLVED]: state.tick,
-    [AUTHORED_STORY_COOLDOWN_FLAG]: colonyDayNow + AUTHORED_STORY_COOLDOWN_DAYS,
+    [AUTHORED_STORY_COOLDOWN_FLAG]: colonyDay + AUTHORED_STORY_COOLDOWN_DAYS,
   });
-  addBigNews(state, headline, `The rumour resolves with a ${repDelta >= 0 ? '+' : ''}${repDelta} reputation change.`, repDelta >= 0 ? 'positive' : 'negative');
-  logEvent(state, 'event', `The Rumour Ledger resolved (response ${response}).`, undefined);
+
+  const repSign = repDelta >= 0 ? `+${repDelta}` : `${repDelta}`;
+  const sentiment = repDelta >= 0 ? 'positive' : 'negative';
+
+  addBigNews(state, headline, `${detail} (${repSign} Reputation)`, sentiment);
+  logEvent(state, 'event', `The Rumour Ledger concluded: ${headline}.`);
 }

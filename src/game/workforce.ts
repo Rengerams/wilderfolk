@@ -1,18 +1,23 @@
-/**
- * Workforce staffing: auto-assign, rebalance, workplace lookup, prisoner release.
- */
 import type { Building, Entity, WorldState } from './gameTypes';
-import { BuildingType, EntityType, BUILDING_CONFIGS, BUILDING_JOB_TYPES, JobType, LEADER_OCCUPATION } from './gameTypes';
+import {
+  BuildingType,
+  EntityType,
+  BUILDING_CONFIGS,
+  BUILDING_JOB_TYPES,
+  JobType,
+  LEADER_OCCUPATION,
+} from './gameTypes';
 import { getOccupationForBuilding, ensureEntitySkills, readSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
-import { assignMissingResidences, hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './dayCycle';
+import {
+  assignMissingResidences,
+  hasWorkAssignment,
+  isImprisoned,
+  isResidenceBuildingType,
+} from './residency';
 import { logEvent } from './eventLog';
 import { addFloatingText } from './simEffects';
 import { getVenueAutoStaffingTarget } from './venueSchedule';
-
-function isOnConstructionCrew(human: Entity, buildings: Building[]): boolean {
-  return buildings.some((b) => !b.completed && b.occupants.includes(human.id));
-}
 
 const AUTO_JOB_BUILDING_PRIORITY: BuildingType[] = [
   BuildingType.Farm,
@@ -33,7 +38,7 @@ const AUTO_JOB_BUILDING_PRIORITY: BuildingType[] = [
   BuildingType.Hotel,
 ];
 
-/** Job sites the player staffs manually (no auto-fill each tick). */
+/** Workplaces that require manual player staffing by default. */
 const MANUAL_STAFF_BUILDINGS = new Set<BuildingType>([
   BuildingType.Church,
   BuildingType.Prison,
@@ -42,14 +47,32 @@ const MANUAL_STAFF_BUILDINGS = new Set<BuildingType>([
   BuildingType.TownHall,
 ]);
 
+function formatSettlerName(entity: Entity): string {
+  const base = entity.name || 'Settler';
+  const full = entity.surname ? `${base} ${entity.surname}` : base;
+  return entity.title ? `${full} ${entity.title}` : full;
+}
+
+function isOnConstructionCrew(human: Entity, buildings: Building[]): boolean {
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i];
+    if (!b.completed && b.occupants.includes(human.id)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function isManualStaffBuilding(type: BuildingType): boolean {
   return MANUAL_STAFF_BUILDINGS.has(type);
 }
 
-/** Per-building override, with legacy special buildings remaining manual by default. */
+/** Per-building staffing mode check with fallback to building-type defaults. */
 export function isManualStaffingBuilding(building: Pick<Building, 'type' | 'staffingMode'>): boolean {
-  return building.staffingMode === 'manual'
-    || (building.staffingMode == null && isManualStaffBuilding(building.type));
+  return (
+    building.staffingMode === 'manual' ||
+    (building.staffingMode == null && isManualStaffBuilding(building.type))
+  );
 }
 
 export function jobBuildingPriority(type: BuildingType): number {
@@ -58,12 +81,20 @@ export function jobBuildingPriority(type: BuildingType): number {
 }
 
 export function countWorkersAtBuilding(humans: Entity[], buildingId: number): number {
-  return humans.filter((h) => h.alive && !h.faction && h.homeBuildingId === buildingId).length;
+  let count = 0;
+  for (let i = 0; i < humans.length; i++) {
+    const h = humans[i];
+    if (h.alive && !h.faction && h.homeBuildingId === buildingId) {
+      count++;
+    }
+  }
+  return count;
 }
 
 export function countStaffedWorkersAtType(buildings: Building[], humans: Entity[], type: BuildingType): number {
   let total = 0;
-  for (const b of buildings) {
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i];
     if (b.completed && b.type === type && b.faction !== 'rival') {
       total += countWorkersAtBuilding(humans, b.id);
     }
@@ -77,7 +108,6 @@ export function getSmithBonus(buildings: Building[], humans: Entity[]): number {
   return Math.min(1.5, 1 + workers * 0.25);
 }
 
-/** 0 = no church, 0.5 = built but unstaffed, 1 = staffed priest on duty */
 export function getChurchStrength(buildings: Building[], humans: Entity[]): number {
   const hasChurch = buildings.some(
     (b) => b.completed && b.type === BuildingType.Church && b.faction !== 'rival',
@@ -89,7 +119,11 @@ export function getChurchStrength(buildings: Building[], humans: Entity[]): numb
 
 export function hasStaffedSchool(buildings: Building[]): boolean {
   return buildings.some(
-    (b) => b.completed && b.type === BuildingType.School && b.faction !== 'rival' && b.occupants.length > 0,
+    (b) =>
+      b.completed &&
+      b.type === BuildingType.School &&
+      b.faction !== 'rival' &&
+      b.occupants.length > 0,
   );
 }
 
@@ -114,9 +148,9 @@ export function findOverstaffedDonorBuilding(
   return jobBuildings
     .filter(
       (b) =>
-        b.id !== excludeBuildingId
-        && !isManualStaffingBuilding(b) // never strip protected/manual buildings for farms
-        && countWorkersAtBuilding(humans, b.id) >= 2,
+        b.id !== excludeBuildingId &&
+        !isManualStaffingBuilding(b) &&
+        countWorkersAtBuilding(humans, b.id) >= 2,
     )
     .sort((a, b) => countWorkersAtBuilding(humans, a.id) - countWorkersAtBuilding(humans, b.id))[0];
 }
@@ -132,41 +166,37 @@ export function pickWorkerToTransfer(
 
   const workers = humans.filter(
     (h) =>
-      isPlayerHuman(h)
-      && h.alive
-      && !h.isJuvenile
-      && !h.pregnant
-      && h.homeBuildingId === fromBuilding.id,
+      isPlayerHuman(h) &&
+      h.alive &&
+      !h.isJuvenile &&
+      !h.pregnant &&
+      h.homeBuildingId === fromBuilding.id,
   );
   if (workers.length === 0) return undefined;
 
   const toX = toBuilding.x + toBuilding.width / 2;
   const toY = toBuilding.y + toBuilding.height / 2;
+
   workers.sort((a, b) => {
     const aFit = readSkill(a, toJob) - readSkill(a, fromJob);
     const bFit = readSkill(b, toJob) - readSkill(b, fromJob);
     if (bFit !== aFit) return bFit - aFit;
-    const da = Math.hypot(a.x - toX, a.y - toY);
-    const db = Math.hypot(b.x - toX, b.y - toY);
-    return da - db;
+
+    const dxa = a.x - toX;
+    const dya = a.y - toY;
+    const dxb = b.x - toX;
+    const dyb = b.y - toY;
+    return dxa * dxa + dya * dya - (dxb * dxb + dyb * dyb);
   });
+
   return workers[0];
 }
 
+// ============ AUTHORITATIVE WORKFORCE MUTATIONS ============
+
 /**
- * Named assignment transition — assign ONE living adult settler to a completed
- * workplace. This is the single write path for `homeBuildingId`, workplace
- * `occupants`, and workplace `occupation`/`job` consistency (SIMULATION_AUTHORITY
- * §3 workforce row). Callers pick the candidate; this transition owns the write.
- *
- * Guards: completed job site, alive adult non-faction settler, not imprisoned,
- * not pregnant, not already holding a DIFFERENT workplace (duplicate-assignment
- * prevention — the Objective 1 invariant). Re-assigning to the same building is
- * idempotent.
- *
- * Leader-aware: the leader participates in normal workforce assignment like any
- * other settler (authority §5, 2026-08-20) — assigning them keeps
- * `occupation = LEADER_OCCUPATION` (office status survives work).
+ * Named assignment transition — assign ONE living adult settler to a completed workplace.
+ * Single write path for `homeBuildingId`, workplace `occupants`, and `job`/`occupation` properties.
  */
 export function assignWorkerTransition(human: Entity, building: Building): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
@@ -175,7 +205,7 @@ export function assignWorkerTransition(human: Entity, building: Building): boole
   if (human.prisonBuildingId != null) return false;
   if (human.pregnant) return false;
   if (human.homeBuildingId != null && human.homeBuildingId !== building.id) return false;
-  if (building.occupants.includes(human.id)) return true; // idempotent
+  if (building.occupants.includes(human.id)) return true; // Idempotent
 
   const keepOffice = human.occupation === LEADER_OCCUPATION;
   building.occupants.push(human.id);
@@ -187,12 +217,12 @@ export function assignWorkerTransition(human: Entity, building: Building): boole
 }
 
 /**
- * Named removal transition — release a settler from every workplace/crew
- * occupants list and clear their assignment fields. Idempotent for unassigned
- * settlers. Leader-safe: the office occupation survives removal.
+ * Named removal transition — release a settler from all workplaces/crews and clear job fields.
+ * Preserves `LEADER_OCCUPATION`.
  */
 export function removeWorkerTransition(human: Entity, buildings: Building[]): void {
-  for (const building of buildings) {
+  for (let i = 0; i < buildings.length; i++) {
+    const building = buildings[i];
     if (building.occupants.includes(human.id)) {
       building.occupants = building.occupants.filter((id) => id !== human.id);
     }
@@ -203,21 +233,21 @@ export function removeWorkerTransition(human: Entity, buildings: Building[]): vo
 }
 
 /**
- * Named transition — put a settler on an incomplete building's construction
- * crew (occupants only; crew members hold no `homeBuildingId`). A settler with
- * a job must be released first. The leader may join a crew like any settler.
+ * Adds an idle settler to an incomplete building's construction crew.
  */
 export function addToConstructionCrew(human: Entity, building: Building): boolean {
   if (building.completed || building.faction === 'rival') return false;
   if (!human.alive || human.faction || human.isJuvenile) return false;
   if (human.prisonBuildingId != null) return false;
-  if (human.homeBuildingId != null) return false; // already working — release first
+  if (human.homeBuildingId != null) return false; // Must be unassigned from regular jobs first
   if (building.occupants.includes(human.id)) return true;
   building.occupants.push(human.id);
   return true;
 }
 
-/** Named reassign transition — move a worker between two completed workplaces. */
+/**
+ * Reassign transition — moves a worker between two completed workplaces while preserving civic titles.
+ */
 export function transferWorkerBetweenBuildings(
   worker: Entity,
   fromBuilding: Building,
@@ -227,10 +257,13 @@ export function transferWorkerBetweenBuildings(
   if (!job) return;
 
   fromBuilding.occupants = fromBuilding.occupants.filter((id) => id !== worker.id);
-  if (!toBuilding.occupants.includes(worker.id)) toBuilding.occupants.push(worker.id);
+  if (!toBuilding.occupants.includes(worker.id)) {
+    toBuilding.occupants.push(worker.id);
+  }
 
+  const keepOffice = worker.occupation === LEADER_OCCUPATION;
   worker.homeBuildingId = toBuilding.id;
-  worker.occupation = getOccupationForBuilding(toBuilding.type);
+  worker.occupation = keepOffice ? LEADER_OCCUPATION : getOccupationForBuilding(toBuilding.type);
   worker.job = job;
   ensureEntitySkills(worker)[job] = readSkill(worker, job);
 }
@@ -238,10 +271,14 @@ export function transferWorkerBetweenBuildings(
 export function rebalanceJobWorkers(humans: Entity[], buildings: Building[]): void {
   const jobBuildings = completedJobBuildings(buildings);
   let changed = true;
+  let passes = 0;
+  const maxPasses = jobBuildings.length * 2;
 
-  while (changed) {
+  while (changed && passes < maxPasses) {
     changed = false;
-    for (const needy of jobBuildings) {
+    passes++;
+    for (let i = 0; i < jobBuildings.length; i++) {
+      const needy = jobBuildings[i];
       if (isManualStaffingBuilding(needy)) continue;
       if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
       if (countWorkersAtBuilding(humans, needy.id) !== 0) continue;
@@ -259,25 +296,33 @@ export function rebalanceJobWorkers(humans: Entity[], buildings: Building[]): vo
 }
 
 export function syncJobBuildingOccupants(humans: Entity[], buildings: Building[]): void {
-  for (const building of buildings) {
-    if (!building.completed || building.faction === 'rival' || !BUILDING_JOB_TYPES[building.type]) continue;
+  for (let i = 0; i < buildings.length; i++) {
+    const building = buildings[i];
+    if (!building.completed || building.faction === 'rival' || !BUILDING_JOB_TYPES[building.type]) {
+      continue;
+    }
+
     if (building.type === BuildingType.Prison) {
-      // Prison occupants = guards (homeBuildingId) + prisoners (prisonBuildingId).
-      // The arrest/scandal owner and the Moon Howler restore both push prisoners
-      // into prison.occupants — a rebuild from homeBuildingId alone would wipe
-      // them on every assign pass (BUG 2026-08-20-prisoner-occupants-wiped).
+      // Prison occupants = guards (homeBuildingId) + prisoners (prisonBuildingId)
       building.occupants = humans
         .filter(
           (h) =>
-            h.alive
-            && !h.faction
-            && (h.homeBuildingId === building.id || h.prisonBuildingId === building.id),
+            h.alive &&
+            !h.faction &&
+            (h.homeBuildingId === building.id || h.prisonBuildingId === building.id),
         )
         .map((h) => h.id);
       continue;
     }
+
     building.occupants = humans
-      .filter((h) => h.alive && !h.faction && h.homeBuildingId === building.id && h.prisonBuildingId == null)
+      .filter(
+        (h) =>
+          h.alive &&
+          !h.faction &&
+          h.homeBuildingId === building.id &&
+          h.prisonBuildingId == null,
+      )
       .map((h) => h.id);
   }
 }
@@ -293,46 +338,54 @@ export function assignWorkerInPlace(
 
   const configuredCap = BUILDING_CONFIGS[building.type].maxOccupants;
   const isAutoBuilding = !isManualStaffingBuilding(building);
-  const venueKind = building.type === BuildingType.Tavern
-    ? 'tavern'
-    : building.type === BuildingType.Hotel ? 'hotel' : undefined;
-  const cap = venueKind && isAutoBuilding
-    ? getVenueAutoStaffingTarget(
-      venueSchedules ?? { tavernSchedule: undefined, hotelSchedule: undefined },
-      venueKind,
-      configuredCap,
-    )
-    : configuredCap;
+  const venueKind =
+    building.type === BuildingType.Tavern
+      ? 'tavern'
+      : building.type === BuildingType.Hotel
+        ? 'hotel'
+        : undefined;
+
+  const cap =
+    venueKind && isAutoBuilding
+      ? getVenueAutoStaffingTarget(
+          venueSchedules ?? { tavernSchedule: undefined, hotelSchedule: undefined },
+          venueKind,
+          configuredCap,
+        )
+      : configuredCap;
+
   if (countWorkersAtBuilding(humans, building.id) >= cap) return false;
 
   const candidates = humans.filter(
     (h) =>
-      isPlayerHuman(h)
-      && h.alive
-      && !h.isJuvenile
-      && !hasWorkAssignment(h)
-      && !isImprisoned(h)
-      && !h.pregnant
-      && !isOnConstructionCrew(h, buildings),
+      isPlayerHuman(h) &&
+      h.alive &&
+      !h.isJuvenile &&
+      !hasWorkAssignment(h) &&
+      !isImprisoned(h) &&
+      !h.pregnant &&
+      !isOnConstructionCrew(h, buildings),
   );
-  // Distance-aware assignment: prefer the closest available settler so workers
-  // on large maps do not spend the whole workday commuting. Skill is the
-  // tiebreaker for equally close candidates.
+
   const buildingX = building.x + building.width / 2;
   const buildingY = building.y + building.height / 2;
+
   candidates.sort((a, b) => {
-    const da = Math.hypot(a.x - buildingX, a.y - buildingY);
-    const db = Math.hypot(b.x - buildingX, b.y - buildingY);
-    if (da !== db) return da - db;
+    const dxa = a.x - buildingX;
+    const dya = a.y - buildingY;
+    const dxb = b.x - buildingX;
+    const dyb = b.y - buildingY;
+    const distDiff = dxa * dxa + dya * dya - (dxb * dxb + dyb * dyb);
+    if (distDiff !== 0) return distDiff;
     return readSkill(b, job) - readSkill(a, job);
   });
+
   const worker = candidates[0];
   if (!worker) return false;
 
   return assignWorkerTransition(worker, building);
 }
 
-/** Clear a job assignment so a settler can join a construction crew. */
 function clearJobAssignment(human: Entity, buildings: Building[]): void {
   removeWorkerTransition(human, buildings);
 }
@@ -349,54 +402,48 @@ export function assignBuilderInPlace(
 
   const freeBuilder = humans.find(
     (h) =>
-      isPlayerHuman(h)
-      && h.alive
-      && !h.isJuvenile
-      && !hasWorkAssignment(h)
-      && !isImprisoned(h)
-      && !h.pregnant
-      && !building.occupants.includes(h.id)
-      && !allBuildings.some((b) => !b.completed && b.id !== building.id && b.occupants.includes(h.id)),
+      isPlayerHuman(h) &&
+      h.alive &&
+      !h.isJuvenile &&
+      !hasWorkAssignment(h) &&
+      !isImprisoned(h) &&
+      !h.pregnant &&
+      !building.occupants.includes(h.id) &&
+      !allBuildings.some((b) => !b.completed && b.id !== building.id && b.occupants.includes(h.id)),
   );
+
   if (freeBuilder) {
     building.occupants.push(freeBuilder.id);
     return true;
   }
 
-  // No idle settlers — pull one from a completed job (keep at least one worker on food jobs).
-  // Construction is higher priority than fully staffing secondary buildings.
+  // Soft-steal from lower priority jobs if needed
   const jobHolder = humans
     .filter(
       (h) =>
-        isPlayerHuman(h)
-        && h.alive
-        && !h.isJuvenile
-        && hasWorkAssignment(h)
-        && !isImprisoned(h)
-        && !h.pregnant
-        && !building.occupants.includes(h.id)
-        && !isOnConstructionCrew(h, allBuildings),
+        isPlayerHuman(h) &&
+        h.alive &&
+        !h.isJuvenile &&
+        hasWorkAssignment(h) &&
+        !isImprisoned(h) &&
+        !h.pregnant &&
+        !building.occupants.includes(h.id) &&
+        !isOnConstructionCrew(h, allBuildings),
     )
     .sort((a, b) => {
-      // Prefer stealing from lower-priority / overstaffed jobs
       const aPri = jobBuildingPriority(
         allBuildings.find((x) => x.id === a.homeBuildingId)?.type ?? BuildingType.Farm,
       );
       const bPri = jobBuildingPriority(
         allBuildings.find((x) => x.id === b.homeBuildingId)?.type ?? BuildingType.Farm,
       );
-      return bPri - aPri; // higher priority index = less critical
+      return bPri - aPri;
     })
     .find((h) => {
       const site = allBuildings.find((b) => b.id === h.homeBuildingId);
-      if (!site || !site.completed) return false;
-      if (isManualStaffingBuilding(site)) return false;
+      if (!site || !site.completed || isManualStaffingBuilding(site)) return false;
       const staffed = countWorkersAtBuilding(humans, site.id);
-      // Never leave food production empty
-      if (
-        (site.type === BuildingType.Farm || site.type === BuildingType.Greenhouse)
-        && staffed <= 1
-      ) {
+      if ((site.type === BuildingType.Farm || site.type === BuildingType.Greenhouse) && staffed <= 1) {
         return false;
       }
       return staffed >= 1;
@@ -411,21 +458,21 @@ export function assignBuilderInPlace(
 export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entity[] {
   const alive = humans.filter((h) => h.alive && !h.faction);
   const buildingById = new Map<number, Building>();
-  for (const b of buildings) buildingById.set(b.id, b);
+  for (let i = 0; i < buildings.length; i++) {
+    buildingById.set(buildings[i].id, buildings[i]);
+  }
 
-  for (const human of alive) {
-    // The office does not forbid a workplace (authority: the leader may work
-    // while retaining leader status and manor residency). Only repair a
-    // STALE leader assignment — missing/demolished/invalid workplace — exactly
-    // like any other worker; never repair away a valid one.
+  for (let i = 0; i < alive.length; i++) {
+    const human = alive[i];
+
     if (human.occupation === LEADER_OCCUPATION) {
       if (human.homeBuildingId != null) {
         const workplace = buildingById.get(human.homeBuildingId);
         if (
-          !workplace
-          || !workplace.completed
-          || workplace.faction === 'rival'
-          || !BUILDING_JOB_TYPES[workplace.type]
+          !workplace ||
+          !workplace.completed ||
+          workplace.faction === 'rival' ||
+          !BUILDING_JOB_TYPES[workplace.type]
         ) {
           if (workplace) {
             workplace.occupants = workplace.occupants.filter((id) => id !== human.id);
@@ -436,6 +483,7 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
       }
       continue;
     }
+
     if (human.prisonBuildingId != null) {
       if (human.homeBuildingId != null) {
         human.homeBuildingId = undefined;
@@ -444,13 +492,14 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
       }
       continue;
     }
+
     if (!hasWorkAssignment(human) || human.homeBuildingId == null) continue;
     const workplace = buildingById.get(human.homeBuildingId);
     if (
-      !workplace
-      || !workplace.completed
-      || workplace.faction === 'rival'
-      || !BUILDING_JOB_TYPES[workplace.type]
+      !workplace ||
+      !workplace.completed ||
+      workplace.faction === 'rival' ||
+      !BUILDING_JOB_TYPES[workplace.type]
     ) {
       human.homeBuildingId = undefined;
       human.occupation = 'settler';
@@ -472,16 +521,17 @@ export function staffConstructionCrews(alive: Entity[], buildings: Building[]): 
       return a.id - b.id;
     });
 
-  // Pass 1: every site gets at least one builder before any site piles on.
-  // With 2 pioneers + house + farm, both sites progress in parallel.
-  for (const building of incomplete) {
+  // Pass 1: ensure every active site has at least one builder
+  for (let i = 0; i < incomplete.length; i++) {
+    const building = incomplete[i];
     if (building.occupants.length === 0) {
       assignBuilderInPlace(building, alive, buildings);
     }
   }
 
-  // Rebalance: sites with nobody steal from sites that already have 2+ builders.
-  for (const needy of incomplete) {
+  // Rebalance: move builders from over-crewed sites to empty ones
+  for (let i = 0; i < incomplete.length; i++) {
+    const needy = incomplete[i];
     if (needy.occupants.length > 0) continue;
     const donor = incomplete.find((b) => b.id !== needy.id && b.occupants.length > 1);
     if (!donor) break;
@@ -490,10 +540,11 @@ export function staffConstructionCrews(alive: Entity[], buildings: Building[]): 
     needy.occupants.push(moved);
   }
 
-  // Pass 2: fill remaining slots (idle settlers or soft-steal from jobs).
-  for (const building of incomplete) {
+  // Pass 2: fill remaining slots
+  for (let i = 0; i < incomplete.length; i++) {
+    const building = incomplete[i];
     while (assignBuilderInPlace(building, alive, buildings)) {
-      // fill construction crews
+      // Fill crew capacity
     }
   }
 }
@@ -506,10 +557,11 @@ export function staffJobBuildings(
 ): void {
   const jobBuildings = completedJobBuildings(buildings);
 
-  for (const building of jobBuildings) {
+  for (let i = 0; i < jobBuildings.length; i++) {
+    const building = jobBuildings[i];
     if (!includeManualStaff && isManualStaffingBuilding(building)) continue;
     while (assignWorkerInPlace(building, alive, buildings, venueSchedules)) {
-      // fill open job slots
+      // Fill job slots
     }
   }
 
@@ -519,7 +571,6 @@ export function staffJobBuildings(
   syncJobBuildingOccupants(alive, buildings);
 }
 
-/** Auto-staff construction sites and job buildings so settlers work instead of wandering. */
 export function assignMissingWorkers(
   humans: Entity[],
   buildings: Building[],
@@ -530,7 +581,6 @@ export function assignMissingWorkers(
   staffJobBuildings(alive, buildings, false, venueSchedules);
 }
 
-/** Headless balance sims — fill every job slot including church, prison, and barracks. */
 export function assignAllWorkers(humans: Entity[], buildings: Building[]): void {
   const alive = prepareWorkforce(humans, buildings);
   staffConstructionCrews(alive, buildings);
@@ -542,58 +592,70 @@ export function countWorkingAndIdleSettlers(
   buildings: Building[],
 ): { working: number; idle: number } {
   const constructionWorkers = new Set<number>();
-  for (const b of buildings) {
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i];
     if (!b.completed) {
-      for (const id of b.occupants) constructionWorkers.add(id);
+      for (let j = 0; j < b.occupants.length; j++) {
+        constructionWorkers.add(b.occupants[j]);
+      }
     }
   }
+
   let working = 0;
   let idle = 0;
-  for (const e of humans) {
+
+  for (let i = 0; i < humans.length; i++) {
+    const e = humans[i];
     if (!e.alive || e.faction || e.isJuvenile || e.type !== EntityType.Human) continue;
     if (isImprisoned(e)) continue;
-    // The leader works like any other settler (authority §5, 2026-08-20):
-    // office alone does not count as working — an idle leader is idle.
-    if (hasWorkAssignment(e) || constructionWorkers.has(e.id)) working++;
-    else idle++;
+
+    if (hasWorkAssignment(e) || constructionWorkers.has(e.id)) {
+      working++;
+    } else {
+      idle++;
+    }
   }
+
   return { working, idle };
 }
 
-/**
- * Resolve a settler's workplace (job site or construction crew).
- * Prefer O(1) maps from the tick context when available — buildings arrays are scanned only as fallback.
- */
 export function findHumanWorkplace(
   entity: Entity,
   buildings: Building[],
   opts?: {
     buildingById?: ReadonlyMap<number, Building>;
-    /** entity id → unfinished building they are helping build */
     constructionByWorkerId?: ReadonlyMap<number, Building>;
   },
 ): Building | undefined {
   const byId = opts?.buildingById;
   if (hasWorkAssignment(entity) && entity.homeBuildingId != null) {
-    const jobSite = byId?.get(entity.homeBuildingId)
-      ?? buildings.find((b) => b.id === entity.homeBuildingId);
+    const jobSite = byId?.get(entity.homeBuildingId) ?? buildings.find((b) => b.id === entity.homeBuildingId);
     if (jobSite?.completed && jobSite.faction !== 'rival' && BUILDING_JOB_TYPES[jobSite.type]) {
       return jobSite;
     }
   }
+
   const construction = opts?.constructionByWorkerId?.get(entity.id);
   if (construction && !construction.completed) return construction;
   if (opts?.constructionByWorkerId) return undefined;
-  // Fallback linear scan (callers without a prebuilt index)
-  return buildings.find((b) => !b.completed && b.occupants.includes(entity.id));
+
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i];
+    if (!b.completed && b.occupants.includes(entity.id)) {
+      return b;
+    }
+  }
+
+  return undefined;
 }
 
-/** Build entityId → incomplete building for construction crews (one pass per tick). */
 export function buildConstructionCrewIndex(buildings: readonly Building[]): Map<number, Building> {
   const map = new Map<number, Building>();
-  for (const b of buildings) {
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i];
     if (b.completed || b.faction === 'rival' || b.occupants.length === 0) continue;
-    for (const id of b.occupants) {
+    for (let j = 0; j < b.occupants.length; j++) {
+      const id = b.occupants[j];
       if (!map.has(id)) map.set(id, b);
     }
   }
@@ -602,28 +664,34 @@ export function buildConstructionCrewIndex(buildings: readonly Building[]): Map<
 
 export function releasePrisoners(state: WorldState): void {
   let released = false;
-  for (const entity of state.entities) {
+
+  for (let i = 0; i < state.entities.length; i++) {
+    const entity = state.entities[i];
     if (!entity.alive || entity.type !== EntityType.Human) continue;
     if (entity.prisonBuildingId == null || entity.prisonerUntilTick == null) continue;
     if (state.tick < entity.prisonerUntilTick) continue;
+
     const prison = state.buildings.find((b) => b.id === entity.prisonBuildingId);
     if (prison) {
       prison.occupants = prison.occupants.filter((id) => id !== entity.id);
     }
+
     entity.prisonBuildingId = undefined;
     entity.prisonerUntilTick = undefined;
     entity.prisonSentenceCrime = undefined;
     entity.flash = 8;
-    const name = entity.name ? `${entity.name}${entity.surname ? ` ${entity.surname}` : ''}` : 'A settler';
+
+    const name = formatSettlerName(entity);
     logEvent(state, 'event', `${name} was released from prison`, name);
     addFloatingText(state, entity.x, entity.y - 18, 'Released', '#22c55e');
     released = true;
   }
+
   if (released) {
-    const villagers = state.entities.filter((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e));
+    const villagers = state.entities.filter(
+      (e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e),
+    );
     assignMissingResidences(villagers, state.buildings, state.entities);
     assignMissingWorkers(villagers, state.buildings);
   }
 }
-
-

@@ -135,7 +135,34 @@ export default function VillageTabPanel({
       : 'Recruit a new settler';
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-4">
+      <section
+        className="rounded-xl border border-emerald-400/25 bg-emerald-950/20 p-3"
+        aria-labelledby="village-overview-heading"
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-400">Village overview</p>
+            <h4 id="village-overview-heading" className="text-base font-black text-stone-100">How your settlement is doing</h4>
+          </div>
+          <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${villageStats.openBeds > 0 ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>
+            {villageStats.openBeds > 0 ? 'Housing available' : 'Housing needed'}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <StatBadge label="Settlers" value={villageStats.total} icon="👥" title={`Population cap: ${state.maxHumanPopulation}`} />
+          <StatBadge label="Working" value={villageStats.working} icon="⚒️" />
+          <StatBadge label="Open beds" value={villageStats.openBeds} icon="🛏️" />
+          <StatBadge label="Food" value={Math.floor(state.resources.food)} icon="🍖" />
+        </div>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-stone-300">
+          <span>Idle: <strong className="text-amber-300">{villageStats.idle}</strong></span>
+          <span>Children: <strong className="text-pink-300">{villageStats.children}</strong></span>
+          <span>Jailed: <strong className="text-slate-200">{villageStats.imprisoned}</strong></span>
+          <span>Reputation: <strong className="text-amber-300">{state.villageReputation}</strong></span>
+        </div>
+      </section>
+
       <Suspense fallback={<p className="text-[13px] text-stone-300">Loading focus…</p>}>
         <FocusPanel
           state={state}

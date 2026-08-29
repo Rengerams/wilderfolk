@@ -41,8 +41,11 @@ export function preserveNotificationDismissals(
   dismissedIds: readonly string[] | undefined,
 ): WorldState['notifications'] {
   const hidden = new Set(dismissedIds ?? []);
-  if (hidden.size === 0) return incoming;
-  return incoming.filter((n) => !hidden.has(n.id));
+  if (hidden.size === 0) {
+    // 🛡️ DEFENSIVE: Also filter out any notifications the worker explicitly marked as dismissed
+    return incoming.filter((n) => !n.dismissed);
+  }
+  return incoming.filter((n) => !hidden.has(n.id) && !n.dismissed);
 }
 
 /** Max event-log entries shipped per worker tick (overflow-safe). */
@@ -72,19 +75,14 @@ export interface SimTickDelta {
   valleyLastStageNotifyDay: number | undefined;
   villageReputation: number;
   workSchedule: WorldState['workSchedule'];
-  /** Canonical venue schedules so worker command results cannot revert host hours. */
   tavernSchedule: WorldState['tavernSchedule'];
   hotelSchedule: WorldState['hotelSchedule'];
   screenShakeImpulse: number;
   floatingTexts: WorldState['floatingTexts'];
   deathParticles: WorldState['deathParticles'];
-  /** Full buildings snapshot (default). Diff mode sends only changed buildings. */
   buildings?: Building[];
-  /** Diff mode: buildings added/changed this tick. */
   changedBuildings?: Building[];
-  /** Diff mode: building ids removed this tick. */
   removedBuildingIds?: number[];
-  /** Worker-compacted alive entity list — replaces main-thread entities each tick. */
   aliveEntities: Entity[];
   diedIds: number[];
   newEntities: Entity[];
@@ -132,33 +130,20 @@ export interface SimTickDelta {
   renffrChatterUntilTick: number;
   lastProcessedCalendarDay: number;
   lastWildlifeReplenishLogDay: number;
-  /** Aligned with render SoA slot order — strings/status for canvas. */
   renderMetaBySlot?: EntityRenderMeta[];
-  /** Human entities for EntityCatalog — avoids full-world scan. */
   catalogEntities?: Entity[];
-  /** Authored-story flags (S1–S5, E1, A1, children shelter, etc.). */
   storyFlags: WorldState['storyFlags'];
-  /** Pending authored-story cards shown to the player. */
   pendingStoryEvents: NonNullable<WorldState['pendingStoryEvents']>;
-  /** Guided Campaign chapter projection state. */
   guidedCampaign: WorldState['guidedCampaign'];
 }
 
-/** How nested delta payloads are copied between threads. */
 export type SimDeltaCloneMode = 'isolated' | 'transfer';
 
 export interface ExtractSimTickDeltaOptions {
-  /** Same entity order as `packRenderSoA` slots — required for meta alignment on overflow. */
   renderPacked?: Entity[];
   focus?: SimulationFocus;
-  /** Skip render meta + catalog snapshots (headless worker ticks). */
   headless?: boolean;
-  /**
-   * `isolated` — clone on extract and apply (in-process tests).
-   * `transfer` — rely on postMessage as the single isolation boundary (worker ticks).
-   */
   cloneMode?: SimDeltaCloneMode;
-  /** Previous buildings snapshot for diff mode; when set, only changed buildings are shipped. */
   prevBuildings?: ReadonlyMap<number, Building> | null;
 }
 
@@ -175,7 +160,6 @@ function deltaCloneOptional<T>(value: T | null | undefined, mode: SimDeltaCloneM
   return mode === 'isolated' ? structuredClone(value) : value;
 }
 
-/** Cheap deterministic fingerprint used to detect changed buildings in diff mode. */
 function buildingFingerprint(building: Building): string {
   return JSON.stringify(building);
 }
@@ -193,7 +177,6 @@ const CATALOG_PATCH_KEYS = [
   'affairProgress', 'isJuvenile', 'alive',
 ] as const satisfies readonly (keyof Entity)[];
 
-/** Chat fields must clear when undefined (ending a dialogue line). */
 const CATALOG_CLEARABLE_KEYS = [
   'chatPhrase',
   'chatTicks',
@@ -201,7 +184,6 @@ const CATALOG_CLEARABLE_KEYS = [
   'chatDialogueSessionKey',
 ] as const satisfies readonly (keyof Entity)[];
 
-/** Test helper — extract a full delta from an already-ticked world. */
 export function simTickDeltaFromWorld(world: WorldState, aliveBefore?: Set<number>): SimTickDelta {
   const alive = world.entities.filter((e) => e.alive);
   const before = aliveBefore ?? new Set(alive.map((e) => e.id));
@@ -214,8 +196,22 @@ export function extractSimTickDelta(
   aliveOrdered?: Entity[],
   options?: ExtractSimTickDeltaOptions,
 ): SimTickDelta {
-  const aliveNow = aliveOrdered ?? world.entities.filter((e) => e.alive);
-  const aliveIds = new Set(aliveNow.map((e) => e.id));
+  // 🚀 OPTIMIZED: Single-pass extraction of alive entities and their IDs
+  const aliveNow: Entity[] = aliveOrdered ?? [];
+  const aliveIds = new Set<number>();
+  
+  if (!aliveOrdered) {
+    for (const e of world.entities) {
+      if (e.alive) {
+        aliveNow.push(e);
+        aliveIds.add(e.id);
+      }
+    }
+  } else {
+    for (const e of aliveNow) {
+      aliveIds.add(e.id);
+    }
+  }
 
   const diedIds: number[] = [];
   for (const id of aliveBefore) {
@@ -231,15 +227,12 @@ export function extractSimTickDelta(
     : options?.renderPacked
       ?? selectRenderEntities(aliveNow, RENDER_MAX_SLOTS, options?.focus).packed;
 
-  // `eventLog` is newest-first, so its bounded delta must use the leading
-  // prefix. Sending the array tail would repeatedly omit newly logged events.
   const eventLogTail = world.eventLog.slice(0, EVENT_LOG_DELTA_TAIL_MAX);
 
-  // Diff mode: when the caller supplies the previous buildings snapshot, ship
-  // only changed/added/removed buildings instead of the full array each tick.
   const prevBuildings = options?.prevBuildings;
   let changedBuildings: Building[] | undefined;
   let removedBuildingIds: number[] | undefined;
+  
   if (prevBuildings) {
     changedBuildings = [];
     removedBuildingIds = [];
@@ -392,8 +385,8 @@ export function applySimTickDelta(
   world.screenShakeImpulse = delta.screenShakeImpulse;
   world.floatingTexts = deltaClone(delta.floatingTexts, cloneMode);
   world.deathParticles = deltaClone(delta.deathParticles, cloneMode);
+  
   if (delta.changedBuildings) {
-    // Diff mode — merge changed/removed buildings into the host world.
     const removed = new Set(delta.removedBuildingIds ?? []);
     world.buildings = world.buildings.filter((b) => !removed.has(b.id));
     const byId = new Map(world.buildings.map((b) => [b.id, b] as const));
@@ -404,15 +397,18 @@ export function applySimTickDelta(
   } else {
     world.buildings = deltaClone(delta.buildings ?? [], cloneMode);
   }
+  
   world.bigNews = preserveBigNewsDismissals(
     world.bigNews,
     deltaClone(delta.bigNews, cloneMode),
     world.dismissedBigNewsIds,
   );
+  
   world.notifications = preserveNotificationDismissals(
     deltaClone(delta.notifications, cloneMode),
     world.dismissedNotificationIds,
   );
+  
   world.festival = deltaCloneOptional(delta.festival, cloneMode);
   world.townHallFestivalCooldownUntilTick = delta.townHallFestivalCooldownUntilTick;
   world.visitorGroups = deltaClone(delta.visitorGroups, cloneMode);
@@ -441,10 +437,12 @@ export function applySimTickDelta(
   world.yearlyStats = deltaClone(delta.yearlyStats, cloneMode);
   world.lifetimeStats = deltaClone(delta.lifetimeStats, cloneMode);
   world.eventsThisYear = cloneMode === 'isolated' ? [...delta.eventsThisYear] : delta.eventsThisYear;
+  
   world.activeEvent = preserveActiveEventDismissal(
     deltaCloneOptional(delta.activeEvent, cloneMode),
     world.dismissedActiveEventIds,
   );
+  
   world.lastEventYear = delta.lastEventYear;
   world.bountifulHarvest = delta.bountifulHarvest;
   world.ecoHealthYearsAbove80 = delta.ecoHealthYearsAbove80;
@@ -461,6 +459,9 @@ export function applySimTickDelta(
   world.pendingStoryEvents = deltaClone(delta.pendingStoryEvents, cloneMode);
   world.guidedCampaign = deltaCloneOptional(delta.guidedCampaign, cloneMode) ?? undefined;
 
+  // ⚠️ DESIGN NOTE: This completely overwrites world.entities, effectively 
+  // garbage-collecting dead entities. Ensure no main-thread systems rely on 
+  // dead entities persisting in this array (use deathParticles or a graveyard system instead).
   world.entities = deltaClone(delta.aliveEntities, cloneMode);
 
   if (delta.catalogEntities?.length) {
@@ -469,17 +470,19 @@ export function applySimTickDelta(
 
   if (delta.eventLogTail.length > 0) {
     const existingIds = new Set(world.eventLog.map((e) => e.id));
-    const seenTailIds = new Set<number>();
+    // 🛡️ TYPE FIX: Event IDs are often strings; use string | number to prevent type errors
+    const seenTailIds = new Set<string | number>();
     const newEntries: WorldState['eventLog'] = [];
+    
     for (const entry of delta.eventLogTail) {
       if (seenTailIds.has(entry.id)) continue;
       seenTailIds.add(entry.id);
       if (!existingIds.has(entry.id)) {
-        // Delta entries are newest-first, matching the Chronicle contract.
         newEntries.push(entry);
         existingIds.add(entry.id);
       }
     }
+    
     if (newEntries.length > 0) {
       world.eventLog = [...newEntries, ...world.eventLog].slice(0, EVENT_LOG_MAX_ENTRIES);
     }
@@ -499,7 +502,6 @@ function applyCatalogPatch(existing: Entity, patch: Entity): void {
   }
 }
 
-/** Merge worker human snapshots into the main-thread world (commands + tick deltas). */
 export function syncCatalogEntitiesToWorld(world: WorldState, catalogEntities: Entity[]): void {
   const byId = new Map(world.entities.map((e) => [e.id, e]));
   for (const patch of catalogEntities) {

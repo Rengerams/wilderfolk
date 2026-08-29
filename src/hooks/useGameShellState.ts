@@ -16,36 +16,35 @@ export type MoreSubTab = 'guide' | 'roadmap' | 'campaign';
 export type MapSetupSource = 'intro' | 'game';
 
 export const TUTORIAL_DONE_STORAGE_KEY = 'wilderfolk-tutorial-done';
-const BUILD_PANEL_STORAGE_KEY = 'wilderfolk-build-panel';
+export const BUILD_PANEL_STORAGE_KEY = 'wilderfolk-build-panel';
 
-/** Returns the visible tab using the existing insertion-order convention. */
+/** Returns the visible tab using insertion-order convention. */
 export function getActiveSidebarTab(openTabs: ReadonlySet<SidebarTab>): SidebarTab {
-  const tabs = Array.from(openTabs);
-  return tabs[tabs.length - 1] ?? 'village';
+  for (const tab of openTabs) {
+    return tab;
+  }
+  return 'village';
 }
 
-/** Opens a sidebar tab without reordering a tab that is already open. */
+/** Opens one focused information view and closes any previously open view. */
 export function openSidebarTab(
-  openTabs: ReadonlySet<SidebarTab>,
+  _openTabs: ReadonlySet<SidebarTab>,
   tab: SidebarTab,
 ): Set<SidebarTab> {
-  return new Set(openTabs).add(tab);
+  return new Set([tab]);
 }
 
-/** Toggles one sidebar tab while preserving the original tab-order behavior. */
+/** Toggles a focused information view; views never stack in the gameplay shell. */
 export function toggleSidebarTab(
   openTabs: ReadonlySet<SidebarTab>,
   tab: SidebarTab,
 ): Set<SidebarTab> {
-  const next = new Set(openTabs);
-  if (next.has(tab)) next.delete(tab);
-  else next.add(tab);
-  return next;
+  return openTabs.has(tab) ? new Set() : new Set([tab]);
 }
 
 function loadBuildPanelOpen(): boolean {
   try {
-    return localStorage.getItem(BUILD_PANEL_STORAGE_KEY) === 'open';
+    return typeof localStorage !== 'undefined' && localStorage.getItem(BUILD_PANEL_STORAGE_KEY) === 'open';
   } catch {
     return false;
   }
@@ -54,20 +53,19 @@ function loadBuildPanelOpen(): boolean {
 function loadShowTutorial(): boolean {
   if (!loadTutorialsEnabled()) return false;
   try {
-    return localStorage.getItem(TUTORIAL_DONE_STORAGE_KEY) !== '1';
+    return typeof localStorage !== 'undefined' && localStorage.getItem(TUTORIAL_DONE_STORAGE_KEY) !== '1';
   } catch {
     return true;
   }
 }
 
 /**
- * Owns persistent application-shell presentation state. It deliberately does not
- * create simulation, session, persistence, or transient-feedback mutation paths.
+ * Owns persistent application-shell presentation state.
  */
 export function useGameShellState() {
   const [selectedMapSize, setSelectedMapSize] = useState<MapSize>(MapSize.Medium);
   const [selectedMapPreset, setSelectedMapPreset] = useState<MapPreset>(MapPreset.Verdant);
-  const [openTabs, setOpenTabs] = useState<Set<SidebarTab>>(() => new Set(['village']));
+  const [openTabs, setOpenTabs] = useState<Set<SidebarTab>>(() => new Set());
   const [progressSubTab, setProgressSubTab] = useState<ProgressSubTab>('research');
   const [moreSubTab, setMoreSubTab] = useState<MoreSubTab>('guide');
   const [logSubTab, setLogSubTab] = useState<LogSubTab>('chronicle');
@@ -90,65 +88,83 @@ export function useGameShellState() {
   );
 
   const activeTab = useMemo(() => getActiveSidebarTab(openTabs), [openTabs]);
+
   const openTab = useCallback((tab: SidebarTab) => {
     setOpenTabs((previous) => openSidebarTab(previous, tab));
   }, []);
+
   const toggleTab = useCallback((tab: SidebarTab) => {
     setOpenTabs((previous) => toggleSidebarTab(previous, tab));
   }, []);
 
+  const closeSidebarTabs = useCallback(() => {
+    setOpenTabs(new Set());
+  }, []);
+
   useEffect(() => {
     try {
-      localStorage.setItem(BUILD_PANEL_STORAGE_KEY, buildPanelOpen ? 'open' : 'collapsed');
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(BUILD_PANEL_STORAGE_KEY, buildPanelOpen ? 'open' : 'collapsed');
+      }
     } catch {
-      /* local preference storage is optional */
+      /* Local preference storage failure gracefully ignored */
     }
   }, [buildPanelOpen]);
 
   return {
+    // Tab Navigation
     activeTab,
-    buildPanelOpen,
-    campaignActive,
-    firstNightWarningDismissed,
-    logSubTab,
-    mapSetupSource,
-    moreSubTab,
-    openTab,
     openTabs,
-    progressSubTab,
-    selectedMapPreset,
-    selectedMapSize,
-    setBuildPanelOpen,
-    setCampaignActive,
-    setFirstNightWarningDismissed,
-    setInspectorCollapsed,
-    setLogSubTab,
-    setMapSetupSource,
-    setMoreSubTab,
-    setProgressSubTab,
-    setSelectedMapPreset,
-    setSelectedMapSize,
-    setShowFps,
-    setShowIntro,
-    setShowMapSetup,
-    setShowShortcuts,
-    setShowSimTick,
-    setShowTutorial,
-    setTutorialChoice,
-    setTutorialStep,
-    setTutorialsEnabled,
-    setJuiceEffectsEnabled,
-    showFps,
-    showIntro,
-    showMapSetup,
-    showShortcuts,
-    showSimTick,
-    showTutorial,
+    openTab,
     toggleTab,
-    tutorialChoice,
-    tutorialsEnabled,
-    tutorialStep,
-    juiceEffectsEnabled,
+    closeSidebarTabs,
+    progressSubTab,
+    setProgressSubTab,
+    moreSubTab,
+    setMoreSubTab,
+    logSubTab,
+    setLogSubTab,
+
+    // Map Setup & Modals
+    selectedMapSize,
+    setSelectedMapSize,
+    selectedMapPreset,
+    setSelectedMapPreset,
+    showMapSetup,
+    setShowMapSetup,
+    mapSetupSource,
+    setMapSetupSource,
+    showIntro,
+    setShowIntro,
+
+    // UI Panels & Inspector
+    buildPanelOpen,
+    setBuildPanelOpen,
     inspectorCollapsed,
+    setInspectorCollapsed,
+    showShortcuts,
+    setShowShortcuts,
+
+    // Tutorial & Campaign
+    showTutorial,
+    setShowTutorial,
+    tutorialStep,
+    setTutorialStep,
+    tutorialChoice,
+    setTutorialChoice,
+    tutorialsEnabled,
+    setTutorialsEnabled,
+    campaignActive,
+    setCampaignActive,
+    firstNightWarningDismissed,
+    setFirstNightWarningDismissed,
+
+    // Debug & Juice Preferences
+    showFps,
+    setShowFps,
+    showSimTick,
+    setShowSimTick,
+    juiceEffectsEnabled,
+    setJuiceEffectsEnabled,
   };
 }

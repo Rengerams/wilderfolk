@@ -16,14 +16,16 @@ const GRASS_CAP_BASE = 500;
  */
 export function pushNewEntity(state: WorldState, ctx: TickContext, entity: Entity): void {
   if (
-    entity.type !== EntityType.Human
-    && entity.type !== EntityType.Tree
-    && entity.type !== EntityType.Grass
+    entity.type !== EntityType.Human &&
+    entity.type !== EntityType.Tree &&
+    entity.type !== EntityType.Grass
   ) {
     entity.birthYear = state.year;
   }
+
   ctx.newEntities.push(entity);
   ctx.entityById.set(entity.id, entity);
+
   if (ctx.wildlifePopulation) {
     recordWildlifeBirth(
       ctx.wildlifePopulation,
@@ -32,9 +34,11 @@ export function pushNewEntity(state: WorldState, ctx: TickContext, entity: Entit
       entity.id,
     );
   }
+
   if (entity.type === EntityType.Grass && ctx.grassPopulation) {
     recordGrassBirth(ctx.grassPopulation, entity.id);
   }
+
   syncSpatialGridEntity(entity, ctx.grassGrid, ctx.mobileGrid);
 }
 
@@ -54,10 +58,12 @@ export function isValidHuntPrey(
   if (!prey.alive || prey.id === hunterId) return false;
   // Tamed animals are colony stock — wildlife and free hunters leave them alone
   if (prey.tamedBy != null) return false;
+
   if (preyType === EntityType.Human) {
     if (prey.moonHowlerCursed) return false;
     if (prey.faction === 'visitor' || prey.faction === 'rival') return false;
   }
+
   return true;
 }
 
@@ -68,6 +74,7 @@ export function markWildlifeDead(
   tick?: number,
 ): void {
   if (!entity.alive) return;
+
   if (isKillableSettlerEntity(entity)) {
     killHuman(entity, ctx.updatedBuildings, ctx.entityById, tick);
   } else {
@@ -75,6 +82,7 @@ export function markWildlifeDead(
     ctx.entityById.delete(entity.id);
     wildlifeDeathsThisTick?.add(entity.id);
   }
+
   // Drop from byType immediately so same-tick hunters / AI fallbacks skip corpse.
   const bucket = ctx.byType[entity.type];
   if (bucket) {
@@ -90,25 +98,33 @@ export function syncEntityGrids(ctx: TickContext, entity: Entity): void {
 /** Living player humans — includes same-tick newborns from newEntities and entityById. */
 export function allLivingHumans(
   state: WorldState,
-  newEntities: Entity[],
+  newEntities: readonly Entity[],
   entityById?: ReadonlyMap<number, Entity>,
 ): Entity[] {
   const byId = new Map<number, Entity>();
+
+  for (let i = 0; i < state.entities.length; i++) {
+    const e = state.entities[i];
+    if (e.type === EntityType.Human && e.alive) byId.set(e.id, e);
+  }
+
   if (entityById) {
     for (const e of entityById.values()) {
       if (e.type === EntityType.Human && e.alive) byId.set(e.id, e);
     }
   }
-  for (const e of state.entities) {
+
+  for (let i = 0; i < newEntities.length; i++) {
+    const e = newEntities[i];
     if (e.type === EntityType.Human && e.alive) byId.set(e.id, e);
   }
-  for (const e of newEntities) {
-    if (e.type === EntityType.Human && e.alive) byId.set(e.id, e);
-  }
-  return [...byId.values()];
+
+  return Array.from(byId.values());
 }
 
-export function buildHuntTargetByPreyIndex(byType: Record<EntityType, Entity[]>): Map<number, Set<number>> {
+export function buildHuntTargetByPreyIndex(
+  byType: Partial<Record<EntityType, Entity[]>>,
+): Map<number, Set<number>> {
   const index = new Map<number, Set<number>>();
   const hunterTypes = [
     EntityType.Wolf,
@@ -116,9 +132,16 @@ export function buildHuntTargetByPreyIndex(byType: Record<EntityType, Entity[]>)
     EntityType.Werewolf,
     EntityType.Human,
   ] as const;
-  for (const type of hunterTypes) {
-    for (const hunter of byType[type]) {
+
+  for (let t = 0; t < hunterTypes.length; t++) {
+    const type = hunterTypes[t];
+    const bucket = byType[type];
+    if (!bucket) continue;
+
+    for (let i = 0; i < bucket.length; i++) {
+      const hunter = bucket[i];
       if (!hunter.alive || hunter.huntTargetId == null) continue;
+
       const preyId = hunter.huntTargetId;
       let hunters = index.get(preyId);
       if (!hunters) {
@@ -128,6 +151,7 @@ export function buildHuntTargetByPreyIndex(byType: Record<EntityType, Entity[]>)
       hunters.add(hunter.id);
     }
   }
+
   return index;
 }
 
@@ -136,18 +160,22 @@ export function clearHuntersTargetingPrey(
   entityById: ReadonlyMap<number, Entity>,
   huntTargetByPreyId?: Map<number, Set<number>>,
 ): void {
-  const index = huntTargetByPreyId;
-  const hunters = index?.get(preyId);
-  if (hunters && index) {
-    for (const hunterId of hunters) {
-      const hunter = entityById.get(hunterId);
-      if (hunter) hunter.huntTargetId = undefined;
+  if (huntTargetByPreyId) {
+    const hunters = huntTargetByPreyId.get(preyId);
+    if (hunters) {
+      for (const hunterId of hunters) {
+        const hunter = entityById.get(hunterId);
+        if (hunter) hunter.huntTargetId = undefined;
+      }
+      huntTargetByPreyId.delete(preyId);
+      return;
     }
-    index.delete(preyId);
-    return;
   }
+
   for (const hunter of entityById.values()) {
-    if (hunter.huntTargetId === preyId) hunter.huntTargetId = undefined;
+    if (hunter.huntTargetId === preyId) {
+      hunter.huntTargetId = undefined;
+    }
   }
 }
 

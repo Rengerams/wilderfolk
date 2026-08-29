@@ -364,25 +364,43 @@ export function drawHuntVisuals(ctx: CanvasRenderingContext2D, state: RenderSnap
     const mx = sx + (tx - sx) * progress;
     const my = sy + (ty - sy) * progress;
 
-    // Dashed flight path behind the arrow
-    ctx.strokeStyle = 'rgba(249,115,22,0.45)';
-    ctx.lineWidth = 1.25;
-    ctx.setLineDash([4, 5]);
-    ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(mx, my);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Arrow projectile (gold triangle) at the tip
+    // A physical arrow is rendered at the hunter's projectile position. Do not
+    // draw a map-sized dotted tracer: a Hunting Spot is a workplace, not a tower
+    // with an automatic beam weapon.
+    const angle = Math.atan2(ty - sy, tx - sx);
+    const arrowLength = Math.max(8, 13 * cam.zoom);
+    const shaftHalf = arrowLength * 0.48;
+    const alpha = v.foughtBack ? 0.9 : 1;
     ctx.save();
     ctx.translate(mx, my);
-    ctx.rotate(Math.atan2(ty - sy, tx - sx));
-    ctx.fillStyle = v.foughtBack ? '#f87171' : '#fbbf24';
+    ctx.rotate(angle);
+    ctx.globalAlpha = alpha;
+
+    // Wooden shaft.
+    ctx.strokeStyle = '#6b4226';
+    ctx.lineWidth = Math.max(1, 1.4 * cam.zoom);
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(7 * cam.zoom, 0);
-    ctx.lineTo(-4 * cam.zoom, -3.5 * cam.zoom);
-    ctx.lineTo(-4 * cam.zoom, 3.5 * cam.zoom);
+    ctx.moveTo(-shaftHalf, 0);
+    ctx.lineTo(shaftHalf, 0);
+    ctx.stroke();
+
+    // Arrow head.
+    ctx.fillStyle = v.foughtBack ? '#f87171' : '#d9e2e8';
+    ctx.beginPath();
+    ctx.moveTo(shaftHalf + 4 * cam.zoom, 0);
+    ctx.lineTo(shaftHalf - 2 * cam.zoom, -2.5 * cam.zoom);
+    ctx.lineTo(shaftHalf - 2 * cam.zoom, 2.5 * cam.zoom);
+    ctx.closePath();
+    ctx.fill();
+
+    // Small fletching at the tail makes the travelling object read as an arrow.
+    ctx.fillStyle = v.foughtBack ? '#991b1b' : '#c2410c';
+    ctx.beginPath();
+    ctx.moveTo(-shaftHalf, 0);
+    ctx.lineTo(-shaftHalf - 3 * cam.zoom, -2.4 * cam.zoom);
+    ctx.lineTo(-shaftHalf - 1 * cam.zoom, 0);
+    ctx.lineTo(-shaftHalf - 3 * cam.zoom, 2.4 * cam.zoom);
     ctx.closePath();
     ctx.fill();
     ctx.restore();

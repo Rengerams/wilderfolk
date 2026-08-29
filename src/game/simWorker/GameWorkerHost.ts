@@ -5,6 +5,7 @@ import type { EntityRenderMeta } from '../simBuffers/entityRenderMeta';
 import { applySimTickDelta, type SimTickDelta } from '../simBuffers/simDelta';
 import { RENDER_BUFFER_POOL_SIZE } from '../simBuffers/renderBufferPool';
 import { ScentGridReader } from '../scentGrid';
+import { hydrateWorldRuntimeCaches, invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
 import type { WorkerCommand } from './commands';
 import {
   assertWorkerFeatures,
@@ -96,7 +97,7 @@ export class GameWorkerHost {
     }
     this.dispose();
     const initGen = this.generation;
-    this.worldRef = world;
+    this.worldRef = hydrateWorldRuntimeCaches(world);
     this.worker = new Worker(new URL('./gameWorker.ts', import.meta.url), { type: 'module' });
     this.ready = false;
     this.lastPausedSent = null;
@@ -115,6 +116,8 @@ export class GameWorkerHost {
       }, 15000);
 
       const onError = (event: ErrorEvent) => {
+        if (initGen !== this.generation) return;
+        const err = new Error(`Worker error: ${event.message ?? 'unknown error'}`);
         // Worker script failed to load/execute (dev chunk error, top-level throw).
         // Without this listener the readyPromise would hang until the 15s timeout,
         // during which GameLoop holds ALL sim ticks (workerBooting) — a full freeze.
@@ -122,7 +125,12 @@ export class GameWorkerHost {
           settled = true;
           globalThis.clearTimeout(timeout);
           reject(new Error(`Worker failed to start: ${event.message ?? 'unknown error'}`));
+          return;
         }
+        // Errors after readiness otherwise leave an in-flight command hanging
+        // forever because no commandResult can arrive.
+        this.rejectInFlight(err);
+        this.onWorkerFault?.('general', err.message);
       };
 
       const onMessage = (event: MessageEvent<WorkerResponse>) => {
@@ -181,7 +189,7 @@ export class GameWorkerHost {
     const init: WorkerRequest = {
       type: 'init',
       proto: WORKER_PROTO,
-      world,
+      world: this.worldRef,
       features: requestedFeatures,
     };
     this.worker.postMessage(init);
@@ -284,23 +292,23 @@ export class GameWorkerHost {
   }
 
   /** Full world upload — legacy fallback when worker is off; otherwise queued after idle. */
-  syncWorld(world: WorldState): void {
-    this.worldRef = world;
-    this.queueFullWorldUpload(world, 'syncWorld');
+  syncWorld(world: WorldState): Promise<void> {
+    this.worldRef = hydrateWorldRuntimeCaches(world);
+    return this.queueFullWorldUpload(this.worldRef, 'syncWorld');
   }
 
   /** Load / new-game round-trip (Rule 10). */
-  importSave(world: WorldState): void {
-    this.worldRef = world;
+  importSave(world: WorldState): Promise<void> {
+    this.worldRef = hydrateWorldRuntimeCaches(world);
     this.lastPausedSent = world.paused;
     this.lastSpeedSent = world.speed;
-    this.queueFullWorldUpload(world, 'importSave');
+    return this.queueFullWorldUpload(this.worldRef, 'importSave');
   }
 
-  private queueFullWorldUpload(world: WorldState, kind: 'importSave' | 'syncWorld'): void {
-    if (!this.worker || !this.ready) return;
+  private queueFullWorldUpload(world: WorldState, kind: 'importSave' | 'syncWorld'): Promise<void> {
+    if (!this.worker || !this.ready) return Promise.resolve();
     const uploadGen = this.generation;
-    this.commandChain = this.commandChain
+    const upload = this.commandChain
       .then(async () => {
         if (uploadGen !== this.generation || !this.isReady()) return;
         await this.whenIdle();
@@ -312,11 +320,13 @@ export class GameWorkerHost {
           ? { type: 'importSave', proto: WORKER_PROTO, world }
           : { type: 'syncWorld', proto: WORKER_PROTO, world };
         worker.postMessage(msg);
-      })
-      .catch((err: unknown) => {
-        if (uploadGen !== this.generation) return;
-        console.warn(`[GameWorker] ${kind} upload failed`, err);
       });
+    this.commandChain = upload.catch((err: unknown) => {
+      if (uploadGen === this.generation) {
+        console.warn(`[GameWorker] ${kind} upload failed`, err);
+      }
+    });
+    return upload;
   }
 
   setPaused(paused: boolean): void {
@@ -363,7 +373,15 @@ export class GameWorkerHost {
     return new Promise((resolve, reject) => {
       this.pendingCommand = { resolve, reject };
       const msg: WorkerRequest = { type: 'command', proto: WORKER_PROTO, cmd };
-      this.worker!.postMessage(msg);
+      try {
+        this.worker!.postMessage(msg);
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        this.pendingCommand = null;
+        reject(error);
+        this.resolveIdleWaiters();
+        this.onWorkerFault?.('command', error.message);
+      }
     });
   }
 
@@ -377,7 +395,15 @@ export class GameWorkerHost {
     return new Promise((resolve, reject) => {
       this.pendingExport = { resolve, reject };
       const msg: WorkerRequest = { type: 'exportSave', proto: WORKER_PROTO };
-      this.worker!.postMessage(msg);
+      try {
+        this.worker!.postMessage(msg);
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        this.pendingExport = null;
+        reject(error);
+        this.resolveIdleWaiters();
+        this.onWorkerFault?.('export', error.message);
+      }
     });
   }
 
@@ -387,7 +413,9 @@ export class GameWorkerHost {
     try {
       this.worker.postMessage(msg);
     } catch (err) {
-      console.error('[GameWorker] requestTick postMessage failed', err);
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error('[GameWorker] requestTick postMessage failed', error);
+      this.onWorkerFault?.('tick', error.message);
       return false;
     }
     this.ticksInFlight++;
@@ -453,15 +481,17 @@ export class GameWorkerHost {
       this.pendingExport?.reject(new Error(msg.message));
       this.pendingExport = null;
       this.resolveIdleWaiters();
-      if (msg.source === 'tick') {
-        this.onWorkerFault?.(msg.source, msg.message);
-      }
+      this.onWorkerFault?.(msg.source ?? 'general', msg.message);
       return;
     }
 
     if (msg.type === 'commandResult' && this.worldRef) {
       const delta = msg.delta as SimTickDelta;
       if (msg.ok === false) {
+        // A failed command still carries the worker's authoritative rollback
+        // delta. Reconcile it before the display is reverted.
+        applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
+        invalidateWorldRuntimeCaches(this.worldRef);
         this.onCommandResult?.(this.worldRef, delta, null, false, msg.reason);
         this.pendingCommand?.reject(new Error(msg.reason ?? 'Command failed'));
         this.pendingCommand = null;
@@ -469,6 +499,7 @@ export class GameWorkerHost {
         return;
       }
       applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
+      invalidateWorldRuntimeCaches(this.worldRef);
       let render: WorkerTickRender | null = null;
       if (msg.renderBuffer != null && msg.bufferIndex != null) {
         this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer);
@@ -493,6 +524,7 @@ export class GameWorkerHost {
     this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
     const delta = msg.delta as SimTickDelta;
     applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
+    invalidateWorldRuntimeCaches(this.worldRef);
 
     if (msg.headless || msg.renderBuffer == null || msg.bufferIndex == null) {
       this.onTickResult?.(this.worldRef, delta, null, true);

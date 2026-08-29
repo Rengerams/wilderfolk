@@ -24,17 +24,18 @@ import { getHumanVariantLabel } from '../game/humanSprites';
 import { getTameFoodCost } from '../game/buildingActions';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { isPlayerHuman } from '../game/playerHuman';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { getHumanActivityProjection } from '../game/humanStatus';
 
-function getFamilyMembers(entity: Entity, allEntities: Entity[]): { label: string; name: string; relation: string }[] {
-  const members: { label: string; name: string; relation: string }[] = [];
+// Added `id` to the return type for stable React keys
+function getFamilyMembers(entity: Entity, allEntities: Entity[]): { id: number; label: string; name: string; relation: string }[] {
+  const members: { id: number; label: string; name: string; relation: string }[] = [];
   const seen = new Set<number>();
 
   const add = (e: Entity, label: string, relation: string) => {
     if (!e.alive || e.type !== EntityType.Human || e.id === entity.id || seen.has(e.id)) return;
     seen.add(e.id);
-    members.push({ label, name: e.name || 'Unknown', relation });
+    members.push({ id: e.id, label, name: e.name || 'Unknown', relation });
   };
 
   for (const e of allEntities) {
@@ -93,23 +94,52 @@ export default function SelectedEntityPanel({
   const previousActivityRef = useRef<{ entityId: number; activity: string } | null>(null);
   const isVillageHead = isVillageLeader(state, entity.id);
   const isHuman = entity.type === EntityType.Human;
+  
   const previousActivity = previousActivityRef.current?.entityId === entity.id
     ? previousActivityRef.current.activity
     : undefined;
+    
   const activityProjection = isHuman || entity.type === EntityType.Werewolf
     ? getHumanActivityProjection(state, entity, previousActivity)
     : null;
+    
   useEffect(() => {
     if (activityProjection) {
       previousActivityRef.current = { entityId: entity.id, activity: activityProjection.activity };
     }
   }, [activityProjection?.activity, entity.id]);
+
   const isVisitor = entity.faction === 'visitor';
   const isRival = entity.faction === 'rival';
-  const visitorGroup = isVisitor ? state.visitorGroups.find((g) => g.id === entity.groupId) : null;
-  const rivalCamp = isRival ? state.rivalSettlements.find((r) => r.id === entity.groupId) : null;
-  const family = isHuman && !isVisitor && !isRival ? getFamilyMembers(entity, allEntities) : [];
-  const childCount = isHuman && !isVisitor && !isRival ? countLivingChildren(entity, allEntities) : 0;
+  
+  const visitorGroup = isVisitor ? state.visitorGroups?.find((g) => g.id === entity.groupId) : null;
+  const rivalCamp = isRival ? state.rivalSettlements?.find((r) => r.id === entity.groupId) : null;
+
+  // 🚀 PERFORMANCE: Memoize expensive array filtering and derivations
+  const family = useMemo(() => {
+    return isHuman && !isVisitor && !isRival ? getFamilyMembers(entity, allEntities) : [];
+  }, [isHuman, isVisitor, isRival, entity, allEntities]);
+
+  const childCount = useMemo(() => {
+    return isHuman && !isVisitor && !isRival ? countLivingChildren(entity, allEntities) : 0;
+  }, [isHuman, isVisitor, isRival, entity, allEntities]);
+
+  const availableHumans = useMemo(() => {
+    return allEntities.filter(e => e.type === EntityType.Human && e.alive && !e.isJuvenile);
+  }, [allEntities]);
+
+  const playerHumans = useMemo(() => {
+    return allEntities.filter((e) => e.alive && isPlayerHuman(e));
+  }, [allEntities]);
+
+  const residences = useMemo(() => {
+    return state.buildings.filter((b) => b.completed && isResidenceBuilding(b));
+  }, [state.buildings]);
+
+  const canMoveOut = isHuman && !isVisitor && !isRival && isAdultChildAtHome(entity, playerHumans);
+  const moveOutReady = canMoveOut && canMoveOutOfFamilyHome(entity, playerHumans, residences);
+
+  // 🐛 BUG FIX: Use String(entity.type).toLowerCase() to ensure enum values correctly map to dictionary keys
   const foodChainInfo: Record<string, { role: string; eats: string; huntedBy: string }> = {
     grass: { role: 'Producer', eats: 'Sunlight (photosynthesis)', huntedBy: 'Rabbits, Deer, Foxes, Wildkin' },
     rabbit: { role: 'Prey', eats: 'Grass', huntedBy: 'Foxes, Wolves, Humans' },
@@ -121,7 +151,7 @@ export default function SelectedEntityPanel({
     human: { role: 'Civilization Builder', eats: 'Deer, Rabbits, Farm Food', huntedBy: 'Moon Howlers (~every 2 weeks)' },
     tree: { role: 'Environment', eats: 'CO2, Sunlight', huntedBy: 'None (provides habitat)' },
   };
-  const ecology = foodChainInfo[entity.type] || { role: 'Unknown', eats: 'Unknown', huntedBy: 'Unknown' };
+  const ecology = foodChainInfo[String(entity.type).toLowerCase()] || { role: 'Unknown', eats: 'Unknown', huntedBy: 'Unknown' };
 
   const tameableTypes: EntityType[] = [EntityType.Wolf, EntityType.Fox, EntityType.Deer, EntityType.Rabbit];
   const isTameable = tameableTypes.includes(entity.type) && !entity.tamedBy;
@@ -130,11 +160,10 @@ export default function SelectedEntityPanel({
   const hasTamingPost = state.buildings.some(b => b.completed && b.type === BuildingType.TamingPost && Math.hypot(b.x - entity.x, b.y - entity.y) < 140);
   const canTameHere = hasTamingPost;
   const tameFoodCost = getTameFoodCost(entity.type);
-  const availableHumans = allEntities.filter(e => e.type === EntityType.Human && e.alive && !e.isJuvenile);
-  const playerHumans = allEntities.filter((e) => e.alive && isPlayerHuman(e));
-  const residences = state.buildings.filter((b) => b.completed && isResidenceBuilding(b));
-  const canMoveOut = isHuman && !isVisitor && !isRival && isAdultChildAtHome(entity, playerHumans);
-  const moveOutReady = canMoveOut && canMoveOutOfFamilyHome(entity, playerHumans, residences);
+  
+  // Safe access to resources food to prevent undefined crashes during initialization
+  const currentFood = state.resources?.food ?? 0;
+  const canAffordTame = tameFoodCost == null || currentFood >= tameFoodCost;
 
   return (
     <div className={`rounded-xl p-3 ${isVillageHead ? 'border-2 border-amber-400/70 bg-gradient-to-b from-amber-900/45 to-amber-950/30 shadow-md shadow-amber-900/30' : 'border border-amber-600/30 bg-amber-900/20'}`}>
@@ -387,7 +416,7 @@ export default function SelectedEntityPanel({
                   <button
                     key={h.id}
                     onClick={() => onTame?.(h.id)}
-                    disabled={tameFoodCost != null && state.resources.food < tameFoodCost}
+                    disabled={!canAffordTame}
                     className="rounded bg-emerald-700 px-1.5 py-1 text-[10px] font-bold text-white hover:bg-emerald-600 transition-all disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     🦴 {h.name || 'Settler'}
@@ -404,8 +433,8 @@ export default function SelectedEntityPanel({
         <div className="mt-2 border-t border-amber-600/20 pt-2">
           <h4 className="mb-1 text-[11px] font-bold uppercase tracking-wider text-amber-400">Family</h4>
           <div className="space-y-0.5">
-            {family.map((m, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-[11px] text-amber-200">
+            {family.map((m) => (
+              <div key={m.id} className="flex items-center gap-1.5 text-[11px] text-amber-200">
                 <span>{m.label}</span>
                 <span className="font-semibold">{m.name}</span>
                 <span className="text-stone-400">({m.relation})</span>

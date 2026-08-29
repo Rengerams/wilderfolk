@@ -14,12 +14,10 @@
     "test:all": "npm run test:standard && npm run test:types && npm run lint",
     "test:full-year:test": "vitest run tests/fullYear.integration.test.ts",
     "test:full": "npm run test:all && npm run test:full-year",
-
     "test:types": "tsc -p tsconfig.vitest.json --noEmit",
     "graph": "node scripts/graph.mjs",
     "test:watch": "vitest",
     "test:full-year": "tsx scripts/run-full-year.mts",
-
     "lint": "oxlint --type-aware --type-check src scripts vite.config.ts vitest.config.ts",
     "lint:fix": "oxlint --type-aware --type-check --fix src scripts vite.config.ts vitest.config.ts",
     "preview": "vite preview",
@@ -34,6 +32,7 @@
     "audit": "npm run audit:knip && npm run audit:deps"
   },
   "dependencies": {
+    "freellmapi": "^0.5.0",
     "jest": "^30.4.2",
     "pixi.js": "^8.20.1",
     "preline": "^4.2.0",

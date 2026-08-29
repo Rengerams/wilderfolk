@@ -24,8 +24,8 @@ import {
 import { getVisitorQuest } from './game/visitorQuest';
 import type { WorldState } from './game/gameEngine';
 
-import type { EntityCatalog } from './game/entityCatalog';
 import { resolveAliveHumans } from './game/entityCatalog';
+import type { EntityCatalog } from './game/entityCatalog';
 import { computeVillageStats, type VillageStatsSummary } from './game/uiSimSummary';
 import { isFoodAlert } from './game/resourceUtils';
 import {

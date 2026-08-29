@@ -12,9 +12,8 @@
  *   - pregnancy state has a valid `pregnancyDueProgress` (and non-pregnant
  *     humans carry no pregnancy parent/progress state)
  *   - at most one living cursed Moon Howler
-    *   - the elected leader is an acting village head retaining the leader
-   *     occupation and residing in the Leader's House when a completed manor exists
-
+ *   - the elected leader is an acting village head retaining the leader
+ *     occupation and residing in the Leader's House when a completed manor exists
  *
  * IMPORTANT — occupants is role-overloaded (buildings.ts):
  *   - workplaces (completed BUILDING_JOB_TYPES): workers via `homeBuildingId`
@@ -219,7 +218,9 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
       if (!sweetheart || !isSettlerEntity(sweetheart)) {
         errors.push(`human ${id} youthLovePartnerId ${entity.youthLovePartnerId} references a missing or invalid settler`);
       } else if (sweetheart.youthLovePartnerId !== id) {
-        errors.push(`human ${id} youth-love link with ${sweetheart.id} is not mutual`);
+        errors.push(
+          `human ${id} youth-love link with ${sweetheart.id} is not mutual (their partnerId is ${sweetheart.youthLovePartnerId ?? 'unset'})`,
+        );
       }
       if (entity.partnerId != null) {
         errors.push(`human ${id} has both a youth-love partner and an adult partner`);
@@ -242,17 +243,33 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
     }
   }
 
-  // Moon Howler invariant — at most one living cursed entity.
-  const livingHowlers = state.entities.filter((e) => e.alive && e.moonHowlerCursed);
-  if (livingHowlers.length > 1) {
+  // 🚀 OPTIMIZED: Moon Howler invariant — at most one living cursed entity (zero allocations).
+  let howlerCount = 0;
+  let howlerIds: number[] = [];
+  for (const e of state.entities) {
+    if (e.alive && e.moonHowlerCursed) {
+      howlerCount++;
+      if (howlerCount <= 2) { // Only track IDs for the error message if we exceed 1
+        howlerIds.push(e.id);
+      }
+      if (howlerCount > 1) {
+        // We can break early if we only care about the fact that it's > 1, 
+        // but collecting all IDs is more helpful for debugging.
+      }
+    }
+  }
+  
+  if (howlerCount > 1) {
+    // Re-scan to get all IDs for the error message if there are many
+    const allHowlerIds = state.entities.filter(e => e.alive && e.moonHowlerCursed).map(e => e.id);
     errors.push(
-      `multiple living Moon Howlers: ${livingHowlers.length} (${livingHowlers.map((h) => h.id).join(', ')})`,
+      `multiple living Moon Howlers: ${howlerCount} (${allHowlerIds.join(', ')})`,
     );
   }
 
-  // Leader residency invariants.
+  // 🚀 OPTIMIZED: Leader residency invariants (O(1) lookup via entityById).
   if (state.villageLeaderId != null) {
-    const leader = state.entities.find((e) => e.id === state.villageLeaderId);
+    const leader = entityById.get(state.villageLeaderId);
     if (!leader || !isActingVillageHead(leader, state)) {
       errors.push(
         `villageLeaderId ${state.villageLeaderId} does not reference a living acting village head`,

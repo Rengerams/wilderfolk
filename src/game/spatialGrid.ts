@@ -6,13 +6,13 @@ import {
   recordSpatialCells,
 } from './spatialQueryMetrics';
 
-/** Grass patches — updated on birth/death; queried for graze. */
+/** Grass patches — updated on birth/death; queried for grazing and viewport culling. */
 export const GRASS_CELL_SIZE = 56;
 
 /** Humans + wildlife — updated each tick for flee/hunt/pack queries. */
 export const MOBILE_CELL_SIZE = 80;
 
-/** Trees — static scenery; indexed for the "visit a tree" leisure. */
+/** Trees — static scenery; indexed for leisure visits. */
 export const TREE_CELL_SIZE = 80;
 
 /** Living humans only — smaller cells so broad social radii stay selective. */
@@ -56,11 +56,15 @@ export function isHumanSocialGridEntity(entity: Entity): boolean {
 }
 
 export function isMobileGridEntity(entity: Entity): boolean {
-  return MOBILE_ENTITY_TYPES.has(entity.type);
+  return entity.alive && MOBILE_ENTITY_TYPES.has(entity.type);
 }
 
 export function isGrassGridEntity(entity: Entity): boolean {
-  return entity.type === EntityType.Grass;
+  return entity.alive && entity.type === EntityType.Grass;
+}
+
+export function isTreeGridEntity(entity: Entity): boolean {
+  return entity.alive && entity.type === EntityType.Tree;
 }
 
 export function distSq(ax: number, ay: number, bx: number, by: number): number {
@@ -69,7 +73,10 @@ export function distSq(ax: number, ay: number, bx: number, by: number): number {
   return dx * dx + dy * dy;
 }
 
-/** Uniform spatial hash — broad-phase filter; callers must still apply SPECIES_CONFIG radii. */
+/**
+ * Uniform 2D Spatial Hash Grid.
+ * Optimized for zero heap-allocation on update and fast bounding-box cell walks.
+ */
 export class EntitySpatialGrid {
   readonly mapWidth: number;
   readonly mapHeight: number;
@@ -77,14 +84,14 @@ export class EntitySpatialGrid {
   private readonly cells: Entity[][];
   private readonly cols: number;
   private readonly rows: number;
-  /** entity id → cell coords (invariant: alive filtered entities appear exactly once). */
-  private readonly entityCell = new Map<number, { col: number; row: number }>();
 
-  constructor(
-    mapWidth: number,
-    mapHeight: number,
-    cellSize: number,
-  ) {
+  /**
+   * entity id → 1D cellIndex.
+   * Storing primitive integers eliminates heap object allocations on every move.
+   */
+  private readonly entityCell = new Map<number, number>();
+
+  constructor(mapWidth: number, mapHeight: number, cellSize: number) {
     this.mapWidth = mapWidth;
     this.mapHeight = mapHeight;
     this.cellSize = cellSize;
@@ -102,9 +109,11 @@ export class EntitySpatialGrid {
   }
 
   matchesLayout(mapWidth: number, mapHeight: number, cellSize: number): boolean {
-    return this.mapWidth === mapWidth
-      && this.mapHeight === mapHeight
-      && this.cellSize === cellSize;
+    return (
+      this.mapWidth === mapWidth &&
+      this.mapHeight === mapHeight &&
+      this.cellSize === cellSize
+    );
   }
 
   private cellIndex(col: number, row: number): number {
@@ -119,62 +128,69 @@ export class EntitySpatialGrid {
   }
 
   clear(): void {
-    for (const bucket of this.cells) bucket.length = 0;
+    for (let i = 0; i < this.cells.length; i++) {
+      this.cells[i].length = 0;
+    }
     this.entityCell.clear();
   }
 
-  /** Remove an entity from its current cell (no-op if absent). */
+  /** Remove an entity from its current cell bucket (no-op if absent). */
   remove(entity: Entity): void {
     this.removeById(entity.id);
   }
 
-  private removeById(id: number): void {
-    const cell = this.entityCell.get(id);
-    if (!cell) return;
-    const bucket = this.cells[this.cellIndex(cell.col, cell.row)];
+  private removeFromBucket(cellIdx: number, id: number): void {
+    const bucket = this.cells[cellIdx];
     const pos = bucket.findIndex((e) => e.id === id);
     if (pos >= 0) {
       const last = bucket.pop()!;
-      if (pos < bucket.length) bucket[pos] = last;
+      if (pos < bucket.length) {
+        bucket[pos] = last;
+      }
     }
+  }
+
+  private removeById(id: number): void {
+    const cellIdx = this.entityCell.get(id);
+    if (cellIdx === undefined) return;
+    this.removeFromBucket(cellIdx, id);
     this.entityCell.delete(id);
   }
 
   private insert(entity: Entity): void {
-    if (!entity.alive) return;
-    if (!Number.isFinite(entity.x) || !Number.isFinite(entity.y)) return;
+    if (!entity.alive || !Number.isFinite(entity.x) || !Number.isFinite(entity.y)) return;
 
-    const coords = this.cellCoords(entity.x, entity.y);
-    if (!coords) return;
+    const col = Math.min(this.cols - 1, Math.max(0, Math.floor(entity.x / this.cellSize)));
+    const row = Math.min(this.rows - 1, Math.max(0, Math.floor(entity.y / this.cellSize)));
+    const newIdx = row * this.cols + col;
 
-    const existing = this.entityCell.get(entity.id);
-    if (existing && existing.col === coords.col && existing.row === coords.row) {
+    const existingIdx = this.entityCell.get(entity.id);
+    if (existingIdx === newIdx) {
       return;
     }
 
-    this.removeById(entity.id);
+    if (existingIdx !== undefined) {
+      this.removeFromBucket(existingIdx, entity.id);
+    }
 
-    const { col, row } = coords;
-    this.cells[this.cellIndex(col, row)].push(entity);
-    this.entityCell.set(entity.id, { col, row });
+    this.cells[newIdx].push(entity);
+    this.entityCell.set(entity.id, newIdx);
   }
 
   /**
-   * Incremental move — removes the entity from its old cell and inserts at the new coords.
-   * Prefer this over `rebuild()` when only a few entities moved between ticks.
+   * Incremental move — fast bucket transfer without object allocations.
    */
   update(entity: Entity): void {
     if (!entity.alive) {
-      this.remove(entity);
+      this.removeById(entity.id);
       return;
     }
     this.insert(entity);
   }
 
-  /** Insert only when the entity is missing from the grid (cheap tick-start reconcile). */
   ensurePresent(entity: Entity): void {
     if (!entity.alive) {
-      this.remove(entity);
+      this.removeById(entity.id);
       return;
     }
     if (!this.entityCell.has(entity.id)) {
@@ -182,11 +198,6 @@ export class EntitySpatialGrid {
     }
   }
 
-  /**
-   * Reconcile an existing grid without clearing all buckets.
-   * This remains behavior-preserving for teleports, deaths, and births while
-   * avoiding full bucket allocation/reinsertion on every realtime tick.
-   */
   reconcile(entities: Iterable<Entity>, filter?: (entity: Entity) => boolean): void {
     const seen = new Set<number>();
     for (const entity of entities) {
@@ -194,8 +205,11 @@ export class EntitySpatialGrid {
       seen.add(entity.id);
       this.update(entity);
     }
+
     for (const id of this.entityCell.keys()) {
-      if (!seen.has(id)) this.removeById(id);
+      if (!seen.has(id)) {
+        this.removeById(id);
+      }
     }
   }
 
@@ -212,7 +226,7 @@ export class EntitySpatialGrid {
     }
   }
 
-  /** Broad-phase: all entities in cells overlapping the axis-aligned rect. */
+  /** Broad-phase rectangle query. */
   forEachInRect(
     minX: number,
     minY: number,
@@ -220,9 +234,15 @@ export class EntitySpatialGrid {
     maxY: number,
     fn: (entity: Entity) => void,
   ): void {
-    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+    if (
+      !Number.isFinite(minX) ||
+      !Number.isFinite(minY) ||
+      !Number.isFinite(maxX) ||
+      !Number.isFinite(maxY)
+    ) {
       return;
     }
+
     const loX = Math.min(minX, maxX);
     const hiX = Math.max(minX, maxX);
     const loY = Math.min(minY, maxY);
@@ -233,10 +253,15 @@ export class EntitySpatialGrid {
     const minRow = Math.max(0, Math.floor(loY / this.cellSize));
     const maxRow = Math.min(this.rows - 1, Math.floor(hiY / this.cellSize));
 
+    const cols = this.cols;
+    const cells = this.cells;
+
     for (let row = minRow; row <= maxRow; row++) {
+      const rowOffset = row * cols;
       for (let col = minCol; col <= maxCol; col++) {
-        const bucket = this.cells[this.cellIndex(col, row)];
-        for (const entity of bucket) {
+        const bucket = cells[rowOffset + col];
+        for (let i = 0; i < bucket.length; i++) {
+          const entity = bucket[i];
           if (!entity.alive) continue;
           if (entity.x < loX || entity.x > hiX || entity.y < loY || entity.y > hiY) continue;
           fn(entity);
@@ -246,8 +271,8 @@ export class EntitySpatialGrid {
   }
 
   /**
-   * Broad-phase: square of grid cells around (x, y), then narrow-phase `distSq <= radius²`.
-   * Corner cells may extend past the circle — callers must filter on `distSq` (already applied here).
+   * Broad-phase radial search with narrow-phase distance-squared filtering.
+   * Completely allocation-free in the hot path.
    */
   forEachInRadius(
     x: number,
@@ -258,12 +283,11 @@ export class EntitySpatialGrid {
   ): void {
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(radius) || radius < 0) return;
 
-    // Keep the hot path allocation-free: cellCoords() returns a temporary object,
-    // which is expensive when this query runs tens of thousands of times per tick.
     const rawCol = Math.floor(x / this.cellSize);
     const rawRow = Math.floor(y / this.cellSize);
     const cx = rawCol < 0 ? 0 : rawCol >= this.cols ? this.cols - 1 : rawCol;
     const cy = rawRow < 0 ? 0 : rawRow >= this.rows ? this.rows - 1 : rawRow;
+
     const radiusSq = radius * radius;
     const cellRadius = Math.ceil(radius / this.cellSize);
     const minCol = Math.max(0, cx - cellRadius);
@@ -278,6 +302,7 @@ export class EntitySpatialGrid {
 
     const cols = this.cols;
     const cells = this.cells;
+
     for (let row = minRow; row <= maxRow; row++) {
       const rowOffset = row * cols;
       for (let col = minCol; col <= maxCol; col++) {
@@ -285,11 +310,14 @@ export class EntitySpatialGrid {
         for (let i = 0; i < bucket.length; i++) {
           const entity = bucket[i];
           if (!entity.alive) continue;
+
           const dx = entity.x - x;
           const dy = entity.y - y;
           const dSq = dx * dx + dy * dy;
+
           if (dSq > radiusSq) continue;
           if (recordCandidates && metrics) recordSpatialCandidate();
+
           fn(entity, dSq);
         }
       }
@@ -297,29 +325,28 @@ export class EntitySpatialGrid {
   }
 
   /**
-   * 3×3 neighborhood (self + 8 neighbors) — for future scent gradient sampling.
-   * Return `false` from the callback to stop iterating early.
+   * Iterates through the 3×3 neighbor cell neighborhood around (x, y).
    */
   forEachNeighborCell(
     x: number,
     y: number,
     fn: (col: number, row: number, cellIdx: number, bucket: Entity[]) => boolean | void,
   ): boolean {
-    const coords = this.cellCoords(x, y);
-    if (!coords) return false;
+    const col = Math.floor(x / this.cellSize);
+    const row = Math.floor(y / this.cellSize);
+    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
 
-    const { col: cx, row: cy } = coords;
-    for (let row = Math.max(0, cy - 1); row <= Math.min(this.rows - 1, cy + 1); row++) {
-      for (let col = Math.max(0, cx - 1); col <= Math.min(this.cols - 1, cx + 1); col++) {
-        const cellIdx = this.cellIndex(col, row);
-        const bucket = this.cells[cellIdx];
-        let aliveBucket: Entity[] | undefined;
-        for (const entity of bucket) {
-          if (!entity.alive) continue;
-          if (!aliveBucket) aliveBucket = [];
-          aliveBucket.push(entity);
+    const minRow = Math.max(0, row - 1);
+    const maxRow = Math.min(this.rows - 1, row + 1);
+    const minCol = Math.max(0, col - 1);
+    const maxCol = Math.min(this.cols - 1, col + 1);
+
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        const idx = this.cellIndex(c, r);
+        if (fn(c, r, idx, this.cells[idx]) === false) {
+          return true;
         }
-        if (fn(col, row, cellIdx, aliveBucket ?? []) === false) return true;
       }
     }
     return false;
@@ -332,34 +359,36 @@ export class EntitySpatialGrid {
     predicate: (entity: Entity, distSq: number) => boolean,
   ): { entity: Entity; distSq: number } | null {
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(radius) || radius < 0) return null;
-    // Delegates to forEachInRadius so the radius cell-walk lives in one place.
-    // Candidate metrics stay predicate-gated (as the original loop did) instead
-    // of counting every distance-passing entity, so grid-vs-naive reports agree.
+
     const metrics = isSpatialQueryMetricsEnabled();
     let bestEntity: Entity | undefined;
     let bestDistSq = Number.POSITIVE_INFINITY;
-    this.forEachInRadius(x, y, radius, (entity, dSq) => {
-      if (dSq >= bestDistSq || !predicate(entity, dSq)) return;
-      if (metrics) recordSpatialCandidate();
-      bestEntity = entity;
-      bestDistSq = dSq;
-    }, false);
+
+    this.forEachInRadius(
+      x,
+      y,
+      radius,
+      (entity, dSq) => {
+        if (dSq >= bestDistSq || !predicate(entity, dSq)) return;
+        if (metrics) recordSpatialCandidate();
+        bestEntity = entity;
+        bestDistSq = dSq;
+      },
+      false,
+    );
+
     return bestEntity ? { entity: bestEntity, distSq: bestDistSq } : null;
   }
 
-  /** Returns entities missing from grid or duplicated / stale entries (single linear pass). */
-  validateInvariant(
-    entities: Iterable<Entity>,
-    filter: (entity: Entity) => boolean,
-  ): string[] {
+  validateInvariant(entities: Iterable<Entity>, filter: (entity: Entity) => boolean): string[] {
     const errors: string[] = [];
     const expected = new Set<number>();
 
     for (const entity of entities) {
       if (!entity.alive || !filter(entity)) continue;
       expected.add(entity.id);
-      const cell = this.entityCell.get(entity.id);
-      if (!cell) {
+      const cellIdx = this.entityCell.get(entity.id);
+      if (cellIdx === undefined) {
         errors.push(`missing entity ${entity.id} (${entity.type})`);
       }
     }
@@ -390,19 +419,21 @@ export class EntitySpatialGrid {
   }
 }
 
-/** structuredClone strips class methods — stale plain objects must not be reused. */
+// ============ REUSABLE INSTANTIATION & SYNC HELPERS ============
+
 function isReusableSpatialGrid(
   grid: unknown,
   mapWidth: number,
   mapHeight: number,
   cellSize: number,
 ): grid is EntitySpatialGrid {
-  return grid instanceof EntitySpatialGrid
-    && typeof grid.rebuild === 'function'
-    && grid.matchesLayout(mapWidth, mapHeight, cellSize);
+  return (
+    grid instanceof EntitySpatialGrid &&
+    typeof grid.rebuild === 'function' &&
+    grid.matchesLayout(mapWidth, mapHeight, cellSize)
+  );
 }
 
-/** Allocate or reuse a spatial grid only when layout and class methods match. */
 export function resolveSpatialGrid(
   existing: EntitySpatialGrid | undefined,
   mapWidth: number,
@@ -425,7 +456,6 @@ export function buildGrassGrid(
   return grid;
 }
 
-/** Allocate grass index; full rebuild only on first tick or after layout/clone recovery. */
 export function syncGrassRenderGrid(
   existing: EntitySpatialGrid | undefined,
   mapWidth: number,
@@ -440,16 +470,6 @@ export function syncGrassRenderGrid(
   return grid;
 }
 
-export function isTreeGridEntity(entity: Entity): boolean {
-  return entity.type === EntityType.Tree;
-}
-
-/**
- * Static tree index for the "visit a tree" leisure. Trees never move and only
- * change when the player places a building over one (UI commit, which
- * structuredClones state and strips class methods), so the grid is rebuilt
- * only when the stored instance is stale — never on ordinary ticks.
- */
 export function syncTreeGrid(
   existing: EntitySpatialGrid | undefined,
   mapWidth: number,
@@ -462,36 +482,6 @@ export function syncTreeGrid(
     grid.rebuild(treeEntities, isTreeGridEntity);
   }
   return grid;
-}
-
-/** Viewport grass cull — prefers a tick-persistent grid; falls back to ephemeral build. */
-export function collectGrassInViewport(
-  grassGrid: EntitySpatialGrid | null | undefined,
-  grassEntities: Entity[],
-  mapWidth: number,
-  mapHeight: number,
-  camX: number,
-  camY: number,
-  zoom: number,
-  canvasW: number,
-  canvasH: number,
-): Entity[] {
-  const vp = viewportFromCamera(camX, camY, zoom, canvasW, canvasH);
-  const visible: Entity[] = [];
-  // structuredClone strips class methods — a cloned grid must not be treated as a
-  // real EntitySpatialGrid (the sim rebuilds it next tick via resolveSpatialGrid).
-  if (
-    grassGrid
-    && typeof grassGrid.matchesLayout === 'function'
-    && grassGrid.matchesLayout(mapWidth, mapHeight, GRASS_CELL_SIZE)
-  ) {
-    grassGrid.forEachInRect(vp.minX, vp.minY, vp.maxX, vp.maxY, (grass) => visible.push(grass));
-    return visible;
-  }
-  if (grassEntities.length === 0) return [];
-  const grid = buildGrassGrid(mapWidth, mapHeight, grassEntities);
-  grid.forEachInRect(vp.minX, vp.minY, vp.maxX, vp.maxY, (grass) => visible.push(grass));
-  return visible;
 }
 
 export interface WorldViewport {
@@ -521,7 +511,35 @@ export function viewportFromCamera(
   };
 }
 
-/** Keep grass/mobile grids aligned after mid-tick movement, birth, or death. */
+export function collectGrassInViewport(
+  grassGrid: EntitySpatialGrid | null | undefined,
+  grassEntities: Entity[],
+  mapWidth: number,
+  mapHeight: number,
+  camX: number,
+  camY: number,
+  zoom: number,
+  canvasW: number,
+  canvasH: number,
+): Entity[] {
+  const vp = viewportFromCamera(camX, camY, zoom, canvasW, canvasH);
+  const visible: Entity[] = [];
+
+  if (
+    grassGrid &&
+    typeof grassGrid.matchesLayout === 'function' &&
+    grassGrid.matchesLayout(mapWidth, mapHeight, GRASS_CELL_SIZE)
+  ) {
+    grassGrid.forEachInRect(vp.minX, vp.minY, vp.maxX, vp.maxY, (grass) => visible.push(grass));
+    return visible;
+  }
+
+  if (grassEntities.length === 0) return [];
+  const grid = buildGrassGrid(mapWidth, mapHeight, grassEntities);
+  grid.forEachInRect(vp.minX, vp.minY, vp.maxX, vp.maxY, (grass) => visible.push(grass));
+  return visible;
+}
+
 export function syncSpatialGridEntity(
   entity: Entity,
   grassGrid?: EntitySpatialGrid,
@@ -531,6 +549,8 @@ export function syncSpatialGridEntity(
   if (grassGrid && isGrassGridEntity(entity)) grassGrid.update(entity);
   if (mobileGrid && isMobileGridEntity(entity)) mobileGrid.update(entity);
 }
+
+// ============ ROAD SPATIAL INDEX ============
 
 const ROAD_AVOID_CELL = 128;
 const ROAD_AVOID_RADIUS = 60;
@@ -544,7 +564,6 @@ interface RoadCellEntry {
   height: number;
 }
 
-/** Road centers indexed by cell — avoids scanning every road segment per entity. */
 export class RoadAvoidanceIndex {
   readonly mapWidth: number;
   readonly mapHeight: number;
@@ -560,8 +579,11 @@ export class RoadAvoidanceIndex {
     this.cols = Math.max(1, Math.ceil(mapWidth / this.cellSize));
     this.rows = Math.max(1, Math.ceil(mapHeight / this.cellSize));
     this.cells = Array.from({ length: this.cols * this.rows }, () => []);
-    for (const road of roads) {
+
+    for (let i = 0; i < roads.length; i++) {
+      const road = roads[i];
       if (!road.completed) continue;
+
       const cx = road.x + road.width / 2;
       const cy = road.y + road.height / 2;
       const col = Math.min(this.cols - 1, Math.max(0, Math.floor(cx / this.cellSize)));
@@ -578,26 +600,31 @@ export class RoadAvoidanceIndex {
   }
 
   matchesLayout(mapWidth: number, mapHeight: number): boolean {
-    return this.mapWidth === mapWidth
-      && this.mapHeight === mapHeight
-      && this.cellSize === ROAD_AVOID_CELL;
+    return (
+      this.mapWidth === mapWidth &&
+      this.mapHeight === mapHeight &&
+      this.cellSize === ROAD_AVOID_CELL
+    );
   }
 
-  /** Human road speed boost — same AABB test as legacy `roadBuildings.some`. */
   isNearRoad(x: number, y: number, margin = 12): boolean {
     const col = Math.floor(x / this.cellSize);
     const row = Math.floor(y / this.cellSize);
+
     for (let dr = -1; dr <= 1; dr++) {
       for (let dc = -1; dc <= 1; dc++) {
         const c = col + dc;
         const r = row + dr;
         if (c < 0 || r < 0 || c >= this.cols || r >= this.rows) continue;
-        for (const road of this.cells[r * this.cols + c]) {
+
+        const bucket = this.cells[r * this.cols + c];
+        for (let i = 0; i < bucket.length; i++) {
+          const road = bucket[i];
           if (
-            x >= road.x - margin
-            && x <= road.x + road.width + margin
-            && y >= road.y - margin
-            && y <= road.y + road.height + margin
+            x >= road.x - margin &&
+            x <= road.x + road.width + margin &&
+            y >= road.y - margin &&
+            y <= road.y + road.height + margin
           ) {
             if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('road_near');
             return true;
@@ -619,12 +646,17 @@ export class RoadAvoidanceIndex {
         const c = col + dc;
         const r = row + dr;
         if (c < 0 || r < 0 || c >= this.cols || r >= this.rows) continue;
+
         const bucket = this.cells[r * this.cols + c];
-        for (const road of bucket) {
+        for (let i = 0; i < bucket.length; i++) {
+          const road = bucket[i];
           const dx = entity.x - road.cx;
           const dy = entity.y - road.cy;
           const distSq = dx * dx + dy * dy;
-          if (distSq >= radiusSq || distSq <= 0) continue;
+
+          // Safe division guard: avoid impulses when distSq is near zero
+          if (distSq >= radiusSq || distSq < 0.01) continue;
+
           if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('road_avoid');
           const dist = Math.sqrt(distSq);
           entity.vx += (dx / dist) * 0.5;
@@ -635,10 +667,10 @@ export class RoadAvoidanceIndex {
   }
 }
 
-/** Fingerprint completed road layout — count alone misses demolish+rebuild at same cardinality. */
 export function computeRoadLayoutStamp(roads: readonly Building[]): number {
   let h = roads.length;
-  for (const road of roads) {
+  for (let i = 0; i < roads.length; i++) {
+    const road = roads[i];
     h = Math.imul(31, h) + road.id;
     h = Math.imul(31, h) + Math.floor(road.x);
     h = Math.imul(31, h) + Math.floor(road.y);
@@ -658,7 +690,6 @@ export function buildRoadAvoidanceIndex(
   return new RoadAvoidanceIndex(mapWidth, mapHeight, roads);
 }
 
-/** Rebuild once, then incrementally reconcile the mobile layer each sim tick. */
 export function syncMobileSimGrid(
   existing: EntitySpatialGrid | undefined,
   mapWidth: number,
@@ -707,7 +738,6 @@ function isSpatialInvariantCheckEnabled(): boolean {
   return envFlagEnabled(runtime.process?.env?.SPATIAL_GRID_INVARIANT);
 }
 
-/** Dev/CI — every alive filtered entity must appear in exactly one grid cell. */
 export const SPATIAL_GRID_INVARIANT_CHECK = isSpatialInvariantCheckEnabled();
 
 export function assertSpatialGridInvariants(
@@ -718,11 +748,10 @@ export function assertSpatialGridInvariants(
   if (!SPATIAL_GRID_INVARIANT_CHECK || !grassGrid || !mobileGrid) return;
 
   const list = [...entities].filter((e) => e.alive);
-  const grassErrors = grassGrid.validateInvariant(list, isGrassGridEntity)
-    .map((msg) => `[grass] ${msg}`);
-  const mobileErrors = mobileGrid.validateInvariant(list, isMobileGridEntity)
-    .map((msg) => `[mobile] ${msg}`);
+  const grassErrors = grassGrid.validateInvariant(list, isGrassGridEntity).map((msg) => `[grass] ${msg}`);
+  const mobileErrors = mobileGrid.validateInvariant(list, isMobileGridEntity).map((msg) => `[mobile] ${msg}`);
   const errors = [...grassErrors, ...mobileErrors];
+
   if (errors.length > 0) {
     throw new Error(`Spatial grid invariant failed:\n${errors.slice(0, 8).join('\n')}`);
   }

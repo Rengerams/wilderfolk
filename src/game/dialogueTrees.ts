@@ -6,6 +6,7 @@ import needsDialogueJson from './data/needs.json';
 import socialDialogueJson from './data/social.json';
 import workDialogueJson from './data/work.json';
 import { readUtf8RelativeToModule } from './nodeRuntime';
+import type { Season, WeatherType } from './gameTypes';
 
 export const DIALOGUE_CATEGORIES = [
   'work',
@@ -104,13 +105,19 @@ let loadPromise: Promise<void> | null = null;
 
 /** Headless sims/tests can read the same split sources from disk if imports are unavailable. */
 async function loadDialogueFromDisk(): Promise<boolean> {
-  const rawSources = await Promise.all(
-    DIALOGUE_SOURCE_FILE_NAMES.map((fileName) => readUtf8RelativeToModule(import.meta.url, 'data', fileName)),
-  );
-  if (rawSources.some((source) => !source)) return false;
-  const parsedSources = rawSources.map((source) => JSON.parse(source!) as DialogueSourceFile);
-  indexDialogueBank(buildCanonicalDialogueBank(parsedSources));
-  return true;
+  try {
+    const rawSources = await Promise.all(
+      DIALOGUE_SOURCE_FILE_NAMES.map((fileName) => readUtf8RelativeToModule(import.meta.url, 'data', fileName)),
+    );
+    if (rawSources.some((source) => !source)) return false;
+    const parsedSources = rawSources.map((source) => JSON.parse(source!) as DialogueSourceFile);
+    indexDialogueBank(buildCanonicalDialogueBank(parsedSources));
+    return true;
+  } catch {
+    // 🛡️ ROBUSTNESS: Gracefully fail and fall back to bundled JSON if disk reading 
+    // throws (e.g., in browser environments where readUtf8RelativeToModule is unavailable).
+    return false;
+  }
 }
 
 function indexDialogueBank(next: DialogueBankFile): void {
@@ -164,12 +171,14 @@ export function installDialogueBankPayload(payload: DialogueBankFile): void {
 export async function preloadDialogueBank(): Promise<void> {
   if (isDialogueBankReady()) return;
   if (await loadDialogueFromDisk()) return;
+  
   if (!loadPromise) {
     loadPromise = Promise.resolve().then(() => {
       indexDialogueBank(canonicalDialogueBank);
     });
   }
   await loadPromise;
+  
   if (!isDialogueBankReady()) {
     throw new Error('Dialogue bank failed to load from split category files');
   }
@@ -218,9 +227,10 @@ const CONTEXT_CATEGORY: Partial<Record<string, DialogueCategory | DialogueCatego
   election: 'existential',
 };
 
+// 🔄 TYPE UNIFICATION: Use gameTypes to prevent drift with ChatPickOptions
 export type DialoguePickHints = {
-  season?: 'spring' | 'summer' | 'fall' | 'winter';
-  weather?: 'clear' | 'rain' | 'snow' | 'storm' | 'drought' | 'heatwave' | 'fog';
+  season?: Season;
+  weather?: WeatherType;
   festivalActive?: boolean;
   foodLow?: boolean;
 };
@@ -233,6 +243,7 @@ export function resolveDialogueCategories(
   const fallback: DialogueCategory[] = ['social'];
   const base: DialogueCategory[] = Array.isArray(mapped) ? mapped : mapped ? [mapped] : fallback;
   const out = new Set<DialogueCategory>(base);
+  
   if (hints?.festivalActive) out.add('festival');
   if (hints?.foodLow) out.add('needs');
   if (hints?.season === 'winter') out.add('environment');
@@ -240,6 +251,7 @@ export function resolveDialogueCategories(
     out.add('environment');
   }
   if (hints?.weather === 'drought') out.add('needs');
+  
   return [...out];
 }
 
@@ -255,21 +267,31 @@ export function pickDialogueTree(
 
   const categories = resolveDialogueCategories(context, hints);
   const pool: DialogueTree[] = [];
+  
   for (const category of categories) {
     const list = treesByCategory.get(category);
-    if (list) pool.push(...list);
+    if (list) {
+      // 🚀 OPTIMIZED: Safe iteration prevents "Maximum call stack size exceeded" 
+      // errors that can occur with pool.push(...list) on large arrays.
+      for (const tree of list) {
+        pool.push(tree);
+      }
+    }
   }
+  
   const usePool = pool.length > 0 ? pool : [...trees];
 
   const seed = entityId * 47 + tick * 13;
   let index = Math.abs(seed) % usePool.length;
   let tree = usePool[index]!;
+  
   if (avoidTreeId && usePool.length > 1) {
     for (let attempt = 0; attempt < usePool.length && tree.id === avoidTreeId; attempt++) {
       index = (index + 5 + entityId) % usePool.length;
       tree = usePool[index]!;
     }
   }
+  
   return tree;
 }
 

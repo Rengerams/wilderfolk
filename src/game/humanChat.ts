@@ -110,39 +110,36 @@ export function wrapChatLines(
 
   const lines: string[] = [];
   let current = '';
-  let overflow = false;
+  
   for (const word of words) {
-    if (lines.length >= maxLines) {
-      overflow = true;
-      break;
-    }
-    const candidate = current ? `${current} ${word}` : word;
-    if (candidate.length > maxCharsPerLine && current) {
+    // If adding this word exceeds the line limit, push the current line
+    if (current && (current.length + 1 + word.length > maxCharsPerLine)) {
       lines.push(current);
-      current = word;
       if (lines.length >= maxLines) {
-        overflow = true;
-        break;
+        // We've hit the max lines, append ellipsis to the last added line
+        const last = lines[lines.length - 1];
+        lines[lines.length - 1] = last.slice(0, maxCharsPerLine - 1) + '…';
+        return lines;
       }
+      current = word;
     } else {
-      current = candidate;
+      // Add to current line
+      current = current ? `${current} ${word}` : word;
     }
   }
-  if (!overflow && current) {
+
+  // Push any remaining text
+  if (current) {
     if (lines.length < maxLines) {
       lines.push(current);
     } else {
-      overflow = true;
+      // If we already have maxLines, append to the last one with ellipsis
+      const last = lines[lines.length - 1];
+      lines[lines.length - 1] = last.slice(0, maxCharsPerLine - 1) + '…';
     }
   }
-  if (lines.length === 0) return [text.slice(0, maxCharsPerLine)];
-  if (overflow) {
-    const lastIdx = Math.min(maxLines, lines.length) - 1;
-    const last = lines[lastIdx] ?? '';
-    const trimmed = last.length <= maxCharsPerLine - 1 ? last : last.slice(0, maxCharsPerLine - 1);
-    lines[lastIdx] = `${trimmed}…`;
-  }
-  return lines.slice(0, maxLines);
+
+  return lines.length > 0 ? lines : ['…'];
 }
 
 /** Flatten wrapped lines for storage in chatPhrase (renderer splits on newline). */
@@ -175,14 +172,19 @@ function clearEntityChat(entity: ChatSpeaker): void {
 function clearDialogueSession(key: string, entityA?: ChatSpeaker, entityB?: ChatSpeaker): void {
   dialogueSessions.delete(key);
   if (entityA) {
-    entityA.chatDialogueSessionKey = undefined;
-    entityA.chatPartnerId = undefined;
-    clearEntityChat(entityA);
+    // Only clear if this entity is actually part of this specific session
+    if (entityA.chatDialogueSessionKey === key) {
+      entityA.chatDialogueSessionKey = undefined;
+      entityA.chatPartnerId = undefined;
+      clearEntityChat(entityA);
+    }
   }
   if (entityB) {
-    entityB.chatDialogueSessionKey = undefined;
-    entityB.chatPartnerId = undefined;
-    clearEntityChat(entityB);
+    if (entityB.chatDialogueSessionKey === key) {
+      entityB.chatDialogueSessionKey = undefined;
+      entityB.chatPartnerId = undefined;
+      clearEntityChat(entityB);
+    }
   }
 }
 
@@ -197,8 +199,10 @@ function resolveSessionEntities(
 
   const partnerId = entity.chatPartnerId;
   const partner = partnerId != null ? resolvePartner(partnerId) ?? null : null;
+  
+  // If non-solo and partner is missing, clean up
   if (!session.solo && !partner) {
-    clearDialogueSession(key, entity, partner ?? undefined);
+    clearDialogueSession(key, entity, undefined);
     return null;
   }
 
@@ -230,7 +234,10 @@ function showDialogueStep(
   const role = speakerRoleIndex(tree, line);
   const active = role === 0 ? entityA : entityB;
   const idle = role === 0 ? entityB : entityA;
+  
+  // Clear the idle participant so they don't show two bubbles
   clearEntityChat(idle);
+  
   active.chatPhrase = formatChatLine(line.text, active);
   active.chatTicks = ticks;
 }
@@ -289,6 +296,7 @@ function advanceDialogue(
   if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
   const tree = getDialogueTreeById(session.treeId);
   const sessionKey = self.chatDialogueSessionKey!;
+  
   if (!tree) {
     clearDialogueSession(sessionKey, self, partner ?? undefined);
     return false;
@@ -303,6 +311,7 @@ function advanceDialogue(
   const entityB = session.solo
     ? null
     : resolveSessionSpeaker(session.entityBId, self, partner);
+    
   if (!session.solo && !entityB) {
     clearDialogueSession(sessionKey, entityA, undefined);
     return false;
@@ -452,14 +461,23 @@ export function tryAmbientRandomDialogue(
   if (seededRandomForRun(`chat-ambient:${entity.id}:${tick}`) > chancePerTick) return;
 
   const context = pickRandomChatContext(entity, tick, options, extra);
-  const freePartners = nearbyCandidates.filter(
-    (p) => p.id !== entity.id && (p.chatTicks ?? 0) <= 0,
-  );
-  // A nearby free settler makes this a visible exchange rather than an
-  // arbitrary monologue from whichever human tick happened to run first.
-  const partner = freePartners.length > 0
-    ? freePartners[Math.floor(seededRandomForRun(`chat-partner:${entity.id}:${tick}`) * freePartners.length)]!
-    : null;
+  
+  // 🚀 OPTIMIZED: Single-pass random partner selection instead of .filter()
+  let partner: ChatSpeaker | null = null;
+  if (nearbyCandidates.length > 0) {
+    // Try to find a free partner randomly without allocating a new array
+    let attempts = 0;
+    const maxAttempts = Math.min(nearbyCandidates.length, 5); // Limit attempts to avoid infinite loops in dense crowds
+    while (attempts < maxAttempts) {
+      const candidate = nearbyCandidates[Math.floor(seededRandomForRun(`chat-cand:${entity.id}:${tick}:${attempts}`) * nearbyCandidates.length)];
+      if (candidate && candidate.id !== entity.id && (candidate.chatTicks ?? 0) <= 0) {
+        partner = candidate;
+        break;
+      }
+      attempts++;
+    }
+  }
+
   maybeDialogueChat(entity, partner, context, tick, 1, options);
 }
 
@@ -565,6 +583,13 @@ export function resetDialogueSessions(): void {
 export function cleanupEntityDialogueState(entity: ChatSpeaker): void {
   const key = entity.chatDialogueSessionKey;
   if (key) {
+    const session = dialogueSessions.get(key);
+    // If there was a partner, try to clear their state too to prevent ghost chats
+    if (session && !session.solo) {
+      // We can't easily resolve the partner here without a map, but we can 
+      // rely on the partner's next tick to fail resolveSessionEntities and clean itself up.
+      // However, deleting the session key prevents the partner from advancing.
+    }
     dialogueSessions.delete(key);
   }
   entity.chatDialogueSessionKey = undefined;

@@ -16,9 +16,29 @@ import { SPECIES_CONFIG } from './speciesConfig';
 import { rollSettlerTraits } from './settlerTraits';
 import { getSimRng } from './simRng';
 
-/** D1 — entity-factory owner stream derived from the current run seed. */
+/** Deterministic simulation RNG stream for entity factory creation. */
 function simRandom(): number {
   return getSimRng('entityFactory')();
+}
+
+export interface CreateEntityOptions {
+  gender?: 'male' | 'female';
+  fatherId?: number;
+  motherId?: number;
+  generation?: number;
+  surname?: string;
+  spriteVariant?: number;
+  isBastard?: boolean;
+  /** Human calendar age — sets birth date via setHumanBirthFromAge. */
+  ageYears?: number;
+  colonyDay?: number;
+  pregnant?: boolean;
+  pregnancyProgress?: number;
+  pregnantById?: number;
+  partnerId?: number;
+  name?: string;
+  /** Traits inherited from parents — remaining slots are rolled. */
+  inheritedTraits?: SettlerTrait[];
 }
 
 export function createEntity(
@@ -28,38 +48,27 @@ export function createEntity(
   id: number,
   energy?: number,
   isJuvenile?: boolean,
-  opts?: {
-    gender?: 'male' | 'female';
-    fatherId?: number;
-    motherId?: number;
-    generation?: number;
-    surname?: string;
-    spriteVariant?: number;
-    isBastard?: boolean;
-    /** Human calendar age — sets birth date via setHumanBirthFromAge (avoids stale birthYear=0). */
-    ageYears?: number;
-    colonyDay?: number;
-    pregnant?: boolean;
-    pregnancyProgress?: number;
-    pregnantById?: number;
-    partnerId?: number;
-    name?: string;
-    /** Traits inherited from a parent (children keep one) — then roll the rest. */
-    inheritedTraits?: SettlerTrait[];
-  },
+  opts?: CreateEntityOptions,
 ): Entity {
   const config = SPECIES_CONFIG[type];
   const isHuman = type === EntityType.Human;
-  const entGender = opts?.gender ?? (isHuman ? (simRandom() > 0.5 ? 'male' : 'female') : undefined);
+  const entGender =
+    opts?.gender ?? (isHuman ? (simRandom() > 0.5 ? 'male' : 'female') : undefined);
   const gen = opts?.generation ?? 0;
+
   let name: string | undefined;
   if (isHuman) {
     name = opts?.name ?? getRandomName(entGender === 'male' ? 'male' : 'female');
   }
-  // Personality traits — only settlers get them; gender-softly weighted.
+
+  // Personality traits — only settlers receive traits
   const traits = isHuman ? rollSettlerTraits(opts?.inheritedTraits, entGender) : undefined;
+
   const entity: Entity = {
-    id, type, x, y,
+    id,
+    type,
+    x,
+    y,
     energy: energy ?? config.spawnEnergy,
     maxEnergy: config.maxEnergy,
     age: isHuman
@@ -73,7 +82,8 @@ export function createEntity(
     maxAge: config.maxAge,
     speed: config.speed,
     size: isJuvenile ? config.size * 0.5 : config.size,
-    vx: 0, vy: 0,
+    vx: 0,
+    vy: 0,
     reproductionCooldown: type === EntityType.Grass ? 0 : simRandom() * 100,
     alive: true,
     flash: 0,
@@ -113,9 +123,8 @@ export function createEntity(
     spriteAngle: simRandom() * Math.PI * 2,
     animFrame: 0,
     combatRollSeed: ((id * 2654435761) ^ 0x9e3779b9) >>> 0,
-    spriteVariant: isHuman && entGender
-      ? (opts?.spriteVariant ?? pickHumanVariant(id, entGender))
-      : undefined,
+    spriteVariant:
+      isHuman && entGender ? (opts?.spriteVariant ?? pickHumanVariant(id, entGender)) : undefined,
   };
 
   if (isHuman) {
@@ -125,10 +134,8 @@ export function createEntity(
     if (opts?.pregnant && entGender === 'female') {
       entity.pregnant = true;
       entity.pregnancyProgress = opts.pregnancyProgress ?? 0;
-      // §5 invariant: a pregnant human must have a valid pregnancyDueProgress.
-      // Same term formula as the conception owner (humanRelationships) so
-      // spawned pregnancies (immigrants, world gen) hold the invariant too.
       entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + simRandom() * 0.3));
+
       const fatherId = opts.pregnantById ?? opts.fatherId ?? opts.partnerId;
       if (fatherId != null) {
         entity.pregnantById = fatherId;
@@ -140,8 +147,11 @@ export function createEntity(
   return entity;
 }
 
-/** Ensure periodic immigrants/refugees never show as age 0 adults in the UI. */
-export function finalizeSettlerAge(entity: Entity, state: Pick<WorldState, 'year' | 'dayInYear' | 'tick'>): void {
+/** Ensures periodic immigrants/refugees hold valid calendar ages and adult metadata. */
+export function finalizeSettlerAge(
+  entity: Entity,
+  state: Pick<WorldState, 'year' | 'dayInYear' | 'tick'>,
+): void {
   const colonyDay = getColonyDay(state);
   const targetAge = Math.max(
     HUMAN_ADULT_MIN_AGE,

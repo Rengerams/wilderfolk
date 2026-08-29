@@ -4,6 +4,8 @@
 import type { DeathParticle, WorldState } from './gameTypes';
 import { pushTransientParticle } from './juiceEffects';
 
+export { pushTransientParticle } from './juiceEffects';
+
 export function impulseScreenShake(state: WorldState, amount: number): void {
   state.screenShakeImpulse = Math.max(state.screenShakeImpulse, amount);
 }

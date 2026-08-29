@@ -25,10 +25,12 @@ import {
   syncHumanAgeFromCalendar,
   reconcileOrphanedMarriages,
 } from './dayCycle';
+import { buildEntityByType, type SimulationFocus } from './simFocus';
 import {
-  buildEntityByType,
-  type SimulationFocus,
-} from './simFocus';
+  cacheEntityByType,
+  getCachedEntityByType,
+  invalidateCachedEntityByType,
+} from './entityTypeCache';
 import {
   getSeason,
   getReproductionMultiplier,
@@ -57,16 +59,6 @@ import {
   resetSpatialQueryTickMetrics,
   setSpatialQueryGridMode,
 } from './spatialQueryMetrics';
-
-/**
- * Per-world stable entity buckets across no-change ticks (P1, BUG-2):
- * most ticks neither birth, nor kill, nor change types — on those, the
- * entity-by-type index built for the layers is also the final index, so we
- * reuse it (same object identity) instead of rebuilding it at the end of the
- * tick. The render catalog keys off that identity to skip its own rebuild.
- * Keyed per WorldState so multiple worlds/scripts never share buckets.
- */
-const stableByTypeByWorld = new WeakMap<WorldState, EntityByType>();
 
 export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState {
   if (state.paused) return state;
@@ -115,7 +107,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     }
   }
 
-  const byType = stableByTypeByWorld.get(state) ?? buildEntityByType(aliveEntities);
+  const byType = getCachedEntityByType(state, aliveEntities);
   const hourOfDay = getHourOfDay(state.tick);
   const updatedBuildings = state.buildings;
   const playerHumans = byType[EntityType.Human].filter(isPlayerHuman);
@@ -260,11 +252,11 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   const untrackedSpawns = deathsThisTick < 0;
   const typeChanged = ctx.byType !== byType;
   if (deathsThisTick > 0 || untrackedSpawns || newEntities.length > 0 || typeChanged || dailyLayerRan) {
+    invalidateCachedEntityByType(state);
     state.entityByType = buildEntityByType(allAlive);
-    stableByTypeByWorld.delete(state);
   } else {
-    if (!stableByTypeByWorld.has(state)) stableByTypeByWorld.set(state, byType);
-    state.entityByType = stableByTypeByWorld.get(state)!;
+    cacheEntityByType(state, byType);
+    state.entityByType = byType;
   }
   if (USE_SPATIAL_GRID) state.mobileGrid = ctx.mobileGrid;
   state.buildings = updatedBuildings;

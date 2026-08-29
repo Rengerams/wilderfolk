@@ -8,7 +8,7 @@ export interface ViewState {
   screenShake: number;
   /** Primary selected entity (last of selectedEntityIds) — inspector target. */
   selectedEntityId: number | null;
-  /** Multi-selection (shift-click). Includes the primary; drives multi-assign + rings. */
+  /** Multi-selection (shift-click). Includes primary; drives multi-assign & rings. */
   selectedEntityIds: number[];
   selectedBuildingId: number | null;
   hoveredBuildingId: number | null;
@@ -26,17 +26,38 @@ export interface ViewState {
   /** Selected visitor/rival camp for diplomacy inspector. */
   selectedCampKey: string | null;
   /**
-   * Favorite citizen — camera keeps following while set (and entity stays alive).
-   * One favorite at a time; null = not following.
+   * Favorite citizen — camera continuously follows while set (and entity stays alive).
+   * Null = not following.
    */
   favoriteEntityId: number | null;
 }
 
-export function createInitialView(width: number, height: number, zoom = 1.45): ViewState {
+export const CAMERA_ZOOM_MIN = 0.5;
+export const CAMERA_ZOOM_MAX = 8.0;
+export const CAMERA_ZOOM_DEFAULT = 1.45;
+export const CAMERA_ZOOM_STEP_IN = 1.1;
+export const CAMERA_ZOOM_STEP_OUT = 0.9;
+export const CAMERA_ZOOM_PRESETS: readonly number[] = [0.5, 0.75, 1.0, 1.25, 1.45, 1.75, 2.0, 2.5, 3.0];
+
+const CAMERA_EPS = 1e-3;
+const CAMERA_LERP = 0.12;
+const BUILDING_TYPE_VALUES = new Set<string>(Object.values(BuildingTypeEnum));
+const CAMP_KEY_PATTERN = /^(rival|visitor):/;
+
+export function createInitialView(width: number, height: number, zoom = CAMERA_ZOOM_DEFAULT): ViewState {
   const cx = width / 2;
   const cy = height / 2;
+  const clampedZoom = clampCameraZoom(zoom);
+
   return {
-    camera: { x: cx, y: cy, zoom, targetX: cx, targetY: cy, targetZoom: zoom },
+    camera: {
+      x: cx,
+      y: cy,
+      zoom: clampedZoom,
+      targetX: cx,
+      targetY: cy,
+      targetZoom: clampedZoom,
+    },
     screenShake: 0,
     selectedEntityId: null,
     selectedEntityIds: [],
@@ -55,47 +76,13 @@ export function createInitialView(width: number, height: number, zoom = 1.45): V
   };
 }
 
-const CAMERA_EPS = 1e-3;
-
-export const CAMERA_ZOOM_MIN = 0.5;
-export const CAMERA_ZOOM_MAX = 8;
-export const CAMERA_ZOOM_DEFAULT = 1.45;
-export const CAMERA_ZOOM_STEP_IN = 1.1;
-export const CAMERA_ZOOM_STEP_OUT = 0.9;
-export const CAMERA_ZOOM_PRESETS: number[] = [0.5, 0.75, 1, 1.25, 1.45, 1.75, 2, 2.5, 3];
-
-const BUILDING_TYPE_VALUES = new Set<string>(Object.values(BuildingTypeEnum));
-const CAMP_KEY_PATTERN = /^(rival|visitor):/;
-
-const entityIndexCache = new WeakMap<readonly Entity[], Map<number, Entity>>();
-const buildingIndexCache = new WeakMap<readonly Building[], Map<number, Building>>();
-
 export function clampCameraZoom(zoom: number): number {
+  if (!Number.isFinite(zoom)) return CAMERA_ZOOM_DEFAULT;
   return Math.max(CAMERA_ZOOM_MIN, Math.min(CAMERA_ZOOM_MAX, zoom));
 }
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
-}
-
-function getEntityIndex(entities: readonly Entity[]): Map<number, Entity> {
-  let index = entityIndexCache.get(entities);
-  if (!index) {
-    index = new Map();
-    for (const entity of entities) index.set(entity.id, entity);
-    entityIndexCache.set(entities, index);
-  }
-  return index;
-}
-
-function getBuildingIndex(buildings: readonly Building[]): Map<number, Building> {
-  let index = buildingIndexCache.get(buildings);
-  if (!index) {
-    index = new Map();
-    for (const building of buildings) index.set(building.id, building);
-    buildingIndexCache.set(buildings, index);
-  }
-  return index;
 }
 
 function parseFiniteNumber(value: unknown): number | null {
@@ -121,19 +108,14 @@ function parseBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
-function parseOptionalString(value: unknown): string | null {
-  return typeof value === 'string' ? value : null;
-}
-
 function parseCampKey(value: unknown): string | null {
-  const key = parseOptionalString(value);
-  return key && CAMP_KEY_PATTERN.test(key) ? key : null;
+  if (typeof value !== 'string') return null;
+  return CAMP_KEY_PATTERN.test(value) ? value : null;
 }
 
 export function parseBuildRotation(value: unknown): 0 | 90 {
   const n = parseFiniteNumber(value);
-  if (n === 90) return 90;
-  return 0;
+  return n === 90 ? 90 : 0;
 }
 
 function isBuildingType(value: unknown): value is BuildingType {
@@ -149,14 +131,53 @@ function parseBuildGhost(value: unknown): ViewState['buildGhost'] {
   return { x, y, valid: ghost.valid };
 }
 
-function parseCameraRecord(value: unknown): Partial<Camera> | undefined {
-  if (value == null || typeof value !== 'object') return undefined;
-  return value as Partial<Camera>;
+// ============ ENTITY & BUILDING RESOLUTION ============
+
+export function resolveEntity(world: WorldState, id: number | null): Entity | null {
+  if (id == null) return null;
+
+  // 1. O(1) authoritative map lookup if available
+  if (world.entityById) {
+    const ent = world.entityById.get(id);
+    return ent && ent.alive ? ent : null;
+  }
+
+  // 2. Direct linear scan fallback
+  for (let i = 0; i < world.entities.length; i++) {
+    const ent = world.entities[i];
+    if (ent.id === id) {
+      return ent.alive ? ent : null;
+    }
+  }
+
+  return null;
 }
 
-/** Clamp corrupted save camera values; resolves target coords + zoom (x/y synced on normalize). */
+export function resolveBuilding(world: WorldState, id: number | null): Building | null {
+  if (id == null) return null;
+
+  // 1. O(1) building lookup map if available
+  if (new Map(world.buildings.map(b => [b.id, b]))) {
+    const b = new Map(world.buildings.map(b => [b.id, b])).get(id);
+    if (b) return b;
+  }
+
+  // 2. Linear scan fallback
+  for (let i = 0; i < world.buildings.length; i++) {
+    const b = world.buildings[i];
+    if (b.id === id) {
+      return b;
+    }
+  }
+
+  return null;
+}
+
+// ============ CAMERA SANITIZATION & PERSISTENCE ============
+
 export function sanitizeCamera(raw: Partial<Camera> | undefined, fallback: Camera): Camera {
   if (!raw) return fallback;
+
   const zoom = isFiniteNumber(raw.zoom) ? clampCameraZoom(raw.zoom) : fallback.zoom;
   const targetZoom = isFiniteNumber(raw.targetZoom) ? clampCameraZoom(raw.targetZoom) : zoom;
   const targetX = isFiniteNumber(raw.targetX)
@@ -169,10 +190,17 @@ export function sanitizeCamera(raw: Partial<Camera> | undefined, fallback: Camer
     : isFiniteNumber(raw.y)
       ? raw.y
       : fallback.targetY;
-  return { x: targetX, y: targetY, zoom: targetZoom, targetX, targetY, targetZoom };
+
+  return {
+    x: targetX,
+    y: targetY,
+    zoom: targetZoom,
+    targetX,
+    targetY,
+    targetZoom,
+  };
 }
 
-/** Persist/restored pan uses target coords so mid-lerp views do not snap back to map center. */
 export function normalizeCameraForSave(cam: Camera): Camera {
   return {
     ...cam,
@@ -180,10 +208,6 @@ export function normalizeCameraForSave(cam: Camera): Camera {
     y: cam.targetY,
     zoom: cam.targetZoom,
   };
-}
-
-function normalizeCameraFromSave(raw: Partial<Camera> | undefined, fallback: Camera): Camera {
-  return normalizeCameraForSave(sanitizeCamera(raw, fallback));
 }
 
 function resolveSelectionIds(
@@ -195,14 +219,11 @@ function resolveSelectionIds(
   hoveredBuildingId: number | null;
 } {
   let selectedEntityId =
-    parseEntityId(data.selectedEntityId)
-    ?? parseIdFromLegacyRecord(data.selectedEntity);
+    parseEntityId(data.selectedEntityId) ?? parseIdFromLegacyRecord(data.selectedEntity);
   let selectedBuildingId =
-    parseEntityId(data.selectedBuildingId)
-    ?? parseIdFromLegacyRecord(data.selectedBuilding);
+    parseEntityId(data.selectedBuildingId) ?? parseIdFromLegacyRecord(data.selectedBuilding);
   let hoveredBuildingId =
-    parseEntityId(data.hoveredBuildingId)
-    ?? parseIdFromLegacyRecord(data.hoveredBuilding);
+    parseEntityId(data.hoveredBuildingId) ?? parseIdFromLegacyRecord(data.hoveredBuilding);
 
   if (selectedEntityId != null && !resolveEntity(world, selectedEntityId)) {
     selectedEntityId = null;
@@ -217,7 +238,6 @@ function resolveSelectionIds(
   return { selectedEntityId, selectedBuildingId, hoveredBuildingId };
 }
 
-/** Restore view from a saved game payload (missing fields use current world defaults). */
 export function createViewFromSave(
   data: Record<string, unknown>,
   world: WorldState,
@@ -230,13 +250,13 @@ export function createViewFromSave(
 
   return {
     ...base,
-    camera: normalizeCameraFromSave(parseCameraRecord(data.camera), base.camera),
+    camera: normalizeCameraForSave(sanitizeCamera(data.camera as Partial<Camera>, base.camera)),
     screenShake: screenShake != null && screenShake >= 0 ? screenShake : base.screenShake,
     selectedEntityId: selection.selectedEntityId,
     selectedEntityIds: Array.isArray(data.selectedEntityIds)
       ? data.selectedEntityIds
-        .map(parseEntityId)
-        .filter((id): id is number => id != null)
+          .map(parseEntityId)
+          .filter((id): id is number => id != null && resolveEntity(world, id) != null)
       : selection.selectedEntityId != null
         ? [selection.selectedEntityId]
         : [],
@@ -258,26 +278,12 @@ export function createViewFromSave(
   };
 }
 
-export function resolveEntity(world: WorldState, id: number | null): Entity | null {
-  if (id == null) return null;
-  const entity = getEntityIndex(world.entities).get(id);
-  if (!entity?.alive) return null;
-  return entity;
-}
-
-export function resolveBuilding(world: WorldState, id: number | null): Building | null {
-  if (id == null) return null;
-  const building = getBuildingIndex(world.buildings).get(id);
-  if (!building) return null;
-  return building;
-}
-
-/** Drop dead entity/building ids before persisting or restoring view selection. */
 export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewState {
   let selectedEntityId = view.selectedEntityId;
   let selectedEntityIds = view.selectedEntityIds ?? (selectedEntityId != null ? [selectedEntityId] : []);
   let selectedBuildingId = view.selectedBuildingId;
   let favoriteEntityId = view.favoriteEntityId;
+
   if (selectedEntityId != null && !resolveEntity(world, selectedEntityId)) {
     selectedEntityId = null;
   }
@@ -288,18 +294,25 @@ export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewS
   if (favoriteEntityId != null && !resolveEntity(world, favoriteEntityId)) {
     favoriteEntityId = null;
   }
+
   if (
-    selectedEntityId === view.selectedEntityId
-    && selectedBuildingId === view.selectedBuildingId
-    && favoriteEntityId === view.favoriteEntityId
-    && selectedEntityIds.length === (view.selectedEntityIds?.length ?? 0)
+    selectedEntityId === view.selectedEntityId &&
+    selectedBuildingId === view.selectedBuildingId &&
+    favoriteEntityId === view.favoriteEntityId &&
+    selectedEntityIds.length === (view.selectedEntityIds?.length ?? 0)
   ) {
     return view;
   }
-  return { ...view, selectedEntityId, selectedEntityIds, selectedBuildingId, favoriteEntityId };
+
+  return {
+    ...view,
+    selectedEntityId,
+    selectedEntityIds,
+    selectedBuildingId,
+    favoriteEntityId,
+  };
 }
 
-/** Legacy transient world fields kept at the save root for backward compatibility. */
 export function pickTransientWorldFieldsForSave(world: WorldState): Record<string, unknown> {
   return {
     deathParticles: world.deathParticles,
@@ -314,21 +327,20 @@ export function restoreTransientWorldFieldsFromSave(
 ): Pick<WorldState, 'deathParticles' | 'floatingTexts' | 'notifications' | 'disasters'> {
   return {
     deathParticles: Array.isArray(parsed.deathParticles)
-      ? parsed.deathParticles as WorldState['deathParticles']
+      ? (parsed.deathParticles as WorldState['deathParticles'])
       : [],
     floatingTexts: Array.isArray(parsed.floatingTexts)
-      ? parsed.floatingTexts as WorldState['floatingTexts']
+      ? (parsed.floatingTexts as WorldState['floatingTexts'])
       : [],
     notifications: Array.isArray(parsed.notifications)
-      ? parsed.notifications as WorldState['notifications']
+      ? (parsed.notifications as WorldState['notifications'])
       : [],
     disasters: Array.isArray(parsed.disasters)
-      ? parsed.disasters as WorldState['disasters']
+      ? (parsed.disasters as WorldState['disasters'])
       : [],
   };
 }
 
-/** Merge world + view into a serializable save payload (allow-listed world keys + view overlay). */
 export function mergeForSave(world: WorldState, view: ViewState): Record<string, unknown> {
   const selection = sanitizeViewSelection(world, view);
 
@@ -351,7 +363,7 @@ export function mergeForSave(world: WorldState, view: ViewState): Record<string,
   };
 }
 
-const CAMERA_LERP = 0.12;
+// ============ KINEMATIC CAMERA INTERPOLATION ============
 
 function cameraAtRest(cam: Camera): boolean {
   return (
@@ -362,6 +374,8 @@ function cameraAtRest(cam: Camera): boolean {
 }
 
 export function updateView(view: ViewState, dtMs: number): ViewState {
+  if (dtMs <= 0 || !Number.isFinite(dtMs)) return view;
+
   const cam = view.camera;
   let nextX = cam.x;
   let nextY = cam.y;
@@ -372,6 +386,7 @@ export function updateView(view: ViewState, dtMs: number): ViewState {
     nextX = cam.x + (cam.targetX - cam.x) * t;
     nextY = cam.y + (cam.targetY - cam.y) * t;
     nextZoom = cam.zoom + (cam.targetZoom - cam.zoom) * t;
+
     if (Math.abs(nextX - cam.targetX) < CAMERA_EPS) nextX = cam.targetX;
     if (Math.abs(nextY - cam.targetY) < CAMERA_EPS) nextY = cam.targetY;
     if (Math.abs(nextZoom - cam.targetZoom) < CAMERA_EPS) nextZoom = cam.targetZoom;
@@ -388,12 +403,11 @@ export function updateView(view: ViewState, dtMs: number): ViewState {
     return view;
   }
 
-  const nextCamera: Camera = cameraUnchanged
-    ? cam
-    : { ...cam, x: nextX, y: nextY, zoom: nextZoom };
-  return shakeUnchanged
-    ? { ...view, camera: nextCamera }
-    : { ...view, camera: nextCamera, screenShake: nextShake };
+  return {
+    ...view,
+    camera: cameraUnchanged ? cam : { ...cam, x: nextX, y: nextY, zoom: nextZoom },
+    screenShake: shakeUnchanged ? view.screenShake : nextShake,
+  };
 }
 
 export function clampCameraTarget(
@@ -403,17 +417,18 @@ export function clampCameraTarget(
   viewportW = worldW,
   viewportH = worldH,
 ): Camera {
-  // Keep the visible viewport inside the world (no empty ring when zoomed out).
-  // Half the viewport in world units = (viewportPx / 2) / zoom.
-  const halfViewW = viewportW / 2 / cam.zoom;
-  const halfViewH = viewportH / 2 / cam.zoom;
-  // If the viewport is bigger than the world, pin to the center instead.
-  const minX = halfViewW * 2 >= worldW ? worldW / 2 : Math.max(-halfViewW, halfViewW);
+  const effectiveZoom = clampCameraZoom(cam.targetZoom ?? cam.zoom);
+  const halfViewW = viewportW / 2 / effectiveZoom;
+  const halfViewH = viewportH / 2 / effectiveZoom;
+
+  const minX = halfViewW * 2 >= worldW ? worldW / 2 : halfViewW;
   const maxX = halfViewW * 2 >= worldW ? worldW / 2 : worldW - halfViewW;
-  const minY = halfViewH * 2 >= worldH ? worldH / 2 : Math.max(-halfViewH, halfViewH);
+  const minY = halfViewH * 2 >= worldH ? worldH / 2 : halfViewH;
   const maxY = halfViewH * 2 >= worldH ? worldH / 2 : worldH - halfViewH;
+
   const marginX = worldW * 0.02;
   const marginY = worldH * 0.02;
+
   return {
     ...cam,
     targetX: Math.max(minX - marginX, Math.min(maxX + marginX, cam.targetX)),
@@ -423,12 +438,12 @@ export function clampCameraTarget(
 
 export function moveCameraView(view: ViewState, world: WorldState, dx: number, dy: number): ViewState {
   const cam = { ...view.camera };
-  cam.targetX += dx / cam.zoom;
-  cam.targetY += dy / cam.zoom;
+  const effectiveZoom = cam.targetZoom ?? cam.zoom;
+  cam.targetX += dx / effectiveZoom;
+  cam.targetY += dy / effectiveZoom;
   return { ...view, camera: clampCameraTarget(cam, world.width, world.height) };
 }
 
-/** Zoom toward a screen-space anchor (canvas px). Keeps the world point under the cursor fixed. */
 export function zoomCameraViewAt(
   view: ViewState,
   factor: number,
@@ -440,13 +455,19 @@ export function zoomCameraViewAt(
   const cam = { ...view.camera };
   const oldZoom = cam.targetZoom;
   const newZoom = clampCameraZoom(oldZoom * factor);
-  if (Math.abs(newZoom - oldZoom) < CAMERA_EPS) return view;
 
+  if (Math.abs(newZoom - oldZoom) < CAMERA_EPS) {
+    return view;
+  }
+
+  // Anchor transformation: preserve world point under mouse cursor
   const worldX = (screenX - canvasW / 2) / oldZoom + cam.targetX;
   const worldY = (screenY - canvasH / 2) / oldZoom + cam.targetY;
+
   cam.targetZoom = newZoom;
   cam.targetX = worldX - (screenX - canvasW / 2) / newZoom;
   cam.targetY = worldY - (screenY - canvasH / 2) / newZoom;
+
   return { ...view, camera: cam };
 }
 
@@ -459,14 +480,14 @@ export function zoomCameraView(
   return zoomCameraViewAt(view, factor, canvasW / 2, canvasH / 2, canvasW, canvasH);
 }
 
-/** Pan camera to a world position (e.g. center on settlers with H). */
 export function focusCameraOn(view: ViewState, x: number, y: number, zoom?: number): ViewState {
   const cam = { ...view.camera, targetX: x, targetY: y };
-  if (zoom !== undefined) cam.targetZoom = clampCameraZoom(zoom);
+  if (zoom !== undefined) {
+    cam.targetZoom = clampCameraZoom(zoom);
+  }
   return { ...view, camera: cam };
 }
 
-/** Gentle pan toward a map click target — keeps context, unlike full focusCameraOn. */
 export function nudgeCameraToward(
   view: ViewState,
   world: WorldState,
@@ -491,6 +512,8 @@ export function syncScreenShakeFromWorld(view: ViewState, world: WorldState): Vi
 export function clearScreenShakeImpulse(world: WorldState): void {
   world.screenShakeImpulse = 0;
 }
+
+// ============ COORDINATE CONVERSION UTILITIES ============
 
 export function worldToScreen(
   x: number,

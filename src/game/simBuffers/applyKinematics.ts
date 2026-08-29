@@ -4,17 +4,18 @@ import type { RenderSoAReaderV1 } from './renderSoAReader';
 import { RESIDENCE_BUILDING_NONE } from './schema';
 
 /**
- * Phase C — sync catalog positions from render SoA.
- * When metaBySlot is provided, also sync speech bubble text (chatPhrase).
+ * Syncs catalog positions, velocities, animation frames, and speech bubbles
+ * from the binary render SoA buffer sent by the simulation worker.
  */
 export function patchCatalogKinematicsFromRenderSoA(
   catalog: EntityCatalog,
   reader: RenderSoAReaderV1,
-  metaBySlot?: EntityRenderMeta[] | null,
+  metaBySlot?: readonly EntityRenderMeta[] | null,
 ): void {
   reader.forEachSlot((slot) => {
-    const entity = catalog.getAny(reader.id(slot));
-    if (!entity?.alive) return;
+    const id = reader.id(slot);
+    const entity = catalog.getAny(id);
+    if (!entity || !entity.alive) return;
 
     entity.x = reader.x(slot);
     entity.y = reader.y(slot);
@@ -28,11 +29,11 @@ export function patchCatalogKinematicsFromRenderSoA(
     const chatTicks = reader.chatTicks(slot);
     entity.chatTicks = chatTicks > 0 ? chatTicks : undefined;
 
-    // Phrase lives in meta sidecar — without this, bubbles show dots only on worker path.
+    // Chat phrases are stored in the sidecar metadata array
     if (metaBySlot) {
       const meta = metaBySlot[slot];
-      if (chatTicks > 0) {
-        if (meta?.chatPhrase) entity.chatPhrase = meta.chatPhrase;
+      if (chatTicks > 0 && meta?.chatPhrase) {
+        entity.chatPhrase = meta.chatPhrase;
       } else {
         entity.chatPhrase = undefined;
       }
@@ -44,8 +45,7 @@ export function patchCatalogKinematicsFromRenderSoA(
     entity.huntTargetId = huntTargetId ?? undefined;
 
     const residenceId = reader.residenceBuildingId(slot);
-    entity.residenceBuildingId = residenceId !== RESIDENCE_BUILDING_NONE
-      ? residenceId
-      : undefined;
+    entity.residenceBuildingId =
+      residenceId !== RESIDENCE_BUILDING_NONE ? residenceId : undefined;
   });
 }

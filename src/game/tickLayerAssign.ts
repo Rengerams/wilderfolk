@@ -13,10 +13,7 @@ import { assignMissingWorkers } from './workforce';
  * Assignment layer pulse interval (ticks).
  *
  * Housing + job fill — village logistics, not chat/courtship (those are Realtime).
- *
- * Legacy (24 ticks/day): every 6 ticks → 4× per calendar day.
- * Day is longer now; scale so assign still runs ~4×/day, not 12×.
- * Immediate assign still runs on place/recruit/death and once on the daily layer.
+ * Scales to fire ~4× per calendar day.
  */
 export const LAYER_ASSIGN_INTERVAL = 6 * TICKS_PER_HOUR; // 18 @ 3 ticks/hour → 4×/day
 
@@ -26,20 +23,20 @@ export const ASSIGN_PULSES_PER_DAY = Math.floor(TICKS_PER_DAY / LAYER_ASSIGN_INT
 /**
  * Assignment layer — residence + workforce bookkeeping.
  *
- * Chat, affairs, tavern, courtship live in Realtime (`tickHumans`).
- * Daily mortality / conception stay under isNewCalendarDay in lifeSimulation.
+ * Realtime interactions (chat, affairs, courtship) run in `tickHumans`.
+ * Daily mortality and conception stay under `isNewCalendarDay` in `lifeSimulation`.
  *
- * Host should call only when world.tick % LAYER_ASSIGN_INTERVAL === 0.
+ * Should be called when `world.tick % LAYER_ASSIGN_INTERVAL === 0`.
  */
 export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
-  const { playerHumans, updatedBuildings } = ctx;
+  const { playerHumans, updatedBuildings, byType } = ctx;
 
-  const allHumans =
-    ctx.byType[EntityType.Human]?.filter((e) => e.alive)
-    ?? world.entities.filter((e) => e.alive && e.type === EntityType.Human);
+  const humanBucket = byType[EntityType.Human];
+  const allHumans = humanBucket
+    ? humanBucket.filter((e) => e.alive)
+    : world.entities.filter((e) => e.alive && e.type === EntityType.Human);
 
   syncResidenceOccupants(allHumans, updatedBuildings);
   assignMissingResidences(playerHumans, updatedBuildings, allHumans);
-    assignMissingWorkers(playerHumans, updatedBuildings, world);
-
+  assignMissingWorkers(playerHumans, updatedBuildings, world);
 }

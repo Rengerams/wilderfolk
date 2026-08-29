@@ -1,11 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { GameLoop, GameLoopDiagnostics } from '../game/gameLoop';
 import { EntityType } from '../game/gameTypes';
 
-type Props = {
+export interface SimulationDiagnosticsPanelProps {
   loop: GameLoop | null;
   debugMode?: boolean;
-};
+}
+
+export interface LifecycleAlignmentData {
+  population: number;
+  pregnant: number;
+  dueSoon: number;
+  progress: string;
+  expectingMismatch: number;
+  partnerMismatch: number;
+  missingParentLinks: number;
+}
+
+const STORAGE_KEY = 'wilderfolk-diagnostics-panel-open';
 
 function formatLatency(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return '—';
@@ -13,116 +25,262 @@ function formatLatency(value: number): string {
 }
 
 function formatAge(value: number | null): string {
-  if (value == null) return '—';
+  if (value == null || !Number.isFinite(value)) return '—';
   if (value < 1000) return `${Math.round(value)} ms ago`;
   return `${(value / 1000).toFixed(1)} s ago`;
 }
 
-function getLifecycleAlignment(loop: GameLoop | null) {
-  const humans = loop?.getWorld().entities.filter(
-    (entity) => entity.type === EntityType.Human && entity.alive && !entity.faction,
-  ) ?? [];
-  const pregnant = humans.filter((human) => human.pregnant);
-  const expectingMismatch = humans.filter(
-    (human) => human.relationshipStatus === 'expecting' && !human.pregnant,
-  );
-  const partnerMismatch = humans.filter(
-    (human) => human.partnerId != null && !humans.some((partner) => partner.id === human.partnerId),
-  );
-  const missingParentLinks = humans.filter(
-    (human) => human.isJuvenile && human.motherId == null && human.fatherId == null,
-  );
-  const dueSoon = pregnant.filter(
-    (human) => human.pregnancyProgress != null
-      && human.pregnancyDueProgress != null
-      && human.pregnancyDueProgress - human.pregnancyProgress <= 10,
-  );
-  const progressValues = pregnant
-    .map((human) => human.pregnancyProgress)
-    .filter((value): value is number => value != null && Number.isFinite(value));
+function getLifecycleAlignment(loop: GameLoop | null): LifecycleAlignmentData {
+  const entities = loop?.getWorld()?.entities ?? [];
+  const humans = [];
+
+  for (let i = 0; i < entities.length; i++) {
+    const e = entities[i];
+    if (e.alive && e.type === EntityType.Human && !e.faction) {
+      humans.push(e);
+    }
+  }
+
+  const humanIds = new Set<number>();
+  for (let i = 0; i < humans.length; i++) {
+    humanIds.add(humans[i].id);
+  }
+
+  let pregnantCount = 0;
+  let dueSoonCount = 0;
+  let expectingMismatch = 0;
+  let partnerMismatch = 0;
+  let missingParentLinks = 0;
+  let minProgress = Infinity;
+  let maxProgress = -Infinity;
+
+  for (let i = 0; i < humans.length; i++) {
+    const h = humans[i];
+
+    if (h.pregnant) {
+      pregnantCount++;
+      const prog = h.pregnancyProgress;
+      const due = h.pregnancyDueProgress;
+      if (prog != null && Number.isFinite(prog)) {
+        if (prog < minProgress) minProgress = prog;
+        if (prog > maxProgress) maxProgress = prog;
+        if (due != null && due - prog <= 10) {
+          dueSoonCount++;
+        }
+      }
+    } else if (h.relationshipStatus === 'expecting') {
+      expectingMismatch++;
+    }
+
+    if (h.partnerId != null && !humanIds.has(h.partnerId)) {
+      partnerMismatch++;
+    }
+
+    if (h.isJuvenile && h.motherId == null && h.fatherId == null) {
+      missingParentLinks++;
+    }
+  }
+
+  const progressRange =
+    minProgress !== Infinity && maxProgress !== -Infinity
+      ? `${minProgress.toFixed(0)}–${maxProgress.toFixed(0)}`
+      : '—';
+
   return {
     population: humans.length,
-    pregnant: pregnant.length,
-    dueSoon: dueSoon.length,
-    progress: progressValues.length > 0
-      ? `${Math.min(...progressValues).toFixed(0)}–${Math.max(...progressValues).toFixed(0)}`
-      : '—',
-    expectingMismatch: expectingMismatch.length,
-    partnerMismatch: partnerMismatch.length,
-    missingParentLinks: missingParentLinks.length,
+    pregnant: pregnantCount,
+    dueSoon: dueSoonCount,
+    progress: progressRange,
+    expectingMismatch,
+    partnerMismatch,
+    missingParentLinks,
   };
 }
 
-export default function SimulationDiagnosticsPanel({ loop, debugMode = false }: Props) {
-  const [open, setOpen] = useState(false);
+export default function SimulationDiagnosticsPanel({
+  loop,
+  debugMode = false,
+}: SimulationDiagnosticsPanelProps) {
+  const [open, setOpen] = useState(() => {
+    try {
+      return typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const [diagnostics, setDiagnostics] = useState<GameLoopDiagnostics | null>(null);
+  const [lifecycleTick, setLifecycleTick] = useState(0);
 
   useEffect(() => {
     if (!loop) {
       setDiagnostics(null);
       return;
     }
-    const refresh = () => setDiagnostics(loop.getDiagnostics());
+
+    const refresh = () => {
+      try {
+        setDiagnostics(loop.getDiagnostics());
+      } catch (err) {
+        console.error('[SimulationDiagnosticsPanel] Failed to query diagnostics:', err);
+      }
+    };
+
     refresh();
     const timer = window.setInterval(refresh, 250);
     return () => window.clearInterval(timer);
   }, [loop]);
 
+  // Throttled lifecycle verification timer (every 2s)
+  useEffect(() => {
+    if (!debugMode || !open) return;
+    const timer = window.setInterval(() => {
+      setLifecycleTick((t) => t + 1);
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [debugMode, open]);
+
+  const lifecycle = useMemo(() => {
+    if (!debugMode || !open) return null;
+    return getLifecycleAlignment(loop);
+  }, [loop, debugMode, open, lifecycleTick]);
+
+  const handleToggle = () => {
+    setOpen((prev) => {
+      const next = !prev;
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_KEY, String(next));
+        }
+      } catch {
+        /* Storage write failure ignored */
+      }
+      return next;
+    });
+  };
+
   return (
     <section className="shrink-0 border-b border-stone-700/80 bg-stone-950/55">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center justify-between px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400 hover:bg-stone-800/60 hover:text-amber-200"
+        onClick={handleToggle}
+        className="flex w-full items-center justify-between px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400 hover:bg-stone-800/60 hover:text-amber-200 transition-colors"
         aria-expanded={open}
+        aria-controls="diagnostics-content"
       >
         <span>Simulation diagnostics</span>
         <span aria-hidden>{open ? '▴' : '▾'}</span>
       </button>
+
       {open && (
-        <div className="space-y-1 px-3 pb-3 text-[11px] text-stone-300">
+        <div id="diagnostics-content" className="space-y-1.5 px-3 pb-3 text-[11px] text-stone-300">
           {!diagnostics ? (
             <p className="text-stone-500">Waiting for the simulation loop…</p>
           ) : (
             <>
               <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg border border-stone-700/70 bg-stone-900/70 p-2">
                 <span className="text-stone-500">Authority</span>
-                <strong className={diagnostics.workerMode === 'worker' ? 'text-emerald-300' : 'text-amber-300'}>
-                  {diagnostics.workerBooting ? 'Starting worker' : diagnostics.workerMode === 'worker' ? 'Simulation worker' : 'Main thread'}
+                <strong
+                  className={
+                    diagnostics.workerMode === 'worker'
+                      ? 'text-emerald-300'
+                      : 'text-amber-300'
+                  }
+                >
+                  {diagnostics.workerBooting
+                    ? 'Starting worker…'
+                    : diagnostics.workerMode === 'worker'
+                      ? 'Simulation worker'
+                      : 'Main thread'}
                 </strong>
+
                 <span className="text-stone-500">Game time</span>
-                <span>Day {diagnostics.inGameDay} · {String(diagnostics.hour).padStart(2, '0')}:00</span>
+                <span>
+                  Day {diagnostics.inGameDay} · {String(diagnostics.hour).padStart(2, '0')}:00
+                </span>
+
                 <span className="text-stone-500">Tick</span>
-                <span>{diagnostics.tick.toLocaleString()} · {diagnostics.paused ? 'Paused' : `${diagnostics.speed}× speed`}</span>
+                <span>
+                  {diagnostics.tick.toLocaleString()} ·{' '}
+                  {diagnostics.paused ? 'Paused' : `${diagnostics.speed}× speed`}
+                </span>
+
                 <span className="text-stone-500">Last day boundary</span>
                 <span>Tick {diagnostics.lastDailyBoundaryTick.toLocaleString()}</span>
+
                 {diagnostics.workerMode === 'worker' && (
                   <>
                     <span className="text-stone-500">Tick response</span>
-                    <span>{formatLatency(diagnostics.tickLatencyMs)} · {formatAge(diagnostics.lastWorkerActivityMsAgo)}</span>
+                    <span>
+                      {formatLatency(diagnostics.tickLatencyMs)} ·{' '}
+                      {formatAge(diagnostics.lastWorkerActivityMsAgo)}
+                    </span>
+
                     <span className="text-stone-500">In flight</span>
-                    <span>{diagnostics.ticksInFlight} tick{diagnostics.ticksInFlight === 1 ? '' : 's'}{diagnostics.commandInFlight ? ' · command pending' : ''}</span>
+                    <span>
+                      {diagnostics.ticksInFlight} tick{diagnostics.ticksInFlight === 1 ? '' : 's'}
+                      {diagnostics.commandInFlight ? ' · command pending' : ''}
+                    </span>
                   </>
                 )}
               </div>
-              {debugMode && (() => {
-                const lifecycle = getLifecycleAlignment(loop);
-                return (
-                  <div className="rounded-lg border border-cyan-900/70 bg-cyan-950/20 p-2">
-                    <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-cyan-300">Lifecycle alignment</div>
-                    <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                      <span className="text-stone-500">Living settlers</span><span>{lifecycle.population}</span>
-                      <span className="text-stone-500">Pregnant</span><span>{lifecycle.pregnant} · due soon {lifecycle.dueSoon}</span>
-                      <span className="text-stone-500">Progress range</span><span>{lifecycle.progress}</span>
-                      <span className="text-stone-500">Expecting mismatch</span><span className={lifecycle.expectingMismatch === 0 ? 'text-emerald-300' : 'text-amber-300'}>{lifecycle.expectingMismatch}</span>
-                      <span className="text-stone-500">Partner mismatch</span><span className={lifecycle.partnerMismatch === 0 ? 'text-emerald-300' : 'text-amber-300'}>{lifecycle.partnerMismatch}</span>
-                      <span className="text-stone-500">Missing parent links</span><span className={lifecycle.missingParentLinks === 0 ? 'text-emerald-300' : 'text-amber-300'}>{lifecycle.missingParentLinks}</span>
-                    </div>
+
+              {debugMode && lifecycle && (
+                <div className="rounded-lg border border-cyan-900/70 bg-cyan-950/20 p-2">
+                  <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+                    Lifecycle alignment
                   </div>
-                );
-              })()}
+                  <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                    <span className="text-stone-500">Living settlers</span>
+                    <span>{lifecycle.population}</span>
+
+                    <span className="text-stone-500">Pregnant</span>
+                    <span>
+                      {lifecycle.pregnant} · due soon {lifecycle.dueSoon}
+                    </span>
+
+                    <span className="text-stone-500">Progress range</span>
+                    <span>{lifecycle.progress}</span>
+
+                    <span className="text-stone-500">Expecting mismatch</span>
+                    <span
+                      className={
+                        lifecycle.expectingMismatch === 0
+                          ? 'text-emerald-300'
+                          : 'text-amber-300'
+                      }
+                    >
+                      {lifecycle.expectingMismatch}
+                    </span>
+
+                    <span className="text-stone-500">Partner mismatch</span>
+                    <span
+                      className={
+                        lifecycle.partnerMismatch === 0
+                          ? 'text-emerald-300'
+                          : 'text-amber-300'
+                      }
+                    >
+                      {lifecycle.partnerMismatch}
+                    </span>
+
+                    <span className="text-stone-500">Missing parent links</span>
+                    <span
+                      className={
+                        lifecycle.missingParentLinks === 0
+                          ? 'text-emerald-300'
+                          : 'text-amber-300'
+                      }
+                    >
+                      {lifecycle.missingParentLinks}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <p className="text-[10px] leading-relaxed text-stone-500">
-                Read-only view of the active simulation boundary. It does not change cadence, ownership, or world state.
+                Read-only view of the active simulation boundary. It does not alter cadence,
+                ownership, or world state.
               </p>
             </>
           )}
@@ -131,5 +289,3 @@ export default function SimulationDiagnosticsPanel({ loop, debugMode = false }: 
     </section>
   );
 }
-
-export type { Props as SimulationDiagnosticsPanelProps };

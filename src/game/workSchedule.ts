@@ -1,10 +1,13 @@
 import type { WorldState } from './gameTypes';
-import { TICKS_PER_HOUR, getHourOfDay, isWorkDay } from './dayCycleClock';
+import { TICKS_PER_HOUR, TICKS_PER_DAY, getHourOfDay, isWorkDay } from './dayCycleClock';
 
 export const DEFAULT_WORK_START_HOUR = 7;
 export const DEFAULT_WORK_END_HOUR = 16;
-export const MIN_STANDARD_WORK_HOURS = 6;
-export const MAX_STANDARD_WORK_HOURS = 12;
+export const MIN_STANDARD_WORK_HOURS = 2;
+export const MAX_STANDARD_WORK_HOURS = 16;
+
+/** Baseline work window for production scaling — 9 hours = 1.0 output. */
+export const STANDARD_PRODUCTION_WORK_HOURS = 9;
 
 export interface WorkSchedule {
   startHour: number;
@@ -24,6 +27,63 @@ function isWholeClockHour(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < 24;
 }
 
+/**
+ * Validates candidate start and end hours against colony labor constraints.
+ */
+export function validateWorkSchedule(
+  startHour: unknown,
+  endHour: unknown,
+  currentSchedule?: WorkSchedule,
+): WorkScheduleValidation {
+  if (!isWholeClockHour(startHour) || !isWholeClockHour(endHour)) {
+    return {
+      ok: false,
+      status: 'blocked',
+      reason: 'Work hours must use whole clock hours from 0 through 23.',
+    };
+  }
+
+  if (endHour <= startHour) {
+    return {
+      ok: false,
+      status: 'blocked',
+      reason: 'The standard work window cannot wrap through midnight.',
+    };
+  }
+
+  const duration = endHour - startHour;
+  if (duration < MIN_STANDARD_WORK_HOURS) {
+    return {
+      ok: false,
+      status: 'blocked',
+      reason: `The standard work window must be at least ${MIN_STANDARD_WORK_HOURS} hours.`,
+    };
+  }
+
+  if (duration > MAX_STANDARD_WORK_HOURS) {
+    return {
+      ok: false,
+      status: 'blocked',
+      reason: `The standard work window cannot exceed ${MAX_STANDARD_WORK_HOURS} hours.`,
+    };
+  }
+
+  const schedule: WorkSchedule = { startHour, endHour };
+
+  if (
+    currentSchedule &&
+    currentSchedule.startHour === startHour &&
+    currentSchedule.endHour === endHour
+  ) {
+    return { ok: true, status: 'unchanged', schedule };
+  }
+
+  return { ok: true, status: 'accepted', schedule };
+}
+
+/**
+ * Safely parses and normalizes unknown schedule objects (useful during save-state loads).
+ */
 export function normalizeWorkSchedule(value: unknown): WorkSchedule {
   if (!value || typeof value !== 'object') return { ...DEFAULT_WORK_SCHEDULE };
   const candidate = value as { startHour?: unknown; endHour?: unknown };
@@ -36,59 +96,47 @@ export function getWorkSchedule(state: Pick<WorldState, 'workSchedule'>): WorkSc
 }
 
 export function getWorkScheduleHours(schedule: WorkSchedule): number {
-  return schedule.endHour - schedule.startHour;
+  return Math.max(0, schedule.endHour - schedule.startHour);
 }
-
-/** Baseline work window for production scaling — 9 hours = 1.0 output. */
-export const STANDARD_PRODUCTION_WORK_HOURS = 9;
 
 /**
  * Production scales directly with the configured work window:
- * 9h → 1.0, shorter → lower, longer → higher (with existing fatigue downsides).
+ * 9h -> 1.0, shorter -> lower, longer -> higher.
  */
 export function getWorkHourProductionMultiplier(scheduleHours: number): number {
   if (!Number.isFinite(scheduleHours) || scheduleHours <= 0) return 0;
   return scheduleHours / STANDARD_PRODUCTION_WORK_HOURS;
 }
 
-export function validateWorkSchedule(startHour: unknown, endHour: unknown): WorkScheduleValidation {
-  if (!isWholeClockHour(startHour) || !isWholeClockHour(endHour)) {
-    return { ok: false, status: 'blocked', reason: 'Work hours must use whole clock hours from 0 through 23.' };
-  }
-  if (endHour <= startHour) {
-    return { ok: false, status: 'blocked', reason: 'The standard work window cannot wrap through midnight.' };
-  }
-  const duration = endHour - startHour;
-  if (duration < MIN_STANDARD_WORK_HOURS) {
-    return { ok: false, status: 'blocked', reason: `The standard work window must be at least ${MIN_STANDARD_WORK_HOURS} hours.` };
-  }
-  if (duration > MAX_STANDARD_WORK_HOURS) {
-    return { ok: false, status: 'blocked', reason: `The standard work window cannot exceed ${MAX_STANDARD_WORK_HOURS} hours.` };
-  }
-  const schedule = { startHour, endHour };
-  return { ok: true, status: 'accepted', schedule };
-}
-
+/**
+ * Immutably updates the colony work schedule in WorldState.
+ */
 export function setWorkSchedule(
   originalState: WorldState,
   startHour: number,
   endHour: number,
 ): WorldState {
   const current = getWorkSchedule(originalState);
-  const result = validateWorkSchedule(startHour, endHour);
-  if (!result.ok) return originalState;
-  if (current.startHour === result.schedule.startHour && current.endHour === result.schedule.endHour) {
+  const result = validateWorkSchedule(startHour, endHour, current);
+
+  if (!result.ok || result.status === 'unchanged') {
     return originalState;
   }
-  const state = structuredClone(originalState);
-  state.workSchedule = result.schedule;
-  return state;
+
+  return {
+    ...originalState,
+    workSchedule: result.schedule,
+  };
 }
 
 export function isWorkScheduleHour(schedule: WorkSchedule, hour: number): boolean {
   return hour >= schedule.startHour && hour < schedule.endHour;
 }
 
+/**
+ * Evaluates whether the colony is currently in an active work shift.
+ * Must be a designated workday and fall within configured hours.
+ */
 export function isOnWorkScheduleShift(
   state: Pick<WorldState, 'tick' | 'workSchedule'>,
   hour?: number,
@@ -98,13 +146,22 @@ export function isOnWorkScheduleShift(
   return isWorkScheduleHour(schedule, hour ?? getHourOfDay(state.tick));
 }
 
+/**
+ * Evaluates whether the exact current tick corresponds to the start of the workday.
+ * Ignores weekends and holidays.
+ */
 export function isWorkScheduleStartTick(
   state: Pick<WorldState, 'tick' | 'workSchedule'>,
 ): boolean {
+  if (!isWorkDay(state.tick)) return false;
   const schedule = getWorkSchedule(state);
-  return state.tick % (24 * TICKS_PER_HOUR) === schedule.startHour * TICKS_PER_HOUR;
+  const dayTick = state.tick % TICKS_PER_DAY;
+  return dayTick === schedule.startHour * TICKS_PER_HOUR;
 }
 
+/**
+ * Formats the schedule as a standard 24h range string (e.g., "07:00–16:00").
+ */
 export function getWorkScheduleLabel(schedule: WorkSchedule): string {
   const format = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
   return `${format(schedule.startHour)}–${format(schedule.endHour)}`;

@@ -11,25 +11,22 @@ import { ensureEntitySkills } from './skills';
 import { simulateElectionVotes } from './electionVotes';
 import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
 
-/**
- * Scheduled term length (colony years).
- * 10 felt endless once days are 72 ticks — 5 years is long enough for an
- * incumbent record to matter, short enough that elections stay visible.
- */
 export const ELECTION_INTERVAL_YEARS = 2;
-/** After the head dies with no successor race ready, wait this many years. */
-export const VACANCY_ELECTION_DELAY_YEARS = 1;
-export const ELECTION_PARTY_DAYS = 3;
+export const VACANCY_ELECTION_DELAY_YEARS = 0.25;
+export const ELECTION_PARTY_DAYS = 1;
 export const ELECTION_PARTY_NAME = 'Election Revelry';
 
-/** Gossip lasts 3 months (1 month = 30 days) before the vote. */
-const GOSSIP_MONTHS = 3;
+/** Gossip lasts 2 months before the vote. */
+const GOSSIP_MONTHS = 2;
 
 function getPhaseTicks(phase: 'gathering' | 'gossip' | 'tension'): number {
   switch (phase) {
-    case 'gathering': return 12;
-    case 'gossip': return GOSSIP_MONTHS * 30 * TICKS_PER_DAY;
-    case 'tension': return 12;
+    case 'gathering':
+      return 12;
+    case 'gossip':
+      return GOSSIP_MONTHS * 30 * TICKS_PER_DAY;
+    case 'tension':
+      return 12;
   }
 }
 
@@ -44,9 +41,7 @@ export interface LeadershipScoreBreakdown {
   experiencePoints: number;
   servicePoints: number;
   communityPoints: number;
-  /** Incumbent-only election bonuses/penalties from economy, scandals, and village health. */
   recordPoints: number;
-  /** Election bonus for earned titles (Moonslayer, Howlerbane…) — deeds speak in the vote. */
   titlePoints: number;
 }
 
@@ -61,17 +56,13 @@ export interface IncumbentRecordAssessment {
   scandalStatus: 'clean' | 'tainted';
 }
 
-/** Modest incumbent edge — personal merit remains primary; challengers can still win. */
 const RECORD_ECONOMY_GOOD = 4;
 const RECORD_ECONOMY_POOR = -5;
 const RECORD_SCANDAL_CLEAN = 3;
 const RECORD_SCANDAL_EACH = -5;
 const RECORD_VILLAGE_GOOD = 3;
 const RECORD_VILLAGE_POOR = -6;
-/** Cap positive record so a high-merit challenger can beat a popular sitting head. */
 const RECORD_POSITIVE_CAP = 8;
-
-/** Election merit for holding an earned title — rare deeds (slaying/breaking a Moon Howler) carry weight. */
 const TITLE_MERIT_BONUS = 8;
 
 export interface ElectionAnnouncement {
@@ -148,9 +139,10 @@ function assessVillageHealth(state: WorldState): 'good' | 'fair' | 'poor' {
 
 function scandalEventTargetsLeader(e: { entityName?: string }, leader: Entity): boolean {
   if (!e.entityName) return false;
-  const leaderName = formatSettlerName(leader);
-  const baseName = leader.name || '';
-  return e.entityName === leaderName || (baseName.length > 0 && e.entityName === baseName);
+  const base = leader.name || '';
+  const full = leader.surname ? `${base} ${leader.surname}` : base;
+  const titled = leader.title ? `${full} ${leader.title}` : full;
+  return e.entityName === base || e.entityName === full || e.entityName === titled;
 }
 
 function countLeaderScandalsDuringTerm(state: WorldState, leader: Entity): number {
@@ -166,7 +158,6 @@ function countLeaderScandalsDuringTerm(state: WorldState, leader: Entity): numbe
   }).length;
 }
 
-/** Incumbent election record — economy, scandal history, and village health since taking office. */
 export function getIncumbentRecordAssessment(
   state: WorldState,
   leader: Entity,
@@ -175,24 +166,25 @@ export function getIncumbentRecordAssessment(
   const villageStatus = assessVillageHealth(state);
   const scandalCount = countLeaderScandalsDuringTerm(state, leader);
 
-  const economyPoints = economyStatus === 'good'
-    ? RECORD_ECONOMY_GOOD
-    : economyStatus === 'poor'
-      ? RECORD_ECONOMY_POOR
-      : 0;
-  const villageHealthPoints = villageStatus === 'good'
-    ? RECORD_VILLAGE_GOOD
-    : villageStatus === 'poor'
-      ? RECORD_VILLAGE_POOR
-      : 0;
-  const scandalPoints = scandalCount === 0
-    ? RECORD_SCANDAL_CLEAN
-    : scandalCount * RECORD_SCANDAL_EACH;
+  const economyPoints =
+    economyStatus === 'good'
+      ? RECORD_ECONOMY_GOOD
+      : economyStatus === 'poor'
+        ? RECORD_ECONOMY_POOR
+        : 0;
+
+  const villageHealthPoints =
+    villageStatus === 'good'
+      ? RECORD_VILLAGE_GOOD
+      : villageStatus === 'poor'
+        ? RECORD_VILLAGE_POOR
+        : 0;
+
+  const scandalPoints =
+    scandalCount === 0 ? RECORD_SCANDAL_CLEAN : scandalCount * RECORD_SCANDAL_EACH;
 
   const rawTotal = economyPoints + scandalPoints + villageHealthPoints;
-  const totalPoints = rawTotal > 0
-    ? Math.min(rawTotal, RECORD_POSITIVE_CAP)
-    : rawTotal;
+  const totalPoints = rawTotal > 0 ? Math.min(rawTotal, RECORD_POSITIVE_CAP) : rawTotal;
 
   return {
     economyPoints,
@@ -213,21 +205,25 @@ function getIncumbentRecordPoints(state: WorldState, entity: Entity): number {
   return getIncumbentRecordAssessment(state, leader).totalPoints;
 }
 
-/** Merit elections — adult player settlers only; no gender preference (founding leader is separate). */
-export function isEligibleForLeadership(entity: Entity, state?: Pick<WorldState, 'year' | 'dayInYear' | 'tick'>): boolean {
+export function isEligibleForLeadership(
+  entity: Entity,
+  state?: Pick<WorldState, 'year' | 'dayInYear' | 'tick'>,
+): boolean {
   const ageYears = state ? leadershipAgeYears(entity, state) : entity.age;
   return (
-    entity.alive
-    && entity.type === EntityType.Human
-    && isPlayerHuman(entity)
-    && !entity.isJuvenile
-    && ageYears >= HUMAN_ADULT_MIN_AGE
-    && !isImprisoned(entity)
+    entity.alive &&
+    entity.type === EntityType.Human &&
+    isPlayerHuman(entity) &&
+    !entity.isJuvenile &&
+    ageYears >= HUMAN_ADULT_MIN_AGE &&
+    !isImprisoned(entity)
   );
 }
 
-/** Merit score — highest wins each election; no term limit (re-election unlimited if merit stays highest). */
-export function getLeadershipScoreBreakdown(state: WorldState, entity: Entity): LeadershipScoreBreakdown {
+export function getLeadershipScoreBreakdown(
+  state: WorldState,
+  entity: Entity,
+): LeadershipScoreBreakdown {
   const skills = ensureEntitySkills(entity);
   const skillSum = Object.values(skills).reduce((sum, value) => sum + (value ?? 0), 0);
   const skillPoints = Math.round(skillSum * 2);
@@ -261,7 +257,9 @@ export function getLeadershipScoreBreakdown(state: WorldState, entity: Entity): 
 export function rankLeadershipCandidates(state: WorldState): LeadershipScoreBreakdown[] {
   const ageById = new Map<number, number>();
   const candidates: LeadershipScoreBreakdown[] = [];
-  for (const entity of state.entities) {
+
+  for (let i = 0; i < state.entities.length; i++) {
+    const entity = state.entities[i];
     if (!isEligibleForLeadership(entity, state)) continue;
     ageById.set(entity.id, leadershipAgeYears(entity, state));
     candidates.push(getLeadershipScoreBreakdown(state, entity));
@@ -278,7 +276,6 @@ export function rankLeadershipCandidates(state: WorldState): LeadershipScoreBrea
   return candidates;
 }
 
-/** Merit-ranked race lineup for gossip and UI — sitting head always listed when still eligible. */
 export function getElectionRaceCandidates(
   state: WorldState,
   displayLimit = 4,
@@ -290,22 +287,20 @@ export function getElectionRaceCandidates(
   if (!leader) return ranked.slice(0, displayLimit);
 
   const leaderIdx = ranked.findIndex((b) => b.entityId === leader.id);
-  const leaderBreakdown = leaderIdx >= 0
-    ? ranked[leaderIdx]
-    : getLeadershipScoreBreakdown(state, leader);
+  const leaderBreakdown =
+    leaderIdx >= 0 ? ranked[leaderIdx] : getLeadershipScoreBreakdown(state, leader);
 
   const top = ranked.slice(0, displayLimit);
   if (top.some((b) => b.entityId === leader.id)) return top;
 
-  const challengers = ranked
-    .filter((b) => b.entityId !== leader.id)
-    .slice(0, displayLimit - 1);
+  const challengers = ranked.filter((b) => b.entityId !== leader.id).slice(0, displayLimit - 1);
   const race = [...challengers, leaderBreakdown];
   const ageById = new Map(
     state.entities
       .filter((entity) => isEligibleForLeadership(entity, state))
       .map((entity) => [entity.id, leadershipAgeYears(entity, state)] as const),
   );
+
   race.sort((a, b) => {
     if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
     const ageA = ageById.get(a.entityId) ?? 0;
@@ -313,18 +308,24 @@ export function getElectionRaceCandidates(
     if (ageB !== ageA) return ageB - ageA;
     return a.entityId - b.entityId;
   });
+
   return race;
 }
 
-/**
- * True while the office-holder is still “present” for UI/vacancy — including
- * temporary Moon Howler form (type becomes Werewolf but they remain head).
- */
-export function isActingVillageHead(entity: Entity, state?: Pick<WorldState, 'year' | 'dayInYear' | 'tick'>): boolean {
-  if (!entity.alive || entity.faction) return false;
-  if (isEligibleForLeadership(entity, state)) return true;
-  // Full-moon form of a cursed settler — still the elected head on map/UI
-  return entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
+/** Determines if an entity is currently the acting village head. */
+export function isActingVillageHead(
+  entity: Entity | null | undefined,
+  state?: Pick<WorldState, 'year' | 'dayInYear' | 'tick'>,
+): boolean {
+  if (!entity || !entity.alive || entity.faction || entity.isJuvenile) return false;
+
+  // Werewolf form check
+   if (entity.type === EntityType.Werewolf && entity.moonHowlerCursed) {
+    return true;
+  }
+
+  // Human leader check: check OCCUPATION, not job!
+   return isEligibleForLeadership(entity, state);
 }
 
 export function getVillageLeader(state: WorldState): Entity | null {
@@ -355,10 +356,7 @@ function getYearsUntilElectionForYear(year: number, lastElectionYear: number): n
 }
 
 function scoreSummary(b: LeadershipScoreBreakdown): string {
-  const parts = [
-    `skills ${b.skillPoints}`,
-    `experience ${b.experiencePoints}`,
-  ];
+  const parts = [`skills ${b.skillPoints}`, `experience ${b.experiencePoints}`];
   if (b.titlePoints > 0) parts.push(`title +${b.titlePoints}`);
   if (b.servicePoints > 0) parts.push(`Town Hall +${b.servicePoints}`);
   if (b.communityPoints > 0) parts.push(`family +${b.communityPoints}`);
@@ -386,9 +384,11 @@ const GATHER_SLOTS_PER_RING = 12;
 export function getElectionGatherTarget(state: WorldState, entityId: number): { x: number; y: number } {
   const c = state.electionCeremony;
   if (!c) return getElectionGatherSite(state);
+
   const attendees = state.entities
     .filter((entity) => isEligibleForLeadership(entity, state))
     .sort((a, b) => a.id - b.id);
+
   const slot = attendees.findIndex((entity) => entity.id === entityId);
   if (slot < 0) {
     const outerRing = Math.ceil(attendees.length / GATHER_SLOTS_PER_RING);
@@ -399,10 +399,12 @@ export function getElectionGatherTarget(state: WorldState, entityId: number): { 
       y: c.gatherY + Math.sin(angle) * ringRadius,
     };
   }
+
   const ring = Math.floor(slot / GATHER_SLOTS_PER_RING);
   const angleSlot = slot % GATHER_SLOTS_PER_RING;
   const angle = (angleSlot / GATHER_SLOTS_PER_RING) * Math.PI * 2;
   const ringRadius = 22 + ring * 14;
+
   return {
     x: c.gatherX + Math.cos(angle) * ringRadius,
     y: c.gatherY + Math.sin(angle) * ringRadius,
@@ -416,7 +418,6 @@ export function findFoundingColonyLeader(state: WorldState): Entity | null {
   return pioneers.find((e) => e.gender === 'male') ?? pioneers[0] ?? null;
 }
 
-/** First male pioneer leads at founding — no merit vote until Year ELECTION_INTERVAL_YEARS. */
 export function appointFoundingLeader(state: WorldState, entity: Entity): void {
   const prevLeaderId = state.villageLeaderId;
   state.villageLeaderId = entity.id;
@@ -425,6 +426,7 @@ export function appointFoundingLeader(state: WorldState, entity: Entity): void {
   state.pendingElectionYear = null;
   applyLeaderOccupation(state, prevLeaderId);
   syncLeaderHouseResidency(state);
+
   const name = formatSettlerName(entity);
   logEvent(
     state,
@@ -442,6 +444,7 @@ export function getElectionCeremonyStatus(state: WorldState): string | null {
     }
     return 'Leadership election imminent — settlers will gather soon.';
   }
+
   if (state.electionCeremony) {
     const labels: Record<ElectionCeremonyPhase, string> = {
       gathering: 'The election season begins — settlers gather at the Town Hall.',
@@ -451,6 +454,7 @@ export function getElectionCeremonyStatus(state: WorldState): string | null {
     };
     return labels[state.electionCeremony.phase];
   }
+
   const until = getYearsUntilElection(state);
   if (until === 1) return 'Leadership election next year — settlers are already whispering.';
   if (until === 0) return 'Election this year — ceremony begins on the new year.';
@@ -468,9 +472,7 @@ function pickElectionGossipPhrase(
   const race = pickTopCandidates(state, 4);
   const leader = getVillageLeader(state);
   const leaderName = leader ? formatSettlerName(leader) : 'our head';
-  const challengers = leader
-    ? race.filter((b) => b.entityId !== leader.id)
-    : race;
+  const challengers = leader ? race.filter((b) => b.entityId !== leader.id) : race;
   const a = challengers[0]?.name ?? race[0]?.name ?? 'someone';
   const b = challengers[1]?.name ?? race[1]?.name ?? 'another';
   const c = challengers[2]?.name ?? race[2]?.name ?? 'a dark horse';
@@ -505,13 +507,15 @@ function pickElectionGossipPhrase(
     `${c} might surprise us next election.`,
     ...recordBuildup,
   ];
+
   const ceremony = leader
     ? [
         `Who will it be — ${leaderName} or ${a}?`,
+        `Well, I know one thing — ${leaderName} has quite the reputation in town!`,
         `${a} challenges ${leaderName} for the crown.`,
         `Can ${leaderName} hold off ${a}?`,
         `${leaderName} is defending — ${a} has the merit, I think.`,
-        `Ten years — time for a change from ${leaderName}?`,
+        `Time for a change from ${leaderName}?`,
         `${b} deserves a chance against ${leaderName}.`,
         ...recordBuildup,
       ]
@@ -519,10 +523,11 @@ function pickElectionGossipPhrase(
         `Who will it be — ${a} or ${b}?`,
         `${a} has the merit, I think.`,
         `The Hall favors ${b}…`,
-        `Ten years — time for a change?`,
+        `Time for a fresh village head?`,
         `I’m voting ${a} in my heart.`,
         `${b} deserves a chance.`,
       ];
+
   const tension = [
     'Quiet… they’re about to announce…',
     'My heart is pounding…',
@@ -535,7 +540,6 @@ function pickElectionGossipPhrase(
   return pool[idx];
 }
 
-/** Random settler gossip — buildup year, election year, or ceremony phases. */
 export function tickElectionGossip(state: WorldState): void {
   const until = getYearsUntilElection(state);
   const inCeremony = state.electionCeremony != null;
@@ -545,11 +549,15 @@ export function tickElectionGossip(state: WorldState): void {
 
   let chance = 0;
   let tone: 'buildup' | 'ceremony' | 'tension' = 'buildup';
+
   if (inCeremony) {
     if (state.electionCeremony!.phase === 'tension') {
       chance = 0.35;
       tone = 'tension';
-    } else if (state.electionCeremony!.phase === 'gossip' || state.electionCeremony!.phase === 'gathering') {
+    } else if (
+      state.electionCeremony!.phase === 'gossip' ||
+      state.electionCeremony!.phase === 'gathering'
+    ) {
       chance = 0.28;
       tone = 'ceremony';
     } else {
@@ -579,6 +587,7 @@ export function startElectionCeremony(
 ): boolean {
   const ranked = rankLeadershipCandidates(state);
   maybeOfferValleyDebate(state, ranked.map((c) => c.name));
+
   if (ranked.length === 0) {
     logEvent(
       state,
@@ -588,9 +597,11 @@ export function startElectionCeremony(
     return false;
   }
 
-  const winner = ranked[0];
+  const vote = simulateElectionVotes(state, ranked);
+  const winner = ranked.find((b) => b.entityId === vote.winnerId) ?? ranked[0];
   const site = getElectionGatherSite(state);
   recordElectionPromises(state, year);
+
   state.electionCeremony = {
     phase: 'gathering',
     phaseTicksLeft: getPhaseTicks('gathering'),
@@ -617,7 +628,6 @@ export function startElectionCeremony(
   return true;
 }
 
-/** Year-start / buildup notifications — call on calendar day 0. */
 export function tickElectionBuildup(
   state: WorldState,
   electionYear: number,
@@ -641,7 +651,6 @@ export function tickElectionBuildup(
 function refreshCeremonyPendingLeader(state: WorldState, ceremony: ElectionCeremonyState): void {
   const ranked = rankLeadershipCandidates(state);
   if (ranked.length === 0) return;
-  // Merit ranks the field; the ballot decides — friendships/feuds tip close races only.
   const vote = simulateElectionVotes(state, ranked);
   const winner = ranked.find((b) => b.entityId === vote.winnerId) ?? ranked[0];
   ceremony.pendingLeaderId = winner.entityId;
@@ -663,7 +672,6 @@ function advanceCeremonyPhase(state: WorldState, ceremony: ElectionCeremonyState
   refreshCeremonyPendingLeader(state, ceremony);
 }
 
-/** Advance ceremony each tick; returns announcement when the winner is revealed. */
 export function tickElectionCeremony(state: WorldState, year: number): ElectionAnnouncement | null {
   const ceremony = state.electionCeremony;
   if (!ceremony) return null;
@@ -728,15 +736,26 @@ export function runVillageElection(
   state: WorldState,
   year: number,
   reason: LeadershipElectionReason,
-): { leaderId: number | null; changed: boolean; leaderName: string; breakdown: LeadershipScoreBreakdown | null; votes: { won: number; total: number } } {
+): {
+  leaderId: number | null;
+  changed: boolean;
+  leaderName: string;
+  breakdown: LeadershipScoreBreakdown | null;
+  votes: { won: number; total: number };
+} {
   const ranked = rankLeadershipCandidates(state);
   if (ranked.length === 0) {
     const changed = state.villageLeaderId != null;
     state.villageLeaderId = null;
-    return { leaderId: null, changed, leaderName: '', breakdown: null, votes: { won: 0, total: 0 } };
+    return {
+      leaderId: null,
+      changed,
+      leaderName: '',
+      breakdown: null,
+      votes: { won: 0, total: 0 },
+    };
   }
 
-  // Merit ranks the field; the ballot decides — friendships/feuds tip close races only.
   const vote = simulateElectionVotes(state, ranked);
   const winner = ranked.find((b) => b.entityId === vote.winnerId) ?? ranked[0];
   const prevId = state.villageLeaderId;
@@ -746,6 +765,7 @@ export function runVillageElection(
   state.leaderSinceYear = year;
   applyLeaderOccupation(state, prevId);
   syncLeaderHouseResidency(state);
+
   if (reason === 'decennial' || reason === 'founding') {
     state.lastElectionYear = year;
   }
@@ -776,13 +796,13 @@ export function runVillageElection(
     );
   }
 
-  return { leaderId: winner.entityId, changed, leaderName: winner.name, breakdown: winner, votes: { won: vote.winnerVotes, total: vote.totalVotes } };
-}
-
-/** @deprecated Use appointFoundingLeader on the first male pioneer */
-export function runFoundingElection(state: WorldState): void {
-  const founder = findFoundingColonyLeader(state);
-  if (founder) appointFoundingLeader(state, founder);
+  return {
+    leaderId: winner.entityId,
+    changed,
+    leaderName: winner.name,
+    breakdown: winner,
+    votes: { won: vote.winnerVotes, total: vote.totalVotes },
+  };
 }
 
 function buildAnnouncement(
@@ -791,12 +811,17 @@ function buildAnnouncement(
   year: number,
 ): ElectionAnnouncement | null {
   if (!result.leaderName) return null;
-  const title = reason === 'decennial'
-    ? (result.changed ? '🗳️ New village head' : '🗳️ Head re-elected')
-    : '👑 New village head';
+  const title =
+    reason === 'decennial'
+      ? result.changed
+        ? '🗳️ New village head'
+        : '🗳️ Head re-elected'
+      : '👑 New village head';
   const verb = reason === 'decennial' && !result.changed ? 're-elected' : 'is now village head';
   const merit = result.breakdown ? scoreSummary(result.breakdown) : '';
-  const ballots = result.votes.total > 0 ? `${result.votes.won} of ${result.votes.total} ballots · ` : '';
+  const ballots =
+    result.votes.total > 0 ? `${result.votes.won} of ${result.votes.total} ballots · ` : '';
+
   return {
     title,
     message: `${result.leaderName} ${verb} (Year ${year}). Elected by ballot — ${ballots}${merit}.`,
@@ -806,7 +831,13 @@ function buildAnnouncement(
   };
 }
 
-/** Leader died or became ineligible — schedule merit election after a short delay. */
+function formatElectionDelay(years: number): string {
+  if (years === 1) return '1 year';
+  if (years > 1) return `${years} years`;
+  const months = Math.round(years * 12);
+  return months === 1 ? '1 month' : `${months} months`;
+}
+
 export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | null {
   if (state.pendingElectionYear != null) return null;
 
@@ -814,7 +845,6 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
   if (leaderId == null) return null;
 
   const leader = state.entities.find((e) => e.id === leaderId);
-  // Still in office while alive (incl. temporary Moon Howler form)
   if (leader && isActingVillageHead(leader, state)) return null;
 
   if (!state.entities.some((entity) => isEligibleForLeadership(entity, state))) {
@@ -834,23 +864,23 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
     name,
   );
 
+  const delayText = formatElectionDelay(VACANCY_ELECTION_DELAY_YEARS);
   return {
     title: '👑 Leadership vacancy',
-    message: `${name} can no longer lead. A merit election will be held in ${VACANCY_ELECTION_DELAY_YEARS} years (Year ${electionYear}).`,
+    message: `${name} can no longer lead. A merit election will be held in ${delayText} (Year ${electionYear}).`,
   };
 }
 
-/** Vacancy election — call on calendar day 0 when pending year is reached. */
 export function tryStartVacancyElectionCeremony(
   state: WorldState,
   year: number,
   dayInYear: number,
 ): boolean {
   if (
-    dayInYear !== 0
-    || state.pendingElectionYear == null
-    || year < state.pendingElectionYear
-    || state.electionCeremony
+    dayInYear !== 0 ||
+    state.pendingElectionYear == null ||
+    year < state.pendingElectionYear ||
+    state.electionCeremony
   ) {
     return false;
   }
@@ -865,33 +895,22 @@ export function tryStartVacancyElectionCeremony(
   return started;
 }
 
-/** Decennial election — starts multi-phase ceremony on calendar day 0. */
 export function tryStartDecennialElectionCeremony(
   state: WorldState,
   year: number,
   dayInYear: number,
 ): boolean {
   if (
-    dayInYear !== 0
-    || year <= 0
-    || year % ELECTION_INTERVAL_YEARS !== 0
-    || state.lastElectionYear === year
-    || state.electionCeremony
-    || state.pendingElectionYear != null
+    dayInYear !== 0 ||
+    year <= 0 ||
+    year % ELECTION_INTERVAL_YEARS !== 0 ||
+    state.lastElectionYear === year ||
+    state.electionCeremony ||
+    state.pendingElectionYear != null
   ) {
     return false;
   }
   return startElectionCeremony(state, year, 'decennial');
-}
-
-/** @deprecated Use tryStartDecennialElectionCeremony + tickElectionCeremony */
-export function tickDecennialElection(
-  state: WorldState,
-  year: number,
-  dayInYear: number,
-): ElectionAnnouncement | null {
-  if (tryStartDecennialElectionCeremony(state, year, dayInYear)) return null;
-  return null;
 }
 
 function isValidElectionCeremony(value: unknown): value is ElectionCeremonyState {
@@ -899,16 +918,16 @@ function isValidElectionCeremony(value: unknown): value is ElectionCeremonyState
   const ceremony = value as Partial<ElectionCeremonyState>;
   const phases: ElectionCeremonyPhase[] = ['gathering', 'gossip', 'tension', 'reveal'];
   return (
-    typeof ceremony.phase === 'string'
-    && phases.includes(ceremony.phase as ElectionCeremonyPhase)
-    && typeof ceremony.phaseTicksLeft === 'number'
-    && Number.isFinite(ceremony.phaseTicksLeft)
-    && typeof ceremony.gatherX === 'number'
-    && typeof ceremony.gatherY === 'number'
-    && typeof ceremony.reason === 'string'
-    && typeof ceremony.pendingLeaderId === 'number'
-    && typeof ceremony.pendingLeaderName === 'string'
-    && typeof ceremony.pendingChanged === 'boolean'
+    typeof ceremony.phase === 'string' &&
+    phases.includes(ceremony.phase as ElectionCeremonyPhase) &&
+    typeof ceremony.phaseTicksLeft === 'number' &&
+    Number.isFinite(ceremony.phaseTicksLeft) &&
+    typeof ceremony.gatherX === 'number' &&
+    typeof ceremony.gatherY === 'number' &&
+    typeof ceremony.reason === 'string' &&
+    typeof ceremony.pendingLeaderId === 'number' &&
+    typeof ceremony.pendingLeaderName === 'string' &&
+    typeof ceremony.pendingChanged === 'boolean'
   );
 }
 
@@ -925,30 +944,33 @@ export function validateVillageLeaderOnLoad(state: WorldState): void {
   if (state.pendingElectionYear === undefined) {
     state.pendingElectionYear = null;
   }
+
   const leader = getVillageLeader(state);
   if (leader) {
-    // Reconcile legacy saves that predate Leader's House wiring.
     applyLeaderOccupation(state, null);
     syncLeaderHouseResidency(state);
     return;
   }
+
   if (state.pendingElectionYear != null) return;
+
   if (state.lastElectionYear === 0) {
     const founder = findFoundingColonyLeader(state);
     if (founder) appointFoundingLeader(state, founder);
+  } else {
+    state.pendingElectionYear = state.year + VACANCY_ELECTION_DELAY_YEARS;
   }
 }
 
 const PROMISE_GOALS = [
-  { goal: 'buildings', label: 'Finish 3 new buildings', extra: 3 },
-  { goal: 'food', label: 'Keep food stores above 60', extra: 60 },
+  { goal: 'buildings', label: 'Finish 30 new buildings', extra: 3 },
+  { goal: 'food', label: 'Keep food stores above 600', extra: 60 },
 ] as const;
 
 function countPlayerBuildings(state: WorldState): number {
   return state.buildings.filter((b) => b.completed && b.faction !== 'rival').length;
 }
 
-/** New leader's promise — an unresolved previous promise is resolved as broken. */
 export function setNewLeaderPromise(state: WorldState): void {
   const old = state.leaderPromise;
   if (old) {
@@ -965,14 +987,11 @@ export function setNewLeaderPromise(state: WorldState): void {
   state.leaderPromise = {
     goal: pick.goal,
     label: pick.label,
-    // BUG-7: food promise must be an improvement (like buildings), never below the
-    // floor — a leader elected with 60+ food should not fulfill it instantly.
     target: pick.goal === 'buildings' ? current + pick.extra : Math.max(pick.extra, current + 3),
     startValue: current,
   };
 }
 
-/** Daily check — a fulfilled promise grants reputation and clears. */
 export function tickLeaderPromise(state: WorldState): void {
   const p = state.leaderPromise;
   if (!p) return;
@@ -980,6 +999,11 @@ export function tickLeaderPromise(state: WorldState): void {
   if (now >= p.target) {
     state.leaderPromise = undefined;
     state.villageReputation = Math.min(100, state.villageReputation + 3);
-    addBigNews(state, '⚖️ Promise kept', `The village head kept their promise — ${p.label}. Reputation +3.`, 'positive');
+    addBigNews(
+      state,
+      '⚖️ Promise kept',
+      `The village head kept their promise — ${p.label}. Reputation +3.`,
+      'positive',
+    );
   }
 }

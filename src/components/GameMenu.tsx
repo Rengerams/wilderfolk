@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import RoadmapPanel from '../game/RoadmapPanel';
 
@@ -11,7 +11,7 @@ interface Props {
   gamePhase: string;
   gameSubtitle: string;
   hasSavedGame: boolean;
-autoSave: boolean;
+  autoSave: boolean;
   tutorialsEnabled: boolean;
   juiceEffectsEnabled: boolean;
   showSimTick: boolean;
@@ -20,9 +20,7 @@ autoSave: boolean;
   volumePreset: VolumePreset;
   onSave: () => void;
   onLoad: () => void;
-  /** Download .json colony file (survives browser cache clear). */
   onSaveToFile: () => void;
-  /** Load from .json file text. */
   onLoadFromFile: (jsonText: string) => void;
   onToggleAutoSave: () => void;
   onToggleTutorials: () => void;
@@ -146,7 +144,7 @@ export default function GameMenu({
   gamePhase,
   gameSubtitle,
   hasSavedGame,
-autoSave,
+  autoSave,
   tutorialsEnabled,
   juiceEffectsEnabled,
   showSimTick,
@@ -171,19 +169,22 @@ autoSave,
   const [view, setView] = useState<MenuView>('main');
   const [anchor, setAnchor] = useState({ top: 0, right: 0 });
   const portalRoot = typeof document !== 'undefined' ? document.body : null;
+
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const close = () => {
+  const close = useCallback(() => {
     setOpen(false);
     setView('main');
-  };
+    buttonRef.current?.focus();
+  }, []);
 
-  const updateAnchor = () => {
+  const updateAnchor = useCallback(() => {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
     setAnchor({ top: rect.bottom + 6, right: Math.max(8, window.innerWidth - rect.right) });
-  };
+  }, []);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -194,28 +195,55 @@ autoSave,
       window.removeEventListener('resize', updateAnchor);
       window.removeEventListener('scroll', updateAnchor, true);
     };
-  }, [open, view]);
+  }, [open, updateAnchor]);
 
+  // Keyboard navigation: Escape and Focus Trap
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (view !== 'main') setView('main');
-      else close();
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (view !== 'main') setView('main');
+        else close();
+        return;
+      }
+
+      if (e.key === 'Tab' && panelRef.current) {
+        const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, view]);
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open, view, close]);
 
   const panelWidth = view === 'main' ? 'w-64' : 'w-72';
 
   const menuPanel = open ? (
     <>
-      <div className="fixed inset-0 z-[190]" aria-hidden onClick={close} />
+      <div className="fixed inset-0 z-[190]" aria-hidden="true" onClick={close} />
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="false"
+        aria-label="Game menu"
         className={`fixed z-[200] ${panelWidth} flex max-h-[min(75vh,560px)] flex-col overflow-hidden rounded-xl border border-stone-600 bg-stone-900 shadow-2xl`}
         style={{ top: anchor.top, right: anchor.right }}
-        role="menu"
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-stone-700 px-3 py-2.5">
           {view !== 'main' && (
@@ -229,7 +257,7 @@ autoSave,
             </button>
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-white">{VIEW_TITLES[view]}</p>
+            <h2 className="text-sm font-bold text-white">{VIEW_TITLES[view]}</h2>
             {view === 'main' && (
               <p className="text-xs text-stone-300">Save, settings & info</p>
             )}
@@ -283,11 +311,13 @@ autoSave,
                     const reader = new FileReader();
                     reader.onload = () => {
                       const text = typeof reader.result === 'string' ? reader.result : '';
-                      onLoadFromFile(text);
-                      close();
+                      if (text.trim()) {
+                        onLoadFromFile(text);
+                        close();
+                      }
                     };
                     reader.onerror = () => {
-                      onLoadFromFile('');
+                      console.error('Failed to read save file');
                       close();
                     };
                     reader.readAsText(file);
@@ -332,7 +362,6 @@ autoSave,
                   onClick={() => setView('about')}
                 />
               </MenuSection>
-
             </>
           )}
 
@@ -346,7 +375,7 @@ autoSave,
                   checked={autoSave}
                   onChange={onToggleAutoSave}
                 />
-<MenuToggle
+                <MenuToggle
                   icon="💡"
                   label="Tutorials"
                   hint="Tips when new events happen"
@@ -416,7 +445,6 @@ autoSave,
               </MenuSection>
               <p className="px-3 py-2 text-xs leading-relaxed text-stone-300">
                 Turn off screen effects if the map feels too busy or you prefer a calmer view.
-                More display options may arrive in a future update.
               </p>
             </div>
           )}
@@ -481,7 +509,7 @@ autoSave,
         }`}
         title="Game menu"
         aria-expanded={open}
-        aria-haspopup="true"
+        aria-haspopup="dialog"
       >
         <span aria-hidden>☰</span>
         <span className="hidden sm:inline">Menu</span>

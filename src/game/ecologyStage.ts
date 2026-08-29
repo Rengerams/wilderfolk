@@ -12,7 +12,6 @@ import { getGrazingPressureReport } from './ecosystemPressure';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 
-
 export type EcologyDriverId = 'grazing' | 'predators' | 'overhunt' | 'footprint';
 export type DriverBand = 'good' | 'caution' | 'bad';
 
@@ -35,7 +34,7 @@ export interface ValleyEcologySnapshot {
   helpLines: string[];
 }
 
-const STAGE_ORDER: ValleyStage[] = ['stable', 'strained', 'damaged', 'collapse'];
+const STAGE_ORDER: readonly ValleyStage[] = ['stable', 'strained', 'damaged', 'collapse'];
 
 /** No Collapse until the colony has lived this many absolute days. */
 export const ECOLOGY_COLLAPSE_MIN_DAY = 14;
@@ -111,23 +110,23 @@ export function computeRawEcologyStress(state: WorldState): {
   if (grazing.pressureRatio >= 2.0) grazingStress = 2;
 
   // --- Predators / prey chain ---
-  // Eased so a map that simply spawned no wolves reads as a caution, not an
-  // instant "nature is hurt" — only a clear deer surplus tips it to bad.
   let predatorStress = 0;
   if (wolves === 0 && deer >= 12) predatorStress = 2;
   else if (wolves === 0 && deer >= 8) predatorStress = 1;
   else if (wolves <= 1 && deer >= 15) predatorStress = 2;
-  else if (prey === 0 && humans >= 4) predatorStress = 2; // barren for hunters
+  else if (prey === 0 && humans >= 4) predatorStress = 2;
   else if (prey > 0 && prey < 3 && humans >= 8) predatorStress = 1;
 
-  // --- Overhunt (staffed hunting spots + low prey relative to pop) ---
-  const huntSpots = state.buildings.filter(
-    (b) =>
-      b.completed
-      && b.type === BuildingType.HuntingSpot
-      && b.faction !== 'rival'
-      && b.occupants.length > 0,
-  ).length;
+  // --- Overhunt (allocation-free scan) ---
+  let huntSpots = 0;
+  const buildings = state.buildings;
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i];
+    if (b.completed && b.type === BuildingType.HuntingSpot && b.faction !== 'rival' && b.occupants.length > 0) {
+      huntSpots++;
+    }
+  }
+
   let overhuntStress = 0;
   if (huntSpots >= 2 && prey < humans * 0.8 && prey < 10) overhuntStress = 2;
   else if (huntSpots >= 1 && prey < 6 && humans >= 6) overhuntStress = 1;
@@ -177,9 +176,22 @@ export function computeRawEcologyStress(state: WorldState): {
     },
   ];
 
-  const worst = Math.max(...drivers.map((d) => d.stress));
-  const badCount = drivers.filter((d) => d.stress >= 2).length;
-  const cautionCount = drivers.filter((d) => d.stress >= 1).length;
+  let worst = 0;
+  let badCount = 0;
+  let cautionCount = 0;
+  let primary: EcologyDriverId | null = null;
+  let highestStress = 0;
+
+  for (let i = 0; i < drivers.length; i++) {
+    const d = drivers[i];
+    if (d.stress > worst) worst = d.stress;
+    if (d.stress >= 2) badCount++;
+    if (d.stress >= 1) cautionCount++;
+    if (d.stress > highestStress) {
+      highestStress = d.stress;
+      primary = d.id;
+    }
+  }
 
   // Map worst driver stress + multi-driver boost → 0–3
   let stressLevel = 0;
@@ -188,9 +200,6 @@ export function computeRawEcologyStress(state: WorldState): {
   else if (worst >= 1 && cautionCount >= 2) stressLevel = 2;
   else if (worst >= 1) stressLevel = 1;
   else stressLevel = 0;
-
-  const primary =
-    [...drivers].sort((a, b) => b.stress - a.stress).find((d) => d.stress > 0)?.id ?? null;
 
   return { stressLevel, drivers, primaryDriver: primary };
 }
@@ -318,26 +327,34 @@ function announceStage(
     : `${emoji} Valley recovering`;
   const message = snap.playerSummary;
 
-  const cooldownOk = day - (state.valleyLastStageNotifyDay ?? -999) >= NOTIFY_COOLDOWN_DAYS
-    || rising
-    || valleyStageIndex(next) <= valleyStageIndex(prev) - 1;
+  const cooldownOk =
+    day - (state.valleyLastStageNotifyDay ?? -999) >= NOTIFY_COOLDOWN_DAYS ||
+    rising ||
+    valleyStageIndex(next) <= valleyStageIndex(prev) - 1;
 
   if (!cooldownOk && !rising) return;
 
   state.valleyLastStageNotifyDay = day;
 
-  if (next === 'strained' && rising) {
-    addNotification(state, title, message, 'warning');
-  } else if (next === 'damaged' || next === 'collapse') {
-    addBigNews(state, title, message, 'negative');
-    addNotification(state, title, message, 'warning');
-  } else if (!rising && (prev === 'collapse' || prev === 'damaged')) {
-    addBigNews(state, title, 'The valley is healing — stay careful so it does not slip again.', 'positive');
-    addNotification(state, title, message, 'success');
-  } else if (!rising && prev === 'strained' && next === 'stable') {
-    addNotification(state, `${emoji} Meadows easing`, 'Grazing pressure looks manageable again.', 'success');
-  } else if (rising) {
-    addNotification(state, title, message, 'warning');
+  if (rising) {
+    if (next === 'strained') {
+      addNotification(state, title, message, 'warning');
+    } else if (next === 'damaged' || next === 'collapse') {
+      addBigNews(state, title, message, 'negative');
+      addNotification(state, title, message, 'warning');
+    } else {
+      addNotification(state, title, message, 'warning');
+    }
+  } else {
+    // Healing / Recovery branch
+    if (prev === 'collapse' || prev === 'damaged') {
+      addBigNews(state, title, 'The valley is healing — stay careful so it does not slip again.', 'positive');
+      addNotification(state, title, message, 'success');
+    } else if (prev === 'strained' && next === 'stable') {
+      addNotification(state, `${emoji} Meadows easing`, 'Grazing pressure looks manageable again.', 'success');
+    } else {
+      addNotification(state, title, message, 'success');
+    }
   }
 
   logEvent(state, 'event', `Valley ecology: ${STAGE_LABEL[prev]} → ${STAGE_LABEL[next]}. ${message}`);
@@ -370,20 +387,16 @@ export function tickValleyEcologyStage(state: WorldState): void {
 
   let next = current;
 
-  // Upward
+  // Upward progression with confirmation dwell
   if (targetIdx > currentIdx && (state.valleyRawStressStreakDays ?? 0) >= CONFIRM_UP_DAYS) {
     let newIdx = currentIdx + 1;
     // Collapse gates
     if (newIdx >= 3) {
       const daysInDamaged =
-        current === 'damaged'
-          ? day - (state.valleyStageSinceDay ?? day)
-          : 0;
+        current === 'damaged' ? day - (state.valleyStageSinceDay ?? day) : 0;
       if (day < ECOLOGY_COLLAPSE_MIN_DAY) {
         newIdx = 2; // cap at damaged early game
       } else if (current !== 'damaged' || daysInDamaged < DAMAGED_BEFORE_COLLAPSE_DAYS) {
-        // Need dwell at damaged unless already there long enough;
-        // if jumping from strained with stress 3, land on damaged first
         if (current === 'strained' || current === 'stable') newIdx = Math.min(newIdx, 2);
         if (current === 'damaged' && daysInDamaged < DAMAGED_BEFORE_COLLAPSE_DAYS) {
           newIdx = 2;
@@ -393,13 +406,13 @@ export function tickValleyEcologyStage(state: WorldState): void {
     next = STAGE_ORDER[Math.min(newIdx, 3)];
   }
 
-  // Downward with recovery lag
+  // Downward recovery with lag
   if (targetIdx < currentIdx && (state.valleyRawCalmStreakDays ?? 0) >= RECOVERY_LAG_DAYS) {
     next = STAGE_ORDER[Math.max(0, currentIdx - 1)];
   }
 
   if (next !== current) {
-    // Collapse entry: one-time rep hit
+    // Collapse entry: one-time reputation hit
     if (next === 'collapse' && current !== 'collapse') {
       state.villageReputation = Math.max(0, (state.villageReputation ?? 0) - 4);
     }
@@ -416,7 +429,6 @@ export function tickValleyEcologyStage(state: WorldState): void {
 export function ensureValleyEcologyOnLoad(state: WorldState): void {
   ensureStageFields(state);
   const raw = computeRawEcologyStress(state);
-  // Soft clamp: if saved stage is more than 1 step from raw, pull toward raw by one
   const cur = valleyStageIndex(state.valleyStage ?? 'stable');
   if (Math.abs(raw.stressLevel - cur) > 1) {
     const toward = raw.stressLevel > cur ? cur + 1 : cur - 1;

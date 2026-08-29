@@ -1,19 +1,15 @@
 /**
- * Simulation decision registry — SIMULATION_AUTHORITY.md §3 ownership law.
+ * Simulation Decision Registry — SIMULATION_AUTHORITY.md §3 Ownership Law
  *
- * One row per major gameplay decision: the authoritative owner module, the
- * cadence it runs on, the state fields it may write, where it is scheduled
- * from, and the tests that cover it. Every decision has exactly one owner.
+ * One entry per major gameplay decision declaring:
+ * 1. The authoritative owner module and entry functions
+ * 2. The cadence on which it executes
+ * 3. The state fields it is permitted to write
+ * 4. The scheduler entry point (tick layer or command channel)
+ * 5. Associated unit and invariant test files
  *
- * This is a STATIC table, not a manager or event bus. Nothing imports it at
- * runtime; tests and future change records use it as the source of truth for
- * "who owns this decision". Update it only together with
- * SIMULATION_AUTHORITY.md when an ownership row changes.
- *
- * The cadence tokens mirror the authority document: assignment, work, daily,
- * staggered-social, new-calendar-day, pregnancy-progress, full-moon-event,
- * player-command. A compound cadence in the authority table ("Staggered/daily",
- * "System/daily") is recorded as its primary cadence with a `cadenceNote`.
+ * This is a static table used by test runners and architecture linters
+ * to enforce mutation boundaries.
  */
 
 export const DECISION_CADENCES = [
@@ -33,22 +29,21 @@ export type DecisionCadence = (typeof DECISION_CADENCES)[number];
 
 export interface DecisionOwner {
   /** Authoritative owner module + entry function(s). */
-  owner: string;
+  readonly owner: string;
   /** Primary cadence (authority §4). Secondary cadence in `cadenceNote`. */
-  cadence: DecisionCadence;
+  readonly cadence: DecisionCadence;
   /** When the authority declares a compound cadence, the secondary part. */
-  cadenceNote?: string;
+  readonly cadenceNote?: string;
   /** State fields this owner may write. Never gameplay fields of another owner. */
-  writes: readonly string[];
+  readonly writes: readonly string[];
   /** Where the decision is scheduled from (tick layer / command boundary). */
-  scheduledFrom: string;
+  readonly scheduledFrom: string;
   /** Test files covering the decision. */
-  testFile: string;
+  readonly testFile: string;
 }
 
 /**
- * Stable decision keys. The test suite asserts this exact set — adding a new
- * major decision requires an authority update first, then a row here.
+ * Stable decision keys representing each distinct simulation subsystem.
  */
 export type DecisionKey =
   | 'workforce'
@@ -75,7 +70,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
   },
   housing: {
-    owner: 'dayCycle.ts — assignMissingResidences, syncResidenceOccupants, syncPartnerResidence, reassignResidencesOnDeath; immediate player entry: buildingActions.assignResidentToBuilding',
+    owner: 'residency/ — residencyReconciliation.ts (assignMissingResidences, syncResidenceOccupants), residencySelection.ts, residenceActions.ts; immediate player entry: residenceActions.assignResidentToBuilding',
     cadence: 'assignment',
     cadenceNote: 'tickLayerAssign pulses 4×/day; immediate on place/recruit/death; delegated writes on divorce/arrest (humanRelationships), demolish (buildingActions), birth (humanLifecycle), leader move (leaderHouse), moon transform/restore (moonHowler), worker authoritative apply (simBuffers/applyKinematics)',
     writes: ['human.residenceBuildingId', 'residence building.occupants', 'household membership (couple + minor children)'],
@@ -168,5 +163,26 @@ export const SIMULATION_DECISIONS = {
   },
 } as const satisfies Record<DecisionKey, DecisionOwner>;
 
-/** Convenience: every declared decision key, for tests and change records. */
+/** All declared decision keys as a typed array. */
 export const DECISION_KEYS = Object.keys(SIMULATION_DECISIONS) as DecisionKey[];
+
+// ==========================================
+// TEST & VERIFICATION UTILITIES
+// ==========================================
+
+/** Retrieves decision metadata by subsystem key. */
+export function getDecisionOwner(key: DecisionKey): DecisionOwner {
+  return SIMULATION_DECISIONS[key];
+}
+
+/** Lists all subsystems executing under a specific primary cadence. */
+export function getDecisionsByCadence(cadence: DecisionCadence): DecisionKey[] {
+  return DECISION_KEYS.filter((key) => SIMULATION_DECISIONS[key].cadence === cadence);
+}
+
+/** Checks whether a specific property write is declared by a given subsystem. */
+export function isPropertyWritePermitted(key: DecisionKey, fieldName: string): boolean {
+  return SIMULATION_DECISIONS[key].writes.some(
+    (permitted) => permitted.includes(fieldName) || fieldName.includes(permitted),
+  );
+}

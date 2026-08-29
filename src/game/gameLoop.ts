@@ -3,15 +3,15 @@ import { gameTick, computeSimulationFocus, type SimulationFocus } from './gameEn
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycle';
 import { EntityCatalog } from './entityCatalog';
 import { renderGame, resetRendererCaches } from './rendererLoader';
-import { buildRenderSnapshot } from './renderSnapshot';
+import { buildRenderSnapshot, type RenderSnapshot } from './renderSnapshot';
 import { patchCatalogKinematicsFromRenderSoA } from './simBuffers/applyKinematics';
 import type { EntityRenderMeta } from './simBuffers/entityRenderMeta';
 import type { RenderSoAReaderV1 } from './simBuffers/renderSoAReader';
-
 import { clearAllFactionWanderStates } from './factionWander';
 import { GameWorkerHost, isGameWorkerEnabled, type WorkerUiPatch } from './simWorker/GameWorkerHost';
 import type { WorkerCommand } from './simWorker/commands';
 import { applyWorkerCommand } from './simWorker/commands';
+import { hydrateWorldRuntimeCaches } from './worldRuntimeCaches';
 import type { ScentGridReader } from './scentGrid';
 import {
   clearScreenShakeImpulse,
@@ -25,24 +25,14 @@ import {
 
 /**
  * Real-time tick rate at 1×. With TICKS_PER_DAY=72, 1.5 ticks/s ≈ 48 real seconds per day.
- * (Previously 3 ticks/s ≈ 24s/day — players found the baseline too rushed; the
- * 72-tick day structure is unchanged, this only paces real time. 0.5× ≈ 96s, 2× ≈ 24s.)
  */
 const BASE_TICKS_PER_SECOND = 1.5;
-/**
- * React UI publish throttle (ms). Sim ticks notify listeners immediately;
- * this only paces periodic non-tick polls. 250ms keeps App re-render load low
- * (clicks/commands are never delayed by this).
- */
+
+/** React UI publish throttle (ms) for periodic non-tick polls. */
 const UI_UPDATE_MS = 250;
 const MAX_CATCHUP_STEPS = 12;
-/**
- * Worker stall watchdog (ms). If a tick was requested from the worker but no
- * tickResult arrives within this window, the worker is assumed dead: dispose it
- * and fall back to main-thread gameTick so the sim never freezes silently.
- */
-// Large browser worlds can spend several seconds in the first render-packed tick.
-// Keep the fallback safety net, but do not classify a slow healthy worker as dead.
+
+/** Worker stall watchdog (ms). */
 const WORKER_STALL_TIMEOUT_MS = 10000;
 const WORKER_RECOVERY_INITIAL_DELAY_MS = 2000;
 const WORKER_RECOVERY_MAX_DELAY_MS = 30000;
@@ -92,8 +82,9 @@ function extractUiPatch(world: WorldState): WorkerUiPatch {
 function bigNewsPatchChanged(before: WorkerUiPatch['bigNews'], after: WorkerUiPatch['bigNews']): boolean {
   if (before.length !== after.length) return true;
   for (let i = 0; i < before.length; i++) {
-    if (before[i]?.id !== after[i]?.id) return true;
-    if (before[i]?.dismissed !== after[i]?.dismissed) return true;
+    if (before[i]?.id !== after[i]?.id || before[i]?.dismissed !== after[i]?.dismissed) {
+      return true;
+    }
   }
   return false;
 }
@@ -110,16 +101,17 @@ function idsPatchChanged(before?: readonly string[], after?: readonly string[]):
 
 function uiPatchChanged(before: WorkerUiPatch, after: WorkerUiPatch): boolean {
   return (
-    before.autoSave !== after.autoSave
-    || before.nextFloatingTextId !== after.nextFloatingTextId
-    || bigNewsPatchChanged(before.bigNews, after.bigNews)
-    || before.floatingTexts.length !== after.floatingTexts.length
-    || before.floatingTexts[before.floatingTexts.length - 1]?.id !== after.floatingTexts[after.floatingTexts.length - 1]?.id
-    || idsPatchChanged(before.dismissedBigNewsIds, after.dismissedBigNewsIds)
-    || idsPatchChanged(before.dismissedNotificationIds, after.dismissedNotificationIds)
-    || idsPatchChanged(before.dismissedActiveEventIds, after.dismissedActiveEventIds)
-    || (before.activeEvent?.id ?? null) !== (after.activeEvent?.id ?? null)
-    || idsPatchChanged(before.tutorialSeen, after.tutorialSeen)
+    before.autoSave !== after.autoSave ||
+    before.nextFloatingTextId !== after.nextFloatingTextId ||
+    bigNewsPatchChanged(before.bigNews, after.bigNews) ||
+    before.floatingTexts.length !== after.floatingTexts.length ||
+    before.floatingTexts[before.floatingTexts.length - 1]?.id !==
+      after.floatingTexts[after.floatingTexts.length - 1]?.id ||
+    idsPatchChanged(before.dismissedBigNewsIds, after.dismissedBigNewsIds) ||
+    idsPatchChanged(before.dismissedNotificationIds, after.dismissedNotificationIds) ||
+    idsPatchChanged(before.dismissedActiveEventIds, after.dismissedActiveEventIds) ||
+    (before.activeEvent?.id ?? null) !== (after.activeEvent?.id ?? null) ||
+    idsPatchChanged(before.tutorialSeen, after.tutorialSeen)
   );
 }
 
@@ -138,18 +130,12 @@ export class GameLoop {
   private getCanvas: () => HTMLCanvasElement | null;
   private workerHost: GameWorkerHost | null = null;
   private workerEnabled = false;
-  /** True while worker is initializing — blocks main-thread ticks to avoid split-brain. */
   private workerBooting = false;
   private workerTickChanged = false;
-  /** Last time the worker delivered a tick/command result — watchdog input. */
   private lastWorkerActivity = 0;
-  /** When the last tick was requested from the worker — latency measurement. */
   private lastWorkerTickRequest = 0;
-  /** Last daily boundary observed by the presentation loop; never written to WorldState. */
   private lastDailyBoundaryTick = 0;
-  /** Smoothed worker tick latency (ms) — makes the stall watchdog latency-adaptive. */
   private workerTickLatencyMs = 0;
-  /** Automatic recovery is serialized so only one replacement worker can boot. */
   private workerRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
   private workerRecoveryDelayMs = WORKER_RECOVERY_INITIAL_DELAY_MS;
   private workerRecoveryInFlight = false;
@@ -159,25 +145,15 @@ export class GameLoop {
   private sessionGen = 0;
   private notifyDepth = 0;
   private lastPausedSentToWorker: boolean | null = null;
-  /** Serializes worker commands — GameWorkerHost rejects overlapping sendCommand. */
   private commandChain: Promise<void> = Promise.resolve();
-  /**
-   * A player command applied OPTIMISTICALLY to the display world, awaiting the
-   * authoritative commandResult (SIMULATION_AUTHORITY §2 amendment). While set,
-   * incoming tick results do not overwrite the display; the commandResult
-   * handler replaces it on success and reverts to the authoritative world on
-   * failure. Never written back to the worker.
-   */
-  private optimisticCommand: { cmd: WorkerCommand } | null = null;
-  /** Cached 2d context — getContext every frame is not free. */
+  private optimisticCommands: WorkerCommand[] = [];
+  private deferredWorkerCommands: Array<{ cmd: WorkerCommand; sessionGen: number }> = [];
   private canvasCtx: CanvasRenderingContext2D | null = null;
   private canvasCtxFor: HTMLCanvasElement | null = null;
-  /** Cached canvas CSS size — avoids getBoundingClientRect layout reads per frame. */
   private layoutSize = { w: 0, h: 0 };
   private layoutCanvas: HTMLCanvasElement | null = null;
   private resizeObserver: ResizeObserver | null = null;
-  /** Cached render snapshot — rebuilt only when sim/view inputs change. */
-  private snapshotCache: import('./renderSnapshot').RenderSnapshot | null = null;
+  private snapshotCache: RenderSnapshot | null = null;
   private snapshotKey = '';
 
   constructor(world: WorldState, view: ViewState, getCanvas: () => HTMLCanvasElement | null) {
@@ -193,46 +169,78 @@ export class GameLoop {
       this.workerBooting = true;
       this.workerHost = new GameWorkerHost();
       const initGen = this.sessionGen;
-      void this.workerHost.init(world).then(() => {
-        // Only sessionGen / dispose mark a stale boot — do NOT require `running`.
-        // Init is async; if we gated on start(), a fast worker ready before start()
-        // permanently disabled the worker and left gameTick on the main thread.
-        if (initGen !== this.sessionGen || !this.workerHost) {
-          this.workerBooting = false;
-          this.workerEnabled = false;
-          if (initGen !== this.sessionGen) {
-            this.workerHost?.dispose();
-            this.workerHost = null;
+
+      void this.workerHost
+        .init(world)
+        .then(async () => {
+          if (initGen !== this.sessionGen || !this.workerHost) {
+            this.workerBooting = false;
+            this.workerEnabled = false;
+            if (initGen !== this.sessionGen) {
+              this.workerHost?.dispose();
+              this.workerHost = null;
+            }
+            return;
           }
-          return;
-        }
-        // init() already posted the world; re-sync so any pre-ready mutations are authoritative.
-        this.workerHost.importSave(this.world);
-        this.workerEnabled = true;
-        // Start watchdog timing at worker activation; otherwise the first tick
-        // is compared with timestamp 0 and is falsely declared stalled.
-        this.lastWorkerActivity = performance.now();
-        this.workerBooting = false;
-        this.registerWorkerHandlers(initGen);
-        console.info('[GameLoop] Sim worker active — gameTick + commands run off the main thread');
-      }).catch((err) => {
-        if (initGen !== this.sessionGen) return;
-        console.warn('[GameLoop] Worker init failed — falling back to main-thread ticks', err);
-        this.workerHost?.dispose();
-        this.workerHost = null;
-        this.workerEnabled = false;
-        this.workerBooting = false;
-        this.renderSoA = null;
-        this.renderMetaBySlot = null;
-        this.scentReader = null;
-        this.scheduleWorkerRecovery();
-      });
+
+          const activeGen = await this.importLatestWorldForWorker(this.workerHost);
+          if (activeGen == null) return;
+
+          this.workerEnabled = true;
+          this.lastWorkerActivity = performance.now();
+          this.workerBooting = false;
+          this.registerWorkerHandlers(activeGen);
+          this.flushDeferredWorkerCommands();
+          console.info('[GameLoop] Sim worker active — gameTick + commands run off the main thread');
+        })
+        .catch((err) => {
+          if (initGen !== this.sessionGen) return;
+          console.warn('[GameLoop] Worker init failed — falling back to main-thread ticks', err);
+          this.workerHost?.dispose();
+          this.workerHost = null;
+          this.workerEnabled = false;
+          this.workerBooting = false;
+          this.renderSoA = null;
+          this.renderMetaBySlot = null;
+          this.scentReader = null;
+          this.scheduleWorkerRecovery();
+        });
     }
   }
 
-  /** Retry a failed/stalled worker without ever running it alongside main-thread ticks. */
+  private async importLatestWorldForWorker(workerHost: GameWorkerHost): Promise<number | null> {
+    let importedGen: number;
+    do {
+      if (this.workerHost !== workerHost || !workerHost.isReady()) return null;
+      importedGen = this.sessionGen;
+      await workerHost.importSave(this.world);
+    } while (
+      this.workerHost === workerHost &&
+      workerHost.isReady() &&
+      importedGen !== this.sessionGen
+    );
+    return this.workerHost === workerHost && workerHost.isReady() ? importedGen : null;
+  }
+
+  private flushDeferredWorkerCommands(): void {
+    const deferred = this.deferredWorkerCommands;
+    this.deferredWorkerCommands = [];
+    for (let i = 0; i < deferred.length; i++) {
+      const entry = deferred[i];
+      if (entry.sessionGen !== this.sessionGen) continue;
+      this.applyCommand(entry.cmd);
+    }
+  }
+
   private scheduleWorkerRecovery(): void {
-    if (!this.running || !isGameWorkerEnabled() || this.workerRecoveryTimer || this.workerRecoveryInFlight) return;
+    if (
+      !this.running ||
+      !isGameWorkerEnabled() ||
+      this.workerRecoveryTimer ||
+      this.workerRecoveryInFlight
+    ) {
+      return;
+    }
     this.workerRecoveryTimer = setTimeout(() => {
       this.workerRecoveryTimer = null;
       this.attemptWorkerRecovery();
@@ -240,7 +248,15 @@ export class GameLoop {
   }
 
   private attemptWorkerRecovery(): void {
-    if (!this.running || !isGameWorkerEnabled() || this.workerHost || this.workerBooting || this.workerRecoveryInFlight) return;
+    if (
+      !this.running ||
+      !isGameWorkerEnabled() ||
+      this.workerHost ||
+      this.workerBooting ||
+      this.workerRecoveryInFlight
+    ) {
+      return;
+    }
 
     const recoveryGen = this.sessionGen;
     const recoveryHost = new GameWorkerHost();
@@ -248,122 +264,135 @@ export class GameLoop {
     this.workerBooting = true;
     this.workerHost = recoveryHost;
 
-    void recoveryHost.init(this.world).then(() => {
-      if (
-        recoveryGen !== this.sessionGen
-        || !this.running
-        || this.workerHost !== recoveryHost
-      ) {
-        recoveryHost.dispose();
-        if (this.workerHost === recoveryHost) {
-          this.workerHost = null;
-          this.workerBooting = false;
-          this.workerRecoveryInFlight = false;
+    void recoveryHost
+      .init(this.world)
+      .then(async () => {
+        if (
+          recoveryGen !== this.sessionGen ||
+          !this.running ||
+          this.workerHost !== recoveryHost
+        ) {
+          recoveryHost.dispose();
+          if (this.workerHost === recoveryHost) {
+            this.workerHost = null;
+            this.workerBooting = false;
+            this.workerRecoveryInFlight = false;
+          }
+          return;
         }
-        return;
-      }
-      // The main-thread fallback may have advanced the shadow while the old worker
-      // was being terminated, so always initialize from the latest shadow state.
-      recoveryHost.importSave(this.world);
-      this.workerEnabled = true;
-      this.workerBooting = false;
-      this.workerRecoveryInFlight = false;
-      this.workerRecoveryDelayMs = WORKER_RECOVERY_INITIAL_DELAY_MS;
-      this.lastWorkerActivity = performance.now();
-      this.lastWorkerTickRequest = 0;
-      this.workerTickLatencyMs = 0;
-      this.registerWorkerHandlers(recoveryGen);
-      console.info('[GameLoop] Sim worker recovered automatically');
-    }).catch((err) => {
-      if (this.workerHost === recoveryHost) {
-        recoveryHost.dispose();
-        this.workerHost = null;
-        this.workerEnabled = false;
+
+        const activeGen = await this.importLatestWorldForWorker(recoveryHost);
+        if (activeGen == null || this.workerHost !== recoveryHost) return;
+
+        this.workerEnabled = true;
         this.workerBooting = false;
         this.workerRecoveryInFlight = false;
-        this.renderSoA = null;
-        this.renderMetaBySlot = null;
-        this.scentReader = null;
-      }
-      if (recoveryGen === this.sessionGen && this.running) {
-        this.workerRecoveryDelayMs = Math.min(this.workerRecoveryDelayMs * 2, WORKER_RECOVERY_MAX_DELAY_MS);
-        console.warn('[GameLoop] Automatic worker recovery failed; retrying', err);
-        this.scheduleWorkerRecovery();
-      }
-    });
+        this.workerRecoveryDelayMs = WORKER_RECOVERY_INITIAL_DELAY_MS;
+        this.lastWorkerActivity = performance.now();
+        this.lastWorkerTickRequest = 0;
+        this.workerTickLatencyMs = 0;
+        this.registerWorkerHandlers(activeGen);
+        this.flushDeferredWorkerCommands();
+        console.info('[GameLoop] Sim worker recovered automatically');
+      })
+      .catch((err) => {
+        if (this.workerHost === recoveryHost) {
+          recoveryHost.dispose();
+          this.workerHost = null;
+          this.workerEnabled = false;
+          this.workerBooting = false;
+          this.workerRecoveryInFlight = false;
+          this.renderSoA = null;
+          this.renderMetaBySlot = null;
+          this.scentReader = null;
+        }
+        if (recoveryGen === this.sessionGen && this.running) {
+          this.workerRecoveryDelayMs = Math.min(
+            this.workerRecoveryDelayMs * 2,
+            WORKER_RECOVERY_MAX_DELAY_MS,
+          );
+          console.warn('[GameLoop] Automatic worker recovery failed; retrying', err);
+          this.scheduleWorkerRecovery();
+        }
+      });
   }
 
-  /**
-   * Wire the worker's tick/command result handlers to this loop. Called after a
-   * successful worker init; extracted so tests can register handlers on a fake
-   * worker host. `initGen` guards against a stale session binding.
-   */
   private registerWorkerHandlers(initGen: number): void {
     this.workerHost!.setTickResultHandler((nextWorld, _delta, render, changed) => {
       if (initGen !== this.sessionGen) return;
       this.lastWorkerActivity = performance.now();
+
       if (this.lastWorkerTickRequest > 0) {
         const measured = performance.now() - this.lastWorkerTickRequest;
         this.workerTickLatencyMs = this.workerTickLatencyMs * 0.7 + measured * 0.3;
       }
-      // While an optimistic command is pending, keep the instant-feedback
-      // display — the authoritative commandResult replaces it shortly
-      // (SIMULATION_AUTHORITY §2: "ticks that arrive while a command is pending
-      // do not overwrite the optimistic display").
+
       this.observeDailyBoundary(nextWorld.tick);
-      if (!this.optimisticCommand) {
+      if (this.optimisticCommands.length === 0) {
         this.world = nextWorld;
         this.catalog.rebuild(this.world.entities);
       }
+
       if (render) {
         this.renderSoA = render.reader;
         this.renderMetaBySlot = render.metaBySlot;
         this.scentReader = render.scentReader;
         patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
       }
+
       this.view = syncScreenShakeFromWorld(this.view, this.world);
       clearScreenShakeImpulse(this.world);
       this.workerTickChanged = changed;
     });
+
     this.workerHost!.setWorkerFaultHandler((source, message) => {
       if (initGen !== this.sessionGen) return;
       this.fallbackFromWorker(`Worker ${source} error: ${message}`);
     });
+
     this.workerHost!.setCommandResultHandler((world, _delta, render, ok, reason) => {
       if (initGen !== this.sessionGen) return;
       this.lastWorkerActivity = performance.now();
-      const hadOptimistic = this.optimisticCommand != null;
-      this.optimisticCommand = null;
-      // Authoritative binding — command applied (ok) or NOT applied (revert).
+
+      const hadOptimistic = this.optimisticCommands.length > 0;
+      if (hadOptimistic) this.optimisticCommands.shift();
+
       this.world = world;
+      if (this.optimisticCommands.length > 0) this.rebuildOptimisticDisplay();
+
       if (render) {
         this.renderSoA = render.reader;
         this.renderMetaBySlot = render.metaBySlot;
         this.scentReader = render.scentReader;
         patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
       }
+
       if (hadOptimistic) {
         this.catalog.rebuild(this.world.entities);
         this.pruneStaleSelection();
         this.notify(true, false, true);
       }
+
       if (!ok) {
-        console.warn('[GameLoop] Worker command failed — reverted to authoritative state', reason ?? 'unknown');
+        console.warn(
+          '[GameLoop] Worker command failed — reverted to authoritative state',
+          reason ?? 'unknown',
+        );
       }
     });
   }
 
-  /** Restore the authoritative shadow and continue simulation on the main thread. */
   private fallbackFromWorker(reason: string): void {
     if (!this.workerEnabled && !this.workerBooting) return;
     console.warn(`[GameLoop] ${reason} — falling back to main-thread ticks`);
-    if (this.optimisticCommand) {
-      this.optimisticCommand = null;
-      this.syncAfterWorkerMutation();
-      this.catalog.rebuild(this.world.entities);
-      this.pruneStaleSelection();
-      this.notify(true, false, true);
-    }
+
+    // Always clear optimistic queue & sync back to authoritative state
+    this.optimisticCommands = [];
+    this.syncAfterWorkerMutation();
+    this.catalog.rebuild(this.world.entities);
+    this.pruneStaleSelection();
+    this.notify(true, false, true);
+
     this.workerHost?.dispose();
     this.workerHost = null;
     this.workerEnabled = false;
@@ -374,22 +403,19 @@ export class GameLoop {
     this.scheduleWorkerRecovery();
   }
 
-  /**
-   * True when sim ticks/commands are authoritative on the Web Worker (heavy work off main).
-   * Default-on since v0.6 — opt out via `VITE_USE_GAME_WORKER=0` (slow 10x ticks stop freezing the UI).
-   */
   isUsingSimWorker(): boolean {
-    return this.workerEnabled && !!this.workerHost?.isReady();
+    return this.workerEnabled && Boolean(this.workerHost?.isReady());
   }
 
-  /** True while the worker is starting (main-thread ticks held to avoid split-brain). */
   isSimWorkerBooting(): boolean {
     return this.workerBooting;
   }
 
   private observeDailyBoundary(tick: number): void {
     const boundary = Math.floor(tick / TICKS_PER_DAY) * TICKS_PER_DAY;
-    if (boundary > this.lastDailyBoundaryTick) this.lastDailyBoundaryTick = boundary;
+    if (boundary > this.lastDailyBoundaryTick) {
+      this.lastDailyBoundaryTick = boundary;
+    }
   }
 
   getDiagnostics(now = performance.now()): GameLoopDiagnostics {
@@ -402,12 +428,11 @@ export class GameLoop {
       hour: Math.floor((this.world.tick % TICKS_PER_DAY) / TICKS_PER_HOUR),
       paused: this.world.paused,
       speed: this.world.speed,
-      ticksInFlight: worker ? (this.workerHost?.getTicksInFlight?.() ?? 0) : 0,
-      commandInFlight: worker ? (this.workerHost?.hasCommandInFlight?.() ?? false) : false,
+      ticksInFlight: worker ? this.workerHost?.getTicksInFlight?.() ?? 0 : 0,
+      commandInFlight: worker ? this.workerHost?.hasCommandInFlight?.() ?? false : false,
       tickLatencyMs: this.workerTickLatencyMs,
-      lastWorkerActivityMsAgo: worker && this.lastWorkerActivity > 0
-        ? Math.max(0, now - this.lastWorkerActivity)
-        : null,
+      lastWorkerActivityMsAgo:
+        worker && this.lastWorkerActivity > 0 ? Math.max(0, now - this.lastWorkerActivity) : null,
       lastDailyBoundaryTick: this.lastDailyBoundaryTick,
     };
   }
@@ -424,14 +449,18 @@ export class GameLoop {
     return this.catalog;
   }
 
-  /**
-   * Shared session swap: bump gen, clear caches, rebuild catalog, import to worker.
-   * Used by setSession / setWorld so load and world-only replace stay in lockstep.
-   */
   private adoptWorldSession(world: WorldState, view: ViewState): void {
     this.sessionGen++;
+    this.commandChain = Promise.resolve();
+    this.optimisticCommands = [];
+    this.deferredWorkerCommands = [];
+    if (this.workerEnabled && this.workerHost?.isReady()) {
+      this.workerBooting = true;
+    }
+
     clearAllFactionWanderStates();
     resetRendererCaches();
+
     this.world = world;
     this.view = view;
     this.lastNotifiedTick = world.tick;
@@ -440,6 +469,7 @@ export class GameLoop {
     this.renderSoA = null;
     this.renderMetaBySlot = null;
     this.scentReader = null;
+
     const sessionGen = this.sessionGen;
     this.queueWorkerImport(world, () => {
       if (sessionGen === this.sessionGen) this.notify(true);
@@ -447,7 +477,6 @@ export class GameLoop {
     this.lastPausedSentToWorker = null;
   }
 
-  /** Replace simulation + view state (new game, load, reset). */
   setSession(world: WorldState, view: ViewState): void {
     this.adoptWorldSession(world, view);
   }
@@ -456,7 +485,6 @@ export class GameLoop {
     this.adoptWorldSession(world, createInitialView(world.width, world.height));
   }
 
-  /** Wait for worker boot/idle before importSave so load/new-game cannot drop the upload. */
   private queueWorkerImport(world: WorldState, afterImport?: () => void): void {
     if (!this.workerHost) {
       afterImport?.();
@@ -471,11 +499,15 @@ export class GameLoop {
         if (sessionGen !== this.sessionGen || !this.running || !this.workerHost?.isReady()) return;
         await this.workerHost.whenIdle();
         if (sessionGen !== this.sessionGen || !this.running || !this.workerHost?.isReady()) return;
-        // importSave may return the held render buffer to the worker — drop local readers first.
+
         this.renderSoA = null;
         this.renderMetaBySlot = null;
         this.scentReader = null;
-        this.workerHost.importSave(world);
+        await this.workerHost.importSave(world);
+
+        if (sessionGen !== this.sessionGen || !this.running || !this.workerHost?.isReady()) return;
+        this.workerBooting = false;
+        this.flushDeferredWorkerCommands();
         afterImport?.();
       })
       .catch((err) => {
@@ -488,50 +520,60 @@ export class GameLoop {
     this.view = view;
   }
 
-  /** @param silent Skip React notification (use for per-frame hover/ghost/camera drag). */
   patchView(patch: Partial<ViewState>, silent = false): void {
     this.view = { ...this.view, ...patch };
     if (!silent) this.notify(false, false, true);
   }
 
-  /** Worker-authoritative player command (no full WorldState clone). */
+  private rebuildOptimisticDisplay(): void {
+    const authoritative = this.workerHost?.getAuthoritativeWorld();
+    if (!authoritative) return;
+
+    // Clone entities & buildings so predictions never contaminate the authoritative shadow
+    let display: WorldState = {
+      ...authoritative,
+      entities: authoritative.entities.map((e) => ({ ...e })),
+      buildings: authoritative.buildings.map((b) => ({ ...b, occupants: [...b.occupants] })),
+      resources: { ...authoritative.resources },
+    };
+
+    for (let i = 0; i < this.optimisticCommands.length; i++) {
+      try {
+        display = applyWorkerCommand(display, this.optimisticCommands[i]);
+      } catch (err) {
+        console.warn('[GameLoop] Optimistic command display failed; awaiting worker result', err);
+        break;
+      }
+    }
+    this.world = display;
+  }
+
   applyCommand(cmd: WorkerCommand): void {
+    if (this.workerBooting && this.workerHost) {
+      this.deferredWorkerCommands.push({ cmd, sessionGen: this.sessionGen });
+      return;
+    }
+
     if (this.workerEnabled && this.workerHost?.isReady()) {
-      // OPTIMISTIC INSTANT-APPLY (SIMULATION_AUTHORITY §2 amendment): apply the
-      // command to the display world through the SAME domain implementation the
-      // worker uses, so the click's effect (e.g. a worker assigned) shows
-      // immediately. The authoritative commandResult replaces it on success and
-      // reverts on failure; ticks arriving while it is pending never overwrite
-      // the display (handled in the tickResult handler).
-      this.world = applyWorkerCommand(this.world, cmd);
+      this.optimisticCommands.push(cmd);
+      this.rebuildOptimisticDisplay();
       this.catalog.rebuild(this.world.entities);
       this.pruneStaleSelection();
       this.notify(true, false, true);
-      this.optimisticCommand = { cmd };
 
       const cmdGen = this.sessionGen;
-      // Dispatch IMMEDIATELY — never wait for the worker pipeline to go idle
-      // (SIMULATION_AUTHORITY §5: commands are dispatched without waiting for an
-      // impossible permanently idle worker; §4 player-command must not wait).
-      // The worker processes messages FIFO, so the command applies to the
-      // post-tick authoritative state and its result arrives after the older
-      // in-flight tick deltas — a command result can never be overwritten by a
-      // stale tick delta. Full-world import/export may still wait for idle.
       this.commandChain = this.commandChain
         .then(() => {
           if (cmdGen !== this.sessionGen || !this.running || !this.workerHost?.isReady()) return;
-          // Chain stays Promise<void>; the authoritative binding happens in the
-          // commandResult handler (sendCommand's resolution is deliberately dropped).
           return this.workerHost.sendCommand(cmd).then(() => undefined);
         })
         .catch((err) => {
           if (cmdGen !== this.sessionGen || !this.running) return;
-          // A worker 'error' or disposal can reject without a commandResult — if
-          // the handler never cleared the optimistic state, revert to the
-          // authoritative worldRef (the command was never applied there).
-          if (this.optimisticCommand) {
-            this.optimisticCommand = null;
-            this.syncAfterWorkerMutation();
+          const index = this.optimisticCommands.indexOf(cmd);
+          if (index >= 0) {
+            this.optimisticCommands.splice(index, 1);
+            if (this.optimisticCommands.length > 0) this.rebuildOptimisticDisplay();
+            else this.syncAfterWorkerMutation();
             this.catalog.rebuild(this.world.entities);
             this.pruneStaleSelection();
             this.notify(true, false, true);
@@ -540,13 +582,13 @@ export class GameLoop {
         });
       return;
     }
+
     this.applyCommandLocal(cmd);
   }
 
-  /** Re-bind main shadow to worker worldRef after command/tick delta application. */
   private syncAfterWorkerMutation(): void {
     const authoritative = this.workerHost?.getAuthoritativeWorld();
-    if (authoritative) this.world = authoritative;
+    if (authoritative) this.world = hydrateWorldRuntimeCaches(authoritative);
   }
 
   private applyCommandLocal(cmd: WorkerCommand): void {
@@ -556,10 +598,6 @@ export class GameLoop {
     this.notify(true, false, true);
   }
 
-  /**
-   * Legacy closure mutator — prefer `applyCommand`. Rejected when the sim worker is active
-   * unless a typed `WorkerCommand` was provided.
-   */
   applyAction(mutator: (world: WorldState) => WorldState, cmd?: WorkerCommand): void {
     if (cmd) {
       this.applyCommand(cmd);
@@ -585,11 +623,6 @@ export class GameLoop {
     this.notify(true);
   }
 
-  /**
-   * Mutate UI/sim control fields (pause, speed, bigNews, floatingTexts, autoSave).
-   * Does not apply simulation commands — use `applyCommand` for entities/buildings.
-   * Syncs pause/speed/UI patches to worker when enabled.
-   */
   mutateWorld(mutator: (world: WorldState) => void): void {
     const prevPaused = this.world.paused;
     const prevSpeed = this.world.speed;
@@ -616,7 +649,6 @@ export class GameLoop {
     this.notify(true);
   }
 
-  /** Export worker-authoritative world for save (Rule 10). */
   async exportAuthoritativeWorld(timeoutMs = 10_000): Promise<WorldState> {
     if (this.workerEnabled && this.workerHost?.isReady()) {
       const exportGen = this.sessionGen;
@@ -629,6 +661,7 @@ export class GameLoop {
           }),
         ]);
         if (exportGen !== this.sessionGen) return this.world;
+
         const exported = await Promise.race([
           this.workerHost.exportSave(),
           new Promise<WorldState>((_, reject) => {
@@ -636,9 +669,10 @@ export class GameLoop {
           }),
         ]);
         if (exportGen !== this.sessionGen) return this.world;
-        this.world = exported;
-        this.catalog.rebuild(exported.entities);
-        return exported;
+
+        this.world = hydrateWorldRuntimeCaches(exported);
+        this.catalog.rebuild(this.world.entities);
+        return this.world;
       } catch (err) {
         console.warn('[GameLoop] exportSave failed — using main shadow', err);
       }
@@ -651,7 +685,9 @@ export class GameLoop {
     if (this.running) {
       const subscribeGen = this.sessionGen;
       queueMicrotask(() => {
-        if (!this.running || subscribeGen !== this.sessionGen || !this.listeners.has(listener)) return;
+        if (!this.running || subscribeGen !== this.sessionGen || !this.listeners.has(listener)) {
+          return;
+        }
         listener(this.world, this.view, false, this.catalog);
       });
     }
@@ -665,7 +701,9 @@ export class GameLoop {
     this.running = true;
     this.lastFrameTime = 0;
     this.tickAccumulator = 0;
-    if (!this.workerHost && !this.workerBooting) this.scheduleWorkerRecovery();
+    if (!this.workerHost && !this.workerBooting) {
+      this.scheduleWorkerRecovery();
+    }
     this.rafId = requestAnimationFrame(this.frame);
   }
 
@@ -678,8 +716,14 @@ export class GameLoop {
     }
     this.workerRecoveryInFlight = false;
     this.commandChain = Promise.resolve();
-    if (this.rafId) cancelAnimationFrame(this.rafId);
-    this.rafId = 0;
+    this.optimisticCommands = [];
+    this.deferredWorkerCommands = [];
+
+    if (this.rafId) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = 0;
+    }
+
     this.listeners.clear();
     clearAllFactionWanderStates();
     this.workerHost?.dispose();
@@ -704,7 +748,6 @@ export class GameLoop {
     return { world: this.world, view: this.view };
   }
 
-  /** Keep the canvas CSS size cached — rebinds the observer when the canvas changes. */
   private ensureCanvasSizeTracking(): void {
     const canvas = this.getCanvas();
     if (!canvas || canvas === this.layoutCanvas) return;
@@ -713,17 +756,20 @@ export class GameLoop {
     this.resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry) return;
-      this.layoutSize = { w: Math.floor(entry.contentRect.width), h: Math.floor(entry.contentRect.height) };
+      this.layoutSize = {
+        w: Math.floor(entry.contentRect.width),
+        h: Math.floor(entry.contentRect.height),
+      };
     });
     this.resizeObserver.observe(canvas);
   }
 
-  /** Cheap fingerprint of everything renderGame reads — skip snapshot rebuild when unchanged. */
   private snapshotDirtyKey(): string {
     const w = this.world;
     const v = this.view;
     const ghost = v.buildGhost;
     const strip = v.buildStripPreview;
+
     return [
       w.tick,
       w.paused ? 1 : 0,
@@ -779,25 +825,23 @@ export class GameLoop {
         : undefined;
 
       if (this.workerBooting) {
-        // Hold accumulator until worker is authoritative — prevents init race.
+        // Hold accumulator until worker is authoritative
       } else if (this.workerEnabled && this.workerHost) {
-        // Watchdog: a requested tick that never answers = dead/stuck worker.
-        // Dispose it and fall back to the main-thread sim so the game keeps
-        // running instead of freezing silently (citizens stop moving, no errors).
-        // Latency-adaptive leash: a busy-but-alive worker at high population (ticks
-        // can take 100-400 ms) must never be killed for being slow; a genuinely dead
-        // worker still trips at max(10s, 4x its last observed tick latency).
         const stallMs = Math.max(WORKER_STALL_TIMEOUT_MS, this.workerTickLatencyMs * 4);
-        const stalled = this.workerHost.hasTickInFlight()
-          && performance.now() - this.lastWorkerActivity > stallMs;
+        const stalled =
+          this.workerHost.hasTickInFlight() &&
+          performance.now() - this.lastWorkerActivity > stallMs;
+
         if (stalled) {
-          console.warn(`[GameLoop] Worker tick exceeded ${stallMs.toFixed(0)}ms (in-flight=${this.workerHost.getTicksInFlight?.() ?? 'unknown'}, observed=${this.workerTickLatencyMs.toFixed(0)}ms)`);
+          console.warn(
+            `[GameLoop] Worker tick exceeded ${stallMs.toFixed(0)}ms (in-flight=${this.workerHost.getTicksInFlight?.() ?? 'unknown'}, observed=${this.workerTickLatencyMs.toFixed(0)}ms)`,
+          );
           this.fallbackFromWorker('Worker tick stalled');
         } else {
           while (
-            this.tickAccumulator >= msPerTick
-            && steps < MAX_CATCHUP_STEPS
-            && this.workerHost.canPipelineTick()
+            this.tickAccumulator >= msPerTick &&
+            steps < MAX_CATCHUP_STEPS &&
+            this.workerHost.canPipelineTick()
           ) {
             if (this.workerHost.requestTick(focus)) {
               this.lastWorkerTickRequest = performance.now();
@@ -813,17 +857,17 @@ export class GameLoop {
           }
         }
       }
+
       if (!this.workerEnabled && !this.workerBooting) {
         while (this.tickAccumulator >= msPerTick && steps < MAX_CATCHUP_STEPS) {
-                    gameTick(this.world, focus);
+          gameTick(this.world, focus);
           this.observeDailyBoundary(this.world.tick);
-          // P1 (BUG-2): gameTick keeps identity-stable entity buckets on
-          // no-change ticks — rebuild the catalog only when that identity
-          // actually changed (birth/death/type-change), not every tick.
+
           if (this.world.entityByType !== this.lastCatalogByTypeRef) {
             this.catalog.rebuild(this.world.entities);
             this.lastCatalogByTypeRef = this.world.entityByType;
           }
+
           this.view = syncScreenShakeFromWorld(this.view, this.world);
           clearScreenShakeImpulse(this.world);
           this.tickAccumulator -= msPerTick;
@@ -857,11 +901,12 @@ export class GameLoop {
   private draw(): void {
     const canvas = this.getCanvas();
     if (!canvas) return;
+
     this.ensureCanvasSizeTracking();
     let layoutW = this.layoutSize.w;
     let layoutH = this.layoutSize.h;
+
     if (layoutW <= 0 || layoutH <= 0) {
-      // First frame(s) before ResizeObserver fires — measure once and cache.
       const rect = canvas.getBoundingClientRect();
       layoutW = canvas.offsetWidth || canvas.clientWidth || rect.width;
       layoutH = canvas.offsetHeight || canvas.clientHeight || rect.height;
@@ -880,19 +925,18 @@ export class GameLoop {
     const targetW = Math.floor(layoutW * dpr);
     const targetH = Math.floor(layoutH * dpr);
     if (targetW <= 0 || targetH <= 0) return;
+
     if (canvas.width !== targetW || canvas.height !== targetH) {
       canvas.width = targetW;
       canvas.height = targetH;
-      // Resize resets context state
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.imageSmoothingEnabled = false;
-    } else {
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.imageSmoothingEnabled = false;
     }
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
 
     const dirtyKey = this.snapshotDirtyKey();
     let snapshot = this.snapshotCache;
+
     if (!snapshot || dirtyKey !== this.snapshotKey) {
       snapshot = buildRenderSnapshot(this.world, this.view, {
         renderSoA: this.renderSoA,
@@ -904,20 +948,29 @@ export class GameLoop {
       this.snapshotCache = snapshot;
       this.snapshotKey = dirtyKey;
     }
+
     renderGame(ctx, snapshot, layoutW, layoutH);
+
     if (this.world.screenShakeImpulse > 0) {
       clearScreenShakeImpulse(this.world);
     }
   }
 
   private pruneStaleSelection(): void {
-    if (this.view.selectedBuildingId != null && !resolveBuilding(this.world, this.view.selectedBuildingId)) {
+    if (
+      this.view.selectedBuildingId != null &&
+      !resolveBuilding(this.world, this.view.selectedBuildingId)
+    ) {
       this.view = { ...this.view, selectedBuildingId: null };
     }
-    const alive = (this.view.selectedEntityIds ?? [])
-      .filter((id) => resolveEntity(this.world, id) != null);
-    const primaryAlive = this.view.selectedEntityId != null
-      && resolveEntity(this.world, this.view.selectedEntityId) != null;
+
+    const alive = (this.view.selectedEntityIds ?? []).filter(
+      (id) => resolveEntity(this.world, id) != null,
+    );
+    const primaryAlive =
+      this.view.selectedEntityId != null &&
+      resolveEntity(this.world, this.view.selectedEntityId) != null;
+
     if (alive.length !== (this.view.selectedEntityIds?.length ?? 0) || !primaryAlive) {
       this.view = {
         ...this.view,

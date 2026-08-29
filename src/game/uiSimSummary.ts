@@ -1,6 +1,13 @@
+/**
+ * Village Simulation Summary & Demographics
+ *
+ * Fast aggregation of colony population, employment metrics,
+ * and housing capacity for top-bar HUD and overview panels.
+ */
+
 import type { EntityCatalog } from './entityCatalog';
-import type { WorldState } from './gameTypes';
-import { hasWorkAssignment, isImprisoned } from './dayCycle';
+import type { WorldState, Entity } from './gameTypes';
+import { isImprisoned } from './residencyOccupancy';
 import { getTotalBeds } from './populationGrowth';
 import { isPlayerHuman } from './playerHuman';
 
@@ -15,38 +22,32 @@ export interface VillageStatsSummary {
   openBeds: number;
 }
 
-let cachedConstructionWorkers: Set<number> | null = null;
-let cachedConstructionStamp = -1;
-
-function getConstructionWorkers(world: WorldState): Set<number> {
-  const stamp = world.buildings.reduce(
-    (hash, b) => hash + b.id * 17 + (b.completed ? 0 : b.occupants.length * 31),
-    0,
-  );
-  if (cachedConstructionWorkers && cachedConstructionStamp === stamp) {
-    return cachedConstructionWorkers;
-  }
+/** Collects IDs of all active workers currently assigned to incomplete construction sites. */
+function getActiveConstructionWorkers(world: WorldState): Set<number> {
   const workers = new Set<number>();
   for (const b of world.buildings) {
-    if (!b.completed) {
-      for (const id of b.occupants) workers.add(id);
+    if (!b.completed && b.faction !== 'rival') {
+      for (const id of b.occupants) {
+        workers.add(id);
+      }
     }
   }
-  cachedConstructionWorkers = workers;
-  cachedConstructionStamp = stamp;
   return workers;
 }
 
-/** Phase C — denormalized settler stats without scanning all entities. */
+/**
+ * Computes demographic and labor summary for the colony.
+ * Uses catalog if provided, falling back to direct state scan.
+ */
 export function computeVillageStats(
   world: WorldState,
   catalog?: EntityCatalog,
 ): VillageStatsSummary {
-  const constructionWorkers = getConstructionWorkers(world);
+  const constructionWorkers = getActiveConstructionWorkers(world);
 
-  const humans = catalog
+  const humans: Iterable<Entity> = catalog
     ? catalog.getPlayerHumans()
-    : world.entities.filter((e) => e.alive && isPlayerHuman(e));
+    : world.entities;
 
   let total = 0;
   let adults = 0;
@@ -56,21 +57,31 @@ export function computeVillageStats(
   let imprisoned = 0;
 
   for (const e of humans) {
+    if (!e.alive || !isPlayerHuman(e)) continue;
+
     total++;
+
     if (e.isJuvenile) {
       children++;
       continue;
     }
+
     adults++;
+
     if (isImprisoned(e)) {
       imprisoned++;
       continue;
     }
-    if (hasWorkAssignment(e) || constructionWorkers.has(e.id)) working++;
-    else idle++;
+
+    if (hasWorkAssignment(e) || constructionWorkers.has(e.id)) {
+      working++;
+    } else {
+      idle++;
+    }
   }
 
   const beds = getTotalBeds(world);
+
   return {
     total,
     adults,

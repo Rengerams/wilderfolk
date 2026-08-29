@@ -33,11 +33,13 @@ export default function GameBuildRail({
   onToggleGrid,
 }: GameBuildRailProps) {
   return (
-    <aside className={`build-panel side-panel relative flex shrink-0 flex-col border-r border-stone-700/80 transition-[width] duration-150 ease-in-out ${buildPanelOpen ? 'w-[15.5rem]' : 'w-12'}`}>
+    <aside className={`build-panel game-view-drawer game-view-drawer--build flex flex-col ${buildPanelOpen ? 'game-view-drawer--open' : 'game-view-drawer--rail'}`}>
       <button
         onClick={onToggleOpen}
         className="build-panel-toggle absolute -right-3 top-5 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-stone-600 bg-stone-850 text-sm font-bold text-stone-300 shadow-lg transition-all hover:border-emerald-500/50 hover:bg-stone-700 hover:text-emerald-300"
-        title={buildPanelOpen ? 'Collapse build panel (B)' : 'Expand build panel (B)'}
+        title={buildPanelOpen ? 'Close build catalogue (B)' : 'Open build catalogue (B)'}
+        aria-label={buildPanelOpen ? 'Close build catalogue' : 'Open build catalogue'}
+        aria-expanded={buildPanelOpen}
       >
         {buildPanelOpen ? '‹' : '›'}
       </button>

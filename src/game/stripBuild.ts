@@ -17,37 +17,42 @@ export const STRIP_BUILD_TYPES = new Set<BuildingType>([
 export const MAX_STRIP_SEGMENTS = 72;
 
 export interface StripSegment {
-  x: number;
-  y: number;
-  valid: boolean;
-  /** Resolved piece type (wall, corner, gate, road). */
-  placeType: BuildingType;
-  rotation: BuildingRotation | CornerRotation;
-  /** Tee/cross/elbow topology for procedural junction rendering. */
-  junctionInfo?: StripJunctionInfo;
-  /** Existing building removed when placing (refunded at 50%). */
-  replacesBuildingId?: number;
+  readonly x: number;
+  readonly y: number;
+  readonly valid: boolean;
+  /** Resolved piece type (e.g. wall, corner, gate, road). */
+  readonly placeType: BuildingType;
+  readonly rotation: BuildingRotation | CornerRotation;
+  /** Tee, cross, or elbow topology for procedural junction rendering. */
+  readonly junctionInfo?: StripJunctionInfo;
+  /** Existing building to be demolished/replaced (refunded at 50%). */
+  readonly replacesBuildingId?: number;
 }
 
 export interface EnclosedArea {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
 }
 
 export interface StripBuildPreview {
-  segments: StripSegment[];
-  rotation: BuildingRotation;
+  readonly segments: readonly StripSegment[];
+  readonly rotation: BuildingRotation;
   /** Regions fully enclosed by walls (preview + existing). */
-  enclosedAreas?: EnclosedArea[];
+  readonly enclosedAreas?: readonly EnclosedArea[];
 }
 
+/**
+ * Returns true if the building type supports multi-tile drag placement.
+ */
 export function isStripBuildType(type: BuildingType): boolean {
   return STRIP_BUILD_TYPES.has(type);
 }
 
-/** Pick horizontal vs vertical from drag vector (R still overrides in UI). */
+/**
+ * Infers horizontal (0°) vs. vertical (90°) placement rotation from the drag vector.
+ */
 export function inferStripRotation(
   startX: number,
   startY: number,
@@ -59,6 +64,15 @@ export function inferStripRotation(
   return dx >= dy ? 0 : 90;
 }
 
+export interface Point2D {
+  x: number;
+  y: number;
+}
+
+/**
+ * Computes contiguous, grid-snapped segment centers along a drag vector.
+ * Preserves drag direction, eliminates floating-point drift, and clamps cleanly to MAX_STRIP_SEGMENTS.
+ */
 export function computeStripSegmentCenters(
   type: BuildingType,
   startX: number,
@@ -66,51 +80,41 @@ export function computeStripSegmentCenters(
   endX: number,
   endY: number,
   rotation: BuildingRotation,
-): { x: number; y: number }[] {
+): Point2D[] {
   const start = snapBuildingCenter(type, startX, startY, rotation);
   const end = snapBuildingCenter(type, endX, endY, rotation);
   const { width, height } = getBuildingFootprintForType(type, rotation);
-  const along = Math.max(width, height);
+  const pitch = Math.max(width, height);
 
-  let centers: { x: number; y: number }[] = [];
-  const seen = new Set<string>();
-  const push = (x: number, y: number) => {
-    const snapped = snapBuildingCenter(type, x, y, rotation);
-    const key = `${snapped.x},${snapped.y}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    centers.push(snapped);
-  };
+  if (pitch <= 0) return [start];
+
+  const centers: Point2D[] = [];
 
   if (rotation === 0) {
-    const y = start.y;
-    const xMin = Math.min(start.x, end.x);
-    const xMax = Math.max(start.x, end.x);
-    for (let x = xMin; x <= xMax + 0.01; x += along) {
-      push(x, y);
-    }
-    if (centers.length === 0) push(start.x, y);
-    if (Math.abs(end.x - centers[centers.length - 1].x) > along * 0.35) {
-      push(end.x, y);
+    const totalDist = Math.abs(end.x - start.x);
+    const stepDir = end.x >= start.x ? 1 : -1;
+    const rawSteps = Math.round(totalDist / pitch);
+    const totalSteps = Math.min(MAX_STRIP_SEGMENTS - 1, Math.max(0, rawSteps));
+
+    for (let i = 0; i <= totalSteps; i++) {
+      centers.push({
+        x: start.x + i * pitch * stepDir,
+        y: start.y,
+      });
     }
   } else {
-    const x = start.x;
-    const yMin = Math.min(start.y, end.y);
-    const yMax = Math.max(start.y, end.y);
-    for (let y = yMin; y <= yMax + 0.01; y += along) {
-      push(x, y);
-    }
-    if (centers.length === 0) push(x, start.y);
-    if (Math.abs(end.y - centers[centers.length - 1].y) > along * 0.35) {
-      push(x, end.y);
+    const totalDist = Math.abs(end.y - start.y);
+    const stepDir = end.y >= start.y ? 1 : -1;
+    const rawSteps = Math.round(totalDist / pitch);
+    const totalSteps = Math.min(MAX_STRIP_SEGMENTS - 1, Math.max(0, rawSteps));
+
+    for (let i = 0; i <= totalSteps; i++) {
+      centers.push({
+        x: start.x,
+        y: start.y + i * pitch * stepDir,
+      });
     }
   }
 
-  if (centers.length > MAX_STRIP_SEGMENTS) {
-    const end = centers[centers.length - 1];
-    centers = centers.slice(0, MAX_STRIP_SEGMENTS - 1);
-    centers.push(end);
-  }
   return centers;
 }
-

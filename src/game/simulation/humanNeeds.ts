@@ -1,7 +1,3 @@
-/**
- * Human needs — energy loss, meals, and free-roam hunting food.
- * Extracted verbatim from humanTick.ts (humanTick-split plan, Task 2) — behavior unchanged.
- */
 import type { Building, Entity, WorldState } from '../gameTypes';
 import { EntityType } from '../gameTypes';
 import { getValleyHuntYieldMultiplier } from '../ecologyStage';
@@ -10,69 +6,105 @@ import { traitMultiplier } from '../settlerTraits';
 import { prefersHomeTonight, hasResidenceAssignment } from '../dayCycle';
 import type { SpeciesConfig } from '../speciesConfig';
 
-/** Meal checks run every 4 clock hours (00, 04, 08, 12, 16, 20). */
 export const MEAL_CHECK_INTERVAL_HOURS = 4;
-/** A human eats when energy drops below this fraction of max energy. */
 export const HUNGER_MEAL_THRESHOLD = 0.9;
 
+const HUNT_BASE_YIELD: Record<EntityType, number> = {
+  [EntityType.Deer]: 52,
+  [2]: 22,
+};
+const HUNT_DEFAULT_BASE_YIELD = 18;
+
+const ENERGY_MODIFIERS = {
+  WELL_REDUCTION: 0.8,
+  UNHEATED_WINTER_PENALTY: 1.5,
+  GREENTHUMB_WINTER_RESISTANCE: 0.7,
+  HOME_RESTING_REDUCTION: 0.5,
+  HOSPITAL_REDUCTION: 0.9,
+  HARDY_TRAIT_REDUCTION: 0.85,
+  FIERCE_TRAIT_REDUCTION: 0.9,
+} as const;
+
+/** Evaluates whether the current clock hour is a scheduled meal check (00:00, 04:00, 08:00, etc.). */
 export function isMealCheckHour(hourOfDay: number): boolean {
   return hourOfDay % MEAL_CHECK_INTERVAL_HOURS === 0;
 }
 
+/** Returns the fractional component of a floating-point number. */
 export function fract(value: number): number {
   return value - Math.floor(value);
 }
 
-/** Food from a free-roam kill — deer is a proper carcass, rabbit a snack. */
+/**
+ * Calculates raw food yield harvested from a free-roam animal kill.
+ * Modulated by colony tech and ecological stage multipliers.
+ */
 export function freeHuntFoodGain(preyType: EntityType, state: WorldState): number {
-  const base = preyType === EntityType.Deer ? 52 : preyType === EntityType.Rabbit ? 22 : 18;
-  return Math.max(
-    1,
-    Math.round(base * getHuntFoodMultiplier(state) * getValleyHuntYieldMultiplier(state)),
-  );
+  const base = HUNT_BASE_YIELD[preyType] ?? HUNT_DEFAULT_BASE_YIELD;
+  const techMult = getHuntFoodMultiplier(state);
+  const ecoMult = getValleyHuntYieldMultiplier(state);
+  return Math.max(1, Math.round(base * techMult * ecoMult));
+}
+
+export interface HumanEnergyLossOptions {
+  hasWell: boolean;
+  isWinter: boolean;
+  canHeat: boolean;
+  hasHospital: boolean;
+  tick: number;
+  hourOfDay: number;
+  buildingById: Map<number, Building>;
 }
 
 /**
- * Per-tick energy loss — the exact expression from tickHumans: base, winter cold
- * (greenthumb shrugs it off), resting near home, hospital, hardy + fierce traits.
+ * Calculates net energy drain for a settler on the current simulation tick.
+ * Evaluates: base metabolism, well access, unheated winter cold, home resting proximity,
+ * hospital care, and genetic traits ('greenthumb', 'hardy', 'fierce').
  */
 export function humanEnergyLoss(
   entity: Entity,
   config: SpeciesConfig,
-  opts: {
-    hasWell: boolean;
-    isWinter: boolean;
-    canHeat: boolean;
-    hasHospital: boolean;
-    tick: number;
-    hourOfDay: number;
-    buildingById: Map<number, Building>;
-  },
+  opts: HumanEnergyLossOptions,
 ): number {
   const { hasWell, isWinter, canHeat, hasHospital, tick, hourOfDay, buildingById } = opts;
-  let energyLoss = hasWell ? config.energyLossPerTick * 0.8 : config.energyLossPerTick;
+
+  // 1. Base metabolism (clean water from well reduces strain)
+  let loss = hasWell
+    ? config.energyLossPerTick * ENERGY_MODIFIERS.WELL_REDUCTION
+    : config.energyLossPerTick;
+
+  // 2. Winter exposure (Greenthumb settlers resist freezing temperatures)
   if (isWinter && !canHeat) {
-    // Greenthumb settlers shrug off the winter cold.
-    energyLoss *= 1.5 * traitMultiplier(entity, 'greenthumb', 0.7);
+    const greenthumbMod = traitMultiplier(entity, 'greenthumb', ENERGY_MODIFIERS.GREENTHUMB_WINTER_RESISTANCE);
+    loss *= ENERGY_MODIFIERS.UNHEATED_WINTER_PENALTY * greenthumbMod;
   }
 
-  // Resting near home (evening/night or quiet day) costs less energy.
+  // 3. Resting near home during evening/night or quiet periods
   if (
-    hasResidenceAssignment(entity)
-    && prefersHomeTonight(entity.id, tick, hourOfDay)
+    hasResidenceAssignment(entity) &&
+    prefersHomeTonight(entity.id, tick, hourOfDay)
   ) {
     const residence = buildingById.get(entity.residenceBuildingId!);
-    if (residence?.completed) {
+    if (residence && residence.completed) {
       const hdx = residence.x + residence.width / 2 - entity.x;
       const hdy = residence.y + residence.height / 2 - entity.y;
-      if (Math.hypot(hdx, hdy) < 14) energyLoss *= 0.5;
+      
+      // Radius accommodates homeStandPosition rings around the house
+      const maxRestDist = Math.max(residence.width, residence.height) * 0.75 + 16;
+      if (hdx * hdx + hdy * hdy < maxRestDist * maxRestDist) {
+        loss *= ENERGY_MODIFIERS.HOME_RESTING_REDUCTION;
+      }
     }
   }
 
-  // Hospital reduces energy loss
-  if (hasHospital) energyLoss *= 0.9;
-  // Hardy settlers burn energy slower; fierce ones push through the shift.
-  energyLoss *= traitMultiplier(entity, 'hardy', 0.85);
-  energyLoss *= traitMultiplier(entity, 'fierce', 0.9);
-  return energyLoss;
+  // 4. Village infrastructure & healthcare
+  if (hasHospital) {
+    loss *= ENERGY_MODIFIERS.HOSPITAL_REDUCTION;
+  }
+
+  // 5. Genetic settler traits
+  loss *= traitMultiplier(entity, 'hardy', ENERGY_MODIFIERS.HARDY_TRAIT_REDUCTION);
+  loss *= traitMultiplier(entity, 'fierce', ENERGY_MODIFIERS.FIERCE_TRAIT_REDUCTION);
+
+  return Math.max(0, loss);
 }

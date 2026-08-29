@@ -1,9 +1,32 @@
 import type { Building, Entity } from './gameTypes';
-
 import type { ResidenceOccupancy } from './residencyOccupancy';
-import { collectFamilyMembers, collectOwnHousehold, getChildCustodian, isAdultChildAtHome, isMinorChild } from './householdComposition';
+import {
+  collectFamilyMembers,
+  collectOwnHousehold,
+  getChildCustodian,
+  isAdultChildAtHome,
+  isMinorChild,
+} from './householdComposition';
 import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
-import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, countResidentsInBuilding, residenceRoomFor } from './residencyOccupancy';
+import {
+  isResidenceBuilding,
+  isLeaderHouseResidence,
+  getResidenceCapacity,
+  hasResidenceAssignment,
+  countResidentsInBuilding,
+  residenceRoomFor,
+} from './residencyOccupancy';
+
+const HOUSING_SCORES = {
+  EMPTY_HOUSE_BONUS: -100,
+  COUPLE_HOST_BONUS: -50,
+  SINGLES_ALREADY_HOSTED: 50,
+  COUPLE_HOST_PENALTY: 100,
+  OUTSIDER_MULTIPLIER_NORMAL: 1000,
+  OUTSIDER_MULTIPLIER_SHORTAGE: 10,
+  MINOR_IN_SINGLES_PENALTY: 10_000,
+  SINGLES_ALTERNATIVE_PENALTY: 10_000,
+} as const;
 
 interface PickResidenceOptions {
   forbidSinglesOnly?: boolean;
@@ -11,6 +34,16 @@ interface PickResidenceOptions {
 
 export function listPlayerResidences(buildings: Building[]): Building[] {
   return buildings.filter((b) => isResidenceBuilding(b) && b.faction !== 'rival');
+}
+
+function findLivingHuman(humans: Entity[], id: number | undefined): Entity | undefined {
+  if (id === undefined) return undefined;
+  return humans.find((h) => h.id === id && h.alive);
+}
+
+function findHumanRecord(humans: Entity[], id: number | undefined): Entity | undefined {
+  if (id == null) return undefined;
+  return humans.find((h) => h.id === id);
 }
 
 function pickLeastCrowdedResidence(
@@ -36,42 +69,27 @@ function pickLeastCrowdedResidence(
   return best?.id;
 }
 
-function livingHuman(humans: Entity[], id: number | undefined): Entity | undefined {
-  if (id === undefined) return undefined;
-  return humans.find((h) => h.id === id && h.alive);
-}
-
-function humanById(humans: Entity[], id: number | undefined): Entity | undefined {
-  if (id == null) return undefined;
-  return humans.find((h) => h.id === id);
-}
-
-
-
 function livingAdoptiveCustodian(child: Entity, humans: Entity[]): Entity | undefined {
-  const adoptiveMother = livingHuman(humans, child.adoptiveMotherId);
+  const adoptiveMother = findLivingHuman(humans, child.adoptiveMotherId);
   if (adoptiveMother) return adoptiveMother;
-  return livingHuman(humans, child.adoptiveFatherId);
+  return findLivingHuman(humans, child.adoptiveFatherId);
 }
 
-function listVillageCouples(humans: Entity[]): Array<{ mother: Entity; father: Entity }> {
+function listVillageCouples(humans: Entity[]): Array<{ mother?: Entity; father?: Entity; partnerA: Entity; partnerB: Entity }> {
   const alive = humans.filter((h) => h.alive && !h.faction);
-  const couples: Array<{ mother: Entity; father: Entity }> = [];
+  const couples: Array<{ mother?: Entity; father?: Entity; partnerA: Entity; partnerB: Entity }> = [];
   const seen = new Set<number>();
 
   for (const human of alive.sort((a, b) => a.id - b.id)) {
     if (seen.has(human.id)) continue;
-    const partner = livingHuman(alive, human.partnerId);
+    const partner = findLivingHuman(alive, human.partnerId);
     if (!partner) continue;
     seen.add(human.id);
     seen.add(partner.id);
-    const mother = human.gender === 'female'
-      ? human
-      : partner.gender === 'female'
-        ? partner
-        : human;
-    const father = mother.id === human.id ? partner : human;
-    couples.push({ mother, father });
+
+    const mother = human.gender === 'female' ? human : partner.gender === 'female' ? partner : undefined;
+    const father = human.gender === 'male' ? human : partner.gender === 'male' ? partner : undefined;
+    couples.push({ mother, father, partnerA: human, partnerB: partner });
   }
 
   return couples;
@@ -80,7 +98,7 @@ function listVillageCouples(humans: Entity[]): Array<{ mother: Entity; father: E
 function pickRandomAdoptiveCouple(
   child: Entity,
   humans: Entity[],
-): { mother: Entity; father: Entity } | undefined {
+): { mother?: Entity; father?: Entity; partnerA: Entity; partnerB: Entity } | undefined {
   const couples = listVillageCouples(humans);
   if (couples.length === 0) return undefined;
   const idx = Math.abs(child.id * 7919) % couples.length;
@@ -88,34 +106,27 @@ function pickRandomAdoptiveCouple(
 }
 
 function listVillageSingleAdults(humans: Entity[]): Entity[] {
-  // Social adults only — not graduated juveniles aged 12–15
   const alive = humans.filter(
     (h) => h.alive && !h.faction && !h.isJuvenile && h.age >= HUMAN_ADULT_MIN_AGE,
   );
-  return alive.filter((h) => {
-    const partner = livingHuman(alive, h.partnerId);
-    return !partner;
-  });
+  return alive.filter((h) => !findLivingHuman(alive, h.partnerId));
 }
 
-/** Stable foster pick when no married couples remain in the village. */
 function pickRandomAdoptiveGuardian(child: Entity, humans: Entity[]): Entity | undefined {
   const singles = listVillageSingleAdults(humans).sort((a, b) => a.id - b.id);
   if (singles.length === 0) return undefined;
   return singles[Math.abs(child.id * 7919) % singles.length];
 }
 
-
-
 function hasLivingNaturalCustodian(child: Entity, humans: Entity[]): boolean {
-  if (livingHuman(humans, child.motherId)) return true;
-  if (livingHuman(humans, child.fatherId)) return true;
+  if (findLivingHuman(humans, child.motherId)) return true;
+  if (findLivingHuman(humans, child.fatherId)) return true;
 
   if (child.isBastard) {
-    const motherRecord = humanById(humans, child.motherId);
-    if (motherRecord?.motherId != null && livingHuman(humans, motherRecord.motherId)) return true;
-    const fatherRecord = humanById(humans, child.fatherId);
-    if (fatherRecord?.motherId != null && livingHuman(humans, fatherRecord.motherId)) return true;
+    const motherRecord = findHumanRecord(humans, child.motherId);
+    if (motherRecord?.motherId != null && findLivingHuman(humans, motherRecord.motherId)) return true;
+    const fatherRecord = findHumanRecord(humans, child.fatherId);
+    if (fatherRecord?.motherId != null && findLivingHuman(humans, fatherRecord.motherId)) return true;
   }
 
   return false;
@@ -125,21 +136,22 @@ function pickOrphanResidence(
   child: Entity,
   humans: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): number | undefined {
   const alive = humans.filter((h) => h.alive && !h.faction);
-  const custodianHome = pickResidenceFromChildCustodian(child, humans, residences);
+  const custodianHome = pickResidenceFromChildCustodian(child, humans, residences, occupancy);
   if (custodianHome !== undefined) return custodianHome;
 
   let best: Building | undefined;
   let bestScore = Infinity;
   for (const residence of residences) {
     if (isLeaderHouseResidence(residence)) continue;
-    if (!residenceRoomFor(child, residence, alive)) continue;
+    if (!residenceRoomFor(child, residence, alive, occupancy)) continue;
     if (residenceHostsOnlySingles(residence.id, alive)) continue;
-    const count = countResidentsInBuilding(alive, residence.id);
+    const count = countResidentsInBuilding(alive, residence.id, occupancy);
     let score = count;
-    if (count === 0) score -= 100;
-    if (residenceHostsCouple(residence.id, alive)) score -= 50;
+    if (count === 0) score += HOUSING_SCORES.EMPTY_HOUSE_BONUS;
+    if (residenceHostsCouple(residence.id, alive)) score += HOUSING_SCORES.COUPLE_HOST_BONUS;
     if (score < bestScore || (score === bestScore && residence.id < (best?.id ?? Infinity))) {
       bestScore = score;
       best = residence;
@@ -152,58 +164,56 @@ export function placeOrphanInHouse(
   child: Entity,
   humans: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): boolean {
   const alive = humans.filter((h) => h.alive && !h.faction);
   if (hasResidenceAssignment(child)) {
     const current = residences.find((b) => b.id === child.residenceBuildingId);
-    if (current && residenceRoomFor(child, current, alive)) return true;
+    if (current && residenceRoomFor(child, current, alive, occupancy)) return true;
   }
 
-  const picked = pickOrphanResidence(child, humans, residences)
-    ?? pickLeastCrowdedResidence(alive, residences, 1, { forbidSinglesOnly: true });
+  const picked =
+    pickOrphanResidence(child, humans, residences, occupancy) ??
+    pickLeastCrowdedResidence(alive, residences, 1, { forbidSinglesOnly: true }, occupancy);
   if (picked === undefined) return false;
 
   child.residenceBuildingId = picked;
   return true;
 }
 
-/**
- * Mother → grandmas → father; else random adoptive couple.
- * If no married couples exist, place the orphan in any house with room.
- */
 export function ensureOrphanAdoption(
   child: Entity,
   humans: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): boolean {
   if (!child.alive || child.faction || !isMinorChild(child)) return false;
-  if (child.adoptiveMotherId != null || child.adoptiveFatherId != null) {
-    if (hasLivingNaturalCustodian(child, humans) || livingAdoptiveCustodian(child, humans)) {
-      if (!livingAdoptiveCustodian(child, humans)) {
-        child.adoptiveMotherId = undefined;
-        child.adoptiveFatherId = undefined;
-      }
-      return false;
-    }
+
+  if (hasLivingNaturalCustodian(child, humans)) {
     child.adoptiveMotherId = undefined;
     child.adoptiveFatherId = undefined;
+    return false;
   }
 
-  if (hasLivingNaturalCustodian(child, humans)) return false;
-
-  if (livingAdoptiveCustodian(child, humans)) return false;
+  if (livingAdoptiveCustodian(child, humans)) {
+    return false;
+  }
 
   child.adoptiveMotherId = undefined;
   child.adoptiveFatherId = undefined;
 
   const couple = pickRandomAdoptiveCouple(child, humans);
   if (couple) {
-    child.adoptiveMotherId = couple.mother.id;
-    child.adoptiveFatherId = couple.father.id;
-    couple.mother.childrenIds ??= [];
-    couple.father.childrenIds ??= [];
-    if (!couple.mother.childrenIds.includes(child.id)) couple.mother.childrenIds.push(child.id);
-    if (!couple.father.childrenIds.includes(child.id)) couple.father.childrenIds.push(child.id);
+    const motherId = couple.mother?.id ?? couple.partnerA.id;
+    const fatherId = couple.father?.id ?? couple.partnerB.id;
+
+    child.adoptiveMotherId = motherId;
+    child.adoptiveFatherId = fatherId;
+
+    couple.partnerA.childrenIds ??= [];
+    couple.partnerB.childrenIds ??= [];
+    if (!couple.partnerA.childrenIds.includes(child.id)) couple.partnerA.childrenIds.push(child.id);
+    if (!couple.partnerB.childrenIds.includes(child.id)) couple.partnerB.childrenIds.push(child.id);
     return true;
   }
 
@@ -219,24 +229,22 @@ export function ensureOrphanAdoption(
     return true;
   }
 
-  return placeOrphanInHouse(child, humans, residences);
+  return placeOrphanInHouse(child, humans, residences, occupancy);
 }
 
 export function pickResidenceFromChildCustodian(
   child: Entity,
   humans: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): number | undefined {
   const custodian = getChildCustodian(child, humans);
   if (!custodian || !hasResidenceAssignment(custodian)) return undefined;
   const residence = residences.find((b) => b.id === custodian.residenceBuildingId);
-  if (!residence || !residenceRoomFor(child, residence, humans)) return undefined;
+  if (!residence || !residenceRoomFor(child, residence, humans, occupancy)) return undefined;
   return custodian.residenceBuildingId;
 }
 
-
-
-/** Housing assignment units — minors follow custodian; adults 18+ form their own household. */
 export function buildHousingUnits(humans: Entity[]): Entity[][] {
   const alive = humans.filter((h) => h.alive && !h.faction);
   const visited = new Set<number>();
@@ -258,7 +266,7 @@ export function buildHousingUnits(humans: Entity[]): Entity[][] {
 
     const unit: Entity[] = [custodian];
     visited.add(custodian.id);
-    const partner = livingHuman(alive, custodian.partnerId);
+    const partner = findLivingHuman(alive, custodian.partnerId);
     if (partner && !visited.has(partner.id)) {
       unit.push(partner);
       visited.add(partner.id);
@@ -282,19 +290,18 @@ export function buildHousingUnits(humans: Entity[]): Entity[][] {
   return units;
 }
 
-
-
 export function canMoveOutOfFamilyHome(
   human: Entity,
   humans: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): boolean {
   if (!isAdultChildAtHome(human, humans)) return false;
   const household = collectOwnHousehold(human, humans);
   return residences.some(
     (r) =>
-      countResidentsInBuilding(humans, r.id) === 0
-      && familyFitsInResidence(household, r, humans),
+      countResidentsInBuilding(humans, r.id, occupancy) === 0 &&
+      familyFitsInResidence(household, r, humans, occupancy),
   );
 }
 
@@ -302,14 +309,15 @@ export function tryMoveOutOfFamilyHome(
   human: Entity,
   humans: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): boolean {
-  if (!canMoveOutOfFamilyHome(human, humans, residences)) return false;
+  if (!canMoveOutOfFamilyHome(human, humans, residences, occupancy)) return false;
 
   const household = collectOwnHousehold(human, humans);
   const target = residences.find(
     (r) =>
-      countResidentsInBuilding(humans, r.id) === 0
-      && familyFitsInResidence(household, r, humans),
+      countResidentsInBuilding(humans, r.id, occupancy) === 0 &&
+      familyFitsInResidence(household, r, humans, occupancy),
   );
   if (!target) return false;
 
@@ -317,24 +325,24 @@ export function tryMoveOutOfFamilyHome(
   return true;
 }
 
-/** When a new empty house appears, adult children still at home may move into their own place. */
 export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
   humans: Entity[],
   residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): void {
   let emptyHomeIds = residences
-    .filter((r) => !isLeaderHouseResidence(r) && countResidentsInBuilding(humans, r.id) === 0)
+    .filter(
+      (r) => !isLeaderHouseResidence(r) && countResidentsInBuilding(humans, r.id, occupancy) === 0,
+    )
     .map((r) => r.id);
   if (emptyHomeIds.length === 0) return;
 
-  const leaderHouseIds = new Set(
-    residences.filter(isLeaderHouseResidence).map((r) => r.id),
-  );
+  const leaderHouseIds = new Set(residences.filter(isLeaderHouseResidence).map((r) => r.id));
   const candidates = humans
     .filter(
       (h) =>
-        isAdultChildAtHome(h, humans)
-        && (h.residenceBuildingId == null || !leaderHouseIds.has(h.residenceBuildingId)),
+        isAdultChildAtHome(h, humans) &&
+        (h.residenceBuildingId == null || !leaderHouseIds.has(h.residenceBuildingId)),
     )
     .sort((a, b) => b.age - a.age || a.id - b.id);
 
@@ -345,7 +353,7 @@ export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
 
     const household = collectOwnHousehold(adult, humans);
     if (household.some((m) => moved.has(m.id))) continue;
-    if (!tryMoveOutOfFamilyHome(adult, humans, residences)) continue;
+    if (!tryMoveOutOfFamilyHome(adult, humans, residences, occupancy)) continue;
 
     const newHomeId = adult.residenceBuildingId;
     if (newHomeId != null) {
@@ -354,6 +362,7 @@ export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
     for (const member of household) moved.add(member.id);
   }
 }
+
 export function buildFamilyGroups(humans: Entity[]): Entity[][] {
   const visited = new Set<number>();
   const families: Entity[][] = [];
@@ -391,11 +400,13 @@ function familyFitsInResidence(
 function isLoneSettler(family: Entity[], humans: Entity[]): boolean {
   if (family.length !== 1) return false;
   if (family[0].isJuvenile) return false;
-  return !livingHuman(humans, family[0].partnerId);
+  return !findLivingHuman(humans, family[0].partnerId);
 }
 
 function unitResidenceId(unit: Entity[]): number | undefined {
-  const ids = new Set(unit.map((m) => m.residenceBuildingId).filter((id): id is number => id != null));
+  const ids = new Set(
+    unit.map((m) => m.residenceBuildingId).filter((id): id is number => id != null),
+  );
   if (ids.size !== 1) return undefined;
   return [...ids][0];
 }
@@ -419,13 +430,12 @@ function hasEmptyResidenceForUnit(
 ): boolean {
   return residences.some(
     (r) =>
-      !isLeaderHouseResidence(r)
-      && countResidentsInBuilding(humans, r.id, occupancy) === 0
-      && familyFitsInResidence(unit, r, humans, occupancy),
+      !isLeaderHouseResidence(r) &&
+      countResidentsInBuilding(humans, r.id, occupancy) === 0 &&
+      familyFitsInResidence(unit, r, humans, occupancy),
   );
 }
 
-/** Another home that fits this lone adult and hosts only singles (or is empty). */
 function hasSinglesOnlyResidenceWithRoom(
   unit: Entity[],
   humans: Entity[],
@@ -443,49 +453,47 @@ function hasSinglesOnlyResidenceWithRoom(
   });
 }
 
-function loneSingleSharesWithFamily(
+/** Determines if a unit should vacate its current residence in favour of a better option. */
+export function housingUnitNeedsReassignment(
   unit: Entity[],
-  humans: Entity[],
-  residenceId: number,
+  alive: Entity[],
+  residences: Building[],
+  occupancy?: ResidenceOccupancy,
 ): boolean {
-  if (!isLoneSettler(unit, humans)) return false;
-  if (!unitSharesResidenceWithOutsiders(unit, humans, residenceId)) return false;
-  return residenceHostsCouple(residenceId, humans);
+  if (!isFamilyHousingValid(unit, residences, alive, occupancy)) return true;
+  const homeId = unitResidenceId(unit);
+  if (homeId == null) return true;
+
+  const home = residences.find((r) => r.id === homeId);
+  if (home && isLeaderHouseResidence(home)) return false;
+
+  if (isLoneSettler(unit, alive)) {
+    if (!unitSharesResidenceWithOutsiders(unit, alive, homeId)) return false;
+    if (hasEmptyResidenceForUnit(unit, alive, residences, occupancy)) return true;
+    if (
+      residenceHostsCouple(homeId, alive) &&
+      hasSinglesOnlyResidenceWithRoom(unit, alive, residences, homeId, occupancy)
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  if (!hasEmptyResidenceForUnit(unit, alive, residences, occupancy)) return false;
+  if (countResidentsInBuilding(alive, homeId, occupancy) === unit.length) return false;
+  return unitSharesResidenceWithOutsiders(unit, alive, homeId);
 }
 
-/** Household already has a valid home but should take a dedicated empty house instead of sharing. */
 export function isUnnecessarilySharingHousing(
   unit: Entity[],
   humans: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
 ): boolean {
-  if (!isFamilyHousingValid(unit, residences, humans, occupancy)) return false;
-  const homeId = unitResidenceId(unit);
-  if (homeId == null) return false;
-
-  const home = residences.find((r) => r.id === homeId);
-  // The leader's household is placed by office, never "unnecessarily sharing".
-  if (home && isLeaderHouseResidence(home)) return false;
-
-  if (isLoneSettler(unit, humans)) {
-    if (!loneSingleSharesWithFamily(unit, humans, homeId)) return false;
-    return (
-      hasEmptyResidenceForUnit(unit, humans, residences, occupancy)
-      || hasSinglesOnlyResidenceWithRoom(unit, humans, residences, homeId, occupancy)
-    );
-  }
-
-  if (!hasEmptyResidenceForUnit(unit, humans, residences, occupancy)) return false;
-  if (countResidentsInBuilding(humans, homeId, occupancy) <= unit.length) return false;
-  return unitSharesResidenceWithOutsiders(unit, humans, homeId);
+  return housingUnitNeedsReassignment(unit, humans, residences, occupancy);
 }
 
-/** Scan for households sharing a residence while better homes exist. */
-export function auditHousingSharingIssues(
-  humans: Entity[],
-  buildings: Building[],
-): string[] {
+export function auditHousingSharingIssues(humans: Entity[], buildings: Building[]): string[] {
   const alive = humans.filter((h) => h.alive && !h.faction);
   const residences = buildings.filter(isResidenceBuilding);
   const emptyCount = residences.filter((r) => countResidentsInBuilding(alive, r.id) === 0).length;
@@ -509,53 +517,18 @@ export function auditHousingSharingIssues(
   return issues;
 }
 
-/** Whether a housing unit should leave its current residence and be re-placed. */
-export function housingUnitNeedsReassignment(
-  unit: Entity[],
-  alive: Entity[],
-  residences: Building[],
-  occupancy?: ResidenceOccupancy,
-): boolean {
-  if (!isFamilyHousingValid(unit, residences, alive, occupancy)) return true;
-  const homeId = unitResidenceId(unit);
-  if (homeId == null) return true;
-
-  // The leader's household keeps the manor until leadership changes (leaderHouse.ts).
-  const home = residences.find((r) => r.id === homeId);
-  if (home && isLeaderHouseResidence(home)) return false;
-
-  if (isLoneSettler(unit, alive)) {
-    if (!unitSharesResidenceWithOutsiders(unit, alive, homeId)) return false;
-    if (hasEmptyResidenceForUnit(unit, alive, residences, occupancy)) return true;
-    if (
-      residenceHostsCouple(homeId, alive)
-      && hasSinglesOnlyResidenceWithRoom(unit, alive, residences, homeId, occupancy)
-    ) {
-      return true;
-    }
-    return false;
-  }
-
-  if (!hasEmptyResidenceForUnit(unit, alive, residences, occupancy)) return false;
-  if (countResidentsInBuilding(alive, homeId, occupancy) === unit.length) return false;
-  return unitSharesResidenceWithOutsiders(unit, alive, homeId);
-}
-
 export function sortHousingUnitsForAssignment(
   units: Entity[][],
   alive: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
 ): Entity[][] {
-  // Cache reassignment priority once — comparator must not recompute O(R) checks.
-  const needReassign = units.map((u) => housingUnitNeedsReassignment(u, alive, residences, occupancy));
+  const needReassign = units.map((u) =>
+    housingUnitNeedsReassignment(u, alive, residences, occupancy),
+  );
   return units
     .map((unit, i) => ({ unit, need: needReassign[i] ? 0 : 1, len: unit.length }))
-    .sort((a, b) => {
-      const d = a.need - b.need;
-      if (d !== 0) return d;
-      return b.len - a.len;
-    })
+    .sort((a, b) => a.need - b.need || b.len - a.len)
     .map((x) => x.unit);
 }
 
@@ -592,12 +565,11 @@ function anyOpenBeds(
 ): boolean {
   return residences.some(
     (r) =>
-      !isLeaderHouseResidence(r)
-      && countResidentsInBuilding(humans, r.id, occupancy) < getResidenceCapacity(r),
+      !isLeaderHouseResidence(r) &&
+      countResidentsInBuilding(humans, r.id, occupancy) < getResidenceCapacity(r),
   );
 }
 
-/** Any house that fits the whole household — used when empty homes are gone. */
 export function pickSharedResidenceForFamily(
   family: Entity[],
   humans: Entity[],
@@ -625,7 +597,6 @@ export function pickSharedResidenceForFamily(
   return best?.id;
 }
 
-/** Couples/families prefer their own empty house; lone singles may share with couples or other singles. */
 export function pickResidenceForFamily(
   family: Entity[],
   humans: Entity[],
@@ -636,14 +607,27 @@ export function pickResidenceForFamily(
 
   const loneSingle = isLoneSettler(family, humans);
   const hasMinor = family.some((m) => isMinorChild(m));
-  // Prefer map-backed empty checks when occupancy is provided (EK-E2).
-  const anyEmptyHouse = residences.some(
-    (r) => !isLeaderHouseResidence(r) && countResidentsInBuilding(humans, r.id, occupancy) === 0,
-  );
+  
+  let emptyHouseCount = 0;
+  const singlesFriendlyHouseIds = new Set<number>();
+
+  for (const r of residences) {
+    if (isLeaderHouseResidence(r)) continue;
+    const count = countResidentsInBuilding(humans, r.id, occupancy);
+    if (count === 0) {
+      emptyHouseCount++;
+    }
+    if (familyFitsInResidence(family, r, humans, occupancy) && (count === 0 || residenceHostsOnlySingles(r.id, humans))) {
+      singlesFriendlyHouseIds.add(r.id);
+    }
+  }
+
+  const anyEmptyHouse = emptyHouseCount > 0;
   const housingShortage = !anyEmptyHouse || !anyOpenBeds(humans, residences, occupancy);
 
   let best: Building | undefined;
   let bestScore = Infinity;
+
   for (const residence of residences) {
     if (isLeaderHouseResidence(residence)) continue;
     if (!familyFitsInResidence(family, residence, humans, occupancy)) continue;
@@ -654,44 +638,36 @@ export function pickResidenceForFamily(
     const cap = getResidenceCapacity(residence);
     const largeFamilyBonus = family.length > 4 ? cap * 10 : 0;
 
-    const singlesAlternative = residences.some(
-      (r) =>
-        r.id !== residence.id
-        && !isLeaderHouseResidence(r)
-        && familyFitsInResidence(family, r, humans, occupancy)
-        && (countResidentsInBuilding(humans, r.id, occupancy) === 0
-          || residenceHostsOnlySingles(r.id, humans)),
-    );
+    // O(1) singles alternative check via pre-aggregated Set
+    const hasOtherSinglesFriendlyHouse = singlesFriendlyHouseIds.size > (singlesFriendlyHouseIds.has(residence.id) ? 1 : 0);
 
     let score: number;
     if (loneSingle) {
       if (count === 0) {
-        score = -100;
+        score = HOUSING_SCORES.EMPTY_HOUSE_BONUS;
       } else if (anyEmptyHouse) {
-        // Empty homes available — only use shared housing when every house is occupied.
-        score = 1000 + outsiders * 100 + count;
+        score = HOUSING_SCORES.OUTSIDER_MULTIPLIER_NORMAL + outsiders * 100 + count;
       } else if (residenceHostsOnlySingles(residence.id, humans)) {
-        score = alreadyHere > 0 ? 50 + count : count;
+        score = alreadyHere > 0 ? HOUSING_SCORES.SINGLES_ALREADY_HOSTED + count : count;
       } else if (residenceHostsCouple(residence.id, humans)) {
-        if (singlesAlternative) {
-          score = 10_000 + outsiders * 100 + count;
+        if (hasOtherSinglesFriendlyHouse) {
+          score = HOUSING_SCORES.SINGLES_ALTERNATIVE_PENALTY + outsiders * 100 + count;
         } else {
-          score = 100 + outsiders;
+          score = HOUSING_SCORES.COUPLE_HOST_PENALTY + outsiders;
         }
       } else if (alreadyHere > 0) {
-        score = 50 + count;
+        score = HOUSING_SCORES.SINGLES_ALREADY_HOSTED + count;
       } else {
-        score = outsiders * 1000 + count;
+        score = outsiders * HOUSING_SCORES.OUTSIDER_MULTIPLIER_NORMAL + count;
       }
     } else if (housingShortage) {
-      // No empty homes (or every bed taken) — keep households together in shared houses.
-      score = outsiders * 10 + count - largeFamilyBonus;
+      score = outsiders * HOUSING_SCORES.OUTSIDER_MULTIPLIER_SHORTAGE + count - largeFamilyBonus;
     } else {
-      score = outsiders * 1000 + count - largeFamilyBonus;
+      score = outsiders * HOUSING_SCORES.OUTSIDER_MULTIPLIER_NORMAL + count - largeFamilyBonus;
     }
 
     if (hasMinor && residenceHostsOnlySingles(residence.id, humans)) {
-      score += 10_000;
+      score += HOUSING_SCORES.MINOR_IN_SINGLES_PENALTY;
     }
 
     if (score < bestScore || (score === bestScore && residence.id < (best?.id ?? Infinity))) {
@@ -699,6 +675,7 @@ export function pickResidenceForFamily(
       best = residence;
     }
   }
+
   return best?.id;
 }
 
@@ -709,8 +686,7 @@ function isFamilyHousingValid(
   occupancy?: ResidenceOccupancy,
 ): boolean {
   const assigned = family.filter((m) => m.residenceBuildingId !== undefined);
-  if (assigned.length === 0) return false;
-  if (assigned.length !== family.length) return false;
+  if (assigned.length === 0 || assigned.length !== family.length) return false;
 
   const houseId = assigned[0].residenceBuildingId!;
   if (!assigned.every((m) => m.residenceBuildingId === houseId)) return false;
@@ -726,11 +702,12 @@ export function pickResidenceForHumanExcluding(
   humans: Entity[],
   residences: Building[],
   excludeResidenceIds: Iterable<number> = [],
+  occupancy?: ResidenceOccupancy,
 ): number | undefined {
   const exclude = new Set(excludeResidenceIds);
   const filtered = residences.filter((r) => !exclude.has(r.id));
   if (filtered.length === 0) return undefined;
-  return pickResidenceForHuman(human, humans, filtered);
+  return pickResidenceForHuman(human, humans, filtered, occupancy);
 }
 
 export function pickResidenceForHuman(
@@ -746,7 +723,7 @@ export function pickResidenceForHuman(
   if (familyHouse !== undefined) return familyHouse;
 
   if (human.partnerId) {
-    const partner = humans.find((h) => h.id === human.partnerId && h.alive);
+    const partner = findLivingHuman(humans, human.partnerId);
     if (partner && hasResidenceAssignment(partner)) {
       const partnerResidence = residences.find((b) => b.id === partner.residenceBuildingId);
       if (partnerResidence && residenceRoomFor(human, partnerResidence, humans, occupancy)) {
@@ -756,11 +733,10 @@ export function pickResidenceForHuman(
   }
 
   if (isMinorChild(human)) {
-    const custodianHome = pickResidenceFromChildCustodian(human, humans, residences);
+    const custodianHome = pickResidenceFromChildCustodian(human, humans, residences, occupancy);
     if (custodianHome !== undefined) return custodianHome;
   }
 
   const crowdOpts: PickResidenceOptions = isMinorChild(human) ? { forbidSinglesOnly: true } : {};
   return pickLeastCrowdedResidence(humans, residences, 1, crowdOpts, occupancy);
 }
-

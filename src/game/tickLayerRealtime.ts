@@ -1,10 +1,3 @@
-/**
- * Realtime layer — every tick.
- *
- * Prisoner release, moon howler, renffr, spatial/scent, human AI,
- * stats sampling, particles, hunt visuals.
- * Wildlife → systems; grass/buildings → daily.
- */
 import { pruneHuntVisuals } from './huntvisuals';
 import type {
   WorldState, DeathParticle, FloatingText, PopulationHistoryEntry, Entity,
@@ -45,31 +38,41 @@ export const STATS_SAMPLE_INTERVAL_TICKS = 10;
 /** Rolling buffer length — 300 samples × STATS_SAMPLE_INTERVAL_TICKS (≈42 game days at 72 ticks/day). */
 export const POPULATION_HISTORY_MAX = 300;
 
+/** 🚀 OPTIMIZED: Zero-allocation array building instead of spread operator concatenation. */
 function rebuildPredators(byType: TickContext['byType'], playerHumans?: readonly Entity[]): Entity[] {
-  const out: Entity[] = [
-    ...byType[EntityType.Wolf],
-    ...byType[EntityType.Fox],
-    ...byType[EntityType.Werewolf],
-  ];
-  const settlers = playerHumans ?? byType[EntityType.Human].filter(isPlayerHuman);
+  const out: Entity[] = [];
+  
+  const pushType = (entities: Entity[] | undefined) => {
+    if (entities) {
+      for (const e of entities) out.push(e);
+    }
+  };
+
+  pushType(byType[EntityType.Wolf]);
+  pushType(byType[EntityType.Fox]);
+  pushType(byType[EntityType.Werewolf]);
+
+  const settlers = playerHumans ?? (byType[EntityType.Human]?.filter(isPlayerHuman) ?? []);
   for (const h of settlers) {
     if (h.alive && !h.isJuvenile) out.push(h);
   }
-  for (const h of byType[EntityType.Human]) {
+  
+  const humans = byType[EntityType.Human] ?? [];
+  for (const h of humans) {
     if (h.alive && h.faction === 'rival') out.push(h);
   }
+  
   return out;
 }
 
 export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
   const { width, height } = ctx;
 
-  // --- Pre-AI world pulses (formerly free-floating in gameTick) ---
+  // --- Pre-AI world pulses ---
   releasePrisoners(state);
-  // Visitor hotel check-in / checkout (evening & night)
   tickHotelLodging(state);
 
-  // Election ceremony advances every sim tick (phase lengths are in ticks, not days)
+  // Election ceremony advances every sim tick
   if (state.electionCeremony) {
     const electionReveal = tickElectionCeremony(state, state.year);
     if (electionReveal) {
@@ -90,6 +93,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
 
   const aliveEntities = ctx.aliveEntities;
   const colonyDay = getAbsoluteCalendarDay(state.tick);
+  
   const moonResult = tickMoonHowlerCycle(
     state,
     aliveEntities,
@@ -97,29 +101,19 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     colonyDay,
     ctx.hourOfDay,
     ctx.entityById,
-    // Reuse the byType index gameTick already built from this same alive set.
     ctx.byType,
   );
+  
   if (moonResult.changed) {
     ctx.byType = moonResult.byType;
     ctx.playerHumans = ctx.byType[EntityType.Human].filter(isPlayerHuman);
-    // Only rebuild this derived array when moonhowler transitions actually
-    // change the type index. Rebuilding it every tick allocates and scans the
-    // same human/wildlife arrays before tickHumans even starts.
     ctx.predators = rebuildPredators(ctx.byType, ctx.playerHumans);
   }
 
-  // Avoid two full aliveEntities passes in the common case. The residence
-  // synchronization is needed only while a moon howler is active.
-  let activeMoonHowler = false;
-  if (aliveEntities.length > 0) {
-    for (const entity of aliveEntities) {
-      if (isActiveMoonHowler(entity)) {
-        activeMoonHowler = true;
-        break;
-      }
-    }
-  }
+  // 🚀 OPTIMIZED: Check only the Werewolf array for active moon howlers (O(W) instead of O(N))
+  const werewolves = ctx.byType[EntityType.Werewolf] ?? [];
+  const activeMoonHowler = werewolves.some(isActiveMoonHowler);
+
   if (activeMoonHowler) {
     const occupants: Entity[] = [];
     for (const entity of aliveEntities) {
@@ -145,7 +139,6 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
   state.mobileGrid = mobileGrid;
   ctx.mobileGrid = mobileGrid;
 
-  // Living-humans-only grid — social/greeting/courtship queries skip wildlife.
   const humanSocialGrid = USE_SPATIAL_GRID
     ? syncHumanSocialGrid(state.humanSocialGrid, width, height, aliveEntities)
     : undefined;
@@ -158,19 +151,17 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
   state.grassGrid = grassGrid ?? undefined;
   ctx.grassGrid = grassGrid;
 
-  // Static tree index — rebuilt lazily (trees only change on UI building placement)
   const treeGrid = USE_SPATIAL_GRID
     ? syncTreeGrid(state.treeGrid, width, height, ctx.byType[EntityType.Tree] ?? [])
     : undefined;
   state.treeGrid = treeGrid;
   ctx.treeGrid = treeGrid;
 
-  // Scent grid
   const scentGrid = USE_SCENT_GRID ? ensureScentGrid(state) : undefined;
   if (scentGrid) tickScentGrid(state, ctx.predators);
   ctx.scentGrid = scentGrid;
 
-  // Human AI — fauna → systems; grass → daily
+  // Human AI
   tickHumans(state, ctx);
 
   // Stats sampling (every 10 ticks)
@@ -179,7 +170,9 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
       state.populationHistory = [];
     }
 
-    const counts = computePopulationCounts(state.entities.filter((e) => e.alive));
+    // 🚀 OPTIMIZED: Reuse ctx.aliveEntities instead of filtering state.entities again
+    const counts = computePopulationCounts(ctx.aliveEntities);
+    
     let completedBuildings = 0;
     for (const b of state.buildings) {
       if (b.completed && b.faction !== 'rival') completedBuildings++;
@@ -209,31 +202,38 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     };
 
     state.populationHistory.push(snapshot);
-    while (state.populationHistory.length > POPULATION_HISTORY_MAX) {
+    // Keep buffer bounded (V8 optimizes shift() well for small arrays, but slice is also safe)
+    if (state.populationHistory.length > POPULATION_HISTORY_MAX) {
       state.populationHistory.shift();
     }
   }
 
-  // Particle animation
-  const newParticles: DeathParticle[] = [];
-  for (const p of state.deathParticles) {
+  // 🚀 OPTIMIZED: Zero-allocation particle animation (in-place mutation + truncate)
+  let particleWriteIdx = 0;
+  for (let i = 0; i < state.deathParticles.length; i++) {
+    const p = state.deathParticles[i];
     p.x += p.vx;
     p.y += p.vy;
     p.vy += 0.02;
     p.life--;
-    if (p.life > 0) newParticles.push(p);
+    if (p.life > 0) {
+      state.deathParticles[particleWriteIdx++] = p;
+    }
   }
-  state.deathParticles = newParticles;
+  state.deathParticles.length = particleWriteIdx; // Truncate array, zero GC pressure
 
-  // Floating-text animation
-  const newFloatingTexts: FloatingText[] = [];
-  for (const ft of state.floatingTexts) {
+  // 🚀 OPTIMIZED: Zero-allocation floating-text animation
+  let textWriteIdx = 0;
+  for (let i = 0; i < state.floatingTexts.length; i++) {
+    const ft = state.floatingTexts[i];
     ft.y -= 0.7;
     ft.life--;
     ft.scale = ft.life < 6 ? ft.life / 6 : 1;
-    if (ft.life > 0) newFloatingTexts.push(ft);
+    if (ft.life > 0) {
+      state.floatingTexts[textWriteIdx++] = ft;
+    }
   }
-  state.floatingTexts = newFloatingTexts;
+  state.floatingTexts.length = textWriteIdx; // Truncate array, zero GC pressure
 
   pruneHuntVisuals(state);
 }

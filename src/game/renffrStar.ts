@@ -1,8 +1,7 @@
-import type { RenffrLetter, RenffrOmen } from './gameTypes';
+import type { Entity, RenffrLetter, RenffrOmen, WorldState } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycle';
 import { sayHumanChatPhrase } from './humanChat';
 import { isPlayerHuman } from './playerHuman';
-import type { Entity, WorldState } from './gameTypes';
 
 /** Lines spoken the night an omen appears (assigned directly to settlers). */
 export const RENFFR_OMEN_LINES = [
@@ -160,6 +159,7 @@ export function drawRenffrOmen(
   const fade = Math.min(1, omen.life / 30);
   const alpha = fade;
 
+  // Phase 0: Draw the shooting streak
   if (omen.phase === 0 || omen.streakT < 1) {
     const t = omen.streakT;
     const x0 = cw * 0.08;
@@ -193,8 +193,10 @@ export function drawRenffrOmen(
     ctx.restore();
   }
 
+  // If we are still in Phase 0, we're done drawing for this frame
   if (omen.phase < 1) return;
 
+  // Phase 1 & 2: Draw the letters
   const nameAlpha = omen.phase === 1
     ? Math.min(1, omen.phaseTimer / 12)
     : alpha;

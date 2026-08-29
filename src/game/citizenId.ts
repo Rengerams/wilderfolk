@@ -3,9 +3,10 @@ import { HUMAN_CHILDHOOD_DAYS, HUMAN_VENERABLE_AGE } from './dayCycle';
 
 /** Full display name incl. title, with a fallback for nameless entities. */
 export function humanDisplayName(entity: Entity): string {
-  return entity.name
-    ? `${entity.name}${entity.surname ? ` ${entity.surname}` : ''}${entity.title ? ` ${entity.title}` : ''}`
-    : 'A settler';
+  if (!entity.name) return 'A settler';
+  const surname = entity.surname?.trim() ? ` ${entity.surname.trim()}` : '';
+  const title = entity.title?.trim() ? ` ${entity.title.trim()}` : '';
+  return `${entity.name}${surname}${title}`;
 }
 
 /** Stable citizen number — same as internal entity id, shown as #123 in the UI. */
@@ -36,19 +37,26 @@ export function matchesCitizenSearch(entity: Entity, query: string): boolean {
 
   const base = (entity.name || '').toLowerCase();
   const surname = (entity.surname || '').toLowerCase();
-  const full = `${base} ${surname}`.trim();
-  return base.includes(q) || surname.includes(q) || full.includes(q);
+  const title = (entity.title || '').toLowerCase();
+  const full = `${base} ${surname} ${title}`.trim();
+
+  return (
+    base.includes(q) ||
+    surname.includes(q) ||
+    title.includes(q) ||
+    full.includes(q)
+  );
 }
 
-/** Life stage + age for chronicle death lines (internal age counts as years in the village calendar). */
+/** Life stage + age for chronicle death lines. */
 export function formatDeathAgeSuffix(entity: Pick<Entity, 'age' | 'isJuvenile'>): string {
   const years = Math.max(0, entity.age);
-  // Age is ground truth; isJuvenile flag is ignored here to avoid inconsistent overrides.
-  const stage = years < HUMAN_CHILDHOOD_DAYS
-    ? 'child'
-    : years >= HUMAN_VENERABLE_AGE
-      ? 'elder'
-      : 'adult';
+  const stage =
+    years < HUMAN_CHILDHOOD_DAYS
+      ? 'child'
+      : years >= HUMAN_VENERABLE_AGE
+        ? 'elder'
+        : 'adult';
   return `at the age of ${years} year${years === 1 ? '' : 's'} (${stage})`;
 }
 
@@ -60,14 +68,25 @@ export function appendDeathAge(message: string, entity: Pick<Entity, 'age' | 'is
   return `${message} — ${formatDeathAgeSuffix(entity)}`;
 }
 
-export function findCitizenByQuery(entities: Entity[], query: string): Entity | undefined {
+export function findCitizenByQuery(entities: Iterable<Entity>, query: string): Entity | undefined {
   const citizenId = parseCitizenIdQuery(query);
   if (citizenId != null) {
-    return entities.find((e) => e.alive && e.type === EntityType.Human && e.id === citizenId);
+    for (const e of entities) {
+      if (e.alive && e.type === EntityType.Human && e.id === citizenId) {
+        return e;
+      }
+    }
+    return undefined;
   }
+
   const q = query.trim().toLowerCase();
   if (!q) return undefined;
-  return entities.find(
-    (e) => e.alive && e.type === EntityType.Human && matchesCitizenSearch(e, q),
-  );
+
+  for (const e of entities) {
+    if (e.alive && e.type === EntityType.Human && matchesCitizenSearch(e, q)) {
+      return e;
+    }
+  }
+
+  return undefined;
 }

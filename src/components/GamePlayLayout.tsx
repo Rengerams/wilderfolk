@@ -25,7 +25,7 @@ export default function GamePlayLayout({
     <div className="game-shell flex h-screen w-screen flex-col overflow-hidden text-stone-100">
       {header}
       {alertBar}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
         {buildRail}
         <main className="map-stage relative" style={{ flex: '1 1 0%', minHeight: 0, minWidth: 0 }}>
           {mapStage}

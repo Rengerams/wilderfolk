@@ -1,8 +1,3 @@
-/**
- * Human-like free-time social impulses — weather, illness, grief, Sunday church,
- * market errands, partner care, kids at play, neighbor comfort.
- * Called from lifeSimulation free-time AI; does not own movement kinematics.
- */
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, WeatherType } from './gameTypes';
 import {
@@ -15,7 +10,7 @@ import {
   personDayRoll,
 } from './dayCycle';
 import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
-import { getWorkSchedule, isWorkScheduleHour } from './workSchedule';
+import { isOnWorkScheduleShift } from './workSchedule';
 
 export type SocialMotive =
   | 'sick_day'
@@ -33,42 +28,65 @@ export type SocialMotive =
 
 export interface SocialImpulse {
   motive: SocialMotive;
-  /** Optional building to steer toward (center-ish handled by caller). */
+  /** Optional building to steer toward. */
   building?: Building;
-  /** Optional person to walk with / comfort. */
+  /** Optional companion to walk with or comfort. */
   company?: Entity;
-  /** Suggest staying near home porch. */
+  /** Suggest staying near home residence. */
   stayHome?: boolean;
-  /** Floating text / chat flavor */
+  /** Floating chat bubble text. */
   bubble?: string;
 }
 
+const SOCIAL_IMPULSE_CONFIG = {
+  EXHAUSTED_ENERGY_RATIO: 0.28,
+  WEARY_ENERGY_RATIO: 0.4,
+  HARSH_WEATHER_STAY_HOME_CHANCE: 0.62,
+  SUNDAY_SERVICE_ATTEND_CHANCE: 0.7,
+  GREETING_MIN_DIST_SQ: 16, // 4px^2
+  GREETING_MAX_DIST_SQ: 784, // 28px^2
+} as const;
+
 function isHarshWeather(weather: WorldState['weather']): boolean {
   return (
-    weather === WeatherType.Storm
-    || weather === WeatherType.Snow
-    || weather === WeatherType.Rain
-    || weather === WeatherType.Drought
-  );
-}
-
-function completedOf(
-  buildings: readonly Building[],
-  types: BuildingType[],
-): Building[] {
-  return buildings.filter(
-    (b) => b.completed && b.faction !== 'rival' && types.includes(b.type),
+    weather === WeatherType.Storm ||
+    weather === WeatherType.Snow ||
+    weather === WeatherType.Rain ||
+    weather === WeatherType.Drought
   );
 }
 
 function pickBuilding(
   buildings: readonly Building[],
-  types: BuildingType[],
+  types: readonly BuildingType[],
   salt: number,
 ): Building | undefined {
-  const pool = completedOf(buildings, types);
-  if (pool.length === 0) return undefined;
-  return pool[Math.abs(salt) % pool.length];
+  let count = 0;
+  let chosen: Building | undefined;
+
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i];
+    if (b.completed && b.faction !== 'rival' && types.includes(b.type)) {
+      count++;
+    }
+  }
+
+  if (count === 0) return undefined;
+  const targetIdx = Math.abs(salt) % count;
+  let currentIdx = 0;
+
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i];
+    if (b.completed && b.faction !== 'rival' && types.includes(b.type)) {
+      if (currentIdx === targetIdx) {
+        chosen = b;
+        break;
+      }
+      currentIdx++;
+    }
+  }
+
+  return chosen;
 }
 
 function isGrieving(entity: Entity, tick: number): boolean {
@@ -76,33 +94,35 @@ function isGrieving(entity: Entity, tick: number): boolean {
 }
 
 function isExhausted(entity: Entity): boolean {
-  return entity.energy < entity.maxEnergy * 0.28;
+  return entity.energy < entity.maxEnergy * SOCIAL_IMPULSE_CONFIG.EXHAUSTED_ENERGY_RATIO;
 }
 
 function isElder(entity: Entity): boolean {
   return !entity.isJuvenile && entity.age >= HUMAN_VENERABLE_AGE;
 }
 
-function medicalish(entity: Entity): boolean {
-  if (entity.pregnant) return true;
-  return entity.energy < entity.maxEnergy * 0.5;
+function isMedicallyVulnerable(entity: Entity): boolean {
+  return entity.pregnant || entity.energy < entity.maxEnergy * 0.5;
 }
 
-function medicalishBoost(entity: Entity): number {
+function medicalVulnerabilityBoost(entity: Entity): number {
   if (entity.pregnant) return 0.25;
   if (entity.energy < entity.maxEnergy * 0.3) return 0.3;
   return 0;
 }
 
-/** Colony-day birthday (matches birthDay field, 0–359). */
 function isBirthdayToday(entity: Entity, dayInYear: number): boolean {
   if (entity.birthDay == null || !Number.isFinite(entity.birthDay)) return false;
   return Math.floor(entity.birthDay) === dayInYear;
 }
 
+function absDaySalt(tick: number): number {
+  return Math.floor(tick / TICKS_PER_DAY) * 17;
+}
+
 /**
- * Pick the strongest social motive for this free-time tick.
- * Stable-ish rolls keep people from flipping every hour.
+ * Evaluates and returns the primary social motive for an off-duty settler.
+ * Uses deterministic per-person day rolls to ensure behavioral stability across hours.
  */
 export function pickSocialImpulse(
   entity: Entity,
@@ -114,8 +134,9 @@ export function pickSocialImpulse(
   const tick = state.tick;
   const hour = getHourOfDay(tick);
   const weekday = getWeekday(tick);
+  const onShift = isOnWorkScheduleShift(state, hour);
 
-  // 1) Sick / exhausted — rest at home
+  // 1. Sick / Exhausted — Rest at home
   if (isExhausted(entity) && hasResidenceAssignment(entity)) {
     return {
       motive: 'sick_day',
@@ -124,7 +145,7 @@ export function pickSocialImpulse(
     };
   }
 
-  // 2) Grief — quiet days at home or church
+  // 2. Grief — Quiet days at home or prayer at church
   if (isGrieving(entity, tick)) {
     const church = pickBuilding(buildings, [BuildingType.Church], entity.id + 3);
     if (church && personDayRoll(entity.id, tick, 702) < 0.4 && hour >= 9 && hour < 18) {
@@ -143,24 +164,25 @@ export function pickSocialImpulse(
     }
   }
 
-  // 3) Bad weather — stay in more often
+  // 3. Bad Weather — Shelter indoors
   if (
-    isHarshWeather(state.weather)
-    && hasResidenceAssignment(entity)
-    && personDayRoll(entity.id, tick, 704) < 0.62
+    isHarshWeather(state.weather) &&
+    hasResidenceAssignment(entity) &&
+    personDayRoll(entity.id, tick, 704) < SOCIAL_IMPULSE_CONFIG.HARSH_WEATHER_STAY_HOME_CHANCE
   ) {
+    let weatherBubble = 'Dust and heat.';
+    if (state.weather === WeatherType.Storm) weatherBubble = 'Awful storm.';
+    else if (state.weather === WeatherType.Snow) weatherBubble = 'Too cold out.';
+    else if (state.weather === WeatherType.Rain) weatherBubble = 'Rain… maybe later.';
+
     return {
       motive: 'bad_weather',
       stayHome: true,
-      bubble:
-        state.weather === WeatherType.Storm ? 'Awful storm.'
-          : state.weather === WeatherType.Snow ? 'Too cold out.'
-            : state.weather === WeatherType.Rain ? 'Rain… maybe later.'
-              : 'Dust and heat.',
+      bubble: weatherBubble,
     };
   }
 
-  // 4) Elders rest more in free time
+  // 4. Elder Rest — Senior settlers take porch rest
   if (isElder(entity) && hasResidenceAssignment(entity) && personDayRoll(entity.id, tick, 705) < 0.38) {
     return {
       motive: 'elder_rest',
@@ -169,7 +191,7 @@ export function pickSocialImpulse(
     };
   }
 
-  // 5) Care for pregnant partner — walk them gently or to hospital
+  // 5. Partner Care (Pregnant Spouse)
   const spouse = nearbyAdults.find((h) => h.id === entity.partnerId && h.alive);
   if (spouse?.pregnant && personDayRoll(entity.id, tick, 707) < 0.55) {
     const hospital = pickBuilding(buildings, [BuildingType.Hospital], entity.id);
@@ -188,7 +210,7 @@ export function pickSocialImpulse(
     };
   }
 
-  // Pregnant self — prefer hospital / home when evening
+  // Pregnant self care
   if (entity.pregnant && personDayRoll(entity.id, tick, 709) < 0.45) {
     const hospital = pickBuilding(buildings, [BuildingType.Hospital], entity.id + 1);
     if (hospital && hour >= 10 && hour < 17) {
@@ -199,10 +221,10 @@ export function pickSocialImpulse(
     }
   }
 
-  // 6) Sunday service (weekday 6) morning/midday
+  // 6. Sunday Service (Day 6 of week)
   if (weekday === 6 && hour >= 9 && hour < 13) {
     const church = pickBuilding(buildings, [BuildingType.Church], entity.id + absDaySalt(tick));
-    if (church && personDayRoll(entity.id, tick, 710) < 0.7) {
+    if (church && personDayRoll(entity.id, tick, 710) < SOCIAL_IMPULSE_CONFIG.SUNDAY_SERVICE_ATTEND_CHANCE) {
       return {
         motive: 'sunday_service',
         building: church,
@@ -211,39 +233,35 @@ export function pickSocialImpulse(
     }
   }
 
-  // 6b) Civic petition — food stress, grief, scandal, or daily errand to the hall
+  // 7. Civic Petition — Visit Town Hall
   const hall = pickBuilding(buildings, [BuildingType.TownHall], entity.id + 9);
-  if (
-    hall
-    && hall.occupants.length > 0
-    && hour >= 9
-    && hour < 18
-    && personDayRoll(entity.id, tick, 730) < 0.32
-  ) {
+  if (hall && hall.occupants.length > 0 && hour >= 9 && hour < 18 && personDayRoll(entity.id, tick, 730) < 0.32) {
     const needAid =
-      state.resources.food < Math.max(50, state.humanPopulation * 2.5)
-      || isGrieving(entity, tick)
-      || (entity.scandalCooldownUntilTick ?? 0) > tick
-      || entity.energy < entity.maxEnergy * 0.5;
+      state.resources.food < Math.max(50, state.humanPopulation * 2.5) ||
+      isGrieving(entity, tick) ||
+      (entity.scandalCooldownUntilTick ?? 0) > tick ||
+      entity.energy < entity.maxEnergy * 0.5;
+
     if (needAid || personDayRoll(entity.id, tick, 731) < 0.15) {
       return {
-        motive: 'market_errand', // reuse building visit path; bubble is civic
+        motive: 'market_errand',
         building: hall,
-        bubble:
-          isGrieving(entity, tick) ? 'I must speak to the hall…'
-            : state.resources.food < state.humanPopulation * 2 ? 'We need grain stores…'
-              : 'A petition for the officials.',
+        bubble: isGrieving(entity, tick)
+          ? 'I must speak to the hall…'
+          : state.resources.food < state.humanPopulation * 2
+            ? 'We need grain stores…'
+            : 'A petition for the officials.',
       };
     }
   }
 
-  // 6c) Stronger hospital pull when staffed and sick/pregnant
+  // 8. Hospital Visit (when staffed)
   const hospital = pickBuilding(buildings, [BuildingType.Hospital], entity.id + 11);
   if (
-    hospital
-    && hospital.occupants.length > 0
-    && medicalish(entity)
-    && personDayRoll(entity.id, tick, 732) < 0.5 + medicalishBoost(entity)
+    hospital &&
+    hospital.occupants.length > 0 &&
+    isMedicallyVulnerable(entity) &&
+    personDayRoll(entity.id, tick, 732) < 0.5 + medicalVulnerabilityBoost(entity)
   ) {
     return {
       motive: 'hospital_visit',
@@ -252,7 +270,7 @@ export function pickSocialImpulse(
     };
   }
 
-  // 7) Birthday mood
+  // 9. Birthday Mood
   if (isBirthdayToday(entity, state.dayInYear) && personDayRoll(entity.id, tick, 712) < 0.65) {
     const tavern = pickBuilding(buildings, [BuildingType.Tavern, BuildingType.Market], entity.id);
     return {
@@ -262,12 +280,8 @@ export function pickSocialImpulse(
     };
   }
 
-  // 8) Market errand — stable daily chance in free daylight
-  if (
-    isWorkScheduleHour(getWorkSchedule(state), hour)
-    && hour < getWorkSchedule(state).endHour
-    && personDayRoll(entity.id, tick, 713) < 0.28
-  ) {
+  // 10. Market & Well Errands (during free daytime)
+  if (!onShift && hour >= 8 && hour <= 18 && personDayRoll(entity.id, tick, 713) < 0.28) {
     const market = pickBuilding(
       buildings,
       [BuildingType.Market, BuildingType.Store, BuildingType.Well],
@@ -278,19 +292,22 @@ export function pickSocialImpulse(
         motive: 'market_errand',
         building: market,
         bubble:
-          market.type === BuildingType.Well ? 'Need water.'
-            : personDayRoll(entity.id, tick, 714) < 0.5 ? 'A few errands.' : 'What is the price?',
+          market.type === BuildingType.Well
+            ? 'Need water.'
+            : personDayRoll(entity.id, tick, 714) < 0.5
+              ? 'A few errands.'
+              : 'What is the price?',
       };
     }
   }
 
-  // 9) Comfort a low-energy neighbor
+  // 11. Comfort Neighbor
   const weary = nearbyAdults.find(
     (h) =>
-      h.id !== entity.id
-      && h.alive
-      && h.energy < h.maxEnergy * 0.4
-      && personDayRoll(entity.id, tick, 715 + h.id) < 0.5,
+      h.id !== entity.id &&
+      h.alive &&
+      h.energy < h.maxEnergy * SOCIAL_IMPULSE_CONFIG.WEARY_ENERGY_RATIO &&
+      personDayRoll(entity.id, tick, 715 + h.id) < 0.5,
   );
   if (weary && personDayRoll(entity.id, tick, 716) < 0.22) {
     return {
@@ -300,7 +317,7 @@ export function pickSocialImpulse(
     };
   }
 
-  // 10) Kids want playmates
+  // 12. Kids Play
   if (entity.isJuvenile && nearbyKids.length > 0 && personDayRoll(entity.id, tick, 718) < 0.72) {
     const mate = nearbyKids[(entity.id + Math.floor(tick / 12)) % nearbyKids.length]!;
     return {
@@ -313,11 +330,7 @@ export function pickSocialImpulse(
   return { motive: 'none' };
 }
 
-function absDaySalt(tick: number): number {
-  return Math.floor(tick / TICKS_PER_DAY) * 17;
-}
-
-/** Soft midday chat while on a day job — coworkers share a quiet moment. */
+/** Midday coworker banter during work shifts. */
 export function tryWorkplaceBanter(
   entity: Entity,
   coworkers: readonly Entity[],
@@ -327,19 +340,21 @@ export function tryWorkplaceBanter(
 ): void {
   if (!onDayShift || hour < 11 || hour > 13) return;
   if (isDialogueBusy(entity)) return;
-  // Intuitive settlers pick up on the room better — they banter more often.
+
   const banterChance = entity.traits?.includes('intuitive') ? 0.11 : 0.08;
   if (personDayRoll(entity.id, tick, 720) > banterChance) return;
+
   const mate = coworkers.find((c) => c.id !== entity.id && !isDialogueBusy(c));
   if (!mate) {
     sayHumanChatPhrase(entity, personDayRoll(entity.id, tick, 721) < 0.5 ? 'Long morning.' : 'Almost midday.', 40);
     return;
   }
+
   sayHumanChatPhrase(entity, personDayRoll(entity.id, tick, 722) < 0.5 ? 'How is it going?' : 'Steady work.', 50);
   sayHumanChatPhrase(mate, personDayRoll(mate.id, tick, 723) < 0.5 ? 'Same as ever.' : 'Could be worse.', 50);
 }
 
-/** Morning doorstep greeting when two free settlers pass near home. */
+/** Doorstep greeting between neighbors passing near home. */
 export function tryNeighborGreeting(
   entity: Entity,
   other: Entity | null | undefined,
@@ -350,8 +365,18 @@ export function tryNeighborGreeting(
   if (hour < 6 || hour > 9) return;
   if (isDialogueBusy(entity) || isDialogueBusy(other)) return;
   if (personDayRoll(entity.id, tick, 724 + other.id) > 0.12) return;
-  const dist = Math.hypot(entity.x - other.x, entity.y - other.y);
-  if (dist > 28 || dist < 4) return;
+
+  const dx = entity.x - other.x;
+  const dy = entity.y - other.y;
+  const distSq = dx * dx + dy * dy;
+
+  if (
+    distSq > SOCIAL_IMPULSE_CONFIG.GREETING_MAX_DIST_SQ ||
+    distSq < SOCIAL_IMPULSE_CONFIG.GREETING_MIN_DIST_SQ
+  ) {
+    return;
+  }
+
   sayHumanChatPhrase(
     entity,
     personDayRoll(entity.id, tick, 725) < 0.5 ? 'Morning!' : 'Good day.',

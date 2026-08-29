@@ -9,13 +9,13 @@ import { buildRenderEntityShim } from './entityRenderMeta';
 import type { RenderSoAReaderV1 } from './renderSoAReader';
 
 export interface RenderSoABuckets {
-  tick: number;
-  grassSlots: number[];
-  treeSlots: number[];
-  animalSlots: number[];
-  humanSlots: number[];
-  shims: Entity[];
-  shimBySlot: Map<number, Entity>;
+  readonly tick: number;
+  readonly grassSlots: number[];
+  readonly treeSlots: number[];
+  readonly animalSlots: number[];
+  readonly humanSlots: number[];
+  readonly shims: Entity[];
+  readonly shimBySlot: Map<number, Entity>;
 }
 
 let cachedTick = UNCACHED_RENDER_TICK;
@@ -53,7 +53,9 @@ export function updateRenderSoABuckets(
   metaBySlot: EntityRenderMeta[] | undefined,
   tick: number,
 ): RenderSoABuckets {
-  if (cachedTick === tick && cachedMetaBySlot === metaBySlot) return buckets;
+  if (cachedTick === tick && cachedMetaBySlot === metaBySlot) {
+    return buckets;
+  }
 
   try {
     cachedTick = tick;
@@ -72,24 +74,44 @@ export function updateRenderSoABuckets(
       const shim = buildRenderEntityShim(reader, slot, metaBySlot?.[slot]);
       if (!shim || shim.hiddenFromPlayer) return;
 
-      const type = reader.type(slot)!;
+      const type = reader.type(slot);
+      if (!type) return;
+
       switch (getRenderEntityLayer(type)) {
-        case 'grass': grassSlots.push(slot); break;
-        case 'tree': treeSlots.push(slot); break;
-        case 'human': humanSlots.push(slot); break;
-        case 'animal': animalSlots.push(slot); break;
-        default: animalSlots.push(slot); break;
+        case 'grass':
+          grassSlots.push(slot);
+          break;
+        case 'tree':
+          treeSlots.push(slot);
+          break;
+        case 'human':
+          humanSlots.push(slot);
+          break;
+        case 'animal':
+        default:
+          animalSlots.push(slot);
+          break;
       }
 
       shims.push(shim);
       shimBySlot.set(slot, shim);
     });
 
+    // Depth sort based on Y coordinate
     treeSlots.sort((a, b) => reader.y(a) - reader.y(b));
     animalSlots.sort((a, b) => reader.y(a) - reader.y(b));
     humanSlots.sort((a, b) => reader.y(a) - reader.y(b));
 
-    buckets = { tick, grassSlots, treeSlots, animalSlots, humanSlots, shims, shimBySlot };
+    buckets = {
+      tick,
+      grassSlots,
+      treeSlots,
+      animalSlots,
+      humanSlots,
+      shims,
+      shimBySlot,
+    };
+
     return buckets;
   } catch (err) {
     invalidateRenderSoABucketsCache();
@@ -97,7 +119,7 @@ export function updateRenderSoABuckets(
   }
 }
 
-/** Build (or reuse) a tick-keyed grass spatial index from render SoA shims for the worker path. */
+/** Builds or reuses a tick-keyed grass spatial index from render SoA shims for the worker path. */
 export function syncGrassRenderGridFromSoA(
   reader: RenderSoAReaderV1,
   metaBySlot: EntityRenderMeta[] | undefined,
@@ -109,16 +131,17 @@ export function syncGrassRenderGridFromSoA(
 
   const bucketData = updateRenderSoABuckets(reader, metaBySlot, tick);
   if (
-    grassRenderGrid
-    && grassGridTick === tick
-    && grassGridMapW === mapWidth
-    && grassGridMapH === mapHeight
+    grassRenderGrid &&
+    grassGridTick === tick &&
+    grassGridMapW === mapWidth &&
+    grassGridMapH === mapHeight
   ) {
     return grassRenderGrid;
   }
 
   const grassEntities: Entity[] = [];
-  for (const slot of bucketData.grassSlots) {
+  for (let i = 0; i < bucketData.grassSlots.length; i++) {
+    const slot = bucketData.grassSlots[i];
     const shim = bucketData.shimBySlot.get(slot);
     if (shim) grassEntities.push(shim);
   }
@@ -127,6 +150,7 @@ export function syncGrassRenderGridFromSoA(
   grassGridTick = tick;
   grassGridMapW = mapWidth;
   grassGridMapH = mapHeight;
+
   return grassRenderGrid;
 }
 
