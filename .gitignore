@@ -30,6 +30,9 @@ dependency-graph.svg
 .tmp/
 .deepcode/
 .agents/
+.codex/
+*.py
+
 terminals/
 tools/
 
