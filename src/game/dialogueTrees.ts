@@ -83,6 +83,13 @@ function buildCanonicalDialogueBank(sources: readonly DialogueSourceFile[]): Dia
       if (seenIds.has(tree.id)) {
         throw new Error(`[dialogue] Duplicate dialogue tree id: ${tree.id}`);
       }
+      
+      // Structural guard against malformed JSON records
+      if (!tree.lines || !Array.isArray(tree.lines) || tree.lines.length === 0 || !tree.speakers || tree.speakers.length !== 2) {
+        console.warn(`[dialogue] Skipping malformed tree: ${tree.id}`);
+        continue;
+      }
+
       seenIds.add(tree.id);
       dialogue_trees.push(tree);
     }
@@ -114,8 +121,6 @@ async function loadDialogueFromDisk(): Promise<boolean> {
     indexDialogueBank(buildCanonicalDialogueBank(parsedSources));
     return true;
   } catch {
-    // 🛡️ ROBUSTNESS: Gracefully fail and fall back to bundled JSON if disk reading 
-    // throws (e.g., in browser environments where readUtf8RelativeToModule is unavailable).
     return false;
   }
 }
@@ -162,12 +167,11 @@ export function isDialogueBankReady(): boolean {
   return bank !== null && bank.dialogue_trees.length > 0;
 }
 
-/** Install pre-serialized dialogue data (e.g. the worker’s canonical static bundle). */
 export function installDialogueBankPayload(payload: DialogueBankFile): void {
   indexDialogueBank(payload);
 }
 
-/** Load the canonical split dialogue bank on demand. */
+/** Load the canonical split dialogue bank on demand. (No-op in browsers due to bundle). */
 export async function preloadDialogueBank(): Promise<void> {
   if (isDialogueBankReady()) return;
   if (await loadDialogueFromDisk()) return;
@@ -227,7 +231,6 @@ const CONTEXT_CATEGORY: Partial<Record<string, DialogueCategory | DialogueCatego
   election: 'existential',
 };
 
-// 🔄 TYPE UNIFICATION: Use gameTypes to prevent drift with ChatPickOptions
 export type DialoguePickHints = {
   season?: Season;
   weather?: WeatherType;
@@ -246,11 +249,11 @@ export function resolveDialogueCategories(
   
   if (hints?.festivalActive) out.add('festival');
   if (hints?.foodLow) out.add('needs');
-  if (hints?.season === 'winter') out.add('environment');
-  if (hints?.weather === 'rain' || hints?.weather === 'snow' || hints?.weather === 'storm') {
+  
+  // All weather patterns (rain, snow, storm, fog, drought) route to environment
+  if (hints?.season === 'winter' || (hints?.weather && hints.weather !== 'clear')) {
     out.add('environment');
   }
-  if (hints?.weather === 'drought') out.add('needs');
   
   return [...out];
 }
@@ -271,8 +274,6 @@ export function pickDialogueTree(
   for (const category of categories) {
     const list = treesByCategory.get(category);
     if (list) {
-      // 🚀 OPTIMIZED: Safe iteration prevents "Maximum call stack size exceeded" 
-      // errors that can occur with pool.push(...list) on large arrays.
       for (const tree of list) {
         pool.push(tree);
       }
@@ -281,13 +282,19 @@ export function pickDialogueTree(
   
   const usePool = pool.length > 0 ? pool : [...trees];
 
-  const seed = entityId * 47 + tick * 13;
-  let index = Math.abs(seed) % usePool.length;
+  // MurmurHash3 integer mix: Eliminates the modulo-13 and modulo-N harmonic resonance
+  let h = (entityId * 31337) ^ tick;
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  const seed = (h ^ (h >>> 16)) >>> 0;
+  
+  let index = seed % usePool.length;
   let tree = usePool[index]!;
   
+  // Linear probe (+1): gcd(1, length) is always 1, guaranteeing all indices are reachable
   if (avoidTreeId && usePool.length > 1) {
     for (let attempt = 0; attempt < usePool.length && tree.id === avoidTreeId; attempt++) {
-      index = (index + 5 + entityId) % usePool.length;
+      index = (index + 1) % usePool.length;
       tree = usePool[index]!;
     }
   }
