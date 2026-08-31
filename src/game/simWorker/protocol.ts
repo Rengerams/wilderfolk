@@ -1,17 +1,26 @@
-import type { WorldState } from '../gameTypes';
+﻿import type { WorldState } from '../gameTypes';
 
-
+/* Protocol version used to gate the worker <-> host handshake. */
 export const WORKER_PROTO = 1;
 
+/**
+ * Checks that the supplied `proto` matches the expected worker protocol version.
+ * Returns `true` when the version matches, `false` otherwise.
+ */
 export function isWorkerProto(proto: unknown): proto is typeof WORKER_PROTO {
   return proto === WORKER_PROTO;
 }
 
+/**
+ * Builds a clear mismatch error for the worker protocol handshake.
+ *
+ * `${String(got)}` safely converts any unknown value to a string representation.
+ */
 export function workerProtoMismatch(got: unknown): string {
   return `Worker protocol mismatch: expected ${WORKER_PROTO}, got ${String(got)}`;
 }
 
-/** Viewport region receiving full simulation this tick. Defined locally so protocol.ts stays a pure contract module. */
+/** Viewport region receiving full simulation this tick – extracted here so the contract stays pure. */
 export interface SimulationFocus {
   minX: number;
   maxX: number;
@@ -19,16 +28,22 @@ export interface SimulationFocus {
   maxY: number;
 }
 
-/** Opaque command payload — concrete shape lives in commands.ts. */
-export type WorkerCommand = { proto: 1; op: string };
+/** Opaque worker command – concrete shape lives in `commands.ts`. */
+export type WorkerCommandEnvelope = {
+  proto: 1;
+  op: string;
+};
 
-/** Opaque sim-prep payload — concrete shape lives in simPrep.ts. */
+/** Opaque simulation‑prep – concrete shape lives in `simPrep.ts`. */
 export type SimPrepPayload = unknown;
 
-/** Opaque tick delta payload — concrete shape lives in simBuffers/simDelta.ts. */
-export type SimTickDelta = unknown;
+/** Opaque tick‑delta – concrete shape lives in `simBuffers/simDelta.ts`. */
+export type SimTickDeltaPayload = unknown;
 
-/** Ensure the worker `ready` handshake advertises every feature the host requested. */
+/**
+ * Verifies that every feature the host asked for is advertised by the worker.
+ * Throws if a requested feature is missing.
+ */
 export function assertWorkerFeatures(
   requested: readonly WorkerFeature[],
   offered: readonly WorkerFeature[],
@@ -40,15 +55,24 @@ export function assertWorkerFeatures(
   }
 }
 
+/** Feature flags the worker can expose. */
 export type WorkerFeature = 'renderSoA_v1' | 'scentSidecar_v1';
 
+/* -------------------------------------------------------------------------- */
+/*  Worker → Host requests                                                      */
+/* -------------------------------------------------------------------------- */
 export type WorkerRequest =
-  | { type: 'init'; proto: typeof WORKER_PROTO; world: WorldState; features: WorkerFeature[]; headless?: boolean }
+  | {
+      type: 'init';
+      proto: typeof WORKER_PROTO;
+      world: WorldState;
+      features: WorkerFeature[];
+      headless?: boolean;
+    }
   | { type: 'importSave'; proto: typeof WORKER_PROTO; world: WorldState }
   | { type: 'syncWorld'; proto: typeof WORKER_PROTO; world: WorldState }
-  | { type: 'syncSimPrep'; proto: typeof WORKER_PROTO; prep: SimPrepPayload }
   | { type: 'tick'; proto: typeof WORKER_PROTO; focus?: SimulationFocus }
-  | { type: 'command'; proto: typeof WORKER_PROTO; cmd: WorkerCommand }
+  | { type: 'command'; proto: typeof WORKER_PROTO; cmd: WorkerCommandEnvelope }
   | { type: 'exportSave'; proto: typeof WORKER_PROTO }
   | { type: 'setPaused'; proto: typeof WORKER_PROTO; paused: boolean }
   | { type: 'setSpeed'; proto: typeof WORKER_PROTO; speed: number }
@@ -65,8 +89,16 @@ export type WorkerRequest =
       activeEvent: WorldState['activeEvent'];
       tutorialSeen?: string[];
     }
-  | { type: 'returnBuffer'; proto: typeof WORKER_PROTO; bufferIndex: number; buffer: ArrayBuffer };
+  | {
+      type: 'returnBuffer';
+      proto: typeof WORKER_PROTO;
+      bufferIndex: number;
+      buffer: ArrayBuffer;
+    };
 
+/* -------------------------------------------------------------------------- */
+/*  Host → Worker responses                                                    */
+/* -------------------------------------------------------------------------- */
 export type WorkerResponse =
   | {
       type: 'ready';
@@ -77,20 +109,20 @@ export type WorkerResponse =
   | {
       type: 'tickResult';
       proto: typeof WORKER_PROTO;
-      delta: SimTickDelta;
-      /** Headless sim — no render SoA transfer. */
+      delta: SimTickDeltaPayload;
+      /** Headless simulation – no SoA render transfer. */
       headless?: boolean;
       renderBuffer?: ArrayBuffer;
       bufferIndex?: number;
       schemaVersion?: number;
-      /** Transferable wolf-scent influence map for debug overlay (optional). */
+      /** Transferable wolf‑scent influence map for debug overlay (optional). */
       scentBuffer?: ArrayBuffer;
     }
   | {
       type: 'commandResult';
       proto: typeof WORKER_PROTO;
       ok: boolean;
-      delta: SimTickDelta;
+      delta: SimTickDeltaPayload;
       reason?: string;
       renderBuffer?: ArrayBuffer;
       bufferIndex?: number;
@@ -105,6 +137,6 @@ export type WorkerResponse =
       type: 'error';
       proto: typeof WORKER_PROTO;
       message: string;
-      /** Which request failed — host uses this to adjust in-flight counters. */
+      /** Which request failed – used by the host to adjust in‑flight counters. */
       source?: 'tick' | 'command' | 'export' | 'general';
     };

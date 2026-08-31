@@ -7,7 +7,14 @@ import type { WorldState, StoryEvent } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
-import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard } from './storyHelpers';
+import { seededRandom } from './simRng';
+import {
+  storyFlag,
+  setStoryFlags,
+  bumpVillageReputation,
+  eligibleDayForStory,
+  pushStoryCard,
+} from './storyHelpers';
 
 export const STORY_KEY = 'traveling_theatre';
 export const AUTHORED_STORY_COOLDOWN_FLAG = 'authored_story_cd_until';
@@ -28,6 +35,8 @@ const CARD_DURATION_DAYS = 4;
 const STATUS = {
   script_selected: 1,
   preparing: 2,
+  rehearsing: 3,
+  opening_night: 4,
 } as const;
 
 const SCRIPTS = {
@@ -46,6 +55,10 @@ const SUPPORT = {
 type Stage1Choice = 'first_winter' | 'wolf_mistake' | 'town_hall_scandal';
 type Stage2Choice = 'support_hospitality' | 'support_venue' | 'support_improvise' | 'cancel_show';
 type Stage3Choice = 'correct_story' | 'let_legend_grow' | 'interrupt';
+
+const STAGE1_CHOICES = new Set<Stage1Choice>(['first_winter', 'wolf_mistake', 'town_hall_scandal']);
+const STAGE2_CHOICES = new Set<Stage2Choice>(['support_hospitality', 'support_venue', 'support_improvise', 'cancel_show']);
+const STAGE3_CHOICES = new Set<Stage3Choice>(['correct_story', 'let_legend_grow', 'interrupt']);
 
 const HOSPITALITY_FOOD = 20;
 const VENUE_WOOD = 15;
@@ -116,17 +129,40 @@ export function maybeOfferTravelingTheatre(state: WorldState): void {
 
 export function resolveTravelingTheatre(state: WorldState, choiceId: string): boolean {
   const status = storyFlag(state, FLAG_STATUS);
-  if (status === STATUS.script_selected) return resolveStage1(state, choiceId as Stage1Choice);
-  if (status === STATUS.preparing) return resolveStage2(state, choiceId as Stage2Choice);
-  return resolveStage3(state, choiceId as Stage3Choice);
+
+  if (status === STATUS.script_selected) {
+    const choice = STAGE1_CHOICES.has(choiceId as Stage1Choice)
+      ? (choiceId as Stage1Choice)
+      : 'first_winter';
+    return resolveStage1(state, choice);
+  }
+
+  if (status === STATUS.preparing) {
+    const choice = STAGE2_CHOICES.has(choiceId as Stage2Choice)
+      ? (choiceId as Stage2Choice)
+      : 'support_improvise';
+    return resolveStage2(state, choice);
+  }
+
+  if (status === STATUS.opening_night || status === STATUS.rehearsing) {
+    const choice = STAGE3_CHOICES.has(choiceId as Stage3Choice)
+      ? (choiceId as Stage3Choice)
+      : 'correct_story';
+    return resolveStage3(state, choice);
+  }
+
+  return true;
 }
 
 function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
   const colonyDay = getColonyDay(state);
+  const seed = state.worldMap?.seed ?? 1;
+  const delayDays = 3 + Math.floor(seededRandom(seed, `theatre-performance-${colonyDay}`) * 3);
+
   setStoryFlags(state, {
     [FLAG_STATUS]: STATUS.preparing,
     [FLAG_SCRIPT]: SCRIPTS[choice] ?? SCRIPTS.first_winter,
-    [FLAG_PERFORMANCE_DAY]: colonyDay + 3 + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('theatre-performance')) * 3),
+    [FLAG_PERFORMANCE_DAY]: colonyDay + delayDays,
   });
 
   const event: StoryEvent = {
@@ -144,6 +180,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
     createdAtTick: state.tick,
     expiresAtTick: state.tick + TICKS_PER_DAY * CARD_DURATION_DAYS,
   };
+
   pushStoryCard(state, event);
   addNotification(state, '🎭 Building the production', 'The troupe needs a support package.', 'info');
   return true;
@@ -151,6 +188,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
 
 function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
   const colonyDay = getColonyDay(state);
+
   switch (choice) {
     case 'support_hospitality': {
       if (state.resources.food < HOSPITALITY_FOOD) {
@@ -158,7 +196,10 @@ function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
         return false;
       }
       state.resources.food -= HOSPITALITY_FOOD;
-      setStoryFlags(state, { [FLAG_SUPPORT]: SUPPORT.hospitality });
+      setStoryFlags(state, {
+        [FLAG_STATUS]: STATUS.rehearsing,
+        [FLAG_SUPPORT]: SUPPORT.hospitality,
+      });
       break;
     }
     case 'support_venue': {
@@ -167,11 +208,17 @@ function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
         return false;
       }
       state.resources.wood -= VENUE_WOOD;
-      setStoryFlags(state, { [FLAG_SUPPORT]: SUPPORT.venue });
+      setStoryFlags(state, {
+        [FLAG_STATUS]: STATUS.rehearsing,
+        [FLAG_SUPPORT]: SUPPORT.venue,
+      });
       break;
     }
     case 'support_improvise':
-      setStoryFlags(state, { [FLAG_SUPPORT]: SUPPORT.improvise });
+      setStoryFlags(state, {
+        [FLAG_STATUS]: STATUS.rehearsing,
+        [FLAG_SUPPORT]: SUPPORT.improvise,
+      });
       break;
     case 'cancel_show':
     default: {
@@ -190,13 +237,19 @@ function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
 
 export function tickTravelingTheatre(state: WorldState): void {
   if (storyFlag(state, FLAG_RESOLVED) > 0) return;
-  if (storyFlag(state, FLAG_STATUS) !== STATUS.preparing) return;
+  const status = storyFlag(state, FLAG_STATUS);
+  if (status !== STATUS.preparing && status !== STATUS.rehearsing) return;
   if (storyFlag(state, FLAG_STAGE3) > 0) return;
+
   const colonyDay = getColonyDay(state);
   const performanceDay = storyFlag(state, FLAG_PERFORMANCE_DAY);
   if (performanceDay <= 0 || colonyDay < performanceDay) return;
 
-  setStoryFlags(state, { [FLAG_STAGE3]: state.tick });
+  setStoryFlags(state, {
+    [FLAG_STAGE3]: state.tick,
+    [FLAG_STATUS]: STATUS.opening_night,
+  });
+
   const event: StoryEvent = {
     id: `theatre_stage3_${state.tick}`,
     emoji: '🎭',
@@ -211,6 +264,7 @@ export function tickTravelingTheatre(state: WorldState): void {
     createdAtTick: state.tick,
     expiresAtTick: state.tick + TICKS_PER_DAY * CARD_DURATION_DAYS,
   };
+
   pushStoryCard(state, event);
   addNotification(state, '🎭 Opening night', 'The play is about to begin.', 'info');
 }
@@ -229,15 +283,18 @@ function resolveStage3(state: WorldState, choice: Stage3Choice): boolean {
       bumpVillageReputation(state, 1);
       addBigNews(state, '🎭 Honest history', 'The factual version is preserved, and the colony gains modest respect.', 'positive');
       break;
+    case 'interrupt':
     default:
       bumpVillageReputation(state, -1);
       addBigNews(state, '🎭 The performance is interrupted', 'The troupe leaves in a huff; the valley is amused and embarrassed in equal measure.', 'negative');
+      break;
   }
 
   setStoryFlags(state, {
     [FLAG_RESOLVED]: state.tick,
     [AUTHORED_STORY_COOLDOWN_FLAG]: colonyDay + AUTHORED_STORY_COOLDOWN_DAYS,
   });
-  logEvent(state, 'event', `The Traveling Theatre resolved (${choice}).`, undefined);
+
+  logEvent(state, 'event', `The Traveling Theatre resolved (${choice}).`);
   return true;
 }

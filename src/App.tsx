@@ -153,6 +153,7 @@ export default function App() {
     activeTab,
     buildPanelOpen,
     campaignActive,
+    closeSidebarTabs,
     firstNightWarningDismissed,
     inspectorCollapsed,
     juiceEffectsEnabled,
@@ -475,7 +476,7 @@ export default function App() {
     const nextRotation = toggleBuildingRotation(view.buildRotation);
     const ghost = view.buildGhost;
     loop.patchView({
-      buildRotation: nextRotation,
+      buildRotation: nextRotation === 180 || nextRotation === 270 ? 90 : nextRotation,
       ...(ghost
         ? {
             buildGhost: {
@@ -809,6 +810,8 @@ export default function App() {
     cameraVelRef,
     catalogRef,
     openTab,
+    hasOpenSidebarTab: openTabs.size > 0,
+    closeSidebarTabs,
     setProgressSubTab,
     setShowShortcuts,
     setBuildPanelOpen,
@@ -1202,8 +1205,15 @@ export default function App() {
           buildPanelOpen={buildPanelOpen}
           selectedBuildingType={selectedBuildingType}
           showGrid={view.showGrid}
-          onToggleOpen={() => setBuildPanelOpen((open) => !open)}
-          onOpen={() => setBuildPanelOpen(true)}
+          onToggleOpen={() => {
+            const opening = !buildPanelOpen;
+            setBuildPanelOpen(opening);
+            if (opening) closeSidebarTabs();
+          }}
+          onOpen={() => {
+            setBuildPanelOpen(true);
+            closeSidebarTabs();
+          }}
           onSelect={selectBuildingType}
           onLocked={(type) => applyGameAction({ proto: 1, op: 'notifyBuildingLocked', type })}
           onCancel={cancelBuildMode}
@@ -1636,9 +1646,14 @@ export default function App() {
         </>
       )}
       inspector={(
-        <aside className="side-panel flex w-[18.5rem] flex-col border-l border-stone-700/80">
+        <aside
+          className={`game-view-drawer game-view-drawer--info ${
+            hasInspectorSelection && openTabs.size === 0 ? 'game-view-drawer--open' : 'hidden'
+          } flex flex-col`}
+          aria-label="Selected object"
+        >
         <GameInspector
-          hasSelection={hasInspectorSelection}
+          hasSelection={hasInspectorSelection && openTabs.size === 0}
           collapsed={inspectorCollapsed}
           selectedLabel={selectedVisitorCamp?.name ?? selectedBuilding?.type ?? selectedEntity?.name ?? 'Selected'}
           onClear={clearSelection}
@@ -1765,6 +1780,15 @@ export default function App() {
 
 
         </GameInspector>
+        </aside>
+      )}
+      informationViews={(
+        <aside
+          className={`game-view-drawer game-view-drawer--info ${
+            openTabs.size > 0 ? 'game-view-drawer--open' : 'game-view-drawer--dock'
+          } flex flex-col`}
+          aria-label="Game information"
+        >
       <GameSidebar>
       {/* Tabs */}
           <div className="sidebar-tabs shrink-0">
@@ -1772,7 +1796,10 @@ export default function App() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => toggleTab(tab.id)}
+                onClick={() => {
+                  if (!openTabs.has(tab.id)) setBuildPanelOpen(false);
+                  toggleTab(tab.id);
+                }}
                 className={`sidebar-tab relative ${openTabs.has(tab.id) ? 'sidebar-tab--active text-emerald-400' : 'text-stone-400 hover:text-stone-300'}`}
                 title={tab.hint}
                 aria-label={tab.hint}
@@ -1799,7 +1826,7 @@ export default function App() {
                   <h3 className="text-sm font-bold text-stone-300">🏘️ Village</h3>
                   <button
                     type="button"
-                    onClick={() => toggleTab('village')}
+                      onClick={closeSidebarTabs}
                     className="text-sm text-stone-400 hover:text-stone-300"
                     title="Close panel"
                   >
@@ -1830,7 +1857,7 @@ export default function App() {
                   <h3 className="text-sm font-bold text-stone-300">🕰️ Work hours</h3>
                   <button
                     type="button"
-                    onClick={() => toggleTab('schedule')}
+                      onClick={closeSidebarTabs}
                     className="text-sm text-stone-400 hover:text-stone-300"
                     title="Close panel"
                   >
@@ -1856,7 +1883,7 @@ export default function App() {
                   <h3 className="text-sm font-bold text-stone-300">🏕️ Frontier</h3>
                   <button
                     type="button"
-                    onClick={() => toggleTab('frontier')}
+                      onClick={closeSidebarTabs}
                     className="text-sm text-stone-400 hover:text-stone-300"
                     title="Close panel"
                   >
@@ -1884,7 +1911,7 @@ export default function App() {
                   <h3 className="text-sm font-bold text-stone-300">🌿 Nature</h3>
                   <button
                     type="button"
-                    onClick={() => toggleTab('nature')}
+                      onClick={closeSidebarTabs}
                     className="text-sm text-stone-400 hover:text-stone-300"
                     title="Close panel"
                   >
@@ -1903,7 +1930,7 @@ export default function App() {
                   <h3 className="text-sm font-bold text-stone-300">📊 Progress</h3>
                   <button
                     type="button"
-                    onClick={() => toggleTab('progress')}
+                      onClick={closeSidebarTabs}
                     className="text-sm text-stone-400 hover:text-stone-300"
                     title="Close panel"
                   >
@@ -1927,7 +1954,7 @@ export default function App() {
                   <h3 className="text-sm font-bold text-stone-300">📜 Log</h3>
                   <button
                     type="button"
-                    onClick={() => toggleTab('log')}
+                      onClick={closeSidebarTabs}
                     className="text-sm text-stone-400 hover:text-stone-300"
                     title="Close panel"
                   >
@@ -1948,7 +1975,7 @@ export default function App() {
                   <h3 className="text-sm font-bold text-stone-300">⋯ More</h3>
                   <button
                     type="button"
-                    onClick={() => toggleTab('more')}
+                      onClick={closeSidebarTabs}
                     className="text-sm text-stone-400 hover:text-stone-300"
                     title="Close panel"
                   >

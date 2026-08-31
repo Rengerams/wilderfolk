@@ -372,7 +372,7 @@ export function useCanvasInteractions({
           loop?.patchView(
             {
               buildStripPreview: preview,
-              buildRotation: rotation,
+              buildRotation: (rotation === 180 || rotation === 270 ? 90 : rotation) as 0 | 90,
               buildGhost: null,
               hoveredBuildingId: hovered?.id ?? null,
             },
@@ -555,3 +555,4 @@ export function useCanvasInteractions({
     handleContextMenu,
   };
 }
+

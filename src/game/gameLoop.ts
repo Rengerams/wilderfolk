@@ -23,16 +23,9 @@ import {
   type ViewState,
 } from './viewState';
 
-/**
- * Real-time tick rate at 1×. With TICKS_PER_DAY=72, 1.5 ticks/s ≈ 48 real seconds per day.
- */
 const BASE_TICKS_PER_SECOND = 1.5;
-
-/** React UI publish throttle (ms) for periodic non-tick polls. */
-const UI_UPDATE_MS = 250;
+const UI_UPDATE_MS = 200;
 const MAX_CATCHUP_STEPS = 12;
-
-/** Worker stall watchdog (ms). */
 const WORKER_STALL_TIMEOUT_MS = 10000;
 const WORKER_RECOVERY_INITIAL_DELAY_MS = 2000;
 const WORKER_RECOVERY_MAX_DELAY_MS = 30000;
@@ -191,11 +184,9 @@ export class GameLoop {
           this.workerBooting = false;
           this.registerWorkerHandlers(activeGen);
           this.flushDeferredWorkerCommands();
-          console.info('[GameLoop] Sim worker active — gameTick + commands run off the main thread');
         })
-        .catch((err) => {
+        .catch((_err) => {
           if (initGen !== this.sessionGen) return;
-          console.warn('[GameLoop] Worker init failed — falling back to main-thread ticks', err);
           this.workerHost?.dispose();
           this.workerHost = null;
           this.workerEnabled = false;
@@ -293,9 +284,8 @@ export class GameLoop {
         this.workerTickLatencyMs = 0;
         this.registerWorkerHandlers(activeGen);
         this.flushDeferredWorkerCommands();
-        console.info('[GameLoop] Sim worker recovered automatically');
       })
-      .catch((err) => {
+      .catch((_err) => {
         if (this.workerHost === recoveryHost) {
           recoveryHost.dispose();
           this.workerHost = null;
@@ -311,7 +301,6 @@ export class GameLoop {
             this.workerRecoveryDelayMs * 2,
             WORKER_RECOVERY_MAX_DELAY_MS,
           );
-          console.warn('[GameLoop] Automatic worker recovery failed; retrying', err);
           this.scheduleWorkerRecovery();
         }
       });
@@ -357,8 +346,11 @@ export class GameLoop {
       const hadOptimistic = this.optimisticCommands.length > 0;
       if (hadOptimistic) this.optimisticCommands.shift();
 
+      // ✅ Revert/Set to the authoritative worker world
       this.world = world;
-      if (this.optimisticCommands.length > 0) this.rebuildOptimisticDisplay();
+      if (this.optimisticCommands.length > 0) {
+        this.rebuildOptimisticDisplay();
+      }
 
       if (render) {
         this.renderSoA = render.reader;
@@ -386,7 +378,6 @@ export class GameLoop {
     if (!this.workerEnabled && !this.workerBooting) return;
     console.warn(`[GameLoop] ${reason} — falling back to main-thread ticks`);
 
-    // Always clear optimistic queue & sync back to authoritative state
     this.optimisticCommands = [];
     this.syncAfterWorkerMutation();
     this.catalog.rebuild(this.world.entities);
@@ -417,29 +408,27 @@ export class GameLoop {
       this.lastDailyBoundaryTick = boundary;
     }
   }
+getDiagnostics(now = performance.now()): GameLoopDiagnostics { 
+  const worker = this.isUsingSimWorker(); 
+  return { 
+    workerMode: worker ? 'worker' : 'main-thread', 
+    workerBooting: this.workerBooting, 
+    tick: this.world.tick, 
+    inGameDay: Math.floor(this.world.tick / TICKS_PER_DAY) + 1, 
+    hour: Math.floor((this.world.tick % TICKS_PER_DAY) / TICKS_PER_HOUR), 
+    paused: this.world.paused, 
+    speed: this.world.speed, 
+    ticksInFlight: worker ? this.workerHost?.getTicksInFlight?.() ?? 0 : 0, 
+    commandInFlight: worker ? this.workerHost?.hasCommandInFlight?.() ?? false : false, 
+    tickLatencyMs: this.workerTickLatencyMs, 
+    lastWorkerActivityMsAgo: worker && this.lastWorkerActivity > 0 ? Math.max(0, now - this.lastWorkerActivity) : null, 
+    lastDailyBoundaryTick: this.lastDailyBoundaryTick
+  }; 
+} 
 
-  getDiagnostics(now = performance.now()): GameLoopDiagnostics {
-    const worker = this.isUsingSimWorker();
-    return {
-      workerMode: worker ? 'worker' : 'main-thread',
-      workerBooting: this.workerBooting,
-      tick: this.world.tick,
-      inGameDay: Math.floor(this.world.tick / TICKS_PER_DAY) + 1,
-      hour: Math.floor((this.world.tick % TICKS_PER_DAY) / TICKS_PER_HOUR),
-      paused: this.world.paused,
-      speed: this.world.speed,
-      ticksInFlight: worker ? this.workerHost?.getTicksInFlight?.() ?? 0 : 0,
-      commandInFlight: worker ? this.workerHost?.hasCommandInFlight?.() ?? false : false,
-      tickLatencyMs: this.workerTickLatencyMs,
-      lastWorkerActivityMsAgo:
-        worker && this.lastWorkerActivity > 0 ? Math.max(0, now - this.lastWorkerActivity) : null,
-      lastDailyBoundaryTick: this.lastDailyBoundaryTick,
-    };
-  }
-
-  getWorld(): WorldState {
-    return this.world;
-  }
+getWorld(): WorldState { 
+  return this.world; 
+}
 
   getView(): ViewState {
     return this.view;
@@ -525,11 +514,12 @@ export class GameLoop {
     if (!silent) this.notify(false, false, true);
   }
 
+  /** Rebuild the display-only prediction queue over the newest worker shadow. */
   private rebuildOptimisticDisplay(): void {
     const authoritative = this.workerHost?.getAuthoritativeWorld();
     if (!authoritative) return;
 
-    // Clone entities & buildings so predictions never contaminate the authoritative shadow
+    // ✅ Deep clone entities so optimistic commands NEVER mutate the authoritative backup!
     let display: WorldState = {
       ...authoritative,
       entities: authoritative.entities.map((e) => ({ ...e })),
@@ -617,9 +607,9 @@ export class GameLoop {
     if (next !== this.world) {
       this.world = next;
     }
-this.catalog.rebuild(this.world.entities);
-void this.workerHost?.syncWorld(this.world); // <-- 'void' toegevoegd
-this.pruneStaleSelection();
+    this.catalog.rebuild(this.world.entities);
+    void this.workerHost?.syncWorld(this.world);
+    this.pruneStaleSelection();
     this.notify(true);
   }
 
@@ -634,9 +624,6 @@ this.pruneStaleSelection();
 
     if (this.workerEnabled && this.workerHost?.isReady()) {
       if (this.world.buildings !== buildingsBefore || this.world.entities !== entitiesBefore) {
-        console.warn(
-          '[GameLoop] mutateWorld modified simulation entities/buildings — use applyCommand instead',
-        );
         this.syncAfterWorkerMutation();
         this.catalog.rebuild(this.world.entities);
       }
@@ -724,7 +711,9 @@ this.pruneStaleSelection();
       this.rafId = 0;
     }
 
-    this.listeners.clear();
+    // Note: we do NOT clear listeners here. stop() is called on unmount,
+    // and listeners are filtered by sessionGen in the callback. Clearing
+    // them here breaks React StrictMode double-mount recovery.
     clearAllFactionWanderStates();
     this.workerHost?.dispose();
     this.workerHost = null;
@@ -825,7 +814,7 @@ this.pruneStaleSelection();
         : undefined;
 
       if (this.workerBooting) {
-        // Hold accumulator until worker is authoritative
+        // Hold accumulator while worker is booting
       } else if (this.workerEnabled && this.workerHost) {
         const stallMs = Math.max(WORKER_STALL_TIMEOUT_MS, this.workerTickLatencyMs * 4);
         const stalled =
@@ -964,12 +953,12 @@ this.pruneStaleSelection();
       this.view = { ...this.view, selectedBuildingId: null };
     }
 
-    const alive = (this.view.selectedEntityIds ?? []).filter(
-      (id) => resolveEntity(this.world, id) != null,
-    );
-    const primaryAlive =
-      this.view.selectedEntityId != null &&
-      resolveEntity(this.world, this.view.selectedEntityId) != null;
+    const alive = (this.view.selectedEntityIds ?? []).filter((id) => {
+      const ent = resolveEntity(this.world, id);
+      return ent != null && ent.alive;
+    });
+    const primaryEnt = resolveEntity(this.world, this.view.selectedEntityId);
+    const primaryAlive = this.view.selectedEntityId != null && primaryEnt != null && primaryEnt.alive;
 
     if (alive.length !== (this.view.selectedEntityIds?.length ?? 0) || !primaryAlive) {
       this.view = {

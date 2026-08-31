@@ -8,7 +8,14 @@ import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
-import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard } from './storyHelpers';
+import { seededRandom } from './simRng';
+import {
+  storyFlag,
+  setStoryFlags,
+  bumpVillageReputation,
+  eligibleDayForStory,
+  pushStoryCard,
+} from './storyHelpers';
 
 export const STORY_KEY = 'invention_fair';
 export const AUTHORED_STORY_COOLDOWN_FLAG = 'authored_story_cd_until';
@@ -29,6 +36,7 @@ const CARD_DURATION_DAYS = 4;
 const STATUS = {
   offered: 1,
   funded: 2,
+  demonstrated: 3,
 } as const;
 
 const RISK = {
@@ -42,8 +50,18 @@ const INVENTION_COSTS: Record<string, number> = {
   emergency_bell: 12,
 };
 
-type Stage1Choice = 'fund_granary' | 'fund_gate' | 'fund_bell' | 'reject' | 'safer_redesign';
+type Stage1Choice = 'fund_granary' | 'fund_gate' | 'fund_bell' | 'safer_redesign' | 'reject';
 type Stage2Choice = 'keep' | 'improve' | 'dismantle';
+
+const STAGE1_CHOICES = new Set<Stage1Choice>([
+  'fund_granary',
+  'fund_gate',
+  'fund_bell',
+  'safer_redesign',
+  'reject',
+]);
+
+const STAGE2_CHOICES = new Set<Stage2Choice>(['keep', 'improve', 'dismantle']);
 
 export function inventionFairEligibleDay(mapSeed: number | undefined): number {
   return eligibleDayForStory(mapSeed, STORY_KEY, MIN_DAY, WINDOW_DAYS);
@@ -85,31 +103,64 @@ export function maybeOfferInventionFair(state: WorldState): void {
     emoji: '⚙️',
     storyKey: STORY_KEY,
     title: 'The Apprentice’s Invention Fair',
-    description:
-      `${apprentice.name} has three inventions to present. Each one could be brilliant, useless, or technically successful in a way nobody wanted.`,
+    description: `${apprentice.name} has three inventions to present. Each one could be brilliant, useless, or technically successful in a way nobody wanted.`,
     choices: [
-      { id: 'fund_granary', label: `Fund the Self-Counting Granary (${INVENTION_COSTS.granary_counter} wood)`, detail: 'Better food visibility; occasionally counts the same sack twice.' },
-      { id: 'fund_gate', label: `Fund the Polite Gate (${INVENTION_COSTS.polite_gate} wood)`, detail: 'Small reputation benefit; opens at the wrong moments.' },
-      { id: 'fund_bell', label: `Fund the Emergency Bell (${INVENTION_COSTS.emergency_bell} wood)`, detail: 'Faster alerts; rings for birthdays and fox sightings.' },
-      { id: 'safer_redesign', label: 'Fund a safer redesign', detail: 'Higher cost (+8 wood), lower benefit, lower risk.' },
-      { id: 'reject', label: 'Reject the proposals', detail: 'No cost; the apprentice is disappointed.' },
+      {
+        id: 'fund_granary',
+        label: `Fund the Self-Counting Granary (${INVENTION_COSTS.granary_counter} wood)`,
+        detail: 'Better food visibility; occasionally counts the same sack twice.',
+      },
+      {
+        id: 'fund_gate',
+        label: `Fund the Polite Gate (${INVENTION_COSTS.polite_gate} wood)`,
+        detail: 'Small reputation benefit; opens at the wrong moments.',
+      },
+      {
+        id: 'fund_bell',
+        label: `Fund the Emergency Bell (${INVENTION_COSTS.emergency_bell} wood)`,
+        detail: 'Faster alerts; rings for birthdays and fox sightings.',
+      },
+      {
+        id: 'safer_redesign',
+        label: 'Fund a safer redesign',
+        detail: 'Higher cost (+8 wood), lower benefit, lower risk.',
+      },
+      {
+        id: 'reject',
+        label: 'Reject the proposals',
+        detail: 'No cost; the apprentice is disappointed.',
+      },
     ],
     createdAtTick: state.tick,
     expiresAtTick: state.tick + TICKS_PER_DAY * CARD_DURATION_DAYS,
   };
+
   pushStoryCard(state, event);
   addNotification(state, '⚙️ Invention Fair', 'An apprentice wants to present three inventions.', 'info');
 }
 
 export function resolveInventionFair(state: WorldState, choiceId: string): boolean {
   const status = storyFlag(state, FLAG_STATUS);
-  if (status === STATUS.offered) return resolveStage1(state, choiceId as Stage1Choice);
-  if (status === STATUS.funded) return resolveStage2(state, choiceId as Stage2Choice);
+  if (status === STATUS.offered) {
+    const choice: Stage1Choice = STAGE1_CHOICES.has(choiceId as Stage1Choice)
+      ? (choiceId as Stage1Choice)
+      : 'reject';
+    return resolveStage1(state, choice);
+  }
+
+  if (status === STATUS.demonstrated || status === STATUS.funded) {
+    const choice: Stage2Choice = STAGE2_CHOICES.has(choiceId as Stage2Choice)
+      ? (choiceId as Stage2Choice)
+      : 'dismantle';
+    return resolveStage2(state, choice);
+  }
+
   return true;
 }
 
 function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
   const colonyDay = getColonyDay(state);
+  const seed = state.worldMap?.seed ?? 1;
   let inventionId: string | null = null;
   let cost = 0;
   let riskMode: number = RISK.experimental;
@@ -128,9 +179,8 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
       cost = INVENTION_COSTS.emergency_bell;
       break;
     case 'safer_redesign': {
-      const base = INVENTION_COSTS.granary_counter;
       inventionId = 'granary_counter';
-      cost = base + 8;
+      cost = INVENTION_COSTS.granary_counter + 8;
       riskMode = RISK.safe;
       break;
     }
@@ -140,7 +190,12 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
         [FLAG_RESOLVED]: state.tick,
         [AUTHORED_STORY_COOLDOWN_FLAG]: colonyDay + AUTHORED_STORY_COOLDOWN_DAYS,
       });
-      addBigNews(state, '⚙️ The proposals are rejected', 'The apprentice packs away the inventions, a little wiser.', 'neutral');
+      addBigNews(
+        state,
+        '⚙️ The proposals are rejected',
+        'The apprentice packs away the inventions, a little wiser.',
+        'neutral',
+      );
       return true;
     }
   }
@@ -151,12 +206,15 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
   }
   state.resources.wood -= cost;
 
+  const delayDays = 4 + Math.floor(seededRandom(seed, `invention-demo-delay-${colonyDay}`) * 3);
+
   setStoryFlags(state, {
     [FLAG_STATUS]: STATUS.funded,
-    [FLAG_INVENTION]: hashSalt(`invention-${inventionId}`) % 1000,
+    [FLAG_INVENTION]: inventionId === 'polite_gate' ? 2 : inventionId === 'emergency_bell' ? 3 : 1,
     [FLAG_RISK]: riskMode,
-    [FLAG_RESOLVE_DAY]: colonyDay + 4 + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('invention-demo-delay')) * 3),
+    [FLAG_RESOLVE_DAY]: colonyDay + delayDays,
   });
+
   addNotification(state, '⚙️ Experiment funded', 'The apprentice gets to work. The demonstration is in a few days.', 'info');
   return true;
 }
@@ -164,6 +222,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
 export function tickInventionFair(state: WorldState): void {
   if (storyFlag(state, FLAG_RESOLVED) > 0) return;
   if (storyFlag(state, FLAG_STATUS) !== STATUS.funded) return;
+
   const colonyDay = getColonyDay(state);
   const resolveDay = storyFlag(state, FLAG_RESOLVE_DAY);
   if (resolveDay <= 0 || colonyDay < resolveDay) return;
@@ -172,7 +231,15 @@ export function tickInventionFair(state: WorldState): void {
   const apprentice = state.entities.find((e) => e.id === apprenticeId);
   const name = apprentice?.name ?? 'the apprentice';
   const safe = storyFlag(state, FLAG_RISK) === RISK.safe;
-  const success = seededRoll(state.worldMap?.seed ?? 1, hashSalt(safe ? 'invention-safe-demo' : 'invention-demo')) > (safe ? 0.25 : 0.45);
+  const seed = state.worldMap?.seed ?? 1;
+
+  const successRoll = seededRandom(seed, safe ? `invention-safe-demo-${colonyDay}` : `invention-demo-${colonyDay}`);
+  const success = successRoll > (safe ? 0.25 : 0.45);
+
+  // Transition state to prevent repeated triggers on subsequent ticks
+  setStoryFlags(state, {
+    [FLAG_STATUS]: STATUS.demonstrated,
+  });
 
   const event: StoryEvent = {
     id: `invention_stage2_${state.tick}`,
@@ -190,18 +257,19 @@ export function tickInventionFair(state: WorldState): void {
     createdAtTick: state.tick,
     expiresAtTick: state.tick + TICKS_PER_DAY * CARD_DURATION_DAYS,
   };
+
   pushStoryCard(state, event);
   addNotification(state, '⚙️ Demonstration day', 'The invention has shown its result.', 'info');
 }
 
 function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
   const colonyDay = getColonyDay(state);
-  if (choice === 'improve' && state.resources.wood < 8) {
-    addNotification(state, 'Not enough wood', 'Improving the invention needs 8 wood.', 'warning');
-    return false;
-  }
 
   if (choice === 'improve') {
+    if (state.resources.wood < 8) {
+      addNotification(state, 'Not enough wood', 'Improving the invention needs 8 wood.', 'warning');
+      return false;
+    }
     state.resources.wood -= 8;
     bumpVillageReputation(state, 2);
     addBigNews(state, '⚙️ A useful invention', 'The improved device becomes a small village landmark.', 'positive');
@@ -217,6 +285,7 @@ function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
     [FLAG_RESOLVED]: state.tick,
     [AUTHORED_STORY_COOLDOWN_FLAG]: colonyDay + AUTHORED_STORY_COOLDOWN_DAYS,
   });
-  logEvent(state, 'event', `The Invention Fair resolved (${choice}).`, undefined);
+
+  logEvent(state, 'event', `The Invention Fair resolved (${choice}).`);
   return true;
 }

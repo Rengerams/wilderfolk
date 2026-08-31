@@ -3,7 +3,7 @@ import { BUILDING_CONFIGS, BuildingType } from './gameTypes';
 import { addResource } from './economy';
 import { addFloatingText, addNotification, createDeathParticles, impulseScreenShake } from './simEffects';
 import { assignMissingWorkers, removeWorkerTransition } from './workforce';
-import { unindexAdjacency } from './adjacencyIndex';
+import { removeAdjacencyById } from './adjacencyIndex';
 import { isPlayerHuman } from './playerHuman';
 import {
   assignMissingResidences,
@@ -139,8 +139,8 @@ export function demolishBuilding(originalState: WorldState, buildingId: number):
   addFloatingText(state, building.x, building.y - 10, `Refunded: ${refundWood}w ${refundStone}s`, '#eab308');
   impulseScreenShake(state, 4);
 
-  unindexAdjacency(state, buildingId);
-  state.adjacency = undefined;
+  removeAdjacencyById(state, buildingId);
+
   if (building.type === BuildingType.Road) {
     state.roadAvoidance = undefined;
     state.roadAvoidanceStamp = undefined;

@@ -17,7 +17,7 @@ export interface ViewState {
   /** Drag preview for wall / road / gate chains. */
   buildStripPreview: StripBuildPreview | null;
   /** Placement rotation for rotatable build types (Road, Wall, Wall Gate). */
-  buildRotation: 0 | 90;
+  buildRotation: import('./buildingRotation').BuildingRotation;
   showGrid: boolean;
   showPaths: boolean;
   showTechTree: boolean;
@@ -281,7 +281,7 @@ export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewS
   if (selectedEntityId != null && !resolveEntity(world, selectedEntityId)) {
     selectedEntityId = null;
   }
-  selectedEntityIds = selectedEntityIds.filter((id) => resolveEntity(world, id) != null);
+  selectedEntityIds = selectedEntityIds.filter((id) => resolveEntity(world, id)?.alive === true);
   if (selectedBuildingId != null && !resolveBuilding(world, selectedBuildingId)) {
     selectedBuildingId = null;
   }

@@ -78,7 +78,7 @@ if (!isMainThread && parentPort) {
       // gameWorker.ts installs the canonical bundled dialogue bank synchronously.
       // Avoid the disk preload here: it adds variable startup I/O to the Node
       // transport adapter without changing the authoritative worker state.
-      await import('../gameWorker');
+      await import('../gameLoop');
       workerLoaded = true;
       for (const data of queuedMessages.splice(0)) deliverMessage(data);
     } catch (err) {

@@ -1,7 +1,7 @@
 import { BUILDING_CONFIGS, BuildingType, GRID_SIZE, snapToGrid, type Building, type BuildingConfig } from './gameTypes';
 
 /** Degrees — 0 (horizontal) and 90 (vertical) for straight strips. */
-export type BuildingRotation = 0 | 90;
+export type BuildingRotation = 0 | 90 | 180 | 270;
 
 /** L-corner orientation for wall junctions. */
 export type CornerRotation = 0 | 90 | 180 | 270;

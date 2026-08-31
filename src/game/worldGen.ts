@@ -51,6 +51,11 @@ import { createGuidedCampaignState } from './guidedCampaign';
 
 export { createEntity, finalizeSettlerAge } from './entityFactory';
 
+export interface WildlifeSpawnOptions {
+  recordBirthYear?: boolean;
+  onSpawn?: (entity: Entity) => void;
+}
+
 /** Deterministic simulation RNG stream for world generation. */
 function simRandom(): number {
   return getSimRng('worldGen')();
@@ -81,6 +86,33 @@ export function isPassableWildlifePosition(state: WorldState, x: number, y: numb
   }
   const tile = getTileAtWorld(state, x, y);
   return !!tile && !UNPASSABLE_WILDLIFE_TERRAIN.has(tile.type);
+}
+
+/** Helper creating and indexing a spawned wildlife entity. */
+function registerSpawnedWildlife(
+  state: WorldState,
+  type: EntityType,
+  x: number,
+  y: number,
+  opts?: WildlifeSpawnOptions,
+): Entity {
+  const spawnedEntity = createEntity(
+    type,
+    x,
+    y,
+    state.nextEntityId++,
+    SPECIES_CONFIG[type].spawnEnergy,
+  );
+  if (opts?.recordBirthYear) spawnedEntity.birthYear = state.year;
+
+  if (opts?.onSpawn) {
+    opts.onSpawn(spawnedEntity);
+  } else {
+    state.entities.push(spawnedEntity);
+    indexLivingEntity(state, spawnedEntity);
+  }
+
+  return spawnedEntity;
 }
 
 const BLUEBERRY_TREE_INITIAL_YIELD = 6;
@@ -146,13 +178,11 @@ function spawnWildlifeAtRandomPassable(
   state: WorldState,
   type: EntityType,
   count: number,
-  opts?: {
+  opts?: WildlifeSpawnOptions & {
     cx?: number;
     cy?: number;
     minDist?: number;
     maxDist?: number;
-    recordBirthYear?: boolean;
-    onSpawn?: (entity: Entity) => void;
   },
 ): void {
   const margin = 16;
@@ -178,21 +208,7 @@ function spawnWildlifeAtRandomPassable(
     }
     consecutiveFails = 0;
 
-    const spawnedEntity = createEntity(
-      type,
-      x,
-      y,
-      state.nextEntityId++,
-      SPECIES_CONFIG[type].spawnEnergy,
-    );
-    if (opts?.recordBirthYear) spawnedEntity.birthYear = state.year;
-
-    if (opts?.onSpawn) {
-      opts.onSpawn(spawnedEntity);
-    } else {
-      state.entities.push(spawnedEntity);
-      indexLivingEntity(state, spawnedEntity);
-    }
+    registerSpawnedWildlife(state, type, x, y, opts);
     spawned++;
   }
 }
@@ -285,7 +301,7 @@ export function spawnWildlifeRing(
   count: number,
   minDist: number,
   maxDist: number,
-  opts?: { recordBirthYear?: boolean; onSpawn?: (entity: Entity) => void },
+  opts?: WildlifeSpawnOptions,
 ): void {
   const { width, height } = state;
   const margin = 16;
@@ -319,21 +335,7 @@ export function spawnWildlifeRing(
 
       if (state.worldMap && !isPassableWildlifePosition(state, sx, sy, margin)) continue;
 
-      const spawnedEntity = createEntity(
-        type,
-        sx,
-        sy,
-        state.nextEntityId++,
-        SPECIES_CONFIG[type].spawnEnergy,
-      );
-      if (opts?.recordBirthYear) spawnedEntity.birthYear = state.year;
-
-      if (opts?.onSpawn) {
-        opts.onSpawn(spawnedEntity);
-      } else {
-        state.entities.push(spawnedEntity);
-        indexLivingEntity(state, spawnedEntity);
-      }
+      registerSpawnedWildlife(state, type, sx, sy, opts);
       spawned++;
       placed = true;
       break;
@@ -659,10 +661,10 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   }
 
   // 5. Initial Wildlife Fauna
-  spawnWildlifeAtRandomPassable(state, EntityType.Rabbit, 35);
-  spawnWildlifeAtRandomPassable(state, EntityType.Deer, 20);
-  spawnWildlifeAtRandomPassable(state, EntityType.Wolf, 1);
-  spawnWildlifeAtRandomPassable(state, EntityType.Fox, 4);
+  spawnWildlifeAtRandomPassable(state, EntityType.Rabbit, 70);
+  spawnWildlifeAtRandomPassable(state, EntityType.Deer, 40);
+  spawnWildlifeAtRandomPassable(state, EntityType.Wolf, 6);
+  spawnWildlifeAtRandomPassable(state, EntityType.Fox, 12);
 
   // 6. Camp Selection & Founding Pioneers
   const houseFootprint = BUILDING_CONFIGS[BuildingType.House];
@@ -718,10 +720,10 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   spawnGrassPatch(state, centerX - 150, centerY - 80, 12, 100);
   spawnGrassPatch(state, centerX + 60, centerY - 160, 10, 85);
 
-  spawnWildlifeRing(state, EntityType.Rabbit, centerX, centerY, 14, 120, 280);
+  spawnWildlifeRing(state, EntityType.Rabbit, centerX, centerY, 14, 120, 600);
   spawnWildlifeRing(state, EntityType.Deer, centerX, centerY, 10, 180, 360);
-  spawnWildlifeRing(state, EntityType.Fox, centerX, centerY, 2, 240, 400);
-  spawnWildlifeRing(state, EntityType.Wolf, centerX, centerY, 2, 360, 520);
+  spawnWildlifeRing(state, EntityType.Fox, centerX, centerY, 8, 240, 600);
+  spawnWildlifeRing(state, EntityType.Wolf, centerX, centerY, 5, 360, 600);
 
   // 8. Research, Leadership, and Index Finalization
   syncResearchUnlocks(state);

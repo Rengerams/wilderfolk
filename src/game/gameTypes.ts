@@ -250,6 +250,7 @@ export interface Entity {
   prisonerUntilTick?: number;
   /** Crime that led to the current prison sentence, if any. */
   prisonSentenceCrime?: 'scandal';
+
   occupation?: string;
   job?: JobType;
   /** Optional for non-human entities (animals, trees, etc.). */

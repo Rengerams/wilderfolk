@@ -1,4 +1,4 @@
-import type { WorldState, Entity } from './gameTypes';
+﻿import type { WorldState, Entity } from './gameTypes';
 import {
   EntityType,
   TerrainType,
@@ -7,6 +7,7 @@ import {
   WEREWOLF_HOWL_LINES,
 } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
+import { seededRandom } from './simRng';
 import {
   isProductionTick,
   EVENT_INTERVAL,
@@ -460,7 +461,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                 const line = WEREWOLF_ATTACK_LINES[
                   Math.floor(Math.random() * WEREWOLF_ATTACK_LINES.length)
                 ](wolfName, victimName);
-                addBigNews(state, '🌝 Moon Howler Attack!', line, 'negative');
+                addBigNews(state, '� Moon Howler Attack!', line, 'negative');
                 addFloatingText(state, caughtPrey.x, caughtPrey.y - 12, 'Slain!', '#ef4444');
                 logEvent(state, 'death', appendDeathAge(line, caughtPrey), victimName);
                 impulseScreenShake(state, 5);
@@ -658,10 +659,40 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       if (entity.y > height) entity.y = height;
 
       // 16. Reproduction
-      entity.reproductionCooldown = Math.max(0, entity.reproductionCooldown - step);
-
+      // Update pregnancy progress if pregnant
+      if (entity.pregnant && entity.pregnancyProgress !== undefined) {
+        entity.pregnancyProgress += step;
+        if (entity.pregnancyDueProgress !== undefined && entity.pregnancyProgress >= entity.pregnancyDueProgress) {
+          // Birth! Create offspring based on litter size
+          const litterSize = Math.floor(
+            config.litterSize[0] + Math.random() * (config.litterSize[1] - config.litterSize[0] + 1)
+          );
+          for (let i = 0; i < litterSize; i++) {
+            const breedAngle = Math.random() * Math.PI * 2;
+            const breedDist = 10 + Math.random() * 20;
+            const nx = Math.min(width, Math.max(0, entity.x + Math.cos(breedAngle) * breedDist));
+            const ny = Math.min(height, Math.max(0, entity.y + Math.sin(breedAngle) * breedDist));
+            const offspring = createEntity(entity.type, nx, ny, state.nextEntityId++, config.spawnEnergy);
+            if (!ctx.wildlifeSpawnParent) {
+              ctx.wildlifeSpawnParent = new Map();
+            }
+            ctx.wildlifeSpawnParent.set(offspring.id, entity.id);
+            pushNewEntity(state, ctx, offspring);
+          }
+          // Reset pregnancy
+          entity.pregnant = false;
+          entity.pregnancyProgress = undefined;
+          entity.pregnancyDueProgress = undefined;
+          entity.pregnantById = undefined;
+          entity.reproductionCooldown = config.reproductionCooldown;
+        }
+      }
+      
+      // Conception check (only for non-pregnant, female entities)
       if (
         entity.type !== EntityType.Werewolf &&
+        !entity.pregnant &&
+        entity.gender === 'female' &&
         entity.reproductionCooldown <= 0 &&
         entity.energy > config.reproductionEnergyThreshold
       ) {
@@ -691,29 +722,22 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             (m) =>
               m.type === entity.type &&
               m.id !== entity.id &&
+              m.gender === 'male' &&
               m.energy > config.reproductionEnergyThreshold * 0.3,
             'mate',
             byType[entity.type],
           );
           if (mate) {
-            const breedAngle = Math.random() * Math.PI * 2;
-            const breedDist = 15;
-            const nx = Math.min(width, Math.max(0, entity.x + Math.cos(breedAngle) * breedDist));
-            const ny = Math.min(height, Math.max(0, entity.y + Math.sin(breedAngle) * breedDist));
-            const offspring = createEntity(entity.type, nx, ny, state.nextEntityId++, config.spawnEnergy);
-
-            if (!ctx.wildlifeSpawnParent) {
-              ctx.wildlifeSpawnParent = new Map();
-            }
-            ctx.wildlifeSpawnParent.set(offspring.id, entity.id);
-            pushNewEntity(state, ctx, offspring);
-
-            entity.energy -= entity.maxEnergy * 0.2;
+            // Start pregnancy
+            entity.pregnant = true;
+            entity.pregnancyProgress = 0;
+            const rng = seededRandom(entity.id, "pregnancy"); entity.pregnancyDueProgress = Math.round(config.pregnancyDuration * (0.7 + rng * 0.6));
+            entity.pregnantById = mate.id;
+            entity.energy -= entity.maxEnergy * 0.15;
             entity.reproductionCooldown = config.reproductionCooldown;
           }
         }
       }
-
       syncEntityGrids(ctx, entity);
     }
   }

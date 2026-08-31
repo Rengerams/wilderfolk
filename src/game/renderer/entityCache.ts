@@ -1,4 +1,6 @@
+/// <reference lib="es2022" />
 import type { Camera, Entity, EntityByType } from '../gameTypes';
+import type { RenderEntity } from '../simBuffers/entityRenderMeta';
 import { EntityType as EntityTypeEnum, UNCACHED_RENDER_TICK } from '../gameTypes';
 import type { RenderSnapshot } from '../renderSnapshot';
 import {
@@ -9,22 +11,25 @@ import {
 import { collectGrassInViewport, viewportFromCamera } from '../spatialGrid';
 import { buildEntityDrawBuckets } from '../simFocus';
 
-/** Viewport cache key precision — sub-pixel camera drift should not invalidate grass. */
+/* -------------------------------------------------------------------------- */
+/*  Viewport cache key precision – sub‑pixel camera drift should not invalidate grass. */
 const GRASS_VIEWPORT_KEY_XY_DIGITS = 1;
 const GRASS_VIEWPORT_KEY_ZOOM_DIGITS = 3;
 const ENTITY_VIEWPORT_KEY_XY_DIGITS = 1;
 const ENTITY_VIEWPORT_KEY_ZOOM_DIGITS = 3;
 
+/* -------------------------------------------------------------------------- */
+/*  Entity draw caches (main thread).                                         */
 let _cachedEntityTick = UNCACHED_RENDER_TICK;
 let _cachedEntityViewportKey = '';
 let _cachedGrassKey = '';
 
-/** Full per-tick entity lists (not viewport-culled). */
+/* Full per‑tick entity lists (not viewport‑culled). */
 export let _tickTrees: Entity[] = [];
 export let _tickAnimals: Entity[] = [];
 export let _tickHumans: Entity[] = [];
 
-/** Viewport-culled entity lists used for rendering. */
+/* Viewport‑culled entity lists used for rendering. */
 export let _cachedTrees: Entity[] = [];
 export let _cachedAnimals: Entity[] = [];
 export let _cachedHumans: Entity[] = [];
@@ -34,7 +39,8 @@ export const _cachedPartnerById = new Map<number, number>();
 
 export let _renderSoABuckets: RenderSoABuckets | null = null;
 
-/** Clear all entity draw caches. Called by {@link resetRendererCaches}. */
+/* -------------------------------------------------------------------------- */
+/*  Cache clearing.                                                           */
 export function resetEntityCaches(): void {
   _cachedEntityTick = UNCACHED_RENDER_TICK;
   _cachedEntityViewportKey = '';
@@ -51,6 +57,8 @@ export function resetEntityCaches(): void {
   invalidateRenderSoABucketsCache();
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Helper utilities.                                                          */
 function grassViewportKey(
   tick: number,
   cam: Camera,
@@ -99,15 +107,26 @@ function syncGrassDrawCache(
   _cachedGrass = collectVisibleGrass();
 }
 
-function entitiesFromSoASlots(slots: number[], shimBySlot: Map<number, Entity>): Entity[] {
+/*
+ * Convert SoA slot indices back into Entity instances for the main‑thread draw lists.
+ *
+ * `shimBySlot` maps a slot index to a `RenderEntity` (the minimal shape needed for rendering),
+ * which is assignable to the broader `Entity` type expected by the rest of the renderer.
+ */
+function entitiesFromSoASlots(
+  slots: number[],
+  shimBySlot: Map<number, RenderEntity>,
+): Entity[] {
   const entities: Entity[] = [];
   for (const slot of slots) {
     const entity = shimBySlot.get(slot);
-    if (entity) entities.push(entity);
+    if (entity) entities.push(entity as Entity);
   }
   return entities;
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Sync draw lists for viewport‑culled entities.                             */
 function syncEntityDrawViewport(
   tick: number,
   cam: Camera,
@@ -129,6 +148,8 @@ function syncEntityDrawViewport(
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Public API – update main‑thread entity caches.                             */
 export function updateCachedEntities(
   byType: EntityByType,
   grassGrid: RenderSnapshot['grassGrid'],
@@ -164,7 +185,8 @@ export function updateCachedEntities(
   );
 }
 
-/** Phase B — bucket render SoA slots into draw lists (no Entity[] hydration on main). */
+/* -------------------------------------------------------------------------- */
+/*  Phase B – hydrate SoA buckets into the main‑thread draw lists when the worker sends them. */
 export function updateCachedEntitiesFromSoA(state: RenderSnapshot, cw: number, ch: number) {
   if (!state.renderSoA) return;
   const tickChanged = syncDrawCacheTick(state.tick);

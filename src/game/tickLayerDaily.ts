@@ -1,22 +1,12 @@
-/**
- * Daily layer — once per colony day (`tick % TICKS_PER_DAY === 0`).
- *
- * Grass ecology (growth/spread), static bookkeeping, building production,
- * frontier systems, and daily-gated world events. Trees have no sim tick.
- */
 import type { Entity, WorldState } from './gameTypes';
+import { EntityType } from './gameTypes';
 import type { PopulationCounts } from './entityCounts';
 import type { TickContext } from './simulation/simulationTypes';
-
-import { TICKS_PER_DAY, isNewCalendarDayTick } from './dayCycle';
+import { isNewCalendarDayTick } from './dayCycle';
 import { addFloatingText } from './simEffects';
-
-// Social & Relationships
 import { advanceSocialRelationships } from './relationships';
 import { advanceYouthLove } from './simulation/humanRelationships';
 import { advanceApprenticeships } from './apprenticeships';
-
-// Daily Systems
 import { tickDailyPopulation } from './dailyPopulation';
 import { tickDailyChallenges } from './dailyChallenges';
 import { tickGrassDaily } from './dailyGrassEcology';
@@ -24,46 +14,13 @@ import { resolveDailyVillageScheduleFatigue } from './dailyScheduleFatigue';
 import { tickDailyBuildingEconomy } from './dailyBuildingEconomy';
 import { tickDailyWorldEvents } from './dailyWorldEvents';
 import { applyDailyWeatherEffects } from './worldEvents';
-
-// Chronicles
+import { replenishDepletedWildlife } from './worldGen';
 import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
+import { seededRandom } from './simRng';
+import { getReproductionMultiplier } from './simHelpers';
+import { getSpeciesConfig } from './speciesConfig';
 
-// Re-export for external daily layer consumers
 export { tickGrassDaily } from './dailyGrassEcology';
-
-/**
- * Winter heating — burns wood once per colony day, stores result on state for the whole day.
- * Call from gameTick only (not from daily layer again).
- */
-export function tickWinterHeating(
-  state: WorldState,
-  humanCount: number,
-  isWinter: boolean,
-): boolean {
-  if (!isWinter) {
-    state.villageCanHeat = true;
-    return true;
-  }
-
-  // Fast path: reuse stored flag for the remainder of the colony day
-  if (state.tick > 0 && state.tick % TICKS_PER_DAY !== 0) {
-    return state.villageCanHeat !== false;
-  }
-
-  // Day boundary: attempt to heat the village
-  let canHeat = true;
-  if (state.tick > 0 && humanCount > 0) {
-    const woodNeeded = Math.ceil(humanCount / 5);
-    if (state.resources.wood >= woodNeeded) {
-      state.resources.wood -= woodNeeded;
-    } else {
-      canHeat = false;
-    }
-  }
-  
-  state.villageCanHeat = canHeat;
-  return canHeat;
-}
 
 // ==================== DAILY LAYER ENTRYPOINT ====================
 
@@ -73,13 +30,11 @@ export function tickLayerDaily(
   allAlive: Entity[],
   counts: PopulationCounts,
 ): void {
-  // Winter heating runs once in gameTick (sets ctx.canHeat) — do not burn wood again here.
 
   if (isNewCalendarDayTick(state)) {
     resolveDailyVillageScheduleFatigue(state, ctx.playerHumans);
   }
 
-  // Phase 7 social layers & chronicles — pulse daily (skip tick 0 initialization)
   if (state.tick > 0) {
     advanceSocialRelationships(state, allAlive);
     advanceYouthLove(state, ctx);
@@ -97,11 +52,53 @@ export function tickLayerDaily(
     }
   }
 
-  // Daily world & economy systems
   applyDailyWeatherEffects(state);
   tickGrassDaily(state, ctx, allAlive);
   tickDailyBuildingEconomy(state, ctx, allAlive);
   tickDailyPopulation(state, ctx, allAlive, counts);
   tickDailyWorldEvents(state, ctx, allAlive, counts);
   tickDailyChallenges(state, ctx, counts);
+  replenishDepletedWildlife(state);
+  tickDailyWildlifeReproduction(state, allAlive);
+}
+
+/**
+ * Per-day pregnancy chance check for wildlife.
+ * Since animals don't have gender, we divide population by 2 to approximate females.
+ * Each potential female has a 30% base chance modified by individual RNG and season.
+ */
+// FIX: Optimized to single pass over allAlive instead of two full loops
+function tickDailyWildlifeReproduction(state: WorldState, allAlive: Entity[]): void {
+  const season = state.season;
+  const reproMult = getReproductionMultiplier(season);
+  const reproResetCandidates: Entity[] = [];
+
+  for (let i = 0; i < allAlive.length; i++) {
+    const entity = allAlive[i];
+    
+    // Skip non-wildlife
+    if (entity.type === EntityType.Human || entity.type === EntityType.Tree || entity.type === EntityType.Grass) continue;
+    if (entity.pregnant) continue;
+    if (entity.reproductionCooldown > 0) continue;
+    if (entity.energy < getSpeciesConfig(entity.type).reproductionEnergyThreshold) continue;
+
+    // Divide population by 2 to approximate females (animals have no gender)
+    // Use even-indexed entities as "females"
+    if (i % 2 !== 0) continue;
+
+    // Individual RNG seed per animal
+    const rng = seededRandom(entity.id, 'dailyRepro');
+    const individualChance = 0.30 * rng * reproMult;
+
+    if (Math.random() < individualChance) {
+      // Will attempt conception in the next wildlife tick
+      entity.reproductionCooldown = -1; // Special marker: ready to breed
+      reproResetCandidates.push(entity);
+    }
+  }
+
+  // Reset the marker only for candidates (single small loop instead of full allAlive loop)
+  for (const entity of reproResetCandidates) {
+    entity.reproductionCooldown = 0;
+  }
 }

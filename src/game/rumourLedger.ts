@@ -1,20 +1,14 @@
-/**
- * S5 — The Rumour Ledger (roadmap v0.6.3).
- * Full chain per docs/archive/story/STORY_RUMOUR_LEDGER.md:
- * recent event → one rumour → response → delayed social resolution.
- */
 import type { WorldState, StoryEvent } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
+import { seededRandom } from './simRng';
 import {
   storyFlag,
   setStoryFlags,
   bumpVillageReputation,
   eligibleDayForStory,
-  seededRoll,
-  hashSalt,
   pushStoryCard,
 } from './storyHelpers';
 
@@ -112,7 +106,7 @@ export function maybeOfferRumourLedger(state: WorldState): void {
   if (!sourceKind) return;
 
   const seed = state.worldMap?.seed ?? 1;
-  const truthRoll = seededRoll(seed, hashSalt(`rumour-truth-${colonyDay}`));
+  const truthRoll = seededRandom(seed, `rumour-truth-${colonyDay}`);
   const truth = truthRoll < 0.3 ? TRUTH.true : truthRoll < 0.7 ? TRUTH.exaggerated : TRUTH.false;
 
   setStoryFlags(state, {
@@ -198,7 +192,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
     investigate: RESPONSE.investigate,
   };
 
-  const delayDays = 2 + Math.floor(seededRoll(seed, hashSalt(`rumour-resolution-${colonyDay}`)) * 3);
+  const delayDays = 2 + Math.floor(seededRandom(seed, `rumour-resolution-${colonyDay}`) * 3);
 
   setStoryFlags(state, {
     [FLAG_STATUS]: STATUS.responded,

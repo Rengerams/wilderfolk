@@ -181,11 +181,26 @@ export function unindexAdjacency(
   state: { buildings: Building[]; adjacency?: AdjacencyIndex },
   buildingId: number,
 ): void {
-  // `structuredClone` preserves a truthy object but removes AdjacencyIndex's
-  // prototype. Rebuild only when a cache was present; callers with no cache do
-  // not need one solely to remove an already-unindexed building.
+  removeAdjacencyById(state, buildingId);
+}
+
+/**
+ * Standalone adjacency removal safe across structuredClone boundaries.
+ * Calls the class method when the prototype is present; rebuilds the index
+ * when structuredClone has stripped it.
+ */
+export function removeAdjacencyById(
+  state: { buildings: Building[]; adjacency?: AdjacencyIndex },
+  buildingId: number,
+): void {
   if (!state.adjacency) return;
-  ensureAdjacencyIndex(state).removeById(buildingId);
+  if (state.adjacency instanceof AdjacencyIndex) {
+    state.adjacency.removeById(buildingId);
+    return;
+  }
+  const index = new AdjacencyIndex();
+  index.rebuild(state.buildings);
+  state.adjacency = index;
 }
 
 /** Full rebuild helper — tests and one-off estimates. */
@@ -198,3 +213,11 @@ export function buildAdjacencyIndex(buildings: readonly Building[]): AdjacencyIn
 export function getAdjacencyMultiplierFromIndex(index: AdjacencyIndex, building: Building): number {
   return index.getMultiplier(building);
 }
+
+/**
+ * Standalone adjacency removal safe across structuredClone boundaries.
+ * Calls the class method when the prototype is present; rebuilds the index
+ * when structuredClone has stripped it.
+ */
+
+

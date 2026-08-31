@@ -1,6 +1,7 @@
 import type { WorldState } from './gameTypes';
 import { invalidateEntityByIdMap, rebuildEntityByIdMap } from './entityIndex';
 import { invalidateCachedEntityByType } from './entityTypeCache';
+import { ensureAdjacencyIndex } from './adjacencyIndex';
 
 /**
  * Strips all non-serializable class instances and transient runtime caches from WorldState.
@@ -29,14 +30,16 @@ export function invalidateWorldRuntimeCaches(world: WorldState): void {
 }
 
 /**
- * Restores essential runtime indices (such as entityById) so that subsequent
- * commands or immediate tick lookups execute with O(1) performance.
+ * Restores essential runtime indices (such as entityById and adjacency)
+ * so that subsequent commands or immediate tick lookups execute with O(1) performance.
  */
 export function hydrateWorldRuntimeCaches(world: WorldState): WorldState {
   if (!world || typeof world !== 'object') return world;
 
   invalidateWorldRuntimeCaches(world);
   rebuildEntityByIdMap(world);
+  // Restore adjacency index after structuredClone strips class prototypes
+  ensureAdjacencyIndex(world);
 
   return world;
 }
@@ -51,6 +54,6 @@ export function createOptimisticDisplayWorld(authoritative: WorldState): WorldSt
   // Deep clone authoritative game state
   const cloned = structuredClone(authoritative);
 
-  // Hydrate entity lookup indices for immediate UI queries
+  // Hydrate entity lookup indices and adjacency for immediate UI queries
   return hydrateWorldRuntimeCaches(cloned);
 }

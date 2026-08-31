@@ -25,6 +25,8 @@ export interface UseKeyboardControlsOptions {
   cameraVelRef: RefObject<{ x: number; y: number }>;
   catalogRef: RefObject<EntityCatalog | null>;
   openTab: (tab: SidebarTab) => void;
+  hasOpenSidebarTab: boolean;
+  closeSidebarTabs: () => void;
   setProgressSubTab: (tab: 'research' | 'trade' | 'goals') => void;
   setShowShortcuts: (value: boolean | ((prev: boolean) => boolean)) => void;
   setBuildPanelOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
@@ -54,6 +56,8 @@ export function useKeyboardControls({
   cameraVelRef,
   catalogRef,
   openTab,
+  hasOpenSidebarTab,
+  closeSidebarTabs,
   setProgressSubTab,
   setShowShortcuts,
   setBuildPanelOpen,
@@ -114,6 +118,8 @@ export function useKeyboardControls({
           dismissBigNewsRef.current(topBigNewsIdRef.current);
         } else if (hasContextualTipRef.current) {
           dismissTipRef.current();
+        } else if (hasOpenSidebarTab) {
+          closeSidebarTabs();
         } else if (selectedBuildingTypeRef.current) {
           cancelBuildModeRef.current();
         } else {
