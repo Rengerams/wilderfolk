@@ -2,6 +2,7 @@
 import { canonicalDialogueBank, installDialogueBankPayload } from '../dialogueTrees';
 import { gameTick } from '../gameTick';
 import { GAME_VERSION } from '../version';
+import { invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
 
 installDialogueBankPayload(canonicalDialogueBank);
 
@@ -23,7 +24,7 @@ import {
   safeExtractCommandDelta,
 } from './commands';
 
-/* Simulation preparation helpers (functions only – no unused type) */
+/* Simulation preparation helpers */
 import { applySimPrep, extractSimPrep } from './simPrep';
 
 /* Protocol contract */
@@ -41,7 +42,7 @@ import {
 let world: WorldState | null = null;
 let bufferPool: RenderBufferPool | null = null;
 let headlessMode = false;
-let lastFocus: import('../gameEngine').SimulationFocus | undefined;
+let lastFocus: import('../simFocus').SimulationFocus | undefined;
 
 /** Buildings snapshot for diff‑mode deltas (only changed buildings are shipped). */
 let prevBuildingsSnapshot: Map<number, Building> | null = null;
@@ -116,6 +117,7 @@ function packAndPostTickResult(
 function resetWorkerSession(nextWorld: WorldState): void {
   world = nextWorld;
   lastFocus = undefined;
+  prevBuildingsSnapshot = null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -124,9 +126,15 @@ function resetWorkerSession(nextWorld: WorldState): void {
 self.onunhandledrejection = (event: PromiseRejectionEvent) => {
   postError(`Unhandled rejection: ${(event.reason as Error)?.message ?? String(event.reason)}`, 'general');
 };
+
 self.onerror = (event: unknown) => {
-  const e = event as ErrorEvent; postError(`Worker error: ${e.message ?? String(event)} at ${e.filename ?? ""}:${e.lineno ?? ""}`, "general");
+  const e = event as ErrorEvent;
+  postError(
+    `Worker error: ${e.message ?? String(event)} at ${e.filename ?? 'unknown'}:${e.lineno ?? 0}:${e.colno ?? 0}`,
+    'general',
+  );
 };
+
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const msg = event.data;
   if (!isWorkerProto(msg.proto)) {
@@ -165,6 +173,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           postError('Worker not initialized');
           break;
         }
+        invalidateWorldRuntimeCaches(world);
         const response: WorkerResponse = {
           type: 'exportSaveResult',
           proto: WORKER_PROTO,

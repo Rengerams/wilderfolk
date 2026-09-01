@@ -133,7 +133,7 @@ export class GameLoop {
   private workerRecoveryDelayMs = WORKER_RECOVERY_INITIAL_DELAY_MS;
   private workerRecoveryInFlight = false;
   private renderSoA: RenderSoAReaderV1 | null = null;
-  private renderMetaBySlot: EntityRenderMeta[] | null = null;
+  private renderMetaBySlot: EntityRenderMeta[] | undefined = undefined;
   private scentReader: ScentGridReader | null = null;
   private sessionGen = 0;
   private notifyDepth = 0;
@@ -192,7 +192,7 @@ export class GameLoop {
           this.workerEnabled = false;
           this.workerBooting = false;
           this.renderSoA = null;
-          this.renderMetaBySlot = null;
+          this.renderMetaBySlot = undefined;
           this.scentReader = null;
           this.scheduleWorkerRecovery();
         });
@@ -293,7 +293,7 @@ export class GameLoop {
           this.workerBooting = false;
           this.workerRecoveryInFlight = false;
           this.renderSoA = null;
-          this.renderMetaBySlot = null;
+          this.renderMetaBySlot = undefined;
           this.scentReader = null;
         }
         if (recoveryGen === this.sessionGen && this.running) {
@@ -326,7 +326,7 @@ export class GameLoop {
         this.renderSoA = render.reader;
         this.renderMetaBySlot = render.metaBySlot;
         this.scentReader = render.scentReader;
-        patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
+        patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot ?? []);
       }
 
       this.view = syncScreenShakeFromWorld(this.view, this.world);
@@ -346,7 +346,6 @@ export class GameLoop {
       const hadOptimistic = this.optimisticCommands.length > 0;
       if (hadOptimistic) this.optimisticCommands.shift();
 
-      // ✅ Revert/Set to the authoritative worker world
       this.world = world;
       if (this.optimisticCommands.length > 0) {
         this.rebuildOptimisticDisplay();
@@ -356,7 +355,7 @@ export class GameLoop {
         this.renderSoA = render.reader;
         this.renderMetaBySlot = render.metaBySlot;
         this.scentReader = render.scentReader;
-        patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
+        patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot ?? []);
       }
 
       if (hadOptimistic) {
@@ -389,7 +388,7 @@ export class GameLoop {
     this.workerEnabled = false;
     this.workerBooting = false;
     this.renderSoA = null;
-    this.renderMetaBySlot = null;
+    this.renderMetaBySlot = undefined;
     this.scentReader = null;
     this.scheduleWorkerRecovery();
   }
@@ -408,27 +407,29 @@ export class GameLoop {
       this.lastDailyBoundaryTick = boundary;
     }
   }
-getDiagnostics(now = performance.now()): GameLoopDiagnostics { 
-  const worker = this.isUsingSimWorker(); 
-  return { 
-    workerMode: worker ? 'worker' : 'main-thread', 
-    workerBooting: this.workerBooting, 
-    tick: this.world.tick, 
-    inGameDay: Math.floor(this.world.tick / TICKS_PER_DAY) + 1, 
-    hour: Math.floor((this.world.tick % TICKS_PER_DAY) / TICKS_PER_HOUR), 
-    paused: this.world.paused, 
-    speed: this.world.speed, 
-    ticksInFlight: worker ? this.workerHost?.getTicksInFlight?.() ?? 0 : 0, 
-    commandInFlight: worker ? this.workerHost?.hasCommandInFlight?.() ?? false : false, 
-    tickLatencyMs: this.workerTickLatencyMs, 
-    lastWorkerActivityMsAgo: worker && this.lastWorkerActivity > 0 ? Math.max(0, now - this.lastWorkerActivity) : null, 
-    lastDailyBoundaryTick: this.lastDailyBoundaryTick
-  }; 
-} 
 
-getWorld(): WorldState { 
-  return this.world; 
-}
+  getDiagnostics(now = performance.now()): GameLoopDiagnostics {
+    const worker = this.isUsingSimWorker();
+    return {
+      workerMode: worker ? 'worker' : 'main-thread',
+      workerBooting: this.workerBooting,
+      tick: this.world.tick,
+      inGameDay: Math.floor(this.world.tick / TICKS_PER_DAY) + 1,
+      hour: Math.floor((this.world.tick % TICKS_PER_DAY) / TICKS_PER_HOUR),
+      paused: this.world.paused,
+      speed: this.world.speed,
+      ticksInFlight: worker ? this.workerHost?.getTicksInFlight?.() ?? 0 : 0,
+      commandInFlight: worker ? this.workerHost?.hasCommandInFlight?.() ?? false : false,
+      tickLatencyMs: this.workerTickLatencyMs,
+      lastWorkerActivityMsAgo:
+        worker && this.lastWorkerActivity > 0 ? Math.max(0, now - this.lastWorkerActivity) : null,
+      lastDailyBoundaryTick: this.lastDailyBoundaryTick,
+    };
+  }
+
+  getWorld(): WorldState {
+    return this.world;
+  }
 
   getView(): ViewState {
     return this.view;
@@ -456,7 +457,7 @@ getWorld(): WorldState {
     this.lastDailyBoundaryTick = Math.floor(world.tick / TICKS_PER_DAY) * TICKS_PER_DAY;
     this.catalog.rebuild(world.entities);
     this.renderSoA = null;
-    this.renderMetaBySlot = null;
+    this.renderMetaBySlot = undefined;
     this.scentReader = null;
 
     const sessionGen = this.sessionGen;
@@ -490,7 +491,7 @@ getWorld(): WorldState {
         if (sessionGen !== this.sessionGen || !this.running || !this.workerHost?.isReady()) return;
 
         this.renderSoA = null;
-        this.renderMetaBySlot = null;
+        this.renderMetaBySlot = undefined;
         this.scentReader = null;
         await this.workerHost.importSave(world);
 
@@ -514,12 +515,10 @@ getWorld(): WorldState {
     if (!silent) this.notify(false, false, true);
   }
 
-  /** Rebuild the display-only prediction queue over the newest worker shadow. */
   private rebuildOptimisticDisplay(): void {
     const authoritative = this.workerHost?.getAuthoritativeWorld();
     if (!authoritative) return;
 
-    // ✅ Deep clone entities so optimistic commands NEVER mutate the authoritative backup!
     let display: WorldState = {
       ...authoritative,
       entities: authoritative.entities.map((e) => ({ ...e })),
@@ -711,16 +710,13 @@ getWorld(): WorldState {
       this.rafId = 0;
     }
 
-    // Note: we do NOT clear listeners here. stop() is called on unmount,
-    // and listeners are filtered by sessionGen in the callback. Clearing
-    // them here breaks React StrictMode double-mount recovery.
     clearAllFactionWanderStates();
     this.workerHost?.dispose();
     this.workerHost = null;
     this.workerEnabled = false;
     this.workerBooting = false;
     this.renderSoA = null;
-    this.renderMetaBySlot = null;
+    this.renderMetaBySlot = undefined;
     this.scentReader = null;
     this.lastPausedSentToWorker = null;
     this.canvasCtx = null;
@@ -864,7 +860,7 @@ getWorld(): WorldState {
           tickChanged = true;
         }
         this.renderSoA = null;
-        this.renderMetaBySlot = null;
+        this.renderMetaBySlot = undefined;
       }
     } else {
       this.tickAccumulator = 0;
@@ -929,7 +925,7 @@ getWorld(): WorldState {
     if (!snapshot || dirtyKey !== this.snapshotKey) {
       snapshot = buildRenderSnapshot(this.world, this.view, {
         renderSoA: this.renderSoA,
-        renderMetaBySlot: this.renderMetaBySlot ?? undefined,
+        renderMetaBySlot: this.renderMetaBySlot,
         catalog: this.catalog,
         scentGrid: this.workerEnabled ? null : this.world.scentGrid,
         scentReader: this.scentReader,

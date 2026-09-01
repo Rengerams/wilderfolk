@@ -32,16 +32,12 @@
     "audit": "npm run audit:knip && npm run audit:deps"
   },
   "dependencies": {
-    "@openai/codex": "^0.151.0",
-    "glob": "^13.0.6",
-    "npm": "^11.19.1",
+    "npm": "^12.0.2",
     "npm-install-checks": "^9.0.0",
     "pixi.js": "^8.20.1",
-    "preline": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router": "^8.3.0",
-    "undici": "^8.10.0"
+    "react-router": "^8.3.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

@@ -26,6 +26,7 @@ import { getBuildingConfig } from '../game/buildingConfig';
 import { isPlayerHuman } from '../game/playerHuman';
 import { useEffect, useMemo, useRef } from 'react';
 import { getHumanActivityProjection } from '../game/humanStatus';
+import type { HumanActivityHistory } from '../game/humanStatus';
 
 // Added `id` to the return type for stable React keys
 function getFamilyMembers(entity: Entity, allEntities: Entity[]): { id: number; label: string; name: string; relation: string }[] {
@@ -91,23 +92,27 @@ export default function SelectedEntityPanel({
   onMoveOut?: () => void;
   onOpenVisitorCamp?: (group: VisitorGroup) => void;
 }) {
-  const previousActivityRef = useRef<{ entityId: number; activity: string } | null>(null);
+  // Track both activity and history for stable React refs
+  const historyRef = useRef<{ entityId: number; history: HumanActivityHistory; activity: string } | null>(null);
   const isVillageHead = isVillageLeader(state, entity.id);
   const isHuman = entity.type === EntityType.Human;
   
-  const previousActivity = previousActivityRef.current?.entityId === entity.id
-    ? previousActivityRef.current.activity
+  const previousHistory = historyRef.current?.entityId === entity.id
+    ? historyRef.current.history
+    : undefined;
+  const previousActivity = historyRef.current?.entityId === entity.id
+    ? historyRef.current.activity
     : undefined;
     
   const activityProjection = isHuman || entity.type === EntityType.Werewolf
-    ? getHumanActivityProjection(state, entity, previousActivity)
+    ? getHumanActivityProjection(state, entity, previousActivity, previousHistory ?? null)
     : null;
     
   useEffect(() => {
     if (activityProjection) {
-      previousActivityRef.current = { entityId: entity.id, activity: activityProjection.activity };
+      historyRef.current = { entityId: entity.id, history: activityProjection.history, activity: activityProjection.activity };
     }
-  }, [activityProjection?.activity, entity.id]);
+  }, [activityProjection?.activity, activityProjection?.history.transitions, entity.id]);
 
   const isVisitor = entity.faction === 'visitor';
   const isRival = entity.faction === 'rival';
@@ -216,6 +221,28 @@ export default function SelectedEntityPanel({
               </div>
               {activityProjection.blockedReason && (
                 <p className="mt-1 rounded bg-rose-950/50 px-1.5 py-1 text-rose-200">Blocked: {activityProjection.blockedReason}</p>
+              )}
+              {/* Movement trace */}
+              {activityProjection.history.movementSegments.length > 0 && (
+                <div className="mt-1 rounded border border-emerald-900/40 bg-emerald-950/25 p-1.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 mb-0.5">Movement trace</div>
+                  {activityProjection.history.movementSegments.slice(-3).reverse().map((seg, i) => (
+                    <p key={i} className="text-[10px] text-emerald-200/80">
+                      {seg.fromLabel} → {seg.toLabel} <span className="text-emerald-400/60">({seg.reason})</span>
+                    </p>
+                  ))}
+                </div>
+              )}
+              {/* Activity history */}
+              {activityProjection.history.transitions.length > 0 && (
+                <div className="mt-1 rounded border border-violet-900/40 bg-violet-950/25 p-1.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-violet-300 mb-0.5">Activity history</div>
+                  {activityProjection.history.transitions.slice(0, 5).map((t, i) => (
+                    <p key={i} className="text-[10px] text-violet-200/80">
+                      {t.from} → {t.to} <span className="text-violet-400/60">tick {t.observedAtTick.toLocaleString()}</span>
+                    </p>
+                  ))}
+                </div>
               )}
             </div>
           )}

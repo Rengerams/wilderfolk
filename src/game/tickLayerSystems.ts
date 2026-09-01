@@ -77,16 +77,25 @@ const WILDLIFE_TICK_TYPES: readonly EntityType[] = [
   EntityType.Wildkin,
 ];
 
-function isWildlifePredator(entity: Entity): boolean {
-  return (
-    entity.alive &&
-    (entity.type === EntityType.Wolf ||
-      entity.type === EntityType.Fox ||
-      entity.type === EntityType.Werewolf ||
-      (entity.type === EntityType.Human &&
-        !entity.isJuvenile &&
-        (isPlayerHuman(entity) || (entity as Entity).faction === 'rival')))
-  );
+/** True if the entity is an active threat/predator to grazers (wolves, foxes, werewolves, and adult hunters). */
+export function isPredator(entity: Entity): boolean {
+  if (!entity.alive) return false;
+
+  // Wild carnivores & monsters
+  if (
+    entity.type === EntityType.Wolf ||
+    entity.type === EntityType.Fox ||
+    entity.type === EntityType.Werewolf
+  ) {
+    return true;
+  }
+
+  // Adult humans (player settlers or rival faction)
+  if (entity.type === EntityType.Human && !entity.isJuvenile) {
+    return isPlayerHuman(entity) || entity.faction === 'rival';
+  }
+
+  return false;
 }
 
 /** Occasional predator migration to keep wolf pressure present. */
@@ -99,8 +108,8 @@ function tickWolfRecruitment(state: WorldState, ctx: TickContext): void {
 
   if (
     !isProductionTick(state.tick, EVENT_INTERVAL.wolfRecruit) ||
-    currentWolves >= 2 ||
-    Math.random() >= 0.1
+    currentWolves >= 5 ||
+    Math.random() >= 0.7
   ) {
     return;
   }
@@ -193,7 +202,6 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
   for (const entityType of WILDLIFE_TICK_TYPES) {
     const bucket = byType[entityType] ?? [];
-    // Copy bucket snapshot to prevent skipping elements during updates/splices
     const currentPass = [...bucket];
 
     for (let i = 0; i < currentPass.length; i++) {
@@ -271,7 +279,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           entity.x,
           entity.y,
           config.fleeRange,
-          (pred) => isWildlifePredator(pred),
+          (pred) => isPredator(pred),
           'flee',
           predators,
         ) ?? null;
@@ -313,7 +321,6 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
               ? [EntityType.Human, EntityType.Deer, EntityType.Rabbit]
               : [EntityType.Deer, EntityType.Rabbit];
 
-        // Wolves gain hunting range and target bonuses when grouped in close packs
         let nearbyPack = 0;
         let huntRange = config.huntRange;
         if (entity.type === EntityType.Wolf) {
@@ -461,7 +468,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                 const line = WEREWOLF_ATTACK_LINES[
                   Math.floor(Math.random() * WEREWOLF_ATTACK_LINES.length)
                 ](wolfName, victimName);
-                addBigNews(state, '� Moon Howler Attack!', line, 'negative');
+                addBigNews(state, '🐺 Moon Howler Attack!', line, 'negative');
                 addFloatingText(state, caughtPrey.x, caughtPrey.y - 12, 'Slain!', '#ef4444');
                 logEvent(state, 'death', appendDeathAge(line, caughtPrey), victimName);
                 impulseScreenShake(state, 5);
@@ -584,7 +591,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         }
       }
 
-      // 13. Deep water sliding physics (collides/slides on river/sea banks)
+      // 13. Deep water sliding physics
       const worldMap = state.worldMap;
       if (worldMap) {
         const nextX = entity.x + entity.vx;
@@ -659,11 +666,9 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       if (entity.y > height) entity.y = height;
 
       // 16. Reproduction
-      // Update pregnancy progress if pregnant
       if (entity.pregnant && entity.pregnancyProgress !== undefined) {
         entity.pregnancyProgress += step;
         if (entity.pregnancyDueProgress !== undefined && entity.pregnancyProgress >= entity.pregnancyDueProgress) {
-          // Birth! Create offspring based on litter size
           const litterSize = Math.floor(
             config.litterSize[0] + Math.random() * (config.litterSize[1] - config.litterSize[0] + 1)
           );
@@ -679,7 +684,6 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             ctx.wildlifeSpawnParent.set(offspring.id, entity.id);
             pushNewEntity(state, ctx, offspring);
           }
-          // Reset pregnancy
           entity.pregnant = false;
           entity.pregnancyProgress = undefined;
           entity.pregnancyDueProgress = undefined;
@@ -688,7 +692,6 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         }
       }
       
-      // Conception check (only for non-pregnant, female entities)
       if (
         entity.type !== EntityType.Werewolf &&
         !entity.pregnant &&
@@ -728,10 +731,10 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             byType[entity.type],
           );
           if (mate) {
-            // Start pregnancy
             entity.pregnant = true;
             entity.pregnancyProgress = 0;
-            const rng = seededRandom(entity.id, "pregnancy"); entity.pregnancyDueProgress = Math.round(config.pregnancyDuration * (0.7 + rng * 0.6));
+            const rng = seededRandom(entity.id, 'pregnancy');
+            entity.pregnancyDueProgress = Math.round(config.pregnancyDuration * (0.7 + rng * 0.6));
             entity.pregnantById = mate.id;
             entity.energy -= entity.maxEnergy * 0.15;
             entity.reproductionCooldown = config.reproductionCooldown;

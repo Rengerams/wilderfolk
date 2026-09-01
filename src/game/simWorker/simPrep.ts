@@ -4,13 +4,7 @@ import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
 
 /**
- * Mutable sim slices updated before each headless worker tick (excludes worldMap).
- *
- * NOTE: extractSimPrep performs shallow copies of all arrays and objects so the
- * worker thread cannot mutate main-thread state directly. applySimPrep then
- * swaps the references back in. This is faster and safer than .length=0 +
- * .push(...) which risks stack-overflow on large entity lists and self-wipes
- * the array if the same reference leaks through.
+ * Mutable sim slices backed up before each tick/command for instant failure recovery.
  */
 type SimPrepKeys =
   | 'tick'
@@ -28,6 +22,14 @@ type SimPrepKeys =
   | 'humanPopulation'
   | 'maxHumanPopulation'
   | 'wildlifeCounts'
+  | 'ecosystemHealth'
+  | 'pollutionLevel'
+  | 'biodiversityIndex'
+  | 'valleyStage'
+  | 'valleyStageSinceDay'
+  | 'valleyRawStressStreakDays'
+  | 'valleyRawCalmStreakDays'
+  | 'valleyLastStageNotifyDay'
   | 'researchNodes'
   | 'activeResearch'
   | 'researchProgress'
@@ -41,6 +43,7 @@ type SimPrepKeys =
   | 'pendingOutgoingRaidEvents'
   | 'pendingDiplomacyEvents'
   | 'tradeRoutes'
+  | 'disasters'
   | 'villageForge'
   | 'challenges'
   | 'festival'
@@ -52,24 +55,30 @@ type SimPrepKeys =
   | 'electionBuildupNotifiedYear'
   | 'electionCeremony'
   | 'eventLog'
+  | 'eventsThisYear'
+  | 'lastEventYear'
+  | 'bountifulHarvest'
+  | 'firstWeekVisitorSpawned'
   | 'nextEntityId'
   | 'nextBuildingId'
   | 'nextFloatingTextId'
   | 'totalBuildingsCompleted'
   | 'ecoHealthYearsAbove80'
   | 'villageReputation'
+  | 'renffrOmen'
+  | 'renffrChatterUntilTick'
+  | 'lastProcessedCalendarDay'
+  | 'lastWildlifeReplenishLogDay'
+  | 'storyFlags'
+  | 'pendingStoryEvents'
+  | 'guidedCampaign'
   | 'workSchedule'
   | 'tavernSchedule'
   | 'hotelSchedule';
 
-export type SimPrepPayload = Omit<Required<Pick<WorldState, SimPrepKeys>>, 'activeVillageRequest'> & {
-  // Absence is a valid authoritative state: no request card is active.
-  activeVillageRequest: WorldState['activeVillageRequest'];
-};
+export type SimPrepPayload = Pick<WorldState, SimPrepKeys>;
 
 export function extractSimPrep(state: WorldState): SimPrepPayload {
-  // Shallow-clone every mutable collection so the worker gets its own copy.
-  // The worker can mutate these freely without leaking back to main-thread state.
   return {
     tick: state.tick,
     year: state.year,
@@ -86,6 +95,14 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     humanPopulation: state.humanPopulation,
     maxHumanPopulation: state.maxHumanPopulation,
     wildlifeCounts: { ...state.wildlifeCounts },
+    ecosystemHealth: state.ecosystemHealth,
+    pollutionLevel: state.pollutionLevel,
+    biodiversityIndex: state.biodiversityIndex,
+    valleyStage: state.valleyStage,
+    valleyStageSinceDay: state.valleyStageSinceDay,
+    valleyRawStressStreakDays: state.valleyRawStressStreakDays,
+    valleyRawCalmStreakDays: state.valleyRawCalmStreakDays,
+    valleyLastStageNotifyDay: state.valleyLastStageNotifyDay,
     researchNodes: [...state.researchNodes],
     activeResearch: state.activeResearch,
     researchProgress: state.researchProgress,
@@ -99,6 +116,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     pendingOutgoingRaidEvents: [...(state.pendingOutgoingRaidEvents ?? [])],
     pendingDiplomacyEvents: [...(state.pendingDiplomacyEvents ?? [])],
     tradeRoutes: [...(state.tradeRoutes ?? [])],
+    disasters: [...(state.disasters ?? [])],
     villageForge: normalizeForgeState(state.villageForge),
     challenges: [...(state.challenges ?? [])],
     festival: state.festival ? { ...state.festival } : null,
@@ -110,12 +128,23 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     electionBuildupNotifiedYear: state.electionBuildupNotifiedYear ?? null,
     electionCeremony: state.electionCeremony ? { ...state.electionCeremony } : null,
     eventLog: [...state.eventLog],
+    eventsThisYear: [...(state.eventsThisYear ?? [])],
+    lastEventYear: state.lastEventYear,
+    bountifulHarvest: state.bountifulHarvest,
+    firstWeekVisitorSpawned: state.firstWeekVisitorSpawned,
     nextEntityId: state.nextEntityId,
     nextBuildingId: state.nextBuildingId,
     nextFloatingTextId: state.nextFloatingTextId,
     totalBuildingsCompleted: state.totalBuildingsCompleted,
     ecoHealthYearsAbove80: state.ecoHealthYearsAbove80 ?? 0,
     villageReputation: state.villageReputation ?? 0,
+    renffrOmen: state.renffrOmen ? { ...state.renffrOmen } : null,
+    renffrChatterUntilTick: state.renffrChatterUntilTick ?? 0,
+    lastProcessedCalendarDay: state.lastProcessedCalendarDay ?? 0,
+    lastWildlifeReplenishLogDay: state.lastWildlifeReplenishLogDay ?? 0,
+    storyFlags: { ...(state.storyFlags ?? {}) },
+    pendingStoryEvents: structuredClone(state.pendingStoryEvents ?? []),
+    guidedCampaign: state.guidedCampaign ? structuredClone(state.guidedCampaign) : undefined,
     workSchedule: getWorkSchedule(state),
     tavernSchedule: getVenueSchedule(state, 'tavern'),
     hotelSchedule: getVenueSchedule(state, 'hotel'),
@@ -132,10 +161,6 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.paused = prep.paused;
   world.speed = prep.speed;
 
-  // Swap arrays by reference — safe because extractSimPrep already cloned them.
-  // The old .length=0 + .push(...) pattern was dangerous: if prep.entities
-  // accidentally referenced the same array as world.entities, the array would
-  // wipe itself empty. Direct assignment avoids that foot-gun entirely.
   world.entities = prep.entities;
   world.buildings = prep.buildings;
 
@@ -144,6 +169,15 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.humanPopulation = prep.humanPopulation;
   world.maxHumanPopulation = prep.maxHumanPopulation;
   world.wildlifeCounts = prep.wildlifeCounts;
+  world.ecosystemHealth = prep.ecosystemHealth;
+  world.pollutionLevel = prep.pollutionLevel;
+  world.biodiversityIndex = prep.biodiversityIndex;
+  world.valleyStage = prep.valleyStage;
+  world.valleyStageSinceDay = prep.valleyStageSinceDay;
+  world.valleyRawStressStreakDays = prep.valleyRawStressStreakDays;
+  world.valleyRawCalmStreakDays = prep.valleyRawCalmStreakDays;
+  world.valleyLastStageNotifyDay = prep.valleyLastStageNotifyDay;
+
   world.researchNodes = prep.researchNodes;
   world.activeResearch = prep.activeResearch;
   world.researchProgress = prep.researchProgress;
@@ -157,6 +191,7 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.pendingOutgoingRaidEvents = prep.pendingOutgoingRaidEvents;
   world.pendingDiplomacyEvents = prep.pendingDiplomacyEvents;
   world.tradeRoutes = prep.tradeRoutes;
+  world.disasters = prep.disasters;
   world.villageForge = prep.villageForge;
   world.challenges = prep.challenges;
   world.festival = prep.festival;
@@ -168,12 +203,23 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.electionBuildupNotifiedYear = prep.electionBuildupNotifiedYear;
   world.electionCeremony = prep.electionCeremony;
   world.eventLog = prep.eventLog;
+  world.eventsThisYear = prep.eventsThisYear;
+  world.lastEventYear = prep.lastEventYear;
+  world.bountifulHarvest = prep.bountifulHarvest;
+  world.firstWeekVisitorSpawned = prep.firstWeekVisitorSpawned;
   world.nextEntityId = prep.nextEntityId;
   world.nextBuildingId = prep.nextBuildingId;
   world.nextFloatingTextId = prep.nextFloatingTextId;
   world.totalBuildingsCompleted = prep.totalBuildingsCompleted;
   world.ecoHealthYearsAbove80 = prep.ecoHealthYearsAbove80;
   world.villageReputation = prep.villageReputation;
+  world.renffrOmen = prep.renffrOmen;
+  world.renffrChatterUntilTick = prep.renffrChatterUntilTick;
+  world.lastProcessedCalendarDay = prep.lastProcessedCalendarDay;
+  world.lastWildlifeReplenishLogDay = prep.lastWildlifeReplenishLogDay;
+  world.storyFlags = prep.storyFlags;
+  world.pendingStoryEvents = prep.pendingStoryEvents;
+  world.guidedCampaign = prep.guidedCampaign;
   world.workSchedule = prep.workSchedule;
   world.tavernSchedule = prep.tavernSchedule;
   world.hotelSchedule = prep.hotelSchedule;

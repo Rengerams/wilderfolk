@@ -1,6 +1,7 @@
 import chaosDialogueJson from './data/chaos.json';
 import environmentDialogueJson from './data/environment.json';
 import existentialDialogueJson from './data/existential.json';
+import famineDialogueJson from './data/famine.json';
 import festivalDialogueJson from './data/festival.json';
 import needsDialogueJson from './data/needs.json';
 import socialDialogueJson from './data/social.json';
@@ -16,9 +17,12 @@ export const DIALOGUE_CATEGORIES = [
   'chaos',
   'environment',
   'festival',
+  'famine',
 ] as const;
 
 export type DialogueCategory = (typeof DIALOGUE_CATEGORIES)[number];
+
+export type ConversationType = 'one_way' | 'two_way';
 
 export interface DialogueLine {
   speaker: string;
@@ -28,7 +32,8 @@ export interface DialogueLine {
 export interface DialogueTree {
   id: string;
   category: DialogueCategory;
-  speakers: readonly [string, string];
+  conversation_type?: ConversationType;
+  speakers: readonly string[];
   lines: readonly DialogueLine[];
 }
 
@@ -48,6 +53,7 @@ const DIALOGUE_SOURCE_FILES: readonly DialogueSourceFile[] = [
   chaosDialogueJson as unknown as DialogueSourceFile,
   environmentDialogueJson as unknown as DialogueSourceFile,
   existentialDialogueJson as unknown as DialogueSourceFile,
+  famineDialogueJson as unknown as DialogueSourceFile,
   festivalDialogueJson as unknown as DialogueSourceFile,
   needsDialogueJson as unknown as DialogueSourceFile,
   socialDialogueJson as unknown as DialogueSourceFile,
@@ -58,6 +64,7 @@ const DIALOGUE_SOURCE_FILE_NAMES = [
   'chaos.json',
   'environment.json',
   'existential.json',
+  'famine.json',
   'festival.json',
   'needs.json',
   'social.json',
@@ -84,8 +91,8 @@ function buildCanonicalDialogueBank(sources: readonly DialogueSourceFile[]): Dia
         throw new Error(`[dialogue] Duplicate dialogue tree id: ${tree.id}`);
       }
       
-      // Structural guard against malformed JSON records
-      if (!tree.lines || !Array.isArray(tree.lines) || tree.lines.length === 0 || !tree.speakers || tree.speakers.length !== 2) {
+      // Structural guard supporting both 1-speaker monologues and 2-speaker dialogues
+      if (!tree.lines || !Array.isArray(tree.lines) || tree.lines.length === 0 || !tree.speakers || tree.speakers.length === 0) {
         console.warn(`[dialogue] Skipping malformed tree: ${tree.id}`);
         continue;
       }
@@ -96,7 +103,7 @@ function buildCanonicalDialogueBank(sources: readonly DialogueSourceFile[]): Dia
   }
 
   return {
-    version: 'split-1.1',
+    version: 'split-1.2',
     dialogue_trees,
     categories: [...DIALOGUE_CATEGORIES],
   };
@@ -171,7 +178,7 @@ export function installDialogueBankPayload(payload: DialogueBankFile): void {
   indexDialogueBank(payload);
 }
 
-/** Load the canonical split dialogue bank on demand. (No-op in browsers due to bundle). */
+/** Load the canonical split dialogue bank on demand. */
 export async function preloadDialogueBank(): Promise<void> {
   if (isDialogueBankReady()) return;
   if (await loadDialogueFromDisk()) return;
@@ -215,7 +222,7 @@ const CONTEXT_CATEGORY: Partial<Record<string, DialogueCategory | DialogueCatego
   hunt: 'work',
   home: 'needs',
   sleep: 'needs',
-  food: 'needs',
+  food: ['famine', 'needs'],
   pregnant: 'needs',
   child: 'social',
   social: 'social',
@@ -236,6 +243,7 @@ export type DialoguePickHints = {
   weather?: WeatherType;
   festivalActive?: boolean;
   foodLow?: boolean;
+  solo?: boolean;
 };
 
 export function resolveDialogueCategories(
@@ -248,9 +256,12 @@ export function resolveDialogueCategories(
   const out = new Set<DialogueCategory>(base);
   
   if (hints?.festivalActive) out.add('festival');
-  if (hints?.foodLow) out.add('needs');
+  if (hints?.foodLow) {
+    out.add('famine');
+    out.add('needs');
+  }
   
-  // All weather patterns (rain, snow, storm, fog, drought) route to environment
+  // All weather variations route to environment
   if (hints?.season === 'winter' || (hints?.weather && hints.weather !== 'clear')) {
     out.add('environment');
   }
@@ -280,9 +291,17 @@ export function pickDialogueTree(
     }
   }
   
-  const usePool = pool.length > 0 ? pool : [...trees];
+  let usePool = pool.length > 0 ? pool : [...trees];
 
-  // MurmurHash3 integer mix: Eliminates the modulo-13 and modulo-N harmonic resonance
+  // If chatting in a pair, prioritize interactive two-way conversations
+  if (hints?.solo === false) {
+    const twoWayOnly = usePool.filter((t) => t.conversation_type !== 'one_way' && t.speakers.length > 1);
+    if (twoWayOnly.length > 0) {
+      usePool = twoWayOnly;
+    }
+  }
+
+  // MurmurHash3 mix: Eliminates the modulo harmonic resonance
   let h = (entityId * 31337) ^ tick;
   h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
@@ -308,6 +327,7 @@ export function getDialogueTreeById(id: string): DialogueTree | undefined {
 }
 
 export function speakerRoleIndex(tree: DialogueTree, line: DialogueLine): 0 | 1 {
+  if (tree.speakers.length < 2) return 0;
   return line.speaker === tree.speakers[0] ? 0 : 1;
 }
 

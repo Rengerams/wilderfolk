@@ -19,7 +19,7 @@ import {
 
 export interface WorkerTickRender {
   reader: RenderSoAReaderV1;
-  metaBySlot: EntityRenderMeta[];
+  metaBySlot?: EntityRenderMeta[];
   scentReader: ScentGridReader | null;
 }
 
@@ -117,18 +117,17 @@ export class GameWorkerHost {
 
       const onError = (event: ErrorEvent) => {
         if (initGen !== this.generation) return;
-        const err = new Error(`Worker error: ${event.message ?? 'unknown error'}`);
-        // Worker script failed to load/execute (dev chunk error, top-level throw).
-        // Without this listener the readyPromise would hang until the 15s timeout,
-        // during which GameLoop holds ALL sim ticks (workerBooting) — a full freeze.
+        // 🛡️ Bug #4 Fix: Include filename, line, and column numbers for diagnostics
+        const location = event.filename ? ` @ ${event.filename}:${event.lineno ?? 0}:${event.colno ?? 0}` : '';
+        const errorMessage = `${event.message || 'unknown script error'}${location}`;
+        const err = new Error(`Worker error: ${errorMessage}`);
+
         if (!settled) {
           settled = true;
           globalThis.clearTimeout(timeout);
-          reject(new Error(`Worker failed to start: ${event.message ?? 'unknown error'}`));
+          reject(new Error(`Worker failed to start: ${errorMessage}`));
           return;
         }
-        // Errors after readiness otherwise leave an in-flight command hanging
-        // forever because no commandResult can arrive.
         this.rejectInFlight(err);
         this.onWorkerFault?.('general', err.message);
       };
@@ -186,6 +185,8 @@ export class GameWorkerHost {
       this.worker!.addEventListener('error', onError);
     });
 
+    // 🛡️ Bug #1 Fix: Strip class runtime caches before sending world across boundary
+    invalidateWorldRuntimeCaches(this.worldRef);
     const init: WorkerRequest = {
       type: 'init',
       proto: WORKER_PROTO,
@@ -202,8 +203,6 @@ export class GameWorkerHost {
 
   dispose(): void {
     this.generation++;
-    // Drop the display buffer locally — do not post returnBuffer to a worker we terminate
-    // immediately after (transfer would detach the buffer on main before the worker runs).
     this.heldRenderBuffer = null;
     if (this.worker) {
       this.worker.terminate();
@@ -232,7 +231,6 @@ export class GameWorkerHost {
     return this.ready && this.worker != null;
   }
 
-  /** Worker-mutated world shadow — main thread must re-bind after commands/ticks. */
   getAuthoritativeWorld(): WorldState | null {
     return this.worldRef;
   }
@@ -291,13 +289,11 @@ export class GameWorkerHost {
     this.heldRenderBuffer = null;
   }
 
-  /** Full world upload — legacy fallback when worker is off; otherwise queued after idle. */
   syncWorld(world: WorldState): Promise<void> {
     this.worldRef = hydrateWorldRuntimeCaches(world);
     return this.queueFullWorldUpload(this.worldRef, 'syncWorld');
   }
 
-  /** Load / new-game round-trip (Rule 10). */
   importSave(world: WorldState): Promise<void> {
     this.worldRef = hydrateWorldRuntimeCaches(world);
     this.lastPausedSent = world.paused;
@@ -316,6 +312,9 @@ export class GameWorkerHost {
         this.releaseHeldRenderBuffer();
         const worker = this.worker;
         if (!worker) return;
+
+        // 🛡️ Bug #1 Fix: Strip non-clonable runtime caches before upload
+        invalidateWorldRuntimeCaches(world);
         const msg: WorkerRequest = kind === 'importSave'
           ? { type: 'importSave', proto: WORKER_PROTO, world }
           : { type: 'syncWorld', proto: WORKER_PROTO, world };
@@ -429,7 +428,6 @@ export class GameWorkerHost {
     this.worker.postMessage(returnMsg, [buffer]);
   }
 
-  /** Swap in a new display buffer; returns the previous one to the worker pool. */
   private adoptRenderBuffer(bufferIndex: number, buffer: ArrayBuffer): void {
     if (this.heldRenderBuffer) {
       this.returnRenderBuffer(this.heldRenderBuffer.index, this.heldRenderBuffer.buffer);
@@ -447,7 +445,8 @@ export class GameWorkerHost {
     const scentReader = scentBuffer ? ScentGridReader.tryCreate(scentBuffer) : null;
     return {
       reader,
-      metaBySlot: delta.renderMetaBySlot ?? [],
+      // 🛡️ Bug #2 & #3 Fix: Preserve undefined so reference checks in entityCache don't fail
+      metaBySlot: delta.renderMetaBySlot,
       scentReader,
     };
   }
@@ -488,8 +487,6 @@ export class GameWorkerHost {
     if (msg.type === 'commandResult' && this.worldRef) {
       const delta = msg.delta as SimTickDelta;
       if (msg.ok === false) {
-        // A failed command still carries the worker's authoritative rollback
-        // delta. Reconcile it before the display is reverted.
         applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
         invalidateWorldRuntimeCaches(this.worldRef);
         this.onCommandResult?.(this.worldRef, delta, null, false, msg.reason);
@@ -548,7 +545,6 @@ export class GameWorkerHost {
   }
 }
 
-/** Sim worker is default-on — opt OUT via `VITE_USE_GAME_WORKER=0` (slow 10× ticks stop freezing the UI). */
 export function isGameWorkerEnabled(): boolean {
   if (typeof Worker === 'undefined') return false;
   const v = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_USE_GAME_WORKER : undefined;
@@ -560,5 +556,3 @@ export function isGameWorkerEnabled(): boolean {
   }
   return true;
 }
-
-

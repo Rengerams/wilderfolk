@@ -75,10 +75,8 @@ if (!isMainThread && parentPort) {
 
   async function bootstrapWorker(): Promise<void> {
     try {
-      // gameWorker.ts installs the canonical bundled dialogue bank synchronously.
-      // Avoid the disk preload here: it adds variable startup I/O to the Node
-      // transport adapter without changing the authoritative worker state.
-      await import('../gameLoop');
+      // 🚀 Correctly boot the worker simulation script (not gameLoop)
+      await import('./gameWorker');
       workerLoaded = true;
       for (const data of queuedMessages.splice(0)) deliverMessage(data);
     } catch (err) {

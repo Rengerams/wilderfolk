@@ -1,7 +1,8 @@
-/// <reference lib="es2022" />
-import type { WorldState } from '../gameTypes';
-import { BuildingType, HUNTING_SPOT_PREY_OPTIONS } from '../gameTypes';
-import type { HuntingSpotPrey, ForgeOrderId } from '../gameTypes';
+
+import type { WorldState, ForgeOrderId } from '../gameTypes';
+import { BuildingType } from '../gameTypes';
+import type { HuntingSpotPrey } from '../gameTypes';
+import { isValidHuntingSpotPrey } from '../huntingSpots';
 import type { BuildingRotation } from '../buildingRotation';
 import type { StripSegment } from '../stripBuild';
 import {
@@ -141,6 +142,11 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'setVenueSchedule',
 ]);
 
+// 🛡️ Compile-time exhaustiveness check: Throws a TypeScript build error if any WorkerCommand['op'] is missing from the Set
+type MissingOps = Exclude<WorkerCommand['op'], typeof WORKER_COMMAND_OPS extends Set<infer T> ? T : never>;
+const _EXHAUSTIVE_OPS_CHECK: MissingOps extends never ? true : false = true;
+void _EXHAUSTIVE_OPS_CHECK;
+
 const BUILDING_TYPE_VALUES = new Set<string>(Object.values(BuildingType));
 const FORGE_ORDER_IDS = new Set<string>(FORGE_ORDERS.map((o) => o.id));
 const VISITOR_TRADE_ACTIONS = new Set<string>(Object.keys(VISITOR_TRADE_COSTS));
@@ -194,7 +200,7 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
     case 'setWorkshopRecipe':
       return isFiniteNumber(cmd.buildingId) && isNonEmptyString(cmd.recipeId);
     case 'setHuntingSpotPrey':
-      return isFiniteNumber(cmd.buildingId) && typeof cmd.prey === 'string' && HUNTING_SPOT_PREY_OPTIONS.some((o) => o.id === cmd.prey);
+      return isFiniteNumber(cmd.buildingId) && isValidHuntingSpotPrey(cmd.prey);
     case 'setMineMode':
       return isFiniteNumber(cmd.buildingId) && (cmd.mode === 'stone' || cmd.mode === 'iron');
     case 'setBuildingStaffingMode':

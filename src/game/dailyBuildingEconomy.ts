@@ -22,7 +22,6 @@ import {
 } from './economy';
 import { logEvent } from './eventLog';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
-import { getLumberMillTreeMultiplier } from './treeProximity';
 import { isProductionTick, PRODUCTION_INTERVAL, TICKS_PER_DAY } from './dayCycle';
 import type { TickContext } from './simulation/simulationTypes';
 import {
@@ -526,11 +525,15 @@ function tickBuildingProduction(
     }
 
     // --- Lumber Mill ---
-    if (staffed && building.type === BuildingType.LumberMill && isProductionTick(state.tick, PRODUCTION_INTERVAL.lumber)) {
+   if (
+      building.completed &&
+      staffed &&
+      building.type === BuildingType.LumberMill &&
+      isProductionTick(state.tick, PRODUCTION_INTERVAL.lumber)
+    ) {
       const lumberMult = getMultiplier(state, 'lumber_yield');
-      const treeMult = getLumberMillTreeMultiplier(building, byType[EntityType.Tree] ?? []);
       const amount = Math.floor(
-        (12 + workers * 4) * totalMult * smithBonus * lumberMult * treeMult * globalEff,
+        (12 + workers * 4) * totalMult * smithBonus * lumberMult * globalEff,
       );
       if (addResource(state, 'wood', amount) > 0) {
         rewardProductionSkills(state, building, 0.2, entityById);

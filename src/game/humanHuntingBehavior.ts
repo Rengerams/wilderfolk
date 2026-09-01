@@ -3,14 +3,12 @@ import type { TickContext } from './simulation/simulationTypes';
 import { EntityType, JobType } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getHumanHuntRange } from './combat';
-import { addResource } from './economy';
 import { addFloatingText, createDeathParticles, impulseScreenShake } from './simEffects';
 import { addHuntVisual } from './huntvisuals';
 import { traitMultiplier } from './settlerTraits';
 import { valleyStageIndex } from './ecologyStage';
 import { personDayRoll } from './dayCycle';
-import { sayHumanChatPhrase } from './humanChat';
-import { freeHuntFoodGain } from './simulation/humanNeeds';
+import { startHumanChat } from './humanChat';
 import { tryTickBlueberryForaging } from './blueberryForaging';
 import {
   clearHuntersTargetingPrey,
@@ -21,17 +19,21 @@ import {
 import { findClosestInEntityGrid } from './simQueries';
 import { isPlayerHuman } from './playerHuman';
 
-const NORMAL_PREY_TYPES: ReadonlySet<EntityType> = new Set<EntityType>([
-  EntityType.Deer,
-  EntityType.Rabbit,
-]);
-
-const FAMINE_PREY_TYPES: ReadonlySet<EntityType> = new Set<EntityType>([
+/** All wildlife species that can be hunted for food when hunger strikes. */
+const HUNTABLE_PREY_TYPES: ReadonlySet<EntityType> = new Set<EntityType>([
   EntityType.Deer,
   EntityType.Rabbit,
   EntityType.Fox,
   EntityType.Wolf,
 ]);
+
+/** Energy restored to a starving settler eating their wild catch on the spot. */
+const WILD_HUNT_ENERGY: Partial<Record<EntityType, number>> = {
+  [EntityType.Deer]: 400,  // 🦌 Huge venison feast
+  [EntityType.Wolf]: 280,  // 🐺 Large predator meat
+  [EntityType.Fox]: 180,   // 🦊 Medium game meal
+  [EntityType.Rabbit]: 90, // 🐰 Quick snack
+};
 
 export function tickHumanHunting(
   state: WorldState,
@@ -42,24 +44,18 @@ export function tickHumanHunting(
   onSchedule: boolean,
   ateMeal: boolean,
   festivalGathering: boolean,
-  byType: Record<EntityType, Entity[]>,
+  byType: Partial<Record<EntityType, Entity[]>>,
   mobileGrid: TickContext['mobileGrid'],
   entityById: Map<number, Entity>,
   suppressIdleInitial: boolean,
 ): boolean {
   let suppressIdle = suppressIdleInitial;
 
-  // Free-roam hunting — player settlers only (visitors/rivals do not farm the valley).
   const isJobHunter = entity.job === JobType.Hunter;
-
-  // Famine overrides: with no food in stores a hungry settler hunts whatever
-  // nature offers, even off-schedule — hunger wins over the daily routine.
   const famine = state.resources.food <= 0;
-  const freeHuntHungry = isJobHunter
-    ? entity.energy < entity.maxEnergy * 0.85
-    : famine
-      ? entity.energy < entity.maxEnergy * 0.6
-      : entity.energy < entity.maxEnergy * 0.38;
+
+  // All settlers (adults and children) hunt when hungry (<40% energy or during famine)
+  const freeHuntHungry = entity.energy < entity.maxEnergy * 0.4 || famine;
 
   const blueberryForaging =
     !isJobHunter &&
@@ -77,24 +73,19 @@ export function tickHumanHunting(
     (allowFreeRoam || famine) &&
     isPlayerHuman(entity) &&
     !ateMeal &&
-    !entity.isJuvenile &&
     freeHuntHungry
   ) {
-    const preyTypes = famine ? FAMINE_PREY_TYPES : NORMAL_PREY_TYPES;
-
-    // Assigned hunters range farther; everyone else is opportunistic
+    // Professional hunters have longer range; children and untrained settlers have standard range
     const huntRange = getHumanHuntRange(
       state,
       config.huntRange * (isJobHunter ? 1.2 : 0.75) * traitMultiplier(entity, 'brave', 1.25),
     );
 
-    const preyFallback = famine
-      ? (byType[EntityType.Deer] ?? []).concat(
-          byType[EntityType.Rabbit] ?? [],
-          byType[EntityType.Fox] ?? [],
-          byType[EntityType.Wolf] ?? [],
-        )
-      : (byType[EntityType.Deer] ?? []).concat(byType[EntityType.Rabbit] ?? []);
+    const preyFallback = (byType[EntityType.Deer] ?? []).concat(
+      byType[EntityType.Rabbit] ?? [],
+      byType[EntityType.Fox] ?? [],
+      byType[EntityType.Wolf] ?? [],
+    );
 
     let closestPrey: Entity | null = null;
     let closestDist = Infinity;
@@ -104,7 +95,7 @@ export function tickHumanHunting(
       entity.x,
       entity.y,
       huntRange,
-      (prey) => preyTypes.has(prey.type) && isValidHuntPrey(prey, prey.type, entity.id),
+      (prey) => HUNTABLE_PREY_TYPES.has(prey.type) && isValidHuntPrey(prey, prey.type, entity.id),
       'hunt',
       preyFallback,
     );
@@ -114,6 +105,7 @@ export function tickHumanHunting(
       closestDist = Math.sqrt(huntHit.distSq);
     }
 
+    // --- Catch and harvest the prey in the wild ---
     if (closestPrey?.alive && closestDist < config.size + closestPrey.size) {
       const preyId = closestPrey.id;
       markWildlifeDead(ctx, closestPrey);
@@ -121,7 +113,7 @@ export function tickHumanHunting(
       createDeathParticles(state, closestPrey.x, closestPrey.y, '#8a2a2a', 10);
       syncEntityGrids(ctx, closestPrey);
 
-      // Arrow flight FX for free-roam hunting
+      // Arrow/slingshot flight FX
       addHuntVisual(state, {
         id: `freehunt_${state.tick}_${entity.id}_${preyId}`,
         hunterId: entity.id,
@@ -136,57 +128,59 @@ export function tickHumanHunting(
         foughtBack: false,
       });
 
-      const energyBite =
+      // ⚡ Restores personal stamina on the spot
+      const energyGain =
         config.energyGain[closestPrey.type] ??
-        (closestPrey.type === EntityType.Deer ? 350 : 150);
-      entity.energy = Math.min(entity.maxEnergy, entity.energy + energyBite);
+        WILD_HUNT_ENERGY[closestPrey.type] ??
+        100;
+
+      entity.energy = Math.min(entity.maxEnergy, entity.energy + energyGain);
       entity.flash = 10;
       entity.combatTicks = 16;
       entity.huntTargetId = undefined;
 
-      const foodGain = freeHuntFoodGain(closestPrey.type, state);
-      addResource(state, 'food', foodGain);
-
       const preyLabel =
         closestPrey.type === EntityType.Deer
           ? 'Deer'
-          : closestPrey.type === EntityType.Fox
-            ? 'Fox'
-            : closestPrey.type === EntityType.Wolf
-              ? 'Wolf'
+          : closestPrey.type === EntityType.Wolf
+            ? 'Wolf'
+            : closestPrey.type === EntityType.Fox
+              ? 'Fox'
               : 'Rabbit';
 
       addFloatingText(
         state,
-        closestPrey.x,
-        closestPrey.y - 14,
-        `Hunted ${preyLabel}! +${foodGain}`,
-        '#f97316',
+        entity.x,
+        entity.y - 14,
+        `Eaten ${preyLabel}! +${energyGain} ⚡`,
+        '#22c55e',
       );
 
       entity.vx = 0;
       entity.vy = 0;
-      impulseScreenShake(state, 2);
+      impulseScreenShake(state, 1.5);
     } else if (closestPrey?.alive) {
+      // --- Pursue target on foot ---
       entity.huntTargetId = closestPrey.id;
       const dx = closestPrey.x - entity.x;
       const dy = closestPrey.y - entity.y;
       const dist = Math.hypot(dx, dy) || 1.0;
 
-      // Hunters pursue faster; casual foragers jog; brave settlers push harder
       const chaseMult = (isJobHunter ? 0.72 : 0.5) * traitMultiplier(entity, 'brave', 1.2);
       entity.vx = (dx / dist) * config.speed * chaseMult;
       entity.vy = (dy / dist) * config.speed * chaseMult;
       entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
       suppressIdle = true;
 
-      // Strained+ valley: occasional chatter so yield dips don't read as pure RNG
+      // Strained valley environmental chatter
       if (
         valleyStageIndex(state.valleyStage ?? 'stable') >= 1 &&
         isJobHunter &&
         personDayRoll(entity.id, state.tick, 811) < 0.012
       ) {
-        sayHumanChatPhrase(entity, "Game's getting scarce…", 48);
+        startHumanChat(entity, famine ? 'food' : 'hunt', entity.id, state.tick, 48, {
+          foodLow: famine,
+        });
       }
     } else {
       entity.huntTargetId = undefined;
@@ -195,14 +189,15 @@ export function tickHumanHunting(
         isJobHunter &&
         personDayRoll(entity.id, state.tick, 812) < 0.02
       ) {
-        sayHumanChatPhrase(entity, 'Thin trails today…', 40);
+        startHumanChat(entity, famine ? 'food' : 'hunt', entity.id, state.tick, 40, {
+          foodLow: famine,
+        });
       }
     }
   } else if (
     !allowFreeRoam ||
     ateMeal ||
     !isPlayerHuman(entity) ||
-    entity.isJuvenile ||
     !freeHuntHungry
   ) {
     entity.huntTargetId = undefined;
