@@ -109,6 +109,42 @@ export function findHuntingTarget(
 }
 
 /** Processes a hunting shift: settler aims arrow, rolls combat/harvest, and handles wolf danger. */
+
+export function findBestPrey(
+  byType: Record<EntityType, Entity[]>,
+  bx: number,
+  by: number,
+  searchRadius: number,
+  preyTarget: HuntingSpotPrey,
+  extraPredatorPenalty: number = 120,
+): Entity | null {
+  const targetTypes: EntityType[] = [];
+  if (preyTarget === 'auto' || preyTarget === 'deer') targetTypes.push(EntityTypeEnum.Deer);
+  if (preyTarget === 'auto' || preyTarget === 'rabbit') targetTypes.push(EntityTypeEnum.Rabbit);
+  if (preyTarget === 'auto' || preyTarget === 'wolf') targetTypes.push(EntityTypeEnum.Wolf);
+  if (preyTarget === 'auto' || preyTarget === 'fox') targetTypes.push(EntityTypeEnum.Fox);
+
+  let bestTarget: Entity | null = null;
+  let bestScore = Infinity;
+
+  for (let t = 0; t < targetTypes.length; t++) {
+    const pool = byType[targetTypes[t]] ?? [];
+    for (let p = 0; p < pool.length; p++) {
+      const e = pool[p];
+      if (!e.alive || e.tamedBy != null) continue;
+      const dist = Math.hypot(e.x - bx, e.y - by);
+      if (dist >= searchRadius) continue;
+      const isPredator = e.type === EntityTypeEnum.Wolf || e.type === EntityTypeEnum.Fox;
+      const score = isPredator ? dist + extraPredatorPenalty : dist;
+      if (score < bestScore) {
+        bestScore = score;
+        bestTarget = e;
+      }
+    }
+  }
+
+  return bestTarget;
+}
 export function tickHuntingSpotProduction(
   state: WorldState,
   ctx: TickContext,

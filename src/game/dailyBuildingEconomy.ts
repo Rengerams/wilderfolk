@@ -51,6 +51,7 @@ import {
   getWorkerSkillMultiplier,
 } from './skills';
 import { assignMissingWorkers, getSmithBonus } from './workforce';
+import { findHuntingTarget } from './huntingSpots';
 import { isPlayerHuman } from './playerHuman';
 import { tickHospitalDailyCare } from './hospitalCare';
 import { getScheduleProductivityMultiplier } from './scheduleFatigue';
@@ -266,8 +267,6 @@ export function tickDailyBuildingEconomy(
   tickBuildingProduction(state, ctx, allAlive);
 }
 
-/** Finds the optimal target within range for hunting spots. */
-function findHuntingTarget(
   building: Building,
   byType: Record<EntityType, Entity[]>,
   searchRadius: number,
