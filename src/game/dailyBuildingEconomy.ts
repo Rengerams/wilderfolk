@@ -267,39 +267,6 @@ export function tickDailyBuildingEconomy(
   tickBuildingProduction(state, ctx, allAlive);
 }
 
-  building: Building,
-  byType: Record<EntityType, Entity[]>,
-  searchRadius: number,
-): Entity | null {
-  const bx = building.x + building.width / 2;
-  const by = building.y + building.height / 2;
-  const preyTarget = building.huntingSpotPrey ?? 'auto';
-
-  const targetTypes: EntityType[] = [];
-  if (preyTarget === 'auto' || preyTarget === 'deer') targetTypes.push(EntityType.Deer);
-  if (preyTarget === 'auto' || preyTarget === 'rabbit') targetTypes.push(EntityType.Rabbit);
-  if (preyTarget === 'auto' || preyTarget === 'wolf') targetTypes.push(EntityType.Wolf);
-
-  let bestTarget: Entity | null = null;
-  let bestScore = Infinity;
-
-  for (let t = 0; t < targetTypes.length; t++) {
-    const pool = byType[targetTypes[t]] ?? [];
-    for (let p = 0; p < pool.length; p++) {
-      const e = pool[p];
-      if (!e.alive || e.tamedBy != null) continue;
-      const dist = Math.hypot(e.x - bx, e.y - by);
-      if (dist >= searchRadius) continue;
-      const score = e.type === EntityType.Wolf ? dist + 160 : dist;
-      if (score < bestScore) {
-        bestScore = score;
-        bestTarget = e;
-      }
-    }
-  }
-
-  return bestTarget;
-}
 
 function tickBuildingProduction(
   state: WorldState,
