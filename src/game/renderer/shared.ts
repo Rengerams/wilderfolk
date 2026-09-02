@@ -116,7 +116,7 @@ export function getCachedNameWidth(
   return tw;
 }
 
-export function clearNameWidthCache(): void {
+function clearNameWidthCache(): void {
   _nameWidthCache.clear();
 }
 

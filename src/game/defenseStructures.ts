@@ -41,7 +41,7 @@ const WALL_TYPES = new Set<BuildingType>([
   BuildingType.WallGate,
 ]);
 
-export function isWallBuildingType(type: BuildingType): boolean {
+function isWallBuildingType(type: BuildingType): boolean {
   return WALL_TYPES.has(type);
 }
 
@@ -114,7 +114,7 @@ export function getBarracksGuardCount(state: WorldState, buildings: Building[]):
  * Removes dead / missing occupants from barracks. Call this during tick
  * or load — NOT inside a getter.
  */
-export function pruneDeadBarracksOccupants(state: WorldState, buildings: Building[]): void {
+function pruneDeadBarracksOccupants(state: WorldState, buildings: Building[]): void {
   if (!state?.entities || !buildings?.length) return;
 
   const entityById = ensureEntityByIdMap(state);
@@ -148,7 +148,7 @@ export function getBarracksGuardBonus(state: WorldState, buildings: Building[]):
   return guards * perGuard;
 }
 
-export function getDefenseStructureBreakdown(state: WorldState, buildings: Building[]): string[] {
+function getDefenseStructureBreakdown(state: WorldState, buildings: Building[]): string[] {
   const lines: string[] = [];
   const walls = countCompletedDefenseBuildings(buildings, [
     BuildingType.Wall,

@@ -3,7 +3,7 @@ import { BuildingType, Season } from './gameTypes';
 import { addCappedResource } from './resourceUtils';
 import { addFloatingText } from './simEffects';
 
-export function updateStorageCaps(state: WorldState) {
+function updateStorageCaps(state: WorldState) {
   const barns = state.buildings.filter(b => b.completed && b.type === BuildingType.Barn).length;
   const silos = state.buildings.filter(b => b.completed && b.type === BuildingType.Silo).length;
   const storehouses = state.buildings.filter(b => b.completed && b.type === BuildingType.WoodStorehouse).length;

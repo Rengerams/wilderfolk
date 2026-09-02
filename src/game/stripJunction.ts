@@ -77,7 +77,7 @@ export function cornerRotationFromConnections(c: JunctionConnections): CornerRot
   return 0;
 }
 
-export function straightRotationFromConnections(c: JunctionConnections): BuildingRotation {
+function straightRotationFromConnections(c: JunctionConnections): BuildingRotation {
   if (c.east || c.west) return 0;
   if (c.north || c.south) return 90;
   return 0;
@@ -239,7 +239,7 @@ export function detectBuildingJunction(
   return analyzeStripJunction(building.x, building.y, hList, vList, along);
 }
 
-export function findStripBuildingNear(
+function findStripBuildingNear(
   buildings: Building[],
   x: number,
   y: number,

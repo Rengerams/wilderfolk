@@ -177,7 +177,7 @@ export interface SimTickDelta {
   guidedCampaign: WorldState['guidedCampaign'];
 }
 
-export function simTickDeltaFromWorld(world: WorldState, aliveBefore?: Set<number>): SimTickDelta {
+function simTickDeltaFromWorld(world: WorldState, aliveBefore?: Set<number>): SimTickDelta {
   const alive = world.entities.filter((e) => e.alive);
   const before = aliveBefore ?? new Set(alive.map((e) => e.id));
   return extractSimTickDelta(world, before, alive);

@@ -35,7 +35,7 @@ export type WorkerCommandEnvelope = {
 };
 
 /** Opaque simulation‑prep – concrete shape lives in `simPrep.ts`. */
-export type SimPrepPayload = unknown;
+type SimPrepPayload = unknown;
 
 /** Opaque tick‑delta – concrete shape lives in `simBuffers/simDelta.ts`. */
 export type SimTickDeltaPayload = unknown;

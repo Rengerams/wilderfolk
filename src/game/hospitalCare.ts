@@ -10,7 +10,7 @@ import { sayHumanChatPhrase } from './humanChat';
 import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
 
-export function findStaffedHospital(buildings: readonly Building[]): Building | undefined {
+function findStaffedHospital(buildings: readonly Building[]): Building | undefined {
   return buildings.find(
     (b) =>
       b.completed

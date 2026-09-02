@@ -68,7 +68,7 @@ export function appendDeathAge(message: string, entity: Pick<Entity, 'age' | 'is
   return `${message} — ${formatDeathAgeSuffix(entity)}`;
 }
 
-export function findCitizenByQuery(entities: Iterable<Entity>, query: string): Entity | undefined {
+function findCitizenByQuery(entities: Iterable<Entity>, query: string): Entity | undefined {
   const citizenId = parseCitizenIdQuery(query);
   if (citizenId != null) {
     for (const e of entities) {

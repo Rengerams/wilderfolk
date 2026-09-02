@@ -35,7 +35,7 @@ export function normalizeCornerRotation(rotation: unknown): CornerRotation {
   return 0;
 }
 
-export function isCornerRotation(rotation: unknown): rotation is CornerRotation {
+function isCornerRotation(rotation: unknown): rotation is CornerRotation {
   return rotation === 0 || rotation === 90 || rotation === 180 || rotation === 270;
 }
 

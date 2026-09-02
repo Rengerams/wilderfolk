@@ -12,7 +12,7 @@ import type { ForgeOrderId, VillageForgeState } from './gameTypes';
 import { hasCompletedBlacksmith, isForgeOrderComplete } from './forge';
 import { COMBAT_TECH } from './combatTech';
 
-export { COMBAT_TECH } from './combatTech';
+;
 
 export const EMPTY_FORGE: VillageForgeState = {
   activeOrder: null,
@@ -404,7 +404,7 @@ export function getHumanStatusCombatIconFromFlags(
   return null;
 }
 
-export function getHumanStatusCombatIcon(
+function getHumanStatusCombatIcon(
   human: Entity,
   unlockedTechs: readonly string[],
   hasBlacksmith: boolean,

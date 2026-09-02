@@ -48,7 +48,7 @@ export function hydrateWorldRuntimeCaches(world: WorldState): WorldState {
  * Creates a detached, fully hydrated copy of WorldState safe for
  * optimistic UI presentation and immediate inspector lookups.
  */
-export function createOptimisticDisplayWorld(authoritative: WorldState): WorldState {
+function createOptimisticDisplayWorld(authoritative: WorldState): WorldState {
   if (!authoritative) return authoritative;
 
   // Deep clone authoritative game state

@@ -240,12 +240,12 @@ export function inheritSettlerTraits(
 }
 
 /** Returns the descriptive definition for a given trait. */
-export function getTraitDef(trait: SettlerTrait): TraitDef {
+function getTraitDef(trait: SettlerTrait): TraitDef {
   return TRAIT_DEFS[trait];
 }
 
 /** Checks whether a human carries at least one trait. */
-export function hasTraits(entity: Entity): boolean {
+function hasTraits(entity: Entity): boolean {
   return entity.type === EntityType.Human && (entity.traits?.length ?? 0) > 0;
 }
 
@@ -255,6 +255,6 @@ export function traitMultiplier(entity: Entity, trait: SettlerTrait, whenPresent
 }
 
 /** True when the entity carries the given trait. */
-export function hasTrait(entity: Entity, trait: SettlerTrait): boolean {
+function hasTrait(entity: Entity, trait: SettlerTrait): boolean {
   return entity.traits?.includes(trait) ?? false;
 }

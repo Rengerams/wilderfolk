@@ -50,6 +50,6 @@ export function playSettlerDeathSfx() {
 }
 
 /** Failed tame / not enough food (UI feedback). */
-export function playFailSfx() {
+function playFailSfx() {
   playErrorSound();
 }

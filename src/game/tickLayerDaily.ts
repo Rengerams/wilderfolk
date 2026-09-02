@@ -20,7 +20,7 @@ import { seededRandom } from './simRng';
 import { getReproductionMultiplier } from './simHelpers';
 import { getSpeciesConfig } from './speciesConfig';
 
-export { tickGrassDaily } from './dailyGrassEcology';
+;
 
 // ==================== DAILY LAYER ENTRYPOINT ====================
 

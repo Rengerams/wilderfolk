@@ -2,13 +2,13 @@ import { seededRandom } from './simRng';
 import type { StoryEvent, WorldState } from './gameTypes';
 
 // Re-export for story modules that import from storyHelpers
-export { hashSalt, seededRandom } from './simRng';
+;
 
 /**
  * Deterministic seeded roll alias delegating to simRng.
  * Supports both string salts and numeric IDs.
  */
-export function seededRoll(seed: number, salt: string | number): number {
+function seededRoll(seed: number, salt: string | number): number {
   return seededRandom(seed, typeof salt === 'string' ? salt : String(salt));
 }
 

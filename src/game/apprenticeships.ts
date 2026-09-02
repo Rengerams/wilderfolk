@@ -31,7 +31,7 @@ function playerHumans(allAlive: Entity[]): Entity[] {
 }
 
 /** Skill the named entity holds in the given job (0 for none). */
-export function apprenticeSkill(e: Entity | undefined, job: JobType): number {
+function apprenticeSkill(e: Entity | undefined, job: JobType): number {
   return e ? readSkill(e, job) : 0;
 }
 

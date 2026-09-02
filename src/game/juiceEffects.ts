@@ -31,7 +31,7 @@ export const LIGHT_POOL_TYPES = new Set<BuildingType>([
   BuildingType.Church,
 ]);
 
-export function countResidentsInBuilding(buildingId: number, entities: WorldState['entities']): number {
+function countResidentsInBuilding(buildingId: number, entities: WorldState['entities']): number {
   let count = 0;
   for (const e of entities) {
     if (e.alive && isPlayerHuman(e) && e.residenceBuildingId === buildingId) count += 1;

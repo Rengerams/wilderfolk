@@ -26,7 +26,7 @@ export const TRACKS = {
   beastVoiceAlt: audioUrl('audio/ambient/animals/voice-1.wav'),
 } as const;
 
-export type TrackId = keyof typeof TRACKS;
+type TrackId = keyof typeof TRACKS;
 
 export const TRACK_VOLUMES = {
   intro: 0.46,

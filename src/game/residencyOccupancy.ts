@@ -83,7 +83,7 @@ export function countResidentsInBuilding(humans: Entity[], buildingId: number, o
   return humans.filter((h) => h.alive && !h.faction && h.residenceBuildingId === buildingId).length;
 }
 
-export function residenceHasCapacity(residence: Building, humans: Entity[]): boolean {
+function residenceHasCapacity(residence: Building, humans: Entity[]): boolean {
   return countResidentsInBuilding(humans, residence.id) < getResidenceCapacity(residence);
 }
 

@@ -672,17 +672,17 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
 };
 
 /** Retrieves configuration for a given building type. */
-export function getBuildingConfig(type: BuildingType): BuildingConfig {
+function getBuildingConfig(type: BuildingType): BuildingConfig {
   return BUILDING_CONFIGS[type];
 }
 
 /** Determines if a building type is purely decorative. */
-export function isDecorBuilding(type: BuildingType): boolean {
+function isDecorBuilding(type: BuildingType): boolean {
   return Boolean(BUILDING_CONFIGS[type]?.decor);
 }
 
 /** Determines if a building provides permanent resident housing. */
-export function isResidentialBuilding(type: BuildingType): boolean {
+function isResidentialBuilding(type: BuildingType): boolean {
   return (
     type === BuildingType.House ||
     type === BuildingType.Mansion ||
@@ -691,6 +691,6 @@ export function isResidentialBuilding(type: BuildingType): boolean {
 }
 
 /** Determines if only one instance of the building can exist. */
-export function isUniqueBuilding(type: BuildingType): boolean {
+function isUniqueBuilding(type: BuildingType): boolean {
   return Boolean(BUILDING_CONFIGS[type]?.unique);
 }

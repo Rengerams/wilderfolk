@@ -11,25 +11,25 @@
 export {
   buildStripPreview,
   canPlaceBuilding,
-  getPlaceBuildingFailureReason,
-  isFootprintOnBuildableTerrain,
-  isFootprintWithinMapBounds,
+  
+  
+  
   placeStripChain,
   startBuilding,
-  UNBUILDABLE_TERRAIN,
+  
 } from './buildingPlacementActions';
 
 // ---------------------------------------------------------------------------
 // Staffing & Workforce
 // ---------------------------------------------------------------------------
 export {
-  assignBuilderToBuilding,
+  
   autoStaffAllWorkers,
   canAssignWorkerToBuilding,
   fillBuildingWorkers,
-  isOnConstructionCrew,
+  
   listAssignableWorkersForBuilding,
-  pickAdultSettler,
+  
 } from './buildingStaffingActions';
 
 export {
@@ -41,9 +41,9 @@ export {
 // Residency & Housing
 // ---------------------------------------------------------------------------
 export {
-  assignResidentToBuilding,
+  
   moveOutOfFamilyHome,
-  removeResidentFromBuilding,
+  
 } from './buildingResidencyActions';
 
 // ---------------------------------------------------------------------------

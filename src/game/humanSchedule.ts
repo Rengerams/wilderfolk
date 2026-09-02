@@ -21,7 +21,7 @@ export const FESTIVAL_GATHER_END = 22;
 /** Work hours per weekday; daily construction uses this unit. */
 export const WORK_HOURS_PER_DAY = WORK_END - WORK_START;
 
-export function buildWorkHours(buildDays: number): number {
+function buildWorkHours(buildDays: number): number {
   return Math.max(WORK_HOURS_PER_DAY, Math.round(buildDays * WORK_HOURS_PER_DAY));
 }
 
@@ -47,7 +47,7 @@ export function isFestivalGatheringHour(hour: number, festivalActive?: boolean):
   return festivalActive === true && hour >= FESTIVAL_GATHER_START && hour < FESTIVAL_GATHER_END;
 }
 
-export function isOnInnkeeperShift(tick: number, hour?: number, festivalActive?: boolean): boolean {
+function isOnInnkeeperShift(tick: number, hour?: number, festivalActive?: boolean): boolean {
   const currentHour = hour ?? getHourOfDay(tick);
   return isTavernOpen(currentHour, festivalActive);
 }
@@ -85,12 +85,12 @@ export function prefersHomeTonight(entityId: number, tick: number, hour: number)
   return false;
 }
 
-export function isActiveFreeDay(entityId: number, tick: number): boolean {
+function isActiveFreeDay(entityId: number, tick: number): boolean {
   if (isWeekend(tick)) return personDayRoll(entityId, tick, 201) >= 0.30;
   return !prefersHomeTonight(entityId, tick, EVENING_START + 1);
 }
 
-export function formatHour(hour: number): string {
+function formatHour(hour: number): string {
   const normalizedHour = ((hour % 24) + 24) % 24;
   const suffix = normalizedHour < 12 ? 'am' : 'pm';
   const display = normalizedHour % 12 === 0 ? 12 : normalizedHour % 12;

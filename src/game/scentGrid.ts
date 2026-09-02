@@ -294,7 +294,7 @@ export class ScentGridReader {
   }
 }
 
-export function scentSidecarByteLength(cols: number, rows: number): number {
+function scentSidecarByteLength(cols: number, rows: number): number {
   return (SCENT_HEADER_WORDS + cols * rows) * 4;
 }
 

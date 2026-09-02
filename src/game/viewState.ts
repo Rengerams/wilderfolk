@@ -430,7 +430,7 @@ export function clampCameraTarget(
   };
 }
 
-export function moveCameraView(view: ViewState, world: WorldState, dx: number, dy: number): ViewState {
+function moveCameraView(view: ViewState, world: WorldState, dx: number, dy: number): ViewState {
   const cam = { ...view.camera };
   const effectiveZoom = cam.targetZoom ?? cam.zoom;
   cam.targetX += dx / effectiveZoom;
@@ -465,7 +465,7 @@ export function zoomCameraViewAt(
   return { ...view, camera: cam };
 }
 
-export function zoomCameraView(
+function zoomCameraView(
   view: ViewState,
   factor: number,
   canvasW = 800,

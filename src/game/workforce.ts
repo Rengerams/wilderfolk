@@ -117,7 +117,7 @@ export function getChurchStrength(buildings: Building[], humans: Entity[]): numb
   return workers > 0 ? 1 : 0.5;
 }
 
-export function hasStaffedSchool(buildings: Building[]): boolean {
+function hasStaffedSchool(buildings: Building[]): boolean {
   return buildings.some(
     (b) =>
       b.completed &&
@@ -581,7 +581,7 @@ export function assignMissingWorkers(
   staffJobBuildings(alive, buildings, false, venueSchedules);
 }
 
-export function assignAllWorkers(humans: Entity[], buildings: Building[]): void {
+function assignAllWorkers(humans: Entity[], buildings: Building[]): void {
   const alive = prepareWorkforce(humans, buildings);
   staffConstructionCrews(alive, buildings);
   staffJobBuildings(alive, buildings, true, undefined);

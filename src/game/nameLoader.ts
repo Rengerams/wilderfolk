@@ -119,7 +119,7 @@ export function areNamesLoaded(): boolean {
   return loaded && maleNames.length > 20;
 }
 
-export function getNamePoolInfo(): { male: number; female: number; last: number; full: boolean } {
+function getNamePoolInfo(): { male: number; female: number; last: number; full: boolean } {
   ensureNamesLoaded();
   return {
     male: maleNames.length,

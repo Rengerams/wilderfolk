@@ -16,7 +16,7 @@ import {
 
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
 
-export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
+export type {  RaidEvent, RaidLootBundle,  OutgoingRaidRivalResponse } from './gameTypes';
 
 const RAID_RESPONSE_MIN_DAYS = 2;
 const RAID_RESPONSE_MAX_DAYS = 6;
@@ -190,7 +190,7 @@ export function getOutgoingRaidActionLabel(state: WorldState, rivalId: string): 
   };
 }
 
-export function countArmedMilitia(state: WorldState, entities: Entity[]): number {
+function countArmedMilitia(state: WorldState, entities: Entity[]): number {
   const armed = hasIronSpears(state) || hasStoneSpears(state);
   if (!armed) return 0;
   return entities.filter((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile).length;

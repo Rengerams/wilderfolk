@@ -491,7 +491,7 @@ export function tryAmbientRandomDialogue(
   maybeDialogueChat(entity, partner, context, tick, 1, options);
 }
 
-export function maybeHumanChat(
+function maybeHumanChat(
   entity: ChatSpeaker,
   context: HumanChatContext,
   _entityId: number,
@@ -514,7 +514,7 @@ function housemateChatContext(
   return 'home';
 }
 
-export function maybeHousemateChat(
+function maybeHousemateChat(
   entity: ChatSpeaker,
   housemates: ChatSpeaker[],
   tick: number,
@@ -536,7 +536,7 @@ export function maybeHousemateChat(
   maybeDialogueChat(entity, mate, housemateChatContext(entity, mate, options), tick, 1, options);
 }
 
-export function startPairedHumanChat(
+function startPairedHumanChat(
   speaker: ChatSpeaker,
   listener: ChatSpeaker,
   pair: readonly [string, string],
@@ -547,11 +547,11 @@ export function startPairedHumanChat(
   sayHumanChatPhrase(listener, pair[1], legacyDurationTicks);
 }
 
-export function pickCourtshipPair(_entityId: number, _tick: number): readonly [string, string] {
+function pickCourtshipPair(_entityId: number, _tick: number): readonly [string, string] {
   return ['Walk with me?', 'Gladly.'];
 }
 
-export function pickChatPhrase(
+function pickChatPhrase(
   context: HumanChatContext,
   entityId: number,
   tick: number,
@@ -561,7 +561,7 @@ export function pickChatPhrase(
   return tree?.lines[0]?.text ?? '…';
 }
 
-export function truncateChatForBubble(text: string, maxChars = CHAT_BUBBLE_MAX_CHARS_PER_LINE): string {
+function truncateChatForBubble(text: string, maxChars = CHAT_BUBBLE_MAX_CHARS_PER_LINE): string {
   const lines = wrapChatLines(text, maxChars, 1);
   return lines[0] ?? '…';
 }

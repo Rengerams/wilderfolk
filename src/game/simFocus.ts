@@ -32,7 +32,7 @@ export const OFFSCREEN_WILDLIFE_THROTTLE = 8;
 export const WILDLIFE_LAYER_INTERVAL = 4;
 
 /** @deprecated Grass runs once per day in `tickGrassDaily`, not per-tick. */
-export const OFFSCREEN_GRASS_THROTTLE = 4;
+const OFFSCREEN_GRASS_THROTTLE = 4;
 
 function sortEntitiesByY(entities: Entity[]): Entity[] {
   return entities.slice().sort((a, b) => a.y - b.y);
@@ -88,7 +88,7 @@ export function isInFocus(entity: Entity, focus: SimulationFocus): boolean {
 }
 
 /** Typical settlement viewport for headless sims — matches in-game camera throttling. */
-export function createSimFocus(
+function createSimFocus(
   state: Pick<WorldState, 'width' | 'height'>,
   options?: Partial<{ canvasWidth: number; canvasHeight: number; zoom: number }>,
 ): SimulationFocus {

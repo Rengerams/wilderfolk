@@ -86,12 +86,12 @@ export function setRelationshipDiagnosticsEnabled(value: boolean): void {
   enabled = value;
 }
 
-export function isRelationshipDiagnosticsEnabled(): boolean {
+function isRelationshipDiagnosticsEnabled(): boolean {
   return enabled;
 }
 
 /** Enable or suppress console emission without disabling diagnostic collection. */
-export function setRelationshipDiagnosticsConsoleLoggingEnabled(value: boolean): void {
+function setRelationshipDiagnosticsConsoleLoggingEnabled(value: boolean): void {
   consoleLoggingEnabled = value;
 }
 
@@ -143,15 +143,15 @@ export function flushRelationshipDiagnostics(
   return snapshot;
 }
 
-export function getLatestRelationshipDiagnostics(): RelationshipDiagnosticsSnapshot | null {
+function getLatestRelationshipDiagnostics(): RelationshipDiagnosticsSnapshot | null {
   return snapshotHistory[snapshotHistory.length - 1] ?? null;
 }
 
-export function getRelationshipDiagnosticsHistory(): readonly RelationshipDiagnosticsSnapshot[] {
+function getRelationshipDiagnosticsHistory(): readonly RelationshipDiagnosticsSnapshot[] {
   return snapshotHistory;
 }
 
-export function resetRelationshipDiagnostics(): void {
+function resetRelationshipDiagnostics(): void {
   counters = emptyCounters();
   consoleLoggingEnabled = true;
   snapshotHistory.length = 0;

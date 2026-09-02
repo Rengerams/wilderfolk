@@ -39,7 +39,7 @@ export function fract(value: number): number {
  * Calculates raw food yield harvested from a free-roam animal kill.
  * Modulated by colony tech and ecological stage multipliers.
  */
-export function freeHuntFoodGain(preyType: EntityType, state: WorldState): number {
+function freeHuntFoodGain(preyType: EntityType, state: WorldState): number {
   const base = HUNT_BASE_YIELD[preyType] ?? HUNT_DEFAULT_BASE_YIELD;
   const techMult = getHuntFoodMultiplier(state);
   const ecoMult = getValleyHuntYieldMultiplier(state);

@@ -30,7 +30,7 @@ export function disposeCanvasSurface(surface: CanvasSurface | null | undefined):
   surface.height = 0;
 }
 
-export function resizeCanvasSurface(
+function resizeCanvasSurface(
   surface: CanvasSurface,
   width: number,
   height: number,

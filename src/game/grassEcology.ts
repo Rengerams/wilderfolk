@@ -88,7 +88,7 @@ export const GRAZER_METABOLISM = {
 export type GrazerType = keyof typeof GRAZER_METABOLISM;
 
 /** Convenience helper calculating daily grass demand for a specific grazer species. */
-export function getGrazerDailyDemand(type: GrazerType, season: Season): number {
+function getGrazerDailyDemand(type: GrazerType, season: Season): number {
   const meta = GRAZER_METABOLISM[type];
   const penalty = getWinterEnergyPenalty(season);
   return grazerGrassEnergyDemandPerDay(meta.energyLossPerTick, meta.grassEnergyGain, penalty);

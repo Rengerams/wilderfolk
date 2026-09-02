@@ -30,7 +30,7 @@ export interface HuntingSpotPreyOption {
   readonly hint: string;
 }
 
-export const DEFAULT_HUNTING_SPOT_PREY: HuntingSpotPrey = 'auto';
+const DEFAULT_HUNTING_SPOT_PREY: HuntingSpotPrey = 'auto';
 
 export const HUNTING_SPOT_PREY_OPTIONS: readonly HuntingSpotPreyOption[] = [
   { id: 'auto', label: 'Auto', emoji: '🎯', hint: 'Nearest deer, wolf, fox, or rabbit' },
@@ -110,7 +110,7 @@ export function findHuntingTarget(
 
 /** Processes a hunting shift: settler aims arrow, rolls combat/harvest, and handles wolf danger. */
 
-export function findBestPrey(
+function findBestPrey(
   byType: Record<EntityType, Entity[]>,
   bx: number,
   by: number,
@@ -145,7 +145,7 @@ export function findBestPrey(
 
   return bestTarget;
 }
-export function tickHuntingSpotProduction(
+function tickHuntingSpotProduction(
   state: WorldState,
   ctx: TickContext,
   building: Building,

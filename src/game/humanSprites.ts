@@ -115,7 +115,7 @@ export function getHumanSpriteMetrics(human: Entity, camZoom: number): HumanSpri
   return { size, spriteH, footOffset };
 }
 
-export function getHumanSpritePath(human: Entity): string {
+function getHumanSpritePath(human: Entity): string {
   const gender = (human.gender ?? 'male') as HumanGender;
   const variant = human.spriteVariant ?? pickHumanVariant(human.id, gender);
   return getHumanWalkSheetPath(gender, variant);

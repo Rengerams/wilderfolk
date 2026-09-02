@@ -234,11 +234,11 @@ export function computeMilitiaBreakdown(
 }
 
 /** @deprecated Access breakdown.militiaStrength directly instead. */
-export function getMilitiaStrengthFromBreakdown(breakdown: MilitiaBreakdown): number {
+function getMilitiaStrengthFromBreakdown(breakdown: MilitiaBreakdown): number {
   return breakdown.militiaStrength;
 }
 
 /** @deprecated Access breakdown.barricadeStrength directly instead. */
-export function getBarricadeStrengthFromBreakdown(breakdown: MilitiaBreakdown): number {
+function getBarricadeStrengthFromBreakdown(breakdown: MilitiaBreakdown): number {
   return breakdown.barricadeStrength;
 }

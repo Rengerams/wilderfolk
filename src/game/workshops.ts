@@ -68,7 +68,7 @@ export function getWorkshopRecipe(recipeId?: string): WorkshopRecipe {
 /**
  * Validates whether a string corresponds to a registered workshop recipe ID.
  */
-export function isValidWorkshopRecipeId(id: unknown): id is WorkshopRecipeId {
+function isValidWorkshopRecipeId(id: unknown): id is WorkshopRecipeId {
   return typeof id === 'string' && RECIPES_BY_ID.has(id);
 }
 
@@ -98,7 +98,7 @@ export function formatRecipeInputs(inputs: Readonly<Partial<Resources>>): string
 /**
  * Checks whether the colony currently possesses sufficient input materials to produce a recipe.
  */
-export function canAffordWorkshopRecipe(
+function canAffordWorkshopRecipe(
   available: Readonly<Resources>,
   recipe: WorkshopRecipe,
 ): boolean {

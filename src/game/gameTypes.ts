@@ -511,7 +511,7 @@ export interface GameEvent {
   type: 'positive' | 'negative' | 'neutral';
 }
 
-export type { Resources, ResourceKey };
+export type { Resources,  };
 
 /**
  * One sample in `WorldState.populationHistory` (stats layer / charts).
@@ -562,7 +562,7 @@ export interface StoryEvent {
 }
 
 /** @deprecated Prefer PopulationHistoryEntry (same shape, richer optional fields). */
-export type PopulationHistoryPoint = PopulationHistoryEntry;
+type PopulationHistoryPoint = PopulationHistoryEntry;
 
 /** Denormalized wildlife counts — updated each tick for UI without scanning entities. */
 export interface WildlifeCounts {
@@ -1144,15 +1144,13 @@ export interface WorldMap {
 export const GRID_SIZE = 20;
 /** Terrain raster cell size in world units (see terrainGen / terrainLayer). */
 export const TERRAIN_TILE_SIZE = 10;
-export const GRID_SNAP = true;
+const GRID_SNAP = true;
 
 export function snapToGrid(value: number, gridSize: number = GRID_SIZE): number {
   return Math.round(value / gridSize) * gridSize;
 }
 
-export {
-  GAME_VERSION, GAME_PHASE, GAME_TITLE, GAME_SUBTITLE, GAME_VERSION_TAGLINE, ECOLOGICAL_FACTS,
-} from './version';
+;
 
 export const WEREWOLF_CURSE_LINES = [
   (name: string) => `${name} was touched by the full moon. They seem fine… for now.`,
@@ -1190,7 +1188,7 @@ export const WEREWOLF_HOWL_LINES = [
   'No escape!',
 ] as const;
 
-export const WEREWOLF_BEFRIEND_LINES = [
+const WEREWOLF_BEFRIEND_LINES = [
   (human: string, wolf: string) => `${human} offered snacks. ${wolf} accepted friendship.`,
   (human: string, wolf: string) => `${human} and ${wolf} signed a howling waiver.`,
   (human: string, wolf: string) => `${wolf} now follows ${human} on a leash of mutual respect.`,

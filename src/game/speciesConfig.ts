@@ -238,7 +238,7 @@ export function getSpeciesConfig(type: EntityType): SpeciesConfig {
 /**
  * Resolve the energy a predator gains from consuming a specific prey type.
  */
-export function getPreyEnergyGain(predatorType: EntityType, preyKey: string): number {
+function getPreyEnergyGain(predatorType: EntityType, preyKey: string): number {
   const cfg = SPECIES_CONFIG[predatorType];
   return cfg?.energyGain[preyKey] ?? 0;
 }

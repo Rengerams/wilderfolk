@@ -11,161 +11,108 @@
 
 // ---- Domain types / static data (gameTypes) ----
 export type {
-  WorldState, Entity, EntityByType, Building, DeathParticle,
-  FloatingText, GameEvent, Camera, WorkshopRecipe,
+  WorldState, Entity,  Building, 
+     
   GameState,
 } from './gameTypes';
 export {
-  EntityType, BuildingType, Season, WeatherType, ResearchType, BUILDING_CONFIGS,
-  GRID_SIZE, TERRAIN_TILE_SIZE, GRID_SNAP, snapToGrid, TerrainType,
-  BUILDING_JOB_TYPES, JobType,
-  WORKSHOP_RECIPES, DEFAULT_WORKSHOP_RECIPE_ID, getWorkshopRecipe, formatRecipeInputs,
+  EntityType, BuildingType,    BUILDING_CONFIGS,
+      
+  BUILDING_JOB_TYPES, 
+  WORKSHOP_RECIPES,  getWorkshopRecipe, formatRecipeInputs,
 } from './gameTypes';
 
 // ---- Split-out sim core ----
 export { SPECIES_CONFIG } from './speciesConfig';
-export type { SpeciesConfig } from './speciesConfig';
+;
 export {
   type SimulationFocus,
-  OFFSCREEN_HUMAN_THROTTLE,
-  OFFSCREEN_WILDLIFE_THROTTLE,
-  OFFSCREEN_GRASS_THROTTLE,
-  WILDLIFE_LAYER_INTERVAL,
-  buildEntityByType,
-  buildEntityDrawBuckets,
+  
+  
+  
+  
+  
+  
   computeSimulationFocus,
-  isInFocus,
-  createSimFocus,
+  
+  
 } from './simFocus';
-export {
-  getSeason,
-  getReproductionMultiplier,
-  hasTech,
-  getMultiplier,
-  addReputation,
-} from './simHelpers';
-export { getGrassGrowthMultiplier, getWinterEnergyPenalty } from './grassEcology';
-export {
-  impulseScreenShake,
-  createDeathParticles,
-  addFloatingText,
-  addNotification,
-  syncBigNewsIdFromState,
-  addBigNews,
-} from './simEffects';
-export { pushTransientParticle } from './juiceEffects';
+;
+;
+;
+;
 export {
   getTerrainEfficiencyMultiplier,
   getAdjacencyMultiplier,
-  findHumanSpawnNear,
-  isValidHumanSpawnPosition,
+  
+  
 } from './terrainSystems';
-export {
-  AdjacencyIndex,
-  buildAdjacencyIndex,
-  buildingUsesAdjacency,
-  ensureAdjacencyIndex,
-  getAdjacencyMultiplierFromIndex,
-  syncAdjacency,
-  unindexAdjacency,
-} from './adjacencyIndex';
-export {
-  ensureEntityByIdMap,
-  indexEntity,
-  indexLivingEntity,
-  rebuildEntityByIdMap,
-  unindexEntity,
-  unindexEntityFromState,
-} from './entityIndex';
-export {
-  isManualStaffBuilding,
-  jobBuildingPriority,
-  countWorkersAtBuilding,
-  countStaffedWorkersAtType,
-  getSmithBonus,
-  getChurchStrength,
-  hasStaffedSchool,
-  completedJobBuildings,
-  assignMissingWorkers,
-  assignAllWorkers,
-  findHumanWorkplace,
-  releasePrisoners,
-} from './workforce';
+;
+;
+;
 export { gameTick } from './gameTick';
 
 // ---- Feature modules (previous re-export surface) ----
-export { generateWorldMap } from './terrainGen';
-export { recordYearlyStats, updateLifetimeStats, drawBarChart, drawLineChart } from './stats';
-export type { YearlyStats, LifetimeStats } from './stats';
-export { logEvent } from './eventLog';
+;
+;
+;
+;
 export {
-  sendRivalGift, establishRivalTradePact, showStrengthToRival,
-  signPeaceTreaty,
-  respondToDiplomacyEvent, getDiplomacyChoiceEligibility, tradeWithVisitors, negotiateRefugees,
-  talkToVisitorLeader, getVisitorLeaderTalkMeta, getVisitorTradePriceMult, getVisitorTradeRewardMult,
+    
+  
+   getDiplomacyChoiceEligibility,  
+   getVisitorLeaderTalkMeta, getVisitorTradePriceMult, getVisitorTradeRewardMult,
   hitTestCamp,
 } from './groupEvents';
 export { isRivalAtPeace } from './rivalPeace';
-export { isPlayerHuman, playerHumanCount } from './playerHuman';
-export { createEntity, finalizeSettlerAge } from './entityFactory';
-export type { VisitorLeaderTalkMeta } from './groupEvents';
+;
+;
+;
 export {
-  respondToRaidEvent, respondToOutgoingRaidEvent, launchRaidOnRival,
-  rollRivalOutgoingRaidResponse, rollRivalPayoffOffer, cancelPendingOutgoingRaidsForRival,
-  getMilitiaStrength, getRivalRaidStrength, countArmedMilitia, getCombatPreview,
-  getBarricadeStrength, getOutgoingRaidFoodCostForRival, formatCampDistance, getCampDistancePixels,
-  getRivalDefenseStrength, resolveCounterRaidRatio, canLaunchRaidOnRival, isCounterRaidOnRival,
+    
+    
+   getRivalRaidStrength,  getCombatPreview,
+   getOutgoingRaidFoodCostForRival, formatCampDistance, getCampDistancePixels,
+    canLaunchRaidOnRival, 
   getOutgoingRaidActionLabel, formatRaidDeadline, formatRaidLootSummary, raidEventLoot,
 } from './frontierCombat';
-export type { CombatPreview, RaidOutcomeTier, CounterRaidTier } from './frontierCombat';
+;
 export { getGrazingPressureReport } from './ecosystemPressure';
-export type { GrazingPressureReport, GrazingPressureLevel } from './ecosystemPressure';
+;
 export { getEcosystemBreakdown } from './ecoBreakdown';
-export type { EcosystemBreakdown, EcosystemBreakdownLine } from './ecoBreakdown';
-export {
-  computeValleyEcologySnapshot,
-  tickValleyEcologyStage,
-  getValleyHuntYieldMultiplier,
-  getValleyFarmYieldMultiplier,
-  valleyStageLabel,
-  valleyStageEmoji,
-} from './ecologyStage';
-export type { ValleyStage, ValleyEcologySnapshot, EcologyDriverId } from './ecologyStage';
-export { getPopulationGrowthReport } from './populationGrowth';
-export type { PopulationGrowthReport, PopulationGrowthTone } from './populationGrowth';
+;
+;
+;
+;
+;
 export { formatRivalPopulationLabel, formatRivalRelationshipLabel } from './rivalDisplay';
 export {
   getArmamentSteps, getHumanArmamentLabel,
   hasIronSpears, hasStoneSpears,
-  hasIronSwords, hasScaleMail, hasTowerBallistae,
-  hasIronShields, hasWoodenShields,
+    
+   
 } from './combat';
 export {
-  ELECTION_INTERVAL_YEARS,
-  getVillageLeader,
+  
+  
   isVillageLeader,
-  getYearsUntilElection,
-  rankLeadershipCandidates,
-  formatSettlerName,
-  getLeadershipScoreBreakdown,
+  
+  
+  
+  
 } from './villageLeadership';
-export {
-  computePopulationCounts,
-  computeWildlifeCounts,
-  wildlifeCountsFromPopulation,
-  formatPopulationBrief,
-} from './entityCounts';
-export type { ViewState } from './viewState';
+;
+;
 
-export { EntityCatalog } from './entityCatalog';
-export { computeVillageStats } from './uiSimSummary';
-export type { VillageStatsSummary } from './uiSimSummary';
-export { getPriorityAlerts } from './priorityAlerts';
-export type { PriorityAlert } from './priorityAlerts';
-export { getFocusHints } from './focusHints';
-export type { FocusHintAction } from './focusHints';
+;
+;
+;
+;
+;
+;
+;
 
-export type { PopulationCounts } from './entityCounts';
+;
 export {
   saveGame,
   loadGame,
@@ -173,76 +120,37 @@ export {
   deleteSave,
   downloadSaveFile,
   loadGameFromFileText,
-  parseSaveJson,
+  
 } from './saveLoad';
-export {
-  UNBUILDABLE_TERRAIN,
-  isFootprintOnBuildableTerrain,
-  canPlaceBuilding,
-  getPlaceBuildingFailureReason,
-  startBuilding,
-  isOnConstructionCrew,
-  pickAdultSettler,
-  assignBuilderToBuilding,
-  assignResidentToBuilding,
-  moveOutOfFamilyHome,
-  removeResidentFromBuilding,
-  assignIdleWorkerToBuilding,
-  removeWorkerFromBuilding,
-  listAssignableWorkersForBuilding,
-  canAssignWorkerToBuilding,
-  repairBuilding,
-  getBuildingUpgradeCost,
-  upgradeBuilding,
-  recruitSettler,
-  estimateWorkshopGold,
-  setWorkshopRecipe,
-  demolishBuilding,
-  spawnMoonHowlerDebug,
-  getTameFoodCost,
-  tameEntity,
-  buildStripPreview,
-  placeStripChain,
-} from './buildingActions';
+;
 export { isStripBuildType, inferStripRotation } from './stripBuild';
 export {
-  addResource,
-  applyFoodSpoilage,
-  canAffordWorkshopRecipe,
-  consumeWorkshopRecipeInputs,
+  
+  
+  
+  
   initTradeRoutes,
   ensureFullTradeRoutes,
 } from './economy';
-export { establishTradeRoute, hasCompletedMarket } from './tradeCaravans';
+;
+;
 export {
-  syncResearchUnlocks,
-  notifyBuildingLocked,
-  startResearch,
-  updateResearch,
-} from './research';
-export {
-  createBuilding,
-  spawnGrassPatch,
-  spawnWildlifeRing,
-  replenishDepletedWildlife,
-  createImmigrantSettler,
+  
+  
+  
+  
+  
   initGame,
-  setEntityBirthDate,
-  type InitGameOptions,
+  
+  
 } from './worldGen';
 export { getAgeInYears } from './dayCycle';
-export { tickGrassDaily } from './tickLayerDaily';
-export { tickWildlife } from './tickLayerSystems';
-export { updateWeather, updateDisasters } from './worldEvents';
+;
+;
+;
 export {
-  GAME_VERSION, GAME_PHASE, GAME_TITLE, GAME_SUBTITLE, GAME_VERSION_TAGLINE, ECOLOGICAL_FACTS,
+  GAME_VERSION, GAME_PHASE, GAME_TITLE, GAME_SUBTITLE,  
 } from './version';
-export {
-  getOccupationForBuilding, getJobForBuilding, ensureEntitySkills, readSkill,
-  gainSkill, rewardProductionSkills, decayIdleSkills, getWorkerSkillMultiplier,
-} from './skills';
-export {
-  FORGE_ORDERS, getForgeOrder, formatForgeInputs, getForgeBlockReason,
-  queueForgeOrder, createInitialForgeState,
-} from './forge';
-export type { ForgeOrder, ForgeOrderId, VillageForgeState } from './gameTypes';
+;
+;
+;

@@ -27,7 +27,7 @@ export function feudScore(e: Entity, otherId: number): number {
 }
 
 /** Number of strong friendships (score ≥ 60) — for UI badges. */
-export function friendCount(e: Entity): number {
+function friendCount(e: Entity): number {
   if (!e.friendships) return 0;
   let count = 0;
   for (const val of Object.values(e.friendships)) {
@@ -37,7 +37,7 @@ export function friendCount(e: Entity): number {
 }
 
 /** Number of live feuds (score > 0). */
-export function activeFeudCount(e: Entity): number {
+function activeFeudCount(e: Entity): number {
   if (!e.feuds) return 0;
   let count = 0;
   for (const val of Object.values(e.feuds)) {

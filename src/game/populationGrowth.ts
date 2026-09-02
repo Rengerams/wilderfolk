@@ -118,7 +118,7 @@ export function getLivePlayerPopulation(state: WorldState): number {
   return snapshotPopulation(state).pop;
 }
 
-export function getOpenBedsFromPop(state: WorldState, pop: number): number {
+function getOpenBedsFromPop(state: WorldState, pop: number): number {
   const { pop: livePop, beds } = snapshotPopulation(state);
   if (!Number.isFinite(pop)) return Math.max(0, beds - livePop);
   const normalizedPop = Math.max(0, Math.floor(pop));

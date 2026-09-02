@@ -79,7 +79,7 @@ function selectPromiseCodes(state: WorldState, year: number): number[] {
 }
 
 /** Read-only projection of the two promises recorded for a year. */
-export function electionPromisesForYear(state: WorldState, year: number): number[] {
+function electionPromisesForYear(state: WorldState, year: number): number[] {
   const codes: number[] = [];
   for (let i = 0; i < PROMISE_COUNT; i++) {
     const c = storyFlag(state, promiseKey(year, i));

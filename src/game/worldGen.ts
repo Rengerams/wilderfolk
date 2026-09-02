@@ -25,7 +25,7 @@ import {
   TERRAIN_TILE_SIZE,
 } from './gameTypes';
 import { generateWorldMap, findCampSite } from './terrainGen';
-export { generateWorldMap } from './terrainGen';
+;
 import { enableSeededGlobalRandom, getSimRng, setSimSeed } from './simRng';
 import { loadAutoSavePreference } from './preferences';
 import { INITIAL_CHALLENGES } from './challenges';
@@ -49,7 +49,7 @@ import { getBuildingFootprint } from './buildingRotation';
 import { createEmptyLifetimeStats } from './stats';
 import { createGuidedCampaignState } from './guidedCampaign';
 
-export { createEntity, finalizeSettlerAge } from './entityFactory';
+;
 
 export interface WildlifeSpawnOptions {
   recordBirthYear?: boolean;
@@ -223,7 +223,7 @@ export interface InitGameOptions {
   skipTerrain?: boolean;
 }
 
-export function setEntityBirthDate(entity: Entity, year?: number, month?: number, day?: number): void {
+function setEntityBirthDate(entity: Entity, year?: number, month?: number, day?: number): void {
   if (year !== undefined) entity.birthYear = year;
   if (month !== undefined) entity.birthMonth = month;
   if (day !== undefined) entity.birthDay = day;
@@ -360,57 +360,100 @@ export function replenishDepletedWildlife(
   const deer = counts.deer;
   const wolves = counts.wolves;
   const foxes = counts.foxes;
-  const preyTotal = rabbits + deer;
   const grassCount = counts.grass;
 
-  const needsRabbits = rabbits < 18;
-  const needsDeer = deer < 10;
-  const preyHealthyForPredators = rabbits + deer >= 20;
-  const needsPredatorRepopulation = preyHealthyForPredators && (wolves < 1 || foxes < 2);
-  const needsWildlife = needsRabbits || needsDeer || needsPredatorRepopulation;
-  const needsGrass = grassCount < 45;
+  // --- 1. Populatiedoelen & Drempelwaarden ---
+  const MIN_GRASS = 65;
 
-  if (!needsWildlife && !needsGrass) return false;
+  const MIN_RABBITS = 35;
+  const TARGET_RABBITS = 55;
+
+  const MIN_DEER = 12;
+  const TARGET_DEER = 20;
+
+  const MIN_FOXES = 8;
+  const TARGET_FOXES = 14;
+
+  const MIN_WOLVES = 5;
+  const TARGET_WOLVES = 6;
 
   const cx = state.width / 2;
   const cy = state.height / 2;
 
+  // --- 2. STAP 1: GRAS (Altijd eerst de basis herstellen) ---
   let grassReplenished = false;
+  const needsGrass = grassCount < MIN_GRASS;
+
   if (needsGrass) {
-    for (let p = 0; p < 5; p++) {
-      const angle = (p / 5) * Math.PI * 2;
+    for (let p = 0; p < 7; p++) {
+      const angle = (p / 7) * Math.PI * 2;
       spawnGrassPatch(
         state,
-        cx + Math.cos(angle) * 220,
-        cy + Math.sin(angle) * 180,
-        12,
-        100,
+        cx + Math.cos(angle) * 230,
+        cy + Math.sin(angle) * 190,
+        14,
+        110,
       );
     }
     grassReplenished = true;
   }
 
+  // Effectief beschikbaar gras (huidig gras of vers bijgeplant)
+  const totalAvailableGrass = grassCount + (grassReplenished ? 98 : 0);
+  const sufficientGrassForHerbivores = totalAvailableGrass >= 45;
+
+  // --- 3. STAP 2: PROOICHECKS (Gras meegenomen voor herbivoren!) ---
+  // Konijnen en herten spawnen alleen als er gras te eten is (of noodvangnet als ze < 4 zijn)
+  const needsRabbits = (rabbits < MIN_RABBITS && sufficientGrassForHerbivores) || rabbits < 4;
+  const needsDeer = (deer < MIN_DEER && sufficientGrassForHerbivores) || deer < 2;
+
+  // Vossen hebben voldoende konijnen nodig
+  const sufficientPreyForFoxes = rabbits >= 20;
+  const needsFoxes = (foxes < MIN_FOXES && sufficientPreyForFoxes) || foxes < 2;
+
+  // Wolven hebben herten, vossen en konijnen nodig
+  const totalWolfPrey = deer + foxes + rabbits;
+  const sufficientPreyForWolves = totalWolfPrey >= 30;
+  const needsWolves = (wolves < MIN_WOLVES && sufficientPreyForWolves) || wolves < 2;
+
+  const needsWildlife = needsRabbits || needsDeer || needsFoxes || needsWolves;
+
+  // Als er niets nodig is en er geen gras is bijgeplant: stop
+  if (!needsWildlife && !grassReplenished) return false;
+
   let wildlifeSpawned = false;
+
+  // --- 4. STAP 3: DIEREN SPAWNEN IN HUN EIGEN BIOTOOP ---
+
+  // 🌿 🐇 Konijnen (Binnenste weides: 120 - 320)
   if (needsRabbits) {
-    spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, Math.max(0, 22 - rabbits), 160, 420, {
+    spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, TARGET_RABBITS - rabbits, 120, 320, {
       recordBirthYear: true, onSpawn,
     });
     wildlifeSpawned = true;
   }
+
+  // 🌿 🦌 Herten (Middencirkel bosranden: 220 - 440)
   if (needsDeer) {
-    spawnWildlifeRing(state, EntityType.Deer, cx, cy, Math.max(0, 12 - deer), 200, 480, {
+    spawnWildlifeRing(state, EntityType.Deer, cx, cy, TARGET_DEER - deer, 220, 440, {
       recordBirthYear: true, onSpawn,
     });
     wildlifeSpawned = true;
   }
-  if (preyHealthyForPredators && wolves < 1) {
-    spawnWildlifeRing(state, EntityType.Wolf, cx, cy, 1, 320, 520, {
+
+  // 🦊 Vossen (Jagen op konijnen in de binnen-/middenring: 160 - 320)
+  if (needsFoxes) {
+    const spawnCount = Math.max(2, TARGET_FOXES - foxes);
+    spawnWildlifeRing(state, EntityType.Fox, cx, cy, spawnCount, 160, 320, {
       recordBirthYear: true, onSpawn,
     });
     wildlifeSpawned = true;
   }
-  if (preyHealthyForPredators && foxes < 2) {
-    spawnWildlifeRing(state, EntityType.Fox, cx, cy, 2 - foxes, 280, 500, {
+
+  // 🐺 Wolven (Diep woud / buitenring: 340 - 540)
+  if (needsWolves) {
+    const spawnCount = Math.max(2, TARGET_WOLVES - wolves);
+    spawnWildlifeRing(state, EntityType.Wolf, cx, cy, spawnCount, 340, 540, {
       recordBirthYear: true, onSpawn,
     });
     wildlifeSpawned = true;
@@ -418,23 +461,22 @@ export function replenishDepletedWildlife(
 
   if (!wildlifeSpawned && !grassReplenished) return false;
 
-  // Refresh wildlife tally
+  // --- 5. INDEXERING & LOGGING ---
   state.wildlifeCounts = computeWildlifeCounts(state.entities);
 
   const colonyDay = getColonyDay(state);
   const lastLog = state.lastWildlifeReplenishLogDay ?? -999;
-  const preyWasDepleted = preyTotal < 10;
   const logGap = colonyDay - lastLog;
   state.lastWildlifeReplenishLogDay = colonyDay;
 
-  if (wildlifeSpawned) {
-    if (preyWasDepleted && logGap >= 30) {
+  if (wildlifeSpawned && logGap >= 40) {
+    if (wolves < 2 || foxes < 2) {
+      logEvent(state, 'event', 'Predators have migrated into the valley following game trails.');
+    } else {
       logEvent(state, 'event', 'Wildlife returned to the frontier meadows.');
-    } else if (logGap >= 90) {
-      logEvent(state, 'event', 'More game spotted on the outskirts.');
     }
-  } else if (grassReplenished && logGap >= 30) {
-    logEvent(state, 'event', 'Fresh grass is spreading on the frontier meadows.');
+  } else if (grassReplenished && logGap >= 40) {
+    logEvent(state, 'event', 'Fresh grass is spreading across the meadows.');
   }
 
   return true;
@@ -541,7 +583,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     workSchedule: { startHour: 7, endHour: 16 },
     villageReputation: 10,
     resources: { wood: 220, stone: 70, food: 530, gold: 80, iron: 0 },
-    storageMax: { wood: 800, stone: 300, food: 800, gold: 20000, iron: 300 },
+    storageMax: { wood: 800, stone: 500, food: 800, gold: 2000, iron: 500 },
     foodSpoilageRate: 0.03,
     ecosystemHealth: 100,
     biodiversityIndex: 1.0,
@@ -661,10 +703,10 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   }
 
   // 5. Initial Wildlife Fauna
-  spawnWildlifeAtRandomPassable(state, EntityType.Rabbit, 70);
-  spawnWildlifeAtRandomPassable(state, EntityType.Deer, 40);
-  spawnWildlifeAtRandomPassable(state, EntityType.Wolf, 6);
-  spawnWildlifeAtRandomPassable(state, EntityType.Fox, 12);
+  spawnWildlifeAtRandomPassable(state, EntityType.Rabbit, 100);
+  spawnWildlifeAtRandomPassable(state, EntityType.Deer, 70);
+  spawnWildlifeAtRandomPassable(state, EntityType.Wolf, 10);
+  spawnWildlifeAtRandomPassable(state, EntityType.Fox, 25);
 
   // 6. Camp Selection & Founding Pioneers
   const houseFootprint = BUILDING_CONFIGS[BuildingType.House];

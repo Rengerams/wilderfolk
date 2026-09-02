@@ -27,7 +27,7 @@ export function getAvailableStorageHeadroom(state: WorldState, type: keyof Resou
   return Number.isFinite(max) ? Math.max(0, max - current) : Infinity;
 }
 
-export function isResourceCapped(state: WorldState, type: keyof Resources): boolean {
+function isResourceCapped(state: WorldState, type: keyof Resources): boolean {
   return getAvailableStorageHeadroom(state, type) <= 0;
 }
 
@@ -73,7 +73,7 @@ export function canAfford(state: WorldState, cost: Partial<Resources>): boolean 
 }
 
 /** Deducts all resources specified in a cost dictionary. Returns true if successful. */
-export function consumeResources(state: WorldState, cost: Partial<Resources>): boolean {
+function consumeResources(state: WorldState, cost: Partial<Resources>): boolean {
   if (!canAfford(state, cost)) return false;
 
   for (const [key, amount] of Object.entries(cost)) {

@@ -71,6 +71,6 @@ export function getRivalPresenceSummary(state: Pick<WorldState, 'eventLog' | 'pe
   };
 }
 
-export function getRivalActivityLabel(state: Pick<WorldState, 'eventLog' | 'pendingDiplomacyEvents'>, rival: RivalSettlement): string {
+function getRivalActivityLabel(state: Pick<WorldState, 'eventLog' | 'pendingDiplomacyEvents'>, rival: RivalSettlement): string {
   return getRivalPresenceSummary(state, rival).modeLabel;
 }

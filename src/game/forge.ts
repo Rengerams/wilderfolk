@@ -139,7 +139,7 @@ export function isForgeOrderComplete(
   return !!normalized.completed[orderId];
 }
 
-export function hasAnyForgeUpgrade(
+function hasAnyForgeUpgrade(
   forge: VillageForgeState | (VillageForgeState & { spearsReady?: boolean; shieldsReady?: boolean }) | null | undefined,
 ): boolean {
   const normalized = normalizeForgeState(forge);

@@ -25,7 +25,7 @@ function getFirstCaravanDelay(): number {
   return ticksForDays(2);
 }
 
-export type TradeCaravanLeg = 'outbound' | 'at_partner' | 'inbound';
+type TradeCaravanLeg = 'outbound' | 'at_partner' | 'inbound';
 
 function tradeMultiplier(state: WorldState): number {
   return getMultiplier(state, 'trade_bonus') * getTownHallTradeMultiplier(state, state.buildings);

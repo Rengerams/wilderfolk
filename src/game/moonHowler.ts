@@ -59,7 +59,7 @@ export const MOON_HOWLER_CURE_BONUS_PER_PRIEST = 0.12;
 export const MOON_HOWLER_CURE_CHANCE_MAX = 0.71;
 
 /** @deprecated UI compat — kill share among failures at base weights */
-export const MOON_HOWLER_PRIEST_KILL_CHANCE =
+const MOON_HOWLER_PRIEST_KILL_CHANCE =
   MOON_HOWLER_OUTCOME_KILL_PRIEST / (MOON_HOWLER_OUTCOME_KILL_PRIEST + MOON_HOWLER_OUTCOME_FLEE);
 
 /** How often (in-game clock hours) a priest may attempt while the night window is open. */
@@ -137,7 +137,7 @@ export function countActiveMoonHowlerCurses(entities: Entity[]): number {
   return entities.filter((e) => e.alive && e.moonHowlerCursed).length;
 }
 
-export function daysUntilNextFullMoon(colonyDay: number): number {
+function daysUntilNextFullMoon(colonyDay: number): number {
   const mod = colonyDay % DAYS_PER_MOON_CYCLE;
   return mod === 0 ? 0 : DAYS_PER_MOON_CYCLE - mod;
 }
@@ -164,7 +164,7 @@ export function shouldApplyNewMoonHowlerCurse(
   );
 }
 
-export interface MoonHowlerSavedState
+interface MoonHowlerSavedState
   extends Pick<Entity,
     'relationshipStatus'
     | 'partnerId'
@@ -229,7 +229,7 @@ export function isMoonHowlerTransformTick(colonyDay: number, hourOfDay: number):
  * 6am — hunt night ends; cursed settlers still in 🌝 form revert to human
  * until the next full moon (curse may remain).
  */
-export function isMoonHowlerRevertTick(hourOfDay: number): boolean {
+function isMoonHowlerRevertTick(hourOfDay: number): boolean {
   return hourOfDay === NIGHT_END;
 }
 
@@ -242,7 +242,7 @@ export function isMoonHowlerCureWindow(colonyDay: number, hourOfDay: number): bo
 }
 
 /** @deprecated Use isMoonHowlerCureWindow — kept name for call-site clarity in older comments. */
-export function isMoonHowlerCureTick(colonyDay: number, hourOfDay: number): boolean {
+function isMoonHowlerCureTick(colonyDay: number, hourOfDay: number): boolean {
   return isMoonHowlerCureWindow(colonyDay, hourOfDay);
 }
 

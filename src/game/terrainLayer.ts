@@ -306,7 +306,7 @@ export function terrainFillSpritesReady(): boolean {
   return Object.values(TERRAIN_FILL_PATH).every((p) => p != null && getSprite(p) != null);
 }
 
-export function terrainLayerNeedsRebuild(
+function terrainLayerNeedsRebuild(
   cache: TerrainLayerCache | null,
   map: WorldMap,
   season: Season,

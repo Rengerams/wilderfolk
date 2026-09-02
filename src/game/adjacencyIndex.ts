@@ -177,7 +177,7 @@ export function syncAdjacency(
   ensureAdjacencyIndex(state).syncCompletion(building, wasCompleted);
 }
 
-export function unindexAdjacency(
+function unindexAdjacency(
   state: { buildings: Building[]; adjacency?: AdjacencyIndex },
   buildingId: number,
 ): void {
@@ -204,7 +204,7 @@ export function removeAdjacencyById(
 }
 
 /** Full rebuild helper — tests and one-off estimates. */
-export function buildAdjacencyIndex(buildings: readonly Building[]): AdjacencyIndex {
+function buildAdjacencyIndex(buildings: readonly Building[]): AdjacencyIndex {
   const index = new AdjacencyIndex();
   index.rebuild(buildings);
   return index;

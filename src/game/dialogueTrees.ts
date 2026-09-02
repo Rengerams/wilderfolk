@@ -212,7 +212,7 @@ export function getDialogueTrees(): readonly DialogueTree[] {
   return bank?.dialogue_trees ?? [];
 }
 
-export function getDialogueCategories(): readonly DialogueCategory[] {
+function getDialogueCategories(): readonly DialogueCategory[] {
   return requireBank().categories;
 }
 

@@ -70,7 +70,7 @@ export function packRenderMetaForPacked(packed: Entity[]): EntityRenderMeta[] {
   return packed.map(packEntityRenderMeta);
 }
 
-export function packRenderMetaForAlive(world: { entities: Entity[] }): EntityRenderMeta[] {
+function packRenderMetaForAlive(world: { entities: Entity[] }): EntityRenderMeta[] {
   const alive = world.entities.filter((e) => e.alive);
   return alive.map(packEntityRenderMeta);
 }
@@ -178,6 +178,6 @@ export function buildRenderEntityShim(
   } as RenderEntity;
 }
 
-export function isHumanSlot(reader: RenderSoAReaderV1, slot: number): boolean {
+function isHumanSlot(reader: RenderSoAReaderV1, slot: number): boolean {
   return reader.type(slot) === EntityType.Human;
 }

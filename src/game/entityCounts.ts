@@ -98,7 +98,7 @@ export function computePopulationCounts(entities: Entity[]): PopulationCounts {
   return counts;
 }
 
-export function formatPopulationBrief(
+function formatPopulationBrief(
   counts: Pick<PopulationCounts, 'humans' | 'visitorHumans' | 'rivalHumans'>,
   maxPop?: number,
 ): string {
