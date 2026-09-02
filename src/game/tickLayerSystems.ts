@@ -1,4 +1,4 @@
-﻿import type { WorldState, Entity } from './gameTypes';
+import type { WorldState, Entity } from './gameTypes';
 import {
   EntityType,
   TerrainType,
@@ -49,6 +49,7 @@ import {
   RABBIT_SCENT_SENSITIVITY,
   DEER_SCENT_SENSITIVITY,
   WILDKIN_SCENT_SENSITIVITY,
+  FOX_SCENT_SENSITIVITY,
 } from './scentGrid';
 import {
   pushNewEntity,
@@ -269,11 +270,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       let targetVy = 0;
 
       // 6. Evasion Behavior
-      if (
-        entity.type === EntityType.Rabbit ||
+      const isGrazier = entity.type === EntityType.Rabbit ||
         entity.type === EntityType.Deer ||
-        entity.type === EntityType.Wildkin
-      ) {
+        entity.type === EntityType.Wildkin ||
+        entity.type === EntityType.Fox;
+      
+      if (isGrazier) {
         const closestPredator = findClosestEntityInRadius(
           mobileGrid,
           entity.x,
@@ -291,12 +293,13 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           targetVx = (dx / dist) * config.speed * 1.5;
           targetVy = (dy / dist) * config.speed * 1.5;
         } else if (USE_SCENT_GRID && scentGrid) {
-          const sensitivity =
-            entity.type === EntityType.Rabbit
-              ? RABBIT_SCENT_SENSITIVITY
-              : entity.type === EntityType.Deer
-                ? DEER_SCENT_SENSITIVITY
-                : WILDKIN_SCENT_SENSITIVITY;
+          const sensitivity = entity.type === EntityType.Rabbit
+            ? RABBIT_SCENT_SENSITIVITY
+          : entity.type === EntityType.Deer
+            ? DEER_SCENT_SENSITIVITY
+          : entity.type === EntityType.Fox
+            ? FOX_SCENT_SENSITIVITY
+          : WILDKIN_SCENT_SENSITIVITY;
           const sample = scentGrid.sampleFleeGradient(entity.x, entity.y, sensitivity);
           if (sample.strength > 0) {
             targetVx = sample.awayX * config.speed * 1.25;
@@ -315,11 +318,10 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       ) {
         const moonHowlerHunter = entity.type === EntityType.Werewolf && isActiveMoonHowler(entity);
         const preyTypes =
-          entity.type === EntityType.Fox
-            ? [EntityType.Rabbit]
+          entity.type === EntityType.Fox ? [EntityType.Rabbit, EntityType.Deer]
             : moonHowlerHunter
               ? [EntityType.Human, EntityType.Deer, EntityType.Rabbit]
-              : [EntityType.Deer, EntityType.Rabbit];
+               : [EntityType.Deer, EntityType.Rabbit, EntityType.Fox];
 
         let nearbyPack = 0;
         let huntRange = config.huntRange;
@@ -745,3 +747,5 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     }
   }
 }
+
+
