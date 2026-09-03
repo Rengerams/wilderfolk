@@ -59,14 +59,14 @@ export const RESOURCE_METAS: Record<ResourceKey, ResourceMeta> = {
 /**
  * Type guard evaluating whether an unknown string is a valid ResourceKey.
  */
-function isResourceKey(key: unknown): key is ResourceKey {
+export function isResourceKey(key: unknown): key is ResourceKey {
   return typeof key === 'string' && RESOURCE_KEYS.includes(key as ResourceKey);
 }
 
 /**
  * Creates a new zero-initialized resource purse.
  */
-function createEmptyResources(): Resources {
+export function createEmptyResources(): Resources {
   return {
     wood: 0,
     stone: 0,
@@ -79,7 +79,7 @@ function createEmptyResources(): Resources {
 /**
  * Creates a fast, shallow copy of a resource purse without JSON/structuredClone overhead.
  */
-function cloneResources(source: Readonly<Resources>): Resources {
+export function cloneResources(source: Readonly<Resources>): Resources {
   return {
     wood: source.wood,
     stone: source.stone,
@@ -92,7 +92,7 @@ function cloneResources(source: Readonly<Resources>): Resources {
 /**
  * Returns true if available resources meet or exceed the required cost for all keys.
  */
-function hasEnoughResources(
+export function hasEnoughResources(
   available: Readonly<Resources>,
   cost: Readonly<Partial<Resources>>,
 ): boolean {
@@ -107,6 +107,6 @@ function hasEnoughResources(
 /**
  * Formats a resource amount with its canonical emoji (e.g., "50 🪵").
  */
-function formatResourceAmount(key: ResourceKey, amount: number): string {
+export function formatResourceAmount(key: ResourceKey, amount: number): string {
   return `${amount} ${RESOURCE_METAS[key].emoji}`;
 }

@@ -1,65 +1,50 @@
-// src/game/speciesConfig.ts
 import { EntityType } from './gameTypes';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
 
-/**
- * Configuration for a single species used by the simulation.
- */
 export interface SpeciesConfig {
   /** Maximum energy storage capacity. */
   readonly maxEnergy: number;
-  /** Energy drained per tick (scaled by per‑tick rate factor). */
+  /** Basal energy drained per simulation tick. */
   readonly energyLossPerTick: number;
-  /** Energy gains keyed by prey/forage IDs. */
+  /** Energy gained from consuming specific prey or forage items. */
   readonly energyGain: Readonly<Record<string, number>>;
   /**
-   * Maximum lifespan – simulation days for wildlife, calendar years for humans.
+   * Maximum natural lifespan.
+   * Note: Wildlife, flora, and monsters are in simulation days (years * 365);
+   * humans track integer calendar years directly.
    */
   readonly maxAge: number;
   /** Base movement speed in pixels per tick. */
   readonly speed: number;
-  /** Collision/visibility radius in pixels. */
+  /** Bounding radius in pixels for spatial hashing and collision queries. */
   readonly size: number;
-  /** Cooldown between mating attempts (ticks). */
+  /** Ticks required between successful mating/reproduction attempts. */
   readonly reproductionCooldown: number;
-  /** Energy threshold required before reproduction can be considered. */
+  /** Minimum energy required before reproduction can be considered. */
   readonly reproductionEnergyThreshold: number;
-  /** Base probability (0‑1) of attempting reproduction each eligible tick. */
+  /** Base probability per eligible tick of initiating reproduction. */
   readonly reproductionChance: number;
-  /** Pregnancy duration in ticks (0 if not applicable). */
-  readonly pregnancyDuration: number;
-  /** Litter size range – `[min, max]`. */
-  readonly litterSize: [number, number];
-  /** Energy given to a newborn at spawn. */
+  /** Starting energy endowed to a newly spawned offspring. */
   readonly spawnEnergy: number;
-  /** Color used for minimap icons and debug particles. */
+  /** Minimap and debug particle color. */
   readonly color: string;
-  /** Distance at which prey flees from predators. */
+  /** Distance in pixels at which prey detects and flees from predators. */
   readonly fleeRange: number;
-  /** Distance at which predators detect prey. */
+  /** Distance in pixels at which predators detect and pursue prey. */
   readonly huntRange: number;
-  /** Radius of autonomous wandering. */
+  /** Radius in pixels for autonomous idle wandering. */
   readonly wanderRadius: number;
-  /** Path to the default sprite asset. */
+  /** Default sprite asset path. */
   readonly sprite: string;
 }
 
-/** Convert legacy “hours per event” to internal tick units. */
+/** Converts legacy 1-tick-per-hour durations into active simulation tick units. */
 function cd(legacyHours: number): number {
   return legacyHours * TICKS_PER_HOUR;
 }
 
-/**
- * Global species lookup indexed by `EntityType`.
- *
- * We use a two‑step cast (`as unknown as …`) to convince TypeScript that the
- * literal object is exactly the `Readonly<Record<EntityType, SpeciesConfig>>`
- * we need, bypassing its structural overlap check.
- */
-export const SPECIES_CONFIG = Object.freeze({
+export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Object.freeze({
   [EntityType.Grass]: {
-    pregnancyDuration: 0,
-    litterSize: [0, 0],
     maxEnergy: 100,
     energyLossPerTick: 0,
     energyGain: {},
@@ -76,17 +61,14 @@ export const SPECIES_CONFIG = Object.freeze({
     wanderRadius: 30,
     sprite: '/sprites/grass.png',
   },
-
   [EntityType.Rabbit]: {
-    pregnancyDuration: 1080,                // 30 real days → 15 game days
-    litterSize: [4, 12],
     maxEnergy: 120,
     energyLossPerTick: 2.5 * PER_TICK_RATE_SCALE,
     energyGain: { grass: 25 },
     maxAge: 365 * 3,
     speed: 3.5,
     size: 7,
-    reproductionCooldown: cd(720),          // 30 game days
+    reproductionCooldown: cd(48),
     reproductionEnergyThreshold: 70,
     reproductionChance: 0.30,
     spawnEnergy: 60,
@@ -96,17 +78,14 @@ export const SPECIES_CONFIG = Object.freeze({
     wanderRadius: 60,
     sprite: '/sprites/rabbit.png',
   },
-
   [EntityType.Deer]: {
-    pregnancyDuration: 7200,                // 200 real days → 100 game days
-    litterSize: [1, 2],
     maxEnergy: 500,
     energyLossPerTick: 4.2 * PER_TICK_RATE_SCALE,
     energyGain: { grass: 55 },
     maxAge: 365 * 12,
     speed: 3.0,
     size: 11,
-    reproductionCooldown: cd(720),          // 30 game days
+    reproductionCooldown: cd(192),
     reproductionEnergyThreshold: 300,
     reproductionChance: 0.15,
     spawnEnergy: 250,
@@ -116,17 +95,14 @@ export const SPECIES_CONFIG = Object.freeze({
     wanderRadius: 210,
     sprite: '/sprites/deer.png',
   },
-
   [EntityType.Wolf]: {
-    pregnancyDuration: 2268,                // 63 real days → 31.5 game days
-    litterSize: [4, 6],
     maxEnergy: 900,
     energyLossPerTick: 5.5 * PER_TICK_RATE_SCALE,
     energyGain: { deer: 650, rabbit: 30 },
     maxAge: 365 * 8,
     speed: 4,
     size: 13,
-    reproductionCooldown: cd(720),          // 30 game days
+    reproductionCooldown: cd(360),
     reproductionEnergyThreshold: 450,
     reproductionChance: 0.15,
     spawnEnergy: 900,
@@ -136,17 +112,14 @@ export const SPECIES_CONFIG = Object.freeze({
     wanderRadius: 220,
     sprite: '/sprites/wolf.png',
   },
-
   [EntityType.Fox]: {
-    pregnancyDuration: 1872,                // 52 real days → 26 game days
-    litterSize: [4, 6],
     maxEnergy: 450,
     energyLossPerTick: 4.2 * PER_TICK_RATE_SCALE,
     energyGain: { rabbit: 450, grass: 150 },
     maxAge: 365 * 5,
     speed: 3.0,
     size: 9,
-    reproductionCooldown: cd(720),          // 30 game days
+    reproductionCooldown: cd(240),
     reproductionEnergyThreshold: 350,
     reproductionChance: 0.008,
     spawnEnergy: 90,
@@ -156,15 +129,14 @@ export const SPECIES_CONFIG = Object.freeze({
     wanderRadius: 100,
     sprite: '/sprites/fox.png',
   },
-
   [EntityType.Human]: {
     maxEnergy: 500,
     energyLossPerTick: 4.2 * PER_TICK_RATE_SCALE,
     energyGain: { deer: 350, rabbit: 150 },
-    maxAge: 90,                               // human years
+    maxAge: 90, // Human years
     speed: 3.0,
     size: 10,
-    reproductionCooldown: cd(3600),           // ~150 game days
+    reproductionCooldown: cd(3600),
     reproductionEnergyThreshold: 180,
     reproductionChance: 0.02,
     spawnEnergy: 180,
@@ -174,7 +146,6 @@ export const SPECIES_CONFIG = Object.freeze({
     wanderRadius: 100,
     sprite: '/sprites/human_male.png',
   },
-
   [EntityType.Tree]: {
     maxEnergy: 500,
     energyLossPerTick: 0,
@@ -192,7 +163,6 @@ export const SPECIES_CONFIG = Object.freeze({
     wanderRadius: 0,
     sprite: '/sprites/tree.png',
   },
-
   [EntityType.Werewolf]: {
     maxEnergy: 700,
     energyLossPerTick: 6.0 * PER_TICK_RATE_SCALE,
@@ -210,7 +180,6 @@ export const SPECIES_CONFIG = Object.freeze({
     wanderRadius: 150,
     sprite: '/sprites/wolf.png',
   },
-
   [EntityType.Wildkin]: {
     maxEnergy: 450,
     energyLossPerTick: 3.0 * PER_TICK_RATE_SCALE,
@@ -228,17 +197,22 @@ export const SPECIES_CONFIG = Object.freeze({
     wanderRadius: 90,
     sprite: '/sprites/deer.png',
   },
-}) as unknown as Readonly<Record<EntityType, SpeciesConfig>>;
+});
 
-/** Lookup a species’ configuration by its type. */
+/**
+ * Retrieves the species configuration for an entity type.
+ */
 export function getSpeciesConfig(type: EntityType): SpeciesConfig {
   return SPECIES_CONFIG[type];
 }
 
 /**
- * Resolve the energy a predator gains from consuming a specific prey type.
+ * Resolves the nutritional energy value gained when a predator consumes a specific prey type.
  */
-function getPreyEnergyGain(predatorType: EntityType, preyKey: string): number {
-  const cfg = SPECIES_CONFIG[predatorType];
-  return cfg?.energyGain[preyKey] ?? 0;
+export function getPreyEnergyGain(
+  predatorType: EntityType,
+  preyKey: string,
+): number {
+  const config = SPECIES_CONFIG[predatorType];
+  return config?.energyGain[preyKey] ?? 0;
 }

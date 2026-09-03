@@ -67,7 +67,7 @@ export function isTreeGridEntity(entity: Entity): boolean {
   return entity.alive && entity.type === EntityType.Tree;
 }
 
-function distSq(ax: number, ay: number, bx: number, by: number): number {
+export function distSq(ax: number, ay: number, bx: number, by: number): number {
   const dx = bx - ax;
   const dy = by - ay;
   return dx * dx + dy * dy;
@@ -716,7 +716,7 @@ export function syncHumanSocialGrid(
   return grid;
 }
 
-function buildMobileGrid(
+export function buildMobileGrid(
   mapWidth: number,
   mapHeight: number,
   entities: Iterable<Entity>,

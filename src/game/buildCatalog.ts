@@ -122,6 +122,6 @@ export function categoryBorderDashForType(type: BuildingType): number[] {
   }
 }
 
-function formatBuildingCost(wood: number, stone: number, gold: number): string {
+export function formatBuildingCost(wood: number, stone: number, gold: number): string {
   return formatResourceCost({ wood, stone, gold });
 }

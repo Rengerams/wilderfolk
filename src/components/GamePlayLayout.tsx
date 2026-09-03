@@ -6,7 +6,6 @@ export type GamePlayLayoutProps = {
   buildRail: ReactNode;
   mapStage: ReactNode;
   inspector: ReactNode;
-  informationViews: ReactNode;
   overlays: ReactNode;
 };
 
@@ -20,7 +19,6 @@ export default function GamePlayLayout({
   buildRail,
   mapStage,
   inspector,
-  informationViews,
   overlays,
 }: GamePlayLayoutProps) {
   return (
@@ -33,7 +31,6 @@ export default function GamePlayLayout({
           {mapStage}
         </main>
         {inspector}
-        {informationViews}
       </div>
       {overlays}
     </div>

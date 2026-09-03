@@ -101,7 +101,7 @@ export function isSpatialQueryMetricsEnabled(): boolean {
   return enabled;
 }
 
-function setSpatialQueryMetricsEnabled(value: boolean): void {
+export function setSpatialQueryMetricsEnabled(value: boolean): void {
   enabled = value;
   if (!value) activeTag = null;
 }
@@ -110,11 +110,11 @@ export function setSpatialQueryGridMode(mode: 'grid' | 'naive'): void {
   gridMode = mode;
 }
 
-function getSpatialQueryGridMode(): 'grid' | 'naive' {
+export function getSpatialQueryGridMode(): 'grid' | 'naive' {
   return gridMode;
 }
 
-function resetSpatialQuerySession(): void {
+export function resetSpatialQuerySession(): void {
   zeroRecordInPlace(tickBuckets);
   zeroRecordInPlace(sessionBuckets);
   measuredTicks = 0;
@@ -175,11 +175,11 @@ export function recordSpatialCells(category: SpatialQueryCategory | null, count:
 }
 
 /** Returns a detached snapshot of the current unflushed tick metrics. */
-function getCurrentTickMetrics(): Record<SpatialQueryCategory, SpatialQueryBucket> {
+export function getCurrentTickMetrics(): Record<SpatialQueryCategory, SpatialQueryBucket> {
   return cloneRecord(tickBuckets);
 }
 
-function getSpatialQueryReport(): SpatialQueryReport {
+export function getSpatialQueryReport(): SpatialQueryReport {
   const perTick = createEmptyRecord();
   let totalQueries = 0;
   let totalCandidates = 0;
@@ -221,7 +221,7 @@ function fmtBucket(label: string, bucket: SpatialQueryBucket, showCells: boolean
   return `${label}: queries=${bucket.queries.toFixed(1)}/tick candidates=${bucket.candidates.toFixed(1)}/tick${cells}`;
 }
 
-function formatSpatialQueryReport(report: SpatialQueryReport): string {
+export function formatSpatialQueryReport(report: SpatialQueryReport): string {
   const lines: string[] = [];
   const mode = report.gridMode === 'grid' ? 'grid (default)' : 'naive (USE_SPATIAL_GRID=0)';
   lines.push(`Spatial query metrics — ${report.ticks} ticks, mode=${mode}`);

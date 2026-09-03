@@ -150,7 +150,7 @@ export function isOnWorkScheduleShift(
  * Evaluates whether the exact current tick corresponds to the start of the workday.
  * Ignores weekends and holidays.
  */
-function isWorkScheduleStartTick(
+export function isWorkScheduleStartTick(
   state: Pick<WorldState, 'tick' | 'workSchedule'>,
 ): boolean {
   if (!isWorkDay(state.tick)) return false;

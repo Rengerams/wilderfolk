@@ -17,19 +17,19 @@ import { audioGraph } from './graph';
 import { introMusic } from './introMusic';
 import type { VolumePreset } from './preferences';
 
-;
-;
-;
-;
+export { soundDirector } from './director';
+export { TRACKS, TRACK_VOLUMES } from './tracks';
+export { playFailSfx } from './interactionSfx';
+export { VOLUMES, NOTES } from './constants';
 
 export {
   playBuildSound,
   playBirthSound,
-  
-  
+  playHuntSound,
+  playDeathSound,
   playMarriageSound,
   playUpgradeSound,
-  
+  playErrorSound,
   playClickSound,
   playDisasterSound,
   playResearchCompleteSound,
@@ -44,7 +44,7 @@ export function primeAudioUnlock(): void {
   audioGraph.primeUnlock();
 }
 
-async function beginIntroAudio(): Promise<void> {
+export async function beginIntroAudio(): Promise<void> {
   return soundDirector.beginIntroAudio();
 }
 
@@ -56,7 +56,7 @@ export async function beginAudio(): Promise<void> {
   return soundDirector.beginGameplayAudio();
 }
 
-function startIntroSong(): void {
+export function startIntroSong(): void {
   if (!soundDirector.getMuteState()) void introMusic.start();
 }
 
@@ -64,20 +64,20 @@ export function stopIntroSong(): void {
   introMusic.stop();
 }
 
-function isIntroMusicPlaying(): boolean {
+export function isIntroMusicPlaying(): boolean {
   return introMusic.isRunning;
 }
 
-function startMusic(): void {
+export function startMusic(): void {
   soundDirector.startGameplay();
 }
 
-function stopMusic(): void {
+export function stopMusic(): void {
   backgroundMusic.stop();
   ambientNature.stop();
 }
 
-function stopAllAudio(): void {
+export function stopAllAudio(): void {
   soundDirector.stopAll();
 }
 
@@ -85,7 +85,7 @@ export function toggleMute(): boolean {
   return soundDirector.toggleMute();
 }
 
-function setMute(muted: boolean): void {
+export function setMute(muted: boolean): void {
   soundDirector.setMute(muted);
 }
 
@@ -94,7 +94,7 @@ export function getMuteState(): boolean {
 }
 
 export type { VolumePreset } from './preferences';
-;
+export { VOLUME_PRESETS } from './preferences';
 
 export function getVolumePreset() {
   return soundDirector.getVolumePreset();
@@ -108,6 +108,6 @@ export function setGameMood(isNight: boolean): void {
   soundDirector.setGameMood(isNight);
 }
 
-function initAudio(): void {
+export function initAudio(): void {
   soundDirector.initAudio();
 }

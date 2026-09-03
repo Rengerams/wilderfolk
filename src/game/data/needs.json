@@ -1,5 +1,5 @@
 {
-  "version": "1.2",
+  "version": "1.1",
   "game": "Wilderfolk Sim",
   "category": "needs",
   "dialogue_trees": [
@@ -7,20 +7,20 @@
       "id": "dt_bathroom",
       "category": "needs",
       "speakers": [
-        "settler",
-        "neighbor"
+        "npc_humiliated",
+        "npc_logician"
       ],
       "lines": [
         {
-          "speaker": "settler",
-          "text": "I had an accident because someone was in the outhouse."
+          "speaker": "npc_humiliated",
+          "text": "I peed myself because someone was using the bathroom."
         },
         {
-          "speaker": "neighbor",
-          "text": "The village has four outhouses."
+          "speaker": "npc_logician",
+          "text": "We have four bathrooms."
         },
         {
-          "speaker": "settler",
+          "speaker": "npc_humiliated",
           "text": "It was the principle of the thing."
         }
       ]
@@ -29,20 +29,20 @@
       "id": "dt_bed",
       "category": "needs",
       "speakers": [
-        "settler",
-        "housemate"
+        "npc_floor_sleeper",
+        "npc_pragmatist"
       ],
       "lines": [
         {
-          "speaker": "settler",
-          "text": "Slept on the rug because you took the bed 0.4 seconds before me."
+          "speaker": "npc_floor_sleeper",
+          "text": "Slept on the floor next to a $3000 bed because someone claimed it 0.4 seconds before me."
         },
         {
-          "speaker": "housemate",
-          "text": "You could've just asked me to shift over."
+          "speaker": "npc_pragmatist",
+          "text": "You could've just... asked them to move?"
         },
         {
-          "speaker": "settler",
+          "speaker": "npc_floor_sleeper",
           "text": "And admit defeat? I have standards."
         }
       ]
@@ -51,21 +51,21 @@
       "id": "dt_potato",
       "category": "needs",
       "speakers": [
-        "hungry_settler",
-        "cook"
+        "npc_hungry",
+        "npc_cook"
       ],
       "lines": [
         {
-          "speaker": "hungry_settler",
-          "text": "Ate raw turnips for two days straight."
+          "speaker": "npc_hungry",
+          "text": "Ate raw potatoes for 3 days because the stove was slightly too far from the fridge."
         },
         {
-          "speaker": "cook",
-          "text": "The soup kettle was right on the stove!"
+          "speaker": "npc_cook",
+          "text": "Slightly?"
         },
         {
-          "speaker": "hungry_settler",
-          "text": "Four whole tiles away. Might as well be across the river."
+          "speaker": "npc_hungry",
+          "text": "Four tiles. Might as well be the moon."
         }
       ]
     },
@@ -73,21 +73,21 @@
       "id": "dt_berries",
       "category": "needs",
       "speakers": [
-        "forager",
-        "neighbor"
+        "npc_dead",
+        "npc_alive"
       ],
       "lines": [
         {
-          "speaker": "forager",
-          "text": "Almost starved to death while standing directly in a berry bush."
+          "speaker": "npc_dead",
+          "text": "Died of starvation surrounded by berries."
         },
         {
-          "speaker": "neighbor",
-          "text": "Why didn't you just eat them?"
+          "speaker": "npc_alive",
+          "text": "Why didn't you eat them?"
         },
         {
-          "speaker": "forager",
-          "text": "I forgot I could eat without putting them in a storage crate first."
+          "speaker": "npc_dead",
+          "text": "I forgot I could eat them without putting them in a crate first. Don't look at me."
         }
       ]
     },
@@ -101,15 +101,15 @@
       "lines": [
         {
           "speaker": "settler",
-          "text": "Boots off, hearth fire stoked."
+          "text": "Home at last."
         },
         {
           "speaker": "housemate",
-          "text": "Stew is simmering in the pot."
+          "text": "Long day, huh?"
         },
         {
           "speaker": "settler",
-          "text": "Best part of the entire day."
+          "text": "Feet up soon."
         }
       ]
     },
@@ -123,15 +123,169 @@
       "lines": [
         {
           "speaker": "settler",
-          "text": "The kettle is whistling on the stove."
+          "text": "Cozy night."
         },
         {
           "speaker": "housemate",
-          "text": "Pour a cup before the embers burn down."
+          "text": "Kettle on?"
         },
         {
           "speaker": "settler",
-          "text": "Nothing beats a quiet evening under a solid roof."
+          "text": "Quiet evening."
+        }
+      ]
+    },
+    {
+      "id": "wf_home_warm",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Warm fire soon."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Glad to be back."
+        },
+        {
+          "speaker": "settler",
+          "text": "Settle in?"
+        }
+      ]
+    },
+    {
+      "id": "wf_home_indoors",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Finally indoors."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Smells like stew."
+        },
+        {
+          "speaker": "settler",
+          "text": "Good night."
+        }
+      ]
+    },
+    {
+      "id": "wf_home_winter",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Shut the door!"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Chimney smoke."
+        },
+        {
+          "speaker": "settler",
+          "text": "Blankets out."
+        }
+      ]
+    },
+    {
+      "id": "wf_home_festival",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Guests in the lane!"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Smell the pies?"
+        },
+        {
+          "speaker": "settler",
+          "text": "Glad to be back."
+        }
+      ]
+    },
+    {
+      "id": "wf_home_food",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Thin stew tonight."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Save a crust for morning."
+        },
+        {
+          "speaker": "settler",
+          "text": "Children first."
+        }
+      ]
+    },
+    {
+      "id": "wf_sleep",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Zzz…"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Good night."
+        },
+        {
+          "speaker": "settler",
+          "text": "Dream well."
+        }
+      ]
+    },
+    {
+      "id": "wf_sleep_long",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Long day…"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Quiet house."
+        },
+        {
+          "speaker": "settler",
+          "text": "Home sweet home."
         }
       ]
     },
@@ -145,15 +299,37 @@
       "lines": [
         {
           "speaker": "hungry_settler",
-          "text": "The pantry cupboards are echoing with emptiness."
+          "text": "Cupboards bare…"
         },
         {
           "speaker": "pantry_keeper",
-          "text": "We're rationing the dried beans until the harvest."
+          "text": "Ration the grain."
         },
         {
           "speaker": "hungry_settler",
-          "text": "Send word to the hunters before we start boiling leather."
+          "text": "Hunters must bring more."
+        }
+      ]
+    },
+    {
+      "id": "wf_food_soup",
+      "category": "needs",
+      "speakers": [
+        "cook",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "cook",
+          "text": "Soup again?"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "We need farms."
+        },
+        {
+          "speaker": "cook",
+          "text": "Winter stores thin."
         }
       ]
     },
@@ -167,15 +343,191 @@
       "lines": [
         {
           "speaker": "expectant_mother",
-          "text": "The baby is kicking up a storm tonight."
+          "text": "Oof…"
         },
         {
           "speaker": "partner",
-          "text": "I finished carving the cradle by the window."
+          "text": "Little kick…"
         },
         {
           "speaker": "expectant_mother",
-          "text": "Soon we won't be sleeping through the night for a year."
+          "text": "Counting days…"
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_tired",
+      "category": "needs",
+      "speakers": [
+        "expectant_mother",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "So tired…"
+        },
+        {
+          "speaker": "friend",
+          "text": "Nursery ready?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Baby's restless."
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_longday",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Long day."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Tell me about it."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Kettle on?"
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_rain",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Smells like rain."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Hope the roof holds."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "I'll check the thatch."
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_kids",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Kids asleep?"
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Finally quiet."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Until morning."
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_wood",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Wood pile low."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "I'll chop tomorrow."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Again."
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_wolves",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Heard wolves."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Bars are latched."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Sleep close."
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_harvest",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Good harvest?"
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Bins are full."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "For now."
+        }
+      ]
+    },
+    {
+      "id": "wf_housemate_cold",
+      "category": "needs",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Cold night."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Fire's warm enough."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Barely."
         }
       ]
     },
@@ -183,32 +535,32 @@
       "id": "wf_needs_shared_blanket",
       "category": "needs",
       "speakers": [
-        "settler",
-        "housemate"
+        "npc_cold",
+        "npc_prepared"
       ],
       "lines": [
         {
-          "speaker": "settler",
+          "speaker": "npc_cold",
           "text": "The blanket is too small for two people."
         },
         {
-          "speaker": "housemate",
+          "speaker": "npc_prepared",
           "text": "That is why I brought two people."
         },
         {
-          "speaker": "settler",
+          "speaker": "npc_cold",
           "text": "You brought a second person instead of a second blanket?"
         },
         {
-          "speaker": "housemate",
+          "speaker": "npc_prepared",
           "text": "The second person was already here and looked useful."
         },
         {
-          "speaker": "settler",
+          "speaker": "npc_cold",
           "text": "I am not a heating appliance."
         },
         {
-          "speaker": "housemate",
+          "speaker": "npc_prepared",
           "text": "Not with that attitude."
         }
       ]
@@ -223,7 +575,7 @@
       "lines": [
         {
           "speaker": "cook",
-          "text": "What is in the stew tonight?"
+          "text": "What is in the stew?"
         },
         {
           "speaker": "forager",

@@ -8,14 +8,7 @@ import { BuildingType, EntityType } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
-import { seededRandom } from './simRng';
-import {
-  storyFlag,
-  setStoryFlags,
-  bumpVillageReputation,
-  eligibleDayForStory,
-  pushStoryCard,
-} from './storyHelpers';
+import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard } from './storyHelpers';
 
 export const STORY_KEY = 'wedding_diplomacy';
 export const AUTHORED_STORY_COOLDOWN_FLAG = 'authored_story_cd_until';
@@ -55,19 +48,6 @@ const GIFT = {
 type Stage1Choice = 'gift_practical' | 'gift_impressive' | 'decline' | 'envoy';
 type Stage2Choice = 'host_feast' | 'send_delegation' | 'stay_home_fortify';
 type WeddingOutcome = 'alliance' | 'uneasy_respect' | 'insult' | 'catastrophe';
-
-const STAGE1_CHOICES = new Set<Stage1Choice>([
-  'gift_practical',
-  'gift_impressive',
-  'decline',
-  'envoy',
-]);
-
-const STAGE2_CHOICES = new Set<Stage2Choice>([
-  'host_feast',
-  'send_delegation',
-  'stay_home_fortify',
-]);
 
 export function weddingDiplomacyEligibleDay(mapSeed: number | undefined): number {
   return eligibleDayForStory(mapSeed, STORY_KEY, MIN_DAY, WINDOW_DAYS);
@@ -118,7 +98,6 @@ export function maybeOfferWeddingDiplomacy(state: WorldState): void {
 
   const rival = state.rivalSettlements[0];
   const rivalIndex = state.rivalSettlements.indexOf(rival);
-
   setStoryFlags(state, {
     [FLAG_OFFERED]: state.tick,
     [FLAG_STATUS]: STATUS.offered,
@@ -130,13 +109,13 @@ export function maybeOfferWeddingDiplomacy(state: WorldState): void {
   const envoyAvailable = state.entities.some(
     (e) => e.alive && e.type === EntityType.Human && !e.isJuvenile && e.faction !== 'rival',
   );
-
   const event: StoryEvent = {
     id: `wedding_stage1_${state.tick}`,
     emoji: '💒',
     storyKey: STORY_KEY,
     title: 'An Invitation Across the River',
-    description: `${rival.name} has invited the colony to a politically important wedding. Every gift — and every delay — will be read as a statement about the colony's strength.`,
+    description:
+      `${rival.name} has invited the colony to a politically important wedding. Every gift — and every delay — will be read as a statement about the colony's strength.`,
     choices: [
       {
         id: 'gift_practical',
@@ -149,20 +128,17 @@ export function maybeOfferWeddingDiplomacy(state: WorldState): void {
         detail: 'Generous — or intimidating.',
       },
       ...(envoyAvailable
-        ? [
-            {
-              id: 'envoy',
-              label: 'Send an envoy',
-              detail: 'A settler attends in person; improves the chance of peace.',
-            },
-          ]
+        ? [{
+            id: 'envoy',
+            label: 'Send an envoy',
+            detail: 'A settler attends in person; improves the chance of peace.',
+          }]
         : []),
       { id: 'decline', label: 'Decline politely', detail: 'No cost — but the rival may take offense.' },
     ],
     createdAtTick: state.tick,
     expiresAtTick: state.tick + TICKS_PER_DAY * CARD_DURATION_DAYS,
   };
-
   pushStoryCard(state, event);
   addNotification(state, '💒 Wedding invitation', `${rival.name} invites the colony to a wedding.`, 'info');
 }
@@ -171,26 +147,16 @@ export function resolveWeddingDiplomacy(state: WorldState, choiceId: string): bo
   const status = storyFlag(state, FLAG_STATUS);
 
   if (status === STATUS.offered) {
-    const choice: Stage1Choice = STAGE1_CHOICES.has(choiceId as Stage1Choice)
-      ? (choiceId as Stage1Choice)
-      : 'decline';
-    return resolveStage1(state, choice);
+    return resolveStage1(state, choiceId as Stage1Choice);
   }
-
   if (status === STATUS.gift_sent || status === STATUS.declined) {
-    const choice: Stage2Choice = STAGE2_CHOICES.has(choiceId as Stage2Choice)
-      ? (choiceId as Stage2Choice)
-      : 'stay_home_fortify';
-    return resolveStage2(state, choice);
+    return resolveStage2(state, choiceId as Stage2Choice);
   }
-
   return true;
 }
 
 function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
   const colonyDay = getColonyDay(state);
-  const seed = state.worldMap?.seed ?? 1;
-
   switch (choice) {
     case 'gift_practical': {
       if (state.resources.food < PRACTICAL_FOOD || state.resources.wood < PRACTICAL_WOOD) {
@@ -199,34 +165,28 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
       }
       state.resources.food -= PRACTICAL_FOOD;
       state.resources.wood -= PRACTICAL_WOOD;
-
-      const delayDays = 2 + Math.floor(seededRandom(seed, `wedding-delay-${colonyDay}`) * 3);
       setStoryFlags(state, {
         [FLAG_STATUS]: STATUS.gift_sent,
         [FLAG_GIFT]: GIFT.practical,
-        [FLAG_RESOLVE_DAY]: colonyDay + delayDays,
+        [FLAG_RESOLVE_DAY]: colonyDay + 2 + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('wedding-delay')) * 3),
       });
       addNotification(state, '💒 Gift sent', 'The practical gift crosses the river.', 'info');
       return true;
     }
-
     case 'gift_impressive': {
       if (state.resources.gold < IMPRESSIVE_GOLD) {
         addNotification(state, 'Not enough gold', `An impressive gift needs ${IMPRESSIVE_GOLD} gold.`, 'warning');
         return false;
       }
       state.resources.gold -= IMPRESSIVE_GOLD;
-
-      const delayDays = 2 + Math.floor(seededRandom(seed, `wedding-delay-impressive-${colonyDay}`) * 3);
       setStoryFlags(state, {
         [FLAG_STATUS]: STATUS.gift_sent,
         [FLAG_GIFT]: GIFT.impressive,
-        [FLAG_RESOLVE_DAY]: colonyDay + delayDays,
+        [FLAG_RESOLVE_DAY]: colonyDay + 2 + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('wedding-delay-impressive')) * 3),
       });
       addNotification(state, '💒 Impressive gift sent', 'The rival chief will notice this.', 'info');
       return true;
     }
-
     case 'envoy': {
       const envoy = state.entities.find(
         (e) => e.alive && e.type === EntityType.Human && !e.isJuvenile && e.faction !== 'rival',
@@ -235,19 +195,15 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
         addNotification(state, 'No envoy available', 'No adult settler can attend the wedding.', 'warning');
         return false;
       }
-
-      const delayDays = 2 + Math.floor(seededRandom(seed, `wedding-delay-envoy-${colonyDay}`) * 3);
       setStoryFlags(state, {
         [FLAG_STATUS]: STATUS.gift_sent,
         [FLAG_GIFT]: GIFT.none,
         [FLAG_ENVOY]: envoy.id,
-        [FLAG_RESOLVE_DAY]: colonyDay + delayDays,
+        [FLAG_RESOLVE_DAY]: colonyDay + 2 + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('wedding-delay-envoy')) * 3),
       });
       addNotification(state, '💒 Envoy sent', `${envoy.name ?? 'A settler'} travels to the wedding.`, 'info');
       return true;
     }
-
-    case 'decline':
     default: {
       setStoryFlags(state, {
         [FLAG_STATUS]: STATUS.declined,
@@ -265,7 +221,6 @@ export function tickWeddingDiplomacy(state: WorldState): void {
   const status = storyFlag(state, FLAG_STATUS);
   if (status !== STATUS.gift_sent && status !== STATUS.declined) return;
   if (storyFlag(state, FLAG_STAGE2) > 0) return;
-
   const colonyDay = getColonyDay(state);
   const resolveDay = storyFlag(state, FLAG_RESOLVE_DAY);
   if (resolveDay <= 0 || colonyDay < resolveDay) return;
@@ -291,14 +246,12 @@ export function tickWeddingDiplomacy(state: WorldState): void {
     createdAtTick: state.tick,
     expiresAtTick: state.tick + TICKS_PER_DAY * CARD_DURATION_DAYS,
   };
-
   pushStoryCard(state, event);
   addNotification(state, '💒 The wedding approaches', 'The rival chief awaits a final decision.', 'info');
 }
 
 function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
   const colonyDay = getColonyDay(state);
-
   if (choice === 'host_feast' && state.resources.food < FEAST_FOOD) {
     addNotification(state, 'Not enough food', `Hosting a feast needs ${FEAST_FOOD} food.`, 'warning');
     return false;
@@ -314,7 +267,8 @@ function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
 
   const giftScore = gift === GIFT.impressive ? 1 : gift === GIFT.practical ? 0 : -1;
   const envoyScore = envoy ? 1 : 0;
-  const finalScore = choice === 'host_feast' ? 2 : choice === 'send_delegation' ? 1 : -1;
+  const finalScore =
+    choice === 'host_feast' ? 2 : choice === 'send_delegation' ? 1 : -1;
   const declinePenalty = declined ? -1 : 0;
   const total = relationshipIndex(state) + giftScore + envoyScore + finalScore + declinePenalty;
 
@@ -348,15 +302,12 @@ function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
       bumpVillageReputation(state, -2);
       addBigNews(state, '💒 Wedding catastrophe', `The feast went badly and ${rivalName(state)} is furious.`, 'negative');
       break;
-    case 'insult':
     default:
       shiftRelationship(state, -1);
       bumpVillageReputation(state, -1);
       addBigNews(state, '💒 Diplomatic insult', `${rivalName(state)} takes the slight personally.`, 'negative');
-      break;
   }
-
   setStoryFlags(state, baseFlags);
-  logEvent(state, 'event', `Wedding Diplomacy resolved: ${outcome}.`);
+  logEvent(state, 'event', `Wedding Diplomacy resolved: ${outcome}.`, undefined);
   return true;
 }

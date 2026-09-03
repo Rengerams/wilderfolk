@@ -54,20 +54,6 @@ export type HumanActivityTransition = {
   observedAtTick: number;
 };
 
-/** A recent movement segment: from where the human was, to where they are now. */
-export type HumanMovementSegment = {
-  fromLabel: string;
-  toLabel: string;
-  reason: string;
-  atTick: number;
-};
-
-/** Recent activity transition history, newest first. */
-export type HumanActivityHistory = {
-  transitions: HumanActivityTransition[];
-  movementSegments: HumanMovementSegment[];
-};
-
 export type HumanActivityProjection = {
   activity: string;
   schedule: {
@@ -81,7 +67,6 @@ export type HumanActivityProjection = {
   target: HumanActivityTarget | null;
   blockedReason: string | null;
   transition: HumanActivityTransition | null;
-  history: HumanActivityHistory;
   observedAtTick: number;
 };
 
@@ -138,12 +123,12 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
 /**
  * Structured, read-only projection for the selected-settler inspector.
  * This function reads authoritative WorldState and never writes simulation state.
+ * Historical transitions remain null until a dedicated presentation history is added.
  */
 export function getHumanActivityProjection(
   state: WorldState,
   entity: Entity,
   previousActivity?: string,
-  previousHistory?: HumanActivityHistory | null,
 ): HumanActivityProjection {
   const hour = getHourOfDay(state.tick);
   const schedule = getWorkSchedule(state);
@@ -199,31 +184,6 @@ export function getHumanActivityProjection(
   else if (entity.homeBuildingId != null && !assignedWorkplace && !isAssignedConstruction) blockedReason = 'Assigned workplace is unavailable';
   else if (workplace && !workplace.completed && !isAssignedConstruction) blockedReason = 'Construction site is unavailable';
 
-  // Build activity history
-  const newTransition = previousActivity && previousActivity !== activity
-    ? { from: previousActivity, to: activity, observedAtTick: state.tick }
-    : null;
-  const historyTransitions = newTransition
-    ? [newTransition, ...(previousHistory?.transitions ?? [])].slice(0, 10)
-    : (previousHistory?.transitions ?? []);
-
-  // Build movement trace segments
-  const movementSegments: HumanMovementSegment[] = (() => {
-    if (!previousHistory || !previousHistory.movementSegments?.length) return [];
-    const segments = [...previousHistory.movementSegments];
-    if (target) {
-      const lastSegment = segments[segments.length - 1];
-      const fromLabel = lastSegment?.toLabel ?? 'Start';
-      segments.push({
-        fromLabel,
-        toLabel: target.label,
-        reason: activity,
-        atTick: state.tick,
-      });
-    }
-    return segments.slice(-5);
-  })();
-
   return {
     activity,
     schedule: {
@@ -236,8 +196,9 @@ export function getHumanActivityProjection(
     workplace: workplace ? { id: workplace.id, label: labelFor(workplace) } : null,
     target,
     blockedReason,
-    transition: newTransition,
-    history: { transitions: historyTransitions, movementSegments },
+    transition: previousActivity && previousActivity !== activity
+      ? { from: previousActivity, to: activity, observedAtTick: state.tick }
+      : null,
     observedAtTick: state.tick,
   };
 }

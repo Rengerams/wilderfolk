@@ -1,5 +1,5 @@
 {
-  "version": "1.2",
+  "version": "1.1",
   "game": "Wilderfolk Sim",
   "category": "work",
   "dialogue_trees": [
@@ -7,20 +7,20 @@
       "id": "dt_rock",
       "category": "work",
       "speakers": [
-        "worker",
-        "bystander"
+        "npc_laborer",
+        "npc_bystander"
       ],
       "lines": [
         {
-          "speaker": "worker",
+          "speaker": "npc_laborer",
           "text": "I've been carrying this rock for 3 hours. I don't know where to put it."
         },
         {
-          "speaker": "bystander",
+          "speaker": "npc_bystander",
           "text": "Have you tried... setting it down?"
         },
         {
-          "speaker": "worker",
+          "speaker": "npc_laborer",
           "text": "I am one with the rock now. Do not interrupt our journey."
         }
       ]
@@ -29,21 +29,65 @@
       "id": "dt_diagonal",
       "category": "work",
       "speakers": [
+        "npc_farmer",
+        "npc_veteran"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_farmer",
+          "text": "Just watched a guy harvest an entire field by walking diagonally through it."
+        },
+        {
+          "speaker": "npc_veteran",
+          "text": "We don't talk about the diagonal walk."
+        },
+        {
+          "speaker": "npc_farmer",
+          "text": "I tried it once. They found my body in a fence."
+        }
+      ]
+    },
+    {
+      "id": "wf_work_shift",
+      "category": "work",
+      "speakers": [
+        "laborer",
+        "foreman"
+      ],
+      "lines": [
+        {
+          "speaker": "laborer",
+          "text": "Hard work!"
+        },
+        {
+          "speaker": "foreman",
+          "text": "More wood!"
+        },
+        {
+          "speaker": "laborer",
+          "text": "Keep at it."
+        }
+      ]
+    },
+    {
+      "id": "wf_work_busy",
+      "category": "work",
+      "speakers": [
         "farmer",
-        "worker"
+        "helper"
       ],
       "lines": [
         {
           "speaker": "farmer",
-          "text": "Just watched a guy harvest an entire field by walking diagonally through it."
+          "text": "Busy day."
         },
         {
-          "speaker": "worker",
-          "text": "We don't talk about the diagonal walk."
+          "speaker": "helper",
+          "text": "Good yield."
         },
         {
           "speaker": "farmer",
-          "text": "I tried it once. They found my body in a fence."
+          "text": "One more load."
         }
       ]
     },
@@ -57,15 +101,15 @@
       "lines": [
         {
           "speaker": "smith",
-          "text": "These timber beams are solid, but my chisels are dull."
+          "text": "Sturdy beams."
         },
         {
           "speaker": "carpenter",
-          "text": "Bring them to the grindstone after the shift."
+          "text": "Tools need sharpening."
         },
         {
           "speaker": "smith",
-          "text": "A sharp tool makes the sun go down faster."
+          "text": "Shift's long."
         }
       ]
     },
@@ -73,21 +117,21 @@
       "id": "wf_work_winter",
       "category": "work",
       "speakers": [
-        "worker",
+        "laborer",
         "foreman"
       ],
       "lines": [
         {
-          "speaker": "worker",
-          "text": "My fingers are numb through these gloves."
+          "speaker": "laborer",
+          "text": "Fingers numb."
         },
         {
           "speaker": "foreman",
-          "text": "Short daylight today. Keep moving to stay warm."
+          "text": "Shorter daylight."
         },
         {
-          "speaker": "worker",
-          "text": "One more cartload before the frost sets in."
+          "speaker": "laborer",
+          "text": "Almost done."
         }
       ]
     },
@@ -95,43 +139,43 @@
       "id": "wf_work_rain",
       "category": "work",
       "speakers": [
-        "carpenter",
-        "worker"
+        "builder",
+        "neighbor"
       ],
       "lines": [
         {
-          "speaker": "carpenter",
-          "text": "Roof is leaking right over the dry storage."
+          "speaker": "builder",
+          "text": "Roof leak again."
         },
         {
-          "speaker": "worker",
-          "text": "Move the grain sacks to the barn first!"
+          "speaker": "neighbor",
+          "text": "Work in the barn."
         },
         {
-          "speaker": "carpenter",
-          "text": "I'll climb up with fresh thatch once the wind dies."
+          "speaker": "builder",
+          "text": "Hope it holds."
         }
       ]
     },
     {
-      "id": "wf_work_shift_planning",
+      "id": "wf_work_festival",
       "category": "work",
       "speakers": [
-        "worker",
-        "foreman"
+        "laborer",
+        "friend"
       ],
       "lines": [
         {
-          "speaker": "worker",
-          "text": "Are we getting a half day before the festival revels?"
+          "speaker": "laborer",
+          "text": "Half day tomorrow?"
         },
         {
-          "speaker": "foreman",
-          "text": "Only if the storage bins are stacked and swept."
+          "speaker": "friend",
+          "text": "Finish before the dance."
         },
         {
-          "speaker": "worker",
-          "text": "Consider it done. Nobody delays the tavern kegs."
+          "speaker": "laborer",
+          "text": "Good yield."
         }
       ]
     },
@@ -140,42 +184,64 @@
       "category": "work",
       "speakers": [
         "guard",
-        "foreman"
+        "relief"
       ],
       "lines": [
         {
           "speaker": "guard",
-          "text": "Perimeter is quiet, but the woods feel too still."
+          "text": "All quiet."
         },
         {
-          "speaker": "foreman",
-          "text": "Keep torches lit along the palisade line."
+          "speaker": "relief",
+          "text": "Perimeter clear."
         },
         {
           "speaker": "guard",
-          "text": "Eyes open until relief arrives at dawn."
+          "text": "Hold the line."
         }
       ]
     },
     {
-      "id": "wf_guard_night_sighting",
+      "id": "wf_guard_night",
       "category": "work",
       "speakers": [
         "guard",
-        "foreman"
+        "captain"
       ],
       "lines": [
         {
           "speaker": "guard",
-          "text": "I saw two glowing eyes past the tree line."
+          "text": "Eyes open."
         },
         {
-          "speaker": "foreman",
-          "text": "Wolf pack or just a very confident raccoon?"
+          "speaker": "captain",
+          "text": "I saw movement."
         },
         {
           "speaker": "guard",
-          "text": "Either way, it didn't look like it pays village taxes."
+          "text": "Torch lit."
+        }
+      ]
+    },
+    {
+      "id": "wf_guard_wait",
+      "category": "work",
+      "speakers": [
+        "guard",
+        "relief"
+      ],
+      "lines": [
+        {
+          "speaker": "guard",
+          "text": "Nothing yet."
+        },
+        {
+          "speaker": "relief",
+          "text": "Relief soon?"
+        },
+        {
+          "speaker": "guard",
+          "text": "All quiet."
         }
       ]
     },
@@ -184,20 +250,20 @@
       "category": "work",
       "speakers": [
         "hunter",
-        "worker"
+        "partner"
       ],
       "lines": [
         {
           "speaker": "hunter",
-          "text": "Fresh deer tracks cutting south toward the creek."
+          "text": "There!"
         },
         {
-          "speaker": "worker",
-          "text": "Wind is blowing right into their clearing."
+          "speaker": "partner",
+          "text": "Shhh…"
         },
         {
           "speaker": "hunter",
-          "text": "Circle downwind. Easy does it."
+          "text": "Steady…"
         }
       ]
     },
@@ -206,20 +272,42 @@
       "category": "work",
       "speakers": [
         "hunter",
-        "worker"
+        "partner"
       ],
       "lines": [
         {
           "speaker": "hunter",
-          "text": "There — a massive stag in the clearing!"
+          "text": "Prey!"
         },
         {
-          "speaker": "worker",
-          "text": "Draw slowly... don't snap the dry twigs."
+          "speaker": "partner",
+          "text": "Quiet…"
         },
         {
           "speaker": "hunter",
-          "text": "Clean shot. The village eats well tonight."
+          "text": "Got one!"
+        }
+      ]
+    },
+    {
+      "id": "wf_hunt_wind",
+      "category": "work",
+      "speakers": [
+        "hunter",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "hunter",
+          "text": "Tracks here."
+        },
+        {
+          "speaker": "partner",
+          "text": "Wind's wrong."
+        },
+        {
+          "speaker": "hunter",
+          "text": "Almost in range."
         }
       ]
     },
@@ -227,32 +315,32 @@
       "id": "wf_work_midnight_shift",
       "category": "work",
       "speakers": [
-        "worker",
-        "guard"
+        "npc_clockmaker",
+        "npc_night_guard"
       ],
       "lines": [
         {
-          "speaker": "worker",
+          "speaker": "npc_clockmaker",
           "text": "The clock tower struck thirteen. I think it is asking for overtime."
         },
         {
-          "speaker": "guard",
+          "speaker": "npc_night_guard",
           "text": "It has been asking for overtime since I started talking to it."
         },
         {
-          "speaker": "worker",
+          "speaker": "npc_clockmaker",
           "text": "You talk to the clock?"
         },
         {
-          "speaker": "guard",
+          "speaker": "npc_night_guard",
           "text": "Only on nights when it lies about the hour."
         },
         {
-          "speaker": "worker",
+          "speaker": "npc_clockmaker",
           "text": "Then we agree the machinery is malfunctioning."
         },
         {
-          "speaker": "guard",
+          "speaker": "npc_night_guard",
           "text": "No. We agree it knows exactly what it is doing."
         }
       ]
@@ -261,20 +349,20 @@
       "id": "wf_funny_work_fence",
       "category": "work",
       "speakers": [
-        "carpenter",
-        "worker"
+        "fencer",
+        "carpenter"
       ],
       "lines": [
         {
-          "speaker": "carpenter",
+          "speaker": "fencer",
           "text": "I repaired this fence twice today."
         },
         {
-          "speaker": "worker",
+          "speaker": "carpenter",
           "text": "Was it broken twice?"
         },
         {
-          "speaker": "carpenter",
+          "speaker": "fencer",
           "text": "No. It moved while I was looking for my hammer."
         }
       ]

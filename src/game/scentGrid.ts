@@ -33,9 +33,6 @@ export const RABBIT_SCENT_SENSITIVITY = 1.25;
 export const DEER_SCENT_SENSITIVITY = 0.75;
 export const WILDKIN_SCENT_SENSITIVITY = 0.55;
 
-/** How strongly foxes react to predator scent (lower = less sensitive) */
-export const FOX_SCENT_SENSITIVITY = 0.85;
-
 function isScentGridDisabled(): boolean {
   if (typeof import.meta !== 'undefined' && envFlagDisabled(import.meta.env?.VITE_USE_SCENT_GRID)) {
     return true;
@@ -133,7 +130,7 @@ export class ScentGrid implements ScentGridRuntime {
     this.values[idx] = Math.min(255, this.values[idx] + amount);
   }
 
-  /** Only deposit predator scent: wolf, fox, and werewolves that are currently transformed (active Moon Howler only — cursed werewolves hunt tonight). */
+  /** Stain cells where mobile predators stood this tick (wolf / fox / active werewolf only). */
   depositPredatorScent(entities: Iterable<Entity>): void {
     for (const entity of entities) {
       if (!entity.alive) continue;
@@ -294,7 +291,7 @@ export class ScentGridReader {
   }
 }
 
-function scentSidecarByteLength(cols: number, rows: number): number {
+export function scentSidecarByteLength(cols: number, rows: number): number {
   return (SCENT_HEADER_WORDS + cols * rows) * 4;
 }
 
@@ -345,4 +342,3 @@ export function tickScentGrid(
   state.scentGrid.depositPredatorScent(predators);
   return state.scentGrid;
 }
-

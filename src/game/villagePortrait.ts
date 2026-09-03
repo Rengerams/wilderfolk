@@ -129,7 +129,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
 
   const traits: PortraitTrait[] = [
     {
-      id: 'war' as PortraitTraitId,
+      id: 'war',
       label: 'War & raids',
       emoji: '⚔️',
       score: warScore,
@@ -141,7 +141,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
             : 'You have rarely spilled blood on purpose.',
     },
     {
-      id: 'nature' as PortraitTraitId,
+      id: 'nature',
       label: 'Nature',
       emoji: '🌿',
       score: natureScore,
@@ -153,7 +153,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
             : 'The land shows strain from farms, hunts, and sprawl.',
     },
     {
-      id: 'trade' as PortraitTraitId,
+      id: 'trade',
       label: 'Trade',
       emoji: '💰',
       score: tradeScore,
@@ -165,7 +165,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
             : 'Trade is thin — most wealth still comes from the home valley.',
     },
     {
-      id: 'build' as PortraitTraitId,
+      id: 'build',
       label: 'Building',
       emoji: '🏰',
       score: buildScore,
@@ -177,7 +177,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
             : 'Still a small holding; more timber and stone will change that.',
     },
     {
-      id: 'diplomacy' as PortraitTraitId,
+      id: 'diplomacy',
       label: 'Diplomacy',
       emoji: '🤝',
       score: diplomacyScore,

@@ -63,10 +63,9 @@ export function isDialogueBusy(entity: Pick<ChatSpeaker, 'chatTicks' | 'chatDial
 
 /** Legacy display duration from the 24-tick day; converted at the chat boundary. */
 export const CHAT_DEFAULT_DURATION_LEGACY_TICKS = 90;
-
-/** Scaled duration: ~1–2.5 in-game hours per line to prevent multi-day conversations. */
-export const DIALOGUE_LINE_BASE_HOURS = 1.0;
-export const DIALOGUE_LINE_CHAR_HOURS = 0.04;
+/** A spoken tree line remains visible for roughly 2.5–5 game hours. */
+export const DIALOGUE_LINE_BASE_HOURS = 2.5;
+export const DIALOGUE_LINE_CHAR_HOURS = 0.08;
 export const CHAT_BUBBLE_MAX_CHARS_PER_LINE = 38;
 export const CHAT_BUBBLE_MAX_LINES = 3;
 
@@ -113,24 +112,29 @@ export function wrapChatLines(
   let current = '';
   
   for (const word of words) {
+    // If adding this word exceeds the line limit, push the current line
     if (current && (current.length + 1 + word.length > maxCharsPerLine)) {
       lines.push(current);
       if (lines.length >= maxLines) {
-        const last = lines[lines.length - 1]!;
+        // We've hit the max lines, append ellipsis to the last added line
+        const last = lines[lines.length - 1];
         lines[lines.length - 1] = last.slice(0, maxCharsPerLine - 1) + '…';
         return lines;
       }
       current = word;
     } else {
+      // Add to current line
       current = current ? `${current} ${word}` : word;
     }
   }
 
+  // Push any remaining text
   if (current) {
     if (lines.length < maxLines) {
       lines.push(current);
     } else {
-      const last = lines[lines.length - 1]!;
+      // If we already have maxLines, append to the last one with ellipsis
+      const last = lines[lines.length - 1];
       lines[lines.length - 1] = last.slice(0, maxCharsPerLine - 1) + '…';
     }
   }
@@ -138,23 +142,16 @@ export function wrapChatLines(
   return lines.length > 0 ? lines : ['…'];
 }
 
-/** Flatten wrapped lines for storage in chatPhrase ({speaker} = self, {name}/{target} = addressee). */
-export function formatChatLine(
-  line: string,
-  speaker?: Pick<ChatSpeaker, 'name'>,
-  listener?: Pick<ChatSpeaker, 'name'>,
-): string {
-  const speakerName = speaker?.name?.split(/\s+/)[0] ?? 'friend';
-  const targetName = listener?.name?.split(/\s+/)[0] ?? 'friend';
-  const substituted = line
-    .replace(/\{speaker\}/g, speakerName)
-    .replace(/\{name\}|\{target\}/g, targetName);
+/** Flatten wrapped lines for storage in chatPhrase (renderer splits on newline). */
+export function formatChatLine(line: string, speaker?: Pick<ChatSpeaker, 'name'>): string {
+  const firstName = speaker?.name?.split(/\s+/)[0] ?? 'friend';
+  const substituted = line.replace(/\{name\}/g, firstName);
   return wrapChatLines(substituted).join('\n');
 }
 
 export function ticksForDialogueLine(text: string): number {
   const durationHours = DIALOGUE_LINE_BASE_HOURS + text.length * DIALOGUE_LINE_CHAR_HOURS;
-  return Math.max(1, Math.round(durationHours * TICKS_PER_HOUR));
+  return Math.max(TICKS_PER_HOUR, Math.round(durationHours * TICKS_PER_HOUR));
 }
 
 function activeChatTicksFromLegacyDuration(legacyTicks: number): number {
@@ -174,15 +171,20 @@ function clearEntityChat(entity: ChatSpeaker): void {
 
 function clearDialogueSession(key: string, entityA?: ChatSpeaker, entityB?: ChatSpeaker): void {
   dialogueSessions.delete(key);
-  if (entityA && entityA.chatDialogueSessionKey === key) {
-    entityA.chatDialogueSessionKey = undefined;
-    entityA.chatPartnerId = undefined;
-    clearEntityChat(entityA);
+  if (entityA) {
+    // Only clear if this entity is actually part of this specific session
+    if (entityA.chatDialogueSessionKey === key) {
+      entityA.chatDialogueSessionKey = undefined;
+      entityA.chatPartnerId = undefined;
+      clearEntityChat(entityA);
+    }
   }
-  if (entityB && entityB.chatDialogueSessionKey === key) {
-    entityB.chatDialogueSessionKey = undefined;
-    entityB.chatPartnerId = undefined;
-    clearEntityChat(entityB);
+  if (entityB) {
+    if (entityB.chatDialogueSessionKey === key) {
+      entityB.chatDialogueSessionKey = undefined;
+      entityB.chatPartnerId = undefined;
+      clearEntityChat(entityB);
+    }
   }
 }
 
@@ -192,26 +194,21 @@ function resolveSessionEntities(
 ): { session: DialogueSession; self: ChatSpeaker; partner: ChatSpeaker | null } | null {
   const key = entity.chatDialogueSessionKey;
   if (!key) return null;
-  
   const session = dialogueSessions.get(key);
-  if (!session) {
-    // Session is orphaned, scrub the entity immediately
-    entity.chatDialogueSessionKey = undefined;
-    entity.chatPartnerId = undefined;
-    clearEntityChat(entity);
-    return null;
-  }
+  if (!session) return null;
 
   const partnerId = entity.chatPartnerId;
   const partner = partnerId != null ? resolvePartner(partnerId) ?? null : null;
   
-  // Partner missing/despawned mid-session: abort exchange and free the survivor
+  // If non-solo and partner is missing, clean up
   if (!session.solo && !partner) {
     clearDialogueSession(key, entity, undefined);
     return null;
   }
 
-  return { session, self: entity, partner: session.solo ? null : partner };
+  const self = entity;
+  if (session.solo) return { session, self, partner: null };
+  return { session, self, partner };
 }
 
 function showDialogueStep(
@@ -225,10 +222,11 @@ function showDialogueStep(
   if (!line) return;
 
   const ticks = ticksForDialogueLine(line.text);
+  const formatted = formatChatLine(line.text);
 
   if (solo || !entityB) {
-    clearEntityChat(entityA);
-    entityA.chatPhrase = formatChatLine(line.text, entityA, undefined);
+    clearEntityChat(entityB ?? entityA);
+    entityA.chatPhrase = formatted;
     entityA.chatTicks = ticks;
     return;
   }
@@ -237,8 +235,10 @@ function showDialogueStep(
   const active = role === 0 ? entityA : entityB;
   const idle = role === 0 ? entityB : entityA;
   
+  // Clear the idle participant so they don't show two bubbles
   clearEntityChat(idle);
-  active.chatPhrase = formatChatLine(line.text, active, idle);
+  
+  active.chatPhrase = formatChatLine(line.text, active);
   active.chatTicks = ticks;
 }
 
@@ -248,8 +248,8 @@ export function startDialogueTreeChat(
   tree: DialogueTree,
   solo = false,
 ): void {
-  if (isDialogueBusy(entityA)) return;
-  if (!solo && entityB && isDialogueBusy(entityB)) return;
+  if ((entityA.chatTicks ?? 0) > 0) return;
+  if (!solo && entityB && (entityB.chatTicks ?? 0) > 0) return;
 
   const key = solo || !entityB
     ? `solo:${entityA.id}`
@@ -297,28 +297,27 @@ function advanceDialogue(
   const tree = getDialogueTreeById(session.treeId);
   const sessionKey = self.chatDialogueSessionKey!;
   
-  if (!tree || (!session.solo && !partner)) {
+  if (!tree) {
     clearDialogueSession(sessionKey, self, partner ?? undefined);
     return false;
   }
 
+  if (!session.solo && !partner) {
+    clearDialogueSession(sessionKey, self, undefined);
+    return false;
+  }
+
   const entityA = resolveSessionSpeaker(session.entityAId, self, partner) ?? self;
-  const entityB = session.solo ? null : resolveSessionSpeaker(session.entityBId, self, partner);
+  const entityB = session.solo
+    ? null
+    : resolveSessionSpeaker(session.entityBId, self, partner);
     
   if (!session.solo && !entityB) {
     clearDialogueSession(sessionKey, entityA, undefined);
     return false;
   }
 
-  let nextStep = session.step + 1;
-
-  // Fast-forward over partner lines if speaking solo to prevent dual-persona monologues
-  if (session.solo) {
-    while (nextStep < tree.lines.length && speakerRoleIndex(tree, tree.lines[nextStep]!) !== 0) {
-      nextStep++;
-    }
-  }
-
+  const nextStep = session.step + 1;
   if (nextStep >= tree.lines.length) {
     clearDialogueSession(sessionKey, entityA, entityB ?? undefined);
     return true;
@@ -329,10 +328,11 @@ function advanceDialogue(
   return true;
 }
 
+/** Force a specific line (e.g. rare world events, elections). */
 export function sayHumanChatPhrase(
   entity: ChatSpeaker,
   phrase: string,
-  legacyDurationTicks = CHAT_DEFAULT_DURATION_LEGACY_TICKS,
+  legacyDurationTicks = 120,
 ): void {
   entity.chatDialogueSessionKey = undefined;
   entity.chatPartnerId = undefined;
@@ -349,7 +349,7 @@ export function startHumanChat(
   options: ChatPickOptions = {},
   partner: ChatSpeaker | null = null,
 ): void {
-  if (isDialogueBusy(entity)) return;
+  if ((entity.chatTicks ?? 0) > 0) return;
   if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
   const tree = pickDialogueTree(context, entityId, tick, options, options.avoidTreeId);
   if (!tree) return;
@@ -360,30 +360,13 @@ export function tickHumanChat(
   entity: ChatSpeaker,
   resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
 ): void {
-  // Idle sweep: Unstick entity if its timer expired but it holds an orphaned session
-  if (!entity.chatTicks || entity.chatTicks <= 0) {
-    if (entity.chatDialogueSessionKey) {
-      const session = dialogueSessions.get(entity.chatDialogueSessionKey);
-      if (!session) {
-        entity.chatDialogueSessionKey = undefined;
-        entity.chatPartnerId = undefined;
-        clearEntityChat(entity);
-      }
-    }
-    return;
-  }
-
+  if (!entity.chatTicks || entity.chatTicks <= 0) return;
   entity.chatTicks--;
   if (entity.chatTicks > 0) return;
 
-  if (entity.chatDialogueSessionKey) {
-    if (resolvePartner) {
-      const advanced = advanceDialogue(entity, resolvePartner);
-      if (advanced) return;
-    } else {
-      // Abort session if partner cannot be resolved
-      clearDialogueSession(entity.chatDialogueSessionKey, entity, undefined);
-    }
+  if (entity.chatDialogueSessionKey && resolvePartner) {
+    const advanced = advanceDialogue(entity, resolvePartner);
+    if (advanced) return;
   }
 
   clearEntityChat(entity);
@@ -399,8 +382,8 @@ export function maybeDialogueChat(
   chance: number,
   options: ChatPickOptions = {},
 ): void {
-  if (isDialogueBusy(entity)) return;
-  if (partner && isDialogueBusy(partner)) return;
+  if ((entity.chatTicks ?? 0) > 0) return;
+  if (partner && (partner.chatTicks ?? 0) > 0) return;
   if (seededRandomForRun(`chat-roll:${entity.id}:${tick}`) > chance) return;
 
   if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
@@ -411,6 +394,7 @@ export function maybeDialogueChat(
     return;
   }
 
+  // Bank missing or empty — short emergency lines only (should be rare).
   if (!warnedMissingBank) {
     warnedMissingBank = true;
     console.warn('[chat] Dialogue bank empty — using fallback phrases (split dialogue files not loaded)');
@@ -424,6 +408,7 @@ export function maybeDialogueChat(
   }
 }
 
+/** Weighted pool of chat contexts — random pick, optional light bias from world state. */
 export function pickRandomChatContext(
   entity: Pick<ChatSpeaker, 'isJuvenile' | 'id'>,
   tick: number,
@@ -435,27 +420,30 @@ export function pickRandomChatContext(
     night?: boolean;
   },
 ): HumanChatContext {
+  // Base weights: mostly social / work / home so trees across the bank get used.
   const pool: HumanChatContext[] = [
     'social', 'social', 'social', 'social',
     'work', 'work',
     'home', 'home',
   ];
   if (options.foodLow) pool.push('food', 'food');
+  if (options.season === 'winter' || options.weather === 'snow') pool.push('winter', 'winter');
   if (options.festivalActive) pool.push('festival', 'festival');
   if (entity.isJuvenile) pool.push('child', 'child', 'school');
   if (extra?.pregnant) pool.push('pregnant');
   if (extra?.renffr) pool.push('renffr', 'renffr');
   if (extra?.workHour) pool.push('work', 'work');
   if (extra?.night) pool.push('home', 'sleep', 'sleep');
-  
-  // Non-clear weather routes to environment chatter
-  if (options.weather && options.weather !== 'clear') {
-    pool.push('winter', 'winter');
-  }
-
+  if (options.weather === 'rain' || options.weather === 'storm') pool.push('winter');
   return pool[Math.floor(seededRandomForRun(`chat-context:${entity.id}:${tick}`) * pool.length)]!;
 }
 
+/**
+ * Ambient dialogue — random time, random context, optional random nearby partner.
+ * Not gated to work hours / evening / “arrived at building”.
+ *
+ * @param chancePerTick raw chance this tick (e.g. 0.012 ≈ occasional chatter)
+ */
 export function tryAmbientRandomDialogue(
   entity: ChatSpeaker,
   nearbyCandidates: ChatSpeaker[],
@@ -469,18 +457,20 @@ export function tryAmbientRandomDialogue(
     night?: boolean;
   },
 ): void {
-  if (isDialogueBusy(entity)) return;
+  if ((entity.chatTicks ?? 0) > 0) return;
   if (seededRandomForRun(`chat-ambient:${entity.id}:${tick}`) > chancePerTick) return;
 
   const context = pickRandomChatContext(entity, tick, options, extra);
   
+  // 🚀 OPTIMIZED: Single-pass random partner selection instead of .filter()
   let partner: ChatSpeaker | null = null;
   if (nearbyCandidates.length > 0) {
+    // Try to find a free partner randomly without allocating a new array
     let attempts = 0;
-    const maxAttempts = Math.min(nearbyCandidates.length, 5);
+    const maxAttempts = Math.min(nearbyCandidates.length, 5); // Limit attempts to avoid infinite loops in dense crowds
     while (attempts < maxAttempts) {
       const candidate = nearbyCandidates[Math.floor(seededRandomForRun(`chat-cand:${entity.id}:${tick}:${attempts}`) * nearbyCandidates.length)];
-      if (candidate && candidate.id !== entity.id && !isDialogueBusy(candidate)) {
+      if (candidate && candidate.id !== entity.id && (candidate.chatTicks ?? 0) <= 0) {
         partner = candidate;
         break;
       }
@@ -491,7 +481,8 @@ export function tryAmbientRandomDialogue(
   maybeDialogueChat(entity, partner, context, tick, 1, options);
 }
 
-function maybeHumanChat(
+/** @deprecated Prefer `maybeDialogueChat` — duration is derived from dialogue line length. */
+export function maybeHumanChat(
   entity: ChatSpeaker,
   context: HumanChatContext,
   _entityId: number,
@@ -514,7 +505,8 @@ function housemateChatContext(
   return 'home';
 }
 
-function maybeHousemateChat(
+/** Pair chat bubbles between settlers sharing a home. */
+export function maybeHousemateChat(
   entity: ChatSpeaker,
   housemates: ChatSpeaker[],
   tick: number,
@@ -522,21 +514,19 @@ function maybeHousemateChat(
   _durationTicks = 95,
   options: ChatPickOptions = {},
 ): void {
-  if (isDialogueBusy(entity)) return;
+  if ((entity.chatTicks ?? 0) > 0) return;
   const others = housemates.filter((h) => h.id !== entity.id);
   if (others.length === 0) {
     maybeDialogueChat(entity, null, housemateChatContext(entity, null, options), tick, chance * 0.6, options);
     return;
   }
   if (seededRandomForRun(`chat-home:${entity.id}:${tick}`) > chance) return;
-  
   const mate = others[(entity.id + Math.floor(tick / 40)) % others.length]!;
-  if (isDialogueBusy(mate)) return;
-
   maybeDialogueChat(entity, mate, housemateChatContext(entity, mate, options), tick, 1, options);
 }
 
-function startPairedHumanChat(
+/** @deprecated Use dialogue trees via maybeDialogueChat */
+export function startPairedHumanChat(
   speaker: ChatSpeaker,
   listener: ChatSpeaker,
   pair: readonly [string, string],
@@ -547,11 +537,13 @@ function startPairedHumanChat(
   sayHumanChatPhrase(listener, pair[1], legacyDurationTicks);
 }
 
-function pickCourtshipPair(_entityId: number, _tick: number): readonly [string, string] {
+/** @deprecated Dialogue trees replace static pairs */
+export function pickCourtshipPair(_entityId: number, _tick: number): readonly [string, string] {
   return ['Walk with me?', 'Gladly.'];
 }
 
-function pickChatPhrase(
+/** @deprecated Dialogue trees drive phrase selection */
+export function pickChatPhrase(
   context: HumanChatContext,
   entityId: number,
   tick: number,
@@ -561,7 +553,7 @@ function pickChatPhrase(
   return tree?.lines[0]?.text ?? '…';
 }
 
-function truncateChatForBubble(text: string, maxChars = CHAT_BUBBLE_MAX_CHARS_PER_LINE): string {
+export function truncateChatForBubble(text: string, maxChars = CHAT_BUBBLE_MAX_CHARS_PER_LINE): string {
   const lines = wrapChatLines(text, maxChars, 1);
   return lines[0] ?? '…';
 }
@@ -577,6 +569,7 @@ export function getChatBubbleText(
 ): string {
   const talking = (entity.chatTicks ?? 0) > 0;
   if (!talking) return '';
+  // Prefer stored tree line; only animate dots if phrase was lost in transfer.
   const phrase = entity.chatPhrase?.trim();
   if (phrase) return phrase;
   return getAnimatedChatDots(tick, entity.id);
@@ -586,9 +579,17 @@ export function resetDialogueSessions(): void {
   dialogueSessions.clear();
 }
 
+/** Remove a dead/despawned entity's dialogue session and clear its chat state. */
 export function cleanupEntityDialogueState(entity: ChatSpeaker): void {
   const key = entity.chatDialogueSessionKey;
   if (key) {
+    const session = dialogueSessions.get(key);
+    // If there was a partner, try to clear their state too to prevent ghost chats
+    if (session && !session.solo) {
+      // We can't easily resolve the partner here without a map, but we can 
+      // rely on the partner's next tick to fail resolveSessionEntities and clean itself up.
+      // However, deleting the session key prevents the partner from advancing.
+    }
     dialogueSessions.delete(key);
   }
   entity.chatDialogueSessionKey = undefined;

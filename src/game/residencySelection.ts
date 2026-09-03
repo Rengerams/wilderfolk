@@ -493,7 +493,7 @@ export function isUnnecessarilySharingHousing(
   return housingUnitNeedsReassignment(unit, humans, residences, occupancy);
 }
 
-function auditHousingSharingIssues(humans: Entity[], buildings: Building[]): string[] {
+export function auditHousingSharingIssues(humans: Entity[], buildings: Building[]): string[] {
   const alive = humans.filter((h) => h.alive && !h.faction);
   const residences = buildings.filter(isResidenceBuilding);
   const emptyCount = residences.filter((r) => countResidentsInBuilding(alive, r.id) === 0).length;

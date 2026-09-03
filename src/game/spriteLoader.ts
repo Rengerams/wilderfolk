@@ -103,7 +103,7 @@ export function getSpriteFrame(src: string): SpriteFrame | null {
   return frameCache.get(src) || null;
 }
 
-function isSpriteLoaded(src: string): boolean {
+export function isSpriteLoaded(src: string): boolean {
   return frameCache.has(src);
 }
 

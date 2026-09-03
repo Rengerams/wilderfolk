@@ -31,7 +31,7 @@ export const RENDER_FIELD = {
   reserved1: 15,
 } as const;
 
-type RenderField = (typeof RENDER_FIELD)[keyof typeof RENDER_FIELD];
+export type RenderField = (typeof RENDER_FIELD)[keyof typeof RENDER_FIELD];
 
 /** Header layout (Uint32 indices). */
 export const RENDER_HEADER = {
@@ -45,7 +45,7 @@ export const RENDER_HEADER = {
   globalFlags: 7,
 } as const;
 
-type RenderHeaderIndex = (typeof RENDER_HEADER)[keyof typeof RENDER_HEADER];
+export type RenderHeaderIndex = (typeof RENDER_HEADER)[keyof typeof RENDER_HEADER];
 
 /** Flag bits — upper 16 bits reserved for future bool semantics. */
 export const RENDER_FLAG_ALIVE = 1 << 0;
@@ -81,16 +81,16 @@ export function rowBaseWord(slot: number): number {
 }
 
 /** Checks whether a specific bitflag is enabled. */
-function isRenderFlagSet(flags: number, flag: number): boolean {
+export function isRenderFlagSet(flags: number, flag: number): boolean {
   return (flags & flag) === flag;
 }
 
 /** Sets a bitflag. */
-function setRenderFlag(flags: number, flag: number): number {
+export function setRenderFlag(flags: number, flag: number): number {
   return flags | flag;
 }
 
 /** Clears a bitflag. */
-function clearRenderFlag(flags: number, flag: number): number {
+export function clearRenderFlag(flags: number, flag: number): number {
   return flags & ~flag;
 }

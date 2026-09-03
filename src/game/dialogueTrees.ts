@@ -1,7 +1,6 @@
 import chaosDialogueJson from './data/chaos.json';
 import environmentDialogueJson from './data/environment.json';
 import existentialDialogueJson from './data/existential.json';
-import famineDialogueJson from './data/famine.json';
 import festivalDialogueJson from './data/festival.json';
 import needsDialogueJson from './data/needs.json';
 import socialDialogueJson from './data/social.json';
@@ -17,12 +16,9 @@ export const DIALOGUE_CATEGORIES = [
   'chaos',
   'environment',
   'festival',
-  'famine',
 ] as const;
 
 export type DialogueCategory = (typeof DIALOGUE_CATEGORIES)[number];
-
-export type ConversationType = 'one_way' | 'two_way';
 
 export interface DialogueLine {
   speaker: string;
@@ -32,8 +28,7 @@ export interface DialogueLine {
 export interface DialogueTree {
   id: string;
   category: DialogueCategory;
-  conversation_type?: ConversationType;
-  speakers: readonly string[];
+  speakers: readonly [string, string];
   lines: readonly DialogueLine[];
 }
 
@@ -53,7 +48,6 @@ const DIALOGUE_SOURCE_FILES: readonly DialogueSourceFile[] = [
   chaosDialogueJson as unknown as DialogueSourceFile,
   environmentDialogueJson as unknown as DialogueSourceFile,
   existentialDialogueJson as unknown as DialogueSourceFile,
-  famineDialogueJson as unknown as DialogueSourceFile,
   festivalDialogueJson as unknown as DialogueSourceFile,
   needsDialogueJson as unknown as DialogueSourceFile,
   socialDialogueJson as unknown as DialogueSourceFile,
@@ -64,7 +58,6 @@ const DIALOGUE_SOURCE_FILE_NAMES = [
   'chaos.json',
   'environment.json',
   'existential.json',
-  'famine.json',
   'festival.json',
   'needs.json',
   'social.json',
@@ -90,20 +83,13 @@ function buildCanonicalDialogueBank(sources: readonly DialogueSourceFile[]): Dia
       if (seenIds.has(tree.id)) {
         throw new Error(`[dialogue] Duplicate dialogue tree id: ${tree.id}`);
       }
-      
-      // Structural guard supporting both 1-speaker monologues and 2-speaker dialogues
-      if (!tree.lines || !Array.isArray(tree.lines) || tree.lines.length === 0 || !tree.speakers || tree.speakers.length === 0) {
-        console.warn(`[dialogue] Skipping malformed tree: ${tree.id}`);
-        continue;
-      }
-
       seenIds.add(tree.id);
       dialogue_trees.push(tree);
     }
   }
 
   return {
-    version: 'split-1.2',
+    version: 'split-1.1',
     dialogue_trees,
     categories: [...DIALOGUE_CATEGORIES],
   };
@@ -128,6 +114,8 @@ async function loadDialogueFromDisk(): Promise<boolean> {
     indexDialogueBank(buildCanonicalDialogueBank(parsedSources));
     return true;
   } catch {
+    // 🛡️ ROBUSTNESS: Gracefully fail and fall back to bundled JSON if disk reading 
+    // throws (e.g., in browser environments where readUtf8RelativeToModule is unavailable).
     return false;
   }
 }
@@ -174,6 +162,7 @@ export function isDialogueBankReady(): boolean {
   return bank !== null && bank.dialogue_trees.length > 0;
 }
 
+/** Install pre-serialized dialogue data (e.g. the worker’s canonical static bundle). */
 export function installDialogueBankPayload(payload: DialogueBankFile): void {
   indexDialogueBank(payload);
 }
@@ -212,7 +201,7 @@ export function getDialogueTrees(): readonly DialogueTree[] {
   return bank?.dialogue_trees ?? [];
 }
 
-function getDialogueCategories(): readonly DialogueCategory[] {
+export function getDialogueCategories(): readonly DialogueCategory[] {
   return requireBank().categories;
 }
 
@@ -222,7 +211,7 @@ const CONTEXT_CATEGORY: Partial<Record<string, DialogueCategory | DialogueCatego
   hunt: 'work',
   home: 'needs',
   sleep: 'needs',
-  food: ['famine', 'needs'],
+  food: 'needs',
   pregnant: 'needs',
   child: 'social',
   social: 'social',
@@ -238,12 +227,12 @@ const CONTEXT_CATEGORY: Partial<Record<string, DialogueCategory | DialogueCatego
   election: 'existential',
 };
 
+// 🔄 TYPE UNIFICATION: Use gameTypes to prevent drift with ChatPickOptions
 export type DialoguePickHints = {
   season?: Season;
   weather?: WeatherType;
   festivalActive?: boolean;
   foodLow?: boolean;
-  solo?: boolean;
 };
 
 export function resolveDialogueCategories(
@@ -256,15 +245,12 @@ export function resolveDialogueCategories(
   const out = new Set<DialogueCategory>(base);
   
   if (hints?.festivalActive) out.add('festival');
-  if (hints?.foodLow) {
-    out.add('famine');
-    out.add('needs');
-  }
-  
-  // All weather variations route to environment
-  if (hints?.season === 'winter' || (hints?.weather && hints.weather !== 'clear')) {
+  if (hints?.foodLow) out.add('needs');
+  if (hints?.season === 'winter') out.add('environment');
+  if (hints?.weather === 'rain' || hints?.weather === 'snow' || hints?.weather === 'storm') {
     out.add('environment');
   }
+  if (hints?.weather === 'drought') out.add('needs');
   
   return [...out];
 }
@@ -285,35 +271,23 @@ export function pickDialogueTree(
   for (const category of categories) {
     const list = treesByCategory.get(category);
     if (list) {
+      // 🚀 OPTIMIZED: Safe iteration prevents "Maximum call stack size exceeded" 
+      // errors that can occur with pool.push(...list) on large arrays.
       for (const tree of list) {
         pool.push(tree);
       }
     }
   }
   
-  let usePool = pool.length > 0 ? pool : [...trees];
+  const usePool = pool.length > 0 ? pool : [...trees];
 
-  // If chatting in a pair, prioritize interactive two-way conversations
-  if (hints?.solo === false) {
-    const twoWayOnly = usePool.filter((t) => t.conversation_type !== 'one_way' && t.speakers.length > 1);
-    if (twoWayOnly.length > 0) {
-      usePool = twoWayOnly;
-    }
-  }
-
-  // MurmurHash3 mix: Eliminates the modulo harmonic resonance
-  let h = (entityId * 31337) ^ tick;
-  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-  const seed = (h ^ (h >>> 16)) >>> 0;
-  
-  let index = seed % usePool.length;
+  const seed = entityId * 47 + tick * 13;
+  let index = Math.abs(seed) % usePool.length;
   let tree = usePool[index]!;
   
-  // Linear probe (+1): gcd(1, length) is always 1, guaranteeing all indices are reachable
   if (avoidTreeId && usePool.length > 1) {
     for (let attempt = 0; attempt < usePool.length && tree.id === avoidTreeId; attempt++) {
-      index = (index + 1) % usePool.length;
+      index = (index + 5 + entityId) % usePool.length;
       tree = usePool[index]!;
     }
   }
@@ -327,7 +301,6 @@ export function getDialogueTreeById(id: string): DialogueTree | undefined {
 }
 
 export function speakerRoleIndex(tree: DialogueTree, line: DialogueLine): 0 | 1 {
-  if (tree.speakers.length < 2) return 0;
   return line.speaker === tree.speakers[0] ? 0 : 1;
 }
 

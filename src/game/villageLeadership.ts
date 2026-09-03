@@ -31,7 +31,7 @@ function getPhaseTicks(phase: 'gathering' | 'gossip' | 'tension'): number {
 }
 
 export type LeadershipElectionReason = 'founding' | 'decennial' | 'succession';
-;
+export type { ElectionCeremonyPhase, ElectionCeremonyState } from './gameTypes';
 
 export interface LeadershipScoreBreakdown {
   entityId: number;
@@ -375,7 +375,7 @@ export function getElectionGatherSite(state: WorldState): { x: number; y: number
   return { x: state.width / 2, y: state.height / 2 };
 }
 
-function isElectionCeremonyActive(state: WorldState): boolean {
+export function isElectionCeremonyActive(state: WorldState): boolean {
   return state.electionCeremony != null;
 }
 

@@ -3,30 +3,30 @@ import type { Entity } from './gameTypes';
 
 import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 import { TICKS_PER_DAY, DAYS_PER_YEAR, getAbsoluteCalendarDay, ticksForDays } from './dayCycleClock';
-export { DAYS_PER_YEAR, LEGACY_TICKS_PER_DAY, PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR, getAbsoluteCalendarDay, getCalendarDay, getHourOfDay,  getWeekday, getWeekdayLabel, isNewCalendarDayTick, isProductionTick, isStartOfClockHour, isWeekend,  nextTickAtClockHour, systemsPulsesFromLegacy, ticksForDays } from './dayCycleClock';
+export { DAYS_PER_YEAR, LEGACY_TICKS_PER_DAY, PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR, getAbsoluteCalendarDay, getCalendarDay, getHourOfDay, getTickOfDay, getWeekday, getWeekdayLabel, isNewCalendarDayTick, isProductionTick, isStartOfClockHour, isWeekend, isWorkDay, nextTickAtClockHour, systemsPulsesFromLegacy, ticksForDays } from './dayCycleClock';
 
 const GAME_YEAR_OFFSET = 1700;
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export {
   EVENING_START,
-  
-  
-  
-  
-  
+  FESTIVAL_GATHER_END,
+  FESTIVAL_GATHER_START,
+  TAVERN_SHIFT_END,
+  TAVERN_SHIFT_START,
+  WORK_END,
   WORK_HOURS_PER_DAY,
-  
+  WORK_START,
   allowSocialLife,
-  
-  
-  
+  buildWorkHours,
+  formatHour,
+  isActiveFreeDay,
   isFestivalGatheringHour,
-  
+  isOnInnkeeperShift,
   isOnMoonHowlerNightShift,
   isOnWorkShift,
-  
-  
+  isTavernOpen,
+  isTavernServiceHour,
   isWorkHour,
   personDayRoll,
   prefersHomeTonight,
@@ -36,20 +36,20 @@ export {
 export {
   HUMAN_MOVE_OUT_MIN_AGE,
   assignMissingResidences,
-  
+  auditHousingSharingIssues,
   buildFamilyGroups,
-  
-  
+  buildHousingUnits,
+  buildResidenceOccupancy,
   canMoveOutOfFamilyHome,
-  
-  
+  collectFamilyMembers,
+  collectOwnHousehold,
   countResidentsInBuilding,
   getChildCustodian,
   getResidenceCapacity,
   getResidenceUpgradeSlotGain,
   hasResidenceAssignment,
   hasWorkAssignment,
-  
+  housingUnitNeedsReassignment,
   isAdultChildAtHome,
   isImprisoned,
   isLeaderHouseResidence,
@@ -57,29 +57,29 @@ export {
   isResidenceBuilding,
   isResidenceBuildingType,
   isResidenceOccupantEntity,
-  
-  
-  
+  isUnnecessarilySharingHousing,
+  occupancyMove,
+  pickResidenceForFamily,
   pickResidenceForHuman,
   pickResidenceForHumanExcluding,
-  
-  
-  
+  pickResidenceFromChildCustodian,
+  rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable,
+  rebalanceOvercrowdedResidences,
   rebuildChildrenIds,
-  
-  
+  residenceHasCapacity,
+  residenceRoomFor,
   shareResidence,
   syncPartnerResidence,
   syncResidenceOccupants,
-  
+  tryMoveOutOfFamilyHome,
 } from './residency';
-;
+export type { ResidenceOccupancy } from './residency';
 
 export {
-  
+  DAYS_PER_MOON_CYCLE,
   HUMAN_ADULT_MIN_AGE,
-  
-  
+  isFullMoonDay,
+  isFullMoonNight,
   isNightHour,
   NIGHT_END,
   NIGHT_START,
@@ -365,10 +365,10 @@ export function migrateHumanAges(
 }
 
 export {
-  
+  finalizeHumanDeath,
   isKillableSettlerEntity,
   killHuman,
-  
+  reconcileFamilyReferencesAfterRemoval,
   reconcileOrphanedMarriages,
-  
+  removeHumanFromBuildingOccupants,
 } from './humanLifecycleCleanup';

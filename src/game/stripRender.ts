@@ -298,7 +298,7 @@ function drawPalisadePosts(
 }
 
 /** L-shaped palisade corner — rotation picks which quadrant is open. */
-function drawProceduralWallCorner(
+export function drawProceduralWallCorner(
   ctx: CanvasRenderingContext2D,
   sx: number,
   sy: number,
@@ -373,7 +373,7 @@ export function drawProceduralRoadJunction(
 }
 
 /** T or + palisade junction — used when a corner connects three or four arms. */
-function drawProceduralWallJunction(
+export function drawProceduralWallJunction(
   ctx: CanvasRenderingContext2D,
   sx: number,
   sy: number,

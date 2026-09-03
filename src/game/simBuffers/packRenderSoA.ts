@@ -237,6 +237,6 @@ export function packRenderSoA(
   };
 }
 
-function validateRenderBufferHeader(buffer: ArrayBuffer): boolean {
+export function validateRenderBufferHeader(buffer: ArrayBuffer): boolean {
   return validateRenderBufferLayout(buffer);
 }

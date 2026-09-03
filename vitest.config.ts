@@ -18,10 +18,6 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
     ],
-    // Voeg dit toe om de storende debug-logs te blokkeren:
-    env: {
-      DEBUG: '',
-    },
     setupFiles: ['./src/test/setup.ts'],
     execArgv: [`--localstorage-file=${storageFile}`],
     slowTestThreshold: 2000,

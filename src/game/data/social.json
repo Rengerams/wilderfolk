@@ -1,5 +1,5 @@
 {
-  "version": "1.2",
+  "version": "1.1",
   "game": "Wilderfolk Sim",
   "category": "social",
   "dialogue_trees": [
@@ -7,20 +7,20 @@
       "id": "dt_greg",
       "category": "social",
       "speakers": [
-        "settler",
-        "skeptic"
+        "npc_chicken_friend",
+        "npc_judgmental"
       ],
       "lines": [
         {
-          "speaker": "settler",
+          "speaker": "npc_chicken_friend",
           "text": "My best friend is a chicken. His name is Greg."
         },
         {
-          "speaker": "skeptic",
+          "speaker": "npc_judgmental",
           "text": "You named a chicken Greg?"
         },
         {
-          "speaker": "settler",
+          "speaker": "npc_chicken_friend",
           "text": "He named himself. I just respected his choice."
         }
       ]
@@ -29,20 +29,20 @@
       "id": "dt_party",
       "category": "social",
       "speakers": [
-        "host",
-        "friend"
+        "npc_host",
+        "npc_sympathetic"
       ],
       "lines": [
         {
-          "speaker": "host",
+          "speaker": "npc_host",
           "text": "Threw a party. Nobody came. The cake rotted."
         },
         {
-          "speaker": "friend",
+          "speaker": "npc_sympathetic",
           "text": "That's depressing."
         },
         {
-          "speaker": "host",
+          "speaker": "npc_host",
           "text": "I ate it anyway. 5/10, would grief again."
         }
       ]
@@ -51,21 +51,21 @@
       "id": "dt_friendship",
       "category": "social",
       "speakers": [
-        "settler",
-        "skeptic"
+        "npc_invested",
+        "npc_cynical"
       ],
       "lines": [
         {
-          "speaker": "settler",
+          "speaker": "npc_invested",
           "text": "Spent 6 hours building a friendship with someone."
         },
         {
-          "speaker": "skeptic",
+          "speaker": "npc_cynical",
           "text": "That's nice."
         },
         {
-          "speaker": "settler",
-          "text": "We're both scheduled to leave tomorrow. I want a refund."
+          "speaker": "npc_invested",
+          "text": "We're both scheduled to leave the map tomorrow. I want a refund."
         }
       ]
     },
@@ -73,21 +73,21 @@
       "id": "wf_social_hey",
       "category": "social",
       "speakers": [
-        "settler",
-        "neighbor"
+        "neighbor_a",
+        "neighbor_b"
       ],
       "lines": [
         {
-          "speaker": "settler",
-          "text": "Fine day to stand around looking industrious."
+          "speaker": "neighbor_a",
+          "text": "Hey!"
         },
         {
-          "speaker": "neighbor",
-          "text": "Holding a wooden plank makes anyone look busy."
+          "speaker": "neighbor_b",
+          "text": "Fine day."
         },
         {
-          "speaker": "settler",
-          "text": "I've held this same plank since dawn."
+          "speaker": "neighbor_a",
+          "text": "Fine village."
         }
       ]
     },
@@ -101,15 +101,15 @@
       "lines": [
         {
           "speaker": "elder",
-          "text": "The valley is quiet today. Almost too quiet."
+          "text": "Peaceful, for now."
         },
         {
           "speaker": "youth",
-          "text": "Isn't quiet what we wanted when we settled here?"
+          "text": "Heard the news?"
         },
         {
           "speaker": "elder",
-          "text": "Quiet usually means the wolves are planning something."
+          "text": "Busy week."
         }
       ]
     },
@@ -123,15 +123,15 @@
       "lines": [
         {
           "speaker": "farmer",
-          "text": "The harvest bins are groaning under the weight."
+          "text": "Good harvest?"
         },
         {
           "speaker": "trader",
-          "text": "Good roads mean we can actually haul it to market."
+          "text": "Roads help."
         },
         {
           "speaker": "farmer",
-          "text": "Just make sure the goats don't eat the wagon wheels."
+          "text": "Seen the traders?"
         }
       ]
     },
@@ -145,15 +145,15 @@
       "lines": [
         {
           "speaker": "parent",
-          "text": "The children found a hornet nest by the well."
+          "text": "Kids are loud today."
         },
         {
           "speaker": "neighbor",
-          "text": "Did they run away?"
+          "text": "Nice weather."
         },
         {
           "speaker": "parent",
-          "text": "They named the queen and tried to feed her berries."
+          "text": "Hungry yet?"
         }
       ]
     },
@@ -167,15 +167,15 @@
       "lines": [
         {
           "speaker": "settler",
-          "text": "Heard howling past the timber line last night."
+          "text": "Wolves again…"
         },
         {
           "speaker": "neighbor",
-          "text": "The gate bars are latched tight."
+          "text": "Bars are latched."
         },
         {
           "speaker": "settler",
-          "text": "Good. I don't feel like sharing my stew."
+          "text": "Cold out."
         }
       ]
     },
@@ -189,15 +189,15 @@
       "lines": [
         {
           "speaker": "child",
-          "text": "Look what I found in the hollow log!"
+          "text": "Mama!"
         },
         {
           "speaker": "parent",
-          "text": "Please tell me it doesn't have more than four legs."
+          "text": "Look!"
         },
         {
           "speaker": "child",
-          "text": "It has no legs and it smells like ancient moss!"
+          "text": "Race you!"
         }
       ]
     },
@@ -211,15 +211,15 @@
       "lines": [
         {
           "speaker": "child",
-          "text": "I bet I can jump across the entire garden ditch!"
+          "text": "Yay!"
         },
         {
           "speaker": "sibling",
-          "text": "The mud is two feet deep."
+          "text": "I found a bug!"
         },
         {
           "speaker": "child",
-          "text": "Then you better catch my boots when I fly!"
+          "text": "Hehe!"
         }
       ]
     },
@@ -233,15 +233,15 @@
       "lines": [
         {
           "speaker": "child",
-          "text": "Can I help chop down the big pine tree?"
+          "text": "Can I help?"
         },
         {
           "speaker": "parent",
-          "text": "You can barely lift the wooden spoon."
+          "text": "Story time?"
         },
         {
           "speaker": "child",
-          "text": "I will defeat the tree with sheer enthusiasm!"
+          "text": "Wait up!"
         }
       ]
     },
@@ -255,15 +255,15 @@
       "lines": [
         {
           "speaker": "pupil",
-          "text": "Why do we need numbers if the storage crate holds everything?"
+          "text": "Lesson time!"
         },
         {
           "speaker": "teacher",
-          "text": "Because someone has to count when the grain runs out."
+          "text": "ABC…"
         },
         {
           "speaker": "pupil",
-          "text": "Then I would prefer to remain blissfully uneducated."
+          "text": "I learned!"
         }
       ]
     },
@@ -272,20 +272,42 @@
       "category": "social",
       "speakers": [
         "pupil",
-        "friend"
+        "classmate"
       ],
       "lines": [
         {
           "speaker": "pupil",
-          "text": "Is recess right after long division?"
+          "text": "Recess soon?"
         },
         {
-          "speaker": "friend",
-          "text": "Not if the teacher catches you drawing maps on your slate."
+          "speaker": "classmate",
+          "text": "Books!"
         },
         {
           "speaker": "pupil",
-          "text": "This isn't a map, it's a tactical escape route."
+          "text": "Sums are hard."
+        }
+      ]
+    },
+    {
+      "id": "wf_school_class",
+      "category": "social",
+      "speakers": [
+        "pupil",
+        "teacher"
+      ],
+      "lines": [
+        {
+          "speaker": "pupil",
+          "text": "Teacher?"
+        },
+        {
+          "speaker": "teacher",
+          "text": "Who's top of class?"
+        },
+        {
+          "speaker": "pupil",
+          "text": "Books!"
         }
       ]
     },
@@ -299,15 +321,15 @@
       "lines": [
         {
           "speaker": "suitor",
-          "text": "Walk with me toward the orchard?"
+          "text": "Walk with me?"
         },
         {
           "speaker": "beloved",
-          "text": "Gladly. The blossoms are opening tonight."
+          "text": "Gladly."
         },
         {
           "speaker": "suitor",
-          "text": "The moon makes the valley look completely peaceful."
+          "text": "Moon looks kind tonight."
         }
       ]
     },
@@ -321,15 +343,15 @@
       "lines": [
         {
           "speaker": "suitor",
-          "text": "You're drawing water early today."
+          "text": "You look well."
         },
         {
           "speaker": "beloved",
-          "text": "I had a feeling someone would offer to carry the bucket."
+          "text": "So do you."
         },
         {
           "speaker": "suitor",
-          "text": "Your intuition is remarkably accurate."
+          "text": "Care for a stroll?"
         }
       ]
     },
@@ -343,15 +365,59 @@
       "lines": [
         {
           "speaker": "suitor",
-          "text": "Lovely evening for a stroll past the palisade."
+          "text": "Lovely evening."
         },
         {
           "speaker": "beloved",
-          "text": "It became lovely the moment you showed up."
+          "text": "It is now."
         },
         {
           "speaker": "suitor",
-          "text": "I'll try to show up more often."
+          "text": "Fancy meeting you."
+        }
+      ]
+    },
+    {
+      "id": "wf_courtship_company",
+      "category": "social",
+      "speakers": [
+        "suitor",
+        "beloved"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "Care for company?"
+        },
+        {
+          "speaker": "beloved",
+          "text": "I would."
+        },
+        {
+          "speaker": "suitor",
+          "text": "Pretty view."
+        }
+      ]
+    },
+    {
+      "id": "wf_courtship_boots",
+      "category": "social",
+      "speakers": [
+        "suitor",
+        "beloved"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "Nice boots."
+        },
+        {
+          "speaker": "beloved",
+          "text": "Hi there."
+        },
+        {
+          "speaker": "suitor",
+          "text": "Lovely day…"
         }
       ]
     },
@@ -365,15 +431,59 @@
       "lines": [
         {
           "speaker": "visitor",
-          "text": "Greetings! Word of your settlement reached the coast."
+          "text": "Greetings!"
         },
         {
           "speaker": "host",
-          "text": "We have dry timber and fresh iron if you bring salt."
+          "text": "Trade?"
         },
         {
           "speaker": "visitor",
-          "text": "Your traders strike a hard bargain, but a fair one."
+          "text": "Your reputation travels."
+        }
+      ]
+    },
+    {
+      "id": "wf_visitor_roads",
+      "category": "social",
+      "speakers": [
+        "visitor",
+        "host"
+      ],
+      "lines": [
+        {
+          "speaker": "visitor",
+          "text": "Safe roads?"
+        },
+        {
+          "speaker": "host",
+          "text": "Fine village."
+        },
+        {
+          "speaker": "visitor",
+          "text": "We brought news."
+        }
+      ]
+    },
+    {
+      "id": "wf_visitor_passing",
+      "category": "social",
+      "speakers": [
+        "visitor",
+        "host"
+      ],
+      "lines": [
+        {
+          "speaker": "visitor",
+          "text": "Passing through."
+        },
+        {
+          "speaker": "host",
+          "text": "Camped down the road."
+        },
+        {
+          "speaker": "visitor",
+          "text": "Greetings!"
         }
       ]
     },
@@ -387,15 +497,125 @@
       "lines": [
         {
           "speaker": "rival",
-          "text": "Mind where your foragers wander along the ridge."
+          "text": "Mind your fences."
         },
         {
           "speaker": "settler",
-          "text": "The berry bushes grow on open valley soil."
+          "text": "Our land too."
         },
         {
           "speaker": "rival",
-          "text": "We remember every bushel you take across the river."
+          "text": "Bold settlers."
+        }
+      ]
+    },
+    {
+      "id": "wf_rival_watch",
+      "category": "social",
+      "speakers": [
+        "rival",
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "rival",
+          "text": "Watching you."
+        },
+        {
+          "speaker": "settler",
+          "text": "Hmm."
+        },
+        {
+          "speaker": "rival",
+          "text": "Keep your distance."
+        }
+      ]
+    },
+    {
+      "id": "wf_rival_slight",
+      "category": "social",
+      "speakers": [
+        "rival",
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "rival",
+          "text": "We remember slights."
+        },
+        {
+          "speaker": "settler",
+          "text": "Mind your fences."
+        },
+        {
+          "speaker": "rival",
+          "text": "Our land too."
+        }
+      ]
+    },
+    {
+      "id": "wf_festival_feast",
+      "category": "social",
+      "speakers": [
+        "reveler",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "What a feast!"
+        },
+        {
+          "speaker": "friend",
+          "text": "Dance!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "Music tonight!"
+        }
+      ]
+    },
+    {
+      "id": "wf_festival_cheers",
+      "category": "social",
+      "speakers": [
+        "reveler",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "Cheers!"
+        },
+        {
+          "speaker": "friend",
+          "text": "Harvest revel!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "Flags up!"
+        }
+      ]
+    },
+    {
+      "id": "wf_festival_best",
+      "category": "social",
+      "speakers": [
+        "reveler",
+        "visitor"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "Visitors everywhere."
+        },
+        {
+          "speaker": "visitor",
+          "text": "Best week of the year!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "What a feast!"
         }
       ]
     },
@@ -403,33 +623,83 @@
       "id": "wf_relationship_pressure",
       "category": "social",
       "speakers": [
-        "settler",
-        "skeptic"
+        "npc_invested",
+        "npc_cynical"
       ],
       "lines": [
         {
-          "speaker": "settler",
-          "text": "You keep saying you don't care, but you repaired my roof."
+          "speaker": "npc_invested",
+          "text": "You keep saying you don't care, but you repaired my roof before the storm."
         },
         {
-          "speaker": "skeptic",
-          "text": "I repaired the roof because replacing you would take longer."
+          "speaker": "npc_cynical",
+          "text": "I repaired the roof because replacing you would have taken longer."
         },
         {
-          "speaker": "settler",
+          "speaker": "npc_invested",
           "text": "Then why did you leave your coat on my chair?"
         },
         {
-          "speaker": "skeptic",
-          "text": "Because you were shivering. Don't make it a confession."
+          "speaker": "npc_cynical",
+          "text": "Because you were shivering. Don't turn a practical decision into a confession."
         },
         {
-          "speaker": "settler",
+          "speaker": "npc_invested",
           "text": "I won't. But tomorrow, if you disappear, I'm coming after you."
         },
         {
-          "speaker": "skeptic",
+          "speaker": "npc_cynical",
           "text": "That's the problem. I know you mean it."
+        }
+      ]
+    },
+    {
+      "id": "wf_secret_conflict",
+      "category": "social",
+      "speakers": [
+        "npc_invested",
+        "npc_cynical"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_invested",
+          "text": "The council's missing ledger was in your room. Tell me you didn't take it."
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "I didn't take it from the council."
+        },
+        {
+          "speaker": "npc_invested",
+          "text": "That is a very careful answer. Where did you get it?"
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "You don't want the truth. You want a version that lets you keep defending me."
+        },
+        {
+          "speaker": "npc_invested",
+          "text": "I want to know whether the guards are looking for the wrong person."
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "They are."
+        },
+        {
+          "speaker": "npc_invested",
+          "text": "And you know who they should be looking for?"
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "I know who will be hurt if they find out. That is not the same thing."
+        },
+        {
+          "speaker": "npc_invested",
+          "text": "You promised me you wouldn't make me choose between the settlement and you."
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "I promised you nothing. You heard what you needed to hear."
         }
       ]
     },
@@ -437,32 +707,32 @@
       "id": "wf_social_rumor",
       "category": "social",
       "speakers": [
-        "gossip",
-        "recluse"
+        "npc_gossip",
+        "npc_recluse"
       ],
       "lines": [
         {
-          "speaker": "gossip",
-          "text": "People say you have been meeting someone behind the mill."
+          "speaker": "npc_gossip",
+          "text": "People say you have been meeting someone behind the old mill."
         },
         {
-          "speaker": "recluse",
+          "speaker": "npc_recluse",
           "text": "People say many things because silence makes them nervous."
         },
         {
-          "speaker": "gossip",
+          "speaker": "npc_gossip",
           "text": "So you deny it?"
         },
         {
-          "speaker": "recluse",
-          "text": "I deny that the old mill is behind anything. It is beside the river."
+          "speaker": "npc_recluse",
+          "text": "I deny that the old mill is behind anything. It is clearly beside the river."
         },
         {
-          "speaker": "gossip",
+          "speaker": "npc_gossip",
           "text": "That is not the denial I asked for."
         },
         {
-          "speaker": "recluse",
+          "speaker": "npc_recluse",
           "text": "Then ask a question you are prepared to hear answered."
         }
       ]
@@ -477,15 +747,15 @@
       "lines": [
         {
           "speaker": "neighbor",
-          "text": "A crow stole my leather glove right off the fence post."
+          "text": "A crow stole my glove."
         },
         {
           "speaker": "skeptic",
-          "text": "Did you chase it down?"
+          "text": "Did you chase it?"
         },
         {
           "speaker": "neighbor",
-          "text": "No. It wore it with surprising elegance."
+          "text": "No. It looks better dressed than I do."
         }
       ]
     }

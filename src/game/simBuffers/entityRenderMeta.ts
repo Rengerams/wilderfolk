@@ -12,6 +12,7 @@ import {
   RENDER_FLAG_MOON_HOWLER,
   RENDER_FLAG_PREGNANT,
   RENDER_FLAG_RIVAL,
+  RENDER_FLAG_TAMED,
   RENDER_FLAG_VISITOR,
 } from './schema';
 
@@ -59,7 +60,7 @@ export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
     partnerId: entity.partnerId,
     homeBuildingId: entity.homeBuildingId,
     tamedBy: entity.tamedBy,
-    skills: entity.skills ? { ...entity.skills } : undefined,
+    skills: entity.skills,
     combatTicks: entity.combatTicks,
     forageKind: entity.forageKind,
     blueberryYield: entity.blueberryYield,
@@ -70,7 +71,7 @@ export function packRenderMetaForPacked(packed: Entity[]): EntityRenderMeta[] {
   return packed.map(packEntityRenderMeta);
 }
 
-function packRenderMetaForAlive(world: { entities: Entity[] }): EntityRenderMeta[] {
+export function packRenderMetaForAlive(world: { entities: Entity[] }): EntityRenderMeta[] {
   const alive = world.entities.filter((e) => e.alive);
   return alive.map(packEntityRenderMeta);
 }
@@ -81,44 +82,12 @@ function factionFromFlags(flags: number): Entity['faction'] {
   return undefined;
 }
 
-/**
- * A render-only entity view produced by the SoA reader. It has the shape of
- * `Entity` but omits simulation fields that the shim cannot reproduce
- * (energy, age, reproduction, family links, etc.) and replaces them with
- * fixed sentinel defaults. Callers that treat the value as `Entity` must
- * not read those omitted fields — they are not real simulation state.
- */
-export interface RenderEntity extends Entity {
-  /** Dummy value — the shim has no kinetic data. */
-  energy: 0;
-  /** Dummy value — the shim has no kinetic data. */
-  maxEnergy: 1;
-  /** Dummy value — the shim has no age data. */
-  age: 0;
-  /** Dummy value — the shim has no birth data. */
-  birthYear: 0;
-  /** Dummy value — the shim has no birth data. */
-  birthMonth: 0;
-  /** Dummy value — the shim has no birth data. */
-  birthDay: 0;
-  /** Dummy value — the shim has no age data. */
-  maxAge: 1;
-  /** Dummy value — the shim has no kinetic data. */
-  speed: 1;
-  /** Dummy value — the shim has no reproduction data. */
-  reproductionCooldown: 0;
-  /** Dummy value — the shim has no family data. */
-  childrenIds: [];
-  /** Dummy value — the shim has no lineage data. */
-  generation: 0;
-}
-
 /** Minimal Entity-shaped view for canvas draw helpers (Phase B — no full world clone). */
 export function buildRenderEntityShim(
   reader: RenderSoAReaderV1,
   slot: number,
   meta?: EntityRenderMeta,
-): RenderEntity | null {
+): Entity | null {
   const type = reader.type(slot);
   if (!type) return null;
 
@@ -155,7 +124,7 @@ export function buildRenderEntityShim(
     pregnant: meta?.pregnant ?? !!(flags & RENDER_FLAG_PREGNANT),
     educated: !!(flags & RENDER_FLAG_EDUCATED),
     isJuvenile: !!(flags & RENDER_FLAG_JUVENILE),
-    tamedBy: meta?.tamedBy,
+    tamedBy: meta?.tamedBy ?? ((flags & RENDER_FLAG_TAMED) ? -1 : undefined),
     courtshipProgress: meta?.courtshipProgress,
     relationshipStatus: meta?.relationshipStatus,
     partnerId: meta?.partnerId,
@@ -175,9 +144,9 @@ export function buildRenderEntityShim(
     reproductionCooldown: 0,
     childrenIds: [],
     generation: 0,
-  } as RenderEntity;
+  };
 }
 
-function isHumanSlot(reader: RenderSoAReaderV1, slot: number): boolean {
+export function isHumanSlot(reader: RenderSoAReaderV1, slot: number): boolean {
   return reader.type(slot) === EntityType.Human;
 }

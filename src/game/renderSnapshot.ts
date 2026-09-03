@@ -86,7 +86,7 @@ export function buildRenderSnapshot(
     ?? catalog?.get(view.selectedEntityId)
     ?? null;
   const selectedEntityIds = (view.selectedEntityIds ?? (view.selectedEntityId != null ? [view.selectedEntityId] : []))
-    .filter((id) => { const ent = resolveEntity(world, id) ?? catalog?.get(id); return ent != null && ent.alive === true; });
+    .filter((id) => (resolveEntity(world, id) ?? catalog?.get(id)) != null);
   const entities = catalog?.getAlive() ?? world.entities.filter((e) => e.alive);
   const entityByType = catalog?.getEntityByType()
     ?? world.entityByType

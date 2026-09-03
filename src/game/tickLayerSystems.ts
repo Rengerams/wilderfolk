@@ -7,7 +7,6 @@ import {
   WEREWOLF_HOWL_LINES,
 } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { seededRandom } from './simRng';
 import {
   isProductionTick,
   EVENT_INTERVAL,
@@ -49,7 +48,6 @@ import {
   RABBIT_SCENT_SENSITIVITY,
   DEER_SCENT_SENSITIVITY,
   WILDKIN_SCENT_SENSITIVITY,
-  FOX_SCENT_SENSITIVITY,
 } from './scentGrid';
 import {
   pushNewEntity,
@@ -78,25 +76,16 @@ const WILDLIFE_TICK_TYPES: readonly EntityType[] = [
   EntityType.Wildkin,
 ];
 
-/** True if the entity is an active threat/predator to grazers (wolves, foxes, werewolves, and adult hunters). */
-export function isPredator(entity: Entity): boolean {
-  if (!entity.alive) return false;
-
-  // Wild carnivores & monsters
-  if (
-    entity.type === EntityType.Wolf ||
-    entity.type === EntityType.Fox ||
-    entity.type === EntityType.Werewolf
-  ) {
-    return true;
-  }
-
-  // Adult humans (player settlers or rival faction)
-  if (entity.type === EntityType.Human && !entity.isJuvenile) {
-    return isPlayerHuman(entity) || entity.faction === 'rival';
-  }
-
-  return false;
+function isWildlifePredator(entity: Entity): boolean {
+  return (
+    entity.alive &&
+    (entity.type === EntityType.Wolf ||
+      entity.type === EntityType.Fox ||
+      entity.type === EntityType.Werewolf ||
+      (entity.type === EntityType.Human &&
+        !entity.isJuvenile &&
+        (isPlayerHuman(entity) || entity.faction === 'rival')))
+  );
 }
 
 /** Occasional predator migration to keep wolf pressure present. */
@@ -109,8 +98,8 @@ function tickWolfRecruitment(state: WorldState, ctx: TickContext): void {
 
   if (
     !isProductionTick(state.tick, EVENT_INTERVAL.wolfRecruit) ||
-    currentWolves >= 5 ||
-    Math.random() >= 0.7
+    currentWolves >= 2 ||
+    Math.random() >= 0.1
   ) {
     return;
   }
@@ -203,6 +192,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
   for (const entityType of WILDLIFE_TICK_TYPES) {
     const bucket = byType[entityType] ?? [];
+    // Copy bucket snapshot to prevent skipping elements during updates/splices
     const currentPass = [...bucket];
 
     for (let i = 0; i < currentPass.length; i++) {
@@ -270,18 +260,17 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       let targetVy = 0;
 
       // 6. Evasion Behavior
-      const isGrazier = entity.type === EntityType.Rabbit ||
+      if (
+        entity.type === EntityType.Rabbit ||
         entity.type === EntityType.Deer ||
-        entity.type === EntityType.Wildkin ||
-        entity.type === EntityType.Fox;
-      
-      if (isGrazier) {
+        entity.type === EntityType.Wildkin
+      ) {
         const closestPredator = findClosestEntityInRadius(
           mobileGrid,
           entity.x,
           entity.y,
           config.fleeRange,
-          (pred) => isPredator(pred),
+          (pred) => isWildlifePredator(pred),
           'flee',
           predators,
         ) ?? null;
@@ -293,13 +282,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           targetVx = (dx / dist) * config.speed * 1.5;
           targetVy = (dy / dist) * config.speed * 1.5;
         } else if (USE_SCENT_GRID && scentGrid) {
-          const sensitivity = entity.type === EntityType.Rabbit
-            ? RABBIT_SCENT_SENSITIVITY
-          : entity.type === EntityType.Deer
-            ? DEER_SCENT_SENSITIVITY
-          : entity.type === EntityType.Fox
-            ? FOX_SCENT_SENSITIVITY
-          : WILDKIN_SCENT_SENSITIVITY;
+          const sensitivity =
+            entity.type === EntityType.Rabbit
+              ? RABBIT_SCENT_SENSITIVITY
+              : entity.type === EntityType.Deer
+                ? DEER_SCENT_SENSITIVITY
+                : WILDKIN_SCENT_SENSITIVITY;
           const sample = scentGrid.sampleFleeGradient(entity.x, entity.y, sensitivity);
           if (sample.strength > 0) {
             targetVx = sample.awayX * config.speed * 1.25;
@@ -318,11 +306,13 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       ) {
         const moonHowlerHunter = entity.type === EntityType.Werewolf && isActiveMoonHowler(entity);
         const preyTypes =
-          entity.type === EntityType.Fox ? [EntityType.Rabbit, EntityType.Deer]
+          entity.type === EntityType.Fox
+            ? [EntityType.Rabbit]
             : moonHowlerHunter
               ? [EntityType.Human, EntityType.Deer, EntityType.Rabbit]
-               : [EntityType.Deer, EntityType.Rabbit, EntityType.Fox];
+              : [EntityType.Deer, EntityType.Rabbit];
 
+        // Wolves gain hunting range and target bonuses when grouped in close packs
         let nearbyPack = 0;
         let huntRange = config.huntRange;
         if (entity.type === EntityType.Wolf) {
@@ -470,7 +460,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                 const line = WEREWOLF_ATTACK_LINES[
                   Math.floor(Math.random() * WEREWOLF_ATTACK_LINES.length)
                 ](wolfName, victimName);
-                addBigNews(state, '🐺 Moon Howler Attack!', line, 'negative');
+                addBigNews(state, '🌝 Moon Howler Attack!', line, 'negative');
                 addFloatingText(state, caughtPrey.x, caughtPrey.y - 12, 'Slain!', '#ef4444');
                 logEvent(state, 'death', appendDeathAge(line, caughtPrey), victimName);
                 impulseScreenShake(state, 5);
@@ -593,7 +583,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         }
       }
 
-      // 13. Deep water sliding physics
+      // 13. Deep water sliding physics (collides/slides on river/sea banks)
       const worldMap = state.worldMap;
       if (worldMap) {
         const nextX = entity.x + entity.vx;
@@ -668,36 +658,10 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       if (entity.y > height) entity.y = height;
 
       // 16. Reproduction
-      if (entity.pregnant && entity.pregnancyProgress !== undefined) {
-        entity.pregnancyProgress += step;
-        if (entity.pregnancyDueProgress !== undefined && entity.pregnancyProgress >= entity.pregnancyDueProgress) {
-          const litterSize = Math.floor(
-            config.litterSize[0] + Math.random() * (config.litterSize[1] - config.litterSize[0] + 1)
-          );
-          for (let i = 0; i < litterSize; i++) {
-            const breedAngle = Math.random() * Math.PI * 2;
-            const breedDist = 10 + Math.random() * 20;
-            const nx = Math.min(width, Math.max(0, entity.x + Math.cos(breedAngle) * breedDist));
-            const ny = Math.min(height, Math.max(0, entity.y + Math.sin(breedAngle) * breedDist));
-            const offspring = createEntity(entity.type, nx, ny, state.nextEntityId++, config.spawnEnergy);
-            if (!ctx.wildlifeSpawnParent) {
-              ctx.wildlifeSpawnParent = new Map();
-            }
-            ctx.wildlifeSpawnParent.set(offspring.id, entity.id);
-            pushNewEntity(state, ctx, offspring);
-          }
-          entity.pregnant = false;
-          entity.pregnancyProgress = undefined;
-          entity.pregnancyDueProgress = undefined;
-          entity.pregnantById = undefined;
-          entity.reproductionCooldown = config.reproductionCooldown;
-        }
-      }
-      
+      entity.reproductionCooldown = Math.max(0, entity.reproductionCooldown - step);
+
       if (
         entity.type !== EntityType.Werewolf &&
-        !entity.pregnant &&
-        entity.gender === 'female' &&
         entity.reproductionCooldown <= 0 &&
         entity.energy > config.reproductionEnergyThreshold
       ) {
@@ -727,25 +691,30 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             (m) =>
               m.type === entity.type &&
               m.id !== entity.id &&
-              m.gender === 'male' &&
               m.energy > config.reproductionEnergyThreshold * 0.3,
             'mate',
             byType[entity.type],
           );
           if (mate) {
-            entity.pregnant = true;
-            entity.pregnancyProgress = 0;
-            const rng = seededRandom(entity.id, 'pregnancy');
-            entity.pregnancyDueProgress = Math.round(config.pregnancyDuration * (0.7 + rng * 0.6));
-            entity.pregnantById = mate.id;
-            entity.energy -= entity.maxEnergy * 0.15;
+            const breedAngle = Math.random() * Math.PI * 2;
+            const breedDist = 15;
+            const nx = Math.min(width, Math.max(0, entity.x + Math.cos(breedAngle) * breedDist));
+            const ny = Math.min(height, Math.max(0, entity.y + Math.sin(breedAngle) * breedDist));
+            const offspring = createEntity(entity.type, nx, ny, state.nextEntityId++, config.spawnEnergy);
+
+            if (!ctx.wildlifeSpawnParent) {
+              ctx.wildlifeSpawnParent = new Map();
+            }
+            ctx.wildlifeSpawnParent.set(offspring.id, entity.id);
+            pushNewEntity(state, ctx, offspring);
+
+            entity.energy -= entity.maxEnergy * 0.2;
             entity.reproductionCooldown = config.reproductionCooldown;
           }
         }
       }
+
       syncEntityGrids(ctx, entity);
     }
   }
 }
-
-

@@ -233,7 +233,7 @@ export function reliefY(type: TerrainType, elevation: number): number {
 }
 
 /** Elevation at a world position (10px tile grid), 0–100. */
-function elevationAt(map: WorldMap | null, x: number, y: number): number {
+export function elevationAt(map: WorldMap | null, x: number, y: number): number {
   if (!map) return 0;
   const tx = Math.floor(x / TERRAIN_TILE_SIZE);
   const ty = Math.floor(y / TERRAIN_TILE_SIZE);
@@ -265,6 +265,6 @@ export function sandWaterOverlaySourceRect(id: number): { sx: number; sy: number
 }
 
 /** Runtime scale — atlas tile px → baked tile px. */
-function atlasScale(tileSize: number): number {
+export function atlasScale(tileSize: number): number {
   return tileSize / ATLAS_TILE_SIZE;
 }

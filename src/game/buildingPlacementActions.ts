@@ -22,7 +22,7 @@ import {
   overlapsAnyBuilding,
 } from './placementUtils';
 
-const UNBUILDABLE_TERRAIN = new Set<TerrainType>([
+export const UNBUILDABLE_TERRAIN = new Set<TerrainType>([
   TerrainType.DeepWater,
   TerrainType.ShallowWater,
   TerrainType.River,
@@ -31,7 +31,7 @@ const UNBUILDABLE_TERRAIN = new Set<TerrainType>([
   TerrainType.Snow,
 ]);
 
-;
+export { isFootprintOnBuildableTerrain, isFootprintWithinMapBounds } from './placementUtils';
 
 function listPlayerHumans(state: WorldState): Entity[] {
   return state.entities.filter(isPlayerHuman);

@@ -72,7 +72,7 @@ export function setSimSeed(seed: number): void {
 /**
  * Returns the current active simulation seed.
  */
-function getSimSeed(): number {
+export function getSimSeed(): number {
   return currentSeed;
 }
 
@@ -93,14 +93,14 @@ export function getSimRng(owner: string): RngStream {
 /**
  * Draws a random floating-point number in range [min, max) using the given stream.
  */
-function randomFloat(rng: RngStream, min: number, max: number): number {
+export function randomFloat(rng: RngStream, min: number, max: number): number {
   return min + rng() * (max - min);
 }
 
 /**
  * Draws a random integer in range [min, max] inclusive using the given stream.
  */
-function randomInt(rng: RngStream, min: number, max: number): number {
+export function randomInt(rng: RngStream, min: number, max: number): number {
   const lo = Math.ceil(min);
   const hi = Math.floor(max);
   if (hi < lo) return lo;
@@ -110,7 +110,7 @@ function randomInt(rng: RngStream, min: number, max: number): number {
 /**
  * Selects a random element from an array using the given stream.
  */
-function randomChoice<T>(rng: RngStream, items: readonly T[]): T | undefined {
+export function randomChoice<T>(rng: RngStream, items: readonly T[]): T | undefined {
   if (items.length === 0) return undefined;
   const idx = Math.floor(rng() * items.length);
   return items[idx];
@@ -119,7 +119,7 @@ function randomChoice<T>(rng: RngStream, items: readonly T[]): T | undefined {
 /**
  * Evaluates a Bernoulli trial with probability `chance` [0..1].
  */
-function randomBool(rng: RngStream, chance = 0.5): boolean {
+export function randomBool(rng: RngStream, chance = 0.5): boolean {
   return rng() < chance;
 }
 
@@ -149,7 +149,7 @@ export function disableSeededGlobalRandom(): void {
 /**
  * Full teardown utility for unit tests — resets seed, clears caches, and uninstalls hooks.
  */
-function resetSimRng(): void {
+export function resetSimRng(): void {
   disableSeededGlobalRandom();
   currentSeed = 1;
   streams.clear();

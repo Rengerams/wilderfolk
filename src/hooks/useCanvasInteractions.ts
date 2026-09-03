@@ -144,7 +144,7 @@ export function useCanvasInteractions({
               proto: 1,
               op: 'placeStripChain',
               type: selectedBuildingType,
-              segments: [...preview.segments],
+              segments: preview.segments,
               rotation: preview.rotation,
             });
           }
@@ -372,7 +372,7 @@ export function useCanvasInteractions({
           loop?.patchView(
             {
               buildStripPreview: preview,
-              buildRotation: (rotation === 180 || rotation === 270 ? 90 : rotation) as 0 | 90,
+              buildRotation: rotation,
               buildGhost: null,
               hoveredBuildingId: hovered?.id ?? null,
             },
@@ -487,7 +487,7 @@ export function useCanvasInteractions({
             proto: 1,
             op: 'placeStripChain',
             type: selectedBuildingType,
-            segments: [...preview.segments],
+            segments: preview.segments,
             rotation: preview.rotation,
           });
         }
@@ -555,4 +555,3 @@ export function useCanvasInteractions({
     handleContextMenu,
   };
 }
-

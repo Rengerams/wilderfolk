@@ -18,7 +18,7 @@ import { assignMissingWorkers } from './workforce';
 export const LAYER_ASSIGN_INTERVAL = 6 * TICKS_PER_HOUR; // 18 @ 3 ticks/hour → 4×/day
 
 /** How often housing/work bookkeeping fires per colony day. */
-const ASSIGN_PULSES_PER_DAY = Math.floor(TICKS_PER_DAY / LAYER_ASSIGN_INTERVAL);
+export const ASSIGN_PULSES_PER_DAY = Math.floor(TICKS_PER_DAY / LAYER_ASSIGN_INTERVAL);
 
 /**
  * Assignment layer — residence + workforce bookkeeping.

@@ -1,5 +1,5 @@
 {
-  "version": "1.2",
+  "version": "1.1",
   "game": "Wilderfolk Sim",
   "category": "environment",
   "dialogue_trees": [
@@ -7,20 +7,20 @@
       "id": "dt_indoor_weather",
       "category": "environment",
       "speakers": [
-        "settler",
-        "carpenter"
+        "npc_damp",
+        "npc_fixer"
       ],
       "lines": [
         {
-          "speaker": "settler",
+          "speaker": "npc_damp",
           "text": "It's raining inside my house again."
         },
         {
-          "speaker": "carpenter",
-          "text": "Have you tried patching the thatch?"
+          "speaker": "npc_fixer",
+          "text": "Have you tried fixing the roof?"
         },
         {
-          "speaker": "settler",
+          "speaker": "npc_damp",
           "text": "It is simply my indoor weather now. I do not question it."
         }
       ]
@@ -29,21 +29,21 @@
       "id": "dt_tornado",
       "category": "environment",
       "speakers": [
-        "settler",
-        "neighbor"
+        "npc_calm",
+        "npc_panicker"
       ],
       "lines": [
         {
-          "speaker": "settler",
-          "text": "Saw a funnel cloud forming over the ridge. Made lunch instead."
+          "speaker": "npc_calm",
+          "text": "Saw a tornado coming. Made a sandwich instead."
         },
         {
-          "speaker": "neighbor",
-          "text": "You didn't run to the cellar?"
+          "speaker": "npc_panicker",
+          "text": "You didn't go to the shelter?"
         },
         {
-          "speaker": "settler",
-          "text": "It was a remarkably well-crafted sandwich."
+          "speaker": "npc_calm",
+          "text": "It was a really good sandwich."
         }
       ]
     },
@@ -57,15 +57,15 @@
       "lines": [
         {
           "speaker": "settler",
-          "text": "Frost froze my water bucket solid on the nightstand."
+          "text": "So cold…"
         },
         {
           "speaker": "neighbor",
-          "text": "Keep the hearth stoked until sunrise."
+          "text": "Frost again."
         },
         {
           "speaker": "settler",
-          "text": "My breath is creating its own personal cloud in here."
+          "text": "Boots frozen."
         }
       ]
     },
@@ -79,15 +79,37 @@
       "lines": [
         {
           "speaker": "settler",
-          "text": "The woodpile is looking dangerously thin."
+          "text": "Wood's low."
         },
         {
           "speaker": "elder",
-          "text": "Gather everyone in the Town Hall to share the central heat."
+          "text": "Heat the hall."
         },
         {
           "speaker": "settler",
-          "text": "Spring thaw can't come soon enough."
+          "text": "Spring feels far."
+        }
+      ]
+    },
+    {
+      "id": "wf_winter_snow",
+      "category": "environment",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Snow won't quit."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Ice on the well."
+        },
+        {
+          "speaker": "settler",
+          "text": "So cold…"
         }
       ]
     },
@@ -95,21 +117,21 @@
       "id": "wf_weather_rain",
       "category": "environment",
       "speakers": [
-        "farmer",
+        "settler",
         "neighbor"
       ],
       "lines": [
         {
-          "speaker": "farmer",
-          "text": "This downpour turned the main road into knee-deep soup."
+          "speaker": "settler",
+          "text": "Wet boots."
         },
         {
           "speaker": "neighbor",
-          "text": "Good for the barley, terrible for leather boots."
+          "text": "Mud everywhere."
         },
         {
-          "speaker": "farmer",
-          "text": "I'll be scraping river silt out of my socks till Tuesday."
+          "speaker": "settler",
+          "text": "Rain'll pass."
         }
       ]
     },
@@ -123,15 +145,15 @@
       "lines": [
         {
           "speaker": "settler",
-          "text": "Snow drifts are piling up against the barn doors."
+          "text": "Deep drifts."
         },
         {
           "speaker": "neighbor",
-          "text": "Grab a shovel before the livestock get snowed in."
+          "text": "Paths are buried."
         },
         {
           "speaker": "settler",
-          "text": "At least the wolves hate wading through deep drifts too."
+          "text": "Cold out."
         }
       ]
     },
@@ -145,15 +167,49 @@
       "lines": [
         {
           "speaker": "farmer",
-          "text": "Ground is cracking open like baked pottery."
+          "text": "Dust in the air."
         },
         {
           "speaker": "neighbor",
-          "text": "The creek is down to a muddy trickle."
+          "text": "Crops look thirsty."
         },
         {
           "speaker": "farmer",
-          "text": "Ration the well water until the clouds return."
+          "text": "Hungry yet?"
+        }
+      ]
+    },
+    {
+      "id": "wf_environment_moon_rain",
+      "category": "environment",
+      "speakers": [
+        "npc_weatherwatcher",
+        "npc_practical"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_weatherwatcher",
+          "text": "The rain is falling upward tonight."
+        },
+        {
+          "speaker": "npc_practical",
+          "text": "Then leave the washing on the ground."
+        },
+        {
+          "speaker": "npc_weatherwatcher",
+          "text": "It is gathering in the clouds beneath us."
+        },
+        {
+          "speaker": "npc_practical",
+          "text": "Good. The clouds can do the laundry."
+        },
+        {
+          "speaker": "npc_weatherwatcher",
+          "text": "You are not frightened?"
+        },
+        {
+          "speaker": "npc_practical",
+          "text": "I am frightened of many things. Wet clothes are not making the list."
         }
       ]
     },
@@ -161,21 +217,21 @@
       "id": "wf_funny_environment_frog",
       "category": "environment",
       "speakers": [
-        "settler",
+        "rainwatcher",
         "farmer"
       ],
       "lines": [
         {
-          "speaker": "settler",
-          "text": "The marsh frogs are screaming in four-part harmony."
+          "speaker": "rainwatcher",
+          "text": "The frogs are singing again."
         },
         {
           "speaker": "farmer",
-          "text": "That usually means heavy rain before sunset."
+          "text": "That means rain."
         },
         {
-          "speaker": "settler",
-          "text": "Then they have a better forecasting record than the Town Council."
+          "speaker": "rainwatcher",
+          "text": "Then they have better weather sense than the council."
         }
       ]
     }

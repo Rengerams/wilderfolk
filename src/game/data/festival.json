@@ -1,5 +1,5 @@
 {
-  "version": "1.2",
+  "version": "1.1",
   "game": "Wilderfolk Sim",
   "category": "festival",
   "dialogue_trees": [
@@ -7,43 +7,43 @@
       "id": "wf_festival_home",
       "category": "festival",
       "speakers": [
-        "reveler",
-        "neighbor"
+        "settler",
+        "housemate"
       ],
       "lines": [
         {
-          "speaker": "reveler",
-          "text": "Guests are arriving down the lane!"
+          "speaker": "settler",
+          "text": "Guests in the lane!"
         },
         {
-          "speaker": "neighbor",
-          "text": "Can you smell the berry pies cooling?"
+          "speaker": "housemate",
+          "text": "Smell the pies?"
         },
         {
-          "speaker": "reveler",
-          "text": "Glad we finished the harvest in time."
+          "speaker": "settler",
+          "text": "Glad to be back."
         }
       ]
     },
     {
-      "id": "wf_festival_pie_contest",
+      "id": "wf_festival_work",
       "category": "festival",
       "speakers": [
-        "reveler",
-        "organizer"
+        "laborer",
+        "friend"
       ],
       "lines": [
         {
-          "speaker": "reveler",
-          "text": "I was disqualified from the pie contest."
+          "speaker": "laborer",
+          "text": "Half day tomorrow?"
         },
         {
-          "speaker": "organizer",
-          "text": "You ate three of your own entries before judging."
+          "speaker": "friend",
+          "text": "Finish before the dance."
         },
         {
-          "speaker": "reveler",
-          "text": "Quality control is a thankless duty."
+          "speaker": "laborer",
+          "text": "Good yield."
         }
       ]
     },
@@ -57,37 +57,15 @@
       "lines": [
         {
           "speaker": "reveler",
-          "text": "What a feast they laid out!"
+          "text": "What a feast!"
         },
         {
           "speaker": "friend",
-          "text": "Save some energy for the square dance."
+          "text": "Dance!"
         },
         {
           "speaker": "reveler",
-          "text": "Music is starting by the fires!"
-        }
-      ]
-    },
-    {
-      "id": "wf_festival_accordion",
-      "category": "festival",
-      "speakers": [
-        "reveler",
-        "visitor"
-      ],
-      "lines": [
-        {
-          "speaker": "reveler",
-          "text": "The traveling minstrel challenged a goat to a duet."
-        },
-        {
-          "speaker": "visitor",
-          "text": "Who won?"
-        },
-        {
-          "speaker": "reveler",
-          "text": "The goat had better tempo."
+          "text": "Music tonight!"
         }
       ]
     },
@@ -101,15 +79,15 @@
       "lines": [
         {
           "speaker": "reveler",
-          "text": "Raise a cup to the settlement!"
+          "text": "Cheers!"
         },
         {
           "speaker": "friend",
-          "text": "Best harvest we've had in years."
+          "text": "Harvest revel!"
         },
         {
           "speaker": "reveler",
-          "text": "The banner looks great up there."
+          "text": "Flags up!"
         }
       ]
     },
@@ -123,15 +101,15 @@
       "lines": [
         {
           "speaker": "reveler",
-          "text": "Visitors everywhere in the square."
+          "text": "Visitors everywhere."
         },
         {
           "speaker": "visitor",
-          "text": "We walked three days to catch this fair."
+          "text": "Best week of the year!"
         },
         {
           "speaker": "reveler",
-          "text": "Grab a plate before the stew runs dry."
+          "text": "What a feast!"
         }
       ]
     },
@@ -149,7 +127,7 @@
         },
         {
           "speaker": "judge",
-          "text": "It is suspiciously round."
+          "text": "It is very round."
         },
         {
           "speaker": "reveler",

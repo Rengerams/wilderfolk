@@ -88,8 +88,8 @@ export function computePopulationCounts(entities: Entity[]): PopulationCounts {
     if (!e.alive) continue;
     if (e.type === EntityType.Human) {
       if (isPlayerHuman(e)) counts.humans++;
-      else if ((e as Entity).faction === 'visitor') counts.visitorHumans++;
-      else if ((e as Entity).faction === 'rival') counts.rivalHumans++;
+      else if (e.faction === 'visitor') counts.visitorHumans++;
+      else if (e.faction === 'rival') counts.rivalHumans++;
       continue;
     }
     const bucket = wildlifeCountBucket(e);
@@ -98,7 +98,7 @@ export function computePopulationCounts(entities: Entity[]): PopulationCounts {
   return counts;
 }
 
-function formatPopulationBrief(
+export function formatPopulationBrief(
   counts: Pick<PopulationCounts, 'humans' | 'visitorHumans' | 'rivalHumans'>,
   maxPop?: number,
 ): string {

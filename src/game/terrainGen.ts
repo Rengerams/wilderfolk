@@ -279,7 +279,7 @@ export function findCampSite(
 }
 
 // ─── World generation ────────────────────────────────────────────────────────
-interface GenerateWorldMapOptions {
+export interface GenerateWorldMapOptions {
   size?: MapSize;
   preset?: MapPreset;
   seed?: number;

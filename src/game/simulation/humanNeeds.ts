@@ -9,9 +9,9 @@ import type { SpeciesConfig } from '../speciesConfig';
 export const MEAL_CHECK_INTERVAL_HOURS = 4;
 export const HUNGER_MEAL_THRESHOLD = 0.9;
 
-const HUNT_BASE_YIELD: Partial<Record<EntityType, number>> = {
+const HUNT_BASE_YIELD: Record<EntityType, number> = {
   [EntityType.Deer]: 52,
-  // @ts-ignore - magic number for rabbit yield\n  // @ts-ignore - magic number representing rabbit yield\n  [2]: 22,
+  [2]: 22,
 };
 const HUNT_DEFAULT_BASE_YIELD = 18;
 
@@ -39,7 +39,7 @@ export function fract(value: number): number {
  * Calculates raw food yield harvested from a free-roam animal kill.
  * Modulated by colony tech and ecological stage multipliers.
  */
-function freeHuntFoodGain(preyType: EntityType, state: WorldState): number {
+export function freeHuntFoodGain(preyType: EntityType, state: WorldState): number {
   const base = HUNT_BASE_YIELD[preyType] ?? HUNT_DEFAULT_BASE_YIELD;
   const techMult = getHuntFoodMultiplier(state);
   const ecoMult = getValleyHuntYieldMultiplier(state);

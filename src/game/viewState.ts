@@ -17,7 +17,7 @@ export interface ViewState {
   /** Drag preview for wall / road / gate chains. */
   buildStripPreview: StripBuildPreview | null;
   /** Placement rotation for rotatable build types (Road, Wall, Wall Gate). */
-  buildRotation: import('./buildingRotation').BuildingRotation;
+  buildRotation: 0 | 90;
   showGrid: boolean;
   showPaths: boolean;
   showTechTree: boolean;
@@ -157,12 +157,18 @@ export function resolveBuilding(world: WorldState, id: number | null): Building 
   if (id == null) return null;
 
   // 1. O(1) building lookup map if available
-  const buildingMap = new Map<number, Building>(
-    world.buildings.map((b: Building) => [b.id, b])
-  );
-  
-  const b = buildingMap.get(id);
-  if (b) return b;
+  if (new Map(world.buildings.map(b => [b.id, b]))) {
+    const b = new Map(world.buildings.map(b => [b.id, b])).get(id);
+    if (b) return b;
+  }
+
+  // 2. Linear scan fallback
+  for (let i = 0; i < world.buildings.length; i++) {
+    const b = world.buildings[i];
+    if (b.id === id) {
+      return b;
+    }
+  }
 
   return null;
 }
@@ -281,7 +287,7 @@ export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewS
   if (selectedEntityId != null && !resolveEntity(world, selectedEntityId)) {
     selectedEntityId = null;
   }
-  selectedEntityIds = selectedEntityIds.filter((id) => resolveEntity(world, id)?.alive === true);
+  selectedEntityIds = selectedEntityIds.filter((id) => resolveEntity(world, id) != null);
   if (selectedBuildingId != null && !resolveBuilding(world, selectedBuildingId)) {
     selectedBuildingId = null;
   }
@@ -430,7 +436,7 @@ export function clampCameraTarget(
   };
 }
 
-function moveCameraView(view: ViewState, world: WorldState, dx: number, dy: number): ViewState {
+export function moveCameraView(view: ViewState, world: WorldState, dx: number, dy: number): ViewState {
   const cam = { ...view.camera };
   const effectiveZoom = cam.targetZoom ?? cam.zoom;
   cam.targetX += dx / effectiveZoom;
@@ -465,7 +471,7 @@ export function zoomCameraViewAt(
   return { ...view, camera: cam };
 }
 
-function zoomCameraView(
+export function zoomCameraView(
   view: ViewState,
   factor: number,
   canvasW = 800,

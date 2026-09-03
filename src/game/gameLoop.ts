@@ -23,9 +23,16 @@ import {
   type ViewState,
 } from './viewState';
 
+/**
+ * Real-time tick rate at 1×. With TICKS_PER_DAY=72, 1.5 ticks/s ≈ 48 real seconds per day.
+ */
 const BASE_TICKS_PER_SECOND = 1.5;
-const UI_UPDATE_MS = 200;
+
+/** React UI publish throttle (ms) for periodic non-tick polls. */
+const UI_UPDATE_MS = 250;
 const MAX_CATCHUP_STEPS = 12;
+
+/** Worker stall watchdog (ms). */
 const WORKER_STALL_TIMEOUT_MS = 10000;
 const WORKER_RECOVERY_INITIAL_DELAY_MS = 2000;
 const WORKER_RECOVERY_MAX_DELAY_MS = 30000;
@@ -133,7 +140,7 @@ export class GameLoop {
   private workerRecoveryDelayMs = WORKER_RECOVERY_INITIAL_DELAY_MS;
   private workerRecoveryInFlight = false;
   private renderSoA: RenderSoAReaderV1 | null = null;
-  private renderMetaBySlot: EntityRenderMeta[] | undefined = undefined;
+  private renderMetaBySlot: EntityRenderMeta[] | null = null;
   private scentReader: ScentGridReader | null = null;
   private sessionGen = 0;
   private notifyDepth = 0;
@@ -184,15 +191,17 @@ export class GameLoop {
           this.workerBooting = false;
           this.registerWorkerHandlers(activeGen);
           this.flushDeferredWorkerCommands();
+          console.info('[GameLoop] Sim worker active — gameTick + commands run off the main thread');
         })
-        .catch((_err) => {
+        .catch((err) => {
           if (initGen !== this.sessionGen) return;
+          console.warn('[GameLoop] Worker init failed — falling back to main-thread ticks', err);
           this.workerHost?.dispose();
           this.workerHost = null;
           this.workerEnabled = false;
           this.workerBooting = false;
           this.renderSoA = null;
-          this.renderMetaBySlot = undefined;
+          this.renderMetaBySlot = null;
           this.scentReader = null;
           this.scheduleWorkerRecovery();
         });
@@ -284,8 +293,9 @@ export class GameLoop {
         this.workerTickLatencyMs = 0;
         this.registerWorkerHandlers(activeGen);
         this.flushDeferredWorkerCommands();
+        console.info('[GameLoop] Sim worker recovered automatically');
       })
-      .catch((_err) => {
+      .catch((err) => {
         if (this.workerHost === recoveryHost) {
           recoveryHost.dispose();
           this.workerHost = null;
@@ -293,7 +303,7 @@ export class GameLoop {
           this.workerBooting = false;
           this.workerRecoveryInFlight = false;
           this.renderSoA = null;
-          this.renderMetaBySlot = undefined;
+          this.renderMetaBySlot = null;
           this.scentReader = null;
         }
         if (recoveryGen === this.sessionGen && this.running) {
@@ -301,6 +311,7 @@ export class GameLoop {
             this.workerRecoveryDelayMs * 2,
             WORKER_RECOVERY_MAX_DELAY_MS,
           );
+          console.warn('[GameLoop] Automatic worker recovery failed; retrying', err);
           this.scheduleWorkerRecovery();
         }
       });
@@ -326,7 +337,7 @@ export class GameLoop {
         this.renderSoA = render.reader;
         this.renderMetaBySlot = render.metaBySlot;
         this.scentReader = render.scentReader;
-        patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot ?? []);
+        patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
       }
 
       this.view = syncScreenShakeFromWorld(this.view, this.world);
@@ -347,15 +358,13 @@ export class GameLoop {
       if (hadOptimistic) this.optimisticCommands.shift();
 
       this.world = world;
-      if (this.optimisticCommands.length > 0) {
-        this.rebuildOptimisticDisplay();
-      }
+      if (this.optimisticCommands.length > 0) this.rebuildOptimisticDisplay();
 
       if (render) {
         this.renderSoA = render.reader;
         this.renderMetaBySlot = render.metaBySlot;
         this.scentReader = render.scentReader;
-        patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot ?? []);
+        patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
       }
 
       if (hadOptimistic) {
@@ -377,6 +386,7 @@ export class GameLoop {
     if (!this.workerEnabled && !this.workerBooting) return;
     console.warn(`[GameLoop] ${reason} — falling back to main-thread ticks`);
 
+    // Always clear optimistic queue & sync back to authoritative state
     this.optimisticCommands = [];
     this.syncAfterWorkerMutation();
     this.catalog.rebuild(this.world.entities);
@@ -388,7 +398,7 @@ export class GameLoop {
     this.workerEnabled = false;
     this.workerBooting = false;
     this.renderSoA = null;
-    this.renderMetaBySlot = undefined;
+    this.renderMetaBySlot = null;
     this.scentReader = null;
     this.scheduleWorkerRecovery();
   }
@@ -457,7 +467,7 @@ export class GameLoop {
     this.lastDailyBoundaryTick = Math.floor(world.tick / TICKS_PER_DAY) * TICKS_PER_DAY;
     this.catalog.rebuild(world.entities);
     this.renderSoA = null;
-    this.renderMetaBySlot = undefined;
+    this.renderMetaBySlot = null;
     this.scentReader = null;
 
     const sessionGen = this.sessionGen;
@@ -491,7 +501,7 @@ export class GameLoop {
         if (sessionGen !== this.sessionGen || !this.running || !this.workerHost?.isReady()) return;
 
         this.renderSoA = null;
-        this.renderMetaBySlot = undefined;
+        this.renderMetaBySlot = null;
         this.scentReader = null;
         await this.workerHost.importSave(world);
 
@@ -519,6 +529,7 @@ export class GameLoop {
     const authoritative = this.workerHost?.getAuthoritativeWorld();
     if (!authoritative) return;
 
+    // Clone entities & buildings so predictions never contaminate the authoritative shadow
     let display: WorldState = {
       ...authoritative,
       entities: authoritative.entities.map((e) => ({ ...e })),
@@ -607,7 +618,7 @@ export class GameLoop {
       this.world = next;
     }
     this.catalog.rebuild(this.world.entities);
-    void this.workerHost?.syncWorld(this.world);
+    this.workerHost?.syncWorld(this.world);
     this.pruneStaleSelection();
     this.notify(true);
   }
@@ -623,6 +634,9 @@ export class GameLoop {
 
     if (this.workerEnabled && this.workerHost?.isReady()) {
       if (this.world.buildings !== buildingsBefore || this.world.entities !== entitiesBefore) {
+        console.warn(
+          '[GameLoop] mutateWorld modified simulation entities/buildings — use applyCommand instead',
+        );
         this.syncAfterWorkerMutation();
         this.catalog.rebuild(this.world.entities);
       }
@@ -710,13 +724,14 @@ export class GameLoop {
       this.rafId = 0;
     }
 
+    this.listeners.clear();
     clearAllFactionWanderStates();
     this.workerHost?.dispose();
     this.workerHost = null;
     this.workerEnabled = false;
     this.workerBooting = false;
     this.renderSoA = null;
-    this.renderMetaBySlot = undefined;
+    this.renderMetaBySlot = null;
     this.scentReader = null;
     this.lastPausedSentToWorker = null;
     this.canvasCtx = null;
@@ -810,7 +825,7 @@ export class GameLoop {
         : undefined;
 
       if (this.workerBooting) {
-        // Hold accumulator while worker is booting
+        // Hold accumulator until worker is authoritative
       } else if (this.workerEnabled && this.workerHost) {
         const stallMs = Math.max(WORKER_STALL_TIMEOUT_MS, this.workerTickLatencyMs * 4);
         const stalled =
@@ -860,7 +875,7 @@ export class GameLoop {
           tickChanged = true;
         }
         this.renderSoA = null;
-        this.renderMetaBySlot = undefined;
+        this.renderMetaBySlot = null;
       }
     } else {
       this.tickAccumulator = 0;
@@ -925,7 +940,7 @@ export class GameLoop {
     if (!snapshot || dirtyKey !== this.snapshotKey) {
       snapshot = buildRenderSnapshot(this.world, this.view, {
         renderSoA: this.renderSoA,
-        renderMetaBySlot: this.renderMetaBySlot,
+        renderMetaBySlot: this.renderMetaBySlot ?? undefined,
         catalog: this.catalog,
         scentGrid: this.workerEnabled ? null : this.world.scentGrid,
         scentReader: this.scentReader,
@@ -949,12 +964,12 @@ export class GameLoop {
       this.view = { ...this.view, selectedBuildingId: null };
     }
 
-    const alive = (this.view.selectedEntityIds ?? []).filter((id) => {
-      const ent = resolveEntity(this.world, id);
-      return ent != null && ent.alive;
-    });
-    const primaryEnt = resolveEntity(this.world, this.view.selectedEntityId);
-    const primaryAlive = this.view.selectedEntityId != null && primaryEnt != null && primaryEnt.alive;
+    const alive = (this.view.selectedEntityIds ?? []).filter(
+      (id) => resolveEntity(this.world, id) != null,
+    );
+    const primaryAlive =
+      this.view.selectedEntityId != null &&
+      resolveEntity(this.world, this.view.selectedEntityId) != null;
 
     if (alive.length !== (this.view.selectedEntityIds?.length ?? 0) || !primaryAlive) {
       this.view = {

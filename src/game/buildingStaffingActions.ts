@@ -1,12 +1,5 @@
-typescript// ==========================================
-// PURE TYPE IMPORTS (Veilig, verdwijnt op runtime)
-// ==========================================
 import type { Building, Entity, WorldState } from './gameTypes';
-
-// ==========================================
-// RUNTIME IMPORTS (Nu rechtstreeks uit de bron bestanden!)
-// ==========================================
-import { BUILDING_CONFIGS, BUILDING_JOB_TYPES } from './buildings'; 
+import { BUILDING_CONFIGS, BUILDING_JOB_TYPES } from './gameTypes';
 import { readSkill } from './skills';
 import { addFloatingText, addNotification } from './simEffects';
 import {
@@ -118,7 +111,7 @@ function _applyBuilderAssignmentMut(
 }
 
 /** Assign a settler to help build an unfinished structure (including houses). */
-function assignBuilderToBuilding(
+export function assignBuilderToBuilding(
   originalState: WorldState,
   buildingId: number,
   preferredHumanId?: number,

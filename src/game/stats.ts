@@ -168,7 +168,7 @@ export function trackYearEvent(state: WorldState, title: string): void {
 }
 
 // Simple bar chart renderer
-function drawBarChart(
+export function drawBarChart(
   ctx: CanvasRenderingContext2D,
   data: number[],
   labels: string[],
@@ -200,7 +200,7 @@ function drawBarChart(
   ctx.restore();
 }
 
-function drawLineChart(
+export function drawLineChart(
   ctx: CanvasRenderingContext2D,
   data: number[],
   color: string,

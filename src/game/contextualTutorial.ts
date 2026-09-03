@@ -445,7 +445,7 @@ export function detectContextualTutorials(
   return tips;
 }
 
-function markTutorialsSeen(state: WorldState, ids: ContextualTutorialId[]): WorldState {
+export function markTutorialsSeen(state: WorldState, ids: ContextualTutorialId[]): WorldState {
   const merged = new Set([...(state.tutorialSeen ?? []), ...ids]);
   return {
     ...state,

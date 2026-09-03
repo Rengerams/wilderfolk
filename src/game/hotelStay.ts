@@ -282,7 +282,7 @@ export function describeHotelStatus(
 }
 
 /** Optional: settlers can also hang around hotels as free-time POI (not sleeping). */
-function isPlayerNearHotel(entity: Entity, buildings: readonly Building[]): Building | undefined {
+export function isPlayerNearHotel(entity: Entity, buildings: readonly Building[]): Building | undefined {
   if (!isPlayerHuman(entity)) return undefined;
   return buildings.find(
     (b) =>

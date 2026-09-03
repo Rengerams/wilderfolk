@@ -86,7 +86,7 @@ export function isVenueServiceHour(state: Pick<WorldState, 'tavernSchedule' | 'h
   return hour >= schedule.startHour && hour < schedule.endHour;
 }
 
-function isVenueServiceTick(state: Pick<WorldState, 'tick' | 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind, hour?: number, festivalActive = false): boolean {
+export function isVenueServiceTick(state: Pick<WorldState, 'tick' | 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind, hour?: number, festivalActive = false): boolean {
   return isVenueServiceHour(state, kind, hour ?? getHourOfDay(state.tick), festivalActive);
 }
 

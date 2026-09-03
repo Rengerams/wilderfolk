@@ -1,10 +1,10 @@
-import { getRenderEntityLayer, UNCACHED_RENDER_TICK } from '../gameTypes';
+import { getRenderEntityLayer, UNCACHED_RENDER_TICK, type Entity } from '../gameTypes';
 import {
   syncGrassRenderGrid,
   type EntitySpatialGrid,
   USE_SPATIAL_GRID,
 } from '../spatialGrid';
-import type { EntityRenderMeta, RenderEntity } from './entityRenderMeta';
+import type { EntityRenderMeta } from './entityRenderMeta';
 import { buildRenderEntityShim } from './entityRenderMeta';
 import type { RenderSoAReaderV1 } from './renderSoAReader';
 
@@ -14,8 +14,8 @@ export interface RenderSoABuckets {
   readonly treeSlots: number[];
   readonly animalSlots: number[];
   readonly humanSlots: number[];
-  readonly shims: RenderEntity[];
-  readonly shimBySlot: Map<number, RenderEntity>;
+  readonly shims: Entity[];
+  readonly shimBySlot: Map<number, Entity>;
 }
 
 let cachedTick = UNCACHED_RENDER_TICK;
@@ -65,8 +65,8 @@ export function updateRenderSoABuckets(
     const treeSlots: number[] = [];
     const animalSlots: number[] = [];
     const humanSlots: number[] = [];
-    const shims: RenderEntity[] = [];
-    const shimBySlot = new Map<number, RenderEntity>();
+    const shims: Entity[] = [];
+    const shimBySlot = new Map<number, Entity>();
 
     reader.forEachSlot((slot) => {
       if (!reader.isKnownType(slot)) return;
@@ -139,7 +139,7 @@ export function syncGrassRenderGridFromSoA(
     return grassRenderGrid;
   }
 
-  const grassEntities: RenderEntity[] = [];
+  const grassEntities: Entity[] = [];
   for (let i = 0; i < bucketData.grassSlots.length; i++) {
     const slot = bucketData.grassSlots[i];
     const shim = bucketData.shimBySlot.get(slot);

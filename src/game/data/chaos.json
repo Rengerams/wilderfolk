@@ -1,5 +1,5 @@
 {
-  "version": "1.2",
+  "version": "1.1",
   "game": "Wilderfolk Sim",
   "category": "chaos",
   "dialogue_trees": [
@@ -7,20 +7,20 @@
       "id": "dt_toast",
       "category": "chaos",
       "speakers": [
-        "cook",
-        "witness"
+        "npc_arsonist",
+        "npc_confused"
       ],
       "lines": [
         {
-          "speaker": "cook",
+          "speaker": "npc_arsonist",
           "text": "Started a fire trying to make toast."
         },
         {
-          "speaker": "witness",
+          "speaker": "npc_confused",
           "text": "The bread was already toasted?"
         },
         {
-          "speaker": "cook",
+          "speaker": "npc_arsonist",
           "text": "I was just holding it near the stove for moral support."
         }
       ]
@@ -29,20 +29,20 @@
       "id": "dt_ladder",
       "category": "chaos",
       "speakers": [
-        "builder",
-        "neighbor"
+        "npc_builder",
+        "npc_concerned"
       ],
       "lines": [
         {
-          "speaker": "builder",
+          "speaker": "npc_builder",
           "text": "Built a ladder to nowhere. It goes up. It does not come down."
         },
         {
-          "speaker": "neighbor",
+          "speaker": "npc_concerned",
           "text": "Why?"
         },
         {
-          "speaker": "builder",
+          "speaker": "npc_builder",
           "text": "I live there now. Send sandwiches."
         }
       ]
@@ -51,21 +51,21 @@
       "id": "dt_cow",
       "category": "chaos",
       "speakers": [
-        "settler",
-        "elder"
+        "npc_puncher",
+        "npc_hr"
       ],
       "lines": [
         {
-          "speaker": "settler",
+          "speaker": "npc_puncher",
           "text": "Accidentally punched a cow while trying to pet it."
         },
         {
-          "speaker": "elder",
+          "speaker": "npc_hr",
           "text": "Is the cow okay?"
         },
         {
-          "speaker": "settler",
-          "text": "The cow filed a formal complaint with the council."
+          "speaker": "npc_puncher",
+          "text": "The cow filed a complaint. HR is involved."
         }
       ]
     },
@@ -73,21 +73,21 @@
       "id": "dt_doorframe",
       "category": "chaos",
       "speakers": [
-        "worker",
-        "friend"
+        "npc_traumatized",
+        "npc_curious"
       ],
       "lines": [
         {
-          "speaker": "worker",
+          "speaker": "npc_traumatized",
           "text": "Called in sick because I got stuck in a doorframe."
         },
         {
-          "speaker": "friend",
-          "text": "How did three people get wedged at once?"
+          "speaker": "npc_curious",
+          "text": "With who?"
         },
         {
-          "speaker": "worker",
-          "text": "None of us was willing to yield right of way."
+          "speaker": "npc_traumatized",
+          "text": "Two other people tried to walk through at the same time. It was traumatic."
         }
       ]
     },
@@ -95,21 +95,21 @@
       "id": "dt_well",
       "category": "chaos",
       "speakers": [
-        "settler",
-        "neighbor"
+        "npc_fallen",
+        "npc_nurse"
       ],
       "lines": [
         {
-          "speaker": "settler",
-          "text": "Fell down a well. Not the main well. Just a decorative one."
+          "speaker": "npc_fallen",
+          "text": "Fell down a well. Not an important well. Just a decorative one."
         },
         {
-          "speaker": "neighbor",
+          "speaker": "npc_nurse",
           "text": "Are you hurt?"
         },
         {
-          "speaker": "settler",
-          "text": "The shame is far worse than the bruises."
+          "speaker": "npc_fallen",
+          "text": "The shame is worse than the injuries."
         }
       ]
     },
@@ -118,20 +118,64 @@
       "category": "chaos",
       "speakers": [
         "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Run!"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Wolf!"
+        },
+        {
+          "speaker": "settler",
+          "text": "Don't look back!"
+        }
+      ]
+    },
+    {
+      "id": "wf_fear_inside",
+      "category": "chaos",
+      "speakers": [
+        "settler",
         "guard"
       ],
       "lines": [
         {
           "speaker": "settler",
-          "text": "Wolf pack spotted heading toward the east pasture!"
+          "text": "Inside!"
         },
         {
           "speaker": "guard",
-          "text": "Sound the alarm and draw bows!"
+          "text": "Help!"
         },
         {
           "speaker": "settler",
-          "text": "Everyone inside the palisade, now!"
+          "text": "Too close!"
+        }
+      ]
+    },
+    {
+      "id": "wf_fear_moon",
+      "category": "chaos",
+      "speakers": [
+        "settler",
+        "elder"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Moon curse!"
+        },
+        {
+          "speaker": "elder",
+          "text": "Inside!"
+        },
+        {
+          "speaker": "settler",
+          "text": "Don't look back!"
         }
       ]
     },
@@ -145,15 +189,59 @@
       "lines": [
         {
           "speaker": "lover_a",
-          "text": "Meet me past the lumber mill after curfew."
+          "text": "Shh…"
         },
         {
           "speaker": "lover_b",
-          "text": "The guards are patrolling the north gate."
+          "text": "Our secret."
         },
         {
           "speaker": "lover_a",
-          "text": "I left the side latch unbolted. Don't be late."
+          "text": "After dark…"
+        }
+      ]
+    },
+    {
+      "id": "wf_affair_meet",
+      "category": "chaos",
+      "speakers": [
+        "lover_a",
+        "lover_b"
+      ],
+      "lines": [
+        {
+          "speaker": "lover_a",
+          "text": "Meet me later."
+        },
+        {
+          "speaker": "lover_b",
+          "text": "Not here."
+        },
+        {
+          "speaker": "lover_a",
+          "text": "They'll never know."
+        }
+      ]
+    },
+    {
+      "id": "wf_affair_kiss",
+      "category": "chaos",
+      "speakers": [
+        "lover_a",
+        "lover_b"
+      ],
+      "lines": [
+        {
+          "speaker": "lover_a",
+          "text": "Quick kiss."
+        },
+        {
+          "speaker": "lover_b",
+          "text": "Don't tell."
+        },
+        {
+          "speaker": "lover_a",
+          "text": "Our secret."
         }
       ]
     },
@@ -161,33 +249,33 @@
       "id": "wf_chaos_goat_court",
       "category": "chaos",
       "speakers": [
-        "settler",
-        "lawyer"
+        "npc_accused",
+        "npc_goat_lawyer"
       ],
       "lines": [
         {
-          "speaker": "settler",
-          "text": "The village goat has accused me of stealing its hat."
+          "speaker": "npc_accused",
+          "text": "The goat has accused me of stealing its hat."
         },
         {
-          "speaker": "lawyer",
-          "text": "The goat has produced three witnesses and a charcoal sketch."
+          "speaker": "npc_goat_lawyer",
+          "text": "The goat has produced three witnesses and a very convincing photograph."
         },
         {
-          "speaker": "settler",
-          "text": "That sketch is just a circle with horns!"
+          "speaker": "npc_accused",
+          "text": "That photograph is just the goat standing near a hat."
         },
         {
-          "speaker": "lawyer",
-          "text": "The court will decide if artistic license constitutes evidence."
+          "speaker": "npc_goat_lawyer",
+          "text": "The court will decide whether proximity constitutes intent."
         },
         {
-          "speaker": "settler",
-          "text": "Who appointed you as the goat's legal counsel?"
+          "speaker": "npc_accused",
+          "text": "Who appointed you as the goat's lawyer?"
         },
         {
-          "speaker": "lawyer",
-          "text": "The goat. It paid me in buttons and unblinking eye contact."
+          "speaker": "npc_goat_lawyer",
+          "text": "The goat. It paid me in buttons and an alarming amount of eye contact."
         }
       ]
     },
@@ -195,21 +283,21 @@
       "id": "wf_funny_chaos_goat",
       "category": "chaos",
       "speakers": [
-        "farmer",
-        "neighbor"
+        "shepherd",
+        "witness"
       ],
       "lines": [
         {
-          "speaker": "farmer",
-          "text": "The goat has learned how to open the grain shed latch."
+          "speaker": "shepherd",
+          "text": "The goat has learned to open the grain shed."
         },
         {
-          "speaker": "neighbor",
-          "text": "Put a padlock on it."
+          "speaker": "witness",
+          "text": "Lock it."
         },
         {
-          "speaker": "farmer",
-          "text": "I tried. It watched me hide the key under the flowerpot."
+          "speaker": "shepherd",
+          "text": "I tried. It watched me hide the key."
         }
       ]
     }

@@ -5,6 +5,6 @@ export function setGameplayAudioActive(active: boolean): void {
   gameplayAudioActive = active;
 }
 
-function isGameplayAudioActive(): boolean {
+export function isGameplayAudioActive(): boolean {
   return gameplayAudioActive;
 }

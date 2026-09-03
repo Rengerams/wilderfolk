@@ -197,7 +197,7 @@ export function resolveVillageRequest(
   return state;
 }
 
-;
+export { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 
 /** Deep-clone world state for player actions that mutate simulation data. */
@@ -604,7 +604,7 @@ function relationshipLabel(rel: RivalRelationship): string {
   return { friendly: 'Friendly', neutral: 'Neutral', competitive: 'Competitive', tense: 'Tense' }[rel];
 }
 
-;
+export { isRivalAtPeace } from './rivalPeace';
 
 const PEACE_TREATY_PLAYER_DAYS = 60;
 const PEACE_TREATY_EVENT_DAYS = 45;
