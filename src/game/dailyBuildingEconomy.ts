@@ -22,10 +22,10 @@ import {
 } from './adjacencyIndex';
 import {
   addResource,
-  canAffordWorkshopRecipe,
   consumeWorkshopRecipeInputs,
   applyFoodSpoilage,
 } from './economy';
+import { canAffordWorkshopRecipe } from './workshops';
 import { logEvent } from './eventLog';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getLumberMillTreeMultiplier } from './treeProximity';
@@ -697,7 +697,7 @@ function tickBuildingProduction(
         const recipe = getWorkshopRecipe(building.workshopRecipeId);
         const outputMult = (1 + workers * 0.5) * totalMult * goldMult * globalEff;
 
-        if (canAffordWorkshopRecipe(state, recipe)) {
+        if (canAffordWorkshopRecipe(state.resources, recipe)) {
           const amount = Math.max(1, Math.floor(recipe.baseGold * outputMult));
           const added = addResource(state, 'gold', amount);
           if (added > 0) {

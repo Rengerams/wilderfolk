@@ -19,13 +19,16 @@ import {
   HUMAN_FERTILITY_START,
   HUMAN_YOUTH_FERTILITY_END,
   getYouthConceptionMultiplier,
+  allowSocialLife,
   hasResidenceAssignment,
+  hasWorkAssignment,
   getAbsoluteCalendarDay,
   isNearResidence,
   isResidenceBuilding,
   pickResidenceForHuman,
   pickResidenceForHumanExcluding,
   syncResidenceOccupants,
+  syncPartnerResidence,
   killHuman,
   shareResidence,
   shouldBeAtHome,
@@ -35,16 +38,19 @@ import {
   PREGNANCY_TICKS,
 } from '../dayCycle';
 import { formatCitizenName, formatDeathLog, humanDisplayName } from '../citizenId';
-import { dissolveMarriage, formatCaughtCheaterDivorceDetail } from '../nameLoader';
+import { dissolveMarriage, formatCaughtCheaterDivorceDetail, syncMarriageSurnames } from '../nameLoader';
 import { dampScandalReputationLoss } from '../townHall';
 import { getLivingEntity, getHousemates } from '../simQueries';
-import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions } from '../adaptiveSpatialQuery';
+import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_AFFAIR_RADIUS } from '../adaptiveSpatialQuery';
 import { startFeud } from '../relationships';
-import { logEvent } from '../eventLog';
+import { logDeath, logEvent } from '../eventLog';
 import { isPlayerHuman } from '../playerHuman';
 import { traitMultiplier } from '../settlerTraits';
 import { SCHOOL_GRADUATION_DAYS } from '../education';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
+import { findHumanWorkplace } from '../workforce';
+import { getWorkSchedule, isWorkScheduleHour, type WorkSchedule } from '../workSchedule';
+import { sayHumanChatPhrase } from '../humanChat';
 
 export const AFFAIR_SPOUSE_BLOCK_RADIUS = 22;
 export const AFFAIR_BUILDING_NEAR_RADIUS = 55;
@@ -636,7 +642,11 @@ function startMarriedPregnancy(state: WorldState, entity: Entity, partner: Entit
   partner.flash = 15;
   createDeathParticles(state, entity.x, entity.y - 8, '#ffb6c1', 10, 'heart');
   addFloatingText(state, entity.x, entity.y - 20, 'Expecting!', '#ff69b4');
-  addNotification(state, 'Expecting', `${entity.name || 'A settler'} is expecting a child`, 'success');
+  const mother = humanDisplayName(entity);
+  const father = humanDisplayName(partner);
+  const line = `${mother} and ${father} are expecting a child`;
+  logEvent(state, 'birth', line, mother);
+  addNotification(state, 'Expecting', line, 'success', { x: entity.x, y: entity.y });
 }
 
 function startYouthPregnancy(state: WorldState, entity: Entity, partner: Entity): void {
@@ -648,7 +658,11 @@ function startYouthPregnancy(state: WorldState, entity: Entity, partner: Entity)
   partner.flash = 12;
   createDeathParticles(state, entity.x, entity.y - 8, '#f9a8d4', 7, 'heart');
   addFloatingText(state, entity.x, entity.y - 20, 'Expecting!', '#ff69b4');
-  addNotification(state, 'Expecting', `${entity.name || 'A settler'} is expecting a child`, 'success');
+  const mother = humanDisplayName(entity);
+  const father = humanDisplayName(partner);
+  const line = `${mother} and ${father} are expecting a child`;
+  logEvent(state, 'birth', line, mother);
+  addNotification(state, 'Expecting', line, 'success', { x: entity.x, y: entity.y });
 }
 
 function startAffairPregnancy(state: WorldState, entity: Entity, lover: Entity): void {
@@ -661,6 +675,10 @@ function startAffairPregnancy(state: WorldState, entity: Entity, lover: Entity):
   lover.flash = 14;
   createDeathParticles(state, entity.x, entity.y - 8, '#f472b6', 8, 'heart');
   addFloatingText(state, entity.x, entity.y - 18, 'Secret…', '#c084fc', 'brief');
+  const mother = humanDisplayName(entity);
+  const line = `${mother} is secretly expecting a child`;
+  logEvent(state, 'scandal', line, mother);
+  addNotification(state, 'Secret pregnancy', line, 'warning', { x: entity.x, y: entity.y });
 }
 
 type ConceptionGateOutcome = 'eligibility' | 'energy' | 'proximity' | 'roll';
@@ -805,7 +823,12 @@ export function tryDailyHumanMortality(
     killHuman(entity, buildings, entityById, state.tick);
     createDeathParticles(state, entity.x, entity.y, '#aaaaaa', 5, 'smoke');
     const cause = entity.age >= HUMAN_MAX_LIFESPAN_YEARS ? 'old age' : 'an age-related illness';
-    logEvent(state, 'death', formatDeathLog(entity, `died of ${cause}`), formatCitizenName(entity));
+    logDeath(
+      state,
+      formatDeathLog(entity, `died of ${cause}`),
+      formatCitizenName(entity),
+      { x: entity.x, y: entity.y },
+    );
     return true;
   }
   {
@@ -813,7 +836,12 @@ export function tryDailyHumanMortality(
     if (entity.age >= HUMAN_ADULT_MIN_AGE && Math.random() < illnessChance) {
       killHuman(entity, buildings, entityById, state.tick);
       createDeathParticles(state, entity.x, entity.y, '#aaaaaa', 5, 'smoke');
-      logEvent(state, 'death', formatDeathLog(entity, 'died of a sudden illness'), formatCitizenName(entity));
+      logDeath(
+        state,
+        formatDeathLog(entity, 'died of a sudden illness'),
+        formatCitizenName(entity),
+        { x: entity.x, y: entity.y },
+      );
       return true;
     }
   }
@@ -1269,4 +1297,179 @@ export function findCourtshipPartner(
     consider(nearby, dx * dx + dy * dy);
   }
   return closest;
+}
+
+/** Affairs can run off-duty or during work when spouses are at separate job sites. */
+export function canPursueSecretAffair(
+  entity: Entity,
+  hourOfDay: number,
+  workplace: Building | undefined,
+  buildings: Building[],
+  entityById: Map<number, Entity>,
+  tick: number,
+  workSchedule: WorkSchedule = getWorkSchedule({ workSchedule: undefined }),
+): boolean {
+  if (onScandalCooldown(entity, tick)) return false;
+  if (isSpouseNearby(entity, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)) return false;
+  if (allowSocialLife(hourOfDay, workplace != null)) return true;
+  if (!isWorkScheduleHour(workSchedule, hourOfDay) || entity.partnerId == null) return false;
+
+  const spouse = getLivingEntity(entity.partnerId, entityById);
+  if (!spouse) return true;
+  if (!hasWorkAssignment(spouse)) return true;
+
+  const spouseJob = findHumanWorkplace(spouse, buildings);
+  if (!spouseJob) return true;
+  if (workplace && spouseJob.id !== workplace.id) return true;
+  return Math.hypot(spouse.x - entity.x, spouse.y - entity.y) > 58;
+}
+
+/** Once-per-day affair drift and establishment — owned by humanRelationships. */
+export function tryDailyAffairEncounter(
+  state: WorldState,
+  entity: Entity,
+  entityById: Map<number, Entity>,
+  buildings: Building[],
+  buildingById: Map<number, Building>,
+  churchStrength: number,
+  hourOfDay: number,
+  humanSocialGrid?: EntitySpatialGrid,
+  playerHumans?: readonly Entity[],
+  width?: number,
+  height?: number,
+): void {
+  const config = SPECIES_CONFIG[EntityType.Human];
+  recordRelationshipDiagnostic('affairChecks');
+  if (!isPlayerHuman(entity)) return;
+  if (entity.prisonBuildingId != null) return;
+  if (entity.relationshipStatus !== 'married' || entity.pregnant || entity.isJuvenile) return;
+  if (!entity.gender || entity.age < HUMAN_ADULT_MIN_AGE || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
+  if (entity.energy <= config.reproductionEnergyThreshold * 0.5) return;
+  if (onScandalCooldown(entity, state.tick)) return;
+  const workplace = findHumanWorkplace(entity, buildings, { buildingById });
+  if (!canPursueSecretAffair(entity, hourOfDay, workplace, buildings, entityById, state.tick, getWorkSchedule(state))) return;
+
+  if (isAtMaritalHome(entity, entityById, buildingById)) return;
+
+  if (entity.affairPartnerId != null) {
+    const established = getLivingEntity(entity.affairPartnerId, entityById);
+    if (
+      established
+      && established.affairPartnerId === entity.id
+      && shouldLeadAffairPair(entity, established)
+      && isValidAffairTrystSite(entity, established, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)
+    ) {
+      recordAffairTrystSite(entity, established, state, buildingById);
+    }
+  }
+
+  let paramour: Entity | undefined;
+  let bestDistSq = 120 * 120;
+  const considerParamour = (candidate: Entity, distSq: number) => {
+    if (!isValidAffairTarget(entity, candidate, state.tick)) return;
+    if (distSq >= bestDistSq) return;
+    if (isSpouseNearby(candidate, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)) return;
+    bestDistSq = distSq;
+    paramour = candidate;
+  };
+  forEachAdaptiveInRadius(
+    humanSocialGrid,
+    playerHumans ?? [],
+    entity.x,
+    entity.y,
+    SOCIAL_AFFAIR_RADIUS,
+    (human, distSq) => {
+      if (human.type !== EntityType.Human || !isPlayerHuman(human)) return;
+      considerParamour(human, distSq);
+    },
+    socialAdaptiveOptions('social', playerHumans?.length ?? 0, width ?? 0, height ?? 0),
+  );
+  if (!paramour) return;
+  if (!isValidAffairTrystSite(entity, paramour, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) return;
+  if (!shouldLeadAffairPair(entity, paramour)) return;
+
+  const churchPenalty = churchStrength > 0 ? 0.72 + (1 - churchStrength) * 0.28 : 1;
+  const hasPerformers = state.visitorGroups.some((g) => g.kind === 'performers' && g.daysLeft > 0);
+  const festivalMult = state.festival?.active ? 1.4 : 1;
+  const performerMult = hasPerformers ? 1.35 : 1;
+  const trystBuilding = getAffairTrystBuilding(entity, paramour, buildingById);
+  const atParamourHome = trystBuilding != null
+    && isNearBuilding(entity, trystBuilding, AFFAIR_BUILDING_NEAR_RADIUS)
+    && isNearBuilding(paramour, trystBuilding, AFFAIR_BUILDING_NEAR_RADIUS);
+  const cohabitMult = atParamourHome ? 1.55 : 1;
+  const socialMult = festivalMult * performerMult * cohabitMult;
+  const dailyChance = (churchStrength > 0 ? 0.14 : 0.2) * churchPenalty * socialMult;
+  if (Math.random() >= dailyChance) return;
+
+  const bump = Math.round((16 + Math.floor(Math.random() * 12)) * socialMult);
+  entity.affairProgress = Math.min(100, (entity.affairProgress || 0) + bump);
+  paramour.affairProgress = Math.min(100, (paramour.affairProgress || 0) + bump);
+  recordRelationshipDiagnostic('affairProgressGains');
+  recordAffairTrystSite(entity, paramour, state, buildingById);
+
+  if ((entity.affairProgress ?? 0) >= 100 && (paramour.affairProgress ?? 0) >= 100) {
+    entity.affairPartnerId = paramour.id;
+    paramour.affairPartnerId = entity.id;
+    entity.affairProgress = 100;
+    paramour.affairProgress = 100;
+    recordRelationshipDiagnostic('affairsEstablished');
+    const who = humanDisplayName(entity);
+    const other = humanDisplayName(paramour);
+    const line = `${who} began a secret affair with ${other}`;
+    logEvent(state, 'scandal', line, who);
+    addNotification(state, 'Affair', line, 'warning', { x: entity.x, y: entity.y });
+  }
+}
+
+/** Finalize mutual courtship into marriage — owned by humanRelationships. */
+export function tryCompleteCourtshipMarriage(
+  state: WorldState,
+  entity: Entity,
+  partner: Entity,
+  residences: Building[],
+  playerHumans: Entity[],
+): boolean {
+  if (entity.id >= partner.id) return false;
+  if (!entity.gender || !partner.gender || entity.gender === partner.gender) return false;
+  if ((entity.courtshipProgress ?? 0) < 100 || (partner.courtshipProgress ?? 0) < 100) return false;
+  if (entity.age < HUMAN_MOVE_OUT_MIN_AGE || partner.age < HUMAN_MOVE_OUT_MIN_AGE) return false;
+  if (!isEligibleToCourt(entity) || !isEligibleToCourt(partner)) return false;
+
+  entity.relationshipStatus = 'married';
+  entity.partnerId = partner.id;
+  entity.courtshipPartnerId = undefined;
+  entity.courtshipProgress = 0;
+  entity.affairPartnerId = undefined;
+  entity.affairProgress = 0;
+  partner.relationshipStatus = 'married';
+  partner.partnerId = entity.id;
+  partner.courtshipPartnerId = undefined;
+  partner.courtshipProgress = 0;
+  partner.affairPartnerId = undefined;
+  partner.affairProgress = 0;
+
+  createDeathParticles(
+    state,
+    (entity.x + partner.x) / 2,
+    (entity.y + partner.y) / 2 - 15,
+    '#ffd700',
+    15,
+    'heart',
+  );
+  addFloatingText(
+    state,
+    (entity.x + partner.x) / 2,
+    (entity.y + partner.y) / 2 - 25,
+    'Married!',
+    '#ffd700',
+  );
+  syncMarriageSurnames(entity, partner);
+  const married1 = humanDisplayName(entity);
+  const married2 = humanDisplayName(partner);
+  logEvent(state, 'marriage', `${married1} and ${married2} got married`, married1);
+  addNotification(state, 'Marriage', `${married1} & ${married2} are now married`, 'success');
+  sayHumanChatPhrase(entity, 'Yes!', 120);
+  sayHumanChatPhrase(partner, 'Yes!', 120);
+  syncPartnerResidence(entity, partner, residences, playerHumans);
+  return true;
 }

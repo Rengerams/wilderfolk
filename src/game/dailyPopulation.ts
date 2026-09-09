@@ -16,6 +16,7 @@ import { findHumanSpawnNear } from './terrainSystems';
 import { isPlayerHuman } from './playerHuman';
 import { getTownHallImmigrationMultiplier } from './townHall';
 import { addFloatingText, addNotification } from './simEffects';
+import { logEvent } from './eventLog';
 import type { TickContext } from './simulation/simulationTypes';
 import { pruneFactionWanderStates } from './factionWander';
 
@@ -97,6 +98,7 @@ function tickImmigration(
 
       const label = admitted === 1 ? '+1 Settler arrived' : `+${admitted} Settlers arrived`;
       addFloatingText(state, spawnX, spawnY - 18, label, '#22c55e');
+      logEvent(state, 'migration', label);
       addNotification(state, 'New Settler', label, 'success', { x: spawnX, y: spawnY });
     }
   }

@@ -83,9 +83,26 @@ export function useGameShellState() {
   const [showMapSetup, setShowMapSetup] = useState(false);
   const [mapSetupSource, setMapSetupSource] = useState<MapSetupSource>('intro');
   const [buildPanelOpen, setBuildPanelOpen] = useState(loadBuildPanelOpen);
+  const [citizenOverviewOpen, setCitizenOverviewOpen] = useState(false);
   const [firstNightWarningDismissed, setFirstNightWarningDismissed] = useState(
     loadFirstNightWarningDismissed,
   );
+
+  const openCitizenOverview = useCallback(() => {
+    setCitizenOverviewOpen(true);
+    setOpenTabs(new Set());
+  }, []);
+
+  const closeCitizenOverview = useCallback(() => {
+    setCitizenOverviewOpen(false);
+  }, []);
+
+  const toggleCitizenOverview = useCallback(() => {
+    setCitizenOverviewOpen((previous) => {
+      if (!previous) setOpenTabs(new Set());
+      return !previous;
+    });
+  }, []);
 
   const activeTab = useMemo(() => getActiveSidebarTab(openTabs), [openTabs]);
 
@@ -140,6 +157,11 @@ export function useGameShellState() {
     // UI Panels & Inspector
     buildPanelOpen,
     setBuildPanelOpen,
+    citizenOverviewOpen,
+    setCitizenOverviewOpen,
+    openCitizenOverview,
+    closeCitizenOverview,
+    toggleCitizenOverview,
     inspectorCollapsed,
     setInspectorCollapsed,
     showShortcuts,

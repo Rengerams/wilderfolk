@@ -8,7 +8,7 @@ import type { Entity, WorldState } from './gameTypes';
 import type { PopulationCounts } from './entityCounts';
 import type { TickContext } from './simulation/simulationTypes';
 
-import { TICKS_PER_DAY, isNewCalendarDayTick } from './dayCycle';
+import { isNewCalendarDayTick } from './dayCycle';
 import { addFloatingText } from './simEffects';
 
 // Social & Relationships
@@ -30,40 +30,6 @@ import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
 
 // Re-export for external daily layer consumers
 export { tickGrassDaily } from './dailyGrassEcology';
-
-/**
- * Winter heating — burns wood once per colony day, stores result on state for the whole day.
- * Call from gameTick only (not from daily layer again).
- */
-export function tickWinterHeating(
-  state: WorldState,
-  humanCount: number,
-  isWinter: boolean,
-): boolean {
-  if (!isWinter) {
-    state.villageCanHeat = true;
-    return true;
-  }
-
-  // Fast path: reuse stored flag for the remainder of the colony day
-  if (state.tick > 0 && state.tick % TICKS_PER_DAY !== 0) {
-    return state.villageCanHeat !== false;
-  }
-
-  // Day boundary: attempt to heat the village
-  let canHeat = true;
-  if (state.tick > 0 && humanCount > 0) {
-    const woodNeeded = Math.ceil(humanCount / 5);
-    if (state.resources.wood >= woodNeeded) {
-      state.resources.wood -= woodNeeded;
-    } else {
-      canHeat = false;
-    }
-  }
-  
-  state.villageCanHeat = canHeat;
-  return canHeat;
-}
 
 // ==================== DAILY LAYER ENTRYPOINT ====================
 

@@ -58,6 +58,7 @@ import ActiveEventBanner from './components/ActiveEventBanner';
 import VillageRequestCard from './components/VillageRequestCard';
 import BigNewsBanner from './components/BigNewsBanner';
 import ShortcutsOverlay from './components/ShortcutsOverlay';
+import GameDashboard from './components/dashboard/GameDashboard';
 import VisitorCampPanel from './components/VisitorCampPanel';
 import SelectedEntityPanel from './components/SelectedEntityPanel';
 import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel';
@@ -102,7 +103,7 @@ import NatureTabPanel from './components/tabPanels/NatureTabPanel';
 import ProgressTabPanel from './components/tabPanels/ProgressTabPanel';
 import LogTabPanel from './components/tabPanels/LogTabPanel';
 import MoreTabPanel from './components/tabPanels/MoreTabPanel';
-
+import CitizenOverviewScreen from './components/CitizenOverviewScreen';
 
 import AlertBar from './components/AlertBar';
 import Emoji from './components/Emoji';
@@ -153,12 +154,15 @@ export default function App() {
     activeTab,
     buildPanelOpen,
     campaignActive,
+    citizenOverviewOpen,
+    closeCitizenOverview,
     firstNightWarningDismissed,
     inspectorCollapsed,
     juiceEffectsEnabled,
     logSubTab,
     mapSetupSource,
     moreSubTab,
+    openCitizenOverview,
     openTab,
     openTabs,
     progressSubTab,
@@ -190,12 +194,14 @@ export default function App() {
     showShortcuts,
     showSimTick,
     showTutorial,
+    toggleCitizenOverview,
     toggleTab,
     tutorialChoice,
     tutorialsEnabled,
     tutorialStep,
   } = useGameShellState();
   const [spritesLoaded, setSpritesLoaded] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const fps = useFpsMeter(showFps);
   const [hasSavedGame, setHasSavedGame] = useState(hasSave());
   const {
@@ -308,13 +314,14 @@ export default function App() {
         ensureDialogueBankFromBundle();
         setSpritesLoaded(true);
       });
-  }, []);
+  }, [worldRef]);
 
   // Keep the sim frozen while Quick Start or map setup is open
   useEffect(() => {
-    if (!spritesLoaded || showIntro || showMapSetup || !showTutorial) return;
-    loopRef.current?.mutateWorld((w) => { w.paused = true; });
-  }, [showTutorial, spritesLoaded, showIntro, showMapSetup]);
+    const loop = loopRef.current;
+    if (!spritesLoaded || showIntro || showMapSetup || !showTutorial || !loop) return;
+    loop.mutateWorld((w) => { w.paused = true; });
+  }, [showTutorial, spritesLoaded, showIntro, showMapSetup, loopRef]);
 
   // The colony founds at 08:00 (tick = TICKS_PER_HOUR * 8) — day boundaries sit at
   // tick 24, 96, 168… so "first game day" and the warning window anchor there.
@@ -340,7 +347,7 @@ export default function App() {
     if (wasPaused) {
       loop.applyCommand({ proto: 1, op: 'autoStaffWorkers' });
     }
-  }, []);
+  }, [loopRef]);
 
   const resumeAfterTutorialOverlay = useCallback(() => {
     primeAudioUnlock();
@@ -363,7 +370,7 @@ export default function App() {
       });
     }
     loop.mutateWorld((session) => { session.paused = false; });
-  }, []);
+  }, [loopRef, catalogRef.current]);
 
   const acknowledgeContextualTip = useCallback(() => {
     if (!contextualTip) return;
@@ -373,7 +380,7 @@ export default function App() {
     loopRef.current?.mutateWorld((w) => {
       w.tutorialSeen = [...new Set([...(w.tutorialSeen ?? []), tipId])];
     });
-  }, [contextualTip, dismissContextualTip, markContextualTipSeen]);
+  }, [contextualTip, dismissContextualTip, markContextualTipSeen, loopRef.current]);
 
   // Auto-acknowledge a tip after a short grace — a card can never nag forever
   // or re-appear if the player ignores it (also persists it into the save).
@@ -393,13 +400,13 @@ export default function App() {
     setTutorialStep(0);
     dismissContextualTip();
     resumeAfterTutorialOverlay();
-  }, [dismissContextualTip, resumeAfterTutorialOverlay]);
+  }, [dismissContextualTip, resumeAfterTutorialOverlay, setTutorialStep, setShowTutorial, setTutorialsEnabled]);
 
   const handleToggleJuiceEffects = useCallback(() => {
     const next = !juiceEffectsEnabled;
     saveJuiceEffectsEnabled(next);
     setJuiceEffectsEnabled(next);
-  }, [juiceEffectsEnabled]);
+  }, [juiceEffectsEnabled, setJuiceEffectsEnabled]);
 
   const handleToggleTutorials = useCallback(() => {
     const next = !tutorialsEnabled;
@@ -412,12 +419,12 @@ export default function App() {
       setShowTutorial(false);
       dismissContextualTip();
     }
-  }, [tutorialsEnabled, dismissContextualTip]);
+  }, [tutorialsEnabled, dismissContextualTip, setShowTutorial, setTutorialsEnabled]);
 
   const handleTutorialChoiceChange = useCallback((enabled: boolean) => {
     saveTutorialChoice(enabled);
     setTutorialChoice(enabled);
-  }, []);
+  }, [setTutorialChoice]);
 
   // Current first-spring guide step — advances automatically as the player plays.
   // (When every step is complete, currentCampaignStep returns null and the banner
@@ -435,13 +442,13 @@ export default function App() {
     const next = !showSimTick;
     saveShowSimTick(next);
     setShowSimTick(next);
-  }, [showSimTick]);
+  }, [showSimTick, setShowSimTick]);
 
   const handleToggleShowFps = useCallback(() => {
     const next = !showFps;
     saveShowFps(next);
     setShowFps(next);
-  }, [showFps]);
+  }, [showFps, setShowFps]);
 
   const finishTutorial = useCallback(() => {
     try {
@@ -450,14 +457,14 @@ export default function App() {
     setShowTutorial(false);
     setTutorialStep(0);
     resumeAfterTutorialOverlay();
-  }, [resumeAfterTutorialOverlay]);
+  }, [resumeAfterTutorialOverlay, setShowTutorial, setTutorialStep]);
 
   const toggleGrid = useCallback(() => {
     const loop = loopRef.current;
     if (!loop) return;
     const next = !loop.getView().showGrid;
     loop.patchView({ showGrid: next });
-  }, []);
+  }, [loopRef]);
 
   // The "Click map repeatedly to place more" hint shows for the first-ever
   // (Placement how-to was removed with the build banner — the ghost on the
@@ -466,7 +473,7 @@ export default function App() {
     setSelectedBuildingType(null);
     stripDragStartRef.current = null;
     loopRef.current?.patchView({ buildMode: null, buildGhost: null, buildStripPreview: null, buildRotation: 0 });
-  }, []);
+  }, [loopRef.current]);
 
   const rotateBuildPlacement = useCallback(() => {
     const loop = loopRef.current;
@@ -485,7 +492,7 @@ export default function App() {
           }
         : {}),
     });
-  }, [selectedBuildingType]);
+  }, [selectedBuildingType, loopRef]);
 
   const clearSelection = useCallback(() => {
     loopRef.current?.patchView({
@@ -495,7 +502,7 @@ export default function App() {
       highlightedCampKey: null,
       selectedCampKey: null,
     });
-  }, []);
+  }, [loopRef.current]);
 
   const focusCampOnMap = useCallback((kind: 'rival' | 'visitor', id: string, x: number, y: number, buildingId?: number | null) => {
     const loop = loopRef.current;
@@ -511,7 +518,7 @@ export default function App() {
       selectedCampKey: kind === 'visitor' ? campKey : null,
     });
     setInspectorCollapsed(false);
-  }, []);
+  }, [setInspectorCollapsed, loopRef]);
 
   const focusBuildingOnMap = useCallback((buildingId: number, x: number, y: number) => {
     const loop = loopRef.current;
@@ -526,7 +533,7 @@ export default function App() {
       selectedCampKey: null,
     });
     setInspectorCollapsed(false);
-  }, []);
+  }, [setInspectorCollapsed, loopRef]);
 
   const focusCitizenOnMap = useCallback((entity: import('./game/gameTypes').Entity) => {
     const loop = loopRef.current;
@@ -541,7 +548,7 @@ export default function App() {
       selectedCampKey: null,
     });
     setInspectorCollapsed(false);
-  }, []);
+  }, [setInspectorCollapsed, loopRef]);
 
   /** Favorite = follow this citizen with the camera until cleared or they die. */
   const toggleFavoriteCitizen = useCallback((entityId: number) => {
@@ -573,17 +580,18 @@ export default function App() {
     }
     loop.patchView({ favoriteEntityId: null });
     setView(loop.getView());
-  }, []);
+  }, [loopRef, setInspectorCollapsed, catalogRef.current]);
 
   // Keep camera on favorite citizen each sim tick
   useEffect(() => {
     const loop = loopRef.current;
+    const catalog = catalogRef.current;
     if (!loop || showIntro || showMapSetup) return;
     const view = loop.getView();
     const id = view.favoriteEntityId;
     if (id == null) return;
     const w = loop.getWorld();
-    const ent = resolveEntity(w, id) ?? catalogRef.current?.get(id) ?? null;
+    const ent = resolveEntity(w, id) ?? catalog?.get(id) ?? null;
     if (!ent?.alive) {
       loop.patchView({ favoriteEntityId: null });
       return;
@@ -596,7 +604,7 @@ export default function App() {
         rect?.width ?? w.width, rect?.height ?? w.height,
       ),
     });
-  }, [world.tick, showIntro, showMapSetup]);
+  }, [world.tick, showIntro, showMapSetup, loopRef, catalogRef]);
 
   const selectBuildingType = useCallback((type: BuildingType) => {
     clearSelection();
@@ -613,7 +621,7 @@ export default function App() {
       selectedEntityId: null,
       selectedEntityIds: [],
     });
-  }, [clearSelection]);
+  }, [clearSelection, setBuildPanelOpen, loopRef.current]);
 
   const handleHintAction = useCallback((action: FocusHintAction) => {
     playClickSound();
@@ -678,7 +686,7 @@ export default function App() {
         setBuildPanelOpen(true);
         break;
     }
-  }, [selectBuildingType, focusCampOnMap, focusBuildingOnMap, openTab]);
+  }, [selectBuildingType, focusCampOnMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
 
   const handlePriorityAlert = useCallback((alert: PriorityAlert) => {
     playClickSound();
@@ -706,11 +714,11 @@ export default function App() {
         focusBuildingOnMap(action.buildingId, action.x, action.y);
         break;
     }
-  }, [selectBuildingType, focusCampOnMap, focusBuildingOnMap, openTab]);
+  }, [selectBuildingType, focusCampOnMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
 
   const getViewCamera = useCallback(() => {
     return loopRef.current?.getView().camera ?? viewRef.current.camera;
-  }, []);
+  }, [loopRef.current, viewRef.current.camera]);
 
   useEffect(() => {
     sidebarContentRef.current?.scrollTo({ top: 0 });
@@ -722,6 +730,9 @@ export default function App() {
   const toggleGridRef = useRef(toggleGrid);
   const rotateBuildPlacementRef = useRef(rotateBuildPlacement);
   const showShortcutsRef = useRef(showShortcuts);
+  const citizenOverviewOpenRef = useRef(citizenOverviewOpen);
+  const toggleCitizenOverviewRef = useRef(toggleCitizenOverview);
+  const closeCitizenOverviewRef = useRef(closeCitizenOverview);
 
   const applyZoom = useCallback((factor: number, screenX?: number, screenY?: number) => {
     const loop = loopRef.current;
@@ -738,7 +749,7 @@ export default function App() {
     // Viewport-aware clamp: keeps the visible area inside the world even when
     // zoomed out (no empty ring around the map).
     loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height, cw, ch) });
-  }, []);
+  }, [loopRef]);
 
   const applyZoomRef = useRef(applyZoom);
 
@@ -751,7 +762,7 @@ export default function App() {
     const cam = loop.getView().camera;
     const next = focusCameraOn(loop.getView(), cam.targetX, cam.targetY, targetZoom);
     loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height, cw, ch) });
-  }, []);
+  }, [loopRef]);
 
   const resetZoom = useCallback(() => {
     zoomCameraTo(CAMERA_ZOOM_DEFAULT);
@@ -774,7 +785,7 @@ export default function App() {
         rect?.width ?? world.width, rect?.height ?? world.height,
       ),
     });
-  }, [world.width, world.height]);
+  }, [world.width, world.height, loopRef]);
 
   // passive:false — React onWheel cannot preventDefault on modern browsers
   useEffect(() => {
@@ -797,8 +808,22 @@ export default function App() {
     toggleGridRef.current = toggleGrid;
     rotateBuildPlacementRef.current = rotateBuildPlacement;
     showShortcutsRef.current = showShortcuts;
+    citizenOverviewOpenRef.current = citizenOverviewOpen;
+    toggleCitizenOverviewRef.current = toggleCitizenOverview;
+    closeCitizenOverviewRef.current = closeCitizenOverview;
     applyZoomRef.current = applyZoom;
-  }, [togglePause, selectBuildingType, cancelBuildMode, toggleGrid, rotateBuildPlacement, showShortcuts, applyZoom]);
+  }, [
+    togglePause,
+    selectBuildingType,
+    cancelBuildMode,
+    toggleGrid,
+    rotateBuildPlacement,
+    showShortcuts,
+    citizenOverviewOpen,
+    toggleCitizenOverview,
+    closeCitizenOverview,
+    applyZoom,
+  ]);
 
   useKeyboardControls({
     loopRef,
@@ -812,6 +837,9 @@ export default function App() {
     setProgressSubTab,
     setShowShortcuts,
     setBuildPanelOpen,
+    citizenOverviewOpenRef,
+    toggleCitizenOverviewRef,
+    closeCitizenOverviewRef,
     cancelBuildModeRef,
     togglePauseRef,
     selectBuildingTypeRef,
@@ -857,17 +885,17 @@ export default function App() {
 
   const setSpeed = useCallback((speed: number) => {
     loopRef.current?.mutateWorld((w) => { w.speed = speed; });
-  }, []);
+  }, [loopRef.current]);
 
   const handleOpenTrade = useCallback(() => {
     openTab('progress');
     setProgressSubTab('trade');
-  }, [openTab]);
+  }, [openTab, setProgressSubTab]);
 
   const handleOpenGuide = useCallback(() => {
     openTab('more');
     setMoreSubTab('guide');
-  }, [openTab]);
+  }, [openTab, setMoreSubTab]);
   const beginNewGameSession = useCallback((villageName: string) => {
     deleteSave();
     const s = initGame({ size: selectedMapSize, preset: selectedMapPreset, villageName });
@@ -899,19 +927,24 @@ export default function App() {
     tutorialChoice,
     resetTransientFeedbackForNewSession,
     replaceSession,
+    setCampaignActive,
+    setFirstNightWarningDismissed,
+    setShowTutorial,
+    setTutorialStep,
+    setShowMapSetup,
   ]);
 
   const startNewGame = useCallback(() => {
     setMapSetupSource('game');
     setShowMapSetup(true);
-  }, []);
+  }, [setShowMapSetup, setMapSetupSource]);
 
   const toggleAutoSave = useCallback(() => {
     loopRef.current?.mutateWorld((w) => {
       w.autoSave = !w.autoSave;
       saveAutoSavePreference(w.autoSave);
     });
-  }, []);
+  }, [loopRef.current]);
 
   const handleSave = useCallback(() => {
     void persistCurrentGame({ chronicle: true, feedback: true });
@@ -961,7 +994,7 @@ export default function App() {
       message: 'Save downloaded — keep the .json file safe',
       type: 'success',
     });
-  }, [showSaveToast]);
+  }, [showSaveToast, worldRef, loopRef, viewRef]);
 
   const handleLoadFromFile = useCallback((jsonText: string) => {
     if (!jsonText.trim()) {
@@ -986,7 +1019,7 @@ export default function App() {
         type: 'error',
       });
     }
-  }, [applyLoadedSession, showSaveToast]);
+  }, [applyLoadedSession, showSaveToast, setShowMapSetup]);
 
   const handleLoadFromSetup = useCallback(() => {
     const loaded = loadGame();
@@ -996,7 +1029,7 @@ export default function App() {
     } else {
       setHasSavedGame(hasSave());
     }
-  }, [applyLoadedSession]);
+  }, [applyLoadedSession, setShowMapSetup]);
 
   useLayoutEffect(() => {
     dismissBigNewsRef.current = dismissBigNewsItem;
@@ -1167,6 +1200,7 @@ export default function App() {
           onTogglePause={togglePause}
           onSetSpeed={setSpeed}
           onOpenTrade={handleOpenTrade}
+          onOpenDashboard={() => setShowDashboard(true)}
           onSave={handleSave}
           onLoad={handleLoad}
           onSaveToFile={() => { void handleSaveToFile(); }}
@@ -1184,6 +1218,7 @@ export default function App() {
           onVolumePreset={handleVolumePreset}
           onOpenGuide={handleOpenGuide}
           onStartNewGame={startNewGame}
+          onOpenCitizenOverview={openCitizenOverview}
           onFocusLeader={() => {
             const leaderId = world.villageLeaderId;
             if (leaderId == null) return;
@@ -1643,7 +1678,7 @@ export default function App() {
           selectedLabel={selectedVisitorCamp?.name ?? selectedBuilding?.type ?? selectedEntity?.name ?? 'Selected'}
           onClear={clearSelection}
           onToggleCollapsed={() => setInspectorCollapsed((v) => !v)}
-          diagnostics={<SimulationDiagnosticsPanel loop={loopRef.current} debugMode={debugMode} />}
+          diagnostics={<SimulationDiagnosticsPanel loopRef={loopRef} debugMode={debugMode} />}
         >
 
             {selectedVisitorCamp ? (
@@ -1998,6 +2033,79 @@ export default function App() {
 
       {showShortcuts && (
         <ShortcutsOverlay onClose={() => setShowShortcuts(false)} />
+      )}
+
+      {showDashboard && (
+        <GameDashboard
+          state={world}
+          onClose={() => setShowDashboard(false)}
+          onNavigate={(where) => {
+            switch (where) {
+              case 'farm':
+                handleHintAction({ id: 'build_farm', label: 'Build a Farm' });
+                break;
+              case 'house':
+                handleHintAction({ id: 'build_house', label: 'Build a House' });
+                break;
+              case 'village':
+                openTab('village');
+                break;
+              case 'nature':
+                openTab('nature');
+                break;
+              case 'frontier':
+                openTab('frontier');
+                break;
+            }
+          }}
+        />
+      )}
+
+      {citizenOverviewOpen && (
+        <CitizenOverviewScreen
+          state={world}
+          villageStats={villageStats}
+          favoriteEntityId={view.favoriteEntityId}
+          pendingRaidCount={pendingRaids.length}
+          pendingOutgoingRaidCount={pendingOutgoingRaids.length}
+          pendingDiplomacyCount={pendingDiplomacy.length}
+          tradeReadyCount={tradeReadyCount}
+          progressSubTab={progressSubTab}
+          setProgressSubTab={setProgressSubTab}
+          logSubTab={logSubTab}
+          setLogSubTab={setLogSubTab}
+          moreSubTab={moreSubTab}
+          setMoreSubTab={setMoreSubTab}
+          tutorialsEnabled={tutorialsEnabled}
+          onClose={closeCitizenOverview}
+          onRecruitSettler={() => applyGameAction({ proto: 1, op: 'recruitSettler' })}
+          onFocusBuilding={focusBuildingOnMap}
+          onFocusCitizen={focusCitizenOnMap}
+          onToggleFavoriteCitizen={(id) => {
+            playClickSound();
+            toggleFavoriteCitizen(id);
+          }}
+          onHintAction={handleHintAction}
+          suppressHintIds={campaignStep?.id === 'build_house' ? ['build_house'] : []}
+          onApplyWorkSchedule={(startHour, endHour) =>
+            applyGameAction({ proto: 1, op: 'setWorkSchedule', startHour, endHour })
+          }
+          onApplyVenueSchedule={(venue, startHour, endHour) =>
+            applyGameAction({ proto: 1, op: 'setVenueSchedule', venue, startHour, endHour })
+          }
+          onFocusVisitor={(id, x, y) => focusCampOnMap('visitor', id, x, y)}
+          onFocusRival={(id, x, y, buildingId) => focusCampOnMap('rival', id, x, y, buildingId)}
+          onLaunchRaid={(rivalId) => {
+            playClickSound();
+            applyGameAction({ proto: 1, op: 'launchRaidOnRival', rivalId });
+          }}
+          onStartResearch={(researchId) => applyGameAction({ proto: 1, op: 'startResearch', researchId })}
+          onEstablishTradeRoute={(routeId) => applyGameAction({ proto: 1, op: 'establishTradeRoute', routeId })}
+          onReplayTutorial={() => { setTutorialStep(0); setShowTutorial(true); }}
+          onToggleTutorials={handleToggleTutorials}
+          onSpawnMoonHowlerDebug={() => applyGameAction({ proto: 1, op: 'spawnMoonHowlerDebug' })}
+          onStartGuidedCampaign={() => applyGameAction({ proto: 1, op: 'startGuidedCampaign' })}
+        />
       )}
         </GameOverlays>
       )}

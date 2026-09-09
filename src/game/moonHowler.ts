@@ -31,7 +31,7 @@ import {
   createDeathParticles,
   impulseScreenShake,
 } from './simEffects';
-import { logEvent } from './eventLog';
+import { logDeath, logEvent } from './eventLog';
 import { assignMissingWorkers, countWorkersAtBuilding } from './workforce';
 import { isBarracksGuard } from './defenseStructures';
 
@@ -806,7 +806,7 @@ export function tryMoonHowlerChurchCures(
       state.moonHowlerPriestsFleeUntil = state.tick + MOON_HOWLER_EXORCISM_INTERVAL_HOURS * TICKS_PER_HOUR;
       addFloatingText(state, howler.x, howler.y - 20, 'Devoured!', '#ef4444', 'emphasis');
       addFloatingText(state, howler.x, howler.y - 34, 'Still cursed', '#c4b5fd', 'brief');
-      logEvent(state, 'death', attack, priestName);
+      logDeath(state, attack, priestName, { x: priest.x, y: priest.y });
       logEvent(
         state,
         'combat',

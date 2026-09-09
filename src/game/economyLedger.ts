@@ -16,9 +16,34 @@ export const ECONOMY_SOURCE_LABELS: Record<string, string> = {
   meals: 'Meals',
 };
 
+/** How many finished days of food history the insight UI keeps. */
+export const FOOD_HISTORY_MAX_DAYS = 30;
+
+/** Archive a finished day's ledger into the rolling (transient) food history. */
+function pushCompletedDayToHistory(state: WorldState, prev: DailyEconomyLedger): void {
+  if (
+    Object.keys(prev.produced).length === 0 &&
+    Object.keys(prev.consumed).length === 0
+  ) {
+    return;
+  }
+  const history = state.foodHistory ?? [];
+  history.push({
+    day: prev.day,
+    produced: { ...prev.produced },
+    consumed: { ...prev.consumed },
+  });
+  if (history.length > FOOD_HISTORY_MAX_DAYS) {
+    history.splice(0, history.length - FOOD_HISTORY_MAX_DAYS);
+  }
+  state.foodHistory = history;
+}
+
 function ensureLedger(state: WorldState): DailyEconomyLedger {
   const day = getAbsoluteCalendarDay(state.tick);
   if (!state.economyLedger || state.economyLedger.day !== day) {
+    const prev = state.economyLedger;
+    if (prev && prev.day < day) pushCompletedDayToHistory(state, prev);
     state.economyLedger = { day, produced: {}, consumed: {} };
   }
   return state.economyLedger;

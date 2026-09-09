@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WorldState } from '../game/gameEngine';
 import { EntityType } from '../game/gameEngine';
 import { isNightHour, getHourOfDay } from '../game/dayCycle';
+import { isPlayerHuman } from '../game/playerHuman';
 import { detectInteractionSounds } from '../audio/interactionDetect';
 import { detectWorkActivity, detectFootstepSurface } from '../audio/workDetect';
 import { playWorkSfx, playFootstepSfx } from '../audio/workSfx';
@@ -12,6 +13,7 @@ import {
   unlockAudio,
   primeAudioUnlock,
   playBirthSound,
+  playDeathSound,
   playMarriageSound,
   playBuildSound,
   playUpgradeSound,
@@ -34,6 +36,7 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
   const prevDisasterCountRef = useRef(0);
   const prevMarriedCountRef = useRef(0);
   const prevResearchedCountRef = useRef(0);
+  const prevPlayerHumanCountRef = useRef(0);
   const seededRef = useRef(false);
   const ambienceTickRef = useRef(0);
 
@@ -74,6 +77,7 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
         e => e.alive && e.type === EntityType.Human && e.relationshipStatus === 'married',
       ).length;
       prevResearchedCountRef.current = world.researchNodes.filter(n => n.researched).length;
+      prevPlayerHumanCountRef.current = world.entities.filter((e) => e.alive && isPlayerHuman(e)).length;
       seededRef.current = true;
       return;
     }
@@ -100,6 +104,13 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
     const prevBabies = new Set(prevEntities.filter(e => e.alive && e.isJuvenile).map(e => e.id));
     const newBabies = currentEntities.filter(e => e.alive && e.isJuvenile && !prevBabies.has(e.id));
     if (newBabies.length > 0) playBirthSound();
+
+    // Player settlers only — visitor/rival deaths should not trigger village death SFX.
+    const playerHumanCount = currentEntities.filter((e) => e.alive && isPlayerHuman(e)).length;
+    if (playerHumanCount < prevPlayerHumanCountRef.current) {
+      playDeathSound();
+    }
+    prevPlayerHumanCountRef.current = playerHumanCount;
 
     const currentMarriedCount = currentEntities.filter(
       e => e.alive && e.type === EntityType.Human && e.relationshipStatus === 'married',

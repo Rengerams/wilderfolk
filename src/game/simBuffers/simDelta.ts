@@ -41,11 +41,8 @@ export function preserveNotificationDismissals(
   dismissedIds: readonly string[] | undefined,
 ): WorldState['notifications'] {
   const hidden = new Set(dismissedIds ?? []);
-  if (hidden.size === 0) {
-    // 🛡️ DEFENSIVE: Also filter out any notifications the worker explicitly marked as dismissed
-    return incoming.filter((n) => !n.dismissed);
-  }
-  return incoming.filter((n) => !hidden.has(n.id) && !n.dismissed);
+  if (hidden.size === 0) return incoming;
+  return incoming.filter((n) => !hidden.has(n.id));
 }
 
 /** Max event-log entries shipped per worker tick (overflow-safe). */
@@ -135,6 +132,10 @@ export interface SimTickDelta {
   storyFlags: WorldState['storyFlags'];
   pendingStoryEvents: NonNullable<WorldState['pendingStoryEvents']>;
   guidedCampaign: WorldState['guidedCampaign'];
+  /** Current day's economy ledger (transient display data). */
+  economyLedger?: WorldState['economyLedger'];
+  /** Rolling finished-day food samples (transient display data). */
+  foodHistory?: WorldState['foodHistory'];
 }
 
 export type SimDeltaCloneMode = 'isolated' | 'transfer';
@@ -188,6 +189,11 @@ export function simTickDeltaFromWorld(world: WorldState, aliveBefore?: Set<numbe
   const alive = world.entities.filter((e) => e.alive);
   const before = aliveBefore ?? new Set(alive.map((e) => e.id));
   return extractSimTickDelta(world, before, alive);
+}
+
+/** Minimal recovery delta when command delta extraction throws. */
+export function createFallbackSimTickDelta(world: WorldState): SimTickDelta {
+  return simTickDeltaFromWorld(world);
 }
 
 export function extractSimTickDelta(
@@ -331,6 +337,21 @@ export function extractSimTickDelta(
     guidedCampaign: deltaCloneOptional(world.guidedCampaign, cloneMode) ?? undefined,
   };
 
+  if (world.economyLedger) {
+    delta.economyLedger = {
+      day: world.economyLedger.day,
+      produced: { ...world.economyLedger.produced },
+      consumed: { ...world.economyLedger.consumed },
+    };
+  }
+  if (world.foodHistory && world.foodHistory.length > 0) {
+    delta.foodHistory = world.foodHistory.map((sample) => ({
+      day: sample.day,
+      produced: { ...sample.produced },
+      consumed: { ...sample.consumed },
+    }));
+  }
+
   if (changedBuildings) {
     delta.changedBuildings = deltaClone(changedBuildings, cloneMode);
     delta.removedBuildingIds = removedBuildingIds;
@@ -458,6 +479,18 @@ export function applySimTickDelta(
   world.storyFlags = deltaClone(delta.storyFlags, cloneMode);
   world.pendingStoryEvents = deltaClone(delta.pendingStoryEvents, cloneMode);
   world.guidedCampaign = deltaCloneOptional(delta.guidedCampaign, cloneMode) ?? undefined;
+  world.economyLedger = delta.economyLedger
+    ? {
+        day: delta.economyLedger.day,
+        produced: { ...delta.economyLedger.produced },
+        consumed: { ...delta.economyLedger.consumed },
+      }
+    : undefined;
+  world.foodHistory = delta.foodHistory?.map((sample) => ({
+    day: sample.day,
+    produced: { ...sample.produced },
+    consumed: { ...sample.consumed },
+  }));
 
   // ⚠️ DESIGN NOTE: This completely overwrites world.entities, effectively 
   // garbage-collecting dead entities. Ensure no main-thread systems rely on 

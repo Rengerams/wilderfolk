@@ -14,9 +14,7 @@ import { seededRandomForRun } from './simRng';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import {
   addFloatingText,
-  addNotification,
   createDeathParticles,
-  
 } from './simEffects';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { getChurchStrength, findHumanWorkplace, buildConstructionCrewIndex } from './workforce';
@@ -26,22 +24,46 @@ import { isSettlerRelationshipEntity } from './moonHowler';
 import { getElectionGatherTarget } from './villageLeadership';
 
 import { getWorkSchedule, isOnWorkScheduleShift, isWorkScheduleHour } from './workSchedule';
-import {   HUMAN_ADULT_MIN_AGE, HUMAN_MAX_LIFESPAN_YEARS, HUMAN_MOVE_OUT_MIN_AGE, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, allowSocialLife, hasResidenceAssignment, hasWorkAssignment, isOnWorkShift, isOnMoonHowlerNightShift, isFestivalGatheringHour, isWeekend, prefersHomeTonight, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, killHuman, shareResidence, shouldBeAtHome, syncPartnerResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
+import {
+  HUMAN_ADULT_MIN_AGE,
+  HUMAN_MAX_LIFESPAN_YEARS,
+  tryGraduateHumanChild,
+  syncHumanAgeFromCalendar,
+  PER_TICK_RATE_SCALE,
+  TICKS_PER_HOUR,
+  allowSocialLife,
+  hasResidenceAssignment,
+  hasWorkAssignment,
+  isOnWorkShift,
+  isOnMoonHowlerNightShift,
+  isFestivalGatheringHour,
+  isWeekend,
+  prefersHomeTonight,
+  personDayRoll,
+  getAbsoluteCalendarDay,
+  isNearResidence,
+  isResidenceBuilding,
+  killHuman,
+  shareResidence,
+  shouldBeAtHome,
+  isNewCalendarDayTick,
+  EVENING_START,
+  isStartOfClockHour,
+} from './dayCycle';
 import {
   chatHintsFromWorld,
-  sayHumanChatPhrase,
   tickHumanChat,
   tryAmbientRandomDialogue,
   type HumanChatContext,
 } from './humanChat';
 import { advanceHumanWalkAnim } from './humanSprites';
 import { formatCitizenName, formatDeathLog } from './citizenId';
-import { syncMarriageSurnames } from './nameLoader';
+
 import { isRenffrGossipActive } from './renffrStar';
 import { getHumanFleeSpeedMultiplier } from './combat';
 import { isActiveMoonHowler } from './moonHowler';
 import { isEntityOnBuilding } from './buildingRotation';
-import { logEvent } from './eventLog';
+import { logDeath } from './eventLog';
 
 import {
   applyEducationGraduation,
@@ -57,7 +79,6 @@ import { tickHumanHunting } from './humanHuntingBehavior';
 import { getCaravanMoveTarget, tryAdvanceCaravanLeg } from './tradeCaravans';
 import { tickFactionCampWander } from './factionWander';
 import {
-  
   tryNeighborGreeting,
   tryWorkplaceBanter,
 } from './socialLife';
@@ -80,24 +101,41 @@ import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './s
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
 
 import { recordFoodConsumed } from './economyLedger';
-import type { EntitySpatialGrid } from './spatialGrid';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
-import { buildResidenceOccupantIndex, findClosestEntityInRadius, queryIsNearRoad, getLivingEntity } from './simQueries';
-
-
+import { buildResidenceOccupantIndex, findClosestEntityInRadius, queryIsNearRoad } from './simQueries';
 
 import { traitMultiplier } from './settlerTraits';
 import type { TickContext } from './simulation/simulationTypes';
 
-import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_STAGGER, SOCIAL_GREETING_RADIUS, SOCIAL_FRIENDSHIP_RADIUS, SOCIAL_COURTSHIP_RADIUS, SOCIAL_AFFAIR_RADIUS } from './adaptiveSpatialQuery';
-import { AFFAIR_BUILDING_NEAR_RADIUS, AFFAIR_DAILY_TRYST_RADIUS, AFFAIR_SPOUSE_BLOCK_RADIUS, findCourtshipPartner, getAffairTrystBuilding, getBuildingCenter, hasAffairPartner, isAtMaritalHome, isEligibleToCourt, isNearBuilding, isSpouseNearby, isValidAffairTarget, isValidAffairTrystSite, onScandalCooldown, reconcileAffairPartner, recordAffairTrystSite, shouldLeadAffairPair, tryDailyAffairGossip, tryDailyAmicableDivorce, tryDailyConception, tryDailyHumanMortality, tryExposeCaughtAffairForPair, tryFormSchoolyardBond, trySchoolyardGossip } from './simulation/humanRelationships';
-import { humanDisplayName } from './citizenId';
-import { flushRelationshipDiagnostics, recordRelationshipDiagnostic, setRelationshipDiagnosticsEnabled } from './relationshipDiagnostics';
+import { findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_STAGGER, SOCIAL_GREETING_RADIUS, SOCIAL_FRIENDSHIP_RADIUS, SOCIAL_COURTSHIP_RADIUS } from './adaptiveSpatialQuery';
+import {
+  AFFAIR_SPOUSE_BLOCK_RADIUS,
+  canPursueSecretAffair,
+  findCourtshipPartner,
+  getAffairTrystBuilding,
+  getBuildingCenter,
+  hasAffairPartner,
+  isAtMaritalHome,
+  isEligibleToCourt,
+  isSpouseNearby,
+  isValidAffairTarget,
+  isValidAffairTrystSite,
+  reconcileAffairPartner,
+  shouldLeadAffairPair,
+  tryCompleteCourtshipMarriage,
+  tryDailyAffairEncounter,
+  tryDailyAffairGossip,
+  tryDailyAmicableDivorce,
+  tryDailyConception,
+  tryDailyHumanMortality,
+  tryExposeCaughtAffairForPair,
+  tryFormSchoolyardBond,
+  trySchoolyardGossip,
+} from './simulation/humanRelationships';
+import { flushRelationshipDiagnostics } from './relationshipDiagnostics';
 import { isVenueServiceHour, isVenueScheduleStartTick, isVenueWorkerServiceHour } from './venueSchedule';
 import { recordScheduleWorkTick } from './scheduleFatigue';
 
-// Temporary controlled-test instrumentation; disable after comparing the July cadence.
-setRelationshipDiagnosticsEnabled(true);
 import { syncEntityGrids } from './simulation/simulationEntities';
 
 /** Live on-screen intimate tryst distance. */
@@ -111,125 +149,6 @@ function getAffairTrystTarget(
   const trystBuilding = getAffairTrystBuilding(cheater, paramour, buildingById);
   if (trystBuilding) return getBuildingCenter(trystBuilding);
   return { x: paramour.x, y: paramour.y };
-}
-
-/** Affairs can run off-duty or during work when spouses are at separate job sites. */
-function canPursueSecretAffair(
-  entity: Entity,
-  hourOfDay: number,
-  workplace: Building | undefined,
-  buildings: Building[],
-  entityById: Map<number, Entity>,
-  tick: number,
-  workSchedule = getWorkSchedule({ workSchedule: undefined }),
-): boolean {
-  if (onScandalCooldown(entity, tick)) return false;
-  // Tight radius — a whole compact village fits inside 52 units, which blocked all affairs.
-  if (isSpouseNearby(entity, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)) return false;
-  if (allowSocialLife(hourOfDay, workplace != null)) return true;
-  if (!isWorkScheduleHour(workSchedule, hourOfDay) || entity.partnerId == null) return false;
-
-  const spouse = getLivingEntity(entity.partnerId, entityById);
-  if (!spouse) return true;
-  if (!hasWorkAssignment(spouse)) return true;
-
-  // Affairs path is rare — linear building scan is fine here.
-  const spouseJob = findHumanWorkplace(spouse, buildings);
-  if (!spouseJob) return true;
-  if (workplace && spouseJob.id !== workplace.id) return true;
-  return Math.hypot(spouse.x - entity.x, spouse.y - entity.y) > 58;
-}
-
-/** Once-per-day affair drift — runs even when settlers are off-screen (no movement sim). */
-export function tryDailyAffairEncounter(
-  state: WorldState,
-  entity: Entity,
-  entityById: Map<number, Entity>,
-  buildings: Building[],
-  buildingById: Map<number, Building>,
-  churchStrength: number,
-  hourOfDay: number,
-  humanSocialGrid?: EntitySpatialGrid,
-  playerHumans?: readonly Entity[],
-  width?: number,
-  height?: number,
-): void {
-  const config = SPECIES_CONFIG[EntityType.Human];
-  recordRelationshipDiagnostic('affairChecks');
-  if (!isPlayerHuman(entity)) return;
-  if (entity.prisonBuildingId != null) return;
-  if (entity.relationshipStatus !== 'married' || entity.pregnant || entity.isJuvenile) return;
-  if (!entity.gender || entity.age < HUMAN_ADULT_MIN_AGE || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
-  if (entity.energy <= config.reproductionEnergyThreshold * 0.5) return;
-  if (onScandalCooldown(entity, state.tick)) return;
-  const workplace = findHumanWorkplace(entity, buildings, { buildingById });
-  if (!canPursueSecretAffair(entity, hourOfDay, workplace, buildings, entityById, state.tick, getWorkSchedule(state))) return;
-
-  if (isAtMaritalHome(entity, entityById, buildingById)) return;
-
-  if (entity.affairPartnerId != null) {
-    const established = getLivingEntity(entity.affairPartnerId, entityById);
-    if (
-      established
-      && established.affairPartnerId === entity.id
-      && shouldLeadAffairPair(entity, established)
-      && isValidAffairTrystSite(entity, established, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)
-    ) {
-      recordAffairTrystSite(entity, established, state, buildingById);
-    }
-  }
-
-  let paramour: Entity | undefined;
-  let bestDistSq = 120 * 120;
-  const considerParamour = (candidate: Entity, distSq: number) => {
-    if (!isValidAffairTarget(entity, candidate, state.tick)) return;
-    if (distSq >= bestDistSq) return;
-    if (isSpouseNearby(candidate, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)) return;
-    bestDistSq = distSq;
-    paramour = candidate;
-  };
-  forEachAdaptiveInRadius(
-    humanSocialGrid,
-    playerHumans ?? [],
-    entity.x,
-    entity.y,
-    SOCIAL_AFFAIR_RADIUS,
-    (human, distSq) => {
-      if (human.type !== EntityType.Human || !isPlayerHuman(human)) return;
-      considerParamour(human, distSq);
-    },
-    socialAdaptiveOptions('social', playerHumans?.length ?? 0, width ?? 0, height ?? 0),
-  );
-  if (!paramour) return;
-  if (!isValidAffairTrystSite(entity, paramour, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) return;
-  if (!shouldLeadAffairPair(entity, paramour)) return;
-
-  const churchPenalty = churchStrength > 0 ? 0.72 + (1 - churchStrength) * 0.28 : 1;
-  const hasPerformers = state.visitorGroups.some((g) => g.kind === 'performers' && g.daysLeft > 0);
-  const festivalMult = state.festival?.active ? 1.4 : 1;
-  const performerMult = hasPerformers ? 1.35 : 1;
-  const trystBuilding = getAffairTrystBuilding(entity, paramour, buildingById);
-  const atParamourHome = trystBuilding != null
-    && isNearBuilding(entity, trystBuilding, AFFAIR_BUILDING_NEAR_RADIUS)
-    && isNearBuilding(paramour, trystBuilding, AFFAIR_BUILDING_NEAR_RADIUS);
-  const cohabitMult = atParamourHome ? 1.55 : 1;
-  const socialMult = festivalMult * performerMult * cohabitMult;
-  const dailyChance = (churchStrength > 0 ? 0.14 : 0.2) * churchPenalty * socialMult;
-  if (Math.random() >= dailyChance) return;
-
-  const bump = Math.round((16 + Math.floor(Math.random() * 12)) * socialMult);
-  entity.affairProgress = Math.min(100, (entity.affairProgress || 0) + bump);
-  paramour.affairProgress = Math.min(100, (paramour.affairProgress || 0) + bump);
-  recordRelationshipDiagnostic('affairProgressGains');
-  recordAffairTrystSite(entity, paramour, state, buildingById);
-
-  if ((entity.affairProgress ?? 0) >= 100 && (paramour.affairProgress ?? 0) >= 100) {
-    entity.affairPartnerId = paramour.id;
-    paramour.affairPartnerId = entity.id;
-    entity.affairProgress = 100;
-    paramour.affairProgress = 100;
-    recordRelationshipDiagnostic('affairsEstablished');
-  }
 }
 
 export function tickHumans(state: WorldState, ctx: TickContext): void {
@@ -513,7 +432,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (isPlayerHuman(entity) && entity.energy <= 0) {
         killHuman(entity, updatedBuildings, entityById, state.tick);
         createDeathParticles(state, entity.x, entity.y, '#8B0000', 8);
-        logEvent(state, 'death', formatDeathLog(entity, 'succumbed to exhaustion'), formatCitizenName(entity));
+        logDeath(
+          state,
+          formatDeathLog(entity, 'succumbed to exhaustion'),
+          formatCitizenName(entity),
+          { x: entity.x, y: entity.y },
+        );
       }
       syncEntityGrids(ctx, entity);
       continue;
@@ -1025,59 +949,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               });
             }
 
-            if (
-              entity.id < closest.id
-              && entity.gender
-              && closest.gender
-              && entity.gender !== closest.gender
-              && (entity.courtshipProgress ?? 0) >= 100
-              && (closest.courtshipProgress ?? 0) >= 100
-              && entity.age >= HUMAN_MOVE_OUT_MIN_AGE
-              && closest.age >= HUMAN_MOVE_OUT_MIN_AGE
-              && isEligibleToCourt(entity)
-              && isEligibleToCourt(closest)
-            ) {
-              entity.relationshipStatus = 'married';
-              entity.partnerId = closest.id;
-              entity.courtshipPartnerId = undefined;
-              entity.courtshipProgress = 0;
-              entity.affairPartnerId = undefined;
-              entity.affairProgress = 0;
-              closest.relationshipStatus = 'married';
-              closest.partnerId = entity.id;
-              closest.courtshipPartnerId = undefined;
-              closest.courtshipProgress = 0;
-              closest.affairPartnerId = undefined;
-              closest.affairProgress = 0;
-              createDeathParticles(
-                state,
-                (entity.x + closest.x) / 2,
-                (entity.y + closest.y) / 2 - 15,
-                '#ffd700',
-                15,
-                'heart',
-              );
-              addFloatingText(
-                state,
-                (entity.x + closest.x) / 2,
-                (entity.y + closest.y) / 2 - 25,
-                'Married!',
-                '#ffd700',
-              );
-              syncMarriageSurnames(entity, closest);
-              const married1 = humanDisplayName(entity);
-              const married2 = humanDisplayName(closest);
-              logEvent(state, 'marriage', `${married1} and ${married2} got married`, married1);
-              addNotification(state, 'Marriage', `${married1} & ${married2} are now married`, 'success');
-              sayHumanChatPhrase(entity, 'Yes!', 120);
-              sayHumanChatPhrase(closest, 'Yes!', 120);
-              syncPartnerResidence(
-                entity,
-                closest,
-                updatedBuildings.filter(isResidenceBuilding),
-                playerHumans,
-              );
-            }
+            tryCompleteCourtshipMarriage(
+              state,
+              entity,
+              closest,
+              updatedBuildings.filter(isResidenceBuilding),
+              playerHumans,
+            );
           }
       }
     }
@@ -1720,7 +1598,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (entity.energy <= 0) {
       killHuman(entity, updatedBuildings, entityById, state.tick);
       createDeathParticles(state, entity.x, entity.y, '#8B0000', 8);
-      logEvent(state, 'death', formatDeathLog(entity, 'succumbed to exhaustion'), formatCitizenName(entity));
+      logDeath(
+        state,
+        formatDeathLog(entity, 'succumbed to exhaustion'),
+        formatCitizenName(entity),
+        { x: entity.x, y: entity.y },
+      );
     }
     syncEntityGrids(ctx, entity);
   }

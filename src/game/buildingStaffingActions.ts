@@ -207,7 +207,8 @@ function _assignIdleWorkerToBuildingMut(
   return state;
 }
 
-export function assignIdleWorkerToBuilding(
+/** Staffing-owner assign entry. Generic command routing lives in buildingActionRouting. */
+export function assignStaffWorkerToBuilding(
   originalState: WorldState,
   buildingId: number,
   preferredHumanId?: number,
@@ -274,7 +275,8 @@ export function autoStaffAllWorkers(originalState: WorldState): WorldState {
   return state;
 }
 
-export function removeWorkerFromBuilding(
+/** Staffing-owner remove entry. Generic command routing lives in buildingActionRouting. */
+export function removeStaffWorkerFromBuilding(
   originalState: WorldState,
   buildingId: number,
   humanId: number,

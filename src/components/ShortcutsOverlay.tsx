@@ -15,10 +15,11 @@ const SHORTCUTS: Shortcut[] = [
   { keys: 'B', description: 'Full build catalog (left)' },
   { keys: 'G', description: 'Toggle placement grid' },
   { keys: '1–9', description: 'Quick-build' },
+  { keys: 'O', description: 'People overview (full screen)' },
   { keys: 'V F N P L M', description: 'Sidebar tabs' },
   { keys: 'H', description: 'Center on settlers' },
   { keys: 'R', description: 'Rotate road / wall / gate while placing' },
-  { keys: 'ESC', description: 'Cancel build · clear selection' },
+  { keys: 'ESC', description: 'Close overview · cancel build · clear selection' },
   { keys: '?', description: 'This help overlay' },
   { keys: 'Menu → Settings', description: 'Show sim tick (raw t + day)' },
 ];

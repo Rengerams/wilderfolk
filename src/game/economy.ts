@@ -1,7 +1,9 @@
 import type { WorldState, Resources, WorkshopRecipe } from './gameTypes';
 import { BuildingType, Season } from './gameTypes';
-import { addCappedResource } from './resourceUtils';
 import { addFloatingText } from './simEffects';
+
+export { addResource } from './resourceUtils';
+export { canAffordWorkshopRecipe } from './workshops';
 
 export function updateStorageCaps(state: WorldState) {
   const barns = state.buildings.filter(b => b.completed && b.type === BuildingType.Barn).length;
@@ -16,18 +18,6 @@ export function updateStorageCaps(state: WorldState) {
     iron: 300 + warehouses * 100,
   };
   state.foodSpoilageRate = Math.max(0.01, 0.02 - silos * 0.012);
-}
-
-export function addResource(state: WorldState, type: keyof Resources, amount: number): number {
-  return addCappedResource(state, type, amount);
-}
-
-export function canAffordWorkshopRecipe(state: WorldState, recipe: WorkshopRecipe): boolean {
-  for (const key of Object.keys(recipe.inputs) as (keyof Resources)[]) {
-    const needed = recipe.inputs[key] ?? 0;
-    if (needed > 0 && (state.resources[key] as number) < needed) return false;
-  }
-  return true;
 }
 
 export function consumeWorkshopRecipeInputs(state: WorldState, recipe: WorkshopRecipe): void {

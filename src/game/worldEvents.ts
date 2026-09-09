@@ -3,7 +3,7 @@ import { EntityType, Season, WeatherType } from './gameTypes';
 import { killHuman, isProductionTick, EVENT_INTERVAL, systemsPulsesFromLegacy } from './dayCycle';
 import { ensureEntityByIdMap, unindexLivingEntity } from './entityIndex';
 import { formatCitizenName, formatDeathLog } from './citizenId';
-import { logEvent } from './eventLog';
+import { logDeath, logEvent } from './eventLog';
 import {
   createDeathParticles,
   addNotification,
@@ -43,6 +43,12 @@ function killEntityInDisaster(
 
   if (entity.type === EntityType.Human) {
     killHuman(entity, state.buildings, entityById, state.tick);
+    logDeath(
+      state,
+      formatDeathLog(entity, 'died in a disaster'),
+      formatCitizenName(entity),
+      { x: entity.x, y: entity.y },
+    );
   } else {
     entity.alive = false;
     unindexLivingEntity(state, entity);
@@ -267,11 +273,11 @@ export function updateDisasters(state: WorldState): void {
             clearHuntTargetsForVictim(state, e.id);
             infected++;
             createDeathParticles(state, e.x, e.y, '#4a6741', 6, 'smoke');
-            logEvent(
+            logDeath(
               state,
-              'death',
               formatDeathLog(e, 'succumbed to plague'),
               formatCitizenName(e),
+              { x: e.x, y: e.y },
             );
           }
         } else {

@@ -1,4 +1,5 @@
 import type { CombatLogKind, GameEventLog, WorldState } from './gameTypes';
+import { addNotification } from './simEffects';
 
 let nextEventLogId = 1;
 
@@ -30,6 +31,17 @@ export function logEvent(
     combatKind,
   });
   if (state.eventLog.length > EVENT_LOG_MAX_ENTRIES) state.eventLog.pop();
+}
+
+/** Human death: chronicle entry + HUD notification. */
+export function logDeath(
+  state: WorldState,
+  message: string,
+  entityName?: string,
+  focus?: { x: number; y: number },
+): void {
+  logEvent(state, 'death', message, entityName);
+  addNotification(state, 'Death', message, 'warning', focus);
 }
 
 /** Legacy fallback for saves logged before combatKind existed. */

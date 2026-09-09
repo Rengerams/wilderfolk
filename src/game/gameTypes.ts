@@ -862,6 +862,8 @@ export interface WorldState {
   tutorialSeen?: string[];
   /** Per-day food ledger (production vs consumption) for the Village tab. */
   economyLedger?: DailyEconomyLedger;
+  /** Rolling finished-day food samples (transient — not saved) for insight UI. */
+  foodHistory?: FoodDaySample[];
   /** One active visitor quest (traveling smith) — delivered via the quest card. */
   visitorQuest?: VisitorQuest;
   /** One player-facing Village Request; generation and resolution belong only to groupEvents.ts. */
@@ -942,6 +944,14 @@ export interface GameEventLog {
 /** Per-day economy counters — production vs consumption by source. */
 export interface DailyEconomyLedger {
   /** Absolute calendar day the counters were collected on. */
+  day: number;
+  produced: Record<string, number>;
+  consumed: Record<string, number>;
+}
+
+/** One finished calendar day's food production/consumption, kept for insight UI. */
+export interface FoodDaySample {
+  /** Absolute calendar day the sample was collected on. */
   day: number;
   produced: Record<string, number>;
   consumed: Record<string, number>;

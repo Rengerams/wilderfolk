@@ -1,5 +1,4 @@
 import { BuildingType, type Building, type DeathParticle, type WorldState } from './gameTypes';
-import { isPlayerHuman } from './playerHuman';
 
 /** Shared transient pool on `state.deathParticles` (deaths, confetti, smoke, forge sparks). */
 export function pushTransientParticle(state: WorldState, particle: DeathParticle): void {
@@ -30,14 +29,6 @@ export const LIGHT_POOL_TYPES = new Set<BuildingType>([
   BuildingType.Tavern,
   BuildingType.Church,
 ]);
-
-export function countResidentsInBuilding(buildingId: number, entities: WorldState['entities']): number {
-  let count = 0;
-  for (const e of entities) {
-    if (e.alive && isPlayerHuman(e) && e.residenceBuildingId === buildingId) count += 1;
-  }
-  return count;
-}
 
 /** @param residentCount Pre-indexed residents-at-home (avoids per-building entity scans in the renderer). */
 export function getNightGlowIntensity(building: Building, residentCount = 0): number {

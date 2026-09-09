@@ -671,11 +671,6 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   },
 };
 
-/** Retrieves configuration for a given building type. */
-export function getBuildingConfig(type: BuildingType): BuildingConfig {
-  return BUILDING_CONFIGS[type];
-}
-
 /** Determines if a building type is purely decorative. */
 export function isDecorBuilding(type: BuildingType): boolean {
   return Boolean(BUILDING_CONFIGS[type]?.decor);

@@ -4,7 +4,7 @@ import { TICKS_PER_DAY, killHuman } from './dayCycle';
 import { ensureEntityByIdMap } from './entityIndex';
 import { hasIronSpears, hasStoneSpears } from './combat';
 import { formatCitizenName, formatDeathLog } from './citizenId';
-import { logEvent } from './eventLog';
+import { logDeath, logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
 import { isRivalAtPeace } from './rivalPeace';
 import { gainSkill } from './skills';
@@ -568,11 +568,11 @@ function applyRaidCasualties(
   const entityById = ensureEntityByIdMap(state);
   for (const victim of victims) {
     killHuman(victim, state.buildings, entityById, state.tick);
-    logEvent(
+    logDeath(
       state,
-      'death',
       formatDeathLog(victim, deathReason),
       formatCitizenName(victim),
+      { x: victim.x, y: victim.y },
     );
   }
   const names = victims.map((v) => formatCitizenName(v)).join(', ');

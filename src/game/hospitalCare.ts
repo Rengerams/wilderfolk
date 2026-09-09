@@ -101,10 +101,7 @@ export function treatPatientAtHospital(
   }
 
   patient.energy = Math.min(patient.maxEnergy, patient.energy + heal);
-  if (patient.pregnant && Math.random() < 0.15) {
-    // Steady care — nudge pregnancy safely (no skip)
-    patient.pregnancyProgress = Math.min(99, (patient.pregnancyProgress ?? 0) + 0.15);
-  }
+  // Pregnancy progress is owned only by humanLifecycle.tickPregnancyAndBirth.
 
   for (const id of hospital.occupants) {
     gainSkill(state, id, JobType.Doctor, 0.08);

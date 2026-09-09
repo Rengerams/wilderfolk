@@ -53,6 +53,10 @@ tutorialsEnabled: boolean;
   onStartNewGame: () => void;
   /** Select & camera-focus the village leader on the map. */
   onFocusLeader?: () => void;
+  /** Open the full-screen People overview. */
+  onOpenCitizenOverview?: () => void;
+  /** Open the full-screen village overview dashboard (Esc closes it). */
+  onOpenDashboard?: () => void;
 }
 
 export default function GameHeader({
@@ -88,6 +92,8 @@ tutorialsEnabled,
   onOpenGuide,
   onStartNewGame,
   onFocusLeader,
+  onOpenCitizenOverview,
+  onOpenDashboard,
 }: Props) {
   const hour = getHourOfDay(world.tick);
   const isNight = isNightHour(hour);
@@ -219,16 +225,31 @@ tutorialsEnabled,
             <span className="font-mono font-bold">{world.villageReputation}</span>
           </button>
 
-          <span
+          <button
+            type="button"
+            onClick={onOpenCitizenOverview}
+            disabled={!onOpenCitizenOverview}
             className={`flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[13px] ${
               popNearCap ? 'bg-rose-900/40 text-rose-300' : 'bg-sky-900/40 text-sky-300'
-            }`}
-            title={`${population} settlers · immigration cap ${world.maxHumanPopulation} · 🛏️ ${beds} beds (${openBeds} open)`}
+            } hover:brightness-110 disabled:cursor-default`}
+            title={`People overview (O) — ${population} settlers · cap ${world.maxHumanPopulation} · 🛏️ ${beds} beds (${openBeds} open)`}
+            aria-label="Open people overview"
           >
             <span>👥</span>
             <span className="font-mono font-bold">{population}/{world.maxHumanPopulation}</span>
             <span className="text-[11px] opacity-75" title={`${beds} beds total`}>🛏️{beds}</span>
-          </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenDashboard}
+            disabled={!onOpenDashboard}
+            className="flex items-center gap-0.5 rounded-md bg-amber-900/40 px-1.5 py-1 text-[13px] text-amber-200 hover:bg-amber-800/50 disabled:cursor-default"
+            title="Open the village overview dashboard (Esc closes)"
+            aria-label="Open village dashboard"
+          >
+            📊
+          </button>
 
           <div className="flex items-center gap-0.5">
             <ResourceBadge

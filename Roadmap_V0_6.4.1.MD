@@ -1,6 +1,6 @@
 # Wilderfolk Roadmap — v0.6.4.1
 
-Status: development working tree (2026-08-28)
+Status: development working tree (2026-09-08)
 
 This roadmap carries forward the completed v0.6.3 work and turns the whole-game audit into a focused next step: make the living valley easier to understand, easier to verify, and richer in meaningful decisions without adding duplicate simulation owners or changing the established cadence.
 
@@ -39,6 +39,21 @@ The work is validated by TypeScript checks, Oxlint, targeted residency and owner
 | 3 | **F6** | Preparation-Window Crises | Adds strategic tension without hidden punishment. | Existing daily event ownership and deterministic seeded outcomes. | A clearly telegraphed winter, embargo, disease risk, harvest failure, or fire risk offers preparation time and multiple responses. | Recommended |
 | 3 | **F7** | Replay and “What Changed?” Mode | Makes the deterministic simulation useful to both players and developers. | Existing seeded state, event history, save state, and diagnostics. | A short history compares daily changes in food, housing, assignments, relationships, stories, and threats. | Recommended |
 | 3 | **F8** | Shared “Why?” Interaction Layer | Turns complex simulation state into understandable choices. | Presentation-only readers over existing authoritative owners. | Selecting a settler, building, resource, or warning explains the current reason, consequence, and available recovery action. | Recommended |
+
+## Implemented insight slices (this working tree)
+
+Updated 2026-09-08, on top of the completed decommissioning wave: the "living valley easier to understand" goal now has a full-screen, dismissible village dashboard (📊 in the HUD header; Esc/✕ closes). Presentation-only — no new simulation owner, cadence, or save-format change.
+
+| ID | Status | Delivered |
+|---|---|---|
+| **U1** | In progress | Diagnostics drawer + the full-screen dashboard overlay |
+| **P4** | In progress — dashboard slice | 30-day food-produced-by-source history + today's produced/consumed/net food |
+| **F1** | In progress — dashboard slice | Village concerns with severity + "Go →" links that jump to tabs / start builds |
+| **F2** | In progress — dashboard slice | Daily Council Report: settlers, food net, food-stored & wildlife deltas, life events, concerns |
+| **F7** | In progress — dashboard slice | "What changed?" day-over-day diffs (settlers, food stored, wildlife) |
+| **F8** | In progress — dashboard slice | Read-only "why" explanation for a selected settler |
+
+Supporting work: `WorldState.foodHistory` / `FoodDaySample` (transient, not saved) archived at day rollover in `economyLedger.ts` and carried through `SimTickDelta`; read-only projections in `src/game/dashboardData.ts`; overlay UI in `src/components/dashboard/GameDashboard.tsx`.
 
 ## Evidence-based todo execution plan
 

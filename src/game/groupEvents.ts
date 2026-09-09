@@ -1495,7 +1495,8 @@ export function hitTestCamp(
   return null;
 }
 
-export function tickRivalSettlements(state: WorldState, allAlive: Entity[]): void {
+/** World-events schedule entry — wires callbacks into the rivalEvents owner. */
+export function tickWorldRivalSettlements(state: WorldState, allAlive: Entity[]): void {
   tickRivalEvents(state, allAlive, {
     pushNews,
     pushFloat,

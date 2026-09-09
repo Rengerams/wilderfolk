@@ -66,12 +66,13 @@ export function advanceApprenticeships(state: WorldState, allAlive: Entity[]): v
     }
     master.apprenticeId = undefined;
 
-    // Claim the nearest free juvenile.
+    // Claim the nearest still-unclaimed free juvenile.
     const bx = b.x + b.width / 2;
     const by = b.y + b.height / 2;
     let best: Entity | null = null;
     let bestD = Infinity;
     for (const j of juveniles) {
+      if (claimed.has(j.id)) continue; // a master elsewhere already claimed them this pass
       const d = Math.hypot(j.x - bx, j.y - by);
       if (d < bestD) {
         bestD = d;

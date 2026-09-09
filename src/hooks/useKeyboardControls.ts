@@ -28,6 +28,9 @@ export interface UseKeyboardControlsOptions {
   setProgressSubTab: (tab: 'research' | 'trade' | 'goals') => void;
   setShowShortcuts: (value: boolean | ((prev: boolean) => boolean)) => void;
   setBuildPanelOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
+  citizenOverviewOpenRef: RefObject<boolean>;
+  toggleCitizenOverviewRef: RefObject<() => void>;
+  closeCitizenOverviewRef: RefObject<() => void>;
   cancelBuildModeRef: RefObject<() => void>;
   togglePauseRef: RefObject<() => void>;
   selectBuildingTypeRef: RefObject<(type: import('../game/gameEngine').BuildingType) => void>;
@@ -57,6 +60,9 @@ export function useKeyboardControls({
   setProgressSubTab,
   setShowShortcuts,
   setBuildPanelOpen,
+  citizenOverviewOpenRef,
+  toggleCitizenOverviewRef,
+  closeCitizenOverviewRef,
   cancelBuildModeRef,
   togglePauseRef,
   selectBuildingTypeRef,
@@ -105,8 +111,19 @@ export function useKeyboardControls({
       if (inFormControl) return;
 
       if (e.key === ' ') { e.preventDefault(); togglePauseRef.current(); }
+      if (
+        !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat
+        && gameplayActiveRef.current
+        && e.key.toLowerCase() === 'o'
+      ) {
+        e.preventDefault();
+        toggleCitizenOverviewRef.current();
+        return;
+      }
       if (e.key === 'Escape') {
-        if (showShortcutsRef.current) {
+        if (citizenOverviewOpenRef.current) {
+          closeCitizenOverviewRef.current();
+        } else if (showShortcutsRef.current) {
           setShowShortcuts(false);
         } else if (hasActiveEventRef.current) {
           dismissActiveEventRef.current();

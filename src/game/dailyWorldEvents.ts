@@ -9,7 +9,7 @@ import { logEvent } from './eventLog';
 import { tickLeaderVacancy, tickElectionBuildup, tryStartVacancyElectionCeremony, tryStartDecennialElectionCeremony } from './villageLeadership';
 import { getTownHallFestivalCooldownTicks } from './townHall';
 
-import { rollYearlyWorldEvent, tryFirstWeekVisitor, tryMidYearVisitorEvent, tickRivalSettlements, tickVisitorGroups, tickVillageRequests } from './groupEvents';
+import { rollYearlyWorldEvent, tryFirstWeekVisitor, tryMidYearVisitorEvent, tickWorldRivalSettlements, tickVisitorGroups, tickVillageRequests } from './groupEvents';
 import { tickVisitorQuest } from './visitorQuest';
 import { tickLeaderPromise } from './villageLeadership';
 import { tickPendingOutgoingRaidEvents, tickPendingRaidEvents } from './frontierCombat';
@@ -128,7 +128,7 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   tickGuidedCampaign(state);
   // Watchtowers reveal marching raiders earlier than patrols (daily, bounded).
   detectRaidersFromWatchtowers(state, allAlive);
-  tickRivalSettlements(state, allAlive);
+  tickWorldRivalSettlements(state, allAlive);
 
   // Population cleanup and immigration remain in tickLayerDaily.
   tickFestivals(state, counts);
