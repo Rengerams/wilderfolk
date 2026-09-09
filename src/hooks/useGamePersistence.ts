@@ -198,16 +198,14 @@ export function useGamePersistence({
     };
   }, [loopRef, showSaveToast]);
 
-  // Best-effort save on component unmount
+  // Best-effort save on component unmount. Delegates to the latest persist
+  // closure, which lazily reads loopRef/worldRef/viewRef at call time, so no
+  // stale ref values are captured when the cleanup runs.
   useEffect(() => {
     return () => {
-      const loop = loopRef.current;
-      if (!loop) return;
-      const view = loop.getView() ?? viewRef.current;
-      if (!view) return;
       void persistCurrentGameRef.current({ chronicle: false, feedback: false });
     };
-  }, [loopRef, viewRef]);
+  }, []);
 
   return {
     dismissSaveToast,

@@ -24,22 +24,22 @@ const TOTAL_MS = TIMING.FADE_IN_MS + TIMING.HOLD_MS + TIMING.FADE_OUT_MS; // 480
 /** Center-screen cinematic title card — fades in, holds, fades out. */
 export default function MomentTitleCard({ moment, onDone }: Props) {
   const [phase, setPhase] = useState<'hidden' | 'visible' | 'fading'>('hidden');
-  const onDoneRef = useRef(onDone);
-  onDoneRef.current = onDone;
   const hasFiredRef = useRef(false);
 
   const momentId = moment?.id;
 
+  // Keep the latest `onDone` available to timers/skip without writing a ref
+  // during render.
+  const onDoneRef = useRef(onDone);
   useEffect(() => {
-    if (!momentId) {
-      setPhase('hidden');
-      hasFiredRef.current = false;
-      return;
-    }
+    onDoneRef.current = onDone;
+  }, [onDone]);
 
-    // Reset state for new moment
+  // (Re)play the card whenever the featured moment changes; also resets the
+  // fired-guard when the moment is cleared. All timers are torn down on change.
+  useEffect(() => {
     hasFiredRef.current = false;
-    setPhase('hidden');
+    if (!momentId) return;
 
     // Fade in
     const raf = requestAnimationFrame(() => setPhase('visible'));

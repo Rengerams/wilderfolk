@@ -7,7 +7,7 @@
  * Chat/courtship = Realtime; house/job fill = Assign (not “social”).
  */
 import type {
-  WorldState, Entity, Building, EntityByType,
+  WorldState, Entity, Building,
 } from './gameTypes';
 import {
   BuildingType,
@@ -42,7 +42,8 @@ import { buildHuntTargetByPreyIndex } from './simulation/simulationEntities';
 import { tickLayerRealtime } from './tickLayerRealtime';
 import { tickLayerSystems, LAYER_SYSTEMS_INTERVAL } from './tickLayerSystems';
 import { tickLayerAssign, LAYER_ASSIGN_INTERVAL } from './tickLayerAssign';
-import { tickLayerDaily, tickWinterHeating } from './tickLayerDaily';
+import { tickLayerDaily } from './tickLayerDaily';
+import { tickWinterHeating } from './dailyBuildingEconomy';
 import {
   USE_SPATIAL_GRID,
   buildRoadAvoidanceIndex,
@@ -59,6 +60,8 @@ import {
   resetSpatialQueryTickMetrics,
   setSpatialQueryGridMode,
 } from './spatialQueryMetrics';
+import { assertSimInvariants } from './simulation/simInvariants';
+import { collectSimulationInvariantErrors } from './simulation/simulationInvariants';
 
 export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState {
   if (state.paused) return state;
@@ -231,10 +234,10 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.entities = allAlive;
 
   // Reuse playerHumans + any newly born player settlers this tick (avoid full allAlive filter)
-  let endTickHumans = playerHumans;
+  let endTickHumans: Entity[] = playerHumans;
   if (newEntities.length > 0) {
     const bornPlayers = newEntities.filter((e) => e.alive && isPlayerHuman(e));
-    if (bornPlayers.length > 0) endTickHumans = playerHumans.concat(bornPlayers);
+    if (bornPlayers.length > 0) endTickHumans = [...playerHumans, ...bornPlayers];
   }
   const workforceCounts = countWorkingAndIdleSettlers(endTickHumans, updatedBuildings);
   state.workingSettlers = workforceCounts.working;
@@ -265,6 +268,18 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.wildlifeCounts = wildlifeCountsFromPopulation(finalCounts);
   markCalendarDayProcessed(state);
   if (isSpatialQueryMetricsEnabled()) flushSpatialQueryTickToSession();
+
+  // Dev-only invariant pulse once per colony day — never repairs state.
+  if (import.meta.env.DEV && dailyLayerRan) {
+    const sanity = assertSimInvariants(state);
+    if (sanity.length > 0) {
+      console.warn('[simInvariants]', sanity.slice(0, 8));
+    }
+    const ownership = collectSimulationInvariantErrors(state);
+    if (ownership.length > 0) {
+      console.warn('[simulationInvariants]', ownership.slice(0, 8));
+    }
+  }
 
   return state;
 }

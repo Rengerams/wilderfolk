@@ -24,7 +24,7 @@ import { getHumanVariantLabel } from '../game/humanSprites';
 import { getTameFoodCost } from '../game/buildingActions';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { isPlayerHuman } from '../game/playerHuman';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getHumanActivityProjection } from '../game/humanStatus';
 
 // Added `id` to the return type for stable React keys
@@ -91,23 +91,30 @@ export default function SelectedEntityPanel({
   onMoveOut?: () => void;
   onOpenVisitorCamp?: (group: VisitorGroup) => void;
 }) {
-  const previousActivityRef = useRef<{ entityId: number; activity: string } | null>(null);
+  const [lastActivity, setLastActivity] = useState<{ entityId: number; activity: string } | null>(null);
   const isVillageHead = isVillageLeader(state, entity.id);
   const isHuman = entity.type === EntityType.Human;
-  
-  const previousActivity = previousActivityRef.current?.entityId === entity.id
-    ? previousActivityRef.current.activity
+
+  const previousActivity = lastActivity?.entityId === entity.id
+    ? lastActivity.activity
     : undefined;
-    
+
   const activityProjection = isHuman || entity.type === EntityType.Werewolf
     ? getHumanActivityProjection(state, entity, previousActivity)
     : null;
-    
+
+  // Remember the last shown activity for this entity so transitions can be
+  // annotated. Keyed on the primitive activity string to avoid resyncing on
+  // unrelated re-renders.
+  const currentActivity = activityProjection?.activity;
   useEffect(() => {
-    if (activityProjection) {
-      previousActivityRef.current = { entityId: entity.id, activity: activityProjection.activity };
-    }
-  }, [activityProjection?.activity, entity.id]);
+    const record = () => {
+      if (currentActivity != null) {
+        setLastActivity({ entityId: entity.id, activity: currentActivity });
+      }
+    };
+    record();
+  }, [currentActivity, entity.id]);
 
   const isVisitor = entity.faction === 'visitor';
   const isRival = entity.faction === 'rival';
@@ -144,8 +151,8 @@ export default function SelectedEntityPanel({
     grass: { role: 'Producer', eats: 'Sunlight (photosynthesis)', huntedBy: 'Rabbits, Deer, Foxes, Wildkin' },
     rabbit: { role: 'Prey', eats: 'Grass', huntedBy: 'Foxes, Wolves, Humans' },
     deer: { role: 'Prey', eats: 'Grass', huntedBy: 'Wolves, Humans, Moon Howlers' },
-    fox: { role: 'Predator', eats: 'Rabbits, Grass', huntedBy: 'None' },
-    wolf: { role: 'Apex Predator', eats: 'Deer, Rabbits', huntedBy: 'None' },
+    fox: { role: 'Predator', eats: 'Rabbits, Grass', huntedBy: 'Wolves' },
+    wolf: { role: 'Apex Predator', eats: 'Deer, Rabbits, Foxes', huntedBy: 'None' },
     werewolf: { role: 'Full-Moon Predator', eats: 'Settlers, Deer, Rabbits', huntedBy: 'Church (breaks the curse)' },
     wildkin: { role: 'Gentle Hybrid', eats: 'Grass, Farm Food', huntedBy: 'Wolves, Foxes' },
     human: { role: 'Civilization Builder', eats: 'Deer, Rabbits, Farm Food', huntedBy: 'Moon Howlers (~every 2 weeks)' },

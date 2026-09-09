@@ -127,9 +127,9 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
       (tense === 0 && rivals.length > 0 ? 10 : 0),
   );
 
-  const traits: PortraitTrait[] = [
+  const traits: PortraitTrait[] = ([
     {
-      id: 'war',
+      id: 'war' as const,
       label: 'War & raids',
       emoji: '⚔️',
       score: warScore,
@@ -141,7 +141,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
             : 'You have rarely spilled blood on purpose.',
     },
     {
-      id: 'nature',
+      id: 'nature' as const,
       label: 'Nature',
       emoji: '🌿',
       score: natureScore,
@@ -153,7 +153,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
             : 'The land shows strain from farms, hunts, and sprawl.',
     },
     {
-      id: 'trade',
+      id: 'trade' as const,
       label: 'Trade',
       emoji: '💰',
       score: tradeScore,
@@ -165,7 +165,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
             : 'Trade is thin — most wealth still comes from the home valley.',
     },
     {
-      id: 'build',
+      id: 'build' as const,
       label: 'Building',
       emoji: '🏰',
       score: buildScore,
@@ -177,7 +177,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
             : 'Still a small holding; more timber and stone will change that.',
     },
     {
-      id: 'diplomacy',
+      id: 'diplomacy' as const,
       label: 'Diplomacy',
       emoji: '🤝',
       score: diplomacyScore,
@@ -190,7 +190,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
               ? 'No lasting neighbors yet — the map is still mostly yours.'
               : 'Borders stay cold; few hands of friendship have been offered.',
     },
-  ].sort((a, b) => b.score - a.score);
+  ] satisfies PortraitTrait[]).sort((a, b) => b.score - a.score);
 
   const primary = traits[0];
   const secondary = traits[1];

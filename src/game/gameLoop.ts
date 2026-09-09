@@ -11,7 +11,7 @@ import { clearAllFactionWanderStates } from './factionWander';
 import { GameWorkerHost, isGameWorkerEnabled, type WorkerUiPatch } from './simWorker/GameWorkerHost';
 import type { WorkerCommand } from './simWorker/commands';
 import { applyWorkerCommand } from './simWorker/commands';
-import { hydrateWorldRuntimeCaches } from './worldRuntimeCaches';
+import { createOptimisticDisplayWorld, hydrateWorldRuntimeCaches } from './worldRuntimeCaches';
 import type { ScentGridReader } from './scentGrid';
 import {
   clearScreenShakeImpulse,
@@ -335,7 +335,7 @@ export class GameLoop {
 
       if (render) {
         this.renderSoA = render.reader;
-        this.renderMetaBySlot = render.metaBySlot;
+        this.renderMetaBySlot = render.metaBySlot ?? null;
         this.scentReader = render.scentReader;
         patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
       }
@@ -362,7 +362,7 @@ export class GameLoop {
 
       if (render) {
         this.renderSoA = render.reader;
-        this.renderMetaBySlot = render.metaBySlot;
+        this.renderMetaBySlot = render.metaBySlot ?? null;
         this.scentReader = render.scentReader;
         patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
       }
@@ -529,13 +529,8 @@ export class GameLoop {
     const authoritative = this.workerHost?.getAuthoritativeWorld();
     if (!authoritative) return;
 
-    // Clone entities & buildings so predictions never contaminate the authoritative shadow
-    let display: WorldState = {
-      ...authoritative,
-      entities: authoritative.entities.map((e) => ({ ...e })),
-      buildings: authoritative.buildings.map((b) => ({ ...b, occupants: [...b.occupants] })),
-      resources: { ...authoritative.resources },
-    };
+    // Deep clone so optimistic command mutations never contaminate the authoritative shadow
+    let display = createOptimisticDisplayWorld(authoritative);
 
     for (let i = 0; i < this.optimisticCommands.length; i++) {
       try {
@@ -618,7 +613,9 @@ export class GameLoop {
       this.world = next;
     }
     this.catalog.rebuild(this.world.entities);
-    this.workerHost?.syncWorld(this.world);
+    this.workerHost?.syncWorld(this.world).catch(() => {
+      // Worker full-world sync is best-effort here; failures surface via the worker fault handler.
+    });
     this.pruneStaleSelection();
     this.notify(true);
   }

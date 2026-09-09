@@ -28,11 +28,12 @@ import {
   impulseScreenShake,
 } from './simEffects';
 import { GRAZE_BITE_ENERGY, GRASS_GRAZE_MIN_ENERGY } from './grassEcology';
+import { tamedAnimalsFedToday } from './animalCare';
 import { isPlayerHuman } from './playerHuman';
 import { appendDeathAge, humanDisplayName } from './citizenId';
 import { rollPredatorBlock, rollCounterAttack } from './combat';
 import { isActiveMoonHowler } from './moonHowler';
-import { logEvent } from './eventLog';
+import { logDeath, logEvent } from './eventLog';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import {
   buildGrassPopulationSnapshot,
@@ -259,18 +260,27 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       let targetVx = 0;
       let targetVy = 0;
 
-      // 6. Evasion Behavior
-      if (
+      // 6. Evasion Behavior — grazers flee any predator; foxes are also prey to
+      // apex canids (wolves and Moon Howlers), so a fox flees those but stays a
+      // predator of rabbits.
+      const isGrazer =
         entity.type === EntityType.Rabbit ||
         entity.type === EntityType.Deer ||
-        entity.type === EntityType.Wildkin
-      ) {
+        entity.type === EntityType.Wildkin;
+      const isFox = entity.type === EntityType.Fox;
+      if (isGrazer || isFox) {
+        const sensesThreat = isGrazer
+          ? (pred: Entity): boolean => isWildlifePredator(pred)
+          : (pred: Entity): boolean =>
+              pred.alive &&
+              (pred.type === EntityType.Wolf || pred.type === EntityType.Werewolf);
+
         const closestPredator = findClosestEntityInRadius(
           mobileGrid,
           entity.x,
           entity.y,
           config.fleeRange,
-          (pred) => isWildlifePredator(pred),
+          sensesThreat,
           'flee',
           predators,
         ) ?? null;
@@ -281,7 +291,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           const dist = Math.hypot(dx, dy) || 1.0;
           targetVx = (dx / dist) * config.speed * 1.5;
           targetVy = (dy / dist) * config.speed * 1.5;
-        } else if (USE_SCENT_GRID && scentGrid) {
+        } else if (isGrazer && USE_SCENT_GRID && scentGrid) {
           const sensitivity =
             entity.type === EntityType.Rabbit
               ? RABBIT_SCENT_SENSITIVITY
@@ -305,12 +315,14 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           entity.type === EntityType.Werewolf)
       ) {
         const moonHowlerHunter = entity.type === EntityType.Werewolf && isActiveMoonHowler(entity);
+        // Wolves are apex predators — they hunt deer and rabbits and also take
+        // competing foxes (intraguild predation). Foxes keep hunting rabbits.
         const preyTypes =
           entity.type === EntityType.Fox
             ? [EntityType.Rabbit]
             : moonHowlerHunter
               ? [EntityType.Human, EntityType.Deer, EntityType.Rabbit]
-              : [EntityType.Deer, EntityType.Rabbit];
+              : [EntityType.Deer, EntityType.Rabbit, EntityType.Fox];
 
         // Wolves gain hunting range and target bonuses when grouped in close packs
         let nearbyPack = 0;
@@ -462,10 +474,20 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                 ](wolfName, victimName);
                 addBigNews(state, '🌝 Moon Howler Attack!', line, 'negative');
                 addFloatingText(state, caughtPrey.x, caughtPrey.y - 12, 'Slain!', '#ef4444');
-                logEvent(state, 'death', appendDeathAge(line, caughtPrey), victimName);
+                logDeath(
+                  state,
+                  appendDeathAge(line, caughtPrey),
+                  victimName,
+                  { x: caughtPrey.x, y: caughtPrey.y },
+                );
                 impulseScreenShake(state, 5);
               } else {
-                const preyLabel = caughtPrey.type === EntityType.Deer ? 'Deer' : 'Rabbit';
+                const preyLabel =
+                  caughtPrey.type === EntityType.Deer
+                    ? 'Deer'
+                    : caughtPrey.type === EntityType.Fox
+                      ? 'Fox'
+                      : 'Rabbit';
                 const predatorLabel =
                   entity.type === EntityType.Fox
                     ? 'Fox'
@@ -619,6 +641,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             (entity.type === EntityType.Wolf ||
               entity.type === EntityType.Fox ||
               (entity.type === EntityType.Werewolf && !isActiveMoonHowler(entity))) &&
+            !tamedAnimalsFedToday(state) &&
             distSq < 80 * 80 &&
             isProductionTick(state.tick, EVENT_INTERVAL.tamedHuntAssist)
           ) {

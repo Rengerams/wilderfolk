@@ -34,10 +34,12 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
   
   const fatigueLabel = averageFatigue >= 60 ? 'high' : averageFatigue >= 25 ? 'building' : 'low';
   
-  const preview = useMemo(() => {
-    const previewHours = validation.ok ? getWorkScheduleHours(validation.schedule) : currentHours;
-    return getScheduleImpactPreview(state, 'ordinary', currentHours, previewHours);
-  }, [state, currentHours, validation, validation.ok]);
+  // Preview the impact of the currently chosen window. The WorldState prop is
+  // mutated in place by the sim, so the preview is derived each render instead
+  // of memoized on a mutable object.
+  const candidate = validateWorkSchedule(startHour, endHour);
+  const previewHours = candidate.ok ? getWorkScheduleHours(candidate.schedule) : currentHours;
+  const preview = getScheduleImpactPreview(state, 'ordinary', currentHours, previewHours);
 
   const isUnchanged = validation.ok && 
     validation.schedule.startHour === current.startHour && 

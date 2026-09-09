@@ -156,13 +156,8 @@ export function resolveEntity(world: WorldState, id: number | null): Entity | nu
 export function resolveBuilding(world: WorldState, id: number | null): Building | null {
   if (id == null) return null;
 
-  // 1. O(1) building lookup map if available
-  if (new Map(world.buildings.map(b => [b.id, b]))) {
-    const b = new Map(world.buildings.map(b => [b.id, b])).get(id);
-    if (b) return b;
-  }
-
-  // 2. Linear scan fallback
+  // No persistent building map is maintained on WorldState, so fall back to a
+  // direct linear scan by id.
   for (let i = 0; i < world.buildings.length; i++) {
     const b = world.buildings[i];
     if (b.id === id) {

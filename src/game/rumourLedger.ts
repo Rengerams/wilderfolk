@@ -89,8 +89,8 @@ function recentSourceKind(state: WorldState): SourceKind | null {
     if (type === 'birth' || type === 'marriage') return 'family';
     if (type === 'milestone' || type === 'research') return 'civic';
     if (type === 'season' || type === 'disaster') return 'ecology';
-    if (type === 'combat' || type === 'trade' || type === 'diplomacy') return 'frontier';
-    if (type === 'scandal' || type === 'crime') return 'scandal';
+    if (type === 'combat' || type === 'trade') return 'frontier';
+    if (type === 'scandal') return 'scandal';
   }
   return null;
 }
@@ -157,7 +157,9 @@ export function maybeOfferRumourLedger(state: WorldState): void {
   };
 
   pushStoryCard(state, event);
-  addNotification(state, '📜 The Rumour Ledger', 'Town scribes bring widespread village rumours to your attention.', 'info');
+  const rumourLine = `Rumour spreads: “${RUMOUR_TEXT[sourceKind]}”`;
+  logEvent(state, 'event', rumourLine);
+  addNotification(state, '📜 The Rumour Ledger', rumourLine, 'info');
 }
 
 export function resolveRumourLedger(state: WorldState, choiceId: string): boolean {
@@ -183,13 +185,12 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
         : truth === TRUTH.exaggerated
           ? 'partially true, but heavily embellished'
           : 'completely fabricated';
-    addNotification(
-      state,
-      '📜 Investigation Complete',
-      `The scribes conclude the rumour was ${truthText}.`,
-      'info',
-    );
+    const investigationLine = `Rumour investigation: the claim was ${truthText}.`;
+    logEvent(state, 'event', investigationLine);
+    addNotification(state, '📜 Investigation Complete', investigationLine, 'info');
   }
+
+  logEvent(state, 'event', `Village response to the rumour: ${choice.replace('_', ' ')}.`);
 
   const responseMap: Record<Stage1Choice, number> = {
     correct_record: RESPONSE.correct,

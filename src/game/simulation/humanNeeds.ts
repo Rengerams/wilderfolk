@@ -9,9 +9,9 @@ import type { SpeciesConfig } from '../speciesConfig';
 export const MEAL_CHECK_INTERVAL_HOURS = 4;
 export const HUNGER_MEAL_THRESHOLD = 0.9;
 
-const HUNT_BASE_YIELD: Record<EntityType, number> = {
+const HUNT_BASE_YIELD: Partial<Record<EntityType, number>> = {
   [EntityType.Deer]: 52,
-  [2]: 22,
+  [EntityType.Rabbit]: 22,
 };
 const HUNT_DEFAULT_BASE_YIELD = 18;
 

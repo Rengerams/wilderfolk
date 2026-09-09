@@ -36,12 +36,6 @@ export interface AdaptiveQueryDecision {
   estimatedGridWork: number;
 }
 
-function squaredDistance(ax: number, ay: number, bx: number, by: number): number {
-  const dx = bx - ax;
-  const dy = by - ay;
-  return dx * dx + dy * dy;
-}
-
 /**
  * Fast, allocation-free radial scan over a contiguous entity array.
  */

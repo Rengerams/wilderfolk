@@ -4,10 +4,12 @@ import { EntityType } from './gameTypes';
 const FOREIGN_FACTIONS = new Set<string>(['visitor', 'rival', 'trade_caravan']);
 
 /**
- * Evaluates whether an entity is a living/active settler belonging to the player's village.
- * Acts as a TypeScript type guard narrowing entity type to Human.
+ * Evaluates whether an entity is a settler belonging to the player's village
+ * (a Human that is not a visitor, rival, or trade-caravan member).
+ * `Entity` is a single flat interface, so this is a plain predicate: callers
+ * that need the faction distinction check `e.faction` themselves afterwards.
  */
-export function isPlayerHuman(e: Entity): e is Entity & { readonly type: EntityType.Human } {
+export function isPlayerHuman(e: Entity): boolean {
   return (
     e.type === EntityType.Human &&
     (!e.faction || !FOREIGN_FACTIONS.has(e.faction))

@@ -44,6 +44,15 @@ export function getAnimalCareStatus(state: WorldState): AnimalCareStatus {
   return code === STATUS_CODES.shortage ? 'shortage' : code === STATUS_CODES.warning ? 'warning' : 'fed';
 }
 
+/**
+ * True when the colony provided today's tamed-animal ration, i.e. a pet is
+ * being fed this colony day. When false, tamed predators are on their own and
+ * may hunt to feed themselves rather than relying on the pantry.
+ */
+export function tamedAnimalsFedToday(state: WorldState): boolean {
+  return (state.storyFlags?.[FLAG_FED_DAY] ?? -1) === getColonyDay(state);
+}
+
 /** Daily bounded care pulse — called after building production in tickLayerDaily. */
 export function tickAnimalCare(state: WorldState): void {
   const tamed = countTamedAnimals(state);

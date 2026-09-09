@@ -7,7 +7,7 @@
 
 import type { EntityCatalog } from './entityCatalog';
 import type { WorldState, Entity } from './gameTypes';
-import { isImprisoned } from './residencyOccupancy';
+import { hasWorkAssignment, isImprisoned } from './residencyOccupancy';
 import { getTotalBeds } from './populationGrowth';
 import { isPlayerHuman } from './playerHuman';
 

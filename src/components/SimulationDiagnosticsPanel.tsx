@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import type { GameLoop, GameLoopDiagnostics } from '../game/gameLoop';
 import { EntityType } from '../game/gameTypes';
 
 export interface SimulationDiagnosticsPanelProps {
-  loop: GameLoop | null;
+  loopRef: RefObject<GameLoop | null>;
   debugMode?: boolean;
 }
 
@@ -98,7 +98,7 @@ function getLifecycleAlignment(loop: GameLoop | null): LifecycleAlignmentData {
 }
 
 export default function SimulationDiagnosticsPanel({
-  loop,
+  loopRef,
   debugMode = false,
 }: SimulationDiagnosticsPanelProps) {
   const [open, setOpen] = useState(() => {
@@ -110,15 +110,18 @@ export default function SimulationDiagnosticsPanel({
   });
 
   const [diagnostics, setDiagnostics] = useState<GameLoopDiagnostics | null>(null);
-  const [lifecycleTick, setLifecycleTick] = useState(0);
+  const [lifecycle, setLifecycle] = useState<LifecycleAlignmentData | null>(null);
 
+  // Poll diagnostics straight from the (latest) simulation loop. Reading the
+  // loop through the ref inside the interval keeps this reactive to loop
+  // lifetime without touching refs during render.
   useEffect(() => {
-    if (!loop) {
-      setDiagnostics(null);
-      return;
-    }
-
     const refresh = () => {
+      const loop = loopRef.current;
+      if (!loop) {
+        setDiagnostics(null);
+        return;
+      }
       try {
         setDiagnostics(loop.getDiagnostics());
       } catch (err) {
@@ -129,21 +132,22 @@ export default function SimulationDiagnosticsPanel({
     refresh();
     const timer = window.setInterval(refresh, 250);
     return () => window.clearInterval(timer);
-  }, [loop]);
+  }, [loopRef]);
 
-  // Throttled lifecycle verification timer (every 2s)
+  // Throttled lifecycle alignment refresh (every 2s) while the panel is open.
   useEffect(() => {
     if (!debugMode || !open) return;
-    const timer = window.setInterval(() => {
-      setLifecycleTick((t) => t + 1);
-    }, 2000);
+    const refreshLifecycle = () => {
+      try {
+        setLifecycle(getLifecycleAlignment(loopRef.current));
+      } catch (err) {
+        console.error('[SimulationDiagnosticsPanel] Failed to compute lifecycle alignment:', err);
+      }
+    };
+    refreshLifecycle();
+    const timer = window.setInterval(refreshLifecycle, 2000);
     return () => window.clearInterval(timer);
-  }, [debugMode, open]);
-
-  const lifecycle = useMemo(() => {
-    if (!debugMode || !open) return null;
-    return getLifecycleAlignment(loop);
-  }, [loop, debugMode, open, lifecycleTick]);
+  }, [debugMode, open, loopRef]);
 
   const handleToggle = () => {
     setOpen((prev) => {

@@ -127,7 +127,7 @@ export function useTransientGameFeedback({
 
   // Derived Valley Chronicle moment
   const pendingChapterCard = useMemo(
-    () => getPendingChapterMoment(world, dismissedChapter),
+    () => getPendingChapterMoment({ chronicleChapters: world.chronicleChapters }, dismissedChapter),
     [dismissedChapter, world.chronicleChapters],
   );
   const activeMoment = momentCard ?? pendingChapterCard;
@@ -188,7 +188,7 @@ export function useTransientGameFeedback({
 
   // Reconcile auto-dismissal timeouts when bigNews entries change
   useEffect(() => {
-    const eligibleIds = new Set(getBigNewsAutoDismissIds(world, hiddenBigNewsIds));
+    const eligibleIds = new Set(getBigNewsAutoDismissIds({ bigNews: world.bigNews }, hiddenBigNewsIds));
 
     for (const [id, timeout] of bigNewsTimersRef.current) {
       if (!eligibleIds.has(id)) {

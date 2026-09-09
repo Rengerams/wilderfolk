@@ -124,7 +124,7 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     reproductionChance: 0.008,
     spawnEnergy: 90,
     color: '#ea580c',
-    fleeRange: 0,
+    fleeRange: 90,
     huntRange: 100,
     wanderRadius: 100,
     sprite: '/sprites/fox.png',

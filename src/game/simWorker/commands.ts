@@ -61,7 +61,7 @@ export const WORKER_CMD_PROTO = 1;
 /** Versioned main → worker command channel (Rule 6). */
 export type WorkerCommand =
   | { proto: 1; op: 'startBuilding'; type: BuildingType; x: number; y: number; rotation: BuildingRotation }
-  | { proto: 1; op: 'placeStripChain'; type: BuildingType; segments: StripSegment[]; rotation: BuildingRotation }
+  | { proto: 1; op: 'placeStripChain'; type: BuildingType; segments: readonly StripSegment[]; rotation: BuildingRotation }
   | { proto: 1; op: 'assignWorker'; buildingId: number; humanId?: number }
   | { proto: 1; op: 'autoStaffWorkers' }
   | { proto: 1; op: 'removeWorker'; buildingId: number; humanId: number }

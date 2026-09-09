@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import CollapsibleSection from './CollapsibleSection';
 import {
   BuildingType, EntityType, BUILDING_JOB_TYPES, WORKSHOP_RECIPES, getWorkshopRecipe, formatRecipeInputs,
@@ -97,8 +97,10 @@ export interface SelectedBuildingPanelProps {
 export default function SelectedBuildingPanel({
   building, state, onAssign, onAutoStaffAll, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onSetStaffingMode, onQueueForge, idleWorkers, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
 }: SelectedBuildingPanelProps) {
-  const [confirmDemolish, setConfirmDemolish] = useState(false);
-  useEffect(() => setConfirmDemolish(false), [building.id]);
+  // Demolish confirmation is armed for the current building only, so switching
+  // to another building automatically resets it (no effect required).
+  const [demolishArmId, setDemolishArmId] = useState<number | null>(null);
+  const confirmDemolish = demolishArmId === building.id;
   if (building.faction === 'rival') {
     const rival = state.rivalSettlements.find((r) => r.id === building.groupId);
     const config = getBuildingConfig(building.type);
@@ -761,7 +763,7 @@ export default function SelectedBuildingPanel({
                 🗑 Confirm demolish
               </button>
               <button
-                onClick={() => setConfirmDemolish(false)}
+                onClick={() => setDemolishArmId(null)}
                 className="rounded bg-stone-700 px-2 py-1.5 text-[11px] font-bold text-stone-200 hover:bg-stone-600"
               >
                 Cancel
@@ -770,7 +772,7 @@ export default function SelectedBuildingPanel({
           </div>
         ) : (
           <button
-            onClick={() => setConfirmDemolish(true)}
+            onClick={() => setDemolishArmId(building.id)}
             className="w-full rounded bg-rose-700 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-rose-600"
           >
             🗑 Demolish{isHousing && residents.length > 0 ? ` (evicts ${residents.length})` : ''}

@@ -52,14 +52,13 @@ export function tickHumanHunting(
   // Free-roam hunting — player settlers only (visitors/rivals do not farm the valley).
   const isJobHunter = entity.job === JobType.Hunter;
 
-  // Famine overrides: with no food in stores a hungry settler hunts whatever
-  // nature offers, even off-schedule — hunger wins over the daily routine.
+  // Assigned hunters free-hunt as their job. Ordinary settlers only go out to
+  // hunt when the colony has no food to feed them (famine) — a fed village
+  // doesn't send settlers off to thin the wild herd for sport.
   const famine = state.resources.food <= 0;
   const freeHuntHungry = isJobHunter
     ? entity.energy < entity.maxEnergy * 0.85
-    : famine
-      ? entity.energy < entity.maxEnergy * 0.6
-      : entity.energy < entity.maxEnergy * 0.38;
+    : famine && entity.energy < entity.maxEnergy * 0.6;
 
   const blueberryForaging =
     !isJobHunter &&

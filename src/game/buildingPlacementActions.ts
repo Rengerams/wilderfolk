@@ -237,7 +237,7 @@ export function buildStripPreview(
 export function placeStripChain(
   originalState: WorldState,
   type: BuildingType,
-  segments: StripSegment[],
+  segments: readonly StripSegment[],
   rotation: BuildingRotation,
 ): WorldState {
   if (!isStripBuildType(type) || segments.length === 0) return originalState;
