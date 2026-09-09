@@ -1,8 +1,12 @@
 {
-  "plugins": [
-    "typescript"
-  ],
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react"],
   "rules": {
     "typescript/no-explicit-any": "warn"
-  }
+  },
+  "ignorePatterns": [
+    "dist/**",
+    "node_modules/**",
+    "src/game/simWorker/gameWorker.node.ts"
+  ]
 }
