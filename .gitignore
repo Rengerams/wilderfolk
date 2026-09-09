@@ -9,7 +9,9 @@ lerna-debug.log*
 log.txt
 Session.txt
 Wilderfolk.txt
-
+references.md
+circulair.txt
+AGENTS.MD
 # Dependencies and build output
 node_modules/
 dist/
