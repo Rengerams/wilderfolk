@@ -9,7 +9,7 @@ lerna-debug.log*
 log.txt
 Session.txt
 Wilderfolk.txt
-references.md
+References.md
 circulair.txt
 AGENTS.MD
 # Dependencies and build output
@@ -25,6 +25,7 @@ docs/
 # Generated analysis output
 dependency-graph.dot
 dependency-graph.svg
+references.md
 
 # Local configuration and generated tooling files
 *.local
