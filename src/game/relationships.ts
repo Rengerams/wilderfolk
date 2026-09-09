@@ -26,6 +26,21 @@ export function feudScore(e: Entity, otherId: number): number {
   return e.feuds?.[feudKey(otherId)] ?? 0;
 }
 
+/**
+ * Damages the friendship between two settlers (both directions, symmetric like
+ * the daily bump). Used for social wrongs such as a famine foot-bite: the
+ * victim is not amused. Floors at 0; never pushes below zero.
+ */
+export function hurtFriendship(a: Entity, b: Entity, amount: number): void {
+  if (a.id === b.id || amount <= 0) return;
+  a.friendships = a.friendships || {};
+  b.friendships = b.friendships || {};
+  const aKey = friendKey(b.id);
+  const bKey = friendKey(a.id);
+  a.friendships[aKey] = Math.max(0, (a.friendships[aKey] ?? 0) - amount);
+  b.friendships[bKey] = Math.max(0, (b.friendships[bKey] ?? 0) - amount);
+}
+
 /** Number of strong friendships (score ≥ 60) — for UI badges. */
 export function friendCount(e: Entity): number {
   if (!e.friendships) return 0;

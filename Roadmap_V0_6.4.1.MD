@@ -55,6 +55,49 @@ Updated 2026-09-08, on top of the completed decommissioning wave: the "living va
 
 Supporting work: `WorldState.foodHistory` / `FoodDaySample` (transient, not saved) archived at day rollover in `economyLedger.ts` and carried through `SimTickDelta`; read-only projections in `src/game/dashboardData.ts`; overlay UI in `src/components/dashboard/GameDashboard.tsx`.
 
+## Implemented this working tree (new gameplay & engineering items)
+
+Added 2026-09-08. Short player-facing rows; fuller descriptions live in the release-note draft below.
+
+| ID | Status | Delivered |
+|---|---|---|
+| **N1** | Implemented | Famine desperation "foot-bite" — starving settler lunges at a neighbour; non-lethal, friendship drops, logged as scandal |
+| **N2** | Implemented | Traveling Theatre script "The Famine Foot" — troupe stages the lean-day foot-bite when it is in recent history |
+| **N3** | Implemented | Valley ecology stage ladder parked — no strain messages or hidden hunt/farm/illness effects; wildlife info stays |
+| **N4** | Implemented | Lumber-mill nearby-tree yield bonus removed (`treeProximity.ts` deleted) |
+| **N5** | Implemented | Prison guard duty — 8 h shifts, 3 guards = 24 h coverage; unguarded prison risks early escape |
+| **N6** | Implemented | Schedule-aware off-work behaviour — evenings/nights follow the configured work window instead of fixed legacy hours |
+| **N7** | Implemented | Central constants file (`gameConstants.ts`) — duplicate constants collapsed to one home; values explained |
+
+## What's new in this working tree — release-note draft
+
+Drafted 2026-09-08 so release notes can be assembled from here instead of being written at release time. Each item is implemented and gated green (tsc, oxlint, build, full test suite) unless marked otherwise.
+
+### Player-facing changes
+
+| Feature | Short description (player-facing) | Notes |
+|---|---|---|
+| **Village Dashboard (📊)** | Full-screen overview: valley concerns with severity, "what changed" day-over-day diffs, food produced/consumed/net, wildlife deltas, daily council summary, and a read-only explanation of a selected settler. Opened from the header or HUD; Esc/✕ closes. | Presentation-only; no new simulation owner. |
+| **Famine "foot-bite" desperation** | In a true famine, a truly starving settler may lunge at a neighbour's foot — a rare, deliberately **non-lethal** comic beat. The pair's friendship score takes a hit (the victim is not amused). Logged as a scandal. | New daily rule in `famineDesperation.ts`; fires at most once per famine day. |
+| **Traveling Theatre: “The Famine Foot”** | When a famine foot-bite scandal is in the valley's recent history, the troupe can stage a raucous, self-mocking farce about the lean days alongside the other plays. | New authored script fed by the real event log. |
+| **Valley ecology ladder parked** | The valley stage ladder (Stable → Strained → Damaged → Collapse) is temporarily disabled: no more unexplained "valley strained" messages, and no hidden hunt/farm/illness effects. Wildlife counts and Nature information remain visible. | Single switch (`ValleyEcology.ENABLED = false` in `gameConstants.ts`) — re-enable when the system is rebalanced. |
+| **Lumber-mill tree bonus removed** | Lumber mills no longer get an extra yield bonus for trees placed nearby. | Developer: "bullshit multiplier" — file deleted. |
+| **Prison guard duty** | Staffed Prison Guards cover **24 h** in 8 h shifts (3 guards = full coverage). If a completed prison holds prisoners while unguarded, there is an escape risk — the prisoner leaves early but stays in the colony. | Daily owner `prisonGuardDuty.ts`. |
+| **Schedule-aware off-work behaviour** | Settlers' evenings, nights, and time off now follow their configured work schedule (work, home, and social windows are separate), instead of fixed legacy hours. | Replaces the legacy fixed-window behaviour behind compatible wrappers. |
+
+### Engineering / project changes (for the changelog)
+
+- **Central constants file (`gameConstants.ts`).** Duplicate declarations collapsed for calendar lengths (year/season), human food/meal consumption, tamed-animal rations, and the authored-story cooldown flag; blueberry spawn constants now import from the foraging owner; `simHelpers`, `dayCycleClock`, `animalCare`, `humanNeeds`, and the five authored-story modules now read from one source of truth with thin legacy re-exports where real callers still exist.
+- **Valley stage state is preserved** (save-safe): the ladder is parked, not removed — no save/migration impact, and re-enabling is a one-flag change.
+- **Hunting yield test updated** to assert the parked valley no longer cuts hunt yield.
+- **Docs:** `docs/plans/constant-centralization-plan.md` now records the organisation rules, the "explain every number" standard, per-category file options, and implemented slices.
+
+### Open working-tree items (not yet committed)
+
+- Schedule-aware work + prison-guard duty + the famine bite/theatre script + the constants collapse live in the working tree and are **not yet committed**; commits remain at the developer's discretion.
+- Famine bite tuning values (energy ratio 0.3, attempt 0.15/day, success 0.4, friendship −8/−16) are playtest-flavoured; revisit after a real famine session.
+- Food-balance and climate/season harvest rework drafts are **parked** — the developer is rebuilding weather, terrain landscape, and pathfinding in a separate branch, so those areas were left untouched.
+
 ## Evidence-based todo execution plan
 
 The following five objectives turn the roadmap priorities into implementation-ready work. They are based on the canonical design document, the simulation authority, the whole-game audit, the current source tree, and the existing test inventory. They deliberately prioritize integration confidence over adding another large simulation subsystem.

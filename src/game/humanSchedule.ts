@@ -6,11 +6,11 @@ import {
   isWorkDay,
 } from './dayCycleClock';
 
-/** Shift start (07:00). */
+/** Legacy shift start (07:00) — used when no colony schedule is supplied. */
 export const WORK_START = 7;
-/** Shift end exclusive — free from 18:00 onward. */
+/** Legacy shift end exclusive (18:00) — free from 18:00 onward by default. */
 export const WORK_END = 18;
-/** After-work/home transition. */
+/** Legacy after-work/home transition. */
 export const EVENING_START = 18;
 /** Tavern service window, inclusive start and exclusive end. */
 export const TAVERN_SHIFT_START = 17;
@@ -18,21 +18,45 @@ export const TAVERN_SHIFT_END = 23;
 /** Festival gathering window for realtime movement. */
 export const FESTIVAL_GATHER_START = 15;
 export const FESTIVAL_GATHER_END = 22;
-/** Work hours per weekday; daily construction uses this unit. */
+/** Legacy work hours per weekday; daily construction uses this unit. */
 export const WORK_HOURS_PER_DAY = WORK_END - WORK_START;
+
+/** A work-day window (start inclusive, end exclusive). */
+export interface DayWindow {
+  startHour: number;
+  endHour: number;
+}
+
+/** Legacy fixed 07–18 window — used when no colony schedule is supplied. */
+export const LEGACY_WINDOW: DayWindow = { startHour: WORK_START, endHour: WORK_END };
 
 export function buildWorkHours(buildDays: number): number {
   return Math.max(WORK_HOURS_PER_DAY, Math.round(buildDays * WORK_HOURS_PER_DAY));
 }
 
+/** Schedule-aware: is `hour` inside the (optionally configured) work window? */
+export function isWorkHourFor(schedule: DayWindow | undefined, hour: number): boolean {
+  const s = schedule ?? LEGACY_WINDOW;
+  return hour >= s.startHour && hour < s.endHour;
+}
+
 export function isWorkHour(hour: number): boolean {
-  return hour >= WORK_START && hour < WORK_END;
+  return isWorkHourFor(undefined, hour);
 }
 
 export function isOnWorkShift(tick: number, hour?: number): boolean {
   if (!isWorkDay(tick)) return false;
   const currentHour = hour ?? getHourOfDay(tick);
   return isWorkHour(currentHour);
+}
+
+export function isOnWorkShiftFor(
+  schedule: DayWindow | undefined,
+  tick: number,
+  hour?: number,
+): boolean {
+  if (!isWorkDay(tick)) return false;
+  return isWorkHourFor(schedule, hour ?? getHourOfDay(tick));
 }
 
 export function isTavernServiceHour(hour: number): boolean {
@@ -57,8 +81,17 @@ export function isOnMoonHowlerNightShift(tick: number, hour?: number): boolean {
   return isFullMoonNight(getAbsoluteCalendarDay(tick), currentHour);
 }
 
+/**
+ * Schedule-aware: should this settler be "home" right now? True at night, before
+ * the configured shift start, or from the configured shift end onward.
+ */
+export function shouldBeAtHomeFor(schedule: DayWindow | undefined, hour: number): boolean {
+  const s = schedule ?? LEGACY_WINDOW;
+  return isNightHour(hour) || hour < s.startHour || hour >= s.endHour;
+}
+
 export function shouldBeAtHome(hour: number): boolean {
-  return isNightHour(hour) || hour >= EVENING_START || hour < WORK_START;
+  return shouldBeAtHomeFor(undefined, hour);
 }
 
 /** Stable 0..1 roll for one person on one colony day. */
@@ -73,20 +106,31 @@ export function personDayRoll(entityId: number, tick: number, salt = 0): number 
   return (hash % 10000) / 10000;
 }
 
-export function prefersHomeTonight(entityId: number, tick: number, hour: number): boolean {
+/** Schedule-aware preference to stay home, with probability bands around the shift. */
+export function prefersHomeTonightFor(
+  schedule: DayWindow | undefined,
+  entityId: number,
+  tick: number,
+  hour: number,
+): boolean {
+  const s = schedule ?? LEGACY_WINDOW;
   const weekend = isWeekend(tick);
   const roll = (salt: number) => personDayRoll(entityId, tick, salt);
 
   if (hour >= 23 || hour < 5) return roll(101) > 0.07;
-  if (hour >= 5 && hour < WORK_START) return roll(102) > 0.12;
-  if (hour >= EVENING_START && hour < 22) return roll(103) < 0.50;
-  if (hour >= 22 && hour < 23) return roll(104) > 0.20;
-  if (weekend && hour >= WORK_START && hour < EVENING_START) return roll(105) < 0.30;
+  if (hour >= 5 && hour < s.startHour) return roll(102) > 0.12;
+  if (hour >= s.endHour && hour < 22) return roll(103) < 0.5;
+  if (hour >= 22 && hour < 23) return roll(104) > 0.2;
+  if (weekend && hour >= s.startHour && hour < s.endHour) return roll(105) < 0.3;
   return false;
 }
 
+export function prefersHomeTonight(entityId: number, tick: number, hour: number): boolean {
+  return prefersHomeTonightFor(undefined, entityId, tick, hour);
+}
+
 export function isActiveFreeDay(entityId: number, tick: number): boolean {
-  if (isWeekend(tick)) return personDayRoll(entityId, tick, 201) >= 0.30;
+  if (isWeekend(tick)) return personDayRoll(entityId, tick, 201) >= 0.3;
   return !prefersHomeTonight(entityId, tick, EVENING_START + 1);
 }
 
@@ -97,7 +141,16 @@ export function formatHour(hour: number): string {
   return `${display}${suffix}`;
 }
 
-export function allowSocialLife(hour: number, hasWorkplace: boolean, tick?: number): boolean {
+export function allowSocialLifeFor(
+  schedule: DayWindow | undefined,
+  hour: number,
+  hasWorkplace: boolean,
+  tick?: number,
+): boolean {
   if (tick != null && isWeekend(tick)) return true;
-  return !(isWorkHour(hour) && hasWorkplace);
+  return !(isWorkHourFor(schedule, hour) && hasWorkplace);
+}
+
+export function allowSocialLife(hour: number, hasWorkplace: boolean, tick?: number): boolean {
+  return allowSocialLifeFor(undefined, hour, hasWorkplace, tick);
 }

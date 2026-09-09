@@ -23,6 +23,11 @@ import { isPlayerHuman } from './playerHuman';
 import { isSettlerRelationshipEntity } from './moonHowler';
 import { getElectionGatherTarget } from './villageLeadership';
 
+import {
+  allowSocialLifeFor,
+  prefersHomeTonightFor,
+  shouldBeAtHomeFor,
+} from './humanSchedule';
 import { getWorkSchedule, isOnWorkScheduleShift, isWorkScheduleHour } from './workSchedule';
 import {
   HUMAN_ADULT_MIN_AGE,
@@ -31,21 +36,18 @@ import {
   syncHumanAgeFromCalendar,
   PER_TICK_RATE_SCALE,
   TICKS_PER_HOUR,
-  allowSocialLife,
   hasResidenceAssignment,
   hasWorkAssignment,
   isOnWorkShift,
   isOnMoonHowlerNightShift,
   isFestivalGatheringHour,
   isWeekend,
-  prefersHomeTonight,
   personDayRoll,
   getAbsoluteCalendarDay,
   isNearResidence,
   isResidenceBuilding,
   killHuman,
   shareResidence,
-  shouldBeAtHome,
   isNewCalendarDayTick,
   EVENING_START,
   isStartOfClockHour,
@@ -299,7 +301,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     const isPrisoner = entity.prisonBuildingId != null;
-    const atHome = shouldBeAtHome(hourOfDay) && isNearResidence(entity, buildingById);
+    const atHome = shouldBeAtHomeFor(workSchedule, hourOfDay) && isNearResidence(entity, buildingById);
 
     entity.reproductionCooldown = Math.max(0, entity.reproductionCooldown - 1);
     if (entity.gender && entity.relationshipStatus === undefined) {
@@ -405,7 +407,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           pregnant: !!entity.pregnant,
           renffr: isRenffrGossipActive(state),
           workHour: goWorkTime,
-          night: prefersHomeTonight(entity.id, state.tick, hourOfDay),
+          night: prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay),
         },
       );
     }
@@ -591,14 +593,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Per-person daily mood: some evenings out, some nights in; weekends lazy or busy.
     // Innkeepers on duty ignore "stay in" — the pub needs them.
     const stayIn = !festivalGathering && !onTavernShift && !onMoonPriestShift
-      && prefersHomeTonight(entity.id, state.tick, hourOfDay);
+      && prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay);
     // Free roam when not on the job and not choosing a quiet home stretch.
     const allowFreeRoam = festivalGathering || (!onJobShift && !stayIn);
     // Day-job holders aren't "free" during work hours; innkeepers only lock evenings.
     const socialBlockedByJob = isInnkeeper
       ? onTavernShift
       : (ordinaryWorkplace && isWorkScheduleHour(workSchedule, hourOfDay) && goWorkTime);
-    const socialTime = (!socialBlockedByJob && allowSocialLife(hourOfDay, false, state.tick))
+    const socialTime =
+      (!socialBlockedByJob && allowSocialLifeFor(workSchedule, hourOfDay, false, state.tick))
       || (allowFreeRoam && isPlayerHuman(entity));
 
     // Flee from dangerous Moon Howlers on full-moon nights

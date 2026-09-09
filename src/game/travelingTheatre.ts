@@ -7,10 +7,9 @@ import type { WorldState, StoryEvent } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
-import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard } from './storyHelpers';
+import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard, AUTHORED_STORY_COOLDOWN_FLAG } from './storyHelpers';
 
 export const STORY_KEY = 'traveling_theatre';
-export const AUTHORED_STORY_COOLDOWN_FLAG = 'authored_story_cd_until';
 export const AUTHORED_STORY_COOLDOWN_DAYS = 21;
 
 const FLAG_OFFERED = 'traveling_theatre_company_offered';
@@ -34,6 +33,7 @@ const SCRIPTS = {
   first_winter: 1,
   wolf_mistake: 2,
   town_hall_scandal: 3,
+  famine_foot: 4,
 } as const;
 
 const SUPPORT = {
@@ -43,7 +43,7 @@ const SUPPORT = {
   cancel: 4,
 } as const;
 
-type Stage1Choice = 'first_winter' | 'wolf_mistake' | 'town_hall_scandal';
+type Stage1Choice = 'first_winter' | 'wolf_mistake' | 'town_hall_scandal' | 'famine_foot';
 type Stage2Choice = 'support_hospitality' | 'support_venue' | 'support_improvise' | 'cancel_show';
 type Stage3Choice = 'correct_story' | 'let_legend_grow' | 'interrupt';
 
@@ -69,6 +69,11 @@ function availableScripts(state: WorldState): Stage1Choice[] {
   }
   if (recent.some((e) => e.type === 'milestone' || e.type === 'research' || e.type === 'scandal')) {
     scripts.push('town_hall_scandal');
+  }
+  // The famine foot-bite is recorded as a scandal; the troupe turns it into a
+  // raucous self-mocking farce about the lean days.
+  if (recent.some((e) => e.type === 'scandal' && /foot/i.test(e.message))) {
+    scripts.push('famine_foot');
   }
   return scripts;
 }
@@ -98,6 +103,9 @@ export function maybeOfferTravelingTheatre(state: WorldState): void {
   }
   if (scripts.includes('town_hall_scandal')) {
     scriptChoices.push({ id: 'town_hall_scandal', label: '“The Scandal at the Town Hall”', detail: 'Risky and embarrassing — from the civic records.' });
+  }
+  if (scripts.includes('famine_foot')) {
+    scriptChoices.push({ id: 'famine_foot', label: '“The Famine Foot”', detail: 'A raucous self-mocking farce — from the lean days, when a hungry settler tried to eat a neighbour.' });
   }
 
   const event: StoryEvent = {

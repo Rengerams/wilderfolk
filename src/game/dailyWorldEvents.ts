@@ -20,6 +20,8 @@ import { maybeOfferWeddingDiplomacy, tickWeddingDiplomacy } from './weddingDiplo
 import { maybeOfferInventionFair, tickInventionFair } from './inventionFair';
 import { maybeOfferRumourLedger, tickRumourLedger } from './rumourLedger';
 import { tickAnimalCare } from './animalCare';
+import { tickPrisonGuardDuty } from './prisonGuardDuty';
+import { tickFamineDesperation } from './famineDesperation';
 import { tickElectionPromises } from './electionPromises';
 import { tickGuidedCampaign } from './guidedCampaign';
 import { detectRaidersFromWatchtowers } from './watchtowerDetection';
@@ -124,6 +126,8 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   maybeOfferRumourLedger(state);
   tickRumourLedger(state);
   tickAnimalCare(state);
+  tickPrisonGuardDuty(state);
+  tickFamineDesperation(state, allAlive);
   tickElectionPromises(state);
   tickGuidedCampaign(state);
   // Watchtowers reveal marching raiders earlier than patrols (daily, bounded).
