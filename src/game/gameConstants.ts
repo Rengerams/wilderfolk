@@ -1,7 +1,7 @@
 /**
  * Central game constants — the ONE place to change gameplay values.
  *
- * Rules (see docs/plans/constant-centralization-plan.md):
+ * Rules (see docs/CONSTANTS_GUIDELINE.md and docs/plans/constant-centralization-plan.md):
  * - Every gameplay constant (windows, multipliers, thresholds, intervals) is
  *   declared here in a labelled section and imported by name everywhere else.
  * - No gameplay constant is declared mid-file or inside a function body.
@@ -12,6 +12,24 @@
  * - Files that historically exported a constant keep a thin re-export so
  *   existing importers don't change, but the value itself lives here.
  */
+
+/**
+ * Social-class spread for female settler sprites (2026-09-10, developer).
+ * Lower classes are common in a frontier village; the gentry and aristocracy
+ * are rare. Weights are relative — higher number = more common.
+ *
+ * Index order matches the female class sprite ladder in `humanSprites.ts`:
+ * 0 Mudlark · 1 Factory Hand · 2 Scullery Maid · 3 Pioneer ·
+ * 4 Shop Assistant · 5 Governess · 6 Merchant's Wife ·
+ * 7 Wealthy Gentry · 8 High Society · 9 Aristocrat
+ *
+ * Rationale: ~47% of village women are the bottom two classes (mudlark,
+ * factory hand), while the top two (high society, aristocrat) make up ~1.5%,
+ * so a rare grand dress in the wilderness reads as a real event.
+ */
+export const Social = {
+  FEMALE_CLASS_WEIGHTS: [26, 21, 16, 12, 9, 7, 5, 2.5, 1.2, 0.3],
+} as const;
 
 export const Time = {
   /** 24 = one real day per sim day; the calendar below keeps all math in whole days. */

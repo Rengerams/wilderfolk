@@ -1,8 +1,12 @@
 import type { Entity } from './gameTypes';
 import { getSpriteFrame, isHumanSpritesReady, type SpriteFrame } from './spriteLoader';
+import { Social } from './gameConstants';
 
 export const HUMAN_WALK_FRAMES = 4;
+/** Male variant count (legacy 8-slot system — females now use the 10-class ladder). */
 export const HUMAN_VARIANT_COUNT = 8;
+/** Female class ladder length: Mudlark … Aristocrat (10 classes). */
+export const HUMAN_FEMALE_CLASS_COUNT = 10;
 
 export type HumanGender = 'male' | 'female';
 
@@ -47,13 +51,18 @@ const PREVIEW_WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
     '/sprites/new_male_set/male_prosperous_farmer.png',
     ...LEGACY_WALK_SHEET_PATHS.male.slice(5),
   ],
+  // Female class ladder (2026-09-10): Mudlark → Aristocrat, 10 classes, in order.
   female: [
-    '/sprites/new_female_set_v2/female_poor_homeworker.png',
-    '/sprites/new_female_set_v2/female_farmgirl.png',
-    '/sprites/new_female_set_v2/female_bakerswife.png',
-    '/sprites/new_female_set_v2/female_merchantswife.png',
-    '/sprites/new_female_set_v2/female_doctorswife.png',
-    ...LEGACY_WALK_SHEET_PATHS.female.slice(5),
+    '/sprites/new_female_set_v2/cut/female_mudlark.png',
+    '/sprites/new_female_set_v2/cut/female_factory_hand.png',
+    '/sprites/new_female_set_v2/cut/female_scullery_maid.png',
+    '/sprites/new_female_set_v2/cut/female_pioneer.png',
+    '/sprites/new_female_set_v2/cut/female_shop_assistant.png',
+    '/sprites/new_female_set_v2/cut/female_governess.png',
+    '/sprites/new_female_set_v2/cut/female_merchants_wife.png',
+    '/sprites/new_female_set_v2/cut/female_wealthy_gentry.png',
+    '/sprites/new_female_set_v2/cut/female_high_society.png',
+    '/sprites/new_female_set_v2/cut/female_aristocrat.png',
   ],
 } as const;
 
@@ -74,7 +83,18 @@ export const JUVENILE_SPRITE_PATHS: Record<HumanGender, readonly string[]> = {
 
 export const HUMAN_VARIANT_LABELS: Record<HumanGender, readonly string[]> = {
   male: ['Brown', 'Tan', 'Dark Brown', 'Rust Brown', 'Grey', 'Blonde', 'Black', 'Auburn'],
-  female: ['Red Dress', 'Maroon', 'Rose Red', 'Burgundy', 'Teal Dress', 'Violet Dress', 'Sapphire Dress', 'Olive Dress'],
+  female: [
+    'Mudlark',
+    'Factory Hand',
+    'Scullery Maid',
+    'Pioneer',
+    'Shop Assistant',
+    'Governess',
+    "Merchant's Wife",
+    'Wealthy Gentry',
+    'High Society',
+    'Aristocrat',
+  ],
 } as const;
 
 /** Native artboard — feet on bottom edge. */
@@ -160,13 +180,15 @@ const FEMALE_PALETTES: PioneerPalette[] = [
   { skin: '#e8b888', hair: '#501010', shirt: '#902028', pants: '#ece4d8', shoe: '#28180c', accent: '#f5f0e8', outline: '#0c0604' },
 ];
 
-function normalizeVariant(variant: number): number {
-  return ((variant % HUMAN_VARIANT_COUNT) + HUMAN_VARIANT_COUNT) % HUMAN_VARIANT_COUNT;
+function normalizeVariant(variant: number, gender: HumanGender): number {
+  const count = gender === 'female' ? HUMAN_FEMALE_CLASS_COUNT : HUMAN_VARIANT_COUNT;
+  return ((variant % count) + count) % count;
 }
 
 function paletteFor(gender: HumanGender, variant: number): PioneerPalette {
-  const v = normalizeVariant(variant);
-  return gender === 'female' ? FEMALE_PALETTES[v] : MALE_PALETTES[v];
+  const palettes = gender === 'female' ? FEMALE_PALETTES : MALE_PALETTES;
+  const v = normalizeVariant(variant, gender) % palettes.length;
+  return palettes[v];
 }
 
 function px(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string) {
@@ -248,20 +270,37 @@ export function drawPioneerAt(
   ctx.restore();
 }
 
+/**
+ * Pick a sprite variant for a new settler. Male variants are uniform (8 slots).
+ * Female variants follow the class ladder with lower classes far more common
+ * than gentry/aristocracy (`Social.FEMALE_CLASS_WEIGHTS`). Deterministic from
+ * the entity id so spawn, save-load, and rendering agree.
+ */
 export function pickHumanVariant(entityId: number, gender: HumanGender): number {
   const genderSalt = gender === 'female' ? 1013904223 : 0;
   const seed = (entityId * 2654435761 + genderSalt) >>> 0;
-  return seed % HUMAN_VARIANT_COUNT;
+  if (gender !== 'female') return seed % HUMAN_VARIANT_COUNT;
+
+  const weights = Social.FEMALE_CLASS_WEIGHTS;
+  let total = 0;
+  for (let i = 0; i < weights.length; i++) total += weights[i];
+  const roll = (seed % 10000) / 10000;
+  let acc = 0;
+  for (let i = 0; i < weights.length; i++) {
+    acc += weights[i] / total;
+    if (roll < acc) return i;
+  }
+  return weights.length - 1;
 }
 
 export function getHumanWalkSheetPath(gender: HumanGender, variant: number): string {
-  const v = normalizeVariant(variant);
+  const v = normalizeVariant(variant, gender);
   return WALK_SHEET_PATHS[gender][v] ?? HUMAN_BASE_SPRITES[gender];
 }
 
 export function getHumanVariantLabel(gender: HumanGender | undefined, variant: number): string {
   const g = gender ?? 'male';
-  const v = normalizeVariant(variant);
+  const v = normalizeVariant(variant, g);
   return HUMAN_VARIANT_LABELS[g][v] ?? `Outfit ${v + 1}`;
 }
 
@@ -295,7 +334,7 @@ export function getHumanSpriteFrame(
 ): SpriteFrame | null {
   if (!isHumanSpritesReady()) return null;
   const g = gender ?? 'male';
-  const v = normalizeVariant(variant);
+  const v = normalizeVariant(variant, g);
   const sheet = getSpriteFrame(getHumanWalkSheetPath(g, v)) ?? getSpriteFrame(HUMAN_BASE_SPRITES[g]);
   if (!sheet) return null;
   return sliceWalkFrame(sheet, frame);
