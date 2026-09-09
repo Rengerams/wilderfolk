@@ -19,6 +19,7 @@ dist-ssr/
 target/
 tests/*
 src-tauri/target/
+src-tauri/
 src-tauri/gen/schemas/
 *.tsbuildinfo
 docs/
