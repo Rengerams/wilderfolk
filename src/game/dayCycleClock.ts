@@ -1,7 +1,9 @@
+import { Time } from './gameConstants';
+
 export const TICKS_PER_HOUR = 3;
-export const TICKS_PER_DAY = 24 * TICKS_PER_HOUR;
+export const TICKS_PER_DAY = Time.HOURS_PER_DAY * TICKS_PER_HOUR;
 export const LEGACY_TICKS_PER_DAY = 24;
-export const DAYS_PER_YEAR = 360;
+export const DAYS_PER_YEAR = Time.DAYS_PER_YEAR;
 export const PER_TICK_RATE_SCALE = 1 / TICKS_PER_HOUR;
 export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 

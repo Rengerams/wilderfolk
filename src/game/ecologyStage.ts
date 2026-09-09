@@ -11,6 +11,7 @@ import { getAbsoluteCalendarDay } from './dayCycle';
 import { getGrazingPressureReport } from './ecosystemPressure';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
+import { ValleyEcology } from './gameConstants';
 
 export type EcologyDriverId = 'grazing' | 'predators' | 'overhunt' | 'footprint';
 export type DriverBand = 'good' | 'caution' | 'bad';
@@ -35,6 +36,29 @@ export interface ValleyEcologySnapshot {
 }
 
 const STAGE_ORDER: readonly ValleyStage[] = ['stable', 'strained', 'damaged', 'collapse'];
+
+/**
+ * Parked (2026-09-08, developer): the valley-stage ladder is disabled until it
+ * is rebalanced. `ValleyEcology.ENABLED` in gameConstants is the single switch.
+ * While parked, `tickValleyEcologyStage` and `ensureValleyEcologyOnLoad` keep
+ * the persisted stage frozen at a quiet 'stable', so no strain messages,
+ * notifications, focus hints, tutorial beats, or hunt/farm/illness effects
+ * fire, and every module that reads `state.valleyStage` sees a calm valley.
+ * Flip the switch to true to re-enable — no other code change needed.
+ */
+function effectiveValleyStage(state: WorldState): ValleyStage {
+  return ValleyEcology.ENABLED ? (state.valleyStage ?? 'stable') : 'stable';
+}
+
+/** Reset stage bookkeeping to a fresh stable baseline (idempotent). */
+function parkValleyStageState(state: WorldState): void {
+  ensureStageFields(state);
+  state.valleyStage = 'stable';
+  state.valleyStageSinceDay = getAbsoluteCalendarDay(state.tick);
+  state.valleyRawStressStreakDays = 0;
+  state.valleyRawCalmStreakDays = 0;
+  state.valleyLastStageNotifyDay = -999;
+}
 
 /** No Collapse until the colony has lived this many absolute days. */
 export const ECOLOGY_COLLAPSE_MIN_DAY = 14;
@@ -228,6 +252,17 @@ const HELP_BY_DRIVER: Record<EcologyDriverId, string[]> = {
 };
 
 export function computeValleyEcologySnapshot(state: WorldState): ValleyEcologySnapshot {
+  // Parked: report a quiet stable valley — no drivers, no strain copy.
+  if (!ValleyEcology.ENABLED) {
+    return {
+      stage: 'stable',
+      stressLevel: 0,
+      primaryDriver: null,
+      drivers: [],
+      playerSummary: 'The valley is in balance — keep an eye on deer, wolves, and meadows.',
+      helpLines: [],
+    };
+  }
   const raw = computeRawEcologyStress(state);
   const stage = state.valleyStage ?? stageFromStress(raw.stressLevel);
   const primary = raw.primaryDriver;
@@ -270,7 +305,7 @@ export function computeValleyEcologySnapshot(state: WorldState): ValleyEcologySn
 
 /** Hunt food multiplier from valley stage (1 = normal). */
 export function getValleyHuntYieldMultiplier(state: WorldState): number {
-  switch (state.valleyStage ?? 'stable') {
+  switch (effectiveValleyStage(state)) {
     case 'strained':
       return 0.9;
     case 'damaged':
@@ -284,7 +319,7 @@ export function getValleyHuntYieldMultiplier(state: WorldState): number {
 
 /** Mild farm edge only when footprint/grazing is bad enough to reach Damaged+. */
 export function getValleyFarmYieldMultiplier(state: WorldState): number {
-  const stage = state.valleyStage ?? 'stable';
+  const stage = effectiveValleyStage(state);
   if (stage === 'damaged') return 0.95;
   if (stage === 'collapse') return 0.88;
   return 1;
@@ -292,7 +327,7 @@ export function getValleyFarmYieldMultiplier(state: WorldState): number {
 
 /** Extra daily illness chance at higher stages. */
 export function getValleyIllnessChanceBonus(state: WorldState): number {
-  switch (state.valleyStage ?? 'stable') {
+  switch (effectiveValleyStage(state)) {
     case 'damaged':
       return 0.00008;
     case 'collapse':
@@ -365,6 +400,10 @@ function announceStage(
  * Call once per calendar day after wildlife counts / eco metrics are fresh enough.
  */
 export function tickValleyEcologyStage(state: WorldState): void {
+  if (!ValleyEcology.ENABLED) {
+    parkValleyStageState(state);
+    return;
+  }
   ensureStageFields(state);
   const day = getAbsoluteCalendarDay(state.tick);
   const raw = computeRawEcologyStress(state);
@@ -427,6 +466,10 @@ export function tickValleyEcologyStage(state: WorldState): void {
 
 /** Ensure stage fields exist after load (recompute if missing). */
 export function ensureValleyEcologyOnLoad(state: WorldState): void {
+  if (!ValleyEcology.ENABLED) {
+    parkValleyStageState(state);
+    return;
+  }
   ensureStageFields(state);
   const raw = computeRawEcologyStress(state);
   const cur = valleyStageIndex(state.valleyStage ?? 'stable');
@@ -442,7 +485,7 @@ export function getValleyStageFocusHint(state: WorldState): {
   title: string;
   detail: string;
 } | null {
-  const stage = state.valleyStage ?? 'stable';
+  const stage = effectiveValleyStage(state);
   if (stage === 'stable') return null;
   const snap = computeValleyEcologySnapshot(state);
   const help = snap.helpLines[0] ?? 'Open Nature for details.';

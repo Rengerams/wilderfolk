@@ -1,7 +1,7 @@
 /**
  * A1 — Post-taming animal care (roadmap v0.6.3).
- * Bounded daily stewardship: each tamed animal consumes 10% of a human's
- * normal daily food consumption (2 food/day) = 0.2 food per animal per day.
+ * Bounded daily stewardship: each tamed animal consumes 15% of a human's
+ * normal daily food consumption (3 food/day) = 0.45 food per animal per day.
  * Status transitions: fed → warning (low food) → shortage (no food) → fed.
  * Approved direction: the shared food stock represents a fish-capable ration.
  */
@@ -9,6 +9,7 @@ import type { WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { getColonyDay } from './dayCycle';
 import { addNotification } from './simEffects';
+import { Human, Animal } from './gameConstants';
 
 const FLAG_FED_DAY = 'animal_care_fed_day';
 const FLAG_STATUS = 'animal_care_status';
@@ -24,9 +25,9 @@ const STATUS_CODES: Record<AnimalCareStatus, number> = {
 };
 
 /** A player human eats 1 food per meal window, up to several meals per day. */
-export const HUMAN_DAILY_FOOD_CONSUMPTION = 3;
+export const HUMAN_DAILY_FOOD_CONSUMPTION = Human.DAILY_FOOD_CONSUMPTION;
 /** Tamed animals eat 15% of a human's normal daily consumption. */
-export const ANIMAL_FOOD_RATIO_OF_HUMAN = 0.15;
+export const ANIMAL_FOOD_RATIO_OF_HUMAN = Animal.FOOD_RATIO_OF_HUMAN;
 export const ANIMAL_DAILY_FOOD = HUMAN_DAILY_FOOD_CONSUMPTION * ANIMAL_FOOD_RATIO_OF_HUMAN;
 /** Energy restored to a tamed animal's owner each fed day (per animal). */
 export const TAMED_ANIMAL_OWNER_ENERGY_BONUS = 8;

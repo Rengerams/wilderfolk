@@ -16,10 +16,10 @@ import {
   seededRoll,
   hashSalt,
   pushStoryCard,
+  AUTHORED_STORY_COOLDOWN_FLAG,
 } from './storyHelpers';
 
 export const STORY_KEY = 'rumour_ledger';
-export const AUTHORED_STORY_COOLDOWN_FLAG = 'authored_story_cd_until';
 export const AUTHORED_STORY_COOLDOWN_DAYS = 14;
 
 const FLAG_OFFERED = 'rumour_ledger_offered';

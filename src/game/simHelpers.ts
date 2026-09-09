@@ -3,16 +3,14 @@
  */
 import type { WorldState } from './gameTypes';
 import { Season } from './gameTypes';
-
-export const DAYS_PER_SEASON = 90;
-export const DAYS_PER_YEAR = 360;
+import { Time } from './gameConstants';
 
 /** Retrieves the active season based on the day of the year (0–359). */
 export function getSeason(dayInYear: number): Season {
-  const normalizedDay = ((dayInYear % DAYS_PER_YEAR) + DAYS_PER_YEAR) % DAYS_PER_YEAR;
-  if (normalizedDay < DAYS_PER_SEASON) return Season.Spring;
-  if (normalizedDay < DAYS_PER_SEASON * 2) return Season.Summer;
-  if (normalizedDay < DAYS_PER_SEASON * 3) return Season.Fall;
+  const normalizedDay = ((dayInYear % Time.DAYS_PER_YEAR) + Time.DAYS_PER_YEAR) % Time.DAYS_PER_YEAR;
+  if (normalizedDay < Time.DAYS_PER_SEASON) return Season.Spring;
+  if (normalizedDay < Time.DAYS_PER_SEASON * 2) return Season.Summer;
+  if (normalizedDay < Time.DAYS_PER_SEASON * 3) return Season.Fall;
   return Season.Winter;
 }
 
@@ -25,8 +23,8 @@ export function seasonBlendForDay(
   dayInYear: number,
   blendDays = 5,
 ): { from: Season; to: Season; t: number } | null {
-  const normalizedDay = ((dayInYear % DAYS_PER_YEAR) + DAYS_PER_YEAR) % DAYS_PER_YEAR;
-  const boundaries = [90, 180, 270, 360];
+  const normalizedDay = ((dayInYear % Time.DAYS_PER_YEAR) + Time.DAYS_PER_YEAR) % Time.DAYS_PER_YEAR;
+  const boundaries = [Time.DAYS_PER_SEASON, Time.DAYS_PER_SEASON * 2, Time.DAYS_PER_SEASON * 3, Time.DAYS_PER_YEAR];
 
   for (let i = 0; i < boundaries.length; i++) {
     const boundary = boundaries[i];
@@ -35,7 +33,7 @@ export function seasonBlendForDay(
 
     return {
       from: getSeason(boundary - 1),
-      to: getSeason(boundary % DAYS_PER_YEAR),
+      to: getSeason(boundary % Time.DAYS_PER_YEAR),
       t: 1 - until / blendDays,
     };
   }

@@ -5,9 +5,10 @@ import { getHuntFoodMultiplier } from '../combat';
 import { traitMultiplier } from '../settlerTraits';
 import { prefersHomeTonight, hasResidenceAssignment } from '../dayCycle';
 import type { SpeciesConfig } from '../speciesConfig';
+import { Human } from '../gameConstants';
 
-export const MEAL_CHECK_INTERVAL_HOURS = 4;
-export const HUNGER_MEAL_THRESHOLD = 0.9;
+export const MEAL_CHECK_INTERVAL_HOURS = Human.MEAL_CHECK_INTERVAL_HOURS;
+export const HUNGER_MEAL_THRESHOLD = Human.HUNGER_MEAL_THRESHOLD;
 
 const HUNT_BASE_YIELD: Partial<Record<EntityType, number>> = {
   [EntityType.Deer]: 52,

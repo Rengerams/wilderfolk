@@ -48,6 +48,7 @@ import { createInitialForgeState } from './forge';
 import { getBuildingFootprint } from './buildingRotation';
 import { createEmptyLifetimeStats } from './stats';
 import { createGuidedCampaignState } from './guidedCampaign';
+import { BLUEBERRY_MAX_YIELD, BLUEBERRY_REGROWTH_DAYS } from './blueberryForaging';
 
 export { createEntity, finalizeSettlerAge } from './entityFactory';
 
@@ -120,7 +121,6 @@ function registerSpawnedWildlife(
   return spawnedEntity;
 }
 
-const BLUEBERRY_TREE_INITIAL_YIELD = 6;
 /** AGENTS.md §8: new maps contain at most three blueberry trees. */
 const BLUEBERRY_TREE_SPAWN_BY_MAP_SIZE: Record<MapSize, number> = {
   [MapSize.Medium]: 2,
@@ -159,8 +159,8 @@ function spawnBlueberryTrees(
 
     const tree = createEntity(EntityType.Tree, x, y, state.nextEntityId++);
     tree.forageKind = 'blueberry';
-    tree.blueberryYield = BLUEBERRY_TREE_INITIAL_YIELD;
-    tree.blueberryNextRegrowthDay = 4;
+    tree.blueberryYield = BLUEBERRY_MAX_YIELD;
+    tree.blueberryNextRegrowthDay = BLUEBERRY_REGROWTH_DAYS;
     state.entities.push(tree);
     indexLivingEntity(state, tree);
     spawned++;

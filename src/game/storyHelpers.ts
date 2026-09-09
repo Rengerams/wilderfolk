@@ -3,6 +3,13 @@ import { hashSalt } from './simRng';
 
 export { hashSalt } from './simRng';
 
+/**
+ * One shared cooldown slot for all authored (one-time) stories: when any
+ * authored story fires it stamps this flag with its expiry colony day, and no
+ * other authored story may start before then. Single owner of the flag key.
+ */
+export const AUTHORED_STORY_COOLDOWN_FLAG = 'authored_story_cd_until';
+
 /** Shared story-flag helpers used by the one-time authored story modules. */
 export function storyFlag(state: WorldState, key: string): number {
   return state.storyFlags?.[key] ?? 0;

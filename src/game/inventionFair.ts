@@ -8,10 +8,9 @@ import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
-import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard } from './storyHelpers';
+import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard, AUTHORED_STORY_COOLDOWN_FLAG } from './storyHelpers';
 
 export const STORY_KEY = 'invention_fair';
-export const AUTHORED_STORY_COOLDOWN_FLAG = 'authored_story_cd_until';
 export const AUTHORED_STORY_COOLDOWN_DAYS = 14;
 
 const FLAG_OFFERED = 'invention_fair_offered';
