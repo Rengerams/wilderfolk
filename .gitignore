@@ -73,7 +73,7 @@ docs/private/
 docs/superpowers/
 
 # Large or local-only sprite source tree; already-tracked sprites remain tracked
-public/sprites/
+
 
 # Git worktrees
 .worktrees/
