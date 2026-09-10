@@ -429,7 +429,13 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     backgroundColor: '#7c2d12',
     padShape: 'round',
     spriteDisplayScale: 1.32,
-    spriteAnchorY: 0.97,
+    // BUG 2026-08-28-leader-house-render-anchor: the sprite carries an ~86px
+    // transparent band below the painted base (base at ~91.6% of the frame),
+    // so anchoring by the image bottom (0.97) made the house float above its
+    // footprint. Anchoring at ~0.836 puts the *painted base* on the same
+    // ground line as other buildings (which are edge-to-edge, base ~1.0,
+    // default anchor 0.92).
+    spriteAnchorY: 0.836,
     unique: true,
   },
   [BuildingType.Prison]: {

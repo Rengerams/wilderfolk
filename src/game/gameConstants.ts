@@ -72,6 +72,28 @@ export const Animal = {
 } as const;
 
 /**
+ * Prison guard duty (owner: `prisonGuardDuty.ts`, daily cadence).
+ *
+ * Player design (2026-09-08): one staffed guard covers an 8-hour shift, so a
+ * completed Prison needs 3 guards for full 24 h coverage. While the Prison
+ * holds prisoners and coverage is below 24 h, each unguarded hour carries an
+ * escape risk. v1 keeps it soft — an "escape" frees one prisoner early and the
+ * settler stays in the colony (no removal/cleanup).
+ */
+export const Prison = {
+  /** 8 = one guard's shift length in hours. */
+  GUARD_SHIFT_HOURS: 8,
+  /** 3 = HOURS_PER_DAY(24) / GUARD_SHIFT_HOURS(8) — guards for round-the-clock coverage. */
+  GUARDS_FOR_FULL_COVERAGE: 3,
+  /**
+   * 0.05 = per-unguarded-hour escape chance. Empirical/tuning: with 1 guard
+   * (16 unguarded hours) this frees a prisoner roughly half the days, which
+   * reads as a real consequence without emptying the cell every night.
+   */
+  ESCAPE_CHANCE_PER_UNGUARDED_HOUR: 0.05,
+} as const;
+
+/**
  * Valley ecology stage ladder (Stable → Strained → Damaged → Collapse).
  *
  * PARKED 2026-09-08 (developer): the strain messages had no player agency and

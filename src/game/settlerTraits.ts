@@ -5,7 +5,6 @@
  * lifeSimulation / buildingActions / education / research.
  */
 import type { Entity, SettlerTrait } from './gameTypes';
-import { EntityType } from './gameTypes';
 
 export type { SettlerTrait };
 
@@ -237,16 +236,6 @@ export function inheritSettlerTraits(
   }
 
   return inherited;
-}
-
-/** Returns the descriptive definition for a given trait. */
-export function getTraitDef(trait: SettlerTrait): TraitDef {
-  return TRAIT_DEFS[trait];
-}
-
-/** Checks whether a human carries at least one trait. */
-export function hasTraits(entity: Entity): boolean {
-  return entity.type === EntityType.Human && (entity.traits?.length ?? 0) > 0;
 }
 
 /** Modifier when the trait is present; otherwise 1.0. */

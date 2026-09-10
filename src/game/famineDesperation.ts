@@ -15,14 +15,13 @@ import type { Entity, WorldState } from './gameTypes';
 import { addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
-import { personDayRoll } from './dayCycle';
+import { getSimRng, randomBool, randomChoice } from './simRng';
 import { hurtFriendship } from './relationships';
 import { Famine } from './gameConstants';
 import { formatCitizenName } from './citizenId';
 
-const ROLL_BITE_ATTEMPT = 981;
-const ROLL_BITE_VICTIM = 982;
-const ROLL_BITE_SUCCESS = 983;
+/** Domain-isolated RNG stream: deterministic per run seed, separate from other systems. */
+const RNG_OWNER = 'famine-desperation';
 
 function starvingCandidates(allAlive: readonly Entity[]): Entity[] {
   const adults: Entity[] = [];
@@ -49,11 +48,10 @@ function pickDesperateAttacker(adults: readonly Entity[]): Entity | null {
   return best;
 }
 
-function pickVictim(attacker: Entity, adults: readonly Entity[], tick: number): Entity | undefined {
+function pickVictim(attacker: Entity, adults: readonly Entity[], rng: () => number): Entity | undefined {
   const others = adults.filter((e) => e.id !== attacker.id);
   if (others.length === 0) return undefined;
-  const idx = Math.floor(personDayRoll(attacker.id, tick, ROLL_BITE_VICTIM) * others.length);
-  return others[Math.min(idx, others.length - 1)];
+  return randomChoice(rng, others);
 }
 
 /** Daily famine foot-bite joke — one possible per day, never lethal. */
@@ -67,12 +65,13 @@ export function tickFamineDesperation(state: WorldState, allAlive: readonly Enti
   const attacker = pickDesperateAttacker(adults);
   if (!attacker) return;
 
-  if (personDayRoll(attacker.id, state.tick, ROLL_BITE_ATTEMPT) >= Famine.BITE_ATTEMPT_CHANCE) return;
+  const rng = getSimRng(RNG_OWNER);
+  if (!randomBool(rng, Famine.BITE_ATTEMPT_CHANCE)) return;
 
-  const victim = pickVictim(attacker, adults, state.tick);
+  const victim = pickVictim(attacker, adults, rng);
   if (!victim || victim.id === attacker.id) return;
 
-  const success = personDayRoll(attacker.id, state.tick, ROLL_BITE_SUCCESS) < Famine.BITE_SUCCESS_CHANCE;
+  const success = randomBool(rng, Famine.BITE_SUCCESS_CHANCE);
   hurtFriendship(attacker, victim, success ? Famine.BITE_FRIENDSHIP_HIT_SUCCESS : Famine.BITE_FRIENDSHIP_HIT_MISS);
 
   const attackerName = formatCitizenName(attacker);

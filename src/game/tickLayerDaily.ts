@@ -10,6 +10,7 @@ import type { TickContext } from './simulation/simulationTypes';
 
 import { isNewCalendarDayTick } from './dayCycle';
 import { addFloatingText } from './simEffects';
+import { syncLeaderHouseResidency } from './leaderHouse';
 
 // Social & Relationships
 import { advanceSocialRelationships } from './relationships';
@@ -50,6 +51,11 @@ export function tickLayerDaily(
     advanceSocialRelationships(state, allAlive);
     advanceYouthLove(state, ctx);
     advanceApprenticeships(state, allAlive);
+
+    // Idempotent leader-house reconciliation: marriage/divorce/reassignment may
+    // have changed the leader's household this day, so move the current spouse
+    // (and children) into the manor and evict former household members.
+    syncLeaderHouseResidency(state);
 
     // Valley Chronicle — milestone chapters unlock once per day boundary.
     const newlyUnlocked = advanceValleyChronicle(state);

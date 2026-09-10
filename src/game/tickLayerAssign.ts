@@ -5,7 +5,6 @@ import {
   syncResidenceOccupants,
   assignMissingResidences,
   TICKS_PER_HOUR,
-  TICKS_PER_DAY,
 } from './dayCycle';
 import { assignMissingWorkers } from './workforce';
 
@@ -16,9 +15,6 @@ import { assignMissingWorkers } from './workforce';
  * Scales to fire ~4× per calendar day.
  */
 export const LAYER_ASSIGN_INTERVAL = 6 * TICKS_PER_HOUR; // 18 @ 3 ticks/hour → 4×/day
-
-/** How often housing/work bookkeeping fires per colony day. */
-export const ASSIGN_PULSES_PER_DAY = Math.floor(TICKS_PER_DAY / LAYER_ASSIGN_INTERVAL);
 
 /**
  * Assignment layer — residence + workforce bookkeeping.

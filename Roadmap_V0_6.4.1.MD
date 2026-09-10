@@ -61,6 +61,7 @@ Added 2026-09-08. Short player-facing rows; fuller descriptions live in the rele
 
 | ID | Status | Delivered |
 |---|---|---|
+| **Y7** | Implemented | Ten new female characters from a mudlark to an aristocrat, a aristocrat wil spawn rarely.
 | **N1** | Implemented | Famine desperation "foot-bite" — starving settler lunges at a neighbour; non-lethal, friendship drops, logged as scandal |
 | **N2** | Implemented | Traveling Theatre script "The Famine Foot" — troupe stages the lean-day foot-bite when it is in recent history |
 | **N3** | Implemented | Valley ecology stage ladder parked — no strain messages or hidden hunt/farm/illness effects; wildlife info stays |

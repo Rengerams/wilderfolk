@@ -12,13 +12,11 @@ import { BuildingType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { logEvent } from './eventLog';
 import { addFloatingText } from './simEffects';
+import { Prison, Time } from './gameConstants';
+import { getSimRng, randomBool, randomChoice } from './simRng';
 
-/** One staffed guard covers an 8-hour shift. */
-export const GUARD_SHIFT_HOURS = 8;
-/** Guards needed for round-the-clock coverage (24 / 8). */
-export const GUARDS_FOR_FULL_COVERAGE = 24 / GUARD_SHIFT_HOURS;
-/** Escape chance per unguarded hour when a prisoner is held. */
-export const ESCAPE_CHANCE_PER_UNGUARDED_HOUR = 0.05;
+/** Domain-isolated RNG stream: deterministic per run seed, separate from other systems. */
+const RNG_OWNER = 'prison-guard-duty';
 
 function heldPrisoners(state: WorldState, prisonId: number): Entity[] {
   const out: Entity[] = [];
@@ -49,14 +47,15 @@ export function tickPrisonGuardDuty(state: WorldState): void {
     if (prisoners.length === 0) continue;
 
     const guards = countGuardsOnDuty(state, prison.occupants ?? []);
-    const coverageHours = Math.min(24, guards * GUARD_SHIFT_HOURS);
-    const unguardedHours = 24 - coverageHours;
+    const coverageHours = Math.min(Time.HOURS_PER_DAY, guards * Prison.GUARD_SHIFT_HOURS);
+    const unguardedHours = Time.HOURS_PER_DAY - coverageHours;
     if (unguardedHours <= 0) continue;
 
     // One escape attempt per unguarded hour; a success frees a single prisoner.
+    const rng = getSimRng(RNG_OWNER);
     for (let hour = 0; hour < unguardedHours; hour++) {
-      if (Math.random() >= ESCAPE_CHANCE_PER_UNGUARDED_HOUR) continue;
-      const escapee = prisoners[Math.floor(Math.random() * prisoners.length)];
+      if (!randomBool(rng, Prison.ESCAPE_CHANCE_PER_UNGUARDED_HOUR)) continue;
+      const escapee = randomChoice(rng, prisoners);
       if (!escapee) break;
       escapee.prisonBuildingId = undefined;
       escapee.prisonerUntilTick = undefined;
