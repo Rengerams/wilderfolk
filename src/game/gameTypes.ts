@@ -75,8 +75,6 @@ export function getRenderEntityLayer(type: EntityType): RenderEntityLayer {
   return 'animal';
 }
 
-// Building types as const object
-
 // Seasons as const object
 export const Season = {
   Spring: 'spring',
@@ -223,123 +221,72 @@ export interface Entity {
   flash: number;
   gender?: 'male' | 'female';
   isJuvenile: boolean;
-  /** Colony days with meaningful attendance at a staffed school. */
   schoolDays?: number;
-  /** Work-hour ticks accumulated today toward the next school day. */
   schoolTicksToday?: number;
-  /** Ordinary/venue work ticks accumulated for the current colony day. */
   scheduleWorkedTicksToday?: number;
-  /** Bounded carry-over fatigue from prior schedule days (0–100). */
   scheduleFatigue?: number;
-  /** Set on graduation — grants skills, stamina, and village research bonus. */
   educated?: boolean;
-  /** Personality traits (settler only) — subtle behavioral modifiers. */
   traits?: SettlerTrait[];
   pregnant?: boolean;
   pregnancyProgress?: number;
-  /** Per-pregnancy term target (progress at which birth fires) — varies per conception. */
   pregnancyDueProgress?: number;
-  /** Workplace — farm, mill, etc. (assigned via building occupants) */
   homeBuildingId?: number;
-  /** Where the settler sleeps — house or mansion */
   residenceBuildingId?: number;
-  /** Building ID of the prison this settler is held in, if any. */
   prisonBuildingId?: number;
-  /** Tick at which this settler is released from prison. */
   prisonerUntilTick?: number;
-  /** Crime that led to the current prison sentence, if any. */
   prisonSentenceCrime?: 'scandal';
   occupation?: string;
   job?: JobType;
-  /** Optional for non-human entities (animals, trees, etc.). */
   skills?: Partial<Record<JobType, number>>;
-  relationshipStatus?: 'single' | 'married' | 'expecting';
+  relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
   attraction?: number;
   partnerId?: number;
-  /** Secret lover while still married (or paramour for a single settler). */
   affairPartnerId?: number;
   affairProgress?: number;
-  /** Colony day + site of the latest off-screen/in-world affair encounter (for prison proximity). */
   lastAffairSiteDay?: number;
   lastAffairSiteX?: number;
   lastAffairSiteY?: number;
-  /** Tick until another caught/rumor scandal can fire for this settler. */
   scandalCooldownUntilTick?: number;
-  /** After a partner dies — mourn until this tick (stay home, soft chat). */
   griefUntilTick?: number;
   lastMetPartner?: number;
-  /** Current mutual courtship partner before marriage; used for relationship feedback. */
   courtshipPartnerId?: number;
   courtshipProgress?: number;
-  /** Mutual adolescent sweetheart (ages 14–17); never creates a marriage or household. */
   youthLovePartnerId?: number;
-  /** Slow daily attachment score for the current youth-love pair. */
   youthLoveProgress?: number;
-  /** Absolute colony day on which the current youth-love pair began. */
   youthLoveStartedDay?: number;
-  /** Biological father when pregnancy is not from the legal spouse. */
   pregnantById?: number;
-  // Family
   fatherId?: number;
   motherId?: number;
-  /** Born outside wedlock or to a father other than mother's spouse. */
   isBastard?: boolean;
-  /** Set when no living parent/grandparent — village couple takes the child in. */
   adoptiveMotherId?: number;
   adoptiveFatherId?: number;
-  /** Optional for non-human entities. Spawn utilities should default to `[]`. */
   childrenIds?: number[];
-  /** Rare static tree resource; blueberry trees remain ordinary `EntityType.Tree` entries. */
   forageKind?: 'blueberry';
-  /** Remaining ripe blueberry portions (0–6) on a blueberry tree. */
   blueberryYield?: number;
-  /** Absolute colony day on which one blueberry portion may regrow. */
   blueberryNextRegrowthDay?: number;
-  /** Transient nearby blueberry-tree target for a free-time player settler. */
   blueberryForageTargetId?: number;
   name?: string;
   surname?: string;
-  /** Honorific earned for deeds — e.g. "Moonslayer" (killed a Moon Howler) or "Howlerbane" (broke a curse). */
   title?: string;
-  /** Autumn-migration herd membership (deer only) — which year's herd this deer belongs to. */
   migrationTag?: number;
-  /** Colony day this child last let a family secret slip at school (transient per-day gate). */
   schoolGossipDay?: number;
-  /** Colony day this child last formed a schoolyard bond (transient per-day gate). */
   schoolBondDay?: number;
-  /** Childhood friends from school — their bonds nudge adult courtship. */
   childhoodFriendsIds?: number[];
-  /** Friendship bonds — key `friend_<entityId>` → 0..100 (Phase 7). */
   friendships?: Record<string, number>;
-  /** Active feuds — key `feud_<entityId>` → 0..100 (Phase 7). */
   feuds?: Record<string, number>;
-  /** Master this juvenile is apprenticed to (Phase 7). */
   apprenticeOfId?: number;
-  /** Juvenile this master is teaching (Phase 7). */
   apprenticeId?: number;
-  /** Birth / maiden surname — restored for the woman when a caught-affair marriage ends. */
   maidenSurname?: string;
-  /** Optional for non-human entities. */
   generation?: number;
-  // Visual
-  /** Optional for non-human entities. */
   spriteAngle?: number;
-  /** Optional for non-human entities. */
   animFrame?: number;
-  /** Outfit / appearance variant (0..3) */
   spriteVariant?: number;
-  /** Per-entity salt mixed into combat rolls (stable across ticks, unique per entity). */
   combatRollSeed?: number;
-  /** Short speech-bubble line shown above the settler */
   chatPhrase?: string;
   chatTicks?: number;
-  /** Active multi-line dialogue partner (transient, not saved). */
   chatPartnerId?: number;
-  /** Session key for 3-beat dialogue tree playback (transient, not saved). */
   chatDialogueSessionKey?: string;
-  /** Cursed villager — human most days, dangerous werewolf on full-moon nights (~every 2 weeks) */
   moonHowlerCursed?: boolean;
-  /** Human stats restored after a full-moon transformation ends */
   moonHowlerSaved?: {
     energy: number;
     maxEnergy: number;
@@ -349,11 +296,10 @@ export interface Entity {
     occupation?: string;
     homeBuildingId?: number;
     residenceBuildingId?: number;
-    /** Prison sentence snapshotted during full-moon hunt (live fields cleared). */
     prisonBuildingId?: number;
     prisonerUntilTick?: number;
     prisonSentenceCrime?: 'scandal';
-    relationshipStatus?: 'single' | 'married' | 'expecting';
+    relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
     partnerId?: number;
     affairPartnerId?: number;
     affairProgress?: number;
@@ -367,22 +313,14 @@ export interface Entity {
     huntTargetId?: number;
     combatTicks?: number;
   };
-  // Taming
   tamedBy?: number;
-  /** Non-player humans: visitors, rivals, or trade-route merchants */
   faction?: 'visitor' | 'rival' | 'trade_caravan';
-  /** Hostile rival raiders are hidden until a Soldier patrol discovers them. */
   hiddenFromPlayer?: boolean;
-  /** Set by Simulation Authority when a Soldier patrol discovers this rival group. */
   detectedByPatrol?: boolean;
   groupId?: string;
-  /** Visitor lodging at a player Hotel (not staff occupants). */
   hotelStayBuildingId?: number;
-  /** Tick until which the visitor remains checked in. */
   hotelStayUntilTick?: number;
-  /** Prey or predator being chased — used for hunt lines in the renderer */
   huntTargetId?: number;
-  /** Brief combat flash after a hunt, block, or counter-attack */
   combatTicks?: number;
 }
 
@@ -394,19 +332,13 @@ export interface VisitorGroup {
   kind: VisitorKind;
   campX: number;
   campY: number;
-  /** Midnights remaining after the arrival day — decrements once per calendar day boundary. */
   daysLeft: number;
-  /** Colony calendar day when the group arrived (for daysLeft timing). */
   spawnedAtCalendarDay?: number;
   entityIds: number[];
   giftsGiven: number;
-  /** Player-initiated trade while camped (v0.4.1). */
   tradesCompleted: number;
-  /** Gold the group carries — funds gifts & sell-trades, no minted gold. */
   gold?: number;
-  /** Refugee families negotiated — no auto-join without player choice. */
   refugeeResolved: boolean;
-  /** Caravan leader audience used for this visit (v0.4.1). */
   leaderTalked: boolean;
 }
 
@@ -428,7 +360,6 @@ export interface DiplomacyEvent {
   emoji: string;
   choices: DiplomacyChoice[];
   createdAtTick: number;
-  /** Absolute expiry tick; optional for legacy saved diplomacy events. */
   expiresAtTick?: number;
 }
 
@@ -450,9 +381,7 @@ export interface RivalProfile {
   temperament: RivalTemperament;
   priority: RivalPriority;
   ledger: RivalLedger;
-  /** Bounded count of meaningful stance-changing contacts. */
   contactCount: number;
-  /** Latest bounded daily action summary for player-facing feedback. */
   lastAction?: RivalDailyAction;
   lastActionDay?: number;
 }
@@ -468,15 +397,11 @@ export interface RivalSettlement {
   relationship: RivalRelationship;
   foundedYear: number;
   daysUntilAction: number;
-  /** Days until this rival can launch another raid. */
   raidCooldownDays: number;
-  /** Days remaining on a signed peace treaty (no raids either direction). */
   peaceTreatyDays: number;
-  /** Optional for legacy saves; normalized at read/creation boundaries. */
   profile?: RivalProfile;
 }
 
-/** Transient screen particles — deaths, confetti, smoke (stored on `WorldState.deathParticles`). */
 export interface DeathParticle {
   x: number;
   y: number;
@@ -511,10 +436,6 @@ export interface GameEvent {
 
 export type { Resources, ResourceKey };
 
-/**
- * One sample in `WorldState.populationHistory` (stats layer / charts).
- * Older saves may only have the core population fields — treat newer keys as optional when reading.
- */
 export interface PopulationHistoryEntry {
   tick: number;
   year: number;
@@ -527,7 +448,6 @@ export interface PopulationHistoryEntry {
   werewolves: number;
   wildkin: number;
   buildings: number;
-  /** Calendar day in year (0–359). Added with stats-layer expansion. */
   day?: number;
   season?: Season;
   gold?: number;
@@ -539,14 +459,12 @@ export interface PopulationHistoryEntry {
   biodiversity?: number;
 }
 
-/** A player-facing choice on an authored story event. */
 export interface StoryChoice {
   id: string;
   label: string;
   detail: string;
 }
 
-/** Authored cross-system story — a visible choice that ties sim systems together. */
 export interface StoryEvent {
   id: string;
   emoji: string;
@@ -555,14 +473,24 @@ export interface StoryEvent {
   choices: StoryChoice[];
   createdAtTick: number;
   expiresAtTick: number;
-  /** Which authored story this resolves — keeps the responder data-driven-safe. */
-  storyKey: 'welcome' | 'wolf_choice' | 'ranger_visit' | 'howler_rumor' | 'grief_beat' | 'winter_prep' | 'valley_debate' | 'children_shelter' | 'deer_parliament' | 'traveling_theatre' | 'wedding_diplomacy' | 'invention_fair' | 'rumour_ledger';
+  storyKey:
+    | 'welcome'
+    | 'wolf_choice'
+    | 'ranger_visit'
+    | 'howler_rumor'
+    | 'grief_beat'
+    | 'winter_prep'
+    | 'valley_debate'
+    | 'children_shelter'
+    | 'deer_parliament'
+    | 'traveling_theatre'
+    | 'wedding_diplomacy'
+    | 'invention_fair'
+    | 'rumour_ledger';
 }
 
-/** @deprecated Prefer PopulationHistoryEntry (same shape, richer optional fields). */
 export type PopulationHistoryPoint = PopulationHistoryEntry;
 
-/** Denormalized wildlife counts — updated each tick for UI without scanning entities. */
 export interface WildlifeCounts {
   grass: number;
   rabbits: number;
@@ -592,9 +520,7 @@ export interface ResearchNode {
   effects: ResearchEffect[];
   icon: string;
   tier: number;
-  /** Optional toast when this tech finishes researching. */
   completionNotify?: ResearchCompletionNotify;
-  /** Show Blacksmith forge queue hint on complete (iron gear techs). */
   forgeUnlockNotify?: boolean;
 }
 
@@ -632,10 +558,8 @@ export interface ForgeOrder {
   emoji: string;
   description: string;
   techId: string;
-  /** Other forge runs that must finish first. */
   requiresForge?: ForgeOrderId[];
   inputs: Partial<Resources>;
-  /** Progress gained per staffed forge tick (3 ticks ≈ 6 in-game days). */
   progressPerTick: number;
 }
 
@@ -670,9 +594,7 @@ export interface RaidEvent {
   emoji: string;
   choices: RaidChoice[];
   createdAtTick: number;
-  /** Tick when unanswered raid auto-resolves (distance-scaled march time). */
   expiresAtTick: number;
-  /** Camp distance in tiles when the raid was declared. */
   marchDistanceTiles: number;
   attackerStrength: number;
   lootFood: number;
@@ -681,7 +603,6 @@ export interface RaidEvent {
   lootStone: number;
 }
 
-/** Player war-band marching on a rival camp — rival may buy you off or fight. */
 export interface OutgoingRaidEvent {
   id: string;
   rivalId: string;
@@ -693,7 +614,6 @@ export interface OutgoingRaidEvent {
   createdAtTick: number;
   expiresAtTick: number;
   marchDistanceTiles: number;
-  /** Provisions already spent when the march began. */
   marchFoodCost: number;
   isCounterRaid: boolean;
   rivalResponse: OutgoingRaidRivalResponse;
@@ -710,14 +630,12 @@ export interface ElectionCeremonyState {
   phaseTicksLeft: number;
   gatherX: number;
   gatherY: number;
-  /** Why the ceremony was called. `term` = scheduled end-of-term election (every ELECTION_INTERVAL_YEARS = 2 years). */
   reason: 'founding' | 'term' | 'succession';
   pendingLeaderId: number;
   pendingLeaderName: string;
   pendingChanged: boolean;
 }
 
-/** Bow/arrow hunt FX — transient, not required in saves. */
 export interface HuntVisual {
   id: string;
   hunterId: number;
@@ -732,7 +650,6 @@ export interface HuntVisual {
   foughtBack: boolean;
 }
 
-/** Pure simulation state — no camera, selection, or UI presentation fields. */
 export interface WorldState {
   entities: Entity[];
   buildings: Building[];
@@ -753,22 +670,14 @@ export interface WorldState {
   activeEvent: GameEvent | null;
   lastEventYear: number;
   bountifulHarvest: boolean;
-  /** ⚠️ Denormalized — must stay in sync with `entities` each tick. */
   humanPopulation: number;
-  /** ⚠️ Denormalized — must stay in sync with `entities` each tick. */
   maxHumanPopulation: number;
-  /** ⚠️ Denormalized — must stay in sync with `entities` each tick. */
   wildlifeCounts: WildlifeCounts;
-  /** ⚠️ Denormalized — must stay in sync with `entities` each tick. */
   workingSettlers: number;
-  /** ⚠️ Denormalized — must stay in sync with `entities` each tick. */
   idleSettlers: number;
   villageName: string;
-  /** Global ordinary weekday work window; absent legacy saves use 07:00–18:00. */
   workSchedule?: import('./workSchedule').WorkSchedule;
-  /** Independent Tavern service window; legacy saves use the canonical default. */
   tavernSchedule?: import('./venueSchedule').VenueSchedule;
-  /** Independent Hotel service window; legacy saves use the canonical default. */
   hotelSchedule?: import('./venueSchedule').VenueSchedule;
   villageReputation: number;
   resources: Resources;
@@ -777,18 +686,10 @@ export interface WorldState {
   ecosystemHealth: number;
   biodiversityIndex: number;
   pollutionLevel: number;
-  /**
-   * Escalating valley ecology stage (Stable → Collapse).
-   * See ecologyStage.ts — information-first, effects scale with sustained stress.
-   */
   valleyStage?: ValleyStage;
-  /** Absolute colony day when current valleyStage was entered. */
   valleyStageSinceDay?: number;
-  /** Consecutive days raw stress wanted a higher stage. */
   valleyRawStressStreakDays?: number;
-  /** Consecutive days raw stress wanted a lower stage. */
   valleyRawCalmStreakDays?: number;
-  /** Absolute day of last stage notification (cooldown). */
   valleyLastStageNotifyDay?: number;
   challenges: Challenge[];
   autoSave: boolean;
@@ -802,133 +703,72 @@ export interface WorldState {
   musicEnabled: boolean;
   notifications: GameNotification[];
   bigNews: BigNewsItem[];
-  /** Transient impulse from sim events; synced to ViewState.screenShake each tick. */
   screenShakeImpulse: number;
   disasters: Disaster[];
   tradeRoutes: TradeRoute[];
-  /** ⚠️ Denormalized — must stay in sync with `buildings` each tick. */
   totalBuildingsCompleted: number;
-  /** Last absolute calendar day daily sim events ran (prevents reload double-fire). */
   lastProcessedCalendarDay?: number;
-  /**
-   * Winter heating result for the current colony day.
-   * Set when wood is burned at day boundary; true outside winter.
-   */
   villageCanHeat?: boolean;
   worldMap: WorldMap | null;
-  /** Separate authored campaign progression; sandbox story events remain independent. */
   guidedCampaign?: import('./guidedCampaign').GuidedCampaignState;
   yearlyStats: YearlyStats[];
   lifetimeStats: LifetimeStats;
   eventLog: GameEventLog[];
-  /** Valley Chronicle — ids of chapters already reached (sandbox story spine). */
   chronicleChapters?: string[];
   festival: { active: boolean; name: string; daysLeft: number } | null;
-  /** Tick after which the player can host another Town Hall festival. */
   townHallFestivalCooldownUntilTick?: number;
   visitorGroups: VisitorGroup[];
   rivalSettlements: RivalSettlement[];
-  /** Rival diplomacy events awaiting a player response (v0.4.1). */
   pendingDiplomacyEvents: DiplomacyEvent[];
-  /** Incoming raids — defend, barricade, or pay off. */
   pendingRaidEvents: RaidEvent[];
-  /** Authored cross-system story choices awaiting a response (v0.6.1+). */
   pendingStoryEvents?: StoryEvent[];
-  /** Which authored stories have already been offered/resolved this world. */
   storyFlags?: Record<string, number>;
-  /** Outgoing raids — rival may offer tribute or fight when your war-band arrives. */
   pendingOutgoingRaidEvents: OutgoingRaidEvent[];
-  /** Rare night-sky easter egg */
   renffrOmen?: RenffrOmen | null;
-  /** Settlers gossip about Renffr until this tick (after a night omen). */
   renffrChatterUntilTick?: number;
   ecoHealthYearsAbove80: number;
-  /** Guaranteed friendly caravan in the first in-game week (v0.4.1). */
   firstWeekVisitorSpawned: boolean;
-  /** Elected village head (player settler entity id). */
   villageLeaderId: number | null;
-  /** Year the current leader's term began. */
   leaderSinceYear: number;
-  /** Last year a founding or end-of-term election was held. */
   lastElectionYear: number;
-  /** Merit election scheduled after leader vacancy (Year N = election year). */
   pendingElectionYear: number | null;
-  /** Year-start buildup notification sent (election next year). */
   electionBuildupNotifiedYear: number | null;
-  /** Multi-phase election day ceremony (founding, scheduled end-of-term, or succession). */
   electionCeremony: ElectionCeremonyState | null;
-  /** Blacksmith forge queue — iron gear requires research + forging. */
   villageForge?: VillageForgeState;
-  /** Contextual tutorial tips already shown this playthrough. */
   tutorialSeen?: string[];
-  /** Per-day food ledger (production vs consumption) for the Village tab. */
   economyLedger?: DailyEconomyLedger;
-  /** Rolling finished-day food samples (transient — not saved) for insight UI. */
   foodHistory?: FoodDaySample[];
-  /** One active visitor quest (traveling smith) — delivered via the quest card. */
   visitorQuest?: VisitorQuest;
-  /** One player-facing Village Request; generation and resolution belong only to groupEvents.ts. */
   activeVillageRequest?: VillageRequest;
-  /** Absolute calendar day before another Village Request can be offered. */
   villageRequestCooldownUntilDay?: number;
-  /** Latest bounded request outcomes for save diagnostics and later history UI. */
   villageRequestHistory?: VillageRequestHistoryEntry[];
-  /** The village head's election promise — fulfilled or broken before next vote. */
   leaderPromise?: LeaderPromise;
-  /** Colony day of last wildlife replenish event-log entry (throttles meadow spam). */
   lastWildlifeReplenishLogDay?: number;
-  /** Player-dismissed big-news ids (UI patch / worker sync). */
   dismissedBigNewsIds?: string[];
-  /** Player-dismissed active-event ids (UI patch / worker sync). */
   dismissedActiveEventIds?: string[];
-  /** Player-dismissed notification ids (UI patch / worker sync). */
   dismissedNotificationIds?: string[];
-  /** Active hunt VFX — transient, not required in saves. */
   huntVisuals?: HuntVisual[];
-  /**
-   * Last sim tick a priest attempted a full-moon exorcism (rate-limit).
-   * Transient — not required in saves.
-   */
   lastMoonHowlerExorcismTick?: number;
-  /** Transient — priests retreat to the Church until this tick after a fallen comrade. */
   moonHowlerPriestsFleeUntil?: number;
-  /** Transient — the autumn deer herd currently in the valley (see migration). */
   activeMigration?: { herdYear: number; endDay: number; spawned: number };
-  /** Memory across years — how big next autumn's herd will be (see migration). */
   migrationNextHerdSize?: number;
-  /** Transient — neighborhood beauty tile grid (Phase 3.2, see beautyGrid). */
   beautyGrid?: import('./beautyGrid').BeautyGrid;
-  /** Transient — 0–100 village happiness derived from beauty under settlers. */
   villageHappiness?: number;
-  /** Ephemeral predator scent field — rebuilt each session, not saved. */
   scentGrid?: ScentGrid;
-  /** Alive entities by type — rebuilt each sim tick for render/UI; not saved. */
   entityByType?: EntityByType;
-  /** Grass spatial index — rebuilt each sim tick for graze + render; not saved. */
   grassGrid?: EntitySpatialGrid;
-  /** Mobile spatial index — rebuilt each sim tick for hunt/flee/social queries; not saved. */
   mobileGrid?: EntitySpatialGrid;
-  /** Living-humans-only grid for social radius queries (not persisted). */
   humanSocialGrid?: EntitySpatialGrid;
-  /** Static tree spatial index — lazily rebuilt for the "visit a tree" leisure; not saved. */
   treeGrid?: EntitySpatialGrid;
-  /** Road avoidance index — rebuilt when completed road layout changes; not saved. */
   roadAvoidance?: RoadAvoidanceIndex;
-  /** `computeRoadLayoutStamp` fingerprint of completed roads; not saved. */
   roadAvoidanceStamp?: number;
-  /** Barn/road/market adjacency index — event-driven insert/remove; not saved. */
   adjacency?: AdjacencyIndex;
-  /** Alive entity lookup — persisted across ticks; pruned on death; not saved. */
   entityById?: Map<number, Entity>;
-  /** World-event titles fired during the current calendar year (flushed into YearlyStats). */
   eventsThisYear?: string[];
-  /** Save migration ids already applied — avoids scanning event log on every load. */
   appliedSaveMigrations?: string[];
 }
 
-/** @deprecated Use WorldState for simulation and ViewState for presentation. */
 export type GameState = WorldState;
-
 export type CombatLogKind = 'incoming_raid' | 'outgoing_raid' | 'defense' | 'repelled';
 
 export interface GameEventLog {
@@ -936,45 +776,46 @@ export interface GameEventLog {
   tick: number;
   year: number;
   day: number;
-  /**
-   * `'birth'` means a child (or Wildkin) was delivered. The start of a pregnancy
-   * is the separate `'conception'` type, so a Chronicle reader, the council
-   * report, and the tutorials can tell an expectation from a delivery
-   * (AGENTS.md §8: distinguish new conceptions, active pregnancies, and births).
-   */
-  type: 'birth' | 'conception' | 'death' | 'marriage' | 'scandal' | 'building' | 'disaster' | 'research' | 'trade' | 'migration' | 'season' | 'event' | 'combat' | 'milestone';
+  type:
+    | 'birth'
+    | 'conception'
+    | 'death'
+    | 'marriage'
+    | 'divorce'
+    | 'scandal'
+    | 'building'
+    | 'disaster'
+    | 'research'
+    | 'trade'
+    | 'migration'
+    | 'season'
+    | 'event'
+    | 'combat'
+    | 'milestone';
   message: string;
   entityName?: string;
   combatKind?: CombatLogKind;
 }
 
-/** Per-day economy counters — production vs consumption by source. */
 export interface DailyEconomyLedger {
-  /** Absolute calendar day the counters were collected on. */
   day: number;
   produced: Record<string, number>;
   consumed: Record<string, number>;
 }
 
-/** One finished calendar day's food production/consumption, kept for insight UI. */
 export interface FoodDaySample {
-  /** Absolute calendar day the sample was collected on. */
   day: number;
   produced: Record<string, number>;
   consumed: Record<string, number>;
 }
 
-/** The village head's election promise — fulfilled or broken before the next vote. */
 export interface LeaderPromise {
   goal: 'buildings' | 'food';
-  /** Player-facing label, e.g. 'Finish 3 new buildings'. */
   label: string;
   target: number;
-  /** Value at promise time (buildings completed or food stored). */
   startValue: number;
 }
 
-/** One active visitor quest (traveling smith etc.) — delivered via the quest card. */
 export interface VisitorQuest {
   id: string;
   emoji: string;
@@ -987,18 +828,15 @@ export interface VisitorQuest {
   status: 'active' | 'completed' | 'failed';
   rewardGold: number;
   rewardReputation: number;
-  /** Absolute calendar day after which the quest expires. */
   expiresDay: number;
 }
 
-/** One declared player choice on an active Village Request. */
 export interface VillageRequestChoice {
   id: 'accept' | 'decline';
   label: string;
   detail: string;
 }
 
-/** A bounded daily offer that awaits one player command. */
 export interface VillageRequest {
   id: string;
   kind: 'caravan_provisions';
@@ -1012,7 +850,6 @@ export interface VillageRequest {
   expiresDay: number;
 }
 
-/** Retained, bounded request outcome record for save diagnostics and future history UI. */
 export interface VillageRequestHistoryEntry {
   id: string;
   kind: VillageRequest['kind'];
@@ -1027,9 +864,7 @@ export interface GameNotification {
   message: string;
   type: 'info' | 'success' | 'warning' | 'event';
   createdAt: number;
-  /** World position the toast jumps to when clicked (optional). */
   focus?: { x: number; y: number };
-  /** Visitor/rival camp key (e.g. `visitor:xxx`) to select when clicked (optional). */
   campKey?: string;
 }
 
@@ -1058,7 +893,6 @@ export interface TradeRoute {
   resourcesReceived: Resources;
   reputationRequired: number;
   active: boolean;
-  /** Partner settlement on the map edge — caravans walk here and back. */
   partnerX?: number;
   partnerY?: number;
   caravanCarrierId?: number;
@@ -1073,8 +907,8 @@ export function createInitialResearchNodes(): ResearchNode[] {
     { id: 'agriculture_1', type: ResearchType.Agriculture, name: 'Advanced Farming', description: 'Unlocks Greenhouse', cost: { wood: 50, stone: 20, food: 0, gold: 30, iron: 0 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'farm_yield', multiplier: 1.2 }], icon: '🌾', tier: 1 },
     { id: 'agriculture_2', type: ResearchType.Agriculture, name: 'Grain Processing', description: 'Unlocks Mill', cost: { wood: 80, stone: 40, food: 0, gold: 60, iron: 0 }, unlocked: false, researched: false, prerequisites: ['agriculture_1'], effects: [{ target: 'all_food', multiplier: 1.25 }], icon: '🌾', tier: 2 },
     { id: 'agriculture_3', type: ResearchType.Agriculture, name: 'Irrigation', description: 'Farms work 50% better in drought', cost: { wood: 60, stone: 60, food: 0, gold: 80, iron: 0 }, unlocked: false, researched: false, prerequisites: ['agriculture_2'], effects: [{ target: 'drought_resist', multiplier: 1.5 }], icon: '💧', tier: 3 },
-    { id: 'mining_1', type: ResearchType.Mining, name: 'Deep Mining', description: 'Unlocks Mine', cost: { wood: 60, stone: 30, food: 0, gold: 40, iron: 0 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'quarry_yield', multiplier: 1.2 }], icon: '⛏️', tier: 1 },
-    { id: 'mining_2', type: ResearchType.Mining, name: 'Refining', description: 'Stone production +30% · unlocks Iron Pickaxes forge order at Blacksmith', cost: { wood: 80, stone: 50, food: 0, gold: 70, iron: 0 }, unlocked: false, researched: false, prerequisites: ['mining_1'], effects: [{ target: 'stone_production', multiplier: 1.3 }], icon: '⚒️', tier: 2 },
+    { id: 'mining_1', type: ResearchType.Mining, name: 'Deep Mining', description: 'Quarry yield +20%', cost: { wood: 60, stone: 30, food: 0, gold: 40, iron: 0 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'quarry_yield', multiplier: 1.2 }], icon: '⛏️', tier: 1 },
+    { id: 'mining_2', type: ResearchType.Mining, name: 'Refining', description: 'Mine output +30% · unlocks Iron Pickaxes forge order at Blacksmith', cost: { wood: 80, stone: 50, food: 0, gold: 70, iron: 0 }, unlocked: false, researched: false, prerequisites: ['mining_1'], effects: [{ target: 'stone_production', multiplier: 1.3 }], icon: '⚒️', tier: 2, forgeUnlockNotify: true },
     { id: 'forestry_1', type: ResearchType.Forestry, name: 'Carpentry', description: 'Unlocks Blacksmith', cost: { wood: 40, stone: 30, food: 0, gold: 35, iron: 0 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'lumber_yield', multiplier: 1.2 }], icon: '🪵', tier: 1 },
     { id: 'forestry_2', type: ResearchType.Forestry, name: 'Sustainable Logging', description: 'Reduces pollution from lumber', cost: { wood: 70, stone: 40, food: 0, gold: 60, iron: 0 }, unlocked: false, researched: false, prerequisites: ['forestry_1'], effects: [{ target: 'lumber_pollution', multiplier: 0.5 }], icon: '🌲', tier: 2 },
     { id: 'architecture_1', type: ResearchType.Architecture, name: 'Fine Construction', description: 'Unlocks Mansion · step 1 toward Town Hall', cost: { wood: 80, stone: 60, food: 0, gold: 50, iron: 0 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'building_health', multiplier: 1.3 }], icon: '🏗️', tier: 1 },
@@ -1090,8 +924,8 @@ export function createInitialResearchNodes(): ResearchNode[] {
     { id: 'defense_3', type: ResearchType.Defense, name: 'Wooden Shields', description: 'Settlers block 35% of Moon Howler strikes and flee faster', cost: { wood: 60, stone: 20, food: 0, gold: 35, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_1'], effects: [{ target: 'predator_block', add: 0.35 }, { target: 'flee_speed', multiplier: 1.2 }], icon: '🛡️', tier: 2 },
     { id: 'defense_4', type: ResearchType.Defense, name: 'Iron Spears', description: 'Unlocks iron spear forge order at Blacksmith — +40% hunt range, fight back vs wolves', cost: { wood: 70, stone: 50, food: 0, gold: 80, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_2', 'mining_1'], effects: [{ target: 'hunt_range', multiplier: 1.4 }, { target: 'hunt_food', multiplier: 1.3 }, { target: 'counter_attack', add: 0.45 }], icon: '⚔️', tier: 3, forgeUnlockNotify: true },
     { id: 'defense_5', type: ResearchType.Defense, name: 'Iron Shields', description: 'Unlocks iron shield forge order at Blacksmith — block 60% of predator kills', cost: { wood: 80, stone: 60, food: 0, gold: 90, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_3', 'mining_1'], effects: [{ target: 'predator_block', add: 0.6 }, { target: 'flee_speed', multiplier: 1.35 }], icon: '🛡️', tier: 3, forgeUnlockNotify: true },
-    { id: 'defense_6', type: ResearchType.Defense, name: 'Militia Drill', description: 'Unlocks Guard Halberds forge order — +6 militia per staffed barracks guard', cost: { wood: 90, stone: 55, food: 0, gold: 100, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_4'], effects: [], icon: '🪖', tier: 4 },
-    { id: 'defense_7', type: ResearchType.Defense, name: 'Reinforced Masonry', description: 'Unlocks Reinforced Wall Plates forge order — +4 barricade per wall segment', cost: { wood: 100, stone: 90, food: 0, gold: 110, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_5', 'defense_1'], effects: [], icon: '🧱', tier: 4 },
+    { id: 'defense_6', type: ResearchType.Defense, name: 'Militia Drill', description: 'Unlocks Guard Halberds forge order — +6 militia per staffed barracks guard', cost: { wood: 90, stone: 55, food: 0, gold: 100, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_4'], effects: [], icon: '🪖', tier: 4, forgeUnlockNotify: true },
+    { id: 'defense_7', type: ResearchType.Defense, name: 'Reinforced Masonry', description: 'Unlocks Reinforced Wall Plates forge order — +4 barricade per wall segment', cost: { wood: 100, stone: 90, food: 0, gold: 110, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_5', 'defense_1'], effects: [], icon: '🧱', tier: 4, forgeUnlockNotify: true },
     { id: 'defense_8', type: ResearchType.Defense, name: 'Iron Swords', description: 'Unlocks iron sword forge order — stronger militia than spears · better counter-attacks vs predators', cost: { wood: 95, stone: 70, food: 0, gold: 130, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_4', 'defense_6'], effects: [{ target: 'counter_attack', add: 0.55 }, { target: 'hunt_food', multiplier: 1.15 }], icon: '🗡️', tier: 5, forgeUnlockNotify: true },
     { id: 'defense_9', type: ResearchType.Defense, name: 'Scale Mail', description: 'Unlocks scale mail forge order — heavy armor for settlers · block most predator kills', cost: { wood: 85, stone: 100, food: 0, gold: 140, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_5', 'defense_7'], effects: [{ target: 'predator_block', add: 0.72 }, { target: 'flee_speed', multiplier: 1.15 }], icon: '🦺', tier: 5, forgeUnlockNotify: true },
     { id: 'defense_10', type: ResearchType.Defense, name: 'Bastion Towers', description: 'Unlocks tower ballistae forge order — watchtowers add far more barricade strength', cost: { wood: 110, stone: 120, food: 0, gold: 150, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_7', 'defense_1'], effects: [], icon: '🏰', tier: 5, forgeUnlockNotify: true },
@@ -1116,9 +950,9 @@ export type TerrainType = (typeof TerrainType)[keyof typeof TerrainType];
 
 export interface TerrainTile {
   type: TerrainType;
-  elevation: number; // 0-100
-  moisture: number;  // 0-100
-  variation: number; // random offset for visual variety
+  elevation: number;
+  moisture: number;
+  variation: number;
 }
 
 export const MapPreset = {
@@ -1155,7 +989,6 @@ export interface WorldMap {
 }
 
 export const GRID_SIZE = 20;
-/** Terrain raster cell size in world units (see terrainGen / terrainLayer). */
 export const TERRAIN_TILE_SIZE = 10;
 export const GRID_SNAP = true;
 
@@ -1210,20 +1043,24 @@ export const WEREWOLF_BEFRIEND_LINES = [
   (human: string, wolf: string) => `${human} said "nice fur." ${wolf} said "deal."`,
 ] as const;
 
-export const WEREWOLF_TAME_LINES: readonly string[] = [...WEREWOLF_CURE_LINES];
+// Corrected: taming lines reflect companionship and taming, not Church exorcisms
+export const WEREWOLF_TAME_LINES = [
+  'The beast accepts your offering. A fearsome guardian now patrols the village.',
+  'Tamed with venison and patience. The beast now answers your call.',
+  'A low growl softened into a loyal companion.',
+  'Fangs lowered and a pact formed. The wild beast has joined your settlement.',
+] as const;
 
 export interface WeatherConfig {
   label: string;
   emoji: string;
   color: string;
   particleCount: number;
-  /** Full-screen tint alpha (fog/drought); 0 for particle-only weather. */
   overlayAlpha: number;
 }
 
 export const WEATHER_CONFIGS: Record<WeatherType, WeatherConfig> = {
   [WeatherType.Clear]: { label: 'Clear', emoji: '', color: '', particleCount: 0, overlayAlpha: 0 },
-  // Higher counts + readable colours — 40 grey 1px streaks were invisible on the map
   [WeatherType.Rain]: { label: 'Rain', emoji: '🌧️', color: '#a8c4e0', particleCount: 140, overlayAlpha: 0.08 },
   [WeatherType.Snow]: { label: 'Snow', emoji: '❄️', color: '#f0f4f8', particleCount: 90, overlayAlpha: 0.06 },
   [WeatherType.Storm]: { label: 'Storm', emoji: '⛈️', color: '#b0c4d8', particleCount: 180, overlayAlpha: 0.12 },

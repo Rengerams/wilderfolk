@@ -1,7 +1,3 @@
-/**
- * Building vocabulary + catalog. Leaf module — imports only sibling leaf types
- * (no gameTypes) so the barrel can re-export it without cycles.
- */
 import type { HuntingSpotPrey } from './huntingSpots';
 
 export const BuildingType = {
@@ -63,8 +59,21 @@ export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 /** Player-controlled staffing policy for a completed workplace. */
 export type StaffingMode = 'auto' | 'manual';
 
-/** What a Mine extracts — stone (default) or iron. */
-export type MineMode = 'stone' | 'iron';
+/**
+ * What a Mine extracts, chosen per mine. Stone is the Quarry's job — a Mine
+ * yields the ores only (see `mineOreForMode`).
+ */
+export const MINE_ORES = ['iron', 'gold'] as const;
+export type MineMode = (typeof MINE_ORES)[number];
+
+/**
+ * The ore a Mine extracts right now. Gold only when the player chose it; iron
+ * otherwise — which also covers a save written while the Mine still had a
+ * `stone` mode (there was no gold mode to fall back from).
+ */
+export function mineOreForMode(mode: string | undefined): MineMode {
+  return mode === 'gold' ? 'gold' : 'iron';
+}
 
 /** Discrete 90-degree building orientation steps. */
 export type BuildingRotation = 0 | 90 | 180 | 270;
@@ -119,10 +128,10 @@ export interface BuildingConfig {
   /**
    * Slot cap for `building.occupants` — **overloaded by building role**:
    *
-   * - **Housing** (House, Mansion, Hotel): bed / resident capacity.
-   * - **Staffed workplaces** (Farm, Church, Barracks, …): max assigned **workers/staff**.
+   * - **Housing** (House, Mansion, LeaderHouse): bed / resident capacity.
+   * - **Staffed workplaces** (Farm, Church, Barracks, Hotel, …): max assigned **workers/staff**.
    * - **Prison**: guard + prisoner slots share this cap.
-   * - **0**: no permanent staff and no builders via occupants (e.g. roads, walls, wells).
+   * - **0**: no permanent staff and no residents (e.g. roads, walls, wells, barn, mill).
    */
   maxOccupants: number;
   emoji: string;
@@ -253,23 +262,22 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   [BuildingType.Mine]: {
     width: 50,
     height: 46,
-    cost: { wood: 40, stone: 20, gold: 25 },
+    cost: { wood: 30, stone: 15, gold: 15 },
     buildTime: 6,
     maxOccupants: 4,
     emoji: '⛏️',
     label: 'Mine',
-    description: 'Produces stone or iron ore.',
+    description: 'Produces iron ore or gold — set the ore per mine. Stone comes from the Quarry.',
     sprite: '/sprites/mine.png',
     backgroundColor: '#292524',
     padShape: 'rect',
-    unlockRequirement: 'mining_1',
   },
   [BuildingType.Mill]: {
     width: 53,
     height: 46,
     cost: { wood: 45, stone: 25, gold: 30 },
     buildTime: 5,
-    maxOccupants: 2,
+    maxOccupants: 0, // Corrected: passive boost, requires no permanent workers
     emoji: '🌾',
     label: 'Mill',
     description: 'When complete, passively boosts food production (no permanent workers needed).',
@@ -429,12 +437,6 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     backgroundColor: '#7c2d12',
     padShape: 'round',
     spriteDisplayScale: 1.32,
-    // BUG 2026-08-28-leader-house-render-anchor: the sprite carries an ~86px
-    // transparent band below the painted base (base at ~91.6% of the frame),
-    // so anchoring by the image bottom (0.97) made the house float above its
-    // footprint. Anchoring at ~0.836 puts the *painted base* on the same
-    // ground line as other buildings (which are edge-to-edge, base ~1.0,
-    // default anchor 0.92).
     spriteAnchorY: 0.836,
     unique: true,
   },
@@ -677,13 +679,25 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   },
 };
 
-/** Determines if a building type is purely decorative. */
-export function isDecorBuilding(type: BuildingType): boolean {
+function resolveBuildingType(input: BuildingType | Building): BuildingType {
+  return typeof input === 'object' && input !== null ? input.type : input;
+}
+
+/** Safe accessor for building configuration. */
+export function getBuildingConfig(input: BuildingType | Building): BuildingConfig | undefined {
+  const type = resolveBuildingType(input);
+  return BUILDING_CONFIGS[type];
+}
+
+/** Determines if a building is purely decorative. */
+export function isDecorBuilding(input: BuildingType | Building): boolean {
+  const type = resolveBuildingType(input);
   return Boolean(BUILDING_CONFIGS[type]?.decor);
 }
 
 /** Determines if a building provides permanent resident housing. */
-export function isResidentialBuilding(type: BuildingType): boolean {
+export function isResidentialBuilding(input: BuildingType | Building): boolean {
+  const type = resolveBuildingType(input);
   return (
     type === BuildingType.House ||
     type === BuildingType.Mansion ||
@@ -691,7 +705,11 @@ export function isResidentialBuilding(type: BuildingType): boolean {
   );
 }
 
+/** Alias for isResidentialBuilding to ensure consistency across sim modules. */
+export const isResidenceBuilding = isResidentialBuilding;
+
 /** Determines if only one instance of the building can exist. */
-export function isUniqueBuilding(type: BuildingType): boolean {
+export function isUniqueBuilding(input: BuildingType | Building): boolean {
+  const type = resolveBuildingType(input);
   return Boolean(BUILDING_CONFIGS[type]?.unique);
 }

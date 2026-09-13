@@ -36,7 +36,9 @@ export default function FamiliesTreePanel({ state, onFocusCitizen }: FamiliesTre
   const groups = useMemo(() => groupFamiliesBySurname(state.entities), [state.entities]);
   const [focusId, setFocusId] = useState<number | null>(null);
 
-  const focus = focusId != null ? people.find((p) => p.id === focusId) ?? null : null;
+  // Start on a real settler so a stamboom renders as soon as the panel opens;
+  // clicking a name chip overrides it.
+  const focus = (focusId != null ? people.find((p) => p.id === focusId) : null) ?? people[0] ?? null;
   const tree: FamilyTree | null = useMemo(
     () => (focus ? buildFamilyTree(focus, state.entities) : null),
     [focus, state.entities],
@@ -69,7 +71,7 @@ export default function FamiliesTreePanel({ state, onFocusCitizen }: FamiliesTre
             </div>
             <div className="flex flex-wrap gap-1">
               {group.members.map((person) => {
-                const selected = focusId === person.id;
+                const selected = focus?.id === person.id;
                 return (
                   <button
                     key={person.id}

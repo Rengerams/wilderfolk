@@ -122,6 +122,29 @@ export function maybeOfferTravelingTheatre(state: WorldState): void {
   addNotification(state, '🎭 The Traveling Theatre', 'A troupe offers to stage the valley’s story.', 'info');
 }
 
+/**
+ * Whether `resolveTravelingTheatre` would accept this answer right now.
+ *
+ * Mirrors the stage-2 support gates the resolver applies — the same contract
+ * `getDiplomacyChoiceEligibility` provides for diplomacy cards — so a consumer
+ * (the auto-play bot) can tell an answer the troupe takes from one it refuses.
+ * A refused answer leaves the card open, so a consumer that cannot tell the
+ * difference would re-propose it forever; the card always offers free
+ * alternatives (`support_improvise`, `cancel_show`).
+ */
+export function getTravelingTheatreChoiceEligibility(
+  state: WorldState,
+  choiceId: string,
+): { ok: boolean; blockReason?: string } {
+  if (choiceId === 'support_hospitality' && state.resources.food < HOSPITALITY_FOOD) {
+    return { ok: false, blockReason: `Need ${HOSPITALITY_FOOD}🍖` };
+  }
+  if (choiceId === 'support_venue' && state.resources.wood < VENUE_WOOD) {
+    return { ok: false, blockReason: `Need ${VENUE_WOOD}🪵` };
+  }
+  return { ok: true };
+}
+
 export function resolveTravelingTheatre(state: WorldState, choiceId: string): boolean {
   const status = storyFlag(state, FLAG_STATUS);
   if (status === STATUS.script_selected) return resolveStage1(state, choiceId as Stage1Choice);

@@ -2,7 +2,8 @@
 import { canonicalDialogueBank, installDialogueBankPayload } from '../dialogueTrees';
 import { gameTick } from '../gameTick';
 import { GAME_VERSION } from '../version';
-import { invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
+import { hydrateWorldRuntimeCaches, invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
+import { loadNames } from '../nameLoader';
 
 installDialogueBankPayload(canonicalDialogueBank);
 
@@ -85,7 +86,7 @@ function packAndPostTickResult(
       cloneMode: 'transfer',
       prevBuildings: prevBuildingsSnapshot,
     });
-    prevBuildingsSnapshot = new Map(world.buildings.map((b) => [b.id, structuredClone(b)]));
+    prevBuildingsSnapshot = new Map((world.buildings ?? []).map((b) => [b.id, structuredClone(b)]));
     world.screenShakeImpulse = 0; // one‑shot impulse – clear each tick
 
     const transferables: ArrayBuffer[] = [pack.buffer];
@@ -115,6 +116,8 @@ function packAndPostTickResult(
 /*  Session reset                                                             */
 /* -------------------------------------------------------------------------- */
 function resetWorkerSession(nextWorld: WorldState): void {
+  // Rehydrate spatial and ID lookups on the incoming world
+  hydrateWorldRuntimeCaches(nextWorld);
   world = nextWorld;
   lastFocus = undefined;
   prevBuildingsSnapshot = null;
@@ -148,6 +151,12 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         headlessMode = msg.headless ?? false;
         resetWorkerSession(msg.world);
         bufferPool = headlessMode ? null : new RenderBufferPool();
+
+        // Ensure full census data files are loaded within the worker context
+        loadNames().catch((err) => {
+          console.warn('[Worker] Census names background load failed:', err);
+        });
+
         const ready: WorkerResponse = {
           type: 'ready',
           proto: WORKER_PROTO,
@@ -174,10 +183,14 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           break;
         }
         invalidateWorldRuntimeCaches(world);
+        const clonedWorld = structuredClone(world);
+        // Re-hydrate local caches so subsequent ticks do not operate on a stripped world
+        hydrateWorldRuntimeCaches(world);
+
         const response: WorkerResponse = {
           type: 'exportSaveResult',
           proto: WORKER_PROTO,
-          world: structuredClone(world),
+          world: clonedWorld,
         };
         self.postMessage(response);
         break;
@@ -222,6 +235,9 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         let renderBuffer: ArrayBuffer | undefined;
         let bufferIndex: number | undefined;
         let schemaVersion: number | undefined;
+        let scentBuffer: ArrayBuffer | undefined;
+        const transferables: ArrayBuffer[] = [];
+
         if (bufferPool) {
           const acquired = bufferPool.acquire();
           if (acquired) {
@@ -230,6 +246,12 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
               renderBuffer = pack.buffer;
               bufferIndex = acquired.index;
               schemaVersion = pack.schemaVersion;
+              transferables.push(renderBuffer);
+
+              if (USE_SCENT_GRID && world.scentGrid) {
+                scentBuffer = world.scentGrid.packSidecar(world.tick);
+                transferables.push(scentBuffer);
+              }
             } catch (packErr) {
               releaseAcquiredBuffer(acquired);
               console.warn('[WorkerCommand] Render pack failed after command', packErr);
@@ -245,14 +267,15 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           renderBuffer,
           bufferIndex,
           schemaVersion,
+          scentBuffer,
         };
-        const transferables = renderBuffer ? [renderBuffer] : [];
         self.postMessage(response, transferables);
         break;
       }
 
       case 'returnBuffer': {
-        if (!bufferPool) break;
+        // Prevent detached/empty buffer poisoning
+        if (!bufferPool || !msg.buffer || msg.buffer.byteLength === 0) break;
         bufferPool.release(msg.bufferIndex, msg.buffer);
         break;
       }

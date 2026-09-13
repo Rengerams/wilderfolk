@@ -45,23 +45,39 @@ function recruitSpawnPosition(state: WorldState): { x: number; y: number } {
   return { x: anchor.x + anchor.width / 2, y: anchor.y + anchor.height / 2 };
 }
 
-export function recruitSettler(originalState: WorldState): WorldState {
-  const state = structuredClone(originalState);
+/**
+ * Whether `recruitSettler` would actually admit a newcomer: room under the
+ * population cap and the recruitment price in store.
+ *
+ * Single definition of the recruitment rule, shared with the auto-play bot
+ * (`virtualPlayer.ts`), so the bot never claims an in-game hour with a
+ * recruitment the owner would refuse.
+ */
+export function getRecruitSettlerEligibility(
+  state: WorldState,
+): { ok: boolean; blockReason?: string } {
   if (playerHumanCount(state.entities) >= state.maxHumanPopulation) {
-    addFloatingText(state, state.width / 2, state.height / 2, 'At max population!', '#ef4444');
-    return state;
+    return { ok: false, blockReason: 'At max population!' };
   }
   if (state.resources.food < RECRUITMENT_COST.food || state.resources.gold < RECRUITMENT_COST.gold) {
+    return { ok: false, blockReason: `Need ${RECRUITMENT_COST.food}f ${RECRUITMENT_COST.gold}g` };
+  }
+  return { ok: true };
+}
+
+export function recruitSettler(originalState: WorldState): WorldState {
+  const state = structuredClone(originalState);
+  const eligibility = getRecruitSettlerEligibility(originalState);
+  if (!eligibility.ok) {
     addFloatingText(
       state,
       state.width / 2,
       state.height / 2,
-      `Need ${RECRUITMENT_COST.food}f ${RECRUITMENT_COST.gold}g`,
+      eligibility.blockReason ?? 'Cannot recruit',
       '#ef4444',
     );
     return state;
   }
-
   state.resources.food -= RECRUITMENT_COST.food;
   state.resources.gold -= RECRUITMENT_COST.gold;
   const spawn = recruitSpawnPosition(state);
@@ -133,35 +149,64 @@ function hasNearbyPlayerTamingPost(state: WorldState, entity: Entity): boolean {
   );
 }
 
+/**
+ * Whether `tameEntity` would actually tame this creature for this settler: both
+ * exist, the settler is a living player human, the creature is untamed and of a
+ * tameable species, a player Taming Post stands within reach, and the colony can
+ * pay the species' food cost.
+ *
+ * Single definition of the taming rule, shared with the auto-play bot
+ * (`virtualPlayer.ts`).
+ */
+export function getTameEntityEligibility(
+  state: WorldState,
+  entityId: number,
+  humanId: number,
+): { ok: boolean; blockReason?: string } {
+  const entity = state.entities.find((candidate) => candidate.id === entityId);
+  const human = state.entities.find(
+    (candidate) => candidate.id === humanId && candidate.type === EntityType.Human,
+  );
+  if (!entity || !human || !isPlayerHuman(human) || entity.tamedBy) {
+    return { ok: false, blockReason: 'Cannot tame this creature' };
+  }
+  if (!TAME_INTERACTION_TYPES.has(entity.type)) {
+    return { ok: false, blockReason: 'Cannot tame this creature' };
+  }
+  if (entity.type === EntityType.Werewolf) {
+    return { ok: false, blockReason: 'Staff a Church — cures roll on full-moon nights (20:00–06:00)' };
+  }
+  if (!hasNearbyPlayerTamingPost(state, entity)) {
+    return { ok: false, blockReason: 'Need a Taming Post nearby' };
+  }
+  const cost = getTameFoodCost(entity.type);
+  if (cost === null) return { ok: false, blockReason: 'Cannot tame this creature' };
+  if (state.resources.food < cost) return { ok: false, blockReason: `Need ${cost} food` };
+  return { ok: true };
+}
+
 export function tameEntity(originalState: WorldState, entityId: number, humanId: number): WorldState {
   const state = structuredClone(originalState);
   const entity = state.entities.find((candidate) => candidate.id === entityId);
   const human = state.entities.find((candidate) => candidate.id === humanId && candidate.type === EntityType.Human);
+  // An unknown creature/settler, a non-player settler, or an already-tamed
+  // animal stays silent — that is not a taming attempt the UI ever offers.
   if (!entity || !human || !isPlayerHuman(human) || entity.tamedBy) return state;
 
-  if (!TAME_INTERACTION_TYPES.has(entity.type)) {
-    addFloatingText(state, entity.x, entity.y - 10, 'Cannot tame this creature', '#ef4444');
-    return state;
-  }
-  if (entity.type === EntityType.Werewolf) {
-    addFloatingText(state, entity.x, entity.y - 10, 'Staff a Church — cures roll on full-moon nights (20:00–06:00)', '#ef4444');
-    return state;
-  }
-  if (!hasNearbyPlayerTamingPost(state, entity)) {
-    addFloatingText(state, entity.x, entity.y - 10, 'Need a Taming Post nearby', '#ef4444');
+  const eligibility = getTameEntityEligibility(originalState, entityId, humanId);
+  if (!eligibility.ok) {
+    addFloatingText(
+      state,
+      entity.x,
+      entity.y - 10,
+      eligibility.blockReason ?? 'Cannot tame this creature',
+      '#ef4444',
+    );
     return state;
   }
 
   const cost = getTameFoodCost(entity.type);
-  if (cost === null) {
-    addFloatingText(state, entity.x, entity.y - 10, 'Cannot tame this creature', '#ef4444');
-    return state;
-  }
-  if (state.resources.food < cost) {
-    addFloatingText(state, entity.x, entity.y - 10, `Need ${cost} food`, '#ef4444');
-    return state;
-  }
-
+  if (cost === null) return state;
   state.resources.food -= cost;
   entity.tamedBy = human.id;
   addFloatingText(state, entity.x, entity.y - 15, 'Tamed!', '#22c55e');

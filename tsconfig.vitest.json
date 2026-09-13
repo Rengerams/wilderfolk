@@ -2,6 +2,9 @@
   "extends": "./tsconfig.app.json",
   "compilerOptions": {
     "noEmit": true,
+    /* This project extends tsconfig.app.json but checks a different file set, so
+       it must never share the app project's incremental build state. */
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.vitest.tsbuildinfo",
     "types": [
       "vitest/globals",
       "node",

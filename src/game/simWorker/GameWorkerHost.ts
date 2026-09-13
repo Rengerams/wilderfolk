@@ -105,10 +105,11 @@ export class GameWorkerHost {
 
     const pendingBeforeReady: WorkerResponse[] = [];
     const requestedFeatures: WorkerFeature[] = ['renderSoA_v1'];
+    let timeout: ReturnType<typeof setTimeout> | undefined;
 
     const readyPromise = new Promise<void>((resolve, reject) => {
       let settled = false;
-      const timeout = globalThis.setTimeout(() => {
+      timeout = globalThis.setTimeout(() => {
         if (!settled) {
           settled = true;
           reject(new Error('Worker init timeout'));
@@ -117,18 +118,17 @@ export class GameWorkerHost {
 
       const onError = (event: ErrorEvent) => {
         if (initGen !== this.generation) return;
-        // 🛡️ Bug #4 Fix: Include filename, line, and column numbers for diagnostics
         const location = event.filename ? ` @ ${event.filename}:${event.lineno ?? 0}:${event.colno ?? 0}` : '';
         const errorMessage = `${event.message || 'unknown script error'}${location}`;
         const err = new Error(`Worker error: ${errorMessage}`);
 
         if (!settled) {
           settled = true;
-          globalThis.clearTimeout(timeout);
+          if (timeout) globalThis.clearTimeout(timeout);
           reject(new Error(`Worker failed to start: ${errorMessage}`));
           return;
         }
-        this.rejectInFlight(err);
+        this.rejectInFlight(err, { resetAllTicks: true });
         this.onWorkerFault?.('general', err.message);
       };
 
@@ -141,7 +141,7 @@ export class GameWorkerHost {
             if (!isWorkerProto(msg.proto)) {
               if (!settled) {
                 settled = true;
-                globalThis.clearTimeout(timeout);
+                if (timeout) globalThis.clearTimeout(timeout);
                 reject(new Error(workerProtoMismatch(msg.proto)));
               }
               return;
@@ -151,14 +151,14 @@ export class GameWorkerHost {
             } catch (err) {
               if (!settled) {
                 settled = true;
-                globalThis.clearTimeout(timeout);
+                if (timeout) globalThis.clearTimeout(timeout);
                 reject(err instanceof Error ? err : new Error(String(err)));
               }
               return;
             }
             if (!settled) {
               settled = true;
-              globalThis.clearTimeout(timeout);
+              if (timeout) globalThis.clearTimeout(timeout);
               this.ready = true;
               resolve();
             }
@@ -169,7 +169,7 @@ export class GameWorkerHost {
           if (msg.type === 'error') {
             if (!settled) {
               settled = true;
-              globalThis.clearTimeout(timeout);
+              if (timeout) globalThis.clearTimeout(timeout);
               reject(new Error(msg.message));
             }
             return;
@@ -185,19 +185,27 @@ export class GameWorkerHost {
       this.worker!.addEventListener('error', onError);
     });
 
-    // 🛡️ Bug #1 Fix: Strip class runtime caches before sending world across boundary
-    invalidateWorldRuntimeCaches(this.worldRef);
-    const init: WorkerRequest = {
-      type: 'init',
-      proto: WORKER_PROTO,
-      world: this.worldRef,
-      features: requestedFeatures,
-    };
-    this.worker.postMessage(init);
-    await readyPromise;
+    try {
+      invalidateWorldRuntimeCaches(this.worldRef);
+      const init: WorkerRequest = {
+        type: 'init',
+        proto: WORKER_PROTO,
+        world: this.worldRef,
+        features: requestedFeatures,
+      };
+      this.worker.postMessage(init);
+      hydrateWorldRuntimeCaches(this.worldRef);
 
-    if (initGen !== this.generation) {
-      throw new Error('Worker disposed during init');
+      await readyPromise;
+
+      if (initGen !== this.generation) {
+        throw new Error('Worker disposed during init');
+      }
+    } catch (err) {
+      this.dispose();
+      throw err;
+    } finally {
+      if (timeout) globalThis.clearTimeout(timeout);
     }
   }
 
@@ -313,13 +321,19 @@ export class GameWorkerHost {
         const worker = this.worker;
         if (!worker) return;
 
-        // 🛡️ Bug #1 Fix: Strip non-clonable runtime caches before upload
         invalidateWorldRuntimeCaches(world);
         const msg: WorkerRequest = kind === 'importSave'
           ? { type: 'importSave', proto: WORKER_PROTO, world }
           : { type: 'syncWorld', proto: WORKER_PROTO, world };
-        worker.postMessage(msg);
+        try {
+          worker.postMessage(msg);
+        } finally {
+          if (this.worldRef) {
+            hydrateWorldRuntimeCaches(this.worldRef);
+          }
+        }
       });
+
     this.commandChain = upload.catch((err: unknown) => {
       if (uploadGen === this.generation) {
         console.warn(`[GameWorker] ${kind} upload failed`, err);
@@ -423,9 +437,13 @@ export class GameWorkerHost {
   }
 
   private returnRenderBuffer(bufferIndex: number, buffer: ArrayBuffer): void {
-    if (!this.worker) return;
+    if (!this.worker || buffer.byteLength === 0) return;
     const returnMsg: WorkerRequest = { type: 'returnBuffer', proto: WORKER_PROTO, bufferIndex, buffer };
-    this.worker.postMessage(returnMsg, [buffer]);
+    try {
+      this.worker.postMessage(returnMsg, [buffer]);
+    } catch (err) {
+      console.warn('[GameWorker] Failed to return render buffer', err);
+    }
   }
 
   private adoptRenderBuffer(bufferIndex: number, buffer: ArrayBuffer): void {
@@ -445,14 +463,15 @@ export class GameWorkerHost {
     const scentReader = scentBuffer ? ScentGridReader.tryCreate(scentBuffer) : null;
     return {
       reader,
-      // 🛡️ Bug #2 & #3 Fix: Preserve undefined so reference checks in entityCache don't fail
       metaBySlot: delta.renderMetaBySlot,
       scentReader,
     };
   }
 
-  private rejectInFlight(err: Error, opts?: { decrementTicks?: boolean }): void {
-    if (opts?.decrementTicks) {
+  private rejectInFlight(err: Error, opts?: { decrementTicks?: boolean; resetAllTicks?: boolean }): void {
+    if (opts?.resetAllTicks) {
+      this.ticksInFlight = 0;
+    } else if (opts?.decrementTicks) {
       this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
     }
     this.pendingCommand?.reject(err);
@@ -474,6 +493,8 @@ export class GameWorkerHost {
       console.error('[GameWorker]', msg.message);
       if (msg.source === 'tick') {
         this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
+      } else {
+        this.ticksInFlight = 0;
       }
       this.pendingCommand?.reject(new Error(msg.message));
       this.pendingCommand = null;
@@ -489,6 +510,7 @@ export class GameWorkerHost {
       if (msg.ok === false) {
         applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
         invalidateWorldRuntimeCaches(this.worldRef);
+        hydrateWorldRuntimeCaches(this.worldRef);
         this.onCommandResult?.(this.worldRef, delta, null, false, msg.reason);
         this.pendingCommand?.reject(new Error(msg.reason ?? 'Command failed'));
         this.pendingCommand = null;
@@ -497,10 +519,11 @@ export class GameWorkerHost {
       }
       applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
       invalidateWorldRuntimeCaches(this.worldRef);
+      hydrateWorldRuntimeCaches(this.worldRef);
       let render: WorkerTickRender | null = null;
       if (msg.renderBuffer != null && msg.bufferIndex != null) {
         this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer);
-        render = this.buildRender(msg.renderBuffer, delta, undefined);
+        render = this.buildRender(msg.renderBuffer, delta, msg.scentBuffer);
       }
       this.onCommandResult?.(this.worldRef, delta, render, true, msg.reason);
       this.pendingCommand?.resolve(delta);
@@ -522,18 +545,17 @@ export class GameWorkerHost {
     const delta = msg.delta as SimTickDelta;
     applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
     invalidateWorldRuntimeCaches(this.worldRef);
+    hydrateWorldRuntimeCaches(this.worldRef);
 
     if (msg.headless || msg.renderBuffer == null || msg.bufferIndex == null) {
       this.onTickResult?.(this.worldRef, delta, null, true);
     } else {
-      const reader = createRenderSoAReader(msg.renderBuffer);
-      if (!reader) {
+      this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer);
+      const render = this.buildRender(msg.renderBuffer, delta, msg.scentBuffer);
+      if (!render) {
         console.error('[GameWorker] Invalid render SoA buffer');
-        this.returnRenderBuffer(msg.bufferIndex, msg.renderBuffer);
         this.onTickResult?.(this.worldRef, delta, null, true);
       } else {
-        this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer);
-        const render = this.buildRender(msg.renderBuffer, delta, msg.scentBuffer);
         this.onTickResult?.(this.worldRef, delta, render, true);
       }
     }
@@ -547,7 +569,7 @@ export class GameWorkerHost {
 
 export function isGameWorkerEnabled(): boolean {
   if (typeof Worker === 'undefined') return false;
-  const v = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_USE_GAME_WORKER : undefined;
+  const v = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_USE_GAME_WORKER : undefined;
   if (v === false || v === 0) return false;
   if (typeof v === 'string') {
     const normalized = v.trim().toLowerCase();

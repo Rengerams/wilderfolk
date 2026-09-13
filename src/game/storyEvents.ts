@@ -6,10 +6,10 @@ import { addCappedResource } from './resourceUtils';
 import { isPlayerHuman } from './playerHuman';
 import { logEvent } from './eventLog';
 import { HUMAN_DAILY_FOOD_CONSUMPTION } from './animalCare';
-import { resolveDeerParliament } from './deerParliament';
-import { resolveTravelingTheatre } from './travelingTheatre';
-import { resolveWeddingDiplomacy } from './weddingDiplomacy';
-import { resolveInventionFair } from './inventionFair';
+import { getDeerParliamentChoiceEligibility, resolveDeerParliament } from './deerParliament';
+import { getTravelingTheatreChoiceEligibility, resolveTravelingTheatre } from './travelingTheatre';
+import { getWeddingDiplomacyChoiceEligibility, resolveWeddingDiplomacy } from './weddingDiplomacy';
+import { getInventionFairChoiceEligibility, resolveInventionFair } from './inventionFair';
 import { resolveRumourLedger } from './rumourLedger';
 
 /**
@@ -163,6 +163,36 @@ export function tickPendingStoryEvents(state: WorldState): void {
  * Resolve a story choice (clones state like raid responses). Removes the event
  * and applies the chosen outcome plus a Chronicle-style memory.
  */
+/**
+ * Whether `respondToStoryEvent` would accept this answer right now.
+ *
+ * A refused story answer is **re-queued** by the resolver, so the card stays open
+ * for the player to choose again. That makes an unanswerable choice a trap for a
+ * consumer that acts on a cadence: the auto-play bot would re-propose the same
+ * refused answer every in-game hour and never reach the colony ladder at all.
+ * This is the story-side counterpart of `getDiplomacyChoiceEligibility` and
+ * `getRaidChoiceEligibility`; each gated story keeps its own rule and is asked
+ * here, and a story key with no gate always answers `ok`.
+ */
+export function getStoryChoiceEligibility(
+  state: WorldState,
+  event: StoryEvent,
+  choiceId: string,
+): { ok: boolean; blockReason?: string } {
+  switch (event.storyKey) {
+    case 'traveling_theatre':
+      return getTravelingTheatreChoiceEligibility(state, choiceId);
+    case 'deer_parliament':
+      return getDeerParliamentChoiceEligibility(state, choiceId);
+    case 'wedding_diplomacy':
+      return getWeddingDiplomacyChoiceEligibility(state, choiceId);
+    case 'invention_fair':
+      return getInventionFairChoiceEligibility(state, choiceId);
+    default:
+      return { ok: true };
+  }
+}
+
 export function respondToStoryEvent(
   originalState: WorldState,
   eventId: string,

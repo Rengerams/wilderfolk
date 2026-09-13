@@ -258,7 +258,7 @@ export default function MoreTabPanel({
               <p>• <strong className="text-amber-200">House</strong> — Family home (6 slots). Click house → <strong className="text-stone-200">Expand</strong> for up to 10.</p>
               <p>• <strong className="text-amber-200">Farm</strong> — Produces food every season.</p>
               <p>• <strong className="text-amber-200">Lumber Mill</strong> — Produces wood. Needs workers.</p>
-              <p>• <strong className="text-amber-200">Quarry/Mine</strong> — Produces stone.</p>
+              <p>• <strong className="text-amber-200">Quarry</strong> — Produces stone. • <strong className="text-amber-200">Mine</strong> — Produces iron or gold; choose the ore per mine.</p>
               <p>• <strong className="text-amber-200">Roads</strong> — Infra tab (key 8). Horizontal strips — zigzag them (step north/south each segment) for paths up hills. Boost nearby buildings +15%.</p>
               <p>• <strong className="text-amber-200">Town Hall</strong> — After <strong className="text-stone-200">Urban Planning</strong>. Staff officials for taxes, trade &amp; immigration boosts, election site, scandal buffer, and hosted festivals.</p>
               <p>• <strong className="text-amber-200">Church</strong> — Community tab, no research needed. Faster marriages, breaks Moon Howler curses, stricter morals.</p>

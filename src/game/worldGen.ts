@@ -23,6 +23,7 @@ import {
   MAP_SIZE_DIMENSIONS,
   DEFAULT_WORKSHOP_RECIPE_ID,
   TERRAIN_TILE_SIZE,
+  emptyEntityByType,
 } from './gameTypes';
 import { generateWorldMap, findCampSite } from './terrainGen';
 export { generateWorldMap } from './terrainGen';
@@ -91,7 +92,11 @@ export function isPassableWildlifePosition(state: WorldState, x: number, y: numb
     return false;
   }
   const tile = getTileAtWorld(state, x, y);
-  return !!tile && !UNPASSABLE_WILDLIFE_TERRAIN.has(tile.type);
+  // If no worldMap is generated, position within boundaries is passable
+  if (!tile) {
+    return !state.worldMap;
+  }
+  return !UNPASSABLE_WILDLIFE_TERRAIN.has(tile.type);
 }
 
 /** Helper voor het aanmaken en indexeren van gespawnde dieren */
@@ -122,7 +127,7 @@ function registerSpawnedWildlife(
 }
 
 /** AGENTS.md §8: new maps contain at most three blueberry trees. */
-const BLUEBERRY_TREE_SPAWN_BY_MAP_SIZE: Record<MapSize, number> = {
+const BLUEBERRY_TREE_SPAWN_BY_MAP_SIZE: Partial<Record<MapSize, number>> = {
   [MapSize.Medium]: 2,
   [MapSize.Large]: 3,
   [MapSize.Huge]: 3,
@@ -137,7 +142,7 @@ function spawnBlueberryTrees(
   campX: number,
   campY: number,
 ): void {
-  const target = BLUEBERRY_TREE_SPAWN_BY_MAP_SIZE[size];
+  const target = BLUEBERRY_TREE_SPAWN_BY_MAP_SIZE[size] ?? 2;
   let spawned = 0;
   const maxAttempts = target * 72;
 
@@ -489,6 +494,7 @@ export function createImmigrantSettler(
     const familySurname = getRandomSurname();
     const husbandName = getRandomName('male');
     const wifeName = getRandomName('female');
+    const wifeMaidenSurname = getRandomSurname();
 
     const husband = createEntity(EntityType.Human, x - 6, y, state.nextEntityId++, undefined, false, {
       gender: 'male',
@@ -505,6 +511,7 @@ export function createImmigrantSettler(
       gender: 'female',
       name: wifeName,
       surname: familySurname,
+      maidenSurname: wifeMaidenSurname,
       ageYears: Math.max(HUMAN_ADULT_MIN_AGE, age - 2),
       colonyDay,
       pregnant: true,
@@ -514,6 +521,7 @@ export function createImmigrantSettler(
     });
     wife.name = wifeName;
     wife.surname = familySurname;
+    wife.maidenSurname = wifeMaidenSurname;
     wife.relationshipStatus = 'married';
     husband.partnerId = wife.id;
 
@@ -553,6 +561,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     preset,
     villageName,
     seed,
+    skipTerrain = false,
   } = options;
 
   // 1. Initialize Deterministic PRNG Seed
@@ -560,7 +569,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   setSimSeed(mapSeed);
   enableSeededGlobalRandom();
 
-  const dims = MAP_SIZE_DIMENSIONS[size];
+  const dims = MAP_SIZE_DIMENSIONS[size] ?? MAP_SIZE_DIMENSIONS[MapSize.Medium];
   const width = options.width ?? dims.width;
   const height = options.height ?? dims.height;
 
@@ -569,6 +578,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   const state: WorldState = {
     entities: [],
+    entityByType: emptyEntityByType(),
     buildings: [],
     deathParticles: [],
     floatingTexts: [],
@@ -673,7 +683,9 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   syncEventLogIdFromState(state);
 
   // 2. Procedural World Map Generation
-  state.worldMap = generateWorldMap(size, preset ?? 'verdant', mapSeed);
+  if (!skipTerrain) {
+    state.worldMap = generateWorldMap(size, preset ?? 'verdant', mapSeed);
+  }
 
   // 3. Grass Meadows
   for (let p = 0; p < 12; p++) {
@@ -731,17 +743,19 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   // 6. Camp Selection & Founding Pioneers
   const houseFootprint = BUILDING_CONFIGS[BuildingType.House];
-  const camp = findCampSite(
-    state.worldMap.tiles,
-    state.worldMap.width,
-    state.worldMap.height,
-    width,
-    height,
-    houseFootprint.width,
-    houseFootprint.height,
-    width / 2,
-    height / 2,
-  );
+  const camp = state.worldMap
+    ? findCampSite(
+        state.worldMap.tiles,
+        state.worldMap.width,
+        state.worldMap.height,
+        width,
+        height,
+        houseFootprint.width,
+        houseFootprint.height,
+        width / 2,
+        height / 2,
+      )
+    : { x: width / 2, y: height / 2 };
 
   const centerX = camp.x;
   const centerY = camp.y;
@@ -749,6 +763,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   // Guarantee explicit first names and shared surname for founding pioneers
   const surname = getRandomSurname();
+  const motherMaidenSurname = getRandomSurname();
   const fatherFirstName = getRandomName('male');
   const motherFirstName = getRandomName('female');
 
@@ -767,12 +782,14 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     gender: 'female',
     generation: 1,
     surname,
+    maidenSurname: motherMaidenSurname,
     name: motherFirstName,
     ageYears: getRandomInt(20, 38),
     colonyDay: 0,
   });
   mother.name = motherFirstName;
   mother.surname = surname;
+  mother.maidenSurname = motherMaidenSurname;
 
   father.relationshipStatus = 'married';
   mother.relationshipStatus = 'married';

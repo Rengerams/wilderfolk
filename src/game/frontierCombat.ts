@@ -917,6 +917,48 @@ export function tickPendingRaidEvents(
   }
 }
 
+/**
+ * Whether `respondToRaidEvent` would actually resolve this answer right now.
+ *
+ * Mirrors the guard the responder applies before it spends food or wood or sends
+ * the militia in — the same contract `getDiplomacyChoiceEligibility` provides for
+ * diplomacy cards — so a consumer can tell an answer that will land from one the
+ * responder refuses. A refused answer leaves the raid card open and unspent.
+ * `allAlive` is optional so the responder can hand over the list it already built.
+ */
+export function getRaidChoiceEligibility(
+  state: WorldState,
+  event: RaidEvent,
+  choiceId: string,
+  allAlive: Entity[] = state.entities.filter((entity) => entity.alive),
+): { ok: boolean; blockReason?: string } {
+  if (choiceId === 'payoff') {
+    if (state.resources.food < event.lootFood) {
+      return { ok: false, blockReason: `Need ${event.lootFood}🍖` };
+    }
+    return { ok: true };
+  }
+
+  if (choiceId === 'barricade') {
+    if (!canAffordResourceCost(state.resources, BARRICADE_RAID_COST)) {
+      return { ok: false, blockReason: formatResourceCostNeed(BARRICADE_RAID_COST) };
+    }
+    return { ok: true };
+  }
+
+  if (choiceId === 'defend') {
+    if (!hasStoneSpears(state) && !hasIronSpears(state)) {
+      return { ok: false, blockReason: 'Need spears' };
+    }
+    if (getMilitiaStrength(state, allAlive) <= 0) {
+      return { ok: false, blockReason: 'No militia strength' };
+    }
+    return { ok: true };
+  }
+
+  return { ok: false, blockReason: 'Unknown raid answer' };
+}
+
 export function respondToRaidEvent(
   originalState: WorldState,
   eventId: string,
@@ -946,8 +988,9 @@ export function respondToRaidEvent(
   };
 
   if (choiceId === 'payoff') {
-    if (state.resources.food < event.lootFood) {
-      pushFloat(state, camp.x, camp.y - 20, `Need ${event.lootFood}🍖`, '#f97316');
+    const eligibility = getRaidChoiceEligibility(state, event, choiceId, allAlive);
+    if (!eligibility.ok) {
+      pushFloat(state, camp.x, camp.y - 20, eligibility.blockReason ?? `Need ${event.lootFood}🍖`, '#f97316');
       return state;
     }
     state.resources.food -= event.lootFood;
@@ -962,8 +1005,9 @@ export function respondToRaidEvent(
   }
 
   if (choiceId === 'barricade') {
-    if (!canAffordResourceCost(state.resources, BARRICADE_RAID_COST)) {
-      pushFloat(state, camp.x, camp.y - 20, formatResourceCostNeed(BARRICADE_RAID_COST), '#f97316');
+    const eligibility = getRaidChoiceEligibility(state, event, choiceId, allAlive);
+    if (!eligibility.ok) {
+      pushFloat(state, camp.x, camp.y - 20, eligibility.blockReason ?? 'Cannot barricade', '#f97316');
       return state;
     }
     state.resources.wood -= BARRICADE_RAID_COST.wood ?? 0;
@@ -1012,12 +1056,9 @@ export function respondToRaidEvent(
   }
 
   if (choiceId === 'defend') {
-    if (!hasStoneSpears(state) && !hasIronSpears(state)) {
-      pushFloat(state, camp.x, camp.y - 20, 'Need spears', '#f97316');
-      return state;
-    }
-    if (defenderStrength <= 0) {
-      pushFloat(state, camp.x, camp.y - 20, 'No militia strength', '#f97316');
+    const eligibility = getRaidChoiceEligibility(state, event, choiceId, allAlive);
+    if (!eligibility.ok) {
+      pushFloat(state, camp.x, camp.y - 20, eligibility.blockReason ?? 'Cannot defend', '#f97316');
       return state;
     }
 

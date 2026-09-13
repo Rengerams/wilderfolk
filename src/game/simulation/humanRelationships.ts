@@ -1,3 +1,4 @@
+
 import type { WorldState, Entity, Building } from '../gameTypes';
 import { EntityType, BuildingType, JobType, BUILDING_CONFIGS, LEADER_OCCUPATION } from '../gameTypes';
 import type { TickContext } from './simulationTypes';
@@ -396,6 +397,7 @@ export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () 
   const friends = child.childhoodFriendsIds ?? [];
   if (friends.length >= RELATIONSHIP_CONFIG.SCHOOLYARD_BOND_MAX_FRIENDS) return;
 
+  // Classmates must be alive, juveniles, not self, not already friends, and have room for a new friend
   const classmates = state.entities.filter(
     (e) =>
       e.alive &&
@@ -403,7 +405,8 @@ export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () 
       e.isJuvenile &&
       isPlayerHuman(e) &&
       e.id !== child.id &&
-      !friends.includes(e.id),
+      !friends.includes(e.id) &&
+      (e.childhoodFriendsIds?.length ?? 0) < RELATIONSHIP_CONFIG.SCHOOLYARD_BOND_MAX_FRIENDS,
   );
   if (classmates.length === 0) return;
 
@@ -435,11 +438,11 @@ export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () 
 
 // ============ YOUTHFUL FIRST LOVE LIFECYCLE ============
 
-export const YOUTH_LOVE_MIN_AGE = 14;
+export const YOUTH_LOVE_MIN_AGE = 12;
 export const YOUTH_LOVE_MAX_AGE_EXCLUSIVE = HUMAN_MOVE_OUT_MIN_AGE;
-export const YOUTH_LOVE_MAX_AGE_GAP = 2;
-export const YOUTH_LOVE_DAILY_START_CHANCE = 0.0005;
-export const YOUTH_LOVE_DAILY_SCHOOL_BONUS = 0.001;
+export const YOUTH_LOVE_MAX_AGE_GAP = 4;
+export const YOUTH_LOVE_DAILY_START_CHANCE = 0.0015;
+export const YOUTH_LOVE_DAILY_SCHOOL_BONUS = 0.2;
 export const YOUTH_LOVE_DAILY_BREAKUP_CHANCE = 0.0004;
 
 function hasSharedSchoolBond(a: Entity, b: Entity): boolean {
@@ -609,7 +612,7 @@ export function advanceYouthLove(
   }
 }
 
-// ============ REPRODUCTION CONCEPTION & DEATH Ticks ============
+// ============ REPRODUCTION CONCEPTION & DEATH TICKS ============
 
 export function isValidAffairTarget(entity: Entity, target: Entity, tick: number): boolean {
   if (!isPlayerHuman(target) || !target.alive || !target.gender) return false;
@@ -646,7 +649,6 @@ function startMarriedPregnancy(state: WorldState, entity: Entity, partner: Entit
   const mother = humanDisplayName(entity);
   const father = humanDisplayName(partner);
   const line = `${mother} and ${father} are expecting a child`;
-  // An expectation is not a delivery: `'conception'` keeps births countable.
   logEvent(state, 'conception', line, mother);
   addNotification(state, 'Expecting', line, 'success', { x: entity.x, y: entity.y });
 }
@@ -663,7 +665,6 @@ function startYouthPregnancy(state: WorldState, entity: Entity, partner: Entity)
   const mother = humanDisplayName(entity);
   const father = humanDisplayName(partner);
   const line = `${mother} and ${father} are expecting a child`;
-  // An expectation is not a delivery: `'conception'` keeps births countable.
   logEvent(state, 'conception', line, mother);
   addNotification(state, 'Expecting', line, 'success', { x: entity.x, y: entity.y });
 }
@@ -680,9 +681,6 @@ function startAffairPregnancy(state: WorldState, entity: Entity, lover: Entity):
   addFloatingText(state, entity.x, entity.y - 18, 'Secret…', '#c084fc', 'brief');
   const mother = humanDisplayName(entity);
   const line = `${mother} is secretly expecting a child`;
-  // Deliberately a scandal, not a conception announcement: the secret itself is
-  // the event the Chronicle and the scandal feed must show. It never claimed to
-  // be a birth, so it does not affect birth counts.
   logEvent(state, 'scandal', line, mother);
   addNotification(state, 'Secret pregnancy', line, 'warning', { x: entity.x, y: entity.y });
 }
@@ -824,6 +822,8 @@ export function tryDailyHumanMortality(
   buildings: Building[],
   entityById?: ReadonlyMap<number, Entity>,
 ): boolean {
+  if (!entity.alive) return false;
+
   const oldAgeChance = getOldAgeDeathChance(entity.age);
   if (oldAgeChance > 0 && (entity.age >= HUMAN_MAX_LIFESPAN_YEARS || Math.random() < oldAgeChance)) {
     killHuman(entity, buildings, entityById, state.tick);
@@ -882,7 +882,7 @@ export function tryDailyAmicableDivorce(
 
   const aName = humanDisplayName(entity);
   const bName = humanDisplayName(spouse);
-  logEvent(state, 'marriage', `${aName} and ${bName} divorced amicably`, aName);
+  logEvent(state, 'divorce', `${aName} and ${bName} divorced amicably`, aName);
   addNotification(state, 'Divorce', `${aName} and ${bName} went their separate ways`, 'info');
   addFloatingText(state, (entity.x + spouse.x) / 2, (entity.y + spouse.y) / 2 - 22, 'Divorced', '#94a3b8');
 }
@@ -949,13 +949,16 @@ function reassignDivorcedResidences(
     leaver.residenceBuildingId = undefined;
   }
 
-  // Assign minors to custody-holding mother (custodian)
+  // Assign minors to custody-holding parent (custodian, checking both mother and father links)
   if (custodian.residenceBuildingId != null) {
     const children = villagers.filter(
       (child) =>
         child.alive &&
         child.isJuvenile &&
-        (child.motherId === custodian.id || child.adoptiveMotherId === custodian.id),
+        (child.motherId === custodian.id ||
+          child.adoptiveMotherId === custodian.id ||
+          child.fatherId === custodian.id ||
+          child.adoptiveFatherId === custodian.id),
     );
     for (const child of children) {
       child.residenceBuildingId = custodian.residenceBuildingId;
@@ -991,7 +994,7 @@ function tryDivorceOnCaughtCheater(
   const otherName = humanDisplayName(paramour);
   logEvent(
     state,
-    'marriage',
+    'divorce',
     `${spouseName} divorced ${cheaterName} after catching them with ${otherName}`,
     spouseName,
   );
@@ -1009,7 +1012,7 @@ function tryDivorceOnCaughtCheater(
       dissolveMarriage(paramourSpouse, paramour);
       logEvent(
         state,
-        'marriage',
+        'divorce',
         `${humanDisplayName(paramourSpouse)} divorced ${humanDisplayName(paramour)} after catching them with ${humanDisplayName(cheater)}`,
         humanDisplayName(paramourSpouse),
       );
@@ -1187,11 +1190,6 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
       jobBuilding.occupants = jobBuilding.occupants.filter((id) => id !== offender.id);
     }
     offender.homeBuildingId = undefined;
-    // Arrest ends the workplace, not the office: a sitting leader keeps the
-    // "leader" occupation through the sentence (same rule as workforce.ts's
-    // `keepOffice`). Without this, a leader jailed for a scandal was released as
-    // a plain 'settler' while still holding villageLeaderId, which the full-year
-    // leader-occupation invariant caught at the next checkpoint.
     offender.occupation = offender.occupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
     offender.job = JobType.Settler;
   }
@@ -1209,7 +1207,9 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
   offender.y = prison.y + (Math.random() - 0.5) * 8;
   offender.vx = 0;
   offender.vy = 0;
-  prison.occupants.push(offender.id);
+  if (!prison.occupants.includes(offender.id)) {
+    prison.occupants.push(offender.id);
+  }
   const name = humanDisplayName(offender);
   logEvent(state, 'event', `${name} was imprisoned for scandal`, name);
   addNotification(state, 'Imprisoned', `${name} sentenced for scandal`, 'warning');
@@ -1490,8 +1490,9 @@ export function tryCompleteCourtshipMarriage(
   const married2 = humanDisplayName(partner);
   logEvent(state, 'marriage', `${married1} and ${married2} got married`, married1);
   addNotification(state, 'Marriage', `${married1} & ${married2} are now married`, 'success');
-  sayHumanChatPhrase(entity, 'Yes!', 120);
-  sayHumanChatPhrase(partner, 'Yes!', 120);
+  // 8 ticks (~2.5 in-game hours) celebration prevents blocking character dialogue for 40 hours
+  sayHumanChatPhrase(entity, 'Yes!', 8);
+  sayHumanChatPhrase(partner, 'Yes!', 8);
   syncPartnerResidence(entity, partner, residences, playerHumans);
   return true;
 }

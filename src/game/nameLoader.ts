@@ -5,72 +5,115 @@ import { readUtf8RelativeToModule } from './nodeRuntime';
 let maleNames: string[] = [];
 let femaleNames: string[] = [];
 let lastNames: string[] = [];
-/** `none` → `embedded` (tiny sync fallback) → `full` (data files). */
+/** `none` → `embedded` (fallback) → `full` (data files). */
 let poolSource: 'none' | 'embedded' | 'full' = 'none';
-/**
- * After the first full-pool upgrade pass, stop treating census-overlapping
- * legacy boot names (Whitaker, Elijah, …) as forever-invalid — those strings
- * also exist in the data files and are valid draws.
- */
 let legacyBootUpgradeDone = false;
+let loadPromise: Promise<void> | null = null;
+let defaultNoticeLogged = false;
 
 /**
- * Boot-only markers — deliberately absent from the census data files so a
- * settler still holding one is unambiguously "not yet named from the lists".
+ * Realistic sync fallback pool — used if data files are still loading or cannot be reached.
  */
-const EMBEDDED_MALE = `Bootman
-Preload
-Syncname
-Awaiter
-Tempfirst
-Initname
-Holdname
-Loadname
-Pendname
-Stagefirst`;
+const EMBEDDED_MALE = `Elijah
+Silas
+Josiah
+Caleb
+Ezra
+Harley
+Jasper
+Levi
+Amos
+Gideon
+Thomas
+Arthur
+William
+Henry
+Edward`;
 
-const EMBEDDED_FEMALE = `Bootwoman
-Preloadia
-Syncelle
-Awaita
-Tempessa
-Initelle
-Holdelle
-Loadelle
-Pendelle
-Stageelle`;
+const EMBEDDED_FEMALE = `Carisa
+Maude
+Eliza
+Hannah
+Mercy
+Prudence
+Temperance
+Abigail
+Charity
+Patience
+Clara
+Eleanor
+Margaret
+Beatrice
+Martha`;
 
-const EMBEDDED_LAST = `Bootwaite
-Namepending
-Loadhold
-Tempkin
-Awaitford
-Preloadson
-Syncroft
-Initvale
-Fallback
-Placeholder`;
+const EMBEDDED_LAST = `Batten
+Caldwell
+Mercer
+Hawthorne
+Whitaker
+Langford
+Prescott
+Fairchild
+Ashford
+Thornhill
+Sterling
+Blackwood
+Aldridge
+Fletcher
+Vance`;
 
-/** Previous boot pool (overlapped the census files) — upgrade once after load. */
-const LEGACY_BOOT_MALE = new Set(
-  'elijah silas josiah caleb ezra harley jasper levi amos gideon'.split(' '),
-);
-const LEGACY_BOOT_FEMALE = new Set(
-  'carisa maude eliza hannah mercy prudence temperance abigail charity patience rose'.split(
-    ' ',
-  ),
-);
-const LEGACY_BOOT_LAST = new Set(
-  'batten caldwell mercer hawthorne whitaker langford prescott fairchild ashford thornhill'.split(
-    ' ',
-  ),
-);
+/**
+ * Known debug markers and placeholder names from older versions
+ * so we can replace them if found in existing saves.
+ */
+const DEBUG_OR_LEGACY_LAST = new Set([
+  'namepending',
+  'bootwaite',
+  'loadhold',
+  'tempkin',
+  'awaitford',
+  'preloadson',
+  'syncroft',
+  'initvale',
+  'fallback',
+  'placeholder',
+  'smith',
+]);
+
+const DEBUG_OR_LEGACY_MALE = new Set([
+  'bootman',
+  'preload',
+  'syncname',
+  'awaiter',
+  'tempfirst',
+  'initname',
+  'holdname',
+  'loadname',
+  'pendname',
+  'stagefirst',
+  'john',
+]);
+
+const DEBUG_OR_LEGACY_FEMALE = new Set([
+  'bootwoman',
+  'preloadia',
+  'syncelle',
+  'awaita',
+  'tempessa',
+  'initelle',
+  'holdelle',
+  'loadelle',
+  'pendelle',
+  'stageelle',
+  'mary',
+]);
 
 const EMBEDDED_MALE_SET = new Set(parseNames(EMBEDDED_MALE).map((n) => n.toLowerCase()));
 const EMBEDDED_FEMALE_SET = new Set(parseNames(EMBEDDED_FEMALE).map((n) => n.toLowerCase()));
 const EMBEDDED_LAST_SET = new Set(parseNames(EMBEDDED_LAST).map((n) => n.toLowerCase()));
 
 function parseNames(text: string): string[] {
+  if (!text) return [];
   return text
     .split(/\r?\n/)
     .map((n) => n.trim())
@@ -84,47 +127,128 @@ function capitalize(s: string): string {
 }
 
 function applyNameData(male: string, female: string, last: string, source: 'embedded' | 'full'): void {
-  maleNames = parseNames(male);
-  femaleNames = parseNames(female);
-  lastNames = parseNames(last);
-  if (maleNames.length > 0 && femaleNames.length > 0 && lastNames.length > 0) {
+  const parsedMale = parseNames(male);
+  const parsedFemale = parseNames(female);
+  const parsedLast = parseNames(last);
+
+  if (parsedMale.length > 0 && parsedFemale.length > 0 && parsedLast.length > 0) {
+    maleNames = parsedMale;
+    femaleNames = parsedFemale;
+    lastNames = parsedLast;
     poolSource = source;
-    if (source === 'embedded') legacyBootUpgradeDone = false;
+
+    if (source === 'embedded') {
+      legacyBootUpgradeDone = false;
+      if (!defaultNoticeLogged) {
+        defaultNoticeLogged = true;
+        console.warn(
+          `[nameloader] Notice: Default fallback names loaded (${parsedMale.length} male, ${parsedFemale.length} female, ${parsedLast.length} surnames). Full census text files have not been loaded yet.`,
+        );
+      }
+    } else if (source === 'full') {
+      console.log(
+        `[nameloader] Full census name pool loaded successfully (${parsedMale.length} male, ${parsedFemale.length} female, ${parsedLast.length} surnames).`,
+      );
+    }
   }
 }
 
-/** Sync fallback pool — used until loadNames() finishes (browser) or at sim start. */
+/** Sync fallback pool — used until loadNames() finishes or if disk read fails. */
 export function ensureNamesLoaded(): void {
   if (poolSource !== 'none') return;
   applyNameData(EMBEDDED_MALE, EMBEDDED_FEMALE, EMBEDDED_LAST, 'embedded');
 }
 
-/** Read name lists from disk — headless sims (tsx/node) cannot use Vite ?raw imports. */
+/** Read name lists from disk (headless / node environments). */
 async function loadNamesFromDisk(): Promise<boolean> {
-  const [male, female, last] = await Promise.all([
-    readUtf8RelativeToModule(import.meta.url, 'data', 'male-first-names.txt'),
-    readUtf8RelativeToModule(import.meta.url, 'data', 'female-first-names.txt'),
-    readUtf8RelativeToModule(import.meta.url, 'data', 'last-names.txt'),
-  ]);
-  if (!male || !female || !last) return false;
-  applyNameData(male, female, last, 'full');
-  return maleNames.length > 20;
+  try {
+    const [male, female, last] = await Promise.all([
+      readUtf8RelativeToModule(import.meta.url, 'data', 'male-first-names.txt'),
+      readUtf8RelativeToModule(import.meta.url, 'data', 'female-first-names.txt'),
+      readUtf8RelativeToModule(import.meta.url, 'data', 'last-names.txt'),
+    ]);
+    if (!male || !female || !last) return false;
+    applyNameData(male, female, last, 'full');
+    return maleNames.length > 20;
+  } catch {
+    return false;
+  }
+}
+
+/** Safely extracts text from either default-exported or raw-string module imports. */
+function unwrapRawModule(mod: unknown): string {
+  if (typeof mod === 'string') return mod;
+  if (mod && typeof mod === 'object' && 'default' in mod && typeof (mod as { default: unknown }).default === 'string') {
+    return (mod as { default: string }).default;
+  }
+  return '';
 }
 
 export async function loadNames(): Promise<void> {
   if (poolSource === 'full' && maleNames.length > 20) return;
-  if (await loadNamesFromDisk()) return;
-  try {
-    const [male, female, last] = await Promise.all([
-      import('./data/male-first-names.txt?raw').then((m) => m.default),
-      import('./data/female-first-names.txt?raw').then((m) => m.default),
-      import('./data/last-names.txt?raw').then((m) => m.default),
-    ]);
-    applyNameData(male, female, last, 'full');
-  } catch {
+  if (loadPromise) return loadPromise;
+
+  loadPromise = (async () => {
+    // 1. Try disk read (Node / headless)
+    if (await loadNamesFromDisk()) return;
+
+    // 2. Try Vite ?raw dynamic import (Browser / Bundler)
+    try {
+      const [maleMod, femaleMod, lastMod] = await Promise.all([
+        import('./data/male-first-names.txt?raw'),
+        import('./data/female-first-names.txt?raw'),
+        import('./data/last-names.txt?raw'),
+      ]);
+
+      const male = unwrapRawModule(maleMod);
+      const female = unwrapRawModule(femaleMod);
+      const last = unwrapRawModule(lastMod);
+
+      if (male && female && last) {
+        applyNameData(male, female, last, 'full');
+        return;
+      }
+    } catch {
+      // Dynamic import failed, try fetch fallback below
+    }
+
+    // 3. Browser fetch fallback in case ?raw imports are not resolved by bundler
+    if (typeof fetch === 'function') {
+      try {
+        const [mRes, fRes, lRes] = await Promise.all([
+          fetch('/data/male-first-names.txt').catch(() => fetch('./data/male-first-names.txt')),
+          fetch('/data/female-first-names.txt').catch(() => fetch('./data/female-first-names.txt')),
+          fetch('/data/last-names.txt').catch(() => fetch('./data/last-names.txt')),
+        ]);
+        if (mRes.ok && fRes.ok && lRes.ok) {
+          const [male, female, last] = await Promise.all([mRes.text(), fRes.text(), lRes.text()]);
+          if (male && female && last) {
+            applyNameData(male, female, last, 'full');
+            return;
+          }
+        }
+      } catch {
+        // Fetch failed
+      }
+    }
+
+    // 4. Fallback to embedded list if still uninitialized
     ensureNamesLoaded();
-  }
+  })();
+
+  return loadPromise;
 }
+
+/**
+ * Start loading the census files as soon as this module is imported.
+ *
+ * Every naming site draws from whatever pool is installed *at that moment*
+ * (`entityFactory`, `worldGen`, births, immigration), so a late first load means
+ * settlers named from the tiny embedded fallback. Importing this module is exactly
+ * the moment the game (or the simulation worker) is about to need names, so the
+ * load starts here — the explicit `loadNames()` awaits at boot stay in place.
+ */
+loadNames().catch(() => {});
 
 function pickFrom(pool: string[]): string {
   ensureNamesLoaded();
@@ -161,35 +285,24 @@ export function getNamePoolInfo(): { male: number; female: number; last: number;
   };
 }
 
-const PLACEHOLDER_FIRST = new Set(['john', 'mary']);
-const PLACEHOLDER_LAST = new Set(['smith']);
-
-function isPlaceholderFirst(name: string | undefined): boolean {
-  return PLACEHOLDER_FIRST.has((name ?? '').trim().toLowerCase());
-}
-
-function isPlaceholderLast(surname: string | undefined): boolean {
-  return PLACEHOLDER_LAST.has((surname ?? '').trim().toLowerCase());
-}
-
 function needsFullPoolFirstName(entity: Entity, upgradeLegacy: boolean): boolean {
   const key = (entity.name ?? '').trim().toLowerCase();
-  if (!key || isPlaceholderFirst(key)) return true;
+  if (!key || DEBUG_OR_LEGACY_MALE.has(key) || DEBUG_OR_LEGACY_FEMALE.has(key)) return true;
   if (poolSource !== 'full') return false;
   if (entity.gender === 'male' ? EMBEDDED_MALE_SET.has(key) : EMBEDDED_FEMALE_SET.has(key)) {
-    return true;
+    return upgradeLegacy;
   }
-  if (!upgradeLegacy) return false;
-  return entity.gender === 'male' ? LEGACY_BOOT_MALE.has(key) : LEGACY_BOOT_FEMALE.has(key);
+  return false;
 }
 
 function needsFullPoolSurname(surname: string | undefined, upgradeLegacy: boolean): boolean {
   const key = (surname ?? '').trim().toLowerCase();
-  if (!key || isPlaceholderLast(key)) return true;
+  if (!key || DEBUG_OR_LEGACY_LAST.has(key)) return true;
   if (poolSource !== 'full') return false;
-  if (EMBEDDED_LAST_SET.has(key)) return true;
-  if (!upgradeLegacy) return false;
-  return LEGACY_BOOT_LAST.has(key);
+  if (EMBEDDED_LAST_SET.has(key)) {
+    return upgradeLegacy;
+  }
+  return false;
 }
 
 /** Married women take the husband's surname; he keeps his family name. */
@@ -241,12 +354,10 @@ export function resolveChildSurname(
   };
 }
 
-/** Status after a marriage ends — pregnant settlers stay "expecting", not free to remarry. */
 function statusAfterDivorce(entity: Entity): 'single' | 'expecting' {
   return entity.pregnant ? 'expecting' : 'single';
 }
 
-/** Clear legal + secret-romance links so either person can court again later. */
 function clearMarriageLinks(entity: Entity): void {
   entity.partnerId = undefined;
   entity.affairPartnerId = undefined;
@@ -257,10 +368,6 @@ function clearMarriageLinks(entity: Entity): void {
   entity.lastAffairSiteY = undefined;
 }
 
-/**
- * Wife leaves the marriage and takes back her maiden name; husband keeps his surname.
- * Both become eligible to remarry once single (not pregnant / not imprisoned).
- */
 export function grantDivorce(wife: Entity, husband: Entity): void {
   if (wife.maidenSurname?.trim()) {
     wife.surname = wife.maidenSurname.trim();
@@ -271,7 +378,6 @@ export function grantDivorce(wife: Entity, husband: Entity): void {
   husband.relationshipStatus = statusAfterDivorce(husband);
 }
 
-/** End a marriage regardless of which partner cheated — maiden name restored for the woman. */
 export function dissolveMarriage(partnerA: Entity, partnerB: Entity): void {
   const wife = partnerA.gender === 'female' ? partnerA : partnerB.gender === 'female' ? partnerB : null;
   const husband = partnerA.gender === 'male' ? partnerA : partnerB.gender === 'male' ? partnerB : null;
@@ -294,19 +400,34 @@ export function formatCaughtCheaterDivorceDetail(spouse: Entity, cheater: Entity
   return `${spouseName} divorced ${cheaterName}`;
 }
 
-/** Regenerate fallback / placeholder names once the full lists are available. */
+/** Regenerates placeholder or default names across existing citizens. */
 export function fixDefaultNames(state: WorldState): void {
   ensureNamesLoaded();
   const upgradeLegacy = poolSource === 'full' && !legacyBootUpgradeDone;
   const humans = state.entities.filter((e) => e.alive && e.type === EntityType.Human);
+  let updatedCount = 0;
+
   for (const entity of humans) {
+    let changed = false;
     if (needsFullPoolFirstName(entity, upgradeLegacy)) {
       entity.name = getRandomName(entity.gender === 'male' ? 'male' : 'female');
+      changed = true;
     }
     if (needsFullPoolSurname(entity.surname, upgradeLegacy)) {
       entity.surname = getRandomSurname();
+      changed = true;
     }
+    if (needsFullPoolSurname(entity.maidenSurname, upgradeLegacy)) {
+      entity.maidenSurname = getRandomSurname();
+      changed = true;
+    }
+    if (changed) updatedCount++;
   }
+
+  if (updatedCount > 0) {
+    console.log(`[nameloader] Replaced default/fallback names on ${updatedCount} citizen(s).`);
+  }
+
   if (poolSource === 'full') legacyBootUpgradeDone = true;
 
   const seenPairs = new Set<string>();

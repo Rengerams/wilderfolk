@@ -41,8 +41,18 @@ export const CAMERA_ZOOM_PRESETS: readonly number[] = [0.5, 0.75, 1.0, 1.25, 1.4
 
 const CAMERA_EPS = 1e-3;
 const CAMERA_LERP = 0.12;
-const BUILDING_TYPE_VALUES = new Set<string>(Object.values(BuildingTypeEnum));
 const CAMP_KEY_PATTERN = /^(rival|visitor):/;
+
+/** Safe lazy set to prevent circular import crashes at startup. */
+let buildingTypeValuesSet: Set<string> | null = null;
+function getBuildingTypeValues(): Set<string> {
+  if (!buildingTypeValuesSet) {
+    buildingTypeValuesSet = new Set<string>(
+      BuildingTypeEnum && typeof BuildingTypeEnum === 'object' ? Object.values(BuildingTypeEnum) : [],
+    );
+  }
+  return buildingTypeValuesSet;
+}
 
 export function createInitialView(width: number, height: number, zoom = CAMERA_ZOOM_DEFAULT): ViewState {
   const cx = width / 2;
@@ -77,7 +87,7 @@ export function createInitialView(width: number, height: number, zoom = CAMERA_Z
 }
 
 export function clampCameraZoom(zoom: number): number {
-  if (!Number.isFinite(zoom)) return CAMERA_ZOOM_DEFAULT;
+  if (!Number.isFinite(zoom) || zoom <= 0) return CAMERA_ZOOM_DEFAULT;
   return Math.max(CAMERA_ZOOM_MIN, Math.min(CAMERA_ZOOM_MAX, zoom));
 }
 
@@ -119,7 +129,7 @@ export function parseBuildRotation(value: unknown): 0 | 90 {
 }
 
 function isBuildingType(value: unknown): value is BuildingType {
-  return typeof value === 'string' && BUILDING_TYPE_VALUES.has(value);
+  return typeof value === 'string' && getBuildingTypeValues().has(value);
 }
 
 function parseBuildGhost(value: unknown): ViewState['buildGhost'] {
@@ -134,7 +144,7 @@ function parseBuildGhost(value: unknown): ViewState['buildGhost'] {
 // ============ ENTITY & BUILDING RESOLUTION ============
 
 export function resolveEntity(world: WorldState, id: number | null): Entity | null {
-  if (id == null) return null;
+  if (id == null || !world) return null;
 
   // 1. O(1) authoritative map lookup if available
   if (world.entityById) {
@@ -143,8 +153,9 @@ export function resolveEntity(world: WorldState, id: number | null): Entity | nu
   }
 
   // 2. Direct linear scan fallback
-  for (let i = 0; i < world.entities.length; i++) {
-    const ent = world.entities[i];
+  const entities = world.entities ?? [];
+  for (let i = 0; i < entities.length; i++) {
+    const ent = entities[i];
     if (ent.id === id) {
       return ent.alive ? ent : null;
     }
@@ -154,12 +165,11 @@ export function resolveEntity(world: WorldState, id: number | null): Entity | nu
 }
 
 export function resolveBuilding(world: WorldState, id: number | null): Building | null {
-  if (id == null) return null;
+  if (id == null || !world) return null;
 
-  // No persistent building map is maintained on WorldState, so fall back to a
-  // direct linear scan by id.
-  for (let i = 0; i < world.buildings.length; i++) {
-    const b = world.buildings[i];
+  const buildings = world.buildings ?? [];
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i];
     if (b.id === id) {
       return b;
     }
@@ -243,18 +253,22 @@ export function createViewFromSave(
   const selection = resolveSelectionIds(world, data);
   const screenShake = parseFiniteNumber(data.screenShake);
 
+  const validEntityIds = Array.isArray(data.selectedEntityIds)
+    ? data.selectedEntityIds
+        .map(parseEntityId)
+        .filter((id): id is number => id != null && resolveEntity(world, id) != null)
+    : [];
+
+  if (selection.selectedEntityId != null && !validEntityIds.includes(selection.selectedEntityId)) {
+    validEntityIds.push(selection.selectedEntityId);
+  }
+
   return {
     ...base,
     camera: normalizeCameraForSave(sanitizeCamera(data.camera as Partial<Camera>, base.camera)),
     screenShake: screenShake != null && screenShake >= 0 ? screenShake : base.screenShake,
     selectedEntityId: selection.selectedEntityId,
-    selectedEntityIds: Array.isArray(data.selectedEntityIds)
-      ? data.selectedEntityIds
-          .map(parseEntityId)
-          .filter((id): id is number => id != null && resolveEntity(world, id) != null)
-      : selection.selectedEntityId != null
-        ? [selection.selectedEntityId]
-        : [],
+    selectedEntityIds: validEntityIds.length > 0 ? validEntityIds : selection.selectedEntityId != null ? [selection.selectedEntityId] : [],
     selectedBuildingId: selection.selectedBuildingId,
     hoveredBuildingId: selection.hoveredBuildingId,
     buildMode: isBuildingType(data.buildMode) ? data.buildMode : null,
@@ -275,16 +289,27 @@ export function createViewFromSave(
 
 export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewState {
   let selectedEntityId = view.selectedEntityId;
-  let selectedEntityIds = view.selectedEntityIds ?? (selectedEntityId != null ? [selectedEntityId] : []);
+  let selectedEntityIds = (view.selectedEntityIds ?? []).filter((id) => resolveEntity(world, id) != null);
   let selectedBuildingId = view.selectedBuildingId;
+  let hoveredBuildingId = view.hoveredBuildingId;
   let favoriteEntityId = view.favoriteEntityId;
 
   if (selectedEntityId != null && !resolveEntity(world, selectedEntityId)) {
     selectedEntityId = null;
   }
-  selectedEntityIds = selectedEntityIds.filter((id) => resolveEntity(world, id) != null);
+
+  // If primary target died, promote the next surviving selection
+  if (selectedEntityId == null && selectedEntityIds.length > 0) {
+    selectedEntityId = selectedEntityIds[selectedEntityIds.length - 1];
+  } else if (selectedEntityId != null && !selectedEntityIds.includes(selectedEntityId)) {
+    selectedEntityIds.push(selectedEntityId);
+  }
+
   if (selectedBuildingId != null && !resolveBuilding(world, selectedBuildingId)) {
     selectedBuildingId = null;
+  }
+  if (hoveredBuildingId != null && !resolveBuilding(world, hoveredBuildingId)) {
+    hoveredBuildingId = null;
   }
   if (favoriteEntityId != null && !resolveEntity(world, favoriteEntityId)) {
     favoriteEntityId = null;
@@ -293,6 +318,7 @@ export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewS
   if (
     selectedEntityId === view.selectedEntityId &&
     selectedBuildingId === view.selectedBuildingId &&
+    hoveredBuildingId === view.hoveredBuildingId &&
     favoriteEntityId === view.favoriteEntityId &&
     selectedEntityIds.length === (view.selectedEntityIds?.length ?? 0)
   ) {
@@ -304,16 +330,17 @@ export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewS
     selectedEntityId,
     selectedEntityIds,
     selectedBuildingId,
+    hoveredBuildingId,
     favoriteEntityId,
   };
 }
 
 export function pickTransientWorldFieldsForSave(world: WorldState): Record<string, unknown> {
   return {
-    deathParticles: world.deathParticles,
-    floatingTexts: world.floatingTexts,
-    notifications: world.notifications,
-    disasters: world.disasters,
+    deathParticles: world.deathParticles ?? [],
+    floatingTexts: world.floatingTexts ?? [],
+    notifications: world.notifications ?? [],
+    disasters: world.disasters ?? [],
   };
 }
 
@@ -346,6 +373,7 @@ export function mergeForSave(world: WorldState, view: ViewState): Record<string,
     selectedEntityId: selection.selectedEntityId,
     selectedEntityIds: selection.selectedEntityIds,
     selectedBuildingId: selection.selectedBuildingId,
+    hoveredBuildingId: selection.hoveredBuildingId,
     buildMode: selection.buildMode,
     buildRotation: selection.buildRotation,
     showGrid: selection.showGrid,
@@ -371,13 +399,14 @@ function cameraAtRest(cam: Camera): boolean {
 export function updateView(view: ViewState, dtMs: number): ViewState {
   if (dtMs <= 0 || !Number.isFinite(dtMs)) return view;
 
+  const safeDt = Math.min(dtMs, 200);
   const cam = view.camera;
   let nextX = cam.x;
   let nextY = cam.y;
   let nextZoom = cam.zoom;
 
   if (!cameraAtRest(cam)) {
-    const t = 1 - Math.pow(1 - CAMERA_LERP, dtMs / 16.67);
+    const t = 1 - Math.pow(1 - CAMERA_LERP, safeDt / 16.67);
     nextX = cam.x + (cam.targetX - cam.x) * t;
     nextY = cam.y + (cam.targetY - cam.y) * t;
     nextZoom = cam.zoom + (cam.targetZoom - cam.zoom) * t;
@@ -387,7 +416,7 @@ export function updateView(view: ViewState, dtMs: number): ViewState {
     if (Math.abs(nextZoom - cam.targetZoom) < CAMERA_EPS) nextZoom = cam.targetZoom;
   }
 
-  const nextShake = view.screenShake > 0.05 ? view.screenShake * Math.pow(0.9, dtMs / 16.67) : 0;
+  const nextShake = view.screenShake > 0.05 ? view.screenShake * Math.pow(0.9, safeDt / 16.67) : 0;
   const cameraUnchanged =
     Math.abs(nextX - cam.x) < CAMERA_EPS &&
     Math.abs(nextY - cam.y) < CAMERA_EPS &&
@@ -405,24 +434,41 @@ export function updateView(view: ViewState, dtMs: number): ViewState {
   };
 }
 
+/** Keeps camera target within valid map boundaries with boundary margin. */
 export function clampCameraTarget(
   cam: Camera,
   worldW: number,
   worldH: number,
-  viewportW = worldW,
-  viewportH = worldH,
+  viewportW?: number,
+  viewportH?: number,
 ): Camera {
   const effectiveZoom = clampCameraZoom(cam.targetZoom ?? cam.zoom);
-  const halfViewW = viewportW / 2 / effectiveZoom;
-  const halfViewH = viewportH / 2 / effectiveZoom;
-
-  const minX = halfViewW * 2 >= worldW ? worldW / 2 : halfViewW;
-  const maxX = halfViewW * 2 >= worldW ? worldW / 2 : worldW - halfViewW;
-  const minY = halfViewH * 2 >= worldH ? worldH / 2 : halfViewH;
-  const maxY = halfViewH * 2 >= worldH ? worldH / 2 : worldH - halfViewH;
-
+  // 2% = the overscroll allowed past each edge; the regression this guards is an
+  // empty ring around the world, so the margin stays small on purpose.
   const marginX = worldW * 0.02;
   const marginY = worldH * 0.02;
+
+  let minX: number;
+  let maxX: number;
+  let minY: number;
+  let maxY: number;
+
+  // If a distinct screen canvas viewport was supplied, fit edges cleanly. A
+  // viewport the same size as the world is still a viewport — it pins to center.
+  if (viewportW != null && viewportH != null && viewportW > 0 && viewportH > 0) {
+    const halfViewW = viewportW / 2 / effectiveZoom;
+    const halfViewH = viewportH / 2 / effectiveZoom;
+    minX = halfViewW * 2 >= worldW ? worldW / 2 : halfViewW;
+    maxX = halfViewW * 2 >= worldW ? worldW / 2 : worldW - halfViewW;
+    minY = halfViewH * 2 >= worldH ? worldH / 2 : halfViewH;
+    maxY = halfViewH * 2 >= worldH ? worldH / 2 : worldH - halfViewH;
+  } else {
+    // Standard target clamping across world dimensions
+    minX = 0;
+    maxX = worldW;
+    minY = 0;
+    maxY = worldH;
+  }
 
   return {
     ...cam,
@@ -431,12 +477,19 @@ export function clampCameraTarget(
   };
 }
 
-export function moveCameraView(view: ViewState, world: WorldState, dx: number, dy: number): ViewState {
+export function moveCameraView(
+  view: ViewState,
+  world: WorldState,
+  dx: number,
+  dy: number,
+  viewportW?: number,
+  viewportH?: number,
+): ViewState {
   const cam = { ...view.camera };
   const effectiveZoom = cam.targetZoom ?? cam.zoom;
   cam.targetX += dx / effectiveZoom;
   cam.targetY += dy / effectiveZoom;
-  return { ...view, camera: clampCameraTarget(cam, world.width, world.height) };
+  return { ...view, camera: clampCameraTarget(cam, world.width, world.height, viewportW, viewportH) };
 }
 
 export function zoomCameraViewAt(
@@ -446,6 +499,7 @@ export function zoomCameraViewAt(
   screenY: number,
   canvasW: number,
   canvasH: number,
+  world?: WorldState,
 ): ViewState {
   const cam = { ...view.camera };
   const oldZoom = cam.targetZoom;
@@ -463,7 +517,8 @@ export function zoomCameraViewAt(
   cam.targetX = worldX - (screenX - canvasW / 2) / newZoom;
   cam.targetY = worldY - (screenY - canvasH / 2) / newZoom;
 
-  return { ...view, camera: cam };
+  const clampedCam = world ? clampCameraTarget(cam, world.width, world.height, canvasW, canvasH) : cam;
+  return { ...view, camera: clampedCam };
 }
 
 export function zoomCameraView(
@@ -471,8 +526,9 @@ export function zoomCameraView(
   factor: number,
   canvasW = 800,
   canvasH = 600,
+  world?: WorldState,
 ): ViewState {
-  return zoomCameraViewAt(view, factor, canvasW / 2, canvasH / 2, canvasW, canvasH);
+  return zoomCameraViewAt(view, factor, canvasW / 2, canvasH / 2, canvasW, canvasH, world);
 }
 
 export function focusCameraOn(view: ViewState, x: number, y: number, zoom?: number): ViewState {
@@ -499,6 +555,26 @@ export function nudgeCameraToward(
   return { ...view, camera: clampCameraTarget(cam, world.width, world.height) };
 }
 
+/** Smoothly centers and tracks the favorite citizen if one is set. */
+export function followFavoriteEntity(view: ViewState, world: WorldState): ViewState {
+  if (view.favoriteEntityId == null) return view;
+  const entity = resolveEntity(world, view.favoriteEntityId);
+  if (!entity) {
+    return { ...view, favoriteEntityId: null };
+  }
+  if (Math.abs(view.camera.targetX - entity.x) < CAMERA_EPS && Math.abs(view.camera.targetY - entity.y) < CAMERA_EPS) {
+    return view;
+  }
+  return {
+    ...view,
+    camera: {
+      ...view.camera,
+      targetX: entity.x,
+      targetY: entity.y,
+    },
+  };
+}
+
 export function syncScreenShakeFromWorld(view: ViewState, world: WorldState): ViewState {
   if (world.screenShakeImpulse <= view.screenShake) return view;
   return { ...view, screenShake: world.screenShakeImpulse };
@@ -517,7 +593,8 @@ export function worldToScreen(
   cw: number,
   ch: number,
 ): [number, number] {
-  return [(x - cam.x) * cam.zoom + cw / 2, (y - cam.y) * cam.zoom + ch / 2];
+  const zoom = cam.zoom > 0 ? cam.zoom : CAMERA_ZOOM_DEFAULT;
+  return [(x - cam.x) * zoom + cw / 2, (y - cam.y) * zoom + ch / 2];
 }
 
 export function screenToWorld(
@@ -527,5 +604,6 @@ export function screenToWorld(
   cw: number,
   ch: number,
 ): [number, number] {
-  return [(sx - cw / 2) / cam.zoom + cam.x, (sy - ch / 2) / cam.zoom + cam.y];
+  const zoom = cam.zoom > 0 ? cam.zoom : CAMERA_ZOOM_DEFAULT;
+  return [(sx - cw / 2) / zoom + cam.x, (sy - ch / 2) / zoom + cam.y];
 }

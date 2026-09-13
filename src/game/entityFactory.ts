@@ -1,7 +1,3 @@
-/**
- * Leaf entity construction — keeps worldGen / groupEvents from mutual-importing
- * just to spawn settlers and wildlife.
- */
 import type { Entity, SettlerTrait, WorldState } from './gameTypes';
 import { EntityType, JobType } from './gameTypes';
 import {
@@ -27,6 +23,7 @@ export interface CreateEntityOptions {
   motherId?: number;
   generation?: number;
   surname?: string;
+  maidenSurname?: string;
   spriteVariant?: number;
   isBastard?: boolean;
   /** Human calendar age — sets birth date via setHumanBirthFromAge. */
@@ -36,6 +33,7 @@ export interface CreateEntityOptions {
   pregnancyProgress?: number;
   pregnantById?: number;
   partnerId?: number;
+  relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
   name?: string;
   /** Traits inherited from parents — remaining slots are rolled. */
   inheritedTraits?: SettlerTrait[];
@@ -50,11 +48,22 @@ export function createEntity(
   isJuvenile?: boolean,
   opts?: CreateEntityOptions,
 ): Entity {
-  const config = SPECIES_CONFIG[type];
   const isHuman = type === EntityType.Human;
+  const config = SPECIES_CONFIG[type] ?? {
+    spawnEnergy: 100,
+    maxEnergy: 100,
+    maxAge: 1000,
+    speed: 0,
+    size: 16,
+  };
+
   const entGender =
     opts?.gender ?? (isHuman ? (simRandom() > 0.5 ? 'male' : 'female') : undefined);
   const gen = opts?.generation ?? 0;
+
+  // Auto-detect juvenile status if calendar age indicates a child
+  const effectiveJuvenile =
+    isJuvenile ?? (isHuman && opts?.ageYears !== undefined ? opts.ageYears < HUMAN_ADULT_MIN_AGE : false);
 
   let name: string | undefined;
   if (isHuman) {
@@ -64,6 +73,23 @@ export function createEntity(
   // Personality traits — only settlers receive traits
   const traits = isHuman ? rollSettlerTraits(opts?.inheritedTraits, entGender) : undefined;
 
+  // Derive surnames and maiden surnames safely
+  const surname = isHuman ? (opts?.surname?.trim() || getRandomSurname()) : undefined;
+  const maidenSurname =
+    isHuman && entGender === 'female'
+      ? opts?.maidenSurname?.trim() || (opts?.partnerId != null ? getRandomSurname() : surname)
+      : undefined;
+
+  // Resolve relationship status
+  const relationshipStatus = isHuman
+    ? opts?.relationshipStatus ??
+      (opts?.partnerId != null
+        ? 'married'
+        : opts?.pregnant
+          ? 'expecting'
+          : 'single')
+    : undefined;
+
   const entity: Entity = {
     id,
     type,
@@ -72,8 +98,8 @@ export function createEntity(
     energy: energy ?? config.spawnEnergy,
     maxEnergy: config.maxEnergy,
     age: isHuman
-      ? 0
-      : isJuvenile
+      ? opts?.ageYears ?? 0
+      : effectiveJuvenile
         ? 0
         : Math.floor(simRandom() * config.maxAge * 0.3),
     birthYear: isHuman ? 0 : -1,
@@ -81,14 +107,14 @@ export function createEntity(
     birthDay: 0,
     maxAge: config.maxAge,
     speed: config.speed,
-    size: isJuvenile ? config.size * 0.5 : config.size,
+    size: effectiveJuvenile ? config.size * 0.5 : config.size,
     vx: 0,
     vy: 0,
-    reproductionCooldown: type === EntityType.Grass ? 0 : simRandom() * 100,
+    reproductionCooldown: type === EntityType.Grass || type === EntityType.Tree ? 0 : simRandom() * 100,
     alive: true,
     flash: 0,
     gender: isHuman ? entGender : undefined,
-    isJuvenile: isJuvenile ?? false,
+    isJuvenile: effectiveJuvenile,
     pregnant: undefined,
     pregnancyProgress: 0,
     homeBuildingId: undefined,
@@ -97,12 +123,13 @@ export function createEntity(
     job: isHuman ? JobType.Settler : undefined,
     skills: {},
     traits,
-    relationshipStatus: isHuman ? 'single' : undefined,
+    relationshipStatus,
     childrenIds: [],
     fatherId: opts?.fatherId,
     motherId: opts?.motherId,
     name,
-    surname: isHuman ? (opts?.surname?.trim() || getRandomSurname()) : undefined,
+    surname,
+    maidenSurname,
     generation: isHuman ? gen : 0,
     partnerId: opts?.partnerId,
     affairPartnerId: undefined,
@@ -114,7 +141,7 @@ export function createEntity(
     prisonBuildingId: undefined,
     prisonerUntilTick: undefined,
     prisonSentenceCrime: undefined,
-    pregnantById: undefined,
+    pregnantById: opts?.pregnantById,
     courtshipProgress: 0,
     isBastard: opts?.isBastard,
     adoptiveMotherId: undefined,
@@ -130,7 +157,9 @@ export function createEntity(
   if (isHuman) {
     if (opts?.ageYears !== undefined) {
       setHumanBirthFromAge(entity, opts.ageYears, opts.colonyDay ?? 0);
+      entity.age = opts.ageYears;
     }
+
     if (opts?.pregnant && entGender === 'female') {
       entity.pregnant = true;
       entity.pregnancyProgress = opts.pregnancyProgress ?? 0;
@@ -157,7 +186,11 @@ export function finalizeSettlerAge(
     HUMAN_ADULT_MIN_AGE,
     entity.age > 0 ? entity.age : HUMAN_ADULT_MIN_AGE + Math.floor(simRandom() * 20),
   );
+
   setHumanBirthFromAge(entity, targetAge, colonyDay);
+  entity.age = targetAge;
   entity.isJuvenile = false;
-  entity.generation = Math.max(entity.generation ?? 0, 2);
+
+  // Preserve Generation 1 founders if already set; default unassigned to Generation 2
+  entity.generation = entity.generation && entity.generation > 0 ? entity.generation : 2;
 }

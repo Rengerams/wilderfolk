@@ -21,12 +21,18 @@ export interface EntityRenderMeta {
   id: number;
   name?: string;
   surname?: string;
+  maidenSurname?: string;
+  title?: string;
   chatPhrase?: string;
   gender?: 'male' | 'female';
   spriteVariant?: number;
-    faction?: Entity['faction'];
+  faction?: Entity['faction'];
   hiddenFromPlayer?: boolean;
   detectedByPatrol?: boolean;
+
+  job?: Entity['job'];
+  occupation?: string;
+  generation?: number;
 
   moonHowlerCursed?: boolean;
   pregnant?: boolean;
@@ -46,12 +52,18 @@ export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
     id: entity.id,
     name: entity.name,
     surname: entity.surname,
+    maidenSurname: entity.maidenSurname,
+    title: entity.title,
     chatPhrase: entity.chatPhrase,
     gender: entity.gender,
     spriteVariant: entity.spriteVariant,
-        faction: entity.faction,
+    faction: entity.faction,
     hiddenFromPlayer: entity.hiddenFromPlayer,
     detectedByPatrol: entity.detectedByPatrol,
+
+    job: entity.job,
+    occupation: entity.occupation,
+    generation: entity.generation,
 
     moonHowlerCursed: entity.moonHowlerCursed,
     pregnant: entity.pregnant,
@@ -60,7 +72,7 @@ export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
     partnerId: entity.partnerId,
     homeBuildingId: entity.homeBuildingId,
     tamedBy: entity.tamedBy,
-    skills: entity.skills,
+    skills: entity.skills ? { ...entity.skills } : {},
     combatTicks: entity.combatTicks,
     forageKind: entity.forageKind,
     blueberryYield: entity.blueberryYield,
@@ -72,7 +84,8 @@ export function packRenderMetaForPacked(packed: Entity[]): EntityRenderMeta[] {
 }
 
 export function packRenderMetaForAlive(world: { entities: Entity[] }): EntityRenderMeta[] {
-  const alive = world.entities.filter((e) => e.alive);
+  const entities = world.entities ?? [];
+  const alive = entities.filter((e) => e.alive);
   return alive.map(packEntityRenderMeta);
 }
 
@@ -113,12 +126,18 @@ export function buildRenderEntityShim(
     homeBuildingId: meta?.homeBuildingId,
     name: meta?.name,
     surname: meta?.surname,
+    maidenSurname: meta?.maidenSurname,
+    title: meta?.title,
     chatPhrase: meta?.chatPhrase,
     gender: meta?.gender ?? (flags & RENDER_FLAG_FEMALE ? 'female' : flags & RENDER_FLAG_MALE ? 'male' : undefined),
     spriteVariant: meta?.spriteVariant,
-        faction: meta?.faction ?? factionFromFlags(flags),
+    faction: meta?.faction ?? factionFromFlags(flags),
     hiddenFromPlayer: meta?.hiddenFromPlayer,
     detectedByPatrol: meta?.detectedByPatrol,
+
+    job: meta?.job,
+    occupation: meta?.occupation,
+    generation: meta?.generation ?? 0,
 
     moonHowlerCursed: meta?.moonHowlerCursed ?? !!(flags & RENDER_FLAG_MOON_HOWLER),
     pregnant: meta?.pregnant ?? !!(flags & RENDER_FLAG_PREGNANT),
@@ -143,7 +162,6 @@ export function buildRenderEntityShim(
     speed: 1,
     reproductionCooldown: 0,
     childrenIds: [],
-    generation: 0,
   };
 }
 

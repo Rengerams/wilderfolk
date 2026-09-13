@@ -19,6 +19,7 @@ import {
   isResidenceBuildingType, getResidenceCapacity, getResidenceUpgradeSlotGain, TICKS_PER_DAY,
 } from '../game/dayCycle';
 import { isProductionBuildingType } from '../game/buildCatalog';
+import { MINE_ORES, mineOreForMode, type MineMode } from '../game/buildings';
 import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
 import { describeHotelStatus } from '../game/hotelStay';
 import { HOTEL_GUEST_CAPACITY } from '../game/gameTypes';
@@ -46,7 +47,7 @@ const BUILDING_OUTPUT_HINTS: Partial<Record<BuildingType, string>> = {
   [BuildingType.Barn]: 'Boosts nearby Farms/Greenhouses +35% — place next to fields, not a farm itself.',
   [BuildingType.LumberMill]: 'Produces wood — watch Wood in the header.',
   [BuildingType.Quarry]: 'Produces stone — watch Stone in the header.',
-  [BuildingType.Mine]: 'Produces stone or iron — set the mode below; iron feeds the Blacksmith forge.',
+  [BuildingType.Mine]: 'Produces iron ore or gold — set the ore below. Stone comes from the Quarry.',
   [BuildingType.Store]: 'Generates passive gold income.',
   [BuildingType.Market]: 'Trades goods for gold with assigned workers.',
   [BuildingType.Workshop]: 'Pick a recipe below — crafts every 2 days when staffed and stocked.',
@@ -61,6 +62,13 @@ const BUILDING_OUTPUT_HINTS: Partial<Record<BuildingType, string>> = {
   [BuildingType.WallGate]: 'Gated wall segment — same defense bonus as straight walls.',
   [BuildingType.Watchtower]: '+15 barricade strength. Pairs well with walls around your core.',
   [BuildingType.Barracks]: 'Assign Soldiers — each patrols the village (+14 militia strength).',
+};
+
+/** Mine ore picker presentation — one label and tooltip per extractable ore. */
+const MINE_ORE_LABELS: Record<MineMode, string> = { iron: '🔩 Iron', gold: '🪙 Gold' };
+const MINE_ORE_TITLES: Record<MineMode, string> = {
+  iron: 'Mine extracts iron ore for the Blacksmith forge',
+  gold: 'Mine extracts gold for the treasury',
 };
 
 function canAffordRecipe(resources: WorldState['resources'], recipe: ReturnType<typeof getWorkshopRecipe>): boolean {
@@ -84,7 +92,7 @@ export interface SelectedBuildingPanelProps {
   onDemolish: () => void;
   onSetWorkshopRecipe?: (recipeId: string) => void;
   onSetHuntingPrey?: (prey: HuntingSpotPrey) => void;
-  onSetMineMode?: (mode: 'stone' | 'iron') => void;
+  onSetMineMode?: (mode: MineMode) => void;
   onSetStaffingMode?: (mode: 'auto' | 'manual') => void;
   onQueueForge?: (orderId: ForgeOrderId) => void;
   idleWorkers: number;
@@ -378,28 +386,28 @@ export default function SelectedBuildingPanel({
           <div className="mt-2 space-y-1.5 rounded-lg border border-zinc-700/40 bg-zinc-950/30 p-2">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">Extract</p>
             <div className="grid grid-cols-2 gap-1">
-              {([['stone', '🪨 Stone'], ['iron', '🔩 Iron']] as const).map(([mode, label]) => {
-                const active = (building.mineMode ?? 'stone') === mode;
+              {MINE_ORES.map((mode) => {
+                const active = mineOreForMode(building.mineMode) === mode;
                 return (
                   <button
                     key={mode}
                     type="button"
                     disabled={!onSetMineMode}
                     onClick={() => onSetMineMode?.(mode)}
-                    title={mode === 'iron' ? 'Mine extracts iron ore for the Blacksmith forge' : 'Mine extracts stone for building'}
+                    title={MINE_ORE_TITLES[mode]}
                     className={`rounded px-1.5 py-1 text-left text-[10px] transition-all ${
                       active
                         ? 'bg-zinc-600 text-white ring-1 ring-zinc-300'
                         : 'bg-stone-800/80 text-stone-200 hover:bg-stone-700'
                     }`}
                   >
-                    <span className="font-bold">{label}</span>
+                    <span className="font-bold">{MINE_ORE_LABELS[mode]}</span>
                   </button>
                 );
               })}
             </div>
             <p className="text-[10px] text-stone-300">
-              Iron mode feeds the Blacksmith forge orders; stone mode feeds construction and walls. Switch freely — production follows the mode.
+              Iron feeds the Blacksmith forge orders; gold feeds the treasury. Switch freely — production follows the ore. Stone is quarried, not mined.
             </p>
           </div>
         )}

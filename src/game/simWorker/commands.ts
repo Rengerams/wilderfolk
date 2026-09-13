@@ -1,9 +1,9 @@
-
 import type { WorldState, ForgeOrderId } from '../gameTypes';
 import { BuildingType } from '../gameTypes';
 import type { HuntingSpotPrey } from '../gameTypes';
 import { isValidHuntingSpotPrey } from '../huntingSpots';
 import type { BuildingRotation } from '../buildingRotation';
+import { MINE_ORES, type MineMode } from '../buildings';
 import type { StripSegment } from '../stripBuild';
 import {
   VISITOR_TRADE_COSTS,
@@ -26,6 +26,7 @@ import {
   startBuilding,
   placeStripChain,
   assignIdleWorkerToBuilding,
+  assignResidentToBuilding,
   fillBuildingWorkers,
   autoStaffAllWorkers,
   removeWorkerFromBuilding,
@@ -60,9 +61,10 @@ export const WORKER_CMD_PROTO = 1;
 
 /** Versioned main → worker command channel (Rule 6). */
 export type WorkerCommand =
-  | { proto: 1; op: 'startBuilding'; type: BuildingType; x: number; y: number; rotation: BuildingRotation }
-  | { proto: 1; op: 'placeStripChain'; type: BuildingType; segments: readonly StripSegment[]; rotation: BuildingRotation }
+  | { proto: 1; op: 'startBuilding'; type: BuildingType; x: number; y: number; rotation?: BuildingRotation }
+  | { proto: 1; op: 'placeStripChain'; type: BuildingType; segments: readonly StripSegment[]; rotation?: BuildingRotation }
   | { proto: 1; op: 'assignWorker'; buildingId: number; humanId?: number }
+  | { proto: 1; op: 'assignResident'; buildingId: number }
   | { proto: 1; op: 'autoStaffWorkers' }
   | { proto: 1; op: 'removeWorker'; buildingId: number; humanId: number }
   | { proto: 1; op: 'repairBuilding'; buildingId: number }
@@ -70,7 +72,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'demolishBuilding'; buildingId: number }
   | { proto: 1; op: 'setWorkshopRecipe'; buildingId: number; recipeId: string }
   | { proto: 1; op: 'setHuntingSpotPrey'; buildingId: number; prey: HuntingSpotPrey }
-  | { proto: 1; op: 'setMineMode'; buildingId: number; mode: 'stone' | 'iron' }
+  | { proto: 1; op: 'setMineMode'; buildingId: number; mode: MineMode }
   | { proto: 1; op: 'setBuildingStaffingMode'; buildingId: number; mode: 'auto' | 'manual' }
   | { proto: 1; op: 'queueForgeOrder'; buildingId: number; orderId: ForgeOrderId }
   | { proto: 1; op: 'recruitSettler' }
@@ -104,6 +106,7 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'startBuilding',
   'placeStripChain',
   'assignWorker',
+  'assignResident',
   'autoStaffWorkers',
   'removeWorker',
   'repairBuilding',
@@ -142,14 +145,41 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'setVenueSchedule',
 ]);
 
-// 🛡️ Compile-time exhaustiveness check: Throws a TypeScript build error if any WorkerCommand['op'] is missing from the Set
 type MissingOps = Exclude<WorkerCommand['op'], typeof WORKER_COMMAND_OPS extends Set<infer T> ? T : never>;
 const _EXHAUSTIVE_OPS_CHECK: MissingOps extends never ? true : false = true;
 void _EXHAUSTIVE_OPS_CHECK;
 
-const BUILDING_TYPE_VALUES = new Set<string>(Object.values(BuildingType));
-const FORGE_ORDER_IDS = new Set<string>(FORGE_ORDERS.map((o) => o.id));
-const VISITOR_TRADE_ACTIONS = new Set<string>(Object.keys(VISITOR_TRADE_COSTS));
+// Lazy safe resolvers to prevent circular module evaluation crashes
+let buildingTypeValuesSet: Set<string> | null = null;
+function getBuildingTypeValues(): Set<string> {
+  if (!buildingTypeValuesSet) {
+    buildingTypeValuesSet = new Set<string>(
+      BuildingType && typeof BuildingType === 'object' ? Object.values(BuildingType) : [],
+    );
+  }
+  return buildingTypeValuesSet;
+}
+
+let forgeOrderIdsSet: Set<string> | null = null;
+function getForgeOrderIds(): Set<string> {
+  if (!forgeOrderIdsSet) {
+    forgeOrderIdsSet = new Set<string>(
+      Array.isArray(FORGE_ORDERS) ? FORGE_ORDERS.map((o) => o.id) : [],
+    );
+  }
+  return forgeOrderIdsSet;
+}
+
+let visitorTradeActionsSet: Set<string> | null = null;
+function getVisitorTradeActions(): Set<string> {
+  if (!visitorTradeActionsSet) {
+    visitorTradeActionsSet = new Set<string>(
+      VISITOR_TRADE_COSTS && typeof VISITOR_TRADE_COSTS === 'object' ? Object.keys(VISITOR_TRADE_COSTS) : [],
+    );
+  }
+  return visitorTradeActionsSet;
+}
+
 const REFUGEE_CHOICES = new Set<string>(['welcome', 'screen', 'turn_away']);
 const VILLAGE_REQUEST_CHOICES = new Set<string>(['accept', 'decline']);
 
@@ -162,7 +192,7 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function isBuildingType(value: unknown): value is BuildingType {
-  return typeof value === 'string' && BUILDING_TYPE_VALUES.has(value);
+  return typeof value === 'string' && getBuildingTypeValues().has(value);
 }
 
 function isBuildingRotation(value: unknown): value is BuildingRotation {
@@ -179,17 +209,24 @@ function isStripSegment(value: unknown): boolean {
 function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<string, unknown>): boolean {
   switch (cmd.op) {
     case 'startBuilding':
-      return isBuildingType(cmd.type) && isFiniteNumber(cmd.x) && isFiniteNumber(cmd.y) && isBuildingRotation(cmd.rotation);
+      return (
+        isBuildingType(cmd.type) &&
+        isFiniteNumber(cmd.x) &&
+        isFiniteNumber(cmd.y) &&
+        (cmd.rotation === undefined || isBuildingRotation(cmd.rotation))
+      );
     case 'placeStripChain':
       return (
         isBuildingType(cmd.type) &&
         Array.isArray(cmd.segments) &&
         cmd.segments.length > 0 &&
         cmd.segments.every(isStripSegment) &&
-        isBuildingRotation(cmd.rotation)
+        (cmd.rotation === undefined || isBuildingRotation(cmd.rotation))
       );
     case 'assignWorker':
       return isFiniteNumber(cmd.buildingId) && (cmd.humanId === undefined || isFiniteNumber(cmd.humanId));
+    case 'assignResident':
+      return isFiniteNumber(cmd.buildingId);
     case 'removeWorker':
       return isFiniteNumber(cmd.buildingId) && isFiniteNumber(cmd.humanId);
     case 'repairBuilding':
@@ -202,11 +239,15 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
     case 'setHuntingSpotPrey':
       return isFiniteNumber(cmd.buildingId) && isValidHuntingSpotPrey(cmd.prey);
     case 'setMineMode':
-      return isFiniteNumber(cmd.buildingId) && (cmd.mode === 'stone' || cmd.mode === 'iron');
+      return (
+        isFiniteNumber(cmd.buildingId) &&
+        typeof cmd.mode === 'string' &&
+        (MINE_ORES as readonly string[]).includes(cmd.mode)
+      );
     case 'setBuildingStaffingMode':
       return isFiniteNumber(cmd.buildingId) && (cmd.mode === 'auto' || cmd.mode === 'manual');
     case 'queueForgeOrder':
-      return isFiniteNumber(cmd.buildingId) && typeof cmd.orderId === 'string' && FORGE_ORDER_IDS.has(cmd.orderId);
+      return isFiniteNumber(cmd.buildingId) && typeof cmd.orderId === 'string' && getForgeOrderIds().has(cmd.orderId);
     case 'recruitSettler':
     case 'autoStaffWorkers':
     case 'spawnMoonHowlerDebug':
@@ -233,7 +274,7 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
     case 'talkToVisitorLeader':
       return isNonEmptyString(cmd.groupId);
     case 'tradeWithVisitors':
-      return isNonEmptyString(cmd.groupId) && typeof cmd.action === 'string' && VISITOR_TRADE_ACTIONS.has(cmd.action);
+      return isNonEmptyString(cmd.groupId) && typeof cmd.action === 'string' && getVisitorTradeActions().has(cmd.action);
     case 'resolveVillageRequest':
       return isNonEmptyString(cmd.requestId) && typeof cmd.choice === 'string' && VILLAGE_REQUEST_CHOICES.has(cmd.choice);
     case 'deliverVisitorQuest':
@@ -269,8 +310,9 @@ export function isWorkerCommand(cmd: unknown): cmd is WorkerCommand {
 /** Compute alive entity IDs set. */
 export function aliveIdSet(state: WorldState): Set<number> {
   const ids = new Set<number>();
-  for (let i = 0; i < state.entities.length; i++) {
-    if (state.entities[i].alive) ids.add(state.entities[i].id);
+  const entities = state.entities ?? [];
+  for (let i = 0; i < entities.length; i++) {
+    if (entities[i].alive) ids.add(entities[i].id);
   }
   return ids;
 }
@@ -284,13 +326,15 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
 
   switch (cmd.op) {
     case 'startBuilding':
-      return startBuilding(world, cmd.type, cmd.x, cmd.y, cmd.rotation);
+      return startBuilding(world, cmd.type, cmd.x, cmd.y, cmd.rotation ?? 0);
     case 'placeStripChain':
-      return placeStripChain(world, cmd.type, cmd.segments, cmd.rotation);
+      return placeStripChain(world, cmd.type, cmd.segments, cmd.rotation ?? 0);
     case 'assignWorker':
       return cmd.humanId != null
         ? assignIdleWorkerToBuilding(world, cmd.buildingId, cmd.humanId)
         : fillBuildingWorkers(world, cmd.buildingId);
+    case 'assignResident':
+      return assignResidentToBuilding(world, cmd.buildingId);
     case 'autoStaffWorkers':
       return autoStaffAllWorkers(world);
     case 'removeWorker':
@@ -348,7 +392,13 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
           'The masterwork is finished — he pays handsomely and your reputation grows.',
           'positive',
         );
-        addFloatingText(world, world.width / 2, world.height / 2 - 40, 'Quest complete! +30💰 +4⭐', '#fbbf24');
+        addFloatingText(
+          world,
+          (world.width ?? 1200) / 2,
+          (world.height ?? 900) / 2 - 40,
+          'Quest complete! +30💰 +4⭐',
+          '#fbbf24',
+        );
       }
       return world;
     }
@@ -386,7 +436,8 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
 
 /** Extract a SimTickDelta from the world diff for a command. */
 export function extractCommandDelta(world: WorldState, aliveBefore: Set<number>): SimTickDelta {
-  const aliveNow = world.entities.filter((e) => e.alive);
+  const entities = world.entities ?? [];
+  const aliveNow = entities.filter((e) => e.alive);
   return extractSimTickDelta(world, aliveBefore, aliveNow, {
     cloneMode: 'transfer',
   });

@@ -3,7 +3,7 @@
  * Full three-stage chain per docs/archive/story/STORY_WEDDING_THAT_STARTED_A_WAR.md:
  * invitation gift → delayed rival response → feast/delegation/fortify → outcome.
  */
-import type { WorldState, StoryEvent } from './gameTypes';
+import type { Entity, StoryEvent, WorldState } from './gameTypes';
 import { BuildingType, EntityType } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
@@ -142,6 +142,45 @@ export function maybeOfferWeddingDiplomacy(state: WorldState): void {
   addNotification(state, '💒 Wedding invitation', `${rival.name} invites the colony to a wedding.`, 'info');
 }
 
+/** The adult settler who can carry the colony's answer to the wedding, if any. */
+function findWeddingEnvoy(state: WorldState): Entity | undefined {
+  return state.entities.find(
+    (e) => e.alive && e.type === EntityType.Human && !e.isJuvenile && e.faction !== 'rival',
+  );
+}
+
+/**
+ * Whether `resolveWeddingDiplomacy` would accept this answer right now.
+ *
+ * Mirrors every gift, envoy, feast, and delegation gate the resolver applies, so
+ * a consumer (the auto-play bot) can tell an answer that lands from one that is
+ * refused and leaves the card open. `decline`, `stay_home_fortify`, and every
+ * unlisted answer are always accepted.
+ */
+export function getWeddingDiplomacyChoiceEligibility(
+  state: WorldState,
+  choiceId: string,
+): { ok: boolean; blockReason?: string } {
+  if (choiceId === 'gift_practical') {
+    if (state.resources.food < PRACTICAL_FOOD || state.resources.wood < PRACTICAL_WOOD) {
+      return { ok: false, blockReason: `Need ${PRACTICAL_FOOD}🍖 + ${PRACTICAL_WOOD}🪵` };
+    }
+  }
+  if (choiceId === 'gift_impressive' && state.resources.gold < IMPRESSIVE_GOLD) {
+    return { ok: false, blockReason: `Need ${IMPRESSIVE_GOLD}💰` };
+  }
+  if (choiceId === 'envoy' && !findWeddingEnvoy(state)) {
+    return { ok: false, blockReason: 'No envoy available' };
+  }
+  if (choiceId === 'host_feast' && state.resources.food < FEAST_FOOD) {
+    return { ok: false, blockReason: `Need ${FEAST_FOOD}🍖` };
+  }
+  if (choiceId === 'send_delegation' && state.resources.food < DELEGATION_FOOD) {
+    return { ok: false, blockReason: `Need ${DELEGATION_FOOD}🍖` };
+  }
+  return { ok: true };
+}
+
 export function resolveWeddingDiplomacy(state: WorldState, choiceId: string): boolean {
   const status = storyFlag(state, FLAG_STATUS);
 
@@ -187,9 +226,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
       return true;
     }
     case 'envoy': {
-      const envoy = state.entities.find(
-        (e) => e.alive && e.type === EntityType.Human && !e.isJuvenile && e.faction !== 'rival',
-      );
+      const envoy = findWeddingEnvoy(state);
       if (!envoy) {
         addNotification(state, 'No envoy available', 'No adult settler can attend the wedding.', 'warning');
         return false;

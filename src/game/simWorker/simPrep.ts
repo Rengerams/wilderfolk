@@ -2,6 +2,7 @@ import type { WorldState } from '../gameTypes';
 import { normalizeForgeState } from '../forge';
 import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
+import { invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
 
 /**
  * Mutable sim slices backed up before each tick/command for instant failure recovery.
@@ -17,10 +18,15 @@ type SimPrepKeys =
   | 'speed'
   | 'entities'
   | 'buildings'
+  | 'deathParticles'
+  | 'floatingTexts'
+  | 'screenShakeImpulse'
   | 'resources'
   | 'storageMax'
   | 'humanPopulation'
   | 'maxHumanPopulation'
+  | 'workingSettlers'
+  | 'idleSettlers'
   | 'wildlifeCounts'
   | 'ecosystemHealth'
   | 'pollutionLevel'
@@ -30,6 +36,10 @@ type SimPrepKeys =
   | 'valleyRawStressStreakDays'
   | 'valleyRawCalmStreakDays'
   | 'valleyLastStageNotifyDay'
+  | 'villageCanHeat'
+  | 'villageHappiness'
+  | 'activeMigration'
+  | 'migrationNextHerdSize'
   | 'researchNodes'
   | 'activeResearch'
   | 'researchProgress'
@@ -88,12 +98,27 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     weatherTimer: state.weatherTimer,
     paused: state.paused,
     speed: state.speed,
-    entities: [...state.entities],
-    buildings: [...state.buildings],
+
+    // Clone entity objects shallowly to decouple from in-place property mutations
+    entities: (state.entities ?? []).map((e) => ({ ...e })),
+
+    // Clone building objects and isolate their occupants array
+    buildings: (state.buildings ?? []).map((b) => ({
+      ...b,
+      occupants: [...(b.occupants ?? [])],
+      hotelGuestIds: b.hotelGuestIds ? [...b.hotelGuestIds] : undefined,
+    })),
+
+    deathParticles: [...(state.deathParticles ?? [])],
+    floatingTexts: [...(state.floatingTexts ?? [])],
+    screenShakeImpulse: state.screenShakeImpulse ?? 0,
+
     resources: { ...state.resources },
     storageMax: { ...state.storageMax },
     humanPopulation: state.humanPopulation,
     maxHumanPopulation: state.maxHumanPopulation,
+    workingSettlers: state.workingSettlers ?? 0,
+    idleSettlers: state.idleSettlers ?? 0,
     wildlifeCounts: { ...state.wildlifeCounts },
     ecosystemHealth: state.ecosystemHealth,
     pollutionLevel: state.pollutionLevel,
@@ -103,15 +128,21 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     valleyRawStressStreakDays: state.valleyRawStressStreakDays,
     valleyRawCalmStreakDays: state.valleyRawCalmStreakDays,
     valleyLastStageNotifyDay: state.valleyLastStageNotifyDay,
-    researchNodes: [...state.researchNodes],
+    villageCanHeat: state.villageCanHeat,
+    villageHappiness: state.villageHappiness,
+    activeMigration: state.activeMigration ? { ...state.activeMigration } : undefined,
+    migrationNextHerdSize: state.migrationNextHerdSize,
+
+    // Clone research nodes shallowly to preserve researched/unlocked status
+    researchNodes: (state.researchNodes ?? []).map((r) => ({ ...r })),
     activeResearch: state.activeResearch,
     researchProgress: state.researchProgress,
-    unlockedTechs: [...state.unlockedTechs],
-    visitorGroups: [...state.visitorGroups],
+    unlockedTechs: [...(state.unlockedTechs ?? [])],
+    visitorGroups: [...(state.visitorGroups ?? [])],
     activeVillageRequest: state.activeVillageRequest ? structuredClone(state.activeVillageRequest) : undefined,
     villageRequestCooldownUntilDay: state.villageRequestCooldownUntilDay ?? 0,
     villageRequestHistory: structuredClone(state.villageRequestHistory ?? []),
-    rivalSettlements: [...state.rivalSettlements],
+    rivalSettlements: [...(state.rivalSettlements ?? [])],
     pendingRaidEvents: [...(state.pendingRaidEvents ?? [])],
     pendingOutgoingRaidEvents: [...(state.pendingOutgoingRaidEvents ?? [])],
     pendingDiplomacyEvents: [...(state.pendingDiplomacyEvents ?? [])],
@@ -127,7 +158,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     pendingElectionYear: state.pendingElectionYear,
     electionBuildupNotifiedYear: state.electionBuildupNotifiedYear ?? null,
     electionCeremony: state.electionCeremony ? { ...state.electionCeremony } : null,
-    eventLog: [...state.eventLog],
+    eventLog: [...(state.eventLog ?? [])],
     eventsThisYear: [...(state.eventsThisYear ?? [])],
     lastEventYear: state.lastEventYear,
     bountifulHarvest: state.bountifulHarvest,
@@ -163,11 +194,16 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
 
   world.entities = prep.entities;
   world.buildings = prep.buildings;
+  world.deathParticles = prep.deathParticles;
+  world.floatingTexts = prep.floatingTexts;
+  world.screenShakeImpulse = prep.screenShakeImpulse;
 
   world.resources = prep.resources;
   world.storageMax = prep.storageMax;
   world.humanPopulation = prep.humanPopulation;
   world.maxHumanPopulation = prep.maxHumanPopulation;
+  world.workingSettlers = prep.workingSettlers;
+  world.idleSettlers = prep.idleSettlers;
   world.wildlifeCounts = prep.wildlifeCounts;
   world.ecosystemHealth = prep.ecosystemHealth;
   world.pollutionLevel = prep.pollutionLevel;
@@ -177,6 +213,10 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.valleyRawStressStreakDays = prep.valleyRawStressStreakDays;
   world.valleyRawCalmStreakDays = prep.valleyRawCalmStreakDays;
   world.valleyLastStageNotifyDay = prep.valleyLastStageNotifyDay;
+  world.villageCanHeat = prep.villageCanHeat;
+  world.villageHappiness = prep.villageHappiness;
+  world.activeMigration = prep.activeMigration;
+  world.migrationNextHerdSize = prep.migrationNextHerdSize;
 
   world.researchNodes = prep.researchNodes;
   world.activeResearch = prep.activeResearch;
@@ -223,4 +263,7 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.workSchedule = prep.workSchedule;
   world.tavernSchedule = prep.tavernSchedule;
   world.hotelSchedule = prep.hotelSchedule;
+
+  // Crucial: Invalidate runtime caches so indices reflect restored entity states
+  invalidateWorldRuntimeCaches(world);
 }

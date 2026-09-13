@@ -10,6 +10,31 @@ import { assignMissingResidences } from './residencyReconciliation';
 
 const REPAIR_COST = { wood: 10, stone: 5 } as const;
 const BUILDING_REFUND_RATIO = 0.5;
+/** Upgrade ceiling: a completed building may reach this level, no further. */
+const MAX_BUILDING_LEVEL = 3;
+
+/**
+ * Whether `repairBuilding` would actually restore this building: it exists,
+ * stands complete, is damaged, and its fixed cost is affordable.
+ *
+ * Single definition of the repair rule — `repairBuilding` refuses to spend
+ * anything unless this says `ok`, and the auto-play bot
+ * (`virtualPlayer.ts`) proposes a repair only when it does, so the bot can
+ * never claim an in-game hour with a command the owner would refuse.
+ */
+export function getRepairBuildingEligibility(
+  state: WorldState,
+  buildingId: number,
+): { ok: boolean; blockReason?: string } {
+  const building = state.buildings.find((candidate) => candidate.id === buildingId);
+  if (!building) return { ok: false, blockReason: 'No such building' };
+  if (!building.completed) return { ok: false, blockReason: 'Still under construction' };
+  if (building.health >= building.maxHealth) return { ok: false, blockReason: 'Already at full health' };
+  if (state.resources.wood < REPAIR_COST.wood || state.resources.stone < REPAIR_COST.stone) {
+    return { ok: false, blockReason: `Need ${REPAIR_COST.wood}w ${REPAIR_COST.stone}s` };
+  }
+  return { ok: true };
+}
 
 function listPlayerHumans(state: WorldState): Entity[] {
   return state.entities.filter(isPlayerHuman);
@@ -25,16 +50,22 @@ function reconcileAssignmentsAfterBuildingRemoval(state: WorldState): void {
 export function repairBuilding(originalState: WorldState, buildingId: number): WorldState {
   const state = structuredClone(originalState);
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (!building || !building.completed || building.health >= building.maxHealth) return state;
+  if (!building) return state;
 
-  if (state.resources.wood < REPAIR_COST.wood || state.resources.stone < REPAIR_COST.stone) {
-    addFloatingText(
-      state,
-      building.x + building.width / 2,
-      building.y,
-      `Need ${REPAIR_COST.wood}w ${REPAIR_COST.stone}s`,
-      '#ef4444',
-    );
+  const eligibility = getRepairBuildingEligibility(originalState, buildingId);
+  if (!eligibility.ok) {
+    // A building that is unfinished or already whole stays silent (the UI never
+    // offers the button); a real repair the colony cannot pay for shows the cost.
+    const structural = !building.completed || building.health >= building.maxHealth;
+    if (!structural) {
+      addFloatingText(
+        state,
+        building.x + building.width / 2,
+        building.y,
+        eligibility.blockReason ?? 'Cannot repair',
+        '#ef4444',
+      );
+    }
     return state;
   }
 
@@ -54,25 +85,59 @@ export function getBuildingUpgradeCost(building: Building): { wood: number; ston
   };
 }
 
-export function upgradeBuilding(originalState: WorldState, buildingId: number): WorldState {
-  const state = structuredClone(originalState);
+/**
+ * Whether `upgradeBuilding` would actually raise this building a level:
+ * it exists, stands complete, is below the level ceiling, is not the
+ * already-complete Leader's House, and its cost is affordable.
+ *
+ * Single definition of the upgrade rule, shared with the auto-play bot
+ * (`virtualPlayer.ts`) exactly like `getRepairBuildingEligibility`.
+ */
+export function getBuildingUpgradeEligibility(
+  state: WorldState,
+  buildingId: number,
+): { ok: boolean; blockReason?: string } {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (!building || !building.completed || building.level >= 3) return state;
-  // The Leader's House comes with the office fully built — no upgrades.
-  if (building.type === BuildingType.LeaderHouse) return state;
+  if (!building) return { ok: false, blockReason: 'No such building' };
+  if (!building.completed) return { ok: false, blockReason: 'Still under construction' };
+  if (building.level >= MAX_BUILDING_LEVEL) {
+    return { ok: false, blockReason: `Already level ${MAX_BUILDING_LEVEL}` };
+  }
+  if (building.type === BuildingType.LeaderHouse) {
+    return { ok: false, blockReason: "The Leader's House is fully built" };
+  }
 
   const { wood: costWood, stone: costStone, gold: costGold } = getBuildingUpgradeCost(building);
   if (state.resources.wood < costWood || state.resources.stone < costStone || state.resources.gold < costGold) {
-    addFloatingText(
-      state,
-      building.x + building.width / 2,
-      building.y,
-      `Need ${costWood}w ${costStone}s ${costGold}g`,
-      '#ef4444',
-    );
+    return { ok: false, blockReason: `Need ${costWood}w ${costStone}s ${costGold}g` };
+  }
+  return { ok: true };
+}
+
+export function upgradeBuilding(originalState: WorldState, buildingId: number): WorldState {
+  const state = structuredClone(originalState);
+  const building = state.buildings.find((candidate) => candidate.id === buildingId);
+  if (!building) return state;
+
+  const eligibility = getBuildingUpgradeEligibility(originalState, buildingId);
+  if (!eligibility.ok) {
+    // Unfinished, capped, or the Leader's House stay silent (no button in the UI);
+    // an affordable-looking upgrade the colony cannot pay for shows the price.
+    const structural =
+      !building.completed || building.level >= MAX_BUILDING_LEVEL || building.type === BuildingType.LeaderHouse;
+    if (!structural) {
+      addFloatingText(
+        state,
+        building.x + building.width / 2,
+        building.y,
+        eligibility.blockReason ?? 'Cannot upgrade',
+        '#ef4444',
+      );
+    }
     return state;
   }
 
+  const { wood: costWood, stone: costStone, gold: costGold } = getBuildingUpgradeCost(building);
   state.resources.wood -= costWood;
   state.resources.stone -= costStone;
   state.resources.gold -= costGold;

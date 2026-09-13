@@ -5,9 +5,8 @@
 import type { WorldState, Entity, Building } from './gameTypes';
 import type { PopulationCounts } from './entityCounts';
 import { BuildingType } from './gameTypes';
-import { indexEntity } from './entityIndex';
+import { indexEntity, indexLivingEntity } from './entityIndex';
 import {
-  IMMIGRATION_CHECK_TICKS,
   getResidenceCapacity,
 } from './dayCycle';
 import { assignMissingResidences } from './residencyReconciliation';
@@ -60,9 +59,9 @@ function tickImmigration(
 
   const openSlots = state.maxHumanPopulation - counts.humans;
 
+  // Already executed once daily by tickLayerDaily; open slots and probability gate arrival
   if (
     state.tick > 0 &&
-    state.tick % IMMIGRATION_CHECK_TICKS === 0 &&
     openSlots > 0 &&
     Math.random() < immigrationChance
   ) {
@@ -83,16 +82,44 @@ function tickImmigration(
     const newcomers = createImmigrantSettler(state, spawn.x, spawn.y, openSlots);
     let admitted = 0;
 
-    for (let i = 0; i < newcomers.length; i++) {
-      const newcomer = newcomers[i];
+    // If a couple arrives but only 1 slot is left, do not admit only half of a married pair
+    const canAdmitAll = newcomers.length <= (state.maxHumanPopulation - counts.humans);
+    const toAdmit = canAdmitAll ? newcomers : newcomers.slice(0, 1);
+
+    // If we only admit 1 of a couple, clear their marriage link so there is no dangling partnerId
+    if (toAdmit.length === 1 && newcomers.length > 1) {
+      toAdmit[0].relationshipStatus = 'single';
+      toAdmit[0].partnerId = undefined;
+      toAdmit[0].pregnant = false;
+      toAdmit[0].pregnantById = undefined;
+    }
+
+    for (let i = 0; i < toAdmit.length; i++) {
+      const newcomer = toAdmit[i];
       if (counts.humans >= state.maxHumanPopulation) break;
+
+      // 1. Authoritative world entity array
+      state.entities.push(newcomer);
+
+      // 2. Living entities array for current frame
       allAlive.push(newcomer);
+
+      // 3. Fast lookup indexes
       indexEntity(entityById, newcomer);
+      indexLivingEntity(state, newcomer);
+
+      // 4. If worker delta buffer exists, queue newcomer for UI sync
+      if ('newEntities' in ctx && Array.isArray((ctx as unknown as { newEntities: Entity[] }).newEntities)) {
+        (ctx as unknown as { newEntities: Entity[] }).newEntities.push(newcomer);
+      }
+
       counts.humans++;
       admitted++;
     }
 
     if (admitted > 0) {
+      state.humanPopulation = counts.humans;
+
       const villagers = allAlive.filter(isPlayerHuman);
       assignMissingResidences(villagers, updatedBuildings, allAlive);
 
@@ -110,7 +137,7 @@ export function tickDailyPopulation(
   allAlive: Entity[],
   counts: PopulationCounts,
 ): void {
-  // Prune dead entities backwards
+  // Prune dead entities backwards from allAlive
   for (let i = allAlive.length - 1; i >= 0; i--) {
     if (!allAlive[i].alive) {
       allAlive.splice(i, 1);

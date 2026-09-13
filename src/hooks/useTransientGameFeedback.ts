@@ -12,6 +12,12 @@ import type { MomentCardData } from '../components/MomentTitleCard';
 import { VALLEY_CHAPTERS } from '../game/valleyChronicle';
 
 export const BIG_NEWS_DISPLAY_MS = 8_000;
+/**
+ * Wall-clock lifetime of an ordinary notification toast. Big News already had a
+ * timer; notifications had none, so they only ever left the screen when the player
+ * clicked the ✕ and otherwise piled up.
+ */
+export const NOTIFICATION_DISPLAY_MS = 12_000;
 const BIG_NEWS_DISMISS_AFTER_TICKS = 360;
 const BIG_NEWS_REMOVE_AFTER_TICKS = 600;
 const BIG_NEWS_CLEANUP_INTERVAL_MS = 1_000;
@@ -97,12 +103,19 @@ export function useTransientGameFeedback({
 
   const bigNewsTimersRef = useRef<Map<string, number>>(new Map());
   const dismissBigNewsItemRef = useRef<(id: string, playFeedback?: boolean) => void>(() => {});
+  /** One wall-clock timer per on-screen notification, mirroring the Big News timers. */
+  const notificationTimersRef = useRef<Map<string, number>>(new Map());
+  const dismissNotificationRef = useRef<(id: string, playFeedback?: boolean) => void>(() => {});
 
   const clearBigNewsTimers = useCallback(() => {
     for (const timeout of bigNewsTimersRef.current.values()) {
       window.clearTimeout(timeout);
     }
     bigNewsTimersRef.current.clear();
+    for (const timeout of notificationTimersRef.current.values()) {
+      window.clearTimeout(timeout);
+    }
+    notificationTimersRef.current.clear();
   }, []);
 
   // Periodic simulation-tick cleanup for long-lived/restored news
@@ -143,8 +156,8 @@ export function useTransientGameFeedback({
   }, [momentCard, pendingChapterCard]);
 
   const dismissNotification = useCallback(
-    (id: string) => {
-      onFeedbackInteraction();
+    (id: string, playFeedback = true) => {
+      if (playFeedback) onFeedbackInteraction();
       loopRef.current?.mutateWorld((currentWorld) => {
         const dismissed = new Set(currentWorld.dismissedNotificationIds ?? []);
         dismissed.add(id);
@@ -185,6 +198,32 @@ export function useTransientGameFeedback({
   useEffect(() => {
     dismissBigNewsItemRef.current = dismissBigNewsItem;
   }, [dismissBigNewsItem]);
+
+  useEffect(() => {
+    dismissNotificationRef.current = dismissNotification;
+  }, [dismissNotification]);
+
+  // Reconcile auto-dismissal timeouts when notifications change, so a toast the
+  // player never clicks still leaves the screen (it used to stay until dismissed).
+  useEffect(() => {
+    const liveIds = new Set((world.notifications ?? []).map((notification) => notification.id));
+
+    for (const [id, timeout] of notificationTimersRef.current) {
+      if (!liveIds.has(id)) {
+        window.clearTimeout(timeout);
+        notificationTimersRef.current.delete(id);
+      }
+    }
+
+    for (const id of liveIds) {
+      if (notificationTimersRef.current.has(id)) continue;
+      const timeout = window.setTimeout(() => {
+        notificationTimersRef.current.delete(id);
+        dismissNotificationRef.current(id, false);
+      }, NOTIFICATION_DISPLAY_MS);
+      notificationTimersRef.current.set(id, timeout);
+    }
+  }, [world.notifications]);
 
   // Reconcile auto-dismissal timeouts when bigNews entries change
   useEffect(() => {

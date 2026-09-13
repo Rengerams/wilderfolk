@@ -7,8 +7,8 @@ const COMMUTE_CONFIG = {
   LONG_RANGE_DIST: 50,
   ARRIVAL_DIST: 8,
   MAX_DIST_RUSH: 12,
-  HOME_APPROACH_DAMPING: 0.12,
-  WORK_APPROACH_DAMPING: 0.12,
+  HOME_APPROACH_DAMPING: 0.65,
+  WORK_APPROACH_DAMPING: 0.65,
   PATH_STEER_SPEED_RATIO: 0.88,
 } as const;
 
@@ -18,19 +18,22 @@ export const COMMUTE_SNAP_DISTANCE = 200;
 // ============ COMMUTE HELPERS ============
 
 /**
- * Calculates a deterministic, dispersed standing position around a home residence
- * so that family members and roommates do not overlap sprites.
+ * Calculates a deterministic, dispersed standing position in the front yard of a home residence
+ * so family members and roommates do not overlap sprites or get hidden behind the roof.
  */
 export function homeStandPosition(building: Building, entityId: number): { x: number; y: number } {
   const cx = building.x + building.width / 2;
   const cy = building.y + building.height / 2;
   const seed = Math.abs(entityId * 17 + building.id * 31);
-  const angle = (seed * 2.399963) % (Math.PI * 2);
-  const ring = (seed % 5) + 1;
-  const radius = 10 + ring * 7;
+
+  // Bias angle toward the south (front yard / porch arc: 30° to 150°)
+  const angle = Math.PI * 0.18 + ((seed % 100) / 100) * Math.PI * 0.64;
+  const ring = (seed % 4) + 1;
+  const radius = 10 + ring * 6;
+
   return {
     x: cx + Math.cos(angle) * radius,
-    y: cy + Math.sin(angle) * radius * 0.6,
+    y: cy + Math.sin(angle) * (radius * 0.65) + building.height * 0.2,
   };
 }
 
@@ -69,8 +72,12 @@ export function snapHumanToBuilding(entity: Entity, building: Building, arriving
   entity.y = target.y;
   entity.vx = 0;
   entity.vy = 0;
+  entity.spriteAngle = Math.PI / 2; // Face forward/south toward the road
 }
 
+/**
+ * Generates a stable path key per commute leg so A* is not recalculated on every tile crossed.
+ */
 export function commutePathCacheKey(
   buildingId: number,
   arrivingHome: boolean,
@@ -78,7 +85,15 @@ export function commutePathCacheKey(
   startY: number,
   targetX: number,
   targetY: number,
+  entityId?: number,
 ): string {
+  // A known entity identifies the commute on its own: the key must stay stable
+  // while that settler crosses tiles, or A* would rerun on every step.
+  if (entityId != null) {
+    return `c_${entityId}_${buildingId}_${arrivingHome ? 'h' : 'w'}`;
+  }
+  // Without an entity there is nothing else to name the commute, so both
+  // endpoint tiles are part of the key.
   const startTileX = Math.floor(startX / TERRAIN_TILE_SIZE);
   const startTileY = Math.floor(startY / TERRAIN_TILE_SIZE);
   const targetTileX = Math.floor(targetX / TERRAIN_TILE_SIZE);
@@ -121,6 +136,7 @@ export function commuteHumanToBuilding(
       entity.y,
       target.x,
       target.y,
+      entity.id,
     );
 
     const handled = steerWithPath(
@@ -141,12 +157,13 @@ export function commuteHumanToBuilding(
     return false;
   }
 
-  // Final approach damping: prevent overshooting the doorstep
+  // Final approach damping: decelerate from sprint without dropping below base walking speed
   const damping = arrivingHome
     ? COMMUTE_CONFIG.HOME_APPROACH_DAMPING
     : COMMUTE_CONFIG.WORK_APPROACH_DAMPING;
 
-  const step = Math.min(dist, moveSpeed * damping);
+  const approachSpeed = Math.max(speed, moveSpeed * damping);
+  const step = Math.min(dist, approachSpeed);
   entity.vx = (dx / dist) * step;
   entity.vy = (dy / dist) * step;
 
@@ -172,7 +189,8 @@ export function nearestActiveMoonHowler(
 
   for (let i = 0; i < werewolves.length; i++) {
     const w = werewolves[i];
-    if (!w.alive || !isActiveMoonHowler(w)) continue;
+    // Ignore self, dead entities, and non-active werewolves
+    if (w.id === entity.id || !w.alive || !isActiveMoonHowler(w)) continue;
 
     const dx = w.x - entity.x;
     const dy = w.y - entity.y;

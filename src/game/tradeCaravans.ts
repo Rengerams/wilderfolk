@@ -129,16 +129,39 @@ export function scheduleTradeRouteDeparture(
   route.nextDepartureTick = state.tick + delayTicks;
 }
 
+/**
+ * Whether `establishTradeRoute` would actually open this route: the route
+ * exists, is not already open, a completed player Market stands, and the
+ * colony's reputation meets the route's requirement.
+ *
+ * Single definition of the route rule, shared with the auto-play bot
+ * (`virtualPlayer.ts`), so the bot never claims an in-game hour with a route the
+ * owner would refuse.
+ */
+export function canEstablishTradeRoute(
+  state: WorldState,
+  routeId: string,
+): { ok: boolean; blockReason?: string } {
+  const route = (state.tradeRoutes ?? []).find((r) => r.id === routeId);
+  if (!route) return { ok: false, blockReason: 'No such trade route' };
+  if (route.active) return { ok: false, blockReason: 'Route already established' };
+  if (!hasCompletedMarket(state)) {
+    return { ok: false, blockReason: 'Build a Market before establishing trade routes' };
+  }
+  if (state.villageReputation < route.reputationRequired) {
+    return { ok: false, blockReason: `Need ${route.reputationRequired} reputation` };
+  }
+  return { ok: true };
+}
+
 export function establishTradeRoute(state: WorldState, routeId: string): WorldState {
   const s = structuredClone(state);
   const route = s.tradeRoutes.find(r => r.id === routeId);
   if (!route || route.active) return s;
-  if (!hasCompletedMarket(s)) {
-    addNotification(s, 'Trade Failed', 'Build a Market before establishing trade routes', 'warning');
-    return s;
-  }
-  if (s.villageReputation < route.reputationRequired) {
-    addNotification(s, 'Trade Failed', `Need ${route.reputationRequired} reputation`, 'warning');
+
+  const eligibility = canEstablishTradeRoute(state, routeId);
+  if (!eligibility.ok) {
+    addNotification(s, 'Trade Failed', eligibility.blockReason ?? 'Cannot establish this route', 'warning');
     return s;
   }
 

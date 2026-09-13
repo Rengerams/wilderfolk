@@ -4,7 +4,7 @@ import { isPlayerHuman } from './playerHuman';
 import type { SimTickDelta } from './simBuffers/simDelta';
 
 /**
- * Phase C — sparse entity store for React UI. Avoids scanning `world.entities` each render.
+ * Sparse entity store for React UI. Avoids scanning `world.entities` each render.
  * Worker path syncs from tick delta; main-thread path mirrors alive entities each session update.
  */
 export class EntityCatalog {
@@ -25,11 +25,27 @@ export class EntityCatalog {
 
     const alive: Entity[] = [];
     const byType = emptyEntityByType();
+    const deadOrMissingIds: number[] = [];
+
     for (const id of this.aliveIds) {
       const entity = this.byId.get(id);
-      if (!entity?.alive) continue;
+      if (!entity || !entity.alive) {
+        deadOrMissingIds.push(id);
+        continue;
+      }
       alive.push(entity);
-      byType[entity.type].push(entity);
+
+      // Guard against unrecognized or custom entity types
+      if (byType[entity.type]) {
+        byType[entity.type].push(entity);
+      } else {
+        byType[entity.type] = [entity];
+      }
+    }
+
+    // Clean up stale IDs so aliveIds stays in exact sync
+    for (const id of deadOrMissingIds) {
+      this.aliveIds.delete(id);
     }
 
     this.aliveCache = alive;
@@ -41,31 +57,49 @@ export class EntityCatalog {
     this.byId.clear();
     this.aliveIds.clear();
     this.invalidateAliveIndex();
+
     for (const entity of entities) {
       this.byId.set(entity.id, entity);
-      if (entity.alive) this.aliveIds.add(entity.id);
+      if (entity.alive) {
+        this.aliveIds.add(entity.id);
+      }
     }
   }
 
   applyTickDelta(delta: Pick<SimTickDelta, 'diedIds' | 'newEntities' | 'catalogEntities'>): void {
-    // Process catalogEntities first (full state sync), then new spawns, then deaths last.
-    // This guarantees that death always wins if an ID appears in multiple delta arrays.
+    // 1. Process catalogEntities first (full state sync)
     if (delta.catalogEntities) {
       for (const entity of delta.catalogEntities) {
         this.byId.set(entity.id, entity);
-        if (entity.alive) this.aliveIds.add(entity.id);
-        else this.aliveIds.delete(entity.id);
+        if (entity.alive) {
+          this.aliveIds.add(entity.id);
+        } else {
+          this.aliveIds.delete(entity.id);
+        }
       }
     }
-    for (const entity of delta.newEntities) {
-      this.byId.set(entity.id, entity);
-      if (entity.alive) this.aliveIds.add(entity.id);
+
+    // 2. Process new spawns (safely guarded)
+    if (delta.newEntities) {
+      for (const entity of delta.newEntities) {
+        this.byId.set(entity.id, entity);
+        if (entity.alive) {
+          this.aliveIds.add(entity.id);
+        } else {
+          this.aliveIds.delete(entity.id);
+        }
+      }
     }
-    for (const id of delta.diedIds) {
-      const entity = this.byId.get(id);
-      if (entity) entity.alive = false;
-      this.aliveIds.delete(id);
+
+    // 3. Process deaths last so death always wins if an ID appears in multiple lists
+    if (delta.diedIds) {
+      for (const id of delta.diedIds) {
+        const entity = this.byId.get(id);
+        if (entity) entity.alive = false;
+        this.aliveIds.delete(id);
+      }
     }
+
     this.invalidateAliveIndex();
   }
 
@@ -80,17 +114,25 @@ export class EntityCatalog {
     return this.byId.get(id);
   }
 
-  /** Returns a shallow copy so callers cannot corrupt the internal cache. */
+  /** Returns a shallow copy so callers cannot corrupt internal cache arrays. */
   getAlive(): Entity[] {
     return [...this.ensureAliveIndex().alive];
   }
 
+  /** Returns a shallow copy so callers cannot corrupt internal type arrays. */
   getAliveByType(type: EntityType): Entity[] {
-    return this.ensureAliveIndex().byType[type];
+    const list = this.ensureAliveIndex().byType[type];
+    return list ? [...list] : [];
   }
 
+  /** Returns a copy of the by-type table with isolated arrays. */
   getEntityByType(): EntityByType {
-    return this.ensureAliveIndex().byType;
+    const { byType } = this.ensureAliveIndex();
+    const copy = emptyEntityByType();
+    for (const key of Object.keys(byType) as EntityType[]) {
+      copy[key] = [...(byType[key] ?? [])];
+    }
+    return copy;
   }
 
   getPlayerHumans(): Entity[] {
@@ -102,7 +144,7 @@ export class EntityCatalog {
   }
 
   countAlive(): number {
-    return this.aliveIds.size;
+    return this.ensureAliveIndex().alive.length;
   }
 }
 

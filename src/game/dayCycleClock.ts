@@ -1,13 +1,13 @@
 import { Time } from './gameConstants';
 
 export const TICKS_PER_HOUR = 3;
-export const TICKS_PER_DAY = Time.HOURS_PER_DAY * TICKS_PER_HOUR;
+export const TICKS_PER_DAY = (Time?.HOURS_PER_DAY ?? 24) * TICKS_PER_HOUR;
 export const LEGACY_TICKS_PER_DAY = 24;
-export const DAYS_PER_YEAR = Time.DAYS_PER_YEAR;
+export const DAYS_PER_YEAR = Time?.DAYS_PER_YEAR ?? 360;
 export const PER_TICK_RATE_SCALE = 1 / TICKS_PER_HOUR;
 export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
-type CalendarState = {
+export type CalendarState = {
   tick: number;
   lastProcessedCalendarDay?: number;
 };
@@ -21,8 +21,8 @@ export function getHourOfDay(tick: number): number {
 }
 
 export function getCalendarDay(tick: number): number {
-  if (tick <= 0) return 0;
-  return Math.floor(tick / TICKS_PER_DAY) % DAYS_PER_YEAR;
+  const day = Math.floor(tick / TICKS_PER_DAY);
+  return ((day % DAYS_PER_YEAR) + DAYS_PER_YEAR) % DAYS_PER_YEAR;
 }
 
 export function getAbsoluteCalendarDay(tick: number): number {
@@ -47,6 +47,7 @@ export function isWorkDay(tick: number): boolean {
 }
 
 export function ticksForDays(days: number): number {
+  if (!Number.isFinite(days) || days <= 0) return 0;
   return Math.round(days * TICKS_PER_DAY);
 }
 
@@ -55,6 +56,7 @@ export function ticksForDays(days: number): number {
  * original 24-tick-day era.
  */
 export function systemsPulsesFromLegacy(legacyPulses: number): number {
+  if (!Number.isFinite(legacyPulses) || legacyPulses <= 0) return 0;
   return Math.max(1, Math.round(legacyPulses * TICKS_PER_HOUR));
 }
 
@@ -63,7 +65,8 @@ export function nextTickAtClockHour(fromTick: number, hour: number): number {
   const normalizedHour = ((hour % 24) + 24) % 24;
   const dayStart = Math.floor(fromTick / TICKS_PER_DAY) * TICKS_PER_DAY;
   let target = dayStart + normalizedHour * TICKS_PER_HOUR;
-  if (fromTick >= target) target += TICKS_PER_DAY;
+  // Corrected: only advance to tomorrow if fromTick is strictly past the hour start
+  if (fromTick > target) target += TICKS_PER_DAY;
   return target;
 }
 
@@ -74,8 +77,10 @@ export function isStartOfClockHour(tick: number): boolean {
 
 /** Calendar-aligned production and rare-event gate. */
 export function isProductionTick(tick: number, interval: number): boolean {
-  if (tick <= 0 || interval <= 0) return false;
-  if (tick % TICKS_PER_DAY !== 0) return false;
+  if (!Number.isFinite(tick) || tick <= 0 || !Number.isFinite(interval) || interval <= 0) {
+    return false;
+  }
+  if (getTickOfDay(tick) !== 0) return false;
   const dayIndex = getAbsoluteCalendarDay(tick);
   const intervalDays = Math.max(1, Math.round(interval / TICKS_PER_DAY));
   if (dayIndex % intervalDays !== 0) return false;
@@ -83,9 +88,23 @@ export function isProductionTick(tick: number, interval: number): boolean {
   return true;
 }
 
-/** True once per in-game day; skips reload mid-day and duplicate same-tick calls. */
-export function isNewCalendarDayTick(state: CalendarState): boolean {
-  if (state.tick <= 0 || state.tick % TICKS_PER_DAY !== 0) return false;
-  const day = getAbsoluteCalendarDay(state.tick);
-  return day > (state.lastProcessedCalendarDay ?? -1);
+/**
+ * True once per in-game day; skips reload mid-day and duplicate same-tick calls.
+ * Polymorphic: accepts either a CalendarState object or a raw tick number.
+ */
+export function isNewCalendarDayTick(
+  stateOrTick: CalendarState | number,
+  lastProcessedCalendarDay?: number,
+): boolean {
+  const tick = typeof stateOrTick === 'number' ? stateOrTick : stateOrTick.tick;
+  const lastProcessed =
+    typeof stateOrTick === 'number'
+      ? lastProcessedCalendarDay
+      : stateOrTick.lastProcessedCalendarDay;
+
+  if (!Number.isFinite(tick) || tick <= 0) return false;
+  if (getTickOfDay(tick) !== 0) return false;
+
+  const day = getAbsoluteCalendarDay(tick);
+  return lastProcessed == null || day > lastProcessed;
 }

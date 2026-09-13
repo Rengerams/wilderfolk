@@ -608,31 +608,51 @@ export { isRivalAtPeace } from './rivalPeace';
 
 const PEACE_TREATY_PLAYER_DAYS = 60;
 const PEACE_TREATY_EVENT_DAYS = 45;
+const RIVAL_GIFT_FOOD_COST = 25;
+const PEACE_TREATY_GOLD_COST = 30;
+const PEACE_TREATY_FOOD_COST = 20;
+
+/**
+ * Whether `sendRivalGift` would actually improve relations: the rival exists,
+ * is not already friendly, and the colony can spare the food.
+ *
+ * Single definition of the gift rule, shared with the auto-play bot
+ * (`virtualPlayer.ts`), so the bot never claims an in-game hour with a gift the
+ * owner would refuse.
+ */
+export function getRivalGiftEligibility(
+  state: WorldState,
+  rivalId: string,
+): { ok: boolean; blockReason?: string } {
+  const rival = state.rivalSettlements.find((r) => r.id === rivalId);
+  if (!rival) return { ok: false, blockReason: 'No such rival' };
+  if (rival.relationship === 'friendly') return { ok: false, blockReason: 'Already friendly' };
+  if (state.resources.food < RIVAL_GIFT_FOOD_COST) {
+    return { ok: false, blockReason: `Need ${RIVAL_GIFT_FOOD_COST}🍖` };
+  }
+  return { ok: true };
+}
 
 export function sendRivalGift(originalState: WorldState, rivalId: string): WorldState {
   const rivalPreview = originalState.rivalSettlements.find((r) => r.id === rivalId);
   if (!rivalPreview) return originalState;
 
-  const foodCost = 25;
-  if (rivalPreview.relationship === 'friendly') {
+  const eligibility = getRivalGiftEligibility(originalState, rivalId);
+  if (!eligibility.ok) {
     const state = cloneWorldStateForAction(originalState);
     const rival = state.rivalSettlements.find((r) => r.id === rivalId);
     if (!rival) return state;
-    pushFloat(state, rival.campX, rival.campY - 20, 'Already friendly', '#94a3b8');
-    return state;
-  }
-  if (originalState.resources.food < foodCost) {
-    const state = cloneWorldStateForAction(originalState);
-    const rival = state.rivalSettlements.find((r) => r.id === rivalId);
-    if (!rival) return state;
-    pushFloat(state, rival.campX, rival.campY - 20, `Need ${foodCost}🍖`, '#f97316');
+    // Unchanged feedback: grey when they are already friendly, amber when the
+    // gift itself is unaffordable.
+    const color = rivalPreview.relationship === 'friendly' ? '#94a3b8' : '#f97316';
+    pushFloat(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot send a gift', color);
     return state;
   }
 
   const state = cloneWorldStateForAction(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return state;
-  state.resources.food -= foodCost;
+  state.resources.food -= RIVAL_GIFT_FOOD_COST;
   const before = rival.relationship;
   rival.relationship = shiftRelationship(rival.relationship, 1);
   rival.daysUntilAction = Math.max(rival.daysUntilAction, 14);
@@ -727,24 +747,43 @@ export function showStrengthToRival(originalState: WorldState, rivalId: string):
   return state;
 }
 
+/**
+ * Whether `signPeaceTreaty` would actually buy a truce: the rival exists, is not
+ * too tense to talk, and the colony can pay the gold and food.
+ *
+ * Single definition of the treaty rule, shared with the auto-play bot
+ * (`virtualPlayer.ts`).
+ */
+export function getPeaceTreatyEligibility(
+  state: WorldState,
+  rivalId: string,
+): { ok: boolean; blockReason?: string } {
+  const rival = state.rivalSettlements.find((r) => r.id === rivalId);
+  if (!rival) return { ok: false, blockReason: 'No such rival' };
+  if (rival.relationship === 'tense') return { ok: false, blockReason: 'Relations too tense' };
+  if (state.resources.gold < PEACE_TREATY_GOLD_COST || state.resources.food < PEACE_TREATY_FOOD_COST) {
+    return {
+      ok: false,
+      blockReason: `Need ${PEACE_TREATY_GOLD_COST}💰 + ${PEACE_TREATY_FOOD_COST}🍖`,
+    };
+  }
+  return { ok: true };
+}
+
 /** Player-initiated peace — halts raids for 60 days. */
 export function signPeaceTreaty(originalState: WorldState, rivalId: string): WorldState {
   const state = cloneWorldStateForAction(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
-  if (!rival || rival.relationship === 'tense') {
-    if (rival) pushFloat(state, rival.campX, rival.campY - 20, 'Relations too tense', '#f97316');
+  if (!rival) return state;
+
+  const eligibility = getPeaceTreatyEligibility(originalState, rivalId);
+  if (!eligibility.ok) {
+    pushFloat(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot sign a treaty', '#f97316');
     return state;
   }
 
-  const goldCost = 30;
-  const foodCost = 20;
-  if (state.resources.gold < goldCost || state.resources.food < foodCost) {
-    pushFloat(state, rival.campX, rival.campY - 20, `Need ${goldCost}💰 + ${foodCost}🍖`, '#f97316');
-    return state;
-  }
-
-  state.resources.gold -= goldCost;
-  state.resources.food -= foodCost;
+  state.resources.gold -= PEACE_TREATY_GOLD_COST;
+  state.resources.food -= PEACE_TREATY_FOOD_COST;
   rival.peaceTreatyDays = PEACE_TREATY_PLAYER_DAYS;
   rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PEACE_TREATY_PLAYER_DAYS);
   if (rival.relationship === 'competitive') rival.relationship = 'neutral';
@@ -1268,19 +1307,16 @@ function applyTradeCost(state: WorldState, pay: Partial<Record<keyof WorldState[
   }
 }
 
-export function tradeWithVisitors(
-  originalState: WorldState,
-  groupId: string,
+/** Reputation-adjusted pay/receive terms for one visitor trade action. */
+function getVisitorTradeTerms(
+  state: WorldState,
   action: VisitorTradeAction,
-): WorldState {
-  const groupPreview = originalState.visitorGroups.find((g) => g.id === groupId);
-  if (!groupPreview || groupPreview.kind === 'refugees' || groupPreview.daysLeft <= 0) return originalState;
-
-  const canTrade = groupPreview.kind === 'traders' || groupPreview.kind === 'nomads' || groupPreview.kind === 'hunters';
-  if (!canTrade && action !== 'sell_food') return originalState;
-
+): {
+  effectivePay: Partial<Record<keyof WorldState['resources'], number>>;
+  effectiveReceive: Partial<Record<keyof WorldState['resources'], number>>;
+} {
   const deal = VISITOR_TRADE_COSTS[action];
-  const rep = originalState.villageReputation ?? 0;
+  const rep = state.villageReputation ?? 0;
   const priceMult = getVisitorTradePriceMult(rep);
   const rewardMult = getVisitorTradeRewardMult(rep);
 
@@ -1293,10 +1329,37 @@ export function tradeWithVisitors(
   for (const [key, amt] of Object.entries(deal.receive) as [keyof WorldState['resources'], number][]) {
     effectiveReceive[key] = key === 'gold' ? Math.floor((amt ?? 0) * rewardMult) : amt;
   }
+  return { effectivePay, effectiveReceive };
+}
 
-  const state = cloneWorldStateForAction(originalState);
+/**
+ * Whether `tradeWithVisitors` would actually complete this deal: the group is
+ * present and still trading, its kind offers that action, the colony can pay the
+ * reputation-adjusted price, the group can cover any gold it owes, and the
+ * received goods fit in storage.
+ *
+ * Single definition of the visitor-trade rule — `tradeWithVisitors` runs it
+ * before touching world state, and the auto-play bot (`virtualPlayer.ts`)
+ * proposes a trade only when it says `ok`, so the bot never claims an in-game
+ * hour with a deal the owner would refuse. `silent` marks the structural
+ * refusals the UI never turns into player feedback.
+ */
+export function getVisitorTradeEligibility(
+  state: WorldState,
+  groupId: string,
+  action: VisitorTradeAction,
+): { ok: boolean; blockReason?: string; notify?: string; silent?: boolean } {
   const group = state.visitorGroups.find((g) => g.id === groupId);
-  if (!group) return state;
+  if (!group) return { ok: false, blockReason: 'No such visitor group', silent: true };
+  if (group.kind === 'refugees') return { ok: false, blockReason: 'Refugees do not trade', silent: true };
+  if (group.daysLeft <= 0) return { ok: false, blockReason: 'The caravan is leaving', silent: true };
+
+  const canTrade = group.kind === 'traders' || group.kind === 'nomads' || group.kind === 'hunters';
+  if (!canTrade && action !== 'sell_food') {
+    return { ok: false, blockReason: `${group.name} only buys food`, silent: true };
+  }
+
+  const { effectivePay, effectiveReceive } = getVisitorTradeTerms(state, action);
 
   if (!canPayTradeCost(state, effectivePay)) {
     const goldNeed = effectivePay.gold ?? 0;
@@ -1304,13 +1367,17 @@ export function tradeWithVisitors(
       : action === 'buy_wood' ? `Need ${goldNeed}💰`
         : action === 'sell_food' ? `Need ${effectivePay.food ?? 0}🍖`
           : `Need ${effectivePay.wood ?? 0}🪵`;
-    return rejectVisitorTrade(state, group, hint);
+    return { ok: false, blockReason: hint };
   }
 
   // Selling to the group requires them to actually have the gold (no minting).
   const gainedGold = effectiveReceive.gold ?? 0;
   if (gainedGold > 0 && (group.gold ?? 0) < gainedGold) {
-    return rejectVisitorTrade(state, group, 'They are out of gold', `${group.name} has no gold left to pay you.`);
+    return {
+      ok: false,
+      blockReason: 'They are out of gold',
+      notify: `${group.name} has no gold left to pay you.`,
+    };
   }
 
   for (const [key, amount] of Object.entries(effectiveReceive) as [keyof WorldState['resources'], number][]) {
@@ -1323,10 +1390,32 @@ export function tradeWithVisitors(
         : key === 'wood'
           ? 'Wood storage is full — build a Barn or Store before buying more.'
           : undefined;
-      return rejectVisitorTrade(state, group, hint, notify);
+      return { ok: false, blockReason: hint, notify };
     }
   }
 
+  return { ok: true };
+}
+
+export function tradeWithVisitors(
+  originalState: WorldState,
+  groupId: string,
+  action: VisitorTradeAction,
+): WorldState {
+  const eligibility = getVisitorTradeEligibility(originalState, groupId, action);
+  // A deal the group cannot even consider leaves the world untouched, exactly as
+  // before; an attempted-but-refused deal clones the world to show feedback.
+  if (!eligibility.ok && eligibility.silent) return originalState;
+
+  const state = cloneWorldStateForAction(originalState);
+  const group = state.visitorGroups.find((g) => g.id === groupId);
+  if (!group) return state;
+
+  if (!eligibility.ok) {
+    return rejectVisitorTrade(state, group, eligibility.blockReason ?? 'Cannot trade', eligibility.notify);
+  }
+
+  const { effectivePay, effectiveReceive } = getVisitorTradeTerms(state, action);
   applyTradeCost(state, effectivePay);
   const paidGold = effectivePay.gold ?? 0;
   if (paidGold > 0) group.gold = (group.gold ?? 0) + paidGold;
@@ -1346,6 +1435,7 @@ export function tradeWithVisitors(
     else if (key === 'wood') receivedLabel = `+${added}🪵`;
     else if (key === 'gold') receivedLabel = `+${added}💰`;
   }
+  const gainedGold = effectiveReceive.gold ?? 0;
   if (gainedGold > 0) group.gold = Math.max(0, (group.gold ?? 0) - gainedGold);
 
   pushFloat(state, group.campX, group.campY - 20, receivedLabel, action === 'buy_food' || action === 'buy_wood' ? '#22c55e' : '#eab308');

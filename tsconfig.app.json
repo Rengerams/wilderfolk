@@ -24,6 +24,9 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
+    /* Incremental build state is a cache, not a source file: keep it out of the
+       repository root and inside the ignored, project-local cache directory. */
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.app.tsbuildinfo",
 
     /* Linting */
     "strict": true,

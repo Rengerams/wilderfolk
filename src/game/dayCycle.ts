@@ -2,11 +2,40 @@ import { EntityType } from './gameTypes';
 import type { Entity } from './gameTypes';
 
 import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
-import { TICKS_PER_DAY, DAYS_PER_YEAR, getAbsoluteCalendarDay, ticksForDays } from './dayCycleClock';
-export { DAYS_PER_YEAR, LEGACY_TICKS_PER_DAY, PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR, getAbsoluteCalendarDay, getCalendarDay, getHourOfDay, getTickOfDay, getWeekday, getWeekdayLabel, isNewCalendarDayTick, isProductionTick, isStartOfClockHour, isWeekend, isWorkDay, nextTickAtClockHour, systemsPulsesFromLegacy, ticksForDays } from './dayCycleClock';
+import {
+  DAYS_PER_YEAR,
+  getAbsoluteCalendarDay,
+  ticksForDays,
+  isNewCalendarDayTick,
+} from './dayCycleClock';
+
+export {
+  DAYS_PER_YEAR,
+  LEGACY_TICKS_PER_DAY,
+  PER_TICK_RATE_SCALE,
+  TICKS_PER_DAY,
+  TICKS_PER_HOUR,
+  getAbsoluteCalendarDay,
+  getCalendarDay,
+  getHourOfDay,
+  getTickOfDay,
+  getWeekday,
+  getWeekdayLabel,
+  isNewCalendarDayTick,
+  isProductionTick,
+  isStartOfClockHour,
+  isWeekend,
+  isWorkDay,
+  nextTickAtClockHour,
+  systemsPulsesFromLegacy,
+  ticksForDays,
+} from './dayCycleClock';
 
 const GAME_YEAR_OFFSET = 1700;
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
 export {
   EVENING_START,
@@ -51,12 +80,14 @@ export {
   residenceRoomFor,
   shareResidence,
 } from './residencyOccupancy';
+
 export {
   collectFamilyMembers,
   collectOwnHousehold,
   getChildCustodian,
   isAdultChildAtHome,
 } from './householdComposition';
+
 export {
   auditHousingSharingIssues,
   buildFamilyGroups,
@@ -71,6 +102,7 @@ export {
   rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable,
   tryMoveOutOfFamilyHome,
 } from './residencySelection';
+
 export {
   assignMissingResidences,
   isResidenceOccupantEntity,
@@ -91,39 +123,6 @@ export {
   NIGHT_START,
 } from './dayCycleConstants';
 
-/**
- * Day resolution: multiple sim ticks per clock hour so settlers can walk to work,
- * chat, and eat before the day flips.
- *
- * - TICKS_PER_HOUR = 3 → TICKS_PER_DAY = 72 (was 24: 1 tick = 1 hour)
- * - getHourOfDay maps tick-of-day → 0..23
- * - Per-tick energy / wildlife rates use {@link PER_TICK_RATE_SCALE} so daily totals stay balanced
- * - Real-time: gameLoop BASE_TICKS_PER_SECOND × speed; at 1.5 ticks/s a day ≈ 48 real seconds at 1×
- */
-/**
- * Human age ladders (life-years; intentional, not identical thresholds) — EK-E4
- *
- * | Age | Constant / gate              | Meaning |
- * |----:|------------------------------|---------|
- * |  12 | HUMAN_CHILDHOOD_DAYS         | Clear `isJuvenile`; adult size/speed (`tryGraduateHumanChild`) |
- * |  12 | HUMAN_FERTILITY_START        | Female fertility opens (same life-year as graduation) |
- * |  14 | YOUTH_LOVE_MIN_AGE           | May begin a school-influenced youth relationship; no marriage or household change |
- * |  16 | HUMAN_ADULT_MIN_AGE          | Social adult: adult courtship pool, adoptive singles, recruit ages |
- * |  18 | HUMAN_MOVE_OUT_MIN_AGE       | May leave parental home and marry; housing “minor” until then unless partnered |
- * |  35 | HUMAN_FERTILITY_PEAK_END     | Fertility stays 1.0 through this age |
- * |  50 | HUMAN_FERTILITY_END          | Fertility reaches 0 |
- * |  60 | HUMAN_VENERABLE_AGE          | Old-age death chance begins |
- * |  90 | HUMAN_MAX_LIFESPAN_YEARS     | Hard life-year cap / courtship upper bound |
- *
- * Housing minors: `isJuvenile || age < MOVE_OUT` **except** partnered settlers
- * are emancipated (EK-E1). Adoptive guardians use ADULT_MIN_AGE (EK-E3).
- * Ages 12–13: graduated body, not social adults. Ages 14–15 may form school-influenced
- * youth relationships and may conceive only through the low-probability mutual-youth-love rule.
- * Ages 16–17 enter adult courtship while still housing-dependent; marriage remains gated until age 18.
- *
- * Childhood matures in ~1 game year (fast juvenile calendar); adults gain
- * 1 life-year per game year — see JUVENILE_DAYS_PER_AGE_YEAR / ADULT_*.
- */
 export const HUMAN_CHILDHOOD_DAYS = 12;
 
 /** Promote a child to adult size/speed once — returns true on the graduation tick. */
@@ -140,6 +139,7 @@ export function tryGraduateHumanChild(
   onGraduate?.(entity);
   return true;
 }
+
 /** Female fertility window. Fertility begins at the game's age-14 youth threshold. */
 export const HUMAN_FERTILITY_START = 14;
 export const HUMAN_YOUTH_FERTILITY_END = 18;
@@ -158,8 +158,9 @@ export function getFemaleFertility(age: number): number {
   return 1 - (age - HUMAN_FERTILITY_PEAK_END) / (HUMAN_FERTILITY_END - HUMAN_FERTILITY_PEAK_END);
 }
 
-/** Reduced nearby-conception multiplier for ages 14–17; adult paths use 1. */
+/** Reduced nearby-conception multiplier for ages 14–17; adult paths return 1.0. */
 export function getYouthConceptionMultiplier(age: number): number {
+  if (age >= HUMAN_YOUTH_FERTILITY_END) return 1.0;
   return YOUTH_CONCEPTION_MULTIPLIERS[age] ?? 0;
 }
 
@@ -167,10 +168,9 @@ export function getYouthConceptionMultiplier(age: number): number {
 export const JUVENILE_DAYS_PER_AGE_YEAR = 30;
 export const ADULT_DAYS_PER_AGE_YEAR = DAYS_PER_YEAR;
 
-/** Old-age death thresholds in life-years (1 game year ≈ 1 life-year for adults). */
+/** Old-age death thresholds in life-years. */
 export const HUMAN_VENERABLE_AGE = 60;
 export const HUMAN_MAX_LIFESPAN_YEARS = 90;
-/** Upper bound for courtship / affairs — matches life-year lifespan cap. */
 
 export function getColonyDay(state: { year: number; dayInYear: number }): number {
   return state.year * DAYS_PER_YEAR + state.dayInYear;
@@ -180,8 +180,10 @@ export function daysLivedFromAgeYears(ageYears: number): number {
   if (ageYears <= HUMAN_CHILDHOOD_DAYS) {
     return ageYears * JUVENILE_DAYS_PER_AGE_YEAR;
   }
-  return HUMAN_CHILDHOOD_DAYS * JUVENILE_DAYS_PER_AGE_YEAR
-    + (ageYears - HUMAN_CHILDHOOD_DAYS) * ADULT_DAYS_PER_AGE_YEAR;
+  return (
+    HUMAN_CHILDHOOD_DAYS * JUVENILE_DAYS_PER_AGE_YEAR +
+    (ageYears - HUMAN_CHILDHOOD_DAYS) * ADULT_DAYS_PER_AGE_YEAR
+  );
 }
 
 /** Set birth calendar from a target life-age at a given colony day. */
@@ -195,15 +197,17 @@ export function setHumanBirthFromAge(
   const daysLived = daysLivedFromAgeYears(Math.max(0, ageYears));
   const birthColonyDay = colonyDay - daysLived;
   entity.birthYear = Math.floor(birthColonyDay / DAYS_PER_YEAR);
-  entity.birthDay = ((birthColonyDay % DAYS_PER_YEAR) + DAYS_PER_YEAR) % DAYS_PER_YEAR;
-  if (day !== undefined) entity.birthDay = day;
-  if (month !== undefined) {
-    entity.birthMonth = month;
-  } else if (day !== undefined) {
-    entity.birthMonth = Math.floor(day / 30);
+
+  if (month !== undefined && day !== undefined) {
+    const normalizedDay = day >= 1 && day <= 30 ? day - 1 : day % 30;
+    entity.birthMonth = ((month % 12) + 12) % 12;
+    entity.birthDay = entity.birthMonth * 30 + normalizedDay;
   } else {
-    entity.birthMonth = Math.floor(entity.birthDay / 30);
+    entity.birthDay = ((birthColonyDay % DAYS_PER_YEAR) + DAYS_PER_YEAR) % DAYS_PER_YEAR;
+    if (day !== undefined) entity.birthDay = day;
+    entity.birthMonth = month !== undefined ? month : Math.floor(entity.birthDay / 30);
   }
+
   entity.age = Math.max(0, ageYears);
   entity.isJuvenile = entity.age < HUMAN_CHILDHOOD_DAYS;
   entity.maxAge = HUMAN_MAX_LIFESPAN_YEARS;
@@ -221,6 +225,7 @@ export function computeHumanAgeYears(
   let daysLived = Math.max(0, colonyDay - birthColonyDay);
   const juvenileSpan = HUMAN_CHILDHOOD_DAYS * JUVENILE_DAYS_PER_AGE_YEAR;
   const schoolMult = options?.schoolAgeMultiplier ?? 1;
+
   if (schoolMult > 1 && daysLived < juvenileSpan) {
     daysLived = Math.min(daysLived * schoolMult, juvenileSpan);
   }
@@ -238,31 +243,41 @@ export function syncHumanAgeFromCalendar(
 ): void {
   if (entity.type !== EntityType.Human) return;
   entity.age = computeHumanAgeYears(entity, getColonyDay(state), options);
+  entity.isJuvenile = entity.age < HUMAN_CHILDHOOD_DAYS;
   entity.maxAge = HUMAN_MAX_LIFESPAN_YEARS;
 }
 
 /** Display age — humans use the colony calendar; wildlife converts life-days to years. */
 export function getAgeInYears(
   entity: Entity,
-  state: Pick<import('./gameTypes').WorldState, 'year' | 'dayInYear' | 'tick'>,
+  state?: Pick<import('./gameTypes').WorldState, 'year' | 'dayInYear' | 'tick'>,
 ): number {
   if (entity.type === EntityType.Human) {
-    return computeHumanAgeYears(entity, getColonyDay(state));
+    return state ? computeHumanAgeYears(entity, getColonyDay(state)) : Math.max(0, entity.age);
   }
   return Math.max(0, Math.floor(entity.age / DAYS_PER_YEAR));
 }
 
-export function getOldAgeDeathChance(age: number): number {
+/** Annual old-age mortality rate (2% at age 60, scaling to 100% at age 90). */
+export function getOldAgeAnnualDeathChance(age: number): number {
   if (age < HUMAN_VENERABLE_AGE) return 0;
   if (age >= HUMAN_MAX_LIFESPAN_YEARS) return 1;
-  return 0.02 + (age - HUMAN_VENERABLE_AGE) / (HUMAN_MAX_LIFESPAN_YEARS - HUMAN_VENERABLE_AGE) * 0.98;
+  return 0.02 + ((age - HUMAN_VENERABLE_AGE) / (HUMAN_MAX_LIFESPAN_YEARS - HUMAN_VENERABLE_AGE)) * 0.98;
+}
+
+/** Daily roll chance for old-age death (scaled across the 360-day calendar year). */
+export function getOldAgeDeathChance(age: number): number {
+  const annual = getOldAgeAnnualDeathChance(age);
+  if (annual <= 0) return 0;
+  if (annual >= 1) return 1;
+  return annual / DAYS_PER_YEAR;
 }
 
 /** Small daily chance for an adult to die from illness or accident regardless of age. */
 export const HUMAN_DAILY_ILLNESS_CHANCE = 0.00012;
 
 /**
- * Once-per-calendar-day conception rolls (not per tick).
+ * Once-per-calendar-day conception rolls.
  * Tuned for ~1 birth per married couple per game year when housed together.
  */
 export const HUMAN_DAILY_PREGNANCY_CHANCE_HOME = 0.18;
@@ -292,7 +307,7 @@ export const PRODUCTION_INTERVAL = {
 export const IMMIGRATION_CHECK_TICKS = ticksForDays(2);
 export const FESTIVAL_CHECK_TICKS = ticksForDays(50);
 
-/** Calendar-aligned event intervals (replace legacy raw tick modulo). */
+/** Calendar-aligned event intervals. */
 export const EVENT_INTERVAL = {
   disaster: ticksForDays(40),
   tradeRoute: ticksForDays(8),
@@ -303,7 +318,7 @@ export const EVENT_INTERVAL = {
 
 /** Marks the current calendar day as processed after the daily layer succeeds. */
 export function markCalendarDayProcessed(state: import('./gameTypes').WorldState): void {
-  if (state.tick > 0 && state.tick % TICKS_PER_DAY === 0) {
+  if (state.tick > 0 && isNewCalendarDayTick(state.tick)) {
     state.lastProcessedCalendarDay = getAbsoluteCalendarDay(state.tick);
   }
 }
@@ -315,12 +330,11 @@ export function getBirthDateString(entity: { birthYear: number; birthMonth: numb
     ? entity.birthMonth
     : Math.floor(entity.birthDay / 30);
   const month = ((monthIndex % 12) + 12) % 12;
-  const dayOfMonth = (entity.birthDay % 30) + 1;
+  const dayOfMonth = (((entity.birthDay % 30) + 30) % 30) + 1;
   return `${MONTH_NAMES[month]} ${dayOfMonth}, ${realYear}`;
 }
 
-/** Keep parent childrenIds in sync with motherId/fatherId on each child. */
-/** Rescale legacy per-tick/year ages to the v0.4 day-based calendar. */
+/** Rescale legacy per-tick/year ages to the day-based calendar. */
 export function migrateHumanAges(
   humans: Entity[],
   state?: { year: number; dayInYear: number },
@@ -332,7 +346,6 @@ export function migrateHumanAges(
     const stored = Math.max(0, human.age);
     const computed = state ? computeHumanAgeYears(human, colonyDay) : stored;
     const looksLikeLegacyFastAge = stored > HUMAN_MAX_LIFESPAN_YEARS + 5;
-    // Pre-v0.4.2 bug: +1 life-year every colony day (founder "66" at day 38).
     const looksLikeLegacyPerDayAging =
       colonyDay > 0
       && stored > computed + 5

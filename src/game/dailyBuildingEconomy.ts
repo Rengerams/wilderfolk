@@ -4,7 +4,8 @@
  * Grass ecology (growth/spread), static bookkeeping, building production,
  * frontier systems, and daily-gated world events. Trees have no sim tick.
  */
-import type { WorldState, Entity } from './gameTypes';
+import type { WorldState, Entity, Building } from './gameTypes';
+import { mineOreForMode } from './buildings';
 import {
   BuildingType,
   BUILDING_CONFIGS,
@@ -254,6 +255,23 @@ export function tickDailyBuildingEconomy(
 
 // ==================== FRONTIER SYSTEMS ====================
 
+/**
+ * The living player settler working this building, if any.
+ *
+ * Used by the Hunting Spot so its shot can be emitted from the hunter rather than
+ * from the building — see `BUG_REPORTS/2026-08-28-hunting-projectile-visual.md`.
+ */
+function findLiveAssignedWorker(
+  building: Building,
+  entityById: ReadonlyMap<number, Entity>,
+): Entity | undefined {
+  for (let i = 0; i < building.occupants.length; i++) {
+    const worker = entityById.get(building.occupants[i]);
+    if (worker?.alive && isPlayerHuman(worker)) return worker;
+  }
+  return undefined;
+}
+
 function tickBuildingProduction(
   state: WorldState,
   ctx: TickContext,
@@ -386,19 +404,25 @@ function tickBuildingProduction(
         const foughtBack = isWolf && Math.random() < 0.35;
         const success = !foughtBack && Math.random() < 0.85;
 
-        addHuntVisual(state, {
-          id: `hunt_${state.tick}_${Math.floor(Math.random() * 1000)}`,
-          hunterId: building.id,
-          preyType: targetPrey.type,
-          fromX: building.x,
-          fromY: building.y,
-          toX: targetPrey.x,
-          toY: targetPrey.y,
-          startedAtTick: state.tick,
-          startedAtMs: Date.now(),
-          success,
-          foughtBack,
-        });
+        // The shot must read as fired by the assigned hunter: a Hunting Spot is a
+        // work location, not an automatic attack tower. With no living hunter
+        // assigned there is nothing to emit, so the building never fires by itself.
+        const hunter = findLiveAssignedWorker(building, entityById);
+        if (hunter) {
+          addHuntVisual(state, {
+            id: `hunt_${state.tick}_${Math.floor(Math.random() * 1000)}`,
+            hunterId: hunter.id,
+            preyType: targetPrey.type,
+            fromX: hunter.x,
+            fromY: hunter.y,
+            toX: targetPrey.x,
+            toY: targetPrey.y,
+            startedAtTick: state.tick,
+            startedAtMs: Date.now(),
+            success,
+            foughtBack,
+          });
+        }
 
         if (foughtBack) {
           building.health = Math.max(10, building.health - 12);
@@ -582,33 +606,21 @@ function tickBuildingProduction(
     ) {
       const stoneMult = getMultiplier(state, 'stone_production');
       const amount = Math.floor((12 + workers * 4) * totalMult * smithBonus * stoneMult * globalEff);
-      if (building.mineMode === 'iron') {
-        if (addResource(state, 'iron', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
-        state.deathParticles.push({
-          x: building.x + Math.random() * building.width,
-          y: building.y + Math.random() * building.height,
-          vx: (Math.random() - 0.5) * 0.4,
-          vy: -1 - Math.random(),
-          life: 30,
-          maxLife: 30,
-          color: '#a8a29e',
-          size: 2 + Math.random() * 2,
-          type: 'smoke',
-        });
-      } else {
-        if (addResource(state, 'stone', amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
-        state.deathParticles.push({
-          x: building.x + Math.random() * building.width,
-          y: building.y + Math.random() * building.height,
-          vx: (Math.random() - 0.5) * 0.4,
-          vy: -1 - Math.random(),
-          life: 30,
-          maxLife: 30,
-          color: '#555555',
-          size: 3 + Math.random() * 2,
-          type: 'smoke',
-        });
-      }
+      // Ores only — stone is the Quarry's job. Gold is the premium vein, so it
+      // is extracted only when the player picked it; see `mineOreForMode`.
+      const ore = mineOreForMode(building.mineMode);
+      if (addResource(state, ore, amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
+      state.deathParticles.push({
+        x: building.x + Math.random() * building.width,
+        y: building.y + Math.random() * building.height,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: -1 - Math.random(),
+        life: 30,
+        maxLife: 30,
+        color: ore === 'gold' ? '#eab308' : '#a8a29e',
+        size: 2 + Math.random() * 2,
+        type: 'smoke',
+      });
     }
 
     // --- Greenhouse ---

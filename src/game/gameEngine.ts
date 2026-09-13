@@ -11,20 +11,43 @@
 
 // ---- Domain types / static data (gameTypes) ----
 export type {
-  WorldState, Entity, EntityByType, Building, DeathParticle,
-  FloatingText, GameEvent, Camera, WorkshopRecipe,
+  WorldState,
+  Entity,
+  EntityByType,
+  Building,
+  DeathParticle,
+  FloatingText,
+  GameEvent,
+  Camera,
+  WorkshopRecipe,
   GameState,
+  ForgeOrder,
+  ForgeOrderId,
+  VillageForgeState,
 } from './gameTypes';
+
 export {
-  EntityType, BuildingType, Season, WeatherType, ResearchType, BUILDING_CONFIGS,
-  GRID_SIZE, TERRAIN_TILE_SIZE, GRID_SNAP, snapToGrid, TerrainType,
-  BUILDING_JOB_TYPES, JobType,
-  WORKSHOP_RECIPES, DEFAULT_WORKSHOP_RECIPE_ID, getWorkshopRecipe, formatRecipeInputs,
+  EntityType,
+  BuildingType,
+  Season,
+  WeatherType,
+  ResearchType,
+  BUILDING_CONFIGS,
+  GRID_SIZE,
+  TERRAIN_TILE_SIZE,
+  GRID_SNAP,
+  snapToGrid,
+  TerrainType,
+  BUILDING_JOB_TYPES,
+  JobType,
+  WORKSHOP_RECIPES,
+  DEFAULT_WORKSHOP_RECIPE_ID,
+  getWorkshopRecipe,
+  formatRecipeInputs,
 } from './gameTypes';
 
 // ---- Split-out sim core ----
-export { SPECIES_CONFIG } from './speciesConfig';
-export type { SpeciesConfig } from './speciesConfig';
+export { SPECIES_CONFIG, type SpeciesConfig } from './speciesConfig';
 export {
   type SimulationFocus,
   OFFSCREEN_HUMAN_THROTTLE,
@@ -99,29 +122,53 @@ export { recordYearlyStats, updateLifetimeStats, drawBarChart, drawLineChart } f
 export type { YearlyStats, LifetimeStats } from './stats';
 export { logEvent } from './eventLog';
 export {
-  sendRivalGift, establishRivalTradePact, showStrengthToRival,
+  sendRivalGift,
+  establishRivalTradePact,
+  showStrengthToRival,
   signPeaceTreaty,
-  respondToDiplomacyEvent, getDiplomacyChoiceEligibility, tradeWithVisitors, negotiateRefugees,
-  talkToVisitorLeader, getVisitorLeaderTalkMeta, getVisitorTradePriceMult, getVisitorTradeRewardMult,
+  respondToDiplomacyEvent,
+  getDiplomacyChoiceEligibility,
+  tradeWithVisitors,
+  negotiateRefugees,
+  talkToVisitorLeader,
+  getVisitorLeaderTalkMeta,
+  getVisitorTradePriceMult,
+  getVisitorTradeRewardMult,
   hitTestCamp,
+  type VisitorLeaderTalkMeta,
 } from './groupEvents';
 export { isRivalAtPeace } from './rivalPeace';
 export { isPlayerHuman, playerHumanCount } from './playerHuman';
 export { createEntity, finalizeSettlerAge } from './entityFactory';
-export type { VisitorLeaderTalkMeta } from './groupEvents';
 export {
-  respondToRaidEvent, respondToOutgoingRaidEvent, launchRaidOnRival,
-  rollRivalOutgoingRaidResponse, rollRivalPayoffOffer, cancelPendingOutgoingRaidsForRival,
-  getMilitiaStrength, getRivalRaidStrength, countArmedMilitia, getCombatPreview,
-  getBarricadeStrength, getOutgoingRaidFoodCostForRival, formatCampDistance, getCampDistancePixels,
-  getRivalDefenseStrength, resolveCounterRaidRatio, canLaunchRaidOnRival, isCounterRaidOnRival,
-  getOutgoingRaidActionLabel, formatRaidDeadline, formatRaidLootSummary, raidEventLoot,
+  respondToRaidEvent,
+  respondToOutgoingRaidEvent,
+  launchRaidOnRival,
+  rollRivalOutgoingRaidResponse,
+  rollRivalPayoffOffer,
+  cancelPendingOutgoingRaidsForRival,
+  getMilitiaStrength,
+  getRivalRaidStrength,
+  countArmedMilitia,
+  getCombatPreview,
+  getBarricadeStrength,
+  getOutgoingRaidFoodCostForRival,
+  formatCampDistance,
+  getCampDistancePixels,
+  getRivalDefenseStrength,
+  resolveCounterRaidRatio,
+  canLaunchRaidOnRival,
+  isCounterRaidOnRival,
+  getOutgoingRaidActionLabel,
+  formatRaidDeadline,
+  formatRaidLootSummary,
+  raidEventLoot,
+  type CombatPreview,
+  type RaidOutcomeTier,
+  type CounterRaidTier,
 } from './frontierCombat';
-export type { CombatPreview, RaidOutcomeTier, CounterRaidTier } from './frontierCombat';
-export { getGrazingPressureReport } from './ecosystemPressure';
-export type { GrazingPressureReport, GrazingPressureLevel } from './ecosystemPressure';
-export { getEcosystemBreakdown } from './ecoBreakdown';
-export type { EcosystemBreakdown, EcosystemBreakdownLine } from './ecoBreakdown';
+export { getGrazingPressureReport, type GrazingPressureReport, type GrazingPressureLevel } from './ecosystemPressure';
+export { getEcosystemBreakdown, type EcosystemBreakdown, type EcosystemBreakdownLine } from './ecoBreakdown';
 export {
   computeValleyEcologySnapshot,
   tickValleyEcologyStage,
@@ -129,16 +176,33 @@ export {
   getValleyFarmYieldMultiplier,
   valleyStageLabel,
   valleyStageEmoji,
+  type ValleyStage,
+  type ValleyEcologySnapshot,
+  type EcologyDriverId,
 } from './ecologyStage';
-export type { ValleyStage, ValleyEcologySnapshot, EcologyDriverId } from './ecologyStage';
-export { getPopulationGrowthReport } from './populationGrowth';
-export type { PopulationGrowthReport, PopulationGrowthTone } from './populationGrowth';
+export {
+  getPopulationGrowthReport,
+  snapshotPopulation,
+  invalidatePopulationSnapshotCache,
+  getTotalBeds,
+  getLivePlayerPopulation,
+  getOpenBeds,
+  getOpenBedsFromPop,
+  type PopulationGrowthReport,
+  type PopulationGrowthTone,
+  type PopulationSnapshot,
+} from './populationGrowth';
 export { formatRivalPopulationLabel, formatRivalRelationshipLabel } from './rivalDisplay';
 export {
-  getArmamentSteps, getHumanArmamentLabel,
-  hasIronSpears, hasStoneSpears,
-  hasIronSwords, hasScaleMail, hasTowerBallistae,
-  hasIronShields, hasWoodenShields,
+  getArmamentSteps,
+  getHumanArmamentLabel,
+  hasIronSpears,
+  hasStoneSpears,
+  hasIronSwords,
+  hasScaleMail,
+  hasTowerBallistae,
+  hasIronShields,
+  hasWoodenShields,
 } from './combat';
 export {
   ELECTION_INTERVAL_YEARS,
@@ -148,24 +212,26 @@ export {
   rankLeadershipCandidates,
   formatSettlerName,
   getLeadershipScoreBreakdown,
+  appointFoundingLeader,
 } from './villageLeadership';
 export {
   computePopulationCounts,
   computeWildlifeCounts,
   wildlifeCountsFromPopulation,
   formatPopulationBrief,
+  type PopulationCounts,
 } from './entityCounts';
 export type { ViewState } from './viewState';
 
-export { EntityCatalog } from './entityCatalog';
-export { computeVillageStats } from './uiSimSummary';
-export type { VillageStatsSummary } from './uiSimSummary';
-export { getPriorityAlerts } from './priorityAlerts';
-export type { PriorityAlert } from './priorityAlerts';
-export { getFocusHints } from './focusHints';
-export type { FocusHintAction } from './focusHints';
+export {
+  EntityCatalog,
+  resolveAliveByType,
+  resolveAliveHumans,
+} from './entityCatalog';
+export { computeVillageStats, type VillageStatsSummary } from './uiSimSummary';
+export { getPriorityAlerts, type PriorityAlert } from './priorityAlerts';
+export { getFocusHints, type FocusHintAction } from './focusHints';
 
-export type { PopulationCounts } from './entityCounts';
 export {
   saveGame,
   loadGame,
@@ -228,21 +294,61 @@ export {
   createImmigrantSettler,
   initGame,
   setEntityBirthDate,
+  isPassableWildlifePosition,
   type InitGameOptions,
 } from './worldGen';
-export { getAgeInYears } from './dayCycle';
+export {
+  getAgeInYears,
+  getColonyDay,
+  getResidenceCapacity,
+  isResidenceBuilding,
+  TICKS_PER_HOUR,
+  TICKS_PER_DAY,
+  HUMAN_ADULT_MIN_AGE,
+} from './dayCycle';
 export { tickGrassDaily } from './tickLayerDaily';
 export { tickWildlife } from './tickLayerSystems';
 export { updateWeather, updateDisasters } from './worldEvents';
 export {
-  GAME_VERSION, GAME_PHASE, GAME_TITLE, GAME_SUBTITLE, GAME_VERSION_TAGLINE, ECOLOGICAL_FACTS,
+  GAME_VERSION,
+  GAME_PHASE,
+  GAME_TITLE,
+  GAME_SUBTITLE,
+  GAME_VERSION_TAGLINE,
+  ECOLOGICAL_FACTS,
 } from './version';
 export {
-  getOccupationForBuilding, getJobForBuilding, ensureEntitySkills, readSkill,
-  gainSkill, rewardProductionSkills, decayIdleSkills, getWorkerSkillMultiplier,
+  getOccupationForBuilding,
+  getJobForBuilding,
+  ensureEntitySkills,
+  readSkill,
+  gainSkill,
+  rewardProductionSkills,
+  decayIdleSkills,
+  getWorkerSkillMultiplier,
 } from './skills';
 export {
-  FORGE_ORDERS, getForgeOrder, formatForgeInputs, getForgeBlockReason,
-  queueForgeOrder, createInitialForgeState,
+  FORGE_ORDERS,
+  getForgeOrder,
+  formatForgeInputs,
+  getForgeBlockReason,
+  queueForgeOrder,
+  createInitialForgeState,
 } from './forge';
-export type { ForgeOrder, ForgeOrderId, VillageForgeState } from './gameTypes';
+
+// ---- Name Loading & Fixing ----
+export {
+  loadNames,
+  ensureNamesLoaded,
+  fixDefaultNames,
+  getRandomName,
+  getRandomMaleName,
+  getRandomFemaleName,
+  getRandomSurname,
+  areNamesLoaded,
+  getNamePoolInfo,
+  syncMarriageSurnames,
+  grantDivorce,
+  dissolveMarriage,
+  resolveChildSurname,
+} from './nameLoader';

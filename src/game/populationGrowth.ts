@@ -1,5 +1,5 @@
 import { BuildingType, BUILDING_CONFIGS, type WorldState } from './gameTypes';
-import { getResidenceCapacity, isResidenceBuilding } from './dayCycle';
+import { countResidentsInBuilding, getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding } from './dayCycle';
 import { isPlayerHuman } from './playerHuman';
 
 export interface PopulationSnapshot {
@@ -13,10 +13,19 @@ interface PopulationSnapshotCacheEntry {
   tick: number;
   entityCount: number;
   buildingCount: number;
+  humanPopulation: number;
+  totalBuildingsCompleted: number;
   snapshot: PopulationSnapshot;
 }
 
 const populationSnapshotCache = new WeakMap<WorldState, PopulationSnapshotCacheEntry>();
+
+/** Allows external systems to manually invalidate the snapshot cache (e.g. after building upgrades). */
+export function invalidatePopulationSnapshotCache(state?: WorldState): void {
+  if (state) {
+    populationSnapshotCache.delete(state);
+  }
+}
 
 function computePopulationSnapshot(state: WorldState): PopulationSnapshot {
   let pop = 0;
@@ -24,10 +33,16 @@ function computePopulationSnapshot(state: WorldState): PopulationSnapshot {
   let houseCount = 0;
   let mansionCount = 0;
 
-  for (const entity of state.entities) {
+  const entities = state.entities ?? [];
+  const buildings = state.buildings ?? [];
+
+  for (let i = 0; i < entities.length; i++) {
+    const entity = entities[i];
     if (entity.alive && isPlayerHuman(entity)) pop += 1;
   }
-  for (const building of state.buildings) {
+
+  for (let i = 0; i < buildings.length; i++) {
+    const building = buildings[i];
     if (!building.completed || building.faction === 'rival' || !isResidenceBuilding(building)) continue;
     beds += getResidenceCapacity(building);
     if (building.type === BuildingType.House) houseCount += 1;
@@ -37,16 +52,21 @@ function computePopulationSnapshot(state: WorldState): PopulationSnapshot {
   return { pop, beds, houseCount, mansionCount };
 }
 
-/** Single-pass population/beds snapshot; cached per tick until entity/building counts change. */
+/** Single-pass population/beds snapshot; cached per tick until population or building states change. */
 export function snapshotPopulation(state: WorldState): PopulationSnapshot {
-  const entityCount = state.entities.length;
-  const buildingCount = state.buildings.length;
+  const entityCount = state.entities?.length ?? 0;
+  const buildingCount = state.buildings?.length ?? 0;
+  const humanPopulation = state.humanPopulation ?? 0;
+  const totalBuildingsCompleted = state.totalBuildingsCompleted ?? 0;
+
   const cached = populationSnapshotCache.get(state);
   if (
     cached
     && cached.tick === state.tick
     && cached.entityCount === entityCount
     && cached.buildingCount === buildingCount
+    && cached.humanPopulation === humanPopulation
+    && cached.totalBuildingsCompleted === totalBuildingsCompleted
   ) {
     return cached.snapshot;
   }
@@ -56,6 +76,8 @@ export function snapshotPopulation(state: WorldState): PopulationSnapshot {
     tick: state.tick,
     entityCount,
     buildingCount,
+    humanPopulation,
+    totalBuildingsCompleted,
     snapshot,
   });
   return snapshot;
@@ -67,7 +89,7 @@ function getFoodAmount(state: WorldState): number {
 }
 
 function openCapSlots(cap: number, pop: number): number {
-  return Math.max(0, Math.floor(cap - pop));
+  return Math.max(0, Math.floor((cap || 0) - (pop || 0)));
 }
 
 function formatHousingCapReason(
@@ -76,8 +98,8 @@ function formatHousingCapReason(
   beds: number,
   pop: number,
 ): string {
-  const houseBeds = BUILDING_CONFIGS[BuildingType.House].maxOccupants;
-  const mansionBeds = BUILDING_CONFIGS[BuildingType.Mansion].maxOccupants;
+  const houseBeds = BUILDING_CONFIGS[BuildingType.House]?.maxOccupants ?? 4;
+  const mansionBeds = BUILDING_CONFIGS[BuildingType.Mansion]?.maxOccupants ?? 8;
   return (
     `Housing raises immigration cap by resident capacity `
     + `(houses ~${houseBeds} beds, mansions ~${mansionBeds} beds each; upgrades add +2 per level) `
@@ -118,18 +140,41 @@ export function getLivePlayerPopulation(state: WorldState): number {
   return snapshotPopulation(state).pop;
 }
 
+/** Returns remaining open beds against a projected or passed population count. */
 export function getOpenBedsFromPop(state: WorldState, pop: number): number {
   const { pop: livePop, beds } = snapshotPopulation(state);
-  if (!Number.isFinite(pop)) return Math.max(0, beds - livePop);
-  const normalizedPop = Math.max(0, Math.floor(pop));
-  // Caller must pass live player-human count; any mismatch uses authoritative snapshot pop.
-  const effectivePop = normalizedPop === livePop ? normalizedPop : livePop;
-  return Math.max(0, beds - effectivePop);
+  if (typeof pop !== 'number' || !Number.isFinite(pop) || pop < 0) {
+    return Math.max(0, beds - livePop);
+  }
+  return Math.max(0, beds - Math.floor(pop));
 }
 
 export function getOpenBeds(state: WorldState): number {
   const { pop, beds } = snapshotPopulation(state);
   return Math.max(0, beds - pop);
+}
+
+/**
+ * Open beds a settler may actually be assigned.
+ *
+ * `getOpenBeds` counts every residence, including the Leader's House — and those
+ * beds are reserved for the leader's household (`leaderHouse.syncLeaderHouseResidency`
+ * evicts anyone else and re-homes them), so they are not spare housing for the
+ * rest of the colony. Counting them would read as "a settler was simply not
+ * assigned a bed" while the village is in fact short of housing.
+ */
+export function getOpenPlayerBeds(state: WorldState): number {
+  const entities = state.entities ?? [];
+  const buildings = state.buildings ?? [];
+  let open = 0;
+
+  for (let i = 0; i < buildings.length; i++) {
+    const building = buildings[i];
+    if (!isResidenceBuilding(building) || isLeaderHouseResidence(building)) continue;
+    open += Math.max(0, getResidenceCapacity(building) - countResidentsInBuilding(entities, building.id));
+  }
+
+  return open;
 }
 
 export type PopulationGrowthTone = 'good' | 'warn' | 'blocked';
@@ -143,7 +188,14 @@ export interface PopulationGrowthReport {
 
 export function getPopulationGrowthReport(state: WorldState): PopulationGrowthReport {
   const { pop, beds, houseCount, mansionCount } = snapshotPopulation(state);
-  const cap = state.maxHumanPopulation;
+  const reputation = typeof state.villageReputation === 'number' && Number.isFinite(state.villageReputation)
+    ? state.villageReputation
+    : 0;
+
+  const cap = typeof state.maxHumanPopulation === 'number' && Number.isFinite(state.maxHumanPopulation)
+    ? state.maxHumanPopulation
+    : 5 + beds + Math.floor(reputation / 10);
+
   const openSlots = openCapSlots(cap, pop);
   const openBeds = Math.max(0, beds - pop);
   const overcrowded = pop > beds;
@@ -158,7 +210,7 @@ export function getPopulationGrowthReport(state: WorldState): PopulationGrowthRe
   if (pop >= cap) {
     reasons.push(`At population cap (${pop}/${cap}).`);
     reasons.push(formatHousingCapReason(houseCount, mansionCount, beds, pop));
-    reasons.push(`⭐ Reputation adds cap (+1 per 10 rep, now ${state.villageReputation}).`);
+    reasons.push(`⭐ Reputation adds cap (+1 per 10 rep, now ${reputation}).`);
     return {
       tone: 'blocked',
       headline: 'Population cap reached',
@@ -172,15 +224,15 @@ export function getPopulationGrowthReport(state: WorldState): PopulationGrowthRe
   if (hasFoodWarning) {
     reasons.push(`Low food (${food}🍖) — newcomers are unlikely while stores are thin.`);
   }
-  if (state.villageReputation < 25) {
-    reasons.push(`Low reputation (${state.villageReputation}⭐) — immigrants arrive rarely. Trade and gifts raise rep.`);
+  if (reputation < 25) {
+    reasons.push(`Low reputation (${reputation}⭐) — immigrants arrive rarely. Trade and gifts raise rep.`);
   }
   if (overcrowded) {
     reasons.push(`${pop} settlers sharing ${beds} beds — build houses or mansions now.`);
   } else if (openBeds > 4 && openSlots > 4) {
     reasons.push(`${openBeds} empty beds and ${openSlots} cap slots available now.`);
   }
-  if (!state.festival?.active && state.villageReputation < 60) {
+  if (!state.festival?.active && reputation < 60) {
     reasons.push('Festivals, a staffed Town Hall, and more housing speed immigration checks.');
   }
 
@@ -205,7 +257,7 @@ export function getPopulationGrowthReport(state: WorldState): PopulationGrowthRe
         ? 'Growth slowing'
         : 'Growing steadily';
   const detail = buildGrowthDetail({
-    paused: state.paused,
+    paused: !!state.paused,
     overcrowded,
     hasFoodWarning,
     food,

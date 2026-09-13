@@ -100,6 +100,26 @@ export function maybeOfferDeerParliament(state: WorldState): void {
   addNotification(state, '🦌 The deer are gathering', 'The deer appear to be holding a parliament.', 'info');
 }
 
+/**
+ * Whether `resolveDeerParliament` would accept this answer right now.
+ *
+ * Mirrors the two gated answers the resolver applies (`preserve`,
+ * `symbolic_treaty`), so a consumer can tell an answer that lands from one that
+ * is refused and leaves the card open. `reduce_hunting` and `ignore` are free.
+ */
+export function getDeerParliamentChoiceEligibility(
+  state: WorldState,
+  choiceId: string,
+): { ok: boolean; blockReason?: string } {
+  if (choiceId === 'preserve' && state.resources.wood < PRESERVE_WOOD_COST) {
+    return { ok: false, blockReason: `Need ${PRESERVE_WOOD_COST}🪵` };
+  }
+  if (choiceId === 'symbolic_treaty' && state.resources.food < TREATY_FOOD_COST) {
+    return { ok: false, blockReason: `Need ${TREATY_FOOD_COST}🍖` };
+  }
+  return { ok: true };
+}
+
 export function resolveDeerParliament(state: WorldState, choiceId: string): boolean {
   if (storyFlag(state, FLAG_RESOLVED) > 0) return true;
   const colonyDay = getColonyDay(state);

@@ -7,10 +7,10 @@ import {
   type StaffingMode,
   type WorldState,
 } from './gameTypes';
-import type { MineMode } from './buildings';
+import { MINE_ORES, type MineMode } from './buildings';
 
 const STAFFING_MODES: ReadonlySet<StaffingMode> = new Set(['auto', 'manual']);
-const MINE_MODES: ReadonlySet<MineMode> = new Set(['stone', 'iron']);
+const MINE_MODES: ReadonlySet<string> = new Set(MINE_ORES);
 const VALID_RECIPE_IDS: ReadonlySet<string> = new Set(WORKSHOP_RECIPES.map((r) => r.id));
 const VALID_PREY_IDS: ReadonlySet<HuntingSpotPrey> = new Set(
   HUNTING_SPOT_PREY_OPTIONS.map((o) => o.id),

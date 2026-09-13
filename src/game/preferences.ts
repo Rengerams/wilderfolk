@@ -4,23 +4,47 @@ const JUICE_EFFECTS_KEY = 'wilderfolk-juice-effects';
 const FIRST_NIGHT_WARNING_KEY = 'wilderfolk-first-night-warning-dismissed';
 const SHOW_SIM_TICK_KEY = 'wilderfolk-show-sim-tick';
 const SHOW_FPS_KEY = 'wilderfolk-show-fps';
+const TUTORIAL_CHOICE_KEY = 'wilderfolk-tutorial-choice';
 
 let cachedJuiceEffects: boolean | null = null;
 
+/** Safely resolves the storage API across browser, private browsing, and headless runtimes. */
+function getStorage(): Storage | null {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage;
+    }
+    if (typeof localStorage !== 'undefined') {
+      return localStorage;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 function readBoolPreference(key: string, defaultValue: boolean): boolean {
   try {
-    const raw = localStorage.getItem(key);
+    const storage = getStorage();
+    if (!storage) return defaultValue;
+    const raw = storage.getItem(key);
     if (raw === '0' || raw === 'false') return false;
     if (raw === '1' || raw === 'true') return true;
     if (raw == null) return defaultValue;
-  } catch { /* ignore */ }
+  } catch {
+    return defaultValue;
+  }
   return defaultValue;
 }
 
 function writeBoolPreference(key: string, enabled: boolean): void {
   try {
-    localStorage.setItem(key, enabled ? '1' : '0');
-  } catch { /* ignore */ }
+    const storage = getStorage();
+    if (!storage) return;
+    storage.setItem(key, enabled ? '1' : '0');
+  } catch {
+    /* ignore storage quotas / private mode errors */
+  }
 }
 
 export function loadAutoSavePreference(): boolean {
@@ -38,8 +62,6 @@ export function loadTutorialsEnabled(): boolean {
 export function saveTutorialsEnabled(enabled: boolean): void {
   writeBoolPreference(TUTORIALS_ENABLED_KEY, enabled);
 }
-
-const TUTORIAL_CHOICE_KEY = 'wilderfolk-tutorial-choice';
 
 /** Per-new-game choice: play the first-spring guide or start free. */
 export function loadTutorialChoice(): boolean {
@@ -62,33 +84,29 @@ export function saveJuiceEffectsEnabled(enabled: boolean): void {
 }
 
 export function loadFirstNightWarningDismissed(): boolean {
-  try {
-    return localStorage.getItem(FIRST_NIGHT_WARNING_KEY) === '1';
-  } catch { /* ignore */ }
-  return false;
+  return readBoolPreference(FIRST_NIGHT_WARNING_KEY, false);
 }
 
 export function saveFirstNightWarningDismissed(dismissed: boolean): void {
   try {
+    const storage = getStorage();
+    if (!storage) return;
     if (dismissed) {
-      localStorage.setItem(FIRST_NIGHT_WARNING_KEY, '1');
+      storage.setItem(FIRST_NIGHT_WARNING_KEY, '1');
     } else {
-      localStorage.removeItem(FIRST_NIGHT_WARNING_KEY);
+      storage.removeItem(FIRST_NIGHT_WARNING_KEY);
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function loadShowSimTick(): boolean {
-  try {
-    return localStorage.getItem(SHOW_SIM_TICK_KEY) === '1';
-  } catch { /* ignore */ }
-  return false;
+  return readBoolPreference(SHOW_SIM_TICK_KEY, false);
 }
 
 export function saveShowSimTick(enabled: boolean): void {
-  try {
-    localStorage.setItem(SHOW_SIM_TICK_KEY, enabled ? '1' : '0');
-  } catch { /* ignore */ }
+  writeBoolPreference(SHOW_SIM_TICK_KEY, enabled);
 }
 
 export function loadShowFps(): boolean {
@@ -97,4 +115,9 @@ export function loadShowFps(): boolean {
 
 export function saveShowFps(enabled: boolean): void {
   writeBoolPreference(SHOW_FPS_KEY, enabled);
+}
+
+/** Resets in-memory preference caches (primarily for unit tests and session resets). */
+export function resetPreferencesCache(): void {
+  cachedJuiceEffects = null;
 }

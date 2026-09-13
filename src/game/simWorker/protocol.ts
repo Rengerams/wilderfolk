@@ -13,8 +13,6 @@ export function isWorkerProto(proto: unknown): proto is typeof WORKER_PROTO {
 
 /**
  * Builds a clear mismatch error for the worker protocol handshake.
- *
- * `${String(got)}` safely converts any unknown value to a string representation.
  */
 export function workerProtoMismatch(got: unknown): string {
   return `Worker protocol mismatch: expected ${WORKER_PROTO}, got ${String(got)}`;
@@ -28,10 +26,11 @@ export interface SimulationFocus {
   maxY: number;
 }
 
-/** Opaque worker command – concrete shape lives in `commands.ts`. */
+/** Opaque worker command envelope – concrete shape lives in `commands.ts`. */
 export type WorkerCommandEnvelope = {
   proto: 1;
   op: string;
+  [key: string]: unknown;
 };
 
 /** Opaque simulation‑prep – concrete shape lives in `simPrep.ts`. */
@@ -46,10 +45,10 @@ export type SimTickDeltaPayload = unknown;
  */
 export function assertWorkerFeatures(
   requested: readonly WorkerFeature[],
-  offered: readonly WorkerFeature[],
+  offered: readonly WorkerFeature[] | undefined,
 ): void {
   for (const feature of requested) {
-    if (!offered.includes(feature)) {
+    if (!offered || !offered.includes(feature)) {
       throw new Error(`Worker missing feature: ${feature}`);
     }
   }
@@ -59,7 +58,7 @@ export function assertWorkerFeatures(
 export type WorkerFeature = 'renderSoA_v1' | 'scentSidecar_v1';
 
 /* -------------------------------------------------------------------------- */
-/*  Worker → Host requests                                                      */
+/*  Host → Worker requests                                                    */
 /* -------------------------------------------------------------------------- */
 export type WorkerRequest =
   | {
@@ -97,7 +96,7 @@ export type WorkerRequest =
     };
 
 /* -------------------------------------------------------------------------- */
-/*  Host → Worker responses                                                    */
+/*  Worker → Host responses                                                    */
 /* -------------------------------------------------------------------------- */
 export type WorkerResponse =
   | {
@@ -127,6 +126,7 @@ export type WorkerResponse =
       renderBuffer?: ArrayBuffer;
       bufferIndex?: number;
       schemaVersion?: number;
+      scentBuffer?: ArrayBuffer;
     }
   | {
       type: 'exportSaveResult';

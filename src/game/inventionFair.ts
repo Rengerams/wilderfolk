@@ -41,6 +41,23 @@ const INVENTION_COSTS: Record<string, number> = {
   emergency_bell: 12,
 };
 
+/** 8 = the extra timber a safer redesign charges on top of the granary counter. */
+const SAFER_REDESIGN_EXTRA_WOOD = 8;
+/** 8 = timber the stage-2 "improve it" answer charges. */
+const IMPROVE_WOOD_COST = 8;
+
+/**
+ * Wood each funding answer charges. One table, so the resolver and the
+ * eligibility check below cannot drift apart.
+ */
+const FUNDING_WOOD_COST: Record<string, number> = {
+  fund_granary: INVENTION_COSTS.granary_counter,
+  fund_gate: INVENTION_COSTS.polite_gate,
+  fund_bell: INVENTION_COSTS.emergency_bell,
+  safer_redesign: INVENTION_COSTS.granary_counter + SAFER_REDESIGN_EXTRA_WOOD,
+  improve: IMPROVE_WOOD_COST,
+};
+
 type Stage1Choice = 'fund_granary' | 'fund_gate' | 'fund_bell' | 'reject' | 'safer_redesign';
 type Stage2Choice = 'keep' | 'improve' | 'dismantle';
 
@@ -100,6 +117,25 @@ export function maybeOfferInventionFair(state: WorldState): void {
   addNotification(state, '⚙️ Invention Fair', 'An apprentice wants to present three inventions.', 'info');
 }
 
+/**
+ * Whether `resolveInventionFair` would accept this answer right now.
+ *
+ * Mirrors the resolver's only gate — the wood a funding answer (stage 1) or an
+ * upgrade (stage 2) charges — so a consumer (the auto-play bot) can tell an
+ * answer that lands from one that is refused and leaves the card open.
+ * `reject`, `keep`, and `dismantle` are free.
+ */
+export function getInventionFairChoiceEligibility(
+  state: WorldState,
+  choiceId: string,
+): { ok: boolean; blockReason?: string } {
+  const cost = FUNDING_WOOD_COST[choiceId];
+  if (cost !== undefined && state.resources.wood < cost) {
+    return { ok: false, blockReason: `Need ${cost}🪵` };
+  }
+  return { ok: true };
+}
+
 export function resolveInventionFair(state: WorldState, choiceId: string): boolean {
   const status = storyFlag(state, FLAG_STATUS);
   if (status === STATUS.offered) return resolveStage1(state, choiceId as Stage1Choice);
@@ -116,20 +152,19 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
   switch (choice) {
     case 'fund_granary':
       inventionId = 'granary_counter';
-      cost = INVENTION_COSTS.granary_counter;
+      cost = FUNDING_WOOD_COST.fund_granary;
       break;
     case 'fund_gate':
       inventionId = 'polite_gate';
-      cost = INVENTION_COSTS.polite_gate;
+      cost = FUNDING_WOOD_COST.fund_gate;
       break;
     case 'fund_bell':
       inventionId = 'emergency_bell';
-      cost = INVENTION_COSTS.emergency_bell;
+      cost = FUNDING_WOOD_COST.fund_bell;
       break;
     case 'safer_redesign': {
-      const base = INVENTION_COSTS.granary_counter;
       inventionId = 'granary_counter';
-      cost = base + 8;
+      cost = FUNDING_WOOD_COST.safer_redesign;
       riskMode = RISK.safe;
       break;
     }
@@ -195,13 +230,13 @@ export function tickInventionFair(state: WorldState): void {
 
 function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
   const colonyDay = getColonyDay(state);
-  if (choice === 'improve' && state.resources.wood < 8) {
-    addNotification(state, 'Not enough wood', 'Improving the invention needs 8 wood.', 'warning');
+  if (choice === 'improve' && state.resources.wood < IMPROVE_WOOD_COST) {
+    addNotification(state, 'Not enough wood', `Improving the invention needs ${IMPROVE_WOOD_COST} wood.`, 'warning');
     return false;
   }
 
   if (choice === 'improve') {
-    state.resources.wood -= 8;
+    state.resources.wood -= IMPROVE_WOOD_COST;
     bumpVillageReputation(state, 2);
     addBigNews(state, '⚙️ A useful invention', 'The improved device becomes a small village landmark.', 'positive');
   } else if (choice === 'keep') {

@@ -39,15 +39,6 @@ export const Social = {
  * valid tryst site, the lower id leading the pair). Each success adds a progress
  * bump, and an affair is *established* only when both partners reach
  * AFFAIR_PROGRESS_MAX — only establishment can produce a scandal.
- *
- * REBALANCED 2026-09-10 (developer: "affair chance is too big then"). At the
- * previous base of 0.14/0.20 a same-seed year (seed 12345, 360 days, ~40 average
- * settlers) produced 55 established affairs, 176 scandal events, 60 exposures,
- * 28 imprisonments and 67 divorces, so scandal drama rather than ordinary life
- * dominated the social simulation. The base chances are halved here; the
- * multipliers are deliberately left untouched so the size of the change is
- * attributable to one knob. Playtest note: these values are chosen by feel and by
- * same-seed year comparison, not derived from a target affairs-per-settler rate.
  */
 export const Relationship = {
   /** 0.07 = per-pair daily tryst chance while a church stands (was 0.14). */
@@ -75,13 +66,22 @@ export const Relationship = {
 } as const;
 
 export const Time = {
-  /** 24 = one real day per sim day; the calendar below keeps all math in whole days. */
+  /** 3 = simulation ticks per clock hour (provides smooth pathing and task interaction). */
+  TICKS_PER_HOUR: 3,
+  /** 24 = one calendar day per sim day; keeps all math in whole days. */
   HOURS_PER_DAY: 24,
+  /** 72 = HOURS_PER_DAY (24) × TICKS_PER_HOUR (3). */
+  TICKS_PER_DAY: 72,
   /** 360 = 4 seasons × 90 days; chosen over 365 so every season and year divide evenly. */
   DAYS_PER_YEAR: 360,
   /** 90 = DAYS_PER_YEAR / 4. A season is exactly a quarter of the year. */
   DAYS_PER_SEASON: 90,
 } as const;
+
+// Convenience top-level exports for common calendar math
+export const DAYS_PER_YEAR = Time.DAYS_PER_YEAR;
+export const HOURS_PER_DAY = Time.HOURS_PER_DAY;
+export const DAYS_PER_SEASON = Time.DAYS_PER_SEASON;
 
 /** Human needs & consumption tuning. */
 export const Human = {
@@ -104,10 +104,6 @@ export const Human = {
   /**
    * 65 = one larder meal restores 65 of a settler's 500 max energy (about 13%
    * of the bar, or ~46 ticks / 15 h of unmodified metabolism at 1.4/tick).
-   * Small enough that a hungry settler must keep returning to the larder, so
-   * DAILY_FOOD_CONSUMPTION stays the real limit, and large enough that an
-   * ordinary working day does not end in exhaustion. Playtest-tuned: no formula
-   * derives it and no A/B comparison values were recorded.
    */
   MEAL_ENERGY_RESTORE: 65,
 } as const;
@@ -117,8 +113,7 @@ export const Animal = {
   /**
    * 0.15 = a tamed animal eats 15% of a human's daily portion (0.45 food/day).
    * Empirical — chosen by playtesting so a small herd (~5 pets) costs ~2 food/day
-   * without out-competing the village pantry. Test note: exact comparison values
-   * (0.1 vs 0.2) were not recorded.
+   * without out-competing the village pantry.
    */
   FOOD_RATIO_OF_HUMAN: 0.15,
 } as const;
@@ -129,8 +124,7 @@ export const Animal = {
  * Player design (2026-09-08): one staffed guard covers an 8-hour shift, so a
  * completed Prison needs 3 guards for full 24 h coverage. While the Prison
  * holds prisoners and coverage is below 24 h, each unguarded hour carries an
- * escape risk. v1 keeps it soft — an "escape" frees one prisoner early and the
- * settler stays in the colony (no removal/cleanup).
+ * escape risk.
  */
 export const Prison = {
   /** 8 = one guard's shift length in hours. */
@@ -139,8 +133,7 @@ export const Prison = {
   GUARDS_FOR_FULL_COVERAGE: 3,
   /**
    * 0.05 = per-unguarded-hour escape chance. Empirical/tuning: with 1 guard
-   * (16 unguarded hours) this frees a prisoner roughly half the days, which
-   * reads as a real consequence without emptying the cell every night.
+   * (16 unguarded hours) this frees a prisoner roughly half the days.
    */
   ESCAPE_CHANCE_PER_UNGUARDED_HOUR: 0.05,
 } as const;
@@ -148,11 +141,8 @@ export const Prison = {
 /**
  * Valley ecology stage ladder (Stable → Strained → Damaged → Collapse).
  *
- * PARKED 2026-09-08 (developer): the strain messages had no player agency and
- * no real consequences, so the ladder is dormant until it is rebalanced.
  * While ENABLED is false the effective stage always reads 'stable' — no
  * transitions, notifications, focus hints, or hunt/farm/illness effects.
- * Set ENABLED back to true to fully re-activate; no other code change needed.
  */
 export const ValleyEcology = {
   ENABLED: false,
@@ -161,9 +151,7 @@ export const ValleyEcology = {
 /**
  * Famine desperation comedy (2026-09-08, developer joke feature).
  * When the larder is empty, the most desperate settler may lunge at a
- * neighbour's foot. Non-lethal — no health/energy damage — but the victim is
- * not amused, so the pair's friendship drops. Values are playtest-flavoured:
- * low enough to be a rare joke, not a daily ritual.
+ * neighbour's foot.
  */
 export const Famine = {
   /** Only a settler this far below max energy is desperate enough to try a bite. */
@@ -182,22 +170,54 @@ export const Famine = {
  * In-app virtual player ("auto-play") tuning.
  *
  * Owner of the decisions: the player. The bot (`virtualPlayer.ts`) only proposes
- * one real `WorkerCommand` per in-game hour through the player's own command
- * door, so these magnitudes tune *when the bot bothers*, never a game rule.
+ * one real `WorkerCommand` per in-game hour through the player's own command door.
  */
 export const VirtualPlayer = {
   /**
    * 2 = build a food producer once stores drop below two days of settler need
-   * (`settlers × Human.DAILY_FOOD_CONSUMPTION`). A Farm takes 3 days to finish,
-   * so a one-day buffer emptied the larder mid-build; four days built farms the
-   * colony could not yet staff.
+   * (`settlers × Human.DAILY_FOOD_CONSUMPTION`).
    */
   FOOD_BUFFER_DAYS: 2,
   /**
    * 8 = footprint-sized rings the placement search walks outward from the camp
-   * centre before giving up (289 candidate spots, spanning roughly half a
-   * medium map). Deliberately bounded: the search runs on the main thread and
-   * must never scan the whole map for every placement.
+   * centre before giving up.
    */
   PLACEMENT_SEARCH_RINGS: 8,
+  /**
+   * 0.8 = only a building below 80% health is worth a repair hour; anything
+   * healthier is not damage a human would stop the colony for.
+   */
+  REPAIR_HEALTH_RATIO: 0.8,
+  /**
+   * 80 = below this treasury the Mine switches to the gold seam; above it, iron
+   * (the forge always needs iron more than coin).
+   */
+  MINE_GOLD_TREASURY_GOLD: 80,
+  /**
+   * 9 = the in-game morning hour the bot may recruit a settler, so recruitment
+   * can happen at most once a day instead of every hour.
+   */
+  RECRUIT_SETTLER_HOUR: 9,
+  /** 2 = spare assignable beds the colony must have before buying a settler. */
+  RECRUIT_MIN_OPEN_BEDS: 2,
+  /**
+   * 5 = days of settler food need kept in store before an optional spend
+   * (recruiting, taming, a rival gift, or a peace treaty).
+   */
+  RECRUIT_FOOD_RESERVE_DAYS: 5,
+  /**
+   * 6 = days of settler food need above which spare food is sold to visitors.
+   * Higher than `RECRUIT_FOOD_RESERVE_DAYS` so buying and selling food cannot
+   * alternate hour after hour.
+   */
+  FOOD_SURPLUS_DAYS: 6,
+  /** 5 = days of settler food need kept in store before taming a wild animal. */
+  TAME_FOOD_RESERVE_DAYS: 5,
+  /** 4 = days of settler food need kept in store before spending on a rival. */
+  RIVAL_FOOD_RESERVE_DAYS: 4,
+  /**
+   * 3 = march provisions the colony must hold three times over before it raids,
+   * so a war-band never leaves the village short of food.
+   */
+  RAID_FOOD_SURPLUS_MULT: 3,
 } as const;

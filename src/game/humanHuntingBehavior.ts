@@ -55,7 +55,7 @@ export function tickHumanHunting(
   // Assigned hunters free-hunt as their job. Ordinary settlers only go out to
   // hunt when the colony has no food to feed them (famine) — a fed village
   // doesn't send settlers off to thin the wild herd for sport.
-  const famine = state.resources.food <= 0;
+  const famine = (state.resources?.food ?? 0) <= 0;
   const freeHuntHungry = isJobHunter
     ? entity.energy < entity.maxEnergy * 0.85
     : famine && entity.energy < entity.maxEnergy * 0.6;
@@ -87,13 +87,14 @@ export function tickHumanHunting(
       config.huntRange * (isJobHunter ? 1.2 : 0.75) * traitMultiplier(entity, 'brave', 1.25),
     );
 
+    const deerBucket = byType[EntityType.Deer] ?? [];
+    const rabbitBucket = byType[EntityType.Rabbit] ?? [];
+    const foxBucket = byType[EntityType.Fox] ?? [];
+    const wolfBucket = byType[EntityType.Wolf] ?? [];
+
     const preyFallback = famine
-      ? (byType[EntityType.Deer] ?? []).concat(
-          byType[EntityType.Rabbit] ?? [],
-          byType[EntityType.Fox] ?? [],
-          byType[EntityType.Wolf] ?? [],
-        )
-      : (byType[EntityType.Deer] ?? []).concat(byType[EntityType.Rabbit] ?? []);
+      ? deerBucket.concat(rabbitBucket, foxBucket, wolfBucket)
+      : deerBucket.concat(rabbitBucket);
 
     let closestPrey: Entity | null = null;
     let closestDist = Infinity;
