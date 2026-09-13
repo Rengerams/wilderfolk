@@ -414,6 +414,8 @@ export function detectContextualTutorials(
   const prevBirthKeys = new Set(
     prev.eventLog.filter((e) => e.type === 'birth').map((e) => `${e.tick}|${e.message}`),
   );
+  // Deliberately `'birth'` only: an expectation is logged as `'conception'`, so
+  // "your first child" still waits for a real delivery plus a living newborn.
   const newBirth = curr.eventLog.some(
     (e) => e.type === 'birth' && !prevBirthKeys.has(`${e.tick}|${e.message}`),
   );

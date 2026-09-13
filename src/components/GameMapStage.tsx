@@ -11,6 +11,8 @@ import {
   type ViewState,
 } from '../game/viewState';
 import MiniMap from './MiniMap';
+import type { FpsSessionStats } from '../hooks/useFpsMeter';
+import type { VirtualPlayerSession } from '../hooks/useVirtualPlayer';
 
 type CanvasHandlers = Pick<
   ComponentProps<'canvas'>,
@@ -20,8 +22,10 @@ type CanvasHandlers = Pick<
 export interface GameMapStageProps extends CanvasHandlers {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   canvasCursor: string;
-  fps: number | null;
+  fps: FpsSessionStats;
   showFps: boolean;
+  /** Live auto-play session counters; `null` while auto-play is off. */
+  autoPlaySession: VirtualPlayerSession | null;
   worldRef: RefObject<WorldState>;
   viewRef: RefObject<ViewState>;
   cameraTargetZoom: number;
@@ -50,6 +54,7 @@ export default function GameMapStage({
   canvasCursor,
   fps,
   showFps,
+  autoPlaySession,
   worldRef,
   viewRef,
   cameraTargetZoom,
@@ -90,12 +95,23 @@ export default function GameMapStage({
         }}
       />
 
-      {showFps && fps != null && (
+      {(showFps || autoPlaySession != null) && fps.current != null && (
         <div
-          className="pointer-events-none absolute bottom-3 right-3 z-[35] rounded-md border border-emerald-400/30 bg-stone-950/80 px-2 py-1 font-mono text-xs font-bold tabular-nums text-emerald-300 shadow-lg backdrop-blur"
+          className="pointer-events-none absolute bottom-3 right-16 z-[35] rounded-md border border-emerald-400/30 bg-stone-950/80 px-2 py-1 font-mono text-xs font-bold tabular-nums text-emerald-300 shadow-lg backdrop-blur"
           aria-live="polite"
+          title={`Session frame rate over ${fps.samples} sample${fps.samples === 1 ? '' : 's'}`}
         >
-          {fps} FPS
+          <div>{fps.current} FPS</div>
+          {fps.samples > 1 && (
+            <div className="text-[10px] font-medium text-emerald-400/90">
+              min {fps.min} · avg {fps.avg}
+            </div>
+          )}
+          {autoPlaySession && (
+            <div className="text-[10px] font-medium text-cyan-300/90">
+              👥 {autoPlaySession.settlers} · 🏠 {autoPlaySession.buildings} · {autoPlaySession.acts} acts
+            </div>
+          )}
         </div>
       )}
 

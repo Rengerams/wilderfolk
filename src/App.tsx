@@ -109,6 +109,7 @@ import AlertBar from './components/AlertBar';
 import Emoji from './components/Emoji';
 import GameHeader from './components/GameHeader';
 import { useFpsMeter } from './hooks/useFpsMeter';
+import { useVirtualPlayer } from './hooks/useVirtualPlayer';
 
 import { getPriorityAlerts, type PriorityAlert } from './game/priorityAlerts';
 import type { FocusHintAction } from './game/focusHints';
@@ -202,7 +203,6 @@ export default function App() {
   } = useGameShellState();
   const [spritesLoaded, setSpritesLoaded] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
-  const fps = useFpsMeter(showFps);
   const [hasSavedGame, setHasSavedGame] = useState(hasSave());
   const {
     applyGameAction,
@@ -224,6 +224,8 @@ export default function App() {
     setCatalog,
     setHasPlacedHouse,
   });
+  const autoPlayer = useVirtualPlayer({ world, applyGameAction });
+  const fps = useFpsMeter(showFps || autoPlayer.enabled);
   const gameplayActive = !showIntro && !showMapSetup && spritesLoaded;
   const { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset } = useGameAudio(world, gameplayActive);
 
@@ -1209,6 +1211,10 @@ export default function App() {
           juiceEffectsEnabled={juiceEffectsEnabled}
           showSimTick={showSimTick}
           showFps={showFps}
+          autoPlay={autoPlayer.enabled}
+          autoPlayStatus={autoPlayer.status}
+          autoPlayHistory={autoPlayer.history}
+          onToggleAutoPlay={autoPlayer.toggle}
           onToggleAutoSave={toggleAutoSave}
           onToggleTutorials={handleToggleTutorials}
           onToggleJuiceEffects={handleToggleJuiceEffects}
@@ -1252,6 +1258,7 @@ export default function App() {
             canvasCursor={canvasCursor}
             fps={fps}
             showFps={showFps}
+            autoPlaySession={autoPlayer.session}
             worldRef={worldRef}
             viewRef={viewRef}
             cameraTargetZoom={view.camera.targetZoom}

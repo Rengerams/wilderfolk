@@ -3,15 +3,15 @@ import { EntityType } from './gameTypes';
 import { finalizeMoonHowlerDeath } from './moonHowler';
 import { cleanupEntityDialogueState } from './humanChat';
 import { TICKS_PER_DAY } from './dayCycleClock';
+import { isMinorChild } from './householdComposition';
+import { hasResidenceAssignment } from './residencyOccupancy';
+import { syncResidenceOccupants } from './residencyReconciliation';
 import {
   ensureOrphanAdoption,
-  hasResidenceAssignment,
-  isMinorChild,
   listPlayerResidences,
   pickResidenceFromChildCustodian,
   placeOrphanInHouse,
-  syncResidenceOccupants,
-} from './residency';
+} from './residencySelection';
 
 /** Player settler eligible for human death cleanup (human or cursed full-moon werewolf form). */
 export function isKillableSettlerEntity(entity: Entity): boolean {

@@ -12,6 +12,8 @@ import {
   SEASON_LABELS,
   seasonTextClass,
 } from '../game/temperature';
+import type { VirtualPlayerAct } from '../hooks/useVirtualPlayer';
+import { VIRTUAL_PLAYER_TOOLTIP_LIMIT } from '../hooks/useVirtualPlayer';
 
 function formatHour(hour: number) {
   const h = hour % 24;
@@ -34,6 +36,13 @@ tutorialsEnabled: boolean;
   /** Show raw sim tick (and absolute day) next to the clock. */
   showSimTick: boolean;
   showFps: boolean;
+  /** In-app virtual player (auto-play) toggle state. */
+  autoPlay: boolean;
+  /** Latest one-line auto-play reason, or `null` while auto-play is off. */
+  autoPlayStatus: string | null;
+  /** Most recent auto-play acts — shown in the toggle's tooltip. */
+  autoPlayHistory: VirtualPlayerAct[];
+  onToggleAutoPlay: () => void;
   speedOptions: number[];
   onTogglePause: () => void;
   onSetSpeed: (speed: number) => void;
@@ -74,6 +83,10 @@ tutorialsEnabled,
   juiceEffectsEnabled,
   showSimTick,
   showFps,
+  autoPlay,
+  autoPlayStatus,
+  autoPlayHistory,
+  onToggleAutoPlay,
   speedOptions,
   onTogglePause,
   onSetSpeed,
@@ -107,6 +120,14 @@ tutorialsEnabled,
   const absoluteDay = Math.floor(Math.max(0, world.tick) / TICKS_PER_DAY);
   const villageLeader = getVillageLeader(world);
   const leaderLabel = villageLeader ? formatSettlerName(villageLeader) : null;
+  const autoPlayTitle = autoPlay
+    ? [
+        'Virtual player — answers cards and fixes the colony, one real command per in-game hour.',
+        ...autoPlayHistory
+          .slice(0, VIRTUAL_PLAYER_TOOLTIP_LIMIT)
+          .map((act) => `t${act.tick} · ${act.reason}`),
+      ].join('\n')
+    : 'Virtual player — an in-app auto-player that plays the real game on screen (one command per in-game hour)';
   return (
     <header className="game-header flex items-center justify-between gap-3 border-b border-stone-700/90 px-3 py-1.5 shadow-lg">
       <div
@@ -210,6 +231,32 @@ tutorialsEnabled,
               </button>
             ))}
           </div>
+        </div>
+
+        <div
+          className="hud-chip flex items-center gap-1 rounded-lg px-1.5 py-1"
+          title={autoPlayTitle}
+        >
+          <button
+            type="button"
+            onClick={onToggleAutoPlay}
+            aria-pressed={autoPlay}
+            className={`rounded-md px-2 py-1 text-xs font-bold shadow-sm transition-colors ${autoPlay ? 'bg-cyan-700 text-cyan-50 ring-1 ring-cyan-400/40' : 'bg-stone-950/40 text-stone-400 hover:bg-stone-700/60 hover:text-white'}`}
+            title={autoPlay
+              ? 'Stop the virtual player'
+              : 'Let the virtual player run the colony — one real command per in-game hour'}
+            aria-label={autoPlay ? 'Turn auto-play off' : 'Turn auto-play on'}
+          >
+            🤖 Auto-play
+          </button>
+          {autoPlay && autoPlayStatus && (
+            <span
+              className="hidden max-w-[17rem] truncate text-[11px] text-cyan-200 sm:inline"
+              title={autoPlayStatus}
+            >
+              auto-player: {autoPlayStatus}
+            </span>
+          )}
         </div>
       </div>
 

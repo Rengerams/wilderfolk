@@ -86,7 +86,9 @@ function recentSourceKind(state: WorldState): SourceKind | null {
 
   for (let i = log.length - 1; i >= scanLimit; i--) {
     const type = log[i].type;
-    if (type === 'birth' || type === 'marriage') return 'family';
+    // An expectation is family news too — the announcement and the delivery
+    // share the same rumour category so the ledger's source kind is unchanged.
+    if (type === 'birth' || type === 'conception' || type === 'marriage') return 'family';
     if (type === 'milestone' || type === 'research') return 'civic';
     if (type === 'season' || type === 'disaster') return 'ecology';
     if (type === 'combat' || type === 'trade') return 'frontier';

@@ -14,7 +14,6 @@ import { seededRandomForRun } from './simRng';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import {
   addFloatingText,
-  createDeathParticles,
 } from './simEffects';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { getChurchStrength, findHumanWorkplace, buildConstructionCrewIndex } from './workforce';
@@ -46,7 +45,6 @@ import {
   getAbsoluteCalendarDay,
   isNearResidence,
   isResidenceBuilding,
-  killHuman,
   shareResidence,
   isNewCalendarDayTick,
   EVENING_START,
@@ -59,13 +57,11 @@ import {
   type HumanChatContext,
 } from './humanChat';
 import { advanceHumanWalkAnim } from './humanSprites';
-import { formatCitizenName, formatDeathLog } from './citizenId';
 
 import { isRenffrGossipActive } from './renffrStar';
 import { getHumanFleeSpeedMultiplier } from './combat';
 import { isActiveMoonHowler } from './moonHowler';
 import { isEntityOnBuilding } from './buildingRotation';
-import { logDeath } from './eventLog';
 
 import {
   applyEducationGraduation,
@@ -98,11 +94,11 @@ import { setCurrentPathMap } from './pathfinding';
 import {
   COMMUTE_SNAP_DISTANCE, commuteDistanceToBuilding, commuteHumanToBuilding, nearestActiveMoonHowler, snapHumanToBuilding,
 } from './simulation/humanMovement';
-import { fract, humanEnergyLoss, isMealCheckHour, HUNGER_MEAL_THRESHOLD } from './simulation/humanNeeds';
+import { fract, humanEnergyLoss, tryEatColonyMeal, killFromExhaustion } from './simulation/humanNeeds';
 import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
 
-import { recordFoodConsumed } from './economyLedger';
+import { clampToMapBounds } from './mapBounds';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { buildResidenceOccupantIndex, findClosestEntityInRadius, queryIsNearRoad } from './simQueries';
 
@@ -420,26 +416,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       minimalEnergyLoss *= traitMultiplier(entity, 'hardy', 0.85);
       entity.energy -= minimalEnergyLoss;
       // Colony larder meals are player settlers only (visitors/rivals must not drain food)
-      if (
-        isPlayerHuman(entity)
-        && isMealCheckHour(hourOfDay)
-        && isStartOfClockHour(state.tick)
-        && state.resources.food >= 1
-        && entity.energy < entity.maxEnergy * HUNGER_MEAL_THRESHOLD
-      ) {
-        state.resources.food -= 1;
-        recordFoodConsumed(state, 'meals', 1);
-        entity.energy = Math.min(entity.maxEnergy, entity.energy + 65);
-      }
+      tryEatColonyMeal(entity, state, hourOfDay);
       if (isPlayerHuman(entity) && entity.energy <= 0) {
-        killHuman(entity, updatedBuildings, entityById, state.tick);
-        createDeathParticles(state, entity.x, entity.y, '#8B0000', 8);
-        logDeath(
-          state,
-          formatDeathLog(entity, 'succumbed to exhaustion'),
-          formatCitizenName(entity),
-          { x: entity.x, y: entity.y },
-        );
+        killFromExhaustion(entity, state, updatedBuildings, entityById);
       }
       syncEntityGrids(ctx, entity);
       continue;
@@ -530,20 +509,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     
     entity.energy -= energyLoss;
 
-    let ateMeal = false;
-
-    // Meals every 4 hours when hungry (energy < 80% max) — 1 food ≈ 65 energy
-    if (
-      isMealCheckHour(hourOfDay)
-      && isStartOfClockHour(state.tick)
-      && state.resources.food >= 1
-      && entity.energy < entity.maxEnergy * HUNGER_MEAL_THRESHOLD
-    ) {
-      state.resources.food -= 1;
-      recordFoodConsumed(state, 'meals', 1);
-      entity.energy = Math.min(entity.maxEnergy, entity.energy + 65);
-      ateMeal = true;
-    }
+    // Colony larder meal rule (hour, food, and hunger gates live with the owner).
+    // Reported to the status UI as "ate this tick".
+    const ateMeal = tryEatColonyMeal(entity, state, hourOfDay);
 
     let suppressIdle = false;
     let onSchedule = false;
@@ -1339,21 +1307,24 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               addFloatingText(state, entity.x, entity.y - 26, '💐', '#f9a8d4', 'brief');
             }
           } else {
-            const shared = (Math.min(entity.id, company.id) * 31 + leisureSlot * 17 + absDay) % 6;
-          if (shared <= 1) {
-            const tavern = pickCompleted([BuildingType.Tavern]);
-            if (tavern) {
-              steerTo(tavern.x + tavern.width / 2, tavern.y + tavern.height * 0.92, 0.45, 20);
-            } else {
+            // Market/Store plan — the tavern fallback and the shared === 2 slot
+            // both want exactly this, so the steer values live in one place.
+            const steerToShop = (): void => {
               const shop = pickCompleted([BuildingType.Market, BuildingType.Store]);
               if (shop) steerTo(shop.x + shop.width / 2, shop.y + shop.height * 0.92, 0.42, 20);
               else idleVx = Math.sin(tick * 0.03 + entity.id) * config.speed * 0.1;
-            }
-          } else if (shared === 2) {
-            const shop = pickCompleted([BuildingType.Market, BuildingType.Store]);
-            if (shop) steerTo(shop.x + shop.width / 2, shop.y + shop.height * 0.92, 0.42, 20);
-            else idleVx = Math.sin(tick * 0.03 + entity.id) * config.speed * 0.1;
-          } else if (shared === 3) {
+            };
+            const shared = (Math.min(entity.id, company.id) * 31 + leisureSlot * 17 + absDay) % 6;
+            if (shared <= 1) {
+              const tavern = pickCompleted([BuildingType.Tavern]);
+              if (tavern) {
+                steerTo(tavern.x + tavern.width / 2, tavern.y + tavern.height * 0.92, 0.45, 20);
+              } else {
+                steerToShop();
+              }
+            } else if (shared === 2) {
+              steerToShop();
+            } else if (shared === 3) {
             const well = pickCompleted([BuildingType.Well]);
             if (well) steerTo(well.x + well.width / 2, well.y + well.height / 2, 0.4, 16);
           } else if (shared === 4) {
@@ -1591,22 +1562,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     entity.x += entity.vx * roadMult;
     entity.y += entity.vy * roadMult;
 
-    if (entity.x < 0) entity.x = 0;
-    if (entity.x > width) entity.x = width;
-    if (entity.y < 0) entity.y = 0;
-    if (entity.y > height) entity.y = height;
+    clampToMapBounds(entity, width, height);
 
     advanceHumanWalkAnim(entity);
 
     if (entity.energy <= 0) {
-      killHuman(entity, updatedBuildings, entityById, state.tick);
-      createDeathParticles(state, entity.x, entity.y, '#8B0000', 8);
-      logDeath(
-        state,
-        formatDeathLog(entity, 'succumbed to exhaustion'),
-        formatCitizenName(entity),
-        { x: entity.x, y: entity.y },
-      );
+      killFromExhaustion(entity, state, updatedBuildings, entityById);
     }
     syncEntityGrids(ctx, entity);
   }

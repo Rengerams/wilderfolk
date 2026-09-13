@@ -14,22 +14,25 @@ import { addBigNews } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags } from './storyHelpers';
 
-export const PROMISE_CODES: Record<string, number> = {
+export const PROMISE_CODES = {
   fill_granary: 1,
   build_walls: 2,
   run_forge: 3,
-};
+} as const;
+
+export type PromiseCode = (typeof PROMISE_CODES)[keyof typeof PROMISE_CODES];
 
 export const EVAL_DAY_OFFSET = 180;
 
 // Higher thresholds (2026-08-25 dev request): promises should feel meaningful.
-const GRANARY_FOOD_REQUIREMENT = 400;
-const WALLS_REQUIREMENT = 5;
-const FORGE_ORDERS_REQUIREMENT = 3;
+export const GRANARY_FOOD_REQUIREMENT = 400;
+export const WALLS_REQUIREMENT = 5;
+export const FORGE_ORDERS_REQUIREMENT = 3;
 
-const PROMISE_COUNT = 2;
+export const PROMISE_COUNT = 2;
 
 const FLAG_PREFIX = 'election_promises';
+const FLAG_ACTIVE_YEAR = 'election_promises_active_year';
 
 function promiseKey(year: number, index: number): string {
   return `${FLAG_PREFIX}_${year}_${index}`;
@@ -55,6 +58,27 @@ function tieBreak(code: number, mapSeed: number | undefined, year: number): numb
   return hashSeed((mapSeed ?? 1) >>> 0, year + code * 7919);
 }
 
+export function countCompletedWalls(state: WorldState): number {
+  let count = 0;
+  for (let i = 0; i < state.buildings.length; i++) {
+    const b = state.buildings[i];
+    if (!b.completed || b.faction === 'rival') continue;
+    if (b.type === BuildingType.Wall || b.type === BuildingType.WallGate || b.type === BuildingType.Watchtower) {
+      count++;
+    }
+  }
+  return count;
+}
+
+export function countCompletedForgeOrders(state: WorldState): number {
+  const completed = state.villageForge?.completed ?? {};
+  let count = 0;
+  for (const value of Object.values(completed)) {
+    if (value) count++;
+  }
+  return count;
+}
+
 /**
  * Pick the TWO promises that address what is going worst in the village.
  * If the village is thriving everywhere, fall back to a deterministic pair.
@@ -75,7 +99,7 @@ function selectPromiseCodes(state: WorldState, year: number): number[] {
     return tieBreak(a.code, state.worldMap?.seed, year) - tieBreak(b.code, state.worldMap?.seed, year);
   });
 
-  return [needs[0]!.code, needs[1]!.code];
+  return [needs[0].code, needs[1].code];
 }
 
 /** Read-only projection of the two promises recorded for a year. */
@@ -88,55 +112,104 @@ export function electionPromisesForYear(state: WorldState, year: number): number
   return codes;
 }
 
+export interface PromiseDetail {
+  code: number;
+  label: string;
+  current: number;
+  target: number;
+  fulfilled: boolean;
+}
+
+export function getPromiseDetail(state: WorldState, code: number): PromiseDetail {
+  switch (code) {
+    case PROMISE_CODES.fill_granary: {
+      const current = Math.floor(state.resources.food);
+      return {
+        code,
+        label: `Fill Granary: Store at least ${GRANARY_FOOD_REQUIREMENT} food`,
+        current,
+        target: GRANARY_FOOD_REQUIREMENT,
+        fulfilled: current >= GRANARY_FOOD_REQUIREMENT,
+      };
+    }
+    case PROMISE_CODES.build_walls: {
+      const current = countCompletedWalls(state);
+      return {
+        code,
+        label: `Fortify Village: Construct at least ${WALLS_REQUIREMENT} walls or towers`,
+        current,
+        target: WALLS_REQUIREMENT,
+        fulfilled: current >= WALLS_REQUIREMENT,
+      };
+    }
+    case PROMISE_CODES.run_forge: {
+      const current = countCompletedForgeOrders(state);
+      return {
+        code,
+        label: `Forge Ahead: Fulfill at least ${FORGE_ORDERS_REQUIREMENT} forge orders`,
+        current,
+        target: FORGE_ORDERS_REQUIREMENT,
+        fulfilled: current >= FORGE_ORDERS_REQUIREMENT,
+      };
+    }
+    default:
+      return { code, label: 'Unknown promise', current: 0, target: 1, fulfilled: false };
+  }
+}
+
+/** Returns status of promises currently undergoing evaluation. */
+export function getActiveElectionPromises(state: WorldState): {
+  year: number;
+  daysRemaining: number;
+  promises: PromiseDetail[];
+} | null {
+  const year = storyFlag(state, FLAG_ACTIVE_YEAR);
+  if (year <= 0) return null;
+  if (storyFlag(state, evaluatedKey(year)) > 0) return null;
+
+  const evalDay = storyFlag(state, evalDayKey(year));
+  if (evalDay <= 0) return null;
+
+  const daysRemaining = Math.max(0, evalDay - getColonyDay(state));
+  const codes = electionPromisesForYear(state, year);
+  return {
+    year,
+    daysRemaining,
+    promises: codes.map((c) => getPromiseDetail(state, c)),
+  };
+}
+
 /** Called by the election ceremony owner when a new leader is sworn in. */
 export function recordElectionPromises(state: WorldState, year: number): void {
   const colonyDay = getColonyDay(state);
   const [first, second] = selectPromiseCodes(state, year);
   setStoryFlags(state, {
+    [FLAG_ACTIVE_YEAR]: year,
     [promiseKey(year, 0)]: first,
     [promiseKey(year, 1)]: second,
     [evalDayKey(year)]: colonyDay + EVAL_DAY_OFFSET,
   });
-  logEvent(state, 'event', `Election promises recorded for year ${year}.`, undefined);
-}
 
-function countCompletedWalls(state: WorldState): number {
-  let count = 0;
-  for (const b of state.buildings) {
-    if (!b.completed || b.faction === 'rival') continue;
-    if (b.type === BuildingType.Wall || b.type === BuildingType.WallGate || b.type === BuildingType.Watchtower) {
-      count++;
-    }
-  }
-  return count;
-}
-
-function countCompletedForgeOrders(state: WorldState): number {
-  const completed = state.villageForge?.completed ?? {};
-  let count = 0;
-  for (const value of Object.values(completed)) {
-    if (value) count++;
-  }
-  return count;
+  const p1 = getPromiseDetail(state, first);
+  const p2 = getPromiseDetail(state, second);
+  logEvent(
+    state,
+    'event',
+    `Campaign promises recorded for Year ${year}: 1) ${p1.label} 2) ${p2.label}.`,
+    undefined,
+  );
 }
 
 function promiseKept(state: WorldState, year: number, index: number): boolean {
   const code = storyFlag(state, promiseKey(year, index));
-  switch (code) {
-    case PROMISE_CODES.fill_granary:
-      return state.resources.food >= GRANARY_FOOD_REQUIREMENT;
-    case PROMISE_CODES.build_walls:
-      return countCompletedWalls(state) >= WALLS_REQUIREMENT;
-    case PROMISE_CODES.run_forge:
-      return countCompletedForgeOrders(state) >= FORGE_ORDERS_REQUIREMENT;
-    default:
-      return false;
-  }
+  return getPromiseDetail(state, code).fulfilled;
 }
 
 export function tickElectionPromises(state: WorldState): void {
-  const year = state.year;
+  const year = storyFlag(state, FLAG_ACTIVE_YEAR);
+  if (year <= 0) return;
   if (storyFlag(state, evaluatedKey(year)) > 0) return;
+
   const evalDay = storyFlag(state, evalDayKey(year));
   if (evalDay <= 0) return;
   if (getColonyDay(state) < evalDay) return;
@@ -149,14 +222,31 @@ export function tickElectionPromises(state: WorldState): void {
   const repDelta = kept * 3 - failed * 2;
   state.villageReputation = Math.max(0, state.villageReputation + repDelta);
   setStoryFlags(state, { [evaluatedKey(year)]: state.tick });
+
+  // Attribute to current leader for incumbent performance tracking
+  const leader = state.villageLeaderId != null ? state.entities.find((e) => e.id === state.villageLeaderId) : null;
+  const leaderName = leader?.name ? (leader.surname ? `${leader.name} ${leader.surname}` : leader.name) : undefined;
+
   if (failed > 0) {
-    logEvent(state, 'scandal', `Broken election promises are the talk of the village (year ${year}).`, undefined);
+    logEvent(
+      state,
+      'scandal',
+      `${leaderName ? `${leaderName}'s b` : 'B'}roken election promises are the talk of the village (Year ${year}).`,
+      leaderName,
+    );
   }
+
   addBigNews(
     state,
     '🗳️ Promises judged',
     `${kept} of ${PROMISE_COUNT} campaign promises kept. Reputation ${repDelta >= 0 ? '+' : ''}${repDelta}.`,
     repDelta >= 0 ? 'positive' : 'negative',
   );
-  logEvent(state, 'event', `Year ${year} election promises evaluated: ${kept}/${PROMISE_COUNT} kept (rep ${repDelta}).`, undefined);
+
+  logEvent(
+    state,
+    'event',
+    `Year ${year} election promises evaluated: ${kept}/${PROMISE_COUNT} kept (reputation ${repDelta >= 0 ? '+' : ''}${repDelta}).`,
+    leaderName,
+  );
 }

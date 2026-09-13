@@ -9,12 +9,8 @@ import {
 } from './gameTypes';
 import { getOccupationForBuilding, ensureEntitySkills, readSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
-import {
-  assignMissingResidences,
-  hasWorkAssignment,
-  isImprisoned,
-  isResidenceBuildingType,
-} from './residency';
+import { assignMissingResidences } from './residencyReconciliation';
+import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './residencyOccupancy';
 import { logEvent } from './eventLog';
 import { addFloatingText } from './simEffects';
 import { getVenueAutoStaffingTarget } from './venueSchedule';
@@ -680,6 +676,13 @@ export function releasePrisoners(state: WorldState): void {
     entity.prisonerUntilTick = undefined;
     entity.prisonSentenceCrime = undefined;
     entity.flash = 8;
+
+    // Release ends the sentence, not the office. A sitting leader leaves prison
+    // still holding the "leader" occupation; ordinary work is then restored by
+    // the normal assignment layer, which preserves the office via `keepOffice`.
+    if (entity.id === state.villageLeaderId) {
+      entity.occupation = LEADER_OCCUPATION;
+    }
 
     const name = formatSettlerName(entity);
     logEvent(state, 'event', `${name} was released from prison`, name);

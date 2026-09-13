@@ -17,6 +17,7 @@ interface Props {
 
 const EVENT_ICONS: Record<GameEventLog['type'], string> = {
   birth: '👶',
+  conception: '🤰',
   death: '💀',
   marriage: '💍',
   scandal: '💔',
@@ -33,6 +34,7 @@ const EVENT_ICONS: Record<GameEventLog['type'], string> = {
 
 const EVENT_COLORS: Record<GameEventLog['type'], string> = {
   birth: 'text-pink-400',
+  conception: 'text-fuchsia-300',
   death: 'text-stone-400',
   marriage: 'text-amber-400',
   scandal: 'text-rose-400',

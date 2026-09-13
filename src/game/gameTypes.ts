@@ -710,7 +710,8 @@ export interface ElectionCeremonyState {
   phaseTicksLeft: number;
   gatherX: number;
   gatherY: number;
-  reason: 'founding' | 'decennial' | 'succession';
+  /** Why the ceremony was called. `term` = scheduled end-of-term election (every ELECTION_INTERVAL_YEARS = 2 years). */
+  reason: 'founding' | 'term' | 'succession';
   pendingLeaderId: number;
   pendingLeaderName: string;
   pendingChanged: boolean;
@@ -848,13 +849,13 @@ export interface WorldState {
   villageLeaderId: number | null;
   /** Year the current leader's term began. */
   leaderSinceYear: number;
-  /** Last year a founding or decennial election was held. */
+  /** Last year a founding or end-of-term election was held. */
   lastElectionYear: number;
   /** Merit election scheduled after leader vacancy (Year N = election year). */
   pendingElectionYear: number | null;
   /** Year-start buildup notification sent (election next year). */
   electionBuildupNotifiedYear: number | null;
-  /** Multi-phase election day ceremony (decennial). */
+  /** Multi-phase election day ceremony (founding, scheduled end-of-term, or succession). */
   electionCeremony: ElectionCeremonyState | null;
   /** Blacksmith forge queue — iron gear requires research + forging. */
   villageForge?: VillageForgeState;
@@ -935,7 +936,13 @@ export interface GameEventLog {
   tick: number;
   year: number;
   day: number;
-  type: 'birth' | 'death' | 'marriage' | 'scandal' | 'building' | 'disaster' | 'research' | 'trade' | 'migration' | 'season' | 'event' | 'combat' | 'milestone';
+  /**
+   * `'birth'` means a child (or Wildkin) was delivered. The start of a pregnancy
+   * is the separate `'conception'` type, so a Chronicle reader, the council
+   * report, and the tutorials can tell an expectation from a delivery
+   * (AGENTS.md §8: distinguish new conceptions, active pregnancies, and births).
+   */
+  type: 'birth' | 'conception' | 'death' | 'marriage' | 'scandal' | 'building' | 'disaster' | 'research' | 'trade' | 'migration' | 'season' | 'event' | 'combat' | 'milestone';
   message: string;
   entityName?: string;
   combatKind?: CombatLogKind;

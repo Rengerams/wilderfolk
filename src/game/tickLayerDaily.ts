@@ -11,6 +11,7 @@ import type { TickContext } from './simulation/simulationTypes';
 import { isNewCalendarDayTick } from './dayCycle';
 import { addFloatingText } from './simEffects';
 import { syncLeaderHouseResidency } from './leaderHouse';
+import { tickElectionPromises } from './electionPromises';
 
 // Social & Relationships
 import { advanceSocialRelationships } from './relationships';
@@ -56,6 +57,9 @@ export function tickLayerDaily(
     // have changed the leader's household this day, so move the current spouse
     // (and children) into the manor and evict former household members.
     syncLeaderHouseResidency(state);
+
+    // Evaluate active campaign promises when their evaluation day arrives
+    tickElectionPromises(state);
 
     // Valley Chronicle — milestone chapters unlock once per day boundary.
     const newlyUnlocked = advanceValleyChronicle(state);

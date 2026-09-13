@@ -2,15 +2,10 @@ import type { Entity, WorldState } from './gameTypes';
 import { addFloatingText, addNotification } from './simEffects';
 import { assignMissingWorkers } from './workforce';
 import { isPlayerHuman } from './playerHuman';
-import {
-  assignMissingResidences,
-  collectOwnHousehold,
-  HUMAN_MOVE_OUT_MIN_AGE,
-  isAdultChildAtHome,
-  isResidenceBuilding,
-  syncResidenceOccupants,
-  tryMoveOutOfFamilyHome,
-} from './residency';
+import { collectOwnHousehold, isAdultChildAtHome } from './householdComposition';
+import { HUMAN_MOVE_OUT_MIN_AGE, isResidenceBuilding } from './residencyOccupancy';
+import { assignMissingResidences, syncResidenceOccupants } from './residencyReconciliation';
+import { tryMoveOutOfFamilyHome } from './residencySelection';
 
 /** Living player humans — command actions reconcile this list only after a housing change. */
 function listPlayerHumans(state: WorldState): Entity[] {

@@ -5,11 +5,8 @@ import { addFloatingText, addNotification, createDeathParticles, impulseScreenSh
 import { assignMissingWorkers, removeWorkerTransition } from './workforce';
 import { unindexAdjacency } from './adjacencyIndex';
 import { isPlayerHuman } from './playerHuman';
-import {
-  assignMissingResidences,
-  getResidenceCapacity,
-  isResidenceBuildingType,
-} from './residency';
+import { getResidenceCapacity, isResidenceBuildingType } from './residencyOccupancy';
+import { assignMissingResidences } from './residencyReconciliation';
 
 const REPAIR_COST = { wood: 10, stone: 5 } as const;
 const BUILDING_REFUND_RATIO = 0.5;

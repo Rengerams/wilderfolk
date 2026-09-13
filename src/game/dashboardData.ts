@@ -311,12 +311,15 @@ function deriveCouncil(state: WorldState): CouncilLine[] {
 
   const day = Math.floor(state.tick / TICKS_PER_DAY);
   const prevStart = (day - 1) * TICKS_PER_DAY;
-  const counts = { births: 0, deaths: 0, marriages: 0, scandals: 0, combats: 0 };
+  const counts = { births: 0, conceptions: 0, deaths: 0, marriages: 0, scandals: 0, combats: 0 };
   const latest: string[] = [];
   for (const e of state.eventLog) {
     if (e.tick < prevStart || e.tick >= day * TICKS_PER_DAY) continue;
     switch (e.type) {
+      // A delivery only — expectations are counted separately so the council
+      // report cannot claim more births than children were born.
       case 'birth': counts.births++; break;
+      case 'conception': counts.conceptions++; break;
       case 'death': counts.deaths++; break;
       case 'marriage': counts.marriages++; break;
       case 'scandal': counts.scandals++; break;
@@ -327,11 +330,12 @@ function deriveCouncil(state: WorldState): CouncilLine[] {
     if (title && latest.length < 3) latest.push(title);
   }
   const hasEvents =
-    counts.births + counts.deaths + counts.marriages + counts.scandals + counts.combats > 0;
+    counts.births + counts.conceptions + counts.deaths + counts.marriages
+    + counts.scandals + counts.combats > 0;
   lines.push({
     label: 'Life events',
     value: hasEvents
-      ? `Births ${counts.births} · Deaths ${counts.deaths} · Marriages ${counts.marriages} · Scandals ${counts.scandals} · Combat ${counts.combats}`
+      ? `Births ${counts.births} · Expecting ${counts.conceptions} · Deaths ${counts.deaths} · Marriages ${counts.marriages} · Scandals ${counts.scandals} · Combat ${counts.combats}`
       : 'quiet day',
     tone: counts.deaths > 0 || counts.scandals > 0 ? 'warn' : 'neutral',
   });

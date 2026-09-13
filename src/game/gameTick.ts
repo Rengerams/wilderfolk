@@ -270,7 +270,11 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   if (isSpatialQueryMetricsEnabled()) flushSpatialQueryTickToSession();
 
   // Dev-only invariant pulse once per colony day — never repairs state.
-  if (import.meta.env.DEV && dailyLayerRan) {
+  // Guarded like every other env read in the codebase: `import.meta.env` does not
+  // exist under the headless tsx runner (`npm run test:full-year`), where an
+  // unguarded read throws on the very first tick and kills the long-run gate.
+  const isDevBuild = typeof import.meta !== 'undefined' && import.meta.env?.DEV === true;
+  if (isDevBuild && dailyLayerRan) {
     const sanity = assertSimInvariants(state);
     if (sanity.length > 0) {
       console.warn('[simInvariants]', sanity.slice(0, 8));

@@ -1,4 +1,4 @@
-import { BUILDING_CONFIGS, BuildingType, EntityType, JobType } from './gameTypes';
+import { BUILDING_CONFIGS, BuildingType, EntityType, JobType, LEADER_OCCUPATION } from './gameTypes';
 import type { Building, Entity, EntityByType, WorldState } from './gameTypes';
 import {
   WEREWOLF_ATTACK_LINES,
@@ -428,8 +428,14 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   were.flash = 8;
 
   // Default: no workplace / home / prison until cap checks pass.
+  // The village office is NOT a building slot, so it is the one occupation that
+  // survives a revert unconditionally. It must be restored here rather than in
+  // the job branch below: a leader with no workplace, a full/missing one, or an
+  // active prison sentence returns early and would otherwise come back from the
+  // Moon Howler night as a plain 'settler' while still holding villageLeaderId
+  // (caught by the full-year leader-occupation invariant).
   were.job = JobType.Settler;
-  were.occupation = 'settler';
+  were.occupation = saved?.occupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
   were.homeBuildingId = undefined;
   were.residenceBuildingId = undefined;
   were.prisonBuildingId = undefined;

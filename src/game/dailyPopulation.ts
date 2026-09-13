@@ -10,7 +10,7 @@ import {
   IMMIGRATION_CHECK_TICKS,
   getResidenceCapacity,
 } from './dayCycle';
-import { assignMissingResidences } from './residency';
+import { assignMissingResidences } from './residencyReconciliation';
 import { createImmigrantSettler } from './worldGen';
 import { findHumanSpawnNear } from './terrainSystems';
 import { isPlayerHuman } from './playerHuman';

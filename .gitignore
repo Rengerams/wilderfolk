@@ -27,7 +27,12 @@ docs/
 dependency-graph.dot
 dependency-graph.svg
 references.md
+AGENTS.MD
+.git
 
+BUG_TRACKER.md
+TERAFORGE.md
+GIT_SURVIVAL_GUIDE.md
 # Local configuration and generated tooling files
 *.local
 *.gypi

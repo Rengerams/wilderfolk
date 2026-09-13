@@ -1,5 +1,5 @@
 import type { WorldState } from './gameTypes';
-import { isResidenceBuildingType } from './residency';
+import { isResidenceBuildingType } from './residencyOccupancy';
 import {
   assignStaffWorkerToBuilding,
   removeStaffWorkerFromBuilding,

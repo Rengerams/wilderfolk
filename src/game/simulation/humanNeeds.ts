@@ -3,7 +3,17 @@ import { EntityType } from '../gameTypes';
 import { getValleyHuntYieldMultiplier } from '../ecologyStage';
 import { getHuntFoodMultiplier } from '../combat';
 import { traitMultiplier } from '../settlerTraits';
-import { prefersHomeTonight, hasResidenceAssignment } from '../dayCycle';
+import {
+  prefersHomeTonight,
+  hasResidenceAssignment,
+  isStartOfClockHour,
+  killHuman,
+} from '../dayCycle';
+import { createDeathParticles } from '../simEffects';
+import { logDeath } from '../eventLog';
+import { formatCitizenName, formatDeathLog } from '../citizenId';
+import { recordFoodConsumed } from '../economyLedger';
+import { isPlayerHuman } from '../playerHuman';
 import type { SpeciesConfig } from '../speciesConfig';
 import { Human } from '../gameConstants';
 
@@ -29,6 +39,56 @@ const ENERGY_MODIFIERS = {
 /** Evaluates whether the current clock hour is a scheduled meal check (00:00, 04:00, 08:00, etc.). */
 export function isMealCheckHour(hourOfDay: number): boolean {
   return hourOfDay % MEAL_CHECK_INTERVAL_HOURS === 0;
+}
+
+/**
+ * The one colony-larder meal rule, shared by every human tick path.
+ *
+ * Drains one food and restores MEAL_ENERGY_RESTORE energy when all of these
+ * hold: the eater is a player settler, the hour is a meal-check hour, the tick
+ * starts a clock hour, the larder holds at least one food, and the eater is
+ * below HUNGER_MEAL_THRESHOLD of max energy.
+ *
+ * Player-settler gating lives here on purpose: visitors, rivals, and trade
+ * caravans must never drain the colony larder, whichever path reaches this rule.
+ *
+ * @returns true when a meal was actually eaten (callers use this to set their
+ * own "ate this tick" flag), false when any gate refused it.
+ */
+export function tryEatColonyMeal(entity: Entity, state: WorldState, hourOfDay: number): boolean {
+  if (!isPlayerHuman(entity)) return false;
+  if (!isMealCheckHour(hourOfDay)) return false;
+  if (!isStartOfClockHour(state.tick)) return false;
+  if (state.resources.food < 1) return false;
+  if (entity.energy >= entity.maxEnergy * HUNGER_MEAL_THRESHOLD) return false;
+
+  state.resources.food -= 1;
+  recordFoodConsumed(state, 'meals', 1);
+  entity.energy = Math.min(entity.maxEnergy, entity.energy + Human.MEAL_ENERGY_RESTORE);
+  return true;
+}
+
+/**
+ * The one exhaustion-death sequence, shared by every human tick path: kill the
+ * settler, spawn death particles at their position, and log the cause.
+ *
+ * The caller decides who may die of exhaustion; this function never gates on
+ * player-settler status because its call sites intentionally differ.
+ */
+export function killFromExhaustion(
+  entity: Entity,
+  state: WorldState,
+  buildings: Building[],
+  entityById: Map<number, Entity>,
+): void {
+  killHuman(entity, buildings, entityById, state.tick);
+  createDeathParticles(state, entity.x, entity.y, '#8B0000', 8);
+  logDeath(
+    state,
+    formatDeathLog(entity, 'succumbed to exhaustion'),
+    formatCitizenName(entity),
+    { x: entity.x, y: entity.y },
+  );
 }
 
 /** Returns the fractional component of a floating-point number. */

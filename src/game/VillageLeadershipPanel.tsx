@@ -22,7 +22,7 @@ export default function VillageLeadershipPanel({ state }: { state: WorldState })
     <div className="rounded-xl border border-amber-600/30 bg-amber-950/20 p-3">
       <h3 className="mb-1 text-sm font-bold text-amber-200">👑 Village head</h3>
       <p className="mb-2 text-[13px] leading-relaxed text-stone-300">
-        The founding male leads until Year {ELECTION_INTERVAL_YEARS}. After that, merit elections every {ELECTION_INTERVAL_YEARS} years. The sitting head always runs when eligible; skills and experience decide most races, with a modest record bonus or penalty from economy, scandals, and village health. A standout challenger can still win. If the head dies, a new election is held 3 months later' 
+        The founding settler — the first adult male, where the colony has one — holds office until the first merit election in Year {ELECTION_INTERVAL_YEARS}. After that, a term election is held every {ELECTION_INTERVAL_YEARS} years. The sitting head always runs when eligible; skills and experience decide most races, with a modest record bonus or penalty from economy, scandals, and village health. A standout challenger can still win. If the head dies or is imprisoned, a new election is held 3 months later.
       </p>
 
       {ceremonyStatus && (

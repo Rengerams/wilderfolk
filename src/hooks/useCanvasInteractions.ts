@@ -1,4 +1,4 @@
-import { useCallback, type RefObject } from 'react';
+import { useCallback, useRef, type RefObject } from 'react';
 import type { GameLoop } from '../game/gameLoop';
 import type { WorldState, BuildingType, Building, Entity } from '../game/gameEngine';
 import type { EntityCatalog } from '../game/entityCatalog';
@@ -43,6 +43,22 @@ export interface UseCanvasInteractionsOptions {
   audioStartedRef: RefObject<boolean>;
 }
 
+/** Helper to find the topmost building at a given world coordinate. */
+function findBuildingAt(buildings: readonly Building[], worldX: number, worldY: number): Building | null {
+  for (let i = buildings.length - 1; i >= 0; i--) {
+    const b = buildings[i];
+    if (
+      worldX >= b.x - b.width / 2 &&
+      worldX <= b.x + b.width / 2 &&
+      worldY >= b.y - b.height / 2 &&
+      worldY <= b.y + b.height / 2
+    ) {
+      return b;
+    }
+  }
+  return null;
+}
+
 export function useCanvasInteractions({
   canvasRef,
   loopRef,
@@ -63,8 +79,36 @@ export function useCanvasInteractions({
   onPrimeAudioUnlock,
   audioStartedRef,
 }: UseCanvasInteractionsOptions) {
+  // Suppresses subsequent onClick handling if strip build was already committed on mouseUp
+  const stripPlacedOnMouseUpRef = useRef(false);
+
+  const getEventWorldCoords = useCallback(
+    (clientX: number, clientY: number): { worldX: number; worldY: number; rect: DOMRect } | null => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return null;
+
+      const canvasW = canvas.offsetWidth;
+      const canvasH = canvas.offsetHeight;
+      const scaleX = canvasW / rect.width;
+      const scaleY = canvasH / rect.height;
+      const screenX = (clientX - rect.left) * scaleX;
+      const screenY = (clientY - rect.top) * scaleY;
+      const [worldX, worldY] = screenToWorld(screenX, screenY, getViewCamera(), canvasW, canvasH);
+      return { worldX, worldY, rect };
+    },
+    [canvasRef, getViewCamera],
+  );
+
   const handleCanvasClick = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
+      // Consume strip placement event if it already fired on mouse up
+      if (stripPlacedOnMouseUpRef.current) {
+        stripPlacedOnMouseUpRef.current = false;
+        return;
+      }
+
       if (clickOriginRef.current) {
         const dx = e.clientX - clickOriginRef.current.x;
         const dy = e.clientY - clickOriginRef.current.y;
@@ -72,22 +116,15 @@ export function useCanvasInteractions({
         if (dx * dx + dy * dy > 16) return;
       }
 
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const world = worldRef.current;
-      const rect = canvas.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
+      const coords = getEventWorldCoords(e.clientX, e.clientY);
+      if (!coords) return;
+      const { worldX, worldY } = coords;
 
-      const canvasW = canvas.offsetWidth;
-      const canvasH = canvas.offsetHeight;
-      const scaleX = canvasW / rect.width;
-      const scaleY = canvasH / rect.height;
-      const screenX = (e.clientX - rect.left) * scaleX;
-      const screenY = (e.clientY - rect.top) * scaleY;
-      const [worldX, worldY] = screenToWorld(screenX, screenY, getViewCamera(), canvasW, canvasH);
+      const loop = loopRef.current;
+      const world = loop?.getWorld() ?? worldRef.current;
 
       if (selectedBuildingType) {
-        const rotation = loopRef.current?.getView().buildRotation ?? 0;
+        const rotation = loop?.getView().buildRotation ?? 0;
         const { x: snapX, y: snapY } = snapBuildingCenter(
           selectedBuildingType,
           worldX,
@@ -99,23 +136,11 @@ export function useCanvasInteractions({
         if (!isStripBuildType(selectedBuildingType)) {
           const valid = canPlaceBuilding(world, selectedBuildingType, snapX, snapY, rotation);
           if (!valid) {
-            let under: Building | null = null;
-            for (let i = 0; i < world.buildings.length; i++) {
-              const b = world.buildings[i];
-              if (
-                worldX >= b.x - b.width / 2 &&
-                worldX <= b.x + b.width / 2 &&
-                worldY >= b.y - b.height / 2 &&
-                worldY <= b.y + b.height / 2
-              ) {
-                under = b;
-                break;
-              }
-            }
+            const under = findBuildingAt(world.buildings, worldX, worldY);
             if (under) {
               playClickSound();
               cancelBuildMode();
-              loopRef.current?.patchView({
+              loop?.patchView({
                 selectedBuildingId: under.id,
                 selectedEntityId: null,
                 selectedEntityIds: [],
@@ -165,54 +190,48 @@ export function useCanvasInteractions({
         return;
       }
 
-      // Check building selection
-      let clickedBuilding: Building | null = null;
-      for (let i = 0; i < world.buildings.length; i++) {
-        const b = world.buildings[i];
-        if (
-          worldX >= b.x - b.width / 2 &&
-          worldX <= b.x + b.width / 2 &&
-          worldY >= b.y - b.height / 2 &&
-          worldY <= b.y + b.height / 2
-        ) {
-          clickedBuilding = b;
-          break;
-        }
-      }
-
-      // Check entity selection (humans take hit priority)
+      // 1. Check entity selection (Two-pass hit testing: humans take priority over wildlife)
       const camera = getViewCamera();
       const clickEntities =
         catalogRef.current?.getAlive() ?? world.entities.filter((ent) => ent.alive);
       let clickedEntity: Entity | null = null;
 
+      // Pass 1: Humans
       for (let i = 0; i < clickEntities.length; i++) {
         const ent = clickEntities[i];
-        if (ent.type === EntityType.Tree || ent.type === EntityType.Grass) {
-          continue;
-        }
-        if (ent.type === EntityType.Human) {
-          const bounds = getHumanSelectionBounds(ent, camera.zoom);
-          const dx = worldX - bounds.cx;
-          const dy = worldY - bounds.cy;
-          if ((dx / bounds.rx) ** 2 + (dy / bounds.ry) ** 2 <= 1) {
-            clickedEntity = ent;
-            break;
-          }
-          continue;
-        }
-        const dx = ent.x - worldX;
-        const dy = ent.y - worldY;
-        if (dx * dx + dy * dy <= (ent.size * 1.2 + 6) ** 2) {
+        if (ent.type !== EntityType.Human) continue;
+        const bounds = getHumanSelectionBounds(ent, camera.zoom);
+        const dx = worldX - bounds.cx;
+        const dy = worldY - bounds.cy;
+        if ((dx / bounds.rx) ** 2 + (dy / bounds.ry) ** 2 <= 1) {
           clickedEntity = ent;
           break;
         }
       }
 
+      // Pass 2: Wildlife (if no human was hit)
+      if (!clickedEntity) {
+        for (let i = 0; i < clickEntities.length; i++) {
+          const ent = clickEntities[i];
+          if (ent.type === EntityType.Human || ent.type === EntityType.Tree || ent.type === EntityType.Grass) {
+            continue;
+          }
+          const dx = ent.x - worldX;
+          const dy = ent.y - worldY;
+          if (dx * dx + dy * dy <= (ent.size * 1.2 + 6) ** 2) {
+            clickedEntity = ent;
+            break;
+          }
+        }
+      }
+
+      // 2. Check building selection
+      const clickedBuilding = findBuildingAt(world.buildings, worldX, worldY);
+
+      // 3. Check camp selection
       const campHit = hitTestCamp(world, worldX, worldY);
       if (campHit && !clickedEntity) {
         const campKey = `${campHit.kind}:${campHit.id}`;
-        const loop = loopRef.current;
         if (loop) {
           const nextView = focusCameraOn(loop.getView(), campHit.x, campHit.y, 1.5);
           loop.patchView({
@@ -229,7 +248,6 @@ export function useCanvasInteractions({
       }
 
       if (clickedEntity || clickedBuilding) {
-        const loop = loopRef.current;
         const focusTarget = clickedEntity ?? clickedBuilding;
         if (!focusTarget) return;
 
@@ -271,7 +289,7 @@ export function useCanvasInteractions({
         }
         setInspectorCollapsed(false);
       } else {
-        loopRef.current?.patchView({
+        loop?.patchView({
           selectedEntityId: null,
           selectedEntityIds: [],
           selectedBuildingId: null,
@@ -281,12 +299,12 @@ export function useCanvasInteractions({
       }
     },
     [
+      getEventWorldCoords,
       selectedBuildingType,
       juiceEffectsEnabled,
       getViewCamera,
       applyGameAction,
       cancelBuildMode,
-      canvasRef,
       worldRef,
       catalogRef,
       loopRef,
@@ -297,38 +315,32 @@ export function useCanvasInteractions({
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const world = worldRef.current;
-      const rect = canvas.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
+      const coords = getEventWorldCoords(e.clientX, e.clientY);
+      if (!coords) return;
+      const { worldX, worldY, rect } = coords;
 
-      const canvasW = canvas.offsetWidth;
-      const canvasH = canvas.offsetHeight;
-      const screenX = (e.clientX - rect.left) * (canvasW / rect.width);
-      const screenY = (e.clientY - rect.top) * (canvasH / rect.height);
-      const [worldX, worldY] = screenToWorld(screenX, screenY, getViewCamera(), canvasW, canvasH);
+      const loop = loopRef.current;
+      const liveWorld = loop?.getWorld() ?? worldRef.current;
 
       if (isDraggingRef.current && cameraDragStartRef.current) {
         const dx = e.clientX - cameraDragStartRef.current.x;
         const dy = e.clientY - cameraDragStartRef.current.y;
-        const loop = loopRef.current;
         if (loop) {
           const cam = loop.getView().camera;
+          const zoom = cam.zoom > 0 ? cam.zoom : 1;
           const nextCam = {
             ...cam,
-            targetX: cam.targetX - dx / cam.zoom,
-            targetY: cam.targetY - dy / cam.zoom,
+            targetX: cam.targetX - dx / zoom,
+            targetY: cam.targetY - dy / zoom,
           };
-          const w = loop.getWorld();
           loop.patchView(
             {
               camera: clampCameraTarget(
                 nextCam,
-                w.width,
-                w.height,
-                rect.width || w.width,
-                rect.height || w.height,
+                liveWorld.width,
+                liveWorld.height,
+                rect.width || liveWorld.width,
+                rect.height || liveWorld.height,
               ),
             },
             true,
@@ -337,26 +349,13 @@ export function useCanvasInteractions({
         cameraDragStartRef.current = { x: e.clientX, y: e.clientY };
       }
 
-      // Track hovered building
+      // Track hovered building (top-most priority)
       let hovered: Building | null = null;
       if (!selectedBuildingType && !isDraggingRef.current) {
-        for (let i = 0; i < world.buildings.length; i++) {
-          const b = world.buildings[i];
-          if (
-            worldX >= b.x - b.width / 2 &&
-            worldX <= b.x + b.width / 2 &&
-            worldY >= b.y - b.height / 2 &&
-            worldY <= b.y + b.height / 2
-          ) {
-            hovered = b;
-            break;
-          }
-        }
+        hovered = findBuildingAt(liveWorld.buildings, worldX, worldY);
       }
 
       if (selectedBuildingType) {
-        const loop = loopRef.current;
-        const liveWorld = loop?.getWorld() ?? world;
         if (isStripBuildType(selectedBuildingType) && stripDragStartRef.current) {
           const start = stripDragStartRef.current;
           const rotation = inferStripRotation(start.x, start.y, worldX, worldY);
@@ -399,13 +398,12 @@ export function useCanvasInteractions({
           loop?.patchView({ hoveredBuildingId: hovered?.id ?? null }, true);
         }
       } else {
-        loopRef.current?.patchView({ hoveredBuildingId: hovered?.id ?? null }, true);
+        loop?.patchView({ hoveredBuildingId: hovered?.id ?? null }, true);
       }
     },
     [
+      getEventWorldCoords,
       selectedBuildingType,
-      getViewCamera,
-      canvasRef,
       worldRef,
       loopRef,
       stripDragStartRef,
@@ -428,15 +426,10 @@ export function useCanvasInteractions({
         return;
       }
       if (e.button === 0 && selectedBuildingType && isStripBuildType(selectedBuildingType)) {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const rect = canvas.getBoundingClientRect();
-        const canvasW = canvas.offsetWidth;
-        const canvasH = canvas.offsetHeight;
-        const screenX = (e.clientX - rect.left) * (canvasW / rect.width);
-        const screenY = (e.clientY - rect.top) * (canvasH / rect.height);
-        const [worldX, worldY] = screenToWorld(screenX, screenY, getViewCamera(), canvasW, canvasH);
-        stripDragStartRef.current = { x: worldX, y: worldY };
+        const coords = getEventWorldCoords(e.clientX, e.clientY);
+        if (!coords) return;
+        stripDragStartRef.current = { x: coords.worldX, y: coords.worldY };
+        clickOriginRef.current = { x: e.clientX, y: e.clientY };
         return;
       }
       if (e.button === 1 || (e.button === 0 && !selectedBuildingType)) {
@@ -450,8 +443,7 @@ export function useCanvasInteractions({
       selectedBuildingType,
       onPrimeAudioUnlock,
       audioStartedRef,
-      getViewCamera,
-      canvasRef,
+      getEventWorldCoords,
       stripDragStartRef,
       isDraggingRef,
       cameraDragStartRef,
@@ -470,10 +462,11 @@ export function useCanvasInteractions({
         const start = stripDragStartRef.current;
         stripDragStartRef.current = null;
         const loop = loopRef.current;
+        const currentWorld = loop?.getWorld() ?? worldRef.current;
         const preview =
           loop?.getView().buildStripPreview ??
           buildStripPreview(
-            loop?.getWorld() ?? worldRef.current,
+            currentWorld,
             selectedBuildingType,
             start.x,
             start.y,
@@ -481,7 +474,9 @@ export function useCanvasInteractions({
             start.y,
             loop?.getView().buildRotation ?? 0,
           );
-        if (preview.segments.length > 0) {
+
+        // Commit only if all segments are valid
+        if (preview.segments.length > 0 && preview.segments.every((seg) => seg.valid)) {
           playClickSound();
           applyGameAction({
             proto: 1,
@@ -490,6 +485,7 @@ export function useCanvasInteractions({
             segments: preview.segments,
             rotation: preview.rotation,
           });
+          stripPlacedOnMouseUpRef.current = true;
         }
         loop?.patchView({ buildStripPreview: null });
       }
@@ -532,6 +528,7 @@ export function useCanvasInteractions({
     cameraDragStartRef.current = null;
     clickOriginRef.current = null;
     rightClickOriginRef.current = null;
+    stripPlacedOnMouseUpRef.current = false;
     loopRef.current?.patchView({ hoveredBuildingId: null, buildStripPreview: null }, true);
   }, [
     loopRef,

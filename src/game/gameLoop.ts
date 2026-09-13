@@ -11,7 +11,7 @@ import { clearAllFactionWanderStates } from './factionWander';
 import { GameWorkerHost, isGameWorkerEnabled, type WorkerUiPatch } from './simWorker/GameWorkerHost';
 import type { WorkerCommand } from './simWorker/commands';
 import { applyWorkerCommand } from './simWorker/commands';
-import { createOptimisticDisplayWorld, hydrateWorldRuntimeCaches } from './worldRuntimeCaches';
+import { carryPresentationControls, createOptimisticDisplayWorld, hydrateWorldRuntimeCaches } from './worldRuntimeCaches';
 import type { ScentGridReader } from './scentGrid';
 import {
   clearScreenShakeImpulse,
@@ -531,6 +531,11 @@ export class GameLoop {
 
     // Deep clone so optimistic command mutations never contaminate the authoritative shadow
     let display = createOptimisticDisplayWorld(authoritative);
+
+    // The player's speed/pause choice must outrank this snapshot: the setSpeed /
+    // setPaused message may still be in flight, so the snapshot can carry the old
+    // value and would otherwise silently revert the control on every command.
+    carryPresentationControls(display, this.world);
 
     for (let i = 0; i < this.optimisticCommands.length; i++) {
       try {

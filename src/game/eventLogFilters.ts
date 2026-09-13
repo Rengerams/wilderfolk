@@ -6,6 +6,7 @@ import type { GameEventLog } from './gameTypes';
  */
 export const EVENT_LOG_FILTER_OPTIONS: Array<{ id: 'all' | GameEventLog['type']; label: string }> = [
   { id: 'all', label: 'All' },
+  { id: 'conception', label: 'Conceptions (expecting)' },
   { id: 'birth', label: 'Births' },
   { id: 'death', label: 'Deaths (age, illness, exhaustion, raid)' },
   { id: 'marriage', label: 'Marriages' },

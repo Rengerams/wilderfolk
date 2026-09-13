@@ -90,23 +90,33 @@ export function notifyBuildingLocked(state: WorldState, type: BuildingType): Wor
   return state;
 }
 
+/**
+ * Whether `startResearch` would accept this node right now — one shared gate so
+ * callers that must not issue a doomed command (the in-app virtual player,
+ * previews, diagnostics) read the same rule the command itself enforces.
+ */
+export function canStartResearch(state: WorldState, researchId: string): boolean {
+  const node = state.researchNodes.find(n => n.id === researchId);
+  if (!node || !node.unlocked || node.researched || state.activeResearch) return false;
+
+  const prereqsMet = node.prerequisites.every(p => state.unlockedTechs.includes(p));
+  if (!prereqsMet) return false;
+
+  const { wood, stone, gold } = node.cost;
+  return state.resources.wood >= wood && state.resources.stone >= stone && state.resources.gold >= gold;
+}
+
 /** Mutates `state` in place (same pattern as `updateResearch`) so callers need not reassign. */
 export function startResearch(state: WorldState, researchId: string): WorldState {
   const node = state.researchNodes.find(n => n.id === researchId);
-  if (!node || !node.unlocked || node.researched || state.activeResearch) return state;
+  if (!node || !canStartResearch(state, researchId)) return state;
 
-  const prereqsMet = node.prerequisites.every(p => state.unlockedTechs.includes(p));
-  if (!prereqsMet) return state;
-
-  const { wood, stone, gold } = node.cost;
-  if (state.resources.wood >= wood && state.resources.stone >= stone && state.resources.gold >= gold) {
-    state.resources.wood -= wood;
-    state.resources.stone -= stone;
-    state.resources.gold -= gold;
-    state.activeResearch = researchId;
-    state.researchProgress = 0;
-    addNotification(state, 'Research Started', `Started researching: ${node.name}`, 'info');
-  }
+  state.resources.wood -= node.cost.wood;
+  state.resources.stone -= node.cost.stone;
+  state.resources.gold -= node.cost.gold;
+  state.activeResearch = researchId;
+  state.researchProgress = 0;
+  addNotification(state, 'Research Started', `Started researching: ${node.name}`, 'info');
   return state;
 }
 

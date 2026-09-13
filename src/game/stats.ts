@@ -10,7 +10,6 @@ export interface YearlyStats {
     deer: number;
     wolves: number;
     foxes: number;
-    trees: number;
   };
   births: { humans: number; animals: number };
   deaths: { humans: number; animals: number };
@@ -96,7 +95,6 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
       deer: state.wildlifeCounts.deer,
       wolves: state.wildlifeCounts.wolves,
       foxes: state.wildlifeCounts.foxes,
-      trees: state.wildlifeCounts.trees,
     },
     births: {
       humans: humanBirths,

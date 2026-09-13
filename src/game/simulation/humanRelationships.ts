@@ -1,5 +1,5 @@
 import type { WorldState, Entity, Building } from '../gameTypes';
-import { EntityType, BuildingType, JobType, BUILDING_CONFIGS } from '../gameTypes';
+import { EntityType, BuildingType, JobType, BUILDING_CONFIGS, LEADER_OCCUPATION } from '../gameTypes';
 import type { TickContext } from './simulationTypes';
 import type { EntitySpatialGrid } from '../spatialGrid';
 import { SPECIES_CONFIG } from '../speciesConfig';
@@ -51,6 +51,7 @@ import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { findHumanWorkplace } from '../workforce';
 import { getWorkSchedule, isWorkScheduleHour, type WorkSchedule } from '../workSchedule';
 import { sayHumanChatPhrase } from '../humanChat';
+import { Relationship } from '../gameConstants';
 
 export const AFFAIR_SPOUSE_BLOCK_RADIUS = 22;
 export const AFFAIR_BUILDING_NEAR_RADIUS = 55;
@@ -645,7 +646,8 @@ function startMarriedPregnancy(state: WorldState, entity: Entity, partner: Entit
   const mother = humanDisplayName(entity);
   const father = humanDisplayName(partner);
   const line = `${mother} and ${father} are expecting a child`;
-  logEvent(state, 'birth', line, mother);
+  // An expectation is not a delivery: `'conception'` keeps births countable.
+  logEvent(state, 'conception', line, mother);
   addNotification(state, 'Expecting', line, 'success', { x: entity.x, y: entity.y });
 }
 
@@ -661,7 +663,8 @@ function startYouthPregnancy(state: WorldState, entity: Entity, partner: Entity)
   const mother = humanDisplayName(entity);
   const father = humanDisplayName(partner);
   const line = `${mother} and ${father} are expecting a child`;
-  logEvent(state, 'birth', line, mother);
+  // An expectation is not a delivery: `'conception'` keeps births countable.
+  logEvent(state, 'conception', line, mother);
   addNotification(state, 'Expecting', line, 'success', { x: entity.x, y: entity.y });
 }
 
@@ -677,6 +680,9 @@ function startAffairPregnancy(state: WorldState, entity: Entity, lover: Entity):
   addFloatingText(state, entity.x, entity.y - 18, 'Secret…', '#c084fc', 'brief');
   const mother = humanDisplayName(entity);
   const line = `${mother} is secretly expecting a child`;
+  // Deliberately a scandal, not a conception announcement: the secret itself is
+  // the event the Chronicle and the scandal feed must show. It never claimed to
+  // be a birth, so it does not affect birth counts.
   logEvent(state, 'scandal', line, mother);
   addNotification(state, 'Secret pregnancy', line, 'warning', { x: entity.x, y: entity.y });
 }
@@ -1181,7 +1187,12 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
       jobBuilding.occupants = jobBuilding.occupants.filter((id) => id !== offender.id);
     }
     offender.homeBuildingId = undefined;
-    offender.occupation = 'settler';
+    // Arrest ends the workplace, not the office: a sitting leader keeps the
+    // "leader" occupation through the sentence (same rule as workforce.ts's
+    // `keepOffice`). Without this, a leader jailed for a scandal was released as
+    // a plain 'settler' while still holding villageLeaderId, which the full-year
+    // leader-occupation invariant caught at the next checkpoint.
+    offender.occupation = offender.occupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
     offender.job = JobType.Settler;
   }
   if (offender.residenceBuildingId != null) {
@@ -1388,30 +1399,41 @@ export function tryDailyAffairEncounter(
   if (!isValidAffairTrystSite(entity, paramour, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) return;
   if (!shouldLeadAffairPair(entity, paramour)) return;
 
-  const churchPenalty = churchStrength > 0 ? 0.72 + (1 - churchStrength) * 0.28 : 1;
+  const R = Relationship;
+  const churchPenalty = churchStrength > 0
+    ? R.AFFAIR_CHURCH_FLOOR_FACTOR + (1 - churchStrength) * (1 - R.AFFAIR_CHURCH_FLOOR_FACTOR)
+    : 1;
   const hasPerformers = state.visitorGroups.some((g) => g.kind === 'performers' && g.daysLeft > 0);
-  const festivalMult = state.festival?.active ? 1.4 : 1;
-  const performerMult = hasPerformers ? 1.35 : 1;
+  const festivalMult = state.festival?.active ? R.AFFAIR_FESTIVAL_MULTIPLIER : 1;
+  const performerMult = hasPerformers ? R.AFFAIR_PERFORMERS_MULTIPLIER : 1;
   const trystBuilding = getAffairTrystBuilding(entity, paramour, buildingById);
   const atParamourHome = trystBuilding != null
     && isNearBuilding(entity, trystBuilding, AFFAIR_BUILDING_NEAR_RADIUS)
     && isNearBuilding(paramour, trystBuilding, AFFAIR_BUILDING_NEAR_RADIUS);
-  const cohabitMult = atParamourHome ? 1.55 : 1;
+  const cohabitMult = atParamourHome ? R.AFFAIR_COHABIT_MULTIPLIER : 1;
   const socialMult = festivalMult * performerMult * cohabitMult;
-  const dailyChance = (churchStrength > 0 ? 0.14 : 0.2) * churchPenalty * socialMult;
+  const baseChance = churchStrength > 0
+    ? R.AFFAIR_DAILY_TRYST_CHANCE_WITH_CHURCH
+    : R.AFFAIR_DAILY_TRYST_CHANCE_NO_CHURCH;
+  const dailyChance = baseChance * churchPenalty * socialMult;
   if (Math.random() >= dailyChance) return;
 
-  const bump = Math.round((16 + Math.floor(Math.random() * 12)) * socialMult);
-  entity.affairProgress = Math.min(100, (entity.affairProgress || 0) + bump);
-  paramour.affairProgress = Math.min(100, (paramour.affairProgress || 0) + bump);
+  const bump = Math.round(
+    (R.AFFAIR_PROGRESS_BUMP_MIN + Math.floor(Math.random() * R.AFFAIR_PROGRESS_BUMP_SPAN)) * socialMult,
+  );
+  entity.affairProgress = Math.min(R.AFFAIR_PROGRESS_MAX, (entity.affairProgress || 0) + bump);
+  paramour.affairProgress = Math.min(R.AFFAIR_PROGRESS_MAX, (paramour.affairProgress || 0) + bump);
   recordRelationshipDiagnostic('affairProgressGains');
   recordAffairTrystSite(entity, paramour, state, buildingById);
 
-  if ((entity.affairProgress ?? 0) >= 100 && (paramour.affairProgress ?? 0) >= 100) {
+  if (
+    (entity.affairProgress ?? 0) >= R.AFFAIR_PROGRESS_MAX
+    && (paramour.affairProgress ?? 0) >= R.AFFAIR_PROGRESS_MAX
+  ) {
     entity.affairPartnerId = paramour.id;
     paramour.affairPartnerId = entity.id;
-    entity.affairProgress = 100;
-    paramour.affairProgress = 100;
+    entity.affairProgress = R.AFFAIR_PROGRESS_MAX;
+    paramour.affairProgress = R.AFFAIR_PROGRESS_MAX;
     recordRelationshipDiagnostic('affairsEstablished');
     const who = humanDisplayName(entity);
     const other = humanDisplayName(paramour);

@@ -35,6 +35,7 @@ import { rollPredatorBlock, rollCounterAttack } from './combat';
 import { isActiveMoonHowler } from './moonHowler';
 import { logDeath, logEvent } from './eventLog';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
+import { clampToMapBounds } from './mapBounds';
 import {
   buildGrassPopulationSnapshot,
   buildWildlifePopulationSnapshot,
@@ -675,10 +676,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       }
 
       // 15. Map boundaries clamp
-      if (entity.x < 0) entity.x = 0;
-      if (entity.x > width) entity.x = width;
-      if (entity.y < 0) entity.y = 0;
-      if (entity.y > height) entity.y = height;
+      clampToMapBounds(entity, width, height);
 
       // 16. Reproduction
       entity.reproductionCooldown = Math.max(0, entity.reproductionCooldown - step);

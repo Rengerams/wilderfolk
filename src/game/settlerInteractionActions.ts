@@ -2,7 +2,7 @@ import type { Entity, WorldState } from './gameTypes';
 import { BuildingType, EntityType, WEREWOLF_CURSE_LINES } from './gameTypes';
 import { addBigNews, addFloatingText, createDeathParticles, impulseScreenShake } from './simEffects';
 import { assignMissingWorkers } from './workforce';
-import { assignMissingResidences } from './residency';
+import { assignMissingResidences } from './residencyReconciliation';
 import { indexLivingEntity } from './entityIndex';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE, getAbsoluteCalendarDay, getColonyDay, getHourOfDay, setHumanBirthFromAge } from './dayCycle';

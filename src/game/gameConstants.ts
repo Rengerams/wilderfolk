@@ -31,6 +31,49 @@ export const Social = {
   FEMALE_CLASS_WEIGHTS: [26, 21, 16, 12, 9, 7, 5, 2.5, 1.2, 0.3],
 } as const;
 
+/**
+ * Affair tryst tuning (owner: `simulation/humanRelationships.ts`, daily cadence).
+ *
+ * The base daily chance is a per-eligible-pair roll applied only after every
+ * pairing gate has already passed (a compatible, non-spouse paramour in range, a
+ * valid tryst site, the lower id leading the pair). Each success adds a progress
+ * bump, and an affair is *established* only when both partners reach
+ * AFFAIR_PROGRESS_MAX — only establishment can produce a scandal.
+ *
+ * REBALANCED 2026-09-10 (developer: "affair chance is too big then"). At the
+ * previous base of 0.14/0.20 a same-seed year (seed 12345, 360 days, ~40 average
+ * settlers) produced 55 established affairs, 176 scandal events, 60 exposures,
+ * 28 imprisonments and 67 divorces, so scandal drama rather than ordinary life
+ * dominated the social simulation. The base chances are halved here; the
+ * multipliers are deliberately left untouched so the size of the change is
+ * attributable to one knob. Playtest note: these values are chosen by feel and by
+ * same-seed year comparison, not derived from a target affairs-per-settler rate.
+ */
+export const Relationship = {
+  /** 0.07 = per-pair daily tryst chance while a church stands (was 0.14). */
+  AFFAIR_DAILY_TRYST_CHANCE_WITH_CHURCH: 0.07,
+  /** 0.1 = per-pair daily tryst chance with no church (was 0.20). */
+  AFFAIR_DAILY_TRYST_CHANCE_NO_CHURCH: 0.1,
+  /**
+   * Church strength scales the base chance down toward this floor factor:
+   * factor = FLOOR + (1 - churchStrength) × (1 - FLOOR), so a full-strength
+   * church leaves 0.72 of the base chance and a weak church approaches 1.0.
+   */
+  AFFAIR_CHURCH_FLOOR_FACTOR: 0.72,
+  /** 1.4 = festivals loosen inhibitions (unchanged by the rebalance). */
+  AFFAIR_FESTIVAL_MULTIPLIER: 1.4,
+  /** 1.35 = visiting performers are a distraction (unchanged). */
+  AFFAIR_PERFORMERS_MULTIPLIER: 1.35,
+  /** 1.55 = a tryst at the paramour's own home is likelier to get that far. */
+  AFFAIR_COHABIT_MULTIPLIER: 1.55,
+  /** 16 = minimum progress one successful tryst adds, before multipliers. */
+  AFFAIR_PROGRESS_BUMP_MIN: 16,
+  /** 12 = span of the random extra progress above the minimum, so 16–27. */
+  AFFAIR_PROGRESS_BUMP_SPAN: 12,
+  /** 100 = progress both partners need before the affair is established. */
+  AFFAIR_PROGRESS_MAX: 100,
+} as const;
+
 export const Time = {
   /** 24 = one real day per sim day; the calendar below keeps all math in whole days. */
   HOURS_PER_DAY: 24,
@@ -58,6 +101,15 @@ export const Human = {
    * grazing food the moment they lose a single point.
    */
   HUNGER_MEAL_THRESHOLD: 0.9,
+  /**
+   * 65 = one larder meal restores 65 of a settler's 500 max energy (about 13%
+   * of the bar, or ~46 ticks / 15 h of unmodified metabolism at 1.4/tick).
+   * Small enough that a hungry settler must keep returning to the larder, so
+   * DAILY_FOOD_CONSUMPTION stays the real limit, and large enough that an
+   * ordinary working day does not end in exhaustion. Playtest-tuned: no formula
+   * derives it and no A/B comparison values were recorded.
+   */
+  MEAL_ENERGY_RESTORE: 65,
 } as const;
 
 /** Tamed-animal care tuning. */
@@ -124,4 +176,28 @@ export const Famine = {
   BITE_FRIENDSHIP_HIT_MISS: 8,
   /** Friendship lost when the bite actually lands (victim is NOT amused). */
   BITE_FRIENDSHIP_HIT_SUCCESS: 16,
+} as const;
+
+/**
+ * In-app virtual player ("auto-play") tuning.
+ *
+ * Owner of the decisions: the player. The bot (`virtualPlayer.ts`) only proposes
+ * one real `WorkerCommand` per in-game hour through the player's own command
+ * door, so these magnitudes tune *when the bot bothers*, never a game rule.
+ */
+export const VirtualPlayer = {
+  /**
+   * 2 = build a food producer once stores drop below two days of settler need
+   * (`settlers × Human.DAILY_FOOD_CONSUMPTION`). A Farm takes 3 days to finish,
+   * so a one-day buffer emptied the larder mid-build; four days built farms the
+   * colony could not yet staff.
+   */
+  FOOD_BUFFER_DAYS: 2,
+  /**
+   * 8 = footprint-sized rings the placement search walks outward from the camp
+   * centre before giving up (289 candidate spots, spanning roughly half a
+   * medium map). Deliberately bounded: the search runs on the main thread and
+   * must never scan the whole map for every placement.
+   */
+  PLACEMENT_SEARCH_RINGS: 8,
 } as const;

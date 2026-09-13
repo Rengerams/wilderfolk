@@ -1,20 +1,39 @@
 import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState } from './gameTypes';
 import { maybeOfferValleyDebate } from './storyEvents';
-import { recordElectionPromises } from './electionPromises';
+import { recordElectionPromises, tickElectionPromises } from './electionPromises';
 import { BuildingType, EntityType } from './gameTypes';
 import { getAgeInYears, HUMAN_ADULT_MIN_AGE, isImprisoned, TICKS_PER_DAY } from './dayCycle';
 import { logEvent } from './eventLog';
-import { addBigNews } from './simEffects';
 import { isPlayerHuman } from './playerHuman';
 import { sayHumanChatPhrase } from './humanChat';
 import { ensureEntitySkills } from './skills';
 import { simulateElectionVotes } from './electionVotes';
 import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
 
+/**
+ * Years between scheduled (end-of-term) elections.
+ *
+ * 2 = a session-length decision from playtesting, not a lore figure (developer,
+ * 2026-09-08: a 10-year term "is like maybe 100 hours real life", and ordinary
+ * sessions are not five hours long). Arithmetic behind that: an in-game day is 48
+ * real seconds at 1× (`gameLoop.BASE_TICKS_PER_SECOND = 1.5`, `TICKS_PER_DAY = 72`),
+ * so a year is ~4.8 h at 1× and ~1.6 h at a nominal 3× (`SPEED_OPTIONS` in
+ * `App.tsx`). Treat the higher multipliers as nominal only: the loop can request at
+ * most `MAX_PIPELINE_DEPTH` (4) worker ticks per round-trip, so the achievable rate
+ * falls short of the selected one as the colony grows. A 10-year term therefore
+ * spans many sittings at any speed a player actually sustains, so most colonies
+ * never reached a second election; the term was shortened 10 → 5 → 2 during play so
+ * a campaign contains several.
+ */
 export const ELECTION_INTERVAL_YEARS = 2;
+/** 0.25 year = the 3-month campaign a vacancy allows before the successor election. */
 export const VACANCY_ELECTION_DELAY_YEARS = 0.25;
 export const ELECTION_PARTY_DAYS = 1;
 export const ELECTION_PARTY_NAME = 'Election Revelry';
+
+export const DAYS_PER_MONTH = 30;
+export const MONTHS_PER_YEAR = 12;
+export const DAYS_PER_YEAR = DAYS_PER_MONTH * MONTHS_PER_YEAR; // 360 days
 
 /** Gossip lasts 2 months before the vote. */
 const GOSSIP_MONTHS = 2;
@@ -24,13 +43,22 @@ function getPhaseTicks(phase: 'gathering' | 'gossip' | 'tension'): number {
     case 'gathering':
       return 12;
     case 'gossip':
-      return GOSSIP_MONTHS * 30 * TICKS_PER_DAY;
+      return GOSSIP_MONTHS * DAYS_PER_MONTH * TICKS_PER_DAY;
     case 'tension':
       return 12;
   }
 }
 
-export type LeadershipElectionReason = 'founding' | 'decennial' | 'succession';
+/**
+ * Why a leadership election is being held.
+ *
+ * `term` is the scheduled election that ends a normal term: every
+ * ELECTION_INTERVAL_YEARS (2) years, at Years 2, 4, 6, … The token was named
+ * `decennial` under the original 10-year term and stopped matching once terms
+ * were shortened (5 years, now 2), so it is `term`; `validateVillageLeaderOnLoad`
+ * migrates saves that still carry the old token.
+ */
+export type LeadershipElectionReason = 'founding' | 'term' | 'succession';
 export type { ElectionCeremonyPhase, ElectionCeremonyState } from './gameTypes';
 
 export interface LeadershipScoreBreakdown {
@@ -254,6 +282,22 @@ export function getLeadershipScoreBreakdown(
   };
 }
 
+/**
+ * Shared candidate comparator: ranks by totalScore DESC, age DESC, entityId ASC.
+ */
+function sortCandidateBreakdowns(
+  candidates: LeadershipScoreBreakdown[],
+  ageById: Map<number, number>,
+): void {
+  candidates.sort((a, b) => {
+    if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+    const ageA = ageById.get(a.entityId) ?? 0;
+    const ageB = ageById.get(b.entityId) ?? 0;
+    if (ageB !== ageA) return ageB - ageA;
+    return a.entityId - b.entityId;
+  });
+}
+
 export function rankLeadershipCandidates(state: WorldState): LeadershipScoreBreakdown[] {
   const ageById = new Map<number, number>();
   const candidates: LeadershipScoreBreakdown[] = [];
@@ -265,14 +309,7 @@ export function rankLeadershipCandidates(state: WorldState): LeadershipScoreBrea
     candidates.push(getLeadershipScoreBreakdown(state, entity));
   }
 
-  candidates.sort((a, b) => {
-    if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-    const ageA = ageById.get(a.entityId) ?? 0;
-    const ageB = ageById.get(b.entityId) ?? 0;
-    if (ageB !== ageA) return ageB - ageA;
-    return a.entityId - b.entityId;
-  });
-
+  sortCandidateBreakdowns(candidates, ageById);
   return candidates;
 }
 
@@ -301,31 +338,26 @@ export function getElectionRaceCandidates(
       .map((entity) => [entity.id, leadershipAgeYears(entity, state)] as const),
   );
 
-  race.sort((a, b) => {
-    if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-    const ageA = ageById.get(a.entityId) ?? 0;
-    const ageB = ageById.get(b.entityId) ?? 0;
-    if (ageB !== ageA) return ageB - ageA;
-    return a.entityId - b.entityId;
-  });
-
+  sortCandidateBreakdowns(race, ageById);
   return race;
 }
 
-/** Determines if an entity is currently the acting village head. */
+/** Determines if an entity is currently able to serve as village head. */
 export function isActingVillageHead(
   entity: Entity | null | undefined,
   state?: Pick<WorldState, 'year' | 'dayInYear' | 'tick'>,
 ): boolean {
-  if (!entity || !entity.alive || entity.faction || entity.isJuvenile) return false;
+  if (!entity || !entity.alive || entity.faction || entity.isJuvenile || isImprisoned(entity)) {
+    return false;
+  }
 
-  // Werewolf form check
-   if (entity.type === EntityType.Werewolf && entity.moonHowlerCursed) {
+  // Werewolf form check: cursed leader stays acting head while transformed (EJ-10)
+  if (entity.type === EntityType.Werewolf && entity.moonHowlerCursed) {
     return true;
   }
 
-  // Human leader check: check OCCUPATION, not job!
-   return isEligibleForLeadership(entity, state);
+  // Standard human eligibility check
+  return isEligibleForLeadership(entity, state);
 }
 
 export function getVillageLeader(state: WorldState): Entity | null {
@@ -343,7 +375,8 @@ export function isVillageLeader(state: WorldState, entityId: number): boolean {
 
 export function getYearsUntilElection(state: WorldState): number {
   if (state.pendingElectionYear != null) {
-    return Math.max(0, state.pendingElectionYear - state.year);
+    const currentFraction = state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR;
+    return Math.max(0, state.pendingElectionYear - currentFraction);
   }
   return getYearsUntilElectionForYear(state.year, state.lastElectionYear);
 }
@@ -438,9 +471,10 @@ export function appointFoundingLeader(state: WorldState, entity: Entity): void {
 
 export function getElectionCeremonyStatus(state: WorldState): string | null {
   if (state.pendingElectionYear != null && !state.electionCeremony) {
-    const until = state.pendingElectionYear - state.year;
+    const currentFraction = state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR;
+    const until = Math.max(0, state.pendingElectionYear - currentFraction);
     if (until > 0) {
-      return `No village head — merit election in ${until} year${until === 1 ? '' : 's'} (Year ${state.pendingElectionYear}).`;
+      return `No village head — merit election in ${formatElectionDelay(until)} (Year ${Math.floor(state.pendingElectionYear)}).`;
     }
     return 'Leadership election imminent — settlers will gather soon.';
   }
@@ -583,7 +617,7 @@ export function tickElectionGossip(state: WorldState): void {
 export function startElectionCeremony(
   state: WorldState,
   year: number,
-  reason: 'founding' | 'decennial' | 'succession',
+  reason: LeadershipElectionReason,
 ): boolean {
   const ranked = rankLeadershipCandidates(state);
   maybeOfferValleyDebate(state, ranked.map((c) => c.name));
@@ -600,7 +634,6 @@ export function startElectionCeremony(
   const vote = simulateElectionVotes(state, ranked);
   const winner = ranked.find((b) => b.entityId === vote.winnerId) ?? ranked[0];
   const site = getElectionGatherSite(state);
-  recordElectionPromises(state, year);
 
   state.electionCeremony = {
     phase: 'gathering',
@@ -700,7 +733,12 @@ export function tickElectionCeremony(state: WorldState, year: number): ElectionA
           result.leaderName,
         );
       }
-      setNewLeaderPromise(state);
+
+      // Record v0.6.3 E1 campaign promises now that the leader has officially taken office
+      if (result.leaderId != null) {
+        recordElectionPromises(state, year);
+      }
+
       return announcement;
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
@@ -766,7 +804,7 @@ export function runVillageElection(
   applyLeaderOccupation(state, prevId);
   syncLeaderHouseResidency(state);
 
-  if (reason === 'decennial' || reason === 'founding') {
+  if (reason === 'term' || reason === 'founding') {
     state.lastElectionYear = year;
   }
 
@@ -778,7 +816,7 @@ export function runVillageElection(
       `${winner.name} elected founding village head — ${ballot} · ${scoreSummary(winner)}`,
       winner.name,
     );
-  } else if (reason === 'decennial') {
+  } else if (reason === 'term') {
     logEvent(
       state,
       'event',
@@ -812,12 +850,12 @@ function buildAnnouncement(
 ): ElectionAnnouncement | null {
   if (!result.leaderName) return null;
   const title =
-    reason === 'decennial'
+    reason === 'term'
       ? result.changed
         ? '🗳️ New village head'
         : '🗳️ Head re-elected'
       : '👑 New village head';
-  const verb = reason === 'decennial' && !result.changed ? 're-elected' : 'is now village head';
+  const verb = reason === 'term' && !result.changed ? 're-elected' : 'is now village head';
   const merit = result.breakdown ? scoreSummary(result.breakdown) : '';
   const ballots =
     result.votes.total > 0 ? `${result.votes.won} of ${result.votes.total} ballots · ` : '';
@@ -832,9 +870,11 @@ function buildAnnouncement(
 }
 
 function formatElectionDelay(years: number): string {
-  if (years === 1) return '1 year';
-  if (years > 1) return `${years} years`;
-  const months = Math.round(years * 12);
+  if (years >= 1) {
+    const y = Math.floor(years);
+    return y === 1 ? '1 year' : `${y} years`;
+  }
+  const months = Math.max(1, Math.round(years * MONTHS_PER_YEAR));
   return months === 1 ? '1 month' : `${months} months`;
 }
 
@@ -852,7 +892,8 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
     return null;
   }
 
-  const electionYear = state.year + VACANCY_ELECTION_DELAY_YEARS;
+  const currentFraction = state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR;
+  const electionYear = currentFraction + VACANCY_ELECTION_DELAY_YEARS;
   state.pendingElectionYear = electionYear;
   state.villageLeaderId = null;
 
@@ -860,14 +901,14 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
   logEvent(
     state,
     'event',
-    `${name} can no longer lead — merit election scheduled for Year ${electionYear}`,
+    `${name} can no longer lead — merit election scheduled for Year ${Math.floor(electionYear)}`,
     name,
   );
 
   const delayText = formatElectionDelay(VACANCY_ELECTION_DELAY_YEARS);
   return {
     title: '👑 Leadership vacancy',
-    message: `${name} can no longer lead. A merit election will be held in ${delayText} (Year ${electionYear}).`,
+    message: `${name} can no longer lead. A merit election will be held in ${delayText} (Year ${Math.floor(electionYear)}).`,
   };
 }
 
@@ -876,26 +917,27 @@ export function tryStartVacancyElectionCeremony(
   year: number,
   dayInYear: number,
 ): boolean {
-  if (
-    dayInYear !== 0 ||
-    state.pendingElectionYear == null ||
-    year < state.pendingElectionYear ||
-    state.electionCeremony
-  ) {
+  if (state.pendingElectionYear == null || state.electionCeremony) {
+    return false;
+  }
+
+  const currentFraction = year + dayInYear / DAYS_PER_YEAR;
+  if (currentFraction < state.pendingElectionYear) {
     return false;
   }
 
   const reason: LeadershipElectionReason =
-    year > 0 && year % ELECTION_INTERVAL_YEARS === 0 ? 'decennial' : 'succession';
+    year > 0 && Math.floor(year) % ELECTION_INTERVAL_YEARS === 0 ? 'term' : 'succession';
 
-  const started = startElectionCeremony(state, year, reason);
+  const started = startElectionCeremony(state, Math.floor(year), reason);
   if (started) {
     state.pendingElectionYear = null;
   }
   return started;
 }
 
-export function tryStartDecennialElectionCeremony(
+/** Starts the scheduled end-of-term election when a term year (Year 2, 4, 6, …) begins. */
+export function tryStartTermElectionCeremony(
   state: WorldState,
   year: number,
   dayInYear: number,
@@ -910,7 +952,7 @@ export function tryStartDecennialElectionCeremony(
   ) {
     return false;
   }
-  return startElectionCeremony(state, year, 'decennial');
+  return startElectionCeremony(state, year, 'term');
 }
 
 function isValidElectionCeremony(value: unknown): value is ElectionCeremonyState {
@@ -945,6 +987,14 @@ export function validateVillageLeaderOnLoad(state: WorldState): void {
     state.pendingElectionYear = null;
   }
 
+  // Saves from the 10-year era (and the 5-year era that followed) stored the
+  // scheduled election under the name 'decennial'. Terms are ELECTION_INTERVAL_YEARS
+  // (2) years and the token is now 'term'; rewrite the old value so ceremony text
+  // and re-election wording stay correct for imported saves.
+  if (state.electionCeremony != null && (state.electionCeremony.reason as string) === 'decennial') {
+    state.electionCeremony.reason = 'term';
+  }
+
   const leader = getVillageLeader(state);
   if (leader) {
     applyLeaderOccupation(state, null);
@@ -958,52 +1008,21 @@ export function validateVillageLeaderOnLoad(state: WorldState): void {
     const founder = findFoundingColonyLeader(state);
     if (founder) appointFoundingLeader(state, founder);
   } else {
-    state.pendingElectionYear = state.year + VACANCY_ELECTION_DELAY_YEARS;
+    const currentFraction = state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR;
+    state.pendingElectionYear = currentFraction + VACANCY_ELECTION_DELAY_YEARS;
   }
 }
 
-const PROMISE_GOALS = [
-  { goal: 'buildings', label: 'Finish 30 new buildings', extra: 3 },
-  { goal: 'food', label: 'Keep food stores above 600', extra: 60 },
-] as const;
-
-function countPlayerBuildings(state: WorldState): number {
-  return state.buildings.filter((b) => b.completed && b.faction !== 'rival').length;
-}
-
+/**
+ * Backward-compatible hook: delegates to electionPromises.ts.
+ */
 export function setNewLeaderPromise(state: WorldState): void {
-  const old = state.leaderPromise;
-  if (old) {
-    state.villageReputation = Math.max(0, state.villageReputation - 3);
-    addBigNews(
-      state,
-      '⚖️ Promise broken',
-      `The previous village head never kept their promise — ${old.label}. Reputation -3.`,
-      'negative',
-    );
-  }
-  const pick = PROMISE_GOALS[Math.floor(Math.random() * PROMISE_GOALS.length)];
-  const current = pick.goal === 'buildings' ? countPlayerBuildings(state) : state.resources.food;
-  state.leaderPromise = {
-    goal: pick.goal,
-    label: pick.label,
-    target: pick.goal === 'buildings' ? current + pick.extra : Math.max(pick.extra, current + 3),
-    startValue: current,
-  };
+  recordElectionPromises(state, state.year);
 }
 
+/**
+ * Advances evaluation for campaign promises from electionPromises.ts.
+ */
 export function tickLeaderPromise(state: WorldState): void {
-  const p = state.leaderPromise;
-  if (!p) return;
-  const now = p.goal === 'buildings' ? countPlayerBuildings(state) : state.resources.food;
-  if (now >= p.target) {
-    state.leaderPromise = undefined;
-    state.villageReputation = Math.min(100, state.villageReputation + 3);
-    addBigNews(
-      state,
-      '⚖️ Promise kept',
-      `The village head kept their promise — ${p.label}. Reputation +3.`,
-      'positive',
-    );
-  }
+  tickElectionPromises(state);
 }

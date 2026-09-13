@@ -75,7 +75,7 @@ export function distSq(ax: number, ay: number, bx: number, by: number): number {
 
 /**
  * Uniform 2D Spatial Hash Grid.
- * Optimized for zero heap-allocation on update and fast bounding-box cell walks.
+ * Optimized for zero heap-allocation on update, reconcile, and radial walks.
  */
 export class EntitySpatialGrid {
   readonly mapWidth: number;
@@ -90,6 +90,10 @@ export class EntitySpatialGrid {
    * Storing primitive integers eliminates heap object allocations on every move.
    */
   private readonly entityCell = new Map<number, number>();
+
+  /** Scratch buffers reused during reconcile() to prevent GC churn every tick. */
+  private readonly scratchSeen = new Set<number>();
+  private readonly scratchStaleIds: number[] = [];
 
   constructor(mapWidth: number, mapHeight: number, cellSize: number) {
     this.mapWidth = mapWidth;
@@ -114,10 +118,6 @@ export class EntitySpatialGrid {
       this.mapHeight === mapHeight &&
       this.cellSize === cellSize
     );
-  }
-
-  private cellIndex(col: number, row: number): number {
-    return row * this.cols + col;
   }
 
   cellCoords(x: number, y: number): { col: number; row: number } | null {
@@ -198,18 +198,29 @@ export class EntitySpatialGrid {
     }
   }
 
+  /**
+   * Synchronizes grid state against an active entity collection with zero object allocations.
+   */
   reconcile(entities: Iterable<Entity>, filter?: (entity: Entity) => boolean): void {
-    const seen = new Set<number>();
+    const seen = this.scratchSeen;
+    seen.clear();
+
     for (const entity of entities) {
       if (!entity.alive || (filter && !filter(entity))) continue;
       seen.add(entity.id);
       this.update(entity);
     }
 
+    const stale = this.scratchStaleIds;
+    stale.length = 0;
     for (const id of this.entityCell.keys()) {
       if (!seen.has(id)) {
-        this.removeById(id);
+        stale.push(id);
       }
+    }
+
+    for (let i = 0; i < stale.length; i++) {
+      this.removeById(stale[i]);
     }
   }
 
@@ -253,6 +264,8 @@ export class EntitySpatialGrid {
     const minRow = Math.max(0, Math.floor(loY / this.cellSize));
     const maxRow = Math.min(this.rows - 1, Math.floor(hiY / this.cellSize));
 
+    if (minCol > maxCol || minRow > maxRow) return;
+
     const cols = this.cols;
     const cells = this.cells;
 
@@ -272,7 +285,7 @@ export class EntitySpatialGrid {
 
   /**
    * Broad-phase radial search with narrow-phase distance-squared filtering.
-   * Completely allocation-free in the hot path.
+   * Derives bounds directly to prevent boundary edge distortion and wasteful walks.
    */
   forEachInRadius(
     x: number,
@@ -283,17 +296,14 @@ export class EntitySpatialGrid {
   ): void {
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(radius) || radius < 0) return;
 
-    const rawCol = Math.floor(x / this.cellSize);
-    const rawRow = Math.floor(y / this.cellSize);
-    const cx = rawCol < 0 ? 0 : rawCol >= this.cols ? this.cols - 1 : rawCol;
-    const cy = rawRow < 0 ? 0 : rawRow >= this.rows ? this.rows - 1 : rawRow;
+    const minCol = Math.max(0, Math.floor((x - radius) / this.cellSize));
+    const maxCol = Math.min(this.cols - 1, Math.floor((x + radius) / this.cellSize));
+    const minRow = Math.max(0, Math.floor((y - radius) / this.cellSize));
+    const maxRow = Math.min(this.rows - 1, Math.floor((y + radius) / this.cellSize));
+
+    if (minCol > maxCol || minRow > maxRow) return;
 
     const radiusSq = radius * radius;
-    const cellRadius = Math.ceil(radius / this.cellSize);
-    const minCol = Math.max(0, cx - cellRadius);
-    const maxCol = Math.min(this.cols - 1, cx + cellRadius);
-    const minRow = Math.max(0, cy - cellRadius);
-    const maxRow = Math.min(this.rows - 1, cy + cellRadius);
     const metrics = isSpatialQueryMetricsEnabled();
 
     if (metrics) {
@@ -332,6 +342,8 @@ export class EntitySpatialGrid {
     y: number,
     fn: (col: number, row: number, cellIdx: number, bucket: Entity[]) => boolean | void,
   ): boolean {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+
     const col = Math.floor(x / this.cellSize);
     const row = Math.floor(y / this.cellSize);
     if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
@@ -341,10 +353,14 @@ export class EntitySpatialGrid {
     const minCol = Math.max(0, col - 1);
     const maxCol = Math.min(this.cols - 1, col + 1);
 
+    const cols = this.cols;
+    const cells = this.cells;
+
     for (let r = minRow; r <= maxRow; r++) {
+      const rowOffset = r * cols;
       for (let c = minCol; c <= maxCol; c++) {
-        const idx = this.cellIndex(c, r);
-        if (fn(c, r, idx, this.cells[idx]) === false) {
+        const idx = rowOffset + c;
+        if (fn(c, r, idx, cells[idx]) === false) {
           return true;
         }
       }
@@ -511,6 +527,11 @@ export function viewportFromCamera(
   };
 }
 
+/**
+ * Gathers grass entities in the viewport.
+ * Uses the spatial grid when available; falls back to an allocation-free linear AABB walk
+ * rather than rebuilding a fresh spatial grid each render frame.
+ */
 export function collectGrassInViewport(
   grassGrid: EntitySpatialGrid | null | undefined,
   grassEntities: Entity[],
@@ -534,9 +555,19 @@ export function collectGrassInViewport(
     return visible;
   }
 
-  if (grassEntities.length === 0) return [];
-  const grid = buildGrassGrid(mapWidth, mapHeight, grassEntities);
-  grid.forEachInRect(vp.minX, vp.minY, vp.maxX, vp.maxY, (grass) => visible.push(grass));
+  // Zero-grid-allocation linear fallback to protect 60fps render loops
+  for (let i = 0; i < grassEntities.length; i++) {
+    const grass = grassEntities[i];
+    if (
+      grass.alive &&
+      grass.x >= vp.minX &&
+      grass.x <= vp.maxX &&
+      grass.y >= vp.minY &&
+      grass.y <= vp.maxY
+    ) {
+      visible.push(grass);
+    }
+  }
   return visible;
 }
 
@@ -556,12 +587,14 @@ const ROAD_AVOID_CELL = 128;
 const ROAD_AVOID_RADIUS = 60;
 
 interface RoadCellEntry {
+  id: number;
   cx: number;
   cy: number;
   x: number;
   y: number;
   width: number;
   height: number;
+  lastAvoidQueryId: number;
 }
 
 export class RoadAvoidanceIndex {
@@ -571,6 +604,7 @@ export class RoadAvoidanceIndex {
   private readonly cells: RoadCellEntry[][];
   private readonly cols: number;
   private readonly rows: number;
+  private avoidQueryId = 0;
 
   constructor(mapWidth: number, mapHeight: number, roads: readonly Building[]) {
     this.mapWidth = mapWidth;
@@ -584,18 +618,29 @@ export class RoadAvoidanceIndex {
       const road = roads[i];
       if (!road.completed) continue;
 
-      const cx = road.x + road.width / 2;
-      const cy = road.y + road.height / 2;
-      const col = Math.min(this.cols - 1, Math.max(0, Math.floor(cx / this.cellSize)));
-      const row = Math.min(this.rows - 1, Math.max(0, Math.floor(cy / this.cellSize)));
-      this.cells[row * this.cols + col].push({
-        cx,
-        cy,
+      const entry: RoadCellEntry = {
+        id: road.id,
+        cx: road.x + road.width / 2,
+        cy: road.y + road.height / 2,
         x: road.x,
         y: road.y,
         width: road.width,
         height: road.height,
-      });
+        lastAvoidQueryId: -1,
+      };
+
+      // Place road into all cells overlapped by its bounding box
+      const minCol = Math.max(0, Math.floor(road.x / this.cellSize));
+      const maxCol = Math.min(this.cols - 1, Math.floor((road.x + road.width) / this.cellSize));
+      const minRow = Math.max(0, Math.floor(road.y / this.cellSize));
+      const maxRow = Math.min(this.rows - 1, Math.floor((road.y + road.height) / this.cellSize));
+
+      for (let r = minRow; r <= maxRow; r++) {
+        const rowOffset = r * this.cols;
+        for (let c = minCol; c <= maxCol; c++) {
+          this.cells[rowOffset + c].push(entry);
+        }
+      }
     }
   }
 
@@ -608,16 +653,21 @@ export class RoadAvoidanceIndex {
   }
 
   isNearRoad(x: number, y: number, margin = 12): boolean {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+
     const col = Math.floor(x / this.cellSize);
     const row = Math.floor(y / this.cellSize);
 
     for (let dr = -1; dr <= 1; dr++) {
+      const r = row + dr;
+      if (r < 0 || r >= this.rows) continue;
+      const rowOffset = r * this.cols;
+
       for (let dc = -1; dc <= 1; dc++) {
         const c = col + dc;
-        const r = row + dr;
-        if (c < 0 || r < 0 || c >= this.cols || r >= this.rows) continue;
+        if (c < 0 || c >= this.cols) continue;
 
-        const bucket = this.cells[r * this.cols + c];
+        const bucket = this.cells[rowOffset + c];
         for (let i = 0; i < bucket.length; i++) {
           const road = bucket[i];
           if (
@@ -636,26 +686,52 @@ export class RoadAvoidanceIndex {
   }
 
   applyAvoidance(entity: Entity, radius = ROAD_AVOID_RADIUS): void {
-    const col = Math.floor(entity.x / this.cellSize);
-    const row = Math.floor(entity.y / this.cellSize);
-    const cellRadius = Math.ceil(radius / this.cellSize);
+    if (!Number.isFinite(entity.x) || !Number.isFinite(entity.y) || radius <= 0) return;
+
+    // Zero-allocation query deduplication
+    this.avoidQueryId = (this.avoidQueryId + 1) | 0;
+    const currentQueryId = this.avoidQueryId;
+
+    const minCol = Math.max(0, Math.floor((entity.x - radius) / this.cellSize));
+    const maxCol = Math.min(this.cols - 1, Math.floor((entity.x + radius) / this.cellSize));
+    const minRow = Math.max(0, Math.floor((entity.y - radius) / this.cellSize));
+    const maxRow = Math.min(this.rows - 1, Math.floor((entity.y + radius) / this.cellSize));
+
+    if (minCol > maxCol || minRow > maxRow) return;
+
     const radiusSq = radius * radius;
 
-    for (let dr = -cellRadius; dr <= cellRadius; dr++) {
-      for (let dc = -cellRadius; dc <= cellRadius; dc++) {
-        const c = col + dc;
-        const r = row + dr;
-        if (c < 0 || r < 0 || c >= this.cols || r >= this.rows) continue;
-
-        const bucket = this.cells[r * this.cols + c];
+    for (let r = minRow; r <= maxRow; r++) {
+      const rowOffset = r * this.cols;
+      for (let c = minCol; c <= maxCol; c++) {
+        const bucket = this.cells[rowOffset + c];
         for (let i = 0; i < bucket.length; i++) {
           const road = bucket[i];
-          const dx = entity.x - road.cx;
-          const dy = entity.y - road.cy;
-          const distSq = dx * dx + dy * dy;
 
-          // Safe division guard: avoid impulses when distSq is near zero
-          if (distSq >= radiusSq || distSq < 0.01) continue;
+          // Skip if already processed in another overlapping cell this query
+          if (road.lastAvoidQueryId === currentQueryId) continue;
+          road.lastAvoidQueryId = currentQueryId;
+
+          // Find closest point on road rectangle for accurate edge repulsion
+          const closestX = Math.max(road.x, Math.min(road.x + road.width, entity.x));
+          const closestY = Math.max(road.y, Math.min(road.y + road.height, entity.y));
+          let dx = entity.x - closestX;
+          let dy = entity.y - closestY;
+          let distSq = dx * dx + dy * dy;
+
+          // If entity is directly inside the road, push away from the road center
+          if (distSq < 0.01) {
+            dx = entity.x - road.cx;
+            dy = entity.y - road.cy;
+            distSq = dx * dx + dy * dy;
+            if (distSq < 0.01) {
+              dx = 1;
+              dy = 0;
+              distSq = 1;
+            }
+          }
+
+          if (distSq >= radiusSq) continue;
 
           if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('road_avoid');
           const dist = Math.sqrt(distSq);

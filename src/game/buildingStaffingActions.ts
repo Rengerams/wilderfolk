@@ -12,7 +12,7 @@ import {
   removeWorkerTransition,
   transferWorkerBetweenBuildings,
 } from './workforce';
-import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './residency';
+import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './residencyOccupancy';
 import { isPlayerHuman } from './playerHuman';
 
 /** Living player humans — one filter pass when actions need the settler list repeatedly. */

@@ -6,7 +6,7 @@ import { TICKS_PER_DAY, FESTIVAL_CHECK_TICKS, getAbsoluteCalendarDay, DAYS_PER_Y
 
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
-import { tickLeaderVacancy, tickElectionBuildup, tryStartVacancyElectionCeremony, tryStartDecennialElectionCeremony } from './villageLeadership';
+import { tickLeaderVacancy, tickElectionBuildup, tryStartVacancyElectionCeremony, tryStartTermElectionCeremony } from './villageLeadership';
 import { getTownHallFestivalCooldownTicks } from './townHall';
 
 import { rollYearlyWorldEvent, tryFirstWeekVisitor, tryMidYearVisitorEvent, tickWorldRivalSettlements, tickVisitorGroups, tickVillageRequests } from './groupEvents';
@@ -228,10 +228,10 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
     }
 
     const vacancyCeremony = tryStartVacancyElectionCeremony(state, state.year, state.dayInYear);
-    const decennialCeremony = !vacancyCeremony
-      && tryStartDecennialElectionCeremony(state, state.year, state.dayInYear);
+    const termCeremony = !vacancyCeremony
+      && tryStartTermElectionCeremony(state, state.year, state.dayInYear);
 
-    if (vacancyCeremony || decennialCeremony) {
+    if (vacancyCeremony || termCeremony) {
       addBigNews(
         state,
         '🗳️ Election Day',

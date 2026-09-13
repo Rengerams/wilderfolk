@@ -35,45 +35,51 @@ export {
 
 export {
   HUMAN_MOVE_OUT_MIN_AGE,
-  assignMissingResidences,
-  auditHousingSharingIssues,
-  buildFamilyGroups,
-  buildHousingUnits,
   buildResidenceOccupancy,
-  canMoveOutOfFamilyHome,
-  collectFamilyMembers,
-  collectOwnHousehold,
   countResidentsInBuilding,
-  getChildCustodian,
   getResidenceCapacity,
   getResidenceUpgradeSlotGain,
   hasResidenceAssignment,
   hasWorkAssignment,
-  housingUnitNeedsReassignment,
-  isAdultChildAtHome,
   isImprisoned,
   isLeaderHouseResidence,
   isNearResidence,
   isResidenceBuilding,
   isResidenceBuildingType,
-  isResidenceOccupantEntity,
-  isUnnecessarilySharingHousing,
   occupancyMove,
+  residenceHasCapacity,
+  residenceRoomFor,
+  shareResidence,
+} from './residencyOccupancy';
+export {
+  collectFamilyMembers,
+  collectOwnHousehold,
+  getChildCustodian,
+  isAdultChildAtHome,
+} from './householdComposition';
+export {
+  auditHousingSharingIssues,
+  buildFamilyGroups,
+  buildHousingUnits,
+  canMoveOutOfFamilyHome,
+  housingUnitNeedsReassignment,
+  isUnnecessarilySharingHousing,
   pickResidenceForFamily,
   pickResidenceForHuman,
   pickResidenceForHumanExcluding,
   pickResidenceFromChildCustodian,
   rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable,
+  tryMoveOutOfFamilyHome,
+} from './residencySelection';
+export {
+  assignMissingResidences,
+  isResidenceOccupantEntity,
   rebalanceOvercrowdedResidences,
   rebuildChildrenIds,
-  residenceHasCapacity,
-  residenceRoomFor,
-  shareResidence,
   syncPartnerResidence,
   syncResidenceOccupants,
-  tryMoveOutOfFamilyHome,
-} from './residency';
-export type { ResidenceOccupancy } from './residency';
+} from './residencyReconciliation';
+export type { ResidenceOccupancy } from './residencyOccupancy';
 
 export {
   DAYS_PER_MOON_CYCLE,
