@@ -342,18 +342,25 @@ export function getElectionRaceCandidates(
   return race;
 }
 
-/** Determines if an entity is currently able to serve as village head. */
+/** Determines if an entity currently holds the village head office (vacancy / UI). */
 export function isActingVillageHead(
   entity: Entity | null | undefined,
   state?: Pick<WorldState, 'year' | 'dayInYear' | 'tick'>,
 ): boolean {
-  if (!entity || !entity.alive || entity.faction || entity.isJuvenile || isImprisoned(entity)) {
+  // Imprisonment must not clear the office — scandal sentences keep villageLeaderId
+  // and the leader occupation for the whole term (N14). Elections still exclude
+  // jailed candidates via isEligibleForLeadership.
+  if (!entity || !entity.alive || entity.faction || entity.isJuvenile) {
     return false;
   }
 
   // Werewolf form check: cursed leader stays acting head while transformed (EJ-10)
   if (entity.type === EntityType.Werewolf && entity.moonHowlerCursed) {
     return true;
+  }
+
+  if (isImprisoned(entity)) {
+    return entity.type === EntityType.Human && isPlayerHuman(entity);
   }
 
   // Standard human eligibility check

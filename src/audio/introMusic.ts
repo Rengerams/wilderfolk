@@ -13,6 +13,8 @@ class IntroMusicPlayer {
   private fallbackTimeout: ReturnType<typeof setTimeout> | null = null;
   private fallbackSection = 0;
   private startPromise: Promise<void> | null = null;
+  /** Bumped on every stop() so an in-flight start() cannot revive playback. */
+  private startGeneration = 0;
 
   get isRunning() {
     return this.running;
@@ -21,11 +23,17 @@ class IntroMusicPlayer {
   /** Synchronous autoplay attempt — call before any await on page load. */
   tryAutoplay(): void {
     if (this.running || audioGraph.isMuted) return;
+    const generation = this.startGeneration;
     const el = this.ensureHtmlAudio();
     const playPromise = el.play();
     if (!playPromise) return;
     void playPromise
       .then(() => {
+        if (generation !== this.startGeneration) {
+          el.pause();
+          el.currentTime = 0;
+          return;
+        }
         this.running = true;
         this.usingSamples = false;
         this.usingHtmlAudio = true;
@@ -42,7 +50,9 @@ class IntroMusicPlayer {
 
   async start() {
     if (this.startPromise) return this.startPromise;
+    const generation = this.startGeneration;
     this.startPromise = (async () => {
+      if (generation !== this.startGeneration) return;
       if (this.running || audioGraph.isMuted) return;
 
       if (!this.usingHtmlAudio) {
@@ -53,6 +63,10 @@ class IntroMusicPlayer {
       } else if (this.htmlAudio?.paused) {
         try {
           await this.htmlAudio.play();
+          if (generation !== this.startGeneration) {
+            this.stopHtmlAudio();
+            return;
+          }
           this.running = true;
           return;
         } catch {
@@ -60,14 +74,20 @@ class IntroMusicPlayer {
         }
       }
 
+      if (generation !== this.startGeneration) return;
       const unlocked = await audioGraph.unlock();
-      if (!unlocked) return;
+      if (!unlocked || generation !== this.startGeneration) return;
 
       this.stopHtmlAudio();
       this.running = true;
       audioGraph.setMusicBrightness(true);
 
       const ok = await musicPlayer.playLoop(TRACKS.intro, 'music', TRACK_VOLUMES.intro, 1.8);
+      if (generation !== this.startGeneration) {
+        this.running = false;
+        if (ok) musicPlayer.stop(0);
+        return;
+      }
       if (ok) {
         this.usingSamples = true;
         this.usingHtmlAudio = false;
@@ -78,11 +98,16 @@ class IntroMusicPlayer {
       this.usingHtmlAudio = false;
       this.startProceduralFallback();
     })();
-    await this.startPromise;
-    this.startPromise = null;
+    try {
+      await this.startPromise;
+    } finally {
+      if (this.startPromise) this.startPromise = null;
+    }
   }
   stop() {
+    this.startGeneration += 1;
     this.running = false;
+    this.startPromise = null;
     if (this.fallbackTimeout) {
       clearTimeout(this.fallbackTimeout);
       this.fallbackTimeout = null;

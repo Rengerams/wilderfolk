@@ -57,11 +57,11 @@ export async function beginAudio(): Promise<void> {
 }
 
 export function startIntroSong(): void {
-  if (!soundDirector.getMuteState()) void introMusic.start();
+  if (!soundDirector.getMuteState()) void soundDirector.beginIntroAudio();
 }
 
 export function stopIntroSong(): void {
-  introMusic.stop();
+  soundDirector.dismissIntroAudio();
 }
 
 export function isIntroMusicPlaying(): boolean {

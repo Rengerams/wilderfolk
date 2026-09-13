@@ -277,7 +277,7 @@ export default function GameDashboard({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-2 backdrop-blur-sm md:p-6">
+    <div className="pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-2 backdrop-blur-sm md:p-6">
       <div className="flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-stone-700/80 bg-stone-950/95 text-stone-200 shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-stone-800 px-4 py-2">

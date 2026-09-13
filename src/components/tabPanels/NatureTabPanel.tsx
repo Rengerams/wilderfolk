@@ -155,7 +155,6 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
           <WildlifeBar label="Wolves" count={wc?.wolves ?? 0} max={25} color="bg-stone-500" icon="🐺" />
           <WildlifeBar label="Foxes" count={wc?.foxes ?? 0} max={35} color="bg-orange-600" icon="🦊" />
           <WildlifeBar label="Grass patches" count={wc?.grass ?? 0} max={500} color="bg-green-500" icon="🌿" />
-          <WildlifeBar label="Trees" count={wc?.trees ?? 0} max={200} color="bg-green-700" icon="🌲" />
           {(wc?.werewolves ?? 0) > 0 && (
             <WildlifeBar label="Moon Howlers" count={wc.werewolves} max={10} color="bg-violet-700" icon="🌝" />
           )}

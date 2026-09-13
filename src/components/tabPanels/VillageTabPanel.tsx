@@ -12,6 +12,7 @@ import { collectHousingDiagnostics, isHousingDiagnosticsHealthy } from '../../ga
 const FocusPanel = lazy(() => import('../../game/FocusPanel'));
 const VillageLeadershipPanel = lazy(() => import('../../game/VillageLeadershipPanel'));
 const PopulationPanel = lazy(() => import('../../game/PopulationPanel'));
+const FamiliesTreePanel = lazy(() => import('../FamiliesTreePanel'));
 
 interface StatBadgeProps {
   label: string;
@@ -270,13 +271,27 @@ export default function VillageTabPanel({
       </CollapsibleSection>
 
       <CollapsibleSection
+        icon="🌳"
+        title="Family tree"
+        subtitle="Grandparents, aunts, uncles, children, nephews…"
+        accent="indigo"
+        defaultOpen
+        storageKey="village-family-tree"
+      >
+        <Suspense fallback={<p className="text-[13px] text-stone-300">Loading family tree…</p>}>
+          <FamiliesTreePanel state={state} onFocusCitizen={onFocusCitizen} />
+        </Suspense>
+      </CollapsibleSection>
+
+      <CollapsibleSection
         icon="👨‍👩‍👧"
-        title="Families"
-        subtitle="Household units"
+        title="Household roster"
+        subtitle="Everyone by home"
         accent="stone"
         defaultOpen={false}
+        storageKey="village-household-roster"
       >
-        <Suspense fallback={<p className="text-[13px] text-stone-300">Loading families…</p>}>
+        <Suspense fallback={<p className="text-[13px] text-stone-300">Loading households…</p>}>
           <PopulationPanel
             state={state}
             favoriteEntityId={favoriteEntityId}

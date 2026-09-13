@@ -4,7 +4,11 @@ import { audioGraph } from './graph';
 import { introMusic } from './introMusic';
 import type { VolumePreset } from './preferences';
 import { preloadAllSamples } from './sampleLoader';
-import { setGameplayAudioActive } from './session';
+import {
+  isIntroAudioAllowed,
+  setGameplayAudioActive,
+  setIntroAudioAllowed,
+} from './session';
 
 /** Orchestrates intro, gameplay music, ambient layers, and mute state. */
 class SoundDirector {
@@ -19,15 +23,18 @@ class SoundDirector {
   }
 
   async beginIntroAudio(): Promise<void> {
+    setIntroAudioAllowed(true);
     await this.ensureIntroAudio();
   }
 
   /** Unlock the audio context and start or resume intro music (safe to call repeatedly). */
   async ensureIntroAudio(): Promise<void> {
-    if (audioGraph.isMuted || this.gameplayActive) return;
+    if (audioGraph.isMuted || this.gameplayActive || !isIntroAudioAllowed()) return;
     introMusic.tryAutoplay();
     await this.unlock();
+    if (this.gameplayActive || !isIntroAudioAllowed()) return;
     await preloadAllSamples();
+    if (this.gameplayActive || !isIntroAudioAllowed()) return;
     if (introMusic.isRunning) {
       introMusic.restartPadIfNeeded();
     } else {
@@ -35,9 +42,16 @@ class SoundDirector {
     }
   }
 
+  /** Leave the intro screen — stop the theme and block gesture restarts until intro returns. */
+  dismissIntroAudio(): void {
+    setIntroAudioAllowed(false);
+    introMusic.stop();
+  }
+
   async beginGameplayAudio(): Promise<void> {
     this.gameplayActive = true;
     setGameplayAudioActive(true);
+    setIntroAudioAllowed(false);
     introMusic.stop();
     audioGraph.primeUnlock();
     await this.unlock();
@@ -53,6 +67,7 @@ class SoundDirector {
   stopAll() {
     this.gameplayActive = false;
     setGameplayAudioActive(false);
+    setIntroAudioAllowed(true);
     introMusic.stop();
     backgroundMusic.stop();
     ambientNature.stop();
@@ -65,11 +80,13 @@ class SoundDirector {
   }
 
   private resumeAfterUnmute(): void {
-    if (introMusic.isRunning) {
-      introMusic.restartPadIfNeeded();
-    } else if (this.gameplayActive) {
+    if (this.gameplayActive) {
       void backgroundMusic.ensurePlaying();
       void ambientNature.ensurePlaying();
+      return;
+    }
+    if (isIntroAudioAllowed() && introMusic.isRunning) {
+      introMusic.restartPadIfNeeded();
     }
   }
 

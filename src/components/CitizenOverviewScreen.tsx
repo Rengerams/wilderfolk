@@ -2,11 +2,20 @@
  * Full-screen People overview — citizen health first, then world & chronicle.
  * Presentation only; all simulation changes go through typed command callbacks.
  */
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef } from 'react';
 import type { Entity, WorldState } from '../game/gameTypes';
 import { computeCitizenOverview } from '../game/citizenOverview';
 import type { VillageStatsSummary } from '../game/uiSimSummary';
 import type { FocusHintAction } from '../game/focusHints';
+import type {
+  OverviewNavId,
+  OverviewSection,
+  OverviewWorldFocus,
+  ProgressSubTab,
+  LogSubTab,
+  MoreSubTab,
+} from '../hooks/useGameShellState';
+import { overviewNavFromState } from '../hooks/useGameShellState';
 import WorkSchedulePanel from './WorkSchedulePanel';
 import VenueSchedulePanel from './VenueSchedulePanel';
 
@@ -17,10 +26,7 @@ const ProgressTabPanel = lazy(() => import('./tabPanels/ProgressTabPanel'));
 const LogTabPanel = lazy(() => import('./tabPanels/LogTabPanel'));
 const MoreTabPanel = lazy(() => import('./tabPanels/MoreTabPanel'));
 
-type OverviewSection = 'people' | 'world' | 'chronicle' | 'help';
-type ProgressSubTab = 'research' | 'trade' | 'goals';
-type LogSubTab = 'chronicle' | 'combat';
-type MoreSubTab = 'guide' | 'roadmap' | 'campaign';
+export type { OverviewSection, OverviewWorldFocus };
 
 export interface CitizenOverviewScreenProps {
   state: WorldState;
@@ -30,6 +36,12 @@ export interface CitizenOverviewScreenProps {
   pendingOutgoingRaidCount: number;
   pendingDiplomacyCount: number;
   tradeReadyCount: number;
+  /** Controlled section from the Overview button / hotkeys. */
+  section: OverviewSection;
+  /** When World is open, which panel to show. */
+  worldFocus?: OverviewWorldFocus | null;
+  /** In-overlay tab strip — choose Village / Nature / … from here. */
+  onNavChange: (id: OverviewNavId) => void;
   progressSubTab: ProgressSubTab;
   setProgressSubTab: (tab: ProgressSubTab) => void;
   logSubTab: LogSubTab;
@@ -111,6 +123,9 @@ export default function CitizenOverviewScreen({
   pendingOutgoingRaidCount,
   pendingDiplomacyCount,
   tradeReadyCount,
+  section,
+  worldFocus = null,
+  onNavChange,
   progressSubTab,
   setProgressSubTab,
   logSubTab,
@@ -137,8 +152,13 @@ export default function CitizenOverviewScreen({
   onStartGuidedCampaign,
   suppressHintIds = [],
 }: CitizenOverviewScreenProps) {
-  const [section, setSection] = useState<OverviewSection>('people');
   const overview = computeCitizenOverview(state);
+  const worldFocusRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (section !== 'world' || !worldFocus || !worldFocusRef.current) return;
+    worldFocusRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [section, worldFocus]);
 
   const moodTone =
     overview.mood === 'thriving' || overview.mood === 'stable'
@@ -147,28 +167,41 @@ export default function CitizenOverviewScreen({
         ? 'warn'
         : 'bad';
 
-  const sections: { id: OverviewSection; label: string; hint: string }[] = [
-    { id: 'people', label: 'People & home', hint: 'Citizens, housing, work hours' },
-    { id: 'world', label: 'World & progress', hint: 'Frontier, nature, research, trade' },
-    { id: 'chronicle', label: 'Chronicle', hint: 'Births, deaths, scandals, settlers' },
-    { id: 'help', label: 'Help', hint: 'Guide and roadmap' },
+  const activeNav = overviewNavFromState(section, worldFocus ?? null);
+
+  const navTabs: { id: OverviewNavId; label: string; hint: string }[] = [
+    { id: 'people', label: 'Village', hint: 'Citizens, housing, work hours' },
+    { id: 'frontier', label: 'Frontier', hint: 'Visitors, rivals, raids' },
+    { id: 'nature', label: 'Nature', hint: 'Ecosystem and wildlife' },
+    { id: 'progress', label: 'Progress', hint: 'Research, trade, goals' },
+    { id: 'chronicle', label: 'Log', hint: 'Births, deaths, scandals' },
+    { id: 'help', label: 'More', hint: 'Guide and roadmap' },
   ];
+
+  const titleByNav: Record<OverviewNavId, { eyebrow: string; title: string }> = {
+    people: { eyebrow: 'Valley overview', title: 'How are your citizens doing?' },
+    frontier: { eyebrow: 'Valley overview', title: 'Visitors, rivals, and raids' },
+    nature: { eyebrow: 'Valley overview', title: 'Wildlife and the valley' },
+    progress: { eyebrow: 'Valley overview', title: 'Research, trade, and goals' },
+    chronicle: { eyebrow: 'Valley overview', title: 'What happened in the valley' },
+    help: { eyebrow: 'Valley overview', title: 'Guide and campaign help' },
+  };
 
   return (
     <div
       className="pointer-events-auto fixed inset-0 z-[60] flex items-stretch justify-center bg-stone-950/80 p-2 backdrop-blur-sm sm:p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="People overview"
+      aria-label="Valley overview"
     >
-      <div className="flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-stone-600/50 bg-stone-950 shadow-2xl shadow-black/50">
+      <div className="flex h-full w-full max-w-[min(72rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border border-stone-600/50 bg-stone-950 shadow-2xl shadow-black/50">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-700/80 bg-stone-900/90 px-4 py-3 sm:px-5">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-400">
-              People overview
+              {titleByNav[activeNav].eyebrow}
             </p>
             <h2 className="truncate text-xl font-black text-stone-50 sm:text-2xl">
-              How are your citizens doing?
+              {titleByNav[activeNav].title}
             </h2>
             <p className="mt-0.5 text-[13px] text-stone-300">
               {overview.moodLabel} — {overview.moodDetail}
@@ -232,19 +265,19 @@ export default function CitizenOverviewScreen({
         </div>
 
         <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-stone-800 bg-stone-900/60 px-3 py-2 sm:px-4">
-          {sections.map((s) => (
+          {navTabs.map((tab) => (
             <button
-              key={s.id}
+              key={tab.id}
               type="button"
-              title={s.hint}
-              onClick={() => setSection(s.id)}
+              title={tab.hint}
+              onClick={() => onNavChange(tab.id)}
               className={`rounded-xl px-3 py-2 text-sm font-bold whitespace-nowrap transition-colors ${
-                section === s.id
+                activeNav === tab.id
                   ? 'bg-emerald-700/80 text-emerald-50 ring-1 ring-emerald-400/40'
                   : 'bg-stone-800/60 text-stone-300 hover:bg-stone-700/70'
               }`}
             >
-              {s.label}
+              {tab.label}
             </button>
           ))}
         </nav>
@@ -266,7 +299,7 @@ export default function CitizenOverviewScreen({
                   onToggleFavoriteCitizen={onToggleFavoriteCitizen}
                   onOpenGoals={() => {
                     setProgressSubTab('goals');
-                    setSection('world');
+                    onNavChange('progress');
                   }}
                   onHintAction={onHintAction}
                   suppressHintIds={suppressHintIds}
@@ -283,30 +316,70 @@ export default function CitizenOverviewScreen({
 
             {section === 'world' && (
               <div className="space-y-4">
-                <FrontierTabPanel
-                  state={state}
-                  pendingRaidCount={pendingRaidCount}
-                  pendingOutgoingRaidCount={pendingOutgoingRaidCount}
-                  pendingDiplomacyCount={pendingDiplomacyCount}
-                  onFocusVisitor={(id, x, y) => {
-                    onFocusVisitor(id, x, y);
-                    onClose();
-                  }}
-                  onFocusRival={(id, x, y, buildingId) => {
-                    onFocusRival(id, x, y, buildingId);
-                    onClose();
-                  }}
-                  onLaunchRaid={onLaunchRaid}
-                />
-                <NatureTabPanel state={state} />
-                <ProgressTabPanel
-                  state={state}
-                  progressSubTab={progressSubTab}
-                  setProgressSubTab={setProgressSubTab}
-                  tradeReadyCount={tradeReadyCount}
-                  onStartResearch={onStartResearch}
-                  onEstablishTradeRoute={onEstablishTradeRoute}
-                />
+                {(() => {
+                  const frontierPanel = (
+                    <section
+                      key="frontier"
+                      ref={worldFocus === 'frontier' ? worldFocusRef : undefined}
+                      className="rounded-xl border border-stone-600/40 bg-stone-900/35 p-3"
+                    >
+                      <h3 className="mb-2 text-sm font-bold text-stone-200">🏕️ Frontier</h3>
+                      <FrontierTabPanel
+                        state={state}
+                        pendingRaidCount={pendingRaidCount}
+                        pendingOutgoingRaidCount={pendingOutgoingRaidCount}
+                        pendingDiplomacyCount={pendingDiplomacyCount}
+                        onFocusVisitor={(id, x, y) => {
+                          onFocusVisitor(id, x, y);
+                          onClose();
+                        }}
+                        onFocusRival={(id, x, y, buildingId) => {
+                          onFocusRival(id, x, y, buildingId);
+                          onClose();
+                        }}
+                        onLaunchRaid={onLaunchRaid}
+                      />
+                    </section>
+                  );
+                  const naturePanel = (
+                    <section
+                      key="nature"
+                      ref={worldFocus === 'nature' ? worldFocusRef : undefined}
+                      className="rounded-xl border border-stone-600/40 bg-stone-900/35 p-3"
+                    >
+                      <h3 className="mb-2 text-sm font-bold text-stone-200">🌿 Nature</h3>
+                      <NatureTabPanel state={state} />
+                    </section>
+                  );
+                  const progressPanel = (
+                    <section
+                      key="progress"
+                      ref={worldFocus === 'progress' ? worldFocusRef : undefined}
+                      className="rounded-xl border border-stone-600/40 bg-stone-900/35 p-3"
+                    >
+                      <h3 className="mb-2 text-sm font-bold text-stone-200">📊 Progress</h3>
+                      <ProgressTabPanel
+                        state={state}
+                        progressSubTab={progressSubTab}
+                        setProgressSubTab={setProgressSubTab}
+                        tradeReadyCount={tradeReadyCount}
+                        onStartResearch={onStartResearch}
+                        onEstablishTradeRoute={onEstablishTradeRoute}
+                      />
+                    </section>
+                  );
+                  // Rail tabs open one focused panel; the World nav button shows all three.
+                  if (worldFocus === 'frontier') return frontierPanel;
+                  if (worldFocus === 'nature') return naturePanel;
+                  if (worldFocus === 'progress') return progressPanel;
+                  return (
+                    <>
+                      {frontierPanel}
+                      {naturePanel}
+                      {progressPanel}
+                    </>
+                  );
+                })()}
               </div>
             )}
 

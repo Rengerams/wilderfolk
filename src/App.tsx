@@ -48,7 +48,7 @@ import { formatRaidDeadlineSafe } from './game/raidUtils';
 import SelectedBuildingPanel from './components/SelectedBuildingPanel';
 import GameMapStage from './components/GameMapStage';
 import { isPlayerHuman } from './game/playerHuman';
-import { loadNames, fixDefaultNames } from './game/nameLoader';
+import { areNamesLoaded, loadNames, fixDefaultNames } from './game/nameLoader';
 import { ensureDialogueBankFromBundle, preloadDialogueBank } from './game/dialogueTrees';
 import { preloadRenderer } from './game/rendererLoader';
 const IntroScreen = lazy(() => import('./game/IntroScreen'));
@@ -76,9 +76,8 @@ import { useGameSession } from './hooks/useGameSession';
 import {
   TUTORIAL_DONE_STORAGE_KEY as TUTORIAL_DONE_KEY,
   useGameShellState,
-  type SidebarTab,
 } from './hooks/useGameShellState';
-import { beginAudio, primeAudioUnlock, playClickSound, stopIntroSong } from './audio';
+import { beginAudio, beginIntroAudio, primeAudioUnlock, playClickSound, stopIntroSong } from './audio';
 import { useGameAudio } from './hooks/useGameAudio';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { useCanvasInteractions } from './hooks/useCanvasInteractions';
@@ -95,14 +94,6 @@ import {
 } from './game/preferences';
 import { LabelWithResourceCost } from './components/ResourceCost';
 import { BARRICADE_RAID_COST, canAffordResourceCost, formatResourceCostNeed } from './game/resourceCost';
-import VillageTabPanel from './components/tabPanels/VillageTabPanel';
-import WorkSchedulePanel from './components/WorkSchedulePanel';
-import VenueSchedulePanel from './components/VenueSchedulePanel';
-import FrontierTabPanel from './components/tabPanels/FrontierTabPanel';
-import NatureTabPanel from './components/tabPanels/NatureTabPanel';
-import ProgressTabPanel from './components/tabPanels/ProgressTabPanel';
-import LogTabPanel from './components/tabPanels/LogTabPanel';
-import MoreTabPanel from './components/tabPanels/MoreTabPanel';
 import CitizenOverviewScreen from './components/CitizenOverviewScreen';
 
 import AlertBar from './components/AlertBar';
@@ -120,16 +111,6 @@ import MomentTitleCard from './components/MomentTitleCard';
 import { currentCampaignStep, TUTORIAL_CAMPAIGN } from './game/tutorialCampaign';
 
 const SPEED_OPTIONS = [0.5, 1, 2, 3, 5, 10];
-
-const SIDEBAR_TABS: { id: SidebarTab; icon: string; label: string; hint: string }[] = [
-  { id: 'village', icon: '🏘️', label: 'Village', hint: 'People, leadership, armament' },
-  { id: 'schedule', icon: '🕰️', label: 'Hours', hint: 'Set ordinary weekday work hours' },
-  { id: 'frontier', icon: '🏕️', label: 'Frontier', hint: 'Visitors, rivals, raids' },
-  { id: 'nature', icon: '🌿', label: 'Nature', hint: 'Ecosystem & wildlife' },
-  { id: 'progress', icon: '📊', label: 'Progress', hint: 'Research · Trade · Goals — press P' },
-  { id: 'log', icon: '📜', label: 'Log', hint: 'Village chronicle' },
-  { id: 'more', icon: '⋯', label: 'More', hint: 'Guide & roadmap' },
-];
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -165,8 +146,10 @@ export default function App() {
     moreSubTab,
     openCitizenOverview,
     openTab,
-    openTabs,
+    overviewSection,
+    overviewWorldFocus,
     progressSubTab,
+    selectOverviewNav,
     selectedMapPreset,
     selectedMapSize,
     setBuildPanelOpen,
@@ -196,7 +179,6 @@ export default function App() {
     showSimTick,
     showTutorial,
     toggleCitizenOverview,
-    toggleTab,
     tutorialChoice,
     tutorialsEnabled,
     tutorialStep,
@@ -230,9 +212,13 @@ export default function App() {
   const { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset } = useGameAudio(world, gameplayActive);
 
   useEffect(() => {
-    if (showIntro || gameplayActive) return;
+    if (showIntro) {
+      void beginIntroAudio();
+      return;
+    }
+    // Map setup and in-game: stop the theme and block gesture-driven restarts.
     stopIntroSong();
-  }, [showIntro, gameplayActive]);
+  }, [showIntro]);
 
   useEffect(() => {
     if (!gameplayActive) return;
@@ -899,29 +885,35 @@ export default function App() {
     setMoreSubTab('guide');
   }, [openTab, setMoreSubTab]);
   const beginNewGameSession = useCallback((villageName: string) => {
-    deleteSave();
-    const s = initGame({ size: selectedMapSize, preset: selectedMapPreset, villageName });
-    // Only pause when the quick-start overlay will actually show — otherwise the sim stays frozen.
-    // Respect the done flag too: a player who already skipped/completed the tutorial must not
-    // get the "how to place buildings" overlay again on a new game.
-    let tutorialDone = false;
-    try {
-      tutorialDone = localStorage.getItem(TUTORIAL_DONE_KEY) === '1';
-    } catch { /* ignore */ }
-    const showQuickStart = tutorialsEnabled && !tutorialDone;
-    s.paused = showQuickStart;
-    s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
-    const nextView = createInitialView(s.width, s.height);
-    resetTransientFeedbackForNewSession();
-    replaceSession(s, nextView);
-    setSelectedBuildingType(null);
-    setHasSavedGame(false);
-    setFirstNightWarningDismissed(false);
-    saveFirstNightWarningDismissed(false);
-    setShowTutorial(showQuickStart);
-    setTutorialStep(0);
-    setCampaignActive(tutorialChoice);
-    setShowMapSetup(false);
+    const start = async () => {
+      // Founders must be named from the census files, not the boot markers.
+      if (!areNamesLoaded()) await loadNames();
+      deleteSave();
+      const s = initGame({ size: selectedMapSize, preset: selectedMapPreset, villageName });
+      fixDefaultNames(s);
+      // Only pause when the quick-start overlay will actually show — otherwise the sim stays frozen.
+      // Respect the done flag too: a player who already skipped/completed the tutorial must not
+      // get the "how to place buildings" overlay again on a new game.
+      let tutorialDone = false;
+      try {
+        tutorialDone = localStorage.getItem(TUTORIAL_DONE_KEY) === '1';
+      } catch { /* ignore */ }
+      const showQuickStart = tutorialsEnabled && !tutorialDone;
+      s.paused = showQuickStart;
+      s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
+      const nextView = createInitialView(s.width, s.height);
+      resetTransientFeedbackForNewSession();
+      replaceSession(s, nextView);
+      setSelectedBuildingType(null);
+      setHasSavedGame(false);
+      setFirstNightWarningDismissed(false);
+      saveFirstNightWarningDismissed(false);
+      setShowTutorial(showQuickStart);
+      setTutorialStep(0);
+      setCampaignActive(tutorialChoice);
+      setShowMapSetup(false);
+    };
+    void start();
   }, [
     selectedMapSize,
     selectedMapPreset,
@@ -1678,7 +1670,12 @@ export default function App() {
         </>
       )}
       inspector={(
-        <aside className="side-panel flex w-[18.5rem] flex-col border-l border-stone-700/80">
+        <aside
+          className={`side-panel flex w-[18.5rem] flex-col border-l border-stone-700/80 ${
+            citizenOverviewOpen ? 'pointer-events-none invisible' : ''
+          }`}
+          aria-hidden={citizenOverviewOpen}
+        >
         <GameInspector
           hasSelection={hasInspectorSelection}
           collapsed={inspectorCollapsed}
@@ -1808,207 +1805,33 @@ export default function App() {
 
         </GameInspector>
       <GameSidebar>
-      {/* Tabs */}
-          <div className="sidebar-tabs shrink-0">
-            {SIDEBAR_TABS.map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => toggleTab(tab.id)}
-                className={`sidebar-tab relative ${openTabs.has(tab.id) ? 'sidebar-tab--active text-emerald-400' : 'text-stone-400 hover:text-stone-300'}`}
-                title={tab.hint}
-                aria-label={tab.hint}
-                aria-pressed={openTabs.has(tab.id)}
-              >
-                <Emoji className="text-lg">{tab.icon}</Emoji>
-                <span className="text-[13px] font-bold leading-tight sm:text-sm">{tab.label}</span>
-                {tab.id === 'frontier' && frontierAlertCount > 0 && (
-                  <span className="sidebar-tab-badge">{frontierAlertCount}</span>
-                )}
-                {tab.id === 'progress' && progressTabAlert && (
-                  tradeReadyCount > 0
-                    ? <span className="sidebar-tab-badge">{tradeReadyCount}</span>
-                    : <span className="sidebar-tab-dot" title="Research in progress" />
-                )}
-              </button>
-            ))}
-          </div>
-
-          <div ref={sidebarContentRef} className="flex-1 overflow-y-auto p-3">
-            {openTabs.has('village') && (
-              <div className="mb-3 rounded-xl border border-stone-600/30 bg-stone-800/20 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-stone-300">🏘️ Village</h3>
-                  <button
-                    type="button"
-                    onClick={() => toggleTab('village')}
-                    className="text-sm text-stone-400 hover:text-stone-300"
-                    title="Close panel"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <VillageTabPanel
-                  state={world}
-                  villageStats={villageStats}
-                  favoriteEntityId={view.favoriteEntityId}
-                  onRecruitSettler={() => applyGameAction({ proto: 1, op: 'recruitSettler' })}
-                  onFocusBuilding={focusBuildingOnMap}
-                  onFocusCitizen={focusCitizenOnMap}
-                  onToggleFavoriteCitizen={(id) => {
-                    playClickSound();
-                    toggleFavoriteCitizen(id);
-                  }}
-                  onOpenGoals={() => { openTab('progress'); setProgressSubTab('goals'); }}
-                  onHintAction={handleHintAction}
-                  suppressHintIds={campaignStep?.id === 'build_house' ? ['build_house'] : []}
-                />
-              </div>
-            )}
-
-            {openTabs.has('schedule') && (
-              <div className="mb-3 rounded-xl border border-stone-600/30 bg-stone-800/20 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-stone-300">🕰️ Work hours</h3>
-                  <button
-                    type="button"
-                    onClick={() => toggleTab('schedule')}
-                    className="text-sm text-stone-400 hover:text-stone-300"
-                    title="Close panel"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <WorkSchedulePanel
-                  state={world}
-                  onApply={(startHour, endHour) => applyGameAction({ proto: 1, op: 'setWorkSchedule', startHour, endHour })}
-                />
-                <div className="my-4 border-t border-stone-700/60 pt-4">
-                  <VenueSchedulePanel
-                    state={world}
-                    onApply={(venue, startHour, endHour) => applyGameAction({ proto: 1, op: 'setVenueSchedule', venue, startHour, endHour })}
-                  />
-                </div>
-              </div>
-            )}
-
-            {openTabs.has('frontier') && (
-              <div className="mb-3 rounded-xl border border-stone-600/30 bg-stone-800/20 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-stone-300">🏕️ Frontier</h3>
-                  <button
-                    type="button"
-                    onClick={() => toggleTab('frontier')}
-                    className="text-sm text-stone-400 hover:text-stone-300"
-                    title="Close panel"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <FrontierTabPanel
-                  state={world}
-                  pendingRaidCount={pendingRaids.length}
-                  pendingOutgoingRaidCount={pendingOutgoingRaids.length}
-                  pendingDiplomacyCount={pendingDiplomacy.length}
-                  onFocusVisitor={(id, x, y) => focusCampOnMap('visitor', id, x, y)}
-                  onFocusRival={(id, x, y, buildingId) => focusCampOnMap('rival', id, x, y, buildingId)}
-                  onLaunchRaid={(rivalId) => {
-                    playClickSound();
-                    applyGameAction({ proto: 1, op: 'launchRaidOnRival', rivalId });
-                  }}
-                />
-              </div>
-            )}
-
-            {openTabs.has('nature') && (
-              <div className="mb-3 rounded-xl border border-stone-600/30 bg-stone-800/20 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-stone-300">🌿 Nature</h3>
-                  <button
-                    type="button"
-                    onClick={() => toggleTab('nature')}
-                    className="text-sm text-stone-400 hover:text-stone-300"
-                    title="Close panel"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <NatureTabPanel
-                  state={world}
-                />
-              </div>
-            )}
-
-            {openTabs.has('progress') && (
-              <div className="mb-3 rounded-xl border border-stone-600/30 bg-stone-800/20 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-stone-300">📊 Progress</h3>
-                  <button
-                    type="button"
-                    onClick={() => toggleTab('progress')}
-                    className="text-sm text-stone-400 hover:text-stone-300"
-                    title="Close panel"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <ProgressTabPanel
-                  state={world}
-                  progressSubTab={progressSubTab}
-                  setProgressSubTab={setProgressSubTab}
-                  tradeReadyCount={tradeReadyCount}
-                  onStartResearch={(researchId) => applyGameAction({ proto: 1, op: 'startResearch', researchId })}
-                  onEstablishTradeRoute={(routeId) => applyGameAction({ proto: 1, op: 'establishTradeRoute', routeId })}
-                />
-              </div>
-            )}
-
-            {openTabs.has('log') && (
-              <div className="mb-3 rounded-xl border border-stone-600/30 bg-stone-800/20 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-stone-300">📜 Log</h3>
-                  <button
-                    type="button"
-                    onClick={() => toggleTab('log')}
-                    className="text-sm text-stone-400 hover:text-stone-300"
-                    title="Close panel"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <LogTabPanel
-                  state={world}
-                  logSubTab={logSubTab}
-                  setLogSubTab={setLogSubTab}
-                />
-              </div>
-            )}
-
-            {openTabs.has('more') && (
-              <div className="mb-3 rounded-xl border border-stone-600/30 bg-stone-800/20 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-stone-300">⋯ More</h3>
-                  <button
-                    type="button"
-                    onClick={() => toggleTab('more')}
-                    className="text-sm text-stone-400 hover:text-stone-300"
-                    title="Close panel"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <MoreTabPanel
-                  moreSubTab={moreSubTab}
-                  setMoreSubTab={setMoreSubTab}
-                  tutorialsEnabled={tutorialsEnabled}
-                  onReplayTutorial={() => { setTutorialStep(0); setShowTutorial(true); }}
-                  onToggleTutorials={handleToggleTutorials}
-                  onSpawnMoonHowlerDebug={() => applyGameAction({ proto: 1, op: 'spawnMoonHowlerDebug' })}
-                  state={world}
-                  onStartGuidedCampaign={() => applyGameAction({ proto: 1, op: 'startGuidedCampaign' })}
-                />
-              </div>
-            )}
+          <div ref={sidebarContentRef} className="flex flex-1 flex-col items-center gap-3 px-2 py-4">
+            <button
+              type="button"
+              onClick={() => {
+                playClickSound();
+                toggleCitizenOverview();
+              }}
+              className={`relative flex w-full flex-col items-center gap-1 rounded-xl px-2 py-3 text-center shadow-sm transition-colors ${
+                citizenOverviewOpen
+                  ? 'bg-emerald-700/80 text-emerald-50 ring-1 ring-emerald-400/40'
+                  : 'bg-stone-800/70 text-stone-200 ring-1 ring-stone-600/50 hover:bg-stone-700/80'
+              }`}
+              title="Valley overview — Village, Frontier, Nature, Progress, Log, More (O)"
+              aria-label="Open valley overview"
+              aria-pressed={citizenOverviewOpen}
+            >
+              <Emoji className="text-2xl">📋</Emoji>
+              <span className="text-[11px] font-bold leading-tight">Overview</span>
+              {(frontierAlertCount > 0 || progressTabAlert) && (
+                <span className="sidebar-tab-badge">
+                  {Math.max(1, frontierAlertCount + tradeReadyCount)}
+                </span>
+              )}
+            </button>
+            <p className="px-1 text-center text-[10px] leading-snug text-stone-500">
+              One button. Choose Village, Nature, and the rest inside.
+            </p>
           </div>
       </GameSidebar>
         </aside>
@@ -2047,6 +1870,7 @@ export default function App() {
           state={world}
           onClose={() => setShowDashboard(false)}
           onNavigate={(where) => {
+            setShowDashboard(false);
             switch (where) {
               case 'farm':
                 handleHintAction({ id: 'build_farm', label: 'Build a Farm' });
@@ -2077,6 +1901,9 @@ export default function App() {
           pendingOutgoingRaidCount={pendingOutgoingRaids.length}
           pendingDiplomacyCount={pendingDiplomacy.length}
           tradeReadyCount={tradeReadyCount}
+          section={overviewSection}
+          worldFocus={overviewWorldFocus}
+          onNavChange={selectOverviewNav}
           progressSubTab={progressSubTab}
           setProgressSubTab={setProgressSubTab}
           logSubTab={logSubTab}
@@ -2092,7 +1919,14 @@ export default function App() {
             playClickSound();
             toggleFavoriteCitizen(id);
           }}
-          onHintAction={handleHintAction}
+          onHintAction={(action) => {
+            // Map/build/focus actions need the world underneath — leave the overlay first.
+            const needsMap =
+              action.id.startsWith('build_')
+              || action.id.startsWith('focus_');
+            if (needsMap) closeCitizenOverview();
+            handleHintAction(action);
+          }}
           suppressHintIds={campaignStep?.id === 'build_house' ? ['build_house'] : []}
           onApplyWorkSchedule={(startHour, endHour) =>
             applyGameAction({ proto: 1, op: 'setWorkSchedule', startHour, endHour })

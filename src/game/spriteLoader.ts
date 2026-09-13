@@ -154,8 +154,8 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/terrain/sand_water_overlay.png',
     // Painted dirt (25×25 seamless) — hills/peaks relief surfaces
     '/sprites/tile_dirt.png',
-    // Mountain peak overlays stamped on Mountainous terrain ridge caps.
-    ...MOUNTAIN_SPRITE_PATHS,
+    // Mountain peak overlays (`MOUNTAIN_SPRITE_PATHS`) are omitted until
+    // `public/sprites/mountains/` ships — preloading missing files spams boot errors.
   ];
   // Decor buildings draw procedurally — they reference no real sprite file.
   const buildingSprites = Object.values(BUILDING_CONFIGS)

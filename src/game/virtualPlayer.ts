@@ -26,7 +26,7 @@ import {
   snapBuildingCenter,
   type BuildingRotation,
 } from './buildingRotation';
-import { canAfford, isResourceCapped } from './resourceUtils';
+import { canAfford, getAvailableStorageHeadroom } from './resourceUtils';
 import { hasResidenceAssignment, hasWorkAssignment } from './residencyOccupancy';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { getPlayerCampCenter } from './frontierCombat';
@@ -35,7 +35,13 @@ import { isManualStaffingBuilding } from './workforce';
 import { getOpenBeds } from './populationGrowth';
 import { canHostTownFestival, findPlayerTownHall } from './townHall';
 import { canStartResearch } from './research';
+import {
+  getDiplomacyChoiceEligibility,
+  VILLAGE_REQUEST_PROVISIONS_COST_GOLD,
+  VILLAGE_REQUEST_PROVISIONS_FOOD,
+} from './groupEvents';
 import { Human, VirtualPlayer } from './gameConstants';
+import type { DiplomacyEvent } from './gameTypes';
 
 /** One proposed auto-play action plus the short player-facing reason for it. */
 export interface VirtualPlayerDecision {
@@ -78,19 +84,28 @@ function pickChoice(choices: readonly CardChoice[] | undefined): CardChoice | nu
   return choices[0];
 }
 
+/** Prefer a firm answer, but only if the real diplomacy owner would allow it. */
+function pickAffordableDiplomacyChoice(
+  state: WorldState,
+  event: DiplomacyEvent,
+): CardChoice | null {
+  const choices = event.choices;
+  if (!choices || choices.length === 0) return null;
+
+  const preferred = pickChoice(choices);
+  if (preferred && getDiplomacyChoiceEligibility(state, event, preferred.id).ok) {
+    return preferred;
+  }
+
+  for (const choice of choices) {
+    if (getDiplomacyChoiceEligibility(state, event, choice.id).ok) return choice;
+  }
+  return null;
+}
+
 /** Days of settler need currently in the larder. */
 function foodNeedPerDay(settlers: number): number {
   return settlers * Human.DAILY_FOOD_CONSUMPTION;
-}
-
-/**
- * "Comfortable" = stores cover the same buffer the food priority builds against.
- * An empty colony has nothing to feed, so it counts as comfortable.
- */
-function hasComfortableFoodStores(state: WorldState): boolean {
-  const settlers = playerHumanCount(state.entities);
-  if (settlers <= 0) return true;
-  return (state.resources.food ?? 0) >= foodNeedPerDay(settlers) * VirtualPlayer.FOOD_BUFFER_DAYS;
 }
 
 /** Idle adults the staffing owner would actually accept for a workplace. */
@@ -184,7 +199,7 @@ function answerOpenCard(state: WorldState): VirtualPlayerDecision | null {
 
   const diplomacy = state.pendingDiplomacyEvents?.[0];
   if (diplomacy) {
-    const choice = pickChoice(diplomacy.choices);
+    const choice = pickAffordableDiplomacyChoice(state, diplomacy);
     if (choice) {
       return {
         command: {
@@ -200,10 +215,11 @@ function answerOpenCard(state: WorldState): VirtualPlayerDecision | null {
 
   const request = state.activeVillageRequest;
   if (request && request.choices.length > 0) {
-    // Accept only when the colony can both spare the gold and store the food —
-    // the game itself rejects an accept that overflows the granary, which would
-    // otherwise leave the same request open and re-answered every hour.
-    const accept = hasComfortableFoodStores(state) && !isResourceCapped(state, 'food');
+    // Match resolveVillageRequest gates: enough gold and granary headroom for the food.
+    // A failed accept leaves the request open and would burn every auto-play hour.
+    const accept =
+      (state.resources.gold ?? 0) >= VILLAGE_REQUEST_PROVISIONS_COST_GOLD
+      && getAvailableStorageHeadroom(state, 'food') >= VILLAGE_REQUEST_PROVISIONS_FOOD;
     return {
       command: {
         proto: WORKER_CMD_PROTO,
@@ -212,7 +228,7 @@ function answerOpenCard(state: WorldState): VirtualPlayerDecision | null {
         choice: accept ? 'accept' : 'decline',
       },
       reason: accept
-        ? `accept ${request.sourceName}'s provisions — stores are comfortable`
+        ? `accept ${request.sourceName}'s provisions — gold and stores allow it`
         : `decline ${request.sourceName}'s provisions — the colony cannot take them`,
     };
   }

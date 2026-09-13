@@ -233,31 +233,33 @@ tutorialsEnabled,
           </div>
         </div>
 
-        <div
-          className="hud-chip flex items-center gap-1 rounded-lg px-1.5 py-1"
-          title={autoPlayTitle}
-        >
-          <button
-            type="button"
-            onClick={onToggleAutoPlay}
-            aria-pressed={autoPlay}
-            className={`rounded-md px-2 py-1 text-xs font-bold shadow-sm transition-colors ${autoPlay ? 'bg-cyan-700 text-cyan-50 ring-1 ring-cyan-400/40' : 'bg-stone-950/40 text-stone-400 hover:bg-stone-700/60 hover:text-white'}`}
-            title={autoPlay
-              ? 'Stop the virtual player'
-              : 'Let the virtual player run the colony — one real command per in-game hour'}
-            aria-label={autoPlay ? 'Turn auto-play off' : 'Turn auto-play on'}
+        {typeof import.meta !== 'undefined' && import.meta.env?.DEV === true && (
+          <div
+            className="hud-chip flex items-center gap-1 rounded-lg px-1.5 py-1"
+            title={autoPlayTitle}
           >
-            🤖 Auto-play
-          </button>
-          {autoPlay && autoPlayStatus && (
-            <span
-              className="hidden max-w-[17rem] truncate text-[11px] text-cyan-200 sm:inline"
-              title={autoPlayStatus}
+            <button
+              type="button"
+              onClick={onToggleAutoPlay}
+              aria-pressed={autoPlay}
+              className={`rounded-md px-2 py-1 text-xs font-bold shadow-sm transition-colors ${autoPlay ? 'bg-cyan-700 text-cyan-50 ring-1 ring-cyan-400/40' : 'bg-stone-950/40 text-stone-400 hover:bg-stone-700/60 hover:text-white'}`}
+              title={autoPlay
+                ? 'Stop the virtual player'
+                : 'Let the virtual player run the colony — one real command per in-game hour'}
+              aria-label={autoPlay ? 'Turn auto-play off' : 'Turn auto-play on'}
             >
-              auto-player: {autoPlayStatus}
-            </span>
-          )}
-        </div>
+              🤖 Auto-play
+            </button>
+            {autoPlay && autoPlayStatus && (
+              <span
+                className="hidden max-w-[17rem] truncate text-[11px] text-cyan-200 sm:inline"
+                title={autoPlayStatus}
+              >
+                auto-player: {autoPlayStatus}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex shrink-0 flex-nowrap items-center gap-2">
