@@ -50,6 +50,15 @@ export function initTradeRoutes(): WorldState['tradeRoutes'] {
     { id: 'trade_5', targetName: 'Silkmarket', resourcesGiven: { wood: 30, stone: 10, food: 40, gold: 20, iron: 0 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 80, iron: 0 }, reputationRequired: 75, active: false },
     { id: 'trade_6', targetName: 'Spice Coast', resourcesGiven: { wood: 25, stone: 15, food: 50, gold: 30, iron: 0 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 120, iron: 0 }, reputationRequired: 85, active: false },
     { id: 'trade_7', targetName: 'Granite Reach', resourcesGiven: { wood: 40, stone: 35, food: 30, gold: 40, iron: 0 }, resourcesReceived: { wood: 0, stone: 80, food: 0, gold: 60, iron: 0 }, reputationRequired: 95, active: false },
+    // --- Coin → materials. Every route above *exports* materials for coin, which left a
+    // colony that had coin but no wood or stone with no way back (and nothing a colony
+    // builds is free). These three buy the other way. The first needs no reputation, so it
+    // is always available, and `canEstablishTradeRoute` lets a purchase route skip the
+    // Market requirement — a Market costs 50 wood and 20 stone, which is exactly what a
+    // trapped colony does not have.
+    { id: 'trade_8', targetName: 'Timberland Traders', resourcesGiven: { wood: 0, stone: 0, food: 0, gold: 25, iron: 0 }, resourcesReceived: { wood: 60, stone: 0, food: 0, gold: 0, iron: 0 }, reputationRequired: 0, active: false },
+    { id: 'trade_9', targetName: 'Stonefall Traders', resourcesGiven: { wood: 0, stone: 0, food: 0, gold: 30, iron: 0 }, resourcesReceived: { wood: 0, stone: 45, food: 0, gold: 0, iron: 0 }, reputationRequired: 10, active: false },
+    { id: 'trade_10', targetName: 'Greenfields Traders', resourcesGiven: { wood: 0, stone: 0, food: 0, gold: 35, iron: 0 }, resourcesReceived: { wood: 0, stone: 0, food: 60, gold: 0, iron: 0 }, reputationRequired: 10, active: false },
   ];
 }
 

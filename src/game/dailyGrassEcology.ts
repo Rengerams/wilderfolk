@@ -7,6 +7,7 @@ import { SPECIES_CONFIG } from './speciesConfig';
 import { buildGrassPopulationSnapshot, grassPopulationTotal } from './simQueries';
 import { createEntity } from './entityFactory';
 import { getGrassPopulationCap, markGrassDead, pushNewEntity, syncEntityGrids } from './simulation/simulationEntities';
+import { getSimRng } from './simRng';
 
 export function tickGrassDaily(
   state: WorldState,
@@ -45,13 +46,16 @@ export function tickGrassDaily(
     grass.flash = Math.max(0, (grass.flash ?? 0) - 1);
 
     const total = grassPopulationTotal(ctx.grassPopulation);
+    // Seeded per blade and tick: a blade either reproduces or not on this day of this seed,
+    // independent of how many other blades were drawn earlier in the loop.
+    const blade = `grass-repro:${grass.id}:${state.tick}`;
     if (
       total < ctx.grassCap
       && grass.energy >= grassConfig.reproductionEnergyThreshold
-      && Math.random() < dailyReproChance * reproMult
+      && seededRandomForRun(blade) < dailyReproChance * reproMult
     ) {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = 8 + Math.random() * grassConfig.wanderRadius;
+      const angle = seededRandomForRun(`${blade}:angle`) * Math.PI * 2;
+      const dist = 8 + seededRandomForRun(`${blade}:dist`) * grassConfig.wanderRadius;
       const nx = Math.min(width, Math.max(0, grass.x + Math.cos(angle) * dist));
       const ny = Math.min(height, Math.max(0, grass.y + Math.sin(angle) * dist));
       const patch = createEntity(

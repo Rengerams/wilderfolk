@@ -22,6 +22,7 @@ import { logEvent } from './eventLog';
 import { sayHumanChatPhrase } from './humanChat';
 import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
+import { seededRandomForRun } from './simRng';
 
 export function findStaffedHotels(buildings: readonly Building[]): Building[] {
   return buildings.filter(
@@ -138,9 +139,13 @@ export function checkInVisitor(
     'brief',
   );
   if ((visitor.chatTicks ?? 0) <= 0) {
+    // A stateless roll keyed on the guest and the tick, matching the chat convention used
+    // elsewhere (`humanChat`), so the greeting is reproducible instead of seedless.
     sayHumanChatPhrase(
       visitor,
-      Math.random() < 0.5 ? 'A soft bed…' : 'Room for the night.',
+      seededRandomForRun(`hotel-greeting:${visitor.id}:${state.tick}`) < 0.5
+        ? 'A soft bed…'
+        : 'Room for the night.',
       50,
     );
   }

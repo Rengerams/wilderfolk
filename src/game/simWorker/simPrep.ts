@@ -73,6 +73,13 @@ type SimPrepKeys =
   | 'nextBuildingId'
   | 'nextFloatingTextId'
   | 'totalBuildingsCompleted'
+  // Year-rollover and stats fields written by `gameTick` (yearly snapshot at the
+  // calendar boundary, lifetime counters, 10-tick population sample). They must
+  // stay in this payload: a failed tick is rolled back and then re-executed on the
+  // main thread, so an unbacked field is advanced twice for the same tick.
+  | 'populationHistory'
+  | 'yearlyStats'
+  | 'lifetimeStats'
   | 'ecoHealthYearsAbove80'
   | 'villageReputation'
   | 'renffrOmen'
@@ -167,6 +174,11 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     nextBuildingId: state.nextBuildingId,
     nextFloatingTextId: state.nextFloatingTextId,
     totalBuildingsCompleted: state.totalBuildingsCompleted,
+    // Deep-cloned: gameTick pushes a year-rollover entry and increments nested
+    // lifetime counters, so a shallow copy would still alias the live objects.
+    populationHistory: structuredClone(state.populationHistory ?? []),
+    yearlyStats: structuredClone(state.yearlyStats ?? []),
+    lifetimeStats: structuredClone(state.lifetimeStats),
     ecoHealthYearsAbove80: state.ecoHealthYearsAbove80 ?? 0,
     villageReputation: state.villageReputation ?? 0,
     renffrOmen: state.renffrOmen ? { ...state.renffrOmen } : null,
@@ -251,6 +263,9 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.nextBuildingId = prep.nextBuildingId;
   world.nextFloatingTextId = prep.nextFloatingTextId;
   world.totalBuildingsCompleted = prep.totalBuildingsCompleted;
+  world.populationHistory = prep.populationHistory;
+  world.yearlyStats = prep.yearlyStats;
+  world.lifetimeStats = prep.lifetimeStats;
   world.ecoHealthYearsAbove80 = prep.ecoHealthYearsAbove80;
   world.villageReputation = prep.villageReputation;
   world.renffrOmen = prep.renffrOmen;

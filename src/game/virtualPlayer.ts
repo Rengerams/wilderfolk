@@ -14,28 +14,34 @@
  *   2. the Leader's House (free and unique)   3. staffing   4. housing   5. food
  *   6. civic            7. research            8. festival  9. industry
  *  10. repairs  11. forge orders  12. building tuning  13. recruitment
- *  14. visitors 15. manual staffing  16. upkeep & agency  17. rival relations
+ *  14. visitors 15. manual staffing  16. staffing mode  17. work day
+ *  18. venue hours  19. surplus crew  20. roads  21. demolition
+ *  22. upkeep & agency  23. rival relations
  *
  * Costs, affordability, placement validity, staffing eligibility, research
  * gating, festival readiness, repair/upgrade rules, recruitment, forging, taming,
- * visitor trade, peace and raid eligibility are all delegated to
- * their existing owner modules (`canAfford`, `canPlaceBuilding`,
- * `canAssignWorkerToBuilding`, `canStartResearch`, `canHostTownFestival`,
+ * visitor trade, refugee offers, peace, pacts and raid eligibility are all
+ * delegated to their existing owner modules (`canAfford`, `canPlaceBuilding`,
+ * `canAssignWorkerToBuilding`, `listAssignableWorkersForBuilding`, `canStartResearch`,
+ * `canHostTownFestival`,
  * `getOpenPlayerBeds`, `getDiplomacyChoiceEligibility`, `getRaidChoiceEligibility`,
  * `getStoryChoiceEligibility`, `getRepairBuildingEligibility`,
  * `getBuildingUpgradeEligibility`, `getForgeBlockReason`,
  * `getRecruitSettlerEligibility`, `getTameEntityEligibility`,
- * `getVisitorTradeEligibility`, `getRivalGiftEligibility`,
- * `getPeaceTreatyEligibility`, `canEstablishTradeRoute`, `canLaunchRaidOnRival`).
+ * `getVisitorTradeEligibility`, `getRefugeeChoiceEligibility`,
+ * `getRivalGiftEligibility`, `getShowStrengthEligibility`,
+ * `getRivalTradePactEligibility`, `getPeaceTreatyEligibility`,
+ * `canEstablishTradeRoute`, `canLaunchRaidOnRival`, `validateWorkSchedule`,
+ * `validateVenueSchedule`, `buildStripPreview`).
  * This file adds no new game rule, and it never proposes a card answer an owner
  * would refuse: a refused command still claims its in-game hour, so it would
  * repeat every hour until the card expired while nothing else got done.
  */
-import type { Building, HuntingSpotPrey, VisitorGroup, WorldState } from './gameTypes';
-import { BUILDING_CONFIGS, BuildingType, GRID_SIZE } from './gameTypes';
+import type { Building, HuntingSpotPrey, StaffingMode, VisitorGroup, WorldState } from './gameTypes';
+import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, GRID_SIZE, TERRAIN_TILE_SIZE } from './gameTypes';
 import type { ForgeOrderId } from './gameTypes';
 import { WORKER_CMD_PROTO, type WorkerCommand } from './simWorker/commands';
-import { canPlaceBuilding } from './buildingPlacementActions';
+import { buildStripPreview, canPlaceBuilding } from './buildingPlacementActions';
 import {
   getBuildingFootprintForType,
   snapBuildingCenter,
@@ -45,19 +51,24 @@ import { canAfford, getAvailableStorageHeadroom } from './resourceUtils';
 import { hasResidenceAssignment, hasWorkAssignment, isResidenceBuilding } from './residencyOccupancy';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
-import { canAssignWorkerToBuilding } from './buildingStaffingActions';
-import { isManualStaffingBuilding } from './workforce';
+import { canAssignWorkerToBuilding, listAssignableWorkersForBuilding } from './buildingStaffingActions';
+import { isManualStaffBuilding, isManualStaffingBuilding } from './workforce';
+import { readSkill } from './skills';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { canHostTownFestival, findPlayerTownHall } from './townHall';
 import { canStartResearch } from './research';
 import {
   getDiplomacyChoiceEligibility,
   getPeaceTreatyEligibility,
+  getRefugeeChoiceEligibility,
   getRivalGiftEligibility,
+  getRivalTradePactEligibility,
+  getShowStrengthEligibility,
   getVisitorLeaderTalkMeta,
   getVisitorTradeEligibility,
   VILLAGE_REQUEST_PROVISIONS_COST_GOLD,
   VILLAGE_REQUEST_PROVISIONS_FOOD,
+  type RefugeeChoice,
   type VisitorTradeAction,
 } from './groupEvents';
 import { Human, VirtualPlayer } from './gameConstants';
@@ -77,6 +88,22 @@ import {
 import { getVisitorQuest } from './visitorQuest';
 import { canEstablishTradeRoute } from './tradeCaravans';
 import { getHourOfDay } from './dayCycle';
+import {
+  DEFAULT_WORK_SCHEDULE,
+  getWorkSchedule,
+  getWorkScheduleLabel,
+  validateWorkSchedule,
+} from './workSchedule';
+import {
+  DEFAULT_HOTEL_SCHEDULE,
+  DEFAULT_TAVERN_SCHEDULE,
+  getVenueSchedule,
+  getVenueScheduleLabel,
+  validateVenueSchedule,
+  type VenueScheduleKind,
+} from './venueSchedule';
+import { findPath, getPathGrid, pathWaypoints } from './pathfinding';
+import { inferStripRotation, type StripSegment } from './stripBuild';
 
 /** One proposed auto-play action plus the short player-facing reason for it. */
 export interface VirtualPlayerDecision {
@@ -223,6 +250,13 @@ function isUnderConstruction(state: WorldState, type: BuildingType): boolean {
   );
 }
 
+/** True when the player already has a food producer, built or under construction. */
+function hasFoodProducer(state: WorldState): boolean {
+  return state.buildings.some(
+    (building) => building.faction !== 'rival' && FOOD_PRODUCER_TYPES.includes(building.type),
+  );
+}
+
 /** 1 — answer the oldest open player card, if any. */
 function answerOpenCard(state: WorldState): VirtualPlayerDecision | null {
   const raid = state.pendingRaidEvents?.[0];
@@ -341,10 +375,15 @@ function decideStaffing(state: WorldState): VirtualPlayerDecision | null {
     // Generic auto-staffing deliberately never fills manual workplaces
     // (Church, Prison, Barracks, School, Town Hall) — those stay the player's call.
     if (isManualStaffingBuilding(building)) continue;
-    // The staffing owner is the whole eligibility test: it refuses a full
-    // workplace, so the first building it accepts has a slot `autoStaffWorkers`
-    // will actually fill — whether that workplace stands empty or half staffed.
-    if (!canAssignWorkerToBuilding(state, building.id)) continue;
+    // Ask the question this *command* answers. `autoStaffWorkers` places idle
+    // settlers (`assignWorkerInPlace`) and only ever rebalances into an *empty*
+    // building. `canAssignWorkerToBuilding` answers for the manual path instead —
+    // it also counts a worker a transfer could free up — so pairing it with the
+    // generic command requested a reassignment the command never performs: the
+    // check stayed true while nothing changed, and the bot re-proposed the same
+    // no-op every in-game hour, starving every later step. This is the owner's own
+    // list of the idle settlers that command would actually place.
+    if (listAssignableWorkersForBuilding(state, building.id).length === 0) continue;
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
       reason: `staff the open slots at ${BUILDING_CONFIGS[building.type].label} — ${idleAdults} idle settler${idleAdults === 1 ? '' : 's'}`,
@@ -382,14 +421,24 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
   };
 }
 
-/** 5 — stores below a small buffer of days of settler need. */
+/**
+ * 5 — food production.
+ *
+ * Two triggers: stores below the buffer of days of settler need, or a colony that
+ * owns no food producer at all. The second one is not a nicety: a fresh settlement
+ * starts with a large larder and no producer, so a buffer-only rule let the bot
+ * spend that stock elsewhere — including on "Advanced Farming" (`farm_yield ×1.2`,
+ * unlocks the Greenhouse) — while owning no farm for the research to improve, and
+ * then only reacting at the buffer, i.e. after a 3-day build.
+ */
 function decideFood(state: WorldState): VirtualPlayerDecision | null {
   const settlers = playerHumanCount(state.entities);
   if (settlers <= 0) return null;
 
   const needPerDay = foodNeedPerDay(settlers);
   const food = state.resources.food ?? 0;
-  if (food >= needPerDay * VirtualPlayer.FOOD_BUFFER_DAYS) return null;
+  const shortOnFood = food < needPerDay * VirtualPlayer.FOOD_BUFFER_DAYS;
+  if (!shortOnFood && hasFoodProducer(state)) return null;
   // One producer at a time, so a food shortage cannot drain the treasury in a day.
   if (FOOD_PRODUCER_TYPES.some((type) => isUnderConstruction(state, type))) return null;
 
@@ -403,16 +452,70 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     if (!spot) continue;
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type, x: spot.x, y: spot.y, rotation: 0 },
-      reason: `build a ${BUILDING_CONFIGS[type].label} — ${daysLeft} day${daysLeft === 1 ? '' : 's'} of food left`,
+      reason: shortOnFood
+        ? `build a ${BUILDING_CONFIGS[type].label} — ${daysLeft} day${daysLeft === 1 ? '' : 's'} of food left`
+        : `build a ${BUILDING_CONFIGS[type].label} — the colony has no food producer`,
     };
   }
 
   return null;
 }
 
-/** 7 — start the first research the owner would actually accept. */
+/**
+ * The buildings the bot wants, in the ladder's own order of wants. Only each building's
+ * *research gate* is read from this list (`BUILDING_CONFIGS[type].unlockRequirement`), so it
+ * is a preference among the colony's goals, not a restatement of any owner rule.
+ */
+const RESEARCH_NEED_ORDER: readonly BuildingType[] = [
+  BuildingType.Blacksmith, // civic, and what makes a researched forge (and iron) usable
+  BuildingType.Greenhouse, // food, once the farm stands
+  BuildingType.Market, // gold income, and the trade routes
+  BuildingType.TownHall, // taxes, elections, festivals
+  BuildingType.School,
+  BuildingType.Hospital,
+  BuildingType.Mansion,
+  BuildingType.Prison,
+];
+
+/**
+ * The research the colony actually needs: the gate behind the first building it wants and
+ * does not have. Without this the step took the first node in the game's own array order,
+ * which opens with the Agriculture chain — so the bot ground `agriculture_1 → _2 → …` and
+ * never reached `forestry_1`, the Blacksmith's gate, while the civic step kept asking for a
+ * Blacksmith it could not place. The gate is the building owner's data, so an ungated
+ * building contributes nothing and a newly gated building is picked up automatically.
+ */
+function neededResearch(state: WorldState): { nodeId: string; forType: BuildingType } | null {
+  for (const type of RESEARCH_NEED_ORDER) {
+    if (state.buildings.some((building) => building.type === type && building.faction !== 'rival')) {
+      continue;
+    }
+    const requirement = BUILDING_CONFIGS[type].unlockRequirement;
+    if (!requirement) continue;
+    const node = state.researchNodes.find((candidate) => candidate.id === requirement);
+    if (node && !node.researched) return { nodeId: requirement, forType: type };
+  }
+  return null;
+}
+
+/**
+ * 7 — the research the colony needs, or else the first one the owner would accept.
+ *
+ * A needed node the owner refuses (unaffordable, prerequisites missing) falls through to
+ * the next acceptable node, so the hour is never wasted on a refused command.
+ */
 function decideResearch(state: WorldState): VirtualPlayerDecision | null {
   if (state.activeResearch) return null;
+
+  const need = neededResearch(state);
+  if (need && canStartResearch(state, need.nodeId)) {
+    const node = state.researchNodes.find((candidate) => candidate.id === need.nodeId)!;
+    return {
+      command: { proto: WORKER_CMD_PROTO, op: 'startResearch', researchId: need.nodeId },
+      reason: `research ${node.name} — it unlocks the ${BUILDING_CONFIGS[need.forType].label}`,
+    };
+  }
+
   for (const node of state.researchNodes) {
     if (!canStartResearch(state, node.id)) continue;
     return {
@@ -441,10 +544,10 @@ function decideFestival(state: WorldState): VirtualPlayerDecision | null {
  *
  * The Town Hall is what makes step 8 (festival) reachable at all — it also carries
  * taxes, trade, elections, and the scandal buffer. The Blacksmith is what gives the
- * research ladder something to forge and what gates `decideIndustry`'s Mine. Both
- * are research-gated, and that gate is not restated here: `canPlaceBuilding`
- * refuses a locked building, so `findPlacementSpot` simply returns no spot and the
- * step waits until the owner research lands.
+ * research ladder something to forge. Both are research-gated, and that gate is not
+ * restated here: `canPlaceBuilding` refuses a locked building, so
+ * `findPlacementSpot` simply returns no spot and the step waits until the owner
+ * research lands.
  */
 const CIVIC_BUILD_ORDER: readonly BuildingType[] = [
   BuildingType.TownHall,
@@ -470,6 +573,8 @@ function decideCivic(state: WorldState): VirtualPlayerDecision | null {
 }
 
 const LOW_WOOD_STOCK = 120;
+/** 20 = iron in store below which the colony is short of it (industry step and mine seam). */
+const LOW_IRON_STOCK = 20;
 
 const INDUSTRY_BUILD_ORDER: readonly {
   type: BuildingType;
@@ -478,7 +583,7 @@ const INDUSTRY_BUILD_ORDER: readonly {
 }[] = [
   { type: BuildingType.LumberMill, stock: 'wood', minimumStock: LOW_WOOD_STOCK },
   { type: BuildingType.Quarry, stock: 'stone', minimumStock: 60 },
-  { type: BuildingType.Mine, stock: 'iron', minimumStock: 20 },
+  { type: BuildingType.Mine, stock: 'iron', minimumStock: LOW_IRON_STOCK },
   { type: BuildingType.Store, stock: 'gold', minimumStock: 80 },
 ];
 
@@ -487,19 +592,17 @@ const INDUSTRY_BUILD_ORDER: readonly {
  *
  * One economy build at a time, first copy only, and every owner still decides:
  * `canAfford` prices it and `canPlaceBuilding` refuses a locked or illegal spot,
- * so a research-gated building simply waits its turn. A Mine waits for a
- * Blacksmith — there is no point mining iron with nothing to forge.
+ * so a research-gated building simply waits its turn. Nothing else is gated here —
+ * in particular the Mine is not: the game gives it no research requirement, and
+ * what it digs is the ore-mode owner's call (step 12 points it at gold whenever the
+ * treasury is low), so a Blacksmith precondition would be a bot rule the game does
+ * not have.
  */
 function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
   if (INDUSTRY_BUILD_ORDER.some((entry) => isUnderConstruction(state, entry.type))) return null;
 
-  const hasBlacksmith = state.buildings.some(
-    (building) => building.type === BuildingType.Blacksmith && building.completed && building.faction !== 'rival',
-  );
-
   for (const entry of INDUSTRY_BUILD_ORDER) {
     if (state.buildings.some((building) => building.type === entry.type && building.faction !== 'rival')) continue;
-    if (entry.type === BuildingType.Mine && !hasBlacksmith) continue;
     const stock = state.resources[entry.stock] ?? 0;
     if (stock >= entry.minimumStock) continue;
     if (!canAfford(state, BUILDING_CONFIGS[entry.type].cost)) continue;
@@ -516,6 +619,12 @@ function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
 }
 
 
+/**
+ * 10 — a damaged player building (raids damage buildings). Only the worst damage
+ * below the repair threshold is worth an hour, and only when the repair owner
+ * would actually spend the wood and stone: a refused repair would be re-proposed
+ * every hour while the colony's real work waited.
+ */
 function decideRepairs(state: WorldState): VirtualPlayerDecision | null {
   let worst: Building | null = null;
   let worstRatio = 1;
@@ -545,6 +654,14 @@ function decideRepairs(state: WorldState): VirtualPlayerDecision | null {
  */
 const FORGE_ORDER_PRIORITY: readonly ForgeOrderId[] = ['iron_spears', 'iron_shields', 'iron_pickaxes'];
 
+/**
+ * 11 — queue the most valuable forge order a staffed Blacksmith can start.
+ *
+ * `getForgeBlockReason` is the whole eligibility test: research, the forge
+ * prerequisite chain, a busy smith, a completed order, an unstaffed Blacksmith,
+ * and the input cost all live there, so the bot cannot disagree with the panel.
+ * An order already active or already forged simply has no acceptable target left.
+ */
 function decideForgeOrders(state: WorldState): VirtualPlayerDecision | null {
   if (state.villageForge?.activeOrder) return null;
 
@@ -598,13 +715,28 @@ function decideBuildingTuning(state: WorldState): VirtualPlayerDecision | null {
     if (!building.completed || building.faction === 'rival') continue;
 
     if (building.type === BuildingType.Mine) {
-      const desired: MineMode = (state.resources.gold ?? 0) < VirtualPlayer.MINE_GOLD_TREASURY_GOLD ? 'gold' : 'iron';
+      const iron = state.resources.iron ?? 0;
+      const gold = state.resources.gold ?? 0;
+      // Iron is the one resource only the Mine produces, so an iron shortage outranks
+      // the treasury rule: the previous "dig gold whenever the treasury is low" policy
+      // left a colony with 0 iron digging gold indefinitely. Both thresholds are the
+      // colony's own shortage lines, shared with the industry step above.
+      let desired: MineMode;
+      let reason: string;
+      if (iron < LOW_IRON_STOCK) {
+        desired = 'iron';
+        reason = `mine iron — only ${Math.floor(iron)} iron in store`;
+      } else if (gold < VirtualPlayer.MINE_GOLD_TREASURY_GOLD) {
+        desired = 'gold';
+        reason = `mine gold — only ${Math.floor(gold)} gold in the treasury`;
+      } else {
+        desired = 'iron';
+        reason = 'mine iron — the treasury can spare the gold seam';
+      }
       if (mineOreForMode(building.mineMode) === desired) continue;
       return {
         command: { proto: WORKER_CMD_PROTO, op: 'setMineMode', buildingId: building.id, mode: desired },
-        reason: desired === 'gold'
-          ? `mine gold — only ${Math.floor(state.resources.gold ?? 0)} gold in the treasury`
-          : 'mine iron — the treasury can spare the gold seam',
+        reason,
       };
     }
 
@@ -633,6 +765,13 @@ function decideBuildingTuning(state: WorldState): VirtualPlayerDecision | null {
   return null;
 }
 
+/**
+ * 13 — recruit a settler, but only in one morning window a day and only from a
+ * real surplus: a spare bed (not the Leader's House beds), nobody homeless, and
+ * food well past the buffer. A world at any other hour proposes nothing, so the
+ * colony cannot buy settlers every hour; the owner still has the last word on the
+ * population cap and the price (`getRecruitSettlerEligibility`).
+ */
 function decideRecruitment(state: WorldState): VirtualPlayerDecision | null {
   if (getHourOfDay(state.tick) !== VirtualPlayer.RECRUIT_SETTLER_HOUR) return null;
   if (playerHumanCount(state.entities) <= 0) return null;
@@ -671,11 +810,13 @@ function chooseVisitorTrade(state: WorldState, group: VisitorGroup): VisitorTrad
  *
  * Every branch is owner-gated: `talkToVisitorLeader` takes one audience per visit
  * (`getVisitorLeaderTalkMeta` reports whether one is still on offer),
- * `deliverVisitorQuest` needs the goods actually in store, and
- * `getVisitorTradeEligibility` prices the whole deal — the bot never spends an
- * hour on a visitor action the owner would refuse. Refugee groups are left alone:
- * the bot does not decide who gets to settle, and merely talking to them opens
- * that negotiation.
+ * `deliverVisitorQuest` needs the goods actually in store,
+ * `getVisitorTradeEligibility` prices the whole deal, and
+ * `getRefugeeChoiceEligibility` prices a refugee offer — the bot never spends an
+ * hour on a visitor action the owner would refuse. A refugee camp is never
+ * *talked* to (that only opens the negotiation) and its families are never turned
+ * away on the bot's initiative: it welcomes them from a deep larder with beds
+ * free, screens them from a shallower one, and otherwise leaves them be.
  */
 function decideVisitorRelations(state: WorldState): VirtualPlayerDecision | null {
   const group = state.visitorGroups?.[0];
@@ -689,6 +830,17 @@ function decideVisitorRelations(state: WorldState): VirtualPlayerDecision | null
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'talkToVisitorLeader', groupId: group.id },
       reason: `hear out ${group.name} — one audience per visit`,
+    };
+  }
+
+  if (group.kind === 'refugees') {
+    const choice = chooseRefugeeChoice(state, group);
+    if (!choice) return null;
+    return {
+      command: { proto: WORKER_CMD_PROTO, op: 'negotiateRefugees', groupId: group.id, choice },
+      reason: choice === 'welcome'
+        ? `welcome ${group.name} — the larder is deep and beds stand free`
+        : `screen ${group.name} — take in the settlers the colony can feed`,
     };
   }
 
@@ -744,20 +896,319 @@ function decideManualStaffing(state: WorldState): VirtualPlayerDecision | null {
 }
 
 /**
- * 16 — upkeep and agency, only where the owner accepts and the gain is real.
+ * What the bot would ask a refugee camp for: welcome a group the colony can feed
+ * and bed, screen one it can merely afford, and never turn families away on its
+ * own initiative. `getRefugeeChoiceEligibility` still prices each offer.
+ */
+function chooseRefugeeChoice(state: WorldState, group: VisitorGroup): RefugeeChoice | null {
+  if (
+    hasFoodMargin(state, VirtualPlayer.REFUGEE_FOOD_RESERVE_DAYS)
+    && getOpenPlayerBeds(state) >= VirtualPlayer.REFUGEE_MIN_OPEN_BEDS
+    && getRefugeeChoiceEligibility(state, group.id, 'welcome').ok
+  ) {
+    return 'welcome';
+  }
+  if (
+    hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS)
+    && getRefugeeChoiceEligibility(state, group.id, 'screen').ok
+  ) {
+    return 'screen';
+  }
+  return null;
+}
+
+/**
+ * 16 — make the staffing mode explicit where it protects a real crew, and release
+ * an empty workplace that a stale `manual` flag is holding back.
+ *
+ * A manual workplace with settlers at their posts is marked `manual`, so generic
+ * auto-staffing can never quietly rearrange the crew the player chose. A
+ * non-manual workplace that still says `manual` with nobody in it is returned to
+ * `auto`, so the colony can fill it again. Anything else — including a working
+ * workplace the player deliberately set to `auto` — is left exactly as it is, so
+ * the step retires instead of fighting the player.
+ */
+function decideStaffingMode(state: WorldState): VirtualPlayerDecision | null {
+  for (const building of state.buildings) {
+    if (!building.completed || building.faction === 'rival') continue;
+    if (!BUILDING_JOB_TYPES[building.type]) continue;
+
+    let desired: StaffingMode | null = null;
+    if (isManualStaffBuilding(building.type)) {
+      if (building.occupants.length > 0 && building.staffingMode !== 'manual') desired = 'manual';
+    } else if (building.staffingMode === 'manual' && building.occupants.length === 0) {
+      desired = 'auto';
+    }
+    if (!desired) continue;
+    // `undefined` already means the type default, so an explicit `auto` on a
+    // non-manual building would be a pointless change.
+    if (desired === 'auto' && building.staffingMode == null) continue;
+
+    return {
+      command: { proto: WORKER_CMD_PROTO, op: 'setBuildingStaffingMode', buildingId: building.id, mode: desired },
+      reason: desired === 'manual'
+        ? `mark the ${BUILDING_CONFIGS[building.type].label} manual — its crew is the player's own`
+        : `return the empty ${BUILDING_CONFIGS[building.type].label} to auto staffing`,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * 17 — keep the colony work day on the owner's standard window.
+ *
+ * `getWorkSchedule` falls back to `DEFAULT_WORK_SCHEDULE` (07:00–16:00), so a
+ * fresh game already matches and nothing is proposed; the step fires only when the
+ * schedule differs from that window, and the owner's own `validateWorkSchedule`
+ * still has the last word. No season rule is invented here — the owner models no
+ * season-dependent hours.
+ */
+function decideWorkSchedule(state: WorldState): VirtualPlayerDecision | null {
+  const current = getWorkSchedule(state);
+  if (
+    current.startHour === DEFAULT_WORK_SCHEDULE.startHour
+    && current.endHour === DEFAULT_WORK_SCHEDULE.endHour
+  ) {
+    return null;
+  }
+  if (!validateWorkSchedule(DEFAULT_WORK_SCHEDULE.startHour, DEFAULT_WORK_SCHEDULE.endHour, current).ok) {
+    return null;
+  }
+  return {
+    command: {
+      proto: WORKER_CMD_PROTO,
+      op: 'setWorkSchedule',
+      startHour: DEFAULT_WORK_SCHEDULE.startHour,
+      endHour: DEFAULT_WORK_SCHEDULE.endHour,
+    },
+    reason: `set the work day to ${getWorkScheduleLabel(DEFAULT_WORK_SCHEDULE)} — the colony standard`,
+  };
+}
+
+/**
+ * 18 — venues keep the owner's default service windows (tavern in the evening,
+ * hotel through the day), and only a venue that actually stands is scheduled.
+ * Like the work day, the owner's defaults mean a fresh game already matches.
+ */
+const VENUE_SCHEDULE_ORDER: readonly {
+  kind: VenueScheduleKind;
+  type: BuildingType;
+  schedule: { startHour: number; endHour: number };
+}[] = [
+  { kind: 'tavern', type: BuildingType.Tavern, schedule: DEFAULT_TAVERN_SCHEDULE },
+  { kind: 'hotel', type: BuildingType.Hotel, schedule: DEFAULT_HOTEL_SCHEDULE },
+];
+
+function decideVenueSchedules(state: WorldState): VirtualPlayerDecision | null {
+  for (const entry of VENUE_SCHEDULE_ORDER) {
+    const stands = state.buildings.some(
+      (building) => building.completed && building.faction !== 'rival' && building.type === entry.type,
+    );
+    if (!stands) continue;
+
+    const current = getVenueSchedule(state, entry.kind);
+    if (current.startHour === entry.schedule.startHour && current.endHour === entry.schedule.endHour) continue;
+    if (!validateVenueSchedule(entry.schedule.startHour, entry.schedule.endHour).ok) continue;
+
+    return {
+      command: {
+        proto: WORKER_CMD_PROTO,
+        op: 'setVenueSchedule',
+        venue: entry.kind,
+        startHour: entry.schedule.startHour,
+        endHour: entry.schedule.endHour,
+      },
+      reason: `open the ${entry.kind} ${getVenueScheduleLabel(entry.schedule)} — the owner's standard hours`,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * 19 — trim a genuine overstaffing surplus down to the building's crew cap.
+ *
+ * Only a workplace holding more settlers than `BUILDING_CONFIGS[type].maxOccupants`
+ * is touched (a state auto-staffing never creates but a player or a demotion can),
+ * and the least skilled of them is released, so the crew keeps its best hands.
+ * One release per act leaves the building exactly at its cap, retiring the step.
+ */
+function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
+  const humans = state.entities.filter(isPlayerHuman);
+
+  for (const building of state.buildings) {
+    if (!building.completed || building.faction === 'rival') continue;
+    const job = BUILDING_JOB_TYPES[building.type];
+    if (!job) continue;
+    const cap = BUILDING_CONFIGS[building.type].maxOccupants;
+
+    const crew = humans.filter(
+      (human) => human.alive && !human.isJuvenile && human.homeBuildingId === building.id,
+    );
+    if (crew.length <= cap) continue;
+
+    let surplus = crew[0];
+    let lowestSkill = readSkill(surplus, job);
+    for (const worker of crew) {
+      const skill = readSkill(worker, job);
+      if (skill < lowestSkill || (skill === lowestSkill && worker.id < surplus.id)) {
+        surplus = worker;
+        lowestSkill = skill;
+      }
+    }
+
+    return {
+      command: { proto: WORKER_CMD_PROTO, op: 'removeWorker', buildingId: building.id, humanId: surplus.id },
+      reason: `release ${surplus.name} from the ${BUILDING_CONFIGS[building.type].label} — ${crew.length} hands for ${cap} posts`,
+    };
+  }
+
+  return null;
+}
+
+/** True when a road already serves this building. */
+function hasRoadNearby(state: WorldState, building: Building): boolean {
+  const cx = building.x + building.width / 2;
+  const cy = building.y + building.height / 2;
+  return state.buildings.some((other) => {
+    if (other.type !== BuildingType.Road || other.faction === 'rival') return false;
+    return Math.hypot(other.x + other.width / 2 - cx, other.y + other.height / 2 - cy)
+      <= VirtualPlayer.ROAD_LINK_MAX_DISTANCE;
+  });
+}
+
+/**
+ * The production building that most deserves a road: the nearest one that stands
+ * a real walk from the village centre and has no road serving it yet.
+ */
+function findRoadTarget(state: WorldState, camp: { x: number; y: number }): Building | null {
+  let best: Building | null = null;
+  let bestDistance = Infinity;
+
+  for (const building of state.buildings) {
+    if (!building.completed || building.faction === 'rival') continue;
+    if (!BUILDING_JOB_TYPES[building.type]) continue;
+    if (hasRoadNearby(state, building)) continue;
+
+    const distance = Math.hypot(
+      building.x + building.width / 2 - camp.x,
+      building.y + building.height / 2 - camp.y,
+    );
+    if (distance < VirtualPlayer.ROAD_MIN_LINK_DISTANCE) continue;
+    if (distance >= bestDistance) continue;
+    best = building;
+    bestDistance = distance;
+  }
+
+  return best;
+}
+
+/** Tile coords → world coords, for the road corridor's corners. */
+function corridorCorners(path: readonly { x: number; y: number }[]): { x: number; y: number }[] {
+  const corners: { x: number; y: number }[] = [];
+  for (let i = 0; i < path.length; i++) {
+    if (i === 0 || i === path.length - 1) {
+      corners.push(path[i]);
+      continue;
+    }
+    const previous = path[i - 1];
+    const current = path[i];
+    const next = path[i + 1];
+    const turned =
+      Math.sign(current.x - previous.x) !== Math.sign(next.x - current.x)
+      || Math.sign(current.y - previous.y) !== Math.sign(next.y - current.y);
+    if (turned) corners.push(current);
+  }
+  return corners;
+}
+
+/**
+ * Walk the corridor from the camp to the target with the game's own pathfinding
+ * (which already treats buildings as blocked), then let the placement owner build
+ * and validate each straight leg of the route. Only segments the owner marks
+ * `valid` are kept, so a road can never be routed through a building, and a full
+ * chain that would be too long is cut to `ROAD_MAX_SEGMENTS_PER_ACT`.
+ */
+function buildRoadChain(
+  state: WorldState,
+  camp: { x: number; y: number },
+  target: Building,
+): StripSegment[] {
+  if (!state.worldMap) return [];
+
+  const path = findPath(
+    getPathGrid(state.worldMap, state.buildings),
+    Math.floor(camp.x / TERRAIN_TILE_SIZE),
+    Math.floor(camp.y / TERRAIN_TILE_SIZE),
+    Math.floor((target.x + target.width / 2) / TERRAIN_TILE_SIZE),
+    Math.floor((target.y + target.height / 2) / TERRAIN_TILE_SIZE),
+    VirtualPlayer.ROAD_PATH_MAX_NODES,
+  );
+  if (!path) return [];
+
+  const corners = pathWaypoints(corridorCorners(path));
+  const segments: StripSegment[] = [];
+  for (let i = 0; i + 1 < corners.length; i++) {
+    const from = corners[i];
+    const to = corners[i + 1];
+    const preview = buildStripPreview(
+      state,
+      BuildingType.Road,
+      from.x,
+      from.y,
+      to.x,
+      to.y,
+      inferStripRotation(from.x, from.y, to.x, to.y),
+    );
+    for (const segment of preview.segments) {
+      if (!segment.valid) continue;
+      segments.push(segment);
+      if (segments.length >= VirtualPlayer.ROAD_MAX_SEGMENTS_PER_ACT) return segments;
+    }
+  }
+
+  return segments;
+}
+
+/**
+ * 20 — lay one short road chain from the village centre to a production building
+ * that stands a real walk away and has no road yet.
+ *
+ * The route is the game's own A* corridor (`getPathGrid`/`findPath`, which treats
+ * buildings as blocked) and every tile is validated by the placement owner's
+ * `buildStripPreview`; invalid segments are dropped rather than forced. One chain
+ * per act, capped at `ROAD_MAX_SEGMENTS_PER_ACT`, and the wood shelf is left above
+ * `ROAD_MIN_WOOD` so paving never outranks the colony's real needs.
+ */
+function decideRoads(state: WorldState): VirtualPlayerDecision | null {
+  if ((state.resources.wood ?? 0) < VirtualPlayer.ROAD_MIN_WOOD) return null;
+
+  const camp = getPlayerCampCenter(state, state.buildings);
+  const target = findRoadTarget(state, camp);
+  if (!target) return null;
+
+  const segments = buildRoadChain(state, camp, target);
+  if (segments.length === 0) return null;
+
+  return {
+    command: { proto: WORKER_CMD_PROTO, op: 'placeStripChain', type: BuildingType.Road, segments, rotation: 0 },
+    reason: `lay a road to the ${BUILDING_CONFIGS[target.type].label} — nothing links it to the village yet`,
+  };
+}
+
+/**
+ * 22 — upkeep and agency, only where the owner accepts and the gain is real.
  *
  *  - `upgradeBuilding` only as a last resort: settlers are homeless, no bed is
  *    free, and there is no legal plot left to build another house on.
  *  - `tameEntity` only from a deep larder, for a creature a Taming Post can
  *    actually reach.
  *
- * Two deliberate omissions:
- *  - `moveOutOfFamilyHome` — the owner accepts the command but its own
- *    reconciliation immediately re-homes the grown child into the parent's
- *    housing unit, so the proposal could never retire (see
- *    BUG_REPORTS/2026-09-13-move-out-reverted-by-residency-reconciliation.md).
- *  - `placeStripChain` (roads) — no owner exposes a rule for *where* a corridor
- *    should run, and inventing one would be gameplay.
+ * Moving a grown child into their own home is not a step: housing is fully
+ * automatic. `assignMissingResidences` (the residency owner, run every day)
+ * already rebalances adult children out of the family home whenever an empty
+ * house is free, so the bot proposes nothing here.
  */
 function decideUpkeep(state: WorldState): VirtualPlayerDecision | null {
   const homeless = countHomelessSettlers(state);
@@ -797,10 +1248,56 @@ function decideUpkeep(state: WorldState): VirtualPlayerDecision | null {
 }
 
 /**
- * 17 — rival relations, peaceful first: a gift to a tense neighbour, a truce, a
- * trade route, and only then a raid — and a raid solely against an already-tense
- * rival with three times the march provisions in store. The bot is a settler, not
- * a warmonger.
+ * An outbuilding the colony can afford to lose: complete, empty, not a home and
+ * not unique, and a type the colony already has a second completed copy of.
+ */
+function findRedundantOutbuilding(state: WorldState): Building | null {
+  for (const building of state.buildings) {
+    if (!building.completed || building.faction === 'rival') continue;
+    if (building.occupants.length > 0) continue;
+    if (isResidenceBuilding(building)) continue;
+    if (BUILDING_CONFIGS[building.type].unique) continue;
+
+    const completedCopies = state.buildings.filter(
+      (other) => other.completed && other.faction !== 'rival' && other.type === building.type,
+    ).length;
+    if (completedCopies < 2) continue;
+    return building;
+  }
+  return null;
+}
+
+/**
+ * 21 — clear room by demolishing a redundant outbuilding, but only at a genuine
+ * housing dead end: settlers are homeless, not one bed is free, no plot is left
+ * for another home, and none is already on the way. Even then only a complete,
+ * empty, non-residence, non-unique building that duplicates a type the colony
+ * already has twice over is touched, and one act removes one building — so the
+ * step retires as the duplicates run out. Clearing space this way outranks
+ * expanding a home (step 22), because a freed plot fits a whole house.
+ */
+function decideDemolish(state: WorldState): VirtualPlayerDecision | null {
+  if (countHomelessSettlers(state) === 0) return null;
+  if (getOpenPlayerBeds(state) > 0) return null;
+  if (findPlacementSpot(state, BuildingType.House, 0)) return null;
+  if (isUnderConstruction(state, BuildingType.House) || isUnderConstruction(state, BuildingType.Mansion)) {
+    return null;
+  }
+
+  const redundant = findRedundantOutbuilding(state);
+  if (!redundant) return null;
+  return {
+    command: { proto: WORKER_CMD_PROTO, op: 'demolishBuilding', buildingId: redundant.id },
+    reason: `clear the empty ${BUILDING_CONFIGS[redundant.type].label} — the village has no room left to build`,
+  };
+}
+
+/**
+ * 23 — rival relations, peaceful first: a gift to a tense neighbour, a show of
+ * strength when there is nothing to give, a truce, a trade pact, a trade route,
+ * and only then a raid — and a raid solely against an already-tense rival with
+ * three times the march provisions in store. The bot is a settler, not a
+ * warmonger.
  */
 function decideRivalRelations(state: WorldState): VirtualPlayerDecision | null {
   const rivals = state.rivalSettlements ?? [];
@@ -815,12 +1312,34 @@ function decideRivalRelations(state: WorldState): VirtualPlayerDecision | null {
     };
   }
 
+  // Nothing to give, but spears and settlers to show: a parade cools a tense
+  // neighbour a step (at a small reputation cost) when a gift cannot be afforded.
+  for (const rival of rivals) {
+    if (rival.relationship !== 'tense') continue;
+    if (getRivalGiftEligibility(state, rival.id).ok) continue;
+    if (!getShowStrengthEligibility(state, rival.id).ok) continue;
+    return {
+      command: { proto: WORKER_CMD_PROTO, op: 'showStrengthToRival', rivalId: rival.id },
+      reason: `parade the militia past ${rival.name} — no food to spare, but spears to show`,
+    };
+  }
+
   for (const rival of rivals) {
     if (!hasFoodMargin(state, VirtualPlayer.RIVAL_FOOD_RESERVE_DAYS)) continue;
     if (!getPeaceTreatyEligibility(state, rival.id).ok) continue;
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'signPeaceTreaty', rivalId: rival.id },
       reason: `sign peace with ${rival.name} — a truce is affordable`,
+    };
+  }
+
+  // A pact turns a wary neighbour friendly for good — the durable answer to a
+  // competitive one, once the treasury can carry the gift.
+  for (const rival of rivals) {
+    if (!getRivalTradePactEligibility(state, rival.id).ok) continue;
+    return {
+      command: { proto: WORKER_CMD_PROTO, op: 'establishRivalTradePact', rivalId: rival.id },
+      reason: `sign a trade pact with ${rival.name} — gold buys lasting friendship`,
     };
   }
 
@@ -867,6 +1386,12 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     ?? decideRecruitment(state)
     ?? decideVisitorRelations(state)
     ?? decideManualStaffing(state)
+    ?? decideStaffingMode(state)
+    ?? decideWorkSchedule(state)
+    ?? decideVenueSchedules(state)
+    ?? decideSurplusWorkers(state)
+    ?? decideRoads(state)
+    ?? decideDemolish(state)
     ?? decideUpkeep(state)
     ?? decideRivalRelations(state)
   );

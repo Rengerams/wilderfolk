@@ -220,4 +220,34 @@ export const VirtualPlayer = {
    * so a war-band never leaves the village short of food.
    */
   RAID_FOOD_SURPLUS_MULT: 3,
+  /** 5 = days of settler food need kept in store before welcoming a refugee camp. */
+  REFUGEE_FOOD_RESERVE_DAYS: 5,
+  /** 2 = spare assignable beds a refugee camp needs before it is welcomed. */
+  REFUGEE_MIN_OPEN_BEDS: 2,
+  /**
+   * 260 = world pixels (roughly a dozen tiles) a production building must stand
+   * from the village centre before the bot considers a road worth laying — roads
+   * pay for a real walk, not for the building next door.
+   */
+  ROAD_MIN_LINK_DISTANCE: 260,
+  /**
+   * 120 = a road this close to a building already serves it, so the bot links a
+   * different building instead.
+   */
+  ROAD_LINK_MAX_DISTANCE: 120,
+  /**
+   * 200 = wood kept back before paving: roads are a luxury, never a reason to
+   * starve the builder's shelf.
+   */
+  ROAD_MIN_WOOD: 200,
+  /**
+   * 12 = road tiles one act may lay, so a single proposal stays a short chain the
+   * player can watch appear.
+   */
+  ROAD_MAX_SEGMENTS_PER_ACT: 12,
+  /**
+   * 4000 = A* node budget for the road corridor, bounded so the decision stays
+   * cheap on a big map.
+   */
+  ROAD_PATH_MAX_NODES: 4000,
 } as const;

@@ -8,13 +8,9 @@ import {
 import type { WorldState, Entity } from '../game/gameEngine';
 import type { VisitorGroup } from '../game/gameTypes';
 import {
-  isResidenceBuilding,
   hasResidenceAssignment,
   hasWorkAssignment,
   isImprisoned,
-  canMoveOutOfFamilyHome,
-  isAdultChildAtHome,
-  HUMAN_MOVE_OUT_MIN_AGE,
   PREGNANCY_TICKS,
   TICKS_PER_DAY,
   getBirthDateString,
@@ -23,7 +19,6 @@ import { TRAIT_DEFS } from '../game/settlerTraits';
 import { getHumanVariantLabel } from '../game/humanSprites';
 import { getTameFoodCost } from '../game/buildingActions';
 import { getBuildingConfig } from '../game/buildingConfig';
-import { isPlayerHuman } from '../game/playerHuman';
 import { useEffect, useMemo, useState } from 'react';
 import { getHumanActivityProjection } from '../game/humanStatus';
 
@@ -79,7 +74,6 @@ export default function SelectedEntityPanel({
   isFavorite,
   onToggleFavorite,
   onTame,
-  onMoveOut,
   onOpenVisitorCamp,
 }: {
   entity: Entity;
@@ -88,7 +82,6 @@ export default function SelectedEntityPanel({
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
   onTame?: (humanId: number) => void;
-  onMoveOut?: () => void;
   onOpenVisitorCamp?: (group: VisitorGroup) => void;
 }) {
   const [lastActivity, setLastActivity] = useState<{ entityId: number; activity: string } | null>(null);
@@ -134,17 +127,6 @@ export default function SelectedEntityPanel({
   const availableHumans = useMemo(() => {
     return allEntities.filter(e => e.type === EntityType.Human && e.alive && !e.isJuvenile);
   }, [allEntities]);
-
-  const playerHumans = useMemo(() => {
-    return allEntities.filter((e) => e.alive && isPlayerHuman(e));
-  }, [allEntities]);
-
-  const residences = useMemo(() => {
-    return state.buildings.filter((b) => b.completed && isResidenceBuilding(b));
-  }, [state.buildings]);
-
-  const canMoveOut = isHuman && !isVisitor && !isRival && isAdultChildAtHome(entity, playerHumans);
-  const moveOutReady = canMoveOut && canMoveOutOfFamilyHome(entity, playerHumans, residences);
 
   // 🐛 BUG FIX: Use String(entity.type).toLowerCase() to ensure enum values correctly map to dictionary keys
   const foodChainInfo: Record<string, { role: string; eats: string; huntedBy: string }> = {
@@ -330,21 +312,6 @@ export default function SelectedEntityPanel({
               return <p className="text-sky-300">🏠 Lives in: {label}</p>;
             })() : (
               <p className="text-rose-300">🏠 No home yet — build a House (auto-assigned when ready)</p>
-            )}
-            {canMoveOut && (
-              <button
-                type="button"
-                onClick={() => onMoveOut?.()}
-                disabled={!moveOutReady}
-                title={
-                  moveOutReady
-                    ? 'Move into an empty house (spouse and your children come too)'
-                    : 'Build and finish an empty house first'
-                }
-                className="mt-1 w-full rounded-lg bg-sky-700/80 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-stone-600 disabled:text-stone-400 transition-all"
-              >
-                🏠 Move to own home ({HUMAN_MOVE_OUT_MIN_AGE}+)
-              </button>
             )}
             {isImprisoned(entity) ? (() => {
               const prison = state.buildings.find((b) => b.id === entity.prisonBuildingId);

@@ -5,6 +5,7 @@
  * lifeSimulation / buildingActions / education / research.
  */
 import type { Entity, SettlerTrait } from './gameTypes';
+import { getSimRng } from './simRng';
 
 export type { SettlerTrait };
 
@@ -183,7 +184,7 @@ function pickTrait(existing: SettlerTrait[], gender?: 'male' | 'female'): Settle
   const weights = pool.map((t) => (leaningSet.has(t) ? GENDER_BIAS : BASE_WEIGHT));
   const total = weights.reduce((s, w) => s + w, 0);
 
-  let roll = Math.random() * total;
+  let roll = getSimRng('settlerTraits')() * total;
   for (let i = 0; i < pool.length; i++) {
     roll -= weights[i];
     if (roll <= 0) return pool[i];
@@ -219,6 +220,7 @@ export function inheritSettlerTraits(
 ): SettlerTrait[] {
   const inherited: SettlerTrait[] = [];
   const parents = [mother, father];
+  const rng = getSimRng('settlerTraits');
 
   for (let p = 0; p < parents.length; p++) {
     const parentTraits = parents[p]?.traits ?? [];
@@ -226,7 +228,7 @@ export function inheritSettlerTraits(
       const trait = parentTraits[t];
       if (inherited.length >= MAX_INHERITED) break;
       if (
-        Math.random() < INHERIT_CHANCE &&
+        rng() < INHERIT_CHANCE &&
         !inherited.includes(trait) &&
         !conflictsWith(trait, inherited)
       ) {

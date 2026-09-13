@@ -609,8 +609,11 @@ export { isRivalAtPeace } from './rivalPeace';
 const PEACE_TREATY_PLAYER_DAYS = 60;
 const PEACE_TREATY_EVENT_DAYS = 45;
 const RIVAL_GIFT_FOOD_COST = 25;
+const RIVAL_TRADE_PACT_GOLD_COST = 40;
 const PEACE_TREATY_GOLD_COST = 30;
 const PEACE_TREATY_FOOD_COST = 20;
+const REFUGEE_WELCOME_FOOD = 40;
+const REFUGEE_SCREEN_FOOD = 20;
 
 /**
  * Whether `sendRivalGift` would actually improve relations: the rival exists,
@@ -666,30 +669,40 @@ export function sendRivalGift(originalState: WorldState, rivalId: string): World
   return state;
 }
 
+/**
+ * Whether `establishRivalTradePact` would actually sign: the rival exists, is
+ * neither too tense to talk nor already friendly, and the colony can pay the gold.
+ *
+ * Single definition of the trade-pact rule, shared with the auto-play bot
+ * (`virtualPlayer.ts`), so the bot never claims an in-game hour with a pact the
+ * owner would refuse.
+ */
+export function getRivalTradePactEligibility(
+  state: WorldState,
+  rivalId: string,
+): { ok: boolean; blockReason?: string } {
+  const rival = state.rivalSettlements.find((r) => r.id === rivalId);
+  if (!rival) return { ok: false, blockReason: 'No such rival' };
+  if (rival.relationship === 'tense') return { ok: false, blockReason: 'Relations too tense' };
+  if (rival.relationship === 'friendly') return { ok: false, blockReason: 'Already friendly' };
+  if (state.resources.gold < RIVAL_TRADE_PACT_GOLD_COST) {
+    return { ok: false, blockReason: `Need ${RIVAL_TRADE_PACT_GOLD_COST}💰` };
+  }
+  return { ok: true };
+}
+
 export function establishRivalTradePact(originalState: WorldState, rivalId: string): WorldState {
   const rivalPreview = originalState.rivalSettlements.find((r) => r.id === rivalId);
-  if (!rivalPreview || rivalPreview.relationship === 'tense') {
-    if (!rivalPreview) return originalState;
-    const state = cloneWorldStateForAction(originalState);
-    const rival = state.rivalSettlements.find((r) => r.id === rivalId);
-    if (!rival) return state;
-    pushFloat(state, rival.campX, rival.campY - 20, 'Relations too tense', '#f97316');
-    return state;
-  }
+  if (!rivalPreview) return originalState;
 
-  const goldCost = 40;
-  if (rivalPreview.relationship === 'friendly') {
+  const eligibility = getRivalTradePactEligibility(originalState, rivalId);
+  if (!eligibility.ok) {
     const state = cloneWorldStateForAction(originalState);
     const rival = state.rivalSettlements.find((r) => r.id === rivalId);
     if (!rival) return state;
-    pushFloat(state, rival.campX, rival.campY - 20, 'Already friendly', '#94a3b8');
-    return state;
-  }
-  if (originalState.resources.gold < goldCost) {
-    const state = cloneWorldStateForAction(originalState);
-    const rival = state.rivalSettlements.find((r) => r.id === rivalId);
-    if (!rival) return state;
-    pushFloat(state, rival.campX, rival.campY - 20, `Need ${goldCost}💰`, '#f97316');
+    // Unchanged feedback: grey when they are already friendly, amber otherwise.
+    const color = rivalPreview.relationship === 'friendly' ? '#94a3b8' : '#f97316';
+    pushFloat(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot sign a pact', color);
     return state;
   }
 
@@ -697,7 +710,7 @@ export function establishRivalTradePact(originalState: WorldState, rivalId: stri
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return state;
 
-  state.resources.gold -= goldCost;
+  state.resources.gold -= RIVAL_TRADE_PACT_GOLD_COST;
   rival.relationship = 'friendly';
   rival.daysUntilAction = 20;
 
@@ -710,20 +723,33 @@ export function establishRivalTradePact(originalState: WorldState, rivalId: stri
   return state;
 }
 
+/**
+ * Whether `showStrengthToRival` would actually overawe them: the rival exists, the
+ * colony fields stone or iron spears, and it counts at least six settlers.
+ *
+ * Single definition of the strength-display rule, shared with the auto-play bot
+ * (`virtualPlayer.ts`).
+ */
+export function getShowStrengthEligibility(
+  state: WorldState,
+  rivalId: string,
+): { ok: boolean; blockReason?: string } {
+  const rival = state.rivalSettlements.find((r) => r.id === rivalId);
+  if (!rival) return { ok: false, blockReason: 'No such rival' };
+  const armed = hasIronSpears(state) || hasStoneSpears(state);
+  if (!armed) return { ok: false, blockReason: 'Need spears' };
+  if (state.humanPopulation < 6) return { ok: false, blockReason: 'Need 6+ settlers' };
+  return { ok: true };
+}
+
 export function showStrengthToRival(originalState: WorldState, rivalId: string): WorldState {
   const state = cloneWorldStateForAction(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return state;
 
-  const armed = hasIronSpears(state) || hasStoneSpears(state);
-  if (!armed || state.humanPopulation < 6) {
-    pushFloat(
-      state,
-      rival.campX,
-      rival.campY - 20,
-      !armed ? 'Need spears' : 'Need 6+ settlers',
-      '#f97316',
-    );
+  const eligibility = getShowStrengthEligibility(originalState, rivalId);
+  if (!eligibility.ok) {
+    pushFloat(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot show strength', '#f97316');
     return state;
   }
 
@@ -1451,13 +1477,48 @@ export function tradeWithVisitors(
 
 export type RefugeeChoice = 'welcome' | 'screen' | 'turn_away';
 
+/**
+ * Whether `negotiateRefugees` would actually settle this choice: the group is a
+ * live refugee camp, and welcoming or screening has the food and population room
+ * it costs. Turning the families away is always available.
+ *
+ * Single definition of the refugee-offer rule — `negotiateRefugees` applies it
+ * before spending anything, and the auto-play bot (`virtualPlayer.ts`) proposes a
+ * choice only when it says `ok`. `silent` marks the structural refusals that never
+ * produced player feedback.
+ */
+export function getRefugeeChoiceEligibility(
+  state: WorldState,
+  groupId: string,
+  choice: RefugeeChoice,
+): { ok: boolean; blockReason?: string; silent?: boolean } {
+  const group = state.visitorGroups.find((g) => g.id === groupId);
+  if (!group) return { ok: false, blockReason: 'No such visitor group', silent: true };
+  if (group.kind !== 'refugees') return { ok: false, blockReason: 'Not a refugee group', silent: true };
+  if (group.refugeeResolved) {
+    return { ok: false, blockReason: 'Refugee talks already concluded', silent: true };
+  }
+  if (choice === 'turn_away') return { ok: true };
+
+  const foodCost = choice === 'welcome' ? REFUGEE_WELCOME_FOOD : REFUGEE_SCREEN_FOOD;
+  if (state.resources.food < foodCost) {
+    return { ok: false, blockReason: `Need ${foodCost}🍖` };
+  }
+  if (playerHumanCount(state.entities) >= state.maxHumanPopulation) {
+    return { ok: false, blockReason: 'Population cap reached' };
+  }
+  return { ok: true };
+}
+
 export function negotiateRefugees(
   originalState: WorldState,
   groupId: string,
   choice: RefugeeChoice,
 ): WorldState {
-  const groupPreview = originalState.visitorGroups.find((g) => g.id === groupId);
-  if (!groupPreview || groupPreview.kind !== 'refugees' || groupPreview.refugeeResolved) return originalState;
+  const eligibility = getRefugeeChoiceEligibility(originalState, groupId, choice);
+  // A choice the camp cannot even consider leaves the world untouched, exactly as
+  // before; an attempted-but-refused offer clones the world to show feedback.
+  if (!eligibility.ok && eligibility.silent) return originalState;
 
   const state = cloneWorldStateForAction(originalState);
   const group = state.visitorGroups.find((g) => g.id === groupId);
@@ -1473,16 +1534,13 @@ export function negotiateRefugees(
     return state;
   }
 
+  if (!eligibility.ok) {
+    pushFloat(state, group.campX, group.campY - 20, eligibility.blockReason ?? 'Cannot settle them', '#f97316');
+    return state;
+  }
+
   if (choice === 'welcome') {
-    if (state.resources.food < 40) {
-      pushFloat(state, group.campX, group.campY - 20, 'Need 40🍖', '#f97316');
-      return state;
-    }
     const currentPopulation = playerHumanCount(allAlive);
-    if (currentPopulation >= state.maxHumanPopulation) {
-      pushFloat(state, group.campX, group.campY - 20, 'Population cap reached', '#f97316');
-      return state;
-    }
     const joined = admitRefugees(
       state,
       group,
@@ -1494,7 +1552,7 @@ export function negotiateRefugees(
       pushFloat(state, group.campX, group.campY - 20, 'No room for refugees', '#f97316');
       return state;
     }
-    state.resources.food -= 40;
+    state.resources.food -= REFUGEE_WELCOME_FOOD;
     group.refugeeResolved = true;
     const villagers = allAlive.filter(isPlayerHuman);
     assignMissingResidences(villagers, state.buildings, allAlive);
@@ -1505,19 +1563,11 @@ export function negotiateRefugees(
   }
 
   if (choice === 'screen') {
-    if (state.resources.food < 20) {
-      pushFloat(state, group.campX, group.campY - 20, 'Need 20🍖', '#f97316');
-      return state;
-    }
     const currentPopulation = playerHumanCount(allAlive);
-    if (currentPopulation >= state.maxHumanPopulation) {
-      pushFloat(state, group.campX, group.campY - 20, 'Population cap reached', '#f97316');
-      return state;
-    }
     const joined = Math.random() < 0.55 ? admitRefugees(state, group, allAlive, currentPopulation, 1) : 0;
     group.refugeeResolved = true;
     if (joined > 0) {
-      state.resources.food -= 20;
+      state.resources.food -= REFUGEE_SCREEN_FOOD;
       const villagers = allAlive.filter(isPlayerHuman);
       assignMissingResidences(villagers, state.buildings, allAlive);
       syncResidenceOccupants(villagers, state.buildings);

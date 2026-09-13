@@ -251,7 +251,6 @@ export {
   pickAdultSettler,
   assignBuilderToBuilding,
   assignResidentToBuilding,
-  moveOutOfFamilyHome,
   removeResidentFromBuilding,
   assignIdleWorkerToBuilding,
   removeWorkerFromBuilding,

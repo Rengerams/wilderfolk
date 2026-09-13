@@ -3,6 +3,7 @@ import { canonicalDialogueBank, installDialogueBankPayload } from '../dialogueTr
 import { gameTick } from '../gameTick';
 import { GAME_VERSION } from '../version';
 import { hydrateWorldRuntimeCaches, invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
+import { adoptSimSeedFromWorld } from '../simRng';
 import { loadNames } from '../nameLoader';
 
 installDialogueBankPayload(canonicalDialogueBank);
@@ -118,6 +119,10 @@ function packAndPostTickResult(
 function resetWorkerSession(nextWorld: WorldState): void {
   // Rehydrate spatial and ID lookups on the incoming world
   hydrateWorldRuntimeCaches(nextWorld);
+  // This realm starts with its own `simRng` module state, so the world's seed has to be
+  // adopted explicitly. Without it every seeded draw in the worker came from seed 1 while
+  // the world carried the map seed, so worker mode and main-thread mode diverged.
+  adoptSimSeedFromWorld(nextWorld);
   world = nextWorld;
   lastFocus = undefined;
   prevBuildingsSnapshot = null;

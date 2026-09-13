@@ -1718,11 +1718,6 @@ export default function App() {
                       }
                     : undefined
                 }
-                onMoveOut={() => {
-                  playClickSound();
-                  const entityId = selectedEntity.id;
-                  applyGameAction({ proto: 1, op: 'moveOutOfFamilyHome', humanId: entityId });
-                }}
                 onTame={(humanId: number) => {
                   playClickSound();
                   const entityId = selectedEntity.id;

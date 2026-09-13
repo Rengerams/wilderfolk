@@ -70,10 +70,41 @@ export function setSimSeed(seed: number): void {
 }
 
 /**
+ * The host's own `Math.random`, captured at module load.
+ *
+ * This is the *only* legitimate `Math.random` consumer left in the simulation, and it is for
+ * choosing a new game's seed: `initGame` and `adoptSimSeedFromWorld` install the seeded
+ * global override, so drawing the next game's seed through `Math.random` would take it from
+ * the previous game's seeded stream (making a second new game in one session anything but
+ * fresh) instead of from entropy.
+ */
+export function nativeRandom(): number {
+  return NATIVE_MATH_RANDOM();
+}
+
+/**
  * Returns the current active simulation seed.
  */
 export function getSimSeed(): number {
   return currentSeed;
+}
+
+/**
+ * Adopt the seed a world already carries.
+ *
+ * A realm that *receives* a world rather than creating one — the simulation worker, or a
+ * loaded save — begins with this module's default seed. Without adopting the world's own
+ * `worldMap.seed`, every `getSimRng(owner)` and `seededRandomForRun()` draw in that realm
+ * comes from seed 1 while the world was built with its map seed: the same world then
+ * diverges between worker mode and main-thread mode, and two different seeds share one set
+ * of random streams. Installing the seeded global keeps the remaining `Math.random()` call
+ * sites on the same footing as a freshly created game.
+ */
+export function adoptSimSeedFromWorld(world: { worldMap?: { seed?: number } | null }): number {
+  const seed = world.worldMap?.seed ?? 1;
+  setSimSeed(seed);
+  enableSeededGlobalRandom();
+  return seed;
 }
 
 /**

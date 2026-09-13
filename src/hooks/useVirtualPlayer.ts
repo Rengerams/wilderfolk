@@ -12,6 +12,10 @@ export const VIRTUAL_PLAYER_TOOLTIP_LIMIT = 5;
 
 /** What the bot was doing when the colony asked for nothing. */
 const IDLE_STATUS = 'no action needed — colony looks healthy';
+/** Shown from the moment auto-play is switched on until the bot's first hour boundary. */
+const WAITING_STATUS = 'waiting for the next in-game hour';
+/** Shown while the game is paused — the bot cannot act until the world advances again. */
+const PAUSED_STATUS = 'paused — the world is not advancing';
 
 /** One recorded auto-play act, for the on-screen history. */
 export interface VirtualPlayerAct {
@@ -43,6 +47,22 @@ export interface UseVirtualPlayerResult {
   actsTaken: number;
   /** `null` while auto-play is off — so callers can render it unconditionally. */
   session: VirtualPlayerSession | null;
+}
+
+/**
+ * The one-line status shown next to the toggle. It is `null` only while
+ * auto-play is off, so an enabled-but-idle bot still says *why* it is idle
+ * instead of looking broken. Pure, so "never silent again" is testable without
+ * a DOM.
+ */
+export function virtualPlayerStatusText(
+  enabled: boolean,
+  status: string | null,
+  paused: boolean,
+): string | null {
+  if (!enabled) return null;
+  if (status != null) return status;
+  return paused ? PAUSED_STATUS : WAITING_STATUS;
 }
 
 /** Everything the on-screen readout needs to know about the current run. */
@@ -87,6 +107,13 @@ export function useVirtualPlayer({
   const enabledRef = useRef(false);
   /** Last tick the bot acted (or decided) on — a re-render cannot double-fire it. */
   const lastActedTickRef = useRef<number | null>(null);
+  /**
+   * The act effect is keyed on these scalars, not on the `world` object: the game
+   * loop mutates one `WorldState` in place (`GameLoop.frame` / the worker host
+   * `worldRef`), so `world` keeps the same identity across ticks. Object identity
+   * is therefore not a "a new in-game hour arrived" signal — the tick is.
+   */
+  const { paused, tick } = world;
 
   const setEnabled = useCallback((next: boolean) => {
     enabledRef.current = next;
@@ -99,10 +126,10 @@ export function useVirtualPlayer({
   const toggle = useCallback(() => setEnabled(!enabledRef.current), [setEnabled]);
 
   useEffect(() => {
-    if (!shouldVirtualPlayerAct(enabled, world, lastActedTickRef.current)) return;
+    if (!shouldVirtualPlayerAct(enabled, { paused, tick }, lastActedTickRef.current)) return;
     // Claim the hour before dispatching: a rejected command must not be retried
     // in a loop within the same in-game hour.
-    lastActedTickRef.current = world.tick;
+    lastActedTickRef.current = tick;
 
     const decision = decideVirtualPlayerAction(world);
     if (decision) applyGameAction(decision.command);
@@ -116,7 +143,7 @@ export function useVirtualPlayer({
         return previous.status === IDLE_STATUS ? previous : { ...previous, status: IDLE_STATUS };
       }
       const act: VirtualPlayerAct = {
-        tick: world.tick,
+        tick,
         op: decision.command.op,
         reason: decision.reason,
       };
@@ -126,7 +153,10 @@ export function useVirtualPlayer({
         history: [act, ...previous.history].slice(0, VIRTUAL_PLAYER_HISTORY_LIMIT),
       };
     });
-  }, [applyGameAction, enabled, world]);
+    // `paused` and `tick` are dependencies on purpose: the loop mutates `world`
+    // in place, so the object alone never re-triggers this effect after the click
+    // that enabled the bot — which is exactly the "Auto-play does nothing" bug.
+  }, [applyGameAction, enabled, paused, tick, world]);
 
   const session = useMemo<VirtualPlayerSession | null>(() => {
     if (!enabled) return null;
@@ -144,7 +174,9 @@ export function useVirtualPlayer({
     enabled,
     setEnabled,
     toggle,
-    status: enabled ? run.status : null,
+    // Fall back to a reason while the bot is enabled but has not decided anything
+    // yet, so the toggle can never look like it did nothing.
+    status: virtualPlayerStatusText(enabled, run.status, paused),
     history: run.history,
     actsTaken: run.acts,
     session,

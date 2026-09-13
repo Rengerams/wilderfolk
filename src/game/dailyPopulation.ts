@@ -18,6 +18,7 @@ import { addFloatingText, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import type { TickContext } from './simulation/simulationTypes';
 import { pruneFactionWanderStates } from './factionWander';
+import { getSimRng } from './simRng';
 
 function tickImmigration(
   state: WorldState,
@@ -60,22 +61,25 @@ function tickImmigration(
   const openSlots = state.maxHumanPopulation - counts.humans;
 
   // Already executed once daily by tickLayerDaily; open slots and probability gate arrival
+  // Seeded: immigration is part of the world state, so the same day of the same seed admits
+  // the same family. Resolved here because `setSimSeed` drops cached streams.
+  const rng = getSimRng('dailyPopulation');
   if (
     state.tick > 0 &&
     openSlots > 0 &&
-    Math.random() < immigrationChance
+    rng() < immigrationChance
   ) {
     let spawnX = width / 2;
     let spawnY = height / 2;
 
     if (homes.length > 0) {
-      const home = homes[Math.floor(Math.random() * homes.length)];
+      const home = homes[Math.floor(rng() * homes.length)];
       spawnX = home.x + home.width / 2;
       spawnY = home.y + home.height / 2;
     }
 
-    const rawSpawnX = spawnX + (Math.random() - 0.5) * 40;
-    const rawSpawnY = spawnY + (Math.random() - 0.5) * 40;
+    const rawSpawnX = spawnX + (rng() - 0.5) * 40;
+    const rawSpawnY = spawnY + (rng() - 0.5) * 40;
     const spawn = findHumanSpawnNear(state, rawSpawnX, rawSpawnY);
 
     // Cap members so an incoming family cannot exceed maxHumanPopulation

@@ -33,6 +33,7 @@ import { tickBeauty } from './beautyGrid';
 import { tickEcosystemMetrics } from './dailyEcology';
 import { tickValleyEcologyStage } from './ecologyStage';
 import { decayIdleSkills } from './skills';
+import { getSimRng } from './simRng';
 
 function tickFestivals(state: WorldState, counts: PopulationCounts): void {
   const townHallFestivalBoost = state.buildings.some(
@@ -63,16 +64,19 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
     festivalStartedThisTick = true;
   }
 
+  // Seeded: a festival (its name and length) is world state, so the same seed and day roll
+  // the same festival.
+  const festivalRng = getSimRng('dailyWorldEvents');
   if (
     !state.festival
     && state.tick >= (state.townHallFestivalCooldownUntilTick ?? 0)
     && state.tick % FESTIVAL_CHECK_TICKS === 0
     && counts.humans >= 6
-    && Math.random() < 0.25 * townHallFestivalBoost
+    && festivalRng() < 0.25 * townHallFestivalBoost
   ) {
     const festivalNames = ['Harvest Festival', 'Moonlight Feast', 'Founders Day', 'Spring Revel', 'Trade Fair'];
-    const name = festivalNames[Math.floor(Math.random() * festivalNames.length)];
-    state.festival = { active: true, name, daysLeft: 20 + Math.floor(Math.random() * 20) };
+    const name = festivalNames[Math.floor(festivalRng() * festivalNames.length)];
+    state.festival = { active: true, name, daysLeft: 20 + Math.floor(festivalRng() * 20) };
     state.townHallFestivalCooldownUntilTick = state.tick + getTownHallFestivalCooldownTicks();
     state.villageReputation = Math.min(100, state.villageReputation + 10);
     addBigNews(state, '🎉 Festival!', `${name} has begun! Production, courtship, and immigration are boosted for ${state.festival.daysLeft} days.`, 'positive');

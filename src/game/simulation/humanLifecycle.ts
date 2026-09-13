@@ -19,6 +19,7 @@ import { logEvent } from '../eventLog';
 import { humanDisplayName } from '../citizenId';
 import { dampScandalReputationLoss } from '../townHall';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
+import { seededRandomForRun } from '../simRng';
 
 export interface BirthContext {
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;

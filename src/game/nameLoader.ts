@@ -1,6 +1,7 @@
 import { formatCitizenName } from './citizenId';
 import { EntityType, type Entity, type WorldState } from './gameTypes';
 import { readUtf8RelativeToModule } from './nodeRuntime';
+import { getSimRng } from './simRng';
 
 let maleNames: string[] = [];
 let femaleNames: string[] = [];
@@ -252,7 +253,9 @@ loadNames().catch(() => {});
 
 function pickFrom(pool: string[]): string {
   ensureNamesLoaded();
-  return pool[Math.floor(Math.random() * pool.length)] ?? pool[0] ?? 'Settler';
+  // Seeded rather than `Math.random`: a settler's name is part of the world state, so the
+  // same seed and tick must produce the same census draw (roadmap T3's remaining site).
+  return pool[Math.floor(getSimRng('nameLoader')() * pool.length)] ?? pool[0] ?? 'Settler';
 }
 
 export function getRandomMaleName(): string {

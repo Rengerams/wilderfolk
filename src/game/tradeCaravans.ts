@@ -138,6 +138,28 @@ export function scheduleTradeRouteDeparture(
  * (`virtualPlayer.ts`), so the bot never claims an in-game hour with a route the
  * owner would refuse.
  */
+/**
+ * A route that only *buys* materials with coin — gold out, materials in, no gold back.
+ *
+ * These are the colony's way out of an empty larder or an empty timber pile, so they are
+ * allowed to skip the Market requirement below: a Market costs 50 wood and 20 stone, which
+ * is precisely what a colony that needs this route does not have. Without the exception the
+ * only way back was a passing visitor caravan.
+ */
+export function isMaterialPurchaseRoute(route: TradeRoute): boolean {
+  const givesGoldOnly =
+    route.resourcesGiven.gold > 0
+    && route.resourcesGiven.wood === 0
+    && route.resourcesGiven.stone === 0
+    && route.resourcesGiven.food === 0
+    && route.resourcesGiven.iron === 0;
+  const receivesMaterials =
+    route.resourcesReceived.wood > 0
+    || route.resourcesReceived.stone > 0
+    || route.resourcesReceived.food > 0;
+  return givesGoldOnly && receivesMaterials && route.resourcesReceived.gold === 0;
+}
+
 export function canEstablishTradeRoute(
   state: WorldState,
   routeId: string,
@@ -145,7 +167,7 @@ export function canEstablishTradeRoute(
   const route = (state.tradeRoutes ?? []).find((r) => r.id === routeId);
   if (!route) return { ok: false, blockReason: 'No such trade route' };
   if (route.active) return { ok: false, blockReason: 'Route already established' };
-  if (!hasCompletedMarket(state)) {
+  if (!hasCompletedMarket(state) && !isMaterialPurchaseRoute(route)) {
     return { ok: false, blockReason: 'Build a Market before establishing trade routes' };
   }
   if (state.villageReputation < route.reputationRequired) {

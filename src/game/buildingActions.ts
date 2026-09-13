@@ -42,7 +42,6 @@ export {
 // ---------------------------------------------------------------------------
 export {
   assignResidentToBuilding,
-  moveOutOfFamilyHome,
   removeResidentFromBuilding,
 } from './buildingResidencyActions';
 

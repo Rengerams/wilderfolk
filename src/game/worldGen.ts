@@ -27,7 +27,7 @@ import {
 } from './gameTypes';
 import { generateWorldMap, findCampSite } from './terrainGen';
 export { generateWorldMap } from './terrainGen';
-import { enableSeededGlobalRandom, getSimRng, setSimSeed } from './simRng';
+import { enableSeededGlobalRandom, getSimRng, nativeRandom, setSimSeed } from './simRng';
 import { loadAutoSavePreference } from './preferences';
 import { INITIAL_CHALLENGES } from './challenges';
 import { ensureNamesLoaded, getRandomName, getRandomSurname } from './nameLoader';
@@ -565,7 +565,9 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   } = options;
 
   // 1. Initialize Deterministic PRNG Seed
-  const mapSeed = seed ?? Math.floor(Math.random() * 1_000_000);
+  // Entropy, not the seeded stream: `nativeRandom` is the host's own Math.random, so a
+  // second new game in one session cannot inherit the previous game's seeded sequence.
+  const mapSeed = seed ?? Math.floor(nativeRandom() * 1_000_000);
   setSimSeed(mapSeed);
   enableSeededGlobalRandom();
 
@@ -612,7 +614,12 @@ export function initGame(options: InitGameOptions = {}): WorldState {
       stone: Math.min(70, storageMax.stone),
       food: Math.min(530, storageMax.food),
       gold: Math.min(80, storageMax.gold),
-      iron: 0,
+      // Iron arrives later than every other material (only the Mine produces it, and the
+      // Mine itself needs gold), while nothing a colony builds costs iron at all — the only
+      // iron sink is the Blacksmith's forge orders (10-40 each, `forge.ts`). 30 is one of
+      // the cheaper orders up front, so the material is usable before the Mine exists; the
+      // pricier orders and everything after them still wait for it.
+      iron: Math.min(30, storageMax.iron),
     },
     storageMax,
     foodSpoilageRate: 0.03,

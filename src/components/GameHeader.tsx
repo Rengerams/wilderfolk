@@ -250,9 +250,11 @@ tutorialsEnabled,
             >
               🤖 Auto-play
             </button>
+            {/* Not `hidden sm:inline`: an enabled bot must never be silent, and a
+                width-gated `display: none` hid this line below a 640 px window. */}
             {autoPlay && autoPlayStatus && (
               <span
-                className="hidden max-w-[17rem] truncate text-[11px] text-cyan-200 sm:inline"
+                className="max-w-[17rem] truncate text-[11px] text-cyan-200"
                 title={autoPlayStatus}
               >
                 auto-player: {autoPlayStatus}

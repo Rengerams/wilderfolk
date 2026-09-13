@@ -33,7 +33,12 @@ export function tickHumanChildLeisure(args: {
     } else {
       entity.vx = Math.sin(state.tick * 0.2 + entity.id) * speed * 0.45;
       entity.vy = Math.cos(state.tick * 0.18 + play.id) * speed * 0.45;
-      if (kidImpulse.bubble && Math.random() < 0.06 * PER_TICK_RATE_SCALE) sayHumanChatPhrase(entity, kidImpulse.bubble, 40);
+      if (
+        kidImpulse.bubble
+        && seededRandomForRun(`chat-kid:${entity.id}:${state.tick}`) < 0.06 * PER_TICK_RATE_SCALE
+      ) {
+        sayHumanChatPhrase(entity, kidImpulse.bubble, 40);
+      }
     }
     entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
     return true;

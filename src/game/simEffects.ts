@@ -3,6 +3,7 @@
  */
 import type { DeathParticle, WorldState } from './gameTypes';
 import { pushTransientParticle } from './juiceEffects';
+import { getSimRng } from './simRng';
 
 export { pushTransientParticle } from './juiceEffects';
 
@@ -18,18 +19,21 @@ export function createDeathParticles(
   count: number,
   type?: DeathParticle['type'],
 ) {
+  // Seeded, so a replay of the same world scatters the same particles. Resolved per call:
+  // `setSimSeed` drops the cached streams, so a module-scope capture would go stale.
+  const rng = getSimRng('simEffects');
   for (let i = 0; i < count; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = 0.5 + Math.random() * 1.5;
+    const angle = rng() * Math.PI * 2;
+    const speed = 0.5 + rng() * 1.5;
     pushTransientParticle(state, {
       x,
       y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
-      life: 25 + Math.random() * 15,
+      life: 25 + rng() * 15,
       maxLife: 40,
       color,
-      size: 1.5 + Math.random() * 1.5,
+      size: 1.5 + rng() * 1.5,
       type: type || 'blood',
     });
   }
@@ -67,7 +71,7 @@ export function addNotification(
   campKey?: string,
 ) {
   state.notifications.push({
-    id: `notif_${state.tick}_${Math.random()}`,
+    id: `notif_${state.tick}_${getSimRng('simEffects')()}`,
     title,
     message,
     type,

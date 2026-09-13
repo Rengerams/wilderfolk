@@ -38,7 +38,6 @@ import {
   setMineMode,
   setBuildingStaffingMode,
   recruitSettler,
-  moveOutOfFamilyHome,
   tameEntity,
   spawnMoonHowlerDebug,
 } from '../buildingActions';
@@ -76,7 +75,6 @@ export type WorkerCommand =
   | { proto: 1; op: 'setBuildingStaffingMode'; buildingId: number; mode: 'auto' | 'manual' }
   | { proto: 1; op: 'queueForgeOrder'; buildingId: number; orderId: ForgeOrderId }
   | { proto: 1; op: 'recruitSettler' }
-  | { proto: 1; op: 'moveOutOfFamilyHome'; humanId: number }
   | { proto: 1; op: 'tameEntity'; entityId: number; humanId: number }
   | { proto: 1; op: 'notifyBuildingLocked'; type: BuildingType }
   | { proto: 1; op: 'respondToRaidEvent'; eventId: string; choiceId: string }
@@ -118,7 +116,6 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'setBuildingStaffingMode',
   'queueForgeOrder',
   'recruitSettler',
-  'moveOutOfFamilyHome',
   'tameEntity',
   'notifyBuildingLocked',
   'respondToRaidEvent',
@@ -256,8 +253,6 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       return validateWorkSchedule(cmd.startHour, cmd.endHour).ok;
     case 'setVenueSchedule':
       return (cmd.venue === 'tavern' || cmd.venue === 'hotel') && validateVenueSchedule(cmd.startHour, cmd.endHour).ok;
-    case 'moveOutOfFamilyHome':
-      return isFiniteNumber(cmd.humanId);
     case 'tameEntity':
       return isFiniteNumber(cmd.entityId) && isFiniteNumber(cmd.humanId);
     case 'notifyBuildingLocked':
@@ -357,8 +352,6 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return queueForgeOrder(world, cmd.buildingId, cmd.orderId);
     case 'recruitSettler':
       return recruitSettler(world);
-    case 'moveOutOfFamilyHome':
-      return moveOutOfFamilyHome(world, cmd.humanId);
     case 'tameEntity':
       return tameEntity(world, cmd.entityId, cmd.humanId);
     case 'notifyBuildingLocked':

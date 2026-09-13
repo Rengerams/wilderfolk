@@ -9,6 +9,7 @@
 import type { WorldState, VisitorQuest } from './gameTypes';
 import { getAbsoluteCalendarDay } from './dayCycle';
 import { addBigNews } from './simEffects';
+import { getSimRng } from './simRng';
 
 export const QUEST_EXPIRE_DAYS = 4;
 
@@ -30,7 +31,7 @@ const SMITH_QUEST = {
 export function maybeStartVisitorQuest(state: WorldState): void {
   const existing = state.visitorQuest;
   if (existing && existing.status === 'active') return;
-  if (Math.random() > QUEST_START_CHANCE) return;
+  if (getSimRng('visitorQuest')() > QUEST_START_CHANCE) return;
   state.visitorQuest = {
     ...SMITH_QUEST,
     progress: 0,

@@ -26,6 +26,7 @@ import { ensureEntitySkills } from './skills';
 import { normalizeWorkSchedule } from './workSchedule';
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
+import { adoptSimSeedFromWorld } from './simRng';
 import { syncResearchUnlocks } from './research';
 import { assignMissingWorkers, removeWorkerTransition } from './workforce';
 import { syncBigNewsIdFromState } from './simEffects';
@@ -581,6 +582,10 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
     });
     clearAllFactionWanderStates();
     rebuildEntityByIdMap(world);
+    // A loaded colony must draw from its own seed. `initGame` seeds this realm for the game
+    // it creates and loading never re-seeded, so a loaded world kept the previous run's
+    // random streams (and the worker's realm was never seeded at all).
+    adoptSimSeedFromWorld(world);
     const view = createViewFromSave(parsed, world);
     return { world, view };
   } catch (e) {

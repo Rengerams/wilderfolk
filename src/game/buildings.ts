@@ -157,7 +157,10 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   [BuildingType.House]: {
     width: 46,
     height: 40,
-    cost: { wood: 40, stone: 10, gold: 5 },
+    // No gold: housing is survival, and a colony at 0 gold with homeless settlers must
+    // still be able to build (this is the exact state that stalled a measured 30-day run
+    // for ten days — see docs/plans/auto-play-missing-rules-plan.md).
+    cost: { wood: 40, stone: 10, gold: 0 },
     buildTime: 2,
     maxOccupants: 6,
     emoji: '🏠',
@@ -170,7 +173,9 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   [BuildingType.Farm]: {
     width: 53,
     height: 46,
-    cost: { wood: 25, stone: 0, gold: 5 },
+    // No gold: feeding the colony must not depend on the one material a colony can be
+    // completely out of (`dailyBuildingEconomy` pays farms in food, not gold).
+    cost: { wood: 25, stone: 0, gold: 0 },
     buildTime: 3,
     maxOccupants: 2,
     emoji: '🌾',
@@ -183,7 +188,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   [BuildingType.Greenhouse]: {
     width: 50,
     height: 43,
-    cost: { wood: 30, stone: 10, gold: 15 },
+    cost: { wood: 30, stone: 10, gold: 0 },
     buildTime: 4,
     maxOccupants: 2,
     emoji: '🏡',
@@ -236,7 +241,9 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   [BuildingType.LumberMill]: {
     width: 56,
     height: 46,
-    cost: { wood: 35, stone: 10, gold: 10 },
+    // No wood, and no gold: a colony at 0 wood must still be able to raise the building
+    // that makes wood. Paid in stone, which the Quarry makes from wood alone.
+    cost: { wood: 0, stone: 30, gold: 0 },
     buildTime: 4,
     maxOccupants: 3,
     emoji: '🪵',
@@ -249,7 +256,9 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   [BuildingType.Quarry]: {
     width: 53,
     height: 46,
-    cost: { wood: 20, stone: 10, gold: 10 },
+    // No stone (it makes stone) and no gold: paid in wood, which the Lumber Mill makes
+    // from stone alone — so the pair bootstraps from either material.
+    cost: { wood: 30, stone: 0, gold: 0 },
     buildTime: 4,
     maxOccupants: 3,
     emoji: '🪨',
@@ -262,7 +271,9 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   [BuildingType.Mine]: {
     width: 50,
     height: 46,
-    cost: { wood: 30, stone: 15, gold: 15 },
+    // No gold: the Mine can dig the gold seam, so a colony at 0 gold must still be able
+    // to build it. Paid in wood and stone.
+    cost: { wood: 35, stone: 25, gold: 0 },
     buildTime: 6,
     maxOccupants: 4,
     emoji: '⛏️',
@@ -316,7 +327,9 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   [BuildingType.Store]: {
     width: 46,
     height: 40,
-    cost: { wood: 30, stone: 10, gold: 15 },
+    // "Generates gold." — so it must not cost gold, or a colony at 0 gold could never
+    // build its way back. Paid in wood and stone.
+    cost: { wood: 35, stone: 20, gold: 0 },
     buildTime: 3,
     maxOccupants: 1,
     emoji: '🏪',
@@ -539,7 +552,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   [BuildingType.HuntingSpot]: {
     width: 44,
     height: 40,
-    cost: { wood: 30, stone: 10, gold: 15 },
+    cost: { wood: 30, stone: 10, gold: 0 },
     buildTime: 3,
     maxOccupants: 2,
     emoji: '🏹',
@@ -552,7 +565,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   [BuildingType.FishingSpot]: {
     width: 52,
     height: 40,
-    cost: { wood: 20, stone: 15, gold: 10 },
+    cost: { wood: 20, stone: 15, gold: 0 },
     buildTime: 3,
     maxOccupants: 2,
     emoji: '🎣',

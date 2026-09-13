@@ -9,6 +9,7 @@ import { sayHumanChatPhrase } from './humanChat';
 import { ensureEntitySkills } from './skills';
 import { simulateElectionVotes } from './electionVotes';
 import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
+import { getSimRng } from './simRng';
 
 /**
  * Years between scheduled (end-of-term) elections.
