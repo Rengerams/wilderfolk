@@ -3,10 +3,8 @@ import { TICKS_PER_DAY } from './dayCycle';
 import {
   GRASS_GROWTH_PER_TICK,
   GRASS_MAX_ENERGY,
-  GRAZER_METABOLISM,
   getGrassGrowthMultiplier,
-
-  grazerGrassEnergyDemandPerDay,
+  getGrazerDailyDemand,
 } from './grassEcology';
 
 export type GrazingPressureLevel = 'stable' | 'caution' | 'critical';
@@ -64,10 +62,14 @@ export function getGrazingPressureReport(state: WorldState): GrazingPressureRepo
     : grassCount * 0.3;
   const grassRecoveryPerDay = regrowBase * GRASS_GROWTH_PER_TICK * grassMult * TICKS_PER_DAY;
 
+  // Demand is per grazer species through the owner of the daily-demand rule, so the seasonal
+  // (winter) energy penalty applies here too. The audit's L30: this report called the low-level
+  // helper with `winterPenalty = 0`, which made `getGrazerDailyDemand` — the only place the
+  // penalty is applied to demand — unreachable and understated winter grazing pressure.
   const grazingDemandPerDay =
-    grazerGrassEnergyDemandPerDay(GRAZER_METABOLISM.deer.energyLossPerTick, GRAZER_METABOLISM.deer.grassEnergyGain, 0) * deerCount
-    + grazerGrassEnergyDemandPerDay(GRAZER_METABOLISM.rabbit.energyLossPerTick, GRAZER_METABOLISM.rabbit.grassEnergyGain, 0) * rabbitCount
-    + grazerGrassEnergyDemandPerDay(GRAZER_METABOLISM.wildkin.energyLossPerTick, GRAZER_METABOLISM.wildkin.grassEnergyGain, 0) * wildkinCount;
+    getGrazerDailyDemand('deer', state.season) * deerCount
+    + getGrazerDailyDemand('rabbit', state.season) * rabbitCount
+    + getGrazerDailyDemand('wildkin', state.season) * wildkinCount;
 
   const pressureRatio = grazingDemandPerDay / Math.max(grassRecoveryPerDay, GRASS_GROWTH_PER_TICK * TICKS_PER_DAY);
 

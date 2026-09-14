@@ -2,9 +2,9 @@
  * Grid pathfinding over the terrain map — settlers/visitors stop walking in
  * straight lines through rivers and mountains.
  *
- * Design: the passability grid is built once per map (cached by seed). A* is
- * only invoked when the direct line between an entity and its target actually
- * crosses a blocked tile (cheap sampling), and results are cached per
+ * Design: the passability grid is built once per map (cached by seed, preset and
+ * size). A* is only invoked when the direct line between an entity and its target
+ * actually crosses a blocked tile (cheap sampling), and results are cached per
  * origin-target pair with a bounded cache. Every pathing call falls back to
  * direct movement when no path exists, so nothing can ever deadlock.
  */
@@ -62,7 +62,9 @@ let gridCacheSeed = '';
 export function getPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
   const seed = typeof map.seed === 'number' ? map.seed : 1;
   const bldSig = buildingSignature(buildings);
-  const cacheKey = `${seed}|${bldSig}|${map.width}x${map.height}`;
+  // The seed alone does not identify the tiles: two maps can share a seed and size while a
+  // different preset produces different terrain, so the preset is part of the cache identity.
+  const cacheKey = `${seed}|${map.preset}|${bldSig}|${map.width}x${map.height}`;
   if (gridCache && gridCacheSeed === cacheKey) {
     return gridCache;
   }

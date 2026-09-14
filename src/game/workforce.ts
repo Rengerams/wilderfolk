@@ -582,12 +582,6 @@ export function assignMissingWorkers(
   staffJobBuildings(alive, buildings, false, venueSchedules);
 }
 
-export function assignAllWorkers(humans: Entity[], buildings: Building[]): void {
-  const alive = prepareWorkforce(humans, buildings);
-  staffConstructionCrews(alive, buildings);
-  staffJobBuildings(alive, buildings, true, undefined);
-}
-
 export function countWorkingAndIdleSettlers(
   humans: Entity[],
   buildings: Building[],

@@ -390,6 +390,13 @@ export interface RevertToHumanFormOptions {
   buildings?: Building[];
   humans?: Entity[];
   tick?: number;
+  /**
+   * The world's live `villageLeaderId`. The office survives the night, but only for the settler
+   * who still holds it: an election can complete while the incumbent hunts in Moon Howler form
+   * (a transformed leader is not an eligible candidate), and without this the saved occupation
+   * handed the `village_leader` label back to a settler who no longer holds the office.
+   */
+  villageLeaderId?: number | null;
 }
 
 /**
@@ -406,6 +413,13 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   const buildings = opts?.buildings;
   const humans = opts?.humans;
   const tick = opts?.tick;
+  const savedOccupation = saved?.occupation;
+  const staleLeaderOccupation =
+    savedOccupation === LEADER_OCCUPATION
+    && opts?.villageLeaderId != null
+    && opts.villageLeaderId !== were.id;
+  /** The saved occupation, minus a leadership label this settler no longer holds. */
+  const restoredOccupation = staleLeaderOccupation ? 'settler' : (savedOccupation ?? 'settler');
 
   were.type = EntityType.Human;
   were.maxEnergy = saved?.maxEnergy ?? cfg.maxEnergy;
@@ -436,7 +450,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   // Moon Howler night as a plain 'settler' while still holding villageLeaderId
   // (caught by the full-year leader-occupation invariant).
   were.job = JobType.Settler;
-  were.occupation = saved?.occupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
+  were.occupation = restoredOccupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
   were.homeBuildingId = undefined;
   were.residenceBuildingId = undefined;
   were.prisonBuildingId = undefined;
@@ -459,7 +473,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
       return;
     }
     were.job = saved.job ?? JobType.Settler;
-    were.occupation = saved.occupation ?? 'settler';
+    were.occupation = restoredOccupation;
     were.homeBuildingId = saved.homeBuildingId;
     were.residenceBuildingId = saved.residenceBuildingId;
     return;
@@ -502,7 +516,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
       if (workers < maxOcc) {
         were.homeBuildingId = jobSite.id;
         were.job = saved.job ?? JobType.Settler;
-        were.occupation = saved.occupation ?? 'settler';
+        were.occupation = restoredOccupation;
         if (!jobSite.occupants.includes(were.id)) jobSite.occupants.push(were.id);
       }
     }
@@ -747,7 +761,7 @@ export function tryMoonHowlerChurchCures(
   // ── 1) Cured + priest lives ─────────────────────────────────
   if (outcome === 'cured') {
     const humans = entities.filter((e) => e.alive && e.type === EntityType.Human);
-    cureMoonHowler(howler, { buildings, humans, tick: state.tick });
+    cureMoonHowler(howler, { buildings, humans, tick: state.tick, villageLeaderId: state.villageLeaderId });
     if (!humans.includes(howler)) humans.push(howler);
     result.cured.push(howler);
     const line = WEREWOLF_CURE_LINES[Math.floor(rng() * WEREWOLF_CURE_LINES.length)]!;
@@ -888,13 +902,14 @@ export function syncMoonHowlerForms(
   mapWidth = 1200,
   mapHeight = 900,
   tick?: number,
+  villageLeaderId?: number | null,
 ): MoonHowlerSyncResult {
   const wantWerewolf = shouldMoonHowlerTransform(colonyDay, hourOfDay);
   const transformTick = isMoonHowlerTransformTick(colonyDay, hourOfDay);
   const transformed: Entity[] = [];
   const reverted: Entity[] = [];
   const humans = entities.filter((e) => e.alive && e.type === EntityType.Human);
-  const revertOpts: RevertToHumanFormOptions = { buildings, humans, tick };
+  const revertOpts: RevertToHumanFormOptions = { buildings, humans, tick, villageLeaderId };
 
   for (const entity of entities) {
     if (!entity.alive || !entity.moonHowlerCursed || !isMoonHowlerEligible(entity)) continue;
@@ -960,6 +975,7 @@ export function tickMoonHowlerCycle(
     state.width,
     state.height,
     state.tick,
+    state.villageLeaderId,
   );
   if (moonSync.transformed.length > 0 || moonSync.reverted.length > 0) {
     byType = buildEntityByType(aliveEntities);

@@ -2,7 +2,7 @@ import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState }
 import { maybeOfferValleyDebate } from './storyEvents';
 import { recordElectionPromises, tickElectionPromises } from './electionPromises';
 import { BuildingType, EntityType } from './gameTypes';
-import { getAgeInYears, HUMAN_ADULT_MIN_AGE, isImprisoned, TICKS_PER_DAY } from './dayCycle';
+import { DAYS_PER_YEAR, getAgeInYears, HUMAN_ADULT_MIN_AGE, isImprisoned, TICKS_PER_DAY } from './dayCycle';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
 import { sayHumanChatPhrase } from './humanChat';
@@ -32,9 +32,11 @@ export const VACANCY_ELECTION_DELAY_YEARS = 0.25;
 export const ELECTION_PARTY_DAYS = 1;
 export const ELECTION_PARTY_NAME = 'Election Revelry';
 
-export const DAYS_PER_MONTH = 30;
-export const MONTHS_PER_YEAR = 12;
-export const DAYS_PER_YEAR = DAYS_PER_MONTH * MONTHS_PER_YEAR; // 360 days
+// Months are a display division of the one canonical year (`dayCycle`/`dayCycleClock` →
+// `gameConstants.Time.DAYS_PER_YEAR`), not a second calendar: the audit flagged the old local
+// `DAYS_PER_YEAR = 30 * 12` as a second definition that would drift silently if the year changed.
+const MONTHS_PER_YEAR = 12;
+const DAYS_PER_MONTH = DAYS_PER_YEAR / MONTHS_PER_YEAR;
 
 /** Gossip lasts 2 months before the vote. */
 const GOSSIP_MONTHS = 2;

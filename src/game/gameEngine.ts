@@ -110,7 +110,6 @@ export {
   hasStaffedSchool,
   completedJobBuildings,
   assignMissingWorkers,
-  assignAllWorkers,
   findHumanWorkplace,
   releasePrisoners,
 } from './workforce';

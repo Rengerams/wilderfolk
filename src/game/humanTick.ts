@@ -306,6 +306,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   /** Pregnancy progress — one guard for the simulated and the imprisoned settler. */
   const advancePregnancy = (entity: Entity, conceivedToday: boolean): void => {
     if (
+      entity.alive &&
       isPlayerHuman(entity) &&
       entity.gender === 'female' &&
       entity.pregnant &&

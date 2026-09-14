@@ -166,10 +166,14 @@ export function getVillageRequestEligibility(
   request: VillageRequest,
   choiceId: VillageRequestChoiceId,
 ): { ok: boolean; blockReason?: string } {
-  if (choiceId === 'accept' && state.resources.gold < VILLAGE_REQUEST_PROVISIONS_COST_GOLD) {
+  if (!request.choices.some((choice) => choice.id === choiceId)) {
+    return { ok: false, blockReason: 'Unknown answer' };
+  }
+  if (choiceId !== 'accept') return { ok: true };
+  if (state.resources.gold < VILLAGE_REQUEST_PROVISIONS_COST_GOLD) {
     return { ok: false, blockReason: `Need ${VILLAGE_REQUEST_PROVISIONS_COST_GOLD} gold` };
   }
-  if (choiceId === 'accept' && getAvailableStorageHeadroom(state, 'food') < VILLAGE_REQUEST_PROVISIONS_FOOD) {
+  if (getAvailableStorageHeadroom(state, 'food') < VILLAGE_REQUEST_PROVISIONS_FOOD) {
     return { ok: false, blockReason: 'Food storage full' };
   }
   return { ok: true };

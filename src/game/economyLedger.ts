@@ -55,11 +55,11 @@ function pushCompletedDayToHistory(state: WorldState, prev: DailyEconomyLedger):
 export function rollEconomyLedgerForDay(state: WorldState): DailyEconomyLedger {
   const day = getAbsoluteCalendarDay(state.tick);
   const prev = state.economyLedger;
-  if (!prev || prev.day !== day) {
-    if (prev && prev.day < day) pushCompletedDayToHistory(state, prev);
-    state.economyLedger = { day, produced: {}, consumed: {} };
-  }
-  return state.economyLedger;
+  if (prev && prev.day === day) return prev;
+  if (prev && prev.day < day) pushCompletedDayToHistory(state, prev);
+  const next: DailyEconomyLedger = { day, produced: {}, consumed: {} };
+  state.economyLedger = next;
+  return next;
 }
 
 /** Record food that actually entered storage (amount > 0 only). */

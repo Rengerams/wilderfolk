@@ -32,8 +32,9 @@
  * daily transitions in development mode and tests.
  */
 import type { Building, Entity, WorldState } from '../gameTypes';
-import { BuildingType, EntityType, BUILDING_JOB_TYPES, LEADER_OCCUPATION } from '../gameTypes';
+import { BuildingType, BUILDING_JOB_TYPES, LEADER_OCCUPATION } from '../gameTypes';
 import { isActingVillageHead } from '../villageLeadership';
+import { countActiveMoonHowlerCurses, isActiveMoonHowler, isSettlerRelationshipEntity } from '../moonHowler';
 import { BUILDING_CONFIGS } from '../buildings';
 import { isResidenceBuildingType } from '../dayCycle';
 
@@ -46,13 +47,6 @@ export function buildingOccupantRole(building: Building): BuildingRole {
   if (building.completed && BUILDING_JOB_TYPES[building.type] != null) return 'workplace';
   if (!building.completed && (BUILDING_CONFIGS[building.type]?.maxOccupants ?? 0) > 0) return 'crew';
   return 'none';
-}
-
-/** A cursed werewolf in full-moon form is still a settler for assignment checks. */
-function isSettlerEntity(entity: Entity): boolean {
-  if (!entity.alive) return false;
-  if (entity.type === EntityType.Human) return true;
-  return entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
 }
 
 export function collectSimulationInvariantErrors(state: WorldState): string[] {
@@ -158,7 +152,7 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
   // Reverse per-entity checks: every assignment field must point at a real
   // building and be reflected in that building's occupants.
   for (const entity of state.entities) {
-    if (!isSettlerEntity(entity)) continue;
+    if (!isSettlerRelationshipEntity(entity)) continue;
     const id = entity.id;
 
     if (entity.homeBuildingId != null) {
@@ -215,7 +209,7 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
     // Youth-love invariants — daily reconciliation repairs stale links; this collector only reports them.
     if (entity.youthLovePartnerId != null) {
       const sweetheart = entityById.get(entity.youthLovePartnerId);
-      if (!sweetheart || !isSettlerEntity(sweetheart)) {
+      if (!sweetheart || !isSettlerRelationshipEntity(sweetheart)) {
         errors.push(`human ${id} youthLovePartnerId ${entity.youthLovePartnerId} references a missing or invalid settler`);
       } else if (sweetheart.youthLovePartnerId !== id) {
         errors.push(
@@ -243,27 +237,14 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
     }
   }
 
-  // 🚀 OPTIMIZED: Moon Howler invariant — at most one living cursed entity (zero allocations).
-  let howlerCount = 0;
-  let howlerIds: number[] = [];
-  for (const e of state.entities) {
-    if (e.alive && e.moonHowlerCursed) {
-      howlerCount++;
-      if (howlerCount <= 2) { // Only track IDs for the error message if we exceed 1
-        howlerIds.push(e.id);
-      }
-      if (howlerCount > 1) {
-        // We can break early if we only care about the fact that it's > 1, 
-        // but collecting all IDs is more helpful for debugging.
-      }
-    }
-  }
-  
+  // Moon Howler invariant — at most one living cursed entity (SIMULATION_AUTHORITY §5).
+  // `countActiveMoonHowlerCurses` owns the colony-level rule; this collector only reports a
+  // violation, and only on that path does it enumerate the offending ids for the message.
+  const howlerCount = countActiveMoonHowlerCurses(state.entities);
   if (howlerCount > 1) {
-    // Re-scan to get all IDs for the error message if there are many
-    const allHowlerIds = state.entities.filter(e => e.alive && e.moonHowlerCursed).map(e => e.id);
+    const howlerIds = state.entities.filter((e) => e.alive && e.moonHowlerCursed).map((e) => e.id);
     errors.push(
-      `multiple living Moon Howlers: ${howlerCount} (${allHowlerIds.join(', ')})`,
+      `multiple living Moon Howlers: ${howlerCount} (${howlerIds.join(', ')})`,
     );
   }
 
@@ -281,7 +262,16 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
       const manor = state.buildings.find(
         (b) => b.type === BuildingType.LeaderHouse && b.completed && b.faction !== 'rival',
       );
-      if (manor && leader.prisonBuildingId == null && leader.residenceBuildingId !== manor.id) {
+      // A cursed leader hunting in Moon Howler form has `residenceBuildingId` parked in
+      // `moonHowlerSaved` for the duration of the form (`transformToWerewolfForm` clears the live
+      // ids), so the manor check must exempt the form — the same exemption `isActingVillageHead`
+      // applies to the office. The owner predicate is `moonHowler.isActiveMoonHowler`.
+      if (
+        manor
+        && leader.prisonBuildingId == null
+        && !isActiveMoonHowler(leader)
+        && leader.residenceBuildingId !== manor.id
+      ) {
         errors.push(`leader ${leader.id} not residing in the Leader's House (#${manor.id})`);
       }
     }

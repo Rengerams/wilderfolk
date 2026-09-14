@@ -456,6 +456,7 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
       world.width ?? 1200,
       world.height ?? 900,
       loadedTick,
+      world.villageLeaderId,
     );
 
     syncEventLogIdFromState(world);
