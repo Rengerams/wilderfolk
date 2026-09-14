@@ -28,6 +28,12 @@ export const WORLD_STATE_SAVE_KEYS = [
   'visitorQuest',
   // The current year's death tally (the yearly record's `deaths`).
   'deathsThisYear',
+  // Moon Howler lifecycle state written every full moon: the church-rite cooldown and the
+  // priest-fear window. Without these a reload let the cure rite fire again immediately
+  // (save-scumming the roll) and un-scared the priests that had just fled.
+  'lastMoonHowlerExorcismTick', 'moonHowlerPriestsFleeUntil',
+  // Village happiness is derived daily by `beautyGrid` but rendered by the Population panel.
+  'villageHappiness',
 ] as const satisfies readonly (keyof WorldState)[];
 
 /**

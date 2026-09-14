@@ -244,10 +244,14 @@ function migrateTickTimeline(
     scaleField(rec, 'lastMetPartner');
     // pregnancyProgress is 0..PREGNANCY_TICKS absolute progress — scale with day length
     scaleField(rec, 'pregnancyProgress');
+    // ...and so is the due threshold the progress is compared against, or a loaded pregnancy
+    // arrives over- or under-due by the calendar ratio.
+    scaleField(rec, 'pregnancyDueProgress');
     // Nested snapshot while hunting (EK-C5) — same absolute progress units
     const saved = rec.moonHowlerSaved;
     if (saved && typeof saved === 'object') {
       scaleField(saved as Record<string, unknown>, 'pregnancyProgress');
+      scaleField(saved as Record<string, unknown>, 'pregnancyDueProgress');
     }
     // chatTicks / combatTicks are short remaining counters — leave unscaled
   }
@@ -285,6 +289,13 @@ function migrateTickTimeline(
     const rec = world.festival as unknown as Record<string, unknown>;
     scaleField(rec, 'startedAtTick');
     scaleField(rec, 'endsAtTick');
+  }
+  // Pending story cards carry absolute deadlines too; leaving them unscaled made a card expire
+  // immediately (or linger for days) after a day-length change.
+  for (const evt of world.pendingStoryEvents ?? []) {
+    const rec = evt as unknown as Record<string, unknown>;
+    scaleField(rec, 'createdAtTick');
+    scaleField(rec, 'expiresAtTick');
   }
 }
 

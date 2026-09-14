@@ -36,8 +36,9 @@ export function shouldAttemptHospitalTreatment(
   entity: Entity,
   onJobShift: boolean,
   hasStaffedHospital: boolean,
+  tick: number,
 ): boolean {
-  return !!(needsMedicalCare(entity) || entity.pregnant || !onJobShift)
+  return !!(needsMedicalCare(entity, tick) || entity.pregnant || !onJobShift)
     && isPlayerHuman(entity)
     && !!(entity.energy < entity.maxEnergy * 0.5 || entity.pregnant)
     && hasStaffedHospital;
@@ -84,7 +85,7 @@ export function tickHumanHospitalPatientCare({
     }
   }
 
-  if (shouldAttemptHospitalTreatment(entity, onJobShift, staffedHospitals.length > 0)) {
+  if (shouldAttemptHospitalTreatment(entity, onJobShift, staffedHospitals.length > 0, state.tick)) {
     const hospital = staffedHospitals.find(
       (building) => Math.hypot(
         entity.x - (building.x + building.width / 2),

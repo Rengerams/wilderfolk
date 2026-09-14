@@ -1015,7 +1015,13 @@ export function tickMoonHowlerCycle(
 
   const activeMoonCurses = countActiveMoonHowlerCurses(aliveEntities);
   const humanPop = aliveEntities.filter((e) => e.alive && isPlayerHuman(e)).length;
-  if (shouldApplyNewMoonHowlerCurse(colonyDay, hourOfDay, humanPop, activeMoonCurses, rng)) {
+  // The rare replacement roll is a per-moon decision, but the nightfall gate
+  // (`hourOfDay === NIGHT_START` inside `shouldApplyNewMoonHowlerCurse`) is true on all
+  // TICKS_PER_HOUR ticks of that hour, so rolling every tick turned a
+  // MOON_HOWLER_REPLACEMENT_CHANCE roll into ~1-(1-0.15)^3 ≈ 39% per moon. Decide once, on the
+  // first tick of the hour (hour boundaries fall on every TICKS_PER_HOUR-th tick).
+  const nightfallDecisionTick = state.tick % TICKS_PER_HOUR === 0;
+  if (nightfallDecisionTick && shouldApplyNewMoonHowlerCurse(colonyDay, hourOfDay, humanPop, activeMoonCurses, rng)) {
     const candidates = byType[EntityType.Human].filter((h) => isPlayerHuman(h) && canMoonHowlerCurse(h));
     const human = candidates[Math.floor(rng() * candidates.length)];
     if (human) {

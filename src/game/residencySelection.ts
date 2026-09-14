@@ -351,7 +351,10 @@ export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
 ): void {
   let emptyHomeIds = residences
     .filter(
-      (r) => !isLeaderHouseResidence(r) && countResidentsInBuilding(humans, r.id, occupancy) === 0,
+      (r) =>
+        !isLeaderHouseResidence(r) &&
+        r.faction !== 'rival' &&
+        countResidentsInBuilding(humans, r.id, occupancy) === 0,
     )
     .map((r) => r.id);
   if (emptyHomeIds.length === 0) return;
@@ -599,7 +602,11 @@ export function pickSharedResidenceForFamily(
   let bestScore = Infinity;
 
   for (const residence of residences) {
-    if (isLeaderHouseResidence(residence)) continue;
+    // Player housing only: rival-camp houses are completed Houses with faction 'rival', they
+    // count 0 *player* residents, so they scored as empty/free housing and a newly married or
+    // divorced settler could be placed inside the enemy camp (and `syncResidenceOccupants`
+    // never syncs rival buildings, so both directions of the residence invariant went false).
+    if (isLeaderHouseResidence(residence) || residence.faction === 'rival') continue;
     if (!familyFitsInResidence(family, residence, humans, occupancy)) continue;
 
     const count = countResidentsInBuilding(humans, residence.id, occupancy);
@@ -631,7 +638,7 @@ export function pickResidenceForFamily(
   const singlesFriendlyHouseIds = new Set<number>();
 
   for (const r of residences) {
-    if (isLeaderHouseResidence(r)) continue;
+    if (isLeaderHouseResidence(r) || r.faction === 'rival') continue;
     const count = countResidentsInBuilding(humans, r.id, occupancy);
     if (count === 0) {
       emptyHouseCount++;
@@ -648,7 +655,7 @@ export function pickResidenceForFamily(
   let bestScore = Infinity;
 
   for (const residence of residences) {
-    if (isLeaderHouseResidence(residence)) continue;
+    if (isLeaderHouseResidence(residence) || residence.faction === 'rival') continue;
     if (!familyFitsInResidence(family, residence, humans, occupancy)) continue;
 
     const count = countResidentsInBuilding(humans, residence.id, occupancy);

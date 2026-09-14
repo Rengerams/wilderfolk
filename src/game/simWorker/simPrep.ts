@@ -85,6 +85,9 @@ type SimPrepKeys =
   | 'renffrOmen'
   | 'visitorQuest'
   | 'deathsThisYear'
+  | 'lastMoonHowlerExorcismTick'
+  | 'moonHowlerPriestsFleeUntil'
+  | 'chronicleChapters'
   | 'renffrChatterUntilTick'
   | 'lastProcessedCalendarDay'
   | 'lastWildlifeReplenishLogDay'
@@ -186,6 +189,9 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     renffrOmen: state.renffrOmen ? { ...state.renffrOmen } : null,
     visitorQuest: state.visitorQuest ? { ...state.visitorQuest } : undefined,
     deathsThisYear: state.deathsThisYear ? { ...state.deathsThisYear } : { humans: 0, animals: 0 },
+    lastMoonHowlerExorcismTick: state.lastMoonHowlerExorcismTick,
+    moonHowlerPriestsFleeUntil: state.moonHowlerPriestsFleeUntil,
+    chronicleChapters: [...(state.chronicleChapters ?? [])],
     renffrChatterUntilTick: state.renffrChatterUntilTick ?? 0,
     lastProcessedCalendarDay: state.lastProcessedCalendarDay ?? 0,
     lastWildlifeReplenishLogDay: state.lastWildlifeReplenishLogDay ?? 0,
@@ -275,6 +281,9 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.renffrOmen = prep.renffrOmen;
   world.visitorQuest = prep.visitorQuest;
   world.deathsThisYear = prep.deathsThisYear;
+  world.lastMoonHowlerExorcismTick = prep.lastMoonHowlerExorcismTick;
+  world.moonHowlerPriestsFleeUntil = prep.moonHowlerPriestsFleeUntil;
+  world.chronicleChapters = prep.chronicleChapters;
   world.renffrChatterUntilTick = prep.renffrChatterUntilTick;
   world.lastProcessedCalendarDay = prep.lastProcessedCalendarDay;
   world.lastWildlifeReplenishLogDay = prep.lastWildlifeReplenishLogDay;

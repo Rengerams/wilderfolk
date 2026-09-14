@@ -84,17 +84,29 @@ export function addNotification(
 
 let nextBigNewsId = 1;
 
-/** Restore monotonic big-news ids after loading a save or hot reload. */
-export function syncBigNewsIdFromState(state: Pick<WorldState, 'bigNews'>): void {
+/**
+ * Highest `bn_<seq>` this world has already used.
+ *
+ * `bigNews` is capped at 50 entries and the oldest are shifted away, so the array alone is not
+ * enough: the ids a player dismissed live on in `dismissedBigNewsIds`, and re-issuing one of
+ * those makes the UI hide the new card as dismissed.
+ */
+function highestBigNewsSeq(state: Pick<WorldState, 'bigNews' | 'dismissedBigNewsIds'>): number {
   let maxSeq = 0;
-  for (const item of state.bigNews) {
-    const match = /^bn_(\d+)$/.exec(item.id) ?? /^bn_\d+_(\d+)_/.exec(item.id);
-    if (match) {
-      const seq = Number(match[1]);
-      if (Number.isFinite(seq) && seq > maxSeq) maxSeq = seq;
-    }
-  }
-  nextBigNewsId = maxSeq + 1;
+  const consider = (id: string) => {
+    const match = /^bn_(\d+)$/.exec(id) ?? /^bn_\d+_(\d+)_/.exec(id);
+    if (!match) return;
+    const seq = Number(match[1]);
+    if (Number.isFinite(seq) && seq > maxSeq) maxSeq = seq;
+  };
+  for (const item of state.bigNews) consider(item.id);
+  for (const id of state.dismissedBigNewsIds ?? []) consider(id);
+  return maxSeq;
+}
+
+/** Restore monotonic big-news ids after loading a save or hot reload. */
+export function syncBigNewsIdFromState(state: Pick<WorldState, 'bigNews' | 'dismissedBigNewsIds'>): void {
+  nextBigNewsId = highestBigNewsSeq(state) + 1;
 }
 
 export function addBigNews(
@@ -103,7 +115,11 @@ export function addBigNews(
   message: string,
   type: 'positive' | 'negative' | 'neutral' = 'neutral',
 ) {
-  const seq = nextBigNewsId++;
+  // The counter is module state and a realm that receives a world (worker, or the main thread's
+  // optimistic copy) starts it at 1 while the world already carries ids — and dismissal ids
+  // outlive the 50-entry cap. Never mint an id this world already uses.
+  const seq = Math.max(nextBigNewsId, highestBigNewsSeq(state) + 1);
+  nextBigNewsId = seq + 1;
   state.bigNews.push({
     id: `bn_${seq}`,
     title,

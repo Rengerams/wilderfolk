@@ -57,6 +57,10 @@ export function logDeath(
 /** Legacy fallback for saves logged before combatKind existed. */
 export function resolveCombatLogKind(evt: GameEventLog): CombatLogKind | null {
   if (evt.combatKind) return evt.combatKind;
+  // Only combat entries may be classified. Without this guard every chronicle line was
+  // eligible, so any ordinary 'event' whose text mentioned a raid (a trade rumour, a story
+  // card, a festival note) was counted as an incoming raid or a defence in the summary.
+  if (evt.type !== 'combat') return null;
   const msg = evt.message.toLowerCase();
   if (msg.includes('repelled') || msg.includes('routed')) return 'repelled';
   if (msg.includes('defending') || msg.includes('militia') || msg.includes('barricade')) return 'defense';

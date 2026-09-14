@@ -17,8 +17,8 @@ import {
 } from './dayCycle';
 import type { TickContext } from './simulation/simulationTypes';
 import {
-  OFFSCREEN_WILDLIFE_THROTTLE,
   isInFocus,
+  isOffscreenWildlifeActive,
   WILDLIFE_LAYER_INTERVAL,
 } from './simFocus';
 import {
@@ -252,7 +252,13 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       // 5. Throttled processing for out-of-focus fauna
       const wildlifeInFocus = !focus || isInFocus(entity, focus);
       const wildlifeActive =
-        wildlifeInFocus || (state.tick + entity.id) % OFFSCREEN_WILDLIFE_THROTTLE === 0;
+        // `OFFSCREEN_WILDLIFE_THROTTLE` counts *wildlife-layer calls*, not raw ticks
+        // (simFocus.ts). tickWildlife only runs when `state.tick % WILDLIFE_LAYER_INTERVAL === 0`,
+        // so the old `(state.tick + entity.id) % 8` had no solution at all for ids ≡ 1, 2 or 3
+        // (mod 4): ~75% of out-of-focus fauna never passed the gate and were skipped past every
+        // AI step (movement, hunting, grazing, reproduction) while still draining energy every
+        // pulse. Count layer pulses instead.
+        wildlifeInFocus || isOffscreenWildlifeActive(state.tick, entity.id);
       if (!wildlifeActive) {
         entity.reproductionCooldown = Math.max(0, entity.reproductionCooldown - step);
         syncEntityGrids(ctx, entity);

@@ -93,6 +93,10 @@ export function tickAnimalCare(state: WorldState): void {
 
   if (!alreadyFedToday) {
     const warningDay = state.storyFlags?.[FLAG_WARNING_DAY] ?? -1;
+    // `FLAG_SHORTAGE_DAY` records that the shortage has already been announced (it was written
+    // but never read), so the warning fires once per shortage episode instead of every day the
+    // animals stay unfed. The fed branch above clears both markers.
+    const shortageAlreadyAnnounced = (state.storyFlags?.[FLAG_SHORTAGE_DAY] ?? -1) >= 0;
     if (warningDay >= 0 && colonyDay - warningDay >= 2) {
       // Two consecutive days without food → shortage.
       state.storyFlags = {
@@ -100,7 +104,9 @@ export function tickAnimalCare(state: WorldState): void {
         [FLAG_SHORTAGE_DAY]: colonyDay,
         [FLAG_STATUS]: STATUS_CODES.shortage,
       };
-      addNotification(state, '🐾 Animal shortage', 'Tamed animals are hungry — food is needed.', 'warning');
+      if (!shortageAlreadyAnnounced) {
+        addNotification(state, '🐾 Animal shortage', 'Tamed animals are hungry — food is needed.', 'warning');
+      }
     } else if (warningDay < 0) {
       state.storyFlags = {
         ...state.storyFlags,

@@ -126,6 +126,9 @@ export interface SimTickDelta {
   renffrOmen: WorldState['renffrOmen'];
   visitorQuest: WorldState['visitorQuest'];
   deathsThisYear: WorldState['deathsThisYear'];
+  lastMoonHowlerExorcismTick: WorldState['lastMoonHowlerExorcismTick'];
+  moonHowlerPriestsFleeUntil: WorldState['moonHowlerPriestsFleeUntil'];
+  chronicleChapters: WorldState['chronicleChapters'];
   renffrChatterUntilTick: number;
   lastProcessedCalendarDay: number;
   lastWildlifeReplenishLogDay: number;
@@ -335,6 +338,9 @@ export function extractSimTickDelta(
     // main thread's copy stayed undefined and the quest card could never appear.
     visitorQuest: deltaCloneOptional(world.visitorQuest, cloneMode) ?? undefined,
     deathsThisYear: deltaCloneOptional(world.deathsThisYear, cloneMode) ?? undefined,
+    lastMoonHowlerExorcismTick: world.lastMoonHowlerExorcismTick,
+    moonHowlerPriestsFleeUntil: world.moonHowlerPriestsFleeUntil,
+    chronicleChapters: deltaClone(world.chronicleChapters ?? [], cloneMode),
     renffrChatterUntilTick: world.renffrChatterUntilTick ?? 0,
     lastProcessedCalendarDay: world.lastProcessedCalendarDay ?? 0,
     lastWildlifeReplenishLogDay: world.lastWildlifeReplenishLogDay ?? 0,
@@ -481,6 +487,9 @@ export function applySimTickDelta(
   world.renffrOmen = deltaCloneOptional(delta.renffrOmen, cloneMode);
   world.visitorQuest = deltaCloneOptional(delta.visitorQuest, cloneMode) ?? undefined;
   world.deathsThisYear = deltaCloneOptional(delta.deathsThisYear, cloneMode) ?? undefined;
+  world.lastMoonHowlerExorcismTick = delta.lastMoonHowlerExorcismTick;
+  world.moonHowlerPriestsFleeUntil = delta.moonHowlerPriestsFleeUntil;
+  world.chronicleChapters = deltaClone(delta.chronicleChapters ?? [], cloneMode);
   world.renffrChatterUntilTick = delta.renffrChatterUntilTick;
   world.lastProcessedCalendarDay = delta.lastProcessedCalendarDay;
   world.lastWildlifeReplenishLogDay = delta.lastWildlifeReplenishLogDay;

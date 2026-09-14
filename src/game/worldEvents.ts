@@ -102,8 +102,11 @@ export function updateWeather(state: WorldState): void {
   }
 }
 
+/** Weather never destroys a building completely — storm damage stops here (repair restores HP). */
+export const STORM_DAMAGE_HEALTH_FLOOR = 20;
+
 /**
- * Storm damage per day per building. Floored at 20 HP so weather never destroys
+ * Storm damage per day per building. Floored at the health floor so weather never destroys
  * a building completely — repairable via the Repair action.
  */
 export function applyStormDamageToBuildings(
@@ -117,7 +120,11 @@ export function applyStormDamageToBuildings(
     if (!b.completed || b.faction === 'rival') continue;
     const dmg = Math.max(1, Math.round(damagePerDay * resistMult));
     const before = b.health ?? b.maxHealth;
-    b.health = Math.max(20, before - dmg);
+    // A building already at or below the weather floor must not be touched: the old
+    // `Math.max(20, before - dmg)` raised a 15 HP building back to 20 (storm "healing" it) and
+    // the `health < before` test then hid that from the damage report.
+    if (before <= STORM_DAMAGE_HEALTH_FLOOR) continue;
+    b.health = Math.max(STORM_DAMAGE_HEALTH_FLOOR, before - dmg);
     if (b.health < before) damaged.push(b);
   }
   return damaged;

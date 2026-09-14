@@ -30,11 +30,17 @@ export function isDoctorAtHospital(
   return h;
 }
 
-export function needsMedicalCare(entity: Entity): boolean {
+/**
+ * Whether this settler should seek medical care.
+ *
+ * `tick` is required because the grief window is an absolute deadline: comparing it with `0`
+ * made every settler who had *ever* grieved a permanent walk-in candidate.
+ */
+export function needsMedicalCare(entity: Entity, tick: number): boolean {
   if (!entity.alive || entity.isJuvenile === undefined) return false;
   if (entity.pregnant) return true;
   if (entity.energy < entity.maxEnergy * 0.42) return true;
-  if ((entity.griefUntilTick ?? 0) > 0 && entity.energy < entity.maxEnergy * 0.7) return true;
+  if ((entity.griefUntilTick ?? 0) > tick && entity.energy < entity.maxEnergy * 0.7) return true;
   return false;
 }
 
@@ -181,7 +187,7 @@ export function tickHospitalDailyCare(
   const hx = hospital.x + hospital.width / 2;
   const hy = hospital.y + hospital.height / 2;
   const patients = humans
-    .filter((h) => h.alive && isPlayerHuman(h) && needsMedicalCare(h))
+    .filter((h) => h.alive && isPlayerHuman(h) && needsMedicalCare(h, state.tick))
     .sort((a, b) => medicalUrgency(b) - medicalUrgency(a));
 
   let treated = 0;
