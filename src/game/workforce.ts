@@ -215,10 +215,16 @@ export function assignWorkerTransition(human: Entity, building: Building): boole
 /**
  * Named removal transition — release a settler from all workplaces/crews and clear job fields.
  * Preserves `LEADER_OCCUPATION`.
+ *
+ * Residence occupant lists are owned by `syncResidenceOccupants`, so completed
+ * buildings that are not workplaces (houses, mansions, the manor) are left alone:
+ * clearing the residence mirror here would leave `residenceBuildingId` pointing at
+ * a residence that no longer lists the settler.
  */
 export function removeWorkerTransition(human: Entity, buildings: Building[]): void {
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
+    if (building.completed && !BUILDING_JOB_TYPES[building.type]) continue;
     if (building.occupants.includes(human.id)) {
       building.occupants = building.occupants.filter((id) => id !== human.id);
     }

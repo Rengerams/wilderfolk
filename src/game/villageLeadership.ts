@@ -794,8 +794,27 @@ export function runVillageElection(
 } {
   const ranked = rankLeadershipCandidates(state);
   if (ranked.length === 0) {
-    const changed = state.villageLeaderId != null;
+    const prevId = state.villageLeaderId;
+    const changed = prevId != null;
     state.villageLeaderId = null;
+    if (changed) {
+      // The reveal deposed the incumbent — step the office down so the stale
+      // "leader" label does not outlive the term.
+      applyLeaderOccupation(state, prevId);
+    }
+    // A reveal with no eligible candidate must still schedule the successor
+    // election: settlers who come of age or leave prison re-open the race, and
+    // the colony must never be left with no path back to a village head.
+    if (state.pendingElectionYear == null) {
+      const electionYear =
+        state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR + VACANCY_ELECTION_DELAY_YEARS;
+      state.pendingElectionYear = electionYear;
+      logEvent(
+        state,
+        'event',
+        `Leadership election found no eligible candidate — merit election scheduled for Year ${Math.floor(electionYear)}`,
+      );
+    }
     return {
       leaderId: null,
       changed,
@@ -899,7 +918,12 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
   if (leader && isActingVillageHead(leader, state)) return null;
 
   if (!state.entities.some((entity) => isEligibleForLeadership(entity, state))) {
+    // Nobody can stand yet, but the office must not be left with no successor
+    // election scheduled: the vacancy notice and the race itself resume as soon
+    // as a settler comes of age or is released.
     state.villageLeaderId = null;
+    state.pendingElectionYear =
+      state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR + VACANCY_ELECTION_DELAY_YEARS;
     return null;
   }
 

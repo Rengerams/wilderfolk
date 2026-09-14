@@ -7,7 +7,7 @@ import {
 } from './gameTypes';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
-import { collectOwnHousehold } from './householdComposition';
+import { collectMinorHousehold } from './householdComposition';
 import { assignMissingResidences } from './dayCycle';
 
 export { LEADER_OCCUPATION };
@@ -26,7 +26,13 @@ function leaderDisplayName(leader: Entity): string {
   return 'The village leader';
 }
 
-/** Leader + spouse + children — empty while the office is vacant. */
+/**
+ * Leader + spouse + dependent children — empty while the office is vacant.
+ *
+ * Grown children are emancipated for housing (`isMinorChild`), the same rule the
+ * couple path in residencyReconciliation uses: including them would drag a married
+ * child into the manor every colony day and evict the residents living there.
+ */
 export function collectLeaderHousehold(state: WorldState): Entity[] {
   if (state.villageLeaderId == null) return [];
   const leader = state.entities.find(
@@ -36,7 +42,7 @@ export function collectLeaderHousehold(state: WorldState): Entity[] {
   const livingHumans = state.entities.filter(
     (e) => e.alive && !e.faction && e.type === EntityType.Human,
   );
-  return collectOwnHousehold(leader, livingHumans);
+  return collectMinorHousehold(leader, livingHumans);
 }
 
 export function applyLeaderOccupation(state: WorldState, prevLeaderId: number | null): void {
