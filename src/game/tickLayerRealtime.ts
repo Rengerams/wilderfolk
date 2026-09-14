@@ -125,9 +125,15 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     activeMoonHowler
     && werewolves.some((e) => isResidenceOccupantEntity(e) && e.residenceBuildingId != null)
   ) {
+    // Rebuild from every occupant of this tick, not just the tick-start snapshot: a newborn is
+    // only in `ctx.newEntities` until `gameTick` rebuilds `state.entities`, and rebuilding from an
+    // incomplete list silently empties the residence it was born into (SIMULATION_AUTHORITY §5).
     const occupants: Entity[] = [];
-    for (const entity of aliveEntities) {
-      if (isResidenceOccupantEntity(entity)) occupants.push(entity);
+    const seen = new Set<number>();
+    for (const entity of [...aliveEntities, ...ctx.newEntities]) {
+      if (!isResidenceOccupantEntity(entity) || seen.has(entity.id)) continue;
+      seen.add(entity.id);
+      occupants.push(entity);
     }
     syncResidenceOccupants(occupants, ctx.updatedBuildings);
   }

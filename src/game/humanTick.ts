@@ -25,7 +25,13 @@ import {
   prefersHomeTonightFor,
   shouldBeAtHomeFor,
 } from './humanSchedule';
-import { getWorkSchedule, isOnWorkScheduleShift, isWorkScheduleHour } from './workSchedule';
+import {
+  getWorkSchedule,
+  isOnWorkCommuteHours,
+  isOnWorkScheduleShift,
+  isWorkScheduleHour,
+} from './workSchedule';
+import { isWorkDay } from './dayCycleClock';
 import {
   HUMAN_ADULT_MIN_AGE,
   HUMAN_MAX_LIFESPAN_YEARS,
@@ -184,6 +190,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   const workSchedule = getWorkSchedule(state);
   const goWorkTime = isOnWorkScheduleShift(state, hourOfDay);
+  // The schedule says when a settler must be *at* work; the hour before it is the commute window,
+  // so the walk happens before the bell instead of eating the first hours of the shift.
+  const onWorkCommuteHours = isWorkDay(state.tick) && isOnWorkCommuteHours(workSchedule, hourOfDay);
   const weekend = isWeekend(state.tick);
   const isNewCalendarDay = isNewCalendarDayTick(state);
   const humanFleeMult = getHumanFleeSpeedMultiplier(state);
@@ -800,7 +809,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       })
     ) {
       // Handled
-    } else if (!huntingWere && !inElectionCeremony && !festivalGathering && goWorkTime && !isInnkeeper && workplace) {
+    } else if (
+      !huntingWere &&
+      !inElectionCeremony &&
+      !festivalGathering &&
+      (goWorkTime || onWorkCommuteHours) &&
+      !isInnkeeper &&
+      workplace
+    ) {
+      // Sets off in the hour before the shift so the settler is *at* work when it starts.
       commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), 3.5);
       onSchedule = true;
       suppressIdle = true;

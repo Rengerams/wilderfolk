@@ -60,7 +60,10 @@ function tickImmigration(
 
   const openSlots = state.maxHumanPopulation - counts.humans;
 
-  // Already executed once daily by tickLayerDaily; open slots and probability gate arrival
+  // Reached exactly once per colony day: `gameTick` calls `tickLayerDaily` only when
+  // `state.tick % TICKS_PER_DAY === 0`, and that layer is the only caller of this function. The
+  // roll is therefore a daily decision, and it must stay one — calling this a second time in the
+  // same day would roll the `dailyPopulation` stream again and admit a second family.
   // Seeded: immigration is part of the world state, so the same day of the same seed admits
   // the same family. Resolved here because `setSimSeed` drops cached streams.
   const rng = getSimRng('dailyPopulation');

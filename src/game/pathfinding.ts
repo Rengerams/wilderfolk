@@ -311,7 +311,10 @@ export function setCurrentPathMap(map: WorldMap | null, buildings?: Building[]):
  * Steer an entity toward a target, routing around obstacles when the direct line
  * is blocked. Returns how the caller should proceed:
  * - 'arrived': entity is close enough, stopped.
- * - 'path': entity was moved along waypoints (caller must not move it again).
+ * - 'path': velocity is set along the route and **the caller applies this tick's step** (the
+ *   commute leaves it to the human loop, the hotel walk moves the visitor itself). The stepper
+ *   never writes a position: doing that *and* letting the caller move advanced entities twice per
+ *   tick, which is the 2026-09-13 movement regression.
  * - 'direct': no pathing needed/found — caller does its usual straight move.
  */
 export function steerWithPath(
@@ -364,8 +367,6 @@ export function steerWithPath(
 
       entity.vx = (ndx / nd) * speed;
       entity.vy = (ndy / nd) * speed;
-      entity.x += entity.vx;
-      entity.y += entity.vy;
       entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
       return 'path';
     }

@@ -3,7 +3,7 @@ import { canonicalDialogueBank, installDialogueBankPayload } from '../dialogueTr
 import { gameTick } from '../gameTick';
 import { GAME_VERSION } from '../version';
 import { hydrateWorldRuntimeCaches, invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
-import { adoptSimSeedFromWorld } from '../simRng';
+import { adoptSimSeedFromWorld, restoreSimRng } from '../simRng';
 import { loadNames } from '../nameLoader';
 
 installDialogueBankPayload(canonicalDialogueBank);
@@ -123,6 +123,9 @@ function resetWorkerSession(nextWorld: WorldState): void {
   // adopted explicitly. Without it every seeded draw in the worker came from seed 1 while
   // the world carried the map seed, so worker mode and main-thread mode diverged.
   adoptSimSeedFromWorld(nextWorld);
+  // The seed alone would restart every owner's sequence. The sender stamps the positions it has
+  // already consumed into `world.simRng` (GameWorkerHost), so resume from them when present.
+  restoreSimRng(nextWorld.simRng);
   world = nextWorld;
   lastFocus = undefined;
   prevBuildingsSnapshot = null;

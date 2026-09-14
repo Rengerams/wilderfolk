@@ -8,6 +8,7 @@ import type { AdjacencyIndex } from './adjacencyIndex';
 import { BuildingType } from './buildings';
 import type { Building } from './buildings';
 import type { Challenge } from './challenges';
+import type { SimRngSnapshot } from './simRng';
 
 export { BuildingType, BUILDING_CONFIGS } from './buildings';
 export type { Building, BuildingConfig, StaffingMode } from './buildings';
@@ -771,6 +772,13 @@ export interface WorldState {
    * not alive at the end of it, because `state.entities` only ever holds the living.
    */
   deathsThisYear?: { humans: number; animals: number };
+  /**
+   * Positions of this realm's RNG streams, carried across a realm boundary (save file, worker
+   * hand-off, prep rollback snapshot). The live state is owned by `simRng`; this field is only a
+   * transport container, refreshed at each boundary so a resumed or retried world continues its
+   * draws instead of replaying each owner's sequence from the start (audit cross-cutting X5).
+   */
+  simRng?: SimRngSnapshot;
   appliedSaveMigrations?: string[];
 }
 

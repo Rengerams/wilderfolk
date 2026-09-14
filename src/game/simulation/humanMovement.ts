@@ -7,8 +7,20 @@ const COMMUTE_CONFIG = {
   LONG_RANGE_DIST: 50,
   ARRIVAL_DIST: 8,
   MAX_DIST_RUSH: 12,
-  HOME_APPROACH_DAMPING: 0.65,
-  WORK_APPROACH_DAMPING: 0.65,
+  /**
+   * Final-approach easing: inside `LONG_RANGE_DIST` the walk closes on the doorstep at
+   * `dist * APPROACH_RATE_PER_TICK` per tick, clamped to the base walking speed at the low end and
+   * to the commute speed at the high end.
+   *
+   * Both earlier tunings were wrong in opposite directions: a flat `moveSpeed * 0.12` crawl took
+   * most of a game hour to cover the last 50 px (owner report: "the cooling down period to a
+   * building is now very slow"), while `Math.max(speed, moveSpeed * 0.65)` snapped through the same
+   * stretch in about ten ticks. A distance-proportional step decelerates *visibly* — full commute
+   * speed at 50 px, ~2.5x walking speed at 10 px — without ever crawling or snapping, and the
+   * `Math.min(dist, …)` cap still means no overshoot.
+   */
+  APPROACH_RATE_PER_TICK: 0.25,
+  /** Per-tick distance on the pathed branch, as a fraction of `moveSpeed` (see M27). */
   PATH_STEER_SPEED_RATIO: 0.88,
 } as const;
 
@@ -147,14 +159,9 @@ export function commuteHumanToBuilding(
       cacheKey,
     );
 
-    if (handled === 'path') {
-      // steerWithPath applies its own step for callers that do not integrate again.
-      // A commute is integrated exactly once by the human loop's movement apply, so
-      // take that step back and leave the velocity for that single apply.
-      entity.x -= entity.vx;
-      entity.y -= entity.vy;
-      return false;
-    }
+    // 'path' only sets the velocity along the route; the human loop's movement apply at the end of
+    // the tick is the single integration (the stepper must not move the entity as well).
+    if (handled === 'path') return false;
     if (handled === 'arrived') return true;
 
     const step = Math.min(dist, moveSpeed * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO);
@@ -164,12 +171,12 @@ export function commuteHumanToBuilding(
     return false;
   }
 
-  // Final approach damping: decelerate from sprint without dropping below base walking speed
-  const damping = arrivingHome
-    ? COMMUTE_CONFIG.HOME_APPROACH_DAMPING
-    : COMMUTE_CONFIG.WORK_APPROACH_DAMPING;
-
-  const approachSpeed = Math.max(speed, moveSpeed * damping);
+  // Final approach: ease in at a distance-proportional step (never below a normal walk, never a
+  // snap) and never overshoot the doorstep.
+  const approachSpeed = Math.min(
+    moveSpeed,
+    Math.max(speed, dist * COMMUTE_CONFIG.APPROACH_RATE_PER_TICK),
+  );
   const step = Math.min(dist, approachSpeed);
   entity.vx = (dx / dist) * step;
   entity.vy = (dy / dist) * step;

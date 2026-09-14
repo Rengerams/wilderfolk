@@ -3,6 +3,7 @@ import { normalizeForgeState } from '../forge';
 import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
 import { invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
+import { restoreSimRng, snapshotSimRng } from '../simRng';
 
 /**
  * Mutable sim slices backed up before each tick/command for instant failure recovery.
@@ -103,7 +104,11 @@ type SimPrepKeys =
   | 'guidedCampaign'
   | 'workSchedule'
   | 'tavernSchedule'
-  | 'hotelSchedule';
+  | 'hotelSchedule'
+  // RNG stream positions: the pre-tick snapshot `extractSimPrep` takes them fresh (the world's
+  // own field is only a transport container), and `applySimPrep` puts the streams back where
+  // they were. Without it the rolled-back tick replays each owner's sequence from the start.
+  | 'simRng';
 
 export type SimPrepPayload = Pick<WorldState, SimPrepKeys>;
 
@@ -240,6 +245,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     workSchedule: getWorkSchedule(state),
     tavernSchedule: getVenueSchedule(state, 'tavern'),
     hotelSchedule: getVenueSchedule(state, 'hotel'),
+    simRng: snapshotSimRng(),
   };
 }
 
@@ -335,6 +341,8 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.workSchedule = prep.workSchedule;
   world.tavernSchedule = prep.tavernSchedule;
   world.hotelSchedule = prep.hotelSchedule;
+  world.simRng = prep.simRng;
+  restoreSimRng(prep.simRng);
 
   // Crucial: Invalidate runtime caches so indices reflect restored entity states
   invalidateWorldRuntimeCaches(world);

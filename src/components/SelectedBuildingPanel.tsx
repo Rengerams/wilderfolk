@@ -22,6 +22,7 @@ import { isProductionBuildingType } from '../game/buildCatalog';
 import { MINE_ORES, mineOreForMode, type MineMode } from '../game/buildings';
 import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
 import { describeHotelStatus } from '../game/hotelStay';
+import { displayedConstructionProgress } from '../game/buildingProgressDisplay';
 import { HOTEL_GUEST_CAPACITY } from '../game/gameTypes';
 import { HUNTING_SPOT_PREY_OPTIONS } from '../game/gameTypes';
 import type { HuntingSpotPrey } from '../game/gameTypes';
@@ -360,7 +361,7 @@ export default function SelectedBuildingPanel({
           <p>{!building.completed ? 'Builders' : 'Workers'}: {building.occupants.length} / {config.maxOccupants}</p>
         )}
         {!building.completed && (
-          <p>Progress: {Math.round(building.constructionProgress)}% · ~{config.buildTime} work-day{config.buildTime === 1 ? '' : 's'}</p>
+          <p>Progress: {Math.floor(displayedConstructionProgress(building, state.tick))}% · ~{config.buildTime} work-day{config.buildTime === 1 ? '' : 's'}</p>
         )}
         {isHousing && building.completed && (
           <p className="text-[11px] text-sky-300">

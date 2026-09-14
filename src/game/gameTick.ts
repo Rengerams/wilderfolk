@@ -24,6 +24,8 @@ import {
   markCalendarDayProcessed,
   syncHumanAgeFromCalendar,
   reconcileOrphanedMarriages,
+  isResidenceOccupantEntity,
+  syncResidenceOccupants,
 } from './dayCycle';
 import { buildEntityByType, type SimulationFocus } from './simFocus';
 import {
@@ -286,6 +288,18 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.humanPopulation = finalCounts.humans;
   state.wildlifeCounts = wildlifeCountsFromPopulation(finalCounts);
   markCalendarDayProcessed(state);
+
+  // Keep the residence mirror truthful at the tick boundary. Several owners move a settler in and
+  // out of a residence mid-tick (births, orphan adoption, divorce, the leader's household, a
+  // cursed settler's form change), and each of them can only reconcile the lists it knows about;
+  // `state.entities` is complete here — for the first time this tick it contains a newborn created
+  // after the assignment layer ran — so this is the one place that can guarantee
+  // `residenceBuildingId ↔ occupants` for SIMULATION_AUTHORITY §5. The decision of *who* lives
+  // where stays with the assignment layer; this only makes the mirror agree with it.
+  syncResidenceOccupants(
+    allAlive.filter((e) => e.alive && isResidenceOccupantEntity(e)),
+    updatedBuildings,
+  );
   if (isSpatialQueryMetricsEnabled()) flushSpatialQueryTickToSession();
 
   // Dev-only invariant pulse once per colony day — never repairs state.

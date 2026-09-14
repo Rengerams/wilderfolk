@@ -5,7 +5,7 @@ import { cleanupEntityDialogueState } from './humanChat';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { isMinorChild } from './householdComposition';
 import { hasResidenceAssignment } from './residencyOccupancy';
-import { syncResidenceOccupants } from './residencyReconciliation';
+import { isResidenceOccupantEntity, syncResidenceOccupants } from './residencyReconciliation';
 import {
   ensureOrphanAdoption,
   listPlayerResidences,
@@ -118,7 +118,10 @@ function reassignOrphansAfterDeath(
   if (residences.length === 0) return;
 
   const humans = [...entityById.values()].filter(
-    (h) => h.alive && !h.faction && h.type === EntityType.Human,
+    // The residence-mirror owner's predicate, not a local rule: a cursed settler temporarily in
+    // Moon Howler form is still a residence occupant, and filtering them out here would wipe the
+    // residence they hold when this sync rebuilds the lists.
+    (h) => isResidenceOccupantEntity(h),
   );
   const deadId = dead.id;
   let touched = false;

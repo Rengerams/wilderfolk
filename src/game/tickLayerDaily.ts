@@ -29,9 +29,6 @@ import { applyDailyWeatherEffects } from './worldEvents';
 // Chronicles
 import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
 
-// Re-export for external daily layer consumers
-export { tickGrassDaily } from './dailyGrassEcology';
-
 // ==================== DAILY LAYER ENTRYPOINT ====================
 
 export function tickLayerDaily(

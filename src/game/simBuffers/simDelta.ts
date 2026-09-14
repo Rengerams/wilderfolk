@@ -8,6 +8,7 @@ import type { EntityRenderMeta } from './entityRenderMeta';
 import { packRenderMetaForPacked } from './entityRenderMeta';
 import { selectRenderEntities } from './packRenderSoA';
 import { RENDER_MAX_SLOTS } from './schema';
+import { snapshotSimRng, restoreSimRng, type SimRngSnapshot } from '../simRng';
 
 export const SIM_DELTA_PROTO = 1;
 
@@ -160,6 +161,13 @@ export interface SimTickDelta {
   economyLedger?: WorldState['economyLedger'];
   /** Rolling finished-day food samples (transient display data). */
   foodHistory?: WorldState['foodHistory'];
+  /**
+   * Stream positions at the tick boundary (audit cross-cutting X5). The display realm adopts
+   * them so its optimistic command previews draw the same numbers the authoritative realm is
+   * about to, and so a later `syncWorld` after a worker fallback continues the same sequences
+   * instead of the display realm's own stale positions.
+   */
+  simRng?: SimRngSnapshot;
 }
 
 export type SimDeltaCloneMode = 'isolated' | 'transfer';
@@ -372,6 +380,8 @@ export function extractSimTickDelta(
     storyFlags: deltaClone(world.storyFlags ?? {}, cloneMode),
     pendingStoryEvents: deltaClone(world.pendingStoryEvents ?? [], cloneMode),
     guidedCampaign: deltaCloneOptional(world.guidedCampaign, cloneMode) ?? undefined,
+    // Taken fresh here (never read from `world.simRng`, which is only a transport container).
+    simRng: snapshotSimRng(),
   };
 
   if (world.economyLedger) {
@@ -527,6 +537,10 @@ export function applySimTickDelta(
   world.storyFlags = deltaClone(delta.storyFlags, cloneMode);
   world.pendingStoryEvents = deltaClone(delta.pendingStoryEvents, cloneMode);
   world.guidedCampaign = deltaCloneOptional(delta.guidedCampaign, cloneMode) ?? undefined;
+  if (delta.simRng) {
+    world.simRng = delta.simRng;
+    restoreSimRng(delta.simRng);
+  }
   world.economyLedger = delta.economyLedger
     ? {
         day: delta.economyLedger.day,

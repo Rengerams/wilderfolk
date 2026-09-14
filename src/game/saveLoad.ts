@@ -26,7 +26,7 @@ import { ensureEntitySkills } from './skills';
 import { normalizeWorkSchedule } from './workSchedule';
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
-import { adoptSimSeedFromWorld } from './simRng';
+import { adoptSimSeedFromWorld, restoreSimRng, snapshotSimRng } from './simRng';
 import { syncResearchUnlocks } from './research';
 import { assignMissingWorkers, removeWorkerTransition } from './workforce';
 import { syncBigNewsIdFromState } from './simEffects';
@@ -102,6 +102,10 @@ export function buildSaveData(world: WorldState, view: ViewState): Record<string
   const persistable = stripRuntimeWorldFields(world);
   return {
     ...mergeForSave(persistable, view),
+    // Stream positions are owned by `simRng`, not by the world, so they are stamped here rather
+    // than picked from `WORLD_STATE_SAVE_KEYS`: a saved colony that reloads must continue its
+    // draws instead of replaying each owner's sequence from the start (audit cross-cutting X5).
+    simRng: snapshotSimRng(),
     worldMap: compactWorldMapForSave(persistable.worldMap),
     _savedAt: Date.now(),
     _version: GAME_VERSION,
@@ -581,6 +585,10 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
     // it creates and loading never re-seeded, so a loaded world kept the previous run's
     // random streams (and the worker's realm was never seeded at all).
     adoptSimSeedFromWorld(world);
+    // ...and resume the streams the file was saved in the middle of. `adoptSimSeedFromWorld`
+    // only installs the seed, which would restart every owner's sequence; `restoreSimRng`
+    // repositions them and is a no-op for a save written before the snapshot existed.
+    restoreSimRng(parsed.simRng);
     const view = createViewFromSave(parsed, world);
     return { world, view };
   } catch (e) {

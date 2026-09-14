@@ -134,6 +134,21 @@ export function isWorkScheduleHour(schedule: WorkSchedule, hour: number): boolea
 }
 
 /**
+ * How long before the shift a settler is allowed to spend walking to work.
+ *
+ * The schedule names when a settler must be *at* work, not when they set off, so the hour before
+ * the start is the commute window (owner spec: "they should arrive at begin time at work, they
+ * have an hour to commute").
+ */
+export const WORK_COMMUTE_LEAD_HOURS = 1;
+
+/** The hour(s) before the shift start in which a settler heads for their workplace. */
+export function isOnWorkCommuteHours(schedule: WorkSchedule, hour: number): boolean {
+  const from = Math.max(0, schedule.startHour - WORK_COMMUTE_LEAD_HOURS);
+  return hour >= from && hour < schedule.startHour;
+}
+
+/**
  * Evaluates whether the colony is currently in an active work shift.
  * Must be a designated workday and fall within configured hours.
  */

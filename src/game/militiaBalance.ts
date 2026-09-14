@@ -6,7 +6,6 @@
 import type { Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import {
-  EMPTY_FORGE,
   hasIronShields,
   hasIronSpears,
   hasIronSwords,
@@ -14,12 +13,12 @@ import {
   hasStoneSpears,
   hasWoodenShields,
 } from './combat';
-import { FORGE_BONUSES, isForgeOrderComplete } from './forge';
 import {
   getBarracksGuardBonus,
   getBarracksGuardCount,
   countCompletedDefenseBuildings,
   getWallSegmentBonus,
+  getWallSegmentCap,
   getWatchtowerBonus,
   MILITIA_BALANCE,
 } from './defenseStructures';
@@ -213,11 +212,11 @@ export function computeMilitiaBreakdown(
       BuildingType.WallGate,
     ]);
     if (walls > 0) {
-      // Same source as getWallSegmentBonus: forged wall plates raise the cap from 72 to 96.
-      const wallCap = isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'wall_plates')
-        ? FORGE_BONUSES.wallPlateCap
-        : 72;
-      lines.push(`Barricade only: +${wallBonus} wall segments (${walls} built, max +${wallCap})`);
+      // One definition of the cap, shared with `getWallSegmentBonus` and the defense break-down:
+      // forged wall plates raise it from 72 to 96.
+      lines.push(
+        `Barricade only: +${wallBonus} wall segments (${walls} built, max +${getWallSegmentCap(state)})`,
+      );
     }
     const towers = countCompletedDefenseBuildings(state.buildings, BuildingType.Watchtower);
     if (towers > 0) {

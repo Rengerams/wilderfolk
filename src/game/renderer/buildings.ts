@@ -4,6 +4,7 @@ import { categoryBorderDashForType } from '../buildCatalog';
 import { drawProceduralDecor } from '../decorRender';
 import { normalizeBuildingRotation } from '../buildingRotation';
 import { isNightHour } from '../dayCycle';
+import { displayedConstructionProgress } from '../buildingProgressDisplay';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { getSpriteFrame } from '../spriteLoader';
 import {
@@ -73,6 +74,10 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     const border = darkerColor(tint, 0.35);
     const dash = categoryBorderDashForType(b.type);
     const hover = isHovered(b);
+    // The authoritative completeness value only changes once per colony day, so the pad, the bar
+    // and the number are drawn from the smoothed display value: otherwise they stand still for a
+    // whole game day (48 real seconds at 1x) and then jump.
+    const shownProgress = displayedConstructionProgress(b, state.tick);
     drawBuildingPad(ctx, cfg.padShape, sx, sy, w, h, tint, border, hover ? 0.45 : 0.28, dash, 1.5);
     const rot = normalizeBuildingRotation(b.rotation);
     if (isStripBuildType(b.type)) {
@@ -83,7 +88,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
       const frame = getSpriteFrame(cfg.sprite);
       if (frame) {
         // Construction builds up — the frame grows from scaffold to full size.
-        const buildScale = Math.max(0.35, 0.45 + 0.55 * (b.constructionProgress / 100));
+        const buildScale = Math.max(0.35, 0.45 + 0.55 * (shownProgress / 100));
         drawBuildingSprite(
           ctx, b.type, frame, sx, sy, w, h,
           Math.max(buildScale, b.spriteScale || 0.55),
@@ -98,11 +103,11 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.fillRect(sx - w / 2, sy + h / 2 - 4, w, 4);
     ctx.fillStyle = '#22c55e';
-    ctx.fillRect(sx - w / 2, sy + h / 2 - 4, w * (b.constructionProgress / 100), 4);
+    ctx.fillRect(sx - w / 2, sy + h / 2 - 4, w * (shownProgress / 100), 4);
     ctx.fillStyle = '#44403c';
     ctx.font = `${Math.max(8, 10 * cam.zoom)}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText(`${Math.floor(b.constructionProgress)}%`, sx, sy + 3);
+    ctx.fillText(`${Math.floor(shownProgress)}%`, sx, sy + 3);
   }
 
   // Completed buildings (roads and wall panels already drawn above)

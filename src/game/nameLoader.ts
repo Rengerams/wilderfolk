@@ -10,7 +10,7 @@ let lastNames: string[] = [];
 let poolSource: 'none' | 'embedded' | 'full' = 'none';
 let legacyBootUpgradeDone = false;
 let loadPromise: Promise<void> | null = null;
-let defaultNoticeLogged = false;
+let loadFailureLogged = false;
 
 /**
  * Realistic sync fallback pool — used if data files are still loading or cannot be reached.
@@ -140,12 +140,10 @@ function applyNameData(male: string, female: string, last: string, source: 'embe
 
     if (source === 'embedded') {
       legacyBootUpgradeDone = false;
-      if (!defaultNoticeLogged) {
-        defaultNoticeLogged = true;
-        console.warn(
-          `[nameloader] Notice: Default fallback names loaded (${parsedMale.length} male, ${parsedFemale.length} female, ${parsedLast.length} surnames). Full census text files have not been loaded yet.`,
-        );
-      }
+      // No log here. Installing the fallback is a normal, transient boot step — every normal start
+      // passes through it while the census files load — so announcing it only produced a misleading
+      // "have not been loaded yet" line on a perfectly healthy boot. A load that genuinely fails is
+      // reported once at the end of `loadNames()` instead.
     } else if (source === 'full') {
       console.log(
         `[nameloader] Full census name pool loaded successfully (${parsedMale.length} male, ${parsedFemale.length} female, ${parsedLast.length} surnames).`,
@@ -235,6 +233,15 @@ export async function loadNames(): Promise<void> {
 
     // 4. Fallback to embedded list if still uninitialized
     ensureNamesLoaded();
+    // A fallback pool that survives *every* strategy is a real defect — every settler would be
+    // named from the embedded list — so it is reported once here. This is the only nameloader line
+    // a healthy boot produces besides the success message.
+    if (!areNamesLoaded() && !loadFailureLogged) {
+      loadFailureLogged = true;
+      console.warn(
+        `[nameloader] Census name files could not be loaded — settlers will use the ${maleNames.length}-name fallback pool. Check the bundled "?raw" data imports (src/game/data/*.txt) and /data/*.txt availability.`,
+      );
+    }
   })();
 
   return loadPromise;

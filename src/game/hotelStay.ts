@@ -235,9 +235,13 @@ export function steerVisitorToHotel(
     // Route around water/mountains on the camp→hotel walk.
     // BUG-8: include origin so different visitors don't reuse one cached path.
     const handled = steerWithPath(visitor, tx, ty, speed * 0.7, `h_${hotel.id}_${Math.round(visitor.x)}_${Math.round(visitor.y)}`);
-    // 'path' means steerWithPath already applied this tick's step — moving the
-    // visitor again here would advance them twice per tick.
-    if (handled === 'path') return true;
+    // 'path' only sets the velocity — the stepper never moves an entity, so the walk applies this
+    // tick's step here (exactly once).
+    if (handled === 'path') {
+      visitor.x += visitor.vx;
+      visitor.y += visitor.vy;
+      return true;
+    }
     if (handled === 'arrived') return true;
     visitor.vx = (dx / dist) * speed * 0.7;
     visitor.vy = (dy / dist) * speed * 0.7;

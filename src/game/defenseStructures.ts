@@ -56,6 +56,20 @@ export function countCompletedDefenseBuildings(
   ).length;
 }
 
+/** Hard cap on the wall-segment militia bonus; forged wall plates raise it (`FORGE_BONUSES`). */
+export const WALL_SEGMENT_BASE_CAP = 72;
+
+/**
+ * The wall-segment bonus cap for the current forge state — the single definition behind the
+ * bonus itself and both break-down labels. The audit's L47 was a label that hardcoded +72 while
+ * this function's own arithmetic could reach +96 with wall plates forged.
+ */
+export function getWallSegmentCap(state?: Pick<WorldState, 'villageForge'>): number {
+  return state && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'wall_plates')
+    ? FORGE_BONUSES.wallPlateCap
+    : WALL_SEGMENT_BASE_CAP;
+}
+
 export function getWallSegmentBonus(
   buildings: Building[],
   state?: Pick<WorldState, 'villageForge'>,
@@ -69,8 +83,7 @@ export function getWallSegmentBonus(
 
   const hasPlates = state && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'wall_plates');
   const perSegment = 8 + (hasPlates ? FORGE_BONUSES.wallPlatePerSegment : 0);
-  const cap = hasPlates ? FORGE_BONUSES.wallPlateCap : 72;
-  return Math.min(cap, segments * perSegment);
+  return Math.min(getWallSegmentCap(state), segments * perSegment);
 }
 
 export function getWatchtowerBonus(
@@ -130,7 +143,7 @@ export function getDefenseStructureBreakdown(state: WorldState, buildings: Build
   ]);
   const wallBonus = getWallSegmentBonus(buildings, state);
   if (walls > 0) {
-    lines.push(`+ ${wallBonus} wall segments (${walls} built, max +72)`);
+    lines.push(`+ ${wallBonus} wall segments (${walls} built, max +${getWallSegmentCap(state)})`);
   }
   const towers = countCompletedDefenseBuildings(buildings, BuildingType.Watchtower);
   const towerBonus = getWatchtowerBonus(buildings, state);

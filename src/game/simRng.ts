@@ -4,6 +4,17 @@ export type RngStream = () => number;
 let currentSeed = 1;
 const streams = new Map<string, RngStream>();
 
+/**
+ * Live 32-bit state of a created stream. Mulberry32 keeps `s` inside the closure, so a
+ * rollback/save snapshot needs a handle to read it and to reset it in place — re-deriving the
+ * stream from its seed would replay every draw instead of resuming it.
+ */
+interface StreamStateHandle {
+  get(): number;
+  set(state: number): void;
+}
+const streamStates = new WeakMap<RngStream, StreamStateHandle>();
+
 /** Native Math.random captured at module load — prevents clobbering test runners. */
 const NATIVE_MATH_RANDOM = Math.random;
 let installedSeededGlobal = false;
@@ -35,13 +46,19 @@ export function createSeededRng(seed: number, owner: string): RngStream {
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
   s = (s ^ t) >>> 0;
 
-  return function mulberry32(): number {
+  const stream: RngStream = () => {
     s = (s + 0x6d2b79f5) >>> 0;
     let r = s;
     r = Math.imul(r ^ (r >>> 15), r | 1);
     r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
     return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
   };
+
+  // Register the state handle so a snapshot can read/reset this stream in place. `seededRandom`
+  // and `seededRandomForRun` also create throwaway streams; their handles are harmless (the
+  // WeakMap drops them with the function) and only the streams in `streams` are ever snapshotted.
+  streamStates.set(stream, { get: () => s, set: (state: number) => { s = state >>> 0; } });
+  return stream;
 }
 
 /**
@@ -87,6 +104,94 @@ export function nativeRandom(): number {
  */
 export function getSimSeed(): number {
   return currentSeed;
+}
+
+/** Persistable positions of a realm's RNG streams (see `snapshotSimRng`). */
+export interface SimRngSnapshot {
+  seed: number;
+  /** State of the seeded `Math.random` override, or null when it is not installed. */
+  global: number | null;
+  /** Per-owner Mulberry32 states, in stream-creation order. */
+  owners: Array<[string, number]>;
+}
+
+/**
+ * Capture every live stream position so a resumed or retried world continues its draws.
+ *
+ * Without this, a loaded colony and a rolled-back tick both restart each owner's sequence from
+ * its beginning: the world state is restored but the randomness is replayed, which the audit
+ * recorded as "a resumed or retried world cannot reproduce its continuation" (cross-cutting
+ * X5). Stateless rolls (`seededRandomForRun`, `personDayRoll`) need nothing here — they derive
+ * from the seed and their call site.
+ */
+export function snapshotSimRng(): SimRngSnapshot {
+  const owners: Array<[string, number]> = [];
+  for (const [owner, stream] of streams) {
+    const handle = streamStates.get(stream);
+    if (handle) owners.push([owner, handle.get()]);
+  }
+  const globalState = seededGlobalStream ? streamStates.get(seededGlobalStream)?.get() : undefined;
+  return { seed: currentSeed, global: globalState ?? null, owners };
+}
+
+/** Validate an untrusted snapshot (save files) into the shape `restoreSimRng` accepts. */
+export function parseSimRngSnapshot(value: unknown): SimRngSnapshot | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  if (typeof record.seed !== 'number' || !Number.isFinite(record.seed)) return null;
+
+  const owners: Array<[string, number]> = [];
+  if (Array.isArray(record.owners)) {
+    for (const entry of record.owners) {
+      if (!Array.isArray(entry) || entry.length !== 2) continue;
+      const [owner, state] = entry as [unknown, unknown];
+      if (typeof owner !== 'string') continue;
+      if (typeof state !== 'number' || !Number.isFinite(state)) continue;
+      owners.push([owner, state >>> 0]);
+    }
+  }
+
+  return {
+    seed: record.seed >>> 0,
+    global:
+      typeof record.global === 'number' && Number.isFinite(record.global) ? record.global >>> 0 : null,
+    owners,
+  };
+}
+
+/**
+ * Resume the streams from a snapshot. Existing stream objects are reset **in place** so a module
+ * that cached `getSimRng(owner)` keeps drawing from the restored position; streams this realm
+ * created after the snapshot are dropped (they did not exist at that point, so re-deriving them
+ * from the seed is exact). Returns false when the snapshot is missing or not credible, which
+ * leaves the realm on the seed-only behaviour (older saves).
+ */
+export function restoreSimRng(snapshot: unknown): boolean {
+  const parsed = parseSimRngSnapshot(snapshot);
+  if (!parsed) return false;
+
+  currentSeed = parsed.seed >>> 0 || 1;
+  const pending = new Map(parsed.owners);
+  for (const [owner, stream] of [...streams]) {
+    const state = pending.get(owner);
+    if (state === undefined) {
+      streams.delete(owner);
+      continue;
+    }
+    streamStates.get(stream)?.set(state);
+    pending.delete(owner);
+  }
+  for (const [owner, state] of pending) {
+    const stream = getSimRng(owner);
+    streamStates.get(stream)?.set(state);
+  }
+
+  if (parsed.global != null) {
+    enableSeededGlobalRandom();
+    const global = seededGlobalStream;
+    if (global) streamStates.get(global)?.set(parsed.global);
+  }
+  return true;
 }
 
 /**

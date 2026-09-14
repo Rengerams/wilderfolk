@@ -76,7 +76,6 @@ export {
   isResidenceBuilding,
   isResidenceBuildingType,
   occupancyMove,
-  residenceHasCapacity,
   residenceRoomFor,
   shareResidence,
 } from './residencyOccupancy';

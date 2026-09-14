@@ -303,7 +303,8 @@ export {
   TICKS_PER_DAY,
   HUMAN_ADULT_MIN_AGE,
 } from './dayCycle';
-export { tickGrassDaily } from './tickLayerDaily';
+// `tickGrassDaily` is intentionally not re-exported: its only consumer is the daily layer, which
+// imports it from its owner (`dailyGrassEcology.ts`) and calls it once per colony day.
 export { tickWildlife } from './tickLayerSystems';
 export { updateWeather, updateDisasters } from './worldEvents';
 export {

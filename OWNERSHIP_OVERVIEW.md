@@ -73,6 +73,7 @@ behaviour. Nothing here changes the ownership law: one decision, one owner, one 
 | Village-request acceptance | `groupEvents.ts` | daily generation + typed player command | `tickVillageRequests`, `resolveVillageRequest`, `getVillageRequestEligibility` |
 | Wildlife reproduction snapshot (population caps, scarcity boost) | `simQueries.ts` (`REPRO_WILDLIFE_TYPES`) | wildlife layer | `buildWildlifePopulationSnapshot`, `wildlifeTypePopulation`, `recordWildlifeBirth` |
 | Leader office across the Moon Howler form | `villageLeadership.ts` owns the office; `moonHowler.ts` only carries `villageLeaderId` through the revert | full-moon revert / cure / load | `isActingVillageHead`, `RevertToHumanFormOptions.villageLeaderId`, `revertToHumanForm` |
+| Simulation randomness: streams, seed and their positions | `simRng.ts` (per-person day rolls: `humanSchedule.personDayRoll`) | per draw; positions cross realms via `world.simRng` | `getSimRng`, `seededRandomForRun`, `snapshotSimRng`, `restoreSimRng`, `parseSimRngSnapshot`, `setSimSeed`, `adoptSimSeedFromWorld` |
 
 ## Protected facades (re-export / schedule only — no new policy)
 
