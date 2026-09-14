@@ -765,6 +765,12 @@ export interface WorldState {
   adjacency?: AdjacencyIndex;
   entityById?: Map<number, Entity>;
   eventsThisYear?: string[];
+  /**
+   * Deaths accumulated during the current calendar year, reset at the year rollover.
+   * Counted by `gameTick` from the entities that were alive at the start of the tick and are
+   * not alive at the end of it, because `state.entities` only ever holds the living.
+   */
+  deathsThisYear?: { humans: number; animals: number };
   appliedSaveMigrations?: string[];
 }
 

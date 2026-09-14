@@ -145,7 +145,19 @@ export function getTravelingTheatreChoiceEligibility(
   return { ok: true };
 }
 
+/** The three stages offer disjoint choice ids; only the status flag is shared. */
+const STAGE3_CHOICES: readonly Stage3Choice[] = ['correct_story', 'let_legend_grow', 'interrupt'];
+
 export function resolveTravelingTheatre(state: WorldState, choiceId: string): boolean {
+  // Dispatch on the answer itself first. The Opening Night card is pushed by
+  // `tickTravelingTheatre` without advancing `FLAG_STATUS`, so stage-3 answers arrived
+  // while the flag still read `preparing`: they were fed to `resolveStage2`, whose switch
+  // has no matching case, and fell through to `case 'cancel_show': default:` — every
+  // opening-night answer cancelled the show and emitted "the troupe leaves offended",
+  // making `resolveStage3` (and its reputation outcomes) unreachable.
+  if (STAGE3_CHOICES.includes(choiceId as Stage3Choice)) {
+    return resolveStage3(state, choiceId as Stage3Choice);
+  }
   const status = storyFlag(state, FLAG_STATUS);
   if (status === STATUS.script_selected) return resolveStage1(state, choiceId as Stage1Choice);
   if (status === STATUS.preparing) return resolveStage2(state, choiceId as Stage2Choice);

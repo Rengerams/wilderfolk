@@ -10,6 +10,7 @@ import { canMoonHowlerCurse, curseMoonHowler, isMoonHowlerTransformTick, transfo
 import { createEntity } from './entityFactory';
 import { getRandomSurname } from './nameLoader';
 import { logEvent } from './eventLog';
+import { getSimRng } from './simRng';
 
 const RECRUITMENT_COST = { food: 30, gold: 20 } as const;
 const TAMING_FOOD_COSTS: Partial<Record<EntityType, number>> = {
@@ -81,11 +82,14 @@ export function recruitSettler(originalState: WorldState): WorldState {
   state.resources.food -= RECRUITMENT_COST.food;
   state.resources.gold -= RECRUITMENT_COST.gold;
   const spawn = recruitSpawnPosition(state);
-  const recruitAge = HUMAN_ADULT_MIN_AGE + Math.floor(Math.random() * 20);
+  // Seeded (resolved per call, since `setSimSeed` drops cached streams): a recruited
+  // settler's age and spawn jitter are world state.
+  const rng = getSimRng('settlerInteractionActions');
+  const recruitAge = HUMAN_ADULT_MIN_AGE + Math.floor(rng() * 20);
   const settler = createEntity(
     EntityType.Human,
-    spawn.x + (Math.random() - 0.5) * 40,
-    spawn.y + (Math.random() - 0.5) * 40,
+    spawn.x + (rng() - 0.5) * 40,
+    spawn.y + (rng() - 0.5) * 40,
     state.nextEntityId++,
     undefined,
     false,
@@ -107,15 +111,16 @@ export function recruitSettler(originalState: WorldState): WorldState {
 /** Debug/testing-only command: curse an eligible human or spawn a cursed wanderer. */
 export function spawnMoonHowlerDebug(originalState: WorldState): WorldState {
   const state = structuredClone(originalState);
+  const rng = getSimRng('settlerInteractionActions');
   const candidates = state.entities.filter((entity) => entity.alive && canMoonHowlerCurse(entity));
-  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  const pick = candidates[Math.floor(rng() * candidates.length)];
 
   if (pick) {
     const who = pick.name ? `${pick.name}${pick.surname ? ` ${pick.surname}` : ''}` : 'A settler';
     curseMoonHowler(pick);
     const colonyDay = getAbsoluteCalendarDay(state.tick);
     if (isMoonHowlerTransformTick(colonyDay, getHourOfDay(state.tick))) transformToWerewolfForm(pick);
-    const line = WEREWOLF_CURSE_LINES[Math.floor(Math.random() * WEREWOLF_CURSE_LINES.length)](who);
+    const line = WEREWOLF_CURSE_LINES[Math.floor(rng() * WEREWOLF_CURSE_LINES.length)](who);
     addBigNews(state, '🌝 Debug Moon Howler!', `(Test) ${line}`, 'negative');
     addFloatingText(state, pick.x, pick.y - 20, 'Cursed…', '#c4b5fd');
     logEvent(state, 'event', `(Debug) ${who} was cursed as a Moon Howler`, who);
@@ -123,7 +128,7 @@ export function spawnMoonHowlerDebug(originalState: WorldState): WorldState {
   }
 
   const settler = createEntity(EntityType.Human, state.width / 2, state.height / 2, state.nextEntityId++, 400);
-  const debugAge = HUMAN_ADULT_MIN_AGE + Math.floor(Math.random() * 20);
+  const debugAge = HUMAN_ADULT_MIN_AGE + Math.floor(rng() * 20);
   settler.generation = 1;
   setHumanBirthFromAge(settler, debugAge, getColonyDay(state));
   curseMoonHowler(settler);

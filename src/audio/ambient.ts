@@ -1,9 +1,10 @@
 import { audioGraph } from './graph';
 import { ambientPlayer } from './trackPlayer';
 import { TRACKS, TRACK_VOLUMES } from './tracks';
+import { getSimRng } from '../game/simRng';
 
 function randomBetween(min: number, max: number): number {
-  return min + Math.random() * (max - min);
+  return min + getSimRng('ambientAudio')() * (max - min);
 }
 
 /**
@@ -71,8 +72,8 @@ class AmbientNaturePlayer {
     await ambientPlayer.playOneShot(
       TRACKS.birdChirp,
       'ambient',
-      TRACK_VOLUMES.birdChirp * (0.55 + Math.random() * 0.25),
-      0.95 + Math.random() * 0.15,
+      TRACK_VOLUMES.birdChirp * (0.55 + getSimRng('ambientAudio')() * 0.25),
+      0.95 + getSimRng('ambientAudio')() * 0.15,
     );
   }
 

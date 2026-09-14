@@ -529,12 +529,24 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
     // Church manual staffing (one-time): older 0.6.1-line saves may carry
     // Churches auto-filled before manual priest selection existed. The Church
     // must be empty until the player assigns a priest — never auto-refilled.
-    const clearedChurchSeats = clearAutoFilledChurches(world);
-    if (clearedChurchSeats > 0) {
-      applySaveMigration(
-        'church-manual-staffing',
-        `Save migrated — ${clearedChurchSeats} auto-filled Church seat(s) cleared; assign a priest manually.`,
-      );
+    // This pass must run **once per save**: `loadGameFromParsed` is the browser- and
+    // file-load path, so clearing on every load also released the priest the player had
+    // since assigned by hand. Nothing refills the Church (`assignMissingWorkers` skips
+    // manual buildings), so its strength silently halved after every reload.
+    const churchMigrationDone = (world.appliedSaveMigrations ?? []).includes('church-manual-staffing');
+    const clearedChurchSeats = churchMigrationDone ? 0 : clearAutoFilledChurches(world);
+    if (!churchMigrationDone) {
+      if (clearedChurchSeats > 0) {
+        applySaveMigration(
+          'church-manual-staffing',
+          `Save migrated — ${clearedChurchSeats} auto-filled Church seat(s) cleared; assign a priest manually.`,
+        );
+      } else {
+        // Nothing to clear: stamp the marker without a chronicle line, so a later load
+        // cannot strip a priest assigned after this one.
+        if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
+        world.appliedSaveMigrations.push('church-manual-staffing');
+      }
     }
 
     mergeCombatResearchNodes(world.researchNodes);

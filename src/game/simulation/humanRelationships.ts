@@ -53,6 +53,8 @@ import { findHumanWorkplace } from '../workforce';
 import { getWorkSchedule, isWorkScheduleHour, type WorkSchedule } from '../workSchedule';
 import { sayHumanChatPhrase } from '../humanChat';
 import { Relationship } from '../gameConstants';
+import { getSimRng, seededRandomForRun } from '../simRng';
+import { personDayRoll } from '../dayCycle';
 
 export const AFFAIR_SPOUSE_BLOCK_RADIUS = 22;
 export const AFFAIR_BUILDING_NEAR_RADIUS = 55;
@@ -319,12 +321,16 @@ export function tryDailyAffairGossip(
 
   if (churchStrength <= 0) {
     if ((entity.affairProgress ?? 0) < 85 && (lover.affairProgress ?? 0) < 85) return;
-    if (Math.random() < 0.06) {
+    if (personDayRoll(entity.id, state.tick, 601) < 0.06) {
       if (isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) {
         recordAffairTrystSite(entity, lover, state, buildingById);
       }
-      const reason = pickAffairExposureReason(state, entity, lover, playerHumans);
-      exposeAffair(state, entity, lover, reason, entityById, buildings, playerHumans);
+      // Daily gossip can only produce a *rumour*. "Caught in the act" is a spatial event,
+      // owned by `tryExposeCaughtAffair`, which requires the spouse (or a walk-in at the
+      // marital home) to be physically present. This path used to mint a 'caught' verdict
+      // from a flat roll, so an unwitnessed tryst was reported as caught — which arrests
+      // both partners and forces a divorce.
+      exposeAffair(state, entity, lover, 'rumor', entityById, buildings, playerHumans);
       recordRelationshipDiagnostic('scandalExposures');
     }
     return;
@@ -335,12 +341,12 @@ export function tryDailyAffairGossip(
   }
 
   const chance = churchStrength >= 1 ? 0.22 : 0.12;
-  if (Math.random() < chance) {
+  if (personDayRoll(entity.id, state.tick, 602) < chance) {
     if (isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) {
       recordAffairTrystSite(entity, lover, state, buildingById);
     }
-    const reason = pickAffairExposureReason(state, entity, lover, playerHumans);
-    exposeAffair(state, entity, lover, reason, entityById, buildings, playerHumans);
+    // Rumour only — see the note in the no-church branch above.
+    exposeAffair(state, entity, lover, 'rumor', entityById, buildings, playerHumans);
     recordRelationshipDiagnostic('scandalExposures');
   }
 }
@@ -619,7 +625,10 @@ export function isValidAffairTarget(entity: Entity, target: Entity, tick: number
   if (entity.prisonBuildingId != null || target.prisonBuildingId != null) return false;
   if (!entity.gender || target.gender === entity.gender || target.id === entity.id) return false;
   if (target.id === entity.partnerId || entity.id === target.partnerId) return false;
-  if (target.age < HUMAN_ADULT_MIN_AGE || target.age >= HUMAN_MAX_LIFESPAN_YEARS) return false;
+  // Affairs are adult-only on BOTH sides (Relationship.AFFAIR_MIN_AGE): ages 12–17
+  // belong to the youth-love phase, whose mutual gate is the only conception route.
+  if (entity.age < Relationship.AFFAIR_MIN_AGE || target.age < Relationship.AFFAIR_MIN_AGE) return false;
+  if (target.age >= HUMAN_MAX_LIFESPAN_YEARS) return false;
   if (entity.affairPartnerId != null && target.id !== entity.affairPartnerId) return false;
   if (target.affairPartnerId != null && target.affairPartnerId !== entity.id) return false;
   if (onScandalCooldown(entity, tick) || onScandalCooldown(target, tick)) return false;
@@ -637,7 +646,7 @@ function startMarriedPregnancy(state: WorldState, entity: Entity, partner: Entit
   entity.pregnant = true;
   entity.pregnantById = undefined;
   entity.pregnancyProgress = 0;
-  entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + Math.random() * 0.3));
+  entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + seededRandomForRun(`pregnancy-due:${entity.id}:${state.tick}`) * 0.3));
   entity.relationshipStatus = 'expecting';
   if (partner.relationshipStatus === 'married' || partner.partnerId === entity.id) {
     partner.relationshipStatus = 'expecting';
@@ -657,7 +666,7 @@ function startYouthPregnancy(state: WorldState, entity: Entity, partner: Entity)
   entity.pregnant = true;
   entity.pregnantById = partner.id;
   entity.pregnancyProgress = 0;
-  entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + Math.random() * 0.3));
+  entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + seededRandomForRun(`pregnancy-due:${entity.id}:${state.tick}`) * 0.3));
   entity.flash = 12;
   partner.flash = 12;
   createDeathParticles(state, entity.x, entity.y - 8, '#f9a8d4', 7, 'heart');
@@ -673,7 +682,7 @@ function startAffairPregnancy(state: WorldState, entity: Entity, lover: Entity):
   entity.pregnant = true;
   entity.pregnantById = lover.id;
   entity.pregnancyProgress = 0;
-  entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + Math.random() * 0.3));
+  entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + seededRandomForRun(`pregnancy-due:${entity.id}:${state.tick}`) * 0.3));
   entity.relationshipStatus = entity.partnerId != null ? 'married' : 'expecting';
   entity.flash = 14;
   lover.flash = 14;
@@ -733,7 +742,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
       const fertility = getFemaleFertility(entity.age);
       if (together && fertility > 0) {
         const baseChance = bothAtSharedHome ? HUMAN_DAILY_PREGNANCY_CHANCE_HOME : HUMAN_DAILY_PREGNANCY_CHANCE_NEAR;
-        if (Math.random() < baseChance * fertility * traitMultiplier(entity, 'lucky', 1.15)) {
+        if (personDayRoll(entity.id, state.tick, 603) < baseChance * fertility * traitMultiplier(entity, 'lucky', 1.15)) {
           startMarriedPregnancy(state, entity, partner);
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
           return true;
@@ -774,7 +783,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
       if (nearYouthPartner && fertility > 0 && youthMultiplier > 0) {
         const chance =
           HUMAN_DAILY_PREGNANCY_CHANCE_NEAR * youthMultiplier * fertility * traitMultiplier(entity, 'lucky', 1.15);
-        if (Math.random() < chance) {
+        if (personDayRoll(entity.id, state.tick, 604) < chance) {
           startYouthPregnancy(state, entity, youthPartner);
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
           return true;
@@ -796,7 +805,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
       const tryst = isValidAffairConceptionSite(entity, lover, ctx.entityById, ctx.buildingById, AFFAIR_BUILDING_NEAR_RADIUS);
       const fertility = getFemaleFertility(entity.age);
       if (tryst && fertility > 0) {
-        if (Math.random() < HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE * fertility) {
+        if (personDayRoll(entity.id, state.tick, 605) < HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE * fertility) {
           startAffairPregnancy(state, entity, lover);
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
           return true;
@@ -825,7 +834,7 @@ export function tryDailyHumanMortality(
   if (!entity.alive) return false;
 
   const oldAgeChance = getOldAgeDeathChance(entity.age);
-  if (oldAgeChance > 0 && (entity.age >= HUMAN_MAX_LIFESPAN_YEARS || Math.random() < oldAgeChance)) {
+  if (oldAgeChance > 0 && (entity.age >= HUMAN_MAX_LIFESPAN_YEARS || personDayRoll(entity.id, state.tick, 606) < oldAgeChance)) {
     killHuman(entity, buildings, entityById, state.tick);
     createDeathParticles(state, entity.x, entity.y, '#aaaaaa', 5, 'smoke');
     const cause = entity.age >= HUMAN_MAX_LIFESPAN_YEARS ? 'old age' : 'an age-related illness';
@@ -839,7 +848,7 @@ export function tryDailyHumanMortality(
   }
   {
     const illnessChance = HUMAN_DAILY_ILLNESS_CHANCE + getValleyIllnessChanceBonus(state);
-    if (entity.age >= HUMAN_ADULT_MIN_AGE && Math.random() < illnessChance) {
+    if (entity.age >= HUMAN_ADULT_MIN_AGE && personDayRoll(entity.id, state.tick, 607) < illnessChance) {
       killHuman(entity, buildings, entityById, state.tick);
       createDeathParticles(state, entity.x, entity.y, '#aaaaaa', 5, 'smoke');
       logDeath(
@@ -984,7 +993,7 @@ function tryDivorceOnCaughtCheater(
   const spouse = getLivingEntity(cheater.partnerId, entityById);
   if (!spouse) return;
   const divorceChance = caughtInAct ? 1 : RELATIONSHIP_CONFIG.DIVORCE_CAUGHT_CHANCE;
-  if (Math.random() >= divorceChance) return;
+  if (personDayRoll(cheater.id, state.tick, 608) >= divorceChance) return;
 
   dissolveMarriage(spouse, cheater);
   startFeud(state, spouse, paramour, 35);
@@ -1008,7 +1017,7 @@ function tryDivorceOnCaughtCheater(
     const paramourSpouse = getLivingEntity(paramour.partnerId, entityById);
     const paramourSpousePresent = caughtInAct || isSpouseNearby(paramour, entityById, 40);
     const paramourDivorceChance = caughtInAct ? 1 : RELATIONSHIP_CONFIG.DIVORCE_CAUGHT_CHANCE;
-    if (paramourSpouse && paramourSpousePresent && Math.random() < paramourDivorceChance) {
+    if (paramourSpouse && paramourSpousePresent && personDayRoll(paramour.id, state.tick, 609) < paramourDivorceChance) {
       dissolveMarriage(paramourSpouse, paramour);
       logEvent(
         state,
@@ -1033,24 +1042,12 @@ function countGuardsAtPrison(humans: Entity[], prison: Building): number {
   ).length;
 }
 
-function hasStaffedPrison(state: WorldState): boolean {
-  const humans = state.entities.filter(isPlayerHuman);
-  return state.buildings.some(
-    (b) => b.completed && b.type === BuildingType.Prison && countGuardsAtPrison(humans, b) > 0,
-  );
-}
-
-export function pickAffairExposureReason(
-  state: WorldState,
-  _cheater: Entity,
-  _lover: Entity,
-  _humans: readonly Entity[],
-): 'caught' | 'rumor' {
-  if (hasStaffedPrison(state) && Math.random() < 0.22) {
-    return 'caught';
-  }
-  return 'rumor';
-}
+/**
+ * `hasStaffedPrison` and `pickAffairExposureReason` were removed with the daily gossip
+ * fix: the reason is no longer rolled, because the daily path may only produce a rumour
+ * and the caught-in-the-act verdict belongs to `tryExposeCaughtAffair`, which already
+ * requires the spouse (or a walk-in) to be physically present.
+ */
 
 function caughtAffairRollChance(churchStrength: number, establishedAffair: boolean): number {
   const base = churchStrength >= 1 ? 0.14 : churchStrength > 0 ? 0.10 : 0.08;
@@ -1083,7 +1080,7 @@ function tryExposeCaughtAffair(
 
   let chance = caughtAffairRollChance(churchStrength, establishedAffair);
   if (walkInAtHome) chance = 1;
-  if (Math.random() < chance) {
+  if (getSimRng('humanRelationships')() < chance) {
     exposeAffair(state, cheater, paramour, 'caught', entityById, buildings, playerHumans);
   }
 }
@@ -1170,11 +1167,11 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
   );
   if (prisons.length === 0) return;
   const arrestChance = Math.min(0.85, 0.6 + prisons.length * 0.08);
-  if (Math.random() >= arrestChance) return;
+  if (getSimRng('humanRelationships')() >= arrestChance) return;
   const prisonerCap = Math.max(1, BUILDING_CONFIGS[BuildingType.Prison].maxOccupants - 1);
   const prison = prisons.find((b) => countPrisonersAt(state, b.id) < prisonerCap) ?? prisons[0];
   if (countPrisonersAt(state, prison.id) >= prisonerCap && offender.prisonBuildingId == null) return;
-  const sentenceTicks = ticksForDays(2.5 + Math.random() * 3.5);
+  const sentenceTicks = ticksForDays(2.5 + getSimRng('humanRelationships')() * 3.5);
   const newReleaseTick = state.tick + sentenceTicks;
 
   if (offender.prisonBuildingId != null) {
@@ -1203,8 +1200,8 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
   offender.prisonBuildingId = prison.id;
   offender.prisonSentenceCrime = 'scandal';
   offender.prisonerUntilTick = newReleaseTick;
-  offender.x = prison.x + (Math.random() - 0.5) * 12;
-  offender.y = prison.y + (Math.random() - 0.5) * 8;
+  offender.x = prison.x + (getSimRng('humanRelationships')() - 0.5) * 12;
+  offender.y = prison.y + (getSimRng('humanRelationships')() - 0.5) * 8;
   offender.vx = 0;
   offender.vy = 0;
   if (!prison.occupants.includes(offender.id)) {
@@ -1354,7 +1351,7 @@ export function tryDailyAffairEncounter(
   if (!isPlayerHuman(entity)) return;
   if (entity.prisonBuildingId != null) return;
   if (entity.relationshipStatus !== 'married' || entity.pregnant || entity.isJuvenile) return;
-  if (!entity.gender || entity.age < HUMAN_ADULT_MIN_AGE || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
+  if (!entity.gender || entity.age < Relationship.AFFAIR_MIN_AGE || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
   if (entity.energy <= config.reproductionEnergyThreshold * 0.5) return;
   if (onScandalCooldown(entity, state.tick)) return;
   const workplace = findHumanWorkplace(entity, buildings, { buildingById });
@@ -1416,10 +1413,10 @@ export function tryDailyAffairEncounter(
     ? R.AFFAIR_DAILY_TRYST_CHANCE_WITH_CHURCH
     : R.AFFAIR_DAILY_TRYST_CHANCE_NO_CHURCH;
   const dailyChance = baseChance * churchPenalty * socialMult;
-  if (Math.random() >= dailyChance) return;
+  if (personDayRoll(entity.id, state.tick, 610) >= dailyChance) return;
 
   const bump = Math.round(
-    (R.AFFAIR_PROGRESS_BUMP_MIN + Math.floor(Math.random() * R.AFFAIR_PROGRESS_BUMP_SPAN)) * socialMult,
+    (R.AFFAIR_PROGRESS_BUMP_MIN + Math.floor(seededRandomForRun(`affair-bump:${entity.id}:${state.tick}`) * R.AFFAIR_PROGRESS_BUMP_SPAN)) * socialMult,
   );
   entity.affairProgress = Math.min(R.AFFAIR_PROGRESS_MAX, (entity.affairProgress || 0) + bump);
   paramour.affairProgress = Math.min(R.AFFAIR_PROGRESS_MAX, (paramour.affairProgress || 0) + bump);

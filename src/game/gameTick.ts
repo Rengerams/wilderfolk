@@ -85,6 +85,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     if (state.yearlyStats.length > 50) state.yearlyStats.shift();
     state.lifetimeStats = updateLifetimeStats(state, state.lifetimeStats);
     state.eventsThisYear = [];
+    state.deathsThisYear = { humans: 0, animals: 0 };
     if (newYear > 0) {
       state.ecoHealthYearsAbove80 = state.ecosystemHealth >= 80
         ? state.ecoHealthYearsAbove80 + 1
@@ -228,6 +229,24 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     if (entity.alive && !allAlive.includes(entity)) allAlive.push(entity);
   }
   const finalCounts = computePopulationCounts(allAlive);
+
+  // --- Deaths (exact: alive at the start of the tick, not alive now) ---
+  // `aliveEntities` is the list this tick started with, so every entry that is no longer alive
+  // was killed during the tick — wildlife, old age, disease, famine, exhaustion, combat or a
+  // command. The yearly statistic used to read `!e.alive` out of `state.entities`, which by then
+  // contains only the living, so "humans died" was permanently zero in the panel.
+  let deadHumans = 0;
+  let deadAnimals = 0;
+  for (const entity of aliveEntities) {
+    if (entity.alive) continue;
+    if (entity.type === EntityType.Human) deadHumans++;
+    else if (entity.type !== EntityType.Tree && entity.type !== EntityType.Grass) deadAnimals++;
+  }
+  if (deadHumans > 0 || deadAnimals > 0) {
+    const tally = state.deathsThisYear ?? (state.deathsThisYear = { humans: 0, animals: 0 });
+    tally.humans += deadHumans;
+    tally.animals += deadAnimals;
+  }
 
   // --- Post ---
   state.buildings = updatedBuildings;

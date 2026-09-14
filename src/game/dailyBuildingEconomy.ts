@@ -25,6 +25,7 @@ import {
   addResource,
   consumeWorkshopRecipeInputs,
   applyFoodSpoilage,
+  updateStorageCaps,
 } from './economy';
 import { canAffordWorkshopRecipe } from './workshops';
 import { logEvent } from './eventLog';
@@ -79,6 +80,7 @@ import {
   getWorkScheduleHours,
   getWorkHourProductionMultiplier,
 } from './workSchedule';
+import { getSimRng, seededRandomForRun } from './simRng';
 
 /**
  * Winter heating — burns wood once per colony day, stores result on state for the whole day.
@@ -236,6 +238,13 @@ function tickBuildingProgress(state: WorldState): void {
 // ==================== STATIC / DAILY BOOKKEEPING ====================
 
 function tickStaticDaily(state: WorldState, season: Season): void {
+  // Storage caps and spoilage are derived from the standing buildings, so they are
+  // recomputed once per colony day, before spoilage is applied. `tickBuildingProgress`
+  // has already run in this same daily pass, so a Barn/Silo finished today counts today.
+  // This call is what makes `updateStorageCaps` live: it previously had no caller at all,
+  // so every Barn/Silo/Wood Storehouse/Store bonus and the Silo spoilage cut never reached
+  // play (the economy-audit test passed only because it invoked the function by hand).
+  updateStorageCaps(state);
   applyFoodSpoilage(state, season);
   if (!state.electionCeremony) {
     tickElectionGossip(state);
@@ -401,8 +410,11 @@ function tickBuildingProduction(
 
       if (targetPrey) {
         const isWolf = targetPrey.type === EntityType.Wolf;
-        const foughtBack = isWolf && Math.random() < 0.35;
-        const success = !foughtBack && Math.random() < 0.85;
+        // Stateless per shot: whether the prey fights back and whether the shot lands must
+        // not depend on how many other draws this module made first.
+        const huntKey = `hunt:${building.id}:${state.tick}:${targetPrey.id}`;
+        const foughtBack = isWolf && seededRandomForRun(`${huntKey}:fight`) < 0.35;
+        const success = !foughtBack && seededRandomForRun(`${huntKey}:success`) < 0.85;
 
         // The shot must read as fired by the assigned hunter: a Hunting Spot is a
         // work location, not an automatic attack tower. With no living hunter
@@ -410,7 +422,7 @@ function tickBuildingProduction(
         const hunter = findLiveAssignedWorker(building, entityById);
         if (hunter) {
           addHuntVisual(state, {
-            id: `hunt_${state.tick}_${Math.floor(Math.random() * 1000)}`,
+            id: `hunt_${state.tick}_${Math.floor(getSimRng('dailyBuildingEconomy')() * 1000)}`,
             hunterId: hunter.id,
             preyType: targetPrey.type,
             fromX: hunter.x,
@@ -559,14 +571,14 @@ function tickBuildingProduction(
       }
       for (let i = 0; i < 3; i++) {
         state.deathParticles.push({
-          x: building.x + Math.random() * building.width,
-          y: building.y + Math.random() * building.height,
-          vx: (Math.random() - 0.5) * 1.3,
-          vy: -0.5 - Math.random() * 0.9,
-          life: 16 + Math.random() * 10,
+          x: building.x + getSimRng('dailyBuildingEconomy')() * building.width,
+          y: building.y + getSimRng('dailyBuildingEconomy')() * building.height,
+          vx: (getSimRng('dailyBuildingEconomy')() - 0.5) * 1.3,
+          vy: -0.5 - getSimRng('dailyBuildingEconomy')() * 0.9,
+          life: 16 + getSimRng('dailyBuildingEconomy')() * 10,
           maxLife: 26,
           color: i % 2 === 0 ? '#a16207' : '#d2a95c',
-          size: 1.5 + Math.random() * 1.4,
+          size: 1.5 + getSimRng('dailyBuildingEconomy')() * 1.4,
           type: 'smoke',
         });
       }
@@ -585,14 +597,14 @@ function tickBuildingProduction(
         rewardProductionSkills(state, building, 0.2, entityById);
       }
       state.deathParticles.push({
-        x: building.x + Math.random() * building.width,
-        y: building.y + Math.random() * building.height,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: -0.8 - Math.random() * 0.5,
+        x: building.x + getSimRng('dailyBuildingEconomy')() * building.width,
+        y: building.y + getSimRng('dailyBuildingEconomy')() * building.height,
+        vx: (getSimRng('dailyBuildingEconomy')() - 0.5) * 0.3,
+        vy: -0.8 - getSimRng('dailyBuildingEconomy')() * 0.5,
         life: 25,
         maxLife: 25,
         color: '#808080',
-        size: 2 + Math.random() * 2,
+        size: 2 + getSimRng('dailyBuildingEconomy')() * 2,
         type: 'smoke',
       });
     }
@@ -611,14 +623,14 @@ function tickBuildingProduction(
       const ore = mineOreForMode(building.mineMode);
       if (addResource(state, ore, amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
       state.deathParticles.push({
-        x: building.x + Math.random() * building.width,
-        y: building.y + Math.random() * building.height,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: -1 - Math.random(),
+        x: building.x + getSimRng('dailyBuildingEconomy')() * building.width,
+        y: building.y + getSimRng('dailyBuildingEconomy')() * building.height,
+        vx: (getSimRng('dailyBuildingEconomy')() - 0.5) * 0.4,
+        vy: -1 - getSimRng('dailyBuildingEconomy')(),
         life: 30,
         maxLife: 30,
         color: ore === 'gold' ? '#eab308' : '#a8a29e',
-        size: 2 + Math.random() * 2,
+        size: 2 + getSimRng('dailyBuildingEconomy')() * 2,
         type: 'smoke',
       });
     }
@@ -650,14 +662,14 @@ function tickBuildingProduction(
         rewardProductionSkills(state, building, 0.2, entityById);
       }
       state.deathParticles.push({
-        x: building.x + Math.random() * building.width,
-        y: building.y + Math.random() * building.height,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: -0.8 - Math.random() * 0.5,
+        x: building.x + getSimRng('dailyBuildingEconomy')() * building.width,
+        y: building.y + getSimRng('dailyBuildingEconomy')() * building.height,
+        vx: (getSimRng('dailyBuildingEconomy')() - 0.5) * 0.3,
+        vy: -0.8 - getSimRng('dailyBuildingEconomy')() * 0.5,
         life: 25,
         maxLife: 25,
         color: '#90EE90',
-        size: 2 + Math.random(),
+        size: 2 + getSimRng('dailyBuildingEconomy')(),
         type: 'smoke',
       });
     }
@@ -675,14 +687,14 @@ function tickBuildingProduction(
         rewardProductionSkills(state, building, 0.2, entityById);
       }
       state.deathParticles.push({
-        x: building.x + Math.random() * building.width,
-        y: building.y + Math.random() * building.height,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: -1.2 - Math.random(),
+        x: building.x + getSimRng('dailyBuildingEconomy')() * building.width,
+        y: building.y + getSimRng('dailyBuildingEconomy')() * building.height,
+        vx: (getSimRng('dailyBuildingEconomy')() - 0.5) * 0.5,
+        vy: -1.2 - getSimRng('dailyBuildingEconomy')(),
         life: 30,
         maxLife: 30,
         color: '#ffd700',
-        size: 2 + Math.random() * 2,
+        size: 2 + getSimRng('dailyBuildingEconomy')() * 2,
         type: 'star',
       });
     }
@@ -722,14 +734,14 @@ function tickBuildingProduction(
               'brief',
             );
             state.deathParticles.push({
-              x: building.x + Math.random() * building.width,
-              y: building.y + Math.random() * building.height,
-              vx: (Math.random() - 0.5) * 0.6,
-              vy: -1 - Math.random(),
+              x: building.x + getSimRng('dailyBuildingEconomy')() * building.width,
+              y: building.y + getSimRng('dailyBuildingEconomy')() * building.height,
+              vx: (getSimRng('dailyBuildingEconomy')() - 0.5) * 0.6,
+              vy: -1 - getSimRng('dailyBuildingEconomy')(),
               life: 25,
               maxLife: 25,
               color: '#cd7f32',
-              size: 2 + Math.random(),
+              size: 2 + getSimRng('dailyBuildingEconomy')(),
               type: 'sparkle',
             });
           }

@@ -1,14 +1,12 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
-import { personDayRoll, PER_TICK_RATE_SCALE } from './dayCycle';
+import { PER_TICK_RATE_SCALE } from './dayCycle';
 import { isPlayerHuman } from './playerHuman';
 import { seededRandomForRun } from './simRng';
 import { commuteHumanToBuilding } from './simulation/humanMovement';
 import {
   isOfficialAtHall,
   officialHandlePetitioners,
-  resolveCivicPetition,
-  wantsCivicAudience,
 } from './townHall';
 import { hotelierGreetGuests, isHotelierAtHotel } from './hotelStay';
 
@@ -96,30 +94,4 @@ export function tickHumanCivicVenueService({
     }
   }
 
-}
-
-/** Runs the existing free-time town-hall petition behavior. */
-export function tickHumanFreeTimeCivicPetition({
-  state,
-  entity,
-  staffedTownHalls,
-  allowFreeRoam,
-}: Pick<CivicVenueRuntimeContext, 'state' | 'entity' | 'staffedTownHalls' | 'allowFreeRoam'>): void {
-  if (
-    allowFreeRoam
-    && isPlayerHuman(entity)
-    && !entity.isJuvenile
-    && wantsCivicAudience(entity, state)
-    && staffedTownHalls.length > 0
-  ) {
-    const hall = staffedTownHalls.find(
-      (building) => Math.hypot(
-        entity.x - (building.x + building.width / 2),
-        entity.y - (building.y + building.height / 2),
-      ) < 40,
-    );
-    if (hall && personDayRoll(entity.id, state.tick, 841) < 0.18) {
-      resolveCivicPetition(state, entity, hall);
-    }
-  }
 }

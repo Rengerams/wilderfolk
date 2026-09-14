@@ -8,7 +8,9 @@ import { addResource } from './resourceUtils';
 import { getTownHallTradeMultiplier } from './townHall';
 import { logEvent } from './eventLog';
 import { createEntity } from './entityFactory';
-import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
+import { unindexEntityFromState } from './entityIndex';
+import { pushNewEntity } from './simulation/simulationEntities';
+import type { TickContext } from './simulation/simulationTypes';
 
 /** Long-range trade routes require a completed player Market (EC-4). */
 export function hasCompletedMarket(state: WorldState): boolean {
@@ -211,7 +213,7 @@ export function onTradeRouteEstablished(state: WorldState, routeId: string): voi
   );
 }
 
-function spawnCaravan(state: WorldState, route: TradeRoute): boolean {
+function spawnCaravan(state: WorldState, route: TradeRoute, ctx: TickContext): boolean {
   if (!canAffordExports(state, route)) {
     addFloatingText(
       state,
@@ -243,8 +245,13 @@ function spawnCaravan(state: WorldState, route: TradeRoute): boolean {
   carrier.homeBuildingId = undefined;
   carrier.relationshipStatus = 'single';
   carrier.reproductionCooldown = 9999;
-  state.entities.push(carrier);
-  indexLivingEntity(state, carrier);
+  // The carrier must go through the tick's canonical spawn path. Pushing it into
+  // `state.entities` alone lost it: `gameTick` rebuilds `state.entities` from the
+  // `allAlive` snapshot it built for this tick (plus `ctx.newEntities`), so a carrier
+  // created in the systems layer was dropped in the same tick it departed — the route
+  // then saw "no active carrier" again and the caravan could never travel.
+  // `pushNewEntity` also indexes it by id and adds it to the mobile spatial grid.
+  pushNewEntity(state, ctx, carrier);
   route.caravanCarrierId = carrier.id;
   route.caravanLeg = 'outbound';
   route.caravanWaitTicks = 0;
@@ -258,7 +265,7 @@ function hasActiveCarrier(state: WorldState, route: TradeRoute): boolean {
   return state.entities.some((e) => e.alive && e.id === route.caravanCarrierId);
 }
 
-export function tickTradeCaravans(state: WorldState): void {
+export function tickTradeCaravans(state: WorldState, ctx: TickContext): void {
   for (let i = 0; i < state.tradeRoutes.length; i++) {
     const route = state.tradeRoutes[i];
     if (!route.active) continue;
@@ -272,7 +279,7 @@ export function tickTradeCaravans(state: WorldState): void {
         scheduleTradeRouteDeparture(state, route);
       }
       if (state.tick >= (route.nextDepartureTick ?? 0)) {
-        if (spawnCaravan(state, route)) {
+        if (spawnCaravan(state, route, ctx)) {
           route.nextDepartureTick = undefined;
         }
       }

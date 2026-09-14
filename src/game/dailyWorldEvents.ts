@@ -221,9 +221,19 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
     state.bountifulHarvest = false;
   }
 
-  // Election buildup and ceremonies (year rollover)
+  // Election buildup and ceremonies.
+  //
+  // The vacancy campaign is due on a *date* (`pendingElectionYear` is a fractional year), so it
+  // is evaluated every day. Evaluating it only at the year rollover stretched the declared
+  // 0.25-year campaign to as much as a year — a vacancy on day 300 of year 3 stored 4.083 and
+  // was only noticed at the year-5 rollover — and, because `tryStartTermElectionCeremony`
+  // refuses while a vacancy is pending, it silently skipped that year's scheduled term
+  // election too. The term election itself stays a year-rollover decision.
+  const vacancyCeremony = tryStartVacancyElectionCeremony(state, state.year, state.dayInYear);
+
   const prevCalendarDay = state.tick <= 1 ? 0 : getCalendarDay(state.tick - 1);
   const yearRollover = state.dayInYear === 0 && prevCalendarDay > 0;
+  let termCeremony = false;
   if (yearRollover) {
     const buildupNews = tickElectionBuildup(state, state.year, yearRollover);
     if (buildupNews) {
@@ -231,24 +241,23 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
       addNotification(state, buildupNews.title, buildupNews.message, 'event');
     }
 
-    const vacancyCeremony = tryStartVacancyElectionCeremony(state, state.year, state.dayInYear);
-    const termCeremony = !vacancyCeremony
+    termCeremony = !vacancyCeremony
       && tryStartTermElectionCeremony(state, state.year, state.dayInYear);
+  }
 
-    if (vacancyCeremony || termCeremony) {
-      addBigNews(
-        state,
-        '🗳️ Election Day',
-        `Settlers gather for the leadership election (Year ${state.year}). Gossip, tension, then the merit reveal — and a village party after.`,
-        'neutral',
-      );
-      addNotification(
-        state,
-        '🗳️ Election Day',
-        `Year ${state.year} leadership election — villagers gathering now.`,
-        'event',
-      );
-    }
+  if (vacancyCeremony || termCeremony) {
+    addBigNews(
+      state,
+      '🗳️ Election Day',
+      `Settlers gather for the leadership election (Year ${state.year}). Gossip, tension, then the merit reveal — and a village party after.`,
+      'neutral',
+    );
+    addNotification(
+      state,
+      '🗳️ Election Day',
+      `Year ${state.year} leadership election — villagers gathering now.`,
+      'event',
+    );
   }
 
   

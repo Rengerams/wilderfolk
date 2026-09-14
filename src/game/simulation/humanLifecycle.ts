@@ -25,7 +25,7 @@ export interface BirthContext {
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;
 }
 
-const LIFECYCLE_CONFIG = {
+export const LIFECYCLE_CONFIG = {
   WILDKIN_CHANCE: 0.03,
   DEER_PROXIMITY_RADIUS: 80,
   STILLBORN_CHANCE: 0.001,
@@ -70,14 +70,17 @@ export function tickPregnancyAndBirth(
 
   // --- Birth --
 
-  const angle = Math.random() * Math.PI * 2;
+  // Seeded per mother and tick: a delivery's position, wildkin roll, stillbirth roll and
+  // child's gender are all world state, so the same seed must reproduce the same child.
+  const birthKey = `birth:${entity.id}:${state.tick}`;
+  const angle = seededRandomForRun(`${birthKey}:angle`) * Math.PI * 2;
   const nx = Math.min(width, Math.max(0, entity.x + Math.cos(angle) * 10));
   const ny = Math.min(height, Math.max(0, entity.y + Math.sin(angle) * 10));
 
   const nearDeer = byType[EntityType.Deer].some(
     (d) => d.alive && Math.hypot(d.x - entity.x, d.y - entity.y) < LIFECYCLE_CONFIG.DEER_PROXIMITY_RADIUS,
   );
-  const wildkinBirth = nearDeer && Math.random() < LIFECYCLE_CONFIG.WILDKIN_CHANCE;
+  const wildkinBirth = nearDeer && seededRandomForRun(`${birthKey}:wildkin`) < LIFECYCLE_CONFIG.WILDKIN_CHANCE;
   const biologicalFatherIdAtBirth = entity.pregnantById ?? entity.partnerId;
 
   const husband = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
@@ -116,7 +119,7 @@ export function tickPregnancyAndBirth(
   }
 
   // --- Outcome Branche 2
-  if (Math.random() < LIFECYCLE_CONFIG.STILLBORN_CHANCE) {
+  if (seededRandomForRun(`${birthKey}:stillborn`) < LIFECYCLE_CONFIG.STILLBORN_CHANCE) {
     entity.griefUntilTick = Math.max(
       entity.griefUntilTick ?? 0,
       state.tick + ticksForDays(LIFECYCLE_CONFIG.STILLBORN_GRIEF_DAYS),
@@ -137,7 +140,7 @@ export function tickPregnancyAndBirth(
   );
 
   const babyGen = (entity.generation ?? 0) + 1;
-  const childGender: 'male' | 'female' = Math.random() > 0.5 ? 'male' : 'female';
+  const childGender: 'male' | 'female' = seededRandomForRun(`${birthKey}:gender`) > 0.5 ? 'male' : 'female';
   const inheritedTraits = inheritSettlerTraits(entity, biologicalFather);
 
   const child = createEntity(EntityType.Human, nx, ny, state.nextEntityId++, 80, true, {

@@ -7,7 +7,7 @@ import { SPECIES_CONFIG } from './speciesConfig';
 import { buildGrassPopulationSnapshot, grassPopulationTotal } from './simQueries';
 import { createEntity } from './entityFactory';
 import { getGrassPopulationCap, markGrassDead, pushNewEntity, syncEntityGrids } from './simulation/simulationEntities';
-import { getSimRng } from './simRng';
+import { seededRandomForRun } from './simRng';
 
 export function tickGrassDaily(
   state: WorldState,

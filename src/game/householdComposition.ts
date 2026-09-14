@@ -23,6 +23,33 @@ export function collectOwnHousehold(seed: Entity, humans: Entity[]): Entity[] {
   return household;
 }
 
+/**
+ * One adult-led home with only its *dependent* children.
+ *
+ * Adult children are emancipated for housing (`isMinorChild`), so a parent whose children
+ * have all grown up must not form a housing unit that spans their own house and the adult
+ * child's — that unit can never be satisfied, and the residency convergence loop responds by
+ * re-homing everyone together, undoing the adult-child move-out.
+ */
+export function collectMinorHousehold(seed: Entity, humans: Entity[]): Entity[] {
+  const household: Entity[] = [];
+  const add = (human?: Entity) => {
+    if (human?.alive && !household.some((member) => member.id === human.id)) household.push(human);
+  };
+  add(seed);
+  const partner = humans.find((human) => human.id === seed.partnerId && human.alive);
+  add(partner);
+  const addMinorChild = (childId: number) => {
+    const child = humans.find((human) => human.id === childId && human.alive);
+    if (child && isMinorChild(child)) add(child);
+  };
+  for (const childId of seed.childrenIds ?? []) addMinorChild(childId);
+  if (partner) {
+    for (const childId of partner.childrenIds ?? []) addMinorChild(childId);
+  }
+  return household;
+}
+
 function livingHuman(humans: Entity[], id: number | undefined): Entity | undefined {
   if (id == null) return undefined;
   return humans.find((human) => human.id === id && human.alive);

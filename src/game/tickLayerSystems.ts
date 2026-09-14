@@ -65,6 +65,7 @@ import { updateResearch } from './research';
 import { tickTradeCaravans } from './tradeCaravans';
 import { createEntity } from './entityFactory';
 import { indexEntity } from './entityIndex';
+import { getSimRng } from './simRng';
 
 /** Systems layer interval (ticks). Keep in sync with WILDLIFE_LAYER_INTERVAL. */
 export const LAYER_SYSTEMS_INTERVAL = WILDLIFE_LAYER_INTERVAL;
@@ -101,26 +102,26 @@ function tickWolfRecruitment(state: WorldState, ctx: TickContext): void {
   if (
     !isProductionTick(state.tick, EVENT_INTERVAL.wolfRecruit) ||
     currentWolves >= 2 ||
-    Math.random() >= 0.1
+    getSimRng('tickLayerSystems')() >= 0.1
   ) {
     return;
   }
 
-  const edge = Math.floor(Math.random() * 4);
+  const edge = Math.floor(getSimRng('tickLayerSystems')() * 4);
   let sx = 0;
   let sy = 0;
   if (edge === 0) {
-    sx = Math.random() * width;
+    sx = getSimRng('tickLayerSystems')() * width;
     sy = 0;
   } else if (edge === 1) {
-    sx = Math.random() * width;
+    sx = getSimRng('tickLayerSystems')() * width;
     sy = height;
   } else if (edge === 2) {
     sx = 0;
-    sy = Math.random() * height;
+    sy = getSimRng('tickLayerSystems')() * height;
   } else {
     sx = width;
-    sy = Math.random() * height;
+    sy = getSimRng('tickLayerSystems')() * height;
   }
 
   const wolf = createEntity(
@@ -139,7 +140,7 @@ export function tickLayerSystems(state: WorldState, ctx: TickContext): void {
   updateWeather(state);
   updateDisasters(state);
   updateResearch(state);
-  tickTradeCaravans(state);
+  tickTradeCaravans(state, ctx);
   tickWildlife(state, ctx);
   tickWolfRecruitment(state, ctx);
 }
@@ -471,7 +472,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                   ? `${caughtPrey.name}${caughtPrey.surname ? ` ${caughtPrey.surname}` : ''}`
                   : 'A settler';
                 const line = WEREWOLF_ATTACK_LINES[
-                  Math.floor(Math.random() * WEREWOLF_ATTACK_LINES.length)
+                  Math.floor(getSimRng('tickLayerSystems')() * WEREWOLF_ATTACK_LINES.length)
                 ](wolfName, victimName);
                 addBigNews(state, '🌝 Moon Howler Attack!', line, 'negative');
                 addFloatingText(state, caughtPrey.x, caughtPrey.y - 12, 'Slain!', '#ef4444');
@@ -518,7 +519,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         const pulse = Math.floor(state.tick / WILDLIFE_LAYER_INTERVAL);
         const pulsePeriod = Math.max(1, Math.round((2 * TICKS_PER_HOUR) / WILDLIFE_LAYER_INTERVAL));
         if (pulse % pulsePeriod === entity.id % pulsePeriod) {
-          const line = WEREWOLF_HOWL_LINES[Math.floor(Math.random() * WEREWOLF_HOWL_LINES.length)];
+          const line = WEREWOLF_HOWL_LINES[Math.floor(getSimRng('tickLayerSystems')() * WEREWOLF_HOWL_LINES.length)];
           addFloatingText(state, entity.x, entity.y - 18, line, '#c4b5fd');
         }
       }
@@ -572,8 +573,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
       // 10. Default Wander Steps
       if (targetVx === 0 && targetVy === 0) {
-        if (Math.random() < 1.0 - Math.pow(1.0 - 0.05, step)) {
-          const angle = Math.random() * Math.PI * 2;
+        if (getSimRng('tickLayerSystems')() < 1.0 - Math.pow(1.0 - 0.05, step)) {
+          const angle = getSimRng('tickLayerSystems')() * Math.PI * 2;
           entity.vx = Math.cos(angle) * config.speed * 0.4;
           entity.vy = Math.sin(angle) * config.speed * 0.4;
         }
@@ -703,7 +704,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           config.reproductionChance * reproMult * capacityFactor * scarcityBoost;
         const stepBreedChance = 1.0 - Math.pow(1.0 - Math.min(1.0, breedChancePerTick), step);
 
-        if (Math.random() < stepBreedChance) {
+        if (getSimRng('tickLayerSystems')() < stepBreedChance) {
           const mate = findClosestEntityInRadius(
             mobileGrid,
             entity.x,
@@ -717,7 +718,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             byType[entity.type],
           );
           if (mate) {
-            const breedAngle = Math.random() * Math.PI * 2;
+            const breedAngle = getSimRng('tickLayerSystems')() * Math.PI * 2;
             const breedDist = 15;
             const nx = Math.min(width, Math.max(0, entity.x + Math.cos(breedAngle) * breedDist));
             const ny = Math.min(height, Math.max(0, entity.y + Math.sin(breedAngle) * breedDist));

@@ -5,6 +5,7 @@ import { maybeQueueRaid } from './frontierCombat';
 import { indexLivingEntity } from './entityIndex';
 import { isRivalAtPeace } from './rivalPeace';
 import { applyRivalDailyAction, ensureRivalProfile, selectRivalDailyAction } from './rivalProfiles';
+import { getSimRng } from './simRng';
 
 export interface RivalEventCallbacks {
   pushNews: (state: WorldState, title: string, message: string, type: 'positive' | 'negative' | 'neutral') => void;
@@ -162,7 +163,7 @@ function maybeExpandRivalCamp(
   const chance = rival.relationship === 'friendly' ? 0.14
     : rival.relationship === 'neutral' ? 0.10
       : rival.relationship === 'competitive' ? 0.12 : 0.11;
-  if (Math.random() > chance) return;
+  if (getSimRng('rivalEvents')() > chance) return;
 
   const type = pickRivalExpansionType(rival, rivalBuildingTypes(state, rival));
   if (!type) return;
@@ -225,7 +226,7 @@ export function tickRivalSettlements(
     maybeExpandRivalCamp(state, rival, buildings, callbacks);
     rival.daysUntilAction--;
     if (rival.daysUntilAction > 0) continue;
-    rival.daysUntilAction = 45 + Math.floor(Math.random() * 45);
+    rival.daysUntilAction = 45 + Math.floor(getSimRng('rivalEvents')() * 45);
 
     const profile = ensureRivalProfile(rival);
     const action = selectRivalDailyAction(profile, rival.relationship);
@@ -237,16 +238,16 @@ export function tickRivalSettlements(
     }
 
     if (!isRivalAtPeace(rival)) maybeQueueRaid(state, rival, allAlive);
-    if (Math.random() < 0.35) callbacks.queueDiplomacyEvent(state, rival);
+    if (getSimRng('rivalEvents')() < 0.35) callbacks.queueDiplomacyEvent(state, rival);
 
-    if (rival.relationship === 'friendly' && Math.random() < 0.6) {
-      const gold = 12 + Math.floor(Math.random() * 18);
+    if (rival.relationship === 'friendly' && getSimRng('rivalEvents')() < 0.6) {
+      const gold = 12 + Math.floor(getSimRng('rivalEvents')() * 18);
       state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + gold);
       callbacks.pushFloat(state, rival.campX, rival.campY - 20, `Trade +${gold}g`, '#22d3ee');
       callbacks.logEvent(state, 'trade', `${rival.name} sent a trade gift (+${gold} gold)`, rival.name);
     } else if (rival.relationship === 'competitive') {
       const deer = nextDeer();
-      if (deer && Math.random() < 0.5) {
+      if (deer && getSimRng('rivalEvents')() < 0.5) {
         callbacks.killWildGameForPoach(state, deer);
         callbacks.pushFloat(state, deer.x, deer.y - 15, `${rival.name} hunted`, '#fb923c');
         callbacks.logEvent(state, 'event', `${rival.name} hunters took game from the shared wilds`, rival.name);
@@ -255,16 +256,16 @@ export function tickRivalSettlements(
     } else if (
       rival.relationship === 'tense'
       && tenseRepDrainToday < maxTenseRepDrainPerDay
-      && Math.random() < 0.4
+      && getSimRng('rivalEvents')() < 0.4
     ) {
       state.villageReputation = Math.max(0, state.villageReputation - 2);
       tenseRepDrainToday++;
       callbacks.pushNews(state, '⚡ Border Tension', `${rival.name} grumbles about your expansion. Reputation -2.`, 'negative');
-    } else if (rival.relationship === 'neutral' && Math.random() < 0.3) {
+    } else if (rival.relationship === 'neutral' && getSimRng('rivalEvents')() < 0.3) {
       callbacks.logEvent(state, 'event', `${rival.name} scouts were seen mapping the river bend`, rival.name);
     }
 
-    if (state.year > rival.foundedYear + 1 && rival.population < 12 && Math.random() < 0.2) {
+    if (state.year > rival.foundedYear + 1 && rival.population < 12 && getSimRng('rivalEvents')() < 0.2) {
       const entity = callbacks.createFactionHuman(state, rival.campX, rival.campY, 'rival', rival.id, rival.name);
       rival.entityIds.push(entity.id);
       rival.population++;

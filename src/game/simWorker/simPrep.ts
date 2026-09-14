@@ -83,6 +83,8 @@ type SimPrepKeys =
   | 'ecoHealthYearsAbove80'
   | 'villageReputation'
   | 'renffrOmen'
+  | 'visitorQuest'
+  | 'deathsThisYear'
   | 'renffrChatterUntilTick'
   | 'lastProcessedCalendarDay'
   | 'lastWildlifeReplenishLogDay'
@@ -182,6 +184,8 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     ecoHealthYearsAbove80: state.ecoHealthYearsAbove80 ?? 0,
     villageReputation: state.villageReputation ?? 0,
     renffrOmen: state.renffrOmen ? { ...state.renffrOmen } : null,
+    visitorQuest: state.visitorQuest ? { ...state.visitorQuest } : undefined,
+    deathsThisYear: state.deathsThisYear ? { ...state.deathsThisYear } : { humans: 0, animals: 0 },
     renffrChatterUntilTick: state.renffrChatterUntilTick ?? 0,
     lastProcessedCalendarDay: state.lastProcessedCalendarDay ?? 0,
     lastWildlifeReplenishLogDay: state.lastWildlifeReplenishLogDay ?? 0,
@@ -269,6 +273,8 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.ecoHealthYearsAbove80 = prep.ecoHealthYearsAbove80;
   world.villageReputation = prep.villageReputation;
   world.renffrOmen = prep.renffrOmen;
+  world.visitorQuest = prep.visitorQuest;
+  world.deathsThisYear = prep.deathsThisYear;
   world.renffrChatterUntilTick = prep.renffrChatterUntilTick;
   world.lastProcessedCalendarDay = prep.lastProcessedCalendarDay;
   world.lastWildlifeReplenishLogDay = prep.lastWildlifeReplenishLogDay;

@@ -236,7 +236,7 @@ export function resolveCivicPetition(
     addFloatingText(state, petitioner.x, petitioner.y - 14, `+${amount} food (aid)`, '#86efac', 'brief');
     sayHumanChatPhrase(
       petitioner,
-      Math.random() < 0.5 ? 'The hall will help us.' : 'Thank the officials.',
+      personDayRoll(petitioner.id, state.tick, 831) < 0.5 ? 'The hall will help us.' : 'Thank the officials.',
       50,
     );
     addReputation(state, 1);
@@ -252,7 +252,7 @@ export function resolveCivicPetition(
     petitioner.energy = Math.min(petitioner.maxEnergy, petitioner.energy + 6);
     sayHumanChatPhrase(
       petitioner,
-      Math.random() < 0.5 ? 'They listened…' : 'The record is noted.',
+      personDayRoll(petitioner.id, state.tick, 832) < 0.5 ? 'They listened…' : 'The record is noted.',
       52,
     );
     addFloatingText(state, hall.x + hall.width / 2, hall.y - 10, '📜 Petition heard', '#93c5fd', 'brief');
@@ -264,13 +264,13 @@ export function resolveCivicPetition(
   if (leaderHere && personDayRoll(petitioner.id, state.tick, 824) < 0.35) {
     sayHumanChatPhrase(
       petitioner,
-      Math.random() < 0.5 ? 'A word with the leader.' : 'I trust our chief.',
+      personDayRoll(petitioner.id, state.tick, 833) < 0.5 ? 'A word with the leader.' : 'I trust our chief.',
       48,
     );
     if ((leader.chatTicks ?? 0) <= 0) {
       sayHumanChatPhrase(
         leader,
-        Math.random() < 0.5 ? 'Speak freely.' : 'We will see it done.',
+        personDayRoll(leader.id, state.tick, 834) < 0.5 ? 'Speak freely.' : 'We will see it done.',
         48,
       );
     }
@@ -295,7 +295,7 @@ export function resolveCivicPetition(
   if (personDayRoll(petitioner.id, state.tick, 826) < 0.25) {
     sayHumanChatPhrase(
       petitioner,
-      Math.random() < 0.5 ? 'Busy halls today.' : 'Papers and plans…',
+      personDayRoll(petitioner.id, state.tick, 835) < 0.5 ? 'Busy halls today.' : 'Papers and plans…',
       40,
     );
     return { kind: 'heard' };
@@ -304,7 +304,14 @@ export function resolveCivicPetition(
   return { kind: 'none' };
 }
 
-/** Official on duty greets / handles the nearest petitioner. */
+/**
+ * Official on duty greets the nearest petitioner.
+ *
+ * Cosmetic only: the *resolution* (skill for the hall staff, food/gold aid, respect,
+ * leader audience) belongs to the daily owner `tickTownHallAudiences`. This used to call
+ * `resolveCivicPetition` on every tick an official stood at the hall, and the same
+ * day-stable roll passed all day, so every petition effect was re-applied at tick rate.
+ */
 export function officialHandlePetitioners(
   state: WorldState,
   official: Entity,
@@ -326,13 +333,12 @@ export function officialHandlePetitioners(
   );
   if (petitioners.length === 0) return false;
 
-  const pick = petitioners[Math.floor(personDayRoll(official.id, state.tick, 827) * petitioners.length)]!;
-  const result = resolveCivicPetition(state, pick, hall);
-  if (result.kind === 'none') return false;
-  if ((official.chatTicks ?? 0) <= 0 && Math.random() < 0.4) {
+  // Greeting only — `state.tick` no longer gates anything here, and no economic effect is
+  // applied per tick. The daily audience pulse resolves the petition itself.
+  if ((official.chatTicks ?? 0) <= 0 && personDayRoll(official.id, state.tick, 836) < 0.4) {
     sayHumanChatPhrase(
       official,
-      Math.random() < 0.5 ? 'Next, please.' : 'The village hears you.',
+      personDayRoll(official.id, state.tick, 837) < 0.5 ? 'Next, please.' : 'The village hears you.',
       44,
     );
   }
@@ -356,7 +362,7 @@ export function tickTownHallAudiences(
     const r = resolveCivicPetition(state, h, hall);
     if (r.kind !== 'none') handled++;
   }
-  if (handled > 0 && Math.random() < 0.5) {
+  if (handled > 0 && personDayRoll(handled, state.tick, 838) < 0.5) {
     logEvent(state, 'event', `Town Hall heard ${handled} petition${handled > 1 ? 's' : ''}`);
   }
 }

@@ -1,4 +1,5 @@
 import { BuildingType, type Building, type DeathParticle, type WorldState } from './gameTypes';
+import { getSimRng } from './simRng';
 
 /** Shared transient pool on `state.deathParticles` (deaths, confetti, smoke, forge sparks). */
 export function pushTransientParticle(state: WorldState, particle: DeathParticle): void {
@@ -51,32 +52,32 @@ export function spawnBuildCompleteParticles(state: WorldState, building: Buildin
   const spreadY = building.height * 0.35;
 
   for (let i = 0; i < 28; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = 0.8 + Math.random() * 2.4;
+    const angle = getSimRng('juiceEffects')() * Math.PI * 2;
+    const speed = 0.8 + getSimRng('juiceEffects')() * 2.4;
     const upward = i % 3 === 0;
     pushTransientParticle(state, {
-      x: cx + (Math.random() - 0.5) * spreadX,
-      y: cy + (Math.random() - 0.5) * spreadY,
-      vx: upward ? (Math.random() - 0.5) * 1.4 : Math.cos(angle) * speed,
-      vy: upward ? -1.8 - Math.random() * 2.2 : Math.sin(angle) * speed - 0.6,
-      life: 30 + Math.random() * 30,
+      x: cx + (getSimRng('juiceEffects')() - 0.5) * spreadX,
+      y: cy + (getSimRng('juiceEffects')() - 0.5) * spreadY,
+      vx: upward ? (getSimRng('juiceEffects')() - 0.5) * 1.4 : Math.cos(angle) * speed,
+      vy: upward ? -1.8 - getSimRng('juiceEffects')() * 2.2 : Math.sin(angle) * speed - 0.6,
+      life: 30 + getSimRng('juiceEffects')() * 30,
       maxLife: 60,
       color: BUILD_COMPLETE_COLORS[i % BUILD_COMPLETE_COLORS.length],
-      size: 1.8 + Math.random() * 2.8,
+      size: 1.8 + getSimRng('juiceEffects')() * 2.8,
       type: i % 4 === 0 ? 'star' : 'sparkle',
     });
   }
 
   for (let i = 0; i < 8; i++) {
     pushTransientParticle(state, {
-      x: cx + (Math.random() - 0.5) * spreadX * 0.5,
+      x: cx + (getSimRng('juiceEffects')() - 0.5) * spreadX * 0.5,
       y: cy + building.height * 0.2,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: -0.5 - Math.random() * 0.8,
-      life: 40 + Math.random() * 20,
+      vx: (getSimRng('juiceEffects')() - 0.5) * 0.4,
+      vy: -0.5 - getSimRng('juiceEffects')() * 0.8,
+      life: 40 + getSimRng('juiceEffects')() * 20,
       maxLife: 60,
       color: '#a8a29e',
-      size: 3 + Math.random() * 3,
+      size: 3 + getSimRng('juiceEffects')() * 3,
       type: 'smoke',
     });
   }

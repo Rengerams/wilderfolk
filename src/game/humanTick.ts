@@ -10,7 +10,7 @@ import type { WorldState, Entity, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { seededRandomForRun } from './simRng';
+import { getSimRng, seededRandomForRun } from './simRng';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { addFloatingText } from './simEffects';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
@@ -84,7 +84,6 @@ import {
 } from './humanHospitalBehavior';
 import {
   tickHumanCivicVenueService,
-  tickHumanFreeTimeCivicPetition,
   tickTavernService,
 } from './humanVenueBehavior';
 import { steerVisitorToHotel } from './hotelStay';
@@ -323,7 +322,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     entity.reproductionCooldown = Math.max(0, entity.reproductionCooldown - 1);
     if (entity.gender && entity.relationshipStatus === undefined) {
       entity.relationshipStatus = 'single';
-      entity.attraction = 50 + Math.random() * 50;
+      entity.attraction = 50 + getSimRng('humanTick')() * 50;
     }
 
     let conceivedToday = false;
@@ -893,16 +892,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             closest.courtshipProgress = Math.min(100, (closest.courtshipProgress || 0) + courtRate);
           }
 
-          if (Math.random() < 0.08 * PER_TICK_RATE_SCALE) {
+          if (getSimRng('humanTick')() < 0.08 * PER_TICK_RATE_SCALE) {
             state.deathParticles.push({
-              x: entity.x + (Math.random() - 0.5) * 15,
+              x: entity.x + (getSimRng('humanTick')() - 0.5) * 15,
               y: entity.y - 8,
-              vx: (Math.random() - 0.5) * 0.3,
-              vy: -0.8 - Math.random() * 0.5,
+              vx: (getSimRng('humanTick')() - 0.5) * 0.3,
+              vy: -0.8 - getSimRng('humanTick')() * 0.5,
               life: 25,
               maxLife: 25,
               color: '#ff69b4',
-              size: 2 + Math.random() * 1.5,
+              size: 2 + getSimRng('humanTick')() * 1.5,
               type: 'heart',
             });
           }
@@ -992,11 +991,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             entity.affairProgress = Math.min(100, (entity.affairProgress || 0) + affairRate);
             paramour.affairProgress = Math.min(100, (paramour.affairProgress || 0) + affairRate);
 
-            if (Math.random() < 0.06 * PER_TICK_RATE_SCALE) {
+            if (getSimRng('humanTick')() < 0.06 * PER_TICK_RATE_SCALE) {
               state.deathParticles.push({
-                x: entity.x + (Math.random() - 0.5) * 10,
+                x: entity.x + (getSimRng('humanTick')() - 0.5) * 10,
                 y: entity.y - 6,
-                vx: (Math.random() - 0.5) * 0.2,
+                vx: (getSimRng('humanTick')() - 0.5) * 0.2,
                 vy: -0.5,
                 life: 18,
                 maxLife: 18,
@@ -1099,12 +1098,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onJobShift,
       speed: config.speed,
     });
-    tickHumanFreeTimeCivicPetition({
-      state,
-      entity,
-      staffedTownHalls,
-      allowFreeRoam,
-    });
+    // Civic petitions are resolved once per colony day by the town-hall owner
+    // (`tickTownHallAudiences`), so the realtime path only walks settlers to the hall
+    // (leisure motive 5) — see BUG_REPORTS/2026-09-13-civic-petitions-re-award-every-tick-per-day-rolls-are-used.md.
 
     // Morning greetings
     if (allowFreeRoam && isPlayerHuman(entity) && !entity.isJuvenile && hourOfDay >= 6 && hourOfDay <= 9) {
@@ -1238,7 +1234,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             idleVx = -(sdx / sdist) * config.speed * 0.1;
             idleVy = -(sdy / sdist) * config.speed * 0.1;
           } else {
-            if (state.beautyGrid != null && Math.random() < 0.35) {
+            if (state.beautyGrid != null && getSimRng('humanTick')() < 0.35) {
               const pretty = pickBeautySpot(
                 state.beautyGrid,
                 (entity.x + company.x) / 2,
@@ -1246,7 +1242,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
                 5,
               );
               steerTo(pretty.x, pretty.y, 0.42, 14);
-              if (beautyAt(state.beautyGrid, entity.x, entity.y) >= 3 && Math.random() < 0.04 * PER_TICK_RATE_SCALE) {
+              if (beautyAt(state.beautyGrid, entity.x, entity.y) >= 3 && getSimRng('humanTick')() < 0.04 * PER_TICK_RATE_SCALE) {
                 entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.4 * PER_TICK_RATE_SCALE);
                 addFloatingText(state, entity.x, entity.y - 26, '💐', '#f9a8d4', 'brief');
               }
@@ -1308,7 +1304,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             if (arrived) {
               entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.45 * PER_TICK_RATE_SCALE);
               settlerChat(entity, 'social', 0.14 * PER_TICK_RATE_SCALE);
-              if (Math.random() < 0.04 * PER_TICK_RATE_SCALE) {
+              if (getSimRng('humanTick')() < 0.04 * PER_TICK_RATE_SCALE) {
                 addFloatingText(state, entity.x, entity.y - 14, '🍺', '#fbbf24');
               }
             }

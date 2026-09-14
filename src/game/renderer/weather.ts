@@ -3,6 +3,7 @@ import { WEATHER_CONFIGS } from '../gameTypes';
 import { isWaterTerrainType } from '../placementUtils';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { renderTime } from './shared';
+import { getSimRng } from '../simRng';
 
 // ============ WEATHER PARTICLES (BATCHED) ============
 interface WParticle { x: number; y: number; vx: number; vy: number; s: number; a: number }
@@ -33,12 +34,12 @@ function updateWeatherParticles(w: WeatherType, cw: number, ch: number) {
     const count = WEATHER_CONFIGS[w].particleCount;
     for (let i = 0; i < count; i++) {
       wParts.push({
-        x: Math.random() * cw * 1.5 - cw * 0.25,
-        y: Math.random() * ch * 1.5 - ch * 0.25,
-        vx: w === WeatherType.Storm ? (Math.random() - 0.2) * 4 : (Math.random() - 0.5) * 1.2,
-        vy: w === WeatherType.Snow ? 0.6 + Math.random() * 1.2 : 4 + Math.random() * 5,
-        s: w === WeatherType.Snow ? 2 + Math.random() * 2.5 : 1.2 + Math.random() * 1.5,
-        a: 0.45 + Math.random() * 0.45,
+        x: getSimRng('weatherFx')() * cw * 1.5 - cw * 0.25,
+        y: getSimRng('weatherFx')() * ch * 1.5 - ch * 0.25,
+        vx: w === WeatherType.Storm ? (getSimRng('weatherFx')() - 0.2) * 4 : (getSimRng('weatherFx')() - 0.5) * 1.2,
+        vy: w === WeatherType.Snow ? 0.6 + getSimRng('weatherFx')() * 1.2 : 4 + getSimRng('weatherFx')() * 5,
+        s: w === WeatherType.Snow ? 2 + getSimRng('weatherFx')() * 2.5 : 1.2 + getSimRng('weatherFx')() * 1.5,
+        a: 0.45 + getSimRng('weatherFx')() * 0.45,
       });
     }
     lastWeatherCw = cw;
@@ -49,7 +50,7 @@ function updateWeatherParticles(w: WeatherType, cw: number, ch: number) {
     p.y += p.vy;
     if (p.y > ch * 1.3) {
       p.y = -10;
-      p.x = Math.random() * cw * 1.5 - cw * 0.25;
+      p.x = getSimRng('weatherFx')() * cw * 1.5 - cw * 0.25;
     }
     if (p.x > cw * 1.3) p.x = -10;
     if (p.x < -cw * 0.3) p.x = cw * 1.3;
@@ -130,12 +131,12 @@ let seasonPartsSeason: Season | null = null;
 function newSeasonParticle(cw: number, ch: number, season: Season): SeasonParticle {
   const fall = season === Season.Fall;
   return {
-    x: Math.random() * cw,
-    y: Math.random() * ch,
-    vx: (Math.random() - 0.25) * (fall ? 0.4 : 0.16),
-    vy: fall ? 0.22 + Math.random() * 0.3 : 0.12 + Math.random() * 0.2,
-    size: fall ? 1.6 + Math.random() * 2.2 : 1 + Math.random() * 1.2,
-    sway: Math.random() * 10,
+    x: getSimRng('weatherFx')() * cw,
+    y: getSimRng('weatherFx')() * ch,
+    vx: (getSimRng('weatherFx')() - 0.25) * (fall ? 0.4 : 0.16),
+    vy: fall ? 0.22 + getSimRng('weatherFx')() * 0.3 : 0.12 + getSimRng('weatherFx')() * 0.2,
+    size: fall ? 1.6 + getSimRng('weatherFx')() * 2.2 : 1 + getSimRng('weatherFx')() * 1.2,
+    sway: getSimRng('weatherFx')() * 10,
   };
 }
 
@@ -160,8 +161,8 @@ export function drawSeasonParticles(ctx: CanvasRenderingContext2D, state: Render
     p.y += p.vy;
     p.x += p.vx + Math.sin(renderTime * 1.4 + p.sway) * 0.35;
     if (p.y > ch + 8 || p.x < -8 || p.x > cw + 8) {
-      p.y = -8 - Math.random() * 8;
-      p.x = Math.random() * cw;
+      p.y = -8 - getSimRng('weatherFx')() * 8;
+      p.x = getSimRng('weatherFx')() * cw;
     }
   }
   ctx.save();
@@ -218,8 +219,8 @@ export function drawWeather(ctx: CanvasRenderingContext2D, w: WeatherType, cw: n
   }
   ctx.restore();
 
-  if (w === WeatherType.Storm && Math.random() < 0.008) {
-    ctx.fillStyle = `rgba(255,255,255,${0.25 + Math.random() * 0.35})`;
+  if (w === WeatherType.Storm && getSimRng('weatherFx')() < 0.008) {
+    ctx.fillStyle = `rgba(255,255,255,${0.25 + getSimRng('weatherFx')() * 0.35})`;
     ctx.fillRect(0, 0, cw, ch);
   }
 }

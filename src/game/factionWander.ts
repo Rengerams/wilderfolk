@@ -6,6 +6,7 @@ import type { WorldState, Entity, Building, VisitorKind, VisitorGroup } from './
 import { BuildingType } from './gameTypes';
 import { getPlayerCampCenter } from './frontierCombat';
 import { TICKS_PER_DAY, getHourOfDay, isNightHour } from './dayCycle';
+import { getSimRng } from './simRng';
 
 type VisitPhase = 'idle_camp' | 'walk_poi' | 'loiter_poi' | 'return_camp' | 'wander_edge';
 
@@ -25,7 +26,7 @@ function clamp(n: number, lo: number, hi: number): number {
 }
 
 function jitter(n: number, amount: number): number {
-  return n + (Math.random() - 0.5) * amount;
+  return n + (getSimRng('factionWander')() - 0.5) * amount;
 }
 
 function completedPlayerBuildings(buildings: Building[]): Building[] {
@@ -42,7 +43,7 @@ function findBuilding(
 ): Building | undefined {
   const pool = completedPlayerBuildings(buildings).filter((b) => types.includes(b.type));
   if (pool.length === 0) return undefined;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pool[Math.floor(getSimRng('factionWander')() * pool.length)];
 }
 
 /** Preferred village destinations by visitor kind. */
@@ -85,15 +86,15 @@ function pickPoiForKind(
     }
     case 'hunters': {
       // Edge of village / hunting grounds, not always the same building
-      if (Math.random() < 0.45) {
+      if (getSimRng('factionWander')() < 0.45) {
         const spot = findBuilding(buildings, [BuildingType.HuntingSpot, BuildingType.TamingPost]);
         if (spot) {
           const c = buildingCenter(spot);
           return { x: jitter(c.x, 22), y: jitter(c.y, 22), label: 'hunt' };
         }
       }
-      const angle = Math.random() * Math.PI * 2;
-      const r = 90 + Math.random() * 70;
+      const angle = getSimRng('factionWander')() * Math.PI * 2;
+      const r = 90 + getSimRng('factionWander')() * 70;
       return {
         x: clamp(village.x + Math.cos(angle) * r, 20, state.width - 20),
         y: clamp(village.y + Math.sin(angle) * r, 20, state.height - 20),
@@ -126,8 +127,8 @@ function pickPoiForKind(
 }
 
 function campLoiter(campX: number, campY: number, radius = 28): { x: number; y: number } {
-  const angle = Math.random() * Math.PI * 2;
-  const r = 6 + Math.random() * radius;
+  const angle = getSimRng('factionWander')() * Math.PI * 2;
+  const r = 6 + getSimRng('factionWander')() * radius;
   return { x: campX + Math.cos(angle) * r, y: campY + Math.sin(angle) * r };
 }
 
@@ -139,9 +140,9 @@ function shouldLeaveCamp(
 ): boolean {
   // Night: mostly at camp (performers / traders still sometimes stay in the square)
   if (isNightHour(hour)) {
-    if (kind === 'performers' && hour >= 18 && hour < 22) return Math.random() < 0.55;
-    if (kind === 'traders' && hour >= 19 && hour < 21) return Math.random() < 0.2;
-    return Math.random() < 0.08;
+    if (kind === 'performers' && hour >= 18 && hour < 22) return getSimRng('factionWander')() < 0.55;
+    if (kind === 'traders' && hour >= 19 && hour < 21) return getSimRng('factionWander')() < 0.2;
+    return getSimRng('factionWander')() < 0.08;
   }
   // Daytime by kind
   const base: Record<VisitorKind, number> = {
@@ -155,19 +156,19 @@ function shouldLeaveCamp(
   };
   // Stable-ish daily mood so a group doesn't all flip every tick
   const salt = ((entityId * 17 + Math.floor(tick / TICKS_PER_DAY) * 31) % 100) / 100;
-  return salt < base[kind] + (Math.random() - 0.5) * 0.15;
+  return salt < base[kind] + (getSimRng('factionWander')() - 0.5) * 0.15;
 }
 
 function idleTicksFor(phase: VisitPhase, kind: VisitorKind): number {
   const day = TICKS_PER_DAY;
   switch (phase) {
     case 'idle_camp':
-      return Math.floor(day * (0.06 + Math.random() * 0.18));
+      return Math.floor(day * (0.06 + getSimRng('factionWander')() * 0.18));
     case 'loiter_poi':
-      if (kind === 'performers') return Math.floor(day * (0.2 + Math.random() * 0.35));
-      if (kind === 'traders') return Math.floor(day * (0.12 + Math.random() * 0.25));
-      if (kind === 'pilgrims') return Math.floor(day * (0.15 + Math.random() * 0.3));
-      return Math.floor(day * (0.1 + Math.random() * 0.22));
+      if (kind === 'performers') return Math.floor(day * (0.2 + getSimRng('factionWander')() * 0.35));
+      if (kind === 'traders') return Math.floor(day * (0.12 + getSimRng('factionWander')() * 0.25));
+      if (kind === 'pilgrims') return Math.floor(day * (0.15 + getSimRng('factionWander')() * 0.3));
+      return Math.floor(day * (0.1 + getSimRng('factionWander')() * 0.22));
     case 'return_camp':
       return Math.floor(day * 0.04);
     default:
@@ -188,7 +189,7 @@ function nextVisitorActivity(
   const kind = group.kind;
 
   // Night return bias
-  if (isNightHour(hour) && Math.random() < 0.7 && kind !== 'performers') {
+  if (isNightHour(hour) && getSimRng('factionWander')() < 0.7 && kind !== 'performers') {
     const t = campLoiter(campX, campY, 22);
     return {
       phase: 'return_camp',
@@ -201,7 +202,7 @@ function nextVisitorActivity(
 
   // After loitering at POI, often go home to camp or pick another POI
   if (prev?.phase === 'loiter_poi') {
-    if (Math.random() < 0.55) {
+    if (getSimRng('factionWander')() < 0.55) {
       const t = campLoiter(campX, campY);
       return {
         phase: 'return_camp',
@@ -241,8 +242,8 @@ function pickRivalWander(
   campX: number,
   campY: number,
 ): { x: number; y: number } {
-  const angle = Math.random() * Math.PI * 2;
-  const radius = 10 + Math.random() * 38;
+  const angle = getSimRng('factionWander')() * Math.PI * 2;
+  const radius = 10 + getSimRng('factionWander')() * 38;
   return {
     x: campX + Math.cos(angle) * radius,
     y: campY + Math.sin(angle) * radius,
@@ -271,7 +272,7 @@ function ensureWanderState(
       phase: 'idle_camp',
       targetX: t.x,
       targetY: t.y,
-      idleUntilTick: state.tick + Math.floor(Math.random() * TICKS_PER_DAY * 0.15),
+      idleUntilTick: state.tick + Math.floor(getSimRng('factionWander')() * TICKS_PER_DAY * 0.15),
     };
     wanderByEntity.set(entity.id, wander);
   }
@@ -281,7 +282,7 @@ function ensureWanderState(
 /** Tiny flavor when a visitor arrives at a village point of interest. */
 function maybeArriveFlavor(entity: Entity, phase: VisitPhase, label?: string): void {
   if (phase !== 'loiter_poi' || !label) return;
-  if (Math.random() > 0.35) return;
+  if (getSimRng('factionWander')() > 0.35) return;
   // Soft one-shot bubble via chat system if present
   const lines: Record<string, string[]> = {
     market: ['Fine goods?', 'What is the price?', 'We bring cloth.', 'Trade?'],
@@ -307,9 +308,9 @@ function maybeArriveFlavor(entity: Entity, phase: VisitPhase, label?: string): v
   };
   const pool = lines[label] ?? lines.visit;
   if (!pool.length) return;
-  const phrase = pool[Math.floor(Math.random() * pool.length)];
+  const phrase = pool[Math.floor(getSimRng('factionWander')() * pool.length)];
   entity.chatPhrase = phrase;
-  entity.chatTicks = 18 + Math.floor(Math.random() * 10);
+  entity.chatTicks = 18 + Math.floor(getSimRng('factionWander')() * 10);
 }
 
 export function tickFactionCampWander(
@@ -336,8 +337,8 @@ export function tickFactionCampWander(
     if (state.tick % 6 === 0) {
       entity.spriteAngle = (entity.spriteAngle ?? 0) + 0.7;
     }
-    if (state.tick % 20 === 0 && Math.random() < 0.4) {
-      entity.chatPhrase = ['♪ La la~', 'Clap along!', 'A tune!', 'Bravo?'][Math.floor(Math.random() * 4)];
+    if (state.tick % 20 === 0 && getSimRng('factionWander')() < 0.4) {
+      entity.chatPhrase = ['♪ La la~', 'Clap along!', 'A tune!', 'Bravo?'][Math.floor(getSimRng('factionWander')() * 4)];
       entity.chatTicks = 14;
     }
     return;
@@ -397,7 +398,7 @@ export function tickFactionCampWander(
       wander.targetX = t.x;
       wander.targetY = t.y;
       wander.phase = 'idle_camp';
-      wander.idleUntilTick = state.tick + Math.floor(TICKS_PER_DAY * (0.08 + Math.random() * 0.35));
+      wander.idleUntilTick = state.tick + Math.floor(TICKS_PER_DAY * (0.08 + getSimRng('factionWander')() * 0.35));
     }
     entity.vx = 0;
     entity.vy = 0;

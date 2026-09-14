@@ -2,6 +2,7 @@ import type { Building, Entity } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
 import {
   collectFamilyMembers,
+  collectMinorHousehold,
   collectOwnHousehold,
   getChildCustodian,
   isAdultChildAtHome,
@@ -260,29 +261,47 @@ export function buildHousingUnits(humans: Entity[]): Entity[][] {
     childrenByCustodian.set(custodian.id, bucket);
   }
 
+  // A settler may appear in exactly one unit. Custodians are visited in bucket order, and a
+  // settler can be the custodian of one bucket *and* the partner (or a member) of another —
+  // for example a widower adding his late partner's child, and his new partner adding hers.
+  // The old loop had no guard, so the second bucket re-added the already-visited settler and
+  // produced two units claiming one person: each unit's reassignment invalidated the other,
+  // `reassigned` never reached 0 and the convergence loop burned all its passes 4×/day,
+  // leaving that settler housed away from one half of the family.
+  const unitByMember = new Map<number, Entity[]>();
+  const claim = (unit: Entity[], member: Entity) => {
+    unit.push(member);
+    visited.add(member.id);
+    unitByMember.set(member.id, unit);
+  };
+
   for (const [custodianId, children] of childrenByCustodian) {
     const custodian = alive.find((h) => h.id === custodianId);
     if (!custodian) continue;
 
-    const unit: Entity[] = [custodian];
-    visited.add(custodian.id);
-    const partner = findLivingHuman(alive, custodian.partnerId);
-    if (partner && !visited.has(partner.id)) {
-      unit.push(partner);
-      visited.add(partner.id);
+    // Reuse the unit that already holds this custodian (if any) so their children join
+    // their parent's household instead of forming a competing unit — or being dropped.
+    let unit = unitByMember.get(custodian.id);
+    if (!unit) {
+      unit = [];
+      claim(unit, custodian);
+      const partner = findLivingHuman(alive, custodian.partnerId);
+      if (partner && !visited.has(partner.id)) claim(unit, partner);
+      units.push(unit);
     }
     for (const child of children.sort((a, b) => a.id - b.id)) {
-      if (!visited.has(child.id)) {
-        unit.push(child);
-        visited.add(child.id);
-      }
+      if (!visited.has(child.id)) claim(unit, child);
     }
-    units.push(unit);
   }
 
   for (const human of alive.sort((a, b) => a.id - b.id)) {
     if (visited.has(human.id)) continue;
-    const unit = collectOwnHousehold(human, alive);
+    // The fallback unit is the settler, a living partner and their *minor* children.
+    // `collectOwnHousehold` also walks `childrenIds` with no age filter, so a parent whose
+    // children had all grown up formed a unit spanning two houses; `isFamilyHousingValid`
+    // then failed and the convergence loop re-homed the whole unit together, silently
+    // undoing the adult-child move-out on every pass (it could never persist).
+    const unit = collectMinorHousehold(human, alive);
     for (const member of unit) visited.add(member.id);
     units.push(unit);
   }

@@ -34,6 +34,7 @@ import {
 import { logDeath, logEvent } from './eventLog';
 import { assignMissingWorkers, countWorkersAtBuilding } from './workforce';
 import { isBarracksGuard } from './defenseStructures';
+import { getSimRng } from './simRng';
 
 /**
  * Night exorcism — only if a Church is **staffed** (priest on duty).
@@ -313,9 +314,10 @@ export function forceMoonHowlerOutside(
     entity.prisonSentenceCrime = undefined;
   }
 
-  // Nudge away from buildings into open ground.
-  const angle = Math.random() * Math.PI * 2;
-  const dist = 40 + Math.random() * 50;
+  // Nudge away from buildings into open ground. Seeded (`simRng` owner `moonHowler`), so a
+  // replayed world places the howler in the same open ground.
+  const angle = getSimRng('moonHowler')() * Math.PI * 2;
+  const dist = 40 + getSimRng('moonHowler')() * 50;
   entity.x = Math.max(24, Math.min(mapWidth - 24, entity.x + Math.cos(angle) * dist));
   entity.y = Math.max(24, Math.min(mapHeight - 24, entity.y + Math.sin(angle) * dist));
   entity.vx = Math.cos(angle) * 1.2;
@@ -481,8 +483,8 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
         were.prisonerUntilTick = saved.prisonerUntilTick;
         were.prisonSentenceCrime = saved.prisonSentenceCrime;
         if (!prison.occupants.includes(were.id)) prison.occupants.push(were.id);
-        were.x = prison.x + (Math.random() - 0.5) * 12;
-        were.y = prison.y + (Math.random() - 0.5) * 8;
+        were.x = prison.x + (getSimRng('moonHowler')() - 0.5) * 12;
+        were.y = prison.y + (getSimRng('moonHowler')() - 0.5) * 8;
         were.vx = 0;
         were.vy = 0;
         return;
@@ -987,7 +989,7 @@ export function tickMoonHowlerCycle(
 
   for (const were of moonSync.transformed) {
     const who = were.name ? `${were.name}${were.surname ? ` ${were.surname}` : ''}` : 'A settler';
-    const line = WEREWOLF_TRANSFORM_LINES[Math.floor(Math.random() * WEREWOLF_TRANSFORM_LINES.length)](who);
+    const line = WEREWOLF_TRANSFORM_LINES[Math.floor(getSimRng('moonHowler')() * WEREWOLF_TRANSFORM_LINES.length)](who);
     addFloatingText(state, were.x, were.y - 20, 'AWOO!', '#c4b5fd');
     logEvent(state, 'event', line, who);
   }
@@ -1027,11 +1029,11 @@ export function tickMoonHowlerCycle(
         buildings,
       );
       changed = true;
-      const line = WEREWOLF_CURSE_LINES[Math.floor(Math.random() * WEREWOLF_CURSE_LINES.length)](who);
+      const line = WEREWOLF_CURSE_LINES[Math.floor(getSimRng('moonHowler')() * WEREWOLF_CURSE_LINES.length)](who);
       addBigNews(state, '🌝 Moon Howler Curse!', line, 'negative');
       addFloatingText(state, human.x, human.y - 20, 'Cursed…', '#c4b5fd');
       logEvent(state, 'event', `${who} was cursed as a Moon Howler`, who);
-      const transformLine = WEREWOLF_TRANSFORM_LINES[Math.floor(Math.random() * WEREWOLF_TRANSFORM_LINES.length)](who);
+      const transformLine = WEREWOLF_TRANSFORM_LINES[Math.floor(getSimRng('moonHowler')() * WEREWOLF_TRANSFORM_LINES.length)](who);
       addFloatingText(state, human.x, human.y - 20, 'AWOO!', '#c4b5fd');
       logEvent(state, 'event', transformLine, who);
       if (!moonSync.nightFall) {
@@ -1045,7 +1047,7 @@ export function tickMoonHowlerCycle(
   if (dawnCures.cured.length > 0) {
     for (const curedOne of dawnCures.cured) {
       const who = curedOne.name ? `${curedOne.name}${curedOne.surname ? ` ${curedOne.surname}` : ''}` : 'A settler';
-      const line = WEREWOLF_TAME_LINES[Math.floor(Math.random() * WEREWOLF_TAME_LINES.length)];
+      const line = WEREWOLF_TAME_LINES[Math.floor(getSimRng('moonHowler')() * WEREWOLF_TAME_LINES.length)];
       addBigNews(state, '⛪ Curse Broken!', `${who} — ${line}`, 'positive');
       addFloatingText(state, curedOne.x, curedOne.y - 20, 'Cured!', '#22c55e');
       logEvent(state, 'event', `${who} was cured of the Moon Howler curse`, who);

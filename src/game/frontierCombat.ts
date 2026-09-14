@@ -15,6 +15,7 @@ import {
 } from './militiaBalance';
 
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
+import { getSimRng } from './simRng';
 
 export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 
@@ -506,7 +507,7 @@ function rewardRaidParticipants(
 function damageRandomPlayerBuilding(state: WorldState, amount: number): Building | null {
   const targets = state.buildings.filter((b) => b.completed && b.faction !== 'rival');
   if (targets.length === 0) return null;
-  const b = targets[Math.floor(Math.random() * targets.length)];
+  const b = targets[Math.floor(getSimRng('frontierCombat')() * targets.length)];
   b.health = Math.max(5, b.health - amount);
   return b;
 }
@@ -553,14 +554,14 @@ function applyRaidCasualties(
   const [minK, maxK] = getRaidCasualtyBounds(tier, pool.length);
   const killCount = Math.min(
     pool.length,
-    minK + Math.floor(Math.random() * (maxK - minK + 1)),
+    minK + Math.floor(getSimRng('frontierCombat')() * (maxK - minK + 1)),
   );
   if (killCount <= 0) return 0;
 
   const remaining = [...pool];
   const victims: Entity[] = [];
   for (let i = 0; i < killCount && remaining.length > 0; i++) {
-    const idx = Math.floor(Math.random() * remaining.length);
+    const idx = Math.floor(getSimRng('frontierCombat')() * remaining.length);
     victims.push(remaining.splice(idx, 1)[0]);
   }
   const deathReason =
@@ -613,10 +614,10 @@ export function rollIncomingRaidLoot(rival: RivalSettlement): RaidLootBundle {
   const mood = rival.relationship === 'tense' ? 1.25 : 1;
   const pop = Math.max(1, rival.population);
   return {
-    food: 20 + Math.floor(Math.random() * 28),
-    wood: Math.round((15 + pop * 4 + Math.floor(Math.random() * 22)) * mood),
-    stone: Math.round((8 + pop * 2 + Math.floor(Math.random() * 12)) * mood),
-    gold: Math.round((rival.relationship === 'tense' ? 10 : 5) + Math.random() * (rival.relationship === 'tense' ? 14 : 8)),
+    food: 20 + Math.floor(getSimRng('frontierCombat')() * 28),
+    wood: Math.round((15 + pop * 4 + Math.floor(getSimRng('frontierCombat')() * 22)) * mood),
+    stone: Math.round((8 + pop * 2 + Math.floor(getSimRng('frontierCombat')() * 12)) * mood),
+    gold: Math.round((rival.relationship === 'tense' ? 10 : 5) + getSimRng('frontierCombat')() * (rival.relationship === 'tense' ? 14 : 8)),
   };
 }
 
@@ -774,17 +775,17 @@ function rollOutgoingRaidSpoils(rival: RivalSettlement, tier: 'success' | 'meage
   const pop = Math.max(1, rival.population);
   if (tier === 'success') {
     return {
-      food: 28 + Math.floor(Math.random() * 22),
-      wood: 22 + Math.floor(Math.random() * 28) + pop * 3,
-      stone: 12 + Math.floor(Math.random() * 18) + pop,
-      gold: 14 + Math.floor(Math.random() * 18),
+      food: 28 + Math.floor(getSimRng('frontierCombat')() * 22),
+      wood: 22 + Math.floor(getSimRng('frontierCombat')() * 28) + pop * 3,
+      stone: 12 + Math.floor(getSimRng('frontierCombat')() * 18) + pop,
+      gold: 14 + Math.floor(getSimRng('frontierCombat')() * 18),
     };
   }
   return {
-    food: 12 + Math.floor(Math.random() * 12),
-    wood: 8 + Math.floor(Math.random() * 14) + pop,
-    stone: 4 + Math.floor(Math.random() * 8),
-    gold: 6 + Math.floor(Math.random() * 10),
+    food: 12 + Math.floor(getSimRng('frontierCombat')() * 12),
+    wood: 8 + Math.floor(getSimRng('frontierCombat')() * 14) + pop,
+    stone: 4 + Math.floor(getSimRng('frontierCombat')() * 8),
+    gold: 6 + Math.floor(getSimRng('frontierCombat')() * 10),
   };
 }
 
@@ -831,7 +832,7 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   let chance = rival.relationship === 'tense' ? 0.22 : 0.12;
   if (rep <= 30) chance *= 1.5;
   else if (rep >= 80) chance *= 0.6;
-  if (Math.random() > chance) return;
+  if (getSimRng('frontierCombat')() > chance) return;
 
   const attackerStrength = getRivalRaidStrength(rival);
   const loot = rollIncomingRaidLoot(rival);

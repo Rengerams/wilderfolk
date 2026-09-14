@@ -20,6 +20,16 @@ export function logEvent(
   entityName?: string,
   combatKind?: CombatLogKind,
 ): void {
+  // Ids must be monotonic *per log*, not per realm. `nextEventLogId` is module state, and a
+  // realm that receives a world (the simulation worker, or the optimistic display copy the
+  // main thread builds from a worker snapshot) starts it at 1 while the imported log already
+  // holds ids 1..N. `applySimTickDelta` drops incoming entries whose id already exists, so
+  // every event that realm logged was silently discarded until its counter passed N.
+  // `eventLog` is newest-first (unshift/pop), so its head carries the highest id: never
+  // issue an id the log already uses.
+  const newestId = state.eventLog[0]?.id ?? 0;
+  if (newestId >= nextEventLogId) nextEventLogId = newestId + 1;
+
   state.eventLog.unshift({
     id: nextEventLogId++,
     tick: state.tick,

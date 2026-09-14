@@ -96,7 +96,7 @@ export function treatPatientAtHospital(
   if (heal < 0.5) return false;
 
   // Light medicine cost occasionally
-  if (state.resources.food >= 1 && Math.random() < 0.25) {
+  if (state.resources.food >= 1 && personDayRoll(patient.id, state.tick, 902) < 0.25) {
     state.resources.food -= 1;
   }
 
@@ -107,7 +107,7 @@ export function treatPatientAtHospital(
     gainSkill(state, id, JobType.Doctor, 0.08);
   }
 
-  if (Math.random() < 0.35) {
+  if (personDayRoll(patient.id, state.tick, 903) < 0.35) {
     addFloatingText(
       state,
       patient.x,
@@ -117,12 +117,13 @@ export function treatPatientAtHospital(
       'brief',
     );
   }
-  if ((patient.chatTicks ?? 0) <= 0 && Math.random() < 0.2) {
+  if ((patient.chatTicks ?? 0) <= 0 && personDayRoll(patient.id, state.tick, 904) < 0.2) {
+    const lineRoll = personDayRoll(patient.id, state.tick, 905);
     sayHumanChatPhrase(
       patient,
       patient.pregnant
-        ? (Math.random() < 0.5 ? 'The child is well…' : 'Thank you, doctor.')
-        : (Math.random() < 0.5 ? 'I feel better.' : 'Medicine helps.'),
+        ? (lineRoll < 0.5 ? 'The child is well…' : 'Thank you, doctor.')
+        : (lineRoll < 0.5 ? 'I feel better.' : 'Medicine helps.'),
       48,
     );
   }
@@ -156,10 +157,10 @@ export function doctorTreatNearby(
   if (personDayRoll(doctor.id, state.tick, 901 + best.id) > 0.35) return false;
 
   const ok = treatPatientAtHospital(state, best, hospital, { doctorPresent: true });
-  if (ok && (doctor.chatTicks ?? 0) <= 0 && Math.random() < 0.3) {
+  if (ok && (doctor.chatTicks ?? 0) <= 0 && personDayRoll(doctor.id, state.tick, 906) < 0.3) {
     sayHumanChatPhrase(
       doctor,
-      Math.random() < 0.5 ? 'Rest and drink water.' : 'You will mend.',
+      personDayRoll(doctor.id, state.tick, 907) < 0.5 ? 'Rest and drink water.' : 'You will mend.',
       44,
     );
   }

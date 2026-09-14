@@ -101,10 +101,10 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
       animals: animalBirths,
     },
     deaths: {
-      humans: entities.filter(e => e.type === ET.Human && !e.alive && e.age > 0).length - (prevYearStats?.deaths.humans || 0),
-      animals: entities.filter(
-        (e) => e.type !== ET.Human && e.type !== ET.Tree && e.type !== ET.Grass && !e.alive && e.age > 0,
-      ).length - (prevYearStats?.deaths.animals || 0),
+      // `gameTick` tallies these per tick, because by the time a year closes `state.entities`
+      // holds only the living (the old `!e.alive` filters here always produced 0).
+      humans: state.deathsThisYear?.humans ?? 0,
+      animals: state.deathsThisYear?.animals ?? 0,
     },
     marriages: marriagesThisYear,
     marriedCount: marriedHumans,
@@ -129,7 +129,9 @@ export function updateLifetimeStats(state: WorldState, stats: LifetimeStats): Li
   const s = { ...stats };
 
   s.totalHumansBorn = state.yearlyStats.reduce((sum, y) => sum + y.births.humans, 0);
-  s.totalHumansDied = state.entities.filter(e => e.type === ET.Human && !e.alive).length;
+  // Summed from the yearly records, like births above, so a legacy save (whose yearly entries
+  // predate the per-tick tally) simply starts accumulating from here instead of reading 0.
+  s.totalHumansDied = state.yearlyStats.reduce((sum, y) => sum + (y.deaths?.humans ?? 0), 0);
   s.totalBuildings = state.totalBuildingsCompleted;
   s.technologiesResearched = state.unlockedTechs.length;
   const latestYear = state.yearlyStats[state.yearlyStats.length - 1];

@@ -44,7 +44,11 @@ function researchedEffect(
       if (effect.target !== target) continue;
       found = true;
       if (mode === 'mult' && effect.multiplier !== undefined) value *= effect.multiplier;
-      if (mode === 'add' && effect.add !== undefined) value += effect.add;
+      // Additive combat effects are TIERS: the strongest researched tier applies and
+      // replaces the one below it. The project's law is explicit — "Weapon/armor tiers
+      // replace lower ones — do not stack" (frontierCombat.ts) — and summing them made
+      // counter_attack 0.45 + 0.55 = 1.0, i.e. every predator contact a guaranteed kill.
+      if (mode === 'add' && effect.add !== undefined) value = Math.max(value, effect.add);
     }
   }
 

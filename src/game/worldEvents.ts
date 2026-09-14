@@ -11,6 +11,7 @@ import {
   impulseScreenShake,
 } from './simEffects';
 import { getMultiplier, hasTech } from './simHelpers';
+import { getSimRng } from './simRng';
 
 type DisasterType = 'fire' | 'flood' | 'plague' | 'tornado' | 'earthquake';
 
@@ -69,7 +70,7 @@ export function updateWeather(state: WorldState): void {
   if (state.weatherTimer % Math.max(1, WEATHER_ROLL_SYSTEMS_PULSES) !== 0) return;
 
   const season = state.season;
-  const roll = Math.random();
+  const roll = getSimRng('worldEvents')();
 
   // Bias to leave "event" weather after a spell
   if (state.weather !== WeatherType.Clear && roll < 0.35) {
@@ -166,16 +167,16 @@ export function updateDisasters(state: WorldState): void {
   if (
     isProductionTick(state.tick, EVENT_INTERVAL.disaster) &&
     state.year > 3 &&
-    Math.random() < 0.15
+    getSimRng('worldEvents')() < 0.15
   ) {
     const rollable = hasTech(state, 'medicine_2')
       ? ALL_DISASTER_TYPES.filter((t) => t !== 'plague')
       : ALL_DISASTER_TYPES;
-    const type = rollable[Math.floor(Math.random() * rollable.length)];
+    const type = rollable[Math.floor(getSimRng('worldEvents')() * rollable.length)];
 
-    const x = Math.random() * state.width;
-    const y = Math.random() * state.height;
-    const radius = 30 + Math.random() * 50;
+    const x = getSimRng('worldEvents')() * state.width;
+    const y = getSimRng('worldEvents')() * state.height;
+    const radius = 30 + getSimRng('worldEvents')() * 50;
     const radiusSq = radius * radius;
 
     state.disasters.push({
@@ -229,7 +230,7 @@ export function updateDisasters(state: WorldState): void {
         if (!e.alive || e.type === EntityType.Tree) continue;
         const dx = e.x - x;
         const dy = e.y - y;
-        if (dx * dx + dy * dy < radiusSq && Math.random() < 0.3) {
+        if (dx * dx + dy * dy < radiusSq && getSimRng('worldEvents')() < 0.3) {
           killEntityInDisaster(state, e, '#4682b4', entityById, killedThisTick);
         }
       }
@@ -243,9 +244,9 @@ export function updateDisasters(state: WorldState): void {
         const distSq = dx * dx + dy * dy;
 
         if (distSq < radiusSq) {
-          e.vx += (Math.random() - 0.5) * 5;
-          e.vy += (Math.random() - 0.5) * 5;
-          if (distSq < coreRadiusSq && Math.random() < 0.1) {
+          e.vx += (getSimRng('worldEvents')() - 0.5) * 5;
+          e.vy += (getSimRng('worldEvents')() - 0.5) * 5;
+          if (distSq < coreRadiusSq && getSimRng('worldEvents')() < 0.1) {
             killEntityInDisaster(state, e, '#888888', entityById, killedThisTick);
           }
         }
@@ -266,7 +267,7 @@ export function updateDisasters(state: WorldState): void {
         const dy = e.y - y;
         if (dx * dx + dy * dy >= radiusSq) continue;
 
-        if (Math.random() < 0.2) {
+        if (getSimRng('worldEvents')() < 0.2) {
           if (!killedThisTick.has(e.id)) {
             killedThisTick.add(e.id);
             killHuman(e, state.buildings, entityById, state.tick);

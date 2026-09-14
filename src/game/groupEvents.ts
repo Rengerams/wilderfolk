@@ -199,6 +199,7 @@ export function resolveVillageRequest(
 
 export { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
+import { getSimRng, seededRandomForRun } from './simRng';
 
 /** Deep-clone world state for player actions that mutate simulation data. */
 function cloneWorldStateForAction(originalState: WorldState): WorldState {
@@ -253,8 +254,8 @@ function pickSite(
 ): { x: number; y: number } {
   const margin = 80;
   for (let attempt = 0; attempt < 40; attempt++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = minDist + Math.random() * (maxDist - minDist);
+    const angle = getSimRng('groupEvents')() * Math.PI * 2;
+    const dist = minDist + getSimRng('groupEvents')() * (maxDist - minDist);
     const x = Math.max(margin, Math.min(state.width - margin, anchor.x + Math.cos(angle) * dist));
     const y = Math.max(margin, Math.min(state.height - margin, anchor.y + Math.sin(angle) * dist));
     const tooClose = avoid.some((p) => Math.hypot(p.x - x, p.y - y) < minDist * 0.6);
@@ -274,11 +275,11 @@ function createFactionHuman(
   groupId: string,
   surname: string
 ): Entity {
-  const age = HUMAN_ADULT_MIN_AGE + Math.floor(Math.random() * 20);
+  const age = HUMAN_ADULT_MIN_AGE + Math.floor(getSimRng('groupEvents')() * 20);
   const ent = createEntity(
     EntityType.Human,
-    x + (Math.random() - 0.5) * 24,
-    y + (Math.random() - 0.5) * 24,
+    x + (getSimRng('groupEvents')() - 0.5) * 24,
+    y + (getSimRng('groupEvents')() - 0.5) * 24,
     state.nextEntityId++,
     undefined,
     false,
@@ -338,8 +339,8 @@ const RIVAL_PREFIXES = ['Oak', 'Mist', 'Iron', 'Silver', 'Ash', 'Cedar', 'Stone'
 const RIVAL_SUFFIXES = ['Hollow', 'Reach', 'Ford', 'Glen', 'Creek', 'Ridge', 'Crossing', 'Haven'];
 
 function randomRivalName(): string {
-  const prefix = RIVAL_PREFIXES[Math.floor(Math.random() * RIVAL_PREFIXES.length)];
-  const suffix = RIVAL_SUFFIXES[Math.floor(Math.random() * RIVAL_SUFFIXES.length)];
+  const prefix = RIVAL_PREFIXES[Math.floor(getSimRng('groupEvents')() * RIVAL_PREFIXES.length)];
+  const suffix = RIVAL_SUFFIXES[Math.floor(getSimRng('groupEvents')() * RIVAL_SUFFIXES.length)];
   return `${prefix}${suffix}`;
 }
 
@@ -350,16 +351,16 @@ export function spawnVisitorGroup(
   kind: VisitorKind
 ): GameEvent {
   const template = VISITOR_TEMPLATES[kind];
-  const name = template.names[Math.floor(Math.random() * template.names.length)];
+  const name = template.names[Math.floor(getSimRng('groupEvents')() * template.names.length)];
   const center = getPlayerCampCenter(state, buildings);
   const avoid = [
     ...state.rivalSettlements.map((r) => ({ x: r.campX, y: r.campY })),
     ...state.visitorGroups.map((v) => ({ x: v.campX, y: v.campY })),
   ];
   const site = pickSite(state, center, 70, 160, avoid);
-  const memberCount = template.members[0] + Math.floor(Math.random() * (template.members[1] - template.members[0] + 1));
-  const daysLeft = template.days[0] + Math.floor(Math.random() * (template.days[1] - template.days[0] + 1));
-  const groupId = `visitor_${state.tick}_${Math.floor(Math.random() * 10000)}`;
+  const memberCount = template.members[0] + Math.floor(getSimRng('groupEvents')() * (template.members[1] - template.members[0] + 1));
+  const daysLeft = template.days[0] + Math.floor(getSimRng('groupEvents')() * (template.days[1] - template.days[0] + 1));
+  const groupId = `visitor_${state.tick}_${Math.floor(getSimRng('groupEvents')() * 10000)}`;
   const surname = getRandomSurname();
   const entityIds: number[] = [];
 
@@ -438,9 +439,9 @@ export function spawnRivalSettlement(
     ...state.visitorGroups.map((v) => ({ x: v.campX, y: v.campY })),
   ];
   const site = pickSite(state, center, 180, Math.min(state.width, state.height) * 0.38, avoid);
-  const groupId = `rival_${state.tick}_${Math.floor(Math.random() * 10000)}`;
+  const groupId = `rival_${state.tick}_${Math.floor(getSimRng('groupEvents')() * 10000)}`;
   const surname = name;
-  const pop = 4 + Math.floor(Math.random() * 4);
+  const pop = 4 + Math.floor(getSimRng('groupEvents')() * 4);
   const entityIds: number[] = [];
   const buildingIds: number[] = [];
 
@@ -462,7 +463,7 @@ export function spawnRivalSettlement(
     indexLivingEntity(state, ent);
   }
 
-  const relRoll = Math.random();
+  const relRoll = getSimRng('groupEvents')();
   const relationship: RivalSettlement['relationship'] =
     relRoll < 0.3 ? 'friendly' : relRoll < 0.7 ? 'neutral' : relRoll < 0.95 ? 'competitive' : 'tense';
 
@@ -476,8 +477,8 @@ export function spawnRivalSettlement(
     buildingIds,
     relationship,
     foundedYear: state.year,
-    daysUntilAction: 30 + Math.floor(Math.random() * 30),
-    raidCooldownDays: 45 + Math.floor(Math.random() * 30),
+    daysUntilAction: 30 + Math.floor(getSimRng('groupEvents')() * 30),
+    raidCooldownDays: 45 + Math.floor(getSimRng('groupEvents')() * 30),
     peaceTreatyDays: 0,
     profile: createRivalProfile(groupId.length + state.year + pop, relationship),
   });
@@ -518,10 +519,10 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
     if (newCalendarDay && group.daysLeft > 0) {
       switch (group.kind) {
         case 'traders': {
-          const goldWant = 15 + Math.floor(Math.random() * 25);
+          const goldWant = 15 + Math.floor(getSimRng('groupEvents')() * 25);
           const gold = Math.min(group.gold ?? 0, goldWant);
           group.gold = (group.gold ?? 0) - gold;
-          const food = 10 + Math.floor(Math.random() * 20);
+          const food = 10 + Math.floor(getSimRng('groupEvents')() * 20);
           state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + gold);
           state.resources.food = Math.min(state.storageMax.food, state.resources.food + food);
           pushFloat(state, group.campX, group.campY - 20, `+${gold}g +${food}f`, '#eab308');
@@ -545,7 +546,7 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
           group.giftsGiven++;
           break;
         case 'nomads': {
-          const wood = 10 + Math.floor(Math.random() * 15);
+          const wood = 10 + Math.floor(getSimRng('groupEvents')() * 15);
           state.resources.wood = Math.min(state.storageMax.wood, state.resources.wood + wood);
           pushFloat(state, group.campX, group.campY - 20, `+${wood}w`, '#d97706');
           group.giftsGiven++;
@@ -561,7 +562,7 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
         case 'hunters': {
           const deer = nextDeer();
           const poachChance = group.leaderTalked ? 0.1 : 0.25;
-          if (deer && Math.random() < poachChance) {
+          if (deer && seededRandomForRun(`poach:${group.id}:${state.tick}`) < poachChance) {
             killWildGameForPoach(state, deer);
             pushFloat(state, deer.x, deer.y - 15, 'Hunted', '#f97316');
           }
@@ -888,7 +889,7 @@ function diplomacyEventMeta(kind: DiplomacyEventKind, rivalName: string): Pick<D
 }
 
 function pickDiplomacyKind(rel: RivalRelationship): DiplomacyEventKind | null {
-  const roll = Math.random();
+  const roll = getSimRng('groupEvents')();
   if (rel === 'tense') {
     if (roll < 0.45) return 'tribute';
     if (roll < 0.85) return 'border_dispute';
@@ -1046,7 +1047,7 @@ export function respondToDiplomacyEvent(
         logEvent(state, 'event', `Ceded hunting rights to ${rival.name}`, rival.name);
         resolved = true;
       } else if (choiceId === 'stand_firm') {
-        if (Math.random() < 0.45) rival.relationship = shiftRelationship(rival.relationship, -1);
+        if (seededRandomForRun(`stand-firm:${rival.id}:${state.tick}`) < 0.45) rival.relationship = shiftRelationship(rival.relationship, -1);
         state.villageReputation = Math.max(0, state.villageReputation - 3);
         logEvent(state, 'event', `Stood firm against ${rival.name}`, rival.name);
         resolved = true;
@@ -1136,7 +1137,7 @@ export function respondToDiplomacyEvent(
         logEvent(state, 'trade', `Short truce with ${rival.name} — they paid tribute`, rival.name);
         resolved = true;
       } else if (choiceId === 'decline') {
-        if (Math.random() < 0.35) rival.relationship = shiftRelationship(rival.relationship, -1);
+        if (seededRandomForRun(`decline-peace:${rival.id}:${state.tick}`) < 0.35) rival.relationship = shiftRelationship(rival.relationship, -1);
         state.villageReputation = Math.max(0, state.villageReputation - 2);
         logEvent(state, 'event', `Declined peace offer from ${rival.name}`, rival.name);
         resolved = true;
@@ -1301,7 +1302,7 @@ function seedGroupGold(kind: VisitorKind): number {
     performers: [0, 20],
   };
   const [lo, hi] = ranges[kind] ?? [0, 20];
-  return lo + Math.floor(Math.random() * (hi - lo + 1));
+  return lo + Math.floor(getSimRng('groupEvents')() * (hi - lo + 1));
 }
 
 function rejectVisitorTrade(state: WorldState, group: VisitorGroup, hint: string, notify?: string): WorldState {
@@ -1564,7 +1565,7 @@ export function negotiateRefugees(
 
   if (choice === 'screen') {
     const currentPopulation = playerHumanCount(allAlive);
-    const joined = Math.random() < 0.55 ? admitRefugees(state, group, allAlive, currentPopulation, 1) : 0;
+    const joined = seededRandomForRun(`refugee-screen:${group.id}:${state.tick}`) < 0.55 ? admitRefugees(state, group, allAlive, currentPopulation, 1) : 0;
     group.refugeeResolved = true;
     if (joined > 0) {
       state.resources.food -= REFUGEE_SCREEN_FOOD;
@@ -1701,7 +1702,7 @@ export function rollYearlyWorldEvent(
   if (totalWeight <= 0) {
     return { event: null, bountifulHarvest: false };
   }
-  let roll = Math.random() * totalWeight;
+  let roll = getSimRng('groupEvents')() * totalWeight;
   let picked = pool[0];
   for (const entry of pool) {
     roll -= entry.weight;
@@ -1782,8 +1783,8 @@ export function rollYearlyWorldEvent(
       };
     case 'generous_neighbors':
       if (state.rivalSettlements.length > 0) {
-        const rival = state.rivalSettlements[Math.floor(Math.random() * state.rivalSettlements.length)];
-        const food = 25 + Math.floor(Math.random() * 25);
+        const rival = state.rivalSettlements[Math.floor(getSimRng('groupEvents')() * state.rivalSettlements.length)];
+        const food = 25 + Math.floor(getSimRng('groupEvents')() * 25);
         state.resources.food = Math.min(state.storageMax.food, state.resources.food + food);
         pushFloat(state, rival.campX, rival.campY - 20, `+${food} food`, '#22c55e');
         return {
@@ -1804,8 +1805,8 @@ export function rollYearlyWorldEvent(
 function spawnWolf(width: number, height: number, id: number): Entity {
   return createEntity(
     EntityType.Wolf,
-    Math.random() * width,
-    Math.random() * height,
+    getSimRng('groupEvents')() * width,
+    getSimRng('groupEvents')() * height,
     id,
     SPECIES_CONFIG[EntityType.Wolf].spawnEnergy,
   );
@@ -1814,8 +1815,8 @@ function spawnWolf(width: number, height: number, id: number): Entity {
 function spawnDeer(width: number, height: number, id: number): Entity {
   return createEntity(
     EntityType.Deer,
-    Math.random() * width,
-    Math.random() * height,
+    getSimRng('groupEvents')() * width,
+    getSimRng('groupEvents')() * height,
     id,
     SPECIES_CONFIG[EntityType.Deer].spawnEnergy,
   );
@@ -1824,8 +1825,8 @@ function spawnDeer(width: number, height: number, id: number): Entity {
 function spawnTree(width: number, height: number, id: number): Entity {
   return createEntity(
     EntityType.Tree,
-    Math.random() * width,
-    Math.random() * height,
+    getSimRng('groupEvents')() * width,
+    getSimRng('groupEvents')() * height,
     id,
     SPECIES_CONFIG[EntityType.Tree].spawnEnergy,
   );
@@ -1834,8 +1835,8 @@ function spawnTree(width: number, height: number, id: number): Entity {
 function spawnGrass(width: number, height: number, id: number): Entity {
   return createEntity(
     EntityType.Grass,
-    Math.random() * width,
-    Math.random() * height,
+    getSimRng('groupEvents')() * width,
+    getSimRng('groupEvents')() * height,
     id,
     SPECIES_CONFIG[EntityType.Grass].spawnEnergy,
   );
@@ -1844,9 +1845,9 @@ function spawnGrass(width: number, height: number, id: number): Entity {
 export function tryMidYearVisitorEvent(state: WorldState, allAlive: Entity[], buildings: Building[]): GameEvent | null {
   if (state.visitorGroups.length > 0) return null;
   if (playerHumanCount(allAlive) < 4) return null;
-  if (Math.random() > 0.22) return null;
+  if (seededRandomForRun(`mid-year-visitors:${state.tick}`) > 0.22) return null;
   const kinds: VisitorKind[] = ['traders', 'pilgrims', 'performers', 'nomads', 'scholars'];
-  const kind = kinds[Math.floor(Math.random() * kinds.length)];
+  const kind = kinds[Math.floor(seededRandomForRun(`mid-year-kind:${state.tick}`) * kinds.length)];
   return spawnVisitorGroup(state, allAlive, buildings, kind);
 }
 
@@ -1869,7 +1870,7 @@ export function tryFirstWeekVisitor(
   if (!hasPlayerHouse) return null;
 
   state.firstWeekVisitorSpawned = true;
-  const kind: VisitorKind = Math.random() < 0.55 ? 'pilgrims' : 'performers';
+  const kind: VisitorKind = getSimRng('groupEvents')() < 0.55 ? 'pilgrims' : 'performers';
   const event = spawnVisitorGroup(state, allAlive, buildings, kind);
   pushNews(
     state,

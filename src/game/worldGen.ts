@@ -685,6 +685,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
       },
     ],
     eventsThisYear: [],
+    deathsThisYear: { humans: 0, animals: 0 },
   };
 
   syncEventLogIdFromState(state);

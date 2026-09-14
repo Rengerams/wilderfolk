@@ -124,6 +124,8 @@ export interface SimTickDelta {
   nextBuildingId: number;
   nextFloatingTextId: number;
   renffrOmen: WorldState['renffrOmen'];
+  visitorQuest: WorldState['visitorQuest'];
+  deathsThisYear: WorldState['deathsThisYear'];
   renffrChatterUntilTick: number;
   lastProcessedCalendarDay: number;
   lastWildlifeReplenishLogDay: number;
@@ -329,6 +331,10 @@ export function extractSimTickDelta(
     nextBuildingId: world.nextBuildingId,
     nextFloatingTextId: world.nextFloatingTextId,
     renffrOmen: deltaCloneOptional(world.renffrOmen, cloneMode),
+    // The smith quest is created and expired by the simulation only, so without this the
+    // main thread's copy stayed undefined and the quest card could never appear.
+    visitorQuest: deltaCloneOptional(world.visitorQuest, cloneMode) ?? undefined,
+    deathsThisYear: deltaCloneOptional(world.deathsThisYear, cloneMode) ?? undefined,
     renffrChatterUntilTick: world.renffrChatterUntilTick ?? 0,
     lastProcessedCalendarDay: world.lastProcessedCalendarDay ?? 0,
     lastWildlifeReplenishLogDay: world.lastWildlifeReplenishLogDay ?? 0,
@@ -473,6 +479,8 @@ export function applySimTickDelta(
   world.nextBuildingId = delta.nextBuildingId;
   world.nextFloatingTextId = delta.nextFloatingTextId;
   world.renffrOmen = deltaCloneOptional(delta.renffrOmen, cloneMode);
+  world.visitorQuest = deltaCloneOptional(delta.visitorQuest, cloneMode) ?? undefined;
+  world.deathsThisYear = deltaCloneOptional(delta.deathsThisYear, cloneMode) ?? undefined;
   world.renffrChatterUntilTick = delta.renffrChatterUntilTick;
   world.lastProcessedCalendarDay = delta.lastProcessedCalendarDay;
   world.lastWildlifeReplenishLogDay = delta.lastWildlifeReplenishLogDay;

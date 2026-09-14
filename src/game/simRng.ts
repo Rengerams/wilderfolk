@@ -97,8 +97,8 @@ export function getSimSeed(): number {
  * `worldMap.seed`, every `getSimRng(owner)` and `seededRandomForRun()` draw in that realm
  * comes from seed 1 while the world was built with its map seed: the same world then
  * diverges between worker mode and main-thread mode, and two different seeds share one set
- * of random streams. Installing the seeded global keeps the remaining `Math.random()` call
- * sites on the same footing as a freshly created game.
+ * of random streams. Installing the seeded global also covers the few third-party or
+ * reach-through paths that still call `Math.random` directly.
  */
 export function adoptSimSeedFromWorld(world: { worldMap?: { seed?: number } | null }): number {
   const seed = world.worldMap?.seed ?? 1;

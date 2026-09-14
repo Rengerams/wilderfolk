@@ -140,10 +140,20 @@ export function tryGraduateHumanChild(
   return true;
 }
 
-/** Female fertility window. Fertility begins at the game's age-14 youth threshold. */
-export const HUMAN_FERTILITY_START = 14;
+/**
+ * Female fertility window. Fertility begins at the youth threshold that also opens
+ * youth love (`YOUTH_LOVE_MIN_AGE` = 12 in `simulation/humanRelationships.ts`).
+ *
+ * Ages 12–17 may only conceive through the youth-love gate in
+ * `tryDailyConception`: marriage requires `HUMAN_MOVE_OUT_MIN_AGE` (18) and an
+ * affair requires `Relationship.AFFAIR_MIN_AGE` (18) on both sides, so below 18
+ * this window is reachable exclusively through an existing mutual youth-love pair.
+ */
+export const HUMAN_FERTILITY_START = 12;
 export const HUMAN_YOUTH_FERTILITY_END = 18;
 const YOUTH_CONCEPTION_MULTIPLIERS: Readonly<Record<number, number>> = {
+  12: 0.25,
+  13: 0.25,
   14: 0.25,
   15: 0.35,
   16: 0.50,
@@ -158,7 +168,7 @@ export function getFemaleFertility(age: number): number {
   return 1 - (age - HUMAN_FERTILITY_PEAK_END) / (HUMAN_FERTILITY_END - HUMAN_FERTILITY_PEAK_END);
 }
 
-/** Reduced nearby-conception multiplier for ages 14–17; adult paths return 1.0. */
+/** Reduced nearby-conception multiplier for ages 12–17; adult paths return 1.0. */
 export function getYouthConceptionMultiplier(age: number): number {
   if (age >= HUMAN_YOUTH_FERTILITY_END) return 1.0;
   return YOUTH_CONCEPTION_MULTIPLIERS[age] ?? 0;
@@ -243,7 +253,12 @@ export function syncHumanAgeFromCalendar(
 ): void {
   if (entity.type !== EntityType.Human) return;
   entity.age = computeHumanAgeYears(entity, getColonyDay(state), options);
-  entity.isJuvenile = entity.age < HUMAN_CHILDHOOD_DAYS;
+  // Deliberately does NOT write `isJuvenile`: the graduation transition owns that flag.
+  // Setting it here made `tryGraduateHumanChild` — called every tick from humanTick.ts
+  // *after* this sync — unsatisfiable, because it requires `isJuvenile && age >=
+  // HUMAN_CHILDHOOD_DAYS` and the sync had just cleared the flag on exactly that tick.
+  // No human ever graduated, so `entity.size`/`speed` stayed at child values and
+  // `applyEducationGraduation` (the only writer of `educated`) never ran.
   entity.maxAge = HUMAN_MAX_LIFESPAN_YEARS;
 }
 

@@ -9,7 +9,7 @@ import { sayHumanChatPhrase } from './humanChat';
 import { ensureEntitySkills } from './skills';
 import { simulateElectionVotes } from './electionVotes';
 import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
-import { getSimRng } from './simRng';
+import { seededRandomForRun } from './simRng';
 
 /**
  * Years between scheduled (end-of-term) elections.
@@ -613,10 +613,13 @@ export function tickElectionGossip(state: WorldState): void {
     tone = 'buildup';
   }
 
-  if (Math.random() > chance) return;
+  // Seeded per tick and tone: gossip is part of the chronicle, so the same seed gossips the
+  // same way instead of depending on how many other rolls happened first.
+  const gossipKey = `election-gossip:${state.tick}:${tone}`;
+  if (seededRandomForRun(gossipKey) > chance) return;
 
   const eligible = state.entities.filter((entity) => isEligibleForLeadership(entity, state));
-  const speaker = eligible[Math.floor(Math.random() * eligible.length)];
+  const speaker = eligible[Math.floor(seededRandomForRun(`${gossipKey}:speaker`) * eligible.length)];
   if (!speaker) return;
 
   sayHumanChatPhrase(speaker, pickElectionGossipPhrase(state, tone), 110);

@@ -41,6 +41,15 @@ export const Social = {
  * AFFAIR_PROGRESS_MAX — only establishment can produce a scandal.
  */
 export const Relationship = {
+  /**
+   * 18 = an affair is an *adult* relationship system, so both the cheater and the
+   * paramour must already be adults. Ages 12–17 are the youth-love phase, where a
+   * mutual youth-love pair is the only relationship and the only conception route
+   * (see `YOUTH_LOVE_MIN_AGE` / `YOUTH_CONCEPTION_MULTIPLIERS`); leaving the affair
+   * floor at the 16-year courtship age let a married adult take a 16–17-year-old
+   * paramour and conceive with them outside the youth gate.
+   */
+  AFFAIR_MIN_AGE: 18,
   /** 0.07 = per-pair daily tryst chance while a church stands (was 0.14). */
   AFFAIR_DAILY_TRYST_CHANCE_WITH_CHURCH: 0.07,
   /** 0.1 = per-pair daily tryst chance with no church (was 0.20). */
