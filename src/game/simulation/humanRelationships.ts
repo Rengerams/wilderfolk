@@ -43,6 +43,7 @@ import { dissolveMarriage, formatCaughtCheaterDivorceDetail, syncMarriageSurname
 import { dampScandalReputationLoss } from '../townHall';
 import { getLivingEntity, getHousemates } from '../simQueries';
 import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_AFFAIR_RADIUS } from '../adaptiveSpatialQuery';
+import { isImprisoned } from '../residencyOccupancy';
 import { startFeud } from '../relationships';
 import { logDeath, logEvent } from '../eventLog';
 import { isPlayerHuman } from '../playerHuman';
@@ -62,8 +63,6 @@ export const AFFAIR_DAILY_TRYST_RADIUS = 95;
 
 const RELATIONSHIP_CONFIG = {
   DIVORCE_CAUGHT_CHANCE: 0.7,
-  AMICABLE_DIVORCE_ANNUAL_RATE: 0.075,
-  AMICABLE_DIVORCE_DAILY_CHANCE: 0.075 / DAYS_PER_YEAR,
   SCANDAL_COOLDOWN_TICKS: TICKS_PER_DAY * 21,
   SCHOOLYARD_BOND_EVERY_DAYS: 5,
   SCHOOLYARD_BOND_MAX_FRIENDS: 3,
@@ -941,14 +940,22 @@ function reassignDivorcedResidences(
     return;
   }
 
-  // Ensure custodian holds a valid completed home
-  const custodianHome = custodian.residenceBuildingId != null ? buildings.find((building) => building.id === custodian.residenceBuildingId) : undefined;
-  if (!custodianHome || !isResidenceBuilding(custodianHome) || !custodianHome.completed) {
-    custodian.residenceBuildingId = pickResidenceForHuman(custodian, villagers, residences);
+  // An imprisoned settler holds no residence and cannot take custody — the
+  // residency owner clears the residence when a settler is jailed, so re-housing
+  // the prisoner here (or moving minors into that home) would resurrect it.
+  const custodianImprisoned = isImprisoned(custodian);
+  if (custodianImprisoned) {
+    custodian.residenceBuildingId = undefined;
+  } else {
+    // Ensure custodian holds a valid completed home
+    const custodianHome = custodian.residenceBuildingId != null ? buildings.find((building) => building.id === custodian.residenceBuildingId) : undefined;
+    if (!custodianHome || !isResidenceBuilding(custodianHome) || !custodianHome.completed) {
+      custodian.residenceBuildingId = pickResidenceForHuman(custodian, villagers, residences);
+    }
   }
 
   // Relocate leaver (never back into former home or custodian's home)
-  if (leaver.prisonBuildingId == null) {
+  if (!isImprisoned(leaver)) {
     const excludeHomes = new Set(formerHomes);
     if (custodian.residenceBuildingId != null) {
       excludeHomes.add(custodian.residenceBuildingId);
@@ -959,7 +966,7 @@ function reassignDivorcedResidences(
   }
 
   // Assign minors to custody-holding parent (custodian, checking both mother and father links)
-  if (custodian.residenceBuildingId != null) {
+  if (!custodianImprisoned && custodian.residenceBuildingId != null) {
     const children = villagers.filter(
       (child) =>
         child.alive &&

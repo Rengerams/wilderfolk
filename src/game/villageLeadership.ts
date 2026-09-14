@@ -1037,6 +1037,12 @@ export function validateVillageLeaderOnLoad(state: WorldState): void {
     return;
   }
 
+  // The office is vacant — the id points at a dead, deposed, or ineligible settler
+  // (an imprisoned leader is still acting, so it never reaches this branch). Drop
+  // the dangling id so no stale "village head" reference outlives its term; the
+  // election scheduling below still runs.
+  state.villageLeaderId = null;
+
   if (state.pendingElectionYear != null) return;
 
   if (state.lastElectionYear === 0) {

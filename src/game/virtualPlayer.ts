@@ -31,6 +31,7 @@
  * `getVisitorTradeEligibility`, `getRefugeeChoiceEligibility`,
  * `getRivalGiftEligibility`, `getShowStrengthEligibility`,
  * `getRivalTradePactEligibility`, `getPeaceTreatyEligibility`,
+ * `getVillageRequestEligibility`,
  * `canEstablishTradeRoute`, `canLaunchRaidOnRival`, `validateWorkSchedule`,
  * `validateVenueSchedule`, `buildStripPreview`).
  * This file adds no new game rule, and it never proposes a card answer an owner
@@ -47,7 +48,7 @@ import {
   snapBuildingCenter,
   type BuildingRotation,
 } from './buildingRotation';
-import { canAfford, getAvailableStorageHeadroom } from './resourceUtils';
+import { canAfford } from './resourceUtils';
 import { hasResidenceAssignment, hasWorkAssignment, isResidenceBuilding } from './residencyOccupancy';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
@@ -66,8 +67,7 @@ import {
   getShowStrengthEligibility,
   getVisitorLeaderTalkMeta,
   getVisitorTradeEligibility,
-  VILLAGE_REQUEST_PROVISIONS_COST_GOLD,
-  VILLAGE_REQUEST_PROVISIONS_FOOD,
+  getVillageRequestEligibility,
   type RefugeeChoice,
   type VisitorTradeAction,
 } from './groupEvents';
@@ -311,11 +311,9 @@ function answerOpenCard(state: WorldState): VirtualPlayerDecision | null {
 
   const request = state.activeVillageRequest;
   if (request && request.choices.length > 0) {
-    // Match resolveVillageRequest gates: enough gold and granary headroom for the food.
-    // A failed accept leaves the request open and would burn every auto-play hour.
-    const accept =
-      (state.resources.gold ?? 0) >= VILLAGE_REQUEST_PROVISIONS_COST_GOLD
-      && getAvailableStorageHeadroom(state, 'food') >= VILLAGE_REQUEST_PROVISIONS_FOOD;
+    // The request owner's eligibility gate decides accept vs decline — a failed
+    // accept leaves the request open and would burn every auto-play hour.
+    const accept = getVillageRequestEligibility(state, request, 'accept').ok;
     return {
       command: {
         proto: WORKER_CMD_PROTO,

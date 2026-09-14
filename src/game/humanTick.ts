@@ -283,6 +283,39 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   const schoolReserved = new Map<number, number>();
 
+  /**
+   * Energy, meals and exhaustion — the per-tick upkeep the un-simulated path applies.
+   * Prisoners take an early `continue` and used to skip it entirely.
+   */
+  const applySettlerUpkeep = (entity: Entity): void => {
+    entity.energy -= humanEnergyLoss(entity, config, {
+      hasWell,
+      isWinter,
+      canHeat,
+      hasHospital,
+      tick: state.tick,
+      hourOfDay,
+      buildingById,
+    });
+    tryEatColonyMeal(entity, state, hourOfDay);
+    if (isPlayerHuman(entity) && entity.energy <= 0) {
+      killFromExhaustion(entity, state, updatedBuildings, entityById);
+    }
+  };
+
+  /** Pregnancy progress — one guard for the simulated and the imprisoned settler. */
+  const advancePregnancy = (entity: Entity, conceivedToday: boolean): void => {
+    if (
+      isPlayerHuman(entity) &&
+      entity.gender === 'female' &&
+      entity.pregnant &&
+      !conceivedToday &&
+      entity.pregnancyProgress !== undefined
+    ) {
+      tickPregnancyAndBirth(state, ctx, entity, { livingHumanAt });
+    }
+  };
+
   for (const entity of allHumans) {
     if (!entity.alive) continue;
     reconcileAffairPartner(entity, entityById);
@@ -397,6 +430,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           entity.y += (dy / dist) * Math.min(dist, 1.2);
         }
       }
+      // A sentence pauses movement, not biology: the prisoner still advances its
+      // dialogue timers, burns energy and eats, and carries a pregnancy forward.
+      tickHumanChat(entity, resolveChatPartner);
+      applySettlerUpkeep(entity);
+      advancePregnancy(entity, conceivedToday);
       syncEntityGrids(ctx, entity);
       continue;
     }
@@ -408,7 +446,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       isPlayerHuman(entity) &&
       !entity.faction &&
       (entity.chatTicks ?? 0) <= 0 &&
-      (state.tick + entity.id) % 3 === 0
+      (state.tick + entity.id) % SOCIAL_STAGGER === 0
     ) {
       tryAmbientRandomDialogue(
         entity,
@@ -426,20 +464,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     if (!active) {
-      entity.energy -= humanEnergyLoss(entity, config, {
-        hasWell,
-        isWinter,
-        canHeat,
-        hasHospital,
-        tick: state.tick,
-        hourOfDay,
-        buildingById,
-      });
-
-      tryEatColonyMeal(entity, state, hourOfDay);
-      if (isPlayerHuman(entity) && entity.energy <= 0) {
-        killFromExhaustion(entity, state, updatedBuildings, entityById);
-      }
+      applySettlerUpkeep(entity);
       syncEntityGrids(ctx, entity);
       continue;
     }
@@ -801,15 +826,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     );
     suppressIdle = huntingSuppressIdle;
 
-    if (
-      isPlayerHuman(entity) &&
-      entity.gender === 'female' &&
-      entity.pregnant &&
-      !conceivedToday &&
-      entity.pregnancyProgress !== undefined
-    ) {
-      tickPregnancyAndBirth(state, ctx, entity, { livingHumanAt });
-    }
+    advancePregnancy(entity, conceivedToday);
 
     // Evening out
     if (
@@ -955,7 +972,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Secret affairs
     if (
-      canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick) &&
+      canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
       isPlayerHuman(entity) &&
       !entity.isJuvenile &&
       !entity.pregnant &&
@@ -1043,7 +1060,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Established affair movement
     if (
-      canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick) &&
+      canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
       isPlayerHuman(entity) &&
       !entity.isJuvenile &&
       !entity.pregnant &&
@@ -1213,7 +1230,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
         const sneaking =
           hasAffairPartner(entity, entityById) &&
-          canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick) &&
+          canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
           !isAtMaritalHome(entity, entityById, buildingById);
 
         const bondRoll = personDayRoll(entity.id, tick, 510 + leisureSlot);
@@ -1297,11 +1314,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             }
           }
 
-          entity.vx = entity.vx * 0.45 + idleVx * 0.55;
-          entity.vy = entity.vy * 0.45 + idleVy * 0.55;
-          if (idleVx !== 0 || idleVy !== 0) {
-            entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
-          }
+          // The shared tail below blends the current velocity with this branch's
+          // idle velocity once; blending here too gave company-following a
+          // 0.225/0.775 weight instead of the 0.5/0.5 every other leisure kind uses.
           suppressIdle = true;
         } else if (leisureKind <= 2) {
           const tavern = pickCompleted([BuildingType.Tavern]);

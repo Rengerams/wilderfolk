@@ -486,12 +486,11 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
       continue;
     }
 
-    if (human.prisonBuildingId != null) {
-      if (human.homeBuildingId != null) {
-        human.homeBuildingId = undefined;
-        human.occupation = 'settler';
-        human.job = JobType.Settler;
-      }
+    if (isImprisoned(human)) {
+      // A jailed settler keeps no job slot and no construction-crew slot: the same
+      // release transition the job paths use detaches both, so a prisoner cannot
+      // keep working a site it is no longer standing on.
+      removeWorkerTransition(human, buildings);
       continue;
     }
 

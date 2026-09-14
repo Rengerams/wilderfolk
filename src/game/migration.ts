@@ -3,9 +3,10 @@
  *
  * Every autumn a herd of deer crosses the valley: they graze (real grazing
  * pressure), they are huntable (real meat), and they leave after a week.
- * The herds remember — every deer taken this year makes next year's herd
- * smaller. Feast on the passing herds and the valley grows emptier; let them
- * pass and next autumn brings them back, fat as ever.
+ * The herds remember — every deer lost this year (hunted or taken by wolves,
+ * starvation or old age) makes next year's herd smaller. Feast on the passing
+ * herds and the valley grows emptier; let them pass and next autumn brings them
+ * back, fat as ever.
  */
 import type { Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
@@ -15,6 +16,7 @@ import { SPECIES_CONFIG } from './speciesConfig';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { getSimRng } from './simRng';
+import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
 import { isPassableWildlifePosition, spawnWildlifeRing } from './worldGen';
 
 export const MIGRATION_WINDOW_DAYS = 7;
@@ -97,6 +99,9 @@ function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYe
     // BUG-12: gameTick replaces state.entities with allAlive after the daily layer —
     // pushing into state.entities would discard the herd on arrival.
     out.push(deer);
+    // Herd deer follow the same spawn contract as every other wildlife spawn: the canonical
+    // entity-id index must know about them, or same-tick lookups (`entityById`) cannot see them.
+    indexLivingEntity(state, deer);
   }
 
   // A fully blocked edge strip (long coastline, mountain wall) would otherwise
@@ -106,6 +111,9 @@ function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYe
       onSpawn: (deer) => {
         deer.migrationTag = herdYear;
         out.push(deer);
+        // `spawnWildlifeRing` only indexes its own spawns when no `onSpawn` hook is given,
+        // so the herd path indexes the deer itself (same contract as the placed loop above).
+        indexLivingEntity(state, deer);
       },
     });
   }
@@ -113,7 +121,7 @@ function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYe
 
 /**
  * Daily migration step: arrive on the autumn window, depart at its end and
- * remember how many were taken. Call once per calendar day (tickLayerDaily).
+ * remember how many deer the herd lost. Call once per calendar day (tickLayerDaily).
  */
 export function tickMigration(state: WorldState, allAlive: Entity[]): void {
   const day = getAbsoluteCalendarDay(state.tick);
@@ -121,21 +129,27 @@ export function tickMigration(state: WorldState, allAlive: Entity[]): void {
   const year = Math.floor(day / DAYS_PER_YEAR);
   const active = state.activeMigration;
 
-  // Departure: the herd leaves, and the valley remembers the hunt.
+  // Departure: the herd leaves, and the valley remembers how many it lost.
   if (active && day >= active.endDay) {
     const herd = state.entities.filter((e) => isMigratedHerdDeer(e, active.herdYear));
     const alive = herd.filter((e) => e.alive).length;
     for (const e of herd) {
       e.alive = false;
+      // The canonical id index only holds living entities; the departing deer are indexed on
+      // spawn, so they must leave the index with the rest of the herd.
+      unindexEntityFromState(state, e.id);
       const idx = state.entities.indexOf(e);
       if (idx >= 0) state.entities.splice(idx, 1);
     }
-    const killed = active.spawned - alive;
-    if (killed > 0) {
+    // Every missing herd deer is a loss, whatever killed it. The kill site does not record a
+    // cause (wolves, starvation, old age and the player's hunters all kill through the same
+    // wildlife-death transition), so the memory and the wording count losses, not hunts.
+    const lost = active.spawned - alive;
+    if (lost > 0) {
       const base = state.migrationNextHerdSize ?? HERD_BASE_SIZE;
-      state.migrationNextHerdSize = Math.max(HERD_MIN_SIZE, Math.min(HERD_MAX_SIZE, base - killed));
-      addBigNews(state, '🦌 The herds remember', `${killed} deer taken from the passing herd — next autumn will bring fewer.`, 'negative');
-      logEvent(state, 'event', `Autumn migration: ${killed} herd deer hunted; next herd ${state.migrationNextHerdSize}.`);
+      state.migrationNextHerdSize = Math.max(HERD_MIN_SIZE, Math.min(HERD_MAX_SIZE, base - lost));
+      addBigNews(state, '🦌 The herds remember', `${lost} deer were lost from the passing herd — next autumn will bring fewer.`, 'negative');
+      logEvent(state, 'event', `Autumn migration: ${lost} herd deer lost from the passing herd; next herd ${state.migrationNextHerdSize}.`);
     } else {
       addNotification(state, '🦌 The herds moved on', 'The deer passed through unharmed — they will remember this valley.', 'success');
       logEvent(state, 'event', 'Autumn migration: the herds passed through unharmed.');

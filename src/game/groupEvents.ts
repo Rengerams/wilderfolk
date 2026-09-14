@@ -152,6 +152,29 @@ export function tickVillageRequests(state: WorldState): void {
   logEvent(state, 'event', `${trader.name} offered caravan provisions`, trader.name);
 }
 
+/**
+ * Whether `resolveVillageRequest` would accept this answer right now.
+ *
+ * Mirrors the guards the resolver applies before it spends gold or fills the
+ * granary — the same contract `getDiplomacyChoiceEligibility` and
+ * `getRaidChoiceEligibility` provide for their cards — so a consumer can tell an
+ * answer that will land from one the resolver refuses. A refused accept leaves the
+ * offer open and would burn every auto-play hour, so the bot asks this first.
+ */
+export function getVillageRequestEligibility(
+  state: WorldState,
+  request: VillageRequest,
+  choiceId: VillageRequestChoiceId,
+): { ok: boolean; blockReason?: string } {
+  if (choiceId === 'accept' && state.resources.gold < VILLAGE_REQUEST_PROVISIONS_COST_GOLD) {
+    return { ok: false, blockReason: `Need ${VILLAGE_REQUEST_PROVISIONS_COST_GOLD} gold` };
+  }
+  if (choiceId === 'accept' && getAvailableStorageHeadroom(state, 'food') < VILLAGE_REQUEST_PROVISIONS_FOOD) {
+    return { ok: false, blockReason: 'Food storage full' };
+  }
+  return { ok: true };
+}
+
 /** Player-command resolution for the sole active Village Request. */
 export function resolveVillageRequest(
   originalState: WorldState,
@@ -181,14 +204,13 @@ export function resolveVillageRequest(
     return state;
   }
 
-  if (state.resources.gold < VILLAGE_REQUEST_PROVISIONS_COST_GOLD) {
-    pushNews(state, 'Offer unavailable', `Need ${VILLAGE_REQUEST_PROVISIONS_COST_GOLD} gold for ${source.name}'s provisions.`, 'negative');
-    pushFloat(state, source.campX, source.campY - 18, `Need ${VILLAGE_REQUEST_PROVISIONS_COST_GOLD} gold`, '#f97316');
-    return state;
-  }
-  if (getAvailableStorageHeadroom(state, 'food') < VILLAGE_REQUEST_PROVISIONS_FOOD) {
-    pushNews(state, 'Offer unavailable', 'Food storage is too full for the caravan provisions.', 'negative');
-    pushFloat(state, source.campX, source.campY - 18, 'Food storage full', '#f97316');
+  // The offer owner's eligibility rule is the single definition of an acceptable
+  // accept — never restate the gold/storage thresholds here.
+  const gate = getVillageRequestEligibility(state, request, choice);
+  if (!gate.ok) {
+    const reason = gate.blockReason ?? 'Offer unavailable';
+    pushNews(state, 'Offer unavailable', reason, 'negative');
+    pushFloat(state, source.campX, source.campY - 18, reason, '#f97316');
     return state;
   }
 

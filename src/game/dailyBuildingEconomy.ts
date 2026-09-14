@@ -31,6 +31,7 @@ import { rollEconomyLedgerForDay } from './economyLedger';
 import { canAffordWorkshopRecipe } from './workshops';
 import { logEvent } from './eventLog';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
+import { getHuntFoodMultiplier } from './combat';
 import { isProductionTick, PRODUCTION_INTERVAL, TICKS_PER_DAY } from './dayCycle';
 import type { TickContext } from './simulation/simulationTypes';
 import {
@@ -446,7 +447,9 @@ function tickBuildingProduction(
           addFloatingText(state, building.x, building.y - 12, 'Wolf fights back! 🐺', '#f87171');
           logEvent(state, 'combat', 'A wild wolf fought back at the Hunting Spot!');
         } else if (success) {
-          const huntMult = getMultiplier(state, 'hunt_yield');
+          // `hunt_food` is the key the hunting research nodes actually declare (defense_2/4/8);
+          // the previous `hunt_yield` lookup matched no node and was a permanent 1.
+          const huntMult = getHuntFoodMultiplier(state);
           const valleyHunt = getValleyHuntYieldMultiplier(state);
           const carcass =
             targetPrey.type === EntityType.Deer
@@ -786,7 +789,11 @@ function tickBuildingProduction(
       building.type === BuildingType.TownHall &&
       isProductionTick(state.tick, PRODUCTION_INTERVAL.townHall)
     ) {
-      const villagers = state.entities.filter(isPlayerHuman);
+      // `isPlayerHuman` does not test `alive`, and `state.entities` is only replaced with the
+      // living list at the end of the tick, so a settler killed earlier in this tick would still
+      // be taxed and petitioned. `playerWorkers` is this function's alive-filtered settler list;
+      // `alive` is re-checked here because the daily social pass before this layer can also kill.
+      const villagers = playerWorkers.filter((e) => e.alive);
       tickTownHallCivic(state, building, villagers);
       tickTownHallAudiences(state, building, villagers);
     }
