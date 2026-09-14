@@ -203,6 +203,10 @@ export class GameLoop {
           this.renderSoA = null;
           this.renderMetaBySlot = null;
           this.scentReader = null;
+          // Commands issued while the worker was booting were queued for the worker that
+          // never arrived; apply them through the same main-thread domain implementation
+          // instead of stranding (or later double-applying) them.
+          this.flushDeferredWorkerCommands();
           this.scheduleWorkerRecovery();
         });
     }
@@ -400,6 +404,9 @@ export class GameLoop {
     this.renderSoA = null;
     this.renderMetaBySlot = null;
     this.scentReader = null;
+    // Apply boot-window commands on the main-thread authority rather than stranding them for
+    // a recovery that would replay them on top of newer local commands.
+    this.flushDeferredWorkerCommands();
     this.scheduleWorkerRecovery();
   }
 
@@ -805,6 +812,19 @@ export class GameLoop {
   }
 
   private frame = (time: number) => {
+    // Any throw used to escape the animation-frame callback before the re-arm at the bottom,
+    // which stopped ticks, rendering and UI updates for the rest of the session with no
+    // recovery. Keep the loop alive unconditionally (the worker path already guards its tick).
+    try {
+      this.frameBody(time);
+    } catch (error) {
+      console.error('[GameLoop] frame failed — continuing', error);
+    } finally {
+      this.rafId = requestAnimationFrame(this.frame);
+    }
+  };
+
+  private frameBody(time: number): void {
     if (!this.running) return;
 
     if (!this.lastFrameTime) this.lastFrameTime = time;
@@ -896,8 +916,6 @@ export class GameLoop {
       this.lastUiUpdate = now;
       this.notify(tickChanged, periodicUi);
     }
-
-    this.rafId = requestAnimationFrame(this.frame);
   };
 
   private draw(): void {

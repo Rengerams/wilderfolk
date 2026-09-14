@@ -692,37 +692,3 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   },
 };
 
-function resolveBuildingType(input: BuildingType | Building): BuildingType {
-  return typeof input === 'object' && input !== null ? input.type : input;
-}
-
-/** Safe accessor for building configuration. */
-export function getBuildingConfig(input: BuildingType | Building): BuildingConfig | undefined {
-  const type = resolveBuildingType(input);
-  return BUILDING_CONFIGS[type];
-}
-
-/** Determines if a building is purely decorative. */
-export function isDecorBuilding(input: BuildingType | Building): boolean {
-  const type = resolveBuildingType(input);
-  return Boolean(BUILDING_CONFIGS[type]?.decor);
-}
-
-/** Determines if a building provides permanent resident housing. */
-export function isResidentialBuilding(input: BuildingType | Building): boolean {
-  const type = resolveBuildingType(input);
-  return (
-    type === BuildingType.House ||
-    type === BuildingType.Mansion ||
-    type === BuildingType.LeaderHouse
-  );
-}
-
-/** Alias for isResidentialBuilding to ensure consistency across sim modules. */
-export const isResidenceBuilding = isResidentialBuilding;
-
-/** Determines if only one instance of the building can exist. */
-export function isUniqueBuilding(input: BuildingType | Building): boolean {
-  const type = resolveBuildingType(input);
-  return Boolean(BUILDING_CONFIGS[type]?.unique);
-}

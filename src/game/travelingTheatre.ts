@@ -59,7 +59,9 @@ function hasPerformerGroup(state: WorldState): boolean {
 }
 
 function availableScripts(state: WorldState): Stage1Choice[] {
-  const recent = state.eventLog.slice(-40);
+  // `eventLog` is newest-first (logEvent unshifts), so the recent history is the head of the
+  // array. `slice(-40)` took the *oldest* forty entries still held, i.e. the opposite end.
+  const recent = state.eventLog.slice(0, 40);
   const scripts: Stage1Choice[] = [];
   if (recent.some((e) => e.type === 'disaster' || e.type === 'season')) {
     scripts.push('first_winter');

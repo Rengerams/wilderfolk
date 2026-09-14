@@ -185,8 +185,10 @@ export function demolishBuilding(originalState: WorldState, buildingId: number):
   const refundWood = Math.floor(config.cost.wood * BUILDING_REFUND_RATIO);
   const refundStone = Math.floor(config.cost.stone * BUILDING_REFUND_RATIO);
   const refundGold = Math.floor(config.cost.gold * BUILDING_REFUND_RATIO);
-  addResource(state, 'wood', refundWood);
-  addResource(state, 'stone', refundStone);
+  // `addResource` clamps to `storageMax` and returns what was actually added, so report that
+  // rather than the nominal refund (a full store used to announce a refund it never received).
+  const gotWood = addResource(state, 'wood', refundWood);
+  const gotStone = addResource(state, 'stone', refundStone);
   addResource(state, 'gold', refundGold);
 
   clearAssignmentsForDemolishedBuilding(state, buildingId);
@@ -198,7 +200,7 @@ export function demolishBuilding(originalState: WorldState, buildingId: number):
     25,
     'smoke',
   );
-  addFloatingText(state, building.x, building.y - 10, `Refunded: ${refundWood}w ${refundStone}s`, '#eab308');
+  addFloatingText(state, building.x, building.y - 10, `Refunded: ${gotWood}w ${gotStone}s`, '#eab308');
   impulseScreenShake(state, 4);
 
   unindexAdjacency(state, buildingId);

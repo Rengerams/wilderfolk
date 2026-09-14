@@ -162,6 +162,10 @@ export function reconcileFamilyReferencesAfterRemoval(
       survivor.lastAffairSiteY = undefined;
     }
     if (survivor.pregnantById === removedId) survivor.pregnantById = undefined;
+    // Release a tamed animal whose owner just died: nothing else clears `tamedBy` on death and
+    // `isValidHuntPrey` refuses tamed prey, so the orphan stayed on the daily ration list forever
+    // and could never be hunted.
+    if (survivor.tamedBy === removedId) survivor.tamedBy = undefined;
     if (survivor.childrenIds?.includes(removedId)) {
       survivor.childrenIds = survivor.childrenIds.filter((id) => id !== removedId);
     }

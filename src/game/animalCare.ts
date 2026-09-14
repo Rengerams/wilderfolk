@@ -33,9 +33,16 @@ export const ANIMAL_DAILY_FOOD = HUMAN_DAILY_FOOD_CONSUMPTION * ANIMAL_FOOD_RATI
 export const TAMED_ANIMAL_OWNER_ENERGY_BONUS = 8;
 
 export function countTamedAnimals(state: WorldState): number {
+  // A pet whose owner died is not a ration consumer and not an animal: nothing clears `tamedBy`
+  // on death and `isValidHuntPrey` refuses tamed prey, so counting these created a permanent
+  // food sink of animals that could never be hunted. Only pets with a living owner count.
+  const livingHumans = new Set<number>();
+  for (const e of state.entities) {
+    if (e.alive && e.type === EntityType.Human) livingHumans.add(e.id);
+  }
   let count = 0;
   for (const e of state.entities) {
-    if (e.alive && e.tamedBy != null) count++;
+    if (e.alive && e.tamedBy != null && livingHumans.has(e.tamedBy)) count++;
   }
   return count;
 }

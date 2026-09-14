@@ -112,7 +112,10 @@ export function pickBeautySpot(
   const tx = Math.floor(cx / TERRAIN_TILE_SIZE);
   const ty = Math.floor(cy / TERRAIN_TILE_SIZE);
   let best = { x: cx, y: cy };
-  let bestValue = -1;
+  // Start at 0, not -1: a grid with no beauty anywhere then keeps the documented
+  // fallback of the caller's own position instead of returning the up-left corner of the
+  // search window (the first scanned cell always beat -1).
+  let bestValue = 0;
   for (let dy = -radiusTiles; dy <= radiusTiles; dy++) {
     for (let dx = -radiusTiles; dx <= radiusTiles; dx++) {
       const gx = tx + dx;

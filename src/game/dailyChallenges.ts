@@ -20,8 +20,9 @@ export function tickDailyChallenges(
     if (completed && c.reward) {
       addResource(state, 'wood', c.reward.wood || 0);
       addResource(state, 'stone', c.reward.stone || 0);
-      recordFoodProduced(state, 'challenges', c.reward.food || 0);
-      addResource(state, 'food', c.reward.food || 0);
+      // Record what storage actually accepted: `addResource` clamps to `storageMax` and returns
+      // the amount added, and the ledger's contract is "food that actually entered storage".
+      recordFoodProduced(state, 'challenges', addResource(state, 'food', c.reward.food || 0));
       addResource(state, 'gold', c.reward.gold || 0);
       addFloatingText(state, state.width / 2, state.height / 2 - 40, `Challenge: ${c.title}!`, '#fbbf24');
       if (c.rewardText) {
