@@ -28,6 +28,7 @@ import {
   tickMoonHowlerCycle,
 } from './moonHowler';
 import { isPlayerHuman } from './playerHuman';
+import { getSimRng } from './simRng';
 import { tickHotelLodging } from './hotelStay';
 import { tickElectionCeremony } from './villageLeadership';
 import { addBigNews, addNotification, impulseScreenShake } from './simEffects';
@@ -102,6 +103,9 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     ctx.hourOfDay,
     ctx.entityById,
     ctx.byType,
+    // Pass the module's own owner stream: the default Math.random would leave the lifecycle
+    // rolls on the shared global stream instead of the named 'moonHowler' owner.
+    getSimRng('moonHowler'),
   );
   
   if (moonResult.changed) {
@@ -114,7 +118,13 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
   const werewolves = ctx.byType[EntityType.Werewolf] ?? [];
   const activeMoonHowler = werewolves.some(isActiveMoonHowler);
 
-  if (activeMoonHowler) {
+  // Only a legacy save loaded mid-full-moon-night needs this repair: a normal transformed
+  // howler has residenceBuildingId cleared and the form change already re-syncs occupants, so
+  // an unconditional full-population scan + occupants rewrite every tick was pure churn.
+  if (
+    activeMoonHowler
+    && werewolves.some((e) => isResidenceOccupantEntity(e) && e.residenceBuildingId != null)
+  ) {
     const occupants: Entity[] = [];
     for (const entity of aliveEntities) {
       if (isResidenceOccupantEntity(entity)) occupants.push(entity);

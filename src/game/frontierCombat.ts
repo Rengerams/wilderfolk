@@ -16,6 +16,8 @@ import {
 
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
 import { getSimRng } from './simRng';
+import { addCappedResource } from './resourceUtils';
+import { addBigNews } from './simEffects';
 
 export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 
@@ -191,10 +193,16 @@ export function getOutgoingRaidActionLabel(state: WorldState, rivalId: string): 
   };
 }
 
+/**
+ * Militia headcount, taken from the militia owner.
+ *
+ * The militia count is one rule: `computeMilitiaBreakdown` musters every adult settler and
+ * scales them by weapon/armour tier. The local rule this replaces returned 0 unless stone or
+ * iron spears were researched (so a sword-armed village counted as no militia), which
+ * disagreed with the number the owner actually feeds the raid math.
+ */
 export function countArmedMilitia(state: WorldState, entities: Entity[]): number {
-  const armed = hasIronSpears(state) || hasStoneSpears(state);
-  if (!armed) return 0;
-  return entities.filter((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile).length;
+  return computeMilitiaBreakdown(state, entities, { includeStructures: false }).adultCount;
 }
 
 export function getMilitiaStrength(state: WorldState, entities: Entity[]): number {
@@ -369,18 +377,6 @@ function pushFloat(state: WorldState, x: number, y: number, text: string, color:
   });
 }
 
-function pushNews(state: WorldState, title: string, message: string, type: 'positive' | 'negative' | 'neutral') {
-  state.bigNews.push({
-    id: `raid_${state.tick}_${state.bigNews.length}`,
-    title,
-    message,
-    type,
-    createdAt: state.tick,
-    dismissed: false,
-  });
-  if (state.bigNews.length > 50) state.bigNews.shift();
-}
-
 function flashMilitia(entities: Entity[], ticks = 22) {
   for (const e of entities) {
     if (e.alive && isPlayerHuman(e) && !e.isJuvenile) {
@@ -494,7 +490,7 @@ function rewardRaidParticipants(
       pushFloat(state, leader.x, leader.y - 24, `👑 +${repBonus} rep`, '#fbbf24');
     }
     if (state.villageReputation > before) {
-      pushNews(
+      addBigNews(
         state,
         '👑 Leader honored',
         `${leader ? formatCitizenName(leader) : 'The village head'} rallied the war-band — reputation rises.`,
@@ -676,25 +672,21 @@ export function clampRaidGoldGain(currentGold: number, spoilsGold: number, softC
   return Math.min(spoilsGold, room, perRaidMax);
 }
 
-/** Add spoils from a successful counter-raid (respects storage caps). */
+/**
+ * Add spoils from a successful counter-raid (respects storage caps).
+ *
+ * Stock can legitimately sit above `storageMax` (demolition refunds are uncapped), so every
+ * gain goes through `addCappedResource`: it floors headroom at 0 and returns what actually
+ * entered storage — the old hand-rolled `Math.min(room, spoils)` went negative and *removed*
+ * the excess instead of leaving it untouched.
+ */
 function grantRaidSpoils(state: WorldState, spoils: RaidLootBundle): RaidLootBundle {
   const gained: RaidLootBundle = { food: 0, wood: 0, stone: 0, gold: 0 };
-  if (spoils.food > 0) {
-    const room = state.storageMax.food - state.resources.food;
-    gained.food = Math.min(room, spoils.food);
-    state.resources.food += gained.food;
-  }
-  if (spoils.wood > 0) {
-    const room = state.storageMax.wood - state.resources.wood;
-    gained.wood = Math.min(room, spoils.wood);
-    state.resources.wood += gained.wood;
-  }
-  if (spoils.stone > 0) {
-    const room = state.storageMax.stone - state.resources.stone;
-    gained.stone = Math.min(room, spoils.stone);
-    state.resources.stone += gained.stone;
-  }
+  if (spoils.food > 0) gained.food = addCappedResource(state, 'food', spoils.food);
+  if (spoils.wood > 0) gained.wood = addCappedResource(state, 'wood', spoils.wood);
+  if (spoils.stone > 0) gained.stone = addCappedResource(state, 'stone', spoils.stone);
   if (spoils.gold > 0) {
+    // Gold keeps its own soft cap (storageMax.gold is effectively unlimited).
     gained.gold = clampRaidGoldGain(state.resources.gold, spoils.gold);
     state.resources.gold += gained.gold;
   }
@@ -862,7 +854,7 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
 
   state.pendingRaidEvents.push(event);
   rival.raidCooldownDays = 21;
-  pushNews(state, '⚔️ Raid incoming!', `${rival.name} war-bands approach your border. Respond in the banner or rival inspector.`, 'negative');
+  addBigNews(state, '⚔️ Raid incoming!', `${rival.name} war-bands approach your border. Respond in the banner or rival inspector.`, 'negative');
   logEvent(state, 'combat', `${rival.name} launched a raid on the village`, rival.name, 'incoming_raid');
   state.screenShakeImpulse = Math.max(state.screenShakeImpulse, 5);
 }
@@ -1229,7 +1221,7 @@ export function tickPendingOutgoingRaidEvents(state: WorldState): void {
     if (rival) {
       rival.daysUntilAction = 24;
     }
-    pushNews(state, '🏹 March recalled', `${evt.rivalName} — your war-band stood down (provisions spent).`, 'neutral');
+    addBigNews(state, '🏹 March recalled', `${evt.rivalName} — your war-band stood down (provisions spent).`, 'neutral');
   }
 }
 
@@ -1372,7 +1364,7 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
 
   state.pendingOutgoingRaidEvents.push(event);
   flashMilitia(state.entities, 12);
-  pushNews(
+  addBigNews(
     state,
     `🏹 ${verb} marching`,
     `${rival.name} — ${responseDays} days to respond in the banner or rival inspector.`,

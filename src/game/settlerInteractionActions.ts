@@ -6,7 +6,7 @@ import { assignMissingResidences } from './residencyReconciliation';
 import { indexLivingEntity } from './entityIndex';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE, getAbsoluteCalendarDay, getColonyDay, getHourOfDay, setHumanBirthFromAge } from './dayCycle';
-import { canMoonHowlerCurse, curseMoonHowler, isMoonHowlerTransformTick, transformToWerewolfForm } from './moonHowler';
+import { canBeginMoonHowlerCurse, canMoonHowlerCurse, curseMoonHowler, isMoonHowlerTransformTick, transformToWerewolfForm } from './moonHowler';
 import { createEntity } from './entityFactory';
 import { getRandomSurname } from './nameLoader';
 import { logEvent } from './eventLog';
@@ -111,6 +111,18 @@ export function recruitSettler(originalState: WorldState): WorldState {
 /** Debug/testing-only command: curse an eligible human or spawn a cursed wanderer. */
 export function spawnMoonHowlerDebug(originalState: WorldState): WorldState {
   const state = structuredClone(originalState);
+  // §5: at most one living cursed Moon Howler. The debug command is a second curse route,
+  // so it must obey the owner's colony gate instead of stacking a second howler on the map.
+  if (!canBeginMoonHowlerCurse(state.entities)) {
+    addFloatingText(
+      state,
+      state.width / 2,
+      state.height / 2,
+      'A Moon Howler already stalks the valley',
+      '#c4b5fd',
+    );
+    return state;
+  }
   const rng = getSimRng('settlerInteractionActions');
   const candidates = state.entities.filter((entity) => entity.alive && canMoonHowlerCurse(entity));
   const pick = candidates[Math.floor(rng() * candidates.length)];
@@ -119,7 +131,10 @@ export function spawnMoonHowlerDebug(originalState: WorldState): WorldState {
     const who = pick.name ? `${pick.name}${pick.surname ? ` ${pick.surname}` : ''}` : 'A settler';
     curseMoonHowler(pick);
     const colonyDay = getAbsoluteCalendarDay(state.tick);
-    if (isMoonHowlerTransformTick(colonyDay, getHourOfDay(state.tick))) transformToWerewolfForm(pick);
+    // `buildings` keeps the cursed settler out of the occupants lists the transform clears.
+    if (isMoonHowlerTransformTick(colonyDay, getHourOfDay(state.tick))) {
+      transformToWerewolfForm(pick, state.buildings);
+    }
     const line = WEREWOLF_CURSE_LINES[Math.floor(rng() * WEREWOLF_CURSE_LINES.length)](who);
     addBigNews(state, '🌝 Debug Moon Howler!', `(Test) ${line}`, 'negative');
     addFloatingText(state, pick.x, pick.y - 20, 'Cursed…', '#c4b5fd');

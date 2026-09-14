@@ -131,7 +131,6 @@ export function computeRawEcologyStress(state: WorldState): {
   if (grazing.level === 'critical') grazingStress = 2;
   else if (grazing.level === 'caution') grazingStress = 1;
   if (grazing.pressureRatio >= 1.6) grazingStress = Math.max(grazingStress, 2);
-  if (grazing.pressureRatio >= 2.0) grazingStress = 2;
 
   // --- Predators / prey chain ---
   let predatorStress = 0;
@@ -363,11 +362,9 @@ function announceStage(
   const message = snap.playerSummary;
 
   const cooldownOk =
-    day - (state.valleyLastStageNotifyDay ?? -999) >= NOTIFY_COOLDOWN_DAYS ||
-    rising ||
-    valleyStageIndex(next) <= valleyStageIndex(prev) - 1;
+    day - (state.valleyLastStageNotifyDay ?? -999) >= NOTIFY_COOLDOWN_DAYS || rising;
 
-  if (!cooldownOk && !rising) return;
+  if (!cooldownOk) return;
 
   state.valleyLastStageNotifyDay = day;
 

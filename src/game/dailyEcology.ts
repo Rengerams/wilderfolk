@@ -1,4 +1,4 @@
-import type { Building, WorldState } from './gameTypes';
+import type { Building, WildlifeCounts, WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import type { PopulationCounts } from './entityCounts';
 import { hasTech } from './simHelpers';
@@ -13,6 +13,30 @@ const INDUSTRIAL_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingTyp
 ]);
 
 const IDEAL_WILDLIFE = 80;
+
+/** Ecosystem health a completed Wildlife Preserve adds (advertised in the build panel). */
+export const PRESERVE_HEALTH_BONUS = 4;
+
+/** The wildlife tally plus the settler count the ecosystem-health score reads. */
+export type EcosystemCounts = WildlifeCounts & { humans: number };
+
+export interface EcosystemMetrics {
+  /** Completed player (non-rival) buildings — the town footprint. */
+  playerCompletedBuildings: number;
+  buildingImpact: number;
+  /** Completed industrial buildings of any faction, before the forestry multiplier. */
+  industrialCount: number;
+  pollutionLevel: number;
+  pollutionPenalty: number;
+  preserveCount: number;
+  preserveBonus: number;
+  /** Rabbits + deer + wolves + foxes + werewolves + wildkin — every species the score counts. */
+  totalWildlife: number;
+  wildlifeRatio: number;
+  wildlifeBonus: number;
+  /** Clamped to 0-100 but not rounded; `tickEcosystemMetrics` stores the rounded value. */
+  health: number;
+}
 
 /**
  * Calculates the Shannon-Wiener biodiversity index (H') for the wildlife population.
@@ -48,17 +72,17 @@ export function calculateBiodiversityIndex(counts: PopulationCounts): number {
 }
 
 /**
- * Refreshes daily-only ecology indexes before the valley stage consumes them.
- * The daily layer retains ownership of the call order and cadence.
+ * The single definition of the ecosystem-health score. `tickEcosystemMetrics`
+ * writes it to state and `ecoBreakdown` explains it, so the two cannot drift.
  */
-export function tickEcosystemMetrics(
+export function calculateEcosystemMetrics(
   state: WorldState,
-  counts: PopulationCounts,
+  counts: EcosystemCounts,
   buildings: Building[],
-): void {
+): EcosystemMetrics {
   let industrialCount = 0;
   let playerCompletedBuildings = 0;
-  let preserveBonus = 0;
+  let preserveCount = 0;
 
   // Single-pass building scan
   for (let i = 0; i < buildings.length; i++) {
@@ -74,14 +98,14 @@ export function tickEcosystemMetrics(
     }
 
     if (building.type === BuildingType.WildlifePreserve) {
-      preserveBonus += 4;
+      preserveCount++;
     }
   }
 
   // Calculate Pollution
   const pollutionMult = hasTech(state, 'forestry_2') ? 0.5 : 1.0;
   const rawPollution = industrialCount * 4 * pollutionMult + counts.humans / 3;
-  state.pollutionLevel = Math.max(0, Math.min(100, Math.floor(rawPollution)));
+  const pollutionLevel = Math.max(0, Math.min(100, Math.floor(rawPollution)));
 
   // Calculate Total Wildlife & Ratio
   const totalWildlife =
@@ -95,11 +119,40 @@ export function tickEcosystemMetrics(
 
   // Calculate Ecosystem Health (0 - 100)
   const buildingImpact = playerCompletedBuildings * 2;
-  const pollutionPenalty = Math.floor(state.pollutionLevel / 2);
-  const wildlifeImpact = wildlifeRatio * 30 - 20;
+  const pollutionPenalty = Math.floor(pollutionLevel / 2);
+  const preserveBonus = preserveCount * PRESERVE_HEALTH_BONUS;
+  const wildlifeBonus = wildlifeRatio * 30 - 20;
 
-  const rawEcoHealth = 100 - buildingImpact - pollutionPenalty + preserveBonus + wildlifeImpact;
-  state.ecosystemHealth = Math.max(0, Math.min(100, Math.round(rawEcoHealth)));
+  const rawEcoHealth = 100 - buildingImpact - pollutionPenalty + preserveBonus + wildlifeBonus;
+  const health = Math.max(0, Math.min(100, rawEcoHealth));
+
+  return {
+    playerCompletedBuildings,
+    buildingImpact,
+    industrialCount,
+    pollutionLevel,
+    pollutionPenalty,
+    preserveCount,
+    preserveBonus,
+    totalWildlife,
+    wildlifeRatio,
+    wildlifeBonus,
+    health,
+  };
+}
+
+/**
+ * Refreshes daily-only ecology indexes before the valley stage consumes them.
+ * The daily layer retains ownership of the call order and cadence.
+ */
+export function tickEcosystemMetrics(
+  state: WorldState,
+  counts: PopulationCounts,
+  buildings: Building[],
+): void {
+  const metrics = calculateEcosystemMetrics(state, counts, buildings);
+  state.pollutionLevel = metrics.pollutionLevel;
+  state.ecosystemHealth = Math.round(metrics.health);
 
   // Calculate Biodiversity
   state.biodiversityIndex = calculateBiodiversityIndex(counts);

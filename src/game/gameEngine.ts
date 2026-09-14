@@ -242,7 +242,6 @@ export {
   parseSaveJson,
 } from './saveLoad';
 export {
-  UNBUILDABLE_TERRAIN,
   isFootprintOnBuildableTerrain,
   canPlaceBuilding,
   getPlaceBuildingFailureReason,

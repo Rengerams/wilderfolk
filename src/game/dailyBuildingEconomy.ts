@@ -27,6 +27,7 @@ import {
   applyFoodSpoilage,
   updateStorageCaps,
 } from './economy';
+import { rollEconomyLedgerForDay } from './economyLedger';
 import { canAffordWorkshopRecipe } from './workshops';
 import { logEvent } from './eventLog';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
@@ -244,6 +245,10 @@ function tickStaticDaily(state: WorldState, season: Season): void {
   // This call is what makes `updateStorageCaps` live: it previously had no caller at all,
   // so every Barn/Silo/Wood Storehouse/Store bonus and the Silo spoilage cut never reached
   // play (the economy-audit test passed only because it invoked the function by hand).
+  // Roll the day ledger to today *before* anything records into it, so consumers that read the
+  // raw `state.economyLedger` (dashboardData) never see yesterday's totals, and archive the day
+  // that just finished. Idempotent, so the record helpers may still roll lazily.
+  rollEconomyLedgerForDay(state);
   updateStorageCaps(state);
   applyFoodSpoilage(state, season);
   if (!state.electionCeremony) {
@@ -352,7 +357,7 @@ function tickBuildingProduction(
       const farmMult = getMultiplier(state, 'farm_yield');
       const pollutionMult = getPollutionProductionMultiplier(state);
       const valleyFarm = getValleyFarmYieldMultiplier(state);
-      const weatherFarm = getWeatherFarmMultiplier(state.weather);
+      const weatherFarm = getWeatherFarmMultiplier(state.weather, getMultiplier(state, 'drought_resist'));
       const amount = Math.floor(
         (12 + workers * 5) *
           totalMult *
@@ -646,7 +651,7 @@ function tickBuildingProduction(
       const farmMult = getMultiplier(state, 'farm_yield');
       const pollutionMult = getPollutionProductionMultiplier(state);
       const valleyFarm = getValleyFarmYieldMultiplier(state);
-      const weatherFarm = getWeatherFarmMultiplier(state.weather);
+      const weatherFarm = getWeatherFarmMultiplier(state.weather, getMultiplier(state, 'drought_resist'));
       const amount = Math.floor(
         (18 + workers * 5) *
           totalMult *
@@ -658,7 +663,12 @@ function tickBuildingProduction(
           valleyFarm *
           weatherFarm,
       );
-      if (addResource(state, 'food', amount) > 0) {
+      // Mirror the farm path: the ledger row is the food that actually entered
+      // storage (`added`), not the nominal harvest, so a full store cannot make
+      // the ledger disagree with the resources.
+      const added = addResource(state, 'food', amount);
+      if (added > 0) {
+        recordFoodProduced(state, 'greenhouse', added);
         rewardProductionSkills(state, building, 0.2, entityById);
       }
       state.deathParticles.push({

@@ -16,7 +16,12 @@ import {
 import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { addCappedResource } from './resourceUtils';
+import {
+  addCappedResource,
+  canAfford,
+  consumeResources,
+  getAvailableStorageHeadroom,
+} from './resourceUtils';
 import { getRandomSurname } from './nameLoader';
 import { hasIronSpears, hasStoneSpears } from './combat';
 import { maybeStartVisitorQuest } from './visitorQuest';
@@ -181,7 +186,7 @@ export function resolveVillageRequest(
     pushFloat(state, source.campX, source.campY - 18, `Need ${VILLAGE_REQUEST_PROVISIONS_COST_GOLD} gold`, '#f97316');
     return state;
   }
-  if (storageRoom(state, 'food') < VILLAGE_REQUEST_PROVISIONS_FOOD) {
+  if (getAvailableStorageHeadroom(state, 'food') < VILLAGE_REQUEST_PROVISIONS_FOOD) {
     pushNews(state, 'Offer unavailable', 'Food storage is too full for the caravan provisions.', 'negative');
     pushFloat(state, source.campX, source.campY - 18, 'Food storage full', '#f97316');
     return state;
@@ -417,7 +422,7 @@ export function spawnVisitorGroup(
   if (kind === 'traders') maybeStartVisitorQuest(state);
 
   return {
-    id: `visitor_${kind}`,
+    id: `visitor_${kind}_${state.tick}`,
     title: `${template.emoji} ${name}`,
     description: `A group of ${memberCount} travelers has set camp near your village.`,
     emoji: template.emoji,
@@ -494,7 +499,7 @@ export function spawnRivalSettlement(
   logEvent(state, 'migration', `${name} established a rival settlement on the frontier`, name);
 
   return {
-    id: 'rival_settlement',
+    id: `rival_settlement_${state.tick}`,
     title: `🏕️ ${name} Settles Nearby`,
     description: `Another group has claimed land on the same frontier — ${pop} settlers and a small camp.`,
     emoji: '🏕️',
@@ -1011,27 +1016,28 @@ export function respondToDiplomacyEvent(
     return state;
   }
 
+  // The card owner's eligibility rule is the single definition of what an
+  // affordable answer is — never restate the thresholds here (they used to be
+  // duplicated inline and the auto-play bot gates on the same helper).
+  const gate = getDiplomacyChoiceEligibility(state, event, choiceId);
+  if (!gate.ok) {
+    pushFloat(state, rival.campX, rival.campY - 20, gate.blockReason ?? 'Cannot answer', '#f97316');
+    return state;
+  }
+
   switch (event.kind) {
     case 'tribute':
       if (choiceId === 'pay') {
-        if (state.resources.food >= 30) {
-          state.resources.food -= 30;
-          rival.relationship = shiftRelationship(rival.relationship, 1);
-          pushFloat(state, rival.campX, rival.campY - 20, 'Tribute paid', '#22c55e');
-          logEvent(state, 'trade', `Paid tribute to ${rival.name} — relations improved`, rival.name);
-          resolved = true;
-        } else {
-          pushFloat(state, rival.campX, rival.campY - 20, 'Need 30🍖', '#f97316');
-        }
+        state.resources.food -= 30;
+        rival.relationship = shiftRelationship(rival.relationship, 1);
+        pushFloat(state, rival.campX, rival.campY - 20, 'Tribute paid', '#22c55e');
+        logEvent(state, 'trade', `Paid tribute to ${rival.name} — relations improved`, rival.name);
+        resolved = true;
       } else if (choiceId === 'negotiate') {
-        if (state.resources.food >= 15) {
-          state.resources.food -= 15;
-          if (rival.relationship === 'tense') rival.relationship = 'competitive';
-          logEvent(state, 'trade', `Negotiated with ${rival.name} — partial tribute`, rival.name);
-          resolved = true;
-        } else {
-          pushFloat(state, rival.campX, rival.campY - 20, 'Need 15🍖', '#f97316');
-        }
+        state.resources.food -= 15;
+        if (rival.relationship === 'tense') rival.relationship = 'competitive';
+        logEvent(state, 'trade', `Negotiated with ${rival.name} — partial tribute`, rival.name);
+        resolved = true;
       } else if (choiceId === 'refuse') {
         rival.relationship = shiftRelationship(rival.relationship, -1);
         state.villageReputation = Math.max(0, state.villageReputation - 4);
@@ -1052,47 +1058,28 @@ export function respondToDiplomacyEvent(
         logEvent(state, 'event', `Stood firm against ${rival.name}`, rival.name);
         resolved = true;
       } else if (choiceId === 'militia') {
-        const armed = hasIronSpears(state) || hasStoneSpears(state);
-        if (armed && state.humanPopulation >= 6) {
-          if (rival.relationship === 'tense') rival.relationship = 'competitive';
-          else rival.relationship = shiftRelationship(rival.relationship, 1);
-          logEvent(state, 'event', `Militia parade settled the dispute with ${rival.name}`, rival.name);
-          resolved = true;
-        } else {
-          pushFloat(
-            state,
-            rival.campX,
-            rival.campY - 20,
-            !armed ? 'Need spears' : 'Need 6+ settlers',
-            '#f97316',
-          );
-        }
+        if (rival.relationship === 'tense') rival.relationship = 'competitive';
+        else rival.relationship = shiftRelationship(rival.relationship, 1);
+        logEvent(state, 'event', `Militia parade settled the dispute with ${rival.name}`, rival.name);
+        resolved = true;
       }
       break;
     case 'alliance':
       if (choiceId === 'accept') {
-        if (state.resources.gold >= 20) {
-          state.resources.gold -= 20;
-          rival.relationship = 'friendly';
-          rival.daysUntilAction = 20;
-          pushFloat(state, rival.campX, rival.campY - 20, 'Alliance!', '#22d3ee');
-          logEvent(state, 'trade', `Alliance with ${rival.name}`, rival.name);
-          resolved = true;
-        } else {
-          pushFloat(state, rival.campX, rival.campY - 20, 'Need 20💰', '#f97316');
-        }
+        state.resources.gold -= 20;
+        rival.relationship = 'friendly';
+        rival.daysUntilAction = 20;
+        pushFloat(state, rival.campX, rival.campY - 20, 'Alliance!', '#22d3ee');
+        logEvent(state, 'trade', `Alliance with ${rival.name}`, rival.name);
+        resolved = true;
       } else if (choiceId === 'counter') {
-        if (state.resources.food >= 25 && state.resources.gold >= 15) {
-          state.resources.food -= 25;
-          state.resources.gold -= 15;
-          rival.relationship = 'friendly';
-          rival.daysUntilAction = 25;
-          state.villageReputation = Math.min(100, state.villageReputation + 3);
-          logEvent(state, 'trade', `Grand counter-pact with ${rival.name}`, rival.name);
-          resolved = true;
-        } else {
-          pushFloat(state, rival.campX, rival.campY - 20, 'Need 25🍖 + 15💰', '#f97316');
-        }
+        state.resources.food -= 25;
+        state.resources.gold -= 15;
+        rival.relationship = 'friendly';
+        rival.daysUntilAction = 25;
+        state.villageReputation = Math.min(100, state.villageReputation + 3);
+        logEvent(state, 'trade', `Grand counter-pact with ${rival.name}`, rival.name);
+        resolved = true;
       } else if (choiceId === 'decline') {
         state.villageReputation = Math.max(0, state.villageReputation - 1);
         logEvent(state, 'event', `Declined alliance with ${rival.name}`, rival.name);
@@ -1101,24 +1088,20 @@ export function respondToDiplomacyEvent(
       break;
     case 'peace_treaty':
       if (choiceId === 'sign') {
-        if (state.resources.gold >= 15 && state.resources.food >= 10) {
-          state.resources.gold -= 15;
-          state.resources.food -= 10;
-          rival.peaceTreatyDays = PEACE_TREATY_EVENT_DAYS;
-          rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PEACE_TREATY_EVENT_DAYS);
-          if (rival.relationship === 'competitive') rival.relationship = 'neutral';
-          if (cancelPendingRaidsForRival(state, rival.id)) {
-            logEvent(state, 'event', `Raid called off — truce with ${rival.name}`, rival.name);
-          }
-          if (cancelPendingOutgoingRaidsForRival(state, rival.id)) {
-            logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
-          }
-          pushFloat(state, rival.campX, rival.campY - 20, '🕊️ Truce', '#22d3ee');
-          logEvent(state, 'event', `Peace treaty with ${rival.name} — 45 days`, rival.name);
-          resolved = true;
-        } else {
-          pushFloat(state, rival.campX, rival.campY - 20, 'Need 15💰 + 10🍖', '#f97316');
+        state.resources.gold -= 15;
+        state.resources.food -= 10;
+        rival.peaceTreatyDays = PEACE_TREATY_EVENT_DAYS;
+        rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PEACE_TREATY_EVENT_DAYS);
+        if (rival.relationship === 'competitive') rival.relationship = 'neutral';
+        if (cancelPendingRaidsForRival(state, rival.id)) {
+          logEvent(state, 'event', `Raid called off — truce with ${rival.name}`, rival.name);
         }
+        if (cancelPendingOutgoingRaidsForRival(state, rival.id)) {
+          logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
+        }
+        pushFloat(state, rival.campX, rival.campY - 20, '🕊️ Truce', '#22d3ee');
+        logEvent(state, 'event', `Peace treaty with ${rival.name} — 45 days`, rival.name);
+        resolved = true;
       } else if (choiceId === 'tribute') {
         rival.peaceTreatyDays = 21;
         rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 21);
@@ -1311,29 +1294,6 @@ function rejectVisitorTrade(state: WorldState, group: VisitorGroup, hint: string
   return state;
 }
 
-function storageRoom(state: WorldState, type: keyof WorldState['resources']): number {
-  return Math.max(0, (state.storageMax[type] as number) - (state.resources[type] as number));
-}
-
-function canFitPurchase(state: WorldState, type: keyof WorldState['resources'], amount: number): boolean {
-  return storageRoom(state, type) >= amount;
-}
-
-function canPayTradeCost(state: WorldState, pay: Partial<Record<keyof WorldState['resources'], number>>): boolean {
-  for (const [key, cost] of Object.entries(pay) as [keyof WorldState['resources'], number][]) {
-    if ((cost ?? 0) > 0 && (state.resources[key] as number) < cost) return false;
-  }
-  return true;
-}
-
-function applyTradeCost(state: WorldState, pay: Partial<Record<keyof WorldState['resources'], number>>): void {
-  for (const [key, cost] of Object.entries(pay) as [keyof WorldState['resources'], number][]) {
-    if ((cost ?? 0) > 0) {
-      (state.resources[key] as number) = Math.max(0, (state.resources[key] as number) - cost);
-    }
-  }
-}
-
 /** Reputation-adjusted pay/receive terms for one visitor trade action. */
 function getVisitorTradeTerms(
   state: WorldState,
@@ -1388,7 +1348,7 @@ export function getVisitorTradeEligibility(
 
   const { effectivePay, effectiveReceive } = getVisitorTradeTerms(state, action);
 
-  if (!canPayTradeCost(state, effectivePay)) {
+  if (!canAfford(state, effectivePay)) {
     const goldNeed = effectivePay.gold ?? 0;
     const hint = action === 'buy_food' ? `Need ${goldNeed}💰`
       : action === 'buy_wood' ? `Need ${goldNeed}💰`
@@ -1408,7 +1368,7 @@ export function getVisitorTradeEligibility(
   }
 
   for (const [key, amount] of Object.entries(effectiveReceive) as [keyof WorldState['resources'], number][]) {
-    if ((amount ?? 0) > 0 && !canFitPurchase(state, key, amount)) {
+    if ((amount ?? 0) > 0 && getAvailableStorageHeadroom(state, key) < amount) {
       const hint = key === 'food' ? 'Food storage full!'
         : key === 'wood' ? 'Wood storage full!'
           : 'Cannot store more gold';
@@ -1443,21 +1403,13 @@ export function tradeWithVisitors(
   }
 
   const { effectivePay, effectiveReceive } = getVisitorTradeTerms(state, action);
-  applyTradeCost(state, effectivePay);
+  consumeResources(state, effectivePay);
   const paidGold = effectivePay.gold ?? 0;
   if (paidGold > 0) group.gold = (group.gold ?? 0) + paidGold;
   let receivedLabel = '';
   for (const [key, amount] of Object.entries(effectiveReceive) as [keyof WorldState['resources'], number][]) {
     if ((amount ?? 0) <= 0) continue;
     const added = addCappedResource(state, key, amount);
-    if (added < amount) {
-      return rejectVisitorTrade(
-        state,
-        group,
-        'Storage full!',
-        'Trade cancelled — not enough storage space.',
-      );
-    }
     if (key === 'food') receivedLabel = `+${added}🍖`;
     else if (key === 'wood') receivedLabel = `+${added}🪵`;
     else if (key === 'gold') receivedLabel = `+${added}💰`;
@@ -1719,21 +1671,21 @@ export function rollYearlyWorldEvent(
         indexLivingEntity(state, wolf);
       }
       return {
-        event: { id: 'wolf_migration', title: 'Wolf Pack Migration', description: 'A pack of wolves has migrated into the valley!', emoji: '🐺', effect: '+3 Wolves', type: 'negative' },
+        event: { id: `wolf_migration_${state.tick}`, title: 'Wolf Pack Migration', description: 'A pack of wolves has migrated into the valley!', emoji: '🐺', effect: '+3 Wolves', type: 'negative' },
         bountifulHarvest,
       };
     }
     case 'bountiful_harvest':
       bountifulHarvest = true;
       return {
-        event: { id: 'bountiful_harvest', title: 'Bountiful Harvest', description: 'Optimal weather causes a massive agricultural boom!', emoji: '🌾', effect: 'Farm production doubled', type: 'positive' },
+        event: { id: `bountiful_harvest_${state.tick}`, title: 'Bountiful Harvest', description: 'Optimal weather causes a massive agricultural boom!', emoji: '🌾', effect: 'Farm production doubled', type: 'positive' },
         bountifulHarvest,
       };
     case 'traveling_merchant':
       addCappedResource(state, 'gold', 50);
       pushFloat(state, width / 2, height / 2, '+50 Gold', '#eab308');
       return {
-        event: { id: 'traveling_merchant', title: 'Traveling Merchant', description: 'A wealthy merchant caravan passed through!', emoji: '🛒', effect: '+50 Gold', type: 'positive' },
+        event: { id: `traveling_merchant_${state.tick}`, title: 'Traveling Merchant', description: 'A wealthy merchant caravan passed through!', emoji: '🛒', effect: '+50 Gold', type: 'positive' },
         bountifulHarvest,
       };
     case 'nature_boom':
@@ -1748,7 +1700,7 @@ export function rollYearlyWorldEvent(
         indexLivingEntity(state, grass);
       }
       return {
-        event: { id: 'nature_boom', title: 'Ecological Super-Bloom', description: 'Natural energy revitalizes the valley flora!', emoji: '🌿', effect: '+15 Trees, +30 Grass', type: 'positive' },
+        event: { id: `nature_boom_${state.tick}`, title: 'Ecological Super-Bloom', description: 'Natural energy revitalizes the valley flora!', emoji: '🌿', effect: '+15 Trees, +30 Grass', type: 'positive' },
         bountifulHarvest,
       };
     case 'visiting_traders':
@@ -1768,7 +1720,7 @@ export function rollYearlyWorldEvent(
     case 'surveyors_crown':
       state.villageReputation = Math.min(100, state.villageReputation + 5);
       return {
-        event: { id: 'surveyors_crown', title: 'Royal Surveyors', description: 'Crown surveyors mapped your village and filed a favorable report.', emoji: '📜', effect: '+5 Reputation', type: 'positive' },
+        event: { id: `surveyors_crown_${state.tick}`, title: 'Royal Surveyors', description: 'Crown surveyors mapped your village and filed a favorable report.', emoji: '📜', effect: '+5 Reputation', type: 'positive' },
         bountifulHarvest,
       };
     case 'deer_migration':
@@ -1778,7 +1730,7 @@ export function rollYearlyWorldEvent(
         indexLivingEntity(state, deer);
       }
       return {
-        event: { id: 'deer_migration', title: 'Deer Migration', description: 'A herd of deer wandered into the valley!', emoji: '🦌', effect: '+4 Deer', type: 'positive' },
+        event: { id: `deer_migration_${state.tick}`, title: 'Deer Migration', description: 'A herd of deer wandered into the valley!', emoji: '🦌', effect: '+4 Deer', type: 'positive' },
         bountifulHarvest,
       };
     case 'generous_neighbors':
@@ -1788,13 +1740,13 @@ export function rollYearlyWorldEvent(
         state.resources.food = Math.min(state.storageMax.food, state.resources.food + food);
         pushFloat(state, rival.campX, rival.campY - 20, `+${food} food`, '#22c55e');
         return {
-          event: { id: 'generous_neighbors', title: 'Neighborly Gift', description: `${rival.name} shared food across the wilds.`, emoji: '🤝', effect: `+${food} Food`, type: 'positive' },
+          event: { id: `generous_neighbors_${state.tick}`, title: 'Neighborly Gift', description: `${rival.name} shared food across the wilds.`, emoji: '🤝', effect: `+${food} Food`, type: 'positive' },
           bountifulHarvest,
         };
       }
       state.resources.food = Math.min(state.storageMax.food, state.resources.food + 40);
       return {
-        event: { id: 'generous_neighbors', title: 'Forest Bounty', description: 'Foragers returned with an unusually rich harvest.', emoji: '🍄', effect: '+40 Food', type: 'positive' },
+        event: { id: `generous_neighbors_${state.tick}`, title: 'Forest Bounty', description: 'Foragers returned with an unusually rich harvest.', emoji: '🍄', effect: '+40 Food', type: 'positive' },
         bountifulHarvest,
       };
     default:
@@ -1851,7 +1803,7 @@ export function tryMidYearVisitorEvent(state: WorldState, allAlive: Entity[], bu
   return spawnVisitorGroup(state, allAlive, buildings, kind);
 }
 
-/** Once per game: friendly visitors on day 4–7 if the player has shelter and no camp yet. */
+/** Once per game: friendly visitors on days 7-13 (tick < 14 * TICKS_PER_DAY) if the player has a completed House or Mansion; state.firstWeekVisitorSpawned makes it one-shot. */
 export function tryFirstWeekVisitor(
   state: WorldState,
   allAlive: Entity[],

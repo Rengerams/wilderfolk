@@ -12,7 +12,7 @@ import { ENTITY_PERSISTED_FIELDS, WORLD_STATE_SAVE_KEYS } from './saveSchema';
 import { generateWorldMap } from './terrainGen';
 import {
   getCalendarDay, getHourOfDay, getAbsoluteCalendarDay, migrateHumanAges, rebuildChildrenIds,
-  TICKS_PER_DAY, DAYS_PER_YEAR, LEGACY_TICKS_PER_DAY,
+  TICKS_PER_DAY, DAYS_PER_YEAR,
   assignMissingResidences,
 } from './dayCycle';
 import { mergeCombatResearchNodes } from './combat';
@@ -353,9 +353,13 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
     const worldData = pickWorldStateFromSave(parsed);
 
     let loadedTick = (worldData.tick ?? (parsed.tick as number | undefined) ?? 0) as number;
+    // A save written by this build always carries `_ticksPerDay: TICKS_PER_DAY`, and
+    // `parseSaveJson` admits only this build's saves, so a missing day length means a
+    // current-day-length save — not a legacy 24-tick one. Defaulting to
+    // LEGACY_TICKS_PER_DAY tripled `world.tick` and every absolute deadline on load.
     const savedTicksPerDay = typeof parsed._ticksPerDay === 'number' && parsed._ticksPerDay > 0
       ? (parsed._ticksPerDay as number)
-      : LEGACY_TICKS_PER_DAY;
+      : TICKS_PER_DAY;
     const autoSave = typeof worldData.autoSave === 'boolean'
       ? worldData.autoSave
       : loadAutoSavePreference();
@@ -486,13 +490,12 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
         : b,
     );
 
-    const saveVersion = parsed._version as string;
-    const forceAgeMigration = saveVersion === '0.4' || saveVersion === '0.4.1';
-    migrateHumanAges(
-      world.entities,
-      { year: world.year, dayInYear: world.dayInYear },
-      { forceCalendar: forceAgeMigration },
-    );
+    // The version gate (`parseSaveJson`) admits only this build's saves, so `_version` here can
+    // only ever equal `GAME_VERSION`: the legacy v0.4 … v0.5.1 migration branches that used to
+    // sit here were unreachable dead code. Same-version repairs are done inline (iron backfill,
+    // chronicle chapters, the Church pass below); the timeline migration still runs for a save
+    // that explicitly declares a different `_ticksPerDay`.
+    migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
     rebuildChildrenIds(world.entities);
     migrateLegacySecurityRoles(world);
     assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities);
@@ -504,38 +507,6 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
       world.appliedSaveMigrations.push(id);
       logEvent(world, 'event', message);
     };
-
-    if (forceAgeMigration) {
-      world.foodSpoilageRate = 0.03;
-      applySaveMigration('v0.4', 'Save migrated to v0.4 — calendar, housing, and balance refreshed.');
-    }
-
-    if (saveVersion === '0.4') {
-      applySaveMigration('v0.4.1', 'Save migrated to v0.4.1 — diplomacy, leadership, trade routes, and victory paths refreshed.');
-    }
-
-    if (saveVersion === '0.4.1' || saveVersion === '0.4') {
-      applySaveMigration('v0.4.2', 'Save migrated to v0.4.2 — 6-tab UI, forge, defense buildings, and balance pass features are active.');
-    }
-
-    if (saveVersion === '0.4.2' || saveVersion === '0.4.1' || saveVersion === '0.4') {
-      applySaveMigration(
-        'v0.5.0',
-        'Save migrated to v0.5.0 — scale foundation, sim trust pass (Batch EK), and forge tier 5 (swords, scale mail, ballistae).',
-      );
-    }
-
-    if (
-      saveVersion === '0.5.0' ||
-      saveVersion === '0.4.2' ||
-      saveVersion === '0.4.1' ||
-      saveVersion === '0.4'
-    ) {
-      applySaveMigration(
-        'v0.5.1',
-        'Save migrated to v0.5.1 — clearer valley: fairer raid spoils and presentation polish.',
-      );
-    }
 
     // Church manual staffing (one-time): older 0.6.1-line saves may carry
     // Churches auto-filled before manual priest selection existed. The Church

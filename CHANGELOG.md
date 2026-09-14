@@ -86,6 +86,9 @@
 - **Medium-tier audit fixes, batch 2 — cadence, gates and one repeated warning** — **M31:** the off-screen wildlife throttle counted raw ticks although `tickWildlife` only runs on wildlife-layer ticks, so for ids ≡ 1, 2 or 3 (mod 4) the gate had *no solution*: ~75% of out-of-focus fauna never ran an AI step (movement, hunting, grazing, reproduction) while still paying the metabolic drain every pulse. The gate now counts layer pulses, extracted as `simFocus.isOffscreenWildlifeActive` so it is testable. **M7:** `resolveCombatLogKind` classified **every** chronicle line, so any ordinary event whose text mentioned a raid was counted as an incoming raid or a defence in the combat summary; it now requires `type === 'combat'`. **M11:** `needsMedicalCare` compared the grief deadline with `0` instead of the current tick, making every settler who had ever grieved a permanent walk-in patient; it takes `tick` now (both call sites updated). **M23:** the residence pickers accepted rival-camp houses — completed Houses with faction `rival` count zero *player* residents, so they scored as free housing and a newly married or divorced settler could be placed inside the enemy camp, where `syncResidenceOccupants` never syncs and the residence↔occupants invariant is false in both directions; every picker now skips foreign housing. **M38:** storm damage used `Math.max(20, before - dmg)` and so *healed* a building that was already below the 20 HP floor (and the `health < before` test hid it from the damage report); damage now stops at the floor (`STORM_DAMAGE_HEALTH_FLOOR`) and never raises health. **M1:** a continued food shortage re-notified "Animal shortage" every colony day because the shortage marker was written but never read; the warning now fires once per episode. `tests/medium-batch2.test.ts` (8) covers all six.
 - **Medium-tier audit fixes, batch 3 — read the right end of the log, and never stop the frame loop** — **M32:** the travelling theatre built its script list from `eventLog.slice(-40)`, which is the *oldest* forty entries of a newest-first log (or nothing at all on a short log), so recent disasters, scandals and milestones were ignored; it reads the head now. **M2:** `pickBeautySpot` seeded its best value at `-1`, so a grid with no beauty anywhere returned the up-left corner of the search window instead of the documented fallback to the caller's own position. **M36:** rival-owned watchtowers counted as player early-warning towers, revealing their own raiders and logging "A Watchtower spotted hostile raiders"; the scan is player-owned towers only. **M9:** `GameLoop.frame` re-armed `requestAnimationFrame` only as its last statement, so a single throw from a tick, draw or notify stopped ticks and rendering for the rest of the session with no recovery — the body is now wrapped in try/catch with the re-arm in `finally`. **M8:** player commands issued while the sim worker was booting were queued for a worker that might never arrive and were stranded (or later replayed on top of newer local commands) when init failed or the worker faulted; both paths now flush the queue through the same main-thread domain implementation. `tests/medium-batch3.test.ts` (5) covers the first three; the two `GameLoop` fixes are covered by the existing suite and the typecheck.
 
+---
+
+
 ## <u>[0.6.4]</u> — 2026-08-27
 
 - **Windows desktop distribution** — published the first standalone Wilderfolk Windows desktop build using Tauri v2. The release includes NSIS `.exe` and MSI installers, a bundled Wilderfolk icon, and maximized startup.
@@ -95,16 +98,37 @@
 - **Release assets** — Windows installers are available from the [GitHub Release for v0.6.4](https://github.com/Rengerams/wilderfolk/releases/tag/v0.6.4).
 - **Scope note** — this release is limited to desktop distribution. The terrain overhaul, Settler Inspector, Oracle advice system, connected formations, and weather-layer work remain separate development tracks.
 
+---
+
 ## <u>[0.6.3.1]</u> — 2026-08-28
--
--
--
--
--
--
+
+- 0	O1	Player-visible Simulation Diagnostics	Makes the worker/main-thread mode, current tick, selected settler activity, workplace, home, and blocked reason understandable during play.	Presentation-only projection from existing diagnostics; no new simulation owner.	A compact optional drawer explains what the simulation is doing and why a selected settler is where they are.	Implemented
+- 0	O2	Explainable Story Choices	Keeps an unaffordable story card visible and explains the missing resource or condition.	Existing story owners and typed player commands.	Every blocked story choice gives a clear reason and remains available until the player can act.	Implemented
+- 0	O3	Save and Worker Truth Contract	Keeps important story, campaign, election, animal-care, residence, and staffing state consistent across worker updates and saves.	Existing SimTickDelta, save/load, and migration owners.	A single contract matrix covers extract/apply and save/load round trips for durable state.	Implemented
+- 0	O4	Selected Settler Inspector Completion	Turns the human status display into a dependable follow view for home, commute, work, leisure, and interruptions.	Authoritative world projection; existing human-status owner.	Selecting one settler shows live activity, home, workplace, schedule, target, and the latest transition.	Implemented
+- 0	O5	Calm, Useful Diagnostics	Keeps important warnings visible without flooding normal play or long-run logs.	relationshipDiagnostics.ts and future presentation diagnostics; flush cadence unchanged.	Normal play stays quiet; optional debug mode provides detailed daily and cumulative reports.	Implemented
+- 1	P1	Seeded Colony Health Scenario	Gives the whole simulation a repeatable long-run health check.	Existing game tick and invariant owners.	A seeded 100-day scenario checks food, housing, workforce, relationships, stories, elections, animals, and deltas together.	Implemented
+- 1	P2	Seeded One-Year Performance Run	Makes long-run worker and Huge-map performance measurable.	Existing worker and simulation instrumentation.	Reports p50/p95 tick time, path calls, delta size, memory trend, fallback count, and console volume.	Implemented
+- 1	P3	Assignment Explanations	Helps the player understand why a building cannot accept a worker or why an assignment changed.	Existing workforce and building-action owners.	Auto/manual mode, capacity, current workers, and rejection reasons appear together in the inspector.	Implemented
+- 1	P4	Resource Flow Panel	Makes the economy a visible planning problem instead of a set of unexplained totals.	Existing economy ledger and daily economy owner.	The player can see recent production, consumption, storage pressure, and daily net change.	Implemented
+- 1	P5	Movement Reason Trace	Makes commuting and blocked movement legible.	Existing movement/pathfinding owner; presentation-only history.	A selected settler can show a short route reason such as home → workplace → tavern → home, including blocked or rerouting states.	Implemented
+- 1	P6	Normal-Zoom Presentation Pass	Confirms that characters, children, buildings, roads, walls, watchtowers, and selected panels read correctly at normal play scale.	Existing renderer and presentation assets only.	A browser acceptance checklist covers visual assets, panel hierarchy, status, map density, and defense feedback.	Implemented
+- 1	P7	Family Reference Coverage	Protects surviving family histories as settlers leave the world.	Existing killHuman() cleanup and family-reference owner.	Dedicated coverage verifies parent, child, partner, affair, and pregnancy references after permanent removal.	Implemented
+- 2	T1	Supported Dependency and Type Checks	Makes project-health reports trustworthy and easy to reproduce.	Package scripts and repository tooling.	Add an explicit type-check command and replace or update dependency-cycle analysis for the installed TypeScript toolchain.	Implemented
+- 2	T2	Smaller Initial Game Bundle	Improves first load and reduces pressure on low-end machines.	Vite/Rolldown boundaries and lazy-loaded UI modules.	Move non-startup panels and data-heavy features behind dynamic imports; measure the main game chunk again.	Implemented
+- 2	T3	Unified Deterministic RNG Helpers	Keeps seeded behavior consistent as more systems are added.	simRng.ts and existing per-owner streams.	One documented helper pattern for world generation, social rolls, stories, elections, and future systems.	Implemented
+- 2	T4	Clear Save-Version Experience	Makes save compatibility understandable to players.	Existing save/version owner and user-facing messaging.	The game explains when a new settlement is needed and what a save version means.	Implemented
+- 3	F1	Colony Operations Center	Gives the player one calm place to see what is failing, what is about to fail, and what can be done now.	Presentation projection over existing food, housing, workforce, threat, story, and warning state.	A compact dashboard links each concern to the relevant person, building, card, or action.	Implemented
+- 3	F2	Daily Council Report	Turns the daily simulation boundary into a readable planning rhythm.	Existing daily cadence; presentation consumes its results.	Each day reports net food, housing, assignments, births/deaths, relationships, stories, raids, and unresolved warnings.	Implemented
+- 3	F3	Workforce Policy Presets	Gives players a simple strategic way to steer auto-staffing.	Existing workforce commands and assignment owner.	Survival, Growth, Defense, and Comfort presets configure priorities while manual overrides remain authoritative.	Implemented
+- 3	F4	Infrastructure and Logistics Overlay	Connects roads, buildings, commutes, and map scale into a meaningful spatial strategy.	Existing pathfinding, road, building, and movement owners.	A read-only overlay shows supply routes, commute pressure, blocked paths, and poorly connected buildings.	Implemented
+- 3	F5	Settlement Memory and Legacy Goals	Gives a long-running colony a recognizable identity.	Existing chronicle, story flags, event log, and milestone presentation.	The game records achievements such as surviving winter, keeping a promise, curing a Moon Howler, or recovering from shortage.	Implemented
+- 3	F6	Preparation-Window Crises	Adds strategic tension without hidden punishment.	Existing daily event ownership and deterministic seeded outcomes.	A clearly telegraphed winter, embargo, disease risk, harvest failure, or fire risk offers preparation time and multiple responses.	Implemented
+- 3	F7	Replay and “What Changed?” Mode	Makes the deterministic simulation useful to both players and developers.	Existing seeded state, event history, save state, and diagnostics.	A short history compares daily changes in food, housing, assignments, relationships, stories, and threats.	Implemented
+- 3	F8	Shared “Why?” Interaction Layer	Turns complex simulation state into understandable choices.	Presentation-only readers over existing authoritative owners.	Selecting a settler, building, resource, or warning explains the current reason, consequence, and available recovery action.	Implemented
 
 
-
+---
 
 
 
@@ -147,6 +171,8 @@
 - **Rerendered child sprite wiring** — updated `src/game/humanSprites.ts` and `src/game/spriteLoader.ts` to load the rerendered child assets from `public/sprites/new_child_set/new/`. The original child assets remain available for rollback. Adult male and female preview paths remain wired to the new sets with legacy variants retained. TypeScript validation passed; real-map visual acceptance remains pending. See `docs/CHILD_AND_RESIDENT_SPRITE_WIRING.md`.
 - **More consistent long-running simulation** — the authoritative permanent-removal transition now clears stale child, partner, affair, and pregnancy-parent references from surviving settlers, while adoption and housing retain their existing owners. The cleanup is covered by the deterministic one-year invariant run (**seed 12345; 0 violations**) and the full suite (**88 files / 474 tests**).
 
+---
+
 ## <u>[0.6.2.2]</u> — 2026-08-21
 
 - **Defense art pass — wall, gate and watchtower assets** — audited the user-provided `wall_isometric.png`, `Gate .png`, and `watchtower.png` files. Preserved the original sources, generated compact transparent `gate_isometric.png` and `watchtower_isometric.png` variants, and applied a shared Wilderfolk defensive palette across the normalized wall, gate and tower outputs. Straight wall segments and gates now use the new isometric visuals while corner pieces remain procedural/logical and unchanged. The Watchtower remains its existing passive defense structure: +15 barricade strength per completed tower, with the existing forged ballista upgrade path; no new range, targeting or warning simulation was added. TypeScript, production build and diff checks passed; the known circular chunk and large game chunk remain open.
@@ -187,6 +213,9 @@
 - **Reductions:** Removed the `economy.ts` trade re-export edge; introduced `ecologyTypes.ts`; removed the `INITIAL_CHALLENGES` gameTypes re-export; introduced `dayCycleClock.ts`; and routed human-chat rate constants through the clock leaf.
 - **Validation:** **70 test files / 404 tests** passed; focused schedule/worker/layer coverage passed with **3 files / 20 tests**; build and Wilderfolk-only lint passed. The focused cycle command still resolves zero modules, so the complete graph remains the authoritative measurement.
 - **Rollback plan:** Restore the compatibility exports and direct day-cycle imports, then remove `ecologyTypes.ts` and `dayCycleClock.ts`; no save migration or gameplay rollback is required.
+
+---
+
 
 ## <u>[0.6.2.1]</u> — 2026-08-21
 
@@ -245,6 +274,9 @@
 - **Regression coverage:** `tests/renderer.presentationLayout.test.ts`.
 - **Rollback plan:** Restore the former per-renderer ellipse calls; no save or migration work is required.
 
+---
+
+
 ## <u>[0.6.2]</u> — 2026-08-21
 
 **A village that works, celebrates, talks, and grows up.** This release promotes the player-facing work completed after v0.6.1.1: reliable worker commands, living festivals, readable social life, Chronicle parity, pathing and hunt repairs, clearer building presentation, expanded dialogue, and youth love. Save compatibility: **0.6.2 exact-version policy** — start a new settlement when updating from another build.
@@ -270,6 +302,9 @@
 - **Invariants checked:** Mutual youth links, no adult partner overlap, no direct youth marriage/pregnancy/housing/workforce state, adult handoff only at 18.
 - **Save/migration impact:** New fields are optional, but the beta build retains the project’s exact-version save policy and therefore requires a new settlement when moving between builds, including v0.6.1.1 and v0.6.1.2.
 - **Rollback plan:** Remove the daily `advanceYouthLove` call and optional youth fields; existing adult courtship remains intact.
+
+---
+
 
 ## <u>[0.6.1.1]</u> — 2026-08-20
 

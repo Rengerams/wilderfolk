@@ -104,6 +104,8 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
     state.wildlifeCounts,
     state.buildings,
     state.unlockedTechs,
+    state.ecosystemHealth,
+    state.humanPopulation,
     state.tick,
   ]);
   const stage = valley.stage;

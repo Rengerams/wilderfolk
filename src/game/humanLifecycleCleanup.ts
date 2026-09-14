@@ -1,6 +1,6 @@
 import type { Building, Entity } from './gameTypes';
 import { EntityType } from './gameTypes';
-import { finalizeMoonHowlerDeath } from './moonHowler';
+import { finalizeMoonHowlerDeath, isSettlerRelationshipEntity } from './moonHowler';
 import { cleanupEntityDialogueState } from './humanChat';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { isMinorChild } from './householdComposition';
@@ -58,6 +58,11 @@ export function finalizeHumanDeath(
   entity.lastAffairSiteDay = undefined;
   entity.lastAffairSiteX = undefined;
   entity.lastAffairSiteY = undefined;
+  // Youth love is mutual-only: a dying sweetheart must not leave its own half link behind
+  // (the survivor's half is cleared in reconcileFamilyReferencesAfterRemoval).
+  entity.youthLovePartnerId = undefined;
+  entity.youthLoveProgress = undefined;
+  entity.youthLoveStartedDay = undefined;
 
   if (entityById) {
     if (partnerId != null) {
@@ -162,6 +167,14 @@ export function reconcileFamilyReferencesAfterRemoval(
       survivor.lastAffairSiteY = undefined;
     }
     if (survivor.pregnantById === removedId) survivor.pregnantById = undefined;
+    // A youth-love link joins two living settlers (§5). The daily youth-love reconciliation
+    // runs before most daily deaths, so the survivor's half must be cleared here or the
+    // collector reports a one-sided link to a pruned settler until the next day.
+    if (survivor.youthLovePartnerId === removedId) {
+      survivor.youthLovePartnerId = undefined;
+      survivor.youthLoveProgress = undefined;
+      survivor.youthLoveStartedDay = undefined;
+    }
     // Release a tamed animal whose owner just died: nothing else clears `tamedBy` on death and
     // `isValidHuntPrey` refuses tamed prey, so the orphan stayed on the daily ration list forever
     // and could never be hunted.
@@ -189,16 +202,11 @@ export function killHuman(
   if (entityById) reassignOrphansAfterDeath(entity, buildings, entityById);
 }
 
-/** Human settler or cursed villager in werewolf form — valid marriage partner for lookups. */
-function isLivingMarriagePartner(entity: Entity | undefined): boolean {
-  if (!entity?.alive) return false;
-  if (entity.type === EntityType.Human) return true;
-  return entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
-}
-
 /**
  * Clear marriage links when the partner row was removed from the alive list.
  * Runs after dead entities are pruned — safety net when widow cleanup missed a death path.
+ * The "a cursed settler in Moon Howler form still counts as a partner" rule is owned by
+ * `moonHowler.isSettlerRelationshipEntity`; this module reuses it instead of redefining it.
  */
 export function reconcileOrphanedMarriages(entities: readonly Entity[]): void {
   const byId = new Map<number, Entity>();
@@ -206,7 +214,7 @@ export function reconcileOrphanedMarriages(entities: readonly Entity[]): void {
   for (const human of entities) {
     if (!human.alive || human.type !== EntityType.Human) continue;
     if (human.partnerId == null || human.relationshipStatus !== 'married') continue;
-    if (!isLivingMarriagePartner(byId.get(human.partnerId))) {
+    if (!isSettlerRelationshipEntity(byId.get(human.partnerId))) {
       human.partnerId = undefined;
       human.relationshipStatus = human.pregnant ? 'expecting' : 'single';
     }

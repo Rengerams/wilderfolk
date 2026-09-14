@@ -63,7 +63,10 @@ export const TUTORIAL_CAMPAIGN: TutorialCampaignStep[] = [
     icon: '❄️',
     title: 'Prepare for winter',
     detail: 'Settlers burn wood to heat homes each winter day (1 per 5 people). Stockpile wood and keep food production running — a hungry village is a dying village.',
-    isComplete: (w) => w.dayInYear >= 250,
+    // `dayInYear` wraps every year, so the predicate must stay monotonic: once the
+    // colony reaches year 2 the step is finished for good instead of regressing
+    // (and re-showing this guide) on each new year's day 0.
+    isComplete: (w) => w.year >= 2 || w.dayInYear >= 250,
   },
   {
     id: 'year_two',

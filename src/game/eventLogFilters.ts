@@ -10,6 +10,7 @@ export const EVENT_LOG_FILTER_OPTIONS: Array<{ id: 'all' | GameEventLog['type'];
   { id: 'birth', label: 'Births' },
   { id: 'death', label: 'Deaths (age, illness, exhaustion, raid)' },
   { id: 'marriage', label: 'Marriages' },
+  { id: 'divorce', label: 'Divorces' },
   { id: 'scandal', label: 'Scandals' },
   { id: 'building', label: 'Buildings' },
   { id: 'research', label: 'Research' },

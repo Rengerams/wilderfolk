@@ -16,7 +16,14 @@ export interface YearlyStats {
   marriages: number;
   /** Married player humans at year-end (for year-over-year marriage delta). */
   marriedCount: number;
-  buildings: { completed: number; total: number; upgraded: number };
+  buildings: {
+    completed: number;
+    total: number;
+    /** Upgrades completed during this year. */
+    upgraded: number;
+    /** Cumulative upgrade levels standing at year end — the baseline next year's delta compares to. */
+    upgradedTotal: number;
+  };
   resources: { wood: number; stone: number; food: number; gold: number };
   ecosystem: { health: number; pollution: number; biodiversity: number };
   events: string[];
@@ -84,7 +91,11 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
     (sum, b) => sum + (b.level > 1 ? b.level - 1 : 0),
     0,
   );
-  const prevUpgrades = prevYearStats?.buildings.upgraded ?? 0;
+  // `upgradedTotal` is the cumulative baseline; `buildings.upgraded` is only this year's delta,
+  // so comparing the cumulative count against last year's delta reported phantom upgrades in
+  // any year that followed an upgrade-free year (2 standing upgrades, no work for two years →
+  // 0 then 2 again).
+  const prevUpgrades = prevYearStats?.buildings.upgradedTotal ?? 0;
   const upgradesThisYear = Math.max(0, currentUpgrades - prevUpgrades);
 
   const stats: YearlyStats = {
@@ -112,6 +123,7 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
       completed: state.buildings.filter(b => b.completed).length,
       total: state.totalBuildingsCompleted,
       upgraded: upgradesThisYear,
+      upgradedTotal: currentUpgrades,
     },
     resources: { ...state.resources },
     ecosystem: {

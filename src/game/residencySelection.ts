@@ -517,7 +517,12 @@ export function isUnnecessarilySharingHousing(
 
 export function auditHousingSharingIssues(humans: Entity[], buildings: Building[]): string[] {
   const alive = humans.filter((h) => h.alive && !h.faction);
-  const residences = buildings.filter(isResidenceBuilding);
+  // Player housing only, and never the Leader's House: rival-camp houses count 0 *player*
+  // residents and the manor is never a placement target, so counting either as an "empty
+  // house available" reported sharing that no picker could actually resolve.
+  const residences = buildings.filter(
+    (b) => isResidenceBuilding(b) && !isLeaderHouseResidence(b) && b.faction !== 'rival',
+  );
   const emptyCount = residences.filter((r) => countResidentsInBuilding(alive, r.id) === 0).length;
 
   const issues: string[] = [];
@@ -590,37 +595,6 @@ function anyOpenBeds(
       !isLeaderHouseResidence(r) &&
       countResidentsInBuilding(humans, r.id, occupancy) < getResidenceCapacity(r),
   );
-}
-
-export function pickSharedResidenceForFamily(
-  family: Entity[],
-  humans: Entity[],
-  residences: Building[],
-  occupancy?: ResidenceOccupancy,
-): number | undefined {
-  let best: Building | undefined;
-  let bestScore = Infinity;
-
-  for (const residence of residences) {
-    // Player housing only: rival-camp houses are completed Houses with faction 'rival', they
-    // count 0 *player* residents, so they scored as empty/free housing and a newly married or
-    // divorced settler could be placed inside the enemy camp (and `syncResidenceOccupants`
-    // never syncs rival buildings, so both directions of the residence invariant went false).
-    if (isLeaderHouseResidence(residence) || residence.faction === 'rival') continue;
-    if (!familyFitsInResidence(family, residence, humans, occupancy)) continue;
-
-    const count = countResidentsInBuilding(humans, residence.id, occupancy);
-    const alreadyHere = familyAlreadyInResidence(family, residence.id);
-    const outsiders = count - alreadyHere;
-    const score = outsiders * 10 + count;
-
-    if (score < bestScore || (score === bestScore && residence.id < (best?.id ?? Infinity))) {
-      bestScore = score;
-      best = residence;
-    }
-  }
-
-  return best?.id;
 }
 
 export function pickResidenceForFamily(

@@ -185,13 +185,25 @@ export function advanceSocialRelationships(state: WorldState, allAlive: Entity[]
     }
   }
 
-  // Strong friends lift each other's spirits.
+  // Strong friends lift each other's spirits. A counterpart who is gone is not a
+  // friend any more, so prune the record here exactly as the feud pass above does.
   for (const p of people) {
-    if (!p.friendships) continue;
-    
+    const friendships = p.friendships;
+    if (!friendships) continue;
+
     let strongCount = 0;
-    for (const val of Object.values(p.friendships)) {
-      if (val >= 60) strongCount++;
+    for (const key in friendships) {
+      if (!friendships.hasOwnProperty(key)) continue;
+
+      const otherId = Number(key.substring(FRIEND_PREFIX.length));
+      if (isNaN(otherId)) continue;
+
+      if (!byId.has(otherId)) {
+        delete friendships[key];
+        continue;
+      }
+
+      if (friendships[key] >= 60) strongCount++;
     }
 
     if (strongCount > 0) {

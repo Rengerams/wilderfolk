@@ -147,7 +147,14 @@ export function commuteHumanToBuilding(
       cacheKey,
     );
 
-    if (handled === 'path') return false;
+    if (handled === 'path') {
+      // steerWithPath applies its own step for callers that do not integrate again.
+      // A commute is integrated exactly once by the human loop's movement apply, so
+      // take that step back and leave the velocity for that single apply.
+      entity.x -= entity.vx;
+      entity.y -= entity.vy;
+      return false;
+    }
     if (handled === 'arrived') return true;
 
     const step = Math.min(dist, moveSpeed * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO);

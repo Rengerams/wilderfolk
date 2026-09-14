@@ -36,7 +36,6 @@ export interface ChatPickOptions {
   weather?: WeatherType;
   festivalActive?: boolean;
   foodLow?: boolean;
-  avoidTreeId?: string;
 }
 
 export interface ChatWorldHints {
@@ -334,26 +333,16 @@ export function sayHumanChatPhrase(
   phrase: string,
   legacyDurationTicks = 120,
 ): void {
+  // A forced phrase abandons whatever dialogue session this settler held. The
+  // entry must leave the map with the key: `startDialogueTreeChat` refuses a key
+  // that is still present, so detaching the key alone left the settler permanently
+  // unable to speak a tree line and leaked the session for the session's lifetime.
+  const staleKey = entity.chatDialogueSessionKey;
+  if (staleKey) dialogueSessions.delete(staleKey);
   entity.chatDialogueSessionKey = undefined;
   entity.chatPartnerId = undefined;
   entity.chatPhrase = formatChatLine(phrase, entity);
   entity.chatTicks = activeChatTicksFromLegacyDuration(legacyDurationTicks);
-}
-
-export function startHumanChat(
-  entity: ChatSpeaker,
-  context: HumanChatContext,
-  entityId: number,
-  tick: number,
-  _legacyDurationTicks = CHAT_DEFAULT_DURATION_LEGACY_TICKS,
-  options: ChatPickOptions = {},
-  partner: ChatSpeaker | null = null,
-): void {
-  if ((entity.chatTicks ?? 0) > 0) return;
-  if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
-  const tree = pickDialogueTree(context, entityId, tick, options, options.avoidTreeId);
-  if (!tree) return;
-  startDialogueTreeChat(entity, partner, tree, partner == null);
 }
 
 export function tickHumanChat(
@@ -364,9 +353,16 @@ export function tickHumanChat(
   entity.chatTicks--;
   if (entity.chatTicks > 0) return;
 
-  if (entity.chatDialogueSessionKey && resolvePartner) {
-    const advanced = advanceDialogue(entity, resolvePartner);
+  if (entity.chatDialogueSessionKey) {
+    const advanced = resolvePartner ? advanceDialogue(entity, resolvePartner) : false;
     if (advanced) return;
+    // `advanceDialogue` returning false means the session is gone (a forced phrase
+    // reclaimed it, or the partner vanished). Drop the keys too, otherwise the
+    // counterpart stays dialogue-busy on a session no one owns any more.
+    if (!dialogueSessions.has(entity.chatDialogueSessionKey)) {
+      entity.chatDialogueSessionKey = undefined;
+      entity.chatPartnerId = undefined;
+    }
   }
 
   clearEntityChat(entity);
@@ -388,7 +384,7 @@ export function maybeDialogueChat(
 
   if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
 
-  const tree = pickDialogueTree(context, entity.id, tick, options, options.avoidTreeId);
+  const tree = pickDialogueTree(context, entity.id, tick, options);
   if (tree) {
     startDialogueTreeChat(entity, partner, tree, partner == null);
     return;
@@ -479,83 +475,6 @@ export function tryAmbientRandomDialogue(
   }
 
   maybeDialogueChat(entity, partner, context, tick, 1, options);
-}
-
-/** @deprecated Prefer `maybeDialogueChat` — duration is derived from dialogue line length. */
-export function maybeHumanChat(
-  entity: ChatSpeaker,
-  context: HumanChatContext,
-  _entityId: number,
-  tick: number,
-  chance: number,
-  _legacyDurationTicks = CHAT_DEFAULT_DURATION_LEGACY_TICKS,
-  options: ChatPickOptions = {},
-  partner: ChatSpeaker | null = null,
-): void {
-  maybeDialogueChat(entity, partner, context, tick, chance, options);
-}
-
-function housemateChatContext(
-  entity: ChatSpeaker,
-  mate: ChatSpeaker | null,
-  options: ChatPickOptions,
-): HumanChatContext {
-  if (options.foodLow) return 'food';
-  if (entity.isJuvenile || mate?.isJuvenile) return 'child';
-  return 'home';
-}
-
-/** Pair chat bubbles between settlers sharing a home. */
-export function maybeHousemateChat(
-  entity: ChatSpeaker,
-  housemates: ChatSpeaker[],
-  tick: number,
-  chance: number,
-  _durationTicks = 95,
-  options: ChatPickOptions = {},
-): void {
-  if ((entity.chatTicks ?? 0) > 0) return;
-  const others = housemates.filter((h) => h.id !== entity.id);
-  if (others.length === 0) {
-    maybeDialogueChat(entity, null, housemateChatContext(entity, null, options), tick, chance * 0.6, options);
-    return;
-  }
-  if (seededRandomForRun(`chat-home:${entity.id}:${tick}`) > chance) return;
-  const mate = others[(entity.id + Math.floor(tick / 40)) % others.length]!;
-  maybeDialogueChat(entity, mate, housemateChatContext(entity, mate, options), tick, 1, options);
-}
-
-/** @deprecated Use dialogue trees via maybeDialogueChat */
-export function startPairedHumanChat(
-  speaker: ChatSpeaker,
-  listener: ChatSpeaker,
-  pair: readonly [string, string],
-  _tick: number,
-  legacyDurationTicks = CHAT_DEFAULT_DURATION_LEGACY_TICKS,
-): void {
-  sayHumanChatPhrase(speaker, pair[0], legacyDurationTicks);
-  sayHumanChatPhrase(listener, pair[1], legacyDurationTicks);
-}
-
-/** @deprecated Dialogue trees replace static pairs */
-export function pickCourtshipPair(_entityId: number, _tick: number): readonly [string, string] {
-  return ['Walk with me?', 'Gladly.'];
-}
-
-/** @deprecated Dialogue trees drive phrase selection */
-export function pickChatPhrase(
-  context: HumanChatContext,
-  entityId: number,
-  tick: number,
-  options: ChatPickOptions = {},
-): string {
-  const tree = pickDialogueTree(context, entityId, tick, options);
-  return tree?.lines[0]?.text ?? '…';
-}
-
-export function truncateChatForBubble(text: string, maxChars = CHAT_BUBBLE_MAX_CHARS_PER_LINE): string {
-  const lines = wrapChatLines(text, maxChars, 1);
-  return lines[0] ?? '…';
 }
 
 export function getAnimatedChatDots(tick: number, entityId: number): string {

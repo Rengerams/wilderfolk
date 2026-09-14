@@ -8,7 +8,6 @@ import {
   WEREWOLF_TAME_LINES,
 } from './gameTypes';
 import {
-  DAYS_PER_MOON_CYCLE,
   HUMAN_ADULT_MIN_AGE,
   isFullMoonDay,
   isFullMoonNight,
@@ -19,6 +18,7 @@ import {
   assignMissingResidences,
   countResidentsInBuilding,
   getResidenceCapacity,
+  isStartOfClockHour,
   killHuman,
   syncResidenceOccupants,
   TICKS_PER_HOUR,
@@ -134,13 +134,17 @@ export function rollMoonHowlerRiteOutcome(
 const HUMAN_FORM = { maxEnergy: 500, speed: 2.25, size: 10 };
 const WEREWOLF_FORM = { maxEnergy: 700, speed: 3.4, size: 14 };
 
-export function countActiveMoonHowlerCurses(entities: Entity[]): number {
+export function countActiveMoonHowlerCurses(entities: readonly Entity[]): number {
   return entities.filter((e) => e.alive && e.moonHowlerCursed).length;
 }
 
-export function daysUntilNextFullMoon(colonyDay: number): number {
-  const mod = colonyDay % DAYS_PER_MOON_CYCLE;
-  return mod === 0 ? 0 : DAYS_PER_MOON_CYCLE - mod;
+/**
+ * §5 colony-level gate: at most one living cursed Moon Howler, so a new curse may
+ * only begin while no other curse is active. Every curse route (the full-moon
+ * replacement roll, the debug command) must satisfy this owner rule.
+ */
+export function canBeginMoonHowlerCurse(entities: readonly Entity[]): boolean {
+  return countActiveMoonHowlerCurses(entities) === 0;
 }
 
 /**
@@ -235,16 +239,12 @@ export function isMoonHowlerRevertTick(hourOfDay: number): boolean {
 }
 
 /**
- * Cure window: full-moon night only — from transform hour (20) through hours before 06:00.
- * Not available at 7am work start (old bug).
+ * Cure window: full-moon night only — the same window the cursed settler stays in
+ * werewolf form. `shouldMoonHowlerTransform` holds the single definition; this name is
+ * the rite/flee-window alias. Not available at 7am work start (old bug).
  */
 export function isMoonHowlerCureWindow(colonyDay: number, hourOfDay: number): boolean {
-  return isFullMoonNight(colonyDay, hourOfDay);
-}
-
-/** @deprecated Use isMoonHowlerCureWindow — kept name for call-site clarity in older comments. */
-export function isMoonHowlerCureTick(colonyDay: number, hourOfDay: number): boolean {
-  return isMoonHowlerCureWindow(colonyDay, hourOfDay);
+  return shouldMoonHowlerTransform(colonyDay, hourOfDay);
 }
 
 export function isMoonHowlerEligible(entity: Entity): boolean {
@@ -327,9 +327,10 @@ export function forceMoonHowlerOutside(
 
 /**
  * Snapshot human form + job/home/prison; detach from building occupants; clear live assignment ids.
- * Pass buildings so occupants arrays stay consistent during the hunt.
+ * `buildings` is required: clearing the assignment ids without detaching the ids from the
+ * occupants lists leaves the workplace/residence invariant false for the whole hunt.
  */
-export function transformToWerewolfForm(human: Entity, buildings?: Building[]): void {
+export function transformToWerewolfForm(human: Entity, buildings: Building[]): void {
   const cfg = WEREWOLF_FORM;
   const liveJobId = human.homeBuildingId;
   const liveResidenceId = human.residenceBuildingId;
@@ -362,11 +363,9 @@ export function transformToWerewolfForm(human: Entity, buildings?: Building[]): 
     combatTicks: human.combatTicks,
   };
 
-  if (buildings) {
-    detachEntityFromBuildingOccupants(buildings, liveJobId, human.id);
-    detachEntityFromBuildingOccupants(buildings, liveResidenceId, human.id);
-    detachEntityFromBuildingOccupants(buildings, livePrisonId, human.id);
-  }
+  detachEntityFromBuildingOccupants(buildings, liveJobId, human.id);
+  detachEntityFromBuildingOccupants(buildings, liveResidenceId, human.id);
+  detachEntityFromBuildingOccupants(buildings, livePrisonId, human.id);
 
   human.type = EntityType.Werewolf;
   human.huntTargetId = undefined;
@@ -879,12 +878,13 @@ export interface MoonHowlerSyncResult {
  * Uses the full-moon *window* (not only 20:00 / 06:00 edges) so load mid-hunt
  * and missed edge ticks still match (EK-C4). Only Human→Werewolf / Werewolf→Human
  * when types already mismatch — never re-snapshots an active howler.
+ * `buildings` is required so a transform detaches the settler from occupants.
  */
 export function syncMoonHowlerForms(
   entities: Entity[],
   colonyDay: number,
   hourOfDay: number,
-  buildings?: Building[],
+  buildings: Building[],
   mapWidth = 1200,
   mapHeight = 900,
   tick?: number,
@@ -894,21 +894,14 @@ export function syncMoonHowlerForms(
   const transformed: Entity[] = [];
   const reverted: Entity[] = [];
   const humans = entities.filter((e) => e.alive && e.type === EntityType.Human);
-  const revertOpts =
-    buildings
-      ? { buildings, humans, tick }
-      : tick != null
-        ? { tick }
-        : undefined;
+  const revertOpts: RevertToHumanFormOptions = { buildings, humans, tick };
 
   for (const entity of entities) {
     if (!entity.alive || !entity.moonHowlerCursed || !isMoonHowlerEligible(entity)) continue;
 
     if (wantWerewolf && entity.type === EntityType.Human) {
       transformToWerewolfForm(entity, buildings);
-      if (buildings) {
-        forceMoonHowlerOutside(entity, buildings, mapWidth, mapHeight);
-      }
+      forceMoonHowlerOutside(entity, buildings, mapWidth, mapHeight);
       transformed.push(entity);
     } else if (!wantWerewolf && entity.type === EntityType.Werewolf) {
       revertToHumanForm(entity, revertOpts);
@@ -982,7 +975,12 @@ export function tickMoonHowlerCycle(
     changed = true;
   }
 
-  if (moonSync.nightFall) {
+  // Hour-granular gates (`NIGHT_START`, the full-moon window) are true on all
+  // TICKS_PER_HOUR ticks of hour 20, so latch the once-per-moon decisions to the first
+  // tick of the hour: one nightfall card per full moon, not one per tick. A transform that
+  // first happens mid-hour (a load during hour 20) still announces.
+  const firstTickOfHour = isStartOfClockHour(state.tick);
+  if (moonSync.nightFall && (firstTickOfHour || moonSync.transformed.length > 0)) {
     addBigNews(state, '🌝 Full Moon!', 'Moon Howlers are abroad. Keep settlers indoors — they hunt tonight.', 'negative');
     logEvent(state, 'event', 'Full moon rose — cursed settlers transformed');
   }
@@ -1013,15 +1011,18 @@ export function tickMoonHowlerCycle(
     }
   }
 
-  const activeMoonCurses = countActiveMoonHowlerCurses(aliveEntities);
-  const humanPop = aliveEntities.filter((e) => e.alive && isPlayerHuman(e)).length;
   // The rare replacement roll is a per-moon decision, but the nightfall gate
   // (`hourOfDay === NIGHT_START` inside `shouldApplyNewMoonHowlerCurse`) is true on all
   // TICKS_PER_HOUR ticks of that hour, so rolling every tick turned a
   // MOON_HOWLER_REPLACEMENT_CHANCE roll into ~1-(1-0.15)^3 ≈ 39% per moon. Decide once, on the
-  // first tick of the hour (hour boundaries fall on every TICKS_PER_HOUR-th tick).
-  const nightfallDecisionTick = state.tick % TICKS_PER_HOUR === 0;
-  if (nightfallDecisionTick && shouldApplyNewMoonHowlerCurse(colonyDay, hourOfDay, humanPop, activeMoonCurses, rng)) {
+  // first tick of the hour, and gate the two population scans with it so the realtime layer
+  // does not run an O(N) scan on every one of the 72 ticks/day (SIMULATION_AUTHORITY §4/§9).
+  const replacementDecisionTick = firstTickOfHour && hourOfDay === NIGHT_START;
+  const activeMoonCurses = replacementDecisionTick ? countActiveMoonHowlerCurses(aliveEntities) : 0;
+  const humanPop = replacementDecisionTick
+    ? aliveEntities.filter((e) => e.alive && isPlayerHuman(e)).length
+    : 0;
+  if (replacementDecisionTick && shouldApplyNewMoonHowlerCurse(colonyDay, hourOfDay, humanPop, activeMoonCurses, rng)) {
     const candidates = byType[EntityType.Human].filter((h) => isPlayerHuman(h) && canMoonHowlerCurse(h));
     const human = candidates[Math.floor(rng() * candidates.length)];
     if (human) {
@@ -1049,7 +1050,9 @@ export function tickMoonHowlerCycle(
     }
   }
 
-  const dawnCures = tryMoonHowlerChurchCures(state, aliveEntities, buildings, colonyDay, hourOfDay, entityById);
+  // Forward the stream: the injectable `rng` must reach the rite's outcome, guard-save and
+  // flee rolls too, or a caller with a deterministic stream still cannot reproduce a full moon.
+  const dawnCures = tryMoonHowlerChurchCures(state, aliveEntities, buildings, colonyDay, hourOfDay, entityById, rng);
   if (dawnCures.cured.length > 0) {
     for (const curedOne of dawnCures.cured) {
       const who = curedOne.name ? `${curedOne.name}${curedOne.surname ? ` ${curedOne.surname}` : ''}` : 'A settler';

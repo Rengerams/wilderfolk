@@ -159,6 +159,15 @@ export function tickPregnancyAndBirth(
   setHumanBirthFromAge(child, 0, getColonyDay(state));
   pushNewEntity(state, ctx, child);
 
+  // The assign layer rebuilds residence occupants from `ctx.byType`, which cannot see a
+  // same-tick newborn (pushNewEntity only fills ctx.newEntities). Register the child in the
+  // live Human bucket so the residence it was born into lists it before the daily invariant
+  // collector runs (SIMULATION_AUTHORITY §5: residenceBuildingId ↔ occupants agree).
+  const newbornBucket = byType[EntityType.Human];
+  if (newbornBucket && !newbornBucket.includes(child)) {
+    newbornBucket.push(child);
+  }
+
   // Synchronize family relationships
   safeAddChildId(entity, child.id);
 

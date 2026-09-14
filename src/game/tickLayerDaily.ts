@@ -8,7 +8,6 @@ import type { Entity, WorldState } from './gameTypes';
 import type { PopulationCounts } from './entityCounts';
 import type { TickContext } from './simulation/simulationTypes';
 
-import { isNewCalendarDayTick } from './dayCycle';
 import { addFloatingText } from './simEffects';
 import { syncLeaderHouseResidency } from './leaderHouse';
 import { tickElectionPromises } from './electionPromises';
@@ -41,34 +40,35 @@ export function tickLayerDaily(
   allAlive: Entity[],
   counts: PopulationCounts,
 ): void {
+  // `gameTick` calls this layer only on a day boundary (`state.tick % TICKS_PER_DAY === 0`,
+  // after the tick increment, so tick 0 is unreachable). The day-gate checks that used to wrap
+  // the blocks below were therefore unconditionally true and documented a tick-0 path that
+  // cannot exist; they are gone rather than left as misleading no-ops.
+  //
   // Winter heating runs once in gameTick (sets ctx.canHeat) — do not burn wood again here.
 
-  if (isNewCalendarDayTick(state)) {
-    resolveDailyVillageScheduleFatigue(state, ctx.playerHumans);
-  }
+  resolveDailyVillageScheduleFatigue(state, ctx.playerHumans);
 
-  // Phase 7 social layers & chronicles — pulse daily (skip tick 0 initialization)
-  if (state.tick > 0) {
-    advanceSocialRelationships(state, allAlive);
-    advanceYouthLove(state, ctx);
-    advanceApprenticeships(state, allAlive);
+  // Phase 7 social layers & chronicles — pulse daily
+  advanceSocialRelationships(state, allAlive);
+  advanceYouthLove(state, ctx);
+  advanceApprenticeships(state, allAlive);
 
-    // Idempotent leader-house reconciliation: marriage/divorce/reassignment may
-    // have changed the leader's household this day, so move the current spouse
-    // (and children) into the manor and evict former household members.
-    syncLeaderHouseResidency(state);
+  // Idempotent leader-house reconciliation: marriage/divorce/reassignment may
+  // have changed the leader's household this day, so move the current spouse
+  // (and children) into the manor and evict former household members.
+  syncLeaderHouseResidency(state);
 
-    // Evaluate active campaign promises when their evaluation day arrives
-    tickElectionPromises(state);
+  // Evaluate active campaign promises when their evaluation day arrives
+  tickElectionPromises(state);
 
-    // Valley Chronicle — milestone chapters unlock once per day boundary.
-    const newlyUnlocked = advanceValleyChronicle(state);
-    if (newlyUnlocked.length > 0) {
-      for (const id of newlyUnlocked) {
-        const chapter = VALLEY_CHAPTERS.find((c) => c.id === id);
-        if (chapter) {
-          addFloatingText(state, state.width / 2, state.height / 2, `${chapter.icon} ${chapter.title}`, '#fbbf24', 'brief');
-        }
+  // Valley Chronicle — milestone chapters unlock once per day boundary.
+  const newlyUnlocked = advanceValleyChronicle(state);
+  if (newlyUnlocked.length > 0) {
+    for (const id of newlyUnlocked) {
+      const chapter = VALLEY_CHAPTERS.find((c) => c.id === id);
+      if (chapter) {
+        addFloatingText(state, state.width / 2, state.height / 2, `${chapter.icon} ${chapter.title}`, '#fbbf24', 'brief');
       }
     }
   }

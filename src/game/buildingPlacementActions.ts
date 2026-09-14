@@ -22,14 +22,9 @@ import {
   overlapsAnyBuilding,
 } from './placementUtils';
 
-export const UNBUILDABLE_TERRAIN = new Set<TerrainType>([
-  TerrainType.DeepWater,
-  TerrainType.ShallowWater,
-  TerrainType.River,
-  TerrainType.RiverBank,
-  TerrainType.Mountains,
-  TerrainType.Snow,
-]);
+// The unbuildable-terrain rule has one owner: `placementUtils.isUnbuildableTerrainType`.
+// A second exported copy of the same set used to live here; nothing read it (two modules only
+// re-exported it), so it was removed with the re-exports rather than restated.
 
 export { isFootprintOnBuildableTerrain, isFootprintWithinMapBounds } from './placementUtils';
 

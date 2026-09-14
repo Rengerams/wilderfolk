@@ -83,23 +83,14 @@ function tickImmigration(
     const spawn = findHumanSpawnNear(state, rawSpawnX, rawSpawnY);
 
     // Cap members so an incoming family cannot exceed maxHumanPopulation
+    // (`createImmigrantSettler` only rolls a married couple when the passed cap allows two, so
+    // the result can never exceed `openSlots`). A half-admitted couple is therefore impossible:
+    // the old "admit only 1 of 2" repair below could never run.
     const newcomers = createImmigrantSettler(state, spawn.x, spawn.y, openSlots);
     let admitted = 0;
 
-    // If a couple arrives but only 1 slot is left, do not admit only half of a married pair
-    const canAdmitAll = newcomers.length <= (state.maxHumanPopulation - counts.humans);
-    const toAdmit = canAdmitAll ? newcomers : newcomers.slice(0, 1);
-
-    // If we only admit 1 of a couple, clear their marriage link so there is no dangling partnerId
-    if (toAdmit.length === 1 && newcomers.length > 1) {
-      toAdmit[0].relationshipStatus = 'single';
-      toAdmit[0].partnerId = undefined;
-      toAdmit[0].pregnant = false;
-      toAdmit[0].pregnantById = undefined;
-    }
-
-    for (let i = 0; i < toAdmit.length; i++) {
-      const newcomer = toAdmit[i];
+    for (let i = 0; i < newcomers.length; i++) {
+      const newcomer = newcomers[i];
       if (counts.humans >= state.maxHumanPopulation) break;
 
       // 1. Authoritative world entity array

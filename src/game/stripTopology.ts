@@ -156,8 +156,21 @@ export function resolveWallStripPlan(
     const junctionPt = resolveJunctionCenter(snapped.x, snapped.y, hList, vList);
     const existing = findStripBuildingAt(state, junctionPt.x, junctionPt.y, JUNCTION_PROXIMITY * 0.75, 'wall');
 
-    if (existing && (existing.type === stripType || existing.type === BuildingType.Wall)) {
+    if (existing && isWallStripType(existing.type)) {
       emitted.add(key);
+      // A WallGate run replaces the plain Wall it lands on — the placement owner
+      // demolishes it and refunds half. Any other wall-family overlap (a Wall run
+      // crossing an existing gate, or a same-type piece) is simply stepped over,
+      // so the rest of the run still places.
+      if (stripType === BuildingType.WallGate && existing.type === BuildingType.Wall) {
+        pieces.push({
+          type: stripType,
+          x: snapped.x,
+          y: snapped.y,
+          rotation: stripRotation,
+          replacesBuildingId: existing.id,
+        });
+      }
       continue;
     }
 

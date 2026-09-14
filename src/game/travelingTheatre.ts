@@ -36,6 +36,24 @@ const SCRIPTS = {
   famine_foot: 4,
 } as const;
 
+/** Player-facing names for the stored `FLAG_SCRIPT` value. */
+const SCRIPT_TITLES: Record<number, string> = {
+  [SCRIPTS.first_winter]: 'The First Winter',
+  [SCRIPTS.wolf_mistake]: 'The Great Wolf Mistake',
+  [SCRIPTS.town_hall_scandal]: 'The Scandal at the Town Hall',
+  [SCRIPTS.famine_foot]: 'The Famine Foot',
+};
+
+/**
+ * The play the colony chose at stage 1, resolved from `FLAG_SCRIPT`.
+ *
+ * Stage 1 stored the choice and nothing ever read it back, so every opening
+ * night described the same anonymous performance.
+ */
+function stagedScriptTitle(state: WorldState): string {
+  return SCRIPT_TITLES[storyFlag(state, FLAG_SCRIPT)] ?? 'The First Winter';
+}
+
 const SUPPORT = {
   hospitality: 1,
   venue: 2,
@@ -247,7 +265,7 @@ export function tickTravelingTheatre(state: WorldState): void {
     emoji: '🎭',
     storyKey: STORY_KEY,
     title: 'Opening Night',
-    description: 'The troupe performs. After the applause, the player must decide how the valley remembers the story.',
+    description: `The troupe performs “${stagedScriptTitle(state)}”. After the applause, the player must decide how the valley remembers the story.`,
     choices: [
       { id: 'correct_story', label: 'Correct the story', detail: 'Preserve factual history; modest reputation.' },
       { id: 'let_legend_grow', label: 'Let the legend grow', detail: 'Visitor excitement and reputation, but an exaggerated tale.' },
@@ -283,6 +301,6 @@ function resolveStage3(state: WorldState, choice: Stage3Choice): boolean {
     [FLAG_RESOLVED]: state.tick,
     [AUTHORED_STORY_COOLDOWN_FLAG]: colonyDay + AUTHORED_STORY_COOLDOWN_DAYS,
   });
-  logEvent(state, 'event', `The Traveling Theatre resolved (${choice}).`, undefined);
+  logEvent(state, 'event', `The Traveling Theatre resolved (${choice}) — “${stagedScriptTitle(state)}”.`, undefined);
   return true;
 }

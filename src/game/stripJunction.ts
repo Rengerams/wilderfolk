@@ -160,19 +160,17 @@ export function connectionsAt(
   const hAt = hList.some((p) => rowMatch(p) && Math.abs(p.x - x) <= tol);
   const vAt = vList.some((p) => colMatch(p) && Math.abs(p.y - y) <= tol);
 
-  // Perpendicular strips can snap to the same center (H/V grids differ).
-  // Without this, a lone crossing reads as zero connections and skips corners.
+  // Perpendicular strips can snap to the same center (H/V grids differ). Both pieces then sit
+  // on the anchor, so no arm is detected; the coercions below promote a missing vertical arm
+  // to north and a missing horizontal arm to east, so a lone crossing always reads as at
+  // least an elbow instead of zero connections (which would skip corners).
   if (hAt && vAt) {
-    const conn: JunctionConnections = {
+    return {
       north: north || (!south && !north),
       south,
       east: east || (!west && !east),
       west,
     };
-    if (countConnections(conn) < 2) {
-      return { north: true, east: true, south: false, west: false };
-    }
-    return conn;
   }
 
   return { north, south, east, west };

@@ -3,6 +3,7 @@ import { EntityType, JobType } from './gameTypes';
 import {
   getColonyDay,
   HUMAN_ADULT_MIN_AGE,
+  HUMAN_CHILDHOOD_DAYS,
   PREGNANCY_TICKS,
   setHumanBirthFromAge,
 } from './dayCycle';
@@ -61,9 +62,12 @@ export function createEntity(
     opts?.gender ?? (isHuman ? (simRandom() > 0.5 ? 'male' : 'female') : undefined);
   const gen = opts?.generation ?? 0;
 
-  // Auto-detect juvenile status if calendar age indicates a child
+  // Auto-detect juvenile status if calendar age indicates a child. The threshold is the
+  // dayCycle owner's (HUMAN_CHILDHOOD_DAYS), not HUMAN_ADULT_MIN_AGE: setHumanBirthFromAge
+  // below recomputes `isJuvenile` from that same 12-year floor, so a 12-15 year old must not
+  // be created with an adult `size` that graduation can then never repair.
   const effectiveJuvenile =
-    isJuvenile ?? (isHuman && opts?.ageYears !== undefined ? opts.ageYears < HUMAN_ADULT_MIN_AGE : false);
+    isJuvenile ?? (isHuman && opts?.ageYears !== undefined ? opts.ageYears < HUMAN_CHILDHOOD_DAYS : false);
 
   let name: string | undefined;
   if (isHuman) {

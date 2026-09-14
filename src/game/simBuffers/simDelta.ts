@@ -59,8 +59,25 @@ export interface SimTickDelta {
   weatherTimer: number;
   resources: WorldState['resources'];
   storageMax: WorldState['storageMax'];
+  /**
+   * Spoilage rate is recomputed by the Silo-owned `updateStorageCaps` in the
+   * daily layer; without it the display world kept the pre-worker rate while the
+   * worker had already applied the new one.
+   */
+  foodSpoilageRate: WorldState['foodSpoilageRate'];
   humanPopulation: number;
   maxHumanPopulation: number;
+  /**
+   * Workforce/mood HUD counters written by the tick (`gameTick` counts working/idle
+   * settlers every tick, `dailyBuildingEconomy` writes the winter-heating flag and
+   * `beautyGrid` the happiness score). The Population panel and `citizenOverview`
+   * read them from the display world, so without these the worker's values never
+   * reached the player.
+   */
+  workingSettlers: number;
+  idleSettlers: number;
+  villageHappiness?: number;
+  villageCanHeat?: boolean;
   wildlifeCounts: WorldState['wildlifeCounts'];
   ecosystemHealth: number;
   pollutionLevel: number;
@@ -77,6 +94,8 @@ export interface SimTickDelta {
   screenShakeImpulse: number;
   floatingTexts: WorldState['floatingTexts'];
   deathParticles: WorldState['deathParticles'];
+  /** Hunting arrow/lunge lines, produced and pruned only inside the worker. */
+  huntVisuals: WorldState['huntVisuals'];
   buildings?: Building[];
   changedBuildings?: Building[];
   removedBuildingIds?: number[];
@@ -270,8 +289,13 @@ export function extractSimTickDelta(
     weatherTimer: world.weatherTimer,
     resources: { ...world.resources },
     storageMax: { ...world.storageMax },
+    foodSpoilageRate: world.foodSpoilageRate,
     humanPopulation: world.humanPopulation,
     maxHumanPopulation: world.maxHumanPopulation,
+    workingSettlers: world.workingSettlers ?? 0,
+    idleSettlers: world.idleSettlers ?? 0,
+    villageHappiness: world.villageHappiness,
+    villageCanHeat: world.villageCanHeat,
     wildlifeCounts: { ...world.wildlifeCounts },
     ecosystemHealth: world.ecosystemHealth,
     pollutionLevel: world.pollutionLevel,
@@ -288,6 +312,7 @@ export function extractSimTickDelta(
     screenShakeImpulse: world.screenShakeImpulse,
     floatingTexts: deltaClone(world.floatingTexts, cloneMode),
     deathParticles: deltaClone(world.deathParticles, cloneMode),
+    huntVisuals: deltaClone(world.huntVisuals ?? [], cloneMode),
     aliveEntities: deltaClone(aliveNow, cloneMode),
     diedIds,
     newEntities: deltaClone(newEntities, cloneMode),
@@ -400,8 +425,13 @@ export function applySimTickDelta(
   world.weatherTimer = delta.weatherTimer;
   world.resources = { ...delta.resources };
   world.storageMax = { ...delta.storageMax };
+  world.foodSpoilageRate = delta.foodSpoilageRate;
   world.humanPopulation = delta.humanPopulation;
   world.maxHumanPopulation = delta.maxHumanPopulation;
+  world.workingSettlers = delta.workingSettlers ?? 0;
+  world.idleSettlers = delta.idleSettlers ?? 0;
+  world.villageHappiness = delta.villageHappiness;
+  world.villageCanHeat = delta.villageCanHeat;
   world.wildlifeCounts = { ...delta.wildlifeCounts };
   world.ecosystemHealth = delta.ecosystemHealth;
   world.pollutionLevel = delta.pollutionLevel;
@@ -418,6 +448,7 @@ export function applySimTickDelta(
   world.screenShakeImpulse = delta.screenShakeImpulse;
   world.floatingTexts = deltaClone(delta.floatingTexts, cloneMode);
   world.deathParticles = deltaClone(delta.deathParticles, cloneMode);
+  world.huntVisuals = deltaClone(delta.huntVisuals ?? [], cloneMode);
   
   if (delta.changedBuildings) {
     const removed = new Set(delta.removedBuildingIds ?? []);

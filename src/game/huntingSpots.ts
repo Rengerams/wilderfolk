@@ -31,5 +31,7 @@ export function getHuntingSpotPreyOption(prey: HuntingSpotPrey = 'auto'): Huntin
 
 /** Type guard verifying if an unknown value is a valid HuntingSpotPrey target. */
 export function isValidHuntingSpotPrey(value: unknown): value is HuntingSpotPrey {
-  return typeof value === 'string' && value in PREY_OPTIONS_MAP;
+  // Own-property check: `in` also accepts Object.prototype keys ('toString', '__proto__'),
+  // which the command boundary would then store as a real prey id.
+  return typeof value === 'string' && Object.hasOwn(PREY_OPTIONS_MAP, value);
 }

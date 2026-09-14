@@ -1,7 +1,7 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
-import { PREGNANCY_TICKS, personDayRoll } from './dayCycle';
+import { PREGNANCY_TICKS, TICKS_PER_DAY, getTickOfDay, personDayRoll } from './dayCycle';
 import {
   doctorTreatNearby,
   isDoctorAtHospital,
@@ -54,10 +54,25 @@ export function tickHumanDoctorHospitalService({
 }: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'allHumans' | 'updatedBuildings' | 'onDayJobShift'>): void {
   if (onDayJobShift && isPlayerHuman(entity) && entity.job === JobType.Doctor) {
     const ward = isDoctorAtHospital(entity, updatedBuildings);
-    if (ward) {
+    // One doctor treatment per doctor per colony day, on the same settler-staggered tick the
+    // patient path uses. Without it the doctor's day-stable roll passed all day and the whole
+    // treatment (heal + Doctor skill + medicine food) re-ran every tick.
+    if (ward && isHospitalTreatmentTick(entity.id, state.tick)) {
       doctorTreatNearby(state, entity, ward, allHumans);
     }
   }
+}
+
+/**
+ * One hospital treatment attempt per settler per colony day.
+ *
+ * `personDayRoll` is stable for a whole colony day, so re-evaluating it every tick
+ * repeated the full treatment (heal + doctor skill + medicine food) on every tick of
+ * a qualifying day. Pinning the attempt to a single, settler-staggered tick restores
+ * the intended daily cadence without adding per-entity state.
+ */
+function isHospitalTreatmentTick(entityId: number, tick: number): boolean {
+  return getTickOfDay(tick) === entityId % TICKS_PER_DAY;
 }
 
 /**
@@ -77,11 +92,10 @@ export function tickHumanHospitalPatientCare({
       const dx = best.x + best.width / 2 - entity.x;
       const dy = best.y + best.height / 2 - entity.y;
       const distance = Math.hypot(dx, dy) || 1;
+      // Movement owns position: set velocity and let the human loop apply the step.
       entity.vx = (dx / distance) * speed * 0.55;
       entity.vy = (dy / distance) * speed * 0.55;
       entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
-      entity.x += entity.vx;
-      entity.y += entity.vy;
     }
   }
 
@@ -92,7 +106,11 @@ export function tickHumanHospitalPatientCare({
         entity.y - (building.y + building.height / 2),
       ) < 36,
     );
-    if (hospital && personDayRoll(entity.id, state.tick, 840) < 0.2) {
+    if (
+      hospital
+      && isHospitalTreatmentTick(entity.id, state.tick)
+      && personDayRoll(entity.id, state.tick, 840) < 0.2
+    ) {
       treatPatientAtHospital(state, entity, hospital);
     }
   }

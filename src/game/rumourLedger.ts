@@ -78,21 +78,25 @@ export function rumourLedgerEligibleDay(mapSeed: number | undefined): number {
 }
 
 /**
- * Scans backwards through the event log to find the most recent matching event category.
+ * Scans the event log for the most recent matching event category.
+ *
+ * `state.eventLog` is newest-first (`logEvent` unshifts), so the newest entries are at the
+ * start of the array: the scan walks index 0 forward and stops at the first match.
  */
-function recentSourceKind(state: WorldState): SourceKind | null {
+function recentSourceEvent(state: WorldState): { kind: SourceKind; eventId: number } | null {
   const log = state.eventLog;
-  const scanLimit = Math.max(0, log.length - 40);
+  const last = Math.min(log.length, 40);
 
-  for (let i = log.length - 1; i >= scanLimit; i--) {
-    const type = log[i].type;
+  for (let i = 0; i < last; i++) {
+    const entry = log[i];
+    const type = entry.type;
     // An expectation is family news too — the announcement and the delivery
     // share the same rumour category so the ledger's source kind is unchanged.
-    if (type === 'birth' || type === 'conception' || type === 'marriage') return 'family';
-    if (type === 'milestone' || type === 'research') return 'civic';
-    if (type === 'season' || type === 'disaster') return 'ecology';
-    if (type === 'combat' || type === 'trade') return 'frontier';
-    if (type === 'scandal') return 'scandal';
+    if (type === 'birth' || type === 'conception' || type === 'marriage') return { kind: 'family', eventId: entry.id };
+    if (type === 'milestone' || type === 'research') return { kind: 'civic', eventId: entry.id };
+    if (type === 'season' || type === 'disaster') return { kind: 'ecology', eventId: entry.id };
+    if (type === 'combat' || type === 'trade') return { kind: 'frontier', eventId: entry.id };
+    if (type === 'scandal') return { kind: 'scandal', eventId: entry.id };
   }
   return null;
 }
@@ -110,8 +114,9 @@ export function maybeOfferRumourLedger(state: WorldState): void {
   if ((state.pendingStoryEvents ?? []).length > 0) return;
   if (!hasTownHall(state)) return;
 
-  const sourceKind = recentSourceKind(state);
-  if (!sourceKind) return;
+  const source = recentSourceEvent(state);
+  if (!source) return;
+  const sourceKind = source.kind;
 
   const seed = state.worldMap?.seed ?? 1;
   const truthRoll = seededRoll(seed, hashSalt(`rumour-truth-${colonyDay}`));
@@ -121,7 +126,7 @@ export function maybeOfferRumourLedger(state: WorldState): void {
     [FLAG_OFFERED]: state.tick,
     [FLAG_STATUS]: STATUS.offered,
     [FLAG_SOURCE_KIND]: SOURCE_KINDS.indexOf(sourceKind) + 1,
-    [FLAG_SOURCE_EVENT]: state.eventLog[state.eventLog.length - 1]?.id ?? 0,
+    [FLAG_SOURCE_EVENT]: source.eventId,
     [FLAG_TRUTH]: truth,
     [AUTHORED_STORY_COOLDOWN_FLAG]: colonyDay + AUTHORED_STORY_COOLDOWN_DAYS,
   });

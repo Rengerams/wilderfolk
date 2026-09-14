@@ -153,6 +153,7 @@ export function getRelationshipDiagnosticsHistory(): readonly RelationshipDiagno
 
 export function resetRelationshipDiagnostics(): void {
   counters = emptyCounters();
+  enabled = true;
   consoleLoggingEnabled = true;
   snapshotHistory.length = 0;
 }

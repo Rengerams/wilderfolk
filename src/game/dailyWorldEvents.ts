@@ -49,18 +49,31 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
   // Frostfall Feast), on top of the random festivals.
   const dayInYear = getAbsoluteCalendarDay(state.tick) % DAYS_PER_YEAR;
   const seasonalStart = Math.floor(dayInYear / 90) * 90;
-  if (!state.festival && dayInYear === seasonalStart + 3 && counts.humans >= 2) {
-    const seasonalNames: Record<number, string> = {
-      0: 'Spring Revel',
-      90: 'Midsummer Feast',
-      180: 'Harvest Festival',
-      270: 'Frostfall Feast',
-    };
-    const name = seasonalNames[seasonalStart] ?? 'Village Festival';
-    state.festival = { active: true, name, daysLeft: 5 };
+  const seasonalNames: Record<number, string> = {
+    0: 'Spring Revel',
+    90: 'Midsummer Feast',
+    180: 'Harvest Festival',
+    270: 'Frostfall Feast',
+  };
+  const seasonalName = seasonalNames[seasonalStart] ?? 'Village Festival';
+  // The seasonal festival owns the first five days of its season, but a random festival that is
+  // still running on day +3 used to cancel it for the whole season (there was one eligible day
+  // and no retry). It now starts on the first free day instead. `eventsThisYear` — already saved
+  // and carried by the worker delta, and cleared at the year rollover — is the per-season
+  // memory, so a late start cannot become a second festival for the same season.
+  const seasonalFestivalAlreadyRun = (state.eventsThisYear ?? []).includes(seasonalName);
+  if (
+    !state.festival
+    && !seasonalFestivalAlreadyRun
+    && dayInYear >= seasonalStart + 3
+    && dayInYear < seasonalStart + 90
+    && counts.humans >= 2
+  ) {
+    state.festival = { active: true, name: seasonalName, daysLeft: 5 };
     state.villageReputation = Math.min(100, state.villageReputation + 5);
-    addBigNews(state, '🎉 Festival!', `${name} has begun! Production, courtship, and immigration are boosted for 5 days.`, 'positive');
-    logEvent(state, 'season', `${name} festival began in the village`);
+    addBigNews(state, '🎉 Festival!', `${seasonalName} has begun! Production, courtship, and immigration are boosted for 5 days.`, 'positive');
+    logEvent(state, 'season', `${seasonalName} festival began in the village`);
+    trackYearEvent(state, seasonalName);
     festivalStartedThisTick = true;
   }
 

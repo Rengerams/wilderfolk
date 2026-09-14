@@ -1,6 +1,6 @@
 import type { BuildingType } from './gameTypes';
 import type { WorldState } from './gameTypes';
-import { BuildingType as BuildingTypeValues } from './gameTypes';
+import { BuildingType as BuildingTypeValues, BUILDING_JOB_TYPES } from './gameTypes';
 
 export interface ScheduleImpactPreview {
   affectedWorkplaces: number;
@@ -20,7 +20,12 @@ function staffedBuildingTypes(kind: 'ordinary' | 'tavern' | 'hotel'): BuildingTy
     BuildingTypeValues.Tavern,
     BuildingTypeValues.Hotel,
   ]);
-  return (Object.values(BuildingTypeValues) as BuildingType[]).filter((type) => !fixedTypes.has(type));
+  // The ordinary window covers real workplaces only: a building with no job
+  // (`BUILDING_JOB_TYPES` empty — residences, roads, walls, decor) is never
+  // staffed, so counting it reported its residents as affected workers.
+  return (Object.values(BuildingTypeValues) as BuildingType[]).filter(
+    (type) => BUILDING_JOB_TYPES[type] != null && !fixedTypes.has(type),
+  );
 }
 
 export function getScheduleImpactPreview(

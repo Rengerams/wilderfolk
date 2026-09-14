@@ -67,12 +67,6 @@ export function isTreeGridEntity(entity: Entity): boolean {
   return entity.alive && entity.type === EntityType.Tree;
 }
 
-export function distSq(ax: number, ay: number, bx: number, by: number): number {
-  const dx = bx - ax;
-  const dy = by - ay;
-  return dx * dx + dy * dy;
-}
-
 /**
  * Uniform 2D Spatial Hash Grid.
  * Optimized for zero heap-allocation on update, reconcile, and radial walks.
@@ -188,16 +182,6 @@ export class EntitySpatialGrid {
     this.insert(entity);
   }
 
-  ensurePresent(entity: Entity): void {
-    if (!entity.alive) {
-      this.removeById(entity.id);
-      return;
-    }
-    if (!this.entityCell.has(entity.id)) {
-      this.insert(entity);
-    }
-  }
-
   /**
    * Synchronizes grid state against an active entity collection with zero object allocations.
    */
@@ -222,10 +206,6 @@ export class EntitySpatialGrid {
     for (let i = 0; i < stale.length; i++) {
       this.removeById(stale[i]);
     }
-  }
-
-  hasEntity(id: number): boolean {
-    return this.entityCell.has(id);
   }
 
   rebuild(entities: Iterable<Entity>, filter?: (entity: Entity) => boolean): void {
@@ -334,40 +314,6 @@ export class EntitySpatialGrid {
     }
   }
 
-  /**
-   * Iterates through the 3×3 neighbor cell neighborhood around (x, y).
-   */
-  forEachNeighborCell(
-    x: number,
-    y: number,
-    fn: (col: number, row: number, cellIdx: number, bucket: Entity[]) => boolean | void,
-  ): boolean {
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
-
-    const col = Math.floor(x / this.cellSize);
-    const row = Math.floor(y / this.cellSize);
-    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
-
-    const minRow = Math.max(0, row - 1);
-    const maxRow = Math.min(this.rows - 1, row + 1);
-    const minCol = Math.max(0, col - 1);
-    const maxCol = Math.min(this.cols - 1, col + 1);
-
-    const cols = this.cols;
-    const cells = this.cells;
-
-    for (let r = minRow; r <= maxRow; r++) {
-      const rowOffset = r * cols;
-      for (let c = minCol; c <= maxCol; c++) {
-        const idx = rowOffset + c;
-        if (fn(c, r, idx, cells[idx]) === false) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
   findClosestInRadius(
     x: number,
     y: number,
@@ -462,16 +408,6 @@ export function resolveSpatialGrid(
   return new EntitySpatialGrid(mapWidth, mapHeight, cellSize);
 }
 
-export function buildGrassGrid(
-  mapWidth: number,
-  mapHeight: number,
-  entities: Iterable<Entity>,
-): EntitySpatialGrid {
-  const grid = new EntitySpatialGrid(mapWidth, mapHeight, GRASS_CELL_SIZE);
-  grid.rebuild(entities, isGrassGridEntity);
-  return grid;
-}
-
 export function syncGrassRenderGrid(
   existing: EntitySpatialGrid | undefined,
   mapWidth: number,
@@ -482,6 +418,11 @@ export function syncGrassRenderGrid(
   const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, GRASS_CELL_SIZE);
   if (grid !== existing) {
     grid.rebuild(grassEntities, isGrassGridEntity);
+  } else {
+    // A reused grid must track the entities it indexes: grass spawns and deaths happen
+    // mid-run (`dailyGrassEcology`, `nature_boom`), so a rebuild-only-on-new-instance
+    // path froze the index at the first sync and left ghost/depleted grass in it.
+    grid.reconcile(grassEntities, isGrassGridEntity);
   }
   return grid;
 }
@@ -496,6 +437,10 @@ export function syncTreeGrid(
   const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, TREE_CELL_SIZE);
   if (grid !== existing) {
     grid.rebuild(treeEntities, isTreeGridEntity);
+  } else {
+    // Trees are static scenery, but not frozen: `nature_boom` adds them and
+    // `clearTreesUnderFootprint` removes them, both after the grid was first built.
+    grid.reconcile(treeEntities, isTreeGridEntity);
   }
   return grid;
 }
@@ -789,16 +734,6 @@ export function syncHumanSocialGrid(
   const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, SOCIAL_CELL_SIZE);
   if (grid !== existing) grid.rebuild(entities, isHumanSocialGridEntity);
   else grid.reconcile(entities, isHumanSocialGridEntity);
-  return grid;
-}
-
-export function buildMobileGrid(
-  mapWidth: number,
-  mapHeight: number,
-  entities: Iterable<Entity>,
-): EntitySpatialGrid {
-  const grid = new EntitySpatialGrid(mapWidth, mapHeight, MOBILE_CELL_SIZE);
-  grid.rebuild(entities, isMobileGridEntity);
   return grid;
 }
 

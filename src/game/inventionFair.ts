@@ -20,6 +20,8 @@ const FLAG_RISK = 'invention_fair_risk';
 const FLAG_APPRENTICE = 'invention_fair_apprentice';
 const FLAG_RESOLVE_DAY = 'invention_fair_resolve_day';
 const FLAG_RESOLVED = 'invention_fair_resolved';
+/** Set when the one-time Demonstration card is pushed, so it is never re-offered. */
+const FLAG_DEMO_OFFERED = 'invention_fair_demo_offered';
 
 const MIN_DAY = 30;
 const WINDOW_DAYS = 90;
@@ -137,6 +139,9 @@ export function getInventionFairChoiceEligibility(
 }
 
 export function resolveInventionFair(state: WorldState, choiceId: string): boolean {
+  // The chain is answered once. Stale duplicate cards (e.g. from a save written
+  // before the one-shot demonstration flag existed) must not re-run stage 2.
+  if (storyFlag(state, FLAG_RESOLVED) > 0) return true;
   const status = storyFlag(state, FLAG_STATUS);
   if (status === STATUS.offered) return resolveStage1(state, choiceId as Stage1Choice);
   if (status === STATUS.funded) return resolveStage2(state, choiceId as Stage2Choice);
@@ -198,6 +203,9 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
 export function tickInventionFair(state: WorldState): void {
   if (storyFlag(state, FLAG_RESOLVED) > 0) return;
   if (storyFlag(state, FLAG_STATUS) !== STATUS.funded) return;
+  // The Demonstration is a one-shot card; without this it was re-pushed with a
+  // fresh id every colony day, and each duplicate paid out again on answer.
+  if (storyFlag(state, FLAG_DEMO_OFFERED) > 0) return;
   const colonyDay = getColonyDay(state);
   const resolveDay = storyFlag(state, FLAG_RESOLVE_DAY);
   if (resolveDay <= 0 || colonyDay < resolveDay) return;
@@ -224,6 +232,7 @@ export function tickInventionFair(state: WorldState): void {
     createdAtTick: state.tick,
     expiresAtTick: state.tick + TICKS_PER_DAY * CARD_DURATION_DAYS,
   };
+  setStoryFlags(state, { [FLAG_DEMO_OFFERED]: state.tick });
   pushStoryCard(state, event);
   addNotification(state, '⚙️ Demonstration day', 'The invention has shown its result.', 'info');
 }

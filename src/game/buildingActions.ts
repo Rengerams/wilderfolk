@@ -16,7 +16,6 @@ export {
   isFootprintWithinMapBounds,
   placeStripChain,
   startBuilding,
-  UNBUILDABLE_TERRAIN,
 } from './buildingPlacementActions';
 
 // ---------------------------------------------------------------------------

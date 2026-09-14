@@ -110,32 +110,6 @@ export function getBarracksGuardCount(state: WorldState, buildings: Building[]):
   return guards;
 }
 
-/**
- * Removes dead / missing occupants from barracks. Call this during tick
- * or load — NOT inside a getter.
- */
-export function pruneDeadBarracksOccupants(state: WorldState, buildings: Building[]): void {
-  if (!state?.entities || !buildings?.length) return;
-
-  const entityById = ensureEntityByIdMap(state);
-
-  for (const b of buildings) {
-    if (!b.completed || b.type !== BuildingType.Barracks || b.faction === 'rival') continue;
-    if (!b.occupants?.length) continue;
-
-    const liveOccupants: number[] = [];
-    for (const humanId of b.occupants) {
-      const human = entityById.get(humanId);
-      if (human && human.alive && human.job === JobType.Soldier && !isImprisoned(human)) {
-        liveOccupants.push(humanId);
-      }
-    }
-    if (liveOccupants.length !== b.occupants.length) {
-      b.occupants = liveOccupants;
-    }
-  }
-}
-
 export function getBarracksGuardBonus(state: WorldState, buildings: Building[]): number {
   const guards = getBarracksGuardCount(state, buildings);
   if (guards === 0) return 0;

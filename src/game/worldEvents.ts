@@ -131,6 +131,34 @@ export function applyStormDamageToBuildings(
 }
 
 /**
+ * Earthquake damage per affected building: completed player buildings inside the quake's own
+ * radius only. The branch previously damaged every building on the map regardless of distance,
+ * completion or owner, so the x/y/radius rolled for the quake had no effect.
+ */
+export function applyEarthquakeDamageToBuildings(
+  buildings: readonly Building[],
+  quakeX: number,
+  quakeY: number,
+  radius: number,
+  resistMult: number,
+  damage = 15,
+): Building[] {
+  const damaged: Building[] = [];
+  const radiusSq = radius * radius;
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i];
+    if (!b.completed || b.faction === 'rival') continue;
+    const dx = b.x - quakeX;
+    const dy = b.y - quakeY;
+    if (dx * dx + dy * dy >= radiusSq) continue;
+    const currentHp = b.health ?? b.maxHealth;
+    b.health = Math.max(10, Math.round(currentHp - damage * resistMult));
+    damaged.push(b);
+  }
+  return damaged;
+}
+
+/**
  * Daily weather consequences — called from the daily layer.
  */
 export function applyDailyWeatherEffects(state: WorldState): void {
@@ -260,11 +288,7 @@ export function updateDisasters(state: WorldState): void {
       }
     } else if (type === 'earthquake') {
       impulseScreenShake(state, 15);
-      for (let i = 0; i < state.buildings.length; i++) {
-        const b = state.buildings[i];
-        const currentHp = b.health ?? b.maxHealth;
-        b.health = Math.max(10, Math.round(currentHp - 15 * resistMult));
-      }
+      applyEarthquakeDamageToBuildings(state.buildings, x, y, radius, resistMult);
     } else if (type === 'plague') {
       let infected = 0;
       for (let i = 0; i < state.entities.length; i++) {

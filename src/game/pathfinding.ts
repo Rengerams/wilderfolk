@@ -281,7 +281,21 @@ export function lineCrossesBlocked(
 
 /** Module-level "current map" for pathing — set once per tick by the sim. */
 let currentGrid: PathGrid | null = null;
-const pathCache = new Map<string, { x: number; y: number }[] | null>();
+
+/**
+ * Cached waypoints are only valid while the entity is still near the tile the path
+ * was computed from: cache keys name a commute leg, not an origin, so a leg begun
+ * from somewhere else must not steer the entity back to the old path start.
+ */
+const PATH_CACHE_ORIGIN_TOLERANCE = TERRAIN_TILE_SIZE * 2;
+
+interface CachedPath {
+  originX: number;
+  originY: number;
+  waypoints: { x: number; y: number }[] | null;
+}
+
+const pathCache = new Map<string, CachedPath>();
 
 export function setCurrentPathMap(map: WorldMap | null, buildings?: Building[]): void {
   const next = map ? getPathGrid(map, buildings) : null;
@@ -316,8 +330,11 @@ export function steerWithPath(
   if (!currentGrid) return 'direct';
 
   if (lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY)) {
-    let wp = pathCache.get(cacheKey);
-    if (wp === undefined) {
+    let cached = pathCache.get(cacheKey);
+    if (
+      cached === undefined
+      || Math.hypot(cached.originX - entity.x, cached.originY - entity.y) > PATH_CACHE_ORIGIN_TOLERANCE
+    ) {
       const path = findPath(
         currentGrid,
         Math.floor(entity.x / TERRAIN_TILE_SIZE),
@@ -325,11 +342,16 @@ export function steerWithPath(
         Math.floor(targetX / TERRAIN_TILE_SIZE),
         Math.floor(targetY / TERRAIN_TILE_SIZE),
       );
-      wp = path ? pathWaypoints(path) : null;
+      cached = {
+        originX: entity.x,
+        originY: entity.y,
+        waypoints: path ? pathWaypoints(path) : null,
+      };
       if (pathCache.size > 200) pathCache.clear();
-      pathCache.set(cacheKey, wp);
+      pathCache.set(cacheKey, cached);
     }
 
+    const wp = cached.waypoints;
     if (wp && wp.length > 1) {
       let i = 0;
       while (i < wp.length - 1 && Math.hypot(wp[i].x - entity.x, wp[i].y - entity.y) < 14) i++;

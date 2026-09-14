@@ -14,6 +14,10 @@ export function clampToMapBounds(
   width: number,
   height: number,
 ): void {
+  // NaN survives every `< 0` / `> width` comparison and would leak past this last line of
+  // defence (simInvariants only reports non-finite positions after the fact) — reset it.
+  if (!Number.isFinite(entity.x)) entity.x = 0;
+  if (!Number.isFinite(entity.y)) entity.y = 0;
   if (entity.x < 0) entity.x = 0;
   if (entity.x > width) entity.x = width;
   if (entity.y < 0) entity.y = 0;

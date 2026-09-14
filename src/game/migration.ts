@@ -15,6 +15,7 @@ import { SPECIES_CONFIG } from './speciesConfig';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { getSimRng } from './simRng';
+import { isPassableWildlifePosition, spawnWildlifeRing } from './worldGen';
 
 export const MIGRATION_WINDOW_DAYS = 7;
 export const HERD_BASE_SIZE = 10;
@@ -34,21 +35,61 @@ function isMigratedHerdDeer(e: Entity, herdYear: number): boolean {
   return e.type === EntityType.Deer && e.migrationTag === herdYear;
 }
 
+/** How far inland a herd deer may be nudged to find passable ground. */
+const HERD_SPAWN_NUDGE_STEP = 12;
+const HERD_SPAWN_MAX_NUDGE = 300;
+
+/**
+ * Nearest passable point to a herd's edge arrival point: the nominal point
+ * first, then successive steps inland off that edge. Returns null when the
+ * whole strip is blocked. Passability is the shared wildlife predicate, so
+ * herds obey the same `UNPASSABLE_WILDLIFE_TERRAIN` rule as every other spawn
+ * path (deep/shallow water, river and bank, mountains, snow).
+ */
+function findPassableHerdSpawn(
+  state: WorldState,
+  x: number,
+  y: number,
+  inwardX: number,
+  inwardY: number,
+): { x: number; y: number } | null {
+  for (let dist = 0; dist <= HERD_SPAWN_MAX_NUDGE; dist += HERD_SPAWN_NUDGE_STEP) {
+    const px = x + inwardX * dist;
+    const py = y + inwardY * dist;
+    if (isPassableWildlifePosition(state, px, py, 8)) return { x: px, y: py };
+  }
+  return null;
+}
+
 function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYear: number): void {
   const { width, height } = state;
   const edge = Math.floor(getSimRng('migration')() * 4);
+  // Arrival point on the chosen edge, plus the direction "into the valley".
+  let edgeX = width / 2;
+  let edgeY = 40;
+  let inwardX = 0;
+  let inwardY = 1;
+  if (edge === 0) { edgeX = 40; edgeY = height / 2; inwardX = 1; inwardY = 0; }
+  else if (edge === 1) { edgeX = width - 40; edgeY = height / 2; inwardX = -1; inwardY = 0; }
+  else if (edge === 2) { edgeX = width / 2; edgeY = 40; inwardX = 0; inwardY = 1; }
+  else { edgeX = width / 2; edgeY = height - 40; inwardX = 0; inwardY = -1; }
+
+  let unplaced = 0;
   for (let i = 0; i < count; i++) {
     const spread = (i - (count - 1) / 2) * 30;
-    let x: number;
-    let y: number;
-    if (edge === 0) { x = 40; y = height / 2 + spread; }
-    else if (edge === 1) { x = width - 40; y = height / 2 + spread; }
-    else if (edge === 2) { x = width / 2 + spread; y = 40; }
-    else { x = width / 2 + spread; y = height - 40; }
+    // Spread along the edge, i.e. perpendicular to the inward direction.
+    const x = edgeX + (inwardX === 0 ? spread : 0);
+    const y = edgeY + (inwardY === 0 ? spread : 0);
+
+    const spot = findPassableHerdSpawn(state, x, y, inwardX, inwardY);
+    if (!spot) {
+      unplaced++;
+      continue;
+    }
     const deer = createEntity(
       EntityType.Deer,
-      x,
-      y,
+      spot.x,
+      spot.y,
       state.nextEntityId++,
       SPECIES_CONFIG[EntityType.Deer].spawnEnergy,
     );
@@ -56,6 +97,17 @@ function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYe
     // BUG-12: gameTick replaces state.entities with allAlive after the daily layer —
     // pushing into state.entities would discard the herd on arrival.
     out.push(deer);
+  }
+
+  // A fully blocked edge strip (long coastline, mountain wall) would otherwise
+  // drop herd members: fall back to the shared passability-retry ring spawner.
+  if (unplaced > 0) {
+    spawnWildlifeRing(state, EntityType.Deer, edgeX, edgeY, unplaced, 40, 120, {
+      onSpawn: (deer) => {
+        deer.migrationTag = herdYear;
+        out.push(deer);
+      },
+    });
   }
 }
 

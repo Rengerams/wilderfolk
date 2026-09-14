@@ -1,5 +1,6 @@
 import { TerrainType, type TerrainTile, type WorldMap, type MapPreset, MapSize, MAP_SIZE_DIMENSIONS, TERRAIN_TILE_SIZE } from './gameTypes';
 import { getSimRng } from './simRng';
+import { isUnbuildableTerrainType } from './placementUtils';
 
 // ─── Seeded PRNG ─────────────────────────────────────────────────────────────
 // Park-Miller LCG. Seed 0 is fatal (0 * 16807 % N = 0), so we coerce it.
@@ -103,22 +104,13 @@ function getTerrainType(
   // Forest biome — DarkForest was a leftover type and is intentionally not generated.
   if (moisture > pm.forestThreshold) return TerrainType.Forest;
 
-  // Dry grassland / savanna
-  if (temperature > 0.7 && moisture < 0.25) return TerrainType.Grassland;
-
+  // Grassland is the fallback biome. There is no separate dry/savanna TerrainType member, so
+  // the old `temperature > 0.7 && moisture < 0.25` branch returned Grassland just like this
+  // line — it was a no-op and its computed condition had no effect.
   return TerrainType.Grassland;
 }
 
 // ─── Buildability ────────────────────────────────────────────────────────────
-const UNBUILDABLE_TERRAIN = new Set<TerrainType>([
-  TerrainType.DeepWater,
-  TerrainType.ShallowWater,
-  TerrainType.River,
-  TerrainType.RiverBank,
-  TerrainType.Mountains,
-  TerrainType.Snow,
-]);
-
 /** True when every 10px tile under the footprint is buildable. */
 export function isFootprintBuildable(
   tiles: TerrainTile[][],
@@ -144,7 +136,7 @@ export function isFootprintBuildable(
     for (let tx = startTx; tx <= endTx; tx++) {
       if (tx < 0 || ty < 0 || tx >= tileW || ty >= tileH) return false;
       const tile = tiles[ty]?.[tx];
-      if (!tile || UNBUILDABLE_TERRAIN.has(tile.type)) return false;
+      if (!tile || isUnbuildableTerrainType(tile.type)) return false;
     }
   }
   return true;

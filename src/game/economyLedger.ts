@@ -2,8 +2,10 @@
  * Per-day economy ledger — "why is my food low?" transparency.
  *
  * Lives on WorldState (economyLedger) so it works in both sim modes (worker
- * syncs the whole world via structuredClone). The day key lazily resets the
- * counters at day rollover, so no separate day-boundary hook is needed.
+ * syncs the whole world via structuredClone). The day key resets the counters at
+ * day rollover; the daily layer calls `rollEconomyLedgerForDay` so the raw
+ * `state.economyLedger` field is never a day behind for readers that bypass
+ * `getEconomyLedger`.
  */
 import type { WorldState, DailyEconomyLedger } from './gameTypes';
 import { getAbsoluteCalendarDay } from './dayCycle';
@@ -11,9 +13,12 @@ import { getAbsoluteCalendarDay } from './dayCycle';
 export const ECONOMY_SOURCE_LABELS: Record<string, string> = {
   farms: 'Farms',
   hunting: 'Hunting',
+  fishing: 'Fishing',
+  greenhouse: 'Greenhouses',
   silos: 'Silos',
   challenges: 'Challenges',
   meals: 'Meals',
+  medicine: 'Medicine',
 };
 
 /** How many finished days of food history the insight UI keeps. */
@@ -39,10 +44,18 @@ function pushCompletedDayToHistory(state: WorldState, prev: DailyEconomyLedger):
   state.foodHistory = history;
 }
 
-function ensureLedger(state: WorldState): DailyEconomyLedger {
+/**
+ * Roll the ledger onto the current calendar day, archiving the finished day.
+ *
+ * Reading the ledger is not enough to keep `state.economyLedger` fresh: consumers that read
+ * the raw field (dashboardData) would otherwise see yesterday's totals until the new day's
+ * first record arrived. This is idempotent, so the daily layer can call it every day and the
+ * record functions can keep calling it lazily.
+ */
+export function rollEconomyLedgerForDay(state: WorldState): DailyEconomyLedger {
   const day = getAbsoluteCalendarDay(state.tick);
-  if (!state.economyLedger || state.economyLedger.day !== day) {
-    const prev = state.economyLedger;
+  const prev = state.economyLedger;
+  if (!prev || prev.day !== day) {
     if (prev && prev.day < day) pushCompletedDayToHistory(state, prev);
     state.economyLedger = { day, produced: {}, consumed: {} };
   }
@@ -52,14 +65,14 @@ function ensureLedger(state: WorldState): DailyEconomyLedger {
 /** Record food that actually entered storage (amount > 0 only). */
 export function recordFoodProduced(state: WorldState, source: string, amount: number): void {
   if (amount <= 0) return;
-  const ledger = ensureLedger(state);
+  const ledger = rollEconomyLedgerForDay(state);
   ledger.produced[source] = (ledger.produced[source] ?? 0) + amount;
 }
 
 /** Record food eaten by settlers/visitors. */
 export function recordFoodConsumed(state: WorldState, source: string, amount: number): void {
   if (amount <= 0) return;
-  const ledger = ensureLedger(state);
+  const ledger = rollEconomyLedgerForDay(state);
   ledger.consumed[source] = (ledger.consumed[source] ?? 0) + amount;
 }
 

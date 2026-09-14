@@ -87,19 +87,22 @@ function _applyBuilderAssignmentMut(
     preferredHumanId,
     (entity) =>
       isPlayerHuman(entity)
+      && entity.alive
       && !entity.isJuvenile
+      && !entity.pregnant
       && !hasWorkAssignment(entity)
       && !isImprisoned(entity)
       && !building.occupants.includes(entity.id)
       && !isOnConstructionCrew(state, entity.id, buildingId),
   );
 
-  if (!builder) {
+  // addToConstructionCrew re-validates and returns false when it refuses — never
+  // announce a builder it rejected.
+  if (!builder || !addToConstructionCrew(builder, building)) {
     addFloatingText(state, building.x + building.width / 2, building.y, 'No idle settlers!', '#eab308');
     return state;
   }
 
-  addToConstructionCrew(builder, building);
   addFloatingText(state, building.x, building.y - 10, '✓ Builder', '#22c55e', 'brief');
   addNotification(
     state,
@@ -143,27 +146,18 @@ function _assignIdleWorkerToBuildingMut(
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job) return state;
 
+  // `pickAdultSettler` already returns the first eligible settler when no explicit
+  // `preferredHumanId` matches, so manual assignment takes the first eligible settler in
+  // entity order. A second "best skill" scan used to sit here, but the guard that reached it
+  // (`!idleHuman && preferredHumanId === undefined`) could never be true — the audit's L6 —
+  // so the intended highest-skill preference was never applied. Restoring that preference is a
+  // player-visible change (manual picks would no longer be first-come); the dead scan and its
+  // misleading "O(N) scan for best skill" comment are removed instead.
   let idleHuman = pickAdultSettler(
     state,
     preferredHumanId,
     (entity) => isEligibleIdleWorker(entity, state),
   );
-
-  // 🚀 OPTIMIZED: O(N) scan for best skill instead of O(N log N) full array sort
-  if (!idleHuman && preferredHumanId === undefined) {
-    let bestCandidate: Entity | undefined;
-    let bestSkill = -1;
-    for (const entity of state.entities) {
-      if (isEligibleIdleWorker(entity, state)) {
-        const skill = readSkill(entity, job);
-        if (skill > bestSkill) {
-          bestSkill = skill;
-          bestCandidate = entity;
-        }
-      }
-    }
-    idleHuman = bestCandidate;
-  }
 
   let reassignedFrom: Building | undefined;
   if (!idleHuman) {
@@ -325,6 +319,8 @@ export function canAssignWorkerToBuilding(state: WorldState, buildingId: number)
         && entity.alive
         && !entity.isJuvenile
         && !entity.pregnant
+        && !hasWorkAssignment(entity)
+        && !isImprisoned(entity)
         && !building.occupants.includes(entity.id)
         && !isOnConstructionCrew(state, entity.id, building.id),
     );

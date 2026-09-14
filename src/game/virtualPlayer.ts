@@ -940,9 +940,6 @@ function decideStaffingMode(state: WorldState): VirtualPlayerDecision | null {
       desired = 'auto';
     }
     if (!desired) continue;
-    // `undefined` already means the type default, so an explicit `auto` on a
-    // non-manual building would be a pointless change.
-    if (desired === 'auto' && building.staffingMode == null) continue;
 
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'setBuildingStaffingMode', buildingId: building.id, mode: desired },

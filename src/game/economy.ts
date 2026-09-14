@@ -17,7 +17,9 @@ export function updateStorageCaps(state: WorldState) {
     gold: 20000,
     iron: 300 + warehouses * 100,
   };
-  state.foodSpoilageRate = Math.max(0.01, 0.02 - silos * 0.012);
+  // Floor at 0, not 0.01: the 1% floor swallowed the formula's own first-Silo result
+  // (0.02 − 0.012 = 0.8%), and a negative rate is not a spoilage rate.
+  state.foodSpoilageRate = Math.max(0, 0.02 - silos * 0.012);
 }
 
 export function consumeWorkshopRecipeInputs(state: WorldState, recipe: WorkshopRecipe): void {

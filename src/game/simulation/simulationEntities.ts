@@ -160,6 +160,9 @@ export function clearHuntersTargetingPrey(
   entityById: ReadonlyMap<number, Entity>,
   huntTargetByPreyId?: Map<number, Set<number>>,
 ): void {
+  // The index is built once at tick start, so a hunter that acquires this prey later in the
+  // same tick is absent from it: clear the indexed hunters and then always run the entityById
+  // scan as well, or those mid-tick hunters keep a huntTargetId pointing at a removed entity.
   if (huntTargetByPreyId) {
     const hunters = huntTargetByPreyId.get(preyId);
     if (hunters) {
@@ -168,7 +171,6 @@ export function clearHuntersTargetingPrey(
         if (hunter) hunter.huntTargetId = undefined;
       }
       huntTargetByPreyId.delete(preyId);
-      return;
     }
   }
 

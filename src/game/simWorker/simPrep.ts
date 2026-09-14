@@ -23,6 +23,13 @@ type SimPrepKeys =
   | 'screenShakeImpulse'
   | 'resources'
   | 'storageMax'
+  // Ledger, rolling food samples and the spoilage rate are written by the daily
+  // tick. A tick that is rolled back and then re-executed (or simply lost) would
+  // otherwise keep the entries it wrote before failing, so the Food ledger and
+  // dashboard would count food the colony never kept.
+  | 'foodSpoilageRate'
+  | 'economyLedger'
+  | 'foodHistory'
   | 'humanPopulation'
   | 'maxHumanPopulation'
   | 'workingSettlers'
@@ -111,8 +118,19 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     paused: state.paused,
     speed: state.speed,
 
-    // Clone entity objects shallowly to decouple from in-place property mutations
-    entities: (state.entities ?? []).map((e) => ({ ...e })),
+    // Clone entity objects to decouple from in-place property mutations. The nested
+    // maps/arrays below are written in place during a tick (`ensureEntitySkills`,
+    // `parent.childrenIds.push`, friendship/feud entries, the Moon Howler snapshot), so
+    // they must be copied too or a rollback would keep the failed attempt's changes.
+    entities: (state.entities ?? []).map((e) => ({
+      ...e,
+      skills: e.skills ? { ...e.skills } : e.skills,
+      childrenIds: e.childrenIds ? [...e.childrenIds] : e.childrenIds,
+      childhoodFriendsIds: e.childhoodFriendsIds ? [...e.childhoodFriendsIds] : e.childhoodFriendsIds,
+      friendships: e.friendships ? { ...e.friendships } : e.friendships,
+      feuds: e.feuds ? { ...e.feuds } : e.feuds,
+      moonHowlerSaved: e.moonHowlerSaved ? { ...e.moonHowlerSaved } : e.moonHowlerSaved,
+    })),
 
     // Clone building objects and isolate their occupants array
     buildings: (state.buildings ?? []).map((b) => ({
@@ -127,6 +145,24 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
 
     resources: { ...state.resources },
     storageMax: { ...state.storageMax },
+    foodSpoilageRate: state.foodSpoilageRate,
+    // Clone the ledger + rolling samples deeply: the daily tick and its writers
+    // (`economyLedger.ts`) mutate `produced`/`consumed` in place, and a shallow copy
+    // would still alias the live objects.
+    economyLedger: state.economyLedger
+      ? {
+          day: state.economyLedger.day,
+          produced: { ...state.economyLedger.produced },
+          consumed: { ...state.economyLedger.consumed },
+        }
+      : undefined,
+    foodHistory: state.foodHistory
+      ? state.foodHistory.map((s) => ({
+          ...s,
+          produced: { ...s.produced },
+          consumed: { ...s.consumed },
+        }))
+      : undefined,
     humanPopulation: state.humanPopulation,
     maxHumanPopulation: state.maxHumanPopulation,
     workingSettlers: state.workingSettlers ?? 0,
@@ -150,16 +186,19 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     activeResearch: state.activeResearch,
     researchProgress: state.researchProgress,
     unlockedTechs: [...(state.unlockedTechs ?? [])],
-    visitorGroups: [...(state.visitorGroups ?? [])],
+    // Object-valued arrays whose elements are mutated in place during a tick
+    // (`route.caravanLeg`, `disaster.progress`, visitor/rival counters), so the backup
+    // must own copies of the elements rather than of the outer array only.
+    visitorGroups: structuredClone(state.visitorGroups ?? []),
     activeVillageRequest: state.activeVillageRequest ? structuredClone(state.activeVillageRequest) : undefined,
     villageRequestCooldownUntilDay: state.villageRequestCooldownUntilDay ?? 0,
     villageRequestHistory: structuredClone(state.villageRequestHistory ?? []),
-    rivalSettlements: [...(state.rivalSettlements ?? [])],
+    rivalSettlements: structuredClone(state.rivalSettlements ?? []),
     pendingRaidEvents: [...(state.pendingRaidEvents ?? [])],
     pendingOutgoingRaidEvents: [...(state.pendingOutgoingRaidEvents ?? [])],
     pendingDiplomacyEvents: [...(state.pendingDiplomacyEvents ?? [])],
-    tradeRoutes: [...(state.tradeRoutes ?? [])],
-    disasters: [...(state.disasters ?? [])],
+    tradeRoutes: structuredClone(state.tradeRoutes ?? []),
+    disasters: structuredClone(state.disasters ?? []),
     villageForge: normalizeForgeState(state.villageForge),
     challenges: [...(state.challenges ?? [])],
     festival: state.festival ? { ...state.festival } : null,
@@ -222,6 +261,9 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
 
   world.resources = prep.resources;
   world.storageMax = prep.storageMax;
+  world.foodSpoilageRate = prep.foodSpoilageRate;
+  world.economyLedger = prep.economyLedger;
+  world.foodHistory = prep.foodHistory;
   world.humanPopulation = prep.humanPopulation;
   world.maxHumanPopulation = prep.maxHumanPopulation;
   world.workingSettlers = prep.workingSettlers;

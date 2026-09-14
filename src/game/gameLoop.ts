@@ -796,6 +796,9 @@ export class GameLoop {
       v.camera.zoom.toFixed(3),
       v.screenShake.toFixed(1),
       v.selectedEntityId ?? '',
+      // renderSnapshot resolves the whole multi-selection, so a shift-deselect must dirty the
+      // cache too — the primary id alone can be unchanged while other ids are dropped.
+      (v.selectedEntityIds ?? []).join(','),
       v.selectedBuildingId ?? '',
       v.hoveredBuildingId ?? '',
       v.buildMode ?? '',

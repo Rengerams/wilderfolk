@@ -40,6 +40,7 @@ import { syncEventLogIdFromState, logEvent } from './eventLog';
 import { indexLivingEntity, rebuildEntityByIdMap } from './entityIndex';
 import { syncResearchUnlocks } from './research';
 import { computeWildlifeCounts } from './entityCounts';
+import { buildEntityByType } from './simFocus';
 import { playerHumanCount } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
@@ -377,6 +378,8 @@ export function replenishDepletedWildlife(
 
   // Populatiedoelen
   const MIN_GRASS = 65;
+  /** Prey only repopulate while the pasture is at least this well grown. */
+  const MIN_PREY_GRASS = MIN_GRASS - 20;
   const MIN_RABBITS = 35;
   const TARGET_RABBITS = 55;
   const MIN_DEER = 12;
@@ -401,8 +404,13 @@ export function replenishDepletedWildlife(
     grassReplenished = true;
   }
 
-  const totalAvailableGrass = grassCount + (grassReplenished ? 98 : 0);
-  const sufficientGrass = totalAvailableGrass >= 45;
+  // The old `grassCount + 98` credit assumed all seven patches placed their full quota, so
+  // `sufficientGrass` was true whenever `needsGrass` was (grassCount < MIN_GRASS), i.e. always,
+  // and prey refilled even on a map where nothing grew. Recount what is actually on the ground.
+  const grassAfterReplenish = needsGrass
+    ? computeWildlifeCounts(state.entities).grass
+    : grassCount;
+  const sufficientGrass = grassAfterReplenish >= MIN_PREY_GRASS;
 
   // 2. Prooidieren afhankelijk van gras (met noodvangnet)
   const needsRabbits = (rabbits < MIN_RABBITS && sufficientGrass) || rabbits < 4;
@@ -454,24 +462,27 @@ export function replenishDepletedWildlife(
     wildlifeSpawned = true;
   }
 
-  if (!wildlifeSpawned && !grassReplenished) return false;
-
   // Wildlife index verversen
   state.wildlifeCounts = computeWildlifeCounts(state.entities);
 
   const colonyDay = getColonyDay(state);
   const lastLog = state.lastWildlifeReplenishLogDay ?? -999;
   const logGap = colonyDay - lastLog;
-  state.lastWildlifeReplenishLogDay = colonyDay;
 
-  if (wildlifeSpawned && logGap >= 40) {
-    if (wolves < 2 || foxes < 2) {
-      logEvent(state, 'event', 'Predators have migrated into the valley following game trails.');
+  // Only a replenishment that actually logs advances the throttle. Updating this field on every
+  // replenishing call measured the gap between *calls* instead of between *messages*, so once
+  // the frontier refilled more often than every 40 days the message could fire at most once.
+  if (logGap >= 40) {
+    if (wildlifeSpawned) {
+      if (wolves < 2 || foxes < 2) {
+        logEvent(state, 'event', 'Predators have migrated into the valley following game trails.');
+      } else {
+        logEvent(state, 'event', 'Wildlife returned to the frontier meadows.');
+      }
     } else {
-      logEvent(state, 'event', 'Wildlife returned to the frontier meadows.');
+      logEvent(state, 'event', 'Fresh grass is spreading on the frontier meadows.');
     }
-  } else if (grassReplenished && logGap >= 40) {
-    logEvent(state, 'event', 'Fresh grass is spreading on the frontier meadows.');
+    state.lastWildlifeReplenishLogDay = colonyDay;
   }
 
   return true;
@@ -692,7 +703,14 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   // 2. Procedural World Map Generation
   if (!skipTerrain) {
-    state.worldMap = generateWorldMap(size, preset ?? 'verdant', mapSeed);
+    // Explicit pixel dimensions must size the map itself, not only `state.width/height`: the
+    // size-only overload generated terrain for the preset `MapSize` dimensions, so a world
+    // resized through `InitGameOptions` got tiles (and every tile lookup scaled from them)
+    // that belonged to another map.
+    state.worldMap =
+      options.width != null || options.height != null
+        ? generateWorldMap(width, height, mapSeed, size, preset ?? 'verdant')
+        : generateWorldMap(size, preset ?? 'verdant', mapSeed);
   }
 
   // 3. Grass Meadows
@@ -831,6 +849,10 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   state.humanPopulation = playerHumanCount(state.entities);
   state.wildlifeCounts = computeWildlifeCounts(state.entities);
+  // `entityByType` started as defined-but-empty buckets, which is not nullish, so the
+  // documented `entityByType?.[type] ?? scan` fallbacks were bypassed for a freshly
+  // initialized (pre-tick) world. Fill it here, next to the id map.
+  state.entityByType = buildEntityByType(state.entities);
   rebuildEntityByIdMap(state);
 
   return state;

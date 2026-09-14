@@ -9,6 +9,7 @@ import { addReputation } from './simHelpers';
 import { sayHumanChatPhrase } from './humanChat';
 import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
+import { recordFoodConsumed } from './economyLedger';
 
 export function findStaffedHospital(buildings: readonly Building[]): Building | undefined {
   return buildings.find(
@@ -101,9 +102,11 @@ export function treatPatientAtHospital(
   );
   if (heal < 0.5) return false;
 
-  // Light medicine cost occasionally
+  // Light medicine cost occasionally — spend through the day ledger so the
+  // "why is my food low?" view sees the medicine line like every other meal.
   if (state.resources.food >= 1 && personDayRoll(patient.id, state.tick, 902) < 0.25) {
     state.resources.food -= 1;
+    recordFoodConsumed(state, 'medicine', 1);
   }
 
   patient.energy = Math.min(patient.maxEnergy, patient.energy + heal);
@@ -196,7 +199,9 @@ export function tickHospitalDailyCare(
     const near = Math.hypot(p.x - hx, p.y - hy) < 70;
     // Urgent cases farther away still get a small passive "clinic" benefit if staffed
     if (!near && medicalUrgency(p) < 0.7) continue;
-    if (treatPatientAtHospital(state, p, hospital, { doctorPresent: near })) {
+    // Doctor presence is the ward's own occupant scan — a patient standing near the
+    // building is not evidence that a doctor is on site.
+    if (treatPatientAtHospital(state, p, hospital)) {
       treated++;
     }
   }

@@ -59,6 +59,12 @@ export function tickPrisonGuardDuty(state: WorldState): void {
       if (!escapee) break;
       escapee.prisonBuildingId = undefined;
       escapee.prisonerUntilTick = undefined;
+      escapee.prisonSentenceCrime = undefined;
+      // Release clears the ownership field, so the prison's occupant list must
+      // drop the id in the same step — the §5 invariant is "an occupant is a
+      // prisoner (prisonBuildingId) or a guard (homeBuildingId)", and the next
+      // assign pulse is up to 18 ticks away.
+      prison.occupants = (prison.occupants ?? []).filter((id) => id !== escapee.id);
       const cx = prison.x + prison.width / 2;
       const cy = prison.y + prison.height / 2;
       addFloatingText(state, cx, cy - 14, 'A prisoner slipped out!', '#f59e0b');

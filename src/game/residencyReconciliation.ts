@@ -3,7 +3,7 @@ import type { Building, Entity } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
 import { collectFamilyMembers, collectOwnHousehold, isMinorChild } from './householdComposition';
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove, countResidentsInBuilding } from './residencyOccupancy';
-import { listPlayerResidences, ensureOrphanAdoption, rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickSharedResidenceForFamily } from './residencySelection';
+import { listPlayerResidences, ensureOrphanAdoption, rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitNeedsReassignment, sortHousingUnitsForAssignment } from './residencySelection';
 
 function pickSharedResidence(
   human: Entity,
@@ -127,8 +127,10 @@ function assignFamilyToResidence(
   allHumans: Entity[],
   occupancy?: ResidenceOccupancy,
 ): void {
-  const picked = pickResidenceForFamily(family, alive, residences, occupancy)
-    ?? pickSharedResidenceForFamily(family, alive, residences, occupancy);
+  // A family that fits nowhere falls through to the split path below; the old
+  // `?? pickSharedResidenceForFamily(...)` fallback re-ran the same fit test over the same
+  // residences, so it could never contribute a placement.
+  const picked = pickResidenceForFamily(family, alive, residences, occupancy);
   if (picked !== undefined) {
     for (const member of family) {
       if (occupancy) occupancyMove(occupancy, member.residenceBuildingId, picked);

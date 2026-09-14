@@ -71,7 +71,7 @@ export function selectRivalDailyAction(
   if (profile.priority === 'security' && ledger.wood >= 12 && relationship !== 'friendly') return 'fortify';
   if (profile.priority === 'trade' && ledger.gold >= 5) return 'trade';
   if (profile.priority === 'food' && ledger.gold >= 5) return 'trade';
-  if (profile.priority === 'shelter' && ledger.wood >= 8) return 'fortify';
+  if (profile.priority === 'shelter' && ledger.wood >= 12) return 'fortify';
   if (ledger.food < 45 || ledger.wood < 30) return 'gather';
   if (relationship === 'tense' && ledger.gold >= 3) return 'scout';
   if (ledger.recovery < 75) return 'cool_down';

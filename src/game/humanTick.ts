@@ -426,11 +426,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     if (!active) {
-      let minimalEnergyLoss = hasWell ? config.energyLossPerTick * 0.8 : config.energyLossPerTick;
-      if (hasHospital) minimalEnergyLoss *= 0.9;
-      if (isWinter && !canHeat) minimalEnergyLoss *= 1.5;
-      minimalEnergyLoss *= traitMultiplier(entity, 'hardy', 0.85);
-      entity.energy -= minimalEnergyLoss;
+      entity.energy -= humanEnergyLoss(entity, config, {
+        hasWell,
+        isWinter,
+        canHeat,
+        hasHospital,
+        tick: state.tick,
+        hourOfDay,
+        buildingById,
+      });
 
       tryEatColonyMeal(entity, state, hourOfDay);
       if (isPlayerHuman(entity) && entity.energy <= 0) {
@@ -547,6 +551,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           (entity.job === JobType.Soldier &&
             isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings)))) ||
         onSchoolShift);
+    // Civic venues are excluded from `ordinaryWorkplace` because they have their own
+    // on-duty handler; state the official's shift here or it is never on duty.
+    const onOfficialShift =
+      entity.job === JobType.Official &&
+      workplace?.type === BuildingType.TownHall &&
+      workplace.completed &&
+      goWorkTime;
 
     const venueWorkerIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
     const venueWorkerCount = workplace?.occupants.length ?? 0;
@@ -1088,7 +1099,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       allHumans,
       updatedBuildings,
       buildingById,
-      onDayJobShift,
+      onDayJobShift: onDayJobShift || onOfficialShift,
       onHotelShift,
     });
     tickHumanHospitalPatientCare({

@@ -260,7 +260,6 @@ export function pickDialogueTree(
   entityId: number,
   tick: number,
   hints?: DialoguePickHints,
-  avoidTreeId?: string,
 ): DialogueTree | null {
   const trees = getDialogueTrees();
   if (trees.length === 0) return null;
@@ -282,17 +281,9 @@ export function pickDialogueTree(
   const usePool = pool.length > 0 ? pool : [...trees];
 
   const seed = entityId * 47 + tick * 13;
-  let index = Math.abs(seed) % usePool.length;
-  let tree = usePool[index]!;
-  
-  if (avoidTreeId && usePool.length > 1) {
-    for (let attempt = 0; attempt < usePool.length && tree.id === avoidTreeId; attempt++) {
-      index = (index + 5 + entityId) % usePool.length;
-      tree = usePool[index]!;
-    }
-  }
-  
-  return tree;
+  const index = Math.abs(seed) % usePool.length;
+
+  return usePool[index]!;
 }
 
 export function getDialogueTreeById(id: string): DialogueTree | undefined {
