@@ -2,8 +2,8 @@ import { TerrainType, type TerrainTile, type WorldMap, type MapPreset, MapSize, 
 import { getSimRng } from './simRng';
 import { isUnbuildableTerrainType } from './placementUtils';
 
+
 // ─── Seeded PRNG ─────────────────────────────────────────────────────────────
-// Park-Miller LCG. Seed 0 is fatal (0 * 16807 % N = 0), so we coerce it.
 function seededRandom(seed: number) {
   let s = seed === 0 ? 1 : Math.abs(Math.floor(seed)) % 2147483647;
   return function () {
@@ -13,8 +13,6 @@ function seededRandom(seed: number) {
 }
 
 // ─── Noise ───────────────────────────────────────────────────────────────────
-// Simple octave noise using sine/cosine. Not Perlin, but fast and good enough
-// for macro terrain. Returns 0..1.
 function noise(x: number, y: number, seed: number): number {
   let value = 0;
   let amplitude = 1;
@@ -86,10 +84,6 @@ function getTerrainType(
   if (elevation < waterLevel) return TerrainType.ShallowWater;
   if (elevation < waterLevel + 0.08) return TerrainType.Beach;
 
-  // High peaks FIRST — before Rocky foothills, so snow-capped peaks aren't
-  // downgraded to Rocky just because they sit near another mountain. The
-  // Mountainous preset uses a higher threshold so ranges frame the valley
-  // instead of covering the playable map like a second forest layer.
   const mountainThreshold = preset === 'mountainous' ? 0.94 : 0.85;
   if (elevation > mountainThreshold) {
     if (temperature < 0.3) return TerrainType.Snow;
@@ -101,17 +95,13 @@ function getTerrainType(
 
   if (elevation > 0.6) return TerrainType.Hills;
 
-  // Forest biome — DarkForest was a leftover type and is intentionally not generated.
+  // Forest biome
   if (moisture > pm.forestThreshold) return TerrainType.Forest;
 
-  // Grassland is the fallback biome. There is no separate dry/savanna TerrainType member, so
-  // the old `temperature > 0.7 && moisture < 0.25` branch returned Grassland just like this
-  // line — it was a no-op and its computed condition had no effect.
   return TerrainType.Grassland;
 }
 
 // ─── Buildability ────────────────────────────────────────────────────────────
-/** True when every 10px tile under the footprint is buildable. */
 export function isFootprintBuildable(
   tiles: TerrainTile[][],
   tileW: number,
@@ -142,7 +132,6 @@ export function isFootprintBuildable(
   return true;
 }
 
-/** Iterate tiles within a radius around a world point (shared by clear helpers). */
 function forEachTileInRadius(
   tiles: TerrainTile[][],
   tileW: number,
@@ -165,7 +154,6 @@ function forEachTileInRadius(
   }
 }
 
-/** Carve dry buildable land for the founding camp. */
 export function ensureCampClearing(
   tiles: TerrainTile[][],
   tileW: number,
@@ -178,8 +166,6 @@ export function ensureCampClearing(
   if (!tiles?.length || tileW <= 0 || tileH <= 0) return;
 
   forEachTileInRadius(tiles, tileW, tileH, worldX, worldY, radiusTiles, (tile, _tx, _ty, dist) => {
-    // A founding clearing may overlap a river, but it must not erase the
-    // authoritative water channel and create visual gaps across the map.
     if (tile.type === TerrainType.River || tile.type === TerrainType.RiverBank) return;
 
     const inner = dist < radiusTiles * 0.55;
@@ -193,11 +179,6 @@ export function ensureCampClearing(
   });
 }
 
-/**
- * Convert Forest/DarkForest tiles inside the starting radius to Grassland so
- * the camp centre does not start behind a dense wall of trees. Rivers, water,
- * hills, and mountains are left untouched.
- */
 function clearStartAreaForest(
   tiles: TerrainTile[][],
   tileW: number,
@@ -231,7 +212,6 @@ export function findCampSite(
   const step = 10;
   const margin = 40;
 
-  // Spiral search outward
   for (let ring = 1; ring <= 40; ring++) {
     for (let dy = -ring; dy <= ring; dy++) {
       for (let dx = -ring; dx <= ring; dx++) {
@@ -246,7 +226,6 @@ export function findCampSite(
     }
   }
 
-  // Full-map fallback scan
   const scanStep = 20;
   for (let y = margin; y <= mapPixelH - margin; y += scanStep) {
     for (let x = margin; x <= mapPixelW - margin; x += scanStep) {
@@ -256,7 +235,6 @@ export function findCampSite(
     }
   }
 
-  // Absolute last resort — scan every 10px
   for (let y = margin; y <= mapPixelH - margin; y += 10) {
     for (let x = margin; x <= mapPixelW - margin; x += 10) {
       if (isFootprintBuildable(tiles, tileW, tileH, footprintW, footprintH, x, y)) {
@@ -265,7 +243,6 @@ export function findCampSite(
     }
   }
 
-  // If the world is literally 100% unbuildable, return preferred but warn
   console.warn('[terrainGen] findCampSite: no buildable site found, returning preferred');
   return { x: preferredX, y: preferredY };
 }
@@ -279,14 +256,7 @@ export interface GenerateWorldMapOptions {
   height?: number;
 }
 
-/**
- * Mountains must form connected regions like water — isolated single-peak
- * tiles look like noise. Two passes with edge-connected (4-direction) rules:
- * drop peaks with no edge-connected mountain neighbour (downgrade to
- * Rocky/Hills) and fill high-elevation gaps with an edge-connected mountain
- * neighbour so ridges stay contiguous.
- */
-function clusterMountainRegions(
+export function clusterMountainRegions(
   tiles: TerrainTile[][],
   tileW: number,
   tileH: number,
@@ -302,7 +272,6 @@ function clusterMountainRegions(
     return count;
   };
 
-  // Pass 1 — remove isolated peaks (no edge-connected mountain neighbour).
   for (let ty = 0; ty < tileH; ty++) {
     for (let tx = 0; tx < tileW; tx++) {
       if (types[ty]?.[tx] !== TerrainType.Mountains) continue;
@@ -313,14 +282,12 @@ function clusterMountainRegions(
     }
   }
 
-  // Refresh snapshot after removal.
   for (let ty = 0; ty < tileH; ty++) {
     for (let tx = 0; tx < tileW; tx++) {
       types[ty][tx] = tiles[ty][tx].type;
     }
   }
 
-  // Pass 2 — fill high-elevation gaps so ridges stay connected.
   for (let ty = 0; ty < tileH; ty++) {
     for (let tx = 0; tx < tileW; tx++) {
       const tile = tiles[ty][tx];
@@ -399,10 +366,6 @@ export function generateWorldMap(
     }
   }
 
-  // Smoothed elevation for river routing — the raw per-tile noise is spiky
-  // (peaks drop ~50 elevation units within 2 tiles), so greedy descents hit a
-  // local minimum almost immediately and rivers never form. Rivers follow this
-  // coarse gradient instead, then carve their channel into the real tiles.
   const smoothElev: number[][] = [];
   for (let ty = 0; ty < tileH; ty++) {
     smoothElev[ty] = [];
@@ -422,10 +385,6 @@ export function generateWorldMap(
     }
   }
 
-  // ── Find mountain peaks for river sources ──
-  // Peaks must clear ~70% of what this preset can reach (bias + scale). An
-  // absolute 70 starved low-elevation presets (coastal, riverlands) — their
-  // hills never got that high, so they got no rivers at all.
   const peakThreshold = Math.max(
     48,
     Math.min(1, (1 + pm.elevationBias) * pm.elevationScale) * 0.7 * 100,
@@ -456,9 +415,7 @@ export function generateWorldMap(
   // ── Generate rivers from peaks ──
   const rivers: { x: number; y: number }[][] = [];
   const riverSet = new Set<string>();
-  /** Cells of rivers long enough to keep — these render as real flowing water. */
   const acceptedRiverSet = new Set<string>();
-  /** One tile of non-water bank around carved channels, applied in the final pass. */
   const riverBankSet = new Set<string>();
 
   for (const peak of topPeaks) {
@@ -474,12 +431,10 @@ export function generateWorldMap(
       river.push({ x: cx * 10, y: cy * 10 });
       riverSet.add(key);
 
-      // Stop when the channel reaches actual water / very low ground
       if (tiles[cy][cx].elevation < 20) break;
 
       const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
 
-      // 1) Steepest smoothed descent
       let lowestElev = smoothElev[cy][cx];
       let lowestX = cx;
       let lowestY = cy;
@@ -500,8 +455,6 @@ export function generateWorldMap(
         continue;
       }
 
-      // 2) Basin bypass — step to the lowest unvisited neighbour so the river
-      //    keeps cutting toward the valley floor instead of dying in a hollow.
       let fallback = -1;
       let fx = cx;
       let fy = cy;
@@ -524,19 +477,14 @@ export function generateWorldMap(
 
     if (river.length > 10) {
       rivers.push(river);
-
-      // Skip the peak cell (mountain top stays land), but make the carved
-      // channel itself 4-connected. The downhill walk may move diagonally;
-      // without these bridge cells, a diagonal path renders as separated blue
-      // squares even though the path array is technically continuous.
       const channelCells = new Set<string>();
       for (let i = 1; i < river.length; i++) {
         const previous = river[i - 1];
         const current = river[i];
-        const px = Math.floor(previous.x / 10);
-        const py = Math.floor(previous.y / 10);
-        const cx = Math.floor(current.x / 10);
-        const cy = Math.floor(current.y / 10);
+        const px = Math.floor(previous.x / TERRAIN_TILE_SIZE);
+        const py = Math.floor(previous.y / TERRAIN_TILE_SIZE);
+        const cx = Math.floor(current.x / TERRAIN_TILE_SIZE);
+        const cy = Math.floor(current.y / TERRAIN_TILE_SIZE);
         channelCells.add(`${cx},${cy}`);
 
         if (Math.abs(cx - px) === 1 && Math.abs(cy - py) === 1) {
@@ -545,9 +493,6 @@ export function generateWorldMap(
         }
       }
 
-      // Widen the channel into a visible water body. Lowland river sections
-      // receive an orthogonal shoulder up to waterLevel + 0.14; diagonal
-      // shoulders use the narrower +0.08 threshold so banks remain legible.
       for (const key of channelCells) {
         const [cx, cy] = key.split(',').map(Number);
         acceptedRiverSet.add(key);
@@ -563,12 +508,6 @@ export function generateWorldMap(
     }
   }
 
-  // ── Guaranteed primary river ──
-  // Peak-fed tributaries add variety, but they may end in interior basins and
-  // read as ponds at normal zoom. Every preset therefore receives one broad,
-  // deterministic north-to-south river spine. It stays away from the founding
-  // centre, meanders by at most one tile per row, and is carved independently
-  // of elevation so it remains continuous across the whole playable map.
   const primaryRadius = preset === 'riverlands' || preset === 'coastal' ? 2 : 1;
   const side = rng() < 0.5 ? 0.28 : 0.72;
   const margin = primaryRadius + 3;
@@ -596,9 +535,6 @@ export function generateWorldMap(
     }
   }
 
-  // Mark an explicit shore ring around every water cell. The atlas treats this
-  // as land for painted water edges, while the terrain model keeps it separate
-  // from generic grass/forest so rivers remain readable and unbuildable.
   for (const key of acceptedRiverSet) {
     const [cx, cy] = key.split(',').map(Number);
     for (let dy = -1; dy <= 1; dy++) {
@@ -621,7 +557,6 @@ export function generateWorldMap(
       const moistNorm = tile.moisture / 100;
       const tempNorm = Math.min(1, Math.max(0, tempNoise(tx * 10, ty * 10, seed) + pm.temperatureBias));
 
-      // Near river (5×5 neighbourhood)
       let nearRiver = false;
       for (let dy = -2; dy <= 2 && !nearRiver; dy++) {
         for (let dx = -2; dx <= 2; dx++) {
@@ -632,7 +567,6 @@ export function generateWorldMap(
         }
       }
 
-      // Near mountain (7×7 neighbourhood)
       let nearMountain = false;
       for (let dy = -3; dy <= 3 && !nearMountain; dy++) {
         for (let dx = -3; dx <= 3; dx++) {
@@ -644,10 +578,6 @@ export function generateWorldMap(
         }
       }
 
-      // A carved river channel is water regardless of elevation — otherwise the
-      // downhill walk from peaks never drops below the strict River threshold
-      // (elevation < waterLevel*0.75) and rivers rendered as land: verdant maps
-      // had almost no visible water. Bridges can now span these real rivers.
       const terrainType = getTerrainType(elevNorm, moistNorm, tempNorm, nearRiver, nearMountain, preset);
       const key = `${tx},${ty}`;
       const naturalWater = terrainType === TerrainType.DeepWater || terrainType === TerrainType.ShallowWater;
@@ -659,13 +589,6 @@ export function generateWorldMap(
     }
   }
 
-  // Mountains must form connected regions like water — never lone 1-tile peaks.
-  clusterMountainRegions(tiles, tileW, tileH, preset);
-
-  // ── Camp clearing ──
-  // FIX: use the actual width/height, not MAP_SIZE_DIMENSIONS[size].
-  // Legacy calls with custom pixel dimensions were placing the camp
-  // at the centre of the default MapSize instead of the real map.
   const campX = width / 2;
   const campY = height / 2;
   const houseFootprint = { w: 46, h: 40 };
@@ -677,7 +600,6 @@ export function generateWorldMap(
     ensureCampClearing(tiles, tileW, tileH, campX, campY, preset === 'coastal' ? 18 : 12, preset);
   }
 
-  // Keep the starting area open — no dense forest wall around the camp centre.
   const startForestRadius = Math.max(14, Math.round(Math.min(tileW, tileH) * 0.22));
   clearStartAreaForest(tiles, tileW, tileH, campX, campY, startForestRadius);
 

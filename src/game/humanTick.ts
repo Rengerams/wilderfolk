@@ -1,11 +1,3 @@
-/**
- * Wilderfolk — human simulation tick.
- *
- * Extracted from lifeSimulation.ts: the per-human social / relationship /
- * courtship / commute / leisure pass (`tickHumans`) plus the helpers it
- * exclusively owns. Shared helpers remain in lifeSimulation.ts and are
- * imported here.
- */
 import type { WorldState, Entity, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
@@ -190,8 +182,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   const workSchedule = getWorkSchedule(state);
   const goWorkTime = isOnWorkScheduleShift(state, hourOfDay);
-  // The schedule says when a settler must be *at* work; the hour before it is the commute window,
-  // so the walk happens before the bell instead of eating the first hours of the shift.
   const onWorkCommuteHours = isWorkDay(state.tick) && isOnWorkCommuteHours(workSchedule, hourOfDay);
   const weekend = isWeekend(state.tick);
   const isNewCalendarDay = isNewCalendarDayTick(state);
@@ -252,7 +242,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const hasWell = ctx.hasWell;
   const hasHospital = ctx.hasHospital;
 
-  // Corrected: accurately collect player-owned, completed, staffed civic sites
   const staffedHospitals: Building[] = [];
   const staffedTownHalls: Building[] = [];
   for (const b of updatedBuildings) {
@@ -292,10 +281,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   const schoolReserved = new Map<number, number>();
 
-  /**
-   * Energy, meals and exhaustion — the per-tick upkeep the un-simulated path applies.
-   * Prisoners take an early `continue` and used to skip it entirely.
-   */
   const applySettlerUpkeep = (entity: Entity): void => {
     entity.energy -= humanEnergyLoss(entity, config, {
       hasWell,
@@ -312,7 +297,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
   };
 
-  /** Pregnancy progress — one guard for the simulated and the imprisoned settler. */
   const advancePregnancy = (entity: Entity, conceivedToday: boolean): void => {
     if (
       entity.alive &&
@@ -360,7 +344,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     const isPrisoner = entity.prisonBuildingId != null;
-    const atHome = shouldBeAtHomeFor(workSchedule, hourOfDay) && isNearResidence(entity, buildingById);
 
     entity.reproductionCooldown = Math.max(0, entity.reproductionCooldown - 1);
     if (entity.gender && entity.relationshipStatus === undefined) {
@@ -440,8 +423,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           entity.y += (dy / dist) * Math.min(dist, 1.2);
         }
       }
-      // A sentence pauses movement, not biology: the prisoner still advances its
-      // dialogue timers, burns energy and eats, and carries a pregnancy forward.
       tickHumanChat(entity, resolveChatPartner);
       applySettlerUpkeep(entity);
       advancePregnancy(entity, conceivedToday);
@@ -586,8 +567,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           (entity.job === JobType.Soldier &&
             isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings)))) ||
         onSchoolShift);
-    // Civic venues are excluded from `ordinaryWorkplace` because they have their own
-    // on-duty handler; state the official's shift here or it is never on duty.
     const onOfficialShift =
       entity.job === JobType.Official &&
       workplace?.type === BuildingType.TownHall &&
@@ -817,7 +796,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !isInnkeeper &&
       workplace
     ) {
-      // Sets off in the hour before the shift so the settler is *at* work when it starts.
       commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), 3.5);
       onSchedule = true;
       suppressIdle = true;
@@ -845,6 +823,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     suppressIdle = huntingSuppressIdle;
 
     advancePregnancy(entity, conceivedToday);
+
+    const atHome = shouldBeAtHomeFor(workSchedule, hourOfDay) && isNearResidence(entity, buildingById);
 
     // Evening out
     if (
@@ -968,7 +948,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       socialTime &&
       isPlayerHuman(entity) &&
       entity.gender === 'female' &&
-      entity.relationshipStatus === 'married' &&
+      (entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting') &&
       !entity.pregnant &&
       entity.partnerId &&
       entity.reproductionCooldown <= 0
@@ -988,17 +968,20 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Secret affairs
+    // Secret affairs: pregnancy or expecting status no longer blocks encounters or catching
+    const isMarriedOrExpecting =
+      (entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting') &&
+      entity.partnerId != null;
+
     if (
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
       isPlayerHuman(entity) &&
       !entity.isJuvenile &&
-      !entity.pregnant &&
       entity.gender &&
       entity.age >= HUMAN_ADULT_MIN_AGE &&
       entity.age < HUMAN_MAX_LIFESPAN_YEARS &&
       entity.energy > config.reproductionEnergyThreshold * 0.5 &&
-      entity.relationshipStatus === 'married' &&
+      isMarriedOrExpecting &&
       !isAtMaritalHome(entity, entityById, buildingById)
     ) {
       const affairRange = 75;
@@ -1076,12 +1059,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Established affair movement
+    // Established affair movement: pregnant settlers still meet lovers and can be caught
     if (
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
       isPlayerHuman(entity) &&
       !entity.isJuvenile &&
-      !entity.pregnant &&
       hasAffairPartner(entity, entityById) &&
       !isAtMaritalHome(entity, entityById, buildingById)
     ) {
@@ -1144,9 +1126,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onJobShift,
       speed: config.speed,
     });
-    // Civic petitions are resolved once per colony day by the town-hall owner
-    // (`tickTownHallAudiences`), so the realtime path only walks settlers to the hall
-    // (leisure motive 5) — see BUG_REPORTS/2026-09-13-civic-petitions-re-award-every-tick-per-day-rolls-are-used.md.
 
     // Morning greetings
     if (allowFreeRoam && isPlayerHuman(entity) && !entity.isJuvenile && hourOfDay >= 6 && hourOfDay <= 9) {
@@ -1332,9 +1311,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             }
           }
 
-          // The shared tail below blends the current velocity with this branch's
-          // idle velocity once; blending here too gave company-following a
-          // 0.225/0.775 weight instead of the 0.5/0.5 every other leisure kind uses.
           suppressIdle = true;
         } else if (leisureKind <= 2) {
           const tavern = pickCompleted([BuildingType.Tavern]);
@@ -1521,7 +1497,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const activeHumans = state.entities.filter((e) => e.alive && isPlayerHuman(e));
     const activePregnancies = activeHumans.filter((e) => e.pregnant).length;
     const activeMarriages = activeHumans.filter(
-      (e) => e.relationshipStatus === 'married' && e.partnerId != null && e.id < e.partnerId,
+      (e) =>
+        (e.relationshipStatus === 'married' || e.relationshipStatus === 'expecting') &&
+        e.partnerId != null &&
+        e.id < e.partnerId,
     ).length;
     const activeCourtships = activeHumans.filter(
       (e) => e.courtshipPartnerId != null && e.id < e.courtshipPartnerId,

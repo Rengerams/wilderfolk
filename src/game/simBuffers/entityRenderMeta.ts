@@ -39,7 +39,10 @@ export interface EntityRenderMeta {
   courtshipProgress?: number;
   relationshipStatus?: Entity['relationshipStatus'];
   partnerId?: number;
+  affairPartnerId?: number;
+  courtshipPartnerId?: number;
   homeBuildingId?: number;
+  prisonBuildingId?: number;
   tamedBy?: number;
   skills?: Entity['skills'];
   combatTicks?: number;
@@ -70,7 +73,10 @@ export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
     courtshipProgress: entity.courtshipProgress,
     relationshipStatus: entity.relationshipStatus,
     partnerId: entity.partnerId,
+    affairPartnerId: entity.affairPartnerId,
+    courtshipPartnerId: entity.courtshipPartnerId,
     homeBuildingId: entity.homeBuildingId,
+    prisonBuildingId: entity.prisonBuildingId,
     tamedBy: entity.tamedBy,
     skills: entity.skills ? { ...entity.skills } : {},
     combatTicks: entity.combatTicks,
@@ -124,6 +130,7 @@ export function buildRenderEntityShim(
     chatTicks: chatTicksRaw > 0 ? chatTicksRaw : undefined,
     residenceBuildingId: residenceId !== RESIDENCE_BUILDING_NONE ? residenceId : undefined,
     homeBuildingId: meta?.homeBuildingId,
+    prisonBuildingId: meta?.prisonBuildingId,
     name: meta?.name,
     surname: meta?.surname,
     maidenSurname: meta?.maidenSurname,
@@ -147,6 +154,8 @@ export function buildRenderEntityShim(
     courtshipProgress: meta?.courtshipProgress,
     relationshipStatus: meta?.relationshipStatus,
     partnerId: meta?.partnerId,
+    affairPartnerId: meta?.affairPartnerId,
+    courtshipPartnerId: meta?.courtshipPartnerId,
     skills: meta?.skills ? { ...meta.skills } : {},
     combatTicks: meta?.combatTicks ?? ((flags & RENDER_FLAG_COMBAT) ? 1 : 0),
     forageKind: meta?.forageKind,

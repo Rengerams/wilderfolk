@@ -1,10 +1,3 @@
-/**
- * Game Initialization & Procedural World Generation
- *
- * Authoritative initialization module establishing starting resources,
- * procedural terrain, ecological rings, founding settlers, and immigration.
- */
-
 import type {
   WorldState,
   Entity,
@@ -27,7 +20,15 @@ import {
 } from './gameTypes';
 import { generateWorldMap, findCampSite } from './terrainGen';
 export { generateWorldMap } from './terrainGen';
-import { enableSeededGlobalRandom, getSimRng, nativeRandom, setSimSeed } from './simRng';
+import {
+  enableSeededGlobalRandom,
+  getSimRng,
+  nativeRandom,
+  setSimSeed,
+  randomInt,
+  randomBool,
+  type RngStream,
+} from './simRng';
 import { loadAutoSavePreference } from './preferences';
 import { INITIAL_CHALLENGES } from './challenges';
 import { ensureNamesLoaded, getRandomName, getRandomSurname } from './nameLoader';
@@ -35,6 +36,7 @@ import {
   getColonyDay,
   HUMAN_ADULT_MIN_AGE,
   TICKS_PER_HOUR,
+  PREGNANCY_TICKS,
 } from './dayCycle';
 import { syncEventLogIdFromState, logEvent } from './eventLog';
 import { indexLivingEntity, rebuildEntityByIdMap } from './entityIndex';
@@ -50,7 +52,7 @@ import { createInitialForgeState } from './forge';
 import { getBuildingFootprint } from './buildingRotation';
 import { createEmptyLifetimeStats } from './stats';
 import { createGuidedCampaignState } from './guidedCampaign';
-import { BLUEBERRY_MAX_YIELD, BLUEBERRY_REGROWTH_DAYS } from './blueberryForaging';
+import { spawnBlueberryTrees } from './blueberryForaging';
 
 export { createEntity, finalizeSettlerAge } from './entityFactory';
 
@@ -80,8 +82,10 @@ const UNPASSABLE_WILDLIFE_TERRAIN = new Set<TerrainType>([
 
 function getTileAtWorld(state: WorldState, x: number, y: number) {
   if (!state.worldMap) return null;
-  const tx = Math.floor(x / TERRAIN_TILE_SIZE);
-  const ty = Math.floor(y / TERRAIN_TILE_SIZE);
+  const tw = state.worldMap.width > 0 ? state.width / state.worldMap.width : TERRAIN_TILE_SIZE;
+  const th = state.worldMap.height > 0 ? state.height / state.worldMap.height : TERRAIN_TILE_SIZE;
+  const tx = Math.floor(x / tw);
+  const ty = Math.floor(y / th);
   if (tx < 0 || ty < 0 || tx >= state.worldMap.width || ty >= state.worldMap.height) {
     return null;
   }
@@ -93,7 +97,6 @@ export function isPassableWildlifePosition(state: WorldState, x: number, y: numb
     return false;
   }
   const tile = getTileAtWorld(state, x, y);
-  // If no worldMap is generated, position within boundaries is passable
   if (!tile) {
     return !state.worldMap;
   }
@@ -117,60 +120,15 @@ function registerSpawnedWildlife(
   );
   if (opts?.recordBirthYear) spawnedEntity.birthYear = state.year;
 
+  // Always register and index entity in world state
+  state.entities.push(spawnedEntity);
+  indexLivingEntity(state, spawnedEntity);
+
   if (opts?.onSpawn) {
     opts.onSpawn(spawnedEntity);
-  } else {
-    state.entities.push(spawnedEntity);
-    indexLivingEntity(state, spawnedEntity);
   }
 
   return spawnedEntity;
-}
-
-/** AGENTS.md §8: new maps contain at most three blueberry trees. */
-const BLUEBERRY_TREE_SPAWN_BY_MAP_SIZE: Partial<Record<MapSize, number>> = {
-  [MapSize.Medium]: 2,
-  [MapSize.Large]: 3,
-  [MapSize.Huge]: 3,
-};
-
-/**
- * Plaatst zeldzame bosbessenstruiken rondom het startkamp.
- */
-function spawnBlueberryTrees(
-  state: WorldState,
-  size: MapSize,
-  campX: number,
-  campY: number,
-): void {
-  const target = BLUEBERRY_TREE_SPAWN_BY_MAP_SIZE[size] ?? 2;
-  let spawned = 0;
-  const maxAttempts = target * 72;
-
-  for (let attempt = 0; attempt < maxAttempts && spawned < target; attempt++) {
-    const angle = simRandom() * Math.PI * 2;
-    const dist = 155 + simRandom() * Math.min(state.width, state.height) * 0.28;
-    const x = campX + Math.cos(angle) * dist;
-    const y = campY + Math.sin(angle) * dist;
-
-    if (!isPassableWildlifePosition(state, x, y, 18)) continue;
-
-    const tooCloseToOther = state.entities.some(
-      (entity) =>
-        entity.alive &&
-        entity.forageKind === 'blueberry' &&
-        Math.hypot(entity.x - x, entity.y - y) < 165,
-    );
-    if (tooCloseToOther) continue;
-
-    const tree = createEntity(EntityType.Tree, x, y, state.nextEntityId++);
-    tree.forageKind = 'blueberry';
-    tree.blueberryYield = BLUEBERRY_MAX_YIELD;
-    tree.blueberryNextRegrowthDay = BLUEBERRY_REGROWTH_DAYS;
-    state.entities.push(tree);
-    indexLivingEntity(state, tree);
-    spawned++;
-  }
 }
 
 function maxRingRadiusFromCenter(
@@ -215,8 +173,14 @@ function spawnWildlifeAtRandomPassable(
       const effMax = Math.max(effMin, opts?.maxDist ?? Math.min(state.width, state.height) / 2);
       const angle = simRandom() * Math.PI * 2;
       const dist = effMin + simRandom() * (effMax - effMin);
-      x = Math.max(margin, Math.min(state.width - margin, cx + Math.cos(angle) * dist));
-      y = Math.max(margin, Math.min(state.height - margin, cy + Math.sin(angle) * dist));
+      x = cx + Math.cos(angle) * dist;
+      y = cy + Math.sin(angle) * dist;
+
+      if (x < margin || x > state.width - margin || y < margin || y > state.height - margin) {
+        consecutiveFails++;
+        if (consecutiveFails >= 48) break;
+        continue;
+      }
     } else {
       x = margin + simRandom() * (state.width - margin * 2);
       y = margin + simRandom() * (state.height - margin * 2);
@@ -344,9 +308,10 @@ export function spawnWildlifeRing(
     for (let attempt = 0; attempt < 16; attempt++) {
       const angle = simRandom() * Math.PI * 2;
       const dist = effMin + simRandom() * Math.max(0, effMax - effMin);
-      const sx = Math.max(margin, Math.min(width - margin, cx + Math.cos(angle) * dist));
-      const sy = Math.max(margin, Math.min(height - margin, cy + Math.sin(angle) * dist));
+      const sx = cx + Math.cos(angle) * dist;
+      const sy = cy + Math.sin(angle) * dist;
 
+      if (sx < margin || sx > width - margin || sy < margin || sy > height - margin) continue;
       if (state.worldMap && !isPassableWildlifePosition(state, sx, sy, margin)) continue;
 
       registerSpawnedWildlife(state, type, sx, sy, opts);
@@ -376,9 +341,7 @@ export function replenishDepletedWildlife(
   const foxes = counts.foxes;
   const grassCount = counts.grass;
 
-  // Populatiedoelen
   const MIN_GRASS = 65;
-  /** Prey only repopulate while the pasture is at least this well grown. */
   const MIN_PREY_GRASS = MIN_GRASS - 20;
   const MIN_RABBITS = 35;
   const TARGET_RABBITS = 55;
@@ -392,7 +355,6 @@ export function replenishDepletedWildlife(
   const cx = state.width / 2;
   const cy = state.height / 2;
 
-  // 1. Gras altijd eerst als basis controleren en aanvullen
   let grassReplenished = false;
   const needsGrass = grassCount < MIN_GRASS;
 
@@ -404,34 +366,24 @@ export function replenishDepletedWildlife(
     grassReplenished = true;
   }
 
-  // The old `grassCount + 98` credit assumed all seven patches placed their full quota, so
-  // `sufficientGrass` was true whenever `needsGrass` was (grassCount < MIN_GRASS), i.e. always,
-  // and prey refilled even on a map where nothing grew. Recount what is actually on the ground.
   const grassAfterReplenish = needsGrass
     ? computeWildlifeCounts(state.entities).grass
     : grassCount;
   const sufficientGrass = grassAfterReplenish >= MIN_PREY_GRASS;
 
-  // 2. Prooidieren afhankelijk van gras (met noodvangnet)
   const needsRabbits = (rabbits < MIN_RABBITS && sufficientGrass) || rabbits < 4;
   const needsDeer = (deer < MIN_DEER && sufficientGrass) || deer < 2;
-
-  // 3. Vossen jagen op konijnen
   const sufficientPreyForFoxes = rabbits >= 20;
   const needsFoxes = (foxes < MIN_FOXES && sufficientPreyForFoxes) || foxes < 2;
-
-  // 4. Wolven jagen op herten, vossen en konijnen
   const totalWolfPrey = deer + foxes + rabbits;
   const sufficientPreyForWolves = totalWolfPrey >= 30;
   const needsWolves = (wolves < MIN_WOLVES && sufficientPreyForWolves) || wolves < 2;
 
   const needsWildlife = needsRabbits || needsDeer || needsFoxes || needsWolves;
-
   if (!needsWildlife && !grassReplenished) return false;
 
   let wildlifeSpawned = false;
 
-  // Spawnen in gescheiden biotopen
   if (needsRabbits) {
     spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, TARGET_RABBITS - rabbits, 120, 320, {
       recordBirthYear: true, onSpawn,
@@ -462,16 +414,12 @@ export function replenishDepletedWildlife(
     wildlifeSpawned = true;
   }
 
-  // Wildlife index verversen
   state.wildlifeCounts = computeWildlifeCounts(state.entities);
 
   const colonyDay = getColonyDay(state);
   const lastLog = state.lastWildlifeReplenishLogDay ?? -999;
   const logGap = colonyDay - lastLog;
 
-  // Only a replenishment that actually logs advances the throttle. Updating this field on every
-  // replenishing call measured the gap between *calls* instead of between *messages*, so once
-  // the frontier refilled more often than every 40 days the message could fire at most once.
   if (logGap >= 40) {
     if (wildlifeSpawned) {
       if (wolves < 2 || foxes < 2) {
@@ -493,19 +441,24 @@ export function createImmigrantSettler(
   x: number,
   y: number,
   maxMembers = 2,
+  rng: RngStream = getSimRng('dailyPopulation'),
 ): Entity[] {
   if (maxMembers < 1) return [];
 
   ensureNamesLoaded();
   const colonyDay = getColonyDay(state);
-  const age = getRandomInt(18, 55);
+  const age = randomInt(rng, 18, 55);
 
-  // 1. Getrouwd stel
-  if (maxMembers >= 2 && simRandom() < 0.12) {
+  // 1. Married couple (12% chance)
+  if (maxMembers >= 2 && randomBool(rng, 0.12)) {
     const familySurname = getRandomSurname();
     const husbandName = getRandomName('male');
     const wifeName = getRandomName('female');
     const wifeMaidenSurname = getRandomSurname();
+    const isPregnant = randomBool(rng, 0.4);
+    const pregnancyDue = isPregnant
+      ? Math.round(PREGNANCY_TICKS * (0.85 + rng() * 0.3))
+      : undefined;
 
     const husband = createEntity(EntityType.Human, x - 6, y, state.nextEntityId++, undefined, false, {
       gender: 'male',
@@ -514,8 +467,6 @@ export function createImmigrantSettler(
       ageYears: age,
       colonyDay,
     });
-    husband.name = husbandName;
-    husband.surname = familySurname;
     husband.relationshipStatus = 'married';
 
     const wife = createEntity(EntityType.Human, x + 6, y, state.nextEntityId++, undefined, false, {
@@ -525,14 +476,12 @@ export function createImmigrantSettler(
       maidenSurname: wifeMaidenSurname,
       ageYears: Math.max(HUMAN_ADULT_MIN_AGE, age - 2),
       colonyDay,
-      pregnant: true,
-      pregnancyProgress: 10 + Math.floor(simRandom() * 50),
+      pregnant: isPregnant,
+      pregnancyProgress: isPregnant ? randomInt(rng, 10, 60) : 0,
+      pregnancyDueProgress: pregnancyDue,
       partnerId: husband.id,
-      pregnantById: husband.id,
+      pregnantById: isPregnant ? husband.id : undefined,
     });
-    wife.name = wifeName;
-    wife.surname = familySurname;
-    wife.maidenSurname = wifeMaidenSurname;
     wife.relationshipStatus = 'married';
     husband.partnerId = wife.id;
 
@@ -541,8 +490,8 @@ export function createImmigrantSettler(
     return [husband, wife];
   }
 
-  // 2. Alleenstaande immigrant
-  const isFemale = simRandom() < 0.5;
+  // 2. Single immigrant (88% chance)
+  const isFemale = randomBool(rng, 0.5);
   const gender: 'male' | 'female' = isFemale ? 'female' : 'male';
   const firstName = getRandomName(gender);
   const familySurname = getRandomSurname();
@@ -554,8 +503,6 @@ export function createImmigrantSettler(
     ageYears: age,
     colonyDay,
   });
-  newcomer.name = firstName;
-  newcomer.surname = familySurname;
   newcomer.relationshipStatus = 'single';
   finalizeSettlerAge(newcomer, state);
   return [newcomer];
@@ -575,9 +522,6 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     skipTerrain = false,
   } = options;
 
-  // 1. Initialize Deterministic PRNG Seed
-  // Entropy, not the seeded stream: `nativeRandom` is the host's own Math.random, so a
-  // second new game in one session cannot inherit the previous game's seeded sequence.
   const mapSeed = seed ?? Math.floor(nativeRandom() * 1_000_000);
   setSimSeed(mapSeed);
   enableSeededGlobalRandom();
@@ -586,7 +530,12 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   const width = options.width ?? dims.width;
   const height = options.height ?? dims.height;
 
-  // Standardized, balanced starting storage capacities
+  console.log('🗺️ [WorldGen Test]', {
+    passedSize: options.size,
+    resolvedSize: size,
+    dimensions: `${width}x${height}`,
+  });
+
   const storageMax = { wood: 1000, stone: 500, food: 1000, gold: 2000, iron: 500 };
 
   const state: WorldState = {
@@ -595,8 +544,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     buildings: [],
     deathParticles: [],
     floatingTexts: [],
-    // Start om 08:00 ochtendlicht
-    tick: TICKS_PER_HOUR * 8,
+    tick: TICKS_PER_HOUR * 8, // 08:00 AM
     season: Season.Spring,
     year: 0,
     dayInYear: 0,
@@ -625,11 +573,6 @@ export function initGame(options: InitGameOptions = {}): WorldState {
       stone: Math.min(70, storageMax.stone),
       food: Math.min(530, storageMax.food),
       gold: Math.min(80, storageMax.gold),
-      // Iron arrives later than every other material (only the Mine produces it, and the
-      // Mine itself needs gold), while nothing a colony builds costs iron at all — the only
-      // iron sink is the Blacksmith's forge orders (10-40 each, `forge.ts`). 30 is one of
-      // the cheaper orders up front, so the material is usable before the Mine exists; the
-      // pricier orders and everything after them still wait for it.
       iron: Math.min(30, storageMax.iron),
     },
     storageMax,
@@ -701,16 +644,9 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   syncEventLogIdFromState(state);
 
-  // 2. Procedural World Map Generation
+  // 2. Procedural World Map Generation (passing explicit width & height)
   if (!skipTerrain) {
-    // Explicit pixel dimensions must size the map itself, not only `state.width/height`: the
-    // size-only overload generated terrain for the preset `MapSize` dimensions, so a world
-    // resized through `InitGameOptions` got tiles (and every tile lookup scaled from them)
-    // that belonged to another map.
-    state.worldMap =
-      options.width != null || options.height != null
-        ? generateWorldMap(width, height, mapSeed, size, preset ?? 'verdant')
-        : generateWorldMap(size, preset ?? 'verdant', mapSeed);
+    state.worldMap = generateWorldMap(width, height, mapSeed, size, preset ?? 'verdant');
   }
 
   // 3. Grass Meadows
@@ -761,9 +697,9 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     }
   }
 
-  // 5. Initial Wildlife Fauna (scaled to match TARGET values: Deer = 20, Rabbits = 55, Foxes = 14, Wolves = 6)
+  // 5. Initial Wildlife Fauna
   spawnWildlifeAtRandomPassable(state, EntityType.Rabbit, 42);
-  spawnWildlifeAtRandomPassable(state, EntityType.Deer, 14); // 14 random + 6 camp ring = 20 deer
+  spawnWildlifeAtRandomPassable(state, EntityType.Deer, 14);
   spawnWildlifeAtRandomPassable(state, EntityType.Fox, 10);
   spawnWildlifeAtRandomPassable(state, EntityType.Wolf, 4);
 
@@ -785,9 +721,9 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   const centerX = camp.x;
   const centerY = camp.y;
-  spawnBlueberryTrees(state, size, centerX, centerY);
 
-  // Guarantee explicit first names and shared surname for founding pioneers
+  spawnBlueberryTrees(state, size, centerX, centerY, isPassableWildlifePosition);
+
   const surname = getRandomSurname();
   const motherMaidenSurname = getRandomSurname();
   const fatherFirstName = getRandomName('male');
@@ -801,8 +737,6 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     ageYears: getRandomInt(22, 40),
     colonyDay: 0,
   });
-  father.name = fatherFirstName;
-  father.surname = surname;
 
   const mother = createEntity(EntityType.Human, centerX + 12, centerY, state.nextEntityId++, 400, false, {
     gender: 'female',
@@ -813,9 +747,6 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     ageYears: getRandomInt(20, 38),
     colonyDay: 0,
   });
-  mother.name = motherFirstName;
-  mother.surname = surname;
-  mother.maidenSurname = motherMaidenSurname;
 
   father.relationshipStatus = 'married';
   mother.relationshipStatus = 'married';
@@ -825,7 +756,6 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   finalizeSettlerAge(father, state);
   finalizeSettlerAge(mother, state);
 
-  // Preserve Generation 1 status (finalizeSettlerAge defaults to Gen 2 for incoming immigrants)
   father.generation = 1;
   mother.generation = 1;
 
@@ -839,7 +769,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   spawnGrassPatch(state, centerX + 60, centerY - 160, 10, 85);
 
   spawnWildlifeRing(state, EntityType.Rabbit, centerX, centerY, 13, 120, 280);
-  spawnWildlifeRing(state, EntityType.Deer, centerX, centerY, 6, 180, 360); // 14 + 6 = 20 total Deer
+  spawnWildlifeRing(state, EntityType.Deer, centerX, centerY, 6, 180, 360);
   spawnWildlifeRing(state, EntityType.Fox, centerX, centerY, 4, 200, 380);
   spawnWildlifeRing(state, EntityType.Wolf, centerX, centerY, 2, 340, 520);
 
@@ -849,9 +779,6 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   state.humanPopulation = playerHumanCount(state.entities);
   state.wildlifeCounts = computeWildlifeCounts(state.entities);
-  // `entityByType` started as defined-but-empty buckets, which is not nullish, so the
-  // documented `entityByType?.[type] ?? scan` fallbacks were bypassed for a freshly
-  // initialized (pre-tick) world. Fill it here, next to the id map.
   state.entityByType = buildEntityByType(state.entities);
   rebuildEntityByIdMap(state);
 

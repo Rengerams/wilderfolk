@@ -1,3 +1,4 @@
+
 import type { WorldState, ForgeOrderId } from '../gameTypes';
 import { BuildingType } from '../gameTypes';
 import type { HuntingSpotPrey } from '../gameTypes';
@@ -312,7 +313,7 @@ export function aliveIdSet(state: WorldState): Set<number> {
   return ids;
 }
 
-/** Apply a versioned command on the worker‑authoritative world. */
+/** Apply a versioned command on the worker-authoritative world. */
 export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): WorldState {
   if (!isWorkerCommand(cmd)) {
     console.warn('[WorkerCommand] Invalid command', (cmd as { op?: string })?.op ?? '?');
@@ -436,7 +437,7 @@ export function extractCommandDelta(world: WorldState, aliveBefore: Set<number>)
   });
 }
 
-/** Best‑effort command delta — falls back cleanly to a baseline delta on error. */
+/** Best-effort command delta — falls back cleanly to a baseline delta on error. */
 export function safeExtractCommandDelta(world: WorldState, aliveBefore: Set<number>): SimTickDelta {
   try {
     return extractCommandDelta(world, aliveBefore);

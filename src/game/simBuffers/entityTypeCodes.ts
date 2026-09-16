@@ -1,3 +1,4 @@
+
 import { EntityType, type EntityType as EntityTypeName } from '../gameTypes';
 
 /** Stable numeric codes for render SoA rows (append-only when adding species). */

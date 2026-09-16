@@ -18,7 +18,7 @@ import type { KnipConfig } from 'knip';
  * imports count toward "used". Without them, everything used only by a test or
  * a perf/audit script would be reported as dead.
  *
- * Public barrel/facade modules (gameEngine, gameTypes, dayCycle, residency,
+ * Public barrel/facade modules (gameEngine, gameTypes, dayCycle,
  * groupEvents, etc.) intentionally re-export a stable API surface even when
  * internal callers import the leaf modules directly. Those deliberate re-exports
  * are added as entries below so the audit does not report them as "unused".
@@ -37,7 +37,6 @@ const config: KnipConfig = {
     'src/game/gameEngine.ts',
     'src/game/gameTypes.ts',
     'src/game/dayCycle.ts',
-    'src/game/residency.ts',
     'src/game/groupEvents.ts',
   ],
   project: [

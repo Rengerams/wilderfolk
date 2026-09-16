@@ -311,24 +311,12 @@ export function tryDailyAffairGossip(
   if (!shouldLeadAffairPair(entity, lover)) return;
   if (onScandalCooldown(entity, state.tick) || onScandalCooldown(lover, state.tick)) return;
 
-  if (
-    (entity.pregnant && entity.pregnantById === lover.id) ||
-    (lover.pregnant && lover.pregnantById === entity.id)
-  ) {
-    return;
-  }
-
   if (churchStrength <= 0) {
     if ((entity.affairProgress ?? 0) < 85 && (lover.affairProgress ?? 0) < 85) return;
     if (personDayRoll(entity.id, state.tick, 601) < 0.06) {
       if (isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) {
         recordAffairTrystSite(entity, lover, state, buildingById);
       }
-      // Daily gossip can only produce a *rumour*. "Caught in the act" is a spatial event,
-      // owned by `tryExposeCaughtAffair`, which requires the spouse (or a walk-in at the
-      // marital home) to be physically present. This path used to mint a 'caught' verdict
-      // from a flat roll, so an unwitnessed tryst was reported as caught — which arrests
-      // both partners and forces a divorce.
       exposeAffair(state, entity, lover, 'rumor', entityById, buildings, playerHumans);
       recordRelationshipDiagnostic('scandalExposures');
     }
@@ -344,7 +332,6 @@ export function tryDailyAffairGossip(
     if (isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) {
       recordAffairTrystSite(entity, lover, state, buildingById);
     }
-    // Rumour only — see the note in the no-church branch above.
     exposeAffair(state, entity, lover, 'rumor', entityById, buildings, playerHumans);
     recordRelationshipDiagnostic('scandalExposures');
   }
@@ -402,7 +389,6 @@ export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () 
   const friends = child.childhoodFriendsIds ?? [];
   if (friends.length >= RELATIONSHIP_CONFIG.SCHOOLYARD_BOND_MAX_FRIENDS) return;
 
-  // Classmates must be alive, juveniles, not self, not already friends, and have room for a new friend
   const classmates = state.entities.filter(
     (e) =>
       e.alive &&
@@ -418,7 +404,6 @@ export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () 
   const friend = classmates[Math.floor(rng() * classmates.length)];
   if (!friend) return;
 
-  // Safe symmetric push with absolute deduplication
   const nextChildFriends = [...friends];
   if (!nextChildFriends.includes(friend.id)) {
     nextChildFriends.push(friend.id);
@@ -624,8 +609,6 @@ export function isValidAffairTarget(entity: Entity, target: Entity, tick: number
   if (entity.prisonBuildingId != null || target.prisonBuildingId != null) return false;
   if (!entity.gender || target.gender === entity.gender || target.id === entity.id) return false;
   if (target.id === entity.partnerId || entity.id === target.partnerId) return false;
-  // Affairs are adult-only on BOTH sides (Relationship.AFFAIR_MIN_AGE): ages 12–17
-  // belong to the youth-love phase, whose mutual gate is the only conception route.
   if (entity.age < Relationship.AFFAIR_MIN_AGE || target.age < Relationship.AFFAIR_MIN_AGE) return false;
   if (target.age >= HUMAN_MAX_LIFESPAN_YEARS) return false;
   if (entity.affairPartnerId != null && target.id !== entity.affairPartnerId) return false;
@@ -727,7 +710,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
   }
 
   if (
-    entity.relationshipStatus === 'married' &&
+    (entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting') &&
     entity.partnerId &&
     entity.energy > config.reproductionEnergyThreshold * 0.75
   ) {
@@ -753,7 +736,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
     } else {
       outcome ??= 'proximity';
     }
-  } else if (entity.relationshipStatus === 'married' && entity.partnerId) {
+  } else if ((entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting') && entity.partnerId) {
     outcome ??= 'energy';
   }
 
@@ -876,15 +859,20 @@ export function tryDailyAmicableDivorce(
   rng: () => number = Math.random,
 ): void {
   if (!isPlayerHuman(entity) || !entity.alive) return;
-  if (entity.relationshipStatus !== 'married' || entity.partnerId == null) return;
+  const isMarriedOrExpecting =
+    (entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting') &&
+    entity.partnerId != null;
+  if (!isMarriedOrExpecting) return;
   if (entity.prisonBuildingId != null) return;
-  const spouse = getLivingEntity(entity.partnerId, entityById);
+  const spouse = getLivingEntity(entity.partnerId!, entityById);
   if (!spouse || !isPlayerHuman(spouse) || !spouse.alive || spouse.prisonBuildingId != null) return;
-  if (entity.pregnant || spouse.pregnant) return;
   if (!shouldLeadAffairPair(entity, spouse)) return;
   if (rng() >= MARRIAGE_DAILY_AMICABLE_DIVORCE_CHANCE) return;
 
   dissolveMarriage(entity, spouse);
+  if (entity.pregnant) entity.relationshipStatus = 'expecting';
+  if (spouse.pregnant) spouse.relationshipStatus = 'expecting';
+
   const villagers = playerHumans.filter(isPlayerHuman);
   reassignDivorcedResidences(entity, spouse, buildings, villagers);
 
@@ -940,21 +928,16 @@ function reassignDivorcedResidences(
     return;
   }
 
-  // An imprisoned settler holds no residence and cannot take custody — the
-  // residency owner clears the residence when a settler is jailed, so re-housing
-  // the prisoner here (or moving minors into that home) would resurrect it.
   const custodianImprisoned = isImprisoned(custodian);
   if (custodianImprisoned) {
     custodian.residenceBuildingId = undefined;
   } else {
-    // Ensure custodian holds a valid completed home
     const custodianHome = custodian.residenceBuildingId != null ? buildings.find((building) => building.id === custodian.residenceBuildingId) : undefined;
     if (!custodianHome || !isResidenceBuilding(custodianHome) || !custodianHome.completed) {
       custodian.residenceBuildingId = pickResidenceForHuman(custodian, villagers, residences);
     }
   }
 
-  // Relocate leaver (never back into former home or custodian's home)
   if (!isImprisoned(leaver)) {
     const excludeHomes = new Set(formerHomes);
     if (custodian.residenceBuildingId != null) {
@@ -965,7 +948,6 @@ function reassignDivorcedResidences(
     leaver.residenceBuildingId = undefined;
   }
 
-  // Assign minors to custody-holding parent (custodian, checking both mother and father links)
   if (!custodianImprisoned && custodian.residenceBuildingId != null) {
     const children = villagers.filter(
       (child) =>
@@ -981,7 +963,6 @@ function reassignDivorcedResidences(
     }
   }
 
-  // Safe rebuild of all residence occupants lists
   syncResidenceOccupants(villagers, buildings);
 }
 
@@ -994,15 +975,20 @@ function tryDivorceOnCaughtCheater(
   playerHumans: readonly Entity[],
   caughtInAct = false,
 ): void {
-  if (cheater.relationshipStatus !== 'married' || cheater.partnerId == null) return;
+  const isCheaterMarried =
+    (cheater.relationshipStatus === 'married' || cheater.relationshipStatus === 'expecting') &&
+    cheater.partnerId != null;
+  if (!isCheaterMarried) return;
   if (!caughtInAct && !isSpouseNearby(cheater, entityById, 40)) return;
 
-  const spouse = getLivingEntity(cheater.partnerId, entityById);
+  const spouse = getLivingEntity(cheater.partnerId!, entityById);
   if (!spouse) return;
   const divorceChance = caughtInAct ? 1 : RELATIONSHIP_CONFIG.DIVORCE_CAUGHT_CHANCE;
   if (personDayRoll(cheater.id, state.tick, 608) >= divorceChance) return;
 
   dissolveMarriage(spouse, cheater);
+  if (cheater.pregnant) cheater.relationshipStatus = 'expecting';
+  if (spouse.pregnant) spouse.relationshipStatus = 'expecting';
   startFeud(state, spouse, paramour, 35);
 
   const spouseName = humanDisplayName(spouse);
@@ -1020,12 +1006,17 @@ function tryDivorceOnCaughtCheater(
   const villagers = playerHumans.filter(isPlayerHuman);
   reassignDivorcedResidences(spouse, cheater, buildings, villagers);
 
-  if (paramour.relationshipStatus === 'married' && paramour.partnerId != null) {
-    const paramourSpouse = getLivingEntity(paramour.partnerId, entityById);
+  const isParamourMarried =
+    (paramour.relationshipStatus === 'married' || paramour.relationshipStatus === 'expecting') &&
+    paramour.partnerId != null;
+  if (isParamourMarried) {
+    const paramourSpouse = getLivingEntity(paramour.partnerId!, entityById);
     const paramourSpousePresent = caughtInAct || isSpouseNearby(paramour, entityById, 40);
     const paramourDivorceChance = caughtInAct ? 1 : RELATIONSHIP_CONFIG.DIVORCE_CAUGHT_CHANCE;
     if (paramourSpouse && paramourSpousePresent && personDayRoll(paramour.id, state.tick, 609) < paramourDivorceChance) {
       dissolveMarriage(paramourSpouse, paramour);
+      if (paramour.pregnant) paramour.relationshipStatus = 'expecting';
+      if (paramourSpouse.pregnant) paramourSpouse.relationshipStatus = 'expecting';
       logEvent(
         state,
         'divorce',
@@ -1048,13 +1039,6 @@ function countGuardsAtPrison(humans: Entity[], prison: Building): number {
       human.prisonBuildingId == null,
   ).length;
 }
-
-/**
- * `hasStaffedPrison` and `pickAffairExposureReason` were removed with the daily gossip
- * fix: the reason is no longer rolled, because the daily path may only produce a rumour
- * and the caught-in-the-act verdict belongs to `tryExposeCaughtAffair`, which already
- * requires the spouse (or a walk-in) to be physically present.
- */
 
 function caughtAffairRollChance(churchStrength: number, establishedAffair: boolean): number {
   const base = churchStrength >= 1 ? 0.14 : churchStrength > 0 ? 0.10 : 0.08;
@@ -1162,7 +1146,10 @@ function countPrisonersAt(state: WorldState, prisonId: number): number {
 }
 
 function isMarriedScandalOffender(entity: Entity): boolean {
-  return entity.relationshipStatus === 'married' && entity.partnerId != null;
+  return (
+    (entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting') &&
+    entity.partnerId != null
+  );
 }
 
 function arrestForScandal(state: WorldState, offender: Entity): void {
@@ -1357,7 +1344,7 @@ export function tryDailyAffairEncounter(
   recordRelationshipDiagnostic('affairChecks');
   if (!isPlayerHuman(entity)) return;
   if (entity.prisonBuildingId != null) return;
-  if (entity.relationshipStatus !== 'married' || entity.pregnant || entity.isJuvenile) return;
+  if ((entity.relationshipStatus !== 'married' && entity.relationshipStatus !== 'expecting') || entity.isJuvenile) return;
   if (!entity.gender || entity.age < Relationship.AFFAIR_MIN_AGE || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
   if (entity.energy <= config.reproductionEnergyThreshold * 0.5) return;
   if (onScandalCooldown(entity, state.tick)) return;
@@ -1494,7 +1481,6 @@ export function tryCompleteCourtshipMarriage(
   const married2 = humanDisplayName(partner);
   logEvent(state, 'marriage', `${married1} and ${married2} got married`, married1);
   addNotification(state, 'Marriage', `${married1} & ${married2} are now married`, 'success');
-  // 8 ticks (~2.5 in-game hours) celebration prevents blocking character dialogue for 40 hours
   sayHumanChatPhrase(entity, 'Yes!', 8);
   sayHumanChatPhrase(partner, 'Yes!', 8);
   syncPartnerResidence(entity, partner, residences, playerHumans);

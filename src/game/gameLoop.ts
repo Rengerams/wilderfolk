@@ -8,7 +8,7 @@ import { patchCatalogKinematicsFromRenderSoA } from './simBuffers/applyKinematic
 import type { EntityRenderMeta } from './simBuffers/entityRenderMeta';
 import type { RenderSoAReaderV1 } from './simBuffers/renderSoAReader';
 import { clearAllFactionWanderStates } from './factionWander';
-import { GameWorkerHost, isGameWorkerEnabled, type WorkerUiPatch } from './simWorker/GameWorkerHost';
+import { GameWorkerHost, isGameWorkerEnabled, type WorkerUiPatch } from './simWorker/gameWorkerHost';
 import type { WorkerCommand } from './simWorker/commands';
 import { applyWorkerCommand } from './simWorker/commands';
 import { carryPresentationControls, createOptimisticDisplayWorld, hydrateWorldRuntimeCaches } from './worldRuntimeCaches';
@@ -26,7 +26,7 @@ import {
 /**
  * Real-time tick rate at 1×. With TICKS_PER_DAY=72, 1.5 ticks/s ≈ 48 real seconds per day.
  */
-const BASE_TICKS_PER_SECOND = 1.5;
+const BASE_TICKS_PER_SECOND = 3;
 
 /** React UI publish throttle (ms) for periodic non-tick polls. */
 const UI_UPDATE_MS = 250;
@@ -203,9 +203,6 @@ export class GameLoop {
           this.renderSoA = null;
           this.renderMetaBySlot = null;
           this.scentReader = null;
-          // Commands issued while the worker was booting were queued for the worker that
-          // never arrived; apply them through the same main-thread domain implementation
-          // instead of stranding (or later double-applying) them.
           this.flushDeferredWorkerCommands();
           this.scheduleWorkerRecovery();
         });
@@ -390,7 +387,6 @@ export class GameLoop {
     if (!this.workerEnabled && !this.workerBooting) return;
     console.warn(`[GameLoop] ${reason} — falling back to main-thread ticks`);
 
-    // Always clear optimistic queue & sync back to authoritative state
     this.optimisticCommands = [];
     this.syncAfterWorkerMutation();
     this.catalog.rebuild(this.world.entities);
@@ -404,8 +400,6 @@ export class GameLoop {
     this.renderSoA = null;
     this.renderMetaBySlot = null;
     this.scentReader = null;
-    // Apply boot-window commands on the main-thread authority rather than stranding them for
-    // a recovery that would replay them on top of newer local commands.
     this.flushDeferredWorkerCommands();
     this.scheduleWorkerRecovery();
   }
@@ -536,12 +530,7 @@ export class GameLoop {
     const authoritative = this.workerHost?.getAuthoritativeWorld();
     if (!authoritative) return;
 
-    // Deep clone so optimistic command mutations never contaminate the authoritative shadow
     let display = createOptimisticDisplayWorld(authoritative);
-
-    // The player's speed/pause choice must outrank this snapshot: the setSpeed /
-    // setPaused message may still be in flight, so the snapshot can carry the old
-    // value and would otherwise silently revert the control on every command.
     carryPresentationControls(display, this.world);
 
     for (let i = 0; i < this.optimisticCommands.length; i++) {
@@ -625,9 +614,7 @@ export class GameLoop {
       this.world = next;
     }
     this.catalog.rebuild(this.world.entities);
-    this.workerHost?.syncWorld(this.world).catch(() => {
-      // Worker full-world sync is best-effort here; failures surface via the worker fault handler.
-    });
+    this.workerHost?.syncWorld(this.world).catch(() => {});
     this.pruneStaleSelection();
     this.notify(true);
   }
@@ -796,8 +783,6 @@ export class GameLoop {
       v.camera.zoom.toFixed(3),
       v.screenShake.toFixed(1),
       v.selectedEntityId ?? '',
-      // renderSnapshot resolves the whole multi-selection, so a shift-deselect must dirty the
-      // cache too — the primary id alone can be unchanged while other ids are dropped.
       (v.selectedEntityIds ?? []).join(','),
       v.selectedBuildingId ?? '',
       v.hoveredBuildingId ?? '',
@@ -815,9 +800,6 @@ export class GameLoop {
   }
 
   private frame = (time: number) => {
-    // Any throw used to escape the animation-frame callback before the re-arm at the bottom,
-    // which stopped ticks, rendering and UI updates for the rest of the session with no
-    // recovery. Keep the loop alive unconditionally (the worker path already guards its tick).
     try {
       this.frameBody(time);
     } catch (error) {
@@ -919,7 +901,7 @@ export class GameLoop {
       this.lastUiUpdate = now;
       this.notify(tickChanged, periodicUi);
     }
-  };
+  }
 
   private draw(): void {
     const canvas = this.getCanvas();

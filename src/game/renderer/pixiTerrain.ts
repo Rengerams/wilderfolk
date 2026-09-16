@@ -25,19 +25,17 @@ let terrainState: PixiTerrainState | null = null;
 let initPromise: Promise<void> | null = null;
 
 const APPROVED_TEXTURE_PATHS: Partial<Record<TerrainType, string>> = {
-  [TerrainType.Grassland]: '/sprites/new_terrain_tiles/Tiles/ts_grass0/straight/45/0.png',
+  [TerrainType.Grassland]: '/sprites/terrain/grass_fill.png',
   [TerrainType.Forest]: '/sprites/terrain/forest.png',
-  // Legacy save compatibility: DarkForest is no longer generated and uses Forest art.
   [TerrainType.DarkForest]: '/sprites/terrain/forest.png',
-  [TerrainType.Beach]: '/sprites/new_terrain_tiles/Tiles/ts_beach0/straight/45/0.png',
-  [TerrainType.RiverBank]: '/sprites/new_terrain_tiles/Tiles/ts_grass-beach0/straight/45/0.png',
-  [TerrainType.ShallowWater]: '/sprites/new_terrain_tiles/Tiles/ts_shallow0/straight/45/0.png',
-  [TerrainType.River]: '/sprites/new_terrain_tiles/Tiles/ts_shallow0/straight/45/0.png',
-  [TerrainType.DeepWater]: '/sprites/new_terrain_tiles/Tiles/ts_deep0/straight/45/0.png',
-  // Hills and Rocky are legacy mountain subtypes; both use the mountain biome art.
-  [TerrainType.Hills]: '/sprites/terrain/dirt.png',
+  [TerrainType.Beach]: '/sprites/terrain/sand_fill.png',
+  [TerrainType.RiverBank]: '/sprites/terrain/sand_fill.png',
+  [TerrainType.ShallowWater]: '/sprites/terrain/water_shallow_fill.png',
+  [TerrainType.River]: '/sprites/terrain/water_deep_fill.png', // <-- Rich, deep blue!
+  [TerrainType.DeepWater]: '/sprites/terrain/water_deep_fill.png',
+  [TerrainType.Hills]: '/sprites/terrain/dirt_fill.png',
   [TerrainType.Rocky]: '/sprites/terrain/dirt.png',
-  [TerrainType.Mountains]: '/sprites/terrain/mntn_brown_d.jpg',
+  [TerrainType.Mountains]: '/sprites/terrain/mountain.jpg',
   [TerrainType.Snow]: '/sprites/terrain/snow.png',
 };
 

@@ -1,3 +1,4 @@
+
 /**
  * Living kinship for the Valley overview stamboom — grandparents, aunts/uncles,
  * parents, spouse, siblings, children, nephews/nieces, grandchildren.
@@ -89,6 +90,8 @@ function isChildOf(child: Entity, parent: Entity): boolean {
   return (
     child.motherId === parent.id
     || child.fatherId === parent.id
+    || child.adoptiveMotherId === parent.id
+    || child.adoptiveFatherId === parent.id
     || (parent.childrenIds ?? []).includes(child.id)
   );
 }
@@ -151,6 +154,10 @@ function generationRank(relation: KinRelation): number {
   }
 }
 
+function isActivelyMarried(entity: Entity): boolean {
+  return entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting';
+}
+
 /**
  * Build the living kinship view for one settler (stamboom slice).
  */
@@ -174,19 +181,19 @@ export function buildFamilyTree(focus: Entity, allEntities: readonly Entity[]): 
     });
   };
 
-  const mother = byId(people, focus.motherId);
-  const father = byId(people, focus.fatherId);
+  const mother = byId(people, focus.motherId) ?? byId(people, focus.adoptiveMotherId);
+  const father = byId(people, focus.fatherId) ?? byId(people, focus.adoptiveFatherId);
   add(mother, 'mother');
   add(father, 'father');
 
   // Grandparents
   if (mother) {
-    add(byId(people, mother.motherId), 'grandmother');
-    add(byId(people, mother.fatherId), 'grandfather');
+    add(byId(people, mother.motherId) ?? byId(people, mother.adoptiveMotherId), 'grandmother');
+    add(byId(people, mother.fatherId) ?? byId(people, mother.adoptiveFatherId), 'grandfather');
   }
   if (father) {
-    add(byId(people, father.motherId), 'grandmother');
-    add(byId(people, father.fatherId), 'grandfather');
+    add(byId(people, father.motherId) ?? byId(people, father.adoptiveMotherId), 'grandmother');
+    add(byId(people, father.fatherId) ?? byId(people, father.adoptiveFatherId), 'grandfather');
   }
 
   // Aunts / uncles — siblings of parents
@@ -206,12 +213,14 @@ export function buildFamilyTree(focus: Entity, allEntities: readonly Entity[]): 
     }
   }
 
-  // Spouse
-  const spouse = byId(people, focus.partnerId)
-    ?? people.find((p) => p.partnerId === focus.id);
-  if (spouse) add(spouse, 'spouse');
+  // Active Spouse only — divorced ex-partners never display as active spouse
+  if (isActivelyMarried(focus)) {
+    const spouse = byId(people, focus.partnerId)
+      ?? people.find((p) => p.partnerId === focus.id && isActivelyMarried(p));
+    if (spouse) add(spouse, 'spouse');
+  }
 
-  // Siblings
+  // Siblings (including half-siblings)
   const siblings: Entity[] = [];
   for (const person of people) {
     if (person.id === focus.id) continue;
@@ -250,7 +259,12 @@ export function buildFamilyTree(focus: Entity, allEntities: readonly Entity[]): 
     }
   }
 
-  members.sort((a, b) => a.generation - b.generation || a.relationLabel.localeCompare(b.relationLabel) || a.name.localeCompare(b.name));
+  members.sort(
+    (a, b) =>
+      a.generation - b.generation
+      || a.relationLabel.localeCompare(b.relationLabel)
+      || a.name.localeCompare(b.name),
+  );
 
   return {
     focusId: focus.id,

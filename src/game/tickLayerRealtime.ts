@@ -39,7 +39,7 @@ export const STATS_SAMPLE_INTERVAL_TICKS = 10;
 /** Rolling buffer length — 300 samples × STATS_SAMPLE_INTERVAL_TICKS (≈42 game days at 72 ticks/day). */
 export const POPULATION_HISTORY_MAX = 300;
 
-/** 🚀 OPTIMIZED: Zero-allocation array building instead of spread operator concatenation. */
+/** Zero-allocation array building instead of spread operator concatenation. */
 function rebuildPredators(byType: TickContext['byType'], playerHumans?: readonly Entity[]): Entity[] {
   const out: Entity[] = [];
   
@@ -103,8 +103,6 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     ctx.hourOfDay,
     ctx.entityById,
     ctx.byType,
-    // Pass the module's own owner stream: the default Math.random would leave the lifecycle
-    // rolls on the shared global stream instead of the named 'moonHowler' owner.
     getSimRng('moonHowler'),
   );
   
@@ -114,20 +112,13 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     ctx.predators = rebuildPredators(ctx.byType, ctx.playerHumans);
   }
 
-  // 🚀 OPTIMIZED: Check only the Werewolf array for active moon howlers (O(W) instead of O(N))
   const werewolves = ctx.byType[EntityType.Werewolf] ?? [];
   const activeMoonHowler = werewolves.some(isActiveMoonHowler);
 
-  // Only a legacy save loaded mid-full-moon-night needs this repair: a normal transformed
-  // howler has residenceBuildingId cleared and the form change already re-syncs occupants, so
-  // an unconditional full-population scan + occupants rewrite every tick was pure churn.
   if (
     activeMoonHowler
     && werewolves.some((e) => isResidenceOccupantEntity(e) && e.residenceBuildingId != null)
   ) {
-    // Rebuild from every occupant of this tick, not just the tick-start snapshot: a newborn is
-    // only in `ctx.newEntities` until `gameTick` rebuilds `state.entities`, and rebuilding from an
-    // incomplete list silently empties the residence it was born into (SIMULATION_AUTHORITY §5).
     const occupants: Entity[] = [];
     const seen = new Set<number>();
     for (const entity of [...aliveEntities, ...ctx.newEntities]) {
@@ -186,7 +177,6 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
       state.populationHistory = [];
     }
 
-    // 🚀 OPTIMIZED: Reuse ctx.aliveEntities instead of filtering state.entities again
     const counts = computePopulationCounts(ctx.aliveEntities);
     
     let completedBuildings = 0;
@@ -218,13 +208,12 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     };
 
     state.populationHistory.push(snapshot);
-    // Keep buffer bounded (V8 optimizes shift() well for small arrays, but slice is also safe)
     if (state.populationHistory.length > POPULATION_HISTORY_MAX) {
       state.populationHistory.shift();
     }
   }
 
-  // 🚀 OPTIMIZED: Zero-allocation particle animation (in-place mutation + truncate)
+  // Zero-allocation particle animation
   let particleWriteIdx = 0;
   for (let i = 0; i < state.deathParticles.length; i++) {
     const p = state.deathParticles[i];
@@ -236,9 +225,9 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
       state.deathParticles[particleWriteIdx++] = p;
     }
   }
-  state.deathParticles.length = particleWriteIdx; // Truncate array, zero GC pressure
+  state.deathParticles.length = particleWriteIdx;
 
-  // 🚀 OPTIMIZED: Zero-allocation floating-text animation
+  // Zero-allocation floating-text animation
   let textWriteIdx = 0;
   for (let i = 0; i < state.floatingTexts.length; i++) {
     const ft = state.floatingTexts[i];
@@ -249,7 +238,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
       state.floatingTexts[textWriteIdx++] = ft;
     }
   }
-  state.floatingTexts.length = textWriteIdx; // Truncate array, zero GC pressure
+  state.floatingTexts.length = textWriteIdx;
 
   pruneHuntVisuals(state);
 }

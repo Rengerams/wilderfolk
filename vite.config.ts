@@ -1,4 +1,5 @@
 import react from "@vitejs/plugin-react"
+import tailwindcss from "@tailwindcss/vite" // 1. Hier geïmporteerd [1]
 import { defineConfig } from "vite"
 import { srcAlias } from "./config/vite.shared.ts"
 
@@ -15,7 +16,10 @@ const gameUiRegex = new RegExp(`src/(components|game)/(${GAME_UI_MODULES.join('|
 
 export default defineConfig({
   base: './',
-  plugins: [react()],
+  plugins: [
+    tailwindcss(), // 2. Hier toegevoegd (vóór react) [1]
+    react()
+  ],
   server: {
     port: 5173,
     host: '127.0.0.1',

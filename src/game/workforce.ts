@@ -165,7 +165,6 @@ export function pickWorkerToTransfer(
       isPlayerHuman(h) &&
       h.alive &&
       !h.isJuvenile &&
-      !h.pregnant &&
       h.homeBuildingId === fromBuilding.id,
   );
   if (workers.length === 0) return undefined;
@@ -199,7 +198,6 @@ export function assignWorkerTransition(human: Entity, building: Building): boole
   if (!job || !building.completed || building.faction === 'rival') return false;
   if (!human.alive || human.faction || human.isJuvenile) return false;
   if (human.prisonBuildingId != null) return false;
-  if (human.pregnant) return false;
   if (human.homeBuildingId != null && human.homeBuildingId !== building.id) return false;
   if (building.occupants.includes(human.id)) return true; // Idempotent
 
@@ -215,11 +213,6 @@ export function assignWorkerTransition(human: Entity, building: Building): boole
 /**
  * Named removal transition — release a settler from all workplaces/crews and clear job fields.
  * Preserves `LEADER_OCCUPATION`.
- *
- * Residence occupant lists are owned by `syncResidenceOccupants`, so completed
- * buildings that are not workplaces (houses, mansions, the manor) are left alone:
- * clearing the residence mirror here would leave `residenceBuildingId` pointing at
- * a residence that no longer lists the settler.
  */
 export function removeWorkerTransition(human: Entity, buildings: Building[]): void {
   for (let i = 0; i < buildings.length; i++) {
@@ -305,7 +298,6 @@ export function syncJobBuildingOccupants(humans: Entity[], buildings: Building[]
     }
 
     if (building.type === BuildingType.Prison) {
-      // Prison occupants = guards (homeBuildingId) + prisoners (prisonBuildingId)
       building.occupants = humans
         .filter(
           (h) =>
@@ -365,7 +357,6 @@ export function assignWorkerInPlace(
       !h.isJuvenile &&
       !hasWorkAssignment(h) &&
       !isImprisoned(h) &&
-      !h.pregnant &&
       !isOnConstructionCrew(h, buildings),
   );
 
@@ -409,7 +400,6 @@ export function assignBuilderInPlace(
       !h.isJuvenile &&
       !hasWorkAssignment(h) &&
       !isImprisoned(h) &&
-      !h.pregnant &&
       !building.occupants.includes(h.id) &&
       !allBuildings.some((b) => !b.completed && b.id !== building.id && b.occupants.includes(h.id)),
   );
@@ -428,7 +418,6 @@ export function assignBuilderInPlace(
         !h.isJuvenile &&
         hasWorkAssignment(h) &&
         !isImprisoned(h) &&
-        !h.pregnant &&
         !building.occupants.includes(h.id) &&
         !isOnConstructionCrew(h, allBuildings),
     )
@@ -487,9 +476,6 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
     }
 
     if (isImprisoned(human)) {
-      // A jailed settler keeps no job slot and no construction-crew slot: the same
-      // release transition the job paths use detaches both, so a prisoner cannot
-      // keep working a site it is no longer standing on.
       removeWorkerTransition(human, buildings);
       continue;
     }
@@ -676,9 +662,6 @@ export function releasePrisoners(state: WorldState): void {
     entity.prisonSentenceCrime = undefined;
     entity.flash = 8;
 
-    // Release ends the sentence, not the office. A sitting leader leaves prison
-    // still holding the "leader" occupation; ordinary work is then restored by
-    // the normal assignment layer, which preserves the office via `keepOffice`.
     if (entity.id === state.villageLeaderId) {
       entity.occupation = LEADER_OCCUPATION;
     }

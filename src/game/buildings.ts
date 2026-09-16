@@ -123,7 +123,7 @@ export interface BuildingConfig {
   width: number;
   height: number;
   cost: BuildingCost;
-  /** Calendar days of on-site work (7am–7pm) for one builder to finish. */
+  /** Calendar days of on-site work normal workday for one builder to finish. */
   buildTime: number;
   /**
    * Slot cap for `building.occupants` — **overloaded by building role**:

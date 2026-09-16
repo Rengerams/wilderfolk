@@ -60,21 +60,9 @@ export interface SimTickDelta {
   weatherTimer: number;
   resources: WorldState['resources'];
   storageMax: WorldState['storageMax'];
-  /**
-   * Spoilage rate is recomputed by the Silo-owned `updateStorageCaps` in the
-   * daily layer; without it the display world kept the pre-worker rate while the
-   * worker had already applied the new one.
-   */
   foodSpoilageRate: WorldState['foodSpoilageRate'];
   humanPopulation: number;
   maxHumanPopulation: number;
-  /**
-   * Workforce/mood HUD counters written by the tick (`gameTick` counts working/idle
-   * settlers every tick, `dailyBuildingEconomy` writes the winter-heating flag and
-   * `beautyGrid` the happiness score). The Population panel and `citizenOverview`
-   * read them from the display world, so without these the worker's values never
-   * reached the player.
-   */
   workingSettlers: number;
   idleSettlers: number;
   villageHappiness?: number;
@@ -95,7 +83,6 @@ export interface SimTickDelta {
   screenShakeImpulse: number;
   floatingTexts: WorldState['floatingTexts'];
   deathParticles: WorldState['deathParticles'];
-  /** Hunting arrow/lunge lines, produced and pruned only inside the worker. */
   huntVisuals: WorldState['huntVisuals'];
   buildings?: Building[];
   changedBuildings?: Building[];
@@ -157,16 +144,10 @@ export interface SimTickDelta {
   storyFlags: WorldState['storyFlags'];
   pendingStoryEvents: NonNullable<WorldState['pendingStoryEvents']>;
   guidedCampaign: WorldState['guidedCampaign'];
-  /** Current day's economy ledger (transient display data). */
+  activeMigration?: WorldState['activeMigration'];
+  migrationNextHerdSize?: WorldState['migrationNextHerdSize'];
   economyLedger?: WorldState['economyLedger'];
-  /** Rolling finished-day food samples (transient display data). */
   foodHistory?: WorldState['foodHistory'];
-  /**
-   * Stream positions at the tick boundary (audit cross-cutting X5). The display realm adopts
-   * them so its optimistic command previews draw the same numbers the authoritative realm is
-   * about to, and so a later `syncWorld` after a worker fallback continues the same sequences
-   * instead of the display realm's own stale positions.
-   */
   simRng?: SimRngSnapshot;
 }
 
@@ -198,23 +179,41 @@ function buildingFingerprint(building: Building): string {
 }
 
 const CATALOG_PATCH_KEYS = [
-  'name', 'surname', 'chatPhrase', 'gender', 'spriteVariant', 'faction',
+  'name', 'surname', 'maidenSurname', 'title', 'chatPhrase', 'gender', 'spriteVariant', 'faction',
   'moonHowlerCursed', 'moonHowlerSaved', 'educated', 'pregnant', 'pregnantById',
-  'pregnancyProgress', 'pregnancyDueProgress', 'courtshipProgress', 'relationshipStatus',
-  'partnerId', 'homeBuildingId', 'residenceBuildingId', 'tamedBy', 'combatTicks',
-  'job', 'occupation', 'skills', 'age', 'birthYear', 'birthMonth', 'birthDay', 'generation',
-  'energy', 'maxEnergy', 'x', 'y', 'vx', 'vy',
+  'pregnancyProgress', 'pregnancyDueProgress', 'courtshipPartnerId', 'courtshipProgress',
+  'youthLovePartnerId', 'youthLoveProgress', 'childhoodFriendsIds', 'traits', 'schoolDays',
+  'relationshipStatus', 'partnerId', 'homeBuildingId', 'residenceBuildingId',
+  'tamedBy', 'combatTicks', 'griefUntilTick', 'job', 'occupation', 'skills', 'age', 'birthYear',
+  'birthMonth', 'birthDay', 'generation', 'energy', 'maxEnergy', 'x', 'y', 'vx', 'vy',
   'spriteAngle', 'animFrame', 'size', 'flash', 'huntTargetId', 'chatTicks',
-  'chatPartnerId', 'chatDialogueSessionKey',
-  'prisonBuildingId', 'prisonerUntilTick', 'prisonSentenceCrime', 'affairPartnerId',
-  'affairProgress', 'isJuvenile', 'alive',
+  'chatPartnerId', 'chatDialogueSessionKey', 'prisonBuildingId', 'prisonerUntilTick',
+  'prisonSentenceCrime', 'affairPartnerId', 'affairProgress', 'isJuvenile', 'alive',
+  'scandalCooldownUntilTick',
 ] as const satisfies readonly (keyof Entity)[];
 
+/**
+ * Fields that can transition to undefined (divorces, breakups, release from prison, job changes, grief expiry).
+ * Without being listed here, clearing a partner, title, or home would be skipped during UI sync.
+ */
 const CATALOG_CLEARABLE_KEYS = [
   'chatPhrase',
   'chatTicks',
   'chatPartnerId',
   'chatDialogueSessionKey',
+  'partnerId',
+  'affairPartnerId',
+  'courtshipPartnerId',
+  'youthLovePartnerId',
+  'pregnantById',
+  'prisonBuildingId',
+  'prisonerUntilTick',
+  'prisonSentenceCrime',
+  'homeBuildingId',
+  'residenceBuildingId',
+  'huntTargetId',
+  'title',
+  'griefUntilTick',
 ] as const satisfies readonly (keyof Entity)[];
 
 export function simTickDeltaFromWorld(world: WorldState, aliveBefore?: Set<number>): SimTickDelta {
@@ -223,7 +222,6 @@ export function simTickDeltaFromWorld(world: WorldState, aliveBefore?: Set<numbe
   return extractSimTickDelta(world, before, alive);
 }
 
-/** Minimal recovery delta when command delta extraction throws. */
 export function createFallbackSimTickDelta(world: WorldState): SimTickDelta {
   return simTickDeltaFromWorld(world);
 }
@@ -234,10 +232,9 @@ export function extractSimTickDelta(
   aliveOrdered?: Entity[],
   options?: ExtractSimTickDeltaOptions,
 ): SimTickDelta {
-  // 🚀 OPTIMIZED: Single-pass extraction of alive entities and their IDs
   const aliveNow: Entity[] = aliveOrdered ?? [];
   const aliveIds = new Set<number>();
-  
+
   if (!aliveOrdered) {
     for (const e of world.entities) {
       if (e.alive) {
@@ -270,7 +267,7 @@ export function extractSimTickDelta(
   const prevBuildings = options?.prevBuildings;
   let changedBuildings: Building[] | undefined;
   let removedBuildingIds: number[] | undefined;
-  
+
   if (prevBuildings) {
     changedBuildings = [];
     removedBuildingIds = [];
@@ -367,8 +364,6 @@ export function extractSimTickDelta(
     nextBuildingId: world.nextBuildingId,
     nextFloatingTextId: world.nextFloatingTextId,
     renffrOmen: deltaCloneOptional(world.renffrOmen, cloneMode),
-    // The smith quest is created and expired by the simulation only, so without this the
-    // main thread's copy stayed undefined and the quest card could never appear.
     visitorQuest: deltaCloneOptional(world.visitorQuest, cloneMode) ?? undefined,
     deathsThisYear: deltaCloneOptional(world.deathsThisYear, cloneMode) ?? undefined,
     lastMoonHowlerExorcismTick: world.lastMoonHowlerExorcismTick,
@@ -380,7 +375,8 @@ export function extractSimTickDelta(
     storyFlags: deltaClone(world.storyFlags ?? {}, cloneMode),
     pendingStoryEvents: deltaClone(world.pendingStoryEvents ?? [], cloneMode),
     guidedCampaign: deltaCloneOptional(world.guidedCampaign, cloneMode) ?? undefined,
-    // Taken fresh here (never read from `world.simRng`, which is only a transport container).
+    activeMigration: deltaCloneOptional(world.activeMigration, cloneMode) ?? undefined,
+    migrationNextHerdSize: world.migrationNextHerdSize,
     simRng: snapshotSimRng(),
   };
 
@@ -459,7 +455,7 @@ export function applySimTickDelta(
   world.floatingTexts = deltaClone(delta.floatingTexts, cloneMode);
   world.deathParticles = deltaClone(delta.deathParticles, cloneMode);
   world.huntVisuals = deltaClone(delta.huntVisuals ?? [], cloneMode);
-  
+
   if (delta.changedBuildings) {
     const removed = new Set(delta.removedBuildingIds ?? []);
     world.buildings = world.buildings.filter((b) => !removed.has(b.id));
@@ -471,18 +467,18 @@ export function applySimTickDelta(
   } else {
     world.buildings = deltaClone(delta.buildings ?? [], cloneMode);
   }
-  
+
   world.bigNews = preserveBigNewsDismissals(
     world.bigNews,
     deltaClone(delta.bigNews, cloneMode),
     world.dismissedBigNewsIds,
   );
-  
+
   world.notifications = preserveNotificationDismissals(
     deltaClone(delta.notifications, cloneMode),
     world.dismissedNotificationIds,
   );
-  
+
   world.festival = deltaCloneOptional(delta.festival, cloneMode);
   world.townHallFestivalCooldownUntilTick = delta.townHallFestivalCooldownUntilTick;
   world.visitorGroups = deltaClone(delta.visitorGroups, cloneMode);
@@ -511,12 +507,12 @@ export function applySimTickDelta(
   world.yearlyStats = deltaClone(delta.yearlyStats, cloneMode);
   world.lifetimeStats = deltaClone(delta.lifetimeStats, cloneMode);
   world.eventsThisYear = cloneMode === 'isolated' ? [...delta.eventsThisYear] : delta.eventsThisYear;
-  
+
   world.activeEvent = preserveActiveEventDismissal(
     deltaCloneOptional(delta.activeEvent, cloneMode),
     world.dismissedActiveEventIds,
   );
-  
+
   world.lastEventYear = delta.lastEventYear;
   world.bountifulHarvest = delta.bountifulHarvest;
   world.ecoHealthYearsAbove80 = delta.ecoHealthYearsAbove80;
@@ -537,6 +533,9 @@ export function applySimTickDelta(
   world.storyFlags = deltaClone(delta.storyFlags, cloneMode);
   world.pendingStoryEvents = deltaClone(delta.pendingStoryEvents, cloneMode);
   world.guidedCampaign = deltaCloneOptional(delta.guidedCampaign, cloneMode) ?? undefined;
+  world.activeMigration = deltaCloneOptional(delta.activeMigration, cloneMode) ?? undefined;
+  world.migrationNextHerdSize = delta.migrationNextHerdSize;
+
   if (delta.simRng) {
     world.simRng = delta.simRng;
     restoreSimRng(delta.simRng);
@@ -554,9 +553,6 @@ export function applySimTickDelta(
     consumed: { ...sample.consumed },
   }));
 
-  // ⚠️ DESIGN NOTE: This completely overwrites world.entities, effectively 
-  // garbage-collecting dead entities. Ensure no main-thread systems rely on 
-  // dead entities persisting in this array (use deathParticles or a graveyard system instead).
   world.entities = deltaClone(delta.aliveEntities, cloneMode);
 
   if (delta.catalogEntities?.length) {
@@ -565,10 +561,9 @@ export function applySimTickDelta(
 
   if (delta.eventLogTail.length > 0) {
     const existingIds = new Set(world.eventLog.map((e) => e.id));
-    // 🛡️ TYPE FIX: Event IDs are often strings; use string | number to prevent type errors
     const seenTailIds = new Set<string | number>();
     const newEntries: WorldState['eventLog'] = [];
-    
+
     for (const entry of delta.eventLogTail) {
       if (seenTailIds.has(entry.id)) continue;
       seenTailIds.add(entry.id);
@@ -577,7 +572,7 @@ export function applySimTickDelta(
         existingIds.add(entry.id);
       }
     }
-    
+
     if (newEntries.length > 0) {
       world.eventLog = [...newEntries, ...world.eventLog].slice(0, EVENT_LOG_MAX_ENTRIES);
     }
@@ -591,6 +586,10 @@ function applyCatalogPatch(existing: Entity, patch: Entity): void {
     if (value === undefined && !clearable) continue;
     if (key === 'skills') {
       existing.skills = structuredClone(patch.skills ?? {});
+      continue;
+    }
+    if (key === 'traits' || key === 'childhoodFriendsIds') {
+      (existing as unknown as Record<string, unknown>)[key] = value ? structuredClone(value) : undefined;
       continue;
     }
     (existing as unknown as Record<string, unknown>)[key] = value;

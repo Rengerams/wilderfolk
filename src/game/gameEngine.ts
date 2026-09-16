@@ -1,14 +1,3 @@
-/**
- * gameEngine — compatibility barrel (not a god module).
- *
- * Domain logic lives in focused modules:
- *   speciesConfig, simFocus, simHelpers, simEffects, terrainSystems,
- *   workforce, gameTick, + existing feature modules.
- *
- * Prefer importing from those modules directly in new code.
- * This file re-exports the previous public surface so existing imports keep working.
- */
-
 // ---- Domain types / static data (gameTypes) ----
 export type {
   WorldState,
@@ -251,6 +240,8 @@ export {
   assignResidentToBuilding,
   removeResidentFromBuilding,
   assignIdleWorkerToBuilding,
+  fillBuildingWorkers,
+  autoStaffAllWorkers,
   removeWorkerFromBuilding,
   listAssignableWorkersForBuilding,
   canAssignWorkerToBuilding,
@@ -260,6 +251,9 @@ export {
   recruitSettler,
   estimateWorkshopGold,
   setWorkshopRecipe,
+  setHuntingSpotPrey,
+  setMineMode,
+  setBuildingStaffingMode,
   demolishBuilding,
   spawnMoonHowlerDebug,
   getTameFoodCost,
@@ -297,14 +291,43 @@ export {
 export {
   getAgeInYears,
   getColonyDay,
+  getAbsoluteCalendarDay,
   getResidenceCapacity,
   isResidenceBuilding,
+  isNearResidence,
+  shareResidence,
+  isNightHour,
   TICKS_PER_HOUR,
   TICKS_PER_DAY,
+  DAYS_PER_YEAR,
   HUMAN_ADULT_MIN_AGE,
 } from './dayCycle';
-// `tickGrassDaily` is intentionally not re-exported: its only consumer is the daily layer, which
-// imports it from its owner (`dailyGrassEcology.ts`) and calls it once per colony day.
+
+export {
+  getWorkSchedule,
+  setWorkSchedule,
+  isWorkScheduleHour,
+  type WorkSchedule,
+} from './workSchedule';
+export {
+  getVenueSchedule,
+  setVenueSchedule,
+  type VenueScheduleKind,
+} from './venueSchedule';
+
+// ---- Relationships, Courtship & Marriage ----
+export {
+  MARRIAGE_ANNUAL_AMICABLE_DIVORCE_RATE,
+  MARRIAGE_DAILY_AMICABLE_DIVORCE_CHANCE,
+  tryDailyAmicableDivorce,
+  exposeAffair,
+  isEligibleToCourt,
+  findCourtshipPartner,
+  tryCompleteCourtshipMarriage,
+  hasAffairPartner,
+  isSpouseNearby,
+} from './simulation/humanRelationships';
+
 export { tickWildlife } from './tickLayerSystems';
 export { updateWeather, updateDisasters } from './worldEvents';
 export {
@@ -348,5 +371,6 @@ export {
   syncMarriageSurnames,
   grantDivorce,
   dissolveMarriage,
+  formatCaughtCheaterDivorceDetail,
   resolveChildSurname,
 } from './nameLoader';

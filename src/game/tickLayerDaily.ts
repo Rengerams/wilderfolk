@@ -1,3 +1,4 @@
+
 /**
  * Daily layer — once per colony day (`tick % TICKS_PER_DAY === 0`).
  *
@@ -37,13 +38,6 @@ export function tickLayerDaily(
   allAlive: Entity[],
   counts: PopulationCounts,
 ): void {
-  // `gameTick` calls this layer only on a day boundary (`state.tick % TICKS_PER_DAY === 0`,
-  // after the tick increment, so tick 0 is unreachable). The day-gate checks that used to wrap
-  // the blocks below were therefore unconditionally true and documented a tick-0 path that
-  // cannot exist; they are gone rather than left as misleading no-ops.
-  //
-  // Winter heating runs once in gameTick (sets ctx.canHeat) — do not burn wood again here.
-
   resolveDailyVillageScheduleFatigue(state, ctx.playerHumans);
 
   // Phase 7 social layers & chronicles — pulse daily

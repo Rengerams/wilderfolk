@@ -2,7 +2,7 @@ import type { WorldState } from '../gameTypes';
 import { normalizeForgeState } from '../forge';
 import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
-import { invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
+import { hydrateWorldRuntimeCaches, invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
 import { restoreSimRng, snapshotSimRng } from '../simRng';
 
 /**
@@ -24,10 +24,6 @@ type SimPrepKeys =
   | 'screenShakeImpulse'
   | 'resources'
   | 'storageMax'
-  // Ledger, rolling food samples and the spoilage rate are written by the daily
-  // tick. A tick that is rolled back and then re-executed (or simply lost) would
-  // otherwise keep the entries it wrote before failing, so the Food ledger and
-  // dashboard would count food the colony never kept.
   | 'foodSpoilageRate'
   | 'economyLedger'
   | 'foodHistory'
@@ -81,10 +77,6 @@ type SimPrepKeys =
   | 'nextBuildingId'
   | 'nextFloatingTextId'
   | 'totalBuildingsCompleted'
-  // Year-rollover and stats fields written by `gameTick` (yearly snapshot at the
-  // calendar boundary, lifetime counters, 10-tick population sample). They must
-  // stay in this payload: a failed tick is rolled back and then re-executed on the
-  // main thread, so an unbacked field is advanced twice for the same tick.
   | 'populationHistory'
   | 'yearlyStats'
   | 'lifetimeStats'
@@ -105,9 +97,9 @@ type SimPrepKeys =
   | 'workSchedule'
   | 'tavernSchedule'
   | 'hotelSchedule'
-  // RNG stream positions: the pre-tick snapshot `extractSimPrep` takes them fresh (the world's
-  // own field is only a transport container), and `applySimPrep` puts the streams back where
-  // they were. Without it the rolled-back tick replays each owner's sequence from the start.
+  | 'bigNews'
+  | 'notifications'
+  | 'huntVisuals'
   | 'simRng';
 
 export type SimPrepPayload = Pick<WorldState, SimPrepKeys>;
@@ -123,13 +115,11 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     paused: state.paused,
     speed: state.speed,
 
-    // Clone entity objects to decouple from in-place property mutations. The nested
-    // maps/arrays below are written in place during a tick (`ensureEntitySkills`,
-    // `parent.childrenIds.push`, friendship/feud entries, the Moon Howler snapshot), so
-    // they must be copied too or a rollback would keep the failed attempt's changes.
+    // Clone entity objects and isolate nested arrays/maps from in-place property mutations
     entities: (state.entities ?? []).map((e) => ({
       ...e,
       skills: e.skills ? { ...e.skills } : e.skills,
+      traits: e.traits ? [...e.traits] : e.traits,
       childrenIds: e.childrenIds ? [...e.childrenIds] : e.childrenIds,
       childhoodFriendsIds: e.childhoodFriendsIds ? [...e.childhoodFriendsIds] : e.childhoodFriendsIds,
       friendships: e.friendships ? { ...e.friendships } : e.friendships,
@@ -137,7 +127,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
       moonHowlerSaved: e.moonHowlerSaved ? { ...e.moonHowlerSaved } : e.moonHowlerSaved,
     })),
 
-    // Clone building objects and isolate their occupants array
+    // Clone building objects and isolate occupants array
     buildings: (state.buildings ?? []).map((b) => ({
       ...b,
       occupants: [...(b.occupants ?? [])],
@@ -151,9 +141,6 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     resources: { ...state.resources },
     storageMax: { ...state.storageMax },
     foodSpoilageRate: state.foodSpoilageRate,
-    // Clone the ledger + rolling samples deeply: the daily tick and its writers
-    // (`economyLedger.ts`) mutate `produced`/`consumed` in place, and a shallow copy
-    // would still alias the live objects.
     economyLedger: state.economyLedger
       ? {
           day: state.economyLedger.day,
@@ -186,14 +173,10 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     activeMigration: state.activeMigration ? { ...state.activeMigration } : undefined,
     migrationNextHerdSize: state.migrationNextHerdSize,
 
-    // Clone research nodes shallowly to preserve researched/unlocked status
     researchNodes: (state.researchNodes ?? []).map((r) => ({ ...r })),
     activeResearch: state.activeResearch,
     researchProgress: state.researchProgress,
     unlockedTechs: [...(state.unlockedTechs ?? [])],
-    // Object-valued arrays whose elements are mutated in place during a tick
-    // (`route.caravanLeg`, `disaster.progress`, visitor/rival counters), so the backup
-    // must own copies of the elements rather than of the outer array only.
     visitorGroups: structuredClone(state.visitorGroups ?? []),
     activeVillageRequest: state.activeVillageRequest ? structuredClone(state.activeVillageRequest) : undefined,
     villageRequestCooldownUntilDay: state.villageRequestCooldownUntilDay ?? 0,
@@ -223,8 +206,6 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     nextBuildingId: state.nextBuildingId,
     nextFloatingTextId: state.nextFloatingTextId,
     totalBuildingsCompleted: state.totalBuildingsCompleted,
-    // Deep-cloned: gameTick pushes a year-rollover entry and increments nested
-    // lifetime counters, so a shallow copy would still alias the live objects.
     populationHistory: structuredClone(state.populationHistory ?? []),
     yearlyStats: structuredClone(state.yearlyStats ?? []),
     lifetimeStats: structuredClone(state.lifetimeStats),
@@ -245,6 +226,9 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     workSchedule: getWorkSchedule(state),
     tavernSchedule: getVenueSchedule(state, 'tavern'),
     hotelSchedule: getVenueSchedule(state, 'hotel'),
+    bigNews: [...(state.bigNews ?? [])],
+    notifications: [...(state.notifications ?? [])],
+    huntVisuals: [...(state.huntVisuals ?? [])],
     simRng: snapshotSimRng(),
   };
 }
@@ -341,9 +325,13 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.workSchedule = prep.workSchedule;
   world.tavernSchedule = prep.tavernSchedule;
   world.hotelSchedule = prep.hotelSchedule;
+  world.bigNews = prep.bigNews;
+  world.notifications = prep.notifications;
+  world.huntVisuals = prep.huntVisuals;
   world.simRng = prep.simRng;
   restoreSimRng(prep.simRng);
 
-  // Crucial: Invalidate runtime caches so indices reflect restored entity states
+  // Invalidate and re-hydrate caches so indices immediately reflect restored state
   invalidateWorldRuntimeCaches(world);
+  hydrateWorldRuntimeCaches(world);
 }

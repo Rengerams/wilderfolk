@@ -1,3 +1,4 @@
+import type { WorldState } from './gameTypes';
 
 export type RngStream = () => number;
 
@@ -54,9 +55,6 @@ export function createSeededRng(seed: number, owner: string): RngStream {
     return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
   };
 
-  // Register the state handle so a snapshot can read/reset this stream in place. `seededRandom`
-  // and `seededRandomForRun` also create throwaway streams; their handles are harmless (the
-  // WeakMap drops them with the function) and only the streams in `streams` are ever snapshotted.
   streamStates.set(stream, { get: () => s, set: (state: number) => { s = state >>> 0; } });
   return stream;
 }
@@ -88,12 +86,6 @@ export function setSimSeed(seed: number): void {
 
 /**
  * The host's own `Math.random`, captured at module load.
- *
- * This is the *only* legitimate `Math.random` consumer left in the simulation, and it is for
- * choosing a new game's seed: `initGame` and `adoptSimSeedFromWorld` install the seeded
- * global override, so drawing the next game's seed through `Math.random` would take it from
- * the previous game's seeded stream (making a second new game in one session anything but
- * fresh) instead of from entropy.
  */
 export function nativeRandom(): number {
   return NATIVE_MATH_RANDOM();
@@ -117,12 +109,6 @@ export interface SimRngSnapshot {
 
 /**
  * Capture every live stream position so a resumed or retried world continues its draws.
- *
- * Without this, a loaded colony and a rolled-back tick both restart each owner's sequence from
- * its beginning: the world state is restored but the randomness is replayed, which the audit
- * recorded as "a resumed or retried world cannot reproduce its continuation" (cross-cutting
- * X5). Stateless rolls (`seededRandomForRun`, `personDayRoll`) need nothing here — they derive
- * from the seed and their call site.
  */
 export function snapshotSimRng(): SimRngSnapshot {
   const owners: Array<[string, number]> = [];
@@ -160,11 +146,7 @@ export function parseSimRngSnapshot(value: unknown): SimRngSnapshot | null {
 }
 
 /**
- * Resume the streams from a snapshot. Existing stream objects are reset **in place** so a module
- * that cached `getSimRng(owner)` keeps drawing from the restored position; streams this realm
- * created after the snapshot are dropped (they did not exist at that point, so re-deriving them
- * from the seed is exact). Returns false when the snapshot is missing or not credible, which
- * leaves the realm on the seed-only behaviour (older saves).
+ * Resume streams from a snapshot. Existing stream objects are reset in place.
  */
 export function restoreSimRng(snapshot: unknown): boolean {
   const parsed = parseSimRngSnapshot(snapshot);
@@ -172,7 +154,8 @@ export function restoreSimRng(snapshot: unknown): boolean {
 
   currentSeed = parsed.seed >>> 0 || 1;
   const pending = new Map(parsed.owners);
-  for (const [owner, stream] of [...streams]) {
+  // Iterate via Array.from to satisfy TypeScript iterating over Map.entries
+  for (const [owner, stream] of Array.from(streams.entries())) {
     const state = pending.get(owner);
     if (state === undefined) {
       streams.delete(owner);
@@ -196,14 +179,6 @@ export function restoreSimRng(snapshot: unknown): boolean {
 
 /**
  * Adopt the seed a world already carries.
- *
- * A realm that *receives* a world rather than creating one — the simulation worker, or a
- * loaded save — begins with this module's default seed. Without adopting the world's own
- * `worldMap.seed`, every `getSimRng(owner)` and `seededRandomForRun()` draw in that realm
- * comes from seed 1 while the world was built with its map seed: the same world then
- * diverges between worker mode and main-thread mode, and two different seeds share one set
- * of random streams. Installing the seeded global also covers the few third-party or
- * reach-through paths that still call `Math.random` directly.
  */
 export function adoptSimSeedFromWorld(world: { worldMap?: { seed?: number } | null }): number {
   const seed = world.worldMap?.seed ?? 1;

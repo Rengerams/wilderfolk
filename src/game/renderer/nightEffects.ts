@@ -1,121 +1,30 @@
+
 import { BuildingType } from '../buildings';
-import { isNightHour } from '../dayCycle';
-import {
-  getNightGlowIntensity,
-  LIGHT_POOL_TYPES,
-  NIGHT_HOME_GLOW_TYPES,
-  NIGHT_STAFFED_GLOW_TYPES,
-} from '../juiceEffects';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { renderTime } from './shared';
 
 // ============ NIGHT BUILDING GLOW ============
-export function drawNightBuildingGlow(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
-  if (!isNightHour(state.hourOfDay) || state.camera.zoom < 0.32 || !state.juiceEffectsEnabled) return;
-  const cam = state.camera;
-
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-
-  for (const b of state.buildings) {
-    if (!b.completed || b.faction === 'rival') continue;
-    const isPool = LIGHT_POOL_TYPES.has(b.type) && b.occupants.length > 0;
-    const mayGlow = NIGHT_HOME_GLOW_TYPES.has(b.type)
-      || (NIGHT_STAFFED_GLOW_TYPES.has(b.type) && b.occupants.length > 0)
-      || isPool
-      || b.level >= 3; // upgraded buildings glow softly at night
-    if (!mayGlow) continue;
-    const residentCount = NIGHT_HOME_GLOW_TYPES.has(b.type) ? b.occupants.length : 0;
-    const intensity = isPool
-      ? Math.min(0.85, 0.5 + b.level * 0.12)
-      : b.level >= 3
-        ? 0.3 // Lv3 non-pool glow — modest, reads as "well-kept and lit"
-        : getNightGlowIntensity(b, residentCount);
-    if (intensity <= 0) continue;
-
-    const sx = (b.x - cam.x) * cam.zoom + cw / 2;
-    const sy = (b.y - cam.y) * cam.zoom + ch / 2;
-    const w = b.width * cam.zoom;
-    const h = b.height * cam.zoom;
-    if (sx + w < -50 || sx - w > cw + 50 || sy + h < -50 || sy - h > ch + 50) continue;
-
-    const flicker = 0.82 + Math.sin(renderTime * 3.5 + b.id * 1.9) * 0.18;
-    const warm = intensity * flicker;
-
-    // Warm light pooling on the ground around community buildings (plaza glow).
-    if (isPool) {
-      const poolR = Math.max(16, (w + h) * 0.9);
-      const poolY = sy + h * 0.42;
-      const grad = ctx.createRadialGradient(sx, poolY, 0, sx, poolY, poolR);
-      grad.addColorStop(0, `rgba(255, 196, 130, ${0.30 * warm})`);
-      grad.addColorStop(0.55, `rgba(255, 150, 85, ${0.12 * warm})`);
-      grad.addColorStop(1, 'rgba(255, 130, 60, 0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(sx - poolR, poolY - poolR, poolR * 2, poolR * 2);
-    }
-
-    if (NIGHT_HOME_GLOW_TYPES.has(b.type)) {
-      const winW = Math.max(2.5, w * 0.09);
-      const winH = Math.max(2.5, h * 0.11);
-      const windows = [
-        { ox: -w * 0.2, oy: -h * 0.06 },
-        { ox: w * 0.06, oy: -h * 0.08 },
-        ...(b.type === BuildingType.Mansion ? [{ ox: w * 0.22, oy: -h * 0.04 }] : []),
-      ];
-      for (const { ox, oy } of windows) {
-        const grad = ctx.createRadialGradient(sx + ox, sy + oy, 0, sx + ox, sy + oy, winW * 2.8);
-        grad.addColorStop(0, `rgba(255, 210, 140, ${0.6 * warm})`);
-        grad.addColorStop(0.55, `rgba(255, 150, 60, ${0.2 * warm})`);
-        grad.addColorStop(1, 'rgba(255, 120, 40, 0)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(sx + ox - winW * 1.2, sy + oy - winH * 1.2, winW * 2.4, winH * 2.4);
-      }
-
-      const chimX = sx + w * 0.24;
-      const chimY = sy - h * 0.36;
-      const emberR = Math.max(2, 3 * cam.zoom);
-      const chimGrad = ctx.createRadialGradient(chimX, chimY, 0, chimX, chimY - emberR * 2, emberR * 5);
-      chimGrad.addColorStop(0, `rgba(255, 150, 60, ${0.75 * warm})`);
-      chimGrad.addColorStop(0.35, `rgba(255, 90, 30, ${0.3 * warm})`);
-      chimGrad.addColorStop(1, 'rgba(60, 30, 10, 0)');
-      ctx.fillStyle = chimGrad;
-      ctx.beginPath();
-      ctx.arc(chimX, chimY, emberR * 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      if (cam.zoom > 0.42) {
-        const drift = Math.sin(renderTime * 1.2 + b.id) * 2;
-        const smokeY = chimY - emberR * 3 - ((renderTime * 14 + b.id * 3) % 22);
-        ctx.globalAlpha = 0.18 * warm;
-        ctx.fillStyle = '#cbd5e1';
-        ctx.beginPath();
-        ctx.arc(chimX + drift, smokeY, emberR * 1.4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
-    } else {
-      const doorGrad = ctx.createRadialGradient(sx, sy + h * 0.12, 0, sx, sy + h * 0.12, w * 0.4);
-      doorGrad.addColorStop(0, `rgba(255, 190, 110, ${0.4 * warm})`);
-      doorGrad.addColorStop(1, 'rgba(255, 120, 40, 0)');
-      ctx.fillStyle = doorGrad;
-      ctx.beginPath();
-      ctx.arc(sx, sy + h * 0.12, w * 0.4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  ctx.restore();
-}
+/** Disabled: day and night visual differences are removed. */
+export function drawNightBuildingGlow(
+  _ctx: CanvasRenderingContext2D,
+  _state: RenderSnapshot,
+  _cw: number,
+  _ch: number,
+): void {}
 
 /**
- * Day + night polish: forge fire pulse, house chimney smoke, blacksmith heat.
+ * Polish effects: forge fire pulse, house chimney smoke, blacksmith heat, and work dust.
  * Drawn every frame (outside entity-layer cache) so motion stays smooth.
  */
-export function drawBuildingActiveEffects(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+export function drawBuildingActiveEffects(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+): void {
   if (!state.juiceEffectsEnabled || state.camera.zoom < 0.35) return;
   const cam = state.camera;
   const forgeActive = !!state.villageForge?.activeOrder;
-  const night = isNightHour(state.hourOfDay);
 
   ctx.save();
   for (const b of state.buildings) {
@@ -144,7 +53,7 @@ export function drawBuildingActiveEffects(ctx: CanvasRenderingContext2D, state: 
       continue;
     }
 
-    // Blacksmith forge heat (day or night) when order active or staffed
+    // Blacksmith forge heat when order active or staffed
     if (b.type === BuildingType.Blacksmith && (forgeActive || b.occupants.length > 0)) {
       const pulse = 0.55 + Math.sin(renderTime * 5 + b.id) * 0.25;
       const heat = forgeActive ? 1 : 0.55;
@@ -178,12 +87,12 @@ export function drawBuildingActiveEffects(ctx: CanvasRenderingContext2D, state: 
       }
     }
 
-    // Chimney smoke — homes always subtle; stronger at night
+    // Chimney smoke — constant standard appearance
     if (
       (b.type === BuildingType.House || b.type === BuildingType.Mansion || b.type === BuildingType.Hotel)
       && cam.zoom > 0.4
     ) {
-      const strength = night ? 0.28 : 0.14;
+      const strength = 0.14;
       const chimX = sx + w * 0.22;
       const chimY = sy - h * 0.38;
       for (let i = 0; i < 3; i++) {
@@ -193,7 +102,7 @@ export function drawBuildingActiveEffects(ctx: CanvasRenderingContext2D, state: 
         const smokeY = chimY - rise;
         const r = (2.2 + i * 0.9) * cam.zoom;
         ctx.globalAlpha = strength * (1 - rise / 30);
-        ctx.fillStyle = night ? '#94a3b8' : '#cbd5e1';
+        ctx.fillStyle = '#cbd5e1';
         ctx.beginPath();
         ctx.arc(chimX + drift, smokeY, r, 0, Math.PI * 2);
         ctx.fill();

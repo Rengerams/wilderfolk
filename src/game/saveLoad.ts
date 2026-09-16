@@ -76,8 +76,6 @@ export function parseSaveJson(raw: string | null | undefined): SaveReadResult {
   try {
     if (!raw || !raw.trim()) return { valid: false };
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    // Beta: no historical-save compatibility — only the exact current build's
-    // saves load. Old-version saves are rejected (start a new settlement).
     if (parsed._version !== GAME_VERSION) {
       return { valid: false };
     }
@@ -102,9 +100,6 @@ export function buildSaveData(world: WorldState, view: ViewState): Record<string
   const persistable = stripRuntimeWorldFields(world);
   return {
     ...mergeForSave(persistable, view),
-    // Stream positions are owned by `simRng`, not by the world, so they are stamped here rather
-    // than picked from `WORLD_STATE_SAVE_KEYS`: a saved colony that reloads must continue its
-    // draws instead of replaying each owner's sequence from the start (audit cross-cutting X5).
     simRng: snapshotSimRng(),
     worldMap: compactWorldMapForSave(persistable.worldMap),
     _savedAt: Date.now(),
@@ -142,8 +137,6 @@ export function downloadSaveFile(world: WorldState, view: ViewState): SaveResult
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      // BUG-4: revoking synchronously can cancel the download in some browsers
-      // (Firefox/older Chromium) — defer the revoke to the next task.
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
     }
     return { success: true };
@@ -170,10 +163,20 @@ function restoreWorldMapFromSave(parsed: { worldMap?: WorldState['worldMap'] & {
   if (parsed.worldMap.tiles && !parsed.worldMap._compact) {
     return parsed.worldMap;
   }
-  return generateWorldMap(
-    parsed.worldMap.size ?? 'medium',
-    parsed.worldMap.preset ?? 'verdant',
-    parsed.worldMap.seed
+  const wm = parsed.worldMap;
+  if (typeof wm.width === 'number' && typeof wm.height === 'number') {
+    return (generateWorldMap as any)(
+      wm.width,
+      wm.height,
+      wm.seed,
+      wm.size ?? 'medium',
+      wm.preset ?? 'verdant',
+    );
+  }
+  return (generateWorldMap as any)(
+    wm.size ?? 'medium',
+    wm.preset ?? 'verdant',
+    wm.seed,
   );
 }
 
@@ -183,6 +186,8 @@ function stripRuntimeWorldFields(world: WorldState): WorldState {
     entityByType: _entityByType,
     grassGrid: _grassGrid,
     mobileGrid: _mobileGrid,
+    humanSocialGrid: _humanSocialGrid,
+    treeGrid: _treeGrid,
     scentGrid: _scentGrid,
     roadAvoidance: _roadAvoidance,
     roadAvoidanceStamp: _roadAvoidanceStamp,
@@ -246,18 +251,14 @@ function migrateTickTimeline(
     scaleField(rec, 'hotelStayUntilTick');
     scaleField(rec, 'reproductionCooldown');
     scaleField(rec, 'lastMetPartner');
-    // pregnancyProgress is 0..PREGNANCY_TICKS absolute progress — scale with day length
     scaleField(rec, 'pregnancyProgress');
-    // ...and so is the due threshold the progress is compared against, or a loaded pregnancy
-    // arrives over- or under-due by the calendar ratio.
     scaleField(rec, 'pregnancyDueProgress');
-    // Nested snapshot while hunting (EK-C5) — same absolute progress units
+
     const saved = rec.moonHowlerSaved;
     if (saved && typeof saved === 'object') {
       scaleField(saved as Record<string, unknown>, 'pregnancyProgress');
       scaleField(saved as Record<string, unknown>, 'pregnancyDueProgress');
     }
-    // chatTicks / combatTicks are short remaining counters — leave unscaled
   }
 
   for (const route of world.tradeRoutes ?? []) {
@@ -294,8 +295,6 @@ function migrateTickTimeline(
     scaleField(rec, 'startedAtTick');
     scaleField(rec, 'endsAtTick');
   }
-  // Pending story cards carry absolute deadlines too; leaving them unscaled made a card expire
-  // immediately (or linger for days) after a day-length change.
   for (const evt of world.pendingStoryEvents ?? []) {
     const rec = evt as unknown as Record<string, unknown>;
     scaleField(rec, 'createdAtTick');
@@ -317,21 +316,7 @@ export function saveGame(world: WorldState, view: ViewState): SaveResult {
   }
 }
 
-/**
- * One-time legacy migration — Church manual staffing.
- *
- * Older 0.6.1-line saves can contain Churches that were auto-filled before
- * manual priest selection existed. The Church must start empty until the
- * player assigns a priest (SIMULATION_AUTHORITY.md §5: "The Church has capacity
- * for four but requires only the player-selected priest"; manual buildings are
- * never filled by generic auto-staffing).
- *
- * Clears every occupant of a completed player Church through the workforce
- * owner's removal transition and returns the number of cleared seats. Uses
- * `removeWorkerTransition` so `homeBuildingId` / `occupation` / `job` stay
- * consistent; occupants who were never the assigned worker are only dropped
- * from the list.
- */
+/** One-time legacy migration — Church manual staffing. */
 export function clearAutoFilledChurches(world: WorldState): number {
   const churches = world.buildings.filter(
     (b) => b.completed && b.type === BuildingType.Church && b.faction !== 'rival',
@@ -357,10 +342,6 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
     const worldData = pickWorldStateFromSave(parsed);
 
     let loadedTick = (worldData.tick ?? (parsed.tick as number | undefined) ?? 0) as number;
-    // A save written by this build always carries `_ticksPerDay: TICKS_PER_DAY`, and
-    // `parseSaveJson` admits only this build's saves, so a missing day length means a
-    // current-day-length save — not a legacy 24-tick one. Defaulting to
-    // LEGACY_TICKS_PER_DAY tripled `world.tick` and every absolute deadline on load.
     const savedTicksPerDay = typeof parsed._ticksPerDay === 'number' && parsed._ticksPerDay > 0
       ? (parsed._ticksPerDay as number)
       : TICKS_PER_DAY;
@@ -448,10 +429,8 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
     const colonyDayOnLoad = getAbsoluteCalendarDay(loadedTick);
     const hourOnLoad = getHourOfDay(loadedTick);
     for (const entity of world.entities) {
-      // Legacy permanent-werewolf → cursed; early-out when already cursed (EK-C4).
       migrateLegacyMoonHowler(entity, colonyDayOnLoad, hourOnLoad);
     }
-    // Form must match full-moon night window after load — migrateLegacy alone is not enough.
     syncMoonHowlerForms(
       world.entities,
       colonyDayOnLoad,
@@ -474,11 +453,9 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
     world.yearlyStats = world.yearlyStats ?? [];
     world.lifetimeStats = world.lifetimeStats ?? createEmptyLifetimeStats();
     world.eventsThisYear = worldData.eventsThisYear ?? [];
-    // Valley Chronicle (added mid-0.5.4.2) — same-version saves predating it default to empty.
     if (!Array.isArray(world.chronicleChapters)) {
       world.chronicleChapters = [];
     }
-    // Iron was added mid-0.5.4.2 — backfill saves that predate it (same _version).
     if (typeof (world.resources as { iron?: unknown }).iron !== 'number') {
       (world.resources as { iron: number }).iron = 0;
     }
@@ -495,11 +472,6 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
         : b,
     );
 
-    // The version gate (`parseSaveJson`) admits only this build's saves, so `_version` here can
-    // only ever equal `GAME_VERSION`: the legacy v0.4 … v0.5.1 migration branches that used to
-    // sit here were unreachable dead code. Same-version repairs are done inline (iron backfill,
-    // chronicle chapters, the Church pass below); the timeline migration still runs for a save
-    // that explicitly declares a different `_ticksPerDay`.
     migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
     rebuildChildrenIds(world.entities);
     migrateLegacySecurityRoles(world);
@@ -513,13 +485,6 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
       logEvent(world, 'event', message);
     };
 
-    // Church manual staffing (one-time): older 0.6.1-line saves may carry
-    // Churches auto-filled before manual priest selection existed. The Church
-    // must be empty until the player assigns a priest — never auto-refilled.
-    // This pass must run **once per save**: `loadGameFromParsed` is the browser- and
-    // file-load path, so clearing on every load also released the priest the player had
-    // since assigned by hand. Nothing refills the Church (`assignMissingWorkers` skips
-    // manual buildings), so its strength silently halved after every reload.
     const churchMigrationDone = (world.appliedSaveMigrations ?? []).includes('church-manual-staffing');
     const clearedChurchSeats = churchMigrationDone ? 0 : clearAutoFilledChurches(world);
     if (!churchMigrationDone) {
@@ -529,8 +494,6 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
           `Save migrated — ${clearedChurchSeats} auto-filled Church seat(s) cleared; assign a priest manually.`,
         );
       } else {
-        // Nothing to clear: stamp the marker without a chronicle line, so a later load
-        // cannot strip a priest assigned after this one.
         if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
         world.appliedSaveMigrations.push('church-manual-staffing');
       }
@@ -581,13 +544,7 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
     });
     clearAllFactionWanderStates();
     rebuildEntityByIdMap(world);
-    // A loaded colony must draw from its own seed. `initGame` seeds this realm for the game
-    // it creates and loading never re-seeded, so a loaded world kept the previous run's
-    // random streams (and the worker's realm was never seeded at all).
     adoptSimSeedFromWorld(world);
-    // ...and resume the streams the file was saved in the middle of. `adoptSimSeedFromWorld`
-    // only installs the seed, which would restart every owner's sequence; `restoreSimRng`
-    // repositions them and is a no-op for a save written before the snapshot existed.
     restoreSimRng(parsed.simRng);
     const view = createViewFromSave(parsed, world);
     return { world, view };

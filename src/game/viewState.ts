@@ -433,65 +433,6 @@ export function updateView(view: ViewState, dtMs: number): ViewState {
     screenShake: shakeUnchanged ? view.screenShake : nextShake,
   };
 }
-
-/** Keeps camera target within valid map boundaries with boundary margin. */
-export function clampCameraTarget(
-  cam: Camera,
-  worldW: number,
-  worldH: number,
-  viewportW?: number,
-  viewportH?: number,
-): Camera {
-  const effectiveZoom = clampCameraZoom(cam.targetZoom ?? cam.zoom);
-  // 2% = the overscroll allowed past each edge; the regression this guards is an
-  // empty ring around the world, so the margin stays small on purpose.
-  const marginX = worldW * 0.02;
-  const marginY = worldH * 0.02;
-
-  let minX: number;
-  let maxX: number;
-  let minY: number;
-  let maxY: number;
-
-  // If a distinct screen canvas viewport was supplied, fit edges cleanly. A
-  // viewport the same size as the world is still a viewport — it pins to center.
-  if (viewportW != null && viewportH != null && viewportW > 0 && viewportH > 0) {
-    const halfViewW = viewportW / 2 / effectiveZoom;
-    const halfViewH = viewportH / 2 / effectiveZoom;
-    minX = halfViewW * 2 >= worldW ? worldW / 2 : halfViewW;
-    maxX = halfViewW * 2 >= worldW ? worldW / 2 : worldW - halfViewW;
-    minY = halfViewH * 2 >= worldH ? worldH / 2 : halfViewH;
-    maxY = halfViewH * 2 >= worldH ? worldH / 2 : worldH - halfViewH;
-  } else {
-    // Standard target clamping across world dimensions
-    minX = 0;
-    maxX = worldW;
-    minY = 0;
-    maxY = worldH;
-  }
-
-  return {
-    ...cam,
-    targetX: Math.max(minX - marginX, Math.min(maxX + marginX, cam.targetX)),
-    targetY: Math.max(minY - marginY, Math.min(maxY + marginY, cam.targetY)),
-  };
-}
-
-export function moveCameraView(
-  view: ViewState,
-  world: WorldState,
-  dx: number,
-  dy: number,
-  viewportW?: number,
-  viewportH?: number,
-): ViewState {
-  const cam = { ...view.camera };
-  const effectiveZoom = cam.targetZoom ?? cam.zoom;
-  cam.targetX += dx / effectiveZoom;
-  cam.targetY += dy / effectiveZoom;
-  return { ...view, camera: clampCameraTarget(cam, world.width, world.height, viewportW, viewportH) };
-}
-
 export function zoomCameraViewAt(
   view: ViewState,
   factor: number,
@@ -519,6 +460,40 @@ export function zoomCameraViewAt(
 
   const clampedCam = world ? clampCameraTarget(cam, world.width, world.height, canvasW, canvasH) : cam;
   return { ...view, camera: clampedCam };
+}
+
+/** Keeps camera target within valid map boundaries with boundary margin. */
+export function clampCameraTarget(
+  cam: Camera,
+  worldW: number,
+  worldH: number,
+  viewportW?: number,
+  viewportH?: number,
+): Camera {
+  const effectiveZoom = clampCameraZoom(cam.targetZoom ?? cam.zoom);
+
+  // Use actual canvas/window viewport, falling back to window width if not passed
+  const vw = (viewportW && viewportW > 0) 
+    ? viewportW 
+    : (typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const vh = (viewportH && viewportH > 0) 
+    ? viewportH 
+    : (typeof window !== 'undefined' ? window.innerHeight : 900);
+
+  const halfViewW = vw / 2 / effectiveZoom;
+  const halfViewH = vh / 2 / effectiveZoom;
+
+  // The center of the camera CANNOT get closer to the border than half the screen!
+  const minX = halfViewW * 2 >= worldW ? worldW / 2 : halfViewW;
+  const maxX = halfViewW * 2 >= worldW ? worldW / 2 : worldW - halfViewW;
+  const minY = halfViewH * 2 >= worldH ? worldH / 2 : halfViewH;
+  const maxY = halfViewH * 2 >= worldH ? worldH / 2 : worldH - halfViewH;
+
+  return {
+    ...cam,
+    targetX: Math.max(minX, Math.min(maxX, cam.targetX)),
+    targetY: Math.max(minY, Math.min(maxY, cam.targetY)),
+  };
 }
 
 export function zoomCameraView(

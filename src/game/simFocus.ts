@@ -1,3 +1,4 @@
+
 /**
  * Viewport focus, off-screen throttles, and entity draw buckets.
  */
@@ -27,11 +28,7 @@ export const OFFSCREEN_WILDLIFE_THROTTLE = 8;
 
 /**
  * Whether an out-of-focus wildlife entity runs its AI on this tick.
- *
- * The throttle counts wildlife-layer *calls*, and `tickWildlife` only runs on ticks that are
- * multiples of `WILDLIFE_LAYER_INTERVAL`. Testing the raw tick (`(tick + id) % THROTTLE`) made
- * the gate unreachable for ids ≡ 1, 2, 3 (mod 4) — ~75% of off-screen fauna never ran an AI
- * step while still paying the metabolic energy drain — so count layer pulses instead.
+ * Counts layer pulses instead of raw ticks to prevent modulo-aliasing.
  */
 export function isOffscreenWildlifeActive(tick: number, entityId: number): boolean {
   return (Math.floor(tick / WILDLIFE_LAYER_INTERVAL) + entityId) % OFFSCREEN_WILDLIFE_THROTTLE === 0;

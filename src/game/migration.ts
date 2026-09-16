@@ -1,13 +1,4 @@
-/**
- * The Passing Herds — a seasonal deer migration.
- *
- * Every autumn a herd of deer crosses the valley: they graze (real grazing
- * pressure), they are huntable (real meat), and they leave after a week.
- * The herds remember — every deer lost this year (hunted or taken by wolves,
- * starvation or old age) makes next year's herd smaller. Feast on the passing
- * herds and the valley grows emptier; let them pass and next autumn brings them
- * back, fat as ever.
- */
+
 import type { Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { DAYS_PER_YEAR, getAbsoluteCalendarDay } from './dayCycle';
@@ -28,9 +19,11 @@ export const HERD_MAX_SIZE = 16;
  * The day-in-year the herd arrives (deterministic per map seed, late autumn
  * before winter, so grazing happens on the season's last growth).
  */
-export function migrationArrivalDay(seed: number | undefined): number {
+export function migrationArrivalDay(seed: number | undefined, daysPerYear = DAYS_PER_YEAR): number {
   const s = typeof seed === 'number' ? seed : 1;
-  return 240 + ((s * 2654435761) >>> 0) % 20; // 240..259 of 360
+  const baseDay = Math.floor(daysPerYear * (240 / 360));
+  const variance = Math.max(1, Math.floor(daysPerYear * (20 / 360)));
+  return baseDay + (((s * 2654435761) >>> 0) % variance);
 }
 
 function isMigratedHerdDeer(e: Entity, herdYear: number): boolean {
@@ -66,7 +59,6 @@ function findPassableHerdSpawn(
 function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYear: number): void {
   const { width, height } = state;
   const edge = Math.floor(getSimRng('migration')() * 4);
-  // Arrival point on the chosen edge, plus the direction "into the valley".
   let edgeX = width / 2;
   let edgeY = 40;
   let inwardX = 0;
@@ -79,7 +71,6 @@ function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYe
   let unplaced = 0;
   for (let i = 0; i < count; i++) {
     const spread = (i - (count - 1) / 2) * 30;
-    // Spread along the edge, i.e. perpendicular to the inward direction.
     const x = edgeX + (inwardX === 0 ? spread : 0);
     const y = edgeY + (inwardY === 0 ? spread : 0);
 
@@ -96,23 +87,19 @@ function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYe
       SPECIES_CONFIG[EntityType.Deer].spawnEnergy,
     );
     deer.migrationTag = herdYear;
-    // BUG-12: gameTick replaces state.entities with allAlive after the daily layer —
-    // pushing into state.entities would discard the herd on arrival.
     out.push(deer);
-    // Herd deer follow the same spawn contract as every other wildlife spawn: the canonical
-    // entity-id index must know about them, or same-tick lookups (`entityById`) cannot see them.
+    if (!state.entities.includes(deer)) {
+      state.entities.push(deer);
+    }
     indexLivingEntity(state, deer);
   }
 
-  // A fully blocked edge strip (long coastline, mountain wall) would otherwise
-  // drop herd members: fall back to the shared passability-retry ring spawner.
+  // A fully blocked edge strip falls back to the shared passability-retry ring spawner
   if (unplaced > 0) {
     spawnWildlifeRing(state, EntityType.Deer, edgeX, edgeY, unplaced, 40, 120, {
       onSpawn: (deer) => {
         deer.migrationTag = herdYear;
         out.push(deer);
-        // `spawnWildlifeRing` only indexes its own spawns when no `onSpawn` hook is given,
-        // so the herd path indexes the deer itself (same contract as the placed loop above).
         indexLivingEntity(state, deer);
       },
     });
@@ -135,31 +122,42 @@ export function tickMigration(state: WorldState, allAlive: Entity[]): void {
     const alive = herd.filter((e) => e.alive).length;
     for (const e of herd) {
       e.alive = false;
-      // The canonical id index only holds living entities; the departing deer are indexed on
-      // spawn, so they must leave the index with the rest of the herd.
       unindexEntityFromState(state, e.id);
       const idx = state.entities.indexOf(e);
       if (idx >= 0) state.entities.splice(idx, 1);
+      const aliveIdx = allAlive.indexOf(e);
+      if (aliveIdx >= 0) allAlive.splice(aliveIdx, 1);
     }
-    // Every missing herd deer is a loss, whatever killed it. The kill site does not record a
-    // cause (wolves, starvation, old age and the player's hunters all kill through the same
-    // wildlife-death transition), so the memory and the wording count losses, not hunts.
+
     const lost = active.spawned - alive;
     if (lost > 0) {
       const base = state.migrationNextHerdSize ?? HERD_BASE_SIZE;
       state.migrationNextHerdSize = Math.max(HERD_MIN_SIZE, Math.min(HERD_MAX_SIZE, base - lost));
-      addBigNews(state, '🦌 The herds remember', `${lost} deer were lost from the passing herd — next autumn will bring fewer.`, 'negative');
+      addBigNews(
+        state,
+        '🦌 The herds remember',
+        `${lost} deer were lost from the passing herd — next autumn will bring fewer (next herd: ${state.migrationNextHerdSize}).`,
+        'negative',
+      );
       logEvent(state, 'event', `Autumn migration: ${lost} herd deer lost from the passing herd; next herd ${state.migrationNextHerdSize}.`);
     } else {
-      addNotification(state, '🦌 The herds moved on', 'The deer passed through unharmed — they will remember this valley.', 'success');
-      logEvent(state, 'event', 'Autumn migration: the herds passed through unharmed.');
+      const base = state.migrationNextHerdSize ?? HERD_BASE_SIZE;
+      // Herd recovers and grows when unharmed: "let them pass and next autumn brings them back, fat as ever"
+      state.migrationNextHerdSize = Math.min(HERD_MAX_SIZE, base + 2);
+      addNotification(
+        state,
+        '🦌 The herds moved on',
+        `The deer passed through unharmed — they will return fatter next autumn (next herd: ${state.migrationNextHerdSize}).`,
+        'success',
+      );
+      logEvent(state, 'event', `Autumn migration: the herds passed through unharmed; next herd ${state.migrationNextHerdSize}.`);
     }
     state.activeMigration = undefined;
     return;
   }
 
   // Arrival: no active herd + it is the arrival day for this seed → the herd comes.
-  if (!active && dayInYear === migrationArrivalDay(state.worldMap?.seed)) {
+  if (!active && dayInYear === migrationArrivalDay(state.worldMap?.seed, DAYS_PER_YEAR)) {
     const count = state.migrationNextHerdSize ?? HERD_BASE_SIZE;
     spawnHerdAtEdge(state, allAlive, count, year);
     state.activeMigration = { herdYear: year, endDay: day + MIGRATION_WINDOW_DAYS, spawned: count };

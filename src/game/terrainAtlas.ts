@@ -1,3 +1,4 @@
+
 /**
  * Painted terrain atlas — "grass biome" 16×16 tileset (2.5D Painted Relief).
  *
@@ -41,11 +42,6 @@ const WATER: AtlasFamily = 1;
  */
 export function atlasFamily(type: TerrainType): AtlasFamily | null {
   switch (type) {
-    // RiverBank counts as grass so a river channel can paint the atlas water
-    // tiles (the painted shore tiles carry the sandy bank look). Without this,
-    // every river tile bordering its bank fell back to the seamless fill
-    // sprite, which the spring season wash turns green — rivers read as land
-    // on the main canvas while the minimap showed them blue.
     case TerrainType.Grassland:
     case TerrainType.Forest:
     case TerrainType.DarkForest:
@@ -56,8 +52,6 @@ export function atlasFamily(type: TerrainType): AtlasFamily | null {
     case TerrainType.DeepWater:
       return WATER;
     default:
-      // Hills/Rocky/Mountains/Beach/Snow have no atlas art — fall back to
-      // seamless fills (they extrude in the relief pass instead).
       return null;
   }
 }
@@ -107,7 +101,6 @@ const ATLAS_TILES: Partial<Record<number, AtlasTileRef>> = {
 /** Grass base variants (all-grass corners, tsx ids) — picked by hash. */
 const GRASS_BASE_IDS = [0, 1, 2, 3, 4, 13, 14, 25, 26, 37, 38];
 
-/** Hash the variant picker + fallback substitution use. */
 function hash01(x: number, y: number, seed: number): number {
   const n = Math.sin(x * 12.9898 + y * 78.233 + seed * 43758.5453) * 43758.5453;
   return n - Math.floor(n);
@@ -138,16 +131,13 @@ function cornerFamily(map: WorldMap, tx: number, ty: number, dx: number, dy: num
 }
 
 /**
- * Pick the painted tile for a cell, or null when the atlas can't paint it
- * (uncovered family, or any 8-neighbour outside grass/water — the painted
- * edges wouldn't match the neighbouring rendering, so fall back).
+ * Pick the painted tile for a cell, or null when the atlas can't paint it.
  */
 export function pickAtlasTile(map: WorldMap, tx: number, ty: number): AtlasPick | null {
   const self = map.tiles[ty]?.[tx];
   if (!self) return null;
   if (!isOpaqueFamily(atlasFamily(self.type))) return null;
 
-  // 8-neighbour compatibility — out-of-map is fine, in-map out-of-family is not.
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
       if (dx === 0 && dy === 0) continue;
@@ -175,9 +165,6 @@ export function pickAtlasTile(map: WorldMap, tx: number, ty: number): AtlasPick 
 
 /**
  * Pick exactly one sand-water overlay for a beach or river-bank base cell.
- * Water is detected with the same four-corner union rule as the painted atlas.
- * A bank may border meadow as well as water, so meadow neighbours do not suppress
- * the overlay; the overlay only communicates where water reaches the bank.
  */
 export function pickSandWaterOverlay(map: WorldMap, tx: number, ty: number): SandWaterOverlayPick | null {
   const self = map.tiles[ty]?.[tx];
@@ -213,10 +200,7 @@ export function sandWaterOverlayReady(): boolean {
 }
 
 /**
- * Elevation → raise fraction of a tile. Water and lowland stay flat — the
- * painted atlas carries the shore look; only hills and peaks extrude, so the
- * relief reads without double cliffs at the coast. 0.5→~0.08, 0.6 (hills)→~0.15,
- * 0.85+ (mountains/snow)→~0.30–0.35.
+ * Elevation → raise fraction of a tile.
  */
 export function reliefY(type: TerrainType, elevation: number): number {
   switch (type) {

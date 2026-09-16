@@ -2,7 +2,7 @@ import type { Building, Entity, RivalSettlement, WorldState, RaidChoice, RaidEve
 import { BuildingType, JobType } from './gameTypes';
 import { TICKS_PER_DAY, killHuman } from './dayCycle';
 import { ensureEntityByIdMap } from './entityIndex';
-import { hasIronSpears, hasStoneSpears } from './combat';
+import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
 import { formatCitizenName, formatDeathLog } from './citizenId';
 import { logDeath, logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
@@ -11,7 +11,6 @@ import { gainSkill } from './skills';
 import {
   computeMilitiaBreakdown,
   getMilitiaArmamentLabel,
-  getMilitiaSpearTier,
 } from './militiaBalance';
 
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
@@ -32,6 +31,10 @@ const RAID_FOOD_MIN = 22;
 const RAID_FOOD_MAX = 50;
 /** Home-turf bonus when you attack a rival camp (harder than meeting them at your gate). */
 const OUTGOING_RAID_DEFENSE_MULT = 1.25;
+
+export function hasMilitiaWeapons(state: WorldState): boolean {
+  return hasIronSwords(state) || hasIronSpears(state) || hasStoneSpears(state);
+}
 
 export function getCampDistancePixels(
   state: WorldState,
@@ -126,13 +129,13 @@ export function resolveCounterRaidRatio(attacker: number, defender: number): Cou
 function getCounterRaidBlockReason(
   state: WorldState,
   rival: RivalSettlement | undefined,
-  hasSpears: boolean,
+  hasWeapons: boolean,
   outgoingRaidFoodCost: number | null,
 ): string | null {
   if (!rival) return null;
   if (isRivalAtPeace(rival)) return `Peace treaty — ${rival.peaceTreatyDays} days left`;
   if (rival.relationship === 'friendly') return 'Friendly — cannot raid';
-  if (!hasSpears) return 'Need stone/iron spears';
+  if (!hasWeapons) return 'Need weapons (spears/swords)';
   if (state.humanPopulation < 8) return `Need 8+ population (have ${state.humanPopulation})`;
   if (outgoingRaidFoodCost != null && state.resources.food < outgoingRaidFoodCost) {
     return `Need ${outgoingRaidFoodCost}🍖 provisions (have ${state.resources.food})`;
@@ -193,14 +196,6 @@ export function getOutgoingRaidActionLabel(state: WorldState, rivalId: string): 
   };
 }
 
-/**
- * Militia headcount, taken from the militia owner.
- *
- * The militia count is one rule: `computeMilitiaBreakdown` musters every adult settler and
- * scales them by weapon/armour tier. The local rule this replaces returned 0 unless stone or
- * iron spears were researched (so a sword-armed village counted as no militia), which
- * disagreed with the number the owner actually feeds the raid math.
- */
 export function countArmedMilitia(state: WorldState, entities: Entity[]): number {
   return computeMilitiaBreakdown(state, entities, { includeStructures: false }).adultCount;
 }
@@ -264,8 +259,8 @@ export function canLaunchRaidOnRival(
   const foodCost = getOutgoingRaidFoodCostForRival(state, rival);
   if (isRivalAtPeace(rival)) return { ok: false, foodCost, blockReason: 'At peace' };
   if (rival.relationship === 'friendly') return { ok: false, foodCost, blockReason: 'Friendly relations' };
-  if (!(hasIronSpears(state) || hasStoneSpears(state))) {
-    return { ok: false, foodCost, blockReason: 'Need stone or iron spears' };
+  if (!hasMilitiaWeapons(state)) {
+    return { ok: false, foodCost, blockReason: 'Need weapons (stone/iron spears or swords)' };
   }
   if (state.humanPopulation < 8) return { ok: false, foodCost, blockReason: 'Need 8+ population' };
   if (state.resources.food < foodCost) {
@@ -291,7 +286,7 @@ export function getCombatPreview(
   const count = militiaBreakdown.adultCount;
   const militiaStrength = militiaBreakdown.militiaStrength;
   const barricadeStrength = militiaBreakdown.barricadeStrength;
-  const hasSpears = getMilitiaSpearTier(state) !== 'none';
+  const hasWeapons = hasMilitiaWeapons(state);
 
   let rivalStrength: number | null = null;
   let distanceTiles: number | null = null;
@@ -318,9 +313,6 @@ export function getCombatPreview(
 
   const counterRaidRivalStrength = options?.rival ? getRivalDefenseStrength(options.rival) : null;
   if (counterRaidRivalStrength != null && options?.rival) {
-    // BUG-3: when options.attackerStrength is supplied (incoming-raid preview),
-    // rivalStrength holds the ATTACKER's strength — the camp-defense base shown in
-    // the text must be the rival's own raid strength, matching the computed value.
     const defenseBase = options?.attackerStrength != null
       ? getRivalRaidStrength(options.rival)
       : (rivalStrength ?? getRivalRaidStrength(options.rival));
@@ -332,7 +324,7 @@ export function getCombatPreview(
   const counterRaidBlockReason = getCounterRaidBlockReason(
     state,
     options?.rival,
-    hasSpears,
+    hasWeapons,
     outgoingRaidFoodCost,
   );
   const canCounterRaid = options?.rival != null && counterRaidBlockReason == null;
@@ -347,7 +339,7 @@ export function getCombatPreview(
     militiaCount: count,
     militiaStrength,
     barricadeStrength,
-    hasSpears,
+    hasSpears: hasWeapons,
     armamentLabel: armament,
     breakdown,
     rivalStrength,
@@ -388,7 +380,7 @@ function flashMilitia(entities: Entity[], ticks = 22) {
 
 export type RaidParticipantMode = 'militia' | 'barricade' | 'outgoing';
 
-/** Adults who fought — militia/outgoing need village spears; barricade includes all adults. */
+/** Adults who fought — militia/outgoing need village weapons; barricade includes all adults. */
 export function getRaidParticipants(
   state: WorldState,
   entities: Entity[],
@@ -397,7 +389,7 @@ export function getRaidParticipants(
   return entities.filter((e) => {
     if (!e.alive || !isPlayerHuman(e) || e.isJuvenile) return false;
     if (mode === 'barricade') return true;
-    return hasIronSpears(state) || hasStoneSpears(state);
+    return hasMilitiaWeapons(state);
   });
 }
 
@@ -511,10 +503,6 @@ function damageRandomPlayerBuilding(state: WorldState, amount: number): Building
 /** Every fight costs lives — even a routed war-band. */
 export type RaidCasualtyTier = 'victory' | 'costly' | 'moderate' | 'heavy';
 
-/**
- * Death band scales with adult population — a ~200-person year-1 town should lose
- * a meaningful squad per raid, not a token pair.
- */
 export function getRaidCasualtyBounds(tier: RaidCasualtyTier, adultPop: number): [number, number] {
   const pop = Math.max(1, adultPop);
   const pct: Record<RaidCasualtyTier, [number, number]> = {
@@ -527,7 +515,6 @@ export function getRaidCasualtyBounds(tier: RaidCasualtyTier, adultPop: number):
     victory: [1, 2],
     costly: [2, 4],
     moderate: [3, 6],
-    // Heavy: at least 1 death if any adult; at least 2 when pop >= 2 (via min(pop, floor)).
     heavy: [7, 12],
   };
   const [minPct, maxPct] = pct[tier];
@@ -667,26 +654,16 @@ function applyRaidLootTaken(state: WorldState, loot: RaidLootBundle, fraction = 
 export function clampRaidGoldGain(currentGold: number, spoilsGold: number, softCap = 9999): number {
   if (spoilsGold <= 0) return 0;
   const room = Math.max(0, softCap - currentGold);
-  // Also never take more than a single-raid ceiling (prevents free-money stacks)
   const perRaidMax = 80;
   return Math.min(spoilsGold, room, perRaidMax);
 }
 
-/**
- * Add spoils from a successful counter-raid (respects storage caps).
- *
- * Stock can legitimately sit above `storageMax` (demolition refunds are uncapped), so every
- * gain goes through `addCappedResource`: it floors headroom at 0 and returns what actually
- * entered storage — the old hand-rolled `Math.min(room, spoils)` went negative and *removed*
- * the excess instead of leaving it untouched.
- */
 function grantRaidSpoils(state: WorldState, spoils: RaidLootBundle): RaidLootBundle {
   const gained: RaidLootBundle = { food: 0, wood: 0, stone: 0, gold: 0 };
   if (spoils.food > 0) gained.food = addCappedResource(state, 'food', spoils.food);
   if (spoils.wood > 0) gained.wood = addCappedResource(state, 'wood', spoils.wood);
   if (spoils.stone > 0) gained.stone = addCappedResource(state, 'stone', spoils.stone);
   if (spoils.gold > 0) {
-    // Gold keeps its own soft cap (storageMax.gold is effectively unlimited).
     gained.gold = clampRaidGoldGain(state.resources.gold, spoils.gold);
     state.resources.gold += gained.gold;
   }
@@ -785,13 +762,13 @@ function raidChoices(lootFood: number, rivalName: string): RaidChoice[] {
   return [
     {
       id: 'defend',
-      label: 'Defend with militia (spears)',
-      hint: 'Stone or iron spears required — even victory costs lives (scales with population); defeats can devastate.',
+      label: 'Defend with militia (weapons)',
+      hint: 'Spears or swords required — even victory costs lives (scales with population); defeats can devastate.',
     },
     {
       id: 'barricade',
       label: 'Barricade the village',
-      hint: 'No spears needed — holding the wall still costs lives; weaker than open battle.',
+      hint: 'No weapons needed — holding the wall still costs lives; weaker than open battle.',
       cost: BARRICADE_RAID_COST,
     },
     {
@@ -807,8 +784,6 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   if (!state.pendingRaidEvents) state.pendingRaidEvents = [];
   if (rival.population <= 0) return;
   if (state.pendingRaidEvents.some((r) => r.rivalId === rival.id)) return;
-  // Don't stack an incoming march while our war-band is still at their camp (EK-D2).
-  // Strike-back after a failed outgoing still works once that outgoing event is removed.
   if ((state.pendingOutgoingRaidEvents ?? []).some((e) => e.rivalId === rival.id)) return;
   if (rival.raidCooldownDays > 0) return;
   if (isRivalAtPeace(rival)) return;
@@ -818,8 +793,6 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   const hasPlayerStructure = state.buildings.some((b) => b.completed && b.faction !== 'rival');
   if (!hasPlayerStructure) return;
 
-  // Reputation shapes how belligerent rivals get: ≤30 → raids more likely,
-  // ≥80 → respected villages face fewer attacks.
   const rep = state.villageReputation ?? 0;
   let chance = rival.relationship === 'tense' ? 0.22 : 0.12;
   if (rep <= 30) chance *= 1.5;
@@ -880,8 +853,6 @@ export function tickPendingRaidEvents(
   for (const evt of expired) {
     const rival = state.rivalSettlements.find((r) => r.id === evt.rivalId);
     if (!rival) continue;
-    // Static defenses matter even when the raid is not answered in time: walls
-    // and watchtowers blunt the loot, building damage, and casualties.
     const structureBonus = computeMilitiaBreakdown(state, allAlive).structureBonus;
     const defenseFactor = Math.max(0.3, 1 - structureBonus / 240);
     const taken = applyRaidLootTaken(state, raidEventLoot(evt), defenseFactor);
@@ -910,15 +881,6 @@ export function tickPendingRaidEvents(
   }
 }
 
-/**
- * Whether `respondToRaidEvent` would actually resolve this answer right now.
- *
- * Mirrors the guard the responder applies before it spends food or wood or sends
- * the militia in — the same contract `getDiplomacyChoiceEligibility` provides for
- * diplomacy cards — so a consumer can tell an answer that will land from one the
- * responder refuses. A refused answer leaves the raid card open and unspent.
- * `allAlive` is optional so the responder can hand over the list it already built.
- */
 export function getRaidChoiceEligibility(
   state: WorldState,
   event: RaidEvent,
@@ -940,8 +902,8 @@ export function getRaidChoiceEligibility(
   }
 
   if (choiceId === 'defend') {
-    if (!hasStoneSpears(state) && !hasIronSpears(state)) {
-      return { ok: false, blockReason: 'Need spears' };
+    if (!hasMilitiaWeapons(state)) {
+      return { ok: false, blockReason: 'Need weapons (spears or swords)' };
     }
     if (getMilitiaStrength(state, allAlive) <= 0) {
       return { ok: false, blockReason: 'No militia strength' };
@@ -968,7 +930,6 @@ export function respondToRaidEvent(
   const defenderStrength = getMilitiaStrength(state, allAlive);
   const remove = () => {
     state.pendingRaidEvents = state.pendingRaidEvents.filter((e) => e.id !== eventId);
-    // EK-D2: resolving the gate threat recalls any paired war-band still marching on them.
     if (cancelPendingOutgoingRaidsForRival(state, event.rivalId)) {
       logEvent(
         state,
@@ -1154,7 +1115,6 @@ function resolveOutgoingRaidCombat(
     const gained = grantRaidSpoils(state, rollOutgoingRaidSpoils(rival, 'success'));
     rival.relationship = 'tense';
     rival.raidCooldownDays = 10;
-    // Raids always cost lives — light victory casualties even on success (EK-D5 partial).
     applyRaidCasualties(state, state.entities, 'victory', rival.name, 'raiding');
     pushFloat(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Spoils!', '#22c55e');
     const lootNote = formatLootParts(gained);
@@ -1171,7 +1131,6 @@ function resolveOutgoingRaidCombat(
     rival.relationship = 'tense';
     rival.raidCooldownDays = 14;
     state.villageReputation = Math.max(0, state.villageReputation - 4);
-    // Partial loss of the war-band.
     applyRaidCasualties(state, state.entities, 'costly', rival.name, 'raiding');
     const lootNote = formatLootParts(gained);
     logEvent(
@@ -1186,11 +1145,9 @@ function resolveOutgoingRaidCombat(
     state.resources.food = Math.max(0, state.resources.food - 15);
     state.villageReputation = Math.max(0, state.villageReputation - 8);
     rival.relationship = 'tense';
-    // Lost raid: heavy casualties — guaranteed deaths when adults exist.
     applyRaidCasualties(state, state.entities, 'heavy', rival.name, 'raiding');
     pushFloat(state, rival.campX, rival.campY - 20, 'War-band broken!', '#f87171');
     logEvent(state, 'combat', `${verb} on ${rival.name} failed — war-band fought back`, rival.name, 'outgoing_raid');
-    // Queue strike-back *before* cooldown — maybeQueueRaid bails when raidCooldownDays > 0
     maybeQueueRaid(state, rival, state.entities.filter((e) => e.alive));
     rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 7);
   }
@@ -1244,8 +1201,6 @@ export function respondToOutgoingRaidEvent(
   const verb = event.isCounterRaid ? 'Counter-raid' : 'Raid';
   const remove = () => {
     state.pendingOutgoingRaidEvents = state.pendingOutgoingRaidEvents!.filter((e) => e.id !== eventId);
-    // EK-D2: finishing our march cancels any paired incoming still live for this rival.
-    // Call before strike-back maybeQueueRaid so a fresh counter-march is not cancelled.
     if (cancelPendingRaidsForRival(state, event.rivalId)) {
       logEvent(
         state,
@@ -1286,7 +1241,6 @@ export function respondToOutgoingRaidEvent(
   if (choiceId === 'decline_payoff' || choiceId === 'fight') {
     if (choiceId === 'decline_payoff' && event.rivalResponse !== 'payoff_offer') return state;
     if (choiceId === 'fight' && event.rivalResponse !== 'fight') return state;
-    // Remove outgoing first so failed-raid strike-back (maybeQueueRaid) is not blocked (EK-D2).
     remove();
     resolveOutgoingRaidCombat(state, rival, event);
     return state;
@@ -1301,7 +1255,7 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
   if (!rival) return state;
   if (rival.relationship === 'friendly') return state;
   if (isRivalAtPeace(rival)) return state;
-  if (!hasStoneSpears(state) && !hasIronSpears(state)) return state;
+  if (!hasMilitiaWeapons(state)) return state;
   if (state.humanPopulation < 8) return state;
   const raidFoodCost = getOutgoingRaidFoodCostForRival(state, rival);
   if (state.resources.food < raidFoodCost) return state;
@@ -1309,7 +1263,6 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
 
   if (!state.pendingOutgoingRaidEvents) state.pendingOutgoingRaidEvents = [];
 
-  // EK-D2: detect counter-raid first (before cancel clears pending incoming).
   const isCounterRaid = isCounterRaidOnRival(state, rivalId);
   const { verb } = isCounterRaid
     ? { verb: 'Counter-raid' }
@@ -1379,4 +1332,3 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
   );
   rival.daysUntilAction = 30;
   return state;
-}

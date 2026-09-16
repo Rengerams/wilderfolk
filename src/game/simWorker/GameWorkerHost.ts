@@ -1,3 +1,4 @@
+
 import type { WorldState } from '../gameTypes';
 import type { SimulationFocus } from '../simFocus';
 import { createRenderSoAReader, type RenderSoAReaderV1 } from '../simBuffers/renderSoAReader';
@@ -188,9 +189,6 @@ export class GameWorkerHost {
 
     try {
       invalidateWorldRuntimeCaches(this.worldRef);
-      // Same reason as the full-world uploads below: the worker adopts the world's seed, so the
-      // stream positions this realm has already consumed have to travel with it or the
-      // authoritative realm replays them (the main thread ticks until the worker is ready).
       this.worldRef.simRng = snapshotSimRng();
       const init: WorkerRequest = {
         type: 'init',
@@ -327,9 +325,6 @@ export class GameWorkerHost {
         if (!worker) return;
 
         invalidateWorldRuntimeCaches(world);
-        // Carry this realm's stream positions with the world: the worker adopts the world's seed
-        // on receipt, which resets its streams to the start of each owner's sequence, so without
-        // this the authoritative realm would replay randomness the sender had already consumed.
         world.simRng = snapshotSimRng();
         const msg: WorkerRequest = kind === 'importSave'
           ? { type: 'importSave', proto: WORKER_PROTO, world }

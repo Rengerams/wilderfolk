@@ -1,3 +1,4 @@
+
 import type { EntityCatalog } from '../entityCatalog';
 import type { EntityRenderMeta } from './entityRenderMeta';
 import type { RenderSoAReaderV1 } from './renderSoAReader';

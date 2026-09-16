@@ -23,7 +23,7 @@ import {
   getAvailableStorageHeadroom,
 } from './resourceUtils';
 import { getRandomSurname } from './nameLoader';
-import { hasIronSpears, hasStoneSpears } from './combat';
+import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
 import { maybeStartVisitorQuest } from './visitorQuest';
 import { logEvent } from './eventLog';
 import {
@@ -38,6 +38,10 @@ import { tickRivalSettlements as tickRivalEvents } from './rivalEvents';
 import { createRivalProfile, ensureRivalProfile } from './rivalProfiles';
 
 let newsSeq = 0;
+
+function hasWeapons(state: WorldState): boolean {
+  return hasIronSwords(state) || hasIronSpears(state) || hasStoneSpears(state);
+}
 
 function pushNews(state: WorldState, title: string, message: string, type: 'positive' | 'negative' | 'neutral') {
   state.bigNews.push({
@@ -59,10 +63,7 @@ function pushFloat(state: WorldState, x: number, y: number, text: string, color:
   });
 }
 
-// Village Requests — one bounded daily offer system. This stays in groupEvents
-// because it derives from a live caravan and resolves through the same typed
-// command/domain boundary as visitor trade. It is deliberately not a generic
-// event manager or second economy owner.
+// Village Requests — one bounded daily offer system.
 export const VILLAGE_REQUEST_PROVISIONS_COST_GOLD = 15;
 export const VILLAGE_REQUEST_PROVISIONS_FOOD = 30;
 export const VILLAGE_REQUEST_PROVISIONS_REPUTATION = 2;
@@ -110,7 +111,6 @@ function expireVillageRequest(state: WorldState, request: VillageRequest, day: n
   logEvent(state, 'event', `${request.sourceName}'s provisions offer expired`, request.sourceName);
 }
 
-/** Daily owner: expire stale offers or generate one caravan offer at most. */
 export function tickVillageRequests(state: WorldState): void {
   const day = getAbsoluteCalendarDay(state.tick);
   const active = state.activeVillageRequest;
@@ -152,15 +152,6 @@ export function tickVillageRequests(state: WorldState): void {
   logEvent(state, 'event', `${trader.name} offered caravan provisions`, trader.name);
 }
 
-/**
- * Whether `resolveVillageRequest` would accept this answer right now.
- *
- * Mirrors the guards the resolver applies before it spends gold or fills the
- * granary — the same contract `getDiplomacyChoiceEligibility` and
- * `getRaidChoiceEligibility` provide for their cards — so a consumer can tell an
- * answer that will land from one the resolver refuses. A refused accept leaves the
- * offer open and would burn every auto-play hour, so the bot asks this first.
- */
 export function getVillageRequestEligibility(
   state: WorldState,
   request: VillageRequest,
@@ -179,7 +170,6 @@ export function getVillageRequestEligibility(
   return { ok: true };
 }
 
-/** Player-command resolution for the sole active Village Request. */
 export function resolveVillageRequest(
   originalState: WorldState,
   requestId: string,
@@ -208,8 +198,6 @@ export function resolveVillageRequest(
     return state;
   }
 
-  // The offer owner's eligibility rule is the single definition of an acceptable
-  // accept — never restate the gold/storage thresholds here.
   const gate = getVillageRequestEligibility(state, request, choice);
   if (!gate.ok) {
     const reason = gate.blockReason ?? 'Offer unavailable';
@@ -232,7 +220,6 @@ export { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { getSimRng, seededRandomForRun } from './simRng';
 
-/** Deep-clone world state for player actions that mutate simulation data. */
 function cloneWorldStateForAction(originalState: WorldState): WorldState {
   return structuredClone(originalState);
 }
@@ -248,13 +235,11 @@ function buildAliveEntityIndex(allAlive: Entity[]): Map<number, Entity> {
 function buildAliveDeerList(allAlive: Entity[]): Entity[] {
   const deer: Entity[] = [];
   for (const e of allAlive) {
-    // Never poach colony stock — same rule as free-roam / wildlife hunt
     if (e.alive && e.type === EntityType.Deer && e.tamedBy == null) deer.push(e);
   }
   return deer;
 }
 
-/** Kill wild game from visitor/rival actions — unindex + drop hunt chases. */
 function killWildGameForPoach(state: WorldState, animal: Entity): void {
   if (!animal.alive) return;
   animal.alive = false;
@@ -444,7 +429,6 @@ export function spawnVisitorGroup(
   );
   logEvent(state, 'migration', `${name} arrived near the village`, name);
 
-  // The traveling smith tags along with trader camps (visitor quest, v0.5.2).
   if (kind === 'traders') maybeStartVisitorQuest(state);
 
   return {
@@ -544,7 +528,6 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
 
   for (const group of state.visitorGroups) {
     const arrivedDay = group.spawnedAtCalendarDay ?? calendarDay;
-    // daysLeft = midnights after the arrival day; first decrement is end of the next full day.
     if (newCalendarDay && calendarDay > arrivedDay + 1) group.daysLeft--;
 
     if (newCalendarDay && group.daysLeft > 0) {
@@ -647,14 +630,6 @@ const PEACE_TREATY_FOOD_COST = 20;
 const REFUGEE_WELCOME_FOOD = 40;
 const REFUGEE_SCREEN_FOOD = 20;
 
-/**
- * Whether `sendRivalGift` would actually improve relations: the rival exists,
- * is not already friendly, and the colony can spare the food.
- *
- * Single definition of the gift rule, shared with the auto-play bot
- * (`virtualPlayer.ts`), so the bot never claims an in-game hour with a gift the
- * owner would refuse.
- */
 export function getRivalGiftEligibility(
   state: WorldState,
   rivalId: string,
@@ -677,8 +652,6 @@ export function sendRivalGift(originalState: WorldState, rivalId: string): World
     const state = cloneWorldStateForAction(originalState);
     const rival = state.rivalSettlements.find((r) => r.id === rivalId);
     if (!rival) return state;
-    // Unchanged feedback: grey when they are already friendly, amber when the
-    // gift itself is unaffordable.
     const color = rivalPreview.relationship === 'friendly' ? '#94a3b8' : '#f97316';
     pushFloat(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot send a gift', color);
     return state;
@@ -701,14 +674,6 @@ export function sendRivalGift(originalState: WorldState, rivalId: string): World
   return state;
 }
 
-/**
- * Whether `establishRivalTradePact` would actually sign: the rival exists, is
- * neither too tense to talk nor already friendly, and the colony can pay the gold.
- *
- * Single definition of the trade-pact rule, shared with the auto-play bot
- * (`virtualPlayer.ts`), so the bot never claims an in-game hour with a pact the
- * owner would refuse.
- */
 export function getRivalTradePactEligibility(
   state: WorldState,
   rivalId: string,
@@ -732,7 +697,6 @@ export function establishRivalTradePact(originalState: WorldState, rivalId: stri
     const state = cloneWorldStateForAction(originalState);
     const rival = state.rivalSettlements.find((r) => r.id === rivalId);
     if (!rival) return state;
-    // Unchanged feedback: grey when they are already friendly, amber otherwise.
     const color = rivalPreview.relationship === 'friendly' ? '#94a3b8' : '#f97316';
     pushFloat(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot sign a pact', color);
     return state;
@@ -755,21 +719,14 @@ export function establishRivalTradePact(originalState: WorldState, rivalId: stri
   return state;
 }
 
-/**
- * Whether `showStrengthToRival` would actually overawe them: the rival exists, the
- * colony fields stone or iron spears, and it counts at least six settlers.
- *
- * Single definition of the strength-display rule, shared with the auto-play bot
- * (`virtualPlayer.ts`).
- */
 export function getShowStrengthEligibility(
   state: WorldState,
   rivalId: string,
 ): { ok: boolean; blockReason?: string } {
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return { ok: false, blockReason: 'No such rival' };
-  const armed = hasIronSpears(state) || hasStoneSpears(state);
-  if (!armed) return { ok: false, blockReason: 'Need spears' };
+  const armed = hasWeapons(state);
+  if (!armed) return { ok: false, blockReason: 'Need weapons' };
   if (state.humanPopulation < 6) return { ok: false, blockReason: 'Need 6+ settlers' };
   return { ok: true };
 }
@@ -805,13 +762,6 @@ export function showStrengthToRival(originalState: WorldState, rivalId: string):
   return state;
 }
 
-/**
- * Whether `signPeaceTreaty` would actually buy a truce: the rival exists, is not
- * too tense to talk, and the colony can pay the gold and food.
- *
- * Single definition of the treaty rule, shared with the auto-play bot
- * (`virtualPlayer.ts`).
- */
 export function getPeaceTreatyEligibility(
   state: WorldState,
   rivalId: string,
@@ -828,7 +778,6 @@ export function getPeaceTreatyEligibility(
   return { ok: true };
 }
 
-/** Player-initiated peace — halts raids for 60 days. */
 export function signPeaceTreaty(originalState: WorldState, rivalId: string): WorldState {
   const state = cloneWorldStateForAction(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
@@ -871,7 +820,7 @@ function diplomacyChoicesFor(kind: DiplomacyEventKind, rivalName: string): Diplo
       return [
         { id: 'concede', label: 'Offer hunting rights', hint: 'Reputation -5 but relations improve.' },
         { id: 'stand_firm', label: 'Stand firm', hint: 'Hold the line — tense relations may worsen.' },
-        { id: 'militia', label: 'Parade militia', hint: 'Needs spears + 6 pop — backs them down.' },
+        { id: 'militia', label: 'Parade militia', hint: 'Needs weapons + 6 pop — backs them down.' },
       ];
     case 'alliance':
       return [
@@ -992,8 +941,8 @@ export function getDiplomacyChoiceEligibility(
       break;
     case 'border_dispute':
       if (choiceId === 'militia') {
-        const armed = hasIronSpears(state) || hasStoneSpears(state);
-        if (!armed) return { ok: false, blockReason: 'Need spears' };
+        const armed = hasWeapons(state);
+        if (!armed) return { ok: false, blockReason: 'Need weapons' };
         if (state.humanPopulation < 6) return { ok: false, blockReason: 'Need 6+ settlers' };
       }
       break;
@@ -1042,9 +991,6 @@ export function respondToDiplomacyEvent(
     return state;
   }
 
-  // The card owner's eligibility rule is the single definition of what an
-  // affordable answer is — never restate the thresholds here (they used to be
-  // duplicated inline and the auto-play bot gates on the same helper).
   const gate = getDiplomacyChoiceEligibility(state, event, choiceId);
   if (!gate.ok) {
     pushFloat(state, rival.campX, rival.campY - 20, gate.blockReason ?? 'Cannot answer', '#f97316');
@@ -1276,11 +1222,6 @@ export function talkToVisitorLeader(originalState: WorldState, groupId: string):
   return state;
 }
 
-/**
- * Visitor trade actions — single source of truth: the action type is derived from
- * the cost table keys so validation allow-lists can never drift from the actions
- * the UI offers (regression: sell_wood was once missing from the worker validator).
- */
 export const VISITOR_TRADE_COSTS = {
   buy_food: { pay: { gold: 25 }, receive: { food: 40 } },
   buy_wood: { pay: { gold: 20 }, receive: { wood: 30 } },
@@ -1290,17 +1231,14 @@ export const VISITOR_TRADE_COSTS = {
 
 export type VisitorTradeAction = keyof typeof VISITOR_TRADE_COSTS;
 
-/** Reputation tier → trade price modifier (≥80 friendly, ≤30 harsh terms). */
 export function getVisitorTradePriceMult(rep: number): number {
   return rep >= 80 ? 0.8 : rep <= 30 ? 1.25 : 1;
 }
 
-/** High reputation earns better sell prices. */
 export function getVisitorTradeRewardMult(rep: number): number {
   return rep >= 80 ? 1.15 : 1;
 }
 
-/** Starting gold a visitor group carries — funds gifts and sell-trades. */
 function seedGroupGold(kind: VisitorKind): number {
   const ranges: Partial<Record<VisitorKind, [number, number]>> = {
     traders: [40, 80],
@@ -1320,7 +1258,6 @@ function rejectVisitorTrade(state: WorldState, group: VisitorGroup, hint: string
   return state;
 }
 
-/** Reputation-adjusted pay/receive terms for one visitor trade action. */
 function getVisitorTradeTerms(
   state: WorldState,
   action: VisitorTradeAction,
@@ -1333,7 +1270,6 @@ function getVisitorTradeTerms(
   const priceMult = getVisitorTradePriceMult(rep);
   const rewardMult = getVisitorTradeRewardMult(rep);
 
-  // Effective costs/prices with the reputation tier applied (gold only).
   const effectivePay: Partial<Record<keyof WorldState['resources'], number>> = {};
   for (const [key, cost] of Object.entries(deal.pay) as [keyof WorldState['resources'], number][]) {
     effectivePay[key] = key === 'gold' ? Math.ceil((cost ?? 0) * priceMult) : cost;
@@ -1345,18 +1281,6 @@ function getVisitorTradeTerms(
   return { effectivePay, effectiveReceive };
 }
 
-/**
- * Whether `tradeWithVisitors` would actually complete this deal: the group is
- * present and still trading, its kind offers that action, the colony can pay the
- * reputation-adjusted price, the group can cover any gold it owes, and the
- * received goods fit in storage.
- *
- * Single definition of the visitor-trade rule — `tradeWithVisitors` runs it
- * before touching world state, and the auto-play bot (`virtualPlayer.ts`)
- * proposes a trade only when it says `ok`, so the bot never claims an in-game
- * hour with a deal the owner would refuse. `silent` marks the structural
- * refusals the UI never turns into player feedback.
- */
 export function getVisitorTradeEligibility(
   state: WorldState,
   groupId: string,
@@ -1383,7 +1307,6 @@ export function getVisitorTradeEligibility(
     return { ok: false, blockReason: hint };
   }
 
-  // Selling to the group requires them to actually have the gold (no minting).
   const gainedGold = effectiveReceive.gold ?? 0;
   if (gainedGold > 0 && (group.gold ?? 0) < gainedGold) {
     return {
@@ -1416,8 +1339,6 @@ export function tradeWithVisitors(
   action: VisitorTradeAction,
 ): WorldState {
   const eligibility = getVisitorTradeEligibility(originalState, groupId, action);
-  // A deal the group cannot even consider leaves the world untouched, exactly as
-  // before; an attempted-but-refused deal clones the world to show feedback.
   if (!eligibility.ok && eligibility.silent) return originalState;
 
   const state = cloneWorldStateForAction(originalState);
@@ -1456,16 +1377,6 @@ export function tradeWithVisitors(
 
 export type RefugeeChoice = 'welcome' | 'screen' | 'turn_away';
 
-/**
- * Whether `negotiateRefugees` would actually settle this choice: the group is a
- * live refugee camp, and welcoming or screening has the food and population room
- * it costs. Turning the families away is always available.
- *
- * Single definition of the refugee-offer rule — `negotiateRefugees` applies it
- * before spending anything, and the auto-play bot (`virtualPlayer.ts`) proposes a
- * choice only when it says `ok`. `silent` marks the structural refusals that never
- * produced player feedback.
- */
 export function getRefugeeChoiceEligibility(
   state: WorldState,
   groupId: string,
@@ -1495,8 +1406,6 @@ export function negotiateRefugees(
   choice: RefugeeChoice,
 ): WorldState {
   const eligibility = getRefugeeChoiceEligibility(originalState, groupId, choice);
-  // A choice the camp cannot even consider leaves the world untouched, exactly as
-  // before; an attempted-but-refused offer clones the world to show feedback.
   if (!eligibility.ok && eligibility.silent) return originalState;
 
   const state = cloneWorldStateForAction(originalState);
@@ -1570,7 +1479,6 @@ function admitRefugees(
 ): number {
   let joined = 0;
   const stillCamping: number[] = [];
-  // Convert camp members into settlers — do not spawn brand-new humans
   for (const id of group.entityIds) {
     const ent = allAlive.find((e) => e.id === id && e.alive);
     if (!ent || ent.faction !== 'visitor') continue;
@@ -1614,7 +1522,6 @@ export function hitTestCamp(
   return null;
 }
 
-/** World-events schedule entry — wires callbacks into the rivalEvents owner. */
 export function tickWorldRivalSettlements(state: WorldState, allAlive: Entity[]): void {
   tickRivalEvents(state, allAlive, {
     pushNews,
@@ -1829,14 +1736,12 @@ export function tryMidYearVisitorEvent(state: WorldState, allAlive: Entity[], bu
   return spawnVisitorGroup(state, allAlive, buildings, kind);
 }
 
-/** Once per game: friendly visitors on days 7-13 (tick < 14 * TICKS_PER_DAY) if the player has a completed House or Mansion; state.firstWeekVisitorSpawned makes it one-shot. */
 export function tryFirstWeekVisitor(
   state: WorldState,
   allAlive: Entity[],
   buildings: Building[],
 ): GameEvent | null {
   if (state.firstWeekVisitorSpawned) return null;
-  // No visitors during the founding burst — let the player settle first.
   if (state.tick < 7 * TICKS_PER_DAY || state.tick >= 14 * TICKS_PER_DAY) return null;
 
   const hasPlayerHouse = buildings.some(

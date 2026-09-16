@@ -204,7 +204,6 @@ export function resolveCivicPetition(
   const hy = hall.y + hall.height * 0.9;
   if (Math.hypot(petitioner.x - hx, petitioner.y - hy) > 52) return { kind: 'none' };
 
-  // At most one meaningful petition per person per few days
   const day = Math.floor(state.tick / TICKS_PER_DAY);
   if (personDayRoll(petitioner.id, state.tick, 821 + day) > 0.4) return { kind: 'none' };
 
@@ -306,11 +305,6 @@ export function resolveCivicPetition(
 
 /**
  * Official on duty greets the nearest petitioner.
- *
- * Cosmetic only: the *resolution* (skill for the hall staff, food/gold aid, respect,
- * leader audience) belongs to the daily owner `tickTownHallAudiences`. This used to call
- * `resolveCivicPetition` on every tick an official stood at the hall, and the same
- * day-stable roll passed all day, so every petition effect was re-applied at tick rate.
  */
 export function officialHandlePetitioners(
   state: WorldState,
@@ -333,8 +327,6 @@ export function officialHandlePetitioners(
   );
   if (petitioners.length === 0) return false;
 
-  // Greeting only — `state.tick` no longer gates anything here, and no economic effect is
-  // applied per tick. The daily audience pulse resolves the petition itself.
   if ((official.chatTicks ?? 0) <= 0 && personDayRoll(official.id, state.tick, 836) < 0.4) {
     sayHumanChatPhrase(
       official,

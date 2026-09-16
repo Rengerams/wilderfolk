@@ -123,6 +123,10 @@ function absDaySalt(tick: number): number {
   return Math.floor(tick / TICKS_PER_DAY) * 17;
 }
 
+function isActivelyMarried(entity: Entity): boolean {
+  return entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting';
+}
+
 /**
  * Evaluates and returns the primary social motive for an off-duty settler.
  * Uses deterministic per-person day rolls to ensure behavioral stability across hours.
@@ -194,8 +198,11 @@ export function pickSocialImpulse(
     };
   }
 
-  // 5. Partner Care (Pregnant Spouse)
-  const spouse = nearbyAdults.find((h) => h.id === entity.partnerId && h.alive);
+  // 5. Partner Care (Pregnant Spouse) — Active marriage only
+  const spouse = isActivelyMarried(entity) && entity.partnerId != null
+    ? nearbyAdults.find((h) => h.id === entity.partnerId && h.alive && isActivelyMarried(h))
+    : undefined;
+
   if (spouse?.pregnant && personDayRoll(entity.id, tick, 707) < 0.55) {
     const hospital = pickBuilding(buildings, [BuildingType.Hospital], entity.id);
     if (hospital && personDayRoll(entity.id, tick, 708) < 0.35) {
@@ -236,7 +243,7 @@ export function pickSocialImpulse(
     }
   }
 
-  // 7. Civic Petition — Visit Town Hall
+  // 7. Civic Petition — Visit Town Hall (including post-scandal counseling)
   const hall = pickBuilding(buildings, [BuildingType.TownHall], entity.id + 9);
   if (hall && hall.occupants.length > 0 && hour >= 9 && hour < 18 && personDayRoll(entity.id, tick, 730) < 0.32) {
     const needAid =
@@ -351,7 +358,6 @@ export function tryWorkplaceBanter(
   const banterChance = entity.traits?.includes('intuitive') ? 0.11 : 0.08;
   if (personDayRoll(entity.id, tick, 720) > banterChance) return;
 
-  // Must be an alive coworker who is not busy
   const mate = coworkers.find((c) => c.id !== entity.id && c.alive && !isDialogueBusy(c));
   if (!mate) {
     sayHumanChatPhrase(

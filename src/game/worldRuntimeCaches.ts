@@ -66,7 +66,7 @@ export function createOptimisticDisplayWorld(authoritative: WorldState): WorldSt
  * (`GameLoop.frame()`: `msPerTick = 1000 / (BASE_TICKS_PER_SECOND * speed)`).
  *
  * That split makes the values revertible: a display rebuild clones the worker's
- * **last received** snapshot, which can predate the player's click because the
+ * last received snapshot, which can predate the player's click because the
  * `setSpeed` / `setPaused` message is still in flight. Without this carry-over,
  * choosing 5× and then building anything silently drops the game back to the
  * snapshot's speed, and nothing resends it (`mutateWorld` forwards a control only

@@ -84,12 +84,7 @@ function tickImmigration(
     const rawSpawnX = spawnX + (rng() - 0.5) * 40;
     const rawSpawnY = spawnY + (rng() - 0.5) * 40;
     const spawn = findHumanSpawnNear(state, rawSpawnX, rawSpawnY);
-
-    // Cap members so an incoming family cannot exceed maxHumanPopulation
-    // (`createImmigrantSettler` only rolls a married couple when the passed cap allows two, so
-    // the result can never exceed `openSlots`). A half-admitted couple is therefore impossible:
-    // the old "admit only 1 of 2" repair below could never run.
-    const newcomers = createImmigrantSettler(state, spawn.x, spawn.y, openSlots);
+    const newcomers = createImmigrantSettler(state, spawn.x, spawn.y, openSlots, rng);
     let admitted = 0;
 
     for (let i = 0; i < newcomers.length; i++) {

@@ -15,9 +15,9 @@ import type { Building, Entity, WorldState } from '../gameTypes';
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool } from '../simBuffers/renderBufferPool';
 import { extractSimTickDelta } from '../simBuffers/simDelta';
-import { USE_SCENT_GRID } from '../scentGrid';
+import { ensureScentGrid, USE_SCENT_GRID } from '../scentGrid';
 
-/* Worker‑side command logic */
+/* Worker-side command logic */
 import {
   applyWorkerCommand,
   aliveIdSet,
@@ -46,7 +46,7 @@ let bufferPool: RenderBufferPool | null = null;
 let headlessMode = false;
 let lastFocus: import('../simFocus').SimulationFocus | undefined;
 
-/** Buildings snapshot for diff‑mode deltas (only changed buildings are shipped). */
+/** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
 let prevBuildingsSnapshot: Map<number, Building> | null = null;
 
 /* -------------------------------------------------------------------------- */
@@ -88,12 +88,13 @@ function packAndPostTickResult(
       prevBuildings: prevBuildingsSnapshot,
     });
     prevBuildingsSnapshot = new Map((world.buildings ?? []).map((b) => [b.id, structuredClone(b)]));
-    world.screenShakeImpulse = 0; // one‑shot impulse – clear each tick
+    world.screenShakeImpulse = 0; // one-shot impulse – clear each tick
 
     const transferables: ArrayBuffer[] = [pack.buffer];
     let scentBuffer: ArrayBuffer | undefined;
     if (USE_SCENT_GRID && world.scentGrid) {
-      scentBuffer = world.scentGrid.packSidecar(world.tick);
+      const grid = ensureScentGrid(world);
+      scentBuffer = grid.packSidecar(world.tick);
       transferables.push(scentBuffer);
     }
 
@@ -117,14 +118,8 @@ function packAndPostTickResult(
 /*  Session reset                                                             */
 /* -------------------------------------------------------------------------- */
 function resetWorkerSession(nextWorld: WorldState): void {
-  // Rehydrate spatial and ID lookups on the incoming world
   hydrateWorldRuntimeCaches(nextWorld);
-  // This realm starts with its own `simRng` module state, so the world's seed has to be
-  // adopted explicitly. Without it every seeded draw in the worker came from seed 1 while
-  // the world carried the map seed, so worker mode and main-thread mode diverged.
   adoptSimSeedFromWorld(nextWorld);
-  // The seed alone would restart every owner's sequence. The sender stamps the positions it has
-  // already consumed into `world.simRng` (GameWorkerHost), so resume from them when present.
   restoreSimRng(nextWorld.simRng);
   world = nextWorld;
   lastFocus = undefined;
@@ -160,7 +155,6 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         resetWorkerSession(msg.world);
         bufferPool = headlessMode ? null : new RenderBufferPool();
 
-        // Ensure full census data files are loaded within the worker context
         loadNames().catch((err) => {
           console.warn('[Worker] Census names background load failed:', err);
         });
@@ -187,12 +181,11 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 
       case 'exportSave': {
         if (!world) {
-          postError('Worker not initialized');
+          postError('Worker not initialized', 'export');
           break;
         }
         invalidateWorldRuntimeCaches(world);
         const clonedWorld = structuredClone(world);
-        // Re-hydrate local caches so subsequent ticks do not operate on a stripped world
         hydrateWorldRuntimeCaches(world);
 
         const response: WorkerResponse = {
@@ -206,7 +199,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 
       case 'command': {
         if (!world) {
-          postError('Worker not initialized');
+          postError('Worker not initialized', 'command');
           break;
         }
         const before = aliveIdSet(world);
@@ -257,7 +250,8 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
               transferables.push(renderBuffer);
 
               if (USE_SCENT_GRID && world.scentGrid) {
-                scentBuffer = world.scentGrid.packSidecar(world.tick);
+                const grid = ensureScentGrid(world);
+                scentBuffer = grid.packSidecar(world.tick);
                 transferables.push(scentBuffer);
               }
             } catch (packErr) {
@@ -282,7 +276,6 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       }
 
       case 'returnBuffer': {
-        // Prevent detached/empty buffer poisoning
         if (!bufferPool || !msg.buffer || msg.buffer.byteLength === 0) break;
         bufferPool.release(msg.bufferIndex, msg.buffer);
         break;
@@ -374,7 +367,9 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       ? 'tick'
       : msg.type === 'exportSave'
         ? 'export'
-        : 'general';
+        : msg.type === 'command'
+          ? 'command'
+          : 'general';
     postError(err instanceof Error ? err.message : String(err), source);
   }
 };
