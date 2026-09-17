@@ -1,6 +1,6 @@
 import type { WorldState, Entity, Building } from './gameTypes';
 import { BuildingType, EntityType, JobType } from './gameTypes';
-import { WORK_HOURS_PER_DAY, isOnWorkShift, isWorkHour } from './dayCycle';
+import { WORK_HOURS_PER_DAY, TICKS_PER_HOUR, isOnWorkShift, isWorkHour } from './dayCycle';
 import { ensureEntitySkills } from './skills';
 import { addNotification } from './simEffects';
 import { formatCitizenName } from './citizenId';
@@ -17,7 +17,18 @@ export const SCHOOL_FULL_EDUCATION_DAYS = 45;
 /** Max children who can attend one school at once — a classroom holds a classroom. */
 export const SCHOOL_MAX_CHILDREN = 10;
 
-export function findStaffedSchools(buildings: Building[]): Building[] {
+/**
+ * In-game school hours a child must attend to be credited one full school day — half a work day.
+ * `schoolTicksToday` counts **ticks**, so the hour threshold must be converted before comparing:
+ * it was compared against that tick counter directly, which credited a full school day after
+ * ~1.7 in-game hours and made `schoolDays` accrue ~3.3× too fast
+ * (`BUG_REPORTS/2026-09-16-school-day-credited-from-a-tick-counter.md`).
+ */
+export const SCHOOL_DAY_MIN_HOURS = WORK_HOURS_PER_DAY * 0.5;
+/** The same threshold expressed in ticks — the unit `schoolTicksToday` is actually counted in. */
+export const SCHOOL_DAY_MIN_TICKS = Math.floor(SCHOOL_DAY_MIN_HOURS * TICKS_PER_HOUR);
+
+export function findStaffedSchools(buildings: readonly Building[]): Building[] {
   return buildings.filter(
     (b) =>
       b.completed
@@ -63,6 +74,89 @@ export function isChildAtSchool(child: Entity, school: Building, maxDist = 28): 
   return Math.hypot(child.x - cx, child.y - cy) <= maxDist;
 }
 
+export interface SchoolRosterEntry {
+  schoolId: number;
+  /** Children the tick sends to this school, in world order. */
+  pupils: Entity[];
+  /** The subset physically inside the classroom during class hours right now. */
+  inClassNow: Entity[];
+}
+
+/**
+ * Which children belong to which school, by exactly the rule the tick uses: the nearest
+ * **staffed** school with a free seat, children served in world order, so a school fills
+ * to `SCHOOL_MAX_CHILDREN` before the next one takes anyone (`humanTick`'s
+ * `schoolReserved` pass).
+ *
+ * Attendance is deliberately not stored on either side, so this is that same
+ * computation exposed for presentation — the school inspector's pupil list. Anything
+ * that changes what a child's school *is* must change `findSchoolForChild`, and this
+ * follows automatically.
+ */
+export function buildSchoolRosters(
+  buildings: readonly Building[],
+  humans: readonly Entity[],
+  tick: number,
+  hourOfDay: number,
+): Map<number, SchoolRosterEntry> {
+  const rosters = new Map<number, SchoolRosterEntry>();
+  const staffed = findStaffedSchools(buildings);
+  if (staffed.length === 0) return rosters;
+
+  const reserved = new Map<number, number>();
+  const classHours = isOnWorkShift(tick, hourOfDay);
+  for (const child of humans) {
+    if (
+      !child.alive
+      || child.type !== EntityType.Human
+      || !child.isJuvenile
+      || !isPlayerHuman(child)
+    ) {
+      continue;
+    }
+    const school = findNearestStaffedSchool(child, staffed, reserved);
+    if (!school) continue;
+    reserved.set(school.id, (reserved.get(school.id) ?? 0) + 1);
+
+    let entry = rosters.get(school.id);
+    if (!entry) {
+      entry = { schoolId: school.id, pupils: [], inClassNow: [] };
+      rosters.set(school.id, entry);
+    }
+    entry.pupils.push(child);
+    if (classHours && isChildAtSchool(child, school)) entry.inClassNow.push(child);
+  }
+  return rosters;
+}
+
+/** One school's roster — a view over `buildSchoolRosters` for the building inspector. */
+export function getSchoolRoster(
+  school: Building,
+  buildings: readonly Building[],
+  humans: readonly Entity[],
+  tick: number,
+  hourOfDay: number,
+): SchoolRosterEntry {
+  const entry = buildSchoolRosters(buildings, humans, tick, hourOfDay).get(school.id);
+  return entry ?? { schoolId: school.id, pupils: [], inClassNow: [] };
+}
+
+/** Player-facing summary of a roster — the inspector renders these strings verbatim. */
+export function describeSchoolRoster(
+  entry: SchoolRosterEntry,
+  hasTeacher: boolean,
+): { headline: string; emptyHint: string | null; classroomFull: boolean } {
+  return {
+    headline: `Pupils ${entry.pupils.length}/${SCHOOL_MAX_CHILDREN}`,
+    emptyHint: entry.pupils.length > 0
+      ? null
+      : hasTeacher
+        ? 'No pupils yet — children walk to the nearest staffed school with a free seat.'
+        : 'No teacher assigned — children only attend a staffed school.',
+    classroomFull: entry.pupils.length >= SCHOOL_MAX_CHILDREN,
+  };
+}
+
 /** Maturation multiplier while a child is actively attending a staffed school. */
 export function getSchoolAgeMultiplier(
   child: Entity,
@@ -82,7 +176,7 @@ export function getSchoolAgeMultiplier(
 
 export function creditChildSchoolDay(child: Entity): void {
   const ticks = child.schoolTicksToday ?? 0;
-  if (ticks >= Math.floor(WORK_HOURS_PER_DAY * 0.5)) {
+  if (ticks >= SCHOOL_DAY_MIN_TICKS) {
     child.schoolDays = (child.schoolDays ?? 0) + 1;
   }
   child.schoolTicksToday = 0;

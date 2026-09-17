@@ -8,7 +8,7 @@ import { patchCatalogKinematicsFromRenderSoA } from './simBuffers/applyKinematic
 import type { EntityRenderMeta } from './simBuffers/entityRenderMeta';
 import type { RenderSoAReaderV1 } from './simBuffers/renderSoAReader';
 import { clearAllFactionWanderStates } from './factionWander';
-import { GameWorkerHost, isGameWorkerEnabled, type WorkerUiPatch } from './simWorker/gameWorkerHost';
+import { GameWorkerHost, isGameWorkerEnabled, type WorkerUiPatch } from './simWorker/GameWorkerHost';
 import type { WorkerCommand } from './simWorker/commands';
 import { applyWorkerCommand } from './simWorker/commands';
 import { carryPresentationControls, createOptimisticDisplayWorld, hydrateWorldRuntimeCaches } from './worldRuntimeCaches';
@@ -24,9 +24,13 @@ import {
 } from './viewState';
 
 /**
- * Real-time tick rate at 1×. With TICKS_PER_DAY=72, 1.5 ticks/s ≈ 48 real seconds per day.
+ * Real-time tick rate at 1×: with `TICKS_PER_DAY = 72` this is one in-game day every
+ * ~48 real seconds (0.5× ≈ 96 s, 2× ≈ 24 s). Exported so the pacing contract is pinned by
+ * `tests/gameLoop.pacingContract.test.ts` instead of by comment alone — the constant was
+ * silently reverted to 3 (24 s/day) once already while the comment kept saying 1.5
+ * (`BUG_REPORTS/2026-09-16-baseline-pacing-reverted-to-24s-day.md`).
  */
-const BASE_TICKS_PER_SECOND = 3;
+export const BASE_TICKS_PER_SECOND = 1.5;
 
 /** React UI publish throttle (ms) for periodic non-tick polls. */
 const UI_UPDATE_MS = 250;
@@ -180,6 +184,10 @@ export class GameLoop {
               this.workerHost?.dispose();
               this.workerHost = null;
             }
+            // A session swap during boot used to abandon the worker permanently: the loop ran on
+            // the main thread for the rest of the session with no recovery attempt
+            // (worker-boundary audit F10). Schedule the same recovery every other failure path uses.
+            this.scheduleWorkerRecovery();
             return;
           }
 
@@ -487,29 +495,39 @@ export class GameLoop {
   }
 
   private queueWorkerImport(world: WorldState, afterImport?: () => void): void {
-    if (!this.workerHost) {
+    const host = this.workerHost;
+    if (!host) {
       afterImport?.();
       return;
     }
     const sessionGen = this.sessionGen;
     this.commandChain = this.commandChain
       .then(async () => {
-        while (this.workerBooting && sessionGen === this.sessionGen && this.running) {
-          await new Promise<void>((resolve) => setTimeout(resolve, 16));
+        try {
+          // Wait for the worker handshake through the host, never by polling `workerBooting`:
+          // this chain is the only code that clears that flag for a session swap, so waiting on it
+          // deadlocked the loaded village forever — no import posted, no ticks on either path and
+          // every player command deferred unboundedly
+          // (`BUG_REPORTS/2026-09-16-loading-a-save-freezes-the-sim-worker.md`).
+          await host.whenReady();
+          if (sessionGen !== this.sessionGen || !this.running || this.workerHost !== host || !host.isReady()) return;
+          await host.whenIdle();
+          if (sessionGen !== this.sessionGen || !this.running || this.workerHost !== host || !host.isReady()) return;
+
+          this.renderSoA = null;
+          this.renderMetaBySlot = null;
+          this.scentReader = null;
+          await host.importSave(world);
+
+          if (sessionGen !== this.sessionGen || this.workerHost !== host) return;
+          this.workerBooting = false;
+          this.flushDeferredWorkerCommands();
+          afterImport?.();
+        } finally {
+          // The flag always comes down for the session that raised it — including a stop mid-import,
+          // where the old code left it raised forever.
+          if (sessionGen === this.sessionGen && this.workerHost === host) this.workerBooting = false;
         }
-        if (sessionGen !== this.sessionGen || !this.running || !this.workerHost?.isReady()) return;
-        await this.workerHost.whenIdle();
-        if (sessionGen !== this.sessionGen || !this.running || !this.workerHost?.isReady()) return;
-
-        this.renderSoA = null;
-        this.renderMetaBySlot = null;
-        this.scentReader = null;
-        await this.workerHost.importSave(world);
-
-        if (sessionGen !== this.sessionGen || !this.running || !this.workerHost?.isReady()) return;
-        this.workerBooting = false;
-        this.flushDeferredWorkerCommands();
-        afterImport?.();
       })
       .catch((err) => {
         if (sessionGen !== this.sessionGen) return;
@@ -720,7 +738,10 @@ export class GameLoop {
       this.rafId = 0;
     }
 
-    this.listeners.clear();
+    // Listeners are deliberately NOT cleared: `stop()` stops the frame loop, and a later
+    // `start()` on the same instance must still have the UI subscribed — clearing them made a
+    // stopped-then-started loop silently frozen (worker-boundary audit F8.1). The set belongs to
+    // the instance, so dropping the loop drops the listeners with it.
     clearAllFactionWanderStates();
     this.workerHost?.dispose();
     this.workerHost = null;

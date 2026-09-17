@@ -20,7 +20,6 @@ import { ensureScentGrid, USE_SCENT_GRID } from '../scentGrid';
 /* Worker-side command logic */
 import {
   applyWorkerCommand,
-  aliveIdSet,
   extractCommandDelta,
   isWorkerCommand,
   safeExtractCommandDelta,
@@ -28,6 +27,7 @@ import {
 
 /* Simulation preparation helpers */
 import { applySimPrep, extractSimPrep } from './simPrep';
+import { applyWorkerUiPatch } from './uiPatch';
 
 /* Protocol contract */
 import {
@@ -71,7 +71,6 @@ function releaseAcquiredBuffer(acquired: { index: number; buffer: ArrayBuffer })
 /*  Pack & dispatch tick result                                             */
 /* -------------------------------------------------------------------------- */
 function packAndPostTickResult(
-  before: Set<number>,
   aliveNow: Entity[],
   acquired: { index: number; buffer: ArrayBuffer },
 ): void {
@@ -81,7 +80,7 @@ function packAndPostTickResult(
   }
   try {
     const pack = packRenderSoA(world, acquired.buffer, undefined, lastFocus);
-    const delta = extractSimTickDelta(world, before, aliveNow, {
+    const delta = extractSimTickDelta(world, aliveNow, {
       renderPacked: pack.packedEntities,
       focus: lastFocus,
       cloneMode: 'transfer',
@@ -202,13 +201,12 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           postError('Worker not initialized', 'command');
           break;
         }
-        const before = aliveIdSet(world);
         if (!isWorkerCommand(msg.cmd)) {
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
             ok: false,
-            delta: extractCommandDelta(world, before),
+            delta: extractCommandDelta(world),
             reason: 'Invalid worker command',
           };
           self.postMessage(response);
@@ -219,14 +217,14 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         let delta;
         try {
           world = applyWorkerCommand(world, msg.cmd);
-          delta = extractCommandDelta(world, before);
+          delta = extractCommandDelta(world);
         } catch (err) {
           applySimPrep(world, prepBackup);
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
             ok: false,
-            delta: safeExtractCommandDelta(world, before),
+            delta: safeExtractCommandDelta(world),
             reason: err instanceof Error ? err.message : String(err),
           };
           self.postMessage(response);
@@ -295,15 +293,9 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 
       case 'patchUi': {
         if (!world) break;
-        world.bigNews = msg.bigNews;
-        world.floatingTexts = msg.floatingTexts;
-        world.autoSave = msg.autoSave;
-        world.nextFloatingTextId = msg.nextFloatingTextId;
-        world.dismissedBigNewsIds = msg.dismissedBigNewsIds;
-        world.dismissedNotificationIds = msg.dismissedNotificationIds;
-        world.dismissedActiveEventIds = msg.dismissedActiveEventIds;
-        world.activeEvent = msg.activeEvent;
-        world.tutorialSeen = msg.tutorialSeen;
+        // Only the player-authored fields are adopted; `bigNews`, `floatingTexts`, `activeEvent` and
+        // `nextFloatingTextId` belong to the tick on this side (worker-boundary audit F2).
+        applyWorkerUiPatch(world, msg);
         break;
       }
 
@@ -313,14 +305,13 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           break;
         }
         const prepBackup = extractSimPrep(world);
-        const before = aliveIdSet(world);
         try {
           gameTick(world, msg.focus);
           lastFocus = msg.focus;
           const aliveNow = world.entities.filter((e) => e.alive);
 
           if (headlessMode) {
-            const delta = extractSimTickDelta(world, before, aliveNow, {
+            const delta = extractSimTickDelta(world, aliveNow, {
               focus: lastFocus,
               headless: true,
               cloneMode: 'transfer',
@@ -351,7 +342,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
             break;
           }
 
-          packAndPostTickResult(before, aliveNow, acquired);
+          packAndPostTickResult(aliveNow, acquired);
         } catch (err) {
           applySimPrep(world, prepBackup);
           postError(err instanceof Error ? err.message : String(err), 'tick');

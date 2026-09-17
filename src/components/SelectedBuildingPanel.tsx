@@ -16,8 +16,10 @@ import {
 import { getBuildingUpgradeCost, estimateWorkshopGold } from '../game/buildingActions';
 import { moonHowlerRiteWeights, moonHowlerCureChanceForPriests } from '../game/moonHowler';
 import {
-  isResidenceBuildingType, getResidenceCapacity, getResidenceUpgradeSlotGain, TICKS_PER_DAY,
+  isResidenceBuildingType, getResidenceCapacity, getResidenceUpgradeSlotGain, TICKS_PER_DAY, getHourOfDay,
 } from '../game/dayCycle';
+import { formatEducationLabel, getSchoolRoster, describeSchoolRoster } from '../game/education';
+import { formatCitizenName } from '../game/citizenId';
 import { isProductionBuildingType } from '../game/buildCatalog';
 import { MINE_ORES, mineOreForMode, type MineMode } from '../game/buildings';
 import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
@@ -494,6 +496,46 @@ export default function SelectedBuildingPanel({
         {building.completed && (building.type === BuildingType.School || building.type === BuildingType.Blacksmith || building.type === BuildingType.Hospital || building.type === BuildingType.TownHall || building.type === BuildingType.Hotel) && building.occupants.length === 0 && (
           <p className="text-[11px] text-amber-400">⚠️ Unstaffed — bonuses are reduced or inactive until a worker is assigned.</p>
         )}
+        {building.completed && building.type === BuildingType.School && (() => {
+          // The tick does not store attendance: children walk to the nearest staffed
+          // school with a free seat, so the roster is computed by that same rule.
+          const roster = getSchoolRoster(
+            building,
+            state.buildings,
+            state.entities,
+            state.tick,
+            getHourOfDay(state.tick),
+          );
+          const summary = describeSchoolRoster(roster, building.occupants.length > 0);
+          return (
+            <div className="mt-2 space-y-1 rounded-lg border border-emerald-700/40 bg-emerald-950/30 p-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                {summary.headline}
+              </p>
+              {summary.emptyHint && <p className="text-[11px] text-stone-300">{summary.emptyHint}</p>}
+              {roster.pupils.length > 0 && (
+                <ul className="space-y-0.5">
+                  {roster.pupils.map((pupil) => {
+                    const education = formatEducationLabel(pupil);
+                    const inClass = roster.inClassNow.some((attending) => attending.id === pupil.id);
+                    return (
+                      <li key={pupil.id} className="flex items-baseline justify-between gap-2 text-[11px]">
+                        <span className="truncate text-stone-200">{formatCitizenName(pupil)}</span>
+                        <span className={`shrink-0 ${inClass ? 'text-emerald-300' : 'text-stone-400'}`}>
+                          {inClass ? 'in class' : 'enrolled'}
+                          {education ? ` · ${education}` : ''}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {summary.classroomFull && (
+                <p className="text-[11px] text-amber-400">⚠️ Classroom full — a second school takes the overflow.</p>
+              )}
+            </div>
+          );
+        })()}
         {building.completed && building.type === BuildingType.Hotel && (
           <div className="mt-2 space-y-1 rounded-lg border border-cyan-700/40 bg-cyan-950/30 p-2">
             <p className="text-[11px] text-cyan-100">{describeHotelStatus(building, state.entities)}</p>

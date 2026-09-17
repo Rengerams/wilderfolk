@@ -1,4 +1,4 @@
-import { BUILDING_CONFIGS, BuildingType, EntityType, JobType, LEADER_OCCUPATION } from './gameTypes';
+import { BuildingType, EntityType, JobType } from './gameTypes';
 import type { Building, Entity, EntityByType, WorldState } from './gameTypes';
 import {
   WEREWOLF_ATTACK_LINES,
@@ -16,8 +16,6 @@ import {
 } from './dayCycleConstants';
 import {
   assignMissingResidences,
-  countResidentsInBuilding,
-  getResidenceCapacity,
   isStartOfClockHour,
   killHuman,
   syncResidenceOccupants,
@@ -32,9 +30,11 @@ import {
   impulseScreenShake,
 } from './simEffects';
 import { logDeath, logEvent } from './eventLog';
-import { assignMissingWorkers, countWorkersAtBuilding } from './workforce';
+import { assignMissingWorkers } from './workforce';
 import { isBarracksGuard } from './defenseStructures';
 import { getSimRng } from './simRng';
+import { HUMAN_FORM, revertToHumanForm } from './moonHowlerForm';
+import type { RevertToHumanFormOptions } from './moonHowlerForm';
 
 /**
  * Night exorcism — only if a Church is **staffed** (priest on duty).
@@ -120,7 +120,7 @@ export function moonHowlerCureChanceForPriests(priestCount: number): number {
 
 /** Single weighted roll → one of the three rite outcomes. */
 export function rollMoonHowlerRiteOutcome(
-  rng: () => number = Math.random,
+  rng: () => number = getSimRng('moonHowler'),
   priestCount = 1,
 ): MoonHowlerRiteOutcome {
   const w = moonHowlerRiteWeights(priestCount);
@@ -131,7 +131,6 @@ export function rollMoonHowlerRiteOutcome(
   return 'priest_fled';
 }
 
-const HUMAN_FORM = { maxEnergy: 500, speed: 2.25, size: 10 };
 const WEREWOLF_FORM = { maxEnergy: 700, speed: 3.4, size: 14 };
 
 export function countActiveMoonHowlerCurses(entities: readonly Entity[]): number {
@@ -147,7 +146,7 @@ export function shouldApplyNewMoonHowlerCurse(
   hourOfDay: number,
   humanCount: number,
   activeCursed: number,
-  rng: () => number = Math.random,
+  rng: () => number = getSimRng('moonHowler'),
 ): boolean {
   return (
     activeCursed === 0
@@ -194,20 +193,6 @@ function detachEntityFromBuildingOccupants(buildings: Building[], buildingId: nu
   if (b) b.occupants = b.occupants.filter((id) => id !== entityId);
 }
 
-function countPrisonersAtBuilding(humans: Entity[], prisonId: number, excludeId?: number): number {
-  return humans.filter(
-    (e) =>
-      e.alive
-      && e.type === EntityType.Human
-      && e.prisonBuildingId === prisonId
-      && e.id !== excludeId,
-  ).length;
-}
-
-function prisonPrisonerCap(): number {
-  return Math.max(1, BUILDING_CONFIGS[BuildingType.Prison].maxOccupants - 1);
-}
-
 export function shouldMoonHowlerTransform(colonyDay: number, hourOfDay: number): boolean {
   return isFullMoonNight(colonyDay, hourOfDay);
 }
@@ -242,12 +227,6 @@ export function canMoonHowlerCurse(entity: Entity): boolean {
 
 export function isActiveMoonHowler(entity: Entity): boolean {
   return entity.alive && entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
-}
-
-export function isSettlerRelationshipEntity(entity: Entity | undefined): entity is Entity {
-  if (!entity?.alive) return false;
-  if (entity.type === EntityType.Human) return true;
-  return entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
 }
 
 export function curseMoonHowler(human: Entity): void {
@@ -322,7 +301,6 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
     pregnant: human.pregnant,
     pregnantById: human.pregnantById,
     pregnancyProgress: human.pregnancyProgress,
-    pregnancyDueProgress: human.pregnancyDueProgress,
     huntTargetId: human.huntTargetId,
     combatTicks: human.combatTicks,
   };
@@ -349,131 +327,6 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
   human.prisonSentenceCrime = undefined;
 }
 
-export interface RevertToHumanFormOptions {
-  buildings?: Building[];
-  humans?: Entity[];
-  tick?: number;
-  villageLeaderId?: number | null;
-}
-
-export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions): void {
-  const cfg = HUMAN_FORM;
-  const saved = were.moonHowlerSaved;
-  const buildings = opts?.buildings;
-  const humans = opts?.humans;
-  const tick = opts?.tick;
-  const savedOccupation = saved?.occupation;
-  const staleLeaderOccupation =
-    savedOccupation === LEADER_OCCUPATION
-    && opts?.villageLeaderId != null
-    && opts.villageLeaderId !== were.id;
-  const restoredOccupation = staleLeaderOccupation ? 'settler' : (savedOccupation ?? 'settler');
-
-  were.type = EntityType.Human;
-  were.maxEnergy = saved?.maxEnergy ?? cfg.maxEnergy;
-  were.energy = Math.min(were.maxEnergy, saved?.energy ?? cfg.maxEnergy * 0.55);
-  were.speed = saved?.speed ?? cfg.speed;
-  were.size = saved?.size ?? cfg.size;
-  were.relationshipStatus = saved?.relationshipStatus;
-  were.partnerId = saved?.partnerId;
-  were.affairPartnerId = saved?.affairPartnerId;
-  were.affairProgress = saved?.affairProgress ?? 0;
-  were.courtshipProgress = saved?.courtshipProgress ?? 0;
-  were.youthLovePartnerId = saved?.youthLovePartnerId;
-  were.youthLoveProgress = saved?.youthLoveProgress;
-  were.youthLoveStartedDay = saved?.youthLoveStartedDay;
-  were.pregnant = saved?.pregnant;
-  were.pregnantById = saved?.pregnantById;
-  were.pregnancyProgress = saved?.pregnancyProgress;
-  were.pregnancyDueProgress = saved?.pregnancyDueProgress;
-  were.huntTargetId = saved?.huntTargetId;
-  were.combatTicks = saved?.combatTicks ?? 0;
-  were.moonHowlerSaved = undefined;
-  were.flash = 8;
-
-  were.job = JobType.Settler;
-  were.occupation = restoredOccupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
-  were.homeBuildingId = undefined;
-  were.residenceBuildingId = undefined;
-  were.prisonBuildingId = undefined;
-  were.prisonerUntilTick = undefined;
-  were.prisonSentenceCrime = undefined;
-
-  if (!were.alive || !saved) return;
-
-  if (!buildings || !humans) {
-    const sentenceActive =
-      saved.prisonBuildingId != null
-      && saved.prisonerUntilTick != null
-      && (tick == null || tick < saved.prisonerUntilTick);
-    if (sentenceActive) {
-      were.prisonBuildingId = saved.prisonBuildingId;
-      were.prisonerUntilTick = saved.prisonerUntilTick;
-      were.prisonSentenceCrime = saved.prisonSentenceCrime;
-      return;
-    }
-    were.job = saved.job ?? JobType.Settler;
-    were.occupation = restoredOccupation;
-    were.homeBuildingId = saved.homeBuildingId;
-    were.residenceBuildingId = saved.residenceBuildingId;
-    return;
-  }
-
-  const sentenceActive =
-    saved.prisonBuildingId != null
-    && saved.prisonerUntilTick != null
-    && (tick == null || tick < saved.prisonerUntilTick);
-
-  if (sentenceActive) {
-    const prison = buildings.find(
-      (b) => b.id === saved.prisonBuildingId && b.completed && b.type === BuildingType.Prison,
-    );
-    if (prison) {
-      const cap = prisonPrisonerCap();
-      const held = countPrisonersAtBuilding(humans, prison.id, were.id);
-      if (held < cap) {
-        were.prisonBuildingId = prison.id;
-        were.prisonerUntilTick = saved.prisonerUntilTick;
-        were.prisonSentenceCrime = saved.prisonSentenceCrime;
-        if (!prison.occupants.includes(were.id)) prison.occupants.push(were.id);
-        were.x = prison.x + (getSimRng('moonHowler')() - 0.5) * 12;
-        were.y = prison.y + (getSimRng('moonHowler')() - 0.5) * 8;
-        were.vx = 0;
-        were.vy = 0;
-        return;
-      }
-    }
-  }
-
-  if (saved.homeBuildingId != null) {
-    const jobSite = buildings.find((b) => b.id === saved.homeBuildingId && b.completed && b.faction !== 'rival');
-    if (jobSite) {
-      const maxOcc = BUILDING_CONFIGS[jobSite.type]?.maxOccupants ?? 0;
-      const workers = countWorkersAtBuilding(humans, jobSite.id);
-      if (workers < maxOcc) {
-        were.homeBuildingId = jobSite.id;
-        were.job = saved.job ?? JobType.Settler;
-        were.occupation = restoredOccupation;
-        if (!jobSite.occupants.includes(were.id)) jobSite.occupants.push(were.id);
-      }
-    }
-  }
-
-  if (saved.residenceBuildingId != null) {
-    const home = buildings.find(
-      (b) => b.id === saved.residenceBuildingId && b.completed && b.faction !== 'rival',
-    );
-    if (home) {
-      const cap = getResidenceCapacity(home);
-      const residents = countResidentsInBuilding(humans, home.id);
-      if (residents < cap) {
-        were.residenceBuildingId = home.id;
-        if (!home.occupants.includes(were.id)) home.occupants.push(were.id);
-      }
-    }
-  }
-}
-
 export function cureMoonHowler(entity: Entity, opts?: RevertToHumanFormOptions): void {
   if (entity.type === EntityType.Werewolf) {
     revertToHumanForm(entity, opts);
@@ -481,11 +334,6 @@ export function cureMoonHowler(entity: Entity, opts?: RevertToHumanFormOptions):
   entity.moonHowlerCursed = false;
   entity.moonHowlerSaved = undefined;
   entity.tamedBy = undefined;
-}
-
-export function finalizeMoonHowlerDeath(entity: Entity): void {
-  if (!entity.moonHowlerCursed || entity.type !== EntityType.Werewolf) return;
-  revertToHumanForm(entity);
 }
 
 export interface MoonHowlerCureAttempt {
@@ -568,7 +416,7 @@ export function tryMoonHowlerChurchCures(
   colonyDay: number,
   hourOfDay: number,
   entityById: Map<number, Entity>,
-  rng: () => number = Math.random,
+  rng: () => number = getSimRng('moonHowler'),
 ): MoonHowlerCureAttempt {
   const empty = (
     skippedReason: NonNullable<MoonHowlerCureAttempt['skippedReason']>,
@@ -837,7 +685,7 @@ export function tickMoonHowlerCycle(
   hourOfDay: number,
   entityById: Map<number, Entity>,
   initialByType?: EntityByType,
-  rng: () => number = Math.random,
+  rng: () => number = getSimRng('moonHowler'),
 ): MoonHowlerTickResult {
   let byType = initialByType ?? buildEntityByType(aliveEntities);
   let changed = false;

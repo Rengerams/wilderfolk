@@ -31,12 +31,11 @@ import {
 } from './simRng';
 import { loadAutoSavePreference } from './preferences';
 import { INITIAL_CHALLENGES } from './challenges';
+import { Immigration } from './gameConstants';
 import { ensureNamesLoaded, getRandomName, getRandomSurname } from './nameLoader';
 import {
   getColonyDay,
-  HUMAN_ADULT_MIN_AGE,
   TICKS_PER_HOUR,
-  PREGNANCY_TICKS,
 } from './dayCycle';
 import { syncEventLogIdFromState, logEvent } from './eventLog';
 import { indexLivingEntity, rebuildEntityByIdMap } from './entityIndex';
@@ -447,18 +446,32 @@ export function createImmigrantSettler(
 
   ensureNamesLoaded();
   const colonyDay = getColonyDay(state);
-  const age = randomInt(rng, 18, 55);
 
-  // 1. Married couple (12% chance)
-  if (maxMembers >= 2 && randomBool(rng, 0.12)) {
+  // 1. A young settler arriving alone (10%): a youth — old enough to work, court and be
+  //    educated further, too young to marry. Never a child: a child only comes with its parents.
+  if (randomBool(rng, Immigration.LONE_YOUTH_CHANCE)) {
+    const isFemale = randomBool(rng, 0.5);
+    const gender: 'male' | 'female' = isFemale ? 'female' : 'male';
+    const youth = createEntity(EntityType.Human, x, y, state.nextEntityId++, undefined, undefined, {
+      gender,
+      name: getRandomName(gender),
+      surname: getRandomSurname(),
+      ageYears: randomInt(rng, Immigration.YOUTH_AGE_MIN, Immigration.YOUTH_AGE_MAX),
+      colonyDay,
+      generation: 2,
+      relationshipStatus: 'single',
+    });
+    return [youth];
+  }
+
+  // 2. Married couple (12% of the remaining parties), optionally with children.
+  if (maxMembers >= 2 && randomBool(rng, Immigration.COUPLE_CHANCE)) {
+    const age = randomInt(rng, Immigration.ADULT_AGE_MIN, Immigration.ADULT_AGE_MAX);
     const familySurname = getRandomSurname();
     const husbandName = getRandomName('male');
     const wifeName = getRandomName('female');
     const wifeMaidenSurname = getRandomSurname();
-    const isPregnant = randomBool(rng, 0.4);
-    const pregnancyDue = isPregnant
-      ? Math.round(PREGNANCY_TICKS * (0.85 + rng() * 0.3))
-      : undefined;
+    const isPregnant = randomBool(rng, Immigration.PREGNANT_WIFE_CHANCE);
 
     const husband = createEntity(EntityType.Human, x - 6, y, state.nextEntityId++, undefined, false, {
       gender: 'male',
@@ -474,11 +487,12 @@ export function createImmigrantSettler(
       name: wifeName,
       surname: familySurname,
       maidenSurname: wifeMaidenSurname,
-      ageYears: Math.max(HUMAN_ADULT_MIN_AGE, age - 2),
+      // Both partners arrive already married, so both must be at the marriage floor
+      // (`HUMAN_MOVE_OUT_MIN_AGE` = 18) rather than the adult-work floor of 16.
+      ageYears: Math.max(Immigration.ADULT_AGE_MIN, age - 2),
       colonyDay,
       pregnant: isPregnant,
       pregnancyProgress: isPregnant ? randomInt(rng, 10, 60) : 0,
-      pregnancyDueProgress: pregnancyDue,
       partnerId: husband.id,
       pregnantById: isPregnant ? husband.id : undefined,
     });
@@ -487,10 +501,43 @@ export function createImmigrantSettler(
 
     finalizeSettlerAge(husband, state);
     finalizeSettlerAge(wife, state);
-    return [husband, wife];
+
+    // Children need a slot each, so a colony with two free beds gets the couple only.
+    const childSlots = Math.min(Immigration.FAMILY_MAX_CHILDREN, maxMembers - 2);
+    const children: Entity[] = [];
+    if (childSlots > 0 && randomBool(rng, Immigration.FAMILY_WITH_CHILD_CHANCE)) {
+      const childCount = randomInt(rng, 1, childSlots);
+      for (let index = 0; index < childCount; index++) {
+        const childGender: 'male' | 'female' = randomBool(rng, 0.5) ? 'female' : 'male';
+        const child = createEntity(
+          EntityType.Human,
+          x + (index === 0 ? -14 : 14),
+          y + 4,
+          state.nextEntityId++,
+          undefined,
+          undefined, // let the factory derive juvenile status from the age it is given
+          {
+            gender: childGender,
+            name: getRandomName(childGender),
+            surname: familySurname,
+            ageYears: randomInt(rng, Immigration.CHILD_AGE_MIN, Immigration.CHILD_AGE_MAX),
+            colonyDay,
+            generation: 2,
+            relationshipStatus: 'single',
+            fatherId: husband.id,
+            motherId: wife.id,
+          },
+        );
+        children.push(child);
+        husband.childrenIds = [...(husband.childrenIds ?? []), child.id];
+        wife.childrenIds = [...(wife.childrenIds ?? []), child.id];
+      }
+    }
+
+    return [husband, wife, ...children];
   }
 
-  // 2. Single immigrant (88% chance)
+  // 3. Single adult (the rest)
   const isFemale = randomBool(rng, 0.5);
   const gender: 'male' | 'female' = isFemale ? 'female' : 'male';
   const firstName = getRandomName(gender);
@@ -500,7 +547,7 @@ export function createImmigrantSettler(
     gender,
     name: firstName,
     surname: familySurname,
-    ageYears: age,
+    ageYears: randomInt(rng, Immigration.ADULT_AGE_MIN, Immigration.ADULT_AGE_MAX),
     colonyDay,
   });
   newcomer.relationshipStatus = 'single';

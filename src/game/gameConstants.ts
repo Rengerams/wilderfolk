@@ -14,21 +14,25 @@
  */
 
 /**
- * Social-class spread for female settler sprites (2026-09-10, developer).
- * Lower classes are common in a frontier village; the gentry and aristocracy
- * are rare. Weights are relative — higher number = more common.
+ * Social-class spread for settler sprites — one distribution shared by the male and
+ * female class ladders (female 2026-09-10, male 2026-09-16). Lower classes are common
+ * in a frontier village; the gentry and aristocracy are rare. Weights are relative —
+ * higher number = more common.
  *
- * Index order matches the female class sprite ladder in `humanSprites.ts`:
- * 0 Mudlark · 1 Factory Hand · 2 Scullery Maid · 3 Pioneer ·
- * 4 Shop Assistant · 5 Governess · 6 Merchant's Wife ·
- * 7 Wealthy Gentry · 8 High Society · 9 Aristocrat
+ * Index order matches both class ladders in `humanSprites.ts` (lowest class first):
+ * female 0 Mudlark · 1 Factory Hand · 2 Scullery Maid · 3 Pioneer · 4 Shop Assistant ·
+ *        5 Governess · 6 Merchant's Wife · 7 Wealthy Gentry · 8 High Society · 9 Aristocrat
+ * male   0 Poor Labourer · 1 Farmhand · 2 Craftsman · 3 Pioneer · 4 Shopkeeper ·
+ *        5 Clerk · 6 Merchant · 7 Prosperous Farmer · 8 Wealthy Gentry · 9 Aristocrat
  *
- * Rationale: ~47% of village women are the bottom two classes (mudlark,
- * factory hand), while the top two (high society, aristocrat) make up ~1.5%,
- * so a rare grand dress in the wilderness reads as a real event.
+ * Rationale: ~47% of villagers are the bottom two classes (mudlark/factory hand,
+ * poor labourer/farmhand), while the top two (high society, aristocrat) make up ~1.5%,
+ * so a rare grand dress or a gentleman's coat in the wilderness reads as a real event.
+ * Both genders draw the same shape on purpose; split this into two entries only if a
+ * designer wants the male and female distributions to differ.
  */
 export const Social = {
-  FEMALE_CLASS_WEIGHTS: [26, 21, 16, 12, 9, 7, 5, 2.5, 1.2, 0.3],
+  CLASS_LADDER_WEIGHTS: [26, 21, 16, 12, 9, 7, 5, 2.5, 1.2, 0.3],
 } as const;
 
 /**
@@ -115,6 +119,41 @@ export const Human = {
    * of the bar, or ~46 ticks / 15 h of unmodified metabolism at 1.4/tick).
    */
   MEAL_ENERGY_RESTORE: 65,
+} as const;
+
+/**
+ * Daily immigration composition — owner `dailyPopulation.ts`, party shape built by
+ * `worldGen.createImmigrantSettler`.
+ *
+ * A party is one of three shapes, rolled in this order: a **lone youth** (12–17), a **married
+ * couple** (which may bring 1–2 children), or a **single adult**. The ages use the simulation's
+ * own bands: under `HUMAN_CHILDHOOD_DAYS` (12) is a child (school, juvenile), 12–17 is a youth
+ * (graduated, adult-sized, youth love, no marriage before `HUMAN_MOVE_OUT_MIN_AGE` = 18), and 18+
+ * is an adult. A child therefore only ever arrives *with* both parents — never alone.
+ */
+export const Immigration = {
+  /** Ages a lone adult, or a couple's lead adult, can arrive with. */
+  ADULT_AGE_MIN: 18,
+  ADULT_AGE_MAX: 55,
+  /**
+   * A lone arrival this young is a youth. 12 is the floor the age owner already uses for youth
+   * love and fertility, so such a settler can be courted but not married on arrival.
+   */
+  YOUTH_AGE_MIN: 12,
+  YOUTH_AGE_MAX: 17,
+  /** Chance an arriving party is one youth instead of an adult or a couple. */
+  LONE_YOUTH_CHANCE: 0.1,
+  /** Chance that an otherwise single arrival is a married couple. */
+  COUPLE_CHANCE: 0.12,
+  /** Chance the wife of an arriving couple is already expecting. */
+  PREGNANT_WIFE_CHANCE: 0.4,
+  /** Chance an arriving couple brings children (only when the colony has room for them). */
+  FAMILY_WITH_CHILD_CHANCE: 0.6,
+  /** Children are under `HUMAN_CHILDHOOD_DAYS`, so they enrol at school and graduate there. */
+  CHILD_AGE_MIN: 2,
+  CHILD_AGE_MAX: 11,
+  /** Up to two children per family; the caller's free-slot count caps it further. */
+  FAMILY_MAX_CHILDREN: 2,
 } as const;
 
 /** Tamed-animal care tuning. */

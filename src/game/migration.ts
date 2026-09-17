@@ -4,7 +4,7 @@ import { EntityType } from './gameTypes';
 import { DAYS_PER_YEAR, getAbsoluteCalendarDay } from './dayCycle';
 import { createEntity } from './entityFactory';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { addBigNews, addNotification } from './simEffects';
+import { addBigNews } from './simEffects';
 import { logEvent } from './eventLog';
 import { getSimRng } from './simRng';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
@@ -140,17 +140,6 @@ export function tickMigration(state: WorldState, allAlive: Entity[]): void {
         'negative',
       );
       logEvent(state, 'event', `Autumn migration: ${lost} herd deer lost from the passing herd; next herd ${state.migrationNextHerdSize}.`);
-    } else {
-      const base = state.migrationNextHerdSize ?? HERD_BASE_SIZE;
-      // Herd recovers and grows when unharmed: "let them pass and next autumn brings them back, fat as ever"
-      state.migrationNextHerdSize = Math.min(HERD_MAX_SIZE, base + 2);
-      addNotification(
-        state,
-        '🦌 The herds moved on',
-        `The deer passed through unharmed — they will return fatter next autumn (next herd: ${state.migrationNextHerdSize}).`,
-        'success',
-      );
-      logEvent(state, 'event', `Autumn migration: the herds passed through unharmed; next herd ${state.migrationNextHerdSize}.`);
     }
     state.activeMigration = undefined;
     return;

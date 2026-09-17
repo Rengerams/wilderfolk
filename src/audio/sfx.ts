@@ -1,7 +1,7 @@
 import { NOTES } from './constants';
 import { audioGraph } from './graph';
 import { scheduleTone } from './scheduler';
-import { getSimRng } from '../game/simRng';
+import { getPresentationRng } from '../game/simRng';
 
 function sfx(
   freq: number,
@@ -64,7 +64,7 @@ export function playClickSound() {
 
 export function playDisasterSound() {
   for (let i = 0; i < 4; i++) {
-    sfx(90 + getSimRng('sfx')() * 120, 0.22, 0.06, 'triangle', i * 0.09, i === 0);
+    sfx(90 + getPresentationRng('sfx')() * 120, 0.22, 0.06, 'triangle', i * 0.09, i === 0);
   }
 }
 

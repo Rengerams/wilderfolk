@@ -5,9 +5,10 @@
 import type { WorldState, Entity, Building } from './gameTypes';
 import type { PopulationCounts } from './entityCounts';
 import { BuildingType } from './gameTypes';
-import { indexEntity, indexLivingEntity } from './entityIndex';
+import { indexLivingEntity } from './entityIndex';
 import {
   getResidenceCapacity,
+  HUMAN_ADULT_MIN_AGE,
 } from './dayCycle';
 import { assignMissingResidences } from './residencyReconciliation';
 import { createImmigrantSettler } from './worldGen';
@@ -19,6 +20,7 @@ import { logEvent } from './eventLog';
 import type { TickContext } from './simulation/simulationTypes';
 import { pruneFactionWanderStates } from './factionWander';
 import { getSimRng } from './simRng';
+import { pushNewEntity } from './simulation/simulationEntities';
 
 function tickImmigration(
   state: WorldState,
@@ -26,7 +28,7 @@ function tickImmigration(
   allAlive: Entity[],
   counts: PopulationCounts,
 ): void {
-  const { updatedBuildings, entityById, width, height } = ctx;
+  const { updatedBuildings, width, height } = ctx;
 
   // Single-pass scan for completed player housing
   let housingCap = 0;
@@ -97,14 +99,15 @@ function tickImmigration(
       // 2. Living entities array for current frame
       allAlive.push(newcomer);
 
-      // 3. Fast lookup indexes
-      indexEntity(entityById, newcomer);
-      indexLivingEntity(state, newcomer);
+      // 3. Canonical spawn bookkeeping: ctx.newEntities (worker delta), entityById, and the
+      // spatial grids. The grids are the point — this daily layer runs *after* the tick's
+      // `assertSpatialGridInvariants`, and the previous hand-rolled `indexEntity` left the
+      // newcomer invisible to social/hunt queries for the rest of the tick
+      // (`BUG_REPORTS/2026-09-16-daily-immigrant-bypasses-the-spatial-grid.md`).
+      pushNewEntity(state, ctx, newcomer);
 
-      // 4. If worker delta buffer exists, queue newcomer for UI sync
-      if ('newEntities' in ctx && Array.isArray((ctx as unknown as { newEntities: Entity[] }).newEntities)) {
-        (ctx as unknown as { newEntities: Entity[] }).newEntities.push(newcomer);
-      }
+      // 4. id → living map used by the optimistic display path
+      indexLivingEntity(state, newcomer);
 
       counts.humans++;
       admitted++;
@@ -116,7 +119,9 @@ function tickImmigration(
       const villagers = allAlive.filter(isPlayerHuman);
       assignMissingResidences(villagers, updatedBuildings, allAlive);
 
-      const label = admitted === 1 ? '+1 Settler arrived' : `+${admitted} Settlers arrived`;
+      const label = admitted === 1
+        ? (newcomers[0].age < HUMAN_ADULT_MIN_AGE ? 'A young settler arrived' : '+1 Settler arrived')
+        : (admitted >= 3 ? `A settler family arrived (${admitted})` : `+${admitted} Settlers arrived`);
       addFloatingText(state, spawnX, spawnY - 18, label, '#22c55e');
       logEvent(state, 'migration', label);
       addNotification(state, 'New Settler', label, 'success', { x: spawnX, y: spawnY });

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ensureIntroAudio, getMuteState, toggleMute } from '../audio';
 import { GAME_PHASE, GAME_SUBTITLE, GAME_VERSION, GAME_VERSION_TAGLINE } from './version';
-import { getSimRng } from './simRng';
+import { getPresentationRng } from './simRng';
 
 // ---------------------------------------------------------------------------
 // Types & constants
@@ -82,7 +82,7 @@ const PARTICLE_COLORS: Record<ParticleType, string[]> = {
 
 function pickParticleType(): ParticleType {
   const types: ParticleType[] = ['ember', 'spark', 'leaf', 'dust'];
-  return types[Math.floor(getSimRng('introScreen')() * types.length)];
+  return types[Math.floor(getPresentationRng('introScreen')() * types.length)];
 }
 
 function spawnParticle(canvasW: number, canvasH: number): Particle {
@@ -90,15 +90,15 @@ function spawnParticle(canvasW: number, canvasH: number): Particle {
   const palette = PARTICLE_COLORS[type];
 
   return {
-    x: getSimRng('introScreen')() * canvasW,
+    x: getPresentationRng('introScreen')() * canvasW,
     y: canvasH + 10,
-    vx: (getSimRng('introScreen')() - 0.5) * 1.2,
-    vy: -(0.35 + getSimRng('introScreen')() * 1.6),
-    size: type === 'spark' ? 0.5 + getSimRng('introScreen')() * 1.5 : 1 + getSimRng('introScreen')() * 3,
-    alpha: 0.25 + getSimRng('introScreen')() * 0.55,
-    color: palette[Math.floor(getSimRng('introScreen')() * palette.length)],
+    vx: (getPresentationRng('introScreen')() - 0.5) * 1.2,
+    vy: -(0.35 + getPresentationRng('introScreen')() * 1.6),
+    size: type === 'spark' ? 0.5 + getPresentationRng('introScreen')() * 1.5 : 1 + getPresentationRng('introScreen')() * 3,
+    alpha: 0.25 + getPresentationRng('introScreen')() * 0.55,
+    color: palette[Math.floor(getPresentationRng('introScreen')() * palette.length)],
     life: 0,
-    maxLife: 260 + getSimRng('introScreen')() * 340,
+    maxLife: 260 + getPresentationRng('introScreen')() * 340,
     type,
   };
 }
@@ -161,8 +161,8 @@ function updateParticle(particle: Particle): void {
     particle.vx += Math.sin(particle.life * 0.018) * 0.04;
   }
   if (particle.type === 'spark') {
-    particle.x += (getSimRng('introScreen')() - 0.5) * 1.2;
-    particle.y += (getSimRng('introScreen')() - 0.5) * 1.2;
+    particle.x += (getPresentationRng('introScreen')() - 0.5) * 1.2;
+    particle.y += (getPresentationRng('introScreen')() - 0.5) * 1.2;
   }
 }
 
@@ -307,8 +307,8 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
 
     for (let i = 0; i < 60; i++) {
       const particle = spawnParticle(width, height);
-      particle.y = getSimRng('introScreen')() * height;
-      particle.life = getSimRng('introScreen')() * particle.maxLife;
+      particle.y = getPresentationRng('introScreen')() * height;
+      particle.life = getPresentationRng('introScreen')() * particle.maxLife;
       particlesRef.current.push(particle);
     }
 
@@ -316,7 +316,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
       ctx.clearRect(0, 0, width, height);
 
       const spawnChance = auroraVisible ? 0.35 : 0.12;
-      if (getSimRng('introScreen')() < spawnChance) {
+      if (getPresentationRng('introScreen')() < spawnChance) {
         particlesRef.current.push(spawnParticle(width, height));
       }
 

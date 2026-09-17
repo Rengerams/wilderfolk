@@ -15,7 +15,7 @@ import { tickElectionPromises } from './electionPromises';
 
 // Social & Relationships
 import { advanceSocialRelationships } from './relationships';
-import { advanceYouthLove } from './simulation/humanRelationships';
+import { advanceYouthLove, reconcileCourtships } from './simulation/humanRelationships';
 import { advanceApprenticeships } from './apprenticeships';
 
 // Daily Systems
@@ -43,6 +43,7 @@ export function tickLayerDaily(
   // Phase 7 social layers & chronicles — pulse daily
   advanceSocialRelationships(state, allAlive);
   advanceYouthLove(state, ctx);
+  reconcileCourtships(ctx);
   advanceApprenticeships(state, allAlive);
 
   // Idempotent leader-house reconciliation: marriage/divorce/reassignment may

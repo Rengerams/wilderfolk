@@ -14,17 +14,17 @@ export const ENTITY_TYPE_CODE: Record<EntityTypeName, number> = {
   [EntityType.Wildkin]: 8,
 };
 
-export const ENTITY_CODE_TO_TYPE: Record<number, EntityTypeName> = {
-  0: EntityType.Grass,
-  1: EntityType.Rabbit,
-  2: EntityType.Deer,
-  3: EntityType.Wolf,
-  4: EntityType.Fox,
-  5: EntityType.Human,
-  6: EntityType.Tree,
-  7: EntityType.Werewolf,
-  8: EntityType.Wildkin,
-};
+/**
+ * Reverse map, derived from the forward one so the two can never drift.
+ *
+ * Spelling it out by hand let a new `EntityType` compile while having no wire code — the forward
+ * map is `Record<EntityTypeName, number>` and therefore exhaustive, but a hand-written reverse map
+ * silently missed the new member and `entityTypeToCode` would emit `UNKNOWN_ENTITY_TYPE_CODE`,
+ * making every entity of that species invisible (worker-boundary audit F8.3).
+ */
+export const ENTITY_CODE_TO_TYPE: Record<number, EntityTypeName> = Object.fromEntries(
+  Object.entries(ENTITY_TYPE_CODE).map(([type, code]) => [code, type as EntityTypeName]),
+);
 
 /** Reserved wire code — never mapped to a real species. */
 export const UNKNOWN_ENTITY_TYPE_CODE = 255;

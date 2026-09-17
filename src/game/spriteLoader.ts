@@ -23,8 +23,12 @@ export const MOUNTAIN_SPRITE_PATHS = [
   '/sprites/mountains/315.png',
 ] as const;
 
-/** Kept in sync with humanSprites path constants (no import — avoids circular dep). */
-const HUMAN_SPRITE_PATHS = new Set<string>([
+/**
+ * Kept in sync with humanSprites path constants (no import — avoids circular dep).
+ * Exported so `tests/humanSprites.maleLadder.test.ts` can assert the sync: a ladder
+ * path missing from this set is neither preloaded nor bottom-anchored.
+ */
+export const HUMAN_SPRITE_PATHS = new Set<string>([
   '/sprites/human_male.png',
   '/sprites/human_female.png',
   '/sprites/human_male_toddler_v1.png',
@@ -37,11 +41,16 @@ const HUMAN_SPRITE_PATHS = new Set<string>([
   '/sprites/human_male_v5.png',
   '/sprites/human_male_v6.png',
   '/sprites/human_male_v7.png',
-  '/sprites/new_male_set/male_craftsman.png',
-  '/sprites/new_male_set/male_farmhand.png',
-  '/sprites/new_male_set/male_merchant.png',
   '/sprites/new_male_set/male_poor_labourer.png',
+  '/sprites/new_male_set/male_farmhand.png',
+  '/sprites/new_male_set/male_craftsman.png',
+  '/sprites/new_male_set/male_pioneer.png',
+  '/sprites/new_male_set/male_shopkeeper.png',
+  '/sprites/new_male_set/male_clerk.png',
+  '/sprites/new_male_set/male_merchant.png',
   '/sprites/new_male_set/male_prosperous_farmer.png',
+  '/sprites/new_male_set/male_wealthy_gentry.png',
+  '/sprites/new_male_set/male_aristocrat.png',
   '/sprites/human_female_v0.png',
   '/sprites/human_female_v1.png',
   '/sprites/human_female_v2.png',
@@ -150,8 +159,11 @@ export function preloadAllSprites(): Promise<void> {
     // Saturated azure water texture — rivers + coast stamp this (survives the
     // season wash where the light-cyan fills turned green).
     '/sprites/ocean.png',
-    // Transparent 4×4 sand-bank/water masks, baked into the existing terrain cache.
-    '/sprites/terrain/sand_water_overlay.png',
+    // The optional transparent 4×4 sand-bank/water mask sheet
+    // (`SAND_WATER_OVERLAY_PATH`) is omitted until `public/sprites/terrain/sand_water_overlay.png`
+    // ships: the atlas bakes without it and requests one replacement bake once it becomes
+    // ready (`terrainLayerNeedsRebuild`), and preloading a missing file spams boot errors.
+    // See `BUG_REPORTS/2026-09-16-sand-water-overlay-sprite-missing.md`.
     // Painted dirt (25×25 seamless) — hills/peaks relief surfaces
     '/sprites/tile_dirt.png',
     // Mountain peak overlays (`MOUNTAIN_SPRITE_PATHS`) are omitted until

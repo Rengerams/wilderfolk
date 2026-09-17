@@ -193,17 +193,36 @@ function isSpouseAtSharedHome(
   return isNearBuilding(spouse, residence, maxDist);
 }
 
+/**
+ * True when the settler is at their marital home *and the spouse is there too*.
+ *
+ * An empty marital home is a legitimate tryst site — that is exactly how a walk-in
+ * becomes possible (`wouldWalkInOnMaritalAffair`). Only the occupied home is off limits.
+ * The married-paramour branch of `isValidAffairTrystSite` has always worked this way; the
+ * cheater's own home was the outlier, which made the walk-in route unreachable.
+ */
+export function isMaritalHomeOccupiedBySpouse(
+  entity: Entity,
+  entityById: Map<number, Entity>,
+  buildingById: Map<number, Building>,
+  maxDist = 55,
+): boolean {
+  return isAtMaritalHome(entity, entityById, buildingById)
+    && isSpouseAtSharedHome(entity, entityById, buildingById, maxDist);
+}
+
 function wouldWalkInOnMaritalAffair(
   cheater: Entity,
   entityById: Map<number, Entity>,
   buildingById: Map<number, Building>,
-  hourOfDay: number,
 ): boolean {
   if (!isAtMaritalHome(cheater, entityById, buildingById)) return false;
-  if (isSpouseNearby(cheater, entityById, 55) || isSpouseAtSharedHome(cheater, entityById, buildingById, 55)) {
-    return true;
-  }
-  return shouldBeAtHome(hourOfDay) && cheater.partnerId != null;
+  // A walk-in is the spouse actually being at the home the pair is using — not merely
+  // being due home. "Due home" used to return true here, which made every home tryst an
+  // automatic divorce; the returning spouse is the catch, and it stays rolled until they
+  // are physically there.
+  return isSpouseNearby(cheater, entityById, 55)
+    || isSpouseAtSharedHome(cheater, entityById, buildingById, 55);
 }
 
 export function isSingleParamour(paramour: Entity): boolean {
@@ -241,7 +260,22 @@ export function isValidAffairTrystSite(
   hourOfDay?: number,
 ): boolean {
   if (!cheater.alive || !paramour.alive) return false;
-  if (isAtMaritalHome(cheater, entityById, buildingById)) return false;
+
+  // An empty marital home is a valid tryst site (the pair uses it while the spouse is
+  // out, which is what a walk-in then interrupts). While the spouse is there — or right
+  // beside it — the home is refused, exactly like the married-paramour branch below.
+  if (isAtMaritalHome(cheater, entityById, buildingById)) {
+    if (
+      isSpouseNearby(cheater, entityById, intimateDist)
+      || isSpouseAtSharedHome(cheater, entityById, buildingById, intimateDist)
+    ) {
+      return false;
+    }
+    const maritalHome = buildingById.get(cheater.residenceBuildingId!);
+    if (!maritalHome?.completed || !isResidenceBuilding(maritalHome)) return false;
+    return isNearBuilding(cheater, maritalHome, intimateDist)
+      && isNearBuilding(paramour, maritalHome, intimateDist);
+  }
 
   const trystBuilding = getAffairTrystBuilding(cheater, paramour, buildingById);
   if (trystBuilding) {
@@ -343,7 +377,7 @@ export function trySchoolyardGossip(
   entityById: Map<number, Entity>,
   buildings: Building[],
   playerHumans: readonly Entity[],
-  rng: () => number = Math.random,
+  rng: () => number = getSimRng('humanRelationships'),
 ): void {
   if (!child.isJuvenile || !isPlayerHuman(child)) return;
   const parentIds = [child.fatherId, child.motherId, child.adoptiveFatherId, child.adoptiveMotherId].filter(
@@ -378,7 +412,7 @@ export function trySchoolyardGossip(
   }
 }
 
-export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () => number = Math.random): void {
+export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () => number = getSimRng('humanRelationships')): void {
   if (!child.isJuvenile || !isPlayerHuman(child)) return;
   const day = getAbsoluteCalendarDay(state.tick);
   if (child.schoolBondDay === day) return;
@@ -428,8 +462,28 @@ export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () 
 
 // ============ YOUTHFUL FIRST LOVE LIFECYCLE ============
 
+/**
+ * Youngest age a youth-love link may start at.
+ *
+ * Owner ruling (2026-09-13, re-confirmed 2026-09-16): **12**, not the originally documented 14. The
+ * 14–17 band is too narrow for the game's pace, so the feature was a nice one that never happened in
+ * play; widening it to 12–17 is what makes it fire. The documents were corrected to 12 — a 2026-09-13
+ * audit filed the constant itself as the defect and the finding was withdrawn as intended behaviour
+ * (`BUG_REPORTS/2026-09-13-youth-love-min-age-12-lets-12-13-year-olds-enter-youth-lov.md`). Fertility
+ * starts at the same age through the mutual youth-love gate, and every adult system stays 18+.
+ */
 export const YOUTH_LOVE_MIN_AGE = 12;
 export const YOUTH_LOVE_MAX_AGE_EXCLUSIVE = HUMAN_MOVE_OUT_MIN_AGE;
+/**
+ * Largest age difference a youth-love pair may have when it forms — and therefore also how long an
+ * existing link may wait past the older partner's 18th birthday for the younger one to come of age
+ * (see `reconcileYouthLove`).
+ *
+ * Owner ruling (2026-09-16): **4**, as the code has always been. The feature document's original
+ * "no more than 2 years" made youth love effectively never form in play — the same reasoning as
+ * `YOUTH_LOVE_MIN_AGE` above — so the document was the stale artifact and has been corrected; do not
+ * "fix" this back to 2.
+ */
 export const YOUTH_LOVE_MAX_AGE_GAP = 4;
 export const YOUTH_LOVE_DAILY_START_CHANCE = 0.0015;
 export const YOUTH_LOVE_DAILY_SCHOOL_BONUS = 0.2;
@@ -481,6 +535,20 @@ function isValidYouthLoveTarget(entity: Entity, candidate: Entity): boolean {
   );
 }
 
+/**
+ * Clear a youth-love link that can no longer be valid — except for the one case where it is the
+ * *pending* path to a handoff: an existing pair may outlive the older partner's 18th birthday while
+ * the younger one is still 12–17 (`docs/archive/YOUTH_LOVE_FEATURE.md`, "One is 18 and one is 17 →
+ * Keep the valid youth link temporarily … Both reach 18 → Hand off to adult courtship"). `advanceYouthLove`
+ * promotes the pair on the first pass where both are adults, so the wait ends by itself; it is bounded
+ * here by the same age gap that let the pair form, because the younger partner is then at most
+ * `YOUTH_LOVE_MAX_AGE_GAP` years from the adult floor.
+ *
+ * Audit F3: the previous `Math.max(age) > HUMAN_MOVE_OUT_MIN_AGE` clause cleared the link as soon as
+ * the older partner turned 19 — the very day a pair one year apart became (19, 18) — so
+ * `promoteYouthLoveToCourtship` was unreachable for every pair whose birthdays fall in different
+ * years and those pairs were dropped silently instead of "growing up together".
+ */
 export function reconcileYouthLove(entity: Entity, entityById: Map<number, Entity>): void {
   const partnerId = entity.youthLovePartnerId;
   if (partnerId == null) return;
@@ -494,8 +562,7 @@ export function reconcileYouthLove(entity: Entity, entityById: Map<number, Entit
     partner.partnerId != null ||
     entity.relationshipStatus !== 'single' ||
     partner.relationshipStatus !== 'single' ||
-    Math.abs(entity.age - partner.age) > YOUTH_LOVE_MAX_AGE_GAP ||
-    Math.max(entity.age, partner.age) > HUMAN_MOVE_OUT_MIN_AGE
+    Math.abs(entity.age - partner.age) > YOUTH_LOVE_MAX_AGE_GAP
   ) {
     clearYouthLovePair(entity, partner);
   }
@@ -523,7 +590,7 @@ function promoteYouthLoveToCourtship(state: WorldState, a: Entity, b: Entity): v
 export function advanceYouthLove(
   state: WorldState,
   ctx: Pick<TickContext, 'entityById' | 'humanSocialGrid' | 'playerHumans' | 'width' | 'height'>,
-  rng: () => number = Math.random,
+  rng: () => number = getSimRng('humanRelationships'),
 ): void {
   const { entityById, humanSocialGrid, playerHumans, width, height } = ctx;
   const day = getAbsoluteCalendarDay(state.tick);
@@ -536,6 +603,8 @@ export function advanceYouthLove(
     const partner = entity.youthLovePartnerId != null ? getLivingEntity(entity.youthLovePartnerId, entityById) : undefined;
     if (partner) {
       if (!shouldLeadAffairPair(entity, partner)) continue;
+      // Both adults → the documented handoff. A pair retained by `reconcileYouthLove` (one adult, one
+      // 12–17) waits here until the younger partner comes of age.
       if (entity.age >= HUMAN_MOVE_OUT_MIN_AGE && partner.age >= HUMAN_MOVE_OUT_MIN_AGE) {
         promoteYouthLoveToCourtship(state, entity, partner);
         continue;
@@ -856,7 +925,7 @@ export function tryDailyAmicableDivorce(
   entityById: Map<number, Entity>,
   buildings: Building[],
   playerHumans: readonly Entity[],
-  rng: () => number = Math.random,
+  rng: () => number = getSimRng('humanRelationships'),
 ): void {
   if (!isPlayerHuman(entity) || !entity.alive) return;
   const isMarriedOrExpecting =
@@ -1056,13 +1125,12 @@ function tryExposeCaughtAffair(
   churchStrength: number,
   establishedAffair: boolean,
   intimate: boolean,
-  hourOfDay: number,
 ): void {
   if (!shouldLeadAffairPair(cheater, paramour)) return;
   if (onScandalCooldown(cheater, state.tick) || onScandalCooldown(paramour, state.tick)) return;
 
   if (!intimate) return;
-  const walkInAtHome = wouldWalkInOnMaritalAffair(cheater, entityById, buildingById, hourOfDay);
+  const walkInAtHome = wouldWalkInOnMaritalAffair(cheater, entityById, buildingById);
   const spousePresent =
     isSpouseNearby(cheater, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS) ||
     isSpouseNearby(paramour, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS) ||
@@ -1087,7 +1155,6 @@ export function tryExposeCaughtAffairForPair(
   churchStrength: number,
   establishedAffair: boolean,
   intimate: boolean,
-  hourOfDay: number,
 ): void {
   const { lead, other } = affairPairLead(a, b);
   tryExposeCaughtAffair(
@@ -1101,7 +1168,6 @@ export function tryExposeCaughtAffairForPair(
     churchStrength,
     establishedAffair,
     intimate,
-    hourOfDay,
   );
 }
 
@@ -1224,14 +1290,69 @@ export function isEligibleToCourt(entity: Entity): boolean {
   );
 }
 
+/**
+ * A courtship is a mutual pair bond, so a settler who is already courting someone else is not a
+ * candidate — except for the caller's own current partner, which the mutuality branch in
+ * `findCourtshipPartner` re-selects every tick. Audit F5: without the exclusivity test a third
+ * settler could take an already-courting partner, orphaning the previous link and its progress.
+ */
 function isCourtshipCandidate(entity: Entity, candidate: Entity): boolean {
   return (
     isEligibleToCourt(candidate) &&
+    (candidate.courtshipPartnerId == null || candidate.courtshipPartnerId === entity.id) &&
     !!candidate.gender &&
     !!entity.gender &&
     candidate.gender !== entity.gender &&
     candidate.id !== entity.id
   );
+}
+
+/**
+ * Bind a courtship pair (or keep the current one). A **new** partner always starts the shared
+ * progress at zero — audit F5: the progress used to carry over from whoever the settler courted
+ * before, so a fresh pair could begin at 60 % while an abandoned pair kept its own value.
+ */
+export function bindCourtship(entity: Entity, partner: Entity): void {
+  if (entity.courtshipPartnerId !== partner.id) {
+    entity.courtshipPartnerId = partner.id;
+    entity.courtshipProgress = 0;
+  }
+  if (partner.courtshipPartnerId !== entity.id) {
+    partner.courtshipPartnerId = entity.id;
+    partner.courtshipProgress = 0;
+  }
+}
+
+/**
+ * Dissolve a courtship that can no longer complete — the mirror of `reconcileYouthLove` for the adult
+ * pair bond, and the guard that makes courtship exclusivity safe. A link is valid only while both
+ * settlers could still court each other (alive, single, unpartnered, adult, not imprisoned or
+ * pregnant) and both sides name each other; anything else clears the link **and its progress** on
+ * both sides, so no settler is locked out of courting by a partner who moved on and no heart badge
+ * survives a courtship that does not exist (audit F5). Runs daily from `tickLayerDaily`.
+ */
+export function reconcileCourtships(
+  ctx: Pick<TickContext, 'entityById' | 'playerHumans'>,
+): void {
+  for (const entity of ctx.playerHumans) {
+    const partnerId = entity.courtshipPartnerId;
+    if (partnerId == null) continue;
+    const partner = getLivingEntity(partnerId, ctx.entityById);
+    if (
+      partner &&
+      partner.courtshipPartnerId === entity.id &&
+      isEligibleToCourt(entity) &&
+      isEligibleToCourt(partner)
+    ) {
+      continue;
+    }
+    entity.courtshipPartnerId = undefined;
+    entity.courtshipProgress = 0;
+    if (partner && partner.courtshipPartnerId === entity.id) {
+      partner.courtshipPartnerId = undefined;
+      partner.courtshipProgress = 0;
+    }
+  }
 }
 
 export function findCourtshipPartner(

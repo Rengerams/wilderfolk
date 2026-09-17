@@ -27,7 +27,6 @@ import {
   startBuilding,
   placeStripChain,
   assignIdleWorkerToBuilding,
-  assignResidentToBuilding,
   fillBuildingWorkers,
   autoStaffAllWorkers,
   removeWorkerFromBuilding,
@@ -49,7 +48,7 @@ import { addBigNews, addFloatingText } from '../simEffects';
 import { deliverVisitorQuest } from '../visitorQuest';
 import { respondToOutgoingRaidEvent, respondToRaidEvent, launchRaidOnRival } from '../frontierCombat';
 import { respondToStoryEvent } from '../storyEvents';
-import { startGuidedCampaign, recordGuidedCampaignChoice, type GuidedCampaignChapterId } from '../guidedCampaign';
+import { startGuidedCampaign } from '../guidedCampaign';
 import { hostTownFestival } from '../townHall';
 import {
   extractSimTickDelta,
@@ -64,7 +63,6 @@ export type WorkerCommand =
   | { proto: 1; op: 'startBuilding'; type: BuildingType; x: number; y: number; rotation?: BuildingRotation }
   | { proto: 1; op: 'placeStripChain'; type: BuildingType; segments: readonly StripSegment[]; rotation?: BuildingRotation }
   | { proto: 1; op: 'assignWorker'; buildingId: number; humanId?: number }
-  | { proto: 1; op: 'assignResident'; buildingId: number }
   | { proto: 1; op: 'autoStaffWorkers' }
   | { proto: 1; op: 'removeWorker'; buildingId: number; humanId: number }
   | { proto: 1; op: 'repairBuilding'; buildingId: number }
@@ -83,7 +81,6 @@ export type WorkerCommand =
   | { proto: 1; op: 'respondToDiplomacyEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'respondToStoryEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'startGuidedCampaign' }
-  | { proto: 1; op: 'recordGuidedCampaignChoice'; chapterId: GuidedCampaignChapterId; choiceId: string }
   | { proto: 1; op: 'talkToVisitorLeader'; groupId: string }
   | { proto: 1; op: 'tradeWithVisitors'; groupId: string; action: VisitorTradeAction }
   | { proto: 1; op: 'resolveVillageRequest'; requestId: string; choice: VillageRequestChoiceId }
@@ -105,7 +102,6 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'startBuilding',
   'placeStripChain',
   'assignWorker',
-  'assignResident',
   'autoStaffWorkers',
   'removeWorker',
   'repairBuilding',
@@ -124,7 +120,6 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'respondToDiplomacyEvent',
   'respondToStoryEvent',
   'startGuidedCampaign',
-  'recordGuidedCampaignChoice',
   'talkToVisitorLeader',
   'tradeWithVisitors',
   'resolveVillageRequest',
@@ -223,8 +218,6 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       );
     case 'assignWorker':
       return isFiniteNumber(cmd.buildingId) && (cmd.humanId === undefined || isFiniteNumber(cmd.humanId));
-    case 'assignResident':
-      return isFiniteNumber(cmd.buildingId);
     case 'removeWorker':
       return isFiniteNumber(cmd.buildingId) && isFiniteNumber(cmd.humanId);
     case 'repairBuilding':
@@ -265,8 +258,6 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       return isNonEmptyString(cmd.eventId) && isNonEmptyString(cmd.choiceId);
     case 'startGuidedCampaign':
       return true;
-    case 'recordGuidedCampaignChoice':
-      return isNonEmptyString(cmd.chapterId) && isNonEmptyString(cmd.choiceId);
     case 'talkToVisitorLeader':
       return isNonEmptyString(cmd.groupId);
     case 'tradeWithVisitors':
@@ -303,16 +294,6 @@ export function isWorkerCommand(cmd: unknown): cmd is WorkerCommand {
   return validateWorkerCommandShape(c as { op: WorkerCommand['op'] } & Record<string, unknown>);
 }
 
-/** Compute alive entity IDs set. */
-export function aliveIdSet(state: WorldState): Set<number> {
-  const ids = new Set<number>();
-  const entities = state.entities ?? [];
-  for (let i = 0; i < entities.length; i++) {
-    if (entities[i].alive) ids.add(entities[i].id);
-  }
-  return ids;
-}
-
 /** Apply a versioned command on the worker-authoritative world. */
 export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): WorldState {
   if (!isWorkerCommand(cmd)) {
@@ -329,8 +310,6 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return cmd.humanId != null
         ? assignIdleWorkerToBuilding(world, cmd.buildingId, cmd.humanId)
         : fillBuildingWorkers(world, cmd.buildingId);
-    case 'assignResident':
-      return assignResidentToBuilding(world, cmd.buildingId);
     case 'autoStaffWorkers':
       return autoStaffAllWorkers(world);
     case 'removeWorker':
@@ -365,9 +344,6 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return respondToStoryEvent(world, cmd.eventId, cmd.choiceId);
     case 'startGuidedCampaign':
       startGuidedCampaign(world);
-      return world;
-    case 'recordGuidedCampaignChoice':
-      recordGuidedCampaignChoice(world, cmd.chapterId, cmd.choiceId);
       return world;
     case 'respondToDiplomacyEvent':
       return respondToDiplomacyEvent(world, cmd.eventId, cmd.choiceId);
@@ -429,18 +405,18 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
 }
 
 /** Extract a SimTickDelta from the world diff for a command. */
-export function extractCommandDelta(world: WorldState, aliveBefore: Set<number>): SimTickDelta {
+export function extractCommandDelta(world: WorldState): SimTickDelta {
   const entities = world.entities ?? [];
   const aliveNow = entities.filter((e) => e.alive);
-  return extractSimTickDelta(world, aliveBefore, aliveNow, {
+  return extractSimTickDelta(world, aliveNow, {
     cloneMode: 'transfer',
   });
 }
 
 /** Best-effort command delta — falls back cleanly to a baseline delta on error. */
-export function safeExtractCommandDelta(world: WorldState, aliveBefore: Set<number>): SimTickDelta {
+export function safeExtractCommandDelta(world: WorldState): SimTickDelta {
   try {
-    return extractCommandDelta(world, aliveBefore);
+    return extractCommandDelta(world);
   } catch (err) {
     console.warn('[WorkerCommand] Delta extract failed after command error', err);
     return createFallbackSimTickDelta(world);

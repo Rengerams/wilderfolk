@@ -1,7 +1,7 @@
 import { Suspense, lazy, useMemo } from 'react';
 import { ResearchType } from '../../game/gameTypes';
 import type { WorldState } from '../../game/gameEngine';
-import { hasCompletedMarket } from '../../game/tradeCaravans';
+import { canEstablishTradeRoute, hasCompletedMarket } from '../../game/tradeCaravans';
 import { computeVillagePortrait } from '../../game/villagePortrait';
 
 type ProgressSubTab = 'research' | 'trade' | 'goals';
@@ -217,27 +217,27 @@ export default function ProgressTabPanel({
             <p className="mb-2 text-[13px] text-stone-300">Reputation: <strong className="text-emerald-400">{state.villageReputation}</strong> / 100</p>
             {!hasCompletedMarket(state) && (
               <p className="mb-2 text-[13px] text-amber-400">
-                Build a completed Market before establishing long-range trade routes.
+                Build a completed Market before establishing long-range trade routes — the coin→materials
+                routes below are exempt, so a colony with gold can still buy wood, stone or food.
               </p>
             )}
 
             <div className="space-y-2">
               {state.tradeRoutes.map(route => {
-                const marketOk = hasCompletedMarket(state);
-                const repOk = state.villageReputation >= route.reputationRequired;
-                const canEstablish = marketOk && repOk;
+                // Eligibility comes from the trade owner, never from a copy of its rule: the
+                // owner exempts the coin→materials rescue routes from the Market requirement, and
+                // a locally restated Market-and-reputation check used to disable exactly those
+                // three (`BUG_REPORTS/2026-09-16-material-purchase-trade-routes-unreachable.md`).
+                const eligibility = canEstablishTradeRoute(state, route.id);
+                const canEstablish = eligibility.ok;
                 return (
                 <div key={route.id} className={`rounded-lg border p-2 text-[13px] ${
                   route.active ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-stone-600 bg-stone-600/20'
                 }`}>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="font-bold text-stone-200">{route.targetName}</span>
-                    <span className={route.active ? 'text-emerald-400' : 'text-stone-400'}>
-                      {route.active
-                        ? 'Active'
-                        : !marketOk
-                          ? 'Need Market'
-                          : `Need ${route.reputationRequired} rep`}
+                    <span className={`text-right ${route.active ? 'text-emerald-400' : 'text-stone-400'}`}>
+                      {route.active ? 'Active' : eligibility.blockReason ?? 'Unavailable'}
                     </span>
                   </div>
                   <p className="text-stone-300">

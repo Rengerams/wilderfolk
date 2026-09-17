@@ -71,14 +71,27 @@ export function advanceSocialRelationships(state: WorldState, allAlive: Entity[]
   if (people.length < 2) return;
 
   const byId = new Map(people.map((e) => [e.id, e]));
-  const homeGroups = new Map<number, Entity[]>();
+  const residenceGroups = new Map<number, Entity[]>();
+  const workplaceGroups = new Map<number, Entity[]>();
   const jobGroups = new Map<string, Entity[]>();
-  
+
   for (const p of people) {
-    if (p.homeBuildingId != null) {
-      const arr = homeGroups.get(p.homeBuildingId) || [];
+    // Field naming trap: in this codebase `homeBuildingId` is the **workplace**
+    // (`residencyOccupancy.hasWorkAssignment` = `homeBuildingId != null`) and
+    // `residenceBuildingId` is the home. The only "home" group used to be keyed on
+    // `homeBuildingId`, so the residence half of the documented rule ("friendships grow from
+    // shared work, home and childhood") had no implementation at all — two settlers sharing a
+    // House gained nothing (`BUG_REPORTS/2026-09-16-shared-home-friendship-keyed-on-the-workplace.md`).
+    // Both documented sources now exist: residence, workplace building, and job type.
+    if (p.residenceBuildingId != null) {
+      const arr = residenceGroups.get(p.residenceBuildingId) || [];
       arr.push(p);
-      homeGroups.set(p.homeBuildingId, arr);
+      residenceGroups.set(p.residenceBuildingId, arr);
+    }
+    if (p.homeBuildingId != null) {
+      const arr = workplaceGroups.get(p.homeBuildingId) || [];
+      arr.push(p);
+      workplaceGroups.set(p.homeBuildingId, arr);
     }
     if (p.job) {
       const arr = jobGroups.get(p.job) || [];
@@ -113,8 +126,8 @@ export function advanceSocialRelationships(state: WorldState, allAlive: Entity[]
     }
   };
 
-  // Shared home and shared job draw people together (bounded to PAIR_BUDGET members)
-  for (const group of [...homeGroups.values(), ...jobGroups.values()]) {
+  // Shared home, shared workplace and shared job draw people together (bounded to PAIR_BUDGET members)
+  for (const group of [...residenceGroups.values(), ...workplaceGroups.values(), ...jobGroups.values()]) {
     if (group.length < 2) continue;
     const capped = group.length > PAIR_BUDGET ? group.slice(0, PAIR_BUDGET) : group;
     for (let i = 0; i < capped.length; i++) {
@@ -144,16 +157,22 @@ export function advanceSocialRelationships(state: WorldState, allAlive: Entity[]
       const otherId = Number(key.substring(FEUD_PREFIX.length));
       if (isNaN(otherId)) continue;
 
-      // Only process each pair once (lower ID takes responsibility)
-      if (p.id > otherId) continue;
-      
       const other = byId.get(otherId);
-      const currentScore = feuds[key];
-      
+
+      // A counterpart who is gone is not an enemy any more: prune the record for **both**
+      // sides, exactly as the friendship pass below does. This deletion used to sit below the
+      // lead-only guard, so a survivor with the higher id kept `feud_<deadId>` forever — never
+      // decayed, never deleted, never able to log "settled their feud"
+      // (`BUG_REPORTS/2026-09-16-feud-against-a-removed-settler-never-pruned.md`).
       if (!other) {
         delete feuds[key];
         continue;
       }
+
+      // Only process each pair once (lower ID takes responsibility for decay and energy).
+      if (p.id > otherId) continue;
+
+      const currentScore = feuds[key];
 
       const nextScore = Math.max(0, currentScore - 0.4);
       const feudPairKey = pairKey(p.id, otherId);

@@ -9,15 +9,19 @@ import {
 } from '../combat';
 import {
   drawPioneerAt,
+  getHumanMarkerColors,
+  getHumanMarkerRadius,
   getHumanSpriteMetrics,
   getHumanWalkFrameIndex,
   getHumanSpriteFrame,
   getJuvenileSpriteFrame,
   pickHumanVariant,
+  HUMAN_SPRITE_MIN_ZOOM,
   HUMAN_WALK_SPEED_THRESHOLD,
   type HumanGender,
 } from '../humanSprites';
 import { getChatBubbleText, wrapChatLines } from '../humanChat';
+import { isAsleepAtHome } from '../humanSchedule';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { terrainRiseAt } from '../terrainAtlas';
 import { getRenderSoABuckets } from '../simBuffers/renderSoAEntities';
@@ -418,19 +422,65 @@ export function drawCombatBurst(ctx: CanvasRenderingContext2D, sx: number, sy: n
   ctx.restore();
 }
 
+/**
+ * Zoomed-out settler LOD: one small dot instead of the full sprite.
+ *
+ * Skips every per-settler cost the sprite path pays — frame lookup, walk frame, contact
+ * shadow, bob, status badge, speech bubble and name plate — which is both the
+ * readability fix and the frame-cost fix for a 200+ citizen village. The dot keeps the
+ * settler's own class colour (visitors cyan, rivals orange, the leader gold and
+ * crowned) so national and social identity survive the zoom-out.
+ */
+function drawHumanMarker(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  human: Entity,
+  zoom: number,
+  isLeader: boolean,
+): void {
+  const gender = (human.gender ?? 'male') as HumanGender;
+  const variant = human.spriteVariant ?? pickHumanVariant(human.id, gender);
+  const { fill, outline } = getHumanMarkerColors(gender, variant);
+  const radius = getHumanMarkerRadius(zoom, human.isJuvenile, isLeader);
+  const fillColor = human.faction === 'visitor' ? '#22d3ee' : human.faction === 'rival' ? '#fb923c' : fill;
+  ctx.beginPath();
+  ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = fillColor;
+  ctx.fill();
+  ctx.lineWidth = isLeader ? 2 : 1;
+  ctx.strokeStyle = isLeader ? '#fbbf24' : outline;
+  ctx.stroke();
+  if (isLeader) {
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('👑', sx, sy - radius - 2);
+    ctx.textBaseline = 'alphabetic';
+  }
+}
+
 export function drawHumans(
   ctx: CanvasRenderingContext2D,
   state: RenderSnapshot,
   cw: number,
   ch: number,
   forEntityLayerCache = false,
-) {
-  const tick = state.tick;
+) {  const tick = state.tick;
   const cam = state.camera;
   const statusCtx = buildHumanStatusIconContext(state, _cachedHumans);
   const occupiedBubbleRects: OverheadRect[] = [];
+  /** Village-wide zoom: settlers are dots, unless selected (see `HUMAN_SPRITE_MIN_ZOOM`). */
+  const markerMode = cam.zoom < HUMAN_SPRITE_MIN_ZOOM;
 
   for (const human of _cachedHumans) {
+    const isSel = state.selectedEntityIds.includes(human.id) || state.selectedEntity?.id === human.id;
+    // Asleep at home means indoors: hide the body and its bubble for the night. The
+    // simulation still owns the settler — only the presentation drops them, which is
+    // what keeps a large village readable after dark. A selected settler stays visible
+    // so the inspector keeps pointing at somebody.
+    if (!isSel && isAsleepAtHome(human, state.buildings, state.hourOfDay)) continue;
+
     const sx = (human.x - cam.x) * cam.zoom + cw / 2;
     // Ride the 2.5D relief — settlers walk on the raised terrain surface
     const sy = (human.y - cam.y) * cam.zoom + ch / 2
@@ -439,7 +489,18 @@ export function drawHumans(
     const cullPad = Math.max(size * 1.5, spriteH);
     if (sx + cullPad < -20 || sx - cullPad > cw + 20 || sy + cullPad < -20 || sy - cullPad > ch + 20) continue;
 
-    const isSel = state.selectedEntityIds.includes(human.id) || state.selectedEntity?.id === human.id;
+    // Village leader — gold ring + crown (visible even zoomed out)
+    const isLeader =
+      state.villageLeaderId != null
+      && human.id === state.villageLeaderId
+      && !human.faction;
+
+    // Zoomed-out LOD: one dot per settler, no sprite/shadow/bob/badge/bubble/name.
+    if (markerMode && !isSel) {
+      drawHumanMarker(ctx, sx, sy, human, cam.zoom, isLeader);
+      continue;
+    }
+
     const flipX = human.vx < -0.05 || (Math.abs(human.vx) <= 0.05 && Math.cos(human.spriteAngle ?? 0) < 0);
     const speed = Math.hypot(human.vx, human.vy);
     const isWalking = speed > HUMAN_WALK_SPEED_THRESHOLD;
@@ -498,11 +559,6 @@ export function drawHumans(
     }
 
     const isTalking = (human.chatTicks ?? 0) > 0;
-    // Village leader — gold ring + crown (visible even zoomed out)
-    const isLeader =
-      state.villageLeaderId != null
-      && human.id === state.villageLeaderId
-      && !human.faction;
     if (isTalking) {
       drawTalkingMouth(ctx, sx, headY + spriteH * 0.12, drawSize, flipX, human.animFrame ?? 0);
       const bubbleText = getChatBubbleText(human, tick);

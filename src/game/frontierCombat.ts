@@ -693,7 +693,7 @@ export function rollRivalOutgoingRaidResponse(
   militiaStrength: number,
   rivalDefense: number,
   rival: RivalSettlement,
-  rng: () => number = Math.random,
+  rng: () => number = getSimRng('frontierCombat'),
 ): OutgoingRaidRivalResponse {
   const ratio = militiaStrength / Math.max(rivalDefense, 1);
   let payoffChance = 0.2;
@@ -1332,3 +1332,4 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
   );
   rival.daysUntilAction = 30;
   return state;
+}

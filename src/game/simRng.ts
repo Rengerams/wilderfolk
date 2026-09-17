@@ -1,9 +1,18 @@
-import type { WorldState } from './gameTypes';
-
 export type RngStream = () => number;
 
 let currentSeed = 1;
 const streams = new Map<string, RngStream>();
+/**
+ * Main-thread presentation streams (screen shake, weather particles, sfx, the intro canvas).
+ *
+ * They are deliberately **not** in `streams`: `snapshotSimRng`/`restoreSimRng` carry the simulation
+ * worker's stream positions, and the worker never draws a presentation stream. Leaving them in the
+ * same registry meant every applied tick delta rewound them to the position frozen at the last
+ * upload — or deleted a stream created after it — so weather respawn positions, screen shake and sfx
+ * variation restarted from the same values ~3×/s (worker-boundary audit F4). Use
+ * `getPresentationRng` for these; `getSimRng` stays the simulation namespace.
+ */
+const presentationStreams = new Map<string, RngStream>();
 
 /**
  * Live 32-bit state of a created stream. Mulberry32 keeps `s` inside the closure, so a
@@ -74,11 +83,12 @@ export function seededRandomForRun(salt: string): number {
 }
 
 /**
- * Sets the base simulation seed and drops all cached per-owner streams.
+ * Sets the base simulation seed and drops all cached per-owner streams (simulation and presentation).
  */
 export function setSimSeed(seed: number): void {
   currentSeed = (seed >>> 0) || 1;
   streams.clear();
+  presentationStreams.clear();
   if (installedSeededGlobal) {
     seededGlobalStream = createSeededRng(currentSeed, '__global__');
   }
@@ -109,6 +119,9 @@ export interface SimRngSnapshot {
 
 /**
  * Capture every live stream position so a resumed or retried world continues its draws.
+ *
+ * Simulation streams only — presentation streams (`getPresentationRng`) are main-thread-only and are
+ * never captured or restored.
  */
 export function snapshotSimRng(): SimRngSnapshot {
   const owners: Array<[string, number]> = [];
@@ -146,7 +159,8 @@ export function parseSimRngSnapshot(value: unknown): SimRngSnapshot | null {
 }
 
 /**
- * Resume streams from a snapshot. Existing stream objects are reset in place.
+ * Resume streams from a snapshot. Existing stream objects are reset in place. Presentation streams
+ * are outside the snapshot and are left untouched.
  */
 export function restoreSimRng(snapshot: unknown): boolean {
   const parsed = parseSimRngSnapshot(snapshot);
@@ -189,12 +203,35 @@ export function adoptSimSeedFromWorld(world: { worldMap?: { seed?: number } | nu
 
 /**
  * Retrieves or lazily creates a domain-isolated PRNG stream for the current run seed.
+ *
+ * Simulation namespace: streams created here travel with the world (save file, worker hand-off,
+ * prep rollback, tick delta). Presentation-owned randomness must use `getPresentationRng` instead,
+ * or a restored snapshot will rewind it.
  */
 export function getSimRng(owner: string): RngStream {
   let rng = streams.get(owner);
   if (!rng) {
     rng = createSeededRng(currentSeed, owner);
     streams.set(owner, rng);
+  }
+  return rng;
+}
+
+/**
+ * Retrieves or lazily creates a main-thread **presentation** stream (screen shake, weather
+ * particles, sfx, intro canvas).
+ *
+ * Seeded from the active simulation seed so a replay of one seed still looks the same, but kept in a
+ * separate registry that `snapshotSimRng`/`restoreSimRng` never read or write: the simulation worker
+ * cannot know a presentation stream's position, so its snapshot must not rewind or delete one
+ * (worker-boundary audit F4). `setSimSeed`/`resetSimRng` do clear this registry, so a new world
+ * starts every stream fresh.
+ */
+export function getPresentationRng(owner: string): RngStream {
+  let rng = presentationStreams.get(owner);
+  if (!rng) {
+    rng = createSeededRng(currentSeed, owner);
+    presentationStreams.set(owner, rng);
   }
   return rng;
 }
@@ -258,10 +295,12 @@ export function disableSeededGlobalRandom(): void {
 }
 
 /**
- * Full teardown utility for unit tests — resets seed, clears caches, and uninstalls hooks.
+ * Full teardown utility for unit tests — resets seed, clears caches (simulation and presentation),
+ * and uninstalls hooks.
  */
 export function resetSimRng(): void {
   disableSeededGlobalRandom();
   currentSeed = 1;
   streams.clear();
+  presentationStreams.clear();
 }

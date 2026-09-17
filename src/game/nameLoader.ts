@@ -372,6 +372,7 @@ function clearMarriageLinks(entity: Entity): void {
   entity.partnerId = undefined;
   entity.affairPartnerId = undefined;
   entity.affairProgress = 0;
+  entity.courtshipPartnerId = undefined;
   entity.courtshipProgress = 0;
   entity.lastAffairSiteDay = undefined;
   entity.lastAffairSiteX = undefined;

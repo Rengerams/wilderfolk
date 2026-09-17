@@ -6,7 +6,8 @@ import {
 
   GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
 
-  saveGame, loadGame, hasSave, deleteSave, downloadSaveFile, loadGameFromFileText,
+  saveGame, loadGame, hasSave, deleteSave, downloadSaveFile,
+  parseSaveJson, readSavePayload, describeSaveReadFailure, loadGameFromParsed,
   getDiplomacyChoiceEligibility, getVisitorLeaderTalkMeta,
   ensureFullTradeRoutes,
   getCombatPreview,
@@ -22,6 +23,7 @@ import {
   NIGHT_START, TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, isNightHour, getAbsoluteCalendarDay,
 } from './game/dayCycle';
 import { getVisitorQuest } from './game/visitorQuest';
+import { canEstablishTradeRoute } from './game/tradeCaravans';
 import type { WorldState } from './game/gameEngine';
 
 import { resolveAliveHumans } from './game/entityCatalog';
@@ -955,19 +957,26 @@ export default function App() {
   }, [replaceSession, synchronizeTransientFeedbackFromWorld]);
 
   const handleLoad = useCallback(() => {
-    const loaded = loadGame();
+    // Read the slot first so a refusal names its real cause (empty / unreadable /
+    // malformed / another build) instead of guessing "corrupted" or "different build".
+    const payload = readSavePayload();
+    if (!payload.valid) {
+      setHasSavedGame(false);
+      showSaveToast({ message: describeSaveReadFailure(payload), type: 'error' });
+      return;
+    }
+    const loaded = loadGameFromParsed(payload.parsed);
     if (loaded) {
       applyLoadedSession(loaded);
+      setHasSavedGame(true);
       showSaveToast({ message: 'Game loaded', type: 'success' });
-    } else {
-      setHasSavedGame(hasSave());
-      showSaveToast({
-        message: hasSave()
-          ? 'Could not load save — file may be corrupted'
-          : 'No browser save — use Load from file',
-        type: 'error',
-      });
+      return;
     }
+    setHasSavedGame(hasSave());
+    showSaveToast({
+      message: 'The save parsed but could not be restored — the failing step is in the browser console (F12).',
+      type: 'error',
+    });
   }, [applyLoadedSession, showSaveToast]);
 
   const handleSaveToFile = useCallback(async () => {
@@ -991,28 +1000,31 @@ export default function App() {
   }, [showSaveToast, worldRef, loopRef, viewRef]);
 
   const handleLoadFromFile = useCallback((jsonText: string) => {
-    if (!jsonText.trim()) {
-      showSaveToast({ message: 'Could not read that file', type: 'error' });
+    // Parse first: the refusal reason (empty / damaged / another build) is what the
+    // player needs to see. Only then attempt the full world restore.
+    const parsed = parseSaveJson(jsonText);
+    if (!parsed.valid) {
+      showSaveToast({ message: describeSaveReadFailure(parsed), type: 'error' });
       return;
     }
-    const loaded = loadGameFromFileText(jsonText);
-    if (loaded) {
-      applyLoadedSession(loaded);
-      setShowMapSetup(false);
-      setHasSavedGame(true);
-      // Keep browser slot in sync with the file you just loaded
-      try {
-        saveGame(loaded.world, loaded.view);
-      } catch {
-        /* ignore */
-      }
-      showSaveToast({ message: 'Colony loaded from file', type: 'success' });
-    } else {
+    const loaded = loadGameFromParsed(parsed.parsed);
+    if (!loaded) {
       showSaveToast({
-        message: 'Save from a different build — beta keeps only current-build saves. Start a new settlement.',
+        message: 'The save parsed but could not be restored — the failing step is in the browser console (F12).',
         type: 'error',
       });
+      return;
     }
+    applyLoadedSession(loaded);
+    setShowMapSetup(false);
+    setHasSavedGame(true);
+    // Keep browser slot in sync with the file you just loaded
+    try {
+      saveGame(loaded.world, loaded.view);
+    } catch {
+      /* ignore */
+    }
+    showSaveToast({ message: 'Colony loaded from file', type: 'success' });
   }, [applyLoadedSession, showSaveToast, setShowMapSetup]);
 
   const handleLoadFromSetup = useCallback(() => {
@@ -1046,13 +1058,14 @@ export default function App() {
   ]);
 
   const priorityAlerts = getPriorityAlerts(world);
-  const tradeReadyCount = useMemo(() => {
-    const hasMarket = world.buildings.some(
-      (b) => b.completed && b.faction !== 'rival' && b.type === BuildingType.Market,
-    );
-    if (!hasMarket) return 0;
-    return world.tradeRoutes.filter((r) => !r.active && world.villageReputation >= r.reputationRequired).length;
-  }, [world.tradeRoutes, world.villageReputation, world.buildings]);
+  // Ask the trade owner instead of restating its rule: the Market requirement exempts the
+  // coin→materials rescue routes (`isMaterialPurchaseRoute`), which a local `marketOk` check
+  // dropped — the HUD then read "nothing available" for a colony that could still buy wood
+  // (`BUG_REPORTS/2026-09-16-material-purchase-trade-routes-unreachable.md`).
+  const tradeReadyCount = useMemo(
+    () => world.tradeRoutes.filter((r) => canEstablishTradeRoute(world, r.id).ok).length,
+    [world],
+  );
   const progressTabAlert = world.activeResearch != null || tradeReadyCount > 0;
   const foodAlert = isFoodAlert(world);
 

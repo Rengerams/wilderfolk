@@ -5,6 +5,8 @@ import {
   isWeekend,
   isWorkDay,
 } from './dayCycleClock';
+import { isNearResidence } from './residencyOccupancy';
+import type { Building, Entity } from './gameTypes';
 
 /** Legacy shift start (07:00) — used when no colony schedule is supplied. */
 export const WORK_START = 7;
@@ -92,6 +94,27 @@ export function shouldBeAtHomeFor(schedule: DayWindow | undefined, hour: number)
 
 export function shouldBeAtHome(hour: number): boolean {
   return shouldBeAtHomeFor(undefined, hour);
+}
+
+/**
+ * A settler who is at home during the night is asleep.
+ *
+ * Composes the two owners that already describe this: the night window
+ * (`isNightHour`, 20:00–06:00) and the residency proximity rule (`isNearResidence`,
+ * 55 px of the assigned house). Anyone out at night — a tavern keeper, a night-shift
+ * worker, a visitor, a settler still walking home — is away from their residence and
+ * therefore unaffected.
+ *
+ * Sleepers keep their mouth shut (the ambient chatter gate in `humanTick`) and are not
+ * drawn (the sleeper cull in `renderer/humans.ts`), which is what keeps a 200-citizen
+ * village readable after dark. The simulation still owns every one of them.
+ */
+export function isAsleepAtHome(
+  human: Entity,
+  buildings: Building[] | ReadonlyMap<number, Building>,
+  hour: number,
+): boolean {
+  return isNightHour(hour) && isNearResidence(human, buildings);
 }
 
 /** Stable 0..1 roll for one person on one colony day. */

@@ -9,11 +9,12 @@ import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { getChurchStrength, findHumanWorkplace, buildConstructionCrewIndex } from './workforce';
 
 import { isPlayerHuman } from './playerHuman';
-import { isSettlerRelationshipEntity } from './moonHowler';
+import { isSettlerRelationshipEntity } from './moonHowlerForm';
 import { getElectionGatherTarget } from './villageLeadership';
 
 import {
   allowSocialLifeFor,
+  isAsleepAtHome,
   prefersHomeTonightFor,
   shouldBeAtHomeFor,
 } from './humanSchedule';
@@ -48,6 +49,7 @@ import {
 } from './dayCycle';
 import {
   chatHintsFromWorld,
+  endAmbientHumanChat,
   tickHumanChat,
   tryAmbientRandomDialogue,
   type HumanChatContext,
@@ -114,6 +116,7 @@ import {
 } from './adaptiveSpatialQuery';
 import {
   AFFAIR_SPOUSE_BLOCK_RADIUS,
+  bindCourtship,
   canPursueSecretAffair,
   findCourtshipPartner,
   getAffairTrystBuilding,
@@ -121,6 +124,7 @@ import {
   hasAffairPartner,
   isAtMaritalHome,
   isEligibleToCourt,
+  isMaritalHomeOccupiedBySpouse,
   isSpouseNearby,
   isValidAffairTarget,
   isValidAffairTrystSite,
@@ -430,10 +434,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       continue;
     }
 
+    // Asleep at home: keep the mouth shut. Ambient chatter used to follow a settler
+    // indoors and put a speech bubble over somebody in bed; a scripted dialogue session
+    // is left alone (the dialogue tree owns it, not the sleep schedule).
+    const asleepAtHome = isAsleepAtHome(entity, buildingById, hourOfDay);
     tickHumanChat(entity, resolveChatPartner);
+    if (asleepAtHome) endAmbientHumanChat(entity);
 
     if (
       active &&
+      !asleepAtHome &&
       isPlayerHuman(entity) &&
       !entity.faction &&
       (entity.chatTicks ?? 0) <= 0 &&
@@ -893,8 +903,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           entity.vx *= 0.6;
           entity.vy *= 0.6;
           suppressIdle = true;
-          entity.courtshipPartnerId = closest.id;
-          closest.courtshipPartnerId = entity.id;
+          // The relationship owner decides how a pair is bound (new partner → progress starts at zero).
+          bindCourtship(entity, closest);
 
           if (seededRandomForRun(`chat-court1:${entity.id}:${state.tick}`) < 0.4 * PER_TICK_RATE_SCALE) {
             settlerPairChat(entity, closest, 'courtship', 0.85);
@@ -982,7 +992,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.age < HUMAN_MAX_LIFESPAN_YEARS &&
       entity.energy > config.reproductionEnergyThreshold * 0.5 &&
       isMarriedOrExpecting &&
-      !isAtMaritalHome(entity, entityById, buildingById)
+      // An empty marital home is a valid tryst site: only a spouse who is right there
+      // blocks it (the same 22 px the affair gates use). The wider 55 px arrival window is
+      // the walk-in that catches them, so the two radii must not be the same one.
+      !isMaritalHomeOccupiedBySpouse(entity, entityById, buildingById, AFFAIR_SPOUSE_BLOCK_RADIUS)
     ) {
       const affairRange = 75;
       const paramour = findClosestAdaptiveInRadius(
@@ -1052,7 +1065,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               churchStrength,
               true,
               true,
-              hourOfDay,
             );
           }
         }
@@ -1065,7 +1077,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       isPlayerHuman(entity) &&
       !entity.isJuvenile &&
       hasAffairPartner(entity, entityById) &&
-      !isAtMaritalHome(entity, entityById, buildingById)
+      !isMaritalHomeOccupiedBySpouse(entity, entityById, buildingById, AFFAIR_SPOUSE_BLOCK_RADIUS)
     ) {
       const lover = livingHumanAt(entity.affairPartnerId);
       if (lover?.alive) {
@@ -1091,7 +1103,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             churchStrength,
             true,
             true,
-            hourOfDay,
           );
         }
       }
@@ -1502,8 +1513,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         e.partnerId != null &&
         e.id < e.partnerId,
     ).length;
+    // A courtship is mutual by definition (audit F5), so count a pair here only when both sides name
+    // each other — a one-sided link left by a break must not be reported as an active courtship.
+    const courtshipById = new Map(activeHumans.map((e) => [e.id, e]));
     const activeCourtships = activeHumans.filter(
-      (e) => e.courtshipPartnerId != null && e.id < e.courtshipPartnerId,
+      (e) =>
+        e.courtshipPartnerId != null
+        && e.id < e.courtshipPartnerId
+        && courtshipById.get(e.courtshipPartnerId)?.courtshipPartnerId === e.id,
     ).length;
     const activeYouthLovePairs = activeHumans.filter(
       (e) => e.youthLovePartnerId != null && e.id < e.youthLovePartnerId,

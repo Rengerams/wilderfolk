@@ -942,7 +942,7 @@ export function getDiplomacyChoiceEligibility(
     case 'border_dispute':
       if (choiceId === 'militia') {
         const armed = hasWeapons(state);
-        if (!armed) return { ok: false, blockReason: 'Need weapons' };
+        if (!armed) return { ok: false, blockReason: 'Need spears' };
         if (state.humanPopulation < 6) return { ok: false, blockReason: 'Need 6+ settlers' };
       }
       break;

@@ -368,6 +368,23 @@ export function tickHumanChat(
   clearEntityChat(entity);
 }
 
+/**
+ * Ends an ordinary (non-dialogue) chat because the settler has gone home for the
+ * night. Returns true when something was actually cleared.
+ *
+ * A scripted dialogue session is deliberately left alone: the dialogue tree owns it,
+ * not the sleep schedule, and ending it here would cut a story beat mid-line. Only the
+ * ambient chatter — which used to follow a settler indoors and put a speech bubble over
+ * somebody in bed — is stopped.
+ */
+export function endAmbientHumanChat(entity: ChatSpeaker): boolean {
+  if (entity.chatDialogueSessionKey) return false;
+  if ((entity.chatTicks ?? 0) <= 0 && entity.chatPhrase == null) return false;
+  clearEntityChat(entity);
+  entity.chatPartnerId = undefined;
+  return true;
+}
+
 let warnedMissingBank = false;
 
 export function maybeDialogueChat(

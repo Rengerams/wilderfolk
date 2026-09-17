@@ -88,8 +88,6 @@ export interface SimTickDelta {
   changedBuildings?: Building[];
   removedBuildingIds?: number[];
   aliveEntities: Entity[];
-  diedIds: number[];
-  newEntities: Entity[];
   eventLogTail: WorldState['eventLog'];
   bigNews: WorldState['bigNews'];
   notifications: WorldState['notifications'];
@@ -216,44 +214,37 @@ const CATALOG_CLEARABLE_KEYS = [
   'griefUntilTick',
 ] as const satisfies readonly (keyof Entity)[];
 
-export function simTickDeltaFromWorld(world: WorldState, aliveBefore?: Set<number>): SimTickDelta {
+export function simTickDeltaFromWorld(world: WorldState): SimTickDelta {
   const alive = world.entities.filter((e) => e.alive);
-  const before = aliveBefore ?? new Set(alive.map((e) => e.id));
-  return extractSimTickDelta(world, before, alive);
+  return extractSimTickDelta(world, alive);
 }
 
 export function createFallbackSimTickDelta(world: WorldState): SimTickDelta {
   return simTickDeltaFromWorld(world);
 }
 
+/**
+ * The full-slice delta for one tick. `aliveOrdered` is the tick's own alive list when the caller
+ * already built one (the worker does); otherwise it is derived from `world.entities`.
+ *
+ * The delta carries `aliveEntities` as a **complete replacement**, so it deliberately does not also
+ * ship per-tick spawn/death id lists: they were extracted and transferred every tick but read by
+ * nobody (worker-boundary audit F6 — the only consumer, `EntityCatalog.applyTickDelta`, had zero call
+ * sites because the catalog is rebuilt from the world instead).
+ */
 export function extractSimTickDelta(
   world: WorldState,
-  aliveBefore: Set<number>,
   aliveOrdered?: Entity[],
   options?: ExtractSimTickDeltaOptions,
 ): SimTickDelta {
   const aliveNow: Entity[] = aliveOrdered ?? [];
-  const aliveIds = new Set<number>();
 
   if (!aliveOrdered) {
     for (const e of world.entities) {
-      if (e.alive) {
-        aliveNow.push(e);
-        aliveIds.add(e.id);
-      }
-    }
-  } else {
-    for (const e of aliveNow) {
-      aliveIds.add(e.id);
+      if (e.alive) aliveNow.push(e);
     }
   }
 
-  const diedIds: number[] = [];
-  for (const id of aliveBefore) {
-    if (!aliveIds.has(id)) diedIds.push(id);
-  }
-
-  const newEntities = aliveNow.filter((e) => !aliveBefore.has(e.id));
   const headless = options?.headless ?? false;
   const cloneMode = options?.cloneMode ?? 'isolated';
 
@@ -319,8 +310,6 @@ export function extractSimTickDelta(
     deathParticles: deltaClone(world.deathParticles, cloneMode),
     huntVisuals: deltaClone(world.huntVisuals ?? [], cloneMode),
     aliveEntities: deltaClone(aliveNow, cloneMode),
-    diedIds,
-    newEntities: deltaClone(newEntities, cloneMode),
     eventLogTail: deltaClone(eventLogTail, cloneMode),
     bigNews: deltaClone(world.bigNews, cloneMode),
     notifications: deltaClone(world.notifications, cloneMode),

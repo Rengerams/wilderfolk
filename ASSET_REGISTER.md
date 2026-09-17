@@ -25,6 +25,7 @@ credit/license table (several CC-BY tracks require attribution when distributing
 |---|---|
 | `gate.png` · `wall.png` | **Reserved drafts** — intended replacements for the current procedural wall/gate; NOT wired, do NOT delete (`docs/private/OPEN_PROBLEMS.md`) |
 | `TilesetGrass/` (untracked) | Authoring scratch for the painted tileset (`.tsx`/`.tmx`/`.png`) — not shipped, kept as source |
+| `new_female_set_v2/cut/female_*.png` (10) · `new_male_set/male_*.png` (10) | **Shipped class ladders** (female 2026-09-10, male 2026-09-16), each cut from its delivered sheet (`Spritesheet_Females.png`, `V2/Spritesheet_V2_10_males.png`) with `scripts/cut-sprite-sheet.mjs`: transparent RGBA, no backdrop, tight bounds + 6 px padding. The superseded male art is kept in `new_male_set/legacy/` for rollback and both sheets stay as the regeneration sources |
 
 ### C. Legacy in-repo sprites — pending audit
 

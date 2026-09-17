@@ -1,6 +1,6 @@
 import type { Building, Entity } from './gameTypes';
 import { EntityType } from './gameTypes';
-import { finalizeMoonHowlerDeath, isSettlerRelationshipEntity } from './moonHowler';
+import { finalizeMoonHowlerDeath, isSettlerRelationshipEntity } from './moonHowlerForm';
 import { cleanupEntityDialogueState } from './humanChat';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { isMinorChild } from './householdComposition';
@@ -55,6 +55,10 @@ export function finalizeHumanDeath(
   entity.partnerId = undefined;
   entity.affairPartnerId = undefined;
   entity.affairProgress = 0;
+  // A courtship ends with the settler (audit F5): the link and its progress are a pair bond, so the
+  // dying side keeps neither and the survivor's half is cleared by the reference sweep below.
+  entity.courtshipPartnerId = undefined;
+  entity.courtshipProgress = 0;
   entity.lastAffairSiteDay = undefined;
   entity.lastAffairSiteX = undefined;
   entity.lastAffairSiteY = undefined;
@@ -168,6 +172,12 @@ export function reconcileFamilyReferencesAfterRemoval(
       survivor.lastAffairSiteDay = undefined;
       survivor.lastAffairSiteX = undefined;
       survivor.lastAffairSiteY = undefined;
+    }
+    // A courtship is a mutual pair bond: the survivor's half must go with the removed settler, or the
+    // heart badge and the pair's progress outlive the partner (audit F5).
+    if (survivor.courtshipPartnerId === removedId) {
+      survivor.courtshipPartnerId = undefined;
+      survivor.courtshipProgress = 0;
     }
     if (survivor.pregnantById === removedId) survivor.pregnantById = undefined;
     // A youth-love link joins two living settlers (§5). The daily youth-love reconciliation

@@ -2,6 +2,8 @@
 
 Every discovered bug must be recorded here before or alongside the fix. Keep the report after verification so future contributors understand why the guard, invariant, or test exists.
 
+`SUMMARY.md` is the one-file register of every report (date discovered → date solved, problem, fix). Add a line there whenever you add a report.
+
 Copy the template below into a new dated file:
 
 ```md

@@ -3,6 +3,7 @@ import type { Resources, ResourceKey } from './resourceTypes';
 import type { ValleyStage } from './ecologyTypes';
 import type { YearlyStats, LifetimeStats } from './stats';
 import type { ScentGrid } from './scentGrid';
+import type { BeautyGrid } from './beautyGrid';
 import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
 import type { AdjacencyIndex } from './adjacencyIndex';
 import { BuildingType } from './buildings';
@@ -753,7 +754,7 @@ export interface WorldState {
   moonHowlerPriestsFleeUntil?: number;
   activeMigration?: { herdYear: number; endDay: number; spawned: number };
   migrationNextHerdSize?: number;
-  beautyGrid?: import('./beautyGrid').BeautyGrid;
+  beautyGrid?: BeautyGrid;
   villageHappiness?: number;
   scentGrid?: ScentGrid;
   entityByType?: EntityByType;

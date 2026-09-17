@@ -79,6 +79,8 @@ export class GameWorkerHost {
     reject: (err: Error) => void;
   } | null = null;
   private idleWaiters: Array<() => void> = [];
+  /** Woken when the worker handshake settles — see `whenReady()`. */
+  private readyWaiters: Array<() => void> = [];
   private lastPausedSent: boolean | null = null;
   private lastSpeedSent: number | null = null;
   private generation = 0;
@@ -163,6 +165,7 @@ export class GameWorkerHost {
               if (timeout) globalThis.clearTimeout(timeout);
               this.ready = true;
               resolve();
+              this.resolveReadyWaiters();
             }
             for (const pending of pendingBeforeReady) this.handleMessage(pending);
             pendingBeforeReady.length = 0;
@@ -236,6 +239,8 @@ export class GameWorkerHost {
     const waiters = this.idleWaiters;
     this.idleWaiters = [];
     for (const wake of waiters) wake();
+    // Ready waiters must not hang forever on a disposed host; they re-check `isReady()`.
+    this.resolveReadyWaiters();
   }
 
   isReady(): boolean {
@@ -271,6 +276,26 @@ export class GameWorkerHost {
     return new Promise((resolve) => {
       this.idleWaiters.push(resolve);
     });
+  }
+
+  /**
+   * Resolves once the worker handshake has completed; resolves immediately when already ready.
+   * Callers that must not poll `GameLoop.workerBooting` (the import chain clears that flag itself)
+   * wait here instead — polling a flag the caller owns deadlocked every in-game load
+   * (`BUG_REPORTS/2026-09-16-loading-a-save-freezes-the-sim-worker.md`).
+   */
+  whenReady(): Promise<void> {
+    if (this.isReady()) return Promise.resolve();
+    return new Promise((resolve) => {
+      this.readyWaiters.push(resolve);
+    });
+  }
+
+  private resolveReadyWaiters(): void {
+    if (this.readyWaiters.length === 0) return;
+    const waiters = this.readyWaiters;
+    this.readyWaiters = [];
+    for (const wake of waiters) wake();
   }
 
   private resolveIdleWaiters(): void {
@@ -351,7 +376,9 @@ export class GameWorkerHost {
     if (this.lastPausedSent === paused) return;
     this.lastPausedSent = paused;
     const msg: WorkerRequest = { type: 'setPaused', proto: WORKER_PROTO, paused };
-    this.worker.postMessage(msg);
+    // Only remember the value as sent if the post actually left: a DataCloneError must not stop a
+    // later retry (worker-boundary audit F9).
+    if (!this.postControl(msg)) this.lastPausedSent = null;
   }
 
   setSpeed(speed: number): void {
@@ -359,7 +386,25 @@ export class GameWorkerHost {
     if (this.lastSpeedSent === speed) return;
     this.lastSpeedSent = speed;
     const msg: WorkerRequest = { type: 'setSpeed', proto: WORKER_PROTO, speed };
-    this.worker.postMessage(msg);
+    if (!this.postControl(msg)) this.lastSpeedSent = null;
+  }
+
+  /**
+   * Post a fire-and-forget control message. `postMessage` throws synchronously (DataCloneError) for
+   * a non-cloneable payload; without this the exception escaped into the caller — a React event
+   * handler — instead of degrading to a worker fault (worker-boundary audit F9).
+   * Returns whether the message was posted.
+   */
+  private postControl(msg: WorkerRequest): boolean {
+    try {
+      this.worker?.postMessage(msg);
+      return true;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.warn(`[GameWorkerHost] ${msg.type} postMessage failed`, error);
+      this.onWorkerFault?.('general', error.message);
+      return false;
+    }
   }
 
   patchUiState(patch: WorkerUiPatch): void {
@@ -377,7 +422,7 @@ export class GameWorkerHost {
       activeEvent: patch.activeEvent,
       tutorialSeen: patch.tutorialSeen,
     };
-    this.worker.postMessage(msg);
+    this.postControl(msg);
   }
 
   sendCommand(cmd: WorkerCommand): Promise<SimTickDelta> {

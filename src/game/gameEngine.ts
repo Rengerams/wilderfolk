@@ -223,11 +223,14 @@ export { getFocusHints, type FocusHintAction } from './focusHints';
 export {
   saveGame,
   loadGame,
+  loadGameFromParsed,
   hasSave,
   deleteSave,
   downloadSaveFile,
   loadGameFromFileText,
   parseSaveJson,
+  readSavePayload,
+  describeSaveReadFailure,
 } from './saveLoad';
 export {
   isFootprintOnBuildableTerrain,

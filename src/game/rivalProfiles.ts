@@ -1,4 +1,5 @@
 import type { RivalDailyAction, RivalProfile, RivalSettlement } from './gameTypes';
+import { getSimRng } from './simRng';
 
 const TEMPERAMENTS: RivalProfile['temperament'][] = ['welcoming', 'pragmatic', 'ambitious', 'warlike'];
 const PRIORITIES: RivalProfile['priority'][] = ['food', 'trade', 'security', 'shelter'];
@@ -64,7 +65,7 @@ export function getRivalProfileLabel(profile: RivalProfile): string {
 export function selectRivalDailyAction(
   profile: RivalProfile,
   relationship: RivalSettlement['relationship'],
-  rng: () => number = Math.random,
+  rng: () => number = getSimRng('rivalProfiles'),
 ): RivalDailyAction {
   const { ledger } = profile;
   if (ledger.recovery < 45 && ledger.food >= 5) return 'recover';

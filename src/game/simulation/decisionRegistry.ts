@@ -199,7 +199,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/phase678.regression.test.ts (birth/bastard coverage; Objective 8 adds birth counters)',
   },
   moonHowler: {
-    owner: 'moonHowler.ts — tickMoonHowlerCycle, curseMoonHowler, transformToWerewolfForm, revertToHumanForm, cureMoonHowler, finalizeMoonHowlerDeath',
+    owner: 'moonHowler.ts + moonHowlerForm.ts — tickMoonHowlerCycle, curseMoonHowler, transformToWerewolfForm, revertToHumanForm, cureMoonHowler, finalizeMoonHowlerDeath, isSettlerRelationshipEntity',
     cadence: 'full-moon-event',
     writes: [
       'human.moonHowlerCursed',

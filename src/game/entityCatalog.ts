@@ -1,11 +1,11 @@
 import type { Entity, EntityByType, WorldState } from './gameTypes';
 import { EntityType, emptyEntityByType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
-import type { SimTickDelta } from './simBuffers/simDelta';
 
 /**
  * Sparse entity store for React UI. Avoids scanning `world.entities` each render.
- * Worker path syncs from tick delta; main-thread path mirrors alive entities each session update.
+ * Worker path rebuilds it from the authoritative snapshot; main-thread path mirrors alive entities
+ * each session update.
  */
 export class EntityCatalog {
   private byId = new Map<number, Entity>();
@@ -64,43 +64,6 @@ export class EntityCatalog {
         this.aliveIds.add(entity.id);
       }
     }
-  }
-
-  applyTickDelta(delta: Pick<SimTickDelta, 'diedIds' | 'newEntities' | 'catalogEntities'>): void {
-    // 1. Process catalogEntities first (full state sync)
-    if (delta.catalogEntities) {
-      for (const entity of delta.catalogEntities) {
-        this.byId.set(entity.id, entity);
-        if (entity.alive) {
-          this.aliveIds.add(entity.id);
-        } else {
-          this.aliveIds.delete(entity.id);
-        }
-      }
-    }
-
-    // 2. Process new spawns (safely guarded)
-    if (delta.newEntities) {
-      for (const entity of delta.newEntities) {
-        this.byId.set(entity.id, entity);
-        if (entity.alive) {
-          this.aliveIds.add(entity.id);
-        } else {
-          this.aliveIds.delete(entity.id);
-        }
-      }
-    }
-
-    // 3. Process deaths last so death always wins if an ID appears in multiple lists
-    if (delta.diedIds) {
-      for (const id of delta.diedIds) {
-        const entity = this.byId.get(id);
-        if (entity) entity.alive = false;
-        this.aliveIds.delete(id);
-      }
-    }
-
-    this.invalidateAliveIndex();
   }
 
   get(id: number | null | undefined): Entity | undefined {

@@ -3,8 +3,8 @@ import { getSpriteFrame, isHumanSpritesReady, type SpriteFrame } from './spriteL
 import { Social } from './gameConstants';
 
 export const HUMAN_WALK_FRAMES = 4;
-/** Male variant count (legacy 8-slot system — females now use the 10-class ladder). */
-export const HUMAN_VARIANT_COUNT = 8;
+/** Male class ladder length: Poor Labourer … Aristocrat (10 classes, V2 art 2026-09-16). */
+export const HUMAN_MALE_CLASS_COUNT = 10;
 /** Female class ladder length: Mudlark … Aristocrat (10 classes). */
 export const HUMAN_FEMALE_CLASS_COUNT = 10;
 
@@ -41,15 +41,20 @@ const LEGACY_WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
   ],
 } as const;
 
-/** Five new adult portraits plus three legacy slots until the preview is accepted. */
+/** Adult class ladders — the ten characters of each gender's set, lowest class first. */
 const PREVIEW_WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
+  // Male class ladder (2026-09-16): Poor Labourer → Aristocrat, 10 classes, in order.
   male: [
-    '/sprites/new_male_set/male_craftsman.png',
-    '/sprites/new_male_set/male_farmhand.png',
-    '/sprites/new_male_set/male_merchant.png',
     '/sprites/new_male_set/male_poor_labourer.png',
+    '/sprites/new_male_set/male_farmhand.png',
+    '/sprites/new_male_set/male_craftsman.png',
+    '/sprites/new_male_set/male_pioneer.png',
+    '/sprites/new_male_set/male_shopkeeper.png',
+    '/sprites/new_male_set/male_clerk.png',
+    '/sprites/new_male_set/male_merchant.png',
     '/sprites/new_male_set/male_prosperous_farmer.png',
-    ...LEGACY_WALK_SHEET_PATHS.male.slice(5),
+    '/sprites/new_male_set/male_wealthy_gentry.png',
+    '/sprites/new_male_set/male_aristocrat.png',
   ],
   // Female class ladder (2026-09-10): Mudlark → Aristocrat, 10 classes, in order.
   female: [
@@ -82,7 +87,18 @@ export const JUVENILE_SPRITE_PATHS: Record<HumanGender, readonly string[]> = {
 } as const;
 
 export const HUMAN_VARIANT_LABELS: Record<HumanGender, readonly string[]> = {
-  male: ['Brown', 'Tan', 'Dark Brown', 'Rust Brown', 'Grey', 'Blonde', 'Black', 'Auburn'],
+  male: [
+    'Poor Labourer',
+    'Farmhand',
+    'Craftsman',
+    'Pioneer',
+    'Shopkeeper',
+    'Clerk',
+    'Merchant',
+    'Prosperous Farmer',
+    'Wealthy Gentry',
+    'Aristocrat',
+  ],
   female: [
     'Mudlark',
     'Factory Hand',
@@ -181,7 +197,7 @@ const FEMALE_PALETTES: PioneerPalette[] = [
 ];
 
 function normalizeVariant(variant: number, gender: HumanGender): number {
-  const count = gender === 'female' ? HUMAN_FEMALE_CLASS_COUNT : HUMAN_VARIANT_COUNT;
+  const count = gender === 'female' ? HUMAN_FEMALE_CLASS_COUNT : HUMAN_MALE_CLASS_COUNT;
   return ((variant % count) + count) % count;
 }
 
@@ -271,17 +287,16 @@ export function drawPioneerAt(
 }
 
 /**
- * Pick a sprite variant for a new settler. Male variants are uniform (8 slots).
- * Female variants follow the class ladder with lower classes far more common
- * than gentry/aristocracy (`Social.FEMALE_CLASS_WEIGHTS`). Deterministic from
- * the entity id so spawn, save-load, and rendering agree.
+ * Pick a sprite variant (social class) for a new settler. Both the male and the
+ * female ladder are weighted draws over `Social.CLASS_LADDER_WEIGHTS`, so the lower
+ * classes are common and the gentry/aristocracy rare. Deterministic from the entity
+ * id (with a per-gender salt) so spawn, save-load and rendering always agree.
  */
 export function pickHumanVariant(entityId: number, gender: HumanGender): number {
   const genderSalt = gender === 'female' ? 1013904223 : 0;
   const seed = (entityId * 2654435761 + genderSalt) >>> 0;
-  if (gender !== 'female') return seed % HUMAN_VARIANT_COUNT;
 
-  const weights = Social.FEMALE_CLASS_WEIGHTS;
+  const weights = Social.CLASS_LADDER_WEIGHTS;
   let total = 0;
   for (let i = 0; i < weights.length; i++) total += weights[i];
   const roll = (seed % 10000) / 10000;
@@ -350,6 +365,41 @@ export function getJuvenileSpriteFrame(gender: HumanGender | undefined, variant 
 
 /** Match renderer HUMAN_WALK_SPEED_THRESHOLD — idle settlers must not advance walk frames. */
 export const HUMAN_WALK_SPEED_THRESHOLD = 0.12;
+
+/**
+ * Below this camera zoom settlers are drawn as markers instead of full sprites.
+ *
+ * Chosen between the zoom presets (`CAMERA_ZOOM_PRESETS`: 0.5 / 0.75 / 1.0 / 1.25 / …)
+ * so each preset is unambiguous: the three far presets show the village as dots, 1.25×
+ * and closer show people. Above `HUMAN_MIN_SCREEN_PX` (30 px) the sprite path stops
+ * shrinking, so at village-wide zoom every settler used to claim 30 px of screen — the
+ * "crazy mess" at 200+ citizens. A marker costs one small arc and skips the sprite
+ * lookup, walk frame, contact shadow, bob, status badge, speech bubble and name plate.
+ */
+export const HUMAN_SPRITE_MIN_ZOOM = 1.15;
+
+export type HumanRenderDetail = 'sprite' | 'marker';
+
+/** Sprite or marker for this settler. A selected settler always keeps its full sprite. */
+export function humanRenderDetail(zoom: number, isSelected = false): HumanRenderDetail {
+  if (isSelected) return 'sprite';
+  return zoom < HUMAN_SPRITE_MIN_ZOOM ? 'marker' : 'sprite';
+}
+
+/** Marker radius in screen px — small and stable, so a crowd reads as texture, not blobs. */
+export function getHumanMarkerRadius(zoom: number, isJuvenile = false, isLeader = false): number {
+  const base = Math.max(2.2, Math.min(4.5, 2.6 * zoom + 0.6));
+  return base * (isJuvenile ? 0.7 : 1) * (isLeader ? 1.5 : 1);
+}
+
+/** Marker colours: the settler's own class palette, so the social mix stays readable. */
+export function getHumanMarkerColors(
+  gender: HumanGender,
+  variant: number,
+): { fill: string; outline: string } {
+  const palette = paletteFor(gender, variant);
+  return { fill: palette.skin, outline: palette.outline };
+}
 
 export function getHumanWalkFrameIndex(animFrame: number, speed: number): number {
   if (speed < HUMAN_WALK_SPEED_THRESHOLD) return 0;

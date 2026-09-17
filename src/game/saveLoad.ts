@@ -1,5 +1,5 @@
 import type { WorldState, Entity } from './gameTypes';
-import { EntityType, BuildingType, JobType, DEFAULT_WORKSHOP_RECIPE_ID } from './gameTypes';
+import { EntityType, BuildingType, JobType, DEFAULT_WORKSHOP_RECIPE_ID, TERRAIN_TILE_SIZE } from './gameTypes';
 import { INITIAL_CHALLENGES } from './challenges';
 import { createEmptyLifetimeStats } from './stats';
 import {
@@ -59,8 +59,11 @@ function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): v
 
 export type SaveResult = { success: true } | { success: false; error: string };
 
+/** Why a save payload was refused — the player-facing reason comes from this. */
+export type SaveReadFailure = 'empty' | 'unreadable' | 'malformed' | 'version-mismatch';
+
 export type SaveReadResult =
-  | { valid: false }
+  | { valid: false; reason: SaveReadFailure; detail?: string }
   | { valid: true; parsed: Record<string, unknown> };
 
 function pickWorldStateFromSave(parsed: Record<string, unknown>): Partial<WorldState> {
@@ -71,27 +74,60 @@ function pickWorldStateFromSave(parsed: Record<string, unknown>): Partial<WorldS
   return out;
 }
 
-/** Parse save JSON from localStorage or a downloaded .json file. */
+/**
+ * Parse save JSON from localStorage or a downloaded .json file.
+ *
+ * A refusal always says *why*. Before this, every cause — an empty slot, a truncated
+ * file, a save from another build — collapsed into the same `{ valid: false }`, so the
+ * player got a guessed message ("file may be corrupted" / "from a different build")
+ * while the real cause sat in the console.
+ */
 export function parseSaveJson(raw: string | null | undefined): SaveReadResult {
+  if (!raw || !raw.trim()) return { valid: false, reason: 'empty' };
+  let parsed: Record<string, unknown>;
   try {
-    if (!raw || !raw.trim()) return { valid: false };
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    if (parsed._version !== GAME_VERSION) {
-      return { valid: false };
-    }
-    return { valid: true, parsed };
+    parsed = JSON.parse(raw) as Record<string, unknown>;
   } catch (e) {
     console.error('Save parse failed:', e);
-    return { valid: false };
+    return { valid: false, reason: 'malformed', detail: e instanceof Error ? e.message : String(e) };
+  }
+  if (parsed._version !== GAME_VERSION) {
+    const version = parsed._version;
+    const versionLabel =
+      typeof version === 'string' || typeof version === 'number' ? String(version) : 'unknown';
+    return {
+      valid: false,
+      reason: 'version-mismatch',
+      detail: `save ${versionLabel} vs build ${GAME_VERSION}`,
+    };
+  }
+  return { valid: true, parsed };
+}
+
+/** Player-facing explanation for a refused save — one message per real cause. */
+export function describeSaveReadFailure(
+  failure: { reason: SaveReadFailure; detail?: string },
+): string {
+  switch (failure.reason) {
+    case 'empty':
+      return 'No save data found — the file is empty, or the browser save slot is clear.';
+    case 'unreadable':
+      return 'Could not read the browser save slot (storage unavailable or blocked).';
+    case 'malformed':
+      return `That save file is not valid JSON${failure.detail ? ` (${failure.detail})` : ''} — it is damaged or truncated.`;
+    case 'version-mismatch':
+      return `Save is from a different build${failure.detail ? ` (${failure.detail})` : ''} — Beta keeps only current-build saves. Start a new settlement.`;
   }
 }
 
 export function readSavePayload(): SaveReadResult {
   try {
-    return parseSaveJson(localStorage.getItem(SAVE_KEY));
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return { valid: false, reason: 'empty' };
+    return parseSaveJson(raw);
   } catch (e) {
     console.error('Save read failed:', e);
-    return { valid: false };
+    return { valid: false, reason: 'unreadable', detail: e instanceof Error ? e.message : String(e) };
   }
 }
 
@@ -165,15 +201,20 @@ function restoreWorldMapFromSave(parsed: { worldMap?: WorldState['worldMap'] & {
   }
   const wm = parsed.worldMap;
   if (typeof wm.width === 'number' && typeof wm.height === 'number') {
-    return (generateWorldMap as any)(
-      wm.width,
-      wm.height,
+    // A compact save records the map in TILES (`WorldMap.width/height`, terrainGen's
+    // return), while `generateWorldMap(width, height, …)` takes PIXELS. Passing the tile
+    // counts straight through regenerated the valley at a hundredth of its area — a
+    // 1600x1200 px colony came back as 160x120 px, leaving 1197 of its 1202 entities off
+    // the map, which reads to the player as "the save failed to load".
+    return generateWorldMap(
+      wm.width * TERRAIN_TILE_SIZE,
+      wm.height * TERRAIN_TILE_SIZE,
       wm.seed,
       wm.size ?? 'medium',
       wm.preset ?? 'verdant',
     );
   }
-  return (generateWorldMap as any)(
+  return generateWorldMap(
     wm.size ?? 'medium',
     wm.preset ?? 'verdant',
     wm.seed,

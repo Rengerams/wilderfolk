@@ -11,7 +11,7 @@ import {
 import { resetWeatherCaches } from './renderer/weather';
 import { compositeCachedEntityLayer } from './renderer/entityComposite';
 import { drawGameOverlay } from './renderer/overlay';
-import { getSimRng } from './simRng';
+import { getPresentationRng } from './simRng';
 
 // ============ MAIN RENDER ============
 /** Read-only render pass — camera/screenShake must be pre-interpolated in the snapshot. */
@@ -47,7 +47,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
   const shake = state.screenShake;
   if (shake > 0.1) {
     ctx.save();
-    ctx.translate((getSimRng('rendererShake')() - 0.5) * shake * 2, (getSimRng('rendererShake')() - 0.5) * shake * 2);
+    ctx.translate((getPresentationRng('rendererShake')() - 0.5) * shake * 2, (getPresentationRng('rendererShake')() - 0.5) * shake * 2);
   }
 
   drawGround(ctx, state, cw, ch);

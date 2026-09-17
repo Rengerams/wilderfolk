@@ -34,7 +34,8 @@
 import type { Building, Entity, WorldState } from '../gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, LEADER_OCCUPATION } from '../gameTypes';
 import { isActingVillageHead } from '../villageLeadership';
-import { countActiveMoonHowlerCurses, isActiveMoonHowler, isSettlerRelationshipEntity } from '../moonHowler';
+import { countActiveMoonHowlerCurses, isActiveMoonHowler } from '../moonHowler';
+import { isSettlerRelationshipEntity } from '../moonHowlerForm';
 import { BUILDING_CONFIGS } from '../buildings';
 import { isResidenceBuildingType } from '../dayCycle';
 

@@ -68,6 +68,7 @@ type SimPrepKeys =
   | 'pendingElectionYear'
   | 'electionBuildupNotifiedYear'
   | 'electionCeremony'
+  | 'activeEvent'
   | 'eventLog'
   | 'eventsThisYear'
   | 'lastEventYear'
@@ -197,6 +198,10 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     pendingElectionYear: state.pendingElectionYear,
     electionBuildupNotifiedYear: state.electionBuildupNotifiedYear ?? null,
     electionCeremony: state.electionCeremony ? { ...state.electionCeremony } : null,
+    // Written by the daily layer (`dailyWorldEvents.ts:194-230`), so the tick must be able to
+    // roll it back — it used to be the one WorldState field the delta carried but the prep
+    // payload did not (worker-boundary audit F3).
+    activeEvent: state.activeEvent ? structuredClone(state.activeEvent) : null,
     eventLog: [...(state.eventLog ?? [])],
     eventsThisYear: [...(state.eventsThisYear ?? [])],
     lastEventYear: state.lastEventYear,
@@ -296,6 +301,7 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.pendingElectionYear = prep.pendingElectionYear;
   world.electionBuildupNotifiedYear = prep.electionBuildupNotifiedYear;
   world.electionCeremony = prep.electionCeremony;
+  world.activeEvent = prep.activeEvent;
   world.eventLog = prep.eventLog;
   world.eventsThisYear = prep.eventsThisYear;
   world.lastEventYear = prep.lastEventYear;
@@ -331,7 +337,12 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.simRng = prep.simRng;
   restoreSimRng(prep.simRng);
 
-  // Invalidate and re-hydrate caches so indices immediately reflect restored state
+  // Invalidate and re-hydrate caches so indices immediately reflect restored state.
+  // `scentGrid` is simulation state (the wolves' accumulated scent field), not a derived index —
+  // `invalidateWorldRuntimeCaches` drops it (worldRuntimeCaches.ts:23), which zeroed the whole
+  // trail after every rollback (worker-boundary audit F5). Carry the live grid across the rebuild.
+  const scentGrid = world.scentGrid;
   invalidateWorldRuntimeCaches(world);
   hydrateWorldRuntimeCaches(world);
+  if (scentGrid) world.scentGrid = scentGrid;
 }
