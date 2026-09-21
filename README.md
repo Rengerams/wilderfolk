@@ -48,9 +48,12 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-##  Wilderfolk v0.6.4
+##  Wilderfolk v0.6.4 (27 augustus 2026)
+
 - `GAME_VERSION`: **0.6.4**
+
 - Package version: **0.6.4**
+
 - Save policy: **0.6.4 saves only**; saves from earlier builds are not compatible.
 
 > **v0.6.4 Windows package available** — download the standalone desktop installer from the [GitHub Release](https://github.com/Rengerams/wilderfolk/releases/tag/v0.6.4), or continue playtesting in your browser.
