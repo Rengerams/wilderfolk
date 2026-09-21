@@ -5,16 +5,11 @@ import { decideVirtualPlayerAction } from '../game/virtualPlayer';
 import { TICKS_PER_HOUR } from '../game/dayCycleClock';
 import { playerHumanCount } from '../game/playerHuman';
 
-/** Most recent auto-play acts kept for on-screen display. */
-export const VIRTUAL_PLAYER_HISTORY_LIMIT = 8;
-/** How many recent acts the header tooltip lists. */
-export const VIRTUAL_PLAYER_TOOLTIP_LIMIT = 5;
 
-/** What the bot was doing when the colony asked for nothing. */
+export const VIRTUAL_PLAYER_HISTORY_LIMIT = 8;
+export const VIRTUAL_PLAYER_TOOLTIP_LIMIT = 5;
 const IDLE_STATUS = 'no action needed — colony looks healthy';
-/** Shown from the moment auto-play is switched on until the bot's first hour boundary. */
 const WAITING_STATUS = 'waiting for the next in-game hour';
-/** Shown while the game is paused — the bot cannot act until the world advances again. */
 const PAUSED_STATUS = 'paused — the world is not advancing';
 
 /** One recorded auto-play act, for the on-screen history. */
