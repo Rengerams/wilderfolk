@@ -1,19 +1,42 @@
 import type { WorldState, Resources } from './gameTypes';
 
 export const FOOD_LOW_THRESHOLD = 20;
+/** 15 = the floor under the per-settler rule; 1.5 = stores per settler below which food is critical. */
+export const FOOD_CRITICAL_BASE = 15;
+export const FOOD_CRITICAL_PER_PERSON = 1.5;
 
 export function isFoodLow(resources: Pick<WorldState['resources'], 'food'>): boolean {
   return (resources.food ?? 0) < FOOD_LOW_THRESHOLD;
 }
 
+/**
+ * The absolute store level below which `population` settlers count as critical.
+ *
+ * Exported because five surfaces used to re-derive "food is low" and four of them disagreed — a 3× rule
+ * in the dashboard, `max(20, pop × 2)` in the focus hints and the citizen mood, and `max(15, pop × 1.5)`
+ * in the alert strip and the low-food tip — so at 2 settlers with 18 food the header warned, the Focus
+ * panel said "Feed the village", and the alert strip said nothing at all
+ * (`LIVE-FINDINGS-STATUS.md`, F20). This is the one definition; the sites now call it.
+ */
+export function getFoodCriticalThreshold(population: number): number {
+  return Math.max(FOOD_CRITICAL_BASE, population * FOOD_CRITICAL_PER_PERSON);
+}
+
+export function isFoodCriticalAmount(food: number, population: number): boolean {
+  return (food ?? 0) < getFoodCriticalThreshold(population);
+}
+
 export function isFoodCritical(world: Pick<WorldState, 'resources' | 'humanPopulation'>): boolean {
-  const pop = world.humanPopulation ?? 0;
-  const food = world.resources.food ?? 0;
-  return food < Math.max(15, pop * 1.5);
+  return isFoodCriticalAmount(world.resources.food ?? 0, world.humanPopulation ?? 0);
+}
+
+/** Critical **or** merely low — the "feed the village" band, not the emergency. */
+export function isFoodAlertAmount(food: number, population: number): boolean {
+  return isFoodCriticalAmount(food, population) || (food ?? 0) < FOOD_LOW_THRESHOLD;
 }
 
 export function isFoodAlert(world: Pick<WorldState, 'resources' | 'humanPopulation'>): boolean {
-  return isFoodCritical(world) || isFoodLow(world.resources);
+  return isFoodAlertAmount(world.resources.food ?? 0, world.humanPopulation ?? 0);
 }
 
 export function getStorageCap(state: WorldState, type: keyof Resources): number {

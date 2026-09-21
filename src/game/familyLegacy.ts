@@ -51,7 +51,20 @@ export function computeDynasties(state: WorldState): Dynasty[] {
   );
 }
 
+/**
+ * Whether one family line counts as a dynasty.
+ *
+ * Single definition of the "three living generations of the same family, at least three members"
+ * rule: `hasDynasty` gates the 200-gold chronicle chapter on it, and `DynastyPanel` lists and counts
+ * families with it. The panel used to filter on `generationsAlive >= 2` alone, so it advertised
+ * two-generation families as dynasties — contradicting both its own sentence and the reward gate
+ * (audit C2 "Dynasty definition", R12).
+ */
+export function isDynasty(dynasty: Pick<Dynasty, 'generationsAlive' | 'members'>): boolean {
+  return dynasty.generationsAlive >= 3 && dynasty.members >= 3;
+}
+
 /** A dynasty: three living generations of the same family, at least three members. */
 export function hasDynasty(state: WorldState): boolean {
-  return computeDynasties(state).some((d) => d.generationsAlive >= 3 && d.members >= 3);
+  return computeDynasties(state).some(isDynasty);
 }

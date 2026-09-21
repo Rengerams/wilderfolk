@@ -13,6 +13,7 @@ import { getColonyDay } from './dayCycle';
 import { addBigNews } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags } from './storyHelpers';
+import { addReputation } from './simHelpers';
 
 export const PROMISE_CODES = {
   fill_granary: 1,
@@ -118,6 +119,18 @@ export interface PromiseDetail {
   current: number;
   target: number;
   fulfilled: boolean;
+  /**
+   * Progress toward the target, 0–100, computed here so the panel renders a number instead of doing
+   * arithmetic on game values (`LIVE-FINDINGS-STATUS.md`, F4 / the owner's "food can't be calculated
+   * at the UX" principle).
+   */
+  pct: number;
+}
+
+/** Progress toward a promise's target, as a whole percentage (0 when the target is not positive). */
+function promiseProgressPct(current: number, target: number): number {
+  if (!(target > 0)) return 0;
+  return Math.min(100, Math.round((current / target) * 100));
 }
 
 export function getPromiseDetail(state: WorldState, code: number): PromiseDetail {
@@ -130,6 +143,7 @@ export function getPromiseDetail(state: WorldState, code: number): PromiseDetail
         current,
         target: GRANARY_FOOD_REQUIREMENT,
         fulfilled: current >= GRANARY_FOOD_REQUIREMENT,
+        pct: promiseProgressPct(current, GRANARY_FOOD_REQUIREMENT),
       };
     }
     case PROMISE_CODES.build_walls: {
@@ -140,6 +154,7 @@ export function getPromiseDetail(state: WorldState, code: number): PromiseDetail
         current,
         target: WALLS_REQUIREMENT,
         fulfilled: current >= WALLS_REQUIREMENT,
+        pct: promiseProgressPct(current, WALLS_REQUIREMENT),
       };
     }
     case PROMISE_CODES.run_forge: {
@@ -150,10 +165,11 @@ export function getPromiseDetail(state: WorldState, code: number): PromiseDetail
         current,
         target: FORGE_ORDERS_REQUIREMENT,
         fulfilled: current >= FORGE_ORDERS_REQUIREMENT,
+        pct: promiseProgressPct(current, FORGE_ORDERS_REQUIREMENT),
       };
     }
     default:
-      return { code, label: 'Unknown promise', current: 0, target: 1, fulfilled: false };
+      return { code, label: 'Unknown promise', current: 0, target: 1, fulfilled: false, pct: 0 };
   }
 }
 
@@ -188,6 +204,14 @@ export function recordElectionPromises(state: WorldState, year: number): void {
     [promiseKey(year, 0)]: first,
     [promiseKey(year, 1)]: second,
     [evalDayKey(year)]: colonyDay + EVAL_DAY_OFFSET,
+    // A second election in the same calendar year — a mid-year succession after the term election —
+    // re-records the promises under the *same* year keys, so the previous election's "already
+    // judged" marker must be cleared with them. Leaving it set made the new promises inert forever:
+    // `tickElectionPromises` and `getActiveElectionPromises` both early-return on it, so the
+    // reputation swing never happened and the panel showed nothing (LIVE-FINDINGS-STATUS.md, M7).
+    // Each election therefore gets its own evaluation window; the codes and the window are
+    // overwritten in the same call, so no promise is ever judged twice.
+    [evaluatedKey(year)]: 0,
   });
 
   const p1 = getPromiseDetail(state, first);
@@ -220,7 +244,7 @@ export function tickElectionPromises(state: WorldState): void {
   }
   const failed = PROMISE_COUNT - kept;
   const repDelta = kept * 3 - failed * 2;
-  state.villageReputation = Math.max(0, state.villageReputation + repDelta);
+  addReputation(state, repDelta);
   setStoryFlags(state, { [evaluatedKey(year)]: state.tick });
 
   // Attribute to current leader for incumbent performance tracking

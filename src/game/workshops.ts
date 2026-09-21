@@ -65,13 +65,6 @@ export function getWorkshopRecipe(recipeId?: string): WorkshopRecipe {
   return RECIPES_BY_ID.get(recipeId) ?? WORKSHOP_RECIPES[0];
 }
 
-/**
- * Validates whether a string corresponds to a registered workshop recipe ID.
- */
-export function isValidWorkshopRecipeId(id: unknown): id is WorkshopRecipeId {
-  return typeof id === 'string' && RECIPES_BY_ID.has(id);
-}
-
 const RESOURCE_LABELS: Record<keyof Resources, string> = {
   wood: '🪵 wood',
   stone: '🪨 stone',

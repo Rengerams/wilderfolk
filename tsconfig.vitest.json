@@ -16,7 +16,15 @@
   "include": [
     "src/**/*.test.ts",
     "src/test/**/*.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    // The whole test tier. This entry is the fix for a standing hole: the glob above
+    // (`src/**/*.test.ts`) matches ZERO files — every test lives in `tests/` — so
+    // `npm run test:types` was passing while checking no test file at all, and 132 real errors were
+    // invisible in the tier (2026-09-20 audit, T-1).
+    //
+    // `types` above already declares `vitest/globals`, `node` and `vite/client`, so this also gives
+    // the test files the Node builtins (`node:fs`, `node:path`, `process`) they import.
+    "tests/**/*.ts"
   ],
   "exclude": []
 }

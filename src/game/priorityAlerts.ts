@@ -1,5 +1,8 @@
 import type { WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
+import { countHomelessSettlers } from './residencyOccupancy';
+import { isFoodCritical } from './resourceUtils';
+import { getBuildingCenter } from './placementUtils';
 import {
   findCompletedBlacksmith,
   formatForgeInputs,
@@ -32,6 +35,13 @@ const SEVERITY_RANK: Record<PriorityAlertSeverity, number> = {
   warning: 1,
   info: 2,
 };
+
+/**
+ * Homeless settlers at which the housing nudge escalates from `info` to `warning`. One or two
+ * settlers without a bed is worth saying (they never get the home-rest saving in `humanNeeds`) but
+ * must not crowd the strip's `warning` tier, which the raid/diplomacy cards use.
+ */
+const HOMELESS_WARNING_THRESHOLD = 3;
 
 /** RimWorld-style priority strip — top urgent items only, click to jump. */
 export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
@@ -87,7 +97,7 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
     });
   }
 
-  if (state.resources.food < Math.max(15, humans * 1.5)) {
+  if (isFoodCritical(state)) {
     alerts.push({
       id: 'low-food',
       severity: state.resources.food < humans ? 'critical' : 'warning',
@@ -109,6 +119,25 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
     });
   }
 
+  // Homelessness *with a house standing* was invisible on the strip: the only housing alert fired when
+  // there was no house at all, so a colony whose beds ran out — the normal case, because immigration
+  // outruns housing by design — said nothing, even though a settler without a residence never gets the
+  // home-rest energy saving (`humanNeeds`). The count is the residence owner's
+  // (`residencyOccupancy.countHomelessSettlers`), which excludes prisoners on purpose — imprisonment
+  // clears `residenceBuildingId`, and counting them here is the mistake the council report already made
+  // (`LIVE-FINDINGS-STATUS.md`, F10). Copy mirrors the housing hint in `focusHints.ts`.
+  const homeless = countHomelessSettlers(state);
+  if (houses > 0 && homeless > 0) {
+    alerts.push({
+      id: 'housing-short',
+      severity: homeless >= HOMELESS_WARNING_THRESHOLD ? 'warning' : 'info',
+      icon: '🏠',
+      title: 'Build more housing',
+      detail: `${homeless} settler${homeless === 1 ? '' : 's'} without a bed — place another House`,
+      action: { type: 'build', building: BuildingType.House },
+    });
+  }
+
   const blacksmith = findCompletedBlacksmith(state);
   const forge = state.villageForge;
   if (forge?.activeOrder && blacksmith && !isBlacksmithStaffed(state)) {
@@ -122,8 +151,7 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
       action: {
         type: 'focus_building',
         buildingId: blacksmith.id,
-        x: blacksmith.x + blacksmith.width / 2,
-        y: blacksmith.y + blacksmith.height / 2,
+        ...getBuildingCenter(blacksmith),
       },
     });
   }
@@ -141,8 +169,7 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
         action: {
           type: 'focus_building',
           buildingId: blacksmith.id,
-          x: blacksmith.x + blacksmith.width / 2,
-          y: blacksmith.y + blacksmith.height / 2,
+          ...getBuildingCenter(blacksmith),
         },
       });
     } else if (order) {

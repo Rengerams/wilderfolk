@@ -29,8 +29,11 @@ export interface EntityLayerCache {
   surface: CanvasSurface;
   ctx: CanvasContext2d;
   key: string;
+  /** Logical px (viewport + margins) — the units every painter and the blit use. */
   width: number;
   height: number;
+  /** Device pixel ratio the surface is rasterised at; {@link ctx} carries the same scale. */
+  dpr: number;
   /** Camera used when painting the layer (world coords of its center). */
   anchorX: number;
   anchorY: number;
@@ -57,12 +60,20 @@ export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: numbe
     state.showPaths ? 1 : 0,
     state.hoveredBuilding?.id ?? '',
     state.selectedEntity?.id ?? '',
+    // The painters read the whole selection (`humans.ts` / `animals.ts` draw a ring per id) and the
+    // juice-effects preference (contact-shadow strength), but neither was keyed — so a shift-click
+    // that changed only a non-primary id, or toggling the preference, left the cached bitmap stale
+    // until the next tick, and indefinitely while paused. `state.season` is deliberately not keyed:
+    // `gameTick` advances `state.tick` and assigns `state.season` in the same call, and `tick` is
+    // already in this key, so the season can never change without a rebuild.
+    state.selectedEntityIds.join(','),
+    state.juiceEffectsEnabled ? 1 : 0,
     state.selectedBuilding?.id ?? '',
     state.villageLeaderId ?? '',
     state.highlightedCampKey ?? '',
     state.buildMode ?? '',
     state.buildRotation ?? 0,
-    ghost ? `${ghost.x.toFixed(0)},${ghost.y.toFixed(0)},${ghost.valid ? 1 : 0}` : '',
+    ghost ? `${ghost.x.toFixed(0)},${ghost.y.toFixed(0)},${ghost.valid ? 1 : 0},${ghost.reason ?? ''}` : '',
     strip ? `${strip.segments.length}|${strip.rotation}` : '',
     state.pendingRaidEvents?.length ?? 0,
     state.pendingOutgoingRaidEvents?.length ?? 0,
@@ -85,10 +96,11 @@ export function entityLayerNeedsRebuild(
   key: string,
   cw: number,
   ch: number,
+  dpr: number,
 ): boolean {
   const { w, h } = layerSize(cw, ch);
   if (!cache) return true;
-  return cache.key !== key || cache.width !== w || cache.height !== h;
+  return cache.key !== key || cache.width !== w || cache.height !== h || cache.dpr !== dpr;
 }
 
 /** True when the live camera has moved outside the cached layer's margin (or zoomed). */
@@ -107,29 +119,58 @@ export function disposeEntityLayerCache(): void {
   entityLayerCache = null;
 }
 
-/** Acquire (or resize) the padded entity offscreen layer, cleared for painting. */
-export function beginEntityLayerPaint(key: string, cw: number, ch: number, cam: Camera): EntityLayerCache {
-  const { w, h } = layerSize(cw, ch);
+/** Painter transform: logical px in, device px out (the surface is dpr× larger). */
+function setLayerScale(ctx: CanvasContext2d, dpr: number): void {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
 
-  if (entityLayerCache && entityLayerCache.width === w && entityLayerCache.height === h) {
+/**
+ * Acquire (or resize) the padded entity offscreen layer, cleared for painting.
+ *
+ * The surface is allocated at `dpr × logical` and its context carries the same scale, so
+ * painters keep working in logical px while the raster is device-resolution — otherwise
+ * the 1:1 blit in {@link paintEntityLayerTo} upscaled by the DPR under
+ * `imageSmoothingEnabled = false`.
+ */
+export function beginEntityLayerPaint(
+  key: string,
+  cw: number,
+  ch: number,
+  cam: Camera,
+  dpr: number,
+): EntityLayerCache {
+  const { w, h } = layerSize(cw, ch);
+  const deviceW = Math.max(1, Math.round(w * dpr));
+  const deviceH = Math.max(1, Math.round(h * dpr));
+
+  if (
+    entityLayerCache
+    && entityLayerCache.width === w
+    && entityLayerCache.height === h
+    && entityLayerCache.dpr === dpr
+  ) {
     entityLayerCache.key = key;
     entityLayerCache.anchorX = cam.x - LAYER_MARGIN_PX / cam.zoom;
     entityLayerCache.anchorY = cam.y - LAYER_MARGIN_PX / cam.zoom;
     entityLayerCache.anchorZoom = cam.zoom;
-    clearCanvasSurface(entityLayerCache.ctx, w, h);
+    // Clear in device px (the helper resets the transform), then restore the painter scale.
+    clearCanvasSurface(entityLayerCache.ctx, deviceW, deviceH);
+    setLayerScale(entityLayerCache.ctx, dpr);
     return entityLayerCache;
   }
 
   disposeEntityLayerCache();
-  const surface = createCanvasSurface(w, h);
+  const surface = createCanvasSurface(deviceW, deviceH);
   const ctx = getCanvasContext(surface);
-  clearCanvasSurface(ctx, w, h);
+  clearCanvasSurface(ctx, deviceW, deviceH);
+  setLayerScale(ctx, dpr);
   entityLayerCache = {
     surface,
     ctx,
     key,
     width: w,
     height: h,
+    dpr,
     anchorX: cam.x - LAYER_MARGIN_PX / cam.zoom,
     anchorY: cam.y - LAYER_MARGIN_PX / cam.zoom,
     anchorZoom: cam.zoom,
@@ -154,6 +195,11 @@ export function commitEntityLayerPaint(key: string): void {
  * (cw + 2·margin) surface, so the layer-x of viewport-left is 2·margin and the
  * correct offset is dx = (anchorX − cam.x)·zoom − margin. (Earlier versions used
  * +margin — everything drew shifted 2·margin px right/down.)
+ *
+ * The destination size is passed explicitly as the **logical** `width`/`height`: the
+ * surface holds `width·dpr` device px and the target context is DPR-scaled, so this is the
+ * 1:1 device-pixel blit. Omitting it draws the source at its intrinsic (device) size
+ * through the scaled context, i.e. `dpr²` device px.
  */
 export function paintEntityLayerTo(
   target: CanvasRenderingContext2D,
@@ -162,5 +208,5 @@ export function paintEntityLayerTo(
 ): void {
   const dx = (cache.anchorX - cam.x) * cam.zoom - cache.margin;
   const dy = (cache.anchorY - cam.y) * cam.zoom - cache.margin;
-  target.drawImage(cache.surface as CanvasImageSource, dx, dy);
+  target.drawImage(cache.surface as CanvasImageSource, dx, dy, cache.width, cache.height);
 }

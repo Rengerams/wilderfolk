@@ -6,6 +6,13 @@ import type { EntitySpatialGrid } from '../spatialGrid';
 import { SPECIES_CONFIG } from '../speciesConfig';
 import { addFloatingText, addNotification, createDeathParticles } from '../simEffects';
 import { getValleyIllnessChanceBonus } from '../ecologyStage';
+// One owner for "where the building is": `placementUtils.getBuildingCenter` reads `x/y` as the
+// footprint **centre**, which is what the pad and sprite are drawn around. This module used to
+// export a *second* `getBuildingCenter` that added half a footprint, so every proximity test here
+// (`isNearBuilding`, the affair tryst radius and the tryst rendezvous point) measured from a spot
+// half a building to the south-east of the building on screen. Importing the owner is the fix; the
+// duplicate was deleted rather than corrected so the two can never disagree again.
+import { getBuildingCenter } from '../placementUtils';
 import {
   HUMAN_ADULT_MIN_AGE,
   HUMAN_MAX_LIFESPAN_YEARS,
@@ -56,6 +63,7 @@ import { sayHumanChatPhrase } from '../humanChat';
 import { Relationship } from '../gameConstants';
 import { getSimRng, seededRandomForRun } from '../simRng';
 import { personDayRoll } from '../dayCycle';
+import { addReputation } from '../simHelpers';
 
 export const AFFAIR_SPOUSE_BLOCK_RADIUS = 22;
 export const AFFAIR_BUILDING_NEAR_RADIUS = 55;
@@ -197,9 +205,9 @@ function isSpouseAtSharedHome(
  * True when the settler is at their marital home *and the spouse is there too*.
  *
  * An empty marital home is a legitimate tryst site — that is exactly how a walk-in
- * becomes possible (`wouldWalkInOnMaritalAffair`). Only the occupied home is off limits.
- * The married-paramour branch of `isValidAffairTrystSite` has always worked this way; the
- * cheater's own home was the outlier, which made the walk-in route unreachable.
+ * becomes possible. Only the occupied home is off limits. The married-paramour branch of
+ * `isValidAffairTrystSite` has always worked this way; the cheater's own home was the outlier,
+ * which made the walk-in route unreachable.
  */
 export function isMaritalHomeOccupiedBySpouse(
   entity: Entity,
@@ -211,37 +219,77 @@ export function isMaritalHomeOccupiedBySpouse(
     && isSpouseAtSharedHome(entity, entityById, buildingById, maxDist);
 }
 
-function wouldWalkInOnMaritalAffair(
+/** Radius at which a spouse physically arriving on the pair counts as a walk-in. */
+export const AFFAIR_WALK_IN_RADIUS = 55;
+
+/**
+ * True when the settler's spouse is physically on them — beside them, or at the shared home they are
+ * at. "Due home" deliberately does not count: only a spouse who is actually there walks in.
+ */
+function spouseIsOn(entity: Entity, entityById: Map<number, Entity>, buildingById: Map<number, Building>): boolean {
+  return isSpouseNearby(entity, entityById, AFFAIR_WALK_IN_RADIUS)
+    || isSpouseAtSharedHome(entity, entityById, buildingById, AFFAIR_WALK_IN_RADIUS);
+}
+
+/**
+ * True when a spouse physically walks in on the pair.
+ *
+ * Deliberately **not limited to the marital home** (or to any relationship status beyond "is this
+ * settler's spouse on them"): a walk-in is the spouse arriving on the couple wherever the tryst is —
+ * the cheater's own home, the paramour's residence, or an outdoor spot. Gating this on the cheater
+ * being at their own home was why the caught-in-the-act route stayed unreachable even after the site
+ * itself became legal; both sides are checked, so a married paramour's spouse can walk in too.
+ */
+export function wouldWalkInOnAffair(
   cheater: Entity,
+  paramour: Entity,
   entityById: Map<number, Entity>,
   buildingById: Map<number, Building>,
 ): boolean {
-  if (!isAtMaritalHome(cheater, entityById, buildingById)) return false;
-  // A walk-in is the spouse actually being at the home the pair is using — not merely
-  // being due home. "Due home" used to return true here, which made every home tryst an
-  // automatic divorce; the returning spouse is the catch, and it stays rolled until they
-  // are physically there.
-  return isSpouseNearby(cheater, entityById, 55)
-    || isSpouseAtSharedHome(cheater, entityById, buildingById, 55);
+  return spouseIsOn(cheater, entityById, buildingById) || spouseIsOn(paramour, entityById, buildingById);
 }
 
 export function isSingleParamour(paramour: Entity): boolean {
   return paramour.relationshipStatus === 'single' && paramour.partnerId == null;
 }
 
-export function getAffairTrystBuilding(
-  _cheater: Entity,
-  paramour: Entity,
-  buildingById: Map<number, Building>,
-): Building | undefined {
+/** The paramour's own residence, when they have a usable one. */
+function getParamourResidence(paramour: Entity, buildingById: Map<number, Building>): Building | undefined {
   if (!isSingleParamour(paramour) || !hasResidenceAssignment(paramour)) return undefined;
   const residence = paramour.residenceBuildingId != null ? buildingById.get(paramour.residenceBuildingId) : undefined;
   if (!residence?.completed || !isResidenceBuilding(residence)) return undefined;
   return residence;
 }
 
-export function getBuildingCenter(building: Building): { x: number; y: number } {
-  return { x: building.x + building.width / 2, y: building.y + building.height / 2 };
+/**
+ * The building an affair pair actually uses: the cheater's own home while it is **empty**, otherwise
+ * the paramour's residence.
+ *
+ * The cheater's home comes first because that is where a couple sneaks off to and where a walk-in can
+ * happen (`wouldWalkInOnAffair`); sending every pair to the paramour's residence was why the
+ * caught-in-the-act route never fired in practice. An occupied marital home is refused here exactly as
+ * `isValidAffairTrystSite` refuses it, and the paramour's place is then the fallback.
+ */
+export function getAffairTrystBuilding(
+  cheater: Entity,
+  paramour: Entity,
+  entityById: Map<number, Entity>,
+  buildingById: Map<number, Building>,
+): Building | undefined {
+  const maritalHome = cheater.residenceBuildingId != null
+    ? buildingById.get(cheater.residenceBuildingId)
+    : undefined;
+  // "Empty" means the spouse is not *at* the home — the cheater being elsewhere is the normal case, so
+  // the test is the spouse's position (`isSpouseAtSharedHome`), not `isMaritalHomeOccupiedBySpouse`
+  // (which also requires the cheater to be standing there and would never let them use their own house).
+  if (
+    maritalHome?.completed
+    && isResidenceBuilding(maritalHome)
+    && !isSpouseAtSharedHome(cheater, entityById, buildingById)
+  ) {
+    return maritalHome;
+  }
+  return getParamourResidence(paramour, buildingById);
 }
 
 export function isNearBuilding(human: Entity, building: Building, maxDist = 55): boolean {
@@ -277,7 +325,7 @@ export function isValidAffairTrystSite(
       && isNearBuilding(paramour, maritalHome, intimateDist);
   }
 
-  const trystBuilding = getAffairTrystBuilding(cheater, paramour, buildingById);
+  const trystBuilding = getAffairTrystBuilding(cheater, paramour, entityById, buildingById);
   if (trystBuilding) {
     return isNearBuilding(cheater, trystBuilding, intimateDist) && isNearBuilding(paramour, trystBuilding, intimateDist);
   }
@@ -312,10 +360,13 @@ export function recordAffairTrystSite(
   paramour: Entity,
   state: WorldState,
   buildingById?: Map<number, Building>,
+  entityById?: Map<number, Entity>,
 ): void {
   if (!shouldLeadAffairPair(entity, paramour)) return;
   const siteDay = getColonyDay(state);
-  const trystBuilding = buildingById ? getAffairTrystBuilding(entity, paramour, buildingById) : undefined;
+  const trystBuilding = buildingById && entityById
+    ? getAffairTrystBuilding(entity, paramour, entityById, buildingById)
+    : undefined;
   const siteX = trystBuilding ? getBuildingCenter(trystBuilding).x : (entity.x + paramour.x) / 2;
   const siteY = trystBuilding ? getBuildingCenter(trystBuilding).y : (entity.y + paramour.y) / 2;
   for (const partner of [entity, paramour]) {
@@ -349,7 +400,7 @@ export function tryDailyAffairGossip(
     if ((entity.affairProgress ?? 0) < 85 && (lover.affairProgress ?? 0) < 85) return;
     if (personDayRoll(entity.id, state.tick, 601) < 0.06) {
       if (isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) {
-        recordAffairTrystSite(entity, lover, state, buildingById);
+        recordAffairTrystSite(entity, lover, state, buildingById, entityById);
       }
       exposeAffair(state, entity, lover, 'rumor', entityById, buildings, playerHumans);
       recordRelationshipDiagnostic('scandalExposures');
@@ -693,11 +744,23 @@ function clearAffairPair(a: Entity, b: Entity): void {
   b.affairProgress = 0;
 }
 
+/**
+ * When this pregnancy is due: `PREGNANCY_TICKS` jittered by ±15 %, drawn from the `humanRelationships`
+ * RNG stream on a key of the settler and the tick.
+ *
+ * One definition for all three conception paths (married, youth love, affair) — the formula used to be
+ * restated at each site, so a change to the jitter only ever reached whichever one was edited
+ * (`duplicationA.remaining`, A22).
+ */
+function rollPregnancyDueProgress(entity: Entity, tick: number): number {
+  return Math.round(PREGNANCY_TICKS * (0.85 + seededRandomForRun(`pregnancy-due:${entity.id}:${tick}`) * 0.3));
+}
+
 function startMarriedPregnancy(state: WorldState, entity: Entity, partner: Entity): void {
   entity.pregnant = true;
   entity.pregnantById = undefined;
   entity.pregnancyProgress = 0;
-  entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + seededRandomForRun(`pregnancy-due:${entity.id}:${state.tick}`) * 0.3));
+  entity.pregnancyDueProgress = rollPregnancyDueProgress(entity, state.tick);
   entity.relationshipStatus = 'expecting';
   if (partner.relationshipStatus === 'married' || partner.partnerId === entity.id) {
     partner.relationshipStatus = 'expecting';
@@ -717,7 +780,7 @@ function startYouthPregnancy(state: WorldState, entity: Entity, partner: Entity)
   entity.pregnant = true;
   entity.pregnantById = partner.id;
   entity.pregnancyProgress = 0;
-  entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + seededRandomForRun(`pregnancy-due:${entity.id}:${state.tick}`) * 0.3));
+  entity.pregnancyDueProgress = rollPregnancyDueProgress(entity, state.tick);
   entity.flash = 12;
   partner.flash = 12;
   createDeathParticles(state, entity.x, entity.y - 8, '#f9a8d4', 7, 'heart');
@@ -733,7 +796,7 @@ function startAffairPregnancy(state: WorldState, entity: Entity, lover: Entity):
   entity.pregnant = true;
   entity.pregnantById = lover.id;
   entity.pregnancyProgress = 0;
-  entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + seededRandomForRun(`pregnancy-due:${entity.id}:${state.tick}`) * 0.3));
+  entity.pregnancyDueProgress = rollPregnancyDueProgress(entity, state.tick);
   entity.relationshipStatus = entity.partnerId != null ? 'married' : 'expecting';
   entity.flash = 14;
   lover.flash = 14;
@@ -939,6 +1002,8 @@ export function tryDailyAmicableDivorce(
   if (rng() >= MARRIAGE_DAILY_AMICABLE_DIVORCE_CHANCE) return;
 
   dissolveMarriage(entity, spouse);
+  startCourtshipCooldown(entity);
+  startCourtshipCooldown(spouse);
   if (entity.pregnant) entity.relationshipStatus = 'expecting';
   if (spouse.pregnant) spouse.relationshipStatus = 'expecting';
 
@@ -1056,6 +1121,8 @@ function tryDivorceOnCaughtCheater(
   if (personDayRoll(cheater.id, state.tick, 608) >= divorceChance) return;
 
   dissolveMarriage(spouse, cheater);
+  startCourtshipCooldown(spouse);
+  startCourtshipCooldown(cheater);
   if (cheater.pregnant) cheater.relationshipStatus = 'expecting';
   if (spouse.pregnant) spouse.relationshipStatus = 'expecting';
   startFeud(state, spouse, paramour, 35);
@@ -1130,11 +1197,10 @@ function tryExposeCaughtAffair(
   if (onScandalCooldown(cheater, state.tick) || onScandalCooldown(paramour, state.tick)) return;
 
   if (!intimate) return;
-  const walkInAtHome = wouldWalkInOnMaritalAffair(cheater, entityById, buildingById);
+  const walkInAtHome = wouldWalkInOnAffair(cheater, paramour, entityById, buildingById);
   const spousePresent =
-    isSpouseNearby(cheater, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS) ||
-    isSpouseNearby(paramour, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS) ||
-    walkInAtHome;
+    isSpouseNearby(cheater, entityById, AFFAIR_WALK_IN_RADIUS) ||
+    isSpouseNearby(paramour, entityById, AFFAIR_WALK_IN_RADIUS);
   if (!spousePresent) return;
 
   let chance = caughtAffairRollChance(churchStrength, establishedAffair);
@@ -1188,7 +1254,7 @@ export function exposeAffair(
   cheater.flash = 12;
   paramour.flash = 12;
   const scandalLoss = dampScandalReputationLoss(reason === 'caught' ? -8 : -4, buildings);
-  state.villageReputation = Math.max(0, state.villageReputation + scandalLoss);
+  addReputation(state, scandalLoss);
   const midX = (cheater.x + paramour.x) / 2;
   const midY = (cheater.y + paramour.y) / 2;
   addFloatingText(state, midX, midY - 18, reason === 'caught' ? 'Caught!' : 'Scandal!', '#ef4444');
@@ -1275,6 +1341,12 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
 
 // ============ SOCIAL COURTSHIP ============
 
+/** Per-hour courtship pace: full rate in social life, heavily cut on a work shift. */
+export function courtshipRatePerHour(socialTime: boolean): number {
+  return Relationship.COURTSHIP_BASE_RATE_PER_HOUR
+    * (socialTime ? 1 : Relationship.COURTSHIP_WORK_RATE_FACTOR);
+}
+
 export function isEligibleToCourt(entity: Entity): boolean {
   return (
     isPlayerHuman(entity) &&
@@ -1285,9 +1357,15 @@ export function isEligibleToCourt(entity: Entity): boolean {
     entity.partnerId == null &&
     entity.youthLovePartnerId == null &&
     entity.relationshipStatus === 'single' &&
+    (entity.courtshipCooldownDays ?? 0) <= 0 &&
     entity.age >= HUMAN_ADULT_MIN_AGE &&
     entity.age < HUMAN_MAX_LIFESPAN_YEARS
   );
+}
+
+/** Put a settler out of the courting pool for `COURTSHIP_COOLDOWN_DAYS`, counted down daily. */
+export function startCourtshipCooldown(entity: Entity): void {
+  entity.courtshipCooldownDays = Relationship.COURTSHIP_COOLDOWN_DAYS;
 }
 
 /**
@@ -1335,6 +1413,10 @@ export function reconcileCourtships(
   ctx: Pick<TickContext, 'entityById' | 'playerHumans'>,
 ): void {
   for (const entity of ctx.playerHumans) {
+    // Count the post-courtship cooldown down once per colony day.
+    if ((entity.courtshipCooldownDays ?? 0) > 0) {
+      entity.courtshipCooldownDays = (entity.courtshipCooldownDays ?? 0) - 1;
+    }
     const partnerId = entity.courtshipPartnerId;
     if (partnerId == null) continue;
     const partner = getLivingEntity(partnerId, ctx.entityById);
@@ -1348,9 +1430,11 @@ export function reconcileCourtships(
     }
     entity.courtshipPartnerId = undefined;
     entity.courtshipProgress = 0;
+    startCourtshipCooldown(entity);
     if (partner && partner.courtshipPartnerId === entity.id) {
       partner.courtshipPartnerId = undefined;
       partner.courtshipProgress = 0;
+      startCourtshipCooldown(partner);
     }
   }
 }
@@ -1482,7 +1566,7 @@ export function tryDailyAffairEncounter(
       && shouldLeadAffairPair(entity, established)
       && isValidAffairTrystSite(entity, established, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)
     ) {
-      recordAffairTrystSite(entity, established, state, buildingById);
+      recordAffairTrystSite(entity, established, state, buildingById, entityById);
     }
   }
 
@@ -1518,10 +1602,12 @@ export function tryDailyAffairEncounter(
   const hasPerformers = state.visitorGroups.some((g) => g.kind === 'performers' && g.daysLeft > 0);
   const festivalMult = state.festival?.active ? R.AFFAIR_FESTIVAL_MULTIPLIER : 1;
   const performerMult = hasPerformers ? R.AFFAIR_PERFORMERS_MULTIPLIER : 1;
-  const trystBuilding = getAffairTrystBuilding(entity, paramour, buildingById);
-  const atParamourHome = trystBuilding != null
-    && isNearBuilding(entity, trystBuilding, AFFAIR_BUILDING_NEAR_RADIUS)
-    && isNearBuilding(paramour, trystBuilding, AFFAIR_BUILDING_NEAR_RADIUS);
+  // The cohabitation bonus is about the pair being at the **paramour's** own place, so it reads that
+  // residence directly rather than the chosen tryst site (which now prefers the cheater's home).
+  const paramourResidence = getParamourResidence(paramour, buildingById);
+  const atParamourHome = paramourResidence != null
+    && isNearBuilding(entity, paramourResidence, AFFAIR_BUILDING_NEAR_RADIUS)
+    && isNearBuilding(paramour, paramourResidence, AFFAIR_BUILDING_NEAR_RADIUS);
   const cohabitMult = atParamourHome ? R.AFFAIR_COHABIT_MULTIPLIER : 1;
   const socialMult = festivalMult * performerMult * cohabitMult;
   const baseChance = churchStrength > 0

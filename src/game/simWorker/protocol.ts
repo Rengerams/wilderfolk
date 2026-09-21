@@ -1,4 +1,4 @@
-﻿import type { WorldState } from '../gameTypes';
+import type { WorldState } from '../gameTypes';
 
 /* Protocol version used to gate the worker <-> host handshake. */
 export const WORKER_PROTO = 1;
@@ -78,14 +78,14 @@ export type WorkerRequest =
   | {
       type: 'patchUi';
       proto: typeof WORKER_PROTO;
-      bigNews: WorldState['bigNews'];
-      floatingTexts: WorldState['floatingTexts'];
+      // Player-authored fields only. `bigNews`, `floatingTexts` and `activeEvent` are authored by the
+      // tick on the worker side and were never adopted from a patch — see `WorkerUiPatch` in
+      // `GameWorkerHost.ts` for why shipping them was a problem (2026-09-20 audit, P-5).
       autoSave: boolean;
       nextFloatingTextId: number;
       dismissedBigNewsIds?: string[];
       dismissedNotificationIds?: string[];
       dismissedActiveEventIds?: string[];
-      activeEvent: WorldState['activeEvent'];
       tutorialSeen?: string[];
     }
   | {

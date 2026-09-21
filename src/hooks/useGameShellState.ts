@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPreset, MapSize } from '../game/gameTypes';
+import type { SidebarTab } from '../game/hotkeys';
 import {
   loadFirstNightWarningDismissed,
   loadJuiceEffectsEnabled,
@@ -9,10 +10,16 @@ import {
   loadTutorialsEnabled,
 } from '../game/preferences';
 
-export type SidebarTab = 'village' | 'schedule' | 'frontier' | 'nature' | 'progress' | 'log' | 'more';
+// `SidebarTab` is owned by `hotkeys.ts` (audit C2 "`SidebarTab` union") — this file used to declare
+// a second, same-named union that differed by the unreachable `'schedule'` member.
+export type { SidebarTab };
+// The three sub-tab unions are owned here, next to the state they type, and the panels import them:
+// `LogTabPanel`, `ProgressTabPanel` and `MoreTabPanel` each used to re-type their own copy, and
+// because the copies were contravariant-compatible a member added here compiled in the panel and was
+// simply unreachable — the same drift the `SidebarTab` note above records (2026-09-20 audit, A8).
 export type LogSubTab = 'chronicle' | 'combat';
 export type ProgressSubTab = 'research' | 'trade' | 'goals';
-export type MoreSubTab = 'guide' | 'roadmap' | 'campaign';
+export type MoreSubTab = 'guide' | 'campaign';
 export type MapSetupSource = 'intro' | 'game';
 /** Full-screen overview sections (Citizen Overview overlay). */
 export type OverviewSection = 'people' | 'world' | 'chronicle' | 'help';
@@ -48,26 +55,49 @@ export function toggleSidebarTab(
   return openTabs.has(tab) ? new Set() : new Set([tab]);
 }
 
+/**
+ * The one route table: which overview section (and world focus) each focused view opens.
+ *
+ * `mapSidebarTabToOverview`, `mapOverviewNav` and the two rail resyncs inside the hook all read
+ * this table. Three places used to encode "which rail id is which section" — the two switches here
+ * plus an inline ternary in `selectOverviewNav` — and the inline one was the copy a new nav id would
+ * miss, silently desyncing `openTabs` from the section on screen (audit C1 clone 9 / C2
+ * "Tab → section mapping").
+ */
+const OVERVIEW_ROUTES: Record<
+  SidebarTab,
+  { section: OverviewSection; worldFocus: OverviewWorldFocus | null }
+> = {
+  village: { section: 'people', worldFocus: null },
+  schedule: { section: 'people', worldFocus: null },
+  frontier: { section: 'world', worldFocus: 'frontier' },
+  nature: { section: 'world', worldFocus: 'nature' },
+  progress: { section: 'world', worldFocus: 'progress' },
+  log: { section: 'chronicle', worldFocus: null },
+  more: { section: 'help', worldFocus: null },
+};
+
+/** The rail id each in-overview nav chip stands for. */
+const OVERVIEW_NAV_RAIL: Record<OverviewNavId, SidebarTab> = {
+  people: 'village',
+  frontier: 'frontier',
+  nature: 'nature',
+  progress: 'progress',
+  chronicle: 'log',
+  help: 'more',
+};
+
 /** Map a right-rail tab / hotkey to the wide overview overlay. */
 export function mapSidebarTabToOverview(tab: SidebarTab): {
   section: OverviewSection;
   worldFocus: OverviewWorldFocus | null;
 } {
-  switch (tab) {
-    case 'village':
-    case 'schedule':
-      return { section: 'people', worldFocus: null };
-    case 'frontier':
-      return { section: 'world', worldFocus: 'frontier' };
-    case 'nature':
-      return { section: 'world', worldFocus: 'nature' };
-    case 'progress':
-      return { section: 'world', worldFocus: 'progress' };
-    case 'log':
-      return { section: 'chronicle', worldFocus: null };
-    case 'more':
-      return { section: 'help', worldFocus: null };
-  }
+  return OVERVIEW_ROUTES[tab];
+}
+
+/** The rail id an in-overview nav chip keeps in sync for hotkeys and highlighting. */
+export function sidebarTabForOverviewNav(id: OverviewNavId): SidebarTab {
+  return OVERVIEW_NAV_RAIL[id];
 }
 
 /** Map an in-overview nav chip to section + world focus. */
@@ -75,20 +105,7 @@ export function mapOverviewNav(id: OverviewNavId): {
   section: OverviewSection;
   worldFocus: OverviewWorldFocus | null;
 } {
-  switch (id) {
-    case 'people':
-      return { section: 'people', worldFocus: null };
-    case 'frontier':
-      return { section: 'world', worldFocus: 'frontier' };
-    case 'nature':
-      return { section: 'world', worldFocus: 'nature' };
-    case 'progress':
-      return { section: 'world', worldFocus: 'progress' };
-    case 'chronicle':
-      return { section: 'chronicle', worldFocus: null };
-    case 'help':
-      return { section: 'help', worldFocus: null };
-  }
+  return OVERVIEW_ROUTES[OVERVIEW_NAV_RAIL[id]];
 }
 
 export function overviewNavFromState(
@@ -186,56 +203,11 @@ export function useGameShellState() {
     setCitizenOverviewOpen(true);
   }, []);
 
-  const toggleTab = useCallback((tab: SidebarTab) => {
-    setOpenTabs((prev) => {
-      const closing = citizenOverviewOpen && prev.has(tab);
-      if (closing) {
-        setCitizenOverviewOpen(false);
-        setOverviewWorldFocus(null);
-        return new Set();
-      }
-      const mapped = mapSidebarTabToOverview(tab);
-      setOverviewSection(mapped.section);
-      setOverviewWorldFocus(mapped.worldFocus);
-      setCitizenOverviewOpen(true);
-      return openSidebarTab(prev, tab);
-    });
-  }, [citizenOverviewOpen]);
-
-  const closeSidebarTabs = useCallback(() => {
-    setOpenTabs(new Set());
-    setCitizenOverviewOpen(false);
-    setOverviewWorldFocus(null);
-  }, []);
-
-  /** Section nav inside the overlay — keep openTabs in sync for hotkeys/highlight. */
-  const selectOverviewSection = useCallback((section: OverviewSection) => {
-    setOverviewSection(section);
-    if (section !== 'world') setOverviewWorldFocus(null);
-    const rail: SidebarTab =
-      section === 'people'
-        ? 'village'
-        : section === 'world'
-          ? (overviewWorldFocus ?? 'frontier')
-          : section === 'chronicle'
-            ? 'log'
-            : 'more';
-    setOpenTabs(new Set([rail]));
-  }, [overviewWorldFocus]);
-
   const selectOverviewNav = useCallback((id: OverviewNavId) => {
     const mapped = mapOverviewNav(id);
     setOverviewSection(mapped.section);
     setOverviewWorldFocus(mapped.worldFocus);
-    const rail: SidebarTab =
-      id === 'people'
-        ? 'village'
-        : id === 'chronicle'
-          ? 'log'
-          : id === 'help'
-            ? 'more'
-            : id;
-    setOpenTabs(new Set([rail]));
+    setOpenTabs(new Set([sidebarTabForOverviewNav(id)]));
   }, []);
 
   useEffect(() => {
@@ -251,10 +223,7 @@ export function useGameShellState() {
   return {
     // Tab Navigation
     activeTab,
-    openTabs,
     openTab,
-    toggleTab,
-    closeSidebarTabs,
     progressSubTab,
     setProgressSubTab,
     moreSubTab,
@@ -278,14 +247,11 @@ export function useGameShellState() {
     buildPanelOpen,
     setBuildPanelOpen,
     citizenOverviewOpen,
-    setCitizenOverviewOpen,
     openCitizenOverview,
     closeCitizenOverview,
     toggleCitizenOverview,
     overviewSection,
-    setOverviewSection: selectOverviewSection,
     overviewWorldFocus,
-    setOverviewWorldFocus,
     selectOverviewNav,
     inspectorCollapsed,
     setInspectorCollapsed,

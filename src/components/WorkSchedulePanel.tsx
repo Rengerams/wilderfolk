@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { WorldState } from '../game/gameTypes';
+import { readVillageFatigue } from '../game/dailyScheduleFatigue';
 import { getScheduleImpactPreview } from '../game/scheduleFeedback';
 import {
   getWorkSchedule,
@@ -15,35 +16,68 @@ interface Props {
   onApply: (startHour: number, endHour: number) => void;
 }
 
+/** The day's 24 whole hours — the domain both schedule selects offer. */
+const HOURS_IN_DAY = 24;
+
+/** One hour picker. Opens and Closes were two identical 24-option `<select>` blocks, so the hour
+ * format and the domain had to be changed twice (audit C1 clone 5). */
+function HourSelect({
+  label,
+  hour,
+  onChange,
+}: {
+  label: string;
+  hour: number;
+  onChange: (hour: number) => void;
+}) {
+  return (
+    <label className="text-xs text-stone-400">
+      {label}
+      <select
+        value={hour}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="mt-1 w-full rounded border border-stone-600 bg-stone-900 px-2 py-1.5 text-stone-100"
+      >
+        {Array.from({ length: HOURS_IN_DAY }, (_, value) => (
+          <option key={value} value={value}>
+            {String(value).padStart(2, '0')}:00
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export default function WorkSchedulePanel({ state, onApply }: Props) {
   const current = getWorkSchedule(state);
   const [startHour, setStartHour] = useState(current.startHour);
   const [endHour, setEndHour] = useState(current.endHour);
-  
-  const validation = useMemo(() => validateWorkSchedule(startHour, endHour), [startHour, endHour]);
+
+  // `current` is rebuilt every render (the WorldState prop is mutated in place), so this is
+  // derived each render rather than memoized on a value React cannot track — the same rule the
+  // window preview below follows.
+  const validation = validateWorkSchedule(startHour, endHour, {
+    startHour: current.startHour,
+    endHour: current.endHour,
+  });
   const currentHours = getWorkScheduleHours(current);
   
-  const averageFatigue = useMemo(() => {
-    const fatigueValues = state.entities
-      .filter((entity) => entity.alive && !entity.faction && !entity.isJuvenile)
-      .map((entity) => entity.scheduleFatigue ?? 0);
-    return fatigueValues.length > 0
-      ? fatigueValues.reduce((sum, value) => sum + value, 0) / fatigueValues.length
-      : 0;
-  }, [state.entities]);
-  
-  const fatigueLabel = averageFatigue >= 60 ? 'high' : averageFatigue >= 25 ? 'building' : 'low';
+  // The mean and its band are the fatigue owner's (`readVillageFatigue`): the panel used to average
+  // `scheduleFatigue` and band it at 60/25 itself, so the thresholds were tunable only in this view
+  // (2026-09-20 audit, O-8).
+  const fatigue = useMemo(() => readVillageFatigue(state), [state]);
+  const averageFatigue = fatigue.average;
+  const fatigueLabel = fatigue.label;
   
   // Preview the impact of the currently chosen window. The WorldState prop is
   // mutated in place by the sim, so the preview is derived each render instead
   // of memoized on a mutable object.
-  const candidate = validateWorkSchedule(startHour, endHour);
-  const previewHours = candidate.ok ? getWorkScheduleHours(candidate.schedule) : currentHours;
+  const previewHours = validation.ok ? getWorkScheduleHours(validation.schedule) : currentHours;
   const preview = getScheduleImpactPreview(state, 'ordinary', currentHours, previewHours);
 
-  const isUnchanged = validation.ok && 
-    validation.schedule.startHour === current.startHour && 
-    validation.schedule.endHour === current.endHour;
+  // Drives both the message and the disabled Apply button, so "Unchanged" can never sit
+  // next to an enabled button (the validation now reports `'unchanged'` itself).
+  const isUnchanged = validation.ok && validation.status === 'unchanged';
 
   const isApplyDisabled = !validation.ok || isUnchanged;
 
@@ -62,34 +96,8 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
         </p>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <label className="text-xs text-stone-400">
-          Opens
-          <select
-            value={startHour}
-            onChange={(event) => setStartHour(Number(event.target.value))}
-            className="mt-1 w-full rounded border border-stone-600 bg-stone-900 px-2 py-1.5 text-stone-100"
-          >
-            {Array.from({ length: 24 }, (_, hour) => (
-              <option key={hour} value={hour}>
-                {String(hour).padStart(2, '0')}:00
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-xs text-stone-400">
-          Closes
-          <select
-            value={endHour}
-            onChange={(event) => setEndHour(Number(event.target.value))}
-            className="mt-1 w-full rounded border border-stone-600 bg-stone-900 px-2 py-1.5 text-stone-100"
-          >
-            {Array.from({ length: 24 }, (_, hour) => (
-              <option key={hour} value={hour}>
-                {String(hour).padStart(2, '0')}:00
-              </option>
-            ))}
-          </select>
-        </label>
+        <HourSelect label="Opens" hour={startHour} onChange={setStartHour} />
+        <HourSelect label="Closes" hour={endHour} onChange={setEndHour} />
       </div>
       <div className="rounded border border-stone-700/70 bg-stone-900/40 px-2.5 py-2 text-xs">
         <div className="flex items-center justify-between">
@@ -127,9 +135,11 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
           <span>Colony schedule fatigue</span>
           <strong
             className={
-              averageFatigue >= 60
+              // The tone follows the owner's band label, so the colour and the word beside it cannot
+              // disagree about the same reading (2026-09-20 audit, O-8).
+              fatigueLabel === 'high'
                 ? 'text-red-300'
-                : averageFatigue >= 25
+                : fatigueLabel === 'building'
                   ? 'text-amber-300'
                   : 'text-emerald-300'
             }

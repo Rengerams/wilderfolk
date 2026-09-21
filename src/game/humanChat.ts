@@ -168,6 +168,27 @@ function clearEntityChat(entity: ChatSpeaker): void {
   entity.chatPhrase = undefined;
 }
 
+/**
+ * Drop whatever dialogue session this settler holds, leaving the counterpart to be reclaimed.
+ *
+ * Called when a settler stops being ticked. `tickHumanChat` runs only for
+ * `byType[EntityType.Human]`, so an entity that leaves that population can no longer advance its
+ * session: a pair mid-dialogue whose active half transforms into a Moon Howler froze for the night
+ * (`moonHowler.ts` sets `type = EntityType.Werewolf`), because the wolf's `chatTicks` stopped
+ * decrementing while the idle half stayed `isDialogueBusy`. The idle half could not self-heal —
+ * the session entry is *live*, so the orphan reclaim below cannot see it, and its own `chatTicks`
+ * are already 0 so it never reaches `advanceDialogue` (2026-09-20 audit, F-chat-1 residual).
+ *
+ * No partner resolver is needed here: deleting the entry is enough. The survivor's key becomes an
+ * orphan and the hoisted reclaim releases it on that settler's next tick — the same net that already
+ * covers the resolver-less `sayHumanChatPhrase` path.
+ */
+export function releaseDialogueSession(entity: ChatSpeaker): void {
+  const key = entity.chatDialogueSessionKey;
+  if (!key) return;
+  clearDialogueSession(key, entity);
+}
+
 function clearDialogueSession(key: string, entityA?: ChatSpeaker, entityB?: ChatSpeaker): void {
   dialogueSessions.delete(key);
   if (entityA) {
@@ -247,8 +268,14 @@ export function startDialogueTreeChat(
   tree: DialogueTree,
   solo = false,
 ): void {
-  if ((entityA.chatTicks ?? 0) > 0) return;
-  if (!solo && entityB && (entityB.chatTicks ?? 0) > 0) return;
+  // `isDialogueBusy`, not a raw `chatTicks` read: a participant is busy while either a visible line
+  // *or* a paired session is live, and `showDialogueStep` clears the idle half's line while keeping its
+  // session key. The raw test therefore read the idle half as free, and `entityB.chatDialogueSessionKey
+  // = key` below overwrote an in-flight partner's key — one settler speaking two dialogue trees at once
+  // while the old session entry stayed live (2026-09-20 audit, F-chat-2). `isDialogueBusy` is the
+  // contract `tests/socialLife.dialogueBusy.test.ts` pins.
+  if (isDialogueBusy(entityA)) return;
+  if (!solo && entityB && isDialogueBusy(entityB)) return;
 
   const key = solo || !entityB
     ? `solo:${entityA.id}`
@@ -327,18 +354,31 @@ function advanceDialogue(
   return true;
 }
 
-/** Force a specific line (e.g. rare world events, elections). */
+/**
+ * Force a specific line (e.g. rare world events, elections).
+ *
+ * A forced phrase abandons whatever dialogue session this settler held, and the **counterpart must be
+ * released with it**: the session map entry is what `isDialogueBusy` reads, so deleting the entry while
+ * leaving the partner's key behind stranded that settler as dialogue-busy on a session nobody owns
+ * (2026-09-20 audit, F-chat-1). `resolvePartner` is how the other half is reached; without it the
+ * orphan is caught by `tickHumanChat`'s hoisted reclaim instead of never.
+ */
 export function sayHumanChatPhrase(
   entity: ChatSpeaker,
   phrase: string,
   legacyDurationTicks = 120,
+  resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
 ): void {
-  // A forced phrase abandons whatever dialogue session this settler held. The
-  // entry must leave the map with the key: `startDialogueTreeChat` refuses a key
-  // that is still present, so detaching the key alone left the settler permanently
-  // unable to speak a tree line and leaked the session for the session's lifetime.
   const staleKey = entity.chatDialogueSessionKey;
-  if (staleKey) dialogueSessions.delete(staleKey);
+  if (staleKey) {
+    const session = dialogueSessions.get(staleKey);
+    const counterpartId = session
+      ? (session.entityAId === entity.id ? session.entityBId : session.entityAId)
+      : entity.chatPartnerId;
+    const counterpart = counterpartId != null ? resolvePartner?.(counterpartId) ?? undefined : undefined;
+    // `clearDialogueSession` deletes the entry *and* releases whichever halves it is handed.
+    clearDialogueSession(staleKey, entity, counterpart);
+  }
   entity.chatDialogueSessionKey = undefined;
   entity.chatPartnerId = undefined;
   entity.chatPhrase = formatChatLine(phrase, entity);
@@ -349,6 +389,23 @@ export function tickHumanChat(
   entity: ChatSpeaker,
   resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
 ): void {
+  // Reclaim an orphaned session key FIRST, before the visible-line gate below.
+  //
+  // The key is what `isDialogueBusy` reads, and the only place it used to be released sat behind
+  // `if (!entity.chatTicks) return;` — unreachable for the *idle* half of a pair, whose visible line
+  // was already cleared by `showDialogueStep`. `resetDialogueSessions()` empties the map on every
+  // renderer-cache reset (boot, and every session swap), so a save/load during a paired dialogue
+  // stranded that settler: `resolveSessionEntities` returns null on a missing entry, so it could never
+  // advance, and it stayed excluded from greetings, workplace banter and ambient pairing until it
+  // happened to speak a solo line (2026-09-20 audit, F-chat-1).
+  const orphanKey = entity.chatDialogueSessionKey;
+  if (orphanKey && !dialogueSessions.has(orphanKey)) {
+    entity.chatDialogueSessionKey = undefined;
+    entity.chatPartnerId = undefined;
+    clearEntityChat(entity);
+    return;
+  }
+
   if (!entity.chatTicks || entity.chatTicks <= 0) return;
   entity.chatTicks--;
   if (entity.chatTicks > 0) return;
@@ -356,12 +413,14 @@ export function tickHumanChat(
   if (entity.chatDialogueSessionKey) {
     const advanced = resolvePartner ? advanceDialogue(entity, resolvePartner) : false;
     if (advanced) return;
-    // `advanceDialogue` returning false means the session is gone (a forced phrase
-    // reclaimed it, or the partner vanished). Drop the keys too, otherwise the
-    // counterpart stays dialogue-busy on a session no one owns any more.
-    if (!dialogueSessions.has(entity.chatDialogueSessionKey)) {
-      entity.chatDialogueSessionKey = undefined;
-      entity.chatPartnerId = undefined;
+    // `advanceDialogue` returning false means the session is gone (a forced phrase reclaimed it, or the
+    // partner vanished). Release both halves, not just this one.
+    const goneKey = entity.chatDialogueSessionKey;
+    if (!dialogueSessions.has(goneKey)) {
+      const partnerId = entity.chatPartnerId;
+      const counterpart = partnerId != null ? resolvePartner?.(partnerId) ?? undefined : undefined;
+      clearDialogueSession(goneKey, entity, counterpart);
+      if (counterpart) clearEntityChat(counterpart);
     }
   }
 
@@ -395,8 +454,10 @@ export function maybeDialogueChat(
   chance: number,
   options: ChatPickOptions = {},
 ): void {
-  if ((entity.chatTicks ?? 0) > 0) return;
-  if (partner && (partner.chatTicks ?? 0) > 0) return;
+  // See `startDialogueTreeChat`: the busy test is the owner predicate, not the visible-line counter
+  // (2026-09-20 audit, F-chat-2).
+  if (isDialogueBusy(entity)) return;
+  if (partner && isDialogueBusy(partner)) return;
   if (seededRandomForRun(`chat-roll:${entity.id}:${tick}`) > chance) return;
 
   if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
@@ -470,7 +531,9 @@ export function tryAmbientRandomDialogue(
     night?: boolean;
   },
 ): void {
-  if ((entity.chatTicks ?? 0) > 0) return;
+  // Owner predicate, not the visible-line counter — the candidate must not be mid-conversation
+  // (2026-09-20 audit, F-chat-2).
+  if (isDialogueBusy(entity)) return;
   if (seededRandomForRun(`chat-ambient:${entity.id}:${tick}`) > chancePerTick) return;
 
   const context = pickRandomChatContext(entity, tick, options, extra);
@@ -483,7 +546,7 @@ export function tryAmbientRandomDialogue(
     const maxAttempts = Math.min(nearbyCandidates.length, 5); // Limit attempts to avoid infinite loops in dense crowds
     while (attempts < maxAttempts) {
       const candidate = nearbyCandidates[Math.floor(seededRandomForRun(`chat-cand:${entity.id}:${tick}:${attempts}`) * nearbyCandidates.length)];
-      if (candidate && candidate.id !== entity.id && (candidate.chatTicks ?? 0) <= 0) {
+      if (candidate && candidate.id !== entity.id && !isDialogueBusy(candidate)) {
         partner = candidate;
         break;
       }
@@ -515,18 +578,29 @@ export function resetDialogueSessions(): void {
   dialogueSessions.clear();
 }
 
-/** Remove a dead/despawned entity's dialogue session and clear its chat state. */
-export function cleanupEntityDialogueState(entity: ChatSpeaker): void {
+/**
+ * Remove a dead/despawned entity's dialogue session and clear its chat state.
+ *
+ * The counterpart is released explicitly when a resolver is supplied. The old comment here claimed the
+ * partner's "next tick … clean itself up" — that was false for the idle half, whose `chatTicks` is 0, so
+ * `tickHumanChat` returned before it could reclaim anything and the survivor stayed dialogue-busy on a
+ * session with no owner (2026-09-20 audit, F-chat-1). The hoisted reclaim there now catches the case
+ * even without a resolver; passing one releases the partner immediately instead of a tick later.
+ */
+export function cleanupEntityDialogueState(
+  entity: ChatSpeaker,
+  resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
+): void {
   const key = entity.chatDialogueSessionKey;
   if (key) {
     const session = dialogueSessions.get(key);
-    // If there was a partner, try to clear their state too to prevent ghost chats
-    if (session && !session.solo) {
-      // We can't easily resolve the partner here without a map, but we can 
-      // rely on the partner's next tick to fail resolveSessionEntities and clean itself up.
-      // However, deleting the session key prevents the partner from advancing.
-    }
-    dialogueSessions.delete(key);
+    const counterpartId = session
+      ? (session.entityAId === entity.id ? session.entityBId : session.entityAId)
+      : entity.chatPartnerId;
+    const counterpart =
+      counterpartId != null ? resolvePartner?.(counterpartId) ?? undefined : undefined;
+    clearDialogueSession(key, entity, counterpart);
+    if (counterpart) clearEntityChat(counterpart);
   }
   entity.chatDialogueSessionKey = undefined;
   entity.chatPartnerId = undefined;

@@ -1,7 +1,8 @@
 import type { Entity, WorldState } from './gameTypes';
-import { BuildingType, BUILDING_JOB_TYPES, EntityType, type JobType } from './gameTypes';
+import { BuildingType, BUILDING_JOB_TYPES, type JobType } from './gameTypes';
 import { ensureEntitySkills, readSkill } from './skills';
 import { logEvent } from './eventLog';
+import { playerHumansFrom } from './playerHuman';
 
 /**
  * Apprenticeships (Phase 7) — a skilled master (skill ≥ 40) working a production
@@ -26,18 +27,23 @@ const PRODUCTION_TYPES = new Set<BuildingType>([
   BuildingType.FishingSpot,
 ]);
 
-function playerHumans(allAlive: Entity[]): Entity[] {
-  return allAlive.filter((e) => e.alive && e.type === EntityType.Human && !e.faction);
-}
-
 /** Skill the named entity holds in the given job (0 for none). */
 export function apprenticeSkill(e: Entity | undefined, job: JobType): number {
   return e ? readSkill(e, job) : 0;
 }
 
 /** Daily pulse — match masters to apprentices and teach. */
-export function advanceApprenticeships(state: WorldState, allAlive: Entity[]): void {
-  const people = playerHumans(allAlive);
+export function advanceApprenticeships(
+  state: WorldState,
+  allAlive: Entity[],
+  /**
+   * `playerHumansFrom(allAlive)` for a caller that needs the same list more than once in one pass.
+   * Must be derived from `allAlive`: the daily layer passes `allAlive` (which includes this tick's
+   * newborns) rather than `ctx.playerHumans`, which is the tick-start list.
+   */
+  peopleForPass?: Entity[],
+): void {
+  const people = peopleForPass ?? playerHumansFrom(allAlive);
   if (people.length < 2) return;
 
   const byId = new Map(people.map((e) => [e.id, e]));

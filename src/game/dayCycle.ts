@@ -1,7 +1,7 @@
 import { EntityType } from './gameTypes';
 import type { Entity } from './gameTypes';
 
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE, HUMAN_CHILDHOOD_DAYS, HUMAN_VENERABLE_AGE } from './dayCycleConstants';
 import {
   DAYS_PER_YEAR,
   getAbsoluteCalendarDay,
@@ -15,6 +15,7 @@ export {
   PER_TICK_RATE_SCALE,
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
+  daysUntilTick,
   getAbsoluteCalendarDay,
   getCalendarDay,
   getHourOfDay,
@@ -115,14 +116,14 @@ export type { ResidenceOccupancy } from './residencyOccupancy';
 export {
   DAYS_PER_MOON_CYCLE,
   HUMAN_ADULT_MIN_AGE,
+  HUMAN_CHILDHOOD_DAYS,
+  HUMAN_VENERABLE_AGE,
   isFullMoonDay,
   isFullMoonNight,
   isNightHour,
   NIGHT_END,
   NIGHT_START,
 } from './dayCycleConstants';
-
-export const HUMAN_CHILDHOOD_DAYS = 12;
 
 /** Promote a child to adult size/speed once — returns true on the graduation tick. */
 export function tryGraduateHumanChild(
@@ -178,7 +179,6 @@ export const JUVENILE_DAYS_PER_AGE_YEAR = 30;
 export const ADULT_DAYS_PER_AGE_YEAR = DAYS_PER_YEAR;
 
 /** Old-age death thresholds in life-years. */
-export const HUMAN_VENERABLE_AGE = 60;
 export const HUMAN_MAX_LIFESPAN_YEARS = 90;
 
 export function getColonyDay(state: { year: number; dayInYear: number }): number {

@@ -1,29 +1,23 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { EntityType, BUILDING_CONFIGS } from '../game/gameEngine';
 import { SPECIES_CONFIG } from '../game/gameEngine';
 import type { WorldState } from '../game/gameEngine';
 import type { ViewState } from '../game/viewState';
-import { TerrainType } from '../game/gameTypes';
+import { terrainPaletteHex } from '../game/terrainAtlas';
 import { isActiveMoonHowler } from '../game/moonHowler';
+import { isPlayerHuman } from '../game/playerHuman';
 
 const W = 152;
 const H = 110;
 
-/** Mini-map terrain tints (readable at tiny scale). */
-const TERRAIN_DOT: Partial<Record<TerrainType, string>> = {
-  [TerrainType.DeepWater]: '#1e3a5f',
-  [TerrainType.ShallowWater]: '#2a5a8c',
-  [TerrainType.River]: '#3b82a8',
-  [TerrainType.RiverBank]: '#5a7a48',
-  [TerrainType.Beach]: '#c4b07a',
-  [TerrainType.Grassland]: '#5f8a48',
-  [TerrainType.Forest]: '#3d6b32',
-  [TerrainType.DarkForest]: '#2a4a24',
-  [TerrainType.Hills]: '#8a7a4e',
-  [TerrainType.Mountains]: '#6b6560',
-  [TerrainType.Rocky]: '#7a746c',
-  [TerrainType.Snow]: '#d8e0e8',
-};
+/**
+ * Mini-map terrain tints come from the canonical terrain palette
+ * (`terrainAtlas.terrainPaletteHex`) rather than a third hand-written table.
+ *
+ * The local table is why the minimap could never match the map it navigates
+ * (audit `visuals-looks.md` D12), and it also needed a `?? default` for types it missed —
+ * the palette is exhaustive by construction.
+ */
 
 export default function MiniMap({
   worldRef,
@@ -68,7 +62,7 @@ export default function MiniMap({
                 for (let tx = 0; tx < map.width; tx += stepX) {
                   const tile = map.tiles[ty]?.[tx];
                   if (!tile) continue;
-                  ctx.fillStyle = TERRAIN_DOT[tile.type] ?? '#5f8a48';
+                  ctx.fillStyle = terrainPaletteHex(tile.type);
                   const px = tx * tw * scaleX;
                   const py = ty * th * scaleY;
                   ctx.fillRect(px, py, Math.ceil(tw * scaleX * stepX) + 1, Math.ceil(th * scaleY * stepY) + 1);
@@ -160,17 +154,51 @@ export default function MiniMap({
     return () => cancelAnimationFrame(animId);
   }, [worldRef, viewRef]);
 
+  /**
+   * The keyboard equivalent of "click to go": jump the camera to the village. Leader first (the
+   * `villageLeaderId` owner field), otherwise the centroid of the living settlers — the same target
+   * the `H` hotkey centres on, so the two agree.
+   *
+   * The canvas was click-only: no role, no name, no tab stop, so a keyboard user had no way to use
+   * the one navigation control on the map (2026-09-20 audit, bug 55 / OPEN-6).
+   */
+  const navigateToVillage = useCallback(() => {
+    const world = worldRef.current;
+    if (!world || !onNavigate) return;
+    const leader = world.entities.find((e) => e.alive && e.id === world.villageLeaderId);
+    if (leader) {
+      onNavigate(leader.x, leader.y);
+      return;
+    }
+    const settlers = world.entities.filter(
+      (e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e),
+    );
+    if (settlers.length === 0) return;
+    const cx = settlers.reduce((sum, e) => sum + e.x, 0) / settlers.length;
+    const cy = settlers.reduce((sum, e) => sum + e.y, 0) / settlers.length;
+    onNavigate(cx, cy);
+  }, [onNavigate, worldRef]);
+
   return (
     <div className="minimap-frame pointer-events-auto absolute bottom-4 left-4 overflow-hidden shadow-2xl">
       <div className="flex items-center justify-between border-b border-stone-600/60 bg-stone-900/90 px-2 py-0.5">
         <span className="text-[11px] font-bold tracking-wide text-stone-400">MAP</span>
-        <span className="text-[10px] text-stone-600">click to go</span>
+        <span className="text-[10px] text-stone-600">click · Enter</span>
       </div>
       <canvas
         ref={canvasRef}
         width={W}
         height={H}
-        className="block cursor-pointer"
+        className="block cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-300 focus-visible:outline-none"
+        role="button"
+        tabIndex={0}
+        aria-label="Mini-map — press Enter to centre the camera on your village"
+        title="Mini-map — click, or focus and press Enter, to jump the camera"
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          navigateToVillage();
+        }}
         onClick={(e) => {
           const world = worldRef.current;
           if (!world || !onNavigate) return;

@@ -1,11 +1,14 @@
 import type { Building, Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
 import { BuildingType, BUILDING_CONFIGS, EntityType } from './gameTypes';
-import { isNewCalendarDayTick } from './dayCycle';
+import { getColonyDay, isNewCalendarDayTick } from './dayCycle';
 import { maybeQueueRaid } from './frontierCombat';
 import { indexLivingEntity } from './entityIndex';
 import { isRivalAtPeace } from './rivalPeace';
 import { applyRivalDailyAction, ensureRivalProfile, selectRivalDailyAction } from './rivalProfiles';
 import { getSimRng } from './simRng';
+import { addCappedResource } from './resourceUtils';
+import { addReputation } from './simHelpers';
+import { adjustPollutionLevel } from './dailyEcology';
 
 export interface RivalEventCallbacks {
   pushNews: (state: WorldState, title: string, message: string, type: 'positive' | 'negative' | 'neutral') => void;
@@ -232,7 +235,7 @@ export function tickRivalSettlements(
     const action = selectRivalDailyAction(profile, rival.relationship);
     const outcome = applyRivalDailyAction(profile, action);
     profile.lastAction = outcome.changed ? action : 'none';
-    profile.lastActionDay = state.year * 360 + state.dayInYear;
+    profile.lastActionDay = getColonyDay(state);
     if (outcome.changed) {
       callbacks.logEvent(state, 'event', `${rival.name} ${outcome.summary}`, rival.name);
     }
@@ -242,7 +245,9 @@ export function tickRivalSettlements(
 
     if (rival.relationship === 'friendly' && getSimRng('rivalEvents')() < 0.6) {
       const gold = 12 + Math.floor(getSimRng('rivalEvents')() * 18);
-      state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + gold);
+      // Gift through the resource owner — the clamp used to delete the surplus of an over-cap purse
+      // while the float and the chronicle announced "Trade +Ng".
+      addCappedResource(state, 'gold', gold);
       callbacks.pushFloat(state, rival.campX, rival.campY - 20, `Trade +${gold}g`, '#22d3ee');
       callbacks.logEvent(state, 'trade', `${rival.name} sent a trade gift (+${gold} gold)`, rival.name);
     } else if (rival.relationship === 'competitive') {
@@ -252,13 +257,16 @@ export function tickRivalSettlements(
         callbacks.pushFloat(state, deer.x, deer.y - 15, `${rival.name} hunted`, '#fb923c');
         callbacks.logEvent(state, 'event', `${rival.name} hunters took game from the shared wilds`, rival.name);
       }
-      state.pollutionLevel = Math.min(100, state.pollutionLevel + 0.5);
+      // Queued, not written: `pollutionLevel` is derived and `tickEcosystemMetrics` recomputes it
+      // later in this same daily tick, so a direct `+=` here was erased before anyone could read it
+      // (2026-09-20 audit, D-1).
+      adjustPollutionLevel(state, 0.5);
     } else if (
       rival.relationship === 'tense'
       && tenseRepDrainToday < maxTenseRepDrainPerDay
       && getSimRng('rivalEvents')() < 0.4
     ) {
-      state.villageReputation = Math.max(0, state.villageReputation - 2);
+      addReputation(state, -2);
       tenseRepDrainToday++;
       callbacks.pushNews(state, '⚡ Border Tension', `${rival.name} grumbles about your expansion. Reputation -2.`, 'negative');
     } else if (rival.relationship === 'neutral' && getSimRng('rivalEvents')() < 0.3) {

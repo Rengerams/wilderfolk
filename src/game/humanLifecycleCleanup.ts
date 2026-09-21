@@ -41,6 +41,14 @@ export function finalizeHumanDeath(
 ): void {
   const partnerId = entity.partnerId;
   const affairPartnerId = entity.affairPartnerId;
+  // A dying settler can be mid-dialogue. The live-entity lookup the rest of this function already uses
+  // is exactly what `cleanupEntityDialogueState` needs to release the other half of the pair *with* the
+  // death, instead of leaving it holding a session key nobody owns until its own tick reclaims it
+  // (2026-09-20 audit, F-chat-1). Present only when the caller passes the entity index, which is why the
+  // resolver stays optional in `humanChat`.
+  const resolveDialoguePartner = entityById
+    ? (id: number): Entity | undefined => entityById.get(id)
+    : undefined;
 
   removeHumanFromBuildingOccupants(entity, buildings);
   entity.homeBuildingId = undefined;
@@ -106,7 +114,7 @@ export function finalizeHumanDeath(
     }
   }
 
-  cleanupEntityDialogueState(entity);
+  cleanupEntityDialogueState(entity, resolveDialoguePartner);
 }
 
 /**
@@ -223,7 +231,13 @@ export function killHuman(
  */
 export function reconcileOrphanedMarriages(entities: readonly Entity[]): void {
   const byId = new Map<number, Entity>();
-  for (const entity of entities) byId.set(entity.id, entity);
+  // Index only the entities that can be somebody's partner. `isSettlerRelationshipEntity` is false
+  // for every other type, so below a miss and a hit on grass/tree/wildlife answer identically —
+  // while indexing them all built a ~900-entry Map on every tick (gameTick calls this with
+  // `allAlive`, grass and trees included) to look up a handful of partner ids.
+  for (const entity of entities) {
+    if (isSettlerRelationshipEntity(entity)) byId.set(entity.id, entity);
+  }
   for (const human of entities) {
     if (!human.alive || human.type !== EntityType.Human) continue;
     if (human.partnerId == null || human.relationshipStatus !== 'married') continue;

@@ -11,6 +11,7 @@ import {
 import type { ForgeOrderId, VillageForgeState } from './gameTypes';
 import { hasCompletedBlacksmith, isForgeOrderComplete } from './forge';
 import { COMBAT_TECH } from './combatTech';
+import { resolveResearchEffect } from './simHelpers';
 
 export { COMBAT_TECH } from './combatTech';
 
@@ -24,35 +25,6 @@ type CombatContext = Pick<WorldState, 'unlockedTechs' | 'researchNodes' | 'build
 
 function hasTech(state: CombatContext, techId: string): boolean {
   return state.unlockedTechs.includes(techId);
-}
-
-/** Returns undefined when no matching researched effect exists. */
-function researchedEffect(
-  state: CombatContext,
-  target: string,
-  mode: 'mult' | 'add',
-): number | undefined {
-  let value = mode === 'mult' ? 1 : 0;
-  let found = false;
-
-  for (let i = 0; i < state.researchNodes.length; i++) {
-    const node = state.researchNodes[i];
-    if (!node.researched || !node.effects) continue;
-
-    for (let j = 0; j < node.effects.length; j++) {
-      const effect = node.effects[j];
-      if (effect.target !== target) continue;
-      found = true;
-      if (mode === 'mult' && effect.multiplier !== undefined) value *= effect.multiplier;
-      // Additive combat effects are TIERS: the strongest researched tier applies and
-      // replaces the one below it. The project's law is explicit — "Weapon/armor tiers
-      // replace lower ones — do not stack" (frontierCombat.ts) — and summing them made
-      // counter_attack 0.45 + 0.55 = 1.0, i.e. every predator contact a guaranteed kill.
-      if (mode === 'add' && effect.add !== undefined) value = Math.max(value, effect.add);
-    }
-  }
-
-  return found ? value : undefined;
 }
 
 export function hasStoneSpears(state: CombatContext): boolean {
@@ -106,12 +78,17 @@ export function hasTowerBallistae(state: CombatContext & { villageForge?: Villag
   );
 }
 
+/**
+ * Combat research readings. The combination rule (multiplier product, additive TIERS take the
+ * strongest — see `simHelpers.TIERED_ADD_TARGETS`) lives in the one owner so a second consumer of
+ * `counter_attack` / `predator_block` cannot re-introduce the summed guaranteed kill.
+ */
 export function getHuntRangeMultiplier(state: WorldState): number {
-  return researchedEffect(state, 'hunt_range', 'mult') ?? 1;
+  return resolveResearchEffect(state, 'hunt_range')?.multiplier ?? 1;
 }
 
 export function getHuntFoodMultiplier(state: WorldState): number {
-  return researchedEffect(state, 'hunt_food', 'mult') ?? 1;
+  return resolveResearchEffect(state, 'hunt_food')?.multiplier ?? 1;
 }
 
 export function getHumanHuntRange(state: WorldState, baseRange: number): number {
@@ -119,7 +96,7 @@ export function getHumanHuntRange(state: WorldState, baseRange: number): number 
 }
 
 export function getPredatorBlockChance(state: WorldState): number {
-  let chance = researchedEffect(state, 'predator_block', 'add') ?? 0;
+  let chance = resolveResearchEffect(state, 'predator_block')?.add ?? 0;
   if (hasScaleMail(state)) chance = Math.max(chance, 0.72);
   else if (hasIronShields(state)) chance = Math.max(chance, 0.6);
   else if (hasWoodenShields(state)) chance = Math.max(chance, 0.35);
@@ -127,13 +104,13 @@ export function getPredatorBlockChance(state: WorldState): number {
 }
 
 export function getHumanFleeSpeedMultiplier(state: WorldState): number {
-  return researchedEffect(state, 'flee_speed', 'mult') ?? 1;
+  return resolveResearchEffect(state, 'flee_speed')?.multiplier ?? 1;
 }
 
 export function getCounterAttackChance(state: WorldState): number {
   if (!hasIronSpears(state) && !hasIronSwords(state)) return 0;
-  const add = researchedEffect(state, 'counter_attack', 'add');
-  if (add !== undefined) return add;
+  const researched = resolveResearchEffect(state, 'counter_attack');
+  if (researched) return researched.add;
   return hasIronSwords(state) ? 0.55 : 0.45;
 }
 
@@ -424,7 +401,16 @@ export function getHumanStatusCombatIcon(
   return getHumanStatusCombatIconFromFlags(human, flags);
 }
 
-const PREDATOR_TYPES = new Set<EntityType>([EntityType.Wolf, EntityType.Fox, EntityType.Werewolf]);
+/**
+ * The simulation's predator set. Exported because the audio layer composes its hunt cue from this
+ * rather than declaring a second set that could drift (duplication A10); `isPredatorType` is the
+ * predicate, this is the membership data behind it.
+ */
+export const PREDATOR_TYPES: ReadonlySet<EntityType> = new Set<EntityType>([
+  EntityType.Wolf,
+  EntityType.Fox,
+  EntityType.Werewolf,
+]);
 
 export function isPredatorType(type: EntityType): boolean {
   return PREDATOR_TYPES.has(type);

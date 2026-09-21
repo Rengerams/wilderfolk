@@ -8,6 +8,7 @@ import {
   normalizeBuildingRotation,
 } from './buildingRotation';
 import { computeStripSegmentCenters, isStripBuildType, type EnclosedArea } from './stripBuild';
+import { isWallBuildingType } from './defenseStructures';
 import {
   analyzeStripJunction,
   collectStripCenters,
@@ -18,15 +19,11 @@ import {
 
 export const STRIP_SNAP_RADIUS = 38;
 
-const WALL_STRIP_TYPES = new Set<BuildingType>([
-  BuildingType.Wall,
-  BuildingType.WallGate,
-]);
-
 const ROAD_STRIP_TYPES = new Set<BuildingType>([BuildingType.Road]);
 
+/** Wall membership is `defenseStructures.isWallBuildingType`'s rule, not a second set here (A11). */
 export function isWallStripType(type: BuildingType): boolean {
-  return WALL_STRIP_TYPES.has(type);
+  return isWallBuildingType(type);
 }
 
 export function isRoadStripType(type: BuildingType): boolean {
@@ -65,9 +62,10 @@ function buildingStripRotation(b: Building): BuildingRotation {
 
 function collectSnapPoints(buildings: Building[], family: 'wall' | 'road'): { x: number; y: number }[] {
   const points: { x: number; y: number }[] = [];
-  const types = family === 'wall' ? WALL_STRIP_TYPES : ROAD_STRIP_TYPES;
+  const types = family === 'wall' ? null : ROAD_STRIP_TYPES;
   for (const b of buildings) {
-    if (!b.completed || b.faction === 'rival' || !types.has(b.type)) continue;
+    const member = family === 'wall' ? isWallStripType(b.type) : types!.has(b.type);
+    if (!b.completed || b.faction === 'rival' || !member) continue;
     const rot = buildingStripRotation(b);
     const sampleType = b.type === BuildingType.WallGate ? BuildingType.WallGate : b.type;
     const [a, c] = getStripSegmentEndpoints(sampleType, b.x, b.y, rot);
@@ -239,16 +237,16 @@ export function findStripBuildingAt(
   tolerance = 6,
   family?: 'wall' | 'road',
 ): Building | undefined {
-  const types = family === 'wall'
-    ? WALL_STRIP_TYPES
+  const familyFilter = family === 'wall'
+    ? isWallStripType
     : family === 'road'
-      ? ROAD_STRIP_TYPES
+      ? isRoadStripType
       : null;
   for (const b of state.buildings) {
     if (!b.completed || b.faction === 'rival') continue;
-    if (types) {
-      if (!types.has(b.type)) continue;
-    } else if (!WALL_STRIP_TYPES.has(b.type) && !ROAD_STRIP_TYPES.has(b.type)) {
+    if (familyFilter) {
+      if (!familyFilter(b.type)) continue;
+    } else if (!isWallStripType(b.type) && !isRoadStripType(b.type)) {
       continue;
     }
     if (Math.hypot(b.x - x, b.y - y) <= tolerance) return b;
@@ -283,7 +281,7 @@ export function findEnclosedWallAreas(
 
   for (const b of state.buildings) {
     if (!b.completed || b.faction === 'rival') continue;
-    if (!WALL_STRIP_TYPES.has(b.type)) continue;
+    if (!isWallStripType(b.type)) continue;
     markBlocked(b.x, b.y, Math.max(b.width, b.height) * 0.45);
   }
   for (const c of extraCenters) {

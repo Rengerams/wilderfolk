@@ -10,6 +10,9 @@ const SEVERITY_STYLE: Record<PriorityAlertSeverity, string> = {
 
 const VISIBLE_LIMIT = 2;
 
+/** The disclosure target the two toggles name with `aria-controls`. */
+const ALERT_LIST_ID = 'alert-bar-list';
+
 interface Props {
   alerts: PriorityAlert[];
   onAlert: (alert: PriorityAlert) => void;
@@ -25,23 +28,31 @@ export default function AlertBar({ alerts, onAlert }: Props) {
 
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-stone-700/80 bg-stone-900/60 px-3 py-1">
-      {visible.map((alert) => (
-        <button
-          key={alert.id}
-          type="button"
-          onClick={() => onAlert(alert)}
-          title={alert.detail}
-          className={`flex max-w-[10rem] items-center gap-1 rounded-lg border px-2 py-0.5 text-left transition-colors ${SEVERITY_STYLE[alert.severity]}`}
-        >
-          <Emoji className="text-sm">{alert.icon}</Emoji>
-          <span className="truncate text-xs font-semibold">{alert.title}</span>
-          <span className="shrink-0 text-[11px] opacity-60">→</span>
-        </button>
-      ))}
+      {/* `display: contents` so the disclosure target can carry an id without adding a flex item —
+          the chip row's layout is unchanged. Both toggles below state the state they set and name
+          the element they change, the `aria-expanded` + `aria-controls` pairing
+          `SimulationDiagnosticsPanel.tsx` uses (2026-09-20 audit, A7). */}
+      <div id={ALERT_LIST_ID} className="contents">
+        {visible.map((alert) => (
+          <button
+            key={alert.id}
+            type="button"
+            onClick={() => onAlert(alert)}
+            title={alert.detail}
+            className={`flex max-w-[10rem] items-center gap-1 rounded-lg border px-2 py-0.5 text-left transition-colors ${SEVERITY_STYLE[alert.severity]}`}
+          >
+            <Emoji className="text-sm">{alert.icon}</Emoji>
+            <span className="truncate text-xs font-semibold">{alert.title}</span>
+            <span className="shrink-0 text-[11px] opacity-60">→</span>
+          </button>
+        ))}
+      </div>
       {!expanded && hiddenCount > 0 && (
         <button
           type="button"
           onClick={() => setExpanded(true)}
+          aria-expanded={expanded}
+          aria-controls={ALERT_LIST_ID}
           className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-stone-400 hover:bg-stone-800 hover:text-stone-200"
         >
           +{hiddenCount} more
@@ -51,6 +62,8 @@ export default function AlertBar({ alerts, onAlert }: Props) {
         <button
           type="button"
           onClick={() => setExpanded(false)}
+          aria-expanded={expanded}
+          aria-controls={ALERT_LIST_ID}
           className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-stone-400 hover:text-stone-300"
         >
           Less

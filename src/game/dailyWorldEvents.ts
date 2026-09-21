@@ -6,6 +6,7 @@ import { TICKS_PER_DAY, FESTIVAL_CHECK_TICKS, getAbsoluteCalendarDay, DAYS_PER_Y
 
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
+import { addReputation } from './simHelpers';
 import { tickLeaderVacancy, tickElectionBuildup, tryStartVacancyElectionCeremony, tryStartTermElectionCeremony } from './villageLeadership';
 import { getTownHallFestivalCooldownTicks } from './townHall';
 
@@ -70,7 +71,7 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
     && counts.humans >= 2
   ) {
     state.festival = { active: true, name: seasonalName, daysLeft: 5 };
-    state.villageReputation = Math.min(100, state.villageReputation + 5);
+    addReputation(state, 5);
     addBigNews(state, '🎉 Festival!', `${seasonalName} has begun! Production, courtship, and immigration are boosted for 5 days.`, 'positive');
     logEvent(state, 'season', `${seasonalName} festival began in the village`);
     trackYearEvent(state, seasonalName);
@@ -91,7 +92,7 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
     const name = festivalNames[Math.floor(festivalRng() * festivalNames.length)];
     state.festival = { active: true, name, daysLeft: 20 + Math.floor(festivalRng() * 20) };
     state.townHallFestivalCooldownUntilTick = state.tick + getTownHallFestivalCooldownTicks();
-    state.villageReputation = Math.min(100, state.villageReputation + 10);
+    addReputation(state, 10);
     addBigNews(state, '🎉 Festival!', `${name} has begun! Production, courtship, and immigration are boosted for ${state.festival.daysLeft} days.`, 'positive');
     logEvent(state, 'season', `${name} festival began in the village`);
     festivalStartedThisTick = true;
@@ -162,11 +163,19 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   // Eco indexes refresh once per day (before the valley stage consumes them)
   tickEcosystemMetrics(state, counts, ctx.updatedBuildings);
 
-  // Valley ecology stage (after wildlife counts on state; before production yields)
+  // Valley ecology stage, reading the eco indexes refreshed just above.
+  //
+  // It runs *after* this day's building production, because `tickLayerDaily` calls the economy before
+  // this function — so when the ladder is re-enabled its farm/hunt multipliers take effect the next
+  // day, a one-day lag. The old comment claimed "before production yields", which the call order has
+  // never satisfied (`LIVE-FINDINGS-STATUS.md`, L14). Moving it here is not a one-line move: the
+  // refresh above would have to move with it, and the ladder is parked
+  // (`ValleyEcology.ENABLED = false`), so the change cannot be validated today — owner call on
+  // re-enable.
   tickValleyEcologyStage(state);
 
   // Autumn deer migration — herds arrive, graze, and leave with memory
-  tickMigration(state, allAlive);
+  tickMigration(state, allAlive, ctx);
 
   // Neighborhood beauty grid + village happiness (Phase 3.2)
   tickBeauty(state);
@@ -200,6 +209,10 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
     const rolled = rollYearlyWorldEvent(
       state, allAlive, ctx.updatedBuildings, ctx.width, ctx.height,
       () => state.nextEntityId++,
+      // The context is what routes these spawns through `pushNewEntity`, so they reach the spatial
+      // grids and `ctx.newEntities` inside the same tick. Without it they landed on the array
+      // `gameTick` discards a few lines later (2026-09-20 audit, S-1a).
+      ctx,
     );
     state.activeEvent = rolled.event;
     if (rolled.bountifulHarvest) state.bountifulHarvest = true;

@@ -1,4 +1,6 @@
 import Emoji from './Emoji';
+import { useModalFocus } from '../hooks/useModalFocus';
+import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 
 const QUICK_START_STEPS = [
   { icon: '🏠', title: 'Build a House before night', detail: `Press B to open Build, pick Housing → House (or press 1), click the map, then assign workers. Night starts at 20:00 on day one.` },
@@ -21,10 +23,28 @@ export default function TutorialOverlay({
   onFinish,
   onDisableAll,
 }: TutorialOverlayProps) {
+  // The first-run quick-start is a full-screen click-catcher, so it must announce itself and behave
+  // like the other modals (`ShortcutsOverlay`, the Valley overview): focus moves in, Tab stays
+  // inside, and Escape dismisses it. It is mounted for the whole session, so the shared trap is
+  // driven by `showTutorial` rather than by mount (2026-09-17 UI audit, R27).
+  const dialogRef = useModalFocus<HTMLDivElement>(showTutorial);
+
+  // …and it must own the keyboard while it is shown, not merely the focus trap: the game's
+  // window-capture hotkey handler runs *before* this overlay's own handler, so without the claim
+  // digits 1–9 armed a build type and opened the build panel, V/F/N/P/L/M opened the Valley overview
+  // on top of the tutorial, Space toggled pause, and one Escape both finished the tutorial and fell
+  // through to clear the map selection. Mounted for the whole session, so both halves of the contract
+  // are keyed on `showTutorial` (2026-09-20 audit, A3/clone 3).
+  useOverlayKeyboard('tutorial-overlay', onFinish, showTutorial);
+
   if (!showTutorial) return null;
 
   return (
     <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tutorial-title"
       className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-black/65 backdrop-blur-sm"
       onClick={onFinish}
     >
@@ -32,7 +52,7 @@ export default function TutorialOverlay({
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-emerald-400 to-amber-500" aria-hidden />
         <div className="mb-3 flex items-start justify-between gap-2">
           <div>
-            <h2 className="text-lg font-bold text-white">Quick start</h2>
+            <h2 id="tutorial-title" className="text-lg font-bold text-white">Quick start</h2>
             <p className="text-[13px] text-stone-300">Step {tutorialStep + 1} of {QUICK_START_STEPS.length}</p>
           </div>
           <button

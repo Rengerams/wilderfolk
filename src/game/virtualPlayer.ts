@@ -49,8 +49,9 @@ import {
   type BuildingRotation,
 } from './buildingRotation';
 import { canAfford } from './resourceUtils';
-import { hasResidenceAssignment, hasWorkAssignment, isResidenceBuilding } from './residencyOccupancy';
+import { countHomelessSettlers, isResidenceBuilding } from './residencyOccupancy';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
+import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
 import { canAssignWorkerToBuilding, listAssignableWorkersForBuilding } from './buildingStaffingActions';
 import { isManualStaffBuilding, isManualStaffingBuilding } from './workforce';
@@ -202,25 +203,6 @@ function hasFoodMargin(state: WorldState, days: number): boolean {
 }
 
 /** Idle adults the staffing owner would actually accept for a workplace. */
-function countIdleAdults(state: WorldState): number {
-  let count = 0;
-  for (const entity of state.entities) {
-    if (!entity.alive || !isPlayerHuman(entity) || entity.isJuvenile) continue;
-    if (!hasWorkAssignment(entity)) count++;
-  }
-  return count;
-}
-
-/** Living player settlers with no residence assignment (the housing problem). */
-function countHomelessSettlers(state: WorldState): number {
-  let count = 0;
-  for (const entity of state.entities) {
-    if (!entity.alive || !isPlayerHuman(entity)) continue;
-    if (!hasResidenceAssignment(entity)) count++;
-  }
-  return count;
-}
-
 function findPlacementSpot(
   state: WorldState,
   type: BuildingType,
@@ -365,7 +347,10 @@ function decideLeaderHouse(state: WorldState): VirtualPlayerDecision | null {
 
 /** 3 — an idle adult plus a completed, auto-staffable workplace with a free slot. */
 function decideStaffing(state: WorldState): VirtualPlayerDecision | null {
-  const idleAdults = countIdleAdults(state);
+  // The labour counters' owner, not a second scan: a prisoner is not idle here and a settler on a
+  // construction crew counts as working, which is the rule the HUD and the People screen state
+  // (`uiSimSummary.computeVillageStats`; 2026-09-22 stats-panel audit, F6).
+  const idleAdults = computeVillageStats(state).idle;
   if (idleAdults === 0) return null;
 
   for (const building of state.buildings) {
@@ -875,7 +860,7 @@ function decideVisitorRelations(state: WorldState): VirtualPlayerDecision | null
  * that building — never a blanket `autoStaffWorkers`.
  */
 function decideManualStaffing(state: WorldState): VirtualPlayerDecision | null {
-  if (countIdleAdults(state) === 0) return null;
+  if (computeVillageStats(state).idle === 0) return null;
 
   for (const building of state.buildings) {
     if (!building.completed || building.faction === 'rival') continue;

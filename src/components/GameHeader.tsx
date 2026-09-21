@@ -1,10 +1,12 @@
 import Emoji from './Emoji';
-import GameMenu from './GameMenu';
+import GameMenu, { type GameMenuSettingsCallbacks } from './GameMenu';
 import ResourceBadge from './ResourceBadge';
 import type { WorldState } from '../game/gameTypes';
 import { WEATHER_CONFIGS } from '../game/gameTypes';
-import { isNightHour, getHourOfDay, getWeekdayLabel, isWeekend, TICKS_PER_DAY } from '../game/dayCycle';
-import { getOpenBeds, getTotalBeds } from '../game/populationGrowth';
+import { isNightHour, getHourOfDay, getWeekdayLabel, isWeekend, getAbsoluteCalendarDay, TICKS_PER_DAY } from '../game/dayCycle';
+import { DEFAULT_WORK_SCHEDULE, getWorkSchedule, getWorkScheduleLabel } from '../game/workSchedule';
+import { getOpenPlayerBeds, getTotalBeds, isPopulationNearCap, resolvePopulationCap } from '../game/populationGrowth';
+import { isResourceCapped } from '../game/resourceUtils';
 import { formatSettlerName, getVillageLeader } from '../game/villageLeadership';
 import {
   computeDailyTemperatureC,
@@ -20,7 +22,7 @@ function formatHour(hour: number) {
   return `${h.toString().padStart(2, '0')}:00`;
 }
 
-interface Props {
+interface Props extends GameMenuSettingsCallbacks {
   world: WorldState;
   population: number;
   gameTitle: string;
@@ -47,19 +49,6 @@ tutorialsEnabled: boolean;
   onTogglePause: () => void;
   onSetSpeed: (speed: number) => void;
   onOpenTrade: () => void;
-  onSave: () => void;
-  onLoad: () => void;
-  onSaveToFile: () => void;
-  onLoadFromFile: (jsonText: string) => void;
-  onToggleAutoSave: () => void;
-  onToggleTutorials: () => void;
-  onToggleJuiceEffects: () => void;
-  onToggleShowSimTick: () => void;
-  onToggleShowFps: () => void;
-  onToggleMute: () => void;
-  onVolumePreset: (v: 'soft' | 'normal' | 'loud') => void;
-  onOpenGuide: () => void;
-  onStartNewGame: () => void;
   /** Select & camera-focus the village leader on the map. */
   onFocusLeader?: () => void;
   /** Open the full-screen People overview. */
@@ -114,10 +103,21 @@ tutorialsEnabled,
   const weekend = isWeekend(world.tick);
   const dailyTempC = computeDailyTemperatureC(world.season, world.weather, world.dayInYear, world.year);
   const seasonLabel = SEASON_LABELS[world.season];
-  const popNearCap = population / Math.max(1, world.maxHumanPopulation) >= 0.9;
+  // The band and the cap are the growth owner's (`POPULATION_NEAR_CAP_RATIO` /
+  // `resolvePopulationCap`); this view only paints the answer (2026-09-20 audit, O-2). The open-bed
+  // figure is the assignable one: the chip's "N open" means "a settler could sleep here", not
+  // "some bed in the valley is empty" (2026-09-22 stats-panel audit, F2).
+  const popNearCap = isPopulationNearCap(world);
+  const popCap = resolvePopulationCap(world);
   const beds = getTotalBeds(world);
-  const openBeds = getOpenBeds(world);
-  const absoluteDay = Math.floor(Math.max(0, world.tick) / TICKS_PER_DAY);
+  const openBeds = getOpenPlayerBeds(world);
+  const absoluteDay = getAbsoluteCalendarDay(world.tick);
+  const workSchedule = getWorkSchedule(world);
+  // Roadmap P6 / audit R38: the window that decides whether production happens at all was
+  // tooltip-only, so a player who set 06:00–16:00 saw no sign of it on the bar.
+  const workWindowIsDefault =
+    workSchedule.startHour === DEFAULT_WORK_SCHEDULE.startHour
+    && workSchedule.endHour === DEFAULT_WORK_SCHEDULE.endHour;
   const villageLeader = getVillageLeader(world);
   const leaderLabel = villageLeader ? formatSettlerName(villageLeader) : null;
   const autoPlayTitle = autoPlay
@@ -129,7 +129,7 @@ tutorialsEnabled,
       ].join('\n')
     : 'Virtual player — an in-app auto-player that plays the real game on screen (one command per in-game hour)';
   return (
-    <header className="game-header flex items-center justify-between gap-3 border-b border-stone-700/90 px-3 py-1.5 shadow-lg">
+    <header className="game-header flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-stone-700/90 px-3 py-1.5 shadow-lg">
       <div
         className="flex min-w-0 items-center gap-2"
         title={`${gameTitle} · v${gameVersion}`}
@@ -176,7 +176,7 @@ tutorialsEnabled,
       <div className="flex shrink-0 items-center gap-2">
         <div
           className="hud-chip flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs sm:px-2.5 sm:text-[13px]"
-          title={`${seasonLabel} · ${formatTemperatureC(dailyTempC)} · ${weekday}${weekend ? ' (free)' : ' (work 7–18)'} · Year ${world.year} · Day ${world.dayInYear}${world.weather !== 'clear' ? ` · ${WEATHER_CONFIGS[world.weather].label}` : ''}${world.festival ? ` · ${world.festival.name}` : ''} · sim tick ${world.tick} (day ${absoluteDay})${showSimTick ? '' : ' — enable “Show sim tick” in Menu → Settings to pin tick on the bar'}`}
+          title={`${seasonLabel} · ${formatTemperatureC(dailyTempC)} · ${weekday}${weekend ? ' (free)' : ` (work ${getWorkScheduleLabel(workSchedule)})`} · Year ${world.year} · Day ${world.dayInYear}${world.weather !== 'clear' ? ` · ${WEATHER_CONFIGS[world.weather].label}` : ''}${world.festival ? ` · ${world.festival.name}` : ''} · sim tick ${world.tick} (day ${absoluteDay})${showSimTick ? '' : ' — enable “Show sim tick” in Menu → Settings to pin tick on the bar'}`}
         >
           <span className={seasonTextClass(world.season)}>{seasonLabel}</span>
           <span className="font-mono text-stone-200">{formatTemperatureC(dailyTempC)}</span>
@@ -189,6 +189,14 @@ tutorialsEnabled,
           <span className="font-mono text-white">{formatHour(hour)}</span>
           {world.weather !== 'clear' && <Emoji>{WEATHER_CONFIGS[world.weather].emoji}</Emoji>}
           {world.festival && <Emoji title={world.festival.name}>🎉</Emoji>}
+          {!workWindowIsDefault && !weekend && (
+            <span
+              className="rounded bg-amber-950/70 px-1.5 py-0.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-500/40"
+              title="Configured work window — Menus → People → Work & venue hours"
+            >
+              🛠 {getWorkScheduleLabel(workSchedule)}
+            </span>
+          )}
           {showSimTick && (
             <>
               <span className="text-stone-400">·</span>
@@ -283,11 +291,11 @@ tutorialsEnabled,
             className={`flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[13px] ${
               popNearCap ? 'bg-rose-900/40 text-rose-300' : 'bg-sky-900/40 text-sky-300'
             } hover:brightness-110 disabled:cursor-default`}
-            title={`People overview (O) — ${population} settlers · cap ${world.maxHumanPopulation} · 🛏️ ${beds} beds (${openBeds} open)`}
+            title={`People overview (O) — ${population} settlers · cap ${popCap} · 🛏️ ${beds} beds (${openBeds} open)`}
             aria-label="Open people overview"
           >
             <span>👥</span>
-            <span className="font-mono font-bold">{population}/{world.maxHumanPopulation}</span>
+            <span className="font-mono font-bold">{population}/{popCap}</span>
             <span className="text-[11px] opacity-75" title={`${beds} beds total`}>🛏️{beds}</span>
           </button>
 
@@ -308,23 +316,32 @@ tutorialsEnabled,
               value={world.resources.food}
               max={world.storageMax.food}
               alert={foodAlert}
+              full={isResourceCapped(world, 'food')}
             />
             <ResourceBadge
               resource="wood"
               value={world.resources.wood}
               max={world.storageMax.wood}
+              full={isResourceCapped(world, 'wood')}
             />
-            <ResourceBadge resource="gold" value={world.resources.gold} max={world.storageMax.gold} />
+            <ResourceBadge
+              resource="gold"
+              value={world.resources.gold}
+              max={world.storageMax.gold}
+              full={isResourceCapped(world, 'gold')}
+            />
             <ResourceBadge
               resource="stone"
               value={world.resources.stone}
               max={world.storageMax.stone}
+              full={isResourceCapped(world, 'stone')}
               className="hidden md:inline-flex"
             />
             <ResourceBadge
               resource="iron"
               value={world.resources.iron}
               max={world.storageMax.iron}
+              full={isResourceCapped(world, 'iron')}
               className="hidden lg:inline-flex"
             />
           </div>

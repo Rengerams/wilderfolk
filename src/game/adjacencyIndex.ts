@@ -3,6 +3,14 @@ import { BuildingType } from './gameTypes';
 
 export const ADJACENCY_CELL = 80;
 
+/**
+ * Adjacency bonus a completed Barn gives a neighbouring Farm/Greenhouse.
+ *
+ * Exported because the inspector's Barn hint typed "+35%" as prose; the number a designer tunes now
+ * lives only here (audit C2 "Building output/tuning copy").
+ */
+export const BARN_ADJACENCY_BONUS = 0.35;
+
 type AdjacencyBuckets = Map<string, Building[]>;
 type AdjacencySourceKind = 'barn' | 'road' | 'market';
 
@@ -144,7 +152,7 @@ export class AdjacencyIndex {
   getMultiplier(building: Building): number {
     let mult = 1;
     if (building.type === BuildingType.Farm || building.type === BuildingType.Greenhouse) {
-      if (hasAdjacencyNeighbor(this.barnMap, building.x, building.y, 120)) mult += 0.35;
+      if (hasAdjacencyNeighbor(this.barnMap, building.x, building.y, 120)) mult += BARN_ADJACENCY_BONUS;
     }
     if (building.type !== BuildingType.Road) {
       if (hasAdjacencyNeighbor(this.roadMap, building.x, building.y, 70)) mult += 0.15;

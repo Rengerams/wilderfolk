@@ -1,7 +1,10 @@
 import { Application, Assets, Container, Graphics, type Texture } from 'pixi.js';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { TERRAIN_TILE_SIZE, TerrainType, type TerrainTile } from '../gameTypes';
+import { TERRAIN_PALETTE } from '../terrainAtlas';
 import { worldToScreen } from '../viewState';
+import { getTerrainRevision } from '../terrainLayer';
+import { renderTime } from './shared';
 
 type PixiTerrainState = {
   app: Application;
@@ -23,6 +26,11 @@ type PixiTerrainState = {
 
 let terrainState: PixiTerrainState | null = null;
 let initPromise: Promise<void> | null = null;
+// Latched when `app.init()` rejects, so a machine whose WebGL init fails attempts it once per session
+// instead of building a fresh `Application` (and re-issuing the texture loads) on every frame. Cleared
+// only by `resetPixiTerrain()`, where an explicit reset is a deliberate "try again".
+// (`BUG_REPORTS/2026-09-17-pixi-webgl-init-retried-every-frame.md`)
+let pixiUnavailable = false;
 
 const APPROVED_TEXTURE_PATHS: Partial<Record<TerrainType, string>> = {
   [TerrainType.Grassland]: '/sprites/terrain/grass_fill.png',
@@ -39,28 +47,12 @@ const APPROVED_TEXTURE_PATHS: Partial<Record<TerrainType, string>> = {
   [TerrainType.Snow]: '/sprites/terrain/snow.png',
 };
 
-const ISOMETRIC_TEXTURE_TYPES = new Set<TerrainType>([
-  TerrainType.Hills,
-  TerrainType.Rocky,
-  TerrainType.Mountains,
-  TerrainType.Snow,
-]);
-
-const COLORS: Record<TerrainType, number> = {
-  [TerrainType.DeepWater]: 0x163e68,
-  [TerrainType.ShallowWater]: 0x2e78a5,
-  [TerrainType.River]: 0x3e9bc4,
-  [TerrainType.RiverBank]: 0xc7b273,
-  [TerrainType.Beach]: 0xe0c98b,
-  [TerrainType.Grassland]: 0x78a85d,
-  [TerrainType.Forest]: 0x4f824d,
-  // Legacy DarkForest/Hills/Rocky values are normalized to the active Forest/Mountain biomes.
-  [TerrainType.DarkForest]: 0x4f824d,
-  [TerrainType.Hills]: 0x706b67,
-  [TerrainType.Mountains]: 0x706b67,
-  [TerrainType.Rocky]: 0x706b67,
-  [TerrainType.Snow]: 0xdbe8ed,
-};
+// The base palette is owned by `terrainAtlas.TERRAIN_PALETTE`, shared with the live canvas2D bake
+// and the minimap. This file used to carry its own third copy (with legacy Hills/Rocky
+// normalisation), which is the drift audit `visuals-looks.md` D12 reports. Pixi is dormant
+// (`renderer/terrain.ts` `USE_PIXI_GROUND = false`), so aligning it changes nothing the player
+// sees today and removes one palette.
+const COLORS: Record<TerrainType, number> = TERRAIN_PALETTE;
 
 const FAMILY: Record<TerrainType, string> = {
   [TerrainType.DeepWater]: 'water',
@@ -113,12 +105,16 @@ function createPixiState(): PixiTerrainState {
   const accents = new Graphics({ label: 'terrain-accents' });
   const snow = new Graphics({ label: 'winter-snowfall' });
   root.addChild(base, transitions, water, flow, accents, snow);
+  // `app.render()` renders `app.stage`, so the terrain container must be attached to it or the whole
+  // ground layer composites a transparent canvas —
+  // `BUG_REPORTS/2026-09-17-pixi-terrain-container-never-attached-to-the-stage.md`.
+  app.stage.addChild(root);
   terrainState = { app, root, base, transitions, water, flow, accents, snow, riverPoints: [], snowflakes: [], approvedTextures: {}, key: '', width: 0, height: 0, ready: false };
   return terrainState;
 }
 
 function ensurePixiReady(width: number, height: number): void {
-  if (terrainState || initPromise) return;
+  if (terrainState || initPromise || pixiUnavailable) return;
   const current = terrainState ?? createPixiState();
   initPromise = current.app.init({
     width,
@@ -141,12 +137,23 @@ function ensurePixiReady(width: number, height: number): void {
       if (entry) current.approvedTextures[entry[0] as TerrainType] = entry[1];
     }
     current.ready = true;
-  }).catch(() => {
+  }).catch((error: unknown) => {
+    // Latch so the next frame does not allocate another `Application` and retry WebGL init, and report
+    // it once: the old parameterless `catch` discarded the reason, so a failed run stayed silent.
+    pixiUnavailable = true;
     terrainState = null;
+    console.warn('[PixiTerrain] WebGL init failed — using the canvas2D terrain path for this session', error);
   }).finally(() => {
     initPromise = null;
   });
 }
+
+/**
+ * Per-tile feather strength for a family boundary. `drawSoftTransition` bands all four edges of the
+ * tile in the neighbour's colour, so when a tile touches several families the budget is split
+ * across them rather than awarded to whichever of N/E/S/W comes first.
+ */
+const TRANSITION_ALPHA = 0.42;
 
 function drawSoftTransition(g: Graphics, x: number, y: number, w: number, h: number, color: number, alpha: number): void {
   const band = Math.max(1.5, Math.min(5, Math.min(w, h) * 0.22));
@@ -161,7 +168,9 @@ function rebuildTerrain(state: RenderSnapshot, cw: number, ch: number): void {
   const map = state.worldMap;
   if (!current || !map) return;
   const seed = map.seed ?? 1;
-  const key = `${seed}:${map.preset}:${map.width}:${map.height}:${state.season ?? 'spring'}:procedural`;
+  // `r` carries the post-worldgen tile-mutation revision: this pass reads `tile.type`, so a
+  // cleared-forest tile would otherwise keep the old biome for the life of the key (audit D4).
+  const key = `${seed}:${map.preset}:${map.width}:${map.height}:${state.season ?? 'spring'}:procedural:r${getTerrainRevision()}`;
 
   if (current.key === key && current.width === cw && current.height === ch) return;
 
@@ -194,13 +203,12 @@ function rebuildTerrain(state: RenderSnapshot, cw: number, ch: number): void {
         const textureTint = tile.type === TerrainType.Forest || tile.type === TerrainType.DarkForest
           ? 0x285a32
           : 0xffffff;
-        if (ISOMETRIC_TEXTURE_TYPES.has(tile.type)) {
-          // rock.png and snow.png are 2:1 diamond tiles; preserve their aspect ratio.
-          current.base.rect(x, y, size + 0.35, size + 0.35).fill(color);
-          current.base.texture(texture, textureTint, x, y + size * 0.25, size + 0.35, size * 0.5);
-        } else {
-          current.base.texture(texture, textureTint, x, y, size + 0.35, size + 0.35);
-        }
+        // Square, like every other family. The branch that used to stamp hills/rock/mountain/snow
+        // into `size * 0.5` height claimed those textures were 2:1 diamonds; none is — the
+        // approved sources are `dirt_fill.png` 128×128, `dirt.png` 128×128, `snow.png` 128×128 and
+        // `mountain.jpg` 1024×1024 — so it vertically compressed the grain over a full-height base
+        // rect, which read as a flat band below the texture (audit `visuals-looks.md` D7).
+        current.base.texture(texture, textureTint, x, y, size + 0.35, size + 0.35);
       } else {
         current.base.rect(x, y, size + 0.35, size + 0.35).fill(color);
       }
@@ -210,11 +218,18 @@ function rebuildTerrain(state: RenderSnapshot, cw: number, ch: number): void {
       const south = tileAt(state, tx, ty + 1);
       const west = tileAt(state, tx - 1, ty);
       const neighbours = [north, east, south, west];
-      for (const neighbour of neighbours) {
-        if (neighbour && FAMILY[neighbour.type] !== FAMILY[tile.type]) {
-          drawSoftTransition(current.transitions, x, y, size, size, COLORS[neighbour.type], 0.42);
-          break;
-        }
+      // Every differing neighbour feathers the tile, not just the first one in N/E/S/W order: a
+      // corner tile touching two families used to blend one side and hard-edge the other purely
+      // because of array order. The alpha is split so the tile's total feather strength is
+      // unchanged (`drawSoftTransition` bands all four edges per call).
+      const differing = neighbours.filter(
+        (n): n is TerrainTile => !!n && FAMILY[n.type] !== FAMILY[tile.type],
+      );
+      for (const neighbour of differing) {
+        drawSoftTransition(
+          current.transitions, x, y, size, size, COLORS[neighbour.type],
+          TRANSITION_ALPHA / differing.length,
+        );
       }
 
       if (tile.type === TerrainType.Hills || tile.type === TerrainType.Rocky || tile.type === TerrainType.Mountains) {
@@ -330,7 +345,10 @@ export function renderPixiTerrain(ctx: CanvasRenderingContext2D, state: RenderSn
   if (!current?.ready) return false;
 
   rebuildTerrain(state, cw, ch);
-  animateSeasonalEffects(current, state, performance.now() * 0.001);
+  // `renderTime` (advanced once per frame by `tickRenderClock` and reset with the renderer caches)
+  // rather than the page wall clock: page uptime kept animating the river glint and snowfall through
+  // a new game, a save load and a tab-out. Every other animation in the renderer uses this clock.
+  animateSeasonalEffects(current, state, renderTime);
   const [offsetX, offsetY] = worldToScreen(0, 0, state.camera, cw, ch);
   current.root.position.set(offsetX, offsetY);
   current.root.scale.set(state.camera.zoom);
@@ -344,5 +362,7 @@ export function resetPixiTerrain(): void {
   const current = terrainState;
   terrainState = null;
   initPromise = null;
+  // An explicit reset (world reload / context loss) is a deliberate "try again", not a per-frame path.
+  pixiUnavailable = false;
   if (current) current.app.destroy({ removeView: true, releaseGlobalResources: false }, { children: true });
 }

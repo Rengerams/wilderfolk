@@ -1,5 +1,4 @@
 import { BuildingType } from './gameTypes';
-import { formatResourceCost } from './resourceCost';
 
 export interface BuildingCategoryDef {
   id: string;
@@ -120,8 +119,4 @@ export function categoryBorderDashForType(type: BuildingType): number[] {
     default:
       return [];
   }
-}
-
-export function formatBuildingCost(wood: number, stone: number, gold: number): string {
-  return formatResourceCost({ wood, stone, gold });
 }

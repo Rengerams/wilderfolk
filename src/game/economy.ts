@@ -1,22 +1,81 @@
-import type { WorldState, Resources, WorkshopRecipe } from './gameTypes';
+import type { WorldState, Resources, WorkshopRecipe, Building } from './gameTypes';
 import { BuildingType, Season } from './gameTypes';
 import { addFloatingText } from './simEffects';
+import { recordFoodConsumed } from './economyLedger';
 
 export { addResource } from './resourceUtils';
 export { canAffordWorkshopRecipe } from './workshops';
 
-export function updateStorageCaps(state: WorldState) {
-  const barns = state.buildings.filter(b => b.completed && b.type === BuildingType.Barn).length;
-  const silos = state.buildings.filter(b => b.completed && b.type === BuildingType.Silo).length;
-  const storehouses = state.buildings.filter(b => b.completed && b.type === BuildingType.WoodStorehouse).length;
-  const warehouses = state.buildings.filter(b => b.completed && (b.type === BuildingType.Store || b.type === BuildingType.Market)).length;
-  state.storageMax = {
-    wood: 800 + barns * 300 + storehouses * 800 + warehouses * 200,
-    stone: 300 + silos * 200 + warehouses * 200,
-    food: 800 + barns * 400 + silos * 600,
-    gold: 20000,
-    iron: 300 + warehouses * 100,
+/**
+ * Storage one completed building adds, per resource.
+ *
+ * Exported (with `updateStorageCaps` as the single reader) because the inspector's Silo and
+ * WoodStorehouse hints typed "+600 food storage" and "+800 wood storage" as prose — the numbers a
+ * designer tunes now live only here (audit C2 "Building output/tuning copy").
+ */
+export const BARN_FOOD_STORAGE = 400;
+export const BARN_WOOD_STORAGE = 300;
+export const SILO_FOOD_STORAGE = 600;
+export const SILO_STONE_STORAGE = 200;
+export const WOOD_STOREHOUSE_STORAGE = 800;
+export const STORE_WAREHOUSE_STORAGE = 200;
+export const BASE_WOOD_STORAGE = 800;
+export const BASE_FOOD_STORAGE = 800;
+export const BASE_STONE_STORAGE = 300;
+/** Gold and iron are not storage-building driven: a flat ceiling and a warehouse-count bonus. */
+export const BASE_GOLD_STORAGE = 20000;
+export const BASE_IRON_STORAGE = 300;
+export const WAREHOUSE_IRON_STORAGE = 100;
+
+/**
+ * The one derivation of `storageMax` from the colony's completed storage buildings.
+ *
+ * **Every** writer of `storageMax` comes through here. There used to be three definitions — this rule,
+ * `worldGen`'s initial literal, and `saveLoad`'s fallback — and they disagreed: a fresh colony was
+ * handed `{ wood: 1000, stone: 500, food: 1000, gold: 2000, iron: 500 }` against this rule's
+ * `800 / 300 / 800 / 20000 / 300`. Because `updateStorageCaps` only runs in the daily layer and a world
+ * starts at tick 24, the first in-game day enforced a gold ceiling **10× lower** than the real one and
+ * material ceilings 25–67 % higher — and since nothing ever clamps stock *down*, the opening
+ * `wood: 2000` was already over its own cap from the first tick (2026-09-20 audit, F10).
+ *
+ * Takes only `buildings` so a world under construction can call the same rule the daily tick does.
+ */
+export function computeStorageMax(
+  buildings: readonly Building[],
+): { wood: number; stone: number; food: number; gold: number; iron: number } {
+  // Which completed buildings confer storage is a *player* rule — `b.faction !== 'rival'` is the
+  // same test `tradeCaravans.hasCompletedMarket` and every other consumer of "the colony's
+  // buildings" applies. Without it a rival Market (built by `rivalEvents`, `faction: 'rival'` in
+  // `groupEvents.createRivalBuilding`) handed the player +200 wood, +200 stone and +100 iron of
+  // storage on the next day boundary while `canEstablishTradeRoute` still refused with
+  // "Build a Market" — and a rival Silo cut the player's spoilage rate too
+  // (`LIVE-FINDINGS-STATUS.md`, E-1). Guarded by `tests/storageCap.rivalBuildings.test.ts`.
+  const countOf = (type: BuildingType): number =>
+    buildings.filter((b) => b.completed && b.faction !== 'rival' && b.type === type).length;
+  const barns = countOf(BuildingType.Barn);
+  const silos = countOf(BuildingType.Silo);
+  const storehouses = countOf(BuildingType.WoodStorehouse);
+  const warehouses = countOf(BuildingType.Store) + countOf(BuildingType.Market);
+
+  return {
+    wood:
+      BASE_WOOD_STORAGE +
+      barns * BARN_WOOD_STORAGE +
+      storehouses * WOOD_STOREHOUSE_STORAGE +
+      warehouses * STORE_WAREHOUSE_STORAGE,
+    stone: BASE_STONE_STORAGE + silos * SILO_STONE_STORAGE + warehouses * STORE_WAREHOUSE_STORAGE,
+    food: BASE_FOOD_STORAGE + barns * BARN_FOOD_STORAGE + silos * SILO_FOOD_STORAGE,
+    gold: BASE_GOLD_STORAGE,
+    iron: BASE_IRON_STORAGE + warehouses * WAREHOUSE_IRON_STORAGE,
   };
+}
+
+export function updateStorageCaps(state: WorldState) {
+  const silos = state.buildings.filter(
+    (b) => b.completed && b.faction !== 'rival' && b.type === BuildingType.Silo,
+  ).length;
+
+  state.storageMax = computeStorageMax(state.buildings);
   // Floor at 0, not 0.01: the 1% floor swallowed the formula's own first-Silo result
   // (0.02 − 0.012 = 0.8%), and a negative rate is not a spoilage rate.
   state.foodSpoilageRate = Math.max(0, 0.02 - silos * 0.012);
@@ -37,6 +96,12 @@ export function applyFoodSpoilage(state: WorldState, season: Season) {
   const loss = Math.floor(state.resources.food * state.foodSpoilageRate * seasonMult);
   if (loss > 0) {
     state.resources.food = Math.max(0, state.resources.food - loss);
+    // The ledger's `consumed` side is what lets the "why is my food low?" panel reconcile
+    // produced − consumed against the real delta, and spoilage was the one sink that never reached it:
+    // a village could lose food every day with nothing in the panel to explain the loss
+    // (`LIVE-FINDINGS-STATUS.md`, L8). Only recorded when something was actually lost, so a
+    // zero-loss day adds no row.
+    recordFoodConsumed(state, 'spoilage', loss);
     if (loss >= 5) {
       addFloatingText(state, state.width / 2, state.height / 2 - 40, `-${loss} food spoiled`, '#ef4444', 'brief');
     }

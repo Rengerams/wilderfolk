@@ -2,6 +2,7 @@ import { GRID_SIZE, TERRAIN_TILE_SIZE, snapToGrid } from '../gameTypes';
 import { isNightHour } from '../dayCycle';
 import { getBuildingFootprintForType, snapBuildingCenter } from '../buildingRotation';
 import { canPlaceBuildingSnapshot, isUnbuildableTerrainType, isWaterTerrainType } from '../placementUtils';
+import { terrainRiseAt } from '../terrainAtlas';
 import { isStripBuildType } from '../stripBuild';
 import {
   drawProceduralStripBuilding,
@@ -50,12 +51,15 @@ function getGridViewport(cam: RenderSnapshot['camera'], cw: number, ch: number):
   };
 }
 
+// Axis projections of the single owner transform (`viewState.worldToScreen`): the formula lives only
+// there. The D27 wiring guard in `tests/visualsAudit.renderWiring.test.ts` pins the call site by name
+// (`worldToScreenX(cx, cam, cw)`), so these two accessors stay — they must never restate the rule.
 function worldToScreenX(wx: number, cam: RenderSnapshot['camera'], cw: number): number {
-  return (wx - cam.x) * cam.zoom + cw / 2;
+  return w2s(wx, cam.y, cam, cw, 0)[0];
 }
 
 function worldToScreenY(wy: number, cam: RenderSnapshot['camera'], ch: number): number {
-  return (wy - cam.y) * cam.zoom + ch / 2;
+  return w2s(cam.x, wy, cam, 0, ch)[1];
 }
 
 /**
@@ -269,8 +273,13 @@ export function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, c
         const { x: cx, y: cy } = state.buildMode
           ? snapBuildingCenter(state.buildMode, rawX, rawY, state.buildRotation)
           : { x: snapToGrid(rawX, gs), y: snapToGrid(rawY, gs) };
-        const px = worldToScreenX(rawX, cam, cw);
-        const py = worldToScreenY(rawY, cam, ch);
+        // Plate and verdict share one centre. The marker used to sit on the raw major-cell centre
+        // while `canPlaceBuildingSnapshot` was asked about the *snapped* centre — for a multi-tile
+        // footprint a different cell (the coarse lattice is 100 wu, placement snaps to GRID_SIZE =
+        // 20), so a plate could show the verdict of the cell beside it. `drawBuildZoneOverlay`
+        // below already draws at the snapped centre.
+        const px = worldToScreenX(cx, cam, cw);
+        const py = worldToScreenY(cy, cam, ch);
         if (px + halfW < 0 || px - halfW > cw || py + halfH < 0 || py - halfH > ch) continue;
         const valid = canPlaceBuildingSnapshot(state, state.buildMode, cx, cy, state.buildRotation);
         drawIsoCellMarker(
@@ -321,7 +330,10 @@ export function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, c
       const placeType = seg.placeType ?? state.buildMode;
       const segRot = seg.rotation ?? state.buildStripPreview.rotation;
       const footprint = getBuildingFootprintForType(placeType, segRot);
-      const [gx, gy] = w2s(seg.x, seg.y, cam, cw, ch);
+      const [gx, gyBase] = w2s(seg.x, seg.y, cam, cw, ch);
+      // Ride the 2.5D relief exactly as the placed wall/road is drawn (`buildings.ts`
+      // getBuildingScreenRect samples centre-x / bottom-y of the footprint).
+      const gy = gyBase - terrainRiseAt(state.worldMap, seg.x, seg.y + footprint.height / 2) * cam.zoom;
       const bw = footprint.width * cam.zoom;
       const bh = footprint.height * cam.zoom;
       const alpha = seg.valid ? 0.72 : 0.45;
@@ -340,7 +352,10 @@ export function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, c
   // Build ghost footprint — ground diamond plate
   if (state.buildMode && state.buildGhost && !(state.buildStripPreview && isStripBuildType(state.buildMode))) {
     const footprint = getBuildingFootprintForType(state.buildMode, state.buildRotation);
-    const [gx, gy] = w2s(state.buildGhost.x, state.buildGhost.y, cam, cw, ch);
+    const [gx, gyBase] = w2s(state.buildGhost.x, state.buildGhost.y, cam, cw, ch);
+    // Same relief lift as the ghost sprite in `buildPreview.ts`, or plate and ghost separate.
+    const gy = gyBase
+      - terrainRiseAt(state.worldMap, state.buildGhost.x, state.buildGhost.y + footprint.height / 2) * cam.zoom;
     const bw = footprint.width * cam.zoom;
     const bh = footprint.height * cam.zoom;
     const valid = state.buildGhost.valid;

@@ -1,18 +1,32 @@
 import type { WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding, TICKS_PER_DAY } from './dayCycle';
+import { countHomelessSettlers, countResidentsInBuilding } from './residencyOccupancy';
+import { getOpenPlayerBeds } from './populationGrowth';
 import { isPlayerHuman } from './playerHuman';
 
 export interface HousingDiagnosticsSnapshot {
   tick: number;
   calendarDay: number;
   totalBeds: number;
+  /**
+   * Beds held by the residence owner's occupant rule (`residencyOccupancy.countResidentsInBuilding`),
+   * not by summing `building.occupants` here: the two disagree for a cursed settler in werewolf form,
+   * whom the residence sync counts and `isPlayerHuman` does not (2026-09-22 stats-panel audit, F5).
+   */
   occupiedBeds: number;
+  /**
+   * Beds a settler may actually be assigned, from the growth owner
+   * (`populationGrowth.getOpenPlayerBeds`). The Leader's House is excluded because those beds are
+   * reserved for the leader's household, and this figure is what "open beds" means everywhere else on
+   * screen (2026-09-22 stats-panel audit, F2).
+   */
   openBeds: number;
   residences: number;
   underCapacityResidences: number;
   overCapacityResidences: number;
-  unassignedPlayerHumans: number;
+  /** Homeless settlers — the residence owner's rule, prisoners excluded (audit F1). */
+  homelessPlayerHumans: number;
   orphanedResidenceReferences: number;
   occupantListMismatches: number;
   leaderHouseBeds: number;
@@ -34,9 +48,11 @@ export function collectHousingDiagnostics(
   const residenceById = new Map(residences.map((b) => [b.id, b]));
   const playerHumans = state.entities.filter((e) => e.alive && isPlayerHuman(e));
   const totalBeds = residences.reduce((sum, b) => sum + getResidenceCapacity(b), 0);
-  const occupiedBeds = residences.reduce((sum, b) => sum + b.occupants.length, 0);
+  const occupiedBeds = residences.reduce((sum, b) => sum + countResidentsInBuilding(state.entities, b.id), 0);
+  // Deliberately the raw **list** length beside capacity: this pair reports the occupant list's own
+  // integrity, which `occupantListMismatches` below then explains. `occupiedBeds` is the owner's count.
   const overCapacityResidences = residences.filter((b) => b.occupants.length > getResidenceCapacity(b)).length;
-  const unassignedPlayerHumans = playerHumans.filter((e) => e.residenceBuildingId == null).length;
+  const homelessPlayerHumans = countHomelessSettlers(state);
   const orphanedResidenceReferences = playerHumans.filter(
     (e) => e.residenceBuildingId != null && !residenceById.has(e.residenceBuildingId),
   ).length;
@@ -53,7 +69,7 @@ export function collectHousingDiagnostics(
     .filter((b) => isLeaderHouseResidence(b))
     .reduce((sum, b) => sum + b.occupants.length, 0);
   const playerHouseBeds = totalBeds - leaderHouseBeds;
-  const openBeds = Math.max(0, totalBeds - occupiedBeds);
+  const openBeds = getOpenPlayerBeds(state);
   const pressureRatio = totalBeds <= 0 ? 1 : occupiedBeds / totalBeds;
 
   return {
@@ -65,7 +81,7 @@ export function collectHousingDiagnostics(
     residences: residences.length,
     underCapacityResidences: residences.filter((b) => b.occupants.length < getResidenceCapacity(b)).length,
     overCapacityResidences,
-    unassignedPlayerHumans,
+    homelessPlayerHumans,
     orphanedResidenceReferences,
     occupantListMismatches,
     leaderHouseBeds,

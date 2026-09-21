@@ -1,6 +1,5 @@
 import {
   EntityType,
-  BuildingType,
   isVillageLeader,
   getHumanArmamentLabel,
   getAgeInYears,
@@ -12,15 +11,18 @@ import {
   hasWorkAssignment,
   isImprisoned,
   PREGNANCY_TICKS,
-  TICKS_PER_DAY,
+  daysUntilTick,
   getBirthDateString,
 } from '../game/dayCycle';
 import { TRAIT_DEFS } from '../game/settlerTraits';
 import { getHumanVariantLabel } from '../game/humanSprites';
 import { getTameFoodCost } from '../game/buildingActions';
+import { hasNearbyPlayerTamingPost, listTamingCandidates } from '../game/settlerInteractionActions';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { useEffect, useMemo, useState } from 'react';
 import { getHumanActivityProjection } from '../game/humanStatus';
+import { explainSettlerMovement } from '../game/dashboardData';
+import { citizenFullName, citizenGivenName, humanDisplayName } from '../game/citizenId';
 
 // Added `id` to the return type for stable React keys
 function getFamilyMembers(entity: Entity, allEntities: Entity[]): { id: number; label: string; name: string; relation: string }[] {
@@ -30,7 +32,9 @@ function getFamilyMembers(entity: Entity, allEntities: Entity[]): { id: number; 
   const add = (e: Entity, label: string, relation: string) => {
     if (!e.alive || e.type !== EntityType.Human || e.id === entity.id || seen.has(e.id)) return;
     seen.add(e.id);
-    members.push({ id: e.id, label, name: e.name || 'Unknown', relation });
+    // The nameless fallback comes from `citizenId` — this list used to say "Unknown" while the tree
+    // header for the same settler said "A settler" (audit C2 "Settler name fallback").
+    members.push({ id: e.id, label, name: citizenGivenName(e), relation });
   };
 
   for (const e of allEntities) {
@@ -115,6 +119,15 @@ export default function SelectedEntityPanel({
   const visitorGroup = isVisitor ? state.visitorGroups?.find((g) => g.id === entity.groupId) : null;
   const rivalCamp = isRival ? state.rivalSettlements?.find((r) => r.id === entity.groupId) : null;
 
+  /**
+   * P5 — the movement reason trace for this settler: the day's named stops in order, the leg they are
+   * on, and the path owner's blocked/rerouting verdict. Read-only projection; the panel prints its
+   * lines and derives nothing.
+   */
+  const movementExplanation = isHuman && !isVisitor && !isRival
+    ? explainSettlerMovement(state, entity.id)
+    : null;
+
   // 🚀 PERFORMANCE: Memoize expensive array filtering and derivations
   const family = useMemo(() => {
     return isHuman && !isVisitor && !isRival ? getFamilyMembers(entity, allEntities) : [];
@@ -124,9 +137,12 @@ export default function SelectedEntityPanel({
     return isHuman && !isVisitor && !isRival ? countLivingChildren(entity, allEntities) : 0;
   }, [isHuman, isVisitor, isRival, entity, allEntities]);
 
-  const availableHumans = useMemo(() => {
-    return allEntities.filter(e => e.type === EntityType.Human && e.alive && !e.isJuvenile);
-  }, [allEntities]);
+  // Both come from the taming owner: the local list offered visitors/rivals (a click did nothing, since
+  // the command refuses them) and the local reach test was paired with a command that added half a
+  // footprint to the post's position. `building.x/y` is the footprint **centre** (the pad and sprite are
+  // drawn from `x - w/2`; the bounds/terrain/overlap checks use `x ± w/2`), so both now measure from the
+  // centre (`LIVE-FINDINGS-STATUS.md`, F16 and F17).
+  const availableHumans = useMemo(() => listTamingCandidates(state), [state]);
 
   // 🐛 BUG FIX: Use String(entity.type).toLowerCase() to ensure enum values correctly map to dictionary keys
   const foodChainInfo: Record<string, { role: string; eats: string; huntedBy: string }> = {
@@ -146,7 +162,7 @@ export default function SelectedEntityPanel({
   const isTameable = tameableTypes.includes(entity.type) && !entity.tamedBy;
   const isMoonHowler = entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
   const tamer = entity.tamedBy ? allEntities.find(e => e.id === entity.tamedBy && e.alive) : null;
-  const hasTamingPost = state.buildings.some(b => b.completed && b.type === BuildingType.TamingPost && Math.hypot(b.x - entity.x, b.y - entity.y) < 140);
+  const hasTamingPost = hasNearbyPlayerTamingPost(state, entity);
   const canTameHere = hasTamingPost;
   const tameFoodCost = getTameFoodCost(entity.type);
   
@@ -179,7 +195,7 @@ export default function SelectedEntityPanel({
         <div className="min-w-0 flex-1">
           <h3 className={`text-sm font-bold ${isVillageHead ? 'text-amber-100' : 'text-amber-200'}`}>
             {isHuman || entity.type === EntityType.Werewolf
-              ? `${isVillageHead ? '👑 ' : ''}${entity.name || 'Unnamed'} ${entity.surname || ''}${entity.title ? ` ${entity.title}` : ''}${entity.type === EntityType.Werewolf ? ' (Moon Howler)' : ''}`
+              ? `${isVillageHead ? '👑 ' : ''}${humanDisplayName(entity)}${entity.type === EntityType.Werewolf ? ' (Moon Howler)' : ''}`
               : entity.type}
           </h3>
           {(isHuman || entity.type === EntityType.Werewolf) && (
@@ -206,6 +222,23 @@ export default function SelectedEntityPanel({
               {activityProjection.blockedReason && (
                 <p className="mt-1 rounded bg-rose-950/50 px-1.5 py-1 text-rose-200">Blocked: {activityProjection.blockedReason}</p>
               )}
+            </div>
+          )}
+          {movementExplanation && (
+            <div className="mt-1 rounded-lg border border-emerald-700/40 bg-emerald-950/25 p-1.5 text-[10px]">
+              <p className="mb-0.5 font-semibold uppercase tracking-wider text-emerald-300">Movement</p>
+              <div className="space-y-0.5">
+                {movementExplanation.lines.map((line, index) => (
+                  <p key={`${line.label}-${index}`}>
+                    <span className="text-stone-400">{line.label}: </span>
+                    <span className={
+                      line.tone === 'warn' ? 'text-rose-300' : line.tone === 'good' ? 'text-emerald-300' : 'text-stone-200'
+                    }>
+                      {line.value}
+                    </span>
+                  </p>
+                ))}
+              </div>
             </div>
           )}
           {isMoonHowler && (
@@ -315,7 +348,7 @@ export default function SelectedEntityPanel({
             )}
             {isImprisoned(entity) ? (() => {
               const prison = state.buildings.find((b) => b.id === entity.prisonBuildingId);
-              const daysLeft = entity.prisonerUntilTick ? Math.max(0, Math.ceil((entity.prisonerUntilTick - state.tick) / TICKS_PER_DAY)) : 0;
+              const daysLeft = entity.prisonerUntilTick ? daysUntilTick(state.tick, entity.prisonerUntilTick) : 0;
               return (
                 <p className="text-slate-400">
                   ⛓️ Imprisoned{prison ? ` at ${getBuildingConfig(prison.type).label}` : ''} · {daysLeft} day{daysLeft === 1 ? '' : 's'} left
@@ -341,7 +374,7 @@ export default function SelectedEntityPanel({
             {entity.partnerId && entity.relationshipStatus === 'married' && (() => {
               const spouse = allEntities.find((e) => e.id === entity.partnerId && e.alive);
               const spouseLabel = spouse
-                ? `${spouse.name || 'Settler'}${spouse.surname ? ` ${spouse.surname}` : ''}`
+                ? citizenFullName(spouse)
                 : 'partner';
               return <p className="text-amber-300">💍 Married to {spouseLabel}</p>;
             })()}
@@ -393,7 +426,7 @@ export default function SelectedEntityPanel({
                     disabled={!canAffordTame}
                     className="rounded bg-emerald-700 px-1.5 py-1 text-[10px] font-bold text-white hover:bg-emerald-600 transition-all disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    🦴 {h.name || 'Settler'}
+                    🦴 {citizenGivenName(h)}
                   </button>
                 ))}
               </div>

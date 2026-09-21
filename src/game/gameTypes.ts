@@ -18,7 +18,6 @@ export type { HuntingSpotPrey } from './huntingSpots';
 export { WORKSHOP_RECIPES, DEFAULT_WORKSHOP_RECIPE_ID, getWorkshopRecipe, formatRecipeInputs } from './workshops';
 export type { WorkshopRecipe } from './workshops';
 export type { Challenge } from './challenges';
-
 /** One letter of the Renffr sky omen (see renffrStar). */
 export interface RenffrLetter {
   char: string;
@@ -202,6 +201,46 @@ export const HOTEL_GUEST_CAPACITY = 4;
  */
 export const LEADER_OCCUPATION = 'leader';
 
+/**
+ * The human state a Moon Howler form parks while the settler is a werewolf.
+ *
+ * One declaration, here, because `Entity` owns it. It used to be declared **twice** — inline on
+ * `Entity.moonHowlerSaved` and again as `MoonHowlerSavedState` in `moonHowler.ts` — and the two
+ * disagreed: the local copy listed `pregnancyDueProgress`, the live inline one did not, so the field
+ * was in one contract and absent from the one the code actually assigned through. `saveLoad` scaled a
+ * field that was therefore never present, and `revertToHumanForm` restored `pregnant` and
+ * `pregnantById` without the due progress the invariant check pairs with them (2026-09-20 audit,
+ * bug 38). The unused local copy is deleted rather than kept in sync.
+ */
+export interface MoonHowlerSavedState {
+  energy: number;
+  maxEnergy: number;
+  speed: number;
+  size: number;
+  job?: JobType;
+  occupation?: string;
+  homeBuildingId?: number;
+  residenceBuildingId?: number;
+  prisonBuildingId?: number;
+  prisonerUntilTick?: number;
+  prisonSentenceCrime?: 'scandal';
+  relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
+  partnerId?: number;
+  affairPartnerId?: number;
+  affairProgress?: number;
+  courtshipProgress?: number;
+  youthLovePartnerId?: number;
+  youthLoveProgress?: number;
+  youthLoveStartedDay?: number;
+  pregnant?: boolean;
+  pregnantById?: number;
+  pregnancyProgress?: number;
+  /** Paired with `pregnant` by `simulationInvariants`; parked and restored with it. */
+  pregnancyDueProgress?: number;
+  huntTargetId?: number;
+  combatTicks?: number;
+}
+
 export interface Entity {
   id: number;
   type: EntityType;
@@ -232,6 +271,8 @@ export interface Entity {
   pregnant?: boolean;
   pregnancyProgress?: number;
   pregnancyDueProgress?: number;
+  /** In-game days left before this settler may court again after a courtship or marriage ended. */
+  courtshipCooldownDays?: number;
   homeBuildingId?: number;
   residenceBuildingId?: number;
   prisonBuildingId?: number;
@@ -289,32 +330,7 @@ export interface Entity {
   chatPartnerId?: number;
   chatDialogueSessionKey?: string;
   moonHowlerCursed?: boolean;
-  moonHowlerSaved?: {
-    energy: number;
-    maxEnergy: number;
-    speed: number;
-    size: number;
-    job?: JobType;
-    occupation?: string;
-    homeBuildingId?: number;
-    residenceBuildingId?: number;
-    prisonBuildingId?: number;
-    prisonerUntilTick?: number;
-    prisonSentenceCrime?: 'scandal';
-    relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
-    partnerId?: number;
-    affairPartnerId?: number;
-    affairProgress?: number;
-    courtshipProgress?: number;
-    youthLovePartnerId?: number;
-    youthLoveProgress?: number;
-    youthLoveStartedDay?: number;
-    pregnant?: boolean;
-    pregnantById?: number;
-    pregnancyProgress?: number;
-    huntTargetId?: number;
-    combatTicks?: number;
-  };
+  moonHowlerSaved?: MoonHowlerSavedState;
   tamedBy?: number;
   faction?: 'visitor' | 'rival' | 'trade_caravan';
   hiddenFromPlayer?: boolean;
@@ -426,6 +442,13 @@ export interface FloatingText {
   maxLife: number;
   scale: number;
 }
+
+/**
+ * Ticks before the end of a floating text's life at which its fade-out (renderer alpha) and its
+ * shrink (simulation scale) both begin. One constant, because the two ramps count down the same
+ * `FloatingText.life` and had drifted to 7 and 6 — a mismatch nobody could see or explain.
+ */
+export const FLOATING_TEXT_FADE_TICKS = 6;
 
 export interface GameEvent {
   id: string;
@@ -681,6 +704,13 @@ export interface WorldState {
   workSchedule?: import('./workSchedule').WorkSchedule;
   tavernSchedule?: import('./venueSchedule').VenueSchedule;
   hotelSchedule?: import('./venueSchedule').VenueSchedule;
+  /**
+   * Colony-wide auto-staffing priority preset (roadmap F3). Strategic default only:
+   * a manual assignment and a building's own `staffingMode` both outrank it, and it is
+   * never a removal authority. Optional because saves written before F3 omit it — the
+   * load path applies `DEFAULT_WORKFORCE_POLICY` (`workforcePolicy.ts`).
+   */
+  workforcePolicy?: import('./workforcePolicy').WorkforcePolicy;
   villageReputation: number;
   resources: Resources;
   storageMax: Resources;
@@ -688,6 +718,14 @@ export interface WorldState {
   ecosystemHealth: number;
   biodiversityIndex: number;
   pollutionLevel: number;
+  /**
+   * Story-layer adjustments queued for the next `tickEcosystemMetrics`, which is the owner of both
+   * derived fields and the only place a delta can be applied without being overwritten in the same
+   * tick. Optional because saves written before this existed omit them (absent reads as 0), and
+   * because a day with no story beat never sets them — see `dailyEcology.adjustEcosystemHealth`.
+   */
+  pendingEcosystemHealthDelta?: number;
+  pendingPollutionDelta?: number;
   valleyStage?: ValleyStage;
   valleyStageSinceDay?: number;
   valleyRawStressStreakDays?: number;
@@ -744,7 +782,6 @@ export interface WorldState {
   activeVillageRequest?: VillageRequest;
   villageRequestCooldownUntilDay?: number;
   villageRequestHistory?: VillageRequestHistoryEntry[];
-  leaderPromise?: LeaderPromise;
   lastWildlifeReplenishLogDay?: number;
   dismissedBigNewsIds?: string[];
   dismissedActiveEventIds?: string[];
@@ -816,19 +853,20 @@ export interface DailyEconomyLedger {
   day: number;
   produced: Record<string, number>;
   consumed: Record<string, number>;
+  /**
+   * Day totals, maintained by the ledger owner as entries are recorded and recomputed by the daily
+   * economy tick, so no reader has to add the maps up. Optional because saves written before this
+   * existed carry only the maps; the daily tick fills them (`LIVE-FINDINGS-STATUS.md`, F2 —
+   * "food can't be calculated at the UX", owner: "it should be in dailytick").
+   */
+  producedTotal?: number;
+  consumedTotal?: number;
 }
 
 export interface FoodDaySample {
   day: number;
   produced: Record<string, number>;
   consumed: Record<string, number>;
-}
-
-export interface LeaderPromise {
-  goal: 'buildings' | 'food';
-  label: string;
-  target: number;
-  startValue: number;
 }
 
 export interface VisitorQuest {

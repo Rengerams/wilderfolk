@@ -2,7 +2,12 @@
 import { canonicalDialogueBank, installDialogueBankPayload } from '../dialogueTrees';
 import { gameTick } from '../gameTick';
 import { GAME_VERSION } from '../version';
-import { hydrateWorldRuntimeCaches, invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
+import {
+  captureSimulationState,
+  hydrateWorldRuntimeCaches,
+  invalidateWorldRuntimeCaches,
+  restoreSimulationState,
+} from '../worldRuntimeCaches';
 import { adoptSimSeedFromWorld, restoreSimRng } from '../simRng';
 import { loadNames } from '../nameLoader';
 
@@ -183,9 +188,18 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           postError('Worker not initialized', 'export');
           break;
         }
+        // The clone is a save payload, so it crosses with the runtime caches dropped — the same set
+        // `saveLoad.stripRuntimeWorldFields` removes on the way to disk, `scentGrid` included: the
+        // odour trail is transient and `loadGameFromParsed` recreates it.
+        // The *live* worker world is a different matter. `scentGrid` is simulation state (the
+        // accumulated predator odour grazers sample to flee), so invalidating it here zeroed the
+        // trail on every manual save and every ~30 s auto-save (worker-boundary audit F-2). Capture
+        // it across the rebuild — the clone is taken in between, without it.
+        const liveSimulationState = captureSimulationState(world);
         invalidateWorldRuntimeCaches(world);
         const clonedWorld = structuredClone(world);
         hydrateWorldRuntimeCaches(world);
+        restoreSimulationState(world, liveSimulationState);
 
         const response: WorkerResponse = {
           type: 'exportSaveResult',

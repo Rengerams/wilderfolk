@@ -6,7 +6,7 @@ import { srcAlias } from "./config/vite.shared.ts"
 /** Pre-game / sidebar panels — safe to load after the simulation core. */
 const GAME_UI_MODULES = [
   "IntroScreen", "MapSetupScreen", "StatisticsPanel", "EventLogPanel", 
-  "FocusPanel", "PopulationPanel", "VillageLeadershipPanel", "RoadmapPanel", 
+  "FocusPanel", "PopulationPanel", "VillageLeadershipPanel", 
   "CombatPreviewPanel", "BuildCatalogPanel", "BlacksmithForgePanel", 
   "ChallengesPanel", "CombatLogPanel", "FrontierPanel"
 ]

@@ -8,6 +8,7 @@ import {
   type BuildingRotation,
   type CornerRotation,
 } from './buildingRotation';
+import { isWallBuildingType } from './defenseStructures';
 
 export type JunctionKind = 'end' | 'straight' | 'elbow' | 'tee' | 'cross';
 
@@ -23,11 +24,6 @@ export interface StripJunctionInfo {
   connections: JunctionConnections;
   cornerRotation: CornerRotation;
 }
-
-const WALL_TYPES = new Set<BuildingType>([
-  BuildingType.Wall,
-  BuildingType.WallGate,
-]);
 
 const ROAD_TYPES = new Set<BuildingType>([BuildingType.Road]);
 
@@ -111,7 +107,8 @@ export function collectStripCenters(
   family: 'wall' | 'road',
   extra: StripCenterExtra[] = [],
 ): { hList: StripCenter[]; vList: StripCenter[]; along: number } {
-  const types = family === 'wall' ? WALL_TYPES : ROAD_TYPES;
+  const familyMembers = (type: BuildingType): boolean =>
+    family === 'wall' ? isWallBuildingType(type) : ROAD_TYPES.has(type);
   const sampleType = family === 'wall' ? BuildingType.Wall : BuildingType.Road;
   const along = Math.max(...[0, 90].map((rot) => {
     const fp = getBuildingFootprintForType(sampleType, rot as BuildingRotation);
@@ -128,7 +125,7 @@ export function collectStripCenters(
   };
 
   for (const b of buildings) {
-    if (!b.completed || b.faction === 'rival' || !types.has(b.type)) continue;
+    if (!b.completed || b.faction === 'rival' || !familyMembers(b.type)) continue;
     const t = b.type === BuildingType.WallGate ? BuildingType.WallGate : b.type;
     pushBuilding(t, b.x, b.y, buildingStripRotation(b));
   }

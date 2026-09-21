@@ -1,14 +1,7 @@
 import type { RenderSnapshot } from '../renderSnapshot';
+import { worldToScreen as w2s } from '../viewState';
 
 const SCENT_DEBUG = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SCENT_DEBUG === '1';
-
-function worldToScreenX(wx: number, cam: RenderSnapshot['camera'], cw: number): number {
-  return (wx - cam.x) * cam.zoom + cw / 2;
-}
-
-function worldToScreenY(wy: number, cam: RenderSnapshot['camera'], ch: number): number {
-  return (wy - cam.y) * cam.zoom + ch / 2;
-}
 
 // ============ SCENT OVERLAY ============
 export function drawScentOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
@@ -45,8 +38,7 @@ export function drawScentOverlay(ctx: CanvasRenderingContext2D, state: RenderSna
     for (let col = col0; col <= col1; col++) {
       const scent = grid ? grid.values[row * cols + col] : reader!.scentAt(col, row);
       if (scent <= 0) continue;
-      const sx = worldToScreenX(col * cellSize, cam, cw);
-      const sy = worldToScreenY(row * cellSize, cam, ch);
+      const [sx, sy] = w2s(col * cellSize, row * cellSize, cam, cw, ch);
       const alpha = Math.min(0.5, (scent / max) * 0.45);
       ctx.fillStyle = `rgba(168,72,232,${alpha})`;
       ctx.fillRect(sx, sy, cellPx, cellPx);

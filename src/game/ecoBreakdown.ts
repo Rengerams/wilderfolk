@@ -1,5 +1,5 @@
 import { type Building, type WorldState } from './gameTypes';
-import { calculateEcosystemMetrics, PRESERVE_HEALTH_BONUS, type EcosystemCounts } from './dailyEcology';
+import { calculateEcosystemMetrics, getEcosystemHealth, PRESERVE_HEALTH_BONUS, type EcosystemCounts } from './dailyEcology';
 import { hasTech } from './simHelpers';
 
 export interface EcosystemBreakdownLine {
@@ -32,7 +32,7 @@ export function getEcosystemBreakdown(state: WorldState, buildings: Building[] =
   const counts: EcosystemCounts = { ...state.wildlifeCounts, humans: state.humanPopulation };
   const metrics = calculateEcosystemMetrics(state, counts, buildings);
   const hasForestry2 = hasTech(state, 'forestry_2');
-  const health = state.ecosystemHealth;
+  const health = getEcosystemHealth(state);
 
   const lines: EcosystemBreakdownLine[] = [
     { label: 'Base', delta: 100, detail: 'Starting wilderness score' },

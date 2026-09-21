@@ -22,6 +22,7 @@ import {
   TICKS_PER_HOUR,
 } from './dayCycle';
 import { isPlayerHuman } from './playerHuman';
+import { citizenFullName, humanDisplayName } from './citizenId';
 import { buildEntityByType } from './simFocus';
 import {
   addBigNews,
@@ -32,9 +33,11 @@ import {
 import { logDeath, logEvent } from './eventLog';
 import { assignMissingWorkers } from './workforce';
 import { isBarracksGuard } from './defenseStructures';
+import { isInsideCompletedBuilding } from './terrainSystems';
 import { getSimRng } from './simRng';
 import { HUMAN_FORM, revertToHumanForm } from './moonHowlerForm';
 import type { RevertToHumanFormOptions } from './moonHowlerForm';
+import { releaseDialogueSession } from './humanChat';
 
 /**
  * Night exorcism — only if a Church is **staffed** (priest on duty).
@@ -157,36 +160,6 @@ export function shouldApplyNewMoonHowlerCurse(
   );
 }
 
-export interface MoonHowlerSavedState
-  extends Pick<Entity,
-    'relationshipStatus'
-    | 'partnerId'
-    | 'affairPartnerId'
-    | 'affairProgress'
-    | 'courtshipProgress'
-    | 'youthLovePartnerId'
-    | 'youthLoveProgress'
-    | 'youthLoveStartedDay'
-    | 'pregnant'
-    | 'pregnantById'
-    | 'pregnancyProgress'
-    | 'pregnancyDueProgress'
-    | 'huntTargetId'
-    | 'combatTicks'
-  > {
-  energy: number;
-  maxEnergy: number;
-  speed: number;
-  size: number;
-  job?: Entity['job'];
-  occupation?: string;
-  homeBuildingId?: number;
-  residenceBuildingId?: number;
-  prisonBuildingId?: number;
-  prisonerUntilTick?: number;
-  prisonSentenceCrime?: Entity['prisonSentenceCrime'];
-}
-
 function detachEntityFromBuildingOccupants(buildings: Building[], buildingId: number | undefined, entityId: number): void {
   if (buildingId == null) return;
   const b = buildings.find((x) => x.id === buildingId);
@@ -240,6 +213,7 @@ export function forceMoonHowlerOutside(
   buildings: Building[],
   mapWidth: number,
   mapHeight: number,
+  rng: () => number = getSimRng('moonHowler'),
 ): void {
   const saved = entity.moonHowlerSaved;
   const jobId = entity.homeBuildingId ?? saved?.homeBuildingId;
@@ -263,8 +237,11 @@ export function forceMoonHowlerOutside(
     entity.prisonSentenceCrime = undefined;
   }
 
-  const angle = getSimRng('moonHowler')() * Math.PI * 2;
-  const dist = 40 + getSimRng('moonHowler')() * 50;
+  // Draws from the injected stream, not the module's global one — the scatter has to be reproducible
+  // from whatever stream the caller owns, which is what `saveLoad` restores before this can run
+  // (`LIVE-FINDINGS-STATUS.md`, L13).
+  const angle = rng() * Math.PI * 2;
+  const dist = 40 + rng() * 50;
   entity.x = Math.max(24, Math.min(mapWidth - 24, entity.x + Math.cos(angle) * dist));
   entity.y = Math.max(24, Math.min(mapHeight - 24, entity.y + Math.sin(angle) * dist));
   entity.vx = Math.cos(angle) * 1.2;
@@ -301,6 +278,13 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
     pregnant: human.pregnant,
     pregnantById: human.pregnantById,
     pregnancyProgress: human.pregnancyProgress,
+    // Declared in the saved-form key list and scaled by `saveLoad`, but never written here and never
+    // restored by `revertToHumanForm` — so the field was in the contract and not in the code. It is
+    // latent rather than live today (the transform does not clear the live pregnancy fields, so the
+    // value survives anyway), but the invariant check pairs `pregnant` with `pregnancyDueProgress`, and
+    // a form that starts parking the pregnancy fields would have restored the first without the second
+    // (2026-09-20 audit, bug 38).
+    pregnancyDueProgress: human.pregnancyDueProgress,
     huntTargetId: human.huntTargetId,
     combatTicks: human.combatTicks,
   };
@@ -308,6 +292,11 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
   detachEntityFromBuildingOccupants(buildings, liveJobId, human.id);
   detachEntityFromBuildingOccupants(buildings, liveResidenceId, human.id);
   detachEntityFromBuildingOccupants(buildings, livePrisonId, human.id);
+
+  // Leaving the Human population ends this settler's dialogue session: `tickHumanChat` runs only for
+  // `byType[EntityType.Human]`, so a wolf can no longer advance a session it holds, and the partner
+  // would stay dialogue-busy on a live entry that the orphan reclaim cannot see (F-chat-1 residual).
+  releaseDialogueSession(human);
 
   human.type = EntityType.Werewolf;
   human.huntTargetId = undefined;
@@ -360,8 +349,7 @@ function findStaffedChurches(buildings: Building[]): Building[] {
 function isEligiblePriest(e: Entity | undefined): e is Entity {
   return !!e
     && e.alive
-    && e.type === EntityType.Human
-    && !e.faction
+    && isPlayerHuman(e)
     && !e.moonHowlerCursed;
 }
 
@@ -400,13 +388,6 @@ function guardsNearPriest(priest: Entity, entities: Entity[], buildings: Buildin
     if (dx * dx + dy * dy <= rangeSq) guards.push(e);
   }
   return guards;
-}
-
-function humanDisplayName(entity: Entity): string {
-  if (entity.name) {
-    return `${entity.name}${entity.surname ? ` ${entity.surname}` : ''}${entity.title ? ` ${entity.title}` : ''}`;
-  }
-  return 'A settler';
 }
 
 export function tryMoonHowlerChurchCures(
@@ -640,29 +621,41 @@ export function syncMoonHowlerForms(
   mapHeight = 900,
   tick?: number,
   villageLeaderId?: number | null,
+  rng: () => number = getSimRng('moonHowler'),
 ): MoonHowlerSyncResult {
   const wantWerewolf = shouldMoonHowlerTransform(colonyDay, hourOfDay);
   const transformTick = isMoonHowlerTransformTick(colonyDay, hourOfDay);
   const transformed: Entity[] = [];
   const reverted: Entity[] = [];
-  const humans = entities.filter((e) => e.alive && e.type === EntityType.Human);
-  const revertOpts: RevertToHumanFormOptions = { buildings, humans, tick, villageLeaderId };
+  // The human snapshot is read only by the revert branch (`revertToHumanForm` sizes the prison/job/
+  // residence restores from it), so it is built on the first revert instead of every tick (N-6).
+  // Deferring it is safe: a revert requires `!wantWerewolf` while the transform branch — the only
+  // other writer of `entity.type` — requires `wantWerewolf`, so the two are mutually exclusive
+  // within one call and no type can have changed by the time the snapshot is taken.
+  let revertHumans: Entity[] | undefined;
+  // `huntingTonight` used to be a second full scan (`entities.some(isActiveMoonHowler)`), now fused
+  // into this walk (N-6). It is read after each entity's form change so it observes the same state
+  // the trailing `some` did: `isActiveMoonHowler` reads only `alive`/`type`/`moonHowlerCursed`, and
+  // those are written only by the branch for that same entity.
+  let huntingTonight = false;
 
   for (const entity of entities) {
-    if (!entity.alive || !entity.moonHowlerCursed || !isMoonHowlerEligible(entity)) continue;
+    const cursedAndEligible =
+      entity.alive && entity.moonHowlerCursed && isMoonHowlerEligible(entity);
 
-    if (wantWerewolf && entity.type === EntityType.Human) {
+    if (cursedAndEligible && wantWerewolf && entity.type === EntityType.Human) {
       transformToWerewolfForm(entity, buildings);
-      forceMoonHowlerOutside(entity, buildings, mapWidth, mapHeight);
+      forceMoonHowlerOutside(entity, buildings, mapWidth, mapHeight, rng);
       transformed.push(entity);
-    } else if (!wantWerewolf && entity.type === EntityType.Werewolf) {
-      revertToHumanForm(entity, revertOpts);
-      if (!humans.includes(entity)) humans.push(entity);
+    } else if (cursedAndEligible && !wantWerewolf && entity.type === EntityType.Werewolf) {
+      revertHumans ??= entities.filter((e) => e.alive && e.type === EntityType.Human);
+      revertToHumanForm(entity, { buildings, humans: revertHumans, tick, villageLeaderId });
+      if (!revertHumans.includes(entity)) revertHumans.push(entity);
       reverted.push(entity);
     }
-  }
 
-  const huntingTonight = entities.some((e) => isActiveMoonHowler(e));
+    if (isActiveMoonHowler(entity)) huntingTonight = true;
+  }
 
   return {
     transformed,
@@ -699,6 +692,7 @@ export function tickMoonHowlerCycle(
     state.height,
     state.tick,
     state.villageLeaderId,
+    rng,
   );
   if (moonSync.transformed.length > 0 || moonSync.reverted.length > 0) {
     byType = buildEntityByType(aliveEntities);
@@ -709,7 +703,11 @@ export function tickMoonHowlerCycle(
     if (moonSync.reverted.length > 0) {
       const villagers = aliveEntities.filter((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e));
       assignMissingResidences(villagers, buildings, aliveEntities);
-      assignMissingWorkers(villagers, buildings);
+      // `state`, not just `buildings`: `worldSlices` is what supplies the player's workforce preset and
+      // the venue auto-staff targets. Without it the pass ran under `DEFAULT_WORKFORCE_POLICY`
+      // ('survival') and sized venues from the default window, so a reverted settler could be pushed
+      // into a second innkeeper slot the player never asked for (2026-09-20 audit, B-2).
+      assignMissingWorkers(villagers, buildings, state);
     }
     changed = true;
   }
@@ -721,8 +719,8 @@ export function tickMoonHowlerCycle(
   }
 
   for (const were of moonSync.transformed) {
-    const who = were.name ? `${were.name}${were.surname ? ` ${were.surname}` : ''}` : 'A settler';
-    const line = WEREWOLF_TRANSFORM_LINES[Math.floor(getSimRng('moonHowler')() * WEREWOLF_TRANSFORM_LINES.length)](who);
+    const who = citizenFullName(were);
+    const line = WEREWOLF_TRANSFORM_LINES[Math.floor(rng() * WEREWOLF_TRANSFORM_LINES.length)](who);
     addFloatingText(state, were.x, were.y - 20, 'AWOO!', '#c4b5fd');
     logEvent(state, 'event', line, who);
   }
@@ -730,16 +728,12 @@ export function tickMoonHowlerCycle(
   if (isMoonHowlerCureWindow(colonyDay, hourOfDay)) {
     for (const were of aliveEntities) {
       if (!isActiveMoonHowler(were)) continue;
-      const inside = buildings.some(
-        (b) =>
-          b.completed
-          && were.x >= b.x
-          && were.x <= b.x + b.width
-          && were.y >= b.y
-          && were.y <= b.y + b.height,
-      );
+      // The owner helper, not a second axis-aligned test: it pads the footprint, and a howler within
+      // that margin is indoors too — the local copy missed those and the sweep never forced them out
+      // (`LIVE-FINDINGS-STATUS.md`, L16).
+      const inside = isInsideCompletedBuilding(state, were.x, were.y);
       if (inside) {
-        forceMoonHowlerOutside(were, buildings, state.width, state.height);
+        forceMoonHowlerOutside(were, buildings, state.width, state.height, rng);
         changed = true;
       }
     }
@@ -754,21 +748,21 @@ export function tickMoonHowlerCycle(
     const candidates = byType[EntityType.Human].filter((h) => isPlayerHuman(h) && canMoonHowlerCurse(h));
     const human = candidates[Math.floor(rng() * candidates.length)];
     if (human) {
-      const who = human.name ? `${human.name}${human.surname ? ` ${human.surname}` : ''}` : 'A settler';
+      const who = citizenFullName(human);
       curseMoonHowler(human);
       transformToWerewolfForm(human, buildings);
-      forceMoonHowlerOutside(human, buildings, state.width, state.height);
+      forceMoonHowlerOutside(human, buildings, state.width, state.height, rng);
       byType = buildEntityByType(aliveEntities);
       syncResidenceOccupants(
         aliveEntities.filter((e) => e.alive && e.type === EntityType.Human),
         buildings,
       );
       changed = true;
-      const line = WEREWOLF_CURSE_LINES[Math.floor(getSimRng('moonHowler')() * WEREWOLF_CURSE_LINES.length)](who);
+      const line = WEREWOLF_CURSE_LINES[Math.floor(rng() * WEREWOLF_CURSE_LINES.length)](who);
       addBigNews(state, '🌝 Moon Howler Curse!', line, 'negative');
       addFloatingText(state, human.x, human.y - 20, 'Cursed…', '#c4b5fd');
       logEvent(state, 'event', `${who} was cursed as a Moon Howler`, who);
-      const transformLine = WEREWOLF_TRANSFORM_LINES[Math.floor(getSimRng('moonHowler')() * WEREWOLF_TRANSFORM_LINES.length)](who);
+      const transformLine = WEREWOLF_TRANSFORM_LINES[Math.floor(rng() * WEREWOLF_TRANSFORM_LINES.length)](who);
       addFloatingText(state, human.x, human.y - 20, 'AWOO!', '#c4b5fd');
       logEvent(state, 'event', transformLine, who);
       if (!moonSync.nightFall) {
@@ -781,8 +775,8 @@ export function tickMoonHowlerCycle(
   const dawnCures = tryMoonHowlerChurchCures(state, aliveEntities, buildings, colonyDay, hourOfDay, entityById, rng);
   if (dawnCures.cured.length > 0) {
     for (const curedOne of dawnCures.cured) {
-      const who = curedOne.name ? `${curedOne.name}${curedOne.surname ? ` ${curedOne.surname}` : ''}` : 'A settler';
-      const line = WEREWOLF_TAME_LINES[Math.floor(getSimRng('moonHowler')() * WEREWOLF_TAME_LINES.length)];
+      const who = citizenFullName(curedOne);
+      const line = WEREWOLF_TAME_LINES[Math.floor(rng() * WEREWOLF_TAME_LINES.length)];
       addBigNews(state, '⛪ Curse Broken!', `${who} — ${line}`, 'positive');
       addFloatingText(state, curedOne.x, curedOne.y - 20, 'Cured!', '#22c55e');
       logEvent(state, 'event', `${who} was cured of the Moon Howler curse`, who);
@@ -792,7 +786,8 @@ export function tickMoonHowlerCycle(
     syncResidenceOccupants(humansAfterCure, buildings);
     const villagers = humansAfterCure.filter((e) => isPlayerHuman(e));
     assignMissingResidences(villagers, buildings, aliveEntities);
-    assignMissingWorkers(villagers, buildings);
+    // See the sibling call above: the world slices carry the player's preset and venue window (B-2).
+    assignMissingWorkers(villagers, buildings, state);
     changed = true;
   }
 

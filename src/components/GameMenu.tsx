@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import RoadmapPanel from '../game/RoadmapPanel';
+import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
+import { describeSaveCompatibility } from '../game/saveLoad';
+import { getFocusableElements } from '../hooks/useModalFocus';
+import { AUTO_SAVE_INTERVAL_MS } from '../hooks/useGamePersistence';
+import { TICKS_PER_DAY } from '../game/dayCycle';
 
-type VolumePreset = 'soft' | 'normal' | 'loud';
-type MenuView = 'main' | 'settings' | 'graphics' | 'roadmap' | 'about';
+export type VolumePreset = 'soft' | 'normal' | 'loud';
+type MenuView = 'main' | 'settings' | 'graphics' | 'about';
 
-interface Props {
-  gameTitle: string;
-  gameVersion: string;
-  gamePhase: string;
-  gameSubtitle: string;
+/**
+ * The save/settings callback tail the menu and the header both accept — one owner, so the pass-through
+ * between them cannot drift into two declarations of the same contract (C1 clone 3). `GameHeader`'s
+ * `Props` extends this instead of restating it.
+ */
+export interface GameMenuSettingsCallbacks {
   hasSavedGame: boolean;
-  autoSave: boolean;
-  tutorialsEnabled: boolean;
-  juiceEffectsEnabled: boolean;
-  showSimTick: boolean;
-  showFps: boolean;
   muted: boolean;
   volumePreset: VolumePreset;
   onSave: () => void;
@@ -31,6 +31,18 @@ interface Props {
   onVolumePreset: (v: VolumePreset) => void;
   onOpenGuide: () => void;
   onStartNewGame: () => void;
+}
+
+interface Props extends GameMenuSettingsCallbacks {
+  gameTitle: string;
+  gameVersion: string;
+  gamePhase: string;
+  gameSubtitle: string;
+  autoSave: boolean;
+  tutorialsEnabled: boolean;
+  juiceEffectsEnabled: boolean;
+  showSimTick: boolean;
+  showFps: boolean;
 }
 
 function MenuSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -134,7 +146,6 @@ const VIEW_TITLES: Record<MenuView, string> = {
   main: 'Menu',
   settings: 'Settings',
   graphics: 'Graphics',
-  roadmap: 'Roadmap',
   about: 'About',
 };
 
@@ -189,6 +200,12 @@ export default function GameMenu({
   useLayoutEffect(() => {
     if (!open) return;
     updateAnchor();
+
+    // R11: focus enters the panel on open. Without it the Tab trap's two wrap branches are
+    // unreachable and Tab walks every control of the game behind the click-catching backdrop.
+    const first = panelRef.current ? getFocusableElements(panelRef.current)[0] : undefined;
+    first?.focus();
+
     window.addEventListener('resize', updateAnchor);
     window.addEventListener('scroll', updateAnchor, true);
     return () => {
@@ -197,18 +214,21 @@ export default function GameMenu({
     };
   }, [open, updateAnchor]);
 
-  // Keyboard navigation: Escape and Focus Trap
+  // The menu owns the keyboard while open: the game's window-capture handler runs before this
+  // component's document handler, so without the claim one Escape closes the menu *and* falls through
+  // to clear the map selection. Escape steps back to the main page first, then closes — the shared
+  // hook owns the claim, this component only says what Escape means here (2026-09-20 audit, clone 3).
+  const handleEscape = useCallback(() => {
+    if (view !== 'main') setView('main');
+    else close();
+  }, [view, close]);
+  useOverlayKeyboard('game-menu', handleEscape, open);
+
+  // Keyboard navigation: the Focus Trap (Escape is the hook's job, above).
   useEffect(() => {
     if (!open) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        if (view !== 'main') setView('main');
-        else close();
-        return;
-      }
-
       if (e.key === 'Tab' && panelRef.current) {
         const focusable = panelRef.current.querySelectorAll<HTMLElement>(
           'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -230,7 +250,7 @@ export default function GameMenu({
 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [open, view, close]);
+  }, [open]);
 
   const panelWidth = view === 'main' ? 'w-64' : 'w-72';
 
@@ -348,13 +368,6 @@ export default function GameMenu({
 
               <MenuSection title="Info">
                 <MenuAction
-                  icon="🗺️"
-                  label="Roadmap"
-                  hint="What we're building next"
-                  trailing="›"
-                  onClick={() => setView('roadmap')}
-                />
-                <MenuAction
                   icon="ℹ️"
                   label="About"
                   hint={`${gameTitle} · v${gameVersion}`}
@@ -371,7 +384,7 @@ export default function GameMenu({
                 <MenuToggle
                   icon="⟳"
                   label="Auto-save"
-                  hint="Every 30 seconds when enabled"
+                  hint={`Every ${AUTO_SAVE_INTERVAL_MS / 1000} seconds when enabled`}
                   checked={autoSave}
                   onChange={onToggleAutoSave}
                 />
@@ -385,7 +398,7 @@ export default function GameMenu({
                 <MenuToggle
                   icon="⏱"
                   label="Show sim tick"
-                  hint="Raw tick + absolute day on the clock bar (72 ticks = 1 day)"
+                  hint={`Raw tick + absolute day on the clock bar (${TICKS_PER_DAY} ticks = 1 day)`}
                   checked={showSimTick}
                   onChange={onToggleShowSimTick}
                 />
@@ -449,12 +462,6 @@ export default function GameMenu({
             </div>
           )}
 
-          {view === 'roadmap' && (
-            <div className="p-2">
-              <RoadmapPanel />
-            </div>
-          )}
-
           {view === 'about' && (
             <div className="space-y-3 p-3 text-xs text-stone-300">
               <div className="flex items-center gap-2.5">
@@ -473,8 +480,8 @@ export default function GameMenu({
                 <p className="text-sm font-bold text-amber-300">{gamePhase} · v{gameVersion}</p>
                 <p className="mt-1 leading-relaxed text-stone-300">
                   Playtest build — expect bugs, rough edges, and features that change.
-                  Saves may break between updates.
                 </p>
+                <p className="mt-1 leading-relaxed text-stone-300">{describeSaveCompatibility()}</p>
               </div>
 
               <p className="leading-relaxed text-stone-300">

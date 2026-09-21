@@ -27,20 +27,19 @@ export const MOUNTAIN_SPRITE_PATHS = [
  * Kept in sync with humanSprites path constants (no import — avoids circular dep).
  * Exported so `tests/humanSprites.maleLadder.test.ts` can assert the sync: a ladder
  * path missing from this set is neither preloaded nor bottom-anchored.
+ *
+ * The 16 legacy `human_male_v0…v7` / `human_female_v0…v7` walk sheets used to be listed here and were
+ * fetched on every boot, although nothing had referenced them since the class-ladder art landed
+ * (`humanSprites.WALK_SHEET_PATHS` is the only reader of a human walk sheet). Their PNGs stay in
+ * `public/sprites/` for rollback; re-adding a path here is only correct together with a ladder entry
+ * that can return it, because this set decides both preloading and the feet-down anchor
+ * (2026-09-20 audit, bug 66).
  */
 export const HUMAN_SPRITE_PATHS = new Set<string>([
   '/sprites/human_male.png',
   '/sprites/human_female.png',
   '/sprites/human_male_toddler_v1.png',
   '/sprites/human_female_toddler_v1.png',
-  '/sprites/human_male_v0.png',
-  '/sprites/human_male_v1.png',
-  '/sprites/human_male_v2.png',
-  '/sprites/human_male_v3.png',
-  '/sprites/human_male_v4.png',
-  '/sprites/human_male_v5.png',
-  '/sprites/human_male_v6.png',
-  '/sprites/human_male_v7.png',
   '/sprites/new_male_set/male_poor_labourer.png',
   '/sprites/new_male_set/male_farmhand.png',
   '/sprites/new_male_set/male_craftsman.png',
@@ -51,14 +50,6 @@ export const HUMAN_SPRITE_PATHS = new Set<string>([
   '/sprites/new_male_set/male_prosperous_farmer.png',
   '/sprites/new_male_set/male_wealthy_gentry.png',
   '/sprites/new_male_set/male_aristocrat.png',
-  '/sprites/human_female_v0.png',
-  '/sprites/human_female_v1.png',
-  '/sprites/human_female_v2.png',
-  '/sprites/human_female_v3.png',
-  '/sprites/human_female_v4.png',
-  '/sprites/human_female_v5.png',
-  '/sprites/human_female_v6.png',
-  '/sprites/human_female_v7.png',
   '/sprites/new_female_set_v2/cut/female_mudlark.png',
   '/sprites/new_female_set_v2/cut/female_factory_hand.png',
   '/sprites/new_female_set_v2/cut/female_scullery_maid.png',

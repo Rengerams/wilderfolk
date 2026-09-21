@@ -1,5 +1,6 @@
 import type { StoryEvent, WorldState } from './gameTypes';
-import { hashSalt } from './simRng';
+import { hashSalt, mulberry32Advance, mulberry32Draw } from './simRng';
+import { addReputation } from './simHelpers';
 
 export { hashSalt } from './simRng';
 
@@ -19,8 +20,16 @@ export function setStoryFlags(state: WorldState, patch: Record<string, number>):
   state.storyFlags = { ...state.storyFlags, ...patch };
 }
 
+/**
+ * Story-side reputation gain.
+ *
+ * Delegates to the reputation owner so the 0..100 clamp has **one** definition. This used to re-state
+ * the rule with only the floor (`Math.max(0, …)`), so a story reward could push reputation past 100 —
+ * the owner clamps both ends (`simHelpers.addReputation`), which is the documented contract
+ * (`LIVE-FINDINGS-STATUS.md`, L5).
+ */
 export function bumpVillageReputation(state: WorldState, amount: number): void {
-  state.villageReputation = Math.max(0, state.villageReputation + amount);
+  addReputation(state, amount);
 }
 
 /** Push a story card once; shared by all authored stories. */
@@ -33,12 +42,7 @@ export function pushStoryCard(state: WorldState, event: StoryEvent): void {
 
 /** Deterministic seeded roll shared by all authored stories (mulberry32 variant). */
 export function seededRoll(seed: number, salt: number): number {
-  let s = (seed ^ salt) >>> 0;
-  s = (s + 0x6d2b79f5) >>> 0;
-  let t = s;
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  return mulberry32Draw(mulberry32Advance((seed ^ salt) >>> 0));
 }
 
 /** Shared one-time story start-day calculation: minDay + seeded window roll. */

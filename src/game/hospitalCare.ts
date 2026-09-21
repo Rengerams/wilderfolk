@@ -3,22 +3,46 @@
  */
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
-import { personDayRoll, TICKS_PER_DAY } from './dayCycle';
+import { personDayRoll, PRODUCTION_INTERVAL, TICKS_PER_DAY } from './dayCycle';
 import { addFloatingText } from './simEffects';
 import { addReputation } from './simHelpers';
-import { sayHumanChatPhrase } from './humanChat';
+import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
 import { recordFoodConsumed } from './economyLedger';
 
-export function findStaffedHospital(buildings: readonly Building[]): Building | undefined {
-  return buildings.find(
-    (b) =>
-      b.completed
-      && b.type === BuildingType.Hospital
-      && b.faction !== 'rival'
-      && b.occupants.length > 0,
-  );
+/** Flat reputation a staffed hospital grants on each production interval. */
+export const HOSPITAL_REPUTATION_PER_INTERVAL = 2;
+
+/** Most the ward round can add on top of the flat grant (`1 + min(2, treated)`). */
+export const HOSPITAL_TREATMENT_REPUTATION_MAX = 3;
+
+/** Days between staffed-hospital grants — `PRODUCTION_INTERVAL.hospital`, for the UI copy. */
+export const HOSPITAL_REPUTATION_INTERVAL_DAYS = PRODUCTION_INTERVAL.hospital / TICKS_PER_DAY;
+
+/**
+ * The hospital's whole reputation grant for one production interval: the flat staffed grant plus
+ * the ward round's own grant for the patients it treats. `dailyBuildingEconomy` decides *when* the
+ * interval fires and no longer adds reputation itself, so the amount a hospital produces is
+ * readable from this module alone.
+ */
+export function grantHospitalIntervalReputation(
+  state: WorldState,
+  hospital: Building,
+  humans: readonly Entity[],
+): void {
+  addReputation(state, HOSPITAL_REPUTATION_PER_INTERVAL);
+  tickHospitalDailyCare(state, hospital, humans);
+}
+
+/**
+ * The single player-facing description of the hospital reputation rule. The build tooltip
+ * (`SelectedBuildingPanel`) and the More-tab guide both render this, so the advertised amount
+ * cannot drift from what the ward pays.
+ */
+export function describeHospitalReputation(): string {
+  return `Staffed: +${HOSPITAL_REPUTATION_PER_INTERVAL} reputation every ${HOSPITAL_REPUTATION_INTERVAL_DAYS} days,`
+    + ` up to +${HOSPITAL_TREATMENT_REPUTATION_MAX} more when patients are treated. Any hospital lowers energy drain.`;
 }
 
 export function isDoctorAtHospital(
@@ -126,7 +150,7 @@ export function treatPatientAtHospital(
       'brief',
     );
   }
-  if ((patient.chatTicks ?? 0) <= 0 && personDayRoll(patient.id, state.tick, 904) < 0.2) {
+  if (!isDialogueBusy(patient) && personDayRoll(patient.id, state.tick, 904) < 0.2) {
     const lineRoll = personDayRoll(patient.id, state.tick, 905);
     sayHumanChatPhrase(
       patient,
@@ -166,7 +190,7 @@ export function doctorTreatNearby(
   if (personDayRoll(doctor.id, state.tick, 901 + best.id) > 0.35) return false;
 
   const ok = treatPatientAtHospital(state, best, hospital, { doctorPresent: true });
-  if (ok && (doctor.chatTicks ?? 0) <= 0 && personDayRoll(doctor.id, state.tick, 906) < 0.3) {
+  if (ok && !isDialogueBusy(doctor) && personDayRoll(doctor.id, state.tick, 906) < 0.3) {
     sayHumanChatPhrase(
       doctor,
       personDayRoll(doctor.id, state.tick, 907) < 0.5 ? 'Rest and drink water.' : 'You will mend.',

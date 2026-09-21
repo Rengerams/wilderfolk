@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 
 export interface MomentCardData {
   id: string;
@@ -71,6 +71,15 @@ export default function MomentTitleCard({ moment, onDone }: Props) {
     }
   };
 
+  // The card is a full-screen click-catcher that holds the map for ~4.8 s, so it must also be
+  // dismissable from the keyboard: Enter/Space activate it, Escape skips it
+  // (2026-09-17 UI audit, R28).
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Escape') return;
+    event.preventDefault();
+    handleSkip();
+  };
+
   if (!moment) return null;
 
   const isVisible = phase === 'visible';
@@ -78,13 +87,16 @@ export default function MomentTitleCard({ moment, onDone }: Props) {
 
   return (
     <div
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      className="pointer-events-auto absolute inset-0 z-40 flex cursor-pointer items-center justify-center bg-black/20 select-none backdrop-blur-[1px]"
+      role="button"
+      tabIndex={0}
+      className="pointer-events-auto absolute inset-0 z-40 flex cursor-pointer items-center justify-center bg-black/20 select-none backdrop-blur-[1px] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
       onClick={handleSkip}
+      onKeyDown={handleKeyDown}
     >
       <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
         className={`text-center transition-all motion-reduce:transition-none ${
           isVisible
             ? 'translate-y-0 opacity-100'

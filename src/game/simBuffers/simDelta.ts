@@ -1,6 +1,7 @@
 import type { WorldState, Entity, Building } from '../gameTypes';
 import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
+import { getWorkforcePolicy, normalizeWorkforcePolicy } from '../workforcePolicy';
 import { EntityType } from '../gameTypes';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
 import type { SimulationFocus } from '../simFocus';
@@ -70,6 +71,8 @@ export interface SimTickDelta {
   wildlifeCounts: WorldState['wildlifeCounts'];
   ecosystemHealth: number;
   pollutionLevel: number;
+  pendingEcosystemHealthDelta?: number;
+  pendingPollutionDelta?: number;
   biodiversityIndex: number;
   valleyStage: WorldState['valleyStage'];
   valleyStageSinceDay: number | undefined;
@@ -80,6 +83,7 @@ export interface SimTickDelta {
   workSchedule: WorldState['workSchedule'];
   tavernSchedule: WorldState['tavernSchedule'];
   hotelSchedule: WorldState['hotelSchedule'];
+  workforcePolicy: WorldState['workforcePolicy'];
   screenShakeImpulse: number;
   floatingTexts: WorldState['floatingTexts'];
   deathParticles: WorldState['deathParticles'];
@@ -180,6 +184,7 @@ const CATALOG_PATCH_KEYS = [
   'name', 'surname', 'maidenSurname', 'title', 'chatPhrase', 'gender', 'spriteVariant', 'faction',
   'moonHowlerCursed', 'moonHowlerSaved', 'educated', 'pregnant', 'pregnantById',
   'pregnancyProgress', 'pregnancyDueProgress', 'courtshipPartnerId', 'courtshipProgress',
+  'courtshipCooldownDays',
   'youthLovePartnerId', 'youthLoveProgress', 'childhoodFriendsIds', 'traits', 'schoolDays',
   'relationshipStatus', 'partnerId', 'homeBuildingId', 'residenceBuildingId',
   'tamedBy', 'combatTicks', 'griefUntilTick', 'job', 'occupation', 'skills', 'age', 'birthYear',
@@ -295,6 +300,8 @@ export function extractSimTickDelta(
     wildlifeCounts: { ...world.wildlifeCounts },
     ecosystemHealth: world.ecosystemHealth,
     pollutionLevel: world.pollutionLevel,
+    pendingEcosystemHealthDelta: world.pendingEcosystemHealthDelta,
+    pendingPollutionDelta: world.pendingPollutionDelta,
     biodiversityIndex: world.biodiversityIndex,
     valleyStage: world.valleyStage,
     valleyStageSinceDay: world.valleyStageSinceDay,
@@ -305,6 +312,7 @@ export function extractSimTickDelta(
     workSchedule: getWorkSchedule(world),
     tavernSchedule: getVenueSchedule(world, 'tavern'),
     hotelSchedule: getVenueSchedule(world, 'hotel'),
+    workforcePolicy: getWorkforcePolicy(world),
     screenShakeImpulse: world.screenShakeImpulse,
     floatingTexts: deltaClone(world.floatingTexts, cloneMode),
     deathParticles: deltaClone(world.deathParticles, cloneMode),
@@ -374,6 +382,11 @@ export function extractSimTickDelta(
       day: world.economyLedger.day,
       produced: { ...world.economyLedger.produced },
       consumed: { ...world.economyLedger.consumed },
+      // Carried explicitly: the display world reads these instead of adding the maps up
+      // (`LIVE-FINDINGS-STATUS.md`, F2), and `workerBoundary.closure.test.ts` fails if a
+      // simulation-written field is not shipped.
+      producedTotal: world.economyLedger.producedTotal,
+      consumedTotal: world.economyLedger.consumedTotal,
     };
   }
   if (world.foodHistory && world.foodHistory.length > 0) {
@@ -430,6 +443,8 @@ export function applySimTickDelta(
   world.wildlifeCounts = { ...delta.wildlifeCounts };
   world.ecosystemHealth = delta.ecosystemHealth;
   world.pollutionLevel = delta.pollutionLevel;
+  world.pendingEcosystemHealthDelta = delta.pendingEcosystemHealthDelta;
+  world.pendingPollutionDelta = delta.pendingPollutionDelta;
   world.biodiversityIndex = delta.biodiversityIndex;
   world.valleyStage = delta.valleyStage;
   world.valleyStageSinceDay = delta.valleyStageSinceDay;
@@ -440,6 +455,7 @@ export function applySimTickDelta(
   world.workSchedule = delta.workSchedule ? { ...delta.workSchedule } : getWorkSchedule(world);
   world.tavernSchedule = delta.tavernSchedule ? { ...delta.tavernSchedule } : getVenueSchedule(world, 'tavern');
   world.hotelSchedule = delta.hotelSchedule ? { ...delta.hotelSchedule } : getVenueSchedule(world, 'hotel');
+  world.workforcePolicy = normalizeWorkforcePolicy(delta.workforcePolicy);
   world.screenShakeImpulse = delta.screenShakeImpulse;
   world.floatingTexts = deltaClone(delta.floatingTexts, cloneMode);
   world.deathParticles = deltaClone(delta.deathParticles, cloneMode);
@@ -534,6 +550,8 @@ export function applySimTickDelta(
         day: delta.economyLedger.day,
         produced: { ...delta.economyLedger.produced },
         consumed: { ...delta.economyLedger.consumed },
+        producedTotal: delta.economyLedger.producedTotal,
+        consumedTotal: delta.economyLedger.consumedTotal,
       }
     : undefined;
   world.foodHistory = delta.foodHistory?.map((sample) => ({

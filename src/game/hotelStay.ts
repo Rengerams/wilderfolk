@@ -1,5 +1,6 @@
 /**
- * Hotel lodging — staffed hotels host up to 4 visitors overnight for gold.
+ * Hotel lodging — staffed hotels host visitors overnight, free of charge (the hotelier gains work
+ * experience for tending them; nothing is charged).
  */
 import type { Building, Entity, WorldState } from './gameTypes';
 import {
@@ -19,10 +20,11 @@ import {
 import { addFloatingText, addNotification } from './simEffects';
 import { steerWithPath } from './pathfinding';
 import { logEvent } from './eventLog';
-import { sayHumanChatPhrase } from './humanChat';
+import { ensureEntityByIdMap } from './entityIndex';
+import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 import { gainSkill } from './skills';
-import { isPlayerHuman } from './playerHuman';
 import { seededRandomForRun } from './simRng';
+import { faceVelocity } from './simulation/movementSteering';
 
 export function findStaffedHotels(buildings: readonly Building[]): Building[] {
   return buildings.filter(
@@ -47,35 +49,109 @@ export function isHotelierAtHotel(
   return h;
 }
 
-function guestCount(hotel: Building, entities: readonly Entity[]): number {
+/**
+ * Id → entity for the tick's guest lookups (`entityIndex.ensureEntityByIdMap`), built **once** per
+ * `tickHotelLodging` call instead of once per hotel per visitor (2026-09-20 audit N-8 / OPEN-5).
+ *
+ * The entity array travels alongside it on purpose: a spawn that reached `state.entities` without
+ * being indexed is a map miss, and the caller's array stays the authority for it, so every lookup
+ * falls back to the linear scan the pre-fix code always performed. Equivalent by construction — the
+ * predicate (`alive && faction === 'visitor'`) and the entity objects are the same either way.
+ */
+export type HotelGuestIndex = ReadonlyMap<number, Entity>;
+
+function findGuest(
+  id: number,
+  entities: readonly Entity[],
+  byId?: HotelGuestIndex,
+): Entity | undefined {
+  return byId?.get(id) ?? entities.find((x) => x.id === id);
+}
+
+function isLiveVisitor(entity: Entity | undefined): boolean {
+  return !!entity && entity.alive && entity.faction === 'visitor';
+}
+
+function guestCount(hotel: Building, entities: readonly Entity[], byId?: HotelGuestIndex): number {
   const ids = hotel.hotelGuestIds ?? [];
   let n = 0;
   for (const id of ids) {
-    const e = entities.find((x) => x.id === id && x.alive && x.faction === 'visitor');
-    if (e) n++;
+    if (isLiveVisitor(findGuest(id, entities, byId))) n++;
   }
   return n;
 }
 
-function pruneHotelGuests(hotel: Building, entities: readonly Entity[]): void {
-  const aliveIds = new Set(
-    entities.filter((e) => e.alive && e.faction === 'visitor').map((e) => e.id),
-  );
-  hotel.hotelGuestIds = (hotel.hotelGuestIds ?? []).filter((id) => aliveIds.has(id));
+/** Drop guests that died or stopped being visitors. List order is preserved, as the old filter did. */
+function pruneHotelGuests(
+  hotel: Building,
+  entities: readonly Entity[],
+  byId?: HotelGuestIndex,
+): void {
+  const guests = hotel.hotelGuestIds ?? [];
+  if (guests.length === 0) return;
+  const live = guests.filter((id) => isLiveVisitor(findGuest(id, entities, byId)));
+  if (live.length !== guests.length) hotel.hotelGuestIds = live;
+}
+
+/**
+ * Clear `hotelStayBuildingId` on entities whose stay no longer names them a guest of that hotel — the
+ * second half of the old `pruneHotelGuests`, split out so a tick can repair every hotel in **one**
+ * pass (`repairAllHotelStayPointers`) instead of one full entity scan per hotel.
+ */
+function repairHotelStayPointers(hotel: Building, entities: readonly Entity[]): void {
+  const guests = new Set(hotel.hotelGuestIds ?? []);
   for (const e of entities) {
-    if (
-      e.hotelStayBuildingId === hotel.id
-      && (!e.alive || e.faction !== 'visitor' || !(hotel.hotelGuestIds ?? []).includes(e.id))
-    ) {
+    if (e.hotelStayBuildingId !== hotel.id) continue;
+    if (!isLiveVisitor(e) || !guests.has(e.id)) {
       e.hotelStayBuildingId = undefined;
       e.hotelStayUntilTick = undefined;
     }
   }
 }
 
-export function hotelHasVacancy(hotel: Building, entities: readonly Entity[]): boolean {
-  pruneHotelGuests(hotel, entities);
-  return guestCount(hotel, entities) < HOTEL_GUEST_CAPACITY;
+/**
+ * `repairHotelStayPointers` for every hotel the tick owns, in a single pass over `state.entities`.
+ *
+ * Equivalence with the per-hotel loop it replaces: an entity carries exactly one
+ * `hotelStayBuildingId`, so only the pass belonging to *that* hotel could ever clear it, and that pass
+ * read only its own (already pruned) guest list plus the entity's own liveness/faction. This pass
+ * applies the same three-way predicate against a snapshot of each hotel's pruned list, taken after
+ * every prune has run — which is why the prunes all happen first. Pointers to hotels outside `hotels`
+ * (demolished, rival, or otherwise absent) are left alone exactly as before; `steerVisitorToHotel`
+ * remains the owner that clears those.
+ */
+function repairAllHotelStayPointers(state: WorldState, hotels: readonly Building[]): void {
+  if (hotels.length === 0) return;
+  const guestsByHotel = new Map<number, ReadonlySet<number>>();
+  for (const h of hotels) guestsByHotel.set(h.id, new Set(h.hotelGuestIds ?? []));
+  for (const e of state.entities) {
+    const hotelId = e.hotelStayBuildingId;
+    if (hotelId == null) continue;
+    const guests = guestsByHotel.get(hotelId);
+    if (!guests) continue;
+    if (!isLiveVisitor(e) || !guests.has(e.id)) {
+      e.hotelStayBuildingId = undefined;
+      e.hotelStayUntilTick = undefined;
+    }
+  }
+}
+
+/**
+ * A hotel with a free bed. Drops any guest that is no longer a live visitor, and — because this
+ * function is exported and its pre-N-8 body repaired the pointers as part of that prune — clears the
+ * dropped guests' own `hotelStayBuildingId` in the same call **when the prune actually dropped
+ * something**. Inside `tickHotelLodging` the list is already pruned for the whole tick before this
+ * runs, so the repair never fires there and the visitor × hotel loop stays O(guests) per hotel.
+ */
+export function hotelHasVacancy(
+  hotel: Building,
+  entities: readonly Entity[],
+  byId?: HotelGuestIndex,
+): boolean {
+  const before = (hotel.hotelGuestIds ?? []).length;
+  pruneHotelGuests(hotel, entities, byId);
+  if ((hotel.hotelGuestIds ?? []).length !== before) repairHotelStayPointers(hotel, entities);
+  return guestCount(hotel, entities, byId) < HOTEL_GUEST_CAPACITY;
 }
 
 /** Pick a staffed hotel with free beds (prefer closest to visitor). */
@@ -83,9 +159,10 @@ export function pickHotelForVisitor(
   visitor: Entity,
   buildings: readonly Building[],
   entities: readonly Entity[],
+  byId?: HotelGuestIndex,
 ): Building | undefined {
   const hotels = findStaffedHotels(buildings)
-    .filter((h) => hotelHasVacancy(h, entities))
+    .filter((h) => hotelHasVacancy(h, entities, byId))
     .sort((a, b) => {
       const da = Math.hypot(visitor.x - a.x, visitor.y - a.y);
       const db = Math.hypot(visitor.x - b.x, visitor.y - b.y);
@@ -103,8 +180,8 @@ export function hotelCheckoutTick(fromTick: number): number {
 }
 
 /**
- * Check a visitor into a hotel for the night. Charges gold once.
- * Returns true if lodging started.
+ * Check a visitor into a hotel for the night. Lodging is free — the hotelier gains work experience
+ * for tending guests — so this charges nothing. Returns true if lodging started.
  */
 export function checkInVisitor(
   state: WorldState,
@@ -113,13 +190,18 @@ export function checkInVisitor(
 ): boolean {
   if (visitor.faction !== 'visitor' || !visitor.alive) return false;
   if (!hotel.completed || hotel.occupants.length === 0) return false;
-  pruneHotelGuests(hotel, state.entities);
+  // This hotel alone: prune its guest list, then repair the stay pointers that no longer match it.
+  // The old `pruneHotelGuests` did both; the tick path now splits the second half out so it can
+  // repair every hotel in one pass (`repairAllHotelStayPointers`).
+  const byId = ensureEntityByIdMap(state);
+  pruneHotelGuests(hotel, state.entities, byId);
+  repairHotelStayPointers(hotel, state.entities);
   if ((hotel.hotelGuestIds ?? []).includes(visitor.id)) {
     // Refresh stay window through next morning
     visitor.hotelStayUntilTick = hotelCheckoutTick(state.tick);
     return true;
   }
-  if (guestCount(hotel, state.entities) >= HOTEL_GUEST_CAPACITY) return false;
+  if (guestCount(hotel, state.entities, byId) >= HOTEL_GUEST_CAPACITY) return false;
 
   // Free lodging for now — hoteliers still gain work experience for tending guests.
   hotel.hotelGuestIds = [...(hotel.hotelGuestIds ?? []), visitor.id];
@@ -138,7 +220,10 @@ export function checkInVisitor(
     '#a5f3fc',
     'brief',
   );
-  if ((visitor.chatTicks ?? 0) <= 0) {
+  // `isDialogueBusy`, not a raw counter: a guest whose line has ended but whose paired session is
+  // still live reads as free to a `chatTicks` test, and the forced line below would abandon that
+  // pair (2026-09-20 audit, F-chat-2 — same conversion as `humanChat.ts`).
+  if (!isDialogueBusy(visitor)) {
     // A stateless roll keyed on the guest and the tick, matching the chat convention used
     // elsewhere (`humanChat`), so the greeting is reproducible instead of seedless.
     sayHumanChatPhrase(
@@ -166,7 +251,12 @@ export function tickHotelLodging(state: WorldState): void {
   const hotels = state.buildings.filter(
     (b) => b.completed && b.type === BuildingType.Hotel && b.faction !== 'rival',
   );
-  for (const h of hotels) pruneHotelGuests(h, state.entities);
+  // One guest index for the whole call (2026-09-20 audit N-8): the prune below,
+  // `pickHotelForVisitor` and every `checkInVisitor` in the loop used to rebuild an alive-visitor Set
+  // and re-scan `state.entities` per hotel per visitor. The pointer repair is one pass for all hotels.
+  const byId = ensureEntityByIdMap(state);
+  for (const h of hotels) pruneHotelGuests(h, state.entities, byId);
+  repairAllHotelStayPointers(state, hotels);
 
   // Checkout expired
   for (const e of state.entities) {
@@ -189,7 +279,7 @@ export function tickHotelLodging(state: WorldState): void {
   for (const v of visitors) {
     // Stable chance per visitor per night so not everyone piles in same tick
     if (personDayRoll(v.id, state.tick, 910) > 0.55) continue;
-    const hotel = pickHotelForVisitor(v, state.buildings, state.entities);
+    const hotel = pickHotelForVisitor(v, state.buildings, state.entities, byId);
     if (!hotel) continue;
     // Prefer check-in near evening once
     if (hour >= 18 && hour <= 22 && personDayRoll(v.id, state.tick, 911) < 0.35) {
@@ -247,7 +337,7 @@ export function steerVisitorToHotel(
     visitor.vy = (dy / dist) * speed * 0.7;
     visitor.x += visitor.vx;
     visitor.y += visitor.vy;
-    visitor.spriteAngle = Math.atan2(visitor.vy, visitor.vx);
+    faceVelocity(visitor);
   } else {
     visitor.vx = 0;
     visitor.vy = 0;
@@ -263,7 +353,7 @@ export function hotelierGreetGuests(
   hotelier: Entity,
   hotel: Building,
 ): void {
-  if ((hotelier.chatTicks ?? 0) > 0) return;
+  if (isDialogueBusy(hotelier)) return;
   const guests = (hotel.hotelGuestIds ?? []).length;
   if (guests <= 0) return;
   // Once per clock hour — not every sub-hour tick (avoids greeting spam after day stretch)
@@ -286,16 +376,4 @@ export function describeHotelStatus(
   }
   const n = guestCount(hotel, entities);
   return `Staffed · ${n}/${HOTEL_GUEST_CAPACITY} guests · free lodging`;
-}
-
-/** Optional: settlers can also hang around hotels as free-time POI (not sleeping). */
-export function isPlayerNearHotel(entity: Entity, buildings: readonly Building[]): Building | undefined {
-  if (!isPlayerHuman(entity)) return undefined;
-  return buildings.find(
-    (b) =>
-      b.completed
-      && b.type === BuildingType.Hotel
-      && b.faction !== 'rival'
-      && Math.hypot(entity.x - (b.x + b.width / 2), entity.y - (b.y + b.height / 2)) < 40,
-  );
 }

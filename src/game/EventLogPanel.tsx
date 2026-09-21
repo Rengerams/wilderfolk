@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { GameEventLog } from './gameTypes';
-import { EVENT_LOG_FILTER_OPTIONS } from './eventLogFilters';
+import { EVENT_LOG_FILTER_OPTIONS, getEventLogFilterLabel } from './eventLogFilters';
 import {
   downloadChronicleCSV,
   downloadChronicleJSON,
@@ -129,6 +129,8 @@ export default function EventLogPanel({ events, meta }: Props) {
             key={opt.id}
             type="button"
             onClick={() => setFilter(opt.id)}
+            /* The active filter was stated by background colour alone (2026-09-20 audit, A6). */
+            aria-pressed={filter === opt.id}
             className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition-all ${
               filter === opt.id
                 ? 'bg-amber-600 text-white'
@@ -143,7 +145,7 @@ export default function EventLogPanel({ events, meta }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-stone-400">
         <span>
           {allFiltered.length > IN_GAME_LOG_LIMIT
-            ? `Showing ${filtered.length} of ${allFiltered.length.toLocaleString()} ${filter === 'all' ? '' : filter}`
+            ? `Showing ${filtered.length} of ${allFiltered.length.toLocaleString()} ${filter === 'all' ? '' : getEventLogFilterLabel(filter)}`
             : `${filtered.length} event${filtered.length === 1 ? '' : 's'}`}
           {filter !== 'all' && allFiltered.length <= IN_GAME_LOG_LIMIT ? ` (${events.length} total)` : ''}
         </span>

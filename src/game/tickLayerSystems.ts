@@ -30,7 +30,7 @@ import {
 import { GRAZE_BITE_ENERGY, GRASS_GRAZE_MIN_ENERGY } from './grassEcology';
 import { tamedAnimalsFedToday } from './animalCare';
 import { isPlayerHuman } from './playerHuman';
-import { appendDeathAge, humanDisplayName } from './citizenId';
+import { appendDeathAge, citizenFullName, humanDisplayName } from './citizenId';
 import { rollPredatorBlock, rollCounterAttack } from './combat';
 import { isActiveMoonHowler } from './moonHowler';
 import { logDeath, logEvent } from './eventLog';
@@ -66,6 +66,7 @@ import { tickTradeCaravans } from './tradeCaravans';
 import { createEntity } from './entityFactory';
 import { indexEntity } from './entityIndex';
 import { getSimRng } from './simRng';
+import { faceVelocity } from './simulation/movementSteering';
 
 /** Systems layer interval (ticks). Keep in sync with WILDLIFE_LAYER_INTERVAL. */
 export const LAYER_SYSTEMS_INTERVAL = WILDLIFE_LAYER_INTERVAL;
@@ -91,19 +92,50 @@ function isWildlifePredator(entity: Entity): boolean {
   );
 }
 
+/**
+ * What a predator hunts depends only on its kind — a fox, an active Moon Howler, or any other canid
+ * (wolf / Moon Howler between full moons) — so the prey filter and its grid fallback are built once
+ * per pulse instead of once per predator. Array order is load-bearing: it is the order
+ * `forEachInEntityGrid` falls back to when the spatial grid is off.
+ */
+type HuntPreyKind = 'fox' | 'moonHowler' | 'canid';
+
+const HUNT_PREY_TYPES: Record<HuntPreyKind, readonly EntityType[]> = {
+  fox: [EntityType.Rabbit],
+  moonHowler: [EntityType.Human, EntityType.Deer, EntityType.Rabbit],
+  canid: [EntityType.Deer, EntityType.Rabbit, EntityType.Fox],
+};
+
+function huntPreyKind(type: EntityType, moonHowlerHunter: boolean): HuntPreyKind {
+  if (type === EntityType.Fox) return 'fox';
+  return moonHowlerHunter ? 'moonHowler' : 'canid';
+}
+
+// Flee-sense predicates. Both capture nothing, so they are module constants instead of a fresh
+// closure allocated per grazer/fox per systems pulse.
+const SENSES_WILDLIFE_PREDATOR = (pred: Entity): boolean => isWildlifePredator(pred);
+const SENSES_CANID_PREDATOR = (pred: Entity): boolean =>
+  pred.alive && (pred.type === EntityType.Wolf || pred.type === EntityType.Werewolf);
+
+/** River/sea tile test for the deep-water slide. Captures nothing; one instance serves every entity. */
+const isDeepWaterTile = (t: TerrainType | undefined): boolean =>
+  t === TerrainType.River || t === TerrainType.DeepWater;
+
 /** Occasional predator migration to keep wolf pressure present. */
 function tickWolfRecruitment(state: WorldState, ctx: TickContext): void {
   const { width, height, byType, newEntities, entityById } = ctx;
+
+  // Cheap gate first: the whole function can only ever fire on a wolf-recruit production tick
+  // (`isProductionTick` requires `getTickOfDay(tick) === 0`), i.e. once per 21 days, and the `||`
+  // short-circuited here before the RNG draw already — so testing this first changes no draw order.
+  // The counts below used to be computed for all 18 systems pulses a day to be discarded.
+  if (!isProductionTick(state.tick, EVENT_INTERVAL.wolfRecruit)) return;
 
   const currentWolves =
     (byType[EntityType.Wolf]?.filter((e) => e.alive).length ?? 0) +
     newEntities.filter((e) => e.alive && e.type === EntityType.Wolf).length;
 
-  if (
-    !isProductionTick(state.tick, EVENT_INTERVAL.wolfRecruit) ||
-    currentWolves >= 2 ||
-    getSimRng('tickLayerSystems')() >= 0.1
-  ) {
+  if (currentWolves >= 2 || getSimRng('tickLayerSystems')() >= 0.1) {
     return;
   }
 
@@ -188,7 +220,29 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
   if (ctx.grassCap === undefined) {
     ctx.grassCap = getGrassPopulationCap(width, height);
   }
-  const preyFallback = (byType[EntityType.Rabbit] ?? []).concat(byType[EntityType.Deer] ?? []);
+  // Only read when the spatial grid is absent (`USE_SPATIAL_GRID` defaults ON, `spatialGrid.ts:52`),
+  // so build the snapshot on first use instead of on every systems pulse. Semantics unchanged: the
+  // first reader still gets one shared snapshot, exactly as the unconditional concat produced.
+  let preyFallback: Entity[] | undefined;
+  const preyFallbackFor = (): Entity[] =>
+    (preyFallback ??= (byType[EntityType.Rabbit] ?? []).concat(byType[EntityType.Deer] ?? []));
+
+  // Hunt-prey lookups are keyed by predator kind, not by predator: at most three `Set`/fallback
+  // pairs per pulse instead of one pair per predator. The fallback is a snapshot of the buckets at
+  // first use, which is safe because `isValidHuntPrey` rejects anything no longer alive.
+  const huntPreyLookups = new Map<HuntPreyKind, { preyTypeSet: Set<EntityType>; fallback: Entity[] }>();
+  const huntPreyLookup = (kind: HuntPreyKind): { preyTypeSet: Set<EntityType>; fallback: Entity[] } => {
+    let lookup = huntPreyLookups.get(kind);
+    if (!lookup) {
+      const preyTypes = HUNT_PREY_TYPES[kind];
+      lookup = {
+        preyTypeSet: new Set<EntityType>(preyTypes),
+        fallback: preyTypes.flatMap((type) => byType[type] ?? []),
+      };
+      huntPreyLookups.set(kind, lookup);
+    }
+    return lookup;
+  };
 
   const isNewCalendarDay = isNewCalendarDayTick(state);
   const wildlifeDeathsThisTick = new Set<number>();
@@ -277,11 +331,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         entity.type === EntityType.Wildkin;
       const isFox = entity.type === EntityType.Fox;
       if (isGrazer || isFox) {
-        const sensesThreat = isGrazer
-          ? (pred: Entity): boolean => isWildlifePredator(pred)
-          : (pred: Entity): boolean =>
-              pred.alive &&
-              (pred.type === EntityType.Wolf || pred.type === EntityType.Werewolf);
+        const sensesThreat = isGrazer ? SENSES_WILDLIFE_PREDATOR : SENSES_CANID_PREDATOR;
 
         const closestPredator = findClosestEntityInRadius(
           mobileGrid,
@@ -325,12 +375,9 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         const moonHowlerHunter = entity.type === EntityType.Werewolf && isActiveMoonHowler(entity);
         // Wolves are apex predators — they hunt deer and rabbits and also take
         // competing foxes (intraguild predation). Foxes keep hunting rabbits.
-        const preyTypes =
-          entity.type === EntityType.Fox
-            ? [EntityType.Rabbit]
-            : moonHowlerHunter
-              ? [EntityType.Human, EntityType.Deer, EntityType.Rabbit]
-              : [EntityType.Deer, EntityType.Rabbit, EntityType.Fox];
+        const { preyTypeSet, fallback: huntPreyFallback } = huntPreyLookup(
+          huntPreyKind(entity.type, moonHowlerHunter),
+        );
 
         // Wolves gain hunting range and target bonuses when grouped in close packs
         let nearbyPack = 0;
@@ -360,8 +407,6 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         }
 
         const huntPick = { prey: null as Entity | null, dist: Infinity };
-        const preyTypeSet = new Set<EntityType>(preyTypes);
-        const huntPreyFallback = preyTypes.flatMap((type) => byType[type] ?? []);
 
         forEachInEntityGrid(
           mobileGrid,
@@ -411,7 +456,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
               const victimId = caughtPrey.id;
               markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick);
               syncEntityGrids(ctx, entity);
-              clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId);
+              clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId, byType);
 
               if (entity.type === EntityType.Werewolf && entity.moonHowlerCursed && !caughtPrey.title) {
                 caughtPrey.title = 'Moonslayer';
@@ -456,7 +501,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                 markWildlifeDead(ctx, caughtPrey, wildlifeDeathsThisTick, state.tick);
               }
 
-              clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId);
+              clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId, byType);
               syncEntityGrids(ctx, caughtPrey);
               entity.huntTargetId = undefined;
               createDeathParticles(state, caughtPrey.x, caughtPrey.y, '#8a2a2a', 10);
@@ -471,12 +516,11 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
               entity.combatTicks = 14;
 
               if (isHumanPrey) {
-                const wolfName = entity.name
-                  ? `${entity.name}${entity.surname ? ` ${entity.surname}` : ''}`
-                  : 'A Moon Howler';
-                const victimName = caughtPrey.name
-                  ? `${caughtPrey.name}${caughtPrey.surname ? ` ${caughtPrey.surname}` : ''}`
-                  : 'A settler';
+                // The beast keeps its own nameless label ("A Moon Howler"): the line is about the
+                // howler, not the person it was. The victim's name is the citizenId owner's join, which
+                // this site (and `stats`) used to hand-roll (2026-09-20 audit, W-2).
+                const wolfName = entity.name ? citizenFullName(entity) : 'A Moon Howler';
+                const victimName = citizenFullName(caughtPrey);
                 const line = WEREWOLF_ATTACK_LINES[
                   Math.floor(getSimRng('tickLayerSystems')() * WEREWOLF_ATTACK_LINES.length)
                 ](wolfName, victimName);
@@ -591,7 +635,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       entity.vx = targetVx;
       entity.vy = targetVy;
       if (entity.vx !== 0 || entity.vy !== 0) {
-        entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+        faceVelocity(entity);
       }
 
       // 11. Road speed modifiers and alignment
@@ -608,7 +652,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             const dist = Math.sqrt(distSq);
             entity.vx = (dx / dist) * config.speed * 0.6;
             entity.vy = (dy / dist) * config.speed * 0.6;
-            entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+            faceVelocity(entity);
           }
         }
       }
@@ -620,10 +664,9 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         const nextY = entity.y + entity.vy;
         const tileAt = (px: number, py: number): TerrainType | undefined =>
           worldMap.tiles[Math.floor(py / TERRAIN_TILE_SIZE)]?.[Math.floor(px / TERRAIN_TILE_SIZE)]?.type;
-        const deep = (t: TerrainType | undefined) => t === TerrainType.River || t === TerrainType.DeepWater;
-        if (deep(tileAt(nextX, nextY))) {
-          const xBlocked = deep(tileAt(nextX, entity.y));
-          const yBlocked = deep(tileAt(entity.x, nextY));
+        if (isDeepWaterTile(tileAt(nextX, nextY))) {
+          const xBlocked = isDeepWaterTile(tileAt(nextX, entity.y));
+          const yBlocked = isDeepWaterTile(tileAt(entity.x, nextY));
           if (xBlocked && !yBlocked) {
             entity.vx = 0;
           } else if (yBlocked && !xBlocked) {
@@ -662,12 +705,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                 (p.type === EntityType.Rabbit || p.type === EntityType.Deer) &&
                 isValidHuntPrey(p, p.type, entity.id),
               'tamed_hunt',
-              preyFallback,
+              preyFallbackFor(),
             );
             if (assistPrey?.alive) {
               const preyId = assistPrey.id;
               markWildlifeDead(ctx, assistPrey, wildlifeDeathsThisTick, state.tick);
-              clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId);
+              clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId, byType);
               syncEntityGrids(ctx, assistPrey);
               createDeathParticles(state, assistPrey.x, assistPrey.y, '#8a2a2a', 6);
               entity.energy = Math.min(

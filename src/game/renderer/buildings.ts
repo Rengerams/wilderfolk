@@ -3,7 +3,6 @@ import { isDecorType } from '../beautyGrid';
 import { categoryBorderDashForType } from '../buildCatalog';
 import { drawProceduralDecor } from '../decorRender';
 import { normalizeBuildingRotation } from '../buildingRotation';
-import { isNightHour } from '../dayCycle';
 import { displayedConstructionProgress } from '../buildingProgressDisplay';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { getSpriteFrame } from '../spriteLoader';
@@ -12,7 +11,7 @@ import {
   drawStripJunctionOverlay,
 } from '../stripRender';
 import { isStripBuildType } from '../stripBuild';
-import { detectBuildingJunction } from '../stripJunction';
+import { analyzeStripJunction, collectStripCenters } from '../stripJunction';
 import { terrainRiseAt } from '../terrainAtlas';
 import { darkerColor, DEFAULT_SPRITE_DISPLAY_SCALE, ISO_PANEL_BUILDINGS } from './shared';
 import {
@@ -39,7 +38,12 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
 
   const isHovered = (b: typeof state.buildings[0]) => state.hoveredBuilding?.id === b.id;
 
-  // Roads first
+  // Roads first. The strip-centre index is collected **once** for the whole pass: it walks
+  // every building and allocates an entry per strip, so calling `detectBuildingJunction` per
+  // road turned one repaint into O(roads × buildings) work plus O(buildings) allocations per
+  // road — and this whole layer repaints on every sim tick (audit `visuals-looks.md` D14).
+  // Lazy so a village with no roads pays nothing.
+  let roadStrips: ReturnType<typeof collectStripCenters> | null = null;
   for (const b of state.buildings) {
     if (b.type !== BuildingType.Road || !b.completed) continue;
     const { sx, sy, w, h } = getBuildingScreenRect(b);
@@ -47,7 +51,8 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     const hover = isHovered(b);
     const rot = normalizeBuildingRotation(b.rotation);
     drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, hover ? 1 : 0.92);
-    const roadJunction = detectBuildingJunction(state.buildings, b, 'road');
+    const strips = (roadStrips ??= collectStripCenters(state.buildings, 'road'));
+    const roadJunction = analyzeStripJunction(b.x, b.y, strips.hList, strips.vList, strips.along);
     if (roadJunction.kind !== 'end' && roadJunction.kind !== 'straight') {
       drawStripJunctionOverlay(ctx, b.type, sx, sy, w, h, roadJunction, hover ? 1 : 0.92);
     }
@@ -83,7 +88,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     if (isStripBuildType(b.type)) {
       drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, 0.55);
     } else if (isDecorType(b.type)) {
-      drawProceduralDecor(ctx, b.type, sx, sy, w, h, isNightHour(state.hourOfDay), 0.75);
+      drawProceduralDecor(ctx, b.type, sx, sy, w, h, 0.75);
     } else {
       const frame = getSpriteFrame(cfg.sprite);
       if (frame) {
@@ -149,7 +154,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     const tint = isRival ? '#312e81' : cfg.backgroundColor;
 
     if (isDecorType(b.type)) {
-      drawProceduralDecor(ctx, b.type, sx, sy - h * 0.04, w, h, isNightHour(state.hourOfDay));
+      drawProceduralDecor(ctx, b.type, sx, sy - h * 0.04, w, h);
     } else if (frame) {
       // Lift sprite slightly above pad so the footprint reads as a base
       drawBuildingSprite(

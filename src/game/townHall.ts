@@ -3,11 +3,12 @@ import { BuildingType, JobType } from './gameTypes';
 import { ticksForDays, personDayRoll, TICKS_PER_DAY, getHourOfDay, isWorkHour } from './dayCycle';
 import { readSkill, rewardProductionSkills, gainSkill } from './skills';
 import { addReputation } from './simHelpers';
+import { spendFood } from './economyLedger';
 import { addFloatingText, addNotification } from './simEffects';
 import { addResource } from './economy';
 import { logEvent } from './eventLog';
 import { getVillageLeader } from './villageLeadership';
-import { sayHumanChatPhrase } from './humanChat';
+import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 import { isPlayerHuman } from './playerHuman';
 
 export function getTownHallFestivalCooldownTicks(): number {
@@ -137,10 +138,10 @@ export function hostTownFestival(originalState: WorldState, buildingId: number):
     return state;
   }
 
-  state.resources.food -= TOWN_HALL_FESTIVAL_COST.food;
+  spendFood(state, 'festival', TOWN_HALL_FESTIVAL_COST.food);
   state.resources.gold -= TOWN_HALL_FESTIVAL_COST.gold;
   state.festival = { active: true, name: 'Town Hall Festival', daysLeft: TOWN_HALL_FESTIVAL_DAYS };
-  state.villageReputation = Math.min(100, state.villageReputation + 6);
+  addReputation(state, 6);
   state.townHallFestivalCooldownUntilTick = state.tick + getTownHallFestivalCooldownTicks();
   addNotification(
     state,
@@ -230,7 +231,7 @@ export function resolveCivicPetition(
     && personDayRoll(petitioner.id, state.tick, 822) < 0.45
   ) {
     const amount = Math.min(4, Math.floor(state.resources.food * 0.02) + 1);
-    state.resources.food -= amount;
+    spendFood(state, 'petition', amount);
     petitioner.energy = Math.min(petitioner.maxEnergy, petitioner.energy + 12 + amount * 4);
     addFloatingText(state, petitioner.x, petitioner.y - 14, `+${amount} food (aid)`, '#86efac', 'brief');
     sayHumanChatPhrase(
@@ -259,14 +260,20 @@ export function resolveCivicPetition(
     return { kind: 'heard' };
   }
 
-  // Leader audience
+  // Leader audience. Both lines are gated on `isDialogueBusy`: the petitioner's line had no gate at
+  // all (it could abandon any pair the petitioner was mid-way through), and the leader's used a raw
+  // `chatTicks` counter that reads the idle half of a live session as free (2026-09-20 audit,
+  // F-chat-2). Same rule as `hotelStay`/`hospitalCare`. The gates wrap the *lines* only — the
+  // audience itself still happens and still grants its reputation.
   if (leaderHere && personDayRoll(petitioner.id, state.tick, 824) < 0.35) {
-    sayHumanChatPhrase(
-      petitioner,
-      personDayRoll(petitioner.id, state.tick, 833) < 0.5 ? 'A word with the leader.' : 'I trust our chief.',
-      48,
-    );
-    if ((leader.chatTicks ?? 0) <= 0) {
+    if (!isDialogueBusy(petitioner)) {
+      sayHumanChatPhrase(
+        petitioner,
+        personDayRoll(petitioner.id, state.tick, 833) < 0.5 ? 'A word with the leader.' : 'I trust our chief.',
+        48,
+      );
+    }
+    if (!isDialogueBusy(leader)) {
       sayHumanChatPhrase(
         leader,
         personDayRoll(leader.id, state.tick, 834) < 0.5 ? 'Speak freely.' : 'We will see it done.',
@@ -327,7 +334,7 @@ export function officialHandlePetitioners(
   );
   if (petitioners.length === 0) return false;
 
-  if ((official.chatTicks ?? 0) <= 0 && personDayRoll(official.id, state.tick, 836) < 0.4) {
+  if (!isDialogueBusy(official) && personDayRoll(official.id, state.tick, 836) < 0.4) {
     sayHumanChatPhrase(
       official,
       personDayRoll(official.id, state.tick, 837) < 0.5 ? 'Next, please.' : 'The village hears you.',

@@ -8,14 +8,6 @@ export interface Resources {
   iron: number;
 }
 
-export const RESOURCE_KEYS: readonly ResourceKey[] = [
-  'wood',
-  'stone',
-  'food',
-  'gold',
-  'iron',
-] as const;
-
 export interface ResourceMeta {
   readonly key: ResourceKey;
   readonly label: string;
@@ -57,56 +49,23 @@ export const RESOURCE_METAS: Record<ResourceKey, ResourceMeta> = {
 } as const;
 
 /**
- * Type guard evaluating whether an unknown string is a valid ResourceKey.
- */
-export function isResourceKey(key: unknown): key is ResourceKey {
-  return typeof key === 'string' && RESOURCE_KEYS.includes(key as ResourceKey);
-}
-
-/**
- * Creates a new zero-initialized resource purse.
- */
-export function createEmptyResources(): Resources {
-  return {
-    wood: 0,
-    stone: 0,
-    food: 0,
-    gold: 0,
-    iron: 0,
-  };
-}
-
-/**
- * Creates a fast, shallow copy of a resource purse without JSON/structuredClone overhead.
- */
-export function cloneResources(source: Readonly<Resources>): Resources {
-  return {
-    wood: source.wood,
-    stone: source.stone,
-    food: source.food,
-    gold: source.gold,
-    iron: source.iron,
-  };
-}
-
-/**
- * Returns true if available resources meet or exceed the required cost for all keys.
- */
-export function hasEnoughResources(
-  available: Readonly<Resources>,
-  cost: Readonly<Partial<Resources>>,
-): boolean {
-  if (cost.wood && available.wood < cost.wood) return false;
-  if (cost.stone && available.stone < cost.stone) return false;
-  if (cost.food && available.food < cost.food) return false;
-  if (cost.gold && available.gold < cost.gold) return false;
-  if (cost.iron && available.iron < cost.iron) return false;
-  return true;
-}
-
-/**
  * Formats a resource amount with its canonical emoji (e.g., "50 🪵").
  */
 export function formatResourceAmount(key: ResourceKey, amount: number): string {
   return `${amount} ${RESOURCE_METAS[key].emoji}`;
+}
+
+/**
+ * Every non-zero amount in a resource dict, each formatted by the owner (`"60 🪵 · 15 ⛓"`).
+ *
+ * Added for the trade-route reward line, which picked gold *or* stone by hand: `trade_8` (wood 60) and
+ * `trade_10` (food 60) therefore advertised "+0s per round-trip" and `trade_3`'s iron was hidden, so the
+ * exact rows a wood-starved colony needed read as worthless (`LIVE-FINDINGS-STATUS.md`, F13).
+ */
+export function formatResourceAmounts(resources: Partial<Record<ResourceKey, number>>): string {
+  const parts: string[] = [];
+  for (const [key, amount] of Object.entries(resources) as [ResourceKey, number | undefined][]) {
+    if ((amount ?? 0) > 0) parts.push(formatResourceAmount(key, amount as number));
+  }
+  return parts.join(' · ');
 }

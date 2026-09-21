@@ -10,6 +10,42 @@
   <em>A cozy frontier settlement sim — built inside the food chain, not on top of it.</em>
 </p>
 
+## What is Wilderfolk?
+
+Most settlement games ask you to **tame** the wild. Wilderfolk asks you to **move into it** — and not wreck the neighborhood on your way in.
+
+You are not conquering a blank map. You are sharing a valley with grass, rabbits, deer, wolves, rival camps, caravans, winter, and the occasional curse under a full moon. Every choice ripples through the chain: wipe out the wolves and your hunters go hungry two seasons later. Pave too fast and the ecosystem buckles. Arm your militia, sign a peace treaty, or pay tribute — but **raids test preparation**, not a fancy battle screen.
+
+```
+🌿 → 🐰 🦌 → 🐺 🦊 → 🏹 → 🏘️
+```
+
+**Build homes. Assign workers. Watch families grow.** Every settler carries three personality traits from a pool of fourteen — 💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful, 🦁 Chivalrous, 🔨 Resourceful, 🏔️ Stoic, ✨ Graceful, 🦉 Intuitive, 🔥 Fierce — inherited from their parents, DNA-style, so the brave father's daughter carries his fire. Meet neighbor tribes on the map, queue iron at the Blacksmith, survive Moon Howlers, and shape your own legacy. The valley feels alive because the sim treats predators, prey, and people as one system.
+
+---
+
+## Latest update — v0.6.4.1 (September 21, 2026)
+
+**A deeper, clearer, and more responsive valley.**
+
+* `GAME_VERSION` **0.6.4.1**
+* ⚠️ **Beta Save Policy:** This build loads only **0.6.4.1** saves.
+
+| Area | Highlights |
+|------|------------|
+| 📊 **Village Dashboard** | A new full-screen overview (📊 in the HUD) tracks valley concerns, daily food production, and wildlife trends, giving you a calm space to plan your next move. |
+| 📉 **Clearer Daily Reports** | The Daily Council Report now provides a concise summary of your settlement’s net food, housing pressure, and life events, keeping you informed without the clutter. |
+| 🔍 **Diagnostic Inspector** | The new inspector completion provides a dependable view for every settler, showing their current activity, commute target, work/home status, and "why" behind their current task. |
+| 🎯 **Explainable Choices** | Story and diplomacy decisions now clearly explain why an action is blocked—such as missing resources or requirements—so you always know how to prepare. |
+| 🛡️ **Workforce Policies** | New strategic presets (Survival, Growth, Defense, Comfort) help you steer your village’s priorities, while manual overrides remain fully authoritative. |
+| 🗺️ **Logistics Overlay** | Use the **X** hotkey to view a new read-only overlay that highlights supply routes, commute pressure, and poorly connected buildings to optimize your layout. |
+| 🏅 **Legacy Goals** | The Valley Chronicle now tracks meaningful milestones—like surviving winter, keeping a promise, or recovering from a shortage—to celebrate your village’s history. |
+| 🚶 **"What Changed?" View** | The dashboard now highlights day-over-day changes in population, food storage, and wildlife, helping you spot trends in the food chain at a glance. |
+| 📈 **Performance & Health** | New integration-tested scenarios and performance metrics ensure the valley runs smoothly on Huge maps, with improved A* pathfinding accuracy and bundle optimizations. |
+| 🎭 **Living Characters** | Ten new male & female character variants and "famine desperation" behaviors bring more variety and drama to the community as your settlement ages. |
+
+
+
 ---
 
 ## Latest package — Wilderfolk v0.6.4
@@ -35,17 +71,7 @@ For ordinary players, the practical result is simple: install Wilderfolk, launch
 
 Wilderfolk is gradually moving toward its **first proper release**, so ease of access matters as much as new features. Tauri is part of that release-readiness work: players should be able to download one package, install the game, and start playing without first understanding Node.js, Rust, Vite, browser tabs, or the project’s development setup. The browser version remains important for development and testing, while the desktop package provides the simpler path for everyday players.
 
-## What is Wilderfolk?
-
-Most settlement games ask you to **tame** the wild. Wilderfolk asks you to **move into it** — and not wreck the neighborhood on your way in.
-
-You are not conquering a blank map. You are sharing a valley with grass, rabbits, deer, wolves, rival camps, caravans, winter, and the occasional curse under a full moon. Every choice ripples through the chain: wipe out the wolves and your hunters go hungry two seasons later. Pave too fast and the ecosystem buckles. Arm your militia, sign a peace treaty, or pay tribute — but **raids test preparation**, not a fancy battle screen.
-
-```
-🌿 → 🐰 🦌 → 🐺 🦊 → 🏹 → 🏘️
-```
-
-**Build homes. Assign workers. Watch families grow.** Every settler carries three personality traits from a pool of fourteen — 💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful, 🦁 Chivalrous, 🔨 Resourceful, 🏔️ Stoic, ✨ Graceful, 🦉 Intuitive, 🔥 Fierce — inherited from their parents, DNA-style, so the brave father's daughter carries his fire. Meet neighbor tribes on the map, queue iron at the Blacksmith, survive Moon Howlers, and shape your own legacy. The valley feels alive because the sim treats predators, prey, and people as one system.
+---
 
 > **v0.6.4 Windows package available** — download the standalone desktop installer from the [GitHub Release](https://github.com/Rengerams/wilderfolk/releases/tag/v0.6.4), or continue playtesting in your browser.
 

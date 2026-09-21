@@ -10,6 +10,8 @@ import type { WorldState, VisitorQuest } from './gameTypes';
 import { getAbsoluteCalendarDay } from './dayCycle';
 import { addBigNews } from './simEffects';
 import { getSimRng } from './simRng';
+import { addCappedResource } from './resourceUtils';
+import { addReputation } from './simHelpers';
 
 export const QUEST_EXPIRE_DAYS = 4;
 
@@ -59,8 +61,10 @@ export function deliverVisitorQuest(state: WorldState): boolean {
   state.resources[q.goalResource] = (have - q.goalAmount) as never;
   q.progress = q.goalAmount;
   q.status = 'completed';
-  state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + q.rewardGold);
-  state.villageReputation = Math.min(100, state.villageReputation + q.rewardReputation);
+  // Reward through the resource owner: `Math.min(storageMax, gold + reward)` used to *lower* a purse
+  // that was already over the cap, deleting the surplus while the card announced a gain.
+  addCappedResource(state, 'gold', q.rewardGold);
+  addReputation(state, q.rewardReputation);
   return true;
 }
 

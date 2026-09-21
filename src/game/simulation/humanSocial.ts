@@ -5,6 +5,7 @@ import { isPlayerHuman } from '../playerHuman';
 import {
   isDialogueBusy,
   maybeDialogueChat,
+  type ChatSpeaker,
   type HumanChatContext,
   type ChatPickOptions,
 } from '../humanChat';
@@ -106,10 +107,22 @@ export function simAmbientChatNeighbors(
     socialAdaptiveOptions('social', allHumans.length, width, height),
   );
 
-  // Return combined list with close bonds sorted first
-  if (preferred.length === 0) return standard;
-  if (standard.length === 0) return preferred;
-
+  // Return combined list with close bonds sorted first, and **id-stable within each tier**.
+  //
+  // Order is part of the contract, not an implementation detail: callers index this list with a seeded
+  // roll (`humanChat.ts` `chat-cand:…`), so the order has to be a property of the world rather than of
+  // movement history. The array used to be pushed in grid-walk order, and a grid's bucket order is
+  // history-dependent — removal is a swap-remove (`spatialGrid.ts` `bucket[pos] = last`) while a
+  // rebuilt grid is insertion-ordered, and the grids are dropped on every save/hand-off. Two logically
+  // identical worlds therefore picked different chat partners depending on whether the grid had been
+  // rebuilt, breaking the "same seed, same state, same outcome" contract the sim RNG guarantees
+  // (2026-09-20 audit, F-det-1).
+  //
+  // Sorting within each tier rather than across the whole list keeps the intended bias: `preferred`
+  // (partner, kin, coworker) still precedes `standard`, so a close bond is still likelier to be picked.
+  const byId = (a: ChatSpeaker, b: ChatSpeaker): number => a.id - b.id;
+  preferred.sort(byId);
+  standard.sort(byId);
   for (let i = 0; i < standard.length; i++) {
     preferred.push(standard[i]);
   }

@@ -1,4 +1,5 @@
 import { EntityType } from '../game/gameEngine';
+import { PREDATOR_TYPES } from '../game/combat';
 import type { Entity } from '../game/gameEngine';
 import {
   playHumanHuntSfx,
@@ -10,18 +11,18 @@ import {
 } from './interactionSfx';
 
 const PREY_TYPES = new Set<EntityType>([EntityType.Rabbit, EntityType.Deer]);
-const PREDATOR_TYPES = new Set<EntityType>([
-  EntityType.Wolf,
-  EntityType.Fox,
-  EntityType.Werewolf,
-  EntityType.Human,
-]);
+/**
+ * Hunters audible near prey: the simulation's predators (owned by `combat`) **plus** humans, who hunt
+ * prey too but are not sim predators. Composing the owner keeps a predator the simulation adds audible
+ * without a new branch here (duplication A10).
+ */
+const HUNTING_TYPES = new Set<EntityType>([...PREDATOR_TYPES, EntityType.Human]);
 
 function nearbyHunters(prey: Entity, entities: Entity[], radius = 90): Entity[] {
   return entities.filter(
     (e) =>
       e.alive &&
-      PREDATOR_TYPES.has(e.type) &&
+      HUNTING_TYPES.has(e.type) &&
       Math.hypot(e.x - prey.x, e.y - prey.y) < radius,
   );
 }

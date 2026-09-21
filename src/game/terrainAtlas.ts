@@ -29,6 +29,39 @@ const SAND_WATER_OVERLAY_COLUMNS = 4;
  */
 export const TERRAIN_MATERIAL_ATLAS_REVISION = 1;
 
+/**
+ * Canonical terrain colours — the one owner of the ground's base palette.
+ *
+ * Three tables used to disagree on the same concept: the canvas bake palette
+ * (`renderer/terrain.ts`), the Pixi palette (`renderer/pixiTerrain.ts`) and the minimap dots
+ * (`components/MiniMap.tsx`), so the minimap could never match the map it navigates (audit
+ * `visuals-looks.md` D12). These are the **live canvas2D** values, which is what ships and what
+ * the minimap now reads. `PRESET_TERRAIN_COLORS` in `renderer/terrain.ts` still shifts them per
+ * map preset for the bake only, so a preset map's minimap stays an approximation.
+ *
+ * Numbers, not CSS strings: the bake needs `0xRRGGBB` for its per-channel shading, and
+ * {@link terrainPaletteHex} serves the consumers that want a CSS colour.
+ */
+export const TERRAIN_PALETTE: Record<TerrainType, number> = {
+  [TerrainType.DeepWater]: 0x1c3a6e,
+  [TerrainType.ShallowWater]: 0x2a588c,
+  [TerrainType.River]: 0x3264a0,
+  [TerrainType.RiverBank]: 0x52733e,
+  [TerrainType.Beach]: 0xc2b280,
+  [TerrainType.Grassland]: 0x5e7a3a,
+  [TerrainType.Forest]: 0x3a5c2a,
+  [TerrainType.DarkForest]: 0x223a1c,
+  [TerrainType.Hills]: 0x76663e,
+  [TerrainType.Mountains]: 0x524e48,
+  [TerrainType.Rocky]: 0x625c52,
+  [TerrainType.Snow]: 0xd2dae1,
+};
+
+/** {@link TERRAIN_PALETTE} as a CSS `#rrggbb` string, for consumers that draw with fillStyle. */
+export function terrainPaletteHex(type: TerrainType): string {
+  return `#${TERRAIN_PALETTE[type].toString(16).padStart(6, '0')}`;
+}
+
 /** Atlas terrain families we can paint. */
 export type AtlasFamily = 0 | 1; // 0 = grass, 1 = water
 const GRASS: AtlasFamily = 0;

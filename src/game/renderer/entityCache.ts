@@ -77,13 +77,19 @@ function syncDrawCacheTick(tick: number): boolean {
   return true;
 }
 
-function entityInViewport(entity: Entity, cam: Camera, cw: number, ch: number, pad = 72): boolean {
-  const vp = viewportFromCamera(cam.x, cam.y, cam.zoom, cw, ch, pad);
-  return entity.x >= vp.minX && entity.x <= vp.maxX && entity.y >= vp.minY && entity.y <= vp.maxY;
-}
-
 function filterEntitiesInViewport(entities: Entity[], cam: Camera, cw: number, ch: number): Entity[] {
-  return entities.filter((entity) => !entity.hiddenFromPlayer && entityInViewport(entity, cam, cw, ch));
+  // `viewportFromCamera` is a constant of this call, so it is built once instead of once per
+  // candidate entity (it was previously re-derived inside the predicate for all ~N candidates).
+  const pad = 72;
+  const vp = viewportFromCamera(cam.x, cam.y, cam.zoom, cw, ch, pad);
+  return entities.filter(
+    (entity) =>
+      !entity.hiddenFromPlayer
+      && entity.x >= vp.minX
+      && entity.x <= vp.maxX
+      && entity.y >= vp.minY
+      && entity.y <= vp.maxY,
+  );
 }
 
 function syncGrassDrawCache(

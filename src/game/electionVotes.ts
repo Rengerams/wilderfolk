@@ -1,6 +1,6 @@
 import type { WorldState } from './gameTypes';
-import { EntityType } from './gameTypes';
 import { friendshipScore, feudScore } from './relationships';
+import { isPlayerHuman } from './playerHuman';
 
 /**
  * Election vote-support (Phase 7) — every adult settler casts a ballot.
@@ -43,7 +43,7 @@ export function simulateElectionVotes(
   for (const c of candidates) tally.set(c.entityId, 0);
 
   const voters = state.entities.filter(
-    (e) => e.alive && e.type === EntityType.Human && !e.faction && !e.isJuvenile,
+    (e) => e.alive && isPlayerHuman(e) && !e.isJuvenile,
   );
   let totalVotes = 0;
 

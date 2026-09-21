@@ -16,7 +16,7 @@ function listPlayerHumans(state: WorldState): Entity[] {
 function reconcileAssignmentsAfterResidenceChange(state: WorldState): void {
   const humans = listPlayerHumans(state);
   assignMissingResidences(humans, state.buildings, state.entities);
-  assignMissingWorkers(humans, state.buildings);
+  assignMissingWorkers(humans, state.buildings, state);
 }
 
 /** Mutates state — re-run automatic housing assignment for a residence. */

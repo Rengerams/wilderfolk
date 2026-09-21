@@ -160,6 +160,15 @@ export function overlapsPlayerBuilding(
   return overlapsAnyBuilding(buildings, width, height, x, y);
 }
 
+/**
+ * The `building.x/y` centre convention now lives in the leaf module `buildingGeometry`, which exists
+ * precisely so `buildingRotation` and this file can both read it without importing each other (the
+ * old arrangement closed a runtime cycle, 2026-09-20 audit X-6). Re-exported here because this module
+ * is where the rest of the codebase already looks for footprint geometry — one definition, two import
+ * paths, and no second source of truth.
+ */
+export { getBuildingCenter, getBuildingFootprintRect } from './buildingGeometry';
+
 export function isBuildingTechUnlocked(
   techId: string,
   unlockedTechs: readonly string[],

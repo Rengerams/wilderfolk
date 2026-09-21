@@ -80,8 +80,10 @@ function drawTerrainFill(
   y0: number,
   fillW: number,
   fillH: number,
-  tx: number,
-  ty: number,
+  // Tile coords are kept in the signature for the call sites' shape; the per-tile phase they
+  // used to drive was the D9 ghost (see below).
+  _tx: number,
+  _ty: number,
   alpha = 1,
 ): boolean {
   const path = TERRAIN_FILL_PATH[type];
@@ -90,16 +92,16 @@ function drawTerrainFill(
   if (!img) return false;
   const iw = img.naturalWidth || (img as HTMLImageElement).width || 128;
   const ih = img.naturalHeight || (img as HTMLImageElement).height || 128;
-  const sx = ((tx * 17) % iw + iw) % iw;
-  const sy = ((ty * 13) % ih + ih) % ih;
   const prev = ctx.globalAlpha;
   try {
     ctx.globalAlpha = prev * alpha;
+    // ONE stamp. A second "seam wrap" used to draw the *remainder* of the texture
+    // (`sx, sy → iw, ih`) stretched over the whole tile at 35 % alpha to vary the repeat.
+    // That is not a wrap: when `sx`/`sy` were small the crop was nearly the whole texture,
+    // so the tile received the texture twice at two different scales — a double-exposed
+    // ghost (audit `visuals-looks.md` D9). Repeat variety comes from `tile.variation`
+    // tinting in the bake and from the neighbour blends.
     ctx.drawImage(img as CanvasImageSource, 0, 0, iw, ih, x0, y0, fillW, fillH);
-    if (sx > 0 || sy > 0) {
-      ctx.globalAlpha = prev * alpha * 0.35;
-      ctx.drawImage(img as CanvasImageSource, sx, sy, Math.max(1, iw - sx), Math.max(1, ih - sy), x0, y0, fillW, fillH);
-    }
     ctx.globalAlpha = prev;
     return true;
   } catch {
@@ -255,8 +257,48 @@ export interface TerrainDecorCache {
   height: number;
   seed: number;
   preset: string;
+  /** {@link getTerrainRevision} when baked — the decor pass reads `tile.type` too. */
+  revision: number;
   props: boolean;
   mountains: boolean;
+}
+
+/**
+ * Monotonic counter for post-worldgen `WorldMap.tiles` mutation.
+ *
+ * Every terrain cache key is derived from the map's immutable-looking fields (seed, preset,
+ * size, season, LOD), so a tile whose `type` changed after worldgen kept its old texture for
+ * as long as its cache entry lived — clearing forest under a new footprint left the forest
+ * fill and its canopy overlay on the cleared tiles (audit `visuals-looks.md` D4). The
+ * mutation owner bumps this instead of the caches guessing.
+ *
+ * Presentation-only: never saved, never read by the simulation, process-local by design.
+ */
+let terrainRevision = 0;
+
+export function bumpTerrainRevision(): void {
+  terrainRevision++;
+}
+
+export function getTerrainRevision(): number {
+  return terrainRevision;
+}
+
+/**
+ * Cache key for one baked terrain chunk.
+ *
+ * Every input the bake reads must be here. `seed`/`preset`/size are stable for a world, but
+ * `tile.type` is **not** — the building-placement path clears forest under a new footprint — so
+ * {@link getTerrainRevision} is part of the key and a mutated tile cannot keep its old fill and
+ * canopy for the life of the cache entry (audit `visuals-looks.md` D4).
+ */
+export function terrainChunkCacheKeyFor(
+  map: Pick<WorldMap, 'seed' | 'preset'>,
+  season: Season,
+  lod: number,
+  blendT?: number,
+): string {
+  return `${map.seed}|${map.preset}|${season}|${lod}|${blendT ?? ''}|r${getTerrainRevision()}`;
 }
 
 export function terrainFillSpritesReady(): boolean {
@@ -312,7 +354,8 @@ export function terrainDecorNeedsRebuild(
   return cache.width !== worldWidth
     || cache.height !== worldHeight
     || cache.seed !== map.seed
-    || cache.preset !== map.preset;
+    || cache.preset !== map.preset
+    || cache.revision !== getTerrainRevision();
 }
 
 export function disposeTerrainLayer(cache: TerrainLayerCache | null): void {
@@ -519,9 +562,14 @@ export function bakeTerrainLayer(
       ? drawAtlasTile(ctx, atlasImg, atlasPick, x0, y0, fillW, fillH)
       : drawTerrainFill(ctx, tile.type, x0, y0, fillW, fillH, tx, ty);
 
+    // The shoreline mask is independent of which base painter stamped the tile: it is authored
+    // for Beach **and** RiverBank, while `pickAtlasTile` returns null for Beach (its family is
+    // not in the atlas). Nesting this under `atlasPick` therefore made the beach half of the
+    // mask — the material it exists for — unreachable (audit `visuals-looks.md` D8).
+    const overlayPick = overlayReady ? pickSandWaterOverlay(map, tx, ty) : null;
+    const overlayImg = overlayPick ? getSprite(SAND_WATER_OVERLAY_PATH) : null;
+
     if (atlasPick) {
-      const overlayPick = overlayReady ? pickSandWaterOverlay(map, tx, ty) : null;
-      const overlayImg = overlayPick ? getSprite(SAND_WATER_OVERLAY_PATH) : null;
       if (overlayImg && overlayPick) {
         drawSandWaterOverlay(ctx, overlayImg, overlayPick, x0, y0, fillW, fillH);
       }
@@ -535,6 +583,9 @@ export function bakeTerrainLayer(
     } else if (!stamped) {
       ctx.fillStyle = shadeRgb(base, light);
       ctx.fillRect(x0, y0, fillW, fillH);
+      if (overlayImg && overlayPick) {
+        drawSandWaterOverlay(ctx, overlayImg, overlayPick, x0, y0, fillW, fillH);
+      }
     } else {
       const north = map.tiles[ty - 1]?.[tx];
       const southT = map.tiles[ty + 1]?.[tx];
@@ -544,6 +595,10 @@ export function bakeTerrainLayer(
       if (southT) blendNeighborEdge(ctx, tile.type, southT.type, x0, y0, fillW, fillH, tx, ty, 's', tileSize);
       if (west) blendNeighborEdge(ctx, tile.type, west.type, x0, y0, fillW, fillH, tx, ty, 'w', tileSize);
       if (eastT) blendNeighborEdge(ctx, tile.type, eastT.type, x0, y0, fillW, fillH, tx, ty, 'e', tileSize);
+
+      if (overlayImg && overlayPick) {
+        drawSandWaterOverlay(ctx, overlayImg, overlayPick, x0, y0, fillW, fillH);
+      }
 
       ctx.fillStyle = tint;
       ctx.fillRect(x0, y0, fillW, fillH);
@@ -858,6 +913,7 @@ export function bakeTerrainDecor(map: WorldMap, worldWidth: number, worldHeight:
     height: h,
     seed: map.seed,
     preset: map.preset,
+    revision: getTerrainRevision(),
     props: landscapePropSpritesReady(),
     mountains: mountainSpritesReady(),
   };

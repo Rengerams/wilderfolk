@@ -3,6 +3,7 @@ import { EntityType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isRivalAtPeace } from './rivalPeace';
 import { resolveCombatLogKind } from './eventLog';
+import { getEcosystemHealth } from './dailyEcology';
 
 export type PortraitTraitId = 'war' | 'nature' | 'trade' | 'build' | 'diplomacy';
 
@@ -50,7 +51,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
 
   const caravans = state.lifetimeStats?.tradeCaravansCompleted ?? 0;
   const tradeGold = state.lifetimeStats?.goldFromTradeRoutes ?? 0;
-  const eco = state.ecosystemHealth ?? 50;
+  const eco = getEcosystemHealth(state);
   const valley = state.valleyStage ?? 'stable';
 
   // Single-pass entity scan

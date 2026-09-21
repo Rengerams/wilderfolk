@@ -2,7 +2,9 @@ import type { WorldState } from '../gameTypes';
 import { normalizeForgeState } from '../forge';
 import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
-import { hydrateWorldRuntimeCaches, invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
+import { getWorkforcePolicy } from '../workforcePolicy';
+import { rebuildWorldRuntimeCaches } from '../worldRuntimeCaches';
+import { ScentGrid, isScentGridRuntime } from '../scentGrid';
 import { restoreSimRng, snapshotSimRng } from '../simRng';
 
 /**
@@ -34,6 +36,8 @@ type SimPrepKeys =
   | 'wildlifeCounts'
   | 'ecosystemHealth'
   | 'pollutionLevel'
+  | 'pendingEcosystemHealthDelta'
+  | 'pendingPollutionDelta'
   | 'biodiversityIndex'
   | 'valleyStage'
   | 'valleyStageSinceDay'
@@ -98,10 +102,13 @@ type SimPrepKeys =
   | 'workSchedule'
   | 'tavernSchedule'
   | 'hotelSchedule'
+  | 'workforcePolicy'
   | 'bigNews'
   | 'notifications'
   | 'huntVisuals'
-  | 'simRng';
+  | 'simRng'
+  // Simulation state that lives in a runtime-cache slot (see `restoreScentGridSnapshot`).
+  | 'scentGrid';
 
 export type SimPrepPayload = Pick<WorldState, SimPrepKeys>;
 
@@ -147,6 +154,11 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
           day: state.economyLedger.day,
           produced: { ...state.economyLedger.produced },
           consumed: { ...state.economyLedger.consumed },
+          // The totals ride with the maps they summarize: the display world reads them instead of
+          // adding up (`simDelta.ts`), and `summarizeFoodLedger`'s `?? sum` fallback hid their
+          // absence after a rollback (worker-boundary audit F-3).
+          producedTotal: state.economyLedger.producedTotal,
+          consumedTotal: state.economyLedger.consumedTotal,
         }
       : undefined,
     foodHistory: state.foodHistory
@@ -163,6 +175,8 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     wildlifeCounts: { ...state.wildlifeCounts },
     ecosystemHealth: state.ecosystemHealth,
     pollutionLevel: state.pollutionLevel,
+    pendingEcosystemHealthDelta: state.pendingEcosystemHealthDelta,
+    pendingPollutionDelta: state.pendingPollutionDelta,
     biodiversityIndex: state.biodiversityIndex,
     valleyStage: state.valleyStage,
     valleyStageSinceDay: state.valleyStageSinceDay,
@@ -231,9 +245,16 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     workSchedule: getWorkSchedule(state),
     tavernSchedule: getVenueSchedule(state, 'tavern'),
     hotelSchedule: getVenueSchedule(state, 'hotel'),
+    workforcePolicy: getWorkforcePolicy(state),
     bigNews: [...(state.bigNews ?? [])],
     notifications: [...(state.notifications ?? [])],
     huntVisuals: [...(state.huntVisuals ?? [])],
+    // A real copy, not a reference: the realtime layer decays the grid and deposits predator odour
+    // into it in place, before anything in the tick can throw, so a rolled-back tick used to keep
+    // the failed decay and spread (worker-boundary audit F-1).
+    scentGrid: isScentGridRuntime(state.scentGrid)
+      ? ScentGrid.fromRuntime(state.scentGrid)
+      : undefined,
     simRng: snapshotSimRng(),
   };
 }
@@ -257,6 +278,7 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.resources = prep.resources;
   world.storageMax = prep.storageMax;
   world.foodSpoilageRate = prep.foodSpoilageRate;
+  // Whole-object restore: the payload's clone already carries `producedTotal` / `consumedTotal`.
   world.economyLedger = prep.economyLedger;
   world.foodHistory = prep.foodHistory;
   world.humanPopulation = prep.humanPopulation;
@@ -266,6 +288,8 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.wildlifeCounts = prep.wildlifeCounts;
   world.ecosystemHealth = prep.ecosystemHealth;
   world.pollutionLevel = prep.pollutionLevel;
+  world.pendingEcosystemHealthDelta = prep.pendingEcosystemHealthDelta;
+  world.pendingPollutionDelta = prep.pendingPollutionDelta;
   world.biodiversityIndex = prep.biodiversityIndex;
   world.valleyStage = prep.valleyStage;
   world.valleyStageSinceDay = prep.valleyStageSinceDay;
@@ -331,18 +355,48 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.workSchedule = prep.workSchedule;
   world.tavernSchedule = prep.tavernSchedule;
   world.hotelSchedule = prep.hotelSchedule;
+  world.workforcePolicy = prep.workforcePolicy;
   world.bigNews = prep.bigNews;
   world.notifications = prep.notifications;
   world.huntVisuals = prep.huntVisuals;
   world.simRng = prep.simRng;
   restoreSimRng(prep.simRng);
 
-  // Invalidate and re-hydrate caches so indices immediately reflect restored state.
-  // `scentGrid` is simulation state (the wolves' accumulated scent field), not a derived index —
-  // `invalidateWorldRuntimeCaches` drops it (worldRuntimeCaches.ts:23), which zeroed the whole
-  // trail after every rollback (worker-boundary audit F5). Carry the live grid across the rebuild.
-  const scentGrid = world.scentGrid;
-  invalidateWorldRuntimeCaches(world);
-  hydrateWorldRuntimeCaches(world);
-  if (scentGrid) world.scentGrid = scentGrid;
+  // Two separate duties meet on the scent field, and conflating them is what let F-1 hide behind
+  // the persist-across-rebuild fix:
+  //   1. rollback — the field must return to its pre-tick value, because the realtime layer decayed
+  //      and spread the live grid before the tick could fail (`restoreScentGridSnapshot`);
+  //   2. persistence — `invalidateWorldRuntimeCaches` drops the slot as a runtime cache
+  //      (worldRuntimeCaches.ts), which zeroed the whole trail after every rollback (F5), so the
+  //      rebuild has to carry the restored grid across (`rebuildWorldRuntimeCaches`).
+  // Order matters: restore first, rebuild second — the rebuild preserves what is in the slot then.
+  restoreScentGridSnapshot(world, prep.scentGrid);
+  rebuildWorldRuntimeCaches(world);
+}
+
+/**
+ * Puts a prep snapshot of the scent field back onto `world`.
+ *
+ * Written back into the live grid whenever its geometry still matches, so the instance survives the
+ * rollback (sidecar packing and the F5 case in `tests/simPrep.rollbackFields.test.ts` hold on to it);
+ * the snapshot is copied out of, never adopted, so the payload stays re-appliable. An absent or
+ * malformed snapshot means the pre-tick world had no usable grid at all: the one the failed tick
+ * created is dropped, and the next realtime layer recreates it through `ensureScentGrid`.
+ */
+function restoreScentGridSnapshot(world: WorldState, snapshot: WorldState['scentGrid']): void {
+  const live = world.scentGrid;
+  if (!isScentGridRuntime(snapshot)) {
+    world.scentGrid = undefined;
+    return;
+  }
+  if (
+    live &&
+    live.cols === snapshot.cols &&
+    live.rows === snapshot.rows &&
+    live.cellSize === snapshot.cellSize
+  ) {
+    live.values.set(snapshot.values);
+    return;
+  }
+  world.scentGrid = ScentGrid.fromRuntime(snapshot);
 }

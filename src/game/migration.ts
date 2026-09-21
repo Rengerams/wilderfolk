@@ -8,6 +8,8 @@ import { addBigNews } from './simEffects';
 import { logEvent } from './eventLog';
 import { getSimRng } from './simRng';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
+import type { TickContext } from './simulation/simulationTypes';
+import { pushNewEntity } from './simulation/simulationEntities';
 import { isPassableWildlifePosition, spawnWildlifeRing } from './worldGen';
 
 export const MIGRATION_WINDOW_DAYS = 7;
@@ -56,7 +58,34 @@ function findPassableHerdSpawn(
   return null;
 }
 
-function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYear: number): void {
+/**
+ * Register a herd deer on every same-tick bookkeeping path.
+ *
+ * The daily layer runs *after* `gameTick` snapshots the living entities and *before* it assigns
+ * `state.entities = allAlive`, so `state.entities` is not the list the tick ends with. Routing the
+ * spawn through the canonical `pushNewEntity` is what makes the deer visible to `ctx.newEntities`
+ * (the worker delta) and to `ctx.mobileGrid` in the tick they arrive — the same repair the daily
+ * immigrant path took (`dailyPopulation.ts`).
+ *
+ * `ctx` is optional only for direct owner-level callers that drive the herd without a tick context
+ * (tests). Without it the spawn falls back to the entity list and the id index, which is the
+ * pre-existing behaviour.
+ */
+function registerHerdDeer(state: WorldState, ctx: TickContext | undefined, deer: Entity): void {
+  if (!state.entities.includes(deer)) {
+    state.entities.push(deer);
+  }
+  indexLivingEntity(state, deer);
+  if (ctx) pushNewEntity(state, ctx, deer);
+}
+
+function spawnHerdAtEdge(
+  state: WorldState,
+  out: Entity[],
+  count: number,
+  herdYear: number,
+  ctx?: TickContext,
+): void {
   const { width, height } = state;
   const edge = Math.floor(getSimRng('migration')() * 4);
   let edgeX = width / 2;
@@ -88,10 +117,7 @@ function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYe
     );
     deer.migrationTag = herdYear;
     out.push(deer);
-    if (!state.entities.includes(deer)) {
-      state.entities.push(deer);
-    }
-    indexLivingEntity(state, deer);
+    registerHerdDeer(state, ctx, deer);
   }
 
   // A fully blocked edge strip falls back to the shared passability-retry ring spawner
@@ -100,7 +126,7 @@ function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYe
       onSpawn: (deer) => {
         deer.migrationTag = herdYear;
         out.push(deer);
-        indexLivingEntity(state, deer);
+        registerHerdDeer(state, ctx, deer);
       },
     });
   }
@@ -109,8 +135,11 @@ function spawnHerdAtEdge(state: WorldState, out: Entity[], count: number, herdYe
 /**
  * Daily migration step: arrive on the autumn window, depart at its end and
  * remember how many deer the herd lost. Call once per calendar day (tickLayerDaily).
+ *
+ * `ctx` carries the tick's spawn bookkeeping (newEntities + spatial grids). It is optional so
+ * owner-level callers without a tick context keep working; the daily layer always passes it.
  */
-export function tickMigration(state: WorldState, allAlive: Entity[]): void {
+export function tickMigration(state: WorldState, allAlive: Entity[], ctx?: TickContext): void {
   const day = getAbsoluteCalendarDay(state.tick);
   const dayInYear = day % DAYS_PER_YEAR;
   const year = Math.floor(day / DAYS_PER_YEAR);
@@ -148,7 +177,7 @@ export function tickMigration(state: WorldState, allAlive: Entity[]): void {
   // Arrival: no active herd + it is the arrival day for this seed → the herd comes.
   if (!active && dayInYear === migrationArrivalDay(state.worldMap?.seed, DAYS_PER_YEAR)) {
     const count = state.migrationNextHerdSize ?? HERD_BASE_SIZE;
-    spawnHerdAtEdge(state, allAlive, count, year);
+    spawnHerdAtEdge(state, allAlive, count, year, ctx);
     state.activeMigration = { herdYear: year, endDay: day + MIGRATION_WINDOW_DAYS, spawned: count };
     addBigNews(
       state,

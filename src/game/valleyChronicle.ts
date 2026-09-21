@@ -3,6 +3,7 @@ import { BuildingType } from './buildings';
 import { logEvent } from './eventLog';
 import { isRivalAtPeace } from './rivalPeace';
 import { addCappedResource } from './resourceUtils';
+import { recordFoodProduced } from './economyLedger';
 import { hasDynasty } from './familyLegacy';
 
 /**
@@ -90,7 +91,13 @@ export function advanceValleyChronicle(state: WorldState): string[] {
       logEvent(state, 'milestone', `${ch.icon} ${ch.title} — ${ch.detail}`);
       if (ch.reward) {
         for (const [key, amount] of Object.entries(ch.reward)) {
-          if (amount > 0) addCappedResource(state, key as keyof Resources, amount);
+          if (!(amount > 0)) continue;
+          const added = addCappedResource(state, key as keyof Resources, amount);
+          // Three chapters reward food (`first_harvest` 100, `the_hunt` 80, `the_river` 80). The
+          // ledger's contract is "food that actually entered storage" (`economyLedger.ts`), so a
+          // chapter is a producer like any other — skipping this made those grants invisible to the
+          // "why is my food low?" panel. The mirror of audit M5, found while fixing it.
+          if (key === 'food') recordFoodProduced(state, 'chronicle', added);
         }
       }
       newly.push(ch.id);

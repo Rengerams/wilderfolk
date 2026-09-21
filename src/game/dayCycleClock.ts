@@ -1,9 +1,10 @@
 import { Time } from './gameConstants';
 
-export const TICKS_PER_HOUR = 3;
-export const TICKS_PER_DAY = (Time?.HOURS_PER_DAY ?? 24) * TICKS_PER_HOUR;
+/** The tick rate and day length are owned by `gameConstants.Time`; this module only derives. */
+export const TICKS_PER_HOUR = Time.TICKS_PER_HOUR;
+export const TICKS_PER_DAY = Time.HOURS_PER_DAY * TICKS_PER_HOUR;
 export const LEGACY_TICKS_PER_DAY = 24;
-export const DAYS_PER_YEAR = Time?.DAYS_PER_YEAR ?? 360;
+export const DAYS_PER_YEAR = Time.DAYS_PER_YEAR;
 export const PER_TICK_RATE_SCALE = 1 / TICKS_PER_HOUR;
 export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
@@ -49,6 +50,20 @@ export function isWorkDay(tick: number): boolean {
 export function ticksForDays(days: number): number {
   if (!Number.isFinite(days) || days <= 0) return 0;
   return Math.round(days * TICKS_PER_DAY);
+}
+
+/**
+ * Whole days from `nowTick` until `untilTick`, never negative — the countdown the inspectors show for
+ * a prison sentence, a diplomacy deadline and a festival cooldown.
+ *
+ * `ticksForDays` is the inverse conversion and lives here too, so the forward one belongs beside it:
+ * four views and the header each wrote `Math.ceil((untilTick - tick) / TICKS_PER_DAY)` by hand, two of
+ * them without the lower clamp, so an elapsed deadline could read as a negative day count
+ * (2026-09-20 audit, O-4).
+ */
+export function daysUntilTick(nowTick: number, untilTick: number): number {
+  if (!Number.isFinite(nowTick) || !Number.isFinite(untilTick)) return 0;
+  return Math.max(0, Math.ceil((untilTick - nowTick) / TICKS_PER_DAY));
 }
 
 /**

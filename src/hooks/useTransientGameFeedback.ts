@@ -21,8 +21,36 @@ export const NOTIFICATION_DISPLAY_MS = 12_000;
 const BIG_NEWS_DISMISS_AFTER_TICKS = 360;
 const BIG_NEWS_REMOVE_AFTER_TICKS = 600;
 const BIG_NEWS_CLEANUP_INTERVAL_MS = 1_000;
-const NOTIFICATION_LIFETIME_MS = 12_000;
 const NOTIFICATION_CLEANUP_INTERVAL_MS = 2_000;
+/**
+ * Cap on the persisted dismissal ledger. Every notification the player ever sees lands here once
+ * (an explicit ✕ or the 12 s auto-dismiss timer below both route through `dismissNotification`),
+ * and the ledger is the filter that keeps a dismissed toast from reappearing on the next worker
+ * delta (`simDelta.preserveNotificationDismissals`). It is also copied into every UI patch and
+ * diffed per tick, so it must stay bounded — but it may only drop ids whose notification can no
+ * longer arrive: the simulation's own `notifications` list holds at most 20 entries
+ * (`simEffects.addNotification` shifts past 20), so a tail cap above 20 can never let one back in.
+ * 50 is that window with margin; lowering it below the simulation's 20 would resurrect old toasts.
+ */
+const MAX_DISMISSED_NOTIFICATION_IDS = 50;
+
+/**
+ * Cap on the persisted Big News / active-event dismissal ledgers.
+ *
+ * The two sibling ledgers had **no** cap while the notification one above did, so they grew for the life
+ * of a colony: every dismissal paid an O(n) `Array.from(set)`, the whole array was re-scanned by
+ * `simEffects.highestBigNewsSeq` on **every** `addBigNews`, copied into every UI patch (`extractUiPatch`)
+ * and diffed per tick (`idsPatchChanged`), and written into every save — and `bigNews` itself is capped at
+ * 50 (`simEffects.addBigNews` shifts past 50) while its dismissal ledger was not (2026-09-20 audit,
+ * F-misc-1).
+ *
+ * A tail cap is safe here for the same reason it is safe above: the ledger's only job is to suppress a
+ * card that is still *live*, and `dismissedBigNewsIds` additionally exists to stop `addBigNews` re-minting
+ * a sequence. 50 matches the live `bigNews` window with margin, so an id can only be dropped long after
+ * its card has left the list.
+ */
+const MAX_DISMISSED_BIG_NEWS_IDS = 50;
+const MAX_DISMISSED_ACTIVE_EVENT_IDS = 50;
 
 export interface UseTransientGameFeedbackOptions {
   world: WorldState;
@@ -62,17 +90,35 @@ export function getBigNewsAutoDismissIds(
     .map((news) => news.id);
 }
 
-/** Removes notifications that have exceeded the wall-clock display lifetime. */
+/**
+ * Removes notifications that have exceeded the wall-clock display lifetime, **recording their ids**.
+ *
+ * The ledger write is the whole point, not bookkeeping: this sweep mutates the *display* world, which is
+ * rebuilt from the worker on the next tick, and `simDelta.preserveNotificationDismissals` drops only ids
+ * the ledger knows. Without it the sweep and the 12 s per-toast timer fought each other — the sweep
+ * removed an expired toast, the next delta restored it (its id was never recorded), the reconciliation
+ * effect cancelled the restored toast's timer, a fresh 12 s timer was armed, and 2 s later the sweep
+ * removed it again. The player saw the card blink out and back every two seconds and never leave on its
+ * own, which is what `NOTIFICATION_DISPLAY_MS` was added to fix (`LIVE-FINDINGS-STATUS.md`, F22). Every
+ * removal now routes through the same ledger the comment on `MAX_DISMISSED_NOTIFICATION_IDS` claims.
+ */
 export function expireNotifications(
-  world: Pick<WorldState, 'notifications'>,
+  world: Pick<WorldState, 'notifications' | 'dismissedNotificationIds'>,
   now = Date.now(),
 ): void {
   if (!world.notifications || world.notifications.length === 0) return;
-  const cutoff = now - NOTIFICATION_LIFETIME_MS;
-  const next = world.notifications.filter((notification) => notification.createdAt > cutoff);
-  if (next.length !== world.notifications.length) {
-    world.notifications = next;
-  }
+  // One lifetime, one name: the sweeper cutoff and the per-toast timer both read
+  // `NOTIFICATION_DISPLAY_MS`. They were two 12_000 constants, so lowering the sweeper's copy
+  // below the timer's restored the F22 blink loop (audit C2 "Toast lifetime").
+  const cutoff = now - NOTIFICATION_DISPLAY_MS;
+  const expired = world.notifications.filter((notification) => notification.createdAt <= cutoff);
+  if (expired.length === 0) return;
+
+  const dismissed = new Set(world.dismissedNotificationIds ?? []);
+  for (const notification of expired) dismissed.add(notification.id);
+  // Same ordering and cap as `dismissNotification`: newest last, oldest dropped past the window.
+  world.dismissedNotificationIds = Array.from(dismissed).slice(-MAX_DISMISSED_NOTIFICATION_IDS);
+  world.notifications = world.notifications.filter((notification) => notification.createdAt > cutoff);
 }
 
 /** Resolves the latest undismissed Valley Chronicle moment for presentation. */
@@ -161,7 +207,8 @@ export function useTransientGameFeedback({
       loopRef.current?.mutateWorld((currentWorld) => {
         const dismissed = new Set(currentWorld.dismissedNotificationIds ?? []);
         dismissed.add(id);
-        currentWorld.dismissedNotificationIds = Array.from(dismissed);
+        // Keep insertion order (newest last) and drop the oldest entries past the cap.
+        currentWorld.dismissedNotificationIds = Array.from(dismissed).slice(-MAX_DISMISSED_NOTIFICATION_IDS);
         currentWorld.notifications = currentWorld.notifications.filter(
           (notification) => notification.id !== id,
         );
@@ -188,7 +235,7 @@ export function useTransientGameFeedback({
       loopRef.current?.mutateWorld((currentWorld) => {
         const dismissed = new Set(currentWorld.dismissedBigNewsIds ?? []);
         dismissed.add(id);
-        currentWorld.dismissedBigNewsIds = Array.from(dismissed);
+        currentWorld.dismissedBigNewsIds = Array.from(dismissed).slice(-MAX_DISMISSED_BIG_NEWS_IDS);
         currentWorld.bigNews = currentWorld.bigNews.filter((news) => news.id !== id);
       });
     },
@@ -276,7 +323,7 @@ export function useTransientGameFeedback({
     loopRef.current?.mutateWorld((session) => {
       const dismissedEvents = new Set(session.dismissedActiveEventIds ?? []);
       dismissedEvents.add(event.id);
-      session.dismissedActiveEventIds = Array.from(dismissedEvents);
+      session.dismissedActiveEventIds = Array.from(dismissedEvents).slice(-MAX_DISMISSED_ACTIVE_EVENT_IDS);
       session.activeEvent = null;
 
       if (visitorNewsIds.length > 0) {
@@ -285,7 +332,9 @@ export function useTransientGameFeedback({
         for (let i = 0; i < visitorNewsIds.length; i++) {
           dismissedNews.add(visitorNewsIds[i]);
         }
-        session.dismissedBigNewsIds = Array.from(dismissedNews);
+        // Same tail cap as the single-item path above: `bigNews` is itself capped at 50, so a
+        // capped ledger cannot resurrect a live card, and an uncapped one grows for the session.
+        session.dismissedBigNewsIds = Array.from(dismissedNews).slice(-MAX_DISMISSED_BIG_NEWS_IDS);
         session.bigNews = session.bigNews.filter((news) => !visitorNewsSet.has(news.id));
       }
     });

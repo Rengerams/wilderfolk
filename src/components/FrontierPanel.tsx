@@ -12,17 +12,20 @@ import {
   getCombatPreview,
   getOutgoingRaidFoodCostForRival,
   getRivalRaidStrength,
-  hasIronSpears,
-  hasStoneSpears,
   isRivalAtPeace,
 } from '../game/gameEngine';
 import { getBarracksGuardCount, countCompletedDefenseBuildings } from '../game/defenseStructures';
 import { BuildingType } from '../game/gameTypes';
-import { computeMilitiaBreakdown } from '../game/militiaBalance';
+import { computeMilitiaBreakdown, getMilitiaArmamentLabel } from '../game/militiaBalance';
 import { normalizeRivalProfile, getRivalProfileLabel } from '../game/rivalProfiles';
 import { getRivalPresenceSummary } from '../game/rivalPresence';
 
-interface Props {
+/**
+ * The frontier view's props — exported so the lazy wrapper (`tabPanels/FrontierTabPanel`) reuses
+ * this contract instead of restating the six props, where the copy had already drifted on
+ * `onFocusRival`'s `buildingId` optionality and `onLaunchRaid`'s optionality (audit C1 clone 2).
+ */
+export interface FrontierPanelProps {
   state: WorldState;
   pendingRaidCount: number;
   pendingOutgoingRaidCount: number;
@@ -40,7 +43,7 @@ function FrontierPanel({
   onFocusVisitor,
   onFocusRival,
   onLaunchRaid,
-}: Props) {
+}: FrontierPanelProps) {
   const pendingRaids = state.pendingRaidEvents ?? [];
   const firstPendingRaid = pendingRaids[0];
   const pendingDiplomacy = state.pendingDiplomacyEvents ?? [];
@@ -52,7 +55,11 @@ function FrontierPanel({
     BuildingType.Wall,
     BuildingType.WallGate,
   ]);
-  const armament = hasIronSpears(state) ? 'Iron spears' : hasStoneSpears(state) ? 'Stone spears' : 'Unarmed adults';
+  // The owner covers all five tiers — iron swords and the three shield tiers included — and its
+  // multipliers are what `computeMilitiaBreakdown` prints as the strength a line above. The local
+  // two-tier ternary that used to live here made a sword-armed (or shield-only) village read
+  // "Unarmed adults" beside a non-zero militia strength (`LIVE-FINDINGS-STATUS.md`, F15).
+  const armament = getMilitiaArmamentLabel(state) ?? 'Unarmed adults';
 
   if (!hasNeighbors && pendingRaidCount === 0 && pendingOutgoingRaidCount === 0) {
     const year = state.year ?? 0;
@@ -62,9 +69,12 @@ function FrontierPanel({
         <p className="mt-1 text-[13px] text-stone-300">
           Grow your village — trade caravans arrive as reputation spreads.
         </p>
+        {/* The rival-camp trigger is population, not the year: `groupEvents`' `WORLD_EVENTS` entry for
+            `rival_settlement` is `minHumans: 6, maxRivals: 2` in the yearly pool and carries no year
+            condition. That table is module-private, so the 6 is restated here and must track it. */}
         {year < 2 && (
           <p className="mt-2 text-[13px] text-amber-400/90">
-            Rival camps usually appear from Year 2 onward (you are Year {year}).
+            Rival camps can appear once your village reaches 6 population — they arrive with the yearly events.
           </p>
         )}
       </div>

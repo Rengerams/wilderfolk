@@ -10,6 +10,7 @@
 import type { Entity, WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
+import { ensureEntityByIdMap } from './entityIndex';
 import { logEvent } from './eventLog';
 import { addFloatingText } from './simEffects';
 import { Prison, Time } from './gameConstants';
@@ -27,10 +28,16 @@ function heldPrisoners(state: WorldState, prisonId: number): Entity[] {
 }
 
 function countGuardsOnDuty(state: WorldState, occupants: number[]): number {
+  // The canonical id → living-entity map, not `state.entities.find(…)` per occupant id: that scan
+  // walked every living entity (grass and trees included) once per occupant. The original scan stays
+  // as the map-miss fallback (`hotelStay`'s precedent), so a caller holding an unindexed entity is
+  // answered exactly as before. The `alive` test is kept either way — the map can hold an entity
+  // whose `alive` was cleared without unindexing (`buildingPlacementActions`).
+  const entityById = ensureEntityByIdMap(state);
   let guards = 0;
   for (const id of occupants) {
-    const occupant = state.entities.find((e) => e.id === id);
-    if (occupant && occupant.alive && isPlayerHuman(occupant) && occupant.job === 'prison_guard') {
+    const occupant = entityById.get(id) ?? state.entities.find((e) => e.id === id);
+    if (occupant?.alive && isPlayerHuman(occupant) && occupant.job === 'prison_guard') {
       guards++;
     }
   }

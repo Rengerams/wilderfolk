@@ -7,28 +7,17 @@ import {
   bakeTerrainDecor,
   disposeTerrainLayer,
   disposeTerrainDecor,
+  terrainChunkCacheKeyFor,
   terrainDecorNeedsRebuild,
   type TerrainLayerCache,
   type TerrainDecorCache,
 } from '../terrainLayer';
 import { worldToScreen as w2s, screenToWorld } from '../viewState';
 import { renderPixiTerrain, resetPixiTerrain } from './pixiTerrain';
+import { TERRAIN_PALETTE } from '../terrainAtlas';
 
-// ============ TERRAIN COLOR PALETTE ============
-const TERRAIN_COLORS: Record<TerrainType, number> = {
-  [TerrainTypeEnum.DeepWater]:    0x1c3a6e,
-  [TerrainTypeEnum.ShallowWater]: 0x2a588c,
-  [TerrainTypeEnum.River]:        0x3264a0,
-  [TerrainTypeEnum.RiverBank]:    0x52733e,
-  [TerrainTypeEnum.Beach]:        0xc2b280,
-  [TerrainTypeEnum.Grassland]:    0x5e7a3a,
-  [TerrainTypeEnum.Forest]:       0x3a5c2a,
-  [TerrainTypeEnum.DarkForest]:   0x223a1c,
-  [TerrainTypeEnum.Hills]:        0x76663e,
-  [TerrainTypeEnum.Mountains]:    0x524e48,
-  [TerrainTypeEnum.Rocky]:        0x625c52,
-  [TerrainTypeEnum.Snow]:         0xd2dae1,
-};
+// Terrain base palette lives in the terrain owner (`terrainAtlas.TERRAIN_PALETTE`) so the bake,
+// the minimap and the (dormant) Pixi ground cannot drift apart — audit D12.
 
 /** Per-preset palette overrides so coastal/arid/harsh maps read differently at a glance. */
 const PRESET_TERRAIN_COLORS: Partial<Record<MapPreset, Partial<Record<TerrainType, number>>>> = {
@@ -109,7 +98,7 @@ function seasonTerrainShift(season: Season, type: TerrainType): { r: number; g: 
 
 function getTerrainColor(type: TerrainType, variation: number, preset?: MapPreset, season: Season = SeasonEnum.Spring): string {
   const presetHex = preset ? PRESET_TERRAIN_COLORS[preset]?.[type] : undefined;
-  const hex = presetHex ?? TERRAIN_COLORS[type] ?? TERRAIN_COLORS[TerrainTypeEnum.Grassland];
+  const hex = presetHex ?? TERRAIN_PALETTE[type] ?? TERRAIN_PALETTE[TerrainTypeEnum.Grassland];
   let r = (hex >> 16) & 0xff;
   let g = (hex >> 8) & 0xff;
   let b = hex & 0xff;
@@ -121,6 +110,7 @@ function getTerrainColor(type: TerrainType, variation: number, preset?: MapPrese
   return `rgb(${Math.min(255, Math.max(0, r)) | 0},${Math.min(255, Math.max(0, g)) | 0},${Math.min(255, Math.max(0, b)) | 0})`;
 }
 
+/** Bake (or reuse) the chunked ground for the current viewport. Key owner: `terrainLayer`. */
 function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
   if (!state.worldMap) return;
   const season = state.season ?? SeasonEnum.Spring;
@@ -129,7 +119,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
   // Season transitions fade the palette over a few days instead of snapping.
   const blend = seasonBlendForDay(state.dayInYear ?? 0);
   const blendT = blend ? Math.round(blend.t * 100) : undefined;
-  const cacheKey = `${state.worldMap.seed}|${state.worldMap.preset}|${season}|${lod}|${blendT ?? ''}`;
+  const cacheKey = terrainChunkCacheKeyFor(state.worldMap, season, lod, blendT);
   if (terrainChunkCacheKey !== cacheKey) {
     for (const cache of terrainChunkCache.values()) disposeTerrainLayer(cache);
     terrainChunkCache.clear();
@@ -296,9 +286,29 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   }
 }
 
+/**
+ * Paint the ground with the canvas2D layer instead of Pixi/WebGL.
+ *
+ * Owner ruling 2026-09-17: the canvas2D look is the shipping one; the owner has called the Pixi path
+ * temporary and it is not in use. This constant is the one line that decides which ground renderer
+ * runs, so nothing else in the tree has to guess (`AGENTS.md`, `CHANGELOG.md`).
+ *
+ * The Pixi path had never actually rendered in a shipped build — its terrain container was never
+ * attached to `app.stage`
+ * (`BUG_REPORTS/2026-09-17-pixi-terrain-container-never-attached-to-the-stage.md`). That attachment is
+ * restored and is exactly why flipping this to `true` is safe: detached, every Pixi frame composited a
+ * transparent canvas and the ground layer vanished, which is why this path could not be trusted before.
+ * `buildTerrainCache` + `drawProceduralGround` bake the terrain into per-viewport chunks from the fill
+ * sprites — the path the boot frame already used, and the look the minimap agrees with.
+ *
+ * Keeping the constant rather than deleting the call keeps `pixiTerrain.ts` referenced and makes the
+ * switch one line; re-enabling it means matching the Pixi water to the tile water first.
+ */
+const USE_PIXI_GROUND = false;
+
 export function drawGround(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (state.worldMap) {
-    if (renderPixiTerrain(ctx, state, cw, ch)) return;
+    if (USE_PIXI_GROUND && renderPixiTerrain(ctx, state, cw, ch)) return;
     buildTerrainCache(state, cw, ch);
     drawProceduralGround(ctx, state, cw, ch);
     return;

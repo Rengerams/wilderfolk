@@ -1,4 +1,4 @@
-import type { Camera } from '../gameTypes';
+import { FLOATING_TEXT_FADE_TICKS, type Camera } from '../gameTypes';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { _cachedHumans, _cachedPartnerById } from './entityCache';
 
@@ -91,7 +91,7 @@ export function drawFloatingTexts(ctx: CanvasRenderingContext2D, state: RenderSn
 
     const offsetY = count * -12;
     const lifeRatio = ft.life / ft.maxLife;
-    const fadeOut = ft.life < 7 ? ft.life / 7 : 1;
+    const fadeOut = ft.life < FLOATING_TEXT_FADE_TICKS ? ft.life / FLOATING_TEXT_FADE_TICKS : 1;
     ctx.globalAlpha = Math.min(1, lifeRatio * fadeOut);
     ctx.fillStyle = ft.color;
     ctx.font = `bold ${Math.max(9, 11 * cam.zoom)}px sans-serif`;

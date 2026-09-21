@@ -7,6 +7,7 @@ import { unindexAdjacency } from './adjacencyIndex';
 import { isPlayerHuman } from './playerHuman';
 import { getResidenceCapacity, isResidenceBuildingType } from './residencyOccupancy';
 import { assignMissingResidences } from './residencyReconciliation';
+import { invalidatePopulationSnapshotCache } from './populationGrowth';
 
 const REPAIR_COST = { wood: 10, stone: 5 } as const;
 const BUILDING_REFUND_RATIO = 0.5;
@@ -43,7 +44,7 @@ function listPlayerHumans(state: WorldState): Entity[] {
 function reconcileAssignmentsAfterBuildingRemoval(state: WorldState): void {
   const humans = listPlayerHumans(state);
   assignMissingResidences(humans, state.buildings, state.entities);
-  assignMissingWorkers(humans, state.buildings);
+  assignMissingWorkers(humans, state.buildings, state);
 }
 
 /** Repair a completed damaged building for the established fixed resource cost. */
@@ -142,6 +143,11 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
   state.resources.stone -= costStone;
   state.resources.gold -= costGold;
   building.level += 1;
+  // Bed capacity is level-dependent (`getResidenceCapacity`), and the population snapshot is cached
+  // per tick on counts a level change does not touch — so the header, the focus hints and the sim
+  // summary kept reporting the pre-upgrade bed count until the next tick. `populationGrowth` names
+  // this call ("e.g. after building upgrades") and had no caller (audit B-5).
+  invalidatePopulationSnapshotCache(state);
 
   if (isResidenceBuildingType(building.type)) {
     const capacity = getResidenceCapacity(building);
@@ -176,20 +182,62 @@ function clearAssignmentsForDemolishedBuilding(state: WorldState, buildingId: nu
   }
 }
 
+/**
+ * The one owner of "what it means for a building to leave authoritative state": the denormalized
+ * completed-building counter, the adjacency index, its `state.adjacency` shadow, and — for a road —
+ * the road-avoidance cache.
+ *
+ * Callers own *why* the building leaves (a demolition, or a strip replacement that refunds half) and
+ * their own assignment cleanup; they no longer restate any of this. The counter used to be adjusted
+ * only on demolition, so every Wall→Gate replacement left "Buildings" (Village tab, Statistics, the
+ * population-snapshot cache key) one too high until the next load (audit B-1).
+ */
+export function removeBuildingFromState(state: WorldState, building: Building): void {
+  unindexAdjacency(state, building.id);
+  state.adjacency = undefined;
+  if (building.type === BuildingType.Road) {
+    state.roadAvoidance = undefined;
+    state.roadAvoidanceStamp = undefined;
+  }
+  state.buildings = state.buildings.filter((candidate) => candidate.id !== building.id);
+  // Keep the denormalized completed-building counter consistent with load-time recomputation.
+  if (building.completed && building.faction !== 'rival') {
+    state.totalBuildingsCompleted = Math.max(0, state.totalBuildingsCompleted - 1);
+  }
+}
+
+/**
+ * Half a removed building's build cost, credited through the storage-cap owner.
+ *
+ * One owner for the refund rule, shared by `demolishBuilding` and the strip-replacement path. The
+ * gain must go through `addResource` (which clamps to `storageMax`); the placement path used a raw
+ * `+=`, so a replacement at the wood cap credited wood the store could not hold and permanently
+ * desynchronised the cap (audit E-5, same class as M2/L1). Returns what was **actually** accepted,
+ * so an announcing caller can report the truth.
+ */
+export function refundBuildingCost(
+  state: WorldState,
+  type: BuildingType,
+): { wood: number; stone: number; gold: number } {
+  const config = BUILDING_CONFIGS[type];
+  const refundWood = Math.floor(config.cost.wood * BUILDING_REFUND_RATIO);
+  const refundStone = Math.floor(config.cost.stone * BUILDING_REFUND_RATIO);
+  const refundGold = Math.floor(config.cost.gold * BUILDING_REFUND_RATIO);
+  return {
+    wood: addResource(state, 'wood', refundWood),
+    stone: addResource(state, 'stone', refundStone),
+    gold: addResource(state, 'gold', refundGold),
+  };
+}
+
 export function demolishBuilding(originalState: WorldState, buildingId: number): WorldState {
   const state = structuredClone(originalState);
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
   if (!building) return state;
 
-  const config = BUILDING_CONFIGS[building.type];
-  const refundWood = Math.floor(config.cost.wood * BUILDING_REFUND_RATIO);
-  const refundStone = Math.floor(config.cost.stone * BUILDING_REFUND_RATIO);
-  const refundGold = Math.floor(config.cost.gold * BUILDING_REFUND_RATIO);
-  // `addResource` clamps to `storageMax` and returns what was actually added, so report that
-  // rather than the nominal refund (a full store used to announce a refund it never received).
-  const gotWood = addResource(state, 'wood', refundWood);
-  const gotStone = addResource(state, 'stone', refundStone);
-  addResource(state, 'gold', refundGold);
+  // The refund is capped by the storage owner, so report what was actually added rather than the
+  // nominal refund (a full store used to announce a refund it never received).
+  const { wood: gotWood, stone: gotStone } = refundBuildingCost(state, building.type);
 
   clearAssignmentsForDemolishedBuilding(state, buildingId);
   createDeathParticles(
@@ -203,17 +251,7 @@ export function demolishBuilding(originalState: WorldState, buildingId: number):
   addFloatingText(state, building.x, building.y - 10, `Refunded: ${gotWood}w ${gotStone}s`, '#eab308');
   impulseScreenShake(state, 4);
 
-  unindexAdjacency(state, buildingId);
-  state.adjacency = undefined;
-  if (building.type === BuildingType.Road) {
-    state.roadAvoidance = undefined;
-    state.roadAvoidanceStamp = undefined;
-  }
-  state.buildings = state.buildings.filter((candidate) => candidate.id !== buildingId);
-  // Keep the denormalized completed-building counter consistent with load-time recomputation.
-  if (building.completed && building.faction !== 'rival') {
-    state.totalBuildingsCompleted = Math.max(0, state.totalBuildingsCompleted - 1);
-  }
+  removeBuildingFromState(state, building);
   reconcileAssignmentsAfterBuildingRemoval(state);
   return state;
 }

@@ -16,9 +16,9 @@ import { seededRandomForRun } from './simRng';
  *
  * 2 = a session-length decision from playtesting, not a lore figure (developer,
  * 2026-09-08: a 10-year term "is like maybe 100 hours real life", and ordinary
- * sessions are not five hours long). Arithmetic behind that: an in-game day is 48
- * real seconds at 1× (`gameLoop.BASE_TICKS_PER_SECOND = 1.5`, `TICKS_PER_DAY = 72`),
- * so a year is ~4.8 h at 1× and ~1.6 h at a nominal 3× (`SPEED_OPTIONS` in
+ * sessions are not five hours long). Arithmetic behind that: an in-game day is 72
+ * real seconds at 1× (`gameLoop.BASE_TICKS_PER_SECOND = 1`, `TICKS_PER_DAY = 72`),
+ * so a year is ~7.2 h at 1× and ~2.4 h at a nominal 3× (`SPEED_OPTIONS` in
  * `App.tsx`). Treat the higher multipliers as nominal only: the loop can request at
  * most `MAX_PIPELINE_DEPTH` (4) worker ticks per round-trip, so the achievable rate
  * falls short of the selected one as the colony grows. A 10-year term therefore
@@ -428,13 +428,26 @@ export function getElectionGatherTarget(state: WorldState, entityId: number): { 
   const c = state.electionCeremony;
   if (!c) return getElectionGatherSite(state);
 
-  const attendees = state.entities
-    .filter((entity) => isEligibleForLeadership(entity, state))
-    .sort((a, b) => a.id - b.id);
+  // This runs once per settler while a ceremony is active, and it used to rebuild and sort the whole
+  // attendee list every time. That list cannot be hoisted for the tick: it is the *live* set, and
+  // `isEligibleForLeadership` reads `alive` and `isJuvenile`, both of which this same human loop
+  // changes between two calls — it kills settlers on the exhaustion and daily-mortality paths, and
+  // `tryGraduateHumanChild` clears `isJuvenile` (N-5). So take the one number the caller needs
+  // instead: its index in the id-sorted attendee list. Ids are unique, so that index is exactly the
+  // number of eligible entities holding a smaller id — one pass, no array, no sort.
+  let slot = 0;
+  let attendeeCount = 0;
+  let isAttendee = false;
+  for (let i = 0; i < state.entities.length; i++) {
+    const entity = state.entities[i];
+    if (!isEligibleForLeadership(entity, state)) continue;
+    attendeeCount++;
+    if (entity.id === entityId) isAttendee = true;
+    else if (entity.id < entityId) slot++;
+  }
 
-  const slot = attendees.findIndex((entity) => entity.id === entityId);
-  if (slot < 0) {
-    const outerRing = Math.ceil(attendees.length / GATHER_SLOTS_PER_RING);
+  if (!isAttendee) {
+    const outerRing = Math.ceil(attendeeCount / GATHER_SLOTS_PER_RING);
     const angle = ((entityId * 17) % 360) * (Math.PI / 180);
     const ringRadius = 22 + outerRing * 14 + 28;
     return {
@@ -480,7 +493,10 @@ export function appointFoundingLeader(state: WorldState, entity: Entity): void {
 }
 
 export function getElectionCeremonyStatus(state: WorldState): string | null {
-  if (state.pendingElectionYear != null && !state.electionCeremony) {
+  // A pending date is a vacancy only while nobody is *acting* as head: a stale date left behind by
+  // an election that already filled the office must never be announced as "No village head". The
+  // gossip/buildup path already pairs the two this way.
+  if (state.pendingElectionYear != null && !state.electionCeremony && !getVillageLeader(state)) {
     const currentFraction = state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR;
     const until = Math.max(0, state.pendingElectionYear - currentFraction);
     if (until > 0) {
@@ -836,6 +852,15 @@ export function runVillageElection(
   applyLeaderOccupation(state, prevId);
   syncLeaderHouseResidency(state);
 
+  // Electing a head settles whatever vacancy was pending, so the schedule is cleared here.
+  // Without this, a leader who dies or is imprisoned while a ceremony is running leaves the
+  // successor date that `tickLeaderVacancy` set for them: the running ceremony then fills the
+  // office with that date still armed, `getElectionCeremonyStatus` announces a vacancy nobody has,
+  // and `tryStartVacancyElectionCeremony` runs a *second* full ceremony for the filled seat. While
+  // the stale date sits there `tickLeaderVacancy` also early-returns, so the next real vacancy would
+  // never be scheduled either (docs/private/audits/2026-09-16/LIVE-FINDINGS-STATUS.md, H2).
+  state.pendingElectionYear = null;
+
   if (reason === 'term' || reason === 'founding') {
     state.lastElectionYear = year;
   }
@@ -901,7 +926,14 @@ function buildAnnouncement(
   };
 }
 
-function formatElectionDelay(years: number): string {
+/**
+ * The one formatter for an election countdown. `getYearsUntilElection` returns a
+ * fractional year while a vacancy is pending (`pendingElectionYear` is
+ * `currentFraction + VACANCY_ELECTION_DELAY_YEARS`), so no surface may interpolate the
+ * raw number — it printed `0.08333333333333333 years`
+ * (BUG_REPORTS/2026-09-17-election-countdown-prints-a-fraction.md).
+ */
+export function formatElectionDelay(years: number): string {
   if (years >= 1) {
     const y = Math.floor(years);
     return y === 1 ? '1 year' : `${y} years`;
@@ -963,10 +995,12 @@ export function tryStartVacancyElectionCeremony(
     return false;
   }
 
-  const reason: LeadershipElectionReason =
-    year > 0 && Math.floor(year) % ELECTION_INTERVAL_YEARS === 0 ? 'term' : 'succession';
-
-  const started = startElectionCeremony(state, Math.floor(year), reason);
+  // This is the *vacancy* scheduler: it runs only because `pendingElectionYear` was armed by a death,
+  // a deposition or a postponed term election, so its outcome is a succession even when it lands in a
+  // term year (Year 2, 4, 6 …). Deriving the label from the year instead made such a handover announce
+  // itself as "elected/re-elected village head" and stamp `lastElectionYear` — the year's term slot —
+  // for a mid-term change of head (`LIVE-FINDINGS-STATUS.md`, L11).
+  const started = startElectionCeremony(state, Math.floor(year), 'succession');
   if (started) {
     state.pendingElectionYear = null;
   }
@@ -989,7 +1023,17 @@ export function tryStartTermElectionCeremony(
   ) {
     return false;
   }
-  return startElectionCeremony(state, year, 'term');
+  const started = startElectionCeremony(state, year, 'term');
+  if (!started) {
+    // `startElectionCeremony` returns false for exactly one reason — its zero-candidate guard — and
+    // this gate only opens on `dayInYear === 0`, so without a retry a colony whose adults are all
+    // imprisoned or ineligible stays headless until the next term year, two years away. Arm the same
+    // delay the death path uses; the retry is then run by `tryStartVacancyElectionCeremony`
+    // (`LIVE-FINDINGS-STATUS.md`, L3). The eventual ceremony is labelled a succession, which is what a
+    // merit election held to fill an office nobody could contest is.
+    state.pendingElectionYear = year + dayInYear / DAYS_PER_YEAR + VACANCY_ELECTION_DELAY_YEARS;
+  }
+  return started;
 }
 
 function isValidElectionCeremony(value: unknown): value is ElectionCeremonyState {
@@ -1036,6 +1080,10 @@ export function validateVillageLeaderOnLoad(state: WorldState): void {
   if (leader) {
     applyLeaderOccupation(state, null);
     syncLeaderHouseResidency(state);
+    // Heal a save written while the seat was contested: with an acting head the pending date is
+    // stale by definition, and leaving it would suppress both the vacancy notice and every future
+    // `tickLeaderVacancy` schedule (LIVE-FINDINGS-STATUS.md, H2).
+    state.pendingElectionYear = null;
     return;
   }
 

@@ -1,6 +1,10 @@
 import { BUILDING_CONFIGS } from '../buildings';
+import { isDecorType } from '../beautyGrid';
+import { getPlaceBuildingFailureLabel } from '../buildingPlacementLabels';
+import { drawProceduralDecor } from '../decorRender';
 import { getBuildingFootprintForType } from '../buildingRotation';
 import { categoryBorderDashForType } from '../buildCatalog';
+import { terrainRiseAt } from '../terrainAtlas';
 import { getSpriteFrame } from '../spriteLoader';
 import { isStripBuildType } from '../stripBuild';
 import type { RenderSnapshot } from '../renderSnapshot';
@@ -12,10 +16,15 @@ export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSna
   if (!state.buildMode) return;
   if (state.buildStripPreview && isStripBuildType(state.buildMode)) return;
   if (!state.buildGhost) return;
-  const sx = (state.buildGhost.x - state.camera.x) * state.camera.zoom + cw / 2;
-  const sy = (state.buildGhost.y - state.camera.y) * state.camera.zoom + ch / 2;
   const cfg = BUILDING_CONFIGS[state.buildMode];
   const footprint = getBuildingFootprintForType(state.buildMode, state.buildRotation);
+  const sx = (state.buildGhost.x - state.camera.x) * state.camera.zoom + cw / 2;
+  // Ride the 2.5D relief on the same footprint point the placed building samples
+  // (`buildings.ts` getBuildingScreenRect: centre-x / bottom-y), so the ghost is drawn where the
+  // building will land rather than up to a relief cap (0.35 × TERRAIN_TILE_SIZE = 3.5 wu) below it.
+  const sy = (state.buildGhost.y - state.camera.y) * state.camera.zoom + ch / 2
+    - terrainRiseAt(state.worldMap, state.buildGhost.x, state.buildGhost.y + footprint.height / 2)
+      * state.camera.zoom;
   const w = footprint.width * state.camera.zoom;
   const h = footprint.height * state.camera.zoom;
   const valid = state.buildGhost.valid;
@@ -64,9 +73,15 @@ export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSna
   const pad = Math.max(2, Math.min(w, h) * 0.1);
   drawBuildingPad(ctx, cfg.padShape, sx, sy + h * 0.08, w + pad * 2, (h + pad * 2) * 0.7, tint, border, 0.55, dash, 2);
 
-  // Floating ghost sprite (hover bob)
-  const previewFrame = getSpriteFrame(cfg.sprite);
+  // Floating ghost sprite (hover bob).
+  //
+  // Decor types (Garden / Statue / Lamp) declare a `sprite:` path that has no art on disk — the
+  // placed building is drawn procedurally (`drawProceduralDecor`, called from `buildings.ts`), so
+  // the ghost has to take the same procedural path. Falling through to the sprite lookup showed a
+  // flat validity-coloured rectangle instead of the flowers / statue / lamp about to be placed.
   ctx.globalAlpha = 0.78;
+  const isDecor = isDecorType(state.buildMode);
+  const previewFrame = isDecor ? null : getSpriteFrame(cfg.sprite);
   if (previewFrame) {
     drawBuildingSprite(
       ctx, state.buildMode, previewFrame, sx, sy - h * 0.06 + bob, w, h, 1,
@@ -74,6 +89,9 @@ export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSna
       cfg.spriteDisplayScale ?? DEFAULT_SPRITE_DISPLAY_SCALE,
       cfg.spriteAnchorY,
     );
+  } else if (isDecor) {
+    // Same footprint offset as the placed draw, so the ghost sits where the decor will land.
+    drawProceduralDecor(ctx, state.buildMode, sx, sy - h * 0.04 + bob, w, h, 0.78);
   } else {
     ctx.fillStyle = valid ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)';
     ctx.fillRect(sx - w / 2, sy - h / 2 + bob, w, h);
@@ -106,11 +124,16 @@ export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSna
   ctx.stroke();
   ctx.shadowBlur = 0;
 
-  // Status label under footprint
+  // Status label under footprint. The wording is the game layer's (`buildingPlacementLabels`), not
+  // the renderer's: the ghost carries the owner's reason, so a Bridge on a dry bank says what it
+  // needs instead of the one fixed refusal this used to print (`LIVE-FINDINGS-STATUS.md` F5).
   ctx.font = `bold ${Math.max(10, Math.round(11 * state.camera.zoom))}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  const label = valid ? '✓ Place' : '✗ Blocked';
+  // Narrow on the discriminant directly so the refusal branch carries a non-null `reason`.
+  const label = state.buildGhost.valid
+    ? '✓ Place'
+    : getPlaceBuildingFailureLabel(state.buildMode, state.buildGhost.reason, state.researchNodes);
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
   const tw = ctx.measureText(label).width;
   ctx.fillRect(sx - tw / 2 - 5, y1 + 4, tw + 10, 16);

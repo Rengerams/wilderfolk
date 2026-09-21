@@ -4,7 +4,6 @@
  */
 
 import type { Entity, WorldState } from './gameTypes';
-import { EntityType } from './gameTypes';
 import {
   hasIronShields,
   hasIronSpears,
@@ -24,6 +23,7 @@ import {
 } from './defenseStructures';
 import { BuildingType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
+import { isImprisoned } from './residencyOccupancy';
 
 /** Weapon tier used for militia multiplier (legacy name kept for call sites). */
 export type MilitiaSpearTier = 'none' | 'stone' | 'iron' | 'sword';
@@ -89,8 +89,22 @@ export function getMilitiaArmamentLabel(state: WorldState): string | null {
   return spearLabel ?? shieldLabel;
 }
 
-function countAdultSettlers(entities: Entity[]): number {
-  return entities.filter((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile).length;
+/**
+ * An adult settler who may be mustered for the village's defence — the one definition the militia
+ * count, the raid fighter pool and the raid casualty pool all share.
+ *
+ * Imprisonment is the exclusion those three used to disagree on: `isImprisoned` guards every
+ * staffing rule (`workforce`, `buildingStaffingActions`) and both election paths, but the militia
+ * paths counted a prisoner as a full adult — so a jailed settler added militia strength, was drawn
+ * as a barricade fighter, and could be killed "defending the village"
+ * (`docs/private/audits/2026-09-16/LIVE-FINDINGS-STATUS.md`, M1).
+ */
+export function canBeMustered(entity: Entity): boolean {
+  return entity.alive && isPlayerHuman(entity) && !entity.isJuvenile && !isImprisoned(entity);
+}
+
+function countMusterableAdults(entities: Entity[]): number {
+  return entities.filter((e) => canBeMustered(e)).length;
 }
 
 export function computeMilitiaBreakdown(
@@ -114,7 +128,7 @@ export function computeMilitiaBreakdown(
     };
   }
 
-  const adultCount = countAdultSettlers(entities);
+  const adultCount = countMusterableAdults(entities);
   const guardCount = getBarracksGuardCount(state, state.buildings);
   const spearTier = getMilitiaSpearTier(state);
   const shieldTier = getMilitiaShieldTier(state);
@@ -179,14 +193,21 @@ export function computeMilitiaBreakdown(
     lines.push(`+ ${guardBonus} barracks guards (${guardCount} staffed × ${perGuard.toFixed(1)})`);
   }
 
-  // Chivalrous settlers add a protective edge to the whole militia.
+  // Chivalrous settlers add a protective edge to the whole militia. Only settlers who can actually
+  // be mustered count — a rival, visitor, child or prisoner carrying the trait must not raise *your*
+  // strength (and `resolveDefenseRatio` turns that into a raid outcome), so this uses the same
+  // `canBeMustered` predicate as the count above.
   const chivalrous = entities.filter(
-    (e) => e.type === EntityType.Human && e.alive && e.traits?.includes('chivalrous'),
+    (e) => canBeMustered(e) && e.traits?.includes('chivalrous'),
   ).length;
   if (chivalrous > 0) {
     const bonus = Math.round(rawTotal * 0.08);
     rawTotal += bonus;
-    lines.push(`+ ${bonus} chivalrous protector(s) (${chivalrous} × 8%)`);
+    // The bonus is a flat 8 % of the raw total, applied once — the line used to read
+    // "(N × 8 %)", claiming per-protector scaling the arithmetic never did. Whether it
+    // *should* scale per protector is a balance question for the owner, recorded open in
+    // the report; this label states what the code does.
+    lines.push(`+ ${bonus} chivalrous (flat +8%, ${chivalrous} protector${chivalrous === 1 ? '' : 's'})`);
   }
 
   const militiaStrength = Math.round(rawTotal);

@@ -2,6 +2,7 @@ import type { Entity, RenffrLetter, RenffrOmen, WorldState } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycle';
 import { sayHumanChatPhrase } from './humanChat';
 import { isPlayerHuman } from './playerHuman';
+import { mulberry32Advance, mulberry32Draw } from './simRng';
 
 /** Lines spoken the night an omen appears (assigned directly to settlers). */
 export const RENFFR_OMEN_LINES = [
@@ -41,28 +42,24 @@ export function createRenffrOmen(): RenffrOmen {
   };
 }
 
-/** Deterministic 0..1 roll from world seed + tick (mulberry32 stream). */
+/** Deterministic 0..1 roll from world seed + tick — the shared Mulberry32 step (`simRng`). */
 function renffrRng(state: WorldState, salt: number): () => number {
-  const mapSeed = state.worldMap?.seed ?? state.tick;
-  let s = (mapSeed ^ (state.tick * 2654435761) ^ salt) >>> 0;
+  let s = renffrSeed(state, salt);
   return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = s;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    s = mulberry32Advance(s);
+    return mulberry32Draw(s);
   };
 }
 
 /** Single 0..1 roll (same stream) without allocating a closure — for hot paths. */
 function renffrRoll(state: WorldState, salt: number): number {
+  return mulberry32Draw(mulberry32Advance(renffrSeed(state, salt)));
+}
+
+/** `[world seed, tick, salt]` mixed into the stream's starting state — shared by both entry points. */
+function renffrSeed(state: WorldState, salt: number): number {
   const mapSeed = state.worldMap?.seed ?? state.tick;
-  let s = (mapSeed ^ (state.tick * 2654435761) ^ salt) >>> 0;
-  s = (s + 0x6d2b79f5) >>> 0;
-  let t = s;
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  return (mapSeed ^ (state.tick * 2654435761) ^ salt) >>> 0;
 }
 
 function shuffleArray<T>(items: T[], rng: () => number): T[] {

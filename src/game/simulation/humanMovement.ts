@@ -2,6 +2,7 @@ import { TERRAIN_TILE_SIZE } from '../gameTypes';
 import type { Building, Entity } from '../gameTypes';
 import { isActiveMoonHowler } from '../moonHowler';
 import { steerWithPath } from '../pathfinding';
+import { faceVelocity } from './movementSteering';
 
 const COMMUTE_CONFIG = {
   LONG_RANGE_DIST: 50,
@@ -167,7 +168,7 @@ export function commuteHumanToBuilding(
     const step = Math.min(dist, moveSpeed * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO);
     entity.vx = (dx / dist) * step;
     entity.vy = (dy / dist) * step;
-    entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+    faceVelocity(entity);
     return false;
   }
 
@@ -182,7 +183,7 @@ export function commuteHumanToBuilding(
   entity.vy = (dy / dist) * step;
 
   if (Math.abs(entity.vx) > 0.001 || Math.abs(entity.vy) > 0.001) {
-    entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+    faceVelocity(entity);
   }
 
   return false;

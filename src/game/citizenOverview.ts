@@ -1,12 +1,21 @@
 /**
  * Citizen-first overview numbers for the full-screen People screen.
  * Presentation-only aggregation — does not mutate simulation state.
+ *
+ * The labour counters (`total`/`adults`/`children`/`working`/`idle`/`imprisoned`) and the housing
+ * numbers come from their owner, `uiSimSummary.computeVillageStats`, which the top-bar HUD reads
+ * too. Only the social counters — pregnancy, marriages, affairs, grief — are gathered here, so a
+ * change to what counts as "working" cannot make the HUD and this screen disagree
+ * (`LIVE-FINDINGS-STATUS.md`, A7). Homelessness is the residence owner's rule
+ * (`residencyOccupancy.countHomelessSettlers`): the local count here used to drop a child without a
+ * bed and count a jailed settler as homeless (2026-09-22 stats-panel audit, F1).
  */
 import { Season, type WorldState, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
-import { hasWorkAssignment, isImprisoned } from './residencyOccupancy';
-import { getEconomyLedger } from './economyLedger';
-import { getOpenBeds, getTotalBeds } from './populationGrowth';
+import { summarizeFoodLedger } from './economyLedger';
+import { isFoodAlertAmount } from './resourceUtils';
+import { computeVillageStats } from './uiSimSummary';
+import { countHomelessSettlers } from './residencyOccupancy';
 
 export type VillageMood =
   | 'thriving'
@@ -15,6 +24,21 @@ export type VillageMood =
   | 'hungry'
   | 'scandal'
   | 'cold';
+
+/** Minimum idle adults before idleness alone reads as a problem, and the share of adults it scales with. */
+const MIN_IDLE_ADULTS = 2;
+const IDLE_ADULT_SHARE = 0.35;
+
+/**
+ * The "many adults are idle" rule — one definition.
+ *
+ * The overview screen's Work card used to compute `idle > max(2, adults × 0.35)` itself, so retuning
+ * the threshold here left the card green while the header mood read "Under pressure — Many adults are
+ * idle without work." on the same screen (audit C2 "Many adults idle").
+ */
+export function hasManyAdultsIdle(stats: { idle: number; adults: number }): boolean {
+  return stats.idle > Math.max(MIN_IDLE_ADULTS, stats.adults * IDLE_ADULT_SHARE);
+}
 
 export interface CitizenOverviewStats {
   total: number;
@@ -40,16 +64,6 @@ export interface CitizenOverviewStats {
   moodDetail: string;
 }
 
-function getActiveConstructionWorkers(world: WorldState): Set<number> {
-  const workers = new Set<number>();
-  for (const b of world.buildings) {
-    if (!b.completed && b.faction !== 'rival') {
-      for (const id of b.occupants) workers.add(id);
-    }
-  }
-  return workers;
-}
-
 function deriveMood(stats: Omit<CitizenOverviewStats, 'mood' | 'moodLabel' | 'moodDetail'>): {
   mood: VillageMood;
   moodLabel: string;
@@ -62,7 +76,7 @@ function deriveMood(stats: Omit<CitizenOverviewStats, 'mood' | 'moodLabel' | 'mo
       moodDetail: 'Winter heat failed — people are cold.',
     };
   }
-  if (stats.food < Math.max(20, stats.total * 2)) {
+  if (isFoodAlertAmount(stats.food, stats.total)) {
     return {
       mood: 'hungry',
       moodLabel: 'Hungry',
@@ -79,7 +93,7 @@ function deriveMood(stats: Omit<CitizenOverviewStats, 'mood' | 'moodLabel' | 'mo
           : `${stats.affairs} secret affair${stats.affairs === 1 ? '' : 's'} active.`,
     };
   }
-  if (stats.openBeds <= 0 || stats.homeless > 0 || stats.idle > Math.max(2, stats.adults * 0.35)) {
+  if (stats.openBeds <= 0 || stats.homeless > 0 || hasManyAdultsIdle(stats)) {
     return {
       mood: 'strained',
       moodLabel: 'Under pressure',
@@ -104,69 +118,47 @@ function deriveMood(stats: Omit<CitizenOverviewStats, 'mood' | 'moodLabel' | 'mo
 }
 
 export function computeCitizenOverview(world: WorldState): CitizenOverviewStats {
-  const constructionWorkers = getActiveConstructionWorkers(world);
+  const village = computeVillageStats(world);
   const tick = world.tick;
 
-  let total = 0;
-  let adults = 0;
-  let children = 0;
-  let working = 0;
-  let idle = 0;
-  let imprisoned = 0;
   let pregnant = 0;
   let married = 0;
   let affairs = 0;
   let grieving = 0;
-  let homeless = 0;
 
   for (const e of world.entities as Entity[]) {
     if (!e.alive || !isPlayerHuman(e)) continue;
-    total++;
 
     if (e.pregnant) pregnant++;
     if (e.relationshipStatus === 'married' || e.relationshipStatus === 'expecting') married++;
     if (e.affairPartnerId != null && e.id < e.affairPartnerId) affairs++;
     if ((e.griefUntilTick ?? 0) > tick) grieving++;
-    if (e.residenceBuildingId == null && !e.isJuvenile) homeless++;
-
-    if (e.isJuvenile) {
-      children++;
-      continue;
-    }
-
-    adults++;
-    if (isImprisoned(e)) {
-      imprisoned++;
-      continue;
-    }
-    if (hasWorkAssignment(e) || constructionWorkers.has(e.id)) working++;
-    else idle++;
   }
 
-  const ledger = getEconomyLedger(world);
-  const produced = ledger
-    ? Object.values(ledger.produced).reduce((sum, v) => sum + v, 0)
-    : 0;
-  const consumed = ledger
-    ? Object.values(ledger.consumed).reduce((sum, v) => sum + v, 0)
-    : 0;
+  const homeless = countHomelessSettlers(world);
+
+  // Today's balance is the ledger owner's, not a second sum of the same map. `summarizeFoodLedger`
+  // reads the totals the ledger maintains (with the stale-save fallback it documents), so the People
+  // screen's "Today ±N" and the dashboard's "Net change" cannot report two balances for one day
+  // (2026-09-22 stats-panel audit, F4 — the earlier F2 rule, "food can't be calculated at the UX").
+  const foodNetToday = summarizeFoodLedger(world).net;
 
   const base = {
-    total,
-    adults,
-    children,
-    working,
-    idle,
-    imprisoned,
+    total: village.total,
+    adults: village.adults,
+    children: village.children,
+    working: village.working,
+    idle: village.idle,
+    imprisoned: village.imprisoned,
     pregnant,
     married,
     affairs,
     grieving,
     homeless,
-    beds: getTotalBeds(world),
-    openBeds: getOpenBeds(world),
+    beds: village.beds,
+    openBeds: village.openBeds,
     food: Math.floor(world.resources.food),
-    foodNetToday: produced - consumed,
+    foodNetToday,
     reputation: world.villageReputation,
     canHeat: world.villageCanHeat !== false,
     isWinter: world.season === Season.Winter,

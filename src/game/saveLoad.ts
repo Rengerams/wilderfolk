@@ -24,6 +24,7 @@ import { isPlayerHuman } from './playerHuman';
 import { GAME_VERSION } from './version';
 import { ensureEntitySkills } from './skills';
 import { normalizeWorkSchedule } from './workSchedule';
+import { normalizeWorkforcePolicy } from './workforcePolicy';
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
 import { adoptSimSeedFromWorld, restoreSimRng, snapshotSimRng } from './simRng';
@@ -37,7 +38,7 @@ import {
   getIncomingRaidExpireTicks,
 } from './frontierCombat';
 import { computeWildlifeCounts } from './entityCounts';
-import { ensureFullTradeRoutes } from './economy';
+import { BASE_IRON_STORAGE, computeStorageMax, ensureFullTradeRoutes } from './economy';
 import { enrichTradeRoute, scheduleTradeRouteDeparture } from './tradeCaravans';
 import { clearAllFactionWanderStates } from './factionWander';
 import { validateVillageLeaderOnLoad } from './villageLeadership';
@@ -66,12 +67,32 @@ export type SaveReadResult =
   | { valid: false; reason: SaveReadFailure; detail?: string }
   | { valid: true; parsed: Record<string, unknown> };
 
+/** Why a full load attempt failed: the read refusal, or a payload that parsed but would not restore. */
+export type SaveLoadFailure = { reason: SaveReadFailure | 'unrestorable'; detail?: string };
+
+/** A load attempt's outcome — the session, or the reason the player has to be told. */
+export type SaveLoadOutcome =
+  | { ok: true; world: WorldState; view: ViewState }
+  | ({ ok: false } & SaveLoadFailure);
+
 function pickWorldStateFromSave(parsed: Record<string, unknown>): Partial<WorldState> {
   const out: Partial<WorldState> = {};
   for (const key of WORLD_STATE_SAVE_KEYS) {
     if (key in parsed) (out as Record<string, unknown>)[key] = parsed[key];
   }
   return out;
+}
+
+/** A JSON value that can carry save fields: not null, not an array. */
+function isSaveObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** Names what the payload actually was, for a refusal detail a player can repeat back. */
+function describeJsonShape(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'an array';
+  return `a ${typeof value}`;
 }
 
 /**
@@ -81,16 +102,28 @@ function pickWorldStateFromSave(parsed: Record<string, unknown>): Partial<WorldS
  * file, a save from another build — collapsed into the same `{ valid: false }`, so the
  * player got a guessed message ("file may be corrupted" / "from a different build")
  * while the real cause sat in the console.
+ *
+ * The parsed value is checked for the save *shape* before `_version` is read. `JSON.parse`
+ * happily returns `null`, `[]` or `'x'`, and reading `_version` off those threw a `TypeError`
+ * out of an event handler: the file-load path (`App.handleLoadFromFile` via `FileReader.onload`)
+ * has no try/catch of its own, so a `null` payload produced no toast, no menu close and no
+ * visible cause (P-1). Every non-object payload is now a refusal, not an exception.
  */
 export function parseSaveJson(raw: string | null | undefined): SaveReadResult {
   if (!raw || !raw.trim()) return { valid: false, reason: 'empty' };
-  let parsed: Record<string, unknown>;
+  let payload: unknown;
   try {
-    parsed = JSON.parse(raw) as Record<string, unknown>;
+    payload = JSON.parse(raw);
   } catch (e) {
     console.error('Save parse failed:', e);
     return { valid: false, reason: 'malformed', detail: e instanceof Error ? e.message : String(e) };
   }
+  if (!isSaveObject(payload)) {
+    const detail = `payload is ${describeJsonShape(payload)}, not a save object`;
+    console.error('Save parse failed: payload is not a save object');
+    return { valid: false, reason: 'malformed', detail };
+  }
+  const parsed = payload;
   if (parsed._version !== GAME_VERSION) {
     const version = parsed._version;
     const versionLabel =
@@ -118,6 +151,32 @@ export function describeSaveReadFailure(
     case 'version-mismatch':
       return `Save is from a different build${failure.detail ? ` (${failure.detail})` : ''} — Beta keeps only current-build saves. Start a new settlement.`;
   }
+}
+
+/**
+ * Player-facing message for a refused *load*: a read refusal (via `describeSaveReadFailure`) or a
+ * payload that parsed but could not be restored.
+ *
+ * The `unrestorable` detail (the field that was missing or mistyped) is carried into the message:
+ * "could not be restored" alone told the player nothing and left the one fact worth reporting in the
+ * console (P-1).
+ */
+export function describeSaveLoadOutcome(failure: SaveLoadFailure): string {
+  if (failure.reason === 'unrestorable') {
+    return `The save parsed but could not be restored${failure.detail ? ` (${failure.detail})` : ''} — the failing step is in the browser console (F12).`;
+  }
+  return describeSaveReadFailure({ reason: failure.reason, detail: failure.detail });
+}
+
+/**
+ * What a save version means, stated **before** the player hits a refusal (roadmap T4).
+ *
+ * The refusal path already names both versions (`describeSaveReadFailure`); this is the same rule
+ * said up front. It is also the one place that wording lives, so the menu cannot drift from the
+ * message a refused load shows.
+ */
+export function describeSaveCompatibility(): string {
+  return `This build is v${GAME_VERSION}, and it loads only saves written by v${GAME_VERSION}. A save from another build is refused with its reason instead of half-loading — after an update, start a new settlement.`;
 }
 
 export function readSavePayload(): SaveReadResult {
@@ -377,8 +436,38 @@ export function clearAutoFilledChurches(world: WorldState): number {
   return cleared;
 }
 
-/** Hydrate a world+view from an already-parsed save object (browser or file). */
-export function loadGameFromParsed(parsed: Record<string, unknown>): { world: WorldState; view: ViewState } | null {
+/**
+ * Fields the restore dereferences with no default, so a payload that matches this build's version
+ * but omits or mistypes one throws a `TypeError` from deep inside the restore — the two the audit
+ * caught are `resources` (read as `resources.iron`) and `lifetimeStats` (read as
+ * `lifetimeStats.tradeCaravansCompleted`). The throw was swallowed by the restore's catch-all, so
+ * the player saw a bare "could not be restored" while the failing field stayed in the console.
+ * Checking the shape first turns that into a named cause.
+ *
+ * Returns the first failing field name, or `null` when the payload is worth attempting.
+ */
+function findUnrestorableField(parsed: Record<string, unknown>): string | null {
+  if (!isSaveObject(parsed.resources)) return 'resources';
+  if (parsed.lifetimeStats !== undefined && !isSaveObject(parsed.lifetimeStats)) {
+    return 'lifetimeStats';
+  }
+  return null;
+}
+
+/**
+ * Hydrate a world+view from an already-parsed save object (browser or file), reporting **why** a
+ * payload that parsed could not be restored.
+ *
+ * `loadGameFromParsed` collapsed every restore failure into `null`; this keeps the cause so
+ * `describeSaveLoadOutcome` can name the field and `loadGameOutcome` can pass it on (P-1).
+ */
+export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): SaveLoadOutcome {
+  const unrestorableField = findUnrestorableField(parsed);
+  if (unrestorableField) {
+    const detail = `${unrestorableField} is missing or not an object`;
+    console.error('Save load refused:', detail);
+    return { ok: false, reason: 'unrestorable', detail };
+  }
   try {
     const worldData = pickWorldStateFromSave(parsed);
 
@@ -398,6 +487,10 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
       scentGrid: undefined,
       autoSave,
       workSchedule: normalizeWorkSchedule(worldData.workSchedule),
+      // Roadmap F3: a save written before the workforce policy existed loads with the
+      // documented default (`workforcePolicy.DEFAULT_WORKFORCE_POLICY`). No save-version
+      // bump — the same in-place-default contract `workSchedule` and `mineMode` use.
+      workforcePolicy: normalizeWorkforcePolicy(worldData.workforcePolicy),
       tick: loadedTick,
       lastProcessedCalendarDay: typeof worldData.lastProcessedCalendarDay === 'number'
         ? worldData.lastProcessedCalendarDay
@@ -410,7 +503,12 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
       screenShakeImpulse: 0,
       festival: worldData.festival ?? null,
       townHallFestivalCooldownUntilTick: worldData.townHallFestivalCooldownUntilTick ?? 0,
-      storageMax: worldData.storageMax || { wood: 800, stone: 300, food: 800, gold: 20000, iron: 300 },
+      // A save written before `storageMax` existed carries none, and the fallback was a third copy of
+      // the cap rule (`800 / 300 / 800 / 20000 / 300`) that could drift from `economy`'s own — so the
+      // fallback now calls the owner with the buildings this load already resolved (`buildings` is
+      // defaulted to `[]` a few lines above). Only the *rule* has one home; a save that does carry a
+      // `storageMax` still keeps its own numbers, since the daily layer would recompute them anyway.
+      storageMax: worldData.storageMax || computeStorageMax(worldData.buildings ?? []),
       foodSpoilageRate: worldData.foodSpoilageRate ?? 0.03,
       eventLog: worldData.eventLog || [],
       worldMap: restoreWorldMapFromSave(parsed),
@@ -469,6 +567,13 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
     }
     const colonyDayOnLoad = getAbsoluteCalendarDay(loadedTick);
     const hourOnLoad = getHourOfDay(loadedTick);
+    // The RNG snapshot must be in place *before* anything below draws, because `syncMoonHowlerForms`
+    // transforms a cursed settler at load time and `forceMoonHowlerOutside` scatters them off the
+    // stream. Restoring it afterwards (where these two calls used to sit, just before
+    // `createViewFromSave`) meant those draws came from the pre-load stream — seed 1 — so a load could
+    // not reproduce the positions its own save was written with (`LIVE-FINDINGS-STATUS.md`, L13).
+    adoptSimSeedFromWorld(world);
+    restoreSimRng(parsed.simRng);
     for (const entity of world.entities) {
       migrateLegacyMoonHowler(entity, colonyDayOnLoad, hourOnLoad);
     }
@@ -501,7 +606,7 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
       (world.resources as { iron: number }).iron = 0;
     }
     if (typeof (world.storageMax as { iron?: unknown }).iron !== 'number') {
-      (world.storageMax as { iron: number }).iron = 300;
+      (world.storageMax as { iron: number }).iron = BASE_IRON_STORAGE;
     }
     world.wildlifeCounts = computeWildlifeCounts(world.entities);
     world.workingSettlers = world.workingSettlers ?? 0;
@@ -517,7 +622,7 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
     rebuildChildrenIds(world.entities);
     migrateLegacySecurityRoles(world);
     assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities);
-    assignMissingWorkers(world.entities.filter(isPlayerHuman), world.buildings);
+    assignMissingWorkers(world.entities.filter(isPlayerHuman), world.buildings, world);
 
     const applySaveMigration = (id: string, message: string) => {
       if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
@@ -585,24 +690,50 @@ export function loadGameFromParsed(parsed: Record<string, unknown>): { world: Wo
     });
     clearAllFactionWanderStates();
     rebuildEntityByIdMap(world);
-    adoptSimSeedFromWorld(world);
-    restoreSimRng(parsed.simRng);
     const view = createViewFromSave(parsed, world);
-    return { world, view };
+    return { ok: true, world, view };
   } catch (e) {
     console.error('Save load failed:', e);
-    return null;
+    return {
+      ok: false,
+      reason: 'unrestorable',
+      detail: e instanceof Error ? e.message : String(e),
+    };
   }
 }
 
-export function loadGame(): { world: WorldState; view: ViewState } | null {
+/**
+ * Load a colony from an already-parsed save object, or `null` when it will not restore.
+ *
+ * The `null`-or-session shape its callers already read; `loadGameFromParsedOutcome` is where the
+ * refusal reason lives.
+ */
+export function loadGameFromParsed(
+  parsed: Record<string, unknown>,
+): { world: WorldState; view: ViewState } | null {
+  const outcome = loadGameFromParsedOutcome(parsed);
+  return outcome.ok ? { world: outcome.world, view: outcome.view } : null;
+}
+
+/**
+ * Load the browser save slot, reporting **why** it failed.
+ *
+ * `loadGame()` collapsed every cause — an empty slot, unavailable storage, a save from another build,
+ * and a payload that parsed but could not be restored — into `null`, so the map-setup screen's "Load
+ * saved game" button did nothing at all, silently, on every retry while `hasSave()` stayed true
+ * (`LIVE-FINDINGS-STATUS.md`, F19). The menu's load path already named its cause; this owner is what
+ * both paths now read, and `describeSaveLoadOutcome` is the one place those messages live.
+ */
+export function loadGameOutcome(): SaveLoadOutcome {
   try {
     const result = readSavePayload();
-    if (!result.valid) return null;
-    return loadGameFromParsed(result.parsed);
+    if (!result.valid) return { ok: false, reason: result.reason, detail: result.detail };
+    // The restore's own outcome is returned as-is, so a payload that parsed but not restored keeps
+    // the field that failed (`loadGameFromParsedOutcome`) instead of a bare `unrestorable`.
+    return loadGameFromParsedOutcome(result.parsed);
   } catch (e) {
     console.error('Save load failed:', e);
-    return null;
+    return { ok: false, reason: 'unreadable', detail: e instanceof Error ? e.message : String(e) };
   }
 }
 
@@ -613,8 +744,34 @@ export function loadGameFromFileText(raw: string): { world: WorldState; view: Vi
   return loadGameFromParsed(result.parsed);
 }
 
+/**
+ * A save in the browser slot that **this build can load** — not the same question as
+ * `hasSaveSlot()`.
+ */
 export function hasSave(): boolean {
   return readSavePayload().valid;
+}
+
+/**
+ * Is there *anything* in the browser save slot? — slot presence, not loadability.
+ *
+ * `hasSave()` answers "does this save load", which is `false` for a version-mismatched payload. Every
+ * UI gate built on it (`App.canLoadSavedGame`, the menu's disabled Load item) therefore told the
+ * player there was no save at all after a build update, while their colony sat in the slot — the
+ * opposite of the truth, and the reason `describeSaveReadFailure({reason:'version-mismatch'})` could
+ * only ever be reached from a running session (P-2). Gating Load on *presence* runs the load path,
+ * which reports the real cause through `describeSaveLoadOutcome`.
+ *
+ * Raw slot presence on purpose: it must not depend on parse validity. A blocked-storage throw reads
+ * as "absent", which is the pre-P-2 behaviour and the only safe answer when nothing can be read.
+ */
+export function hasSaveSlot(): boolean {
+  try {
+    return localStorage.getItem(SAVE_KEY) != null;
+  } catch (e) {
+    console.error('Save slot probe failed:', e);
+    return false;
+  }
 }
 
 export function deleteSave(): void {

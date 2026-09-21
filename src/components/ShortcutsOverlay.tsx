@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
+import { useModalFocus } from '../hooks/useModalFocus';
 
 export interface Shortcut {
   keys: string;
@@ -9,11 +10,12 @@ const SHORTCUTS: Shortcut[] = [
   { keys: 'WASD / drag', description: 'Pan camera' },
   { keys: 'Right-drag', description: 'Pan camera (alt)' },
   { keys: 'Scroll / + −', description: 'Zoom' },
-  { keys: 'Mini-map', description: 'Click to jump the camera' },
+  { keys: 'Mini-map', description: 'Click, or focus it and press Enter, to jump the camera' },
   { keys: 'Click', description: 'Select · build · inspect camps' },
   { keys: 'Space', description: 'Pause / resume' },
   { keys: 'B', description: 'Full build catalog (left)' },
   { keys: 'G', description: 'Toggle placement grid' },
+  { keys: 'X', description: 'Toggle logistics overlay (supply · commute · connectivity)' },
   { keys: '1–9', description: 'Quick-build' },
   { keys: 'O', description: 'People overview (full screen)' },
   { keys: 'V F N P L M', description: 'Sidebar tabs' },
@@ -29,13 +31,11 @@ interface Props {
 }
 
 export default function ShortcutsOverlay({ onClose }: Props) {
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
-
-  // 🎯 Focus management: Focus close button on mount
-  useEffect(() => {
-    closeButtonRef.current?.focus();
-  }, []);
+  // Focus in, Tab contained, and — the half this overlay was missing — focus returned to the control
+  // that opened it on close. The house owner does all three, so the local focus-on-mount effect and
+  // the hand-rolled Tab trap (and its private first/last ordering) are gone; `data-autofocus` marks
+  // the close button the old effect focused explicitly (2026-09-20 audit, A5).
+  const dialogRef = useModalFocus<HTMLDivElement>();
 
   // ⌨️ ESC key handler
   useEffect(() => {
@@ -50,40 +50,9 @@ export default function ShortcutsOverlay({ onClose }: Props) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // 🔒 Focus trap: Keep focus within modal
-  useEffect(() => {
-    const overlay = overlayRef.current;
-    if (!overlay) return;
-
-    const focusableElements = overlay.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
-
-    const handleTab = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
-
-      if (e.shiftKey) {
-        if (document.activeElement === firstElement) {
-          e.preventDefault();
-          lastElement?.focus();
-        }
-      } else {
-        if (document.activeElement === lastElement) {
-          e.preventDefault();
-          firstElement?.focus();
-        }
-      }
-    };
-
-    overlay.addEventListener('keydown', handleTab);
-    return () => overlay.removeEventListener('keydown', handleTab);
-  }, []);
-
   return (
     <div
-      ref={overlayRef}
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="shortcuts-title"
@@ -99,8 +68,8 @@ export default function ShortcutsOverlay({ onClose }: Props) {
             Keyboard shortcuts
           </h2>
           <button
-            ref={closeButtonRef}
             type="button"
+            data-autofocus
             onClick={onClose}
             aria-label="Close shortcuts overlay"
             className="rounded p-1 text-stone-400 hover:bg-stone-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"

@@ -39,7 +39,7 @@ export function pushNewEntity(state: WorldState, ctx: TickContext, entity: Entit
     recordGrassBirth(ctx.grassPopulation, entity.id);
   }
 
-  syncSpatialGridEntity(entity, ctx.grassGrid, ctx.mobileGrid);
+  syncSpatialGridEntity(entity, ctx.grassGrid, ctx.mobileGrid, ctx.treeGrid);
 }
 
 /** Wildlife tick death — cursed settlers in werewolf form use human widow/building cleanup. */
@@ -92,7 +92,7 @@ export function markWildlifeDead(
 }
 
 export function syncEntityGrids(ctx: TickContext, entity: Entity): void {
-  syncSpatialGridEntity(entity, ctx.grassGrid, ctx.mobileGrid);
+  syncSpatialGridEntity(entity, ctx.grassGrid, ctx.mobileGrid, ctx.treeGrid);
 }
 
 /** Living player humans — includes same-tick newborns from newEntities and entityById. */
@@ -155,14 +155,24 @@ export function buildHuntTargetByPreyIndex(
   return index;
 }
 
+/**
+ * The only types that can hold a `huntTargetId` — the same set `buildHuntTargetByPreyIndex` indexes.
+ * Every write site agrees: the wildlife hunt step (Wolf/Fox/Werewolf), `tickHumanHunting` (Human,
+ * gated on `isPlayerHuman`) and the Moon Howler form restore (Werewolf).
+ */
+const HUNTER_TYPES: readonly EntityType[] = [
+  EntityType.Wolf,
+  EntityType.Fox,
+  EntityType.Werewolf,
+  EntityType.Human,
+];
+
 export function clearHuntersTargetingPrey(
   preyId: number,
   entityById: ReadonlyMap<number, Entity>,
   huntTargetByPreyId?: Map<number, Set<number>>,
+  byType?: Partial<Record<EntityType, Entity[]>>,
 ): void {
-  // The index is built once at tick start, so a hunter that acquires this prey later in the
-  // same tick is absent from it: clear the indexed hunters and then always run the entityById
-  // scan as well, or those mid-tick hunters keep a huntTargetId pointing at a removed entity.
   if (huntTargetByPreyId) {
     const hunters = huntTargetByPreyId.get(preyId);
     if (hunters) {
@@ -174,6 +184,24 @@ export function clearHuntersTargetingPrey(
     }
   }
 
+  // The index is built once at tick start, so a hunter that acquires this prey later in the
+  // same tick is absent from it: those hunters still have to be cleared or they keep a
+  // huntTargetId pointing at a removed entity. Hunting is limited to `HUNTER_TYPES`, so when the
+  // caller hands over the tick's buckets the sweep is those four lists instead of `entityById` —
+  // every living entity, grass and trees included (~900 at full-year scale, per kill).
+  if (byType) {
+    for (let t = 0; t < HUNTER_TYPES.length; t++) {
+      const bucket = byType[HUNTER_TYPES[t]];
+      if (!bucket) continue;
+      for (let i = 0; i < bucket.length; i++) {
+        const hunter = bucket[i];
+        if (hunter.huntTargetId === preyId) hunter.huntTargetId = undefined;
+      }
+    }
+    return;
+  }
+
+  // Callers without the buckets (human hunting, daily building economy, tests) keep the full sweep.
   for (const hunter of entityById.values()) {
     if (hunter.huntTargetId === preyId) {
       hunter.huntTargetId = undefined;

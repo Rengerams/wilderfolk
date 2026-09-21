@@ -1,6 +1,6 @@
 import type { Entity, WorldState } from './gameTypes';
-import { EntityType } from './gameTypes';
 import { logEvent } from './eventLog';
+import { playerHumansFrom } from './playerHuman';
 
 /**
  * Relationship webs (Phase 7) — friendships grow from shared work, home and
@@ -61,13 +61,18 @@ export function activeFeudCount(e: Entity): number {
   return count;
 }
 
-function playerHumans(allAlive: Entity[]): Entity[] {
-  return allAlive.filter((e) => e.alive && e.type === EntityType.Human && !e.faction);
-}
-
 /** Daily pulse — friendships, feuds, and their energy effects. */
-export function advanceSocialRelationships(state: WorldState, allAlive: Entity[]): void {
-  const people = playerHumans(allAlive);
+export function advanceSocialRelationships(
+  state: WorldState,
+  allAlive: Entity[],
+  /**
+   * `playerHumansFrom(allAlive)` for a caller that needs the same list more than once in one pass.
+   * Must be derived from `allAlive`: the daily layer passes `allAlive` (which includes this tick's
+   * newborns) rather than `ctx.playerHumans`, which is the tick-start list.
+   */
+  peopleForPass?: Entity[],
+): void {
+  const people = peopleForPass ?? playerHumansFrom(allAlive);
   if (people.length < 2) return;
 
   const byId = new Map(people.map((e) => [e.id, e]));

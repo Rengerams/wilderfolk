@@ -43,25 +43,42 @@ export function hashSalt(text: string): number {
 }
 
 /**
+ * Advances a Mulberry32 state by one step: `s = (s + 0x6d2b79f5) >>> 0`.
+ *
+ * Split from {@link mulberry32Draw} rather than returned as a `{ state, value }` tuple so the hot
+ * stream body and closure-free callers (`renffrStar`, hot paths) stay allocation-free; the two
+ * together are the one definition of the generator step (`duplication-deadcode.md` A21 — the copy in
+ * `renffrStar.ts` had already drifted, omitting this file's documented pre-mix).
+ */
+export function mulberry32Advance(state: number): number {
+  return (state + 0x6d2b79f5) >>> 0;
+}
+
+/** Mulberry32 output mix for an already-advanced state, as a float in `[0, 1)`. */
+export function mulberry32Draw(advancedState: number): number {
+  let t = advancedState;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+/**
  * Creates an independent Mulberry32 PRNG stream from a base seed and domain salt.
  * State is pre-mixed to ensure maximum entropy on the very first draw.
  */
 export function createSeededRng(seed: number, owner: string): RngStream {
-  let s = (((seed >>> 0) ^ hashSalt(owner)) + 0x6d2b79f5) >>> 0;
+  let s = mulberry32Advance(((seed >>> 0) ^ hashSalt(owner)) >>> 0);
 
   // Pre-mix initial state to eliminate low-entropy seed correlation artifacts
-  s = (s + 0x6d2b79f5) >>> 0;
-  let t = s;
+  const preMixed = mulberry32Advance(s);
+  let t = preMixed;
   t = Math.imul(t ^ (t >>> 15), t | 1);
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  s = (s ^ t) >>> 0;
+  s = (preMixed ^ t) >>> 0;
 
   const stream: RngStream = () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let r = s;
-    r = Math.imul(r ^ (r >>> 15), r | 1);
-    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    s = mulberry32Advance(s);
+    return mulberry32Draw(s);
   };
 
   streamStates.set(stream, { get: () => s, set: (state: number) => { s = state >>> 0; } });

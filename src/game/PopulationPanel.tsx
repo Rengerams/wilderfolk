@@ -4,15 +4,10 @@ import { EntityType, BUILDING_CONFIGS } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { buildFamilyGroups, hasWorkAssignment, isImprisoned } from './dayCycle';
 import { isVillageLeader } from './villageLeadership';
-import { getLivePlayerPopulation, getOpenBeds, getPopulationGrowthReport, getTotalBeds } from './populationGrowth';
-import { formatCitizenId, formatCitizenName, matchesCitizenSearch } from './citizenId';
+import { getPopulationGrowthReport, resolvePopulationCap } from './populationGrowth';
+import { computeVillageStats } from './uiSimSummary';
+import { citizenFullName, formatCitizenId, formatCitizenName, matchesCitizenSearch } from './citizenId';
 import { formatEducationLabel } from './education';
-
-function formatName(e: Entity): string {
-  const base = e.name || 'Unknown';
-  const surname = e.surname || '';
-  return `${base}${surname ? ` ${surname}` : ''}`;
-}
 
 function relationIcon(e: Entity): string {
   if (e.isJuvenile) return e.gender === 'male' ? '👦' : '👧';
@@ -37,7 +32,7 @@ function CitizenRow({
     <>
       <span className="font-mono text-[13px] text-stone-400">{formatCitizenId(person.id)}</span>
       {' '}
-      {relationIcon(person)} {formatName(person)}
+      {relationIcon(person)} {citizenFullName(person)}
       {isFavorite ? ' ⭐' : ''}
       {isVillageLeader(state, person.id) ? ' 👑' : ''}
       {hasWorkAssignment(person) ? ' 🔨' : ''}
@@ -105,20 +100,20 @@ export default function PopulationPanel({
   const playerHumans = state.entities.filter(
     (e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e),
   );
-  const adults = playerHumans.filter((e) => !e.isJuvenile);
-  const children = playerHumans.filter((e) => e.isJuvenile);
-  const working = state.workingSettlers;
-  const idle = state.idleSettlers;
-  const imprisoned = playerHumans.filter((e) => isImprisoned(e)).length;
+  // Work / bed counts come from the village aggregation and the assignable-bed owner rather than the
+  // raw tick counters and `getOpenBeds` (R29): the counters can disagree with the header, and
+  // `getOpenBeds` counts beds a settler cannot actually be assigned to. The panel states no counter
+  // of its own — adults, children, jailed, working and idle all come from `villageStats`, and the
+  // immigration cap from `resolvePopulationCap` (2026-09-22 stats-panel audit, F6/F7).
+  const villageStats = computeVillageStats(state);
   const moonHowlerCursed = state.entities.filter(
     (e) => e.alive && isPlayerHuman(e) && e.moonHowlerCursed,
   ).length
     + state.entities.filter(
       (e) => e.alive && e.type === EntityType.Werewolf && e.moonHowlerCursed && e.faction !== 'visitor' && e.faction !== 'rival',
     ).length;
-  const capacity = state.maxHumanPopulation;
-  const beds = getTotalBeds(state);
-  const openBeds = getOpenBeds(state);
+  const capacity = resolvePopulationCap(state);
+  const beds = villageStats.beds;
 
   const familyGroups = buildFamilyGroups(playerHumans);
   const filteredFamilies = useMemo(() => {
@@ -129,7 +124,6 @@ export default function PopulationPanel({
     );
   }, [familyGroups, search]);
 
-  const livePopulation = getLivePlayerPopulation(state);
   const growth = getPopulationGrowthReport(state);
   const growthToneClass = growth.tone === 'blocked'
     ? 'border-rose-500/30 bg-rose-950/30 text-rose-200'
@@ -149,17 +143,10 @@ export default function PopulationPanel({
       <div className="mb-3 flex items-end justify-between gap-2">
         <div>
           <h3 className="text-sm font-bold text-stone-300">Population & Families</h3>
-          <p className="text-[13px] text-stone-300">{familyGroups.length} families · 🛏️ {beds} beds ({openBeds} open) · cap {capacity}</p>
-          <p className="text-[13px] text-stone-300">
-            😊 Village mood <span className="text-pink-300">{Math.round(state.villageHappiness ?? 50)}</span>/100
-            <span className="text-stone-600"> — decor (🌷 gardens, 🗿 statues, 🏮 lamps) lifts it</span>
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-2xl font-black leading-none text-emerald-300">
-            {livePopulation}
-            <span className="text-sm font-bold text-stone-400"> / {capacity}</span>
-          </p>
+          {/* The roster's own header: how many households, how many beds they share, and the cap the
+              growth owner applies. The open-bed count and the mood label are the People screen's stat
+              cards above this panel — they were printed a second time here (2026-09-22 audit, P1). */}
+          <p className="text-[13px] text-stone-300">{familyGroups.length} families · 🛏️ {beds} beds · cap {capacity}</p>
         </div>
       </div>
 
@@ -197,33 +184,6 @@ export default function PopulationPanel({
           </p>
         </div>
       )}
-
-      <div className="mb-3 grid grid-cols-3 gap-1 text-[13px]">
-        <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
-          <div className="font-bold text-sky-300">{adults.length}</div>
-          <div className="text-stone-400">adults</div>
-        </div>
-        <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
-          <div className="font-bold text-pink-300">{children.length}</div>
-          <div className="text-stone-400">children</div>
-        </div>
-        <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
-          <div className="font-bold text-amber-300">{imprisoned}</div>
-          <div className="text-stone-400">jailed</div>
-        </div>
-        <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
-          <div className="font-bold text-emerald-300">{working}</div>
-          <div className="text-stone-400">working</div>
-        </div>
-        <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
-          <div className="font-bold text-stone-300">{idle}</div>
-          <div className="text-stone-400">idle</div>
-        </div>
-        <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
-          <div className="font-bold text-purple-300">{state.unlockedTechs.length}</div>
-          <div className="text-stone-400">techs</div>
-        </div>
-      </div>
 
       <div className="max-h-60 overflow-y-auto pr-1">
         <div className="space-y-1.5">

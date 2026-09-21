@@ -4,6 +4,10 @@ import { getWorkerSkillMultiplier } from './skills';
 import { ensureAdjacencyIndex, getAdjacencyMultiplierFromIndex } from './adjacencyIndex';
 import { getTerrainEfficiencyMultiplier } from './terrainSystems';
 import { getMultiplier } from './simHelpers';
+import { isPlayerHuman } from './playerHuman';
+import { getScheduleProductivityMultiplier } from './scheduleFatigue';
+import { getWorkHourProductionMultiplier, getWorkSchedule, getWorkScheduleHours } from './workSchedule';
+import { getTownHallGovernanceEfficiency } from './townHall';
 
 const WORKSHOP_ECONOMY_CONFIG = {
   FESTIVAL_OUTPUT_MULTIPLIER: 1.5,
@@ -37,7 +41,14 @@ export function estimateWorkshopGold(
     return 0;
   }
 
-  const actualWorkers = building.occupants.length;
+  // Production counts a workshop's workers by their live work assignment, not by occupancy
+  // (`dailyBuildingEconomy.tickBuildingProduction` keys `buildingWorkerStats` on
+  // `worker.homeBuildingId`), so the estimate has to use the same rule or it predicts output for a
+  // workshop that is standing idle (`LIVE-FINDINGS-STATUS.md`, L6).
+  const assignedWorkers = state.entities.filter(
+    (entity) => entity.alive && isPlayerHuman(entity) && entity.homeBuildingId === building.id,
+  );
+  const actualWorkers = assignedWorkers.length;
   if (actualWorkers === 0 && !options.previewUnstaffed) {
     return 0;
   }
@@ -53,6 +64,18 @@ export function estimateWorkshopGold(
     : 1.0;
   const goldMultiplier = getMultiplier(state, 'gold_production');
   const globalEfficiencyMultiplier = getMultiplier(state, 'global_efficiency');
+  // The three terms the estimate used to omit while production applied them every cycle
+  // (`dailyBuildingEconomy.ts:299-305` for the state-wide pair, `:340-347` for fatigue): the
+  // schedule-fatigue average over the assigned crew, the configured work-window scale, and the Town
+  // Hall's governance efficiency, which production folds into its `globalEff`
+  // (`LIVE-FINDINGS-STATUS.md`, L6).
+  const fatigueMultiplier = actualWorkers > 0
+    ? assignedWorkers.reduce((sum, worker) => sum + getScheduleProductivityMultiplier(worker), 0) / actualWorkers
+    : 1.0;
+  const workHourMultiplier = getWorkHourProductionMultiplier(
+    getWorkScheduleHours(getWorkSchedule(state)),
+  );
+  const governanceMultiplier = getTownHallGovernanceEfficiency(state, state.buildings);
 
   const laborScale =
     WORKSHOP_ECONOMY_CONFIG.BASE_WORKER_OUTPUT_FACTOR +
@@ -66,7 +89,10 @@ export function estimateWorkshopGold(
     festivalMultiplier *
     skillMultiplier *
     goldMultiplier *
-    globalEfficiencyMultiplier;
+    globalEfficiencyMultiplier *
+    fatigueMultiplier *
+    workHourMultiplier *
+    governanceMultiplier;
 
   return Math.max(1, Math.floor(recipe.baseGold * combinedMultiplier));
 }

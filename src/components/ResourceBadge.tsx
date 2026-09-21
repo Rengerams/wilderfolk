@@ -26,12 +26,19 @@ interface Props {
   max?: number;
   className?: string;
   alert?: boolean;
+  /**
+   * The store is at its cap, so production of this resource is being discarded (see
+   * `dailyBuildingEconomy.addProductionOutput` / `resourceUtils.isResourceCapped`). A capped producer
+   * used to be indistinguishable from an idle one — `LIVE-FINDINGS-STATUS.md`, F6.
+   */
+  full?: boolean;
 }
 
-export default function ResourceBadge({ resource, value, max, className = '', alert = false }: Props) {
-  const title = max !== undefined
+export default function ResourceBadge({ resource, value, max, className = '', alert = false, full = false }: Props) {
+  const base = max !== undefined
     ? `${RESOURCE_LABELS[resource]} ${value} / ${max}`
     : `${RESOURCE_LABELS[resource]} ${value}`;
+  const title = full ? `${base} — full, production is lost until you spend it` : base;
 
   const tone = alert && ALERT_STYLES[resource] ? ALERT_STYLES[resource] : RESOURCE_STYLES[resource];
   const prev = useRef(value);
@@ -57,9 +64,12 @@ export default function ResourceBadge({ resource, value, max, className = '', al
   return (
     <span
       className={`flex items-center gap-0.5 rounded-md border border-stone-800/60 px-1.5 py-1 text-[13px] font-medium transition-transform duration-200 ${tone} ${
-        alert ? 'ring-1 ring-rose-500/50' : ''
+        alert ? 'ring-1 ring-rose-500/50' : full ? 'ring-1 ring-amber-400/60' : ''
       } ${popRing} ${className}`}
       title={title}
+      /* The chip's own text is a bare number and the icon is `aria-hidden`, so the unit and the
+         "full" warning lived only in `title` — unreachable to screen readers and to touch. R31. */
+      aria-label={title}
     >
       <ResourceIcon resource={resource} />
       <span className={`font-mono font-bold tabular-nums ${pop ? (popDown ? 'text-rose-200' : 'text-white') : ''}`}>

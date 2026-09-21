@@ -3,12 +3,14 @@ import { EntityType, BuildingType, JobType, Season } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng, seededRandomForRun } from './simRng';
+import { faceVelocity, steerEntityToward } from './simulation/movementSteering';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { addFloatingText } from './simEffects';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { getChurchStrength, findHumanWorkplace, buildConstructionCrewIndex } from './workforce';
 
 import { isPlayerHuman } from './playerHuman';
+import { getBuildingCenter } from './placementUtils';
 import { isSettlerRelationshipEntity } from './moonHowlerForm';
 import { getElectionGatherTarget } from './villageLeadership';
 
@@ -68,8 +70,12 @@ import {
   getSchoolAgeMultiplier,
   recordChildSchoolTick,
 } from './education';
-import { getPlayerCampCenter, isRaidMarchingForRival } from './frontierCombat';
-import { detectRaidersForPatrol } from './humanPatrolBehavior';
+import {
+  getPlayerCampCenterFromBuildings,
+  getPlayerSettlerCenter,
+  isRaidMarchingForRival,
+} from './frontierCombat';
+import { buildPatrolRevealIndex, detectRaidersForPatrol, type PatrolRevealIndex } from './humanPatrolBehavior';
 import { tickHumanChildLeisure, tickAdultLeisureMotive } from './humanLeisureBehavior';
 import { tickHumanHunting } from './humanHuntingBehavior';
 import { getCaravanMoveTarget, tryAdvanceCaravanLeg } from './tradeCaravans';
@@ -118,9 +124,9 @@ import {
   AFFAIR_SPOUSE_BLOCK_RADIUS,
   bindCourtship,
   canPursueSecretAffair,
+  courtshipRatePerHour,
   findCourtshipPartner,
   getAffairTrystBuilding,
-  getBuildingCenter,
   hasAffairPartner,
   isAtMaritalHome,
   isEligibleToCourt,
@@ -152,9 +158,10 @@ const AFFAIR_INTIMATE_RADIUS = 22;
 function getAffairTrystTarget(
   cheater: Entity,
   paramour: Entity,
+  entityById: Map<number, Entity>,
   buildingById: Map<number, Building>,
 ): { x: number; y: number } {
-  const trystBuilding = getAffairTrystBuilding(cheater, paramour, buildingById);
+  const trystBuilding = getAffairTrystBuilding(cheater, paramour, entityById, buildingById);
   if (trystBuilding) return getBuildingCenter(trystBuilding);
   return { x: paramour.x, y: paramour.y };
 }
@@ -237,14 +244,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const roadAvoidance = ctx.roadAvoidance;
   const churchStrength = getChurchStrength(updatedBuildings, playerHumans);
 
-  if (ctx.hasWell === undefined) {
-    ctx.hasWell = updatedBuildings.some((b) => b.type === BuildingType.Well && b.completed);
-  }
-  if (ctx.hasHospital === undefined) {
-    ctx.hasHospital = updatedBuildings.some((b) => b.type === BuildingType.Hospital && b.completed);
-  }
-  const hasWell = ctx.hasWell;
-  const hasHospital = ctx.hasHospital;
+  // `ctx.hasWell` / `ctx.hasHospital` are the colony-infrastructure flags owned by `gameTick`, which
+  // derives them from `completed && faction !== 'rival'`. This used to re-derive them locally from
+  // `completed` alone, so a rival camp's well satisfied "the colony has clean water" (audit B-3). The
+  // context type still marks the fields optional for test contexts, so a flag the tick did not set
+  // reads as "no such infrastructure" instead of being replaced by a second, weaker rule.
+  const hasWell = ctx.hasWell === true;
+  const hasHospital = ctx.hasHospital === true;
 
   const staffedHospitals: Building[] = [];
   const staffedTownHalls: Building[] = [];
@@ -253,6 +259,33 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (b.type === BuildingType.Hospital) staffedHospitals.push(b);
     else if (b.type === BuildingType.TownHall) staffedTownHalls.push(b);
   }
+
+  // Completed player residences, and the leisure-venue pools, are constant for this whole frame:
+  // `building.completed` has exactly one writer in the repo (`dailyBuildingEconomy.tickBuildingProgress`,
+  // daily layer only), `building.type` has none, and building `faction` has none — every
+  // `.faction =` write is on an entity. Both were previously re-derived per entity: the residence
+  // list was re-filtered for every courting pair (`updatedBuildings.filter(isResidenceBuilding)`)
+  // and the venue pool re-filtered for every leisure choice (2.98 calls/tick measured). Both are
+  // built on FIRST USE rather than unconditionally, so a tick that never reaches the courtship
+  // branch or the leisure picker does no extra work — the probe showed an eager version of this
+  // raised the `isResidenceBuilding` filter from 3 887 to 9 184 calls over 8 640 ticks. The pools are
+  // keyed by the requested type list and produced by the same predicate over the same array, so
+  // their contents and order are identical to the per-call filter.
+  let playerResidences: Building[] | undefined;
+  const playerResidencesFor = (): Building[] =>
+    (playerResidences ??= updatedBuildings.filter(isResidenceBuilding));
+  const completedPoolByKey = new Map<string, Building[]>();
+  const completedPoolOf = (types: BuildingType[]): Building[] => {
+    const key = types.join(',');
+    let pool = completedPoolByKey.get(key);
+    if (pool === undefined) {
+      pool = updatedBuildings.filter(
+        (b) => b.completed && b.faction !== 'rival' && types.includes(b.type),
+      );
+      completedPoolByKey.set(key, pool);
+    }
+    return pool;
+  };
 
   const chatHints = chatHintsFromWorld({
     season,
@@ -284,6 +317,24 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     simAmbientChatNeighbors(self, state.tick, humanSocialGrid, allHumans, width, height);
 
   const schoolReserved = new Map<number, number>();
+
+  // Marching-raider groups for patrol reveal depend on the tick's raid state, not on the guard
+  // looking, so the first barracks watch on shift builds the index and the rest reuse it (N-3).
+  let patrolRevealIndex: PatrolRevealIndex | undefined;
+
+  // The village anchor was re-derived for every visitor, rival and barracks guard in this loop (N-4).
+  // Only the building half may be hoisted: nothing this loop reaches removes a building from
+  // `updatedBuildings` or flips one's `completed`, `type`, `faction` or geometry, so the hall/house
+  // answer is constant for the tick — while the settler half averages positions this very loop moves
+  // and drops settlers from, so caching that would hand later entities a stale anchor. `undefined`
+  // means "not resolved yet"; `null` means "no hall and no house, ask the entities every time".
+  let buildingCampAnchor: { x: number; y: number } | null | undefined;
+  const getCampAnchor = (): { x: number; y: number } => {
+    if (buildingCampAnchor === undefined) {
+      buildingCampAnchor = getPlayerCampCenterFromBuildings(updatedBuildings);
+    }
+    return buildingCampAnchor ?? getPlayerSettlerCenter(state);
+  };
 
   const applySettlerUpkeep = (entity: Entity): void => {
     entity.energy -= humanEnergyLoss(entity, config, {
@@ -474,14 +525,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (entity.faction === 'trade_caravan') {
       const target = getCaravanMoveTarget(state, entity);
       if (target) {
-        const dx = target.x - entity.x;
-        const dy = target.y - entity.y;
-        const dist = Math.hypot(dx, dy) || 1;
-        entity.vx = (dx / dist) * config.speed * target.speedMult;
-        entity.vy = (dy / dist) * config.speed * target.speedMult;
+        steerEntityToward(entity, target.x, target.y, config.speed, target.speedMult);
         entity.x += entity.vx;
         entity.y += entity.vy;
-        entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
         tryAdvanceCaravanLeg(state, entity);
       }
       syncEntityGrids(ctx, entity);
@@ -500,7 +546,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         if (entity.faction === 'rival') {
           entity.hiddenFromPlayer = Boolean(marching && !entity.detectedByPatrol);
         }
-        const playerCenter = marching ? getPlayerCampCenter(state, updatedBuildings) : null;
+        const playerCenter = marching ? getCampAnchor() : null;
         const cx = marching && playerCenter ? playerCenter.x : 'campX' in camp ? camp.campX : 0;
         const cy = marching && playerCenter ? playerCenter.y : 'campY' in camp ? camp.campY : 0;
 
@@ -512,14 +558,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         }
 
         if (marching) {
-          const dx = cx - entity.x;
-          const dy = cy - entity.y;
-          const dist = Math.hypot(dx, dy) || 1;
-          entity.vx = (dx / dist) * config.speed * speedMult;
-          entity.vy = (dy / dist) * config.speed * speedMult;
+          steerEntityToward(entity, cx, cy, config.speed, speedMult);
           entity.x += entity.vx;
           entity.y += entity.vy;
-          entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
         } else if (
           entity.faction === 'visitor' &&
           steerVisitorToHotel(entity, updatedBuildings, config.speed * speedMult)
@@ -532,7 +573,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const dist = Math.hypot(cx - entity.x, cy - entity.y);
         if (marching && dist < 90) entity.combatTicks = Math.max(entity.combatTicks ?? 0, 8);
 
-        const village = getPlayerCampCenter(state, updatedBuildings);
+        const village = getCampAnchor();
         const nearVillage = Math.hypot(entity.x - village.x, entity.y - village.y) < 110;
         const chatChance =
           (entity.faction === 'visitor' ? (nearVillage ? 0.055 : 0.03) : 0.025) * PER_TICK_RATE_SCALE;
@@ -650,7 +691,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const mult = scared ? 1.35 : 1.1;
         entity.vx = (hdx / hdist) * config.speed * mult * dir;
         entity.vy = (hdy / hdist) * config.speed * mult * dir;
-        entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+        faceVelocity(entity);
       } else if (workplace) {
         commuteHumanToBuilding(entity, workplace, config.speed, false, 3.2);
       }
@@ -661,7 +702,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const fleeMult = humanFleeMult * traitMultiplier(entity, 'timid', 1.35);
       entity.vx = (fdx / fdist) * config.speed * 1.6 * fleeMult;
       entity.vy = (fdy / fdist) * config.speed * 1.6 * fleeMult;
-      entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+      faceVelocity(entity);
       suppressIdle = true;
       onSchedule = true;
       settlerChat(entity, 'fear', 0.14 * PER_TICK_RATE_SCALE);
@@ -673,7 +714,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (dist > 10) {
         entity.vx = (dx / dist) * config.speed * 1.15;
         entity.vy = (dy / dist) * config.speed * 1.15;
-        entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+        faceVelocity(entity);
       } else {
         entity.vx = 0;
         entity.vy = 0;
@@ -693,7 +734,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (dist > 18) {
         entity.vx = (dx / dist) * config.speed * 0.72;
         entity.vy = (dy / dist) * config.speed * 0.72;
-        entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+        faceVelocity(entity);
       } else {
         entity.vx = Math.sin(state.tick * 0.04 + entity.id) * config.speed * 0.12;
         entity.vy = Math.cos(state.tick * 0.035 + entity.id) * config.speed * 0.12;
@@ -754,9 +795,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.job === JobType.Soldier &&
       isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings)
     ) {
-      const anchor = getPlayerCampCenter(state, updatedBuildings);
+      const anchor = getCampAnchor();
       if (anchor) {
-        detectRaidersForPatrol(state, entity, byType[EntityType.Human] ?? []);
+        patrolRevealIndex ??= buildPatrolRevealIndex(state, byType[EntityType.Human] ?? []);
+        detectRaidersForPatrol(state, entity, patrolRevealIndex);
         const radius = 95 + (entity.id % 6) * 10;
         const angle = state.tick * 0.028 * PER_TICK_RATE_SCALE + entity.id * 2.1;
         const tx = anchor.x + Math.cos(angle) * radius;
@@ -766,7 +808,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const pdist = Math.hypot(pdx, pdy) || 1;
         entity.vx = (pdx / pdist) * config.speed * 0.65;
         entity.vy = (pdy / pdist) * config.speed * 0.65;
-        entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+        faceVelocity(entity);
         onSchedule = true;
         suppressIdle = true;
       } else if (workplace) {
@@ -866,7 +908,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         if (edist > 12) {
           entity.vx = (edx / edist) * config.speed * 0.45;
           entity.vy = (edy / edist) * config.speed * 0.45;
-          entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+          faceVelocity(entity);
           suppressIdle = true;
         }
       }
@@ -897,7 +939,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           const chaseSpeed = atHome ? 0.35 : 0.45;
           entity.vx = (dx / dist) * config.speed * chaseSpeed;
           entity.vy = (dy / dist) * config.speed * chaseSpeed;
-          entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+          faceVelocity(entity);
           suppressIdle = true;
         } else {
           entity.vx *= 0.6;
@@ -915,7 +957,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           if (entity.id < closest.id) {
             const hasPerformers = state.visitorGroups.some((g) => g.kind === 'performers' && g.daysLeft > 0);
             const courtRate =
-              (4 + churchStrength * 2) *
+              courtshipRatePerHour(socialTime) *
               (state.festival?.active ? 2 : 1) *
               (hasPerformers ? 1.35 : 1) *
               (livingTogether ? 1.5 : 1) *
@@ -946,7 +988,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             state,
             entity,
             closest,
-            updatedBuildings.filter(isResidenceBuilding),
+            playerResidencesFor(),
             playerHumans,
           );
         }
@@ -972,7 +1014,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         if (!together && dist > 15) {
           entity.vx = (dx / dist) * config.speed * 0.3;
           entity.vy = (dy / dist) * config.speed * 0.3;
-          entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+          faceVelocity(entity);
           suppressIdle = true;
         }
       }
@@ -1009,7 +1051,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       );
 
       if (paramour) {
-        const trystTarget = getAffairTrystTarget(entity, paramour, buildingById);
+        const trystTarget = getAffairTrystTarget(entity, paramour, entityById, buildingById);
         const dx = trystTarget.x - entity.x;
         const dy = trystTarget.y - entity.y;
         const dist = Math.hypot(dx, dy) || 1;
@@ -1018,7 +1060,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         if (!intimate) {
           entity.vx = (dx / dist) * config.speed * 0.38;
           entity.vy = (dy / dist) * config.speed * 0.38;
-          entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+          faceVelocity(entity);
           suppressIdle = true;
         } else {
           entity.vx *= 0.55;
@@ -1081,7 +1123,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     ) {
       const lover = livingHumanAt(entity.affairPartnerId);
       if (lover?.alive) {
-        const trystTarget = getAffairTrystTarget(entity, lover, buildingById);
+        const trystTarget = getAffairTrystTarget(entity, lover, entityById, buildingById);
         const dx = trystTarget.x - entity.x;
         const dy = trystTarget.y - entity.y;
         const dist = Math.hypot(dx, dy) || 1;
@@ -1089,7 +1131,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         if (!tryst && dist > 14) {
           entity.vx = (dx / dist) * config.speed * 0.32;
           entity.vy = (dy / dist) * config.speed * 0.32;
-          entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+          faceVelocity(entity);
           suppressIdle = true;
         } else if (tryst) {
           tryExposeCaughtAffairForPair(
@@ -1203,7 +1245,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       };
 
       const pickCompleted = (types: BuildingType[]): Building | undefined => {
-        const pool = updatedBuildings.filter((b) => b.completed && b.faction !== 'rival' && types.includes(b.type));
+        const pool = completedPoolOf(types);
         if (pool.length === 0) return undefined;
         return pool[(entity.id + leisureSlot) % pool.length];
       };
@@ -1467,7 +1509,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         if (idleVx !== 0 || idleVy !== 0) {
           entity.vx = entity.vx * 0.5 + idleVx * 0.5;
           entity.vy = entity.vy * 0.5 + idleVy * 0.5;
-          entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+          faceVelocity(entity);
           suppressIdle = true;
         }
       }

@@ -10,6 +10,7 @@ import { traitMultiplier } from './settlerTraits';
 import { valleyStageIndex } from './ecologyStage';
 import { personDayRoll } from './dayCycle';
 import { sayHumanChatPhrase } from './humanChat';
+import { steerEntityToward } from './simulation/movementSteering';
 import { freeHuntFoodGain } from './simulation/humanNeeds';
 import { tryTickBlueberryForaging } from './blueberryForaging';
 import {
@@ -169,15 +170,9 @@ export function tickHumanHunting(
       impulseScreenShake(state, 2);
     } else if (closestPrey?.alive) {
       entity.huntTargetId = closestPrey.id;
-      const dx = closestPrey.x - entity.x;
-      const dy = closestPrey.y - entity.y;
-      const dist = Math.hypot(dx, dy) || 1.0;
-
       // Hunters pursue faster; casual foragers jog; brave settlers push harder
       const chaseMult = (isJobHunter ? 0.72 : 0.5) * traitMultiplier(entity, 'brave', 1.2);
-      entity.vx = (dx / dist) * config.speed * chaseMult;
-      entity.vy = (dy / dist) * config.speed * chaseMult;
-      entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+      steerEntityToward(entity, closestPrey.x, closestPrey.y, config.speed, chaseMult);
       suppressIdle = true;
 
       // Strained+ valley: occasional chatter so yield dips don't read as pure RNG

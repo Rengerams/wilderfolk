@@ -61,6 +61,7 @@ export default function GameBuildRail({
           <span className="text-base" title="Build catalog on the left · press B">🏗️</span>
           <button
             onClick={onToggleGrid}
+            aria-pressed={showGrid}
             className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition-all ${showGrid ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300' : 'border-stone-700 bg-stone-800/80 text-stone-400 hover:border-stone-600 hover:text-stone-300'}`}
             title="Toggle grid (G)"
           >

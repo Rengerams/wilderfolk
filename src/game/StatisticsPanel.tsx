@@ -21,7 +21,7 @@ export default function StatisticsPanel({ state }: Props) {
         <div className="grid grid-cols-2 gap-1.5">
           <StatBox label="Population" value={state.humanPopulation} icon="👤" color="text-amber-300" />
           <StatBox label="Reputation" value={state.villageReputation} icon="⭐" color="text-emerald-400" />
-          <StatBox label="Buildings" value={state.buildings.length} icon="🏗️" color="text-blue-400" />
+          <StatBox label="Buildings" value={state.totalBuildingsCompleted} icon="🏗️" color="text-blue-400" />
           <StatBox label="Year" value={state.year} icon="📅" color="text-stone-300" />
         </div>
       </div>
@@ -42,7 +42,8 @@ export default function StatisticsPanel({ state }: Props) {
           <StatBox label="Humans Born" value={lifetime.totalHumansBorn} icon="👶" color="text-pink-400" />
           <StatBox label="Humans Died" value={lifetime.totalHumansDied} icon="⚰️" color="text-stone-400" />
           <StatBox label="Marriages" value={lifetime.totalMarriages} icon="💍" color="text-amber-400" />
-          <StatBox label="Buildings" value={lifetime.totalBuildings} icon="🏗️" color="text-blue-400" />
+          {/* No "Buildings" tile here: `totalBuildingsCompleted` decrements on demolition, so it is a
+              current count, not a lifetime record — it belongs to "Village Now" above and nowhere else. */}
           <StatBox label="Techs" value={lifetime.technologiesResearched} icon="🔬" color="text-purple-400" />
           <StatBox label="Trade Routes" value={lifetime.tradeRoutesEstablished} icon="🚢" color="text-emerald-400" />
         </div>

@@ -70,6 +70,17 @@ export type HumanActivityProjection = {
   observedAtTick: number;
 };
 
+/**
+ * True when the settler has reached the projection's target — the owner's own "at the destination"
+ * test, shared with {@link getHumanActivityStatus} (which reports `Working at X` rather than
+ * `Commuting to X` on the same distance). The movement explanation uses it so a settler parked at a
+ * stop is never described as being on a leg into it.
+ */
+export function isAtActivityTarget(entity: Entity, target: HumanActivityTarget | null): boolean {
+  if (!target) return false;
+  return Math.hypot(target.x - entity.x, target.y - entity.y) <= WORK_ARRIVE_DISTANCE;
+}
+
 export function getHumanActivityStatus(state: WorldState, entity: Entity): string {
   if (!entity.alive) return 'Dead';
 

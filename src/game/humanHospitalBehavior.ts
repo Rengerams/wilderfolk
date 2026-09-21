@@ -2,6 +2,7 @@ import type { Building, Entity, WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { PREGNANCY_TICKS, TICKS_PER_DAY, getTickOfDay, personDayRoll } from './dayCycle';
+import { steerEntityToward } from './simulation/movementSteering';
 import {
   doctorTreatNearby,
   isDoctorAtHospital,
@@ -89,13 +90,8 @@ export function tickHumanHospitalPatientCare({
   if (shouldRoutePregnantSettlerToHospital(entity, onJobShift, staffedHospitals.length > 0)) {
     const best = pickHospitalWalkTarget(entity, staffedHospitals);
     if (best) {
-      const dx = best.x + best.width / 2 - entity.x;
-      const dy = best.y + best.height / 2 - entity.y;
-      const distance = Math.hypot(dx, dy) || 1;
       // Movement owns position: set velocity and let the human loop apply the step.
-      entity.vx = (dx / distance) * speed * 0.55;
-      entity.vy = (dy / distance) * speed * 0.55;
-      entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+      steerEntityToward(entity, best.x + best.width / 2, best.y + best.height / 2, speed, 0.55);
     }
   }
 

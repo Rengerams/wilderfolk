@@ -111,12 +111,28 @@ export function collectFamilyMembers(seed: Entity, humans: Entity[], visited: Se
 
 import { hasResidenceAssignment } from './residencyOccupancy';
 
-export function isAdultChildAtHome(human: Entity, humans: Entity[]): boolean {
+export function isAdultChildAtHome(
+  human: Entity,
+  humans: Entity[],
+  /**
+   * Pre-built `id → entity` index for a caller testing many candidates against one list. Without it
+   * each call scans `humans` twice (mother, father), which is O(humans²) when the caller is itself a
+   * `humans.filter`.
+   */
+  byId?: ReadonlyMap<number, Entity>,
+): boolean {
   if (!human.alive || human.faction || human.isJuvenile) return false;
   if (human.age < HUMAN_MOVE_OUT_MIN_AGE || !hasResidenceAssignment(human)) return false;
+  const findLivingParent = (id: number | undefined): Entity | undefined => {
+    if (byId) {
+      const found = id == null ? undefined : byId.get(id);
+      return found?.alive ? found : undefined;
+    }
+    return livingHuman(humans, id);
+  };
   const parents = [
-    humans.find((candidate) => candidate.id === human.motherId && candidate.alive),
-    humans.find((candidate) => candidate.id === human.fatherId && candidate.alive),
+    findLivingParent(human.motherId),
+    findLivingParent(human.fatherId),
   ].filter((parent): parent is Entity => !!parent && hasResidenceAssignment(parent));
   return parents.some((parent) => parent.residenceBuildingId === human.residenceBuildingId);
 }

@@ -14,25 +14,12 @@ import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './resi
 import { logEvent } from './eventLog';
 import { addFloatingText } from './simEffects';
 import { getVenueAutoStaffingTarget } from './venueSchedule';
-
-const AUTO_JOB_BUILDING_PRIORITY: BuildingType[] = [
-  BuildingType.Farm,
-  BuildingType.Greenhouse,
-  BuildingType.HuntingSpot,
-  BuildingType.LumberMill,
-  BuildingType.Quarry,
-  BuildingType.Mine,
-  BuildingType.Blacksmith,
-  BuildingType.Workshop,
-  BuildingType.Store,
-  BuildingType.Market,
-  BuildingType.School,
-  BuildingType.Hospital,
-  BuildingType.TownHall,
-  BuildingType.Church,
-  BuildingType.Tavern,
-  BuildingType.Hotel,
-];
+import {
+  DEFAULT_WORKFORCE_POLICY,
+  getWorkforcePolicy,
+  jobBuildingPriorityForPolicy,
+  type WorkforcePolicy,
+} from './workforcePolicy';
 
 /** Workplaces that require manual player staffing by default. */
 const MANUAL_STAFF_BUILDINGS = new Set<BuildingType>([
@@ -71,16 +58,23 @@ export function isManualStaffingBuilding(building: Pick<Building, 'type' | 'staf
   );
 }
 
-export function jobBuildingPriority(type: BuildingType): number {
-  const idx = AUTO_JOB_BUILDING_PRIORITY.indexOf(type);
-  return idx === -1 ? AUTO_JOB_BUILDING_PRIORITY.length : idx;
+/**
+ * Auto-staff rank of a job building. The ordering table itself lives in the policy owner
+ * (`workforcePolicy.PRESET_BUILDING_ORDER`); this is the workforce side of the seam and
+ * defaults to the colony default preset, which reproduces the historical order.
+ */
+export function jobBuildingPriority(
+  type: BuildingType,
+  policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
+): number {
+  return jobBuildingPriorityForPolicy(policy, type);
 }
 
 export function countWorkersAtBuilding(humans: Entity[], buildingId: number): number {
   let count = 0;
   for (let i = 0; i < humans.length; i++) {
     const h = humans[i];
-    if (h.alive && !h.faction && h.homeBuildingId === buildingId) {
+    if (h.alive && isPlayerHuman(h) && h.homeBuildingId === buildingId) {
       count++;
     }
   }
@@ -98,10 +92,20 @@ export function countStaffedWorkersAtType(buildings: Building[], humans: Entity[
   return total;
 }
 
+/**
+ * A staffed Blacksmith's boost per worker and the ceiling it runs into.
+ *
+ * Exported because the inspector's Blacksmith hint promised "+25% per worker" with no ceiling, while
+ * this function stops at ×1.5 (+50%): three smiths read +75% in the panel and +50% in the economy
+ * (audit C2 "Building output/tuning copy").
+ */
+export const SMITH_BONUS_PER_WORKER = 0.25;
+export const SMITH_BONUS_CAP = 1.5;
+
 export function getSmithBonus(buildings: Building[], humans: Entity[]): number {
   const workers = countStaffedWorkersAtType(buildings, humans, BuildingType.Blacksmith);
   if (workers <= 0) return 1.0;
-  return Math.min(1.5, 1 + workers * 0.25);
+  return Math.min(SMITH_BONUS_CAP, 1 + workers * SMITH_BONUS_PER_WORKER);
 }
 
 export function getChurchStrength(buildings: Building[], humans: Entity[]): number {
@@ -123,14 +127,23 @@ export function hasStaffedSchool(buildings: Building[]): boolean {
   );
 }
 
-export function completedJobBuildings(buildings: Building[]): Building[] {
+/**
+ * Completed player job buildings, ordered by the current workforce preset.
+ *
+ * This order is exactly the order `staffJobBuildings` serves open slots in, so it is the
+ * single place a preset changes which building receives the next idle worker.
+ */
+export function completedJobBuildings(
+  buildings: Building[],
+  policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
+): Building[] {
   return buildings
     .filter((b) => {
       if (!b.completed || b.faction === 'rival' || !BUILDING_JOB_TYPES[b.type]) return false;
       return BUILDING_CONFIGS[b.type].maxOccupants > 0;
     })
     .sort((a, b) => {
-      const prio = jobBuildingPriority(a.type) - jobBuildingPriority(b.type);
+      const prio = jobBuildingPriority(a.type, policy) - jobBuildingPriority(b.type, policy);
       if (prio !== 0) return prio;
       return a.id - b.id;
     });
@@ -196,7 +209,7 @@ export function pickWorkerToTransfer(
 export function assignWorkerTransition(human: Entity, building: Building): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
-  if (!human.alive || human.faction || human.isJuvenile) return false;
+  if (!human.alive || !isPlayerHuman(human) || human.isJuvenile) return false;
   if (human.prisonBuildingId != null) return false;
   if (human.homeBuildingId != null && human.homeBuildingId !== building.id) return false;
   if (building.occupants.includes(human.id)) return true; // Idempotent
@@ -232,7 +245,7 @@ export function removeWorkerTransition(human: Entity, buildings: Building[]): vo
  */
 export function addToConstructionCrew(human: Entity, building: Building): boolean {
   if (building.completed || building.faction === 'rival') return false;
-  if (!human.alive || human.faction || human.isJuvenile) return false;
+  if (!human.alive || !isPlayerHuman(human) || human.isJuvenile) return false;
   if (human.prisonBuildingId != null) return false;
   if (human.homeBuildingId != null) return false; // Must be unassigned from regular jobs first
   if (building.occupants.includes(human.id)) return true;
@@ -263,8 +276,12 @@ export function transferWorkerBetweenBuildings(
   ensureEntitySkills(worker)[job] = readSkill(worker, job);
 }
 
-export function rebalanceJobWorkers(humans: Entity[], buildings: Building[]): void {
-  const jobBuildings = completedJobBuildings(buildings);
+export function rebalanceJobWorkers(
+  humans: Entity[],
+  buildings: Building[],
+  policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
+): void {
+  const jobBuildings = completedJobBuildings(buildings, policy);
   let changed = true;
   let passes = 0;
   const maxPasses = jobBuildings.length * 2;
@@ -291,6 +308,33 @@ export function rebalanceJobWorkers(humans: Entity[], buildings: Building[]): vo
 }
 
 export function syncJobBuildingOccupants(humans: Entity[], buildings: Building[]): void {
+  // Two bucketing passes replace a full settler-list filter per building (N-7 — the single-pass
+  // shape `residencyReconciliation.syncResidenceOccupants` documents). The building loop below
+  // writes only `building.occupants`; it reads `h.alive`, `isPlayerHuman(h)`, `h.homeBuildingId`
+  // and `h.prisonBuildingId`, none of which is written inside it, so one pass per predicate answers
+  // every building. Each bucket preserves the `humans` order the previous `.filter().map()` emitted:
+  // a settler is appended during its own iteration, in visit order.
+  const pushId = (index: Map<number, number[]>, key: number, id: number): void => {
+    const bucket = index.get(key);
+    if (bucket) bucket.push(id);
+    else index.set(key, [id]);
+  };
+  /** Jobs: `homeBuildingId === id && prisonBuildingId == null`. */
+  const jobOccupantIds = new Map<number, number[]>();
+  /** Prison: `homeBuildingId === id || prisonBuildingId === id` (the original union, deduped). */
+  const prisonOccupantIds = new Map<number, number[]>();
+  for (const h of humans) {
+    if (!h.alive || !isPlayerHuman(h)) continue;
+    const homeId = h.homeBuildingId;
+    const prisonId = h.prisonBuildingId;
+    if (homeId != null) {
+      if (prisonId == null) pushId(jobOccupantIds, homeId, h.id);
+      pushId(prisonOccupantIds, homeId, h.id);
+    }
+    // A settler whose home *is* the prison was already added by the branch above.
+    if (prisonId != null && prisonId !== homeId) pushId(prisonOccupantIds, prisonId, h.id);
+  }
+
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
     if (!building.completed || building.faction === 'rival' || !BUILDING_JOB_TYPES[building.type]) {
@@ -298,26 +342,11 @@ export function syncJobBuildingOccupants(humans: Entity[], buildings: Building[]
     }
 
     if (building.type === BuildingType.Prison) {
-      building.occupants = humans
-        .filter(
-          (h) =>
-            h.alive &&
-            !h.faction &&
-            (h.homeBuildingId === building.id || h.prisonBuildingId === building.id),
-        )
-        .map((h) => h.id);
+      building.occupants = prisonOccupantIds.get(building.id) ?? [];
       continue;
     }
 
-    building.occupants = humans
-      .filter(
-        (h) =>
-          h.alive &&
-          !h.faction &&
-          h.homeBuildingId === building.id &&
-          h.prisonBuildingId == null,
-      )
-      .map((h) => h.id);
+    building.occupants = jobOccupantIds.get(building.id) ?? [];
   }
 }
 
@@ -387,6 +416,7 @@ export function assignBuilderInPlace(
   building: Building,
   humans: Entity[],
   allBuildings: Building[],
+  policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
 ): boolean {
   if (building.completed || building.faction === 'rival') return false;
 
@@ -424,9 +454,11 @@ export function assignBuilderInPlace(
     .sort((a, b) => {
       const aPri = jobBuildingPriority(
         allBuildings.find((x) => x.id === a.homeBuildingId)?.type ?? BuildingType.Farm,
+        policy,
       );
       const bPri = jobBuildingPriority(
         allBuildings.find((x) => x.id === b.homeBuildingId)?.type ?? BuildingType.Farm,
+        policy,
       );
       return bPri - aPri;
     })
@@ -447,7 +479,7 @@ export function assignBuilderInPlace(
 }
 
 export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entity[] {
-  const alive = humans.filter((h) => h.alive && !h.faction);
+  const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
   const buildingById = new Map<number, Building>();
   for (let i = 0; i < buildings.length; i++) {
     buildingById.set(buildings[i].id, buildings[i]);
@@ -498,7 +530,11 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
   return alive;
 }
 
-export function staffConstructionCrews(alive: Entity[], buildings: Building[]): void {
+export function staffConstructionCrews(
+  alive: Entity[],
+  buildings: Building[],
+  policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
+): void {
   const incomplete = buildings
     .filter((b) => !b.completed && b.faction !== 'rival')
     .sort((a, b) => {
@@ -512,7 +548,7 @@ export function staffConstructionCrews(alive: Entity[], buildings: Building[]): 
   for (let i = 0; i < incomplete.length; i++) {
     const building = incomplete[i];
     if (building.occupants.length === 0) {
-      assignBuilderInPlace(building, alive, buildings);
+      assignBuilderInPlace(building, alive, buildings, policy);
     }
   }
 
@@ -530,7 +566,7 @@ export function staffConstructionCrews(alive: Entity[], buildings: Building[]): 
   // Pass 2: fill remaining slots
   for (let i = 0; i < incomplete.length; i++) {
     const building = incomplete[i];
-    while (assignBuilderInPlace(building, alive, buildings)) {
+    while (assignBuilderInPlace(building, alive, buildings, policy)) {
       // Fill crew capacity
     }
   }
@@ -540,32 +576,41 @@ export function staffJobBuildings(
   alive: Entity[],
   buildings: Building[],
   includeManualStaff: boolean,
-  venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+  worldSlices?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+  policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
 ): void {
-  const jobBuildings = completedJobBuildings(buildings);
+  const jobBuildings = completedJobBuildings(buildings, policy);
 
   for (let i = 0; i < jobBuildings.length; i++) {
     const building = jobBuildings[i];
     if (!includeManualStaff && isManualStaffingBuilding(building)) continue;
-    while (assignWorkerInPlace(building, alive, buildings, venueSchedules)) {
+    while (assignWorkerInPlace(building, alive, buildings, worldSlices)) {
       // Fill job slots
     }
   }
 
   if (!includeManualStaff) {
-    rebalanceJobWorkers(alive, buildings);
+    rebalanceJobWorkers(alive, buildings, policy);
   }
   syncJobBuildingOccupants(alive, buildings);
 }
 
+/**
+ * The one automatic staffing pass. `worldSlices` supplies the venue auto-staff targets and the
+ * colony's `workforcePolicy`; a caller holding a `WorldState` gets the player's preset for free.
+ */
 export function assignMissingWorkers(
   humans: Entity[],
   buildings: Building[],
-  venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+  worldSlices?: Pick<
+    WorldState,
+    'tavernSchedule' | 'hotelSchedule' | 'workforcePolicy'
+  >,
 ): void {
   const alive = prepareWorkforce(humans, buildings);
-  staffConstructionCrews(alive, buildings);
-  staffJobBuildings(alive, buildings, false, venueSchedules);
+  const policy = getWorkforcePolicy(worldSlices ?? {});
+  staffConstructionCrews(alive, buildings, policy);
+  staffJobBuildings(alive, buildings, false, worldSlices, policy);
 }
 
 export function countWorkingAndIdleSettlers(
@@ -587,7 +632,7 @@ export function countWorkingAndIdleSettlers(
 
   for (let i = 0; i < humans.length; i++) {
     const e = humans[i];
-    if (!e.alive || e.faction || e.isJuvenile || e.type !== EntityType.Human) continue;
+    if (!e.alive || !isPlayerHuman(e) || e.isJuvenile) continue;
     if (isImprisoned(e)) continue;
 
     if (hasWorkAssignment(e) || constructionWorkers.has(e.id)) {
@@ -677,6 +722,6 @@ export function releasePrisoners(state: WorldState): void {
       (e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e),
     );
     assignMissingResidences(villagers, state.buildings, state.entities);
-    assignMissingWorkers(villagers, state.buildings);
+    assignMissingWorkers(villagers, state.buildings, state);
   }
 }

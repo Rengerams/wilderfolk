@@ -2,6 +2,8 @@ import { memo, useMemo } from 'react';
 import type { WorldState } from '../../game/gameEngine';
 import { getGrazingPressureReport } from '../../game/gameEngine';
 import { getEcosystemBreakdown } from '../../game/gameEngine';
+import { getEcosystemHealth } from '../../game/dailyEcology';
+import { resourceFillPercent } from '../../game/dashboardData';
 import { SEASON_LABELS, seasonTextClass, formatTemperatureC, computeDailyTemperatureC } from '../../game/temperature';
 import { Season, WeatherType } from '../../game/gameTypes';
 import {
@@ -43,7 +45,7 @@ const WildlifeBar = memo(function WildlifeBar({ label, count, max, color, icon }
         <div className="h-1.5 overflow-hidden rounded-full bg-stone-600">
           <div
             className={`h-full rounded-full transition-all ${color}`}
-            style={{ width: `${Math.min(100, (count / max) * 100)}%` }}
+            style={{ width: `${resourceFillPercent({ amount: count, cap: max })}%` }}
           />
         </div>
       </div>
@@ -109,6 +111,17 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
     state.tick,
   ]);
   const stage = valley.stage;
+  /**
+   * The health bar reads the ecology owner, not the raw field. `getEcosystemHealth` supplies the
+   * documented midpoint for a world with no recorded score, so a legacy save no longer renders
+   * "NaN %" in this bar beside a breakdown total of 50 (audit C2 "Ecosystem-health read", R34).
+   */
+  const ecosystemHealth = getEcosystemHealth(state);
+  // One percentage for the label *and* the bar, from the fill owner: the two used to be computed
+  // separately (`Math.round(x)` above a `Math.max(0, x)` width), so a value out of range moved the bar
+  // and not the number (2026-09-20 audit, O-8).
+  const healthFill = resourceFillPercent({ amount: ecosystemHealth, cap: 100 });
+  const pollutionFill = resourceFillPercent({ amount: state.pollutionLevel, cap: 100 });
 
   const wc = state.wildlifeCounts;
   const preyTotal = (wc?.rabbits ?? 0) + (wc?.deer ?? 0);
@@ -226,24 +239,24 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
           <div>
             <div className="mb-1 flex justify-between text-[13px]">
               <span className="text-stone-400">Health</span>
-              <strong className={state.ecosystemHealth > 60 ? 'text-emerald-400' : state.ecosystemHealth > 30 ? 'text-amber-400' : 'text-rose-400'}>
-                {Math.round(state.ecosystemHealth)}%
+              <strong className={ecosystemHealth > 60 ? 'text-emerald-400' : ecosystemHealth > 30 ? 'text-amber-400' : 'text-rose-400'}>
+                {healthFill}%
               </strong>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-stone-600">
               <div className={`h-full rounded-full transition-all ${
-                state.ecosystemHealth > 60 ? 'bg-emerald-500' : state.ecosystemHealth > 30 ? 'bg-amber-500' : 'bg-rose-500'
-              }`} style={{ width: `${Math.max(0, state.ecosystemHealth)}%` }} />
+                ecosystemHealth > 60 ? 'bg-emerald-500' : ecosystemHealth > 30 ? 'bg-amber-500' : 'bg-rose-500'
+              }`} style={{ width: `${healthFill}%` }} />
             </div>
           </div>
 
           <div>
             <div className="mb-1 flex justify-between text-[13px]">
               <span className="text-stone-400">Pollution</span>
-              <strong className="text-rose-400">{Math.round(state.pollutionLevel)}%</strong>
+              <strong className="text-rose-400">{pollutionFill}%</strong>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-stone-600">
-              <div className="h-full rounded-full bg-rose-500 transition-all" style={{ width: `${Math.max(0, state.pollutionLevel)}%` }} />
+              <div className="h-full rounded-full bg-rose-500 transition-all" style={{ width: `${pollutionFill}%` }} />
             </div>
           </div>
         </div>

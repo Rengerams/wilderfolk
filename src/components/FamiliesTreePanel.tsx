@@ -4,7 +4,7 @@
  */
 import { useMemo, useState } from 'react';
 import type { Entity, WorldState } from '../game/gameTypes';
-import { humanDisplayName } from '../game/citizenId';
+import { citizenGivenName, humanDisplayName } from '../game/citizenId';
 import {
   buildFamilyTree,
   groupFamiliesBySurname,
@@ -85,7 +85,7 @@ export default function FamiliesTreePanel({ state, onFocusCitizen }: FamiliesTre
                     title={`Show ${humanDisplayName(person)}'s family tree`}
                   >
                     <Emoji className="mr-0.5">{person.isJuvenile ? (person.gender === 'male' ? '👦' : '👧') : (person.gender === 'male' ? '👨' : '👩')}</Emoji>
-                    {person.name || 'Settler'}
+                    {citizenGivenName(person)}
                     {person.isJuvenile ? ' · child' : ''}
                   </button>
                 );

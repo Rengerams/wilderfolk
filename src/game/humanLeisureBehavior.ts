@@ -1,5 +1,6 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { commuteHumanToBuilding } from './simulation/humanMovement';
+import { faceVelocity, setVelocityToward, steerEntityToward } from './simulation/movementSteering';
 import { PER_TICK_RATE_SCALE, getChildCustodian, hasResidenceAssignment, personDayRoll, prefersHomeTonight } from './dayCycle';
 import { isOnWorkScheduleShift } from './workSchedule';
 import { pickSocialImpulse } from './socialLife';
@@ -24,12 +25,9 @@ export function tickHumanChildLeisure(args: {
   const kidImpulse = pickSocialImpulse(entity, state, updatedBuildings, [], playmates);
   if (kidImpulse.motive === 'kid_play' && kidImpulse.company?.alive) {
     const play = kidImpulse.company;
-    const pdx = play.x - entity.x;
-    const pdy = play.y - entity.y;
-    const pdist = Math.hypot(pdx, pdy) || 1;
+    const pdist = Math.hypot(play.x - entity.x, play.y - entity.y) || 1;
     if (pdist > 16) {
-      entity.vx = (pdx / pdist) * speed * 0.7;
-      entity.vy = (pdy / pdist) * speed * 0.7;
+      setVelocityToward(entity, play.x, play.y, speed, 0.7);
     } else {
       entity.vx = Math.sin(state.tick * 0.2 + entity.id) * speed * 0.45;
       entity.vy = Math.cos(state.tick * 0.18 + play.id) * speed * 0.45;
@@ -40,7 +38,7 @@ export function tickHumanChildLeisure(args: {
         sayHumanChatPhrase(entity, kidImpulse.bubble, 40);
       }
     }
-    entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+    faceVelocity(entity);
     return true;
   }
   const mother = entity.motherId != null ? livingHumanAt(entity.motherId) : undefined;
@@ -48,16 +46,11 @@ export function tickHumanChildLeisure(args: {
   const freeParent = [mother, father].find((parent) => parent?.alive && isPlayerHuman(parent) && !prefersHomeTonight(parent.id, state.tick, hourOfDay) && !isOnWorkScheduleShift(state, hourOfDay)) ?? [mother, father].find((parent) => parent?.alive);
   const follow = freeParent ?? getChildCustodian(entity, allHumans);
   if (follow?.alive && personDayRoll(entity.id, state.tick, 601) > 0.22) {
-    const dx = follow.x - entity.x;
-    const dy = follow.y - entity.y;
-    const distance = Math.hypot(dx, dy) || 1;
+    const distance = Math.hypot(follow.x - entity.x, follow.y - entity.y) || 1;
     if (distance > 22) {
-      entity.vx = (dx / distance) * speed * 0.55;
-      entity.vy = (dy / distance) * speed * 0.55;
-      entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+      steerEntityToward(entity, follow.x, follow.y, speed, 0.55);
     } else if (distance > 8) {
-      entity.vx = (dx / distance) * speed * 0.18;
-      entity.vy = (dy / distance) * speed * 0.18;
+      setVelocityToward(entity, follow.x, follow.y, speed, 0.18);
     }
     return true;
   }
@@ -112,12 +105,12 @@ export function tickAdultLeisureMotive(args: {
       }
     } else if (impulse.company?.alive && impulse.building) {
       const b = impulse.building; const cx = b.x + b.width / 2; const cy = b.y + b.height * 0.92;
-      const dx = (impulse.company.x + cx) / 2 - entity.x; const dy = (impulse.company.y + cy) / 2 - entity.y; const dist = Math.hypot(dx, dy) || 1;
-      if (dist > 16) { entity.vx = (dx / dist) * speed * 0.48; entity.vy = (dy / dist) * speed * 0.48; entity.spriteAngle = Math.atan2(entity.vy, entity.vx); } else settlerPairChat(entity, impulse.company, 'home', 0.1);
+      const dist = Math.hypot((impulse.company.x + cx) / 2 - entity.x, (impulse.company.y + cy) / 2 - entity.y) || 1;
+      if (dist > 16) { steerEntityToward(entity, (impulse.company.x + cx) / 2, (impulse.company.y + cy) / 2, speed, 0.48); } else settlerPairChat(entity, impulse.company, 'home', 0.1);
       suppressIdle = true;
     } else if (impulse.company?.alive) {
-      const c = impulse.company; const dx = c.x - entity.x; const dy = c.y - entity.y; const dist = Math.hypot(dx, dy) || 1;
-      if (dist > 16) { entity.vx = (dx / dist) * speed * 0.5; entity.vy = (dy / dist) * speed * 0.5; entity.spriteAngle = Math.atan2(entity.vy, entity.vx); }
+      const c = impulse.company; const dist = Math.hypot(c.x - entity.x, c.y - entity.y) || 1;
+      if (dist > 16) { steerEntityToward(entity, c.x, c.y, speed, 0.5); }
       else if (impulse.motive === 'comfort_neighbor') { settlerPairChat(entity, c, 'social', 0.12); c.energy = Math.min(c.maxEnergy, c.energy + 0.15 * PER_TICK_RATE_SCALE); }
       else if (impulse.motive === 'care_pregnant') settlerPairChat(entity, c, 'home', 0.12);
       suppressIdle = true;

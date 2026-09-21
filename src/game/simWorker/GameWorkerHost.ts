@@ -45,16 +45,24 @@ export type WorkerFaultHandler = (
   message: string,
 ) => void;
 
+/**
+ * The player-authored slice of UI state that a patch may carry.
+ *
+ * **Only fields the player authors belong here.** `bigNews`, `floatingTexts` and `activeEvent` were
+ * removed (2026-09-20 audit, P-5): the *tick* authors those on the worker side, and `applyWorkerUiPatch`
+ * deliberately never adopted them — so shipping them cloned the whole news list and every live floating
+ * text into every patch, and `protocol.ts` advertised a transfer that did not happen. Because a patch is
+ * composed from the host's snapshot it can be up to `MAX_PIPELINE_DEPTH` ticks behind, which is exactly
+ * why adopting them used to rewind the worker and destroy events the player had not seen yet
+ * (`BUG_REPORTS/2026-09-16-ui-patch-rewinds-worker-authored-big-news.md`).
+ */
 export type WorkerUiPatch = Pick<
   WorldState,
-  | 'bigNews'
-  | 'floatingTexts'
   | 'autoSave'
   | 'nextFloatingTextId'
   | 'dismissedBigNewsIds'
   | 'dismissedNotificationIds'
   | 'dismissedActiveEventIds'
-  | 'activeEvent'
   | 'tutorialSeen'
 >;
 
@@ -412,14 +420,11 @@ export class GameWorkerHost {
     const msg: WorkerRequest = {
       type: 'patchUi',
       proto: WORKER_PROTO,
-      bigNews: patch.bigNews,
-      floatingTexts: patch.floatingTexts,
       autoSave: patch.autoSave,
       nextFloatingTextId: patch.nextFloatingTextId,
       dismissedBigNewsIds: patch.dismissedBigNewsIds,
       dismissedNotificationIds: patch.dismissedNotificationIds,
       dismissedActiveEventIds: patch.dismissedActiveEventIds,
-      activeEvent: patch.activeEvent,
       tutorialSeen: patch.tutorialSeen,
     };
     this.postControl(msg);

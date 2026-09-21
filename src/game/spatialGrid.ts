@@ -51,6 +51,20 @@ function isSpatialGridDisabled(): boolean {
 /** When false, hunt/graze/flee fall back to full-map entity scans (A/B perf comparison). */
 export const USE_SPATIAL_GRID = !isSpatialGridDisabled();
 
+/**
+ * World→cell clamping convention for every uniform grid (`EntitySpatialGrid`, `ScentGrid`): floor the
+ * coordinate, then clamp it into `0 .. cellCount - 1`.
+ *
+ * This is the single owner of the rule (duplication-deadcode A12); a cell coordinate must mean the
+ * same thing to entity lookups and to odour deposits or the two grids disagree about which cell a
+ * world position belongs to. One axis per call rather than a bundled `(x, y) => { col, row }`
+ * helper, so the hot `insert` path stays allocation-free. Callers own the non-finite policy: `EntitySpatialGrid`
+ * rejects non-finite input before calling this, `ScentGrid` deposits finite coordinates only.
+ */
+export function gridCellAxis(coord: number, cellSize: number, cellCount: number): number {
+  return Math.min(cellCount - 1, Math.max(0, Math.floor(coord / cellSize)));
+}
+
 export function isHumanSocialGridEntity(entity: Entity): boolean {
   return entity.type === EntityType.Human && entity.alive;
 }
@@ -116,8 +130,8 @@ export class EntitySpatialGrid {
 
   cellCoords(x: number, y: number): { col: number; row: number } | null {
     if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-    const col = Math.min(this.cols - 1, Math.max(0, Math.floor(x / this.cellSize)));
-    const row = Math.min(this.rows - 1, Math.max(0, Math.floor(y / this.cellSize)));
+    const col = gridCellAxis(x, this.cellSize, this.cols);
+    const row = gridCellAxis(y, this.cellSize, this.rows);
     return { col, row };
   }
 
@@ -154,8 +168,8 @@ export class EntitySpatialGrid {
   private insert(entity: Entity): void {
     if (!entity.alive || !Number.isFinite(entity.x) || !Number.isFinite(entity.y)) return;
 
-    const col = Math.min(this.cols - 1, Math.max(0, Math.floor(entity.x / this.cellSize)));
-    const row = Math.min(this.rows - 1, Math.max(0, Math.floor(entity.y / this.cellSize)));
+    const col = gridCellAxis(entity.x, this.cellSize, this.cols);
+    const row = gridCellAxis(entity.y, this.cellSize, this.rows);
     const newIdx = row * this.cols + col;
 
     const existingIdx = this.entityCell.get(entity.id);
@@ -520,10 +534,20 @@ export function syncSpatialGridEntity(
   entity: Entity,
   grassGrid?: EntitySpatialGrid,
   mobileGrid?: EntitySpatialGrid,
+  /**
+   * The tree grid. Required for a tree spawned **mid-tick**: `tickLayerRealtime` reconciles the tree
+   * grid once per tick from `byType[Tree]`, and a same-tick spawn is not in that bucket yet, so
+   * without this the newcomer is invisible to tree queries for the rest of the tick — queryable from
+   * the next tick's reconcile, but not from the tick that created it. `nature_boom` adds 15 trees and
+   * `clearTreesUnderFootprint` removes them, both after the grid was first built; that comment on
+   * `syncTreeGrid` records the same hazard and is why it reconciles rather than only rebuilds.
+   */
+  treeGrid?: EntitySpatialGrid,
 ): void {
   if (!USE_SPATIAL_GRID) return;
   if (grassGrid && isGrassGridEntity(entity)) grassGrid.update(entity);
   if (mobileGrid && isMobileGridEntity(entity)) mobileGrid.update(entity);
+  if (treeGrid && isTreeGridEntity(entity)) treeGrid.update(entity);
 }
 
 // ============ ROAD SPATIAL INDEX ============

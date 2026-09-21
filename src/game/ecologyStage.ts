@@ -12,6 +12,8 @@ import { getGrazingPressureReport } from './ecosystemPressure';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { ValleyEcology } from './gameConstants';
+import { getEcosystemHealth } from './dailyEcology';
+import { addReputation } from './simHelpers';
 
 export type EcologyDriverId = 'grazing' | 'predators' | 'overhunt' | 'footprint';
 export type DriverBand = 'good' | 'caution' | 'bad';
@@ -122,7 +124,7 @@ export function computeRawEcologyStress(state: WorldState): {
   const deer = state.wildlifeCounts?.deer ?? 0;
   const rabbits = state.wildlifeCounts?.rabbits ?? 0;
   const prey = deer + rabbits;
-  const eco = state.ecosystemHealth ?? 100;
+  const eco = getEcosystemHealth(state);
   const pollution = state.pollutionLevel ?? 0;
   const humans = state.humanPopulation ?? 0;
 
@@ -450,7 +452,7 @@ export function tickValleyEcologyStage(state: WorldState): void {
   if (next !== current) {
     // Collapse entry: one-time reputation hit
     if (next === 'collapse' && current !== 'collapse') {
-      state.villageReputation = Math.max(0, (state.villageReputation ?? 0) - 4);
+      addReputation(state, -4);
     }
     state.valleyStage = next;
     state.valleyStageSinceDay = day;

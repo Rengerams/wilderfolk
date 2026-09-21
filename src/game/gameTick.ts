@@ -24,7 +24,6 @@ import {
   markCalendarDayProcessed,
   syncHumanAgeFromCalendar,
   reconcileOrphanedMarriages,
-  isResidenceOccupantEntity,
   syncResidenceOccupants,
 } from './dayCycle';
 import { buildEntityByType, type SimulationFocus } from './simFocus';
@@ -296,10 +295,14 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // after the assignment layer ran — so this is the one place that can guarantee
   // `residenceBuildingId ↔ occupants` for SIMULATION_AUTHORITY §5. The decision of *who* lives
   // where stays with the assignment layer; this only makes the mirror agree with it.
-  syncResidenceOccupants(
-    allAlive.filter((e) => e.alive && isResidenceOccupantEntity(e)),
-    updatedBuildings,
-  );
+  // No pre-filter: `syncResidenceOccupants` skips non-occupants itself
+  // (`residencyReconciliation.ts` — `if (!isResidenceOccupantEntity(human)) continue;`), and
+  // `isResidenceOccupantEntity` already tests `entity.alive`, so
+  // `allAlive.filter((e) => e.alive && isResidenceOccupantEntity(e))` discarded every element the
+  // callee discards again and produced identical buckets. Measured at 1.79 % of tick time
+  // (2026-09-20 audit: 1.79 % of tick time over an 8 640-tick instrumented run) for a
+  // ~1 800-element copy per tick.
+  syncResidenceOccupants(allAlive, updatedBuildings);
   if (isSpatialQueryMetricsEnabled()) flushSpatialQueryTickToSession();
 
   // Dev-only invariant pulse once per colony day — never repairs state.

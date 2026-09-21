@@ -1,9 +1,16 @@
 import type { WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { getLivePlayerPopulation, getTotalBeds } from './populationGrowth';
-import { getVillageLeader, getYearsUntilElection, formatSettlerName } from './villageLeadership';
+import {
+  getVillageLeader,
+  getYearsUntilElection,
+  formatElectionDelay,
+  formatSettlerName,
+} from './villageLeadership';
 import { hasIronSpears, hasStoneSpears } from './combat';
 import { formatRaidDeadline } from './frontierCombat';
+import { isFoodAlert } from './resourceUtils';
+import { getBuildingCenter } from './placementUtils';
 import {
   findCompletedBlacksmith,
   formatForgeInputs,
@@ -85,7 +92,7 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
     });
   }
 
-  if (state.resources.food < Math.max(20, humans * 2)) {
+  if (isFoodAlert(state)) {
     hints.push({
       icon: '🍖',
       title: 'Feed the village',
@@ -111,7 +118,7 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
       icon: '👑',
       title: 'Leadership vacancy',
       detail: until > 0
-        ? `No village head — merit election in ${until} year${until === 1 ? '' : 's'} (Year ${state.pendingElectionYear}).`
+        ? `No village head — merit election in ${formatElectionDelay(until)} (Year ${Math.floor(state.pendingElectionYear)}).`
         : 'Merit election imminent — settlers will gather soon.',
       action: { label: 'Leadership', id: 'open_village' },
     });
@@ -235,8 +242,8 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
         label: 'Open Blacksmith',
         id: 'focus_blacksmith',
         buildingId: blacksmith.id,
-        buildingX: blacksmith.x + blacksmith.width / 2,
-        buildingY: blacksmith.y + blacksmith.height / 2,
+        buildingX: getBuildingCenter(blacksmith).x,
+        buildingY: getBuildingCenter(blacksmith).y,
       },
     });
   }
@@ -256,8 +263,8 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
             label: 'Open Blacksmith',
             id: 'focus_blacksmith',
             buildingId: blacksmith.id,
-            buildingX: blacksmith.x + blacksmith.width / 2,
-            buildingY: blacksmith.y + blacksmith.height / 2,
+            buildingX: getBuildingCenter(blacksmith).x,
+            buildingY: getBuildingCenter(blacksmith).y,
           }
           : { label: 'Build Blacksmith', id: 'build_blacksmith' },
       });

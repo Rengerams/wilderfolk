@@ -1,4 +1,5 @@
 import { BUILDING_CONFIGS, BuildingType, GRID_SIZE, snapToGrid, type Building, type BuildingConfig } from './gameTypes';
+import { getBuildingFootprintRect } from './buildingGeometry';
 
 /** Degrees — 0 (horizontal) and 90 (vertical) for straight strips. */
 export type BuildingRotation = 0 | 90;
@@ -33,10 +34,6 @@ export function normalizeBuildingRotation(rotation: unknown): BuildingRotation {
 export function normalizeCornerRotation(rotation: unknown): CornerRotation {
   if (rotation === 90 || rotation === 180 || rotation === 270) return rotation;
   return 0;
-}
-
-export function isCornerRotation(rotation: unknown): rotation is CornerRotation {
-  return rotation === 0 || rotation === 90 || rotation === 180 || rotation === 270;
 }
 
 export function toggleBuildingRotation(rotation: BuildingRotation): BuildingRotation {
@@ -83,10 +80,18 @@ export function snapBuildingCenter(
 }
 
 export function isEntityOnBuilding(entityX: number, entityY: number, building: Building, margin = 12): boolean {
+  // `building.x/y` is the footprint centre (`placementUtils.getBuildingCenter`), so the ground the
+  // building stands on is the owner's rect, padded outwards by `margin`. Reading `x … x + width` here
+  // treated the stored point as the top-left corner: for a 53 × 46 Farm it accepted ground up to
+  // 13.5 px outside the drawn pad on the east/south and missed the whole west/north half, so
+  // `isInsideCompletedBuilding` let settlers spawn inside a house and the cure-window sweep read a
+  // howler in that half as outdoors (`LIVE-FINDINGS-STATUS.md`, X-6 / PARKED-1). The comparisons stay
+  // inclusive at the padded edge, as the corner form's `>=`/`<=` were.
+  const rect = getBuildingFootprintRect(building);
   return (
-    entityX >= building.x - margin
-    && entityX <= building.x + building.width + margin
-    && entityY >= building.y - margin
-    && entityY <= building.y + building.height + margin
+    entityX >= rect.left - margin
+    && entityX <= rect.right + margin
+    && entityY >= rect.top - margin
+    && entityY <= rect.bottom + margin
   );
 }

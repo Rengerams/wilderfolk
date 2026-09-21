@@ -9,6 +9,7 @@ import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard, AUTHORED_STORY_COOLDOWN_FLAG } from './storyHelpers';
+import { spendFood } from './economyLedger';
 
 export const STORY_KEY = 'wedding_diplomacy';
 export const AUTHORED_STORY_COOLDOWN_DAYS = 28;
@@ -201,7 +202,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
         addNotification(state, 'Not enough resources', `A practical gift needs ${PRACTICAL_FOOD} food and ${PRACTICAL_WOOD} wood.`, 'warning');
         return false;
       }
-      state.resources.food -= PRACTICAL_FOOD;
+      spendFood(state, 'wedding', PRACTICAL_FOOD);
       state.resources.wood -= PRACTICAL_WOOD;
       setStoryFlags(state, {
         [FLAG_STATUS]: STATUS.gift_sent,
@@ -314,8 +315,8 @@ function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
   else if (total >= -1) outcome = 'insult';
   else outcome = 'catastrophe';
 
-  if (choice === 'host_feast') state.resources.food -= FEAST_FOOD;
-  if (choice === 'send_delegation') state.resources.food -= DELEGATION_FOOD;
+  if (choice === 'host_feast') spendFood(state, 'wedding', FEAST_FOOD);
+  if (choice === 'send_delegation') spendFood(state, 'wedding', DELEGATION_FOOD);
 
   const baseFlags: Record<string, number> = {
     [FLAG_RESOLVED]: state.tick,

@@ -1,12 +1,18 @@
-import { Suspense, lazy, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { GAME_PHASE, GAME_VERSION } from '../../game/gameEngine';
 import { searchGuideHelp } from '../../game/guideHelp';
+import { describeHospitalReputation } from '../../game/hospitalCare';
+// Interpolated, not typed: this card said "every 5 years" long after the owner's term was shortened
+// (10 → 5 → 2, `villageLeadership.ts:24-27`), while two other surfaces already rendered the constant.
+// The Guide was the only hardcoded copy (2026-09-21 stale-text audit).
+import { ELECTION_INTERVAL_YEARS } from '../../game/villageLeadership';
 import GuidedCampaignPanel from '../GuidedCampaignPanel';
 import type { WorldState } from '../../game/gameTypes';
+import type { MoreSubTab } from '../../hooks/useGameShellState';
 
-type MoreSubTab = 'guide' | 'roadmap' | 'campaign';
-
-const RoadmapPanel = lazy(() => import('../../game/RoadmapPanel'));
+// The sub-tab union is owned by the shell (`useGameShellState`). It used to be re-declared here, which
+// meant a new member compiled in the shell but was unreachable in this panel — the panel's own copy
+// simply did not have it (2026-09-20 audit, bug 54).
 
 export interface MoreTabPanelProps {
   moreSubTab: MoreSubTab;
@@ -15,6 +21,8 @@ export interface MoreTabPanelProps {
   onReplayTutorial: () => void;
   onToggleTutorials: () => void;
   onSpawnMoonHowlerDebug: () => void;
+  /** `?debug=1` — debug tooling must not be reachable in a normal session. */
+  debugMode: boolean;
   state: WorldState;
   onStartGuidedCampaign: () => void;
 }
@@ -26,6 +34,7 @@ export default function MoreTabPanel({
   onReplayTutorial,
   onToggleTutorials,
   onSpawnMoonHowlerDebug,
+  debugMode,
   state,
   onStartGuidedCampaign,
 }: MoreTabPanelProps) {
@@ -35,26 +44,21 @@ export default function MoreTabPanel({
   return (
     <div className="space-y-3">
       <div className="progress-subnav">
-        {(['guide', 'campaign', 'roadmap'] as MoreSubTab[]).map((id) => (
+        {(['guide', 'campaign'] as MoreSubTab[]).map((id) => (
           <button
             key={id}
             type="button"
             data-active={moreSubTab === id}
+            aria-pressed={moreSubTab === id}
             onClick={() => setMoreSubTab(id)}
           >
-            {id === 'guide' ? '❓ Guide' : id === 'campaign' ? '📖 Campaign' : '🗺️ Roadmap'}
+            {id === 'guide' ? '❓ Guide' : '📖 Campaign'}
           </button>
         ))}
       </div>
 
       {moreSubTab === 'campaign' && (
         <GuidedCampaignPanel state={state} onStart={onStartGuidedCampaign} />
-      )}
-
-      {moreSubTab === 'roadmap' && (
-        <Suspense fallback={<p className="text-[13px] text-stone-300">Loading roadmap…</p>}>
-          <RoadmapPanel />
-        </Suspense>
       )}
 
       {moreSubTab === 'guide' && (
@@ -84,13 +88,6 @@ export default function MoreTabPanel({
           <div className="rounded-xl border border-amber-700/40 bg-amber-950/20 p-3">
             <h3 className="mb-1 text-sm font-bold text-amber-300">⚠️ {GAME_PHASE} · v{GAME_VERSION}</h3>
             <p className="text-stone-300">Playtest build — expect bugs, rough edges, and features that change. Saves may break between updates. Feedback helps shape the real release.</p>
-            <button
-              type="button"
-              onClick={() => setMoreSubTab('roadmap')}
-              className="mt-2 w-full rounded-lg border border-indigo-600/40 bg-indigo-950/40 px-3 py-2 text-[13px] font-bold text-indigo-200 hover:bg-indigo-900/50"
-            >
-              🗺️ View development roadmap
-            </button>
           </div>
 
           <div className="rounded-xl border border-violet-700/30 bg-violet-950/20 p-3">
@@ -102,7 +99,9 @@ export default function MoreTabPanel({
               <p>• <strong className="text-stone-200">Living drama</strong> — marriages, scandals, babies, moon howlers (Log / .txt chronicle).</p>
               <p>• <strong className="text-stone-200">The wider world</strong> — pilgrims, performers, rival camps appear as you grow.</p>
               <p>• <strong className="text-stone-200">Trade &amp; reputation</strong> — become a known township, link routes, unlock gold.</p>
-              <p className="text-stone-300 italic">v0.4 is a playtest — more scripted story and rivals are planned. For now, pick one legacy and watch your chronicle unfold.</p>
+              {/* The version is rendered once, by the build card above (`GAME_VERSION`); this
+                  sentence used to pin a stale `v0.4` beside it (U-6). */}
+              <p className="text-stone-300 italic">This build is a playtest — more scripted story and rivals are planned. For now, pick one legacy and watch your chronicle unfold.</p>
             </div>
           </div>
 
@@ -143,7 +142,7 @@ export default function MoreTabPanel({
               <p><strong className="text-stone-200">Frontier</strong> — Visitors, rivals, raids, diplomacy (badge when action needed).</p>
               <p><strong className="text-stone-200">Nature</strong> — Ecosystem health and wildlife counts.</p>
               <p><strong className="text-stone-200">Progress</strong> — Research · Trade · Goals (legend portrait + optional challenges). Sub-tabs show badges when researching or trade is ready.</p>
-              <p><strong className="text-stone-200">More</strong> — Guide (this page) and Roadmap.</p>
+              <p><strong className="text-stone-200">More</strong> — Guide (this page) and Campaign.</p>
               <p><strong className="text-stone-200">Tab hotkeys</strong> — <strong className="text-stone-200">V</strong> Village · <strong className="text-stone-200">F</strong> Frontier · <strong className="text-stone-200">N</strong> Nature · <strong className="text-stone-200">P</strong> Progress · <strong className="text-stone-200">L</strong> Log · <strong className="text-stone-200">M</strong> More.</p>
             </div>
           </div>
@@ -222,34 +221,32 @@ export default function MoreTabPanel({
             </p>
           </div>
 
-          <div className="rounded-xl border border-dashed border-violet-700/40 bg-violet-950/20 p-3">
-            <h3 className="mb-2 text-sm font-bold text-violet-300">🧪 Testing</h3>
-            <p className="mb-2 text-[13px] text-stone-300">Spawn a Moon Howler instantly for playtesting.</p>
-            <button
-              onClick={onSpawnMoonHowlerDebug}
-              className="w-full rounded-lg bg-violet-800 px-3 py-2 text-[13px] font-bold text-violet-100 transition-all hover:bg-violet-700"
-            >
-              🌝 Spawn Moon Howler
-            </button>
-          </div>
+          {/* Debug-only tooling, gated on `?debug=1` (bug 45). This card used to ship to every
+              player, and an earlier report recorded it as gated when it was not — so the gate is
+              asserted by `tests/debugGate.guide.test.ts` rather than trusted to this comment. */}
+          {debugMode && (
+            <div className="rounded-xl border border-dashed border-violet-700/40 bg-violet-950/20 p-3">
+              <h3 className="mb-2 text-sm font-bold text-violet-300">🧪 Testing</h3>
+              <p className="mb-2 text-[13px] text-stone-300">Spawn a Moon Howler instantly for playtesting.</p>
+              <button
+                onClick={onSpawnMoonHowlerDebug}
+                className="w-full rounded-lg bg-violet-800 px-3 py-2 text-[13px] font-bold text-violet-100 transition-all hover:bg-violet-700"
+              >
+                🌝 Spawn Moon Howler
+              </button>
+            </div>
+          )}
 
           <div className="rounded-xl bg-stone-700/50 p-3">
             <h3 className="mb-2 text-sm font-bold text-blue-300">🎮 Controls</h3>
-            <div className="grid grid-cols-2 gap-1 text-stone-300">
-              <span><strong className="text-stone-200">WASD / Arrows</strong></span><span>Pan camera</span>
-              <span><strong className="text-stone-200">Mouse drag</strong></span><span>Pan camera</span>
-              <span><strong className="text-stone-200">Scroll</strong></span><span>Zoom in/out</span>
-              <span><strong className="text-stone-200">Click</strong></span><span>Select / Build</span>
-              <span><strong className="text-stone-200">Space</strong></span><span>Pause/Play</span>
-              <span><strong className="text-stone-200">B</strong></span><span>Full build catalog (left)</span>
-              <span><strong className="text-stone-200">G</strong></span><span>Toggle grid</span>
-              <span><strong className="text-stone-200">1–9</strong></span><span>Quick-build (opens left catalog)</span>
-              <span><strong className="text-stone-200">V F N P L M</strong></span><span>Sidebar tabs</span>
-              <span><strong className="text-stone-200">H</strong></span><span>Find settlers (center camera)</span>
-              <span><strong className="text-stone-200">ESC</strong></span><span>Cancel build</span>
-              <span><strong className="text-stone-200">+ / -</strong></span><span>Zoom</span>
-              <span><strong className="text-stone-200">🔊 / 🔇</strong></span><span>Mute sound — or pick Soft / Normal / Loud</span>
-            </div>
+            {/* This grid used to be a hand-written second copy of `ShortcutsOverlay`'s list, and the
+                two had already drifted: it omitted X, O, R and ?, and described ESC differently
+                (U-9). The overlay owns the list, so the guide points at it instead of restating it. */}
+            <p className="text-stone-300">
+              Press <strong className="text-stone-200">?</strong> for the full keyboard-shortcut list —
+              camera panning and zoom, quick-build, overlays, rotating roads and walls, and closing
+              anything you have open. It is always the current list.
+            </p>
           </div>
 
           <div className="rounded-xl bg-stone-700/50 p-3">
@@ -262,10 +259,10 @@ export default function MoreTabPanel({
               <p>• <strong className="text-amber-200">Roads</strong> — Infra tab (key 8). Horizontal strips — zigzag them (step north/south each segment) for paths up hills. Boost nearby buildings +15%.</p>
               <p>• <strong className="text-amber-200">Town Hall</strong> — After <strong className="text-stone-200">Urban Planning</strong>. Staff officials for taxes, trade &amp; immigration boosts, election site, scandal buffer, and hosted festivals.</p>
               <p>• <strong className="text-amber-200">Church</strong> — Community tab, no research needed. Faster marriages, breaks Moon Howler curses, stricter morals.</p>
-              <p>• <strong className="text-amber-200">Hospital</strong> — Staffed: +2 reputation every 5 days. Any hospital lowers energy drain.</p>
+              <p>• <strong className="text-amber-200">Hospital</strong> — {describeHospitalReputation()}</p>
               <p>• <strong className="text-amber-200">Demolish</strong> — Click any building → sidebar → <strong className="text-stone-200">🗑 Demolish</strong> (works on houses too; residents are reassigned).</p>
               <p>• <strong className="text-amber-200">Reputation ⭐</strong> — Village header &amp; Progress → Trade. From Town Hall, Hospital, pilgrims, festivals, and avoiding scandals. Unlocks trade routes.</p>
-              <p>• <strong className="text-amber-200">Village head 👑</strong> — First male leads until Year 5; merit elections every 5 years after that. Village tab → Leadership for standings and record score. Scandals hurt re-election; a strong challenger can still win.</p>
+              <p>• <strong className="text-amber-200">Village head 👑</strong> — First male leads until Year {ELECTION_INTERVAL_YEARS}; merit elections every {ELECTION_INTERVAL_YEARS} years after that. Village tab → Leadership for standings and record score. Scandals hurt re-election; a strong challenger can still win.</p>
             </div>
           </div>
 

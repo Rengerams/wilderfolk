@@ -31,7 +31,6 @@ function persistSeen(seen: Set<string>): void {
  * when a mechanic appears for the first time this playthrough.
  */
 export function useContextualTutorial(world: WorldState, enabled: boolean) {
-  const prevRef = useRef<WorldState | null>(null);
   const [queue, setQueue] = useState<ContextualTutorialTip[]>([]);
   const seededRef = useRef(false);
   // Seen ids survive reloads and new games (localStorage), so tips a player
@@ -42,18 +41,19 @@ export function useContextualTutorial(world: WorldState, enabled: boolean) {
 
   useEffect(() => {
     if (!enabled) {
-      prevRef.current = null;
       seededRef.current = false;
       return;
     }
 
+    // Detection reads the live world alone; it must never compare against a "previous" world,
+    // because the loop mutates one `WorldState` in place. The first run only establishes that the
+    // world is ready, so a tip that is already true at mount is seeded rather than replayed.
     if (!seededRef.current) {
-      prevRef.current = world;
       seededRef.current = true;
       return;
     }
 
-    const discovered = detectContextualTutorials(prevRef.current!, world);
+    const discovered = detectContextualTutorials(world);
     if (discovered.length > 0) {
       setQueue((q) => {
         const seen = new Set([
@@ -66,8 +66,6 @@ export function useContextualTutorial(world: WorldState, enabled: boolean) {
         return fresh.length > 0 ? [...q, ...fresh] : q;
       });
     }
-
-    prevRef.current = world;
   }, [
     world,
     enabled,

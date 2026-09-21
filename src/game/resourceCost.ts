@@ -1,4 +1,4 @@
-import type { ResourceKey } from '../components/resourceLabels';
+import type { ResourceKey } from './resourceTypes';
 
 export type ResourceCostAmount = Partial<Record<ResourceKey, number>>;
 

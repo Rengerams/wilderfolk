@@ -13,7 +13,8 @@ import { downloadChronicleLog, loadExportChronicleOnSave } from '../game/eventLo
 import { GameLoop } from '../game/gameLoop';
 import type { ViewState } from '../game/viewState';
 
-const AUTO_SAVE_INTERVAL_MS = 30_000;
+/** Auto-save cadence, in milliseconds. The game menu's copy renders this (`AUTO_SAVE_INTERVAL_MS / 1000`). */
+export const AUTO_SAVE_INTERVAL_MS = 30_000;
 const AUTO_SAVE_FAILURE_MESSAGE = 'Auto-save failed — try manual save from the menu';
 
 export interface SaveToast {
@@ -203,9 +204,17 @@ export function useGamePersistence({
   // stale ref values are captured when the cleanup runs.
   useEffect(() => {
     return () => {
+      // No loop means no colony to save: under StrictMode the mount effect runs twice and an
+      // unguarded unmount save would overwrite the real slot with an empty world (R1).
+      //
+      // The rule's remedy (capture `.current` at effect setup) would delete that guard: this effect
+      // runs on mount, when no loop exists yet, so a captured value is always null and the save never
+      // happens on a real teardown. Reading the live ref is the point.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (!loopRef.current) return;
       void persistCurrentGameRef.current({ chronicle: false, feedback: false });
     };
-  }, []);
+  }, [loopRef]);
 
   return {
     dismissSaveToast,

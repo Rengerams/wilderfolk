@@ -5,6 +5,9 @@ import {
   BUILDING_CATEGORIES,
   categoryForBuildingType,
 } from '../game/buildCatalog';
+import { isBuildingTechUnlocked } from '../game/placementUtils';
+import { isUniqueBuildingAlreadyBuilt } from '../game/buildingPlacementActions';
+import { PLACEMENT_FAILURE_LABELS } from '../game/buildingPlacementLabels';
 import Emoji from './Emoji';
 import ResourceCost from './ResourceCost';
 
@@ -108,9 +111,12 @@ export default function BuildCatalogPanel({
               const affordable = world.resources.wood >= config.cost.wood
                 && world.resources.stone >= config.cost.stone
                 && world.resources.gold >= config.cost.gold;
-              const locked = config.unlockRequirement
-                && !world.unlockedTechs.includes(config.unlockRequirement);
-              const uniqueBuilt = !!config.unique && world.buildings.some((b) => b.type === type);
+              // Both gates are the placement owners' own statements, so the catalogue cannot offer a
+              // tile the placement command would refuse: the local tech test ignored the research
+              // node, and the local unique-flag test restated the rule (2026-09-20 audit, O-5/O-8).
+              const locked = !!config.unlockRequirement
+                && !isBuildingTechUnlocked(config.unlockRequirement, world.unlockedTechs, world.researchNodes);
+              const uniqueBuilt = isUniqueBuildingAlreadyBuilt(world, type);
               const lockTech = locked && config.unlockRequirement
                 ? world.researchNodes.find((n) => n.id === config.unlockRequirement)
                 : undefined;
@@ -122,7 +128,7 @@ export default function BuildCatalogPanel({
                   type="button"
                   onClick={() => (uniqueBuilt ? undefined : locked ? onLocked(type) : onSelect(type))}
                   disabled={uniqueBuilt}
-                  title={uniqueBuilt ? `Only one ${config.label} per village — already built` : `${config.description}${hotkey ? ` · key ${hotkey}` : ''}`}
+                  title={uniqueBuilt ? `${config.label} — ${PLACEMENT_FAILURE_LABELS.unique}` : `${config.description}${hotkey ? ` · key ${hotkey}` : ''}`}
                   className={`flex w-full items-center gap-2.5 rounded-xl border-2 px-2.5 py-2 text-left transition-all ${
                     isSelected
                       ? 'border-emerald-400 bg-emerald-500/25 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-400/40'
@@ -164,7 +170,7 @@ export default function BuildCatalogPanel({
                     )}
                     {uniqueBuilt && (
                       <span className="mt-0.5 block text-xs font-medium text-amber-500/90">
-                        Already built — one per village
+                        {PLACEMENT_FAILURE_LABELS.unique}
                       </span>
                     )}
                     {!locked && (

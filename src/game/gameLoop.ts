@@ -9,6 +9,7 @@ import type { EntityRenderMeta } from './simBuffers/entityRenderMeta';
 import type { RenderSoAReaderV1 } from './simBuffers/renderSoAReader';
 import { clearAllFactionWanderStates } from './factionWander';
 import { GameWorkerHost, isGameWorkerEnabled, type WorkerUiPatch } from './simWorker/GameWorkerHost';
+import { applySimPrep, extractSimPrep } from './simWorker/simPrep';
 import type { WorkerCommand } from './simWorker/commands';
 import { applyWorkerCommand } from './simWorker/commands';
 import { carryPresentationControls, createOptimisticDisplayWorld, hydrateWorldRuntimeCaches } from './worldRuntimeCaches';
@@ -24,13 +25,21 @@ import {
 } from './viewState';
 
 /**
- * Real-time tick rate at 1×: with `TICKS_PER_DAY = 72` this is one in-game day every
- * ~48 real seconds (0.5× ≈ 96 s, 2× ≈ 24 s). Exported so the pacing contract is pinned by
- * `tests/gameLoop.pacingContract.test.ts` instead of by comment alone — the constant was
- * silently reverted to 3 (24 s/day) once already while the comment kept saying 1.5
- * (`BUG_REPORTS/2026-09-16-baseline-pacing-reverted-to-24s-day.md`).
+ * Real-time tick rate at 1×: **one simulation tick per real second**, so an in-game hour is 3 real
+ * seconds (`TICKS_PER_HOUR = 3`) and an in-game day is **72 real seconds**
+ * (`TICKS_PER_DAY = 72 = HOURS_PER_DAY (24) × TICKS_PER_HOUR (3)`; 0.5× ≈ 144 s, 2× ≈ 36 s,
+ * 10× ≈ 7.2 s, and a 360-day year ≈ 7.2 h at 1×).
+ *
+ * Latest owner pacing decision: keep the time *grid* at 24 h × 3 ticks = 72 ticks/day and set the
+ * *pace* to 72 s/day. This supersedes the earlier "slower baseline pacing" value of 1.5 (48 s/day) —
+ * which a damaged revision had silently reverted to 3 (24 s/day), the regression recorded in
+ * `BUG_REPORTS/2026-09-16-baseline-pacing-reverted-to-24s-day.md`.
+ *
+ * Exported so the pace is pinned by `tests/gameLoop.pacingContract.test.ts` instead of living in
+ * comments: that test also fails if the harness copies of this rate (`scripts/test.ts`,
+ * `scripts/perf-all.ts`, `scripts/probe-day-budget.mts`) drift from it.
  */
-export const BASE_TICKS_PER_SECOND = 1.5;
+export const BASE_TICKS_PER_SECOND = 1;
 
 /** React UI publish throttle (ms) for periodic non-tick polls. */
 const UI_UPDATE_MS = 250;
@@ -65,10 +74,16 @@ export interface GameLoopDiagnostics {
   lastDailyBoundaryTick: number;
 }
 
+/**
+ * The player-authored slice of UI state to send to the worker.
+ *
+ * `bigNews`, `floatingTexts` and `activeEvent` are deliberately **not** here: the tick authors them on
+ * the worker side and `applyWorkerUiPatch` never adopted them, so including them cloned the news list
+ * and every live floating text into every patch for nothing, and a stale patch could have rewound
+ * events the player had not seen (2026-09-20 audit, P-5; `BUG_REPORTS/2026-09-16-ui-patch-rewinds-worker-authored-big-news.md`).
+ */
 function extractUiPatch(world: WorldState): WorkerUiPatch {
   return {
-    bigNews: world.bigNews,
-    floatingTexts: world.floatingTexts,
     autoSave: world.autoSave,
     nextFloatingTextId: world.nextFloatingTextId,
     dismissedBigNewsIds: world.dismissedBigNewsIds ? [...world.dismissedBigNewsIds] : undefined,
@@ -78,19 +93,8 @@ function extractUiPatch(world: WorldState): WorkerUiPatch {
     dismissedActiveEventIds: world.dismissedActiveEventIds
       ? [...world.dismissedActiveEventIds]
       : undefined,
-    activeEvent: world.activeEvent,
     tutorialSeen: world.tutorialSeen ? [...world.tutorialSeen] : undefined,
   };
-}
-
-function bigNewsPatchChanged(before: WorkerUiPatch['bigNews'], after: WorkerUiPatch['bigNews']): boolean {
-  if (before.length !== after.length) return true;
-  for (let i = 0; i < before.length; i++) {
-    if (before[i]?.id !== after[i]?.id || before[i]?.dismissed !== after[i]?.dismissed) {
-      return true;
-    }
-  }
-  return false;
 }
 
 function idsPatchChanged(before?: readonly string[], after?: readonly string[]): boolean {
@@ -107,14 +111,9 @@ function uiPatchChanged(before: WorkerUiPatch, after: WorkerUiPatch): boolean {
   return (
     before.autoSave !== after.autoSave ||
     before.nextFloatingTextId !== after.nextFloatingTextId ||
-    bigNewsPatchChanged(before.bigNews, after.bigNews) ||
-    before.floatingTexts.length !== after.floatingTexts.length ||
-    before.floatingTexts[before.floatingTexts.length - 1]?.id !==
-      after.floatingTexts[after.floatingTexts.length - 1]?.id ||
     idsPatchChanged(before.dismissedBigNewsIds, after.dismissedBigNewsIds) ||
     idsPatchChanged(before.dismissedNotificationIds, after.dismissedNotificationIds) ||
     idsPatchChanged(before.dismissedActiveEventIds, after.dismissedActiveEventIds) ||
-    (before.activeEvent?.id ?? null) !== (after.activeEvent?.id ?? null) ||
     idsPatchChanged(before.tutorialSeen, after.tutorialSeen)
   );
 }
@@ -159,6 +158,7 @@ export class GameLoop {
   private resizeObserver: ResizeObserver | null = null;
   private snapshotCache: RenderSnapshot | null = null;
   private snapshotKey = '';
+  private fallbackTickFailureReported = false;
 
   constructor(world: WorldState, view: ViewState, getCanvas: () => HTMLCanvasElement | null) {
     resetRendererCaches();
@@ -367,6 +367,7 @@ export class GameLoop {
       if (hadOptimistic) this.optimisticCommands.shift();
 
       this.world = world;
+      this.invalidateRenderSnapshot();
       if (this.optimisticCommands.length > 0) this.rebuildOptimisticDisplay();
 
       if (render) {
@@ -472,6 +473,7 @@ export class GameLoop {
 
     this.world = world;
     this.view = view;
+    this.invalidateRenderSnapshot();
     this.lastNotifiedTick = world.tick;
     this.lastDailyBoundaryTick = Math.floor(world.tick / TICKS_PER_DAY) * TICKS_PER_DAY;
     this.catalog.rebuild(world.entities);
@@ -560,6 +562,7 @@ export class GameLoop {
       }
     }
     this.world = display;
+    this.invalidateRenderSnapshot();
   }
 
   applyCommand(cmd: WorkerCommand): void {
@@ -602,11 +605,15 @@ export class GameLoop {
 
   private syncAfterWorkerMutation(): void {
     const authoritative = this.workerHost?.getAuthoritativeWorld();
-    if (authoritative) this.world = hydrateWorldRuntimeCaches(authoritative);
+    if (authoritative) {
+      this.world = hydrateWorldRuntimeCaches(authoritative);
+      this.invalidateRenderSnapshot();
+    }
   }
 
   private applyCommandLocal(cmd: WorkerCommand): void {
     this.world = applyWorkerCommand(this.world, cmd);
+    this.invalidateRenderSnapshot();
     this.catalog.rebuild(this.world.entities);
     this.pruneStaleSelection();
     this.notify(true, false, true);
@@ -631,6 +638,7 @@ export class GameLoop {
     if (next !== this.world) {
       this.world = next;
     }
+    this.invalidateRenderSnapshot();
     this.catalog.rebuild(this.world.entities);
     this.workerHost?.syncWorld(this.world).catch(() => {});
     this.pruneStaleSelection();
@@ -645,6 +653,7 @@ export class GameLoop {
     const entitiesBefore = this.world.entities;
 
     mutator(this.world);
+    this.invalidateRenderSnapshot();
 
     if (this.workerEnabled && this.workerHost?.isReady()) {
       if (this.world.buildings !== buildingsBefore || this.world.entities !== entitiesBefore) {
@@ -660,7 +669,11 @@ export class GameLoop {
         this.workerHost.patchUiState(extractUiPatch(this.world));
       }
     }
-    this.notify(true);
+    // Forced: `notify` dedupes on the tick, and a player-authored mutation (pause above all) does
+    // not advance it — so the unforced call was swallowed while paused and the header kept reading
+    // "Pause simulation" with no ⏸ banner, because nothing asked React to repaint (P6 browser pass
+    // finding, 2026-09-20). Elsewhere this shape is already the norm for out-of-tick state changes.
+    this.notify(true, false, true);
   }
 
   async exportAuthoritativeWorld(timeoutMs = 10_000): Promise<WorldState> {
@@ -685,6 +698,7 @@ export class GameLoop {
         if (exportGen !== this.sessionGen) return this.world;
 
         this.world = hydrateWorldRuntimeCaches(exported);
+        this.invalidateRenderSnapshot();
         this.catalog.rebuild(this.world.entities);
         return this.world;
       } catch (err) {
@@ -888,7 +902,13 @@ export class GameLoop {
 
       if (!this.workerEnabled && !this.workerBooting) {
         while (this.tickAccumulator >= msPerTick && steps < MAX_CATCHUP_STEPS) {
-          gameTick(this.world, focus);
+          const advanced = this.stepFallbackTick(focus);
+          // Consume the attempted step either way. A tick that threw left the world at its
+          // pre-tick state, so keeping its time would only re-attempt the same slice — and the
+          // remaining catch-up budget with it — on the very next frame.
+          this.tickAccumulator -= msPerTick;
+          if (!advanced) break;
+
           this.observeDailyBoundary(this.world.tick);
 
           if (this.world.entityByType !== this.lastCatalogByTypeRef) {
@@ -898,7 +918,6 @@ export class GameLoop {
 
           this.view = syncScreenShakeFromWorld(this.view, this.world);
           clearScreenShakeImpulse(this.world);
-          this.tickAccumulator -= msPerTick;
           steps++;
           tickChanged = true;
         }
@@ -922,6 +941,55 @@ export class GameLoop {
       this.lastUiUpdate = now;
       this.notify(tickChanged, periodicUi);
     }
+  }
+
+  /**
+   * Run one main-thread tick under the worker's rollback contract.
+   *
+   * The worker snapshots the mutable sim slices before its tick and puts them back when `gameTick`
+   * throws (`gameWorker.ts:307`, `:346-349`). The fallback had no such guard, and a throw is not
+   * harmless there: `gameTick` advances `state.tick` and runs all four layers *before* its own
+   * invariant check, so each failed frame left one more partially-applied tick in the world — and,
+   * because the throw escaped `frameBody`, it also skipped that frame's draw and UI notify, once per
+   * frame, forever (P-3). The snapshot/restore pair is the same one that path uses, so both sides
+   * now fail identically.
+   *
+   * Returns `true` when the tick was applied, `false` when it was rolled back.
+   */
+  private stepFallbackTick(focus: SimulationFocus | undefined): boolean {
+    const prepBackup = extractSimPrep(this.world);
+    try {
+      gameTick(this.world, focus);
+    } catch (err) {
+      applySimPrep(this.world, prepBackup);
+      // Reported once per failing run, not once per frame: the frame-level handler used to log
+      // every one of these, which is 60 identical stack traces a second.
+      if (!this.fallbackTickFailureReported) {
+        this.fallbackTickFailureReported = true;
+        console.warn(
+          '[GameLoop] Main-thread tick failed — rolled back to the pre-tick world',
+          err,
+        );
+      }
+      return false;
+    }
+    this.fallbackTickFailureReported = false;
+    return true;
+  }
+
+  /**
+   * Drop the cached render snapshot after a non-tick world change.
+   *
+   * `snapshotDirtyKey()` tracks `w.tick` and `w.buildings.length` for buildings, while the snapshot
+   * holds `world.buildings` **by reference** (`renderSnapshot.ts:117`). A repair, upgrade or recipe
+   * command changes neither, so while paused the cached snapshot kept pointing at the pre-command
+   * array and the damage bar did not move until something unrelated changed the key (P-4).
+   * Invalidating on every out-of-tick world change is the honest statement — "the world object
+   * changed, rebuild" — and costs nothing per frame, unlike folding a revision counter into the key.
+   */
+  private invalidateRenderSnapshot(): void {
+    this.snapshotCache = null;
+    this.snapshotKey = '';
   }
 
   private draw(): void {

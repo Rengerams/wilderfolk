@@ -1,5 +1,5 @@
 import type { WorldState } from './gameTypes';
-import { TICKS_PER_HOUR, TICKS_PER_DAY, getHourOfDay, isWorkDay } from './dayCycleClock';
+import { getHourOfDay, isWorkDay } from './dayCycleClock';
 
 export const DEFAULT_WORK_START_HOUR = 7;
 export const DEFAULT_WORK_END_HOUR = 16;
@@ -159,19 +159,6 @@ export function isOnWorkScheduleShift(
   if (!isWorkDay(state.tick)) return false;
   const schedule = getWorkSchedule(state);
   return isWorkScheduleHour(schedule, hour ?? getHourOfDay(state.tick));
-}
-
-/**
- * Evaluates whether the exact current tick corresponds to the start of the workday.
- * Ignores weekends and holidays.
- */
-export function isWorkScheduleStartTick(
-  state: Pick<WorldState, 'tick' | 'workSchedule'>,
-): boolean {
-  if (!isWorkDay(state.tick)) return false;
-  const schedule = getWorkSchedule(state);
-  const dayTick = state.tick % TICKS_PER_DAY;
-  return dayTick === schedule.startHour * TICKS_PER_HOUR;
 }
 
 /**

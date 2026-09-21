@@ -1,10 +1,16 @@
 import type { WorldState } from '../../game/gameTypes';
-import { computeDynasties } from '../../game/familyLegacy';
+import { computeDynasties, isDynasty } from '../../game/familyLegacy';
 
 /** Family legacy — living dynasties: surnames with multiple generations. */
 export default function DynastyPanel({ state }: { state: WorldState }) {
   const dynasties = computeDynasties(state);
-  const meaningful = dynasties.filter((d) => d.generationsAlive >= 2);
+  /**
+   * The chronicle's dynasty rule, read from its owner: three living generations **and** at least
+   * three members. The panel used to count two-generation families, so it advertised dynasties the
+   * 200-gold chapter refuses and contradicted its own "Three generations alive is a true dynasty."
+   * (audit C2 "Dynasty definition", R12).
+   */
+  const meaningful = dynasties.filter(isDynasty);
 
   return (
     <div className="rounded-xl border border-violet-600/40 bg-gradient-to-br from-violet-950/40 to-stone-800/50 p-3">

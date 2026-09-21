@@ -10,6 +10,7 @@ import { syncGrassRenderGridFromSoA } from './simBuffers/renderSoAEntities';
 import type { EntitySpatialGrid } from './spatialGrid';
 import type { ViewState } from './viewState';
 import { resolveBuilding, resolveEntity } from './viewState';
+import { computeLogisticsOverlay, type LogisticsOverlayData } from './logisticsOverlayData';
 
 export interface RenderSnapshotOptions {
   renderSoA?: RenderSoAReaderV1 | null;
@@ -51,6 +52,13 @@ export interface RenderSnapshot {
   readonly buildRotation: ViewState['buildRotation'];
   readonly showGrid: boolean;
   readonly showPaths: boolean;
+  /**
+   * F4 logistics projection — `null` while `ViewState.showLogistics` is off.
+   *
+   * The classification lives in `logisticsOverlayData` (game layer); the renderer only draws it.
+   * `null` rather than an empty projection so the off state costs nothing to compute.
+   */
+  readonly logistics: LogisticsOverlayData | null;
   readonly festival: WorldState['festival'];
   readonly visitorGroups: WorldState['visitorGroups'];
   readonly rivalSettlements: WorldState['rivalSettlements'];
@@ -132,6 +140,9 @@ export function buildRenderSnapshot(
     buildRotation: view.buildRotation,
     showGrid: view.showGrid,
     showPaths: view.showPaths,
+    // Presentation-only and off by default: when the toggle is off the projection is not computed
+    // at all, so an untouched session's render path and cost are unchanged (F4).
+    logistics: view.showLogistics ? computeLogisticsOverlay(world) : null,
     festival: world.festival,
     visitorGroups: world.visitorGroups ?? [],
     rivalSettlements: world.rivalSettlements ?? [],

@@ -20,6 +20,7 @@ import { humanDisplayName } from '../citizenId';
 import { dampScandalReputationLoss } from '../townHall';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { seededRandomForRun } from '../simRng';
+import { addReputation } from '../simHelpers';
 
 export interface BirthContext {
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;
@@ -199,9 +200,9 @@ export function tickPregnancyAndBirth(
     logEvent(state, 'birth', `${childLabel} was born a bastard`, child.name);
 
     if (husband && biologicalFather && husband.id !== biologicalFather.id) {
-      state.villageReputation = Math.max(
-        0,
-        state.villageReputation + dampScandalReputationLoss(LIFECYCLE_CONFIG.SCANDAL_BASE_REP_LOSS, updatedBuildings),
+      addReputation(
+        state,
+        dampScandalReputationLoss(LIFECYCLE_CONFIG.SCANDAL_BASE_REP_LOSS, updatedBuildings),
       );
       logEvent(
         state,

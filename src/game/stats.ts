@@ -1,6 +1,7 @@
 import type { WorldState } from './gameTypes';
 import { EntityType as ET } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
+import { citizenFullName } from './citizenId';
 
 export interface YearlyStats {
   year: number;
@@ -157,7 +158,7 @@ export function updateLifetimeStats(state: WorldState, stats: LifetimeStats): Li
   const allHumans = state.entities.filter(e => e.type === ET.Human);
   for (const h of allHumans) {
     if (h.age > s.longestLivingHuman.age && h.name) {
-      s.longestLivingHuman = { name: `${h.name} ${h.surname || ''}`.trim(), age: h.age };
+      s.longestLivingHuman = { name: citizenFullName(h), age: h.age };
     }
   }
 

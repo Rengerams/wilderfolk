@@ -48,7 +48,7 @@ export const BuildingType = {
   Garden: 'garden',
   /** Carved stone statue — the strongest beauty nudge in the village. */
   Statue: 'statue',
-  /** Street lamp — beauty by day, a warm glow at night. */
+  /** Street lamp — constant beauty nudge (no day/night change). */
   Lamp: 'lamp',
   /** Light wooden fence — cheap strip that prettifies a boundary. */
   Fence: 'fence',
@@ -237,6 +237,11 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     sprite: '/sprites/storehouse_wood.png',
     backgroundColor: '#92400e',
     padShape: 'rect',
+    // This art's painted base sits at 96.2 % of the PNG rather than the 100 % of the edge-to-edge
+    // building sprites, so the default 0.92 anchor stood it ~4 % of sprite height proud of the
+    // ground line. Anchor at `paintedBase − 0.08` to sink it by the same 8 % as the rest (the value
+    // LeaderHouse already carries for the same reason).
+    spriteAnchorY: 0.882,
   },
   [BuildingType.LumberMill]: {
     width: 56,
@@ -501,7 +506,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 0,
     emoji: '🧱',
     label: 'Wall',
-    description: 'Stone palisade segment — +8 barricade strength each (cap +72).',
+    description: 'Stone palisade segment — adds barricade strength; wall plates raise the cap.',
     sprite: '/sprites/wall_isometric.png',
     backgroundColor: '#64748b',
     padShape: 'rect',
@@ -529,7 +534,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 0,
     emoji: '🗼',
     label: 'Watchtower',
-    description: 'Overwatch post — +15 barricade strength and early raid warning.',
+    description: 'Overwatch post — adds barricade strength and early raid warning.',
     sprite: '/sprites/watchtower_isometric.png',
     backgroundColor: '#475569',
     padShape: 'rect',
@@ -543,7 +548,11 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 4,
     emoji: '⚔️',
     label: 'Barracks',
-    description: 'Staff Soldiers to patrol the village (+14 militia strength each).',
+    // The per-guard strength is `MILITIA_BALANCE.guardBonusPerGuard` (defenseStructures, the owner).
+    // Importing it here would close a cycle — `defenseStructures` reads `gameTypes`, which reads this
+    // file — so the catalogue copy carries no number, the same remedy as the wall/watchtower
+    // descriptions above (`tests/copyAndDayIndex.owners.test.ts`, L2).
+    description: 'Staff Soldiers to patrol the village — each guard adds militia strength.',
     sprite: '/sprites/barracks.png',
     backgroundColor: '#57534e',
     padShape: 'rect',
@@ -561,6 +570,8 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     sprite: '/sprites/huntingspot.png',
     backgroundColor: '#854d0e',
     padShape: 'circle',
+    // Painted base at 92.7 % of the PNG — see the Wood Storehouse note above.
+    spriteAnchorY: 0.847,
   },
   [BuildingType.FishingSpot]: {
     width: 52,
@@ -583,7 +594,9 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 0,
     emoji: '🌳',
     label: 'Wildlife Preserve',
-    description: 'Fenced wild grove — restores ecosystem health +4 and helps wildlife recover. No workers.',
+    // As with the Barracks above: the amount is `PRESERVE_HEALTH_BONUS` (dailyEcology), reachable
+    // only through `gameTypes`, so the catalogue states the rule without a number.
+    description: 'Fenced wild grove — restores ecosystem health and helps wildlife recover. No workers.',
     sprite: '/sprites/wildlife_preserve.png',
     backgroundColor: '#166534',
     padShape: 'rect',
@@ -609,7 +622,10 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 2,
     emoji: '🏨',
     label: 'Hotel',
-    description: 'Visitor lodging — staff Hoteliers (day shift). Up to 4 guests sleep overnight for gold.',
+    // No guest count here: `HOTEL_GUEST_CAPACITY` is the owner, and this catalogue is deliberately
+    // import-free (one type-only import), so a restated number would drift exactly as the Barracks
+    // "+14" and the preserve "+4" did (2026-09-20 audit, bug 40).
+    description: 'Visitor lodging — staff Hoteliers (day shift). Guests sleep overnight for free.',
     sprite: '/sprites/hotel.png',
     backgroundColor: '#0e7490',
     padShape: 'round',
@@ -668,7 +684,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 0,
     emoji: '🏮',
     label: 'Lamp',
-    description: 'Street lamp — beauty by day, a warm glow at night.',
+    description: 'Street lamp — a constant warm landmark on the square.',
     sprite: '/sprites/lamp.png',
     backgroundColor: '#eab308',
     padShape: 'circle',
@@ -691,4 +707,3 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     decor: true,
   },
 };
-

@@ -211,6 +211,22 @@ export default function MapSetupScreen({
     onStart(villageName.trim() || 'New Frontier');
   };
 
+  /**
+   * Starting a settlement deletes the browser save (`beginNewGameSession` → `deleteSave`), so when a
+   * save exists the first activation only arms the confirmation — the shape
+   * `SelectedBuildingPanel`'s demolish step already uses for a destructive action. Enter in the name
+   * field routes through here too: it used to call `handleStart` directly, so one keystroke while
+   * typing a name destroyed a saved colony with no warning (2026-09-20 audit, OPEN-14).
+   */
+  const [confirmStartArmed, setConfirmStartArmed] = useState(false);
+  const requestStart = () => {
+    if (hasSave && !confirmStartArmed) {
+      setConfirmStartArmed(true);
+      return;
+    }
+    handleStart();
+  };
+
   const presets = Object.values(MapPreset) as MapPreset[];
   const sizes = Object.values(MapSize) as MapSize[];
 
@@ -250,7 +266,7 @@ export default function MapSetupScreen({
               type="text"
               value={villageName}
               onChange={(e) => setVillageName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleStart()}
+              onKeyDown={(e) => e.key === 'Enter' && requestStart()}
               maxLength={24}
               autoFocus
               className="w-full rounded-lg border border-stone-700 bg-stone-800 pl-9 pr-3 py-2 text-sm text-white placeholder-stone-500 outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30"
@@ -321,6 +337,9 @@ export default function MapSetupScreen({
                     key={size}
                     type="button"
                     onClick={() => onSizeChange(size)}
+                    /* The chosen size was stated by background/ring colour alone — unlike the preset
+                       cards above, this control carries no visible tick (2026-09-20 audit, A6). */
+                    aria-pressed={selected}
                     className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-all ${
                       selected
                         ? 'bg-emerald-500/25 text-emerald-200 ring-1 ring-emerald-500/40'
@@ -422,13 +441,38 @@ export default function MapSetupScreen({
                 Load saved game
               </button>
             )}
-            <button
-              type="button"
-              onClick={handleStart}
-              className="rounded-lg bg-emerald-600 px-8 py-2.5 text-sm font-bold tracking-wide text-white transition-all hover:bg-emerald-500"
-            >
-              Settle the valley
-            </button>
+            {confirmStartArmed ? (
+              <div className="rounded-lg border border-rose-500/40 bg-rose-950/40 p-2">
+                <p className="text-[11px] font-semibold text-rose-200">
+                  Starting a new settlement deletes your saved colony in this browser. Save it to a
+                  file first if you want to keep it — this cannot be undone.
+                </p>
+                <div className="mt-1.5 grid grid-cols-2 gap-1">
+                  <button
+                    type="button"
+                    onClick={handleStart}
+                    className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-rose-500"
+                  >
+                    Settle anyway
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmStartArmed(false)}
+                    className="rounded-lg bg-stone-700 px-4 py-2 text-sm font-bold text-stone-200 transition-all hover:bg-stone-600"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={requestStart}
+                className="rounded-lg bg-emerald-600 px-8 py-2.5 text-sm font-bold tracking-wide text-white transition-all hover:bg-emerald-500"
+              >
+                Settle the valley
+              </button>
+            )}
           </div>
         </div>
       </footer>

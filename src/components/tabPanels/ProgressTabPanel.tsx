@@ -2,9 +2,13 @@ import { Suspense, lazy, useMemo } from 'react';
 import { ResearchType } from '../../game/gameTypes';
 import type { WorldState } from '../../game/gameEngine';
 import { canEstablishTradeRoute, hasCompletedMarket } from '../../game/tradeCaravans';
+import { canStartResearch } from '../../game/research';
 import { computeVillagePortrait } from '../../game/villagePortrait';
-
-type ProgressSubTab = 'research' | 'trade' | 'goals';
+import { formatResourceAmounts } from '../../game/resourceTypes';
+import CollapsibleSection from '../CollapsibleSection';
+// A-8: the sub-tab union is owned by the shell hook. A member added there compiled fine against this
+// file's private copy and was then unreachable, because nothing here could name it.
+import type { ProgressSubTab } from '../../hooks/useGameShellState';
 
 const ChallengesPanel = lazy(() => import('../ChallengesPanel'));
 const StatisticsPanel = lazy(() => import('../../game/StatisticsPanel'));
@@ -48,23 +52,32 @@ function GoalsPortraitPanel({ state }: { state: WorldState }) {
     state.lifetimeStats,
     state.buildings.length,
   ]);
+  const primaryTrait = portrait.traits.find((t) => t.id === portrait.primary);
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-amber-600/35 bg-gradient-to-b from-amber-950/40 to-stone-800/40 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-500/90">How history sees you</p>
-        <h3 className="mt-1 text-sm font-bold text-amber-100">
-          <span className="mr-1.5" aria-hidden>{portrait.emoji}</span>
-          {portrait.title}
-        </h3>
+      <CollapsibleSection
+        title="How history sees you"
+        icon={portrait.emoji}
+        subtitle={portrait.title}
+        accent="amber"
+        storageKey="goals-portrait"
+      >
+        <h3 className="text-sm font-bold text-amber-100">{portrait.title}</h3>
         <p className="mt-1.5 text-[13px] leading-relaxed text-stone-300">{portrait.summary}</p>
         <p className="mt-2 text-xs text-stone-300">
           No single win screen — raid like barbarians, tend the wild, trade, build, or make peace. This portrait shifts as you play.
         </p>
-      </div>
+      </CollapsibleSection>
 
-      <div className="rounded-xl bg-stone-700/50 p-3">
-        <h3 className="mb-2 text-sm font-bold text-stone-300">Your path (live)</h3>
+      <CollapsibleSection
+        title="Your path (live)"
+        icon="🧭"
+        badge={primaryTrait?.score}
+        subtitle={primaryTrait ? `Strongest: ${primaryTrait.label}` : undefined}
+        defaultOpen={false}
+        storageKey="goals-path"
+      >
         <div className="space-y-2">
           {portrait.traits.map((t) => (
             <div key={t.id} className="rounded-lg border border-stone-600/50 bg-stone-800/40 p-2">
@@ -86,18 +99,31 @@ function GoalsPortraitPanel({ state }: { state: WorldState }) {
             </div>
           ))}
         </div>
-      </div>
+      </CollapsibleSection>
 
-      <div className="rounded-xl border border-stone-600/40 bg-stone-700/30 p-3">
-        <h3 className="mb-2 text-sm font-bold text-amber-300">🏆 Challenges</h3>
-        <p className="mb-2 text-xs text-stone-300">Optional goals with resource rewards — not required to “finish” the game.</p>
+      <CollapsibleSection
+        title="Challenges"
+        icon="🏆"
+        subtitle="Optional goals with resource rewards"
+        defaultOpen={false}
+        storageKey="goals-challenges"
+      >
         <Suspense fallback={<p className="text-[13px] text-stone-300">Loading challenges…</p>}>
           <ChallengesPanel state={state} />
         </Suspense>
-      </div>
-      <Suspense fallback={<p className="text-[13px] text-stone-300">Loading statistics…</p>}>
-        <StatisticsPanel state={state} />
-      </Suspense>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Valley statistics"
+        icon="📊"
+        subtitle="Lifetime totals and this year's figures"
+        defaultOpen={false}
+        storageKey="goals-statistics"
+      >
+        <Suspense fallback={<p className="text-[13px] text-stone-300">Loading statistics…</p>}>
+          <StatisticsPanel state={state} />
+        </Suspense>
+      </CollapsibleSection>
     </div>
   );
 }
@@ -119,6 +145,8 @@ export default function ProgressTabPanel({
             type="button"
             className="relative"
             data-active={progressSubTab === id}
+            /* The selected sub-tab was conveyed by colour alone (`data-active` + CSS); R32. */
+            aria-pressed={progressSubTab === id}
             onClick={() => setProgressSubTab(id)}
           >
             {id === 'research' ? '🔬 Research' : id === 'trade' ? '🤝 Trade' : '🎯 Goals'}
@@ -126,7 +154,9 @@ export default function ProgressTabPanel({
               <span className="progress-subnav-dot" title="Research in progress" />
             )}
             {id === 'trade' && tradeReadyCount > 0 && (
-              <span className="progress-subnav-badge">{tradeReadyCount}</span>
+              <span className="progress-subnav-badge" title={`${tradeReadyCount} ready to establish`}>
+                {tradeReadyCount}
+              </span>
             )}
           </button>
         ))}
@@ -165,10 +195,12 @@ export default function ProgressTabPanel({
                 </div>
                 <div className="space-y-1.5">
                   {nodes.map(node => {
-                    const canResearch = node.unlocked && !node.researched && !state.activeResearch &&
-                      state.resources.wood >= node.cost.wood &&
-                      state.resources.stone >= node.cost.stone &&
-                      state.resources.gold >= node.cost.gold;
+                    /**
+                     * The research owner's gate, not a second copy of it: the local test dropped
+                     * `node.prerequisites`, so the panel offered a Research button for a node whose
+                     * prerequisites were unmet and the command refused it (audit C2 "Research gate").
+                     */
+                    const canResearch = canStartResearch(state, node.id);
 
                     return (
                       <div key={node.id} className={`rounded-lg border p-2 text-[13px] ${
@@ -191,6 +223,16 @@ export default function ProgressTabPanel({
                             {node.unlocked && (
                               <button onClick={() => onStartResearch(node.id)}
                                 disabled={!canResearch}
+                                /**
+                                 * U-8: `canStartResearch` returns a bare boolean, so this view has no
+                                 * reason to print — but the disabled button must still say *which* node
+                                 * it belongs to and that it is unavailable, rather than looking like a
+                                 * live "Research" button that is merely greyed out. A real reason needs
+                                 * the research owner to return a gate object.
+                                 */
+                                aria-label={canResearch
+                                  ? `Research ${node.name}`
+                                  : `Research ${node.name} — not available yet`}
                                 className={`mt-1 w-full rounded py-1 text-[13px] font-bold transition-all ${
                                   canResearch ? 'bg-amber-600 text-white hover:bg-amber-500' : 'bg-stone-600 text-stone-400 cursor-not-allowed'
                                 }`}>
@@ -237,11 +279,17 @@ export default function ProgressTabPanel({
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-bold text-stone-200">{route.targetName}</span>
                     <span className={`text-right ${route.active ? 'text-emerald-400' : 'text-stone-400'}`}>
-                      {route.active ? 'Active' : eligibility.blockReason ?? 'Unavailable'}
+                      {/* An establishable inactive route must not read "Unavailable" above its own
+                          enabled button (2026-09-17 UI audit, R4). */}
+                      {route.active
+                        ? 'Active'
+                        : eligibility.ok
+                          ? 'Ready to establish'
+                          : eligibility.blockReason ?? 'Unavailable'}
                     </span>
                   </div>
                   <p className="text-stone-300">
-                    Receive: +{route.resourcesReceived.gold > 0 ? `${route.resourcesReceived.gold}g` : `${route.resourcesReceived.stone}s`} per round-trip
+                    Receive: +{formatResourceAmounts(route.resourcesReceived)} per round-trip
                   </p>
                   {route.active && (
                     <p className="text-emerald-300/80">
@@ -269,12 +317,28 @@ export default function ProgressTabPanel({
 
       {progressSubTab === 'goals' && (
         <>
-          <Suspense fallback={<p className="text-[13px] text-stone-300">Loading chronicle…</p>}>
-            <ValleyChroniclePanel state={state} />
-          </Suspense>
-          <Suspense fallback={<p className="text-[13px] text-stone-300">Loading dynasties…</p>}>
-            <DynastyPanel state={state} />
-          </Suspense>
+          <CollapsibleSection
+            title="Valley chronicle"
+            icon="📜"
+            subtitle="What has happened in the valley so far"
+            defaultOpen={false}
+            storageKey="goals-chronicle"
+          >
+            <Suspense fallback={<p className="text-[13px] text-stone-300">Loading chronicle…</p>}>
+              <ValleyChroniclePanel state={state} />
+            </Suspense>
+          </CollapsibleSection>
+          <CollapsibleSection
+            title="Dynasties"
+            icon="🌳"
+            subtitle="Family lines and succession"
+            defaultOpen={false}
+            storageKey="goals-dynasty"
+          >
+            <Suspense fallback={<p className="text-[13px] text-stone-300">Loading dynasties…</p>}>
+              <DynastyPanel state={state} />
+            </Suspense>
+          </CollapsibleSection>
           <GoalsPortraitPanel state={state} />
         </>
       )}

@@ -2,6 +2,22 @@ export type CanvasSurface = OffscreenCanvas | HTMLCanvasElement;
 
 export type CanvasContext2d = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
+/**
+ * Device pixel ratio the main canvas is sized at.
+ *
+ * One owner for the value, because two places must agree: `GameLoop.draw` scales the
+ * destination context by it, and every offscreen layer must rasterise at the same scale.
+ * When a layer rasterised at logical size and was then blitted through a DPR-scaled
+ * context, `imageSmoothingEnabled = false` nearest-neighbour-upscaled every sprite,
+ * shadow and particle by the DPR while HUD text drawn straight into the context stayed
+ * crisp (audit `visuals-looks.md` D1).
+ */
+export function getRenderDpr(): number {
+  if (typeof window === 'undefined') return 1;
+  const dpr = window.devicePixelRatio;
+  return typeof dpr === 'number' && dpr > 0 ? dpr : 1;
+}
+
 export function createCanvasSurface(width: number, height: number): CanvasSurface {
   const w = Math.max(1, Math.floor(width));
   const h = Math.max(1, Math.floor(height));

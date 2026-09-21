@@ -10,6 +10,19 @@
  */
 import type { Building, Entity, WorldMap } from './gameTypes';
 import { BuildingType, TERRAIN_TILE_SIZE, TerrainType } from './gameTypes';
+import {
+  recordFindPathCall,
+  recordGridRebuild,
+  recordLineCheck,
+  recordPathCacheHit,
+  recordPathCacheMiss,
+  recordPathEarlyReject,
+  recordPathFailed,
+  recordPathFound,
+  recordPathMaxNodesExceeded,
+  recordPathNodes,
+} from './pathfindingMetrics';
+import { faceVelocity } from './simulation/movementSteering';
 
 /** Terrain that blocks walking (water + mountains). Snowy ground stays walkable. */
 const BLOCKED_TERRAIN = new Set<TerrainType>([
@@ -59,15 +72,21 @@ export interface PathGrid {
 let gridCache: PathGrid | null = null;
 let gridCacheSeed = '';
 
-export function getPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
+/**
+ * The passability grid's cache identity. The seed alone does not identify the tiles: two maps can
+ * share a seed and size while a different preset produces different terrain, and completed walls
+ * change the grid too — so the signature carries all four.
+ */
+function pathGridCacheKey(map: WorldMap, buildings?: Building[]): string {
   const seed = typeof map.seed === 'number' ? map.seed : 1;
-  const bldSig = buildingSignature(buildings);
-  // The seed alone does not identify the tiles: two maps can share a seed and size while a
-  // different preset produces different terrain, so the preset is part of the cache identity.
-  const cacheKey = `${seed}|${map.preset}|${bldSig}|${map.width}x${map.height}`;
-  if (gridCache && gridCacheSeed === cacheKey) {
-    return gridCache;
-  }
+  return `${seed}|${map.preset}|${buildingSignature(buildings)}|${map.width}x${map.height}`;
+}
+
+/**
+ * The one place a passability grid is built. Both accessors below share it so the blocked-terrain
+ * rule and the wall rule exist once (AGENTS.md §5.2) — they differ only in who owns the cache.
+ */
+function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
   const cols = map.width;
   const rows = map.height;
   const blocked = new Uint8Array(cols * rows);
@@ -82,9 +101,53 @@ export function getPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
       if (isBlockingWall(b)) markBuildingBlocked(blocked, cols, rows, b);
     }
   }
-  gridCache = { cols, rows, blocked };
+  return { cols, rows, blocked };
+}
+
+/** The simulation's grid. `setCurrentPathMap` swaps `currentGrid` and clears the waypoint cache. */
+export function getPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
+  const cacheKey = pathGridCacheKey(map, buildings);
+  if (gridCache && gridCacheSeed === cacheKey) {
+    return gridCache;
+  }
+  recordGridRebuild();
+  gridCache = buildPathGrid(map, buildings);
   gridCacheSeed = cacheKey;
   return gridCache;
+}
+
+/**
+ * A **second**, independent cache of the same grid for consumers that must not disturb the
+ * simulation — today the logistics overlay's blocked-path classification.
+ *
+ * Why this exists rather than reusing {@link getPathGrid}: `setCurrentPathMap` treats a change of
+ * the shared grid's *identity* as a new map and calls `pathCache.clear()`. The logistics overlay is
+ * recomputed on every render snapshot, and it passes its own `buildings` array, so a projection
+ * calling `getPathGrid` would flip the identity back and forth and clear the simulation's waypoint
+ * cache from the render path — a simulation side-effect produced by a read-only projection, which
+ * the architecture forbids ("the renderer decides nothing"). This accessor therefore touches
+ * neither `gridCache` nor `gridCacheSeed`, and additionally skips {@link recordGridRebuild} so the
+ * pathfinder metric keeps counting *simulation* grid builds only.
+ */
+let readOnlyGridCache: PathGrid | null = null;
+let readOnlyGridCacheSeed = '';
+
+export function getReadOnlyPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
+  const cacheKey = pathGridCacheKey(map, buildings);
+  if (readOnlyGridCache && readOnlyGridCacheSeed === cacheKey) {
+    return readOnlyGridCache;
+  }
+  readOnlyGridCache = buildPathGrid(map, buildings);
+  readOnlyGridCacheSeed = cacheKey;
+  return readOnlyGridCache;
+}
+
+/** Test seam: drop both grid caches so a case starts from a known state. */
+export function resetPathGridCaches(): void {
+  gridCache = null;
+  gridCacheSeed = '';
+  readOnlyGridCache = null;
+  readOnlyGridCacheSeed = '';
 }
 
 const DIRS = [
@@ -177,20 +240,33 @@ export function findPath(
   maxNodes = 6000,
 ): { x: number; y: number }[] | null {
   const { cols, rows, blocked } = grid;
-  if (sx < 0 || sy < 0 || sx >= cols || sy >= rows) return null;
-  if (tx < 0 || ty < 0 || tx >= cols || ty >= rows) return null;
+  recordFindPathCall();
+  if (sx < 0 || sy < 0 || sx >= cols || sy >= rows) {
+    recordPathEarlyReject();
+    return null;
+  }
+  if (tx < 0 || ty < 0 || tx >= cols || ty >= rows) {
+    recordPathEarlyReject();
+    return null;
+  }
 
   // Resolve walkable neighbors if either endpoint falls on an obstacle
   const startPt = findNearestWalkable(grid, sx, sy);
   const goalPt = findNearestWalkable(grid, tx, ty);
-  if (!startPt || !goalPt) return null;
+  if (!startPt || !goalPt) {
+    recordPathEarlyReject();
+    return null;
+  }
 
   const actualSx = startPt.x;
   const actualSy = startPt.y;
   const actualTx = goalPt.x;
   const actualTy = goalPt.y;
 
-  if (actualSx === actualTx && actualSy === actualTy) return null;
+  if (actualSx === actualTx && actualSy === actualTy) {
+    recordPathEarlyReject();
+    return null;
+  }
 
   const start = actualSy * cols + actualSx;
   const goal = actualTy * cols + actualTx;
@@ -209,13 +285,17 @@ export function findPath(
   gScore.set(start, 0);
   open.push({ node: start, g: 0, priority: h(actualSx, actualSy) });
   let nodes = 0;
+  let hitNodeCap = false;
 
   while (open.length > 0) {
     const entry = open.pop();
     if (!entry) break;
     const cur = entry.node;
     if (entry.g !== (gScore.get(cur) ?? Infinity)) continue;
-    if (nodes++ >= maxNodes) break;
+    if (nodes++ >= maxNodes) {
+      hitNodeCap = true;
+      break;
+    }
 
     if (cur === goal) {
       const path: { x: number; y: number }[] = [];
@@ -226,6 +306,8 @@ export function findPath(
       }
       path.push({ x: actualSx, y: actualSy });
       path.reverse();
+      recordPathNodes(nodes);
+      recordPathFound();
       return path;
     }
 
@@ -249,6 +331,10 @@ export function findPath(
       }
     }
   }
+
+  recordPathNodes(nodes);
+  recordPathFailed();
+  if (hitNodeCap) recordPathMaxNodesExceeded();
   return null;
 }
 
@@ -266,6 +352,7 @@ export function lineCrossesBlocked(
   x1: number,
   y1: number,
 ): boolean {
+  recordLineCheck();
   const span = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
   // Sub-tile sampling steps prevent tunneling through 1-tile diagonal obstacles
   const steps = Math.max(4, Math.min(128, Math.ceil(span / (TERRAIN_TILE_SIZE * 0.5))));
@@ -307,6 +394,45 @@ export function setCurrentPathMap(map: WorldMap | null, buildings?: Building[]):
   }
 }
 
+/** What the path owner has to say about one leg of a walk. */
+export type RouteObstruction =
+  /** The straight line is walkable — the sim steers directly, no route needed. */
+  | 'clear'
+  /** The line is blocked but a detour exists: the walk follows waypoints around it. */
+  | 'rerouting'
+  /** The line is blocked and no route exists — the walk falls back to the straight line. */
+  | 'blocked';
+
+/**
+ * Read-only twin of {@link steerWithPath}: reports what the path owner would do for this leg without
+ * writing velocity, position, or the steering cache. The inspector renders this so a blocked commute
+ * is legible instead of looking like a settler walking into a river.
+ *
+ * Uses the map's cached grid (`getPathGrid`) rather than the per-tick `currentGrid`, because the
+ * projection is also evaluated outside the sim tick — on the render side of a worker-mode session,
+ * where `currentGrid` has never been set. A missing map reports `clear`: no obstacle is known, which
+ * is different from "the way is known to be open" but is the honest answer when there is no grid.
+ */
+export function getRouteObstruction(
+  map: WorldMap | null,
+  buildings: Building[] | undefined,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): RouteObstruction {
+  if (!map) return 'clear';
+  const grid = getPathGrid(map, buildings);
+  if (!lineCrossesBlocked(grid, from.x, from.y, to.x, to.y)) return 'clear';
+
+  const path = findPath(
+    grid,
+    Math.floor(from.x / TERRAIN_TILE_SIZE),
+    Math.floor(from.y / TERRAIN_TILE_SIZE),
+    Math.floor(to.x / TERRAIN_TILE_SIZE),
+    Math.floor(to.y / TERRAIN_TILE_SIZE),
+  );
+  return path && path.length > 1 ? 'rerouting' : 'blocked';
+}
+
 /**
  * Steer an entity toward a target, routing around obstacles when the direct line
  * is blocked. Returns how the caller should proceed:
@@ -340,6 +466,7 @@ export function steerWithPath(
       cached === undefined
       || Math.hypot(cached.originX - entity.x, cached.originY - entity.y) > PATH_CACHE_ORIGIN_TOLERANCE
     ) {
+      recordPathCacheMiss();
       const path = findPath(
         currentGrid,
         Math.floor(entity.x / TERRAIN_TILE_SIZE),
@@ -354,6 +481,8 @@ export function steerWithPath(
       };
       if (pathCache.size > 200) pathCache.clear();
       pathCache.set(cacheKey, cached);
+    } else {
+      recordPathCacheHit();
     }
 
     const wp = cached.waypoints;
@@ -367,7 +496,7 @@ export function steerWithPath(
 
       entity.vx = (ndx / nd) * speed;
       entity.vy = (ndy / nd) * speed;
-      entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+      faceVelocity(entity);
       return 'path';
     }
   }

@@ -1,17 +1,14 @@
 import { Suspense, lazy } from 'react';
-import type { WorldState } from '../../game/gameEngine';
+import type { FrontierPanelProps } from '../FrontierPanel';
 
 const FrontierPanel = lazy(() => import('../FrontierPanel'));
 
-export interface FrontierTabPanelProps {
-  state: WorldState;
-  pendingRaidCount: number;
-  pendingOutgoingRaidCount: number;
-  pendingDiplomacyCount: number;
-  onFocusVisitor: (id: string, x: number, y: number) => void;
-  onFocusRival: (id: string, x: number, y: number, buildingId: number | undefined) => void;
-  onLaunchRaid: (rivalId: string) => void;
-}
+/**
+ * The wrapper adds `Suspense` + `lazy` and nothing else, so it forwards the child's own contract —
+ * restating it here let a new `FrontierPanel` prop silently default instead of failing to compile
+ * (audit C1 clone 2).
+ */
+export type FrontierTabPanelProps = FrontierPanelProps;
 
 export default function FrontierTabPanel({
   state,

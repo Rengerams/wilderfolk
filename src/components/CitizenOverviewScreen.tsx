@@ -4,7 +4,7 @@
  */
 import { Suspense, lazy, useEffect, useRef } from 'react';
 import type { Entity, WorldState } from '../game/gameTypes';
-import { computeCitizenOverview } from '../game/citizenOverview';
+import { computeCitizenOverview, hasManyAdultsIdle } from '../game/citizenOverview';
 import type { VillageStatsSummary } from '../game/uiSimSummary';
 import type { FocusHintAction } from '../game/focusHints';
 import type {
@@ -16,8 +16,12 @@ import type {
   MoreSubTab,
 } from '../hooks/useGameShellState';
 import { overviewNavFromState } from '../hooks/useGameShellState';
+import { useModalFocus } from '../hooks/useModalFocus';
+import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
+import { isFoodAlertAmount } from '../game/resourceUtils';
 import WorkSchedulePanel from './WorkSchedulePanel';
 import VenueSchedulePanel from './VenueSchedulePanel';
+import WorkforcePolicyPanel from './WorkforcePolicyPanel';
 
 const VillageTabPanel = lazy(() => import('./tabPanels/VillageTabPanel'));
 const FrontierTabPanel = lazy(() => import('./tabPanels/FrontierTabPanel'));
@@ -51,11 +55,13 @@ export interface CitizenOverviewScreenProps {
   tutorialsEnabled: boolean;
   onClose: () => void;
   onRecruitSettler: () => void;
+  onAutoStaffAll: () => void;
   onFocusBuilding: (buildingId: number, cx: number, cy: number) => void;
   onFocusCitizen: (entity: Entity) => void;
   onToggleFavoriteCitizen?: (entityId: number) => void;
   onHintAction: (action: FocusHintAction) => void;
   onApplyWorkSchedule: (startHour: number, endHour: number) => void;
+  onApplyWorkforcePolicy: (preset: import('../game/workforcePolicy').WorkforcePreset) => void;
   onApplyVenueSchedule: (venue: import('../game/venueSchedule').VenueScheduleKind, startHour: number, endHour: number) => void;
   onFocusVisitor: (id: string, x: number, y: number) => void;
   onFocusRival: (id: string, x: number, y: number, buildingId?: number) => void;
@@ -65,6 +71,8 @@ export interface CitizenOverviewScreenProps {
   onReplayTutorial: () => void;
   onToggleTutorials: () => void;
   onSpawnMoonHowlerDebug: () => void;
+  /** `?debug=1`, owned by the shell — forwarded so the Guide can gate its debug card. */
+  debugMode: boolean;
   onStartGuidedCampaign: () => void;
   suppressHintIds?: string[];
 }
@@ -135,12 +143,14 @@ export default function CitizenOverviewScreen({
   tutorialsEnabled,
   onClose,
   onRecruitSettler,
+  onAutoStaffAll,
   onFocusBuilding,
   onFocusCitizen,
   onToggleFavoriteCitizen,
   onHintAction,
   onApplyWorkSchedule,
   onApplyVenueSchedule,
+  onApplyWorkforcePolicy,
   onFocusVisitor,
   onFocusRival,
   onLaunchRaid,
@@ -149,11 +159,21 @@ export default function CitizenOverviewScreen({
   onReplayTutorial,
   onToggleTutorials,
   onSpawnMoonHowlerDebug,
+  debugMode,
   onStartGuidedCampaign,
   suppressHintIds = [],
 }: CitizenOverviewScreenProps) {
   const overview = computeCitizenOverview(state);
   const worldFocusRef = useRef<HTMLDivElement | null>(null);
+  // The overlay declares itself a dialog, so it must also behave like one: focus moves to the
+  // close button on mount and Tab stays inside instead of walking the game UI behind it.
+  const dialogRef = useModalFocus<HTMLDivElement>();
+  // …and it owns the keyboard at the same time, which is what the focus trap alone does not do:
+  // without the claim the gameplay hotkeys (1–9, B, G, H, R, X, +/-, WASD) acted on the map hidden
+  // behind the overview. Both halves — claim and Escape — come from the shared hook, because the claim
+  // is exactly what makes the game handler's own Escape branch unreachable
+  // (2026-09-17 UI audit; 2026-09-20 audit A-1/clone 3).
+  useOverlayKeyboard('valley-overview', onClose);
 
   useEffect(() => {
     if (section !== 'world' || !worldFocus || !worldFocusRef.current) return;
@@ -175,7 +195,7 @@ export default function CitizenOverviewScreen({
     { id: 'nature', label: 'Nature', hint: 'Ecosystem and wildlife' },
     { id: 'progress', label: 'Progress', hint: 'Research, trade, goals' },
     { id: 'chronicle', label: 'Log', hint: 'Births, deaths, scandals' },
-    { id: 'help', label: 'More', hint: 'Guide and roadmap' },
+    { id: 'help', label: 'More', hint: 'Guide and campaign' },
   ];
 
   const titleByNav: Record<OverviewNavId, { eyebrow: string; title: string }> = {
@@ -189,6 +209,7 @@ export default function CitizenOverviewScreen({
 
   return (
     <div
+      ref={dialogRef}
       className="pointer-events-auto fixed inset-0 z-[60] flex items-stretch justify-center bg-stone-950/80 p-2 backdrop-blur-sm sm:p-4"
       role="dialog"
       aria-modal="true"
@@ -204,12 +225,16 @@ export default function CitizenOverviewScreen({
               {titleByNav[activeNav].title}
             </h2>
             <p className="mt-0.5 text-[13px] text-stone-300">
-              {overview.moodLabel} — {overview.moodDetail}
+              {/* The mood label itself is the "Village mood" stat card's job; printing it here as
+                  well competed with that card for the same attention (audit R37). The sentence
+                  stays, the duplicate label does not. */}
+              {overview.moodDetail}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
+            data-autofocus
             className="rounded-xl bg-stone-800 px-3 py-2 text-sm font-bold text-stone-200 ring-1 ring-stone-600 hover:bg-stone-700"
             title="Close (Esc)"
           >
@@ -231,7 +256,7 @@ export default function CitizenOverviewScreen({
               label="Work"
               value={`${overview.working}/${overview.adults || 0}`}
               detail={`${overview.idle} idle`}
-              tone={overview.idle > Math.max(2, overview.adults * 0.35) ? 'warn' : 'good'}
+              tone={hasManyAdultsIdle(overview) ? 'warn' : 'good'}
             />
             <StatusCard
               icon="🛏️"
@@ -247,12 +272,15 @@ export default function CitizenOverviewScreen({
               detail={`${overview.married} married · ${overview.affairs} affairs · ${overview.imprisoned} jailed`}
               tone={overview.affairs > 0 || overview.imprisoned > 0 ? 'warn' : 'life'}
             />
+            {/* The threshold is the food owner's, not a second `max(20, pop × 2)` here: the
+                hand-written copy turned the card red at 35 food / 20 settlers beside a green
+                "Thriving" mood, which the owner's own rule does not (audit R6, residual of F20). */}
             <StatusCard
               icon="🍖"
               label="Food"
               value={overview.food}
               detail={`Today ${overview.foodNetToday >= 0 ? '+' : ''}${overview.foodNetToday}`}
-              tone={overview.food < Math.max(20, overview.total * 2) ? 'bad' : overview.foodNetToday < 0 ? 'warn' : 'good'}
+              tone={isFoodAlertAmount(overview.food, overview.total) ? 'bad' : overview.foodNetToday < 0 ? 'warn' : 'good'}
             />
             <StatusCard
               icon="⭐"
@@ -270,6 +298,10 @@ export default function CitizenOverviewScreen({
               key={tab.id}
               type="button"
               title={tab.hint}
+              /* The active chip was signalled by background and ring colour alone; this is the
+                 app's primary navigation, so the current item is stated, not just painted
+                 (2026-09-20 audit, A6). */
+              aria-current={activeNav === tab.id}
               onClick={() => onNavChange(tab.id)}
               className={`rounded-xl px-3 py-2 text-sm font-bold whitespace-nowrap transition-colors ${
                 activeNav === tab.id
@@ -291,6 +323,7 @@ export default function CitizenOverviewScreen({
                   villageStats={villageStats}
                   favoriteEntityId={favoriteEntityId}
                   onRecruitSettler={onRecruitSettler}
+                  onAutoStaffAll={onAutoStaffAll}
                   onFocusBuilding={onFocusBuilding}
                   onFocusCitizen={(entity) => {
                     onFocusCitizen(entity);
@@ -309,6 +342,9 @@ export default function CitizenOverviewScreen({
                   <WorkSchedulePanel state={state} onApply={onApplyWorkSchedule} />
                   <div className="my-4 border-t border-stone-700/60 pt-4">
                     <VenueSchedulePanel state={state} onApply={onApplyVenueSchedule} />
+                  </div>
+                  <div className="my-4 border-t border-stone-700/60 pt-4">
+                    <WorkforcePolicyPanel state={state} onApply={onApplyWorkforcePolicy} />
                   </div>
                 </section>
               </div>
@@ -399,6 +435,7 @@ export default function CitizenOverviewScreen({
                 onReplayTutorial={onReplayTutorial}
                 onToggleTutorials={onToggleTutorials}
                 onSpawnMoonHowlerDebug={onSpawnMoonHowlerDebug}
+                debugMode={debugMode}
                 state={state}
                 onStartGuidedCampaign={onStartGuidedCampaign}
               />

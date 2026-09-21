@@ -12,6 +12,7 @@ import {
 } from './simEffects';
 import { getMultiplier, hasTech } from './simHelpers';
 import { getSimRng } from './simRng';
+import { spendFood } from './economyLedger';
 
 type DisasterType = 'fire' | 'flood' | 'plague' | 'tornado' | 'earthquake';
 
@@ -22,6 +23,41 @@ const ALL_DISASTER_TYPES: readonly DisasterType[] = [
   'tornado',
   'earthquake',
 ];
+
+/**
+ * **Temporary owner switch (2026-09-17): hostile weather is OFF.**
+ *
+ * While `false`, both harmful weather paths return immediately:
+ *
+ * - `updateDisasters` — every disaster (fire, flood, plague, tornado, earthquake): the spawn, the
+ *   notification, the screen shake, the building damage and the entity deaths;
+ * - `applyDailyWeatherEffects` — storm building damage.
+ *
+ * Enforced *inside* those two functions rather than at their call sites, so no future caller can
+ * bypass it by accident. The functions this file exports below them (`applyStormDamageToBuildings`,
+ * `applyEarthquakeDamageToBuildings`) are deliberately **not** gated: they stay callable and their
+ * existing tests keep their full strength, and they are what to fix when this is switched back on
+ * (see the heal-floor class recorded in `docs/private/audits/2026-09-16/LIVE-FINDINGS-STATUS.md`, M6).
+ *
+ * Scope note: weather **itself** still rolls — rain, fog, snow and drought, their visuals, and the
+ * farm multiplier in `grassEcology.getWeatherFarmMultiplier` are untouched. This removes the harm,
+ * not the sky. Set to `true` to restore everything; it is one line, and it also re-runs the storm
+ * tests that are conditionally skipped while it is off (`tests/weatherConsequences.test.ts`).
+ *
+ * **Owner ruling, recorded because the sentence above invites the opposite conclusion.** This switch is
+ * not waiting on a bug fix. Weather was turned off because it was *"more annoying than a nice feature"*,
+ * and a **new weather system is planned**. So "set it to `true` to restore everything" restores the
+ * system that was rejected on feel — and this dormant code plus its player-facing copy (the Guide's
+ * "Disasters & Seasons" card, the Nature panel's "Active Disasters" block, `defense_1`'s disaster-damage
+ * text) is **scheduled for replacement, not for repair**: do not extend it, do not fix its wording, and
+ * do not report it as missing. Kept rather than deleted so the damage model and its two conditionally
+ * skipped tests stay usable as a reference the replacement can be measured against.
+ *
+ * Annotated `boolean` rather than left as the literal `false`: it is a switch a human flips, and the
+ * literal type would make the storm tests' `skipIf(!HOSTILE_WEATHER_ENABLED)` a compile-time constant
+ * (and therefore a TS "unreachable" diagnostic when they are skipped).
+ */
+export const HOSTILE_WEATHER_ENABLED: boolean = false;
 
 function clearHuntTargetsForVictim(state: WorldState, victimId: number): void {
   for (let i = 0; i < state.entities.length; i++) {
@@ -162,6 +198,7 @@ export function applyEarthquakeDamageToBuildings(
  * Daily weather consequences — called from the daily layer.
  */
 export function applyDailyWeatherEffects(state: WorldState): void {
+  if (!HOSTILE_WEATHER_ENABLED) return; // temporary owner switch — see its declaration above
   if (state.weather !== WeatherType.Storm) return;
   const resistMult = getMultiplier(state, 'disaster_resist');
   const damaged = applyStormDamageToBuildings(state.buildings, resistMult);
@@ -199,6 +236,7 @@ export function applyDailyWeatherEffects(state: WorldState): void {
 }
 
 export function updateDisasters(state: WorldState): void {
+  if (!HOSTILE_WEATHER_ENABLED) return; // temporary owner switch — see its declaration above
   if (
     isProductionTick(state.tick, EVENT_INTERVAL.disaster) &&
     state.year > 3 &&
@@ -317,7 +355,14 @@ export function updateDisasters(state: WorldState): void {
           e.flash = 10;
         }
       }
-      state.resources.food = Math.max(0, Math.floor(state.resources.food * 0.85));
+      // The plague takes 15 % of the stores. Deduct the amount that actually left, through the owner,
+      // so the food ledger can name the loss instead of the panel silently disagreeing with the larder
+      // (`LIVE-FINDINGS-STATUS.md`, F2 sweep).
+      spendFood(
+        state,
+        'disaster',
+        state.resources.food - Math.floor(state.resources.food * 0.85),
+      );
       if (infected > 0) {
         addFloatingText(state, x, y - 20, `Plague: ${infected} lost`, '#ef4444');
       }

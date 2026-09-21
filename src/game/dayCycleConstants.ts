@@ -15,6 +15,12 @@ export const DAYS_PER_MOON_CYCLE = 14;
  */
 export const HUMAN_ADULT_MIN_AGE = 18;
 
+/** Colony days a human stays a juvenile; `tryGraduateHumanChild` promotes on the graduation tick. */
+export const HUMAN_CHILDHOOD_DAYS = 12;
+
+/** Age in life-years at which the old-age death rate starts to apply. */
+export const HUMAN_VENERABLE_AGE = 60;
+
 
 export const NIGHT_START = 20;
 export const NIGHT_END = 6;

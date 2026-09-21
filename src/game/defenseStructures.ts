@@ -60,6 +60,18 @@ export function countCompletedDefenseBuildings(
 export const WALL_SEGMENT_BASE_CAP = 72;
 
 /**
+ * Barricade strength one completed wall segment (or gate) adds before forged wall plates.
+ *
+ * Exported because the inspector's building hint re-typed the `8` and the `+72` cap as prose, so
+ * after a wall-plate forge the hint promised "+8 / max +72" while the forge panel read "+4 / max +96"
+ * — two panels in one session contradicting each other (audit C2 "Building output/tuning copy").
+ */
+export const WALL_SEGMENT_BASE_BONUS = 8;
+
+/** Barricade strength one completed watchtower adds before forged tower ballistae replace it. */
+export const WATCHTOWER_BASE_BONUS = 15;
+
+/**
  * The wall-segment bonus cap for the current forge state — the single definition behind the
  * bonus itself and both break-down labels. The audit's L47 was a label that hardcoded +72 while
  * this function's own arithmetic could reach +96 with wall plates forged.
@@ -82,7 +94,7 @@ export function getWallSegmentBonus(
   if (segments === 0) return 0;
 
   const hasPlates = state && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'wall_plates');
-  const perSegment = 8 + (hasPlates ? FORGE_BONUSES.wallPlatePerSegment : 0);
+  const perSegment = WALL_SEGMENT_BASE_BONUS + (hasPlates ? FORGE_BONUSES.wallPlatePerSegment : 0);
   return Math.min(getWallSegmentCap(state), segments * perSegment);
 }
 
@@ -94,7 +106,7 @@ export function getWatchtowerBonus(
   const towers = countCompletedDefenseBuildings(buildings, BuildingType.Watchtower);
   if (towers === 0) return 0;
   const ballistae = state && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'tower_ballistae');
-  const perTower = ballistae ? FORGE_BONUSES.towerBallistaTotalPerTower : 15;
+  const perTower = ballistae ? FORGE_BONUSES.towerBallistaTotalPerTower : WATCHTOWER_BASE_BONUS;
   return towers * perTower;
 }
 

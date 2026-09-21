@@ -6,8 +6,8 @@ import {
 
   GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
 
-  saveGame, loadGame, hasSave, deleteSave, downloadSaveFile,
-  parseSaveJson, readSavePayload, describeSaveReadFailure, loadGameFromParsed,
+  saveGame, loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave, downloadSaveFile,
+  parseSaveJson, describeSaveReadFailure, loadGameFromParsed,
   getDiplomacyChoiceEligibility, getVisitorLeaderTalkMeta,
   ensureFullTradeRoutes,
   getCombatPreview,
@@ -15,8 +15,8 @@ import {
   hasIronSpears, hasStoneSpears,
 } from './game/gameEngine';
 import {
-  canPlaceBuilding,
   canAssignWorkerToBuilding,
+  getPlaceBuildingFailureReason,
   listAssignableWorkersForBuilding,
 } from './game/buildingActions';
 import {
@@ -24,14 +24,21 @@ import {
 } from './game/dayCycle';
 import { getVisitorQuest } from './game/visitorQuest';
 import { canEstablishTradeRoute } from './game/tradeCaravans';
+import {
+  actionOutcomeFromGate,
+  diplomacyChoiceReasonCode,
+  storyChoiceReasonCode,
+} from './game/actionOutcome';
+import { getStoryChoiceEligibility } from './game/storyEvents';
 import type { WorldState } from './game/gameEngine';
 
-import { resolveAliveHumans } from './game/entityCatalog';
 import type { EntityCatalog } from './game/entityCatalog';
+import { formatCitizenName } from './game/citizenId';
 import { computeVillageStats, type VillageStatsSummary } from './game/uiSimSummary';
 import { isFoodAlert } from './game/resourceUtils';
 import {
   createInitialView,
+  createBuildGhost,
   zoomCameraViewAt,
   focusCameraOn,
   CAMERA_ZOOM_DEFAULT,
@@ -46,7 +53,6 @@ import {
 import { isRotatableBuildingType, toggleBuildingRotation } from './game/buildingRotation';
 
 import { preloadAllSprites } from './game/spriteLoader';
-import { formatRaidDeadlineSafe } from './game/raidUtils';
 import SelectedBuildingPanel from './components/SelectedBuildingPanel';
 import GameMapStage from './components/GameMapStage';
 import { isPlayerHuman } from './game/playerHuman';
@@ -64,6 +70,7 @@ import GameDashboard from './components/dashboard/GameDashboard';
 import VisitorCampPanel from './components/VisitorCampPanel';
 import SelectedEntityPanel from './components/SelectedEntityPanel';
 import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel';
+import { setRelationshipDiagnosticsConsoleLoggingEnabled } from './game/relationshipDiagnostics';
 import GamePlayLayout from './components/GamePlayLayout';
 import GameInspector from './components/GameInspector';
 import GameOverlays from './components/GameOverlays';
@@ -72,7 +79,7 @@ import GameSidebar from './components/GameSidebar';
 import GameBuildRail from './components/GameBuildRail';
 
 
-import { useGamePersistence } from './hooks/useGamePersistence';
+import { useGamePersistence, type SaveToast } from './hooks/useGamePersistence';
 import { useTransientGameFeedback } from './hooks/useTransientGameFeedback';
 import { useGameSession } from './hooks/useGameSession';
 import {
@@ -114,10 +121,51 @@ import { currentCampaignStep, TUTORIAL_CAMPAIGN } from './game/tutorialCampaign'
 
 const SPEED_OPTIONS = [0.5, 1, 2, 3, 5, 10];
 
+/**
+ * The save/load feedback banner, rendered by both session states.
+ *
+ * It used to exist only in the game shell, so a refused load on the new-settlement screen — where
+ * "Load saved game" lives — set a message that was never drawn and expired before the player could
+ * reach the game (2026-09-17 UI audit, R39). `className` carries the z-index because that screen is
+ * a `fixed inset-0 z-50` overlay and the banner has to sit above it.
+ */
+function SaveToastBanner({
+  toast,
+  onDismiss,
+  className = 'z-30',
+}: {
+  toast: SaveToast;
+  onDismiss: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onDismiss}
+      title="Dismiss"
+      className={`pointer-events-auto absolute bottom-16 left-1/2 ${className} -translate-x-1/2 rounded-lg border px-4 py-2 text-sm font-semibold shadow-2xl backdrop-blur hover:brightness-110 ${
+        toast.type === 'success'
+          ? 'border-emerald-500/40 bg-emerald-950/90 text-emerald-200'
+          : 'border-rose-500/40 bg-rose-950/90 text-rose-200'
+      }`}
+    >
+      {toast.type === 'success' ? '💾 ' : '⚠️ '}{toast.message}
+    </button>
+  );
+}
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const debugMode = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('debug') === '1';
+  // Roadmap U5 — "normal play stays quiet". Diagnostics *collection* is always on (the drawer and
+  // the cumulative history need it), but the once-per-colony-day console snapshot is a debug tool.
+  // Nothing used to switch it off, so every session printed a full snapshot each in-game day and
+  // the test tier had to silence it by hand. `?debug=1` opts in; the drawer's debug section is the
+  // reader for the history this keeps.
+  useEffect(() => {
+    setRelationshipDiagnosticsConsoleLoggingEnabled(debugMode);
+  }, [debugMode]);
   const [world, setWorld] = useState<WorldState>(() => {
     const s = initGame();
     s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
@@ -187,7 +235,28 @@ export default function App() {
   } = useGameShellState();
   const [spritesLoaded, setSpritesLoaded] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
-  const [hasSavedGame, setHasSavedGame] = useState(hasSave());
+  // Reading the save slot touches localStorage and JSON-parses the whole save, so it must never
+  // run from the render body (the game view re-renders every tick). The slot is read once on
+  // mount, then only from the events that can change it: another tab writing to it (the `storage`
+  // event) or this session creating/deleting it (beside each `setHasSavedGame` call).
+  // `saveSlotPresent` is slot *presence* (raw `localStorage`), `hasSavedGame` is "this build can load
+  // it". They were both seeded from `hasSave()`, which is the second meaning — so a slot holding a save
+  // from a different build read as "No browser save", the Load action was disabled, and
+  // `describeSaveReadFailure`'s "Save is from a different build … Start a new settlement" was
+  // unreachable from this screen (2026-09-20 audit, P-2). Keeping the two apart is what lets the Load
+  // affordance stay enabled and the refusal message be the thing the player reads.
+  const [saveSlotPresent, setSaveSlotPresent] = useState(hasSaveSlot);
+  const [hasSavedGame, setHasSavedGame] = useState(hasSave);
+  useEffect(() => {
+    const refreshSaveSlot = () => setSaveSlotPresent(hasSaveSlot());
+    window.addEventListener('storage', refreshSaveSlot);
+    window.addEventListener('focus', refreshSaveSlot);
+    return () => {
+      window.removeEventListener('storage', refreshSaveSlot);
+      window.removeEventListener('focus', refreshSaveSlot);
+    };
+  }, []);
+  const canLoadSavedGame = hasSavedGame || saveSlotPresent;
   const {
     applyGameAction,
     catalogRef,
@@ -456,6 +525,18 @@ export default function App() {
     loop.patchView({ showGrid: next });
   }, [loopRef]);
 
+  /**
+   * F4 — logistics overlay toggle. Presentation only: it flips a `ViewState` flag and nothing
+   * else, so no simulation state, save field or command is touched. The projection itself is
+   * built in `buildRenderSnapshot` while the flag is on.
+   */
+  const toggleLogistics = useCallback(() => {
+    const loop = loopRef.current;
+    if (!loop) return;
+    const next = !loop.getView().showLogistics;
+    loop.patchView({ showLogistics: next });
+  }, [loopRef]);
+
   // The "Click map repeatedly to place more" hint shows for the first-ever
   // (Placement how-to was removed with the build banner — the ghost on the
   // map is the only placement indicator; Esc / right-click exits.)
@@ -471,14 +552,23 @@ export default function App() {
     const view = loop.getView();
     const nextRotation = toggleBuildingRotation(view.buildRotation);
     const ghost = view.buildGhost;
+    // Rotation swaps the footprint, so the verdict is re-derived from the owner — reason included,
+    // so the ghost's label follows the rotation (F5).
     loop.patchView({
       buildRotation: nextRotation,
       ...(ghost
         ? {
-            buildGhost: {
-              ...ghost,
-              valid: canPlaceBuilding(loop.getWorld(), selectedBuildingType, ghost.x, ghost.y, nextRotation),
-            },
+            buildGhost: createBuildGhost(
+              ghost.x,
+              ghost.y,
+              getPlaceBuildingFailureReason(
+                loop.getWorld(),
+                selectedBuildingType,
+                ghost.x,
+                ghost.y,
+                nextRotation,
+              ),
+            ),
           }
         : {}),
     });
@@ -718,6 +808,7 @@ export default function App() {
   const selectBuildingTypeRef = useRef(selectBuildingType);
   const cancelBuildModeRef = useRef(cancelBuildMode);
   const toggleGridRef = useRef(toggleGrid);
+  const toggleLogisticsRef = useRef(toggleLogistics);
   const rotateBuildPlacementRef = useRef(rotateBuildPlacement);
   const showShortcutsRef = useRef(showShortcuts);
   const citizenOverviewOpenRef = useRef(citizenOverviewOpen);
@@ -796,6 +887,7 @@ export default function App() {
     selectBuildingTypeRef.current = selectBuildingType;
     cancelBuildModeRef.current = cancelBuildMode;
     toggleGridRef.current = toggleGrid;
+    toggleLogisticsRef.current = toggleLogistics;
     rotateBuildPlacementRef.current = rotateBuildPlacement;
     showShortcutsRef.current = showShortcuts;
     citizenOverviewOpenRef.current = citizenOverviewOpen;
@@ -807,6 +899,7 @@ export default function App() {
     selectBuildingType,
     cancelBuildMode,
     toggleGrid,
+    toggleLogistics,
     rotateBuildPlacement,
     showShortcuts,
     citizenOverviewOpen,
@@ -817,6 +910,7 @@ export default function App() {
 
   useKeyboardControls({
     loopRef,
+    canvasRef,
     selectedBuildingTypeRef,
     gameplayActiveRef,
     showShortcutsRef,
@@ -834,6 +928,7 @@ export default function App() {
     togglePauseRef,
     selectBuildingTypeRef,
     toggleGridRef,
+    toggleLogisticsRef,
     rotateBuildPlacementRef,
     applyZoomRef,
     dismissBigNewsRef,
@@ -956,28 +1051,32 @@ export default function App() {
     setHasSavedGame(true);
   }, [replaceSession, synchronizeTransientFeedbackFromWorld]);
 
+  /**
+   * The one browser-slot load path. Both entry points — the game menu and the new-settlement screen —
+   * go through it, because they used to repeat the refusal block *verbatim* (jscpd clone; 2026-09-20
+   * audit, W-3) and had already drifted once: the setup path called a reason-discarding loader, so a
+   * slot that could not be read *or* restored made "Load saved game" do nothing, silently, on every
+   * retry (`LIVE-FINDINGS-STATUS.md`, F19).
+   *
+   * Read first so a refusal names its real cause (empty / unreadable / malformed / another build /
+   * parsed-but-unrestorable) instead of guessing "corrupted" or "different build".
+   */
+  const loadFromSlot = useCallback((options?: { closeSetup?: boolean; successToast?: string }) => {
+    const outcome = loadGameOutcome();
+    if (!outcome.ok) {
+      setHasSavedGame(outcome.reason === 'unrestorable' ? hasSave() : false);
+      showSaveToast({ message: describeSaveLoadOutcome(outcome), type: 'error' });
+      return;
+    }
+    applyLoadedSession(outcome);
+    setHasSavedGame(true);
+    if (options?.closeSetup) setShowMapSetup(false);
+    if (options?.successToast) showSaveToast({ message: options.successToast, type: 'success' });
+  }, [applyLoadedSession, showSaveToast, setShowMapSetup]);
+
   const handleLoad = useCallback(() => {
-    // Read the slot first so a refusal names its real cause (empty / unreadable /
-    // malformed / another build) instead of guessing "corrupted" or "different build".
-    const payload = readSavePayload();
-    if (!payload.valid) {
-      setHasSavedGame(false);
-      showSaveToast({ message: describeSaveReadFailure(payload), type: 'error' });
-      return;
-    }
-    const loaded = loadGameFromParsed(payload.parsed);
-    if (loaded) {
-      applyLoadedSession(loaded);
-      setHasSavedGame(true);
-      showSaveToast({ message: 'Game loaded', type: 'success' });
-      return;
-    }
-    setHasSavedGame(hasSave());
-    showSaveToast({
-      message: 'The save parsed but could not be restored — the failing step is in the browser console (F12).',
-      type: 'error',
-    });
-  }, [applyLoadedSession, showSaveToast]);
+    loadFromSlot({ successToast: 'Game loaded' });
+  }, [loadFromSlot]);
 
   const handleSaveToFile = useCallback(async () => {
     const loop = loopRef.current;
@@ -1009,10 +1108,9 @@ export default function App() {
     }
     const loaded = loadGameFromParsed(parsed.parsed);
     if (!loaded) {
-      showSaveToast({
-        message: 'The save parsed but could not be restored — the failing step is in the browser console (F12).',
-        type: 'error',
-      });
+      // The "parsed but not restorable" message has one owner (`saveLoad.describeSaveLoadOutcome`),
+      // so the slot, menu and file paths cannot drift apart.
+      showSaveToast({ message: describeSaveLoadOutcome({ reason: 'unrestorable' }), type: 'error' });
       return;
     }
     applyLoadedSession(loaded);
@@ -1028,14 +1126,8 @@ export default function App() {
   }, [applyLoadedSession, showSaveToast, setShowMapSetup]);
 
   const handleLoadFromSetup = useCallback(() => {
-    const loaded = loadGame();
-    if (loaded) {
-      applyLoadedSession(loaded);
-      setShowMapSetup(false);
-    } else {
-      setHasSavedGame(hasSave());
-    }
-  }, [applyLoadedSession, setShowMapSetup]);
+    loadFromSlot({ closeSetup: true });
+  }, [loadFromSlot]);
 
   useLayoutEffect(() => {
     dismissBigNewsRef.current = dismissBigNewsItem;
@@ -1068,23 +1160,6 @@ export default function App() {
   );
   const progressTabAlert = world.activeResearch != null || tradeReadyCount > 0;
   const foodAlert = isFoodAlert(world);
-
-  const selectedBuildingIdleWorkerCount = useMemo(() => {
-    const building = resolveBuilding(world, view.selectedBuildingId);
-    if (!building) return 0;
-    const humans = resolveAliveHumans(world, catalog ?? undefined);
-    if (!building.completed) {
-      return humans.filter((human) => {
-        if (human.isJuvenile || human.faction) return false;
-        return !world.buildings.some(
-          (b) => !b.completed && b.occupants.includes(human.id),
-        );
-      }).length;
-    }
-    return humans.filter(
-      (human) => !human.isJuvenile && human.homeBuildingId == null && !human.faction,
-    ).length;
-  }, [view.selectedBuildingId, world, catalog]);
 
   if (showIntro) {
     return (
@@ -1121,7 +1196,7 @@ export default function App() {
           primeAudioUnlock();
           handleLoadFromSetup();
         }}
-        hasSave={hasSavedGame || hasSave()}
+        hasSave={canLoadSavedGame}
         tutorialsEnabled={tutorialsEnabled}
         onTutorialsChange={(enabled) => {
           saveTutorialsEnabled(enabled);
@@ -1137,6 +1212,9 @@ export default function App() {
         tutorialChoice={tutorialChoice}
         onTutorialChoiceChange={handleTutorialChoiceChange}
       />
+      {/* The setup screen is a full-screen `z-50` overlay, so a refused load has to be drawn above
+          it — this is the screen whose "Load saved game" button produces the refusal (R39). */}
+      {saveToast && <SaveToastBanner toast={saveToast} onDismiss={dismissSaveToast} className="z-[60]" />}
       </Suspense>
     );
   }
@@ -1202,7 +1280,7 @@ export default function App() {
           foodAlert={foodAlert}
           muted={muted}
           volumePreset={volumePreset}
-          hasSavedGame={hasSavedGame || hasSave()}
+          hasSavedGame={canLoadSavedGame}
           speedOptions={SPEED_OPTIONS}
           onTogglePause={togglePause}
           onSetSpeed={setSpeed}
@@ -1342,7 +1420,7 @@ export default function App() {
                           ? `Offer: ${formatRaidLootSummary(raidEventLoot(evt))}`
                           : 'They chose to fight'}
                         {' · '}
-                        <strong>{formatRaidDeadlineSafe(evt, world.tick)}</strong>
+                        <strong>{formatRaidDeadline(evt, world.tick)}</strong>
                         {evt.marchDistanceTiles > 0 && (
                           <span> · {evt.marchDistanceTiles} tiles march</span>
                         )}
@@ -1449,6 +1527,13 @@ export default function App() {
                             title={blockReason ?? choice.hint}
                           >
                             <LabelWithResourceCost label={choice.label} cost={choice.cost} />
+                            {/* The reason is rendered, not tooltipped: `title` is unreachable on touch,
+                                which is the defect the diplomacy buttons were fixed for (bug 46). */}
+                            {blocked && blockReason && (
+                              <span className="mt-0.5 block text-[11px] font-normal text-amber-300">
+                                {blockReason}
+                              </span>
+                            )}
                           </button>
                           );
                         })}
@@ -1478,20 +1563,28 @@ export default function App() {
                       <h3 className="font-bold text-emerald-100">{evt.title}</h3>
                       <p className="mt-0.5 text-[13px] leading-relaxed text-emerald-200/80">{evt.description}</p>
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {evt.choices.map((choice) => (
-                          <button
+                        {evt.choices.map((choice) => {
+                          // Ask the story owner instead of guessing (roadmap U2/O2). A refused
+                          // answer is re-queued by `respondToStoryEvent`, so the card already stays
+                          // open — what was missing is the reason: an unaffordable choice used to
+                          // look clickable and refuse in silence.
+                          const outcome = actionOutcomeFromGate(
+                            getStoryChoiceEligibility(world, evt, choice.id),
+                            storyChoiceReasonCode(evt.storyKey, choice.id),
+                          );
+                          const blocked = outcome.kind === 'blocked';
+                          return (
+                          <GatedChoiceButton
                             key={choice.id}
-                            type="button"
-                            onClick={() => {
-                              playClickSound();
-                              applyGameAction({ proto: 1, op: 'respondToStoryEvent', eventId: evt.id, choiceId: choice.id });
-                            }}
-                            className="rounded-lg bg-stone-900/80 px-2 py-1.5 text-left text-xs font-semibold text-emerald-100 hover:bg-stone-800"
-                            title={choice.detail}
-                          >
-                            {choice.label}
-                          </button>
-                        ))}
+                            label={choice.label}
+                            blocked={blocked}
+                            explanation={outcome.explanation}
+                            hint={choice.detail}
+                            colorClass="bg-stone-900/80 text-emerald-100 hover:bg-stone-800"
+                            onChoose={() => applyGameAction({ proto: 1, op: 'respondToStoryEvent', eventId: evt.id, choiceId: choice.id })}
+                          />
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -1512,22 +1605,21 @@ export default function App() {
                       <p className="text-sm text-stone-300">{evt.description}</p>
                       <div className="mt-2 grid grid-cols-1 gap-1">
                         {evt.choices.map((choice) => {
-                          const eligibility = getDiplomacyChoiceEligibility(world, evt, choice.id);
+                          const outcome = actionOutcomeFromGate(
+                            getDiplomacyChoiceEligibility(world, evt, choice.id),
+                            diplomacyChoiceReasonCode(evt.kind, choice.id),
+                          );
+                          const blocked = outcome.kind === 'blocked';
                           return (
-                          <button
+                          <GatedChoiceButton
                             key={choice.id}
-                            type="button"
-                            disabled={!eligibility.ok}
-                            onClick={() => {
-                              if (!eligibility.ok) return;
-                              playClickSound();
-                              applyGameAction({ proto: 1, op: 'respondToDiplomacyEvent', eventId: evt.id, choiceId: choice.id });
-                            }}
-                            className="rounded-lg bg-stone-800/80 px-2 py-1.5 text-left text-xs font-semibold text-stone-100 hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
-                            title={eligibility.blockReason ?? choice.hint}
-                          >
-                            {choice.label}
-                          </button>
+                            label={choice.label}
+                            blocked={blocked}
+                            explanation={outcome.explanation}
+                            hint={choice.hint}
+                            colorClass="bg-stone-800/80 text-stone-100 hover:bg-stone-700"
+                            onChoose={() => applyGameAction({ proto: 1, op: 'respondToDiplomacyEvent', eventId: evt.id, choiceId: choice.id })}
+                          />
                           );
                         })}
                       </div>
@@ -1623,20 +1715,8 @@ export default function App() {
             </div>
           )}
 
-          {/* Save toast */}
-          {saveToast && (
-            <button
-              type="button"
-              onClick={dismissSaveToast}
-              title="Dismiss"
-              className={`pointer-events-auto absolute bottom-16 left-1/2 z-30 -translate-x-1/2 rounded-lg border px-4 py-2 text-sm font-semibold shadow-2xl backdrop-blur hover:brightness-110 ${
-              saveToast.type === 'success'
-                ? 'border-emerald-500/40 bg-emerald-950/90 text-emerald-200'
-                : 'border-rose-500/40 bg-rose-950/90 text-rose-200'
-            }`}>
-              {saveToast.type === 'success' ? '💾 ' : '⚠️ '}{saveToast.message}
-            </button>
-          )}
+          {/* Save toast — the same banner the setup screen draws, so one message has one renderer */}
+          {saveToast && <SaveToastBanner toast={saveToast} onDismiss={dismissSaveToast} />}
 
           {/* Pause HUD — map stays clickable for inspect/build while frozen */}
           {world.paused && !showTutorial && (
@@ -1684,7 +1764,9 @@ export default function App() {
       )}
       inspector={(
         <aside
-          className={`side-panel flex w-[18.5rem] flex-col border-l border-stone-700/80 ${
+          className={`side-panel flex flex-col border-l border-stone-700/80 ${
+            inspectorCollapsed && hasInspectorSelection ? 'w-12' : 'w-[18.5rem]'
+          } ${
             citizenOverviewOpen ? 'pointer-events-none invisible' : ''
           }`}
           aria-hidden={citizenOverviewOpen}
@@ -1744,7 +1826,7 @@ export default function App() {
                   const selectedSettlers = (view.selectedEntityIds ?? [])
                     .map((id) => resolveEntity(world, id) ?? catalog?.get(id) ?? null)
                     .filter((e): e is import('./game/gameTypes').Entity =>
-                      !!e && e.alive && e.type === EntityType.Human && !e.faction && !e.isJuvenile);
+                      !!e && e.alive && isPlayerHuman(e) && !e.isJuvenile);
                   if (selectedSettlers.length < 2) return null;
                   return (
                     <button
@@ -1762,6 +1844,7 @@ export default function App() {
                   );
                 })()}
               <SelectedBuildingPanel
+                key={selectedBuilding.id}
                 building={selectedBuilding}
                 state={world}
                 onAssign={() => applyGameAction({ proto: 1, op: 'assignWorker', buildingId: selectedBuilding.id })}
@@ -1799,7 +1882,6 @@ export default function App() {
                   playClickSound();
                   applyGameAction(cmd);
                 }}
-                idleWorkers={selectedBuildingIdleWorkerCount}
                 canAssignWorker={canAssignWorkerToBuilding(world, selectedBuilding.id)}
                 onDiplomacyAction={(cmd) => {
                   playClickSound();
@@ -1921,6 +2003,7 @@ export default function App() {
           tutorialsEnabled={tutorialsEnabled}
           onClose={closeCitizenOverview}
           onRecruitSettler={() => applyGameAction({ proto: 1, op: 'recruitSettler' })}
+          onAutoStaffAll={() => applyGameAction({ proto: 1, op: 'autoStaffWorkers' })}
           onFocusBuilding={focusBuildingOnMap}
           onFocusCitizen={focusCitizenOnMap}
           onToggleFavoriteCitizen={(id) => {
@@ -1942,6 +2025,9 @@ export default function App() {
           onApplyVenueSchedule={(venue, startHour, endHour) =>
             applyGameAction({ proto: 1, op: 'setVenueSchedule', venue, startHour, endHour })
           }
+          onApplyWorkforcePolicy={(preset) =>
+            applyGameAction({ proto: 1, op: 'setWorkforcePolicy', preset })
+          }
           onFocusVisitor={(id, x, y) => focusCampOnMap('visitor', id, x, y)}
           onFocusRival={(id, x, y, buildingId) => focusCampOnMap('rival', id, x, y, buildingId)}
           onLaunchRaid={(rivalId) => {
@@ -1953,6 +2039,7 @@ export default function App() {
           onReplayTutorial={() => { setTutorialStep(0); setShowTutorial(true); }}
           onToggleTutorials={handleToggleTutorials}
           onSpawnMoonHowlerDebug={() => applyGameAction({ proto: 1, op: 'spawnMoonHowlerDebug' })}
+          debugMode={debugMode}
           onStartGuidedCampaign={() => applyGameAction({ proto: 1, op: 'startGuidedCampaign' })}
         />
       )}
@@ -1963,6 +2050,49 @@ export default function App() {
 }
 
 // ============ SUB-COMPONENTS ============
+
+/**
+ * An authored event choice that the owning gate may refuse: the label, the owner's explanation as
+ * visible text (not only a tooltip), and the refusal disabling the control.
+ *
+ * The story card and the diplomacy card rendered this control byte-for-byte identically except for
+ * their colours and their command op — jscpd's remaining `.tsx` clone in this file. `RaidChoiceButtons`
+ * in `SelectedBuildingPanel` is the same shape for the raid cards (2026-09-20 audit, clone 2).
+ */
+function GatedChoiceButton({
+  label,
+  blocked,
+  explanation,
+  hint,
+  colorClass,
+  onChoose,
+}: {
+  label: string;
+  blocked: boolean;
+  explanation?: string | null;
+  hint?: string;
+  colorClass: string;
+  onChoose: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={blocked}
+      onClick={() => {
+        if (blocked) return;
+        playClickSound();
+        onChoose();
+      }}
+      className={`rounded-lg px-2 py-1.5 text-left text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${colorClass}`}
+      title={explanation ?? hint}
+    >
+      {label}
+      {explanation && (
+        <span className="block font-normal text-amber-200/90">{explanation}</span>
+      )}
+    </button>
+  );
+}
 
 function RivalFocusButton({
   world,
@@ -1996,9 +2126,9 @@ function FavoriteFollowBanner({
   fav: { id: number; name?: string; surname?: string };
   onStop: (id: number) => void;
 }) {
-  const label = fav.name
-    ? `${fav.name}${fav.surname ? ` ${fav.surname}` : ''}`
-    : `Citizen #${fav.id}`;
+  // The owner's identified form: it keeps the `#id` (two nameless settlers must stay distinguishable
+  // here) *and* the one nameless-settler fallback (2026-09-20 audit, W-1/W-2).
+  const label = formatCitizenName(fav);
   return (
     <div className="pointer-events-auto absolute left-1/2 top-14 z-20 -translate-x-1/2">
       <div className="flex items-center gap-2 rounded-full border border-amber-500/40 bg-stone-900/90 px-3 py-1.5 shadow-lg backdrop-blur">

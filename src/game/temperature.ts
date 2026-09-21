@@ -1,4 +1,5 @@
 import { Season, WeatherType } from './gameTypes';
+import { getColonyDay } from './dayCycle';
 
 /** Midday baseline °C per season (gameplay calendar, not visuals). */
 const SEASON_BASE_C: Record<Season, number> = {
@@ -39,7 +40,10 @@ export function computeDailyTemperatureC(
   dayInYear: number,
   year: number,
 ): number {
-  const seed = year * 360 + dayInYear;
+  // `getColonyDay`, not a restated year-times-360 literal: the day index has one definition, and that
+  // literal duplicated `DAYS_PER_YEAR` (found while fixing `LIVE-FINDINGS-STATUS.md` L7, which had the
+  // same expression in `rivalEvents.ts`).
+  const seed = getColonyDay({ year, dayInYear });
   const noise = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
   const unit = noise - Math.floor(noise);
   const centered = unit * 2 - 1;

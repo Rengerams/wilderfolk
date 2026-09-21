@@ -1,5 +1,5 @@
 import type { WorldState } from './gameTypes';
-import { TICKS_PER_HOUR, getHourOfDay } from './dayCycleClock';
+import { TICKS_PER_HOUR } from './dayCycleClock';
 
 export type VenueScheduleKind = 'tavern' | 'hotel';
 export interface VenueSchedule { startHour: number; endHour: number }
@@ -29,7 +29,16 @@ export function getVenueSchedule(state: Pick<WorldState, 'tavernSchedule' | 'hot
   return result.ok ? result.schedule : { ...defaultFor(kind) };
 }
 
-export function validateVenueSchedule(startHour: unknown, endHour: unknown): VenueScheduleValidation {
+/**
+ * Validates candidate service hours. Pass the venue's current schedule to have an unchanged
+ * window reported as `'unchanged'` rather than `'accepted'` — the panel uses that to say no
+ * command will be sent (mirrors `workSchedule.validateWorkSchedule`).
+ */
+export function validateVenueSchedule(
+  startHour: unknown,
+  endHour: unknown,
+  currentSchedule?: VenueSchedule,
+): VenueScheduleValidation {
   if (typeof startHour !== 'number' || typeof endHour !== 'number' || !Number.isInteger(startHour) || !Number.isInteger(endHour) || startHour < 0 || startHour >= 24 || endHour < 0 || endHour >= 24) {
     return { ok: false, status: 'blocked', reason: 'Venue hours must use whole clock hours from 0 through 23.' };
   }
@@ -37,6 +46,9 @@ export function validateVenueSchedule(startHour: unknown, endHour: unknown): Ven
   const duration = endHour - startHour;
   if (duration < MIN_VENUE_SERVICE_HOURS) return { ok: false, status: 'blocked', reason: `Venue service must run at least ${MIN_VENUE_SERVICE_HOURS} hours.` };
   if (duration > MAX_VENUE_SERVICE_HOURS) return { ok: false, status: 'blocked', reason: `Venue service cannot exceed ${MAX_VENUE_SERVICE_HOURS} hours.` };
+  if (currentSchedule && currentSchedule.startHour === startHour && currentSchedule.endHour === endHour) {
+    return { ok: true, status: 'unchanged', schedule: { startHour, endHour } };
+  }
   return { ok: true, status: 'accepted', schedule: { startHour, endHour } };
 }
 
@@ -84,10 +96,6 @@ export function isVenueServiceHour(state: Pick<WorldState, 'tavernSchedule' | 'h
   if (kind === 'tavern' && festivalActive) return true;
   const schedule = getVenueSchedule(state, kind);
   return hour >= schedule.startHour && hour < schedule.endHour;
-}
-
-export function isVenueServiceTick(state: Pick<WorldState, 'tick' | 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind, hour?: number, festivalActive = false): boolean {
-  return isVenueServiceHour(state, kind, hour ?? getHourOfDay(state.tick), festivalActive);
 }
 
 export function isVenueScheduleStartTick(state: Pick<WorldState, 'tick' | 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind): boolean {

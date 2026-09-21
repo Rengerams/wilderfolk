@@ -7,6 +7,7 @@ import { BuildingType } from './gameTypes';
 import { getPlayerCampCenter } from './frontierCombat';
 import { TICKS_PER_DAY, getHourOfDay, isNightHour } from './dayCycle';
 import { getSimRng } from './simRng';
+import { faceVelocity } from './simulation/movementSteering';
 
 type VisitPhase = 'idle_camp' | 'walk_poi' | 'loiter_poi' | 'return_camp' | 'wander_edge';
 
@@ -414,7 +415,7 @@ export function tickFactionCampWander(
   entity.vy = (dy / dist) * moveSpeed * rush;
   entity.x += entity.vx;
   entity.y += entity.vy;
-  entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
+  faceVelocity(entity);
 }
 
 export function clearFactionWanderState(entityId: number): void {

@@ -2,6 +2,33 @@ import type { Building, BuildingType, Camera, Entity, WorldState } from './gameT
 import { BuildingType as BuildingTypeEnum } from './gameTypes';
 import type { StripBuildPreview } from './stripBuild';
 import { pickWorldFieldsForSave } from './saveSchema';
+import type { PlaceBuildingFailureReason } from './buildingPlacementLabels';
+
+/**
+ * The placement ghost: the snapped point plus the placement owner's verdict on it.
+ *
+ * A discriminated union rather than two independent fields, because `valid` and `reason` are one
+ * fact — a ghost whose reason is `null` is placeable and one with a reason is not. Build it through
+ * {@link createBuildGhost} so the two can never disagree.
+ */
+export type BuildGhost =
+  | { x: number; y: number; valid: true; reason: null }
+  | { x: number; y: number; valid: false; reason: PlaceBuildingFailureReason };
+
+/**
+ * The one constructor for a placement ghost, fed by
+ * `buildingPlacementActions.getPlaceBuildingFailureReason`.
+ *
+ * The reason rides the ghost so the canvas can name the blocker instead of printing one fixed
+ * "Blocked" (`LIVE-FINDINGS-STATUS.md` F5); wording lives in `buildingPlacementLabels`.
+ */
+export function createBuildGhost(
+  x: number,
+  y: number,
+  reason: PlaceBuildingFailureReason | null,
+): BuildGhost {
+  return reason === null ? { x, y, valid: true, reason: null } : { x, y, valid: false, reason };
+}
 
 export interface ViewState {
   camera: Camera;
@@ -13,7 +40,7 @@ export interface ViewState {
   selectedBuildingId: number | null;
   hoveredBuildingId: number | null;
   buildMode: BuildingType | null;
-  buildGhost: { x: number; y: number; valid: boolean } | null;
+  buildGhost: BuildGhost | null;
   /** Drag preview for wall / road / gate chains. */
   buildStripPreview: StripBuildPreview | null;
   /** Placement rotation for rotatable build types (Road, Wall, Wall Gate). */
@@ -21,6 +48,14 @@ export interface ViewState {
   showGrid: boolean;
   showPaths: boolean;
   showTechTree: boolean;
+  /**
+   * F4 logistics overlay — supply links, poorly connected buildings and commute pressure.
+   *
+   * A read-only presentation toggle: it selects whether the per-frame overlay pass draws the
+   * projection, and nothing else in the simulation reads it (see `logisticsOverlayData`). Off by
+   * default so an untouched session renders exactly as before.
+   */
+  showLogistics: boolean;
   /** Camp marker highlight — `rival:<id>` or `visitor:<id>`. */
   highlightedCampKey: string | null;
   /** Selected visitor/rival camp for diplomacy inspector. */
@@ -80,6 +115,7 @@ export function createInitialView(width: number, height: number, zoom = CAMERA_Z
     showGrid: true,
     showPaths: false,
     showTechTree: false,
+    showLogistics: false,
     highlightedCampKey: null,
     selectedCampKey: null,
     favoriteEntityId: null,
@@ -130,15 +166,6 @@ export function parseBuildRotation(value: unknown): 0 | 90 {
 
 function isBuildingType(value: unknown): value is BuildingType {
   return typeof value === 'string' && getBuildingTypeValues().has(value);
-}
-
-function parseBuildGhost(value: unknown): ViewState['buildGhost'] {
-  if (value == null || typeof value !== 'object') return null;
-  const ghost = value as { x?: unknown; y?: unknown; valid?: unknown };
-  const x = parseFiniteNumber(ghost.x);
-  const y = parseFiniteNumber(ghost.y);
-  if (x == null || y == null || typeof ghost.valid !== 'boolean') return null;
-  return { x, y, valid: ghost.valid };
 }
 
 // ============ ENTITY & BUILDING RESOLUTION ============
@@ -272,12 +299,15 @@ export function createViewFromSave(
     selectedBuildingId: selection.selectedBuildingId,
     hoveredBuildingId: selection.hoveredBuildingId,
     buildMode: isBuildingType(data.buildMode) ? data.buildMode : null,
-    buildGhost: parseBuildGhost(data.buildGhost),
+    // The ghost is live cursor state — written on mousemove and never persisted by
+    // `mergeForSave` — so it starts empty and reappears as soon as the pointer moves.
+    buildGhost: null,
     buildStripPreview: null,
     buildRotation: parseBuildRotation(data.buildRotation),
     showGrid: parseBoolean(data.showGrid, true),
     showPaths: parseBoolean(data.showPaths, false),
     showTechTree: parseBoolean(data.showTechTree, false),
+    showLogistics: parseBoolean(data.showLogistics, false),
     highlightedCampKey: parseCampKey(data.highlightedCampKey),
     selectedCampKey: parseCampKey(data.selectedCampKey),
     favoriteEntityId: (() => {
@@ -379,6 +409,7 @@ export function mergeForSave(world: WorldState, view: ViewState): Record<string,
     showGrid: selection.showGrid,
     showPaths: selection.showPaths,
     showTechTree: selection.showTechTree,
+    showLogistics: selection.showLogistics,
     highlightedCampKey: selection.highlightedCampKey,
     selectedCampKey: selection.selectedCampKey,
     favoriteEntityId: selection.favoriteEntityId,
@@ -520,6 +551,8 @@ export function nudgeCameraToward(
   x: number,
   y: number,
   strength = 0.28,
+  viewportW?: number,
+  viewportH?: number,
 ): ViewState {
   const cam = { ...view.camera };
   cam.targetX += (x - cam.targetX) * strength;
@@ -527,7 +560,7 @@ export function nudgeCameraToward(
   if (cam.targetZoom < 1.15) {
     cam.targetZoom = Math.min(1.15, cam.targetZoom + 0.04);
   }
-  return { ...view, camera: clampCameraTarget(cam, world.width, world.height) };
+  return { ...view, camera: clampCameraTarget(cam, world.width, world.height, viewportW, viewportH) };
 }
 
 /** Smoothly centers and tracks the favorite citizen if one is set. */

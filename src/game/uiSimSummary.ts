@@ -8,7 +8,7 @@
 import type { EntityCatalog } from './entityCatalog';
 import type { WorldState, Entity } from './gameTypes';
 import { hasWorkAssignment, isImprisoned } from './residencyOccupancy';
-import { getTotalBeds } from './populationGrowth';
+import { getOpenPlayerBeds, getTotalBeds } from './populationGrowth';
 import { isPlayerHuman } from './playerHuman';
 
 export interface VillageStatsSummary {
@@ -19,11 +19,21 @@ export interface VillageStatsSummary {
   idle: number;
   imprisoned: number;
   beds: number;
+  /**
+   * Beds a settler may actually be assigned (`populationGrowth.getOpenPlayerBeds`), not
+   * `beds − total`: the Leader's House beds are reserved for the leader's household, so counting them
+   * made this figure read "housing available" while every settler was in fact unhoused
+   * (`tests/virtualPlayer.test.ts` pins the two apart; 2026-09-22 stats-panel audit, F2).
+   */
   openBeds: number;
 }
 
-/** Collects IDs of all active workers currently assigned to incomplete construction sites. */
-function getActiveConstructionWorkers(world: WorldState): Set<number> {
+/**
+ * IDs of the settlers stationed on an incomplete player building — a construction crew member has
+ * no workplace assignment of their own, so every caller that classifies "working vs idle" must ask
+ * this scan (the dashboard's per-settler `noWork` flag does; the counters use it below).
+ */
+export function getActiveConstructionWorkers(world: WorldState): Set<number> {
   const workers = new Set<number>();
   for (const b of world.buildings) {
     if (!b.completed && b.faction !== 'rival') {
@@ -38,6 +48,10 @@ function getActiveConstructionWorkers(world: WorldState): Set<number> {
 /**
  * Computes demographic and labor summary for the colony.
  * Uses catalog if provided, falling back to direct state scan.
+ *
+ * This is the single aggregation of the village's labour counters: the top-bar HUD, the People
+ * screen (`citizenOverview.computeCitizenOverview`) and the dashboard (`dashboardData`) all read
+ * these numbers rather than re-deriving what "working" and "idle" mean.
  */
 export function computeVillageStats(
   world: WorldState,
@@ -90,6 +104,6 @@ export function computeVillageStats(
     idle,
     imprisoned,
     beds,
-    openBeds: Math.max(0, beds - total),
+    openBeds: getOpenPlayerBeds(world),
   };
 }

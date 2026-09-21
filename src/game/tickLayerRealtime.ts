@@ -2,7 +2,7 @@ import { pruneHuntVisuals } from './huntvisuals';
 import type {
   WorldState, PopulationHistoryEntry, Entity,
 } from './gameTypes';
-import { EntityType, BuildingType } from './gameTypes';
+import { EntityType, BuildingType, FLOATING_TEXT_FADE_TICKS } from './gameTypes';
 import {
   USE_SPATIAL_GRID,
   syncMobileSimGrid,
@@ -233,7 +233,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     const ft = state.floatingTexts[i];
     ft.y -= 0.7;
     ft.life--;
-    ft.scale = ft.life < 6 ? ft.life / 6 : 1;
+    ft.scale = ft.life < FLOATING_TEXT_FADE_TICKS ? ft.life / FLOATING_TEXT_FADE_TICKS : 1;
     if (ft.life > 0) {
       state.floatingTexts[textWriteIdx++] = ft;
     }

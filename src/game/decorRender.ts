@@ -19,7 +19,6 @@ export function drawProceduralDecor(
   sy: number,
   w: number,
   h: number,
-  night: boolean,
   alpha = 1,
 ): void {
   ctx.save();
@@ -31,7 +30,7 @@ export function drawProceduralDecor(
   } else if (type === BT.Statue) {
     drawStatue(ctx, w, h);
   } else if (type === BT.Lamp) {
-    drawLamp(ctx, w, h, night);
+    drawLamp(ctx, w, h);
   }
 
   ctx.restore();
@@ -98,16 +97,9 @@ function drawStatue(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   ctx.fill();
 }
 
-function drawLamp(ctx: CanvasRenderingContext2D, w: number, h: number, night: boolean): void {
+/** One constant appearance: the lamp no longer lights up at night. */
+function drawLamp(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const hh = h / 2;
-  // Glow at night
-  if (night) {
-    const g = ctx.createRadialGradient(0, -hh * 0.15, 2, 0, -hh * 0.15, w * 1.9);
-    g.addColorStop(0, 'rgba(251,191,36,0.5)');
-    g.addColorStop(1, 'rgba(251,191,36,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(-w * 2, -hh - w * 2, w * 4, w * 4);
-  }
   // Post
   ctx.fillStyle = '#57534e';
   ctx.fillRect(-1.5, -hh * 0.75, 3, h * 0.85);
@@ -115,8 +107,8 @@ function drawLamp(ctx: CanvasRenderingContext2D, w: number, h: number, night: bo
   ctx.fillStyle = '#44403c';
   ctx.fillRect(-w * 0.16, hh * 0.12, w * 0.32, 3.5);
   // Lamp head
-  ctx.fillStyle = night ? '#fbbf24' : '#78716c';
+  ctx.fillStyle = '#78716c';
   ctx.fillRect(-w * 0.18, -hh * 0.78, w * 0.36, h * 0.12);
-  ctx.fillStyle = night ? '#fde68a' : '#a8a29e';
+  ctx.fillStyle = '#a8a29e';
   ctx.fillRect(-w * 0.12, -hh * 0.66, w * 0.24, h * 0.06);
 }

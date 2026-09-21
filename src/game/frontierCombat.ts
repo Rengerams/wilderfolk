@@ -9,6 +9,7 @@ import { isPlayerHuman } from './playerHuman';
 import { isRivalAtPeace } from './rivalPeace';
 import { gainSkill } from './skills';
 import {
+  canBeMustered,
   computeMilitiaBreakdown,
   getMilitiaArmamentLabel,
 } from './militiaBalance';
@@ -16,7 +17,9 @@ import {
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
 import { getSimRng } from './simRng';
 import { addCappedResource } from './resourceUtils';
+import { spendFood } from './economyLedger';
 import { addBigNews } from './simEffects';
+import { addReputation } from './simHelpers';
 
 export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 
@@ -67,8 +70,15 @@ export function getIncomingRaidExpireTicks(distancePixels: number): number {
   return getIncomingRaidResponseDays(getCampDistanceTiles(distancePixels)) * TICKS_PER_DAY;
 }
 
+/**
+ * When a raid expires. A legacy save that carries neither field yields `NaN` — a genuinely unknown
+ * deadline, expressed *here* rather than by a wrapper at the call site, so both raid cards render the
+ * same thing (duplication A16).
+ */
 export function getRaidExpiresAtTick(evt: RaidEvent): number {
-  return evt.expiresAtTick ?? evt.createdAtTick + getRaidExpireTicksLegacy();
+  if (evt.expiresAtTick != null) return evt.expiresAtTick;
+  if (evt.createdAtTick == null) return Number.NaN;
+  return evt.createdAtTick + getRaidExpireTicksLegacy();
 }
 
 export function getRaidTicksRemaining(evt: RaidEvent, currentTick: number): number {
@@ -80,6 +90,9 @@ export function getRaidDaysRemaining(evt: RaidEvent, currentTick: number): numbe
 }
 
 export function formatRaidDeadline(evt: RaidEvent, currentTick: number): string {
+  // An unknown deadline must not read as "arriving now": `Math.max(0, NaN)` is NaN, and the old
+  // `days <= 0` test let `NaN` fall through to `NaN days left`.
+  if (!Number.isFinite(getRaidExpiresAtTick(evt))) return 'deadline unknown';
   const days = getRaidDaysRemaining(evt, currentTick);
   if (days <= 0) return 'arriving now';
   return `${days} day${days === 1 ? '' : 's'} left`;
@@ -147,8 +160,16 @@ export function getOutgoingRaidFoodCostForRival(state: WorldState, rival: RivalS
   return getOutgoingRaidFoodCost(getCampDistancePixels(state, state.buildings, rival));
 }
 
-/** Stable village anchor for distance, raids, and war-band march targets. */
-export function getPlayerCampCenter(state: WorldState, buildings: Building[]): { x: number; y: number } {
+/**
+ * The building half of the village anchor: the first completed player Town Hall, else the first
+ * completed player House, else `null`.
+ *
+ * Split out for `tickHumans`, which needs to know *which* half answered. This half is a pure
+ * function of `buildings`, and nothing reachable from the human loop writes a building — so one
+ * answer is valid for a whole tick (N-4). The entity half below is not, which is why the caller
+ * caches only this one.
+ */
+export function getPlayerCampCenterFromBuildings(buildings: Building[]): { x: number; y: number } | null {
   const playerBuildings = buildings.filter((b) => b.completed && b.faction !== 'rival');
   const townHall = playerBuildings.find((b) => b.type === BuildingType.TownHall);
   if (townHall) {
@@ -158,6 +179,17 @@ export function getPlayerCampCenter(state: WorldState, buildings: Building[]): {
   if (house) {
     return { x: house.x + house.width / 2, y: house.y + house.height / 2 };
   }
+  return null;
+}
+
+/**
+ * The entity half of the village anchor: the mean position of the living player settlers, else the
+ * map centre.
+ *
+ * This reads live settler positions, which the human loop itself moves and can empty by killing one,
+ * so it must never be cached across iterations of that loop (N-4).
+ */
+export function getPlayerSettlerCenter(state: WorldState): { x: number; y: number } {
   const players = state.entities.filter((e) => e.alive && isPlayerHuman(e));
   if (players.length > 0) {
     return {
@@ -166,6 +198,11 @@ export function getPlayerCampCenter(state: WorldState, buildings: Building[]): {
     };
   }
   return { x: state.width / 2, y: state.height / 2 };
+}
+
+/** Stable village anchor for distance, raids, and war-band march targets. */
+export function getPlayerCampCenter(state: WorldState, buildings: Building[]): { x: number; y: number } {
+  return getPlayerCampCenterFromBuildings(buildings) ?? getPlayerSettlerCenter(state);
 }
 
 export function isRaidMarchingForRival(state: WorldState, groupId: string): boolean {
@@ -371,7 +408,7 @@ function pushFloat(state: WorldState, x: number, y: number, text: string, color:
 
 function flashMilitia(entities: Entity[], ticks = 22) {
   for (const e of entities) {
-    if (e.alive && isPlayerHuman(e) && !e.isJuvenile) {
+    if (canBeMustered(e)) {
       e.combatTicks = Math.max(e.combatTicks ?? 0, ticks);
       e.flash = 10;
     }
@@ -380,14 +417,14 @@ function flashMilitia(entities: Entity[], ticks = 22) {
 
 export type RaidParticipantMode = 'militia' | 'barricade' | 'outgoing';
 
-/** Adults who fought — militia/outgoing need village weapons; barricade includes all adults. */
+/** Adults who can fight — `canBeMustered` owns that test, so a jailed settler is in neither pool. */
 export function getRaidParticipants(
   state: WorldState,
   entities: Entity[],
   mode: RaidParticipantMode,
 ): Entity[] {
   return entities.filter((e) => {
-    if (!e.alive || !isPlayerHuman(e) || e.isJuvenile) return false;
+    if (!canBeMustered(e)) return false;
     if (mode === 'barricade') return true;
     return hasMilitiaWeapons(state);
   });
@@ -470,7 +507,7 @@ function rewardRaidParticipants(
   const repBonus = leaderInFight ? (RAID_LEADER_REP_BONUS[tier] ?? 0) : 0;
   if (repBonus > 0 && isRaidVictoryTier(tier)) {
     const before = state.villageReputation;
-    state.villageReputation = Math.min(100, state.villageReputation + repBonus);
+    addReputation(state, repBonus);
     const leader = participants.find((p) => p.id === leaderId);
     if (leader) {
       logEvent(
@@ -531,7 +568,7 @@ function applyRaidCasualties(
   rivalName: string,
   mode: 'defending' | 'raiding' = 'defending',
 ): number {
-  const pool = entities.filter((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile);
+  const pool = entities.filter((e) => canBeMustered(e));
   if (pool.length === 0) return 0;
 
   const [minK, maxK] = getRaidCasualtyBounds(tier, pool.length);
@@ -632,8 +669,9 @@ function applyRaidLootTaken(state: WorldState, loot: RaidLootBundle, fraction = 
   const target = scaleRaidLoot(loot, fraction);
   const taken: RaidLootBundle = { food: 0, wood: 0, stone: 0, gold: 0 };
   if (target.food > 0) {
-    taken.food = Math.min(state.resources.food, target.food);
-    state.resources.food -= taken.food;
+    // `spendFood` returns what was actually taken, which is exactly the `min(food, target)` this used
+    // to compute by hand — and it records the loss against the raid sink.
+    taken.food = spendFood(state, 'raid', target.food);
   }
   if (target.wood > 0) {
     taken.wood = Math.min(state.resources.wood, target.wood);
@@ -857,7 +895,7 @@ export function tickPendingRaidEvents(
     const defenseFactor = Math.max(0.3, 1 - structureBonus / 240);
     const taken = applyRaidLootTaken(state, raidEventLoot(evt), defenseFactor);
     damageRandomPlayerBuilding(state, Math.max(4, Math.round(12 * defenseFactor)));
-    state.villageReputation = Math.max(0, state.villageReputation - 4);
+    addReputation(state, -4);
     rival.relationship = 'tense';
     const camp = getPlayerCampCenter(state, buildings);
     pushFloat(state, camp.x, camp.y - 25, formatLootParts(taken, '-') || 'Raid!', '#f87171');
@@ -947,7 +985,7 @@ export function respondToRaidEvent(
       pushFloat(state, camp.x, camp.y - 20, eligibility.blockReason ?? `Need ${event.lootFood}🍖`, '#f97316');
       return state;
     }
-    state.resources.food -= event.lootFood;
+    spendFood(state, 'tribute', event.lootFood);
     if (rival) {
       rival.relationship = rival.relationship === 'tense' ? 'competitive' : rival.relationship;
       rival.raidCooldownDays = 14;
@@ -980,7 +1018,7 @@ export function respondToRaidEvent(
       const frac = outcome === 'defeat' ? 0.85 : 0.55;
       const taken = applyRaidLootTaken(state, raidLoot, frac);
       damageRandomPlayerBuilding(state, 8);
-      state.villageReputation = Math.max(0, state.villageReputation - 2);
+      addReputation(state, -2);
       const lootNote = formatLootParts(taken);
       logEvent(
         state,
@@ -997,7 +1035,7 @@ export function respondToRaidEvent(
         event.rivalName,
       );
     } else {
-      state.villageReputation = Math.min(100, state.villageReputation + 2);
+      addReputation(state, 2);
       if (rival) rival.relationship = rival.relationship === 'tense' ? 'competitive' : rival.relationship;
       pushFloat(state, camp.x, camp.y - 20, 'Held!', '#22c55e');
       logEvent(state, 'combat', `Barricade repelled ${event.rivalName}'s raid`, event.rivalName, 'repelled');
@@ -1030,7 +1068,7 @@ export function respondToRaidEvent(
 
     switch (outcome) {
       case 'decisive':
-        state.villageReputation = Math.min(100, state.villageReputation + 4);
+        addReputation(state, 4);
         if (rival) {
           rival.relationship = rival.relationship === 'tense' ? 'competitive' : 'neutral';
           rival.raidCooldownDays = 28;
@@ -1042,7 +1080,7 @@ export function respondToRaidEvent(
       case 'narrow': {
         const taken = applyRaidLootTaken(state, raidLoot, 0.3);
         damageRandomPlayerBuilding(state, 6);
-        state.villageReputation = Math.min(100, state.villageReputation + 1);
+        addReputation(state, 1);
         if (rival) rival.raidCooldownDays = 20;
         pushFloat(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Costly win', '#fbbf24');
         const lootNote = formatLootParts(taken);
@@ -1059,7 +1097,7 @@ export function respondToRaidEvent(
       case 'stalemate': {
         const taken = applyRaidLootTaken(state, raidLoot, 0.7);
         damageRandomPlayerBuilding(state, 10);
-        state.villageReputation = Math.max(0, state.villageReputation - 3);
+        addReputation(state, -3);
         if (rival) rival.relationship = 'tense';
         applyRaidCasualties(state, allAlive, 'moderate', event.rivalName);
         const lootNote = formatLootParts(taken);
@@ -1076,7 +1114,7 @@ export function respondToRaidEvent(
       case 'defeat': {
         const taken = applyRaidLootTaken(state, raidLoot, 1);
         damageRandomPlayerBuilding(state, 18);
-        state.villageReputation = Math.max(0, state.villageReputation - 6);
+        addReputation(state, -6);
         if (rival) rival.relationship = 'tense';
         applyRaidCasualties(state, allAlive, 'heavy', event.rivalName);
         pushFloat(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Raided!', '#f87171');
@@ -1125,12 +1163,12 @@ function resolveOutgoingRaidCombat(
       rival.name,
       'outgoing_raid',
     );
-    state.villageReputation = Math.max(0, state.villageReputation - 5);
+    addReputation(state, -5);
   } else if (outcome === 'meager') {
     const gained = grantRaidSpoils(state, rollOutgoingRaidSpoils(rival, 'meager'));
     rival.relationship = 'tense';
     rival.raidCooldownDays = 14;
-    state.villageReputation = Math.max(0, state.villageReputation - 4);
+    addReputation(state, -4);
     applyRaidCasualties(state, state.entities, 'costly', rival.name, 'raiding');
     const lootNote = formatLootParts(gained);
     logEvent(
@@ -1142,8 +1180,8 @@ function resolveOutgoingRaidCombat(
     );
     pushFloat(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Meager', '#fbbf24');
   } else {
-    state.resources.food = Math.max(0, state.resources.food - 15);
-    state.villageReputation = Math.max(0, state.villageReputation - 8);
+    spendFood(state, 'raid', 15);
+    addReputation(state, -8);
     rival.relationship = 'tense';
     applyRaidCasualties(state, state.entities, 'heavy', rival.name, 'raiding');
     pushFloat(state, rival.campX, rival.campY - 20, 'War-band broken!', '#f87171');
@@ -1160,7 +1198,9 @@ export function tickPendingOutgoingRaidEvents(state: WorldState): void {
 
   const expired: OutgoingRaidEvent[] = [];
   state.pendingOutgoingRaidEvents = state.pendingOutgoingRaidEvents.filter((evt) => {
-    if (state.tick < evt.expiresAtTick) return true;
+    // The deadline is the raid owner's, not a raw field read: a save written before `expiresAtTick`
+    // existed still gets the legacy window (duplication A19).
+    if (state.tick < getRaidExpiresAtTick(evt)) return true;
     expired.push(evt);
     return false;
   });
@@ -1224,7 +1264,7 @@ export function respondToOutgoingRaidEvent(
     rival.relationship = 'tense';
     rival.raidCooldownDays = 12;
     rival.daysUntilAction = 28;
-    state.villageReputation = Math.max(0, state.villageReputation - 2);
+    addReputation(state, -2);
     const lootNote = formatLootParts(gained);
     pushFloat(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Tribute!', '#eab308');
     logEvent(
@@ -1279,7 +1319,7 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
     }
   }
 
-  state.resources.food -= raidFoodCost;
+  spendFood(state, 'raid', raidFoodCost);
   const attackerStrength = getMilitiaStrength(state, state.entities);
   const rivalDefense = getRivalDefenseStrength(rival);
   const rivalResponse = rollRivalOutgoingRaidResponse(attackerStrength, rivalDefense, rival);

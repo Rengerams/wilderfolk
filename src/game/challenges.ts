@@ -25,7 +25,7 @@ export const INITIAL_CHALLENGES: Challenge[] = [
   { id: 'growing_village', title: 'Growing Village', description: 'Reach Year 5 with at least 5 completed buildings.', completed: false, targetYear: 5, targetBuildings: 5, reward: { wood: 100, stone: 50, food: 50, gold: 40, iron: 0 }, rewardText: '+100 wood, +50 stone, +50 food, +40 gold' },
   { id: 'thriving_town', title: 'Thriving Town', description: 'Reach a population of 50 humans.', completed: false, targetPopulation: 50, reward: { wood: 200, stone: 100, food: 100, gold: 100, iron: 100 }, rewardText: '+200 wood, +100 stone, +100 food, +100 gold, +100 iron' },
   { id: 'century', title: 'Century Mark', description: 'Survive for 100 years.', completed: false, targetYear: 100, reward: { wood: 500, stone: 500, food: 500, gold: 500, iron: 500 }, rewardText: '+500 all resources + 500 iron!' },
-  { id: 'eco_master', title: 'Eco Master', description: 'Maintain ecosystem health above 80% for 10 years.', completed: false, reward: { wood: 150, stone: 100, food: 200, gold: 100, iron: 50 }, rewardText: '+150 wood, +100 stone, +200 food, +100 gold, +50 iron' },
+  { id: 'eco_master', title: 'Eco Master', description: 'Maintain ecosystem health at 80% or higher for 10 years.', completed: false, reward: { wood: 150, stone: 100, food: 200, gold: 100, iron: 50 }, rewardText: '+150 wood, +100 stone, +200 food, +100 gold, +50 iron' },
   { id: 'tech_pioneer', title: 'Tech Pioneer', description: 'Research 5 technologies.', completed: false, reward: { wood: 100, stone: 100, food: 0, gold: 200, iron: 100 }, rewardText: '+100 wood, +100 stone, +200 gold, +100 iron' },
   { id: 'trading_hub', title: 'Trading Hub', description: 'Establish 3 trade routes.', completed: false, reward: { wood: 0, stone: 0, food: 0, gold: 300, iron: 0 }, rewardText: '+300 gold' },
   { id: 'great_city', title: 'Great City', description: 'Reach a population of 250 humans with 35 buildings.', completed: false, targetPopulation: 250, targetBuildings: 35, reward: { wood: 400, stone: 400, food: 400, gold: 400, iron: 200 }, rewardText: '+400 all resources + 200 iron!' },
@@ -38,8 +38,36 @@ export interface ChallengeProgress {
   tone?: 'eco' | 'default';
 }
 
+/**
+ * The two building facts every challenge test derives from the building list.
+ *
+ * One pass produces both. `tickDailyChallenges` runs every challenge through
+ * `isChallengeComplete` in a single `map`, so building them here and letting the caller hand them
+ * back in keeps the rule in this owner while the per-challenge rescan disappears: the daily pass
+ * used to run `buildings.filter(...)` **and** `buildings.some(...)` up to eight times each over the
+ * same array for two values that only depend on the array.
+ */
+export interface ChallengeBuildingFacts {
+  /** Completed, player-owned buildings. */
+  playerCompletedBuildings: number;
+  /** Whether any completed player House or Mansion exists. */
+  hasPlayerHousing: boolean;
+}
+
+export function buildChallengeBuildingFacts(buildings: Building[]): ChallengeBuildingFacts {
+  let playerCompletedBuildings = 0;
+  let hasPlayerHousing = false;
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i];
+    if (!b.completed || b.faction === 'rival') continue;
+    playerCompletedBuildings++;
+    if (b.type === BuildingType.House || b.type === BuildingType.Mansion) hasPlayerHousing = true;
+  }
+  return { playerCompletedBuildings, hasPlayerHousing };
+}
+
 function countPlayerCompletedBuildings(buildings: Building[]): number {
-  return buildings.filter((b) => b.completed && b.faction !== 'rival').length;
+  return buildChallengeBuildingFacts(buildings).playerCompletedBuildings;
 }
 
 export function isChallengeComplete(
@@ -47,14 +75,12 @@ export function isChallengeComplete(
   state: WorldState,
   humanCount: number,
   buildings: Building[],
+  /** Pre-built facts for a pass that tests several challenges against one building array. */
+  facts?: ChallengeBuildingFacts,
 ): boolean {
-  const playerBuildings = countPlayerCompletedBuildings(buildings);
-  const hasHousing = buildings.some(
-    (b) =>
-      b.completed
-      && b.faction !== 'rival'
-      && (b.type === BuildingType.House || b.type === BuildingType.Mansion),
-  );
+  const resolved = facts ?? buildChallengeBuildingFacts(buildings);
+  const playerBuildings = resolved.playerCompletedBuildings;
+  const hasHousing = resolved.hasPlayerHousing;
 
   switch (challenge.id) {
     case 'first_settlers':
@@ -110,6 +136,11 @@ export function getChallengeProgress(challenge: Challenge, state: WorldState): C
     case 'thriving_town': return { current: state.humanPopulation, target: challenge.targetPopulation ?? 0, unit: 'population' };
     case 'tech_pioneer': return { current: state.unlockedTechs.length, target: 5, unit: 'technologies' };
     case 'trading_hub': return { current: state.tradeRoutes.filter((r) => r.active).length, target: 3, unit: 'trade routes' };
+    // Every remaining initial challenge reports its own target too — this switch used to cover five of
+    // the eight, so a goal card for the other three rendered no current / target row at all (R8).
+    case 'growing_village': return { current: countPlayerCompletedBuildings(state.buildings), target: challenge.targetBuildings ?? 5, unit: 'buildings' };
+    case 'great_city': return { current: countPlayerCompletedBuildings(state.buildings), target: challenge.targetBuildings ?? 35, unit: 'buildings' };
+    case 'century': return { current: state.year, target: challenge.targetYear ?? 100, unit: 'years' };
     default: return null;
   }
 }

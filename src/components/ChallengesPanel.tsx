@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { getActiveChallengeId, getChallengeProgress } from '../game/challenges';
+import { resourceFillPercent } from '../game/dashboardData';
 import type { WorldState } from '../game/gameTypes';
 
 function ChallengesPanel({ state }: { state: WorldState }) {
@@ -10,8 +11,11 @@ function ChallengesPanel({ state }: { state: WorldState }) {
       {state.challenges.map((c) => {
         const isActive = !c.completed && c.id === activeId;
         const progress = getChallengeProgress(c, state);
+        // The fill formula is `dashboardData.resourceFillPercent`'s — a challenge is the same
+        // `{amount, cap}` shape, and a second copy here would leave the bar behind if the owner's
+        // sense of "full" changed (2026-09-20 audit, O-8).
         const pct = progress
-          ? Math.min(100, Math.round((progress.current / Math.max(1, progress.target)) * 100))
+          ? resourceFillPercent({ amount: progress.current, cap: progress.target })
           : 0;
         return (
           <div

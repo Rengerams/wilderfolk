@@ -92,6 +92,44 @@ function openCapSlots(cap: number, pop: number): number {
   return Math.max(0, Math.floor((cap || 0) - (pop || 0)));
 }
 
+/** The colony's reputation, or 0 when the field is absent or not a finite number. */
+function resolveReputation(state: WorldState): number {
+  return typeof state.villageReputation === 'number' && Number.isFinite(state.villageReputation)
+    ? state.villageReputation
+    : 0;
+}
+
+/**
+ * The immigration cap every growth rule reads: the stored cap when it is finite, otherwise the
+ * derived one (5 + beds + 1 per 10 reputation).
+ *
+ * One definition, because two surfaces ask "how close is the colony to its cap?" — the growth report
+ * and the header's population chip — and they must not mean two different caps (2026-09-20 audit, O-2).
+ */
+export function resolvePopulationCap(state: WorldState): number {
+  if (typeof state.maxHumanPopulation === 'number' && Number.isFinite(state.maxHumanPopulation)) {
+    return state.maxHumanPopulation;
+  }
+  const { beds } = snapshotPopulation(state);
+  return 5 + beds + Math.floor(resolveReputation(state) / 10);
+}
+
+/** Fraction of the immigration cap at which the HUD flags the colony as near-capacity. */
+export const POPULATION_NEAR_CAP_RATIO = 0.9;
+
+/**
+ * True when the living population is within {@link POPULATION_NEAR_CAP_RATIO} of the immigration cap.
+ *
+ * Owned here rather than in the header: the band is a tuning value, and the population it divides is
+ * the owner's own snapshot — the chip used to divide a UI-supplied count by the raw cap field, so the
+ * two surfaces of the same question could disagree (2026-09-20 audit, O-2).
+ */
+export function isPopulationNearCap(state: WorldState): boolean {
+  const cap = resolvePopulationCap(state);
+  if (!(cap > 0)) return false;
+  return snapshotPopulation(state).pop / cap >= POPULATION_NEAR_CAP_RATIO;
+}
+
 function formatHousingCapReason(
   houseCount: number,
   mansionCount: number,
@@ -149,9 +187,29 @@ export function getOpenBedsFromPop(state: WorldState, pop: number): number {
   return Math.max(0, beds - Math.floor(pop));
 }
 
+/**
+ * Empty beds, counted over **every** residence — the Leader's House included.
+ *
+ * The inclusive twin of {@link getOpenPlayerBeds}, and the two are deliberately two named owners
+ * rather than one number with local copies: this one answers "how many beds are empty" (the growth
+ * report's line), that one answers "how many beds a settler could be assigned" (every surface that
+ * says *open beds* / *Housing available*). A view that means the second reads the second
+ * (2026-09-22 stats-panel audit, F2).
+ */
 export function getOpenBeds(state: WorldState): number {
   const { pop, beds } = snapshotPopulation(state);
   return Math.max(0, beds - pop);
+}
+
+/**
+ * `pop > beds` — more settlers than beds, so housing is the bottleneck.
+ *
+ * One definition: the growth report's tone and the Focus panel's "Build more housing" hint ask the
+ * same question, and each used to compare the two numbers itself (2026-09-22 stats-panel audit, F11).
+ */
+export function isOvercrowded(state: WorldState): boolean {
+  const { pop, beds } = snapshotPopulation(state);
+  return pop > beds;
 }
 
 /**
@@ -188,17 +246,15 @@ export interface PopulationGrowthReport {
 
 export function getPopulationGrowthReport(state: WorldState): PopulationGrowthReport {
   const { pop, beds, houseCount, mansionCount } = snapshotPopulation(state);
-  const reputation = typeof state.villageReputation === 'number' && Number.isFinite(state.villageReputation)
-    ? state.villageReputation
-    : 0;
+  const reputation = resolveReputation(state);
 
-  const cap = typeof state.maxHumanPopulation === 'number' && Number.isFinite(state.maxHumanPopulation)
-    ? state.maxHumanPopulation
-    : 5 + beds + Math.floor(reputation / 10);
+  const cap = resolvePopulationCap(state);
 
   const openSlots = openCapSlots(cap, pop);
-  const openBeds = Math.max(0, beds - pop);
-  const overcrowded = pop > beds;
+  // The inclusive bed count, from its own owner — this line reports spare capacity, not assignable
+  // housing, so it reads `getOpenBeds` rather than summing `beds - pop` here (audit F2).
+  const openBeds = getOpenBeds(state);
+  const overcrowded = isOvercrowded(state);
   const food = getFoodAmount(state);
   const reasons: string[] = [];
   const hasFoodWarning = food < 40;

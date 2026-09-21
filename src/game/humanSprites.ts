@@ -15,34 +15,15 @@ export const HUMAN_BASE_SPRITES: Record<HumanGender, string> = {
   female: '/sprites/human_female.png',
 };
 
-/** Reversible preview switch. Set false to restore the legacy adult art without changing save data. */
-export const USE_NEW_SETTLER_ART_PREVIEW = true;
-
-const LEGACY_WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
-  male: [
-    '/sprites/human_male_v0.png',
-    '/sprites/human_male_v1.png',
-    '/sprites/human_male_v2.png',
-    '/sprites/human_male_v3.png',
-    '/sprites/human_male_v4.png',
-    '/sprites/human_male_v5.png',
-    '/sprites/human_male_v6.png',
-    '/sprites/human_male_v7.png',
-  ],
-  female: [
-    '/sprites/human_female_v0.png',
-    '/sprites/human_female_v1.png',
-    '/sprites/human_female_v2.png',
-    '/sprites/human_female_v3.png',
-    '/sprites/human_female_v4.png',
-    '/sprites/human_female_v5.png',
-    '/sprites/human_female_v6.png',
-    '/sprites/human_female_v7.png',
-  ],
-} as const;
-
-/** Adult class ladders — the ten characters of each gender's set, lowest class first. */
-const PREVIEW_WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
+/**
+ * Adult class ladders — the ten characters of each gender's set, lowest class first.
+ *
+ * The former `USE_NEW_SETTLER_ART_PREVIEW` switch (hard-coded `true`) and its unreachable legacy
+ * `human_*_v0…v7` sheet list were removed with the false arm it selected: the flag could never be
+ * `false`, so it advertised a rollback that did not exist. `spriteLoader.ts` still preloads those
+ * 16 legacy PNGs — see the X-4 follow-up in the 2026-09-20 fix campaign.
+ */
+export const WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
   // Male class ladder (2026-09-16): Poor Labourer → Aristocrat, 10 classes, in order.
   male: [
     '/sprites/new_male_set/male_poor_labourer.png',
@@ -71,9 +52,6 @@ const PREVIEW_WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
   ],
 } as const;
 
-export const WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> =
-  USE_NEW_SETTLER_ART_PREVIEW ? PREVIEW_WALK_SHEET_PATHS : LEGACY_WALK_SHEET_PATHS;
-
 /** Dedicated juvenile sprites, with two visual variants per gender for the preview. */
 export const JUVENILE_SPRITE_PATHS: Record<HumanGender, readonly string[]> = {
   male: [
@@ -85,6 +63,45 @@ export const JUVENILE_SPRITE_PATHS: Record<HumanGender, readonly string[]> = {
     '/sprites/new_child_set/new/child_girl_poorservant.png',
   ],
 } as const;
+
+/**
+ * Painted figure height as a fraction of each child sprite's canvas, per
+ * {@link JUVENILE_SPRITE_PATHS} entry, measured from the PNG's alpha bounding box.
+ *
+ * The four exports carry different transparent top padding (0 %–12 %), so one shared `spriteH` drew
+ * their figures at up to 14 % different apparent height — `spriteH` is the *canvas* height, and the
+ * figure inside it is only `fraction` of that. `getHumanSpriteMetrics` keeps returning the figure
+ * height (`spriteH`), and the draw site multiplies the box by {@link getJuvenileFigureScale}
+ * (`1 / fraction`) so the painted figure comes out at exactly `spriteH`.
+ *
+ * That also puts `headY = footY - spriteH` on the top of the figure rather than `(1 − fraction)`
+ * of a sprite height above it, which is where the speech bubble and status badge are placed. Adults
+ * are untouched. Re-measure these if the art is re-cut.
+ */
+const JUVENILE_FIGURE_FRACTIONS: Record<HumanGender, readonly number[]> = {
+  male: [0.918, 0.880], // child_boy_bakersboy, child_boy_merchantson
+  female: [1.0, 0.970], // child_girl_doctorsdaughter, child_girl_poorservant
+};
+
+/** Index into `JUVENILE_SPRITE_PATHS[gender]` — the one place the child-variant rule lives. */
+function juvenileSpriteIndex(gender: HumanGender, variant: number): number {
+  const paths = JUVENILE_SPRITE_PATHS[gender];
+  return ((Math.floor(variant) % paths.length) + paths.length) % paths.length;
+}
+
+/**
+ * `spriteH` multiplier for the **drawn box** of a child's sprite: the box is grown by `1 / fraction`
+ * so that the painted figure inside it (box × fraction) comes out at the shared `spriteH` height.
+ * Applied at the draw site (`humans.ts`), not in {@link getHumanSpriteMetrics}, so `spriteH` — and
+ * with it `headY`, the contact shadow and the selection ring — stays figure-sized for every child.
+ * Only meaningful for juveniles; the fractions exist only for `JUVENILE_SPRITE_PATHS`.
+ */
+export function getJuvenileFigureScale(human: Entity): number {
+  const gender = (human.gender ?? 'male') as HumanGender;
+  const variant = human.spriteVariant ?? pickHumanVariant(human.id, gender);
+  const fraction = JUVENILE_FIGURE_FRACTIONS[gender][juvenileSpriteIndex(gender, variant)] ?? 1;
+  return fraction > 0 ? 1 / fraction : 1;
+}
 
 export const HUMAN_VARIANT_LABELS: Record<HumanGender, readonly string[]> = {
   male: [
@@ -144,6 +161,10 @@ export interface HumanSpriteMetrics {
 export function getHumanSpriteMetrics(human: Entity, camZoom: number): HumanSpriteMetrics {
   const cfgSize = human.size || 10;
   const baseSize = human.isJuvenile ? cfgSize * 0.7 : cfgSize;
+  // `spriteH` is the height of the **figure**, for every settler. A child's canvas carries padding
+  // around its figure, so the drawn box is grown at the draw site by `getJuvenileFigureScale`
+  // (see `JUVENILE_FIGURE_FRACTIONS`) — keeping this value figure-sized means headY, the contact
+  // shadow and the selection ring are all measured against the figure, not the padded canvas.
   const worldH = human.isJuvenile ? HUMAN_WORLD_HEIGHT * 0.72 : HUMAN_WORLD_HEIGHT;
   const spriteH = Math.max(HUMAN_MIN_SCREEN_PX, worldH * camZoom);
   const size = baseSize * HUMAN_DRAW_SCALE * camZoom;
@@ -358,9 +379,8 @@ export function getHumanSpriteFrame(
 /** Dedicated child sprite (toddler art) — single frame, no slicing. */
 export function getJuvenileSpriteFrame(gender: HumanGender | undefined, variant = 0): SpriteFrame | null {
   if (!isHumanSpritesReady()) return null;
-  const paths = JUVENILE_SPRITE_PATHS[gender ?? 'male'];
-  const index = ((Math.floor(variant) % paths.length) + paths.length) % paths.length;
-  return getSpriteFrame(paths[index]);
+  const g = gender ?? 'male';
+  return getSpriteFrame(JUVENILE_SPRITE_PATHS[g][juvenileSpriteIndex(g, variant)]);
 }
 
 /** Match renderer HUMAN_WALK_SPEED_THRESHOLD — idle settlers must not advance walk frames. */

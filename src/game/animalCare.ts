@@ -9,6 +9,8 @@ import type { WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { getColonyDay } from './dayCycle';
 import { addNotification } from './simEffects';
+import { spendFood } from './economyLedger';
+import { ensureEntityByIdMap } from './entityIndex';
 import { Human, Animal } from './gameConstants';
 
 const FLAG_FED_DAY = 'animal_care_fed_day';
@@ -73,7 +75,7 @@ export function tickAnimalCare(state: WorldState): void {
   const cost = tamed * ANIMAL_DAILY_FOOD;
 
   if (!alreadyFedToday && state.resources.food >= cost) {
-    state.resources.food -= cost;
+    spendFood(state, 'taming', cost);
     state.storyFlags = {
       ...state.storyFlags,
       [FLAG_FED_DAY]: colonyDay,
@@ -86,12 +88,20 @@ export function tickAnimalCare(state: WorldState): void {
     }
     // Tamed animals are not just a food sink — a fed pet gives its owner a
     // small daily energy lift so taming has a real gameplay benefit.
+    //
+    // The owner is looked up in the canonical id → living-entity map instead of
+    // `state.entities.find(…)`: the previous form walked every living entity (grass and trees
+    // included) once per tamed animal, inside a loop that was already walking all of them. The
+    // original scan is kept as the map-miss fallback (the `hotelStay` precedent): every production
+    // spawn is indexed, but a caller that pushes an entity straight into `state.entities` is still
+    // answered the old way rather than silently skipped.
+    const entityById = ensureEntityByIdMap(state);
     for (const animal of state.entities) {
       if (!animal.alive || animal.tamedBy == null) continue;
-      const owner = state.entities.find(
-        (h) => h.alive && h.type === EntityType.Human && h.id === animal.tamedBy,
-      );
-      if (owner) {
+      const owner =
+        entityById.get(animal.tamedBy) ??
+        state.entities.find((h) => h.alive && h.type === EntityType.Human && h.id === animal.tamedBy);
+      if (owner?.alive && owner.type === EntityType.Human) {
         owner.energy = Math.min(owner.maxEnergy, owner.energy + TAMED_ANIMAL_OWNER_ENERGY_BONUS);
       }
     }

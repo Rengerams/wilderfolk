@@ -3,6 +3,7 @@ import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay, getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { addCappedResource } from './resourceUtils';
+import { spendFood } from './economyLedger';
 import { isPlayerHuman } from './playerHuman';
 import { logEvent } from './eventLog';
 import { HUMAN_DAILY_FOOD_CONSUMPTION } from './animalCare';
@@ -11,6 +12,8 @@ import { getTravelingTheatreChoiceEligibility, resolveTravelingTheatre } from '.
 import { getWeddingDiplomacyChoiceEligibility, resolveWeddingDiplomacy } from './weddingDiplomacy';
 import { getInventionFairChoiceEligibility, resolveInventionFair } from './inventionFair';
 import { resolveRumourLedger } from './rumourLedger';
+import { addReputation } from './simHelpers';
+import { adjustEcosystemHealth } from './dailyEcology';
 
 /**
  * Authored cross-system stories (v0.6.1+ "signature stories") — visible choices
@@ -18,19 +21,6 @@ import { resolveRumourLedger } from './rumourLedger';
  * A story is a short player choice with real sim consequences: ecology, food,
  * reputation, and a Chronicle-style entry. The valley keeps history.
  */
-
-/** Clamp ecosystem health to 0..100. */
-function eco(state: WorldState): number {
-  return state.ecosystemHealth ?? 80;
-}
-
-function setEco(state: WorldState, value: number): void {
-  state.ecosystemHealth = Math.max(0, Math.min(100, value));
-}
-
-function bumpRep(state: WorldState, amount: number): void {
-  state.villageReputation = Math.max(0, state.villageReputation + amount);
-}
 
 /** Add a story event to the pending queue (no duplicate id). */
 export function offerStoryEvent(state: WorldState, event: StoryEvent): void {
@@ -52,7 +42,7 @@ function countFreeShelterBeds(state: WorldState): number {
 
 function failChildrenShelter(state: WorldState, reason: 'not enough shelter' | 'not enough food'): void {
   state.storyFlags = { ...state.storyFlags, children_shelter_resolved: state.tick, children_shelter_failed: 1 };
-  state.villageReputation = Math.max(0, state.villageReputation - 4);
+  addReputation(state, -4);
   const rival = state.rivalSettlements[0];
   if (rival) {
     rival.relationship = 'tense';
@@ -99,7 +89,7 @@ export function tickChildrenShelter(state: WorldState): void {
         failChildrenShelter(state, 'not enough food');
         return;
       }
-      state.resources.food -= CHILDREN_SHELTER_FOOD_PER_DAY;
+      spendFood(state, 'shelter', CHILDREN_SHELTER_FOOD_PER_DAY);
       state.storyFlags = { ...state.storyFlags, children_shelter_last_fed_day: dayIndex };
     }
     return;
@@ -379,8 +369,8 @@ function resolveWolfChoice(state: WorldState, choiceId: string): void {
     wolf_resolvedTick: state.tick,
   };
   if (choiceId === 'thin_pack') {
-    setEco(state, eco(state) - 6);
-    bumpRep(state, 2);
+    adjustEcosystemHealth(state, -6);
+    addReputation(state, 2);
     addBigNews(
       state,
       '🐺 The pack thins',
@@ -395,7 +385,7 @@ function resolveWolfChoice(state: WorldState, choiceId: string): void {
       undefined,
     );
   } else {
-    setEco(state, eco(state) + 4);
+    adjustEcosystemHealth(state, +4);
     addBigNews(
       state,
       '🐺 The pack stays',
@@ -416,10 +406,18 @@ function resolveWolfChoice(state: WorldState, choiceId: string): void {
 // Story 2 — The valley wakes (first-session welcome beat, day 0)
 // ---------------------------------------------------------------------------
 
-/** Offer once, on the very first day — sets the tone and the first course. */
+/**
+ * Offer once, at the first day boundary a live game reaches — sets the tone and the first course.
+ *
+ * The gate used to be `dayInYear === 0`, which no reachable tick satisfies: a world starts at tick 24,
+ * the daily layer runs only on day boundaries, and `gameTick` has already incremented `year` by the
+ * time it runs — so the beat never fired in play (`LIVE-FINDINGS-STATUS.md`, M4). `dayInYear > 1`
+ * accepts day 1, where the first daily tick of a new colony lands; the `welcome` flag still makes it
+ * once-only.
+ */
 export function maybeOfferWelcome(state: WorldState): void {
   if ((state.storyFlags?.welcome ?? 0) > 0) return;
-  if (state.year > 0 || state.dayInYear >= 1) return;
+  if (state.year > 0 || state.dayInYear > 1) return;
   state.storyFlags = { ...state.storyFlags, welcome: state.tick };
   offerStoryEvent(state, {
     id: `welcome_${state.tick}`,
@@ -439,7 +437,7 @@ export function maybeOfferWelcome(state: WorldState): void {
 
 function resolveWelcome(state: WorldState, choiceId: string): void {
   if (choiceId === 'listen_elders') {
-    setEco(state, eco(state) + 2);
+    adjustEcosystemHealth(state, +2);
     addBigNews(state, '🌄 The elders nod', 'You began by watching the land. The valley remembers respect — and rewards it.', 'positive');
     logEvent(state, 'event', `${state.villageName} began by listening to the elders — the valley's first impression.`);
   } else {
@@ -481,12 +479,12 @@ function resolveRangerVisit(state: WorldState, choiceId: string): void {
   const thin = (state.storyFlags?.wolf_resolved ?? 0) === 1;
   if (choiceId === 'acknowledge') {
     if (thin) {
-      setEco(state, eco(state) + 1); // a gesture toward the debt
-      bumpRep(state, 1);
+      adjustEcosystemHealth(state, +1); // a gesture toward the debt
+      addReputation(state, 1);
       addBigNews(state, '🧙 A debt acknowledged', 'The ranger leaves a single feather — “for the balance.” The valley keeps its ledger.', 'neutral');
       logEvent(state, 'event', `The ranger counted the pack after ${state.villageName} thinned it — a debt acknowledged.`);
     } else {
-      bumpRep(state, 2);
+      addReputation(state, 2);
       addBigNews(state, '🧙 The old way holds', 'The ranger leaves a single feather — “for the old way.” The valley keeps its ledger.', 'positive');
       logEvent(state, 'event', `The ranger honored ${state.villageName} for sparing the pack — the old way holds.`);
     }
@@ -508,7 +506,7 @@ export function maybeOfferWinterPrep(state: WorldState): void {
     storyKey: 'winter_prep',
     title: "Old Kaia's winter test",
     description:
-      '“First freeze comes at day 260,” Old Kaia says. “A warm village needs 120 wood and a full larder — 180 food. Meet it, and I will tell the valley your name.”',
+      '“First freeze comes at day 270,” Old Kaia says. “A warm village needs 120 wood and a full larder — 180 food. Meet it, and I will tell the valley your name.”',
     choices: [
       { id: 'accept', label: 'Accept the test', detail: 'Stockpile 120 wood and 180 food before the first freeze.' },
       { id: 'decline', label: 'Decline', detail: "Rely on the guide's winter advice instead." },
@@ -518,19 +516,30 @@ export function maybeOfferWinterPrep(state: WorldState): void {
   });
 }
 
-/** Check the pact at the first freeze (day 260) — the valley remembers the result. */
+/**
+ * Check the pact at the first freeze (day 270) — the valley remembers the result.
+ *
+ * 270 is the season owner's answer, not a preference: `getSeason` (`simHelpers.ts:9-13`) returns Fall
+ * for `dayInYear < DAYS_PER_SEASON * 3` and Winter at or above it, with `DAYS_PER_SEASON = 90`
+ * (`gameConstants.ts:95`) — so the first freeze is day **270**, which `WINTER_FIRST_DAY`
+ * (`legacyGoals.ts:43`) already names and `legacyGoals.ts:150` already tells the player
+ * ("days 270–359"). This card, this check and its two cases in `tests/storyEvents.test.ts` all said
+ * **260**, which is ten days inside autumn, where nothing freezes — temperature reads only
+ * `SEASON_BASE_C[season]` (`temperature.ts:50`). The copy, the check and those cases moved together:
+ * changing any one alone desyncs the card from what the valley actually does (2026-09-21 audit).
+ */
 export function tickWinterFreezeCheck(state: WorldState): void {
-  if (state.year > 0 || state.dayInYear !== 260) return;
+  if (state.year > 0 || state.dayInYear !== 270) return;
   if ((state.storyFlags?.winter_resolved ?? 0) > 0) return;
   const pact = state.storyFlags?.winter_prep ?? 0;
   const accepted = pact > 0 && (state.storyFlags?.winter_accepted ?? 0) > 0;
   state.storyFlags = { ...state.storyFlags, winter_resolved: state.tick };
   if (accepted && state.resources.wood >= 120 && state.resources.food >= 180) {
-    bumpRep(state, 2);
+    addReputation(state, 2);
     addBigNews(state, '❄️ The first freeze holds', 'The first freeze came — and the village was ready. Old Kaia tells the valley your name.', 'positive');
     logEvent(state, 'event', `${state.villageName} passed Old Kaia's first winter test — 120 wood, a full larder, and a name remembered.`);
   } else if (accepted) {
-    bumpRep(state, -1);
+    addReputation(state, -1);
     addBigNews(state, '❄️ A lean first freeze', 'The first freeze came early and the larder thin. Old Kaia says nothing — the valley remembers.', 'negative');
     logEvent(state, 'event', `${state.villageName} failed Old Kaia's first winter test — a lean freeze the valley remembers.`);
   }
@@ -574,7 +583,7 @@ function resolveGriefBeat(state: WorldState, choiceId: string): void {
   );
   if (choiceId === 'comfort') {
     if (mourner) mourner.energy = Math.min(mourner.maxEnergy, mourner.energy + 20);
-    bumpRep(state, 1);
+    addReputation(state, 1);
     addBigNews(state, '🕯️ The household holds', 'A quiet word by the fire — the mourning settler rests easier, and the village stands a little closer.', 'positive');
     logEvent(state, 'event', `${state.villageName} comforted a grieving household — grief carried together, not alone.`);
   } else {
@@ -612,7 +621,7 @@ export function maybeOfferHowlerRumor(state: WorldState): void {
 
 function resolveHowlerRumor(state: WorldState, choiceId: string): void {
   if (choiceId === 'heed') {
-    bumpRep(state, 1);
+    addReputation(state, 1);
     addBigNews(state, '🌕 The moon is watched', 'The village heeds the ranger — priests keep watch on full-moon nights, and the treeline feels less certain.', 'neutral');
     logEvent(state, 'event', `${state.villageName} heeded the ranger's tale — the full moon will be watched.`);
   } else {
@@ -654,24 +663,24 @@ export function maybeOfferValleyDebate(state: WorldState, candidateNames: string
 function resolveValleyDebate(state: WorldState, choiceId: string): void {
   switch (choiceId) {
     case 'expansion':
-      setEco(state, eco(state) - 5);
-      bumpRep(state, 2);
+      adjustEcosystemHealth(state, -5);
+      addReputation(state, 2);
       addBigNews(state, '🏗️ The growth mandate', 'The election settled it: outward. New ground opens — and the woods edge back.', 'neutral');
       logEvent(state, 'event', `The ${state.year} election chose growth — the forest edge retreated and the ledger grew.`);
       break;
     case 'preservation':
-      setEco(state, eco(state) + 5);
+      adjustEcosystemHealth(state, +5);
       addBigNews(state, '🌿 The preservation mandate', 'The election settled it: build tight, spare the wild. The valley keeps its breath.', 'positive');
       logEvent(state, 'event', `The ${state.year} election chose the wild — building slowed, and the valley kept its breath.`);
       break;
     case 'predator_control':
-      setEco(state, eco(state) - 3);
-      bumpRep(state, 1);
+      adjustEcosystemHealth(state, -3);
+      addReputation(state, 1);
       addBigNews(state, '🛡️ The security mandate', 'The election settled it: walls and a steady cull. Settlers sleep safer — the deer know it.', 'neutral');
       logEvent(state, 'event', `The ${state.year} election chose security — the cull steadied, and the deer grew wary.`);
       break;
     default:
-      bumpRep(state, 3);
+      addReputation(state, 3);
       addBigNews(state, '🎉 The festival mandate', 'The election settled it: feast and celebrate. Morale soars — a happy village spends more.', 'positive');
       logEvent(state, 'event', `The ${state.year} election chose joy — the feasts ran long and the ledger noticed.`);
       break;

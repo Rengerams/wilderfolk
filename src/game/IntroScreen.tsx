@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ensureIntroAudio, getMuteState, toggleMute } from '../audio';
 import { GAME_PHASE, GAME_SUBTITLE, GAME_VERSION, GAME_VERSION_TAGLINE } from './version';
 import { getPresentationRng } from './simRng';
+import { INTRO_DURATION_MS, INTRO_TIMELINE_MS } from './introTimeline';
 
 // ---------------------------------------------------------------------------
 // Types & constants
@@ -39,20 +40,6 @@ const HOOK_DETAIL = 'Build inside the food chain — or watch it collapse.';
 const TYPEWRITER_MS = 98;
 const FADE_MS = 3200;
 const TITLE_LETTER_MS = 115;
-
-/** Short intro reveal — the player can start promptly without losing the atmosphere. */
-const INTRO_TIMELINE_MS = {
-  aurora: 900,
-  logo: 3800,
-  title: 5200,
-  subtitle: 9800,
-  hook: 14200,
-  hookDetail: 15900,
-  chain: 17600,
-  ready: 6000,
-} as const;
-
-const INTRO_DURATION_MS = INTRO_TIMELINE_MS.ready;
 
 const FOOD_CHAIN: FoodChainItem[] = [
   { icon: '🌿', label: 'Grass' },
@@ -249,7 +236,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
       }),
       scheduleIntroBeat(INTRO_TIMELINE_MS.hookDetail, () => setHookDetailVisible(true)),
       scheduleIntroBeat(INTRO_TIMELINE_MS.chain, () => setChainVisible(true)),
-      scheduleIntroBeat(INTRO_TIMELINE_MS.ready, () => {
+      scheduleIntroBeat(INTRO_DURATION_MS, () => {
         setPhase('ready');
         setReadyVisible(true);
       }),
@@ -345,7 +332,10 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
     if (phase !== 'ready') return;
 
     const keyHandler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') return;
+      // Tab and modifier chords belong to the browser (focus reach, shortcuts): the 🔊/🔇 control
+      // beside the call to action must stay reachable, so only a bare key press continues the intro.
+      if (event.key === 'Escape' || event.key === 'Tab') return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
       handleContinue();
     };
 
@@ -409,7 +399,8 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
         </span>
       </div>
 
-      {/* v0.5 milestone ribbon — food chain that scales */}
+      {/* Milestone ribbon. The rendered text takes the version from `GAME_VERSION` (`:412`), so it can
+          never go stale — this comment used to say "v0.5" and was itself the only stale thing here. */}
       <div
         className={`intro-control absolute left-1/2 top-16 z-20 w-[min(92vw,28rem)] -translate-x-1/2 transition-all ease-out sm:top-20 ${
           logoVisible ? 'opacity-100 translate-y-0' : 'pointer-events-none -translate-y-2 opacity-0'

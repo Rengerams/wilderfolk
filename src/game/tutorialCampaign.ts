@@ -41,7 +41,7 @@ export const TUTORIAL_CAMPAIGN: TutorialCampaignStep[] = [
     id: 'assign_workers',
     icon: '👷',
     title: 'Assign workers',
-    detail: 'Select a finished building and press + Worker (or Auto-staff). Idle settlers eat but produce nothing — a staffed building is a living building.',
+    detail: 'Select a finished building and press + Fill workers (or Auto-staff all job buildings). Idle settlers eat but produce nothing — a staffed building is a living building.',
     isComplete: hasAnyStaffedBuilding,
   },
   {
@@ -72,7 +72,7 @@ export const TUTORIAL_CAMPAIGN: TutorialCampaignStep[] = [
     id: 'year_two',
     icon: '🎉',
     title: 'Your valley lives on',
-    detail: 'You made it through the first year. Follow the focus hints (top-left), check the Village tab, and read the village portrait in Progress → Goals. The wild is watching.',
+    detail: 'You made it through the first year. Focus hints live in Overview → Village, the roster is in the same tab, and the village portrait is in Progress → Goals. The wild is watching.',
     isComplete: (w) => w.year >= 2,
   },
 ];

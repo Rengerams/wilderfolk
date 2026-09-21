@@ -64,6 +64,12 @@ export const Relationship = {
    * church leaves 0.72 of the base chance and a weak church approaches 1.0.
    */
   AFFAIR_CHURCH_FLOOR_FACTOR: 0.72,
+  /** Per in-game hour. 4/hour = 96 per 72-tick day, before the situational multipliers. */
+  COURTSHIP_BASE_RATE_PER_HOUR: 4,
+  /** Multiplier while on a work shift: courting continues, far slower, and never chases. */
+  COURTSHIP_WORK_RATE_FACTOR: 0.15,
+  /** In-game days before courting again after a courtship or marriage ends. */
+  COURTSHIP_COOLDOWN_DAYS: 1,
   /** 1.4 = festivals loosen inhibitions (unchanged by the rebalance). */
   AFFAIR_FESTIVAL_MULTIPLIER: 1.4,
   /** 1.35 = visiting performers are a distraction (unchanged). */
@@ -83,8 +89,6 @@ export const Time = {
   TICKS_PER_HOUR: 3,
   /** 24 = one calendar day per sim day; keeps all math in whole days. */
   HOURS_PER_DAY: 24,
-  /** 72 = HOURS_PER_DAY (24) × TICKS_PER_HOUR (3). */
-  TICKS_PER_DAY: 72,
   /** 360 = 4 seasons × 90 days; chosen over 365 so every season and year divide evenly. */
   DAYS_PER_YEAR: 360,
   /** 90 = DAYS_PER_YEAR / 4. A season is exactly a quarter of the year. */

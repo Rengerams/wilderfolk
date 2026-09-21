@@ -77,11 +77,34 @@ export function drawSpriteFrame(
   ctx.restore();
 }
 
+/**
+ * Per-frame step squash for the 4-frame walk cycle.
+ *
+ * The shipped human art is one portrait frame per class — `humanSprites.sliceWalkFrame`
+ * returns it untouched for frames 0…3 because every sheet is taller than it is wide — so
+ * there is no leg or arm motion in the art at all (audit `visuals-looks.md` D10). The step
+ * has to come from the draw transform instead: contact frames stay neutral, the two passing
+ * frames squash vertically while stretching horizontally and vice versa. Amplitude is ~6 %
+ * so it survives `drawSpriteFrame`'s logical-pixel rounding at the shipped sprite heights.
+ */
+const WALK_STEP_SQUASH: readonly { scaleX: number; scaleY: number }[] = [
+  { scaleX: 1, scaleY: 1 },        // 0 — contact, weight down
+  { scaleX: 1.06, scaleY: 0.94 },  // 1 — passing, compressed
+  { scaleX: 1, scaleY: 1 },        // 2 — contact
+  { scaleX: 0.95, scaleY: 1.05 },  // 3 — passing, extended
+];
+
 export function getHumanWalkMotion(human: Entity, camZoom: number, hasWalkFrame: boolean, walkFrame: number): SpriteMotion {
   const speed = Math.hypot(human.vx, human.vy);
   if (speed < 0.08) return {};
   if (hasWalkFrame) {
-    return { bobY: getHumanWalkBob(walkFrame, speed, camZoom) };
+    const frame = ((Math.floor(walkFrame) % WALK_STEP_SQUASH.length) + WALK_STEP_SQUASH.length) % WALK_STEP_SQUASH.length;
+    const step = WALK_STEP_SQUASH[frame];
+    return {
+      bobY: getHumanWalkBob(walkFrame, speed, camZoom),
+      scaleX: step.scaleX,
+      scaleY: step.scaleY,
+    };
   }
   const stride = Math.min(1, speed / 1.4);
   const phase = (human.animFrame ?? 0) * 1.9 + human.id * 0.15;

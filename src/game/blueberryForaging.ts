@@ -8,6 +8,7 @@
 import { addResource } from './economy';
 import { getAbsoluteCalendarDay } from './dayCycle';
 import { addFloatingText } from './simEffects';
+import { faceVelocity } from './simulation/movementSteering';
 import { EntityType, Season, MapSize } from './gameTypes';
 import type { Entity, WorldState } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
@@ -183,7 +184,7 @@ export function tryTickBlueberryForaging(
   if (distance > BLUEBERRY_PICK_RADIUS) {
     settler.vx = (dx / distance) * options.speed * 0.42;
     settler.vy = (dy / distance) * options.speed * 0.42;
-    settler.spriteAngle = Math.atan2(settler.vy, settler.vx);
+    faceVelocity(settler);
     return true;
   }
 

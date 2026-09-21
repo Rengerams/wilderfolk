@@ -1,6 +1,7 @@
-import type { BuildingType } from './gameTypes';
+import type { BuildingType, Entity } from './gameTypes';
 import type { WorldState } from './gameTypes';
-import { BuildingType as BuildingTypeValues, BUILDING_JOB_TYPES } from './gameTypes';
+import { BuildingType as BuildingTypeValues, BUILDING_JOB_TYPES, EntityType } from './gameTypes';
+import { isPlayerHuman } from './playerHuman';
 
 export interface ScheduleImpactPreview {
   affectedWorkplaces: number;
@@ -28,6 +29,20 @@ function staffedBuildingTypes(kind: 'ordinary' | 'tavern' | 'hotel'): BuildingTy
   );
 }
 
+/**
+ * A workplace lists its workers in `occupants`; an id counts while the record behind it is alive
+ * and belongs to the player's colony.
+ *
+ * Colony membership is the owner's rule (`playerHuman.isPlayerHuman`, duplication finding A3) — the
+ * faction classification is not re-derived here. A record that carries no `type` at all (the partial
+ * entity records the schedule fixtures feed in) names no non-human form, so it is asked as a human:
+ * a workplace's `occupants` list is itself the assignment record, and dropping such an id reported a
+ * staffed workplace as unstaffed.
+ */
+function isAssignedWorker(entity: Entity): boolean {
+  return entity.alive && isPlayerHuman(entity.type == null ? { ...entity, type: EntityType.Human } : entity);
+}
+
 export function getScheduleImpactPreview(
   state: Pick<WorldState, 'buildings' | 'entities'>,
   kind: 'ordinary' | 'tavern' | 'hotel',
@@ -36,7 +51,7 @@ export function getScheduleImpactPreview(
 ): ScheduleImpactPreview {
   const types = new Set(staffedBuildingTypes(kind));
   const buildings = state.buildings.filter((building) => building.completed && types.has(building.type));
-  const assignedWorkers = buildings.reduce((sum, building) => sum + building.occupants.filter((id) => state.entities.some((entity) => entity.id === id && entity.alive && !entity.faction)).length, 0);
+  const assignedWorkers = buildings.reduce((sum, building) => sum + building.occupants.filter((id) => state.entities.some((entity) => entity.id === id && isAssignedWorker(entity))).length, 0);
   const durationDelta = nextHours - currentHours;
   const warning = durationDelta > 0
     ? `${durationDelta} extra hour${durationDelta === 1 ? '' : 's'} may increase next-day fatigue and reduce staffed output.`

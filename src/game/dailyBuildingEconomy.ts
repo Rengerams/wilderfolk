@@ -27,7 +27,8 @@ import {
   applyFoodSpoilage,
   updateStorageCaps,
 } from './economy';
-import { rollEconomyLedgerForDay } from './economyLedger';
+import { refreshFoodLedgerTotals, rollEconomyLedgerForDay } from './economyLedger';
+import { getAvailableStorageHeadroom } from './resourceUtils';
 import { canAffordWorkshopRecipe } from './workshops';
 import { logEvent } from './eventLog';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
@@ -62,7 +63,7 @@ import {
 } from './skills';
 import { assignMissingWorkers, getSmithBonus } from './workforce';
 import { isPlayerHuman } from './playerHuman';
-import { tickHospitalDailyCare } from './hospitalCare';
+import { grantHospitalIntervalReputation } from './hospitalCare';
 import { getScheduleProductivityMultiplier } from './scheduleFatigue';
 import {
   getValleyHuntYieldMultiplier,
@@ -83,6 +84,41 @@ import {
   getWorkHourProductionMultiplier,
 } from './workSchedule';
 import { getSimRng, seededRandomForRun } from './simRng';
+
+/**
+ * Adds a building's daily output and makes a **clamped** gain visible, returning what storage took.
+ *
+ * `addResource` caps at `storageMax` and returns the accepted amount, and every producer below used to
+ * throw that return away — so a store sitting at its cap deleted the output in silence and a capped
+ * Lumber Mill was indistinguishable from an idle one. Measured: wood sat at exactly 800 (the cap) from
+ * ~day 60 to day 290 of `probe-winter.mts` while a staffed mill kept running (`LIVE-FINDINGS-STATUS.md`,
+ * F6; the helper that answers "is this store full?", `resourceUtils.isResourceCapped`, had no consumer).
+ * A **partial** clamp (5 of 30 accepted) was silent even where a total one was announced, so the float
+ * fires whenever any of the output was refused, not only when all of it was.
+ *
+ * The Fishing Spot and Workshop are deliberately not callers: both already float their own success line
+ * at the same (x, y), so they fold the refusal into that message instead of stacking a second float on
+ * top of it.
+ */
+function addProductionOutput(
+  state: WorldState,
+  building: Building,
+  type: keyof WorldState['resources'],
+  amount: number,
+): number {
+  const added = addResource(state, type, amount);
+  if (amount > added) {
+    addFloatingText(
+      state,
+      building.x + building.width / 2,
+      building.y - 12,
+      'Stores full!',
+      '#94a3b8',
+      'brief',
+    );
+  }
+  return added;
+}
 
 /**
  * Winter heating — burns wood once per colony day, stores result on state for the whole day.
@@ -118,6 +154,14 @@ export function tickWinterHeating(
 
 const isPassiveBuild = (type: BuildingType): boolean =>
   type === BuildingType.House || type === BuildingType.Road || type === BuildingType.Well;
+
+/**
+ * Food-production multiplier one completed Mill gives the whole village.
+ *
+ * Exported because the inspector's Mill hint typed "+25%" as prose (audit C2 "Building output/tuning
+ * copy"): the tunable number lives here, and the hint reads it.
+ */
+export const MILL_FOOD_PRODUCTION_MULT = 1.25;
 
 /** Construction / repair / winter decay — once per colony day. */
 function tickBuildingProgress(state: WorldState): void {
@@ -163,7 +207,10 @@ function tickBuildingProgress(state: WorldState): void {
       if (workers > 0) {
         const job = getJobForBuilding(building.type) ?? JobType.Builder;
         for (let o = 0; o < building.occupants.length; o++) {
-          gainSkill(state, building.occupants[o], job, 0.15);
+          // `entityById` is the map this function already built above and already passes to
+          // `getWorkerSkillMultiplier`; without it `gainSkill` (skills.ts) falls back to
+          // `state.entities.find(…)`, a linear scan of every living entity per occupant.
+          gainSkill(state, building.occupants[o], job, 0.15, entityById);
         }
       }
 
@@ -266,6 +313,10 @@ export function tickDailyBuildingEconomy(
   tickStaticDaily(state, ctx.season);
   tickBlueberryRegrowth(state);
   tickBuildingProduction(state, ctx, allAlive);
+  // The day's food balance is this tick's to own: recompute the ledger's totals now that the day's
+  // production has run, so the dashboard and the village panel read stored numbers instead of adding
+  // the maps up themselves (`LIVE-FINDINGS-STATUS.md`, F2 — "it should be in dailytick").
+  refreshFoodLedgerTotals(state);
 }
 
 // ==================== FRONTIER SYSTEMS ====================
@@ -295,7 +346,7 @@ function tickBuildingProduction(
   const { updatedBuildings, entityById, byType, roadBuildings } = ctx;
 
   const hasMill = updatedBuildings.some((b) => b.type === BuildingType.Mill && b.completed);
-  const millBonus = hasMill ? 1.25 : 1.0;
+  const millBonus = hasMill ? MILL_FOOD_PRODUCTION_MULT : 1.0;
   const globalEff =
     getMultiplier(state, 'global_efficiency') *
     getTownHallGovernanceEfficiency(state, updatedBuildings);
@@ -306,11 +357,24 @@ function tickBuildingProduction(
 
   const playerWorkers = allAlive.filter(isPlayerHuman);
 
+  // The Town Hall branches below need the *living* settlers: `isPlayerHuman` does not test `alive`,
+  // and the daily social pass that runs before this layer can kill (so `playerWorkers`, taken from
+  // this tick's `allAlive`, may hold a corpse). This was re-filtered once per completed Town Hall
+  // inside the building loop; it is now computed on first use and reused, because the branch only
+  // runs on a Town Hall production tick (~every 3 days) and hoisting it unconditionally would pay
+  // the filter on days the old code paid nothing. The value is loop-invariant: nothing in the loop
+  // can kill a settler — the only death path reachable from it is `markWildlifeDead` on the Hunting
+  // Spot's `targetPrey`, which is confined to the Deer/Rabbit/Wolf pools.
+  let livingPlayerWorkers: Entity[] | undefined;
+
   // Single-pass building worker count and schedule fatigue aggregation
   const buildingWorkerStats = new Map<number, { count: number; fatigueSum: number }>();
   for (let i = 0; i < playerWorkers.length; i++) {
     const h = playerWorkers[i];
-    if (!h.alive || h.faction) continue;
+    // `playerWorkers` is already the colony-human owner's answer — re-testing `h.faction` here
+    // was a second definition of the rule (and it disagreed with the owner on the `'player'`
+    // marker the fixtures use). `LIVE-FINDINGS-STATUS.md`, duplication A3.
+    if (!h.alive) continue;
     const siteId = h.homeBuildingId;
     if (siteId == null) continue;
 
@@ -370,11 +434,13 @@ function tickBuildingProduction(
           valleyFarm *
           weatherFarm,
       );
-      const added = addResource(state, 'food', amount);
+      const added = addProductionOutput(state, building, 'food', amount);
       recordFoodProduced(state, 'farms', added);
       if (added > 0 && productionJob) {
         for (let o = 0; o < building.occupants.length; o++) {
-          gainSkill(state, building.occupants[o], productionJob, 0.2);
+          // Same contract as the construction-crew site above: pass the tick's id map so
+          // `gainSkill` does not fall back to a `state.entities.find` per occupant.
+          gainSkill(state, building.occupants[o], productionJob, 0.2, entityById);
         }
       }
     }
@@ -461,28 +527,29 @@ function tickBuildingProduction(
             (12 + workers * 6) * carcass * totalMult * huntMult * globalEff * valleyHunt,
           );
 
-          if (amount <= 0 || addResource(state, 'food', amount) <= 0) {
-            addFloatingText(
-              state,
-              building.x + building.width / 2,
-              building.y - 12,
-              'Stores full!',
-              '#94a3b8',
-              'brief',
-            );
-          } else {
-            recordFoodProduced(state, 'hunting', amount);
+          // Record what storage actually accepted, not the nominal catch: the ledger's contract is "food
+          // that actually entered storage" (`economyLedger.ts`), and `addProductionOutput` both returns
+          // that amount and raises the "Stores full!" float when any of the catch was refused.
+          const added = addProductionOutput(state, building, 'food', amount);
+
+          if (added > 0) {
+            recordFoodProduced(state, 'hunting', added);
             const preyId = targetPrey.id;
             targetPrey.energy = 0;
             markWildlifeDead(ctx, targetPrey, undefined, state.tick);
-            clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId);
+            // The 4th argument is the tick's `byType` buckets. `clearHuntersTargetingPrey` sweeps
+            // only HUNTER_TYPES when it is given them (simulationEntities.ts), which is the same
+            // hunter-bucket scoping the three systems-layer call sites already use; without it this
+            // call walked every living entity (`entityById.values()`, ~700-900 incl. grass and
+            // trees) once per successful shot.
+            clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId, byType);
             syncEntityGrids(ctx, targetPrey);
             rewardProductionSkills(state, building, 0.2, entityById);
             addFloatingText(
               state,
               targetPrey.x,
               targetPrey.y - 12,
-              `+${amount} meat`,
+              `+${added} meat`,
               '#ef4444',
               'brief',
             );
@@ -492,7 +559,7 @@ function tickBuildingProduction(
                 : targetPrey.type === EntityType.Wolf
                   ? 'wolf'
                   : 'rabbit';
-            logEvent(state, 'event', `Hunting Spot bagged a ${preyName} (+${amount} meat)`);
+            logEvent(state, 'event', `Hunting Spot bagged a ${preyName} (+${added} meat)`);
           }
         } else {
           addFloatingText(state, targetPrey.x, targetPrey.y - 12, 'Missed shot!', '#94a3b8', 'brief');
@@ -525,7 +592,11 @@ function tickBuildingProduction(
               ? 0.9
               : 1.0;
       const amount = Math.floor((8 + workers * 4) * totalMult * seasonFish * globalEff);
-      if (amount <= 0 || addResource(state, 'food', amount) <= 0) {
+      // Same contract as the Hunting Spot above: the ledger and the player-facing lines carry what
+      // storage accepted, not the nominal catch (LIVE-FINDINGS-STATUS.md, M5). This site floats its own
+      // line, so a refused part is named in it rather than by `addProductionOutput`.
+      const added = addResource(state, 'food', amount);
+      if (added <= 0) {
         addFloatingText(
           state,
           building.x + building.width / 2,
@@ -535,17 +606,17 @@ function tickBuildingProduction(
           'brief',
         );
       } else {
-        recordFoodProduced(state, 'fishing', amount);
+        recordFoodProduced(state, 'fishing', added);
         rewardProductionSkills(state, building, 0.2, entityById);
         addFloatingText(
           state,
           building.x + building.width / 2,
           building.y - 12,
-          `+${amount} fish`,
+          `+${added} fish${amount > added ? ' (store full)' : ''}`,
           '#38bdf8',
           'brief',
         );
-        logEvent(state, 'event', `Fishing Spot hauled in ${amount} fish from the river`);
+        logEvent(state, 'event', `Fishing Spot hauled in ${added} fish from the river`);
       }
     }
 
@@ -558,7 +629,7 @@ function tickBuildingProduction(
     ) {
       const goldMult = getMultiplier(state, 'gold_production');
       const amount = Math.floor(5 * totalMult * goldMult * globalEff);
-      if (addResource(state, 'gold', amount) > 0) {
+      if (addProductionOutput(state, building, 'gold', amount) > 0) {
         rewardProductionSkills(state, building, 0.2, entityById);
       }
     }
@@ -574,7 +645,7 @@ function tickBuildingProduction(
       const amount = Math.floor(
         (12 + workers * 4) * totalMult * smithBonus * lumberMult * globalEff,
       );
-      if (addResource(state, 'wood', amount) > 0) {
+      if (addProductionOutput(state, building, 'wood', amount) > 0) {
         rewardProductionSkills(state, building, 0.2, entityById);
       }
       for (let i = 0; i < 3; i++) {
@@ -601,7 +672,7 @@ function tickBuildingProduction(
     ) {
       const stoneMult = getMultiplier(state, 'quarry_yield') * getForgeQuarryMultiplier(state);
       const amount = Math.floor((8 + workers * 3) * totalMult * smithBonus * stoneMult * globalEff);
-      if (addResource(state, 'stone', amount) > 0) {
+      if (addProductionOutput(state, building, 'stone', amount) > 0) {
         rewardProductionSkills(state, building, 0.2, entityById);
       }
       state.deathParticles.push({
@@ -629,7 +700,7 @@ function tickBuildingProduction(
       // Ores only — stone is the Quarry's job. Gold is the premium vein, so it
       // is extracted only when the player picked it; see `mineOreForMode`.
       const ore = mineOreForMode(building.mineMode);
-      if (addResource(state, ore, amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
+      if (addProductionOutput(state, building, ore, amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
       state.deathParticles.push({
         x: building.x + getSimRng('dailyBuildingEconomy')() * building.width,
         y: building.y + getSimRng('dailyBuildingEconomy')() * building.height,
@@ -669,7 +740,7 @@ function tickBuildingProduction(
       // Mirror the farm path: the ledger row is the food that actually entered
       // storage (`added`), not the nominal harvest, so a full store cannot make
       // the ledger disagree with the resources.
-      const added = addResource(state, 'food', amount);
+      const added = addProductionOutput(state, building, 'food', amount);
       if (added > 0) {
         recordFoodProduced(state, 'greenhouse', added);
         rewardProductionSkills(state, building, 0.2, entityById);
@@ -696,7 +767,7 @@ function tickBuildingProduction(
     ) {
       const goldMult = getMultiplier(state, 'gold_production');
       const amount = Math.floor((8 + workers * 3) * totalMult * goldMult * globalEff);
-      if (addResource(state, 'gold', amount) > 0) {
+      if (addProductionOutput(state, building, 'gold', amount) > 0) {
         rewardProductionSkills(state, building, 0.2, entityById);
       }
       state.deathParticles.push({
@@ -734,8 +805,27 @@ function tickBuildingProduction(
 
         if (canAffordWorkshopRecipe(state.resources, recipe)) {
           const amount = Math.max(1, Math.floor(recipe.baseGold * outputMult));
-          const added = addResource(state, 'gold', amount);
-          if (added > 0) {
+          // The cycle is all-or-nothing, and the headroom is tested *before* crediting. The recipe's
+          // full inputs pay for `amount` gold, so a partial credit would take the whole recipe for a
+          // fraction of its output and still announce a whole cycle; and `addResource` cannot be
+          // called first to find out, because the part it did accept would stay in the store with
+          // nothing consumed — free gold. At gold 19 999 of 20 000 a `furniture` cycle used to deduct
+          // 10 wood + 2 stone for 1 gold and report "+1 gold · Furniture (store full)"
+          // (`LIVE-FINDINGS-STATUS.md`, E-4). Refusing the whole cycle keeps every announced string
+          // honest: `+N gold · <recipe>` always means one full recipe.
+          if (getAvailableStorageHeadroom(state, 'gold') < amount) {
+            // Gold store at its cap: the recipe inputs are deliberately not consumed, so the workshop
+            // must say why it produced nothing — this used to be a completely silent no-op (F6).
+            addFloatingText(
+              state,
+              building.x + building.width / 2,
+              building.y - 12,
+              'Stores full!',
+              '#94a3b8',
+              'brief',
+            );
+          } else {
+            const added = addResource(state, 'gold', amount);
             consumeWorkshopRecipeInputs(state, recipe);
             rewardProductionSkills(state, building, 0.2, entityById);
             addFloatingText(
@@ -778,8 +868,9 @@ function tickBuildingProduction(
       building.type === BuildingType.Hospital &&
       isProductionTick(state.tick, PRODUCTION_INTERVAL.hospital)
     ) {
-      addReputation(state, 2);
-      tickHospitalDailyCare(state, building, playerWorkers);
+      // The whole grant — the flat staffed amount and the ward round's own — is owned by
+      // `hospitalCare` (`LIVE-FINDINGS-STATUS.md`, A15); this layer only decides when it fires.
+      grantHospitalIntervalReputation(state, building, playerWorkers);
     }
 
     // --- Town Hall ---
@@ -789,13 +880,11 @@ function tickBuildingProduction(
       building.type === BuildingType.TownHall &&
       isProductionTick(state.tick, PRODUCTION_INTERVAL.townHall)
     ) {
-      // `isPlayerHuman` does not test `alive`, and `state.entities` is only replaced with the
-      // living list at the end of the tick, so a settler killed earlier in this tick would still
-      // be taxed and petitioned. `playerWorkers` is this function's alive-filtered settler list;
-      // `alive` is re-checked here because the daily social pass before this layer can also kill.
-      const villagers = playerWorkers.filter((e) => e.alive);
-      tickTownHallCivic(state, building, villagers);
-      tickTownHallAudiences(state, building, villagers);
+      // See `livingPlayerWorkers` above: the alive re-check the daily social pass requires is done
+      // once per pass, not once per Town Hall.
+      livingPlayerWorkers ??= playerWorkers.filter((e) => e.alive);
+      tickTownHallCivic(state, building, livingPlayerWorkers);
+      tickTownHallAudiences(state, building, livingPlayerWorkers);
     }
 
     // --- Silo ---
@@ -806,7 +895,7 @@ function tickBuildingProduction(
       isProductionTick(state.tick, PRODUCTION_INTERVAL.silo)
     ) {
       const amount = Math.floor(8 * totalMult * millBonus * globalEff);
-      recordFoodProduced(state, 'silos', addResource(state, 'food', amount));
+      recordFoodProduced(state, 'silos', addProductionOutput(state, building, 'food', amount));
     }
   }
 

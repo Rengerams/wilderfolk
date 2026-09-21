@@ -3,17 +3,62 @@
  * for the full-screen, dismissible game dashboard. It never mutates simulation
  * state. The food ledger and rolling history ride the worker delta so the
  * numbers shown here reflect the authoritative sim in both sim modes.
+ *
+ * It also owns the read-only **inspector explanations** (`explainSettler`, `explainBuildingStaffing`,
+ * `explainSettlerMovement`): the selected-building and selected-entity panels render these lines
+ * verbatim, so every value and every label is derived here, from the module that owns the rule, and
+ * never recomputed in the view.
  */
-import type { Entity, Season, WorldState } from './gameTypes';
-import { EntityType } from './gameTypes';
+import type { Building, Entity, Season, WorldState } from './gameTypes';
+import { BUILDING_JOB_TYPES, EntityType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { TICKS_PER_DAY } from './dayCycle';
+import { getHourOfDay } from './dayCycleClock';
+import { isOnWorkScheduleShift } from './workSchedule';
+import { foodSharePct, summarizeFoodLedger } from './economyLedger';
+import { isFoodCritical } from './resourceUtils';
+import { getEcosystemHealth } from './dailyEcology';
+import { computeVillageStats } from './uiSimSummary';
+import {
+  countHomelessSettlers,
+  countResidentsInBuilding,
+  getResidenceCapacity,
+  hasWorkAssignment,
+  isHomelessSettler,
+  isResidenceBuildingType,
+} from './residencyOccupancy';
+import { findHumanWorkplace, isManualStaffingBuilding } from './workforce';
+import { getBuildingConfig } from './buildingConfig';
+import { formatCitizenName } from './citizenId';
+import type { HumanActivityTarget } from './humanStatus';
+import { getHumanActivityProjection, isAtActivityTarget } from './humanStatus';
+import { pickSocialImpulse } from './socialLife';
+import { getRouteObstruction } from './pathfinding';
+import type { WorkerAssignmentRefusal } from './buildingStaffingActions';
+import {
+  canAssignWorkerToBuilding,
+  getWorkerAssignmentRefusal,
+  isOnConstructionCrew,
+} from './buildingStaffingActions';
 
 export interface DashboardResource {
   key: 'food' | 'wood' | 'stone' | 'gold' | 'iron';
   label: string;
   amount: number;
   cap: number;
+}
+
+/**
+ * How full a capped resource is, as the 0–100 percentage the dashboard bar draws.
+ *
+ * Derived here rather than in the dashboard, per this module's contract — "the panel renders
+ * numbers, it does not derive them". `GameDashboard` had its own copy of the formula, so a change to
+ * what "full" means (headroom vs cap) would have updated the owner and not the bar (audit C2
+ * "Resource fill %").
+ */
+export function resourceFillPercent(resource: Pick<DashboardResource, 'amount' | 'cap'>): number {
+  if (!(resource.cap > 0)) return 0;
+  return Math.min(100, Math.round((resource.amount / resource.cap) * 100));
 }
 
 export interface DashboardSettler {
@@ -45,6 +90,12 @@ export interface HistoryPoint {
 export interface FoodSourceToday {
   label: string;
   amount: number;
+  /**
+   * This source's share of its side of the day's balance (0–100), computed here rather than in the
+   * dashboard: the panel renders numbers, it does not derive them (`LIVE-FINDINGS-STATUS.md`, F2 —
+   * "food can't be calculated at the UX").
+   */
+  sharePct: number;
 }
 
 export interface VillageConcern {
@@ -115,17 +166,18 @@ function settlerStatus(e: Entity): DashboardSettler['status'] {
 function deriveConcerns(state: WorldState): VillageConcern[] {
   const concerns: VillageConcern[] = [];
   const food = state.resources?.food ?? 0;
-  let humans = 0;
-  let homeless = 0;
-  let idleAdults = 0;
-  let imprisoned = 0;
+  // The settler counters come from the labour-statistics owner (`uiSimSummary.computeVillageStats`),
+  // which the top-bar HUD and the People screen also read; the housing gap comes from the residence
+  // owner (`residencyOccupancy.countHomelessSettlers`), which applies the jail exclusion the council
+  // report needed. This local scan keeps only the Moon Howler tally, which has no other reader.
+  const village = computeVillageStats(state);
+  const humans = village.total;
+  const imprisoned = village.imprisoned;
+  const idleAdults = village.idle;
+  const homeless = countHomelessSettlers(state);
   let howlerCursed = 0;
   for (const e of state.entities) {
     if (!e.alive || e.type !== EntityType.Human || !isPlayerHuman(e)) continue;
-    humans++;
-    if (e.residenceBuildingId == null) homeless++;
-    if (e.prisonBuildingId != null) imprisoned++;
-    if (!e.isJuvenile && e.homeBuildingId == null) idleAdults++;
     if (e.moonHowlerCursed) howlerCursed++;
   }
 
@@ -137,7 +189,7 @@ function deriveConcerns(state: WorldState): VillageConcern[] {
       detail: 'The stores are empty.',
       hint: 'Assign farms/hunting or buy food from visitors before settlers starve.',
     });
-  } else if (humans > 0 && food < humans * 3) {
+  } else if (humans > 0 && isFoodCritical(state)) {
     concerns.push({
       id: 'low_food',
       severity: 'warning',
@@ -198,7 +250,7 @@ function deriveConcerns(state: WorldState): VillageConcern[] {
     });
   }
 
-  const eco = state.ecosystemHealth ?? 100;
+  const eco = getEcosystemHealth(state);
   if (eco < 40) {
     concerns.push({
       id: 'ecology',
@@ -257,8 +309,15 @@ function deriveCouncil(state: WorldState): CouncilLine[] {
 
   const humans = state.humanPopulation ?? 0;
   const pop = state.populationHistory ?? [];
-  const prev = pop.length >= 2 ? pop[pop.length - 2] : undefined;
   const cur = pop[pop.length - 1];
+  // A real day ago, not whichever 10-tick sample the buffer happens to hold last.
+  const prev = cur
+    ? [...pop].reverse().find((s) =>
+        s !== cur
+        && (s.day != null && cur.day != null
+          ? s.day < cur.day
+          : s.tick <= cur.tick - TICKS_PER_DAY))
+    : undefined;
   const delta = prev && cur ? (cur.humans ?? 0) - (prev.humans ?? 0) : 0;
   lines.push({
     label: 'Settlers',
@@ -266,18 +325,12 @@ function deriveCouncil(state: WorldState): CouncilLine[] {
     tone: delta < 0 ? 'bad' : 'good',
   });
 
-  const ledger = state.economyLedger;
-  const produced = ledger ? sumRecord(ledger.produced) : 0;
-  const consumed = ledger ? sumRecord(ledger.consumed) : 0;
-  const net = produced - consumed;
-  lines.push({
-    label: 'Food today',
-    value: produced === 0 && consumed === 0
-      ? 'no activity yet'
-      : `produced +${produced} · consumed −${consumed} · net ${net >= 0 ? `+${net}` : net}`,
-    tone: net < 0 ? 'warn' : produced === 0 && consumed === 0 ? 'neutral' : 'good',
-  });
-
+  // Today's ledger balance (produced · consumed · net) is *not* a council line: the dashboard renders
+  // those same three numbers in full, from this same ledger, in its "Net food flow today" card.
+  // Printing them here as well showed one balance twice on one screen and invited the two to be read
+  // as separate claims (`LIVE-FINDINGS-STATUS.md`, F2 — the audit's "contradicts another line in the
+  // same panel"). The council keeps the two windows it is the only voice for: the last *finished* day,
+  // and the stored level.
   const history = state.foodHistory ?? [];
   const lastDay = history[history.length - 1];
   if (lastDay) {
@@ -326,8 +379,10 @@ function deriveCouncil(state: WorldState): CouncilLine[] {
       case 'combat': counts.combats++; break;
       default: break;
     }
-    const title = (e as { title?: string }).title;
-    if (title && latest.length < 3) latest.push(title);
+    // `GameEventLog` carries `message` (`eventLog.ts` is the only writer); the old `title` cast silenced
+    // the compiler and read a field that never exists, so the "Notices" row below was dead
+    // (`LIVE-FINDINGS-STATUS.md`, F24).
+    if (e.message && latest.length < 3) latest.push(e.message);
   }
   const hasEvents =
     counts.births + counts.conceptions + counts.deaths + counts.marriages
@@ -365,27 +420,22 @@ export function collectDashboard(state: WorldState): DashboardData {
     cap: state.storageMax?.[key] ?? 0,
   }));
 
-  const ledger = state.economyLedger;
-  const foodBySourceToday: FoodSourceToday[] = [];
-  const foodBySourceConsumedToday: FoodSourceToday[] = [];
-  let foodProducedToday = 0;
-  let foodConsumedToday = 0;
-  if (ledger) {
-    for (const [src, amount] of Object.entries(ledger.produced ?? {})) {
-      if (amount > 0) {
-        foodBySourceToday.push({ label: src, amount });
-        foodProducedToday += amount;
-      }
-    }
-    for (const [src, amount] of Object.entries(ledger.consumed ?? {})) {
-      if (amount > 0) {
-        foodBySourceConsumedToday.push({ label: src, amount });
-        foodConsumedToday += amount;
-      }
-    }
-    foodBySourceToday.sort((a, b) => b.amount - a.amount);
-    foodBySourceConsumedToday.sort((a, b) => b.amount - a.amount);
-  }
+  // The day's balance comes from the ledger owner, which is the only place that sums it — the view
+  // must not do food arithmetic, and the village panel renders the same function
+  // (`LIVE-FINDINGS-STATUS.md`, F2).
+  const foodLedger = summarizeFoodLedger(state);
+  const foodBySourceToday: FoodSourceToday[] = foodLedger.produced.map((row) => ({
+    label: row.source,
+    amount: row.amount,
+    sharePct: foodSharePct(row.amount, foodLedger.producedTotal),
+  }));
+  const foodBySourceConsumedToday: FoodSourceToday[] = foodLedger.consumed.map((row) => ({
+    label: row.source,
+    amount: row.amount,
+    sharePct: foodSharePct(row.amount, foodLedger.consumedTotal),
+  }));
+  const foodProducedToday = foodLedger.producedTotal;
+  const foodConsumedToday = foodLedger.consumedTotal;
 
   const settlers: DashboardSettler[] = [];
   for (const e of state.entities) {
@@ -401,8 +451,13 @@ export function collectDashboard(state: WorldState): DashboardData {
       juvenile: e.isJuvenile,
       hoursToday: hoursToday(e),
       energyPct: energyPct(e),
-      noWork: !e.isJuvenile && e.homeBuildingId == null && e.prisonBuildingId == null,
-      noHome: e.residenceBuildingId == null,
+      // A settler stationed on an unfinished site is working, not idle — the same crew predicate the
+      // counters above use (`buildingStaffingActions.isOnConstructionCrew`).
+      noWork: !e.isJuvenile && !hasWorkAssignment(e) && !isOnConstructionCrew(state, e.id) && e.prisonBuildingId == null,
+      // A prisoner is neither homeless nor idle: imprisonment clears residence and workplace on
+      // purpose, so that absence is not a player-actionable gap (same rule as `noWork` above, and the
+      // residence owner's own {@link isHomelessSettler}).
+      noHome: isHomelessSettler(e),
       status: settlerStatus(e),
     });
   }
@@ -428,10 +483,10 @@ export function collectDashboard(state: WorldState): DashboardData {
     foodProducedToday,
     foodBySourceConsumedToday,
     foodConsumedToday,
-    netFoodToday: foodProducedToday - foodConsumedToday,
+    netFoodToday: foodLedger.net,
     population: {
       humans: state.humanPopulation ?? 0,
-      ecoHealth: state.ecosystemHealth ?? 0,
+      ecoHealth: getEcosystemHealth(state),
       pollution: state.pollutionLevel ?? 0,
       biodiversity: state.biodiversityIndex ?? 0,
     },
@@ -543,18 +598,329 @@ export function explainSettler(state: WorldState, id: number): SettlerExplanatio
 
   if (!workplace && !settler.isJuvenile && settler.prisonBuildingId == null) {
     lines.push({
-      label: 'Suggested',
+      // Distinct from the housing suggestion below: both fired for a jobless *and* homeless settler
+      // under the same label, which made the two rows a duplicate React key and could drop one
+      // (`LIVE-FINDINGS-STATUS.md`, F25).
+      label: 'Suggested workplace',
       value: 'Assign them to a staffed building (Farm, Hunting Spot, Mill, …).',
       tone: 'warn',
     });
   }
-  if (!residence) {
+  // The same guard the workplace suggestion above carries: an arrest clears both links, so a
+  // prisoner has no residence by design and this advice cannot be followed while the sentence runs
+  // (BUG_REPORTS/2026-09-17-prisoners-count-as-idle-and-homeless.md).
+  if (!residence && settler.prisonBuildingId == null) {
     lines.push({
-      label: 'Suggested',
+      label: 'Suggested home',
       value: 'Build and finish a House so they have somewhere to sleep.',
       tone: 'warn',
     });
   }
 
   return lines;
+}
+
+/**
+ * Player-facing wording for the staffing owner's refusal vocabulary (`Roadmap_V0_6.4.1.MD` line 25).
+ *
+ * The key type is derived from `getWorkerAssignmentRefusal`, so adding a gate there is a missing entry
+ * here — a compile error — rather than an `undefined` on screen. Same split as
+ * `buildingPlacementLabels`: the owner decides *why*, this decides how to say it.
+ */
+const STAFFING_REFUSAL_LABELS: Record<WorkerAssignmentRefusal, string> = {
+  'unknown-building': 'That building no longer exists.',
+  'unknown-settler': 'That settler is no longer in the valley.',
+  'rival-building': 'A rival camp is not yours to staff.',
+  'residence-building': 'Homes fill themselves — build a House and people move in.',
+  'building-full': 'Every slot here is taken.',
+  'building-has-no-job': 'This building takes no workers.',
+  'not-a-settler': 'Only your own settlers take a job here.',
+  'settler-dead': 'They are dead.',
+  juvenile: 'Children do not take jobs.',
+  'already-assigned': 'Already working elsewhere — free them from that post first.',
+  imprisoned: 'In prison — the post opens when the sentence ends.',
+  'on-another-crew': 'Already on another construction crew.',
+};
+
+/** One settler the staffing owner refuses, with the owner's own reason and its player-facing label. */
+export interface StaffingRefusal {
+  settlerId: number;
+  name: string;
+  /** The owner's answer, verbatim — never re-derived by the projection or the view. */
+  reason: WorkerAssignmentRefusal;
+  label: string;
+}
+
+/** Read-only staffing answer for the selected building (`Roadmap_V0_6.4.1.MD` line 25). */
+export interface BuildingStaffingExplanation {
+  /** 'auto' when the daily staffing pass fills this building, 'manual' when only the player does. */
+  mode: 'auto' | 'manual';
+  /** Worker/resident slots the cap applies to — the same number the staffing command checks. */
+  capacity: number;
+  workerCount: number;
+  /** True when the staffing owner would accept somebody (`canAssignWorkerToBuilding`). */
+  acceptsWorker: boolean;
+  /** One entry per requested settler the owner refuses. */
+  refusals: StaffingRefusal[];
+  lines: SettlerExplanationLine[];
+}
+
+function buildingLabel(building: Building): string {
+  return getBuildingConfig(building.type).label;
+}
+
+/** The settler ids holding this building's slots, in roster order. */
+function buildingWorkerIds(state: WorldState, building: Building): number[] {
+  if (building.completed && isResidenceBuildingType(building.type)) {
+    return state.entities
+      .filter((entity) => entity.alive && isPlayerHuman(entity) && entity.residenceBuildingId === building.id)
+      .map((entity) => entity.id);
+  }
+  return building.occupants;
+}
+
+function settlerName(state: WorldState, id: number): string {
+  const entity = state.entities.find((candidate) => candidate.id === id);
+  return entity ? formatCitizenName(entity) : `#${id}`;
+}
+
+/**
+ * Read-only staffing explanation for one building: auto/manual mode, capacity, the current workers,
+ * and — for any settler the caller names — the staffing owner's own reason for refusing them.
+ *
+ * Every rule comes from its owner: the mode from `workforce.isManualStaffingBuilding`, the cap from
+ * `BUILDING_CONFIGS` / `residencyOccupancy.getResidenceCapacity`, the roster from
+ * `residencyOccupancy` / the building's occupant list, and the refusals from
+ * `buildingStaffingActions.getWorkerAssignmentRefusal`. The panel only renders {@link lines}.
+ */
+export function explainBuildingStaffing(
+  state: WorldState,
+  buildingId: number,
+  settlerIds: readonly number[] = [],
+): BuildingStaffingExplanation {
+  const building = state.buildings.find((candidate) => candidate.id === buildingId);
+  if (!building) {
+    return {
+      mode: 'auto',
+      capacity: 0,
+      workerCount: 0,
+      acceptsWorker: false,
+      refusals: [],
+      lines: [{ label: 'Staffing', value: 'That building no longer exists.', tone: 'warn' }],
+    };
+  }
+
+  const isResidence = building.completed && isResidenceBuildingType(building.type);
+  const takesStaff = !building.completed || BUILDING_JOB_TYPES[building.type] !== undefined;
+  const mode: 'auto' | 'manual' = isManualStaffingBuilding(building) ? 'manual' : 'auto';
+  const capacity = isResidence
+    ? getResidenceCapacity(building)
+    : getBuildingConfig(building.type).maxOccupants;
+  const workerIds = buildingWorkerIds(state, building);
+  const workerCount = isResidence
+    ? countResidentsInBuilding(state.entities, building.id)
+    : workerIds.length;
+
+  const refusals: StaffingRefusal[] = [];
+  for (const settlerId of settlerIds) {
+    const reason = getWorkerAssignmentRefusal(state, buildingId, settlerId);
+    if (!reason) continue;
+    refusals.push({
+      settlerId,
+      name: settlerName(state, settlerId),
+      reason,
+      label: STAFFING_REFUSAL_LABELS[reason],
+    });
+  }
+
+  const slotWord = isResidence ? 'residents' : building.completed ? 'workers' : 'builders';
+  const lines: SettlerExplanationLine[] = [];
+  lines.push({
+    label: 'Mode',
+    value: isResidence
+      ? 'Auto — residents move in on their own.'
+      : mode === 'manual'
+        ? 'Manual — only you assign workers here.'
+        : 'Auto — the daily staffing pass fills this building.',
+    tone: 'neutral',
+  });
+  lines.push({
+    label: 'Capacity',
+    value: `${workerCount} / ${capacity} ${slotWord}`,
+    tone: workerCount >= capacity && capacity > 0 ? 'warn' : 'neutral',
+  });
+  lines.push({
+    label: 'Assigned',
+    value: workerCount > 0
+      ? workerIds.map((id) => settlerName(state, id)).join(' · ')
+      : 'Nobody assigned yet.',
+    tone: workerCount > 0 ? 'good' : 'neutral',
+  });
+  for (const refusal of refusals) {
+    lines.push({ label: `Cannot assign ${refusal.name}`, value: refusal.label, tone: 'warn' });
+  }
+  // The owner's "nobody can be taken" verdict, in the owner's terms: the building wants staff and has
+  // an open slot, yet no settler is free for it.
+  const acceptsWorker = canAssignWorkerToBuilding(state, buildingId);
+  if (takesStaff && !isResidence && workerCount < capacity && !acceptsWorker) {
+    lines.push({
+      label: 'Cannot add workers',
+      value: 'No settler is free to take this post — recruit, or free someone from another job.',
+      tone: 'warn',
+    });
+  }
+
+  return { mode, capacity, workerCount, acceptsWorker, refusals, lines };
+}
+
+export type SettlerRouteStopKind = 'home' | 'workplace' | 'venue';
+
+/** One named stop on a settler's day route. Names come from `BUILDING_CONFIGS`, never from the view. */
+export interface SettlerRouteStop {
+  kind: SettlerRouteStopKind;
+  label: string;
+  buildingId: number;
+}
+
+export type SettlerMovementStatus =
+  /** No leg in progress — nothing for the path owner to report. */
+  | 'none'
+  /** The straight line is walkable. */
+  | 'clear'
+  /** The line is blocked but the walk is routed around it. */
+  | 'rerouting'
+  /** The line is blocked and no route exists. */
+  | 'blocked';
+
+/** Read-only movement answer for the selected settler (`Roadmap_V0_6.4.1.MD` line 27). */
+export interface SettlerMovementExplanation {
+  /** The day's stops in the order the simulation takes them: home → workplace → venue → home. */
+  stops: SettlerRouteStop[];
+  /** Index in {@link stops} of the stop being walked to, or `null` when no leg is in progress. */
+  legIndex: number | null;
+  /** `"House → Lumber Mill"` for the current leg, or `null` when there is none. */
+  legLabel: string | null;
+  status: SettlerMovementStatus;
+  lines: SettlerExplanationLine[];
+}
+
+/** Index of the last stop matching `predicate`, or -1. */
+function lastStopIndex(stops: SettlerRouteStop[], predicate: (stop: SettlerRouteStop) => boolean): number {
+  for (let i = stops.length - 1; i >= 0; i--) {
+    if (predicate(stops[i]!)) return i;
+  }
+  return -1;
+}
+
+/**
+ * The stop the activity owner is sending this settler to, or `null` when none of the day's stops is
+ * that destination (hunting, combat, an errand to a building outside the route).
+ *
+ * A settler already standing at the destination is not on a leg — that test is the activity owner's
+ * own ({@link isAtActivityTarget}), so "Working at X" and "has a current leg into X" cannot disagree.
+ */
+function resolveLegIndex(
+  settler: Entity,
+  stops: SettlerRouteStop[],
+  target: HumanActivityTarget | null,
+): number | null {
+  if (!target || isAtActivityTarget(settler, target)) return null;
+  if (target.kind === 'home') {
+    const index = lastStopIndex(stops, (stop) => stop.kind === 'home');
+    return index > 0 ? index : null;
+  }
+  if (target.buildingId != null) {
+    const index = stops.findIndex((stop) => stop.kind !== 'home' && stop.buildingId === target.buildingId);
+    if (index > 0) return index;
+  }
+  if (target.kind === 'nearby-building') {
+    const index = stops.findIndex((stop) => stop.kind === 'venue');
+    if (index > 0) return index;
+  }
+  return null;
+}
+
+/**
+ * The free-time venue the social owner names for this settler right now, if any.
+ *
+ * Only outside the work shift — during the shift the workplace is the destination, whatever the
+ * free-time impulse would prefer — and never for a child, who plays with other children rather than
+ * walking to a venue.
+ */
+function settlerVenue(state: WorldState, settler: Entity): Building | undefined {
+  if (settler.isJuvenile) return undefined;
+  if (isOnWorkScheduleShift(state, getHourOfDay(state.tick))) return undefined;
+  return pickSocialImpulse(settler, state, state.buildings, [], []).building;
+}
+
+/**
+ * Read-only movement explanation for one settler: the day's named stops in order, the leg they are on,
+ * and — when the path owner reports one — the blocked or rerouting state of that leg.
+ *
+ * Stops come from their owners (`findHumanWorkplace` for the workplace, `pickSocialImpulse` for the
+ * free-time venue, the residence link for home); the leg and its state come from `humanStatus` and
+ * `pathfinding`. Nothing here writes simulation state.
+ */
+export function explainSettlerMovement(state: WorldState, settlerId: number): SettlerMovementExplanation {
+  const settler = state.entities.find((e) => e.id === settlerId && e.alive && isPlayerHuman(e));
+  if (!settler) {
+    return {
+      stops: [],
+      legIndex: null,
+      legLabel: null,
+      status: 'none',
+      lines: [{ label: 'Movement', value: 'Settler not found or no longer alive.', tone: 'warn' }],
+    };
+  }
+
+  const residence = settler.residenceBuildingId != null
+    ? state.buildings.find((building) => building.id === settler.residenceBuildingId) ?? null
+    : null;
+  const homeStop: SettlerRouteStop | null = residence
+    ? { kind: 'home', label: buildingLabel(residence), buildingId: residence.id }
+    : null;
+  const workplace = findHumanWorkplace(settler, state.buildings);
+  const venue = settlerVenue(state, settler);
+
+  const stops: SettlerRouteStop[] = [];
+  if (homeStop) stops.push(homeStop);
+  if (workplace) stops.push({ kind: 'workplace', label: buildingLabel(workplace), buildingId: workplace.id });
+  if (venue) stops.push({ kind: 'venue', label: buildingLabel(venue), buildingId: venue.id });
+  // The walk home closes the day — only worth a stop once there is somewhere to walk back from.
+  if (homeStop && stops.length > 1) stops.push(homeStop);
+
+  const activity = getHumanActivityProjection(state, settler);
+  const legIndex = resolveLegIndex(settler, stops, activity.target);
+  const legLabel = legIndex != null && legIndex > 0
+    ? `${stops[legIndex - 1]!.label} → ${stops[legIndex]!.label}`
+    : null;
+
+  const lines: SettlerExplanationLine[] = [];
+  lines.push({
+    label: 'Route today',
+    value: stops.length === 0
+      ? 'No home or workplace assigned yet.'
+      : stops.length === 1
+        ? `${stops[0]!.label} — no other stop assigned.`
+        : stops.map((stop) => stop.label).join(' → '),
+    tone: 'neutral',
+  });
+
+  let status: SettlerMovementStatus = 'none';
+  if (legIndex != null && legLabel != null && activity.target) {
+    const obstruction = getRouteObstruction(state.worldMap, state.buildings, settler, activity.target);
+    status = obstruction;
+    lines.push({ label: 'Current leg', value: legLabel, tone: 'neutral' });
+    lines.push({
+      label: 'Path',
+      value: obstruction === 'clear'
+        ? 'Clear — nothing blocks this leg.'
+        : obstruction === 'rerouting'
+          ? 'Rerouting — the direct line is blocked, so they walk around.'
+          : 'Blocked — no route exists; they walk into the obstacle.',
+      tone: obstruction === 'clear' ? 'good' : 'warn',
+    });
+  }
+
+  return { stops, legIndex, legLabel, status, lines };
 }

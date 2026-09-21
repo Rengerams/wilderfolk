@@ -1,5 +1,6 @@
-import type { Building, Entity } from './gameTypes';
+import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, BUILDING_CONFIGS } from './gameTypes';
+import { isPlayerHuman } from './playerHuman';
 
 /** Adult children may leave the parental home at this age when a house is free. */
 export const HUMAN_MOVE_OUT_MIN_AGE = 18;
@@ -41,6 +42,36 @@ export function isImprisoned(human: Entity): boolean {
   return human.prisonBuildingId != null;
 }
 
+/**
+ * A living player settler with no bed — the one definition of "homeless".
+ *
+ * Two rules meet here, and four surfaces used to disagree about them:
+ *
+ *  - **A prisoner is not homeless.** Imprisonment deliberately clears `residenceBuildingId`
+ *    (`humanLifecycleCleanup`), so a naive `residenceBuildingId == null` count reports every jailed
+ *    settler as unhoused — the mistake `LIVE-FINDINGS-STATUS.md` F10 recorded for the council report
+ *    and the priority strip, and that `housingDiagnostics.unassignedPlayerHumans` still made.
+ *  - **A child without a bed is homeless.** The People screen's Home card excluded juveniles, so a
+ *    child sleeping rough was counted by the dashboard and the alert strip but not by the card whose
+ *    tone and "Housing is tight" mood depend on it (2026-09-22 stats-panel audit, F1).
+ */
+export function isHomelessSettler(entity: Entity): boolean {
+  return entity.alive
+    && isPlayerHuman(entity)
+    && !hasResidenceAssignment(entity)
+    && !isImprisoned(entity);
+}
+
+/** Homeless settlers, by the rule above — the owner every "without a home" surface reads. */
+export function countHomelessSettlers(world: Pick<WorldState, 'entities'>): number {
+  const entities = world.entities ?? [];
+  let homeless = 0;
+  for (let i = 0; i < entities.length; i++) {
+    if (isHomelessSettler(entities[i])) homeless += 1;
+  }
+  return homeless;
+}
+
 export function shareResidence(a: Entity, b: Entity): boolean {
   return hasResidenceAssignment(a) && hasResidenceAssignment(b) && a.residenceBuildingId === b.residenceBuildingId;
 }
@@ -60,7 +91,7 @@ export type ResidenceOccupancy = Map<number, number>;
 export function buildResidenceOccupancy(humans: readonly Entity[]): ResidenceOccupancy {
   const occupancy: ResidenceOccupancy = new Map();
   for (const h of humans) {
-    if (!h.alive || h.faction) continue;
+    if (!h.alive || !isPlayerHuman(h)) continue;
     const id = h.residenceBuildingId;
     if (id == null) continue;
     occupancy.set(id, (occupancy.get(id) ?? 0) + 1);
@@ -80,7 +111,7 @@ export function occupancyMove(occupancy: ResidenceOccupancy, fromId: number | un
 
 export function countResidentsInBuilding(humans: Entity[], buildingId: number, occupancy?: ResidenceOccupancy): number {
   if (occupancy) return occupancy.get(buildingId) ?? 0;
-  return humans.filter((h) => h.alive && !h.faction && h.residenceBuildingId === buildingId).length;
+  return humans.filter((h) => h.alive && isPlayerHuman(h) && h.residenceBuildingId === buildingId).length;
 }
 
 export function residenceRoomFor(human: Entity, residence: Building, humans: Entity[], occupancy?: ResidenceOccupancy): boolean {

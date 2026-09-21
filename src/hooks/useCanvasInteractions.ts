@@ -1,4 +1,4 @@
-import { useCallback, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import type { GameLoop } from '../game/gameLoop';
 import type { WorldState, BuildingType, Building, Entity } from '../game/gameEngine';
 import type { EntityCatalog } from '../game/entityCatalog';
@@ -8,12 +8,17 @@ import {
   hitTestCamp,
   EntityType,
 } from '../game/gameEngine';
-import { canPlaceBuilding, buildStripPreview } from '../game/buildingActions';
+import {
+  canPlaceBuilding,
+  buildStripPreview,
+  getPlaceBuildingFailureReason,
+} from '../game/buildingActions';
 import {
   screenToWorld,
   focusCameraOn,
   nudgeCameraToward,
   clampCameraTarget,
+  createBuildGhost,
 } from '../game/viewState';
 import { snapBuildingCenter } from '../game/buildingRotation';
 import { getHumanSelectionBounds } from '../game/humanSprites';
@@ -43,8 +48,37 @@ export interface UseCanvasInteractionsOptions {
   audioStartedRef: RefObject<boolean>;
 }
 
-/** Helper to find the topmost building at a given world coordinate. */
-function findBuildingAt(buildings: readonly Building[], worldX: number, worldY: number): Building | null {
+/**
+ * The `placeStripChain` command for a drag preview whose every segment is valid, or null when the
+ * drag cannot be committed.
+ *
+ * The click path and the drag-release path each validated the preview and built this command
+ * identically, so a change to strip placement had to be made twice in the input hot path
+ * (audit C1 clone 8).
+ */
+function stripChainCommand(
+  preview: ReturnType<typeof buildStripPreview>,
+  type: BuildingType,
+): WorkerCommand | null {
+  if (preview.segments.length === 0) return null;
+  if (!preview.segments.every((segment) => segment.valid)) return null;
+  return {
+    proto: 1,
+    op: 'placeStripChain',
+    type,
+    segments: preview.segments,
+    rotation: preview.rotation,
+  };
+}
+
+/**
+ * The topmost building at a given world coordinate — the map's one building hit test.
+ *
+ * Exported because the keyboard cursor's screen-reader description has to name the same building a
+ * click here would select (`useMapKeyboardCursor.describeMapCursor`); a second copy of the
+ * containment rule would be a second answer to "what is under this point".
+ */
+export function findBuildingAt(buildings: readonly Building[], worldX: number, worldY: number): Building | null {
   for (let i = buildings.length - 1; i >= 0; i--) {
     const b = buildings[i];
     if (
@@ -118,7 +152,7 @@ export function useCanvasInteractions({
 
       const coords = getEventWorldCoords(e.clientX, e.clientY);
       if (!coords) return;
-      const { worldX, worldY } = coords;
+      const { worldX, worldY, rect } = coords;
 
       const loop = loopRef.current;
       const world = loop?.getWorld() ?? worldRef.current;
@@ -163,15 +197,10 @@ export function useCanvasInteractions({
             snapY,
             rotation,
           );
-          if (preview.segments.length > 0 && preview.segments.every((seg) => seg.valid)) {
+          const command = stripChainCommand(preview, selectedBuildingType);
+          if (command) {
             playClickSound();
-            applyGameAction({
-              proto: 1,
-              op: 'placeStripChain',
-              type: selectedBuildingType,
-              segments: preview.segments,
-              rotation: preview.rotation,
-            });
+            applyGameAction(command);
           }
           return;
         }
@@ -254,7 +283,10 @@ export function useCanvasInteractions({
         if (loop) {
           const view = loop.getView();
           const viewPatch = juiceEffectsEnabled
-            ? nudgeCameraToward(view, loop.getWorld(), focusTarget.x, focusTarget.y)
+            ? nudgeCameraToward(
+                view, loop.getWorld(), focusTarget.x, focusTarget.y,
+                undefined, rect.width, rect.height,
+              )
             : view;
 
           let nextEntityIds: number[];
@@ -385,10 +417,19 @@ export function useCanvasInteractions({
             worldY,
             rotation,
           );
-          const valid = canPlaceBuilding(liveWorld, selectedBuildingType, snapX, snapY, rotation);
+          // The owner's *reason*, not just its boolean: the ghost names the blocker
+          // (`buildingPlacementLabels`) so a dry-bank Bridge reads as "must span river water" instead
+          // of "Blocked" (`LIVE-FINDINGS-STATUS.md` F5).
+          const reason = getPlaceBuildingFailureReason(
+            liveWorld,
+            selectedBuildingType,
+            snapX,
+            snapY,
+            rotation,
+          );
           loop?.patchView(
             {
-              buildGhost: { x: snapX, y: snapY, valid },
+              buildGhost: createBuildGhost(snapX, snapY, reason),
               buildStripPreview: null,
               hoveredBuildingId: hovered?.id ?? null,
             },
@@ -476,15 +517,10 @@ export function useCanvasInteractions({
           );
 
         // Commit only if all segments are valid
-        if (preview.segments.length > 0 && preview.segments.every((seg) => seg.valid)) {
+        const command = stripChainCommand(preview, selectedBuildingType);
+        if (command) {
           playClickSound();
-          applyGameAction({
-            proto: 1,
-            op: 'placeStripChain',
-            type: selectedBuildingType,
-            segments: preview.segments,
-            rotation: preview.rotation,
-          });
+          applyGameAction(command);
           stripPlacedOnMouseUpRef.current = true;
         }
         loop?.patchView({ buildStripPreview: null });
@@ -542,6 +578,21 @@ export function useCanvasInteractions({
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
   }, []);
+
+  // Alt-tabbing (or a cancelled pointer) mid-drag never delivers mouseup/mouseleave to the
+  // canvas, so the drag refs would stay set and the camera would follow the cursor with no
+  // button pressed. Reset on focus loss on the same terms as leaving the canvas.
+  useEffect(() => {
+    const resetDrag = () => handleMouseLeave();
+    window.addEventListener('blur', resetDrag);
+    window.addEventListener('pointercancel', resetDrag);
+    document.addEventListener('visibilitychange', resetDrag);
+    return () => {
+      window.removeEventListener('blur', resetDrag);
+      window.removeEventListener('pointercancel', resetDrag);
+      document.removeEventListener('visibilitychange', resetDrag);
+    };
+  }, [handleMouseLeave]);
 
   return {
     handleCanvasClick,

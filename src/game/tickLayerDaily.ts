@@ -10,6 +10,7 @@ import type { PopulationCounts } from './entityCounts';
 import type { TickContext } from './simulation/simulationTypes';
 
 import { addFloatingText } from './simEffects';
+import { playerHumansFrom } from './playerHuman';
 import { syncLeaderHouseResidency } from './leaderHouse';
 import { tickElectionPromises } from './electionPromises';
 
@@ -40,11 +41,20 @@ export function tickLayerDaily(
 ): void {
   resolveDailyVillageScheduleFatigue(state, ctx.playerHumans);
 
+  // The living settler list the two social owners below both need, derived once.
+  //
+  // Deliberately NOT `ctx.playerHumans`: that list is built at tick start (`gameTick`) and refreshed
+  // only on a Moon Howler form change, whereas `allAlive` has this tick's `ctx.newEntities` appended
+  // — so substituting it would silently drop today's newborns from friendship and apprenticeship
+  // grouping. Between the two calls nothing writes `alive`, `faction` or `type`, so one array is
+  // correct for both.
+  const dayPeople = playerHumansFrom(allAlive);
+
   // Phase 7 social layers & chronicles — pulse daily
-  advanceSocialRelationships(state, allAlive);
+  advanceSocialRelationships(state, allAlive, dayPeople);
   advanceYouthLove(state, ctx);
   reconcileCourtships(ctx);
-  advanceApprenticeships(state, allAlive);
+  advanceApprenticeships(state, allAlive, dayPeople);
 
   // Idempotent leader-house reconciliation: marriage/divorce/reassignment may
   // have changed the leader's household this day, so move the current spouse

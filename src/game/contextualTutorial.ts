@@ -4,6 +4,8 @@ import type { VisitorKind } from './gameTypes';
 import type { FocusHintAction } from './focusHints';
 import { NIGHT_START, TICKS_PER_DAY, getHourOfDay } from './dayCycle';
 import { isPlayerHuman } from './playerHuman';
+import { ELECTION_INTERVAL_YEARS } from './villageLeadership';
+import { isFoodCritical } from './resourceUtils';
 
 export type ContextualTutorialId =
   | 'shelter_night'
@@ -56,7 +58,7 @@ export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutori
     id: 'first_building_done',
     icon: '🏗️',
     title: 'Building finished',
-    detail: 'Select the building on the map and press + Worker to staff it. Lumber mills, farms, and wells only produce when workers are assigned.',
+    detail: 'Select the building on the map and press + Fill workers to staff it. Lumber mills, farms, and wells only produce when workers are assigned.',
   },
   first_worker_assigned: {
     id: 'first_worker_assigned',
@@ -236,7 +238,7 @@ export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutori
     id: 'leadership_election',
     icon: '👑',
     title: 'Leadership election',
-    detail: 'The first male pioneer leads until Year 5. After that, merit elections every 5 years with a ceremony. The sitting head always runs when eligible; economy, scandals, and village health give a modest record edge or penalty — but a high-merit challenger can still win. See Village → Leadership.',
+    detail: `The first male pioneer leads until Year ${ELECTION_INTERVAL_YEARS}. After that, merit elections every ${ELECTION_INTERVAL_YEARS} years with a ceremony. The sitting head always runs when eligible; economy, scandals, and village health give a modest record edge or penalty — but a high-merit challenger can still win. See Village → Leadership.`,
     action: { label: 'Leadership', id: 'open_village' },
   },
   first_challenge_done: {
@@ -266,9 +268,22 @@ function staffedBuildings(state: WorldState): number {
   return state.buildings.filter((b) => b.completed && b.occupants.length > 0).length;
 }
 
-/** Mark topics already present when loading a save so tips do not replay. */
-export function seedTutorialSeenForExistingState(state: WorldState): string[] {
-  const seen = new Set<string>(state.tutorialSeen ?? []);
+/**
+ * Every first-time tutorial whose mechanic is **already true in this world**, derived from the current
+ * state alone.
+ *
+ * This is the single definition of "this has happened": `seedTutorialSeenForExistingState` seeds a
+ * loaded save from it so tips do not replay, and `detectContextualTutorials` reads the same derivation
+ * for live play, so the two can never disagree about what counts as a first time.
+ *
+ * It must stay a pure function of the current world. The game loop mutates one `WorldState` in place
+ * (`GameLoop.frame` calls `gameTick(this.world)`, the worker host hands back its single `worldRef`), so
+ * any "since the previous tick" comparison is between an object and itself and is always false — that
+ * is the defect that made no contextual tip ever appear
+ * (`BUG_REPORTS/2026-09-17-contextual-tips-never-fire.md`).
+ */
+function derivedSeenIds(state: WorldState): Set<string> {
+  const seen = new Set<string>();
 
   if (state.buildings.some((b) => b.completed)) seen.add('first_building_done');
   if (staffedBuildings(state) > 0) seen.add('first_worker_assigned');
@@ -291,8 +306,9 @@ export function seedTutorialSeenForExistingState(state: WorldState): string[] {
   if (state.entities.some((e) => e.type === EntityType.Werewolf && e.alive && e.moonHowlerCursed)) {
     seen.add('moon_howler_hunt');
   }
-  if (state.resources.food < Math.max(15, state.humanPopulation * 1.5)) seen.add('low_food');
+  if (isFoodCritical(state)) seen.add('low_food');
   if (state.ecosystemHealth < 30) seen.add('ecosystem_low');
+  if ((state.valleyStage ?? 'stable') !== 'stable') seen.add('valley_strained');
   const hasRecordedBirth = state.yearlyStats.some((ys) => ys.births.humans > 0);
   const hasBornChild = state.entities.some(
     (e) => e.alive && isPlayerHuman(e) && e.isJuvenile && (e.motherId != null || (e.generation ?? 0) > 1),
@@ -305,144 +321,35 @@ export function seedTutorialSeenForExistingState(state: WorldState): string[] {
   if (state.challenges.some((c) => c.completed)) seen.add('first_challenge_done');
   if (state.villageLeaderId != null && state.lastElectionYear > 0) seen.add('leadership_election');
 
-  return [...seen];
+  return seen;
 }
 
-/** Detect first-time mechanics since the previous tick. */
-export function detectContextualTutorials(
-  prev: WorldState,
-  curr: WorldState,
-): ContextualTutorialTip[] {
+/** Seeds a loaded save with every mechanic already true, so a load never replays tips. */
+export function seedTutorialSeenForExistingState(state: WorldState): string[] {
+  return [...new Set([...(state.tutorialSeen ?? []), ...derivedSeenIds(state)])];
+}
+
+/** Detect first-time mechanics that are true right now. Takes the live world, never a previous one. */
+export function detectContextualTutorials(world: WorldState): ContextualTutorialTip[] {
+  const derived = derivedSeenIds(world);
   const tips: ContextualTutorialTip[] = [];
   const queue = (id: ContextualTutorialId) => {
-    if (!hasSeen(curr, id)) tips.push(CONTEXTUAL_TUTORIALS[id]);
+    if (!hasSeen(world, id)) tips.push(CONTEXTUAL_TUTORIALS[id]);
   };
 
   // A placed (even unfinished) house counts — the player already acted, don't nag.
-  const hasHouse = curr.buildings.some(
+  const hasHouse = world.buildings.some(
     (b) => b.type === BuildingType.House && b.faction !== 'rival',
   );
-  // Warn from late afternoon on day one (hour >= 16) until first house
-  const hour = getHourOfDay(curr.tick);
-  if (
-    curr.tick < TICKS_PER_DAY
-    && hour >= Math.max(0, NIGHT_START - 4)
-    && !hasHouse
-  ) {
+  // Warn from late afternoon on day one (hour >= 16) until first house. Deliberately not part of
+  // `derivedSeenIds`: it is a day-one nudge about something that has *not* happened, not a mechanic
+  // that is already true, so a loaded save must not be seeded with it.
+  const hour = getHourOfDay(world.tick);
+  if (world.tick < TICKS_PER_DAY && hour >= Math.max(0, NIGHT_START - 4) && !hasHouse) {
     queue('shelter_night');
   }
 
-  const prevCompleted = prev.buildings.filter((b) => b.completed).length;
-  const currCompleted = curr.buildings.filter((b) => b.completed).length;
-  if (currCompleted > prevCompleted) queue('first_building_done');
-
-  if (staffedBuildings(prev) === 0 && staffedBuildings(curr) > 0) {
-    queue('first_worker_assigned');
-  }
-
-  if (prev.visitorGroups.length === 0 && curr.visitorGroups.length > 0) {
-    queue('visitors_arrived');
-  }
-  for (const group of curr.visitorGroups) {
-    const topic = VISITOR_TOPIC[group.kind];
-    if (!prev.visitorGroups.some((g) => g.kind === group.kind)) queue(topic);
-  }
-
-  if (prev.rivalSettlements.length === 0 && curr.rivalSettlements.length > 0) {
-    queue('rivals_arrived');
-  }
-
-  if ((prev.pendingDiplomacyEvents?.length ?? 0) === 0 && (curr.pendingDiplomacyEvents?.length ?? 0) > 0) {
-    queue('diplomacy_event');
-  }
-
-  if ((prev.pendingRaidEvents?.length ?? 0) === 0 && (curr.pendingRaidEvents?.length ?? 0) > 0) {
-    queue('raid_incoming');
-  }
-
-  if (prev.season !== Season.Winter && curr.season === Season.Winter) {
-    queue('first_winter');
-  }
-
-  if (!prev.activeResearch && curr.activeResearch) queue('research_started');
-
-  const prevResearched = prev.researchNodes.filter((n) => n.researched).length;
-  const currResearched = curr.researchNodes.filter((n) => n.researched).length;
-  if (currResearched > prevResearched) queue('research_complete');
-
-  const newlyReady = curr.tradeRoutes.find(
-    (r) =>
-      !r.active
-      && curr.villageReputation >= r.reputationRequired
-      && prev.villageReputation < r.reputationRequired,
-  );
-  if (newlyReady) queue('trade_route_ready');
-
-  const prevActiveRoutes = prev.tradeRoutes.filter((r) => r.active).length;
-  const currActiveRoutes = curr.tradeRoutes.filter((r) => r.active).length;
-  if (currActiveRoutes > prevActiveRoutes) queue('trade_route_opened');
-
-  const prevCursed = prev.entities.some((e) => e.alive && e.moonHowlerCursed);
-  const currCursed = curr.entities.some((e) => e.alive && e.moonHowlerCursed);
-  if (!prevCursed && currCursed) queue('moon_howler_curse');
-
-  const prevHuntingWere = prev.entities.some(
-    (e) => e.alive && e.type === EntityType.Werewolf && e.moonHowlerCursed,
-  );
-  const currHuntingWere = curr.entities.some(
-    (e) => e.alive && e.type === EntityType.Werewolf && e.moonHowlerCursed,
-  );
-  if (!prevHuntingWere && currHuntingWere) queue('moon_howler_hunt');
-
-  const foodThreshold = (pop: number, food: number) => food < Math.max(15, pop * 1.5);
-  if (
-    !foodThreshold(prev.humanPopulation, prev.resources.food)
-    && foodThreshold(curr.humanPopulation, curr.resources.food)
-  ) {
-    queue('low_food');
-  }
-
-  if (prev.ecosystemHealth >= 30 && curr.ecosystemHealth < 30) queue('ecosystem_low');
-
-  const prevStage = prev.valleyStage ?? 'stable';
-  const currStage = curr.valleyStage ?? 'stable';
-  if (prevStage === 'stable' && currStage !== 'stable') queue('valley_strained');
-
-  const prevBabyIds = new Set(
-    prev.entities.filter((e) => e.alive && isPlayerHuman(e) && e.isJuvenile).map((e) => e.id),
-  );
-  const prevBirthKeys = new Set(
-    prev.eventLog.filter((e) => e.type === 'birth').map((e) => `${e.tick}|${e.message}`),
-  );
-  // Deliberately `'birth'` only: an expectation is logged as `'conception'`, so
-  // "your first child" still waits for a real delivery plus a living newborn.
-  const newBirth = curr.eventLog.some(
-    (e) => e.type === 'birth' && !prevBirthKeys.has(`${e.tick}|${e.message}`),
-  );
-  const livingNewborn = curr.entities.some(
-    (e) => e.alive && isPlayerHuman(e) && e.isJuvenile && !prevBabyIds.has(e.id),
-  );
-  if (newBirth && livingNewborn) {
-    queue('first_birth');
-  }
-
-  const prevMarried = prev.entities.filter(
-    (e) => e.alive && isPlayerHuman(e) && e.relationshipStatus === 'married',
-  ).length;
-  const currMarried = curr.entities.filter(
-    (e) => e.alive && isPlayerHuman(e) && e.relationshipStatus === 'married',
-  ).length;
-  if (currMarried > prevMarried) queue('first_marriage');
-
-  if (!prev.festival?.active && curr.festival?.active) queue('festival_started');
-
-  if (curr.lastElectionYear === curr.year && prev.lastElectionYear !== curr.lastElectionYear) {
-    queue('leadership_election');
-  }
-
-  const prevChallengesDone = prev.challenges.filter((c) => c.completed).length;
-  const currChallengesDone = curr.challenges.filter((c) => c.completed).length;
-  if (currChallengesDone > prevChallengesDone) queue('first_challenge_done');
+  for (const id of derived) queue(id as ContextualTutorialId);
 
   return tips;
 }

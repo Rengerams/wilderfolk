@@ -9,6 +9,7 @@ import type { Building, Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
 import { collectMinorHousehold } from './householdComposition';
 import { assignMissingResidences } from './dayCycle';
+import { isPlayerHuman } from './playerHuman';
 
 export { LEADER_OCCUPATION };
 
@@ -40,7 +41,7 @@ export function collectLeaderHousehold(state: WorldState): Entity[] {
   );
   if (!leader) return [];
   const livingHumans = state.entities.filter(
-    (e) => e.alive && !e.faction && e.type === EntityType.Human,
+    (e) => e.alive && isPlayerHuman(e),
   );
   return collectMinorHousehold(leader, livingHumans);
 }
@@ -118,7 +119,7 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   if (!evicted && !movedIn) return;
 
   const villagers = state.entities.filter(
-    (e) => e.alive && !e.faction && e.type === EntityType.Human,
+    (e) => e.alive && isPlayerHuman(e),
   );
 
   //Re-home evicted settlers into general village housing

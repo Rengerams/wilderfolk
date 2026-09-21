@@ -54,10 +54,15 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   const humans = opts?.humans;
   const tick = opts?.tick;
   const savedOccupation = saved?.occupation;
+  // `null` is how `villageLeadership` spells "office vacant" — `WorldState.villageLeaderId` is
+  // `number | null` and `worldGen` starts it at `null` — so an explicitly vacant office must not hand
+  // the `village_leader` label back to the reverting settler. An *absent* option (undefined) still
+  // means "the caller cannot say", which keeps the previous behaviour
+  // (`tests/moonHowler.staleLeaderOccupation.test.ts`, `LIVE-FINDINGS-STATUS.md` M8).
+  const holderId = opts?.villageLeaderId;
   const staleLeaderOccupation =
     savedOccupation === LEADER_OCCUPATION
-    && opts?.villageLeaderId != null
-    && opts.villageLeaderId !== were.id;
+    && (holderId === null || (holderId != null && holderId !== were.id));
   const restoredOccupation = staleLeaderOccupation ? 'settler' : (savedOccupation ?? 'settler');
 
   were.type = EntityType.Human;
@@ -76,6 +81,10 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   were.pregnant = saved?.pregnant;
   were.pregnantById = saved?.pregnantById;
   were.pregnancyProgress = saved?.pregnancyProgress;
+  // Restored with the other two pregnancy fields: `pregnancyDueProgress` is the field the invariant
+  // check pairs with `pregnant`, and it was declared in the saved form without ever being restored
+  // (2026-09-20 audit, bug 38).
+  were.pregnancyDueProgress = saved?.pregnancyDueProgress;
   were.huntTargetId = saved?.huntTargetId;
   were.combatTicks = saved?.combatTicks ?? 0;
   were.moonHowlerSaved = undefined;

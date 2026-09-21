@@ -1,4 +1,5 @@
 import type { Building, Entity } from './gameTypes';
+import { LEADER_OCCUPATION } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
 import {
   collectFamilyMembers,
@@ -17,6 +18,7 @@ import {
   countResidentsInBuilding,
   residenceRoomFor,
 } from './residencyOccupancy';
+import { isPlayerHuman } from './playerHuman';
 
 const HOUSING_SCORES = {
   EMPTY_HOUSE_BONUS: -100,
@@ -47,12 +49,23 @@ function findHumanRecord(humans: Entity[], id: number | undefined): Entity | und
   return humans.find((h) => h.id === id);
 }
 
-function pickLeastCrowdedResidence(
+/**
+ * The one least-crowded-residence rule. Exported because `residencyReconciliation.pickSharedResidence`
+ * asks this owner for its verdict instead of re-implementing the loop (duplication A2).
+ */
+export function pickLeastCrowdedResidence(
   humans: Entity[],
   residences: Building[],
   extraSlots = 1,
   options: PickResidenceOptions = {},
   occupancy?: ResidenceOccupancy,
+  /**
+   * Movers who are already counted as residents of a candidate. When they move *together* to the home
+   * one of them already lives in, that home counts them once, not twice — this is the eligibility
+   * accounting `residencyReconciliation.pickSharedResidence` needs, and the reason that rule is no
+   * longer re-implemented there (`LIVE-FINDINGS-STATUS.md`, duplication A2).
+   */
+  movingTogether: readonly Entity[] = [],
 ): number | undefined {
   let best: Building | undefined;
   let bestCount = Infinity;
@@ -60,8 +73,15 @@ function pickLeastCrowdedResidence(
     if (isLeaderHouseResidence(residence)) continue;
     if (options.forbidSinglesOnly && residenceHostsOnlySingles(residence.id, humans)) continue;
     const cap = getResidenceCapacity(residence);
-    const count = countResidentsInBuilding(humans, residence.id, occupancy);
-    if (count + extraSlots > cap) continue;
+    let count = countResidentsInBuilding(humans, residence.id, occupancy);
+    let slots = extraSlots;
+    for (const mover of movingTogether) {
+      if (mover.residenceBuildingId === residence.id) {
+        count--;
+        slots--;
+      }
+    }
+    if (count + slots > cap) continue;
     if (count < bestCount || (count === bestCount && residence.id < (best?.id ?? Infinity))) {
       bestCount = count;
       best = residence;
@@ -76,8 +96,16 @@ function livingAdoptiveCustodian(child: Entity, humans: Entity[]): Entity | unde
   return findLivingHuman(humans, child.adoptiveFatherId);
 }
 
+/**
+ * Married couples that may adopt. The Leader's House is excluded here, not only in
+ * `pickOrphanResidence`: the housing rule already refuses to place an orphan in the manor, but
+ * adoption is a second path into the same household — `syncLeaderHouseResidency` force-moves every
+ * member of the leader's household into the manor, so adopting an orphan into the leader's couple
+ * put the child exactly where the housing rule had just said it must not go
+ * (`BUG_REPORTS/2026-09-20-orphans-adopted-into-the-leaders-house.md`).
+ */
 function listVillageCouples(humans: Entity[]): Array<{ mother?: Entity; father?: Entity; partnerA: Entity; partnerB: Entity }> {
-  const alive = humans.filter((h) => h.alive && !h.faction);
+  const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
   const couples: Array<{ mother?: Entity; father?: Entity; partnerA: Entity; partnerB: Entity }> = [];
   const seen = new Set<number>();
 
@@ -87,6 +115,8 @@ function listVillageCouples(humans: Entity[]): Array<{ mother?: Entity; father?:
     if (!partner) continue;
     seen.add(human.id);
     seen.add(partner.id);
+
+    if (human.occupation === LEADER_OCCUPATION || partner.occupation === LEADER_OCCUPATION) continue;
 
     const mother = human.gender === 'female' ? human : partner.gender === 'female' ? partner : undefined;
     const father = human.gender === 'male' ? human : partner.gender === 'male' ? partner : undefined;
@@ -108,7 +138,7 @@ function pickRandomAdoptiveCouple(
 
 function listVillageSingleAdults(humans: Entity[]): Entity[] {
   const alive = humans.filter(
-    (h) => h.alive && !h.faction && !h.isJuvenile && h.age >= HUMAN_ADULT_MIN_AGE,
+    (h) => h.alive && isPlayerHuman(h) && !h.isJuvenile && h.age >= HUMAN_ADULT_MIN_AGE,
   );
   return alive.filter((h) => !findLivingHuman(alive, h.partnerId));
 }
@@ -139,7 +169,7 @@ function pickOrphanResidence(
   residences: Building[],
   occupancy?: ResidenceOccupancy,
 ): number | undefined {
-  const alive = humans.filter((h) => h.alive && !h.faction);
+  const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
   const custodianHome = pickResidenceFromChildCustodian(child, humans, residences, occupancy);
   if (custodianHome !== undefined) return custodianHome;
 
@@ -167,7 +197,7 @@ export function placeOrphanInHouse(
   residences: Building[],
   occupancy?: ResidenceOccupancy,
 ): boolean {
-  const alive = humans.filter((h) => h.alive && !h.faction);
+  const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
   if (hasResidenceAssignment(child)) {
     const current = residences.find((b) => b.id === child.residenceBuildingId);
     if (current && residenceRoomFor(child, current, alive, occupancy)) return true;
@@ -210,6 +240,10 @@ export function ensureOrphanAdoption(
 
     child.adoptiveMotherId = motherId;
     child.adoptiveFatherId = fatherId;
+    // An adopted child joins the family in name as well as in the tree: the family tree and the
+    // Families browser group by surname, so a birth surname here reads as a guest at home.
+    const coupleSurname = couple.father?.surname ?? couple.mother?.surname;
+    if (coupleSurname) child.surname = coupleSurname;
 
     couple.partnerA.childrenIds ??= [];
     couple.partnerB.childrenIds ??= [];
@@ -225,6 +259,7 @@ export function ensureOrphanAdoption(
     } else {
       child.adoptiveFatherId = guardian.id;
     }
+    if (guardian.surname) child.surname = guardian.surname;
     guardian.childrenIds ??= [];
     if (!guardian.childrenIds.includes(child.id)) guardian.childrenIds.push(child.id);
     return true;
@@ -247,7 +282,7 @@ export function pickResidenceFromChildCustodian(
 }
 
 export function buildHousingUnits(humans: Entity[]): Entity[][] {
-  const alive = humans.filter((h) => h.alive && !h.faction);
+  const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
   const visited = new Set<number>();
   const units: Entity[][] = [];
   const childrenByCustodian = new Map<number, Entity[]>();
@@ -330,9 +365,14 @@ export function tryMoveOutOfFamilyHome(
   residences: Building[],
   occupancy?: ResidenceOccupancy,
 ): boolean {
-  if (!canMoveOutOfFamilyHome(human, humans, residences, occupancy)) return false;
+  if (!isAdultChildAtHome(human, humans)) return false;
 
   const household = collectOwnHousehold(human, humans);
+  // One scan instead of two. `canMoveOutOfFamilyHome` used to run this exact predicate as a
+  // `.some()`, and the `.find()` below then repeated it over the same residences with a freshly
+  // rebuilt (identical) household — nothing between them mutates `humans`, `residences` or
+  // `occupancy`. `some(pred)` and `find(pred) !== undefined` select the same verdict, and the target
+  // is still the first match, so both the result and the chosen building are unchanged.
   const target = residences.find(
     (r) =>
       countResidentsInBuilding(humans, r.id, occupancy) === 0 &&
@@ -360,10 +400,15 @@ export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
   if (emptyHomeIds.length === 0) return;
 
   const leaderHouseIds = new Set(residences.filter(isLeaderHouseResidence).map((r) => r.id));
+  // One id → entity index for the whole candidate filter: `isAdultChildAtHome` scans the list twice
+  // per candidate (mother, father), so without this the filter below was O(settlers²) per assign
+  // pulse.
+  const humansById = new Map<number, Entity>();
+  for (let i = 0; i < humans.length; i++) humansById.set(humans[i].id, humans[i]);
   const candidates = humans
     .filter(
       (h) =>
-        isAdultChildAtHome(h, humans) &&
+        isAdultChildAtHome(h, humans, humansById) &&
         (h.residenceBuildingId == null || !leaderHouseIds.has(h.residenceBuildingId)),
     )
     .sort((a, b) => b.age - a.age || a.id - b.id);
@@ -440,7 +485,7 @@ function unitSharesResidenceWithOutsiders(
 ): boolean {
   const unitIds = new Set(unit.map((m) => m.id));
   return humans.some(
-    (h) => h.alive && !h.faction && h.residenceBuildingId === residenceId && !unitIds.has(h.id),
+    (h) => h.alive && isPlayerHuman(h) && h.residenceBuildingId === residenceId && !unitIds.has(h.id),
   );
 }
 
@@ -516,7 +561,7 @@ export function isUnnecessarilySharingHousing(
 }
 
 export function auditHousingSharingIssues(humans: Entity[], buildings: Building[]): string[] {
-  const alive = humans.filter((h) => h.alive && !h.faction);
+  const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
   // Player housing only, and never the Leader's House: rival-camp houses count 0 *player*
   // residents and the manor is never a placement target, so counting either as an "empty
   // house available" reported sharing that no picker could actually resolve.
@@ -561,25 +606,32 @@ export function sortHousingUnitsForAssignment(
 
 function residenceHostsCouple(residenceId: number, humans: Entity[]): boolean {
   const occupants = humans.filter(
-    (h) => h.alive && !h.faction && h.residenceBuildingId === residenceId,
+    (h) => h.alive && isPlayerHuman(h) && h.residenceBuildingId === residenceId,
   );
-  for (const occupant of occupants) {
+  // "is this occupant's partner also in the house?" — a Set lookup instead of a `.some` over the
+  // same array per occupant. Callers ask this per residence (up to four times per picker call) from
+  // inside the residency convergence loop, so the quadratic inner scan was multiplied by the number
+  // of residences and passes.
+  const occupantIds = new Set<number>();
+  for (let i = 0; i < occupants.length; i++) occupantIds.add(occupants[i].id);
+  for (let i = 0; i < occupants.length; i++) {
+    const occupant = occupants[i];
     if (!occupant.partnerId) continue;
-    if (occupants.some((p) => p.id === occupant.partnerId)) return true;
+    if (occupantIds.has(occupant.partnerId)) return true;
   }
   return false;
 }
 
 function residenceHasMinorOccupants(residenceId: number, humans: Entity[]): boolean {
   return humans.some(
-    (h) => h.alive && !h.faction && h.residenceBuildingId === residenceId && isMinorChild(h),
+    (h) => h.alive && isPlayerHuman(h) && h.residenceBuildingId === residenceId && isMinorChild(h),
   );
 }
 
 function residenceHostsOnlySingles(residenceId: number, humans: Entity[]): boolean {
   if (residenceHasMinorOccupants(residenceId, humans)) return false;
   const adults = humans.filter(
-    (h) => h.alive && !h.faction && !h.isJuvenile && h.residenceBuildingId === residenceId,
+    (h) => h.alive && isPlayerHuman(h) && !h.isJuvenile && h.residenceBuildingId === residenceId,
   );
   if (adults.length === 0) return false;
   return !residenceHostsCouple(residenceId, humans);

@@ -1,13 +1,18 @@
 import { memo, Suspense, lazy } from 'react';
 import { BuildingType } from '../../game/gameTypes';
 import { getForgeOrder } from '../../game/forge';
-import { getHumanArmamentLabel, getArmamentSteps } from '../../game/gameEngine';
-import { getEconomyLedger, ECONOMY_SOURCE_LABELS } from '../../game/economyLedger';
+import { getHumanArmamentLabel, getArmamentSteps, hasTech } from '../../game/gameEngine';
 import type { WorldState, Entity } from '../../game/gameEngine';
 import type { VillageStatsSummary } from '../../game/uiSimSummary';
 import type { FocusHintAction } from '../../game/focusHints';
 import CollapsibleSection from '../CollapsibleSection';
 import { collectHousingDiagnostics, isHousingDiagnosticsHealthy } from '../../game/housingDiagnostics';
+import { getBuildingCenter } from '../../game/placementUtils';
+import { getRecruitSettlerEligibility, RECRUITMENT_COST } from '../../game/settlerInteractionActions';
+import { resourceFillPercent } from '../../game/dashboardData';
+import { resolvePopulationCap } from '../../game/populationGrowth';
+import { summarizeFoodLedger, ECONOMY_SOURCE_LABELS } from '../../game/economyLedger';
+import { VISITOR_TRADE_FRIENDLY_REP, VISITOR_TRADE_HARSH_REP } from '../../game/groupEvents';
 
 const FocusPanel = lazy(() => import('../../game/FocusPanel'));
 const VillageLeadershipPanel = lazy(() => import('../../game/VillageLeadershipPanel'));
@@ -45,7 +50,12 @@ const HousingDiagnostics = memo(function HousingDiagnostics({ state }: { state: 
         <StatBadge label="Beds" value={housing.totalBeds} icon="🛏️" />
         <StatBadge label="Occupied" value={housing.occupiedBeds} icon="👥" />
         <StatBadge label="Residences" value={housing.residences} icon="🏘️" />
-        <StatBadge label="Unassigned" value={housing.unassignedPlayerHumans} icon="⚠️" />
+        <StatBadge
+          label="Homeless"
+          value={housing.homelessPlayerHumans}
+          icon="⚠️"
+          title="Settlers with no bed — prisoners excluded (residencyOccupancy.countHomelessSettlers)"
+        />
       </div>
       <div className="mt-2 space-y-1 text-[12px]">
         <div className="flex justify-between rounded bg-stone-600/30 px-2 py-1">
@@ -65,37 +75,34 @@ const HousingDiagnostics = memo(function HousingDiagnostics({ state }: { state: 
 
 /** Today's food production vs consumption — "why is my food low?" at a glance. */
 const FoodLedger = memo(function FoodLedger({ state }: { state: WorldState }) {
-  const ledger = getEconomyLedger(state);
-  const producedEntries = ledger ? Object.entries(ledger.produced) : [];
-  const consumedEntries = ledger ? Object.entries(ledger.consumed) : [];
-  if (producedEntries.length === 0 && consumedEntries.length === 0) {
+  // Summed by the ledger owner, not here: the view renders numbers, it does not calculate them
+  // (`LIVE-FINDINGS-STATUS.md`, F2 — "food can't be calculated at the UX").
+  const summary = summarizeFoodLedger(state);
+  if (summary.produced.length === 0 && summary.consumed.length === 0) {
     return (
       <p className="text-[13px] text-stone-300">
         No food produced or eaten yet today — build farms or a hunting spot and staff them.
       </p>
     );
   }
-  const produced = producedEntries.reduce((sum, [, v]) => sum + v, 0);
-  const consumed = consumedEntries.reduce((sum, [, v]) => sum + v, 0);
-  const net = produced - consumed;
   return (
     <div className="space-y-1 text-[13px]">
-      {producedEntries.map(([src, v]) => (
-        <div key={`p-${src}`} className="flex items-center justify-between rounded bg-stone-600/30 px-2 py-1">
-          <span className="text-stone-400">{ECONOMY_SOURCE_LABELS[src] ?? src}</span>
-          <span className="font-bold text-emerald-300">+{v}</span>
+      {summary.produced.map((row) => (
+        <div key={`p-${row.source}`} className="flex items-center justify-between rounded bg-stone-600/30 px-2 py-1">
+          <span className="text-stone-400">{ECONOMY_SOURCE_LABELS[row.source] ?? row.source}</span>
+          <span className="font-bold text-emerald-300">+{row.amount}</span>
         </div>
       ))}
-      {consumedEntries.map(([src, v]) => (
-        <div key={`c-${src}`} className="flex items-center justify-between rounded bg-stone-600/30 px-2 py-1">
-          <span className="text-stone-400">{ECONOMY_SOURCE_LABELS[src] ?? src}</span>
-          <span className="font-bold text-rose-300">−{v}</span>
+      {summary.consumed.map((row) => (
+        <div key={`c-${row.source}`} className="flex items-center justify-between rounded bg-stone-600/30 px-2 py-1">
+          <span className="text-stone-400">{ECONOMY_SOURCE_LABELS[row.source] ?? row.source}</span>
+          <span className="font-bold text-rose-300">−{row.amount}</span>
         </div>
       ))}
       <div className="flex items-center justify-between rounded bg-stone-700/40 px-2 py-1 font-bold">
         <span className="text-stone-300">Net</span>
-        <span className={net >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
-          {net >= 0 ? '+' : ''}{net}
+        <span className={summary.net >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
+          {summary.net >= 0 ? '+' : ''}{summary.net}
         </span>
       </div>
     </div>
@@ -107,6 +114,9 @@ export interface VillageTabPanelProps {
   villageStats: VillageStatsSummary;
   favoriteEntityId?: number | null;
   onRecruitSettler: () => void;
+  /** Village-wide staffing action. Deliberately here rather than in the building panel: the
+   *  per-building fill/auto-fill belongs on that building, and "assign all" is a village decision. */
+  onAutoStaffAll: () => void;
   onFocusBuilding: (buildingId: number, cx: number, cy: number) => void;
   onFocusCitizen: (entity: Entity) => void;
   onToggleFavoriteCitizen?: (entityId: number) => void;
@@ -121,6 +131,7 @@ export default function VillageTabPanel({
   villageStats,
   favoriteEntityId,
   onRecruitSettler,
+  onAutoStaffAll,
   onFocusBuilding,
   onFocusCitizen,
   onToggleFavoriteCitizen,
@@ -128,41 +139,24 @@ export default function VillageTabPanel({
   onHintAction,
   suppressHintIds = [],
 }: VillageTabPanelProps) {
-  const canRecruit = villageStats.total < state.maxHumanPopulation && state.resources.food >= 30 && state.resources.gold >= 20;
-  const recruitTitle = villageStats.total >= state.maxHumanPopulation
-    ? 'Build more houses to increase population cap'
-    : state.resources.food < 30 || state.resources.gold < 20
-      ? 'Need 30 food and 20 gold'
-      : 'Recruit a new settler';
+  // The price and the gate come from the recruitment owner (`settlerInteractionActions`), the same
+  // rule the command and the auto-play bot obey. The view used to restate that price threshold and
+  // print the price a second time, and its only explanation for a disabled button was a `title`
+  // on a disabled control — inert in the browsers where the label is the only affordance
+  // (2026-09-17 UI audit, R25; open since `ui-logic.md` §5.3).
+  const recruitEligibility = getRecruitSettlerEligibility(state);
+  const canRecruit = recruitEligibility.ok;
+  // The immigration cap's owner — six sites used to read the raw `maxHumanPopulation` field while the
+  // owner derived a fallback for a save without it (2026-09-22 stats-panel audit, F7).
+  const popCap = resolvePopulationCap(state);
 
   return (
     <div className="space-y-4">
-      <section
-        className="rounded-xl border border-emerald-400/25 bg-emerald-950/20 p-3"
-        aria-labelledby="village-overview-heading"
-      >
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-400">Village overview</p>
-            <h4 id="village-overview-heading" className="text-base font-black text-stone-100">How your settlement is doing</h4>
-          </div>
-          <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${villageStats.openBeds > 0 ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>
-            {villageStats.openBeds > 0 ? 'Housing available' : 'Housing needed'}
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <StatBadge label="Settlers" value={villageStats.total} icon="👥" title={`Population cap: ${state.maxHumanPopulation}`} />
-          <StatBadge label="Working" value={villageStats.working} icon="⚒️" />
-          <StatBadge label="Open beds" value={villageStats.openBeds} icon="🛏️" />
-          <StatBadge label="Food" value={Math.floor(state.resources.food)} icon="🍖" />
-        </div>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-stone-300">
-          <span>Idle: <strong className="text-amber-300">{villageStats.idle}</strong></span>
-          <span>Children: <strong className="text-pink-300">{villageStats.children}</strong></span>
-          <span>Jailed: <strong className="text-slate-200">{villageStats.imprisoned}</strong></span>
-          <span>Reputation: <strong className="text-amber-300">{state.villageReputation}</strong></span>
-        </div>
-      </section>
+      {/* The "Village overview" block that used to sit here restated the People screen's own stat
+          cards (people / work / home / life / food / mood) and the Population disclosure below it, so
+          one screen carried the same population, work, bed and reputation figures three times. The
+          cards above are the survivor: always visible, zero clicks, and composed from the owners
+          (2026-09-22 stats-panel audit, P1). */}
 
       <Suspense fallback={<p className="text-[13px] text-stone-300">Loading focus…</p>}>
         <FocusPanel
@@ -186,13 +180,13 @@ export default function VillageTabPanel({
             <div className="flex items-end justify-between gap-1">
               <p className="text-2xl font-black leading-none text-emerald-300">
                 {villageStats.total}
-                <span className="text-sm font-bold text-stone-400"> / {state.maxHumanPopulation}</span>
+                <span className="text-sm font-bold text-stone-400"> / {popCap}</span>
               </p>
               <p className="text-[13px] text-stone-300">immigration cap</p>
             </div>
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-600">
               <div className="h-full rounded-full bg-emerald-500 transition-all"
-                style={{ width: `${Math.min(100, (villageStats.total / Math.max(1, state.maxHumanPopulation)) * 100)}%` }} />
+                style={{ width: `${resourceFillPercent({ amount: villageStats.total, cap: popCap })}%` }} />
             </div>
           </div>
           <div>
@@ -207,28 +201,21 @@ export default function VillageTabPanel({
             </div>
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-600">
               <div className="h-full rounded-full bg-sky-500 transition-all"
-                style={{ width: `${Math.min(100, (villageStats.total / Math.max(1, villageStats.beds)) * 100)}%` }} />
+                style={{ width: `${resourceFillPercent({ amount: villageStats.total, cap: villageStats.beds })}%` }} />
             </div>
           </div>
         </div>
-        <div className="mb-2 grid grid-cols-4 gap-1 text-[13px]">
-          <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
-            <div className="font-bold text-sky-300">{villageStats.working}</div>
-            <div className="text-stone-400">working</div>
-          </div>
-          <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
-            <div className="font-bold text-amber-300">{villageStats.idle}</div>
-            <div className="text-stone-400">idle</div>
-          </div>
-          <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
-            <div className="font-bold text-slate-300">{villageStats.imprisoned}</div>
-            <div className="text-stone-400">jailed</div>
-          </div>
-          <div className="rounded bg-stone-600/30 px-2 py-1 text-center">
-            <div className="font-bold text-pink-300">{villageStats.children}</div>
-            <div className="text-stone-400">children</div>
-          </div>
-        </div>
+        {/* The working / idle / jailed / children tiles that used to sit here are the People screen's
+            Work and Life cards, four lines above this disclosure (2026-09-22 audit, P1). */}
+        {/* No count in the label on purpose: the staffing owner decides who is assignable, and a
+            locally recomputed "idle" total contradicted it before (F7). */}
+        <button
+          type="button"
+          onClick={onAutoStaffAll}
+          className="mb-2 w-full rounded bg-sky-800/60 px-2 py-1.5 text-[13px] font-bold text-sky-100 transition-colors hover:bg-sky-700/70"
+        >
+          ⚒️ Auto-assign all workers
+        </button>
         <CollapsibleSection
           title="Details"
           defaultOpen={false}
@@ -237,18 +224,18 @@ export default function VillageTabPanel({
         >
           <div className="grid grid-cols-2 gap-1.5 text-[13px]">
             <StatBadge label="Adults" value={villageStats.adults} icon="👤" />
-            <StatBadge label="Reputation" value={state.villageReputation} icon="⭐" title="80+: cheaper visitor trade & fewer raids · 30 or less: harsher prices & more raids" />
-            <StatBadge label="Buildings" value={state.buildings.filter(b => b.completed && b.faction !== 'rival').length} icon="🏗️" />
+            <StatBadge label="Buildings" value={state.totalBuildingsCompleted} icon="🏗️" />
             <StatBadge label="Techs" value={state.unlockedTechs.length} icon="🔬" />
           </div>
         </CollapsibleSection>
         <button
           onClick={onRecruitSettler}
           disabled={!canRecruit}
-          title={recruitTitle}
+          title={recruitEligibility.blockReason}
           className="mt-2 w-full rounded-lg bg-emerald-600 py-1.5 text-[13px] font-bold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-stone-600 transition-all"
         >
-          📯 Recruit Settler (30🍖 20💰)
+          📯 Recruit Settler ({RECRUITMENT_COST.food}🍖 {RECRUITMENT_COST.gold}💰)
+          {recruitEligibility.ok ? '' : ` — ${recruitEligibility.blockReason ?? 'unavailable'}`}
         </button>
       </CollapsibleSection>
 
@@ -335,11 +322,10 @@ export default function VillageTabPanel({
                 {showForgeGo && (
                   <button
                     type="button"
-                    onClick={() => onFocusBuilding(
-                      smith.id,
-                      smith.x + smith.width / 2,
-                      smith.y + smith.height / 2,
-                    )}
+                    onClick={() => {
+                      const center = getBuildingCenter(smith);
+                      onFocusBuilding(smith.id, center.x, center.y);
+                    }}
                     className="mt-1 rounded bg-orange-900/50 px-1.5 py-0.5 text-[10px] font-bold text-orange-200 hover:bg-orange-800/60"
                   >
                     Open Blacksmith →
@@ -358,10 +344,17 @@ export default function VillageTabPanel({
         <p className="mt-2 text-[13px] leading-relaxed text-stone-300">
           Buildings (+2), festivals (+10), research (+3), staffed Hospital (+2) &amp; Town Hall (+3),
           {' '}
-          {state.unlockedTechs.includes('architecture_2') || state.researchNodes.some((n) => n.id === 'architecture_2' && n.researched)
+          {hasTech(state, 'architecture_2')
             ? 'completed roads (+rep with Urban Planning)'
             : 'roads (+rep after Urban Planning research)'}
           .
+        </p>
+        {/* The band names, not the numbers: `groupEvents` owns both thresholds and prices the trade
+            (`getVisitorTradePriceMult`), so the panel asks for them rather than restating them. */}
+        <p className="mt-1 text-[13px] leading-relaxed text-stone-300">
+          It also sets what caravans charge: at{' '}
+          <strong className="text-emerald-300">{VISITOR_TRADE_FRIENDLY_REP}+</strong> they offer friendly prices,
+          and at <strong className="text-rose-300">{VISITOR_TRADE_HARSH_REP} or less</strong> they demand harsher terms.
         </p>
       </details>
     </div>

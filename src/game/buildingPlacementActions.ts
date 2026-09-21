@@ -1,4 +1,4 @@
-import type { Entity, WorldState } from './gameTypes';
+import type { Building, Entity, WorldState } from './gameTypes';
 import {
   BuildingType,
   BUILDING_CONFIGS,
@@ -7,7 +7,9 @@ import {
   TERRAIN_TILE_SIZE,
 } from './gameTypes';
 import { addFloatingText, createDeathParticles, impulseScreenShake } from './simEffects';
+import { bumpTerrainRevision } from './terrainLayer';
 import { assignMissingWorkers } from './workforce';
+import { refundBuildingCost, removeBuildingFromState } from './buildingMaintenanceActions';
 import { assignMissingResidences } from './dayCycle';
 import { isPlayerHuman } from './playerHuman';
 import { notifyBuildingLocked } from './research';
@@ -16,6 +18,7 @@ import { isStripBuildType, type StripBuildPreview, type StripSegment } from './s
 import { buildStripPlanFromDrag } from './stripTopology';
 import { createBuilding } from './worldGen';
 import {
+  getBuildingFootprintRect,
   isBuildingTechUnlocked,
   isFootprintOnBuildableTerrain,
   isFootprintWithinMapBounds,
@@ -26,7 +29,7 @@ import {
 // A second exported copy of the same set used to live here; nothing read it (two modules only
 // re-exported it), so it was removed with the re-exports rather than restated.
 
-export { isFootprintOnBuildableTerrain, isFootprintWithinMapBounds } from './placementUtils';
+export { isFootprintOnBuildableTerrain } from './placementUtils';
 
 function listPlayerHumans(state: WorldState): Entity[] {
   return state.entities.filter(isPlayerHuman);
@@ -58,6 +61,19 @@ export function canPlaceBuilding(
   return getPlaceBuildingFailureReason(state, type, x, y, rotation) == null;
 }
 
+/**
+ * The `unique` gate's own statement: true when `type` is a one-per-village building and one already
+ * stands.
+ *
+ * The build catalogue tested `config.unique && buildings.some(...)` itself and re-worded the refusal,
+ * so the rule lived in a view as well as here (2026-09-20 audit, O-5). The wording the player reads is
+ * `buildingPlacementLabels.PLACEMENT_FAILURE_LABELS.unique`.
+ */
+export function isUniqueBuildingAlreadyBuilt(state: WorldState, type: BuildingType): boolean {
+  const config = BUILDING_CONFIGS[type];
+  return !!config.unique && state.buildings.some((building) => building.type === type);
+}
+
 export function getPlaceBuildingFailureReason(
   state: WorldState,
   type: BuildingType,
@@ -74,7 +90,7 @@ export function getPlaceBuildingFailureReason(
   ) {
     return 'research';
   }
-  if (config.unique && state.buildings.some((building) => building.type === type)) return 'unique';
+  if (isUniqueBuildingAlreadyBuilt(state, type)) return 'unique';
   if (!isFootprintOnBuildableTerrain(state, width, height, x, y, type)) return 'terrain';
   if (overlapsAnyBuilding(state.buildings, width, height, x, y)) return 'blocked';
   return null;
@@ -82,31 +98,41 @@ export function getPlaceBuildingFailureReason(
 
 function clearTreesUnderFootprint(
   state: WorldState,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
+  building: Pick<Building, 'x' | 'y' | 'width' | 'height'>,
 ): void {
+  // The cleared rectangle is the rect the player sees: `placementUtils.getBuildingFootprintRect`
+  // is the single owner of "the ground this building stands on" (`x/y` is the centre). Reading
+  // `x … x + width` here cleared a rectangle half a footprint to the south-east of the pad — trees
+  // inside the drawn footprint survived, trees beside the building vanished (see the convention row
+  // in `LIVE-FINDINGS-STATUS.md`).
+  const { left, right, top, bottom } = getBuildingFootprintRect(building);
+
   for (const entity of state.entities) {
     if (!entity.alive || entity.type !== EntityType.Tree) continue;
-    if (entity.x >= x && entity.x < x + width && entity.y >= y && entity.y < y + height) entity.alive = false;
+    if (entity.x >= left && entity.x < right && entity.y >= top && entity.y < bottom) entity.alive = false;
   }
 
   const tiles = state.worldMap?.tiles;
   if (!tiles?.length) return;
-  const startTx = Math.max(0, Math.floor(x / TERRAIN_TILE_SIZE));
-  const endTx = Math.min(tiles[0]?.length ?? 0, Math.ceil((x + width) / TERRAIN_TILE_SIZE));
-  const startTy = Math.max(0, Math.floor(y / TERRAIN_TILE_SIZE));
-  const endTy = Math.min(tiles.length, Math.ceil((y + height) / TERRAIN_TILE_SIZE));
+  const startTx = Math.max(0, Math.floor(left / TERRAIN_TILE_SIZE));
+  const endTx = Math.min(tiles[0]?.length ?? 0, Math.ceil(right / TERRAIN_TILE_SIZE));
+  const startTy = Math.max(0, Math.floor(top / TERRAIN_TILE_SIZE));
+  const endTy = Math.min(tiles.length, Math.ceil(bottom / TERRAIN_TILE_SIZE));
+  let tilesChanged = false;
   for (let tileY = startTy; tileY < endTy; tileY++) {
     for (let tileX = startTx; tileX < endTx; tileX++) {
       const tile = tiles[tileY]?.[tileX];
       if (!tile) continue;
       if (tile.type === TerrainType.Forest || tile.type === TerrainType.DarkForest) {
         tile.type = TerrainType.Grassland;
+        tilesChanged = true;
       }
     }
   }
+  // The terrain caches key on the map's immutable-looking fields, so a mutated tile needs the
+  // revision bump or the cleared forest keeps its old fill and canopy for the life of the
+  // cache entry (audit `visuals-looks.md` D4).
+  if (tilesChanged) bumpTerrainRevision();
 }
 
 export function startBuilding(
@@ -153,9 +179,11 @@ export function startBuilding(
     assignMissingResidences(listPlayerHumans(state), state.buildings, state.entities);
   }
 
-  const footprint = getBuildingFootprintForType(type, rotation);
-  clearTreesUnderFootprint(state, x, y, footprint.width, footprint.height);
-  assignMissingWorkers(listPlayerHumans(state), state.buildings);
+  clearTreesUnderFootprint(state, building);
+  // The third argument is the `WorldState`: without it the auto-staff pass falls back to
+  // `DEFAULT_WORKFORCE_POLICY` and the default tavern window, so a newly placed building could
+  // push a staffed venue one worker past the player's own preset (audit B-2).
+  assignMissingWorkers(listPlayerHumans(state), state.buildings, state);
 
   createDeathParticles(state, x, y, '#ffd700', 8, 'star');
   addFloatingText(
@@ -168,13 +196,6 @@ export function startBuilding(
   );
   impulseScreenShake(state, 2);
   return state;
-}
-
-function refundHalfBuildingCost(state: WorldState, type: BuildingType): void {
-  const config = BUILDING_CONFIGS[type];
-  state.resources.wood += Math.floor(config.cost.wood * 0.5);
-  state.resources.stone += Math.floor(config.cost.stone * 0.5);
-  state.resources.gold += Math.floor(config.cost.gold * 0.5);
 }
 
 function segmentRotationForPlacement(
@@ -266,13 +287,25 @@ export function placeStripChain(
     if (replacementId !== undefined && !replaced.has(replacementId)) {
       const existing = state.buildings.find((building) => building.id === replacementId);
       if (existing) {
-        state.buildings = state.buildings.filter((building) => building.id !== replacementId);
-        const failure = getPlaceBuildingFailureReason(state, placeType, segment.x, segment.y, segmentRotation);
-        if (failure) {
-          state.buildings.push(existing);
-          continue;
-        }
-        refundHalfBuildingCost(state, existing.type);
+        // Feasibility is checked against a copy that omits the replaced building — the same shape
+        // `buildStripPreview` uses — so a refused replacement leaves authoritative state untouched
+        // and there is no removal bookkeeping to roll back.
+        const withoutReplacement: WorldState = {
+          ...state,
+          buildings: state.buildings.filter((building) => building.id !== replacementId),
+        };
+        const failure = getPlaceBuildingFailureReason(
+          withoutReplacement,
+          placeType,
+          segment.x,
+          segment.y,
+          segmentRotation,
+        );
+        if (failure) continue;
+        // The replaced building leaves through the removal owner (counter, adjacency, road cache)
+        // and is refunded through the capped refund owner — the plain demolition answers (B-1/E-5).
+        removeBuildingFromState(state, existing);
+        refundBuildingCost(state, existing.type);
         replaced.add(replacementId);
         placementChecked = true;
       }
@@ -291,8 +324,7 @@ export function placeStripChain(
     const building = createBuilding(placeType, segment.x, segment.y, state.nextBuildingId++, cornerRotation);
     building.spriteScale = 0;
     state.buildings.push(building);
-    const footprint = getBuildingFootprintForType(placeType, cornerRotation);
-    clearTreesUnderFootprint(state, segment.x, segment.y, footprint.width, footprint.height);
+    clearTreesUnderFootprint(state, building);
     if (placed === 0) {
       firstX = segment.x;
       firstY = segment.y;
@@ -311,6 +343,6 @@ export function placeStripChain(
   const label = placed === 1 ? BUILDING_CONFIGS[segments[0].placeType ?? type].label : `${placed} segments`;
   addFloatingText(state, firstX, firstY - 10, `🔨 ${label}`, '#22c55e', 'brief');
   impulseScreenShake(state, placed > 3 ? 3 : 2);
-  assignMissingWorkers(listPlayerHumans(state), state.buildings);
+  assignMissingWorkers(listPlayerHumans(state), state.buildings, state);
   return state;
 }

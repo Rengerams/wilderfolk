@@ -1,4 +1,4 @@
-import type { CanvasContext2d } from '../canvasLayer';
+import { getRenderDpr, type CanvasContext2d } from '../canvasLayer';
 import { getAnimalSpriteMetrics } from '../entitySprites';
 import { getHumanSpriteMetrics } from '../humanSprites';
 import type { RenderSnapshot } from '../renderSnapshot';
@@ -8,7 +8,7 @@ import { drawAnimals } from './animals';
 import { drawBuildings } from './buildings';
 import { drawBuildZoneOverlay, drawGrid } from './grid';
 import { drawGrass } from './grass';
-import { drawHumans, drawHuntChaseLines, drawHuntVisuals, drawRaidMarchLines, drawTradeRouteLines } from './humans';
+import { drawHumans, drawHuntChaseLines, drawRaidMarchLines, drawTradeRouteLines } from './humans';
 import { drawCampMarkers, drawEcoConnections, drawFloatingTexts } from './markers';
 import { drawParticles } from './particles';
 import { drawScentOverlay } from './scent';
@@ -39,7 +39,10 @@ function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: 
   drawTradeRouteLines(drawCtx, state, cw, ch);
   drawRaidMarchLines(drawCtx, state, cw, ch);
   drawHuntChaseLines(drawCtx, state, cw, ch);
-  drawHuntVisuals(drawCtx, state, cw, ch);
+  // Hunt arrows are NOT painted here: they advance on a wall-clock animation, and this
+  // layer is only repainted on a sim tick (≈1.5×/s at 1×), so a ~1 s flight was sampled
+  // once or twice and strobed. They draw in the per-frame overlay instead — see
+  // `renderer/overlay.ts`, which keeps the tested millisecond retention contract intact.
   // Simulation notices remain visible, but active speech/name overlays are the
   // higher-priority readable text directly above settlers.
   drawFloatingTexts(drawCtx, state, cw, ch);
@@ -87,17 +90,20 @@ export function compositeCachedEntityLayer(
   ch: number,
 ): void {
   const layerKey = buildEntityLayerKey(state, cw, ch);
+  // The layer rasterises at the DPR the main context is scaled by, so the blit is 1:1 in
+  // device px instead of being nearest-neighbour-upscaled by it (audit D1).
+  const dpr = getRenderDpr();
   const existing = getEntityLayerCache();
   if (
     existing
-    && !entityLayerNeedsRebuild(existing, layerKey, cw, ch)
+    && !entityLayerNeedsRebuild(existing, layerKey, cw, ch, dpr)
     && !entityLayerAnchorMoved(existing, state.camera, cw, ch)
   ) {
     paintEntityLayerTo(ctx, existing, state.camera);
     return;
   }
 
-  const layer = beginEntityLayerPaint(layerKey, cw, ch, state.camera);
+  const layer = beginEntityLayerPaint(layerKey, cw, ch, state.camera, dpr);
   const anchorCam = { ...state.camera, x: layer.anchorX, y: layer.anchorY, zoom: layer.anchorZoom };
   paintWorldEntityLayer(layer.ctx, { ...state, camera: anchorCam }, layer.width, layer.height);
   commitEntityLayerPaint(layerKey);

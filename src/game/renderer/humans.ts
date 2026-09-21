@@ -14,6 +14,7 @@ import {
   getHumanSpriteMetrics,
   getHumanWalkFrameIndex,
   getHumanSpriteFrame,
+  getJuvenileFigureScale,
   getJuvenileSpriteFrame,
   pickHumanVariant,
   HUMAN_SPRITE_MIN_ZOOM,
@@ -224,6 +225,9 @@ function getPlayerCampCenterFromBuildings(buildings: RenderSnapshot['buildings']
 
 export function drawTradeRouteLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (state.camera.zoom < 0.35) return;
+  // `hx`/`hy` are read only from inside the routes loop below, so with no routes the two
+  // full-buildings scans that derive them cannot affect any output — this returns before them.
+  if (state.tradeRoutes.length === 0) return;
   const cam = state.camera;
   const hubTypes: BuildingType[] = [BuildingType.Market, BuildingType.Store, BuildingType.TownHall, BuildingType.Workshop];
   let hub = state.buildings.find((b) => b.completed && b.faction !== 'rival' && hubTypes.includes(b.type));
@@ -460,6 +464,87 @@ function drawHumanMarker(
   }
 }
 
+/**
+ * The village leader's aura — gold ground rings, head halo and crown — drawn in the per-frame
+ * overlay pass, and the **only** owner of it.
+ *
+ * The aura pulses on `renderTime`, which advances every frame, while the world entity bitmap is
+ * repainted only when its layer key changes: once per simulation tick, and never while paused. An
+ * aura painted into that bitmap therefore froze at whatever phase the last rebake caught, which is
+ * why this lives outside {@link drawHumans}.
+ *
+ * It re-derives exactly the leader that pass would have drawn an aura for: the same
+ * `villageLeaderId` + faction test, the same zoom floor, the same "asleep at home is hidden unless
+ * selected" rule, and no aura in marker mode (the zoomed-out marker draws its own crown).
+ */
+export function drawLeaderAuraOverlay(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+): void {
+  const cam = state.camera;
+  if (cam.zoom <= 0.22 || state.villageLeaderId == null) return;
+  const leader = _cachedHumans.find((h) => h.id === state.villageLeaderId && !h.faction);
+  if (!leader) return;
+
+  const isSel = state.selectedEntityIds.includes(leader.id) || state.selectedEntity?.id === leader.id;
+  if (!isSel) {
+    if (cam.zoom < HUMAN_SPRITE_MIN_ZOOM) return; // marker mode — `drawHumanMarker` draws the crown
+    if (isAsleepAtHome(leader, state.buildings, state.hourOfDay)) return;
+  }
+
+  const sx = (leader.x - cam.x) * cam.zoom + cw / 2;
+  const sy = (leader.y - cam.y) * cam.zoom + ch / 2
+    - terrainRiseAt(state.worldMap, leader.x, leader.y) * cam.zoom;
+  const { size, spriteH, footOffset } = getHumanSpriteMetrics(leader, cam.zoom);
+  const footY = sy + footOffset;
+  const cullPad = Math.max(size * 1.5, spriteH);
+  if (sx + cullPad < -20 || sx - cullPad > cw + 20) return;
+  if (footY + cullPad < -20 || footY - cullPad > ch + 20) return;
+
+  // Same bob the cached pass would have applied, from the same snapshot.
+  const speed = Math.hypot(leader.vx, leader.vy);
+  const isWalking = speed > HUMAN_WALK_SPEED_THRESHOLD;
+  const walkFrame = isWalking ? getHumanWalkFrameIndex(leader.animFrame ?? 0, speed) : 0;
+  const bobY = getHumanWalkMotion(leader, cam.zoom, isWalking, walkFrame).bobY ?? 0;
+  const headY = footY - spriteH;
+
+  ctx.save();
+  const pulse = 0.55 + Math.sin(renderTime * 2.8 + leader.id) * 0.2;
+  // Soft gold ground ring (double stroke at closer zoom)
+  ctx.strokeStyle = `rgba(251, 191, 36, ${0.5 + pulse * 0.4})`;
+  ctx.lineWidth = Math.max(2, 2.5 * cam.zoom);
+  ctx.beginPath();
+  ctx.ellipse(sx, footY + 1, size * 0.62, size * 0.2, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  if (cam.zoom > 0.35) {
+    ctx.strokeStyle = `rgba(253, 224, 71, ${0.25 + pulse * 0.2})`;
+    ctx.lineWidth = Math.max(1, 1.2 * cam.zoom);
+    ctx.beginPath();
+    ctx.ellipse(sx, footY + 1, size * 0.78, size * 0.28, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // Head halo
+  const halo = ctx.createRadialGradient(sx, headY + bobY, 2, sx, headY + bobY, size * 1.05);
+  halo.addColorStop(0, `rgba(253, 224, 71, ${0.4 * pulse})`);
+  halo.addColorStop(1, 'rgba(253, 224, 71, 0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(sx, headY + bobY + spriteH * 0.08, size * 0.95, 0, Math.PI * 2);
+  ctx.fill();
+  // Crown above head
+  const crownY = headY + bobY - Math.max(5, 7 * cam.zoom);
+  ctx.font = `${Math.max(12, Math.round(15 * cam.zoom))}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillText('👑', sx + 0.5, crownY + 0.5);
+  ctx.fillStyle = '#fde047';
+  ctx.fillText('👑', sx, crownY);
+  ctx.restore();
+}
+
 export function drawHumans(
   ctx: CanvasRenderingContext2D,
   state: RenderSnapshot,
@@ -533,9 +618,14 @@ export function drawHumans(
       if (isDrawableSpriteFrame(frame)) {
         const aspect = frame.sw / frame.sh;
         const anchorY = frame.anchorY ?? 1;
+        // A child's canvas carries transparent padding around its figure, so grow the drawn box by
+        // `1 / figure fraction`: the painted figure, not the canvas, is what has to match the shared
+        // `spriteH`. Keeping `spriteH` figure-sized leaves headY, the contact shadow and the
+        // selection ring measured against the figure rather than the padded canvas.
+        const boxH = human.isJuvenile ? spriteH * getJuvenileFigureScale(human) : spriteH;
         drawSpriteFrame(
-          ctx, frame, sx, footY, spriteH * aspect, spriteH,
-          0.5, anchorY, flipX, { bobY }, 'height',
+          ctx, frame, sx, footY, boxH * aspect, boxH,
+          0.5, anchorY, flipX, walkMotion, 'height',
         );
         return;
       }
@@ -568,41 +658,9 @@ export function drawHumans(
       );
     }
 
-    if (isLeader && cam.zoom > 0.22) {
-      ctx.save();
-      const pulse = 0.55 + Math.sin(renderTime * 2.8 + human.id) * 0.2;
-      // Soft gold ground ring (double stroke at closer zoom)
-      ctx.strokeStyle = `rgba(251, 191, 36, ${0.5 + pulse * 0.4})`;
-      ctx.lineWidth = Math.max(2, 2.5 * cam.zoom);
-      ctx.beginPath();
-      ctx.ellipse(sx, footY + 1, size * 0.62, size * 0.2, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      if (cam.zoom > 0.35) {
-        ctx.strokeStyle = `rgba(253, 224, 71, ${0.25 + pulse * 0.2})`;
-        ctx.lineWidth = Math.max(1, 1.2 * cam.zoom);
-        ctx.beginPath();
-        ctx.ellipse(sx, footY + 1, size * 0.78, size * 0.28, 0, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      // Head halo
-      const halo = ctx.createRadialGradient(sx, headY + bobY, 2, sx, headY + bobY, size * 1.05);
-      halo.addColorStop(0, `rgba(253, 224, 71, ${0.4 * pulse})`);
-      halo.addColorStop(1, 'rgba(253, 224, 71, 0)');
-      ctx.fillStyle = halo;
-      ctx.beginPath();
-      ctx.arc(sx, headY + bobY + spriteH * 0.08, size * 0.95, 0, Math.PI * 2);
-      ctx.fill();
-      // Crown above head
-      const crownY = headY + bobY - Math.max(5, 7 * cam.zoom);
-      ctx.font = `${Math.max(12, Math.round(15 * cam.zoom))}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillStyle = 'rgba(0,0,0,0.4)';
-      ctx.fillText('👑', sx + 0.5, crownY + 0.5);
-      ctx.fillStyle = '#fde047';
-      ctx.fillText('👑', sx, crownY);
-      ctx.restore();
-    }
+    // The leader's aura is deliberately NOT drawn here: it pulses on `renderTime` while this painter
+    // feeds a bitmap that is only repainted when its layer key changes. `drawLeaderAuraOverlay` owns
+    // it, in the per-frame overlay pass.
 
     // Status badge
     if (cam.zoom > 0.6) {

@@ -15,6 +15,8 @@ import {
 } from './dayCycle';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
+import { pushNewEntity } from './simulation/simulationEntities';
+import type { TickContext } from './simulation/simulationTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
 import {
   addCappedResource,
@@ -22,6 +24,7 @@ import {
   consumeResources,
   getAvailableStorageHeadroom,
 } from './resourceUtils';
+import { recordFoodProduced, spendFood } from './economyLedger';
 import { getRandomSurname } from './nameLoader';
 import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
 import { maybeStartVisitorQuest } from './visitorQuest';
@@ -36,6 +39,7 @@ import { getRefugeeWelcomeBonus } from './townHall';
 import { addNotification } from './simEffects';
 import { tickRivalSettlements as tickRivalEvents } from './rivalEvents';
 import { createRivalProfile, ensureRivalProfile } from './rivalProfiles';
+import { addReputation } from './simHelpers';
 
 let newsSeq = 0;
 
@@ -191,7 +195,7 @@ export function resolveVillageRequest(
   }
 
   if (choice === 'decline') {
-    state.villageReputation = Math.max(0, state.villageReputation - VILLAGE_REQUEST_DECLINE_REPUTATION);
+    addReputation(state, -VILLAGE_REQUEST_DECLINE_REPUTATION);
     finishVillageRequest(state, request, 'declined', day);
     pushFloat(state, source.campX, source.campY - 18, 'Offer declined', '#94a3b8');
     logEvent(state, 'event', `Declined ${source.name}'s provisions offer`, source.name);
@@ -207,8 +211,11 @@ export function resolveVillageRequest(
   }
 
   state.resources.gold -= VILLAGE_REQUEST_PROVISIONS_COST_GOLD;
-  addCappedResource(state, 'food', VILLAGE_REQUEST_PROVISIONS_FOOD);
-  state.villageReputation = Math.min(100, state.villageReputation + VILLAGE_REQUEST_PROVISIONS_REPUTATION);
+  // The provisions are food *bought*, so the ledger's produced side gets the row — and it gets what
+  // storage actually accepted, not the nominal amount (`LIVE-FINDINGS-STATUS.md`, E-2; the same rule
+  // as M5's accepted catch).
+  recordFoodProduced(state, 'trade', addCappedResource(state, 'food', VILLAGE_REQUEST_PROVISIONS_FOOD));
+  addReputation(state, VILLAGE_REQUEST_PROVISIONS_REPUTATION);
   source.tradesCompleted++;
   finishVillageRequest(state, request, 'accepted', day);
   pushFloat(state, source.campX, source.campY - 18, `-${VILLAGE_REQUEST_PROVISIONS_COST_GOLD} gold +${VILLAGE_REQUEST_PROVISIONS_FOOD} food`, '#22c55e');
@@ -519,6 +526,13 @@ export function spawnRivalSettlement(
 }
 
 export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
+  // The loop below is the only consumer of both indexes and the only writer is the
+  // `state.visitorGroups = remaining` reassignment at the end (this function never spawns a group —
+  // `spawnVisitorGroup` is called from the yearly/mid-year event rolls). With the list empty those
+  // two passes over `allAlive`, grass and trees included, plus a ~900-entry Map, bought nothing, and
+  // they ran unconditionally once per colony day.
+  if (state.visitorGroups.length === 0) return;
+
   const remaining: VisitorGroup[] = [];
   const aliveById = buildAliveEntityIndex(allAlive);
   const nextDeer = makeNextAliveDeer(buildAliveDeerList(allAlive));
@@ -537,14 +551,14 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
           const gold = Math.min(group.gold ?? 0, goldWant);
           group.gold = (group.gold ?? 0) - gold;
           const food = 10 + Math.floor(getSimRng('groupEvents')() * 20);
-          state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + gold);
-          state.resources.food = Math.min(state.storageMax.food, state.resources.food + food);
+          addCappedResource(state, 'gold', gold);
+          addCappedResource(state, 'food', food);
           pushFloat(state, group.campX, group.campY - 20, `+${gold}g +${food}f`, '#eab308');
           group.giftsGiven++;
           break;
         }
         case 'pilgrims':
-          state.villageReputation = Math.min(100, state.villageReputation + 2);
+          addReputation(state, 2);
           pushFloat(state, group.campX, group.campY - 20, '+Rep', '#22c55e');
           group.giftsGiven++;
           break;
@@ -555,19 +569,19 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
           } else {
             const goldGift = Math.min(group.gold ?? 0, 10);
             group.gold = (group.gold ?? 0) - goldGift;
-            state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + goldGift);
+            addCappedResource(state, 'gold', goldGift);
           }
           group.giftsGiven++;
           break;
         case 'nomads': {
           const wood = 10 + Math.floor(getSimRng('groupEvents')() * 15);
-          state.resources.wood = Math.min(state.storageMax.wood, state.resources.wood + wood);
+          addCappedResource(state, 'wood', wood);
           pushFloat(state, group.campX, group.campY - 20, `+${wood}w`, '#d97706');
           group.giftsGiven++;
           break;
         }
         case 'performers':
-          state.villageReputation = Math.min(100, state.villageReputation + 1);
+          addReputation(state, 1);
           pushFloat(state, group.campX, group.campY - 20, '🎭', '#f472b6');
           group.giftsGiven++;
           break;
@@ -623,12 +637,14 @@ export { isRivalAtPeace } from './rivalPeace';
 
 const PEACE_TREATY_PLAYER_DAYS = 60;
 const PEACE_TREATY_EVENT_DAYS = 45;
-const RIVAL_GIFT_FOOD_COST = 25;
-const RIVAL_TRADE_PACT_GOLD_COST = 40;
-const PEACE_TREATY_GOLD_COST = 30;
-const PEACE_TREATY_FOOD_COST = 20;
-const REFUGEE_WELCOME_FOOD = 40;
-const REFUGEE_SCREEN_FOOD = 20;
+/** Rival diplomacy prices — exported so the panel's button labels quote the owner's figures. */
+export const RIVAL_GIFT_FOOD_COST = 25;
+export const RIVAL_TRADE_PACT_GOLD_COST = 40;
+export const PEACE_TREATY_GOLD_COST = 30;
+export const PEACE_TREATY_FOOD_COST = 20;
+/** Refugee offer prices — exported so the panel's button labels quote the owner's figures. */
+export const REFUGEE_WELCOME_FOOD = 40;
+export const REFUGEE_SCREEN_FOOD = 20;
 
 export function getRivalGiftEligibility(
   state: WorldState,
@@ -660,7 +676,7 @@ export function sendRivalGift(originalState: WorldState, rivalId: string): World
   const state = cloneWorldStateForAction(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return state;
-  state.resources.food -= RIVAL_GIFT_FOOD_COST;
+  spendFood(state, 'gift', RIVAL_GIFT_FOOD_COST);
   const before = rival.relationship;
   rival.relationship = shiftRelationship(rival.relationship, 1);
   rival.daysUntilAction = Math.max(rival.daysUntilAction, 14);
@@ -744,7 +760,7 @@ export function showStrengthToRival(originalState: WorldState, rivalId: string):
 
   if (rival.relationship === 'tense') {
     rival.relationship = 'competitive';
-    state.villageReputation = Math.max(0, state.villageReputation - 3);
+    addReputation(state, -3);
     logEvent(
       state,
       'event',
@@ -790,7 +806,7 @@ export function signPeaceTreaty(originalState: WorldState, rivalId: string): Wor
   }
 
   state.resources.gold -= PEACE_TREATY_GOLD_COST;
-  state.resources.food -= PEACE_TREATY_FOOD_COST;
+  spendFood(state, 'treaty', PEACE_TREATY_FOOD_COST);
   rival.peaceTreatyDays = PEACE_TREATY_PLAYER_DAYS;
   rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PEACE_TREATY_PLAYER_DAYS);
   if (rival.relationship === 'competitive') rival.relationship = 'neutral';
@@ -913,12 +929,25 @@ function maybeQueueDiplomacyEvent(state: WorldState, rival: RivalSettlement): vo
   logEvent(state, 'event', `${rival.name} — ${meta.title}`, rival.name);
 }
 
+/** Fallback window for a diplomacy card written before `expiresAtTick` existed. */
+const DIPLOMACY_CARD_EXPIRE_AFTER_TICKS = 14 * TICKS_PER_DAY;
+
+/**
+ * When a diplomacy card expires. Single owner: the daily sweep and the inspector's "Expires in N
+ * days" both read this, so the countdown cannot promise a different deadline than the one that
+ * removes the card (`duplication-deadcode` A17 — no caller reads the raw `expiresAtTick` field).
+ */
+export function getDiplomacyExpiresAtTick(
+  event: { createdAtTick: number; expiresAtTick?: number },
+): number {
+  return event.expiresAtTick ?? event.createdAtTick + DIPLOMACY_CARD_EXPIRE_AFTER_TICKS;
+}
+
 export function tickPendingDiplomacyEvents(state: WorldState): void {
   if (!state.pendingDiplomacyEvents?.length) return;
-  const expireAfter = 14 * TICKS_PER_DAY;
   const before = state.pendingDiplomacyEvents.length;
   state.pendingDiplomacyEvents = state.pendingDiplomacyEvents.filter(
-    (e) => state.tick < (e.expiresAtTick ?? e.createdAtTick + expireAfter),
+    (e) => state.tick < getDiplomacyExpiresAtTick(e),
   );
   if (state.pendingDiplomacyEvents.length < before) {
     logEvent(state, 'event', 'An unanswered diplomacy message faded — neighbors grew impatient');
@@ -1000,19 +1029,19 @@ export function respondToDiplomacyEvent(
   switch (event.kind) {
     case 'tribute':
       if (choiceId === 'pay') {
-        state.resources.food -= 30;
+        spendFood(state, 'tribute', 30);
         rival.relationship = shiftRelationship(rival.relationship, 1);
         pushFloat(state, rival.campX, rival.campY - 20, 'Tribute paid', '#22c55e');
         logEvent(state, 'trade', `Paid tribute to ${rival.name} — relations improved`, rival.name);
         resolved = true;
       } else if (choiceId === 'negotiate') {
-        state.resources.food -= 15;
+        spendFood(state, 'tribute', 15);
         if (rival.relationship === 'tense') rival.relationship = 'competitive';
         logEvent(state, 'trade', `Negotiated with ${rival.name} — partial tribute`, rival.name);
         resolved = true;
       } else if (choiceId === 'refuse') {
         rival.relationship = shiftRelationship(rival.relationship, -1);
-        state.villageReputation = Math.max(0, state.villageReputation - 4);
+        addReputation(state, -4);
         pushNews(state, '⚡ Tribute refused', `${rival.name} is displeased. Reputation -4.`, 'negative');
         logEvent(state, 'event', `Refused tribute to ${rival.name}`, rival.name);
         resolved = true;
@@ -1020,13 +1049,13 @@ export function respondToDiplomacyEvent(
       break;
     case 'border_dispute':
       if (choiceId === 'concede') {
-        state.villageReputation = Math.max(0, state.villageReputation - 5);
+        addReputation(state, -5);
         rival.relationship = shiftRelationship(rival.relationship, 1);
         logEvent(state, 'event', `Ceded hunting rights to ${rival.name}`, rival.name);
         resolved = true;
       } else if (choiceId === 'stand_firm') {
         if (seededRandomForRun(`stand-firm:${rival.id}:${state.tick}`) < 0.45) rival.relationship = shiftRelationship(rival.relationship, -1);
-        state.villageReputation = Math.max(0, state.villageReputation - 3);
+        addReputation(state, -3);
         logEvent(state, 'event', `Stood firm against ${rival.name}`, rival.name);
         resolved = true;
       } else if (choiceId === 'militia') {
@@ -1045,15 +1074,15 @@ export function respondToDiplomacyEvent(
         logEvent(state, 'trade', `Alliance with ${rival.name}`, rival.name);
         resolved = true;
       } else if (choiceId === 'counter') {
-        state.resources.food -= 25;
+        spendFood(state, 'treaty', 25);
         state.resources.gold -= 15;
         rival.relationship = 'friendly';
         rival.daysUntilAction = 25;
-        state.villageReputation = Math.min(100, state.villageReputation + 3);
+        addReputation(state, 3);
         logEvent(state, 'trade', `Grand counter-pact with ${rival.name}`, rival.name);
         resolved = true;
       } else if (choiceId === 'decline') {
-        state.villageReputation = Math.max(0, state.villageReputation - 1);
+        addReputation(state, -1);
         logEvent(state, 'event', `Declined alliance with ${rival.name}`, rival.name);
         resolved = true;
       }
@@ -1061,7 +1090,7 @@ export function respondToDiplomacyEvent(
     case 'peace_treaty':
       if (choiceId === 'sign') {
         state.resources.gold -= 15;
-        state.resources.food -= 10;
+        spendFood(state, 'treaty', 10);
         rival.peaceTreatyDays = PEACE_TREATY_EVENT_DAYS;
         rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PEACE_TREATY_EVENT_DAYS);
         if (rival.relationship === 'competitive') rival.relationship = 'neutral';
@@ -1093,7 +1122,7 @@ export function respondToDiplomacyEvent(
         resolved = true;
       } else if (choiceId === 'decline') {
         if (seededRandomForRun(`decline-peace:${rival.id}:${state.tick}`) < 0.35) rival.relationship = shiftRelationship(rival.relationship, -1);
-        state.villageReputation = Math.max(0, state.villageReputation - 2);
+        addReputation(state, -2);
         logEvent(state, 'event', `Declined peace offer from ${rival.name}`, rival.name);
         resolved = true;
       }
@@ -1173,13 +1202,13 @@ export function talkToVisitorLeader(originalState: WorldState, groupId: string):
 
   switch (group.kind) {
     case 'traders':
-      state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + 15);
-      state.villageReputation = Math.min(100, state.villageReputation + 3);
+      addCappedResource(state, 'gold', 15);
+      addReputation(state, 3);
       pushFloat(state, group.campX, group.campY - 20, '+15💰 +Rep', '#eab308');
       logEvent(state, 'trade', `Caravan master of ${group.name} shared market news`, group.name);
       break;
     case 'pilgrims':
-      state.villageReputation = Math.min(100, state.villageReputation + 8);
+      addReputation(state, 8);
       pushFloat(state, group.campX, group.campY - 20, '+8 Rep', '#22c55e');
       logEvent(state, 'event', `Elder pilgrim blessed ${state.villageName}`, group.name);
       break;
@@ -1189,24 +1218,24 @@ export function talkToVisitorLeader(originalState: WorldState, groupId: string):
         pushFloat(state, group.campX, group.campY - 20, '+Research', '#8b5cf6');
         logEvent(state, 'research', `Head scholar advanced your active research`, group.name);
       } else {
-        state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + 15);
+        addCappedResource(state, 'gold', 15);
         pushFloat(state, group.campX, group.campY - 20, '+15💰', '#8b5cf6');
         logEvent(state, 'research', `Scholars of ${group.name} left notes and coin`, group.name);
       }
       break;
     case 'hunters':
-      state.villageReputation = Math.min(100, state.villageReputation + 5);
+      addReputation(state, 5);
       pushFloat(state, group.campX, group.campY - 20, '+5 Rep', '#f97316');
       logEvent(state, 'event', `Hunt captain of ${group.name} marked shared hunting grounds`, group.name);
       break;
     case 'nomads':
-      state.resources.wood = Math.min(state.storageMax.wood, state.resources.wood + 20);
-      state.villageReputation = Math.min(100, state.villageReputation + 2);
+      addCappedResource(state, 'wood', 20);
+      addReputation(state, 2);
       pushFloat(state, group.campX, group.campY - 20, '+20🪵', '#d97706');
       logEvent(state, 'event', `Clan head of ${group.name} traded stories and timber`, group.name);
       break;
     case 'performers':
-      state.villageReputation = Math.min(100, state.villageReputation + 6);
+      addReputation(state, 6);
       if (!state.festival) {
         state.festival = { active: true, name: 'Visitor Revelry', daysLeft: 3 };
       } else {
@@ -1231,8 +1260,31 @@ export const VISITOR_TRADE_COSTS = {
 
 export type VisitorTradeAction = keyof typeof VISITOR_TRADE_COSTS;
 
+/**
+ * Reputation bands that price visitor trade — one definition. The visitor banner and the Village
+ * tab's reputation tooltip used to hand-write `>= 80` / `<= 30` of their own, so retuning the price
+ * here left the player reading bands the trade owner no longer applied (audit C2 "Reputation 80/30
+ * bands").
+ */
+export const VISITOR_TRADE_FRIENDLY_REP = 80;
+export const VISITOR_TRADE_HARSH_REP = 30;
+
+export type VisitorTradeReputationBand = 'friendly' | 'normal' | 'harsh';
+
+/**
+ * The band a reputation sits in — the classification the price multiplier is derived from, exposed
+ * so a view can *describe* the terms without touching the arithmetic that sets them (the visitor
+ * panel is guarded against calling the price multipliers themselves).
+ */
+export function getVisitorTradeReputationBand(rep: number): VisitorTradeReputationBand {
+  if (rep >= VISITOR_TRADE_FRIENDLY_REP) return 'friendly';
+  if (rep <= VISITOR_TRADE_HARSH_REP) return 'harsh';
+  return 'normal';
+}
+
 export function getVisitorTradePriceMult(rep: number): number {
-  return rep >= 80 ? 0.8 : rep <= 30 ? 1.25 : 1;
+  const band = getVisitorTradeReputationBand(rep);
+  return band === 'friendly' ? 0.8 : band === 'harsh' ? 1.25 : 1;
 }
 
 export function getVisitorTradeRewardMult(rep: number): number {
@@ -1258,7 +1310,7 @@ function rejectVisitorTrade(state: WorldState, group: VisitorGroup, hint: string
   return state;
 }
 
-function getVisitorTradeTerms(
+export function getVisitorTradeTerms(
   state: WorldState,
   action: VisitorTradeAction,
 ): {
@@ -1350,6 +1402,17 @@ export function tradeWithVisitors(
   }
 
   const { effectivePay, effectiveReceive } = getVisitorTradeTerms(state, action);
+  // Food is the one resource the economy ledger tracks, so both of its sides here go through the
+  // owners: `spendFood` deducts *and* records the named sink on the way out, and `recordFoodProduced`
+  // records what storage actually accepted on the way in. Selling 30 food to a passing caravan used
+  // to leave the "Net food flow" panel untouched, which is how the panel could read a positive net on
+  // a day the larder fell (`LIVE-FINDINGS-STATUS.md`, E-2). The other resources keep their existing
+  // bundle path — the ledger has no row for them.
+  const foodPaid = effectivePay.food ?? 0;
+  if (foodPaid > 0) {
+    delete effectivePay.food;
+    spendFood(state, 'trade', foodPaid);
+  }
   consumeResources(state, effectivePay);
   const paidGold = effectivePay.gold ?? 0;
   if (paidGold > 0) group.gold = (group.gold ?? 0) + paidGold;
@@ -1357,7 +1420,12 @@ export function tradeWithVisitors(
   for (const [key, amount] of Object.entries(effectiveReceive) as [keyof WorldState['resources'], number][]) {
     if ((amount ?? 0) <= 0) continue;
     const added = addCappedResource(state, key, amount);
-    if (key === 'food') receivedLabel = `+${added}🍖`;
+    if (key === 'food') {
+      // What actually landed, not the nominal amount: a gain the cap refused must not appear in the
+      // ledger as food the colony received (`LIVE-FINDINGS-STATUS.md`, M5).
+      recordFoodProduced(state, 'trade', added);
+      receivedLabel = `+${added}🍖`;
+    }
     else if (key === 'wood') receivedLabel = `+${added}🪵`;
     else if (key === 'gold') receivedLabel = `+${added}💰`;
   }
@@ -1417,7 +1485,7 @@ export function negotiateRefugees(
   if (choice === 'turn_away') {
     group.refugeeResolved = true;
     group.daysLeft = 0;
-    state.villageReputation = Math.max(0, state.villageReputation - 2);
+    addReputation(state, -2);
     logEvent(state, 'migration', `${group.name} turned away from the village`, group.name);
     return state;
   }
@@ -1440,7 +1508,7 @@ export function negotiateRefugees(
       pushFloat(state, group.campX, group.campY - 20, 'No room for refugees', '#f97316');
       return state;
     }
-    state.resources.food -= REFUGEE_WELCOME_FOOD;
+    spendFood(state, 'refugees', REFUGEE_WELCOME_FOOD);
     group.refugeeResolved = true;
     const villagers = allAlive.filter(isPlayerHuman);
     assignMissingResidences(villagers, state.buildings, allAlive);
@@ -1455,7 +1523,7 @@ export function negotiateRefugees(
     const joined = seededRandomForRun(`refugee-screen:${group.id}:${state.tick}`) < 0.55 ? admitRefugees(state, group, allAlive, currentPopulation, 1) : 0;
     group.refugeeResolved = true;
     if (joined > 0) {
-      state.resources.food -= REFUGEE_SCREEN_FOOD;
+      spendFood(state, 'refugees', REFUGEE_SCREEN_FOOD);
       const villagers = allAlive.filter(isPlayerHuman);
       assignMissingResidences(villagers, state.buildings, allAlive);
       syncResidenceOccupants(villagers, state.buildings);
@@ -1574,8 +1642,28 @@ export function rollYearlyWorldEvent(
   buildings: Building[],
   width: number,
   height: number,
-  nextEntityId: () => number
+  nextEntityId: () => number,
+  /**
+   * The tick's context. This runs inside the daily layer, i.e. **after**
+   * `gameTick`'s `assertSpatialGridInvariants` and **before** `state.entities = allAlive`, so a bare
+   * `allAlive.push` + `indexLivingEntity` lands on an array that is about to be discarded: the spawned
+   * entity is missing from `ctx.newEntities` and from the spatial grids for the rest of the tick.
+   * Optional because the perf/probe harnesses call this without a context; production always passes it.
+   */
+  ctx?: TickContext,
 ): { event: GameEvent | null; bountifulHarvest: boolean } {
+  /**
+   * Register one spawned entity through the canonical owner when a context is available. The
+   * no-context fallback is the pre-existing behaviour and is never taken in play.
+   */
+  const register = (entity: Entity): void => {
+    if (ctx) pushNewEntity(state, ctx, entity);
+    else {
+      allAlive.push(entity);
+      indexLivingEntity(state, entity);
+    }
+  };
+
   const humans = playerHumanCount(allAlive);
   const pool = WORLD_EVENTS.filter((e) => {
     if (e.minHumans && humans < e.minHumans) return false;
@@ -1599,9 +1687,7 @@ export function rollYearlyWorldEvent(
   switch (picked.id) {
     case 'wolf_migration': {
       for (let i = 0; i < 3; i++) {
-        const wolf = spawnWolf(width, height, nextEntityId());
-        allAlive.push(wolf);
-        indexLivingEntity(state, wolf);
+        register(spawnWolf(width, height, nextEntityId()));
       }
       return {
         event: { id: `wolf_migration_${state.tick}`, title: 'Wolf Pack Migration', description: 'A pack of wolves has migrated into the valley!', emoji: '🐺', effect: '+3 Wolves', type: 'negative' },
@@ -1623,14 +1709,10 @@ export function rollYearlyWorldEvent(
       };
     case 'nature_boom':
       for (let i = 0; i < 15; i++) {
-        const tree = spawnTree(width, height, nextEntityId());
-        allAlive.push(tree);
-        indexLivingEntity(state, tree);
+        register(spawnTree(width, height, nextEntityId()));
       }
       for (let i = 0; i < 30; i++) {
-        const grass = spawnGrass(width, height, nextEntityId());
-        allAlive.push(grass);
-        indexLivingEntity(state, grass);
+        register(spawnGrass(width, height, nextEntityId()));
       }
       return {
         event: { id: `nature_boom_${state.tick}`, title: 'Ecological Super-Bloom', description: 'Natural energy revitalizes the valley flora!', emoji: '🌿', effect: '+15 Trees, +30 Grass', type: 'positive' },
@@ -1651,16 +1733,14 @@ export function rollYearlyWorldEvent(
     case 'rival_settlement':
       return { event: spawnRivalSettlement(state, allAlive, buildings), bountifulHarvest };
     case 'surveyors_crown':
-      state.villageReputation = Math.min(100, state.villageReputation + 5);
+      addReputation(state, 5);
       return {
         event: { id: `surveyors_crown_${state.tick}`, title: 'Royal Surveyors', description: 'Crown surveyors mapped your village and filed a favorable report.', emoji: '📜', effect: '+5 Reputation', type: 'positive' },
         bountifulHarvest,
       };
     case 'deer_migration':
       for (let i = 0; i < 4; i++) {
-        const deer = spawnDeer(width, height, nextEntityId());
-        allAlive.push(deer);
-        indexLivingEntity(state, deer);
+        register(spawnDeer(width, height, nextEntityId()));
       }
       return {
         event: { id: `deer_migration_${state.tick}`, title: 'Deer Migration', description: 'A herd of deer wandered into the valley!', emoji: '🦌', effect: '+4 Deer', type: 'positive' },
@@ -1670,14 +1750,14 @@ export function rollYearlyWorldEvent(
       if (state.rivalSettlements.length > 0) {
         const rival = state.rivalSettlements[Math.floor(getSimRng('groupEvents')() * state.rivalSettlements.length)];
         const food = 25 + Math.floor(getSimRng('groupEvents')() * 25);
-        state.resources.food = Math.min(state.storageMax.food, state.resources.food + food);
+        addCappedResource(state, 'food', food);
         pushFloat(state, rival.campX, rival.campY - 20, `+${food} food`, '#22c55e');
         return {
           event: { id: `generous_neighbors_${state.tick}`, title: 'Neighborly Gift', description: `${rival.name} shared food across the wilds.`, emoji: '🤝', effect: `+${food} Food`, type: 'positive' },
           bountifulHarvest,
         };
       }
-      state.resources.food = Math.min(state.storageMax.food, state.resources.food + 40);
+      addCappedResource(state, 'food', 40);
       return {
         event: { id: `generous_neighbors_${state.tick}`, title: 'Forest Bounty', description: 'Foragers returned with an unusually rich harvest.', emoji: '🍄', effect: '+40 Food', type: 'positive' },
         bountifulHarvest,

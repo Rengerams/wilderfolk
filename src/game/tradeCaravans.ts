@@ -5,10 +5,11 @@ import { getPlayerCampCenter } from './frontierCombat';
 import { addFloatingText, addNotification } from './simEffects';
 import { getMultiplier } from './simHelpers';
 import { addResource } from './resourceUtils';
+import { spendFood } from './economyLedger';
 import { getTownHallTradeMultiplier } from './townHall';
 import { logEvent } from './eventLog';
 import { createEntity } from './entityFactory';
-import { unindexEntityFromState } from './entityIndex';
+import { ensureEntityByIdMap, unindexEntityFromState } from './entityIndex';
 import { pushNewEntity } from './simulation/simulationEntities';
 import type { TickContext } from './simulation/simulationTypes';
 
@@ -80,6 +81,10 @@ function canStoreImports(state: WorldState, route: TradeRoute, mult: number): bo
     { key: 'stone', amount: Math.floor(route.resourcesReceived.stone * mult) },
     { key: 'food', amount: Math.floor(route.resourcesReceived.food * mult) },
     { key: 'gold', amount: Math.floor(route.resourcesReceived.gold * mult) },
+    // Iron is a real fifth resource and Ironport (trade_3) is its only trade source: omitting
+    // it here let a round trip complete into a full iron store, where `addCappedResource`
+    // silently clamped the cargo away (BUG_REPORTS/2026-09-17-trade-imports-drop-iron.md).
+    { key: 'iron', amount: Math.floor(route.resourcesReceived.iron * mult) },
   ];
   for (const r of receives) {
     if (r.amount <= 0) continue;
@@ -93,7 +98,7 @@ function canStoreImports(state: WorldState, route: TradeRoute, mult: number): bo
 function deductExports(state: WorldState, route: TradeRoute): void {
   state.resources.wood -= route.resourcesGiven.wood;
   state.resources.stone -= route.resourcesGiven.stone;
-  state.resources.food -= route.resourcesGiven.food;
+  spendFood(state, 'trade', route.resourcesGiven.food);
   state.resources.gold -= route.resourcesGiven.gold;
 }
 
@@ -103,11 +108,15 @@ function applyImports(state: WorldState, route: TradeRoute, mult: number): numbe
   const recvStone = Math.floor(route.resourcesReceived.stone * mult);
   const recvFood = Math.floor(route.resourcesReceived.food * mult);
   const recvGold = Math.floor(route.resourcesReceived.gold * mult);
+  // Every non-zero field of `resourcesReceived` must actually be credited — see the iron note
+  // in `canStoreImports` above.
+  const recvIron = Math.floor(route.resourcesReceived.iron * mult);
 
   if (recvWood > 0) addResource(state, 'wood', recvWood);
   if (recvStone > 0) addResource(state, 'stone', recvStone);
   if (recvFood > 0) addResource(state, 'food', recvFood);
   if (recvGold > 0) goldGained = addResource(state, 'gold', recvGold);
+  if (recvIron > 0) addResource(state, 'iron', recvIron);
   return goldGained;
 }
 
@@ -262,7 +271,17 @@ function spawnCaravan(state: WorldState, route: TradeRoute, ctx: TickContext): b
 
 function hasActiveCarrier(state: WorldState, route: TradeRoute): boolean {
   if (route.caravanCarrierId == null) return false;
-  return state.entities.some((e) => e.alive && e.id === route.caravanCarrierId);
+  // `entityById` is the canonical id → living-entity map for this world (built from `state.entities`
+  // and kept in sync by `pushNewEntity` / the death paths). The previous form was a
+  // `state.entities.some(e => e.alive && e.id === id)` scan, once per active trade route on every
+  // systems pulse — 18 times a day — over every living entity including grass and trees. The original
+  // scan is kept as the map-miss fallback (`hotelStay`'s precedent) so an unindexed carrier is still
+  // found. `?.alive` rather than a bare `has()`: `buildingPlacementActions` clears `alive` on a
+  // demolished building's occupants without unindexing them, so the map can hold a corpse.
+  const carrierId = route.caravanCarrierId;
+  const indexed = ensureEntityByIdMap(state).get(carrierId);
+  if (indexed) return indexed.alive;
+  return state.entities.some((e) => e.alive && e.id === carrierId);
 }
 
 export function tickTradeCaravans(state: WorldState, ctx: TickContext): void {

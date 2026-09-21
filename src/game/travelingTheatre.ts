@@ -8,6 +8,7 @@ import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard, AUTHORED_STORY_COOLDOWN_FLAG } from './storyHelpers';
+import { spendFood } from './economyLedger';
 
 export const STORY_KEY = 'traveling_theatre';
 export const AUTHORED_STORY_COOLDOWN_DAYS = 21;
@@ -220,7 +221,7 @@ function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
         addNotification(state, 'Not enough food', `Hospitality needs ${HOSPITALITY_FOOD} food.`, 'warning');
         return false;
       }
-      state.resources.food -= HOSPITALITY_FOOD;
+      spendFood(state, 'hospitality', HOSPITALITY_FOOD);
       setStoryFlags(state, { [FLAG_SUPPORT]: SUPPORT.hospitality });
       break;
     }

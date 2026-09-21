@@ -9,6 +9,7 @@ import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard, AUTHORED_STORY_COOLDOWN_FLAG } from './storyHelpers';
+import { addCappedResource } from './resourceUtils';
 
 export const STORY_KEY = 'invention_fair';
 export const AUTHORED_STORY_COOLDOWN_DAYS = 14;
@@ -252,7 +253,9 @@ function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
     bumpVillageReputation(state, 1);
     addBigNews(state, '⚙️ The invention stays', 'It works well enough to keep around.', 'positive');
   } else {
-    state.resources.wood += 4;
+    // The recovered timber obeys the storage cap like every other gain (`LIVE-FINDINGS-STATUS.md`, L1);
+    // a raw `+=` pushed wood past `storageMax` and made the cap non-authoritative.
+    addCappedResource(state, 'wood', 4);
     addBigNews(state, '⚙️ Dismantled', 'The device is taken apart; part of the wood is recovered.', 'neutral');
   }
 

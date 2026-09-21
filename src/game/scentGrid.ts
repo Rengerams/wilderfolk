@@ -1,6 +1,6 @@
 import type { Entity } from './gameTypes';
 import { EntityType } from './gameTypes';
-import { envFlagDisabled, MOBILE_CELL_SIZE } from './spatialGrid';
+import { envFlagDisabled, gridCellAxis, MOBILE_CELL_SIZE } from './spatialGrid';
 import { isActiveMoonHowler } from './moonHowler';
 
 /** Magic `WFSN` — Wilderfolk scent sidecar. */
@@ -111,9 +111,12 @@ export class ScentGrid implements ScentGridRuntime {
   }
 
   cellCoords(x: number, y: number): { col: number; row: number } {
-    const col = Math.min(this.cols - 1, Math.max(0, Math.floor(x / this.cellSize)));
-    const row = Math.min(this.rows - 1, Math.max(0, Math.floor(y / this.cellSize)));
-    return { col, row };
+    // The world→cell clamp is `spatialGrid.gridCellAxis`'s rule, not a second copy: entity lookups and
+    // odour deposits must agree about which cell a world position belongs to (duplication-deadcode A12).
+    return {
+      col: gridCellAxis(x, this.cellSize, this.cols),
+      row: gridCellAxis(y, this.cellSize, this.rows),
+    };
   }
 
   decay(factor = SCENT_DECAY_PER_TICK): void {
@@ -289,10 +292,6 @@ export class ScentGridReader {
     }
     return max;
   }
-}
-
-export function scentSidecarByteLength(cols: number, rows: number): number {
-  return (SCENT_HEADER_WORDS + cols * rows) * 4;
 }
 
 export function isScentGridRuntime(value: unknown): value is ScentGridRuntime {

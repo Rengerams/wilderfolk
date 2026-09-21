@@ -5,14 +5,16 @@ import { assignMissingWorkers } from './workforce';
 import { assignMissingResidences } from './residencyReconciliation';
 import { indexLivingEntity } from './entityIndex';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
+import { citizenFullName } from './citizenId';
 import { HUMAN_ADULT_MIN_AGE, getAbsoluteCalendarDay, getColonyDay, getHourOfDay, setHumanBirthFromAge } from './dayCycle';
 import { canBeginMoonHowlerCurse, canMoonHowlerCurse, curseMoonHowler, isMoonHowlerTransformTick, transformToWerewolfForm } from './moonHowler';
 import { createEntity } from './entityFactory';
 import { getRandomSurname } from './nameLoader';
 import { logEvent } from './eventLog';
 import { getSimRng } from './simRng';
+import { spendFood } from './economyLedger';
 
-const RECRUITMENT_COST = { food: 30, gold: 20 } as const;
+export const RECRUITMENT_COST = { food: 30, gold: 20 } as const;
 const TAMING_FOOD_COSTS: Partial<Record<EntityType, number>> = {
   [EntityType.Wolf]: 40,
   [EntityType.Fox]: 25,
@@ -34,7 +36,10 @@ function listPlayerHumans(state: WorldState): Entity[] {
 function reconcileNewSettlerAssignments(state: WorldState): void {
   const settlers = listPlayerHumans(state);
   assignMissingResidences(settlers, state.buildings, state.entities);
-  assignMissingWorkers(settlers, state.buildings);
+  // `state` supplies `worldSlices`, so the pass uses the player's workforce preset and venue window
+  // instead of the defaults — a freshly recruited settler used to be staffed under 'survival' and
+  // against the default tavern hours (2026-09-20 audit, B-2).
+  assignMissingWorkers(settlers, state.buildings, state);
 }
 
 function recruitSpawnPosition(state: WorldState): { x: number; y: number } {
@@ -79,7 +84,7 @@ export function recruitSettler(originalState: WorldState): WorldState {
     );
     return state;
   }
-  state.resources.food -= RECRUITMENT_COST.food;
+  spendFood(state, 'recruitment', RECRUITMENT_COST.food);
   state.resources.gold -= RECRUITMENT_COST.gold;
   const spawn = recruitSpawnPosition(state);
   // Seeded (resolved per call, since `setSimSeed` drops cached streams): a recruited
@@ -128,7 +133,7 @@ export function spawnMoonHowlerDebug(originalState: WorldState): WorldState {
   const pick = candidates[Math.floor(rng() * candidates.length)];
 
   if (pick) {
-    const who = pick.name ? `${pick.name}${pick.surname ? ` ${pick.surname}` : ''}` : 'A settler';
+    const who = citizenFullName(pick);
     curseMoonHowler(pick);
     const colonyDay = getAbsoluteCalendarDay(state.tick);
     // `buildings` keeps the cursed settler out of the occupants lists the transform clears.
@@ -159,13 +164,40 @@ export function getTameFoodCost(type: EntityType): number | null {
   return TAMING_FOOD_COSTS[type] ?? null;
 }
 
-function hasNearbyPlayerTamingPost(state: WorldState, entity: Entity): boolean {
+/**
+ * Whether a player-owned Taming Post stands within reach of this settler.
+ *
+ * `building.x/y` is the footprint **centre** — the pad and sprite are drawn from `x - w/2`, and
+ * `overlapsAnyBuilding`, `isFootprintWithinMapBounds` and `snapBuildingCenter` all treat that point as
+ * the centre. This used to add half a footprint, so its circle reached a post-shaped area half a post
+ * away from the one the player can see (`LIVE-FINDINGS-STATUS.md`, F17). Measuring from the centre
+ * fixes the command and keeps the panel agreeing with it.
+ */
+export function hasNearbyPlayerTamingPost(state: WorldState, entity: Entity): boolean {
   return state.buildings.some(
     (building) =>
       building.completed
       && building.faction !== 'rival'
       && building.type === BuildingType.TamingPost
-      && Math.hypot(building.x + building.width / 2 - entity.x, building.y + building.height / 2 - entity.y) < 140,
+      && Math.hypot(building.x - entity.x, building.y - entity.y) < 140,
+  );
+}
+
+/**
+ * The settlers the taming UI may offer: living adult **player** humans.
+ *
+ * The panel used to list every adult in `state.entities`, which includes `faction: 'visitor'`/`'rival'`
+ * humans, while the command refuses them silently (`getTameEntityEligibility` -> `isPlayerHuman`), so
+ * picking a visitor's name did nothing at all, ever — and the four-slot cap let foreign adults crowd
+ * out every eligible settler (`LIVE-FINDINGS-STATUS.md`, F16).
+ */
+export function listTamingCandidates(state: WorldState): Entity[] {
+  return state.entities.filter(
+    (candidate) =>
+      candidate.type === EntityType.Human
+      && candidate.alive
+      && !candidate.isJuvenile
+      && isPlayerHuman(candidate),
   );
 }
 
@@ -227,7 +259,7 @@ export function tameEntity(originalState: WorldState, entityId: number, humanId:
 
   const cost = getTameFoodCost(entity.type);
   if (cost === null) return state;
-  state.resources.food -= cost;
+  spendFood(state, 'taming', cost);
   entity.tamedBy = human.id;
   addFloatingText(state, entity.x, entity.y - 15, 'Tamed!', '#22c55e');
   logEvent(state, 'migration', `${human.name || 'A settler'} tamed a ${entity.type}`);

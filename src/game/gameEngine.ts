@@ -222,9 +222,16 @@ export { getFocusHints, type FocusHintAction } from './focusHints';
 
 export {
   saveGame,
-  loadGame,
+  loadGameOutcome,
+  describeSaveLoadOutcome,
   loadGameFromParsed,
   hasSave,
+  // Re-exported beside `hasSave` because the shell must be able to tell the two questions apart —
+  // "is there a save in the slot" (`hasSaveSlot`) versus "can this build load it" (`hasSave`). The
+  // player-visible Load affordance depends on the first and the refusal message on the second
+  // (2026-09-20 audit, P-2). Same owner (`saveLoad`), so this is a façade export, not a second
+  // definition.
+  hasSaveSlot,
   deleteSave,
   downloadSaveFile,
   loadGameFromFileText,

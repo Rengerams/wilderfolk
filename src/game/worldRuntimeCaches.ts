@@ -42,6 +42,53 @@ export function hydrateWorldRuntimeCaches(world: WorldState): WorldState {
 }
 
 /**
+ * Simulation state that happens to sit in a runtime-cache slot.
+ *
+ * `scentGrid` shares the slot family with the derived spatial hashes, but it is not one of them: it
+ * is the accumulated predator-odour field that grazers sample to flee (`tickLayerSystems.ts` →
+ * `sampleFleeGradient`), decayed and deposited into in place every tick (`tickLayerRealtime.ts`).
+ * Dropping it is correct when the world is *replaced* — the save path's `stripRuntimeWorldFields`
+ * drops it too and `loadGameFromParsed` recreates it — and wrong whenever the simulation keeps
+ * running on the same world, because the trail then restarts from zero.
+ *
+ * Keep this knowledge here, once: a rebuild that continues the simulation goes through
+ * `rebuildWorldRuntimeCaches` (or the `capture`/`restore` pair when something has to happen in
+ * between), so no call site has to remember which slots are state and which are derived.
+ */
+export interface PreservedSimulationState {
+  scentGrid: WorldState['scentGrid'];
+}
+
+/** Take the simulation state out before a rebuild, so it can be put back after one. */
+export function captureSimulationState(world: WorldState): PreservedSimulationState {
+  if (!world || typeof world !== 'object') return { scentGrid: undefined };
+  return { scentGrid: world.scentGrid };
+}
+
+/** Put captured simulation state back onto `world` (see `PreservedSimulationState`). */
+export function restoreSimulationState(world: WorldState, preserved: PreservedSimulationState): void {
+  if (!world || typeof world !== 'object') return;
+  world.scentGrid = preserved.scentGrid;
+}
+
+/**
+ * Drops and re-hydrates the derived runtime caches while carrying the simulation state across.
+ *
+ * Use this instead of `invalidateWorldRuntimeCaches` + `hydrateWorldRuntimeCaches` wherever the
+ * simulation continues on `world`: the invalidate cannot tell the odour field from a spatial hash
+ * and would zero the trail.
+ */
+export function rebuildWorldRuntimeCaches(world: WorldState): WorldState {
+  if (!world || typeof world !== 'object') return world;
+
+  const preserved = captureSimulationState(world);
+  hydrateWorldRuntimeCaches(world); // invalidates the derived caches, then rebuilds entityById
+  restoreSimulationState(world, preserved);
+
+  return world;
+}
+
+/**
  * Creates a detached, fully hydrated copy of WorldState safe for
  * optimistic UI presentation and immediate inspector lookups.
  */

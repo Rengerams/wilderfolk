@@ -8,6 +8,8 @@ import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, pushStoryCard, AUTHORED_STORY_COOLDOWN_FLAG } from './storyHelpers';
+import { spendFood } from './economyLedger';
+import { adjustEcosystemHealth, getEcosystemHealth } from './dailyEcology';
 
 export const STORY_KEY = 'deer_parliament';
 export const AUTHORED_STORY_COOLDOWN_DAYS = 21;
@@ -41,14 +43,6 @@ export function deerParliamentEligibleDay(mapSeed: number | undefined): number {
   return eligibleDayForStory(mapSeed, STORY_KEY, MIN_DAY, WINDOW_DAYS);
 }
 
-function eco(state: WorldState): number {
-  return state.ecosystemHealth ?? 80;
-}
-
-function setEco(state: WorldState, value: number): void {
-  state.ecosystemHealth = Math.max(0, Math.min(100, value));
-}
-
 function countAliveDeer(state: WorldState): number {
   let deer = 0;
   for (const e of state.entities) {
@@ -61,7 +55,7 @@ function hasHuntingPressure(state: WorldState): boolean {
   const hasHuntingSpot = state.buildings.some(
     (b) => b.completed && b.faction !== 'rival' && b.type === BuildingType.HuntingSpot,
   );
-  return hasHuntingSpot || eco(state) < ECO_PRESSURE_THRESHOLD;
+  return hasHuntingSpot || getEcosystemHealth(state) < ECO_PRESSURE_THRESHOLD;
 }
 
 export function maybeOfferDeerParliament(state: WorldState): void {
@@ -86,7 +80,7 @@ export function maybeOfferDeerParliament(state: WorldState): void {
     title: 'The Deer Parliament',
     description:
       `${deer} deer have gathered in suspiciously organized rows. An elder insists they are holding a parliament to negotiate hunting rights. ` +
-      `(Deer: ${deer}, ecology: ${Math.round(eco(state))}, season: ${state.season}.)`,
+      `(Deer: ${deer}, ecology: ${Math.round(getEcosystemHealth(state))}, season: ${state.season}.)`,
     choices: [
       { id: 'reduce_hunting', label: 'Reduce hunting', detail: 'Ecology +6 now; the herd recovers in a few days.' },
       { id: 'preserve', label: `Create a preserve (${PRESERVE_WOOD_COST} wood)`, detail: 'Ecology +8, reputation +2.' },
@@ -133,7 +127,7 @@ export function resolveDeerParliament(state: WorldState, choiceId: string): bool
 
   switch (choiceId as DeerResponse) {
     case 'reduce_hunting':
-      setEco(state, eco(state) + 6);
+      adjustEcosystemHealth(state, +6);
       addBigNews(state, '🦌 The hunters stand down', 'Ecology improves as the hunt eases.', 'positive');
       break;
     case 'preserve': {
@@ -142,7 +136,7 @@ export function resolveDeerParliament(state: WorldState, choiceId: string): bool
         return false;
       }
       state.resources.wood -= PRESERVE_WOOD_COST;
-      setEco(state, eco(state) + 8);
+      adjustEcosystemHealth(state, +8);
       bumpVillageReputation(state, 2);
       addBigNews(state, '🌲 A preserve is marked', 'The woodland edge is set aside. Ecology +8, reputation +2.', 'positive');
       break;
@@ -152,7 +146,7 @@ export function resolveDeerParliament(state: WorldState, choiceId: string): bool
         addNotification(state, 'Not enough food', `A treaty gift needs ${TREATY_FOOD_COST} food.`, 'warning');
         return false;
       }
-      state.resources.food -= TREATY_FOOD_COST;
+      spendFood(state, 'treaty', TREATY_FOOD_COST);
       bumpVillageReputation(state, 3);
       addBigNews(state, '🤝 Treaty of the Woodland Edge', 'A basket of grain is left for the antlered speaker.', 'positive');
       break;
@@ -176,15 +170,15 @@ export function tickDeerParliament(state: WorldState): void {
 
   switch (storyFlag(state, FLAG_RESPONSE)) {
     case RESPONSE_CODES.reduce_hunting:
-      setEco(state, eco(state) + 2);
+      adjustEcosystemHealth(state, +2);
       addNotification(state, '🦌 The herd recovers', 'With the hunt eased, deer graze calmly.', 'success');
       break;
     case RESPONSE_CODES.preserve:
-      setEco(state, eco(state) + 2);
+      adjustEcosystemHealth(state, +2);
       addNotification(state, '🌲 The preserve takes hold', 'Wildflowers return inside the marked boundary.', 'success');
       break;
     case RESPONSE_CODES.ignore:
-      setEco(state, eco(state) - 3);
+      adjustEcosystemHealth(state, -3);
       addNotification(state, '🦌 Deer at the farm edge', 'Deer press at the farm edge — a visible reminder.', 'warning');
       break;
     default:

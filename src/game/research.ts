@@ -2,7 +2,7 @@ import type { ResearchNode, WorldState } from './gameTypes';
 import { BuildingType, BUILDING_CONFIGS, ResearchType } from './gameTypes';
 import { logEvent } from './eventLog';
 import { addNotification, impulseScreenShake } from './simEffects';
-import { getMultiplier } from './simHelpers';
+import { addReputation, getMultiplier } from './simHelpers';
 import { getEducationResearchMultiplier } from './education';
 import { isPlayerHuman } from './playerHuman';
 import { PER_TICK_RATE_SCALE } from './dayCycle';
@@ -143,7 +143,7 @@ export function updateResearch(state: WorldState) {
     syncResearchUnlocks(state);
 
     addNotification(state, 'Research Complete!', `${node.name} has been researched!`, 'success');
-    state.villageReputation = Math.min(100, state.villageReputation + 3);
+    addReputation(state, 3);
     notifyResearchCompletion(state, node);
     logEvent(state, 'research', `${node.name} researched`);
     impulseScreenShake(state, 3);

@@ -24,6 +24,11 @@ import {
 import { setWorkSchedule, validateWorkSchedule } from '../workSchedule';
 import { setVenueSchedule, validateVenueSchedule, type VenueScheduleKind } from '../venueSchedule';
 import {
+  isWorkforcePreset,
+  setWorkforcePolicy,
+  type WorkforcePreset,
+} from '../workforcePolicy';
+import {
   startBuilding,
   placeStripChain,
   assignIdleWorkerToBuilding,
@@ -96,7 +101,8 @@ export type WorkerCommand =
   | { proto: 1; op: 'hostTownFestival'; buildingId: number }
   | { proto: 1; op: 'spawnMoonHowlerDebug' }
   | { proto: 1; op: 'setWorkSchedule'; startHour: number; endHour: number }
-  | { proto: 1; op: 'setVenueSchedule'; venue: VenueScheduleKind; startHour: number; endHour: number };
+  | { proto: 1; op: 'setVenueSchedule'; venue: VenueScheduleKind; startHour: number; endHour: number }
+  | { proto: 1; op: 'setWorkforcePolicy'; preset: WorkforcePreset };
 
 const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'startBuilding',
@@ -136,6 +142,7 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'spawnMoonHowlerDebug',
   'setWorkSchedule',
   'setVenueSchedule',
+  'setWorkforcePolicy',
 ]);
 
 type MissingOps = Exclude<WorkerCommand['op'], typeof WORKER_COMMAND_OPS extends Set<infer T> ? T : never>;
@@ -247,6 +254,8 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       return validateWorkSchedule(cmd.startHour, cmd.endHour).ok;
     case 'setVenueSchedule':
       return (cmd.venue === 'tavern' || cmd.venue === 'hotel') && validateVenueSchedule(cmd.startHour, cmd.endHour).ok;
+    case 'setWorkforcePolicy':
+      return isWorkforcePreset(cmd.preset);
     case 'tameEntity':
       return isFiniteNumber(cmd.entityId) && isFiniteNumber(cmd.humanId);
     case 'notifyBuildingLocked':
@@ -396,6 +405,8 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return setWorkSchedule(world, cmd.startHour, cmd.endHour);
     case 'setVenueSchedule':
       return setVenueSchedule(world, cmd.venue, cmd.startHour, cmd.endHour);
+    case 'setWorkforcePolicy':
+      return setWorkforcePolicy(world, cmd.preset);
     default: {
       const unknown = cmd as { op?: string };
       console.warn('[WorkerCommand] Unknown op', unknown.op ?? '?');

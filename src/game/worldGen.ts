@@ -32,6 +32,7 @@ import {
 import { loadAutoSavePreference } from './preferences';
 import { INITIAL_CHALLENGES } from './challenges';
 import { Immigration } from './gameConstants';
+import { DEFAULT_WORKFORCE_POLICY } from './workforcePolicy';
 import { ensureNamesLoaded, getRandomName, getRandomSurname } from './nameLoader';
 import {
   getColonyDay,
@@ -52,6 +53,7 @@ import { getBuildingFootprint } from './buildingRotation';
 import { createEmptyLifetimeStats } from './stats';
 import { createGuidedCampaignState } from './guidedCampaign';
 import { spawnBlueberryTrees } from './blueberryForaging';
+import { computeStorageMax } from './economy';
 
 export { createEntity, finalizeSettlerAge } from './entityFactory';
 
@@ -244,12 +246,19 @@ export function createBuilding(
   };
 }
 
+/**
+ * Scatter `count` grass entities around `(cx, cy)`, mirroring `registerSpawnedWildlife`: every
+ * entity is pushed to `state.entities`, indexed, and then offered to `opts.onSpawn`. The daily
+ * layer passes the canonical `pushNewEntity` routing there, because the array it pushes into is
+ * replaced by `gameTick` at the end of the tick.
+ */
 export function spawnGrassPatch(
   state: WorldState,
   cx: number,
   cy: number,
   count: number,
   patchRadius = 80,
+  opts?: WildlifeSpawnOptions,
 ): void {
   const { width, height } = state;
   let spawned = 0;
@@ -273,6 +282,9 @@ export function spawnGrassPatch(
     );
     state.entities.push(grass);
     indexLivingEntity(state, grass);
+    if (opts?.onSpawn) {
+      opts.onSpawn(grass);
+    }
     spawned++;
   }
 }
@@ -360,11 +372,15 @@ export function replenishDepletedWildlife(
   if (needsGrass) {
     for (let p = 0; p < 7; p++) {
       const angle = (p / 7) * Math.PI * 2;
-      spawnGrassPatch(state, cx + Math.cos(angle) * 230, cy + Math.sin(angle) * 190, 14, 110);
+      spawnGrassPatch(state, cx + Math.cos(angle) * 230, cy + Math.sin(angle) * 190, 14, 110, { onSpawn });
     }
     grassReplenished = true;
   }
 
+  // The patches land in `state.entities` (the list `gameTick` replaces at the end of the tick) *and*,
+  // through `onSpawn` → `pushNewEntity`, in `ctx.newEntities`, which `gameTick` drains back into the
+  // authoritative entity list. So every patch counted here is a patch that really lands — the prey
+  // gate below no longer credits pasture that was thrown away (S-2).
   const grassAfterReplenish = needsGrass
     ? computeWildlifeCounts(state.entities).grass
     : grassCount;
@@ -577,13 +593,19 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   const width = options.width ?? dims.width;
   const height = options.height ?? dims.height;
 
-  console.log('🗺️ [WorldGen Test]', {
-    passedSize: options.size,
-    resolvedSize: size,
-    dimensions: `${width}x${height}`,
-  });
-
-  const storageMax = { wood: 1000, stone: 500, food: 1000, gold: 2000, iron: 500 };
+  // The caps a fresh colony starts with come from the *owner* (`economy.computeStorageMax`), the same
+  // rule `updateStorageCaps` applies every day. This used to be a second literal
+  // (`1000 / 500 / 1000 / 2000 / 500`) that disagreed with the rule's `800 / 300 / 800 / 20000 / 300`,
+  // and since the daily layer does not run until tick 72, that literal was the ceiling the player
+  // actually played the first days against — gold 10× too low, materials 25–67 % too high
+  // (2026-09-20 audit, F10).
+  //
+  // The empty list is literal rather than a placeholder: `initGame` builds `buildings: []` below and
+  // generation never adds one — nothing in this module pushes to `state.buildings` (the only writers
+  // are `buildingPlacementActions`, `groupEvents` and `rivalEvents`, all post-init) — so a fresh
+  // colony's real building set *is* the empty set. `updateStorageCaps` derives the same numbers on
+  // its first pass. Guarded by `tests/storageCap.bootstrap.test.ts`.
+  const storageMax = computeStorageMax([]);
 
   const state: WorldState = {
     entities: [],
@@ -614,6 +636,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     idleSettlers: 0,
     villageName: villageName || 'New Frontier',
     workSchedule: { startHour: 7, endHour: 16 },
+    workforcePolicy: DEFAULT_WORKFORCE_POLICY,
     villageReputation: 10,
     resources: {
       wood: Math.min(220, storageMax.wood),

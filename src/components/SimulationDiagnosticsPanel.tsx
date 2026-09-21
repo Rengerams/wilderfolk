@@ -1,6 +1,6 @@
 import { useEffect, useState, type RefObject } from 'react';
 import type { GameLoop, GameLoopDiagnostics } from '../game/gameLoop';
-import { EntityType } from '../game/gameTypes';
+import { isPlayerHuman } from '../game/playerHuman';
 
 export interface SimulationDiagnosticsPanelProps {
   loopRef: RefObject<GameLoop | null>;
@@ -36,7 +36,7 @@ function getLifecycleAlignment(loop: GameLoop | null): LifecycleAlignmentData {
 
   for (let i = 0; i < entities.length; i++) {
     const e = entities[i];
-    if (e.alive && e.type === EntityType.Human && !e.faction) {
+    if (e.alive && isPlayerHuman(e)) {
       humans.push(e);
     }
   }
@@ -114,8 +114,10 @@ export default function SimulationDiagnosticsPanel({
 
   // Poll diagnostics straight from the (latest) simulation loop. Reading the
   // loop through the ref inside the interval keeps this reactive to loop
-  // lifetime without touching refs during render.
+  // lifetime without touching refs during render. Gated on `open`: a collapsed
+  // section must not commit a fresh diagnostics object 4×/s.
   useEffect(() => {
+    if (!open) return;
     const refresh = () => {
       const loop = loopRef.current;
       if (!loop) {
@@ -132,7 +134,7 @@ export default function SimulationDiagnosticsPanel({
     refresh();
     const timer = window.setInterval(refresh, 250);
     return () => window.clearInterval(timer);
-  }, [loopRef]);
+  }, [loopRef, open]);
 
   // Throttled lifecycle alignment refresh (every 2s) while the panel is open.
   useEffect(() => {
