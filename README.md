@@ -50,7 +50,24 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ## Latest package — Wilderfolk v0.6.4
 
+> **v0.6.4 Windows package available** — download the standalone desktop installer from the [GitHub Release](https://github.com/Rengerams/wilderfolk/releases/tag/v0.6.4), or continue playtesting in your browser.
+
+### Choose how to play
+
+- **Windows desktop:** Download `Wilderfolk_0.6.4_x64-setup.exe` from the [GitHub Releases](https://github.com/Rengerams/wilderfolk/releases) page. The Tauri desktop build opens in a maximized window and does not require Chrome, Node.js, Rust, or the repository source.
+- **Browser:** Clone or download this repository, install the dependencies with `npm install`, and run `npm run dev`. Open the local URL shown by Vite in your browser.
+- **Developer desktop mode:** Run `npm run tauri:dev` for a separate Tauri window with hot reload, or `npm run tauri:dev:log` to also capture a timestamped development log under `logs/`. These commands are for development and are not required by installer users.
+
+
 **A standalone Windows desktop package is now available.** Download the recommended [`.exe` installer](https://github.com/Rengerams/wilderfolk/releases/download/v0.6.4/Wilderfolk_0.6.4_x64-setup.exe), or use the [`.msi` package](https://github.com/Rengerams/wilderfolk/releases/download/v0.6.4/Wilderfolk_0.6.4_x64_en-US.msi) for managed installation workflows. View the complete [GitHub Release v0.6.4](https://github.com/Rengerams/wilderfolk/releases/tag/v0.6.4) for release notes and both downloads.
+
+- **Recommended Windows installer:** [Download `Wilderfolk_0.6.4_x64-setup.exe`](https://github.com/Rengerams/wilderfolk/releases/download/v0.6.4/Wilderfolk_0.6.4_x64-setup.exe)
+- **MSI package:** [Download `Wilderfolk_0.6.4_x64_en-US.msi`](https://github.com/Rengerams/wilderfolk/releases/download/v0.6.4/Wilderfolk_0.6.4_x64_en-US.msi)
+- **Release notes:** [View GitHub Release v0.6.4](https://github.com/Rengerams/wilderfolk/releases/tag/v0.6.4)
+
+The browser version remains available for quick playtesting. Developers can use `npm run tauri:dev` for a separate desktop window with hot reload or `npm run tauri:dev:log` for timestamped development logging.
+
+This release is focused on desktop distribution. The terrain overhaul, Settler Inspector, Oracle advice system, connected formations, and weather-layer work remain separate development tracks.
 
 The desktop build runs in a separate maximized Tauri window and does not require Chrome, Node.js, Rust, or the repository source. The browser version remains available for development and quick playtesting.
 
@@ -73,13 +90,7 @@ Wilderfolk is gradually moving toward its **first proper release**, so ease of a
 
 ---
 
-> **v0.6.4 Windows package available** — download the standalone desktop installer from the [GitHub Release](https://github.com/Rengerams/wilderfolk/releases/tag/v0.6.4), or continue playtesting in your browser.
 
-### Choose how to play
-
-- **Windows desktop:** Download `Wilderfolk_0.6.4_x64-setup.exe` from the [GitHub Releases](https://github.com/Rengerams/wilderfolk/releases) page. The Tauri desktop build opens in a maximized window and does not require Chrome, Node.js, Rust, or the repository source.
-- **Browser:** Clone or download this repository, install the dependencies with `npm install`, and run `npm run dev`. Open the local URL shown by Vite in your browser.
-- **Developer desktop mode:** Run `npm run tauri:dev` for a separate Tauri window with hot reload, or `npm run tauri:dev:log` to also capture a timestamped development log under `logs/`. These commands are for development and are not required by installer users.
 
 | You get | Why it matters |
 |---------|----------------|
@@ -94,17 +105,8 @@ Wilderfolk is gradually moving toward its **first proper release**, so ease of a
 
 ---
 
-## Latest update — v0.6.4 (August 27, 2026)
 
-**Windows desktop distribution is now available.** The first standalone Wilderfolk package uses Tauri v2, opens in a maximized window, includes the Wilderfolk application icon, and is published with both `.exe` and `.msi` installers.
 
-- **Recommended Windows installer:** [Download `Wilderfolk_0.6.4_x64-setup.exe`](https://github.com/Rengerams/wilderfolk/releases/download/v0.6.4/Wilderfolk_0.6.4_x64-setup.exe)
-- **MSI package:** [Download `Wilderfolk_0.6.4_x64_en-US.msi`](https://github.com/Rengerams/wilderfolk/releases/download/v0.6.4/Wilderfolk_0.6.4_x64_en-US.msi)
-- **Release notes:** [View GitHub Release v0.6.4](https://github.com/Rengerams/wilderfolk/releases/tag/v0.6.4)
-
-The browser version remains available for quick playtesting. Developers can use `npm run tauri:dev` for a separate desktop window with hot reload or `npm run tauri:dev:log` for timestamped development logging.
-
-This release is focused on desktop distribution. The terrain overhaul, Settler Inspector, Oracle advice system, connected formations, and weather-layer work remain separate development tracks.
 
 - `GAME_VERSION`: **0.6.4**
 - Package version: **0.6.4**
