@@ -48,7 +48,10 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-## Latest package — Wilderfolk v0.6.4
+##  Wilderfolk v0.6.4
+- `GAME_VERSION`: **0.6.4**
+- Package version: **0.6.4**
+- Save policy: **0.6.4 saves only**; saves from earlier builds are not compatible.
 
 > **v0.6.4 Windows package available** — download the standalone desktop installer from the [GitHub Release](https://github.com/Rengerams/wilderfolk/releases/tag/v0.6.4), or continue playtesting in your browser.
 
@@ -90,8 +93,6 @@ Wilderfolk is gradually moving toward its **first proper release**, so ease of a
 
 ---
 
-
-
 | You get | Why it matters |
 |---------|----------------|
 | **Living food chain** | Grass, prey, predators, and your village share one ecology — balance or collapse |
@@ -102,15 +103,6 @@ Wilderfolk is gradually moving toward its **first proper release**, so ease of a
 | **Sandbox with goals** | No forced win conditions — optional challenges reward milestones, and a living village portrait writes your story as you play |
 
 **Don't kill all the wolves.** Seriously. That's the whole game in one sentence.
-
----
-
-
-
-
-- `GAME_VERSION`: **0.6.4**
-- Package version: **0.6.4**
-- Save policy: **0.6.4 saves only**; saves from earlier builds are not compatible.
 
 ---
 
