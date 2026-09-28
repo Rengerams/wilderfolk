@@ -1,0 +1,384 @@
+import type { Entity, Resources, TradeRoute, WorldState } from './gameTypes';
+import { BuildingType, EntityType, JobType } from './gameTypes';
+import { EVENT_INTERVAL, ticksForDays } from './dayCycle';
+import { getPlayerCampCenter } from './frontierCombat';
+import { addFloatingText, addNotification } from './simEffects';
+import { getMultiplier } from './simHelpers';
+import { addResource } from './resourceUtils';
+import { spendFood } from './economyLedger';
+import { getTownHallTradeMultiplier } from './townHall';
+import { logEvent } from './eventLog';
+import { createEntity } from './entityFactory';
+import { ensureEntityByIdMap, unindexEntityFromState } from './entityIndex';
+import { pushNewEntity } from './simulation/simulationEntities';
+import type { TickContext } from './simulation/simulationTypes';
+
+/** Long-range trade routes require a completed player Market (EC-4). */
+export function hasCompletedMarket(state: WorldState): boolean {
+  return state.buildings.some(
+    (b) => b.completed && b.faction !== 'rival' && b.type === BuildingType.Market,
+  );
+}
+
+export const TRADE_CARAVAN_ARRIVAL_DIST = 28;
+function getPartnerWaitTicks(): number {
+  return ticksForDays(1);
+}
+function getFirstCaravanDelay(): number {
+  return ticksForDays(2);
+}
+
+export type TradeCaravanLeg = 'outbound' | 'at_partner' | 'inbound';
+
+function tradeMultiplier(state: WorldState): number {
+  return getMultiplier(state, 'trade_bonus') * getTownHallTradeMultiplier(state, state.buildings);
+}
+
+export function getDefaultPartnerPosition(state: WorldState, index: number): { x: number; y: number } {
+  const margin = 90;
+  const anchors = [
+    { x: margin, y: margin },
+    { x: state.width - margin, y: margin },
+    { x: margin, y: state.height - margin },
+    { x: state.width - margin, y: state.height - margin },
+    { x: state.width * 0.5, y: margin },
+    { x: state.width - margin, y: state.height * 0.5 },
+    { x: margin, y: state.height * 0.5 },
+  ];
+  return anchors[index % anchors.length];
+}
+
+export function getTradeHubCenter(state: WorldState): { x: number; y: number } {
+  const hubTypes = [BuildingType.Market, BuildingType.Store, BuildingType.TownHall, BuildingType.Workshop];
+  for (const type of hubTypes) {
+    const building = state.buildings.find((b) => b.completed && b.faction !== 'rival' && b.type === type);
+    if (building) {
+      return { x: building.x + building.width / 2, y: building.y + building.height / 2 };
+    }
+  }
+  return getPlayerCampCenter(state, state.buildings);
+}
+
+export function enrichTradeRoute(route: TradeRoute, state: WorldState, index: number): void {
+  if (route.partnerX == null || route.partnerY == null) {
+    const pos = getDefaultPartnerPosition(state, index);
+    route.partnerX = pos.x;
+    route.partnerY = pos.y;
+  }
+  route.caravansCompleted ??= 0;
+}
+
+function canAffordExports(state: WorldState, route: TradeRoute): boolean {
+  return state.resources.wood >= route.resourcesGiven.wood
+    && state.resources.stone >= route.resourcesGiven.stone
+    && state.resources.food >= route.resourcesGiven.food
+    && state.resources.gold >= route.resourcesGiven.gold
+    && state.resources.iron >= (route.resourcesGiven.iron ?? 0);
+}
+
+function canStoreImports(state: WorldState, route: TradeRoute, mult: number): boolean {
+  const receives: { key: keyof Resources; amount: number }[] = [
+    { key: 'wood', amount: Math.floor(route.resourcesReceived.wood * mult) },
+    { key: 'stone', amount: Math.floor(route.resourcesReceived.stone * mult) },
+    { key: 'food', amount: Math.floor(route.resourcesReceived.food * mult) },
+    { key: 'gold', amount: Math.floor(route.resourcesReceived.gold * mult) },
+    // Iron is a real fifth resource and Ironport (trade_3) is its only trade source: omitting
+    // it here let a round trip complete into a full iron store, where `addCappedResource`
+    // silently clamped the cargo away (BUG_REPORTS/2026-09-17-trade-imports-drop-iron.md).
+    { key: 'iron', amount: Math.floor(route.resourcesReceived.iron * mult) },
+  ];
+  for (const r of receives) {
+    if (r.amount <= 0) continue;
+    const current = state.resources[r.key] as number;
+    const max = state.storageMax[r.key] as number;
+    if (current + r.amount > max) return false;
+  }
+  return true;
+}
+
+function deductExports(state: WorldState, route: TradeRoute): void {
+  state.resources.wood -= route.resourcesGiven.wood;
+  state.resources.stone -= route.resourcesGiven.stone;
+  spendFood(state, 'trade', route.resourcesGiven.food);
+  state.resources.gold -= route.resourcesGiven.gold;
+  if ((route.resourcesGiven.iron ?? 0) > 0) {
+    state.resources.iron -= route.resourcesGiven.iron;
+  }
+}
+
+function applyImports(state: WorldState, route: TradeRoute, mult: number): number {
+  let goldGained = 0;
+  const recvWood = Math.floor(route.resourcesReceived.wood * mult);
+  const recvStone = Math.floor(route.resourcesReceived.stone * mult);
+  const recvFood = Math.floor(route.resourcesReceived.food * mult);
+  const recvGold = Math.floor(route.resourcesReceived.gold * mult);
+  // Every non-zero field of `resourcesReceived` must actually be credited — see the iron note
+  // in `canStoreImports` above.
+  const recvIron = Math.floor(route.resourcesReceived.iron * mult);
+
+  if (recvWood > 0) addResource(state, 'wood', recvWood);
+  if (recvStone > 0) addResource(state, 'stone', recvStone);
+  if (recvFood > 0) addResource(state, 'food', recvFood);
+  if (recvGold > 0) goldGained = addResource(state, 'gold', recvGold);
+  if (recvIron > 0) addResource(state, 'iron', recvIron);
+  return goldGained;
+}
+
+function removeCarrier(state: WorldState, route: TradeRoute, entity: Entity): void {
+  entity.alive = false;
+  unindexEntityFromState(state, entity.id);
+  entity.residenceBuildingId = undefined;
+  entity.homeBuildingId = undefined;
+  const idx = state.entities.findIndex((e) => e.id === entity.id);
+  if (idx >= 0) state.entities.splice(idx, 1);
+  route.caravanCarrierId = undefined;
+  route.caravanLeg = undefined;
+  route.caravanWaitTicks = undefined;
+}
+
+export function scheduleTradeRouteDeparture(
+  state: WorldState,
+  route: TradeRoute,
+  delayTicks = EVENT_INTERVAL.tradeRoute,
+): void {
+  route.nextDepartureTick = state.tick + delayTicks;
+}
+
+/**
+ * Whether `establishTradeRoute` would actually open this route: the route
+ * exists, is not already open, a completed player Market stands, and the
+ * colony's reputation meets the route's requirement.
+ *
+ * Single definition of the route rule, shared with the auto-play bot
+ * (`virtualPlayer.ts`), so the bot never claims an in-game hour with a route the
+ * owner would refuse.
+ */
+/**
+ * A route that only *buys* materials with coin — gold out, materials in, no gold back.
+ *
+ * These are the colony's way out of an empty larder or an empty timber pile, so they are
+ * allowed to skip the Market requirement below: a Market costs 50 wood and 20 stone, which
+ * is precisely what a colony that needs this route does not have. Without the exception the
+ * only way back was a passing visitor caravan.
+ */
+export function isMaterialPurchaseRoute(route: TradeRoute): boolean {
+  const givesGoldOnly =
+    route.resourcesGiven.gold > 0
+    && route.resourcesGiven.wood === 0
+    && route.resourcesGiven.stone === 0
+    && route.resourcesGiven.food === 0
+    && route.resourcesGiven.iron === 0;
+  const receivesMaterials =
+    route.resourcesReceived.wood > 0
+    || route.resourcesReceived.stone > 0
+    || route.resourcesReceived.food > 0;
+  return givesGoldOnly && receivesMaterials && route.resourcesReceived.gold === 0;
+}
+
+export function canEstablishTradeRoute(
+  state: WorldState,
+  routeId: string,
+): { ok: boolean; blockReason?: string } {
+  const route = (state.tradeRoutes ?? []).find((r) => r.id === routeId);
+  if (!route) return { ok: false, blockReason: 'No such trade route' };
+  if (route.active) return { ok: false, blockReason: 'Route already established' };
+  if (!hasCompletedMarket(state) && !isMaterialPurchaseRoute(route)) {
+    return { ok: false, blockReason: 'Build a Market before establishing trade routes' };
+  }
+  if (state.villageReputation < route.reputationRequired) {
+    return { ok: false, blockReason: `Need ${route.reputationRequired} reputation` };
+  }
+  return { ok: true };
+}
+
+export function establishTradeRoute(state: WorldState, routeId: string): WorldState {
+  const s = structuredClone(state);
+  const route = s.tradeRoutes.find(r => r.id === routeId);
+  if (!route || route.active) return s;
+
+  const eligibility = canEstablishTradeRoute(state, routeId);
+  if (!eligibility.ok) {
+    addNotification(s, 'Trade Failed', eligibility.blockReason ?? 'Cannot establish this route', 'warning');
+    return s;
+  }
+
+  route.active = true;
+  s.lifetimeStats = {
+    ...s.lifetimeStats,
+    tradeRoutesEstablished: s.lifetimeStats.tradeRoutesEstablished + 1,
+  };
+  onTradeRouteEstablished(s, routeId);
+  addNotification(s, 'Trade Route Established', `Merchants will walk to ${route.targetName} and back!`, 'success');
+  return s;
+}
+
+export function onTradeRouteEstablished(state: WorldState, routeId: string): void {
+  const route = state.tradeRoutes.find((r) => r.id === routeId);
+  if (!route) return;
+  const idx = state.tradeRoutes.findIndex((r) => r.id === routeId);
+  enrichTradeRoute(route, state, idx);
+  scheduleTradeRouteDeparture(state, route, getFirstCaravanDelay());
+  logEvent(
+    state,
+    'trade',
+    `Caravans will walk to ${route.targetName} and back — first merchant departs soon`,
+    route.targetName,
+  );
+}
+
+function spawnCaravan(state: WorldState, route: TradeRoute, ctx: TickContext): boolean {
+  if (!canAffordExports(state, route)) {
+    addFloatingText(
+      state,
+      state.width / 2,
+      state.height / 2,
+      `Caravan to ${route.targetName} waiting — missing export goods`,
+      '#ef4444',
+    );
+    scheduleTradeRouteDeparture(state, route, EVENT_INTERVAL.tradeRoute / 2);
+    return false;
+  }
+
+  // ER-12: reserve the export goods at departure — the caravan physically loads
+  // them (no double-spend window, no empty-hand walks). If the carrier dies en
+  // route the goods are lost (deliberate: no refund; the route restarts and the
+  // next departure pays again).
+  deductExports(state, route);
+
+  const hub = getTradeHubCenter(state);
+  const carrier = createEntity(EntityType.Human, hub.x, hub.y, state.nextEntityId++, 300, false, {
+    name: `${route.targetName} trader`,
+    gender: 'male',
+  });
+  carrier.job = JobType.Merchant;
+  carrier.faction = 'trade_caravan';
+  carrier.groupId = route.id;
+  carrier.occupation = 'merchant';
+  carrier.residenceBuildingId = undefined;
+  carrier.homeBuildingId = undefined;
+  carrier.relationshipStatus = 'single';
+  carrier.reproductionCooldown = 9999;
+  // The carrier must go through the tick's canonical spawn path. Pushing it into
+  // `state.entities` alone lost it: `gameTick` rebuilds `state.entities` from the
+  // `allAlive` snapshot it built for this tick (plus `ctx.newEntities`), so a carrier
+  // created in the systems layer was dropped in the same tick it departed — the route
+  // then saw "no active carrier" again and the caravan could never travel.
+  // `pushNewEntity` also indexes it by id and adds it to the mobile spatial grid.
+  pushNewEntity(state, ctx, carrier);
+  route.caravanCarrierId = carrier.id;
+  route.caravanLeg = 'outbound';
+  route.caravanWaitTicks = 0;
+  addFloatingText(state, hub.x, hub.y - 24, `🚚 → ${route.targetName}`, '#fbbf24');
+  logEvent(state, 'trade', `Caravan departed for ${route.targetName}`, carrier.name);
+  return true;
+}
+
+function hasActiveCarrier(state: WorldState, route: TradeRoute): boolean {
+  if (route.caravanCarrierId == null) return false;
+  // `entityById` is the canonical id → living-entity map for this world (built from `state.entities`
+  // and kept in sync by `pushNewEntity` / the death paths). The previous form was a
+  // `state.entities.some(e => e.alive && e.id === id)` scan, once per active trade route on every
+  // systems pulse — 18 times a day — over every living entity including grass and trees. The original
+  // scan is kept as the map-miss fallback (`hotelStay`'s precedent) so an unindexed carrier is still
+  // found. `?.alive` rather than a bare `has()`: `buildingPlacementActions` clears `alive` on a
+  // demolished building's occupants without unindexing them, so the map can hold a corpse.
+  const carrierId = route.caravanCarrierId;
+  const indexed = ensureEntityByIdMap(state).get(carrierId);
+  if (indexed) return indexed.alive;
+  return state.entities.some((e) => e.alive && e.id === carrierId);
+}
+
+export function tickTradeCaravans(state: WorldState, ctx: TickContext): void {
+  for (let i = 0; i < state.tradeRoutes.length; i++) {
+    const route = state.tradeRoutes[i];
+    if (!route.active) continue;
+    enrichTradeRoute(route, state, i);
+
+    if (!hasActiveCarrier(state, route)) {
+      route.caravanCarrierId = undefined;
+      route.caravanLeg = undefined;
+      route.caravanWaitTicks = undefined;
+      if (route.nextDepartureTick == null) {
+        scheduleTradeRouteDeparture(state, route);
+      }
+      if (state.tick >= (route.nextDepartureTick ?? 0)) {
+        if (spawnCaravan(state, route, ctx)) {
+          route.nextDepartureTick = undefined;
+        }
+      }
+    }
+  }
+}
+
+export function getCaravanMoveTarget(
+  state: WorldState,
+  entity: Entity,
+): { x: number; y: number; speedMult: number } | null {
+  const route = state.tradeRoutes.find((r) => r.id === entity.groupId && r.active);
+  if (!route || route.partnerX == null || route.partnerY == null) return null;
+
+  const leg = route.caravanLeg ?? 'outbound';
+  if (leg === 'outbound' || leg === 'at_partner') {
+    return { x: route.partnerX, y: route.partnerY, speedMult: 0.48 };
+  }
+  const hub = getTradeHubCenter(state);
+  return { x: hub.x, y: hub.y, speedMult: 0.52 };
+}
+
+export function tryAdvanceCaravanLeg(state: WorldState, entity: Entity): void {
+  const route = state.tradeRoutes.find((r) => r.id === entity.groupId && r.active);
+  if (!route || route.partnerX == null || route.partnerY == null) return;
+
+  const hub = getTradeHubCenter(state);
+  const leg = route.caravanLeg ?? 'outbound';
+  const mult = tradeMultiplier(state);
+
+  if (leg === 'outbound') {
+    const dist = Math.hypot(route.partnerX - entity.x, route.partnerY - entity.y);
+    if (dist > TRADE_CARAVAN_ARRIVAL_DIST) return;
+    route.caravanLeg = 'at_partner';
+    route.caravanWaitTicks = getPartnerWaitTicks();
+    addFloatingText(state, entity.x, entity.y - 20, `📦 At ${route.targetName}`, '#fbbf24');
+    return;
+  }
+
+  if (leg === 'at_partner') {
+    route.caravanWaitTicks = Math.max(0, (route.caravanWaitTicks ?? 0) - 1);
+    if ((route.caravanWaitTicks ?? 0) > 0) return;
+
+    // ER-12: exports were already reserved at departure — only imports need room.
+    if (!canStoreImports(state, route, mult)) {
+      addFloatingText(state, entity.x, entity.y - 16, 'Partner holding cargo — storage full', '#ef4444');
+      route.caravanWaitTicks = EVENT_INTERVAL.tradeRoute / 4;
+      return;
+    }
+
+    route.caravanLeg = 'inbound';
+    route.caravanWaitTicks = 0;
+    addFloatingText(state, entity.x, entity.y - 20, '🚚 Returning home…', '#a3e635');
+    return;
+  }
+
+  if (leg === 'inbound') {
+    const dist = Math.hypot(hub.x - entity.x, hub.y - entity.y);
+    if (dist > TRADE_CARAVAN_ARRIVAL_DIST) return;
+
+    const goldGained = applyImports(state, route, mult);
+    route.caravansCompleted = (route.caravansCompleted ?? 0) + 1;
+    state.lifetimeStats = {
+      ...state.lifetimeStats,
+      tradeCaravansCompleted: state.lifetimeStats.tradeCaravansCompleted + 1,
+      goldFromTradeRoutes: state.lifetimeStats.goldFromTradeRoutes + goldGained,
+    };
+
+    addNotification(
+      state,
+      'Caravan returned',
+      `${route.targetName} — round trip complete (+${goldGained > 0 ? `${goldGained}g` : 'goods'})`,
+      'success',
+    );
+    logEvent(state, 'trade', `Caravan returned from ${route.targetName} (trip #${route.caravansCompleted})`, entity.name);
+    removeCarrier(state, route, entity);
+    scheduleTradeRouteDeparture(state, route);
+  }
+}

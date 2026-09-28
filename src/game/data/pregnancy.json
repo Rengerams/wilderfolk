@@ -1,0 +1,334 @@
+{
+  "version": "1.3",
+  "game": "Wilderfolk Sim",
+  "category": "pregnancy",
+  "dialogue_trees": [
+    {
+      "id": "wf_pregnant_father_happy",
+      "category": "pregnancy",
+      "conversation_type": "one_way",
+      "speakers": [
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I'm so happy to be a dad! Terrified, but happy!"
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_mother_waddle",
+      "category": "pregnancy",
+      "conversation_type": "one_way",
+      "speakers": [
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "I don't walk anymore. I simply exert gravitational pull in a forward direction."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_partner_diapers",
+      "category": "pregnancy",
+      "conversation_type": "one_way",
+      "speakers": [
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I just folded 60 cloth diapers. I am either ready for a baby or opening a car wash."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_partner_woodworking",
+      "category": "pregnancy",
+      "conversation_type": "one_way",
+      "speakers": [
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I sanded this wooden rattle for four hours. It is smoother than my own life choices."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_kicking",
+      "category": "pregnancy",
+      "conversation_type": "two_way",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "The baby is kicking up a storm tonight."
+        },
+        {
+          "speaker": "partner",
+          "text": "Wait, did the baby kick? Or is that my heart palpitating at the thought of parenthood?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "That was definitely the baby. Your heart is just doing the cha-cha."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_karate",
+      "category": "pregnancy",
+      "conversation_type": "two_way",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "I think the baby is practicing martial arts in there."
+        },
+        {
+          "speaker": "partner",
+          "text": "A future village defender! Or a very tiny percussionist."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Either way, my ribs are their favorite drum."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_cradle",
+      "category": "pregnancy",
+      "conversation_type": "two_way",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I finished carving the cradle by the window."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "It's beautiful. Though I'm pretty sure you measured it for a hobbit."
+        },
+        {
+          "speaker": "partner",
+          "text": "Hobbits are sturdy! It builds character. And saves on lumber."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_sleep",
+      "category": "pregnancy",
+      "conversation_type": "two_way",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "Soon we won't be sleeping through the night for a year."
+        },
+        {
+          "speaker": "partner",
+          "text": "Nonsense. I've trained for this by staying up late. I am a machine of the night."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "A machine that cries when the fire goes out. We're doomed."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_pillows",
+      "category": "pregnancy",
+      "conversation_type": "two_way",
+      "speakers": [
+        "partner",
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "There are currently eleven pillows in this bed and I am clinging to the edge of the mattress."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "The baby required a tactical pillow fortress."
+        },
+        {
+          "speaker": "partner",
+          "text": "I am sleeping in a trench."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Your sacrifice is noted and appreciated."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_nesting",
+      "category": "pregnancy",
+      "conversation_type": "two_way",
+      "speakers": [
+        "partner",
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "Did the kitchen table move across the room, or am I dreaming?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "The feng shui was wrong for birth. The cupboard was giving off negative vibes."
+        },
+        {
+          "speaker": "partner",
+          "text": "It's a wooden box with dry beans in it."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Judgmental beans."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_cravings",
+      "category": "pregnancy",
+      "conversation_type": "two_way",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "I need pickles and honey. Together. Right now."
+        },
+        {
+          "speaker": "partner",
+          "text": "I'll get the jar. Do we summon a wizard for this ritual or is the kitchen fine?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Just the kitchen. And don't judge me."
+        },
+        {
+          "speaker": "partner",
+          "text": "Never. I'm currently eating raw bread dough in solidarity."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_names",
+      "category": "pregnancy",
+      "speakers": [
+        "partner",
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I've been thinking about names. What about 'Barnaby'?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Barnaby? We are not naming our child after a 19th-century circus bear."
+        },
+        {
+          "speaker": "partner",
+          "text": "Fine. What about 'Sir Barnaby the Brave'?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "I'm going to sleep in the barn."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_panic",
+      "category": "pregnancy",
+      "conversation_type": "two_way",
+      "speakers": [
+        "partner",
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I don't know how to hold a baby. Do they come with a tutorial level?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "They come with a high-volume alarm and no mute button."
+        },
+        {
+          "speaker": "partner",
+          "text": "Great. I'll go practice holding a watermelon. Wish me luck."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_emergency_bag",
+      "category": "pregnancy",
+      "conversation_type": "two_way",
+      "speakers": [
+        "partner",
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I packed the emergency satchel: clean linen, herbal tea, and three lucky pebbles."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Why three pebbles?"
+        },
+        {
+          "speaker": "partner",
+          "text": "In case we need to bribe a forest gnome for medical advice."
+        }
+      ]
+    },
+    {
+      "id": "wf_pregnant_neighbor_advice",
+      "category": "pregnancy",
+      "conversation_type": "two_way",
+      "speakers": [
+        "neighbor",
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "neighbor",
+          "text": "If you carry high, it's a girl. If you carry low, it's a boy."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "I am currently carrying in all four cardinal directions."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Ah. Congratulations on expecting a compass."
+        }
+      ]
+    }
+  ],
+  "categories": [
+    "pregnancy"
+  ]
+}

@@ -1,0 +1,64 @@
+Wilderfolk Permission-Required License
+
+Copyright (c) 2026 Renffr
+
+This license applies to the Wilderfolk source code and original Wilderfolk
+materials in this repository, unless a file or directory states otherwise.
+
+1. Permission requirement
+
+You may view, download, and evaluate this repository for the purpose of
+considering Wilderfolk or requesting permission to use it. You may not use,
+copy, reproduce, modify, adapt, merge, publish, distribute, sublicense, sell,
+redistribute, or incorporate any part of the Wilderfolk source code or original
+Wilderfolk materials into another project without prior written permission from
+the copyright holder.
+
+Permission must be requested before use. A request should identify the person
+or organization requesting permission, the specific files or materials, the
+intended use, whether the use is commercial, and the planned distribution.
+Permission may be granted, denied, or granted subject to additional conditions.
+A response or acknowledgement is not permission unless it clearly grants the
+requested use.
+
+2. Attribution and conditions
+
+If written permission is granted, you must retain the copyright notice and
+identify Wilderfolk and its copyright holder in the manner specified by the
+permission. You must comply with any conditions included in the permission.
+Permission for one use does not automatically grant permission for another use,
+another project, or another recipient.
+
+3. Third-party materials
+
+Third-party assets and dependencies are not covered by this license. They
+remain subject to their own licenses and attribution requirements. See
+THIRD_PARTY_NOTICES.md and the relevant asset or dependency metadata before
+requesting or making any use of them.
+
+4. No implied rights
+
+Except for the limited right to view, download, and evaluate the repository as
+described above, no license or other rights are granted, whether expressly,
+implicitly, by estoppel, or otherwise. This license does not grant trademark,
+patent, publicity, or other rights.
+
+5. Disclaimer
+
+THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. TO THE MAXIMUM EXTENT
+PERMITTED BY LAW, THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY CLAIM,
+DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE
+MATERIALS OR THEIR USE.
+
+6. Permission requests
+
+To request permission, open an issue in the Wilderfolk repository or contact
+the repository owner through GitHub:
+
+https://github.com/Rengerams/wilderfolk
+
+This license is a project-specific permission notice, not a standard
+open-source license. Please have a qualified lawyer review it before relying
+on it for an enforcement or distribution decision.

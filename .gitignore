@@ -1,0 +1,92 @@
+# Runtime and development logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+log.txt
+Session.txt
+Wilderfolk.txt
+References.md
+circulair.txt
+AGENTS.MD
+# Dependencies and build output
+node_modules/
+dist/
+dist-ssr/
+target/
+tests/*
+src-tauri/target/
+src-tauri/
+src-tauri/gen/schemas/
+*.tsbuildinfo
+docs/
+# Generated analysis output
+dependency-graph.dot
+dependency-graph.svg
+references.md
+AGENTS.MD
+.git
+
+BUG_TRACKER.md
+TERAFORGE.md
+GIT_SURVIVAL_GUIDE.md
+# Local configuration and generated tooling files
+*.local
+*.gypi
+tmp/
+.deepcode/
+.agents/
+.codex/
+*.py
+src-tauri/
+GIT_SURVIVAL_GUIDE.md
+TERAFORGE.md
+terminals/
+tools/
+
+# Editor and operating-system files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.lnk
+
+# Local-only working directories and test artifacts
+tmp/
+playtest/
+test-results/
+playwright-report/
+.bug-hunter/
+kimi/
+daimon-share/
+genie-rms/
+deepcode/
+agents/
+tests/
+scripts/
+
+# Local/private design documents; public docs remain trackable
+docs/private/
+docs/superpowers/
+
+# Large or local-only sprite source tree; already-tracked sprites remain tracked
+
+
+# Git worktrees
+.worktrees/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+skills/
+

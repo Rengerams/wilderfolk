@@ -1,0 +1,184 @@
+import { BuildingType, JobType } from './gameTypes';
+import type { Building, WorldState } from './gameTypes';
+import { isImprisoned } from './dayCycle';
+import { ensureEntityByIdMap } from './entityIndex';
+import { FORGE_BONUSES, isForgeOrderComplete } from './forge';
+import type { VillageForgeState } from './gameTypes';
+
+/** Tuned July 2026 — spear/militia balance review (10-year sim targets). */
+export const MILITIA_BALANCE = {
+  basePerAdult: 10,
+  /** Higher weapon tiers replace lower — not multiplied together. */
+  stoneSpearMult: 1.3,
+  ironSpearMult: 1.52,
+  ironSwordMult: 1.72,
+  /** Higher armor tiers replace lower — per-adult additive, not stacked. */
+  woodenShieldPerAdult: 4,
+  ironShieldPerAdult: 9,
+  scaleMailPerAdult: 14,
+  /**
+   * Trained barracks guards — bonus ON TOP of their adult base.
+   * Guards ARE counted in adultCount, so they receive base (10) + this bonus.
+   */
+  guardBonusPerGuard: 14,
+  /**
+   * Barricade factor: militia strength is multiplied by this when entrenched.
+   * 0.85 represents a deliberate trade-off — barricades reduce mobility
+   * but add a flat bonus + structure defenses.
+   */
+  barricadeMilitiaFactor: 0.85,
+  barricadeFlatBonus: 25,
+} as const;
+
+const EMPTY_FORGE: VillageForgeState = {
+  activeOrder: null,
+  progress: 0,
+  completed: {},
+};
+
+const WALL_TYPES = new Set<BuildingType>([
+  BuildingType.Wall,
+  BuildingType.WallGate,
+]);
+
+export function isWallBuildingType(type: BuildingType): boolean {
+  return WALL_TYPES.has(type);
+}
+
+export function countCompletedDefenseBuildings(
+  buildings: Building[],
+  types: BuildingType | BuildingType[],
+): number {
+  if (!buildings?.length) return 0;
+  const wanted = Array.isArray(types) ? new Set(types) : new Set([types]);
+  return buildings.filter(
+    (b) => b.completed && b.faction !== 'rival' && wanted.has(b.type),
+  ).length;
+}
+
+/** Hard cap on the wall-segment militia bonus; forged wall plates raise it (`FORGE_BONUSES`). */
+export const WALL_SEGMENT_BASE_CAP = 72;
+
+/**
+ * Barricade strength one completed wall segment (or gate) adds before forged wall plates.
+ *
+ * Exported because the inspector's building hint re-typed the `8` and the `+72` cap as prose, so
+ * after a wall-plate forge the hint promised "+8 / max +72" while the forge panel read "+4 / max +96"
+ * — two panels in one session contradicting each other (audit C2 "Building output/tuning copy").
+ */
+export const WALL_SEGMENT_BASE_BONUS = 8;
+
+/** Barricade strength one completed watchtower adds before forged tower ballistae replace it. */
+export const WATCHTOWER_BASE_BONUS = 15;
+
+/**
+ * The wall-segment bonus cap for the current forge state — the single definition behind the
+ * bonus itself and both break-down labels. The audit's L47 was a label that hardcoded +72 while
+ * this function's own arithmetic could reach +96 with wall plates forged.
+ */
+export function getWallSegmentCap(state?: Pick<WorldState, 'villageForge'>): number {
+  return state && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'wall_plates')
+    ? FORGE_BONUSES.wallPlateCap
+    : WALL_SEGMENT_BASE_CAP;
+}
+
+export function getWallSegmentBonus(
+  buildings: Building[],
+  state?: Pick<WorldState, 'villageForge'>,
+): number {
+  if (!buildings?.length) return 0;
+  const segments = countCompletedDefenseBuildings(buildings, [
+    BuildingType.Wall,
+    BuildingType.WallGate,
+  ]);
+  if (segments === 0) return 0;
+
+  const hasPlates = state && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'wall_plates');
+  const perSegment = WALL_SEGMENT_BASE_BONUS + (hasPlates ? FORGE_BONUSES.wallPlatePerSegment : 0);
+  return Math.min(getWallSegmentCap(state), segments * perSegment);
+}
+
+export function getWatchtowerBonus(
+  buildings: Building[],
+  state?: Pick<WorldState, 'villageForge'>,
+): number {
+  if (!buildings?.length) return 0;
+  const towers = countCompletedDefenseBuildings(buildings, BuildingType.Watchtower);
+  if (towers === 0) return 0;
+  const ballistae = state && isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'tower_ballistae');
+  const perTower = ballistae ? FORGE_BONUSES.towerBallistaTotalPerTower : WATCHTOWER_BASE_BONUS;
+  return towers * perTower;
+}
+
+/**
+ * Pure counter — returns how many live, non-imprisoned guards are stationed
+ * in completed barracks. Does NOT mutate buildings.
+ */
+export function getBarracksGuardCount(state: WorldState, buildings: Building[]): number {
+  if (!state?.entities || !buildings?.length) return 0;
+
+  // O(1) lookup instead of O(n) find inside a nested loop
+  const entityById = ensureEntityByIdMap(state);
+  let guards = 0;
+
+  for (const b of buildings) {
+    if (!b.completed || b.type !== BuildingType.Barracks || b.faction === 'rival') continue;
+    if (!b.occupants?.length) continue;
+
+    for (const humanId of b.occupants) {
+      const human = entityById.get(humanId);
+      if (human && human.alive && human.job === JobType.Soldier && !isImprisoned(human)) {
+        guards += 1;
+      }
+    }
+  }
+  return guards;
+}
+
+export function getBarracksGuardBonus(state: WorldState, buildings: Building[]): number {
+  const guards = getBarracksGuardCount(state, buildings);
+  if (guards === 0) return 0;
+
+  const perGuard = MILITIA_BALANCE.guardBonusPerGuard + (
+    isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'guard_halberds')
+      ? FORGE_BONUSES.guardHalberdPerGuard
+      : 0
+  );
+  return guards * perGuard;
+}
+
+export function getDefenseStructureBreakdown(state: WorldState, buildings: Building[]): string[] {
+  const lines: string[] = [];
+  const walls = countCompletedDefenseBuildings(buildings, [
+    BuildingType.Wall,
+    BuildingType.WallGate,
+  ]);
+  const wallBonus = getWallSegmentBonus(buildings, state);
+  if (walls > 0) {
+    lines.push(`+ ${wallBonus} wall segments (${walls} built, max +${getWallSegmentCap(state)})`);
+  }
+  const towers = countCompletedDefenseBuildings(buildings, BuildingType.Watchtower);
+  const towerBonus = getWatchtowerBonus(buildings, state);
+  if (towers > 0) {
+    const ballistae = isForgeOrderComplete(state.villageForge ?? EMPTY_FORGE, 'tower_ballistae');
+    lines.push(`+ ${towerBonus} watchtowers (${towers}${ballistae ? ', ballistae' : ''})`);
+  }
+  const guards = getBarracksGuardCount(state, buildings);
+  const guardBonus = getBarracksGuardBonus(state, buildings);
+  if (guards > 0) {
+    lines.push(`+ ${guardBonus} barracks guards (${guards} staffed)`);
+  }
+  return lines;
+}
+
+export function isBarracksGuard(
+  humanId: number,
+  homeBuildingId: number | null | undefined,
+  buildings: Building[],
+): boolean {
+  if (homeBuildingId == null) return false;
+  const workplace = buildings.find((b) => b.id === homeBuildingId);
+  return !!workplace?.completed
+    && workplace.type === BuildingType.Barracks
+    && workplace.occupants?.includes(humanId) === true;
+}

@@ -1,0 +1,528 @@
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
+import { describeSaveCompatibility } from '../game/saveLoad';
+import { getFocusableElements } from '../hooks/useModalFocus';
+import { AUTO_SAVE_INTERVAL_MS } from '../hooks/useGamePersistence';
+import { TICKS_PER_DAY } from '../game/dayCycle';
+
+export type VolumePreset = 'soft' | 'normal' | 'loud';
+type MenuView = 'main' | 'settings' | 'graphics' | 'about';
+
+/**
+ * The save/settings callback tail the menu and the header both accept — one owner, so the pass-through
+ * between them cannot drift into two declarations of the same contract (C1 clone 3). `GameHeader`'s
+ * `Props` extends this instead of restating it.
+ */
+export interface GameMenuSettingsCallbacks {
+  hasSavedGame: boolean;
+  muted: boolean;
+  volumePreset: VolumePreset;
+  onSave: () => void;
+  onLoad: () => void;
+  onSaveToFile: () => void;
+  onLoadFromFile: (jsonText: string) => void;
+  onToggleAutoSave: () => void;
+  onToggleTutorials: () => void;
+  onToggleJuiceEffects: () => void;
+  onToggleShowSimTick: () => void;
+  onToggleShowFps: () => void;
+  onToggleMute: () => void;
+  onVolumePreset: (v: VolumePreset) => void;
+  onOpenGuide: () => void;
+  onStartNewGame: () => void;
+}
+
+interface Props extends GameMenuSettingsCallbacks {
+  gameTitle: string;
+  gameVersion: string;
+  gamePhase: string;
+  gameSubtitle: string;
+  autoSave: boolean;
+  tutorialsEnabled: boolean;
+  juiceEffectsEnabled: boolean;
+  showSimTick: boolean;
+  showFps: boolean;
+}
+
+function MenuSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="py-1">
+      <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-wider text-stone-300">
+        {title}
+      </p>
+      <div className="flex flex-col gap-0.5">{children}</div>
+    </div>
+  );
+}
+
+function MenuAction({
+  icon,
+  label,
+  hint,
+  onClick,
+  variant = 'default',
+  trailing,
+  disabled = false,
+}: {
+  icon: string;
+  label: string;
+  hint?: string;
+  onClick: () => void;
+  variant?: 'default' | 'danger';
+  trailing?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+        variant === 'danger'
+          ? 'text-rose-300 hover:bg-rose-950/50'
+          : 'text-stone-200 hover:bg-stone-700/60'
+      }`}
+    >
+      <span className="w-5 shrink-0 text-center text-sm" aria-hidden>{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">{label}</span>
+        {hint && <span className="block text-xs text-stone-400">{hint}</span>}
+      </span>
+      {trailing && <span className="shrink-0 text-xs text-stone-400">{trailing}</span>}
+    </button>
+  );
+}
+
+function MenuToggle({
+  icon,
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  icon: string;
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors hover:bg-stone-700/40"
+    >
+      <span className="w-5 shrink-0 text-center text-sm" aria-hidden>{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-stone-200">{label}</span>
+        {hint && <span className="block text-xs text-stone-400">{hint}</span>}
+      </span>
+      <span
+        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+          checked ? 'bg-emerald-600' : 'bg-stone-600'
+        }`}
+        aria-hidden
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+            checked ? 'translate-x-4' : 'translate-x-0.5'
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
+const VOLUME_OPTIONS: { id: VolumePreset; label: string }[] = [
+  { id: 'soft', label: 'Soft' },
+  { id: 'normal', label: 'Normal' },
+  { id: 'loud', label: 'Loud' },
+];
+
+const VIEW_TITLES: Record<MenuView, string> = {
+  main: 'Menu',
+  settings: 'Settings',
+  graphics: 'Graphics',
+  about: 'About',
+};
+
+export default function GameMenu({
+  gameTitle,
+  gameVersion,
+  gamePhase,
+  gameSubtitle,
+  hasSavedGame,
+  autoSave,
+  tutorialsEnabled,
+  juiceEffectsEnabled,
+  showSimTick,
+  showFps,
+  muted,
+  volumePreset,
+  onSave,
+  onLoad,
+  onSaveToFile,
+  onLoadFromFile,
+  onToggleAutoSave,
+  onToggleTutorials,
+  onToggleJuiceEffects,
+  onToggleShowSimTick,
+  onToggleShowFps,
+  onToggleMute,
+  onVolumePreset,
+  onOpenGuide,
+  onStartNewGame,
+}: Props) {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<MenuView>('main');
+  const [anchor, setAnchor] = useState({ top: 0, right: 0 });
+  const portalRoot = typeof document !== 'undefined' ? document.body : null;
+
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setView('main');
+    buttonRef.current?.focus();
+  }, []);
+
+  const updateAnchor = useCallback(() => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setAnchor({ top: rect.bottom + 6, right: Math.max(8, window.innerWidth - rect.right) });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updateAnchor();
+
+    // R11: focus enters the panel on open. Without it the Tab trap's two wrap branches are
+    // unreachable and Tab walks every control of the game behind the click-catching backdrop.
+    const first = panelRef.current ? getFocusableElements(panelRef.current)[0] : undefined;
+    first?.focus();
+
+    window.addEventListener('resize', updateAnchor);
+    window.addEventListener('scroll', updateAnchor, true);
+    return () => {
+      window.removeEventListener('resize', updateAnchor);
+      window.removeEventListener('scroll', updateAnchor, true);
+    };
+  }, [open, updateAnchor]);
+
+  // The menu owns the keyboard while open: the game's window-capture handler runs before this
+  // component's document handler, so without the claim one Escape closes the menu *and* falls through
+  // to clear the map selection. Escape steps back to the main page first, then closes — the shared
+  // hook owns the claim, this component only says what Escape means here (2026-09-20 audit, clone 3).
+  const handleEscape = useCallback(() => {
+    if (view !== 'main') setView('main');
+    else close();
+  }, [view, close]);
+  useOverlayKeyboard('game-menu', handleEscape, open);
+
+  // Keyboard navigation: the Focus Trap (Escape is the hook's job, above).
+  useEffect(() => {
+    if (!open) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab' && panelRef.current) {
+        const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open]);
+
+  const panelWidth = view === 'main' ? 'w-64' : 'w-72';
+
+  const menuPanel = open ? (
+    <>
+      <div className="fixed inset-0 z-[190]" aria-hidden="true" onClick={close} />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="false"
+        aria-label="Game menu"
+        className={`fixed z-[200] ${panelWidth} flex max-h-[min(75vh,560px)] flex-col overflow-hidden rounded-xl border border-stone-600 bg-stone-900 shadow-2xl`}
+        style={{ top: anchor.top, right: anchor.right }}
+      >
+        <div className="flex shrink-0 items-center gap-2 border-b border-stone-700 px-3 py-2.5">
+          {view !== 'main' && (
+            <button
+              type="button"
+              onClick={() => setView('main')}
+              className="rounded-md px-1.5 py-0.5 text-[13px] font-bold text-stone-400 hover:bg-stone-800 hover:text-stone-200"
+              aria-label="Back to main menu"
+            >
+              ←
+            </button>
+          )}
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-bold text-white">{VIEW_TITLES[view]}</h2>
+            {view === 'main' && (
+              <p className="text-xs text-stone-300">Save, settings & info</p>
+            )}
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {view === 'main' && (
+            <>
+              <MenuSection title="Game">
+                <MenuAction
+                  icon="🌱"
+                  label="Start new game"
+                  hint="Pick map & settlement name"
+                  onClick={() => { onStartNewGame(); close(); }}
+                />
+                <MenuAction
+                  icon="💾"
+                  label="Save game"
+                  hint="Browser slot only (can be wiped)"
+                  onClick={() => { onSave(); close(); }}
+                />
+                <MenuAction
+                  icon="⬇️"
+                  label="Save to file"
+                  hint="Download .json — keep this, survives cache clear"
+                  onClick={() => { onSaveToFile(); close(); }}
+                />
+                <MenuAction
+                  icon="📂"
+                  label="Load game"
+                  hint={hasSavedGame ? 'Last browser save' : 'No browser save — use Load from file'}
+                  disabled={!hasSavedGame}
+                  onClick={() => { onLoad(); close(); }}
+                />
+                <MenuAction
+                  icon="📁"
+                  label="Load from file"
+                  hint="Open a .json you downloaded earlier"
+                  onClick={() => fileInputRef.current?.click()}
+                />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const text = typeof reader.result === 'string' ? reader.result : '';
+                      if (text.trim()) {
+                        onLoadFromFile(text);
+                        close();
+                      }
+                    };
+                    reader.onerror = () => {
+                      console.error('Failed to read save file');
+                      close();
+                    };
+                    reader.readAsText(file);
+                  }}
+                />
+              </MenuSection>
+
+              <div className="mx-3 h-px bg-stone-700" />
+
+              <MenuSection title="Options">
+                <MenuAction
+                  icon="⚙️"
+                  label="Settings"
+                  hint="Audio, tutorials & auto-save"
+                  trailing="›"
+                  onClick={() => setView('settings')}
+                />
+                <MenuAction
+                  icon="🎨"
+                  label="Graphics"
+                  hint="Screen effects & visuals"
+                  trailing="›"
+                  onClick={() => setView('graphics')}
+                />
+              </MenuSection>
+
+              <div className="mx-3 h-px bg-stone-700" />
+
+              <MenuSection title="Info">
+                <MenuAction
+                  icon="ℹ️"
+                  label="About"
+                  hint={`${gameTitle} · v${gameVersion}`}
+                  trailing="›"
+                  onClick={() => setView('about')}
+                />
+              </MenuSection>
+            </>
+          )}
+
+          {view === 'settings' && (
+            <div className="pb-2">
+              <MenuSection title="Gameplay">
+                <MenuToggle
+                  icon="⟳"
+                  label="Auto-save"
+                  hint={`Every ${AUTO_SAVE_INTERVAL_MS / 1000} seconds when enabled`}
+                  checked={autoSave}
+                  onChange={onToggleAutoSave}
+                />
+                <MenuToggle
+                  icon="💡"
+                  label="Tutorials"
+                  hint="Tips when new events happen"
+                  checked={tutorialsEnabled}
+                  onChange={onToggleTutorials}
+                />
+                <MenuToggle
+                  icon="⏱"
+                  label="Show sim tick"
+                  hint={`Raw tick + absolute day on the clock bar (${TICKS_PER_DAY} ticks = 1 day)`}
+                  checked={showSimTick}
+                  onChange={onToggleShowSimTick}
+                />
+                <MenuToggle
+                  icon="📈"
+                  label="Show FPS"
+                  hint="Presentation frame rate in the map corner"
+                  checked={showFps}
+                  onChange={onToggleShowFps}
+                />
+              </MenuSection>
+
+              <div className="mx-3 h-px bg-stone-700" />
+
+              <MenuSection title="Audio">
+                <MenuToggle
+                  icon={muted ? '🔇' : '🔊'}
+                  label={muted ? 'Muted' : 'Sound on'}
+                  hint="Music, ambience & effects"
+                  checked={!muted}
+                  onChange={onToggleMute}
+                />
+                <div className={`px-3 pb-2 pt-1 ${muted ? 'pointer-events-none opacity-40' : ''}`}>
+                  <p className="mb-1.5 text-xs font-medium text-stone-300">Volume</p>
+                  <div className="flex gap-1 rounded-lg bg-stone-800 p-0.5">
+                    {VOLUME_OPTIONS.map(({ id, label }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        disabled={muted}
+                        onClick={() => onVolumePreset(id)}
+                        className={`flex-1 rounded-md py-1 text-xs font-bold transition-colors ${
+                          volumePreset === id
+                            ? 'bg-stone-600 text-white shadow-sm'
+                            : 'text-stone-400 hover:text-stone-200'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </MenuSection>
+            </div>
+          )}
+
+          {view === 'graphics' && (
+            <div className="pb-2">
+              <MenuSection title="Display">
+                <MenuToggle
+                  icon="✨"
+                  label="Screen effects"
+                  hint="Camera nudge & juice on select"
+                  checked={juiceEffectsEnabled}
+                  onChange={onToggleJuiceEffects}
+                />
+              </MenuSection>
+              <p className="px-3 py-2 text-xs leading-relaxed text-stone-300">
+                Turn off screen effects if the map feels too busy or you prefer a calmer view.
+              </p>
+            </div>
+          )}
+
+          {view === 'about' && (
+            <div className="space-y-3 p-3 text-xs text-stone-300">
+              <div className="flex items-center gap-2.5">
+                <img
+                  src="/logo.png"
+                  alt=""
+                  className="h-10 w-10 rounded-md object-contain ring-1 ring-amber-500/30"
+                />
+                <div>
+                  <p className="text-sm font-bold text-white">{gameTitle}</p>
+                  <p className="text-xs text-stone-300">{gameSubtitle}</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-amber-700/40 bg-amber-950/20 p-2.5">
+                <p className="text-sm font-bold text-amber-300">{gamePhase} · v{gameVersion}</p>
+                <p className="mt-1 leading-relaxed text-stone-300">
+                  Playtest build — expect bugs, rough edges, and features that change.
+                </p>
+                <p className="mt-1 leading-relaxed text-stone-300">{describeSaveCompatibility()}</p>
+              </div>
+
+              <p className="leading-relaxed text-stone-300">
+                A sandbox frontier sim where your village lives inside a real food chain —
+                grass, prey, predators, rivals, and winter all push back.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => { onOpenGuide(); close(); }}
+                className="w-full rounded-lg border border-stone-600 px-3 py-2 text-xs font-semibold text-stone-300 hover:border-stone-500 hover:text-white"
+              >
+                📖 Open full guide
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  ) : null;
+
+  return (
+    <div className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-1 rounded-md px-2 py-1 text-[13px] font-bold transition-colors ${
+          open
+            ? 'bg-stone-600 text-white'
+            : 'bg-stone-700 text-stone-300 hover:bg-stone-600 hover:text-white'
+        }`}
+        title="Game menu"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+      >
+        <span aria-hidden>☰</span>
+        <span className="hidden sm:inline">Menu</span>
+      </button>
+
+      {menuPanel && portalRoot && createPortal(menuPanel, portalRoot)}
+    </div>
+  );
+}
