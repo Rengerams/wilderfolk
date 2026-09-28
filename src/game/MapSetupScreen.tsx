@@ -222,7 +222,11 @@ export default function MapSetupScreen({
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 overflow-y-auto px-4 py-5 sm:gap-5 sm:px-6 sm:py-6">
+      <main className="mx-auto my-4 flex w-full max-w-3xl flex-1 flex-col gap-4 overflow-y-auto border border-stone-700/70 bg-stone-900/40 px-4 py-5 sm:gap-5 sm:px-6 sm:py-6">
+        {/* The chooser reads as one framed panel (owner request, 2026-09-29): a square border around
+            the column, so the preset grid, the size selector and the tips sit inside a visible box
+            instead of floating on the full-bleed gradient. The cards inside keep their own rounded
+            borders — this frame is the panel's, not theirs. */}
         {/* Settlement name — slim signpost */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>

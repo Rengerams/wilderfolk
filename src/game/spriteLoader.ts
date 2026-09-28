@@ -152,9 +152,8 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/ocean.png',
     // The optional transparent 4×4 sand-bank/water mask sheet
     // (`SAND_WATER_OVERLAY_PATH`) is omitted until `public/sprites/terrain/sand_water_overlay.png`
-    // ships: the atlas bakes without it and requests one replacement bake once it becomes
-    // ready (`terrainLayerNeedsRebuild`), and preloading a missing file spams boot errors.
-    // See `BUG_REPORTS/2026-09-16-sand-water-overlay-sprite-missing.md`.
+    // ships: the retired tile bake reads it only when the sprite is present, and preloading a missing
+    // file spams boot errors. See `BUG_REPORTS/2026-09-16-sand-water-overlay-sprite-missing.md`.
     // Painted dirt (25×25 seamless) — hills/peaks relief surfaces
     '/sprites/tile_dirt.png',
     // Mountain peak overlays (`MOUNTAIN_SPRITE_PATHS`) are omitted until

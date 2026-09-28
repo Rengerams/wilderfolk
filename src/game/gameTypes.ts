@@ -1025,11 +1025,49 @@ export const MapSize = {
 } as const;
 export type MapSize = (typeof MapSize)[keyof typeof MapSize];
 
+/**
+ * World pixels per map size.
+ *
+ * **These are the reduced shipped sizes, not the Teraforge spec the ground renderer is measured
+ * against** (`renderer/whittakerTerrain`'s bake table: 2560×1920 / 4096×3072 / 6144×4608). Raising them
+ * to the spec values is a **two-part** change and was attempted on 2026-09-29 with only the first in
+ * place; it was reverted the same session for exactly the reasons recorded here:
+ *
+ * - the ground fill is baked at a **fixed 1:1** step (zoom cannot re-key the cache without dropping the
+ *   chunks on screen — the "zooming gives a black background" bug), and at 2560×1920 that makes the
+ *   50 % overview **80 chunks / 5.2 Mpx** of ground to sharpen on top of a 4.6 Mpx first view: the
+ *   overview rendered as chunk-shaped gaps at 11 fps;
+ * - four suites encode the shipped scale and fail on the bigger ones — the compact-save round trip
+ *   (`saveWorldMap.compact`), the river-network rules (`terragen.riverGeneration`, whose trunk must
+ *   exceed a share of the map's short side), and two simulation behaviours (`medium-C1-economy` deer
+ *   spawn, `workCommute.leadHour`).
+ *
+ * So the order is: **chunk the decor** (done — no full-map surface is left in the ground path), then give
+ * each chunk a **zoom-following bake step re-baked in place**, then raise these values and re-pin the four
+ * suites.
+ */
 export const MAP_SIZE_DIMENSIONS: Record<MapSize, { width: number; height: number }> = {
   [MapSize.Medium]: { width: 1200, height: 900 },
   [MapSize.Large]: { width: 1600, height: 1200 },
   [MapSize.Huge]: { width: 2560, height: 1920 },
 };
+
+/**
+ * One L3 ground prop — Teraforge's biome-density decoration layer (trees excluded: those are entities).
+ *
+ * **The owner of the shape.** `terrain/terragen` generates these and `renderer/decor` draws them, and
+ * both used to declare their own copy of the same six fields — two readers of one array, free to drift.
+ */
+export interface TerrainDecoration {
+  x: number;
+  y: number;
+  type: import('./terrain/biomes').SpriteType;
+  scale: number;
+  variant: number;
+  flipX: boolean;
+  /** Per-prop brightness offset, −1…1 (0 = untinted). */
+  tint?: number;
+}
 
 export interface WorldMap {
   width: number;
@@ -1089,16 +1127,7 @@ export interface WorldMap {
   moistureForestThreshold?: number;
   moistureDarkForestThreshold?: number;
   /** L3 decor — Teraforge biome-density-driven ground props (trees excluded, kept as entities). */
-  decorations?: {
-    x: number;
-    y: number;
-    type: import('./terrain/biomes').SpriteType;
-    scale: number;
-    variant: number;
-    flipX: boolean;
-    /** Per-prop brightness offset, −1…1 (0 = untinted). */
-    tint?: number;
-  }[];
+  decorations?: TerrainDecoration[];
 }
 
 export const GRID_SIZE = 20;

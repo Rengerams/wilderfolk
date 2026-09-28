@@ -1,11 +1,17 @@
 /**
- * Per-pixel Whittaker ground bake, ported from Teraforge `render.ts` and adapted
- * to Wilderfolk's season-aware renderer.
+ * Per-pixel Whittaker ground bake, ported from Teraforge `render.ts`.
  *
  * Fed by the continuous fields on `WorldMap` (`elevation` / `moisture` /
  * `temperature` / `riverDist` / `terrain`), this produces the smooth, hillshaded,
  * texture-detailed ground Teraforge renders — no tile seams. Returns `null` for a
  * legacy map that lacks those fields, so the caller keeps the old tile bake.
+ *
+ * **Not seasonal.** The bake used to apply a per-season tint inline (a vegetation-weighted shift, and
+ * winter snow settling with height) which made `season` part of the chunk cache key — so every season
+ * rollover re-baked the whole visible view, four times an in-game year, for a palette change. It is
+ * gone: the ground is a function of the map and the bake resolution alone, so a chunk is baked once and
+ * a season change costs nothing. Seasons remain visible through the weather layer, the grass and the
+ * entities.
  *
  * **The height axis is the classifier's.** Land colour is computed from
  * `hn = (e − seaLevel) / (1 − seaLevel)` and its bands come from `LAND_BANDS`,
@@ -15,8 +21,7 @@
  * map's land could paint snow** while 1.0 % of its tiles were `Snow`, and its
  * `Rocky` / `Mountains` tiles were painted lawn green.
  */
-import type { Season, WorldMap } from '../gameTypes';
-import { Season as SeasonEnum } from '../gameTypes';
+import type { WorldMap } from '../gameTypes';
 import { clamp, valueNoise } from '../terrain/noise';
 // The cell edges, the relief bands and the moisture cuts are the classifier's; the bake must sample
 // the same grid and break the landscape at the same heights and the same dryness it does.
@@ -37,9 +42,8 @@ import {
  * 2×-magnified ground.
  *
  * This only governs a bake that covers a whole map — the probes, the tests and the legacy call shape.
- * The shipping renderer bakes one small chunk per visible viewport (`renderer/terrain.ts`) and tells
- * the baker its world step from the camera zoom (`groundWorldStepForZoom`), so the budget is not on
- * the play path at all.
+ * The shipping renderer bakes one small chunk per visible viewport (`renderer/terrain.ts`), always at a
+ * world step of **1**, under a per-frame pixel budget, so the budget here is not on the play path at all.
  *
  * Measured whole-map, per spec map size (2026-09-24, seed 12345, continental):
  *
@@ -113,8 +117,6 @@ const RIVER_EDGE_JITTER = 0.05;
 const SNOW_TEMPERATURE_FADE = 0.08;
 /** Height above the snow line over which a crest goes from rock to full snow, in land-range units. */
 const SNOW_BAND_OF_LAND_RANGE = 0.1;
-/** Where winter snow begins to settle, as a fraction of the land range. */
-const WINTER_SNOW_LINE = 0.3;
 /** Height of the lowland band — everything below reads as plain rather than as slope. */
 const LOWLAND_OF_LAND_RANGE = 0.35;
 /**
@@ -515,21 +517,6 @@ function sampleF(f: Float32Array, cols: number, rows: number, fx: number, fy: nu
 }
 
 /**
- * How much of a season shift a pixel takes, 0–1.
- *
- * The seasons repaint what *grows*, not stone, sand or water: a flat shift turned rock brown in
- * summer and washed the whole map grey in winter.
- */
-function vegetationWeight(hn: number, beachStrength: number): number {
-  let v: number;
-  if (hn < LAND_BANDS.hills) v = 0.95;
-  else if (hn < LAND_BANDS.rocky) v = 0.5;
-  else if (hn < LAND_BANDS.mountains) v = 0.18;
-  else v = 0.06;
-  return v * (1 - clamp(beachStrength, 0, 1) * 0.7);
-}
-
-/**
  * Whole-map fields the bake needs. They are **cell-resolution** — 160 × 120 at the current
  * constants on a 2560 × 1920 map — so they are cheap to hold for the whole world while the
  * per-pixel loop runs over one viewport at a time.
@@ -726,22 +713,6 @@ export interface WhittakerViewport {
 }
 
 /**
- * World pixels per canvas pixel the ground should be baked at for a camera zoom.
- *
- * Screen px per world px **is** the zoom, so baking at `1 / zoom` world px per canvas px makes the
- * canvas match what the monitor can show; anything finer is work nobody can see, and anything coarser
- * is a visible blur. Rounded to a power of two because the loop advances in whole canvas pixels, and
- * floored at 1 — a chunk is never baked sharper than the field lattice it samples.
- *
- * Measured before this existed: at the 0.5× overview the renderer still baked **28.3 Mpx** for a
- * 1600×900 window (17.4 s for one frame on a Huge map) because every chunk was 1:1. At 2 it is 7.1 Mpx.
- */
-export function groundWorldStepForZoom(zoom: number): number {
-  if (!Number.isFinite(zoom) || zoom <= 0) return 1;
-  return clamp(2 ** Math.round(Math.log2(1 / zoom)), 1, 4);
-}
-
-/**
  * Bake a per-pixel Whittaker ground surface.
  *
  * Returns null when the map has no continuous fields (a legacy map). `seaLevel` / `moistureBias`
@@ -763,7 +734,6 @@ export function bakeWhittakerGround(
   map: WorldMap,
   worldW: number,
   worldH: number,
-  season: Season,
   seaLevel: number,
   moistureBias: number,
   viewRect?: WhittakerViewport,
@@ -1026,27 +996,6 @@ export function bakeWhittakerGround(
         r = r * (1 - edgeStrength);
         g = g * (1 - edgeStrength);
         b = b * (1 - edgeStrength);
-      }
-
-      // Season — applied inline to scalars: this runs once per pixel (4.9 M on a Medium map), where a
-      // per-pixel tuple return is measurable. Vegetation-weighted, and in winter the snow settles
-      // with height rather than the whole map going flat grey.
-      const veg = vegetationWeight(hn, 1 - clamp(hn / BEACH_BAND_OF_LAND_RANGE, 0, 1));
-      if (isWater) {
-        if (season === SeasonEnum.Winter) { r += 8; g += 14; b += 24; }
-        else if (season === SeasonEnum.Fall) { r += 4; g += 2; b -= 3; }
-      } else if (season === SeasonEnum.Spring) {
-        r -= 6 * veg; g += 16 * veg; b -= 4 * veg;
-      } else if (season === SeasonEnum.Summer) {
-        r += 18 * veg; g += 6 * veg; b -= 22 * veg;
-      } else if (season === SeasonEnum.Fall) {
-        r += 24 * veg; g -= 4 * veg; b -= 18 * veg;
-      } else if (season === SeasonEnum.Winter) {
-        const cover = clamp((hn - WINTER_SNOW_LINE) / (1 - WINTER_SNOW_LINE), 0, 1) * 0.8;
-        const cool = 0.35 * veg + 0.15;
-        r = r * (1 - cover) + SNOW_HIGH[0] * cover + 10 * cool;
-        g = g * (1 - cover) + SNOW_HIGH[1] * cover + 12 * cool;
-        b = b * (1 - cover) + SNOW_HIGH[2] * cover + 20 * cool;
       }
 
       const off = (py * W + px) * 4;

@@ -253,17 +253,6 @@ export interface TerrainLayerCache {
   materialAtlasRevision: number;
 }
 
-export interface TerrainDecorCache {
-  surface: TerrainSurface;
-  ctx: CanvasContext2d;
-  width: number;
-  height: number;
-  seed: number;
-  preset: string;
-  /** {@link getTerrainRevision} when baked — a post-worldgen map edit still forces a re-bake. */
-  revision: number;
-}
-
 /**
  * Monotonic counter for post-worldgen `WorldMap.tiles` mutation.
  *
@@ -306,50 +295,7 @@ export function terrainFillSpritesReady(): boolean {
   return Object.values(TERRAIN_FILL_PATH).every((p) => p != null && getSprite(p) != null);
 }
 
-export function terrainLayerNeedsRebuild(
-  cache: TerrainLayerCache | null,
-  map: WorldMap,
-  season: Season,
-  worldWidth: number,
-  worldHeight: number,
-  lod = 1,
-  seasonBlendT?: number,
-): boolean {
-  if (!cache) return true;
-  if (terrainFillSpritesReady() && !cache.fills) return true;
-  if (terrainAtlasReady() && !cache.atlas) return true;
-  if (sandWaterOverlayReady() && cache.materialAtlasRevision !== TERRAIN_MATERIAL_ATLAS_REVISION) {
-    return true;
-  }
-  return cache.worldWidth !== worldWidth
-    || cache.worldHeight !== worldHeight
-    || cache.seed !== map.seed
-    || cache.preset !== map.preset
-    || cache.season !== season
-    || cache.lod !== lod
-    || (cache.seasonBlendT ?? 0) !== (seasonBlendT ?? 0);
-}
-
-export function terrainDecorNeedsRebuild(
-  cache: TerrainDecorCache | null,
-  map: WorldMap,
-  worldWidth: number,
-  worldHeight: number,
-): boolean {
-  if (!cache) return true;
-  return cache.width !== worldWidth
-    || cache.height !== worldHeight
-    || cache.seed !== map.seed
-    || cache.preset !== map.preset
-    || cache.revision !== getTerrainRevision();
-}
-
 export function disposeTerrainLayer(cache: TerrainLayerCache | null): void {
-  if (!cache) return;
-  disposeCanvasSurface(cache.surface);
-}
-
-export function disposeTerrainDecor(cache: TerrainDecorCache | null): void {
   if (!cache) return;
   disposeCanvasSurface(cache.surface);
 }
@@ -843,55 +789,5 @@ function applySeasonWash(
       return;
   }
   ctx.restore();
-}
-
-/**
- * Bake the decor overlay that sits above the per-pixel ground: the river course stroke and the
- * map-edge frame.
- *
- * The tile-era ground passes that used to live here — dark rims around every water tile, snow
- * mounds, sand ripples, meadow flowers, rock clusters, the hash-scattered prop sprites and the
- * mountain-peak overlays — were deleted. They were authored against the retired tile generator's
- * flat per-tile fills; drawn over the smooth Whittaker bake they read as a visible square grid
- * plus flat stickers, which is exactly the complaint that retired them. Ground detail now belongs
- * to the per-pixel shader alone. The river stroke survives because it is the only thing that keeps
- * a river's course legible at far zoom and it complements the shader.
- */
-export function bakeTerrainDecor(map: WorldMap, worldWidth: number, worldHeight: number): TerrainDecorCache {
-  const w = Math.max(1, Math.floor(worldWidth));
-  const h = Math.max(1, Math.floor(worldHeight));
-  const surface = createCanvasSurface(w, h);
-  const ctx = getCanvasContext(surface);
-
-  if (map.rivers) {
-    for (const river of map.rivers) {
-      if (river.length < 2) continue;
-      ctx.strokeStyle = 'rgba(24, 54, 86, 0.16)';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(river[0].x, river[0].y);
-      for (let i = 1; i < river.length; i++) ctx.lineTo(river[i].x, river[i].y);
-      ctx.stroke();
-    }
-  }
-
-  ctx.strokeStyle = 'rgba(0,0,0,0.45)';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(2, 2, w - 4, h - 4);
-  ctx.strokeStyle = 'rgba(200, 230, 200, 0.12)';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(4, 4, w - 8, h - 8);
-
-  return {
-    surface,
-    ctx,
-    width: w,
-    height: h,
-    seed: map.seed,
-    preset: map.preset,
-    revision: getTerrainRevision(),
-  };
 }
 

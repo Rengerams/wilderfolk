@@ -12,6 +12,7 @@
 import {
   MapPreset,
   TerrainType,
+  type TerrainDecoration,
   type WorldMap,
 } from '../gameTypes';
 import { computeFlow, fillDepressions, riverWidthAt } from './hydrology';
@@ -717,14 +718,6 @@ function assignBiomes(
 
 /* ===== L3 decorations ===== */
 
-interface Decoration {
-  x: number; y: number; type: SpriteType; scale: number;
-  variant: number; flipX: boolean;
-  /** Per-prop brightness offset, −1…1 (0 = untinted). Teraforge varies every prop so a
-   *  field of identical sprites does not read as a stamped pattern. */
-  tint: number;
-}
-
 function pickDecor(table: [SpriteType, number][], r: number): SpriteType {
   let total = 0;
   for (const [, w] of table) total += w;
@@ -737,9 +730,9 @@ function pickDecor(table: [SpriteType, number][], r: number): SpriteType {
 function placeDecorations(
   seed: number, cols: number, rows: number,
   terrain: Uint8Array, pathGrid: Uint8Array, pCols: number, pRows: number,
-): Decoration[] {
+): TerrainDecoration[] {
   const rand = mulberry32(seed ^ 0x2b7c19);
-  const decorations: Decoration[] = [];
+  const decorations: TerrainDecoration[] = [];
 
   for (let y = 0; y < rows; y++)
     for (let x = 0; x < cols; x++) {
