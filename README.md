@@ -1,4 +1,4 @@
-# Wilderfolk
+## Wilderfolk
 
 <p align="center">
   <img src="public/logo.png" alt="Wilderfolk" width="120" />
@@ -16,20 +16,22 @@ Most settlement games ask you to **tame** the wild. Wilderfolk asks you to **mov
 
 You are not conquering a blank map. You are sharing a valley with grass, rabbits, deer, wolves, rival camps, caravans, winter, and the occasional curse under a full moon. Every choice ripples through the chain: wipe out the wolves and your hunters go hungry two seasons later. Pave too fast and the ecosystem buckles. Arm your militia, sign a peace treaty, or pay tribute — but **raids test preparation**, not a fancy battle screen.
 
+
 ```
-🌿 → 🐰 🦌 → 🐺 🦊 → 🏹 → 🏘️
+**🌿 → 🐰 > 🦌 →  🐺 > 🦊  →  🏹  →  🏘️**
 ```
+
 
 **Build homes. Assign workers. Watch families grow.** Every settler carries three personality traits from a pool of fourteen — 💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful, 🦁 Chivalrous, 🔨 Resourceful, 🏔️ Stoic, ✨ Graceful, 🦉 Intuitive, 🔥 Fierce — inherited from their parents, DNA-style, so the brave father's daughter carries his fire. Meet neighbor tribes on the map, queue iron at the Blacksmith, survive Moon Howlers, and shape your own legacy. The valley feels alive because the sim treats predators, prey, and people as one system.
 
---
-**THIS WILL BE LAST UPDATE FOR THE NEXT PERIOD, BECAUSE OF THE SCALE OF THE PROJECT WE GONNA PORT THE GAME TO A REAL GAME ENGINE. 
-**WE DONT KNOW WHICH ONE IT WILL BE BUT WE KEEP  YOU INFORMED IF WE HAVE MORE INFORMATION.
+
+*THIS WILL BE LAST UPDATE FOR THE NEXT PERIOD, BECAUSE OF THE SCALE OF THE PROJECT WE GONNA PORT THE GAME TO A REAL GAME ENGINE. *
+*WE DONT KNOW WHICH ONE IT WILL BE BUT WE KEEP  YOU INFORMED IF WE HAVE MORE INFORMATION.*
 --
 
 ---
 
-##  — v0.6.5.0 (September 29, 2026)
+## v0.6.5.0 (September 29, 2026)
 
 * `GAME_VERSION` **0.6.5.0**
 * ⚠️ **Beta Save Policy:** This build loads only **0.6.5.0** saves.
@@ -59,8 +61,7 @@ The valley's vertical range grows dramatically, and the mountains that ring your
 
 ---
 
-## 🕳️ Living Watersheds & Carved Land
---
+# 🕳️ Living Watersheds & Carved Land
 
 Water no longer trickles across the map as a thin blue thread — **it shapes the terrain it flows through**.
 
@@ -75,8 +76,8 @@ Water no longer trickles across the map as a thin blue thread — **it shapes th
 
 ---
 
-## 🌿 Seamless Biomes & Soft Borders
---
+# 🌿 Seamless Biomes & Soft Borders
+
 
 Biomes no longer snap together at hard square edges. The engine blends **temperature, moisture, and elevation** into organic, fluid gradients — no tile seams, no grid squares, no guillotine edges.
 
@@ -96,15 +97,15 @@ Warm/Dry (Steppe) ◄──────► Warm/Wet (Meadow/Wetland)
 
 ---
 
-## 🌊 Coastlines & Frontier Edges
---
+# 🌊 Coastlines & Frontier Edges
+
 
 * **Coasts with character.** Oceans and riverlands gain real shelving, sheltered coves, and rugged, cliff-lined edges instead of one uniform shore.
 * **Terrain-aware placement.** Starting areas, resources, and paths respect the shape of the land. Warm, hand-made footpaths thread through the relief instead of clipping straight through it.
 
 ---
 
-## 🌦️ Weather with a Pulse
+# 🌦️ Weather with a Pulse
 
 We have fully integrated Teraforge's dynamic weather registry, moving away from simple frame-by-frame shifts to a fully smooth, frame-rate independent atmosphere.
 
@@ -115,7 +116,7 @@ We have fully integrated Teraforge's dynamic weather registry, moving away from 
 
 ---
 
-## 🏘️ A Settlement You Can Read at a Glance
+# 🏘️ A Settlement You Can Read at a Glance
 
 * **👣 Grounded World Depth:** Human, wildlife, tree, and building sprites share unified contact shadows with a gentle cast direction, ensuring the settlement sits firmly in the valley.
 * **🏡 Living Upgrades:** Buildings visually reflect their tier updates at a glance. Watch scaffolds grow during construction, and spot warm windows, chimney smoke, glowing forge fires, or late-night tavern activity across the lanes.
@@ -142,7 +143,7 @@ The valley is alive with environmental detail, all driven by deterministic, seed
 
 ---
 
-## 🧱 Built on a Four-Layer Grid
+# 🧱 Built on a Four-Layer Grid
 
 The new terrain completely replaces the old world generation *and* pathfinding backend, anchoring every simulation step into one clean, optimized structure:
 
@@ -163,7 +164,7 @@ The new terrain completely replaces the old world generation *and* pathfinding b
 
 ---
 
-## ⚙️ Under the Hood (For the Frontier Engineers)
+# ⚙️ Under the Hood (For the Frontier Engineers)
 
 While you enjoy the views, the simulation under the hood has been heavily optimized to handle massive PC-scale populations without a single stutter:
 * **The Hybrid Data Grid:** Seamlessly blends old tile readers with ultra-fast flat typed-arrays, drastically improving memory cache performance on massive map sizes.
@@ -172,7 +173,7 @@ While you enjoy the views, the simulation under the hood has been heavily optimi
 
 ---
 
-##  — v0.6.4.1 (September 21, 2026)
+## v0.6.4.1 (September 21, 2026)
 
 **A deeper, clearer, and more responsive valley.**
 
