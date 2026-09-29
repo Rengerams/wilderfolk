@@ -22,6 +22,11 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 **Build homes. Assign workers. Watch families grow.** Every settler carries three personality traits from a pool of fourteen — 💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful, 🦁 Chivalrous, 🔨 Resourceful, 🏔️ Stoic, ✨ Graceful, 🦉 Intuitive, 🔥 Fierce — inherited from their parents, DNA-style, so the brave father's daughter carries his fire. Meet neighbor tribes on the map, queue iron at the Blacksmith, survive Moon Howlers, and shape your own legacy. The valley feels alive because the sim treats predators, prey, and people as one system.
 
+--
+**THIS WILL BE LAST UPDATE FOR THE NEXT PERIOD, BECAUSE OF THE SCALE OF THE PROJECT WE GONNA PORT THE GAME TO A REAL GAME ENGINE. 
+**WE DONT KNOW WHICH ONE IT WILL BE BUT WE KEEP  YOU INFORMED IF WE HAVE MORE INFORMATION.
+--
+
 ---
 
 ##  — v0.6.5.0 (September 29, 2026)
