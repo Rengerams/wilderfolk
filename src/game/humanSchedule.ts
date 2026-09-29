@@ -140,7 +140,16 @@ export function prefersHomeTonightFor(
   const weekend = isWeekend(tick);
   const roll = (salt: number) => personDayRoll(entityId, tick, salt);
 
-  if (hour >= 23 || hour < 5) return roll(101) > 0.07;
+  // Deep night is not a preference. This used to be `roll(101) > 0.07`, i.e. 7% of settlers
+  // deliberately did NOT prefer home after dark — and because `personDayRoll` is keyed on the
+  // colony day, it was the SAME 7% every night of that day. They never reached their house, so
+  // `isAsleepAtHome` (night + within 55 px of the assigned residence) could never hide them and
+  // they stood outside until dawn: the owner's report, "at night people should disappear in they
+  // house but that is not happening", in a village where a 7% band is ~30 settlers on the street.
+  // Anyone who is legitimately out after dark is excluded by JOB, not by this roll — the home
+  // commute at `humanTick` requires `!onJobShift`, so tavern keepers, hotel staff and the
+  // moon-howler priest still work through the night.
+  if (hour >= 23 || hour < 5) return true;
   if (hour >= 5 && hour < s.startHour) return roll(102) > 0.12;
   if (hour >= s.endHour && hour < 22) return roll(103) < 0.5;
   if (hour >= 22 && hour < 23) return roll(104) > 0.2;

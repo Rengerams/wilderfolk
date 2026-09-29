@@ -7,6 +7,9 @@ import { pickSocialImpulse } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
 import { sayHumanChatPhrase } from './humanChat';
 
+/** 0.72 = per-child, per-day chance that a free child heads off to play with another child. */
+const KID_PLAY_CHANCE = 0.72;
+
 export function tickHumanChildLeisure(args: {
   state: WorldState;
   entity: Entity;
@@ -22,24 +25,37 @@ export function tickHumanChildLeisure(args: {
   if (args.onSchedule || !args.entity.isJuvenile || !isPlayerHuman(args.entity)) return args.suppressIdleInitial;
   const { state, entity, speed, hourOfDay, allHumans, updatedBuildings, buildingById, livingHumanAt } = args;
   const playmates = allHumans.filter((h) => h.alive && h.isJuvenile && h.id !== entity.id && isPlayerHuman(h));
-  const kidImpulse = pickSocialImpulse(entity, state, updatedBuildings, [], playmates);
-  if (kidImpulse.motive === 'kid_play' && kidImpulse.company?.alive) {
-    const play = kidImpulse.company;
-    const pdist = Math.hypot(play.x - entity.x, play.y - entity.y) || 1;
-    if (pdist > 16) {
-      setVelocityToward(entity, play.x, play.y, speed, 0.7);
-    } else {
-      entity.vx = Math.sin(state.tick * 0.2 + entity.id) * speed * 0.45;
-      entity.vy = Math.cos(state.tick * 0.18 + play.id) * speed * 0.45;
-      if (
-        kidImpulse.bubble
-        && seededRandomForRun(`chat-kid:${entity.id}:${state.tick}`) < 0.06 * PER_TICK_RATE_SCALE
-      ) {
-        sayHumanChatPhrase(entity, kidImpulse.bubble, 40);
+  const impulse = pickSocialImpulse(entity, state, updatedBuildings, [], playmates);
+
+  // Kids play is decided HERE, because `pickSocialImpulse` no longer offers a `kid_play` motive —
+  // its removal left this caller testing for a motive nothing produces, so **no child could ever
+  // play**. Deciding it on the child's own free time is also what makes a weekend or an off-shift
+  // the hours they are meant to be out playing: while it lived inside `pickSocialImpulse` it was
+  // that function's LAST branch, below `sunday_service` (Sun 09:00–13:00), `civic_petition`,
+  // `hospital_visit`, `birthday` and `market_errand`, so an adult errand pre-empted play on exactly
+  // the days a child was free.
+  //
+  // Sickness, grief and harsh weather still outrank play — those are the only `stayHome` motives a
+  // juvenile has any business obeying.
+  if (!impulse.stayHome) {
+    const mate = playmates.length > 0 && personDayRoll(entity.id, state.tick, 718) < KID_PLAY_CHANCE
+      ? playmates[(entity.id + Math.floor(state.tick / 12)) % playmates.length]
+      : undefined;
+    if (mate?.alive) {
+      const pdist = Math.hypot(mate.x - entity.x, mate.y - entity.y) || 1;
+      if (pdist > 16) {
+        setVelocityToward(entity, mate.x, mate.y, speed, 0.7);
+      } else {
+        entity.vx = Math.sin(state.tick * 0.2 + entity.id) * speed * 0.45;
+        entity.vy = Math.cos(state.tick * 0.18 + mate.id) * speed * 0.45;
+        if (seededRandomForRun(`chat-kid:${entity.id}:${state.tick}`) < 0.06 * PER_TICK_RATE_SCALE) {
+          const bubble = personDayRoll(entity.id, state.tick, 719) < 0.5 ? 'Tag!' : 'Wait for me!';
+          sayHumanChatPhrase(entity, bubble, 40);
+        }
       }
+      faceVelocity(entity);
+      return true;
     }
-    faceVelocity(entity);
-    return true;
   }
   const mother = entity.motherId != null ? livingHumanAt(entity.motherId) : undefined;
   const father = entity.fatherId != null ? livingHumanAt(entity.fatherId) : undefined;
@@ -117,7 +133,7 @@ export function tickAdultLeisureMotive(args: {
     } else if (impulse.building) {
       const b = impulse.building; const arrived = Math.hypot(entity.x - (b.x + b.width / 2), entity.y - (b.y + b.height * 0.92)) < 20;
       if (!arrived) commuteHumanToBuilding(entity, b, speed * 0.5, false, 2.8);
-      else if (impulse.motive === 'sunday_service' || impulse.motive === 'grief') { entity.vx *= 0.2; entity.vy *= 0.2; if (seededRandomForRun(`chat-social:${entity.id}:${state.tick}`) < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1); }
+      else if (impulse.motive === 'sunday_service' || impulse.motive === 'grief' || impulse.motive === 'day_off') { entity.vx *= 0.2; entity.vy *= 0.2; if (seededRandomForRun(`chat-social:${entity.id}:${state.tick}`) < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1); }
       else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') { entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.2 * PER_TICK_RATE_SCALE); settlerChat(entity, 'social', 0.1); }
       suppressIdle = true;
     }

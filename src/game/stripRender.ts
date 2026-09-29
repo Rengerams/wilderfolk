@@ -11,8 +11,6 @@ const ROAD_STRAIGHT_VERTICAL = '/sprites/roads/road_straight_2.png';
 const ROAD_CROSS = '/sprites/roads/road_cross.png';
 const ROAD_TEE = ['/sprites/roads/road_tee_1.png', '/sprites/roads/road_tee_2.png'] as const;
 const ROAD_CORNER = ['/sprites/roads/road_corner_1.png', '/sprites/roads/road_corner_2.png', '/sprites/roads/road_corner_3.png', '/sprites/roads/road_corner_4.png'] as const;
-const WALL_ISOMETRIC_SPRITE = '/sprites/wall_isometric.png';
-const GATE_ISOMETRIC_SPRITE = '/sprites/gate_isometric.png';
 
 /**
  * Tile the seamless pavement texture across a strip rect (rotation already
@@ -164,42 +162,19 @@ export function drawProceduralRoad(
   ctx.restore();
 }
 
-/** Draw a supplied isometric defense asset inside the existing logical strip footprint. */
-function drawIsometricDefenseAsset(
-  ctx: CanvasRenderingContext2D,
-  spritePath: string,
-  sx: number,
-  sy: number,
-  w: number,
-  h: number,
-  rotation: BuildingRotation,
-  alpha: number,
-  scale: number,
-): boolean {
-  const frame = getSpriteFrame(spritePath);
-  if (!frame?.image) return false;
-  const drawSize = Math.max(8, Math.max(w, h) * scale);
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.translate(sx, sy);
-  if (rotation === 90) ctx.rotate(Math.PI / 2);
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(
-    frame.image,
-    frame.sx,
-    frame.sy,
-    frame.sw,
-    frame.sh,
-    Math.round(-drawSize / 2),
-    Math.round(-drawSize * 0.58),
-    Math.round(drawSize),
-    Math.round(drawSize),
-  );
-  ctx.restore();
-  return true;
-}
 
-/** Palisade wall segment — supplied isometric art with procedural fallback. */
+/**
+ * Palisade wall / gate segment, drawn along the strip's own axis.
+ *
+ * The wall used to draw `/sprites/wall_isometric.png` — a 45° isometric face — once per piece. The
+ * world→screen transform is a plain scale+translate with no isometric skew (`viewState.worldToScreen`),
+ * so a horizontal run is a horizontal screen line, and every piece drew that same diagonal face at the
+ * same rotation, offset by exactly the strip pitch: a periodic sawtooth of offset slabs, never a wall.
+ * Corner pieces do not exist — a corner is an H run and a V run overlapping — so the only thing a
+ * segment has to do is lie along its own axis, which this path already did (`beginRotatedStripFrame`
+ * rotates the frame, not the art). The isometric PNGs stay as the build-menu icons in
+ * `BUILDING_CONFIGS`; only the map drawing changed.
+ */
 export function drawProceduralWall(
   ctx: CanvasRenderingContext2D,
   sx: number,
@@ -210,10 +185,6 @@ export function drawProceduralWall(
   isGate: boolean,
   alpha = 1,
 ): void {
-  const asset = isGate ? GATE_ISOMETRIC_SPRITE : WALL_ISOMETRIC_SPRITE;
-  const assetScale = isGate ? 1.42 : 1.18;
-  if (drawIsometricDefenseAsset(ctx, asset, sx, sy, w, h, rotation, alpha, assetScale)) return;
-
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
 
   ctx.fillStyle = 'rgba(0,0,0,0.18)';

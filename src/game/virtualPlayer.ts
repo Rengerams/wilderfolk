@@ -531,6 +531,16 @@ function decideFestival(state: WorldState): VirtualPlayerDecision | null {
  * restated here: `canPlaceBuilding` refuses a locked building, so
  * `findPlacementSpot` simply returns no spot and the step waits until the owner
  * research lands.
+ *
+ * A Church is deliberately **not** in this ladder. Adding it was tried on 2026-09-29 and
+ * reverted: because this step runs before roads, militia, diplomacy and refugee screening, a
+ * church that the colony can afford (45 wood / 35 stone / 20 gold — cheap) shadows every later
+ * decision, and it broke 36 of the 68 cases in `tests/virtualPlayer.test.ts`. The coverage gap
+ * it was meant to close is real and is recorded instead in
+ * `BUG_REPORTS/2026-09-29-automated-runs-never-build-a-church.md`: no automated run in this
+ * repository ever reaches `churchStrength > 0`, so the `churchStrength > 0` branch of
+ * `tryDailyAffairGossip` is unexercised. Closing that belongs in the browser/auto-play tier,
+ * not by widening this ladder.
  */
 const CIVIC_BUILD_ORDER: readonly BuildingType[] = [
   BuildingType.TownHall,

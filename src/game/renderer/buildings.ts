@@ -1,9 +1,9 @@
-import { BuildingType, BUILDING_CONFIGS } from '../gameTypes';
+import { BuildingType, BUILDING_CONFIGS, EntityType } from '../gameTypes';
 import type { Building } from '../gameTypes';
 import { isDecorType } from '../beautyGrid';
 import { categoryBorderDashForType } from '../buildCatalog';
 import { drawProceduralDecor } from '../decorRender';
-import { normalizeBuildingRotation } from '../buildingRotation';
+import { effectiveBuildingRotation } from '../buildingRotation';
 import { displayedConstructionProgress } from '../buildingProgressDisplay';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { getSpriteFrame } from '../spriteLoader';
@@ -85,7 +85,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     const { sx, sy, w, h } = getBuildingScreenRect(b);
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
     const hover = isHovered(b);
-    const rot = normalizeBuildingRotation(b.rotation);
+    const rot = effectiveBuildingRotation(b.type, b.rotation);
     drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, hover ? 1 : 0.92);
     const strips = (roadStrips ??= collectStripCenters(state.buildings, 'road'));
     const roadJunction = analyzeStripJunction(b.x, b.y, strips.hList, strips.vList, strips.along);
@@ -99,7 +99,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     if (!ISO_PANEL_BUILDINGS.has(b.type) || !b.completed) continue;
     const { sx, sy, w, h } = getBuildingScreenRect(b);
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
-    const rot = normalizeBuildingRotation(b.rotation);
+    const rot = effectiveBuildingRotation(b.type, b.rotation);
     const hover = isHovered(b);
     const alpha = hover ? 1 : 0.94;
     drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, alpha);
@@ -120,7 +120,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     // whole game day (48 real seconds at 1x) and then jump.
     const shownProgress = displayedConstructionProgress(b, state.tick);
     drawBuildingPad(ctx, cfg.padShape, sx, sy, w, h, tint, border, hover ? 0.45 : 0.28, dash, 1.5);
-    const rot = normalizeBuildingRotation(b.rotation);
+    const rot = effectiveBuildingRotation(b.type, b.rotation);
     if (isStripBuildType(b.type)) {
       drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, 0.55);
     } else if (isDecorType(b.type)) {
@@ -184,14 +184,18 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     if (isDecorType(b.type)) {
       drawProceduralDecor(ctx, b.type, sx, sy - h * 0.04, w, h);
     } else if (frame) {
-      // Lift sprite slightly above pad so the footprint reads as a base
+      // Lift sprite slightly above pad so the footprint reads as a base.
+      //
+      // The rotation is the owner's `effectiveBuildingRotation`, so a type the player cannot rotate
+      // draws upright even when an older save still stores a 90 on it — a Watchtower at 90 was drawn
+      // lying on its side, which is what the `flipX` argument here used to paper over. That argument is
+      // gone with the rotation; a rotatable type is unaffected.
       drawBuildingSprite(
         ctx, b.type, frame, sx, sy - h * 0.04, w, h,
         b.spriteScale || 1,
-        normalizeBuildingRotation(b.rotation),
+        effectiveBuildingRotation(b.type, b.rotation),
         cfg.spriteDisplayScale ?? DEFAULT_SPRITE_DISPLAY_SCALE,
         cfg.spriteAnchorY,
-        b.type === BuildingType.Watchtower && normalizeBuildingRotation(b.rotation) === 90,
       );
     } else {
       ctx.fillStyle = '#e7e5e4';
@@ -277,6 +281,30 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
       ctx.fillText(`${b.occupants.length}`, bx, by + 1);
       ctx.textBaseline = 'alphabetic';
     }
+  }
+
+  // Selected settler → light up the two places the inspector names: where they live and where they
+  // work. Both ids are already on the selected entity and the inspector reads the same pair
+  // (`residenceBuildingId` is the HOME, `homeBuildingId` is the WORKPLACE — see the field-naming
+  // note in `relationships.ts`), so this rings exactly the two buildings the panel is talking about
+  // rather than a re-derived guess. Drawn last so the rings sit above every building pass.
+  const selected = state.selectedEntity;
+  if (selected != null && selected.type === EntityType.Human) {
+    const ring = (id: number | undefined, stroke: string): void => {
+      if (id == null) return;
+      const building = state.buildings.find((candidate) => candidate.id === id);
+      if (!building) return;
+      const { sx, sy, w, h } = getBuildingScreenRect(building);
+      const pad = Math.max(3, 4 * cam.zoom);
+      ctx.save();
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = Math.max(2, 2.5 * cam.zoom);
+      ctx.setLineDash([Math.max(4, 6 * cam.zoom), Math.max(3, 4 * cam.zoom)]);
+      ctx.strokeRect(sx - w / 2 - pad, sy - h / 2 - pad, w + pad * 2, h + pad * 2);
+      ctx.restore();
+    };
+    ring(selected.residenceBuildingId, '#38bdf8'); // home — sky blue
+    ring(selected.homeBuildingId, '#facc15'); // workplace — amber
   }
 }
 

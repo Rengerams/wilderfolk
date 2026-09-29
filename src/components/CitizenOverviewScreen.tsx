@@ -269,7 +269,7 @@ export default function CitizenOverviewScreen({
               icon="💗"
               label="Life"
               value={overview.pregnant}
-              detail={`${overview.married} married · ${overview.affairs} affairs · ${overview.imprisoned} jailed`}
+              detail={`${overview.married} married · ${overview.youthLove} sweethearts · ${overview.affairsThisYear} affairs this year · ${overview.imprisoned} jailed`}
               tone={overview.affairs > 0 || overview.imprisoned > 0 ? 'warn' : 'life'}
             />
             {/* The threshold is the food owner's, not a second `max(20, pop × 2)` here: the

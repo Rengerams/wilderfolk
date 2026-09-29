@@ -26,7 +26,7 @@ import {
   isOnWorkScheduleShift,
   isWorkScheduleHour,
 } from './workSchedule';
-import { isWorkDay } from './dayCycleClock';
+import { getTickOfDay, isWorkDay } from './dayCycleClock';
 import {
   HUMAN_ADULT_MIN_AGE,
   HUMAN_MAX_LIFESPAN_YEARS,
@@ -134,6 +134,7 @@ import {
   isSpouseNearby,
   isValidAffairTarget,
   isValidAffairTrystSite,
+  affairEncounterHourOfDay,
   reconcileAffairPartner,
   shouldLeadAffairPair,
   tryCompleteCourtshipMarriage,
@@ -408,6 +409,28 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     let conceivedToday = false;
     if (isNewCalendarDay && !isPrisoner && isPlayerHuman(entity)) {
       conceivedToday = tryDailyConception(state, ctx, entity);
+      tryDailyAffairGossip(
+        state,
+        entity,
+        entityById,
+        updatedBuildings,
+        buildingById,
+        churchStrength,
+        playerHumans,
+      );
+      tryDailyAmicableDivorce(state, entity, entityById, updatedBuildings, playerHumans);
+    }
+
+    // The affair encounter is the one daily affair decision that needs the settler *away from their
+    // spouse*, so it is evaluated at a per-settler waking hour rather than for the whole settlement
+    // at midnight — see `affairEncounterHourOfDay`. It stays once per settler per day, and at the
+    // same chance: `personDayRoll` is keyed on the colony day, not the tick-of-day, so this is the
+    // same single roll the midnight gate made, just sampled at an hour its own gates can pass.
+    if (
+      !isPrisoner &&
+      isPlayerHuman(entity) &&
+      getTickOfDay(state.tick) === affairEncounterHourOfDay(entity.id)
+    ) {
       tryDailyAffairEncounter(
         state,
         entity,
@@ -421,19 +444,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         width,
         height,
       );
-      tryDailyAffairGossip(
-        state,
-        entity,
-        entityById,
-        updatedBuildings,
-        buildingById,
-        churchStrength,
-        playerHumans,
-        humanSocialGrid,
-        width,
-        height,
-      );
-      tryDailyAmicableDivorce(state, entity, entityById, updatedBuildings, playerHumans);
     }
 
     tryGraduateHumanChild(entity, config.size, config.speed, (e) => {
@@ -763,7 +773,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !huntingWere &&
       !inElectionCeremony &&
       !festivalGathering &&
-      hourOfDay === EVENING_START &&
+      // Evening, and again through deep night. The snap used to fire at 18:00 ONLY, and only for the
+      // ~half who `stayIn` at that hour (`prefersHomeTonightFor` returns `roll(103) < 0.5` for
+      // 18:00–22:00), so a settler who decided later walked the whole way home in the dark and stayed
+      // on screen the entire time — the owner's "why are they walking at night". Re-snapping each
+      // clock hour through the small hours puts them at their residence, where `isAsleepAtHome`
+      // hides them. This composes with the corner-form convention rather than fighting it:
+      // `snapHumanToBuilding` and `isNearResidence` resolve the same point.
+      (hourOfDay === EVENING_START || hourOfDay >= 23 || hourOfDay < 5) &&
       isStartOfClockHour(state.tick) &&
       stayIn &&
       hasResidenceAssignment(entity)

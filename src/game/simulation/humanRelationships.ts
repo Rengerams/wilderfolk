@@ -25,6 +25,8 @@ import {
   HUMAN_DAILY_PREGNANCY_CHANCE_NEAR,
   HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE,
   HUMAN_FERTILITY_START,
+  NIGHT_END,
+  NIGHT_START,
   HUMAN_YOUTH_FERTILITY_END,
   getYouthConceptionMultiplier,
   allowSocialLife,
@@ -68,6 +70,19 @@ import { addReputation } from '../simHelpers';
 export const AFFAIR_SPOUSE_BLOCK_RADIUS = 22;
 export const AFFAIR_BUILDING_NEAR_RADIUS = 55;
 export const AFFAIR_DAILY_TRYST_RADIUS = 95;
+
+/**
+ * The phrase in the affair-establishment chronicle line — the only record that an affair became
+ * *real* rather than merely suspicious.
+ *
+ * It is a constant because it has a reader as well as a writer: `citizenOverview` counts a year's
+ * establishments from the event log to report the People screen's "affairs this year". A live affair
+ * is short-lived (measured on the engine gate: the instantaneous count averages 0.2 per day and is
+ * non-zero on only 35 of 360 days in a year with 93 establishments), so a snapshot alone reads zero
+ * almost always and the feature looked absent. Written and read through this one string so the two
+ * cannot drift.
+ */
+export const AFFAIR_ESTABLISHED_LOG_PHRASE = 'began a secret affair';
 
 const RELATIONSHIP_CONFIG = {
   DIVORCE_CAUGHT_CHANCE: 0.7,
@@ -117,53 +132,22 @@ export function hasAffairPartner(entity: Entity, entityById: Map<number, Entity>
   return lover != null && lover.affairPartnerId === entity.id;
 }
 
+/**
+ * The lover this settler is in an **established** mutual affair with, or nothing.
+ *
+ * Exposure is an established-affair outcome (see `tryDailyAffairGossip`). This used to also
+ * return a partner whose progress had merely passed 45, which is what let a rumour fire on a
+ * pair that had not established yet.
+ */
 export function findAffairLover(
   entity: Entity,
   entityById: Map<number, Entity>,
   tick: number,
-  humanSocialGrid?: EntitySpatialGrid,
-  nearbyHumans?: readonly Entity[],
-  width?: number,
-  height?: number,
 ): Entity | undefined {
-  if (entity.affairPartnerId != null) {
-    const lover = getLivingEntity(entity.affairPartnerId, entityById);
-    if (lover && lover.affairPartnerId === entity.id && isValidAffairTarget(entity, lover, tick)) {
-      return lover;
-    }
-    return undefined;
-  }
-  let best: Entity | undefined;
-  let bestMutual = 0;
-  const entityProgress = entity.affairProgress ?? 0;
-  if (entityProgress < 45) return undefined;
-
-  const consider = (candidate: Entity) => {
-    if (!isValidAffairTarget(entity, candidate, tick)) return;
-    const theirProgress = candidate.affairProgress ?? 0;
-    if (theirProgress < 45) return;
-    const mutual = Math.min(entityProgress, theirProgress);
-    if (mutual > bestMutual) {
-      bestMutual = mutual;
-      best = candidate;
-    }
-  };
-
-  if (humanSocialGrid || (nearbyHumans && nearbyHumans.length > 0)) {
-    forEachAdaptiveInRadius(
-      humanSocialGrid,
-      nearbyHumans ?? [],
-      entity.x,
-      entity.y,
-      150,
-      (human) => {
-        if (human.type !== EntityType.Human) return;
-        consider(human);
-      },
-      socialAdaptiveOptions('social', nearbyHumans?.length ?? 0, width ?? 0, height ?? 0),
-    );
-  }
-  return best;
+  if (entity.affairPartnerId == null) return undefined;
+  const lover = getLivingEntity(entity.affairPartnerId, entityById);
+  if (!lover || lover.affairPartnerId !== entity.id) return undefined;
+  return isValidAffairTarget(entity, lover, tick) ? lover : undefined;
 }
 
 export function isSpouseNearby(entity: Entity, entityById: Map<number, Entity>, range = 52): boolean {
@@ -385,37 +369,34 @@ export function tryDailyAffairGossip(
   buildings: Building[],
   buildingById: Map<number, Building>,
   churchStrength: number,
+  /** Forwarded to `exposeAffair`; only its `'caught'` path reads it. */
   playerHumans: readonly Entity[],
-  humanSocialGrid?: EntitySpatialGrid,
-  width?: number,
-  height?: number,
 ): void {
   recordRelationshipDiagnostic('gossipChecks');
-  const lover = findAffairLover(entity, entityById, state.tick, humanSocialGrid, playerHumans, width, height);
+  // Exposure requires an **established** affair. A pair that is still building progress has no
+  // affair to expose yet, and `exposeAffair` calls `clearAffairPair`, which resets BOTH partners
+  // to 0 — so a rumour rolled on an unestablished pair did not merely embarrass them, it undid
+  // the whole climb. The exposure floors used to sit at 45 (church) and 85 (no church), far below
+  // the `AFFAIR_PROGRESS_MAX` of 100 that establishment needs, so exposure almost always won:
+  // the owner's New Frontier save logged 145 "Whispers spread" and 0 establishments across Y0
+  // D198–D279, and the downstream chain (caught-in-the-act, arrest, imprisonment for scandal,
+  // the forced divorce, `startFeud`) was therefore unreachable — every one of those gates keys
+  // off `hasAffairPartner`, which only establishment sets.
+  if (!hasAffairPartner(entity, entityById)) return;
+  const lover = findAffairLover(entity, entityById, state.tick);
   if (!lover) return;
   if (!shouldLeadAffairPair(entity, lover)) return;
   if (onScandalCooldown(entity, state.tick) || onScandalCooldown(lover, state.tick)) return;
 
-  if (churchStrength <= 0) {
-    if ((entity.affairProgress ?? 0) < 85 && (lover.affairProgress ?? 0) < 85) return;
-    if (personDayRoll(entity.id, state.tick, 601) < 0.06) {
-      if (isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) {
-        recordAffairTrystSite(entity, lover, state, buildingById, entityById);
-      }
-      exposeAffair(state, entity, lover, 'rumor', entityById, buildings, playerHumans);
-      recordRelationshipDiagnostic('scandalExposures');
-    }
-    return;
-  }
-
-  if (entity.affairPartnerId == null && ((entity.affairProgress ?? 0) < 45 || (lover.affairProgress ?? 0) < 45)) {
-    return;
-  }
-
-  const chance = churchStrength >= 1 ? 0.22 : 0.12;
-  if (personDayRoll(entity.id, state.tick, 602) < chance) {
+  // A church does not stop an affair being founded — `AFFAIR_CHURCH_FLOOR_FACTOR` already scales the
+  // daily tryst chance down. What it does is make the village talk far sooner, so the church's lever
+  // here is how long an established affair survives, not whether it can ever exist.
+  const chance = churchStrength >= 1 ? 0.22 : churchStrength > 0 ? 0.12 : 0.06;
+  // Salts stay split by branch so seeding a run does not change which days already gossiped.
+  const salt = churchStrength > 0 ? 602 : 601;
+  if (personDayRoll(entity.id, state.tick, salt) < chance) {
     if (isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) {
-      recordAffairTrystSite(entity, lover, state, buildingById);
+      recordAffairTrystSite(entity, lover, state, buildingById, entityById);
     }
     exposeAffair(state, entity, lover, 'rumor', entityById, buildings, playerHumans);
     recordRelationshipDiagnostic('scandalExposures');
@@ -713,12 +694,16 @@ export function advanceYouthLove(
     entity.youthLoveStartedDay = day;
     candidate.youthLoveStartedDay = day;
     createDeathParticles(state, (entity.x + candidate.x) / 2, (entity.y + candidate.y) / 2 - 12, '#f9a8d4', 7, 'heart');
-    logEvent(
-      state,
-      'event',
-      `${formatCitizenName(entity)} and ${formatCitizenName(candidate)} became sweethearts`,
-      entity.name,
-    );
+    const sweetheartLine = `${formatCitizenName(entity)} and ${formatCitizenName(candidate)} became sweethearts`;
+    logEvent(state, 'event', sweetheartLine, entity.name);
+    // Affairs raise a notification card from `exposeAffair`; a new sweetheart pair raised none, so
+    // its only trace was one line inside the Chronicle's generic "Events" bucket — 1 531 of the
+    // owner's 2 000 entries — which is why it read as "youth love i dont get a message or can see
+    // who it are". The pair is named here the same way the affair card names its pair.
+    addNotification(state, 'Sweethearts', sweetheartLine, 'success', {
+      x: (entity.x + candidate.x) / 2,
+      y: (entity.y + candidate.y) / 2 - 12,
+    });
   }
 }
 
@@ -1533,6 +1518,33 @@ export function canPursueSecretAffair(
   return Math.hypot(spouse.x - entity.x, spouse.y - entity.y) > 58;
 }
 
+/**
+ * The in-game hour a settler's once-per-day affair encounter is evaluated at, spread across the
+ * settlement by id over the **waking day** (06:00–19:00, derived from the owner's own `NIGHT_END` /
+ * `NIGHT_START`; settlers sleep 23:00–06:00, so midnight is inside the sleep window).
+ *
+ * The encounter used to run on the global `isNewCalendarDayTick` gate — tick-of-day 0, i.e.
+ * **midnight for everyone, at once** — and at midnight it could not pass its own gates.
+ * `canPursueSecretAffair` returns false on `isSpouseNearby` (22 px), which is true for a housed
+ * couple asleep in the same room, and `isAtMaritalHome` is true besides. Establishment is written
+ * nowhere else (`tests/affair.cadence.test.ts`: "the daily owner is the sole establisher"), so in a
+ * well-housed village no affair could ever complete: New Frontier — 453 settlers, a church — logged
+ * **145 "Whispers spread" and 0 "began a secret affair"** across Y0 D198–D279.
+ *
+ * Staggering costs nothing in probability, which is why it is the whole fix: `personDayRoll` hashes
+ * `(entity, colony day, salt)` and **not** the tick-of-day, so a settler evaluated once per day at
+ * their own waking hour still gets exactly one roll at exactly the same chance. Only the hour the
+ * conditions are sampled at changes. `decisionRegistry` already declares this cadence as
+ * "staggered/daily"; the implementation was the part that was not staggered.
+ */
+const AFFAIR_ENCOUNTER_FIRST_HOUR = NIGHT_END; // 06:00 — the waking boundary the code already owns
+const AFFAIR_ENCOUNTER_LAST_HOUR = NIGHT_START - 1; // 19:00 — last hour before `isNightHour` begins
+const AFFAIR_ENCOUNTER_HOUR_COUNT = AFFAIR_ENCOUNTER_LAST_HOUR - AFFAIR_ENCOUNTER_FIRST_HOUR + 1;
+
+export function affairEncounterHourOfDay(entityId: number): number {
+  return AFFAIR_ENCOUNTER_FIRST_HOUR + (Math.abs(entityId) % AFFAIR_ENCOUNTER_HOUR_COUNT);
+}
+
 /** Once-per-day affair drift and establishment — owned by humanRelationships. */
 export function tryDailyAffairEncounter(
   state: WorldState,
@@ -1637,7 +1649,7 @@ export function tryDailyAffairEncounter(
     recordRelationshipDiagnostic('affairsEstablished');
     const who = humanDisplayName(entity);
     const other = humanDisplayName(paramour);
-    const line = `${who} began a secret affair with ${other}`;
+    const line = `${who} ${AFFAIR_ESTABLISHED_LOG_PHRASE} with ${other}`;
     logEvent(state, 'scandal', line, who);
     addNotification(state, 'Affair', line, 'warning', { x: entity.x, y: entity.y });
   }

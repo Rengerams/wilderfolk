@@ -310,10 +310,13 @@ export default function SelectedEntityPanel({
         </p>
       )}
 
-      {/* Food Chain Role */}
+      {/* Food Chain Role — the SPECIES' trophic role (grass = Producer, wolf = Apex Predator).
+          The label used to read just "Role", which on a citizen panel reads as *this settler's*
+          job — so every human, a newborn included, was reported as a "Civilization Builder". */}
       <div className="mb-2 rounded bg-stone-800/60 p-2 text-[11px]">
-        <div className="grid grid-cols-[3rem_1fr] gap-y-0.5">
-          <span className="text-stone-400">Role</span>
+        <p className="mb-1 text-stone-400">Food chain · humans</p>
+        <div className="grid grid-cols-[5.5rem_1fr] gap-y-0.5">
+          <span className="text-stone-400">Species role</span>
           <strong className="text-amber-300">{ecology.role}</strong>
           <span className="text-stone-400">Eats</span>
           <strong className="text-emerald-300">{ecology.eats}</strong>
@@ -359,7 +362,7 @@ export default function SelectedEntityPanel({
               const label = jobSite ? getBuildingConfig(jobSite.type).label : 'Workplace';
               return <p className="text-emerald-300">🔨 Works at: {label}</p>;
             })() : !entity.isJuvenile && !entity.pregnant && (
-              <p className="text-stone-300">🔨 No job yet — build a Farm, Mill, etc.</p>
+              <p className="text-amber-300">🔨 Unemployed — no work assigned</p>
             )}
             <p className="text-sky-300">👕 {getHumanVariantLabel(entity.gender, entity.spriteVariant ?? 0)}</p>
             {entity.occupation && entity.occupation !== 'settler' && <p>💼 {entity.occupation}</p>}
@@ -389,12 +392,32 @@ export default function SelectedEntityPanel({
                 </p>
               );
             })()}
+            {/* Affair progress accumulates over several trysts *before* `affairPartnerId` is set at
+                100, and that whole build-up was invisible — the panel only read the established id.
+                Only the established pair gets a name: before establishment there is no recorded
+                paramour to name. */}
+            {entity.affairPartnerId == null && (entity.affairProgress ?? 0) > 0 && (
+              <p className="text-rose-300/70">💋 Secret affair brewing ({Math.round(entity.affairProgress ?? 0)}%)</p>
+            )}
             {entity.isBastard && <p className="text-violet-300">⚜ Born outside wedlock</p>}
             {childCount > 0 && (
               <p className="text-pink-200">
                 👶 {childCount} child{childCount === 1 ? '' : 'ren'}
               </p>
             )}
+            {/* Youth love (12–17) is a real mutual pair bond in the simulation, but nothing rendered
+                it: no panel line, no counter, no map badge — only a generic 🌝 log entry. The
+                sweetheart's given name and surname match the marriage line above; the `#id` form is
+                the Chronicle's. */}
+            {entity.youthLovePartnerId != null && (() => {
+              const sweetheart = allEntities.find((e) => e.id === entity.youthLovePartnerId && e.alive);
+              return (
+                <p className="text-pink-300">
+                  💗 Sweethearts{sweetheart ? ` with ${citizenFullName(sweetheart)}` : ''}
+                  {` (${Math.round(entity.youthLoveProgress ?? 0)}%)`}
+                </p>
+              );
+            })()}
             {entity.courtshipProgress && entity.courtshipProgress > 0 && entity.relationshipStatus === 'single' && (
               <p className="text-pink-300">💕 Courting... {entity.courtshipProgress}%</p>
             )}
