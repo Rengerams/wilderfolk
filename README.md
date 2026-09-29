@@ -24,7 +24,150 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-## Latest update — v0.6.4.1 (September 21, 2026)
+##  — v0.6.5.0 (September 29, 2026)
+
+* `GAME_VERSION` **0.6.5.0**
+* ⚠️ **Beta Save Policy:** This build loads only **0.6.5.0** saves.
+
+**A more rugged, atmospheric, and ever-changing landscape.**
+
+Welcome to the ultimate frontier upgrade! In this landmark version, we are incredibly excited to introduce **Teraforge**—our brand-new, completely custom terrain engine that unleashes a total tactical and atmospheric revolution across the valley! We have officially melted down the old rigid, flat grid blocks right to the bedrock. In their place rises a magnificent, deeply layered 2.5D ecosystem where the raw shape of the earth dynamically commands the flow of the food chain, dictates shifting weather behaviors, and fundamentally changes how you strategize, build, and defend your settlement! Get ready, because the wilderness just truly came alive!
+
+---
+
+## 🏔️ Real Relief & Mountain Ranges
+--
+
+The valley's vertical range grows dramatically, and the mountains that ring your home finally feel like mountains.
+
+* **Clustered ranges, not lonely mounds.** Peaks form connected chains that wall off regions — sun-lit ridgelines, shaded cliff faces, and snow-capped crests rising out of the plain.
+* **Elevation changes everything.** As the land climbs, so does life on it:
+
+ 
+* **Valley floor**  Temperate meadows, deciduous groves, blueberry stands, warm ground your settlers know best. 
+* **Mid-slopes**  Pine and boreal cover, cooler air, steeper commutes that tax stamina. 
+* **High crests** Wind-scoured rock and glacial snow — beautiful to look at, brutal to build on. 
+
+* **Natural high ground.** Enclosed upland valleys, sheltered plateaus, and cliff-backed pockets make genuinely defensible ground for a frontier village facing raids.
+* **Topographic Rain Shadows.** Mountain ranges now block incoming weather. Rain-heavy winds from the west-south-west create lush, wooded slopes on the windward side, while leaving dry, open plains in the shadow behind the peaks.
+* **Latitude-Based Climate Zones.** The map now tracks actual latitude. The center row acts as a warm equator, while the top and bottom edges gradually cool into true polar and boreal zones, creating natural regional frontiers.
+
+---
+
+## 🕳️ Living Watersheds & Carved Land
+--
+
+Water no longer trickles across the map as a thin blue thread — **it shapes the terrain it flows through**.
+
+* **Gradient-walker rivers.** Water follows downhill elevation with organic meander noise and inertia.
+* **Whole-tile rivers that carve.** Systems cut deep gorges and ravines through high ground before spilling toward the lowlands, leaving dramatic drops and smooth, hand-painted shores.
+* **Smooth distance fields.** River edges blend seamlessly into the surrounding terrain with absolutely no blocky cells.
+* **Width growth.** Thin mountain streams dynamically widen into broad, deep lowland rivers as they accumulate drainage.
+* **Waterfalls.** Automatically generated wherever rivers meet steep elevation drops, complete with animated white spray particles.
+* **Lakes, basins & floodplains.** Water pools naturally where the land dips, feeding fertile riverbanks: prime farming, fishing, and settlement ground if you read the terrain right.
+* **River ≠ ocean.** Distinct, readable color profiles: rivers run a clear teal-blue, while the open ocean sits in a dark navy.
+* **Terrain that tells a story.** Every generated valley presents its own unique natural bottlenecks, corridors, and vantage points to adapt your layout to.
+
+---
+
+## 🌿 Seamless Biomes & Soft Borders
+--
+
+Biomes no longer snap together at hard square edges. The engine blends **temperature, moisture, and elevation** into organic, fluid gradients — no tile seams, no grid squares, no guillotine edges.
+
+```text
+Cold/Dry (Tundra) ◄──────► Cold/Wet (Taiga)
+       ▲                          ▲
+       │     [Organic Gradient]   │
+       ▼                          ▼
+Warm/Dry (Steppe) ◄──────► Warm/Wet (Meadow/Wetland)
+```
+
+* **15 biomes flowing into one another.** Watch the map shift smoothly: deep water → rivers → sand → desert → dirt → grass → meadow → forest → dense forest → taiga → swamp → tundra → rock → snow.
+* **Biomes ride the terrain.** Vegetation regions conform to the land instead of dictating it — a forest can spread across flat bottoms, climb a hillside, or crown a coastal bluff.
+* **Per-pixel rendering.** Enjoy smooth Whittaker-style color gradients alongside biome-specific textures — including grass streaks, dirt grain, sand ripples, rock cracks, and snow sparkle — fully visible when you zoom in.
+* **Elevation shading.** Advanced hillshading, cast shadow passes, slope edges, and progressive altitude dimming bring deep physical form to your display.
+* **The food chain flows across the blends.** Grass, prey, predators, and people all share a topographic layout that finally makes ecological sense.
+
+---
+
+## 🌊 Coastlines & Frontier Edges
+--
+
+* **Coasts with character.** Oceans and riverlands gain real shelving, sheltered coves, and rugged, cliff-lined edges instead of one uniform shore.
+* **Terrain-aware placement.** Starting areas, resources, and paths respect the shape of the land. Warm, hand-made footpaths thread through the relief instead of clipping straight through it.
+
+---
+
+## 🌦️ Weather with a Pulse
+
+We have fully integrated Teraforge's dynamic weather registry, moving away from simple frame-by-frame shifts to a fully smooth, frame-rate independent atmosphere.
+
+* **☁️ Drifting Cloud Layers & Parallax Fog:** Volumetric, soft clouds drift across the sky, dynamically changing with active storms or droughts. Low-hanging fog rolls through the valleys with beautiful cinematic depth as you move the camera. Fog's veil finally draws exactly the way it was always meant to.
+* **☀️ Daylight Temperature Cast:** The world's lighting shifts with the weather. Feel the oppressive heat haze during a summer drought, or the crisp, cold casting during winter snowfalls.
+* **🪨 Grit Underfoot:** Zoom right in — the surface detail holds up. Rock fields show real bedding ledges and rubble, snow fields are wind-worked into drifts, dirt shows fine gravel, and grass has visible tussocks and soil showing through.
+* **⏱️ Frame-Rate Independence:** Environmental particle systems move at the same speed on every screen—no more double-speed rain or storm visuals on 120 Hz or 144 Hz displays.
+
+---
+
+## 🏘️ A Settlement You Can Read at a Glance
+
+* **👣 Grounded World Depth:** Human, wildlife, tree, and building sprites share unified contact shadows with a gentle cast direction, ensuring the settlement sits firmly in the valley.
+* **🏡 Living Upgrades:** Buildings visually reflect their tier updates at a glance. Watch scaffolds grow during construction, and spot warm windows, chimney smoke, glowing forge fires, or late-night tavern activity across the lanes.
+* **🎨 Sprite Harmony:** Enjoy a completely consistent frontier aesthetic with one synchronized lighting direction, palette, outline weight, and sense of scale across all people, animals, trees, and buildings.
+* **🗺️ Infrastructure Blueprint (Hot Seat):** Use the **X** hotkey overlay anytime to track supply routes, check commute pressure, identify blocked path grids, or manage workforce policy presets instantly.
+
+---
+
+## 🌿 Life & Atmosphere
+
+The valley is alive with environmental detail, all driven by deterministic, seed-safe presentation streams:
+
+| Type | Count | Examples |
+|---|---|---|
+| **Trees** | 4 variants × 2 types | Oak (round canopy), Pine (tiered triangles), Fruit tree (colored fruits), Palm. |
+| **Plants** | 8 types | Bush, flower, fern, tallgrass, berries, reed, cattail, scrub. |
+| **Ground objects** | 7 types | Rock (small/big), stump, log, driftwood, bones, dirt patch. |
+| **Water props** | 1 type | Lilypad (with optional flowering variants). |
+| **Wildlife** | 2 types | Birds (V-shape, flapping), Butterflies (colored wings, fluttering). |
+
+* **Wind animation.** Foliage responds directly to the climate; trees sway organically from the canopy while trunks stay planted, and grass and reeds bend in clusters.
+* **Birds & butterflies.** Fully animated over forests and meadows, driven by deterministic flocking positions.
+* **Waterfall spray.** Crisp white particles track actively where rivers take sudden drops.
+
+---
+
+## 🧱 Built on a Four-Layer Grid
+
+The new terrain completely replaces the old world generation *and* pathfinding backend, anchoring every simulation step into one clean, optimized structure:
+
+```text
+┌──────────────────────────────────────┐
+│ L3 DECOR    Free sprites             │ ← 23 decoration types
+├──────────────────────────────────────┤
+│ L2 TERRAIN  64px biome cells         │ ← 15 biome types
+├──────────────────────────────────────┤
+│ L1 BUILD    20px placement grid      │ ← Snap grid for structures
+├──────────────────────────────────────┤
+│ L0 PATH     10px collision grid      │ ← Pathfinding / occupancy
+└──────────────────────────────────────┘
+```
+
+* **100% Deterministic.** Same seed + same settings = identical world across save, load, and worker hand-offs, forever.
+* **3 massive PC map sizes.** Play your way on Medium (2560×1920), Large (4096×3072), or our staggering new **Huge maps (6144×4608)** which provide ~5.8× the buildable area of the previous version.
+
+---
+
+## ⚙️ Under the Hood (For the Frontier Engineers)
+
+While you enjoy the views, the simulation under the hood has been heavily optimized to handle massive PC-scale populations without a single stutter:
+* **The Hybrid Data Grid:** Seamlessly blends old tile readers with ultra-fast flat typed-arrays, drastically improving memory cache performance on massive map sizes.
+* **The 360-Day Oracle Verified:** We ran the simulation through a full year of active play on the largest map sizes. The engine cleared the test with **0 invariant violations, 0 stalled ticks, and 0 worker fallbacks**. 
+
+
+---
+
+##  — v0.6.4.1 (September 21, 2026)
 
 **A deeper, clearer, and more responsive valley.**
 
