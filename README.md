@@ -40,6 +40,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 Welcome to the ultimate frontier upgrade! In this landmark version, we are incredibly excited to introduce **Teraforge**—our brand-new, completely custom terrain engine that unleashes a total tactical and atmospheric revolution across the valley! We have officially melted down the old rigid, flat grid blocks right to the bedrock. In their place rises a magnificent, deeply layered 2.5D ecosystem where the raw shape of the earth dynamically commands the flow of the food chain, dictates shifting weather behaviors, and fundamentally changes how you strategize, build, and defend your settlement! Get ready, because the wilderness just truly came alive!
 
+`A precompiled version is ready for download under releases`
 ---
 
 ## 🏔️ Real Relief & Mountain Ranges
