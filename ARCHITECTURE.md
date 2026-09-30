@@ -135,6 +135,34 @@ Not aspirations — these are the things the browser constrained:
 4. **Biome transitions** through TileSet terrains instead of hand-matched corners.
 5. **Authorable in the editor** — a designer can paint and inspect a map, which the browser build never allowed.
 
+### 5.3 How the data is shaped: one grid, parallel arrays
+
+Terrain is the engine's. The simulation reads a **projection** of it: terrain is sampled into the arrays the
+seam already expects, so terrain stays terrain — mesh, shader, water, foliage, sculpting — and the grid is the
+simulation's *view* of it, not the terrain's storage.
+
+This holds **whether the world is generated or authored**, and that question is still open. What is settled is
+the shape of the projection, because it is not a design question: **every mature terrain system in this
+ecosystem already uses it, and so does the oracle.**
+
+| | Heights | Gameplay / material layers |
+|---|---|---|
+| the oracle | `elevation`, `moisture`, `temperature`, `riverDist` — five parallel `Float32Array`s over one `cols × rows` grid (`terrainGrid.ts`) | the cell flags (`WATER_CELL`, `BUILD_CELL`, `PATH_CELL`) over the same grid |
+| LowPolyTerrainBuilder | the height matrix | **four bytes per grid vertex** in a `PackedByteArray` **alongside the heights** |
+| Terrain3D | one file per region in a data directory | a control map over the same regions |
+
+So gameplay layers live **on the terrain as a parallel array over the same grid** — not as a second scene
+layer. A separate layer is two sources for one fact, and two sources drift; that failure has already cost real
+time in the oracle twice. There is nothing to invent here, which is the point.
+
+Two consequences worth stating:
+
+- **Water is the one genuine special case.** TerraBrush paints it *into* the height field (the terrain goes
+  lower where water is painted) while the shader draws the surface. So water has both a data face (the flag
+  the simulation reads) and a visual face (the shader), and they must agree.
+- **Keep terrain data out of `.tscn`.** LowPolyTerrainBuilder keeps chunk data in editor RAM explicitly *"to
+  prevent `.tscn` bloat"*, and Terrain3D uses a data directory. A scene file is not a terrain store.
+
 ## 6. Plugins: what fits, and what does not
 
 **A plugin may never enter the sacred half.** Anything on the sim side must be plain GDScript in this
