@@ -63,4 +63,4 @@ Console output, screenshot, save identifier, diagnostic output, or test fixture.
 (to close the bug in the end)
 ```
 
-The fixed tick-layer structure is documented in `SIMULATION_AUTHORITY.md`. Do not add a new tick layer without first updating that authority document and recording the architectural reason.
+The fixed tick-layer structure is documented in `OWNERSHIP_OVERVIEW.md` — the live authority — and in the header comment of `src/game/gameTick.ts` (`tickLayerRealtime · tickLayerSystems · tickLayerAssign · tickLayerDaily`). Do not add a new tick layer without first updating that authority and recording the architectural reason. The predecessor document, `docs/archive/SIMULATION_AUTHORITY.md`, is archived and stale: read it for history, never update it.

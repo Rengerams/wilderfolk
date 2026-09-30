@@ -13,6 +13,7 @@
 - 2026-08-27 — open (Oxlint was traversing generated files under the repository `tmp/` directory)
 - 2026-08-27 — investigating (lint scripts invoked Oxlint without explicit project paths)
 - 2026-08-27 — resolved (lint scripts restricted to source, scripts, and configuration entrypoints)
+- 2026-09-30 — correction to the analysis, not the fix: the premise recorded under "Evidence" — *"Git ignore rules do not restrict Oxlint traversal"* — is wrong. **Oxlint does honour `.gitignore`.** That is why naming `scripts` in the explicit scope did not lint it: the directory was gitignored, so the gate reported `0 warnings and 0 errors` for a month while never reading any of the 70 files. Tracking `scripts/` on 2026-09-30 made Oxlint read it for the first time and surfaced 134 pre-existing findings across 40 files. The `tmp/` fix above still holds and was correct for its own purpose — explicit paths do exclude `tmp/` — but the stated reason was inverted, and the inverted reason is what hid the hole. See `scripts/test.mjs` for the current scope and the measured numbers.
 
 ## Observed behavior
 

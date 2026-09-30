@@ -65,7 +65,7 @@ Perform targeted reconnaissance rather than reading the entire repository:
 - Follow the relevant entry points and imports outward.
 - Use `rg`/`grep` to find symbols, error messages, tests, configuration, and existing utilities.
 - Read contracts before implementations: types, interfaces, schemas, public APIs, and barrel exports.
-- Before creating a helper, search the repository and `ARCHITECTURE.md` for an existing equivalent. Prefer **reuse**, then **generalization**, and create a new helper only when neither is appropriate.
+- Before creating a helper, search the repository for an existing equivalent. The architecture summary lives in §4 of this file — there is no separate `ARCHITECTURE.md`. Prefer **reuse**, then **generalization**, and create a new helper only when neither is appropriate.
 - If the change affects more than three files or changes architecture, state this mini-RFC before implementation:
   - **Problem:** …
   - **Minimal change:** …
@@ -170,7 +170,7 @@ Do not leave guessed values in this section. Replace placeholders only with repo
 
 ### 5.1 Search before adding utilities
 
-Before adding a helper, search for several likely names and inspect `ARCHITECTURE.md` if it exists. Reuse an exact match. Generalize a near match only when that reduces duplication without weakening its contract. Otherwise create the helper in the repository’s established utility location with a discoverable name.
+Before adding a helper, search for several likely names. The architecture summary lives in §4 of this file — there is no separate `ARCHITECTURE.md`. Reuse an exact match. Generalize a near match only when that reduces duplication without weakening its contract. Otherwise create the helper in the repository’s established utility location with a discoverable name.
 
 ### 5.2 Maintain one source of truth
 
@@ -294,7 +294,7 @@ Repository work generates a lot of prose. It goes in exactly one place per kind,
 | Active roadmap | `Roadmap_V0_6.5.MD` (root) | feature table + statuses; the rules above apply |
 | Changelog | `CHANGELOG.md` (root) | noticeable changes, newest first |
 | Bug report | `BUG_REPORTS/<yyyy-mm-dd>-<slug>.md` | format and fields: `BUG_REPORTS/Readme.md`; a resolved report stays as the record |
-| Superseded bug reports | `BUG_REPORTS/archive/` | keep; never delete |
+| Superseded bug reports | `BUG_REPORTS/` (same tree) | keep; never delete. Resolved reports stay in place as the record — there is no `archive/` subdirectory |
 | Audit / review report | `docs/private/audits/<yyyy-mm-dd>/<area>.md` | private, gitignored; one file per area |
 | Audit campaign tracker | `docs/private/audits/<yyyy-mm-dd>/LIVE-FINDINGS-STATUS.md` | the status owner for a multi-finding campaign |
 | Implementation plan | `docs/plans/<topic>-<yyyy-mm-dd>.md` | one plan per topic |
@@ -307,8 +307,8 @@ Repository work generates a lot of prose. It goes in exactly one place per kind,
 Rules that follow from the table:
 
 - **New document → its home above.** Do not invent a new top-level `.md` file or a new document directory. If a genuinely new kind of document is needed, propose it and record the decision in this section rather than creating a second convention.
-- **Tracked vs local.** `docs/**`, `tests/**`, `scripts/**` and `tmp/**` are gitignored working material. The tracked, shareable surface is `README.md`, `CHANGELOG.md`, `Roadmap_V0_6.5.MD`, `AGENTS.md`, `ASSET_REGISTER.md`, `OWNERSHIP_OVERVIEW.md`, `THIRD_PARTY_NOTICES.md` (plus the locally-ignored `BUG_TRACKER.md`, `TERAFORGE.md`, `GIT_SURVIVAL_GUIDE.md`).
-- **There are two bug-report trees.** The live one is root `BUG_REPORTS/`; `docs/BUG_REPORTS/` holds an older archived set. Write new reports to the root tree only, and never create a third.
+- **Tracked vs local.** `docs/**`, `tests/**`, `scripts/**` and `tmp/**` are gitignored working material. The tracked, shareable surface is `README.md`, `CHANGELOG.md`, `Roadmap_V0_6.5.MD`, `AGENTS.md`, `ASSET_REGISTER.md`, `OWNERSHIP_OVERVIEW.md`, `THIRD_PARTY_NOTICES.md` (plus the locally-ignored `TERAFORGE.md` and `GIT_SURVIVAL_GUIDE.md`). The old `BUG_TRACKER.md` no longer exists — it became `BUG_REPORTS/SUMMARY.md`, which **is** tracked, so read the tracker there.
+- **There is one bug-report tree: root `BUG_REPORTS/`.** The older `docs/BUG_REPORTS/` set (59 resolved reports) was consolidated into it on 2026-09-30 and no longer exists, and there is no separate `archive/` directory — resolved reports stay in the one tree as the record. Write new reports there only, and never create a second tree.
 - **Audit campaigns** use one tracker plus per-area reports in the same dated folder. The owner has ruled that per-finding `BUG_REPORTS/` entries are **not** required while a tracker is the record: close rows in the tracker, and promote a finding to a bug report only when the owner asks.
 - **Scratch must not outlive its use.** Probe scripts, extracted archives and throwaway logs belong in `tmp/` and should be deleted or promoted before the session ends. `npm run check:source` fails on zero-byte files and source archives under `src/`, `tests/`, `scripts/` and `config/` — the 2026-09-16 audit found three ZIP archives of live source sitting in `src/` precisely because no rule looked for them.
 - **`tmp/` is emptied wholesale.** `npm run clean` (dry run) / `npm run clean:apply` delete all of `tmp/`, `dist/`, and the throwaway browser profiles automation leaves in the OS temp dir. There is deliberately **no keep-list**: an exception list quietly turns scratch into storage, which is how 391 MB accumulated by 2026-09-30 (299 MB of it screenshots, plus whole copies of the `src/` tree from recovery generations). **Nothing durable belongs in `tmp/` — if it is worth keeping, promote it to its documented home first.** The 2026-09-30 pass needed exactly two rescues: a 31-file design council (`docs/private/council-v2/`) and the Godot port's RNG oracle (`scripts/dump-sim-rng.mts`).
