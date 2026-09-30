@@ -5,7 +5,7 @@ This is the design plan. [`ROADMAP.md`](ROADMAP.md) is the phase order; [`AGENTS
 
 ---
 
-## 1. The one rule: the simulation is sacred
+## 1. The one rule: behaviour is sacred, shape is not
 
 The simulation is where the bugs were, and where some still are. Every one of them cost real time. So:
 
@@ -96,9 +96,12 @@ Measured in the oracle, and none of it needs porting:
 **Estimated parity surface: the remaining ~57 000 lines of `src/game`.** That is the sacred half, and it is the
 real work. The number is an estimate; the categories are measured.
 
-## 4. How "sacred" is enforced, not just stated
+## 4. How the locked half is enforced, not just stated
 
-A rule in a document is obeyed until someone is in a hurry. Three mechanisms, in order of strength:
+A rule in a document is obeyed until someone is in a hurry. Three mechanisms, in order of strength. Only the
+first is a **shape** discipline, chosen deliberately for the reason it gives; the other two test **behaviour**,
+which is what is actually locked. So §4.1 is open to a better alternative that still passes §1's history
+comparison — §4.2 and §4.3 are not negotiable at all.
 
 ### 4.1 Purity: the sacred half may not depend on the free half
 

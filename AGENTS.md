@@ -23,10 +23,11 @@ behaviour exactly.** Most rules below follow from that one sentence.
 - Useful oracle documents: `docs/SIM_RNG_GUIDELINES.md`, `docs/archive/SIMULATION_ARCHITECTURE_0_6_1.md`
   (ownership map — treat it as the porting task list), `docs/HANDOVER-godot-port-2026-09-30.md`.
 - **This project's own documents:** [`ARCHITECTURE.md`](ARCHITECTURE.md) decides what may change — the
-  simulation is **sacred and ported, never rewritten**; terrain and presentation are free; and the eleven-entry
-  seam is the wall between them. [`ROADMAP.md`](ROADMAP.md) is the port plan, the phase order and what is
-  already verified; [`MCP.md`](MCP.md) is the Godot AI tool reference — 29 domains, 13 resources, and the
-  gotchas that have already bitten. This file is the protocol that binds them.
+  simulation's **behaviour** is locked (same seed, same village history) while its **shape** is not, so a
+  boundary or layout the browser required does not survive merely because it is there; terrain and presentation
+  are free; and the eleven-entry seam is the wall between them. [`ROADMAP.md`](ROADMAP.md) is the port plan, the
+  phase order and what is already verified; [`MCP.md`](MCP.md) is the Godot AI tool reference — 29 domains, 13
+  resources, and the gotchas that have already bitten. This file is the protocol that binds them.
 
 ## 2. Language: GDScript, not C#
 
