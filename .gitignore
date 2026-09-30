@@ -1,0 +1,16 @@
+# Godot-specific ignores
+.godot/
+*.uid
+
+# Microsof Visual Studio Solution/Project files (if using C#)
+*.mono/
+.mono/
+*.sln
+*.csproj
+
+# Crash dumps
+*.dmp
+
+# System and editor overrides
+.DS_Store
+Thumbs.db
