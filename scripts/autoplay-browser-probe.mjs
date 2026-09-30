@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 /**
- * TEMPORARY local probe (gitignored, like `scripts/autoplay-probe.mts`).
+ * THE AUTOPLAY BOT HARNESS — not a throwaway probe, and not safe to delete.
  *
- * WHY: `useVirtualPlayer` is React wiring, and this repo's Node test tier has no
- * DOM implementation at all (no jsdom / happy-dom / react-test-renderer), so no
- * `vitest` test can drive the hook. This probe closes exactly that gap: it drives
+ * Extend this file instead of writing a new one: add a capability to `CAPABILITIES`
+ * below and assert on it (AGENTS.md §7.1, "Extend the bot, do not write a new probe").
+ * The changelog depends on this harness, and its earlier header — "TEMPORARY local
+ * probe, safe to delete" — caused an audit to grade it a delete-candidate.
+ *
+ * WHY IT EXISTS: `useVirtualPlayer` is React wiring, and this repo's Node test tier
+ * has no DOM implementation at all (no jsdom / happy-dom / react-test-renderer), so
+ * no `vitest` test can drive the hook. This harness closes exactly that gap: it drives
  * the real dev build in real headless Chrome, clicks 🤖 Auto-play, and reports
  * what the header actually says and whether the bot actually acts.
  *

@@ -3,8 +3,16 @@ import { addNotification } from './simEffects';
 
 let nextEventLogId = 1;
 
-/** Bound authoritative and presentation event history consistently. */
-export const EVENT_LOG_MAX_ENTRIES = 2000;
+/**
+ * Bound authoritative and presentation event history consistently.
+ *
+ * 6 000, not 2 000: measured on the owner's "New Frontier" chronicle (population 641) a busy
+ * colony writes ~10 meaningful entries a day once routine friendship lines are no longer
+ * written, so 2 000 covered ~200 days — and the owner's own first-year leader death had already
+ * rolled out of the window before he could look for it. 6 000 covers ~600 days, comfortably more
+ * than one in-game year, and costs ~1.2 MiB when the log is serialised against 405 KiB at 2 000.
+ */
+export const EVENT_LOG_MAX_ENTRIES = 6000;
 
 /** Restore monotonic ids after loading a save. */
 export function syncEventLogIdFromState(state: Pick<WorldState, 'eventLog'>): void {

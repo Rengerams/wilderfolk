@@ -32,6 +32,20 @@ const FEUD_ROLL_BUDGET = 20_000;
 /** Live feuds one settler may carry from drift; a wrong is never refused by this cap. */
 const MAX_LIVE_FEUDS_PER_SETTLER = 3;
 
+/**
+ * Close bonds one settler may take on. The mirror of {@link MAX_LIVE_FEUDS_PER_SETTLER}, which
+ * feuds always had and friendships never did.
+ *
+ * Without it the graph saturated: every pair that ever shared a home, workplace or job reached
+ * {@link FRIEND_CLOSE_THRESHOLD}, so a measured 90-settler colony ended with one settler holding
+ * **54 close friends** (p50 40), and the owner's 641-settler village read as "everyone became
+ * friends". The energy bonus saturates at 2.5 bonds (`strongCount * 0.8`, capped at 2 in the
+ * daily pass), so a ceiling of 6 costs no effect that exists today while bounding the graph to
+ * 6 per settler instead of one key per settler met. Existing bonds above the ceiling are left
+ * alone — this refuses *new* close bonds only, so an old save is never pruned by it.
+ */
+export const MAX_CLOSE_FRIENDS_PER_SETTLER = 6;
+
 /** Daily chance per clashing trait pair that co-located settlers drift into a feud: about 0.2
  *  starts a day at 500 settlers, which the 0.4/day fade holds near a dozen live feuds. */
 const INCOMPATIBLE_PAIR_FEUD_CHANCE_PER_DAY = 0.00005;
@@ -205,6 +219,18 @@ export function advanceSocialRelationships(
     if (held > 0) liveFeudsById.set(p.id, held);
   }
 
+  /**
+   * Close friends per settler, counted once with the existing `friendCount` and kept current as
+   * this pulse *creates* close bonds, so the ceiling holds within a single day: two settlers in a
+   * 40-member group would otherwise cross `FRIEND_CLOSE_THRESHOLD` together and each take on
+   * dozens of bonds at once.
+   */
+  const closeFriendsById = new Map<number, number>();
+  for (const p of people) {
+    const held = friendCount(p);
+    if (held > 0) closeFriendsById.set(p.id, held);
+  }
+
   const pairKey = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
   
   const bumpFriendship = (a: Entity, b: Entity, amt: number) => {
@@ -222,6 +248,15 @@ export function advanceSocialRelationships(
     
     const before = a.friendships[friendKey(b.id)] ?? 0;
     const next = Math.min(100, before + amt);
+
+    // This bump would turn the pair into a *close* friendship: both sides must still have room
+    // under the ceiling. An existing close bond keeps warming even when a settler is at the cap.
+    if (before < FRIEND_CLOSE_THRESHOLD && next >= FRIEND_CLOSE_THRESHOLD) {
+      if ((closeFriendsById.get(a.id) ?? 0) >= MAX_CLOSE_FRIENDS_PER_SETTLER) return;
+      if ((closeFriendsById.get(b.id) ?? 0) >= MAX_CLOSE_FRIENDS_PER_SETTLER) return;
+      closeFriendsById.set(a.id, (closeFriendsById.get(a.id) ?? 0) + 1);
+      closeFriendsById.set(b.id, (closeFriendsById.get(b.id) ?? 0) + 1);
+    }
     
     a.friendships[friendKey(b.id)] = next;
     b.friendships[friendKey(a.id)] = next;
@@ -328,12 +363,12 @@ export function advanceSocialRelationships(
   }
 
   // Strong friends lift each other's spirits. A counterpart who is gone is not a
-  // friend any more, so prune the record here exactly as the feud pass above does.
+  // friend any more, so prune the record here exactly as the feud pass above does,
+  // then count the survivors with the one `close friend` definition.
   for (const p of people) {
     const friendships = p.friendships;
     if (!friendships) continue;
 
-    let strongCount = 0;
     for (const key in friendships) {
       if (!friendships.hasOwnProperty(key)) continue;
 
@@ -342,12 +377,10 @@ export function advanceSocialRelationships(
 
       if (!byId.has(otherId)) {
         delete friendships[key];
-        continue;
       }
-
-      if (friendships[key] >= FRIEND_CLOSE_THRESHOLD) strongCount++;
     }
 
+    const strongCount = friendCount(p);
     if (strongCount > 0) {
       const currentEnergy = p.energy ?? 0;
       const maxEnergy = p.maxEnergy ?? 100;

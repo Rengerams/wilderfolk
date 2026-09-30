@@ -158,8 +158,8 @@ export function computeCitizenOverview(world: WorldState): CitizenOverviewStats 
   // 360 days, 70 settlers) the instantaneous count averages **0.2 per day** and is non-zero on only
   // **35 of 360** days in a year that established **93** affairs — so a snapshot alone reads zero
   // almost always and the feature looked absent from play. The phrase is the affair owner's constant,
-  // not a copy of it. `EVENT_LOG_MAX_ENTRIES` (2000) holds a year comfortably: the same run logged 230
-  // scandal lines.
+  // not a copy of it. The cap holds a year comfortably at this scale: the same run logged 230
+  // scandal lines, against a `EVENT_LOG_MAX_ENTRIES` of 6 000.
   const affairsThisYear = world.eventLog.reduce(
     (count, entry) => (
       entry.year === world.year && entry.message.includes(AFFAIR_ESTABLISHED_LOG_PHRASE)

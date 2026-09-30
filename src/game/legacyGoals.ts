@@ -19,7 +19,7 @@
  * | `promise_kept` | the promise owner's own verdict line in `state.eventLog` | chronicle window |
  * | `howler_cured` | the cure line `moonHowler.tickMoonHowlerCycle` writes, in `state.eventLog` | chronicle window |
  *
- * The two chronicle-derived goals are bounded by `EVENT_LOG_MAX_ENTRIES` (2000): the settlement
+ * The two chronicle-derived goals are bounded by `EVENT_LOG_MAX_ENTRIES`: the settlement
  * remembers what its chronicle still holds. That is the same memory the Chronicle panel already
  * shows, and it is why the goal is a *projection* rather than a second source of truth — a stored
  * copy of a recorded fact would be able to disagree with the record it copies.

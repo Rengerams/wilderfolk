@@ -301,6 +301,15 @@ Treat existing tests as evidence, not unquestionable truth. When a mock-based te
 
 Do not expand mock-heavy coverage. Quarantined tests—such as those under `__quarantine__/`, files matching `*.quarantine.test.*`, or explicitly skipped tests—are excluded from normal runs and must not be repaired by changing production code.
 
+### 7.1 Extend the bot, do not write a new probe
+
+**The owner's rule (2026-09-29): do not add one-off probe scripts. If the harness cannot answer your question, extend the harness.** This section exists because the rule was spoken, recorded inside `scripts/autoplay-browser-probe.mjs`, and never written here — so a later session wrote six probes on the same day the harness already had the capability.
+
+- **Browser or UI question** (does a control work, does a window open, does the header report what the player sees): add a **capability** to `scripts/autoplay-browser-probe.mjs`'s `CAPABILITIES` registry, then assert on it. Locate every panel by its **owner-authored heading**, never by select index, and return observed DOM state rather than a bare boolean.
+- **Simulation question** (does anything ever happen: imprisonments, feuds, elections, a church): extend the Node harness — `scripts/test-bot-build-all.mts` for a command-boundary run, or `scripts/run-full-year.mts` / `scripts/colonyHealth.ts` — and report counts from engine output.
+- **`tmp/` is for genuinely disposable scratch** (a scratch config, an extracted file). **A measurement that answers a question about the game belongs in a harness**, because a probe is unowned, unreviewed, and repeatedly wrong: the 2026-09-29 affair investigation recorded **three false readings in a row** from hand-written probes (imprisonments read 0 because the probe harvested the wrong event type; the church arm had no guard; the fixture was under-housed), and the autoplay bot had already been extended past all of it.
+- **Do not make the harness smaller.** A script's own "TEMPORARY / safe to delete" header is not evidence that it is scratch: the autoplay bot's header said exactly that while the changelog depended on it, and an audit graded it a delete-candidate because of that line. If a harness misdescribes itself, fix the description.
+
 ## 8. Roadmaps, changelogs, and bug reports
 
 Use these project conventions when the relevant files exist and the task produces a qualifying change:

@@ -38,6 +38,7 @@ import { countTamedAnimals, getAnimalCareStatus, tamedAnimalsFedToday, type Anim
 import { getGuidedCampaignProgress } from '../src/game/guidedCampaign';
 import { getActiveElectionPromises, type PromiseDetail } from '../src/game/electionPromises';
 import { ELECTION_INTERVAL_YEARS } from '../src/game/villageLeadership';
+import { AFFAIR_ESTABLISHED_LOG_PHRASE } from '../src/game/simulation/humanRelationships';
 import { formatCitizenName } from '../src/game/citizenId';
 import { simTickDeltaFromWorld } from '../src/game/simBuffers/simDelta';
 import {
@@ -358,12 +359,21 @@ export interface ColonyEventTotals {
   births: number;
   conceptions: number;
   deaths: number;
+  /** Deaths whose cause line is the famine/exposure one — the reachability probe for starvation. */
+  exhaustionDeaths: number;
   marriages: number;
   divorces: number;
   scandalEvents: number;
   rumorScandals: number;
   caughtScandals: number;
   scandalImprisonments: number;
+  feudsStarted: number;
+  feudsSettled: number;
+  affairsEstablished: number;
+  affairsCaught: number;
+  electionsStarted: number;
+  electionsPostponed: number;
+  leadershipVacancies: number;
   /** Event-log entries whose message names a village head — the ballot owner's own wording. The
    * founding appointment logs "leads the founding colony until the first merit election", so it is
    * deliberately *not* counted here; the founding head is visible in `elections.leaderId`. */
@@ -375,25 +385,38 @@ function emptyEventTotals(): ColonyEventTotals {
     births: 0,
     conceptions: 0,
     deaths: 0,
+    exhaustionDeaths: 0,
     marriages: 0,
     divorces: 0,
     scandalEvents: 0,
     rumorScandals: 0,
     caughtScandals: 0,
     scandalImprisonments: 0,
+    feudsStarted: 0,
+    feudsSettled: 0,
+    affairsEstablished: 0,
+    affairsCaught: 0,
+    electionsStarted: 0,
+    electionsPostponed: 0,
+    leadershipVacancies: 0,
     electionEntries: 0,
   };
 }
 
 /**
  * Counts event-log entries exactly once as the run proceeds. `eventLog` is newest-first and bounded
- * at `EVENT_LOG_MAX_ENTRIES` (2 000), so a year-long run cannot total it after the fact; ids are
- * monotonic per log, which makes "everything newer than the last id I saw" the exact increment.
+ * at `EVENT_LOG_MAX_ENTRIES`, so a year-long run cannot total it after the fact; ids are monotonic
+ * per log, which makes "everything newer than the last id I saw" the exact increment.
  *
  * The log is walked **oldest → newest** (i.e. backwards) on purpose: the watermark advances as
  * entries are counted, so walking newest-first would count the newest entry and then skip every
  * older-but-still-new one. That defect was live in the first version of this counter and reported
  * 0 conceptions / 0 births for a run that had both.
+ *
+ * Every matcher here is the wording its owner writes, never a guess: `rumorScandals` counted
+ * `'rumor'` while the affair owner writes "Whispers spread about …", so it read 0 for a year that
+ * had 145 of them, and `divorces` counted any message containing "divorc" across all three divorce
+ * lines. Both are why this counter is the place a reachability question gets answered.
  */
 export interface EventCounter {
   observe(world: WorldState): ColonyEventTotals;
@@ -412,16 +435,27 @@ export function createEventCounter(): EventCounter {
         const message = event.message.toLowerCase();
         if (event.type === 'birth') totals.births += 1;
         if (event.type === 'conception') totals.conceptions += 1;
-        if (event.type === 'death') totals.deaths += 1;
+        if (event.type === 'death') {
+          totals.deaths += 1;
+          if (message.includes('exhaustion')) totals.exhaustionDeaths += 1;
+        }
         if (event.type === 'marriage') totals.marriages += 1;
+        // The owner types every divorce line 'divorce'; matching the word counted the variants too.
+        if (event.type === 'divorce') totals.divorces += 1;
         if (event.type === 'scandal') {
           totals.scandalEvents += 1;
-          if (message.includes('rumor')) totals.rumorScandals += 1;
+          if (message.includes('whispers spread about')) totals.rumorScandals += 1;
           if (message.includes('caught')) totals.caughtScandals += 1;
+          if (message.includes('a feud is brewing')) totals.feudsStarted += 1;
         }
-        if (message.includes('divorc')) totals.divorces += 1;
         if (message.includes('imprisoned for scandal')) totals.scandalImprisonments += 1;
         if (message.includes('village head')) totals.electionEntries += 1;
+        if (message.includes(AFFAIR_ESTABLISHED_LOG_PHRASE.toLowerCase())) totals.affairsEstablished += 1;
+        if (message.includes('was caught with')) totals.affairsCaught += 1;
+        if (message.includes('have settled their feud')) totals.feudsSettled += 1;
+        if (message.includes('election ceremony began')) totals.electionsStarted += 1;
+        if (message.includes('election postponed')) totals.electionsPostponed += 1;
+        if (message.includes('can no longer lead')) totals.leadershipVacancies += 1;
       }
       return { ...totals };
     },
