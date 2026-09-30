@@ -148,14 +148,24 @@ Both candidate terrain plugins are **3D heightmap tools**, and both are **editor
 
 - **[Terrain3D](https://github.com/TokisanGames/Terrain3D)** — **MIT**, a C++ GDExtension doing GPU-driven
   clipmap mesh terrain: sculpting, holes, texture painting, foliage instancing with LOD, heights from 64×64 m
-  to 65.5×65.5 km. Stated builds are Godot **4.3–4.6+**; this editor is **4.7.2**, so the support matrix is the
-  risk to test first.
+  to 65.5×65.5 km. It is in the **official Godot Asset Library** (asset 3134), so it installs from the AssetLib
+  tab inside the editor, and that tab shows the entry matching your Godot version — the version fit is handled
+  by the store rather than left to us. v1.0.2 states Godot **4.4–4.6+** (a maintenance release that added 4.6
+  support), so 4.7 is within the stated range but not named: confirm it in the editor rather than assume either
+  way.
 
   It is usable from GDScript rather than editor-only — `Terrain3D.new()`, and `Terrain3DData` exposes signals
-  for updates — so a seeded world can drive it. But its heightmap path is **file-based, not array-based**:
-  `exr` or `r16`, 16- or 32-bit, at **1 px = 1 m lateral** with real heights and **0 = sea level**, which is the
-  same convention as the oracle's `DEFAULT_SEA_LEVEL`. The adapter is therefore *"write the generated elevation
-  field to `.r16`, hand it over"* — small and well defined, and it keeps the terrain outside `src/sim/`.
+  for updates — so a seeded world can drive it. Two constraints shape the integration:
+
+  1. **It is a 3D node in a 3D scene.** Every setup instruction assumes a `Terrain3D` node and `Data Directory`
+     in a 3D scene, so this belongs to the 2.5D/3D branch of the rendering decision, not to tiles.
+  2. **The heightmap path is file-based, not array-based:** `exr` or `r16`, 16- or 32-bit, at **1 px = 1 m
+     lateral** with real heights and **0 = sea level** — the same convention as the oracle's `DEFAULT_SEA_LEVEL`,
+     so there is no unit translation. Terrain data lives as **one file per region in a data directory**, which is
+     exactly where a generated world writes its region files.
+
+  The adapter is therefore *"generate the elevation field from the seed, write it as region files, point
+  Terrain3D at the directory"* — small and well defined, and it keeps terrain outside `src/sim/`.
 - **[TerraBrush](https://github.com/spimort/TerraBrush)** — a GDExtension heightmap editor for Godot **4.5+**,
   **MIT**. Sculpt (raise/lower/smooth/flatten/set-height/set-angle), colour and texture painting with automatic
   slope-based texturing, foliage that follows the camera, packed-scene scattering, water that lowers the terrain
