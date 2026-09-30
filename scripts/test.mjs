@@ -42,7 +42,14 @@ const CHILD_ENV = {
  *  identical to the npm scripts this replaces - in particular the quoted jscpd
  *  ignore globs, which must reach jscpd literally. */
 const STEP = {
-  check: 'node scripts/check-source-shadow-files.mjs',
+  /**
+   * One step, two scripts, on purpose. The docs guards must not become another
+   * command an agent has to learn, remember or forget, and they cost
+   * milliseconds - the owner's constraint is that the gate stays cheap, because
+   * an agent should be improving the game rather than running gates. So they
+   * ride inside the step `npm test` already runs.
+   */
+  check: 'node scripts/check-source-shadow-files.mjs && node scripts/check-docs.mjs',
   dup: 'jscpd src --min-lines 6 --min-tokens 60 --format typescript,tsx,javascript --ignore "**/test/**,**/*.test.ts,**/data/**"',
   unit: 'vitest run --exclude tests/fullYear.integration.test.ts',
   unitAll: 'vitest run',
