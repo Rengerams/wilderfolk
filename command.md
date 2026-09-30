@@ -60,6 +60,18 @@ For sorting use `Sort-Object`; for finding files use `Get-ChildItem -Recurse` (`
   Measured 2026-09-30: the `-Path` form matched **0** lines where the piped form matched **1738**. This
   produced a wrong audit conclusion before it was caught.
 
+* **`-like` treats `?` and `*` as wildcards — which is rarely what you meant.** `git status --short |
+  Where-Object { $_ -like '??*' }` matches **every** line, not "the untracked ones": `?` means any single
+  character. Escape it (`` -like '`?`?*' ``) or compare literally with `$_.StartsWith('??')`. The same trap
+  lives in `-match` (regex) and in `Select-String -Path` (globs) — and it is how a "0 results" or
+  "everything matched" reading gets mistaken for a real answer.
+
+* **A running dev server can transiently lock a root file and kill your write.** With `vite` watching the
+  project root, an atomic file replace can fail with
+  `ReplaceFileW EIO (Win32 1175): <path>`; the same file often reads and writes fine moments later. Before
+  concluding permission problems, check for a watcher (`Get-NetTCPConnection -State Listen` for 5173/4173,
+  then `Get-Process -Id <pid>`) and simply retry — do not escalate permissions for a transient lock.
+
 * **Keep output while also reading it.** `... 2>&1 | Tee-Object -FilePath tmp\log.txt | Select-Object -Last 40`
   writes the log *and* shows the tail. Redirection alone loses the console.
 

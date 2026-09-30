@@ -39,7 +39,14 @@ export default defineConfig({
       // whole process down (the owner's server died six times in one session that way, each time leaving
       // them with a page that could not reload). Ignoring `tmp/` removes the cause rather than the
       // symptom, and keeps scratch out of the reload graph entirely.
-      ignored: ['**/src-tauri/target/**', '**/tmp/**'],
+      //
+      // `.*.tmpdir/**` is the third and most annoying one, because it is not the project's own scratch at
+      // all: the agent harness writes root files (this run: `command.md`) by atomically replacing them
+      // through a temporary directory *at the project root*
+      // (`.command.md.<pid>.<guid>.tmpdir/command.md.tmp`). Vite watched that locked temp file, threw
+      // `EBUSY` from the watcher, and died — so editing the harness's own instructions killed the dev
+      // server. Nothing inside a `*.tmpdir` is ever imported by the app; they are mid-write staging dirs.
+      ignored: ['**/src-tauri/target/**', '**/tmp/**', '**/*.tmpdir/**', '**/*.tmp'],
     },
   },
   preview: {
