@@ -146,10 +146,16 @@ behaviour, or replaced later.
 Both candidate terrain plugins are **3D heightmap tools**, and both are **editors first**. This world is
 **generated from a seed**, so an editor is only useful if it can also *consume a heightmap produced by code*.
 
-- **[Terrain3D](https://store.godotengine.org/asset/tokisangames/terrain3d/)** — a C++ GDExtension doing
-  GPU-driven clipmap mesh terrain: sculpting, holes, texture painting, heights from 64×64 m to 65.5×65.5 km.
-  Its feature list includes **importing heightmaps from other tools**, which is the property that matters here.
-  Stated builds are Godot **4.3–4.6+**; this editor is **4.7.2**, so the support matrix is the risk.
+- **[Terrain3D](https://github.com/TokisanGames/Terrain3D)** — **MIT**, a C++ GDExtension doing GPU-driven
+  clipmap mesh terrain: sculpting, holes, texture painting, foliage instancing with LOD, heights from 64×64 m
+  to 65.5×65.5 km. Stated builds are Godot **4.3–4.6+**; this editor is **4.7.2**, so the support matrix is the
+  risk to test first.
+
+  It is usable from GDScript rather than editor-only — `Terrain3D.new()`, and `Terrain3DData` exposes signals
+  for updates — so a seeded world can drive it. But its heightmap path is **file-based, not array-based**:
+  `exr` or `r16`, 16- or 32-bit, at **1 px = 1 m lateral** with real heights and **0 = sea level**, which is the
+  same convention as the oracle's `DEFAULT_SEA_LEVEL`. The adapter is therefore *"write the generated elevation
+  field to `.r16`, hand it over"* — small and well defined, and it keeps the terrain outside `src/sim/`.
 - **[TerraBrush](https://github.com/spimort/TerraBrush)** — a GDExtension heightmap editor for Godot **4.5+**,
   **MIT**. Sculpt (raise/lower/smooth/flatten/set-height/set-angle), colour and texture painting with automatic
   slope-based texturing, foliage that follows the camera, packed-scene scattering, water that lowers the terrain
