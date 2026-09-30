@@ -11,7 +11,7 @@ Session.txt
 Wilderfolk.txt
 References.md
 circulair.txt
-godotai/
+godot_ai/
 AGENTS.MD
 # Dependencies and build output
 node_modules/
@@ -20,8 +20,8 @@ dist-ssr/
 target/
 tests/*
 src-tauri/target/
-src-tauri/
 src-tauri/gen/schemas/
+src-tauri/icons/
 *.tsbuildinfo
 docs/
 # Generated analysis output
@@ -42,7 +42,6 @@ tmp/
 .agents/
 .codex/
 *.py
-src-tauri/
 GIT_SURVIVAL_GUIDE.md
 TERAFORGE.md
 terminals/
