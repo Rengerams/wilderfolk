@@ -12,7 +12,6 @@ Wilderfolk.txt
 References.md
 circulair.txt
 godot_ai/
-AGENTS.MD
 # Dependencies and build output
 node_modules/
 dist/
@@ -28,7 +27,6 @@ docs/
 dependency-graph.dot
 dependency-graph.svg
 references.md
-AGENTS.MD
 .git
 
 BUG_TRACKER.md
