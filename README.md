@@ -454,7 +454,7 @@ Wilderfolk is gradually moving toward its **first proper release**, so ease of a
 
 ### Prior release — v0.5.3 August 12, 2026)
 
-The night hunts back: Moon Howler exorcism overhaul — up to 4 priests, active night hunts, red-dot howlers, guard saves, and the **Moonslayer / Howlerbane** titles. Details → [ROADMAP.md](ROADMAP.md).
+The night hunts back: Moon Howler exorcism overhaul — up to 4 priests, active night hunts, red-dot howlers, guard saves, and the **Moonslayer / Howlerbane** titles. Details → [Roadmap_V0_6.5.MD](Roadmap_V0_6.5.MD).
 
 ---
 
@@ -507,19 +507,17 @@ npm start
 | Doc | For |
 |-----|-----|
 | **[CHANGELOG.md](CHANGELOG.md)** | Detailed change log by version |
-| **[ROADMAP.md](ROADMAP.md)** | Shipped features by version |
-| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | Developers — how the game is wired (command/snapshot loop, sim layers) |
+| **[Roadmap_V0_6.5.MD](Roadmap_V0_6.5.MD)** | Roadmap and shipped features by version |
 | **[AGENTS.md](AGENTS.md)** | Developers — build, test, lint, audit, commit conventions |
-| **[docs/marketing/](docs/marketing/)** | Marketing assets (sneak-preview package, launch copy) |
 
 ### Optional (developers)
 
 ```bash
 npm run build       # production build (tsc + vite) → dist/
 npm run preview     # serve production build locally
-npm run lint        # ESLint
-npm test            # Vitest
-npm run audit       # dead code (knip) + import cycles (dependency-cruiser)
+npm run lint        # oxlint, type-aware
+npm test            # the gate: check:source -> jscpd -> vitest  (npm test -- help)
+npm run audit       # dead code (knip) + import cycles (in-repo scanner)
 ```
 
 ---
