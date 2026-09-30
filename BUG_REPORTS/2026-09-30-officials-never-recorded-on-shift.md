@@ -165,10 +165,30 @@ that moves it.
 
 ## Fix
 
-To be done in a following session, deliberately not rushed:
+To be done in a following session, deliberately not rushed. Three parts, and the second is the one that
+treats the officials fairly rather than merely counting them.
 
-1. **Extract one predicate** — a single "is this settler on shift right now" function that both the recording
-   gate (line 698) and the serving path (line 1291) read, so the two cannot drift again.
-2. **Add the regression test** above, proven red before the change.
-3. **Re-measure the two saves** and record the Town Hall's hours.
-4. **Record the oracle movement** if `test:full-year` totals change.
+**1. One predicate, so a third definition cannot appear.** Extract `isOnShift(entity, …)` — the single
+answer to "is this settler working right now" — and have both the recording gate (line 698) and the serving
+path (line 1291) read it. **Refuse the tempting repair** of adding `|| onOfficialShift` to line 697: that is
+how the two answers diverged in the first place, and it leaves the next job type (a teacher, a soldier, a
+doctor) to be forgotten in exactly the same way.
+
+**2. Stop calling a service day "rest".** `dailyScheduleFatigue` treats a shortfall against the 9-hour
+target as recovery, so an official whose hours were never counted is reported as having *rested* — which is
+the class of chronicle line this report came from. Counting them fixes the number, but the model would still
+score a duty that is not a production shift against a production yardstick. A workplace whose contribution
+runs on an **interval** rather than on hours — Town Hall, church, school, barracks, hospital, prison — should
+be **outside** the attendance and fatigue accounting rather than scored as absent from it. That is the half
+that stops the game telling a working official they did nothing all day.
+
+**3. The same decision for the priest.** A priest matches only `onMoonPriestShift`
+(`isOnMoonHowlerNightShift`), so an ordinary day at a completed church is unrecorded too, and the church
+measures 0.0 h in both saves for that reason. Whether ordinary service at a church is a shift is the owner's
+call; it is the same question as (2) and should be answered together with it rather than patched separately.
+
+Then the evidence the fix owes:
+
+4. **Add the regression test** above, proven red before the change.
+5. **Re-measure the two saves** and record the Town Hall's hours.
+6. **Record the oracle movement** if `test:full-year` totals change.
