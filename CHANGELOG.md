@@ -2,6 +2,16 @@
 
 ## <u>[0.6.5.2]</u> — 2026-09-30
 
+- **Gave the village overview a keyboard route** — it had exactly one door, an unlabelled header icon with no fallback, so `C` toggles it beside `O` for the citizen overview.
+
+- **Disabled the village portrait panel, which duplicated itself** — its window printed its own title twice, reprinted trait blurbs another window already shows with scores, and closed with commentary about the game's win conditions rather than the settlement.
+
+- **Put the family tree behind a small tree icon and widened its window** — the full-width row made the right column tall, so the label and the relative summary moved into the tooltip, and the window opens 44rem wide instead of the chat-sized 26rem.
+
+- **Fixed hot reload being disabled for the citizen card** — it exported a helper beside its components, which React Fast Refresh refuses, so every edit to it forced a full page reload.
+
+- **Added lineage grouping to the family owner** — settlers now group by who descends from whom through the parent links, so two unrelated settlers who share a surname no longer read as one family, and a line stays rooted in a founder who has died.
+
 - **Gave feuds a real source** — two settlers whose traits clash and who share a home, workplace or job can now drift into one, as can a wrong: a famine foot-bite, losing an election, or a rumour that reaches a cheated spouse. A 500-settler colony settles near a dozen live feuds.
 
 - **Fixed the year the player reads, so the colony's first year is Year 1 and not Year 0** — every notice, log line, header and panel now reads the year through one formatter that adds one; the stored year, its comparisons and the save format are untouched.

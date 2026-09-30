@@ -3,6 +3,7 @@ import { EntityType, type Entity } from '../src/game/gameTypes';
 import {
   buildFamilyTree,
   buildFullFamilyTree,
+  groupFamiliesByLineage,
   groupFamiliesBySurname,
   type FamilyTreePerson,
   type FullFamilyTree,
@@ -249,5 +250,83 @@ describe('buildFullFamilyTree', () => {
     const adoptedTree = buildFullFamilyTree(adopted, all);
     expect(relationOf(adoptedTree, 1)).toBe('Adoptive father');
     expect(relationOf(adoptedTree, 4)).toBe('Sibling');
+  });
+});
+
+describe('groupFamiliesByLineage', () => {
+  it('separates two unrelated lines that happen to share a surname', () => {
+    // The failure this replaces: a surname index read same-named strangers as one family. A surname
+    // also arrives by marriage, by adoption and from a random pool, so it cannot carry kinship.
+    const ashFounder = human({ id: 1, name: 'Anselm', surname: 'Ash', gender: 'male', generation: 1 });
+    const ashChild = human({ id: 2, name: 'Bram', surname: 'Ash', gender: 'male', fatherId: 1, generation: 2 });
+    const ashGrandchild = human({ id: 3, name: 'Cedric', surname: 'Ash', gender: 'male', fatherId: 2, generation: 3 });
+    const otherRoot = human({ id: 4, name: 'Dunstan', surname: 'Ash', gender: 'male', generation: 1 });
+    const otherChild = human({ id: 5, name: 'Edric', surname: 'Ash', gender: 'male', fatherId: 4, generation: 2 });
+
+    const groups = groupFamiliesByLineage([ashFounder, ashChild, ashGrandchild, otherRoot, otherChild]);
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0]!.rootId).toBe(1);
+    expect(groups[0]!.rootName).toBe('Anselm Ash');
+    expect(groups[0]!.members.map((m) => m.id)).toEqual([1, 2, 3]);
+    expect(groups[0]!.generations).toBe(3);
+    expect(groups[1]!.rootId).toBe(4);
+    expect(groups[1]!.members.map((m) => m.id)).toEqual([4, 5]);
+  });
+
+  it("keeps a married-in spouse in her own father's line, not her husband's", () => {
+    // Exactly why the surname lied: on marriage she takes the household surname, but she does not
+    // descend from his line.
+    const herFather = human({ id: 1, name: 'Osric', surname: 'Wold', gender: 'male', generation: 1 });
+    const wife = human({
+      id: 2, name: 'Hilda', surname: 'Ash', maidenSurname: 'Wold', gender: 'female',
+      fatherId: 1, partnerId: 3, generation: 2,
+    });
+    const husband = human({ id: 3, name: 'Anselm', surname: 'Ash', gender: 'male', partnerId: 2, generation: 1 });
+    const child = human({ id: 4, name: 'Bram', surname: 'Ash', gender: 'male', motherId: 2, fatherId: 3, generation: 2 });
+
+    const groups = groupFamiliesByLineage([herFather, wife, husband, child]);
+
+    expect(groups.map((g) => g.rootId).sort((a, b) => a - b)).toEqual([1, 3]);
+    expect(groups.find((g) => g.rootId === 1)!.members.map((m) => m.id)).toEqual([1, 2]);
+    expect(groups.find((g) => g.rootId === 3)!.members.map((m) => m.id)).toEqual([3, 4]);
+  });
+
+  it('keeps a line rooted in a founder who has died', () => {
+    // Members are the living, the root is not: a line must outlive its first generation.
+    const deadFounder = human({ id: 1, name: 'Anselm', surname: 'Ash', gender: 'male', alive: false, generation: 1 });
+    const son = human({ id: 2, name: 'Bram', surname: 'Ash', gender: 'male', fatherId: 1, generation: 2 });
+
+    const groups = groupFamiliesByLineage([deadFounder, son]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.rootId).toBe(1);
+    expect(groups[0]!.rootName).toBe('Anselm Ash');
+    expect(groups[0]!.members.map((m) => m.id)).toEqual([2]);
+  });
+
+  it('orders a line by descent, then birth order', () => {
+    // Name order read as arbitrary on a family tree; the eldest of a generation comes first.
+    const root = human({ id: 1, name: 'Zyra', gender: 'female', generation: 1 });
+    const younger = human({ id: 2, name: 'Aaa', motherId: 1, generation: 2, age: 20 });
+    const older = human({ id: 3, name: 'Zzz', motherId: 1, generation: 2, age: 40 });
+
+    const groups = groupFamiliesByLineage([root, younger, older]);
+
+    expect(groups[0]!.members.map((m) => m.name)).toEqual(['Zyra', 'Zzz', 'Aaa']);
+  });
+
+  it('heads one line for a founding couple, not two', () => {
+    // A founding household is a pair, so both partners must key the same line.
+    const husband = human({ id: 1, name: 'Anselm', gender: 'male', partnerId: 2, generation: 1 });
+    const wife = human({ id: 2, name: 'Hilda', gender: 'female', partnerId: 1, generation: 1 });
+    const child = human({ id: 3, name: 'Bram', gender: 'male', motherId: 2, fatherId: 1, generation: 2 });
+
+    const groups = groupFamiliesByLineage([husband, wife, child]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.rootId).toBe(1);
+    expect(groups[0]!.rootName).toBe('Anselm & Hilda Ash');
+    expect(groups[0]!.members.map((m) => m.id)).toEqual([1, 2, 3]);
   });
 });

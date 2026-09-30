@@ -366,7 +366,7 @@ tutorialsEnabled,
             onClick={onOpenDashboard}
             disabled={!onOpenDashboard}
             className="flex items-center gap-0.5 rounded-md bg-amber-900/40 px-1.5 py-1 text-[13px] text-amber-200 hover:bg-amber-800/50 disabled:cursor-default"
-            title="Village overview — concerns, food, jobs, population (opens in a window, Esc closes)"
+            title="Village overview — the daily council, food, jobs, population (opens in a window, Esc closes)"
             aria-label="Open village overview"
           >
             <span aria-hidden>🏘️</span>

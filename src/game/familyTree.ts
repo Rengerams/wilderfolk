@@ -312,6 +312,116 @@ export function groupFamiliesBySurname(allEntities: readonly Entity[]): FamilySu
   return groups.sort((a, b) => b.members.length - a.members.length || a.surname.localeCompare(b.surname));
 }
 
+/**
+ * One family line: everyone descending from the same settler who has no recorded parent.
+ *
+ * Descent, not a surname. A surname is a label the sim also gives out by marriage, by adoption and
+ * from a random pool, so two unrelated settlers can share one; a parent link cannot be acquired by
+ * accident. The root is a founding household, or the household a later arrival came as.
+ */
+export interface FamilyLineageGroup {
+  /** The parentless settler heading this line, or the lower id of a founding couple. */
+  rootId: number;
+  /** The root household, for the group's label: one founder's name, or a couple's two. */
+  rootName: string;
+  /** Living members of this line. */
+  members: Entity[];
+  adults: number;
+  children: number;
+  /** Distinct `Entity.generation` values among the living members. */
+  generations: number;
+}
+
+const LINEAGE_PARENT_KEYS = ['fatherId', 'motherId', 'adoptiveFatherId', 'adoptiveMotherId'] as const;
+
+/** A settler's recorded parents, present in `all` and not themselves. Father's line first. */
+function lineageParentIds(person: Entity, all: ReadonlyMap<number, Entity>): number[] {
+  const ids: number[] = [];
+  for (const key of LINEAGE_PARENT_KEYS) {
+    const id = person[key];
+    if (id == null || id === person.id || !all.has(id) || ids.includes(id)) continue;
+    ids.push(id);
+  }
+  return ids;
+}
+
+/** Living player humans grouped by the family line they descend from. */
+export function groupFamiliesByLineage(allEntities: readonly Entity[]): FamilyLineageGroup[] {
+  // Built over *every* entity, the dead included: a founder who died still heads their line, which
+  // is what makes a line outlive its first generation.
+  const all = new Map<number, Entity>();
+  for (const e of allEntities) {
+    if (e.type === EntityType.Human && isPlayerHuman(e)) all.set(e.id, e);
+  }
+
+  const rootCache = new Map<number, number>();
+  const rootOf = (startId: number): number => {
+    const cached = rootCache.get(startId);
+    if (cached != null) return cached;
+    let current = startId;
+    const walked: number[] = [];
+    const seen = new Set<number>([startId]);
+    for (;;) {
+      const person = all.get(current);
+      const next = person ? lineageParentIds(person, all)[0] : undefined;
+      // `seen` guards a parent/child cycle, which would otherwise never terminate.
+      if (next == null || seen.has(next)) break;
+      seen.add(next);
+      walked.push(next);
+      current = next;
+    }
+    // A founding couple heads one line, so the pair keys on its lower id rather than splitting.
+    const top = all.get(current);
+    const partnerId = top?.partnerId;
+    if (partnerId != null && all.has(partnerId) && lineageParentIds(all.get(partnerId)!, all).length === 0) {
+      current = Math.min(current, partnerId);
+    }
+    for (const id of walked) rootCache.set(id, current);
+    rootCache.set(startId, current);
+    return current;
+  };
+
+  const byRoot = new Map<number, Entity[]>();
+  for (const person of livingHumans(allEntities)) {
+    const root = rootOf(person.id);
+    const list = byRoot.get(root);
+    if (list) list.push(person);
+    else byRoot.set(root, [person]);
+  }
+
+  const groups: FamilyLineageGroup[] = [];
+  for (const [rootId, members] of byRoot) {
+    const root = all.get(rootId);
+    const partner = root?.partnerId != null ? all.get(root.partnerId) : undefined;
+    groups.push({
+      rootId,
+      rootName: lineageLabel(root, partner, rootId),
+      members: members.slice().sort((a, b) =>
+        (a.generation ?? 1) - (b.generation ?? 1)
+        // Birth order: the eldest of a generation reads first.
+        || b.age - a.age
+        || humanDisplayName(a).localeCompare(humanDisplayName(b))
+      ),
+      adults: members.filter((m) => !m.isJuvenile).length,
+      children: members.filter((m) => !!m.isJuvenile).length,
+      generations: new Set(members.map((m) => m.generation ?? 1)).size,
+    });
+  }
+  return groups.sort((a, b) => b.members.length - a.members.length || a.rootName.localeCompare(b.rootName));
+}
+
+/** The root household's label: one founder's name, or a couple's — "Anselm & Hilda Ash". */
+function lineageLabel(root: Entity | undefined, partner: Entity | undefined, rootId: number): string {
+  if (!root) return `Line ${rootId}`;
+  if (!partner || partner.id === root.id) return humanDisplayName(root);
+  const surname = root.surname?.trim();
+  // Sharing the household surname is the normal case after marriage, and repeating it reads badly.
+  if (surname && surname === partner.surname?.trim()) {
+    return `${citizenGivenName(root)} & ${humanDisplayName(partner)}`;
+  }
+  return `${humanDisplayName(root)} & ${humanDisplayName(partner)}`;
+}
+
 /* ---- The whole connected family ---- */
 
 /** People cap for one tree; the set drawn must not depend on who was clicked. */

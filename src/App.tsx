@@ -828,6 +828,9 @@ export default function App() {
   const citizenOverviewOpenRef = useRef(citizenOverviewOpen);
   const toggleCitizenOverviewRef = useRef(toggleCitizenOverview);
   const closeCitizenOverviewRef = useRef(closeCitizenOverview);
+  // The village overview is plain local state rather than a shell callback, so its toggle is assigned
+  // in the sync effect below instead of holding a stale `showDashboard`.
+  const toggleDashboardRef = useRef<() => void>(() => {});
 
   const applyZoom = useCallback((factor: number, screenX?: number, screenY?: number) => {
     const loop = loopRef.current;
@@ -907,6 +910,7 @@ export default function App() {
     citizenOverviewOpenRef.current = citizenOverviewOpen;
     toggleCitizenOverviewRef.current = toggleCitizenOverview;
     closeCitizenOverviewRef.current = closeCitizenOverview;
+    toggleDashboardRef.current = () => setShowDashboard((prev) => !prev);
     applyZoomRef.current = applyZoom;
   }, [
     togglePause,
@@ -937,6 +941,7 @@ export default function App() {
     setBuildPanelOpen,
     citizenOverviewOpenRef,
     toggleCitizenOverviewRef,
+    toggleDashboardRef,
     closeCitizenOverviewRef,
     cancelBuildModeRef,
     togglePauseRef,

@@ -13,6 +13,7 @@ import {
   isEditableTarget,
   isActivatableTarget,
   isLogisticsHotkey,
+  isCouncilHotkey,
   resolveSidebarTabFromKey,
   HOTKEY_BUILDINGS,
   type SidebarTab,
@@ -40,6 +41,7 @@ export interface UseKeyboardControlsOptions {
   setBuildPanelOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
   citizenOverviewOpenRef: RefObject<boolean>;
   toggleCitizenOverviewRef: RefObject<() => void>;
+  toggleDashboardRef: RefObject<() => void>;
   closeCitizenOverviewRef: RefObject<() => void>;
   cancelBuildModeRef: RefObject<() => void>;
   togglePauseRef: RefObject<() => void>;
@@ -74,6 +76,7 @@ export function useKeyboardControls({
   setBuildPanelOpen,
   citizenOverviewOpenRef,
   toggleCitizenOverviewRef,
+  toggleDashboardRef,
   closeCitizenOverviewRef,
   cancelBuildModeRef,
   togglePauseRef,
@@ -143,6 +146,13 @@ export function useKeyboardControls({
       ) {
         e.preventDefault();
         toggleCitizenOverviewRef.current();
+        return;
+      }
+      // `C` — the village overview, beside `O` and gated the same way: both are windows over the
+      // running colony, so neither opens from the intro or the map screen.
+      if (gameplayActiveRef.current && isCouncilHotkey(e)) {
+        e.preventDefault();
+        toggleDashboardRef.current();
         return;
       }
       if (e.key === 'Escape') {

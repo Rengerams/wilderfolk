@@ -54,7 +54,7 @@ for (const [key, val] of Object.entries(HOTKEY_BUILDINGS)) {
  * F4 logistics overlay toggle — one definition, read by the keyboard owner and the UI hint.
  *
  * `X` for "eXamine the network": taken letters are the sidebar tabs (V/F/N/P/L/M), the citizen
- * overview (O), and the build/grid/rotate/center actions (B/G/R/H).
+ * overview (O), the village overview (C), and the build/grid/rotate/center actions (B/G/R/H).
  */
 export const LOGISTICS_HOTKEY = 'x';
 export const LOGISTICS_HOTKEY_CODE = 'KeyX';
@@ -63,6 +63,21 @@ export const LOGISTICS_HOTKEY_CODE = 'KeyX';
 export function isLogisticsHotkey(e: KeyboardEvent): boolean {
   if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return false;
   return e.key.toLowerCase() === LOGISTICS_HOTKEY || e.code === LOGISTICS_HOTKEY_CODE;
+}
+
+/**
+ * Village overview toggle — `C` for the council, which is what the window's own heading says.
+ *
+ * Its door is one unlabelled 🏘️ among six in the header, so the letter is the route that cannot be
+ * missed rather than a shortcut for the mouse.
+ */
+export const COUNCIL_HOTKEY = 'c';
+export const COUNCIL_HOTKEY_CODE = 'KeyC';
+
+/** True when this keydown is the village-overview toggle (never with a modifier). */
+export function isCouncilHotkey(e: KeyboardEvent): boolean {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return false;
+  return e.key.toLowerCase() === COUNCIL_HOTKEY || e.code === COUNCIL_HOTKEY_CODE;
 }
 
 export function isEditableTarget(target: EventTarget | null): boolean {

@@ -103,6 +103,10 @@ export default function FamilyTreeWindow({ entity, allEntities, onClose, onSelec
       // Centred over a backdrop: this window is opened *from* the Selected inspector that occupies the
       // right edge, so anchoring it there put it on top of that panel and it read as a stray box.
       centered
+      // A row of names per generation needs more than the shell's chat-sized 26rem, and a deep family
+      // needs a body cap so it scrolls instead of running off-screen. The caller owns both numbers.
+      widthClassName="w-[44rem] max-w-[92vw]"
+      maxBodyClassName="max-h-[70vh]"
     >
       {relatives === 0 ? (
         <p className="rounded bg-stone-800/60 p-2 text-[11px] text-stone-400">

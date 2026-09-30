@@ -36,8 +36,12 @@ export interface FamilyNode {
   detail?: string;
 }
 
-/** A settler's relatives, grouped by generation. */
-export interface FamilyTree {
+/**
+ * A settler's relatives, grouped by generation — **local to this card**, and not the same shape as
+ * `game/familyTree`'s `FamilyTree`, which owns the drawn rows. A module that exports a non-component
+ * cannot Fast Refresh, so this stays private.
+ */
+interface FamilyTree {
   parents: FamilyNode[];
   siblings: FamilyNode[];
   children: FamilyNode[];
@@ -56,7 +60,7 @@ export interface FamilyTree {
  * Adoptive parents are included and **marked** — the old list omitted them entirely, so a settler
  * raised by someone other than their birth parents showed no parents at all.
  */
-export function buildFamilyTree(entity: Entity, allEntities: Entity[]): FamilyTree {
+function buildFamilyTree(entity: Entity, allEntities: Entity[]): FamilyTree {
   const livingHumans = allEntities.filter(
     (e) => e.alive && e.type === EntityType.Human && e.id !== entity.id,
   );
@@ -618,32 +622,22 @@ export default function SelectedEntityPanel({
         </div>
       )}
 
-      {/* Family — the tree itself lives in its own window (`FamilyTreeWindow`). The inspector keeps
-          only a one-line summary and the door to it, because the whole tree inlined here was part of
-          what made this panel one long stack ("not stacking up all").
-
-          The door is **always** rendered, where it used to appear only for a settler who had a
-          parent, sibling, child or partner. That condition is why the owner reported *"it doesnt work
-          when i cick on famliy three"*: clicking a settler with no recorded relatives showed no
-          control at all, so the feature looked broken rather than empty — and a freshly-founded
-          colony is full of exactly those settlers. The window already has an explicit empty state
-          ("No living relatives recorded"), so the honest place to say that is inside the window. */}
-      <div className="mt-2 border-t border-amber-600/20 pt-2">
-        <button
-          type="button"
-          onClick={onOpenFamilyTree}
-          className="flex w-full items-center justify-between gap-2 rounded bg-stone-800/60 px-2 py-1.5 text-left text-[11px] text-amber-200 hover:bg-stone-700/60"
-          title="Open the family tree in its own window"
-        >
-          <span className="font-bold uppercase tracking-wider text-amber-400">Family tree</span>
-          <span className="min-w-0 truncate text-stone-300">
-            {tree.parents.length + tree.siblings.length + tree.children.length + (tree.partner ? 1 : 0) === 0
-              ? 'no relatives recorded'
-              : `${tree.partner ? `⚭ ${tree.partner.name} · ` : ''}${tree.children.length} child${tree.children.length === 1 ? '' : 'ren'}`}
-          </span>
-          <span aria-hidden className="text-amber-400">↗</span>
-        </button>
-      </div>
+      {/* Family — the tree lives in its own window; icon only, so it cannot stretch this column. The
+          relative summary it used to print inline is in the tooltip. Always rendered, so a settler with
+          no relatives still finds the door and reads the window's own empty state. */}
+      <button
+        type="button"
+        onClick={onOpenFamilyTree}
+        className="mt-2 rounded bg-stone-800/60 px-1.5 py-1 text-[13px] leading-none text-amber-300 hover:bg-stone-700/60"
+        title={`Family tree — ${
+          tree.parents.length + tree.siblings.length + tree.children.length + (tree.partner ? 1 : 0) === 0
+            ? 'no relatives recorded'
+            : `${tree.partner ? `⚭ ${tree.partner.name} · ` : ''}${tree.children.length} child${tree.children.length === 1 ? '' : 'ren'}`
+        }`}
+        aria-label={`Open ${humanDisplayName(entity)}'s family tree`}
+      >
+        <span aria-hidden>🌳</span>
+      </button>
     </div>
   );
 }

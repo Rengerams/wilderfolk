@@ -19,10 +19,9 @@ const DynastyPanel = lazy(() => import('./DynastyPanel'));
  * The six subjects of the Goals sub-tab — one owner for the index buttons and for the windows they
  * open, so a subject cannot be listed without a window behind it.
  */
-type ProgressSubjectId = 'portrait' | 'path' | 'challenges' | 'statistics' | 'chronicle' | 'dynasty';
+type ProgressSubjectId = 'path' | 'challenges' | 'statistics' | 'chronicle' | 'dynasty';
 
 const PROGRESS_SUBJECTS: ReadonlyArray<{ id: ProgressSubjectId; icon: string; label: string; hint: string }> = [
-  { id: 'portrait', icon: '🏛️', label: 'How history sees you', hint: 'The village portrait and what shapes it' },
   { id: 'path', icon: '🧭', label: 'Your path (live)', hint: 'Every trait, scored as you play' },
   { id: 'challenges', icon: '🏆', label: 'Challenges', hint: 'Optional goals with resource rewards' },
   { id: 'statistics', icon: '📊', label: 'Valley statistics', hint: "Lifetime totals and this year's figures" },
@@ -79,21 +78,6 @@ function GoalsPortraitPanel({
 
   return (
     <div className="space-y-3">
-      <SubjectWindow
-        windowKey="progress-portrait"
-        open={openSubject === 'portrait'}
-        onClose={onClose}
-        icon={portrait.emoji}
-        title="How history sees you"
-        subtitle={portrait.title}
-      >
-        <h3 className="text-sm font-bold text-amber-100">{portrait.title}</h3>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-stone-300">{portrait.summary}</p>
-        <p className="mt-2 text-xs text-stone-300">
-          No single win screen — raid like barbarians, tend the wild, trade, build, or make peace. This portrait shifts as you play.
-        </p>
-      </SubjectWindow>
-
       <SubjectWindow
         windowKey="progress-path"
         open={openSubject === 'path'}
