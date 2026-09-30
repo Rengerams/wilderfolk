@@ -4,6 +4,7 @@ import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng, seededRandomForRun } from './simRng';
 import { faceVelocity, steerEntityToward } from './simulation/movementSteering';
+import { crowdGatherPosition } from './simulation/humanMovement';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { addFloatingText } from './simEffects';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
@@ -12,7 +13,7 @@ import { getChurchStrength, findHumanWorkplace, buildConstructionCrewIndex } fro
 import { isPlayerHuman } from './playerHuman';
 import { getBuildingCenter } from './placementUtils';
 import { isSettlerRelationshipEntity } from './moonHowlerForm';
-import { getElectionGatherTarget } from './villageLeadership';
+import { getElectionGatherTarget, isCeremonyAttendee } from './villageLeadership';
 
 import {
   allowSocialLifeFor,
@@ -77,8 +78,16 @@ import {
   isRaidMarchingForRival,
 } from './frontierCombat';
 import { buildPatrolRevealIndex, detectRaidersForPatrol, type PatrolRevealIndex } from './humanPatrolBehavior';
-import { tickHumanChildLeisure, tickAdultLeisureMotive } from './humanLeisureBehavior';
+import { idleDestination, tickHumanChildLeisure, tickAdultLeisureMotive } from './humanLeisureBehavior';
 import { tickHumanHunting } from './humanHuntingBehavior';
+import {
+  HUNTING_PURSUIT_SPEED_MULT,
+  huntingKillReach,
+  huntingPursuitPoint,
+  huntingSpotChaseTarget,
+  huntingSpotTarget,
+  isHuntingSpotHunter,
+} from './huntingSpot';
 import { getCaravanMoveTarget, tryAdvanceCaravanLeg } from './tradeCaravans';
 import { tickFactionCampWander } from './factionWander';
 import {
@@ -257,6 +266,26 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   const staffedHospitals: Building[] = [];
   const staffedTownHalls: Building[] = [];
+  /**
+   * The village's leisure venues, gathered **once per tick** rather than once per idle settler.
+   *
+   * `idleDestination` used to scan `state.buildings` for each idle adult on every tick — a village of a
+   * thousand settlers over a hundred buildings is a hundred thousand comparisons per tick, on a loop that
+   * is already fighting to deliver 10× (`[SpeedDiag]`, `gameLoop`). The list is a tick-stable fact, so it
+   * is computed where the other per-tick lists are and handed to the behaviour.
+   */
+  const idleVenues: Building[] = [];
+  for (const b of updatedBuildings) {
+    if (!b.completed || b.faction === 'rival') continue;
+    if (
+      b.type === BuildingType.Tavern ||
+      b.type === BuildingType.Market ||
+      b.type === BuildingType.TownHall ||
+      b.type === BuildingType.Church
+    ) {
+      idleVenues.push(b);
+    }
+  }
   for (const b of updatedBuildings) {
     if (!b.completed || b.faction === 'rival' || b.occupants.length === 0) continue;
     if (b.type === BuildingType.Hospital) staffedHospitals.push(b);
@@ -476,7 +505,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         (entity.affairProgress ?? 0) >= 20 ||
         (state.tick + entity.id) % OFFSCREEN_HUMAN_THROTTLE === 0);
 
-    const inElectionCeremony = state.electionCeremony != null && isPlayerHuman(entity);
+    // A ceremony holds its **attendees**, not the whole village: the owner's *"they again in a circle"*
+    // was a thousand settlers sharing sixty ring slots. Everyone else keeps their day.
+    const inElectionCeremony =
+      state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id);
 
     if (isPrisoner) {
       entity.vx = 0;
@@ -737,12 +769,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     } else if (festivalGathering) {
       const performers = state.visitorGroups.find((group) => group.kind === 'performers' && group.daysLeft > 0);
       const hall = staffedTownHalls.length > 0 ? staffedTownHalls[entity.id % staffedTownHalls.length] : undefined;
-      const targetX = performers?.campX ?? (hall ? hall.x + hall.width / 2 : width * 0.5);
-      const targetY = performers?.campY ?? (hall ? hall.y + hall.height + 20 : height * 0.5);
-      const offsetX = ((entity.id % 7) - 3) * 11;
-      const offsetY = ((Math.floor(entity.id / 7) % 5) - 2) * 9;
-      const dx = targetX + offsetX - entity.x;
-      const dy = targetY + offsetY - entity.y;
+      const targetX = performers?.campX ?? (hall ? hall.x : width * 0.5);
+      const targetY = performers?.campY ?? (hall ? hall.y : height * 0.5);
+      // A real place per festival-goer: the old 35-slot lattice (`id % 7` × `floor(id / 7) % 5`) stacked a
+      // whole village tens deep on those few points — the owner's *"they again in a circle"*.
+      const stand = crowdGatherPosition(targetX, targetY, entity.id);
+      const dx = stand.x - entity.x;
+      const dy = stand.y - entity.y;
       const dist = Math.hypot(dx, dy) || 1;
       if (dist > 18) {
         entity.vx = (dx / dist) * config.speed * 0.72;
@@ -865,6 +898,58 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !inElectionCeremony &&
       !festivalGathering &&
       (goWorkTime || onWorkCommuteHours) &&
+      workplace?.type === BuildingType.HuntingSpot &&
+      isHuntingSpotHunter(workplace, entity, entityById)
+    ) {
+      /**
+       * The move-to-prey order: the Hunting Spot sends its hunter **out to the animal**.
+       *
+       * Owner, 2026-09-30: *"why is it so difficult that hunter goes to the prey"*, then, on the reach,
+       * *"120 px is way to far, its 1800's they dont have guns"*. Both halves are one order: with a
+       * contact-distance reach (`huntingSpot.huntingKillReach`) a hunter who holds position takes
+       * nothing, so the assigned hunter walks to the animal the spot is actually going to shoot —
+       * `huntingSpotTarget`, the same commitment the shot reads — and holds beside it. A wolf does
+       * exactly this every tick in `tickLayerSystems`; the free-roam hunter does it in
+       * `humanHuntingBehavior`; this was the one hunter that did not.
+       *
+       * This sits in the *work-commute* branch rather than the shift branch above it because that is the
+       * one a spot's worker actually runs in: measured with the game's own workforce assignment, a
+       * hunter stood frozen at its post (`v=(0,0)`) through a whole working day while its committed deer
+       * walked from 193 px to 209 px away. Suit the movement to the branch that runs, not the one that
+       * looks right.
+       */
+      const spotPrey = huntingSpotTarget(workplace, entity, entityById, byType);
+      const chase = spotPrey ? huntingSpotChaseTarget(workplace, entity, entityById, byType) : null;
+      // Record who is after what. This is the field the map draws its dashed hunt line from
+      // (`renderer/humans.ts`) and the one `buildHuntTargetByPreyIndex` indexes, which is how the prey's
+      // own flee rule knows not to bolt from the settler hunting it (`tickLayerSystems`).
+      entity.huntTargetId = spotPrey ? spotPrey.id : undefined;
+      // Record the contact while it is happening: the spot's production pass samples an instant and would
+      // otherwise never see the hunter beside the animal (measured — see `HUNTING_SPOT_STRIKE_GRACE_TICKS`).
+      if (spotPrey && Math.hypot(spotPrey.x - entity.x, spotPrey.y - entity.y) <= huntingKillReach(entity, spotPrey)) {
+        workplace.huntingSpotInReachTick = state.tick;
+      }
+      if (chase) {
+        // Aim where the animal is going, not where it is (`huntingPursuitPoint`), at a pace that can
+        // actually close: prey do not flee, but they wander faster than a damped working walk.
+        const aim = huntingPursuitPoint(chase);
+        steerEntityToward(entity, aim.x, aim.y, config.speed * HUNTING_PURSUIT_SPEED_MULT);
+      } else if (spotPrey) {
+        // Beside the animal, or waiting for the shot: hold, because walking back to the post would open
+        // the gap the contact reach needs.
+        entity.vx = 0;
+        entity.vy = 0;
+      } else {
+        // Nothing in sight: wait at the post like every other worker.
+        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), 3.5);
+      }
+      onSchedule = true;
+      suppressIdle = true;
+    } else if (
+      !huntingWere &&
+      !inElectionCeremony &&
+      !festivalGathering &&
+      (goWorkTime || onWorkCommuteHours) &&
       !isInnkeeper &&
       workplace
     ) {
@@ -931,8 +1016,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         ) != null;
 
       if (!nearbySingle) {
-        const tx = width * 0.5 + ((entity.id % 5) - 2) * 35;
-        const ty = height * 0.5 + ((entity.id % 7) - 3) * 28;
+        // Somewhere real to be, instead of the old drift to the map centre that piled the village's idle
+        // population into one chatting blob (`idleDestination` — home, a venue, or a pretty spot).
+        const dest = idleDestination(state, entity, idleVenues, buildingById);
+        const tx = dest.x;
+        const ty = dest.y;
         const edx = tx - entity.x;
         const edy = ty - entity.y;
         const edist = Math.hypot(edx, edy) || 1;
@@ -1482,7 +1570,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               idleVy = Math.cos(tick * 0.025 + entity.id) * config.speed * 0.1;
             }
           } else {
-            steerTo(width * 0.5 + ((entity.id % 5) - 2) * 40, height * 0.5 + ((entity.id % 7) - 3) * 30, 0.4);
+            // As above: a destination, not the map centre.
+            const idleDest = idleDestination(state, entity, idleVenues, buildingById);
+            steerTo(idleDest.x, idleDest.y, 0.4);
           }
         } else if (leisureKind === 7) {
           let gx = width * 0.5;

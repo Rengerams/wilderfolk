@@ -849,6 +849,18 @@ export interface GameEventLog {
      * which reads that type. One event, one kind.
      */
     | 'prison'
+    /**
+     * The leadership election: the ceremony beginning, a postponement, and the result.
+     *
+     * Same shape and same reason as `'prison'` above, from the owner's next report: *"an i didnt get a
+     * mesage about a election ceremony"*, then *"there is nothing in the logs about it"* and *"2000
+     * lins of logs is quite some time so a electrion should be visibel"*. The ceremony's lines were
+     * `'event'`, the bucket that holds the majority of the log, so an election could not be filtered
+     * out of it even while its lines were still inside the 2 000-entry window. It is **not** applied to
+     * `electionPromises`' own lines: `legacyGoals.findPromiseVerdict` reads the campaign-promise
+     * verdict by `type === 'event'`, so moving those would silently end that achievement.
+     */
+    | 'election'
     | 'building'
     | 'disaster'
     | 'research'

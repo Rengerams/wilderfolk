@@ -16,6 +16,16 @@ import {
 } from '../game/temperature';
 import type { VirtualPlayerAct } from '../hooks/useVirtualPlayer';
 import { VIRTUAL_PLAYER_TOOLTIP_LIMIT } from '../hooks/useVirtualPlayer';
+import { OVERVIEW_SUBJECTS, type OverviewNavId } from '../hooks/useGameShellState';
+
+/**
+ * The overview's subjects whose door is a *new* icon in this bar.
+ *
+ * The Village subject is not in this list: its door is the population chip beside it, which has
+ * opened that subject since before the ruling and already shows the number the subject is about. All
+ * six subjects therefore have a door here, without the bar carrying two glyphs for one thing.
+ */
+const HEADER_SUBJECT_ICONS: OverviewNavId[] = ['frontier', 'nature', 'progress', 'chronicle', 'help'];
 
 function formatHour(hour: number) {
   const h = hour % 24;
@@ -53,6 +63,10 @@ tutorialsEnabled: boolean;
   onFocusLeader?: () => void;
   /** Open the full-screen People overview. */
   onOpenCitizenOverview?: () => void;
+  /** Open one overview subject in its own window (the six header doors). */
+  onOpenSubject?: (subject: OverviewNavId) => void;
+  /** Which subject's window is open, so its door reads as pressed. */
+  activeSubject?: OverviewNavId | null;
   /** Open the full-screen village overview dashboard (Esc closes it). */
   onOpenDashboard?: () => void;
 }
@@ -95,6 +109,8 @@ tutorialsEnabled,
   onStartNewGame,
   onFocusLeader,
   onOpenCitizenOverview,
+  onOpenSubject,
+  activeSubject = null,
   onOpenDashboard,
 }: Props) {
   const hour = getHourOfDay(world.tick);
@@ -129,7 +145,7 @@ tutorialsEnabled,
       ].join('\n')
     : 'Virtual player — an in-app auto-player that plays the real game on screen (one command per in-game hour)';
   return (
-    <header className="game-header flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-stone-700/90 px-3 py-1.5 shadow-lg">
+    <header className="game-header flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 border-b border-stone-700/90 px-3 py-1 shadow-lg">
       <div
         className="flex min-w-0 items-center gap-2"
         title={`${gameTitle} · v${gameVersion}`}
@@ -273,7 +289,7 @@ tutorialsEnabled,
       </div>
 
       <div className="flex shrink-0 flex-nowrap items-center gap-2">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={onOpenTrade}
@@ -299,15 +315,60 @@ tutorialsEnabled,
             <span className="text-[11px] opacity-75" title={`${beds} beds total`}>🛏️{beds}</span>
           </button>
 
+          {/* The Village overview's own door. Icon only, like every other control in this bar
+              (owner: *"just a icon not a name with it in the ehader"*) — the word lives in the
+              `title` and the accessible name, not as a label beside the glyph. It replaced a bare 📊
+              that the owner could not read as a door at all (*"i want a new icon in the header to
+              open it"*), and the glyph matches the one its window's title bar shows. */}
+          {/*
+            One icon per overview subject, icon only (owner: *"just a icon not a name with it in the
+            ehader"*). Each opens **that subject's window** — the six full-screen panels the owner
+            reported (*"the 6 panel stacked now that opens full screen should be each subject a own
+            icon the header and open a window for that subject not full screen"*). The glyph, name and
+            hint all come from `OVERVIEW_SUBJECTS`, so a door cannot disagree with the window it opens.
+
+            Deliberately the tightest control in the bar — `p-1`, no ring of its own, 12 px glyphs. The
+            owner's report of the first version was *"the header is now quite large 3rows"*: five doors
+            at the size of the stat chips above them cost ~170 px and pushed the bar's third group onto
+            a row of its own. They are one nav strip, so they read as one strip.
+          */}
+          {onOpenSubject && (
+            <div className="flex items-center gap-0 rounded-md bg-stone-950/40 p-px">
+              {HEADER_SUBJECT_ICONS.map((id) => {
+                const subject = OVERVIEW_SUBJECTS[id];
+                const open = activeSubject === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => onOpenSubject(id)}
+                    // `aria-current`, not `aria-pressed`: the doors are a navigation set, and which
+                    // subject is open must be *stated*, not only painted — the contract audit A-6
+                    // established for the nav strip these doors replaced
+                    // (`tests/keyboardGuards.contract.test.ts`).
+                    aria-current={open}
+                    className={`rounded p-0.5 text-[11px] leading-none transition-colors ${
+                      open ? 'bg-emerald-800/70 text-emerald-100' : 'hover:bg-stone-700/70'
+                    }`}
+                    title={`${subject.label} — ${subject.hint} (opens in a window, Esc closes)`}
+                    aria-label={`Open ${subject.label.toLowerCase()} window`}
+                  >
+                    <span aria-hidden>{subject.icon}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           <button
             type="button"
             onClick={onOpenDashboard}
             disabled={!onOpenDashboard}
             className="flex items-center gap-0.5 rounded-md bg-amber-900/40 px-1.5 py-1 text-[13px] text-amber-200 hover:bg-amber-800/50 disabled:cursor-default"
-            title="Open the village overview dashboard (Esc closes)"
-            aria-label="Open village dashboard"
+            title="Village overview — concerns, food, jobs, population (opens in a window, Esc closes)"
+            aria-label="Open village overview"
           >
-            📊
+            <span aria-hidden>🏘️</span>
           </button>
 
           <div className="flex items-center gap-0.5">

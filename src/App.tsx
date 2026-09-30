@@ -89,6 +89,8 @@ import { useTransientGameFeedback } from './hooks/useTransientGameFeedback';
 import { useGameSession } from './hooks/useGameSession';
 import {
   TUTORIAL_DONE_STORAGE_KEY as TUTORIAL_DONE_KEY,
+  overviewNavFromState,
+  sidebarTabForOverviewNav,
   useGameShellState,
 } from './hooks/useGameShellState';
 import { beginAudio, beginIntroAudio, primeAudioUnlock, playClickSound, stopIntroSong } from './audio';
@@ -1170,7 +1172,8 @@ export default function App() {
     () => world.tradeRoutes.filter((r) => canEstablishTradeRoute(world, r.id).ok).length,
     [world],
   );
-  const progressTabAlert = world.activeResearch != null || tradeReadyCount > 0;
+  // `progressTabAlert` was removed with the sidebar's Village button — that badge was its only
+  // consumer. `tradeReadyCount` above is still used (the header icon set), so it stays.
   const foodAlert = isFoodAlert(world);
 
   if (showIntro) {
@@ -1268,7 +1271,8 @@ export default function App() {
     && pendingRaids.length === 0
   );
 
-  const frontierAlertCount = pendingRaids.length + pendingOutgoingRaids.length + pendingDiplomacy.length;
+  // `frontierAlertCount` was removed with the sidebar's Village button — its badge was the only
+  // consumer. The header icons compute their own alert counts.
   const selectedVisitorCamp = view.selectedCampKey?.startsWith('visitor:')
     ? world.visitorGroups.find((g) => g.id === view.selectedCampKey!.slice(8)) ?? null
     : null;
@@ -1298,6 +1302,14 @@ export default function App() {
           onSetSpeed={setSpeed}
           onOpenTrade={handleOpenTrade}
           onOpenDashboard={() => setShowDashboard(true)}
+          // One header icon per overview subject; each opens that subject's own window. The rail id is
+          // asked for rather than re-listed (`sidebarTabForOverviewNav`), so a new subject cannot be
+          // reachable from the keyboard but missing from the header.
+          onOpenSubject={(subject) => {
+            playClickSound();
+            openTab(sidebarTabForOverviewNav(subject));
+          }}
+          activeSubject={citizenOverviewOpen ? overviewNavFromState(overviewSection, overviewWorldFocus) : null}
           onSave={handleSave}
           onLoad={handleLoad}
           onSaveToFile={() => { void handleSaveToFile(); }}
@@ -1781,11 +1793,13 @@ export default function App() {
       inspector={(
         <aside
           className={`side-panel flex flex-col border-l border-stone-700/80 ${
-            inspectorCollapsed && hasInspectorSelection ? 'w-12' : 'w-[18.5rem]'
-          } ${
-            citizenOverviewOpen ? 'pointer-events-none invisible' : ''
+            // Wide only when there is something to inspect. With nothing selected this column used to
+            // hold the diagnostics drawer across the full 18.5rem — an empty box the owner reported as
+            // *"now the right panel no need to be that big anymore"*. Nothing selected = the narrow
+            // rail, and the map keeps the width (the same narrowing the collapsed branch already does
+            // for the same reason, Roadmap P6 / audit R40).
+            hasInspectorSelection && !inspectorCollapsed ? 'w-[18.5rem]' : 'w-12'
           }`}
-          aria-hidden={citizenOverviewOpen}
         >
         <GameInspector
           hasSelection={hasInspectorSelection}
@@ -1940,32 +1954,12 @@ export default function App() {
         </GameInspector>
       <GameSidebar>
           <div ref={sidebarContentRef} className="flex flex-1 flex-col items-center gap-3 px-2 py-4">
-            <button
-              type="button"
-              onClick={() => {
-                playClickSound();
-                toggleCitizenOverview();
-              }}
-              className={`relative flex w-full flex-col items-center gap-1 rounded-xl px-2 py-3 text-center shadow-sm transition-colors ${
-                citizenOverviewOpen
-                  ? 'bg-emerald-700/80 text-emerald-50 ring-1 ring-emerald-400/40'
-                  : 'bg-stone-800/70 text-stone-200 ring-1 ring-stone-600/50 hover:bg-stone-700/80'
-              }`}
-              title="Valley overview — Village, Frontier, Nature, Progress, Log, More (O)"
-              aria-label="Open valley overview"
-              aria-pressed={citizenOverviewOpen}
-            >
-              <Emoji className="text-2xl">📋</Emoji>
-              <span className="text-[11px] font-bold leading-tight">Overview</span>
-              {(frontierAlertCount > 0 || progressTabAlert) && (
-                <span className="sidebar-tab-badge">
-                  {Math.max(1, frontierAlertCount + tradeReadyCount)}
-                </span>
-              )}
-            </button>
-            <p className="px-1 text-center text-[10px] leading-snug text-stone-500">
-              One button. Choose Village, Nature, and the rest inside.
-            </p>
+            {/* The "Village" button and its caption that stood here are **removed** (owner:
+                *"the villaige buton not in right side like i said"*). The citizen/village window is
+                opened from its icon in the header — the header icon set is the one route per subject,
+                which is what the old caption was trying to explain — so a second button in this
+                sidebar was a duplicate entrance to the same window. The sidebar now holds only the
+                view toggles. Do not reinstate it here. */}
           </div>
       </GameSidebar>
         </aside>

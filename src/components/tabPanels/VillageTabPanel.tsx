@@ -1,4 +1,4 @@
-import { memo, Suspense, lazy } from 'react';
+import { memo, Suspense, lazy, useState } from 'react';
 import { BuildingType } from '../../game/gameTypes';
 import { getForgeOrder } from '../../game/forge';
 import { getHumanArmamentLabel, getArmamentSteps, hasTech } from '../../game/gameEngine';
@@ -6,6 +6,7 @@ import type { WorldState, Entity } from '../../game/gameEngine';
 import type { VillageStatsSummary } from '../../game/uiSimSummary';
 import type { FocusHintAction } from '../../game/focusHints';
 import CollapsibleSection from '../CollapsibleSection';
+import SubjectWindow from '../SubjectWindow';
 import { collectHousingDiagnostics, isHousingDiagnosticsHealthy } from '../../game/housingDiagnostics';
 import { getBuildingCenter } from '../../game/placementUtils';
 import { getRecruitSettlerEligibility, RECRUITMENT_COST } from '../../game/settlerInteractionActions';
@@ -148,6 +149,9 @@ export default function VillageTabPanel({
   // The immigration cap's owner — six sites used to read the raw `maxHumanPopulation` field while the
   // owner derived a fallback for a save without it (2026-09-22 stats-panel audit, F7).
   const popCap = resolvePopulationCap(state);
+  /** Which subject window is open, if any — the same index-plus-windows shape the building panel uses. */
+  const [openSubject, setOpenSubject] = useState<'population' | 'food' | 'leadership' | 'roster' | 'armament' | 'reputation' | null>(null);
+  const closeSubject = () => setOpenSubject(null);
 
   return (
     <div className="space-y-4">
@@ -166,13 +170,52 @@ export default function VillageTabPanel({
           suppressHintIds={suppressHintIds}
         />
       </Suspense>
-      <CollapsibleSection
+
+      {/*
+        The index — this panel is a list of subjects, not a page of sections.
+        Owner ruling, 2026-09-29: *"each subject should just have its own window not stacking up"*
+        and *"i dont want any thing stacked"*. The seven `CollapsibleSection`s that used to scroll
+        here are now one button each, opening that subject in its own window (`SubjectWindow`, the
+        shared shell). The hint lines are visible text, not a `title` alone, for the same reason the
+        rest of this panel states its refusals in words.
+      */}
+      <div className="space-y-1">
+        {([
+          { id: 'population' as const, icon: '👥', label: 'Population', hint: `Immigration cap, beds and the recruit price` },
+          { id: 'food' as const, icon: '🍖', label: 'Food this day', hint: 'Produced vs eaten today, by source' },
+          { id: 'leadership' as const, icon: '👑', label: 'Village leadership', hint: 'Standings, the head and their record' },
+          { id: 'roster' as const, icon: '👨‍👩‍👧', label: 'Household roster', hint: 'Everyone, grouped by home' },
+          { id: 'armament' as const, icon: '⚔️', label: 'Armament', hint: getHumanArmamentLabel(state) ?? 'Research Defense tech' },
+          { id: 'reputation' as const, icon: '⭐', label: 'Reputation', hint: 'How it grows, and what caravans charge' },
+        ]).map((subject) => (
+          <button
+            key={subject.id}
+            type="button"
+            onClick={() => setOpenSubject(subject.id)}
+            aria-current={openSubject === subject.id}
+            className={`block w-full rounded-lg px-2 py-1.5 text-left ring-1 transition-colors ${
+              openSubject === subject.id
+                ? 'bg-emerald-900/50 ring-emerald-500/50'
+                : 'bg-stone-800/60 ring-stone-600/40 hover:bg-stone-700/60'
+            }`}
+          >
+            <span className="flex items-center gap-1 text-[12px] font-bold text-stone-100">
+              <span aria-hidden>{subject.icon}</span>
+              {subject.label}
+              <span aria-hidden className="ml-auto text-stone-400">↗</span>
+            </span>
+            <span className="block text-[10px] leading-snug text-stone-400">{subject.hint}</span>
+          </button>
+        ))}
+      </div>
+
+      <SubjectWindow
+        windowKey="village-population"
+        open={openSubject === 'population'}
+        onClose={closeSubject}
         icon="👥"
         title="Population"
-        subtitle={`${villageStats.total}/${state.maxHumanPopulation} cap · 🛏️ ${villageStats.beds} beds · ${villageStats.working} working · ⭐${state.villageReputation}`}
-        accent="emerald"
-        defaultOpen={false}
-        storageKey="village-population"
+        subtitle={`${villageStats.total}/${popCap} cap · 🛏️ ${villageStats.beds} beds (${villageStats.openBeds} open) · ${villageStats.working} working`}
       >
         <div className="mb-2 grid grid-cols-2 gap-2">
           <div>
@@ -236,25 +279,35 @@ export default function VillageTabPanel({
           📯 Recruit Settler ({RECRUITMENT_COST.food}🍖 {RECRUITMENT_COST.gold}💰)
           {recruitEligibility.ok ? '' : ` — ${recruitEligibility.blockReason ?? 'unavailable'}`}
         </button>
-      </CollapsibleSection>
+        {/* Housing is this subject's business, so its diagnostics ride in this window rather than
+            sitting between two others in the old stack. Its own collapsible inside the window is
+            fine — the plan allows progressive disclosure *inside* a subject's window. */}
+        <HousingDiagnostics state={state} />
+      </SubjectWindow>
 
-      <HousingDiagnostics state={state} />
-
-      <CollapsibleSection
+      <SubjectWindow
+        windowKey="village-food"
+        open={openSubject === 'food'}
+        onClose={closeSubject}
         icon="🍖"
         title="Food this day"
-        subtitle="Produced vs eaten today"
-        accent="amber"
-        defaultOpen={false}
+        subtitle="Produced vs eaten today, by source"
       >
         <FoodLedger state={state} />
-      </CollapsibleSection>
+      </SubjectWindow>
 
-      <CollapsibleSection icon="👑" title="Village leadership" accent="amber" defaultOpen={false}>
+      <SubjectWindow
+        windowKey="village-leadership"
+        open={openSubject === 'leadership'}
+        onClose={closeSubject}
+        icon="👑"
+        title="Village leadership"
+        subtitle="Standings, the head and their record"
+      >
         <Suspense fallback={<p className="text-[13px] text-stone-300">Loading leadership…</p>}>
           <VillageLeadershipPanel state={state} />
         </Suspense>
-      </CollapsibleSection>
+      </SubjectWindow>
 
       {/* The "Family tree" section that stood here is **removed**, on the owner's report:
           *"family three is not a family thee"*. It rendered `FamiliesTreePanel`, which is a flat
@@ -266,13 +319,13 @@ export default function VillageTabPanel({
           parents above, the settler and spouse in the middle, children below. Nothing here should be
           called a family tree until it draws one. */}
 
-      <CollapsibleSection
+      <SubjectWindow
+        windowKey="village-roster"
+        open={openSubject === 'roster'}
+        onClose={closeSubject}
         icon="👨‍👩‍👧"
         title="Household roster"
-        subtitle="Everyone by home"
-        accent="stone"
-        defaultOpen={false}
-        storageKey="village-household-roster"
+        subtitle="Everyone, grouped by home"
       >
         <Suspense fallback={<p className="text-[13px] text-stone-300">Loading households…</p>}>
           <PopulationPanel
@@ -282,14 +335,15 @@ export default function VillageTabPanel({
             onToggleFavorite={onToggleFavoriteCitizen}
           />
         </Suspense>
-      </CollapsibleSection>
+      </SubjectWindow>
 
-      <CollapsibleSection
+      <SubjectWindow
+        windowKey="village-armament"
+        open={openSubject === 'armament'}
+        onClose={closeSubject}
         icon="⚔️"
         title="Armament"
         subtitle={getHumanArmamentLabel(state) ?? 'Research Defense tech'}
-        accent="orange"
-        defaultOpen={false}
       >
         <p className="mb-2 text-[13px] leading-relaxed text-stone-300">
           Stone/wood from Defense research. Iron spears & shields, then swords, scale mail & tower ballistae need research <strong className="text-stone-400">and</strong> a staffed Blacksmith forge run. Finish toast is a normal village alert.
@@ -331,13 +385,17 @@ export default function VillageTabPanel({
             );
           })}
         </div>
-      </CollapsibleSection>
+      </SubjectWindow>
 
-      <details className="rounded-xl border border-stone-600/40 bg-stone-800/30 px-3 py-2">
-        <summary className="cursor-pointer text-[13px] font-semibold text-stone-400 hover:text-stone-300">
-          ⭐ How reputation grows
-        </summary>
-        <p className="mt-2 text-[13px] leading-relaxed text-stone-300">
+      <SubjectWindow
+        windowKey="village-reputation"
+        open={openSubject === 'reputation'}
+        onClose={closeSubject}
+        icon="⭐"
+        title="Reputation"
+        subtitle="How it grows, and what caravans charge"
+      >
+        <p className="text-[13px] leading-relaxed text-stone-300">
           Buildings (+2), festivals (+10), research (+3), staffed Hospital (+2) &amp; Town Hall (+3),
           {' '}
           {hasTech(state, 'architecture_2')
@@ -353,7 +411,7 @@ export default function VillageTabPanel({
           <strong className="text-emerald-300">{REPUTATION_FRIENDLY_MIN}+</strong> they offer friendly prices,
           and at <strong className="text-rose-300">{REPUTATION_HARSH_MAX} or less</strong> they demand harsher terms.
         </p>
-      </details>
+      </SubjectWindow>
     </div>
   );
 }

@@ -51,6 +51,10 @@ This is the headline project, and most of it is already in the game.
   blacksmith, and **work dust** where they're building.
 - **Sprite art that holds together** — one light direction, one palette, one outline weight, one sense of
   scale across people, animals, trees and buildings. (Already upgraded in a previous version.)
+- **A settlement you can read beside the map, not instead of it** — the Village overview (concerns,
+  the daily council, food by source, jobs and population) opens from its own 🏘️ door in the header as a
+  **window**, and every subject window shares one shell with one title bar and one close control, so
+  opening a subject never takes the valley away from you.
 - **Coming to the settlement layer:** road aprons that show where paths begin, crops growing in the
   fields, lanterns in the lanes after dark, and clearer cues for who is working where.
 

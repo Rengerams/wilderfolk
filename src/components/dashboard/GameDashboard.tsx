@@ -1,10 +1,19 @@
 /**
- * Full-screen, dismissible game dashboard.
+ * The Village overview — a **window**, not the screen.
  *
- * A v1 overlay that surfaces big, readable data over the play screen (instead
- * of the corner inspector): resource levels, food produced today by source,
- * population/wildlife trend from populationHistory, and a per-settler work
- * table (job + hours worked today). Close with the ✕ button or Escape.
+ * Owner reports that shaped this: *"there is a villageoverview but its not wired … i want a new icon
+ * in the header to open it and not full screen"*. The data was never the problem; the shell was. It
+ * used to be a `fixed inset-0` dialog with hand-rolled chrome (its own title bar, its own close
+ * control, its own `useModalFocus` trap) that covered the whole game while it was open. It now renders
+ * into `GameWindow` — the one window shell every subject renders into — so it is a floating window with
+ * the map still visible around it, and the shell owns the title bar, the close control and the focus
+ * trap.
+ *
+ * It surfaces big, readable data over the play screen (instead of the corner inspector): resource
+ * levels, food produced today by source, population/wildlife trend from populationHistory, and a
+ * per-settler work table (job + hours worked today). Close with the window's ✕ or Escape — the Escape
+ * half is this file's own (`useOverlayKeyboard`), because Escape is not part of the shell's contract:
+ * an anchored window beside a panel is not dismissible that way.
  *
  * Read-only — it only projects state and never mutates simulation state.
  */
@@ -14,7 +23,7 @@ import { collectDashboard, explainSettler, resourceFillPercent, type DashboardDa
 import { ECONOMY_SOURCE_LABELS } from '../../game/economyLedger';
 import { useOverlayKeyboard } from '../../hooks/useOverlayKeyboard';
 import { citizenGivenName } from '../../game/citizenId';
-import { useModalFocus } from '../../hooks/useModalFocus';
+import GameWindow from '../GameWindow';
 
 /**
  * Food-source labels come from the ledger's own map. This file used to keep a second copy, and it had
@@ -302,45 +311,31 @@ export default function GameDashboard({
   const data = useMemo(() => collectDashboard(state), [state]);
   const [openTab, setOpenTab] = useState<'settlers' | 'trend'>('settlers');
   const [selectedSettlerId, setSelectedSettlerId] = useState<number | null>(null);
-  // Announce and contain the overlay: focus moves to the close button on mount and Tab stays
-  // inside the panel instead of walking the game UI behind it.
-  const dialogRef = useModalFocus<HTMLDivElement>();
-  // The keyboard half of the same contract: the dashboard owns the keyboard while it is open and
+  // The keyboard half of the overlay contract: the dashboard owns the keyboard while it is open and
   // handles Escape itself, in one place shared with the other three overlays (2026-09-20 audit, clone 3).
+  // The focus half moved to `GameWindow`, which owns the element the trap must be attached to.
   useOverlayKeyboard('dashboard', onClose);
 
   return (
-    <div className="pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-2 backdrop-blur-sm md:p-6">
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Village overview"
-        className="flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-stone-700/80 bg-stone-950/95 text-stone-200 shadow-2xl"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-stone-800 px-4 py-2">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-amber-200">
-            📊 Village overview
-          </h2>
-          <div className="flex items-center gap-3 text-[11px] text-stone-400">
-            <span>
-              Year {data.year} · Day {data.dayInYear} · {data.season}
-            </span>
-            <span className="text-emerald-300">{data.population.humans} settlers</span>
-            <button
-              type="button"
-              onClick={onClose}
-              data-autofocus
-              aria-label="Close dashboard"
-              className="rounded-lg bg-stone-800 px-2.5 py-1 font-semibold text-stone-300 hover:bg-stone-700 hover:text-white"
-            >
-              ✕ Esc
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
+    <GameWindow
+      title="Village overview"
+      icon="🏘️"
+      // The panel's own header line, kept as the window's subtitle: the shell owns the title bar, so the
+      // date and the population sit under the title instead of in a second bar of their own.
+      subtitle={`Year ${data.year} · Day ${data.dayInYear} · ${data.season} · ${data.population.humans} settlers`}
+      onClose={onClose}
+      /*
+       * A window, not the screen (owner: *"not full screen"*). Centred over the backdrop the shell
+       * already provides, and wider than the shell's chat-sized default because this subject carries a
+       * five-column resource row, two charts and a settler table — which is *why* it used to hand-roll
+       * a full-screen dialog: the shell had no size for it. `maxBodyClassName` keeps the body inside
+       * 70vh so the game stays visible above and below and the content scrolls instead.
+       */
+      centered
+      widthClassName="w-[min(58rem,calc(100vw-3rem))] max-w-[calc(100vw-3rem)]"
+      maxBodyClassName="max-h-[70vh]"
+    >
+        <div className="space-y-4">
           {data.concerns.length > 0 && (
             <section className="rounded-xl border border-stone-800 bg-stone-900/50 p-3">
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-300">
@@ -577,7 +572,6 @@ export default function GameDashboard({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </GameWindow>
   );
 }

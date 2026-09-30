@@ -115,6 +115,28 @@ export interface Building {
   hotelGuestIds?: number[];
   /** Hunting Spot only — which prey the staffed hunters target (see HUNTING_SPOT_PREY_OPTIONS). */
   huntingSpotPrey?: HuntingSpotPrey;
+  /**
+   * Hunting Spot only — the animal the spot is currently **committed** to, by entity id.
+   *
+   * A chase needs one animal to chase. Without a commitment the spot re-picked the nearest candidate
+   * every tick, so a hunter standing among a herd swapped targets continuously and closed on none of
+   * them (measured: parked at ~150 px while the pick cycled #357 → #431 → #452 across a single day).
+   * Written by the spot's own pass (`dailyBuildingEconomy`), read by the hunter's movement
+   * (`humanTick`) and by the shot, so all three chase the same animal. Cleared when the animal dies, is
+   * tamed, or walks out of the spot's eyes.
+   */
+  huntingSpotTargetId?: number;
+  /**
+   * Hunting Spot only — the last tick the assigned hunter stood within killing distance of its target.
+   *
+   * The shot is resolved by the spot's production pass, which samples **one instant**; the hunter is
+   * beside a wandering animal for many ticks and at its post for many others, and the two never lined up.
+   * Measured: 162 "Too far to shoot" decisions across twelve colony days — every one of them at
+   * 00:00–01:00 with the hunter back at its post (`huntTargetId=none`) — and no catch at all, even though
+   * the hunter had closed to 10 px that same day. So the contact is recorded when it happens and the pass
+   * accepts a *recent* one (`HUNTING_SPOT_STRIKE_GRACE_TICKS`).
+   */
+  huntingSpotInReachTick?: number;
   /** Mine only — extracts stone (default) or iron. */
   mineMode?: MineMode;
 }

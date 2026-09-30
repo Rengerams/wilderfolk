@@ -1,11 +1,11 @@
-import { Suspense, lazy, useMemo } from 'react';
+import { Suspense, lazy, useMemo, useState } from 'react';
 import { ResearchType } from '../../game/gameTypes';
 import type { WorldState } from '../../game/gameEngine';
 import { canEstablishTradeRoute, hasCompletedMarket } from '../../game/tradeCaravans';
 import { canStartResearch } from '../../game/research';
 import { computeVillagePortrait } from '../../game/villagePortrait';
 import { formatResourceAmounts } from '../../game/resourceTypes';
-import CollapsibleSection from '../CollapsibleSection';
+import SubjectWindow from '../SubjectWindow';
 // A-8: the sub-tab union is owned by the shell hook. A member added there compiled fine against this
 // file's private copy and was then unreachable, because nothing here could name it.
 import type { ProgressSubTab } from '../../hooks/useGameShellState';
@@ -14,6 +14,21 @@ const ChallengesPanel = lazy(() => import('../ChallengesPanel'));
 const StatisticsPanel = lazy(() => import('../../game/StatisticsPanel'));
 const ValleyChroniclePanel = lazy(() => import('./ValleyChroniclePanel'));
 const DynastyPanel = lazy(() => import('./DynastyPanel'));
+
+/**
+ * The six subjects of the Goals sub-tab — one owner for the index buttons and for the windows they
+ * open, so a subject cannot be listed without a window behind it.
+ */
+type ProgressSubjectId = 'portrait' | 'path' | 'challenges' | 'statistics' | 'chronicle' | 'dynasty';
+
+const PROGRESS_SUBJECTS: ReadonlyArray<{ id: ProgressSubjectId; icon: string; label: string; hint: string }> = [
+  { id: 'portrait', icon: '🏛️', label: 'How history sees you', hint: 'The village portrait and what shapes it' },
+  { id: 'path', icon: '🧭', label: 'Your path (live)', hint: 'Every trait, scored as you play' },
+  { id: 'challenges', icon: '🏆', label: 'Challenges', hint: 'Optional goals with resource rewards' },
+  { id: 'statistics', icon: '📊', label: 'Valley statistics', hint: "Lifetime totals and this year's figures" },
+  { id: 'chronicle', icon: '📜', label: 'Valley chronicle', hint: 'What has happened in the valley so far' },
+  { id: 'dynasty', icon: '🌳', label: 'Dynasties', hint: 'Family lines and succession' },
+];
 
 const RESEARCH_COLORS: Record<ResearchType, string> = {
   [ResearchType.Agriculture]: '#22c55e',
@@ -35,8 +50,16 @@ export interface ProgressTabPanelProps {
   onEstablishTradeRoute: (routeId: string) => void;
 }
 
-/** How you play — not a win screen. */
-function GoalsPortraitPanel({ state }: { state: WorldState }) {
+/** How you play — not a win screen. Its four subjects render as windows, opened from the Goals index. */
+function GoalsPortraitPanel({
+  state,
+  openSubject,
+  onClose,
+}: {
+  state: WorldState;
+  openSubject: ProgressSubjectId | null;
+  onClose: () => void;
+}) {
   // Field-level deps on purpose — recompute only when a portrait input changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const portrait = useMemo(() => computeVillagePortrait(state), [
@@ -56,27 +79,28 @@ function GoalsPortraitPanel({ state }: { state: WorldState }) {
 
   return (
     <div className="space-y-3">
-      <CollapsibleSection
-        title="How history sees you"
+      <SubjectWindow
+        windowKey="progress-portrait"
+        open={openSubject === 'portrait'}
+        onClose={onClose}
         icon={portrait.emoji}
+        title="How history sees you"
         subtitle={portrait.title}
-        accent="amber"
-        storageKey="goals-portrait"
       >
         <h3 className="text-sm font-bold text-amber-100">{portrait.title}</h3>
         <p className="mt-1.5 text-[13px] leading-relaxed text-stone-300">{portrait.summary}</p>
         <p className="mt-2 text-xs text-stone-300">
           No single win screen — raid like barbarians, tend the wild, trade, build, or make peace. This portrait shifts as you play.
         </p>
-      </CollapsibleSection>
+      </SubjectWindow>
 
-      <CollapsibleSection
-        title="Your path (live)"
+      <SubjectWindow
+        windowKey="progress-path"
+        open={openSubject === 'path'}
+        onClose={onClose}
         icon="🧭"
-        badge={primaryTrait?.score}
-        subtitle={primaryTrait ? `Strongest: ${primaryTrait.label}` : undefined}
-        defaultOpen={false}
-        storageKey="goals-path"
+        title="Your path (live)"
+        subtitle={primaryTrait ? `Strongest: ${primaryTrait.label}${primaryTrait.score != null ? ` (${primaryTrait.score})` : ''}` : 'Every trait, scored as you play'}
       >
         <div className="space-y-2">
           {portrait.traits.map((t) => (
@@ -99,31 +123,33 @@ function GoalsPortraitPanel({ state }: { state: WorldState }) {
             </div>
           ))}
         </div>
-      </CollapsibleSection>
+      </SubjectWindow>
 
-      <CollapsibleSection
-        title="Challenges"
+      <SubjectWindow
+        windowKey="progress-challenges"
+        open={openSubject === 'challenges'}
+        onClose={onClose}
         icon="🏆"
+        title="Challenges"
         subtitle="Optional goals with resource rewards"
-        defaultOpen={false}
-        storageKey="goals-challenges"
       >
         <Suspense fallback={<p className="text-[13px] text-stone-300">Loading challenges…</p>}>
           <ChallengesPanel state={state} />
         </Suspense>
-      </CollapsibleSection>
+      </SubjectWindow>
 
-      <CollapsibleSection
-        title="Valley statistics"
+      <SubjectWindow
+        windowKey="progress-statistics"
+        open={openSubject === 'statistics'}
+        onClose={onClose}
         icon="📊"
+        title="Valley statistics"
         subtitle="Lifetime totals and this year's figures"
-        defaultOpen={false}
-        storageKey="goals-statistics"
       >
         <Suspense fallback={<p className="text-[13px] text-stone-300">Loading statistics…</p>}>
           <StatisticsPanel state={state} />
         </Suspense>
-      </CollapsibleSection>
+      </SubjectWindow>
     </div>
   );
 }
@@ -136,6 +162,16 @@ export default function ProgressTabPanel({
   onStartResearch,
   onEstablishTradeRoute,
 }: ProgressTabPanelProps) {
+  /**
+   * Which goals subject's window is open, if any.
+   *
+   * The owner's ruling reaches this panel too — *"each subject should just have its own window not
+   * stacking up"* — so the six `CollapsibleSection`s that used to scroll here (four inside
+   * `GoalsPortraitPanel`, two in the goals branch) are one **index** and one window each. The
+   * Research/Trade branches keep their existing inline lists: they were never the measured stack, and
+   * the sub-nav above still selects between the three groups.
+   */
+  const [openSubject, setOpenSubject] = useState<ProgressSubjectId | null>(null);
   return (
     <div className="space-y-3">
       <div className="progress-subnav">
@@ -317,29 +353,63 @@ export default function ProgressTabPanel({
 
       {progressSubTab === 'goals' && (
         <>
-          <CollapsibleSection
-            title="Valley chronicle"
+          {/* The index: one button per subject, nothing stacked behind it. */}
+          <div className="grid gap-1 sm:grid-cols-2">
+            {PROGRESS_SUBJECTS.map((subject) => (
+              <button
+                key={subject.id}
+                type="button"
+                onClick={() => setOpenSubject(subject.id)}
+                aria-current={openSubject === subject.id}
+                className={`block w-full rounded-lg px-2 py-1.5 text-left ring-1 transition-colors ${
+                  openSubject === subject.id
+                    ? 'bg-amber-900/50 ring-amber-500/50'
+                    : 'bg-stone-800/60 ring-stone-600/40 hover:bg-stone-700/60'
+                }`}
+              >
+                <span className="flex items-center gap-1 text-[12px] font-bold text-stone-100">
+                  <span aria-hidden>{subject.icon}</span>
+                  {subject.label}
+                  <span aria-hidden className="ml-auto text-stone-400">↗</span>
+                </span>
+                <span className="block text-[10px] leading-snug text-stone-400">{subject.hint}</span>
+              </button>
+            ))}
+          </div>
+
+          <SubjectWindow
+            windowKey="progress-chronicle"
+            open={openSubject === 'chronicle'}
+            onClose={() => setOpenSubject(null)}
             icon="📜"
+            title="Valley chronicle"
             subtitle="What has happened in the valley so far"
-            defaultOpen={false}
-            storageKey="goals-chronicle"
           >
             <Suspense fallback={<p className="text-[13px] text-stone-300">Loading chronicle…</p>}>
               <ValleyChroniclePanel state={state} />
             </Suspense>
-          </CollapsibleSection>
-          <CollapsibleSection
-            title="Dynasties"
+          </SubjectWindow>
+
+          <SubjectWindow
+            windowKey="progress-dynasty"
+            open={openSubject === 'dynasty'}
+            onClose={() => setOpenSubject(null)}
             icon="🌳"
+            title="Dynasties"
             subtitle="Family lines and succession"
-            defaultOpen={false}
-            storageKey="goals-dynasty"
           >
             <Suspense fallback={<p className="text-[13px] text-stone-300">Loading dynasties…</p>}>
               <DynastyPanel state={state} />
             </Suspense>
-          </CollapsibleSection>
-          <GoalsPortraitPanel state={state} />
+          </SubjectWindow>
+
+          {/* Its four subjects are windows too; the buttons for them are in the index above, so this
+              component owns only the bodies and the portrait computation they share. */}
+          <GoalsPortraitPanel
+            state={state}
+            openSubject={openSubject}
+            onClose={() => setOpenSubject(null)}
+          />
         </>
       )}
     </div>

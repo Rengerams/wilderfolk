@@ -52,6 +52,15 @@ export default function GameInspector({
     );
   }
 
+  // Nothing selected: the column is a narrow rail (App sizes it) and the diagnostics drawer is not
+  // rendered, for the same reason the collapsed branch below does not render it — the drawer needs the
+  // column's width to lay out, and an empty 18.5rem column was the owner's report *"now the right panel
+  // no need to be that big anymore"*. The drawer is back the moment anything is selected, which is the
+  // only time this column has something to show.
+  if (!hasSelection) {
+    return <div className="flex flex-col items-center gap-1 px-1 py-1.5" aria-label="Inspector (nothing selected)" />;
+  }
+
   return (
     <div className="flex flex-col" aria-label="Inspector">
       {diagnostics}

@@ -35,15 +35,16 @@ import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getHuntFoodMultiplier } from './combat';
 import { isProductionTick, PRODUCTION_INTERVAL, TICKS_PER_DAY } from './dayCycle';
 import type { TickContext } from './simulation/simulationTypes';
-
-/**
- * How far an assigned hunter *notices* prey, in world pixels (~30 m at the measured 11.76 px/m).
- *
- * Owner (2026-09-30): *"the range can be 350 where is looking but to kil it you have stand ne xt to
- * it"*. Looking and killing are deliberately separate distances — this constant is only the former;
- * the kill gate is `config.size + prey.size` (bodies touching) further down.
- */
-const OWNER_HUNT_SEARCH_RADIUS = 350;
+import {
+  commitHuntingSpotTarget,
+  findLiveAssignedWorker,
+  HUNTING_FIGHT_BACK_BITE_ENERGY,
+  HUNTING_FIGHT_BACK_CHANCE,
+  huntingKillReach,
+  huntingSpotTarget,
+  isHuntingStrikeLive,
+} from './huntingSpot';
+import { humanDisplayName } from './citizenId';
 
 /**
  * How close the hunter must be to take the shot, in world pixels (~10 m at the measured 11.76 px/m).
@@ -55,15 +56,9 @@ const OWNER_HUNT_SEARCH_RADIUS = 350;
  * **stopped the spot producing food at all**: prey wanders, so by the time the production tick runs the
  * animal has drifted out of a 22 px reach (measured directly: a fixture deer was at 30 px, moved to
  * 34.5 px on the tick, against a 22 px reach). A strict adjacency gate is only survivable if the hunter
- * *walks to the animal*, and no such pursuit exists yet — assigned hunters hold position.
- *
- * So this is set to a reach a standing hunter can realistically use against wandering prey, while being
- * ~3× tighter than the old 320 and anchored on the hunter rather than the building. **The honest fix is
- * the chase**: give an assigned hunter a move-to-prey order and this can drop to the adjacency rule
- * that matches the owner's words exactly. Recorded in
- * `BUG_REPORTS/2026-09-30-hunting-yield-unbounded.md`.
+ * *walks to the animal* — which it now does: see `huntingSpot.ts`, and the pursuit applied in
+ * `humanTick`'s work branch. That note predicted this change in as many words.
  */
-const HUNTER_KILL_REACH = 120;
 
 import {
   syncEntityGrids,
@@ -356,26 +351,9 @@ export function tickDailyBuildingEconomy(
 // ==================== FRONTIER SYSTEMS ====================
 
 /**
- * The living player settler working this building, if any.
- *
- * Used by the Hunting Spot so its shot can be emitted from the hunter rather than
- * from the building — see `BUG_REPORTS/2026-08-28-hunting-projectile-visual.md`.
+ * The living player settler working this building, if any — now owned by `huntingSpot.ts`, which the
+ * hunter's movement also reads so the settler who shoots is the settler who walks out.
  */
-function findLiveAssignedWorker(
-  building: Building,
-  entityById: ReadonlyMap<number, Entity>,
-): Entity | undefined {
-  // `occupants` is the assignment list, but a building constructed outside the normal path (tests,
-  // saves from before a field existed) can reach here without one. Reading `.length` on undefined
-  // threw, which surfaced as a crash in the hunting tests rather than as "no hunter".
-  const assigned = building.occupants;
-  if (!assigned) return undefined;
-  for (let i = 0; i < assigned.length; i++) {
-    const worker = entityById.get(assigned[i]);
-    if (worker?.alive && isPlayerHuman(worker)) return worker;
-  }
-  return undefined;
-}
 
 function tickBuildingProduction(
   state: WorldState,
@@ -537,76 +515,42 @@ function tickBuildingProduction(
       const hunter = findLiveAssignedWorker(building, entityById);
       if (hunter) {
       /**
-       * The reach, and the owner's objection to it: *"320 px is a uge part the should be near the
-       * animal"*.
+       * Looking and killing are two different distances, and the killer is now the *hunter's* to walk.
        *
-       * These are two different things and were conflated:
+       * The owner split them explicitly: *"the range can be 350 where is looking but to kil it you have
+       * stand ne xt to it"*, and then ruled out the 120 px that stood in for the second half —
+       * *"120 px is way to far, its 1800's they dont have guns"*. So the eyes are 350 px
+       * (`HUNTING_SPOT_SEARCH_RADIUS_PX`) and the reach is bodies touching (`huntingKillReach`).
        *
-       *  - **Search radius** — how far out prey is *noticed*, which the owner sets at **350 px**
-       *    (*"the range can be 350 where is looking"*). That is the wolf's `huntRange` in
-       *    `speciesConfig.ts`, and the human's own entry is 150 — so an assigned hunter's *eyes* were
-       *    narrower than the building's old hardcoded 320, which is backwards: the person looking
-       *    should see at least as far as the structure they work from. Anchored on the hunter and set
-       *    to the owner's 350.
-       *  - **Kill reach** — how close the hunter must actually *be* to take the shot. That is the
-       *    "stand next to it" the owner means, and `humanHuntingBehavior.ts` already models it as
-       *    `config.size + prey.size` (roughly 5–8 m) for a settler hunting for themselves. Applied as
-       *    the kill gate below.
-       *
-       * At the measured scale (~11.76 px/m: a human is 20 px, a house 40 px) 350 px is ~30 m, which is
-       * fair for *seeing* an animal and indefensible for killing one — hence the split.
+       * A contact reach is only survivable **because the hunter now walks to the animal**
+       * (`huntingSpotChaseTarget`, applied in `humanTick`'s work branch). The previous attempt at
+       * adjacency was abandoned for exactly that missing half — a standing hunter against wandering prey
+       * produced no food at all, and the note left behind said the honest fix was the chase. This is it.
        */
-      const searchRadius = OWNER_HUNT_SEARCH_RADIUS;
-      const bx = hunter.x;
-      const by = hunter.y;
-
-      let targetPrey: Entity | null = null;
-      let bestScore = Infinity;
-      const preyTarget = building.huntingSpotPrey ?? 'auto';
-
-      const targetTypes: EntityType[] = [];
-      if (preyTarget === 'auto' || preyTarget === 'deer') targetTypes.push(EntityType.Deer);
-      if (preyTarget === 'auto' || preyTarget === 'rabbit') targetTypes.push(EntityType.Rabbit);
-      if (preyTarget === 'auto' || preyTarget === 'wolf') targetTypes.push(EntityType.Wolf);
-
-      for (let t = 0; t < targetTypes.length; t++) {
-        const pool = byType[targetTypes[t]] ?? [];
-        for (let p = 0; p < pool.length; p++) {
-          const e = pool[p];
-          if (!e.alive || e.tamedBy != null) continue;
-          const dist = Math.hypot(e.x - bx, e.y - by);
-          if (dist >= searchRadius) continue;
-          const score = e.type === EntityType.Wolf ? dist + 160 : dist;
-          if (score < bestScore) {
-            bestScore = score;
-            targetPrey = e;
-          }
-        }
-      }
+      const targetPrey = huntingSpotTarget(building, hunter, entityById, byType);
+      // The spot owns the decision, so it records it: the hunter's walk reads the same commitment.
+      commitHuntingSpotTarget(building, targetPrey);
 
       if (targetPrey) {
         const isWolf = targetPrey.type === EntityType.Wolf;
         // Stateless per shot: whether the prey fights back and whether the shot lands must
         // not depend on how many other draws this module made first.
         const huntKey = `hunt:${building.id}:${state.tick}:${targetPrey.id}`;
-        const foughtBack = isWolf && seededRandomForRun(`${huntKey}:fight`) < 0.35;
+        const foughtBack = isWolf && seededRandomForRun(`${huntKey}:fight`) < HUNTING_FIGHT_BACK_CHANCE;
         /**
-         * Looking is not killing. Owner (2026-09-30): *"the range can be 350 where is looking but to
-         * kil it you have stand ne xt to it"*.
+         * The reach: bodies touching, both radii.
          *
-         * This was `success = !foughtBack && roll < 0.85` with **no distance term at all** — the
-         * nearest prey inside the search radius died wherever the hunter happened to be standing, so a
-         * spot took animals from up to 320 px (~27 m) away. That is the "shoots all over the map" the
-         * owner reported.
-         *
-         * The reach is now the same one `humanHuntingBehavior.ts` already applies to a settler hunting
-         * for themselves — `config.size + prey.size`, i.e. bodies touching, roughly 5–8 m at this
-         * scale. Inside that, the 85 % accuracy roll still decides hit or miss; outside it there is no
-         * shot to make. The search radius is untouched, because noticing prey from a distance is fine.
+         * The owner's ruling replaced the 120 px stand-in — *"120 px is way to far, its 1800's they dont
+         * have guns"* — so the gate is the same one `humanHuntingBehavior.ts` applies to a settler
+         * hunting for themselves (`hunter.size + prey.size`): ~21 px against a deer, ~17 px against a
+         * rabbit, roughly 1.5–1.8 m. Inside it the 85 % accuracy roll still decides hit or miss;
+         * outside it there is no shot to make, and the hunter is walking there to change that.
          */
-        const strikeDistance = HUNTER_KILL_REACH;
         const preyDistance = Math.hypot(targetPrey.x - hunter.x, targetPrey.y - hunter.y);
-        const inReach = preyDistance <= strikeDistance;
+        // Standing beside the animal *now*, or having been beside it moments ago: the pass samples an
+        // instant, and the hunter stalks a wandering animal across many ticks. See
+        // `HUNTING_SPOT_STRIKE_GRACE_TICKS` for the measurement that forced this.
+        const inReach = preyDistance <= huntingKillReach(hunter, targetPrey) || isHuntingStrikeLive(building, state.tick);
         const success = inReach && !foughtBack && seededRandomForRun(`${huntKey}:success`) < 0.85;
 
         // The shot is already known to have a live hunter: the targeting above only runs when one is
@@ -627,9 +571,26 @@ function tickBuildingProduction(
         });
 
         if (foughtBack) {
-          building.health = Math.max(10, building.health - 12);
-          addFloatingText(state, building.x, building.y - 12, 'Wolf fights back! 🐺', '#f87171');
-          logEvent(state, 'combat', 'A wild wolf fought back at the Hunting Spot!');
+          /**
+           * The wolf turns on the **hunter**, not the building.
+           *
+           * Owner, 2026-09-30: *"dont forget animals fight back"*. The rule itself is untouched — the
+           * same 35 % roll that was already here, against the wolf only (`HUNTING_FIGHT_BACK_CHANCE`),
+           * next to the 85 % accuracy roll that is the hunter's own chance of winning the exchange. What
+           * changed is where the bite lands: the old branch took 12 health off the Hunting Spot from an
+           * animal the settler was never near, and now that the hunter walks up to it (contact reach,
+           * `huntingKillReach`) they are the one in range. `huntingSpot.ts` carries the numbers.
+           */
+          hunter.energy = Math.max(0, hunter.energy - HUNTING_FIGHT_BACK_BITE_ENERGY);
+          hunter.combatTicks = 14;
+          hunter.flash = 10;
+          addFloatingText(state, hunter.x, hunter.y - 14, 'Wolf fights back! 🐺', '#f87171');
+          logEvent(
+            state,
+            'combat',
+            `A wild wolf fought back at the Hunting Spot and bit ${humanDisplayName(hunter)}`,
+            humanDisplayName(hunter),
+          );
         } else if (success) {
           // `hunt_food` is the key the hunting research nodes actually declare (defense_2/4/8);
           // the previous `hunt_yield` lookup matched no node and was a permanent 1.

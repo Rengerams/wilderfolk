@@ -65,6 +65,74 @@ export function commuteLeadHoursFor(distance: number, walkSpeed: number): number
 // ============ COMMUTE HELPERS ============
 
 /**
+ * A place in a crowd gathered around a point — a festival at the performers' camp or the hall front.
+ *
+ * Owner, 2026-09-30: *"they again in a circle"*, with no election running and five taverns in the
+ * village. The festival branch of `humanTick` placed its crowd with `((id % 7) - 3) * 11` and
+ * `((Math.floor(id / 7) % 5) - 2) * 9`: **35 slots total**, repeating, so a village's festival-goers
+ * stacked tens deep on each one and the whole gathering read as a single dense, chatting ring. Twelve
+ * staggered rings of sixteen slots give 192 distinct places spread over a few hundred px, so a crowd
+ * looks like a crowd. Deterministic per settler — no RNG.
+ */
+export function crowdGatherPosition(cx: number, cy: number, entityId: number): { x: number; y: number } {
+  const seed = Math.abs(entityId * 17 + 13);
+  const ring = seed % CROWD_GATHER_RINGS;
+  const slot = Math.floor(seed / CROWD_GATHER_RINGS) % CROWD_GATHER_PER_RING;
+  // Stagger each ring so slots do not line up into spokes.
+  const angle = (slot / CROWD_GATHER_PER_RING) * Math.PI * 2 + ring * 0.13;
+  const radius = CROWD_GATHER_INNER_PX + ring * CROWD_GATHER_RING_GAP_PX;
+
+  return {
+    x: cx + Math.cos(angle) * radius,
+    // Flattened, so the crowd occupies ground rather than forming a perfect circle.
+    y: cy + Math.sin(angle) * radius * 0.7,
+  };
+}
+
+/** 12 × 16 = 192 places in a festival crowd, from just outside the stage to the edge of it. */
+const CROWD_GATHER_RINGS = 12;
+const CROWD_GATHER_PER_RING = 16;
+const CROWD_GATHER_INNER_PX = 34;
+const CROWD_GATHER_RING_GAP_PX = 14;
+
+/**
+ * A place of one's own at a venue — the arc in front of a tavern, market, hall or church.
+ *
+ * Owner, 2026-09-30, looking at a clump of dozens of settlers mid-village with no event running:
+ * *"they again in a circle"*. Nothing was gathering them there: `humanLeisureBehavior`'s day-off /
+ * Sunday-service / market / grief impulse sent **every** settler to a single point on the venue —
+ * `b.x + b.width / 2, b.y + b.height * 0.92` — and each stopped within 20 px of it, so a village's
+ * leisure crowd stacked into a ring around one coordinate. (That point is also the corner form applied
+ * to a value that already is the footprint centre, `buildingGeometry`; see `humanBuildingTarget`.)
+ *
+ * This gives every settler a deterministic slot on three shallow arcs across the venue's front, using
+ * the same stable hash idea as `homeStandPosition` and the same south-facing bias, so a crowd reads as a
+ * crowd around the entrance rather than a circle around a pixel. No RNG: the same settler at the same
+ * venue always stands in the same place.
+ */
+export function venueGatherPosition(building: Building, entityId: number): { x: number; y: number } {
+  const seed = Math.abs(entityId * 17 + building.id * 31);
+  const arc = seed % VENUE_GATHER_ARCS;
+  const slot = Math.floor(seed / VENUE_GATHER_ARCS) % VENUE_GATHER_PER_ARC;
+  // South-facing arcs (30° to 150°), each one pushed a little further from the wall.
+  const angle = Math.PI * 0.18 + (slot / Math.max(1, VENUE_GATHER_PER_ARC - 1)) * Math.PI * 0.64;
+  const radius = building.width / 2 + VENUE_GATHER_STANDOFF_PX + arc * VENUE_GATHER_ARC_GAP_PX;
+
+  return {
+    x: building.x + Math.cos(angle) * radius,
+    // Cleared of the wall by a standoff at every angle — the flatter the arc, the closer the apex came to
+    // the footprint, which put settlers inside the building they came to visit.
+    y: building.y + building.height + VENUE_GATHER_STANDOFF_PX + Math.sin(angle) * radius * 0.5,
+  };
+}
+
+/** Slots available to a venue crowd: three arcs of eight. */
+const VENUE_GATHER_ARCS = 3;
+const VENUE_GATHER_PER_ARC = 8;
+const VENUE_GATHER_STANDOFF_PX = 18;
+const VENUE_GATHER_ARC_GAP_PX = 10;
+
+/**
  * Calculates a deterministic, dispersed standing position in the front yard of a home residence
  * so family members and roommates do not overlap sprites or get hidden behind the roof.
  */
@@ -84,6 +152,12 @@ export function homeStandPosition(building: Building, entityId: number): { x: nu
   };
 }
 
+/** Spacing between two workers of the same building, in world px (a settler sprite is ~20 px wide). */
+export const WORKER_STAND_SPACING_PX = 16;
+
+/** How far south of the footprint's edge the worker row stands, in px — in front of it, never on it. */
+export const WORKER_STAND_STANDOFF_PX = 10;
+
 /**
  * Returns the exact destination coordinates for a human heading to home or workplace.
  */
@@ -95,12 +169,32 @@ export function humanBuildingTarget(
   if (arrivingHome) {
     return homeStandPosition(building, entityId);
   }
-  const seed = Math.abs(entityId * 13 + building.id * 29);
-  const offset = ((seed % 7) - 3) * 6;
+  /**
+   * A real slot per worker, in a row across the building's front.
+   *
+   * Owner, 2026-09-30, looking at the crew of a Hunting Spot: *"why are they all standing at side of
+   * the village?"*, then *"but why all at the same palce not logic"*. Both halves of that were true
+   * here, and both are fixed by this one expression:
+   *
+   *  - the point was built in the **corner form** — `building.x + building.width / 2` — on a value
+   *    that already *is* the footprint centre (`buildingGeometry`), so a crew stood half a footprint to
+   *    the right of its own workplace. That is the "at the side of it" the owner saw, and it is the
+   *    same mistake the camera-focus callers made (F23).
+   *  - the only dispersion was `((seed % 7) - 3) * 6` from a hash of the entity id: **seven** possible
+   *    x positions in a ±18 px band, an **identical y for everyone**, and past seven workers the hash
+   *    collides so two settlers stand on the exact same pixel.
+   *
+   * The slot now comes from the list that owns the crew (`building.occupants`, with the `?? []` its
+   * other save-boundary readers use), and the row is centred on the footprint. Deterministic — no RNG,
+   * so the same world and crew always give the same positions.
+   */
+  const crew = building.occupants ?? [];
+  const slot = Math.max(0, crew.indexOf(entityId));
+  const span = Math.max(0, crew.length - 1) * WORKER_STAND_SPACING_PX;
   return {
-    x: building.x + building.width / 2 + offset,
+    x: building.x - span / 2 + slot * WORKER_STAND_SPACING_PX,
     // Workers stand in front of the building (south) so sprites are not obscured
-    y: building.y + building.height * 0.92,
+    y: building.y + building.height / 2 + WORKER_STAND_STANDOFF_PX,
   };
 }
 

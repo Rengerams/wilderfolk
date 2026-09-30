@@ -24,6 +24,7 @@
  */
 import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
+import { useModalFocus } from '../hooks/useModalFocus';
 
 export interface GameWindowProps {
   /** The subject's own name, shown in the title bar and used as the dialog's accessible name. */
@@ -35,6 +36,18 @@ export interface GameWindowProps {
   onClose: () => void;
   /** Cap the body's height so a long subject scrolls instead of growing off-screen. */
   maxBodyClassName?: string;
+  /**
+   * Replace the window's own width — **both** its `w-*` and the `max-w-*` that goes with it, since a
+   * later `w-*` in the class attribute does not reliably win over an earlier one (Tailwind orders by
+   * stylesheet, not by markup). The caller that passes this owns both numbers.
+   *
+   * It exists because the two built-in widths are a settled shape: a chat-sized centred window
+   * (`26rem`) and a narrow anchored one (`18rem`). A subject that is genuinely wider than that — the
+   * Village overview carries a five-column resource row, two SVG charts and a settler table — had no
+   * way to fit the shell, so it hand-rolled a full-screen dialog of its own instead. Sizing is part of
+   * the shell's job; bypassing it is what this prop removes. Omitted, nothing changes for any caller.
+   */
+  widthClassName?: string;
   /**
    * Where the window sits when it is an anchored panel. Defaults to the top-right corner, which suits
    * the work-hours window. Ignored when `centered` is set.
@@ -61,17 +74,30 @@ export default function GameWindow({
   onClose,
   maxBodyClassName = 'max-h-[60vh]',
   positionClassName = 'right-4 top-4',
+  widthClassName,
   centered = false,
   children,
 }: GameWindowProps) {
+  // The focus half of the overlay contract, owned here rather than repeated by every centred caller.
+  // `useModalFocus` is the repository's one trap and `centered` is what makes a window a modal (it has
+  // a dimming backdrop whose click closes it), so the two belong to the same owner — the shell — for
+  // the same reason the title bar and the close control do. It stays inert for anchored windows, which
+  // are not modals. Without this a caller would have to re-attach the trap to an element the shell
+  // owns, which is not reachable from outside a portal.
+  const dialogRef = useModalFocus<HTMLDivElement>(centered);
+  const width = widthClassName ?? (centered ? 'w-[26rem] max-w-[92vw]' : 'w-72');
   const panel = (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-label={title}
+      // Only the centred variant is a modal: the anchored one sits beside the panel that opened it and
+      // leaves the rest of the game reachable.
+      aria-modal={centered || undefined}
       className={
         centered
-          ? 'pointer-events-auto relative w-[26rem] max-w-[92vw] rounded-xl border border-amber-600/40 bg-stone-900/95 text-xs text-amber-100 shadow-2xl backdrop-blur'
-          : `pointer-events-auto absolute z-40 w-72 rounded-xl border border-amber-600/40 bg-stone-900/95 text-xs text-amber-100 shadow-2xl backdrop-blur ${positionClassName}`
+          ? `pointer-events-auto relative ${width} rounded-xl border border-amber-600/40 bg-stone-900/95 text-xs text-amber-100 shadow-2xl backdrop-blur`
+          : `pointer-events-auto absolute z-40 ${width} rounded-xl border border-amber-600/40 bg-stone-900/95 text-xs text-amber-100 shadow-2xl backdrop-blur ${positionClassName}`
       }
     >
       <div className="flex items-start justify-between gap-2 border-b border-amber-600/20 p-3 pb-2">

@@ -2,8 +2,9 @@ import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState }
 import { maybeOfferValleyDebate } from './storyEvents';
 import { recordElectionPromises, tickElectionPromises } from './electionPromises';
 import { BuildingType, EntityType } from './gameTypes';
-import { DAYS_PER_YEAR, getAgeInYears, HUMAN_ADULT_MIN_AGE, isImprisoned, TICKS_PER_DAY } from './dayCycle';
+import { DAYS_PER_YEAR, getAgeInYears, HUMAN_ADULT_MIN_AGE, isImprisoned, TICKS_PER_HOUR } from './dayCycle';
 import { logEvent } from './eventLog';
+import { addNotification } from './simEffects';
 import { isPlayerHuman } from './playerHuman';
 import { sayHumanChatPhrase } from './humanChat';
 import { ensureEntitySkills } from './skills';
@@ -37,19 +38,32 @@ export const ELECTION_PARTY_NAME = 'Election Revelry';
 // `gameConstants.Time.DAYS_PER_YEAR`), not a second calendar: the audit flagged the old local
 // `DAYS_PER_YEAR = 30 * 12` as a second definition that would drift silently if the year changed.
 const MONTHS_PER_YEAR = 12;
-const DAYS_PER_MONTH = DAYS_PER_YEAR / MONTHS_PER_YEAR;
 
-/** Gossip lasts 2 months before the vote. */
-const GOSSIP_MONTHS = 2;
+/**
+ * A ceremony is **one in-game day**, not two in-game months.
+ *
+ * Owner, 2026-09-30, watching a village that had stood still in a ring around the Town Hall: *"they
+ * are in a circle"*, *"they not walking"*, then *"but a ceromeny should maybe take one day?"* and
+ * *"not months"*. The gossip beat used to run `GOSSIP_MONTHS = 2` — **two in-game months** — and
+ * `humanTick` holds *every eligible adult* at its ring slot for as long as the ceremony is live
+ * (`humanTick.ts:722`, `suppressIdle` and `onSchedule` both set), so the village stopped walking,
+ * working and eating for a fifth of a year. The gossip itself never needed the hold: it is delivered
+ * by `tickElectionGossip` on its own cadence from `tickElectionCeremony`, independent of where anyone
+ * stands. An election is also a once-a-decade event (`ELECTION_INTERVAL_YEARS`), so a day of assembly
+ * is the ceremony the owner asked for, and the ring maths (`getElectionGatherTarget`) is untouched.
+ */
+const CEREMONY_GATHERING_HOURS = 12;
+const CEREMONY_GOSSIP_HOURS = 10;
+const CEREMONY_TENSION_HOURS = 1;
 
 function getPhaseTicks(phase: 'gathering' | 'gossip' | 'tension'): number {
   switch (phase) {
     case 'gathering':
-      return 12;
+      return CEREMONY_GATHERING_HOURS * TICKS_PER_HOUR;
     case 'gossip':
-      return GOSSIP_MONTHS * DAYS_PER_MONTH * TICKS_PER_DAY;
+      return CEREMONY_GOSSIP_HOURS * TICKS_PER_HOUR;
     case 'tension':
-      return 12;
+      return CEREMONY_TENSION_HOURS * TICKS_PER_HOUR;
   }
 }
 
@@ -431,6 +445,56 @@ export function isElectionCeremonyActive(state: WorldState): boolean {
 
 const GATHER_SLOTS_PER_RING = 12;
 
+/**
+ * How far out the gathering may reach, in rings — beyond this, extra attendees share the rim.
+ *
+ * Owner, 2026-09-30: *"and why not all are in the circle?"*. Because the ring radius grew **without
+ * bound**: `ringRadius = 22 + ring × 14` with `ring = floor(slot / 12)`, so a village of 600 eligible
+ * adults was sent to slots up to **708 px** from the hall. At the ceremony's own walk speed (base
+ * `speed` × the 1.15 `humanTick` applies) that is roughly **300 ticks of walking**, and the ceremony
+ * lasts **70 ticks** (`CEREMONY_*_HOURS` above) — so only the inner two or three rings could ever
+ * arrive, and everyone else was still strung out across the village when it ended, which is exactly
+ * what the owner was looking at. Capping the rings keeps the crowd beside the hall: reachable in a
+ * fraction of the ceremony, and a gathering rather than a ring drawn round half the map.
+ *
+ * The ring maths is otherwise untouched, so `tests/medium-N5-electionGatherSlot.test.ts` still pins
+ * it — that fixture's 15 attendees reach ring 1 and outer ring 2, both inside the cap.
+ */
+const MAX_GATHER_RING = 4;
+
+/**
+ * How many settlers a ceremony actually gathers: two rings' worth, the people the vote is about.
+ *
+ * Owner, 2026-09-30, after the radius cap above went in: *"they again in a circle"*. Capping the ring
+ * radius without capping **who attends** made it worse, not better: the whole village still walked to
+ * the hall, so a thousand settlers shared sixty slots and stood in a tight disc — a denser, more obvious
+ * circle than the wide rings it replaced. The village population is not the ceremony; a couple of dozen
+ * settlers at the hall is, and everyone else has a day's work to do (the hold in `humanTick` now applies
+ * to attendees only, so the rest go about their business).
+ */
+export const CEREMONY_ATTENDEE_LIMIT = GATHER_SLOTS_PER_RING * 2;
+
+/**
+ * Whether this settler is one of the ceremony's attendees — the same id-sorted index
+ * `getElectionGatherTarget` uses for slot assignment, so "who holds position" and "which slot" can never
+ * disagree. One pass, early exit; during a ceremony this runs per settler per tick, which is affordable
+ * because a ceremony is a single day once a decade (`CEREMONY_*_HOURS`, `ELECTION_INTERVAL_YEARS`).
+ */
+export function isCeremonyAttendee(state: WorldState, entityId: number): boolean {
+  if (!state.electionCeremony) return false;
+  let slot = 0;
+  for (let i = 0; i < state.entities.length; i++) {
+    const entity = state.entities[i];
+    if (!isEligibleForLeadership(entity, state)) continue;
+    if (entity.id === entityId) return slot < CEREMONY_ATTENDEE_LIMIT;
+    if (entity.id < entityId) slot++;
+  }
+  return false;
+}
+
+/** Radius of the outermost ring, in px. Overflow attendees share it; non-attendees stand just outside. */
+const MAX_GATHER_RADIUS_PX = 22 + MAX_GATHER_RING * 14;
+
 export function getElectionGatherTarget(state: WorldState, entityId: number): { x: number; y: number } {
   const c = state.electionCeremony;
   if (!c) return getElectionGatherSite(state);
@@ -454,9 +518,11 @@ export function getElectionGatherTarget(state: WorldState, entityId: number): { 
   }
 
   if (!isAttendee) {
-    const outerRing = Math.ceil(attendeeCount / GATHER_SLOTS_PER_RING);
+    // Non-attendees (children, the under-18s, prisoners, other factions) ring the outside, one step
+    // beyond the crowd — also capped, for the same reason: the venue for this ceremony is the hall's
+    // frontage, not a radius measured in map widths.
     const angle = ((entityId * 17) % 360) * (Math.PI / 180);
-    const ringRadius = 22 + outerRing * 14 + 28;
+    const ringRadius = Math.min(22 + Math.ceil(attendeeCount / GATHER_SLOTS_PER_RING) * 14 + 28, MAX_GATHER_RADIUS_PX + 12);
     return {
       x: c.gatherX + Math.cos(angle) * ringRadius,
       y: c.gatherY + Math.sin(angle) * ringRadius,
@@ -464,6 +530,16 @@ export function getElectionGatherTarget(state: WorldState, entityId: number): { 
   }
 
   const ring = Math.floor(slot / GATHER_SLOTS_PER_RING);
+  if (ring > MAX_GATHER_RING) {
+    // Overflow shares the outermost ring, each on its own stable angle so nobody stacks on a neighbour
+    // — the crowd grows denser instead of the circle growing wider.
+    const angle = ((entityId * 17) % 360) * (Math.PI / 180);
+    return {
+      x: c.gatherX + Math.cos(angle) * MAX_GATHER_RADIUS_PX,
+      y: c.gatherY + Math.sin(angle) * MAX_GATHER_RADIUS_PX,
+    };
+  }
+
   const angleSlot = slot % GATHER_SLOTS_PER_RING;
   const angle = (angleSlot / GATHER_SLOTS_PER_RING) * Math.PI * 2;
   const ringRadius = 22 + ring * 14;
@@ -493,7 +569,7 @@ export function appointFoundingLeader(state: WorldState, entity: Entity): void {
   const name = formatSettlerName(entity);
   logEvent(
     state,
-    'event',
+    'election',
     `${name} leads the founding colony until the first merit election (Year ${ELECTION_INTERVAL_YEARS})`,
     name,
   );
@@ -515,7 +591,7 @@ export function getElectionCeremonyStatus(state: WorldState): string | null {
   if (state.electionCeremony) {
     const labels: Record<ElectionCeremonyPhase, string> = {
       gathering: 'The election season begins — settlers gather at the Town Hall.',
-      gossip: 'Months of gossip — the village debates who should lead.',
+      gossip: 'The village debates who should lead, between their own work.',
       tension: 'Voting day — the crowd waits for the result…',
       reveal: 'Announcing the village head!',
     };
@@ -661,7 +737,7 @@ export function startElectionCeremony(
   if (ranked.length === 0) {
     logEvent(
       state,
-      'event',
+      'election',
       `Leadership election postponed (Year ${year}) — no eligible candidates`,
     );
     return false;
@@ -690,9 +766,26 @@ export function startElectionCeremony(
 
   logEvent(
     state,
-    'event',
+    'election',
     `Leadership election ceremony began at ${place} (Year ${year})`,
     winner.name,
+  );
+
+  /**
+   * Tell the player, and let the message take them there.
+   *
+   * Owner, 2026-09-30: *"an i didnt get a mesage about a election ceremony"* — and they did not: the
+   * start wrote a **Chronicle line only**, into the generic Events bucket, while the *buildup* a year
+   * earlier did raise a notice. A ceremony that assembles the whole village for a day is exactly the
+   * kind of thing this feed is for, and `addNotification`'s `focus` makes the entry clickable onto the
+   * gathering site, the same door the priority alerts use.
+   */
+  addNotification(
+    state,
+    '🗳️ Election ceremony begins',
+    `The village gathers at ${place} to choose its head — one day of assembly (Year ${year}).`,
+    'event',
+    { x: site.x, y: site.y },
   );
   return true;
 }
@@ -764,7 +857,7 @@ export function tickElectionCeremony(state: WorldState, year: number): ElectionA
         };
         logEvent(
           state,
-          'event',
+          'election',
           `Election revelry began — ${ELECTION_PARTY_DAYS} days of celebration`,
           result.leaderName,
         );
@@ -781,7 +874,7 @@ export function tickElectionCeremony(state: WorldState, year: number): ElectionA
       console.error('[villageLeadership] Election reveal failed:', err);
       logEvent(
         state,
-        'event',
+        'election',
         `Leadership election failed (Year ${year}) — ${detail}`,
         ceremony.pendingLeaderName,
       );
@@ -836,7 +929,7 @@ export function runVillageElection(
       state.pendingElectionYear = electionYear;
       logEvent(
         state,
-        'event',
+        'election',
         `Leadership election found no eligible candidate — merit election scheduled for Year ${Math.floor(electionYear)}`,
       );
     }
@@ -876,14 +969,14 @@ export function runVillageElection(
   if (reason === 'founding') {
     logEvent(
       state,
-      'event',
+      'election',
       `${winner.name} elected founding village head — ${ballot} · ${scoreSummary(winner)}`,
       winner.name,
     );
   } else if (reason === 'term') {
     logEvent(
       state,
-      'event',
+      'election',
       changed
         ? `${winner.name} elected village head (Year ${year}) — ${ballot} · ${scoreSummary(winner)}`
         : `${winner.name} re-elected village head (Year ${year}) — ${ballot} · ${scoreSummary(winner)}`,
@@ -892,7 +985,7 @@ export function runVillageElection(
   } else {
     logEvent(
       state,
-      'event',
+      'election',
       `${winner.name} succeeded as village head — ${ballot} · ${scoreSummary(winner)}`,
       winner.name,
     );
@@ -976,7 +1069,7 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
   const name = leader ? formatSettlerName(leader) : 'The village head';
   logEvent(
     state,
-    'event',
+    'election',
     `${name} can no longer lead — merit election scheduled for Year ${Math.floor(electionYear)}`,
     name,
   );

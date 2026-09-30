@@ -1,6 +1,13 @@
 /**
- * Full-screen People overview — citizen health first, then world & chronicle.
- * Presentation only; all simulation changes go through typed command callbacks.
+ * One overview subject, in its own window.
+ *
+ * Presentation only; all simulation changes go through typed command callbacks. The owner's ruling
+ * governs the shape — *"each subject should just have its own window not stacking up"* — so this is
+ * **one subject per window**, opened from its own icon in the game header (`GameHeader` reads the same
+ * `OVERVIEW_SUBJECTS` table), and the nav strip that used to switch sections inside a full-screen
+ * overlay is gone.
+ *
+ * Read a subject's own panel for its rules; nothing here restates one.
  */
 import { Suspense, lazy, useEffect, useRef } from 'react';
 import type { Entity, WorldState } from '../game/gameTypes';
@@ -15,10 +22,10 @@ import type {
   LogSubTab,
   MoreSubTab,
 } from '../hooks/useGameShellState';
-import { overviewNavFromState } from '../hooks/useGameShellState';
-import { useModalFocus } from '../hooks/useModalFocus';
+import { OVERVIEW_SUBJECTS, overviewNavFromState } from '../hooks/useGameShellState';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 import { isFoodAlertAmount } from '../game/resourceUtils';
+import GameWindow from './GameWindow';
 
 const VillageTabPanel = lazy(() => import('./tabPanels/VillageTabPanel'));
 const FrontierTabPanel = lazy(() => import('./tabPanels/FrontierTabPanel'));
@@ -159,15 +166,10 @@ export default function CitizenOverviewScreen({
 }: CitizenOverviewScreenProps) {
   const overview = computeCitizenOverview(state);
   const worldFocusRef = useRef<HTMLDivElement | null>(null);
-  // The overlay declares itself a dialog, so it must also behave like one: focus moves to the
-  // close button on mount and Tab stays inside instead of walking the game UI behind it.
-  const dialogRef = useModalFocus<HTMLDivElement>();
-  // …and it owns the keyboard at the same time, which is what the focus trap alone does not do:
-  // without the claim the gameplay hotkeys (1–9, B, G, H, R, X, +/-, WASD) acted on the map hidden
-  // behind the overview. Both halves — claim and Escape — come from the shared hook, because the claim
-  // is exactly what makes the game handler's own Escape branch unreachable
-  // (2026-09-17 UI audit; 2026-09-20 audit A-1/clone 3).
-  useOverlayKeyboard('valley-overview', onClose);
+  // The window owns the keyboard and handles Escape itself, in one place shared with the other
+  // overlays. The *focus* half is `GameWindow`'s now — the trap must be attached to the element that
+  // carries `role="dialog"`, which is the shell's, not this component's.
+  useOverlayKeyboard('overview-subject', onClose);
 
   useEffect(() => {
     if (section !== 'world' || !worldFocus || !worldFocusRef.current) return;
@@ -182,63 +184,41 @@ export default function CitizenOverviewScreen({
         : 'bad';
 
   const activeNav = overviewNavFromState(section, worldFocus ?? null);
-
-  const navTabs: { id: OverviewNavId; label: string; hint: string }[] = [
-    { id: 'people', label: 'Village', hint: 'Citizens, housing, work hours' },
-    { id: 'frontier', label: 'Frontier', hint: 'Visitors, rivals, raids' },
-    { id: 'nature', label: 'Nature', hint: 'Ecosystem and wildlife' },
-    { id: 'progress', label: 'Progress', hint: 'Research, trade, goals' },
-    { id: 'chronicle', label: 'Log', hint: 'Births, deaths, scandals' },
-    { id: 'help', label: 'More', hint: 'Guide and campaign' },
-  ];
-
-  const titleByNav: Record<OverviewNavId, { eyebrow: string; title: string }> = {
-    people: { eyebrow: 'Valley overview', title: 'How are your citizens doing?' },
-    frontier: { eyebrow: 'Valley overview', title: 'Visitors, rivals, and raids' },
-    nature: { eyebrow: 'Valley overview', title: 'Wildlife and the valley' },
-    progress: { eyebrow: 'Valley overview', title: 'Research, trade, and goals' },
-    chronicle: { eyebrow: 'Valley overview', title: 'What happened in the valley' },
-    help: { eyebrow: 'Valley overview', title: 'Guide and campaign help' },
-  };
+  /** The subject this window is about — its name, glyph and one-line hint come from the one owner. */
+  const subject = OVERVIEW_SUBJECTS[activeNav];
 
   return (
-    <div
-      ref={dialogRef}
-      className="pointer-events-auto fixed inset-0 z-[60] flex items-stretch justify-center bg-stone-950/80 p-2 backdrop-blur-sm sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Valley overview"
+    <GameWindow
+      icon={subject.icon}
+      title={subject.label}
+      subtitle={subject.hint}
+      onClose={onClose}
+      /*
+       * A window, not the screen. This used to be a `fixed inset-0` dialog whose own header, nav strip
+       * and six panels filled the viewport; the owner's ruling is *"each subject should just have its
+       * own window not stacking up"*, and their report of this screen was *"the 6 panel stacked now
+       * that opens full screen should be each subject a own icon the header and open a window for that
+       * subject not full screen"*. The six doors are now header icons (`GameHeader`), each opening this
+       * window on its own subject — so the nav strip that used to switch between them is gone: the way
+       * to another subject is its own icon, not a chip inside a panel.
+       */
+      centered
+      widthClassName="w-[min(58rem,calc(100vw-3rem))] max-w-[calc(100vw-3rem)]"
+      maxBodyClassName="max-h-[70vh]"
     >
-      <div className="flex h-full w-full max-w-[min(72rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border border-stone-600/50 bg-stone-950 shadow-2xl shadow-black/50">
-        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-700/80 bg-stone-900/90 px-4 py-3 sm:px-5">
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-400">
-              {titleByNav[activeNav].eyebrow}
-            </p>
-            <h2 className="truncate text-xl font-black text-stone-50 sm:text-2xl">
-              {titleByNav[activeNav].title}
-            </h2>
-            <p className="mt-0.5 text-[13px] text-stone-300">
-              {/* The mood label itself is the "Village mood" stat card's job; printing it here as
-                  well competed with that card for the same attention (audit R37). The sentence
-                  stays, the duplicate label does not. */}
-              {overview.moodDetail}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            data-autofocus
-            className="rounded-xl bg-stone-800 px-3 py-2 text-sm font-bold text-stone-200 ring-1 ring-stone-600 hover:bg-stone-700"
-            title="Close (Esc)"
-          >
-            Close ✕
-          </button>
-        </header>
-
-        <div className="shrink-0 border-b border-stone-800 bg-stone-950/80 px-4 py-3 sm:px-5">
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-            <StatusCard
+        <div>
+          {/* The citizen summary belongs to the *Village* subject: it counts people, work, homes, life,
+              food and mood, which is exactly what that window is about. It used to sit above every
+              section, which made one summary read as part of Frontier, Nature and the rest. */}
+          {activeNav === 'people' && (
+            <>
+              {/* The mood *explanation*, which the old full-screen header carried. It must stay visible
+                  even though the mood *label* now appears only on its own stat card: audit R37 removed
+                  the duplicate label, not the sentence, and `tests/uiRefinement.residuals.test.ts`
+                  guards exactly this pair. */}
+              <p className="mb-3 text-[13px] leading-snug text-stone-300">{overview.moodDetail}</p>
+              <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-3">
+              <StatusCard
               icon="👥"
               label="People"
               value={overview.total}
@@ -283,32 +263,10 @@ export default function CitizenOverviewScreen({
               detail={`Rep ${overview.reputation}${overview.isWinter ? (overview.canHeat ? ' · heated' : ' · no heat') : ''}`}
               tone={moodTone}
             />
-          </div>
-        </div>
+              </div>
+            </>
+          )}
 
-        <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-stone-800 bg-stone-900/60 px-3 py-2 sm:px-4">
-          {navTabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              title={tab.hint}
-              /* The active chip was signalled by background and ring colour alone; this is the
-                 app's primary navigation, so the current item is stated, not just painted
-                 (2026-09-20 audit, A6). */
-              aria-current={activeNav === tab.id}
-              onClick={() => onNavChange(tab.id)}
-              className={`rounded-xl px-3 py-2 text-sm font-bold whitespace-nowrap transition-colors ${
-                activeNav === tab.id
-                  ? 'bg-emerald-700/80 text-emerald-50 ring-1 ring-emerald-400/40'
-                  : 'bg-stone-800/60 text-stone-300 hover:bg-stone-700/70'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
           <Suspense fallback={<p className="text-sm text-stone-300">Loading…</p>}>
             {section === 'people' && (
               <div className="space-y-4">
@@ -444,7 +402,6 @@ export default function CitizenOverviewScreen({
             )}
           </Suspense>
         </div>
-      </div>
-    </div>
+    </GameWindow>
   );
 }

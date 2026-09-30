@@ -20,6 +20,7 @@ import { getTameFoodCost } from '../game/buildingActions';
 import { hasNearbyPlayerTamingPost, listTamingCandidates } from '../game/settlerInteractionActions';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { useEffect, useMemo, useState } from 'react';
+import SubjectWindow from './SubjectWindow';
 import { getHumanActivityProjection } from '../game/humanStatus';
 import { explainSettlerMovement } from '../game/dashboardData';
 import { citizenFullName, citizenGivenName, humanDisplayName } from '../game/citizenId';
@@ -195,6 +196,18 @@ export default function SelectedEntityPanel({
   onOpenFamilyTree?: () => void;
 }) {
   const [lastActivity, setLastActivity] = useState<{ entityId: number; activity: string } | null>(null);
+  /**
+   * Which of this citizen's subjects has its window open, if any.
+   *
+   * Owner ruling: *"each subject should just have its own window not stacking up"*, and the owner's own
+   * entry point for this panel: *"right side only citizin information when you click on them"* — so the
+   * right column keeps the **identity and what she is doing right now** (name, activity, schedule,
+   * target, movement), which is the citizen information, and her facts open as subjects: life & work,
+   * relationships, traits. The panel is re-keyed per selection (`App.tsx`), so which subject is open
+   * never outlives the citizen it belongs to.
+   */
+  const [openSubject, setOpenSubject] = useState<'life' | 'traits' | null>(null);
+  const closeSubject = () => setOpenSubject(null);
   const isVillageHead = isVillageLeader(state, entity.id);
   const isHuman = entity.type === EntityType.Human;
 
@@ -341,22 +354,8 @@ export default function SelectedEntityPanel({
           {isHuman && entity.moonHowlerCursed && (
             <p className="text-[11px] font-semibold text-violet-300">🌝 Moon Howler curse — transforms again every 14 days until cured</p>
           )}
-          {isHuman && entity.traits && entity.traits.length > 0 && (
-            <div className="mt-0.5 flex flex-wrap gap-1">
-              {entity.traits.map((trait) => {
-                const def = TRAIT_DEFS[trait];
-                return def ? (
-                  <span
-                    key={trait}
-                    title={def.description}
-                    className="rounded bg-stone-700/60 px-1.5 py-0.5 text-[10px] font-semibold text-amber-100/90"
-                  >
-                    {def.emoji} {def.label}
-                  </span>
-                ) : null;
-              })}
-            </div>
-          )}
+          {/* The trait chips that used to sit in this header are the **Traits** subject now — its own
+              window, opened from the index below. A trait list is a subject, not a subtitle. */}
           {isVisitor && visitorGroup && (
             <p className="text-[11px] text-cyan-300">Visiting — {visitorGroup.name} ({visitorGroup.daysLeft}d)</p>
           )}
@@ -404,6 +403,64 @@ export default function SelectedEntityPanel({
         </p>
       )}
 
+      {/*
+        The index. The right column keeps the citizen's identity and what she is doing right now; her
+        facts are subjects, each in its own window (`SubjectWindow`), because the owner ruled against
+        stacking (`"each subject should just have its own window not stacking up"`) and this card was
+        the "one long stack" they reported first: energy, age, home, work, marriage, affairs, children,
+        traits, all in one column.
+      */}
+      {isHuman && !isVisitor && !isRival && (
+        <div className="mt-2 space-y-1">
+          {([
+            { id: 'life' as const, icon: '⚡', label: 'Life & bonds', hint: 'Energy, age, home, job, gear, family, affairs' },
+            { id: 'traits' as const, icon: '🎭', label: 'Traits', hint: entity.traits?.length ? `${entity.traits.length} trait${entity.traits.length === 1 ? '' : 's'}` : 'None yet' },
+          ]).map((subject) => (
+            <button
+              key={subject.id}
+              type="button"
+              onClick={() => setOpenSubject(subject.id)}
+              aria-current={openSubject === subject.id}
+              className={`block w-full rounded-lg px-2 py-1.5 text-left ring-1 transition-colors ${
+                openSubject === subject.id
+                  ? 'bg-amber-900/50 ring-amber-500/50'
+                  : 'bg-stone-800/60 ring-stone-600/40 hover:bg-stone-700/60'
+              }`}
+            >
+              <span className="flex items-center gap-1 text-[12px] font-bold text-amber-100">
+                <span aria-hidden>{subject.icon}</span>
+                {subject.label}
+                <span aria-hidden className="ml-auto text-stone-400">↗</span>
+              </span>
+              <span className="block text-[10px] leading-snug text-stone-400">{subject.hint}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isHuman && entity.traits && entity.traits.length > 0 && (
+        <SubjectWindow
+          windowKey={`citizen-traits-${entity.id}`}
+          open={openSubject === 'traits'}
+          onClose={closeSubject}
+          icon="🎭"
+          title={`${humanDisplayName(entity)} — Traits`}
+          subtitle={`${entity.traits.length} trait${entity.traits.length === 1 ? '' : 's'}`}
+        >
+          <div className="space-y-1">
+            {entity.traits.map((trait) => {
+              const def = TRAIT_DEFS[trait];
+              return def ? (
+                <div key={trait} className="rounded-lg border border-stone-600/50 bg-stone-800/40 px-2 py-1">
+                  <p className="text-[13px] font-bold text-amber-100">{def.emoji} {def.label}</p>
+                  <p className="text-[11px] leading-snug text-stone-300">{def.description}</p>
+                </div>
+              ) : null;
+            })}
+          </div>
+        </SubjectWindow>
+      )}
+
       {/* The Food Chain Role block is **deleted**, on the owner's own reason rather than mine:
           *"work is already defined lower in the civ viewer and civilationd builder is nothign"*.
 
@@ -418,6 +475,14 @@ export default function SelectedEntityPanel({
           is why the owner had to report it a second time. Renaming a meaningless, duplicated line
           cannot fix it. Do not reinstate it as a rename. */}
 
+      <SubjectWindow
+        windowKey={`citizen-life-${entity.id}`}
+        open={openSubject === 'life'}
+        onClose={closeSubject}
+        icon="⚡"
+        title={`${humanDisplayName(entity)} — Life & bonds`}
+        subtitle={`Energy ${Math.round(entity.energy)} / ${entity.maxEnergy} · ${getAgeInYears(entity, state)} years`}
+      >
       <div className="space-y-0.5 text-xs text-amber-200">
         <p>Energy: {Math.round(entity.energy)} / {entity.maxEnergy}</p>
         <p>Age: {getAgeInYears(entity, state)} years{entity.isJuvenile && ' (child)'} — b. {getBirthDateString(entity)}</p>
@@ -517,6 +582,7 @@ export default function SelectedEntityPanel({
           </>
         )}
       </div>
+      </SubjectWindow>
 
       {isMoonHowler && (
         <p className="mt-2 text-[11px] text-rose-300">🌝 Curse NOT cured — hunting tonight. Staff a Church; the priest may break the curse while they are in Moon Howler form.</p>

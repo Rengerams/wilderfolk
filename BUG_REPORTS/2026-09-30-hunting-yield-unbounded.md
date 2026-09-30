@@ -101,7 +101,13 @@ such pursuit exists** — assigned hunters hold position.
 **The honest remaining fix is the chase**: give an assigned hunter a move-to-prey order while on shift,
 after which `HUNTER_KILL_REACH` can drop to the adjacency rule that matches the owner's words exactly.
 
-## Open test failure (blocked, not resolved)
+## Open test failure (blocked, not resolved) — **CLOSED 2026-09-30**
+
+**Fixed on the owner's instruction** (*"doesnt matter if your fault fix t he error"*), by the second of the two routes this section prescribed: **seed the entity map from the replaced entities**. `harvest()` in `tests/foodLedger.acceptedCatch.test.ts` replaces `state.entities` wholesale, and `ensureEntityByIdMap` trusts only the map built **for that world object** (`entityIndex.ts:29-33`) — so the map `initGame` built for the generated world survived the replacement and the spot's crew resolved to nobody. One call to `rebuildEntityByIdMap(state)` after the replacement (the function is documented for exactly this: *"Full rebuild from alive entities — load recovery, init, and tests only"*) staffs the fixture honestly. **No production guard was touched** — the no-hunter rule stands, as this section required.
+
+Verified: `npx vitest run tests/foodLedger.acceptedCatch.test.ts` → **2 passed**; the whole gate `npm run test:standard` → **245 files / 1493 passed / 2 skipped / 0 failed**, `tsc` clean on both projects.
+
+**One neighbouring defect observed and deliberately left alone** (recorded so the next reader does not have to rediscover it): the fixture gives the deer `PREY_ID = 2`, which collides with the crew ids `1..8` from `human(i + 1)`, so the engine's invariant checks print `tick 144: duplicate entity id 2` and *"human 2 listed in workplace #10 (fishingSpot) occupants but homeBuildingId is unset"* on every run. It is **pre-existing and non-failing** — the invariant reads `state.entities`, which this fix does not alter — and changing `PREY_ID` re-keys the fixture's seeded shot roll (`hunt:<spot>:<tick>:<prey>:success`), so it is its own small change rather than a drive-by in this one.
 
 `tests/foodLedger.acceptedCatch.test.ts` → "records the accepted catch, not the nominal one, for the
 Hunting Spot" fails, and it is a **fixture problem, not an engine one**:

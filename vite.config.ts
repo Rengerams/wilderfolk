@@ -31,7 +31,15 @@ export default defineConfig({
       // and issued a full-page reload per file, so opening the game in a browser (or driving
       // it from `scripts/*.mjs`) produced a reload storm and the page never settled.
       // Nothing under `target/` is ever imported by the app — it is build output.
-      ignored: ['**/src-tauri/target/**'],
+      //
+      // `tmp/**` is the same class of problem for a different reason: it is scratch — probe scripts,
+      // extracted archives, third-party payloads — and none of it is imported by the app either. A
+      // *locked* file there does not just cause noise, it **kills the dev server**: chokidar's EBUSY on
+      // `tmp/godot-ai-inspect/v4payload/addons/godot_ai/LICENSE` threw from the watcher and took the
+      // whole process down (the owner's server died six times in one session that way, each time leaving
+      // them with a page that could not reload). Ignoring `tmp/` removes the cause rather than the
+      // symptom, and keeps scratch out of the reload graph entirely.
+      ignored: ['**/src-tauri/target/**', '**/tmp/**'],
     },
   },
   preview: {

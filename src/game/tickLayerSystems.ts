@@ -332,12 +332,33 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       if (isGrazer || isFox) {
         const sensesThreat = isGrazer ? SENSES_WILDLIFE_PREDATOR : SENSES_CANID_PREDATOR;
 
+        /**
+         * The settler who is *hunting this very animal* does not spook it.
+         *
+         * Owner, 2026-09-30: *"let the animals just dont run anyway"* — and without this, no hunter can
+         * ever reach one. A grazer inside its `fleeRange` runs at `config.speed * 1.5`, so a deer at 3.0
+         * flees at **4.5 px/tick** while a settler on the job walks at 0.85 × 3.0 = **2.55** (3.57 at the
+         * Hunting Spot's own pursuit pace): the animal simply outruns the hunter, forever. Measured over
+         * twelve colony days before this change, the spot's hunter closed to 65 px — its quarry's
+         * `fleeRange` — and killed nothing at all.
+         *
+         * `ctx.huntTargetByPreyId` is the index that already exists for exactly this pairing (prey id →
+         * the hunters after it, built from `huntTargetId` in `simulationEntities`), so the exception
+         * names the one settler who is stalking this animal rather than exempting every human from every
+         * animal's fear. Wild predators and every other settler still spook it.
+         */
+        const huntersAfterThisAnimal = ctx.huntTargetByPreyId?.get(entity.id);
+        const sensesThreatForThisAnimal =
+          huntersAfterThisAnimal && huntersAfterThisAnimal.size > 0
+            ? (pred: Entity) => sensesThreat(pred) && !huntersAfterThisAnimal.has(pred.id)
+            : sensesThreat;
+
         const closestPredator = findClosestEntityInRadius(
           mobileGrid,
           entity.x,
           entity.y,
           config.fleeRange,
-          sensesThreat,
+          sensesThreatForThisAnimal,
           'flee',
           predators,
         ) ?? null;

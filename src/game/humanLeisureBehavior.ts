@@ -1,5 +1,5 @@
 import type { Building, Entity, WorldState } from './gameTypes';
-import { commuteHumanToBuilding } from './simulation/humanMovement';
+import { commuteHumanToBuilding, venueGatherPosition } from './simulation/humanMovement';
 import { faceVelocity, setVelocityToward, steerEntityToward } from './simulation/movementSteering';
 import { PER_TICK_RATE_SCALE, getChildCustodian, hasResidenceAssignment, personDayRoll, prefersHomeTonight } from './dayCycle';
 import { isOnWorkScheduleShift } from './workSchedule';
@@ -83,6 +83,62 @@ export function tickHumanChildLeisure(args: {
 import type { TickContext } from './simulation/simulationTypes';
 import { forEachAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_STAGGER, SOCIAL_FRIENDSHIP_RADIUS } from './adaptiveSpatialQuery';
 import { seededRandomForRun } from './simRng';
+import { crowdGatherPosition, homeStandPosition } from './simulation/humanMovement';
+import { pickBeautySpot } from './beautyGrid';
+
+/**
+ * Where an idle settler should be when nothing else claims them.
+ *
+ * Owner, 2026-09-30, looking at a clump of dozens of settlers chatting mid-village with **no election and
+ * no festival** running: *"they again in a circle"* — and then the fix in their own words: *"they should
+ * goto a tree or to the tavern etc or spending at home various options"*.
+ *
+ * They were right about what was missing. Two idle rules sent every unoccupied settler to the **map
+ * centre** (`width * 0.5`, `height * 0.5`) inside a 35-slot lattice of offsets — the partner-seeking
+ * drift and the idle-leisure wander in `humanTick` — so a village with nothing on still piled its whole
+ * idle population into one chatting blob in the middle of the map. This gives each settler a real
+ * destination, chosen deterministically per person per day, with their own standing place at it:
+ *
+ *  - **home** — "spending at home" (a third, when they have a residence);
+ *  - **a venue** — the nearest tavern, market, town hall or church, where `venueGatherPosition` spreads
+ *    the crowd across the frontage;
+ *  - **somewhere pretty** — a tree or meadow off the beauty grid, where `crowdGatherPosition` spreads the
+ *    settlers who chose the same view.
+ *
+ * No RNG: `personDayRoll` is the sim's per-person, per-day stream, so one settler makes the same choice
+ * all day and different settlers make different ones.
+ */
+export function idleDestination(
+  state: WorldState,
+  entity: Entity,
+  venues: readonly Building[],
+  buildingById: ReadonlyMap<number, Building>,
+): { x: number; y: number } {
+  const roll = personDayRoll(entity.id, state.tick, 812);
+
+  if (roll < 0.34 && hasResidenceAssignment(entity)) {
+    const home = buildingById.get(entity.residenceBuildingId!);
+    if (home?.completed) return homeStandPosition(home, entity.id);
+  }
+
+  if (roll < 0.67 && venues.length > 0) {
+    // The nearest of the tick's own venue list — a handful of buildings, not the whole array.
+    let best = venues[0];
+    let bestDist = Infinity;
+    for (const b of venues) {
+      const dist = Math.hypot(b.x - entity.x, b.y - entity.y);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = b;
+      }
+    }
+    return venueGatherPosition(best, entity.id);
+  }
+
+  // "Go to a tree": the prettiest ground near them, spread so neighbours do not overlap.
+  const pretty = pickBeautySpot(state.beautyGrid ?? null, entity.x, entity.y, 6);
+  return crowdGatherPosition(pretty.x, pretty.y, entity.id);
+}
 
 export function tickAdultLeisureMotive(args: {
   state: WorldState;
@@ -131,8 +187,20 @@ export function tickAdultLeisureMotive(args: {
       else if (impulse.motive === 'care_pregnant') settlerPairChat(entity, c, 'home', 0.12);
       suppressIdle = true;
     } else if (impulse.building) {
-      const b = impulse.building; const arrived = Math.hypot(entity.x - (b.x + b.width / 2), entity.y - (b.y + b.height * 0.92)) < 20;
-      if (!arrived) commuteHumanToBuilding(entity, b, speed * 0.5, false, 2.8);
+      const b = impulse.building;
+      /**
+       * One place per settler at the venue, and the walk goes to *that same* place.
+       *
+       * Owner, 2026-09-30: *"they again in a circle"*, with no event running — this branch was sending the
+       * whole village's leisure crowd to a single coordinate (`b.x + b.width / 2`, `b.y + b.height * 0.92`,
+       * each stopping within 20 px of it). `venueGatherPosition` spreads them across the venue's front
+       * (`humanMovement` owns stand positions), and the arrival test now measures the point the settler is
+       * actually walking to, so the check and the walk cannot disagree — the failure mode the handover
+       * recorded for the home/work pair.
+       */
+      const spot = venueGatherPosition(b, entity.id);
+      const arrived = Math.hypot(entity.x - spot.x, entity.y - spot.y) < 20;
+      if (!arrived) steerEntityToward(entity, spot.x, spot.y, speed * 0.5);
       else if (impulse.motive === 'sunday_service' || impulse.motive === 'grief' || impulse.motive === 'day_off') { entity.vx *= 0.2; entity.vy *= 0.2; if (seededRandomForRun(`chat-social:${entity.id}:${state.tick}`) < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1); }
       else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') { entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.2 * PER_TICK_RATE_SCALE); settlerChat(entity, 'social', 0.1); }
       suppressIdle = true;

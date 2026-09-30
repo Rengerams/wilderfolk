@@ -87,6 +87,33 @@ const OVERVIEW_NAV_RAIL: Record<OverviewNavId, SidebarTab> = {
   help: 'more',
 };
 
+/**
+ * What each subject is called, and the glyph that stands for it.
+ *
+ * One owner for the three surfaces that must agree: the **header icon** that opens the subject, the
+ * **window title** it opens (`GameWindow`), and the label the guide and hotkey list use. The old
+ * full-screen overlay kept this in its own `navTabs`/`titleByNav` pair, so a new subject was three
+ * edits in two files and the header could not name a subject it did not know. `hint` is visible text
+ * in the header button's `title` and the window's subtitle, never the only statement of a rule.
+ */
+export interface OverviewSubjectMeta {
+  /** Glyph for the header door and the window's title bar. */
+  icon: string;
+  /** The subject's name, as the player reads it. */
+  label: string;
+  /** One line: what the subject answers. */
+  hint: string;
+}
+
+export const OVERVIEW_SUBJECTS: Record<OverviewNavId, OverviewSubjectMeta> = {
+  people: { icon: '👥', label: 'Village', hint: 'Citizens, housing, work hours' },
+  frontier: { icon: '🏕️', label: 'Frontier', hint: 'Visitors, rivals, raids' },
+  nature: { icon: '🌿', label: 'Nature', hint: 'Ecosystem and wildlife' },
+  progress: { icon: '🔬', label: 'Progress', hint: 'Research, trade, goals' },
+  chronicle: { icon: '📜', label: 'Log', hint: 'Births, deaths, scandals' },
+  help: { icon: '❓', label: 'More', hint: 'Guide and campaign' },
+};
+
 /** Map a right-rail tab / hotkey to the wide overview overlay. */
 export function mapSidebarTabToOverview(tab: SidebarTab): {
   section: OverviewSection;

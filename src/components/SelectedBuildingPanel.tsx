@@ -1,5 +1,5 @@
 import { Suspense, lazy, useState } from 'react';
-import CollapsibleSection from './CollapsibleSection';
+import SubjectWindow, { type SubjectWindowProps } from './SubjectWindow';
 import {
   BuildingType, EntityType, BUILDING_JOB_TYPES, WORKSHOP_RECIPES, getWorkshopRecipe, formatRecipeInputs,
   getTerrainEfficiencyMultiplier, getAdjacencyMultiplier,
@@ -61,6 +61,21 @@ import type { WorkerCommand } from '../game/simWorker/commands';
 
 const CombatPreviewPanel = lazy(() => import('../game/CombatPreviewPanel'));
 const BlacksmithForgePanel = lazy(() => import('./BlacksmithForgePanel'));
+
+/** The four subjects of the player's own building. The rival-camp branch is a different subject. */
+type BuildingSubjectId = 'overview' | 'workers' | 'actions' | 'advanced';
+
+/**
+ * The building's subjects, each in its own window: the shared shell (`SubjectWindow`) with this
+ * panel's subject ids as the window key. The shell owns the chrome, the focus trap and the keyboard
+ * claim — one implementation for every panel that stopped stacking, rather than a copy per panel.
+ */
+function BuildingSubject({
+  id,
+  ...rest
+}: { id: BuildingSubjectId } & Omit<SubjectWindowProps, 'windowKey'>) {
+  return <SubjectWindow {...rest} windowKey={`building-${id}`} />;
+}
 
 /**
  * The raid-card choice buttons. The incoming and outgoing cards render the same control, differing
@@ -194,6 +209,13 @@ export default function SelectedBuildingPanel({
   // to another building automatically resets it (no effect required).
   const [demolishArmId, setDemolishArmId] = useState<number | null>(null);
   const confirmDemolish = demolishArmId === building.id;
+  /**
+   * Which subject window is open, if any. Keyed to the building so selecting another one closes the
+   * window instead of leaving it showing the previous building's numbers: the panel is re-keyed per
+   * building (`App.tsx`, `key={selectedBuilding.id}`), so "which subject" never outlives its subject.
+   */
+  const [openSubject, setOpenSubject] = useState<BuildingSubjectId | null>(null);
+  const closeSubject = () => setOpenSubject(null);
   if (building.faction === 'rival') {
     const rival = state.rivalSettlements.find((r) => r.id === building.groupId);
     const config = getBuildingConfig(building.type);
@@ -437,7 +459,53 @@ export default function SelectedBuildingPanel({
         </div>
       </div>
 
-      <CollapsibleSection title="Overview" defaultOpen storageKey={`building-overview-${building.id}`}>
+      {/*
+        The index. This panel is the building's *identity* plus one button per subject; each subject
+        opens in its own window (`BuildingSubject` below), because the four `CollapsibleSection`s that
+        used to stack here are what the owner rejected: *"each subject should just have its own window
+        not stacking up"*. Hint lines are visible text rather than tooltips alone — the same rule the
+        rest of this panel follows for refusals, since a `title` is inert where the label is the only
+        affordance.
+      */}
+      <div className="space-y-1">
+        {([
+          { id: 'overview' as const, icon: '📋', label: 'Overview', hint: 'Health, production, placement, on-site perks' },
+          building.completed
+            ? { id: 'workers' as const, icon: '👷', label: 'Workers', hint: 'Who works here, staffing mode, assign & remove' }
+            : { id: 'workers' as const, icon: '🏗️', label: 'Construction', hint: 'Builders on site and how far along it is' },
+          { id: 'actions' as const, icon: '🛠️', label: 'Actions', hint: 'Repair and upgrade this building' },
+          { id: 'advanced' as const, icon: '⚠️', label: 'Advanced', hint: 'Demolish — permanent, cannot be undone' },
+        ]).map((subject) => (
+          <button
+            key={subject.id}
+            type="button"
+            onClick={() => setOpenSubject(subject.id)}
+            aria-expanded={openSubject === subject.id}
+            title={`${subject.label} — ${subject.hint}`}
+            className={`block w-full rounded-lg px-2 py-1.5 text-left ring-1 transition-colors ${
+              openSubject === subject.id
+                ? 'bg-amber-900/50 ring-amber-500/50'
+                : 'bg-stone-800/60 ring-stone-600/40 hover:bg-stone-700/60'
+            }`}
+          >
+            <span className="flex items-center gap-1 text-[12px] font-bold text-amber-100">
+              <span aria-hidden>{subject.icon}</span>
+              {subject.label}
+              <span aria-hidden className="ml-auto text-stone-400">↗</span>
+            </span>
+            <span className="block text-[10px] leading-snug text-stone-400">{subject.hint}</span>
+          </button>
+        ))}
+      </div>
+
+      <BuildingSubject
+        id="overview"
+        open={openSubject === 'overview'}
+        onClose={closeSubject}
+        icon="📋"
+        title={`${config.label} — Overview`}
+        subtitle={config.description}
+      >
         <div className="space-y-0.5 text-xs text-amber-200">
           <p>Health: {Math.round(building.health)} / {building.maxHealth}</p>
         {isHousing && building.completed ? (
@@ -777,10 +845,21 @@ export default function SelectedBuildingPanel({
           </div>
         )}
       </div>
-      </CollapsibleSection>
+      </BuildingSubject>
 
       {((!building.completed && config.maxOccupants > 0) || (building.completed && BUILDING_JOB_TYPES[building.type])) && (
-        <CollapsibleSection title={!building.completed ? 'Construction' : 'Workers'} defaultOpen storageKey={`building-workers-${building.id}`}>
+        <BuildingSubject
+          id="workers"
+          open={openSubject === 'workers'}
+          onClose={closeSubject}
+          icon={building.completed ? '👷' : '🏗️'}
+          title={`${config.label} — ${building.completed ? 'Workers' : 'Construction'}`}
+          subtitle={
+            building.completed
+              ? `${building.occupants.length} / ${config.maxOccupants} assigned`
+              : `${Math.floor(displayedConstructionProgress(building, state.tick))}% built · ${building.occupants.length} / ${config.maxOccupants} builders`
+          }
+        >
           {building.completed && BUILDING_JOB_TYPES[building.type] && isManualStaffing && assignableWorkers.length > 0 && building.occupants.length < config.maxOccupants && (
             <div className="mb-1 max-h-28 space-y-1 overflow-y-auto">
               <p className="text-[10px] text-stone-300">
@@ -867,9 +946,16 @@ export default function SelectedBuildingPanel({
             </div>
           )}
           </div>
-        </CollapsibleSection>
+        </BuildingSubject>
       )}
-      <CollapsibleSection title="Building actions" defaultOpen storageKey={`building-actions-${building.id}`}>
+      <BuildingSubject
+        id="actions"
+        open={openSubject === 'actions'}
+        onClose={closeSubject}
+        icon="🛠️"
+        title={`${config.label} — Actions`}
+        subtitle="Repair and upgrade"
+      >
         <div className="grid grid-cols-2 gap-1">
           {building.health < building.maxHealth && (
             <button onClick={onRepair} className="rounded bg-amber-700 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-600">
@@ -892,8 +978,15 @@ export default function SelectedBuildingPanel({
             </p>
           )}
         </div>
-      </CollapsibleSection>
-      <CollapsibleSection title="Advanced actions" defaultOpen={false} storageKey={`building-advanced-${building.id}`}>
+      </BuildingSubject>
+      <BuildingSubject
+        id="advanced"
+        open={openSubject === 'advanced'}
+        onClose={closeSubject}
+        icon="⚠️"
+        title={`${config.label} — Advanced`}
+        subtitle="Demolish — permanent"
+      >
         {confirmDemolish ? (
           <div className="rounded-lg border border-rose-500/40 bg-rose-950/40 p-2">
             <p className="text-[11px] font-semibold text-rose-200">
@@ -926,7 +1019,7 @@ export default function SelectedBuildingPanel({
             🗑 Demolish{isHousing && residents.length > 0 ? ` (evicts ${residents.length})` : ''}
           </button>
         )}
-      </CollapsibleSection>
+      </BuildingSubject>
     </div>
   );
 }
