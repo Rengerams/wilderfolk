@@ -21,7 +21,7 @@ export const STRIP_SNAP_RADIUS = 38;
 
 const ROAD_STRIP_TYPES = new Set<BuildingType>([BuildingType.Road]);
 
-/** Wall membership is `defenseStructures.isWallBuildingType`'s rule, not a second set here (A11). */
+/** Wall membership is `defenseStructures.isWallBuildingType`'s rule, not a second set here. */
 export function isWallStripType(type: BuildingType): boolean {
   return isWallBuildingType(type);
 }

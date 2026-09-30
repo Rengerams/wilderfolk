@@ -185,7 +185,7 @@ export default function MapSetupScreen({
    * save exists the first activation only arms the confirmation — the shape
    * `SelectedBuildingPanel`'s demolish step already uses for a destructive action. Enter in the name
    * field routes through here too: it used to call `handleStart` directly, so one keystroke while
- * typing a name destroyed a saved colony with no warning.
+   * typing a name destroyed a saved colony with no warning.
    */
   const [confirmStartArmed, setConfirmStartArmed] = useState(false);
   const requestStart = () => {

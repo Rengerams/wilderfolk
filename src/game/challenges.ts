@@ -137,7 +137,7 @@ export function getChallengeProgress(challenge: Challenge, state: WorldState): C
     case 'tech_pioneer': return { current: state.unlockedTechs.length, target: 5, unit: 'technologies' };
     case 'trading_hub': return { current: state.tradeRoutes.filter((r) => r.active).length, target: 3, unit: 'trade routes' };
     // Every remaining initial challenge reports its own target too — this switch used to cover five of
-    // the eight, so a goal card for the other three rendered no current / target row at all (R8).
+    // the eight, so a goal card for the other three rendered no current / target row at all.
     case 'growing_village': return { current: countPlayerCompletedBuildings(state.buildings), target: challenge.targetBuildings ?? 5, unit: 'buildings' };
     case 'great_city': return { current: countPlayerCompletedBuildings(state.buildings), target: challenge.targetBuildings ?? 35, unit: 'buildings' };
     case 'century': return { current: state.year, target: challenge.targetYear ?? 100, unit: 'years' };

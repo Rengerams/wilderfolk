@@ -17,7 +17,7 @@ export interface RenderSoABuckets {
   readonly shims: Entity[];
   readonly shimBySlot: Map<number, Entity>;
   /** Entity id → shim, built once per tick alongside `shims` so a per-repaint consumer (the hunt chase
- * lines) does not rebuild its own `Map` every frame. */
+  * lines) does not rebuild its own `Map` every frame. */
   readonly shimById: Map<number, Entity>;
 }
 

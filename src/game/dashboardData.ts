@@ -53,8 +53,8 @@ export interface DashboardResource {
  *
  * Derived here rather than in the dashboard, per this module's contract — "the panel renders
  * numbers, it does not derive them". `GameDashboard` had its own copy of the formula, so a change to
- * what "full" means (headroom vs cap) would have updated the owner and not the bar (audit C2
- * "Resource fill %").
+ * what "full" means (headroom vs cap) would have updated the owner and not the bar
+ * ("Resource fill %").
  */
 export function resourceFillPercent(resource: Pick<DashboardResource, 'amount' | 'cap'>): number {
   if (!(resource.cap > 0)) return 0;

@@ -11,7 +11,7 @@ type MenuView = 'main' | 'settings' | 'graphics' | 'about';
 
 /**
  * The save/settings callback tail the menu and the header both accept — one owner, so the pass-through
- * between them cannot drift into two declarations of the same contract (C1 clone 3). `GameHeader`'s
+ * between them cannot drift into two declarations of the same contract. `GameHeader`'s
  * `Props` extends this instead of restating it.
  */
 export interface GameMenuSettingsCallbacks {
@@ -201,7 +201,7 @@ export default function GameMenu({
     if (!open) return;
     updateAnchor();
 
-    // R11: focus enters the panel on open. Without it the Tab trap's two wrap branches are
+    // Focus enters the panel on open. Without it the Tab trap's two wrap branches are
     // unreachable and Tab walks every control of the game behind the click-catching backdrop.
     const first = panelRef.current ? getFocusableElements(panelRef.current)[0] : undefined;
     first?.focus();
@@ -217,7 +217,7 @@ export default function GameMenu({
   // The menu owns the keyboard while open: the game's window-capture handler runs before this
   // component's document handler, so without the claim one Escape closes the menu *and* falls through
   // to clear the map selection. Escape steps back to the main page first, then closes — the shared
- // hook owns the claim, this component only says what Escape means here.
+  // hook owns the claim, this component only says what Escape means here.
   const handleEscape = useCallback(() => {
     if (view !== 'main') setView('main');
     else close();

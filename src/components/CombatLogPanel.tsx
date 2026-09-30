@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { GameEventLog } from '../game/gameTypes';
+import { displayYear } from '../game/dayCycleClock';
 import { summarizeCombatEvents } from '../game/eventLog';
 import {
   downloadChronicleCSV,
@@ -16,7 +17,7 @@ interface Props {
 const IN_GAME_LIMIT = 500;
 
 function formatLine(evt: GameEventLog): string {
-  return `Year ${evt.year}, Day ${evt.day} — ${evt.message}`;
+  return `Year ${displayYear(evt.year)}, Day ${evt.day} — ${evt.message}`;
 }
 
 export default function CombatLogPanel({ events, meta }: Props) {

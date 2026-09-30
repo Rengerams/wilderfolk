@@ -628,13 +628,13 @@ export function syncMoonHowlerForms(
   const transformed: Entity[] = [];
   const reverted: Entity[] = [];
   // The human snapshot is read only by the revert branch (`revertToHumanForm` sizes the prison/job/
-  // residence restores from it), so it is built on the first revert instead of every tick (N-6).
+  // residence restores from it), so it is built on the first revert instead of every tick.
   // Deferring it is safe: a revert requires `!wantWerewolf` while the transform branch — the only
   // other writer of `entity.type` — requires `wantWerewolf`, so the two are mutually exclusive
   // within one call and no type can have changed by the time the snapshot is taken.
   let revertHumans: Entity[] | undefined;
   // `huntingTonight` used to be a second full scan (`entities.some(isActiveMoonHowler)`), now fused
-  // into this walk (N-6). It is read after each entity's form change so it observes the same state
+  // into this walk. It is read after each entity's form change so it observes the same state
   // the trailing `some` did: `isActiveMoonHowler` reads only `alive`/`type`/`moonHowlerCursed`, and
   // those are written only by the branch for that same entity.
   let huntingTonight = false;
@@ -706,7 +706,7 @@ export function tickMoonHowlerCycle(
       // `state`, not just `buildings`: `worldSlices` is what supplies the player's workforce preset and
       // the venue auto-staff targets. Without it the pass ran under `DEFAULT_WORKFORCE_POLICY`
       // ('survival') and sized venues from the default window, so a reverted settler could be pushed
- // into a second innkeeper slot the player never asked for.
+      // into a second innkeeper slot the player never asked for.
       assignMissingWorkers(villagers, buildings, state);
     }
     changed = true;
@@ -786,7 +786,7 @@ export function tickMoonHowlerCycle(
     syncResidenceOccupants(humansAfterCure, buildings);
     const villagers = humansAfterCure.filter((e) => isPlayerHuman(e));
     assignMissingResidences(villagers, buildings, aliveEntities);
-    // See the sibling call above: the world slices carry the player's preset and venue window (B-2).
+    // See the sibling call above: the world slices carry the player's preset and venue window.
     assignMissingWorkers(villagers, buildings, state);
     changed = true;
   }

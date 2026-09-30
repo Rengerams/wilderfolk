@@ -818,7 +818,7 @@ export interface WorldState {
    * Positions of this realm's RNG streams, carried across a realm boundary (save file, worker
    * hand-off, prep rollback snapshot). The live state is owned by `simRng`; this field is only a
    * transport container, refreshed at each boundary so a resumed or retried world continues its
-   * draws instead of replaying each owner's sequence from the start (audit cross-cutting X5).
+   * draws instead of replaying each owner's sequence from the start.
    */
   simRng?: SimRngSnapshot;
   appliedSaveMigrations?: string[];

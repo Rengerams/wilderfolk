@@ -91,7 +91,7 @@ export function compositeCachedEntityLayer(
 ): void {
   const layerKey = buildEntityLayerKey(state, cw, ch);
   // The layer rasterises at the DPR the main context is scaled by, so the blit is 1:1 in
- // device px instead of being nearest-neighbour-upscaled by it.
+  // device px instead of being nearest-neighbour-upscaled by it.
   const dpr = getRenderDpr();
   const existing = getEntityLayerCache();
   if (

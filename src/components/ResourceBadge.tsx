@@ -29,7 +29,7 @@ interface Props {
   /**
    * The store is at its cap, so production of this resource is being discarded (see
    * `dailyBuildingEconomy.addProductionOutput` / `resourceUtils.isResourceCapped`). A capped producer
-   * used to be indistinguishable from an idle one — `LIVE-FINDINGS-STATUS.md`, F6.
+   * used to be indistinguishable from an idle one.
    */
   full?: boolean;
 }
@@ -68,7 +68,7 @@ export default function ResourceBadge({ resource, value, max, className = '', al
       } ${popRing} ${className}`}
       title={title}
       /* The chip's own text is a bare number and the icon is `aria-hidden`, so the unit and the
-         "full" warning lived only in `title` — unreachable to screen readers and to touch. R31. */
+         "full" warning lived only in `title` — unreachable to screen readers and to touch. */
       aria-label={title}
     >
       <ResourceIcon resource={resource} />

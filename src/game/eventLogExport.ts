@@ -1,4 +1,5 @@
 import type { GameEventLog } from './gameTypes';
+import { displayYear } from './dayCycleClock';
 import { GAME_VERSION } from './version';
 
 export interface ChronicleExportMeta {
@@ -15,7 +16,7 @@ export function formatChronicleText(events: GameEventLog[], meta: ChronicleExpor
   const header = [
     'Wilderfolk — Village Chronicle',
     `Settlement: ${meta.villageName}`,
-    `Game year ${meta.year}, day ${meta.day} (tick ${meta.tick}) · population ${meta.population}`,
+    `Game year ${displayYear(meta.year)}, day ${meta.day} (tick ${meta.tick}) · population ${meta.population}`,
     `Exported: ${exported.toLocaleString()} · game v${GAME_VERSION}`,
     `Events: ${events.length} (newest listed first)`,
     '',
@@ -24,7 +25,7 @@ export function formatChronicleText(events: GameEventLog[], meta: ChronicleExpor
   ];
 
   const body = events.map(
-    (evt) => `[Y${evt.year} D${evt.day}] [${evt.type}] ${evt.message}`,
+    (evt) => `[Y${displayYear(evt.year)} D${evt.day}] [${evt.type}] ${evt.message}`,
   );
 
   return [...header, ...body].join('\n');

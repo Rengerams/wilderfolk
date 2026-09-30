@@ -6,6 +6,7 @@ import { describeHospitalReputation } from '../../game/hospitalCare';
 // (10 → 5 → 2, `villageLeadership.ts:24-27`), while two other surfaces already rendered the constant.
 // The Guide was the only hardcoded copy.
 import { ELECTION_INTERVAL_YEARS } from '../../game/villageLeadership';
+import { displayYear } from '../../game/dayCycleClock';
 import GuidedCampaignPanel from '../GuidedCampaignPanel';
 import type { WorldState } from '../../game/gameTypes';
 import type { MoreSubTab } from '../../hooks/useGameShellState';
@@ -262,7 +263,7 @@ export default function MoreTabPanel({
               <p>• <strong className="text-amber-200">Hospital</strong> — {describeHospitalReputation()}</p>
               <p>• <strong className="text-amber-200">Demolish</strong> — Click any building → sidebar → <strong className="text-stone-200">🗑 Demolish</strong> (works on houses too; residents are reassigned).</p>
               <p>• <strong className="text-amber-200">Reputation ⭐</strong> — Village header &amp; Progress → Trade. From Town Hall, Hospital, pilgrims, festivals, and avoiding scandals. Unlocks trade routes.</p>
-              <p>• <strong className="text-amber-200">Village head 👑</strong> — First male leads until Year {ELECTION_INTERVAL_YEARS}; merit elections every {ELECTION_INTERVAL_YEARS} years after that. Village tab → Leadership for standings and record score. Scandals hurt re-election; a strong challenger can still win.</p>
+              <p>• <strong className="text-amber-200">Village head 👑</strong> — First male leads until Year {displayYear(ELECTION_INTERVAL_YEARS)}; merit elections every {ELECTION_INTERVAL_YEARS} years after that. Village tab → Leadership for standings and record score. Scandals hurt re-election; a strong challenger can still win.</p>
             </div>
           </div>
 

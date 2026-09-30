@@ -14,6 +14,7 @@ import {
   daysUntilTick,
   getBirthDateString,
 } from '../game/dayCycle';
+import { displayYear } from '../game/dayCycleClock';
 import { TRAIT_DEFS } from '../game/settlerTraits';
 import { getHumanVariantLabel } from '../game/humanSprites';
 import { getTameFoodCost } from '../game/buildingActions';
@@ -67,7 +68,7 @@ export function buildFamilyTree(entity: Entity, allEntities: Entity[]): FamilyTr
       id: e.id,
       label,
       // `citizenGivenName` owns the nameless fallback; this list used to say "Unknown" while the
- // tree header for the same settler said "A settler".
+      // tree header for the same settler said "A settler".
       name: citizenGivenName(e),
       relation,
       detail,
@@ -107,7 +108,7 @@ export function buildFamilyTree(entity: Entity, allEntities: Entity[]): FamilyTr
       (entity.motherId != null && e.motherId === entity.motherId)
       || (entity.fatherId != null && e.fatherId === entity.fatherId);
     if (!shares) continue;
-    const node = take(e, e.gender === 'male' ? '👦' : '👧', 'Sibling');
+    const node = take(e, e.gender === 'male' ? '👦' : '👧', 'Sibling', `${Math.floor(e.age)}y`);
     if (node) siblings.push(node);
   }
 
@@ -285,8 +286,8 @@ export default function SelectedEntityPanel({
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-wide text-amber-200">Village head</p>
             <p className="text-[11px] text-amber-100/90">
-              In office since Year {state.leaderSinceYear}
-              {state.pendingElectionYear != null ? ` · next vote Y${state.pendingElectionYear}` : ''}
+              In office since Year {displayYear(state.leaderSinceYear)}
+              {state.pendingElectionYear != null ? ` · next vote Y${displayYear(Math.floor(state.pendingElectionYear))}` : ''}
             </p>
           </div>
         </div>

@@ -248,7 +248,7 @@ function overlapsAnyBuildingIndexed(
 /**
  * The `building.x/y` centre convention now lives in the leaf module `buildingGeometry`, which exists
  * precisely so `buildingRotation` and this file can both read it without importing each other (the
- * old arrangement closed a runtime cycle, 2026-09-20 audit X-6). Re-exported here because this module
+ * old arrangement closed a runtime cycle). Re-exported here because this module
  * is where the rest of the codebase already looks for footprint geometry — one definition, two import
  * paths, and no second source of truth.
  */

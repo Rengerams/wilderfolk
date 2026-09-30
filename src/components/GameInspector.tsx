@@ -20,7 +20,7 @@ export default function GameInspector({
   children,
   diagnostics,
 }: GameInspectorProps) {
-  // Roadmap P6 / audit R40. Collapsing used to hide the panel body while the column kept its
+  // Collapsing used to hide the panel body while the column kept its
   // 18.5rem width, so the player who collapsed it to see more map gained nothing — measured in the
   // browser tier: the map canvas stayed 1304 px wide expanded *and* collapsed. The aside narrows
   // with this state (App sizes it), so the collapsed inspector is a compact control strip — and the

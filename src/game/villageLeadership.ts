@@ -3,6 +3,7 @@ import { maybeOfferValleyDebate } from './storyEvents';
 import { recordElectionPromises, tickElectionPromises } from './electionPromises';
 import { BuildingType, EntityType } from './gameTypes';
 import { DAYS_PER_YEAR, getAgeInYears, HUMAN_ADULT_MIN_AGE, isImprisoned, TICKS_PER_HOUR } from './dayCycle';
+import { displayYear } from './dayCycleClock';
 import { logEvent } from './eventLog';
 import { addNotification } from './simEffects';
 import { isPlayerHuman } from './playerHuman';
@@ -12,6 +13,7 @@ import { simulateElectionVotes } from './electionVotes';
 import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
 import { seededRandomForRun } from './simRng';
 import { humanDisplayName } from './citizenId';
+import { startFeud } from './relationships';
 
 /**
  * Years between scheduled (end-of-term) elections.
@@ -29,10 +31,13 @@ import { humanDisplayName } from './citizenId';
  * a campaign contains several.
  */
 export const ELECTION_INTERVAL_YEARS = 2;
-/** 0.25 year = the 3-month campaign a vacancy allows before the successor election. */
-export const VACANCY_ELECTION_DELAY_YEARS = 0.25;
+/** 1/3 year = the 4-month campaign a vacancy allows before the successor election. */
+export const VACANCY_ELECTION_DELAY_YEARS = 1 / 3;
 export const ELECTION_PARTY_DAYS = 1;
 export const ELECTION_PARTY_NAME = 'Election Revelry';
+
+/** Feud score the strongest loser opens against the winner — at most one per election. */
+const ELECTION_LOSS_FEUD_SCORE = 30;
 
 // Months are a display division of the one canonical year (`dayCycle`/`dayCycleClock` →
 // `gameConstants.Time.DAYS_PER_YEAR`), not a second calendar: the audit flagged the old local
@@ -373,7 +378,7 @@ export function isActingVillageHead(
   state?: Pick<WorldState, 'year' | 'dayInYear' | 'tick'>,
 ): boolean {
   // Imprisonment must not clear the office — scandal sentences keep villageLeaderId
-  // and the leader occupation for the whole term (N14). Elections still exclude
+  // and the leader occupation for the whole term. Elections still exclude
   // jailed candidates via isEligibleForLeadership.
   if (!entity || !entity.alive || entity.faction || entity.isJuvenile) {
     return false;
@@ -505,7 +510,7 @@ export function getElectionGatherTarget(state: WorldState, entityId: number): { 
   // attendee list every time. That list cannot be hoisted for the tick: it is the *live* set, and
   // `isEligibleForLeadership` reads `alive` and `isJuvenile`, both of which this same human loop
   // changes between two calls — it kills settlers on the exhaustion and daily-mortality paths, and
-  // `tryGraduateHumanChild` clears `isJuvenile` (N-5). So take the one number the caller needs
+  // `tryGraduateHumanChild` clears `isJuvenile`. So take the one number the caller needs
   // instead: its index in the id-sorted attendee list. Ids are unique, so that index is exactly the
   // number of eligible entities holding a smaller id — one pass, no array, no sort.
   let slot = 0;
@@ -572,7 +577,7 @@ export function appointFoundingLeader(state: WorldState, entity: Entity): void {
   logEvent(
     state,
     'election',
-    `${name} leads the founding colony until the first merit election (Year ${ELECTION_INTERVAL_YEARS})`,
+    `${name} leads the founding colony until the first merit election (Year ${displayYear(ELECTION_INTERVAL_YEARS)})`,
     name,
   );
 }
@@ -585,7 +590,7 @@ export function getElectionCeremonyStatus(state: WorldState): string | null {
     const currentFraction = state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR;
     const until = Math.max(0, state.pendingElectionYear - currentFraction);
     if (until > 0) {
-      return `No village head — merit election in ${formatElectionDelay(until)} (Year ${Math.floor(state.pendingElectionYear)}).`;
+      return `No village head — merit election in ${formatElectionDelay(until)} (Year ${displayYear(Math.floor(state.pendingElectionYear))}).`;
     }
     return 'Leadership election imminent — settlers will gather soon.';
   }
@@ -740,7 +745,7 @@ export function startElectionCeremony(
     logEvent(
       state,
       'election',
-      `Leadership election postponed (Year ${year}) — no eligible candidates`,
+      `Leadership election postponed (Year ${displayYear(year)}) — no eligible candidates`,
     );
     return false;
   }
@@ -769,7 +774,7 @@ export function startElectionCeremony(
   logEvent(
     state,
     'election',
-    `Leadership election ceremony began at ${place} (Year ${year})`,
+    `Leadership election ceremony began at ${place} (Year ${displayYear(year)})`,
     winner.name,
   );
 
@@ -785,7 +790,7 @@ export function startElectionCeremony(
   addNotification(
     state,
     '🗳️ Election ceremony begins',
-    `The village gathers at ${place} to choose its head — one day of assembly (Year ${year}).`,
+    `The village gathers at ${place} to choose its head — one day of assembly (Year ${displayYear(year)}).`,
     'event',
     { x: site.x, y: site.y },
   );
@@ -805,7 +810,7 @@ export function tickElectionBuildup(
     state.electionBuildupNotifiedYear = electionYear;
     return {
       title: '🗳️ Election next year',
-      message: `Year ${electionYear} — leadership election next year. Settlers are already whispering about who should lead ${state.villageName}.`,
+      message: `Year ${displayYear(electionYear)} — leadership election next year. Settlers are already whispering about who should lead ${state.villageName}.`,
     };
   }
 
@@ -877,7 +882,7 @@ export function tickElectionCeremony(state: WorldState, year: number): ElectionA
       logEvent(
         state,
         'election',
-        `Leadership election failed (Year ${year}) — ${detail}`,
+        `Leadership election failed (Year ${displayYear(year)}) — ${detail}`,
         ceremony.pendingLeaderName,
       );
       return null;
@@ -932,7 +937,7 @@ export function runVillageElection(
       logEvent(
         state,
         'election',
-        `Leadership election found no eligible candidate — merit election scheduled for Year ${Math.floor(electionYear)}`,
+        `Leadership election found no eligible candidate — merit election scheduled for Year ${displayYear(Math.floor(electionYear))}`,
       );
     }
     return {
@@ -967,6 +972,16 @@ export function runVillageElection(
     state.lastElectionYear = year;
   }
 
+  // The wrong: the strongest settler who lost the race now resents the one who beat them.
+  const runnerUp = ranked.find((candidate) => candidate.entityId !== winner.entityId);
+  if (runnerUp) {
+    const runnerUpEntity = state.entities.find((e) => e.id === runnerUp.entityId);
+    const winnerEntity = state.entities.find((e) => e.id === winner.entityId);
+    if (runnerUpEntity && winnerEntity) {
+      startFeud(state, runnerUpEntity, winnerEntity, ELECTION_LOSS_FEUD_SCORE);
+    }
+  }
+
   const ballot = `${vote.winnerVotes} of ${vote.totalVotes} ballots`;
   if (reason === 'founding') {
     logEvent(
@@ -980,8 +995,8 @@ export function runVillageElection(
       state,
       'election',
       changed
-        ? `${winner.name} elected village head (Year ${year}) — ${ballot} · ${scoreSummary(winner)}`
-        : `${winner.name} re-elected village head (Year ${year}) — ${ballot} · ${scoreSummary(winner)}`,
+        ? `${winner.name} elected village head (Year ${displayYear(year)}) — ${ballot} · ${scoreSummary(winner)}`
+        : `${winner.name} re-elected village head (Year ${displayYear(year)}) — ${ballot} · ${scoreSummary(winner)}`,
       winner.name,
     );
   } else {
@@ -1021,7 +1036,7 @@ function buildAnnouncement(
 
   return {
     title,
-    message: `${result.leaderName} ${verb} (Year ${year}). Elected by ballot — ${ballots}${merit}.`,
+    message: `${result.leaderName} ${verb} (Year ${displayYear(year)}). Elected by ballot — ${ballots}${merit}.`,
     leaderName: result.leaderName,
     changed: result.changed,
     reason,
@@ -1072,14 +1087,14 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
   logEvent(
     state,
     'election',
-    `${name} can no longer lead — merit election scheduled for Year ${Math.floor(electionYear)}`,
+    `${name} can no longer lead — merit election scheduled for Year ${displayYear(Math.floor(electionYear))}`,
     name,
   );
 
   const delayText = formatElectionDelay(VACANCY_ELECTION_DELAY_YEARS);
   return {
     title: '👑 Leadership vacancy',
-    message: `${name} can no longer lead. A merit election will be held in ${delayText} (Year ${Math.floor(electionYear)}).`,
+    message: `${name} can no longer lead. A merit election will be held in ${delayText} (Year ${displayYear(Math.floor(electionYear))}).`,
   };
 }
 

@@ -4,9 +4,9 @@
  * When the village larder is completely empty and a settler is truly starving,
  * the most desperate settler may lunge at a neighbour's "foot". This is a joke
  * beat — deliberately NON-LETHAL: no health, energy, or death changes. The only
- * real effect is that the victim is not amused, so the pair's friendship score
- * drops (`hurtFriendship`). If nothing else, it gives the player a grim chuckle
- * and a reason to feed the village before friendships rot.
+ * real effect is that the victim resents it: the friendship drops, and a landed
+ * bite opens a feud. If nothing else, it gives the player a grim chuckle and a
+ * reason to feed the village before friendships rot and grudges form.
  *
  * Cadence: called once per colony day from the daily world-events owner. Fires
  * at most one bite per famine day, gated by a deterministic per-person roll.
@@ -16,7 +16,7 @@ import { addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
 import { getSimRng, randomBool, randomChoice } from './simRng';
-import { hurtFriendship } from './relationships';
+import { hurtFriendship, startFeud } from './relationships';
 import { Famine } from './gameConstants';
 import { formatCitizenName } from './citizenId';
 
@@ -80,6 +80,8 @@ export function tickFamineDesperation(state: WorldState, allAlive: readonly Enti
   if (success) {
     addNotification(state, '🍖 Desperate times', `${attackerName} took a bite out of ${victimName}'s foot. ${victimName} is not amused.`, 'warning');
     logEvent(state, 'scandal', `${attackerName} took a bite out of ${victimName}'s foot during the famine. ${victimName} is not amused.`);
+    // The bitten settler is the wronged party; a failed lunge only sours the friendship.
+    startFeud(state, victim, attacker, Famine.BITE_FEUD_AMOUNT);
   } else {
     addNotification(state, '🍖 Desperate times', `${attackerName} tried to eat ${victimName}'s foot. ${victimName} backed away quickly.`, 'warning');
     logEvent(state, 'scandal', `${attackerName} tried to eat ${victimName}'s foot during the famine. The attempt failed.`);

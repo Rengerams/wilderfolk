@@ -195,7 +195,7 @@ const REPRO_WILDLIFE_TYPES: EntityType[] = [
   // Wildkin is ticked as wildlife and carries a `reproductionChance`/`reproductionCooldown`
   // (tickLayerSystems WILDLIFE_TICK_TYPES + its reproduction block), so leaving it out of this
   // list made `wildlifeTypePopulation` report 0 for it forever: its 35-population cap never
-  // applied and it permanently bred with the full scarcity boost (audit cross-cutting item).
+  // applied and it permanently bred with the full scarcity boost.
   EntityType.Wildkin,
 ];
 

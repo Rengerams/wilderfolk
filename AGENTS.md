@@ -179,6 +179,7 @@ This is an optional repository navigation template. Populate it only with values
 - **State paradigm:** one mutable `WorldState`, mutated **only** inside the tick layers and their named domain owners (see `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts`). The UI never mutates it: player actions become typed `WorkerCommand`s (`src/game/simWorker/commands.ts`) and views read read-only projections (`dashboardData.ts`, `viewState.ts`, `humanStatus.ts`).
 - **Assets:** `public/sprites/**` and `public/audio/**`, loaded through `src/game/spriteLoader.ts` (procedural drawing in `src/game/renderer/**` otherwise) and `src/audio/*`; `ASSET_REGISTER.md` is the provenance inventory, and `THIRD_PARTY_NOTICES.md` holds licensing.
 - **Conventions:** relative imports with owner modules over re-exports (`§5.7`); a rule lives in its owner and a view renders it, never restates it; blocked actions return the owner's own reason string; diagnostics are read-only and opt-in; determinism comes from `simRng` owner streams (`docs/SIM_RNG_GUIDELINES.md`); import cycles are gated by `scripts/check-import-cycles.mjs` — **dependency-cruiser is unusable on the pinned `typescript@7` and was removed; do not re-add it** (the scanner asserts its own coverage and fails on 0 modules, which is the defect that removal fixed).
+- **Tooling on the pinned `typescript@7`.** The root module is a **stub**: `require("typescript")` yields only `{ version, versionMajorMinor }`, so anything that consumes the compiler API from the root — dependency-cruiser was one — breaks and must be replaced rather than re-added. The API itself is not gone; it lives on explicit subpaths, all reachable from both `require` and `import`: `typescript/unstable/sync` (compiler, checker, emitter), `typescript/unstable/ast` (`ScriptTarget`, `SyntaxKind`, `LanguageVariant`, `ScriptKind`), `typescript/unstable/ast/scanner` (`createScanner`, `getLeadingCommentRanges`, `getTrailingCommentRanges`) and `typescript/unstable/ast/is` (node type guards). `bin/tsc` is unaffected and is what the build runs; the linter is Oxc's `oxlint`, run type-aware. For AST or lexical work in a scratch script, prefer those subpaths to an undeclared parser: `@babel/parser` and `oxc-parser` are installed only transitively and can vanish on a dependency bump. **Caution:** guard any `while (token !== SyntaxKind.EndOfFileToken)` scanner loop — when that kind resolves `undefined` the loop never ends, which burned 554 CPU-seconds before it was caught.
 - **Concurrency reality:** several agents/workers edit this tree at once. Read a file immediately before editing it; an "file has not been read / changed since it was read" error is that rule working, not a permission problem.
 
 Do not leave guessed values in this section. Replace placeholders only with repository-verified information.
@@ -241,13 +242,26 @@ Exported functions, public methods, and API boundaries must have explicit parame
 
 Do not re-export a symbol merely for convenience. Import it from its owning module unless a re-export provides a clear, documented public API boundary or is required by an established barrel-file convention. Before adding a re-export, search for existing import paths and assess whether it creates a second apparent source of truth or an unintended public API. If a justified re-export is added, mention it in the final report and explain the reason.
 
-### 5.8 A comment describes the present, never the history
+### 5.8 A comment is a label, never a story
 
-Write comments about the code as it is: why this constraint exists, what breaks without it, what the contract is. A comment is the most-read text in a repository and the least verified, so a stale one does not sit inertly — it **biases the next reader**, who treats it as a statement of fact about the code beneath it.
+A comment earns its place only by saying what the code cannot: a one-line label, a contract, a
+non-obvious constraint. **Keep it to one or two lines.** Anything longer is a story — and a story in a
+comment goes stale, biases the next reader, and buries the code it was meant to explain.
 
-Do not put history in a comment: **no dates, no audit IDs or finding references, no `file:line`, no "this used to be"**. If the reason matters, state the reason; the story belongs in `CHANGELOG.md` or a handover. A citation is worse than useless when it cannot be followed, and this tree is full of them: 173 comments cite audits whose reports live in a gitignored directory with zero tracked files, so nobody but the machine that wrote them can look one up.
+Never write in a comment:
 
-Enforced as a **ratchet on newly added comments only**, so existing ones are left alone and the guard never fires on code you did not touch. It sees uncommitted work, which is the order the gate already assumes: run it before you commit.
+- **history** — no dates, no audit IDs or finding references, no `file:line`, no "this used to be";
+- **a rationale essay** — the measurements, the alternatives rejected, the bug that motivated this;
+- **a restatement** of what the next line plainly does.
+
+The reason behind a change belongs in `CHANGELOG.md`; when it needs more than a sentence, it belongs
+in a handover or plan under `docs/`. If you are writing a paragraph to explain *why*, that paragraph
+is the changelog entry, not a comment. A reader can hold a label in their head; nobody holds a page.
+
+`scripts/check-comments.mjs` enforces the citation half of this as a **ratchet on newly added comments
+only**, so existing comments are left alone and the guard never fires on code you did not touch. It
+sees uncommitted work, which is the order the gate already assumes: run `node scripts/test.mjs check`
+before you commit.
 
 ## 6. TypeScript scope rule
 

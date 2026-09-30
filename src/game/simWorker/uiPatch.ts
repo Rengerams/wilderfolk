@@ -10,8 +10,7 @@ import type { WorkerUiPatch } from './GameWorkerHost';
  * time. Assigning them wholesale therefore rewound the worker and destroyed events the player had
  * not seen yet: a Big News banner flashed for one tick and vanished, and an event card (raid, story)
  * could be replaced by `null` before it was answered, while `nextFloatingTextId` could move
- * backwards and reuse floating-text ids (worker-boundary audit F2,
- * `BUG_REPORTS/2026-09-16-ui-patch-rewinds-worker-authored-big-news.md`).
+ * backwards and reuse floating-text ids (worker-boundary audit F2).
  *
  * Only the fields the player authors are adopted here. The worker keeps its own presentation state;
  * the floating-text id allocator may only move forward, so a stale patch can never hand out an id

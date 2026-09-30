@@ -1255,6 +1255,12 @@ export function exposeAffair(
     arrestForScandal(state, cheater);
     arrestForScandal(state, paramour);
     tryDivorceOnCaughtCheater(state, cheater, paramour, entityById, buildings, playerHumans, true);
+  } else {
+    // A rumour reaches the cheated spouse too; they blame the paramour and stay married.
+    const spouse = cheater.partnerId != null ? entityById.get(cheater.partnerId) : undefined;
+    if (spouse?.alive && spouse.id !== paramour.id) {
+      startFeud(state, spouse, paramour, Relationship.SCANDAL_RUMOR_FEUD_SCORE);
+    }
   }
 }
 

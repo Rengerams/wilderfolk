@@ -6,8 +6,7 @@ import { useEffect, useRef, type RefObject } from 'react';
  * Exported so the traps that are *not* built on `useModalFocus` read the same list instead of
  * keeping private copies. `ShortcutsOverlay`'s copy admitted **disabled** buttons, so its wrap test
  * could pick an element whose `.focus()` no-ops and the trap silently failed; `GameMenu`'s omitted
- * `[href]`, `select` and `textarea`. Three selectors, three traps (audit C2 "Focusable-element
- * selector").
+ * `[href]`, `select` and `textarea`. Three selectors, three traps.
  */
 export const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -31,7 +30,7 @@ export function getFocusableElements(container: HTMLElement): HTMLElement[] {
  * to the container instead let Tab escape behind an open dialog: clicking non-focusable dialog text
  * moves focus to `<body>`, where the container's own listener never sees the key and the wrap test
  * (`document.activeElement === last`) cannot match. Focus restore and the document binding are the
- * residual halves of F33.
+ * residual halves of the modal contract.
  */
 export function useModalFocus<T extends HTMLElement>(active = true): RefObject<T | null> {
   const containerRef = useRef<T | null>(null);

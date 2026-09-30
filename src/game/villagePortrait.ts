@@ -1,5 +1,6 @@
 import type { WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
+import { displayYear } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
 import { isRivalAtPeace } from './rivalPeace';
 import { resolveCombatLogKind } from './eventLog';
@@ -221,7 +222,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
     bits.push(`Along the way: ${secondary.blurb}`);
   }
   if (humans > 0) {
-    bits.push(`${humans} people (${adults} adults) · Year ${state.year}.`);
+    bits.push(`${humans} people (${adults} adults) · Year ${displayYear(state.year)}.`);
   }
 
   return {

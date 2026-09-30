@@ -234,7 +234,7 @@ export function createFallbackSimTickDelta(world: WorldState): SimTickDelta {
  *
  * The delta carries `aliveEntities` as a **complete replacement**, so it deliberately does not also
  * ship per-tick spawn/death id lists: they were extracted and transferred every tick but read by
- * nobody (worker-boundary audit F6 — the only consumer, `EntityCatalog.applyTickDelta`, had zero call
+ * nobody — the only consumer, `EntityCatalog.applyTickDelta`, had zero call
  * sites because the catalog is rebuilt from the world instead).
  */
 export function extractSimTickDelta(

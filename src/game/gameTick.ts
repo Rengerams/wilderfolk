@@ -27,6 +27,7 @@ import {
   reconcileOrphanedMarriages,
   syncResidenceOccupants,
 } from './dayCycle';
+import { displayYear } from './dayCycleClock';
 import { buildEntityByType, type SimulationFocus } from './simFocus';
 import {
   cacheEntityByType,
@@ -95,7 +96,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
       logEvent(
         state,
         'event',
-        `Year ${yearlyStat.year} in review — ${closeBonds} close friendships${growth}; ${withFriend} settlers have a friend, ${isolated} have none`,
+        `Year ${displayYear(yearlyStat.year)} in review — ${closeBonds} close friendships${growth}; ${withFriend} settlers have a friend, ${isolated} have none`,
       );
     }
     state.eventsThisYear = [];

@@ -698,7 +698,7 @@ function assignBiomes(
         const self = src[i];
         // No river guard here: `B.river` is never assigned by this function — water is `deep_water`
         // and `water`, and a river is the `riverDist` field, not a biome label — so the guard this
-        // loop used to carry could not fire. (Audit T14.)
+        // loop used to carry could not fire.
         const counts = new Map<number, number>();
         for (let j = -1; j <= 1; j++)
           for (let k = -1; k <= 1; k++) {

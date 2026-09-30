@@ -66,7 +66,7 @@ const BlacksmithForgePanel = lazy(() => import('./BlacksmithForgePanel'));
  * The raid-card choice buttons. The incoming and outgoing cards render the same control, differing
  * only by the command op and the colour, so the block is written once: a change to raid-choice
  * rendering — showing the owner's block reason as text, for instance — used to have to be made
- * twice, in the pair of cards that most needs it (audit C1 clone 4).
+ * twice, in the pair of cards that most needs it.
  */
 function RaidChoiceButtons({
   choices,
@@ -96,7 +96,7 @@ function RaidChoiceButtons({
 
 /**
  * Hints whose numbers are owned by a rule module. They are built from the owner at render time
- * instead of being typed as prose (audit C2 "Building output/tuning copy"): the wall cap moves with
+ * instead of being typed as prose ("Building output/tuning copy"): the wall cap moves with
  * the Wall Plates forge order, the watchtower bonus moves with Tower Ballistae, the Blacksmith
  * boost stops at `SMITH_BONUS_CAP`, the guard bonus is `MILITIA_BALANCE.guardBonusPerGuard`, and the
  * Mill/Barn/preserve/storage bonuses and the Farm's worker cap are tunable constants — the Farm's
@@ -211,7 +211,7 @@ export default function SelectedBuildingPanel({
     // hand-written booleans that used to sit here drifted from the commands they guard: stricter on
     // relations (`!atPeace`, extra `relationship` tests) and looser on armament (`hasIronSpears ||
     // hasStoneSpears` against the owner's `hasWeapons`, which also accepts iron swords), so a button
-    // could disagree with the command it guarded (audit C2, R15).
+    // could disagree with the command it guarded.
     const giftGate = rival ? getRivalGiftEligibility(state, rival.id) : null;
     const pactGate = rival ? getRivalTradePactEligibility(state, rival.id) : null;
     const showForceGate = rival ? getShowStrengthEligibility(state, rival.id) : null;

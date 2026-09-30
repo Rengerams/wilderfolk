@@ -61,8 +61,7 @@ export function toggleSidebarTab(
  * `mapSidebarTabToOverview`, `mapOverviewNav` and the two rail resyncs inside the hook all read
  * this table. Three places used to encode "which rail id is which section" — the two switches here
  * plus an inline ternary in `selectOverviewNav` — and the inline one was the copy a new nav id would
- * miss, silently desyncing `openTabs` from the section on screen (audit C1 clone 9 / C2
- * "Tab → section mapping").
+ * miss, silently desyncing `openTabs` from the section on screen ("Tab → section mapping").
  */
 const OVERVIEW_ROUTES: Record<
   SidebarTab,

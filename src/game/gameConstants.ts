@@ -82,6 +82,8 @@ export const Relationship = {
   AFFAIR_PROGRESS_BUMP_SPAN: 12,
   /** 100 = progress both partners need before the affair is established. */
   AFFAIR_PROGRESS_MAX: 100,
+  /** Feud score the cheated spouse opens against the paramour when a rumour reaches them. */
+  SCANDAL_RUMOR_FEUD_SCORE: 20,
 } as const;
 
 export const Time = {
@@ -236,6 +238,8 @@ export const Famine = {
   BITE_FRIENDSHIP_HIT_MISS: 8,
   /** Friendship lost when the bite actually lands (victim is NOT amused). */
   BITE_FRIENDSHIP_HIT_SUCCESS: 16,
+  /** Feud score the bitten settler opens against the biter when the bite lands. */
+  BITE_FEUD_AMOUNT: 20,
 } as const;
 
 /**

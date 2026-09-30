@@ -96,7 +96,7 @@ export function advanceValleyChronicle(state: WorldState): string[] {
           // Three chapters reward food (`first_harvest` 100, `the_hunt` 80, `the_river` 80). The
           // ledger's contract is "food that actually entered storage" (`economyLedger.ts`), so a
           // chapter is a producer like any other — skipping this made those grants invisible to the
-          // "why is my food low?" panel. The mirror of audit M5, found while fixing it.
+          // "why is my food low?" panel.
           if (key === 'food') recordFoodProduced(state, 'chronicle', added);
         }
       }

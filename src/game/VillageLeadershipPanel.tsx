@@ -1,4 +1,5 @@
 import type { WorldState } from './gameTypes';
+import { displayYear } from './dayCycleClock';
 import {
   ELECTION_INTERVAL_YEARS,
   formatElectionDelay,
@@ -29,7 +30,7 @@ export default function VillageLeadershipPanel({ state }: { state: WorldState })
     <div className="rounded-xl border border-amber-600/30 bg-amber-950/20 p-3">
       <h3 className="mb-1 text-sm font-bold text-amber-200">👑 Village head</h3>
       <p className="mb-2 text-[13px] leading-relaxed text-stone-300">
-        The founding settler — the first adult male, where the colony has one — holds office until the first merit election in Year {ELECTION_INTERVAL_YEARS}. After that, a term election is held every {ELECTION_INTERVAL_YEARS} years. The sitting head always runs when eligible; skills and experience decide most races, with a modest record bonus or penalty from economy, scandals, and village health. A standout challenger can still win. If the head dies or is imprisoned, a new election is held {formatElectionDelay(VACANCY_ELECTION_DELAY_YEARS)} later.
+        The founding settler — the first adult male, where the colony has one — holds office until the first merit election in Year {displayYear(ELECTION_INTERVAL_YEARS)}. After that, a term election is held every {ELECTION_INTERVAL_YEARS} years. The sitting head always runs when eligible; skills and experience decide most races, with a modest record bonus or penalty from economy, scandals, and village health. A standout challenger can still win. If the head dies or is imprisoned, a new election is held {formatElectionDelay(VACANCY_ELECTION_DELAY_YEARS)} later.
       </p>
 
       {ceremonyStatus && (
@@ -42,7 +43,7 @@ export default function VillageLeadershipPanel({ state }: { state: WorldState })
         <div className="mb-2 rounded-lg bg-stone-900/50 px-2 py-1.5">
           <p className="text-[13px] font-bold text-amber-100">{formatSettlerName(leader)}</p>
           <p className="text-[13px] text-stone-300">
-            In office since Year {state.leaderSinceYear}
+            In office since Year {displayYear(state.leaderSinceYear)}
             {yearsUntil === 0 ? ' · election this year' : ` · next election in ${yearsUntil}y`}
           </p>
           {leaderBreakdown && (

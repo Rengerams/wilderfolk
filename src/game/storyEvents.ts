@@ -1,6 +1,7 @@
 import type { WorldState, StoryEvent } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay, getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding } from './dayCycle';
+import { displayYear } from './dayCycleClock';
 import { addBigNews, addNotification } from './simEffects';
 import { addCappedResource } from './resourceUtils';
 import { spendFood } from './economyLedger';
@@ -666,23 +667,23 @@ function resolveValleyDebate(state: WorldState, choiceId: string): void {
       adjustEcosystemHealth(state, -5);
       addReputation(state, 2);
       addBigNews(state, '🏗️ The growth mandate', 'The election settled it: outward. New ground opens — and the woods edge back.', 'neutral');
-      logEvent(state, 'event', `The ${state.year} election chose growth — the forest edge retreated and the ledger grew.`);
+      logEvent(state, 'event', `The ${displayYear(state.year)} election chose growth — the forest edge retreated and the ledger grew.`);
       break;
     case 'preservation':
       adjustEcosystemHealth(state, +5);
       addBigNews(state, '🌿 The preservation mandate', 'The election settled it: build tight, spare the wild. The valley keeps its breath.', 'positive');
-      logEvent(state, 'event', `The ${state.year} election chose the wild — building slowed, and the valley kept its breath.`);
+      logEvent(state, 'event', `The ${displayYear(state.year)} election chose the wild — building slowed, and the valley kept its breath.`);
       break;
     case 'predator_control':
       adjustEcosystemHealth(state, -3);
       addReputation(state, 1);
       addBigNews(state, '🛡️ The security mandate', 'The election settled it: walls and a steady cull. Settlers sleep safer — the deer know it.', 'neutral');
-      logEvent(state, 'event', `The ${state.year} election chose security — the cull steadied, and the deer grew wary.`);
+      logEvent(state, 'event', `The ${displayYear(state.year)} election chose security — the cull steadied, and the deer grew wary.`);
       break;
     default:
       addReputation(state, 3);
       addBigNews(state, '🎉 The festival mandate', 'The election settled it: feast and celebrate. Morale soars — a happy village spends more.', 'positive');
-      logEvent(state, 'event', `The ${state.year} election chose joy — the feasts ran long and the ledger noticed.`);
+      logEvent(state, 'event', `The ${displayYear(state.year)} election chose joy — the feasts ran long and the ledger noticed.`);
       break;
   }
 }

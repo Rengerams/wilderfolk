@@ -61,7 +61,7 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
   const currentHours = getWorkScheduleHours(current);
   
   // The mean and its band are the fatigue owner's (`readVillageFatigue`): the panel used to average
-  // `scheduleFatigue` and band it at 60/25 itself, so the thresholds were tunable only in this view
+  // `scheduleFatigue` and band it at 60/25 itself, so the thresholds were tunable only in this view.
   const fatigue = useMemo(() => readVillageFatigue(state), [state]);
   const averageFatigue = fatigue.average;
   const fatigueLabel = fatigue.label;
@@ -133,7 +133,7 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
           <strong
             className={
               // The tone follows the owner's band label, so the colour and the word beside it cannot
- // disagree about the same reading.
+              // disagree about the same reading.
               fatigueLabel === 'high'
                 ? 'text-red-300'
                 : fatigueLabel === 'building'

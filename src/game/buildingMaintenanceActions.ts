@@ -188,7 +188,7 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
   // Bed capacity is level-dependent (`getResidenceCapacity`), and the population snapshot is cached
   // per tick on counts a level change does not touch — so the header, the focus hints and the sim
   // summary kept reporting the pre-upgrade bed count until the next tick. `populationGrowth` names
- // this call ("e.g. after building upgrades") and had no caller.
+  // this call ("e.g. after building upgrades") and had no caller.
   invalidatePopulationSnapshotCache(state);
 
   if (isResidenceBuildingType(building.type)) {

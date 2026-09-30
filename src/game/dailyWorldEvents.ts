@@ -3,6 +3,7 @@ import type { PopulationCounts } from './entityCounts';
 import type { TickContext } from './simulation/simulationTypes';
 import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY, FESTIVAL_CHECK_TICKS, getAbsoluteCalendarDay, DAYS_PER_YEAR, getCalendarDay, isNewCalendarDayTick } from './dayCycle';
+import { displayYear } from './dayCycleClock';
 
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
@@ -211,7 +212,7 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
       () => state.nextEntityId++,
       // The context is what routes these spawns through `pushNewEntity`, so they reach the spatial
       // grids and `ctx.newEntities` inside the same tick. Without it they landed on the array
- // `gameTick` discards a few lines later.
+      // `gameTick` discards a few lines later.
       ctx,
     );
     state.activeEvent = rolled.event;
@@ -275,13 +276,13 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
     addBigNews(
       state,
       '🗳️ Election Day',
-      `Settlers gather for the leadership election (Year ${state.year}). Gossip, tension, then the merit reveal — and a village party after.`,
+      `Settlers gather for the leadership election (Year ${displayYear(state.year)}). Gossip, tension, then the merit reveal — and a village party after.`,
       'neutral',
     );
     addNotification(
       state,
       '🗳️ Election Day',
-      `Year ${state.year} leadership election — villagers gathering now.`,
+      `Year ${displayYear(state.year)} leadership election — villagers gathering now.`,
       'event',
     );
   }

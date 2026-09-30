@@ -315,7 +315,7 @@ export function rebalanceJobWorkers(
 }
 
 export function syncJobBuildingOccupants(humans: Entity[], buildings: Building[]): void {
-  // Two bucketing passes replace a full settler-list filter per building (N-7 — the single-pass
+  // Two bucketing passes replace a full settler-list filter per building — the single-pass
   // shape `residencyReconciliation.syncResidenceOccupants` documents). The building loop below
   // writes only `building.occupants`; it reads `h.alive`, `isPlayerHuman(h)`, `h.homeBuildingId`
   // and `h.prisonBuildingId`, none of which is written inside it, so one pass per predicate answers

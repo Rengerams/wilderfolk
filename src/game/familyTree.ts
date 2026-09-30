@@ -4,7 +4,7 @@
  * parents, spouse, siblings, children, nephews/nieces, grandchildren.
  * Pure reads of motherId / fatherId / partnerId / childrenIds.
  */
-import { humanDisplayName } from './citizenId';
+import { citizenGivenName, humanDisplayName } from './citizenId';
 import { EntityType, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isMarriedOrExpecting } from './civilStatus';
@@ -310,4 +310,434 @@ export function groupFamiliesBySurname(allEntities: readonly Entity[]): FamilySu
     });
   }
   return groups.sort((a, b) => b.members.length - a.members.length || a.surname.localeCompare(b.surname));
+}
+
+/* ---- The whole connected family ---- */
+
+/** People cap for one tree; the set drawn must not depend on who was clicked. */
+const MAX_FAMILY_MEMBERS = 200;
+
+/** `great-` steps a relation word carries before it falls back to `Ancestor`, `Descendant` or `Kin`. */
+const MAX_GREAT_STEPS = 3;
+
+/** One member of the connected family, on the generation row they belong to. */
+export interface FamilyTreePerson {
+  id: number;
+  /** The settler's display name, from `humanDisplayName`. */
+  name: string;
+  /** How they are related to the focused settler: `Mother`, `Grandchild`, `Aunt`, `In-law`; empty for the focus. */
+  relation: string;
+  icon: string;
+  /** Age, plus the co-parent's name for a child of the focused settler who is not their spouse's. */
+  detail: string;
+  /** True for the settler the window was opened on. */
+  isFocus: boolean;
+  isJuvenile: boolean;
+  gender?: 'male' | 'female';
+}
+
+/** One generation of the family, `delta` rows from the focused settler's own row. */
+export interface FamilyTreeRow {
+  /** Row offset from the focused settler: negative is older, `0` is their own generation. */
+  delta: number;
+  label: string;
+  members: FamilyTreePerson[];
+}
+
+/** The whole connected family of one settler, oldest generation first. */
+export interface FullFamilyTree {
+  focusId: number;
+  focusName: string;
+  rows: FamilyTreeRow[];
+  /** Everyone drawn, the focused settler included. */
+  memberCount: number;
+  /** True when `MAX_FAMILY_MEMBERS` cut the family short. */
+  truncated: boolean;
+}
+
+/** Adds `to` to `from`'s own link list, ignoring a repeat. */
+function pushLink(links: Map<number, number[]>, from: number, to: number): void {
+  const list = links.get(from);
+  if (!list) {
+    links.set(from, [to]);
+    return;
+  }
+  if (!list.includes(to)) list.push(to);
+}
+
+/** Every parent id a settler's record names, birth and adoptive, so a sibling test counts both. */
+function parentIdSet(person: Entity): Set<number> {
+  const ids = new Set<number>();
+  for (const id of [person.motherId, person.fatherId, person.adoptiveMotherId, person.adoptiveFatherId]) {
+    if (id != null) ids.add(id);
+  }
+  return ids;
+}
+
+/**
+ * Every id reachable from `start` through `step`, `start` excluded. The visited set is the cycle guard,
+ * so a parent/child cycle stops at the second visit instead of recurring without end.
+ */
+function reachableFrom(start: number, step: (id: number) => readonly number[]): Set<number> {
+  const found = new Set<number>();
+  const stack: number[] = [start];
+  while (stack.length > 0) {
+    const id = stack.pop();
+    if (id === undefined) break;
+    for (const next of step(id)) {
+      if (next === start || found.has(next)) continue;
+      found.add(next);
+      stack.push(next);
+    }
+  }
+  return found;
+}
+
+/** `seeds` plus everything reachable from them through `step`, with the same cycle guard. */
+function closureOf(seeds: Iterable<number>, step: (id: number) => readonly number[]): Set<number> {
+  const found = new Set<number>();
+  const stack: number[] = [];
+  for (const seed of seeds) {
+    if (found.has(seed)) continue;
+    found.add(seed);
+    stack.push(seed);
+  }
+  while (stack.length > 0) {
+    const id = stack.pop();
+    if (id === undefined) break;
+    for (const next of step(id)) {
+      if (found.has(next)) continue;
+      found.add(next);
+      stack.push(next);
+    }
+  }
+  return found;
+}
+
+/** The `great-` ladder for a generation `steps` beyond a base word, capped so the word stays readable. */
+function generationPrefix(steps: number): string {
+  const capped = Math.min(steps, MAX_GREAT_STEPS);
+  if (capped <= 0) return '';
+  const parts = ['Great-'];
+  for (let step = 1; step < capped; step += 1) parts.push('great-');
+  return parts.join('');
+}
+
+/** `Child` / `Adult child`, marked when born outside wedlock. Age decides "adult" — see `childRelation`. */
+function childLabel(person: Entity): string {
+  const relation = childRelation(person);
+  if (relation === 'child') return RELATION_LABEL.child;
+  if (relation === 'adult_child') return RELATION_LABEL.adult_child;
+  return person.age >= HUMAN_ADULT_MIN_AGE ? 'Adult child · outside wedlock' : 'Child · outside wedlock';
+}
+
+/** The small portrait glyph for one person on the tree, from their own life stage. */
+function iconForPerson(person: Entity): string {
+  if (person.isJuvenile) return person.gender === 'male' ? '👦' : '👧';
+  return person.gender === 'male' ? '👨' : '👩';
+}
+
+interface RelationFlags {
+  isPartner: boolean;
+  isSibling: boolean;
+  isAncestor: boolean;
+  isDescendant: boolean;
+  /** Descends from the focus's own line, i.e. a blood or adoptive relative rather than a married-in one. */
+  isBlood: boolean;
+}
+
+/** How `person` is related to the focus, from their row offset and the edges that reach them. */
+function relationLabelOf(focus: Entity, person: Entity, delta: number, flags: RelationFlags): string {
+  const male = person.gender === 'male';
+  // An ancestor cycle can put them on or below the focus's row, where the word has no depth to read.
+  if (flags.isAncestor) {
+    if (delta >= 0) return 'Ancestor';
+    if (delta === -1) {
+      const adoptiveId = male ? focus.adoptiveFatherId : focus.adoptiveMotherId;
+      const birthId = male ? focus.fatherId : focus.motherId;
+      const adoptiveOnly = person.id === adoptiveId && person.id !== birthId;
+      if (adoptiveOnly) return male ? 'Adoptive father' : 'Adoptive mother';
+      return male ? 'Father' : 'Mother';
+    }
+    const depth = -delta;
+    if (depth === 2) return male ? 'Grandfather' : 'Grandmother';
+    if (depth <= 2 + MAX_GREAT_STEPS) {
+      return `${generationPrefix(depth - 2)}${male ? 'grandfather' : 'grandmother'}`;
+    }
+    return 'Ancestor';
+  }
+  if (flags.isDescendant) {
+    if (delta <= 0) return 'Descendant';
+    if (delta === 1) return childLabel(person);
+    if (delta === 2) return 'Grandchild';
+    if (delta <= 2 + MAX_GREAT_STEPS) return `${generationPrefix(delta - 2)}grandchild`;
+    return 'Descendant';
+  }
+  if (delta === 0) {
+    if (flags.isPartner) return 'Spouse';
+    if (flags.isSibling) return 'Sibling';
+    return flags.isBlood ? 'Cousin' : 'In-law';
+  }
+  if (!flags.isBlood) return 'In-law';
+  const steps = Math.abs(delta);
+  if (delta < 0) {
+    if (steps === 1) return male ? 'Uncle' : 'Aunt';
+    if (steps <= 1 + MAX_GREAT_STEPS) return `${generationPrefix(steps - 1)}${male ? 'uncle' : 'aunt'}`;
+    return 'Kin';
+  }
+  if (steps === 1) return male ? 'Nephew' : 'Niece';
+  if (steps <= 1 + MAX_GREAT_STEPS) return `${generationPrefix(steps - 1)}grand-${male ? 'nephew' : 'niece'}`;
+  return 'Kin';
+}
+
+/** Row heading `delta` generations from the focus; the middle rows hold collateral relatives too. */
+function familyRowLabel(delta: number): string {
+  if (delta === 0) return 'Spouse & siblings';
+  if (delta === -1) return 'Parents & aunts / uncles';
+  if (delta === -2) return 'Grandparents';
+  if (delta <= -3) return `${generationPrefix(-delta - 2)}grandparents`;
+  if (delta === 1) return 'Children & nephews / nieces';
+  if (delta === 2) return 'Grandchildren';
+  return `${generationPrefix(delta - 2)}grandchildren`;
+}
+
+/**
+ * The whole connected family of one settler as generation rows: membership comes from the graph, so
+ * every member draws the same rows, and the walk is capped at `MAX_FAMILY_MEMBERS`.
+ */
+export function buildFullFamilyTree(focus: Entity, allEntities: readonly Entity[]): FullFamilyTree {
+  const people = livingHumans(allEntities);
+  const byId = new Map<number, Entity>();
+  for (const person of people) byId.set(person.id, person);
+  // The focus is normally one of `people`; drawing its tree anyway beats an empty window.
+  if (!byId.has(focus.id)) byId.set(focus.id, focus);
+
+  const parentLinks = new Map<number, number[]>();
+  const childLinks = new Map<number, number[]>();
+  const partnerLinks = new Map<number, number[]>();
+  for (const person of byId.values()) {
+    const parentIds = [person.motherId, person.fatherId, person.adoptiveMotherId, person.adoptiveFatherId];
+    for (const parentId of parentIds) {
+      if (parentId == null || parentId === person.id || !byId.has(parentId)) continue;
+      pushLink(parentLinks, person.id, parentId);
+      pushLink(childLinks, parentId, person.id);
+    }
+    for (const childId of person.childrenIds ?? []) {
+      if (childId === person.id || !byId.has(childId)) continue;
+      pushLink(childLinks, person.id, childId);
+      pushLink(parentLinks, childId, person.id);
+    }
+    const partnerId = person.partnerId;
+    if (partnerId == null || partnerId === person.id || !byId.has(partnerId)) continue;
+    pushLink(partnerLinks, person.id, partnerId);
+    // A marriage joins two branches even when only one side still carries the id.
+    pushLink(partnerLinks, partnerId, person.id);
+  }
+
+  const neighboursOf = (id: number): readonly number[] => [
+    ...(parentLinks.get(id) ?? []),
+    ...(childLinks.get(id) ?? []),
+    ...(partnerLinks.get(id) ?? []),
+  ];
+
+  const seen = new Set<number>([focus.id]);
+  const stack: number[] = [focus.id];
+  let truncated = false;
+  while (stack.length > 0) {
+    const id = stack.pop();
+    if (id === undefined) break;
+    for (const neighbour of neighboursOf(id)) {
+      if (seen.has(neighbour)) continue;
+      if (seen.size >= MAX_FAMILY_MEMBERS) {
+        truncated = true;
+        continue;
+      }
+      seen.add(neighbour);
+      stack.push(neighbour);
+    }
+  }
+
+  // Partners share one group, so a couple sits on one row wherever their own lines sit.
+  const groupParent = new Map<number, number>();
+  for (const id of seen) groupParent.set(id, id);
+  const groupOf = (id: number): number => {
+    let root = id;
+    let parent = groupParent.get(root);
+    while (parent !== undefined && parent !== root) {
+      root = parent;
+      parent = groupParent.get(root);
+    }
+    let walk = id;
+    while (walk !== root) {
+      const next = groupParent.get(walk);
+      if (next === undefined) break;
+      groupParent.set(walk, root);
+      walk = next;
+    }
+    return root;
+  };
+  const mergeGroups = (a: number, b: number): void => {
+    const rootA = groupOf(a);
+    const rootB = groupOf(b);
+    if (rootA !== rootB) groupParent.set(rootB, rootA);
+  };
+  for (const [id, partners] of partnerLinks) {
+    if (!seen.has(id)) continue;
+    for (const partnerId of partners) {
+      if (seen.has(partnerId)) mergeGroups(id, partnerId);
+    }
+  }
+
+  // Longest descent path from the oldest recorded generation; Kahn's order ranks each group once.
+  const childGroups = new Map<number, number[]>();
+  const groupInDegree = new Map<number, number>();
+  for (const id of seen) groupInDegree.set(groupOf(id), 0);
+  for (const [childId, parentIds] of parentLinks) {
+    if (!seen.has(childId)) continue;
+    const childGroup = groupOf(childId);
+    for (const parentId of parentIds) {
+      if (!seen.has(parentId)) continue;
+      const parentGroup = groupOf(parentId);
+      // Partners who are also parent and child share one row; that edge would be a cycle of its own.
+      if (parentGroup === childGroup) continue;
+      const childrenOfGroup = childGroups.get(parentGroup);
+      if (childrenOfGroup) {
+        if (childrenOfGroup.includes(childGroup)) continue;
+        childrenOfGroup.push(childGroup);
+      } else {
+        childGroups.set(parentGroup, [childGroup]);
+      }
+      groupInDegree.set(childGroup, (groupInDegree.get(childGroup) ?? 0) + 1);
+    }
+  }
+
+  const groupRank = new Map<number, number>();
+  const ranked: number[] = [];
+  for (const [group, inDegree] of groupInDegree) {
+    if (inDegree !== 0) continue;
+    groupRank.set(group, 0);
+    ranked.push(group);
+  }
+  let head = 0;
+  while (head < ranked.length) {
+    const group = ranked[head];
+    head += 1;
+    if (group === undefined) break;
+    const rank = groupRank.get(group) ?? 0;
+    for (const childGroup of childGroups.get(group) ?? []) {
+      groupRank.set(childGroup, Math.max(groupRank.get(childGroup) ?? 0, rank + 1));
+      const remaining = (groupInDegree.get(childGroup) ?? 0) - 1;
+      groupInDegree.set(childGroup, remaining);
+      if (remaining === 0) ranked.push(childGroup);
+    }
+  }
+  // A group left unranked sits in a parent/child cycle and has no consistent generation: it takes the
+  // row below its deepest ranked parent, or the oldest row when it has none.
+  for (const group of groupInDegree.keys()) {
+    if (groupRank.has(group)) continue;
+    let rank = 0;
+    for (const [parentGroup, childrenOfGroup] of childGroups) {
+      if (!childrenOfGroup.includes(group)) continue;
+      const parentRank = groupRank.get(parentGroup);
+      if (parentRank !== undefined) rank = Math.max(rank, parentRank + 1);
+    }
+    groupRank.set(group, rank);
+  }
+
+  const rowOf = new Map<number, number>();
+  for (const id of seen) rowOf.set(id, groupRank.get(groupOf(id)) ?? 0);
+  const focusRow = rowOf.get(focus.id) ?? 0;
+
+  const ancestorsOfFocus = reachableFrom(focus.id, (id) => parentLinks.get(id) ?? []);
+  const descendantsOfFocus = reachableFrom(focus.id, (id) => childLinks.get(id) ?? []);
+  // Blood means "descends from the focus's own line": one downward closure from the focus and every
+  // ancestor, which is what keeps a married-in spouse an in-law rather than a cousin.
+  const bloodLine = closureOf([focus.id, ...ancestorsOfFocus], (id) => childLinks.get(id) ?? []);
+  const partnersOfFocus = new Set<number>(partnerLinks.get(focus.id) ?? []);
+  const parentsOfFocus = parentIdSet(focus);
+  const siblingsOfFocus = new Set<number>();
+  for (const id of seen) {
+    const person = byId.get(id);
+    if (!person) continue;
+    // A sibling shares any parent with the focus — birth or adoptive, from either side of the record.
+    for (const parentId of parentIdSet(person)) {
+      if (!parentsOfFocus.has(parentId)) continue;
+      siblingsOfFocus.add(id);
+      break;
+    }
+  }
+
+  const detailOf = (person: Entity): string => {
+    const age = `${Math.floor(person.age)}y`;
+    if (person.id === focus.id) return age;
+    const isChildOfFocus =
+      person.motherId === focus.id
+      || person.fatherId === focus.id
+      || person.adoptiveMotherId === focus.id
+      || person.adoptiveFatherId === focus.id
+      || (focus.childrenIds ?? []).includes(person.id);
+    if (!isChildOfFocus) return age;
+    // Name the other parent when it is NOT this settler's spouse, so a child from an earlier marriage
+    // is never attributed to the current one.
+    const otherParentId =
+      person.motherId === focus.id || person.adoptiveMotherId === focus.id
+        ? person.fatherId ?? person.adoptiveFatherId
+        : person.motherId ?? person.adoptiveMotherId;
+    if (otherParentId == null || otherParentId === focus.partnerId || otherParentId === focus.id) return age;
+    const otherParent = byId.get(otherParentId);
+    return otherParent ? `${age} · with ${citizenGivenName(otherParent)}` : age;
+  };
+
+  const idsByRow = new Map<number, Entity[]>();
+  for (const id of seen) {
+    const person = byId.get(id);
+    if (!person) continue;
+    const row = rowOf.get(id) ?? 0;
+    const list = idsByRow.get(row);
+    if (list) list.push(person);
+    else idsByRow.set(row, [person]);
+  }
+
+  const rows: FamilyTreeRow[] = [...idsByRow.keys()]
+    .sort((a, b) => a - b)
+    .map((row) => {
+      const delta = row - focusRow;
+      const members = (idsByRow.get(row) ?? [])
+        // The focus leads their own row; the rest read in name order on every render.
+        .sort((a, b) =>
+          Number(b.id === focus.id) - Number(a.id === focus.id)
+          || humanDisplayName(a).localeCompare(humanDisplayName(b))
+          || a.id - b.id
+        )
+        .map((person): FamilyTreePerson => {
+          const isFocus = person.id === focus.id;
+          return {
+            id: person.id,
+            name: humanDisplayName(person),
+            relation: isFocus
+              ? ''
+              : relationLabelOf(focus, person, delta, {
+                isPartner: partnersOfFocus.has(person.id),
+                isSibling: siblingsOfFocus.has(person.id),
+                isAncestor: ancestorsOfFocus.has(person.id),
+                isDescendant: descendantsOfFocus.has(person.id),
+                isBlood: bloodLine.has(person.id),
+              }),
+            icon: iconForPerson(person),
+            detail: detailOf(person),
+            isFocus,
+            isJuvenile: person.isJuvenile,
+            gender: person.gender,
+          };
+        });
+      return { delta, label: familyRowLabel(delta), members };
+    });
+
+  return {
+    focusId: focus.id,
+    focusName: humanDisplayName(focus),
+    rows,
+    memberCount: seen.size,
+    truncated,
+  };
 }

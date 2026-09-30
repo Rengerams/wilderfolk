@@ -1,5 +1,6 @@
 import type { WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
+import { displayYear } from './dayCycleClock';
 import { getLivePlayerPopulation, getTotalBeds } from './populationGrowth';
 import {
   getVillageLeader,
@@ -118,7 +119,7 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
       icon: '👑',
       title: 'Leadership vacancy',
       detail: until > 0
-        ? `No village head — merit election in ${formatElectionDelay(until)} (Year ${Math.floor(state.pendingElectionYear)}).`
+        ? `No village head — merit election in ${formatElectionDelay(until)} (Year ${displayYear(Math.floor(state.pendingElectionYear))}).`
         : 'Merit election imminent — settlers will gather soon.',
       action: { label: 'Leadership', id: 'open_village' },
     });
@@ -127,7 +128,7 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
       hints.push({
         icon: '🗳️',
         title: 'Leadership election this year',
-        detail: `Year ${state.year} — ${formatSettlerName(leader)} is running again; skills decide most races, with a modest record edge from economy, scandals, and village health.`,
+        detail: `Year ${displayYear(state.year)} — ${formatSettlerName(leader)} is running again; skills decide most races, with a modest record edge from economy, scandals, and village health.`,
         action: { label: 'Leadership', id: 'open_village' },
       });
     } else if (until <= 2) {

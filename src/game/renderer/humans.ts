@@ -336,7 +336,7 @@ export function drawHuntChaseLines(ctx: CanvasRenderingContext2D, state: RenderS
   if (state.renderSoA) {
     // The SoA bucket builder already made `shimById` for this tick; iterating the two draw buckets
     // directly avoids the per-repaint `[..._tickAnimals, ..._tickHumans]` spread and the per-repaint
- // id Map rebuild.
+    // id Map rebuild.
     const buckets = _renderSoABuckets ?? getRenderSoABuckets();
     const byId = buckets.shimById;
     for (const hunter of _tickAnimals) drawHunterLine(hunter, byId);

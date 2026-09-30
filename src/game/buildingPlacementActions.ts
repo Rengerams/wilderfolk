@@ -201,7 +201,7 @@ export function startBuilding(
   clearTreesUnderFootprint(state, building);
   // The third argument is the `WorldState`: without it the auto-staff pass falls back to
   // `DEFAULT_WORKFORCE_POLICY` and the default tavern window, so a newly placed building could
- // push a staffed venue one worker past the player's own preset.
+  // push a staffed venue one worker past the player's own preset.
   assignMissingWorkers(listPlayerHumans(state), state.buildings, state);
 
   createDeathParticles(state, x, y, '#ffd700', 8, 'star');
@@ -322,7 +322,7 @@ export function placeStripChain(
         );
         if (failure) continue;
         // The replaced building leaves through the removal owner (counter, adjacency, road cache)
-        // and is refunded through the capped refund owner — the plain demolition answers (B-1/E-5).
+        // and is refunded through the capped refund owner — the plain demolition answers.
         removeBuildingFromState(state, existing);
         refundBuildingCost(state, existing.type);
         replaced.add(replacementId);

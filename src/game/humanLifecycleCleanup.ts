@@ -43,9 +43,9 @@ export function finalizeHumanDeath(
   const affairPartnerId = entity.affairPartnerId;
   // A dying settler can be mid-dialogue. The live-entity lookup the rest of this function already uses
   // is exactly what `cleanupEntityDialogueState` needs to release the other half of the pair *with* the
-  // death, instead of leaving it holding a session key nobody owns until its own tick reclaims it
- //. Present only when the caller passes the entity index, which is why the
-  // resolver stays optional in `humanChat`.
+  // death, instead of leaving it holding a session key nobody owns until its own tick reclaims it.
+  // Present only when the caller passes the entity index, which is why the resolver stays optional in
+  // `humanChat`.
   const resolveDialoguePartner = entityById
     ? (id: number): Entity | undefined => entityById.get(id)
     : undefined;
@@ -182,7 +182,7 @@ export function reconcileFamilyReferencesAfterRemoval(
       survivor.lastAffairSiteY = undefined;
     }
     // A courtship is a mutual pair bond: the survivor's half must go with the removed settler, or the
- // heart badge and the pair's progress outlive the partner.
+    // heart badge and the pair's progress outlive the partner.
     if (survivor.courtshipPartnerId === removedId) {
       survivor.courtshipPartnerId = undefined;
       survivor.courtshipProgress = 0;

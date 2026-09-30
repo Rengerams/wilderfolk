@@ -2,6 +2,16 @@
 
 ## <u>[0.6.5.2]</u> — 2026-09-30
 
+- **Gave feuds a real source** — two settlers whose traits clash and who share a home, workplace or job can now drift into one, as can a wrong: a famine foot-bite, losing an election, or a rumour that reaches a cheated spouse. A 500-settler colony settles near a dozen live feuds.
+
+- **Fixed the year the player reads, so the colony's first year is Year 1 and not Year 0** — every notice, log line, header and panel now reads the year through one formatter that adds one; the stored year, its comparisons and the save format are untouched.
+
+- **Fixed the family tree so it draws the whole family from any member** — one row per generation with parents, grandparents, siblings, spouses and descendants; the clicked settler is highlighted, the same family appears whoever was clicked, and cycles and remarriages no longer cut it short.
+
+- **Restored tabs in the work & venue hours window** — where three editors were stacked and scrolled, there is now an index you switch between, and every editor stays mounted so changing tab cannot discard a half-set hour window.
+
+- **Put the child marker of the settler table back on the chip row** — a juvenile name no longer carries a bare emoji; a labelled child chip with a tooltip sits beside the no job and no home chips.
+
 - **Added one test entry point with args, replacing seventeen npm scripts** — the gates are now one runner with a step menu, and the old names stay as aliases. Green: 245 files, 1495 tests, types and lint.
 
 - **Fixed the lint gate, which named 70 files it never read** — the linter honours the ignore file, so listing the tooling directory linted nothing for a month; reading it surfaced 134 pre-existing findings, mostly missing node types.

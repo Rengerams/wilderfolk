@@ -5,7 +5,7 @@
  * perf harness reports under the name `pathCalls`. That name was always a proxy: the harness
  * record itself carries `pathCalls.source` telling a reader not to quote the number as
  * pathfinding. This module is the real thing —  A* invocations, node expansions, cache
- * behaviour and passability-grid rebuilds — so P2/O4 can report path calls honestly.
+ * behaviour and passability-grid rebuilds — so path calls can be reported honestly.
  *
  * Follows the established `spatialQueryMetrics` contract: opt-in via env flag, per-tick and
  * session buckets, and **zero overhead when disabled** (every recorder returns immediately on a

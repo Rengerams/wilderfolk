@@ -3,6 +3,7 @@ import { BuildingType, EntityType, Season } from './gameTypes';
 import type { VisitorKind } from './gameTypes';
 import type { FocusHintAction } from './focusHints';
 import { NIGHT_START, TICKS_PER_DAY, getHourOfDay } from './dayCycle';
+import { displayYear } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
 import { ELECTION_INTERVAL_YEARS } from './villageLeadership';
 import { isFoodCritical } from './resourceUtils';
@@ -238,7 +239,7 @@ export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutori
     id: 'leadership_election',
     icon: '👑',
     title: 'Leadership election',
-    detail: `The first male pioneer leads until Year ${ELECTION_INTERVAL_YEARS}. After that, merit elections every ${ELECTION_INTERVAL_YEARS} years with a ceremony. The sitting head always runs when eligible; economy, scandals, and village health give a modest record edge or penalty — but a high-merit challenger can still win. See Village → Leadership.`,
+    detail: `The first male pioneer leads until Year ${displayYear(ELECTION_INTERVAL_YEARS)}. After that, merit elections every ${ELECTION_INTERVAL_YEARS} years with a ceremony. The sitting head always runs when eligible; economy, scandals, and village health give a modest record edge or penalty — but a high-merit challenger can still win. See Village → Leadership.`,
     action: { label: 'Leadership', id: 'open_village' },
   },
   first_challenge_done: {

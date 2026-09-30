@@ -258,7 +258,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   // `ctx.hasWell` / `ctx.hasHospital` are the colony-infrastructure flags owned by `gameTick`, which
   // derives them from `completed && faction !== 'rival'`. This used to re-derive them locally from
- // `completed` alone, so a rival camp's well satisfied "the colony has clean water". The
+  // `completed` alone, so a rival camp's well satisfied "the colony has clean water". The
   // context type still marks the fields optional for test contexts, so a flag the tick did not set
   // reads as "no such infrastructure" instead of being replaced by a second, weaker rule.
   const hasWell = ctx.hasWell === true;
@@ -351,10 +351,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const schoolReserved = new Map<number, number>();
 
   // Marching-raider groups for patrol reveal depend on the tick's raid state, not on the guard
-  // looking, so the first barracks watch on shift builds the index and the rest reuse it (N-3).
+  // looking, so the first barracks watch on shift builds the index and the rest reuse it.
   let patrolRevealIndex: PatrolRevealIndex | undefined;
 
-  // The village anchor was re-derived for every visitor, rival and barracks guard in this loop (N-4).
+  // The village anchor was re-derived for every visitor, rival and barracks guard in this loop.
   // Only the building half may be hoisted: nothing this loop reaches removes a building from
   // `updatedBuildings` or flips one's `completed`, `type`, `faction` or geometry, so the hall/house
   // answer is constant for the tick — while the settler half averages positions this very loop moves

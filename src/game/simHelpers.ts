@@ -159,7 +159,7 @@ export function addReputation(state: WorldState, amount: number): number {
  * one consumer of it. Visitor caravans price their trade by band (`groupEvents`), and rival
  * settlements decide how likely they are to raid by the same band (`frontierCombat`), so the
  * thresholds cannot live in either owner without the other hand-writing them — which is exactly
- * what had happened (audit "Reputation 80/30 bands": three separate `>= 80` / `<= 30` literals).
+ * what had happened ("Reputation 80/30 bands": three separate `>= 80` / `<= 30` literals).
  *
  * Retuning a threshold here moves both the prices and the raid odds together, by construction.
  */

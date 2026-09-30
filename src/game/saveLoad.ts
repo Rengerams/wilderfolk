@@ -108,7 +108,7 @@ function describeJsonShape(value: unknown): string {
  * happily returns `null`, `[]` or `'x'`, and reading `_version` off those threw a `TypeError`
  * out of an event handler: the file-load path (`App.handleLoadFromFile` via `FileReader.onload`)
  * has no try/catch of its own, so a `null` payload produced no toast, no menu close and no
- * visible cause (P-1). Every non-object payload is now a refusal, not an exception.
+ * visible cause. Every non-object payload is now a refusal, not an exception.
  */
 export function parseSaveJson(raw: string | null | undefined): SaveReadResult {
   if (!raw || !raw.trim()) return { valid: false, reason: 'empty' };
@@ -160,7 +160,7 @@ export function describeSaveReadFailure(
  *
  * The `unrestorable` detail (the field that was missing or mistyped) is carried into the message:
  * "could not be restored" alone told the player nothing and left the one fact worth reporting in the
- * console (P-1).
+ * console.
  */
 export function describeSaveLoadOutcome(failure: SaveLoadFailure): string {
   if (failure.reason === 'unrestorable') {
@@ -596,7 +596,7 @@ function findUnrestorableEntityField(parsed: Record<string, unknown>): string | 
  * payload that parsed could not be restored.
  *
  * `loadGameFromParsed` collapsed every restore failure into `null`; this keeps the cause so
- * `describeSaveLoadOutcome` can name the field and `loadGameOutcome` can pass it on (P-1).
+ * `describeSaveLoadOutcome` can name the field and `loadGameOutcome` can pass it on.
  */
 export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): SaveLoadOutcome {
   const unrestorableField = findUnrestorableField(parsed);
@@ -931,11 +931,11 @@ export function hasSave(): boolean {
  * UI gate built on it (`App.canLoadSavedGame`, the menu's disabled Load item) therefore told the
  * player there was no save at all after a build update, while their colony sat in the slot — the
  * opposite of the truth, and the reason `describeSaveReadFailure({reason:'version-mismatch'})` could
- * only ever be reached from a running session (P-2). Gating Load on *presence* runs the load path,
+ * only ever be reached from a running session. Gating Load on *presence* runs the load path,
  * which reports the real cause through `describeSaveLoadOutcome`.
  *
  * Raw slot presence on purpose: it must not depend on parse validity. A blocked-storage throw reads
- * as "absent", which is the pre-P-2 behaviour and the only safe answer when nothing can be read.
+ * as "absent", which is the only safe answer when nothing can be read.
  */
 export function hasSaveSlot(): boolean {
   try {

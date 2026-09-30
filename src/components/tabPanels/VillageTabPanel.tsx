@@ -146,7 +146,7 @@ export default function VillageTabPanel({
   const recruitEligibility = getRecruitSettlerEligibility(state);
   const canRecruit = recruitEligibility.ok;
   // The immigration cap's owner — six sites used to read the raw `maxHumanPopulation` field while the
- // owner derived a fallback for a save without it.
+  // owner derived a fallback for a save without it.
   const popCap = resolvePopulationCap(state);
   /** Which subject window is open, if any — the same index-plus-windows shape the building panel uses. */
   const [openSubject, setOpenSubject] = useState<'population' | 'food' | 'leadership' | 'roster' | 'armament' | 'reputation' | null>(null);

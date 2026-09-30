@@ -183,7 +183,7 @@ export default function GameMapStage({
         <label className="sr-only" htmlFor="camera-zoom-preset">
           Zoom level
         </label>
-        {/* Audit R20: the panel stacked the snapped preset % above the live zoom % with no visible
+        {/* The panel stacked the snapped preset % above the live zoom % with no visible
             label, so after one `+` the player saw "145%" over "160%" and no way to tell which was
             which without hovering. Both now say what they are. */}
         <span className="text-center text-[9px] font-semibold uppercase tracking-wider text-stone-500">

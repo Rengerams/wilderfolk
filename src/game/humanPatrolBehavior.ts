@@ -61,7 +61,7 @@ export function detectRaidersForPatrol(
   for (const groupId of detectedGroups) {
     // The reveal rule itself lives in `watchtowerDetection.revealRivalGroup` — this path and the
     // watchtower path both end in "clear `hiddenFromPlayer`, set `detectedByPatrol`, announce once per
- // band", so it is written once. A soldier who spots one raider reveals the
+    // band", so it is written once. A soldier who spots one raider reveals the
     // whole band, so no per-member gate is passed.
     const { newlyDetected } = revealRivalGroup(index.membersByGroup.get(groupId) ?? []);
     if (newlyDetected) {

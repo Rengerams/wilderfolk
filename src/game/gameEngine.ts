@@ -230,9 +230,8 @@ export {
   hasSave,
   // Re-exported beside `hasSave` because the shell must be able to tell the two questions apart —
   // "is there a save in the slot" (`hasSaveSlot`) versus "can this build load it" (`hasSave`). The
-  // player-visible Load affordance depends on the first and the refusal message on the second
- //. Same owner (`saveLoad`), so this is a façade export, not a second
-  // definition.
+  // player-visible Load affordance depends on the first and the refusal message on the second.
+  // Same owner (`saveLoad`), so this is a façade export, not a second definition.
   hasSaveSlot,
   deleteSave,
   downloadSaveFile,

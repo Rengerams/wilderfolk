@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { EntityType, type Entity } from '../src/game/gameTypes';
-import { buildFamilyTree, groupFamiliesBySurname } from '../src/game/familyTree';
+import {
+  buildFamilyTree,
+  buildFullFamilyTree,
+  groupFamiliesBySurname,
+  type FamilyTreePerson,
+  type FullFamilyTree,
+} from '../src/game/familyTree';
 
 function human(partial: Partial<Entity> & { id: number; name: string }): Entity {
   return {
@@ -130,5 +136,118 @@ describe('familyTree', () => {
     expect(groups[0].surname).toBe('Bell');
     expect(groups[0].children).toBe(1);
     expect(groups[0].adults).toBe(1);
+  });
+});
+
+const drawnIds = (tree: FullFamilyTree): number[] =>
+  tree.rows.flatMap((row) => row.members.map((member) => member.id));
+
+const personIn = (tree: FullFamilyTree, id: number): FamilyTreePerson | undefined =>
+  tree.rows.flatMap((row) => row.members).find((member) => member.id === id);
+
+const relationOf = (tree: FullFamilyTree, id: number): string | undefined => personIn(tree, id)?.relation;
+
+/** The family's shape as rows of ids, sorted inside each row so member order never matters. */
+const rowsOf = (tree: FullFamilyTree): number[][] =>
+  tree.rows.map((row) => row.members.map((member) => member.id).sort((a, b) => a - b));
+
+describe('buildFullFamilyTree', () => {
+  /** Four generations: grandparents, two children (one married in), grandchildren including a cousin, one great-grandchild. */
+  function fourGenerations(): { all: Entity[]; focus: Entity; oma: Entity } {
+    const oma = human({ id: 1, name: 'Oma', gender: 'female', partnerId: 2, childrenIds: [3, 4], generation: 1 });
+    const opa = human({ id: 2, name: 'Opa', gender: 'male', partnerId: 1, childrenIds: [3, 4], generation: 1 });
+    const mother = human({
+      id: 3, name: 'Mother', gender: 'female', motherId: 1, fatherId: 2, partnerId: 6, childrenIds: [5, 7], generation: 2,
+    });
+    const uncle = human({
+      id: 4, name: 'Uncle', gender: 'male', motherId: 1, fatherId: 2, partnerId: 10, childrenIds: [11], generation: 2,
+    });
+    const father = human({ id: 6, name: 'Father', gender: 'male', partnerId: 3, childrenIds: [5, 7], generation: 2 });
+    const wife = human({ id: 10, name: 'Wife', gender: 'female', partnerId: 4, childrenIds: [11], generation: 2 });
+    const focus = human({
+      id: 5, name: 'Focus', gender: 'female', motherId: 3, fatherId: 6, partnerId: 9, childrenIds: [8], generation: 3,
+    });
+    const sister = human({ id: 7, name: 'Sister', gender: 'female', motherId: 3, fatherId: 6, generation: 3 });
+    const cousin = human({ id: 11, name: 'Cousin', gender: 'female', motherId: 10, fatherId: 4, generation: 3 });
+    const husband = human({ id: 9, name: 'Husband', gender: 'male', partnerId: 5, childrenIds: [8], generation: 3 });
+    const grandchild = human({
+      id: 8, name: 'Grandchild', gender: 'male', age: 4, isJuvenile: true, motherId: 5, fatherId: 9, generation: 4,
+    });
+    return { all: [oma, opa, mother, uncle, father, wife, focus, sister, cousin, husband, grandchild], focus, oma };
+  }
+
+  it('resolves the same family read from a grandchild and from their grandmother', () => {
+    const { all, focus, oma } = fourGenerations();
+    const fromFocus = buildFullFamilyTree(focus, all);
+    const fromOma = buildFullFamilyTree(oma, all);
+
+    // Same people in the same generations, because membership is resolved from the graph and not from
+    // whoever was clicked.
+    expect(rowsOf(fromFocus)).toEqual(rowsOf(fromOma));
+    expect(drawnIds(fromFocus).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(fromFocus.memberCount).toBe(11);
+    expect(fromFocus.truncated).toBe(false);
+
+    // The clicked settler is the highlighted one, and leads their own row.
+    expect(personIn(fromFocus, 5)?.isFocus).toBe(true);
+    expect(personIn(fromOma, 5)?.isFocus).toBe(false);
+    expect(personIn(fromOma, 1)?.isFocus).toBe(true);
+    expect(fromFocus.rows.find((row) => row.delta === 0)?.members[0].id).toBe(5);
+    expect(fromOma.rows.find((row) => row.delta === 0)?.members[0].id).toBe(1);
+
+    // Ancestors, collaterals and married-in relatives are named from the clicked settler's side.
+    expect(relationOf(fromFocus, 1)).toBe('Grandmother');
+    expect(relationOf(fromFocus, 3)).toBe('Mother');
+    expect(relationOf(fromFocus, 6)).toBe('Father');
+    expect(relationOf(fromFocus, 4)).toBe('Uncle');
+    expect(relationOf(fromFocus, 10)).toBe('In-law');
+    expect(relationOf(fromFocus, 9)).toBe('Spouse');
+    expect(relationOf(fromFocus, 7)).toBe('Sibling');
+    expect(relationOf(fromFocus, 11)).toBe('Cousin');
+    expect(relationOf(fromFocus, 8)).toBe('Child');
+    expect(relationOf(fromOma, 3)).toBe('Adult child');
+    expect(relationOf(fromOma, 6)).toBe('In-law');
+    expect(relationOf(fromOma, 5)).toBe('Grandchild');
+    expect(relationOf(fromOma, 8)).toBe('Great-grandchild');
+  });
+
+  it('draws each person once and terminates when the kinship records form a parent/child cycle', () => {
+    const oma = human({ id: 1, name: 'Oma', gender: 'female', partnerId: 2, fatherId: 3 });
+    const opa = human({ id: 2, name: 'Opa', gender: 'male', partnerId: 1 });
+    const child = human({ id: 3, name: 'Child', gender: 'male', motherId: 1, fatherId: 2 });
+    // Contradictory records: the child is also the grandmother's father, which is a cycle in the graph.
+    const all = [oma, opa, child];
+    const tree = buildFullFamilyTree(oma, all);
+
+    expect(tree.memberCount).toBe(3);
+    expect(drawnIds(tree).sort((a, b) => a - b)).toEqual([1, 2, 3]);
+    expect(new Set(drawnIds(tree)).size).toBe(3);
+  });
+
+  it('names the other parent of an earlier marriage, marks a child born outside wedlock, and marks an adoptive father', () => {
+    const father = human({ id: 1, name: 'Sire', gender: 'male', partnerId: 3, childrenIds: [4, 5, 6], generation: 1 });
+    const firstWife = human({ id: 2, name: 'Margery', gender: 'female', childrenIds: [4], generation: 1 });
+    const secondWife = human({ id: 3, name: 'Joan', gender: 'female', partnerId: 1, childrenIds: [5, 6], generation: 1 });
+    const earlierChild = human({ id: 4, name: 'Earliest', gender: 'male', age: 20, motherId: 2, fatherId: 1, generation: 2 });
+    const currentChild = human({
+      id: 5, name: 'Current', gender: 'male', age: 9, isJuvenile: true, motherId: 3, fatherId: 1, generation: 2,
+    });
+    const bastard = human({
+      id: 6, name: 'Bastard', gender: 'female', age: 9, isJuvenile: true, isBastard: true, motherId: 3, fatherId: 1, generation: 2,
+    });
+    const adopted = human({ id: 7, name: 'Adopted', gender: 'male', age: 25, adoptiveFatherId: 1, generation: 2 });
+    const all = [father, firstWife, secondWife, earlierChild, currentChild, bastard, adopted];
+
+    const tree = buildFullFamilyTree(father, all);
+    // The earlier marriage is named; the child of the current one is not.
+    expect(personIn(tree, 4)?.detail).toBe('20y · with Margery');
+    expect(personIn(tree, 5)?.detail).toBe('9y');
+    expect(relationOf(tree, 4)).toBe('Adult child');
+    expect(relationOf(tree, 6)).toBe('Child · outside wedlock');
+
+    // The same record reads as an adoptive father from the adopted settler's side.
+    const adoptedTree = buildFullFamilyTree(adopted, all);
+    expect(relationOf(adoptedTree, 1)).toBe('Adoptive father');
+    expect(relationOf(adoptedTree, 4)).toBe('Sibling');
   });
 });

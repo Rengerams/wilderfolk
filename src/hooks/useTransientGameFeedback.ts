@@ -99,7 +99,7 @@ export function getBigNewsAutoDismissIds(
  * removed an expired toast, the next delta restored it (its id was never recorded), the reconciliation
  * effect cancelled the restored toast's timer, a fresh 12 s timer was armed, and 2 s later the sweep
  * removed it again. The player saw the card blink out and back every two seconds and never leave on its
- * own, which is what `NOTIFICATION_DISPLAY_MS` was added to fix (`LIVE-FINDINGS-STATUS.md`, F22). Every
+ * own, which is what `NOTIFICATION_DISPLAY_MS` was added to fix. Every
  * removal now routes through the same ledger the comment on `MAX_DISMISSED_NOTIFICATION_IDS` claims.
  */
 export function expireNotifications(
@@ -109,7 +109,7 @@ export function expireNotifications(
   if (!world.notifications || world.notifications.length === 0) return;
   // One lifetime, one name: the sweeper cutoff and the per-toast timer both read
   // `NOTIFICATION_DISPLAY_MS`. They were two 12_000 constants, so lowering the sweeper's copy
- // below the timer's restored the F22 blink loop.
+  // below the timer's restored the blink loop.
   const cutoff = now - NOTIFICATION_DISPLAY_MS;
   const expired = world.notifications.filter((notification) => notification.createdAt <= cutoff);
   if (expired.length === 0) return;

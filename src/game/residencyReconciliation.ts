@@ -46,7 +46,7 @@ export function rebalanceOvercrowdedResidences(
   residences: Building[],
 ): boolean {
   // One forward pass buckets the candidate occupants by residence instead of re-filtering the whole
-  // settler list once per residence (N-7 — the same shape `syncResidenceOccupants` below uses). The
+  // settler list once per residence — the same shape `syncResidenceOccupants` below uses. The
   // bucket **order** is the `humans` order the per-residence `.filter()` emitted, because a single
   // forward pass appends in that order. Exactly equivalent despite the eviction below: the loop's
   // only state write is `residenceBuildingId = undefined` (:77) and a settler holds at most one
@@ -111,7 +111,7 @@ export function isResidenceOccupantEntity(entity: Entity): boolean {
 /**
  * Keep house/mansion occupants in sync with residenceBuildingId for the UI.
  *
- * One forward pass over `humans` buckets occupant ids by residence (N-7) instead of re-scanning the
+ * One forward pass over `humans` buckets occupant ids by residence instead of re-scanning the
  * whole array once per residence. The occupant id **order** is unchanged: the per-building
  * `.filter().map()` this replaces emitted ids in `humans` order, and appending to a building's
  * bucket during the single forward pass emits exactly that order

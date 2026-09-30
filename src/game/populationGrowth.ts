@@ -251,7 +251,7 @@ export function getPopulationGrowthReport(state: WorldState): PopulationGrowthRe
 
   const openSlots = openCapSlots(cap, pop);
   // The inclusive bed count, from its own owner — this line reports spare capacity, not assignable
- // housing, so it reads `getOpenBeds` rather than summing `beds - pop` here.
+  // housing, so it reads `getOpenBeds` rather than summing `beds - pop` here.
   const openBeds = getOpenBeds(state);
   const overcrowded = isOvercrowded(state);
   const food = getFoodAmount(state);

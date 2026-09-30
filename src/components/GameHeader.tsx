@@ -4,6 +4,7 @@ import ResourceBadge from './ResourceBadge';
 import type { WorldState } from '../game/gameTypes';
 import { WEATHER_CONFIGS } from '../game/gameTypes';
 import { isNightHour, getHourOfDay, getWeekdayLabel, isWeekend, getAbsoluteCalendarDay, TICKS_PER_DAY } from '../game/dayCycle';
+import { displayYear } from '../game/dayCycleClock';
 import { DEFAULT_WORK_SCHEDULE, getWorkSchedule, getWorkScheduleLabel } from '../game/workSchedule';
 import { getOpenPlayerBeds, getTotalBeds, isPopulationNearCap, resolvePopulationCap } from '../game/populationGrowth';
 import { isResourceCapped } from '../game/resourceUtils';
@@ -120,16 +121,16 @@ tutorialsEnabled,
   const dailyTempC = computeDailyTemperatureC(world.season, world.weather, world.dayInYear, world.year);
   const seasonLabel = SEASON_LABELS[world.season];
   // The band and the cap are the growth owner's (`POPULATION_NEAR_CAP_RATIO` /
- // `resolvePopulationCap`); this view only paints the answer. The open-bed
+  // `resolvePopulationCap`); this view only paints the answer. The open-bed
   // figure is the assignable one: the chip's "N open" means "a settler could sleep here", not
- // "some bed in the valley is empty".
+  // "some bed in the valley is empty".
   const popNearCap = isPopulationNearCap(world);
   const popCap = resolvePopulationCap(world);
   const beds = getTotalBeds(world);
   const openBeds = getOpenPlayerBeds(world);
   const absoluteDay = getAbsoluteCalendarDay(world.tick);
   const workSchedule = getWorkSchedule(world);
-  // Roadmap P6 / audit R38: the window that decides whether production happens at all was
+  // The window that decides whether production happens at all was
   // tooltip-only, so a player who set 06:00–16:00 saw no sign of it on the bar.
   const workWindowIsDefault =
     workSchedule.startHour === DEFAULT_WORK_SCHEDULE.startHour
@@ -169,7 +170,7 @@ tutorialsEnabled,
             onClick={onFocusLeader}
             disabled={!onFocusLeader}
             className="hidden max-w-[11rem] shrink items-center gap-1 rounded-lg bg-amber-950/70 px-2 py-1 text-left ring-1 ring-amber-500/50 hover:bg-amber-900/80 disabled:cursor-default sm:flex"
-            title={`Village head since Year ${world.leaderSinceYear} — click to find on map`}
+            title={`Village head since Year ${displayYear(world.leaderSinceYear)} — click to find on map`}
             aria-label={`Village head ${leaderLabel}`}
           >
             <span className="text-sm leading-none" aria-hidden>👑</span>
@@ -192,14 +193,14 @@ tutorialsEnabled,
       <div className="flex shrink-0 items-center gap-2">
         <div
           className="hud-chip flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs sm:px-2.5 sm:text-[13px]"
-          title={`${seasonLabel} · ${formatTemperatureC(dailyTempC)} · ${weekday}${weekend ? ' (free)' : ` (work ${getWorkScheduleLabel(workSchedule)})`} · Year ${world.year} · Day ${world.dayInYear}${world.weather !== 'clear' ? ` · ${WEATHER_CONFIGS[world.weather].label}` : ''}${world.festival ? ` · ${world.festival.name}` : ''} · sim tick ${world.tick} (day ${absoluteDay})${showSimTick ? '' : ' — enable “Show sim tick” in Menu → Settings to pin tick on the bar'}`}
+          title={`${seasonLabel} · ${formatTemperatureC(dailyTempC)} · ${weekday}${weekend ? ' (free)' : ` (work ${getWorkScheduleLabel(workSchedule)})`} · Year ${displayYear(world.year)} · Day ${world.dayInYear}${world.weather !== 'clear' ? ` · ${WEATHER_CONFIGS[world.weather].label}` : ''}${world.festival ? ` · ${world.festival.name}` : ''} · sim tick ${world.tick} (day ${absoluteDay})${showSimTick ? '' : ' — enable “Show sim tick” in Menu → Settings to pin tick on the bar'}`}
         >
           <span className={seasonTextClass(world.season)}>{seasonLabel}</span>
           <span className="font-mono text-stone-200">{formatTemperatureC(dailyTempC)}</span>
           <span className="text-stone-400">·</span>
           <span className={`font-semibold ${weekend ? 'text-emerald-400' : 'text-stone-300'}`}>{weekday}</span>
           <span className="text-stone-400">·</span>
-          <span className="text-stone-300">Y{world.year} D{world.dayInYear}</span>
+          <span className="text-stone-300">Y{displayYear(world.year)} D{world.dayInYear}</span>
           <span className="text-stone-400">·</span>
           <Emoji>{isNight ? '🌙' : weekend ? '🌿' : '☀️'}</Emoji>
           <span className="font-mono text-white">{formatHour(hour)}</span>
@@ -343,8 +344,8 @@ tutorialsEnabled,
                     type="button"
                     onClick={() => onOpenSubject(id)}
                     // `aria-current`, not `aria-pressed`: the doors are a navigation set, and which
-                    // subject is open must be *stated*, not only painted — the contract audit A-6
-                    // established for the nav strip these doors replaced
+                    // subject is open must be *stated*, not only painted — the contract
+                    // this nav strip was built on
                     // (`tests/keyboardGuards.contract.test.ts`).
                     aria-current={open}
                     className={`rounded p-0.5 text-[11px] leading-none transition-colors ${

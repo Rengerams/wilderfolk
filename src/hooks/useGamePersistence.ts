@@ -243,7 +243,7 @@ export function useGamePersistence({
   useEffect(() => {
     return () => {
       // No loop means no colony to save: under StrictMode the mount effect runs twice and an
-      // unguarded unmount save would overwrite the real slot with an empty world (R1).
+      // unguarded unmount save would overwrite the real slot with an empty world.
       //
       // The rule's remedy (capture `.current` at effect setup) would delete that guard: this effect
       // runs on mount, when no loop exists yet, so a captured value is always null and the save never

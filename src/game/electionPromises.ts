@@ -10,6 +10,7 @@
 import type { WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { getColonyDay } from './dayCycle';
+import { displayYear } from './dayCycleClock';
 import { addBigNews } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags } from './storyHelpers';
@@ -219,7 +220,7 @@ export function recordElectionPromises(state: WorldState, year: number): void {
   logEvent(
     state,
     'event',
-    `Campaign promises recorded for Year ${year}: 1) ${p1.label} 2) ${p2.label}.`,
+    `Campaign promises recorded for Year ${displayYear(year)}: 1) ${p1.label} 2) ${p2.label}.`,
     undefined,
   );
 }
@@ -255,7 +256,7 @@ export function tickElectionPromises(state: WorldState): void {
     logEvent(
       state,
       'scandal',
-      `${leaderName ? `${leaderName}'s b` : 'B'}roken election promises are the talk of the village (Year ${year}).`,
+      `${leaderName ? `${leaderName}'s b` : 'B'}roken election promises are the talk of the village (Year ${displayYear(year)}).`,
       leaderName,
     );
   }
@@ -270,7 +271,7 @@ export function tickElectionPromises(state: WorldState): void {
   logEvent(
     state,
     'event',
-    `Year ${year} election promises evaluated: ${kept}/${PROMISE_COUNT} kept (reputation ${repDelta >= 0 ? '+' : ''}${repDelta}).`,
+    `Year ${displayYear(year)} election promises evaluated: ${kept}/${PROMISE_COUNT} kept (reputation ${repDelta >= 0 ? '+' : ''}${repDelta}).`,
     leaderName,
   );
 }

@@ -38,7 +38,7 @@ function reconcileNewSettlerAssignments(state: WorldState): void {
   assignMissingResidences(settlers, state.buildings, state.entities);
   // `state` supplies `worldSlices`, so the pass uses the player's workforce preset and venue window
   // instead of the defaults — a freshly recruited settler used to be staffed under 'survival' and
- // against the default tavern hours.
+  // against the default tavern hours.
   assignMissingWorkers(settlers, state.buildings, state);
 }
 

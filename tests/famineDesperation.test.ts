@@ -3,14 +3,16 @@
  *
  * When food is truly gone and a settler is starving, the most desperate adult
  * may lunge at a neighbour's foot. Deliberately NON-LETHAL: no death, no energy
- * loss. The victim is not amused, so the pair's friendship score drops.
+ * loss. The victim is not amused: the friendship score drops, and a landed bite
+ * opens a feud.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { tickFamineDesperation } from '../src/game/famineDesperation';
 import { getSimRng, setSimSeed } from '../src/game/simRng';
-import { friendshipScore } from '../src/game/relationships';
+import { feudScore, friendshipScore } from '../src/game/relationships';
+import { Famine } from '../src/game/gameConstants';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 
 function human(id: number, energyRatio: number): Entity {
@@ -59,8 +61,24 @@ function seedThatFiresBite(): number {
   throw new Error('no seed produced a firing bite attempt');
 }
 
-function makeState(): { state: WorldState; attacker: Entity; victim: Entity } {
-  seedThatFiresBite();
+/** The same search, requiring the success roll too: attempt, victim pick, then success. */
+function seedThatLandsBite(): number {
+  for (let seed = 1; seed < 5000; seed++) {
+    setSimSeed(seed);
+    const rng = getSimRng('famine-desperation');
+    const attempt = rng();
+    rng(); // victim pick
+    const success = rng();
+    if (attempt < 0.15 && success < 0.4) {
+      setSimSeed(seed);
+      return seed;
+    }
+  }
+  throw new Error('no seed produced a landed bite');
+}
+
+function makeState(seedForBite: () => number = seedThatFiresBite): { state: WorldState; attacker: Entity; victim: Entity } {
+  seedForBite();
   const attackerId = 1;
   const attacker = human(attackerId, 0.1); // starving
   const victim = human(9001, 0.9); // comfortable
@@ -173,5 +191,15 @@ describe('famine desperation bite (joke)', () => {
     const after = friendshipScore(attacker, victim.id);
     expect(after).toBeLessThan(before);
     expect(after).toBeGreaterThanOrEqual(0);
+  });
+
+  it('a landed bite opens a feud between the victim and the biter', () => {
+    const { state, attacker, victim } = makeState(seedThatLandsBite);
+
+    tickFamineDesperation(state, state.entities);
+
+    expect(state.eventLog[0].message).toContain('took a bite');
+    expect(feudScore(victim, attacker.id)).toBe(Famine.BITE_FEUD_AMOUNT);
+    expect(feudScore(attacker, victim.id)).toBe(Famine.BITE_FEUD_AMOUNT);
   });
 });

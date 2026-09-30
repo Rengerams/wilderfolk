@@ -272,7 +272,7 @@ export function startDialogueTreeChat(
   // *or* a paired session is live, and `showDialogueStep` clears the idle half's line while keeping its
   // session key. The raw test therefore read the idle half as free, and `entityB.chatDialogueSessionKey
   // = key` below overwrote an in-flight partner's key — one settler speaking two dialogue trees at once
- // while the old session entry stayed live. `isDialogueBusy` is the
+  // while the old session entry stayed live. `isDialogueBusy` is the
   // contract `tests/socialLife.dialogueBusy.test.ts` pins.
   if (isDialogueBusy(entityA)) return;
   if (!solo && entityB && isDialogueBusy(entityB)) return;
@@ -359,9 +359,9 @@ function advanceDialogue(
  *
  * A forced phrase abandons whatever dialogue session this settler held, and the **counterpart must be
  * released with it**: the session map entry is what `isDialogueBusy` reads, so deleting the entry while
- * leaving the partner's key behind stranded that settler as dialogue-busy on a session nobody owns
- *. `resolvePartner` is how the other half is reached; without it the
- * orphan is caught by `tickHumanChat`'s hoisted reclaim instead of never.
+ * leaving the partner's key behind stranded that settler as dialogue-busy on a session nobody owns.
+ * `resolvePartner` is how the other half is reached; without it the orphan is caught by
+ * `tickHumanChat`'s hoisted reclaim instead of never.
  */
 export function sayHumanChatPhrase(
   entity: ChatSpeaker,
@@ -397,7 +397,7 @@ export function tickHumanChat(
   // renderer-cache reset (boot, and every session swap), so a save/load during a paired dialogue
   // stranded that settler: `resolveSessionEntities` returns null on a missing entry, so it could never
   // advance, and it stayed excluded from greetings, workplace banter and ambient pairing until it
- // happened to speak a solo line.
+  // happened to speak a solo line.
   const orphanKey = entity.chatDialogueSessionKey;
   if (orphanKey && !dialogueSessions.has(orphanKey)) {
     entity.chatDialogueSessionKey = undefined;

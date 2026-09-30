@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { GameState } from './gameEngine';
+import { displayYear } from './dayCycleClock';
 import { ResourceIcon, type ResourceKey } from '../components/ResourceIcons';
 
 interface Props {
@@ -22,7 +23,7 @@ export default function StatisticsPanel({ state }: Props) {
           <StatBox label="Population" value={state.humanPopulation} icon="👤" color="text-amber-300" />
           <StatBox label="Reputation" value={state.villageReputation} icon="⭐" color="text-emerald-400" />
           <StatBox label="Buildings" value={state.totalBuildingsCompleted} icon="🏗️" color="text-blue-400" />
-          <StatBox label="Year" value={state.year} icon="📅" color="text-stone-300" />
+          <StatBox label="Year" value={displayYear(state.year)} icon="📅" color="text-stone-300" />
         </div>
       </div>
 
@@ -68,7 +69,7 @@ export default function StatisticsPanel({ state }: Props) {
               <span className="text-[10px] uppercase tracking-wider text-stone-400">Peak Population</span>
               <div className="text-[13px]">
                 <strong className="text-emerald-300">{lifetime.largestPopulation.count.toLocaleString()}</strong>
-                <span className="text-stone-400"> (Year {lifetime.largestPopulation.year})</span>
+                <span className="text-stone-400"> (Year {displayYear(lifetime.largestPopulation.year)})</span>
               </div>
             </div>
           </div>

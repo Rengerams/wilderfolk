@@ -422,7 +422,7 @@ export class GameWorkerHost {
     this.lastPausedSent = paused;
     const msg: WorkerRequest = { type: 'setPaused', proto: WORKER_PROTO, paused };
     // Only remember the value as sent if the post actually left: a DataCloneError must not stop a
- // later retry.
+    // later retry.
     if (!this.postControl(msg)) this.lastPausedSent = null;
   }
 
@@ -437,7 +437,7 @@ export class GameWorkerHost {
   /**
    * Post a fire-and-forget control message. `postMessage` throws synchronously (DataCloneError) for
    * a non-cloneable payload; without this the exception escaped into the caller — a React event
- * handler — instead of degrading to a worker fault.
+   * handler — instead of degrading to a worker fault.
    * Returns whether the message was posted.
    */
   private postControl(msg: WorkerRequest): boolean {

@@ -20,6 +20,7 @@
 import { useMemo, useState } from 'react';
 import type { WorldState } from '../../game/gameTypes';
 import { collectDashboard, explainSettler, resourceFillPercent, type DashboardData } from '../../game/dashboardData';
+import { displayYear } from '../../game/dayCycleClock';
 import { ECONOMY_SOURCE_LABELS } from '../../game/economyLedger';
 import { useOverlayKeyboard } from '../../hooks/useOverlayKeyboard';
 import { citizenGivenName } from '../../game/citizenId';
@@ -207,7 +208,7 @@ function SettlersTable({
               // The row is the only way to open the "Why this settler…" panel, and it was mouse-only:
               // no role, no tab stop and no key handler, so the panel was unreachable by keyboard or
               // assistive tech. `role="button"` + `tabIndex` + Enter/Space is the shape the mini-map
- // already uses for its own click-only canvas. The label is
+              // already uses for its own click-only canvas. The label is
               // explicit because a row's accessible name would otherwise be every cell concatenated.
               role={onSelect ? 'button' : undefined}
               tabIndex={onSelect ? 0 : undefined}
@@ -225,15 +226,17 @@ function SettlersTable({
                 onSelect ? 'cursor-pointer hover:bg-stone-800/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400/70' : ''
               } ${selectedId === s.id ? 'bg-stone-800/70' : ''}`}
             >
-              <td className="py-1 pr-2 text-stone-100">
-                {citizenGivenName(s)}
-                {s.juvenile ? ' 🧒' : ''}
-              </td>
+              <td className="py-1 pr-2 text-stone-100">{citizenGivenName(s)}</td>
               <td className="py-1 pr-2 capitalize text-sky-200">{s.role}</td>
               <td className="py-1 pr-2 text-stone-300">{s.hoursToday}h</td>
               <td className="py-1 pr-2 text-stone-300">{s.energyPct}%</td>
               <td className={`py-1 ${STATUS_STYLE[s.status] ?? 'text-stone-400'}`}>{s.status}</td>
               <td className="py-1">
+                {s.juvenile && (
+                  <span className="mr-1 rounded bg-stone-800 px-1 py-0.5 text-[9px] text-sky-300" title="Child — too young to take a job">
+                    child
+                  </span>
+                )}
                 {s.noWork && !s.juvenile && (
                   <span className="mr-1 rounded bg-stone-800 px-1 py-0.5 text-[9px] text-amber-300" title="No workplace assigned">
                     no job
@@ -312,7 +315,7 @@ export default function GameDashboard({
   const [openTab, setOpenTab] = useState<'settlers' | 'trend'>('settlers');
   const [selectedSettlerId, setSelectedSettlerId] = useState<number | null>(null);
   // The keyboard half of the overlay contract: the dashboard owns the keyboard while it is open and
- // handles Escape itself, in one place shared with the other three overlays.
+  // handles Escape itself, in one place shared with the other three overlays.
   // The focus half moved to `GameWindow`, which owns the element the trap must be attached to.
   useOverlayKeyboard('dashboard', onClose);
 
@@ -322,7 +325,7 @@ export default function GameDashboard({
       icon="🏘️"
       // The panel's own header line, kept as the window's subtitle: the shell owns the title bar, so the
       // date and the population sit under the title instead of in a second bar of their own.
-      subtitle={`Year ${data.year} · Day ${data.dayInYear} · ${data.season} · ${data.population.humans} settlers`}
+      subtitle={`Year ${displayYear(data.year)} · Day ${data.dayInYear} · ${data.season} · ${data.population.humans} settlers`}
       onClose={onClose}
       /*
        * A window, not the screen (owner: *"not full screen"*). Centred over the backdrop the shell

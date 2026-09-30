@@ -138,7 +138,7 @@ function repairAllHotelStayPointers(state: WorldState, hotels: readonly Building
 
 /**
  * A hotel with a free bed. Drops any guest that is no longer a live visitor, and — because this
- * function is exported and its pre-N-8 body repaired the pointers as part of that prune — clears the
+ * function is exported and its body repaired the pointers as part of that prune — clears the
  * dropped guests' own `hotelStayBuildingId` in the same call **when the prune actually dropped
  * something**. Inside `tickHotelLodging` the list is already pruned for the whole tick before this
  * runs, so the repair never fires there and the visitor × hotel loop stays O(guests) per hotel.
@@ -222,7 +222,7 @@ export function checkInVisitor(
   );
   // `isDialogueBusy`, not a raw counter: a guest whose line has ended but whose paired session is
   // still live reads as free to a `chatTicks` test, and the forced line below would abandon that
- // pair.
+  // pair.
   if (!isDialogueBusy(visitor)) {
     // A stateless roll keyed on the guest and the tick, matching the chat convention used
     // elsewhere (`humanChat`), so the greeting is reproducible instead of seedless.

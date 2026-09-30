@@ -257,7 +257,7 @@ export default function App() {
   // it". They were both seeded from `hasSave()`, which is the second meaning — so a slot holding a save
   // from a different build read as "No browser save", the Load action was disabled, and
   // `describeSaveReadFailure`'s "Save is from a different build … Start a new settlement" was
- // unreachable from this screen. Keeping the two apart is what lets the Load
+  // unreachable from this screen. Keeping the two apart is what lets the Load
   // affordance stay enabled and the refusal message be the thing the player reads.
   const [saveSlotPresent, setSaveSlotPresent] = useState(hasSaveSlot);
   const [hasSavedGame, setHasSavedGame] = useState(hasSave);
@@ -1228,7 +1228,7 @@ export default function App() {
         onTutorialChoiceChange={handleTutorialChoiceChange}
       />
       {/* The setup screen is a full-screen `z-50` overlay, so a refused load has to be drawn above
-          it — this is the screen whose "Load saved game" button produces the refusal (R39). */}
+          it — this is the screen whose "Load saved game" button produces the refusal. */}
       {saveToast && <SaveToastBanner toast={saveToast} onDismiss={dismissSaveToast} className="z-[60]" />}
       </Suspense>
     );
@@ -1797,7 +1797,7 @@ export default function App() {
             // hold the diagnostics drawer across the full 18.5rem — an empty box the owner reported as
             // *"now the right panel no need to be that big anymore"*. Nothing selected = the narrow
             // rail, and the map keeps the width (the same narrowing the collapsed branch already does
-            // for the same reason, Roadmap P6 / audit R40).
+            // for the same reason).
             hasInspectorSelection && !inspectorCollapsed ? 'w-[18.5rem]' : 'w-12'
           }`}
         >
@@ -2192,7 +2192,7 @@ function FavoriteFollowBanner({
   onStop: (id: number) => void;
 }) {
   // The owner's identified form: it keeps the `#id` (two nameless settlers must stay distinguishable
- // here) *and* the one nameless-settler fallback.
+  // here) *and* the one nameless-settler fallback.
   const label = formatCitizenName(fav);
   return (
     <div className="pointer-events-auto absolute left-1/2 top-14 z-20 -translate-x-1/2">

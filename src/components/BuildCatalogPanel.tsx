@@ -113,7 +113,7 @@ export default function BuildCatalogPanel({
                 && world.resources.gold >= config.cost.gold;
               // Both gates are the placement owners' own statements, so the catalogue cannot offer a
               // tile the placement command would refuse: the local tech test ignored the research
- // node, and the local unique-flag test restated the rule.
+              // node, and the local unique-flag test restated the rule.
               const locked = !!config.unlockRequirement
                 && !isBuildingTechUnlocked(config.unlockRequirement, world.unlockedTechs, world.researchNodes);
               const uniqueBuilt = isUniqueBuildingAlreadyBuilt(world, type);

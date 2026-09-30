@@ -260,7 +260,8 @@ describe('legacy goal: recovering from shortage', () => {
     state.resources.food = LEGACY_SHORTAGE_RECOVERY_FOOD;
     const status = goal(state, 'shortage_recovered');
     expect(status.achieved).toBe(true);
-    expect(status.evidence).toContain('Year 0');
+    // The lean year is stored as year 0 (above) and reads as Year 1 on screen.
+    expect(status.evidence).toContain('Year 1');
   });
 
   it('is not achieved while the larder is empty but no year closed lean', () => {

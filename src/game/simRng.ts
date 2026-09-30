@@ -240,9 +240,8 @@ export function getSimRng(owner: string): RngStream {
  *
  * Seeded from the active simulation seed so a replay of one seed still looks the same, but kept in a
  * separate registry that `snapshotSimRng`/`restoreSimRng` never read or write: the simulation worker
- * cannot know a presentation stream's position, so its snapshot must not rewind or delete one
- *. `setSimSeed`/`resetSimRng` do clear this registry, so a new world
- * starts every stream fresh.
+ * cannot know a presentation stream's position, so its snapshot must not rewind or delete one.
+ * `setSimSeed`/`resetSimRng` do clear this registry, so a new world starts every stream fresh.
  */
 export function getPresentationRng(owner: string): RngStream {
   let rng = presentationStreams.get(owner);

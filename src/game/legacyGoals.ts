@@ -29,6 +29,7 @@
  */
 import type { GameEventLog, WorldState } from './gameTypes';
 import type { YearlyStats } from './stats';
+import { displayYear } from './dayCycleClock';
 import { PROMISE_COUNT } from './electionPromises';
 import { Time } from './gameConstants';
 
@@ -168,7 +169,7 @@ export const LEGACY_GOALS: readonly LegacyGoalDefinition[] = [
     readEvidence: (state) => {
       const verdict = findPromiseVerdict(state.eventLog);
       if (!verdict || verdict.kept < LEGACY_PROMISES_KEPT) return null;
-      return `Year ${verdict.year} election promises evaluated: ${verdict.kept} of `
+      return `Year ${displayYear(verdict.year)} election promises evaluated: ${verdict.kept} of `
         + `${PROMISE_COUNT} campaign promises kept.`;
     },
   },
@@ -183,7 +184,7 @@ export const LEGACY_GOALS: readonly LegacyGoalDefinition[] = [
       const cure = findHowlerCure(state.eventLog);
       if (!cure) return null;
       const who = cure.entityName ?? 'A settler';
-      return `${who} — cured of the Moon Howler curse (Year ${cure.year}).`;
+      return `${who} — cured of the Moon Howler curse (Year ${displayYear(cure.year)}).`;
     },
   },
   {
@@ -201,7 +202,7 @@ export const LEGACY_GOALS: readonly LegacyGoalDefinition[] = [
       if (!shortage) return null;
       const stored = Math.floor(state.resources.food);
       if (stored < LEGACY_SHORTAGE_RECOVERY_FOOD) return null;
-      return `Year ${shortage.year} closed with an empty larder; the stores now hold ${stored} food.`;
+      return `Year ${displayYear(shortage.year)} closed with an empty larder; the stores now hold ${stored} food.`;
     },
   },
 ];

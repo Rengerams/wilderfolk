@@ -223,8 +223,8 @@ export class GameLoop {
               this.workerHost = null;
             }
             // A session swap during boot used to abandon the worker permanently: the loop ran on
-            // the main thread for the rest of the session with no recovery attempt
- //. Schedule the same recovery every other failure path uses.
+            // the main thread for the rest of the session with no recovery attempt. Schedule the
+            // same recovery every other failure path uses.
             this.scheduleWorkerRecovery();
             return;
           }
@@ -725,7 +725,7 @@ export class GameLoop {
    * the clone carried the worker's `paused` / `speed` / dismissed-id sets while `applySimTickDelta`
    * never writes those fields, and `mutateWorld` forwards a control to the worker only when it
    * changes — so a player-authored control made just before a save could be reverted on screen and
- * could not be re-sent.
+   * could not be re-sent.
    *
    * The returned world is hydrated so the caller can read it (and hand it to the save writer)
    * without hitting missing runtime caches. `this.world` keeps whatever the display left it as.
@@ -811,7 +811,7 @@ export class GameLoop {
 
     // Listeners are deliberately NOT cleared: `stop()` stops the frame loop, and a later
     // `start()` on the same instance must still have the UI subscribed — clearing them made a
- // stopped-then-started loop silently frozen. The set belongs to
+    // stopped-then-started loop silently frozen. The set belongs to
     // the instance, so dropping the loop drops the listeners with it.
     clearAllFactionWanderStates();
     this.workerHost?.dispose();
@@ -1041,7 +1041,7 @@ export class GameLoop {
    * harmless there: `gameTick` advances `state.tick` and runs all four layers *before* its own
    * invariant check, so each failed frame left one more partially-applied tick in the world — and,
    * because the throw escaped `frameBody`, it also skipped that frame's draw and UI notify, once per
-   * frame, forever (P-3). The snapshot/restore pair is the same one that path uses, so both sides
+   * frame, forever. The snapshot/restore pair is the same one that path uses, so both sides
    * now fail identically.
    *
    * Returns `true` when the tick was applied, `false` when it was rolled back.
@@ -1073,7 +1073,7 @@ export class GameLoop {
    * `snapshotDirtyKey()` tracks `w.tick` and `w.buildings.length` for buildings, while the snapshot
    * holds `world.buildings` **by reference** (`renderSnapshot.ts:117`). A repair, upgrade or recipe
    * command changes neither, so while paused the cached snapshot kept pointing at the pre-command
-   * array and the damage bar did not move until something unrelated changed the key (P-4).
+   * array and the damage bar did not move until something unrelated changed the key.
    * Invalidating on every out-of-tick world change is the honest statement — "the world object
    * changed, rebuild" — and costs nothing per frame, unlike folding a revision counter into the key.
    */

@@ -179,7 +179,7 @@ export function humanBuildingTarget(
    *  - the point was built in the **corner form** — `building.x + building.width / 2` — on a value
    *    that already *is* the footprint centre (`buildingGeometry`), so a crew stood half a footprint to
    *    the right of its own workplace. That is the "at the side of it" the owner saw, and it is the
-   *    same mistake the camera-focus callers made (F23).
+   *    same mistake the camera-focus callers made.
    *  - the only dispersion was `((seed % 7) - 3) * 6` from a hash of the entity id: **seven** possible
    *    x positions in a ±18 px band, an **identical y for everyone**, and past seven workers the hash
    *    collides so two settlers stand on the exact same pixel.

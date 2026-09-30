@@ -234,7 +234,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         // odour trail is transient and `loadGameFromParsed` recreates it.
         // The *live* worker world is a different matter. `scentGrid` is simulation state (the
         // accumulated predator odour grazers sample to flee), so invalidating it here zeroed the
- // trail on every manual save and every ~30 s auto-save. Capture
+        // trail on every manual save and every ~30 s auto-save. Capture
         // it across the rebuild — the clone is taken in between, without it.
         const liveSimulationState = captureSimulationState(world);
         invalidateWorldRuntimeCaches(world);
@@ -355,7 +355,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       case 'patchUi': {
         if (!world) break;
         // Only the player-authored fields are adopted; `bigNews`, `floatingTexts`, `activeEvent` and
- // `nextFloatingTextId` belong to the tick on this side.
+        // `nextFloatingTextId` belong to the tick on this side.
         applyWorkerUiPatch(world, msg);
         break;
       }

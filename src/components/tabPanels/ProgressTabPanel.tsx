@@ -6,7 +6,7 @@ import { canStartResearch } from '../../game/research';
 import { computeVillagePortrait } from '../../game/villagePortrait';
 import { formatResourceAmounts } from '../../game/resourceTypes';
 import SubjectWindow from '../SubjectWindow';
-// A-8: the sub-tab union is owned by the shell hook. A member added there compiled fine against this
+// The sub-tab union is owned by the shell hook. A member added there compiled fine against this
 // file's private copy and was then unreachable, because nothing here could name it.
 import type { ProgressSubTab } from '../../hooks/useGameShellState';
 
@@ -181,7 +181,7 @@ export default function ProgressTabPanel({
             type="button"
             className="relative"
             data-active={progressSubTab === id}
-            /* The selected sub-tab was conveyed by colour alone (`data-active` + CSS); R32. */
+            /* The selected sub-tab was conveyed by colour alone (`data-active` + CSS). */
             aria-pressed={progressSubTab === id}
             onClick={() => setProgressSubTab(id)}
           >
@@ -234,7 +234,7 @@ export default function ProgressTabPanel({
                     /**
                      * The research owner's gate, not a second copy of it: the local test dropped
                      * `node.prerequisites`, so the panel offered a Research button for a node whose
- * prerequisites were unmet and the command refused it.
+                     * prerequisites were unmet and the command refused it.
                      */
                     const canResearch = canStartResearch(state, node.id);
 

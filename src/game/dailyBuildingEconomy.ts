@@ -187,7 +187,7 @@ const isPassiveBuild = (type: BuildingType): boolean =>
 /**
  * Food-production multiplier one completed Mill gives the whole village.
  *
- * Exported because the inspector's Mill hint typed "+25%" as prose (audit C2 "Building output/tuning
+ * Exported because the inspector's Mill hint typed "+25%" as prose ("Building output/tuning
  * copy"): the tunable number lives here, and the hint reads it.
  */
 export const MILL_FOOD_PRODUCTION_MULT = 1.25;
@@ -901,7 +901,7 @@ function tickBuildingProduction(
           // honest: `+N gold · <recipe>` always means one full recipe.
           if (getAvailableStorageHeadroom(state, 'gold') < amount) {
             // Gold store at its cap: the recipe inputs are deliberately not consumed, so the workshop
-            // must say why it produced nothing — this used to be a completely silent no-op (F6).
+            // must say why it produced nothing — this used to be a completely silent no-op.
             addFloatingText(
               state,
               building.x + building.width / 2,

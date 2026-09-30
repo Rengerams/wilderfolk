@@ -47,6 +47,14 @@ export function isWorkDay(tick: number): boolean {
   return !isWeekend(tick);
 }
 
+/**
+ * The player's year: `WorldState.year` counts closed years from 0, so the first year reads as 1.
+ * Pass only an absolute year — a term interval such as `ELECTION_INTERVAL_YEARS` is a length.
+ */
+export function displayYear(storedYear: number): number {
+  return storedYear + 1;
+}
+
 export function ticksForDays(days: number): number {
   if (!Number.isFinite(days) || days <= 0) return 0;
   return Math.round(days * TICKS_PER_DAY);

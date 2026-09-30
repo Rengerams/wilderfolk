@@ -11,7 +11,7 @@
  * The split into `…FromBuildings` (a pure function of the building list) and
  * `getPlayerSettlerCenter` (which reads positions the human loop moves) is deliberate, not
  * incidental: `tickHumans` caches the building half for a whole tick and re-asks the entity half at
- * every call site (N-4). This module keeps that split at the leaf so neither reader has to restate
+ * every call site. This module keeps that split at the leaf so neither reader has to restate
  * it.
  *
  * Leaf on purpose: the only imports are types, so a renderer may depend on it without pulling in a
@@ -51,7 +51,7 @@ export function getPlayerCampCenterFromBuildings(buildings: readonly Building[])
  * The entity half: the mean position of the living player settlers, else the map centre.
  *
  * Reads live settler positions, which the human loop itself moves and can empty by killing one, so
- * it must never be cached across iterations of that loop (N-4).
+ * it must never be cached across iterations of that loop.
  */
 export function getPlayerSettlerCenter(
   state: Pick<WorldState, 'entities' | 'width' | 'height'>,

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { GameEventLog } from './gameTypes';
+import { displayYear } from './dayCycleClock';
 import { EVENT_LOG_FILTER_OPTIONS, getEventLogFilterLabel } from './eventLogFilters';
 import {
   downloadChronicleCSV,
@@ -58,7 +59,7 @@ const EVENT_COLORS: Record<GameEventLog['type'], string> = {
 const IN_GAME_LOG_LIMIT = 500;
 
 function formatEventLine(evt: GameEventLog): string {
-  return `Year ${evt.year}, Day ${evt.day} — ${evt.message}`;
+  return `Year ${displayYear(evt.year)}, Day ${evt.day} — ${evt.message}`;
 }
 
 export default function EventLogPanel({ events, meta }: Props) {
@@ -211,7 +212,7 @@ export default function EventLogPanel({ events, meta }: Props) {
                 {evt.message}
               </span>
               <span className="ml-1.5 whitespace-nowrap text-stone-600">
-                Y{evt.year} D{evt.day}
+                Y{displayYear(evt.year)} D{evt.day}
               </span>
             </div>
           </div>

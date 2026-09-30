@@ -538,7 +538,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
               if (isHumanPrey) {
                 // The beast keeps its own nameless label ("A Moon Howler"): the line is about the
                 // howler, not the person it was. The victim's name is the citizenId owner's join, which
- // this site (and `stats`) used to hand-roll.
+                // this site (and `stats`) used to hand-roll.
                 const wolfName = entity.name ? citizenFullName(entity) : 'A Moon Howler';
                 const victimName = citizenFullName(caughtPrey);
                 const line = WEREWOLF_ATTACK_LINES[

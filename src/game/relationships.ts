@@ -1,15 +1,18 @@
-import type { Entity, WorldState } from './gameTypes';
+import type { Entity, SettlerTrait, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
+import { getSimRng } from './simRng';
 
 /**
- * Relationship webs (Phase 7) — friendships grow from shared work, home and
- * childhood; feuds fester from wrongs and incompatible pairs, then slowly heal.
- * Both feed back into daily energy (friends lift you up; feuds wear you down).
+ * Relationship webs (Phase 7) — friendships grow from shared work, home and childhood; feuds come
+ * from a wrong or from clashing traits that share a home, workplace or job. Both move daily energy.
  */
 
 const FRIEND_PREFIX = 'friend_';
 const FEUD_PREFIX = 'feud_';
+
+/** This module's own simRng stream (docs/SIM_RNG_GUIDELINES.md). */
+const RELATIONSHIP_RNG_OWNER = 'relationships';
 
 /** A friendship at or above this is "close": it lifts daily energy and reads as a
  *  friend in the UI. Named because it was a bare `60` in four places. */
@@ -21,6 +24,46 @@ const feudKey = (id: number) => `${FEUD_PREFIX}${id}`;
 /** Cap all-pairs friendship bumps per shared group — a pathological group (e.g. the
  * whole colony sharing one home) must not cost O(H²) per day. */
 const PAIR_BUDGET = 40;
+
+/** Cap on daily drift-feud pair rolls. Must clear a real colony's scan (~10.6k pairs at 500
+ *  settlers), or the groups the pulse reaches last stop rolling and feuds skew to housemates. */
+const FEUD_ROLL_BUDGET = 20_000;
+
+/** Live feuds one settler may carry from drift; a wrong is never refused by this cap. */
+const MAX_LIVE_FEUDS_PER_SETTLER = 3;
+
+/** Daily chance per clashing trait pair that co-located settlers drift into a feud: about 0.2
+ *  starts a day at 500 settlers, which the 0.4/day fade holds near a dozen live feuds. */
+const INCOMPATIBLE_PAIR_FEUD_CHANCE_PER_DAY = 0.00005;
+
+/** 30 = the score a drift feud opens at: it clears `startFeud`'s "brewing" log and lasts ~75 days. */
+const INCOMPATIBLE_PAIR_FEUD_AMOUNT = 30;
+
+/** Trait pairs that rub two settlers the wrong way; each clash adds one to the daily feud chance. */
+const TRAIT_CLASHES: ReadonlyArray<readonly [SettlerTrait, SettlerTrait]> = [
+  ['brave', 'timid'],
+  ['gregarious', 'timid'],
+  ['gregarious', 'stoic'],
+  ['fierce', 'stoic'],
+  ['chivalrous', 'fierce'],
+];
+
+/** How many documented trait clashes two settlers carry between them. */
+function traitClashCount(a: Entity, b: Entity): number {
+  const aTraits = a.traits;
+  const bTraits = b.traits;
+  if (!aTraits?.length || !bTraits?.length) return 0;
+  let clashes = 0;
+  for (let i = 0; i < TRAIT_CLASHES.length; i++) {
+    const pair = TRAIT_CLASHES[i];
+    const x = pair[0];
+    const y = pair[1];
+    if ((aTraits.includes(x) && bTraits.includes(y)) || (aTraits.includes(y) && bTraits.includes(x))) {
+      clashes++;
+    }
+  }
+  return clashes;
+}
 
 export function friendshipScore(e: Entity, otherId: number): number {
   return e.friendships?.[friendKey(otherId)] ?? 0;
@@ -114,6 +157,8 @@ export function advanceSocialRelationships(
    * newborns) rather than `ctx.playerHumans`, which is the tick-start list.
    */
   peopleForPass?: Entity[],
+  /** Overridable for tests; production always draws from this module's own stream. */
+  rng: () => number = getSimRng(RELATIONSHIP_RNG_OWNER),
 ): void {
   const people = peopleForPass ?? playerHumansFrom(allAlive);
   if (people.length < 2) return;
@@ -150,7 +195,16 @@ export function advanceSocialRelationships(
 
   const seenPairs = new Set<string>();
   const processedFeuds = new Set<string>(); // Track feuds to avoid double-energy drain
-  
+  const feudRolledPairs = new Set<string>();
+  let feudRollsLeft = FEUD_ROLL_BUDGET;
+
+  // Live feuds per settler, counted once so the drift roll below is a Map lookup per pair.
+  const liveFeudsById = new Map<number, number>();
+  for (const p of people) {
+    const held = activeFeudCount(p);
+    if (held > 0) liveFeudsById.set(p.id, held);
+  }
+
   const pairKey = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
   
   const bumpFriendship = (a: Entity, b: Entity, amt: number) => {
@@ -159,6 +213,9 @@ export function advanceSocialRelationships(
     if (seenPairs.has(key)) return;
     
     seenPairs.add(key);
+
+    // A live feud blocks the friendship this grouping would otherwise grow.
+    if (feudScore(a, b.id) > 0) return;
     
     a.friendships = a.friendships || {};
     b.friendships = b.friendships || {};
@@ -170,6 +227,27 @@ export function advanceSocialRelationships(
     b.friendships[friendKey(a.id)] = next;
   };
 
+  /** Incompatible-pair source: co-located settlers whose traits clash may drift into a feud. */
+  const driftIntoFeud = (a: Entity, b: Entity) => {
+    if (a.id === b.id || feudRollsLeft <= 0) return;
+    const key = pairKey(a.id, b.id);
+    if (feudRolledPairs.has(key)) return;
+    feudRolledPairs.add(key);
+    feudRollsLeft--;
+
+    if (feudScore(a, b.id) > 0) return;
+    if ((liveFeudsById.get(a.id) ?? 0) >= MAX_LIVE_FEUDS_PER_SETTLER) return;
+    if ((liveFeudsById.get(b.id) ?? 0) >= MAX_LIVE_FEUDS_PER_SETTLER) return;
+
+    const clashes = traitClashCount(a, b);
+    if (clashes === 0) return;
+    if (rng() >= clashes * INCOMPATIBLE_PAIR_FEUD_CHANCE_PER_DAY) return;
+
+    startFeud(state, a, b, INCOMPATIBLE_PAIR_FEUD_AMOUNT);
+    liveFeudsById.set(a.id, (liveFeudsById.get(a.id) ?? 0) + 1);
+    liveFeudsById.set(b.id, (liveFeudsById.get(b.id) ?? 0) + 1);
+  };
+
   // Shared home, shared workplace and shared job draw people together (bounded to PAIR_BUDGET members)
   for (const group of [...residenceGroups.values(), ...workplaceGroups.values(), ...jobGroups.values()]) {
     if (group.length < 2) continue;
@@ -177,6 +255,7 @@ export function advanceSocialRelationships(
     for (let i = 0; i < capped.length; i++) {
       for (let j = i + 1; j < capped.length; j++) {
         bumpFriendship(capped[i], capped[j], 0.6);
+        driftIntoFeud(capped[i], capped[j]);
       }
     }
   }
@@ -278,7 +357,7 @@ export function advanceSocialRelationships(
   }
 }
 
-/** Start a feud: the wronged party now feuds with the wrongdoer (e.g. a caught affair). */
+/** Start a feud: the wronged party now feuds with the wrongdoer. */
 export function startFeud(state: WorldState, wronged: Entity, wrongdoer: Entity, amount = 25): void {
   if (wronged.id === wrongdoer.id) return;
   
