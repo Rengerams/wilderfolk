@@ -2,15 +2,15 @@
 
 ## <u>[0.6.5.2]</u> — 2026-09-30
 
-- **New (developer workflow): one test entry point with args, replacing seventeen npm scripts** — every gate's `&&` chain is now one runner, `npm test -- help` lists the steps, and the old script names stay as aliases. Green: 245 files, 1495 tests, types and lint clean in a single run.
+- **Added one test entry point with args, replacing seventeen npm scripts** — the gates are now one runner with a step menu, and the old names stay as aliases. Green: 245 files, 1495 tests, types and lint.
 
-- **Fixed (developer workflow): the lint gate never read the 70 files it named** — the linter honours the ignore file, and the tooling directory was listed in it, so the gate reported clean for a month while skipping the tree. Reading it surfaced 134 pre-existing findings, mostly missing node types outside the compiler's include. The gate now states its real scope.
+- **Fixed the lint gate, which named 70 files it never read** — the linter honours the ignore file, so listing the tooling directory linted nothing for a month; reading it surfaced 134 pre-existing findings, mostly missing node types.
 
-- **Changed (repository hygiene): the test suite, the tooling tree and 59 bug reports are under version control for the first time** — 316 files that existed only on this machine, taking the tracked count from 733 to 1112. Two ignore patterns were wrong: one excluded the protocol document itself, and one named a report file that had been renamed.
+- **Put the test suite, the tooling tree and 59 bug reports under version control for the first time** — 316 files that existed only on this machine, taking the tracked count from 733 to 1112.
 
-- **New (housekeeping): the clean command empties the scratch directory wholesale** — 391 MB of scratch, 44 MB of build output and 162 MB of leaked browser profiles, with no keep-list, because an exception list turns scratch into storage. Two durable things were rescued to their proper homes first.
+- **Added a clean command that empties the scratch directory wholesale** — 391 MB of scratch, 44 MB of build output and 162 MB of leaked browser profiles, with no keep-list, because an exception list turns scratch into storage.
 
-- **Fixed (docs): the front page pointed at three files that do not exist**, and described a tool that had been removed months earlier. The developer commands left it entirely — that page is for players, not for the build.
+- **Fixed the front page, which pointed at three files that do not exist** — and it described a tool removed months earlier. The developer commands left it; that page is for players.
 
 ## <u>[0.6.5.1]</u> — 2026-09-29
 

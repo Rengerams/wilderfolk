@@ -39,9 +39,10 @@ const LINK_DOCS = [
   'BUG_REPORTS/Readme.md',
 ];
 
-/** The cap for one changelog entry. The newest section's entries today run
- *  255-332 characters; the file's historical average is 1 698. */
-const MAX_ENTRY_CHARS = 400;
+/** The cap for one changelog entry. The rule is "briefly what the agent did",
+ *  so the newest section's entries run 165-225 characters. The file's historical
+ *  average is 1 698. */
+const MAX_ENTRY_CHARS = 300;
 
 /** A path or a filename with an extension. Entries must name no files: files
  *  move and die, and an entry pointing at one becomes a lie nobody can verify.
