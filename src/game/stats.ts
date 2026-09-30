@@ -3,6 +3,7 @@ import { EntityType as ET } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { citizenFullName } from './citizenId';
 import { isMarriedOrExpecting } from './civilStatus';
+import { bondCensus, type BondCensus } from './relationships';
 
 export interface YearlyStats {
   year: number;
@@ -28,6 +29,13 @@ export interface YearlyStats {
   };
   resources: { wood: number; stone: number; food: number; gold: number };
   ecosystem: { health: number; pollution: number; biodiversity: number };
+  /**
+   * How friendships stood at year end, with the year's growth.
+   *
+   * Optional so saves written before this field still load: readers default rather
+   * than migrate, the same way `marriedCount` and `upgradedTotal` are read.
+   */
+  social?: BondCensus & { bondsFormed?: number };
   events: string[];
 }
 
@@ -104,6 +112,22 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
   const prevUpgrades = prevYearStats?.buildings.upgradedTotal ?? 0;
   const upgradesThisYear = Math.max(0, currentUpgrades - prevUpgrades);
 
+  // Friendships, reported once a year. `bondsFormed` needs a baseline, and there are
+  // three cases: a fresh world's first year has none, and every standing bond really
+  // did form that year; a save written before this field existed has a previous year
+  // with no social block, so the growth is genuinely UNKNOWN and is omitted rather
+  // than printed as a wrong number; otherwise it is the difference.
+  const census = bondCensus(humans);
+  const prevSocial = prevYearStats?.social;
+  const social: BondCensus & { bondsFormed?: number } = {
+    ...census,
+    bondsFormed: prevSocial
+      ? Math.max(0, census.closeBonds - prevSocial.closeBonds)
+      : prevYearStats
+        ? undefined
+        : census.closeBonds,
+  };
+
   const stats: YearlyStats = {
     year: statsYear,
     population: {
@@ -138,6 +162,7 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
       biodiversity: state.biodiversityIndex,
     },
     events: [...(state.eventsThisYear ?? [])],
+    social,
   };
 
   return stats;

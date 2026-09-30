@@ -107,7 +107,7 @@ def main() -> None:
         tree('wf_renffr_stars', 'existential', 'gossip', 'skeptic', 'I saw Renffr in the stars…', 'Did anyone else see the sky?', "Just a shepherd's tale… right?"),
         tree('wf_renffr_mark', 'existential', 'believer', 'doubter', 'The mark of Renffr… plentiful harvest?', 'Grandmother feared that name.', 'Something wrote Renffr up there.'),
         tree('wf_renffr_letters', 'existential', 'scholar', 'farmer', 'The letters scattered…', 'Renffr — old valley omen.', 'Did anyone else see the sky?'),
-        tree('wf_election_vote', 'existential', 'voter_a', 'voter_b', "Who'll lead us?", "My vote's cast.", 'Decennial year!'),
+        tree('wf_election_vote', 'existential', 'voter_a', 'voter_b', "Who'll lead us?", "My vote's cast.", 'Election year!'),
         tree('wf_election_speech', 'existential', 'voter', 'neighbor', 'Heard the speeches?', 'Town meeting soon.', 'New leader, new luck.'),
         tree('wf_election_incumbent', 'existential', 'voter_a', 'voter_b', 'Incumbent again?', "Who'll lead us?", 'Heard the speeches?'),
     ]

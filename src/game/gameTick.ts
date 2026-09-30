@@ -15,6 +15,7 @@ import {
   EntityType,
 } from './gameTypes';
 import { recordYearlyStats, updateLifetimeStats } from './stats';
+import { logEvent } from './eventLog';
 import { ensureEntityByIdMap } from './entityIndex';
 import { getGrassGrowthMultiplier, getWinterEnergyPenalty } from './grassEcology';
 import {
@@ -85,6 +86,18 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     state.yearlyStats.push(yearlyStat);
     if (state.yearlyStats.length > 50) state.yearlyStats.shift();
     state.lifetimeStats = updateLifetimeStats(state, state.lifetimeStats);
+    // One line a year for the colony's social state, instead of a line per bond. That
+    // pattern made 60 % of a real exported 2 000-event chronicle friendship noise, and
+    // buried the leadership election inside it.
+    if (yearlyStat.social) {
+      const { closeBonds, withFriend, isolated, bondsFormed } = yearlyStat.social;
+      const growth = bondsFormed == null ? '' : `, ${bondsFormed} new`;
+      logEvent(
+        state,
+        'event',
+        `Year ${yearlyStat.year} in review — ${closeBonds} close friendships${growth}; ${withFriend} settlers have a friend, ${isolated} have none`,
+      );
+    }
     state.eventsThisYear = [];
     state.deathsThisYear = { humans: 0, animals: 0 };
     if (newYear > 0) {
@@ -300,7 +313,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // `isResidenceOccupantEntity` already tests `entity.alive`, so
   // `allAlive.filter((e) => e.alive && isResidenceOccupantEntity(e))` discarded every element the
   // callee discards again and produced identical buckets. Measured at 1.79 % of tick time
-  // (2026-09-20 audit: 1.79 % of tick time over an 8 640-tick instrumented run) for a
+ // for a
   // ~1 800-element copy per tick.
   syncResidenceOccupants(allAlive, updatedBuildings);
   if (isSpatialQueryMetricsEnabled()) flushSpatialQueryTickToSession();

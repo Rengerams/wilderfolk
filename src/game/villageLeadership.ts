@@ -49,8 +49,9 @@ const MONTHS_PER_YEAR = 12;
  * (`humanTick.ts:722`, `suppressIdle` and `onSchedule` both set), so the village stopped walking,
  * working and eating for a fifth of a year. The gossip itself never needed the hold: it is delivered
  * by `tickElectionGossip` on its own cadence from `tickElectionCeremony`, independent of where anyone
- * stands. An election is also a once-a-decade event (`ELECTION_INTERVAL_YEARS`), so a day of assembly
- * is the ceremony the owner asked for, and the ring maths (`getElectionGatherTarget`) is untouched.
+ * stands. An election is a scheduled event `ELECTION_INTERVAL_YEARS` years apart, so a day of
+ * assembly is the ceremony the owner asked for, and the ring maths (`getElectionGatherTarget`) is
+ * untouched.
  */
 const CEREMONY_GATHERING_HOURS = 12;
 const CEREMONY_GOSSIP_HOURS = 10;
@@ -478,7 +479,8 @@ export const CEREMONY_ATTENDEE_LIMIT = GATHER_SLOTS_PER_RING * 2;
  * Whether this settler is one of the ceremony's attendees — the same id-sorted index
  * `getElectionGatherTarget` uses for slot assignment, so "who holds position" and "which slot" can never
  * disagree. One pass, early exit; during a ceremony this runs per settler per tick, which is affordable
- * because a ceremony is a single day once a decade (`CEREMONY_*_HOURS`, `ELECTION_INTERVAL_YEARS`).
+ * because a ceremony is a single day (`CEREMONY_*_HOURS`) and elections are `ELECTION_INTERVAL_YEARS`
+ * years apart.
  */
 export function isCeremonyAttendee(state: WorldState, entityId: number): boolean {
   if (!state.electionCeremony) return false;

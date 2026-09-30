@@ -11,6 +11,10 @@ import { playerHumansFrom } from './playerHuman';
 const FRIEND_PREFIX = 'friend_';
 const FEUD_PREFIX = 'feud_';
 
+/** A friendship at or above this is "close": it lifts daily energy and reads as a
+ *  friend in the UI. Named because it was a bare `60` in four places. */
+export const FRIEND_CLOSE_THRESHOLD = 60;
+
 const friendKey = (id: number) => `${FRIEND_PREFIX}${id}`;
 const feudKey = (id: number) => `${FEUD_PREFIX}${id}`;
 
@@ -46,9 +50,48 @@ export function friendCount(e: Entity): number {
   if (!e.friendships) return 0;
   let count = 0;
   for (const val of Object.values(e.friendships)) {
-    if (val >= 60) count++;
+    if (val >= FRIEND_CLOSE_THRESHOLD) count++;
   }
   return count;
+}
+
+/**
+ * How the colony's friendships stand, for the yearly record.
+ *
+ * Routine friendship is a background process and belongs in a periodic total, not
+ * in the event log: an exported 2 000-event chronicle from a real village was
+ * **1 197 lines of "X and Y have become friends"** — 60 % of the log — which also
+ * buried the leadership election the player was looking for. The owner's ruling:
+ * a total once a year is fine.
+ */
+export interface BondCensus {
+  /** Distinct pairs whose friendship has reached the close threshold. */
+  closeBonds: number;
+  /** Settlers holding at least one close bond. */
+  withFriend: number;
+  /** Settlers holding none at all — the number that *should* be non-zero. */
+  isolated: number;
+}
+
+export function bondCensus(people: Entity[]): BondCensus {
+  let closeBonds = 0;
+  let withFriend = 0;
+  for (const p of people) {
+    let mine = 0;
+    const friendships = p.friendships;
+    if (friendships) {
+      for (const key in friendships) {
+        if (!Object.prototype.hasOwnProperty.call(friendships, key)) continue;
+        if (friendships[key] < FRIEND_CLOSE_THRESHOLD) continue;
+        mine += 1;
+        // Count each pair once: the lower id owns the pair.
+        const otherId = Number(key.substring(FRIEND_PREFIX.length));
+        if (p.id < otherId) closeBonds += 1;
+      }
+    }
+    if (mine > 0) withFriend += 1;
+  }
+  return { closeBonds, withFriend, isolated: people.length - withFriend };
 }
 
 /** Number of live feuds (score > 0). */
@@ -125,10 +168,6 @@ export function advanceSocialRelationships(
     
     a.friendships[friendKey(b.id)] = next;
     b.friendships[friendKey(a.id)] = next;
-    
-    if (before < 60 && next >= 60) {
-      logEvent(state, 'event', `${a.name ?? 'A settler'} and ${b.name ?? 'another settler'} have become friends`);
-    }
   };
 
   // Shared home, shared workplace and shared job draw people together (bounded to PAIR_BUDGET members)
@@ -227,7 +266,7 @@ export function advanceSocialRelationships(
         continue;
       }
 
-      if (friendships[key] >= 60) strongCount++;
+      if (friendships[key] >= FRIEND_CLOSE_THRESHOLD) strongCount++;
     }
 
     if (strongCount > 0) {
