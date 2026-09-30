@@ -14,7 +14,7 @@ export default function DynastyPanel({ state }: { state: WorldState }) {
   return (
     <div className="rounded-xl border border-violet-600/40 bg-gradient-to-br from-violet-950/40 to-stone-800/50 p-3">
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-bold text-violet-300">👑 Dynasties</h3>
+        <h3 className="text-sm font-bold text-violet-300">🌳 Dynasties</h3>
         <span className="font-mono text-[13px] text-stone-400">{meaningful.length}</span>
       </div>
       <p className="mb-2 text-xs leading-relaxed text-stone-300">

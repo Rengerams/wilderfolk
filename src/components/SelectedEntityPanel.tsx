@@ -636,7 +636,7 @@ export default function SelectedEntityPanel({
         }`}
         aria-label={`Open ${humanDisplayName(entity)}'s family tree`}
       >
-        <span aria-hidden>🌳</span>
+        <span aria-hidden>🧬</span>
       </button>
     </div>
   );

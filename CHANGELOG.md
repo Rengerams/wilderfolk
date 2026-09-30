@@ -2,6 +2,12 @@
 
 ## <u>[0.6.5.2]</u> — 2026-09-30
 
+- **Kept 6 000 chronicle entries instead of 2 000** — a mature village filled the old window with ~200 days of history, so a first-year leader death had already rolled out of the log before anyone could look for it.
+
+- **Capped close friendships at six per settler** — feuds always had a ceiling and friendships never did, so one measured settler ended up close to 54 people and the village read as "everyone became friends"; bonds an old save already holds are left untouched.
+
+- **Removed the empty right-hand sidebar** — the column under the inspector held one div and a comment and no controls at all, so it took width from the map for nothing; the inspector now has that height.
+
 - **Gave the village overview a keyboard route** — it had exactly one door, an unlabelled header icon with no fallback, so `C` toggles it beside `O` for the citizen overview.
 
 - **Disabled the village portrait panel, which duplicated itself** — its window printed its own title twice, reprinted trait blurbs another window already shows with scores, and closed with commentary about the game's win conditions rather than the settlement.

@@ -97,7 +97,7 @@ export default function FamilyTreeWindow({ entity, allEntities, onClose, onSelec
   return (
     <GameWindow
       title={`Family tree of ${citizenFullName(entity)}`}
-      icon="🌳"
+      icon="🧬"
       subtitle={`Gen ${entity.generation} · ${Math.floor(entity.age)}y${entity.isJuvenile ? ' · child' : ''} · ${relatives} relative${relatives === 1 ? '' : 's'}`}
       onClose={onClose}
       // Centred over a backdrop: this window is opened *from* the Selected inspector that occupies the

@@ -79,7 +79,6 @@ import { setRelationshipDiagnosticsConsoleLoggingEnabled } from './game/relation
 import GamePlayLayout from './components/GamePlayLayout';
 import GameInspector from './components/GameInspector';
 import GameOverlays from './components/GameOverlays';
-import GameSidebar from './components/GameSidebar';
 
 import GameBuildRail from './components/GameBuildRail';
 
@@ -189,7 +188,6 @@ export default function App() {
   );
   const [selectedBuildingType, setSelectedBuildingType] = useState<BuildingType | null>(null);
   const {
-    activeTab,
     buildPanelOpen,
     campaignActive,
     citizenOverviewOpen,
@@ -355,7 +353,6 @@ export default function App() {
   const stripDragStartRef = useRef<{ x: number; y: number } | null>(null);
   const cameraVelRef = useRef({ x: 0, y: 0 });
   const keysRef = useRef<Set<string>>(new Set());
-  const sidebarContentRef = useRef<HTMLDivElement>(null);
   const gameplayActiveRef = useRef(gameplayActive);
   const dismissBigNewsRef = useRef<(id: string) => void>(() => {});
   const dismissActiveEventRef = useRef<() => void>(() => {});
@@ -813,10 +810,6 @@ export default function App() {
   const getViewCamera = useCallback(() => {
     return loopRef.current?.getView().camera ?? viewRef.current.camera;
   }, [loopRef.current, viewRef.current.camera]);
-
-  useEffect(() => {
-    sidebarContentRef.current?.scrollTo({ top: 0 });
-  }, [activeTab]);
 
   const togglePauseRef = useRef(togglePause);
   const selectBuildingTypeRef = useRef(selectBuildingType);
@@ -1957,16 +1950,6 @@ export default function App() {
 
 
         </GameInspector>
-      <GameSidebar>
-          <div ref={sidebarContentRef} className="flex flex-1 flex-col items-center gap-3 px-2 py-4">
-            {/* The "Village" button and its caption that stood here are **removed** (owner:
-                *"the villaige buton not in right side like i said"*). The citizen/village window is
-                opened from its icon in the header — the header icon set is the one route per subject,
-                which is what the old caption was trying to explain — so a second button in this
-                sidebar was a duplicate entrance to the same window. The sidebar now holds only the
-                view toggles. Do not reinstate it here. */}
-          </div>
-      </GameSidebar>
         </aside>
       )}
             overlays={(
