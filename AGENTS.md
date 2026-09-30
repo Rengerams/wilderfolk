@@ -22,6 +22,9 @@ behaviour exactly.** Most rules below follow from that one sentence.
   violations). Both are green. Keep them green — a broken oracle produces meaningless golden values.
 - Useful oracle documents: `docs/SIM_RNG_GUIDELINES.md`, `docs/archive/SIMULATION_ARCHITECTURE_0_6_1.md`
   (ownership map — treat it as the porting task list), `docs/HANDOVER-godot-port-2026-09-30.md`.
+- **This project's own documents:** [`ROADMAP.md`](ROADMAP.md) is the port plan, the phase order and what is
+  already verified; [`MCP.md`](MCP.md) is the Godot AI tool reference — 29 domains, 13 resources, and the
+  gotchas that have already bitten. This file is the protocol that binds them.
 
 ## 2. Language: GDScript, not C#
 
@@ -61,7 +64,8 @@ to change.
 ### 4.1 The MCP workflow
 
 The Godot AI plugin attaches to a **running editor**. Close the editor and every `mcp__godot-ai__*` tool
-stops working.
+stops working. [`MCP.md`](MCP.md) is the full surface: the domain list, the read-only resources, and the
+per-tool notes for driving the editor and the running game.
 
 - Write `.gd` files with `script_create` / `script_patch`, never by hand — they parse-validate and report
   diagnostics.
@@ -115,8 +119,10 @@ Do not reorder this without a reason you can state.
 - `src/game/sim_rng.gd` — `SimRng`, owner-stream registry + snapshot/restore
 - `tests/test_sim_rng.gd` — suite `sim_rng`, **10 tests / 386 assertions / 0 failed**
 - `tests/fixtures/sim_rng_golden.json` — golden values, **must stay UTF-8**
-- Oracle generator: `C:\Wilderfolk\tmp\dump-sim-rng.mts`
-  (`cd C:\Wilderfolk; npx tsx tmp/dump-sim-rng.mts` writes the fixture directly as UTF-8)
+- Oracle generator: `C:\Wilderfolk\scripts\dump-sim-rng.mts`
+  (`cd C:\Wilderfolk; npx tsx scripts/dump-sim-rng.mts` writes the fixture directly as UTF-8).
+  It moved out of `tmp/` on 2026-09-30: the oracle's `npm run clean` now empties `tmp/` wholesale, so a
+  generator that lives there is a generator that disappears. Do not move it back.
 
 ## 6. Hazards — each of these has already caused a real failure
 
