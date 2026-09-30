@@ -9,32 +9,64 @@ This is the design plan. [`ROADMAP.md`](ROADMAP.md) is the phase order; [`AGENTS
 
 The simulation is where the bugs were, and where some still are. Every one of them cost real time. So:
 
-> **The simulation is ported, never rewritten.** A difference from the oracle is a bug by definition. It is
-> parity-locked down to the tick order and the seeded derivations.
+> **The observable behaviour is locked. The shape of the code is not.**
+>
+> Same seed in, same village history out — down to the tick order and the seeded derivations. But a module
+> boundary, a data layout, or an interface that exists because the **browser** required it is not behaviour,
+> and it does not survive merely because it is already there.
 
-The freedom to rewrite applies to **terrain and presentation** — the parts where Godot is genuinely better and
-where being different cannot corrupt a game state. The two halves are governed by opposite rules, and the whole
-architecture exists to keep them apart.
+An earlier draft of this file said *"ported, never rewritten"*. That is too strong, and it was already being
+applied inconsistently: the Web Worker boundary is deleted here (2 483 lines) **because the browser needed
+it**, while the terrain seam was declared frozen — the same kind of thing, treated two ways.
+
+**Locked, because it is behaviour:**
+
+- the RNG streams and every seeded derivation
+- **rule outcomes** — the same world state and the same input give the same result
+- tick semantics and the fixed layer order (realtime → systems → assign → daily). The order *is* the outcome
+- the invariants, which are this project's definition of a valid world
+- the **content** of a save
+
+**Free, because it is shape:**
+
+- the worker boundary, the delta protocol, the SoA render buffers
+- `WorldState`'s layout. Without a worker boundary it stops being a wire protocol and becomes an internal
+  choice, which means it can be shaped for the rules instead of for shipping bytes
+- the terrain seam — eleven calls today, a different interface tomorrow
+- the save format's *shape* (only its content is behaviour)
+- file and module organisation, including the four tick files
+
+**The test for any shape change:** run the same seed through both and compare the history. A shape change that
+survives that is not a rewrite — it is a port done properly. One that fails it is a bug, however clean it
+looks.
+
+That distinction is not licence to redesign the rules. It is the reason a change of shape is *allowed at all*:
+because it can be checked.
 
 That is not a style preference, it is the lesson of this project: the oracle's simulation grew a large test
-suite and an invariant collector *because* hand-tended rules kept breaking. Rewriting it in a new language
-throws that away and re-earns the same bugs.
+suite and an invariant collector *because* hand-tended rules kept breaking. Discarding that safety net is what
+re-earns the same bugs — not changing a layout.
 
 ## 2. The wall
 
 ```
 ┌─────────────────────────────┐         ┌──────────────────────────────────┐
-│  SACRED — src/sim/          │  seam   │  FREE — src/world/ + scenes/     │
-│  rules · tick layers        │ <─────> │  terrain · rendering · UI · audio│
-│  save format · invariants   │         │  rewritten with Godot's tools    │
-│  pure data + functions      │         │  Node-based, scene-driven        │
+│  BEHAVIOUR-LOCKED — src/sim/│  seam   │  FREE — src/world/ + scenes/     │
+│  rules · tick order · RNG   │ <─────> │  terrain · rendering · UI · audio│
+│  invariants · save content  │         │  rewritten with Godot's tools    │
+│  its shape may still change │         │  Node-based, scene-driven        │
 └─────────────────────────────┘         └──────────────────────────────────┘
 ```
 
+The left box is locked by its **behaviour**, not by its silhouette. Its internal shape is fair game (§1); what
+it may not do is answer differently.
+
 ### The seam, measured
 
-The simulation touches terrain through **eleven** entry points and nothing else. Freeze this list; it is the
-contract that lets both sides evolve:
+The simulation touches terrain today through **eleven** entry points. The *job* of this seam is locked — the
+rules must reach the same answers over the same terrain — but its *form* is not (§1). What follows is the
+current shape, read out of the oracle; a better one is a legitimate outcome of this port, provided the history
+comparison above still passes.
 
 | Direction | Call | Meaning |
 |---|---|---|
