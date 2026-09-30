@@ -143,8 +143,27 @@ behaviour, or replaced later.
 
 ### The distinction that actually decides it
 
-Both candidate terrain plugins are **3D heightmap tools**, and both are **editors first**. This world is
-**generated from a seed**, so an editor is only useful if it can also *consume a heightmap produced by code*.
+All three candidates are **editor-first tools**. This world is **generated from a seed**, so an editor is only
+useful if it can also *consume a terrain produced by code*. Two are 3D heightmap systems shipped as C++
+GDExtension binaries; the third is GDScript and shaders with no build step. That difference is not cosmetic —
+a binary binds to a Godot version, and this project's editor is 4.7.2.
+
+- **[LowPolyTerrainBuilder](https://github.com/78sForge/LowPolyTerrainBuilder)** — **Godot 4.7+**, and its
+  README says that is the version it is built and tested on, which makes it the only candidate here that
+  matches this project's editor exactly. Its own rules file lists GDScript and GDShader, and installation is
+  *"copy `addons/lowpolyterrain` into your `addons` directory"* — no build step and no platform binaries, so
+  unlike the other two it carries **no GDExtension version binding**. Chunk-based terrain with deterministic
+  Delaunay triangulation, sculpting brushes, a four-layer vertex painter with slope filters, a two-click ramp
+  builder, flat/smooth shading, a water shader, glTF export, and two backends (`MESH_NODES` for nodes per
+  chunk, or `SERVERS` for `RenderingServer`/`PhysicsServer3D` with radius-based collision culling).
+
+  Two things matter for this port specifically. It exposes a **runtime height query** —
+  `get_height_at_world_coords(x, z)`, O(1) with no physics query — which is the seam's `sampleElev` in Godot
+  form. And it is scriptable at runtime (`add_culling_target()`, `update_collision_culling()`,
+  `apply_ramp(from_world, to_world)`), so a generated world can drive it rather than only a human in the
+  editor. It is nonetheless an **editor sculpting tool first**: whether it will accept a whole generated height
+  field programmatically is the question to answer before adopting it, and it is a smaller question than the
+  same one for the two above, because there is no binary in the way.
 
 - **[Terrain3D](https://github.com/TokisanGames/Terrain3D)** — **MIT**, a C++ GDExtension doing GPU-driven
   clipmap mesh terrain: sculpting, holes, texture painting, foliage instancing with LOD, heights from 64×64 m

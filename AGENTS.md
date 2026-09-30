@@ -148,7 +148,48 @@ write it.
 `C:\Wilderfolk\command.md` — `&&` is a parse error there and `>` writes UTF-16LE. A harness can hold a stale
 shell resolution from before PowerShell 7 was installed, so never assume.
 
-## 7. Reporting
+## 7. GDScript rules that are cheap now and expensive later
+
+These are not our own scars — they come from a mature Godot 4.7 plugin's rules file, and they hold here for
+the same mechanical reasons. Each one is a *silent* failure mode, which is why they are written down rather
+than left to taste.
+
+**Signals: use the `Signal` object, never the string form.**
+
+```gdscript
+sig.connect(callable)          # not connect("sig", callable)
+sig.emit(args)                 # not emit_signal("sig", args)
+sig.is_connected(callable)     # not is_connected("sig", callable)
+```
+
+The string form still works in Godot 4, which is exactly why it survives: a typo in the signal name is
+unchecked and only surfaces at runtime, while the `Signal` form fails at **parse** time. Mixing both in one
+file is how it creeps back — **when you touch such a call, convert the others in that file in the same
+change.**
+
+**Numeric fields: `PackedFloat32Array` / `PackedInt32Array`, not `Array`.**
+
+The oracle stores its fields as `Float32Array` — `elevation`, `moisture`, `temperature`, `riverDist`. The
+direct analogue is `PackedFloat32Array`, and it is the correct choice for two independent reasons: packed
+arrays are contiguous and unboxed, while an untyped `Array` boxes every element; and a plain float array in
+GDScript is **64-bit where the oracle is 32-bit**, so a rule that depends on rounding would diverge silently.
+Match the width, not just the type.
+
+**Editor-only classes must be guarded at runtime.**
+
+A script that touches `EditorInterface`, `EditorPlugin` or `EditorScript` without an `Engine.is_editor_hint()`
+guard fails to register or hard-crashes in an **exported build** — the failure is invisible in the editor,
+which is the only place you would have tested it. Any script that must also run inside the editor needs
+`@tool` at the top; anything editor-specific belongs behind the guard:
+
+```gdscript
+if Engine.is_editor_hint():
+    var ei: Object = Engine.get_singleton("EditorInterface")
+    if ei:
+        print(ei.get_selected_paths())
+```
+
+## 8. Reporting
 
 End every task with:
 
