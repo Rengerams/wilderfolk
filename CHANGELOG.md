@@ -2,6 +2,8 @@
 
 ## <u>[0.6.5.2]</u> — 2026-09-30
 
+- **Fixed the family tree so it is about the person you opened it on** — the walk crossed every marriage into the whole colony and stopped at 200 names in visit order, so a settler's own child could go missing while a distant in-law stayed. Two generations either side now.
+
 - **Kept 6 000 chronicle entries instead of 2 000** — a mature village filled the old window with ~200 days of history, so a first-year leader death had already rolled out of the log before anyone could look for it.
 
 - **Capped close friendships at six per settler** — feuds always had a ceiling and friendships never did, so one measured settler ended up close to 54 people and the village read as "everyone became friends"; bonds an old save already holds are left untouched.

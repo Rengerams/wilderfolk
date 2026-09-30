@@ -424,7 +424,11 @@ function lineageLabel(root: Entity | undefined, partner: Entity | undefined, roo
 
 /* ---- The whole connected family ---- */
 
-/** People cap for one tree; the set drawn must not depend on who was clicked. */
+/** Generations drawn above and below the focused settler; a spouse sits on the focus's own row. */
+const MAX_ANCESTOR_GENERATIONS = 2;
+const MAX_DESCENDANT_GENERATIONS = 2;
+
+/** Hard people cap after the generation bound. The walk is breadth-first, so it cuts the farthest kin. */
 const MAX_FAMILY_MEMBERS = 200;
 
 /** `great-` steps a relation word carries before it falls back to `Ancestor`, `Descendant` or `Kin`. */
@@ -612,8 +616,9 @@ function familyRowLabel(delta: number): string {
 }
 
 /**
- * The whole connected family of one settler as generation rows: membership comes from the graph, so
- * every member draws the same rows, and the walk is capped at `MAX_FAMILY_MEMBERS`.
+ * One settler's kin as generation rows, **anchored on that settler**: ancestors up, descendants down, a
+ * spouse on their own row. A marriage links two branches, so an unbounded walk crosses into every
+ * in-law in the colony and the tree stops being about the settler it was opened on.
  */
 export function buildFullFamilyTree(focus: Entity, allEntities: readonly Entity[]): FullFamilyTree {
   const people = livingHumans(allEntities);
@@ -644,26 +649,44 @@ export function buildFullFamilyTree(focus: Entity, allEntities: readonly Entity[
     pushLink(partnerLinks, partnerId, person.id);
   }
 
-  const neighboursOf = (id: number): readonly number[] => [
-    ...(parentLinks.get(id) ?? []),
-    ...(childLinks.get(id) ?? []),
-    ...(partnerLinks.get(id) ?? []),
-  ];
-
+  // Breadth-first by kinship distance, so the people cap always spends itself on the farthest kin:
+  // depth-first filled the cap from one deep branch and could drop the focus's own children.
+  type Step = { id: number; up: number; down: number };
   const seen = new Set<number>([focus.id]);
-  const stack: number[] = [focus.id];
+  const bestBy = new Map<number, Array<{ up: number; down: number }>>([[focus.id, [{ up: 0, down: 0 }]]]);
+  const queue: Step[] = [{ id: focus.id, up: 0, down: 0 }];
   let truncated = false;
-  while (stack.length > 0) {
-    const id = stack.pop();
-    if (id === undefined) break;
-    for (const neighbour of neighboursOf(id)) {
-      if (seen.has(neighbour)) continue;
-      if (seen.size >= MAX_FAMILY_MEMBERS) {
-        truncated = true;
-        continue;
+  const atLeastAsClose = (a: { up: number; down: number }, b: { up: number; down: number }): boolean =>
+    a.up <= b.up && a.down <= b.down;
+
+  let queueHead = 0;
+  while (queueHead < queue.length) {
+    const current = queue[queueHead];
+    queueHead += 1;
+    if (current === undefined) break;
+    const steps: Step[] = [
+      ...(parentLinks.get(current.id) ?? []).map((id) => ({ id, up: current.up + 1, down: current.down })),
+      ...(childLinks.get(current.id) ?? []).map((id) => ({ id, up: current.up, down: current.down + 1 })),
+      ...(partnerLinks.get(current.id) ?? []).map((id) => ({ id, up: current.up, down: current.down })),
+    ];
+    for (const step of steps) {
+      // Beyond the window is not truncation: the generation bound is what the tree *is*, so only the
+      // people cap below may set `truncated`.
+      if (step.up > MAX_ANCESTOR_GENERATIONS || step.down > MAX_DESCENDANT_GENERATIONS) continue;
+      const known = bestBy.get(step.id) ?? [];
+      if (known.some((earlier) => atLeastAsClose(earlier, step))) continue;
+      if (!seen.has(step.id)) {
+        if (seen.size >= MAX_FAMILY_MEMBERS) {
+          truncated = true;
+          continue;
+        }
+        seen.add(step.id);
       }
-      seen.add(neighbour);
-      stack.push(neighbour);
+      bestBy.set(step.id, [
+        ...known.filter((earlier) => !atLeastAsClose(step, earlier)),
+        { up: step.up, down: step.down },
+      ]);
+      queue.push(step);
     }
   }
 

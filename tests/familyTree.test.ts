@@ -177,26 +177,14 @@ describe('buildFullFamilyTree', () => {
     return { all: [oma, opa, mother, uncle, father, wife, focus, sister, cousin, husband, grandchild], focus, oma };
   }
 
-  it('resolves the same family read from a grandchild and from their grandmother', () => {
+  it('draws two generations either side of the clicked settler, following whoever was clicked', () => {
     const { all, focus, oma } = fourGenerations();
     const fromFocus = buildFullFamilyTree(focus, all);
-    const fromOma = buildFullFamilyTree(oma, all);
 
-    // Same people in the same generations, because membership is resolved from the graph and not from
-    // whoever was clicked.
-    expect(rowsOf(fromFocus)).toEqual(rowsOf(fromOma));
+    // Grandparents, parents, own row (siblings and spouse), children and grandchildren.
     expect(drawnIds(fromFocus).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     expect(fromFocus.memberCount).toBe(11);
     expect(fromFocus.truncated).toBe(false);
-
-    // The clicked settler is the highlighted one, and leads their own row.
-    expect(personIn(fromFocus, 5)?.isFocus).toBe(true);
-    expect(personIn(fromOma, 5)?.isFocus).toBe(false);
-    expect(personIn(fromOma, 1)?.isFocus).toBe(true);
-    expect(fromFocus.rows.find((row) => row.delta === 0)?.members[0].id).toBe(5);
-    expect(fromOma.rows.find((row) => row.delta === 0)?.members[0].id).toBe(1);
-
-    // Ancestors, collaterals and married-in relatives are named from the clicked settler's side.
     expect(relationOf(fromFocus, 1)).toBe('Grandmother');
     expect(relationOf(fromFocus, 3)).toBe('Mother');
     expect(relationOf(fromFocus, 6)).toBe('Father');
@@ -206,10 +194,50 @@ describe('buildFullFamilyTree', () => {
     expect(relationOf(fromFocus, 7)).toBe('Sibling');
     expect(relationOf(fromFocus, 11)).toBe('Cousin');
     expect(relationOf(fromFocus, 8)).toBe('Child');
+
+    // The clicked settler is the highlighted one and leads their own row.
+    expect(personIn(fromFocus, 5)?.isFocus).toBe(true);
+    expect(fromFocus.rows.find((row) => row.delta === 0)?.members[0].id).toBe(5);
+
+    // Anchored on the grandmother the walk reaches her grandchildren and stops: the great-grandchild
+    // is a third generation down. That is the point of the window — an unbounded walk drew the whole
+    // colony from every member, so one settler's tree was a list of names to search.
+    const fromOma = buildFullFamilyTree(oma, all);
+    expect(personIn(fromOma, 1)?.isFocus).toBe(true);
     expect(relationOf(fromOma, 3)).toBe('Adult child');
     expect(relationOf(fromOma, 6)).toBe('In-law');
     expect(relationOf(fromOma, 5)).toBe('Grandchild');
-    expect(relationOf(fromOma, 8)).toBe('Great-grandchild');
+    expect(personIn(fromOma, 8)).toBeUndefined();
+    expect(drawnIds(fromOma).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 9, 10, 11]);
+  });
+
+  it('spends the people cap on the farthest kin, so the closest are never the ones dropped', () => {
+    const focus = human({ id: 1, name: 'Focus', gender: 'female', childrenIds: [] });
+    const all: Entity[] = [focus];
+    const childIds: number[] = [];
+    for (let index = 0; index < 30; index++) {
+      const childId = 100 + index;
+      childIds.push(childId);
+      const grandchildren: number[] = [];
+      for (let offset = 0; offset < 10; offset++) {
+        const grandchildId = 1000 + index * 10 + offset;
+        grandchildren.push(grandchildId);
+        all.push(human({ id: grandchildId, name: `G${grandchildId}`, fatherId: childId, generation: 3 }));
+      }
+      all.push(
+        human({ id: childId, name: `C${childId}`, motherId: 1, childrenIds: grandchildren, generation: 2 }),
+      );
+    }
+    focus.childrenIds = childIds;
+
+    const tree = buildFullFamilyTree(focus, all);
+    // 331 kin are in range for 200 slots. Breadth-first spends the cap on the grandchildren at the
+    // edge; the walk this replaced filled it depth-first and could drop the settler's own children.
+    expect(tree.truncated).toBe(true);
+    expect(tree.memberCount).toBe(200);
+    for (const childId of childIds) {
+      expect(personIn(tree, childId), `child ${childId}`).toBeDefined();
+    }
   });
 
   it('draws each person once and terminates when the kinship records form a parent/child cycle', () => {
