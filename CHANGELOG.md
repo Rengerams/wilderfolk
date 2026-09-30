@@ -2,15 +2,15 @@
 
 ## <u>[0.6.5.2]</u> — 2026-09-30
 
-- **New (developer workflow): one test entry point, `scripts/test.mjs`** — every gate's `&&` chain is now one runner chosen with args (`npm test -- help`), with the npm names kept as aliases. Green: `npm test -- all`, 245 files / 1495 tests, oxlint 0/0.
+- **New (developer workflow): one test entry point with args, replacing seventeen npm scripts** — every gate's `&&` chain is now one runner, `npm test -- help` lists the steps, and the old script names stay as aliases. Green: 245 files, 1495 tests, types and lint clean in a single run.
 
-- **Fixed (developer workflow): the lint gate never read the 70 files it named** — oxlint honours `.gitignore`, and `scripts/` was gitignored, so the directory was skipped for a month. Tracking it surfaced 134 pre-existing findings, mostly `TS2591` (no node types outside the tsconfig include). The gate now states its real scope.
+- **Fixed (developer workflow): the lint gate never read the 70 files it named** — the linter honours the ignore file, and the tooling directory was listed in it, so the gate reported clean for a month while skipping the tree. Reading it surfaced 134 pre-existing findings, mostly missing node types outside the compiler's include. The gate now states its real scope.
 
-- **Changed (repository hygiene): `tests/`, `scripts/` and 59 bug reports are under version control for the first time** — 316 files / 2.1 MB that existed only on this machine. Tracked 733 → 1112. Two ignore patterns were wrong: `AGENTS.MD` was excluding `AGENTS.md` itself, and `BUG_TRACKER.md` is now `BUG_REPORTS/SUMMARY.md`.
+- **Changed (repository hygiene): the test suite, the tooling tree and 59 bug reports are under version control for the first time** — 316 files that existed only on this machine, taking the tracked count from 733 to 1112. Two ignore patterns were wrong: one excluded the protocol document itself, and one named a report file that had been renamed.
 
-- **New (housekeeping): `npm run clean` empties `tmp/` wholesale** — 391 MB of scratch (299 MB screenshots), 44 MB `dist`, 162 MB of leaked browser profiles, and no keep-list. Two durable things were rescued first: the design council → `docs/private/council-v2/`, and the RNG oracle → `scripts/dump-sim-rng.mts`.
+- **New (housekeeping): the clean command empties the scratch directory wholesale** — 391 MB of scratch, 44 MB of build output and 162 MB of leaked browser profiles, with no keep-list, because an exception list turns scratch into storage. Two durable things were rescued to their proper homes first.
 
-- **Fixed (docs): the README pointed at three files that do not exist** — `ROADMAP.md`, `docs/ARCHITECTURE.md`, `docs/marketing/` — and described the removed dependency-cruiser. The developer command list moved to `AGENTS.md` §4: the README is for players.
+- **Fixed (docs): the front page pointed at three files that do not exist**, and described a tool that had been removed months earlier. The developer commands left it entirely — that page is for players, not for the build.
 
 ## <u>[0.6.5.1]</u> — 2026-09-29
 

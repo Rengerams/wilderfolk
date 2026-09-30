@@ -43,6 +43,13 @@ const LINK_DOCS = [
  *  255-332 characters; the file's historical average is 1 698. */
 const MAX_ENTRY_CHARS = 400;
 
+/** A path or a filename with an extension. Entries must name no files: files
+ *  move and die, and an entry pointing at one becomes a lie nobody can verify.
+ *  Deliberately conservative so the gate does not cry wolf - it matches a token
+ *  containing `/`, or a token ending in a known source/document extension. A
+ *  bare word like `tsconfig` or a command like `npm test` passes. */
+const PATH_LIKE = /(?:\S*\/\S*|[\w.-]+\.(?:md|ts|tsx|mjs|mts|cjs|js|json|py|gd|yml|yaml|toml|html|css))/;
+
 const problems = [];
 
 /* --- 1. markdown links resolve ------------------------------------------- */
@@ -79,11 +86,17 @@ if (existsSync(CHANGELOG)) {
     const section = end === -1 ? rest : rest.slice(0, end);
     for (const line of section) {
       if (!line.startsWith('- **')) continue;
-      if (line.length <= MAX_ENTRY_CHARS) continue;
       const title = line.slice(0, 60);
-      problems.push(
-        `${CHANGELOG}  entry is ${line.length} chars (max ${MAX_ENTRY_CHARS}): ${title}...`,
-      );
+      if (line.length > MAX_ENTRY_CHARS) {
+        problems.push(
+          `${CHANGELOG}  entry is ${line.length} chars (max ${MAX_ENTRY_CHARS}): ${title}...`,
+        );
+      }
+      // A URL is a link home, not a file in this repository.
+      if (!line.includes('://') && PATH_LIKE.test(line)) {
+        const offending = line.match(PATH_LIKE)[0];
+        problems.push(`${CHANGELOG}  entry names a file ("${offending}"): ${title}...`);
+      }
     }
   }
 }
