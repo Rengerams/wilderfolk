@@ -1,5 +1,6 @@
 import { TERRAIN_TILE_SIZE } from '../gameTypes';
 import type { Building, Entity } from '../gameTypes';
+import { TICKS_PER_HOUR } from '../dayCycle';
 import { isActiveMoonHowler } from '../moonHowler';
 import { steerWithPath } from '../pathfinding';
 import { faceVelocity } from './movementSteering';
@@ -27,6 +28,39 @@ const COMMUTE_CONFIG = {
 
 /** Beyond this distance, settlers snap to home/work. */
 export const COMMUTE_SNAP_DISTANCE = 200;
+
+/** The longest commute lead the scheduler will hand out, in hours (see `commuteLeadHoursFor`). */
+export const MAX_COMMUTE_LEAD_HOURS = 6;
+
+/**
+ * How many hours before their shift a settler must set off, given how far they are.
+ *
+ * The owner's rule is that a settler is **at** work when the shift starts rather than starting to
+ * walk then ("they should be AT work when working tim start not begining with walking"). The old
+ * fixed one-hour allowance (`workSchedule.WORK_COMMUTE_LEAD_HOURS`) could not honour that for a long
+ * leg: the map is far wider than an hour's walk, and `COMMUTE_SNAP_DISTANCE` only teleports legs
+ * under 200 units, so anyone further out simply arrived late.
+ *
+ * The estimate uses the movement owner's own numbers — base `speed`, the distance-scaled `distRush`,
+ * and `PATH_STEER_SPEED_RATIO` — so it cannot drift from how the walk behaves. It is deliberately
+ * *pessimistic* (one straight pathed leg, no rush bonus from the caller), because leaving slightly
+ * early is invisible while arriving late is the reported bug.
+ *
+ * It is an estimate with a floor and a ceiling, **not** an arrival guarantee: past
+ * `MAX_COMMUTE_LEAD_HOURS` a very long leg cannot be walked in the time available, and
+ * `humanTick`'s existing shift-start snap is what still puts that settler at their post. Never
+ * returns less than an hour, so a short commute keeps exactly the behaviour it had before.
+ */
+export function commuteLeadHoursFor(distance: number, walkSpeed: number): number {
+  if (!Number.isFinite(distance) || distance <= COMMUTE_CONFIG.ARRIVAL_DIST) return 1;
+  const speed = Number.isFinite(walkSpeed) && walkSpeed > 0 ? walkSpeed : 1;
+  const perTick = speed * Math.min(COMMUTE_CONFIG.MAX_DIST_RUSH, 1 + distance / 40)
+    * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
+  if (!Number.isFinite(perTick) || perTick <= 0) return 1;
+  const hours = distance / perTick / TICKS_PER_HOUR;
+  if (!Number.isFinite(hours)) return 1;
+  return Math.min(MAX_COMMUTE_LEAD_HOURS, Math.max(1, hours));
+}
 
 // ============ COMMUTE HELPERS ============
 

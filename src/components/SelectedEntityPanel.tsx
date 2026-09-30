@@ -24,43 +24,146 @@ import { getHumanActivityProjection } from '../game/humanStatus';
 import { explainSettlerMovement } from '../game/dashboardData';
 import { citizenFullName, citizenGivenName, humanDisplayName } from '../game/citizenId';
 
-// Added `id` to the return type for stable React keys
-function getFamilyMembers(entity: Entity, allEntities: Entity[]): { id: number; label: string; name: string; relation: string }[] {
-  const members: { id: number; label: string; name: string; relation: string }[] = [];
-  const seen = new Set<number>();
+/** One relative, as the Family section draws them. */
+export interface FamilyNode {
+  id: number;
+  label: string;
+  name: string;
+  relation: string;
+  /** Age, or the other parent of a child — the qualifier the row needs to be unambiguous. */
+  detail?: string;
+}
 
-  const add = (e: Entity, label: string, relation: string) => {
-    if (!e.alive || e.type !== EntityType.Human || e.id === entity.id || seen.has(e.id)) return;
+/** A settler's relatives, grouped by generation. */
+export interface FamilyTree {
+  parents: FamilyNode[];
+  siblings: FamilyNode[];
+  children: FamilyNode[];
+  partner: FamilyNode | null;
+}
+
+/**
+ * The settler's relatives, **grouped by generation** — what the Family section renders.
+ *
+ * This replaced a flat `getFamilyMembers` array in which a spouse, a parent, a sibling and a child
+ * all arrived as identical rows, distinguishable only by a `(relation)` in parentheses. The owner's
+ * report is the reason it is grouped now: *"the family tree is no family tree its unclear who is
+ * who"*. Which row a relative is drawn on says which generation they belong to, so the layout
+ * carries the meaning instead of one word in brackets.
+ *
+ * Adoptive parents are included and **marked** — the old list omitted them entirely, so a settler
+ * raised by someone other than their birth parents showed no parents at all.
+ */
+export function buildFamilyTree(entity: Entity, allEntities: Entity[]): FamilyTree {
+  const livingHumans = allEntities.filter(
+    (e) => e.alive && e.type === EntityType.Human && e.id !== entity.id,
+  );
+  const seen = new Set<number>();
+  const take = (e: Entity, label: string, relation: string, detail?: string): FamilyNode | null => {
+    if (seen.has(e.id)) return null;
     seen.add(e.id);
-    // The nameless fallback comes from `citizenId` — this list used to say "Unknown" while the tree
-    // header for the same settler said "A settler" (audit C2 "Settler name fallback").
-    members.push({ id: e.id, label, name: citizenGivenName(e), relation });
+    return {
+      id: e.id,
+      label,
+      // `citizenGivenName` owns the nameless fallback; this list used to say "Unknown" while the
+      // tree header for the same settler said "A settler" (audit C2 "Settler name fallback").
+      name: citizenGivenName(e),
+      relation,
+      detail,
+    };
   };
 
-  for (const e of allEntities) {
-    if (!e.alive || e.type !== EntityType.Human) continue;
-    if (e.id === entity.fatherId) add(e, '👨', 'Father');
-    if (e.id === entity.motherId) add(e, '👩', 'Mother');
-    if (e.partnerId === entity.id) add(e, e.gender === 'male' ? '👨' : '👩', 'Spouse');
-    if (
-      (entity.childrenIds ?? []).includes(e.id)
-      || e.motherId === entity.id
-      || e.fatherId === entity.id
-    ) {
-      add(
-        e,
-        e.gender === 'male' ? '👦' : '👧',
-        e.isBastard ? (e.isJuvenile ? 'Bastard child' : 'Bastard') : (e.isJuvenile ? 'Child' : 'Adult child'),
-      );
-    }
-    if (entity.motherId && e.motherId === entity.motherId) {
-      add(e, e.gender === 'male' ? '👦' : '👧', 'Sibling');
-    }
-    if (entity.fatherId && e.fatherId === entity.fatherId) {
-      add(e, e.gender === 'male' ? '👦' : '👧', 'Sibling');
-    }
+  const parents: FamilyNode[] = [];
+  for (const e of livingHumans) {
+    const match =
+      e.id === entity.fatherId ? { label: '👨', relation: 'Father' }
+      : e.id === entity.motherId ? { label: '👩', relation: 'Mother' }
+      : e.id === entity.adoptiveFatherId ? { label: '👨', relation: 'Adoptive father' }
+      : e.id === entity.adoptiveMotherId ? { label: '👩', relation: 'Adoptive mother' }
+      : null;
+    if (!match) continue;
+    // Age on every relative, not only on children. The owner asked why the parents had none
+    // (*"why no age at the paretns"*) — the row showed a name and a relation while the child rows
+    // below carried `18y`, so the tree was inconsistent about what it told you about a person.
+    const node = take(e, match.label, match.relation, `${Math.floor(e.age)}y`);
+    if (node) parents.push(node);
   }
-  return members;
+
+  // The partner they are actually with. Marriages only — courting, sweethearts and a secret affair
+  // are shown with their own meters in the relationships block above, not in the tree.
+  let partner: FamilyNode | null = null;
+  for (const e of livingHumans) {
+    if (e.partnerId !== entity.id && e.id !== entity.partnerId) continue;
+    partner = take(e, e.gender === 'male' ? '👨' : '👩', 'Spouse', `${Math.floor(e.age)}y`);
+    break;
+  }
+
+  // A sibling shares either parent. The old list tested each side in two separate `if`s against the
+  // same `seen` set, so which parent matched decided the order rather than the relationship.
+  const siblings: FamilyNode[] = [];
+  for (const e of livingHumans) {
+    const shares =
+      (entity.motherId != null && e.motherId === entity.motherId)
+      || (entity.fatherId != null && e.fatherId === entity.fatherId);
+    if (!shares) continue;
+    const node = take(e, e.gender === 'male' ? '👦' : '👧', 'Sibling');
+    if (node) siblings.push(node);
+  }
+
+  const children: FamilyNode[] = [];
+  for (const e of livingHumans) {
+    const isChild =
+      (entity.childrenIds ?? []).includes(e.id) || e.motherId === entity.id || e.fatherId === entity.id;
+    if (!isChild) continue;
+    // Name the other parent when it is NOT this settler's spouse, so a child from an earlier
+    // marriage is never silently attributed to the current one.
+    const otherParentId = e.motherId === entity.id ? e.fatherId : e.motherId;
+    const otherParent =
+      otherParentId != null && otherParentId !== entity.partnerId
+        ? allEntities.find((candidate) => candidate.id === otherParentId)
+        : undefined;
+    const age = `${Math.floor(e.age)}y`;
+    const relation = e.isBastard
+      ? e.isJuvenile ? 'Child · outside wedlock' : 'Adult child · outside wedlock'
+      : e.isJuvenile ? 'Child' : 'Adult child';
+    const node = take(
+      e,
+      e.gender === 'male' ? '👦' : '👧',
+      relation,
+      otherParent ? `${age} · with ${citizenGivenName(otherParent)}` : age,
+    );
+    if (node) children.push(node);
+  }
+
+  return { parents, siblings, children, partner };
+}
+
+/** One generation's row of the tree — renders nothing when that generation is empty. */
+export function FamilyGeneration({
+  label,
+  nodes,
+  inset = false,
+}: {
+  label: string;
+  nodes: FamilyNode[];
+  inset?: boolean;
+}) {
+  if (nodes.length === 0) return null;
+  return (
+    <div className={inset ? 'mt-1' : ''}>
+      <p className="text-[10px] uppercase tracking-wide text-amber-400/70">{label}</p>
+      <ul className="mt-0.5 space-y-0.5">
+        {nodes.map((node) => (
+          <li key={node.id} className="flex flex-wrap items-baseline gap-x-1.5 text-amber-200">
+            <span aria-hidden>{node.label}</span>
+            <span className="font-semibold">{node.name}</span>
+            <span className="text-stone-400">{node.relation}</span>
+            {node.detail && <span className="text-stone-500">{node.detail}</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function countLivingChildren(entity: Entity, allEntities: Entity[]): number {
@@ -79,6 +182,7 @@ export default function SelectedEntityPanel({
   onToggleFavorite,
   onTame,
   onOpenVisitorCamp,
+  onOpenFamilyTree,
 }: {
   entity: Entity;
   allEntities: Entity[];
@@ -87,6 +191,8 @@ export default function SelectedEntityPanel({
   onToggleFavorite?: () => void;
   onTame?: (humanId: number) => void;
   onOpenVisitorCamp?: (group: VisitorGroup) => void;
+  /** Opens the family tree in its own window (`FamilyTreeWindow`). */
+  onOpenFamilyTree?: () => void;
 }) {
   const [lastActivity, setLastActivity] = useState<{ entityId: number; activity: string } | null>(null);
   const isVillageHead = isVillageLeader(state, entity.id);
@@ -129,8 +235,10 @@ export default function SelectedEntityPanel({
     : null;
 
   // 🚀 PERFORMANCE: Memoize expensive array filtering and derivations
-  const family = useMemo(() => {
-    return isHuman && !isVisitor && !isRival ? getFamilyMembers(entity, allEntities) : [];
+  const tree = useMemo(() => {
+    return isHuman && !isVisitor && !isRival
+      ? buildFamilyTree(entity, allEntities)
+      : ({ parents: [], siblings: [], children: [], partner: null } as FamilyTree);
   }, [isHuman, isVisitor, isRival, entity, allEntities]);
 
   const childCount = useMemo(() => {
@@ -143,20 +251,6 @@ export default function SelectedEntityPanel({
   // drawn from `x - w/2`; the bounds/terrain/overlap checks use `x ± w/2`), so both now measure from the
   // centre (`LIVE-FINDINGS-STATUS.md`, F16 and F17).
   const availableHumans = useMemo(() => listTamingCandidates(state), [state]);
-
-  // 🐛 BUG FIX: Use String(entity.type).toLowerCase() to ensure enum values correctly map to dictionary keys
-  const foodChainInfo: Record<string, { role: string; eats: string; huntedBy: string }> = {
-    grass: { role: 'Producer', eats: 'Sunlight (photosynthesis)', huntedBy: 'Rabbits, Deer, Foxes, Wildkin' },
-    rabbit: { role: 'Prey', eats: 'Grass', huntedBy: 'Foxes, Wolves, Humans' },
-    deer: { role: 'Prey', eats: 'Grass', huntedBy: 'Wolves, Humans, Moon Howlers' },
-    fox: { role: 'Predator', eats: 'Rabbits, Grass', huntedBy: 'Wolves' },
-    wolf: { role: 'Apex Predator', eats: 'Deer, Rabbits, Foxes', huntedBy: 'None' },
-    werewolf: { role: 'Full-Moon Predator', eats: 'Settlers, Deer, Rabbits', huntedBy: 'Church (breaks the curse)' },
-    wildkin: { role: 'Gentle Hybrid', eats: 'Grass, Farm Food', huntedBy: 'Wolves, Foxes' },
-    human: { role: 'Civilization Builder', eats: 'Deer, Rabbits, Farm Food', huntedBy: 'Moon Howlers (~every 2 weeks)' },
-    tree: { role: 'Environment', eats: 'CO2, Sunlight', huntedBy: 'None (provides habitat)' },
-  };
-  const ecology = foodChainInfo[String(entity.type).toLowerCase()] || { role: 'Unknown', eats: 'Unknown', huntedBy: 'Unknown' };
 
   const tameableTypes: EntityType[] = [EntityType.Wolf, EntityType.Fox, EntityType.Deer, EntityType.Rabbit];
   const isTameable = tameableTypes.includes(entity.type) && !entity.tamedBy;
@@ -310,20 +404,19 @@ export default function SelectedEntityPanel({
         </p>
       )}
 
-      {/* Food Chain Role — the SPECIES' trophic role (grass = Producer, wolf = Apex Predator).
-          The label used to read just "Role", which on a citizen panel reads as *this settler's*
-          job — so every human, a newborn included, was reported as a "Civilization Builder". */}
-      <div className="mb-2 rounded bg-stone-800/60 p-2 text-[11px]">
-        <p className="mb-1 text-stone-400">Food chain · humans</p>
-        <div className="grid grid-cols-[5.5rem_1fr] gap-y-0.5">
-          <span className="text-stone-400">Species role</span>
-          <strong className="text-amber-300">{ecology.role}</strong>
-          <span className="text-stone-400">Eats</span>
-          <strong className="text-emerald-300">{ecology.eats}</strong>
-          <span className="text-stone-400">Hunted</span>
-          <strong className="text-rose-300">{ecology.huntedBy}</strong>
-        </div>
-      </div>
+      {/* The Food Chain Role block is **deleted**, on the owner's own reason rather than mine:
+          *"work is already defined lower in the civ viewer and civilationd builder is nothign"*.
+
+          Two independent facts make it redundant. (1) This settler's work is already shown further
+          down this card — `💼 occupation` plus the job and skill lines — so a second "role" line is a
+          duplicate of a fact the card already carries. (2) "Civilization Builder" says nothing: it is
+          the *species'* trophic role, a constant (`human: { role: 'Civilization Builder' }`) printed
+          on an individual settler, so it read as that person's job while carrying no information about
+          them — every citizen, a newborn included, was a "Civilization Builder".
+
+          The earlier pass relabelled it ("Role" → "Species role", under "Food chain · humans"), which
+          is why the owner had to report it a second time. Renaming a meaningless, duplicated line
+          cannot fix it. Do not reinstate it as a rename. */}
 
       <div className="space-y-0.5 text-xs text-amber-200">
         <p>Energy: {Math.round(entity.energy)} / {entity.maxEnergy}</p>
@@ -458,21 +551,32 @@ export default function SelectedEntityPanel({
         </div>
       )}
 
-      {/* Family */}
-      {family.length > 0 && (
-        <div className="mt-2 border-t border-amber-600/20 pt-2">
-          <h4 className="mb-1 text-[11px] font-bold uppercase tracking-wider text-amber-400">Family</h4>
-          <div className="space-y-0.5">
-            {family.map((m) => (
-              <div key={m.id} className="flex items-center gap-1.5 text-[11px] text-amber-200">
-                <span>{m.label}</span>
-                <span className="font-semibold">{m.name}</span>
-                <span className="text-stone-400">({m.relation})</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Family — the tree itself lives in its own window (`FamilyTreeWindow`). The inspector keeps
+          only a one-line summary and the door to it, because the whole tree inlined here was part of
+          what made this panel one long stack ("not stacking up all").
+
+          The door is **always** rendered, where it used to appear only for a settler who had a
+          parent, sibling, child or partner. That condition is why the owner reported *"it doesnt work
+          when i cick on famliy three"*: clicking a settler with no recorded relatives showed no
+          control at all, so the feature looked broken rather than empty — and a freshly-founded
+          colony is full of exactly those settlers. The window already has an explicit empty state
+          ("No living relatives recorded"), so the honest place to say that is inside the window. */}
+      <div className="mt-2 border-t border-amber-600/20 pt-2">
+        <button
+          type="button"
+          onClick={onOpenFamilyTree}
+          className="flex w-full items-center justify-between gap-2 rounded bg-stone-800/60 px-2 py-1.5 text-left text-[11px] text-amber-200 hover:bg-stone-700/60"
+          title="Open the family tree in its own window"
+        >
+          <span className="font-bold uppercase tracking-wider text-amber-400">Family tree</span>
+          <span className="min-w-0 truncate text-stone-300">
+            {tree.parents.length + tree.siblings.length + tree.children.length + (tree.partner ? 1 : 0) === 0
+              ? 'no relatives recorded'
+              : `${tree.partner ? `⚭ ${tree.partner.name} · ` : ''}${tree.children.length} child${tree.children.length === 1 ? '' : 'ren'}`}
+          </span>
+          <span aria-hidden className="text-amber-400">↗</span>
+        </button>
+      </div>
     </div>
   );
 }

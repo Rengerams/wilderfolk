@@ -266,6 +266,14 @@ export interface Entity {
   schoolDays?: number;
   schoolTicksToday?: number;
   scheduleWorkedTicksToday?: number;
+  /**
+   * Hours this settler was actually on shift over the last settled day, snapshotted by
+   * `resolveDailyScheduleFatigue` before it zeroes `scheduleWorkedTicksToday` (which runs before the
+   * daily economy, so that pass has no other way to see attendance). The daily production
+   * calculation pays for these hours rather than for a settler merely being assigned to a building.
+   * Derived from `scheduleWorkedTicksToday` each day, so it needs no save migration.
+   */
+  scheduleLastWorkedHours?: number;
   scheduleFatigue?: number;
   educated?: boolean;
   traits?: SettlerTrait[];
@@ -831,6 +839,16 @@ export interface GameEventLog {
     | 'marriage'
     | 'divorce'
     | 'scandal'
+    /**
+     * A settler jailed for a scandal (`arrestForScandal`).
+     *
+     * Its own type rather than `'scandal'` or `'event'`, which is what the owner's report needed
+     * ("i cant seee if people get in prison"): as `'event'` it landed in the generic Events bucket
+     * (1 531 of the owner's 2 000 entries) and no filter could find it, and folding it into
+     * `'scandal'` would inflate the scandal count and pull imprisonments into the rumour ledger,
+     * which reads that type. One event, one kind.
+     */
+    | 'prison'
     | 'building'
     | 'disaster'
     | 'research'

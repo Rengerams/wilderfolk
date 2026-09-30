@@ -35,6 +35,36 @@ import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getHuntFoodMultiplier } from './combat';
 import { isProductionTick, PRODUCTION_INTERVAL, TICKS_PER_DAY } from './dayCycle';
 import type { TickContext } from './simulation/simulationTypes';
+
+/**
+ * How far an assigned hunter *notices* prey, in world pixels (~30 m at the measured 11.76 px/m).
+ *
+ * Owner (2026-09-30): *"the range can be 350 where is looking but to kil it you have stand ne xt to
+ * it"*. Looking and killing are deliberately separate distances — this constant is only the former;
+ * the kill gate is `config.size + prey.size` (bodies touching) further down.
+ */
+const OWNER_HUNT_SEARCH_RADIUS = 350;
+
+/**
+ * How close the hunter must be to take the shot, in world pixels (~10 m at the measured 11.76 px/m).
+ *
+ * Owner: *"to kil it you have stand ne xt to it"*, with looking allowed to 350 (*"the range can be 350
+ * where is looking"*). This is the former, and it is deliberately not "bodies touching".
+ *
+ * The first attempt used the free-roam rule verbatim — `hunter.size + prey.size` ≈ 22 px — and it
+ * **stopped the spot producing food at all**: prey wanders, so by the time the production tick runs the
+ * animal has drifted out of a 22 px reach (measured directly: a fixture deer was at 30 px, moved to
+ * 34.5 px on the tick, against a 22 px reach). A strict adjacency gate is only survivable if the hunter
+ * *walks to the animal*, and no such pursuit exists yet — assigned hunters hold position.
+ *
+ * So this is set to a reach a standing hunter can realistically use against wandering prey, while being
+ * ~3× tighter than the old 320 and anchored on the hunter rather than the building. **The honest fix is
+ * the chase**: give an assigned hunter a move-to-prey order and this can drop to the adjacency rule
+ * that matches the owner's words exactly. Recorded in
+ * `BUG_REPORTS/2026-09-30-hunting-yield-unbounded.md`.
+ */
+const HUNTER_KILL_REACH = 120;
+
 import {
   syncEntityGrids,
   markWildlifeDead,
@@ -64,7 +94,11 @@ import {
 import { assignMissingWorkers, getSmithBonus } from './workforce';
 import { isPlayerHuman } from './playerHuman';
 import { grantHospitalIntervalReputation } from './hospitalCare';
-import { getScheduleProductivityMultiplier } from './scheduleFatigue';
+import {
+  getScheduleLastWorkedHours,
+  getScheduleProductivityMultiplier,
+  getWorkplacePresenceShare,
+} from './scheduleFatigue';
 import {
   getValleyHuntYieldMultiplier,
   getValleyFarmYieldMultiplier,
@@ -331,8 +365,13 @@ function findLiveAssignedWorker(
   building: Building,
   entityById: ReadonlyMap<number, Entity>,
 ): Entity | undefined {
-  for (let i = 0; i < building.occupants.length; i++) {
-    const worker = entityById.get(building.occupants[i]);
+  // `occupants` is the assignment list, but a building constructed outside the normal path (tests,
+  // saves from before a field existed) can reach here without one. Reading `.length` on undefined
+  // threw, which surfaced as a crash in the hunting tests rather than as "no hunter".
+  const assigned = building.occupants;
+  if (!assigned) return undefined;
+  for (let i = 0; i < assigned.length; i++) {
+    const worker = entityById.get(assigned[i]);
     if (worker?.alive && isPlayerHuman(worker)) return worker;
   }
   return undefined;
@@ -351,9 +390,6 @@ function tickBuildingProduction(
     getMultiplier(state, 'global_efficiency') *
     getTownHallGovernanceEfficiency(state, updatedBuildings);
   const festivalMult = state.festival?.active ? 1.5 : 1.0;
-  const workHourMult = getWorkHourProductionMultiplier(
-    getWorkScheduleHours(getWorkSchedule(state)),
-  );
 
   const playerWorkers = allAlive.filter(isPlayerHuman);
 
@@ -367,8 +403,19 @@ function tickBuildingProduction(
   // Spot's `targetPrey`, which is confined to the Deer/Rabbit/Wolf pools.
   let livingPlayerWorkers: Entity[] | undefined;
 
-  // Single-pass building worker count and schedule fatigue aggregation
-  const buildingWorkerStats = new Map<number, { count: number; fatigueSum: number }>();
+  // Single-pass building worker count, schedule fatigue, and attendance aggregation.
+  //
+  // `workedHoursSum` / `workedCount` are the attendance half: the hours each assigned settler was
+  // actually on shift over the last settled day (`scheduleLastWorkedHours`, snapshotted by the
+  // fatigue pass because it runs before this one and zeroes the tick accumulator). A settler parked
+  // at home, asleep, or walking the map contributes 0 — the owner's "the person who is working there
+  // should be measured, not a random someone". Before this, output scaled with the *configured
+  // window* alone (`getWorkScheduleHours`), so a 23-hour day paid 2.56x while nobody had to be at
+  // the building at all.
+  const buildingWorkerStats = new Map<
+    number,
+    { count: number; fatigueSum: number; workedHoursSum: number; workedCount: number }
+  >();
   for (let i = 0; i < playerWorkers.length; i++) {
     const h = playerWorkers[i];
     // `playerWorkers` is already the colony-human owner's answer — re-testing `h.faction` here
@@ -378,9 +425,13 @@ function tickBuildingProduction(
     const siteId = h.homeBuildingId;
     if (siteId == null) continue;
 
-    const current = buildingWorkerStats.get(siteId) ?? { count: 0, fatigueSum: 0 };
+    const current = buildingWorkerStats.get(siteId)
+      ?? { count: 0, fatigueSum: 0, workedHoursSum: 0, workedCount: 0 };
     current.count += 1;
     current.fatigueSum += getScheduleProductivityMultiplier(h);
+    const lastWorkedHours = getScheduleLastWorkedHours(h);
+    current.workedHoursSum += lastWorkedHours;
+    if (lastWorkedHours > 0) current.workedCount += 1;
     buildingWorkerStats.set(siteId, current);
   }
 
@@ -400,6 +451,18 @@ function tickBuildingProduction(
     const stats = buildingWorkerStats.get(building.id);
     const workers = BUILDING_JOB_TYPES[building.type] && stats ? stats.count : 0;
     const fatigueMult = workers > 0 && stats ? stats.fatigueSum / workers : 1.0;
+    // The configured window still sets the ceiling — a long day is still worth more, which is the
+    // owner's "if you need for short time more production". Attendance decides how much of that
+    // ceiling is earned. One rule, shared with the workshop estimate through
+    // `getWorkplacePresenceShare`, so a preview cannot drift from real output.
+    const scheduleHours = getWorkScheduleHours(getWorkSchedule(state));
+    const presenceMult = getWorkplacePresenceShare(
+      workers > 0 && stats ? stats.workedHoursSum / workers : 0,
+      workers,
+      scheduleHours,
+      (stats?.workedCount ?? 0) > 0,
+    );
+    const workHourMult = getWorkHourProductionMultiplier(scheduleHours);
 
     const totalMult =
       levelMult *
@@ -408,7 +471,8 @@ function tickBuildingProduction(
       festivalMult *
       skillMult *
       fatigueMult *
-      workHourMult;
+      workHourMult *
+      presenceMult;
     const staffed = !BUILDING_JOB_TYPES[building.type] || workers > 0;
 
     // --- Farm ---
@@ -452,9 +516,49 @@ function tickBuildingProduction(
       building.type === BuildingType.HuntingSpot &&
       isProductionTick(state.tick, PRODUCTION_INTERVAL.huntingSpot)
     ) {
-      const searchRadius = 320;
-      const bx = building.x + building.width / 2;
-      const by = building.y + building.height / 2;
+      /**
+       * **The hunter hunts, not the building** — owner (2026-09-30): *"the hunung spot cannot hunt its
+       * just a spot from where they hunt but they free to walk the people who work there they just
+       * should hunt its not a tower that can fire"*.
+       *
+       * This block used to search for prey around the **building** (`building.x + width/2`, with a
+       * hardcoded 320 px reach) and only check afterwards that someone was assigned, so a Hunting Spot
+       * killed whatever wandered near the *structure* no matter where its hunter actually stood — the
+       * shots the owner saw landing "all over the map" (`BUG_REPORTS/2026-09-30-hunting-yield-unbounded.md`
+       * and the earlier `2026-08-28-hunting-projectile-visual.md`). The comment further down already
+       * stated the intent ("a work location, not an automatic attack tower") but the targeting did not
+       * implement it.
+       *
+       * Now the **assigned hunter's own position and reach** do the targeting, which is the same rule
+       * the free-roam path in `humanHuntingBehavior.ts` applies to a settler hunting for themselves. So
+       * a spot with nobody on site hunts nothing, and a hunter who has walked out to the herd is the
+       * one who shoots at it. The `1.2` is the assigned-hunter bonus that path already grants.
+       */
+      const hunter = findLiveAssignedWorker(building, entityById);
+      if (hunter) {
+      /**
+       * The reach, and the owner's objection to it: *"320 px is a uge part the should be near the
+       * animal"*.
+       *
+       * These are two different things and were conflated:
+       *
+       *  - **Search radius** — how far out prey is *noticed*, which the owner sets at **350 px**
+       *    (*"the range can be 350 where is looking"*). That is the wolf's `huntRange` in
+       *    `speciesConfig.ts`, and the human's own entry is 150 — so an assigned hunter's *eyes* were
+       *    narrower than the building's old hardcoded 320, which is backwards: the person looking
+       *    should see at least as far as the structure they work from. Anchored on the hunter and set
+       *    to the owner's 350.
+       *  - **Kill reach** — how close the hunter must actually *be* to take the shot. That is the
+       *    "stand next to it" the owner means, and `humanHuntingBehavior.ts` already models it as
+       *    `config.size + prey.size` (roughly 5–8 m) for a settler hunting for themselves. Applied as
+       *    the kill gate below.
+       *
+       * At the measured scale (~11.76 px/m: a human is 20 px, a house 40 px) 350 px is ~30 m, which is
+       * fair for *seeing* an animal and indefensible for killing one — hence the split.
+       */
+      const searchRadius = OWNER_HUNT_SEARCH_RADIUS;
+      const bx = hunter.x;
+      const by = hunter.y;
 
       let targetPrey: Entity | null = null;
       let bestScore = Infinity;
@@ -486,27 +590,41 @@ function tickBuildingProduction(
         // not depend on how many other draws this module made first.
         const huntKey = `hunt:${building.id}:${state.tick}:${targetPrey.id}`;
         const foughtBack = isWolf && seededRandomForRun(`${huntKey}:fight`) < 0.35;
-        const success = !foughtBack && seededRandomForRun(`${huntKey}:success`) < 0.85;
+        /**
+         * Looking is not killing. Owner (2026-09-30): *"the range can be 350 where is looking but to
+         * kil it you have stand ne xt to it"*.
+         *
+         * This was `success = !foughtBack && roll < 0.85` with **no distance term at all** — the
+         * nearest prey inside the search radius died wherever the hunter happened to be standing, so a
+         * spot took animals from up to 320 px (~27 m) away. That is the "shoots all over the map" the
+         * owner reported.
+         *
+         * The reach is now the same one `humanHuntingBehavior.ts` already applies to a settler hunting
+         * for themselves — `config.size + prey.size`, i.e. bodies touching, roughly 5–8 m at this
+         * scale. Inside that, the 85 % accuracy roll still decides hit or miss; outside it there is no
+         * shot to make. The search radius is untouched, because noticing prey from a distance is fine.
+         */
+        const strikeDistance = HUNTER_KILL_REACH;
+        const preyDistance = Math.hypot(targetPrey.x - hunter.x, targetPrey.y - hunter.y);
+        const inReach = preyDistance <= strikeDistance;
+        const success = inReach && !foughtBack && seededRandomForRun(`${huntKey}:success`) < 0.85;
 
-        // The shot must read as fired by the assigned hunter: a Hunting Spot is a
-        // work location, not an automatic attack tower. With no living hunter
-        // assigned there is nothing to emit, so the building never fires by itself.
-        const hunter = findLiveAssignedWorker(building, entityById);
-        if (hunter) {
-          addHuntVisual(state, {
-            id: `hunt_${state.tick}_${Math.floor(getSimRng('dailyBuildingEconomy')() * 1000)}`,
-            hunterId: hunter.id,
-            preyType: targetPrey.type,
-            fromX: hunter.x,
-            fromY: hunter.y,
-            toX: targetPrey.x,
-            toY: targetPrey.y,
-            startedAtTick: state.tick,
-            startedAtMs: Date.now(),
-            success,
-            foughtBack,
-          });
-        }
+        // The shot is already known to have a live hunter: the targeting above only runs when one is
+        // found, and this uses that same settler. It used to re-look-up the worker here and silently
+        // skip the projectile when none was found, which is now unreachable.
+        addHuntVisual(state, {
+          id: `hunt_${state.tick}_${Math.floor(getSimRng('dailyBuildingEconomy')() * 1000)}`,
+          hunterId: hunter.id,
+          preyType: targetPrey.type,
+          fromX: hunter.x,
+          fromY: hunter.y,
+          toX: targetPrey.x,
+          toY: targetPrey.y,
+          startedAtTick: state.tick,
+          startedAtMs: Date.now(),
+          success,
+          foughtBack,
+        });
 
         if (foughtBack) {
           building.health = Math.max(10, building.health - 12);
@@ -561,6 +679,12 @@ function tickBuildingProduction(
                   : 'rabbit';
             logEvent(state, 'event', `Hunting Spot bagged a ${preyName} (+${added} meat)`);
           }
+        } else if (!inReach) {
+          // Prey was spotted but the hunter is not beside it. Distinct from a miss so the player can
+          // tell "nothing out there" from "the animal is over there and nobody has walked to it" —
+          // the two read identically before, which is part of why the old behaviour looked like a
+          // turret firing at range.
+          addFloatingText(state, hunter.x, hunter.y - 14, 'Too far to shoot', '#94a3b8', 'brief');
         } else {
           addFloatingText(state, targetPrey.x, targetPrey.y - 12, 'Missed shot!', '#94a3b8', 'brief');
         }
@@ -573,6 +697,7 @@ function tickBuildingProduction(
           '#ef4444',
           'brief',
         );
+      }
       }
     }
 

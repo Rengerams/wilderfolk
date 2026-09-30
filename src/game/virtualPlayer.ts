@@ -232,7 +232,26 @@ function isUnderConstruction(state: WorldState, type: BuildingType): boolean {
   );
 }
 
-/** True when the player already has a food producer, built or under construction. */
+/**
+ * True when the player already has a food producer, built or under construction.
+ *
+ * **Known gap, measured 2026-09-29 and NOT yet fixed.** This counts a building by `type` alone — it
+ * does not require `completed`, and it does not require anyone to be working it. So an unfinished or
+ * **unstaffed** farm satisfies "the colony has a food producer", `decideFood` then returns null every
+ * hour, and the bot's status line can read *"no action needed — colony looks healthy"* while that
+ * farm produces nothing. That is the owner's report *"there is no food"* next to a healthy status.
+ *
+ * It is the same assignment-versus-reality distinction as `countWorkersAtBuilding` (which counts
+ * `homeBuildingId`, an assignment, not attendance) and as the daily-production fix.
+ *
+ * **Why it is not fixed here.** Narrowing the predicate to "completed AND staffed" was tried and
+ * measured: it broke **22 of the 68** cases in `tests/virtualPlayer.test.ts`, because those fixtures
+ * give a food producer `occupants` but never set `homeBuildingId`, so `countWorkersAtBuilding`
+ * reports 0 for a farm the fixture considers staffed. Fixing this properly therefore means deciding
+ * the basis (assignment vs. presence) *and* migrating the fixtures to model it — a deliberate change,
+ * not a drive-by. The guard was also tried without the predicate change and broke 1 case by letting
+ * the ladder fall through to the Mine during a shortage.
+ */
 function hasFoodProducer(state: WorldState): boolean {
   return state.buildings.some(
     (building) => building.faction !== 'rival' && FOOD_PRODUCER_TYPES.includes(building.type),
@@ -423,6 +442,13 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   const shortOnFood = food < needPerDay * VirtualPlayer.FOOD_BUFFER_DAYS;
   if (!shortOnFood && hasFoodProducer(state)) return null;
   // One producer at a time, so a food shortage cannot drain the treasury in a day.
+  //
+  // Deliberately only *under construction*, not "a producer already stands". A completed-but-unstaffed
+  // food building must not suppress the response to a shortage: that is the one case where the colony
+  // genuinely needs a producer, and `hasFoodProducer` above already stops the healthy-but-unstaffed
+  // case from being mistaken for being fed. Adding a broader guard here was tried and was wrong — it
+  // blocked the shortage build and the ladder fell through to the Mine (`virtualPlayer.test.ts`,
+  // "proposes a food producer when stores fall below the buffer").
   if (FOOD_PRODUCER_TYPES.some((type) => isUnderConstruction(state, type))) return null;
 
   const daysLeft = Math.max(0, Math.floor(food / needPerDay));
@@ -532,19 +558,29 @@ function decideFestival(state: WorldState): VirtualPlayerDecision | null {
  * `findPlacementSpot` simply returns no spot and the step waits until the owner
  * research lands.
  *
- * A Church is deliberately **not** in this ladder. Adding it was tried on 2026-09-29 and
- * reverted: because this step runs before roads, militia, diplomacy and refugee screening, a
- * church that the colony can afford (45 wood / 35 stone / 20 gold — cheap) shadows every later
- * decision, and it broke 36 of the 68 cases in `tests/virtualPlayer.test.ts`. The coverage gap
- * it was meant to close is real and is recorded instead in
- * `BUG_REPORTS/2026-09-29-automated-runs-never-build-a-church.md`: no automated run in this
- * repository ever reaches `churchStrength > 0`, so the `churchStrength > 0` branch of
- * `tryDailyAffairGossip` is unexercised. Closing that belongs in the browser/auto-play tier,
- * not by widening this ladder.
+ * A Church is deliberately **not** in this ladder, because this step runs before roads, militia,
+ * diplomacy and refugee screening: a church the colony can afford (45 wood / 35 stone / 20 gold —
+ * cheap) would shadow every later decision, and adding it here was tried on 2026-09-29 and broke
+ * 36 of the 68 cases in `tests/virtualPlayer.test.ts`. It lives in `COMMUNITY_BUILD_ORDER` at the
+ * **end** of the ladder instead, where it can only spend an hour nothing else wanted. That closes
+ * the recorded coverage gap (`BUG_REPORTS/2026-09-29-automated-runs-never-build-a-church.md`: no
+ * automated run ever reached `churchStrength > 0`) without demoting food, defence or diplomacy.
  */
 const CIVIC_BUILD_ORDER: readonly BuildingType[] = [
   BuildingType.TownHall,
   BuildingType.Blacksmith,
+  /**
+   * A School, added because nothing in the ladder ever proposed one — owner: *"the bot is not building
+   * schools"*. It was listed only in `RESEARCH_NEED_ORDER` as a building whose *prerequisite research*
+   * the bot would chase, never as something to build, and `CIVIC_BUILD_ORDER` stopped at two. So the
+   * bot would research toward a School and then never raise it.
+   *
+   * Positioned last in this step on purpose. The Town Hall unlocks festivals, taxes and elections and
+   * the Blacksmith makes the forge reachable, so both outrank it; a School only pays off once there
+   * are children to educate. Its own research gate is not restated — `canPlaceBuilding` refuses a
+   * locked building and `findPlacementSpot` then returns no spot, so the step simply waits.
+   */
+  BuildingType.School,
 ];
 
 function decideCivic(state: WorldState): VirtualPlayerDecision | null {

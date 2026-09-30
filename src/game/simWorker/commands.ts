@@ -100,6 +100,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'establishTradeRoute'; routeId: string }
   | { proto: 1; op: 'hostTownFestival'; buildingId: number }
   | { proto: 1; op: 'spawnMoonHowlerDebug' }
+  | { proto: 1; op: 'buildDebug'; type: string; x: number; y: number }
   | { proto: 1; op: 'setWorkSchedule'; startHour: number; endHour: number }
   | { proto: 1; op: 'setVenueSchedule'; venue: VenueScheduleKind; startHour: number; endHour: number }
   | { proto: 1; op: 'setWorkforcePolicy'; preset: WorkforcePreset };
@@ -140,6 +141,7 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'establishTradeRoute',
   'hostTownFestival',
   'spawnMoonHowlerDebug',
+  'buildDebug',
   'setWorkSchedule',
   'setVenueSchedule',
   'setWorkforcePolicy',
@@ -250,6 +252,8 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
     case 'autoStaffWorkers':
     case 'spawnMoonHowlerDebug':
       return true;
+    case 'buildDebug':
+      return isBuildingType(cmd.type) && isFiniteNumber(cmd.x) && isFiniteNumber(cmd.y);
     case 'setWorkSchedule':
       return validateWorkSchedule(cmd.startHour, cmd.endHour).ok;
     case 'setVenueSchedule':
@@ -401,6 +405,10 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return hostTownFestival(world, cmd.buildingId);
     case 'spawnMoonHowlerDebug':
       return spawnMoonHowlerDebug(world);
+    case 'buildDebug':
+      // Debug/testing only: raises any building for free, so a test run does not have to play 200
+      // days to afford a Church. Placement validity is still enforced inside `startBuilding`.
+      return startBuilding(world, cmd.type as BuildingType, cmd.x, cmd.y, 0, true);
     case 'setWorkSchedule':
       return setWorkSchedule(world, cmd.startHour, cmd.endHour);
     case 'setVenueSchedule':

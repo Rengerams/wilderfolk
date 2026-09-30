@@ -17,7 +17,6 @@ import { REPUTATION_FRIENDLY_MIN, REPUTATION_HARSH_MAX } from '../../game/simHel
 const FocusPanel = lazy(() => import('../../game/FocusPanel'));
 const VillageLeadershipPanel = lazy(() => import('../../game/VillageLeadershipPanel'));
 const PopulationPanel = lazy(() => import('../../game/PopulationPanel'));
-const FamiliesTreePanel = lazy(() => import('../FamiliesTreePanel'));
 
 interface StatBadgeProps {
   label: string;
@@ -257,18 +256,15 @@ export default function VillageTabPanel({
         </Suspense>
       </CollapsibleSection>
 
-      <CollapsibleSection
-        icon="🌳"
-        title="Family tree"
-        subtitle="Grandparents, aunts, uncles, children, nephews…"
-        accent="indigo"
-        defaultOpen
-        storageKey="village-family-tree"
-      >
-        <Suspense fallback={<p className="text-[13px] text-stone-300">Loading family tree…</p>}>
-          <FamiliesTreePanel state={state} onFocusCitizen={onFocusCitizen} />
-        </Suspense>
-      </CollapsibleSection>
+      {/* The "Family tree" section that stood here is **removed**, on the owner's report:
+          *"family three is not a family thee"*. It rendered `FamiliesTreePanel`, which is a flat
+          alphabetical list of surnames with 1-2 adults under each (Musson, Mace, Wing, Andersen...),
+          was `defaultOpen`, and therefore dominated the Village tab — so it was both mislabelled and
+          part of the stacking the owner rejected ("i dont want any thing stacked").
+
+          A real tree lives in its own window (`FamilyTreeWindow`), opened from a selected settler:
+          parents above, the settler and spouse in the middle, children below. Nothing here should be
+          called a family tree until it draws one. */}
 
       <CollapsibleSection
         icon="👨‍👩‍👧"

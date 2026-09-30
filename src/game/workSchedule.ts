@@ -3,8 +3,6 @@ import { getHourOfDay, isWorkDay } from './dayCycleClock';
 
 export const DEFAULT_WORK_START_HOUR = 7;
 export const DEFAULT_WORK_END_HOUR = 16;
-export const MIN_STANDARD_WORK_HOURS = 2;
-export const MAX_STANDARD_WORK_HOURS = 16;
 
 /** Baseline work window for production scaling — 9 hours = 1.0 output. */
 export const STANDARD_PRODUCTION_WORK_HOURS = 9;
@@ -28,7 +26,14 @@ function isWholeClockHour(value: unknown): value is number {
 }
 
 /**
- * Validates candidate start and end hours against colony labor constraints.
+ * Validates candidate start and end hours.
+ *
+ * There is deliberately **no length restriction**: the owner sets how long the colony
+ * works ("they should be no restrictrion for normal work or hotel or cafe"). The old
+ * `MIN_STANDARD_WORK_HOURS = 2` / `MAX_STANDARD_WORK_HOURS = 16` band refused a short
+ * day and a long one; both are now legal. A longer window simply scales production
+ * (`getWorkHourProductionMultiplier`) and carries more fatigue, which is the intended
+ * pressure — not a refusal.
  */
 export function validateWorkSchedule(
   startHour: unknown,
@@ -48,23 +53,6 @@ export function validateWorkSchedule(
       ok: false,
       status: 'blocked',
       reason: 'The standard work window cannot wrap through midnight.',
-    };
-  }
-
-  const duration = endHour - startHour;
-  if (duration < MIN_STANDARD_WORK_HOURS) {
-    return {
-      ok: false,
-      status: 'blocked',
-      reason: `The standard work window must be at least ${MIN_STANDARD_WORK_HOURS} hours.`,
-    };
-  }
-
-  if (duration > MAX_STANDARD_WORK_HOURS) {
-    return {
-      ok: false,
-      status: 'blocked',
-      reason: `The standard work window cannot exceed ${MAX_STANDARD_WORK_HOURS} hours.`,
     };
   }
 

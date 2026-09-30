@@ -43,7 +43,29 @@ export const BASE_TICKS_PER_SECOND = 1;
 
 /** React UI publish throttle (ms) for periodic non-tick polls. */
 const UI_UPDATE_MS = 250;
+
 const MAX_CATCHUP_STEPS = 12;
+
+/**
+ * Catch-up ticks allowed **per frame** at 1× — raised by the speed multiplier.
+ *
+ * This is a spiral-of-death guard: a frame that arrived late runs extra ticks to catch up, that work
+ * makes the frame longer, the next frame has more backlog, and without a bound the loop locks up
+ * instead of degrading. The cap trades a little lost simulated time for a loop that always catches up.
+ *
+ * **It must scale with `speed`, and used to be a fixed 12.** The budget is per frame, so the ticks a
+ * second the loop can sustain is `fps × budget`; at 60 fps a fixed 12 caps the whole simulation at
+ * **720 ticks/s = 7.2×**, and at 40 fps at 4.8×. So 10× silently delivered ~7× and a frame-rate drop
+ * made it worse — the owner measured 9 s and 12 s per in-game day where 10× must give **7.2 s**
+ * (72 s ÷ 10). Scaling the budget by `speed` removes that ceiling for the legitimate case while
+ * keeping the guard: a backgrounded tab still discards its backlog rather than trying to replay it.
+ */
+function catchUpBudgetFor(speed: number): number {
+  const requested = Number.isFinite(speed) && speed > 0 ? speed : 1;
+  // Enough for the requested rate at a conservative 30 fps, floored at the historical 12 so 1×
+  // behaviour is unchanged, and bounded so a pathological speed cannot lock the loop.
+  return Math.min(240, Math.max(MAX_CATCHUP_STEPS, Math.ceil(requested * 2)));
+}
 
 /** Worker stall watchdog (ms). */
 const WORKER_STALL_TIMEOUT_MS = 10000;
@@ -128,6 +150,22 @@ export class GameLoop {
   private tickAccumulator = 0;
   private lastFrameTime = 0;
   private lastUiUpdate = 0;
+  /**
+   * Speed diagnostic — ticks actually executed, sampled every few seconds.
+   *
+   * Added because the high speed multipliers visibly under-deliver and neither of us could settle why
+   * by reasoning: at 10× a day must take **7.2 s** (72 s ÷ 10), the owner measured 9 s and 12 s, and
+   * reported their frame rate "is different each time". Two candidate causes need different fixes —
+   * the per-frame catch-up budget (`catchUpBudgetFor`, ceiling `fps × budget`), or the raw cost of one
+   * tick (a tick must finish inside `msPerTick`, 10 ms at 10×). This counter separates them by
+   * comparing achieved ticks/second against `BASE_TICKS_PER_SECOND × speed`.
+   *
+   * Off at 1× so normal play pays nothing.
+   */
+  private diagTicks = 0;
+  private diagSince = 0;
+  private diagFrames = 0;
+  private diagFrameMs = 0;
   private lastNotifiedTick = -1;
   private listeners = new Set<SessionListener>();
   private getCanvas: () => HTMLCanvasElement | null;
@@ -871,6 +909,8 @@ export class GameLoop {
     this.lastFrameTime = time;
 
     let tickChanged = false;
+    /** Ticks the simulation actually ran this frame — the only quantity that measures sim rate. */
+    let ticksThisFrame = 0;
 
     if (!this.world.paused) {
       if (this.workerHost && this.lastPausedSentToWorker !== false) {
@@ -880,6 +920,8 @@ export class GameLoop {
       this.tickAccumulator += dtMs;
       const msPerTick = 1000 / (BASE_TICKS_PER_SECOND * this.world.speed);
       let steps = 0;
+      // The per-frame catch-up budget, scaled by speed (see `catchUpBudgetFor`).
+      const catchUpBudget = catchUpBudgetFor(this.world.speed);
       const canvas = this.getCanvas();
       const focus: SimulationFocus | undefined = canvas
         ? computeSimulationFocus(this.view.camera, canvas.offsetWidth, canvas.offsetHeight)
@@ -901,8 +943,8 @@ export class GameLoop {
         } else {
           while (
             this.tickAccumulator >= msPerTick &&
-            steps < MAX_CATCHUP_STEPS &&
-            this.workerHost.canPipelineTick()
+            steps < catchUpBudget
+            && this.workerHost.canPipelineTick()
           ) {
             if (this.workerHost.requestTick(focus)) {
               this.lastWorkerTickRequest = performance.now();
@@ -912,6 +954,7 @@ export class GameLoop {
               break;
             }
           }
+          ticksThisFrame = steps;
           if (this.workerTickChanged) {
             tickChanged = true;
             this.workerTickChanged = false;
@@ -920,7 +963,7 @@ export class GameLoop {
       }
 
       if (!this.workerEnabled && !this.workerBooting) {
-        while (this.tickAccumulator >= msPerTick && steps < MAX_CATCHUP_STEPS) {
+        while (this.tickAccumulator >= msPerTick && steps < catchUpBudget) {
           const advanced = this.stepFallbackTick(focus);
           // Consume the attempted step either way. A tick that threw left the world at its
           // pre-tick state, so keeping its time would only re-attempt the same slice — and the
@@ -942,6 +985,7 @@ export class GameLoop {
         }
         this.renderSoA = null;
         this.renderMetaBySlot = null;
+        ticksThisFrame = steps;
       }
     } else {
       this.tickAccumulator = 0;
@@ -953,6 +997,33 @@ export class GameLoop {
 
     this.view = updateView(this.view, dtMs);
     this.draw();
+
+    // Speed diagnostic — see `diagTicks`. Reports achieved vs target ticks/second and frame cost, so
+    // "10x is not 10x" can be attributed to the catch-up budget or to tick cost instead of guessed at.
+    if (this.world.speed > 1 && !this.world.paused) {
+          this.diagTicks += ticksThisFrame;
+      this.diagFrames += 1;
+      this.diagFrameMs += dtMs;
+      const nowMs = performance.now();
+      if (this.diagSince === 0) this.diagSince = nowMs;
+      const elapsed = nowMs - this.diagSince;
+      if (elapsed >= 3000) {
+        const target = BASE_TICKS_PER_SECOND * this.world.speed;
+        const achieved = this.diagTicks / (elapsed / 1000);
+        console.log(
+          `[SpeedDiag] speed=${this.world.speed}x  achieved=${achieved.toFixed(0)} ticks/s  target=${target}  ratio=${(achieved / target).toFixed(2)}  fps=${(this.diagFrames / (elapsed / 1000)).toFixed(0)}  frameMs=${(this.diagFrameMs / this.diagFrames).toFixed(1)}  msPerTick=${(1000 / target).toFixed(1)}`,
+        );
+        this.diagTicks = 0;
+        this.diagFrames = 0;
+        this.diagFrameMs = 0;
+        this.diagSince = nowMs;
+      }
+    } else if (this.diagSince !== 0) {
+      this.diagTicks = 0;
+      this.diagFrames = 0;
+      this.diagFrameMs = 0;
+      this.diagSince = 0;
+    }
 
     const now = performance.now();
     const periodicUi = now - this.lastUiUpdate >= UI_UPDATE_MS;

@@ -12,6 +12,7 @@ export const EVENT_LOG_FILTER_OPTIONS: Array<{ id: 'all' | GameEventLog['type'];
   { id: 'marriage', label: 'Marriages' },
   { id: 'divorce', label: 'Divorces' },
   { id: 'scandal', label: 'Scandals' },
+  { id: 'prison', label: 'Imprisonments (jailed for scandal)' },
   { id: 'building', label: 'Buildings' },
   { id: 'research', label: 'Research' },
   { id: 'trade', label: 'Trade' },

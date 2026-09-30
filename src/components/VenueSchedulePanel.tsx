@@ -5,8 +5,6 @@ import {
   getVenueSchedule,
   getVenueScheduleLabel,
   getVenueScheduleHours,
-  MIN_VENUE_SERVICE_HOURS,
-  MAX_VENUE_SERVICE_HOURS,
   validateVenueSchedule,
   type VenueScheduleKind,
 } from '../game/venueSchedule';
@@ -50,7 +48,7 @@ export default function VenueSchedulePanel({ state, onApply }: Props) {
           </label>
         ))}
       </div>
-      <div className="rounded border border-stone-700/70 bg-stone-900/40 px-2.5 py-2 text-xs"><div className="flex items-center justify-between"><span>{label} current</span><strong className="text-emerald-300">{getVenueScheduleLabel(current)} ({getVenueScheduleHours(current)}h)</strong></div><p className="mt-1 text-stone-500">Allowed duration: {MIN_VENUE_SERVICE_HOURS}–{MAX_VENUE_SERVICE_HOURS} hours.</p></div>
+      <div className="rounded border border-stone-700/70 bg-stone-900/40 px-2.5 py-2 text-xs"><div className="flex items-center justify-between"><span>{label} current</span><strong className="text-emerald-300">{getVenueScheduleLabel(current)} ({getVenueScheduleHours(current)}h)</strong></div><p className="mt-1 text-stone-500">Any length from 1 to 23 hours — a longer window is covered by another settler.</p></div>
       <div className="rounded border border-stone-700/70 bg-stone-900/40 px-2.5 py-2 text-xs"><div className="flex items-center justify-between"><span>Preview</span><strong className="text-stone-200">{preview.expectedHours}h · {preview.affectedWorkplaces} venues</strong></div><p className="mt-1 text-stone-400">{preview.assignedWorkers} assigned staff are affected. {preview.warning}</p><p className="mt-1 text-sky-300">{festivalStatus}</p></div>
       <p className={`min-h-4 text-xs ${validation.ok ? 'text-emerald-300' : 'text-amber-300'}`}>{validation.ok ? (validation.status === 'unchanged' ? 'Unchanged — no command will be sent.' : 'Accepted by bounds — ready to apply.') : `Blocked: ${validation.reason}`}</p>
       <button type="button" disabled={!validation.ok || validation.status === 'unchanged'} onClick={() => { if (validation.ok && validation.status !== 'unchanged') onApply(venue, validation.schedule.startHour, validation.schedule.endHour); }} className="w-full rounded bg-emerald-700 px-3 py-2 font-semibold text-white enabled:hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-40">Apply {label.toLowerCase()} service hours</button>

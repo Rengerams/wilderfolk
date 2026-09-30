@@ -72,6 +72,8 @@ import ShortcutsOverlay from './components/ShortcutsOverlay';
 import GameDashboard from './components/dashboard/GameDashboard';
 import VisitorCampPanel from './components/VisitorCampPanel';
 import SelectedEntityPanel from './components/SelectedEntityPanel';
+import FamilyTreeWindow from './components/FamilyTreeWindow';
+import WorkHoursWindow from './components/WorkHoursWindow';
 import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel';
 import { setRelationshipDiagnosticsConsoleLoggingEnabled } from './game/relationshipDiagnostics';
 import GamePlayLayout from './components/GamePlayLayout';
@@ -237,6 +239,14 @@ export default function App() {
   } = useGameShellState();
   const [spritesLoaded, setSpritesLoaded] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  /**
+   * The citizen whose family tree is open, if any. The tree gets its own window rather than a
+   * section of the inspector: laid out by generation it is legible, and inlined it was part of what
+   * made the selected-citizen card one long stack.
+   */
+  const [familyTreeFor, setFamilyTreeFor] = useState<number | null>(null);
+  /** Work & venue hours as its own window (owner: one window per subject). */
+  const [workHoursOpen, setWorkHoursOpen] = useState(false);
   // Reading the save slot touches localStorage and JSON-parses the whole save, so it must never
   // run from the render body (the game view re-renders every tick). The slot is read once on
   // mount, then only from the events that can change it: another tab writing to it (the `storage`
@@ -1806,26 +1816,54 @@ export default function App() {
                 onFocusCamp={() => focusCampOnMap('visitor', selectedVisitorCamp.id, selectedVisitorCamp.campX, selectedVisitorCamp.campY)}
               />
             ) : selectedEntity ? (
-              <SelectedEntityPanel
-                entity={selectedEntity}
-                allEntities={world.entities}
-                state={world}
-                isFavorite={view.favoriteEntityId === selectedEntity.id}
-                onToggleFavorite={
-                  selectedEntity.type === EntityType.Human && isPlayerHuman(selectedEntity)
-                    ? () => {
-                        playClickSound();
-                        toggleFavoriteCitizen(selectedEntity.id);
-                      }
-                    : undefined
-                }
-                onTame={(humanId: number) => {
-                  playClickSound();
-                  const entityId = selectedEntity.id;
-                  applyGameAction({ proto: 1, op: 'tameEntity', entityId, humanId });
-                }}
-                onOpenVisitorCamp={(group) => focusCampOnMap('visitor', group.id, group.campX, group.campY)}
-              />
+              <>
+                <SelectedEntityPanel
+                  entity={selectedEntity}
+                  allEntities={world.entities}
+                  state={world}
+                  isFavorite={view.favoriteEntityId === selectedEntity.id}
+                  onToggleFavorite={
+                    selectedEntity.type === EntityType.Human && isPlayerHuman(selectedEntity)
+                      ? () => {
+                          playClickSound();
+                          toggleFavoriteCitizen(selectedEntity.id);
+                        }
+                      : undefined
+                  }
+                  onTame={(humanId: number) => {
+                    playClickSound();
+                    const entityId = selectedEntity.id;
+                    applyGameAction({ proto: 1, op: 'tameEntity', entityId, humanId });
+                  }}
+                  onOpenVisitorCamp={(group) => focusCampOnMap('visitor', group.id, group.campX, group.campY)}
+                  onOpenFamilyTree={() => {
+                    playClickSound();
+                    setFamilyTreeFor(selectedEntity.id);
+                  }}
+                />
+                {/* Its own window. `onSelect` walks the tree through the SAME door a map click uses,
+                    so selecting a relative behaves exactly like clicking them on the map. */}
+                {familyTreeFor != null &&
+                  (() => {
+                    const treeEntity = resolveEntity(world, familyTreeFor) ?? catalog?.get(familyTreeFor);
+                    if (!treeEntity) return null;
+                    return (
+                      <FamilyTreeWindow
+                        entity={treeEntity}
+                        allEntities={world.entities}
+                        onClose={() => setFamilyTreeFor(null)}
+                        onSelect={(entityId) => {
+                          playClickSound();
+                          setFamilyTreeFor(entityId);
+                          loopRef.current?.patchView({
+                            selectedEntityId: entityId,
+                            selectedEntityIds: [entityId],
+                          });
+                        }}
+                      />
+                    );
+                  })()}
+              </>
             ) : selectedBuilding ? (
               <>
                 {(() => {
@@ -2041,15 +2079,10 @@ export default function App() {
             handleHintAction(action);
           }}
           suppressHintIds={campaignStep?.id === 'build_house' ? ['build_house'] : []}
-          onApplyWorkSchedule={(startHour, endHour) =>
-            applyGameAction({ proto: 1, op: 'setWorkSchedule', startHour, endHour })
-          }
-          onApplyVenueSchedule={(venue, startHour, endHour) =>
-            applyGameAction({ proto: 1, op: 'setVenueSchedule', venue, startHour, endHour })
-          }
-          onApplyWorkforcePolicy={(preset) =>
-            applyGameAction({ proto: 1, op: 'setWorkforcePolicy', preset })
-          }
+          onOpenWorkHours={() => {
+            playClickSound();
+            setWorkHoursOpen(true);
+          }}
           onFocusVisitor={(id, x, y) => focusCampOnMap('visitor', id, x, y)}
           onFocusRival={(id, x, y, buildingId) => focusCampOnMap('rival', id, x, y, buildingId)}
           onLaunchRaid={(rivalId) => {
@@ -2063,6 +2096,22 @@ export default function App() {
           onSpawnMoonHowlerDebug={() => applyGameAction({ proto: 1, op: 'spawnMoonHowlerDebug' })}
           debugMode={debugMode}
           onStartGuidedCampaign={() => applyGameAction({ proto: 1, op: 'startGuidedCampaign' })}
+        />
+      )}
+      {/* Its own window, independent of any selection (owner: one window per subject). */}
+      {workHoursOpen && (
+        <WorkHoursWindow
+          state={world}
+          onClose={() => setWorkHoursOpen(false)}
+          onApplyWorkSchedule={(startHour, endHour) =>
+            applyGameAction({ proto: 1, op: 'setWorkSchedule', startHour, endHour })
+          }
+          onApplyVenueSchedule={(venue, startHour, endHour) =>
+            applyGameAction({ proto: 1, op: 'setVenueSchedule', venue, startHour, endHour })
+          }
+          onApplyWorkforcePolicy={(preset) =>
+            applyGameAction({ proto: 1, op: 'setWorkforcePolicy', preset })
+          }
         />
       )}
         </GameOverlays>

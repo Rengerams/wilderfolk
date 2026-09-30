@@ -364,7 +364,7 @@ function deriveCouncil(state: WorldState): CouncilLine[] {
 
   const day = Math.floor(state.tick / TICKS_PER_DAY);
   const prevStart = (day - 1) * TICKS_PER_DAY;
-  const counts = { births: 0, conceptions: 0, deaths: 0, marriages: 0, scandals: 0, combats: 0 };
+  const counts = { births: 0, conceptions: 0, deaths: 0, marriages: 0, scandals: 0, prisons: 0, combats: 0 };
   const latest: string[] = [];
   for (const e of state.eventLog) {
     if (e.tick < prevStart || e.tick >= day * TICKS_PER_DAY) continue;
@@ -376,6 +376,9 @@ function deriveCouncil(state: WorldState): CouncilLine[] {
       case 'death': counts.deaths++; break;
       case 'marriage': counts.marriages++; break;
       case 'scandal': counts.scandals++; break;
+      // Counted separately from `scandal` on purpose: an imprisonment is the consequence of a
+      // scandal, not a second scandal, and the daily report used to show neither.
+      case 'prison': counts.prisons++; break;
       case 'combat': counts.combats++; break;
       default: break;
     }
@@ -386,13 +389,13 @@ function deriveCouncil(state: WorldState): CouncilLine[] {
   }
   const hasEvents =
     counts.births + counts.conceptions + counts.deaths + counts.marriages
-    + counts.scandals + counts.combats > 0;
+    + counts.scandals + counts.prisons + counts.combats > 0;
   lines.push({
     label: 'Life events',
     value: hasEvents
-      ? `Births ${counts.births} · Expecting ${counts.conceptions} · Deaths ${counts.deaths} · Marriages ${counts.marriages} · Scandals ${counts.scandals} · Combat ${counts.combats}`
+      ? `Births ${counts.births} · Expecting ${counts.conceptions} · Deaths ${counts.deaths} · Marriages ${counts.marriages} · Scandals ${counts.scandals} · Jailed ${counts.prisons} · Combat ${counts.combats}`
       : 'quiet day',
-    tone: counts.deaths > 0 || counts.scandals > 0 ? 'warn' : 'neutral',
+    tone: counts.deaths > 0 || counts.scandals > 0 || counts.prisons > 0 ? 'warn' : 'neutral',
   });
 
   const concerns = deriveConcerns(state);

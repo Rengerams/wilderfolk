@@ -2,7 +2,7 @@
 
 A flat register of every report in `BUG_REPORTS/`, oldest first: **date discovered → date solved**, the problem, and what actually fixed it. The individual report stays the source of truth — this file is the index you can scan in one pass. When you add a report, add its line here too.
 
-Compiled 2026-09-16 from the 55 individual reports, plus fourteen 2026-09-16 reports that landed from concurrent audit passes and the follow-up work while this register was being written (69 total). **67 resolved**, **2 resolved with live verification pending** (speed/pause buttons, sand-water overlay art), **nothing open**. One more report landed 2026-09-25 (70 total, **68 resolved**). Two more landed 2026-09-29 (**72 total**, **69 resolved**, **1 open** — the open one is a harness coverage gap, not a gameplay defect).
+Compiled 2026-09-16 from the 55 individual reports, plus fourteen 2026-09-16 reports that landed from concurrent audit passes and the follow-up work while this register was being written (69 total). **67 resolved**, **2 resolved with live verification pending** (speed/pause buttons, sand-water overlay art), **nothing open**. One more report landed 2026-09-25 (70 total, **68 resolved**). Two more landed 2026-09-29 (**72 total**, **69 resolved**, **1 open** — the open one is a harness coverage gap, not a gameplay defect). One more on 2026-09-29 (**73 total**, **69 resolved**, **2 open** — the second is `people-walk-through-water`, a gameplay defect reported from play).
 
 Excluded on request: `2026-09-13-simulation-logic-audit.md` — the large audit document whose findings became the 2026-09-13 slice reports listed below.
 
@@ -20,6 +20,16 @@ Excluded on request: `2026-09-13-simulation-logic-audit.md` — the large audit 
 | 2026-09-25 | 1 | 1 | — |
 
 **Open right now**
+
+- [people-walk-through-water](2026-09-29-people-walk-through-water.md)
+  — a settler crosses water when no route exists. The grid **does** block water
+  (`pathfinding.ts:116-118`); the suspect is the documented fallback where a leg with no route is
+  walked as a **straight line** (`RouteObstruction: 'blocked'`, `pathfinding.ts:481`) — the one
+  steering path that never consults `blocked[]`. That would explain why the report is intermittent:
+  the same river is impassable for a settler with a detour and passable for one without. **No fix
+  attempted, and deliberately not guessed at** — the first step is to measure whether `'blocked'` is
+  actually reached and whether any settler occupies a blocked tile, because a fallback that refused
+  to move would also freeze a settler that is merely stuck, which is a worse bug.
 
 - [worker-main-thread-divergence-on-finer-terrain-lattice](2026-09-24-worker-main-thread-divergence-on-finer-terrain-lattice.md)
   — the worker and the main thread persist different colonies for the same seed once the terrain

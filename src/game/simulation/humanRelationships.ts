@@ -1319,7 +1319,10 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
     prison.occupants.push(offender.id);
   }
   const name = humanDisplayName(offender);
-  logEvent(state, 'event', `${name} was imprisoned for scandal`, name);
+  // A real `'prison'` type, not `'event'` (which buried it in the generic Events bucket and left the
+  // owner unable to find it) and not `'scandal'` (which would inflate the scandal count and pull
+  // imprisonments into the rumour ledger, whose `SOURCE_KINDS` reads that type).
+  logEvent(state, 'prison', `${name} was imprisoned for scandal`, name);
   addNotification(state, 'Imprisoned', `${name} sentenced for scandal`, 'warning');
   addFloatingText(state, prison.x, prison.y - 20, 'Imprisoned', '#94a3b8');
 }

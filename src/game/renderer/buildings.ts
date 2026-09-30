@@ -300,7 +300,18 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
       ctx.strokeStyle = stroke;
       ctx.lineWidth = Math.max(2, 2.5 * cam.zoom);
       ctx.setLineDash([Math.max(4, 6 * cam.zoom), Math.max(3, 4 * cam.zoom)]);
-      ctx.strokeRect(sx - w / 2 - pad, sy - h / 2 - pad, w + pad * 2, h + pad * 2);
+      // `getBuildingScreenRect` returns **centre-x / bottom-y**, not a centre — it is the anchor the
+      // sprite itself is drawn from, so the art rises off the footprint base (the convention
+      // `buildPreview.ts:23` and `grid.ts:331` both record). Treating it as a centre and subtracting
+      // half the footprint put this ring a half-footprint up and to the left of the building, which
+      // is the offset the owner reported. Build the rect from the base instead: the box spans the
+      // footprint horizontally around `sx`, and vertically **upward** from the base line `sy`.
+      ctx.strokeRect(
+        sx - w / 2 - pad,
+        sy - h - pad,
+        w + pad * 2,
+        h + pad * 2,
+      );
       ctx.restore();
     };
     ring(selected.residenceBuildingId, '#38bdf8'); // home — sky blue

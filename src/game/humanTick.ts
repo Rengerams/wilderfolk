@@ -27,6 +27,7 @@ import {
   isWorkScheduleHour,
 } from './workSchedule';
 import { getTickOfDay, isWorkDay } from './dayCycleClock';
+import { SCHOOL_MIN_AGE } from './gameConstants';
 import {
   HUMAN_ADULT_MIN_AGE,
   HUMAN_MAX_LIFESPAN_YEARS,
@@ -98,6 +99,7 @@ import {
   COMMUTE_SNAP_DISTANCE,
   commuteDistanceToBuilding,
   commuteHumanToBuilding,
+  commuteLeadHoursFor,
   nearestActiveMoonHowler,
   snapHumanToBuilding,
 } from './simulation/humanMovement';
@@ -451,7 +453,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     });
 
     const schoolTarget =
-      entity.isJuvenile && isPlayerHuman(entity)
+      entity.isJuvenile
+      && entity.age >= SCHOOL_MIN_AGE
+      && isPlayerHuman(entity)
         ? findSchoolForChild(entity, updatedBuildings, schoolReserved)
         : undefined;
 
@@ -864,9 +868,20 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !isInnkeeper &&
       workplace
     ) {
-      commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), 3.5);
-      onSchedule = true;
-      suppressIdle = true;
+      // Leave early enough to be *at* work when the shift starts, rather than starting the walk
+      // then. The lead grows with this settler's own distance and is clamped to at least the
+      // existing hour, so only genuinely long commutes move. `3.5` is the same `rush` the walk
+      // below uses, so the estimate and the movement agree.
+      const commuteLeadHours = commuteLeadHoursFor(
+        commuteDistanceToBuilding(entity, workplace, false),
+        config.speed,
+      );
+      const needsToLeaveForWork = isWorkDay(state.tick) && hourOfDay >= workSchedule.startHour - commuteLeadHours;
+      if (goWorkTime || onWorkCommuteHours || needsToLeaveForWork) {
+        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), 3.5);
+        onSchedule = true;
+        suppressIdle = true;
+      }
     }
 
     if (!allowFreeRoam && onSchedule && !huntingWere) {

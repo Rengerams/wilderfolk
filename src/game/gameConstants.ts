@@ -160,6 +160,26 @@ export const Immigration = {
   FAMILY_MAX_CHILDREN: 2,
 } as const;
 
+/**
+ * The age a settler must reach before school means anything.
+ *
+ * Owner (2026-09-29): *"well stages its not logic if a zero year old go to school"*, proposing the
+ * ladder `0-2 baby / 2-6 toddler / 6-12 child / 12-18 juvenile`.
+ *
+ * School had **no minimum age at all**: `humanTick` gated the school run on `entity.isJuvenile` alone,
+ * and that flag is `age < HUMAN_CHILDHOOD_DAYS` (12) — true from birth. So a newborn was eligible for
+ * a school shift and would walk to one whenever a school was in range; the only thing that ever
+ * stopped it was the building being absent or too far, which is why it reads as an intermittent
+ * absurdity rather than a constant one.
+ *
+ * 6 is the owner's own number for the start of the "child" band, and it is the first of their four
+ * stages that implies schooling. Deliberately **not** a new global age ladder: the simulation's bands
+ * stay as they are (`HUMAN_CHILDHOOD_DAYS` 12 = graduation, `HUMAN_ADULT_MIN_AGE` 18 = adult) and this
+ * is one gate on one activity — a baby does not go to school. Turning the other three stages into real
+ * mechanics is a separate, balance-affecting decision.
+ */
+export const SCHOOL_MIN_AGE = 6;
+
 /** Tamed-animal care tuning. */
 export const Animal = {
   /**

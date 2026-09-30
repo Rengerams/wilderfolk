@@ -19,9 +19,6 @@ import { overviewNavFromState } from '../hooks/useGameShellState';
 import { useModalFocus } from '../hooks/useModalFocus';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 import { isFoodAlertAmount } from '../game/resourceUtils';
-import WorkSchedulePanel from './WorkSchedulePanel';
-import VenueSchedulePanel from './VenueSchedulePanel';
-import WorkforcePolicyPanel from './WorkforcePolicyPanel';
 
 const VillageTabPanel = lazy(() => import('./tabPanels/VillageTabPanel'));
 const FrontierTabPanel = lazy(() => import('./tabPanels/FrontierTabPanel'));
@@ -60,9 +57,8 @@ export interface CitizenOverviewScreenProps {
   onFocusCitizen: (entity: Entity) => void;
   onToggleFavoriteCitizen?: (entityId: number) => void;
   onHintAction: (action: FocusHintAction) => void;
-  onApplyWorkSchedule: (startHour: number, endHour: number) => void;
-  onApplyWorkforcePolicy: (preset: import('../game/workforcePolicy').WorkforcePreset) => void;
-  onApplyVenueSchedule: (venue: import('../game/venueSchedule').VenueScheduleKind, startHour: number, endHour: number) => void;
+  /** Opens the work & venue hours window, which this screen no longer hosts (owner: one window per subject). */
+  onOpenWorkHours: () => void;
   onFocusVisitor: (id: string, x: number, y: number) => void;
   onFocusRival: (id: string, x: number, y: number, buildingId?: number) => void;
   onLaunchRaid: (rivalId: string) => void;
@@ -148,9 +144,7 @@ export default function CitizenOverviewScreen({
   onFocusCitizen,
   onToggleFavoriteCitizen,
   onHintAction,
-  onApplyWorkSchedule,
-  onApplyVenueSchedule,
-  onApplyWorkforcePolicy,
+  onOpenWorkHours,
   onFocusVisitor,
   onFocusRival,
   onLaunchRaid,
@@ -338,14 +332,22 @@ export default function CitizenOverviewScreen({
                   suppressHintIds={suppressHintIds}
                 />
                 <section className="rounded-xl border border-stone-600/40 bg-stone-900/40 p-3">
-                  <h3 className="mb-2 text-sm font-bold text-stone-200">🕰️ Work & venue hours</h3>
-                  <WorkSchedulePanel state={state} onApply={onApplyWorkSchedule} />
-                  <div className="my-4 border-t border-stone-700/60 pt-4">
-                    <VenueSchedulePanel state={state} onApply={onApplyVenueSchedule} />
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold text-stone-200">🕰️ Work & venue hours</h3>
+                    {/* Its own window, not an inline stack (owner: "each subject should just have
+                        its own window not stacking up"). The editors themselves are unchanged. */}
+                    <button
+                      type="button"
+                      onClick={onOpenWorkHours}
+                      className="rounded bg-stone-700/70 px-2.5 py-1.5 text-xs font-semibold text-stone-100 hover:bg-stone-600/80"
+                    >
+                      Edit hours ↗
+                    </button>
                   </div>
-                  <div className="my-4 border-t border-stone-700/60 pt-4">
-                    <WorkforcePolicyPanel state={state} onApply={onApplyWorkforcePolicy} />
-                  </div>
+                  <p className="mt-1 text-xs text-stone-400">
+                    Ordinary weekday work, Tavern and Hotel service windows, and the workforce preset open in
+                    their own window.
+                  </p>
                 </section>
               </div>
             )}

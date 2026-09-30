@@ -1,5 +1,5 @@
 import type { Building, Entity, WorldState } from './gameTypes';
-import { BUILDING_CONFIGS, BuildingType } from './gameTypes';
+import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType } from './gameTypes';
 import { addResource } from './economy';
 import { addFloatingText, addNotification, createDeathParticles, impulseScreenShake } from './simEffects';
 import { assignMissingWorkers, removeWorkerTransition } from './workforce';
@@ -13,6 +13,39 @@ const REPAIR_COST = { wood: 10, stone: 5 } as const;
 const BUILDING_REFUND_RATIO = 0.5;
 /** Upgrade ceiling: a completed building may reach this level, no further. */
 const MAX_BUILDING_LEVEL = 3;
+
+/**
+ * The reason string returned for a type whose level buys nothing — the UI reads it as "no upgrade
+ * available" and hides the button, the same way `Already level 3` does.
+ *
+ * Exported so the panel can ask "is this the no-benefit case?" without matching on prose.
+ */
+export const NO_LEVEL_BENEFIT_REASON = 'This building does not have levels';
+
+/**
+ * Whether a level of this building type changes anything at all.
+ *
+ * Owner's ruling (2026-09-29): *"if a building is not upgradable not show the button upgrade and do
+ * like its upgradable"* — i.e. behave exactly like a maxed building, which already hides the button
+ * and reads as complete.
+ *
+ * Computed from what actually reads `building.level`, not from a hand-written list (audited with
+ * `tmp/level-effect-audit.mts`):
+ *
+ *  - **Residences** — `getResidenceCapacity` adds +2 occupants per level above 1.
+ *  - **Buildings with a job** — `dailyBuildingEconomy` and `workshopEconomy` multiply output by
+ *    `building.level || 1`, so every producing building gains.
+ *  - **Everything else** — nothing reads `level`. That is 16 of the 38 types (road, wall, wallGate,
+ *    bridge, well, barn, silo, woodStorehouse, mill, tamingPost, watchtower, wildlifePreserve,
+ *    garden, statue, lamp, fence), and offering them an upgrade charged real resources for a number
+ *    that affected nothing.
+ *
+ * Derived rather than listed so a new producing building is upgradeable automatically, and so this
+ * cannot drift from the two multipliers that actually read the field.
+ */
+export function buildingTypeHasLevelBenefit(type: BuildingType): boolean {
+  return isResidenceBuildingType(type) || !!BUILDING_JOB_TYPES[type];
+}
 
 /**
  * Whether `repairBuilding` would actually restore this building: it exists,
@@ -107,6 +140,12 @@ export function getBuildingUpgradeEligibility(
   if (building.type === BuildingType.LeaderHouse) {
     return { ok: false, blockReason: "The Leader's House is fully built" };
   }
+  // A type whose level nothing reads must not offer the upgrade at all (owner's ruling). Reported as
+  // `structural` below, so it is silent and the button simply does not render — the same treatment
+  // `Already level 3` gets, rather than an error the player has to read.
+  if (!buildingTypeHasLevelBenefit(building.type)) {
+    return { ok: false, blockReason: NO_LEVEL_BENEFIT_REASON };
+  }
 
   const { wood: costWood, stone: costStone, gold: costGold } = getBuildingUpgradeCost(building);
   if (state.resources.wood < costWood || state.resources.stone < costStone || state.resources.gold < costGold) {
@@ -125,7 +164,10 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
     // Unfinished, capped, or the Leader's House stay silent (no button in the UI);
     // an affordable-looking upgrade the colony cannot pay for shows the price.
     const structural =
-      !building.completed || building.level >= MAX_BUILDING_LEVEL || building.type === BuildingType.LeaderHouse;
+      !building.completed
+      || building.level >= MAX_BUILDING_LEVEL
+      || building.type === BuildingType.LeaderHouse
+      || !buildingTypeHasLevelBenefit(building.type);
     if (!structural) {
       addFloatingText(
         state,

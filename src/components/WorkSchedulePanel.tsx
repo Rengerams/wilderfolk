@@ -6,8 +6,6 @@ import {
   getWorkSchedule,
   getWorkScheduleHours,
   getWorkScheduleLabel,
-  MAX_STANDARD_WORK_HOURS,
-  MIN_STANDARD_WORK_HOURS,
   validateWorkSchedule,
 } from '../game/workSchedule';
 
@@ -104,7 +102,7 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
           <span>Current</span>
           <strong className="text-emerald-300">{getWorkScheduleLabel(current)} ({currentHours}h)</strong>
         </div>
-        <p className="mt-1 text-stone-500">Allowed duration: {MIN_STANDARD_WORK_HOURS}–{MAX_STANDARD_WORK_HOURS} hours.</p>
+        <p className="mt-1 text-stone-500">Any length from 1 to 23 hours — no minimum or maximum.</p>
       </div>
       <div className="rounded border border-stone-700/70 bg-stone-900/40 px-2.5 py-2 text-xs">
         <div className="flex items-center justify-between">

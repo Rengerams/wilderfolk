@@ -5,8 +5,16 @@ import { ensureAdjacencyIndex, getAdjacencyMultiplierFromIndex } from './adjacen
 import { getTerrainEfficiencyMultiplier } from './terrainSystems';
 import { getMultiplier } from './simHelpers';
 import { isPlayerHuman } from './playerHuman';
-import { getScheduleProductivityMultiplier } from './scheduleFatigue';
-import { getWorkHourProductionMultiplier, getWorkSchedule, getWorkScheduleHours } from './workSchedule';
+import {
+  getScheduleLastWorkedHours,
+  getScheduleProductivityMultiplier,
+  getWorkplacePresenceShare,
+} from './scheduleFatigue';
+import {
+  getWorkHourProductionMultiplier,
+  getWorkSchedule,
+  getWorkScheduleHours,
+} from './workSchedule';
 import { getTownHallGovernanceEfficiency } from './townHall';
 
 const WORKSHOP_ECONOMY_CONFIG = {
@@ -66,15 +74,26 @@ export function estimateWorkshopGold(
   const globalEfficiencyMultiplier = getMultiplier(state, 'global_efficiency');
   // The three terms the estimate used to omit while production applied them every cycle
   // (`dailyBuildingEconomy.ts:299-305` for the state-wide pair, `:340-347` for fatigue): the
-  // schedule-fatigue average over the assigned crew, the configured work-window scale, and the Town
-  // Hall's governance efficiency, which production folds into its `globalEff`
+  // schedule-fatigue average over the assigned crew, the attendance share, and the Town Hall's
+  // governance efficiency, which production folds into its `globalEff`
   // (`LIVE-FINDINGS-STATUS.md`, L6).
   const fatigueMultiplier = actualWorkers > 0
     ? assignedWorkers.reduce((sum, worker) => sum + getScheduleProductivityMultiplier(worker), 0) / actualWorkers
     : 1.0;
-  const workHourMultiplier = getWorkHourProductionMultiplier(
-    getWorkScheduleHours(getWorkSchedule(state)),
+  // Attendance through the same `getWorkplacePresenceShare` rule production uses, so the estimate
+  // cannot drift from real output. An unstaffed preview (`previewUnstaffed`) and a world that has no
+  // settled day yet both report a full shift, which keeps a standing workshop from looking idle.
+  const schedule = getWorkSchedule(state);
+  const workedHours = actualWorkers > 0
+    ? assignedWorkers.reduce((sum, worker) => sum + getScheduleLastWorkedHours(worker), 0) / actualWorkers
+    : 0;
+  const presenceMultiplier = getWorkplacePresenceShare(
+    workedHours,
+    actualWorkers,
+    getWorkScheduleHours(schedule),
+    options.previewUnstaffed === true || assignedWorkers.some((worker) => worker.scheduleLastWorkedHours != null),
   );
+  const workHourMultiplier = getWorkHourProductionMultiplier(getWorkScheduleHours(schedule));
   const governanceMultiplier = getTownHallGovernanceEfficiency(state, state.buildings);
 
   const laborScale =
@@ -92,6 +111,7 @@ export function estimateWorkshopGold(
     globalEfficiencyMultiplier *
     fatigueMultiplier *
     workHourMultiplier *
+    presenceMultiplier *
     governanceMultiplier;
 
   return Math.max(1, Math.floor(recipe.baseGold * combinedMultiplier));

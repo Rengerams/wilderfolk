@@ -8,6 +8,7 @@ import { humanDisplayName } from './citizenId';
 import { EntityType, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isMarriedOrExpecting } from './civilStatus';
+import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 
 export type KinRelation =
   | 'grandmother'
@@ -99,7 +100,11 @@ function isChildOf(child: Entity, parent: Entity): boolean {
 
 function childRelation(child: Entity): KinRelation {
   if (child.isBastard) return 'bastard_child';
-  return child.isJuvenile ? 'child' : 'adult_child';
+  // Age, not `isJuvenile`. `isJuvenile` is recomputed from `HUMAN_CHILDHOOD_DAYS` (12), which is the
+  // *graduation* age, while the documented adult floor is `HUMAN_ADULT_MIN_AGE` (18). Between the two a
+  // settler is neither — and reading `isJuvenile` labelled a 16-year-old an "Adult child" (owner:
+  // *"16 years it not an adult?"*). The age ladder has one owner; this asks it instead of the flag.
+  return child.age >= HUMAN_ADULT_MIN_AGE ? 'adult_child' : 'child';
 }
 
 function iconFor(relation: KinRelation, gender?: 'male' | 'female'): string {

@@ -146,12 +146,24 @@ export function startBuilding(
   x: number,
   y: number,
   rotation: BuildingRotation = 0,
+  /**
+   * Debug/testing only: skip the research gate and the resource cost, so a test run can raise every
+   * building in the catalogue without first playing 200 days to afford it.
+   *
+   * Placement validity (terrain, overlap, the one-per-village rule) is **still enforced** even here:
+   * two buildings in the same footprint would corrupt the spatial indices the renderer and the
+   * adjacency graph read, which is a broken test world rather than a cheated one.
+   *
+   * This is the only cheat in the file and it is opt-in per call, so no shipping path can reach it.
+   * The player-facing route is the dev-only auto-play "build everything" toggle (`virtualPlayer`).
+   */
+  free = false,
 ): WorldState {
   const state = structuredClone(originalState);
   const config = BUILDING_CONFIGS[type];
 
   const placeFailure = getPlaceBuildingFailureReason(state, type, x, y, rotation);
-  if (placeFailure) {
+  if (placeFailure && !(free && placeFailure === 'research')) {
     if (placeFailure === 'research') return notifyBuildingLocked(state, type);
     addFloatingText(
       state,
@@ -167,14 +179,16 @@ export function startBuilding(
     return state;
   }
 
-  if (state.resources.wood < config.cost.wood || state.resources.stone < config.cost.stone || state.resources.gold < config.cost.gold) {
+  if (!free && (state.resources.wood < config.cost.wood || state.resources.stone < config.cost.stone || state.resources.gold < config.cost.gold)) {
     addFloatingText(state, x, y, `Need ${config.cost.wood}w ${config.cost.stone}s ${config.cost.gold}g`, '#ef4444');
     return state;
   }
 
-  state.resources.wood -= config.cost.wood;
-  state.resources.stone -= config.cost.stone;
-  state.resources.gold -= config.cost.gold;
+  if (!free) {
+    state.resources.wood -= config.cost.wood;
+    state.resources.stone -= config.cost.stone;
+    state.resources.gold -= config.cost.gold;
+  }
 
   const building = createBuilding(type, x, y, state.nextBuildingId++, rotation);
   building.spriteScale = 0;

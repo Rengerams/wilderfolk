@@ -25,6 +25,14 @@ export default defineConfig({
     host: '127.0.0.1',
     strictPort: false,
     open: true,
+    watch: {
+      // `src-tauri/target/` is Rust build output, and `cargo doc` writes thousands of
+      // generated HTML files into `src-tauri/target/doc/**`. The dev server watched them all
+      // and issued a full-page reload per file, so opening the game in a browser (or driving
+      // it from `scripts/*.mjs`) produced a reload storm and the page never settled.
+      // Nothing under `target/` is ever imported by the app — it is build output.
+      ignored: ['**/src-tauri/target/**'],
+    },
   },
   preview: {
     port: 4173,

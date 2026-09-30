@@ -9,8 +9,21 @@ export type VenueScheduleValidation =
 
 export const DEFAULT_TAVERN_SCHEDULE: VenueSchedule = Object.freeze({ startHour: 17, endHour: 23 });
 export const DEFAULT_HOTEL_SCHEDULE: VenueSchedule = Object.freeze({ startHour: 6, endHour: 22 });
-export const MIN_VENUE_SERVICE_HOURS = 4;
-export const MAX_VENUE_SERVICE_HOURS = 18;
+
+/**
+ * One settler covers a venue service window up to this many hours; a window longer
+ * than it needs an extra settler ("if its goes over 8 hrs a extra person should go
+ * work at the place", clarified by the owner: "well 9 hrs also fin" — 9 hours is
+ * still one person, so the divisor is 9, not 8).
+ *
+ * `getVenueAutoStaffingTarget` therefore returns `ceil(hours / 9)` bounded below by
+ * one settler and above by the building's own crew cap: 1–9h → 1, 10–18h → 2, 19h+ → 3.
+ *
+ * The service window itself has **no length restriction** — the owner removed both the
+ * old 18-hour cap and the 4-hour floor ("they should be no restrictrion for normal work
+ * or hotel or cafe"). The only remaining bound is that a window cannot wrap through
+ * midnight, so 23 hours (00:00–23:00) is the widest legal one and 1 hour the narrowest.
+ */
 export const STANDARD_WORK_HOURS = 9;
 
 function defaultFor(kind: VenueScheduleKind): VenueSchedule {
@@ -43,9 +56,10 @@ export function validateVenueSchedule(
     return { ok: false, status: 'blocked', reason: 'Venue hours must use whole clock hours from 0 through 23.' };
   }
   if (endHour <= startHour) return { ok: false, status: 'blocked', reason: 'Venue service hours cannot wrap through midnight.' };
-  const duration = endHour - startHour;
-  if (duration < MIN_VENUE_SERVICE_HOURS) return { ok: false, status: 'blocked', reason: `Venue service must run at least ${MIN_VENUE_SERVICE_HOURS} hours.` };
-  if (duration > MAX_VENUE_SERVICE_HOURS) return { ok: false, status: 'blocked', reason: `Venue service cannot exceed ${MAX_VENUE_SERVICE_HOURS} hours.` };
+  // No minimum and no maximum on purpose: the owner chooses how long a venue stays
+  // open ("they should be no restrictrion for normal work or hotel or cafe"), and a
+  // longer window is covered by an extra settler (see `STANDARD_WORK_HOURS`) rather
+  // than refused. `endHour <= startHour` above is the only width limit that remains.
   if (currentSchedule && currentSchedule.startHour === startHour && currentSchedule.endHour === endHour) {
     return { ok: true, status: 'unchanged', schedule: { startHour, endHour } };
   }
@@ -66,7 +80,14 @@ export function getVenueScheduleHours(schedule: VenueSchedule): number {
   return schedule.endHour - schedule.startHour;
 }
 
-/** Minimum Auto staff needed to cover a venue without assigning a worker beyond the standard shift. */
+/**
+ * Minimum Auto staff a venue needs for its service window: one settler up to
+ * `STANDARD_WORK_HOURS` (9) hours, then an extra one per further nine hours —
+ * 1–9h → 1, 10–18h → 2, 19h+ → 3 — always bounded by the building's own crew cap.
+ *
+ * This is the "if its goes over 8 hrs a extra person should go work at the place"
+ * rule; a venue open all day is covered by more staff, never refused.
+ */
 export function getVenueAutoStaffingTarget(
   state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
   kind: VenueScheduleKind,
