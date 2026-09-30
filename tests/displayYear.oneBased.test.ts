@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { displayYear } from '../src/game/dayCycleClock';
+import { buildSaveFilename } from '../src/game/saveLoad';
 import { ELECTION_INTERVAL_YEARS, getElectionCeremonyStatus } from '../src/game/villageLeadership';
 import type { WorldState } from '../src/game/gameTypes';
 
@@ -30,5 +31,12 @@ describe('displayYear formats a stored year for the player', () => {
     } as unknown as WorldState;
 
     expect(getElectionCeremonyStatus(state)).toContain('(Year 1)');
+  });
+
+  it('names a downloaded save with the year the header shows', () => {
+    // The filename is read by the player like any other year, so it takes the stored year and prints
+    // the display one. Printing the stored year named the first year's export "Y0".
+    expect(buildSaveFilename('New Frontier', 0, 12)).toBe('wilderfolk-New-Frontier-Y1-D12.json');
+    expect(buildSaveFilename('New Frontier', 1, 44)).toBe('wilderfolk-New-Frontier-Y2-D44.json');
   });
 });

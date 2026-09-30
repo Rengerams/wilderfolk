@@ -2,6 +2,8 @@
 
 ## <u>[0.6.5.2]</u> — 2026-09-30
 
+- **Fixed a downloaded save's name disagreeing with the header clock** — a save taken in the colony's second year was named for the first, because the name printed the stored year while every other surface prints the year the player reads.
+
 - **Fixed the family tree so it is about the person you opened it on** — the walk crossed every marriage into the whole colony and stopped at 200 names in visit order, so a settler's own child could go missing while a distant in-law stayed. Two generations either side now.
 
 - **Kept 6 000 chronicle entries instead of 2 000** — a mature village filled the old window with ~200 days of history, so a first-year leader death had already rolled out of the log before anyone could look for it.

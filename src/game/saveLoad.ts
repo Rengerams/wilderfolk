@@ -15,6 +15,7 @@ import {
   TICKS_PER_DAY, DAYS_PER_YEAR,
   assignMissingResidences,
 } from './dayCycle';
+import { displayYear } from './dayCycleClock';
 import { mergeCombatResearchNodes } from './combat';
 import { loadAutoSavePreference, saveAutoSavePreference } from './preferences';
 import { logEvent, syncEventLogIdFromState } from './eventLog';
@@ -204,13 +205,17 @@ export function buildSaveData(world: WorldState, view: ViewState): Record<string
   };
 }
 
+/**
+ * The filename a downloaded colony save carries. It takes the **stored** year and prints the one the
+ * player reads, so the file agrees with the clock in the header instead of trailing it by one.
+ */
 export function buildSaveFilename(villageName: string, year: number, dayInYear: number): string {
   const safe = (villageName || 'village')
     .replace(/[^\w\s-]/g, '')
     .trim()
     .replace(/\s+/g, '-')
     .slice(0, 40) || 'village';
-  return `wilderfolk-${safe}-Y${year}-D${dayInYear}.json`;
+  return `wilderfolk-${safe}-Y${displayYear(year)}-D${dayInYear}.json`;
 }
 
 /** Download colony save as a file (also writes browser slot when possible). */
