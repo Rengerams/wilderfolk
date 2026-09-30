@@ -8,7 +8,6 @@ export default function DynastyPanel({ state }: { state: WorldState }) {
    * The chronicle's dynasty rule, read from its owner: three living generations **and** at least
    * three members. The panel used to count two-generation families, so it advertised dynasties the
    * 200-gold chapter refuses and contradicted its own "Three generations alive is a true dynasty."
-   * (audit C2 "Dynasty definition", R12).
    */
   const meaningful = dynasties.filter(isDynasty);
 

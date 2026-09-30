@@ -30,7 +30,6 @@ export const EVENT_LOG_FILTER_OPTIONS: Array<{ id: 'all' | GameEventLog['type'];
  *
  * One definition: the dropdown and the "Showing N of M …" line used to disagree in wording because
  * the header interpolated the raw stored id ("Showing 500 of 823 death") instead of this label
- * (2026-09-17 UI audit, R30).
  */
 export function getEventLogFilterLabel(id: 'all' | GameEventLog['type']): string {
   return EVENT_LOG_FILTER_OPTIONS.find((option) => option.id === id)?.label ?? id;

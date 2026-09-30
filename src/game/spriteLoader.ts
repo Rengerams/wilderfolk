@@ -33,7 +33,6 @@ export const MOUNTAIN_SPRITE_PATHS = [
  * (`humanSprites.WALK_SHEET_PATHS` is the only reader of a human walk sheet). Their PNGs stay in
  * `public/sprites/` for rollback; re-adding a path here is only correct together with a ladder entry
  * that can return it, because this set decides both preloading and the feet-down anchor
- * (2026-09-20 audit, bug 66).
  */
 export const HUMAN_SPRITE_PATHS = new Set<string>([
   '/sprites/human_male.png',

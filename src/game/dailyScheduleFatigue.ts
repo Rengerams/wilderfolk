@@ -20,7 +20,7 @@ export interface VillageFatigueReading {
  *
  * Both halves lived in that view (`WorkSchedulePanel` averaged `scheduleFatigue` and banded it at 60/25
  * itself), so the thresholds a designer tunes sat in a component, invisible to this module — which
- * already aggregates the same quantity for the chronicle and owns its wording (2026-09-20 audit, O-8).
+ * already aggregates the same quantity for the chronicle and owns its wording.
  */
 export function readVillageFatigue(state: WorldState): VillageFatigueReading {
   const values: number[] = [];

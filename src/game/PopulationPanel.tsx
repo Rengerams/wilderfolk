@@ -104,7 +104,7 @@ export default function PopulationPanel({
   // raw tick counters and `getOpenBeds` (R29): the counters can disagree with the header, and
   // `getOpenBeds` counts beds a settler cannot actually be assigned to. The panel states no counter
   // of its own — adults, children, jailed, working and idle all come from `villageStats`, and the
-  // immigration cap from `resolvePopulationCap` (2026-09-22 stats-panel audit, F6/F7).
+ // immigration cap from `resolvePopulationCap`.
   const villageStats = computeVillageStats(state);
   const moonHowlerCursed = state.entities.filter(
     (e) => e.alive && isPlayerHuman(e) && e.moonHowlerCursed,

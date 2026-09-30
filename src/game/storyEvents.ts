@@ -526,7 +526,7 @@ export function maybeOfferWinterPrep(state: WorldState): void {
  * ("days 270–359"). This card, this check and its two cases in `tests/storyEvents.test.ts` all said
  * **260**, which is ten days inside autumn, where nothing freezes — temperature reads only
  * `SEASON_BASE_C[season]` (`temperature.ts:50`). The copy, the check and those cases moved together:
- * changing any one alone desyncs the card from what the valley actually does (2026-09-21 audit).
+ * changing any one alone desyncs the card from what the valley actually does.
  */
 export function tickWinterFreezeCheck(state: WorldState): void {
   if (state.year > 0 || state.dayInYear !== 270) return;

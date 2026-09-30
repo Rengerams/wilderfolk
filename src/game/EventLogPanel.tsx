@@ -133,7 +133,7 @@ export default function EventLogPanel({ events, meta }: Props) {
             key={opt.id}
             type="button"
             onClick={() => setFilter(opt.id)}
-            /* The active filter was stated by background colour alone (2026-09-20 audit, A6). */
+ /* The active filter was stated by background colour alone. */
             aria-pressed={filter === opt.id}
             className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition-all ${
               filter === opt.id

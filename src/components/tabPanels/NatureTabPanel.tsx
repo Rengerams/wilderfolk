@@ -114,12 +114,12 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
   /**
    * The health bar reads the ecology owner, not the raw field. `getEcosystemHealth` supplies the
    * documented midpoint for a world with no recorded score, so a legacy save no longer renders
-   * "NaN %" in this bar beside a breakdown total of 50 (audit C2 "Ecosystem-health read", R34).
+ * "NaN %" in this bar beside a breakdown total of 50.
    */
   const ecosystemHealth = getEcosystemHealth(state);
   // One percentage for the label *and* the bar, from the fill owner: the two used to be computed
   // separately (`Math.round(x)` above a `Math.max(0, x)` width), so a value out of range moved the bar
-  // and not the number (2026-09-20 audit, O-8).
+ // and not the number.
   const healthFill = resourceFillPercent({ amount: ecosystemHealth, cap: 100 });
   const pollutionFill = resourceFillPercent({ amount: state.pollutionLevel, cap: 100 });
 

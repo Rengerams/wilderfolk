@@ -4,7 +4,7 @@ import type { ResearchNode } from './gameTypes';
 import type { RenderSnapshot } from './renderSnapshot';
 import { tileAt } from './terrain/terrainGrid';
 // The "what a terrain type is" pair moved to a leaf so `terrainGrid` can read it without importing
-// this module back — that edge was a runtime cycle (audit T16).
+// this module back — that edge was a runtime cycle.
 import { isUnbuildableTerrainType, isWaterTerrainType } from './terrain/terrainTraits';
 
 /** Keep building footprints slightly inside the map edge so sprites are not clipped. */
@@ -146,7 +146,7 @@ export function overlapsPlayerBuilding(
  * `canPlaceBuildingSnapshot` runs once per candidate cell on the build grid — a ~2 200-cell lattice at
  * high zoom — and each call used to do an O(buildings) `overlapsAnyBuilding` scan, so a 300-building
  * village paid hundreds of thousands of footprint comparisons per repaint *while panning in build
- * mode* (2026-09-21 audit, R-7). The index answers "does anything overlap this rect" against only the
+ * mode*. The index answers "does anything overlap this rect" against only the
  * buildings in the cells the rect touches.
  *
  * Equivalence: a building is inserted into **every** cell its footprint touches, a query visits

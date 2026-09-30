@@ -51,7 +51,7 @@ export function isHotelierAtHotel(
 
 /**
  * Id → entity for the tick's guest lookups (`entityIndex.ensureEntityByIdMap`), built **once** per
- * `tickHotelLodging` call instead of once per hotel per visitor (2026-09-20 audit N-8 / OPEN-5).
+ * `tickHotelLodging` call instead of once per hotel per visitor.
  *
  * The entity array travels alongside it on purpose: a spawn that reached `state.entities` without
  * being indexed is a map miss, and the caller's array stays the authority for it, so every lookup
@@ -222,7 +222,7 @@ export function checkInVisitor(
   );
   // `isDialogueBusy`, not a raw counter: a guest whose line has ended but whose paired session is
   // still live reads as free to a `chatTicks` test, and the forced line below would abandon that
-  // pair (2026-09-20 audit, F-chat-2 — same conversion as `humanChat.ts`).
+ // pair.
   if (!isDialogueBusy(visitor)) {
     // A stateless roll keyed on the guest and the tick, matching the chat convention used
     // elsewhere (`humanChat`), so the greeting is reproducible instead of seedless.
@@ -251,7 +251,7 @@ export function tickHotelLodging(state: WorldState): void {
   const hotels = state.buildings.filter(
     (b) => b.completed && b.type === BuildingType.Hotel && b.faction !== 'rival',
   );
-  // One guest index for the whole call (2026-09-20 audit N-8): the prune below,
+ // One guest index for the whole call: the prune below,
   // `pickHotelForVisitor` and every `checkInVisitor` in the loop used to rebuild an alive-visitor Set
   // and re-scan `state.entities` per hotel per visitor. The pointer repair is one pass for all hotels.
   const byId = ensureEntityByIdMap(state);

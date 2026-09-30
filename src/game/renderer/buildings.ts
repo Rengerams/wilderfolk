@@ -33,7 +33,7 @@ import {
  * "under construction" pass into this list. The count is O(B) with a cheap predicate — cheaper than
  * the O(B log B) sort and the allocation it fed every repaint — while identity catches add/remove,
  * which replace the array. A placed building's geometry (`y`, `height`) and `type` never change, so
- * the sort order itself is stable between those two events (2026-09-21 audit, R-12).
+ * the sort order itself is stable between those two events.
  */
 let sortedBuildingsKey: { array: readonly Building[]; count: number } | null = null;
 let sortedBuildings: Building[] | null = null;

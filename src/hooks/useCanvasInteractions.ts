@@ -54,7 +54,6 @@ export interface UseCanvasInteractionsOptions {
  *
  * The click path and the drag-release path each validated the preview and built this command
  * identically, so a change to strip placement had to be made twice in the input hot path
- * (audit C1 clone 8).
  */
 function stripChainCommand(
   preview: ReturnType<typeof buildStripPreview>,

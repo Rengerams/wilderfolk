@@ -18,7 +18,7 @@ import { computeLogisticsOverlayCached, type LogisticsOverlayData } from './logi
  * `buildRenderSnapshot` is rebuilt every frame while the camera moves, and `EntityCatalog.getEntityByType`
  * allocates a fresh table plus nine fresh bucket arrays on every call. The only consumer of the
  * snapshot's `entityByType` is `renderer.ts`'s **non-SoA** branch (`updateCachedEntities`), so the
- * worker path was paying for those allocations while never reading them (2026-09-21 audit, R-3).
+ * worker path was paying for those allocations while never reading them.
  */
 const EMPTY_ENTITY_BY_TYPE: EntityByType = (() => {
   const table = emptyEntityByType();

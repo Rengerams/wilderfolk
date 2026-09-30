@@ -64,7 +64,7 @@ export const WALL_SEGMENT_BASE_CAP = 72;
  *
  * Exported because the inspector's building hint re-typed the `8` and the `+72` cap as prose, so
  * after a wall-plate forge the hint promised "+8 / max +72" while the forge panel read "+4 / max +96"
- * — two panels in one session contradicting each other (audit C2 "Building output/tuning copy").
+ * — two panels in one session contradicting each other.
  */
 export const WALL_SEGMENT_BASE_BONUS = 8;
 

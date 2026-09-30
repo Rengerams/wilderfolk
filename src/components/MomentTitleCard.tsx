@@ -74,7 +74,6 @@ export default function MomentTitleCard({ moment, onDone }: Props) {
 
   // The card is a full-screen click-catcher that holds the map for ~4.8 s, so it must also be
   // dismissable from the keyboard: Enter/Space activate it, Escape skips it
-  // (2026-09-17 UI audit, R28).
   //
   // It must also **claim** the keyboard while it is up, which is the other half of the same contract
   // and was missing: `useKeyboardControls` listens on `window` in the capture phase and returns

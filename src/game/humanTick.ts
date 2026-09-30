@@ -258,7 +258,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   // `ctx.hasWell` / `ctx.hasHospital` are the colony-infrastructure flags owned by `gameTick`, which
   // derives them from `completed && faction !== 'rival'`. This used to re-derive them locally from
-  // `completed` alone, so a rival camp's well satisfied "the colony has clean water" (audit B-3). The
+ // `completed` alone, so a rival camp's well satisfied "the colony has clean water". The
   // context type still marks the fields optional for test contexts, so a flag the tick did not set
   // reads as "no such infrastructure" instead of being replaced by a second, weaker rule.
   const hasWell = ctx.hasWell === true;
@@ -1676,7 +1676,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         e.partnerId != null &&
         e.id < e.partnerId,
     ).length;
-    // A courtship is mutual by definition (audit F5), so count a pair here only when both sides name
+ // A courtship is mutual by definition, so count a pair here only when both sides name
     // each other — a one-sided link left by a break must not be reported as an active courtship.
     const courtshipById = new Map(activeHumans.map((e) => [e.id, e]));
     const activeCourtships = activeHumans.filter(

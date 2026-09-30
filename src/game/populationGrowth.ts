@@ -104,7 +104,7 @@ function resolveReputation(state: WorldState): number {
  * derived one (5 + beds + 1 per 10 reputation).
  *
  * One definition, because two surfaces ask "how close is the colony to its cap?" — the growth report
- * and the header's population chip — and they must not mean two different caps (2026-09-20 audit, O-2).
+ * and the header's population chip — and they must not mean two different caps.
  */
 export function resolvePopulationCap(state: WorldState): number {
   if (typeof state.maxHumanPopulation === 'number' && Number.isFinite(state.maxHumanPopulation)) {
@@ -122,7 +122,7 @@ export const POPULATION_NEAR_CAP_RATIO = 0.9;
  *
  * Owned here rather than in the header: the band is a tuning value, and the population it divides is
  * the owner's own snapshot — the chip used to divide a UI-supplied count by the raw cap field, so the
- * two surfaces of the same question could disagree (2026-09-20 audit, O-2).
+ * two surfaces of the same question could disagree.
  */
 export function isPopulationNearCap(state: WorldState): boolean {
   const cap = resolvePopulationCap(state);
@@ -194,7 +194,6 @@ export function getOpenBedsFromPop(state: WorldState, pop: number): number {
  * rather than one number with local copies: this one answers "how many beds are empty" (the growth
  * report's line), that one answers "how many beds a settler could be assigned" (every surface that
  * says *open beds* / *Housing available*). A view that means the second reads the second
- * (2026-09-22 stats-panel audit, F2).
  */
 export function getOpenBeds(state: WorldState): number {
   const { pop, beds } = snapshotPopulation(state);
@@ -205,7 +204,7 @@ export function getOpenBeds(state: WorldState): number {
  * `pop > beds` — more settlers than beds, so housing is the bottleneck.
  *
  * One definition: the growth report's tone and the Focus panel's "Build more housing" hint ask the
- * same question, and each used to compare the two numbers itself (2026-09-22 stats-panel audit, F11).
+ * same question, and each used to compare the two numbers itself.
  */
 export function isOvercrowded(state: WorldState): boolean {
   const { pop, beds } = snapshotPopulation(state);
@@ -252,7 +251,7 @@ export function getPopulationGrowthReport(state: WorldState): PopulationGrowthRe
 
   const openSlots = openCapSlots(cap, pop);
   // The inclusive bed count, from its own owner — this line reports spare capacity, not assignable
-  // housing, so it reads `getOpenBeds` rather than summing `beds - pop` here (audit F2).
+ // housing, so it reads `getOpenBeds` rather than summing `beds - pop` here.
   const openBeds = getOpenBeds(state);
   const overcrowded = isOvercrowded(state);
   const food = getFoodAmount(state);

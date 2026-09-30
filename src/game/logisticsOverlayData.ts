@@ -550,7 +550,6 @@ export function computeLogisticsOverlay(world: WorldState): LogisticsOverlayData
  * `gameLoop.snapshotDirtyKey()` includes the camera, which `updateView` lerps **every frame**. So with
  * the overlay on, panning re-ran the whole projection at frame rate (~60× per second) instead of once
  * per simulation tick, with ~200 commute objects of garbage per frame
- * (2026-09-21 audit, D-1).
  *
  * The cache key is the world **object identity** plus the tick. Identity catches every in-place
  * mutation and every adoption of a new authoritative world, and the tick additionally catches a

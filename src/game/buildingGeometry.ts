@@ -6,7 +6,7 @@
  * (which needs the footprint size) can both depend on it without depending on each other. Before the
  * split, delegating `isEntityOnBuilding` to `placementUtils.getBuildingFootprintRect` closed a runtime
  * import cycle `buildingRotation ↔ placementUtils`, which failed
- * `npm run audit:deps:cycles:strict` (2026-09-20 audit, X-6).
+ * `npm run audit:deps:cycles:strict`.
  *
  * ## The convention
  *

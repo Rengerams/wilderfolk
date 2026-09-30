@@ -6,7 +6,7 @@ import { BuildingType } from './gameTypes';
  * `useGameShellState` used to declare a second, same-named union with an extra `'schedule'` member,
  * while `useKeyboardControls` typed its `openTab` with this one. The two disagreed by a member, so
  * `'schedule'` was a branch no hotkey or rail button could reach and the hook's own switch was
- * unreachable behind the type mismatch (audit C2 "`SidebarTab` union"). The type now lives in one
+ * unreachable behind the type mismatch. The type now lives in one
  * place and the hook imports it.
  *
  * `'schedule'` is kept as the declared-but-unproduced id for the Work Schedule view, which now

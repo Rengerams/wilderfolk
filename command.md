@@ -34,6 +34,21 @@ For sorting use `Sort-Object`; for finding files use `Get-ChildItem -Recurse` (`
 * Discard output with `| Out-Null` or `> $null`, never `/dev/null`.
 * Paths with spaces: always quote. To run them, use `& "C:\Path With Spaces\tool.exe"`.
 * HTTP: use `Invoke-RestMethod` or `curl.exe`.
+*  c          `scherm wissen`
+*  ll         `bestanden tonen`
+*  np         `kladblok openen`
+* home       `naar je gebruikersmap`
+* Get-MyIP   `publiek IP-adres`
+* grep       `tekst zoeken`
+
+##  AI
+* clipcheck  `klembord tonen en controleren`
+* clipsave   `klembord opslaan als bestand   (clipsave test.ps1)`
+* aicopy     `bestanden naar klembord`        (aicopy main.py)`
+* aitree     `mappenstructuur naar klembord`
+* aierr      `laatste fout naar klembord`
+* aiclip     `uitvoer naar klembord          (ll | aiclip)`
+* aienv      `systeeminfo naar klembord`
 
 ## Error handling
 * Use `$ErrorActionPreference = 'Stop'` in scripts.

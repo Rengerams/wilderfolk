@@ -31,7 +31,7 @@ export function getFocusableElements(container: HTMLElement): HTMLElement[] {
  * to the container instead let Tab escape behind an open dialog: clicking non-focusable dialog text
  * moves focus to `<body>`, where the container's own listener never sees the key and the wrap test
  * (`document.activeElement === last`) cannot match. Focus restore and the document binding are the
- * residual halves of F33 (2026-09-17 UI audit, R16/R17).
+ * residual halves of F33.
  */
 export function useModalFocus<T extends HTMLElement>(active = true): RefObject<T | null> {
   const containerRef = useRef<T | null>(null);

@@ -7,7 +7,7 @@ export const ADJACENCY_CELL = 80;
  * Adjacency bonus a completed Barn gives a neighbouring Farm/Greenhouse.
  *
  * Exported because the inspector's Barn hint typed "+35%" as prose; the number a designer tunes now
- * lives only here (audit C2 "Building output/tuning copy").
+ * lives only here.
  */
 export const BARN_ADJACENCY_BONUS = 0.35;
 

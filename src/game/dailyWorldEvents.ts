@@ -211,7 +211,7 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
       () => state.nextEntityId++,
       // The context is what routes these spawns through `pushNewEntity`, so they reach the spatial
       // grids and `ctx.newEntities` inside the same tick. Without it they landed on the array
-      // `gameTick` discards a few lines later (2026-09-20 audit, S-1a).
+ // `gameTick` discards a few lines later.
       ctx,
     );
     state.activeEvent = rolled.event;

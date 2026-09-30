@@ -132,7 +132,7 @@ const SPEED_OPTIONS = [0.5, 1, 2, 3, 5, 10];
  *
  * It used to exist only in the game shell, so a refused load on the new-settlement screen — where
  * "Load saved game" lives — set a message that was never drawn and expired before the player could
- * reach the game (2026-09-17 UI audit, R39). `className` carries the z-index because that screen is
+ * reach the game. `className` carries the z-index because that screen is
  * a `fixed inset-0 z-50` overlay and the banner has to sit above it.
  */
 function SaveToastBanner({
@@ -257,7 +257,7 @@ export default function App() {
   // it". They were both seeded from `hasSave()`, which is the second meaning — so a slot holding a save
   // from a different build read as "No browser save", the Load action was disabled, and
   // `describeSaveReadFailure`'s "Save is from a different build … Start a new settlement" was
-  // unreachable from this screen (2026-09-20 audit, P-2). Keeping the two apart is what lets the Load
+ // unreachable from this screen. Keeping the two apart is what lets the Load
   // affordance stay enabled and the refusal message be the thing the player reads.
   const [saveSlotPresent, setSaveSlotPresent] = useState(hasSaveSlot);
   const [hasSavedGame, setHasSavedGame] = useState(hasSave);
@@ -2122,7 +2122,7 @@ export default function App() {
  *
  * The story card and the diplomacy card rendered this control byte-for-byte identically except for
  * their colours and their command op — jscpd's remaining `.tsx` clone in this file. `RaidChoiceButtons`
- * in `SelectedBuildingPanel` is the same shape for the raid cards (2026-09-20 audit, clone 2).
+ * in `SelectedBuildingPanel` is the same shape for the raid cards.
  */
 function GatedChoiceButton({
   label,
@@ -2192,7 +2192,7 @@ function FavoriteFollowBanner({
   onStop: (id: number) => void;
 }) {
   // The owner's identified form: it keeps the `#id` (two nameless settlers must stay distinguishable
-  // here) *and* the one nameless-settler fallback (2026-09-20 audit, W-1/W-2).
+ // here) *and* the one nameless-settler fallback.
   const label = formatCitizenName(fav);
   return (
     <div className="pointer-events-auto absolute left-1/2 top-14 z-20 -translate-x-1/2">

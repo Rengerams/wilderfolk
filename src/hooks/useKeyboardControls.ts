@@ -176,13 +176,13 @@ export function useKeyboardControls({
       // to act on there: `isEditableTarget` is false whenever focus sits on a button, which is every
       // control on those screens, so a digit armed a build type and `B` opened the build panel, and
       // the colony started with the rail armed. Ctrl/Cmd+S and `?` stay deliberately **above** this
-      // gate: saving and opening this sheet are meaningful before a map exists (2026-09-20 audit, A4).
+ // gate: saving and opening this sheet are meaningful before a map exists.
       if (!gameplayActiveRef.current) return;
 
       // No chord reaches the map. Ctrl/Cmd+1..9 switches browser tabs and Alt+= is an OS zoom; both
       // used to select a building or zoom the map too, so returning from the browser tab found the
       // game in build mode. Every sibling hotkey below already tests for modifiers — this hoists the
-      // same rule above the zoom/digit pair that forgot it (2026-09-17 UI audit, R21).
+ // same rule above the zoom/digit pair that forgot it.
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       if (e.key === '+' || e.key === '=') {

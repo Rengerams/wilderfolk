@@ -79,7 +79,7 @@ const PAD = { top: 12, right: 12, bottom: 26, left: 34 };
 /**
  * Five labelled horizontal gridlines — one shared axis block for both charts, which had drifted
  * apart: `LineChart` drew it with no accessible name while `FoodTrendChart` carried an
- * `aria-label`, and any axis change had to be made twice (audit C1 clone 6).
+ * `aria-label`, and any axis change had to be made twice.
  */
 function ChartGrid({ max, innerH }: { max: number; innerH: number }) {
   return (
@@ -207,7 +207,7 @@ function SettlersTable({
               // The row is the only way to open the "Why this settler…" panel, and it was mouse-only:
               // no role, no tab stop and no key handler, so the panel was unreachable by keyboard or
               // assistive tech. `role="button"` + `tabIndex` + Enter/Space is the shape the mini-map
-              // already uses for its own click-only canvas (2026-09-21 audit, D-9). The label is
+ // already uses for its own click-only canvas. The label is
               // explicit because a row's accessible name would otherwise be every cell concatenated.
               role={onSelect ? 'button' : undefined}
               tabIndex={onSelect ? 0 : undefined}
@@ -312,7 +312,7 @@ export default function GameDashboard({
   const [openTab, setOpenTab] = useState<'settlers' | 'trend'>('settlers');
   const [selectedSettlerId, setSelectedSettlerId] = useState<number | null>(null);
   // The keyboard half of the overlay contract: the dashboard owns the keyboard while it is open and
-  // handles Escape itself, in one place shared with the other three overlays (2026-09-20 audit, clone 3).
+ // handles Escape itself, in one place shared with the other three overlays.
   // The focus half moved to `GameWindow`, which owns the element the trap must be attached to.
   useOverlayKeyboard('dashboard', onClose);
 

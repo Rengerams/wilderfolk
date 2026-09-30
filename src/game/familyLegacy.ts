@@ -58,7 +58,6 @@ export function computeDynasties(state: WorldState): Dynasty[] {
  * rule: `hasDynasty` gates the 200-gold chronicle chapter on it, and `DynastyPanel` lists and counts
  * families with it. The panel used to filter on `generationsAlive >= 2` alone, so it advertised
  * two-generation families as dynasties — contradicting both its own sentence and the reward gate
- * (audit C2 "Dynasty definition", R12).
  */
 export function isDynasty(dynasty: Pick<Dynasty, 'generationsAlive' | 'members'>): boolean {
   return dynasty.generationsAlive >= 3 && dynasty.members >= 3;

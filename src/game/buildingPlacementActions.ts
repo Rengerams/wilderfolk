@@ -68,7 +68,7 @@ export function canPlaceBuilding(
  * stands.
  *
  * The build catalogue tested `config.unique && buildings.some(...)` itself and re-worded the refusal,
- * so the rule lived in a view as well as here (2026-09-20 audit, O-5). The wording the player reads is
+ * so the rule lived in a view as well as here. The wording the player reads is
  * `buildingPlacementLabels.PLACEMENT_FAILURE_LABELS.unique`.
  */
 export function isUniqueBuildingAlreadyBuilt(state: WorldState, type: BuildingType): boolean {
@@ -201,7 +201,7 @@ export function startBuilding(
   clearTreesUnderFootprint(state, building);
   // The third argument is the `WorldState`: without it the auto-staff pass falls back to
   // `DEFAULT_WORKFORCE_POLICY` and the default tavern window, so a newly placed building could
-  // push a staffed venue one worker past the player's own preset (audit B-2).
+ // push a staffed venue one worker past the player's own preset.
   assignMissingWorkers(listPlayerHumans(state), state.buildings, state);
 
   createDeathParticles(state, x, y, '#ffd700', 8, 'star');

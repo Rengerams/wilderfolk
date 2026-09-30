@@ -6,7 +6,6 @@ const FrontierPanel = lazy(() => import('../FrontierPanel'));
 /**
  * The wrapper adds `Suspense` + `lazy` and nothing else, so it forwards the child's own contract —
  * restating it here let a new `FrontierPanel` prop silently default instead of failing to compile
- * (audit C1 clone 2).
  */
 export type FrontierTabPanelProps = FrontierPanelProps;
 

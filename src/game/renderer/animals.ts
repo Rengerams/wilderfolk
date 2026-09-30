@@ -31,7 +31,7 @@ export function drawAnimals(
     // `spriteH * ANIMAL_SPRITE_ANCHOR_Y` upward and `spriteH * (1 - ANIMAL_SPRITE_ANCHOR_Y)` downward,
     // and `spriteH * aspect / 2` sideways. The old symmetric `spriteH * 0.75` pad was *smaller* than the
     // 0.88 upward extent, so a quadruped whose body was still on-screen by up to ~0.13·spriteH popped out
-    // at the bottom edge instead of sliding in (2026-09-21 audit, R-10). Per-axis pads cull on the actual
+ // at the bottom edge instead of sliding in. Per-axis pads cull on the actual
     // bounds; the decorations above (🐾, 👑, the moon-howler ring) were never covered by the pad either,
     // so they keep their existing, slightly earlier pop.
     const aspect = frame && isDrawableSpriteFrame(frame) ? frame.sw / frame.sh : 1;

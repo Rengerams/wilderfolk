@@ -12,20 +12,20 @@ export interface HousingDiagnosticsSnapshot {
   /**
    * Beds held by the residence owner's occupant rule (`residencyOccupancy.countResidentsInBuilding`),
    * not by summing `building.occupants` here: the two disagree for a cursed settler in werewolf form,
-   * whom the residence sync counts and `isPlayerHuman` does not (2026-09-22 stats-panel audit, F5).
+ * whom the residence sync counts and `isPlayerHuman` does not.
    */
   occupiedBeds: number;
   /**
    * Beds a settler may actually be assigned, from the growth owner
    * (`populationGrowth.getOpenPlayerBeds`). The Leader's House is excluded because those beds are
    * reserved for the leader's household, and this figure is what "open beds" means everywhere else on
-   * screen (2026-09-22 stats-panel audit, F2).
+ * screen.
    */
   openBeds: number;
   residences: number;
   underCapacityResidences: number;
   overCapacityResidences: number;
-  /** Homeless settlers — the residence owner's rule, prisoners excluded (audit F1). */
+ /** Homeless settlers — the residence owner's rule, prisoners excluded. */
   homelessPlayerHumans: number;
   orphanedResidenceReferences: number;
   occupantListMismatches: number;

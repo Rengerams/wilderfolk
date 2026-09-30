@@ -608,7 +608,6 @@ export function worldToScreen(
  * Single-axis projections of {@link worldToScreen} — the formula stays in this one owner, but a
  * caller that only needs one axis (the grid overlay strokes one line at a time) gets the value back
  * as a number instead of allocating a `[x, y]` tuple and discarding half of it every line
- * (2026-09-21 audit, R-6).
  */
 export function worldToScreenX(x: number, cam: Camera, cw: number): number {
   const zoom = cam.zoom > 0 ? cam.zoom : CAMERA_ZOOM_DEFAULT;

@@ -109,7 +109,7 @@ export function expireNotifications(
   if (!world.notifications || world.notifications.length === 0) return;
   // One lifetime, one name: the sweeper cutoff and the per-toast timer both read
   // `NOTIFICATION_DISPLAY_MS`. They were two 12_000 constants, so lowering the sweeper's copy
-  // below the timer's restored the F22 blink loop (audit C2 "Toast lifetime").
+ // below the timer's restored the F22 blink loop.
   const cutoff = now - NOTIFICATION_DISPLAY_MS;
   const expired = world.notifications.filter((notification) => notification.createdAt <= cutoff);
   if (expired.length === 0) return;

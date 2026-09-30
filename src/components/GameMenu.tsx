@@ -217,7 +217,7 @@ export default function GameMenu({
   // The menu owns the keyboard while open: the game's window-capture handler runs before this
   // component's document handler, so without the claim one Escape closes the menu *and* falls through
   // to clear the map selection. Escape steps back to the main page first, then closes — the shared
-  // hook owns the claim, this component only says what Escape means here (2026-09-20 audit, clone 3).
+ // hook owns the claim, this component only says what Escape means here.
   const handleEscape = useCallback(() => {
     if (view !== 'main') setView('main');
     else close();

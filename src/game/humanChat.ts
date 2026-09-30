@@ -177,7 +177,7 @@ function clearEntityChat(entity: ChatSpeaker): void {
  * (`moonHowler.ts` sets `type = EntityType.Werewolf`), because the wolf's `chatTicks` stopped
  * decrementing while the idle half stayed `isDialogueBusy`. The idle half could not self-heal —
  * the session entry is *live*, so the orphan reclaim below cannot see it, and its own `chatTicks`
- * are already 0 so it never reaches `advanceDialogue` (2026-09-20 audit, F-chat-1 residual).
+ * are already 0 so it never reaches `advanceDialogue`.
  *
  * No partner resolver is needed here: deleting the entry is enough. The survivor's key becomes an
  * orphan and the hoisted reclaim releases it on that settler's next tick — the same net that already
@@ -272,7 +272,7 @@ export function startDialogueTreeChat(
   // *or* a paired session is live, and `showDialogueStep` clears the idle half's line while keeping its
   // session key. The raw test therefore read the idle half as free, and `entityB.chatDialogueSessionKey
   // = key` below overwrote an in-flight partner's key — one settler speaking two dialogue trees at once
-  // while the old session entry stayed live (2026-09-20 audit, F-chat-2). `isDialogueBusy` is the
+ // while the old session entry stayed live. `isDialogueBusy` is the
   // contract `tests/socialLife.dialogueBusy.test.ts` pins.
   if (isDialogueBusy(entityA)) return;
   if (!solo && entityB && isDialogueBusy(entityB)) return;
@@ -360,7 +360,7 @@ function advanceDialogue(
  * A forced phrase abandons whatever dialogue session this settler held, and the **counterpart must be
  * released with it**: the session map entry is what `isDialogueBusy` reads, so deleting the entry while
  * leaving the partner's key behind stranded that settler as dialogue-busy on a session nobody owns
- * (2026-09-20 audit, F-chat-1). `resolvePartner` is how the other half is reached; without it the
+ *. `resolvePartner` is how the other half is reached; without it the
  * orphan is caught by `tickHumanChat`'s hoisted reclaim instead of never.
  */
 export function sayHumanChatPhrase(
@@ -397,7 +397,7 @@ export function tickHumanChat(
   // renderer-cache reset (boot, and every session swap), so a save/load during a paired dialogue
   // stranded that settler: `resolveSessionEntities` returns null on a missing entry, so it could never
   // advance, and it stayed excluded from greetings, workplace banter and ambient pairing until it
-  // happened to speak a solo line (2026-09-20 audit, F-chat-1).
+ // happened to speak a solo line.
   const orphanKey = entity.chatDialogueSessionKey;
   if (orphanKey && !dialogueSessions.has(orphanKey)) {
     entity.chatDialogueSessionKey = undefined;
@@ -455,7 +455,6 @@ export function maybeDialogueChat(
   options: ChatPickOptions = {},
 ): void {
   // See `startDialogueTreeChat`: the busy test is the owner predicate, not the visible-line counter
-  // (2026-09-20 audit, F-chat-2).
   if (isDialogueBusy(entity)) return;
   if (partner && isDialogueBusy(partner)) return;
   if (seededRandomForRun(`chat-roll:${entity.id}:${tick}`) > chance) return;
@@ -532,7 +531,6 @@ export function tryAmbientRandomDialogue(
   },
 ): void {
   // Owner predicate, not the visible-line counter — the candidate must not be mid-conversation
-  // (2026-09-20 audit, F-chat-2).
   if (isDialogueBusy(entity)) return;
   if (seededRandomForRun(`chat-ambient:${entity.id}:${tick}`) > chancePerTick) return;
 
@@ -584,7 +582,7 @@ export function resetDialogueSessions(): void {
  * The counterpart is released explicitly when a resolver is supplied. The old comment here claimed the
  * partner's "next tick … clean itself up" — that was false for the idle half, whose `chatTicks` is 0, so
  * `tickHumanChat` returned before it could reclaim anything and the survivor stayed dialogue-busy on a
- * session with no owner (2026-09-20 audit, F-chat-1). The hoisted reclaim there now catches the case
+ * session with no owner. The hoisted reclaim there now catches the case
  * even without a resolver; passing one releases the partner immediately instead of a tick later.
  */
 export function cleanupEntityDialogueState(

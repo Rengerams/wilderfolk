@@ -11,7 +11,7 @@ export { canAffordWorkshopRecipe } from './workshops';
  *
  * Exported (with `updateStorageCaps` as the single reader) because the inspector's Silo and
  * WoodStorehouse hints typed "+600 food storage" and "+800 wood storage" as prose — the numbers a
- * designer tunes now live only here (audit C2 "Building output/tuning copy").
+ * designer tunes now live only here.
  */
 export const BARN_FOOD_STORAGE = 400;
 export const BARN_WOOD_STORAGE = 300;
@@ -36,7 +36,7 @@ export const WAREHOUSE_IRON_STORAGE = 100;
  * `800 / 300 / 800 / 20000 / 300`. Because `updateStorageCaps` only runs in the daily layer and a world
  * starts at tick 24, the first in-game day enforced a gold ceiling **10× lower** than the real one and
  * material ceilings 25–67 % higher — and since nothing ever clamps stock *down*, the opening
- * `wood: 2000` was already over its own cap from the first tick (2026-09-20 audit, F10).
+ * `wood: 2000` was already over its own cap from the first tick.
  *
  * Takes only `buildings` so a world under construction can call the same rule the daily tick does.
  */

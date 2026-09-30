@@ -4,7 +4,7 @@ import { searchGuideHelp } from '../../game/guideHelp';
 import { describeHospitalReputation } from '../../game/hospitalCare';
 // Interpolated, not typed: this card said "every 5 years" long after the owner's term was shortened
 // (10 → 5 → 2, `villageLeadership.ts:24-27`), while two other surfaces already rendered the constant.
-// The Guide was the only hardcoded copy (2026-09-21 stale-text audit).
+// The Guide was the only hardcoded copy.
 import { ELECTION_INTERVAL_YEARS } from '../../game/villageLeadership';
 import GuidedCampaignPanel from '../GuidedCampaignPanel';
 import type { WorldState } from '../../game/gameTypes';
@@ -12,7 +12,7 @@ import type { MoreSubTab } from '../../hooks/useGameShellState';
 
 // The sub-tab union is owned by the shell (`useGameShellState`). It used to be re-declared here, which
 // meant a new member compiled in the shell but was unreachable in this panel — the panel's own copy
-// simply did not have it (2026-09-20 audit, bug 54).
+// simply did not have it.
 
 export interface MoreTabPanelProps {
   moreSubTab: MoreSubTab;

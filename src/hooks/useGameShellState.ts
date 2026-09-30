@@ -10,13 +10,13 @@ import {
   loadTutorialsEnabled,
 } from '../game/preferences';
 
-// `SidebarTab` is owned by `hotkeys.ts` (audit C2 "`SidebarTab` union") — this file used to declare
+// `SidebarTab` is owned by `hotkeys.ts` — this file used to declare
 // a second, same-named union that differed by the unreachable `'schedule'` member.
 export type { SidebarTab };
 // The three sub-tab unions are owned here, next to the state they type, and the panels import them:
 // `LogTabPanel`, `ProgressTabPanel` and `MoreTabPanel` each used to re-type their own copy, and
 // because the copies were contravariant-compatible a member added here compiled in the panel and was
-// simply unreachable — the same drift the `SidebarTab` note above records (2026-09-20 audit, A8).
+// simply unreachable — the same drift the `SidebarTab` note above records.
 export type LogSubTab = 'chronicle' | 'combat';
 export type ProgressSubTab = 'research' | 'trade' | 'goals';
 export type MoreSubTab = 'guide' | 'campaign';

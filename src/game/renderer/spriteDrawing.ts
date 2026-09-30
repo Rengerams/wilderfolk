@@ -162,7 +162,7 @@ export function drawBuildingSprite(
  * the old body called `ctx.createRadialGradient` + a radial `fill` each time — a fresh gradient
  * object and a radial rasterisation per entity per repaint. A radial gradient is a radial gradient,
  * so a single cached bitmap, scaled to the caller's radius and composited at its strength, is
- * pixel-identical and turns the per-entity cost into one `drawImage` (2026-09-21 audit, R-5).
+ * pixel-identical and turns the per-entity cost into one `drawImage`.
  *
  * The blob is a plain bitmap, so it is context-independent and needs no reset on session change;
  * it is created lazily and falls back to the gradient path in a non-DOM environment (the node test

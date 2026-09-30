@@ -18,7 +18,7 @@ export interface PatrolRaider {
  * The reveal rule reads only `state.pendingRaidEvents` (through `isRaidMarchingForRival`) and the
  * rival list, so it is a property of the tick rather than of the guard looking. `tickHumans` builds
  * this once and every barracks guard on shift reuses it; the reveal used to walk the entire human
- * list twice *per guard per tick* for ~10 hours of every day (audit N-3).
+ * list twice *per guard per tick* for ~10 hours of every day.
  * Both fields keep human-list order, so which group is revealed first is unchanged.
  */
 export interface PatrolRevealIndex {
@@ -61,7 +61,7 @@ export function detectRaidersForPatrol(
   for (const groupId of detectedGroups) {
     // The reveal rule itself lives in `watchtowerDetection.revealRivalGroup` — this path and the
     // watchtower path both end in "clear `hiddenFromPlayer`, set `detectedByPatrol`, announce once per
-    // band", so it is written once (2026-09-20 audit, X-5). A soldier who spots one raider reveals the
+ // band", so it is written once. A soldier who spots one raider reveals the
     // whole band, so no per-member gate is passed.
     const { newlyDetected } = revealRivalGroup(index.membersByGroup.get(groupId) ?? []);
     if (newlyDetected) {

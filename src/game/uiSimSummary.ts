@@ -23,7 +23,6 @@ export interface VillageStatsSummary {
    * Beds a settler may actually be assigned (`populationGrowth.getOpenPlayerBeds`), not
    * `beds − total`: the Leader's House beds are reserved for the leader's household, so counting them
    * made this figure read "housing available" while every settler was in fact unhoused
-   * (`tests/virtualPlayer.test.ts` pins the two apart; 2026-09-22 stats-panel audit, F2).
    */
   openBeds: number;
 }

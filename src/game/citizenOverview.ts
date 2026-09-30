@@ -8,7 +8,7 @@
  * change to what counts as "working" cannot make the HUD and this screen disagree
  * (`LIVE-FINDINGS-STATUS.md`, A7). Homelessness is the residence owner's rule
  * (`residencyOccupancy.countHomelessSettlers`): the local count here used to drop a child without a
- * bed and count a jailed settler as homeless (2026-09-22 stats-panel audit, F1).
+ * bed and count a jailed settler as homeless.
  */
 import { Season, type WorldState, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
@@ -36,7 +36,7 @@ const IDLE_ADULT_SHARE = 0.35;
  *
  * The overview screen's Work card used to compute `idle > max(2, adults × 0.35)` itself, so retuning
  * the threshold here left the card green while the header mood read "Under pressure — Many adults are
- * idle without work." on the same screen (audit C2 "Many adults idle").
+ * idle without work." on the same screen.
  */
 export function hasManyAdultsIdle(stats: { idle: number; adults: number }): boolean {
   return stats.idle > Math.max(MIN_IDLE_ADULTS, stats.adults * IDLE_ADULT_SHARE);
@@ -172,7 +172,6 @@ export function computeCitizenOverview(world: WorldState): CitizenOverviewStats 
   // Today's balance is the ledger owner's, not a second sum of the same map. `summarizeFoodLedger`
   // reads the totals the ledger maintains (with the stale-save fallback it documents), so the People
   // screen's "Today ±N" and the dashboard's "Net change" cannot report two balances for one day
-  // (2026-09-22 stats-panel audit, F4 — the earlier F2 rule, "food can't be calculated at the UX").
   const foodNetToday = summarizeFoodLedger(world).net;
 
   const base = {

@@ -23,7 +23,7 @@ import { getRivalPresenceSummary } from '../game/rivalPresence';
 /**
  * The frontier view's props — exported so the lazy wrapper (`tabPanels/FrontierTabPanel`) reuses
  * this contract instead of restating the six props, where the copy had already drifted on
- * `onFocusRival`'s `buildingId` optionality and `onLaunchRaid`'s optionality (audit C1 clone 2).
+ * `onFocusRival`'s `buildingId` optionality and `onLaunchRaid`'s optionality.
  */
 export interface FrontierPanelProps {
   state: WorldState;

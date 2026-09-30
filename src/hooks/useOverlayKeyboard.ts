@@ -14,11 +14,11 @@ import { claimKeyboard, isTopKeyboardClaim, releaseKeyboard } from '../game/keyb
  *    behind it (`BUG_REPORTS/2026-09-17-keyboard-ignores-open-overlays.md`).
  *  - The mirror case shipped: the Valley overview claimed the keyboard and had **no** Escape handler,
  *    so the claim made the game handler's own Escape branch unreachable and the overlay's "Close (Esc)"
- *    button was a promise the code did not keep (2026-09-20 audit, A-1).
+ * button was a promise the code did not keep.
  *
  * Four overlays wrote these two effects by hand (the dashboard, the Valley overview, the game menu and
  * the quick-start), which is how the halves drifted apart; `docs/private/audits/2026-09-20` records the
- * pair as a mechanical clone (2026-09-20 audit, clone 3). `useModalFocus` owns the *focus* half of the
+ * pair as a mechanical clone. `useModalFocus` owns the *focus* half of the
  * same contract; this hook owns the keyboard half.
  *
  * Pass `active` for overlays that stay mounted and only render their dialog while visible

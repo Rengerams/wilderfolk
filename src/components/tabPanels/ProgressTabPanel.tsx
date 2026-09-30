@@ -234,7 +234,7 @@ export default function ProgressTabPanel({
                     /**
                      * The research owner's gate, not a second copy of it: the local test dropped
                      * `node.prerequisites`, so the panel offered a Research button for a node whose
-                     * prerequisites were unmet and the command refused it (audit C2 "Research gate").
+ * prerequisites were unmet and the command refused it.
                      */
                     const canResearch = canStartResearch(state, node.id);
 

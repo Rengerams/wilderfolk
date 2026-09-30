@@ -262,7 +262,6 @@ export function tickRivalSettlements(
       }
       // Queued, not written: `pollutionLevel` is derived and `tickEcosystemMetrics` recomputes it
       // later in this same daily tick, so a direct `+=` here was erased before anyone could read it
-      // (2026-09-20 audit, D-1).
       adjustPollutionLevel(state, 0.5);
     } else if (
       rival.relationship === 'tense'

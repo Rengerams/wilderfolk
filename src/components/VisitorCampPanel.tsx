@@ -38,7 +38,7 @@ export default function VisitorCampPanel({
   const emoji = VISITOR_KIND_EMOJI[group.kind];
   // Storage headroom comes from its owner (`resourceUtils`), which is what the trade owner itself
   // calls; the panel's local `max(0, cap - current)` dropped the owner's non-finite-cap branch, so
-  // the "(N space)" hint could lie (audit C2 "Storage headroom").
+ // the "(N space)" hint could lie.
   const foodRoom = getAvailableStorageHeadroom(state, 'food');
   const woodRoom = getAvailableStorageHeadroom(state, 'wood');
   const stoneRoom = getAvailableStorageHeadroom(state, 'stone');
@@ -85,7 +85,7 @@ export default function VisitorCampPanel({
   // Refugee prices and gates come from the refugee owner (`groupEvents`), exactly as the trade
   // buttons above do. The panel used to hand-write `food < 40 / 20` and the population-cap test,
   // so both buttons greyed out with no visible reason and a retuned price left them enabled while
-  // the refusal surfaced as a floating text at the camp (2026-09-17 UI audit, R5).
+ // the refusal surfaced as a floating text at the camp.
   const welcomeGate = getRefugeeChoiceEligibility(state, group.id, 'welcome');
   const screenGate = getRefugeeChoiceEligibility(state, group.id, 'screen');
   // How many settlers a full welcome admits is `2 + getRefugeeWelcomeBonus(state.buildings)`

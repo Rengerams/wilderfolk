@@ -7,7 +7,7 @@ import { HUMAN_CHILDHOOD_DAYS, HUMAN_VENERABLE_AGE } from './dayCycleConstants';
  * The panels each picked their own string for a nameless settler ("Unknown" in the inspector's
  * family list, "Unnamed" in the dashboard table, "Settler" in the families chip) while the tree
  * header of the *same* panel read "A settler" through `humanDisplayName`, so one settler had three
- * names on one screen (audit C2 "Settler name fallback").
+ * names on one screen.
  *
  * This is the **sentence** form: "A settler has died." See {@link SETTLER_LABEL_FALLBACK} for the
  * label form that follows an `#id`.
@@ -44,7 +44,7 @@ export function humanDisplayName(entity: Entity): string {
  *
  * Ten call sites hand-rolled this join (`{citizenGivenName(x)}{x.surname ? ` ${x.surname}` : ''}`),
  * one of them rendering a trailing space for a surname-less settler, and `useKeyboardControls`/
- * `PopulationPanel` each carried a private copy of the wrapper (2026-09-20 audit, W-2). `humanDisplayName`
+ * `PopulationPanel` each carried a private copy of the wrapper. `humanDisplayName`
  * is the title-inclusive form; `formatCitizenName` is the identified form.
  */
 export function citizenFullName(entity: Pick<Entity, 'name' | 'surname'>): string {
@@ -61,7 +61,7 @@ export function formatCitizenId(id: number): string {
 export function formatCitizenName(entity: Pick<Entity, 'id' | 'name' | 'surname'>): string {
   // The label form of the owner's fallback (a bare noun after the `#id`), and the owner's trim: this
   // formatter used to type its own `'Settler'` literal, which is how one settler read "A settler" in
-  // one panel and "#12 Settler" in another (2026-09-20 audit, W-1).
+ // one panel and "#12 Settler" in another.
   const name = entity.name?.trim();
   const base = name ? name : SETTLER_LABEL_FALLBACK;
   const surname = entity.surname?.trim();

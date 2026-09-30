@@ -120,9 +120,9 @@ tutorialsEnabled,
   const dailyTempC = computeDailyTemperatureC(world.season, world.weather, world.dayInYear, world.year);
   const seasonLabel = SEASON_LABELS[world.season];
   // The band and the cap are the growth owner's (`POPULATION_NEAR_CAP_RATIO` /
-  // `resolvePopulationCap`); this view only paints the answer (2026-09-20 audit, O-2). The open-bed
+ // `resolvePopulationCap`); this view only paints the answer. The open-bed
   // figure is the assignable one: the chip's "N open" means "a settler could sleep here", not
-  // "some bed in the valley is empty" (2026-09-22 stats-panel audit, F2).
+ // "some bed in the valley is empty".
   const popNearCap = isPopulationNearCap(world);
   const popCap = resolvePopulationCap(world);
   const beds = getTotalBeds(world);

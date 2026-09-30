@@ -18,7 +18,7 @@ interface Props {
 const HOURS_IN_DAY = 24;
 
 /** One hour picker. Opens and Closes were two identical 24-option `<select>` blocks, so the hour
- * format and the domain had to be changed twice (audit C1 clone 5). */
+ * format and the domain had to be changed twice. */
 function HourSelect({
   label,
   hour,
@@ -62,7 +62,6 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
   
   // The mean and its band are the fatigue owner's (`readVillageFatigue`): the panel used to average
   // `scheduleFatigue` and band it at 60/25 itself, so the thresholds were tunable only in this view
-  // (2026-09-20 audit, O-8).
   const fatigue = useMemo(() => readVillageFatigue(state), [state]);
   const averageFatigue = fatigue.average;
   const fatigueLabel = fatigue.label;
@@ -134,7 +133,7 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
           <strong
             className={
               // The tone follows the owner's band label, so the colour and the word beside it cannot
-              // disagree about the same reading (2026-09-20 audit, O-8).
+ // disagree about the same reading.
               fatigueLabel === 'high'
                 ? 'text-red-300'
                 : fatigueLabel === 'building'

@@ -163,7 +163,7 @@ export default function MiniMap({
    * the `H` hotkey centres on, so the two agree.
    *
    * The canvas was click-only: no role, no name, no tab stop, so a keyboard user had no way to use
-   * the one navigation control on the map (2026-09-20 audit, bug 55 / OPEN-6).
+ * the one navigation control on the map.
    */
   const navigateToVillage = useCallback(() => {
     const world = worldRef.current;

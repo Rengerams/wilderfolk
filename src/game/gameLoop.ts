@@ -102,7 +102,7 @@ export interface GameLoopDiagnostics {
  * `bigNews`, `floatingTexts` and `activeEvent` are deliberately **not** here: the tick authors them on
  * the worker side and `applyWorkerUiPatch` never adopted them, so including them cloned the news list
  * and every live floating text into every patch for nothing, and a stale patch could have rewound
- * events the player had not seen (2026-09-20 audit, P-5; `BUG_REPORTS/2026-09-16-ui-patch-rewinds-worker-authored-big-news.md`).
+ * events the player had not seen.
  */
 function extractUiPatch(world: WorldState): WorkerUiPatch {
   return {
@@ -224,7 +224,7 @@ export class GameLoop {
             }
             // A session swap during boot used to abandon the worker permanently: the loop ran on
             // the main thread for the rest of the session with no recovery attempt
-            // (worker-boundary audit F10). Schedule the same recovery every other failure path uses.
+ //. Schedule the same recovery every other failure path uses.
             this.scheduleWorkerRecovery();
             return;
           }
@@ -725,7 +725,7 @@ export class GameLoop {
    * the clone carried the worker's `paused` / `speed` / dismissed-id sets while `applySimTickDelta`
    * never writes those fields, and `mutateWorld` forwards a control to the worker only when it
    * changes — so a player-authored control made just before a save could be reverted on screen and
-   * could not be re-sent (2026-09-21 audit, D-2; `tests/gameLoop.test.ts`).
+ * could not be re-sent.
    *
    * The returned world is hydrated so the caller can read it (and hand it to the save writer)
    * without hitting missing runtime caches. `this.world` keeps whatever the display left it as.
@@ -811,7 +811,7 @@ export class GameLoop {
 
     // Listeners are deliberately NOT cleared: `stop()` stops the frame loop, and a later
     // `start()` on the same instance must still have the UI subscribed — clearing them made a
-    // stopped-then-started loop silently frozen (worker-boundary audit F8.1). The set belongs to
+ // stopped-then-started loop silently frozen. The set belongs to
     // the instance, so dropping the loop drops the listeners with it.
     clearAllFactionWanderStates();
     this.workerHost?.dispose();

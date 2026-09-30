@@ -13,7 +13,7 @@ function ChallengesPanel({ state }: { state: WorldState }) {
         const progress = getChallengeProgress(c, state);
         // The fill formula is `dashboardData.resourceFillPercent`'s — a challenge is the same
         // `{amount, cap}` shape, and a second copy here would leave the bar behind if the owner's
-        // sense of "full" changed (2026-09-20 audit, O-8).
+ // sense of "full" changed.
         const pct = progress
           ? resourceFillPercent({ amount: progress.current, cap: progress.target })
           : 0;

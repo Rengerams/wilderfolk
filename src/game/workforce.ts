@@ -105,7 +105,6 @@ export function countStaffedWorkersAtType(buildings: Building[], humans: Entity[
  *
  * Exported because the inspector's Blacksmith hint promised "+25% per worker" with no ceiling, while
  * this function stops at ×1.5 (+50%): three smiths read +75% in the panel and +50% in the economy
- * (audit C2 "Building output/tuning copy").
  */
 export const SMITH_BONUS_PER_WORKER = 0.25;
 export const SMITH_BONUS_CAP = 1.5;

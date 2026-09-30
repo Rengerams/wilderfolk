@@ -49,7 +49,7 @@ export type WorkerFaultHandler = (
  * The player-authored slice of UI state that a patch may carry.
  *
  * **Only fields the player authors belong here.** `bigNews`, `floatingTexts` and `activeEvent` were
- * removed (2026-09-20 audit, P-5): the *tick* authors those on the worker side, and `applyWorkerUiPatch`
+ * removed: the *tick* authors those on the worker side, and `applyWorkerUiPatch`
  * deliberately never adopted them — so shipping them cloned the whole news list and every live floating
  * text into every patch, and `protocol.ts` advertised a transfer that did not happen. Because a patch is
  * composed from the host's snapshot it can be up to `MAX_PIPELINE_DEPTH` ticks behind, which is exactly
@@ -422,7 +422,7 @@ export class GameWorkerHost {
     this.lastPausedSent = paused;
     const msg: WorkerRequest = { type: 'setPaused', proto: WORKER_PROTO, paused };
     // Only remember the value as sent if the post actually left: a DataCloneError must not stop a
-    // later retry (worker-boundary audit F9).
+ // later retry.
     if (!this.postControl(msg)) this.lastPausedSent = null;
   }
 
@@ -437,7 +437,7 @@ export class GameWorkerHost {
   /**
    * Post a fire-and-forget control message. `postMessage` throws synchronously (DataCloneError) for
    * a non-cloneable payload; without this the exception escaped into the caller — a React event
-   * handler — instead of degrading to a worker fault (worker-boundary audit F9).
+ * handler — instead of degrading to a worker fault.
    * Returns whether the message was posted.
    */
   private postControl(msg: WorkerRequest): boolean {

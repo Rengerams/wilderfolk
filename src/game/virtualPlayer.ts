@@ -368,7 +368,6 @@ function decideLeaderHouse(state: WorldState): VirtualPlayerDecision | null {
 function decideStaffing(state: WorldState): VirtualPlayerDecision | null {
   // The labour counters' owner, not a second scan: a prisoner is not idle here and a settler on a
   // construction crew counts as working, which is the rule the HUD and the People screen state
-  // (`uiSimSummary.computeVillageStats`; 2026-09-22 stats-panel audit, F6).
   const idleAdults = computeVillageStats(state).idle;
   if (idleAdults === 0) return null;
 

@@ -67,7 +67,7 @@ export function buildFamilyTree(entity: Entity, allEntities: Entity[]): FamilyTr
       id: e.id,
       label,
       // `citizenGivenName` owns the nameless fallback; this list used to say "Unknown" while the
-      // tree header for the same settler said "A settler" (audit C2 "Settler name fallback").
+ // tree header for the same settler said "A settler".
       name: citizenGivenName(e),
       relation,
       detail,

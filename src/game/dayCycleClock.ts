@@ -59,7 +59,6 @@ export function ticksForDays(days: number): number {
  * `ticksForDays` is the inverse conversion and lives here too, so the forward one belongs beside it:
  * four views and the header each wrote `Math.ceil((untilTick - tick) / TICKS_PER_DAY)` by hand, two of
  * them without the lower clamp, so an elapsed deadline could read as a negative day count
- * (2026-09-20 audit, O-4).
  */
 export function daysUntilTick(nowTick: number, untilTick: number): number {
   if (!Number.isFinite(nowTick) || !Number.isFinite(untilTick)) return 0;

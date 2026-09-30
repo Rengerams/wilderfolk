@@ -1395,7 +1395,7 @@ export function bindCourtship(entity: Entity, partner: Entity): void {
  * settlers could still court each other (alive, single, unpartnered, adult, not imprisoned or
  * pregnant) and both sides name each other; anything else clears the link **and its progress** on
  * both sides, so no settler is locked out of courting by a partner who moved on and no heart badge
- * survives a courtship that does not exist (audit F5). Runs daily from `tickLayerDaily`.
+ * survives a courtship that does not exist. Runs daily from `tickLayerDaily`.
  */
 export function reconcileCourtships(
   ctx: Pick<TickContext, 'entityById' | 'playerHumans'>,

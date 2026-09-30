@@ -143,11 +143,10 @@ export default function VillageTabPanel({
   // rule the command and the auto-play bot obey. The view used to restate that price threshold and
   // print the price a second time, and its only explanation for a disabled button was a `title`
   // on a disabled control — inert in the browsers where the label is the only affordance
-  // (2026-09-17 UI audit, R25; open since `ui-logic.md` §5.3).
   const recruitEligibility = getRecruitSettlerEligibility(state);
   const canRecruit = recruitEligibility.ok;
   // The immigration cap's owner — six sites used to read the raw `maxHumanPopulation` field while the
-  // owner derived a fallback for a save without it (2026-09-22 stats-panel audit, F7).
+ // owner derived a fallback for a save without it.
   const popCap = resolvePopulationCap(state);
   /** Which subject window is open, if any — the same index-plus-windows shape the building panel uses. */
   const [openSubject, setOpenSubject] = useState<'population' | 'food' | 'leadership' | 'roster' | 'armament' | 'reputation' | null>(null);

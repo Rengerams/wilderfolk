@@ -53,7 +53,7 @@ export function isImprisoned(human: Entity): boolean {
  *    and the priority strip, and that `housingDiagnostics.unassignedPlayerHumans` still made.
  *  - **A child without a bed is homeless.** The People screen's Home card excluded juveniles, so a
  *    child sleeping rough was counted by the dashboard and the alert strip but not by the card whose
- *    tone and "Housing is tight" mood depend on it (2026-09-22 stats-panel audit, F1).
+ * tone and "Housing is tight" mood depend on it.
  */
 export function isHomelessSettler(entity: Entity): boolean {
   return entity.alive

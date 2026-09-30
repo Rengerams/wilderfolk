@@ -9,7 +9,7 @@ const streams = new Map<string, RngStream>();
  * worker's stream positions, and the worker never draws a presentation stream. Leaving them in the
  * same registry meant every applied tick delta rewound them to the position frozen at the last
  * upload — or deleted a stream created after it — so weather respawn positions, screen shake and sfx
- * variation restarted from the same values ~3×/s (worker-boundary audit F4). Use
+ * variation restarted from the same values ~3×/s. Use
  * `getPresentationRng` for these; `getSimRng` stays the simulation namespace.
  */
 const presentationStreams = new Map<string, RngStream>();
@@ -241,7 +241,7 @@ export function getSimRng(owner: string): RngStream {
  * Seeded from the active simulation seed so a replay of one seed still looks the same, but kept in a
  * separate registry that `snapshotSimRng`/`restoreSimRng` never read or write: the simulation worker
  * cannot know a presentation stream's position, so its snapshot must not rewind or delete one
- * (worker-boundary audit F4). `setSimSeed`/`resetSimRng` do clear this registry, so a new world
+ *. `setSimSeed`/`resetSimRng` do clear this registry, so a new world
  * starts every stream fresh.
  */
 export function getPresentationRng(owner: string): RngStream {

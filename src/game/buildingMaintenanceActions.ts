@@ -188,7 +188,7 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
   // Bed capacity is level-dependent (`getResidenceCapacity`), and the population snapshot is cached
   // per tick on counts a level change does not touch — so the header, the focus hints and the sim
   // summary kept reporting the pre-upgrade bed count until the next tick. `populationGrowth` names
-  // this call ("e.g. after building upgrades") and had no caller (audit B-5).
+ // this call ("e.g. after building upgrades") and had no caller.
   invalidatePopulationSnapshotCache(state);
 
   if (isResidenceBuildingType(building.type)) {
@@ -232,7 +232,7 @@ function clearAssignmentsForDemolishedBuilding(state: WorldState, buildingId: nu
  * Callers own *why* the building leaves (a demolition, or a strip replacement that refunds half) and
  * their own assignment cleanup; they no longer restate any of this. The counter used to be adjusted
  * only on demolition, so every Wall→Gate replacement left "Buildings" (Village tab, Statistics, the
- * population-snapshot cache key) one too high until the next load (audit B-1).
+ * population-snapshot cache key) one too high until the next load.
  */
 export function removeBuildingFromState(state: WorldState, building: Building): void {
   unindexAdjacency(state, building.id);
@@ -254,7 +254,7 @@ export function removeBuildingFromState(state: WorldState, building: Building): 
  * One owner for the refund rule, shared by `demolishBuilding` and the strip-replacement path. The
  * gain must go through `addResource` (which clamps to `storageMax`); the placement path used a raw
  * `+=`, so a replacement at the wood cap credited wood the store could not hold and permanently
- * desynchronised the cap (audit E-5, same class as M2/L1). Returns what was **actually** accepted,
+ * desynchronised the cap. Returns what was **actually** accepted,
  * so an announcing caller can report the truth.
  */
 export function refundBuildingCost(

@@ -284,7 +284,6 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
     // latent rather than live today (the transform does not clear the live pregnancy fields, so the
     // value survives anyway), but the invariant check pairs `pregnant` with `pregnancyDueProgress`, and
     // a form that starts parking the pregnancy fields would have restored the first without the second
-    // (2026-09-20 audit, bug 38).
     pregnancyDueProgress: human.pregnancyDueProgress,
     huntTargetId: human.huntTargetId,
     combatTicks: human.combatTicks,
@@ -707,7 +706,7 @@ export function tickMoonHowlerCycle(
       // `state`, not just `buildings`: `worldSlices` is what supplies the player's workforce preset and
       // the venue auto-staff targets. Without it the pass ran under `DEFAULT_WORKFORCE_POLICY`
       // ('survival') and sized venues from the default window, so a reverted settler could be pushed
-      // into a second innkeeper slot the player never asked for (2026-09-20 audit, B-2).
+ // into a second innkeeper slot the player never asked for.
       assignMissingWorkers(villagers, buildings, state);
     }
     changed = true;

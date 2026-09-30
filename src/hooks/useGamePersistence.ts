@@ -59,7 +59,6 @@ export interface UseGamePersistenceOptions {
  * (`'Export already in flight'`) — `GameLoop.exportAuthoritativeWorld` caught that, warned, and fell
  * back to `this.world`, **the display shadow**, so the save recorded a world up to
  * `MAX_PIPELINE_DEPTH` ticks behind the worker *while toasting "Game saved successfully"*
- * (2026-09-21 audit, D-7).
  *
  * Coalescing is the right resolution rather than queueing: both callers want the same thing — the
  * most recent authoritative snapshot written to the same slot — so the second one waits for the first

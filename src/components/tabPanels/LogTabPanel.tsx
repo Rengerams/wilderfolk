@@ -1,10 +1,10 @@
 import { Suspense, lazy } from 'react';
 import type { WorldState } from '../../game/gameEngine';
 import type { ChronicleExportMeta } from '../../game/eventLogExport';
-// `LogSubTab` is owned by `useGameShellState` (audit C2 "the sub-tab unions"). This file used to
+// `LogSubTab` is owned by `useGameShellState`. This file used to
 // declare a second, same-named union: the copies were contravariant-compatible, so a member added to
 // the owner compiled here and was simply unreachable — the identical drift `hotkeys.ts` documents
-// for `SidebarTab` (2026-09-20 audit, A8).
+// for `SidebarTab`.
 import type { LogSubTab } from '../../hooks/useGameShellState';
 
 const EventLogPanel = lazy(() => import('../../game/EventLogPanel'));
@@ -20,7 +20,6 @@ export default function LogTabPanel({ state, logSubTab, setLogSubTab }: LogTabPa
   /**
    * One export header for both logs. The identical object used to be built inline in each branch,
    * so adding a field meant two edits and a chance the two logs exported different headers
-   * (audit C1 clone 7).
    */
   const logMeta: ChronicleExportMeta = {
     villageName: state.villageName,

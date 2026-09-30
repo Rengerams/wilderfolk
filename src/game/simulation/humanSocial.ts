@@ -116,7 +116,6 @@ export function simAmbientChatNeighbors(
   // rebuilt grid is insertion-ordered, and the grids are dropped on every save/hand-off. Two logically
   // identical worlds therefore picked different chat partners depending on whether the grid had been
   // rebuilt, breaking the "same seed, same state, same outcome" contract the sim RNG guarantees
-  // (2026-09-20 audit, F-det-1).
   //
   // Sorting within each tier rather than across the whole list keeps the intended bias: `preferred`
   // (partner, kin, coworker) still precedes `standard`, so a close bond is still likelier to be picked.

@@ -599,7 +599,6 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   // (`1000 / 500 / 1000 / 2000 / 500`) that disagreed with the rule's `800 / 300 / 800 / 20000 / 300`,
   // and since the daily layer does not run until tick 72, that literal was the ceiling the player
   // actually played the first days against — gold 10× too low, materials 25–67 % too high
-  // (2026-09-20 audit, F10).
   //
   // The empty list is literal rather than a placeholder: `initGame` builds `buildings: []` below and
   // generation never adds one — nothing in this module pushes to `state.buildings` (the only writers

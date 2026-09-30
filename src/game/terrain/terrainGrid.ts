@@ -28,7 +28,7 @@ import { BIOME_BY_IDX, type BiomeDef } from './biomes';
 import { clamp, lerp, valueNoise, hashString } from './noise';
 // The unbuildable-terrain rule lives in a leaf module (`terrainTraits`) precisely so this file can
 // read it without importing `placementUtils`, which imports `tileAt` from here — that pair was a
-// runtime cycle (audit T16).
+// runtime cycle.
 import { isUnbuildableTerrainType } from './terrainTraits';
 
 /**

@@ -177,7 +177,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
           consumed: { ...state.economyLedger.consumed },
           // The totals ride with the maps they summarize: the display world reads them instead of
           // adding up (`simDelta.ts`), and `summarizeFoodLedger`'s `?? sum` fallback hid their
-          // absence after a rollback (worker-boundary audit F-3).
+ // absence after a rollback.
           producedTotal: state.economyLedger.producedTotal,
           consumedTotal: state.economyLedger.consumedTotal,
         }
@@ -235,7 +235,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     electionCeremony: state.electionCeremony ? { ...state.electionCeremony } : null,
     // Written by the daily layer (`dailyWorldEvents.ts:194-230`), so the tick must be able to
     // roll it back — it used to be the one WorldState field the delta carried but the prep
-    // payload did not (worker-boundary audit F3).
+ // payload did not.
     activeEvent: state.activeEvent ? structuredClone(state.activeEvent) : null,
     eventLog: [...(state.eventLog ?? [])],
     eventsThisYear: [...(state.eventsThisYear ?? [])],
@@ -272,7 +272,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     huntVisuals: [...(state.huntVisuals ?? [])],
     // A real copy, not a reference: the realtime layer decays the grid and deposits predator odour
     // into it in place, before anything in the tick can throw, so a rolled-back tick used to keep
-    // the failed decay and spread (worker-boundary audit F-1).
+ // the failed decay and spread.
     scentGrid: isScentGridRuntime(state.scentGrid)
       ? ScentGrid.fromRuntime(state.scentGrid)
       : undefined,
