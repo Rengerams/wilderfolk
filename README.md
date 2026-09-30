@@ -510,16 +510,6 @@ npm start
 | **[Roadmap_V0_6.5.MD](Roadmap_V0_6.5.MD)** | Roadmap and shipped features by version |
 | **[AGENTS.md](AGENTS.md)** | Developers — build, test, lint, audit, commit conventions |
 
-### Optional (developers)
-
-```bash
-npm run build       # production build (tsc + vite) → dist/
-npm run preview     # serve production build locally
-npm run lint        # oxlint, type-aware
-npm test            # the gate: check:source -> jscpd -> vitest  (npm test -- help)
-npm run audit       # dead code (knip) + import cycles (in-repo scanner)
-```
-
 ---
 
 ## Feedback & questions
