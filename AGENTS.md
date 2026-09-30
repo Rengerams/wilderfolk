@@ -224,6 +224,14 @@ Exported functions, public methods, and API boundaries must have explicit parame
 
 Do not re-export a symbol merely for convenience. Import it from its owning module unless a re-export provides a clear, documented public API boundary or is required by an established barrel-file convention. Before adding a re-export, search for existing import paths and assess whether it creates a second apparent source of truth or an unintended public API. If a justified re-export is added, mention it in the final report and explain the reason.
 
+### 5.8 A comment describes the present, never the history
+
+Write comments about the code as it is: why this constraint exists, what breaks without it, what the contract is. A comment is the most-read text in a repository and the least verified, so a stale one does not sit inertly — it **biases the next reader**, who treats it as a statement of fact about the code beneath it.
+
+Do not put history in a comment: **no dates, no audit IDs or finding references, no `file:line`, no "this used to be"**. If the reason matters, state the reason; the story belongs in `CHANGELOG.md` or a handover. A citation is worse than useless when it cannot be followed, and this tree is full of them: 173 comments cite audits whose reports live in a gitignored directory with zero tracked files, so nobody but the machine that wrote them can look one up.
+
+Enforced as a **ratchet on newly added comments only**, so existing ones are left alone and the guard never fires on code you did not touch. It sees uncommitted work, which is the order the gate already assumes: run it before you commit.
+
 ## 6. TypeScript scope rule
 
 **If your diff introduces the error, fix it.** The changed code must compile cleanly and must not introduce new warnings where the project treats warnings as failures.

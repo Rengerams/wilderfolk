@@ -49,7 +49,7 @@ const STEP = {
    * an agent should be improving the game rather than running gates. So they
    * ride inside the step `npm test` already runs.
    */
-  check: 'node scripts/check-source-shadow-files.mjs && node scripts/check-docs.mjs',
+  check: 'node scripts/check-source-shadow-files.mjs && node scripts/check-docs.mjs && node scripts/check-comments.mjs',
   dup: 'jscpd src --min-lines 6 --min-tokens 60 --format typescript,tsx,javascript --ignore "**/test/**,**/*.test.ts,**/data/**"',
   unit: 'vitest run --exclude tests/fullYear.integration.test.ts',
   unitAll: 'vitest run',
