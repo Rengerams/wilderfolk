@@ -3,6 +3,8 @@ import { TICKS_PER_HOUR } from './dayCycle';
 import { getWorkSchedule } from './workSchedule';
 
 export const MAX_SCHEDULE_FATIGUE = 100;
+/** The worst output a fully fatigued crew can fall to — the floor of the penalty, not a % of energy. */
+export const MIN_SCHEDULE_PRODUCTIVITY = 0.65;
 /**
  * The normal work day, in hours (owner: "normal work day is 9 hrs").
  *
@@ -22,7 +24,7 @@ export function getScheduleFatigue(entity: Pick<Entity, 'scheduleFatigue'>): num
 }
 
 export function getScheduleProductivityMultiplier(entity: Pick<Entity, 'scheduleFatigue'>): number {
-  return Math.max(0.65, 1 - getScheduleFatigue(entity) * 0.0035);
+  return Math.max(MIN_SCHEDULE_PRODUCTIVITY, 1 - getScheduleFatigue(entity) * 0.0035);
 }
 
 export function recordScheduleWorkTick(entity: Entity): void {

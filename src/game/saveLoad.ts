@@ -14,6 +14,7 @@ import {
   getCalendarDay, getHourOfDay, getAbsoluteCalendarDay, migrateHumanAges, rebuildChildrenIds,
   TICKS_PER_DAY, DAYS_PER_YEAR,
   assignMissingResidences,
+  repairJuvenileAssignmentsOnLoad,
 } from './dayCycle';
 import { displayYear } from './dayCycleClock';
 import { mergeCombatResearchNodes } from './combat';
@@ -832,6 +833,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     validateVillageLeaderOnLoad(world);
     ensureValleyEcologyOnLoad(world);
     migrateVillageForgeOnLoad(world);
+    repairJuvenileAssignmentsOnLoad(world);
     for (const challenge of world.challenges ?? []) {
       const fresh = INITIAL_CHALLENGES.find((c) => c.id === challenge.id);
       if (!fresh || challenge.completed) continue;

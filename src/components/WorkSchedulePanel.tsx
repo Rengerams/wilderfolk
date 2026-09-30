@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { WorldState } from '../game/gameTypes';
 import { readVillageFatigue } from '../game/dailyScheduleFatigue';
+import { MIN_SCHEDULE_PRODUCTIVITY } from '../game/scheduleFatigue';
 import { getScheduleImpactPreview } from '../game/scheduleFeedback';
 import {
   getWorkSchedule,
@@ -64,7 +65,7 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
   // `scheduleFatigue` and band it at 60/25 itself, so the thresholds were tunable only in this view.
   const fatigue = useMemo(() => readVillageFatigue(state), [state]);
   const fatigueLabel = fatigue.label;
-  const outputPercent = Math.round(fatigue.outputShare * 100);
+  const outputMultiplier = fatigue.outputShare;
   
   // Preview the impact of the currently chosen window. The WorldState prop is
   // mutated in place by the sim, so the preview is derived each render instead
@@ -129,7 +130,7 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
       </button>
       <div className="rounded border border-stone-700/70 bg-stone-900/40 px-2.5 py-2 text-xs">
         <div className="flex items-center justify-between">
-          <span>Crew work output</span>
+          <span>Colony schedule fatigue</span>
           <strong
             className={
               // The tone follows the owner's band label, so the colour and the word beside it cannot
@@ -141,11 +142,13 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
                   : 'text-emerald-300'
             }
           >
-            {outputPercent}%
+            {fatigueLabel}
           </strong>
         </div>
         <p className="mt-1 text-stone-500">
-          Longer shifts cut into tomorrow's output. Rest and shorter shifts bring it back.
+          A longer shift leaves the crew tired, so they work slower tomorrow: output
+          {' '}×{outputMultiplier.toFixed(2)}, never below ×{MIN_SCHEDULE_PRODUCTIVITY.toFixed(2)}.
+          Rest and shorter shifts recover it.
         </p>
       </div>
       <p className="text-[11px] leading-relaxed text-stone-500">

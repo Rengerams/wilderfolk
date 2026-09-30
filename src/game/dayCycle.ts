@@ -1,7 +1,8 @@
-import { EntityType } from './gameTypes';
-import type { Entity } from './gameTypes';
+import { EntityType, JobType } from './gameTypes';
+import type { Entity, WorldState } from './gameTypes';
 
 import { HUMAN_ADULT_MIN_AGE, HUMAN_CHILDHOOD_DAYS, HUMAN_VENERABLE_AGE } from './dayCycleConstants';
+import { hasWorkAssignment } from './residencyOccupancy';
 import {
   DAYS_PER_YEAR,
   getAbsoluteCalendarDay,
@@ -259,6 +260,30 @@ export function syncHumanAgeFromCalendar(
   // No human ever graduated, so `entity.size`/`speed` stayed at child values and
   // `applyEducationGraduation` (the only writer of `educated`) never ran.
   entity.maxAge = HUMAN_MAX_LIFESPAN_YEARS;
+}
+
+/**
+ * Load repair: `isJuvenile` is derived once at spawn and graduation only ever clears it, so a save
+ * carrying a child flagged as an adult keeps a child in an adult's posting — and barred from school,
+ * which keys off this same flag. Promote only: ageing past the threshold belongs to the graduation
+ * transition, which also owns `size`, `speed` and `educated`.
+ */
+export function repairJuvenileAssignmentsOnLoad(world: WorldState): void {
+  for (const entity of world.entities ?? []) {
+    if (entity.type !== EntityType.Human) continue;
+    if (entity.age >= HUMAN_CHILDHOOD_DAYS) continue;
+    entity.isJuvenile = true;
+    // A sitting leader is `validateVillageLeaderOnLoad`'s business, not this pass's.
+    if (entity.id === world.villageLeaderId) continue;
+    if (!hasWorkAssignment(entity) && entity.job === JobType.Settler) continue;
+    const workplace = (world.buildings ?? []).find((building) => building.id === entity.homeBuildingId);
+    if (workplace) {
+      workplace.occupants = workplace.occupants.filter((id) => id !== entity.id);
+    }
+    entity.homeBuildingId = undefined;
+    entity.job = JobType.Settler;
+    entity.occupation = 'settler';
+  }
 }
 
 /** Display age — humans use the colony calendar; wildlife converts life-days to years. */

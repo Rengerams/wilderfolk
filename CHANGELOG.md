@@ -1,8 +1,10 @@
 # Changelog
 
-## <u>[0.6.5.2]</u> — 2026-09-30
+## <u>[0.6.5.1]</u> — 2026-09-30
 
-- **Stopped showing the work-output penalty as "fatigue"** — it is a production multiplier where higher meant worse, while a settler's real tiredness is energy out of 500 where lower means worse, so "39% → 10%" read as near death; the panel now shows crew work output and the log lines name the cost.
+- **Fixed children holding adult jobs, and school with it** — the juvenile flag is set at birth and only cleared by graduation, so a child with a wrong flag stayed a grown-up: posted, armed, and refused as a pupil. Loading a save now returns them to childhood.
+
+- **Stopped lending the energy glyph to fatigue** — the panel gave fatigue as a percentage where higher meant a worse penalty, beside a settler's energy percentage where lower means trouble, so it read as energy left; it now names the fatigue band and gives the penalty as a multiplier.
 
 - **The chronicle can now show its whole history on request** — the list drew the newest 500 rows with no way past them, which read as a 500-entry log; one button now loads the rest, and the rows are memoised so a full list stays cheap while the world ticks.
 
