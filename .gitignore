@@ -17,7 +17,6 @@ node_modules/
 dist/
 dist-ssr/
 target/
-tests/*
 src-tauri/target/
 src-tauri/gen/schemas/
 src-tauri/icons/
@@ -40,6 +39,7 @@ tmp/
 .agents/
 .codex/
 *.py
+!scripts/*.py
 GIT_SURVIVAL_GUIDE.md
 TERAFORGE.md
 terminals/
@@ -68,8 +68,6 @@ daimon-share/
 genie-rms/
 deepcode/
 agents/
-tests/
-scripts/
 
 # Local/private design documents; public docs remain trackable
 docs/private/
