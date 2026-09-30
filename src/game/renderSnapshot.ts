@@ -1,4 +1,4 @@
-import { BuildingType, type Building, type Camera, type Entity, type EntityByType, type ResearchNode, type WorldState } from './gameTypes';
+import { BuildingType, EntityType, emptyEntityByType, type Building, type Camera, type Entity, type EntityByType, type ResearchNode, type WorldState } from './gameTypes';
 import { buildEntityByType } from './simFocus';
 import { getHourOfDay } from './dayCycle';
 import { loadJuiceEffectsEnabled } from './preferences';
@@ -10,7 +10,21 @@ import { syncGrassRenderGridFromSoA } from './simBuffers/renderSoAEntities';
 import type { EntitySpatialGrid } from './spatialGrid';
 import type { ViewState } from './viewState';
 import { resolveBuilding, resolveEntity } from './viewState';
-import { computeLogisticsOverlay, type LogisticsOverlayData } from './logisticsOverlayData';
+import { computeLogisticsOverlayCached, type LogisticsOverlayData } from './logisticsOverlayData';
+
+/**
+ * A shared, frozen by-type table for the SoA render path, which never reads `snapshot.entityByType`.
+ *
+ * `buildRenderSnapshot` is rebuilt every frame while the camera moves, and `EntityCatalog.getEntityByType`
+ * allocates a fresh table plus nine fresh bucket arrays on every call. The only consumer of the
+ * snapshot's `entityByType` is `renderer.ts`'s **non-SoA** branch (`updateCachedEntities`), so the
+ * worker path was paying for those allocations while never reading them (2026-09-21 audit, R-3).
+ */
+const EMPTY_ENTITY_BY_TYPE: EntityByType = (() => {
+  const table = emptyEntityByType();
+  for (const key of Object.keys(table) as EntityType[]) Object.freeze(table[key]);
+  return Object.freeze(table);
+})();
 
 export interface RenderSnapshotOptions {
   renderSoA?: RenderSoAReaderV1 | null;
@@ -95,10 +109,17 @@ export function buildRenderSnapshot(
     ?? null;
   const selectedEntityIds = (view.selectedEntityIds ?? (view.selectedEntityId != null ? [view.selectedEntityId] : []))
     .filter((id) => (resolveEntity(world, id) ?? catalog?.get(id)) != null);
-  const entities = catalog?.getAlive() ?? world.entities.filter((e) => e.alive);
-  const entityByType = catalog?.getEntityByType()
-    ?? world.entityByType
-    ?? buildEntityByType(entities);
+  // The SoA path hydrates its draw lists from the render buffer, not from these fields. `entities` is
+  // still read for its `.length` by the entity-layer cache key, so it becomes the world's own alive
+  // list (the same objects, already alive-only) instead of a fresh copy; `entityByType` is read by
+  // nothing on this path and becomes the shared frozen table (see `EMPTY_ENTITY_BY_TYPE`).
+  const usingSoA = options.renderSoA != null;
+  const entities = usingSoA
+    ? world.entities
+    : (catalog?.getAlive() ?? world.entities.filter((e) => e.alive));
+  const entityByType = usingSoA
+    ? EMPTY_ENTITY_BY_TYPE
+    : (catalog?.getEntityByType() ?? world.entityByType ?? buildEntityByType(entities));
 
   let grassGrid: EntitySpatialGrid | null = world.grassGrid ?? null;
   if (options.renderSoA) {
@@ -141,8 +162,10 @@ export function buildRenderSnapshot(
     showGrid: view.showGrid,
     showPaths: view.showPaths,
     // Presentation-only and off by default: when the toggle is off the projection is not computed
-    // at all, so an untouched session's render path and cost are unchanged (F4).
-    logistics: view.showLogistics ? computeLogisticsOverlay(world) : null,
+    // at all, so an untouched session's render path and cost are unchanged (F4). When it *is* on, the
+    // memoised accessor is what keeps panning from re-projecting the whole colony every frame — the
+    // snapshot key includes the camera, which lerps at frame rate (`logisticsOverlayData`).
+    logistics: view.showLogistics ? computeLogisticsOverlayCached(world) : null,
     festival: world.festival,
     visitorGroups: world.visitorGroups ?? [],
     rivalSettlements: world.rivalSettlements ?? [],

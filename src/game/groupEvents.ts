@@ -39,7 +39,8 @@ import { getRefugeeWelcomeBonus } from './townHall';
 import { addNotification } from './simEffects';
 import { tickRivalSettlements as tickRivalEvents } from './rivalEvents';
 import { createRivalProfile, ensureRivalProfile } from './rivalProfiles';
-import { addReputation } from './simHelpers';
+import { addReputation, getReputationBand } from './simHelpers';
+import { formatResourceAmounts, RESOURCE_METAS, type ResourceKey } from './resourceTypes';
 
 let newsSeq = 0;
 
@@ -149,7 +150,6 @@ export function tickVillageRequests(state: WorldState): void {
         detail: `Keep your supplies; lose ${VILLAGE_REQUEST_DECLINE_REPUTATION} reputation.`,
       },
     ],
-    createdDay: day,
     expiresDay: day + VILLAGE_REQUEST_EXPIRY_DAYS,
   };
   pushNews(state, '🥣 Caravan offer', `${trader.name} offers food for a fair price.`, 'neutral');
@@ -223,7 +223,6 @@ export function resolveVillageRequest(
   return state;
 }
 
-export { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { getSimRng, seededRandomForRun } from './simRng';
 
@@ -288,6 +287,22 @@ function pickSite(
     x: Math.max(margin, Math.min(state.width - margin, anchor.x + minDist)),
     y: Math.max(margin, Math.min(state.height - margin, anchor.y)),
   };
+}
+
+/** Daily faction-human spawn: `pushNewEntity` when a tick context is present, else the harness fallback. */
+function registerSpawnedEntity(
+  state: WorldState,
+  allAlive: Entity[],
+  entity: Entity,
+  ctx?: TickContext,
+): void {
+  if (ctx) {
+    pushNewEntity(state, ctx, entity);
+    if (!allAlive.includes(entity)) allAlive.push(entity);
+    return;
+  }
+  allAlive.push(entity);
+  indexLivingEntity(state, entity);
 }
 
 function createFactionHuman(
@@ -371,7 +386,8 @@ export function spawnVisitorGroup(
   state: WorldState,
   allAlive: Entity[],
   buildings: Building[],
-  kind: VisitorKind
+  kind: VisitorKind,
+  ctx?: TickContext,
 ): GameEvent {
   const template = VISITOR_TEMPLATES[kind];
   const name = template.names[Math.floor(getSimRng('groupEvents')() * template.names.length)];
@@ -390,8 +406,7 @@ export function spawnVisitorGroup(
   for (let i = 0; i < memberCount; i++) {
     const ent = createFactionHuman(state, site.x, site.y, 'visitor', groupId, surname);
     entityIds.push(ent.id);
-    allAlive.push(ent);
-    indexLivingEntity(state, ent);
+    registerSpawnedEntity(state, allAlive, ent, ctx);
   }
 
   state.visitorGroups.push({
@@ -451,7 +466,8 @@ export function spawnVisitorGroup(
 export function spawnRivalSettlement(
   state: WorldState,
   allAlive: Entity[],
-  buildings: Building[]
+  buildings: Building[],
+  ctx?: TickContext,
 ): GameEvent {
   const name = randomRivalName();
   const center = getPlayerCampCenter(state, buildings);
@@ -481,8 +497,7 @@ export function spawnRivalSettlement(
   for (let i = 0; i < pop; i++) {
     const ent = createFactionHuman(state, site.x, site.y, 'rival', groupId, surname);
     entityIds.push(ent.id);
-    allAlive.push(ent);
-    indexLivingEntity(state, ent);
+    registerSpawnedEntity(state, allAlive, ent, ctx);
   }
 
   const relRoll = getSimRng('groupEvents')();
@@ -1254,41 +1269,35 @@ export function talkToVisitorLeader(originalState: WorldState, groupId: string):
 export const VISITOR_TRADE_COSTS = {
   buy_food: { pay: { gold: 25 }, receive: { food: 40 } },
   buy_wood: { pay: { gold: 20 }, receive: { wood: 30 } },
+  // Stone is a building, repair, upgrade, forge and research input everywhere else, and until now it
+  // was the one `ResourceKey` a caravan could neither sell nor buy — a colony short of stone had no
+  // visitor route to it at all (`tradeRoutes` could import it; the caravan could not). Priced against
+  // the two neighbours: as cheap as wood in gold per unit, but the pile is smaller, and it sells for
+  // slightly more per unit than wood because the caravan has no cheaper way to get it.
+  buy_stone: { pay: { gold: 20 }, receive: { stone: 25 } },
+  buy_iron: { pay: { gold: 35 }, receive: { iron: 12 } },
   sell_food: { pay: { food: 30 }, receive: { gold: 25 } },
   sell_wood: { pay: { wood: 40 }, receive: { gold: 20 } },
+  sell_stone: { pay: { stone: 35 }, receive: { gold: 20 } },
+  sell_iron: { pay: { iron: 15 }, receive: { gold: 25 } },
 } as const;
 
 export type VisitorTradeAction = keyof typeof VISITOR_TRADE_COSTS;
 
 /**
- * Reputation bands that price visitor trade — one definition. The visitor banner and the Village
- * tab's reputation tooltip used to hand-write `>= 80` / `<= 30` of their own, so retuning the price
- * here left the player reading bands the trade owner no longer applied (audit C2 "Reputation 80/30
- * bands").
+ * Visitor trade prices by the reputation bands its owner declares (`simHelpers`, next to
+ * `addReputation`). The bands were hand-written here at `>= 80` / `<= 30` while `frontierCombat`
+ * hand-wrote the same two numbers again for its raid odds, so retuning one left the other quoting
+ * retired bands (audit "Reputation 80/30 bands"). `getVisitorTradePriceMult` below is the trade's
+ * own pricing and stays here; only the band boundaries are the owner's.
  */
-export const VISITOR_TRADE_FRIENDLY_REP = 80;
-export const VISITOR_TRADE_HARSH_REP = 30;
-
-export type VisitorTradeReputationBand = 'friendly' | 'normal' | 'harsh';
-
-/**
- * The band a reputation sits in — the classification the price multiplier is derived from, exposed
- * so a view can *describe* the terms without touching the arithmetic that sets them (the visitor
- * panel is guarded against calling the price multipliers themselves).
- */
-export function getVisitorTradeReputationBand(rep: number): VisitorTradeReputationBand {
-  if (rep >= VISITOR_TRADE_FRIENDLY_REP) return 'friendly';
-  if (rep <= VISITOR_TRADE_HARSH_REP) return 'harsh';
-  return 'normal';
-}
-
 export function getVisitorTradePriceMult(rep: number): number {
-  const band = getVisitorTradeReputationBand(rep);
+  const band = getReputationBand(rep);
   return band === 'friendly' ? 0.8 : band === 'harsh' ? 1.25 : 1;
 }
 
 export function getVisitorTradeRewardMult(rep: number): number {
-  return rep >= 80 ? 1.15 : 1;
+  return getReputationBand(rep) === 'friendly' ? 1.15 : 1;
 }
 
 function seedGroupGold(kind: VisitorKind): number {
@@ -1351,11 +1360,9 @@ export function getVisitorTradeEligibility(
   const { effectivePay, effectiveReceive } = getVisitorTradeTerms(state, action);
 
   if (!canAfford(state, effectivePay)) {
-    const goldNeed = effectivePay.gold ?? 0;
-    const hint = action === 'buy_food' ? `Need ${goldNeed}💰`
-      : action === 'buy_wood' ? `Need ${goldNeed}💰`
-        : action === 'sell_food' ? `Need ${effectivePay.food ?? 0}🍖`
-          : `Need ${effectivePay.wood ?? 0}🪵`;
+    const [needKey, needAmount] = (Object.entries(effectivePay) as [ResourceKey, number][])
+      .find(([, amount]) => (amount ?? 0) > 0) ?? ['gold', 0];
+    const hint = `Need ${needAmount}${RESOURCE_METAS[needKey].emoji}`;
     return { ok: false, blockReason: hint };
   }
 
@@ -1370,14 +1377,15 @@ export function getVisitorTradeEligibility(
 
   for (const [key, amount] of Object.entries(effectiveReceive) as [keyof WorldState['resources'], number][]) {
     if ((amount ?? 0) > 0 && getAvailableStorageHeadroom(state, key) < amount) {
-      const hint = key === 'food' ? 'Food storage full!'
-        : key === 'wood' ? 'Wood storage full!'
-          : 'Cannot store more gold';
+      const meta = RESOURCE_METAS[key];
+      const hint = key === 'gold' ? 'Cannot store more gold' : `${meta.label} storage full!`;
       const notify = key === 'food'
         ? 'Food storage is full — build a Barn or Silo before buying more.'
         : key === 'wood'
           ? 'Wood storage is full — build a Barn or Store before buying more.'
-          : undefined;
+          : key === 'iron'
+            ? 'Iron storage is full — free space before buying more.'
+            : undefined;
       return { ok: false, blockReason: hint, notify };
     }
   }
@@ -1416,29 +1424,37 @@ export function tradeWithVisitors(
   consumeResources(state, effectivePay);
   const paidGold = effectivePay.gold ?? 0;
   if (paidGold > 0) group.gold = (group.gold ?? 0) + paidGold;
-  let receivedLabel = '';
+  // What actually landed, per resource — not the nominal amounts. A gain the cap refused must not
+  // appear in the ledger as food the colony received (`LIVE-FINDINGS-STATUS.md`, M5), and the float
+  // must name every resource the deal carried. Accumulating into a list rather than assigning a
+  // single string is the fix for the other half of that: a multi-resource deal (`trade_3` pays gold
+  // *and* iron, `trade_7` stone *and* gold) used to overwrite the label each pass, so the float
+  // announced only the last key and silently dropped the rest.
+  const received: Partial<Record<keyof WorldState['resources'], number>> = {};
   for (const [key, amount] of Object.entries(effectiveReceive) as [keyof WorldState['resources'], number][]) {
     if ((amount ?? 0) <= 0) continue;
     const added = addCappedResource(state, key, amount);
+    if (added <= 0) continue;
+    received[key] = added;
     if (key === 'food') {
-      // What actually landed, not the nominal amount: a gain the cap refused must not appear in the
-      // ledger as food the colony received (`LIVE-FINDINGS-STATUS.md`, M5).
       recordFoodProduced(state, 'trade', added);
-      receivedLabel = `+${added}🍖`;
     }
-    else if (key === 'wood') receivedLabel = `+${added}🪵`;
-    else if (key === 'gold') receivedLabel = `+${added}💰`;
   }
   const gainedGold = effectiveReceive.gold ?? 0;
   if (gainedGold > 0) group.gold = Math.max(0, (group.gold ?? 0) - gainedGold);
 
-  pushFloat(state, group.campX, group.campY - 20, receivedLabel, action === 'buy_food' || action === 'buy_wood' ? '#22c55e' : '#eab308');
+  pushFloat(
+    state,
+    group.campX,
+    group.campY - 20,
+    // The resource-formatter owner, so the float's spelling of each key comes from one place
+    // (`resourceTypes.formatResourceAmounts`) instead of a local second one.
+    formatResourceAmounts(received),
+    action.startsWith('buy_') ? '#22c55e' : '#eab308',
+  );
   group.tradesCompleted++;
   group.giftsGiven++;
-  const tradeDetail = action === 'buy_food' ? 'bought food'
-    : action === 'buy_wood' ? 'bought wood'
-      : action === 'sell_food' ? 'sold food'
-        : 'sold wood';
+  const tradeDetail = action.replace(/_/g, ' ');
   logEvent(state, 'trade', `Traded with ${group.name} — ${tradeDetail}`, group.name);
   return state;
 }
@@ -1590,7 +1606,7 @@ export function hitTestCamp(
   return null;
 }
 
-export function tickWorldRivalSettlements(state: WorldState, allAlive: Entity[]): void {
+export function tickWorldRivalSettlements(state: WorldState, allAlive: Entity[], ctx?: TickContext): void {
   tickRivalEvents(state, allAlive, {
     pushNews,
     pushFloat,
@@ -1600,7 +1616,7 @@ export function tickWorldRivalSettlements(state: WorldState, allAlive: Entity[])
     createFactionHuman,
     createRivalBuilding,
     killWildGameForPoach,
-  });
+  }, ctx);
 }
 
 export type WorldEventId =
@@ -1719,19 +1735,19 @@ export function rollYearlyWorldEvent(
         bountifulHarvest,
       };
     case 'visiting_traders':
-      return { event: spawnVisitorGroup(state, allAlive, buildings, 'traders'), bountifulHarvest };
+      return { event: spawnVisitorGroup(state, allAlive, buildings, 'traders', ctx), bountifulHarvest };
     case 'pilgrim_caravan':
-      return { event: spawnVisitorGroup(state, allAlive, buildings, 'pilgrims'), bountifulHarvest };
+      return { event: spawnVisitorGroup(state, allAlive, buildings, 'pilgrims', ctx), bountifulHarvest };
     case 'scholar_expedition':
-      return { event: spawnVisitorGroup(state, allAlive, buildings, 'scholars'), bountifulHarvest };
+      return { event: spawnVisitorGroup(state, allAlive, buildings, 'scholars', ctx), bountifulHarvest };
     case 'nomad_hunters':
-      return { event: spawnVisitorGroup(state, allAlive, buildings, 'hunters'), bountifulHarvest };
+      return { event: spawnVisitorGroup(state, allAlive, buildings, 'hunters', ctx), bountifulHarvest };
     case 'refugee_family':
-      return { event: spawnVisitorGroup(state, allAlive, buildings, 'refugees'), bountifulHarvest };
+      return { event: spawnVisitorGroup(state, allAlive, buildings, 'refugees', ctx), bountifulHarvest };
     case 'wandering_performers':
-      return { event: spawnVisitorGroup(state, allAlive, buildings, 'performers'), bountifulHarvest };
+      return { event: spawnVisitorGroup(state, allAlive, buildings, 'performers', ctx), bountifulHarvest };
     case 'rival_settlement':
-      return { event: spawnRivalSettlement(state, allAlive, buildings), bountifulHarvest };
+      return { event: spawnRivalSettlement(state, allAlive, buildings, ctx), bountifulHarvest };
     case 'surveyors_crown':
       addReputation(state, 5);
       return {
@@ -1807,19 +1823,25 @@ function spawnGrass(width: number, height: number, id: number): Entity {
   );
 }
 
-export function tryMidYearVisitorEvent(state: WorldState, allAlive: Entity[], buildings: Building[]): GameEvent | null {
+export function tryMidYearVisitorEvent(
+  state: WorldState,
+  allAlive: Entity[],
+  buildings: Building[],
+  ctx?: TickContext,
+): GameEvent | null {
   if (state.visitorGroups.length > 0) return null;
   if (playerHumanCount(allAlive) < 4) return null;
   if (seededRandomForRun(`mid-year-visitors:${state.tick}`) > 0.22) return null;
   const kinds: VisitorKind[] = ['traders', 'pilgrims', 'performers', 'nomads', 'scholars'];
   const kind = kinds[Math.floor(seededRandomForRun(`mid-year-kind:${state.tick}`) * kinds.length)];
-  return spawnVisitorGroup(state, allAlive, buildings, kind);
+  return spawnVisitorGroup(state, allAlive, buildings, kind, ctx);
 }
 
 export function tryFirstWeekVisitor(
   state: WorldState,
   allAlive: Entity[],
   buildings: Building[],
+  ctx?: TickContext,
 ): GameEvent | null {
   if (state.firstWeekVisitorSpawned) return null;
   if (state.tick < 7 * TICKS_PER_DAY || state.tick >= 14 * TICKS_PER_DAY) return null;
@@ -1834,7 +1856,7 @@ export function tryFirstWeekVisitor(
 
   state.firstWeekVisitorSpawned = true;
   const kind: VisitorKind = getSimRng('groupEvents')() < 0.55 ? 'pilgrims' : 'performers';
-  const event = spawnVisitorGroup(state, allAlive, buildings, kind);
+  const event = spawnVisitorGroup(state, allAlive, buildings, kind, ctx);
   pushNews(
     state,
     '🛖 Neighbors on the trail',

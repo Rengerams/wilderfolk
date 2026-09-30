@@ -2,6 +2,7 @@ import type { WorldState } from './gameTypes';
 import { EntityType as ET } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { citizenFullName } from './citizenId';
+import { isMarriedOrExpecting } from './civilStatus';
 
 export interface YearlyStats {
   year: number;
@@ -77,7 +78,11 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
   // Humans born during this calendar year (birthYear set at birth in lifeSimulation)
   const humanBirths = humans.filter((h) => h.birthYear === statsYear).length;
 
-  const marriedHumans = humans.filter(h => h.relationshipStatus === 'married').length;
+  // Active marriages, not `=== 'married'`: conception moves both partners to `'expecting'` for the
+  // pregnancy, so the narrow test made a married couple disappear from this count and
+  // `floor(delta / 2)` below then read their marriage as never having happened
+  // (`civilStatus.isMarriedOrExpecting`).
+  const marriedHumans = humans.filter(isMarriedOrExpecting).length;
   const prevMarried = prevYearStats?.marriedCount ?? 0;
   const marriagesThisYear = Math.max(0, Math.floor((marriedHumans - prevMarried) / 2));
 

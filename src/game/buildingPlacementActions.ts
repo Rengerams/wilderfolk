@@ -24,8 +24,10 @@ import {
   isFootprintWithinMapBounds,
   overlapsAnyBuilding,
 } from './placementUtils';
+import { patchTile, rebakeTerrainGrids, tileAt } from './terrain/terrainGrid';
 
-// The unbuildable-terrain rule has one owner: `placementUtils.isUnbuildableTerrainType`.
+// The unbuildable-terrain rule has one owner: `terrain/terrainTraits.isUnbuildableTerrainType`
+// (it sits in a leaf module so `terrainGrid` can read it without importing `placementUtils` back).
 // A second exported copy of the same set used to live here; nothing read it (two modules only
 // re-exported it), so it was removed with the re-exports rather than restated.
 
@@ -112,27 +114,30 @@ function clearTreesUnderFootprint(
     if (entity.x >= left && entity.x < right && entity.y >= top && entity.y < bottom) entity.alive = false;
   }
 
-  const tiles = state.worldMap?.tiles;
-  if (!tiles?.length) return;
+  const map = state.worldMap;
+  if (!map) return;
   const startTx = Math.max(0, Math.floor(left / TERRAIN_TILE_SIZE));
-  const endTx = Math.min(tiles[0]?.length ?? 0, Math.ceil(right / TERRAIN_TILE_SIZE));
+  const endTx = Math.min(map.width, Math.ceil(right / TERRAIN_TILE_SIZE));
   const startTy = Math.max(0, Math.floor(top / TERRAIN_TILE_SIZE));
-  const endTy = Math.min(tiles.length, Math.ceil(bottom / TERRAIN_TILE_SIZE));
+  const endTy = Math.min(map.height, Math.ceil(bottom / TERRAIN_TILE_SIZE));
   let tilesChanged = false;
   for (let tileY = startTy; tileY < endTy; tileY++) {
     for (let tileX = startTx; tileX < endTx; tileX++) {
-      const tile = tiles[tileY]?.[tileX];
+      const tile = tileAt(map, tileX, tileY);
       if (!tile) continue;
       if (tile.type === TerrainType.Forest || tile.type === TerrainType.DarkForest) {
-        tile.type = TerrainType.Grassland;
+        patchTile(map, tileX, tileY, { type: TerrainType.Grassland });
         tilesChanged = true;
       }
     }
   }
-  // The terrain caches key on the map's immutable-looking fields, so a mutated tile needs the
-  // revision bump or the cleared forest keeps its old fill and canopy for the life of the
-  // cache entry (audit `visuals-looks.md` D4).
-  if (tilesChanged) bumpTerrainRevision();
+  if (tilesChanged) {
+    rebakeTerrainGrids(map, { startTx, endTx, startTy, endTy });
+    // The terrain caches key on the map's immutable-looking fields, so a mutated tile needs the
+    // revision bump or the cleared forest keeps its old fill and canopy for the life of the
+    // cache entry (audit `visuals-looks.md` D4).
+    bumpTerrainRevision();
+  }
 }
 
 export function startBuilding(

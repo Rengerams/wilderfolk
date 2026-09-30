@@ -72,7 +72,8 @@ function canAffordExports(state: WorldState, route: TradeRoute): boolean {
   return state.resources.wood >= route.resourcesGiven.wood
     && state.resources.stone >= route.resourcesGiven.stone
     && state.resources.food >= route.resourcesGiven.food
-    && state.resources.gold >= route.resourcesGiven.gold;
+    && state.resources.gold >= route.resourcesGiven.gold
+    && state.resources.iron >= (route.resourcesGiven.iron ?? 0);
 }
 
 function canStoreImports(state: WorldState, route: TradeRoute, mult: number): boolean {
@@ -100,6 +101,9 @@ function deductExports(state: WorldState, route: TradeRoute): void {
   state.resources.stone -= route.resourcesGiven.stone;
   spendFood(state, 'trade', route.resourcesGiven.food);
   state.resources.gold -= route.resourcesGiven.gold;
+  if ((route.resourcesGiven.iron ?? 0) > 0) {
+    state.resources.iron -= route.resourcesGiven.iron;
+  }
 }
 
 function applyImports(state: WorldState, route: TradeRoute, mult: number): number {

@@ -58,7 +58,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   // `number | null` and `worldGen` starts it at `null` — so an explicitly vacant office must not hand
   // the `village_leader` label back to the reverting settler. An *absent* option (undefined) still
   // means "the caller cannot say", which keeps the previous behaviour
-  // (`tests/moonHowler.staleLeaderOccupation.test.ts`, `LIVE-FINDINGS-STATUS.md` M8).
+  // (`tests/moonHowler.test.ts`, `LIVE-FINDINGS-STATUS.md` M8).
   const holderId = opts?.villageLeaderId;
   const staleLeaderOccupation =
     savedOccupation === LEADER_OCCUPATION
@@ -74,6 +74,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   were.partnerId = saved?.partnerId;
   were.affairPartnerId = saved?.affairPartnerId;
   were.affairProgress = saved?.affairProgress ?? 0;
+  were.courtshipPartnerId = saved?.courtshipPartnerId;
   were.courtshipProgress = saved?.courtshipProgress ?? 0;
   were.youthLovePartnerId = saved?.youthLovePartnerId;
   were.youthLoveProgress = saved?.youthLoveProgress;

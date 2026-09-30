@@ -41,6 +41,7 @@ import { computeWildlifeCounts } from './entityCounts';
 import { BASE_IRON_STORAGE, computeStorageMax, ensureFullTradeRoutes } from './economy';
 import { enrichTradeRoute, scheduleTradeRouteDeparture } from './tradeCaravans';
 import { clearAllFactionWanderStates } from './factionWander';
+import { rebuildBeautyGridFromWorld } from './beautyGrid';
 import { validateVillageLeaderOnLoad } from './villageLeadership';
 import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
@@ -255,7 +256,11 @@ function compactWorldMapForSave(worldMap: WorldState['worldMap']) {
 
 function restoreWorldMapFromSave(parsed: { worldMap?: WorldState['worldMap'] & { _compact?: boolean } }): WorldState['worldMap'] {
   if (!parsed.worldMap) return null;
-  if (parsed.worldMap.tiles && !parsed.worldMap._compact) {
+  // Only a compact save (`_compact: true`) is a seed/preset reference to regenerate below; every
+  // other save carries its own map data and is restored as it was written. The old test also
+  // required a `tiles` array, which the four-layer map model no longer stores, so it was never
+  // true and a full save was silently regenerated instead of restored.
+  if (!parsed.worldMap._compact) {
     return parsed.worldMap;
   }
   const wm = parsed.worldMap;
@@ -270,12 +275,12 @@ function restoreWorldMapFromSave(parsed: { worldMap?: WorldState['worldMap'] & {
       wm.height * TERRAIN_TILE_SIZE,
       wm.seed,
       wm.size ?? 'medium',
-      wm.preset ?? 'verdant',
+      wm.preset ?? 'continental',
     );
   }
   return generateWorldMap(
     wm.size ?? 'medium',
-    wm.preset ?? 'verdant',
+    wm.preset ?? 'continental',
     wm.seed,
   );
 }
@@ -350,7 +355,6 @@ function migrateTickTimeline(
     scaleField(rec, 'griefUntilTick');
     scaleField(rec, 'hotelStayUntilTick');
     scaleField(rec, 'reproductionCooldown');
-    scaleField(rec, 'lastMetPartner');
     scaleField(rec, 'pregnancyProgress');
     scaleField(rec, 'pregnancyDueProgress');
 
@@ -436,6 +440,29 @@ export function clearAutoFilledChurches(world: WorldState): number {
   return cleared;
 }
 
+/** Every resource key the economy reads, so a save can be checked for a complete purse. */
+const RESOURCE_KEYS = ['wood', 'stone', 'food', 'gold', 'iron'] as const;
+
+/** Present *and* a finite number. An absent key is a failure, not a default: see below. */
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+/**
+ * A payload's `resources`/`storageMax` must carry **every** key as a finite number.
+ *
+ * Absence is deliberately *not* tolerated here, which is the opposite of the rule for the calendar
+ * fields below. `undefined` in the purse is not a default — it is the failure mode: every
+ * affordability rule is `state.resources.wood >= cost.wood`, and a comparison against `undefined` is
+ * permanently `false`, so a colony loaded with a short purse can never build, repair, upgrade or
+ * research again, and the next save writes the same broken state back. A truncated object is the
+ * shape a hand-edited or partially written file actually produces, so it is refused by name.
+ */
+function hasCompleteResourceShape(value: unknown): boolean {
+  if (!isSaveObject(value)) return false;
+  return RESOURCE_KEYS.every((key) => isFiniteNumber((value as Record<string, unknown>)[key]));
+}
+
 /**
  * Fields the restore dereferences with no default, so a payload that matches this build's version
  * but omits or mistypes one throws a `TypeError` from deep inside the restore — the two the audit
@@ -444,12 +471,122 @@ export function clearAutoFilledChurches(world: WorldState): number {
  * the player saw a bare "could not be restored" while the failing field stayed in the console.
  * Checking the shape first turns that into a named cause.
  *
+ * The numeric checks below are the same class one step quieter. A same-version payload with
+ * `tick: "abc"` used to **load successfully** into a world whose calendar was `NaN`: `% TICKS_PER_DAY`
+ * is then never 0, so the daily layer never runs again — no days, no seasons, no aging, no births —
+ * and "Year NaN" reaches the clock. The purse is checked more strictly still (see
+ * `hasCompleteResourceShape`). Both are refused by name, which is the outcome `findUnrestorableField`
+ * already exists to produce.
+ *
+ * The calendar/geometry fields do tolerate absence: the loader defaults each of them, so only a
+ * present-but-unusable value is a refusal there.
+ *
  * Returns the first failing field name, or `null` when the payload is worth attempting.
  */
 function findUnrestorableField(parsed: Record<string, unknown>): string | null {
-  if (!isSaveObject(parsed.resources)) return 'resources';
+  if (!hasCompleteResourceShape(parsed.resources)) return 'resources';
+  if (parsed.storageMax !== undefined && !hasCompleteResourceShape(parsed.storageMax)) {
+    return 'storageMax';
+  }
   if (parsed.lifetimeStats !== undefined && !isSaveObject(parsed.lifetimeStats)) {
     return 'lifetimeStats';
+  }
+  // Present values must be finite; absent ones are defaulted by the load path.
+  for (const key of ['tick', 'width', 'height', 'nextEntityId', 'nextBuildingId'] as const) {
+    if (parsed[key] !== undefined && !isFiniteNumber(parsed[key])) return key;
+  }
+  return findUnrestorableEntityField(parsed);
+}
+
+/** One `(field, rule)` pair — the shape every entity and building element is checked against. */
+interface ElementFieldRule {
+  field: string;
+  isValid: (value: unknown) => boolean;
+}
+
+const ENTITY_TYPE_VALUES: ReadonlySet<unknown> = new Set(Object.values(EntityType));
+const JOB_TYPE_VALUES: ReadonlySet<unknown> = new Set(Object.values(JobType));
+const BUILDING_TYPE_VALUES: ReadonlySet<unknown> = new Set(Object.values(BuildingType));
+
+/** Membership in one of the `as const` enums this file already imports for the restore path. */
+function isMemberOf(values: ReadonlySet<unknown>): (value: unknown) => boolean {
+  return (value) => values.has(value);
+}
+
+/** A finite number inside `[0, limit]` — the bound `assertSimInvariants` reports on a position. */
+function isFiniteWithin(limit: number): (value: unknown) => boolean {
+  return (value) => isFiniteNumber(value) && value >= 0 && value <= limit;
+}
+
+/**
+ * The per-element keys a malformed payload actually mistypes, and what "usable" means for each.
+ *
+ * `x`/`y` are additionally bounded to the map, because an entity outside it is the other thing
+ * `assertSimInvariants` reports (`simInvariants.ts`) — and that check only runs on a dev build, once
+ * per colony day, long after the bad payload has been written back by the next save.
+ */
+function entityFieldRules(width: number, height: number): readonly ElementFieldRule[] {
+  return [
+    { field: 'id', isValid: isFiniteNumber },
+    { field: 'type', isValid: isMemberOf(ENTITY_TYPE_VALUES) },
+    { field: 'x', isValid: isFiniteWithin(width) },
+    { field: 'y', isValid: isFiniteWithin(height) },
+    { field: 'age', isValid: isFiniteNumber },
+    { field: 'job', isValid: isMemberOf(JOB_TYPE_VALUES) },
+  ];
+}
+
+function buildingFieldRules(width: number, height: number): readonly ElementFieldRule[] {
+  return [
+    { field: 'id', isValid: isFiniteNumber },
+    { field: 'type', isValid: isMemberOf(BUILDING_TYPE_VALUES) },
+    { field: 'x', isValid: isFiniteWithin(width) },
+    { field: 'y', isValid: isFiniteWithin(height) },
+  ];
+}
+
+/**
+ * The first malformed **element** of `entities` or `buildings`, named as `entities[3].x`.
+ *
+ * The scalar checks above protect the world's containers; this protects their contents, which is
+ * where a payload that parses can still be unusable. Nothing downstream refuses one: the restore
+ * builds each element by default-and-spread and casts it (`:591-612`, `:676-680`), so a JSON-valid
+ * `{ x: "nope", type: "Dragon" }` reached a live world, rendered nowhere, and was written back by the
+ * next save — permanent. `computeWildlifeCounts` only warns on the unknown type, and the invariant
+ * that would have caught the non-finite position is a dev-build pulse once per colony day.
+ *
+ * Every rule tolerates **absence** except `type`: it is the one key whose absence is not a shape this
+ * build can use (`EntityType` drives every bucket, `BuildingType` every production rule), it was
+ * mandatory in every save this build can write, and the exact-version gate (`:128-137`) means no
+ * payload from a build that omitted it is accepted anyway. Returns `null` when either list is absent
+ * or not an array — that is the restore's own `?? []`, not this function's business to refuse.
+ */
+function findUnrestorableEntityField(parsed: Record<string, unknown>): string | null {
+  const width = isFiniteNumber(parsed.width) ? parsed.width : 0;
+  const height = isFiniteNumber(parsed.height) ? parsed.height : 0;
+
+  const scans: ReadonlyArray<{
+    key: 'entities' | 'buildings';
+    rules: readonly ElementFieldRule[];
+  }> = [
+    { key: 'entities', rules: entityFieldRules(width, height) },
+    { key: 'buildings', rules: buildingFieldRules(width, height) },
+  ];
+
+  for (const { key, rules } of scans) {
+    const list = parsed[key];
+    if (!Array.isArray(list)) continue;
+    for (let i = 0; i < list.length; i++) {
+      const element: unknown = list[i];
+      if (!isSaveObject(element)) return `${key}[${i}]`;
+      const record = element as Record<string, unknown>;
+      for (const { field, isValid } of rules) {
+        const value = record[field];
+        // Absent optional keys are the owner's defaults; `type` is mandatory (see above).
+        if (value === undefined && field !== 'type') continue;
+        if (!isValid(value)) return `${key}[${i}].${field}`;
+      }
+    }
   }
   return null;
 }
@@ -464,23 +601,45 @@ function findUnrestorableField(parsed: Record<string, unknown>): string | null {
 export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): SaveLoadOutcome {
   const unrestorableField = findUnrestorableField(parsed);
   if (unrestorableField) {
-    const detail = `${unrestorableField} is missing or not an object`;
+    // One wording for two kinds of refusal: a container that is missing or not an object, and an
+    // element field that is present but unusable (see `findUnrestorableEntityField`). The player gets
+    // the same actionable message — which field — either way.
+    const detail = `${unrestorableField} is missing or unusable`;
+    console.error('Save load refused:', detail);
+    return { ok: false, reason: 'unrestorable', detail };
+  }
+  // Work on a copy, so this reads as the pure function its signature promises.
+  //
+  // Two things write **through** to the caller's object otherwise: `pickWorldStateFromSave` copies
+  // top-level keys by reference, so the returned world's `entities` / `tradeRoutes` /
+  // `pendingRaidEvents` are the payload's own arrays; and `migrateTickTimeline` scales tick-valued
+  // fields in place (forging `_ticksPerDay` shows it plainly: one load rewrites
+  // `createdAtTick: 700 → 2100`, and a second load of the same payload scales it again to 7200,
+  // retroactively moving the first session's raid deadline). Production callers each parse fresh
+  // today, so this is a re-entrancy hazard rather than a live play bug — but "load" should not be a
+  // mutation of its input regardless of who calls it. The clone also means a throw from it lands in
+  // the refusal shape below instead of escaping.
+  let source: Record<string, unknown>;
+  try {
+    source = structuredClone(parsed);
+  } catch (err) {
+    const detail = `payload could not be copied: ${err instanceof Error ? err.message : String(err)}`;
     console.error('Save load refused:', detail);
     return { ok: false, reason: 'unrestorable', detail };
   }
   try {
-    const worldData = pickWorldStateFromSave(parsed);
+    const worldData = pickWorldStateFromSave(source);
 
-    let loadedTick = (worldData.tick ?? (parsed.tick as number | undefined) ?? 0) as number;
-    const savedTicksPerDay = typeof parsed._ticksPerDay === 'number' && parsed._ticksPerDay > 0
-      ? (parsed._ticksPerDay as number)
+    let loadedTick = (worldData.tick ?? (source.tick as number | undefined) ?? 0) as number;
+    const savedTicksPerDay = typeof source._ticksPerDay === 'number' && source._ticksPerDay > 0
+      ? (source._ticksPerDay as number)
       : TICKS_PER_DAY;
     const autoSave = typeof worldData.autoSave === 'boolean'
       ? worldData.autoSave
       : loadAutoSavePreference();
     saveAutoSavePreference(autoSave);
 
-    const transient = restoreTransientWorldFieldsFromSave(parsed);
+    const transient = restoreTransientWorldFieldsFromSave(source);
     const world = {
       ...worldData,
       buildings: worldData.buildings ?? [],
@@ -511,7 +670,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       storageMax: worldData.storageMax || computeStorageMax(worldData.buildings ?? []),
       foodSpoilageRate: worldData.foodSpoilageRate ?? 0.03,
       eventLog: worldData.eventLog || [],
-      worldMap: restoreWorldMapFromSave(parsed),
+      worldMap: restoreWorldMapFromSave(source),
       ecoHealthYearsAbove80: worldData.ecoHealthYearsAbove80 ?? 0,
       firstWeekVisitorSpawned: worldData.firstWeekVisitorSpawned ?? false,
       visitorGroups: (worldData.visitorGroups ?? []).map((g) => ({
@@ -573,7 +732,9 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     // `createViewFromSave`) meant those draws came from the pre-load stream — seed 1 — so a load could
     // not reproduce the positions its own save was written with (`LIVE-FINDINGS-STATUS.md`, L13).
     adoptSimSeedFromWorld(world);
-    restoreSimRng(parsed.simRng);
+    // Read the copy, like every other payload field in this body, so the load cannot hand the caller's
+    // snapshot object back to the live RNG registry.
+    restoreSimRng(source.simRng);
     for (const entity of world.entities) {
       migrateLegacyMoonHowler(entity, colonyDayOnLoad, hourOnLoad);
     }
@@ -690,6 +851,17 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     });
     clearAllFactionWanderStates();
     rebuildEntityByIdMap(world);
+    // `beautyGrid` is a runtime cache (stripped from the save, and now dropped by
+    // `invalidateWorldRuntimeCaches`), and it used to be rebuilt only by the **daily** layer — so a
+    // loaded colony ran up to a full game day with no beauty field at all: free-time settlers were not
+    // drawn toward decor and the beauty happiness nudge was skipped, which made a just-loaded village
+    // behave differently from the same village a moment before the save.
+    //
+    // The **grid** is rebuilt here; `villageHappiness` is deliberately left at its saved value. It is
+    // in the save allow-list on purpose, and recomputing it from a grid that reflects the stored
+    // buildings would replace the persisted number with the base happiness a freshly loaded world has
+    // not yet earned — `rebuildBeautyGridFromWorld` exists for exactly this split.
+    rebuildBeautyGridFromWorld(world);
     const view = createViewFromSave(parsed, world);
     return { ok: true, world, view };
   } catch (e) {

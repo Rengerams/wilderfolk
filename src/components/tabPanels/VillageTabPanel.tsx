@@ -12,7 +12,7 @@ import { getRecruitSettlerEligibility, RECRUITMENT_COST } from '../../game/settl
 import { resourceFillPercent } from '../../game/dashboardData';
 import { resolvePopulationCap } from '../../game/populationGrowth';
 import { summarizeFoodLedger, ECONOMY_SOURCE_LABELS } from '../../game/economyLedger';
-import { VISITOR_TRADE_FRIENDLY_REP, VISITOR_TRADE_HARSH_REP } from '../../game/groupEvents';
+import { REPUTATION_FRIENDLY_MIN, REPUTATION_HARSH_MAX } from '../../game/simHelpers';
 
 const FocusPanel = lazy(() => import('../../game/FocusPanel'));
 const VillageLeadershipPanel = lazy(() => import('../../game/VillageLeadershipPanel'));
@@ -349,12 +349,13 @@ export default function VillageTabPanel({
             : 'roads (+rep after Urban Planning research)'}
           .
         </p>
-        {/* The band names, not the numbers: `groupEvents` owns both thresholds and prices the trade
-            (`getVisitorTradePriceMult`), so the panel asks for them rather than restating them. */}
+        {/* The band names, not the numbers: `simHelpers` owns both thresholds — visitor caravans
+            price their trade by band (`getVisitorTradePriceMult`), so the panel asks the owner
+            rather than restating them. */}
         <p className="mt-1 text-[13px] leading-relaxed text-stone-300">
           It also sets what caravans charge: at{' '}
-          <strong className="text-emerald-300">{VISITOR_TRADE_FRIENDLY_REP}+</strong> they offer friendly prices,
-          and at <strong className="text-rose-300">{VISITOR_TRADE_HARSH_REP} or less</strong> they demand harsher terms.
+          <strong className="text-emerald-300">{REPUTATION_FRIENDLY_MIN}+</strong> they offer friendly prices,
+          and at <strong className="text-rose-300">{REPUTATION_HARSH_MAX} or less</strong> they demand harsher terms.
         </p>
       </details>
     </div>

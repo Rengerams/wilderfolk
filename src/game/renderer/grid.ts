@@ -1,14 +1,16 @@
 import { GRID_SIZE, TERRAIN_TILE_SIZE, snapToGrid } from '../gameTypes';
 import { isNightHour } from '../dayCycle';
 import { getBuildingFootprintForType, snapBuildingCenter } from '../buildingRotation';
-import { canPlaceBuildingSnapshot, isUnbuildableTerrainType, isWaterTerrainType } from '../placementUtils';
+import { canPlaceBuildingSnapshot } from '../placementUtils';
+import { isUnbuildableTerrainType, isWaterTerrainType } from '../terrain/terrainTraits';
 import { terrainRiseAt } from '../terrainAtlas';
 import { isStripBuildType } from '../stripBuild';
+import { tileTypeAt } from '../terrain/terrainGrid';
 import {
   drawProceduralStripBuilding,
   drawStripJunctionOverlay,
 } from '../stripRender';
-import { worldToScreen as w2s } from '../viewState';
+import { worldToScreen as w2s, worldToScreenX, worldToScreenY } from '../viewState';
 import type { RenderSnapshot } from '../renderSnapshot';
 
 const GRID_MAJOR_EVERY = 5;
@@ -52,15 +54,9 @@ function getGridViewport(cam: RenderSnapshot['camera'], cw: number, ch: number):
 }
 
 // Axis projections of the single owner transform (`viewState.worldToScreen`): the formula lives only
-// there. The D27 wiring guard in `tests/visualsAudit.renderWiring.test.ts` pins the call site by name
-// (`worldToScreenX(cx, cam, cw)`), so these two accessors stay — they must never restate the rule.
-function worldToScreenX(wx: number, cam: RenderSnapshot['camera'], cw: number): number {
-  return w2s(wx, cam.y, cam, cw, 0)[0];
-}
-
-function worldToScreenY(wy: number, cam: RenderSnapshot['camera'], ch: number): number {
-  return w2s(cam.x, wy, cam, 0, ch)[1];
-}
+// there, and the D27 wiring guard in `tests/visualsAudit.renderWiring.test.ts` pins the call site by
+// name (`worldToScreenX(cx, cam, cw)`). These are the owner's own single-axis accessors — imported,
+// not restated — so a grid line no longer allocates a `[x, y]` tuple and discards half of it.
 
 /**
  * Strokes grid lines. Correctly uses major offsets (mx0/my0) when drawing major lines
@@ -173,9 +169,9 @@ export function drawBuildZoneOverlay(ctx: CanvasRenderingContext2D, state: Rende
   // 1. Render unbuildable terrain markers
   for (let ty = startTy; ty <= endTy; ty++) {
     for (let tx = startTx; tx <= endTx; tx++) {
-      const tile = map.tiles[ty]?.[tx];
-      if (!tile || !isUnbuildableTerrainType(tile.type)) continue;
-      if (isWaterTerrainType(tile.type)) continue;
+      const type = tileTypeAt(map, tx, ty);
+      if (type === null || !isUnbuildableTerrainType(type)) continue;
+      if (isWaterTerrainType(type)) continue;
 
       const wx = tx * TERRAIN_TILE_SIZE + TERRAIN_TILE_SIZE / 2;
       const wy = ty * TERRAIN_TILE_SIZE + TERRAIN_TILE_SIZE / 2;

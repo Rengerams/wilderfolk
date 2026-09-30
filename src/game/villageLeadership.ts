@@ -10,6 +10,7 @@ import { ensureEntitySkills } from './skills';
 import { simulateElectionVotes } from './electionVotes';
 import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
 import { seededRandomForRun } from './simRng';
+import { humanDisplayName } from './citizenId';
 
 /**
  * Years between scheduled (end-of-term) elections.
@@ -109,10 +110,16 @@ export interface ElectionBuildupNotice {
   message: string;
 }
 
+/**
+ * A leader's or candidate's display name for notices.
+ *
+ * Delegates to `citizenId.humanDisplayName`, the owner of this format. This was a private copy whose
+ * fallback was `'Unknown'`, while `workforce` carried a second copy falling back to `'Settler'` and
+ * the owner says `'A settler'` — so one nameless settler had three names depending on which log line
+ * mentioned them (`tests/settlerNameFallback.singleOwner.test.ts`).
+ */
 export function formatSettlerName(entity: Entity): string {
-  const base = entity.name || 'Unknown';
-  const full = entity.surname ? `${base} ${entity.surname}` : base;
-  return entity.title ? `${full} ${entity.title}` : full;
+  return humanDisplayName(entity);
 }
 
 function leadershipAgeYears(

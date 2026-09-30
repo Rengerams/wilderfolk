@@ -49,7 +49,7 @@ export function computeStorageMax(
   // `groupEvents.createRivalBuilding`) handed the player +200 wood, +200 stone and +100 iron of
   // storage on the next day boundary while `canEstablishTradeRoute` still refused with
   // "Build a Market" — and a rival Silo cut the player's spoilage rate too
-  // (`LIVE-FINDINGS-STATUS.md`, E-1). Guarded by `tests/storageCap.rivalBuildings.test.ts`.
+  // (`LIVE-FINDINGS-STATUS.md`, E-1). Guarded by `tests/storageCap.test.ts`.
   const countOf = (type: BuildingType): number =>
     buildings.filter((b) => b.completed && b.faction !== 'rival' && b.type === type).length;
   const barns = countOf(BuildingType.Barn);

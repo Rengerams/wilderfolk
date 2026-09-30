@@ -36,12 +36,14 @@ GIT_SURVIVAL_GUIDE.md
 # Local configuration and generated tooling files
 *.local
 *.gypi
-.tmp/
+tmp/
 .deepcode/
 .agents/
 .codex/
 *.py
-
+src-tauri/
+GIT_SURVIVAL_GUIDE.md
+TERAFORGE.md
 terminals/
 tools/
 

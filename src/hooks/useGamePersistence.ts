@@ -51,10 +51,49 @@ export interface UseGamePersistenceOptions {
 }
 
 /**
+ * The save currently running, if any.
+ *
+ * Two saves can overlap in practice: the 30 s autosave interval (`useGamePersistence`'s effect) and a
+ * Ctrl+S or the unmount save, both of which resume from the same idle wake. Without this, the second
+ * call reached `GameWorkerHost.exportSave()`, which refuses a second export while one is in flight
+ * (`'Export already in flight'`) — `GameLoop.exportAuthoritativeWorld` caught that, warned, and fell
+ * back to `this.world`, **the display shadow**, so the save recorded a world up to
+ * `MAX_PIPELINE_DEPTH` ticks behind the worker *while toasting "Game saved successfully"*
+ * (2026-09-21 audit, D-7).
+ *
+ * Coalescing is the right resolution rather than queueing: both callers want the same thing — the
+ * most recent authoritative snapshot written to the same slot — so the second one waits for the first
+ * and reports its result. Serialising them would only write the same state twice.
+ *
+ * Module scope, not a hook ref, so the interval callback, the keyboard handler and the unmount
+ * cleanup all see it; `persistGame` is a module function, not a hook.
+ */
+let saveInFlight: Promise<boolean> | null = null;
+
+/**
  * Persists the authoritative game snapshot.
  * Coordinates directly with the web worker / GameLoop to guarantee authoritative state.
  */
 export async function persistGame(
+  accessors: GamePersistenceAccessors,
+  callbacks: PersistGameCallbacks,
+  options?: PersistCurrentGameOptions,
+): Promise<boolean> {
+  // A second save joins the one already running instead of racing it for the worker's single export
+  // slot — see `saveInFlight`.
+  if (saveInFlight) return saveInFlight;
+
+  const run = persistGameOnce(accessors, callbacks, options);
+  saveInFlight = run;
+  try {
+    return await run;
+  } finally {
+    // Cleared whether the save succeeded or not, so a failure can still be retried.
+    saveInFlight = null;
+  }
+}
+
+async function persistGameOnce(
   accessors: GamePersistenceAccessors,
   callbacks: PersistGameCallbacks,
   options?: PersistCurrentGameOptions,

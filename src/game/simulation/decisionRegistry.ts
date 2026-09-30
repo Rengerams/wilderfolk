@@ -142,7 +142,7 @@ export const SIMULATION_DECISIONS = {
       'small courtship progress',
     ],
     scheduledFrom: 'humanTick.ts realtime path (simAmbientChatNeighbors staggered; settler/pair chat per tick)',
-    testFile: 'tests/phase7.social.test.ts, tests/school.gossip.test.ts, tests/humanChat.ambientPairing.test.ts',
+    testFile: 'tests/phase7.social.test.ts, tests/school.test.ts, tests/humanChat.ambientPairing.test.ts',
   },
   courtship: {
     owner: 'humanRelationships.ts — findCourtshipPartner, isEligibleToCourt, tryCompleteCourtshipMarriage; progress advance executes from humanTick.ts',
@@ -211,7 +211,7 @@ export const SIMULATION_DECISIONS = {
       'eventLog/title (Moonslayer)',
     ],
     scheduledFrom: 'tickLayerRealtime.ts → tickMoonHowlerCycle (gated internally to full-moon ticks)',
-    testFile: 'tests/moonHowler.byTypeReuse.test.ts, tests/moonHowler.cureWindow.test.ts, tests/moonHowler.exorcism.test.ts',
+    testFile: 'tests/moonHowler.test.ts',
   },
   leadership: {
     owner: 'leaderHouse.ts — syncLeaderHouseResidency, applyLeaderOccupation; election: villageLeadership.ts (villageLeaderId)',
@@ -229,7 +229,7 @@ export const SIMULATION_DECISIONS = {
       'eventLog',
     ],
     scheduledFrom: 'tickLayerDaily.ts → syncLeaderHouseResidency; villageLeadership election flow',
-    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.actingHead.test.ts, tests/villageLeadership.titlePoints.test.ts',
+    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts',
   },
   commands: {
     owner: 'commands.ts (simWorker) → domain owner in buildingActions.ts (assignIdleWorkerToBuilding, repairBuilding, upgradeBuilding, demolishBuilding, setMineMode, workshop recipes, modes)',

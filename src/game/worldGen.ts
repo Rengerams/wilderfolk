@@ -20,6 +20,7 @@ import {
 } from './gameTypes';
 import { generateWorldMap, findCampSite } from './terrainGen';
 export { generateWorldMap } from './terrainGen';
+import { tileAt } from './terrain/terrainGrid';
 import {
   enableSeededGlobalRandom,
   getSimRng,
@@ -90,7 +91,7 @@ function getTileAtWorld(state: WorldState, x: number, y: number) {
   if (tx < 0 || ty < 0 || tx >= state.worldMap.width || ty >= state.worldMap.height) {
     return null;
   }
-  return state.worldMap.tiles[ty]?.[tx] ?? null;
+  return tileAt(state.worldMap, tx, ty) ?? null;
 }
 
 export function isPassableWildlifePosition(state: WorldState, x: number, y: number, margin = 8): boolean {
@@ -604,7 +605,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   // generation never adds one — nothing in this module pushes to `state.buildings` (the only writers
   // are `buildingPlacementActions`, `groupEvents` and `rivalEvents`, all post-init) — so a fresh
   // colony's real building set *is* the empty set. `updateStorageCaps` derives the same numbers on
-  // its first pass. Guarded by `tests/storageCap.bootstrap.test.ts`.
+  // its first pass. Guarded by `tests/storageCap.test.ts`.
   const storageMax = computeStorageMax([]);
 
   const state: WorldState = {
@@ -663,8 +664,6 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     unlockedTechs: [],
     activeResearch: null,
     researchProgress: 0,
-    soundEnabled: true,
-    musicEnabled: true,
     notifications: [],
     bigNews: [],
     screenShakeImpulse: 0,
@@ -716,7 +715,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   // 2. Procedural World Map Generation (passing explicit width & height)
   if (!skipTerrain) {
-    state.worldMap = generateWorldMap(width, height, mapSeed, size, preset ?? 'verdant');
+    state.worldMap = generateWorldMap(width, height, mapSeed, size, preset ?? 'continental');
   }
 
   // 3. Grass Meadows
@@ -742,16 +741,14 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     }
   }
 
-  if (state.worldMap?.tiles) {
-    const ts = state.worldMap.tiles;
-    const mw = state.worldMap.width;
-    const mh = state.worldMap.height;
-    const tw = width / mw;
-    const th = height / mh;
+  if (state.worldMap) {
+    const map = state.worldMap;
+    const tw = width / map.width;
+    const th = height / map.height;
 
-    for (let ty = 0; ty < mh; ty += 2) {
-      for (let tx = 0; tx < mw; tx += 2) {
-        const t = ts[ty]?.[tx];
+    for (let ty = 0; ty < map.height; ty += 2) {
+      for (let tx = 0; tx < map.width; tx += 2) {
+        const t = tileAt(map, tx, ty);
         if (!t) continue;
         const isForest = t.type === TerrainType.Forest || t.type === TerrainType.DarkForest;
         if (!isForest || simRandom() > 0.22) continue;
@@ -777,9 +774,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   const houseFootprint = BUILDING_CONFIGS[BuildingType.House];
   const camp = state.worldMap
     ? findCampSite(
-        state.worldMap.tiles,
-        state.worldMap.width,
-        state.worldMap.height,
+        state.worldMap,
         width,
         height,
         houseFootprint.width,

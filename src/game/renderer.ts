@@ -12,6 +12,7 @@ import { resetWeatherCaches } from './renderer/weather';
 import { compositeCachedEntityLayer } from './renderer/entityComposite';
 import { drawGameOverlay } from './renderer/overlay';
 import { getPresentationRng } from './simRng';
+import { resetLogisticsOverlayCache } from './logisticsOverlayData';
 
 // ============ MAIN RENDER ============
 /** Read-only render pass — camera/screenShake must be pre-interpolated in the snapshot. */
@@ -23,6 +24,10 @@ export function resetRendererCaches(): void {
   resetDialogueSessions();
   resetWeatherCaches();
   resetRenderClock();
+  // The logistics projection memo is keyed on world identity, and a new session, a loaded save or a
+  // `setWorld` all replace that object — but the key also has a cached *reference* to it, so dropping
+  // it here keeps the cache from pinning a dead world alive and makes the invalidation explicit.
+  resetLogisticsOverlayCache();
 }
 
 export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {

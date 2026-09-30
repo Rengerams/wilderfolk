@@ -1420,11 +1420,13 @@ export function reconcileCourtships(
     const partnerId = entity.courtshipPartnerId;
     if (partnerId == null) continue;
     const partner = getLivingEntity(partnerId, ctx.entityById);
+    const partnerIsHowler =
+      partner?.type === EntityType.Werewolf && !!partner.moonHowlerCursed;
     if (
       partner &&
       partner.courtshipPartnerId === entity.id &&
       isEligibleToCourt(entity) &&
-      isEligibleToCourt(partner)
+      (isEligibleToCourt(partner) || partnerIsHowler)
     ) {
       continue;
     }

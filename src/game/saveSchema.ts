@@ -1,6 +1,28 @@
 import type { Entity, WorldState } from './gameTypes';
 
-/** Allow-list of WorldState keys — prevents view/UI fields from leaking into simulation state. */
+/**
+ * Allow-list of WorldState keys — prevents view/UI fields from leaking into simulation state.
+ *
+ * **It is an allow-list, so a field's absence from it is a durability decision — and two of those
+ * decisions were made by accident.** These simulation-touching fields are deliberately *not* here, and
+ * the reason belongs beside them rather than in the reader's head:
+ *
+ * - `huntVisuals` — a ~1 s arrow animation (`huntvisuals.ts`, capped at 8). It rides the tick delta
+ *   and the rollback payload, so a *failed* tick undoes it correctly, but a reload legitimately loses
+ *   an arrow in flight. The behaviour is right; recording it here is what was missing.
+ * - `disasters` — **not** deliberate. It is written and restored by the transient pair
+ *   (`viewState.ts` `pickTransientWorldFieldsForSave` / `restoreTransientWorldFieldsFromSave`), which
+ *   is a third list with its own rules, so it happens to round-trip today while sitting outside this
+ *   one. It is unreachable only because `HOSTILE_WEATHER_ENABLED = false` (`worldEvents.ts`). Before
+ *   hostile weather is re-enabled, either add it here or move it into this list's story — the field
+ *   must not be durable by the accident of being on the transient list.
+ * - `workingSettlers` / `idleSettlers` — recomputed every tick and read by no view
+ *   (`tests/uiRefinement.owners.test.ts`).
+ * - `scentGrid` — simulation state in a runtime-cache slot; dropped on purpose on save and recreated
+ *   by the first realtime tick (`worldRuntimeCaches.ts` documents the two duties).
+ * - `deathParticles` / `floatingTexts` / `notifications` — transient presentation, round-tripped by
+ *   the same transient pair as `disasters` (so they survive today, by that list's choice).
+ */
 export const WORLD_STATE_SAVE_KEYS = [
   'entities', 'buildings', 'tick', 'season', 'year', 'dayInYear', 'populationHistory',
   'width', 'height', 'nextEntityId', 'nextBuildingId', 'nextFloatingTextId',
@@ -14,7 +36,7 @@ export const WORLD_STATE_SAVE_KEYS = [
   'pendingEcosystemHealthDelta', 'pendingPollutionDelta',
   'valleyRawCalmStreakDays', 'valleyLastStageNotifyDay',
   'challenges', 'autoSave', 'weather', 'weatherTimer', 'researchNodes',
-  'unlockedTechs', 'activeResearch', 'researchProgress', 'soundEnabled', 'musicEnabled',
+  'unlockedTechs', 'activeResearch', 'researchProgress',
   'tradeRoutes', 'totalBuildingsCompleted', 'lastProcessedCalendarDay', 'yearlyStats',
   'lifetimeStats', 'eventLog', 'chronicleChapters', 'festival', 'townHallFestivalCooldownUntilTick',
   'visitorGroups', 'activeVillageRequest', 'villageRequestCooldownUntilDay', 'villageRequestHistory',
@@ -38,6 +60,14 @@ export const WORLD_STATE_SAVE_KEYS = [
   'lastMoonHowlerExorcismTick', 'moonHowlerPriestsFleeUntil',
   // Village happiness is derived daily by `beautyGrid` but rendered by the Population panel.
   'villageHappiness',
+  // Whether today's heating was paid for. `tickWinterHeating` computes it once per day and caches it
+  // on the world (`villageCanHeat`), and for the rest of that day the *simulation* reads it to decide
+  // whether every settler takes the unheated-winter energy penalty (`humanNeeds`, ×1.5) and the
+  // freeze flash. It was absent from this list, so a save taken mid-winter-day after the morning wood
+  // burn failed loaded back with the field `undefined`, `!== false` read that as "heated", and the
+  // reload refunded the rest of the day's cold — the same reload-for-an-advantage class the three
+  // moon-howler fields above were added to close. A plain boolean.
+  'villageCanHeat',
   // Workforce policy preset (roadmap F3): the auto-staffing priority order the player picked.
   'workforcePolicy',
   // Food accounting (`economyLedger` = today's row, `foodHistory` = the rolling 30-day archive).

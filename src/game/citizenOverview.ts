@@ -16,6 +16,7 @@ import { summarizeFoodLedger } from './economyLedger';
 import { isFoodAlertAmount } from './resourceUtils';
 import { computeVillageStats } from './uiSimSummary';
 import { countHomelessSettlers } from './residencyOccupancy';
+import { isMarriedOrExpecting } from './civilStatus';
 
 export type VillageMood =
   | 'thriving'
@@ -130,7 +131,7 @@ export function computeCitizenOverview(world: WorldState): CitizenOverviewStats 
     if (!e.alive || !isPlayerHuman(e)) continue;
 
     if (e.pregnant) pregnant++;
-    if (e.relationshipStatus === 'married' || e.relationshipStatus === 'expecting') married++;
+    if (isMarriedOrExpecting(e)) married++;
     if (e.affairPartnerId != null && e.id < e.affairPartnerId) affairs++;
     if ((e.griefUntilTick ?? 0) > tick) grieving++;
   }

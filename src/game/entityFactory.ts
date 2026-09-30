@@ -150,7 +150,6 @@ export function createEntity(
     isBastard: opts?.isBastard,
     adoptiveMotherId: undefined,
     adoptiveFatherId: undefined,
-    lastMetPartner: 0,
     spriteAngle: simRandom() * Math.PI * 2,
     animFrame: 0,
     combatRollSeed: ((id * 2654435761) ^ 0x9e3779b9) >>> 0,

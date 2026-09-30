@@ -3,6 +3,7 @@ import { ensureIntroAudio, getMuteState, toggleMute } from '../audio';
 import { GAME_PHASE, GAME_SUBTITLE, GAME_VERSION, GAME_VERSION_TAGLINE } from './version';
 import { getPresentationRng } from './simRng';
 import { INTRO_DURATION_MS, INTRO_TIMELINE_MS } from './introTimeline';
+import { isActivatableTarget } from './hotkeys';
 
 // ---------------------------------------------------------------------------
 // Types & constants
@@ -336,6 +337,14 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
       // beside the call to action must stay reachable, so only a bare key press continues the intro.
       if (event.key === 'Escape' || event.key === 'Tab') return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
+      // …and once that control *is* focused, Enter and Space belong to it. Tab reaches the mute
+      // button, and this handler was listening on `window` with no target check at all — so pressing
+      // Enter or Space to toggle mute ran `handleContinue` and unmounted the intro (and the button)
+      // before its own activation could land. The click handler below already skips the same control;
+      // a key press has to be skipped for the same reason, and `isActivatableTarget` is the shared
+      // "Space and Enter activate this natively" rule.
+      if (isActivatableTarget(event.target)) return;
+      if ((event.target as HTMLElement | null)?.closest?.('.intro-control')) return;
       handleContinue();
     };
 

@@ -16,6 +16,9 @@ export interface RenderSoABuckets {
   readonly humanSlots: number[];
   readonly shims: Entity[];
   readonly shimBySlot: Map<number, Entity>;
+  /** Entity id → shim, built once per tick alongside `shims` so a per-repaint consumer (the hunt chase
+   *  lines) does not rebuild its own `Map` every frame (2026-09-21 audit, R-11). */
+  readonly shimById: Map<number, Entity>;
 }
 
 let cachedTick = UNCACHED_RENDER_TICK;
@@ -35,6 +38,7 @@ function emptyBuckets(): RenderSoABuckets {
     humanSlots: [],
     shims: [],
     shimBySlot: new Map(),
+    shimById: new Map(),
   };
 }
 
@@ -67,6 +71,7 @@ export function updateRenderSoABuckets(
     const humanSlots: number[] = [];
     const shims: Entity[] = [];
     const shimBySlot = new Map<number, Entity>();
+    const shimById = new Map<number, Entity>();
 
     reader.forEachSlot((slot) => {
       if (!reader.isKnownType(slot)) return;
@@ -95,6 +100,7 @@ export function updateRenderSoABuckets(
 
       shims.push(shim);
       shimBySlot.set(slot, shim);
+      shimById.set(shim.id, shim);
     });
 
     // Depth sort based on Y coordinate
@@ -110,6 +116,7 @@ export function updateRenderSoABuckets(
       humanSlots,
       shims,
       shimBySlot,
+      shimById,
     };
 
     return buckets;

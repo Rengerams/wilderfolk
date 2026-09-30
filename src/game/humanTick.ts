@@ -403,7 +403,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     entity.reproductionCooldown = Math.max(0, entity.reproductionCooldown - 1);
     if (entity.gender && entity.relationshipStatus === undefined) {
       entity.relationshipStatus = 'single';
-      entity.attraction = 50 + getSimRng('humanTick')() * 50;
     }
 
     let conceivedToday = false;

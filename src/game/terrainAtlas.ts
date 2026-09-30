@@ -12,7 +12,8 @@
  * Also carries the elevation→raise curve used by the relief bake and by the
  * renderer so entities/buildings/props ride the terrain.
  */
-import { TerrainType, TERRAIN_TILE_SIZE, type WorldMap } from './gameTypes';
+import { TerrainType, TERRAIN_TILE_SIZE, type TerrainTile, type WorldMap } from './gameTypes';
+import { tileAt, worldToTile } from './terrain/terrainGrid';
 import { getSprite } from './spriteLoader';
 
 export const TERRAIN_ATLAS_PATH = '/sprites/tileset_grass.png';
@@ -33,8 +34,8 @@ export const TERRAIN_MATERIAL_ATLAS_REVISION = 1;
  * Canonical terrain colours — the one owner of the ground's base palette.
  *
  * Three tables used to disagree on the same concept: the canvas bake palette
- * (`renderer/terrain.ts`), the Pixi palette (`renderer/pixiTerrain.ts`) and the minimap dots
- * (`components/MiniMap.tsx`), so the minimap could never match the map it navigates (audit
+ * (`renderer/terrain.ts`), the deleted Pixi palette (`renderer/pixiTerrain.ts`) and the minimap
+ * dots (`components/MiniMap.tsx`), so the minimap could never match the map it navigates (audit
  * `visuals-looks.md` D12). These are the **live canvas2D** values, which is what ships and what
  * the minimap now reads. `PRESET_TERRAIN_COLORS` in `renderer/terrain.ts` still shifts them per
  * map preset for the bake only, so a preset map's minimap stays an approximation.
@@ -48,6 +49,7 @@ export const TERRAIN_PALETTE: Record<TerrainType, number> = {
   [TerrainType.River]: 0x3264a0,
   [TerrainType.RiverBank]: 0x52733e,
   [TerrainType.Beach]: 0xc2b280,
+  [TerrainType.Desert]: 0xd6bd74,
   [TerrainType.Grassland]: 0x5e7a3a,
   [TerrainType.Forest]: 0x3a5c2a,
   [TerrainType.DarkForest]: 0x223a1c,
@@ -79,6 +81,10 @@ export function atlasFamily(type: TerrainType): AtlasFamily | null {
     case TerrainType.Forest:
     case TerrainType.DarkForest:
     case TerrainType.RiverBank:
+    // Desert has no authored atlas art either, and it is dry *land*: counting it as grass keeps an
+    // arid cell's neighbours paintable. Returning null here would have made `pickAtlasTile` refuse
+    // every tile touching a desert — the whole shoreline of an Arabian map would stop being painted.
+    case TerrainType.Desert:
       return GRASS;
     case TerrainType.ShallowWater:
     case TerrainType.River:
@@ -153,7 +159,7 @@ function cornerFamily(map: WorldMap, tx: number, ty: number, dx: number, dy: num
   let water = false;
   for (let cy = 0; cy <= 1; cy++) {
     for (let cx = 0; cx <= 1; cx++) {
-      const n = map.tiles[ty + dy + cy]?.[tx + dx + cx];
+      const n = tileAt(map, tx + dx + cx, ty + dy + cy);
       if (!n) continue; // out-of-map → grass
       const f = atlasFamily(n.type);
       if (f === null) return null;
@@ -165,16 +171,20 @@ function cornerFamily(map: WorldMap, tx: number, ty: number, dx: number, dy: num
 
 /**
  * Pick the painted tile for a cell, or null when the atlas can't paint it.
+ *
+ * `selfTile` lets a caller that already holds the projected tile skip the
+ * per-tile field sampling — the terrain bake reads each tile once and then asks
+ * the atlas four neighbour questions about it.
  */
-export function pickAtlasTile(map: WorldMap, tx: number, ty: number): AtlasPick | null {
-  const self = map.tiles[ty]?.[tx];
+export function pickAtlasTile(map: WorldMap, tx: number, ty: number, selfTile?: TerrainTile): AtlasPick | null {
+  const self = selfTile ?? tileAt(map, tx, ty);
   if (!self) return null;
   if (!isOpaqueFamily(atlasFamily(self.type))) return null;
 
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
       if (dx === 0 && dy === 0) continue;
-      const n = map.tiles[ty + dy]?.[tx + dx];
+      const n = tileAt(map, tx + dx, ty + dy);
       if (n && !isOpaqueFamily(atlasFamily(n.type))) return null;
     }
   }
@@ -199,8 +209,8 @@ export function pickAtlasTile(map: WorldMap, tx: number, ty: number): AtlasPick 
 /**
  * Pick exactly one sand-water overlay for a beach or river-bank base cell.
  */
-export function pickSandWaterOverlay(map: WorldMap, tx: number, ty: number): SandWaterOverlayPick | null {
-  const self = map.tiles[ty]?.[tx];
+export function pickSandWaterOverlay(map: WorldMap, tx: number, ty: number, selfTile?: TerrainTile): SandWaterOverlayPick | null {
+  const self = selfTile ?? tileAt(map, tx, ty);
   if (!self || (self.type !== TerrainType.Beach && self.type !== TerrainType.RiverBank)) {
     return null;
   }
@@ -208,7 +218,7 @@ export function pickSandWaterOverlay(map: WorldMap, tx: number, ty: number): San
   const hasWaterAtCorner = (dx: number, dy: number): boolean => {
     for (let cy = 0; cy <= 1; cy++) {
       for (let cx = 0; cx <= 1; cx++) {
-        const neighbour = map.tiles[ty + dy + cy]?.[tx + dx + cx];
+        const neighbour = tileAt(map, tx + dx + cx, ty + dy + cy);
         if (neighbour && atlasFamily(neighbour.type) === WATER) return true;
       }
     }
@@ -252,18 +262,15 @@ export function reliefY(type: TerrainType, elevation: number): number {
 /** Elevation at a world position (10px tile grid), 0–100. */
 export function elevationAt(map: WorldMap | null, x: number, y: number): number {
   if (!map) return 0;
-  const tx = Math.floor(x / TERRAIN_TILE_SIZE);
-  const ty = Math.floor(y / TERRAIN_TILE_SIZE);
-  const tile = map.tiles[ty]?.[tx];
-  return tile ? tile.elevation : 0;
+  const { tx, ty } = worldToTile(x, y);
+  return tileAt(map, tx, ty)?.elevation ?? 0;
 }
 
 /** World-unit rise at a world position — the offset entities/buildings ride by. */
 export function terrainRiseAt(map: WorldMap | null, x: number, y: number): number {
   if (!map) return 0;
-  const tx = Math.floor(x / TERRAIN_TILE_SIZE);
-  const ty = Math.floor(y / TERRAIN_TILE_SIZE);
-  const tile = map.tiles[ty]?.[tx];
+  const { tx, ty } = worldToTile(x, y);
+  const tile = tileAt(map, tx, ty);
   if (!tile) return 0;
   return reliefY(tile.type, tile.elevation) * TERRAIN_TILE_SIZE;
 }

@@ -99,6 +99,16 @@ export class EntitySpatialGrid {
    */
   private readonly entityCell = new Map<number, number>();
 
+  /**
+   * entity id → the object currently stored in that bucket.
+   *
+   * Needed because `entityCell` only records the *cell*, so an unchanged-cell update could not tell
+   * whether the bucket already held this very object without scanning the bucket — and that branch is
+   * the per-entity hot path of every tick. With the reference here the common case (the simulation,
+   * whose entity objects are stable) is a single Map read.
+   */
+  private readonly entityStored = new Map<number, Entity>();
+
   /** Scratch buffers reused during reconcile() to prevent GC churn every tick. */
   private readonly scratchSeen = new Set<number>();
   private readonly scratchStaleIds: number[] = [];
@@ -140,6 +150,7 @@ export class EntitySpatialGrid {
       this.cells[i].length = 0;
     }
     this.entityCell.clear();
+    this.entityStored.clear();
   }
 
   /** Remove an entity from its current cell bucket (no-op if absent). */
@@ -163,6 +174,7 @@ export class EntitySpatialGrid {
     if (cellIdx === undefined) return;
     this.removeFromBucket(cellIdx, id);
     this.entityCell.delete(id);
+    this.entityStored.delete(id);
   }
 
   private insert(entity: Entity): void {
@@ -174,15 +186,35 @@ export class EntitySpatialGrid {
 
     const existingIdx = this.entityCell.get(entity.id);
     if (existingIdx === newIdx) {
-      return;
-    }
-
-    if (existingIdx !== undefined) {
+      // Same cell: the bucket already has an entry for this id, but not necessarily *this object*.
+      //
+      // In the simulation the entity object is stable, so the stored entry is already identical and
+      // there is nothing to do. That is the common case and it must stay O(1) — hence `entityStored`,
+      // which holds the reference so no bucket scan is needed to prove it. (The first version of this
+      // fix scanned the bucket here, which turned every stationary entity on every tick into an
+      // O(bucket) walk and stalled the simulation worker: `docs/private/audits` records the revert.)
+      //
+      // The worker's render path is the other case: `updateRenderSoABuckets` builds a **fresh** shim
+      // object for every slot on every tick but gives it the same id and the same cell when the grass
+      // has not moved, so a bare `return` dropped each new shim and left the grid holding the first
+      // tick's objects. Any field that changes without a cell change — `flash`, `size`, `chatTicks` —
+      // then never reached the renderer.
+      if (this.entityStored.get(entity.id) === entity) return;
+      const bucket = this.cells[newIdx];
+      const pos = bucket.findIndex((e) => e.id === entity.id);
+      if (pos >= 0) {
+        bucket[pos] = entity;
+        this.entityStored.set(entity.id, entity);
+        return;
+      }
+      // The id map said this cell but the bucket has no entry: re-seat it below.
+    } else if (existingIdx !== undefined) {
       this.removeFromBucket(existingIdx, entity.id);
     }
 
     this.cells[newIdx].push(entity);
     this.entityCell.set(entity.id, newIdx);
+    this.entityStored.set(entity.id, entity);
   }
 
   /**

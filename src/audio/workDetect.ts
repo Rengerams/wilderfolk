@@ -3,9 +3,10 @@
  * so it's unit-testable. The audio hook calls these throttled.
  */
 import { EntityType } from '../game/gameTypes';
-import { BuildingType, TERRAIN_TILE_SIZE } from '../game/gameTypes';
+import { BuildingType } from '../game/gameTypes';
 import type { Building, Entity, TerrainType as TerrainTypeName, WorldMap } from '../game/gameTypes';
 import { isWorkHour } from '../game/dayCycle';
+import { tileTypeAtWorld } from '../game/terrain/terrainGrid';
 import type { WorkKind } from './workSfx';
 
 /** Staffed, completed production buildings → the work sound they should make. */
@@ -36,10 +37,8 @@ export function detectWorkActivity(buildings: Building[], hourOfDay: number): Wo
 /** Terrain family under a world position (10-unit terrain cells). */
 export function terrainAt(map: WorldMap | null, x: number, y: number): TerrainTypeName | null {
   if (!map) return null;
-  const tx = Math.floor(x / TERRAIN_TILE_SIZE);
-  const ty = Math.floor(y / TERRAIN_TILE_SIZE);
-  if (tx < 0 || ty < 0 || tx >= map.width || ty >= map.height) return null;
-  return map.tiles[ty]?.[tx]?.type ?? null;
+  // `tileTypeAtWorld` owns the world→tile conversion and the off-map bounds check.
+  return tileTypeAtWorld(map, x, y);
 }
 
 /**

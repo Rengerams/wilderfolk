@@ -228,6 +228,7 @@ export interface MoonHowlerSavedState {
   partnerId?: number;
   affairPartnerId?: number;
   affairProgress?: number;
+  courtshipPartnerId?: number;
   courtshipProgress?: number;
   youthLovePartnerId?: number;
   youthLoveProgress?: number;
@@ -282,7 +283,6 @@ export interface Entity {
   job?: JobType;
   skills?: Partial<Record<JobType, number>>;
   relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
-  attraction?: number;
   partnerId?: number;
   affairPartnerId?: number;
   affairProgress?: number;
@@ -291,7 +291,6 @@ export interface Entity {
   lastAffairSiteY?: number;
   scandalCooldownUntilTick?: number;
   griefUntilTick?: number;
-  lastMetPartner?: number;
   courtshipPartnerId?: number;
   courtshipProgress?: number;
   youthLovePartnerId?: number;
@@ -639,7 +638,6 @@ export interface OutgoingRaidEvent {
   createdAtTick: number;
   expiresAtTick: number;
   marchDistanceTiles: number;
-  marchFoodCost: number;
   isCounterRaid: boolean;
   rivalResponse: OutgoingRaidRivalResponse;
   attackerStrength: number;
@@ -739,8 +737,6 @@ export interface WorldState {
   unlockedTechs: string[];
   activeResearch: string | null;
   researchProgress: number;
-  soundEnabled: boolean;
-  musicEnabled: boolean;
   notifications: GameNotification[];
   bigNews: BigNewsItem[];
   screenShakeImpulse: number;
@@ -899,7 +895,6 @@ export interface VillageRequest {
   title: string;
   description: string;
   choices: VillageRequestChoice[];
-  createdDay: number;
   expiresDay: number;
 }
 
@@ -991,6 +986,7 @@ export const TerrainType = {
   River: 'river',
   RiverBank: 'riverBank',
   Beach: 'beach',
+  Desert: 'desert',
   Grassland: 'grassland',
   Forest: 'forest',
   DarkForest: 'darkForest',
@@ -1009,12 +1005,16 @@ export interface TerrainTile {
 }
 
 export const MapPreset = {
-  Verdant: 'verdant',
-  Mountainous: 'mountainous',
+  Arabia: 'arabia',
+  BlackForest: 'black_forest',
   Coastal: 'coastal',
-  Arid: 'arid',
-  Harsh: 'harsh',
-  Riverlands: 'riverlands',
+  Islands: 'islands',
+  Highland: 'highland',
+  Scandinavia: 'scandinavia',
+  Meadows: 'meadows',
+  Oasis: 'oasis',
+  Rivers: 'rivers',
+  Continental: 'continental',
 } as const;
 export type MapPreset = (typeof MapPreset)[keyof typeof MapPreset];
 
@@ -1032,13 +1032,73 @@ export const MAP_SIZE_DIMENSIONS: Record<MapSize, { width: number; height: numbe
 };
 
 export interface WorldMap {
-  tiles: TerrainTile[][];
   width: number;
   height: number;
   seed: number;
   rivers: { x: number; y: number }[][];
   preset: MapPreset;
   size: MapSize;
+  /** Sparse per-tile overrides (camp/forest clearing) — key = y*width+x. */
+  overrides?: Map<number, TerrainTile>;
+  /** Teraforge continuous fields (L2). */
+  cols?: number;
+  rows?: number;
+  /** 0–1 per 64px cell. */
+  elevation?: Float32Array;
+  moisture?: Float32Array;
+  /**
+   * 0–1 per 64px cell, and **latitude-parameterized**: the map's y axis is its latitude, so this
+   * field is warmest along the middle row (the equator) and cools toward both edges (the poles),
+   * on top of the preset's own climate. Both readers of it — `terrainGrid.classifyTile` and the
+   * per-pixel ground bake — therefore place biome zones by position for free.
+   */
+  temperature?: Float32Array;
+  /** 15-biome index per 64px cell (see `terrain/biomes.ts` BIOME_IDS order). */
+  terrain?: Uint8Array;
+  /**
+   * Fine water-coverage field on its **own** lattice (`WATER_CELL`, 16 px), not the 64 px biome
+   * cell grid: `waterCols` × `waterRows`. Its own resolution is what keeps a coastline and a
+   * river bank smooth, because at the biome resolution a channel and its banks are whole cells
+   * and the waterline becomes a staircase.
+   */
+  riverDist?: Float32Array;
+  waterCols?: number;
+  waterRows?: number;
+  /** L0 path grid (10px): 0=walkable, 1=water, 2=blocked. */
+  pathGrid?: Uint8Array;
+  pCols?: number;
+  pRows?: number;
+  /** L1 build grid (20px): 0=buildable, 1=water, 2=hard, 3=blocked. */
+  buildGrid?: Uint8Array;
+  bCols?: number;
+  bRows?: number;
+  /** Waterfalls — auto-detected where rivers meet steep drops (world px). */
+  waterfalls?: { x: number; y: number; w: number; drop: number }[];
+  /** Biome coverage fractions + the buildable-cell ratio (`__buildable`). */
+  stats?: Record<string, number>;
+  /** Effective sea level + moisture bias the generator used (feeds the per-pixel renderer). */
+  seaLevel?: number;
+  moistureBias?: number;
+  /**
+   * Per-map biome cuts for the moisture field, derived by the generator from that map's own
+   * distribution. Absolute constants cannot work: the tile-level moisture field runs 0.47 at
+   * p50 on an arid preset and 0.73 on a wet one, so a fixed cut paints one map entirely
+   * grassland and the next entirely canopy. A map without them falls back to the defaults in
+   * `terrain/terrainGrid`.
+   */
+  moistureForestThreshold?: number;
+  moistureDarkForestThreshold?: number;
+  /** L3 decor — Teraforge biome-density-driven ground props (trees excluded, kept as entities). */
+  decorations?: {
+    x: number;
+    y: number;
+    type: import('./terrain/biomes').SpriteType;
+    scale: number;
+    variant: number;
+    flipX: boolean;
+    /** Per-prop brightness offset, −1…1 (0 = untinted). */
+    tint?: number;
+  }[];
 }
 
 export const GRID_SIZE = 20;

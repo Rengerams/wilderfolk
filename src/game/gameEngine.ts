@@ -151,6 +151,8 @@ export {
   formatRaidDeadline,
   formatRaidLootSummary,
   raidEventLoot,
+  /** The raid card's own gate — the view asks the owner instead of restating it (roadmap U2/O2). */
+  getRaidChoiceEligibility,
   type CombatPreview,
   type RaidOutcomeTier,
   type CounterRaidTier,

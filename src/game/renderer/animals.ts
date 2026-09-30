@@ -26,12 +26,25 @@ export function drawAnimals(
       - terrainRiseAt(state.worldMap, e.x, e.y) * cam.zoom;
     const cfg = SPECIES_CONFIG[e.type];
     const { spriteH, shadowW, shadowY } = getAnimalSpriteMetrics(e, cam.zoom);
-    const cullPad = spriteH * 0.75;
-    if (sx + cullPad < -20 || sx - cullPad > cw + 20 || sy + cullPad < -20 || sy - cullPad > ch + 20) continue;
+    const frame = getSpriteFrame(cfg.sprite);
+    // The sprite is drawn at anchor (0.5, ANIMAL_SPRITE_ANCHOR_Y), so its body extends
+    // `spriteH * ANIMAL_SPRITE_ANCHOR_Y` upward and `spriteH * (1 - ANIMAL_SPRITE_ANCHOR_Y)` downward,
+    // and `spriteH * aspect / 2` sideways. The old symmetric `spriteH * 0.75` pad was *smaller* than the
+    // 0.88 upward extent, so a quadruped whose body was still on-screen by up to ~0.13·spriteH popped out
+    // at the bottom edge instead of sliding in (2026-09-21 audit, R-10). Per-axis pads cull on the actual
+    // bounds; the decorations above (🐾, 👑, the moon-howler ring) were never covered by the pad either,
+    // so they keep their existing, slightly earlier pop.
+    const aspect = frame && isDrawableSpriteFrame(frame) ? frame.sw / frame.sh : 1;
+    const padX = (spriteH * aspect) / 2;
+    const padUp = spriteH * ANIMAL_SPRITE_ANCHOR_Y;
+    const padDown = spriteH * (1 - ANIMAL_SPRITE_ANCHOR_Y);
+    if (
+      sx + padX < -20 || sx - padX > cw + 20 ||
+      sy + padUp < -20 || sy - padDown > ch + 20
+    ) continue;
 
     const sel = state.selectedEntityIds.includes(e.id) || state.selectedEntity?.id === e.id;
     const flipX = e.vx < 0;
-    const frame = getSpriteFrame(cfg.sprite);
 
     // Shared SE contact shadow keeps wildlife grounded without touching pathing or hit geometry.
     drawContactShadow(
@@ -45,7 +58,6 @@ export function drawAnimals(
 
     const drawAnimal = () => {
       if (isDrawableSpriteFrame(frame)) {
-        const aspect = frame.sw / frame.sh;
         drawSpriteFrame(
           ctx, frame, sx, sy, spriteH * aspect, spriteH,
           0.5, ANIMAL_SPRITE_ANCHOR_Y, flipX, {}, 'height',

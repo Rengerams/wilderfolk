@@ -60,8 +60,10 @@ export default function GameBuildRail({
         <div className="flex h-full flex-col items-center gap-2 py-3">
           <span className="text-base" title="Build catalog on the left · press B">🏗️</span>
           <button
+            type="button"
             onClick={onToggleGrid}
             aria-pressed={showGrid}
+            aria-label={showGrid ? 'Hide building grid' : 'Show building grid'}
             className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition-all ${showGrid ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300' : 'border-stone-700 bg-stone-800/80 text-stone-400 hover:border-stone-600 hover:text-stone-300'}`}
             title="Toggle grid (G)"
           >
@@ -71,7 +73,9 @@ export default function GameBuildRail({
             <>
               <div className="my-0.5 h-px w-7 bg-stone-700" />
               <button
+                type="button"
                 onClick={onCancel}
+                aria-label={`Cancel building ${getBuildingConfig(selectedBuildingType).label}`}
                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-800/50 bg-rose-950/40 text-xs text-rose-300 hover:bg-rose-900/50"
                 title={`Cancel ${getBuildingConfig(selectedBuildingType).label} (ESC)`}
               >
@@ -80,7 +84,9 @@ export default function GameBuildRail({
             </>
           )}
           <button
+            type="button"
             onClick={onOpen}
+            aria-label="Open full build catalogue"
             className="mt-auto flex h-8 w-8 items-center justify-center rounded-lg border border-stone-700 bg-stone-800/80 text-stone-400 hover:border-emerald-500/40 hover:text-emerald-300"
             title="Full build catalog (B)"
           >

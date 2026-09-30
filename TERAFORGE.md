@@ -1,5 +1,36 @@
 # 🗺️ Wilderfolk: The Valley Reborn — Teraforge
 
+## Status: shipped, and since tuned
+
+The terrain overhaul **is the shipping world generator and pathfinder** as of the 0.6.5 line — this
+document now describes what the valley *is*, not only what was planned. Two passes followed the
+initial port:
+
+- **The integration was finished.** The four layers are read through one owner
+  (`src/game/terrain/terrainGrid.ts`: `tileAt` / `tileTypeAt` / `isTileWalkable` /
+  `isTileBuildable` / `setTileOverride` / `rebakeTerrainGrids`), the sparse override layer holds
+  post-generation edits, and both occupancy grids are re-derived when terrain changes.
+- **The landscape was tuned.** The first shipped valley was flat, uniformly green and mostly
+  canopy: min/max height normalisation left the land in a third of its range so the rock and snow
+  bands were unreachable (**0.1 % rock, 0 % snow** on a continental map), the moisture field was a
+  single climate with the preset's own bias never applied, grassland served as the catch-all
+  instead of the dry-temperate biome, and the cast-shadow pass painted hard dark outlines around
+  every river. Each was measured and fixed at its source; the numbers are in `CHANGELOG.md`.
+- **The ground look was fixed.** The generator was healthy; the per-pixel *bake* was not. It
+  coloured land on absolute elevation above sea while `classifyTile` classifies on the normalised
+  land range, so every alpine arm of its ramp sat above the map's own maximum height — measured,
+  **0.0 % of a scandinavia map's land could paint snow** while 1.0 % of its tiles were `Snow`, and
+  its rock and mountain tiles were painted lawn green. The bake now takes its bands from
+  `terrainGrid` (`LAND_BANDS`), reads one continuous water ramp, draws its coasts and river banks on
+  smooth contours instead of the lattice, chooses material from the smooth fields rather than the
+  nearest biome label, and shades from a precomputed slope field. Measured and recorded in
+  `CHANGELOG.md`; audit in `docs/private/audits/2026-09-24/terrain-ground-look.md`.
+
+**One honest limit:** the terrain cell is **16 px** (down from Teraforge's 64 px, 2026-09-24), so at
+high zoom a river's edge is still quantised to that lattice — the waterline is smoothed, but a
+carved channel's banks are written a whole cell at a time. `TERRAIN_CELL` in
+`terrain/terrainGrid.ts` is the single constant that sets it.
+
 ## A Tease for What's Coming
 
 > **Heads up, keepers!** The terrain overhaul is on its way, and when it lands it **replaces the current world generation and pathfinding entirely**. The valley is being rebuilt from bedrock to treeline — real relief, living watersheds, and coastlines that finally breathe. You won't be settling a flat map anymore. You'll be moving into a *landscape*.

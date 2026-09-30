@@ -85,6 +85,24 @@ export function isDecorType(type: BuildingType): boolean {
   return BUILDING_CONFIGS[type]?.decor === true;
 }
 
+/**
+ * Rebuild only the beauty **grid** on `state`, leaving `villageHappiness` alone.
+ *
+ * Split out of {@link tickBeauty} so a caller that has just reconstituted a world can restore the
+ * derived field without discarding the happiness value that was persisted alongside it.
+ * `villageHappiness` is in the save allow-list on purpose (`saveSchema.ts`: "derived daily by
+ * `beautyGrid` but rendered by the Population panel"), so a load keeps the stored value and the next
+ * daily tick may refine it — recomputing here would silently replace the saved number with
+ * `HAPPINESS_BASE` for a world whose decor has not been re-stamped yet.
+ *
+ * No-op without a world map, because the grid's dimensions come from it.
+ */
+export function rebuildBeautyGridFromWorld(state: WorldState): void {
+  const map = state.worldMap;
+  if (!map) return;
+  state.beautyGrid = rebuildBeautyGrid(state, map.width, map.height);
+}
+
 /** Daily: rebuild the beauty grid from buildings and refresh village happiness. */
 export function tickBeauty(state: WorldState): void {
   const map = state.worldMap;

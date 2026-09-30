@@ -45,8 +45,11 @@ export default function BigNewsBanner({
         e.stopPropagation();
         onDismiss(item.id);
       }}
-      role="status"
-      aria-live="polite"
+      // `role="status"` used to sit **on this button**, which overrode its native button role: assistive
+      // tech announced the whole card as a status region and never exposed the click-to-dismiss
+      // affordance the card depends on (the visible ✕ is `aria-hidden`). The live region is now the
+      // inner content wrapper, so the announcement survives while the button keeps being a button
+      // (2026-09-21 audit, D-9).
       className={`pointer-events-auto fixed left-1/2 top-24 z-[200] w-[min(100%-1.5rem,22rem)] -translate-x-1/2 cursor-pointer rounded-lg border p-2.5 pr-8 text-left shadow-lg backdrop-blur hover:brightness-110 ${
         item.type === 'positive' ? 'border-emerald-400/50 bg-emerald-950/90' :
         item.type === 'negative' ? 'border-rose-400/50 bg-rose-950/90' :
@@ -54,7 +57,7 @@ export default function BigNewsBanner({
       }`}
     >
       <span className="absolute right-1.5 top-1 text-base leading-none text-stone-400" aria-hidden>×</span>
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2" role="status" aria-live="polite">
         <BigNewsTypeBadge type={item.type} />
         <div className="min-w-0">
           <h3 className={`truncate text-sm font-bold ${

@@ -5,13 +5,11 @@ import type { VisitorTradeAction, RefugeeChoice, VisitorLeaderTalkMeta } from '.
 import {
   getRefugeeChoiceEligibility,
   getVisitorTradeEligibility,
-  getVisitorTradeReputationBand,
   getVisitorTradeTerms,
   REFUGEE_SCREEN_FOOD,
   REFUGEE_WELCOME_FOOD,
-  VISITOR_TRADE_FRIENDLY_REP,
-  VISITOR_TRADE_HARSH_REP,
 } from '../game/groupEvents';
+import { REPUTATION_FRIENDLY_MIN, REPUTATION_HARSH_MAX, getReputationBand } from '../game/simHelpers';
 import { getAvailableStorageHeadroom } from '../game/resourceUtils';
 import { getRefugeeWelcomeBonus } from '../game/townHall';
 
@@ -43,10 +41,12 @@ export default function VisitorCampPanel({
   // the "(N space)" hint could lie (audit C2 "Storage headroom").
   const foodRoom = getAvailableStorageHeadroom(state, 'food');
   const woodRoom = getAvailableStorageHeadroom(state, 'wood');
-  // The band is classified by the trade owner (`getVisitorTradeReputationBand`), so the banner
-  // cannot advertise terms the owner no longer applies (audit C2 "Reputation 80/30 bands"). It asks
-  // for the *band*, not the price multiplier: pricing stays in the owner (F18).
-  const repBand = getVisitorTradeReputationBand(state.villageReputation);
+  const stoneRoom = getAvailableStorageHeadroom(state, 'stone');
+  const ironRoom = getAvailableStorageHeadroom(state, 'iron');
+  // The band is classified by the reputation owner (`getReputationBand`), so the banner
+  // cannot advertise terms the owner no longer applies (audit "Reputation 80/30 bands"). It asks
+  // for the *band*, not the price multiplier: pricing stays in the trade owner (F18).
+  const repBand = getReputationBand(state.villageReputation);
   const canTradeKind = group.kind === 'traders' || group.kind === 'nomads' || group.kind === 'hunters';
   // Prices **and** gates come from the trade owner (`groupEvents`). The panel used to re-derive the
   // multiplier arithmetic itself and gate on that arithmetic, so a button stayed enabled for a caravan
@@ -58,16 +58,28 @@ export default function VisitorCampPanel({
   const gateFor = (action: VisitorTradeAction) => getVisitorTradeEligibility(state, group.id, action);
   const buyFoodGate = gateFor('buy_food');
   const buyWoodGate = gateFor('buy_wood');
+  const buyStoneGate = gateFor('buy_stone');
+  const buyIronGate = gateFor('buy_iron');
   const sellFoodGate = gateFor('sell_food');
   const sellWoodGate = gateFor('sell_wood');
+  const sellStoneGate = gateFor('sell_stone');
+  const sellIronGate = gateFor('sell_iron');
   const buyFoodCost = termsFor('buy_food').effectivePay.gold ?? 0;
   const buyWoodCost = termsFor('buy_wood').effectivePay.gold ?? 0;
+  const buyStoneCost = termsFor('buy_stone').effectivePay.gold ?? 0;
+  const buyIronCost = termsFor('buy_iron').effectivePay.gold ?? 0;
   const buyFoodGain = termsFor('buy_food').effectiveReceive.food ?? 0;
   const buyWoodGain = termsFor('buy_wood').effectiveReceive.wood ?? 0;
+  const buyStoneGain = termsFor('buy_stone').effectiveReceive.stone ?? 0;
+  const buyIronGain = termsFor('buy_iron').effectiveReceive.iron ?? 0;
   const sellFoodPay = termsFor('sell_food').effectivePay.food ?? 0;
   const sellWoodPay = termsFor('sell_wood').effectivePay.wood ?? 0;
+  const sellStonePay = termsFor('sell_stone').effectivePay.stone ?? 0;
+  const sellIronPay = termsFor('sell_iron').effectivePay.iron ?? 0;
   const sellFoodReward = termsFor('sell_food').effectiveReceive.gold ?? 0;
   const sellWoodReward = termsFor('sell_wood').effectiveReceive.gold ?? 0;
+  const sellStoneReward = termsFor('sell_stone').effectiveReceive.gold ?? 0;
+  const sellIronReward = termsFor('sell_iron').effectiveReceive.gold ?? 0;
   const refusal = (gate: { ok: boolean; blockReason?: string }) =>
     gate.ok ? '' : ` — ${gate.blockReason ?? 'unavailable'}`;
   // Refugee prices and gates come from the refugee owner (`groupEvents`), exactly as the trade
@@ -148,8 +160,8 @@ export default function VisitorCampPanel({
           {repBand !== 'normal' ? (
             <p className={`text-[10px] font-semibold ${repBand === 'friendly' ? 'text-emerald-400' : 'text-rose-400'}`}>
               {repBand === 'friendly'
-                ? `⭐ Reputation ${VISITOR_TRADE_FRIENDLY_REP}+ — friendly prices`
-                : `⚠️ Reputation ${VISITOR_TRADE_HARSH_REP} or less — they demand harsher terms`}
+                ? `⭐ Reputation ${REPUTATION_FRIENDLY_MIN}+ — friendly prices`
+                : `⚠️ Reputation ${REPUTATION_HARSH_MAX} or less — they demand harsher terms`}
             </p>
           ) : null}
           <button
@@ -172,6 +184,24 @@ export default function VisitorCampPanel({
           </button>
           <button
             type="button"
+            disabled={!buyStoneGate.ok}
+            onClick={() => onTrade('buy_stone')}
+            title={buyStoneGate.blockReason}
+            className="w-full rounded bg-stone-700 px-2 py-1 text-[11px] font-bold text-stone-200 hover:bg-stone-600 disabled:opacity-40"
+          >
+            Buy stone · {buyStoneCost}💰 → {buyStoneGain}🪨{stoneRoom < buyStoneGain ? ` (${stoneRoom}🪨 space)` : ''}{refusal(buyStoneGate)}
+          </button>
+          <button
+            type="button"
+            disabled={!buyIronGate.ok}
+            onClick={() => onTrade('buy_iron')}
+            title={buyIronGate.blockReason}
+            className="w-full rounded bg-stone-700 px-2 py-1 text-[11px] font-bold text-stone-200 hover:bg-stone-600 disabled:opacity-40"
+          >
+            Buy iron · {buyIronCost}💰 → {buyIronGain}🔩{ironRoom < buyIronGain ? ` (${ironRoom}🔩 space)` : ''}{refusal(buyIronGate)}
+          </button>
+          <button
+            type="button"
             disabled={!sellFoodGate.ok}
             onClick={() => onTrade('sell_food')}
             className="w-full rounded bg-amber-900 px-2 py-1 text-[11px] font-bold text-amber-100 hover:bg-amber-800 disabled:opacity-40"
@@ -187,6 +217,24 @@ export default function VisitorCampPanel({
             title={sellWoodGate.blockReason}
           >
             Sell wood · {sellWoodPay}🪵 → {sellWoodReward}💰{refusal(sellWoodGate)}
+          </button>
+          <button
+            type="button"
+            disabled={!sellStoneGate.ok}
+            onClick={() => onTrade('sell_stone')}
+            className="w-full rounded bg-amber-900 px-2 py-1 text-[11px] font-bold text-amber-100 hover:bg-amber-800 disabled:opacity-40"
+            title={sellStoneGate.blockReason}
+          >
+            Sell stone · {sellStonePay}🪨 → {sellStoneReward}💰{refusal(sellStoneGate)}
+          </button>
+          <button
+            type="button"
+            disabled={!sellIronGate.ok}
+            onClick={() => onTrade('sell_iron')}
+            className="w-full rounded bg-amber-900 px-2 py-1 text-[11px] font-bold text-amber-100 hover:bg-amber-800 disabled:opacity-40"
+            title={sellIronGate.blockReason}
+          >
+            Sell iron · {sellIronPay}🔩 → {sellIronReward}💰{refusal(sellIronGate)}
           </button>
         </div>
       )}

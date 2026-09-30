@@ -150,7 +150,7 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   tickGuidedCampaign(state);
   // Watchtowers reveal marching raiders earlier than patrols (daily, bounded).
   detectRaidersFromWatchtowers(state, allAlive);
-  tickWorldRivalSettlements(state, allAlive);
+  tickWorldRivalSettlements(state, allAlive, ctx);
 
   // Population cleanup and immigration remain in tickLayerDaily.
   tickFestivals(state, counts);
@@ -224,7 +224,7 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
 
   // Mid-year visitor
   if (state.dayInYear === 180 && state.year > 0 && state.tick > 0) {
-    const midEvent = tryMidYearVisitorEvent(state, allAlive, ctx.updatedBuildings);
+    const midEvent = tryMidYearVisitorEvent(state, allAlive, ctx.updatedBuildings, ctx);
     if (midEvent) {
       state.activeEvent = midEvent;
       trackYearEvent(state, midEvent.title);
@@ -234,7 +234,7 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
 
   // First-week visitor
   if (!state.firstWeekVisitorSpawned) {
-    const firstWeekEvent = tryFirstWeekVisitor(state, allAlive, ctx.updatedBuildings);
+    const firstWeekEvent = tryFirstWeekVisitor(state, allAlive, ctx.updatedBuildings, ctx);
     if (firstWeekEvent) {
       state.activeEvent = firstWeekEvent;
       trackYearEvent(state, firstWeekEvent.title);

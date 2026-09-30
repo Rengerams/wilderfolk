@@ -31,7 +31,10 @@ export function drawGameOverlay(
   // Leader aura pulses on `renderTime`, so it lives here rather than in the tick-keyed entity
   // layer (where it froze between rebakes). See `drawLeaderAuraOverlay`.
   drawLeaderAuraOverlay(ctx, state, cw, ch);
-  drawWeather(ctx, state.weather, cw, ch);
+  // Weather takes the snapshot rather than just `state.weather`: the ported Teraforge effects paint in
+  // screen space against a camera-aware frame (the cloud and fog layers drift with a parallax factor),
+  // and the daylight cast needs the hour.
+  drawWeather(ctx, state, cw, ch);
   drawWaterShimmer(ctx, state, cw, ch);
   drawSeasonParticles(ctx, state, cw, ch);
 

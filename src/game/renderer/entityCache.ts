@@ -16,6 +16,22 @@ const ENTITY_VIEWPORT_KEY_XY_DIGITS = 1;
 const ENTITY_VIEWPORT_KEY_ZOOM_DIGITS = 3;
 
 let _cachedEntityTick = UNCACHED_RENDER_TICK;
+/**
+ * The render buffer the draw buckets were built from.
+ *
+ * A tick counter alone is not a sufficient key. The `tick` only advances inside `gameTick`, so a
+ * **command** that changes what the render SoA shows produces a fresh buffer at an unchanged tick —
+ * a spawned entity, cleared `chatTicks`, changed residence or hidden flags. Keyed on the tick alone,
+ * `updateCachedEntitiesFromSoA` took the "nothing changed" branch and the canvas kept drawing the
+ * previous buffer's shims while `GameLoop` had already adopted the new reader and patched the
+ * inspector from it. While the game is **paused** — the natural moment to issue such a command — no
+ * tick ever arrives, so the change was invisible until the player unpaused.
+ *
+ * `GameWorkerHost.buildRender` creates a new `RenderSoAReaderV1` per message, so its identity is the
+ * buffer's identity and a command refresh is detected as a change. `useRef`-style identity compares
+ * are exact here: two messages never share a reader.
+ */
+let _cachedRenderReader: RenderSnapshot['renderSoA'] = null;
 let _cachedEntityViewportKey = '';
 let _cachedGrassKey = '';
 
@@ -37,6 +53,7 @@ export let _renderSoABuckets: RenderSoABuckets | null = null;
 /** Clear all entity draw caches. Called by {@link resetRendererCaches}. */
 export function resetEntityCaches(): void {
   _cachedEntityTick = UNCACHED_RENDER_TICK;
+  _cachedRenderReader = null;
   _cachedEntityViewportKey = '';
   _cachedGrassKey = '';
   _tickTrees = [];
@@ -72,6 +89,24 @@ function entityViewportKey(
 function syncDrawCacheTick(tick: number): boolean {
   if (tick === _cachedEntityTick) return false;
   _cachedEntityTick = tick;
+  _cachedGrassKey = '';
+  _cachedEntityViewportKey = '';
+  return true;
+}
+
+/**
+ * Whether the draw buckets must be rebuilt for this snapshot — a new tick **or** a new render buffer.
+ *
+ * The two are different events: a command refresh replaces the buffer without advancing the tick (see
+ * `_cachedRenderReader`), and both must invalidate the tick-keyed grass and entity viewport caches.
+ */
+function syncDrawCacheSource(snapshot: RenderSnapshot): boolean {
+  const tickChanged = syncDrawCacheTick(snapshot.tick);
+  if (snapshot.renderSoA === _cachedRenderReader) return tickChanged;
+
+  _cachedRenderReader = snapshot.renderSoA;
+  // Same tick, new buffer: the viewport keys embed the tick, so they would otherwise still match and
+  // serve the previous buffer's lists.
   _cachedGrassKey = '';
   _cachedEntityViewportKey = '';
   return true;
@@ -173,8 +208,8 @@ export function updateCachedEntities(
 /** Phase B — bucket render SoA slots into draw lists (no Entity[] hydration on main). */
 export function updateCachedEntitiesFromSoA(state: RenderSnapshot, cw: number, ch: number) {
   if (!state.renderSoA) return;
-  const tickChanged = syncDrawCacheTick(state.tick);
-  if (tickChanged) {
+  const sourceChanged = syncDrawCacheSource(state);
+  if (sourceChanged) {
     _renderSoABuckets = updateRenderSoABuckets(
       state.renderSoA,
       state.renderMetaBySlot ?? undefined,
@@ -192,10 +227,19 @@ export function updateCachedEntitiesFromSoA(state: RenderSnapshot, cw: number, c
   }
   syncEntityDrawViewport(state.tick, state.camera, cw, ch);
 
+  // The fallback list is the SoA path's own shims, not `[]`. `syncGrassRenderGridFromSoA` returns
+  // `undefined` when the spatial grid is switched off (`VITE_USE_SPATIAL_GRID=0`), and
+  // `collectGrassInViewport` then falls back to a linear scan of the array it is handed — so a
+  // hard-coded empty array drew **no grass at all** on the worker path while the main-thread path
+  // still drew it, which is exactly the A/B comparison the switch exists to make. The shims are the
+  // same objects the grid would have indexed, so the two paths now differ only in the lookup.
+  const grassFallback = _renderSoABuckets
+    ? entitiesFromSoASlots(_renderSoABuckets.grassSlots, _renderSoABuckets.shimBySlot)
+    : [];
   syncGrassDrawCache(state.tick, state.camera, cw, ch, () =>
     collectGrassInViewport(
       state.grassGrid,
-      [],
+      grassFallback,
       state.width,
       state.height,
       state.camera.x,

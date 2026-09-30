@@ -1,12 +1,19 @@
 {
   "compilerOptions": {
     "target": "ES2023",
+    /* `DOM` is here for the Node/Tauri worker entry below, not for the config files: importing
+       `gameWorker.ts` pulls in the simulation modules, which type against `CanvasRenderingContext2D`
+       and friends. That is the point of including it — the entry is checked against the same modules
+       the browser worker compiles, so a drift in those types surfaces here. */
     "lib": [
-      "ES2023"
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
     ],
     "module": "ESNext",
     "types": [
-      "node"
+      "node",
+      "vite/client"
     ],
     "skipLibCheck": true,
 
@@ -30,6 +37,13 @@
   },
   "include": [
     "vite.config.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    /* The Node/Tauri `worker_threads` entry. `tsconfig.app.json` excludes it (it imports `node:*`),
+       and until now no other project claimed it, so `npm run build` never type-checked the file that
+       the Node harness and the Tauri build actually run (`docs/private/audits/2026-09-20` — bug 73 /
+       OPEN-13). Measured before adding it: 0 errors under these options, so the gate arrives green
+       rather than being widened to accommodate a red file. `scripts/**` remains outside every project
+       and still carries the four deliberate errors that register records. */
+    "src/game/simWorker/gameWorker.node.ts"
   ]
 }

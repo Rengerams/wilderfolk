@@ -410,7 +410,8 @@ function findNearestRoad(
  * Projects the overlay's read of the world.
  *
  * Pure and deterministic: the same world always yields the same result, an empty world yields
- * empty output, and nothing here is cached between calls.
+ * empty output, and nothing here is cached between calls. Callers that render per frame want
+ * {@link computeLogisticsOverlayCached} instead, which wraps this with a tick-keyed memo.
  */
 export function computeLogisticsOverlay(world: WorldState): LogisticsOverlayData {
   const buildings = world.buildings ?? [];
@@ -540,6 +541,45 @@ export function computeLogisticsOverlay(world: WorldState): LogisticsOverlayData
  * Field-name trap: on an `Entity`, `homeBuildingId` is the **workplace** and
  * `residenceBuildingId` is the home (`relationships.ts`, `residencyOccupancy.hasWorkAssignment`).
  */
+/**
+ * Memoised front for {@link computeLogisticsOverlay}.
+ *
+ * The projection is a pure function of the world, but it is **expensive** — it rebuilds the road
+ * graph and a `RoadBucketGrid`, and runs `classifyCommute` (4–128 grid samples each) for every
+ * settler. `buildRenderSnapshot` calls it once per snapshot, and the snapshot cache key in
+ * `gameLoop.snapshotDirtyKey()` includes the camera, which `updateView` lerps **every frame**. So with
+ * the overlay on, panning re-ran the whole projection at frame rate (~60× per second) instead of once
+ * per simulation tick, with ~200 commute objects of garbage per frame
+ * (2026-09-21 audit, D-1).
+ *
+ * The cache key is the world **object identity** plus the tick. Identity catches every in-place
+ * mutation and every adoption of a new authoritative world, and the tick additionally catches a
+ * handler that mutates the current world without advancing it (a pause while paused — the same shape
+ * `GameLoop.invalidateRenderSnapshot` documents). It is deliberately conservative: a false miss costs
+ * one projection, a false hit would draw stale data.
+ */
+let cachedOverlayWorld: WorldState | null = null;
+let cachedOverlayTick = -1;
+let cachedOverlay: LogisticsOverlayData | null = null;
+
+/** The overlay for this world, recomputed only when the world object or the tick changes. */
+export function computeLogisticsOverlayCached(world: WorldState): LogisticsOverlayData {
+  if (cachedOverlay !== null && cachedOverlayWorld === world && cachedOverlayTick === world.tick) {
+    return cachedOverlay;
+  }
+  cachedOverlay = computeLogisticsOverlay(world);
+  cachedOverlayWorld = world;
+  cachedOverlayTick = world.tick;
+  return cachedOverlay;
+}
+
+/** Drop the memo. Called by the renderer reset and by tests that swap worlds. */
+export function resetLogisticsOverlayCache(): void {
+  cachedOverlayWorld = null;
+  cachedOverlayTick = -1;
+  cachedOverlay = null;
+}
+
 function classifyCommute(
   entity: Entity,
   byId: ReadonlyMap<number, Building>,

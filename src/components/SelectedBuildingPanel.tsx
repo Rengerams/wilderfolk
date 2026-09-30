@@ -44,6 +44,7 @@ import { HOTEL_GUEST_CAPACITY } from '../game/gameTypes';
 import { HUNTING_SPOT_PREY_OPTIONS } from '../game/gameTypes';
 import type { HuntingSpotPrey } from '../game/gameTypes';
 import { getBuildingConfig } from '../game/buildingConfig';
+import { getWorkSchedule, getWorkScheduleLabel } from '../game/workSchedule';
 import { formatRaidDeadline } from '../game/frontierCombat';
 import { isManualStaffingBuilding, SMITH_BONUS_PER_WORKER, SMITH_BONUS_CAP } from '../game/workforce';
 import { getWorkerSkillMultiplier } from '../game/skills';
@@ -465,7 +466,7 @@ export default function SelectedBuildingPanel({
           </>
         )}
         {building.completed && BUILDING_JOB_TYPES[building.type] && building.type !== BuildingType.Church && building.type !== BuildingType.Prison && building.type !== BuildingType.Barracks && (
-          <p className="text-[11px] text-sky-300">Workers are assigned here automatically (7am–7pm).</p>
+          <p className="text-[11px] text-sky-300">Workers are assigned here automatically ({getWorkScheduleLabel(getWorkSchedule(state))}).</p>
         )}
         {building.completed && building.type === BuildingType.Mine && (
           <div className="mt-2 space-y-1.5 rounded-lg border border-zinc-700/40 bg-zinc-950/30 p-2">
@@ -506,7 +507,7 @@ export default function SelectedBuildingPanel({
           <p className="text-[11px] text-violet-300">Soldiers are manual only — assign below; each patrols the village (+{MILITIA_BALANCE.guardBonusPerGuard} militia strength).</p>
         )}
         {!building.completed && (
-          <p className="text-[11px] text-sky-300">Builders work 7am–7pm only — auto-assigned each morning.</p>
+          <p className="text-[11px] text-sky-300">Builders work {getWorkScheduleLabel(getWorkSchedule(state))} only — auto-assigned each morning.</p>
         )}
         {building.completed && (ownerOutputHint(building.type, state) ?? BUILDING_OUTPUT_HINTS[building.type]) && (
           <p className="text-[11px] text-stone-300">

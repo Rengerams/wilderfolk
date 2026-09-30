@@ -4,6 +4,7 @@ import { SPECIES_CONFIG } from '../game/gameEngine';
 import type { WorldState } from '../game/gameEngine';
 import type { ViewState } from '../game/viewState';
 import { terrainPaletteHex } from '../game/terrainAtlas';
+import { tileTypeAt } from '../game/terrain/terrainGrid';
 import { isActiveMoonHowler } from '../game/moonHowler';
 import { isPlayerHuman } from '../game/playerHuman';
 
@@ -53,16 +54,18 @@ export default function MiniMap({
 
             // Coarse terrain sample when map exists
             const map = world.worldMap;
-            if (map?.tiles?.length) {
+            if (map) {
               const stepX = Math.max(1, Math.floor(map.width / 48));
               const stepY = Math.max(1, Math.floor(map.height / 36));
               const tw = world.width / map.width;
               const th = world.height / map.height;
               for (let ty = 0; ty < map.height; ty += stepY) {
                 for (let tx = 0; tx < map.width; tx += stepX) {
-                  const tile = map.tiles[ty]?.[tx];
-                  if (!tile) continue;
-                  ctx.fillStyle = terrainPaletteHex(tile.type);
+                  // Only the type is needed for the tint, so this bulk pass reads `tileTypeAt`
+                  // instead of materialising a `TerrainTile` per sampled cell.
+                  const type = tileTypeAt(map, tx, ty);
+                  if (type === null) continue;
+                  ctx.fillStyle = terrainPaletteHex(type);
                   const px = tx * tw * scaleX;
                   const py = ty * th * scaleY;
                   ctx.fillRect(px, py, Math.ceil(tw * scaleX * stepX) + 1, Math.ceil(th * scaleY * stepY) + 1);

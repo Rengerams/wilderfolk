@@ -1,34 +1,14 @@
 import { type BuildingRotation, getBuildingFootprintForType } from './buildingRotation';
-import { BUILDING_CONFIGS, BuildingType, TerrainType, type Building } from './gameTypes';
+import { BUILDING_CONFIGS, BuildingType, TERRAIN_TILE_SIZE, TerrainType, type Building } from './gameTypes';
 import type { ResearchNode } from './gameTypes';
 import type { RenderSnapshot } from './renderSnapshot';
+import { tileAt } from './terrain/terrainGrid';
+// The "what a terrain type is" pair moved to a leaf so `terrainGrid` can read it without importing
+// this module back — that edge was a runtime cycle (audit T16).
+import { isUnbuildableTerrainType, isWaterTerrainType } from './terrain/terrainTraits';
 
-export const PLACEMENT_TILE_SIZE = 10;
 /** Keep building footprints slightly inside the map edge so sprites are not clipped. */
 export const MAP_EDGE_INSET = 1;
-
-const UNBUILDABLE_TERRAIN = new Set<TerrainType>([
-  TerrainType.DeepWater,
-  TerrainType.ShallowWater,
-  TerrainType.River,
-  TerrainType.RiverBank,
-  TerrainType.Mountains,
-  TerrainType.Snow,
-]);
-
-const WATER_TERRAIN = new Set<TerrainType>([
-  TerrainType.DeepWater,
-  TerrainType.ShallowWater,
-  TerrainType.River,
-]);
-
-export function isUnbuildableTerrainType(type: TerrainType): boolean {
-  return UNBUILDABLE_TERRAIN.has(type);
-}
-
-export function isWaterTerrainType(type: TerrainType): boolean {
-  return WATER_TERRAIN.has(type);
-}
 
 function footprintTileIndices(
   left: number,
@@ -37,10 +17,10 @@ function footprintTileIndices(
   bottom: number,
 ): { startTx: number; endTx: number; startTy: number; endTy: number } {
   return {
-    startTx: Math.floor(left / PLACEMENT_TILE_SIZE),
-    endTx: Math.ceil(right / PLACEMENT_TILE_SIZE) - 1,
-    startTy: Math.floor(top / PLACEMENT_TILE_SIZE),
-    endTy: Math.ceil(bottom / PLACEMENT_TILE_SIZE) - 1,
+    startTx: Math.floor(left / TERRAIN_TILE_SIZE),
+    endTx: Math.ceil(right / TERRAIN_TILE_SIZE) - 1,
+    startTy: Math.floor(top / TERRAIN_TILE_SIZE),
+    endTy: Math.ceil(bottom / TERRAIN_TILE_SIZE) - 1,
   };
 }
 
@@ -101,7 +81,7 @@ export function isFootprintOnBuildableTerrain(
   for (let ty = startTy; ty <= endTy; ty++) {
     for (let tx = startTx; tx <= endTx; tx++) {
       if (tx < 0 || ty < 0 || tx >= tileW || ty >= tileH) return false;
-      const tile = snapshot.worldMap.tiles[ty]?.[tx];
+      const tile = tileAt(snapshot.worldMap, tx, ty);
       if (!tile) return false;
       cells++;
       if (bridge) {
@@ -109,9 +89,9 @@ export function isFootprintOnBuildableTerrain(
         if (tile.type === TerrainType.River) riverCells++;
       } else if (fishing) {
         // A fishing dock may straddle land and water — but never mountains/snow.
-        if (UNBUILDABLE_TERRAIN.has(tile.type) && !WATER_TERRAIN.has(tile.type)) return false;
-        if (WATER_TERRAIN.has(tile.type)) waterCells++;
-      } else if (UNBUILDABLE_TERRAIN.has(tile.type)) {
+        if (isUnbuildableTerrainType(tile.type) && !isWaterTerrainType(tile.type)) return false;
+        if (isWaterTerrainType(tile.type)) waterCells++;
+      } else if (isUnbuildableTerrainType(tile.type)) {
         return false;
       }
     }
@@ -161,6 +141,111 @@ export function overlapsPlayerBuilding(
 }
 
 /**
+ * Renderer-only spatial index over building footprints.
+ *
+ * `canPlaceBuildingSnapshot` runs once per candidate cell on the build grid — a ~2 200-cell lattice at
+ * high zoom — and each call used to do an O(buildings) `overlapsAnyBuilding` scan, so a 300-building
+ * village paid hundreds of thousands of footprint comparisons per repaint *while panning in build
+ * mode* (2026-09-21 audit, R-7). The index answers "does anything overlap this rect" against only the
+ * buildings in the cells the rect touches.
+ *
+ * Equivalence: a building is inserted into **every** cell its footprint touches, a query visits
+ * **every** cell its footprint touches, and both use the same `floor(left / cell)` indexing — so a
+ * building and a query that overlap share at least one cell, and the exact strict-inequality test
+ * then gives the same answer as the linear scan. False positives are filtered by that test; false
+ * negatives are impossible. Keyed on the buildings array identity plus the map dimensions, because a
+ * placed building's footprint is immutable (`completed` flips but every state blocks placement, so it
+ * is irrelevant to the index). The authoritative `overlapsAnyBuilding` stays a plain linear scan —
+ * it is a single call, not a lattice.
+ */
+const OCCUPANCY_CELL_SIZE = 64;
+
+interface BuildingOccupancyIndex {
+  array: readonly Building[];
+  mapW: number;
+  mapH: number;
+  cols: number;
+  rows: number;
+  buckets: Building[][];
+}
+
+let occupancyIndex: BuildingOccupancyIndex | null = null;
+
+function getBuildingOccupancyIndex(
+  buildings: readonly Building[],
+  mapW: number,
+  mapH: number,
+): BuildingOccupancyIndex {
+  if (
+    occupancyIndex
+    && occupancyIndex.array === buildings
+    && occupancyIndex.mapW === mapW
+    && occupancyIndex.mapH === mapH
+  ) {
+    return occupancyIndex;
+  }
+  const cols = Math.max(1, Math.ceil(mapW / OCCUPANCY_CELL_SIZE));
+  const rows = Math.max(1, Math.ceil(mapH / OCCUPANCY_CELL_SIZE));
+  const buckets: Building[][] = Array.from({ length: cols * rows }, () => []);
+  for (const b of buildings) {
+    const left = b.x - b.width / 2;
+    const right = b.x + b.width / 2;
+    const top = b.y - b.height / 2;
+    const bottom = b.y + b.height / 2;
+    const minCx = Math.max(0, Math.floor(left / OCCUPANCY_CELL_SIZE));
+    const maxCx = Math.min(cols - 1, Math.floor(right / OCCUPANCY_CELL_SIZE));
+    const minCy = Math.max(0, Math.floor(top / OCCUPANCY_CELL_SIZE));
+    const maxCy = Math.min(rows - 1, Math.floor(bottom / OCCUPANCY_CELL_SIZE));
+    for (let cy = minCy; cy <= maxCy; cy++) {
+      for (let cx = minCx; cx <= maxCx; cx++) {
+        buckets[cy * cols + cx].push(b);
+      }
+    }
+  }
+  occupancyIndex = { array: buildings, mapW, mapH, cols, rows, buckets };
+  return occupancyIndex;
+}
+
+/** Whether `rect` overlaps a building, via the cached index — equal to `overlapsAnyBuilding`. */
+function overlapsAnyBuildingIndexed(
+  buildings: readonly Building[],
+  mapW: number,
+  mapH: number,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+): boolean {
+  if (width <= 0 || height <= 0 || buildings.length === 0) return false;
+  const idx = getBuildingOccupancyIndex(buildings, mapW, mapH);
+  const left = x - width / 2;
+  const right = x + width / 2;
+  const top = y - height / 2;
+  const bottom = y + height / 2;
+  const minCx = Math.max(0, Math.floor(left / OCCUPANCY_CELL_SIZE));
+  const maxCx = Math.min(idx.cols - 1, Math.floor(right / OCCUPANCY_CELL_SIZE));
+  const minCy = Math.max(0, Math.floor(top / OCCUPANCY_CELL_SIZE));
+  const maxCy = Math.min(idx.rows - 1, Math.floor(bottom / OCCUPANCY_CELL_SIZE));
+  for (let cy = minCy; cy <= maxCy; cy++) {
+    for (let cx = minCx; cx <= maxCx; cx++) {
+      const bucket = idx.buckets[cy * idx.cols + cx];
+      for (let i = 0; i < bucket.length; i++) {
+        const b = bucket[i];
+        if (
+          right > b.x - b.width / 2
+          && left < b.x + b.width / 2
+          && bottom > b.y - b.height / 2
+          && top < b.y + b.height / 2
+        ) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/**
  * The `building.x/y` centre convention now lives in the leaf module `buildingGeometry`, which exists
  * precisely so `buildingRotation` and this file can both read it without importing each other (the
  * old arrangement closed a runtime cycle, 2026-09-20 audit X-6). Re-exported here because this module
@@ -199,6 +284,10 @@ export function canPlaceBuildingSnapshot(
   }
   if (config.unique && snapshot.buildings.some((b) => b.type === type)) return false;
   if (!isFootprintOnBuildableTerrain(snapshot, width, height, x, y, type)) return false;
-  if (overlapsPlayerBuilding(snapshot.buildings, width, height, x, y)) return false;
+  // The renderer lattice calls this per candidate cell, so the overlap check goes through the cached
+  // spatial index; `overlapsAnyBuilding` (the authoritative, single-call path) is the exact same rule.
+  if (overlapsAnyBuildingIndexed(snapshot.buildings, snapshot.width, snapshot.height, width, height, x, y)) {
+    return false;
+  }
   return true;
 }

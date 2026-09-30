@@ -285,6 +285,30 @@ export function areNamesLoaded(): boolean {
   return poolSource === 'full' && maleNames.length > 20;
 }
 
+/**
+ * Put the pool back to its pre-load state — `none`, so the next `ensureNamesLoaded()` installs the
+ * embedded list again — and drop the cached load promise.
+ *
+ * **Test seam, in the same spirit as `resetSimRng`.** It exists because the race this module is
+ * documented to have ("a late first load means settlers named from the tiny embedded fallback",
+ * `:250-257`) cannot be reproduced in Node by re-importing: V8 caches dynamically imported modules
+ * for the process, so `vi.resetModules()` hands a second caller the *same* `nameLoader` instance and a
+ * "fresh" realm reads a pool the first realm already loaded. That made the worker-versus-host name
+ * comparison pass with or without the fix. Resetting the module explicitly is the honest way to stand
+ * a realm at its import-time state.
+ *
+ * Never called from production code.
+ */
+export function resetNamePoolForTest(): void {
+  maleNames = [];
+  femaleNames = [];
+  lastNames = [];
+  poolSource = 'none';
+  legacyBootUpgradeDone = false;
+  loadFailureLogged = false;
+  loadPromise = null;
+}
+
 export function getNamePoolInfo(): { male: number; female: number; last: number; full: boolean } {
   ensureNamesLoaded();
   return {

@@ -23,6 +23,7 @@ import {
 } from '../humanSprites';
 import { getChatBubbleText, wrapChatLines } from '../humanChat';
 import { isAsleepAtHome } from '../humanSchedule';
+import { getPlayerCampCenter } from '../villageAnchor';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { terrainRiseAt } from '../terrainAtlas';
 import { getRenderSoABuckets } from '../simBuffers/renderSoAEntities';
@@ -206,23 +207,6 @@ function getStatusIcon(human: Entity, ctx: HumanStatusIconContext): string {
   return '🚶';
 }
 
-function getPlayerCampCenterFromBuildings(buildings: RenderSnapshot['buildings']): { x: number; y: number } {
-  const playerBuildings = buildings.filter((b) => b.completed && b.faction !== 'rival');
-  const townHall = playerBuildings.find((b) => b.type === BuildingType.TownHall);
-  if (townHall) {
-    return { x: townHall.x + townHall.width / 2, y: townHall.y + townHall.height / 2 };
-  }
-  const house = playerBuildings.find((b) => b.type === BuildingType.House);
-  if (house) {
-    return { x: house.x + house.width / 2, y: house.y + house.height / 2 };
-  }
-  if (playerBuildings.length > 0) {
-    const b = playerBuildings[0];
-    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-  }
-  return { x: 0, y: 0 };
-}
-
 export function drawTradeRouteLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (state.camera.zoom < 0.35) return;
   // `hx`/`hy` are read only from inside the routes loop below, so with no routes the two
@@ -261,7 +245,13 @@ export function drawRaidMarchLines(ctx: CanvasRenderingContext2D, state: RenderS
   const hasOutgoing = (state.pendingOutgoingRaidEvents?.length ?? 0) > 0;
   if ((!hasIncoming && !hasOutgoing) || state.camera.zoom < 0.35) return;
   const cam = state.camera;
-  const village = getPlayerCampCenterFromBuildings(state.buildings);
+  // The anchor is the simulation's own rule (`getPlayerCampCenter`): hall, then house, then the
+  // living settlers' mean, then the map centre. A private copy of the building half used to live
+  // here and returned the first completed player building when there was no hall or house, so a
+  // drawn march line could point somewhere the simulated raid never went
+  // (`tests/villageAnchor.singleOwner.test.ts`). `RenderSnapshot` carries the three fields the rule
+  // reads, so the snapshot itself is what it is asked for — no cast.
+  const village = getPlayerCampCenter(state, state.buildings);
   const vx = (village.x - cam.x) * cam.zoom + cw / 2;
   const vy = (village.y - cam.y) * cam.zoom + ch / 2;
 
@@ -316,23 +306,11 @@ export function drawRaidMarchLines(ctx: CanvasRenderingContext2D, state: RenderS
 export function drawHuntChaseLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (state.camera.zoom < 0.4) return;
   const cam = state.camera;
-  const hunters = state.renderSoA
-    ? [..._tickAnimals, ..._tickHumans]
-    : state.entities.filter((e) => e.alive && e.huntTargetId);
-  const entityById = new Map<number, Entity>();
-  if (state.renderSoA) {
-    const buckets = _renderSoABuckets ?? getRenderSoABuckets();
-    for (const shim of buckets.shims) entityById.set(shim.id, shim);
-  } else {
-    for (const e of state.entities) {
-      if (e.alive) entityById.set(e.id, e);
-    }
-  }
 
-  for (const hunter of hunters) {
-    if (!hunter.huntTargetId) continue;
-    const prey = entityById.get(hunter.huntTargetId);
-    if (!prey) continue;
+  const drawHunterLine = (hunter: Entity, byId: Map<number, Entity>) => {
+    if (!hunter.huntTargetId) return;
+    const prey = byId.get(hunter.huntTargetId);
+    if (!prey) return;
 
     const hx = (hunter.x - cam.x) * cam.zoom + cw / 2;
     const hy = (hunter.y - cam.y) * cam.zoom + ch / 2;
@@ -353,6 +331,26 @@ export function drawHuntChaseLines(ctx: CanvasRenderingContext2D, state: RenderS
     ctx.textAlign = 'center';
     ctx.fillStyle = isHumanHunter ? '#fb923c' : '#a8a29e';
     ctx.fillText(isHumanHunter ? '🏹' : isPredatorType(hunter.type) ? '🐾' : '•', (hx + px) / 2, (hy + py) / 2 - 4);
+  };
+
+  if (state.renderSoA) {
+    // The SoA bucket builder already made `shimById` for this tick; iterating the two draw buckets
+    // directly avoids the per-repaint `[..._tickAnimals, ..._tickHumans]` spread and the per-repaint
+    // id Map rebuild (2026-09-21 audit, R-11).
+    const buckets = _renderSoABuckets ?? getRenderSoABuckets();
+    const byId = buckets.shimById;
+    for (const hunter of _tickAnimals) drawHunterLine(hunter, byId);
+    for (const hunter of _tickHumans) drawHunterLine(hunter, byId);
+    return;
+  }
+
+  // Main-thread fallback: the world's entities are the source of truth and there is no bucket index.
+  const byId = new Map<number, Entity>();
+  for (const e of state.entities) {
+    if (e.alive) byId.set(e.id, e);
+  }
+  for (const hunter of state.entities) {
+    if (hunter.alive && hunter.huntTargetId) drawHunterLine(hunter, byId);
   }
 }
 

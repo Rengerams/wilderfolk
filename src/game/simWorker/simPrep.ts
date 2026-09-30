@@ -9,6 +9,22 @@ import { restoreSimRng, snapshotSimRng } from '../simRng';
 
 /**
  * Mutable sim slices backed up before each tick/command for instant failure recovery.
+ *
+ * **What this payload is, and what it is not.** It is the `WorldState` half of the rollback: every key
+ * here is snapshotted by `extractSimPrep` and written back by `applySimPrep`, and
+ * `tests/workerBoundary.closure.test.ts` proves the rollback is complete for the world by comparing the
+ * *union* of both worlds' own keys after a real tick — so a world field the tick advances and this list
+ * omits is a failing difference, not an invisible one.
+ *
+ * The module-level counters are deliberately outside that contract, and this is the one place to say
+ * so. `nextBigNewsId` (`simEffects.ts`) and `nextEventLogId` (`eventLog.ts`) are imported bindings, not
+ * world fields, so a rollback cannot restore them — they stay ahead of the restored `bigNews` /
+ * `eventLog` arrays. Both owners already defend against the only consequence that matters, by clamping
+ * their next id against the ids the restored world actually carries (`simEffects.ts` `addBigNews`,
+ * `eventLog.ts` `logEvent`), so ids stay unique and monotonic and no rule reads the value. The residual
+ * is that the *sequence* of minted ids is not reproducible across a rollback. If a future counter
+ * cannot be defended that way, move it onto `WorldState` and add it here rather than adding a second
+ * rule about which module state a rollback covers.
  */
 type SimPrepKeys =
   | 'tick'
@@ -142,8 +158,13 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
       hotelGuestIds: b.hotelGuestIds ? [...b.hotelGuestIds] : undefined,
     })),
 
-    deathParticles: [...(state.deathParticles ?? [])],
-    floatingTexts: [...(state.floatingTexts ?? [])],
+    // Copy the elements, not just the arrays. The realtime layer decays these **in place**
+    // (`tickLayerRealtime`: `ft.y -= 0.7; ft.life--`, `p.x += p.vx; p.life--`), so a shallow spread
+    // left the backup holding the live objects and the rollback restored the already-mutated values —
+    // a partial no-op that aged every popup and particle twice for one failed tick. The entity and
+    // building clones above already copy at this depth for the same reason.
+    deathParticles: (state.deathParticles ?? []).map((particle) => ({ ...particle })),
+    floatingTexts: (state.floatingTexts ?? []).map((text) => ({ ...text })),
     screenShakeImpulse: state.screenShakeImpulse ?? 0,
 
     resources: { ...state.resources },

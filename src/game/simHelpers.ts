@@ -125,10 +125,54 @@ export function getMultiplier(state: WorldState, key: string): number {
   return totals ? totals.multiplier + totals.add : 1;
 }
 
-/** Clamps reputation strictly between 0 and 100. */
-export function addReputation(state: WorldState, amount: number): void {
+/**
+ * The reputation ceiling, exported so a reader that must ask "can reputation still rise?" compares
+ * against the owner's own bound instead of re-typing `100`.
+ *
+ * The clamp below is the single definition; this constant is that definition named. A caller that
+ * wrote `< 100` by hand would silently stop agreeing with the clamp the day it moved, which is the
+ * same class of drift that let `storyHelpers` push reputation past the cap before it delegated here.
+ */
+export const REPUTATION_MAX = 100;
+
+/**
+ * Clamps reputation strictly between 0 and 100, and **returns the amount actually applied**.
+ *
+ * The return value is not decoration: the clamp means a request of `+4` can move the number by 0–4,
+ * and a caller that wants to say "reputation rises" has to know which. Comparing the value before and
+ * after works for that, but it is the same question asked with a wider window, and a caller that
+ * instead tests `reputation < MAX` after the fact is wrong in both directions — it announces a rise
+ * that a full bar refused, and (the bug this return value removes) it fires whenever the number
+ * merely *sits* below the ceiling. `frontierCombat`'s leader-honored banner reads this.
+ */
+export function addReputation(state: WorldState, amount: number): number {
   const current = state.villageReputation ?? 0;
-  state.villageReputation = Math.max(0, Math.min(100, current + amount));
+  const next = Math.max(0, Math.min(REPUTATION_MAX, current + amount));
+  state.villageReputation = next;
+  return next - current;
+}
+
+/**
+ * The reputation bands — one definition for how the valley treats the village at each level.
+ *
+ * These live with `addReputation` because the band is a property of reputation itself, not of any
+ * one consumer of it. Visitor caravans price their trade by band (`groupEvents`), and rival
+ * settlements decide how likely they are to raid by the same band (`frontierCombat`), so the
+ * thresholds cannot live in either owner without the other hand-writing them — which is exactly
+ * what had happened (audit "Reputation 80/30 bands": three separate `>= 80` / `<= 30` literals).
+ *
+ * Retuning a threshold here moves both the prices and the raid odds together, by construction.
+ */
+export const REPUTATION_FRIENDLY_MIN = 80;
+export const REPUTATION_HARSH_MAX = 30;
+
+export type ReputationBand = 'friendly' | 'normal' | 'harsh';
+
+/** The band a reputation sits in. The single classifier every consumer reads. */
+export function getReputationBand(rep: number): ReputationBand {
+  if (rep >= REPUTATION_FRIENDLY_MIN) return 'friendly';
+  if (rep <= REPUTATION_HARSH_MAX) return 'harsh';
+  return 'normal';
 }
 
 /**

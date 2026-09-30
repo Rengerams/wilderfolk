@@ -7,9 +7,19 @@
  * actually crosses a blocked tile (cheap sampling), and results are cached per
  * origin-target pair with a bounded cache. Every pathing call falls back to
  * direct movement when no path exists, so nothing can ever deadlock.
+ *
+ * Occupancy and slope both come from Teraforge's four-layer model: the L0 path
+ * grid decides what blocks a step, and the tile's projected elevation decides
+ * what a step costs (`CLIFF_STEP` retires the old "water only" rule, which could
+ * not express an unclimbable cliff).
  */
 import type { Building, Entity, WorldMap } from './gameTypes';
-import { BuildingType, TERRAIN_TILE_SIZE, TerrainType } from './gameTypes';
+import { BuildingType, TERRAIN_TILE_SIZE } from './gameTypes';
+import {
+  Walkability,
+  isWalkableTerrainType,
+  tileAt,
+} from './terrain/terrainGrid';
 import {
   recordFindPathCall,
   recordGridRebuild,
@@ -24,13 +34,11 @@ import {
 } from './pathfindingMetrics';
 import { faceVelocity } from './simulation/movementSteering';
 
-/** Terrain that blocks walking (water + mountains). Snowy ground stays walkable. */
-const BLOCKED_TERRAIN = new Set<TerrainType>([
-  TerrainType.DeepWater,
-  TerrainType.ShallowWater,
-  TerrainType.River,
-  TerrainType.Mountains,
-]);
+/** Slope cost per unit elevation (0–100 scale) — steep climbs tax the route. */
+const SLOPE_UP_COST = 0.015;
+const SLOPE_DOWN_COST = 0.004;
+/** Single-tile elevation step (0–100 scale) above which the edge is an impassable cliff. */
+const CLIFF_STEP = 32;
 
 /** Completed player walls block walking; gates are passable openings. */
 function isBlockingWall(b: Building): boolean {
@@ -67,6 +75,8 @@ export interface PathGrid {
   cols: number;
   rows: number;
   blocked: Uint8Array;
+  /** Per-tile elevation (0–100) for slope-aware A*. Absent on legacy maps. */
+  elevation?: Float32Array;
 }
 
 let gridCache: PathGrid | null = null;
@@ -90,10 +100,22 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
   const cols = map.width;
   const rows = map.height;
   const blocked = new Uint8Array(cols * rows);
+  const elevation = new Float32Array(cols * rows);
+
+  // Teraforge's L0 path grid is the authoritative occupancy layer for a generated map:
+  // water from the tile classification plus any cell the L3 decor pass reserved. Maps
+  // without one (test fixtures, hand-built maps) fall back to the tile owner, so both
+  // representations answer "can a walker stand here?" through one rule.
+  const hasPathGrid = !!map.pathGrid && map.pCols === cols && map.pRows === rows;
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
-      const t = map.tiles[y]?.[x];
-      if (t && BLOCKED_TERRAIN.has(t.type)) blocked[y * cols + x] = 1;
+      const i = y * cols + x;
+      const t = tileAt(map, x, y);
+      if (!t) continue;
+      elevation[i] = t.elevation;
+      blocked[i] = hasPathGrid
+        ? (map.pathGrid![i] !== Walkability.Open ? 1 : 0)
+        : (isWalkableTerrainType(t.type) ? 0 : 1);
     }
   }
   if (buildings) {
@@ -101,7 +123,7 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
       if (isBlockingWall(b)) markBuildingBlocked(blocked, cols, rows, b);
     }
   }
-  return { cols, rows, blocked };
+  return { cols, rows, blocked, elevation };
 }
 
 /** The simulation's grid. `setCurrentPathMap` swaps `currentGrid` and clears the waypoint cache. */
@@ -230,6 +252,33 @@ function findNearestWalkable(grid: PathGrid, x: number, y: number): { x: number;
   return null;
 }
 
+/** Bresenham line-of-sight: true when the straight tile line is walkable (no water, no cliff). */
+function hasLineOfSight(grid: PathGrid, x0: number, y0: number, x1: number, y1: number): boolean {
+  const { cols, blocked, elevation } = grid;
+  let dx = Math.abs(x1 - x0);
+  let dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy;
+  let x = x0;
+  let y = y0;
+  let prevElev = elevation ? elevation[y * cols + x] : 0;
+  for (;;) {
+    const idx = y * cols + x;
+    if (blocked[idx]) return false;
+    if (elevation) {
+      const e = elevation[idx];
+      if (Math.abs(e - prevElev) > CLIFF_STEP) return false;
+      prevElev = e;
+    }
+    if (x === x1 && y === y1) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; x += sx; }
+    if (e2 < dx) { err += dx; y += sy; }
+  }
+  return true;
+}
+
 /** A* over the grid — returns tile path (start..goal inclusive) or null. */
 export function findPath(
   grid: PathGrid,
@@ -239,7 +288,7 @@ export function findPath(
   ty: number,
   maxNodes = 6000,
 ): { x: number; y: number }[] | null {
-  const { cols, rows, blocked } = grid;
+  const { cols, rows, blocked, elevation } = grid;
   recordFindPathCall();
   if (sx < 0 || sy < 0 || sx >= cols || sy >= rows) {
     recordPathEarlyReject();
@@ -306,24 +355,45 @@ export function findPath(
       }
       path.push({ x: actualSx, y: actualSy });
       path.reverse();
+
+      // Smooth the route: drop intermediate tiles the walker can see past (line-of-sight).
+      const simplified: { x: number; y: number }[] = [path[0]];
+      for (let i = 1; i < path.length - 1; i++) {
+        const last = simplified[simplified.length - 1];
+        if (!hasLineOfSight(grid, last.x, last.y, path[i + 1].x, path[i + 1].y)) {
+          simplified.push(path[i]);
+        }
+      }
+      simplified.push(path[path.length - 1]);
+
       recordPathNodes(nodes);
       recordPathFound();
-      return path;
+      return simplified;
     }
 
     const cx = cur % cols;
     const cy = (cur / cols) | 0;
+    const curElev = elevation ? elevation[cur] : 0;
 
     for (const [dx, dy] of DIRS) {
       const nx = cx + dx;
       const ny = cy + dy;
       if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
-      if (blocked[ny * cols + nx]) continue;
+      const nIdx = ny * cols + nx;
+      if (blocked[nIdx]) continue;
       // Prevent corner squeezing through diagonal blocked tiles
       if (dx !== 0 && dy !== 0 && (blocked[cy * cols + nx] || blocked[ny * cols + cx])) continue;
 
-      const nIdx = ny * cols + nx;
-      const ng = (gScore.get(cur) ?? Infinity) + (dx !== 0 && dy !== 0 ? 1.4142 : 1);
+      let step = dx !== 0 && dy !== 0 ? 1.4142 : 1;
+      if (elevation) {
+        const nextElev = elevation[nIdx];
+        const delta = nextElev - curElev;
+        // An impassable cliff: a single-tile elevation jump too steep to climb.
+        if (Math.abs(delta) > CLIFF_STEP) continue;
+        step += delta > 0 ? delta * SLOPE_UP_COST : -delta * SLOPE_DOWN_COST;
+      }
+
+      const ng = (gScore.get(cur) ?? Infinity) + step;
       if (ng < (gScore.get(nIdx) ?? Infinity)) {
         gScore.set(nIdx, ng);
         came.set(nIdx, cur);
@@ -356,6 +426,7 @@ export function lineCrossesBlocked(
   const span = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
   // Sub-tile sampling steps prevent tunneling through 1-tile diagonal obstacles
   const steps = Math.max(4, Math.min(128, Math.ceil(span / (TERRAIN_TILE_SIZE * 0.5))));
+  let prevElev: number | null = null;
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
     const px = x0 + (x1 - x0) * t;
@@ -363,7 +434,14 @@ export function lineCrossesBlocked(
     const tx = Math.floor(px / TERRAIN_TILE_SIZE);
     const ty = Math.floor(py / TERRAIN_TILE_SIZE);
     if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) continue;
-    if (grid.blocked[ty * grid.cols + tx]) return true;
+    const idx = ty * grid.cols + tx;
+    if (grid.blocked[idx]) return true;
+    // A cliff step along the line also forces a detour, matching the A* cliff rule.
+    if (grid.elevation) {
+      const e = grid.elevation[idx];
+      if (prevElev !== null && Math.abs(e - prevElev) > CLIFF_STEP) return true;
+      prevElev = e;
+    }
   }
   return false;
 }

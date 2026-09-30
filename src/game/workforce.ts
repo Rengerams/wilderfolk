@@ -9,6 +9,7 @@ import {
 } from './gameTypes';
 import { getOccupationForBuilding, ensureEntitySkills, readSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
+import { humanDisplayName } from './citizenId';
 import { assignMissingResidences } from './residencyReconciliation';
 import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './residencyOccupancy';
 import { logEvent } from './eventLog';
@@ -30,10 +31,17 @@ const MANUAL_STAFF_BUILDINGS = new Set<BuildingType>([
   BuildingType.TownHall,
 ]);
 
+/**
+ * A settler's display name for these log lines.
+ *
+ * Delegates to `citizenId.humanDisplayName`, which already owns this exact format (given name, then
+ * surname, then title). This was a private copy with its own `'Settler'` fallback while
+ * `villageLeadership` carried a second copy falling back to `'Unknown'`, so the same nameless settler
+ * was "Settler" in a workforce log and "Unknown" in an election notice while the owner said
+ * "A settler" (`tests/settlerNameFallback.singleOwner.test.ts`).
+ */
 function formatSettlerName(entity: Entity): string {
-  const base = entity.name || 'Settler';
-  const full = entity.surname ? `${base} ${entity.surname}` : base;
-  return entity.title ? `${full} ${entity.title}` : full;
+  return humanDisplayName(entity);
 }
 
 function isOnConstructionCrew(human: Entity, buildings: Building[]): boolean {

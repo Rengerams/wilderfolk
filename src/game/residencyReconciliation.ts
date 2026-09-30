@@ -2,7 +2,7 @@ import { EntityType } from './gameTypes';
 import type { Building, Entity } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
 import { collectFamilyMembers, collectOwnHousehold, isMinorChild } from './householdComposition';
-import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove } from './residencyOccupancy';
+import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove, isImprisoned } from './residencyOccupancy';
 import { listPlayerResidences, ensureOrphanAdoption, rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence } from './residencySelection';
 import { isPlayerHuman } from './playerHuman';
 
@@ -208,7 +208,7 @@ export function assignMissingResidences(
     if (!h.alive) h.residenceBuildingId = undefined;
   }
 
-  const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
+  const alive = humans.filter((h) => h.alive && isPlayerHuman(h) && !isImprisoned(h));
   const genealogyPool = (allHumansForGenealogy ?? humans).filter(
     (h) => h.alive && h.type === EntityType.Human,
   );

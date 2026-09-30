@@ -17,6 +17,7 @@ import {
   hasResidenceAssignment,
   countResidentsInBuilding,
   residenceRoomFor,
+  isImprisoned,
 } from './residencyOccupancy';
 import { isPlayerHuman } from './playerHuman';
 
@@ -97,15 +98,13 @@ function livingAdoptiveCustodian(child: Entity, humans: Entity[]): Entity | unde
 }
 
 /**
- * Married couples that may adopt. The Leader's House is excluded here, not only in
- * `pickOrphanResidence`: the housing rule already refuses to place an orphan in the manor, but
- * adoption is a second path into the same household — `syncLeaderHouseResidency` force-moves every
- * member of the leader's household into the manor, so adopting an orphan into the leader's couple
- * put the child exactly where the housing rule had just said it must not go
- * (`BUG_REPORTS/2026-09-20-orphans-adopted-into-the-leaders-house.md`).
+ * Married couples that may adopt. The sitting leader is the only person who must not adopt
+ * (`BUG_REPORTS/2026-09-20-orphans-adopted-into-the-leaders-house.md`): a couple that includes
+ * them is skipped because that would make the leader an adoptive parent. Their spouse is not
+ * banned on their own — they simply are not a single while the leader is alive.
  */
 function listVillageCouples(humans: Entity[]): Array<{ mother?: Entity; father?: Entity; partnerA: Entity; partnerB: Entity }> {
-  const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
+  const alive = humans.filter((h) => h.alive && isPlayerHuman(h) && !isImprisoned(h));
   const couples: Array<{ mother?: Entity; father?: Entity; partnerA: Entity; partnerB: Entity }> = [];
   const seen = new Set<number>();
 
@@ -137,10 +136,19 @@ function pickRandomAdoptiveCouple(
 }
 
 function listVillageSingleAdults(humans: Entity[]): Entity[] {
-  const alive = humans.filter(
-    (h) => h.alive && isPlayerHuman(h) && !h.isJuvenile && h.age >= HUMAN_ADULT_MIN_AGE,
+  const candidates = humans.filter(
+    (h) =>
+      h.alive
+      && isPlayerHuman(h)
+      && !h.isJuvenile
+      && h.age >= HUMAN_ADULT_MIN_AGE
+      && !isImprisoned(h)
+      && h.occupation !== LEADER_OCCUPATION,
   );
-  return alive.filter((h) => !findLivingHuman(alive, h.partnerId));
+  // Living partner is looked up on the full list. Filtering the leader out of `candidates`
+  // first made their spouse look unpartnered, so a couple-only village fell through to a
+  // fake single instead of "no adoptive couple".
+  return candidates.filter((h) => !findLivingHuman(humans, h.partnerId));
 }
 
 function pickRandomAdoptiveGuardian(child: Entity, humans: Entity[]): Entity | undefined {
@@ -233,6 +241,7 @@ export function ensureOrphanAdoption(
   child.adoptiveMotherId = undefined;
   child.adoptiveFatherId = undefined;
 
+  // Couples first. A single guardian is only the fallback when no adoptive couple exists.
   const couple = pickRandomAdoptiveCouple(child, humans);
   if (couple) {
     const motherId = couple.mother?.id ?? couple.partnerA.id;

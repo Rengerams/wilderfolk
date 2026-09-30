@@ -125,7 +125,9 @@ function spawnHerdAtEdge(
     spawnWildlifeRing(state, EntityType.Deer, edgeX, edgeY, unplaced, 40, 120, {
       onSpawn: (deer) => {
         deer.migrationTag = herdYear;
-        out.push(deer);
+        // `registerSpawnedWildlife` already added the deer to `state.entities`; push to `out`
+        // only when it is a separate snapshot (owner-level test callers pass `state.entities`).
+        if (out !== state.entities) out.push(deer);
         registerHerdDeer(state, ctx, deer);
       },
     });

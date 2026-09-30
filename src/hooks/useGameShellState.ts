@@ -140,7 +140,7 @@ function loadShowTutorial(): boolean {
  */
 export function useGameShellState() {
   const [selectedMapSize, setSelectedMapSize] = useState<MapSize>(MapSize.Medium);
-  const [selectedMapPreset, setSelectedMapPreset] = useState<MapPreset>(MapPreset.Verdant);
+  const [selectedMapPreset, setSelectedMapPreset] = useState<MapPreset>(MapPreset.Continental);
   const [openTabs, setOpenTabs] = useState<Set<SidebarTab>>(() => new Set());
   const [progressSubTab, setProgressSubTab] = useState<ProgressSubTab>('research');
   const [moreSubTab, setMoreSubTab] = useState<MoreSubTab>('guide');

@@ -1,157 +1,126 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { GAME_VERSION, GAME_PHASE } from './gameEngine';
 import { ensureIntroAudio } from '../audio';
 import { MapPreset, MapSize, MAP_SIZE_DIMENSIONS } from './gameTypes';
+import { generateRawTerrain } from './terrain/terragen';
+import { tileAt } from './terrain/terrainGrid';
+import { TERRAIN_PALETTE } from './terrainAtlas';
 
-const PRESET_INFO: Record<MapPreset, { label: string; blurb: string; emoji: string; forTag: string }> = {
-  [MapPreset.Verdant]: {
-    label: 'Verdant',
-    emoji: '🌿',
-    blurb: 'Balanced rivers, forests, and grasslands.',
-    forTag: 'The classic frontier',
+const PRESET_INFO: Record<MapPreset, { label: string; blurb: string; emoji: string; forTag: string; sky: string; mid: string; low: string; water?: boolean }> = {
+  [MapPreset.Arabia]: {
+    label: 'Arabia',
+    emoji: '🏜️',
+    blurb: 'Open, semi-arid land with scattered oases.',
+    forTag: 'Dust and dunes',
+    sky: '#451a03', mid: '#9a3412', low: '#c2703d',
   },
-  [MapPreset.Mountainous]: {
-    label: 'Mountainous',
-    emoji: '⛰️',
-    blurb: 'Tall peaks, rocky highlands, fewer rivers.',
-    forTag: 'Stone and high passes',
+  [MapPreset.BlackForest]: {
+    label: 'Black Forest',
+    emoji: '🌲',
+    blurb: 'A dense wall of trees with small clearings.',
+    forTag: 'Deep woods',
+    sky: '#0c1a2e', mid: '#1e3a2e', low: '#14532d',
   },
   [MapPreset.Coastal]: {
     label: 'Coastal',
-    emoji: '🌊',
-    blurb: 'More water, beaches, and wetlands.',
+    emoji: '🏖️',
+    blurb: 'Ocean edge, beaches and mixed terrain.',
     forTag: 'Seabreeze and salt',
+    sky: '#0f172a', mid: '#164e63', low: '#0e7490', water: true,
   },
-  [MapPreset.Arid]: {
-    label: 'Arid',
-    emoji: '☀️',
-    blurb: 'Dry plains, sparse woods, hot temperatures.',
-    forTag: 'Dust on the wind',
+  [MapPreset.Islands]: {
+    label: 'Islands',
+    emoji: '🏝️',
+    blurb: 'A tropical archipelago of many isles.',
+    forTag: 'Coral and trade winds',
+    sky: '#0c1a2e', mid: '#0e7490', low: '#155e75', water: true,
   },
-  [MapPreset.Harsh]: {
-    label: 'Harsh',
-    emoji: '❄️',
-    blurb: 'Rugged, cold, and unforgiving terrain.',
-    forTag: 'For the hardened',
+  [MapPreset.Highland]: {
+    label: 'Highland',
+    emoji: '🏔️',
+    blurb: 'Rugged, river-carved mountain valleys.',
+    forTag: 'Stone and high passes',
+    sky: '#1e293b', mid: '#334155', low: '#5b6575',
   },
-  [MapPreset.Riverlands]: {
-    label: 'Riverlands',
+  [MapPreset.Scandinavia]: {
+    label: 'Scandinavia',
+    emoji: '🧊',
+    blurb: 'Cold fjords, pine and many lakes.',
+    forTag: 'Frost and fjords',
+    sky: '#0f172a', mid: '#334155', low: '#94a3b8', water: true,
+  },
+  [MapPreset.Meadows]: {
+    label: 'Meadows',
     emoji: '🌾',
-    blurb: 'Wet, flat marshlands laced with winding rivers.',
+    blurb: 'Flat, lush lowlands with wide rivers.',
+    forTag: 'Green and gentle',
+    sky: '#0c1a2e', mid: '#166534', low: '#15803d', water: true,
+  },
+  [MapPreset.Oasis]: {
+    label: 'Oasis',
+    emoji: '🌴',
+    blurb: 'Desert around a central water source.',
+    forTag: 'Life in the sand',
+    sky: '#451a03', mid: '#9a3412', low: '#b45309', water: true,
+  },
+  [MapPreset.Rivers]: {
+    label: 'Rivers',
+    emoji: '🏞️',
+    blurb: 'Land divided by wide waterways.',
     forTag: 'Reeds and slow water',
+    sky: '#0c1a2e', mid: '#1e3a5f', low: '#14532d', water: true,
+  },
+  [MapPreset.Continental]: {
+    label: 'Continental',
+    emoji: '🌍',
+    blurb: 'Every biome on one living continent.',
+    forTag: 'The wide world',
+    sky: '#0c1a2e', mid: '#4a5a3a', low: '#6a7a4a',
   },
 };
 
-/** One mini painted landscape per preset — layered gradients + shapes, no images. */
-function LandscapeArt({ preset, seed }: { preset: MapPreset; seed: number }) {
-  const jitter = (n: number) => 50 + ((seed * 7919 + n * 104729) % 100) / 100; // 0.5..1.5 stable
+/** Real generated-terrain thumbnail — the actual Teraforge engine, deterministic per preset. */
+function TerrainPreview({ preset, seed }: { preset: MapPreset; seed: number }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const sky = PRESET_INFO[preset].sky;
 
-  if (preset === MapPreset.Mountainous) {
-    return (
-      <div
-        className="relative h-20 w-full overflow-hidden rounded-t-xl"
-        style={{ background: 'linear-gradient(180deg, #1e293b 0%, #334155 45%, #475569 70%, #5b6575 100%)' }}
-      >
-        <div className="absolute left-1/2 top-2 h-3 w-3 -translate-x-1/2 rounded-full bg-stone-200/80" style={{ boxShadow: '0 0 12px 4px rgba(226,232,240,0.35)' }} />
-        <div
-          className="absolute bottom-0 left-0 h-3/4 w-1/2 bg-stone-700"
-          style={{ clipPath: 'polygon(0 100%, 22% 22%, 45% 100%)', opacity: 0.9 }}
-        />
-        <div
-          className="absolute bottom-0 right-0 h-3/4 w-1/2 bg-stone-600"
-          style={{ clipPath: 'polygon(15% 100%, 42% 10%, 78% 100%)', opacity: 0.9 }}
-        />
-        <div
-          className="absolute bottom-0 left-1/4 h-2/5 w-1/3 bg-stone-500"
-          style={{ clipPath: 'polygon(0 100%, 35% 30%, 70% 100%)', opacity: 0.95 }}
-        />
-        <div className="absolute bottom-0 left-0 right-0 h-1/5 bg-stone-800/90" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-  if (preset === MapPreset.Coastal) {
-    return (
-      <div
-        className="relative h-20 w-full overflow-hidden rounded-t-xl"
-        style={{ background: 'linear-gradient(180deg, #0f172a 0%, #164e63 55%, #0e7490 75%, #155e75 100%)' }}
-      >
-        <div className="absolute right-3 top-2 h-3.5 w-3.5 rounded-full bg-amber-200/90" style={{ boxShadow: '0 0 14px 6px rgba(253,230,138,0.4)' }} />
-        <div className="absolute bottom-0 left-0 h-3/5 w-full" style={{ background: 'linear-gradient(180deg, #155e75 0%, #0e7490 100%)' }} />
-        <div className="absolute bottom-0 left-0 h-[18%] w-2/3 rounded-t-[100%] bg-[#d6c79a]" style={{ left: jitter(1) * 10 }} />
-        <div className="absolute bottom-0 left-0 h-[10%] w-1/2 rounded-t-[100%] bg-[#e6d7a8]" style={{ left: jitter(2) * 15 }} />
-        <div className="absolute bottom-[22%] left-[8%] h-[6px] w-14 rotate-[-6deg] rounded bg-white/25" style={{ left: jitter(3) * 8 }} />
-        <div className="absolute bottom-[26%] left-[30%] h-[5px] w-16 rotate-[4deg] rounded bg-white/20" />
-      </div>
-    );
-  }
+    // A representative Medium map with a stable per-preset seed — the player sees
+    // the preset's real character (rivers, coasts, ranges, forests), not a decal.
+    const map = generateRawTerrain(1200, 900, seed, MapSize.Medium, preset);
+    const w = map.width;
+    const h = map.height;
+    canvas.width = w;
+    canvas.height = h;
+    const img = ctx.createImageData(w, h);
+    // Full-map pass, but the cost is bounded to one bake per preset change: `tileAt` caches each
+    // projected tile on the map, so the whole thumbnail is projected at most once.
+    for (let ty = 0; ty < h; ty++) {
+      for (let tx = 0; tx < w; tx++) {
+        const tile = tileAt(map, tx, ty);
+        if (!tile) continue;
+        const c = TERRAIN_PALETTE[tile.type];
+        const o = (ty * w + tx) * 4;
+        img.data[o] = (c >> 16) & 0xff;
+        img.data[o + 1] = (c >> 8) & 0xff;
+        img.data[o + 2] = c & 0xff;
+        img.data[o + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }, [preset, seed]);
 
-  if (preset === MapPreset.Arid) {
-    return (
-      <div
-        className="relative h-20 w-full overflow-hidden rounded-t-xl"
-        style={{ background: 'linear-gradient(180deg, #451a03 0%, #9a3412 45%, #c2703d 70%, #b45309 100%)' }}
-      >
-        <div className="absolute left-1/2 top-2.5 h-4 w-4 -translate-x-1/2 rounded-full bg-amber-300" style={{ boxShadow: '0 0 18px 8px rgba(252,211,77,0.5)' }} />
-        <div className="absolute -left-6 bottom-0 h-2/3 w-3/4 rounded-[100%_0_0_0] bg-[#d99a63]" style={{ opacity: 0.85 }} />
-        <div className="absolute -right-8 bottom-0 h-2/3 w-3/4 rounded-[0_100%_0_0] bg-[#c2703d]" style={{ opacity: 0.9 }} />
-        <div className="absolute -left-10 bottom-0 h-1/2 w-2/3 rounded-[100%_0_0_0] bg-[#b36a3a]" style={{ opacity: 0.9 }} />
-        <div className="absolute bottom-[30%] left-[12%] h-[3px] w-10 rotate-[-3deg] rounded bg-amber-100/30" style={{ left: jitter(4) * 10 }} />
-      </div>
-    );
-  }
-
-  if (preset === MapPreset.Harsh) {
-    return (
-      <div
-        className="relative h-20 w-full overflow-hidden rounded-t-xl"
-        style={{ background: 'linear-gradient(180deg, #0f172a 0%, #334155 50%, #475569 75%, #94a3b8 100%)' }}
-      >
-        <div className="absolute left-1/2 top-2 h-3 w-3 -translate-x-1/2 rounded-full bg-stone-100/70" style={{ boxShadow: '0 0 10px 3px rgba(241,245,249,0.3)' }} />
-        <div className="absolute bottom-0 left-0 h-1/2 w-full bg-stone-700" style={{ opacity: 0.9 }} />
-        <div className="absolute -left-4 bottom-[38%] h-10 w-24 rotate-[8deg] rounded-[100%_0_0_0] bg-[#e2e8f0]" style={{ opacity: 0.95 }} />
-        <div className="absolute -right-6 bottom-[34%] h-12 w-28 rotate-[-6deg] rounded-[0_100%_0_0] bg-[#cbd5e1]" style={{ opacity: 0.9 }} />
-        <div className="absolute left-0 right-0 bottom-[40%] h-[6px] bg-white/25" />
-        <div className="absolute bottom-0 left-0 right-0 h-[18%] bg-white/30" />
-      </div>
-    );
-  }
-
-  if (preset === MapPreset.Riverlands) {
-    return (
-      <div
-        className="relative h-20 w-full overflow-hidden rounded-t-xl"
-        style={{ background: 'linear-gradient(180deg, #0c1a2e 0%, #1e3a5f 45%, #166534 70%, #14532d 100%)' }}
-      >
-        <div className="absolute left-1/2 top-2 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-stone-200/70" style={{ boxShadow: '0 0 14px 5px rgba(226,232,240,0.3)' }} />
-        <div className="absolute -left-6 bottom-0 h-2/3 w-1/2 rounded-[100%_0_0_0] bg-[#166534]" style={{ opacity: 0.85 }} />
-        <div className="absolute -right-8 bottom-0 h-2/3 w-1/2 rounded-[0_100%_0_0] bg-[#15803d]" style={{ opacity: 0.9 }} />
-        <div className="absolute bottom-0 left-0 h-[42%] w-full bg-[#0e7490]/80" />
-        <div className="absolute bottom-0 left-0 h-[10%] w-full bg-[#22d3ee]/40" />
-        {/* winding river — two strokes */}
-        <div className="absolute bottom-[34%] left-[5%] h-[5px] w-16 rotate-[8deg] rounded bg-[#67e8f9]/60" style={{ left: jitter(6) * 8 }} />
-        <div className="absolute bottom-[40%] left-[40%] h-[4px] w-14 rotate-[-10deg] rounded bg-[#67e8f9]/50" />
-        {/* reeds */}
-        <div className="absolute bottom-[30%] left-[8%] h-3 w-[2px] rotate-[6deg] rounded bg-[#4ade80]/70" />
-        <div className="absolute bottom-[30%] left-[10%] h-3.5 w-[2px] rotate-[-5deg] rounded bg-[#86efac]/60" />
-        <div className="absolute bottom-[30%] right-[12%] h-3 w-[2px] rotate-[-4deg] rounded bg-[#4ade80]/70" />
-      </div>
-    );
-  }
-
-  // Verdant (default) — rolling green hills, dusk sky, a river glint
   return (
-    <div
-      className="relative h-20 w-full overflow-hidden rounded-t-xl"
-      style={{ background: 'linear-gradient(180deg, #0c1a2e 0%, #14532d 48%, #166534 70%, #15803d 100%)' }}
-    >
-      <div className="absolute right-4 top-2 h-3.5 w-3.5 rounded-full bg-emerald-100/90" style={{ boxShadow: '0 0 14px 6px rgba(209,250,229,0.35)' }} />
-      <div className="absolute -left-8 bottom-0 h-2/3 w-3/4 rounded-[100%_0_0_0] bg-[#14532d]" style={{ opacity: 0.9 }} />
-      <div className="absolute -right-10 bottom-0 h-2/3 w-3/4 rounded-[0_100%_0_0] bg-[#166534]" style={{ opacity: 0.9 }} />
-      <div className="absolute -left-12 bottom-0 h-1/2 w-2/3 rounded-[100%_0_0_0] bg-[#15803d]" style={{ opacity: 0.95 }} />
-      <div className="absolute bottom-[24%] left-[20%] h-[4px] w-12 rotate-[-8deg] rounded bg-[#99e6c4]/50" style={{ left: jitter(5) * 12 }} />
-      <div className="absolute bottom-[28%] left-[45%] h-[3px] w-10 rotate-[5deg] rounded bg-[#99e6c4]/40" />
-    </div>
+    <canvas
+      ref={canvasRef}
+      className="h-20 w-full object-cover"
+      style={{ background: sky, imageRendering: 'pixelated' }}
+    />
   );
 }
 
@@ -279,7 +248,7 @@ export default function MapSetupScreen({
         <section>
           <div className="mb-2 flex items-baseline justify-between">
             <h2 className="text-sm font-bold uppercase tracking-widest text-emerald-400">Choose your land</h2>
-            <span className="text-xs text-stone-400">6 valleys, each with its own mood</span>
+            <span className="text-xs text-stone-400">10 lands, each generated live from its seed</span>
           </div>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {presets.map((preset, i) => {
@@ -296,7 +265,7 @@ export default function MapSetupScreen({
                       : 'border-stone-700 bg-stone-900/70 hover:border-stone-500 hover:bg-stone-800/80'
                   }`}
                 >
-                  <LandscapeArt preset={preset} seed={i * 7 + 3} />
+                  <TerrainPreview preset={preset} seed={i * 7919 + 3} />
                   <div className="flex items-start gap-2 p-2.5">
                     <span className="mt-0.5 text-lg leading-none">{info.emoji}</span>
                     <span className="min-w-0 flex-1">

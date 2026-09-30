@@ -9,6 +9,8 @@ import { getSimRng } from './simRng';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
 import { adjustPollutionLevel } from './dailyEcology';
+import { pushNewEntity } from './simulation/simulationEntities';
+import type { TickContext } from './simulation/simulationTypes';
 
 export interface RivalEventCallbacks {
   pushNews: (state: WorldState, title: string, message: string, type: 'positive' | 'negative' | 'neutral') => void;
@@ -200,6 +202,7 @@ export function tickRivalSettlements(
   state: WorldState,
   allAlive: Entity[],
   callbacks: RivalEventCallbacks,
+  ctx?: TickContext,
 ): void {
   if (!isNewCalendarDayTick(state)) return;
 
@@ -277,8 +280,13 @@ export function tickRivalSettlements(
       const entity = callbacks.createFactionHuman(state, rival.campX, rival.campY, 'rival', rival.id, rival.name);
       rival.entityIds.push(entity.id);
       rival.population++;
-      allAlive.push(entity);
-      indexLivingEntity(state, entity);
+      if (ctx) {
+        pushNewEntity(state, ctx, entity);
+        if (!allAlive.includes(entity)) allAlive.push(entity);
+      } else {
+        allAlive.push(entity);
+        indexLivingEntity(state, entity);
+      }
       callbacks.logEvent(state, 'migration', `${rival.name} welcomed a new family`, rival.name);
     }
   }

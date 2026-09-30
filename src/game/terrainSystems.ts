@@ -1,8 +1,9 @@
 /**
  * Terrain efficiency, spawn placement, adjacency multiplier wrapper.
  */
-import type { Building, WorldState } from './gameTypes';
+import type { Building, TerrainTile, WorldState } from './gameTypes';
 import { BuildingType, TerrainType } from './gameTypes';
+import { tileAt, worldToTile } from './terrain/terrainGrid';
 import {
   buildingUsesAdjacency,
   ensureAdjacencyIndex,
@@ -10,11 +11,11 @@ import {
 } from './adjacencyIndex';
 import { isEntityOnBuilding } from './buildingRotation';
 
-export function getTileAt(state: WorldState, x: number, y: number) {
+/** The projected terrain tile under a world position, or `null` off-map. */
+export function getTileAt(state: WorldState, x: number, y: number): TerrainTile | null {
   if (!state.worldMap) return null;
-  const tx = Math.floor(x / 10);
-  const ty = Math.floor(y / 10);
-  return state.worldMap.tiles[ty]?.[tx] ?? null;
+  const { tx, ty } = worldToTile(x, y);
+  return tileAt(state.worldMap, tx, ty) ?? null;
 }
 
 const UNBUILDABLE_SPAWN_TERRAIN = new Set<TerrainType>([
@@ -65,12 +66,14 @@ export function getTerrainEfficiencyMultiplier(state: WorldState, building: Buil
     case BuildingType.Greenhouse:
       if (type === TerrainType.Grassland) return 1.4;
       if (type === TerrainType.Forest || type === TerrainType.DarkForest) return 0.8;
+      if (type === TerrainType.Desert) return 0.45;
       if (type === TerrainType.Rocky || type === TerrainType.Mountains) return 0.5;
       if (type === TerrainType.Snow) return 0.3;
       return 1.0;
     case BuildingType.LumberMill:
       if (type === TerrainType.Forest || type === TerrainType.DarkForest) return 1.5;
       if (type === TerrainType.Grassland) return 0.9;
+      if (type === TerrainType.Desert) return 0.7;
       if (type === TerrainType.Rocky || type === TerrainType.Mountains) return 0.6;
       return 1.0;
     case BuildingType.Quarry:

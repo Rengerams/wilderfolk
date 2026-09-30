@@ -25,7 +25,7 @@ export const MOUNTAIN_SPRITE_PATHS = [
 
 /**
  * Kept in sync with humanSprites path constants (no import — avoids circular dep).
- * Exported so `tests/humanSprites.maleLadder.test.ts` can assert the sync: a ladder
+ * Exported so `tests/humanSprites.test.ts` can assert the sync: a ladder
  * path missing from this set is neither preloaded nor bottom-anchored.
  *
  * The 16 legacy `human_male_v0…v7` / `human_female_v0…v7` walk sheets used to be listed here and were

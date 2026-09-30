@@ -25,7 +25,6 @@ import { ensureScentGrid, USE_SCENT_GRID } from '../scentGrid';
 /* Worker-side command logic */
 import {
   applyWorkerCommand,
-  extractCommandDelta,
   isWorkerCommand,
   safeExtractCommandDelta,
 } from './commands';
@@ -63,6 +62,25 @@ function postError(
 ): void {
   const response: WorkerResponse = { type: 'error', proto: WORKER_PROTO, message, source };
   self.postMessage(response);
+}
+
+/** Settled once per worker realm — see `ensureNamePoolSettled`. */
+let namePoolSettled: Promise<void> | null = null;
+
+/**
+ * Settle the census name pool once, as a promise, so "the pool is loaded" is one fact rather than a
+ * race (see the call site in `self.onmessage`).
+ *
+ * Named and exported so the contract is discoverable and testable rather than an anonymous promise at
+ * the message boundary. `loadNames` is idempotent and caches its own promise, so a second caller waits
+ * on the same load instead of starting another — including the one inside the `init` handler.
+ */
+export function ensureNamePoolSettled(): Promise<void> {
+  namePoolSettled ??= loadNames().catch(() => {
+    // `loadNames` reports its own failure and leaves the embedded pool installed; a second caller must
+    // not be handed a rejected promise for a load that already has a usable outcome.
+  });
+  return namePoolSettled;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -152,6 +170,30 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
     return;
   }
 
+  // The name pool must be **settled** before any handler can draw from it.
+  //
+  // `nameLoader` installs the ~60-name embedded pool synchronously at module import and swaps in the
+  // full census when its async load lands (`nameLoader.ts`), while `pickFrom` indexes whatever pool
+  // is installed *at that moment*. A birth, immigration or rival named before the swap therefore maps
+  // the same seeded draw to a different name, so one seed did not reproduce one world — and the name
+  // is saved state (`saveSchema.ts`, `entities`). The main thread already awaits the load before
+  // `initGame` (`App.tsx`); the worker did not, which made the divergence depend on chunk timing.
+  //
+  // So the worker waits, and the wait is real rather than advisory: the load crosses several
+  // macrotasks (disk read, then a dynamic import, then `fetch`), so a fire-and-forget call can settle
+  // *between* two pipelined tick messages — in the middle of the burst a birth is processed in. The
+  // wait is one message long in practice, and it cannot wedge the worker: `loadNames` resolves on
+  // every path, including the one that gives up and keeps the embedded pool.
+  void (async () => {
+    try {
+      await ensureNamePoolSettled();
+    } catch (err) {
+      // Unreachable through `loadNames`, which reports its own failure and resolves. Kept so a future
+      // rejection is a worker fault the host can see, not a silently dropped message.
+      postError(`Name pool load failed: ${err instanceof Error ? err.message : String(err)}`, 'general');
+    }
+  })();
+
   try {
     switch (msg.type) {
       case 'init': {
@@ -159,9 +201,8 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         resetWorkerSession(msg.world);
         bufferPool = headlessMode ? null : new RenderBufferPool();
 
-        loadNames().catch((err) => {
-          console.warn('[Worker] Census names background load failed:', err);
-        });
+        // The census name pool is already being settled by the gate at the top of this handler, which
+        // owns that contract in one place — this branch used to start a second, unawaited load.
 
         const ready: WorkerResponse = {
           type: 'ready',
@@ -220,7 +261,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
             type: 'commandResult',
             proto: WORKER_PROTO,
             ok: false,
-            delta: extractCommandDelta(world),
+            delta: safeExtractCommandDelta(world),
             reason: 'Invalid worker command',
           };
           self.postMessage(response);
@@ -231,7 +272,13 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         let delta;
         try {
           world = applyWorkerCommand(world, msg.cmd);
-          delta = extractCommandDelta(world);
+          // Delta extraction moved **out** of this try deliberately. It used to sit here, so a throw
+          // from `extractCommandDelta` reached the outer catch and was reported as `source: 'tick'`
+          // for a message that was a command — and the host answers a tick-sourced error with
+          // `fallbackFromWorker`, tearing down a worker whose world had committed the command
+          // perfectly well. The rollback below is about a failed *command*; a failed *pack* is a
+          // delta problem and `safeExtractCommandDelta` already owns that fallback.
+          delta = safeExtractCommandDelta(world);
         } catch (err) {
           applySimPrep(world, prepBackup);
           const response: WorkerResponse = {

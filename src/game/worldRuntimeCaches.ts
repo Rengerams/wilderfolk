@@ -15,12 +15,18 @@ export function invalidateWorldRuntimeCaches(world: WorldState): void {
   invalidateCachedEntityByType(world);
   invalidateEntityByIdMap(world);
 
-  // 2. Drop stripped spatial hash grid prototypes
+  // 2. Drop stripped spatial hash grids and the derived beauty field.
   world.grassGrid = undefined;
   world.mobileGrid = undefined;
   world.humanSocialGrid = undefined;
   world.treeGrid = undefined;
   world.scentGrid = undefined;
+  // `beautyGrid` is derived daily from the decor layout (`beautyGrid.ts`), held as a typed array, and
+  // read by the sim gated on `state.beautyGrid != null` (`humanTick`). It was missing here while
+  // `saveLoad` stripped it as a runtime field and `workerBoundary.closure.test.ts` listed it as one, so
+  // this function did not in fact strip every runtime cache — a live `Int16Array` could ride an export
+  // clone, and nothing forced the load path to recompute it.
+  world.beautyGrid = undefined;
 
   // 3. Drop road index and adjacency graphs
   world.roadAvoidance = undefined;

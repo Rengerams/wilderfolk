@@ -195,8 +195,25 @@ function SettlersTable({
             <tr
               key={s.id}
               onClick={onSelect ? () => onSelect(s.id) : undefined}
+              // The row is the only way to open the "Why this settler…" panel, and it was mouse-only:
+              // no role, no tab stop and no key handler, so the panel was unreachable by keyboard or
+              // assistive tech. `role="button"` + `tabIndex` + Enter/Space is the shape the mini-map
+              // already uses for its own click-only canvas (2026-09-21 audit, D-9). The label is
+              // explicit because a row's accessible name would otherwise be every cell concatenated.
+              role={onSelect ? 'button' : undefined}
+              tabIndex={onSelect ? 0 : undefined}
+              aria-label={onSelect ? `Settler ${citizenGivenName(s)} — open details` : undefined}
+              onKeyDown={
+                onSelect
+                  ? (event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return;
+                      event.preventDefault();
+                      onSelect(s.id);
+                    }
+                  : undefined
+              }
               className={`border-b border-stone-800/70 ${
-                onSelect ? 'cursor-pointer hover:bg-stone-800/60' : ''
+                onSelect ? 'cursor-pointer hover:bg-stone-800/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400/70' : ''
               } ${selectedId === s.id ? 'bg-stone-800/70' : ''}`}
             >
               <td className="py-1 pr-2 text-stone-100">

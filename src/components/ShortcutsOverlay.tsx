@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { useModalFocus } from '../hooks/useModalFocus';
+import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 
 export interface Shortcut {
   keys: string;
@@ -36,19 +36,7 @@ export default function ShortcutsOverlay({ onClose }: Props) {
   // the hand-rolled Tab trap (and its private first/last ordering) are gone; `data-autofocus` marks
   // the close button the old effect focused explicitly (2026-09-20 audit, A5).
   const dialogRef = useModalFocus<HTMLDivElement>();
-
-  // ⌨️ ESC key handler
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  useOverlayKeyboard('shortcuts-overlay', onClose);
 
   return (
     <div

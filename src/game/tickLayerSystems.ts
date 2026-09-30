@@ -64,9 +64,9 @@ import { updateWeather, updateDisasters } from './worldEvents';
 import { updateResearch } from './research';
 import { tickTradeCaravans } from './tradeCaravans';
 import { createEntity } from './entityFactory';
-import { indexEntity } from './entityIndex';
 import { getSimRng } from './simRng';
 import { faceVelocity } from './simulation/movementSteering';
+import { tileTypeAt } from './terrain/terrainGrid';
 
 /** Systems layer interval (ticks). Keep in sync with WILDLIFE_LAYER_INTERVAL. */
 export const LAYER_SYSTEMS_INTERVAL = WILDLIFE_LAYER_INTERVAL;
@@ -123,7 +123,7 @@ const isDeepWaterTile = (t: TerrainType | undefined): boolean =>
 
 /** Occasional predator migration to keep wolf pressure present. */
 function tickWolfRecruitment(state: WorldState, ctx: TickContext): void {
-  const { width, height, byType, newEntities, entityById } = ctx;
+  const { width, height, byType, newEntities } = ctx;
 
   // Cheap gate first: the whole function can only ever fire on a wolf-recruit production tick
   // (`isProductionTick` requires `getTickOfDay(tick) === 0`), i.e. once per 21 days, and the `||`
@@ -163,8 +163,7 @@ function tickWolfRecruitment(state: WorldState, ctx: TickContext): void {
     state.nextEntityId++,
     SPECIES_CONFIG[EntityType.Wolf].spawnEnergy,
   );
-  newEntities.push(wolf);
-  indexEntity(entityById, wolf);
+  pushNewEntity(state, ctx, wolf);
   addFloatingText(state, sx, sy, 'A lone wolf enters', '#6b7280');
 }
 
@@ -662,11 +661,11 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       if (worldMap) {
         const nextX = entity.x + entity.vx;
         const nextY = entity.y + entity.vy;
-        const tileAt = (px: number, py: number): TerrainType | undefined =>
-          worldMap.tiles[Math.floor(py / TERRAIN_TILE_SIZE)]?.[Math.floor(px / TERRAIN_TILE_SIZE)]?.type;
-        if (isDeepWaterTile(tileAt(nextX, nextY))) {
-          const xBlocked = isDeepWaterTile(tileAt(nextX, entity.y));
-          const yBlocked = isDeepWaterTile(tileAt(entity.x, nextY));
+        const tileTypeNear = (px: number, py: number): TerrainType | undefined =>
+          tileTypeAt(worldMap, Math.floor(px / TERRAIN_TILE_SIZE), Math.floor(py / TERRAIN_TILE_SIZE)) ?? undefined;
+        if (isDeepWaterTile(tileTypeNear(nextX, nextY))) {
+          const xBlocked = isDeepWaterTile(tileTypeNear(nextX, entity.y));
+          const yBlocked = isDeepWaterTile(tileTypeNear(entity.x, nextY));
           if (xBlocked && !yBlocked) {
             entity.vx = 0;
           } else if (yBlocked && !xBlocked) {

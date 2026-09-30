@@ -8,8 +8,13 @@ Purpose: one decision → one owner module → one definition of each function.
 | Decision | True owner | Cadence | Key entry functions |
 |---|---|---|---|
 | Tick orchestration | `gameTick.ts` | fixed 4 layers | `gameTick` |
-| Movement / pathfinding | `tickLayerRealtime.ts` + `humanMovement.ts` | realtime | movement helpers |
+| Realtime pulse | `tickLayerRealtime.ts` | realtime (every tick) | `tickLayerRealtime` |
+| Assignment pulse | `tickLayerAssign.ts` | assignment (~4×/day) | `tickLayerAssign` |
+| Daily pulse | `tickLayerDaily.ts` | daily (once per colony day) | `tickLayerDaily` |
+| Human tick pulse | `humanTick.ts` | realtime | `tickHumans` |
+| Movement / pathfinding | `humanMovement.ts` | realtime | movement helpers |
 | Workforce / jobs | `workforce.ts` + `buildingStaffingActions.ts` | assignment / command | `assignStaffWorkerToBuilding`, `assignMissingWorkers`, … |
+| Workforce policy preset | `workforcePolicy.ts` | player-command + assignment | `getWorkforcePolicy`, `setWorkforcePolicy`, `jobBuildingPriorityForPolicy` |
 | Generic assign/remove command route | `buildingActionRouting.ts` | player-command | `assignIdleWorkerToBuilding`, `removeWorkerFromBuilding` (routes to staffing or residency) |
 | Housing / residence | `residencyOccupancy.ts` / `residencySelection.ts` / `residencyReconciliation.ts` / `buildingResidencyActions.ts` | assignment / command | `countResidentsInBuilding`, `syncPartnerResidence`, `isResidenceOccupantEntity` (the rule the inspector reads too), … |
 | Construction progress | `dailyBuildingEconomy.ts` | daily | construction progress in daily economy |
@@ -144,7 +149,6 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Alive-entity catalog lookups | `entityCatalog.ts` | per tick / UI lookup | `resolveAliveHumans`, `resolveAliveByType`, `rebuild` |
 | Render SoA pack, sidecar and buffer layout | `simBuffers/packRenderSoA.ts` + `simBuffers/entityRenderMeta.ts` + `simBuffers/schema.ts` + `simBuffers/renderSoAEntities.ts` + `simBuffers/renderSoAReader.ts` | per tick (worker packs, host reads) | `packRenderSoA`, `selectRenderEntities`, `packEntityRenderMeta`, `buildRenderEntityShim`, `renderBufferByteLength`, `updateRenderSoABuckets`, `createRenderSoAReader`, `validateRenderBufferLayout` |
 | Entity draw cache (viewport) | `renderer/entityCache.ts` | render pass | `updateCachedEntities`, `updateCachedEntitiesFromSoA`, `resetEntityCaches` |
-| Pixi terrain paint | `renderer/pixiTerrain.ts` | render pass (cached) | `renderPixiTerrain`, `resetPixiTerrain` |
 | Weather, season particles and terrain draw caches | `renderer/weather.ts` + `renderer/terrain.ts` | render pass | `drawWeather`, `drawSeasonParticles`, `drawWaterShimmer`, `drawGround`, `resetWeatherCaches` |
 | Ambient beds and track playback | `audio/ambient.ts` + `audio/trackPlayer.ts` + `audio/backgroundMusic.ts` + `audio/introMusic.ts` | UI events + time of day (intro vs gameplay) | `playLoopBed`, `rescheduleOneShot`, `playLoop`, `crossfadeLoop`, `start`, `ensureIntroAudio` |
 | Dashboard projections | `dashboardData.ts` | UI (read-only projection) | `collectDashboard`, `explainSettler` |
@@ -215,9 +219,10 @@ the 2026-09-16 pass. Every row below is a module the graph shows owning function
 named, or a rule whose owner moved during the campaign. Cadence is taken from the observed call
 sites. Two conventions worth stating once:
 
-- **Row order is precedence.** The graph matches a function to the first row that names it, so a
-  module named only in a parenthetical note in a later row never overrides that module's own row
-  above it.
+- **Row order is precedence.** The graph matches a function to the first row that names **its
+  file** in the owner cell. A name in the entry-functions cell only attaches to a function that
+  lives in that row's modules — `add` in `resourceUtils.ts` is not `add` in `householdComposition.ts`.
+  A file mentioned only in `scheduledFrom` does not become that decision's module.
 - **A re-export does not move ownership.** `buildingGeometry.ts` owns the centre/footprint
   convention; `placementUtils.ts` re-exports its pair so the existing consumers keep their import
   path, and `logisticsOverlayData.ts` reads it through that re-export.
@@ -246,12 +251,32 @@ sites. Two conventions worth stating once:
 | Moon Howler saved-form shape | `gameTypes.ts` (declared beside `Entity`, which carries it) | load, full-moon transform and revert | `MoonHowlerSavedState` |
 | Transient-feedback dismissal ledgers and their caps | `hooks/useTransientGameFeedback.ts` | UI events; the ledgers cross the worker boundary and are saved, so the caps are what keep them bounded | `MAX_DISMISSED_NOTIFICATION_IDS`, `MAX_DISMISSED_BIG_NEWS_IDS`, `MAX_DISMISSED_ACTIVE_EVENT_IDS` |
 
+## Owners recorded by the 2026-09-21 call-graph pass
+
+`docs/tools/call-graph.json` (generated 2026-09-21T00:05:33) reported 2614/2614 functions with a recorded owner. That number was produced by matching a **bare function name** to the first row that mentioned it, anywhere: `scheduledFrom`, the decision key, or a sibling file. Twelve names were stolen across files. The ones that mattered:
+
+- `start` — `gameLoop.ts` / `App.tsx` sat under "Ambient beds and track playback"
+- `tick` — `scentGrid.ts` / `IntroScreen.tsx` / `renderSoAReader.ts` sat under **housing**
+- `add` — `householdComposition.ts` sat under "Economy / resources"
+- `rebuild` — `adjacencyIndex.ts` / `spatialGrid.ts` sat under "Alive-entity catalog lookups"
+- `draw` — `gameLoop.ts` / `MiniMap.tsx` sat under "Entity draw cache"
+
+The explorer now attaches an entry-function name only when the function lives in a module named in that row's **owner** cell. `scheduledFrom` is the scheduler, not the owner. Registry owner cells are `module.ts — function list`; only the prefix before the em dash is the module list, so "progress advance executes from humanTick.ts" does not make `humanTick.ts` a courtship module. One function, one owner.
+
+`tickLayerAssign.ts` was the only `src/` module in that snapshot with **no** owner-cell mention (it appeared only as `tickLayerAssign.syncResidenceOccupants` in registry `scheduledFrom` strings). After the matcher stopped reading `scheduledFrom`, `tickLayerDaily.ts` was in the same boat: it lived only in the facade table (which the explorer does not parse) and in other rows' cadence notes. Both pulse files are now rows in the first table, schedule facades like each other. `tickLayerRealtime.ts` moved out of the Movement row into its own Realtime pulse row for the same reason: the file schedules owners, it does not own movement policy.
+
+| Decision | True owner | Cadence / called from | Key entry functions |
+|---|---|---|---|
+| In-game roadmap copy and panel | `roadmapContent.ts` + `RoadmapPanel.tsx` | UI (read-only) | `RoadmapPanel` |
+
 ## Protected facades (re-export / schedule only — no new policy)
 
 | Facade | May do | Must not do |
 |---|---|---|
 | `dayCycle.ts` | re-export clock/schedule/residency | new lifecycle/economy rules |
 | `buildingActions.ts` | re-export focused action owners | new command policy |
+| `tickLayerRealtime.ts` | ordered realtime schedule | own movement / moon-howler / grid rules |
+| `tickLayerAssign.ts` | ordered assignment schedule | own housing / workforce rules |
 | `tickLayerDaily.ts` | ordered daily schedule | own winter heating / domain rules |
 | `humanTick.ts` | priority / call owners | own affair establishment / marriage finalize |
 | `App.tsx` | composition / wiring | simulation mutations |

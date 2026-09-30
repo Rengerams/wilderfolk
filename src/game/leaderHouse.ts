@@ -10,6 +10,7 @@ import { logEvent } from './eventLog';
 import { collectMinorHousehold } from './householdComposition';
 import { assignMissingResidences } from './dayCycle';
 import { isPlayerHuman } from './playerHuman';
+import { isImprisoned } from './residencyOccupancy';
 
 export { LEADER_OCCUPATION };
 
@@ -43,7 +44,7 @@ export function collectLeaderHousehold(state: WorldState): Entity[] {
   const livingHumans = state.entities.filter(
     (e) => e.alive && isPlayerHuman(e),
   );
-  return collectMinorHousehold(leader, livingHumans);
+  return collectMinorHousehold(leader, livingHumans).filter((member) => !isImprisoned(member));
 }
 
 export function applyLeaderOccupation(state: WorldState, prevLeaderId: number | null): void {

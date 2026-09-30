@@ -66,7 +66,16 @@ export type WorkerUiPatch = Pick<
   | 'tutorialSeen'
 >;
 
-/** Max ticks in flight — reserve one pool slot for the display buffer held on main. */
+/**
+ * Max ticks in flight — reserve one pool slot for the display buffer held on main.
+ *
+ * The command render refresh takes a slot of its own as well, and it is *not* covered by this
+ * subtraction: one slot is the display buffer, this many are ticks, and the command's arrives when
+ * the pool is already at its limit. `canPipelineTick` therefore also refuses to start a tick while a
+ * command is outstanding, which is what actually keeps the accounting closed. Reducing this to
+ * `POOL - 2` would be the other way to reserve the slot, at the cost of a pipeline stage on every
+ * tick rather than only around a player command.
+ */
 export const MAX_PIPELINE_DEPTH = Math.max(0, RENDER_BUFFER_POOL_SIZE - 1);
 
 export class GameWorkerHost {
@@ -106,6 +115,15 @@ export class GameWorkerHost {
     }
     if (RENDER_BUFFER_POOL_SIZE < 2) {
       throw new Error(`RENDER_BUFFER_POOL_SIZE must be >= 2, got ${RENDER_BUFFER_POOL_SIZE}`);
+    }
+    // Refuse a re-init rather than silently orphaning the running worker. `dispose()` below tears the
+    // old one down, but only for a host that reaches it — a second `init()` on a host that is mid-handshake
+    // or already used would otherwise `terminate()` a worker whose ticks nobody has unsubscribed, and the
+    // caller would see a resolved promise for a session that is gone. Every in-tree caller constructs a
+    // fresh host per boot (`GameLoop`'s constructor and `attemptWorkerRecovery`), so this is a guard, not
+    // a supported path.
+    if (this.worker != null || this.ready) {
+      throw new Error('GameWorkerHost.init() called on a host that is already initialized');
     }
     this.dispose();
     const initGen = this.generation;
@@ -267,8 +285,27 @@ export class GameWorkerHost {
     return this.ticksInFlight > 0;
   }
 
+  /**
+   * Whether another tick may be posted right now.
+   *
+   * Two conditions, and the second is not cosmetic:
+   *
+   * 1. **A free render-buffer slot.** `MAX_PIPELINE_DEPTH` reserves one slot for the buffer held on
+   *    main for drawing; each tick in flight holds another. Exceeding the pool is not a soft failure —
+   *    the worker rolls the tick back and posts a `tick`-sourced error, which the host treats as fatal
+   *    and answers with `fallbackFromWorker`, so the sim worker is torn down mid-session.
+   * 2. **No command in flight.** A command result carries its own render refresh, and the worker
+   *    acquires a pool slot for it (`gameWorker.ts`, the `command` case). That slot is *additional* to
+   *    the reserved display buffer and to every tick in flight, so with `MAX_PIPELINE_DEPTH` ticks
+   *    outstanding (the pool held exactly at its limit) a command takes the pool to its size and any
+   *    further tick finds nothing free — the fatal case above. Counting the command here makes the
+   *    host stop posting ticks while one is outstanding, which is why the accounting closes.
+   *
+   * The command is never dropped for this: `GameLoop.applyCommand` queues it on its own chain and
+   * posts it as soon as this returns true.
+   */
   canPipelineTick(): boolean {
-    return this.ticksInFlight < MAX_PIPELINE_DEPTH;
+    return this.ticksInFlight < MAX_PIPELINE_DEPTH && this.pendingCommand == null;
   }
 
   hasCommandInFlight(): boolean {

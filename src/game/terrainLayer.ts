@@ -2,6 +2,7 @@
 
 
 import { TerrainType, TERRAIN_TILE_SIZE, type MapPreset, type Season, type TerrainTile, type WorldMap } from './gameTypes';
+import { tileAt } from './terrain/terrainGrid';
 import {
   createCanvasSurface,
   disposeCanvasSurface,
@@ -9,7 +10,7 @@ import {
   type CanvasContext2d,
   type CanvasSurface,
 } from './canvasLayer';
-import { getSprite, MOUNTAIN_SPRITE_PATHS } from './spriteLoader';
+import { getSprite } from './spriteLoader';
 import {
   ATLAS_TILE_SIZE,
   atlasSourceRect,
@@ -34,6 +35,7 @@ const TERRAIN_FILL_PATH: Partial<Record<TerrainType, string>> = {
   [TerrainType.Hills]: '/sprites/terrain/dirt.png',
   [TerrainType.Rocky]: '/sprites/terrain/dirt.png',
   [TerrainType.Beach]: '/sprites/terrain/sand_fill.png',
+  [TerrainType.Desert]: '/sprites/terrain/sand_fill.png',
   [TerrainType.RiverBank]: '/sprites/terrain/sand_fill.png',
   [TerrainType.ShallowWater]: '/sprites/terrain/water_shallow_fill.png',
   [TerrainType.River]: '/sprites/terrain/water_deep_fill.png',
@@ -61,6 +63,7 @@ function fillFamily(type: TerrainType): FillFamily {
     case TerrainType.Mountains:
       return 'dirt';
     case TerrainType.Beach:
+    case TerrainType.Desert:
     case TerrainType.RiverBank:
     case TerrainType.Snow:
       return 'sand';
@@ -257,10 +260,8 @@ export interface TerrainDecorCache {
   height: number;
   seed: number;
   preset: string;
-  /** {@link getTerrainRevision} when baked — the decor pass reads `tile.type` too. */
+  /** {@link getTerrainRevision} when baked — a post-worldgen map edit still forces a re-bake. */
   revision: number;
-  props: boolean;
-  mountains: boolean;
 }
 
 /**
@@ -329,19 +330,6 @@ export function terrainLayerNeedsRebuild(
     || (cache.seasonBlendT ?? 0) !== (seasonBlendT ?? 0);
 }
 
-function landscapePropSpritesReady(): boolean {
-  return (
-    getSprite('/sprites/bush.png') != null
-    || getSprite('/sprites/stump.png') != null
-    || getSprite('/sprites/grass.png') != null
-    || getSprite('/sprites/grass2.png') != null
-  );
-}
-
-function mountainSpritesReady(): boolean {
-  return MOUNTAIN_SPRITE_PATHS.every((path) => getSprite(path) != null);
-}
-
 export function terrainDecorNeedsRebuild(
   cache: TerrainDecorCache | null,
   map: WorldMap,
@@ -349,8 +337,6 @@ export function terrainDecorNeedsRebuild(
   worldHeight: number,
 ): boolean {
   if (!cache) return true;
-  if (landscapePropSpritesReady() && !cache.props) return true;
-  if (mountainSpritesReady() && !cache.mountains) return true;
   return cache.width !== worldWidth
     || cache.height !== worldHeight
     || cache.seed !== map.seed
@@ -415,6 +401,7 @@ function tileRelief(type: TerrainType, elevation: number): number {
     case TerrainType.River: return 0.12 + e * 0.08;
     case TerrainType.Beach:
     case TerrainType.RiverBank: return 0.28 + e * 0.1;
+    case TerrainType.Desert: return 0.32 + e * 0.12;
     case TerrainType.Grassland: return 0.4 + e * 0.2;
     case TerrainType.Forest: return 0.48 + e * 0.22;
     case TerrainType.DarkForest: return 0.5 + e * 0.25;
@@ -427,13 +414,13 @@ function tileRelief(type: TerrainType, elevation: number): number {
 }
 
 function neighborRelief(map: WorldMap, tx: number, ty: number, fallback: number): number {
-  const tile = map.tiles[ty]?.[tx];
+  const tile = tileAt(map, tx, ty);
   if (!tile) return fallback;
   return tileRelief(tile.type, tile.elevation);
 }
 
 type TileEntry = {
-  tile: NonNullable<WorldMap['tiles'][number][number]>;
+  tile: TerrainTile;
   tx: number;
   ty: number;
   x0: number;
@@ -455,7 +442,7 @@ function *terrainTiles(
   const endTy = viewRect ? Math.min(map.height, Math.ceil((viewRect.y + viewRect.height) / TERRAIN_TILE_SIZE)) : map.height;
   for (let ty = startTy; ty < endTy; ty++) {
     for (let tx = startTx; tx < endTx; tx++) {
-      const tile = map.tiles[ty]?.[tx];
+      const tile = tileAt(map, tx, ty);
       if (!tile) continue;
       const x0 = tx * tileSize - originX;
       const y0 = ty * tileSize - originY;
@@ -469,15 +456,15 @@ function forEachCardinalNeighbor(
   map: WorldMap,
   tx: number,
   ty: number,
-  cb: (dir: 'n' | 's' | 'w' | 'e', nb: NonNullable<WorldMap['tiles'][number][number]>) => void,
+  cb: (dir: 'n' | 's' | 'w' | 'e', nb: TerrainTile) => void,
 ): void {
-  const north = map.tiles[ty - 1]?.[tx];
+  const north = tileAt(map, tx, ty - 1);
   if (north) cb('n', north);
-  const south = map.tiles[ty + 1]?.[tx];
+  const south = tileAt(map, tx, ty + 1);
   if (south) cb('s', south);
-  const west = map.tiles[ty]?.[tx - 1];
+  const west = tileAt(map, tx - 1, ty);
   if (west) cb('w', west);
-  const east = map.tiles[ty]?.[tx + 1];
+  const east = tileAt(map, tx + 1, ty);
   if (east) cb('e', east);
 }
 
@@ -556,7 +543,7 @@ export function bakeTerrainLayer(
       ? `rgba(255,255,255,${Math.min(0.22, light * 0.35)})`
       : `rgba(0,0,0,${Math.min(0.35, -light * 0.45)})`;
 
-    const atlasPick = atlasReady ? pickAtlasTile(map, tx, ty) : null;
+    const atlasPick = atlasReady ? pickAtlasTile(map, tx, ty, tile) : null;
     const atlasImg = atlasPick ? getSprite(TERRAIN_ATLAS_PATH) : null;
     const stamped = atlasImg && atlasPick
       ? drawAtlasTile(ctx, atlasImg, atlasPick, x0, y0, fillW, fillH)
@@ -566,7 +553,7 @@ export function bakeTerrainLayer(
     // for Beach **and** RiverBank, while `pickAtlasTile` returns null for Beach (its family is
     // not in the atlas). Nesting this under `atlasPick` therefore made the beach half of the
     // mask — the material it exists for — unreachable (audit `visuals-looks.md` D8).
-    const overlayPick = overlayReady ? pickSandWaterOverlay(map, tx, ty) : null;
+    const overlayPick = overlayReady ? pickSandWaterOverlay(map, tx, ty, tile) : null;
     const overlayImg = overlayPick ? getSprite(SAND_WATER_OVERLAY_PATH) : null;
 
     if (atlasPick) {
@@ -587,10 +574,10 @@ export function bakeTerrainLayer(
         drawSandWaterOverlay(ctx, overlayImg, overlayPick, x0, y0, fillW, fillH);
       }
     } else {
-      const north = map.tiles[ty - 1]?.[tx];
-      const southT = map.tiles[ty + 1]?.[tx];
-      const west = map.tiles[ty]?.[tx - 1];
-      const eastT = map.tiles[ty]?.[tx + 1];
+      const north = tileAt(map, tx, ty - 1);
+      const southT = tileAt(map, tx, ty + 1);
+      const west = tileAt(map, tx - 1, ty);
+      const eastT = tileAt(map, tx + 1, ty);
       if (north) blendNeighborEdge(ctx, tile.type, north.type, x0, y0, fillW, fillH, tx, ty, 'n', tileSize);
       if (southT) blendNeighborEdge(ctx, tile.type, southT.type, x0, y0, fillW, fillH, tx, ty, 's', tileSize);
       if (west) blendNeighborEdge(ctx, tile.type, west.type, x0, y0, fillW, fillH, tx, ty, 'w', tileSize);
@@ -619,7 +606,7 @@ export function bakeTerrainLayer(
 
     if (!atlasPick) {
       if (!stamped) {
-        const east = map.tiles[ty]?.[tx + 1];
+        const east = tileAt(map, tx + 1, ty);
         if (east && east.type !== tile.type) {
           const a = parseTerrainRgb(seasonColorAt(tile.type, tile.variation, map.preset));
           const b = parseTerrainRgb(seasonColorAt(east.type, east.variation, map.preset));
@@ -628,7 +615,7 @@ export function bakeTerrainLayer(
           ctx.fillRect(x0 + fillW - 1, y0, 2, fillH);
           ctx.globalAlpha = 1;
         }
-        const south = map.tiles[ty + 1]?.[tx];
+        const south = tileAt(map, tx, ty + 1);
         if (south && south.type !== tile.type) {
           const a = parseTerrainRgb(seasonColorAt(tile.type, tile.variation, map.preset));
           const b = parseTerrainRgb(seasonColorAt(south.type, south.variation, map.preset));
@@ -858,6 +845,18 @@ function applySeasonWash(
   ctx.restore();
 }
 
+/**
+ * Bake the decor overlay that sits above the per-pixel ground: the river course stroke and the
+ * map-edge frame.
+ *
+ * The tile-era ground passes that used to live here — dark rims around every water tile, snow
+ * mounds, sand ripples, meadow flowers, rock clusters, the hash-scattered prop sprites and the
+ * mountain-peak overlays — were deleted. They were authored against the retired tile generator's
+ * flat per-tile fills; drawn over the smooth Whittaker bake they read as a visible square grid
+ * plus flat stickers, which is exactly the complaint that retired them. Ground detail now belongs
+ * to the per-pixel shader alone. The river stroke survives because it is the only thing that keeps
+ * a river's course legible at far zoom and it complements the shader.
+ */
 export function bakeTerrainDecor(map: WorldMap, worldWidth: number, worldHeight: number): TerrainDecorCache {
   const w = Math.max(1, Math.floor(worldWidth));
   const h = Math.max(1, Math.floor(worldHeight));
@@ -867,7 +866,7 @@ export function bakeTerrainDecor(map: WorldMap, worldWidth: number, worldHeight:
   if (map.rivers) {
     for (const river of map.rivers) {
       if (river.length < 2) continue;
-      ctx.strokeStyle = 'rgba(20, 50, 80, 0.22)';
+      ctx.strokeStyle = 'rgba(24, 54, 86, 0.16)';
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -877,27 +876,6 @@ export function bakeTerrainDecor(map: WorldMap, worldWidth: number, worldHeight:
       ctx.stroke();
     }
   }
-
-  for (const { tile, tx, ty, x0, y0 } of terrainTiles(map, TERRAIN_TILE_SIZE, w, h)) {
-    if (!isWater(tile.type)) continue;
-    forEachCardinalNeighbor(map, tx, ty, (dir, nb) => {
-      if (isWater(nb.type)) return;
-      const rim = 2;
-      ctx.fillStyle = dir === 'n' ? 'rgba(38, 68, 58, 0.32)' : 'rgba(38, 68, 58, 0.24)';
-      if (dir === 'n') ctx.fillRect(x0, y0, TERRAIN_TILE_SIZE, rim);
-      else if (dir === 's') ctx.fillRect(x0, y0 + TERRAIN_TILE_SIZE - rim, TERRAIN_TILE_SIZE, rim);
-      else if (dir === 'w') ctx.fillRect(x0, y0, rim, TERRAIN_TILE_SIZE);
-      else ctx.fillRect(x0 + TERRAIN_TILE_SIZE - rim, y0, rim, TERRAIN_TILE_SIZE);
-      ctx.fillStyle = 'rgba(33, 58, 52, 0.15)';
-      if (dir === 'n') ctx.fillRect(x0, y0 + rim, TERRAIN_TILE_SIZE, rim);
-      else if (dir === 's') ctx.fillRect(x0, y0 + TERRAIN_TILE_SIZE - rim * 2, TERRAIN_TILE_SIZE, rim);
-      else if (dir === 'w') ctx.fillRect(x0 + rim, y0, rim, TERRAIN_TILE_SIZE);
-      else ctx.fillRect(x0 + TERRAIN_TILE_SIZE - rim * 2, y0, rim, TERRAIN_TILE_SIZE);
-    });
-  }
-
-  stampLandscapeProps(ctx, map, w, h);
-  stampMountainPeaks(ctx, map, w, h);
 
   ctx.strokeStyle = 'rgba(0,0,0,0.45)';
   ctx.lineWidth = 4;
@@ -914,208 +892,6 @@ export function bakeTerrainDecor(map: WorldMap, worldWidth: number, worldHeight:
     seed: map.seed,
     preset: map.preset,
     revision: getTerrainRevision(),
-    props: landscapePropSpritesReady(),
-    mountains: mountainSpritesReady(),
   };
 }
 
-function stampPropSprite(
-  ctx: CanvasContext2d,
-  path: string,
-  wx: number,
-  wy: number,
-  drawW: number,
-  drawH: number,
-  flipX: boolean,
-): void {
-  const img = getSprite(path);
-  if (!img) return;
-  const iw = img.naturalWidth || (img as HTMLImageElement).width || 1;
-  const ih = img.naturalHeight || (img as HTMLImageElement).height || 1;
-  ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.2)';
-  ctx.beginPath();
-  ctx.ellipse(wx + 1, wy + drawH * 0.12, drawW * 0.35, drawH * 0.12, 0.1, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.translate(wx, wy);
-  if (flipX) {
-    ctx.scale(-1, 1);
-    ctx.drawImage(img as CanvasImageSource, 0, 0, iw, ih, -drawW / 2, -drawH * 0.85, drawW, drawH);
-  } else {
-    ctx.drawImage(img as CanvasImageSource, 0, 0, iw, ih, -drawW / 2, -drawH * 0.85, drawW, drawH);
-  }
-  ctx.restore();
-}
-
-function stampLandscapeProps(
-  ctx: CanvasContext2d,
-  map: WorldMap,
-  worldW: number,
-  worldH: number,
-): void {
-  const tileSize = TERRAIN_TILE_SIZE;
-  const seed = typeof map.seed === 'number' ? map.seed : 1;
-  const bush = '/sprites/bush.png';
-  const stump = '/sprites/stump.png';
-  const grassTuft = '/sprites/grass.png';
-  const grassTuft2 = '/sprites/grass2.png';
-
-  for (let ty = 0; ty < map.height; ty++) {
-    for (let tx = 0; tx < map.width; tx++) {
-      const tile = map.tiles[ty]?.[tx];
-      if (!tile || isWater(tile.type)) continue;
-      const r0 = hash01(tx, ty, seed);
-      const r1 = hash01(tx + 3, ty + 7, seed + 11);
-      const r2 = hash01(tx * 5, ty * 3, seed + 29);
-      const cx = tx * tileSize + tileSize * (0.25 + r0 * 0.5);
-      const cy = ty * tileSize + tileSize * (0.35 + r1 * 0.45)
-        - reliefY(tile.type, tile.elevation) * tileSize;
-      if (cx < 8 || cy < 8 || cx > worldW - 8 || cy > worldH - 8) continue;
-
-      if (tile.type === TerrainType.Snow) {
-        if (r0 > 0.12) continue;
-        drawSnowMound(ctx, cx, cy, 4 + r2 * 5, r1);
-        continue;
-      }
-      if (tile.type === TerrainType.Beach) {
-        if (r0 > 0.1) continue;
-        drawSandRipple(ctx, cx, cy, 8 + r2 * 6, r1 > 0.5);
-        continue;
-      }
-
-      const fam = fillFamily(tile.type);
-      if (fam !== 'grass' && fam !== 'dirt') continue;
-
-      const density = fam === 'grass'
-        ? (tile.type === TerrainType.DarkForest
-          ? 0.48
-          : tile.type === TerrainType.Forest
-            ? 0.36
-            : 0.16)
-        : 0.1;
-      if (r0 > density) continue;
-
-      const flip = r1 > 0.5;
-      if (fam === 'grass') {
-        if (tile.type === TerrainType.Forest || tile.type === TerrainType.DarkForest) {
-          if (r1 < 0.35) {
-            stampPropSprite(ctx, stump, cx, cy, 11 + r2 * 6, 8 + r2 * 4, flip);
-          } else if (r1 < 0.75) {
-            stampPropSprite(ctx, bush, cx, cy, 12 + r2 * 8, 10 + r2 * 5, flip);
-          } else {
-            stampPropSprite(ctx, r2 > 0.5 ? grassTuft2 : grassTuft, cx, cy, 9 + r2 * 5, 8 + r2 * 4, flip);
-          }
-          if (tile.type === TerrainType.DarkForest && r2 > 0.55) {
-            const cx2 = cx + (r1 - 0.5) * tileSize * 0.8;
-            const cy2 = cy + (r0 - 0.5) * tileSize * 0.6;
-            stampPropSprite(ctx, bush, cx2, cy2, 10, 8, !flip);
-          }
-        } else {
-          stampPropSprite(ctx, r1 > 0.5 ? grassTuft : grassTuft2, cx, cy, 8 + r2 * 5, 7 + r2 * 4, flip);
-          if (r2 < 0.3 && tile.type === TerrainType.Grassland) {
-            drawMeadowFlower(ctx, cx + (r1 - 0.5) * 7, cy - 2 + (r0 - 0.5) * 5, r2);
-          }
-        }
-      } else if (fam === 'dirt') {
-        if (r1 < 0.4 && getSprite(stump)) {
-          stampPropSprite(ctx, stump, cx, cy, 9 + r2 * 4, 7 + r2 * 3, flip);
-        } else {
-          drawRockCluster(ctx, cx, cy, r0, r1, r2);
-        }
-      }
-    }
-  }
-}
-
-function stampMountainPeaks(
-  ctx: CanvasContext2d,
-  map: WorldMap,
-  worldW: number,
-  worldH: number,
-): void {
-  const tileSize = TERRAIN_TILE_SIZE;
-  const seed = typeof map.seed === 'number' ? map.seed : 1;
-
-  for (let ty = 0; ty < map.height; ty++) {
-    for (let tx = 0; tx < map.width; tx++) {
-      const tile = map.tiles[ty]?.[tx];
-      if (!tile || tile.type !== TerrainType.Mountains) continue;
-
-      const north = map.tiles[ty - 1]?.[tx];
-      if (north && north.type === TerrainType.Mountains) continue;
-
-      const roll = hash01(tx, ty, seed + 77);
-      if (roll < 0.35) continue;
-
-      const drawW = Math.max(56, tileSize * 7);
-      const drawH = drawW;
-      const cx = tx * tileSize + tileSize * (0.45 + roll * 0.1);
-      const cy = ty * tileSize + tileSize * 0.6 - reliefY(tile.type, tile.elevation) * tileSize;
-      if (cx < 12 || cy < 12 || cx > worldW - 12 || cy > worldH - 12) continue;
-
-      const rotations = [45, 135, 225, 315];
-      const rot = rotations[Math.floor(roll * rotations.length) % rotations.length];
-      stampPropSprite(ctx, `/sprites/mountains/${rot}.png`, cx, cy, drawW, drawH, roll > 0.5);
-    }
-  }
-}
-
-function drawSnowMound(ctx: CanvasContext2d, cx: number, cy: number, size: number, roll: number): void {
-  ctx.fillStyle = 'rgba(120, 150, 190, 0.18)';
-  ctx.beginPath();
-  ctx.ellipse(cx + 1, cy + 1.6, size, size * 0.5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(246, 250, 255, 0.8)';
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, size, size * 0.45, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-  ctx.beginPath();
-  ctx.ellipse(cx - size * 0.15, cy - size * 0.12, size * 0.6, size * 0.28, roll - 0.3, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function drawSandRipple(ctx: CanvasContext2d, cx: number, cy: number, length: number, flip: boolean): void {
-  const dir = flip ? -1 : 1;
-  ctx.strokeStyle = 'rgba(235, 220, 180, 0.32)';
-  ctx.lineWidth = 0.8;
-  ctx.beginPath();
-  ctx.moveTo(cx - length * 0.4 * dir, cy + 2);
-  ctx.quadraticCurveTo(cx, cy - 1, cx + length * 0.4 * dir, cy + 2);
-  ctx.stroke();
-  ctx.strokeStyle = 'rgba(160, 140, 105, 0.16)';
-  ctx.beginPath();
-  ctx.moveTo(cx - length * 0.4 * dir, cy + 2.7);
-  ctx.quadraticCurveTo(cx, cy + 0.6, cx + length * 0.4 * dir, cy + 2.7);
-  ctx.stroke();
-}
-
-function drawMeadowFlower(ctx: CanvasContext2d, cx: number, cy: number, roll: number): void {
-  ctx.fillStyle = roll < 0.12 ? 'rgba(255, 240, 170, 0.5)' : roll < 0.24 ? 'rgba(250, 210, 220, 0.45)' : 'rgba(255, 255, 255, 0.35)';
-  ctx.beginPath();
-  ctx.arc(cx, cy, 0.9, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(180, 140, 40, 0.35)';
-  ctx.beginPath();
-  ctx.arc(cx, cy, 0.35, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function drawRockCluster(ctx: CanvasContext2d, cx: number, cy: number, r0: number, r1: number, r2: number): void {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-  ctx.beginPath();
-  ctx.ellipse(cx + 0.8, cy + 0.8, 4 + r2 * 3, 1.6 + r1, r0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(78, 74, 66, 0.75)';
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, 2.6 + r2 * 2.2, 1.8 + r1 * 1.4, r0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(140, 132, 118, 0.55)';
-  ctx.beginPath();
-  ctx.ellipse(cx - 0.7, cy - 0.6, 1.1 + r2 * 0.8, 0.7, r0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(90, 84, 74, 0.6)';
-  ctx.beginPath();
-  ctx.ellipse(cx + 3.4 + r1 * 1.5, cy + 1.2, 1.2 + r2, 0.8, r0 + 0.5, 0, Math.PI * 2);
-  ctx.fill();
-}

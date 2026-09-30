@@ -7,6 +7,7 @@
 import { humanDisplayName } from './citizenId';
 import { EntityType, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
+import { isMarriedOrExpecting } from './civilStatus';
 
 export type KinRelation =
   | 'grandmother'
@@ -154,10 +155,6 @@ function generationRank(relation: KinRelation): number {
   }
 }
 
-function isActivelyMarried(entity: Entity): boolean {
-  return entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting';
-}
-
 /**
  * Build the living kinship view for one settler (stamboom slice).
  */
@@ -214,9 +211,9 @@ export function buildFamilyTree(focus: Entity, allEntities: readonly Entity[]): 
   }
 
   // Active Spouse only — divorced ex-partners never display as active spouse
-  if (isActivelyMarried(focus)) {
+  if (isMarriedOrExpecting(focus)) {
     const spouse = byId(people, focus.partnerId)
-      ?? people.find((p) => p.partnerId === focus.id && isActivelyMarried(p));
+      ?? people.find((p) => p.partnerId === focus.id && isMarriedOrExpecting(p));
     if (spouse) add(spouse, 'spouse');
   }
 

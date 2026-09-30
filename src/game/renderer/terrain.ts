@@ -12,21 +12,28 @@ import {
   type TerrainLayerCache,
   type TerrainDecorCache,
 } from '../terrainLayer';
+import { bakeWhittakerGround, buildWhittakerFields, groundWorldStepForZoom, type WhittakerFields } from './whittakerTerrain';
+import { drawDecorProps } from './decor';
 import { worldToScreen as w2s, screenToWorld } from '../viewState';
-import { renderPixiTerrain, resetPixiTerrain } from './pixiTerrain';
 import { TERRAIN_PALETTE } from '../terrainAtlas';
 
-// Terrain base palette lives in the terrain owner (`terrainAtlas.TERRAIN_PALETTE`) so the bake,
-// the minimap and the (dormant) Pixi ground cannot drift apart — audit D12.
+// Terrain base palette lives in the terrain owner (`terrainAtlas.TERRAIN_PALETTE`) so the bake
+// and the minimap cannot drift apart — audit D12.
 
 /** Per-preset palette overrides so coastal/arid/harsh maps read differently at a glance. */
 const PRESET_TERRAIN_COLORS: Partial<Record<MapPreset, Partial<Record<TerrainType, number>>>> = {
-  verdant: {},
-  mountainous: {
-    [TerrainTypeEnum.Grassland]: 0x5a6e42,
-    [TerrainTypeEnum.Hills]: 0x7a6848,
-    [TerrainTypeEnum.Mountains]: 0x5a544e,
-    [TerrainTypeEnum.Rocky]: 0x6e6860,
+  arabia: {
+    [TerrainTypeEnum.Grassland]: 0xb8a068,
+    [TerrainTypeEnum.Forest]: 0x8a7a48,
+    [TerrainTypeEnum.DarkForest]: 0x6a5a38,
+    [TerrainTypeEnum.Hills]: 0xa09060,
+    [TerrainTypeEnum.Beach]: 0xd4b878,
+    [TerrainTypeEnum.Rocky]: 0x9a9080,
+  },
+  black_forest: {
+    [TerrainTypeEnum.Grassland]: 0x4a6a3a,
+    [TerrainTypeEnum.Forest]: 0x2f5a2e,
+    [TerrainTypeEnum.DarkForest]: 0x1f4a1e,
   },
   coastal: {
     [TerrainTypeEnum.Grassland]: 0x5a7a48,
@@ -35,20 +42,30 @@ const PRESET_TERRAIN_COLORS: Partial<Record<MapPreset, Partial<Record<TerrainTyp
     [TerrainTypeEnum.Beach]: 0xd8c898,
     [TerrainTypeEnum.RiverBank]: 0x6a8a58,
   },
-  arid: {
-    [TerrainTypeEnum.Grassland]: 0xb8a068,
-    [TerrainTypeEnum.Forest]: 0x8a7a48,
-    [TerrainTypeEnum.DarkForest]: 0x6a5a38,
-    [TerrainTypeEnum.Hills]: 0xa09060,
-    [TerrainTypeEnum.Beach]: 0xd4b878,
-    [TerrainTypeEnum.Rocky]: 0x9a9080,
+  islands: {
+    [TerrainTypeEnum.Grassland]: 0x4a8a48,
+    [TerrainTypeEnum.ShallowWater]: 0x2e7aa8,
+    [TerrainTypeEnum.DeepWater]: 0x1a5a88,
+    [TerrainTypeEnum.Beach]: 0xd8c898,
   },
-  harsh: {
-    [TerrainTypeEnum.Grassland]: 0x7a8a72,
-    [TerrainTypeEnum.Forest]: 0x5a6a52,
+  highland: {
+    [TerrainTypeEnum.Grassland]: 0x5a6e42,
+    [TerrainTypeEnum.Hills]: 0x7a6848,
+    [TerrainTypeEnum.Mountains]: 0x5a544e,
+    [TerrainTypeEnum.Rocky]: 0x6e6860,
+  },
+  scandinavia: {
+    [TerrainTypeEnum.Grassland]: 0x6a8a72,
+    [TerrainTypeEnum.Forest]: 0x4a6a52,
     [TerrainTypeEnum.Hills]: 0x8a8478,
     [TerrainTypeEnum.Snow]: 0xe8eef4,
     [TerrainTypeEnum.Mountains]: 0x6a6660,
+  },
+  oasis: {
+    [TerrainTypeEnum.Grassland]: 0xb8a068,
+    [TerrainTypeEnum.Forest]: 0x8a7a48,
+    [TerrainTypeEnum.Hills]: 0xa09060,
+    [TerrainTypeEnum.Beach]: 0xd4b878,
   },
 };
 
@@ -58,15 +75,48 @@ const TERRAIN_CHUNK_MARGIN = 1; // keep one chunk of margin around the viewport
 const terrainChunkCache = new Map<string, TerrainLayerCache>();
 let terrainChunkCacheKey = '';
 let terrainDecorCache: TerrainDecorCache | null = null;
+// Per-pixel Whittaker ground (Teraforge). Baked **per viewport chunk**, not for the whole map:
+// every colour term is a function of the world coordinate, so a chunk bake is pixel-identical to
+// the matching crop of a whole-map bake, while the cost of a frame is bounded by what the camera
+// can see instead of by map area. The whole-map version measured 5.4 s at 6144×4608, which is what
+// blocked the Teraforge spec map sizes.
+//
+// **256 canvas px, not 1024.** A chunk is baked synchronously the frame it is first needed, so the
+// chunk size is the size of the hitch you feel when the camera reveals one: 256² is ~27 ms, 1024² is
+// ~0.43 s. It is also the size of the *waste*: the chunk grid is aligned to the chunk size and kept
+// one chunk of margin around the viewport, so a large chunk bakes many times the visible area — at
+// 1024 px the first frame on a Huge map measured **16.8 Mpx (11.0 s) for a 0.7 Mpx view**, sixteen
+// times more ground than the camera could show. At 256 px the same frame is ~3.1 Mpx (~1.4 s).
+// `groundWorldStepForZoom` then keeps the *canvas* matched to the screen: at 1:1 world px per canvas
+// px the whole map is 1.15 Gpx of work if you let it, and at the 0.5× overview that measured 28.3 Mpx
+// (17.4 s) before the step existed.
+const WHITTAKER_CHUNK_SIZE = 256; // canvas px per chunk; the world span is this × the world step
+const WHITTAKER_CHUNK_MARGIN = 1; // keep one chunk of margin around the viewport
+/** One baked chunk: the canvas plus the world rect it covers. */
+interface GroundChunk {
+  canvas: HTMLCanvasElement;
+  worldX: number;
+  worldY: number;
+  /** World px this chunk covers — **not** the canvas size; they differ whenever the bake sub-samples. */
+  worldW: number;
+  worldH: number;
+}
+const whittakerChunks = new Map<string, GroundChunk>();
+let whittakerCacheKey = '';
+let whittakerFieldsKey = '';
+let whittakerFields: WhittakerFields | null = null;
 
 /** Release terrain caches. Called by {@link resetRendererCaches}. */
 export function resetTerrainCaches(): void {
-  resetPixiTerrain();
   for (const cache of terrainChunkCache.values()) disposeTerrainLayer(cache);
   terrainChunkCache.clear();
   terrainChunkCacheKey = '';
   disposeTerrainDecor(terrainDecorCache);
   terrainDecorCache = null;
+  whittakerChunks.clear();
+  whittakerCacheKey = '';
+  whittakerFields = null;
+  whittakerFieldsKey = '';
 }
 
 /** Per-season shift on land tiles so spring/fall/winter aren't only a faint overlay. */
@@ -113,6 +163,80 @@ function getTerrainColor(type: TerrainType, variation: number, preset?: MapPrese
 /** Bake (or reuse) the chunked ground for the current viewport. Key owner: `terrainLayer`. */
 function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
   if (!state.worldMap) return;
+  const map = state.worldMap;
+
+  // Per-pixel Whittaker path (Teraforge) — bake only the chunks the camera can see.
+  if (map.elevation && map.moisture && map.temperature && map.terrain && map.riverDist && map.cols && map.rows) {
+    const season = state.season ?? SeasonEnum.Spring;
+    // The key carries what the bake **reads**: the generated fields, the season, the world rect and
+    // the bake resolution. It deliberately does **not** carry `getTerrainRevision()`. That counter is
+    // bumped by `buildingPlacementActions` when a footprint is cleared, but a cleared camp or a
+    // chopped forest writes the sparse `overrides` layer and never touches `elevation` / `moisture` /
+    // `temperature` / `riverDist` — so the re-bake produced a byte-identical image while freezing
+    // every visible chunk on a routine build. `tests/groundLook.bands.test.ts` pins the invariant: an
+    // override must not move a single pixel.
+    // The world dims are in the key because the same seed + preset at a different map size is a
+    // different map; if a future edit ever mutates the generated fields, it must add a term here.
+    const step = groundWorldStepForZoom(state.camera.zoom);
+    const chunkWorld = WHITTAKER_CHUNK_SIZE * step;
+    // The two map-wide fields (cast shadow, water proximity) are cell-resolution and depend on
+    // neither the viewport, the season nor the bake resolution, so they are keyed on the map alone
+    // and shared by every chunk.
+    const mapKey = `${map.seed}|${map.preset}|${state.width}x${state.height}`;
+    const key = `${mapKey}|${season}|s${step}`;
+    if (whittakerCacheKey !== key) {
+      whittakerChunks.clear();
+      whittakerCacheKey = key;
+    }
+    if (whittakerFieldsKey !== mapKey) {
+      whittakerFields = buildWhittakerFields(map);
+      whittakerFieldsKey = mapKey;
+    }
+
+    // Visible world rect + margin — only chunks intersecting it are baked.
+    const cam = state.camera;
+    const [tlX, tlY] = screenToWorld(0, 0, cam, cw, ch);
+    const [brX, brY] = screenToWorld(cw, ch, cam, cw, ch);
+    const vx = Math.min(tlX, brX);
+    const vy = Math.min(tlY, brY);
+    const vw = Math.abs(brX - tlX);
+    const vh = Math.abs(brY - tlY);
+    const margin = chunkWorld * WHITTAKER_CHUNK_MARGIN;
+    const minX = Math.max(0, Math.floor((vx - margin) / chunkWorld) * chunkWorld);
+    const minY = Math.max(0, Math.floor((vy - margin) / chunkWorld) * chunkWorld);
+    const maxX = Math.min(state.width, Math.ceil((vx + vw + margin) / chunkWorld) * chunkWorld);
+    const maxY = Math.min(state.height, Math.ceil((vy + vh + margin) / chunkWorld) * chunkWorld);
+
+    const keep = new Set<string>();
+    for (let cx = minX; cx < maxX; cx += chunkWorld) {
+      for (let cy = minY; cy < maxY; cy += chunkWorld) {
+        const chunkKey = `${cx},${cy}`;
+        keep.add(chunkKey);
+        if (whittakerChunks.has(chunkKey)) continue;
+        const worldW = Math.min(chunkWorld, state.width - cx);
+        const worldH = Math.min(chunkWorld, state.height - cy);
+        const baked = bakeWhittakerGround(
+          map, state.width, state.height, season,
+          map.seaLevel ?? 0.24, map.moistureBias ?? 0,
+          { x: cx, y: cy, width: worldW, height: worldH },
+          whittakerFields ?? undefined,
+          step,
+        );
+        if (baked) whittakerChunks.set(chunkKey, { canvas: baked, worldX: cx, worldY: cy, worldW, worldH });
+      }
+    }
+    // Prune chunks that moved out of the viewport + margin.
+    for (const chunkKey of [...whittakerChunks.keys()]) {
+      if (!keep.has(chunkKey)) whittakerChunks.delete(chunkKey);
+    }
+
+    if (terrainDecorNeedsRebuild(terrainDecorCache, map, state.width, state.height)) {
+      disposeTerrainDecor(terrainDecorCache);
+      terrainDecorCache = bakeTerrainDecor(map, state.width, state.height);
+    }
+    return;
+  }
+
   const season = state.season ?? SeasonEnum.Spring;
   // Higher bake resolution when zoomed in close so the ground isn't blocky.
   const lod = state.camera.zoom >= 3 ? 2 : 1;
@@ -207,9 +331,11 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   const presetVoid = state.worldMap?.preset;
   const voidColors: Partial<Record<MapPreset, string>> = {
     coastal: '#0a1c30',
-    arid: '#2a2218',
-    harsh: '#1c2228',
-    mountainous: '#121c18',
+    islands: '#0a1c30',
+    arabia: '#2a2218',
+    oasis: '#2a2218',
+    scandinavia: '#1c2228',
+    highland: '#121c18',
   };
   // Deep void — map reads as a raised diorama tabletop
   const voidBase = (presetVoid && voidColors[presetVoid]) || '#0c1410';
@@ -222,7 +348,7 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   ctx.fillStyle = voidGrad;
   ctx.fillRect(0, 0, cw, ch);
 
-  if (state.worldMap && terrainChunkCache.size > 0) {
+  if (state.worldMap && (whittakerChunks.size > 0 || terrainChunkCache.size > 0)) {
     const [sx0, sy0] = w2s(0, 0, cam, cw, ch);
     // Draw at WORLD scale — the baked surface may be lod× larger than the world.
     const drawW = state.width * cam.zoom;
@@ -242,16 +368,31 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     }
     ctx.restore();
 
-    // Chunked terrain — draw only the baked chunks (lazy, viewport-bounded).
-    for (const cache of terrainChunkCache.values()) {
-      const [chunkSx, chunkSy] = w2s(cache.offsetX, cache.offsetY, cam, cw, ch);
-      ctx.drawImage(
-        cache.surface as CanvasImageSource,
-        chunkSx,
-        chunkSy,
-        cache.worldWidth * cam.zoom,
-        cache.worldHeight * cam.zoom,
-      );
+    // Ground: the per-pixel Whittaker chunks when present, else the chunked tile bake.
+    if (whittakerChunks.size > 0) {
+      for (const chunk of whittakerChunks.values()) {
+        const [chunkSx, chunkSy] = w2s(chunk.worldX, chunk.worldY, cam, cw, ch);
+        // Drawn at the WORLD rect it covers (not its canvas size — those differ whenever the bake
+        // sub-samples), so chunk seams line up exactly.
+        ctx.drawImage(
+          chunk.canvas as CanvasImageSource,
+          chunkSx,
+          chunkSy,
+          chunk.worldW * cam.zoom,
+          chunk.worldH * cam.zoom,
+        );
+      }
+    } else {
+      for (const cache of terrainChunkCache.values()) {
+        const [chunkSx, chunkSy] = w2s(cache.offsetX, cache.offsetY, cam, cw, ch);
+        ctx.drawImage(
+          cache.surface as CanvasImageSource,
+          chunkSx,
+          chunkSy,
+          cache.worldWidth * cam.zoom,
+          cache.worldHeight * cam.zoom,
+        );
+      }
     }
 
     if (terrainDecorCache) {
@@ -263,6 +404,9 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
         terrainDecorCache.height * cam.zoom,
       );
     }
+
+    // L3 decor (Teraforge biome-density-driven ground props) drawn over the ground.
+    drawDecorProps(ctx, state, cw, ch);
 
     // Phase D — softer sun wash (textures + season wash carry most of the look)
     ctx.save();
@@ -287,28 +431,22 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
 }
 
 /**
- * Paint the ground with the canvas2D layer instead of Pixi/WebGL.
+ * Paint the ground. The canvas2D path is the **only** ground renderer.
  *
- * Owner ruling 2026-09-17: the canvas2D look is the shipping one; the owner has called the Pixi path
- * temporary and it is not in use. This constant is the one line that decides which ground renderer
- * runs, so nothing else in the tree has to guess (`AGENTS.md`, `CHANGELOG.md`).
+ * It bakes the terrain into per-viewport chunks from the fill sprites (`buildTerrainCache`), which is
+ * the path the boot frame used and the look the minimap agrees with.
  *
- * The Pixi path had never actually rendered in a shipped build — its terrain container was never
- * attached to `app.stage`
- * (`BUG_REPORTS/2026-09-17-pixi-terrain-container-never-attached-to-the-stage.md`). That attachment is
- * restored and is exactly why flipping this to `true` is safe: detached, every Pixi frame composited a
- * transparent canvas and the ground layer vanished, which is why this path could not be trusted before.
- * `buildTerrainCache` + `drawProceduralGround` bake the terrain into per-viewport chunks from the fill
- * sprites — the path the boot frame already used, and the look the minimap agrees with.
- *
- * Keeping the constant rather than deleting the call keeps `pixiTerrain.ts` referenced and makes the
- * switch one line; re-enabling it means matching the Pixi water to the tile water first.
+ * The Pixi/WebGL ground that used to sit behind a `USE_PIXI_GROUND` constant is **deleted**, not
+ * dormant (owner decision 2026-09-25, reversing "not used at the moment but maybe in future"). It is
+ * worth recording why deleting beat keeping the switch: the path had already been abandoned once for
+ * a real reason — it drew a bright vector river ribbon over pale tile water with a visible
+ * square-tile checkerboard, and the owner marked that wrong — and it carried three separate defect
+ * records (a detached `app.stage`, a WebGL init retried every frame, the water mismatch). A dormant
+ * renderer that nothing renders, nothing reviews, and only tests assert the *shape* of is not an
+ * option; it is maintenance surface with no user, and it kept `pixi.js` in the dependency list.
  */
-const USE_PIXI_GROUND = false;
-
 export function drawGround(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (state.worldMap) {
-    if (USE_PIXI_GROUND && renderPixiTerrain(ctx, state, cw, ch)) return;
     buildTerrainCache(state, cw, ch);
     drawProceduralGround(ctx, state, cw, ch);
     return;

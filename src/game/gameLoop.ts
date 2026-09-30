@@ -35,7 +35,7 @@ import {
  * which a damaged revision had silently reverted to 3 (24 s/day), the regression recorded in
  * `BUG_REPORTS/2026-09-16-baseline-pacing-reverted-to-24s-day.md`.
  *
- * Exported so the pace is pinned by `tests/gameLoop.pacingContract.test.ts` instead of living in
+ * Exported so the pace is pinned by `tests/gameLoop.test.ts` instead of living in
  * comments: that test also fails if the harness copies of this rate (`scripts/test.ts`,
  * `scripts/perf-all.ts`, `scripts/probe-day-budget.mts`) drift from it.
  */
@@ -676,11 +676,33 @@ export class GameLoop {
     this.notify(true, false, true);
   }
 
+  /**
+   * Read the **authoritative** world out of the worker, for a save to persist.
+   *
+   * This is a read, not a switch of authority. It deliberately does **not** assign the result to
+   * `this.world`: `workerHost.exportSave()` resolves to a fresh clone of the worker's world, and
+   * adopting that clone as the display world split the two apart for the rest of the session —
+   * `GameWorkerHost.getAuthoritativeWorld()` keeps returning its own long-lived `worldRef`, so every
+   * later tick result replaced the display from `worldRef` again regardless. In the window between,
+   * the clone carried the worker's `paused` / `speed` / dismissed-id sets while `applySimTickDelta`
+   * never writes those fields, and `mutateWorld` forwards a control to the worker only when it
+   * changes — so a player-authored control made just before a save could be reverted on screen and
+   * could not be re-sent (2026-09-21 audit, D-2; `tests/gameLoop.test.ts`).
+   *
+   * The returned world is hydrated so the caller can read it (and hand it to the save writer)
+   * without hitting missing runtime caches. `this.world` keeps whatever the display left it as.
+   */
   async exportAuthoritativeWorld(timeoutMs = 10_000): Promise<WorldState> {
     if (this.workerEnabled && this.workerHost?.isReady()) {
       const exportGen = this.sessionGen;
       try {
-        this.syncAfterWorkerMutation();
+        // Deliberately **no** `syncAfterWorkerMutation()` here. It adopts the host's authoritative
+        // world into the display, which is right for the command-failure paths that call it — they
+        // have just been told the display is wrong — and wrong for a read: it advances the display to
+        // the authority (dropping any optimistic command the player is still waiting to see) as a side
+        // effect of pressing Save. The export needs no such nudge, because `whenIdle()` below already
+        // waits for every tick and command to settle, and the worker packs the clone from its own
+        // world regardless of what main thinks.
         await Promise.race([
           this.workerHost.whenIdle(),
           new Promise<void>((_, reject) => {
@@ -697,10 +719,7 @@ export class GameLoop {
         ]);
         if (exportGen !== this.sessionGen) return this.world;
 
-        this.world = hydrateWorldRuntimeCaches(exported);
-        this.invalidateRenderSnapshot();
-        this.catalog.rebuild(this.world.entities);
-        return this.world;
+        return hydrateWorldRuntimeCaches(exported);
       } catch (err) {
         console.warn('[GameLoop] exportSave failed — using main shadow', err);
       }

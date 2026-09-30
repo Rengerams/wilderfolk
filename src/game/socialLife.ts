@@ -12,6 +12,7 @@ import {
 } from './dayCycle';
 import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 import { isOnWorkScheduleShift } from './workSchedule';
+import { isMarriedOrExpecting } from './civilStatus';
 
 export type SocialMotive =
   | 'sick_day'
@@ -123,10 +124,6 @@ function absDaySalt(tick: number): number {
   return Math.floor(tick / TICKS_PER_DAY) * 17;
 }
 
-function isActivelyMarried(entity: Entity): boolean {
-  return entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting';
-}
-
 /**
  * Evaluates and returns the primary social motive for an off-duty settler.
  * Uses deterministic per-person day rolls to ensure behavioral stability across hours.
@@ -199,8 +196,8 @@ export function pickSocialImpulse(
   }
 
   // 5. Partner Care (Pregnant Spouse) — Active marriage only
-  const spouse = isActivelyMarried(entity) && entity.partnerId != null
-    ? nearbyAdults.find((h) => h.id === entity.partnerId && h.alive && isActivelyMarried(h))
+  const spouse = isMarriedOrExpecting(entity) && entity.partnerId != null
+    ? nearbyAdults.find((h) => h.id === entity.partnerId && h.alive && isMarriedOrExpecting(h))
     : undefined;
 
   if (spouse?.pregnant && personDayRoll(entity.id, tick, 707) < 0.55) {

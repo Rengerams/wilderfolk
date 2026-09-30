@@ -155,6 +155,46 @@ export function drawBuildingSprite(
   drawSpriteFrame(ctx, frame, sx, sy, drawW, drawH, 0.5, anchorY, flipX, {}, 'contain', rotation);
 }
 
+/**
+ * A pre-rasterized soft ambient-occlusion blob, or `null` when the environment has no DOM.
+ *
+ * `drawGroundAO` runs once per grounded tree and once per completed building on every repaint, and
+ * the old body called `ctx.createRadialGradient` + a radial `fill` each time — a fresh gradient
+ * object and a radial rasterisation per entity per repaint. A radial gradient is a radial gradient,
+ * so a single cached bitmap, scaled to the caller's radius and composited at its strength, is
+ * pixel-identical and turns the per-entity cost into one `drawImage` (2026-09-21 audit, R-5).
+ *
+ * The blob is a plain bitmap, so it is context-independent and needs no reset on session change;
+ * it is created lazily and falls back to the gradient path in a non-DOM environment (the node test
+ * runner).
+ */
+let aoRadialBlob: HTMLCanvasElement | null | undefined;
+function getAORadialBlob(): HTMLCanvasElement | null {
+  if (aoRadialBlob !== undefined) return aoRadialBlob;
+  aoRadialBlob = null;
+  try {
+    if (typeof document === 'undefined') return aoRadialBlob;
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const g = canvas.getContext('2d');
+    if (!g) return aoRadialBlob;
+    const c = size / 2;
+    // The original gradient: inner circle at `radius * 0.1` fully opaque, outer at `radius`
+    // transparent — the pre-inner-circle core is therefore uniformly opaque.
+    const grad = g.createRadialGradient(c, c, c * 0.1, c, c, c);
+    grad.addColorStop(0, 'rgb(10, 15, 8)');
+    grad.addColorStop(1, 'rgba(10, 15, 8, 0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, size, size);
+    aoRadialBlob = canvas;
+  } catch {
+    aoRadialBlob = null;
+  }
+  return aoRadialBlob;
+}
+
 /** Soft ambient-occlusion pool — darkens the ground right under an object. */
 export function drawGroundAO(
   ctx: CanvasRenderingContext2D,
@@ -164,6 +204,16 @@ export function drawGroundAO(
   strength: number,
 ): void {
   if (radius <= 0) return;
+  const blob = getAORadialBlob();
+  if (blob) {
+    // Composite at `strength × currentGlobalAlpha` so a caller already fading (globalAlpha < 1)
+    // fades the AO too — exactly what baking `strength` into the gradient did under the hood.
+    const prevAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = prevAlpha * strength;
+    ctx.drawImage(blob, x - radius, y - radius, radius * 2, radius * 2);
+    ctx.globalAlpha = prevAlpha;
+    return;
+  }
   const grad = ctx.createRadialGradient(x, y, radius * 0.1, x, y, radius);
   grad.addColorStop(0, `rgba(10, 15, 8, ${strength})`);
   grad.addColorStop(1, 'rgba(10, 15, 8, 0)');

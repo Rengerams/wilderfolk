@@ -1,4 +1,5 @@
 import { BuildingType, BUILDING_CONFIGS } from '../gameTypes';
+import type { Building } from '../gameTypes';
 import { isDecorType } from '../beautyGrid';
 import { categoryBorderDashForType } from '../buildCatalog';
 import { drawProceduralDecor } from '../decorRender';
@@ -22,6 +23,41 @@ import {
   drawContactShadow,
   drawGroundAO,
 } from './spriteDrawing';
+
+/**
+ * The last sorted-depth list, keyed by the buildings array identity **and** the count of buildings
+ * that qualify for it.
+ *
+ * The key is deliberately not the array identity alone: `gameTick` mutates buildings in place, so a
+ * construction finishing flips `completed` on the same array and must move the building from the
+ * "under construction" pass into this list. The count is O(B) with a cheap predicate — cheaper than
+ * the O(B log B) sort and the allocation it fed every repaint — while identity catches add/remove,
+ * which replace the array. A placed building's geometry (`y`, `height`) and `type` never change, so
+ * the sort order itself is stable between those two events (2026-09-21 audit, R-12).
+ */
+let sortedBuildingsKey: { array: readonly Building[]; count: number } | null = null;
+let sortedBuildings: Building[] | null = null;
+
+function completedDepthSortedBuildings(buildings: readonly Building[]): Building[] {
+  let count = 0;
+  for (const b of buildings) {
+    if (b.completed && b.type !== BuildingType.Road && !ISO_PANEL_BUILDINGS.has(b.type)) count++;
+  }
+  if (sortedBuildings && sortedBuildingsKey?.array === buildings && sortedBuildingsKey.count === count) {
+    return sortedBuildings;
+  }
+  const sorted = buildings
+    .filter((b) => b.completed && b.type !== BuildingType.Road && !ISO_PANEL_BUILDINGS.has(b.type))
+    .sort((a, b) => {
+      const depthA = a.y + a.height / 2;
+      const depthB = b.y + b.height / 2;
+      if (depthA !== depthB) return depthA - depthB;
+      return a.id - b.id;
+    });
+  sortedBuildings = sorted;
+  sortedBuildingsKey = { array: buildings, count };
+  return sorted;
+}
 
 export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;
@@ -116,15 +152,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   }
 
   // Completed buildings (roads and wall panels already drawn above)
-  const sorted = state.buildings
-    .filter((b) => b.completed && b.type !== BuildingType.Road && !ISO_PANEL_BUILDINGS.has(b.type))
-    .sort((a, b) => {
-      const depthA = a.y + a.height / 2;
-      const depthB = b.y + b.height / 2;
-      if (depthA !== depthB) return depthA - depthB;
-      return a.id - b.id;
-    });
-  for (const b of sorted) {
+  for (const b of completedDepthSortedBuildings(state.buildings)) {
     const { sx, sy, w, h } = getBuildingScreenRect(b);
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
 

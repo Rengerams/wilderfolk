@@ -558,6 +558,12 @@ function decideCivic(state: WorldState): VirtualPlayerDecision | null {
 const LOW_WOOD_STOCK = 120;
 /** 20 = iron in store below which the colony is short of it (industry step and mine seam). */
 const LOW_IRON_STOCK = 20;
+/**
+ * 60 = stone in store below which the colony is short of it. Named because it now has two readers:
+ * the Quarry step below and the visitor-trade shortage list, which buys stone from a caravan when no
+ * quarry has been raised yet. It was an inline `60` at the Quarry entry only.
+ */
+const LOW_STONE_STOCK = 60;
 
 const INDUSTRY_BUILD_ORDER: readonly {
   type: BuildingType;
@@ -565,7 +571,7 @@ const INDUSTRY_BUILD_ORDER: readonly {
   minimumStock: number;
 }[] = [
   { type: BuildingType.LumberMill, stock: 'wood', minimumStock: LOW_WOOD_STOCK },
-  { type: BuildingType.Quarry, stock: 'stone', minimumStock: 60 },
+  { type: BuildingType.Quarry, stock: 'stone', minimumStock: LOW_STONE_STOCK },
   { type: BuildingType.Mine, stock: 'iron', minimumStock: LOW_IRON_STOCK },
   { type: BuildingType.Store, stock: 'gold', minimumStock: 80 },
 ];
@@ -773,13 +779,16 @@ function decideRecruitment(state: WorldState): VirtualPlayerDecision | null {
 
 /**
  * Bot policy: what the bot wants from a visitor trade, in order. Feed a real
- * shortage, then top up wood below the industry shelf, and only then sell food
- * the colony has far more of than it can eat.
+ * shortage, then top up any industry resource below its shelf — wood, then stone
+ * (which the caravan only began offering once `buy_stone`/`sell_stone` were added),
+ * then iron — and only then sell food the colony has far more of than it can eat.
  */
 function chooseVisitorTrade(state: WorldState, group: VisitorGroup): VisitorTradeAction | null {
   const wanted: VisitorTradeAction[] = [];
   if (!hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS)) wanted.push('buy_food');
   if ((state.resources.wood ?? 0) < LOW_WOOD_STOCK) wanted.push('buy_wood');
+  if ((state.resources.stone ?? 0) < LOW_STONE_STOCK) wanted.push('buy_stone');
+  if ((state.resources.iron ?? 0) < LOW_IRON_STOCK) wanted.push('buy_iron');
   if (hasFoodMargin(state, VirtualPlayer.FOOD_SURPLUS_DAYS)) wanted.push('sell_food');
 
   for (const action of wanted) {

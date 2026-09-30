@@ -1,5 +1,5 @@
 import type { Building, Entity, RivalSettlement, WorldState, RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
-import { BuildingType, JobType } from './gameTypes';
+import { JobType, TERRAIN_TILE_SIZE } from './gameTypes';
 import { TICKS_PER_DAY, killHuman } from './dayCycle';
 import { ensureEntityByIdMap } from './entityIndex';
 import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
@@ -13,13 +13,26 @@ import {
   computeMilitiaBreakdown,
   getMilitiaArmamentLabel,
 } from './militiaBalance';
+import { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter } from './villageAnchor';
+
+/**
+ * The village anchor: completed player Town Hall, else House, else the living player settlers' mean,
+ * else the map centre.
+ *
+ * The rule itself lives in `villageAnchor.ts`, which the renderer imports as well — the raid march
+ * lines it draws must leave from the same point the simulated raid is marching to, and the two used
+ * to disagree (`tests/villageAnchor.singleOwner.test.ts`). Re-exported through this module because
+ * `frontierCombat` is where the simulation has always read it from, and `gameEngine.ts` is the
+ * public surface that re-exports it from here.
+ */
+export { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter };
 
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
 import { getSimRng } from './simRng';
 import { addCappedResource } from './resourceUtils';
 import { spendFood } from './economyLedger';
 import { addBigNews } from './simEffects';
-import { addReputation } from './simHelpers';
+import { addReputation, getReputationBand } from './simHelpers';
 
 export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 
@@ -29,7 +42,6 @@ const RAID_RESPONSE_MAX_DAYS = 6;
 function getRaidExpireTicksLegacy(): number {
   return 3 * TICKS_PER_DAY;
 }
-const PIXELS_PER_TILE = 10;
 const RAID_FOOD_MIN = 22;
 const RAID_FOOD_MAX = 50;
 /** Home-turf bonus when you attack a rival camp (harder than meeting them at your gate). */
@@ -49,7 +61,7 @@ export function getCampDistancePixels(
 }
 
 export function getCampDistanceTiles(distancePixels: number): number {
-  return Math.round(distancePixels / PIXELS_PER_TILE);
+  return Math.round(distancePixels / TERRAIN_TILE_SIZE);
 }
 
 export function formatCampDistance(distancePixels: number): string {
@@ -100,7 +112,7 @@ export function formatRaidDeadline(evt: RaidEvent, currentTick: number): string 
 
 /** March provisions for an outgoing raid — farther camps need more food packed. */
 export function getOutgoingRaidFoodCost(distancePixels: number): number {
-  const tiles = distancePixels / PIXELS_PER_TILE;
+  const tiles = distancePixels / TERRAIN_TILE_SIZE;
   const cost = 18 + Math.round(tiles / 4);
   return Math.min(RAID_FOOD_MAX, Math.max(RAID_FOOD_MIN, cost));
 }
@@ -161,49 +173,15 @@ export function getOutgoingRaidFoodCostForRival(state: WorldState, rival: RivalS
 }
 
 /**
- * The building half of the village anchor: the first completed player Town Hall, else the first
- * completed player House, else `null`.
+ * The village anchor: completed player Town Hall, else House, else the living player settlers' mean,
+ * else the map centre.
  *
- * Split out for `tickHumans`, which needs to know *which* half answered. This half is a pure
- * function of `buildings`, and nothing reachable from the human loop writes a building — so one
- * answer is valid for a whole tick (N-4). The entity half below is not, which is why the caller
- * caches only this one.
+ * The rule itself lives in `villageAnchor.ts`, which the renderer imports as well — the raid march
+ * lines it draws must leave from the same point the simulated raid is marching to, and the two used
+ * to disagree (`tests/villageAnchor.singleOwner.test.ts`). The import at the top of this file is
+ * re-exported because `frontierCombat` is where the simulation has always read the anchor from, and
+ * `gameEngine.ts` is the public surface that re-exports it from here.
  */
-export function getPlayerCampCenterFromBuildings(buildings: Building[]): { x: number; y: number } | null {
-  const playerBuildings = buildings.filter((b) => b.completed && b.faction !== 'rival');
-  const townHall = playerBuildings.find((b) => b.type === BuildingType.TownHall);
-  if (townHall) {
-    return { x: townHall.x + townHall.width / 2, y: townHall.y + townHall.height / 2 };
-  }
-  const house = playerBuildings.find((b) => b.type === BuildingType.House);
-  if (house) {
-    return { x: house.x + house.width / 2, y: house.y + house.height / 2 };
-  }
-  return null;
-}
-
-/**
- * The entity half of the village anchor: the mean position of the living player settlers, else the
- * map centre.
- *
- * This reads live settler positions, which the human loop itself moves and can empty by killing one,
- * so it must never be cached across iterations of that loop (N-4).
- */
-export function getPlayerSettlerCenter(state: WorldState): { x: number; y: number } {
-  const players = state.entities.filter((e) => e.alive && isPlayerHuman(e));
-  if (players.length > 0) {
-    return {
-      x: players.reduce((s, e) => s + e.x, 0) / players.length,
-      y: players.reduce((s, e) => s + e.y, 0) / players.length,
-    };
-  }
-  return { x: state.width / 2, y: state.height / 2 };
-}
-
-/** Stable village anchor for distance, raids, and war-band march targets. */
-export function getPlayerCampCenter(state: WorldState, buildings: Building[]): { x: number; y: number } {
-  return getPlayerCampCenterFromBuildings(buildings) ?? getPlayerSettlerCenter(state);
-}
 
 export function isRaidMarchingForRival(state: WorldState, groupId: string): boolean {
   return (state.pendingRaidEvents ?? []).some((r) => r.rivalId === groupId);
@@ -506,8 +484,13 @@ function rewardRaidParticipants(
 
   const repBonus = leaderInFight ? (RAID_LEADER_REP_BONUS[tier] ?? 0) : 0;
   if (repBonus > 0 && isRaidVictoryTier(tier)) {
-    const before = state.villageReputation;
-    addReputation(state, repBonus);
+    // The applied delta, not the requested one. `addReputation` clamps at the ceiling, so this is 0
+    // for a victory that lands on a full bar — and the banner below promises "reputation rises", so it
+    // must not fire when the clamp delivered nothing. The old guard (`reputation > before`) got the
+    // full-bar case right but retired the announcement for *every* later victory too, because at 100
+    // the delta is always 0; `reputation < MAX` would swing the other way and announce a rise the
+    // clamp refused. The granted amount is the only value that answers the question asked.
+    const granted = addReputation(state, repBonus);
     const leader = participants.find((p) => p.id === leaderId);
     if (leader) {
       logEvent(
@@ -518,7 +501,7 @@ function rewardRaidParticipants(
       );
       pushFloat(state, leader.x, leader.y - 24, `👑 +${repBonus} rep`, '#fbbf24');
     }
-    if (state.villageReputation > before) {
+    if (granted > 0) {
       addBigNews(
         state,
         '👑 Leader honored',
@@ -833,8 +816,11 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
 
   const rep = state.villageReputation ?? 0;
   let chance = rival.relationship === 'tense' ? 0.22 : 0.12;
-  if (rep <= 30) chance *= 1.5;
-  else if (rep >= 80) chance *= 0.6;
+  // The same reputation bands the caravans price by (`simHelpers` owns them) — a village the
+  // valley dislikes gets raided harder, one it respects gets raided less.
+  const reputationBand = getReputationBand(rep);
+  if (reputationBand === 'harsh') chance *= 1.5;
+  else if (reputationBand === 'friendly') chance *= 0.6;
   if (getSimRng('frontierCombat')() > chance) return;
 
   const attackerStrength = getRivalRaidStrength(rival);
@@ -1344,7 +1330,6 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
     createdAtTick: state.tick,
     expiresAtTick: state.tick + responseDays * TICKS_PER_DAY,
     marchDistanceTiles,
-    marchFoodCost: raidFoodCost,
     isCounterRaid,
     rivalResponse,
     attackerStrength,

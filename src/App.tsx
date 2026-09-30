@@ -12,7 +12,7 @@ import {
   ensureFullTradeRoutes,
   getCombatPreview,
   formatRaidDeadline, formatRaidLootSummary, raidEventLoot,
-  hasIronSpears, hasStoneSpears,
+  getRaidChoiceEligibility,
 } from './game/gameEngine';
 import {
   canAssignWorkerToBuilding,
@@ -30,6 +30,9 @@ import {
   storyChoiceReasonCode,
 } from './game/actionOutcome';
 import { getStoryChoiceEligibility } from './game/storyEvents';
+// The village-request card's gate lives with the command that answers it (`resolveVillageRequest`),
+// not in the `gameEngine` barrel, so it is imported from its owner directly.
+import { getVillageRequestEligibility } from './game/groupEvents';
 import type { WorldState } from './game/gameEngine';
 
 import type { EntityCatalog } from './game/entityCatalog';
@@ -102,7 +105,6 @@ import {
   saveFirstNightWarningDismissed,
 } from './game/preferences';
 import { LabelWithResourceCost } from './components/ResourceCost';
-import { BARRICADE_RAID_COST, canAffordResourceCost, formatResourceCostNeed } from './game/resourceCost';
 import CitizenOverviewScreen from './components/CitizenOverviewScreen';
 
 import AlertBar from './components/AlertBar';
@@ -1498,21 +1500,16 @@ export default function App() {
                       </div>
                       <div className="mt-2 grid grid-cols-1 gap-1">
                         {evt.choices.map((choice) => {
-                          const payoffBlocked = choice.id === 'payoff' && world.resources.food < evt.lootFood;
-                          const barricadeBlocked = choice.id === 'barricade'
-                            && !canAffordResourceCost(world.resources, BARRICADE_RAID_COST);
-                          const defendBlocked = choice.id === 'defend'
-                            && (!hasIronSpears(world) && !hasStoneSpears(world) || raidPreview.militiaStrength <= 0);
-                          const blocked = payoffBlocked || barricadeBlocked || defendBlocked;
-                          const blockReason = payoffBlocked
-                            ? formatResourceCostNeed({ food: evt.lootFood })
-                            : barricadeBlocked
-                              ? formatResourceCostNeed(BARRICADE_RAID_COST)
-                              : defendBlocked
-                                ? (!hasIronSpears(world) && !hasStoneSpears(world)
-                                    ? 'Stone or iron spears required'
-                                    : 'No militia strength')
-                                : undefined;
+                          // Ask the raid owner instead of re-deriving its gate (roadmap U2/O2, the
+                          // same shape as the story card two blocks down). The inline version tested
+                          // `hasIronSpears || hasStoneSpears` while the owner tests
+                          // `hasMilitiaWeapons` = spears **or swords**, so a sword-armed colony was
+                          // shown a disabled Defend button reading "Stone or iron spears required"
+                          // where the owner refuses with "Need weapons (spears or swords)" — copy
+                          // that had already drifted from the rule it described.
+                          const eligibility = getRaidChoiceEligibility(world, evt, choice.id);
+                          const blocked = !eligibility.ok;
+                          const blockReason = eligibility.blockReason;
                           return (
                           <button
                             key={choice.id}
@@ -1552,10 +1549,17 @@ export default function App() {
             </div>
           )}
 
+          {/* The two authored-decision cards share one anchored, centred column. Both used to carry
+              `absolute left-1/2 top-4 z-10 w-full max-w-lg -translate-x-1/2`, and diplomacy comes
+              later in the DOM, so a pending diplomacy card painted over a story card's title and first
+              choice. They are flow children of this column now, which stacks them — and the column is
+              the anchor, because this overlay is a plain `absolute inset-0` box rather than a flex
+              container, so a bare flow child would land in its top-left corner. */}
+          <div className="pointer-events-none absolute left-1/2 top-4 z-10 flex w-full max-w-lg -translate-x-1/2 flex-col">
           {/* Signature story cards — authored choices with real sim consequences */}
-          {(world.pendingStoryEvents ?? []).length > 0 && (
-            <div className="pointer-events-auto absolute left-1/2 top-4 z-10 w-full max-w-lg -translate-x-1/2 animate-in fade-in slide-in-from-top">
-              {(world.pendingStoryEvents ?? []).slice(0, 2).map((evt) => (
+          {world.pendingStoryEvents && world.pendingStoryEvents.length > 0 && (
+            <div className="pointer-events-auto w-full max-w-lg animate-in fade-in slide-in-from-top">
+              {world.pendingStoryEvents.slice(0, 2).map((evt) => (
                 <div key={evt.id} className="mb-2 rounded-xl border border-emerald-500/40 bg-emerald-950/90 p-3 shadow-xl backdrop-blur">
                   <div className="flex items-start gap-3">
                     <Emoji className="text-2xl">{evt.emoji}</Emoji>
@@ -1595,7 +1599,7 @@ export default function App() {
 
           {/* Diplomacy event cards — player must respond */}
           {pendingDiplomacy.length > 0 && (
-            <div className={`pointer-events-auto absolute left-1/2 ${pendingRaids.length > 0 || pendingOutgoingRaids.length > 0 ? 'top-44' : 'top-4'} z-10 w-full max-w-lg -translate-x-1/2 animate-in fade-in slide-in-from-top`}>
+            <div className="pointer-events-auto w-full max-w-lg animate-in fade-in slide-in-from-top">
               {pendingDiplomacy.slice(0, 2).map((evt) => (
                 <div key={evt.id} className="mb-2 rounded-xl border border-amber-500/40 bg-amber-950/90 p-3 shadow-xl backdrop-blur">
                   <div className="flex items-start gap-3">
@@ -1635,6 +1639,9 @@ export default function App() {
               ))}
             </div>
           )}
+          {/* end of the shared authored-decision column */}
+          </div>
+          </div>
 
           {/* Favorite citizen follow banner */}
           {view.favoriteEntityId != null && (() => {
@@ -1733,7 +1740,6 @@ export default function App() {
             onFinish={finishTutorial}
             onDisableAll={disableAllTutorials}
           />
-          </div>
 
           {campaignActive && campaignStep && !showTutorial && (
             <TutorialCampaignBanner
@@ -1928,9 +1934,25 @@ export default function App() {
       )}
             overlays={(
         <GameOverlays>
+      {/*
+        The authored decision cards below stack in one flow column instead of each pinning itself to
+        `top-4`. The story card and the diplomacy card were both `absolute left-1/2 top-4 z-10 w-full
+        max-w-lg -translate-x-1/2`, and diplomacy comes later in the DOM, so with a story card and a
+        pending diplomacy card up at once the diplomacy card painted over the story card's title and
+        first choice — an authored decision the player could not read or answer.
+        `storyHelpers.pushStoryEvent` only avoids other *story* events, so the pair is reachable.
+      */}
       {showVillageRequest && activeVillageRequest && (
         <VillageRequestCard
           request={activeVillageRequest}
+          // Why Accept would be refused, from the owner that actually refuses it. Without this the
+          // card's `disabled` gate was always false (the prop was never passed), so an unaffordable
+          // offer rendered as an enabled button carrying the *positive* "Pay 15 gold → receive 30
+          // food" detail, and the real refusal only appeared as a toast after the click — the
+          // fail-open affordance the raid and diplomacy cards had already stopped doing.
+          acceptBlockedReason={
+            getVillageRequestEligibility(world, activeVillageRequest, 'accept').blockReason ?? null
+          }
           onResolve={(requestId, choice) => applyGameAction({
             proto: 1,
             op: 'resolveVillageRequest',
