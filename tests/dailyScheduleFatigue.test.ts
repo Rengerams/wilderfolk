@@ -36,8 +36,11 @@ describe('daily village schedule fatigue', () => {
     resolveDailyVillageScheduleFatigue(world, settlers);
 
     expect(world.eventLog).toHaveLength(1);
-    expect(world.eventLog[0]?.message).toContain('raised fatigue for 2 settlers');
+    expect(world.eventLog[0]?.message).toContain('reduced work output for 2 settlers');
     expect(world.eventLog[0]?.message).toContain('12.0h shifts');
+    // Never a fatigue percentage: that scale runs the opposite way to the settler's energy out of
+    // 500, so a bare percentage read as a crew near death rather than a crew working efficiently.
+    expect(world.eventLog[0]?.message).not.toContain('%');
     // 12 worked hours against the 9-hour normal day: 3 excess x 10, less BASE_DAILY_RECOVERY(4) = 26.
     // The day is 9 hours (owner), so this is genuinely 3 hours of overtime rather than 4.
     expect(settlers.every((settler) => settler.scheduleFatigue === 26)).toBe(true);

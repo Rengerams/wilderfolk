@@ -4,7 +4,7 @@ import { EntityType, BuildingType, JobType, BUILDING_CONFIGS, LEADER_OCCUPATION 
 import type { TickContext } from './simulationTypes';
 import type { EntitySpatialGrid } from '../spatialGrid';
 import { SPECIES_CONFIG } from '../speciesConfig';
-import { addFloatingText, addNotification, createDeathParticles } from '../simEffects';
+import { addBigNews, addFloatingText, addNotification, createDeathParticles } from '../simEffects';
 import { getValleyIllnessChanceBonus } from '../ecologyStage';
 // One owner for "where the building is": `placementUtils.getBuildingCenter` reads `x/y` as the
 // footprint **centre**, which is what the pad and sprite are drawn around. This module used to
@@ -1275,6 +1275,23 @@ function isMarriedScandalOffender(entity: Entity): boolean {
   );
 }
 
+const UNGUARDED_PRISON_MESSAGE = 'A scandal went unpunished — the prison has no guard on duty';
+
+/**
+ * A caught scandal with nowhere to jail is a dead end the player cannot see: nothing happens, and
+ * nothing says why. Report it the first time it matters, then stay quiet.
+ */
+function reportUnguardedPrison(state: WorldState): void {
+  if (state.eventLog.some((event) => event.message === UNGUARDED_PRISON_MESSAGE)) return;
+  logEvent(state, 'event', UNGUARDED_PRISON_MESSAGE);
+  addNotification(
+    state,
+    'No prison guard',
+    'Scandals cannot be punished until a guard is posted to the prison.',
+    'warning',
+  );
+}
+
 function arrestForScandal(state: WorldState, offender: Entity): void {
   if (!offender.alive || offender.type !== EntityType.Human) return;
   if (!isMarriedScandalOffender(offender)) return;
@@ -1282,13 +1299,17 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
   const prisons = state.buildings.filter(
     (b) => b.completed && b.type === BuildingType.Prison && countGuardsAtPrison(humans, b) > 0,
   );
-  if (prisons.length === 0) return;
+  if (prisons.length === 0) {
+    reportUnguardedPrison(state);
+    return;
+  }
   const arrestChance = Math.min(0.85, 0.6 + prisons.length * 0.08);
   if (getSimRng('humanRelationships')() >= arrestChance) return;
   const prisonerCap = Math.max(1, BUILDING_CONFIGS[BuildingType.Prison].maxOccupants - 1);
   const prison = prisons.find((b) => countPrisonersAt(state, b.id) < prisonerCap) ?? prisons[0];
   if (countPrisonersAt(state, prison.id) >= prisonerCap && offender.prisonBuildingId == null) return;
-  const sentenceTicks = ticksForDays(2.5 + getSimRng('humanRelationships')() * 3.5);
+  const sentenceDays = 2.5 + getSimRng('humanRelationships')() * 3.5;
+  const sentenceTicks = ticksForDays(sentenceDays);
   const newReleaseTick = state.tick + sentenceTicks;
 
   if (offender.prisonBuildingId != null) {
@@ -1330,6 +1351,9 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
   // imprisonments into the rumour ledger, whose `SOURCE_KINDS` reads that type).
   logEvent(state, 'prison', `${name} was imprisoned for scandal`, name);
   addNotification(state, 'Imprisoned', `${name} sentenced for scandal`, 'warning');
+  // A jailing is rare (roughly one per eleven days in a mature colony), so a toast that is gone
+  // four notifications later is not a notice the player can rely on. This is the card that waits.
+  addBigNews(state, '⛓️ Jailed for scandal', `${name} was jailed for ${sentenceDays.toFixed(1)} days.`, 'negative');
   addFloatingText(state, prison.x, prison.y - 20, 'Imprisoned', '#94a3b8');
 }
 

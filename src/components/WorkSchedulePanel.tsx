@@ -63,8 +63,8 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
   // The mean and its band are the fatigue owner's (`readVillageFatigue`): the panel used to average
   // `scheduleFatigue` and band it at 60/25 itself, so the thresholds were tunable only in this view.
   const fatigue = useMemo(() => readVillageFatigue(state), [state]);
-  const averageFatigue = fatigue.average;
   const fatigueLabel = fatigue.label;
+  const outputPercent = Math.round(fatigue.outputShare * 100);
   
   // Preview the impact of the currently chosen window. The WorldState prop is
   // mutated in place by the sim, so the preview is derived each render instead
@@ -129,7 +129,7 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
       </button>
       <div className="rounded border border-stone-700/70 bg-stone-900/40 px-2.5 py-2 text-xs">
         <div className="flex items-center justify-between">
-          <span>Colony schedule fatigue</span>
+          <span>Crew work output</span>
           <strong
             className={
               // The tone follows the owner's band label, so the colour and the word beside it cannot
@@ -141,11 +141,11 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
                   : 'text-emerald-300'
             }
           >
-            {fatigueLabel} · {Math.round(averageFatigue)}%
+            {outputPercent}%
           </strong>
         </div>
         <p className="mt-1 text-stone-500">
-          Longer shifts carry fatigue into the next day and can reduce staffed output. Rest and shorter shifts recover it.
+          Longer shifts cut into tomorrow's output. Rest and shorter shifts bring it back.
         </p>
       </div>
       <p className="text-[11px] leading-relaxed text-stone-500">

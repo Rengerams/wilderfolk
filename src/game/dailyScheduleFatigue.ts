@@ -1,7 +1,7 @@
 import type { Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
-import { getScheduleTargetHours, resolveDailyScheduleFatigue } from './scheduleFatigue';
+import { getScheduleProductivityMultiplier, getScheduleTargetHours, resolveDailyScheduleFatigue } from './scheduleFatigue';
 
 const MEANINGFUL_FATIGUE_CHANGE = 8;
 
@@ -12,6 +12,8 @@ export interface VillageFatigueReading {
   /** Mean `scheduleFatigue` over the living adult settlers. */
   average: number;
   label: 'low' | 'building' | 'high';
+  /** The work-output share that mean implies — the one consequence the player can act on. */
+  outputShare: number;
 }
 
 /**
@@ -32,6 +34,7 @@ export function readVillageFatigue(state: WorldState): VillageFatigueReading {
   return {
     average: mean,
     label: mean >= FATIGUE_BANDS.high ? 'high' : mean >= FATIGUE_BANDS.building ? 'building' : 'low',
+    outputShare: getScheduleProductivityMultiplier({ scheduleFatigue: mean }),
   };
 }
 
@@ -70,16 +73,10 @@ export function resolveDailyVillageScheduleFatigue(
     }
   }
 
-  // One pass partitions `results` into the two reporting halves and accumulates each half's sums.
-  // The halves used to be built with two `.filter`s and then re-walked six times by `.map()` inside
-  // `average()`; accumulating in the same index order keeps every sum bit-identical.
+  // One pass splits the day's workers into those over their hours and those under them.
   let rises = 0;
-  let riseBefore = 0;
-  let riseAfter = 0;
   let riseHours = 0;
   let recoveries = 0;
-  let recoveryBefore = 0;
-  let recoveryAfter = 0;
   let recoveryHours = 0;
 
   for (let i = 0; i < results.length; i++) {
@@ -87,13 +84,9 @@ export function resolveDailyVillageScheduleFatigue(
     if (result.workedHours <= 0) continue;
     if (result.fatigueAfter > result.fatigueBefore) {
       rises++;
-      riseBefore += result.fatigueBefore;
-      riseAfter += result.fatigueAfter;
       riseHours += result.workedHours;
     } else if (result.fatigueAfter < result.fatigueBefore) {
       recoveries++;
-      recoveryBefore += result.fatigueBefore;
-      recoveryAfter += result.fatigueAfter;
       recoveryHours += result.workedHours;
     }
   }
@@ -102,7 +95,7 @@ export function resolveDailyVillageScheduleFatigue(
     logEvent(
       state,
       'event',
-      `Work schedule raised fatigue for ${rises} settler${rises === 1 ? '' : 's'} (${Math.round(riseBefore / rises)}% → ${Math.round(riseAfter / rises)}% after ${formatHours(riseHours / rises)} shifts).`,
+      `Longer shifts reduced work output for ${rises} settler${rises === 1 ? '' : 's'} tomorrow (${formatHours(riseHours / rises)} shifts).`,
     );
   }
 
@@ -112,7 +105,7 @@ export function resolveDailyVillageScheduleFatigue(
     logEvent(
       state,
       'event',
-      `Short shifts eased fatigue for ${recoveries} settler${recoveries === 1 ? '' : 's'} (${Math.round(recoveryBefore / recoveries)}% → ${Math.round(recoveryAfter / recoveries)}% after ${formatHours(recoveryHours / recoveries)} of work).`,
+      `Short shifts spared ${recoveries} settler${recoveries === 1 ? '' : 's'} that output cost (${formatHours(recoveryHours / recoveries)} shifts).`,
     );
   }
 }

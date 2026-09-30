@@ -22,7 +22,7 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { personDayRoll } from '../src/game/humanSchedule';
-import { tryDailyAffairGossip } from '../src/game/simulation/humanRelationships';
+import { exposeAffair, tryDailyAffairGossip } from '../src/game/simulation/humanRelationships';
 
 const CHEATER_ID = 1;
 const PARAMOUR_ID = 2;
@@ -166,5 +166,66 @@ describe('affair gossip is a rumour, not an unwitnessed arrest', () => {
     // The affair pair is cleared either way — the scandal ends the affair.
     expect(cheater.affairPartnerId).toBeUndefined();
     expect(paramour.affairPartnerId).toBeUndefined();
+  });
+});
+
+/**
+ * A jailing raises one toast that is gone four notifications later, so a player who is not watching
+ * the corner misses a rare event entirely. The card (`bigNews`) is the notice that waits, and it
+ * must appear for exactly the offenders who were actually jailed.
+ */
+describe('a jailing raises a card the player cannot miss', () => {
+  function makeCaughtWorld(seed: number, withGuard: boolean): ReturnType<typeof makeWorld> {
+    const world = makeWorld();
+    world.state = initGame({ seed });
+    // `initGame` builds a real world; this fixture keeps only the pair, the spouse and the prison.
+    world.state.entities = withGuard
+      ? [world.cheater, world.paramour, human(SPOUSE_ID, { x: 3000, y: 3000 }), human(GUARD_ID, { job: JobType.PrisonGuard, homeBuildingId: 900 })]
+      : [world.cheater, world.paramour, human(SPOUSE_ID, { x: 3000, y: 3000 })];
+    world.state.buildings = [makePrison()];
+    world.state.tick = gossipDay() * TICKS_PER_DAY + 30;
+    world.entityById = new Map(world.state.entities.map((e) => [e.id, e]));
+    world.buildings = world.state.buildings;
+    return world;
+  }
+
+  it('raises exactly one card per jailed offender, and jails someone', () => {
+    let jailed = 0;
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const { state, cheater, paramour, entityById, buildings } = makeCaughtWorld(seed, true);
+      exposeAffair(state, cheater, paramour, 'caught', entityById, buildings, state.entities);
+
+      const jailedNow = [cheater, paramour].filter((e) => e.prisonBuildingId === 900).length;
+      const cards = state.bigNews.filter((news) => news.title === '⛓️ Jailed for scandal').length;
+      expect(cards).toBe(jailedNow);
+      jailed += jailedNow;
+    }
+    // Without this the assertion above holds vacuously on a seed set that never arrests.
+    expect(jailed).toBeGreaterThan(0);
+  });
+
+  it('jails nobody and raises no card while the prison has no guard', () => {
+    for (let seed = 1; seed <= 10; seed += 1) {
+      const { state, cheater, paramour, entityById, buildings } = makeCaughtWorld(seed, false);
+      exposeAffair(state, cheater, paramour, 'caught', entityById, buildings, state.entities);
+      expect(cheater.prisonBuildingId).toBeUndefined();
+      expect(paramour.prisonBuildingId).toBeUndefined();
+      expect(state.bigNews).toHaveLength(0);
+    }
+  });
+
+  it('says why nothing happened when the prison has no guard, and only once', () => {
+    const { state, cheater, paramour, entityById, buildings } = makeCaughtWorld(1, false);
+    const notice = () =>
+      state.eventLog.filter((event) => event.message.includes('the prison has no guard on duty'));
+
+    exposeAffair(state, cheater, paramour, 'caught', entityById, buildings, state.entities);
+    expect(notice()).toHaveLength(1);
+
+    // A second scandal must not repeat it: the player has already been told.
+    const second = makeCaughtWorld(2, false);
+    second.state.eventLog = state.eventLog;
+    exposeAffair(second.state, second.cheater, second.paramour, 'caught', second.entityById, second.buildings, second.state.entities);
+    expect(notice()).toHaveLength(1);
   });
 });

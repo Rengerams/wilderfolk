@@ -2,6 +2,16 @@
 
 ## <u>[0.6.5.2]</u> — 2026-09-30
 
+- **Stopped showing the work-output penalty as "fatigue"** — it is a production multiplier where higher meant worse, while a settler's real tiredness is energy out of 500 where lower means worse, so "39% → 10%" read as near death; the panel now shows crew work output and the log lines name the cost.
+
+- **The chronicle can now show its whole history on request** — the list drew the newest 500 rows with no way past them, which read as a 500-entry log; one button now loads the rest, and the rows are memoised so a full list stays cheap while the world ticks.
+
+- **A scandal now says so when it goes unpunished** — a caught affair with no guard on duty at the prison was refused in silence, so the whole jailing chain looked broken; it now writes one line explaining why, the first time it happens.
+
+- **A jailing now raises a notice that waits for you** — an imprisonment was announced only as one of the four transient toasts, so a rare jailing could pass unseen; it now posts a card like a raid or a festival does.
+
+- **Archived the retired probes and the broken cycle tools out of the scripts folder** — they are parked with a note saying why, so the next reader extends the harness instead of writing another one-off probe.
+
 - **Announced the election revelry, which ran silent** — the party boosts production, courtship and immigration but only wrote a Chronicle line, so its effects arrived with no word about them; it now raises a notice like the ceremony start does.
 
 - **Fixed the chronicle export dropping its blob before the browser read it** — the download revoked its object URL in the same task as the click, so a large log could vanish with no error and no file; the revoke now waits.

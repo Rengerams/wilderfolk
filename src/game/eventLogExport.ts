@@ -50,11 +50,12 @@ export function downloadTextFile(content: string, filename: string): void {
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = filename;
-  anchor.rel = 'noopener';
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  URL.revokeObjectURL(url);
+  // Not revoked in this task: the browser reads the blob asynchronously, so revoking
+  // beside the click can drop a large export with no error and no file.
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export function downloadChronicleLog(events: GameEventLog[], meta: ChronicleExportMeta): string {
