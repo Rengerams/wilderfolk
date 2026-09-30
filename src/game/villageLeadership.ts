@@ -865,8 +865,16 @@ export function tickElectionCeremony(state: WorldState, year: number): ElectionA
         logEvent(
           state,
           'election',
-          `Election revelry began — ${ELECTION_PARTY_DAYS} days of celebration`,
+          `Election revelry began — ${ELECTION_PARTY_DAYS} day${ELECTION_PARTY_DAYS === 1 ? '' : 's'} of celebration`,
           result.leaderName,
+        );
+        // The party is a real festival — production, courtship and immigration are boosted — and it is
+        // short, so a Chronicle line alone lets its effects arrive with no word about them.
+        addNotification(
+          state,
+          '🎉 Election revelry!',
+          `${ELECTION_PARTY_DAYS === 1 ? 'A day' : `${ELECTION_PARTY_DAYS} days`} of celebration — production, courtship and immigration are boosted while it lasts.`,
+          'success',
         );
       }
 
