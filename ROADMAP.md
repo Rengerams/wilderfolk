@@ -97,6 +97,8 @@ shell before trusting PowerShell 7 syntax.
 
 ## 8. How to work
 
+[`ARCHITECTURE.md`](ARCHITECTURE.md) decides **what is allowed to change** — the sacred simulation, the seam
+that keeps it apart from the free half, and how terrain and rendering may be rewritten.
 [`AGENTS.md`](AGENTS.md) is the protocol — parity rules, GDScript over C#, the MCP workflow, the report format.
 [`MCP.md`](MCP.md) is the tool reference: what the Godot AI server can do and how to drive it.
 
