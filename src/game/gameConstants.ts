@@ -193,21 +193,16 @@ export const Animal = {
 } as const;
 
 /**
- * Prison guard duty (owner: `prisonGuardDuty.ts`, daily cadence).
+ * Prison guard duty (owner: `prisonGuardDuty.ts`, daily cadence; roster: `prisonShifts.ts`).
  *
- * Player design (2026-09-08): one staffed guard covers an 8-hour shift, so a
- * completed Prison needs 3 guards for full 24 h coverage. While the Prison
- * holds prisoners and coverage is below 24 h, each unguarded hour carries an
- * escape risk.
+ * The roster owns the shifts — three nine-hour windows with a one-hour handover — and the guard count
+ * that covers them. What stays tuning is the price of a gap: while the Prison holds prisoners and any
+ * hour of the day has no guard on it, that hour carries this escape risk.
  */
 export const Prison = {
-  /** 8 = one guard's shift length in hours. */
-  GUARD_SHIFT_HOURS: 8,
-  /** 3 = HOURS_PER_DAY(24) / GUARD_SHIFT_HOURS(8) — guards for round-the-clock coverage. */
-  GUARDS_FOR_FULL_COVERAGE: 3,
   /**
-   * 0.05 = per-unguarded-hour escape chance. Empirical/tuning: with 1 guard
-   * (16 unguarded hours) this frees a prisoner roughly half the days.
+   * 0.05 = per-unguarded-hour escape chance. Empirical/tuning: one guard of three leaves two shifts
+   * open, which frees a prisoner most days.
    */
   ESCAPE_CHANCE_PER_UNGUARDED_HOUR: 0.05,
 } as const;

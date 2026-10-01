@@ -34,7 +34,7 @@ import {
 import { getBarracksGuardCount } from '../src/game/defenseStructures';
 import { tickPrisonGuardDuty } from '../src/game/prisonGuardDuty';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
-import { Prison } from '../src/game/gameConstants';
+import { PRISON_GUARDS_FOR_FULL_COVERAGE } from '../src/game/prisonShifts';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 
@@ -397,15 +397,15 @@ function staffedPrison(guardCount: number): { world: WorldState; prisoner: Entit
 
 describe('prison coverage — the crew the shifts require has to fit in the building', () => {
   it('seats a full guard crew and still has room for a prisoner', () => {
-    // `prisonGuardDuty` needs GUARDS_FOR_FULL_COVERAGE guards for 24 h coverage. A building that cannot
-    // seat them makes the leak certain: that is how every prisoner in a live save came to escape.
+    // The roster needs one guard per shift for 24 h coverage. A building that cannot seat them makes
+    // the leak certain: that is how every prisoner in a live save came to escape.
     expect(BUILDING_CONFIGS[BuildingType.Prison].maxOccupants).toBeGreaterThanOrEqual(
-      Prison.GUARDS_FOR_FULL_COVERAGE + 1,
+      PRISON_GUARDS_FOR_FULL_COVERAGE + 1,
     );
   });
 
   it('holds the prisoner while the full crew is on the roster', () => {
-    const { world, prisoner } = staffedPrison(Prison.GUARDS_FOR_FULL_COVERAGE);
+    const { world, prisoner } = staffedPrison(PRISON_GUARDS_FOR_FULL_COVERAGE);
     setSimSeed(1);
     for (let day = 0; day < 120; day++) tickPrisonGuardDuty(world);
 
@@ -415,7 +415,7 @@ describe('prison coverage — the crew the shifts require has to fit in the buil
   });
 
   it('still leaks when the roster is one shift short', () => {
-    const { world, prisoner } = staffedPrison(Prison.GUARDS_FOR_FULL_COVERAGE - 1);
+    const { world, prisoner } = staffedPrison(PRISON_GUARDS_FOR_FULL_COVERAGE - 1);
     setSimSeed(1);
     let escaped = false;
     for (let day = 0; day < 120 && !escaped; day++) {

@@ -62,7 +62,8 @@ import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { findHumanWorkplace } from '../workforce';
 import { getWorkSchedule, isWorkScheduleHour, type WorkSchedule } from '../workSchedule';
 import { sayHumanChatPhrase } from '../humanChat';
-import { Prison, Relationship } from '../gameConstants';
+import { Relationship } from '../gameConstants';
+import { PRISON_GUARDS_FOR_FULL_COVERAGE } from '../prisonShifts';
 import { getSimRng, seededRandomForRun } from '../simRng';
 import { personDayRoll } from '../dayCycle';
 import { addReputation } from '../simHelpers';
@@ -1306,10 +1307,10 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
   const arrestChance = Math.min(0.85, 0.6 + prisons.length * 0.08);
   if (getSimRng('humanRelationships')() >= arrestChance) return;
   // The prisoner slots are what is left after the crew that keeps the doors shut: a prison that cannot
-  // seat its guards leaks, so the cap has to follow `GUARDS_FOR_FULL_COVERAGE`, not a magic one.
+  // seat its guards leaks, so the cap follows the roster's own crew size rather than a magic one.
   const prisonerCap = Math.max(
     1,
-    BUILDING_CONFIGS[BuildingType.Prison].maxOccupants - Prison.GUARDS_FOR_FULL_COVERAGE,
+    BUILDING_CONFIGS[BuildingType.Prison].maxOccupants - PRISON_GUARDS_FOR_FULL_COVERAGE,
   );
   const prison = prisons.find((b) => countPrisonersAt(state, b.id) < prisonerCap) ?? prisons[0];
   if (countPrisonersAt(state, prison.id) >= prisonerCap && offender.prisonBuildingId == null) return;
