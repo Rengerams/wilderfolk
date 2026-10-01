@@ -2,6 +2,8 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Recorded the owners the call graph showed missing** — the terrain subsystem, the Hunting Spot's pursuit and kill, the window shells and three single-purpose leaves had no ownership row, so 110 functions had no owner; the graph now resolves all 2767.
+
 - **Fixed children holding adult jobs, and school with it** — the juvenile flag is set at birth and only cleared by graduation, so a child with a wrong flag stayed a grown-up: posted, armed, and refused as a pupil. Loading a save now returns them to childhood.
 
 - **Stopped lending the energy glyph to fatigue** — the panel gave fatigue as a percentage where higher meant a worse penalty, beside a settler's energy percentage where lower means trouble, so it read as energy left; it now names the fatigue band and gives the penalty as a multiplier.

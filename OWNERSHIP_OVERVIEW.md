@@ -269,6 +269,33 @@ The explorer now attaches an entry-function name only when the function lives in
 |---|---|---|---|
 | In-game roadmap copy and panel | `roadmapContent.ts` + `RoadmapPanel.tsx` | UI (read-only) | `RoadmapPanel` |
 
+## Owners recorded by the 2026-10-01 call-graph pass
+
+`docs/tools/call-graph.json` (generated 2026-10-01T00:21:45) reported **2657/2767** functions with a
+recorded owner. The 110 without an owner were not strays: **76 of them are the terrain subsystem**, which
+had no row here at all, plus the Hunting Spot's target/kill behaviour, the window shells every subject now
+renders into, and three single-purpose leaves. Every entry below is named the way the module actually
+exports it.
+
+| Decision | True owner | Cadence / called from | Key entry functions |
+|---|---|---|---|
+| Terrain data model, its four-layer grid and the tile projection | `terrain/terrainGrid.ts` | generation, then read-only | `tileAt`, `tileTypeAt`, `tileTypeAtWorld`, `biomeAt`, `isTileBuildable`, `isTileWalkable`, `setTileOverride`, `rebakeTerrainGrids`, `terrainReader` |
+| Terrain generation pipeline | `terrain/terragen.ts` | world generation, once per map | `generateRawTerrain` |
+| Noise and PRNG primitives | `terrain/noise.ts` | generation (pure) | `fbm`, `ridged`, `warp`, `valueNoise`, `mulberry32`, `hash2`, `clamp` |
+| River flow routing (the hydrology model) | `terrain/hydrology.ts` | generation, after de-pitting | `computeFlow`, `fillDepressions`, `riverWidthAt`, `relativeDischarge` |
+| What a terrain type **is** — water, and may anything stand on it | `terrain/terrainTraits.ts` | read-only leaf (breaks the `placementUtils ↔ terrainGrid` cycle) | `isWaterTerrainType`, `isUnbuildableTerrainType` |
+| Orographic rain shadow | `terrain/rainShadow.ts` | generation (the moisture field) | `rainShadowField` |
+| Ground bake, per-pixel Whittaker | `renderer/whittakerTerrain.ts` | render, cached per viewport | `buildWhittakerFields`, `bakeWhittakerGround`, `bandDetail` |
+| Ground props (the L3 decor layer) | `renderer/decor.ts` | render, cached per rect | `bakeDecorInRect` |
+| Hunting Spot prey selection, pursuit and the kill | `huntingSpot.ts` | realtime hunter behaviour | `huntingSpotTarget`, `commitHuntingSpotTarget`, `pickHuntingSpotPrey`, `huntingKillReach`, `huntingPursuitPoint`, `isHuntingStrikeLive`, `isHuntingSpotHunter` |
+| The village anchor (one camp-centre rule, two readers) | `villageAnchor.ts` | command + render, read-only | `getPlayerCampCenter`, `getPlayerCampCenterFromBuildings`, `getPlayerSettlerCenter` |
+| Civil status — married **or** expecting | `civilStatus.ts` | read-only predicate | `isMarriedOrExpecting` |
+| The one window shell a subject renders into | `components/GameWindow.tsx` | UI (composition/wiring only) | `GameWindow` |
+| One subject as an index inside a window | `components/SubjectWindow.tsx` | UI (composition/wiring only) | `SubjectWindow` |
+| Work & venue hours editor | `components/WorkHoursWindow.tsx` | UI (read-only editors, commands out) | `WorkHoursWindow` |
+| Family tree window | `components/FamilyTreeWindow.tsx` | UI (read-only; the data owner is `game/familyTree.buildFullFamilyTree`) | `FamilyTreeWindow` |
+| Test map fixtures | `src/test/worldMapFixtures.ts` | test tier only — never in the app build | `testWorldMap`, `blockedColumn`, `blockedRow` |
+
 ## Protected facades (re-export / schedule only — no new policy)
 
 | Facade | May do | Must not do |
