@@ -1,8 +1,11 @@
 {
-  "$schema": "https://jsr.io/schema/config-file.v1.json",
-  // Do not add `deno task` entries for the build: on Windows Deno's task shell executes the
-  // POSIX shim in node_modules/.bin instead of the .cmd, so use the deno:* npm scripts.
+  "$schema": "https://jsr.io",
   "nodeModulesLinker": "hoisted",
+  "nodeModulesDir": "manual",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  },
   "exclude": [
     "dist",
     "node_modules",

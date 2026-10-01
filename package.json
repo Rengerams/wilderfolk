@@ -35,7 +35,7 @@
     "audit:deps:graph": "node scripts/test.mjs cycles --json",
     "graph:calls": "node scripts/build-call-graph.mjs",
     "audit": "node scripts/test.mjs audit",
-    "deno:build": "deno run --allow-read --allow-write --allow-env --allow-sys --allow-run scripts/test.mjs build",
+    "deno:build": "deno compile --allow-read --allow-write --allow-env --allow-sys --allow-run --output deno/wilderfolk.exe src/app.tsx",
     "deno:test": "deno run --allow-read --allow-write --allow-env --allow-sys --allow-run scripts/test.mjs"
   },
   "packageManager": "",
@@ -43,7 +43,7 @@
     "@choochmeque/tauri-windows-bundle": "^0.2.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/api": "^2.12.1",
-    "json-2-csv": "^5.6.0",
+    "deno": "^2.9.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router": "^8.4.0",
@@ -68,6 +68,7 @@
   },
   "allowScripts": {
     "esbuild": true,
-    "skia-canvas@3.0.8": true
+    "skia-canvas@3.0.8": true,
+    "deno@2.9.6": true
   }
 }
