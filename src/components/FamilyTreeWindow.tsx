@@ -3,6 +3,7 @@
  * leading and highlighted. The data owner is `game/familyTree.buildFullFamilyTree`.
  */
 import type { Entity } from '../game/gameTypes';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { citizenFullName } from '../game/citizenId';
 import { buildFullFamilyTree, type FamilyTreePerson } from '../game/familyTree';
 import GameWindow from './GameWindow';
@@ -62,19 +63,76 @@ function TreeNode({
   );
 }
 
-/** A vertical connector segment. `height` in px, kept small so gaps stay legible. */
-function Stem({ height = 8 }: { height?: number }) {
-  return <div aria-hidden className="mx-auto w-px bg-amber-500/40" style={{ height }} />;
+/** One measured parent → child branch, in coordinates relative to the tree's own box. */
+interface Branch {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
 }
 
-/** The horizontal bar that ties a generation's people to the single stem below them. */
-function Elbow() {
-  return <div aria-hidden className="mx-auto h-px w-2/3 bg-amber-500/40" />;
+function TreeBranches({ branches }: { branches: Branch[] }) {
+  if (branches.length === 0) return null;
+  return (
+    <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden>
+      {branches.map((b, index) => (
+        // Orthogonal routing: down from the parent, across at the midpoint, then down to the child.
+        <path
+          key={index}
+          d={`M ${b.x1} ${b.y1} V ${(b.y1 + b.y2) / 2} H ${b.x2} V ${b.y2}`}
+          fill="none"
+          stroke="rgba(245,158,11,0.45)"
+          strokeWidth={1}
+        />
+      ))}
+    </svg>
+  );
 }
 
 export default function FamilyTreeWindow({ entity, allEntities, onClose, onSelect }: FamilyTreeWindowProps) {
   const tree = buildFullFamilyTree(entity, allEntities);
   const relatives = tree.memberCount - 1;
+  const treeBoxRef = useRef<HTMLDivElement | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  /** The member layout, as a stable key: re-measure when it changes, not on every render. */
+  const layoutKey = tree.rows.map((r) => r.members.map((m) => m.id).join(',')).join('|');
+
+  // The edges are known (`parentLinks`); where each name lands is not, so the branches are measured
+  // after layout and redrawn whenever the box changes size.
+  useLayoutEffect(() => {
+    const root = treeBoxRef.current;
+    if (!root) return;
+    const draw = () => {
+      const box = root.getBoundingClientRect();
+      const boxOf = (id: number) => {
+        const node = root.querySelector<HTMLElement>(`[data-ftid="${id}"]`);
+        if (!node) return null;
+        const rect = node.getBoundingClientRect();
+        return {
+          x: rect.left - box.left + rect.width / 2,
+          top: rect.top - box.top,
+          bottom: rect.bottom - box.top,
+        };
+      };
+      const next: Branch[] = [];
+      for (const [childId, parentIds] of tree.parentLinks) {
+        const child = boxOf(childId);
+        if (!child) continue;
+        for (const parentId of parentIds) {
+          const parent = boxOf(parentId);
+          if (!parent) continue;
+          // Oldest is drawn first, so the parent is normally above; guard the reverse anyway.
+          const upper = parent.top <= child.top ? parent : child;
+          const lower = upper === parent ? child : parent;
+          next.push({ x1: upper.x, y1: upper.bottom, x2: lower.x, y2: lower.top });
+        }
+      }
+      setBranches(next);
+    };
+    draw();
+    window.addEventListener('resize', draw);
+    return () => window.removeEventListener('resize', draw);
+  }, [layoutKey]);
   /** Full names through `citizenFullName` — given names alone are ambiguous across generations. */
   const byId = new Map(allEntities.map((e) => [e.id, e] as const));
   const fullNameOf = (person: FamilyTreePerson) => {
@@ -83,15 +141,17 @@ export default function FamilyTreeWindow({ entity, allEntities, onClose, onSelec
   };
   const pick = (person: FamilyTreePerson) => (onSelect ? () => onSelect(person.id) : undefined);
   const row = (person: FamilyTreePerson) => (
-    <TreeNode
-      key={person.id}
-      icon={person.icon}
-      name={fullNameOf(person)}
-      relation={person.relation}
-      detail={person.detail}
-      anchor={person.isFocus}
-      onSelect={person.isFocus ? undefined : pick(person)}
-    />
+    // `data-ftid` is how the branch layer finds this person's box to measure.
+    <span key={person.id} data-ftid={person.id}>
+      <TreeNode
+        icon={person.icon}
+        name={fullNameOf(person)}
+        relation={person.relation}
+        detail={person.detail}
+        anchor={person.isFocus}
+        onSelect={person.isFocus ? undefined : pick(person)}
+      />
+    </span>
   );
 
   return (
@@ -113,19 +173,13 @@ export default function FamilyTreeWindow({ entity, allEntities, onClose, onSelec
           No living relatives recorded — no parents, siblings, spouse or children.
         </p>
       ) : (
-        <div className="space-y-0 text-[11px]">
+        <div ref={treeBoxRef} className="relative space-y-1 text-[11px]">
+          <TreeBranches branches={branches} />
           {/* One row per generation, oldest at the top. The rows do not depend on who was clicked: the
               builder resolves the connected family first, so every member draws the same tree and only
               the highlight moves. */}
-          {tree.rows.map((generation, index) => (
+          {tree.rows.map((generation) => (
             <div key={generation.delta}>
-              {index > 0 && (
-                <>
-                  <Stem />
-                  <Elbow />
-                  <Stem height={6} />
-                </>
-              )}
               <p className="text-center text-[10px] uppercase tracking-wide text-amber-400/70">
                 {generation.label}
                 {generation.delta === 0 ? ' · this settler' : ''}

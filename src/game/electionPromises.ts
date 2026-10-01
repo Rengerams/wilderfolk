@@ -181,9 +181,9 @@ export function getActiveElectionPromises(state: WorldState): {
   promises: PromiseDetail[];
 } | null {
   const year = storyFlag(state, FLAG_ACTIVE_YEAR);
-  if (year <= 0) return null;
   if (storyFlag(state, evaluatedKey(year)) > 0) return null;
-
+  // An unrecorded set reads 0 here too, so the eval day below is what says "nothing was promised".
+  // Year 0 is the founding year, and an election held in it records real promises under it.
   const evalDay = storyFlag(state, evalDayKey(year));
   if (evalDay <= 0) return null;
 
@@ -232,9 +232,10 @@ function promiseKept(state: WorldState, year: number, index: number): boolean {
 
 export function tickElectionPromises(state: WorldState): void {
   const year = storyFlag(state, FLAG_ACTIVE_YEAR);
-  if (year <= 0) return;
   if (storyFlag(state, evaluatedKey(year)) > 0) return;
 
+  // Founding-year promises are promises: an unrecorded set is caught by the eval day below, not by the
+  // year, which is 0 for the first election of a colony.
   const evalDay = storyFlag(state, evalDayKey(year));
   if (evalDay <= 0) return;
   if (getColonyDay(state) < evalDay) return;

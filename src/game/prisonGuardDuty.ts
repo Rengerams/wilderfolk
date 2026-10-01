@@ -10,7 +10,7 @@ import { BuildingType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { ensureEntityByIdMap } from './entityIndex';
 import { logEvent } from './eventLog';
-import { addFloatingText } from './simEffects';
+import { addFloatingText, addNotification } from './simEffects';
 import { Prison } from './gameConstants';
 import { getHourOfDay, isStartOfClockHour } from './dayCycleClock';
 import { isNearBuilding } from './simulation/humanRelationships';
@@ -89,14 +89,19 @@ export function tickPrisonPresence(state: WorldState): void {
     if (prison.type !== BuildingType.Prison || !prison.completed || prison.faction === 'rival') continue;
     if (heldPrisoners(state, prison.id).length === 0) continue;
 
-    const roster = prisonRoster(prisonGuardIds(state, prison.occupants ?? []), state.tick);
-    for (const shift of shiftsNow) {
-      const guardId = roster.find((row) => row.shift.key === shift.key)?.guardId;
-      const guard = guardId == null ? undefined : livingById(state, entityById, guardId);
-      if (guard && isNearBuilding(guard, prison)) continue;
-      const hours = (prison.uncoveredPrisonHours ??= []);
-      if (!hours.includes(hour)) hours.push(hour);
-    }
+    const guardIds = prisonGuardIds(state, prison.occupants ?? []);
+    // Any guard on the post covers the hour. The roster says who is *expected*, not who is allowed: a
+    // relief or the fourth guard of a three-shift crew standing there is a guard on the post. Counting
+    // only the named one logged the hour as open while guards were on it, and every open hour carries
+    // an escape roll — which is how a fully-staffed prison still freed prisoners.
+    const posted = guardIds.some((id) => {
+      const guard = livingById(state, entityById, id);
+      return guard != null && isNearBuilding(guard, prison);
+    });
+    if (posted) continue;
+
+    const hours = (prison.uncoveredPrisonHours ??= []);
+    if (!hours.includes(hour)) hours.push(hour);
   }
 }
 
@@ -135,9 +140,11 @@ export function tickPrisonGuardDuty(state: WorldState): void {
       const cx = prison.x + prison.width / 2;
       const cy = prison.y + prison.height / 2;
       addFloatingText(state, cx, cy - 14, 'A prisoner slipped out!', '#f59e0b');
+      // The player is told, not just logged at: an escape is the consequence of a post they left open.
+      addNotification(state, 'Escaped', `${escapee.name ?? 'A prisoner'} slipped out of the unguarded Prison`, 'warning');
       logEvent(
         state,
-        'event',
+        'prison',
         `${escapee.name ?? 'A prisoner'} slipped out while the Prison was unguarded (${describeOpenPost(roster)}).`,
       );
       break;

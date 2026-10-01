@@ -31,6 +31,14 @@ export const PRISON_SHIFTS: readonly PrisonShift[] = Object.freeze([
 /** One guard per shift — the crew that leaves no unguarded hour. */
 export const PRISON_GUARDS_FOR_FULL_COVERAGE = PRISON_SHIFTS.length;
 
+/**
+ * How many prisoners a Prison holds: its occupancy minus the crew that keeps the doors shut. The beds
+ * have one formula so the arrest path and the moon-howler conversion cannot disagree about them.
+ */
+export function prisonPrisonerCapacity(maxOccupants: number): number {
+  return Math.max(1, maxOccupants - PRISON_GUARDS_FOR_FULL_COVERAGE);
+}
+
 export interface PrisonRosterEntry {
   shift: PrisonShift;
   /** The guard holding this shift, or `null` while it is vacant. */

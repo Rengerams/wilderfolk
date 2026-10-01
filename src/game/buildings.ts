@@ -487,8 +487,8 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     height: 46,
     cost: { wood: 60, stone: 40, gold: 30 },
     buildTime: 5,
-    // Three 8-hour guard shifts cover the day, plus one slot for the prisoner they hold.
-    maxOccupants: 4,
+    // Three guard shifts cover the day, plus four beds for the prisoners they hold.
+    maxOccupants: 7,
     emoji: '⛓️',
     label: 'Prison',
     description: 'Holds scandalous settlers for a short sentence. Three guards cover a full day.',

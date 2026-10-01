@@ -137,7 +137,9 @@ describe('C2 — the view reads the owner instead of re-deriving the rule', () =
     const inspector = read('src/components/SelectedEntityPanel.tsx');
     const families = read('src/components/FamiliesTreePanel.tsx');
 
-    expect(inspector).toContain('citizenGivenName(e)');
+    // The fallback call sits wherever the view prints a given name, so assert the owner is read
+    // rather than the variable it happens to be passed; the negative checks below are the real guard.
+    expect(inspector).toContain('citizenGivenName(');
     expect(families).toContain('citizenGivenName(person)');
     expect(inspector, "the 'Unknown' fallback is back").not.toContain("e.name || 'Unknown'");
     expect(families, "the 'Settler' fallback is back").not.toContain("person.name || 'Settler'");

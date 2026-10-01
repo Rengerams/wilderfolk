@@ -202,6 +202,32 @@ describe('villageLeadership.electionGaps.test.ts', () => {
       expect(tryStartVacancyElectionCeremony(state, dueYear, dueDay)).toBe(true);
       expect(state.electionCeremony?.reason).toBe('succession');
     });
+
+    it('re-arms a vacancy that finds nobody eligible, instead of retrying every day', () => {
+      const state = world();
+      makeEveryoneIneligible(state);
+      // A death armed the schedule for this very day, and the attempt finds no candidate.
+      state.pendingElectionYear = TERM_YEAR;
+
+      expect(tryStartVacancyElectionCeremony(state, TERM_YEAR, 0), 'the ceremony should not start').toBe(false);
+      // Pre-fix the past-due date stayed where it was, so the office was re-attempted — and the
+      // postponement logged — every single day until a settler came of age. The office is now
+      // re-contested on the vacancy rhythm instead.
+      expect(state.pendingElectionYear).toBeCloseTo(TERM_YEAR + VACANCY_ELECTION_DELAY_YEARS, 10);
+
+      // And the retry really runs once an adult is eligible again.
+      for (const entity of state.entities) {
+        if (entity.type === EntityType.Human && entity.faction == null) entity.isJuvenile = false;
+      }
+      const due = state.pendingElectionYear ?? 0;
+      const dueYear = Math.floor(due);
+      const dueDay = Math.round((due - dueYear) * DAYS_PER_YEAR);
+      state.year = dueYear;
+      state.dayInYear = dueDay;
+      state.tick = (dueYear * DAYS_PER_YEAR + dueDay) * TICKS_PER_DAY;
+
+      expect(tryStartVacancyElectionCeremony(state, dueYear, dueDay)).toBe(true);
+    });
   });
 });
 

@@ -425,6 +425,13 @@ describe('gameLoop.exportAuthority.test.ts', () => {
       setWorkerFaultHandler: () => {},
     };
   }
+  /**
+   * The worker surface the save path touches. `exportSave` is widened off the helper's `Mock` to a
+   * plain function so a test can substitute one that only counts calls.
+   */
+  type FakeHost = Omit<ReturnType<typeof fakeHostReturning>, 'exportSave'> & {
+    exportSave: () => Promise<WorldState>;
+  };
 
   /**
    * A loop wired to a fake worker. `GameLoop`'s constructor decides worker-vs-main-thread from the
@@ -513,6 +520,66 @@ describe('gameLoop.exportAuthority.test.ts', () => {
       warn.mockRestore();
 
       expect(returned).toBe(display);
+    });
+
+    /**
+     * A worker fault during the save window.
+     *
+     * `fallbackFromWorker` is reachable from the frame loop at any moment and replaces `workerHost`; it
+     * does **not** bump `sessionGen`, which is all the post-await re-check used to test. A stall landing
+     * while `whenIdle()` was pending therefore left the next line reading a host that was already gone —
+     * in the field, `null`, which threw `TypeError: Cannot read properties of null (reading
+     * 'exportSave')` into the catch below. The host is captured and identity-checked now, the shape
+     * `queueWorkerImport` in the same file already used.
+     *
+     * The replacement host here is a *different live host*, not `null`, on purpose: the throw from a
+     * `null` dereference is swallowed by that catch, so the pre-fix and post-fix paths would both return
+     * the display world and the test could not tell them apart. With two hosts, the save either uses the
+     * replacement's `exportSave` (pre-fix) or ignores it (post-fix) — and that is observable.
+     */
+    it('ignores a host that was replaced while the save waited', async () => {
+      const display = initGame({ villageName: 'Display', seed: 20260925 });
+      const exported = initGame({ villageName: 'Export', seed: 20260925 });
+      const loop = loopWithWorker(display, exported);
+      const internals = loop as unknown as {
+        workerEnabled: boolean;
+        workerHost: FakeHost | null;
+      };
+
+      const staleHost = internals.workerHost!;
+      const calls = { whenIdle: 0, replacementExportSave: 0 };
+      const replacement = {
+        ...staleHost,
+        isReady: () => true,
+        exportSave: () => {
+          calls.replacementExportSave++;
+          return Promise.resolve(exported);
+        },
+      };
+      // The captured host resolves `whenIdle()` only after the swap, so the replacement lands *inside*
+      // the await — after the guard at the top of `exportAuthoritativeWorld` has already passed.
+      internals.workerHost = {
+        ...staleHost,
+        whenIdle: () => {
+          calls.whenIdle++;
+          return new Promise<void>((resolve) => {
+            setTimeout(() => {
+              internals.workerHost = replacement;
+              resolve();
+            }, 0);
+          });
+        },
+      };
+
+      const returned = await loop.exportAuthoritativeWorld(1_000);
+
+      // The swap happened mid-await…
+      expect(calls.whenIdle).toBe(1);
+      // …and the save must not read the authority out of a host it did not start with.
+      expect(calls.replacementExportSave).toBe(0);
+      // A replaced host's world is not the authority: the display world is what gets persisted.
+      expect(returned).toBe(display);
+      expect(loop.getWorld()).toBe(display);
     });
   });
 });

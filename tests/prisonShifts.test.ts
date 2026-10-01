@@ -5,9 +5,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { BUILDING_CONFIGS, BuildingType } from '../src/game/gameTypes';
 import {
   PRISON_GUARDS_FOR_FULL_COVERAGE,
   PRISON_SHIFTS,
+  prisonPrisonerCapacity,
   prisonRoster,
   prisonShiftsAtHour,
   prisonWeekIndex,
@@ -66,5 +68,14 @@ describe('the roster covers the day', () => {
     expect(prisonWeekIndex(0)).toBe(0);
     expect(prisonWeekIndex(6 * TICKS_PER_DAY)).toBe(0);
     expect(prisonWeekIndex(7 * TICKS_PER_DAY)).toBe(1);
+  });
+});
+
+describe('the prison holds four prisoners beside its guard shifts', () => {
+  it('counts the cells as the occupancy left after the crew that covers the day', () => {
+    const occupancy = BUILDING_CONFIGS[BuildingType.Prison].maxOccupants;
+    expect(prisonPrisonerCapacity(occupancy)).toBe(4);
+    // Both sides of the split, so a change to either the building or the roster shows up here.
+    expect(occupancy).toBe(PRISON_GUARDS_FOR_FULL_COVERAGE + 4);
   });
 });

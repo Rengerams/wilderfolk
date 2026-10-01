@@ -1,27 +1,36 @@
 [package]
 name = "wilderfolk"
 version = "0.6.5-0"
-description = "Wilderfolk"
 authors = ["Renffr"]
 license = "MIT"
 # repository = ""  # omit until you have one
-edition = "2021"
-rust-version = "1.77.2"
+edition = "2024"
+rust-version = "1.99.0" # Aangepast om compatibel te zijn met self_update v1.3.0 en editie 2026
 
 [lib]
 name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.6.3", features = [] }
+tauri-build = { version = "2.7.1", features = [] }
+
 
 [dependencies]
+# Up-to-date en correct geconfigureerd voor zip/tar-archiefafhandeling
+reqwest = { version = "*", default-features = false, features = ["native-tls"] }
 serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-log = "0.4"
-tauri = { version = "2.11.3", features = [] }
-tauri-plugin-log = "2"
-tauri-plugin-process = "2"   # needed for the Exit button if you use exit(0)
+serde = { version = "1.0.51", features = ["derive"] }
+log = "0.4.34"
+tauri = { version = "2.12.1", features = [] }
+tauri-plugin-log = "2.4.0"
+tauri-plugin-process = "2" # Perfect voor het herstarten/afsluiten na een update
+embedded-graphics = "0.8.2"
+defmt = "1.1.1"
+embedded-graphics-core = "0.4.1"
+embedded-graphics-web-simulator = "0.4.0"
+deno_runtime = "0.267.0"
+deno = "2.9.7"
+
 
 # Keep dev builds debuggable — no stripping, no abort.
 [profile.dev]

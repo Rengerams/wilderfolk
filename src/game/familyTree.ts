@@ -467,6 +467,8 @@ export interface FullFamilyTree {
   memberCount: number;
   /** True when `MAX_FAMILY_MEMBERS` cut the family short. */
   truncated: boolean;
+  /** Member id → the ids of their parents inside this tree: the edges a drawing needs to branch. */
+  parentLinks: ReadonlyMap<number, readonly number[]>;
 }
 
 /** Adds `to` to `from`'s own link list, ignoring a repeat. */
@@ -558,6 +560,12 @@ interface RelationFlags {
   isDescendant: boolean;
   /** Descends from the focus's own line, i.e. a blood or adoptive relative rather than a married-in one. */
   isBlood: boolean;
+  /** Married to one of the focus's parents, so a step-parent rather than an in-law. */
+  isParentSpouse: boolean;
+  /** The other parent of one of the focus's children. */
+  isCoParent: boolean;
+  /** A co-parent whose shared child was born in wedlock: the marriage existed, then ended. */
+  wasSpouse: boolean;
 }
 
 /** How `person` is related to the focus, from their row offset and the edges that reach them. */
@@ -590,9 +598,16 @@ function relationLabelOf(focus: Entity, person: Entity, delta: number, flags: Re
   if (delta === 0) {
     if (flags.isPartner) return 'Spouse';
     if (flags.isSibling) return 'Sibling';
+    // A divorce clears both `partnerId` links, so a former spouse arrives here as a co-parent: the
+    // children they share are what still ties them to the focus. Blood keeps its own word — a relative
+    // who raised the child is still a relative.
+    if (flags.isCoParent && !flags.isBlood) return flags.wasSpouse ? 'Former spouse' : 'Co-parent';
     return flags.isBlood ? 'Cousin' : 'In-law';
   }
-  if (!flags.isBlood) return 'In-law';
+  if (!flags.isBlood) {
+    if (flags.isParentSpouse) return male ? 'Stepfather' : 'Stepmother';
+    return 'In-law';
+  }
   const steps = Math.abs(delta);
   if (delta < 0) {
     if (steps === 1) return male ? 'Uncle' : 'Aunt';
@@ -788,6 +803,14 @@ export function buildFullFamilyTree(focus: Entity, allEntities: readonly Entity[
   const bloodLine = closureOf([focus.id, ...ancestorsOfFocus], (id) => childLinks.get(id) ?? []);
   const partnersOfFocus = new Set<number>(partnerLinks.get(focus.id) ?? []);
   const parentsOfFocus = parentIdSet(focus);
+  // A parent's spouse is the focus's step-parent: a married-in relation, but not the generic in-law
+  // a sibling's or uncle's spouse is, and the difference is the word on their row.
+  const parentSpouseIds = new Set<number>();
+  for (const parentId of parentsOfFocus) {
+    for (const spouseId of partnerLinks.get(parentId) ?? []) {
+      if (spouseId !== focus.id) parentSpouseIds.add(spouseId);
+    }
+  }
   const siblingsOfFocus = new Set<number>();
   for (const id of seen) {
     const person = byId.get(id);
@@ -820,6 +843,28 @@ export function buildFullFamilyTree(focus: Entity, allEntities: readonly Entity[
     const otherParent = byId.get(otherParentId);
     return otherParent ? `${age} · with ${citizenGivenName(otherParent)}` : age;
   };
+
+  // The other parent of one of the focus's children. A divorced couple keeps no link to each other, so
+  // this shared child is the only remaining trace of the marriage — and whether that child was born in
+  // wedlock is what says the marriage existed before it ended.
+  const coParentIds = new Set<number>();
+  const marriedCoParentIds = new Set<number>();
+  for (const person of people) {
+    const isChildOfFocus =
+      person.motherId === focus.id
+      || person.fatherId === focus.id
+      || person.adoptiveMotherId === focus.id
+      || person.adoptiveFatherId === focus.id
+      || (focus.childrenIds ?? []).includes(person.id);
+    if (!isChildOfFocus) continue;
+    const otherParentId =
+      person.motherId === focus.id || person.adoptiveMotherId === focus.id
+        ? person.fatherId ?? person.adoptiveFatherId
+        : person.motherId ?? person.adoptiveMotherId;
+    if (otherParentId == null || otherParentId === focus.id) continue;
+    coParentIds.add(otherParentId);
+    if (!person.isBastard) marriedCoParentIds.add(otherParentId);
+  }
 
   const idsByRow = new Map<number, Entity[]>();
   for (const id of seen) {
@@ -855,6 +900,9 @@ export function buildFullFamilyTree(focus: Entity, allEntities: readonly Entity[
                 isAncestor: ancestorsOfFocus.has(person.id),
                 isDescendant: descendantsOfFocus.has(person.id),
                 isBlood: bloodLine.has(person.id),
+                isParentSpouse: parentSpouseIds.has(person.id),
+                isCoParent: coParentIds.has(person.id),
+                wasSpouse: marriedCoParentIds.has(person.id),
               }),
             icon: iconForPerson(person),
             detail: detailOf(person),
@@ -872,5 +920,6 @@ export function buildFullFamilyTree(focus: Entity, allEntities: readonly Entity[
     rows,
     memberCount: seen.size,
     truncated,
+    parentLinks,
   };
 }

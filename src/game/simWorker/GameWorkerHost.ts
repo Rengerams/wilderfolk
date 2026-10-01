@@ -78,6 +78,23 @@ export type WorkerUiPatch = Pick<
  */
 export const MAX_PIPELINE_DEPTH = Math.max(0, RENDER_BUFFER_POOL_SIZE - 1);
 
+/** A requested export, and the timer that frees the host if its reply never arrives. */
+type PendingExport = {
+  resolve: (world: WorldState) => void;
+  reject: (err: Error) => void;
+  deadline: ReturnType<typeof setTimeout>;
+};
+
+/** How long an export may wait for its reply before the host stops counting it. */
+const EXPORT_REPLY_DEADLINE_MS = 30000;
+
+/**
+ * How long a command may wait for its reply. This is the freeze guard: `canPipelineTick()` refuses
+ * every tick while a command is pending, and the stall watchdog needs a tick in flight to fire — so a
+ * reply that never came stopped the simulation for good with the renderer still drawing at full rate.
+ */
+const COMMAND_REPLY_DEADLINE_MS = 30000;
+
 export class GameWorkerHost {
   private worker: Worker | null = null;
   private ready = false;
@@ -90,11 +107,9 @@ export class GameWorkerHost {
   private pendingCommand: {
     resolve: (delta: SimTickDelta) => void;
     reject: (err: Error) => void;
+    deadline: ReturnType<typeof setTimeout>;
   } | null = null;
-  private pendingExport: {
-    resolve: (world: WorldState) => void;
-    reject: (err: Error) => void;
-  } | null = null;
+  private pendingExport: PendingExport | null = null;
   private idleWaiters: Array<() => void> = [];
   /** Woken when the worker handshake settles — see `whenReady()`. */
   private readyWaiters: Array<() => void> = [];
@@ -257,10 +272,8 @@ export class GameWorkerHost {
     this.worldRef = null;
     this.lastPausedSent = null;
     this.lastSpeedSent = null;
-    this.pendingCommand?.reject(new Error('Worker disposed'));
-    this.pendingCommand = null;
-    this.pendingExport?.reject(new Error('Worker disposed'));
-    this.pendingExport = null;
+    this.settleCommand((pending) => pending.reject(new Error('Worker disposed')));
+    this.settleExport((pending) => pending.reject(new Error('Worker disposed')));
     this.commandChain = Promise.resolve();
     const waiters = this.idleWaiters;
     this.idleWaiters = [];
@@ -475,18 +488,47 @@ export class GameWorkerHost {
       return Promise.reject(new Error('Command already in flight'));
     }
     return new Promise((resolve, reject) => {
-      this.pendingCommand = { resolve, reject };
+      const entry = {
+        resolve,
+        reject,
+        // No reply: free the pipeline, or every later tick is refused and the world stops advancing
+        // while the renderer keeps drawing. The fault also hands the loop back to main-thread ticks.
+        deadline: setTimeout(() => {
+          if (this.pendingCommand !== entry) return;
+          this.settleCommand((pending) => pending.reject(new Error('Worker command timed out')));
+          this.resolveIdleWaiters();
+          this.onWorkerFault?.('command', 'Worker command timed out');
+        }, COMMAND_REPLY_DEADLINE_MS),
+      };
+      this.pendingCommand = entry;
       const msg: WorkerRequest = { type: 'command', proto: WORKER_PROTO, cmd };
       try {
         this.worker!.postMessage(msg);
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
-        this.pendingCommand = null;
-        reject(error);
+        this.settleCommand((pending) => pending.reject(error));
         this.resolveIdleWaiters();
         this.onWorkerFault?.('command', error.message);
       }
     });
+  }
+
+  /** Settles the pending command, clearing its deadline so a settled entry leaves no timer behind. */
+  private settleCommand(settle: (pending: NonNullable<GameWorkerHost['pendingCommand']>) => void): void {
+    const pending = this.pendingCommand;
+    if (!pending) return;
+    clearTimeout(pending.deadline);
+    this.pendingCommand = null;
+    settle(pending);
+  }
+
+  /** Settles the pending export, clearing its deadline so a settled entry leaves no timer behind. */
+  private settleExport(settle: (pending: PendingExport) => void): void {
+    const pending = this.pendingExport;
+    if (!pending) return;
+    clearTimeout(pending.deadline);
+    this.pendingExport = null;
+    settle(pending);
   }
 
   exportSave(): Promise<WorldState> {
@@ -497,14 +539,25 @@ export class GameWorkerHost {
       return Promise.reject(new Error('Export already in flight'));
     }
     return new Promise((resolve, reject) => {
-      this.pendingExport = { resolve, reject };
+      const entry: PendingExport = {
+        resolve,
+        reject,
+        // A reply that never comes must not leave the host permanently un-idle: every later save would
+        // wait out its whole budget before falling back to the display world.
+        deadline: setTimeout(() => {
+          if (this.pendingExport !== entry) return;
+          this.settleExport((pending) => pending.reject(new Error('Worker export timed out')));
+          this.resolveIdleWaiters();
+          this.onWorkerFault?.('export', 'Worker export timed out');
+        }, EXPORT_REPLY_DEADLINE_MS),
+      };
+      this.pendingExport = entry;
       const msg: WorkerRequest = { type: 'exportSave', proto: WORKER_PROTO };
       try {
         this.worker!.postMessage(msg);
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
-        this.pendingExport = null;
-        reject(error);
+        this.settleExport((pending) => pending.reject(error));
         this.resolveIdleWaiters();
         this.onWorkerFault?.('export', error.message);
       }
@@ -565,10 +618,8 @@ export class GameWorkerHost {
     } else if (opts?.decrementTicks) {
       this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
     }
-    this.pendingCommand?.reject(err);
-    this.pendingCommand = null;
-    this.pendingExport?.reject(err);
-    this.pendingExport = null;
+    this.settleCommand((pending) => pending.reject(err));
+    this.settleExport((pending) => pending.reject(err));
     this.resolveIdleWaiters();
   }
 
@@ -587,24 +638,32 @@ export class GameWorkerHost {
       } else {
         this.ticksInFlight = 0;
       }
-      this.pendingCommand?.reject(new Error(msg.message));
-      this.pendingCommand = null;
-      this.pendingExport?.reject(new Error(msg.message));
-      this.pendingExport = null;
+      this.settleCommand((pending) => pending.reject(new Error(msg.message)));
+      this.settleExport((pending) => pending.reject(new Error(msg.message)));
       this.resolveIdleWaiters();
       this.onWorkerFault?.(msg.source ?? 'general', msg.message);
       return;
     }
 
-    if (msg.type === 'commandResult' && this.worldRef) {
+    if (msg.type === 'commandResult') {
+      // Bookkeeping first, and unconditionally: a result that cannot be applied must still settle its
+      // promise and clear the flag. Clearing it only on the path that applies the delta left the host
+      // permanently un-idle, which times out every save and reads as a stalled worker.
+      const pendingCommand = this.pendingCommand;
+      if (pendingCommand) clearTimeout(pendingCommand.deadline);
+      this.pendingCommand = null;
+      if (!this.worldRef) {
+        pendingCommand?.reject(new Error('Worker command result arrived with no world attached'));
+        this.resolveIdleWaiters();
+        return;
+      }
       const delta = msg.delta as SimTickDelta;
       if (msg.ok === false) {
         applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
         invalidateWorldRuntimeCaches(this.worldRef);
         hydrateWorldRuntimeCaches(this.worldRef);
         this.onCommandResult?.(this.worldRef, delta, null, false, msg.reason);
-        this.pendingCommand?.reject(new Error(msg.reason ?? 'Command failed'));
-        this.pendingCommand = null;
+        pendingCommand?.reject(new Error(msg.reason ?? 'Command failed'));
         this.resolveIdleWaiters();
         return;
       }
@@ -617,22 +676,27 @@ export class GameWorkerHost {
         render = this.buildRender(msg.renderBuffer, delta, msg.scentBuffer);
       }
       this.onCommandResult?.(this.worldRef, delta, render, true, msg.reason);
-      this.pendingCommand?.resolve(delta);
-      this.pendingCommand = null;
+      pendingCommand?.resolve(delta);
       this.resolveIdleWaiters();
       return;
     }
 
     if (msg.type === 'exportSaveResult') {
-      this.pendingExport?.resolve(msg.world);
-      this.pendingExport = null;
+      this.settleExport((pending) => pending.resolve(msg.world));
       this.resolveIdleWaiters();
       return;
     }
 
-    if (msg.type !== 'tickResult' || !this.worldRef) return;
+    if (msg.type !== 'tickResult') return;
 
+    // The counter drops whether or not the delta can be applied. A tick result that arrived with no
+    // world attached used to leave a tick in flight for good — the stall detector then fired on a
+    // worker that was answering, and fell the whole game back to the main thread.
     this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
+    if (!this.worldRef) {
+      this.resolveIdleWaiters();
+      return;
+    }
     const delta = msg.delta as SimTickDelta;
     applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
     invalidateWorldRuntimeCaches(this.worldRef);

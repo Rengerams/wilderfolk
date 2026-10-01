@@ -13,7 +13,7 @@ import { humanDisplayName } from './citizenId';
 import { assignMissingResidences } from './residencyReconciliation';
 import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './residencyOccupancy';
 import { logEvent } from './eventLog';
-import { addFloatingText } from './simEffects';
+import { addFloatingText, addNotification } from './simEffects';
 import { getVenueAutoStaffingTarget } from './venueSchedule';
 import {
   DEFAULT_WORKFORCE_POLICY,
@@ -725,7 +725,9 @@ export function releasePrisoners(state: WorldState): void {
     }
 
     const name = formatSettlerName(entity);
-    logEvent(state, 'event', `${name} was released from prison`, name);
+    // `'prison'`, not `'event'`: the release belongs with the jailing it ends, under the same filter.
+    logEvent(state, 'prison', `${name} was released from prison`, name);
+    addNotification(state, 'Released', `${name} served their sentence and is free again`, 'success');
     addFloatingText(state, entity.x, entity.y - 18, 'Released', '#22c55e');
     released = true;
   }

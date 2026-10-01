@@ -35,6 +35,7 @@ import { getBarracksGuardCount } from '../src/game/defenseStructures';
 import { tickPrisonGuardDuty, tickPrisonPresence } from '../src/game/prisonGuardDuty';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { PRISON_GUARDS_FOR_FULL_COVERAGE } from '../src/game/prisonShifts';
+import { releasePrisoners } from '../src/game/workforce';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 
@@ -468,5 +469,35 @@ describe('prison coverage is presence, not the roster', () => {
     }
 
     expect(escaped).toBe(true);
+  });
+
+  it('tells the player when a prisoner escapes, not just the chronicle', () => {
+    const { world, prisoner } = prisonWorld();
+    setSimSeed(1);
+    let told = false;
+    for (let day = 0; day < 60 && !told; day++) {
+      tickPrisonGuardDuty(world);
+      told = world.notifications.some((n) => n.title === 'Escaped');
+    }
+
+    expect(prisoner.prisonBuildingId, 'the prisoner never escaped, so nothing was announced').toBeUndefined();
+    expect(told, 'the escape was logged but the player was never told').toBe(true);
+  });
+
+  it('files a release with the jailings and tells the player', () => {
+    const { world, prisoner } = prisonWorld();
+    world.notifications = [];
+    world.eventLog = [];
+    // The sentence is served: `releasePrisoners` frees anyone whose release tick has arrived.
+    prisoner.prisonerUntilTick = world.tick;
+
+    releasePrisoners(world);
+
+    expect(prisoner.prisonBuildingId).toBeUndefined();
+    expect(world.notifications.some((n) => n.title === 'Released'), 'the release was not announced').toBe(true);
+    expect(
+      world.eventLog.some((e) => e.type === 'prison' && e.message.includes('released from prison')),
+      'the release did not file under the prison filter',
+    ).toBe(true);
   });
 });

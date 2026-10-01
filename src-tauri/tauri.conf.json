@@ -15,7 +15,7 @@
         "label": "main",
         "title": "Wilderfolk",
         "width": 1280,
-        "height": 800,
+        "height": 720,
         "minWidth": 800,
         "minHeight": 600,
         "resizable": true,
@@ -23,7 +23,8 @@
         "fullscreen": false,
         "decorations": true,
         "transparent": false,
-        "center": true
+        "center": true,
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,CalculateNativeWinOcclusion --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows"
       }
     ],
     "security": {

@@ -65,4 +65,23 @@ describe('election promises survive a second election in the same year (M7)', ()
     tickElectionPromises(state);
     expect(getActiveElectionPromises(state), 'the succession promises were never judged').toBeNull();
   });
+
+  it('treats an election held in the founding year as an election', () => {
+    // Year 0 is the founding year — a real election year — and it is also what an unrecorded promise set
+    // reads, so the year cannot be the "nothing was promised" test. The evaluation day is.
+    const state = initGame({ villageName: 'Founding', size: 'medium', seed: FIXTURE_SEED });
+    state.year = 0;
+    state.dayInYear = 0;
+    state.tick = 0;
+
+    recordElectionPromises(state, 0);
+    const active = getActiveElectionPromises(state);
+    // Pre-fix this is null — no panel, and the promises were never judged.
+    expect(active, 'the founding-year promises are inert').not.toBeNull();
+    expect(active?.year).toBe(0);
+
+    setColonyDay(state, EVAL_DAY_OFFSET);
+    tickElectionPromises(state);
+    expect(getActiveElectionPromises(state), 'the founding-year promises were never judged').toBeNull();
+  });
 });

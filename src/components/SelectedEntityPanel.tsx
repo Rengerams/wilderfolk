@@ -14,163 +14,15 @@ import {
   daysUntilTick,
   getBirthDateString,
 } from '../game/dayCycle';
-import { displayYear } from '../game/dayCycleClock';
 import { TRAIT_DEFS } from '../game/settlerTraits';
 import { getHumanVariantLabel } from '../game/humanSprites';
 import { getTameFoodCost } from '../game/buildingActions';
 import { hasNearbyPlayerTamingPost, listTamingCandidates } from '../game/settlerInteractionActions';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { useEffect, useMemo, useState } from 'react';
-import SubjectWindow from './SubjectWindow';
 import { getHumanActivityProjection } from '../game/humanStatus';
 import { explainSettlerMovement } from '../game/dashboardData';
 import { citizenFullName, citizenGivenName, humanDisplayName } from '../game/citizenId';
-
-/** One relative, as the Family section draws them. */
-export interface FamilyNode {
-  id: number;
-  label: string;
-  name: string;
-  relation: string;
-  /** Age, or the other parent of a child — the qualifier the row needs to be unambiguous. */
-  detail?: string;
-}
-
-/**
- * A settler's relatives, grouped by generation — **local to this card**, and not the same shape as
- * `game/familyTree`'s `FamilyTree`, which owns the drawn rows. A module that exports a non-component
- * cannot Fast Refresh, so this stays private.
- */
-interface FamilyTree {
-  parents: FamilyNode[];
-  siblings: FamilyNode[];
-  children: FamilyNode[];
-  partner: FamilyNode | null;
-}
-
-/**
- * The settler's relatives, **grouped by generation** — what the Family section renders.
- *
- * This replaced a flat `getFamilyMembers` array in which a spouse, a parent, a sibling and a child
- * all arrived as identical rows, distinguishable only by a `(relation)` in parentheses. The owner's
- * report is the reason it is grouped now: *"the family tree is no family tree its unclear who is
- * who"*. Which row a relative is drawn on says which generation they belong to, so the layout
- * carries the meaning instead of one word in brackets.
- *
- * Adoptive parents are included and **marked** — the old list omitted them entirely, so a settler
- * raised by someone other than their birth parents showed no parents at all.
- */
-function buildFamilyTree(entity: Entity, allEntities: Entity[]): FamilyTree {
-  const livingHumans = allEntities.filter(
-    (e) => e.alive && e.type === EntityType.Human && e.id !== entity.id,
-  );
-  const seen = new Set<number>();
-  const take = (e: Entity, label: string, relation: string, detail?: string): FamilyNode | null => {
-    if (seen.has(e.id)) return null;
-    seen.add(e.id);
-    return {
-      id: e.id,
-      label,
-      // `citizenGivenName` owns the nameless fallback; this list used to say "Unknown" while the
-      // tree header for the same settler said "A settler".
-      name: citizenGivenName(e),
-      relation,
-      detail,
-    };
-  };
-
-  const parents: FamilyNode[] = [];
-  for (const e of livingHumans) {
-    const match =
-      e.id === entity.fatherId ? { label: '👨', relation: 'Father' }
-      : e.id === entity.motherId ? { label: '👩', relation: 'Mother' }
-      : e.id === entity.adoptiveFatherId ? { label: '👨', relation: 'Adoptive father' }
-      : e.id === entity.adoptiveMotherId ? { label: '👩', relation: 'Adoptive mother' }
-      : null;
-    if (!match) continue;
-    // Age on every relative, not only on children. The owner asked why the parents had none
-    // (*"why no age at the paretns"*) — the row showed a name and a relation while the child rows
-    // below carried `18y`, so the tree was inconsistent about what it told you about a person.
-    const node = take(e, match.label, match.relation, `${Math.floor(e.age)}y`);
-    if (node) parents.push(node);
-  }
-
-  // The partner they are actually with. Marriages only — courting, sweethearts and a secret affair
-  // are shown with their own meters in the relationships block above, not in the tree.
-  let partner: FamilyNode | null = null;
-  for (const e of livingHumans) {
-    if (e.partnerId !== entity.id && e.id !== entity.partnerId) continue;
-    partner = take(e, e.gender === 'male' ? '👨' : '👩', 'Spouse', `${Math.floor(e.age)}y`);
-    break;
-  }
-
-  // A sibling shares either parent. The old list tested each side in two separate `if`s against the
-  // same `seen` set, so which parent matched decided the order rather than the relationship.
-  const siblings: FamilyNode[] = [];
-  for (const e of livingHumans) {
-    const shares =
-      (entity.motherId != null && e.motherId === entity.motherId)
-      || (entity.fatherId != null && e.fatherId === entity.fatherId);
-    if (!shares) continue;
-    const node = take(e, e.gender === 'male' ? '👦' : '👧', 'Sibling', `${Math.floor(e.age)}y`);
-    if (node) siblings.push(node);
-  }
-
-  const children: FamilyNode[] = [];
-  for (const e of livingHumans) {
-    const isChild =
-      (entity.childrenIds ?? []).includes(e.id) || e.motherId === entity.id || e.fatherId === entity.id;
-    if (!isChild) continue;
-    // Name the other parent when it is NOT this settler's spouse, so a child from an earlier
-    // marriage is never silently attributed to the current one.
-    const otherParentId = e.motherId === entity.id ? e.fatherId : e.motherId;
-    const otherParent =
-      otherParentId != null && otherParentId !== entity.partnerId
-        ? allEntities.find((candidate) => candidate.id === otherParentId)
-        : undefined;
-    const age = `${Math.floor(e.age)}y`;
-    const relation = e.isBastard
-      ? e.isJuvenile ? 'Child · outside wedlock' : 'Adult child · outside wedlock'
-      : e.isJuvenile ? 'Child' : 'Adult child';
-    const node = take(
-      e,
-      e.gender === 'male' ? '👦' : '👧',
-      relation,
-      otherParent ? `${age} · with ${citizenGivenName(otherParent)}` : age,
-    );
-    if (node) children.push(node);
-  }
-
-  return { parents, siblings, children, partner };
-}
-
-/** One generation's row of the tree — renders nothing when that generation is empty. */
-export function FamilyGeneration({
-  label,
-  nodes,
-  inset = false,
-}: {
-  label: string;
-  nodes: FamilyNode[];
-  inset?: boolean;
-}) {
-  if (nodes.length === 0) return null;
-  return (
-    <div className={inset ? 'mt-1' : ''}>
-      <p className="text-[10px] uppercase tracking-wide text-amber-400/70">{label}</p>
-      <ul className="mt-0.5 space-y-0.5">
-        {nodes.map((node) => (
-          <li key={node.id} className="flex flex-wrap items-baseline gap-x-1.5 text-amber-200">
-            <span aria-hidden>{node.label}</span>
-            <span className="font-semibold">{node.name}</span>
-            <span className="text-stone-400">{node.relation}</span>
-            {node.detail && <span className="text-stone-500">{node.detail}</span>}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 function countLivingChildren(entity: Entity, allEntities: Entity[]): number {
   return allEntities.filter((e) =>
@@ -201,18 +53,6 @@ export default function SelectedEntityPanel({
   onOpenFamilyTree?: () => void;
 }) {
   const [lastActivity, setLastActivity] = useState<{ entityId: number; activity: string } | null>(null);
-  /**
-   * Which of this citizen's subjects has its window open, if any.
-   *
-   * Owner ruling: *"each subject should just have its own window not stacking up"*, and the owner's own
-   * entry point for this panel: *"right side only citizin information when you click on them"* — so the
-   * right column keeps the **identity and what she is doing right now** (name, activity, schedule,
-   * target, movement), which is the citizen information, and her facts open as subjects: life & work,
-   * relationships, traits. The panel is re-keyed per selection (`App.tsx`), so which subject is open
-   * never outlives the citizen it belongs to.
-   */
-  const [openSubject, setOpenSubject] = useState<'life' | 'traits' | null>(null);
-  const closeSubject = () => setOpenSubject(null);
   const isVillageHead = isVillageLeader(state, entity.id);
   const isHuman = entity.type === EntityType.Human;
 
@@ -253,11 +93,6 @@ export default function SelectedEntityPanel({
     : null;
 
   // 🚀 PERFORMANCE: Memoize expensive array filtering and derivations
-  const tree = useMemo(() => {
-    return isHuman && !isVisitor && !isRival
-      ? buildFamilyTree(entity, allEntities)
-      : ({ parents: [], siblings: [], children: [], partner: null } as FamilyTree);
-  }, [isHuman, isVisitor, isRival, entity, allEntities]);
 
   const childCount = useMemo(() => {
     return isHuman && !isVisitor && !isRival ? countLivingChildren(entity, allEntities) : 0;
@@ -290,8 +125,8 @@ export default function SelectedEntityPanel({
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-wide text-amber-200">Village head</p>
             <p className="text-[11px] text-amber-100/90">
-              In office since Year {displayYear(state.leaderSinceYear)}
-              {state.pendingElectionYear != null ? ` · next vote Y${displayYear(Math.floor(state.pendingElectionYear))}` : ''}
+              In office since Year {state.leaderSinceYear}
+              {state.pendingElectionYear != null ? ` · next vote Y${state.pendingElectionYear}` : ''}
             </p>
           </div>
         </div>
@@ -359,8 +194,22 @@ export default function SelectedEntityPanel({
           {isHuman && entity.moonHowlerCursed && (
             <p className="text-[11px] font-semibold text-violet-300">🌝 Moon Howler curse — transforms again every 14 days until cured</p>
           )}
-          {/* The trait chips that used to sit in this header are the **Traits** subject now — its own
-              window, opened from the index below. A trait list is a subject, not a subtitle. */}
+          {isHuman && entity.traits && entity.traits.length > 0 && (
+            <div className="mt-0.5 flex flex-wrap gap-1">
+              {entity.traits.map((trait) => {
+                const def = TRAIT_DEFS[trait];
+                return def ? (
+                  <span
+                    key={trait}
+                    title={def.description}
+                    className="rounded bg-stone-700/60 px-1.5 py-0.5 text-[10px] font-semibold text-amber-100/90"
+                  >
+                    {def.emoji} {def.label}
+                  </span>
+                ) : null;
+              })}
+            </div>
+          )}
           {isVisitor && visitorGroup && (
             <p className="text-[11px] text-cyan-300">Visiting — {visitorGroup.name} ({visitorGroup.daysLeft}d)</p>
           )}
@@ -408,64 +257,6 @@ export default function SelectedEntityPanel({
         </p>
       )}
 
-      {/*
-        The index. The right column keeps the citizen's identity and what she is doing right now; her
-        facts are subjects, each in its own window (`SubjectWindow`), because the owner ruled against
-        stacking (`"each subject should just have its own window not stacking up"`) and this card was
-        the "one long stack" they reported first: energy, age, home, work, marriage, affairs, children,
-        traits, all in one column.
-      */}
-      {isHuman && !isVisitor && !isRival && (
-        <div className="mt-2 space-y-1">
-          {([
-            { id: 'life' as const, icon: '⚡', label: 'Life & bonds', hint: 'Energy, age, home, job, gear, family, affairs' },
-            { id: 'traits' as const, icon: '🎭', label: 'Traits', hint: entity.traits?.length ? `${entity.traits.length} trait${entity.traits.length === 1 ? '' : 's'}` : 'None yet' },
-          ]).map((subject) => (
-            <button
-              key={subject.id}
-              type="button"
-              onClick={() => setOpenSubject(subject.id)}
-              aria-current={openSubject === subject.id}
-              className={`block w-full rounded-lg px-2 py-1.5 text-left ring-1 transition-colors ${
-                openSubject === subject.id
-                  ? 'bg-amber-900/50 ring-amber-500/50'
-                  : 'bg-stone-800/60 ring-stone-600/40 hover:bg-stone-700/60'
-              }`}
-            >
-              <span className="flex items-center gap-1 text-[12px] font-bold text-amber-100">
-                <span aria-hidden>{subject.icon}</span>
-                {subject.label}
-                <span aria-hidden className="ml-auto text-stone-400">↗</span>
-              </span>
-              <span className="block text-[10px] leading-snug text-stone-400">{subject.hint}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {isHuman && entity.traits && entity.traits.length > 0 && (
-        <SubjectWindow
-          windowKey={`citizen-traits-${entity.id}`}
-          open={openSubject === 'traits'}
-          onClose={closeSubject}
-          icon="🎭"
-          title={`${humanDisplayName(entity)} — Traits`}
-          subtitle={`${entity.traits.length} trait${entity.traits.length === 1 ? '' : 's'}`}
-        >
-          <div className="space-y-1">
-            {entity.traits.map((trait) => {
-              const def = TRAIT_DEFS[trait];
-              return def ? (
-                <div key={trait} className="rounded-lg border border-stone-600/50 bg-stone-800/40 px-2 py-1">
-                  <p className="text-[13px] font-bold text-amber-100">{def.emoji} {def.label}</p>
-                  <p className="text-[11px] leading-snug text-stone-300">{def.description}</p>
-                </div>
-              ) : null;
-            })}
-          </div>
-        </SubjectWindow>
-      )}
-
       {/* The Food Chain Role block is **deleted**, on the owner's own reason rather than mine:
           *"work is already defined lower in the civ viewer and civilationd builder is nothign"*.
 
@@ -480,14 +271,6 @@ export default function SelectedEntityPanel({
           is why the owner had to report it a second time. Renaming a meaningless, duplicated line
           cannot fix it. Do not reinstate it as a rename. */}
 
-      <SubjectWindow
-        windowKey={`citizen-life-${entity.id}`}
-        open={openSubject === 'life'}
-        onClose={closeSubject}
-        icon="⚡"
-        title={`${humanDisplayName(entity)} — Life & bonds`}
-        subtitle={`Energy ${Math.round(entity.energy)} / ${entity.maxEnergy} · ${getAgeInYears(entity, state)} years`}
-      >
       <div className="space-y-0.5 text-xs text-amber-200">
         <p>Energy: {Math.round(entity.energy)} / {entity.maxEnergy}</p>
         <p>Age: {getAgeInYears(entity, state)} years{entity.isJuvenile && ' (child)'} — b. {getBirthDateString(entity)}</p>
@@ -587,7 +370,6 @@ export default function SelectedEntityPanel({
           </>
         )}
       </div>
-      </SubjectWindow>
 
       {isMoonHowler && (
         <p className="mt-2 text-[11px] text-rose-300">🌝 Curse NOT cured — hunting tonight. Staff a Church; the priest may break the curse while they are in Moon Howler form.</p>
@@ -622,22 +404,20 @@ export default function SelectedEntityPanel({
         </div>
       )}
 
-      {/* Family — the tree lives in its own window; icon only, so it cannot stretch this column. The
-          relative summary it used to print inline is in the tooltip. Always rendered, so a settler with
-          no relatives still finds the door and reads the window's own empty state. */}
-      <button
-        type="button"
-        onClick={onOpenFamilyTree}
-        className="mt-2 rounded bg-stone-800/60 px-1.5 py-1 text-[13px] leading-none text-amber-300 hover:bg-stone-700/60"
-        title={`Family tree — ${
-          tree.parents.length + tree.siblings.length + tree.children.length + (tree.partner ? 1 : 0) === 0
-            ? 'no relatives recorded'
-            : `${tree.partner ? `⚭ ${tree.partner.name} · ` : ''}${tree.children.length} child${tree.children.length === 1 ? '' : 'ren'}`
-        }`}
-        aria-label={`Open ${humanDisplayName(entity)}'s family tree`}
-      >
-        <span aria-hidden>🧬</span>
-      </button>
+      {/* Family — one icon that opens the tree in its own window (`FamilyTreeWindow`, the owner of
+          `game/familyTree`). Always rendered, so a settler with no relatives still finds the door;
+          the window owns the empty state. */}
+      <div className="mt-2 border-t border-amber-600/20 pt-2">
+        <button
+          type="button"
+          onClick={onOpenFamilyTree}
+          className="rounded bg-stone-800/60 px-1.5 py-1 text-[13px] leading-none text-amber-300 hover:bg-stone-700/60"
+          title="Family tree"
+          aria-label={`Open ${humanDisplayName(entity)}'s family tree`}
+        >
+          <span aria-hidden>🧬</span>
+        </button>
+      </div>
     </div>
   );
 }

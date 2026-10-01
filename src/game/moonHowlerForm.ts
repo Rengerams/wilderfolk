@@ -12,6 +12,7 @@
  * See `BUG_REPORTS/2026-09-16-runtime-import-cycles-in-the-game-module-graph.md`.
  */
 import { BUILDING_CONFIGS, BuildingType, EntityType, JobType, LEADER_OCCUPATION } from './gameTypes';
+import { prisonPrisonerCapacity } from './prisonShifts';
 import type { Building, Entity } from './gameTypes';
 import { countWorkersAtBuilding } from './workforce';
 import { countResidentsInBuilding, getResidenceCapacity } from './residencyOccupancy';
@@ -31,7 +32,7 @@ function countPrisonersAtBuilding(humans: Entity[], prisonId: number, excludeId?
 }
 
 function prisonPrisonerCap(): number {
-  return Math.max(1, BUILDING_CONFIGS[BuildingType.Prison].maxOccupants - 1);
+  return prisonPrisonerCapacity(BUILDING_CONFIGS[BuildingType.Prison].maxOccupants);
 }
 
 export function isSettlerRelationshipEntity(entity: Entity | undefined): entity is Entity {

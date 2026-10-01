@@ -63,7 +63,7 @@ import { findHumanWorkplace } from '../workforce';
 import { getWorkSchedule, isWorkScheduleHour, type WorkSchedule } from '../workSchedule';
 import { sayHumanChatPhrase } from '../humanChat';
 import { Relationship } from '../gameConstants';
-import { PRISON_GUARDS_FOR_FULL_COVERAGE } from '../prisonShifts';
+import { prisonPrisonerCapacity } from '../prisonShifts';
 import { getSimRng, seededRandomForRun } from '../simRng';
 import { personDayRoll } from '../dayCycle';
 import { addReputation } from '../simHelpers';
@@ -1308,10 +1308,7 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
   if (getSimRng('humanRelationships')() >= arrestChance) return;
   // The prisoner slots are what is left after the crew that keeps the doors shut: a prison that cannot
   // seat its guards leaks, so the cap follows the roster's own crew size rather than a magic one.
-  const prisonerCap = Math.max(
-    1,
-    BUILDING_CONFIGS[BuildingType.Prison].maxOccupants - PRISON_GUARDS_FOR_FULL_COVERAGE,
-  );
+  const prisonerCap = prisonPrisonerCapacity(BUILDING_CONFIGS[BuildingType.Prison].maxOccupants);
   const prison = prisons.find((b) => countPrisonersAt(state, b.id) < prisonerCap) ?? prisons[0];
   if (countPrisonersAt(state, prison.id) >= prisonerCap && offender.prisonBuildingId == null) return;
   const sentenceDays = 2.5 + getSimRng('humanRelationships')() * 3.5;

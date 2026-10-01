@@ -2,6 +2,28 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Stopped a silent worker command freezing the village** — a command whose reply never arrived held the tick pipeline shut, and with no tick left in flight the stall watchdog could not fire, so the world stopped advancing while the map kept drawing at full rate. A command now has a deadline.
+
+- **Stopped a save reading the sim worker's host after a fault replaced it** — the export checked the host once, then awaited; a stall landing in that gap left the next line reading nothing, which threw while saving. The host is captured and re-checked by identity, as the load path already did.
+
+- **Added Deno alongside npm** — the Deno 2.9 runtime is installed beside the existing setup, with `deno:build` and `deno:test` entries that drive the same single gate runner, so npm keeps the lockfile and nothing is replaced.
+
+- **Stopped one unappliable worker message from wedging the sim** — a tick or command result that arrived with no world attached was dropped without clearing its in-flight flag, so the game fell back to main-thread ticks and every save timed out waiting for the worker to settle.
+
+- **Told the player how a prison sentence ends** — an escape and a release both only reached the map and the generic Events bucket of the chronicle; both now raise a notification and file under the prison filter, beside the jailing that started them.
+
+- **Counted any guard on the post, not only the one the roster named** — a fully-staffed prison still freed prisoners, because an hour with other guards standing there read as unguarded and carried an escape roll.
+
+- **Gave the prison four prisoner beds beside its three guard shifts** — its occupancy was the guard posts plus one cell, so a fourth guard left the jail nowhere to hold anyone, and two places counted the cells differently.
+
+- **Stopped a leaderless village repeating the postponement every day** — a vacancy that found nobody eligible retried, and logged, once a day; it now re-arms on the same delay the term election uses.
+
+- **Let a founding-year election's promises count** — year 0 is a real election year, but promises recorded in it read as "none recorded", so they were never shown and never judged.
+
+- **Drew the family tree instead of listing names** — the window drew one decorative stem per generation, so no name was joined to any other; each parent now branches to their own children, and a settler's card opens the tree from one icon.
+
+- **Called a parent's spouse a step-parent** — every married-in relative was named an in-law, which is why a toddler with a remarried father appeared to have two mothers.
+
 - **Deleted bullshit about buildingid names that is not correct**, residencyOccupancy.hasWorkAssignment` = `homeBuildingId != null`) is bullshit and made up in relationship file. removed the comments.
 
 - **Named the jobless state honestly and gave the teardown one owner** — the shared job label called an unemployed settler a "Settler" as if it were a trade; it now reads Unemployed, and one helper clears the workplace pointer, job and occupation together.

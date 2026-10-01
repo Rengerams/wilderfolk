@@ -357,4 +357,102 @@ describe('groupFamiliesByLineage', () => {
     expect(groups[0]!.rootName).toBe('Anselm & Hilda Ash');
     expect(groups[0]!.members.map((m) => m.id)).toEqual([1, 2, 3]);
   });
+
+  it('names a parent spouse a step-parent rather than an in-law', () => {
+    // A father who remarried: the child has a birth mother and a stepmother, and the second one is
+    // not an in-law. This word is why a toddler's tree read as "two mams".
+    const father = human({ id: 1, name: 'William', gender: 'male', partnerId: 3, generation: 1 });
+    const mother = human({ id: 2, name: 'Sallie', gender: 'female', generation: 1 });
+    const stepmother = human({ id: 3, name: 'Mira', gender: 'female', partnerId: 1, generation: 1 });
+    const child = human({
+      id: 4,
+      name: 'Miquel',
+      age: 1,
+      isJuvenile: true,
+      fatherId: 1,
+      motherId: 2,
+      generation: 3,
+    });
+
+    const tree = buildFullFamilyTree(child, [father, mother, stepmother, child]);
+    const mira = tree.rows.flatMap((generation) => generation.members).find((m) => m.id === 3);
+
+    expect(mira?.relation).toBe('Stepmother');
+  });
+
+  it('exposes the parent edges a tree drawing branches on', () => {
+    const mother = human({ id: 2, name: 'Sallie', gender: 'female', generation: 1 });
+    const child = human({ id: 4, name: 'Miquel', age: 1, isJuvenile: true, motherId: 2, generation: 2 });
+
+    const tree = buildFullFamilyTree(child, [mother, child]);
+
+    // Without these the window can print a row per generation but cannot draw a single branch.
+    expect(tree.parentLinks.get(4)).toContain(2);
+  });
+
+  it('names a divorced co-parent a former spouse, not an in-law', () => {
+    // A divorce clears both `partnerId` links, so the pair are tied only by their children; a child born
+    // in wedlock is what still shows the marriage happened.
+    const mother = human({ id: 1, name: 'Leatha', gender: 'female', generation: 2 });
+    const father = human({ id: 2, name: 'Fabrice', gender: 'male', generation: 2 });
+    const child = human({
+      id: 3,
+      name: 'Greg',
+      age: 6,
+      isJuvenile: true,
+      motherId: 1,
+      fatherId: 2,
+      generation: 3,
+      isBastard: false,
+    });
+
+    const tree = buildFullFamilyTree(mother, [mother, father, child]);
+    const fabrice = tree.rows.flatMap((generation) => generation.members).find((m) => m.id === 2);
+
+    expect(fabrice?.relation).toBe('Former spouse');
+  });
+
+  it('names an unmarried co-parent a co-parent', () => {
+    const mother = human({ id: 1, name: 'Leatha', gender: 'female', generation: 2 });
+    const father = human({ id: 2, name: 'Fabrice', gender: 'male', generation: 2 });
+    const child = human({
+      id: 3,
+      name: 'Greg',
+      age: 6,
+      isJuvenile: true,
+      motherId: 1,
+      fatherId: 2,
+      generation: 3,
+      isBastard: true,
+    });
+
+    const tree = buildFullFamilyTree(mother, [mother, father, child]);
+    const fabrice = tree.rows.flatMap((generation) => generation.members).find((m) => m.id === 2);
+
+    expect(fabrice?.relation).toBe('Co-parent');
+  });
+
+  it('keeps a blood relative their own word when they also raised the child', () => {
+    // A cousin who adopted the focus's child is a co-parent by that link, but the two facts are not
+    // exclusive: blood keeps its own word, and he is not drawn as a former spouse.
+    const grandfather = human({ id: 7, name: 'Anselm', gender: 'male', generation: 1 });
+    const father = human({ id: 9, name: 'Otto', gender: 'male', fatherId: 7, generation: 2 });
+    const uncle = human({ id: 8, name: 'Bram', gender: 'male', fatherId: 7, generation: 2 });
+    const cousin = human({ id: 2, name: 'Caspar', gender: 'male', fatherId: 8, generation: 3 });
+    const mother = human({ id: 1, name: 'Leatha', gender: 'female', fatherId: 9, generation: 3 });
+    const child = human({
+      id: 3,
+      name: 'Greg',
+      age: 6,
+      isJuvenile: true,
+      motherId: 1,
+      adoptiveFatherId: 2,
+      generation: 4,
+    });
+
+    const tree = buildFullFamilyTree(mother, [grandfather, father, uncle, cousin, mother, child]);
+    const caspar = tree.rows.flatMap((generation) => generation.members).find((m) => m.id === 2);
+
+    expect(caspar?.relation).toBe('Cousin');
+  });
 });

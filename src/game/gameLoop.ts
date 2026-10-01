@@ -67,8 +67,17 @@ function catchUpBudgetFor(speed: number): number {
   return Math.min(240, Math.max(MAX_CATCHUP_STEPS, Math.ceil(requested * 2)));
 }
 
-/** Worker stall watchdog (ms). */
+/** Worker stall watchdog (ms) — the floor, so a fast machine is never called stalled. */
 const WORKER_STALL_TIMEOUT_MS = 10000;
+/** What the save adds to the stall threshold: ordering slack, not a second opinion on speed. */
+const WORKER_EXPORT_MARGIN_MS = 5000;
+/**
+ * The ceiling for declaring a stall. `workerTickLatencyMs * 4` has no bound of its own, so without this
+ * a pathologically slow tick would hold a save for minutes. It caps the *threshold*, not the budget:
+ * the save's budget is derived from the threshold, so capping it here bounds both — and keeps the
+ * watchdog firing before the budget, which capping the budget alone would break.
+ */
+const WORKER_STALL_CEILING_MS = 15000;
 const WORKER_RECOVERY_INITIAL_DELAY_MS = 2000;
 const WORKER_RECOVERY_MAX_DELAY_MS = 30000;
 
@@ -730,8 +739,12 @@ export class GameLoop {
    * The returned world is hydrated so the caller can read it (and hand it to the save writer)
    * without hitting missing runtime caches. `this.world` keeps whatever the display left it as.
    */
-  async exportAuthoritativeWorld(timeoutMs = 10_000): Promise<WorldState> {
-    if (this.workerEnabled && this.workerHost?.isReady()) {
+  async exportAuthoritativeWorld(timeoutMs = this.workerExportBudgetMs()): Promise<WorldState> {
+    // The host is captured, never re-read off `this` after an await. `fallbackFromWorker` is reachable
+    // from the frame loop at any moment and nulls `workerHost` without bumping `sessionGen`, so the
+    // identity test below is the only one that catches a host swap mid-save.
+    const host = this.workerHost;
+    if (this.workerEnabled && host?.isReady()) {
       const exportGen = this.sessionGen;
       try {
         // Deliberately **no** `syncAfterWorkerMutation()` here. It adopts the host's authoritative
@@ -742,20 +755,24 @@ export class GameLoop {
         // waits for every tick and command to settle, and the worker packs the clone from its own
         // world regardless of what main thinks.
         await Promise.race([
-          this.workerHost.whenIdle(),
+          host.whenIdle(),
           new Promise<void>((_, reject) => {
             setTimeout(() => reject(new Error('Worker idle wait timed out')), timeoutMs);
           }),
         ]);
-        if (exportGen !== this.sessionGen) return this.world;
+        // A worker fault replaces the host and already synced the display world (`fallbackFromWorker`),
+        // so falling back to `this.world` is correct — and must not read the field it just nulled.
+        if (exportGen !== this.sessionGen || this.workerHost !== host || !host.isReady()) {
+          return this.world;
+        }
 
         const exported = await Promise.race([
-          this.workerHost.exportSave(),
+          host.exportSave(),
           new Promise<WorldState>((_, reject) => {
             setTimeout(() => reject(new Error('Worker export timed out')), timeoutMs);
           }),
         ]);
-        if (exportGen !== this.sessionGen) return this.world;
+        if (exportGen !== this.sessionGen || this.workerHost !== host) return this.world;
 
         return hydrateWorldRuntimeCaches(exported);
       } catch (err) {
@@ -763,6 +780,26 @@ export class GameLoop {
       }
     }
     return this.world;
+  }
+
+  /**
+   * When the frame loop calls a worker tick stalled. One definition, because the save's budget is
+   * derived from it: the margin only orders the two, it is not a second opinion on speed.
+   */
+  private workerStallThresholdMs(): number {
+    return Math.min(
+      WORKER_STALL_CEILING_MS,
+      Math.max(WORKER_STALL_TIMEOUT_MS, this.workerTickLatencyMs * 4),
+    );
+  }
+
+  /**
+   * The save's budget for the worker: the stall threshold plus a margin, so the fallback that
+   * `dispose()` lets settle the export always beats this timer. Anything that moves the threshold —
+   * a slow tick raising `workerTickLatencyMs * 4` — moves the budget with it.
+   */
+  private workerExportBudgetMs(): number {
+    return this.workerStallThresholdMs() + WORKER_EXPORT_MARGIN_MS;
   }
 
   subscribe(listener: SessionListener): () => void {
@@ -930,7 +967,7 @@ export class GameLoop {
       if (this.workerBooting) {
         // Hold accumulator until worker is authoritative
       } else if (this.workerEnabled && this.workerHost) {
-        const stallMs = Math.max(WORKER_STALL_TIMEOUT_MS, this.workerTickLatencyMs * 4);
+        const stallMs = this.workerStallThresholdMs();
         const stalled =
           this.workerHost.hasTickInFlight() &&
           performance.now() - this.lastWorkerActivity > stallMs;

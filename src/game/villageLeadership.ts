@@ -1128,6 +1128,12 @@ export function tryStartVacancyElectionCeremony(
   const started = startElectionCeremony(state, Math.floor(year), 'succession');
   if (started) {
     state.pendingElectionYear = null;
+  } else {
+    // `startElectionCeremony` returns false for exactly one reason — its zero-candidate guard — and a
+    // past-due pending year is retried every single day the office stays empty, which repeats the
+    // postponement notice daily until a settler comes of age. Re-arm the same delay the death path
+    // uses, so the office is re-contested on the vacancy rhythm instead of retried once a day.
+    state.pendingElectionYear = currentFraction + VACANCY_ELECTION_DELAY_YEARS;
   }
   return started;
 }
