@@ -9,47 +9,21 @@ const COMMUTE_CONFIG = {
   LONG_RANGE_DIST: 50,
   ARRIVAL_DIST: 8,
   MAX_DIST_RUSH: 12,
-  /**
-   * Final-approach easing: inside `LONG_RANGE_DIST` the walk closes on the doorstep at
-   * `dist * APPROACH_RATE_PER_TICK` per tick, clamped to the base walking speed at the low end and
-   * to the commute speed at the high end.
-   *
-   * Both earlier tunings were wrong in opposite directions: a flat `moveSpeed * 0.12` crawl took
-   * most of a game hour to cover the last 50 px (owner report: "the cooling down period to a
-   * building is now very slow"), while `Math.max(speed, moveSpeed * 0.65)` snapped through the same
-   * stretch in about ten ticks. A distance-proportional step decelerates *visibly* — full commute
-   * speed at 50 px, ~2.5x walking speed at 10 px — without ever crawling or snapping, and the
-   * `Math.min(dist, …)` cap still means no overshoot.
-   */
+  /** Final-approach easing: the last stretch closes at `dist * APPROACH_RATE_PER_TICK` per tick. */
   APPROACH_RATE_PER_TICK: 0.25,
-  /** Per-tick distance on the pathed branch, as a fraction of `moveSpeed` (see M27). */
+  /** Per-tick distance on the pathed branch, as a fraction of `moveSpeed`. */
   PATH_STEER_SPEED_RATIO: 0.88,
 } as const;
 
 /** Beyond this distance, settlers snap to home/work. */
 export const COMMUTE_SNAP_DISTANCE = 200;
 
-/** The longest commute lead the scheduler will hand out, in hours (see `commuteLeadHoursFor`). */
+/** The longest commute lead the scheduler hands out, in hours (see `commuteLeadHoursFor`). */
 export const MAX_COMMUTE_LEAD_HOURS = 6;
 
 /**
- * How many hours before their shift a settler must set off, given how far they are.
- *
- * The owner's rule is that a settler is **at** work when the shift starts rather than starting to
- * walk then ("they should be AT work when working tim start not begining with walking"). The old
- * fixed one-hour allowance (`workSchedule.WORK_COMMUTE_LEAD_HOURS`) could not honour that for a long
- * leg: the map is far wider than an hour's walk, and `COMMUTE_SNAP_DISTANCE` only teleports legs
- * under 200 units, so anyone further out simply arrived late.
- *
- * The estimate uses the movement owner's own numbers — base `speed`, the distance-scaled `distRush`,
- * and `PATH_STEER_SPEED_RATIO` — so it cannot drift from how the walk behaves. It is deliberately
- * *pessimistic* (one straight pathed leg, no rush bonus from the caller), because leaving slightly
- * early is invisible while arriving late is the reported bug.
- *
- * It is an estimate with a floor and a ceiling, **not** an arrival guarantee: past
- * `MAX_COMMUTE_LEAD_HOURS` a very long leg cannot be walked in the time available, and
- * `humanTick`'s existing shift-start snap is what still puts that settler at their post. Never
- * returns less than an hour, so a short commute keeps exactly the behaviour it had before.
+ * Hours before a shift a settler must set off, so they are **at** work when it starts. Floor of one
+ * hour; past the ceiling the shift-start snap is what still puts them at their post.
  */
 export function commuteLeadHoursFor(distance: number, walkSpeed: number): number {
   if (!Number.isFinite(distance) || distance <= COMMUTE_CONFIG.ARRIVAL_DIST) return 1;

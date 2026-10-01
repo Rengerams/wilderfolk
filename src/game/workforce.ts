@@ -234,6 +234,16 @@ export function assignWorkerTransition(human: Entity, building: Building): boole
  * Named removal transition — release a settler from all workplaces/crews and clear job fields.
  * Preserves `LEADER_OCCUPATION`.
  */
+/**
+ * Ends a settler's work assignment. The pointer is the truth and the job and occupation labels
+ * follow it; a leader keeps the office title, which is an office rather than a post.
+ */
+function clearWorkAssignment(human: Entity): void {
+  human.homeBuildingId = undefined;
+  human.occupation = human.occupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
+  human.job = JobType.Settler;
+}
+
 export function removeWorkerTransition(human: Entity, buildings: Building[]): void {
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
@@ -242,9 +252,7 @@ export function removeWorkerTransition(human: Entity, buildings: Building[]): vo
       building.occupants = building.occupants.filter((id) => id !== human.id);
     }
   }
-  human.homeBuildingId = undefined;
-  human.occupation = human.occupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
-  human.job = JobType.Settler;
+  clearWorkAssignment(human);
 }
 
 /**
@@ -507,8 +515,7 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
           if (workplace) {
             workplace.occupants = workplace.occupants.filter((id) => id !== human.id);
           }
-          human.homeBuildingId = undefined;
-          human.job = JobType.Settler;
+          clearWorkAssignment(human);
         }
       }
       continue;
@@ -519,6 +526,7 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
       continue;
     }
 
+    // The explicit null test narrows the id for the lookup below; `hasWorkAssignment` does not.
     if (!hasWorkAssignment(human) || human.homeBuildingId == null) continue;
     const workplace = buildingById.get(human.homeBuildingId);
     if (
@@ -527,9 +535,7 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
       workplace.faction === 'rival' ||
       !BUILDING_JOB_TYPES[workplace.type]
     ) {
-      human.homeBuildingId = undefined;
-      human.occupation = 'settler';
-      human.job = JobType.Settler;
+      clearWorkAssignment(human);
     }
   }
 

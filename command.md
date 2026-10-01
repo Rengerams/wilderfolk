@@ -1,6 +1,6 @@
 # Shell Environment: PowerShell 7 on Windows
 
-You are running in **PowerShell 7 (`pwsh`)** on Windows. This is NOT bash.
+You are running in **PowerShell 7 (`pwsh`)** on Windows. This is NOT bash (but maybe it work)
 GNU text tools from Git for Windows are on PATH, so a few Linux commands work, but the shell language is PowerShell.
 
 > **Verify this first — do not assume it.**
@@ -63,6 +63,33 @@ For sorting use `Sort-Object`; for finding files use `Get-ChildItem -Recurse` (`
   the default when another program will parse the file — see **PowerShell 5.1 fallbacks** at the bottom, where
   that default is UTF-16LE instead and a BOM breaks parsers.
 
+## PowerShell Regex & Multiline Rules
+
+When generating PowerShell code that uses Regular Expressions (Regex) or parses source code, you MUST follow these architectural rules to prevent broken matches:
+
+### 1. File Ingestion & Parsing
+* **Always use `-Raw`:** Never let `Get-Content` read files as an array of lines. Always use `Get-Content -Path "..." -Raw` to process the file as a single, contiguous multiline string. Otherwise, multiline regex will fail silently.
+
+### 2. Multi-line Regex Modifiers
+* **Token Matching `(?s)`:** Use `(?s)` (Singleline/Dotall) at the absolute start of your pattern when the dot (`.`) needs to match across newlines (e.g., matching a block between two markers).
+* **Line Anchors `(?m)`:** Use `(?m)` (Multiline) ONLY when `^` and `$` need to match the start and end of *individual lines* within the large string.
+
+### 3. Abstract Syntax Tree (AST) & Token Stripping Order
+When writing scripts that analyze source code (like extracting imports, functions, or dependencies), **order of operations is critical**. Do not corrupt the tokens you need to extract:
+* **Phase 1 (Sanitization):** Strip block comments (`/* ... */`) and line comments (`// ...`) FIRST.
+* **Phase 2 (Import Extraction):** Extract imports/dependencies from this comment-stripped source. **DO NOT strip strings yet**, otherwise `from '../path'` becomes `from ''`, breaking the regex engine's ability to capture the path.
+* **Phase 3 (Behavior Analysis):** Strip string literals (`'...'`, `"..."`) *after* imports are extracted, if you need to analyze code behavior without false positives from string contents (e.g., avoiding `vi.mock` inside strings).
+
+### 4. Prevention of Code "Mangling"
+* **The "Mangled Source" Trap:** You must never strip or modify string literals before extracting paths, names, or imports. Doing so creates a "mangled" source string (e.g., converting `from './module'` into `from ''`), which corrupts the target tokens and causes regex pattern matching to return 0 results. 
+* **Self-Correction Rule:** If a multiline regex returns 0 matches during execution, verify if a prior regex sanitization pass has mangled the input string by stripping quotes, backticks, or delimiters prematurely
+
+
+
+
+
+
+
 ## Common traps (verified in this repository)
 
 * **`**` is NOT recursive in `-Path`.** `Select-String -Path "tests\**\*.ts" -Pattern x` silently returns
@@ -107,6 +134,8 @@ For sorting use `Sort-Object`; for finding files use `Get-ChildItem -Recurse` (`
 
 * **An interrupted command and a failing command both report `[exit code: 1]`.** If you killed it, treat the
   result as a termination rather than a failure, and re-run.
+
+
 
 ## PowerShell 5.1 fallbacks
 

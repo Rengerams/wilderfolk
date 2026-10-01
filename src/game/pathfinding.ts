@@ -32,20 +32,32 @@ import {
   recordPathMaxNodesExceeded,
   recordPathNodes,
 } from './pathfindingMetrics';
-import { faceVelocity } from './simulation/movementSteering';
+import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
 
 /** Slope cost per unit elevation (0–100 scale) — steep climbs tax the route. */
 const SLOPE_UP_COST = 0.015;
 const SLOPE_DOWN_COST = 0.004;
 /** Single-tile elevation step (0–100 scale) above which the edge is an impassable cliff. */
 const CLIFF_STEP = 32;
+/** A road tile costs this fraction of a normal step — exactly the travel time the road speed saves. */
+const ROAD_STEP_COST = 1 / ROAD_SPEED_MULT;
 
 /** Completed player walls block walking; gates are passable openings. */
 function isBlockingWall(b: Building): boolean {
   return b.completed && b.faction !== 'rival' && b.type === BuildingType.Wall;
 }
 
-function markBuildingBlocked(blocked: Uint8Array, cols: number, rows: number, b: Building): void {
+/** Completed player roads and bridges: walkable, and cheaper than open ground. */
+function isWalkableRoad(b: Building): boolean {
+  return (
+    b.completed &&
+    b.faction !== 'rival' &&
+    (b.type === BuildingType.Road || b.type === BuildingType.Bridge)
+  );
+}
+
+/** Stamps 1 over every grid tile a building's footprint covers, clamped to the grid. */
+function stampBuildingFootprint(grid: Uint8Array, cols: number, rows: number, b: Building): void {
   const x0 = Math.max(0, Math.floor(b.x / TERRAIN_TILE_SIZE));
   const y0 = Math.max(0, Math.floor(b.y / TERRAIN_TILE_SIZE));
   const x1 = Math.min(cols - 1, Math.floor((b.x + Math.max(0, b.width - 0.001)) / TERRAIN_TILE_SIZE));
@@ -53,18 +65,21 @@ function markBuildingBlocked(blocked: Uint8Array, cols: number, rows: number, b:
 
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
-      blocked[y * cols + x] = 1;
+      grid[y * cols + x] = 1;
     }
   }
 }
 
-/** Lightweight buildings signature so the grid rebuilds only when walls change. */
-function buildingSignature(buildings: Building[] | undefined): string {
+/** Lightweight signature of the buildings matching `matches`, so the grid rebuilds only when they change. */
+function buildingSignature(
+  buildings: Building[] | undefined,
+  matches: (b: Building) => boolean,
+): string {
   if (!buildings?.length) return '';
   let hash = 0;
   let count = 0;
   for (const b of buildings) {
-    if (!isBlockingWall(b)) continue;
+    if (!matches(b)) continue;
     hash = (hash + b.id * 31 + Math.round(b.x) * 17 + Math.round(b.y) * 13 + (b.rotation ?? 0) * 7) >>> 0;
     count++;
   }
@@ -77,6 +92,8 @@ export interface PathGrid {
   blocked: Uint8Array;
   /** Per-tile elevation (0–100) for slope-aware A*. Absent on legacy maps. */
   elevation?: Float32Array;
+  /** 1 on every tile a completed road or bridge covers. Absent when the map has none. */
+  road?: Uint8Array;
 }
 
 let gridCache: PathGrid | null = null;
@@ -84,12 +101,14 @@ let gridCacheSeed = '';
 
 /**
  * The passability grid's cache identity. The seed alone does not identify the tiles: two maps can
- * share a seed and size while a different preset produces different terrain, and completed walls
- * change the grid too — so the signature carries all four.
+ * share a seed and size while a different preset produces different terrain, and the buildings that
+ * block a step or cheapen one change the grid too — so the signature carries all of them.
  */
 function pathGridCacheKey(map: WorldMap, buildings?: Building[]): string {
   const seed = typeof map.seed === 'number' ? map.seed : 1;
-  return `${seed}|${map.preset}|${buildingSignature(buildings)}|${map.width}x${map.height}`;
+  const walls = buildingSignature(buildings, isBlockingWall);
+  const roads = buildingSignature(buildings, isWalkableRoad);
+  return `${seed}|${map.preset}|${walls}|${roads}|${map.width}x${map.height}`;
 }
 
 /**
@@ -118,12 +137,18 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
         : (isWalkableTerrainType(t.type) ? 0 : 1);
     }
   }
+  let road: Uint8Array | null = null;
   if (buildings) {
     for (const b of buildings) {
-      if (isBlockingWall(b)) markBuildingBlocked(blocked, cols, rows, b);
+      if (isBlockingWall(b)) {
+        stampBuildingFootprint(blocked, cols, rows, b);
+      } else if (isWalkableRoad(b)) {
+        road ??= new Uint8Array(cols * rows);
+        stampBuildingFootprint(road, cols, rows, b);
+      }
     }
   }
-  return { cols, rows, blocked, elevation };
+  return road ? { cols, rows, blocked, elevation, road } : { cols, rows, blocked, elevation };
 }
 
 /** The simulation's grid. `setCurrentPathMap` swaps `currentGrid` and clears the waypoint cache. */
@@ -288,7 +313,7 @@ export function findPath(
   ty: number,
   maxNodes = 6000,
 ): { x: number; y: number }[] | null {
-  const { cols, rows, blocked, elevation } = grid;
+  const { cols, rows, blocked, elevation, road } = grid;
   recordFindPathCall();
   if (sx < 0 || sy < 0 || sx >= cols || sy >= rows) {
     recordPathEarlyReject();
@@ -385,6 +410,8 @@ export function findPath(
       if (dx !== 0 && dy !== 0 && (blocked[cy * cols + nx] || blocked[ny * cols + cx])) continue;
 
       let step = dx !== 0 && dy !== 0 ? 1.4142 : 1;
+      // A built road is cheaper than open ground, so the route follows the player's own paths.
+      if (road?.[nIdx]) step *= ROAD_STEP_COST;
       if (elevation) {
         const nextElev = elevation[nIdx];
         const delta = nextElev - curElev;

@@ -137,6 +137,8 @@ export interface Building {
    * accepts a *recent* one (`HUNTING_SPOT_STRIKE_GRACE_TICKS`).
    */
   huntingSpotInReachTick?: number;
+  /** Prison only — clock hours of the current day that nobody stood on the post (see `prisonGuardDuty`). */
+  uncoveredPrisonHours?: number[];
   /** Mine only — extracts stone (default) or iron. */
   mineMode?: MineMode;
 }

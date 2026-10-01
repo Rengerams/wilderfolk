@@ -14,6 +14,9 @@
  */
 import type { Entity } from '../gameTypes';
 
+/** How much faster a settler walks on a road. The pathfinder prices a road tile as `1 / this`. */
+export const ROAD_SPEED_MULT = 1.5;
+
 /** Faces the entity the way its velocity already points. */
 export function faceVelocity(entity: Entity): void {
   entity.spriteAngle = Math.atan2(entity.vy, entity.vx);

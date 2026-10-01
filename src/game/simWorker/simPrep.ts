@@ -148,6 +148,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
       childhoodFriendsIds: e.childhoodFriendsIds ? [...e.childhoodFriendsIds] : e.childhoodFriendsIds,
       friendships: e.friendships ? { ...e.friendships } : e.friendships,
       feuds: e.feuds ? { ...e.feuds } : e.feuds,
+      feudPeaks: e.feudPeaks ? { ...e.feudPeaks } : e.feudPeaks,
       moonHowlerSaved: e.moonHowlerSaved ? { ...e.moonHowlerSaved } : e.moonHowlerSaved,
     })),
 

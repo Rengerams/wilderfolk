@@ -150,7 +150,7 @@ export type SettlerTrait =
   | 'fierce';
 
 export const JOB_LABELS: Record<JobType, string> = {
-  [JobType.Settler]: 'Settler',
+  [JobType.Settler]: 'Unemployed',
   [JobType.Farmer]: 'Farmer',
   [JobType.Lumberjack]: 'Lumberjack',
   [JobType.Miner]: 'Miner',
@@ -324,6 +324,8 @@ export interface Entity {
   childhoodFriendsIds?: number[];
   friendships?: Record<string, number>;
   feuds?: Record<string, number>;
+  /** Highest score each feud ever reached, keyed like `feuds` — the current score decays. */
+  feudPeaks?: Record<string, number>;
   apprenticeOfId?: number;
   apprenticeId?: number;
   maidenSurname?: string;

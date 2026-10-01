@@ -81,4 +81,18 @@ describe('feud cleanup when a counterpart is gone (F4)', () => {
     expect(a.feuds?.['feud_2']).toBeCloseTo(29.6, 6);
     expect(b.feuds?.['feud_1']).toBeCloseTo(29.6, 6);
   });
+
+  it('keeps the record of a settler who is alive but outside this pass', () => {
+    const world = state();
+    const a = settler(1);
+    const b = settler(2);
+    const bystander = settler(9);
+    startFeud(world, a, b, 30);
+
+    // `b` is still living, merely not covered by this narrower pass: that is not a death, so the
+    // record must survive for the pass that does include them.
+    advanceSocialRelationships(world, [a, b, bystander], [a, bystander]);
+
+    expect(a.feuds?.['feud_2']).toBeDefined();
+  });
 });

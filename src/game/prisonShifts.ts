@@ -92,6 +92,15 @@ export function prisonRoster(guardIds: readonly number[], tick: number): PrisonR
   return roster;
 }
 
+/** The shift this guard holds, or `null` when he is not on the roster. */
+export function prisonShiftForGuard(
+  guardId: number,
+  guardIds: readonly number[],
+  tick: number,
+): PrisonShift | null {
+  return prisonRoster(guardIds, tick).find((entry) => entry.guardId === guardId)?.shift ?? null;
+}
+
 /** Every hour with no guard holding a shift that covers it. */
 export function unguardedPrisonHours(roster: readonly PrisonRosterEntry[]): number[] {
   const covered = new Set<number>();

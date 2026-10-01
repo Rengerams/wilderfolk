@@ -3,7 +3,7 @@ import { EntityType, BuildingType, JobType, Season } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng, seededRandomForRun } from './simRng';
-import { faceVelocity, steerEntityToward } from './simulation/movementSteering';
+import { faceVelocity, ROAD_SPEED_MULT, steerEntityToward } from './simulation/movementSteering';
 import { crowdGatherPosition } from './simulation/humanMovement';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { addFloatingText } from './simEffects';
@@ -103,6 +103,8 @@ import {
   tickTavernService,
 } from './humanVenueBehavior';
 import { steerVisitorToHotel } from './hotelStay';
+import { prisonGuardIds } from './prisonGuardDuty';
+import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { setCurrentPathMap } from './pathfinding';
 import {
   COMMUTE_SNAP_DISTANCE,
@@ -653,7 +655,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const ordinaryWorkplace =
       workplace != null &&
       workplace.type !== BuildingType.Church &&
-      workplace.type !== BuildingType.TownHall;
+      workplace.type !== BuildingType.TownHall &&
+      workplace.type !== BuildingType.Prison;
     const onSchoolShift = schoolTarget != null && isOnWorkShift(state.tick, hourOfDay);
     const onDayJobShift =
       !festivalGathering &&
@@ -694,7 +697,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         ? isVenueWorkerServiceHour(state, 'hotel', hourOfDay, venueWorkerIndex, venueWorkerCount)
         : isVenueServiceHour(state, 'hotel', hourOfDay));
 
-    const onJobShift = onDayJobShift || onTavernShift || onHotelShift || onMoonPriestShift;
+    // A prison guard's day is his roster shift rather than the colony window (see `prisonShifts`).
+    const prisonShift =
+      entity.job === JobType.PrisonGuard && workplace?.type === BuildingType.Prison && workplace.completed
+        ? prisonShiftForGuard(entity.id, prisonGuardIds(state, workplace.occupants ?? []), state.tick)
+        : null;
+    const onPrisonShift = prisonShift != null && shiftCoversHour(prisonShift, hourOfDay);
+    const shiftStartHour = prisonShift?.startHour ?? workSchedule.startHour;
+
+    const onJobShift =
+      onDayJobShift || onTavernShift || onHotelShift || onMoonPriestShift || onPrisonShift;
     if (onJobShift && isPlayerHuman(entity)) recordScheduleWorkTick(entity);
 
     const stayIn =
@@ -797,7 +809,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !festivalGathering &&
       workplace &&
       isStartOfClockHour(state.tick) &&
-      ((hourOfDay === workSchedule.startHour &&
+      ((hourOfDay === shiftStartHour &&
         !isInnkeeper &&
         (hasWorkAssignment(entity) || !workplace.completed)) ||
         (isInnkeeper && isVenueScheduleStartTick(state, 'tavern')) ||
@@ -949,20 +961,22 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !huntingWere &&
       !inElectionCeremony &&
       !festivalGathering &&
-      (goWorkTime || onWorkCommuteHours) &&
+      (goWorkTime || onWorkCommuteHours || prisonShift != null) &&
       !isInnkeeper &&
       workplace
     ) {
-      // Leave early enough to be *at* work when the shift starts, rather than starting the walk
-      // then. The lead grows with this settler's own distance and is clamped to at least the
-      // existing hour, so only genuinely long commutes move. `3.5` is the same `rush` the walk
-      // below uses, so the estimate and the movement agree.
+      // Leave early enough to be *at* work when the shift starts. The lead is the same for every job
+      // and grows with this settler's own distance; only the clock it counts back from differs, and
+      // for a prison guard that is the roster shift's start rather than the colony window.
       const commuteLeadHours = commuteLeadHoursFor(
         commuteDistanceToBuilding(entity, workplace, false),
         config.speed,
       );
-      const needsToLeaveForWork = isWorkDay(state.tick) && hourOfDay >= workSchedule.startHour - commuteLeadHours;
-      if (goWorkTime || onWorkCommuteHours || needsToLeaveForWork) {
+      const needsToLeaveForWork = isWorkDay(state.tick) && hourOfDay >= shiftStartHour - commuteLeadHours;
+      const wantsToWork = prisonShift != null
+        ? onPrisonShift || needsToLeaveForWork
+        : goWorkTime || onWorkCommuteHours || needsToLeaveForWork;
+      if (wantsToWork) {
         commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), 3.5);
         onSchedule = true;
         suppressIdle = true;
@@ -1652,7 +1666,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       roadBuildings,
       (x, y, road) => isEntityOnBuilding(x, y, road, 12),
     );
-    const roadMult = nearRoad ? 1.5 : 1.0;
+    const roadMult = nearRoad ? ROAD_SPEED_MULT : 1.0;
 
     entity.x += entity.vx * roadMult;
     entity.y += entity.vy * roadMult;

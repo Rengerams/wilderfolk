@@ -8,7 +8,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { findPath, getPathGrid, lineCrossesBlocked } from '../src/game/pathfinding';
-import { TERRAIN_TILE_SIZE, TerrainType } from '../src/game/gameTypes';
+import { BuildingType, TERRAIN_TILE_SIZE, TerrainType } from '../src/game/gameTypes';
+import type { Building } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 
 function makeMap(width: number, height: number, seed: number, blocker: (x: number, y: number) => boolean) {
@@ -27,6 +28,38 @@ describe('pathfinding', () => {
     expect(path).not.toBeNull();
     expect(path![0]).toEqual({ x: 0, y: 5 });
     expect(path![path!.length - 1]).toEqual({ x: 9, y: 5 });
+  });
+
+  it('routes along a built road instead of the open ground beside it', () => {
+    // One blocked tile forces A* off the straight line, and row 1 is paved: the route should use the
+    // road rather than the equally short open row below it.
+    const map = makeMap(12, 5, 41, (x, y) => x === 5 && y === 2);
+    const road: Building = {
+      id: 1,
+      type: BuildingType.Road,
+      x: 0,
+      y: TERRAIN_TILE_SIZE,
+      width: 11 * TERRAIN_TILE_SIZE,
+      height: TERRAIN_TILE_SIZE,
+      occupants: [],
+      level: 1,
+      constructionProgress: 100,
+      completed: true,
+      health: 100,
+      maxHealth: 100,
+      spriteScale: 1,
+      buildAnimTimer: 0,
+    };
+    const grid = getPathGrid(map, [road]);
+    const path = findPath(grid, 0, 2, 10, 2);
+
+    // The mask the A* cost reads: row 1 paved, row 3 not.
+    expect(grid.road?.[1 * grid.cols + 5]).toBe(1);
+    expect(grid.road?.[3 * grid.cols + 5]).toBe(0);
+
+    expect(path).not.toBeNull();
+    expect(path!.some((p) => p.y === 1)).toBe(true);
+    expect(path!.some((p) => p.y === 3)).toBe(false);
   });
 
   it('routes around a vertical river that does not span the whole map', () => {

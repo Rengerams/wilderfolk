@@ -196,7 +196,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Map-bounds clamp | `mapBounds.ts` | realtime + systems | `clampToMapBounds` |
 | Election vote simulation | `electionVotes.ts` | election ceremony | `simulateElectionVotes` |
 | Visitor quest | `visitorQuest.ts` | daily + player-command | `tickVisitorQuest`, `maybeStartVisitorQuest`, `deliverVisitorQuest` |
-| Prison guard duty | `prisonGuardDuty.ts` | daily (`tickDailyWorldEvents`) | `tickPrisonGuardDuty` |
+| Prison guard duty and post presence | `prisonGuardDuty.ts` + `prisonShifts.ts` | daily (`tickDailyWorldEvents`) + hourly (`tickLayerRealtime`) | `tickPrisonGuardDuty`, `tickPrisonPresence`, `prisonGuardIds`, `prisonRoster`, `prisonShiftForGuard`, `unguardedPrisonHours` |
 | Simulation invariant collection and assertion | `simulationInvariants.ts` + `simInvariants.ts` | dev/daily check (`gameTick`) | `collectSimulationInvariantErrors`, `assertSimInvariants` |
 | Decision-registry accessors | `simulation/decisionRegistry.ts` | — (static table accessors) | `getDecisionOwner`, `getDecisionsByCadence`, `isPropertyWritePermitted` |
 | Species configuration | `speciesConfig.ts` | — (data) | `getSpeciesConfig`, `getPreyEnergyGain` |

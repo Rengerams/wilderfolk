@@ -2,6 +2,16 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Deleted bullshit about buildingid names that is not correct**, residencyOccupancy.hasWorkAssignment` = `homeBuildingId != null`) is bullshit and made up in relationship file. removed the comments.
+
+- **Named the jobless state honestly and gave the teardown one owner** — the shared job label called an unemployed settler a "Settler" as if it were a trade; it now reads Unemployed, and one helper clears the workplace pointer, job and occupation together.
+
+- **Fixed the daily friendship pass starving large groups and bonding the jobless** — a group larger than the pair budget handed every bond to the same members, and the unemployed counted as sharing a trade; the window rotates daily and only a real job groups.
+
+- **Made settlers actually walk the roads you build** — the route finder was blind to the road network, so a paved path only helped if someone already stood on it; a road tile now costs less to walk, so routes follow the network instead of cutting across open ground.
+
+- **Fixed rison escapes reading the roster instead of the post** — a guard asleep at home still covered his shift, so a full crew never leaked; every clock hour nobody stands on the post is now one escape chance, and a guard works his own shift's hours.
+
 - **The Prison window shows the roster** — who holds the night, morning and afternoon watch this week, who is on post right now, and how many shifts are unstaffed.
 
 - **The Prison runs on shifts** — three nine-hour watches (night, morning, afternoon and evening) with a one-hour handover cover the day, the crew rotates weekly on its own, and a prisoner can only slip out in an hour no watch covers.
@@ -32,7 +42,7 @@
 
 - **Kept 6 000 chronicle entries instead of 2 000** — a mature village filled the old window with ~200 days of history, so a first-year leader death had already rolled out of the log before anyone could look for it.
 
-- **Capped close friendships at six per settler** — feuds always had a ceiling and friendships never did, so one measured settler ended up close to 54 people and the village read as "everyone became friends"; bonds an old save already holds are left untouched.
+- **Capped close friendships at three per settler** — feuds always had a ceiling and friendships never did, so one measured settler ended up close to 54 people and the village read as "everyone became friends"; bonds an old save already holds are left untouched.
 
 - **Removed the empty right-hand sidebar** — the column under the inspector held one div and a comment and no controls at all, so it took width from the map for nothing; the inspector now has that height.
 

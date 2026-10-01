@@ -43,7 +43,7 @@ import {
   setRelationshipDiagnosticsConsoleLoggingEnabled,
   setRelationshipDiagnosticsEnabled,
 } from '../src/game/relationshipDiagnostics';
-import { advanceSocialRelationships } from '../src/game/relationships';
+import { advanceSocialRelationships, FRIENDSHIP_DECAY_PER_DAY } from '../src/game/relationships';
 import { getScheduleImpactPreview } from '../src/game/scheduleFeedback';
 import {
   maybeOfferTravelingTheatre,
@@ -373,8 +373,33 @@ describe('L53 — friendship pruning', () => {
     advanceSocialRelationships(state, [survivor, neighbour]);
 
     expect(survivor.friendships?.friend_99).toBeUndefined();
-    expect(survivor.friendships?.friend_2).toBe(80);
+    // The living friend survives; they share no context, so it fades by one day's decay.
+    expect(survivor.friendships?.friend_2).toBeCloseTo(80 - FRIENDSHIP_DECAY_PER_DAY, 5);
     // One living strong friend = +0.8; the dead one no longer counts.
     expect(survivor.energy).toBeCloseTo(50.8, 5);
+  });
+
+  it('keeps friends of settlers who are alive but outside this pass', () => {
+    const inPass = human(1, { friendships: { friend_3: 80 } });
+    const other = human(2);
+    const outOfPass = human(3);
+    const state = makeWorld([inPass, other, outOfPass]);
+
+    advanceSocialRelationships(state, [inPass, other, outOfPass], [inPass, other]);
+
+    expect(inPass.friendships?.friend_3).toBe(80);
+  });
+});
+
+describe('friendship decay', () => {
+  it('fades a friendship between settlers who share nothing, symmetrically', () => {
+    const a = human(1, { friendships: { friend_2: 50 } });
+    const b = human(2, { friendships: { friend_1: 50 } });
+    const state = makeWorld([a, b]);
+
+    advanceSocialRelationships(state, [a, b]);
+
+    expect(a.friendships?.friend_2).toBeCloseTo(50 - FRIENDSHIP_DECAY_PER_DAY, 5);
+    expect(b.friendships?.friend_1).toBeCloseTo(50 - FRIENDSHIP_DECAY_PER_DAY, 5);
   });
 });

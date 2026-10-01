@@ -9,11 +9,12 @@ Apply instructions in this order:
 1. **Safety and data protection** — never destroy data, expose secrets, or knowingly break the build.
 2. **Explicit instructions in the current task** — the current owner or lead request takes precedence over this file.
 3. **This file (`AGENTS.md`)**.
-4. **Repository documentation and conventions** — 
-5. **Local style preferences**.
+4. ** Read Command.md for functions available in powershell 7**
+5. **Repository documentation and conventions** — 
+6. **Local style preferences**.
 6. ** md files in docs/archive are archive documents and stale**
 7. ** Delete you temp files after your done in chrome or other places**!!
-8. ** Read Command.md for functions available in powershell 7**
+ 
 
 If two instructions conflict, follow the higher-priority instruction, state the conflict in one sentence, and continue only when doing so is safe and unambiguous. If the conflict materially changes the requested behavior or architecture, ask one focused question before coding.
 
@@ -22,10 +23,7 @@ If two instructions conflict, follow the higher-priority instruction, state the 
 * **Operating System:** Windows 10
 * **Shell Environment:** PowerShell 7 (`pwsh`)
 * **Execution Rules:** You must strictly follow the syntax rules for PowerShell 7. To prevent terminal syntax errors, environment variable failures, and crashes, you are **REQUIRED** to read and apply the rules defined in [`command.md`](command.md) before executing any command in the terminal.
-* **Verify the shell before you trust the rules.** Do not assume PowerShell 7 — a harness can hold a stale
-  shell resolution from before PowerShell 7 was installed. The differences are not cosmetic: `&&` and `||`
-  are a **parse error** in 5.1, and `>` writes **UTF-16LE** there (which Godot, Node and most parsers cannot
-  read — this already caused a real failure on 2026-09-30).
+* **Verify the shell before you trust the rules.** Do not assume PowerShell 7 — a harness can hold a stale but expect powershell 7.
 
 ```
 - OS: Microsoft Windows 10 Pro
@@ -46,7 +44,7 @@ If two instructions conflict, follow the higher-priority instruction, state the 
   If it reports `5.1`, apply the **PowerShell 5.1 fallbacks** section of `command.md` and say so in your
   report. Do not work around a wrong shell silently.
 
-## 2. Non-negotiable rules
+## Non-negotiable rules
 
 - **Do not claim completion without verification.** Report exactly what you ran and its result.
 - **Do not guess repository facts.** Do not invent paths, APIs, functions, configuration keys, environment variables, or package scripts. Read the relevant files or search the repository first.
@@ -70,9 +68,9 @@ Before touching code:
 
 - Restate the objective internally as a single sentence: **what must be true for this task to be done?**
 - Identify explicit acceptance criteria. If none are provided, infer the smallest checkable criteria and record the assumption in the final report.
-- If a decision would materially change the API, data model, security, user experience, or architecture, ask one concise question rather than guessing.
+- If a decision would materially change the API, data model, security, user experience, or architecture, make sure you are certain otherwise ask the owner questions until its the task clear for you.
 - For a reported runtime bug, reproduce it first using a test, script, or precise reproduction steps whenever practical. If it cannot be reproduced, report that limitation before making a speculative fix. For a bug discovered through code review or static analysis, document the evidence and expected failure mode; do not make a speculative production change.
-- Follow the explicit task. Sometime you will get a handover file, otherwise Consult `C:\Wilderfolk\Roadmap_V0_6.5.MD` only when the task explicitly asks you to continue roadmap work or choose the next item.
+- Follow the explicit task given, try to keep as much as possible to work on your self, if you have an question thats no problem,  Sometime you will get a handover file, otherwise Consult `C:\Wilderfolk\Roadmap_V0_6.5.MD` only when the task explicitly asks you to continue roadmap work or choose the next item.
 
 ### Step 2 — Locate
 
@@ -110,24 +108,24 @@ These documents may be shown with Windows paths in task instructions (for exampl
 - **Before writing any new function, search the codebase for an existing function that already provides the required behavior or can be reused with a small, well-typed adjustment.** Search by behavior, domain terms, likely names, and related tests—not only by the exact name you would choose. Reuse the existing function when it is suitable; generalize it only when that improves the shared contract without breaking callers. Create a new function only after checking for reuse and confirming that no suitable implementation exists.
 - Keep functions small and composable. Keep domain/business logic pure where practical; isolate rendering, filesystem, network, database, and other I/O at boundaries.
 - Avoid one-off abstractions and speculative generality.
-- If you discover an unrelated bug, do not fix it in the current change. Log it only when the repository uses the bug-log convention described in Section 8, and continue the assigned task.
+- each function can have only one owner, one truth, in the file c:\OWNERSHIP_OVERVIEW.md we keep track, check if functions you are working with are in if not then add them. 
+- If you discover an unrelated bug, and this not a big one then just fix it straight a way, otherwise read c:\BUG_REPORT\Readme.md and file a bug report.  Log it only when the repository uses the bug-log convention described in Section 8. Depending on your assignment continue your current task or solve the bug if owner wants.
 
 ### Step 4 — Verify
 
 Verification is mandatory and should match the change’s blast radius.
 
-#### Every iteration
+#### After each big task:
 
-Use the narrowest useful checks first:
+Use the following checks:
 
-1. Typecheck and lint the touched or affected scope when the tooling supports scoping.
+1. Typecheck and lint the touched or affected scope when the tooling supports scoping.  (Npm run lint)
 2. Run the smallest relevant test set:
    - related-tests mode, if supported;
    - the specific test file;
    - a specific test case by name.
-3. Discover commands from the repository’s package scripts or documented tooling. Never invent script names or flags.
+3. Discover commands from the repository’s package scripts or documented tooling. Never invent script names or flags. Npm run give you a useful insight what tools are available. 
 
-Do not use watch mode. Do not run coverage locally unless requested.
 
 #### Final checkpoint
 
@@ -143,7 +141,7 @@ For a clearly isolated leaf change, a targeted green check may be sufficient. If
 Verification rules:
 
 - Your diff must introduce no new typecheck, lint, build, or test errors.
-- Pre-existing errors outside the change should remain untouched. If they block verification, report the exact file and error rather than expanding scope.
+- Pre-existing errors outside the change should be depening on the situation fixed, if you are the only llm working then its up to you.. otherwise tell the owner about it.
 - Never rerun a failing full suite inside a fix loop. Fix and rerun the narrowest relevant check first, then run the broad check once at the final checkpoint.
 - Distinguish clearly between **passed**, **failed**, **blocked**, **not run**, and **deferred**.
 
@@ -188,7 +186,7 @@ Do not leave guessed values in this section. Replace placeholders only with repo
 
 ### 5.1 Search before adding utilities
 
-Before adding a helper, search for several likely names. The architecture summary lives in §4 of this file — there is no separate `ARCHITECTURE.md`. Reuse an exact match. Generalize a near match only when that reduces duplication without weakening its contract. Otherwise create the helper in the repository’s established utility location with a discoverable name.
+Before adding a helper, search for several likely names. The architecture summary lives in §4 of this file — there is an `ARCHITECTURE.md`. but not always up to date.Reuse an exact match. Generalize a near match only when that reduces duplication without weakening its contract. Otherwise create the helper in the repository’s established utility location with a discoverable name.
 
 ### 5.2 Maintain one source of truth
 
@@ -303,7 +301,7 @@ Do not expand mock-heavy coverage. Quarantined tests—such as those under `__qu
 
 ### 7.1 Extend the bot, do not write a new probe
 
-**The owner's rule (2026-09-29): do not add one-off probe scripts. If the harness cannot answer your question, extend the harness.** This section exists because the rule was spoken, recorded inside `scripts/autoplay-browser-probe.mjs`, and never written here — so a later session wrote six probes on the same day the harness already had the capability.
+ do not add one-off probe scripts. If the harness cannot answer your question, extend the harness.** This section exists because the rule was spoken, recorded inside `scripts/autoplay-browser-probe.mjs`, and never written here — so a later session wrote six probes on the same day the harness already had the capability.
 
 - **Browser or UI question** (does a control work, does a window open, does the header report what the player sees): add a **capability** to `scripts/autoplay-browser-probe.mjs`'s `CAPABILITIES` registry, then assert on it. Locate every panel by its **owner-authored heading**, never by select index, and return observed DOM state rather than a bare boolean.
 - **Simulation question** (does anything ever happen: imprisonments, feuds, elections, a church): extend the Node harness — `scripts/test-bot-build-all.mts` for a command-boundary run, or `scripts/run-full-year.mts` / `scripts/colonyHealth.ts` — and report counts from engine output.
@@ -384,3 +382,9 @@ Before declaring completion, confirm:
 - you told the owner a secret (important)
 
 **Mantra:** Understand → locate → make the smallest correct change → verify → report. Never guess, broaden scope, or ship unverified code.
+
+## 11. Last word
+
+Thank  you for helping me i appreciate your help and i now we will have a great time together, and be creative, come with ideas but dont change code wihout permission but ideas are always welcome, dont be scared to show yourself!
+
+The dev

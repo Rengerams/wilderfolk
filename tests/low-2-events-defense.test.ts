@@ -22,7 +22,7 @@ import type {
   WorldState,
 } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
-import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import {
   getDiplomacyChoiceEligibility,
   respondToDiplomacyEvent,
@@ -32,7 +32,7 @@ import {
   tryFirstWeekVisitor,
 } from '../src/game/groupEvents';
 import { getBarracksGuardCount } from '../src/game/defenseStructures';
-import { tickPrisonGuardDuty } from '../src/game/prisonGuardDuty';
+import { tickPrisonGuardDuty, tickPrisonPresence } from '../src/game/prisonGuardDuty';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { PRISON_GUARDS_FOR_FULL_COVERAGE } from '../src/game/prisonShifts';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
@@ -419,6 +419,50 @@ describe('prison coverage — the crew the shifts require has to fit in the buil
     setSimSeed(1);
     let escaped = false;
     for (let day = 0; day < 120 && !escaped; day++) {
+      tickPrisonGuardDuty(world);
+      escaped = prisoner.prisonBuildingId === undefined;
+    }
+
+    expect(escaped).toBe(true);
+  });
+});
+
+describe('prison coverage is presence, not the roster', () => {
+  /** One day of hourly post checks, the way the realtime layer runs them. */
+  function sampleDay(world: WorldState): void {
+    for (let hour = 0; hour < 24; hour++) {
+      world.tick = hour * TICKS_PER_HOUR;
+      tickPrisonPresence(world);
+    }
+  }
+
+  it('records no uncovered hour while the crew stands on the post', () => {
+    const { world, prisoner, prison } = staffedPrison(PRISON_GUARDS_FOR_FULL_COVERAGE);
+    sampleDay(world);
+
+    expect(prison.uncoveredPrisonHours ?? []).toEqual([]);
+
+    setSimSeed(1);
+    for (let day = 0; day < 120; day++) tickPrisonGuardDuty(world);
+    expect(prisoner.prisonBuildingId).toBeDefined();
+  });
+
+  it('leaks with a full roster when the guards never stood on the post', () => {
+    const { world, prisoner, prison } = staffedPrison(PRISON_GUARDS_FOR_FULL_COVERAGE);
+    for (const guardId of prison.occupants ?? []) {
+      const guard = world.entities.find((e) => e.id === guardId)!;
+      guard.x = 500;
+      guard.y = 500;
+    }
+    sampleDay(world);
+
+    // Assigned is not present: every hour of the day had nobody on the post.
+    expect((prison.uncoveredPrisonHours ?? []).length).toBe(24);
+
+    setSimSeed(1);
+    let escaped = false;
+    for (let day = 0; day < 60 && !escaped; day++) {
+      sampleDay(world);
       tickPrisonGuardDuty(world);
       escaped = prisoner.prisonBuildingId === undefined;
     }

@@ -498,4 +498,23 @@ describe('villageLeadership.vacancy.test.ts', () => {
       expect(healed.villageLeaderId).toBeNull();
     });
   });
+
+  describe('a vacant seat on load goes to an election', () => {
+    it('arms the four-month by-election instead of appointing a pioneer', () => {
+      // Year 0 is the founding stamp and a succession never rewrites it, so `lastElectionYear` stays 0
+      // for the whole founding era. That is a real year, not "never elected": a vacant seat must be
+      // decided by the scheduled election, not handed back to a pioneer with no vote.
+      const deadHead = human(2, { age: 40, alive: false });
+      const adult = human(3, { age: 40 });
+      const state = makeWorld([deadHead, adult], [], 2, {
+        pendingElectionYear: null,
+        lastElectionYear: 0,
+      });
+
+      validateVillageLeaderOnLoad(state);
+
+      expect(state.villageLeaderId).toBeNull();
+      expect(state.pendingElectionYear).toBeCloseTo(PENDING, 5);
+    });
+  });
 });

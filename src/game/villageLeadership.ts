@@ -1220,9 +1220,16 @@ export function validateVillageLeaderOnLoad(state: WorldState): void {
 
   if (state.pendingElectionYear != null) return;
 
-  if (state.lastElectionYear === 0) {
+  // A negative year means no election has ever decided the office, so the founding appointment is
+  // restored. Year 0 is a real stamp — the founding decision, or a by-election held that year — and
+  // a death after either takes the four-month by-election below.
+  if (state.lastElectionYear < 0) {
     const founder = findFoundingColonyLeader(state);
     if (founder) appointFoundingLeader(state, founder);
+    else {
+      const currentFraction = state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR;
+      state.pendingElectionYear = currentFraction + VACANCY_ELECTION_DELAY_YEARS;
+    }
   } else {
     const currentFraction = state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR;
     state.pendingElectionYear = currentFraction + VACANCY_ELECTION_DELAY_YEARS;
