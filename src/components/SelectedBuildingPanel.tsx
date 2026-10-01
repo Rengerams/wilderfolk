@@ -36,6 +36,8 @@ import { citizenFullName, formatCitizenName, SETTLER_NAME_FALLBACK } from '../ga
 import { isProductionBuildingType } from '../game/buildCatalog';
 import { MINE_ORES, mineOreForMode, type MineMode } from '../game/buildings';
 import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
+import { prisonRoster, prisonShiftsAtHour, vacantPrisonShifts } from '../game/prisonShifts';
+import { JobType } from '../game/gameTypes';
 import { describeHotelStatus } from '../game/hotelStay';
 import { isResidenceOccupantEntity } from '../game/residencyReconciliation';
 import { describeHospitalReputation } from '../game/hospitalCare';
@@ -146,7 +148,7 @@ const BUILDING_OUTPUT_HINTS: Partial<Record<BuildingType, string>> = {
   [BuildingType.Hospital]: describeHospitalReputation(),
   [BuildingType.TownHall]: 'Staff officials — taxes, trade & immigration boost, elections, scandal buffer, host festivals.',
   [BuildingType.Well]: 'Lowers settler energy drain for the whole village.',
-  [BuildingType.Prison]: 'Staffed by a Guard. Caught adulterers may be sentenced here for a few days.',
+  [BuildingType.Prison]: 'Three guards cover the day in shifts. Caught adulterers may be sentenced here for a few days.',
   [BuildingType.WallGate]: 'Gated wall segment — same defense bonus as straight walls.',
 };
 
@@ -500,9 +502,44 @@ export default function SelectedBuildingPanel({
         {building.completed && building.type === BuildingType.Church && (
           <p className="text-[11px] text-violet-300">Priest is manual only — pick below, or leave empty (no curse cures).</p>
         )}
-        {building.completed && building.type === BuildingType.Prison && (
-          <p className="text-[11px] text-violet-300">Guard is manual only — assign one below, or the cells stay empty.</p>
-        )}
+        {building.completed && building.type === BuildingType.Prison && (() => {
+          const byId = ensureEntityByIdMap(state);
+          const guardIds = building.occupants.filter((id) => {
+            const guard = byId.get(id);
+            return guard?.alive === true && guard.job === JobType.PrisonGuard;
+          });
+          const roster = prisonRoster(guardIds, state.tick);
+          const vacant = vacantPrisonShifts(roster);
+          const onPostNow = prisonShiftsAtHour(getHourOfDay(state.tick));
+          return (
+            <div className="mt-2 space-y-1.5 rounded-lg border border-violet-700/40 bg-violet-950/30 p-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-300">
+                Shifts — rotate weekly
+              </p>
+              {roster.map(({ shift, guardId }) => {
+                const guard = guardId != null ? byId.get(guardId) : undefined;
+                const onDuty = onPostNow.some((s) => s.key === shift.key);
+                return (
+                  <p key={shift.key} className="text-[11px] text-stone-300">
+                    <span className="font-bold text-stone-100">{shift.label}</span>
+                    <span className="text-stone-400">
+                      {' '}{shift.startHour}:00–{shift.endHour % 24}:00 ·{' '}
+                    </span>
+                    <span className={guard ? 'text-emerald-300' : 'text-amber-400'}>
+                      {guard ? (guard.name ?? SETTLER_NAME_FALLBACK) : 'no guard'}
+                    </span>
+                    {onDuty && <span className="text-[10px] text-sky-300"> · on post now</span>}
+                  </p>
+                );
+              })}
+              <p className="text-[10px] text-stone-300">
+                {vacant.length === 0
+                  ? 'Three guards cover all 24 hours — nobody slips out.'
+                  : `${vacant.length === 1 ? 'One shift is' : `${vacant.length} shifts are`} unstaffed — prisoners can slip out in those hours.`}
+              </p>
+            </div>
+          );
+        })()}
         {building.completed && building.type === BuildingType.Barracks && (
           <p className="text-[11px] text-violet-300">Soldiers are manual only — assign below; each patrols the village (+{MILITIA_BALANCE.guardBonusPerGuard} militia strength).</p>
         )}

@@ -2,6 +2,8 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **The Prison window shows the roster** — who holds the night, morning and afternoon watch this week, who is on post right now, and how many shifts are unstaffed.
+
 - **The Prison runs on shifts** — three nine-hour watches (night, morning, afternoon and evening) with a one-hour handover cover the day, the crew rotates weekly on its own, and a prisoner can only slip out in an hour no watch covers.
 
 - **The Prison now seats the guard crew its own shifts require** — coverage divides the day into three 8-hour shifts, but the building allowed only two workers, so outside hours were certain and every prisoner escaped; it holds four, and the prisoner cap follows the crew.
