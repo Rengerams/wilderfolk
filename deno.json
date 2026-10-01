@@ -6,6 +6,18 @@
     "jsx": "react-jsx",
     "jsxImportSource": "react"
   },
+  "desktop": {
+    "app": {
+      "name": "Wilderfolk",
+      "identifier": "com.rengerams.wilderfolk",
+      "icons": {
+        "windows": "./src-tauri/icons/icon.ico"
+      }
+    },
+    "output": {
+      "windows": "./deno/wilderfolk"
+    }
+  },
   "exclude": [
     "dist",
     "node_modules",

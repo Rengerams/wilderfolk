@@ -16,10 +16,15 @@ godot_ai/
 node_modules/
 dist/
 dist-ssr/
+/deno/
 target/
 src-tauri/target/
 src-tauri/gen/schemas/
 src-tauri/icons/
+# The Deno desktop build carries the same icon as the Tauri shell, so that one file stays tracked.
+!src-tauri/icons/
+src-tauri/icons/*
+!src-tauri/icons/icon.ico
 *.tsbuildinfo
 docs/
 # Generated analysis output

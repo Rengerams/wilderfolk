@@ -8,6 +8,8 @@
 
 - **Added Deno alongside npm** — the Deno 2.9 runtime is installed beside the existing setup, with `deno:build` and `deno:test` entries that drive the same single gate runner, so npm keeps the lockfile and nothing is replaced.
 
+- **Made the Deno build produce a real desktop window** — it pointed at a browser-only React entry and died on a CSS import; it now packages the built game into a self-contained window that opens like the Tauri shell, with the unused dependency payload left out of the binary.
+
 - **Stopped one unappliable worker message from wedging the sim** — a tick or command result that arrived with no world attached was dropped without clearing its in-flight flag, so the game fell back to main-thread ticks and every save timed out waiting for the worker to settle.
 
 - **Told the player how a prison sentence ends** — an escape and a release both only reached the map and the generic Events bucket of the chronicle; both now raise a notification and file under the prison filter, beside the jailing that started them.
