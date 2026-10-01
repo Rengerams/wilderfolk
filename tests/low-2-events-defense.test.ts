@@ -33,6 +33,8 @@ import {
 } from '../src/game/groupEvents';
 import { getBarracksGuardCount } from '../src/game/defenseStructures';
 import { tickPrisonGuardDuty } from '../src/game/prisonGuardDuty';
+import { BUILDING_CONFIGS } from '../src/game/buildings';
+import { Prison } from '../src/game/gameConstants';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 
@@ -379,5 +381,48 @@ describe('L51 — a prison escape re-syncs the prison occupant list', () => {
     expect(
       collectSimulationInvariantErrors(world).some((e) => e.includes('neither prisoner')),
     ).toBe(true);
+  });
+});
+
+/** The same prison, with `guardCount` guards on its roster and the matching occupants list. */
+function staffedPrison(guardCount: number): { world: WorldState; prisoner: Entity; prison: Building } {
+  const { world, prisoner, prison } = prisonWorld();
+  for (let i = 0; i < guardCount; i++) {
+    const guard = human(7000 + i, { job: JobType.PrisonGuard, homeBuildingId: prison.id });
+    world.entities.push(guard);
+    prison.occupants = [...(prison.occupants ?? []), guard.id];
+  }
+  return { world, prisoner, prison };
+}
+
+describe('prison coverage — the crew the shifts require has to fit in the building', () => {
+  it('seats a full guard crew and still has room for a prisoner', () => {
+    // `prisonGuardDuty` needs GUARDS_FOR_FULL_COVERAGE guards for 24 h coverage. A building that cannot
+    // seat them makes the leak certain: that is how every prisoner in a live save came to escape.
+    expect(BUILDING_CONFIGS[BuildingType.Prison].maxOccupants).toBeGreaterThanOrEqual(
+      Prison.GUARDS_FOR_FULL_COVERAGE + 1,
+    );
+  });
+
+  it('holds the prisoner while the full crew is on the roster', () => {
+    const { world, prisoner } = staffedPrison(Prison.GUARDS_FOR_FULL_COVERAGE);
+    setSimSeed(1);
+    for (let day = 0; day < 120; day++) tickPrisonGuardDuty(world);
+
+    expect(prisoner.prisonBuildingId).toBeDefined();
+    expect(prisoner.prisonerUntilTick).toBeDefined();
+    expect(collectSimulationInvariantErrors(world)).toEqual([]);
+  });
+
+  it('still leaks when the roster is one shift short', () => {
+    const { world, prisoner } = staffedPrison(Prison.GUARDS_FOR_FULL_COVERAGE - 1);
+    setSimSeed(1);
+    let escaped = false;
+    for (let day = 0; day < 120 && !escaped; day++) {
+      tickPrisonGuardDuty(world);
+      escaped = prisoner.prisonBuildingId === undefined;
+    }
+
+    expect(escaped).toBe(true);
   });
 });

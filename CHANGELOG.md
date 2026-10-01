@@ -2,6 +2,8 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **The Prison now seats the guard crew its own shifts require** — coverage divides the day into three 8-hour shifts, but the building allowed only two workers, so outside hours were certain and every prisoner escaped; it holds four, and the prisoner cap follows the crew.
+
 - **Recorded the owners the call graph showed missing** — the terrain subsystem, the Hunting Spot's pursuit and kill, the window shells and three single-purpose leaves had no ownership row, so 110 functions had no owner; the graph now resolves all 2767.
 
 - **Fixed children holding adult jobs, and school with it** — the juvenile flag is set at birth and only cleared by graduation, so a child with a wrong flag stayed a grown-up: posted, armed, and refused as a pupil. Loading a save now returns them to childhood.
