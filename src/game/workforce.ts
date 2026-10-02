@@ -12,6 +12,7 @@ import { isPlayerHuman } from './playerHuman';
 import { humanDisplayName } from './citizenId';
 import { assignMissingResidences } from './residencyReconciliation';
 import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './residencyOccupancy';
+import { prisonGuardCapacity } from './prisonShifts';
 import { logEvent } from './eventLog';
 import { addFloatingText, addNotification } from './simEffects';
 import { getVenueAutoStaffingTarget } from './venueSchedule';
@@ -44,10 +45,15 @@ function formatSettlerName(entity: Entity): string {
   return humanDisplayName(entity);
 }
 
-function isOnConstructionCrew(human: Entity, buildings: Building[]): boolean {
+/** The one membership rule: is this settler on any unfinished building's crew? One building may be ignored. */
+export function isOnConstructionCrew(
+  buildings: readonly Building[],
+  humanId: number,
+  exceptBuildingId?: number,
+): boolean {
   for (let i = 0; i < buildings.length; i++) {
     const b = buildings[i];
-    if (!b.completed && b.occupants.includes(human.id)) {
+    if (!b.completed && b.id !== exceptBuildingId && b.occupants.includes(humanId)) {
       return true;
     }
   }
@@ -87,6 +93,22 @@ export function countWorkersAtBuilding(humans: Entity[], buildingId: number): nu
     }
   }
   return count;
+}
+
+/**
+ * The staffing cap of a completed workplace, and how much of it is taken.
+ *
+ * A Prison's `occupants` is guards ∪ prisoners, so measuring that list against its cap would let a
+ * prisoner consume a guard post and a guard consume a cell. The split is five posts beside four cells,
+ * so the posts are counted on their own: `homeBuildingId` is a guard's post and an arrest clears it,
+ * which is the distinction `countWorkersAtBuilding` already draws.
+ */
+export function staffingCapFor(building: Building, humans: Entity[]): { cap: number; staffed: number } {
+  const configured = BUILDING_CONFIGS[building.type].maxOccupants;
+  if (building.type === BuildingType.Prison) {
+    return { cap: prisonGuardCapacity(configured), staffed: countWorkersAtBuilding(humans, building.id) };
+  }
+  return { cap: configured, staffed: building.occupants.length };
 }
 
 export function countStaffedWorkersAtType(buildings: Building[], humans: Entity[], type: BuildingType): number {
@@ -374,7 +396,7 @@ export function assignWorkerInPlace(
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
 
-  const configuredCap = BUILDING_CONFIGS[building.type].maxOccupants;
+  const configuredCap = staffingCapFor(building, humans).cap;
   const isAutoBuilding = !isManualStaffingBuilding(building);
   const venueKind =
     building.type === BuildingType.Tavern
@@ -401,7 +423,7 @@ export function assignWorkerInPlace(
       !h.isJuvenile &&
       !hasWorkAssignment(h) &&
       !isImprisoned(h) &&
-      !isOnConstructionCrew(h, buildings),
+      !isOnConstructionCrew(buildings, h.id),
   );
 
   const buildingX = building.x + building.width / 2;
@@ -464,7 +486,7 @@ export function assignBuilderInPlace(
         hasWorkAssignment(h) &&
         !isImprisoned(h) &&
         !building.occupants.includes(h.id) &&
-        !isOnConstructionCrew(h, allBuildings),
+        !isOnConstructionCrew(allBuildings, h.id),
     )
     .sort((a, b) => {
       const aPri = jobBuildingPriority(

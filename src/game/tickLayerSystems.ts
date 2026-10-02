@@ -2,7 +2,7 @@ import type { WorldState, Entity } from './gameTypes';
 import {
   EntityType,
   TerrainType,
-  TERRAIN_TILE_SIZE,
+  PATH_CELL,
   WEREWOLF_ATTACK_LINES,
   WEREWOLF_HOWL_LINES,
 } from './gameTypes';
@@ -683,7 +683,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         const nextX = entity.x + entity.vx;
         const nextY = entity.y + entity.vy;
         const tileTypeNear = (px: number, py: number): TerrainType | undefined =>
-          tileTypeAt(worldMap, Math.floor(px / TERRAIN_TILE_SIZE), Math.floor(py / TERRAIN_TILE_SIZE)) ?? undefined;
+          tileTypeAt(worldMap, Math.floor(px / PATH_CELL), Math.floor(py / PATH_CELL)) ?? undefined;
         if (isDeepWaterTile(tileTypeNear(nextX, nextY))) {
           const xBlocked = isDeepWaterTile(tileTypeNear(nextX, entity.y));
           const yBlocked = isDeepWaterTile(tileTypeNear(entity.x, nextY));

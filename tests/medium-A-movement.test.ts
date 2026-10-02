@@ -21,7 +21,7 @@ import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior'
 import { setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { personDayRoll, TICKS_PER_DAY } from '../src/game/dayCycle';
-import { BuildingType, TERRAIN_TILE_SIZE, TerrainType } from '../src/game/gameTypes';
+import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldMap, WorldState } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 
@@ -42,7 +42,7 @@ function makeMap(
 
 /** World-pixel center of a tile. */
 function pixel(tileX: number, tileY: number): number {
-  return tileX * TERRAIN_TILE_SIZE + TERRAIN_TILE_SIZE / 2;
+  return tileX * PATH_CELL + PATH_CELL / 2;
 }
 
 function human(id: number, x: number, y: number, overrides: Partial<Entity> = {}): Entity {

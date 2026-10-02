@@ -1,10 +1,10 @@
-import type { Building, Entity, WorldState } from './gameTypes';
+import type { Building, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType } from './gameTypes';
 import { addResource } from './economy';
 import { addFloatingText, addNotification, createDeathParticles, impulseScreenShake } from './simEffects';
 import { assignMissingWorkers, removeWorkerTransition } from './workforce';
 import { unindexAdjacency } from './adjacencyIndex';
-import { isPlayerHuman } from './playerHuman';
+import { allPlayerHumans } from './playerHuman';
 import { getResidenceCapacity, isResidenceBuildingType } from './residencyOccupancy';
 import { assignMissingResidences } from './residencyReconciliation';
 import { invalidatePopulationSnapshotCache } from './populationGrowth';
@@ -70,12 +70,8 @@ export function getRepairBuildingEligibility(
   return { ok: true };
 }
 
-function listPlayerHumans(state: WorldState): Entity[] {
-  return state.entities.filter(isPlayerHuman);
-}
-
 function reconcileAssignmentsAfterBuildingRemoval(state: WorldState): void {
-  const humans = listPlayerHumans(state);
+  const humans = allPlayerHumans(state.entities);
   assignMissingResidences(humans, state.buildings, state.entities);
   assignMissingWorkers(humans, state.buildings, state);
 }
@@ -193,7 +189,7 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
 
   if (isResidenceBuildingType(building.type)) {
     const capacity = getResidenceCapacity(building);
-    assignMissingResidences(listPlayerHumans(state), state.buildings, state.entities);
+    assignMissingResidences(allPlayerHumans(state.entities), state.buildings, state.entities);
     addFloatingText(state, building.x, building.y - 15, `Expanded! Fits ${capacity} residents`, '#3b82f6');
     addNotification(
       state,

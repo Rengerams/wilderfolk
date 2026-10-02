@@ -1,17 +1,17 @@
-import type { Building, Entity, WorldState } from './gameTypes';
+import type { Building, WorldState } from './gameTypes';
 import {
   BuildingType,
   BUILDING_CONFIGS,
   EntityType,
   TerrainType,
-  TERRAIN_TILE_SIZE,
+  PATH_CELL,
 } from './gameTypes';
 import { addFloatingText, createDeathParticles, impulseScreenShake } from './simEffects';
 import { bumpTerrainRevision } from './terrainLayer';
 import { assignMissingWorkers } from './workforce';
 import { refundBuildingCost, removeBuildingFromState } from './buildingMaintenanceActions';
 import { assignMissingResidences } from './dayCycle';
-import { isPlayerHuman } from './playerHuman';
+import { allPlayerHumans } from './playerHuman';
 import { notifyBuildingLocked } from './research';
 import { getBuildingFootprintForType, normalizeBuildingRotation, type BuildingRotation, type CornerRotation } from './buildingRotation';
 import { isStripBuildType, type StripBuildPreview, type StripSegment } from './stripBuild';
@@ -32,10 +32,6 @@ import { patchTile, rebakeTerrainGrids, tileAt } from './terrain/terrainGrid';
 // re-exported it), so it was removed with the re-exports rather than restated.
 
 export { isFootprintOnBuildableTerrain } from './placementUtils';
-
-function listPlayerHumans(state: WorldState): Entity[] {
-  return state.entities.filter(isPlayerHuman);
-}
 
 function isStripSegmentTechUnlocked(
   stripType: BuildingType,
@@ -116,10 +112,10 @@ function clearTreesUnderFootprint(
 
   const map = state.worldMap;
   if (!map) return;
-  const startTx = Math.max(0, Math.floor(left / TERRAIN_TILE_SIZE));
-  const endTx = Math.min(map.width, Math.ceil(right / TERRAIN_TILE_SIZE));
-  const startTy = Math.max(0, Math.floor(top / TERRAIN_TILE_SIZE));
-  const endTy = Math.min(map.height, Math.ceil(bottom / TERRAIN_TILE_SIZE));
+  const startTx = Math.max(0, Math.floor(left / PATH_CELL));
+  const endTx = Math.min(map.width, Math.ceil(right / PATH_CELL));
+  const startTy = Math.max(0, Math.floor(top / PATH_CELL));
+  const endTy = Math.min(map.height, Math.ceil(bottom / PATH_CELL));
   let tilesChanged = false;
   for (let tileY = startTy; tileY < endTy; tileY++) {
     for (let tileX = startTx; tileX < endTx; tileX++) {
@@ -195,14 +191,14 @@ export function startBuilding(
   state.buildings.push(building);
 
   if (type === BuildingType.LeaderHouse) {
-    assignMissingResidences(listPlayerHumans(state), state.buildings, state.entities);
+    assignMissingResidences(allPlayerHumans(state.entities), state.buildings, state.entities);
   }
 
   clearTreesUnderFootprint(state, building);
   // The third argument is the `WorldState`: without it the auto-staff pass falls back to
   // `DEFAULT_WORKFORCE_POLICY` and the default tavern window, so a newly placed building could
   // push a staffed venue one worker past the player's own preset.
-  assignMissingWorkers(listPlayerHumans(state), state.buildings, state);
+  assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state);
 
   createDeathParticles(state, x, y, '#ffd700', 8, 'star');
   addFloatingText(
@@ -362,6 +358,6 @@ export function placeStripChain(
   const label = placed === 1 ? BUILDING_CONFIGS[segments[0].placeType ?? type].label : `${placed} segments`;
   addFloatingText(state, firstX, firstY - 10, `🔨 ${label}`, '#22c55e', 'brief');
   impulseScreenShake(state, placed > 3 ? 3 : 2);
-  assignMissingWorkers(listPlayerHumans(state), state.buildings, state);
+  assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state);
   return state;
 }

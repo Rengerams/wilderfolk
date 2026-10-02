@@ -11,6 +11,7 @@
  */
 import {
   MapPreset,
+  PATH_CELL,
   TerrainType,
   type TerrainDecoration,
   type WorldMap,
@@ -22,7 +23,6 @@ import { B, BIOME_BY_IDX, TREE_SPRITE_TYPES, type SpriteType } from './biomes';
 import {
   BUILD_CELL,
   Buildability,
-  PATH_CELL,
   TERRAIN_CELL,
   WATER_CELL,
   Walkability,
@@ -46,7 +46,7 @@ import {
  * The four-layer cell edges live in `terrainGrid` (the representation owner);
  * re-exported so the generator's importers keep one path to them.
  */
-export { BUILD_CELL, PATH_CELL, TERRAIN_CELL } from './terrainGrid';
+export { BUILD_CELL, TERRAIN_CELL } from './terrainGrid';
 
 /** Global decor density multiplier (Teraforge `decorDensity` default). */
 const DECOR_DENSITY = 1.2;
@@ -863,11 +863,15 @@ export function generateRawTerrain(
   // field every tile projection reads.
   const cuts = moistureCuts(moisture, s.forest);
 
+  /** The centre of L0 cell `cell`, in the generator field cells — the 10 px grid over the 16 px one. */
+  const cellCentreInFieldCells = (cell: number): number =>
+    (cell * PATH_CELL + PATH_CELL / 2) / TERRAIN_CELL;
+
   /** The projected tile type holding L0 cell (x, y). One shared projection for both grids, so
    *  L0 walkability and L1 buildability can never disagree about the same ground. */
   const pathTileType = (x: number, y: number): TerrainType => {
-    const cx = (x * PATH_CELL + PATH_CELL / 2) / TERRAIN_CELL;
-    const cy = (y * PATH_CELL + PATH_CELL / 2) / TERRAIN_CELL;
+    const cx = cellCentreInFieldCells(x);
+    const cy = cellCentreInFieldCells(y);
     return classifyTile(
       sampleElev(elevation, cols, rows, cx, cy),
       sampleElev(moisture, cols, rows, cx, cy),

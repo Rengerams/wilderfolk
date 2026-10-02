@@ -14,7 +14,7 @@
  * not express an unclimbable cliff).
  */
 import type { Building, Entity, WorldMap } from './gameTypes';
-import { BuildingType, TERRAIN_TILE_SIZE } from './gameTypes';
+import { BuildingType, PATH_CELL } from './gameTypes';
 import {
   Walkability,
   isWalkableTerrainType,
@@ -58,10 +58,10 @@ function isWalkableRoad(b: Building): boolean {
 
 /** Stamps 1 over every grid tile a building's footprint covers, clamped to the grid. */
 function stampBuildingFootprint(grid: Uint8Array, cols: number, rows: number, b: Building): void {
-  const x0 = Math.max(0, Math.floor(b.x / TERRAIN_TILE_SIZE));
-  const y0 = Math.max(0, Math.floor(b.y / TERRAIN_TILE_SIZE));
-  const x1 = Math.min(cols - 1, Math.floor((b.x + Math.max(0, b.width - 0.001)) / TERRAIN_TILE_SIZE));
-  const y1 = Math.min(rows - 1, Math.floor((b.y + Math.max(0, b.height - 0.001)) / TERRAIN_TILE_SIZE));
+  const x0 = Math.max(0, Math.floor(b.x / PATH_CELL));
+  const y0 = Math.max(0, Math.floor(b.y / PATH_CELL));
+  const x1 = Math.min(cols - 1, Math.floor((b.x + Math.max(0, b.width - 0.001)) / PATH_CELL));
+  const y1 = Math.min(rows - 1, Math.floor((b.y + Math.max(0, b.height - 0.001)) / PATH_CELL));
 
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
@@ -437,8 +437,8 @@ export function findPath(
 
 /** Tile path → world-coordinate waypoints (tile centers). */
 export function pathWaypoints(path: { x: number; y: number }[]): { x: number; y: number }[] {
-  const half = TERRAIN_TILE_SIZE / 2;
-  return path.map((p) => ({ x: p.x * TERRAIN_TILE_SIZE + half, y: p.y * TERRAIN_TILE_SIZE + half }));
+  const half = PATH_CELL / 2;
+  return path.map((p) => ({ x: p.x * PATH_CELL + half, y: p.y * PATH_CELL + half }));
 }
 
 /** True when the straight line from (x0,y0) to (x1,y1) crosses a blocked tile. */
@@ -452,14 +452,14 @@ export function lineCrossesBlocked(
   recordLineCheck();
   const span = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
   // Sub-tile sampling steps prevent tunneling through 1-tile diagonal obstacles
-  const steps = Math.max(4, Math.min(128, Math.ceil(span / (TERRAIN_TILE_SIZE * 0.5))));
+  const steps = Math.max(4, Math.min(128, Math.ceil(span / (PATH_CELL * 0.5))));
   let prevElev: number | null = null;
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
     const px = x0 + (x1 - x0) * t;
     const py = y0 + (y1 - y0) * t;
-    const tx = Math.floor(px / TERRAIN_TILE_SIZE);
-    const ty = Math.floor(py / TERRAIN_TILE_SIZE);
+    const tx = Math.floor(px / PATH_CELL);
+    const ty = Math.floor(py / PATH_CELL);
     if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) continue;
     const idx = ty * grid.cols + tx;
     if (grid.blocked[idx]) return true;
@@ -481,7 +481,7 @@ let currentGrid: PathGrid | null = null;
  * was computed from: cache keys name a commute leg, not an origin, so a leg begun
  * from somewhere else must not steer the entity back to the old path start.
  */
-const PATH_CACHE_ORIGIN_TOLERANCE = TERRAIN_TILE_SIZE * 2;
+const PATH_CACHE_ORIGIN_TOLERANCE = PATH_CELL * 2;
 
 interface CachedPath {
   originX: number;
@@ -530,10 +530,10 @@ export function getRouteObstruction(
 
   const path = findPath(
     grid,
-    Math.floor(from.x / TERRAIN_TILE_SIZE),
-    Math.floor(from.y / TERRAIN_TILE_SIZE),
-    Math.floor(to.x / TERRAIN_TILE_SIZE),
-    Math.floor(to.y / TERRAIN_TILE_SIZE),
+    Math.floor(from.x / PATH_CELL),
+    Math.floor(from.y / PATH_CELL),
+    Math.floor(to.x / PATH_CELL),
+    Math.floor(to.y / PATH_CELL),
   );
   return path && path.length > 1 ? 'rerouting' : 'blocked';
 }
@@ -574,10 +574,10 @@ export function steerWithPath(
       recordPathCacheMiss();
       const path = findPath(
         currentGrid,
-        Math.floor(entity.x / TERRAIN_TILE_SIZE),
-        Math.floor(entity.y / TERRAIN_TILE_SIZE),
-        Math.floor(targetX / TERRAIN_TILE_SIZE),
-        Math.floor(targetY / TERRAIN_TILE_SIZE),
+        Math.floor(entity.x / PATH_CELL),
+        Math.floor(entity.y / PATH_CELL),
+        Math.floor(targetX / PATH_CELL),
+        Math.floor(targetY / PATH_CELL),
       );
       cached = {
         originX: entity.x,

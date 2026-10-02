@@ -51,6 +51,17 @@ export function playerHumansFrom(entities: readonly Entity[]): Entity[] {
 }
 
 /**
+ * **Every** player-owned settler in `entities`, dead included — deliberately not {@link playerHumansFrom}.
+ *
+ * `assignMissingResidences` clears the bed of each dead settler it is handed, so a reconciliation pass
+ * that wants the living list is asking a different question from the one this answers. Five command
+ * modules carried a private copy of this filter; this is its one owner.
+ */
+export function allPlayerHumans(entities: readonly Entity[]): Entity[] {
+  return entities.filter(isPlayerHuman);
+}
+
+/**
  * Returns the total count of living player-owned colony settlers.
  * Completely allocation-free in hot execution loops.
  */

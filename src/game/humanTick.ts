@@ -698,11 +698,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         : isVenueServiceHour(state, 'hotel', hourOfDay));
 
     // A prison guard's day is his roster shift rather than the colony window (see `prisonShifts`).
-    const prisonShift =
-      entity.job === JobType.PrisonGuard && workplace?.type === BuildingType.Prison && workplace.completed
-        ? prisonShiftForGuard(entity.id, prisonGuardIds(state, workplace.occupants ?? []), state.tick)
-        : null;
+    const isPrisonGuardAtPost =
+      entity.job === JobType.PrisonGuard && workplace?.type === BuildingType.Prison && workplace.completed;
+    const prisonShift = isPrisonGuardAtPost
+      ? prisonShiftForGuard(entity.id, prisonGuardIds(state, workplace.occupants ?? []), state.tick)
+      : null;
     const onPrisonShift = prisonShift != null && shiftCoversHour(prisonShift, hourOfDay);
+    // A crew larger than the three shifts takes days off in turn, and a resting guard is *free* — he is
+    // not on the colony work day. Without this he still walked to the prison for `goWorkTime`, so an
+    // off-duty guard stood on a post he was not rostered for and had no day off at all.
+    const offDutyPrisonGuard = isPrisonGuardAtPost && prisonShift == null;
     const shiftStartHour = prisonShift?.startHour ?? workSchedule.startHour;
 
     const onJobShift =
@@ -961,6 +966,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !huntingWere &&
       !inElectionCeremony &&
       !festivalGathering &&
+      !offDutyPrisonGuard &&
       (goWorkTime || onWorkCommuteHours || prisonShift != null) &&
       !isInnkeeper &&
       workplace
@@ -973,8 +979,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         config.speed,
       );
       const needsToLeaveForWork = isWorkDay(state.tick) && hourOfDay >= shiftStartHour - commuteLeadHours;
-      const wantsToWork = prisonShift != null
-        ? onPrisonShift || needsToLeaveForWork
+      // A prison guard works his roster shift and nothing else: the colony window is not his day, so
+      // `goWorkTime` must not put a resting guard back on the post he is taking the day off from.
+      const wantsToWork = isPrisonGuardAtPost
+        ? prisonShift != null && (onPrisonShift || needsToLeaveForWork)
         : goWorkTime || onWorkCommuteHours || needsToLeaveForWork;
       if (wantsToWork) {
         commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), 3.5);

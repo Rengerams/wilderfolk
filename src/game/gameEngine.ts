@@ -23,7 +23,7 @@ export {
   ResearchType,
   BUILDING_CONFIGS,
   GRID_SIZE,
-  TERRAIN_TILE_SIZE,
+  PATH_CELL,
   GRID_SNAP,
   snapToGrid,
   TerrainType,

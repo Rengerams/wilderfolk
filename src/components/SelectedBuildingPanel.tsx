@@ -36,8 +36,8 @@ import { citizenFullName, formatCitizenName, SETTLER_NAME_FALLBACK } from '../ga
 import { isProductionBuildingType } from '../game/buildCatalog';
 import { MINE_ORES, mineOreForMode, type MineMode } from '../game/buildings';
 import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
-import { prisonRoster, prisonShiftsAtHour, vacantPrisonShifts } from '../game/prisonShifts';
-import { JobType } from '../game/gameTypes';
+import { offDutyPrisonGuards, prisonRoster, prisonShiftsAtHour, vacantPrisonShifts } from '../game/prisonShifts';
+import { prisonGuardIds } from '../game/prisonGuardDuty';
 import { describeHotelStatus } from '../game/hotelStay';
 import { isResidenceOccupantEntity } from '../game/residencyReconciliation';
 import { describeHospitalReputation } from '../game/hospitalCare';
@@ -504,17 +504,15 @@ export default function SelectedBuildingPanel({
         )}
         {building.completed && building.type === BuildingType.Prison && (() => {
           const byId = ensureEntityByIdMap(state);
-          const guardIds = building.occupants.filter((id) => {
-            const guard = byId.get(id);
-            return guard?.alive === true && guard.job === JobType.PrisonGuard;
-          });
+          const guardIds = prisonGuardIds(state, building.occupants ?? []);
           const roster = prisonRoster(guardIds, state.tick);
+          const resting = offDutyPrisonGuards(guardIds, state.tick);
           const vacant = vacantPrisonShifts(roster);
           const onPostNow = prisonShiftsAtHour(getHourOfDay(state.tick));
           return (
             <div className="mt-2 space-y-1.5 rounded-lg border border-violet-700/40 bg-violet-950/30 p-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-300">
-                Shifts — rotate weekly
+                Shifts — rotate weekly, days off in turn
               </p>
               {roster.map(({ shift, guardId }) => {
                 const guard = guardId != null ? byId.get(guardId) : undefined;
@@ -532,6 +530,12 @@ export default function SelectedBuildingPanel({
                   </p>
                 );
               })}
+              {resting.length > 0 && (
+                <p className="text-[10px] text-stone-400">
+                  Off duty today:{' '}
+                  {resting.map((id) => byId.get(id)?.name ?? SETTLER_NAME_FALLBACK).join(' · ')}
+                </p>
+              )}
               <p className="text-[10px] text-stone-300">
                 {vacant.length === 0
                   ? 'Three guards cover all 24 hours — nobody slips out.'
@@ -882,10 +886,18 @@ export default function SelectedBuildingPanel({
               No idle settlers — recruit or free up workers.
             </p>
           )}
-          {!isHousing && isManualStaffing && building.occupants.length > 0 && (
+          {!isHousing && isManualStaffing && (() => {
+            // A Prison's occupant list is guards ∪ prisoners (`workforce.syncJobBuildingOccupants`), so
+            // listing it here announced prisoners as its "Current workers" — the owner's eight-row
+            // roster of seven guards and a cellmate. Only the posts are staff.
+            const staffedIds = building.type === BuildingType.Prison
+              ? prisonGuardIds(state, building.occupants ?? [])
+              : building.occupants;
+            if (staffedIds.length === 0) return null;
+            return (
             <div className="col-span-2 space-y-1">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Current workers</p>
-              {building.occupants.map((occupantId) => {
+              {staffedIds.map((occupantId) => {
                 const worker = state.entities.find((e) => e.id === occupantId);
                 return (
                   <div key={occupantId} className="flex items-center justify-between gap-2 rounded bg-stone-700/40 px-2 py-1">
@@ -902,7 +914,8 @@ export default function SelectedBuildingPanel({
                 );
               })}
             </div>
-          )}
+            );
+          })()}
           </div>
         </CollapsibleSection>
       )}

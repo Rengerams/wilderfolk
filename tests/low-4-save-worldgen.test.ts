@@ -15,7 +15,7 @@ import {
   EntityType,
   MapPreset,
   MapSize,
-  TERRAIN_TILE_SIZE,
+  PATH_CELL,
   TerrainType,
 } from '../src/game/gameTypes';
 import { createInitialView } from '../src/game/viewState';
@@ -76,8 +76,8 @@ describe('worldGen lows', () => {
     const world = initGame({ width: 640, height: 480, seed: 99 });
     expect(world.width).toBe(640);
     expect(world.height).toBe(480);
-    expect(world.worldMap?.width).toBe(Math.ceil(640 / TERRAIN_TILE_SIZE));
-    expect(world.worldMap?.height).toBe(Math.ceil(480 / TERRAIN_TILE_SIZE));
+    expect(world.worldMap?.width).toBe(Math.ceil(640 / PATH_CELL));
+    expect(world.worldMap?.height).toBe(Math.ceil(480 / PATH_CELL));
   });
 
   it('L80 — initGame fills entityByType instead of leaving defined-but-empty buckets', () => {

@@ -1,4 +1,4 @@
-import { GRID_SIZE, TERRAIN_TILE_SIZE, snapToGrid } from '../gameTypes';
+import { GRID_SIZE, PATH_CELL, snapToGrid } from '../gameTypes';
 import { isNightHour } from '../dayCycle';
 import { getBuildingFootprintForType, snapBuildingCenter } from '../buildingRotation';
 import { canPlaceBuildingSnapshot } from '../placementUtils';
@@ -157,13 +157,13 @@ export function drawBuildZoneOverlay(ctx: CanvasRenderingContext2D, state: Rende
   const wt = cam.y - halfH;
   const wb = cam.y + halfH;
 
-  const startTx = Math.max(0, Math.floor(wl / TERRAIN_TILE_SIZE));
-  const endTx = Math.min(map.width - 1, Math.ceil(wr / TERRAIN_TILE_SIZE));
-  const startTy = Math.max(0, Math.floor(wt / TERRAIN_TILE_SIZE));
-  const endTy = Math.min(map.height - 1, Math.ceil(wb / TERRAIN_TILE_SIZE));
+  const startTx = Math.max(0, Math.floor(wl / PATH_CELL));
+  const endTx = Math.min(map.width - 1, Math.ceil(wr / PATH_CELL));
+  const startTy = Math.max(0, Math.floor(wt / PATH_CELL));
+  const endTy = Math.min(map.height - 1, Math.ceil(wb / PATH_CELL));
 
-  const blockerHw = (TERRAIN_TILE_SIZE * 0.48) * cam.zoom;
-  const blockerHh = (TERRAIN_TILE_SIZE * 0.28) * cam.zoom;
+  const blockerHw = (PATH_CELL * 0.48) * cam.zoom;
+  const blockerHh = (PATH_CELL * 0.28) * cam.zoom;
   const lipHeight = Math.max(2, 3 * cam.zoom);
 
   // 1. Render unbuildable terrain markers
@@ -173,8 +173,8 @@ export function drawBuildZoneOverlay(ctx: CanvasRenderingContext2D, state: Rende
       if (type === null || !isUnbuildableTerrainType(type)) continue;
       if (isWaterTerrainType(type)) continue;
 
-      const wx = tx * TERRAIN_TILE_SIZE + TERRAIN_TILE_SIZE / 2;
-      const wy = ty * TERRAIN_TILE_SIZE + TERRAIN_TILE_SIZE / 2;
+      const wx = tx * PATH_CELL + PATH_CELL / 2;
+      const wy = ty * PATH_CELL + PATH_CELL / 2;
       const cx = worldToScreenX(wx, cam, cw);
       const cy = worldToScreenY(wy, cam, ch);
 

@@ -31,7 +31,7 @@ import { rebakeTerrainGrids, setTileOverride, tileAt, worldToTile } from '../src
 import {
   BUILDING_CONFIGS,
   BuildingType,
-  TERRAIN_TILE_SIZE,
+  PATH_CELL,
   TerrainType,
   type WorldState,
 } from '../src/game/gameTypes';
@@ -42,10 +42,10 @@ const REASONS = Object.keys(PLACEMENT_FAILURE_LABELS) as PlaceBuildingFailureRea
 function flatten(world: WorldState, cx: number, cy: number, radius: number): void {
   expect(world.worldMap).toBeTruthy();
   const map = world.worldMap!;
-  const startTx = Math.max(0, Math.floor((cx - radius) / TERRAIN_TILE_SIZE));
-  const endTx = Math.min(map.width, Math.ceil((cx + radius) / TERRAIN_TILE_SIZE));
-  const startTy = Math.max(0, Math.floor((cy - radius) / TERRAIN_TILE_SIZE));
-  const endTy = Math.min(map.height, Math.ceil((cy + radius) / TERRAIN_TILE_SIZE));
+  const startTx = Math.max(0, Math.floor((cx - radius) / PATH_CELL));
+  const endTx = Math.min(map.width, Math.ceil((cx + radius) / PATH_CELL));
+  const startTy = Math.max(0, Math.floor((cy - radius) / PATH_CELL));
+  const endTy = Math.min(map.height, Math.ceil((cy + radius) / PATH_CELL));
   for (let ty = startTy; ty < endTy; ty++) {
     for (let tx = startTx; tx < endTx; tx++) {
       const tile = tileAt(map, tx, ty);
@@ -57,10 +57,10 @@ function flatten(world: WorldState, cx: number, cy: number, radius: number): voi
 
 /** First flat, building-free placement point that the game's own rule accepts. */
 function findSpot(world: WorldState, type: BuildingType): { x: number; y: number } {
-  for (let gy = 200; gy < world.height - 200; gy += TERRAIN_TILE_SIZE * 4) {
-    for (let gx = 200; gx < world.width - 200; gx += TERRAIN_TILE_SIZE * 4) {
-      const x = Math.round(gx / TERRAIN_TILE_SIZE) * TERRAIN_TILE_SIZE;
-      const y = Math.round(gy / TERRAIN_TILE_SIZE) * TERRAIN_TILE_SIZE;
+  for (let gy = 200; gy < world.height - 200; gy += PATH_CELL * 4) {
+    for (let gx = 200; gx < world.width - 200; gx += PATH_CELL * 4) {
+      const x = Math.round(gx / PATH_CELL) * PATH_CELL;
+      const y = Math.round(gy / PATH_CELL) * PATH_CELL;
       if (world.buildings.some((b) => Math.hypot(b.x - x, b.y - y) < 250)) continue;
       flatten(world, x, y, 120);
       if (getPlaceBuildingFailureReason(world, type, x, y, 0) === null) return { x, y };
@@ -99,11 +99,11 @@ describe('F5 — the ghost carries the owner reason', () => {
     // Water on the far edge of the footprint, not under the cursor: the rule that refuses this is a
     // whole-footprint rule, which is exactly what the old boolean could not say.
     const footprint = getBuildingFootprintForType(BuildingType.Farm, 0);
-    const waterTileX = Math.ceil((spot.x + footprint.width / 2) / TERRAIN_TILE_SIZE) - 1;
-    const waterTileY = Math.floor(spot.y / TERRAIN_TILE_SIZE);
+    const waterTileX = Math.ceil((spot.x + footprint.width / 2) / PATH_CELL) - 1;
+    const waterTileY = Math.floor(spot.y / PATH_CELL);
     expect(waterTileX, 'the water tile must be a different tile from the cursor tile')
-      .not.toBe(Math.floor(spot.x / TERRAIN_TILE_SIZE));
-    forceTileType(world, waterTileX * TERRAIN_TILE_SIZE + 1, waterTileY * TERRAIN_TILE_SIZE + 1, TerrainType.DeepWater);
+      .not.toBe(Math.floor(spot.x / PATH_CELL));
+    forceTileType(world, waterTileX * PATH_CELL + 1, waterTileY * PATH_CELL + 1, TerrainType.DeepWater);
 
     const reason = getPlaceBuildingFailureReason(world, BuildingType.Farm, spot.x, spot.y, 0);
     expect(reason).toBe('terrain');

@@ -563,7 +563,7 @@ describe('the spatial grid refreshes an object that did not change cell', () => 
 
 describe('one terrain-tile size', () => {
   it('owns the world-units-per-tile constant once', () => {
-    // `TERRAIN_TILE_SIZE` (gameTypes.ts) is the world-units-per-tile value, and `frontierCombat`
+    // `PATH_CELL` (gameTypes.ts) is the world-units-per-tile value, and `frontierCombat`
     // carried a `PIXELS_PER_TILE = 10` copy while `placementUtils` carried `PLACEMENT_TILE_SIZE = 10`.
     // A tile-size copy in a domain module silently drifts if the owner ever moves, and the two
     // call sites (`getCampDistanceTiles`, `getOutgoingRaidFoodCost`, `footprintTileIndices`) must agree

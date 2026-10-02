@@ -1,20 +1,16 @@
-import type { Entity, WorldState } from './gameTypes';
+import type { WorldState } from './gameTypes';
 import { assignMissingWorkers } from './workforce';
-import { isPlayerHuman } from './playerHuman';
+import { allPlayerHumans } from './playerHuman';
 import { isResidenceBuilding } from './residencyOccupancy';
 import { assignMissingResidences, syncResidenceOccupants } from './residencyReconciliation';
 
 /** Living player humans — command actions reconcile this list only after a housing change. */
-function listPlayerHumans(state: WorldState): Entity[] {
-  return state.entities.filter(isPlayerHuman);
-}
-
 /**
  * Residence changes can affect both household placement and ordinary jobs.
  * Keep the existing reconciliation order in one named command-transition step.
  */
 function reconcileAssignmentsAfterResidenceChange(state: WorldState): void {
-  const humans = listPlayerHumans(state);
+  const humans = allPlayerHumans(state.entities);
   assignMissingResidences(humans, state.buildings, state.entities);
   assignMissingWorkers(humans, state.buildings, state);
 }

@@ -1,5 +1,5 @@
 import type { Building, Entity, RivalSettlement, WorldState, RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
-import { JobType, TERRAIN_TILE_SIZE } from './gameTypes';
+import { JobType, PATH_CELL } from './gameTypes';
 import { TICKS_PER_DAY, killHuman } from './dayCycle';
 import { ensureEntityByIdMap } from './entityIndex';
 import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
@@ -61,7 +61,7 @@ export function getCampDistancePixels(
 }
 
 export function getCampDistanceTiles(distancePixels: number): number {
-  return Math.round(distancePixels / TERRAIN_TILE_SIZE);
+  return Math.round(distancePixels / PATH_CELL);
 }
 
 export function formatCampDistance(distancePixels: number): string {
@@ -112,7 +112,7 @@ export function formatRaidDeadline(evt: RaidEvent, currentTick: number): string 
 
 /** March provisions for an outgoing raid — farther camps need more food packed. */
 export function getOutgoingRaidFoodCost(distancePixels: number): number {
-  const tiles = distancePixels / TERRAIN_TILE_SIZE;
+  const tiles = distancePixels / PATH_CELL;
   const cost = 18 + Math.round(tiles / 4);
   return Math.min(RAID_FOOD_MAX, Math.max(RAID_FOOD_MIN, cost));
 }

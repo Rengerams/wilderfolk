@@ -8,27 +8,14 @@ import {
   assignWorkerTransition,
   completedJobBuildings,
   findOverstaffedDonorBuilding,
+  isOnConstructionCrew,
   pickWorkerToTransfer,
   removeWorkerTransition,
+  staffingCapFor,
   transferWorkerBetweenBuildings,
 } from './workforce';
 import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './residencyOccupancy';
-import { isPlayerHuman } from './playerHuman';
-
-/** Living player humans — one filter pass when actions need the settler list repeatedly. */
-function listPlayerHumans(state: WorldState): Entity[] {
-  return state.entities.filter(isPlayerHuman);
-}
-
-export function isOnConstructionCrew(
-  state: WorldState,
-  humanId: number,
-  exceptBuildingId?: number,
-): boolean {
-  return state.buildings.some(
-    (building) => !building.completed && building.id !== exceptBuildingId && building.occupants.includes(humanId),
-  );
-}
+import { allPlayerHumans, isPlayerHuman } from './playerHuman';
 
 /** 
  * 🚀 OPTIMIZED: Single-pass search for a preferred settler, falling back to the first match.
@@ -103,7 +90,7 @@ function isEligibleStaffCandidate(entity: Entity): boolean {
 function idleWorkerRefusal(state: WorldState, entity: Entity): WorkerAssignmentRefusal | null {
   const core = staffCandidateRefusal(entity);
   if (core) return core;
-  if (isOnConstructionCrew(state, entity.id)) return 'on-another-crew';
+  if (isOnConstructionCrew(state.buildings, entity.id)) return 'on-another-crew';
   return null;
 }
 
@@ -127,7 +114,7 @@ function isEligibleBuilderForBuilding(
   return (
     isEligibleStaffCandidate(entity)
     && !building.occupants.includes(entity.id)
-    && !isOnConstructionCrew(state, entity.id, building.id)
+    && !isOnConstructionCrew(state.buildings, entity.id, building.id)
   );
 }
 
@@ -196,8 +183,9 @@ function _assignIdleWorkerToBuildingMut(
 
   if (isResidenceBuildingType(building.type)) return state;
 
-  const config = BUILDING_CONFIGS[building.type];
-  if (building.occupants.length >= config.maxOccupants) return state;
+  // A Prison's cap is its guard posts, not its cells — `staffingCapFor` counts the posts already filled.
+  const { cap: staffCap, staffed } = staffingCapFor(building, state.entities);
+  if (staffed >= staffCap) return state;
 
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job) return state;
@@ -217,7 +205,7 @@ function _assignIdleWorkerToBuildingMut(
 
   let reassignedFrom: Building | undefined;
   if (!idleHuman) {
-    const humans = listPlayerHumans(state);
+    const humans = allPlayerHumans(state.entities);
     const jobBuildings = completedJobBuildings(state.buildings);
     const donor = findOverstaffedDonorBuilding(jobBuildings, humans, building.id);
     const transfer = donor ? pickWorkerToTransfer(humans, donor, building) : undefined;
@@ -299,9 +287,9 @@ export function fillBuildingWorkers(
 
 export function autoStaffAllWorkers(originalState: WorldState): WorldState {
   const state = structuredClone(originalState);
-  const countAssigned = () => listPlayerHumans(state).filter((human) => human.homeBuildingId != null).length;
+  const countAssigned = () => allPlayerHumans(state.entities).filter((human) => human.homeBuildingId != null).length;
   const before = countAssigned();
-  assignMissingWorkers(listPlayerHumans(state), state.buildings, state);
+  assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state);
   const after = countAssigned();
   const assigned = after - before;
 
@@ -344,7 +332,7 @@ export function removeStaffWorkerFromBuilding(
   if (human.homeBuildingId !== buildingId && !building.occupants.includes(humanId)) return state;
 
   removeWorkerTransition(human, state.buildings);
-  assignMissingWorkers(listPlayerHumans(state), state.buildings, state);
+  assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state);
   return state;
 }
 
@@ -360,8 +348,8 @@ export function listAssignableWorkersForBuilding(
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job) return [];
 
-  const cap = BUILDING_CONFIGS[building.type].maxOccupants;
-  if (building.occupants.length >= cap) return [];
+  const { cap, staffed } = staffingCapFor(building, state.entities);
+  if (staffed >= cap) return [];
 
   return state.entities
     .filter((entity) => isEligibleIdleWorker(entity, state))
@@ -385,10 +373,10 @@ export function canAssignWorkerToBuilding(state: WorldState, buildingId: number)
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job) return false;
 
-  const cap = BUILDING_CONFIGS[building.type].maxOccupants;
-  if (building.occupants.length >= cap) return false;
+  const { cap, staffed } = staffingCapFor(building, state.entities);
+  if (staffed >= cap) return false;
 
-  const humans = listPlayerHumans(state);
+  const humans = allPlayerHumans(state.entities);
   if (humans.some((human) => isEligibleIdleWorker(human, state))) return true;
 
   return findOverstaffedDonorBuilding(completedJobBuildings(state.buildings), humans, building.id) !== undefined;
@@ -422,11 +410,12 @@ export function getWorkerAssignmentRefusal(
     if (building.occupants.length >= BUILDING_CONFIGS[building.type].maxOccupants) return 'building-full';
     const core = staffCandidateRefusal(entity);
     if (core) return core;
-    if (isOnConstructionCrew(state, humanId, building.id)) return 'on-another-crew';
+    if (isOnConstructionCrew(state.buildings, humanId, building.id)) return 'on-another-crew';
     return null;
   }
 
   if (!BUILDING_JOB_TYPES[building.type]) return 'building-has-no-job';
-  if (building.occupants.length >= BUILDING_CONFIGS[building.type].maxOccupants) return 'building-full';
+  const { cap: staffCap, staffed } = staffingCapFor(building, state.entities);
+  if (staffed >= staffCap) return 'building-full';
   return idleWorkerRefusal(state, entity);
 }

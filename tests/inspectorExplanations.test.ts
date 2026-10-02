@@ -10,7 +10,7 @@
  * pattern), so the blocked/rerouting cases exercise the path owner's actual A* rather than a mock.
  */
 import { describe, expect, it } from 'vitest';
-import { BuildingType, JobType, TERRAIN_TILE_SIZE, TerrainType } from '../src/game/gameTypes';
+import { BuildingType, JobType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldMap, WorldState } from '../src/game/gameTypes';
 import { getWorkerAssignmentRefusal } from '../src/game/buildingStaffingActions';
 import { building, human } from '../src/test/factories';

@@ -15,7 +15,7 @@ import {
   MapSize,
   MAP_SIZE_DIMENSIONS,
   DEFAULT_WORKSHOP_RECIPE_ID,
-  TERRAIN_TILE_SIZE,
+  PATH_CELL,
   emptyEntityByType,
 } from './gameTypes';
 import { generateWorldMap, findCampSite } from './terrainGen';
@@ -84,8 +84,8 @@ const UNPASSABLE_WILDLIFE_TERRAIN = new Set<TerrainType>([
 
 function getTileAtWorld(state: WorldState, x: number, y: number) {
   if (!state.worldMap) return null;
-  const tw = state.worldMap.width > 0 ? state.width / state.worldMap.width : TERRAIN_TILE_SIZE;
-  const th = state.worldMap.height > 0 ? state.height / state.worldMap.height : TERRAIN_TILE_SIZE;
+  const tw = state.worldMap.width > 0 ? state.width / state.worldMap.width : PATH_CELL;
+  const th = state.worldMap.height > 0 ? state.height / state.worldMap.height : PATH_CELL;
   const tx = Math.floor(x / tw);
   const ty = Math.floor(y / th);
   if (tx < 0 || ty < 0 || tx >= state.worldMap.width || ty >= state.worldMap.height) {

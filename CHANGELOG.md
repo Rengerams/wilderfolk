@@ -2,6 +2,14 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Cut the day-rollover freeze from 58 s to 18 s, and it is still going** — residency assignment asked whether a house held a couple, a minor or only singles by re-scanning the whole colony per question, per house, per family; one walk now answers all three.
+
+- **Gave prison guards days off and split the jail's posts from its cells** — the Prison seats five guards beside four cells, three on watch and two resting each day, a resting guard no longer walks to a post he is not rostered for, and prisoners are no longer listed as the jail's workers.
+
+- **Made the high-speed report admit when it cannot see** — it averaged the simulation's clamped frame time, so a three-second frame printed as 100 ms; it now reports the raw frame maximum, ticks in flight, a pending command, banked lag, worker silence and page visibility.
+
+- **Fixed the population benchmark measuring one colony at every tier** — the per-tick maintainer re-pinned the fixture to 300 settlers, so all six tiers ran the same population; each tier is now that fixture at its own size.
+
 - **Stopped a silent worker command freezing the village** — a command whose reply never arrived held the tick pipeline shut, and with no tick left in flight the stall watchdog could not fire, so the world stopped advancing while the map kept drawing at full rate. A command now has a deadline.
 
 - **Stopped a save reading the sim worker's host after a fault replaced it** — the export checked the host once, then awaited; a stall landing in that gap left the next line reading nothing, which threw while saving. The host is captured and re-checked by identity, as the load path already did.

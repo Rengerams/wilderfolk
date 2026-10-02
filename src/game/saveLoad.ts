@@ -1,5 +1,5 @@
 import type { WorldState, Entity } from './gameTypes';
-import { EntityType, BuildingType, JobType, DEFAULT_WORKSHOP_RECIPE_ID, TERRAIN_TILE_SIZE } from './gameTypes';
+import { EntityType, BuildingType, JobType, DEFAULT_WORKSHOP_RECIPE_ID, PATH_CELL } from './gameTypes';
 import { INITIAL_CHALLENGES } from './challenges';
 import { createEmptyLifetimeStats } from './stats';
 import {
@@ -277,8 +277,8 @@ function restoreWorldMapFromSave(parsed: { worldMap?: WorldState['worldMap'] & {
     // 1600x1200 px colony came back as 160x120 px, leaving 1197 of its 1202 entities off
     // the map, which reads to the player as "the save failed to load".
     return generateWorldMap(
-      wm.width * TERRAIN_TILE_SIZE,
-      wm.height * TERRAIN_TILE_SIZE,
+      wm.width * PATH_CELL,
+      wm.height * PATH_CELL,
       wm.seed,
       wm.size ?? 'medium',
       wm.preset ?? 'continental',

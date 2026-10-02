@@ -40,15 +40,10 @@
   },
   "packageManager": "",
   "dependencies": {
-    "@choochmeque/tauri-windows-bundle": "^0.2.0",
     "@tailwindcss/vite": "^4.3.3",
-    "@tauri-apps/api": "^2.12.1",
-    "obug": "^3.0.0",
-    "oxc-parser": "^0.152.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router": "^8.4.0",
-    "react-virtualized": "^9.22.6",
     "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {

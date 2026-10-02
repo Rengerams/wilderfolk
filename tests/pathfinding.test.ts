@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { findPath, getPathGrid, lineCrossesBlocked } from '../src/game/pathfinding';
-import { BuildingType, TERRAIN_TILE_SIZE, TerrainType } from '../src/game/gameTypes';
+import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
 import type { Building } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 
@@ -38,9 +38,9 @@ describe('pathfinding', () => {
       id: 1,
       type: BuildingType.Road,
       x: 0,
-      y: TERRAIN_TILE_SIZE,
-      width: 11 * TERRAIN_TILE_SIZE,
-      height: TERRAIN_TILE_SIZE,
+      y: PATH_CELL,
+      width: 11 * PATH_CELL,
+      height: PATH_CELL,
       occupants: [],
       level: 1,
       constructionProgress: 100,
@@ -112,10 +112,10 @@ describe('pathfinding', () => {
 
   it('lineCrossesBlocked detects a river between two points', () => {
     const grid = getPathGrid(makeMap(20, 20, 5, (x) => x === 10));
-    const sx = 2 * TERRAIN_TILE_SIZE;
-    const sy = 10 * TERRAIN_TILE_SIZE;
-    const ex = 18 * TERRAIN_TILE_SIZE;
+    const sx = 2 * PATH_CELL;
+    const sy = 10 * PATH_CELL;
+    const ex = 18 * PATH_CELL;
     expect(lineCrossesBlocked(grid, sx, sy, ex, sy)).toBe(true);
-    expect(lineCrossesBlocked(grid, sx, sy, 8 * TERRAIN_TILE_SIZE, sy)).toBe(false);
+    expect(lineCrossesBlocked(grid, sx, sy, 8 * PATH_CELL, sy)).toBe(false);
   });
 });

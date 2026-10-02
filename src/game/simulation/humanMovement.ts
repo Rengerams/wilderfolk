@@ -1,6 +1,8 @@
-import { TERRAIN_TILE_SIZE } from '../gameTypes';
+import { PATH_CELL } from '../gameTypes';
+import { BuildingType } from '../gameTypes';
 import type { Building, Entity } from '../gameTypes';
 import { TICKS_PER_HOUR } from '../dayCycle';
+import { PRISON_GUARDS_MAX } from '../prisonShifts';
 import { isActiveMoonHowler } from '../moonHowler';
 import { steerWithPath } from '../pathfinding';
 import { faceVelocity } from './movementSteering';
@@ -163,8 +165,17 @@ export function humanBuildingTarget(
    * so the same world and crew always give the same positions.
    */
   const crew = building.occupants ?? [];
-  const slot = Math.max(0, crew.indexOf(entityId));
-  const span = Math.max(0, crew.length - 1) * WORKER_STAND_SPACING_PX;
+  // A Prison's row holds its *guards*, but the only list the building carries is `occupants` — guards
+  // ∪ prisoners (`workforce.syncJobBuildingOccupants`). Folding the occupant index into the post count
+  // keeps the row the width of the posts, which is what the presence check can see: `prisonGuardDuty`
+  // samples within 55 px of the centre and this row stands 33 px south of it, leaving 44 px sideways.
+  // Five posts span ±32 px and fit; the nine occupants they were spread across spanned ±64 px and did
+  // not, so a guard on his post could read as away from it.
+  const isPrison = building.type === BuildingType.Prison;
+  const rawSlot = Math.max(0, crew.indexOf(entityId));
+  const slot = isPrison ? rawSlot % PRISON_GUARDS_MAX : rawSlot;
+  const rowLength = isPrison ? PRISON_GUARDS_MAX : crew.length;
+  const span = Math.max(0, rowLength - 1) * WORKER_STAND_SPACING_PX;
   return {
     x: building.x - span / 2 + slot * WORKER_STAND_SPACING_PX,
     // Workers stand in front of the building (south) so sprites are not obscured
@@ -209,10 +220,10 @@ export function commutePathCacheKey(
   }
   // Without an entity there is nothing else to name the commute, so both
   // endpoint tiles are part of the key.
-  const startTileX = Math.floor(startX / TERRAIN_TILE_SIZE);
-  const startTileY = Math.floor(startY / TERRAIN_TILE_SIZE);
-  const targetTileX = Math.floor(targetX / TERRAIN_TILE_SIZE);
-  const targetTileY = Math.floor(targetY / TERRAIN_TILE_SIZE);
+  const startTileX = Math.floor(startX / PATH_CELL);
+  const startTileY = Math.floor(startY / PATH_CELL);
+  const targetTileX = Math.floor(targetX / PATH_CELL);
+  const targetTileY = Math.floor(targetY / PATH_CELL);
   return `c_${buildingId}_${arrivingHome ? 'h' : 'w'}_${startTileX}_${startTileY}_${targetTileX}_${targetTileY}`;
 }
 

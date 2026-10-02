@@ -13,7 +13,7 @@
  * and the symptom that mattered: every entity inside the map.
  */
 import { describe, it, expect } from 'vitest';
-import { MapSize, TERRAIN_TILE_SIZE } from '../src/game/gameTypes';
+import { MapSize, PATH_CELL } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
@@ -42,8 +42,8 @@ function expectMapPreserved(world: ReturnType<typeof initGame>): void {
 
   // The tile grid is the size the world implies — this is the assertion the bug broke
   // (it came back as ceil(160/10) x ceil(120/10) = 16x12 instead of 160x120).
-  expect(restored.width).toBe(Math.ceil(world.width / TERRAIN_TILE_SIZE));
-  expect(restored.height).toBe(Math.ceil(world.height / TERRAIN_TILE_SIZE));
+  expect(restored.width).toBe(Math.ceil(world.width / PATH_CELL));
+  expect(restored.height).toBe(Math.ceil(world.height / PATH_CELL));
   // The old assertion was `restored.tiles.length` / `[0].length`, which was exactly this
   // rectangle. Teraforge keeps no per-tile grid, so the row/column shape it claimed is pinned
   // on the regenerated tile dimensions plus the L0 path grid and L2 continuous-field arrays.
@@ -69,7 +69,7 @@ function expectMapPreserved(world: ReturnType<typeof initGame>): void {
 
   // The symptom the player saw: almost everything stood outside the map.
   const outside = loaded.world.entities.filter(
-    (entity) => entity.x > restored.width * TERRAIN_TILE_SIZE || entity.y > restored.height * TERRAIN_TILE_SIZE,
+    (entity) => entity.x > restored.width * PATH_CELL || entity.y > restored.height * PATH_CELL,
   );
   expect(outside.map((entity) => entity.id)).toEqual([]);
 }

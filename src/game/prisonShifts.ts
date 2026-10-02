@@ -32,11 +32,29 @@ export const PRISON_SHIFTS: readonly PrisonShift[] = Object.freeze([
 export const PRISON_GUARDS_FOR_FULL_COVERAGE = PRISON_SHIFTS.length;
 
 /**
- * How many prisoners a Prison holds: its occupancy minus the crew that keeps the doors shut. The beds
- * have one formula so the arrest path and the moon-howler conversion cannot disagree about them.
+ * Guard posts a Prison offers (owner's limit). Two more than a full watch, so the crew can take days
+ * off in turn: three of five hold the shifts each day, which is how the guard posts and the cells stay
+ * separate numbers instead of one shared occupant list.
+ */
+export const PRISON_GUARDS_MAX = 5;
+
+/** Cells beside the guard posts (owner's limit). */
+export const PRISON_PRISONERS_MAX = 4;
+
+/** The posts and the cells together — the building's `maxOccupants`. */
+export const PRISON_OCCUPANTS_MAX = PRISON_GUARDS_MAX + PRISON_PRISONERS_MAX;
+
+/**
+ * How many prisoners a Prison holds: its occupancy minus the guard posts. The beds have one formula so
+ * the arrest path and the moon-howler conversion cannot disagree about them.
  */
 export function prisonPrisonerCapacity(maxOccupants: number): number {
-  return Math.max(1, maxOccupants - PRISON_GUARDS_FOR_FULL_COVERAGE);
+  return Math.max(1, maxOccupants - PRISON_GUARDS_MAX);
+}
+
+/** The other half of the same split: the guard posts left after the cells. */
+export function prisonGuardCapacity(maxOccupants: number): number {
+  return Math.max(1, maxOccupants - prisonPrisonerCapacity(maxOccupants));
 }
 
 export interface PrisonRosterEntry {
@@ -85,14 +103,40 @@ export function shiftForCrewIndex(crewIndex: number, weekIndex: number): PrisonS
 }
 
 /**
- * The one roster rule the guard duty and the prison window both read. Crew order is by id, so the
- * rotation is stable and no guard is moved off a shift mid-week.
+ * The guards on duty today, in crew order.
+ *
+ * A crew larger than the three shifts takes days off in turn: the on-duty window walks one crew place
+ * per calendar day, so a crew of five works three days in five and no guard keeps the nights. A crew
+ * the size of the watch itself — the minimum for full coverage — is on duty every day, which is why
+ * the three-shift arithmetic is unchanged by the rotation.
+ */
+export function prisonOnDutyGuards(guardIds: readonly number[], tick: number): number[] {
+  const crew = [...guardIds].sort((a, b) => a - b);
+  const onDuty = Math.min(crew.length, PRISON_SHIFTS.length);
+  if (onDuty === 0) return [];
+  if (crew.length <= onDuty) return crew;
+
+  const day = getAbsoluteCalendarDay(tick);
+  const start = ((day % crew.length) + crew.length) % crew.length;
+  const out: number[] = [];
+  for (let i = 0; i < onDuty; i++) out.push(crew[(start + i) % crew.length]);
+  return out;
+}
+
+/** The guards resting today — the free days a crew larger than the watch earns. */
+export function offDutyPrisonGuards(guardIds: readonly number[], tick: number): number[] {
+  const onDuty = new Set(prisonOnDutyGuards(guardIds, tick));
+  return [...guardIds].sort((a, b) => a - b).filter((guardId) => !onDuty.has(guardId));
+}
+
+/**
+ * The one roster rule the guard duty and the prison window both read. Today's on-duty guards hold the
+ * shifts in crew order, and the shift each holds advances one place per calendar week.
  */
 export function prisonRoster(guardIds: readonly number[], tick: number): PrisonRosterEntry[] {
   const week = prisonWeekIndex(tick);
-  const crew = [...guardIds].sort((a, b) => a - b);
   const roster: PrisonRosterEntry[] = PRISON_SHIFTS.map((shift) => ({ shift, guardId: null }));
-  crew.forEach((guardId, crewIndex) => {
+  prisonOnDutyGuards(guardIds, tick).forEach((guardId, crewIndex) => {
     const held = shiftForCrewIndex(crewIndex, week);
     const entry = roster.find((row) => row.shift.key === held.key);
     if (entry && entry.guardId == null) entry.guardId = guardId;

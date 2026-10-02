@@ -1,5 +1,5 @@
 import { type BuildingRotation, getBuildingFootprintForType } from './buildingRotation';
-import { BUILDING_CONFIGS, BuildingType, TERRAIN_TILE_SIZE, TerrainType, type Building } from './gameTypes';
+import { BUILDING_CONFIGS, BuildingType, PATH_CELL, TerrainType, type Building } from './gameTypes';
 import type { ResearchNode } from './gameTypes';
 import type { RenderSnapshot } from './renderSnapshot';
 import { tileAt } from './terrain/terrainGrid';
@@ -17,10 +17,10 @@ function footprintTileIndices(
   bottom: number,
 ): { startTx: number; endTx: number; startTy: number; endTy: number } {
   return {
-    startTx: Math.floor(left / TERRAIN_TILE_SIZE),
-    endTx: Math.ceil(right / TERRAIN_TILE_SIZE) - 1,
-    startTy: Math.floor(top / TERRAIN_TILE_SIZE),
-    endTy: Math.ceil(bottom / TERRAIN_TILE_SIZE) - 1,
+    startTx: Math.floor(left / PATH_CELL),
+    endTx: Math.ceil(right / PATH_CELL) - 1,
+    startTy: Math.floor(top / PATH_CELL),
+    endTy: Math.ceil(bottom / PATH_CELL) - 1,
   };
 }
 

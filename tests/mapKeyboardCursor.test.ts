@@ -42,7 +42,7 @@ import {
 import {
   BuildingType,
   GRID_SIZE,
-  TERRAIN_TILE_SIZE,
+  PATH_CELL,
   TerrainType,
   type Camera,
   type WorldState,
@@ -250,10 +250,10 @@ describe('the cursor says what is under it', () => {
         const x = Math.round(gx / GRID_SIZE) * GRID_SIZE;
         const y = Math.round(gy / GRID_SIZE) * GRID_SIZE;
         if (world.buildings.some((b) => Math.hypot(b.x - x, b.y - y) < 250)) continue;
-        const startTx = Math.max(0, Math.floor((x - 120) / TERRAIN_TILE_SIZE));
-        const endTx = Math.min(map.width, Math.ceil((x + 120) / TERRAIN_TILE_SIZE));
-        const startTy = Math.max(0, Math.floor((y - 120) / TERRAIN_TILE_SIZE));
-        const endTy = Math.min(map.height, Math.ceil((y + 120) / TERRAIN_TILE_SIZE));
+        const startTx = Math.max(0, Math.floor((x - 120) / PATH_CELL));
+        const endTx = Math.min(map.width, Math.ceil((x + 120) / PATH_CELL));
+        const startTy = Math.max(0, Math.floor((y - 120) / PATH_CELL));
+        const endTy = Math.min(map.height, Math.ceil((y + 120) / PATH_CELL));
         for (let ty = startTy; ty < endTy; ty++) {
           for (let tx = startTx; tx < endTx; tx++) {
             const tile = tileAt(map, tx, ty);

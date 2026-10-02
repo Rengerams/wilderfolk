@@ -2,7 +2,7 @@
 
 A flat register of every report in `BUG_REPORTS/`, oldest first: **date discovered → date solved**, the problem, and what actually fixed it. The individual report stays the source of truth — this file is the index you can scan in one pass. When you add a report, add its line here too.
 
-Compiled 2026-09-16 from the 55 individual reports, plus fourteen 2026-09-16 reports that landed from concurrent audit passes and the follow-up work while this register was being written (69 total). **67 resolved**, **2 resolved with live verification pending** (speed/pause buttons, sand-water overlay art), **nothing open**. One more report landed 2026-09-25 (70 total, **68 resolved**). Two more landed 2026-09-29 (**72 total**, **69 resolved**, **1 open** — the open one is a harness coverage gap, not a gameplay defect). One more on 2026-09-29 (**73 total**, **69 resolved**, **2 open** — the second is `people-walk-through-water`, a gameplay defect reported from play). One more on 2026-09-30 (**74 total**, **70 resolved**, **2 open** — the same two: the coverage gap and `people-walk-through-water`). One more the same day (**75 total**, **70 resolved**, **3 open** — the coverage gap, `people-walk-through-water`, and a founding-year election that is stored as "no election"). One more the same day (**76 total**, **70 resolved**, **4 open** — a Town Hall whose officials no attendance system records). One more on 2026-10-01 (**77 total**, **71 resolved**, **4 open** — the same four; the new report is the save-path dereference below).
+Compiled 2026-09-16 from the 55 individual reports, plus fourteen 2026-09-16 reports that landed from concurrent audit passes and the follow-up work while this register was being written (69 total). **67 resolved**, **2 resolved with live verification pending** (speed/pause buttons, sand-water overlay art), **nothing open**. One more report landed 2026-09-25 (70 total, **68 resolved**). Two more landed 2026-09-29 (**72 total**, **69 resolved**, **1 open** — the open one is a harness coverage gap, not a gameplay defect). One more on 2026-09-29 (**73 total**, **69 resolved**, **2 open** — the second is `people-walk-through-water`, a gameplay defect reported from play). One more on 2026-09-30 (**74 total**, **70 resolved**, **2 open** — the same two: the coverage gap and `people-walk-through-water`). One more the same day (**75 total**, **70 resolved**, **3 open** — the coverage gap, `people-walk-through-water`, and a founding-year election that is stored as "no election"). One more the same day (**76 total**, **70 resolved**, **4 open** — a Town Hall whose officials no attendance system records). One more on 2026-10-01 (**77 total**, **71 resolved**, **4 open** — the same four; the new report is the save-path dereference below). Three more on 2026-10-02 (**80 total**, **71 resolved**, **7 open** — the same four plus three found by reading the owner's live chronicle export and console log: the high-speed tick-rate shortfall and its fallback freeze, raw citizen ids printed in chronicle prose, and chronicle copy plus construction-completion noise). One more the same day (**81 total**, **71 resolved**, **8 open** — the day rollover itself: one boundary tick burns 53–63 s of CPU in residency assignment on the owner's 982-settler save).
 
 Excluded on request: `2026-09-13-simulation-logic-audit.md` — the large audit document whose findings became the 2026-09-13 slice reports listed below.
 
@@ -20,9 +20,55 @@ Excluded on request: `2026-09-13-simulation-logic-audit.md` — the large audit 
 | 2026-09-25 | 1 | 1 | — |
 | 2026-09-30 | 3 | 1 | 2 open — a founding-year election stored as "no election", and Town Hall officials that no attendance system records |
 | 2026-10-01 | 2 | 1 resolved + 1 pending | live check: three guards can be appointed and escapes stop |
+| 2026-10-02 | 4 | 0 | 4 open — the three above plus the day-rollover residency freeze (53–63 s of CPU in one boundary tick at 982 settlers) |
 
 **Open right now**
 
+- [day-rollover-residency-assignment-freeze](2026-10-02-day-rollover-residency-assignment-freeze.md)
+  — the owner's "it happens when the new day starts" is exactly right, and it is not a slow machine: a
+  normal tick on their save is **68–310 ms**, while `tick % 72 === 0` takes **58.5 s wall / 52.6 s CPU**
+  (repeated: 63.7 s, 80.1 s). Profiling that one tick in-process gives **96 % of the CPU in three
+  modules**: `residencySelection.ts` (50.0 % self), `playerHuman.ts` (32.1 %), `residencyReconciliation.ts`
+  (13.7 %). The step: `assignMissingResidences` 48.1 s total → `assignFamilyToResidence` 42.7 s →
+  `pickResidenceForFamily` 36.3 s → `residenceHostsOnlySingles` 32.7 s / `residenceHasMinorOccupants`
+  21.9 s, all of them re-filtering **the whole colony** (`humans.filter(h => … isPlayerHuman(h) …)`) once
+  per call, per candidate residence, per family — so the cheap predicate `isPlayerHuman` is **16.0 s,
+  32.1 % of the tick** on its own. Reached twice per boundary (the assign layer and immigration). In the
+  game the tick then exceeds the 10 s worker watchdog, the fallback moves the sim onto the render thread,
+  and the catch-up burst multiplies it — the freeze, with the CPU still looking idle. **First fix
+  applied and measured: 58.5 s → 17.7 s** (the three per-residence predicates now read one
+  `ResidenceTraits` walk instead of re-filtering the colony per question); **still open**, because
+  17.7 s is above the 10 s watchdog — the remaining cost is that map rebuilt per pick, which belongs in
+  the occupancy index the module already keeps.
+
+- [high-speed-tick-rate-shortfall-and-fallback-freeze](2026-10-02-high-speed-tick-rate-shortfall-and-fallback-freeze.md)
+  — at 10× the loop demands 10 ticks/s while one tick costs 142–344 ms (`[SpeedDiag]` in the owner's log),
+  so the sim delivers 0–5 and `achieved=0` with a healthy 13–21 fps is simply a saturated 4-deep worker
+  pipeline. The number that settles the diagnostic's own question (`gameLoop.ts:162-173`, budget vs tick
+  cost) is the tick cost: the catch-up budget is 20 steps/frame and is never reached, because `dtMs` is
+  clamped to 100 ms and `msPerTick` is 100 ms at 10×, so at most one tick can be banked per frame.
+  Two further defects turn that into a freeze: the tick accumulator is never clamped (only reset on pause
+  or session reset), so unreplayable time is banked and replayed 20 ticks at a time; and the stall
+  response (`fallbackFromWorker`) moves the sim onto the render thread, keeps the debt and drops the
+  worker's render buffers — the log's `fps=0 frameMs=100.0` lines are one frame per three seconds,
+  reported as 100 ms because `SpeedDiag` accumulates the **clamped** dt. The stall warning prints the
+  tick EWMA where a reader expects the measured silence. Four proposals (P1–P4) are in the report; none
+  applied.
+- [chronicle-prints-raw-citizen-ids](2026-10-02-chronicle-prints-raw-citizen-ids.md)
+  — 160 of 3433 events in the owner's export read `#5019 Maragret Hoke and #5758 Allen Galloway became
+  sweethearts`: the chronicle's relationship, schooling and death lines interpolate `formatCitizenName`,
+  which always prefixes the citizen number because it is the **UI label** form (`citizenId.ts:56`,
+  `:60-70`). `citizenFullName` (`citizenId.ts:50`) already returns the prose form, so the repair is to
+  point the log-path call sites at it. Breakdown: 58 sweethearts, 38 school friendships, 20 school
+  whispers, 19 deaths, 15 finished schooling, 2 graduations, 1 grew apart. **No fix applied.**
+- [chronicle-copy-and-completion-noise](2026-10-02-chronicle-copy-and-completion-noise.md)
+  — four text/noise defects counted in the same export: `Harvest Festival festival began in the village`
+  (both festival writers append "festival" to a name that can already end in it,
+  `dailyWorldEvents.ts:77`/`:98`); `Short shifts spared 1 settler that output cost` (missing "from",
+  31×, `dailyScheduleFatigue.ts:108`); a parenthesised **average** worked-hours figure read as a shift
+  length, measured 11.3h–24.0h over 29 lines (`:98`); and 370 `X completed` rows (11 % of the log), with
+  30 identical `Wall completed` on one day, against a 6000-entry cap (`eventLog.ts:15`). **No fix
+  applied.**
 - [officials-never-recorded-on-shift](2026-09-30-officials-never-recorded-on-shift.md)
   — a Town Hall official is on shift for *serving* and off shift for *being counted*: `humanTick.ts:666`
   computes `onOfficialShift`, line 697 leaves it out of `onJobShift`, and line 1291 passes it downstream

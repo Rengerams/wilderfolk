@@ -1,7 +1,7 @@
 
 
 
-import { TerrainType, TERRAIN_TILE_SIZE, type MapPreset, type Season, type TerrainTile, type WorldMap } from './gameTypes';
+import { TerrainType, PATH_CELL, type MapPreset, type Season, type TerrainTile, type WorldMap } from './gameTypes';
 import { tileAt } from './terrain/terrainGrid';
 import {
   createCanvasSurface,
@@ -382,10 +382,10 @@ function *terrainTiles(
   originX = 0,
   originY = 0,
 ): Generator<TileEntry> {
-  const startTx = viewRect ? Math.max(0, Math.floor(viewRect.x / TERRAIN_TILE_SIZE)) : 0;
-  const endTx = viewRect ? Math.min(map.width, Math.ceil((viewRect.x + viewRect.width) / TERRAIN_TILE_SIZE)) : map.width;
-  const startTy = viewRect ? Math.max(0, Math.floor(viewRect.y / TERRAIN_TILE_SIZE)) : 0;
-  const endTy = viewRect ? Math.min(map.height, Math.ceil((viewRect.y + viewRect.height) / TERRAIN_TILE_SIZE)) : map.height;
+  const startTx = viewRect ? Math.max(0, Math.floor(viewRect.x / PATH_CELL)) : 0;
+  const endTx = viewRect ? Math.min(map.width, Math.ceil((viewRect.x + viewRect.width) / PATH_CELL)) : map.width;
+  const startTy = viewRect ? Math.max(0, Math.floor(viewRect.y / PATH_CELL)) : 0;
+  const endTy = viewRect ? Math.min(map.height, Math.ceil((viewRect.y + viewRect.height) / PATH_CELL)) : map.height;
   for (let ty = startTy; ty < endTy; ty++) {
     for (let tx = startTx; tx < endTx; tx++) {
       const tile = tileAt(map, tx, ty);
@@ -432,7 +432,7 @@ export function bakeTerrainLayer(
   const originY = viewRect ? viewRect.y * lod : 0;
   const surface = createCanvasSurface(w, h);
   const ctx = getCanvasContext(surface);
-  const tileSize = TERRAIN_TILE_SIZE * lod;
+  const tileSize = PATH_CELL * lod;
   const seed = typeof map.seed === 'number' ? map.seed : 1;
 
   const seasonColorAt = seasonBlend

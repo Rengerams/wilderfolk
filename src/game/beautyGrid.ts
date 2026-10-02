@@ -8,7 +8,7 @@
  */
 import type { Building, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BuildingType } from './buildings';
-import { EntityType, TERRAIN_TILE_SIZE } from './gameTypes';
+import { EntityType, PATH_CELL } from './gameTypes';
 
 export interface BeautyGrid {
   cols: number;
@@ -28,8 +28,8 @@ export function createBeautyGrid(cols: number, rows: number): BeautyGrid {
 
 /** Stamp one decor building's beauty into the grid with linear falloff. */
 function stampDecor(grid: BeautyGrid, b: Building, beauty: number): void {
-  const cx = Math.floor((b.x + b.width / 2) / TERRAIN_TILE_SIZE);
-  const cy = Math.floor((b.y + b.height / 2) / TERRAIN_TILE_SIZE);
+  const cx = Math.floor((b.x + b.width / 2) / PATH_CELL);
+  const cy = Math.floor((b.y + b.height / 2) / PATH_CELL);
   const radius = BEAUTY_RADIUS_TILES;
   for (let dy = -radius; dy <= radius; dy++) {
     for (let dx = -radius; dx <= radius; dx++) {
@@ -62,8 +62,8 @@ export function rebuildBeautyGrid(
 /** Beauty value at a world position (0 when outside the map). */
 export function beautyAt(grid: BeautyGrid | null, x: number, y: number): number {
   if (!grid) return 0;
-  const tx = Math.floor(x / TERRAIN_TILE_SIZE);
-  const ty = Math.floor(y / TERRAIN_TILE_SIZE);
+  const tx = Math.floor(x / PATH_CELL);
+  const ty = Math.floor(y / PATH_CELL);
   if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) return 0;
   return grid.values[ty * grid.cols + tx] ?? 0;
 }
@@ -127,8 +127,8 @@ export function pickBeautySpot(
   radiusTiles = 5,
 ): { x: number; y: number } {
   if (!grid) return { x: cx, y: cy };
-  const tx = Math.floor(cx / TERRAIN_TILE_SIZE);
-  const ty = Math.floor(cy / TERRAIN_TILE_SIZE);
+  const tx = Math.floor(cx / PATH_CELL);
+  const ty = Math.floor(cy / PATH_CELL);
   let best = { x: cx, y: cy };
   // Start at 0, not -1: a grid with no beauty anywhere then keeps the documented
   // fallback of the caller's own position instead of returning the up-left corner of the
@@ -142,7 +142,7 @@ export function pickBeautySpot(
       const v = grid.values[gy * grid.cols + gx] ?? 0;
       if (v > bestValue) {
         bestValue = v;
-        best = { x: (gx + 0.5) * TERRAIN_TILE_SIZE, y: (gy + 0.5) * TERRAIN_TILE_SIZE };
+        best = { x: (gx + 0.5) * PATH_CELL, y: (gy + 0.5) * PATH_CELL };
       }
     }
   }

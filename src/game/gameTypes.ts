@@ -1163,7 +1163,12 @@ export interface WorldMap {
 }
 
 export const GRID_SIZE = 20;
-export const TERRAIN_TILE_SIZE = 10;
+/**
+ * The world's L0 tile edge (px) — one tile of the map that the renderer, the pathfinder, placement,
+ * saves and the generator all project onto. Named for that grid, not for the generator's biome field,
+ * whose cell edge is a different number (`terrain/terrainGrid.TERRAIN_CELL`, 16 px).
+ */
+export const PATH_CELL = 10;
 export const GRID_SNAP = true;
 
 export function snapToGrid(value: number, gridSize: number = GRID_SIZE): number {

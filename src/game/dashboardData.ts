@@ -27,7 +27,7 @@ import {
   isHomelessSettler,
   isResidenceBuildingType,
 } from './residencyOccupancy';
-import { findHumanWorkplace, isManualStaffingBuilding } from './workforce';
+import { findHumanWorkplace, isManualStaffingBuilding, isOnConstructionCrew } from './workforce';
 import { getBuildingConfig } from './buildingConfig';
 import { formatCitizenName } from './citizenId';
 import type { HumanActivityTarget } from './humanStatus';
@@ -38,7 +38,6 @@ import type { WorkerAssignmentRefusal } from './buildingStaffingActions';
 import {
   canAssignWorkerToBuilding,
   getWorkerAssignmentRefusal,
-  isOnConstructionCrew,
 } from './buildingStaffingActions';
 
 export interface DashboardResource {
@@ -456,7 +455,7 @@ export function collectDashboard(state: WorldState): DashboardData {
       energyPct: energyPct(e),
       // A settler stationed on an unfinished site is working, not idle — the same crew predicate the
       // counters above use (`buildingStaffingActions.isOnConstructionCrew`).
-      noWork: !e.isJuvenile && !hasWorkAssignment(e) && !isOnConstructionCrew(state, e.id) && e.prisonBuildingId == null,
+      noWork: !e.isJuvenile && !hasWorkAssignment(e) && !isOnConstructionCrew(state.buildings, e.id) && e.prisonBuildingId == null,
       // A prisoner is neither homeless nor idle: imprisonment clears residence and workplace on
       // purpose, so that absence is not a player-actionable gap (same rule as `noWork` above, and the
       // residence owner's own {@link isHomelessSettler}).

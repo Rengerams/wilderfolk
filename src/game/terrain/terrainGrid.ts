@@ -9,8 +9,10 @@
  * ```text
  * L1 build grid  20 px   buildGrid  (0 buildable · 1 water · 2 hard · 3 mixed)
  * L0 path grid   10 px   pathGrid   (0 walkable · 1 water · 2 hard decor)
- * L2 continuous   64 px   elevation · moisture · temperature · terrain · riverDist
+ * L2 continuous   16 px   elevation · moisture · temperature · terrain · riverDist
  * L3 decor               map.decorations
+ *
+ * Names, units and owners for every layer: docs/TILE_LATTICE_GUIDELINES.md
  * ```
  *
  * Every consumer that used to index `map.tiles[ty][tx]` goes through
@@ -23,7 +25,7 @@
  * loops; {@link Walkability} and {@link Buildability} are the named owners of
  * their meaning.
  */
-import { TerrainType, TERRAIN_TILE_SIZE, type TerrainTile, type WorldMap } from '../gameTypes';
+import { TerrainType, PATH_CELL, type TerrainTile, type WorldMap } from '../gameTypes';
 import { BIOME_BY_IDX, type BiomeDef } from './biomes';
 import { clamp, lerp, valueNoise, hashString } from './noise';
 // The unbuildable-terrain rule lives in a leaf module (`terrainTraits`) precisely so this file can
@@ -63,8 +65,6 @@ export const WATER_CELL = 16;
 
 /** L1 build-cell edge (px). */
 export const BUILD_CELL = 20;
-/** L0 path-cell edge (px) — equal to Wilderfolk's `TERRAIN_TILE_SIZE`. */
-export const PATH_CELL = TERRAIN_TILE_SIZE;
 
 /** Default effective sea level when a map predates the stored field. */
 export const DEFAULT_SEA_LEVEL = 0.24;
@@ -249,8 +249,8 @@ export function hasContinuousFields(map: WorldMap): boolean {
 /** World pixel → tile coordinate (floored), no bounds check. */
 export function worldToTile(worldX: number, worldY: number): { tx: number; ty: number } {
   return {
-    tx: Math.floor(worldX / TERRAIN_TILE_SIZE),
-    ty: Math.floor(worldY / TERRAIN_TILE_SIZE),
+    tx: Math.floor(worldX / PATH_CELL),
+    ty: Math.floor(worldY / PATH_CELL),
   };
 }
 
@@ -266,8 +266,8 @@ const projectionCache = new WeakMap<WorldMap, Map<number, TerrainTile>>();
 
 /** Tile (tx, ty) → world pixel of the tile centre. */
 export function tileToWorld(tx: number, ty: number): { x: number; y: number } {
-  const half = TERRAIN_TILE_SIZE / 2;
-  return { x: tx * TERRAIN_TILE_SIZE + half, y: ty * TERRAIN_TILE_SIZE + half };
+  const half = PATH_CELL / 2;
+  return { x: tx * PATH_CELL + half, y: ty * PATH_CELL + half };
 }
 
 /** True when a tile coordinate is inside the map's L0 tile grid. */

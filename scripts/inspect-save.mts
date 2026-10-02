@@ -10,7 +10,7 @@
 import { readFileSync } from 'node:fs';
 import { describeSaveReadFailure, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { ENTITY_PERSISTED_FIELDS, WORLD_STATE_SAVE_KEYS } from '../src/game/saveSchema';
-import { EntityType, TERRAIN_TILE_SIZE } from '../src/game/gameTypes';
+import { EntityType, PATH_CELL } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 
 const file = process.argv[2];
@@ -79,18 +79,23 @@ if (!loadedMap) {
   console.log('worldMap: absent after load');
 } else {
   const tilePx = loaded.world.width / loadedMap.width;
+  // A compact save carries `tiles` in its own packed form, so the row probe is conditional: reading
+  // `tiles[0].length` unguarded threw on every compact save and hid the report below it.
+  const rows = loadedMap.tiles?.length ?? 0;
+  const firstRow = loadedMap.tiles?.[0]?.length ?? 0;
   console.log(
     `world state ${loaded.world.width}x${loaded.world.height} px · worldMap ${loadedMap.width}x${loadedMap.height} tiles` +
-      ` (${loadedMap.tiles.length} rows, first row ${loadedMap.tiles[0]?.length ?? 0} tiles) · tile = ${tilePx} px`,
+      (rows > 0 ? ` (${rows} rows, first row ${firstRow} tiles)` : ' (compact — tiles are packed, not a row array)') +
+      ` · tile = ${tilePx} px`,
   );
-  const expectedTilesX = Math.ceil(loaded.world.width / TERRAIN_TILE_SIZE);
-  const expectedTilesY = Math.ceil(loaded.world.height / TERRAIN_TILE_SIZE);
+  const expectedTilesX = Math.ceil(loaded.world.width / PATH_CELL);
+  const expectedTilesY = Math.ceil(loaded.world.height / PATH_CELL);
   const matches = loadedMap.width === expectedTilesX && loadedMap.height === expectedTilesY;
   console.log(
     `expected ${expectedTilesX}x${expectedTilesY} tiles for that world size — ${matches ? 'MATCHES' : 'MISMATCH: the valley was regenerated at the wrong scale'}`,
   );
   const outOfBounds = loaded.world.entities.filter(
-    (e) => e.x > loadedMap.width * TERRAIN_TILE_SIZE || e.y > loadedMap.height * TERRAIN_TILE_SIZE,
+    (e) => e.x > loadedMap.width * PATH_CELL || e.y > loadedMap.height * PATH_CELL,
   ).length;
   console.log(`entities outside the restored map: ${outOfBounds}/${loaded.world.entities.length}`);
 }

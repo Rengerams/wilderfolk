@@ -518,14 +518,16 @@ function hasSinglesOnlyResidenceWithRoom(
   residences: Building[],
   excludeResidenceId?: number,
   occupancy?: ResidenceOccupancy,
+  traitsIn?: ResidenceTraitsById,
 ): boolean {
+  const traits = traitsFor(humans, traitsIn);
   return residences.some((r) => {
     if (isLeaderHouseResidence(r)) return false;
     if (excludeResidenceId != null && r.id === excludeResidenceId) return false;
     if (!familyFitsInResidence(unit, r, humans, occupancy)) return false;
     const count = countResidentsInBuilding(humans, r.id, occupancy);
     if (count === 0) return true;
-    return residenceHostsOnlySingles(r.id, humans);
+    return residenceHostsOnlySingles(r.id, humans, traits);
   });
 }
 
@@ -613,37 +615,70 @@ export function sortHousingUnitsForAssignment(
     .map((x) => x.unit);
 }
 
-function residenceHostsCouple(residenceId: number, humans: Entity[]): boolean {
-  const occupants = humans.filter(
-    (h) => h.alive && isPlayerHuman(h) && h.residenceBuildingId === residenceId,
-  );
-  // "is this occupant's partner also in the house?" — a Set lookup instead of a `.some` over the
-  // same array per occupant. Callers ask this per residence (up to four times per picker call) from
-  // inside the residency convergence loop, so the quadratic inner scan was multiplied by the number
-  // of residences and passes.
-  const occupantIds = new Set<number>();
-  for (let i = 0; i < occupants.length; i++) occupantIds.add(occupants[i].id);
-  for (let i = 0; i < occupants.length; i++) {
-    const occupant = occupants[i];
-    if (!occupant.partnerId) continue;
-    if (occupantIds.has(occupant.partnerId)) return true;
+/**
+ * Per-residence facts the pickers ask about, built in **one** walk over `humans` instead of a colony
+ * scan per question. Threading `traits` through is what makes a pick O(residences) instead of
+ * O(residences × humans) — the day-boundary freeze was 982 settlers × 694 residences × a full filter.
+ */
+interface ResidenceTraits {
+  adults: number;
+  hasMinor: boolean;
+  hasCouple: boolean;
+}
+type ResidenceTraitsById = Map<number, ResidenceTraits>;
+
+function buildResidenceTraits(humans: readonly Entity[]): ResidenceTraitsById {
+  const traits: ResidenceTraitsById = new Map();
+  const occupantIds = new Map<number, Set<number>>();
+  for (const h of humans) {
+    if (!h.alive || !isPlayerHuman(h)) continue;
+    const id = h.residenceBuildingId;
+    if (id == null) continue;
+    let entry = traits.get(id);
+    if (!entry) {
+      entry = { adults: 0, hasMinor: false, hasCouple: false };
+      traits.set(id, entry);
+    }
+    if (isMinorChild(h)) entry.hasMinor = true;
+    if (!h.isJuvenile) entry.adults += 1;
+    const ids = occupantIds.get(id);
+    if (ids) ids.add(h.id);
+    else occupantIds.set(id, new Set([h.id]));
   }
-  return false;
+  // A couple is an occupant whose partner lives in the same house — the second walk is what that
+  // needs, and it is still linear.
+  for (const h of humans) {
+    if (!h.alive || !isPlayerHuman(h) || h.partnerId == null) continue;
+    const id = h.residenceBuildingId;
+    if (id == null) continue;
+    if (occupantIds.get(id)?.has(h.partnerId)) {
+      const entry = traits.get(id);
+      if (entry) entry.hasCouple = true;
+    }
+  }
+  return traits;
 }
 
-function residenceHasMinorOccupants(residenceId: number, humans: Entity[]): boolean {
-  return humans.some(
-    (h) => h.alive && isPlayerHuman(h) && h.residenceBuildingId === residenceId && isMinorChild(h),
-  );
+function traitsFor(humans: Entity[], traits?: ResidenceTraitsById): ResidenceTraitsById {
+  return traits ?? buildResidenceTraits(humans);
 }
 
-function residenceHostsOnlySingles(residenceId: number, humans: Entity[]): boolean {
-  if (residenceHasMinorOccupants(residenceId, humans)) return false;
-  const adults = humans.filter(
-    (h) => h.alive && isPlayerHuman(h) && !h.isJuvenile && h.residenceBuildingId === residenceId,
-  );
-  if (adults.length === 0) return false;
-  return !residenceHostsCouple(residenceId, humans);
+function residenceHostsCouple(
+  residenceId: number,
+  humans: Entity[],
+  traits?: ResidenceTraitsById,
+): boolean {
+  return traitsFor(humans, traits).get(residenceId)?.hasCouple ?? false;
+}
+
+function residenceHostsOnlySingles(
+  residenceId: number,
+  humans: Entity[],
+  traits?: ResidenceTraitsById,
+): boolean {
+  const entry = traitsFor(humans, traits).get(residenceId);
+  if (!entry || entry.hasMinor || entry.hasCouple) return false;
+  return entry.adults > 0;
 }
 
 function anyOpenBeds(
@@ -669,6 +704,9 @@ export function pickResidenceForFamily(
   const loneSingle = isLoneSettler(family, humans);
   const hasMinor = family.some((m) => isMinorChild(m));
   
+  // One walk over the colony, then every per-residence question below is a map lookup.
+  const traits = buildResidenceTraits(humans);
+
   let emptyHouseCount = 0;
   const singlesFriendlyHouseIds = new Set<number>();
 
@@ -678,7 +716,7 @@ export function pickResidenceForFamily(
     if (count === 0) {
       emptyHouseCount++;
     }
-    if (familyFitsInResidence(family, r, humans, occupancy) && (count === 0 || residenceHostsOnlySingles(r.id, humans))) {
+    if (familyFitsInResidence(family, r, humans, occupancy) && (count === 0 || residenceHostsOnlySingles(r.id, humans, traits))) {
       singlesFriendlyHouseIds.add(r.id);
     }
   }
@@ -708,9 +746,9 @@ export function pickResidenceForFamily(
         score = HOUSING_SCORES.EMPTY_HOUSE_BONUS;
       } else if (anyEmptyHouse) {
         score = HOUSING_SCORES.OUTSIDER_MULTIPLIER_NORMAL + outsiders * 100 + count;
-      } else if (residenceHostsOnlySingles(residence.id, humans)) {
+      } else if (residenceHostsOnlySingles(residence.id, humans, traits)) {
         score = alreadyHere > 0 ? HOUSING_SCORES.SINGLES_ALREADY_HOSTED + count : count;
-      } else if (residenceHostsCouple(residence.id, humans)) {
+      } else if (residenceHostsCouple(residence.id, humans, traits)) {
         if (hasOtherSinglesFriendlyHouse) {
           score = HOUSING_SCORES.SINGLES_ALTERNATIVE_PENALTY + outsiders * 100 + count;
         } else {
@@ -727,7 +765,7 @@ export function pickResidenceForFamily(
       score = outsiders * HOUSING_SCORES.OUTSIDER_MULTIPLIER_NORMAL + count - largeFamilyBonus;
     }
 
-    if (hasMinor && residenceHostsOnlySingles(residence.id, humans)) {
+    if (hasMinor && residenceHostsOnlySingles(residence.id, humans, traits)) {
       score += HOUSING_SCORES.MINOR_IN_SINGLES_PENALTY;
     }
 

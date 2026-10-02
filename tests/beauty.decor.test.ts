@@ -18,7 +18,7 @@ import {
   pickBeautySpot,
   rebuildBeautyGrid,
 } from '../src/game/beautyGrid';
-import { TERRAIN_TILE_SIZE } from '../src/game/gameTypes';
+import { PATH_CELL } from '../src/game/gameTypes';
 
 const DECOR_TYPES = [BuildingType.Garden, BuildingType.Statue, BuildingType.Lamp, BuildingType.Fence];
 
@@ -66,7 +66,7 @@ describe('beauty grid', () => {
     // The garden's own tile is the prettiest
     expect(beautyAt(grid, 100, 100)).toBeGreaterThan(0);
     // 10 tiles away: outside the 3-tile falloff
-    expect(beautyAt(grid, 100 + TERRAIN_TILE_SIZE * 10, 100)).toBe(0);
+    expect(beautyAt(grid, 100 + PATH_CELL * 10, 100)).toBe(0);
   });
 
   it('a statue (beauty 5) outshines a lamp (beauty 2) at the same spot', () => {
@@ -87,7 +87,7 @@ describe('beauty grid', () => {
     const map = state.worldMap!;
     const grid = rebuildBeautyGrid(state, map.width, map.height);
     const spot = pickBeautySpot(grid, 250, 250, 8);
-    expect(Math.hypot(spot.x - 300, spot.y - 300)).toBeLessThan(TERRAIN_TILE_SIZE * 2);
+    expect(Math.hypot(spot.x - 300, spot.y - 300)).toBeLessThan(PATH_CELL * 2);
   });
 
   it('pickBeautySpot without a grid falls back to the center', () => {

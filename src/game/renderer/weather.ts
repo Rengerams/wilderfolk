@@ -25,7 +25,7 @@
  *
  * The weather **state** is the simulation's (`worldEvents.updateWeather`); this module only paints it.
  */
-import { TERRAIN_TILE_SIZE, WeatherType, Season } from '../gameTypes';
+import { PATH_CELL, WeatherType, Season } from '../gameTypes';
 import { WEATHER_CONFIGS } from '../gameTypes';
 import { isWaterTerrainType } from '../terrain/terrainTraits';
 import { tileTypeAt } from '../terrain/terrainGrid';
@@ -475,7 +475,7 @@ export function drawWaterShimmer(ctx: CanvasRenderingContext2D, state: RenderSna
   const map = state.worldMap;
   if (!map || state.camera.zoom < 0.75 || !state.juiceEffectsEnabled) return;
   const cam = state.camera;
-  const ts = TERRAIN_TILE_SIZE;
+  const ts = PATH_CELL;
   const z = cam.zoom;
   const tx0 = Math.max(0, Math.floor((cam.x - cw / (2 * z)) / ts));
   const tx1 = Math.min(map.width - 1, Math.floor((cam.x + cw / (2 * z)) / ts));

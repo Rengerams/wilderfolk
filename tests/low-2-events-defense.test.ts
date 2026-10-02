@@ -33,6 +33,8 @@ import {
 } from '../src/game/groupEvents';
 import { getBarracksGuardCount } from '../src/game/defenseStructures';
 import { tickPrisonGuardDuty, tickPrisonPresence } from '../src/game/prisonGuardDuty';
+import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { isNearBuilding } from '../src/game/simulation/humanRelationships';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { PRISON_GUARDS_FOR_FULL_COVERAGE } from '../src/game/prisonShifts';
 import { releasePrisoners } from '../src/game/workforce';
@@ -446,6 +448,37 @@ describe('prison coverage is presence, not the roster', () => {
     setSimSeed(1);
     for (let day = 0; day < 120; day++) tickPrisonGuardDuty(world);
     expect(prisoner.prisonBuildingId).toBeDefined();
+  });
+
+  it('sees a stationed guard even with the cells full and the guards seated last', () => {
+    // The reported leak: a full roster whose guards stood exactly where the movement owner puts them,
+    // and the post still read as empty. `prison.occupants` is guards ∪ prisoners, so the row was laid
+    // out across both — with the cells filled and the guards last in the list, the outer guards stood
+    // further from the centre than the 55 px `tickPrisonPresence` samples.
+    const { world, prisoner, prison } = prisonWorld();
+    const guards: Entity[] = [];
+    for (let i = 0; i < PRISON_GUARDS_FOR_FULL_COVERAGE; i++) {
+      const guard = human(7000 + i, { job: JobType.PrisonGuard, homeBuildingId: prison.id });
+      world.entities.push(guard);
+      guards.push(guard);
+    }
+    const cellmates = [prisoner.id];
+    for (let i = 0; i < 4; i++) {
+      const cellmate = human(8000 + i, { prisonBuildingId: prison.id });
+      world.entities.push(cellmate);
+      cellmates.push(cellmate.id);
+    }
+    prison.occupants = [...cellmates, ...guards.map((guard) => guard.id)];
+
+    for (const guard of guards) {
+      const stand = humanBuildingTarget(prison, guard.id, false);
+      const posted = { ...guard, x: stand.x, y: stand.y };
+      expect(isNearBuilding(posted, prison)).toBe(true);
+    }
+
+    // And the sampler agrees: every hour of the day is covered while they hold the row.
+    sampleDay(world);
+    expect(prison.uncoveredPrisonHours ?? []).toEqual([]);
   });
 
   it('leaks with a full roster when the guards never stood on the post', () => {

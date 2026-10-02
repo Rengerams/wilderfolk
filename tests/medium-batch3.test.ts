@@ -13,7 +13,7 @@ import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType, JobType, TerrainType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
-import { TERRAIN_TILE_SIZE } from '../src/game/gameTypes';
+import { PATH_CELL } from '../src/game/gameTypes';
 import { pickBeautySpot } from '../src/game/beautyGrid';
 import { detectRaidersFromWatchtowers, WATCHTOWER_DETECTION_RADIUS } from '../src/game/watchtowerDetection';
 import { maybeOfferTravelingTheatre, travelingTheatreEligibleDay } from '../src/game/travelingTheatre';
@@ -54,8 +54,8 @@ describe('M2 — a beauty-free grid keeps the caller where they are', () => {
     const gx = 1;
     const gy = 1;
     values[gy * 12 + gx] = 5;
-    const spot = pickBeautySpot({ cols: 12, rows: 12, values } as never, TERRAIN_TILE_SIZE / 2, TERRAIN_TILE_SIZE / 2);
-    expect(spot).toEqual({ x: (gx + 0.5) * TERRAIN_TILE_SIZE, y: (gy + 0.5) * TERRAIN_TILE_SIZE });
+    const spot = pickBeautySpot({ cols: 12, rows: 12, values } as never, PATH_CELL / 2, PATH_CELL / 2);
+    expect(spot).toEqual({ x: (gx + 0.5) * PATH_CELL, y: (gy + 0.5) * PATH_CELL });
   });
 });
 

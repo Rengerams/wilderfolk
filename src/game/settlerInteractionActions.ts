@@ -4,7 +4,7 @@ import { addBigNews, addFloatingText, createDeathParticles, impulseScreenShake }
 import { assignMissingWorkers } from './workforce';
 import { assignMissingResidences } from './residencyReconciliation';
 import { indexLivingEntity } from './entityIndex';
-import { isPlayerHuman, playerHumanCount } from './playerHuman';
+import { allPlayerHumans, isPlayerHuman, playerHumanCount } from './playerHuman';
 import { citizenFullName } from './citizenId';
 import { HUMAN_ADULT_MIN_AGE, getAbsoluteCalendarDay, getColonyDay, getHourOfDay, setHumanBirthFromAge } from './dayCycle';
 import { canBeginMoonHowlerCurse, canMoonHowlerCurse, curseMoonHowler, isMoonHowlerTransformTick, transformToWerewolfForm } from './moonHowler';
@@ -29,12 +29,8 @@ const TAME_INTERACTION_TYPES: ReadonlySet<EntityType> = new Set([
   EntityType.Werewolf,
 ]);
 
-function listPlayerHumans(state: WorldState): Entity[] {
-  return state.entities.filter(isPlayerHuman);
-}
-
 function reconcileNewSettlerAssignments(state: WorldState): void {
-  const settlers = listPlayerHumans(state);
+  const settlers = allPlayerHumans(state.entities);
   assignMissingResidences(settlers, state.buildings, state.entities);
   // `state` supplies `worldSlices`, so the pass uses the player's workforce preset and venue window
   // instead of the defaults — a freshly recruited settler used to be staffed under 'survival' and

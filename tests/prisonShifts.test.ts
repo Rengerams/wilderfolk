@@ -8,7 +8,13 @@ import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { BUILDING_CONFIGS, BuildingType } from '../src/game/gameTypes';
 import {
   PRISON_GUARDS_FOR_FULL_COVERAGE,
+  PRISON_GUARDS_MAX,
+  PRISON_OCCUPANTS_MAX,
+  PRISON_PRISONERS_MAX,
   PRISON_SHIFTS,
+  offDutyPrisonGuards,
+  prisonGuardCapacity,
+  prisonOnDutyGuards,
   prisonPrisonerCapacity,
   prisonRoster,
   prisonShiftsAtHour,
@@ -71,11 +77,43 @@ describe('the roster covers the day', () => {
   });
 });
 
-describe('the prison holds four prisoners beside its guard shifts', () => {
-  it('counts the cells as the occupancy left after the crew that covers the day', () => {
+describe('the prison holds four prisoners beside its guard posts', () => {
+  it('splits the occupancy into the owner\'s posts and cells, pinning both sides', () => {
     const occupancy = BUILDING_CONFIGS[BuildingType.Prison].maxOccupants;
-    expect(prisonPrisonerCapacity(occupancy)).toBe(4);
+    expect(prisonPrisonerCapacity(occupancy)).toBe(PRISON_PRISONERS_MAX);
+    expect(prisonGuardCapacity(occupancy)).toBe(PRISON_GUARDS_MAX);
     // Both sides of the split, so a change to either the building or the roster shows up here.
-    expect(occupancy).toBe(PRISON_GUARDS_FOR_FULL_COVERAGE + 4);
+    expect(occupancy).toBe(PRISON_GUARDS_MAX + PRISON_PRISONERS_MAX);
+    expect(occupancy).toBe(PRISON_OCCUPANTS_MAX);
+  });
+});
+
+describe('a crew larger than the watch takes days off in turn', () => {
+  const five = [11, 22, 33, 44, 55];
+
+  it('puts one guard on every shift on every day of the rotation', () => {
+    for (let day = 0; day < 35; day++) {
+      const roster = prisonRoster(five, day * TICKS_PER_DAY);
+      expect(vacantPrisonShifts(roster)).toEqual([]);
+      expect(unguardedPrisonHours(roster)).toEqual([]);
+    }
+  });
+
+  it('rests two of the five each day and works every guard three days in five', () => {
+    const worked = new Map<number, number>();
+    for (let day = 0; day < 35; day++) {
+      const onDuty = prisonOnDutyGuards(five, day * TICKS_PER_DAY);
+      expect(onDuty).toHaveLength(PRISON_SHIFTS.length);
+      expect(offDutyPrisonGuards(five, day * TICKS_PER_DAY)).toHaveLength(five.length - PRISON_SHIFTS.length);
+      for (const id of onDuty) worked.set(id, (worked.get(id) ?? 0) + 1);
+    }
+    // 35 days x 3 posts = 105 guard-days over a crew of five: 21 days each, and the share is exact.
+    for (const id of five) expect(worked.get(id)).toBe(21);
+  });
+
+  it('rests nobody when the crew is exactly the watch — the pre-rotation behaviour', () => {
+    const three = [11, 22, 33];
+    expect(prisonOnDutyGuards(three, 5 * TICKS_PER_DAY)).toEqual(three);
+    expect(offDutyPrisonGuards(three, 5 * TICKS_PER_DAY)).toEqual([]);
   });
 });

@@ -12,7 +12,7 @@
  * Also carries the elevation→raise curve used by the relief bake and by the
  * renderer so entities/buildings/props ride the terrain.
  */
-import { TerrainType, TERRAIN_TILE_SIZE, type TerrainTile, type WorldMap } from './gameTypes';
+import { TerrainType, PATH_CELL, type TerrainTile, type WorldMap } from './gameTypes';
 import { tileAt, worldToTile } from './terrain/terrainGrid';
 import { getSprite } from './spriteLoader';
 
@@ -272,7 +272,7 @@ export function terrainRiseAt(map: WorldMap | null, x: number, y: number): numbe
   const { tx, ty } = worldToTile(x, y);
   const tile = tileAt(map, tx, ty);
   if (!tile) return 0;
-  return reliefY(tile.type, tile.elevation) * TERRAIN_TILE_SIZE;
+  return reliefY(tile.type, tile.elevation) * PATH_CELL;
 }
 
 /** Source rect for an atlas tile id (0-based, 12-column grid). */

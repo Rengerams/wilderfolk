@@ -38,7 +38,7 @@ import {
   BuildingType,
   EntityType,
   TerrainType,
-  TERRAIN_TILE_SIZE,
+  PATH_CELL,
   type Building,
   type Entity,
   type WorldState,
@@ -59,10 +59,10 @@ function flatten(world: WorldState, cx: number, cy: number, radius: number): voi
   // The whole test is about placed ground, so the fixture must have generated a map.
   expect(world.worldMap).toBeTruthy();
   const map = world.worldMap!;
-  const startTx = Math.max(0, Math.floor((cx - radius) / TERRAIN_TILE_SIZE));
-  const endTx = Math.min(map.width, Math.ceil((cx + radius) / TERRAIN_TILE_SIZE));
-  const startTy = Math.max(0, Math.floor((cy - radius) / TERRAIN_TILE_SIZE));
-  const endTy = Math.min(map.height, Math.ceil((cy + radius) / TERRAIN_TILE_SIZE));
+  const startTx = Math.max(0, Math.floor((cx - radius) / PATH_CELL));
+  const endTx = Math.min(map.width, Math.ceil((cx + radius) / PATH_CELL));
+  const startTy = Math.max(0, Math.floor((cy - radius) / PATH_CELL));
+  const endTy = Math.min(map.height, Math.ceil((cy + radius) / PATH_CELL));
   for (let ty = startTy; ty < endTy; ty++) {
     for (let tx = startTx; tx < endTx; tx++) {
       const tile = tileAt(map, tx, ty);
@@ -78,10 +78,10 @@ function flatten(world: WorldState, cx: number, cy: number, radius: number): voi
 
 /** First flat, building-free placement point that the game's own rule accepts. */
 function findSpot(world: WorldState): { x: number; y: number } {
-  for (let gy = 200; gy < world.height - 200; gy += TERRAIN_TILE_SIZE * 4) {
-    for (let gx = 200; gx < world.width - 200; gx += TERRAIN_TILE_SIZE * 4) {
-      const x = Math.round(gx / TERRAIN_TILE_SIZE) * TERRAIN_TILE_SIZE;
-      const y = Math.round(gy / TERRAIN_TILE_SIZE) * TERRAIN_TILE_SIZE;
+  for (let gy = 200; gy < world.height - 200; gy += PATH_CELL * 4) {
+    for (let gx = 200; gx < world.width - 200; gx += PATH_CELL * 4) {
+      const x = Math.round(gx / PATH_CELL) * PATH_CELL;
+      const y = Math.round(gy / PATH_CELL) * PATH_CELL;
       if (world.buildings.some((b) => Math.hypot(b.x - x, b.y - y) < 250)) continue;
       flatten(world, x, y, 120);
       if (getPlaceBuildingFailureReason(world, BuildingType.Farm, x, y, 0) === null) return { x, y };

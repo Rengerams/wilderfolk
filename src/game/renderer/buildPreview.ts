@@ -21,7 +21,7 @@ export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSna
   const sx = (state.buildGhost.x - state.camera.x) * state.camera.zoom + cw / 2;
   // Ride the 2.5D relief on the same footprint point the placed building samples
   // (`buildings.ts` getBuildingScreenRect: centre-x / bottom-y), so the ghost is drawn where the
-  // building will land rather than up to a relief cap (0.35 × TERRAIN_TILE_SIZE = 3.5 wu) below it.
+  // building will land rather than up to a relief cap (0.35 × PATH_CELL = 3.5 wu) below it.
   const sy = (state.buildGhost.y - state.camera.y) * state.camera.zoom + ch / 2
     - terrainRiseAt(state.worldMap, state.buildGhost.x, state.buildGhost.y + footprint.height / 2)
       * state.camera.zoom;

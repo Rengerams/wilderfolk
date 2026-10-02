@@ -39,7 +39,7 @@
  * repeat every hour until the card expired while nothing else got done.
  */
 import type { Building, HuntingSpotPrey, StaffingMode, VisitorGroup, WorldState } from './gameTypes';
-import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, GRID_SIZE, TERRAIN_TILE_SIZE } from './gameTypes';
+import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, GRID_SIZE, PATH_CELL } from './gameTypes';
 import type { ForgeOrderId } from './gameTypes';
 import { WORKER_CMD_PROTO, type WorkerCommand } from './simWorker/commands';
 import { buildStripPreview, canPlaceBuilding } from './buildingPlacementActions';
@@ -1173,10 +1173,10 @@ function buildRoadChain(
 
   const path = findPath(
     getPathGrid(state.worldMap, state.buildings),
-    Math.floor(camp.x / TERRAIN_TILE_SIZE),
-    Math.floor(camp.y / TERRAIN_TILE_SIZE),
-    Math.floor((target.x + target.width / 2) / TERRAIN_TILE_SIZE),
-    Math.floor((target.y + target.height / 2) / TERRAIN_TILE_SIZE),
+    Math.floor(camp.x / PATH_CELL),
+    Math.floor(camp.y / PATH_CELL),
+    Math.floor((target.x + target.width / 2) / PATH_CELL),
+    Math.floor((target.y + target.height / 2) / PATH_CELL),
     VirtualPlayer.ROAD_PATH_MAX_NODES,
   );
   if (!path) return [];

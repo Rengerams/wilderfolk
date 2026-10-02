@@ -67,6 +67,15 @@ function catchUpBudgetFor(speed: number): number {
   return Math.min(240, Math.max(MAX_CATCHUP_STEPS, Math.ceil(requested * 2)));
 }
 
+/**
+ * Whether the page is hidden or occluded. `requestAnimationFrame` stops and timers are throttled while
+ * it is, so a frame loop that has stopped running is not evidence of a slow frame. Guarded because the
+ * node test environment has no `document`.
+ */
+function pageHidden(): boolean {
+  return typeof document !== 'undefined' && document.hidden;
+}
+
 /** Worker stall watchdog (ms) — the floor, so a fast machine is never called stalled. */
 const WORKER_STALL_TIMEOUT_MS = 10000;
 /** What the save adds to the stall threshold: ordering slack, not a second opinion on speed. */
@@ -166,7 +175,7 @@ export class GameLoop {
    * by reasoning: at 10× a day must take **7.2 s** (72 s ÷ 10), the owner measured 9 s and 12 s, and
    * reported their frame rate "is different each time". Two candidate causes need different fixes —
    * the per-frame catch-up budget (`catchUpBudgetFor`, ceiling `fps × budget`), or the raw cost of one
-   * tick (a tick must finish inside `msPerTick`, 10 ms at 10×). This counter separates them by
+   * tick (a tick must finish inside `msPerTick`, 100 ms at 10×). This counter separates them by
    * comparing achieved ticks/second against `BASE_TICKS_PER_SECOND × speed`.
    *
    * Off at 1× so normal play pays nothing.
@@ -174,7 +183,10 @@ export class GameLoop {
   private diagTicks = 0;
   private diagSince = 0;
   private diagFrames = 0;
+  /** Real (unclamped) frame gaps: the simulation clamps them to 100 ms, the report must not. */
   private diagFrameMs = 0;
+  private diagFrameMaxMs = 0;
+  private diagHiddenFrames = 0;
   private lastNotifiedTick = -1;
   private listeners = new Set<SessionListener>();
   private getCanvas: () => HTMLCanvasElement | null;
@@ -942,7 +954,9 @@ export class GameLoop {
     if (!this.running) return;
 
     if (!this.lastFrameTime) this.lastFrameTime = time;
-    const dtMs = Math.min(time - this.lastFrameTime, 100);
+    // Clamped for the simulation, raw for the report: a frame that took 3 s must not read as 100 ms.
+    const rawDtMs = time - this.lastFrameTime;
+    const dtMs = Math.min(rawDtMs, 100);
     this.lastFrameTime = time;
 
     let tickChanged = false;
@@ -973,8 +987,9 @@ export class GameLoop {
           performance.now() - this.lastWorkerActivity > stallMs;
 
         if (stalled) {
+          const silenceMs = performance.now() - this.lastWorkerActivity;
           console.warn(
-            `[GameLoop] Worker tick exceeded ${stallMs.toFixed(0)}ms (in-flight=${this.workerHost.getTicksInFlight?.() ?? 'unknown'}, observed=${this.workerTickLatencyMs.toFixed(0)}ms)`,
+            `[GameLoop] Worker silent ${silenceMs.toFixed(0)}ms with ${this.workerHost.getTicksInFlight?.() ?? 'unknown'} tick(s) in flight (threshold ${stallMs.toFixed(0)}ms, last measured tick latency ${this.workerTickLatencyMs.toFixed(0)}ms, command in flight=${this.workerHost.hasCommandInFlight?.() ? 'yes' : 'no'}, hidden=${pageHidden()})`,
           );
           this.fallbackFromWorker('Worker tick stalled');
         } else {
@@ -1037,28 +1052,41 @@ export class GameLoop {
 
     // Speed diagnostic — see `diagTicks`. Reports achieved vs target ticks/second and frame cost, so
     // "10x is not 10x" can be attributed to the catch-up budget or to tick cost instead of guessed at.
+    // It also reports why ticks were *not* posted: a saturated pipeline (`inv`), a command holding the
+    // gate (`cmd`), banked lag (`debt`), and worker silence (`silentMs`) — a stall with the CPU idle is
+    // a scheduling answer, not a compute one, and the previous line could not tell them apart.
     if (this.world.speed > 1 && !this.world.paused) {
-          this.diagTicks += ticksThisFrame;
+      this.diagTicks += ticksThisFrame;
       this.diagFrames += 1;
-      this.diagFrameMs += dtMs;
+      this.diagFrameMs += rawDtMs;
+      if (rawDtMs > this.diagFrameMaxMs) this.diagFrameMaxMs = rawDtMs;
+      if (pageHidden()) this.diagHiddenFrames += 1;
       const nowMs = performance.now();
       if (this.diagSince === 0) this.diagSince = nowMs;
       const elapsed = nowMs - this.diagSince;
       if (elapsed >= 3000) {
         const target = BASE_TICKS_PER_SECOND * this.world.speed;
         const achieved = this.diagTicks / (elapsed / 1000);
+        const msPerTick = 1000 / target;
+        const inFlight = this.workerHost?.getTicksInFlight?.() ?? 0;
+        const commandInFlight = this.workerHost?.hasCommandInFlight?.() ?? false;
+        const silenceMs = this.lastWorkerActivity > 0 ? nowMs - this.lastWorkerActivity : -1;
         console.log(
-          `[SpeedDiag] speed=${this.world.speed}x  achieved=${achieved.toFixed(0)} ticks/s  target=${target}  ratio=${(achieved / target).toFixed(2)}  fps=${(this.diagFrames / (elapsed / 1000)).toFixed(0)}  frameMs=${(this.diagFrameMs / this.diagFrames).toFixed(1)}  msPerTick=${(1000 / target).toFixed(1)}`,
+          `[SpeedDiag] speed=${this.world.speed}x  achieved=${achieved.toFixed(1)} ticks/s  target=${target}  ratio=${(achieved / target).toFixed(2)}  fps=${(this.diagFrames / (elapsed / 1000)).toFixed(1)}  frameMs=${(this.diagFrameMs / this.diagFrames).toFixed(1)}  frameMax=${this.diagFrameMaxMs.toFixed(0)}  msPerTick=${msPerTick.toFixed(1)}  inv=${inFlight}  cmd=${commandInFlight ? 1 : 0}  debt=${(this.tickAccumulator / msPerTick).toFixed(1)}ticks  silentMs=${silenceMs.toFixed(0)}  hidden=${this.diagHiddenFrames}/${this.diagFrames}`,
         );
         this.diagTicks = 0;
         this.diagFrames = 0;
         this.diagFrameMs = 0;
+        this.diagFrameMaxMs = 0;
+        this.diagHiddenFrames = 0;
         this.diagSince = nowMs;
       }
     } else if (this.diagSince !== 0) {
       this.diagTicks = 0;
       this.diagFrames = 0;
       this.diagFrameMs = 0;
+      this.diagFrameMaxMs = 0;
+      this.diagHiddenFrames = 0;
       this.diagSince = 0;
     }
 
