@@ -3,13 +3,7 @@ import { isNightHour } from '../dayCycle';
 import { getBuildingFootprintForType, snapBuildingCenter } from '../buildingRotation';
 import { canPlaceBuildingSnapshot } from '../placementUtils';
 import { isUnbuildableTerrainType, isWaterTerrainType } from '../terrain/terrainTraits';
-import { terrainRiseAt } from '../terrainAtlas';
-import { isStripBuildType } from '../stripBuild';
 import { tileTypeAt } from '../terrain/terrainGrid';
-import {
-  drawProceduralStripBuilding,
-  drawStripJunctionOverlay,
-} from '../stripRender';
 import { worldToScreen as w2s, worldToScreenX, worldToScreenY } from '../viewState';
 import type { RenderSnapshot } from '../renderSnapshot';
 
@@ -320,100 +314,8 @@ export function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, c
     }
   }
 
-  // Strip drag preview (walls / roads)
-  if (state.buildMode && state.buildStripPreview && isStripBuildType(state.buildMode)) {
-    for (const seg of state.buildStripPreview.segments) {
-      const placeType = seg.placeType ?? state.buildMode;
-      const segRot = seg.rotation ?? state.buildStripPreview.rotation;
-      const footprint = getBuildingFootprintForType(placeType, segRot);
-      const [gx, gyBase] = w2s(seg.x, seg.y, cam, cw, ch);
-      // Ride the 2.5D relief exactly as the placed wall/road is drawn (`buildings.ts`
-      // getBuildingScreenRect samples centre-x / bottom-y of the footprint).
-      const gy = gyBase - terrainRiseAt(state.worldMap, seg.x, seg.y + footprint.height / 2) * cam.zoom;
-      const bw = footprint.width * cam.zoom;
-      const bh = footprint.height * cam.zoom;
-      const alpha = seg.valid ? 0.72 : 0.45;
-      drawProceduralStripBuilding(ctx, placeType, gx, gy, bw, bh, segRot, alpha);
-      if (seg.junctionInfo) {
-        drawStripJunctionOverlay(ctx, placeType, gx, gy, bw, bh, seg.junctionInfo, alpha);
-      }
-      ctx.strokeStyle = seg.valid ? 'rgba(34, 197, 94, 0.9)' : 'rgba(239, 68, 68, 0.85)';
-      ctx.lineWidth = Math.max(1.2, 1.8 / cam.zoom);
-      ctx.setLineDash(seg.valid ? [] : [4, 3]);
-      ctx.strokeRect(gx - bw / 2, gy - bh / 2, bw, bh);
-      ctx.setLineDash([]);
-    }
-  }
-
-  // Build ghost footprint — ground diamond plate
-  if (state.buildMode && state.buildGhost && !(state.buildStripPreview && isStripBuildType(state.buildMode))) {
-    const footprint = getBuildingFootprintForType(state.buildMode, state.buildRotation);
-    const [gx, gyBase] = w2s(state.buildGhost.x, state.buildGhost.y, cam, cw, ch);
-    // Same relief lift as the ghost sprite in `buildPreview.ts`, or plate and ghost separate.
-    const gy = gyBase
-      - terrainRiseAt(state.worldMap, state.buildGhost.x, state.buildGhost.y + footprint.height / 2) * cam.zoom;
-    const bw = footprint.width * cam.zoom;
-    const bh = footprint.height * cam.zoom;
-    const valid = state.buildGhost.valid;
-    const halfW = bw * 0.52;
-    const halfH = Math.max(bh * 0.28, bw * 0.16);
-
-    // Soft ground shadow under the plate
-    ctx.fillStyle = 'rgba(0,0,0,0.22)';
-    ctx.beginPath();
-    ctx.ellipse(gx + 3, gy + halfH * 0.55, halfW * 0.95, halfH * 0.55, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    drawIsoCellMarker(
-      ctx, gx, gy, halfW, halfH,
-      valid ? 'rgba(34, 197, 94, 0.28)' : 'rgba(239, 68, 68, 0.28)',
-      valid ? 'rgba(74, 222, 128, 0.9)' : 'rgba(248, 113, 113, 0.9)',
-      Math.max(1.4, 2 / cam.zoom),
-    );
-
-    // South lip for 2.5D thickness
-    ctx.fillStyle = valid ? 'rgba(6, 78, 59, 0.45)' : 'rgba(127, 29, 29, 0.5)';
-    ctx.beginPath();
-    ctx.moveTo(gx - halfW, gy);
-    ctx.lineTo(gx, gy + halfH);
-    ctx.lineTo(gx + halfW, gy);
-    ctx.lineTo(gx, gy + halfH + Math.max(2.5, 3.5 * cam.zoom));
-    ctx.closePath();
-    ctx.fill();
-
-    // Inner cell ticks for large footprints
-    if (cam.zoom >= 0.5 && bw > gs * cam.zoom * 1.5) {
-      ctx.strokeStyle = valid ? 'rgba(34, 197, 94, 0.28)' : 'rgba(239, 68, 68, 0.28)';
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      const left = state.buildGhost.x - footprint.width / 2;
-      const right = state.buildGhost.x + footprint.width / 2;
-      const top = state.buildGhost.y - footprint.height / 2;
-      const bottom = state.buildGhost.y + footprint.height / 2;
-
-      for (let wx = Math.ceil(left / gs) * gs; wx < right; wx += gs) {
-        const t = (wx - left) / footprint.width;
-        const px = gx - halfW + t * halfW * 2;
-        ctx.moveTo(px, gy - halfH * 0.35);
-        ctx.lineTo(px, gy + halfH * 0.35);
-      }
-      for (let wy = Math.ceil(top / gs) * gs; wy < bottom; wy += gs) {
-        const t = (wy - top) / footprint.height;
-        const py = gy - halfH + t * halfH * 2;
-        ctx.moveTo(gx - halfW * 0.35, py);
-        ctx.lineTo(gx + halfW * 0.35, py);
-      }
-      ctx.stroke();
-    }
-
-    // Snap anchor (small raised diamond)
-    drawIsoCellMarker(
-      ctx, gx, gy, Math.max(3, 4.5 * cam.zoom), Math.max(2, 2.8 * cam.zoom),
-      valid ? '#4ade80' : '#f87171',
-      'rgba(0,0,0,0.55)',
-      Math.max(1, 1.2 / cam.zoom),
-    );
-  }
+  // The strip drag preview and the build ghost plate follow the pointer, so they are drawn per frame
+  // in the overlay pass (`buildVisualsOverlay.ts`) instead of invalidating this tick-keyed bitmap.
 }
 
 /** Placement grid on top of sprites — major lines only during play; full grid in build mode. */

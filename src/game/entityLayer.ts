@@ -47,10 +47,13 @@ let entityLayerCache: EntityLayerCache | null = null;
  * Cache key for the dynamic world entity bitmap.
  * Camera position is intentionally NOT part of the key — panning within the
  * margin reuses the layer via {@link entityLayerAnchorMoved} instead.
+ *
+ * Only what a **layer painter** reads belongs here: the placement ghost, the strip drag
+ * preview and the hover highlight are drawn per frame in the overlay pass
+ * (`renderer/buildVisualsOverlay.ts`), because pointer motion changes them many times a second and
+ * each change re-baked every grass tuft, tree, building, animal and settler in view.
  */
 export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: number): string {
-  const ghost = state.buildGhost;
-  const strip = state.buildStripPreview;
   return [
     state.tick,
     cw,
@@ -58,7 +61,6 @@ export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: numbe
     state.hourOfDay,
     state.showGrid ? 1 : 0,
     state.showPaths ? 1 : 0,
-    state.hoveredBuilding?.id ?? '',
     state.selectedEntity?.id ?? '',
     // The painters read the whole selection (`humans.ts` / `animals.ts` draw a ring per id) and the
     // juice-effects preference (contact-shadow strength), but neither was keyed — so a shift-click
@@ -73,8 +75,6 @@ export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: numbe
     state.highlightedCampKey ?? '',
     state.buildMode ?? '',
     state.buildRotation ?? 0,
-    ghost ? `${ghost.x.toFixed(0)},${ghost.y.toFixed(0)},${ghost.valid ? 1 : 0},${ghost.reason ?? ''}` : '',
-    strip ? `${strip.segments.length}|${strip.rotation}` : '',
     state.pendingRaidEvents?.length ?? 0,
     state.pendingOutgoingRaidEvents?.length ?? 0,
     state.visitorGroups.length,

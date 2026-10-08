@@ -203,6 +203,8 @@ export function getHumanSelectionBounds(
   const footOffsetWorld = worldH * HUMAN_FOOT_OFFSET_RATIO;
   const cx = human.x;
   const cy = human.y + footOffsetWorld - worldH / 2;
+  // A zoom that is not a real, positive, finite number reads as the default rather than being
+  // allowed to collapse the box: an infinite zoom divides the screen-space floor away to nothing.
   const zoom = Number.isFinite(camZoom) && camZoom > 0 ? camZoom : 1;
   const ry = Math.max(worldH / 2, HUMAN_MIN_HIT_HEIGHT_PX / 2 / zoom);
   const rx = Math.max(worldH * HUMAN_SPRITE_ASPECT / 2, HUMAN_MIN_HIT_WIDTH_PX / 2 / zoom);

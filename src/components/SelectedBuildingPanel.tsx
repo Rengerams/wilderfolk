@@ -49,6 +49,8 @@ import { getBuildingConfig } from '../game/buildingConfig';
 import { getWorkSchedule, getWorkScheduleLabel } from '../game/workSchedule';
 import { formatRaidDeadline } from '../game/frontierCombat';
 import { isManualStaffingBuilding, SMITH_BONUS_PER_WORKER, SMITH_BONUS_CAP } from '../game/workforce';
+import { explainBuildingStaffing } from '../game/dashboardData';
+import { playerHumansFrom } from '../game/playerHuman';
 import { getWorkerSkillMultiplier } from '../game/skills';
 import { WALL_SEGMENT_BASE_BONUS, WATCHTOWER_BASE_BONUS, MILITIA_BALANCE, getWallSegmentCap } from '../game/defenseStructures';
 import { FORGE_BONUSES } from '../game/forge';
@@ -63,6 +65,9 @@ import type { WorkerCommand } from '../game/simWorker/commands';
 
 const CombatPreviewPanel = lazy(() => import('../game/CombatPreviewPanel'));
 const BlacksmithForgePanel = lazy(() => import('./BlacksmithForgePanel'));
+
+/** Settlers named under the empty worker picker before the rest are only counted. */
+const STAFFING_REFUSAL_LIMIT = 4;
 
 /**
  * The raid-card choice buttons. The incoming and outgoing cards render the same control, differing
@@ -421,6 +426,13 @@ export default function SelectedBuildingPanel({
     : [];
   const builders = !building.completed
     ? state.entities.filter((e) => building.occupants.includes(e.id))
+    : [];
+  // The empty-picker notice's "why": the staffing owner's own refusal per settler, asked only in the
+  // branch that renders that notice.
+  const staffRefusals = (building.completed ? BUILDING_JOB_TYPES[building.type] !== undefined : config.maxOccupants > 0)
+    && !canAssignWorker
+    && building.occupants.length < config.maxOccupants
+    ? explainBuildingStaffing(state, building.id, playerHumansFrom(state.entities).map((entity) => entity.id)).refusals
     : [];
   const terrainMult = getTerrainEfficiencyMultiplier(state, building);
   const adjacencyMult = getAdjacencyMultiplier(state, building);

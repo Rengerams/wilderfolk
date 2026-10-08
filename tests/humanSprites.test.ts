@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import {
   HUMAN_FEMALE_CLASS_COUNT,
   HUMAN_MALE_CLASS_COUNT,
+  HUMAN_MIN_HIT_HEIGHT_PX,
+  HUMAN_MIN_HIT_WIDTH_PX,
   HUMAN_MIN_SCREEN_PX,
   HUMAN_SPRITE_ASPECT,
   HUMAN_SPRITE_MIN_ZOOM,
@@ -12,12 +14,14 @@ import {
   WALK_SHEET_PATHS,
   getHumanMarkerColors,
   getHumanMarkerRadius,
+  getHumanSelectionBounds,
   getHumanVariantLabel,
   getHumanWalkSheetPath,
   humanRenderDetail,
   pickHumanVariant,
   sliceWalkFrame,
 } from '../src/game/humanSprites';
+import { CAMERA_ZOOM_MAX } from '../src/game/viewState';
 import { HUMAN_SPRITE_PATHS } from '../src/game/spriteLoader';
 import type { SpriteFrame } from '../src/game/spriteLoader';
 import type { Entity } from '../src/game/gameTypes';
@@ -276,5 +280,75 @@ describe('humanSprites.zoomMarker.test.ts', () => {
         expect(fills.size).toBeGreaterThan(1);
       }
     });
+  });
+});
+
+describe('humanSprites.selectionHitBox.test.ts', () => {
+  /** An adult settler standing at the origin, which is all the bounds arithmetic reads. */
+  function settler(overrides: Partial<Entity> = {}): Entity {
+    return { id: 1, x: 0, y: 0, isJuvenile: false, ...overrides } as Entity;
+  }
+
+  /** The clickable box in screen pixels, which is what a pointer has to hit. */
+  function screenBox(entity: Entity, zoom: number): { w: number; h: number } {
+    const bounds = getHumanSelectionBounds(entity, zoom);
+    return { w: bounds.rx * 2 * zoom, h: bounds.ry * 2 * zoom };
+  }
+
+  it('never offers a target smaller than the screen floor at any zoom', () => {
+    for (const zoom of [0.3, 0.5, 1, 1.45, 2, 4, CAMERA_ZOOM_MAX]) {
+      const box = screenBox(settler(), zoom);
+      expect(box.w, `width at zoom ${zoom}`).toBeGreaterThanOrEqual(HUMAN_MIN_HIT_WIDTH_PX);
+      expect(box.h, `height at zoom ${zoom}`).toBeGreaterThanOrEqual(HUMAN_MIN_HIT_HEIGHT_PX);
+    }
+  });
+
+  it('does not shrink the target when the player zooms in to pick someone out of a crowd', () => {
+    const near = screenBox(settler(), 1.45);
+    const closer = screenBox(settler(), 4);
+    const closest = screenBox(settler(), CAMERA_ZOOM_MAX);
+    // The whole point of the floor: tolerance is constant on screen, so zooming in cannot make the
+    // click harder than it was.
+    expect(closer.w).toBeGreaterThanOrEqual(near.w);
+    expect(closest.w).toBeGreaterThanOrEqual(near.w);
+  });
+
+  it('grows the target for a settler drawn larger than the floor', () => {
+    // At a far zoom the drawn sprite is smaller than the floor, so the floor is what answers; at a
+    // very close zoom the sprite itself is wider and must win, or the box would stop tracking art.
+    const far = screenBox(settler(), 0.5);
+    const veryClose = screenBox(settler(), CAMERA_ZOOM_MAX);
+    expect(far.w).toBe(HUMAN_MIN_HIT_WIDTH_PX);
+    expect(veryClose.w).toBeGreaterThan(HUMAN_MIN_HIT_WIDTH_PX);
+  });
+
+  it('still tracks the sprite it describes', () => {
+    // The centre is the drawn sprite's own centre, so the box cannot drift off the settler.
+    const atOrigin = getHumanSelectionBounds(settler({ x: 0, y: 0 }), 1);
+    const moved = getHumanSelectionBounds(settler({ x: 40, y: -25 }), 1);
+    expect(moved.cx - atOrigin.cx).toBe(40);
+    expect(moved.cy - atOrigin.cy).toBe(-25);
+  });
+
+  it('keeps a child’s target at least as reachable as an adult’s', () => {
+    const child = screenBox(settler({ isJuvenile: true }), 1.45);
+    expect(child.w).toBeGreaterThanOrEqual(HUMAN_MIN_HIT_WIDTH_PX);
+    expect(child.h).toBeGreaterThanOrEqual(HUMAN_MIN_HIT_HEIGHT_PX);
+  });
+
+  it('treats a nonsense zoom as the default rather than collapsing the box', () => {
+    // Compared in world units: a nonsense zoom is resolved to the default, so the *screen* size is
+    // undefined by construction — what must hold is that the box is still a real, usable ellipse.
+    const worldBox = (zoom: number) => getHumanSelectionBounds(settler(), zoom);
+    for (const zoom of [0, -3, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const bounds = worldBox(zoom);
+      expect(Number.isFinite(bounds.rx), `rx at zoom ${zoom}`).toBe(true);
+      expect(Number.isFinite(bounds.ry), `ry at zoom ${zoom}`).toBe(true);
+      expect(bounds.rx).toBeGreaterThan(0);
+      expect(bounds.ry).toBeGreaterThan(0);
+      // Same answer as the documented default.
+      expect(bounds.rx).toBe(worldBox(1).rx);
+      expect(bounds.ry).toBe(worldBox(1).ry);
+    }
   });
 });

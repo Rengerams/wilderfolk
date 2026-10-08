@@ -2,6 +2,14 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Stopped a loaded valley growing its forest back over the houses** — a compact save regenerates the ground from its seed, and the record of terrain the player cleared was never written, so every building's footprint returned to forest on load; the sparse overrides now round-trip.
+
+- **Cleared the relationships a loaded colony cannot resolve** — a spouse or courtship id naming nobody left a settler stuck as married to nobody, who could then never widow and was shut out of courtship permanently; a load now sweeps those ids, reusing the same owner the death path uses.
+
+- **Stopped a save choosing its own map size and calendar** — an untrusted tile dimension pair could ask for a 4000x3000 valley, and a forged ticks-per-day rescaled the whole timeline to the year 66666; both are now bounded to what this build actually writes.
+
+- **Stopped hostile weather freezing the disasters it started** — the feature's early return sat above the drain loop, so a save carrying a disaster kept it forever, permanently penalising the village's election score.
+
 - **Made a refused load leave the running colony alone** — the restore replaced the RNG seed part-way through, so a save that was then refused kept the failed load's randomness for the rest of the session; the session's seed and auto-save setting are now put back.
 
 - **Stopped a corrupted save poisoning every later spawn** — a payload missing an id allocator gave every new settler and building an id of `NaN`, and a rewound one collided with live ids; each is now raised past the highest id the world holds.

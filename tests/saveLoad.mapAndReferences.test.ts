@@ -80,6 +80,7 @@ describe('a compact save carries the terrain the player changed', () => {
     const reloaded = buildWorld(payloadFrom(world));
 
     expect(reloaded.worldMap?.overrides?.size).toBe(expected);
+    if (!reloaded.worldMap) throw new Error('the reloaded world has no map');
     expect(tileAt(reloaded.worldMap, tx, ty)?.type).toBe(TerrainType.Grassland);
   });
 
