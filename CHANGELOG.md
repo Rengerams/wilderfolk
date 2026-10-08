@@ -2,6 +2,18 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Stopped a School and a Town Hall claiming their workers are assigned automatically** — the panel restated the manual-staffing rule by hand and omitted both, so a player waited for a teacher who could never arrive; it now reads the workforce owner's own verdict.
+
+- **Stopped a prison counting its prisoners as guards against the guard cap** — the workers line measured everyone in the building against the post count, so a fully guarded prison with cells to spare said "No idle settlers"; both numbers now come from the staffing owner.
+
+- **Stopped a malformed save's lists breaking the next day's food ledger** — the food history and the two dismissal lists had no rule at the load boundary, so a string in one of them was accepted and then threw inside a tick; each is now refused by name.
+
+- **Made the placement ghost and the placed building stand on the same ground** — the ghost sampled the bottom centre of a footprint while a placed building sampled a corner half a footprint away, so a building jumped vertically on a slope.
+
+- **Stopped the work-hours panel and the taming list freezing at the values they opened with** — a projection memoised on the world object cannot see a tick when the simulation runs on the main thread; both now derive every render.
+
+- **Made the venue editor quote the rule the tavern actually opens by** — the festival note was its own third copy of the override and could promise behaviour the simulation no longer had; it now renders the schedule owner's answer.
+
 - **Stopped panning the map throwing away what you had selected** — the click that follows a drag arrives after the drag ends, so every pan cleared the selection and collapsed the inspector; a drag is now left to the camera.
 
 - **Made the work-hours editor and the family tree hold the keyboard** — the map's hotkeys stayed live behind those two windows and Escape acted on the game instead of closing them.

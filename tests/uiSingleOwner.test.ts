@@ -216,7 +216,7 @@ describe('C1 — mechanical clones de-duplicated in components and hooks', () =>
   it('clone 5: one hour picker for Opens and Closes', () => {
     const panel = read('src/components/WorkSchedulePanel.tsx');
     expect(count(panel, '<HourSelect')).toBe(2);
-    expect(count(panel, 'Array.from({ length: HOURS_IN_DAY }')).toBe(1);
+    expect(count(panel, 'Array.from({ length: HOURS_PER_DAY }')).toBe(1);
   });
 
   it('clone 7: one export header object for both logs', () => {

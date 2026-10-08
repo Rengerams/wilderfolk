@@ -48,8 +48,9 @@ import type { HuntingSpotPrey } from '../game/gameTypes';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { getWorkSchedule, getWorkScheduleLabel } from '../game/workSchedule';
 import { formatRaidDeadline } from '../game/frontierCombat';
-import { isManualStaffingBuilding, SMITH_BONUS_PER_WORKER, SMITH_BONUS_CAP } from '../game/workforce';
+import { isManualStaffingBuilding, staffingCapFor, SMITH_BONUS_PER_WORKER, SMITH_BONUS_CAP } from '../game/workforce';
 import { explainBuildingStaffing } from '../game/dashboardData';
+import { listAssignableWorkersForBuilding } from '../game/buildingStaffingActions';
 import { playerHumansFrom } from '../game/playerHuman';
 import { getWorkerSkillMultiplier } from '../game/skills';
 import { WALL_SEGMENT_BASE_BONUS, WATCHTOWER_BASE_BONUS, MILITIA_BALANCE, getWallSegmentCap } from '../game/defenseStructures';
@@ -398,6 +399,13 @@ export default function SelectedBuildingPanel({
   /** The mode the buttons highlight: the owner's verdict, not a second reading of `staffingMode`. */
   const effectiveStaffingMode: 'auto' | 'manual' = isManualStaffing ? 'manual' : 'auto';
   const residenceCap = isHousing ? getResidenceCapacity(building) : config.maxOccupants;
+  /**
+   * The staffing owner's cap and count for a finished workplace: a Prison's occupant list is guards ∪
+   * prisoners, so its posts are counted on their own rather than against that list.
+   */
+  const { cap: staffingCap, staffed: staffedWorkers } = building.completed
+    ? staffingCapFor(building, state.entities)
+    : { cap: config.maxOccupants, staffed: building.occupants.length };
   /** The upgrade owner's verdict for this building — its price, its ceiling, its exceptions. */
   const upgradeEligibility = getBuildingUpgradeEligibility(state, building.id);
   /**
@@ -431,7 +439,7 @@ export default function SelectedBuildingPanel({
   // branch that renders that notice.
   const staffRefusals = (building.completed ? BUILDING_JOB_TYPES[building.type] !== undefined : config.maxOccupants > 0)
     && !canAssignWorker
-    && building.occupants.length < config.maxOccupants
+    && staffedWorkers < staffingCap
     ? explainBuildingStaffing(state, building.id, playerHumansFrom(state.entities).map((entity) => entity.id)).refusals
     : [];
   const terrainMult = getTerrainEfficiencyMultiplier(state, building);
@@ -457,7 +465,7 @@ export default function SelectedBuildingPanel({
         {isHousing && building.completed ? (
           <p>Residents: {residents.length} / {residenceCap}</p>
         ) : (
-          <p>{!building.completed ? 'Builders' : 'Workers'}: {building.occupants.length} / {config.maxOccupants}</p>
+          <p>{!building.completed ? 'Builders' : 'Workers'}: {staffedWorkers} / {staffingCap}</p>
         )}
         {!building.completed && (
           <p>Progress: {Math.floor(displayedConstructionProgress(building, state.tick))}% · ~{config.buildTime} work-day{config.buildTime === 1 ? '' : 's'}</p>
@@ -479,7 +487,7 @@ export default function SelectedBuildingPanel({
             <p className="text-[10px] text-stone-300">Terrain + nearby buildings (not worker skill)</p>
           </>
         )}
-        {building.completed && BUILDING_JOB_TYPES[building.type] && building.type !== BuildingType.Church && building.type !== BuildingType.Prison && building.type !== BuildingType.Barracks && (
+        {building.completed && BUILDING_JOB_TYPES[building.type] && !isManualStaffing && (
           <p className="text-[11px] text-sky-300">Workers are assigned here automatically ({getWorkScheduleLabel(getWorkSchedule(state))}).</p>
         )}
         {building.completed && building.type === BuildingType.Mine && (
@@ -834,11 +842,22 @@ export default function SelectedBuildingPanel({
 
       {((!building.completed && config.maxOccupants > 0) || (building.completed && BUILDING_JOB_TYPES[building.type])) && (
         <CollapsibleSection title={!building.completed ? 'Construction' : 'Workers'} defaultOpen storageKey={`building-workers-${building.id}`}>
-          {building.completed && BUILDING_JOB_TYPES[building.type] && isManualStaffing && assignableWorkers.length > 0 && building.occupants.length < config.maxOccupants && (
+          {building.completed && BUILDING_JOB_TYPES[building.type] && isManualStaffing && assignableWorkers.length > 0 && staffedWorkers < staffingCap && (
             <div className="mb-1 max-h-28 space-y-1 overflow-y-auto">
               <p className="text-[10px] text-stone-300">
                 {building.type === BuildingType.Church ? 'Choose priest:' : 'Choose worker:'}
               </p>
+              {/* The picker arrives sliced to the owner's cap; the same owner list uncapped counts the rest. */}
+              {(() => {
+                const hidden = listAssignableWorkersForBuilding(state, building.id, state.entities.length).length
+                  - assignableWorkers.length;
+                if (hidden <= 0) return null;
+                return (
+                  <p className="text-[10px] text-stone-400">
+                    +{hidden} more settler{hidden === 1 ? '' : 's'} can take this job — assign one to see the rest.
+                  </p>
+                );
+              })()}
               {assignableWorkers.map((h) => (
                 <button
                   key={h.id}
@@ -856,7 +875,7 @@ export default function SelectedBuildingPanel({
             </div>
           )}
           <div className="grid grid-cols-2 gap-1">
-          {canAssignWorker && building.occupants.length < config.maxOccupants && assignableWorkers.length === 0 && (
+          {canAssignWorker && staffedWorkers < staffingCap && assignableWorkers.length === 0 && (
             <button onClick={onAssign} className="rounded bg-emerald-600 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-emerald-500 transition-all">
               + {!building.completed ? 'Fill builders' : 'Fill workers'}
             </button>
@@ -880,9 +899,7 @@ export default function SelectedBuildingPanel({
                 ))}
               </div>
             </div>
-            {building.type !== BuildingType.Church
-            && building.type !== BuildingType.Prison
-            && building.type !== BuildingType.Barracks && (
+            {!isManualStaffing && (
             <button
               type="button"
               onClick={onAutoStaffAll}
@@ -893,7 +910,7 @@ export default function SelectedBuildingPanel({
             )}
             </>
           )}
-          {!canAssignWorker && building.occupants.length < config.maxOccupants && (
+          {!canAssignWorker && staffedWorkers < staffingCap && (
             <div className="col-span-2 space-y-0.5">
               <p className="text-[11px] text-stone-300">
                 No idle settlers — recruit or free up workers.

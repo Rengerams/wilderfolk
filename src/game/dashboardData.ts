@@ -27,7 +27,7 @@ import {
   isHomelessSettler,
   isResidenceBuildingType,
 } from './residencyOccupancy';
-import { findHumanWorkplace, isManualStaffingBuilding, isOnConstructionCrew } from './workforce';
+import { findHumanWorkplace, isManualStaffingBuilding, isOnConstructionCrew, staffingCapFor } from './workforce';
 import { getBuildingConfig } from './buildingConfig';
 import { formatCitizenName } from './citizenId';
 import type { HumanActivityTarget } from './humanStatus';
@@ -715,13 +715,16 @@ export function explainBuildingStaffing(
   const isResidence = building.completed && isResidenceBuildingType(building.type);
   const takesStaff = !building.completed || BUILDING_JOB_TYPES[building.type] !== undefined;
   const mode: 'auto' | 'manual' = isManualStaffingBuilding(building) ? 'manual' : 'auto';
-  const capacity = isResidence
-    ? getResidenceCapacity(building)
-    : getBuildingConfig(building.type).maxOccupants;
+  /**
+   * A finished workplace's cap and count come from the staffing owner: a Prison's occupant list is
+   * guards ∪ prisoners, so that list against the config cap counts cells as guard posts.
+   */
+  const staffing = !isResidence && building.completed ? staffingCapFor(building, state.entities) : null;
+  const capacity = staffing?.cap
+    ?? (isResidence ? getResidenceCapacity(building) : getBuildingConfig(building.type).maxOccupants);
   const workerIds = buildingWorkerIds(state, building);
-  const workerCount = isResidence
-    ? countResidentsInBuilding(state.entities, building.id)
-    : workerIds.length;
+  const workerCount = staffing?.staffed
+    ?? (isResidence ? countResidentsInBuilding(state.entities, building.id) : workerIds.length);
 
   const refusals: StaffingRefusal[] = [];
   for (const settlerId of settlerIds) {
