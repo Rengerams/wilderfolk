@@ -211,9 +211,11 @@ export const HOTEL_GUEST_CAPACITY = 4;
  * pay for it.
  */
 export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingType>([
-  // Residences: +2 occupants per level above 1 (`residencyOccupancy.getResidenceCapacity`).
+  // Residences: +2 occupants per level above 1 (`residencyOccupancy.getResidenceCapacity`), which
+  // includes the Leader's House (base 12) — its level is read even though it is unique.
   BuildingType.House,
   BuildingType.Mansion,
+  BuildingType.LeaderHouse,
   // Workshop output (`workshopEconomy`) and the Blacksmith's own workshop.
   BuildingType.Blacksmith,
   BuildingType.Workshop,

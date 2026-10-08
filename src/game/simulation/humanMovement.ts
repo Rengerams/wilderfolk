@@ -1,4 +1,4 @@
-import { PATH_CELL } from '../gameTypes';
+﻿import { PATH_CELL } from '../gameTypes';
 import { BuildingType } from '../buildings';
 import type { Building, Entity } from '../gameTypes';
 import { TICKS_PER_HOUR } from '../dayCycle';

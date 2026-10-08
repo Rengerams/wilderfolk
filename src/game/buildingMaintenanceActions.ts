@@ -125,9 +125,6 @@ export function getBuildingUpgradeEligibility(
   if (building.level >= MAX_BUILDING_LEVEL) {
     return { ok: false, blockReason: `Already level ${MAX_BUILDING_LEVEL}` };
   }
-  if (building.type === BuildingType.LeaderHouse) {
-    return { ok: false, blockReason: "The Leader's House is fully built" };
-  }
   // A type whose level nothing reads must not offer the upgrade at all (owner's ruling). Reported as
   // `structural` below, so it is silent and the button simply does not render — the same treatment
   // `Already level 3` gets, rather than an error the player has to read.
@@ -149,12 +146,11 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
 
   const eligibility = getBuildingUpgradeEligibility(originalState, buildingId);
   if (!eligibility.ok) {
-    // Unfinished, capped, or the Leader's House stay silent (no button in the UI);
-    // an affordable-looking upgrade the colony cannot pay for shows the price.
+    // Unfinished or capped stays silent (no button in the UI); an affordable-looking upgrade the
+    // colony cannot pay for shows the price.
     const structural =
       !building.completed
       || building.level >= MAX_BUILDING_LEVEL
-      || building.type === BuildingType.LeaderHouse
       || !buildingTypeHasLevelBenefit(building.type);
     if (!structural) {
       addFloatingText(

@@ -2,6 +2,15 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Refused a save whose container arrays cannot be read** — a malformed list among the world's arrays reached the interface and showed the player raw engine text instead of naming the field that was wrong.
+
+- **Bounded the clock fields a loaded save may claim** — a negative, fractional or astronomically large tick was accepted, and the header, seasons and daily gate all derive a date from it, so a crafted file could freeze the calendar or name a year before the settlement.
+- **Made a malformed venue window load as its documented default** — the tavern and hotel schedules were copied from the save unchecked, so unusable hours silently became the default and the bad value was written back by the next save.
+
+- **Stopped offering a settler a post they could not walk to** — assignment took the nearest idle settler whatever the distance, so a family housed across the valley could be handed a school they could never reach; a post over two hours' walk from home is now refused, and a road on the route helps.
+
+- **Made the commute estimate agree with the walk it describes** — the lead-schedule estimate omitted the travel multiplier the work commute actually uses, so every reported commute read 3.5× longer than the one walked, and settlers set off for work hours earlier than they needed to.
+
 - **Counted a settler's shift even when the camera was elsewhere** — the off-screen throttle skipped the attendance counter on 23 of every 24 ticks, so a workplace's output depended on where the player was looking; attendance is now recorded for the shift, not for the frame.
 
 - **Moved a docked caravan's wait onto the clock it is measured in** — the countdown ran inside the same per-settler throttle, so a caravan the player watched reached its partner up to 24 times sooner than one they did not.
@@ -18,13 +27,13 @@
 
 - **Showed the village why a workplace cannot be staffed** — switching a building to manual with no idle settler printed a bare "No idle settlers"; it now lists the settlers the staffing owner refuses and its own wording for each.
 
+- **Made the day rollover's entity rebuild linear** — the end-of-tick merge tested every new spawn against the whole living list, so the tick with the most arrivals did the most work; one membership set replaces the scan, keeping the same survivors in the same order.
+
 - **Stopped a loaded valley growing its forest back over the houses** — a compact save regenerates the ground from its seed, and the record of terrain the player cleared was never written, so every building's footprint returned to forest on load; the sparse overrides now round-trip.
 
 - **Cleared the relationships a loaded colony cannot resolve** — a spouse or courtship id naming nobody left a settler stuck as married to nobody, who could then never widow and was shut out of courtship permanently; a load now sweeps those ids, reusing the same owner the death path uses.
 
 - **Stopped a save choosing its own map size and calendar** — an untrusted tile dimension pair could ask for a 4000x3000 valley, and a forged ticks-per-day rescaled the whole timeline to the year 66666; both are now bounded to what this build actually writes.
-
-- **Stopped hostile weather freezing the disasters it started** — the feature's early return sat above the drain loop, so a save carrying a disaster kept it forever, permanently penalising the village's election score.
 
 - **Made a refused load leave the running colony alone** — the restore replaced the RNG seed part-way through, so a save that was then refused kept the failed load's randomness for the rest of the session; the session's seed and auto-save setting are now put back.
 

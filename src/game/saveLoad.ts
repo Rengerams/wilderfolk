@@ -588,11 +588,11 @@ function findUnrestorableField(parsed: Record<string, unknown>): string | null {
   if (parsed.lifetimeStats !== undefined && !isSaveObject(parsed.lifetimeStats)) {
     return 'lifetimeStats';
   }
-  // Present values must be finite; absent ones are defaulted by the load path.
-  for (const key of ['tick', 'width', 'height', 'nextEntityId', 'nextBuildingId'] as const) {
-    if (parsed[key] !== undefined && !isFiniteNumber(parsed[key])) return key;
+  // Present values must satisfy their own rule; absent ones are defaulted by the load path.
+  for (const { field, isValid } of worldScalarRules()) {
+    if (parsed[field] !== undefined && !isValid(parsed[field])) return field;
   }
-  return findUnrestorableEntityField(parsed);
+  return findUnrestorableEntityField(parsed) ?? findUnrestorableContainerField(parsed);
 }
 
 /** One `(field, rule)` pair — the shape every entity and building element is checked against. */
@@ -627,6 +627,132 @@ function isUsableId(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
+/** An id the engine keys on by string equality — every camp, event and route id is a string. */
+function isStringId(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+/** An array of anything — every container list must be one, and the element rules judge the rest. */
+function isAnyArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+/** An array of ids, for the nested lists an entity or building carries. */
+function isIdArray(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every(isUsableId);
+}
+
+/** One nested id array on an entity or building, checked only when the payload carries it. */
+interface ElementIdRule {
+  field: string;
+  isValid: (value: unknown) => boolean;
+}
+
+/** Any id an element carries: numeric for entities and buildings, string for camps and events. */
+function isEntityOrBuildingId(value: unknown): boolean {
+  return isUsableId(value) || isStringId(value);
+}
+
+/** The nested id arrays an element carries, checked on a present value only. */
+function elementIdRules(): readonly ElementIdRule[] {
+  return [
+    { field: 'occupants', isValid: isIdArray },
+    { field: 'childrenIds', isValid: isIdArray },
+  ];
+}
+
+/** The element contract for the world's object arrays — each is keyed by its own id. */
+const WORLD_ELEMENT_RULES: readonly ElementFieldRule[] = [
+  { field: 'id', isValid: isEntityOrBuildingId },
+];
+
+/**
+ * The container arrays a load must be able to walk, and what one element of each must be.
+ *
+ * A present-but-not-an-array value never reaches the restore's own `?? []`, so the first
+ * `.map`/`.filter`/`.some` threw a `TypeError` out of the catch-all and the player read raw engine
+ * text instead of a refusal. Every key is one `WorldState` array, so a renamed field stops compiling.
+ */
+type WorldArrayKeys = {
+  [K in keyof WorldState]-?: Extract<WorldState[K], readonly unknown[] | null | undefined> extends never
+    ? never
+    : K;
+}[keyof WorldState];
+
+interface ContainerArrayRule {
+  isValid: (value: unknown) => boolean;
+  /** `null` for the world's string and number lists; `[]` for object lists no id keys on. */
+  elementRules: readonly ElementFieldRule[] | null;
+}
+
+function containerArrayRule(
+  isValid: (value: unknown) => boolean,
+  elementRules: readonly ElementFieldRule[] | null,
+): ContainerArrayRule {
+  return { isValid, elementRules };
+}
+
+const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>> = {
+  // Metric and aggregate samples: plain objects, and nothing keys on an element of either list.
+  populationHistory: containerArrayRule(isAnyArray, []),
+  yearlyStats: containerArrayRule(isAnyArray, []),
+  challenges: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  researchNodes: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  unlockedTechs: containerArrayRule(isAnyArray, null),
+  tradeRoutes: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  eventLog: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  chronicleChapters: containerArrayRule(isAnyArray, null),
+  visitorGroups: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  villageRequestHistory: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  rivalSettlements: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  pendingDiplomacyEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  pendingRaidEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  pendingStoryEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  pendingOutgoingRaidEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  tutorialSeen: containerArrayRule(isAnyArray, null),
+  eventsThisYear: containerArrayRule(isAnyArray, null),
+  appliedSaveMigrations: containerArrayRule(isAnyArray, null),
+  dismissedBigNewsIds: containerArrayRule(isAnyArray, null),
+};
+
+/**
+ * The first unusable container array, named as `tradeRoutes` or `visitorGroups[2]`.
+ *
+ * Only a field the payload actually holds is judged: an absent one is the restore's own `?? []`.
+ */
+function findUnrestorableContainerField(parsed: Record<string, unknown>): string | null {
+  for (const [key, rule] of Object.entries(ARRAY_CONTAINER_RULES)) {
+    if (!(key in parsed)) continue;
+    const list: unknown = parsed[key];
+    if (!rule.isValid(list)) return key;
+    if (!rule.elementRules) continue;
+    const elements = list as unknown[];
+    for (let i = 0; i < elements.length; i++) {
+      const element: unknown = elements[i];
+      if (!isSaveObject(element)) return `${key}[${i}]`;
+      const record = element as Record<string, unknown>;
+      for (const { field, isValid } of rule.elementRules) {
+        if (!isValid(record[field])) return `${key}[${i}].${field}`;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * The last tick whose day boundary stays exact: the calendar helpers add up to one `TICKS_PER_DAY`
+ * to a live tick, so beyond `MAX_SAFE_INTEGER - TICKS_PER_DAY` that addition stops being exact.
+ */
+const MAX_USABLE_TICK = Number.MAX_SAFE_INTEGER - TICKS_PER_DAY;
+
+/** The last day index `getAbsoluteCalendarDay` can name, so the daily gate stays satisfiable. */
+const MAX_USABLE_CALENDAR_DAY = Math.floor(MAX_USABLE_TICK / TICKS_PER_DAY);
+
+/** A non-negative safe integer within `limit` — the whole-number form of `isFiniteWithin`. */
+function isSafeIntegerWithin(limit: number): (value: unknown) => boolean {
+  return (value) => isUsableId(value) && value <= limit;
+}
+
 /**
  * The per-element keys a malformed payload actually mistypes, and what "usable" means for each.
  *
@@ -642,6 +768,7 @@ function entityFieldRules(width: number, height: number): readonly ElementFieldR
     { field: 'y', isValid: isFiniteWithin(height) },
     { field: 'age', isValid: isFiniteNumber },
     { field: 'job', isValid: isMemberOf(JOB_TYPE_VALUES) },
+    ...elementIdRules(),
   ];
 }
 
@@ -651,6 +778,25 @@ function buildingFieldRules(width: number, height: number): readonly ElementFiel
     { field: 'type', isValid: isMemberOf(BUILDING_TYPE_VALUES) },
     { field: 'x', isValid: isFiniteWithin(width) },
     { field: 'y', isValid: isFiniteWithin(height) },
+    ...elementIdRules(),
+  ];
+}
+
+/**
+ * The world's top-level scalars, each with the rule a *present* value must satisfy.
+ *
+ * `tick` is the clock every date is derived from, and `lastProcessedCalendarDay` is the gate that
+ * lets the daily layer run at all (`isNewCalendarDayTick` is `day > lastProcessed`, so a `NaN` day
+ * there starves the colony of days, seasons, ageing and births just as a `NaN` tick does).
+ */
+function worldScalarRules(): readonly ElementFieldRule[] {
+  return [
+    { field: 'tick', isValid: isSafeIntegerWithin(MAX_USABLE_TICK) },
+    { field: 'lastProcessedCalendarDay', isValid: isSafeIntegerWithin(MAX_USABLE_CALENDAR_DAY) },
+    { field: 'width', isValid: isFiniteNumber },
+    { field: 'height', isValid: isFiniteNumber },
+    { field: 'nextEntityId', isValid: isFiniteNumber },
+    { field: 'nextBuildingId', isValid: isFiniteNumber },
   ];
 }
 
@@ -667,8 +813,9 @@ function buildingFieldRules(width: number, height: number): readonly ElementFiel
  * Every rule tolerates **absence** except `type`: it is the one key whose absence is not a shape this
  * build can use (`EntityType` drives every bucket, `BuildingType` every production rule), it was
  * mandatory in every save this build can write, and the exact-version gate (`:128-137`) means no
- * payload from a build that omitted it is accepted anyway. Returns `null` when either list is absent
- * or not an array — that is the restore's own `?? []`, not this function's business to refuse.
+ * payload from a build that omitted it is accepted anyway. The list itself is checked here too, so
+ * this scan is the one owner of `entities` and `buildings`: a present value that is not an array is
+ * refused as `entities`, and only its elements are named `entities[3].x`.
  */
 function findUnrestorableEntityField(parsed: Record<string, unknown>): string | null {
   const width = isFiniteNumber(parsed.width) ? parsed.width : 0;
@@ -683,8 +830,10 @@ function findUnrestorableEntityField(parsed: Record<string, unknown>): string | 
   ];
 
   for (const { key, rules } of scans) {
+    // An absent list is the restore's own `?? []`; a mistyped one is refused by name.
+    if (!(key in parsed)) continue;
     const list = parsed[key];
-    if (!Array.isArray(list)) continue;
+    if (!isAnyArray(list)) return key;
     /** Ids already used in this list. Two entities sharing one id make `entityById` silently drop
      *  whichever was inserted first, so that settler can never be selected, inspected or targeted —
      *  and the next save writes the collision back. */

@@ -10,8 +10,7 @@
  * existing road's line rather than a tile out.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { initGame } from '../src/game/worldGen';
-import { createBuilding } from '../src/game/buildingPlacementActions';
+import { initGame, createBuilding } from '../src/game/worldGen';
 import {
   getStripSegmentEndpoints,
   STRIP_SNAP_RADIUS,

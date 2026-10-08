@@ -148,3 +148,44 @@ describe('a save whose element shape is unusable is refused by name', () => {
     expect(outcome.ok, 'optional keys must remain optional').toBe(true);
   });
 });
+
+describe('a save whose container array is unusable is refused by name', () => {
+  it('refuses a container that is not an array, naming the container', () => {
+    // The restore's `?? []` does not fire for a value that is merely not an array, so the first
+    // `.map`/`.filter`/`.some` over it threw a `TypeError` out of the catch-all and its raw text
+    // became the player's explanation.
+    const payload = realPayload();
+    payload.tradeRoutes = 'traders';
+
+    const outcome = loadGameFromParsedOutcome(payload);
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.reason).toBe('unrestorable');
+    expect(outcome.detail).toContain('tradeRoutes');
+    expect(outcome.detail, 'the raw engine text must not reach the player').not.toContain('is not a function');
+    expect(describeSaveLoadOutcome(outcome)).toContain('tradeRoutes');
+  });
+
+  it('refuses a null element, naming its position in the list', () => {
+    const payload = realPayload();
+    const challenges = payload.challenges as Record<string, unknown>[];
+    // A later element, so the refusal names its position rather than the first element.
+    challenges[3] = null as unknown as Record<string, unknown>;
+
+    const outcome = loadGameFromParsedOutcome(payload);
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.detail).toContain('challenges[3]');
+    expect(outcome.detail, 'the element rule ran instead of the container rule').not.toContain('challenges is');
+  });
+
+  it('refuses a nested id array that is not an array, naming the path to it', () => {
+    const payload = realPayload();
+    elements(payload, 'buildings')[0].occupants = 'nobody';
+
+    const outcome = loadGameFromParsedOutcome(payload);
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.detail).toContain('buildings[0].occupants');
+  });
+});

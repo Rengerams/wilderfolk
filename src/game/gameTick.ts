@@ -240,8 +240,8 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // Daily systems may append authoritative entities through ctx.newEntities
   // after the pre-daily population snapshot was built. Retain those entities
   // and refresh denormalized counts before the invariant boundary.
-  // `allAlive` is append-only after it is built, so one membership Set replaces
-  // the per-entity scan with the same survivor order and the same drops.
+  // Built once and kept in step with every push, so membership matches the
+  // per-entity scan while the tick's daily deltas are already in `allAlive`.
   const retained = new Set(allAlive);
   for (const entity of newEntities) {
     if (entity.alive && !retained.has(entity)) {

@@ -402,11 +402,11 @@ export default function SelectedBuildingPanel({
   const upgradeEligibility = getBuildingUpgradeEligibility(state, building.id);
   /**
    * Whether the upgrade owner would allow another level at all, as opposed to merely refusing the
-   * price: the same gate asked with resources the colony always has, so only the structural
-   * refusals (`MAX_BUILDING_LEVEL`, the Leader's House) are left. `MAX_BUILDING_LEVEL` is
-   * module-private to `buildingMaintenanceActions`, so the ceiling is asked of the owner instead of
-   * being retyped here as a local level comparison — which made a raised ceiling unreachable from the
-   * UI and a lowered one offer a button whose command is refused (U-3).
+   * price: the same gate asked with resources the colony always has, so only the structural refusal
+   * (`MAX_BUILDING_LEVEL`) is left. `MAX_BUILDING_LEVEL` is module-private to
+   * `buildingMaintenanceActions`, so the ceiling is asked of the owner instead of being retyped here
+   * as a local level comparison — which made a raised ceiling unreachable from the UI and a lowered
+   * one offer a button whose command is refused (U-3).
    */
   const upgradePossible = getBuildingUpgradeEligibility(
     { ...state, resources: { ...state.resources, wood: Infinity, stone: Infinity, gold: Infinity } },

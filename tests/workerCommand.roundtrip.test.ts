@@ -23,6 +23,7 @@ import {
 } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { applyWorkerCommand, WORKER_CMD_PROTO, type WorkerCommand } from '../src/game/simWorker/commands';
+import { getResidenceCapacity } from '../src/game/residencyOccupancy';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
@@ -227,6 +228,18 @@ describe('worker command round trips (shared worker + fallback implementation)',
     expect(next.resources.wood).toBe(450);
     expect(next.resources.stone).toBe(475);
     expect(next.resources.gold).toBe(450);
+  });
+
+  it("upgradeBuilding raises the Leader's House, whose level adds beds", () => {
+    const leaderHouse = building(2, BuildingType.LeaderHouse);
+    const world = makeWorld([], [leaderHouse]);
+    expect(getResidenceCapacity(leaderHouse)).toBe(12);
+
+    const next = applyWorkerCommand(world, cmd({ op: 'upgradeBuilding', buildingId: 2 }));
+
+    const upgraded = next.buildings.find((b) => b.id === 2)!;
+    expect(upgraded.level).toBe(2);
+    expect(getResidenceCapacity(upgraded)).toBe(14);
   });
 
   it('setMineMode switches the mine ore', () => {

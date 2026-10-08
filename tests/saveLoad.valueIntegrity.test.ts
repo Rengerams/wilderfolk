@@ -3,7 +3,8 @@
  *
  * `saveLoad.elementShape.test.ts` guards element *shape*; this covers the consequences of trusting
  * values that are the right type but the wrong content: an id allocator that is missing or rewound,
- * duplicate ids, and a festival whose `daysLeft` is not a number. It also pins the contract the load
+ * duplicate ids, a festival whose `daysLeft` is not a number, and the clock fields a date is derived
+ * from. It also pins the contract the load
  * path declares — "the session, or the reason" — for the RNG and the auto-save preference, which the
  * restore adopts part-way through and used to leave adopted after a refusal.
  *
@@ -13,7 +14,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { createInitialView } from '../src/game/viewState';
-import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
+import { buildSaveData, loadGameFromParsedOutcome, describeSaveLoadOutcome } from '../src/game/saveLoad';
 import { getSimSeed, resetSimRng, setSimSeed } from '../src/game/simRng';
 import type { WorldState } from '../src/game/gameTypes';
 
@@ -159,5 +160,59 @@ describe('a festival must be one the daily tick can actually end', () => {
       name: 'Harvest Festival',
       daysLeft: 3,
     });
+  });
+});
+
+describe('the clock fields must be whole numbers the calendar can derive a date from', () => {
+  /** The refusal detail a player is shown, so the failing field is actionable rather than a blank reason. */
+  function refusalDetail(payload: Record<string, unknown>): string {
+    const outcome = loadGameFromParsedOutcome(payload);
+    if (outcome.ok) throw new Error('payload was expected to be refused');
+    return describeSaveLoadOutcome(outcome);
+  }
+
+  it('refuses a negative tick, which the header would read as a year before the settlement', () => {
+    const payload = realPayload();
+    payload.tick = -1;
+
+    expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
+    expect(refusalDetail(payload)).toContain('tick');
+  });
+
+  it('refuses a fractional tick, which no tick layer ever advances to a day boundary', () => {
+    const payload = realPayload();
+    payload.tick = 10.5;
+
+    expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
+    expect(refusalDetail(payload)).toContain('tick');
+  });
+
+  it('refuses a tick past the last one whose day boundary is exact', () => {
+    const payload = realPayload();
+    // One day is added to a live tick by the calendar helpers, so the largest safe integer is past
+    // the last usable tick and would round the day boundary the displayed date is derived from.
+    payload.tick = Number.MAX_SAFE_INTEGER;
+
+    expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
+    expect(refusalDetail(payload)).toContain('tick');
+  });
+
+  it('refuses a processed calendar day the daily gate could never pass again', () => {
+    const payload = realPayload();
+    // `isNewCalendarDayTick` runs the daily layer on `day > lastProcessedCalendarDay`, so a day
+    // ahead of every real one stops days, seasons, ageing and births for good.
+    payload.lastProcessedCalendarDay = 1e21;
+
+    expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
+    expect(refusalDetail(payload)).toContain('lastProcessedCalendarDay');
+  });
+
+  it('still loads the uncorrupted payload, keeping its tick', () => {
+    const payload = realPayload();
+
+    const world = buildWorld(payload)!;
+
+    expect(world.tick).toBe(payload.tick);
+    expect(Number.isSafeInteger(world.tick)).toBe(true);
   });
 });

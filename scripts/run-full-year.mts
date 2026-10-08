@@ -36,6 +36,8 @@ import { gameTick } from '../src/game/gameEngine';
 import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { EntityType, MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
+import { BUILDING_CONFIGS } from '../src/game/buildings';
+import { getResidenceCapacity, isResidenceBuilding } from '../src/game/residencyOccupancy';
 import {
   getRelationshipDiagnosticsHistory,
   resetRelationshipDiagnostics,
@@ -354,7 +356,34 @@ function run(): void {
   //     occupant-list mismatches) — capacity pressure is reported separately as `housingPressure`.
   //   - animals: every wildlife count stays a finite non-negative number and the valley is not empty,
   //     and the animal-care owner reports one of its three states.
-  assert(finalHealth.housing.healthy, 'housing diagnostics reported an inconsistent colony');
+  // Name the illegal instance, not just the verdict: a count cannot say which home holds too many,
+  // and every hypothesis about why has to be checked against the real assignment.
+  const overCapacity = world.buildings
+    .filter((b) => isResidenceBuilding(b) && b.faction !== 'rival')
+    .map((b) => ({ b, cap: getResidenceCapacity(b), held: b.occupants.length }))
+    .filter((entry) => entry.held > entry.cap);
+  const housingFailure = overCapacity.length > 0
+    ? overCapacity.map((entry) => {
+        const type = BUILDING_CONFIGS[entry.b.type].label;
+        return `${type} #${entry.b.id} (level ${entry.b.level || 1}) holds ${entry.held} of ${entry.cap}: `
+          + entry.b.occupants
+            .map((id) => {
+              const e = world.entities.find((candidate) => candidate.id === id);
+              return e ? `#${id}${e.isJuvenile ? '(child)' : ''}` : `#${id}(missing)`;
+            })
+            .join(' ');
+      }).join('; ')
+    : finalHealth.housing.orphanedResidenceReferences > 0
+      ? `orphaned residence references: ${finalHealth.housing.orphanedResidenceReferences}`
+      : finalHealth.housing.occupantListMismatches > 0
+        ? `occupant-list mismatches: ${finalHealth.housing.occupantListMismatches}`
+        : 'unknown';
+  assert(
+    finalHealth.housing.healthy,
+    `housing diagnostics reported an inconsistent colony (${housingFailure}; `
+      + `${finalHealth.housing.residences} residences, ${finalHealth.housing.totalBeds} beds, `
+      + `${finalHealth.housing.occupiedBeds} occupied, ${finalHealth.housing.homelessPlayerHumans} homeless)`,
+  );
   assert(finalHealth.animals.wildlifeTotal > 0, 'the valley lost all wildlife');
   for (const [species, count] of Object.entries(finalHealth.animals.wildlife)) {
     assertFiniteNonNegative(count, `wildlife ${species}`);
