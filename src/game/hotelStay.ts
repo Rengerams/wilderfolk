@@ -12,6 +12,7 @@ import {
 } from './gameTypes';
 import {
   PER_TICK_RATE_SCALE,
+  getColonyDay,
   getHourOfDay,
   isNightHour,
   isStartOfClockHour,
@@ -41,6 +42,9 @@ export const HOTEL_LODGING_RADIUS_PX = 40;
 
 /** Energy, per in-game hour of rest, restored by a night in a hotel bed. */
 export const HOTEL_REST_ENERGY_PER_HOUR = 0.8;
+
+/** Colony day whose lodging summary has already been announced, so one night reports once. */
+const HOTEL_LODGING_NOTICE_DAY_FLAG = 'hotel_lodging_notice_day';
 
 /** Species walk speed the nightly lodging reach is measured with. */
 const HUMAN_WALK_SPEED = SPECIES_CONFIG[EntityType.Human].speed;
@@ -451,9 +455,14 @@ export function tickHotelLodging(state: WorldState): void {
     }
   }
 
-  // Notify only when at least one hotel's worth of guests checked in — otherwise
-  // a nightly "Hotel full of guests" toast would fire for a single guest.
-  if (nightCheckIns >= HOTEL_GUEST_CAPACITY) {
+  // A whole hotel's worth of guests is the threshold; the day stamp makes it one summary per night,
+  // because this check runs every tick rather than once at dusk.
+  const colonyDay = getColonyDay(state);
+  if (
+    nightCheckIns >= HOTEL_GUEST_CAPACITY
+    && (state.storyFlags?.[HOTEL_LODGING_NOTICE_DAY_FLAG] ?? -1) !== colonyDay
+  ) {
+    state.storyFlags = { ...state.storyFlags, [HOTEL_LODGING_NOTICE_DAY_FLAG]: colonyDay };
     const firstHotel = hotels[0];
     addNotification(
       state,

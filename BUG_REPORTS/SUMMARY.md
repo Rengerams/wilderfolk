@@ -1664,4 +1664,28 @@ Most multi-node cycles **broken** via `playerHuman`, `entityFactory`, `rivalPeac
 | Gate composition | 🟡 | The default gate ran neither a typecheck nor the cycle scan — how a committed type error and a runtime cycle both went unnoticed | `standard` = check, cyclesStrict, dup, types, lint, unit; `full` adds the year-long integration test |
 | Tooling/infra | 🟡 | Nine exported functions from a remediation batch were never registered; two comments cited a module that exists in no git ref; the mini-map regression had no test | Ownership rows added; comments repointed; `tests/minimap.viewportSizing.test.ts` |
 
+### Batch ET update — measured closures (2026-10-08)
+
+Closed since the list above was written, each by measurement rather than assumption:
+
+- **`F-SIM-10` was already fixed** by an earlier commit: the `Set` form had replaced `Array.includes`. Measured, the `Set` wins 3.2-4.6× only on a mass-spawn day tick and costs ~0.22 ms at the typical N=4 (crossover ~N=150-200), so no hybrid was added.
+- **`F-SIM-18` is refuted, not fixed**: the "two heavy per-tick scans" are `releasePrisoners` at **0.155 ms (0.62 % of the tick)** and `reconcileOrphanedMarriages` at **0.229 ms (0.92 %)**, both linear and shrinking in share as the colony grows (whole tick 24.96 ms at 300 settlers, 144.0 ms at 1200). Neither was made event-driven, because no guard is provably identical. **The real cost is `tickHumans` at ~60 % of a normal tick** — a new finding (`ET-5`) that deserves its own pass.
+- **`ET-2` fixed**: `electionBuildupNotifiedYear` now has the same null-tolerant load rule as its siblings; `tests/saveBoundary.electionBuildupYear.test.ts` is red-before / green-after (an `Infinity` payload was accepted, now refused by name).
+- **`ET-1`'s duplicate half is fixed**: the affair line that appeared three times in one day now appears once — 6/6 in the new guard file, with the two affair guards disabled producing the expected red.
+- **Module-load crash repaired**: `renderSoAEntities.ts` had a temporal-dead-zone error (`buckets` initialised by a call that spreads `slotLists`, declared after it) which broke every import of the renderer chain. `slotLists` now precedes the call; an import check passes.
+
+**Owner ruling on the day boundary (`ET-5` / the residency freeze):** daily work is not to pile up at `tick % 72 === 0` — it is to be spread across the day's ticks, with the per-day outcome identical and determinism preserved. The residency pass (52-63 s in one tick at 982 settlers, 68-310 ms normally) is being restructured that way, measured by worst single tick rather than average.
+
+### Batch ET update — dead code and tooling (2026-10-08)
+
+`knip` was run and its findings belong in this register too. Recorded, not yet fixed (the pass that would clear them died mid-task):
+
+| Item | Sev | Finding | Needs |
+|---|---|---|---|
+| ET-6 | 🟡 | **`src/components/FamiliesTreePanel.tsx` is imported by nothing** — the family tree that ships is `FamilyTreeWindow.tsx`. An agent improving the tree was working in the dead file before this was caught | Delete the dead file or wire it; one owner decides |
+| ET-7 | 🟡 | `src/game/roadmapContent.ts` is imported by nothing | Verify repo-wide, then delete |
+| ET-8 | 🟡 | Six dead exports: `relativeDischarge` (hydrology), `biomeAt` / `isTileWalkable` / `terrainReader` / `tileGridSnapshot` (terrainGrid), `blockedRow` (test fixture) | Delete the genuinely unread ones; keep and ignore the test-only ones with a reason |
+| ET-9 | 🟡 | `scripts/archive/**` holds stale one-off scripts whose imports point at modules that no longer exist (24 unresolved imports) | Delete the directory (owner's call) or exclude it with a stated reason |
+| ET-10 | 🟡 | `knip` reports `jscpd`, `oxlint`, `oxlint-tsgolint` as unused devDependencies and `tauri` as an unlisted binary | False positives for the three CLIs (`scripts/test.mjs` invokes them by name) — declare them where knip expects rather than removing them |
+
 **End of register section.**

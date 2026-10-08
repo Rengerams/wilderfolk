@@ -358,4 +358,24 @@ export const VirtualPlayer = {
    * not this change's business.
    */
   ECOLOGY_HEALTHY_THRESHOLD: 60,
+  /**
+   * 2 = spare assignable beds the bot keeps in hand while the village is still small — the same
+   * bar `RECRUIT_MIN_OPEN_BEDS` and `REFUGEE_MIN_OPEN_BEDS` already use for "there is room".
+   */
+  SPARE_BED_FLOOR: 2,
+  /**
+   * 0.25 = spare assignable beds kept at a quarter of the adult population, so a growing village
+   * raises the next House before the first settler is homeless rather than after.
+   */
+  SPARE_BED_RATIO: 0.25,
+  /**
+   * 9 = settlers one full-crew Farm feeds. The economy owner's own arithmetic: a 3-crew Farm
+   * yields `12 + 3 × 5 = 27` food a day against `Human.DAILY_FOOD_CONSUMPTION` of 3 per settler.
+   */
+  SETTLERS_PER_FOOD_PRODUCER: 9,
+  /**
+   * 12 = settlers one wood, stone or iron producer serves. Bot policy, not a yield: building spend
+   * scales with the village, so one producer per dozen adults keeps the shelves level with growth.
+   */
+  SETTLERS_PER_INDUSTRY_PRODUCER: 12,
 } as const;

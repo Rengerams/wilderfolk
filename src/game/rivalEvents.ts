@@ -229,6 +229,10 @@ export function tickRivalSettlements(
       }
     }
 
+    // Raids roll every day: `raidCooldownDays` and the chance roll are the cadence, so this must not
+    // sit under the action-timer gate below (which is reached once per 45–90 days).
+    if (!isRivalAtPeace(rival)) maybeQueueRaid(state, rival, allAlive);
+
     maybeExpandRivalCamp(state, rival, buildings, callbacks);
     rival.daysUntilAction--;
     if (rival.daysUntilAction > 0) continue;
@@ -243,7 +247,6 @@ export function tickRivalSettlements(
       callbacks.logEvent(state, 'event', `${rival.name} ${outcome.summary}`, rival.name);
     }
 
-    if (!isRivalAtPeace(rival)) maybeQueueRaid(state, rival, allAlive);
     if (getSimRng('rivalEvents')() < 0.35) callbacks.queueDiplomacyEvent(state, rival);
 
     if (rival.relationship === 'friendly' && getSimRng('rivalEvents')() < 0.6) {

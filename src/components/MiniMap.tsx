@@ -7,6 +7,8 @@ import { terrainPaletteHex } from '../game/terrainAtlas';
 import { tileTypeAt } from '../game/terrain/terrainGrid';
 import { isActiveMoonHowler } from '../game/moonHowler';
 import { isPlayerHuman } from '../game/playerHuman';
+import { fitCanvasToDpr } from '../game/canvasLayer';
+import { registerMiniMapFrameDraw, shouldRepaintMiniMap } from '../game/renderer/miniMapFrame';
 
 const W = 152;
 const H = 110;
@@ -61,16 +63,18 @@ export default function MiniMap({
   const frameCounter = useRef(0);
 
   useEffect(() => {
-    let animId = 0;
     const draw = () => {
       frameCounter.current++;
-      if (frameCounter.current % 5 === 0) {
+      if (shouldRepaintMiniMap(frameCounter.current)) {
         const world = worldRef.current;
         const camera = viewRef.current?.camera;
         const canvas = canvasRef.current;
         if (world && camera && canvas) {
           const ctx = canvas.getContext('2d');
           if (ctx) {
+            // Fitted at paint time, so a monitor move re-sizes this surface instead of blurring it.
+            const dpr = fitCanvasToDpr(canvas, W, H);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             ctx.imageSmoothingEnabled = false;
             // Base field
             ctx.fillStyle = '#3d5c34';
@@ -182,11 +186,10 @@ export default function MiniMap({
           }
         }
       }
-      animId = requestAnimationFrame(draw);
     };
-    animId = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(animId);
-  }, [worldRef, viewRef]);
+    registerMiniMapFrameDraw(draw);
+    return () => registerMiniMapFrameDraw(null);
+  }, [worldRef, viewRef, mapCanvasRef]);
 
   /**
    * The keyboard equivalent of "click to go": jump the camera to the village. Leader first (the
@@ -223,6 +226,7 @@ export default function MiniMap({
         ref={canvasRef}
         width={W}
         height={H}
+        style={{ width: W, height: H }}
         className="block cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-300 focus-visible:outline-none"
         role="button"
         tabIndex={0}

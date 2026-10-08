@@ -1,4 +1,4 @@
-import type { Building, Entity } from './gameTypes';
+import type { Building, Entity, HuntingSpotPrey } from './gameTypes';
 import { BuildingType, EntityType } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { isPlayerHuman } from './playerHuman';
@@ -71,6 +71,19 @@ export function huntingKillReach(hunter: Entity, prey: Entity): number {
 }
 
 /**
+ * The animal types a spot set to `preyTarget` will take. One list, so a placement rule that asks
+ * "could a spot here hunt anything?" reads the same answer `pickHuntingSpotPrey` hunts by.
+ */
+export function huntingSpotPreyTypes(preyTarget: HuntingSpotPrey | undefined): EntityType[] {
+  const target = preyTarget ?? 'auto';
+  const types: EntityType[] = [];
+  if (target === 'auto' || target === 'deer') types.push(EntityType.Deer);
+  if (target === 'auto' || target === 'rabbit') types.push(EntityType.Rabbit);
+  if (target === 'auto' || target === 'wolf') types.push(EntityType.Wolf);
+  return types;
+}
+
+/**
  * The animal this spot is after right now, or null when there is nothing inside its eyes.
  *
  * The building's own prey setting (`huntingSpotPrey`) decides the candidate types; a tamed animal is
@@ -82,12 +95,7 @@ export function pickHuntingSpotPrey(
   hunter: Entity,
   byType: Record<EntityType, Entity[]>,
 ): Entity | null {
-  const preyTarget = building.huntingSpotPrey ?? 'auto';
-
-  const targetTypes: EntityType[] = [];
-  if (preyTarget === 'auto' || preyTarget === 'deer') targetTypes.push(EntityType.Deer);
-  if (preyTarget === 'auto' || preyTarget === 'rabbit') targetTypes.push(EntityType.Rabbit);
-  if (preyTarget === 'auto' || preyTarget === 'wolf') targetTypes.push(EntityType.Wolf);
+  const targetTypes = huntingSpotPreyTypes(building.huntingSpotPrey);
 
   let targetPrey: Entity | null = null;
   let bestScore = Infinity;

@@ -10,6 +10,8 @@
  *   - L15 barracks occupancy repair is owned by the assignment/death transitions
  *   - L51 a prison escape re-syncs `prison.occupants` in the same step
  */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type {
@@ -22,14 +24,19 @@ import type {
   WorldState,
 } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
+import { gameTick } from '../src/game/gameEngine';
+import { indexLivingEntity } from '../src/game/entityIndex';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import {
+  FIRST_RIVAL_MIN_DAY,
+  FIRST_RIVAL_MIN_HUMANS,
   getDiplomacyChoiceEligibility,
   respondToDiplomacyEvent,
   rollYearlyWorldEvent,
   spawnVisitorGroup,
   tradeWithVisitors,
   tryFirstWeekVisitor,
+  tryFrontierSettlement,
 } from '../src/game/groupEvents';
 import { getBarracksGuardCount } from '../src/game/defenseStructures';
 import { tickPrisonGuardDuty, tickPrisonPresence } from '../src/game/prisonGuardDuty';
@@ -532,5 +539,112 @@ describe('prison coverage is presence, not the roster', () => {
       world.eventLog.some((e) => e.type === 'prison' && e.message.includes('released from prison')),
       'the release did not file under the prison filter',
     ).toBe(true);
+  });
+});
+
+/**
+ * The frontier opens on a milestone, not on the weighted `rival_settlement` draw — a camp is the
+ * only source of raids and diplomacy, so a run without one has no raid system at all.
+ */
+describe('the first rival camp is a milestone, not a lottery ticket', () => {
+  /** The colony the pioneer camp waits for: `FIRST_RIVAL_MIN_HUMANS` living settlers and a house. */
+  function colonyFixture(humans: number, withHouse: boolean): { state: WorldState; allAlive: Entity[] } {
+    const state = initGame();
+    const template = state.entities.find((e) => e.alive && e.type === EntityType.Human);
+    if (!template) throw new Error('the fixture world has no settler to clone');
+    let id = 900_000;
+    while (state.entities.filter((e) => e.alive && e.type === EntityType.Human).length < humans) {
+      const clone = { ...template, id: id++ } as Entity;
+      state.entities.push(clone);
+      // The grids are asserted inside `gameTick`, so a fixture settler must be indexed like a real one.
+      indexLivingEntity(state, clone);
+    }
+    if (withHouse) {
+      state.buildings.push({
+        id: 800_000,
+        type: BuildingType.House,
+        x: 400,
+        y: 400,
+        width: 3,
+        height: 3,
+        completed: true,
+        occupants: [],
+        faction: undefined,
+      } as unknown as Building);
+    }
+    return { state, allAlive: [...state.entities] };
+  }
+
+  const atDay = (state: WorldState, day: number): void => {
+    state.tick = day * TICKS_PER_DAY;
+  };
+
+  it('waits for a real colony: settlers, a house of your own, and the grace period', () => {
+    const early = colonyFixture(FIRST_RIVAL_MIN_HUMANS + 4, true);
+    atDay(early.state, FIRST_RIVAL_MIN_DAY - 1);
+    expect(tryFrontierSettlement(early.state, early.allAlive, early.state.buildings)).toBeNull();
+
+    const small = colonyFixture(FIRST_RIVAL_MIN_HUMANS - 1, true);
+    atDay(small.state, FIRST_RIVAL_MIN_DAY);
+    expect(tryFrontierSettlement(small.state, small.allAlive, small.state.buildings)).toBeNull();
+
+    const homeless = colonyFixture(FIRST_RIVAL_MIN_HUMANS + 4, false);
+    atDay(homeless.state, FIRST_RIVAL_MIN_DAY);
+    expect(tryFrontierSettlement(homeless.state, homeless.allAlive, homeless.state.buildings)).toBeNull();
+
+    expect(early.state.rivalSettlements).toEqual([]);
+  });
+
+  it('founds one camp at `competitive` once the colony qualifies, whatever the seed', () => {
+    for (const seed of [1, 7, 42]) {
+      resetSimRng();
+      setSimSeed(seed);
+      const { state, allAlive } = colonyFixture(FIRST_RIVAL_MIN_HUMANS + 4, true);
+      atDay(state, FIRST_RIVAL_MIN_DAY);
+
+      const event = tryFrontierSettlement(state, allAlive, state.buildings);
+
+      expect(event, `seed ${seed} never met a neighbour`).not.toBeNull();
+      expect(state.rivalSettlements).toHaveLength(1);
+      const camp = state.rivalSettlements[0];
+      // `competitive`/`tense` are the only states `maybeQueueRaid` will ever raid from.
+      expect(camp.relationship).toBe('competitive');
+      expect(camp.population).toBeGreaterThan(0);
+      expect(camp.entityIds.length).toBeGreaterThan(0);
+      // One milestone, not one per day.
+      expect(tryFrontierSettlement(state, allAlive, state.buildings)).toBeNull();
+      expect(state.rivalSettlements).toHaveLength(1);
+    }
+  });
+
+  it('the daily tick actually founds it, so a played run meets a neighbour within the fortnight', () => {
+    resetSimRng();
+    setSimSeed(5);
+    const { state } = colonyFixture(FIRST_RIVAL_MIN_HUMANS + 4, true);
+    state.paused = false;
+
+    const days = FIRST_RIVAL_MIN_DAY + 2;
+    for (let i = 0; i < days * TICKS_PER_DAY; i++) gameTick(state);
+
+    expect(state.tick).toBeGreaterThanOrEqual(FIRST_RIVAL_MIN_DAY * TICKS_PER_DAY);
+    expect(state.rivalSettlements.length, 'the frontier never opened in a played run').toBe(1);
+  });
+});
+
+/**
+ * World events must roll every year: the block's own label, and the frontier draw rides on it. A
+ * cadence has no return value to assert, so the guard is on the source.
+ */
+describe('world events roll yearly', () => {
+  const BIENNIAL_ROLL = /state\.year % 2 === 0/;
+
+  it('no longer skips every other year', () => {
+    const source = readFileSync(
+      fileURLToPath(new URL('../src/game/dailyWorldEvents.ts', import.meta.url)),
+      'utf8',
+    );
+
+    expect(BIENNIAL_ROLL.test('if (state.year > 0 && state.year % 2 === 0 && state.year !== state.lastEventYear) {')).toBe(true);
+    expect(BIENNIAL_ROLL.test(source)).toBe(false);
   });
 });

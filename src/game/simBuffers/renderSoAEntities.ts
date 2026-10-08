@@ -23,6 +23,19 @@ export interface RenderSoABuckets {
 
 let cachedTick = UNCACHED_RENDER_TICK;
 let cachedMetaBySlot: EntityRenderMeta[] | undefined;
+/**
+ * The containers a rebuild refills in place. Only the entity shims are new objects each tick; the
+ * lists and both slot indexes are the same instances, so a rebuild allocates none of them.
+ */
+const slotLists = {
+  grassSlots: [] as number[],
+  treeSlots: [] as number[],
+  animalSlots: [] as number[],
+  humanSlots: [] as number[],
+  shims: [] as Entity[],
+  shimBySlot: new Map<number, Entity>(),
+  shimById: new Map<number, Entity>(),
+};
 let buckets: RenderSoABuckets = emptyBuckets();
 let grassRenderGrid: EntitySpatialGrid | undefined;
 let grassGridTick = UNCACHED_RENDER_TICK;
@@ -32,19 +45,20 @@ let grassGridMapH = 0;
 function emptyBuckets(): RenderSoABuckets {
   return {
     tick: UNCACHED_RENDER_TICK,
-    grassSlots: [],
-    treeSlots: [],
-    animalSlots: [],
-    humanSlots: [],
-    shims: [],
-    shimBySlot: new Map(),
-    shimById: new Map(),
+    ...slotLists,
   };
 }
 
 export function invalidateRenderSoABucketsCache(): void {
   cachedTick = UNCACHED_RENDER_TICK;
   cachedMetaBySlot = undefined;
+  slotLists.grassSlots.length = 0;
+  slotLists.treeSlots.length = 0;
+  slotLists.animalSlots.length = 0;
+  slotLists.humanSlots.length = 0;
+  slotLists.shims.length = 0;
+  slotLists.shimBySlot.clear();
+  slotLists.shimById.clear();
   buckets = emptyBuckets();
   grassRenderGrid = undefined;
   grassGridTick = UNCACHED_RENDER_TICK;
@@ -65,13 +79,14 @@ export function updateRenderSoABuckets(
     cachedTick = tick;
     cachedMetaBySlot = metaBySlot;
 
-    const grassSlots: number[] = [];
-    const treeSlots: number[] = [];
-    const animalSlots: number[] = [];
-    const humanSlots: number[] = [];
-    const shims: Entity[] = [];
-    const shimBySlot = new Map<number, Entity>();
-    const shimById = new Map<number, Entity>();
+    const { grassSlots, treeSlots, animalSlots, humanSlots, shims, shimBySlot, shimById } = slotLists;
+    grassSlots.length = 0;
+    treeSlots.length = 0;
+    animalSlots.length = 0;
+    humanSlots.length = 0;
+    shims.length = 0;
+    shimBySlot.clear();
+    shimById.clear();
 
     reader.forEachSlot((slot) => {
       if (!reader.isKnownType(slot)) return;

@@ -2,6 +2,28 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Spread the colony's residence assignment across the day** — the day boundary rehoused every settler at once and could freeze the game for a minute; each pulse now sweeps a quarter of the colony instead of the whole at once, so no single tick carries the day's housing work.
+
+- **Refused a corrupt election-buildup year at the save boundary** — the year the buildup notice was raised was the last leadership value accepted without a rule, so a save carrying an unusable one loaded and then misread the notice; it is refused by name now, like its siblings.
+
+- **Made a raid grow with the colony it is aimed at** — the war-band and the loot it is after now scale with the settlers you can muster, so a large village faces a fight worth answering instead of a walkover.
+
+- **Opened the frontier in time to matter** — a neighbour camp now appears once your colony is real instead of waiting years on a rare event, so raids, the raid banner and the raid action can exist in a normal run.
+
+- **Made rival camps roll for a raid every day** — the roll only ran on the camp's own action day, once every two to three months, so raiding could go a whole game without happening; the camp's own cooldown and odds now set the pace.
+
+- **Made the long-run gate judge the colony, not only its invariants** — a settlement that raises nothing while its beds are full and settlers stand outside them now fails the run as stalled, and a stalled default scenario is reported rather than the rule softened to pass it.
+
+- **Made auto-play say what it is waiting for instead of calling an idle hour healthy** — the status line now names the larder, the beds, the study or the price behind the wait, in the game's own wording, and says the colony looks healthy only when nothing is short.
+
+- **Stopped auto-play ignoring a producer nobody works, and let it build ahead of a growing village** — a quarry with no settler on it made no stone while the bot treated stone as handled; it now mans it or adds another, and housing, food, wood, stone and iron keep pace with the population.
+
+- **Bounded that extra spending so it cannot starve the colony** — building ahead now leaves the price of a repair and two days of food in store, while a real shortage still spends the last of them.
+
+- **Let the colony reach its storage buildings** — a silo waited for a full gold store although it holds food, and the barn, silo and wood storehouse sat behind a food reserve a full shelf never needed.
+
+- **Smoothed movement and fixed hover tinting** — settlers, animals and particles blend between ticks instead of jumping once a second (a teleport is drawn straight), building hover tints update every frame and while paused, and all motion runs on one clock.
+
 - **Made the ground re-bake at the zoom you are looking at** — a chunk now re-bakes in place when the zoom crosses a step, at most one chunk per frame, so a zoomed-out overview resolves at half resolution instead of sharpening every chunk at full detail; the enlarged maps stay smooth.
 
 - **Let settlers sleep at a hotel when home is too far** — a settler whose walk home would outlast the hours before their sleep hour now lodges at the nearest completed hotel instead of crossing the map; the eight beds are shared with paying guests and the cap is never exceeded.

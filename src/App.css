@@ -56,8 +56,8 @@ html, body {
 }
 
 .map-canvas {
-  /* Keep pixel art crisp; slight letterbox shadow is CSS-only */
-  filter: contrast(1.04) saturate(1.06);
+  /* The map canvas carries no CSS filter: a full-screen filter re-ran over the DPR-scaled
+     surface on every frame, and the canvas already draws its own pixels. */
 }
 
 .hud-banner {

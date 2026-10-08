@@ -297,26 +297,26 @@ export default function GameMenu({
                 <MenuAction
                   icon="💾"
                   label="Save game"
-                  hint="Browser slot — a valley too big for it saves as a file"
-                  onClick={() => { onSave(); close(); }}
-                />
-                <MenuAction
-                  icon="⬇️"
-                  label="Save to file"
-                  hint="Download .json — keep this, survives cache clear"
+                  hint="Download .json — your saves live outside the browser"
                   onClick={() => { onSaveToFile(); close(); }}
                 />
                 <MenuAction
+                  icon="⬇️"
+                  label="Save to browser"
+                  hint="Temporary quick-save — browser data clears it; oversized valleys save as a file"
+                  onClick={() => { onSave(); close(); }}
+                />
+                <MenuAction
                   icon="📂"
-                  label="Load game"
-                  hint={hasSavedGame ? 'Last browser save' : 'No browser save — use Load from file'}
+                  label="Load browser quick-save"
+                  hint={hasSavedGame ? 'Last browser quick-save' : 'No browser quick-save — use Load from file'}
                   disabled={!hasSavedGame}
                   onClick={() => { onLoad(); close(); }}
                 />
                 <MenuAction
                   icon="📁"
-                  label="Load from file"
-                  hint="Open a .json you downloaded earlier"
+                  label="Load game from file"
+                  hint="Open a .json you saved earlier"
                   onClick={() => fileInputRef.current?.click()}
                 />
                 <input

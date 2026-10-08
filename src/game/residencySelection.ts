@@ -535,6 +535,16 @@ function hasSinglesOnlyResidenceWithRoom(
   });
 }
 
+/**
+ * Which sweep bucket a housing unit belongs to, from its lowest member id — a stable key, so a unit
+ * cannot drift between buckets as its members come and go.
+ */
+export function housingUnitBucket(unit: Entity[], buckets: number): number {
+  let lowest = Infinity;
+  for (const member of unit) if (member.id < lowest) lowest = member.id;
+  return Number.isFinite(lowest) ? lowest % buckets : 0;
+}
+
 /** Determines if a unit should vacate its current residence in favour of a better option. */
 export function housingUnitNeedsReassignment(
   unit: Entity[],

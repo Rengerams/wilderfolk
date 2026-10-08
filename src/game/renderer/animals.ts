@@ -6,6 +6,7 @@ import type { RenderSnapshot } from '../renderSnapshot';
 import { getSpriteFrame } from '../spriteLoader';
 import { terrainRiseAt } from '../terrainAtlas';
 import { isDrawableSpriteFrame, motionTime } from './shared';
+import { presentationPosition } from './motionInterpolation';
 import { _cachedAnimals } from './entityCache';
 import { drawContactShadow, drawSpriteFrame } from './spriteDrawing';
 import { drawCombatBurst } from './humans';
@@ -20,10 +21,11 @@ export function drawAnimals(
   const cam = state.camera;
 
   for (const e of _cachedAnimals) {
-    const sx = (e.x - cam.x) * cam.zoom + cw / 2;
+    const pos = presentationPosition(e);
+    const sx = (pos.x - cam.x) * cam.zoom + cw / 2;
     // Ride the 2.5D relief — wildlife grazes on the raised terrain surface
-    const sy = (e.y - cam.y) * cam.zoom + ch / 2
-      - terrainRiseAt(state.worldMap, e.x, e.y) * cam.zoom;
+    const sy = (pos.y - cam.y) * cam.zoom + ch / 2
+      - terrainRiseAt(state.worldMap, pos.x, pos.y) * cam.zoom;
     const cfg = SPECIES_CONFIG[e.type];
     const { spriteH, shadowW, shadowY } = getAnimalSpriteMetrics(e, cam.zoom);
     const frame = getSpriteFrame(cfg.sprite);

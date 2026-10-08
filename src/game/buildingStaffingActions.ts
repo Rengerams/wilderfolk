@@ -9,6 +9,7 @@ import {
   completedJobBuildings,
   findOverstaffedDonorBuilding,
   isOnConstructionCrew,
+  isManualStaffingBuilding,
   pickWorkerToTransfer,
   removeWorkerTransition,
   staffingCapFor,
@@ -301,12 +302,23 @@ export function autoStaffAllWorkers(originalState: WorldState): WorldState {
       'success',
     );
   } else {
+    // The pass refuses manual workplaces outright, so "already staffed" is false while a Church or
+    // Prison post stands open. Name the owner's real reason and tell the player what to do next.
+    const manualOpenSlots = completedJobBuildings(state.buildings)
+      .filter((building) => isManualStaffingBuilding(building))
+      .filter((building) => {
+        const { cap, staffed } = staffingCapFor(building, state.entities);
+        return staffed < cap;
+      }).length;
+    const hasSettlers = allPlayerHumans(state.entities).length > 0;
     addNotification(
       state,
       '⚒️ Auto-staff',
-      before > 0
-        ? 'All job buildings are already staffed — no idle settlers to assign.'
-        : 'No settlers available to assign yet.',
+      manualOpenSlots > 0
+        ? `${manualOpenSlots} open job slot${manualOpenSlots === 1 ? '' : 's'} ${manualOpenSlots === 1 ? 'is' : 'are'} a manual workplace, which automatic staffing never fills — assign ${manualOpenSlots === 1 ? 'it' : 'them'} by hand.`
+        : hasSettlers
+          ? 'Every job building automatic staffing may fill is already staffed.'
+          : 'No settlers available to assign yet.',
       'info',
     );
   }

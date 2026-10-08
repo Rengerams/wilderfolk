@@ -1,7 +1,7 @@
 /**
  * Regressions for two player-visible Canvas layout defects:
  * - atypically framed building art must retain its catalog display geometry;
- * - an active dialogue bubble takes priority over a competing name label.
+ * - name plates are laid out at readable zoom and bubbles stack clear of them.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -77,9 +77,9 @@ describe('grounded 2.5D depth pass', () => {
 });
 
 describe('human overhead presentation layout', () => {
-  it('prioritizes an active dialogue bubble over the competing name label', () => {
-    expect(shouldDrawHumanNameLabel(true)).toBe(false);
-    expect(shouldDrawHumanNameLabel(false)).toBe(true);
+  it('draws the name plate at readable zoom, whether or not the settler is talking', () => {
+    expect(shouldDrawHumanNameLabel(1.0, 0.45)).toBe(true);
+    expect(shouldDrawHumanNameLabel(0.3, 0.45)).toBe(false);
   });
 
   it('keeps text readable and reserves extra clearance for a leader crown', () => {

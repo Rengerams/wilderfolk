@@ -1,7 +1,12 @@
 import { drawRenffrOmen } from '../renffrStar';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { motionTime } from './shared';
-import { drawBuildingHighlightRing, getBuildingFootprintScreenRect, isHighlightableBuilding } from './buildings';
+import {
+  drawBuildingHighlightRing,
+  drawHoveredBuildingTint,
+  getBuildingFootprintScreenRect,
+  isHighlightableBuilding,
+} from './buildings';
 import { drawBuildPreview } from './buildPreview';
 import { drawGridTopOverlay } from './grid';
 import { drawBuildingActiveEffects } from './nightEffects';
@@ -21,6 +26,7 @@ export function drawGameOverlay(
   ch: number,
 ): void {
   drawBuildingActiveEffects(ctx, state, cw, ch);
+  drawHoveredBuildingTint(ctx, state, cw, ch);
   drawHoveredBuildingRing(ctx, state, cw, ch);
   drawBuildPreview(ctx, state, cw, ch);
   drawEntityFlashOverlay(ctx, state, cw, ch);

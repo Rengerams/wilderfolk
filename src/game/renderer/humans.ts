@@ -33,13 +33,20 @@ import {
   getNamePlateLayout,
   getSpeechBubbleFontSize,
   getSpeechBubbleHeadClearance,
+  getStatusBadgeColor,
   getStatusBadgeLayout,
+  getStatusBadgeShape,
   resolveSpeechBubbleRect,
+  resolveStatusBadgeKind,
   shouldDrawHumanNameLabel,
+  type HumanStatusFacts,
+  type HumanStatusKind,
   type OverheadRect,
+  type StatusBadgeShape,
 } from './overheadLayout';
 
 import { _cachedHumans, _cachedPartnerById, _renderSoABuckets, _tickAnimals, _tickHumans } from './entityCache';
+import { presentationPosition } from './motionInterpolation';
 import { drawContactShadow, drawSpriteFrame, getHumanWalkMotion, walkFrameOnClock } from './spriteDrawing';
 
 function drawTalkingMouth(
@@ -187,26 +194,241 @@ function buildHumanStatusIconContext(
   };
 }
 
-function getStatusIcon(human: Entity, ctx: HumanStatusIconContext): string {
-  if (ctx.villageLeaderId != null && human.id === ctx.villageLeaderId) return '👑';
-  if (human.moonHowlerCursed) return '🌝';
-  const combatIcon = getHumanStatusCombatIconFromFlags(human, ctx.combatFlags);
-  if (combatIcon) return combatIcon;
-  if (human.faction === 'visitor') return '🧳';
-  if (human.faction === 'rival') return '🏕️';
-  if (human.isJuvenile) {
-    const school = ctx.childSchoolById.get(human.id);
-    if (school && isWorkHour(ctx.hourOfDay)) {
-      return isChildAtSchool(human, school) ? '📚' : '🎒';
-    }
-    return '👶';
+function getStatusFacts(human: Entity, ctx: HumanStatusIconContext): HumanStatusFacts {
+  const school = human.isJuvenile ? ctx.childSchoolById.get(human.id) : undefined;
+  const schoolHours = !!school && isWorkHour(ctx.hourOfDay);
+  return {
+    isLeader: ctx.villageLeaderId != null && human.id === ctx.villageLeaderId,
+    isMoonHowler: !!human.moonHowlerCursed,
+    combatToken: getHumanStatusCombatIconFromFlags(human, ctx.combatFlags),
+    faction: human.faction ?? null,
+    isJuvenile: !!human.isJuvenile,
+    schoolStatus: schoolHours ? (isChildAtSchool(human, school) ? 'atSchool' : 'toSchool') : null,
+    isPregnant: !!human.pregnant,
+    isCourting: !!human.courtshipProgress && human.courtshipProgress > 0 && !shouldBeAtHome(ctx.hourOfDay),
+    isAtHome: shouldBeAtHome(ctx.hourOfDay),
+    isWorking: isWorkHour(ctx.hourOfDay) && !!(human.homeBuildingId || ctx.constructionWorkerIds.has(human.id)),
+    isMarried: human.relationshipStatus === 'married' && !!human.partnerId,
+  };
+}
+
+/** Plate colour behind a cut-out in a glyph, so the mark keeps a readable edge. */
+const STATUS_BADGE_PLATE = 'rgba(17,24,39,0.85)';
+
+/** Paint one status silhouette in a unit box at the origin; every mark is a path, never a font glyph. */
+function paintStatusGlyph(
+  ctx: CanvasRenderingContext2D,
+  shape: StatusBadgeShape,
+  mark: string,
+): void {
+  switch (shape) {
+    case 'crown':
+      ctx.beginPath();
+      ctx.moveTo(-0.78, 0.5);
+      ctx.lineTo(-0.78, -0.34);
+      ctx.lineTo(-0.38, 0.02);
+      ctx.lineTo(0, -0.46);
+      ctx.lineTo(0.38, 0.02);
+      ctx.lineTo(0.78, -0.34);
+      ctx.lineTo(0.78, 0.5);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    case 'crescent':
+      ctx.beginPath();
+      ctx.arc(0.1, 0, 0.7, Math.PI * 0.42, Math.PI * 1.58);
+      ctx.stroke();
+      return;
+    case 'helmet':
+      ctx.beginPath();
+      ctx.arc(0, 0.12, 0.62, Math.PI, 0);
+      ctx.lineTo(0.62, 0.52);
+      ctx.lineTo(-0.62, 0.52);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = mark;
+      ctx.fillRect(-0.62, -0.1, 1.24, 0.2);
+      return;
+    case 'bow':
+      ctx.beginPath();
+      ctx.arc(0.16, 0, 0.68, Math.PI * 0.5, Math.PI * 1.5);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0.16, -0.68);
+      ctx.lineTo(0.16, 0.68);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-0.52, 0);
+      ctx.lineTo(0.66, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0.9, 0);
+      ctx.lineTo(0.48, -0.24);
+      ctx.lineTo(0.48, 0.24);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    case 'crossed':
+      ctx.beginPath();
+      ctx.moveTo(-0.62, -0.62);
+      ctx.lineTo(0.62, 0.62);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0.62, -0.62);
+      ctx.lineTo(-0.62, 0.62);
+      ctx.stroke();
+      return;
+    case 'shield':
+      ctx.beginPath();
+      ctx.moveTo(0, -0.74);
+      ctx.lineTo(0.64, -0.44);
+      ctx.lineTo(0.64, 0.06);
+      ctx.quadraticCurveTo(0.64, 0.5, 0, 0.78);
+      ctx.quadraticCurveTo(-0.64, 0.5, -0.64, 0.06);
+      ctx.lineTo(-0.64, -0.44);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    case 'case':
+      ctx.fillRect(-0.7, -0.28, 1.4, 0.92);
+      ctx.beginPath();
+      ctx.arc(0, -0.3, 0.26, Math.PI, 0);
+      ctx.stroke();
+      ctx.fillStyle = mark;
+      ctx.fillRect(-0.15, -0.08, 0.3, 0.52);
+      return;
+    case 'tent':
+      ctx.beginPath();
+      ctx.moveTo(-0.8, 0.58);
+      ctx.lineTo(0, -0.72);
+      ctx.lineTo(0.8, 0.58);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = mark;
+      ctx.beginPath();
+      ctx.moveTo(-0.26, 0.58);
+      ctx.lineTo(0, 0.02);
+      ctx.lineTo(0.26, 0.58);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    case 'book':
+      ctx.beginPath();
+      ctx.moveTo(-0.84, -0.42);
+      ctx.lineTo(-0.04, -0.58);
+      ctx.lineTo(-0.04, 0.52);
+      ctx.lineTo(-0.84, 0.64);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0.84, -0.42);
+      ctx.lineTo(0.04, -0.58);
+      ctx.lineTo(0.04, 0.52);
+      ctx.lineTo(0.84, 0.64);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    case 'pack':
+      ctx.fillRect(-0.6, -0.26, 1.2, 0.96);
+      ctx.beginPath();
+      ctx.arc(0, -0.28, 0.28, Math.PI, 0);
+      ctx.stroke();
+      ctx.fillStyle = mark;
+      ctx.fillRect(-0.6, 0.14, 1.2, 0.18);
+      return;
+    case 'babe':
+      ctx.beginPath();
+      ctx.arc(0, -0.44, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(-0.42, -0.02, 0.84, 0.62);
+      return;
+    case 'belly':
+      ctx.beginPath();
+      ctx.arc(-0.2, -0.46, 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0.1, 0.16, 0.58, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    case 'heart':
+      ctx.beginPath();
+      ctx.moveTo(0, 0.72);
+      ctx.bezierCurveTo(-1.05, 0.02, -0.58, -0.86, 0, -0.28);
+      ctx.bezierCurveTo(0.58, -0.86, 1.05, 0.02, 0, 0.72);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    case 'house':
+      ctx.beginPath();
+      ctx.moveTo(-0.84, -0.04);
+      ctx.lineTo(0, -0.78);
+      ctx.lineTo(0.84, -0.04);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillRect(-0.56, 0.02, 1.12, 0.6);
+      return;
+    case 'mallet':
+      ctx.fillRect(-0.13, -0.06, 0.26, 0.72);
+      ctx.fillRect(-0.62, -0.7, 1.24, 0.44);
+      return;
+    case 'ring':
+      ctx.beginPath();
+      ctx.arc(0, 0.16, 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, -0.82);
+      ctx.lineTo(0.22, -0.58);
+      ctx.lineTo(0, -0.34);
+      ctx.lineTo(-0.22, -0.58);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    case 'walker':
+      ctx.beginPath();
+      ctx.arc(0, -0.58, 0.22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, -0.3);
+      ctx.lineTo(0, 0.18);
+      ctx.moveTo(0, 0.18);
+      ctx.lineTo(-0.4, 0.72);
+      ctx.moveTo(0, 0.18);
+      ctx.lineTo(0.42, 0.58);
+      ctx.moveTo(0, -0.14);
+      ctx.lineTo(-0.44, 0.12);
+      ctx.stroke();
+      return;
   }
-  if (human.pregnant) return '🤰';
-  if (human.courtshipProgress && human.courtshipProgress > 0 && !shouldBeAtHome(ctx.hourOfDay)) return '💕';
-  if (shouldBeAtHome(ctx.hourOfDay)) return '🏠';
-  if (isWorkHour(ctx.hourOfDay) && (human.homeBuildingId || ctx.constructionWorkerIds.has(human.id))) return '🔨';
-  if (human.relationshipStatus === 'married' && human.partnerId) return '💍';
-  return '🚶';
+}
+
+/** Status badge: a coloured rim and one drawn silhouette, so the status never needs an emoji font. */
+function drawStatusBadge(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+  rimWidth: number,
+  kind: HumanStatusKind,
+): void {
+  const color = getStatusBadgeColor(kind);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = STATUS_BADGE_PLATE;
+  ctx.fill();
+  ctx.lineWidth = rimWidth;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+
+  ctx.translate(cx, cy);
+  ctx.scale(radius, radius);
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 0.2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  paintStatusGlyph(ctx, getStatusBadgeShape(kind), STATUS_BADGE_PLATE);
+  ctx.restore();
 }
 
 export function drawTradeRouteLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
@@ -314,10 +536,12 @@ export function drawHuntChaseLines(ctx: CanvasRenderingContext2D, state: RenderS
     const prey = byId.get(hunter.huntTargetId);
     if (!prey) return;
 
-    const hx = (hunter.x - cam.x) * cam.zoom + cw / 2;
-    const hy = (hunter.y - cam.y) * cam.zoom + ch / 2;
-    const px = (prey.x - cam.x) * cam.zoom + cw / 2;
-    const py = (prey.y - cam.y) * cam.zoom + ch / 2;
+    const hunterPos = presentationPosition(hunter);
+    const preyPos = presentationPosition(prey);
+    const hx = (hunterPos.x - cam.x) * cam.zoom + cw / 2;
+    const hy = (hunterPos.y - cam.y) * cam.zoom + ch / 2;
+    const px = (preyPos.x - cam.x) * cam.zoom + cw / 2;
+    const py = (preyPos.y - cam.y) * cam.zoom + ch / 2;
 
     const isHumanHunter = hunter.type === EntityType.Human;
     ctx.strokeStyle = isHumanHunter ? 'rgba(249,115,22,0.55)' : 'rgba(168,162,158,0.45)';
@@ -495,9 +719,10 @@ export function drawLeaderAuraOverlay(
     if (isAsleepAtHome(leader, state.buildings, state.hourOfDay)) return;
   }
 
-  const sx = (leader.x - cam.x) * cam.zoom + cw / 2;
-  const sy = (leader.y - cam.y) * cam.zoom + ch / 2
-    - terrainRiseAt(state.worldMap, leader.x, leader.y) * cam.zoom;
+  const leaderPos = presentationPosition(leader);
+  const sx = (leaderPos.x - cam.x) * cam.zoom + cw / 2;
+  const sy = (leaderPos.y - cam.y) * cam.zoom + ch / 2
+    - terrainRiseAt(state.worldMap, leaderPos.x, leaderPos.y) * cam.zoom;
   const { size, spriteH, footOffset } = getHumanSpriteMetrics(leader, cam.zoom);
   const footY = sy + footOffset;
   const cullPad = Math.max(size * 1.5, spriteH);
@@ -556,6 +781,10 @@ export function drawHumans(
   const cam = state.camera;
   const statusCtx = buildHumanStatusIconContext(state, _cachedHumans);
   const occupiedBubbleRects: OverheadRect[] = [];
+  /** Bubbles wait for the layout pass to finish, so every name plate is reserved before one is placed. */
+  const pendingBubbles: {
+    sx: number; headY: number; size: number; text: string; entityId: number; isLeader: boolean;
+  }[] = [];
   /** Village-wide zoom: settlers are dots, unless selected (see `HUMAN_SPRITE_MIN_ZOOM`). */
   const markerMode = cam.zoom < HUMAN_SPRITE_MIN_ZOOM;
 
@@ -567,10 +796,11 @@ export function drawHumans(
     // so the inspector keeps pointing at somebody.
     if (!isSel && isAsleepAtHome(human, state.buildings, state.hourOfDay)) continue;
 
-    const sx = (human.x - cam.x) * cam.zoom + cw / 2;
+    const pos = presentationPosition(human);
+    const sx = (pos.x - cam.x) * cam.zoom + cw / 2;
     // Ride the 2.5D relief — settlers walk on the raised terrain surface
-    const sy = (human.y - cam.y) * cam.zoom + ch / 2
-      - terrainRiseAt(state.worldMap, human.x, human.y) * cam.zoom;
+    const sy = (pos.y - cam.y) * cam.zoom + ch / 2
+      - terrainRiseAt(state.worldMap, pos.x, pos.y) * cam.zoom;
     const { size, spriteH, footOffset } = getHumanSpriteMetrics(human, cam.zoom);
     const cullPad = Math.max(size * 1.5, spriteH);
     if (sx + cullPad < -20 || sx - cullPad > cw + 20 || sy + cullPad < -20 || sy - cullPad > ch + 20) continue;
@@ -653,12 +883,12 @@ export function drawHumans(
 
     const isTalking = (human.chatTicks ?? 0) > 0;
 
-    // The name plate is placed before the bubble so the bubble can dodge it — a plate is overhead text
-    // like a bubble, and a bubble only ever rises toward settlers drawn earlier (the list is y-ascending).
+    // Every plate is laid out before any bubble is placed, so a bubble dodges its own speaker's
+    // name plate and a neighbour's whatever order the settlers are drawn in.
     const nameZoomMin = isLeader ? 0.28 : (human.isJuvenile ? 0.38 : 0.45);
     const labelY = headY - 4 - (isLeader && cam.zoom > 0.22 ? Math.max(10, 12 * cam.zoom) : 0);
     let namePlate: { text: string; fontSize: number; labelY: number; rect: OverheadRect } | null = null;
-    if (shouldDrawHumanNameLabel(isTalking) && (human.name || human.surname || isLeader) && cam.zoom > nameZoomMin) {
+    if (shouldDrawHumanNameLabel(cam.zoom, nameZoomMin) && (human.name || human.surname || isLeader)) {
       const text = formatHumanNameLabel(human, {
         isLeader,
         showRole: cam.zoom > 0.5,
@@ -673,11 +903,14 @@ export function drawHumans(
 
     if (isTalking) {
       drawTalkingMouth(ctx, sx, headY + spriteH * 0.12, drawSize, flipX, human.animFrame ?? 0);
-      const bubbleText = getChatBubbleText(human, tick);
-      drawSpeechBubble(
-        ctx, sx, headY, drawSize, bubbleText, tick, human.id, cam.zoom,
-        isLeader, occupiedBubbleRects,
-      );
+      pendingBubbles.push({
+        sx,
+        headY,
+        size: drawSize,
+        text: getChatBubbleText(human, tick),
+        entityId: human.id,
+        isLeader,
+      });
     }
 
     // The leader's aura is deliberately NOT drawn here: it pulses on `renderTime` while this painter
@@ -687,17 +920,14 @@ export function drawHumans(
     // Status badge
     if (cam.zoom > 0.6) {
       const badge = getStatusBadgeLayout(cam.zoom);
-      const bx = sx + size * 0.35;
-      const by = headY + spriteH * 0.12;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.beginPath();
-      ctx.arc(bx, by, badge.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.font = `${badge.fontPx}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(getStatusIcon(human, statusCtx), bx, by);
-      ctx.textBaseline = 'alphabetic';
+      drawStatusBadge(
+        ctx,
+        sx + size * 0.35,
+        headY + spriteH * 0.12,
+        badge.radius,
+        badge.rimWidth,
+        resolveStatusBadgeKind(getStatusFacts(human, statusCtx)),
+      );
     }
 
     // Faction ring — drawn under the name plate
@@ -756,6 +986,13 @@ export function drawHumans(
       ctx.stroke();
       ctx.restore();
     }
+  }
+
+  for (const bubble of pendingBubbles) {
+    drawSpeechBubble(
+      ctx, bubble.sx, bubble.headY, bubble.size, bubble.text, tick, bubble.entityId, cam.zoom,
+      bubble.isLeader, occupiedBubbleRects,
+    );
   }
 }
 

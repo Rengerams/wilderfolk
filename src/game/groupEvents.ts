@@ -443,6 +443,8 @@ export function spawnRivalSettlement(
   allAlive: Entity[],
   buildings: Building[],
   ctx?: TickContext,
+  /** Scripted founding state; the pool draws its own when this is omitted. */
+  foundingRelationship?: RivalSettlement['relationship'],
 ): GameEvent {
   const name = randomRivalName();
   const center = getPlayerCampCenter(state, buildings);
@@ -476,8 +478,8 @@ export function spawnRivalSettlement(
   }
 
   const relRoll = getSimRng('groupEvents')();
-  const relationship: RivalSettlement['relationship'] =
-    relRoll < 0.3 ? 'friendly' : relRoll < 0.7 ? 'neutral' : relRoll < 0.95 ? 'competitive' : 'tense';
+  const relationship: RivalSettlement['relationship'] = foundingRelationship
+    ?? (relRoll < 0.3 ? 'friendly' : relRoll < 0.7 ? 'neutral' : relRoll < 0.95 ? 'competitive' : 'tense');
 
   state.rivalSettlements.push({
     id: groupId,
@@ -1855,4 +1857,35 @@ export function tryFirstWeekVisitor(
     'positive',
   );
   return event;
+}
+
+/** Days before the first camp may appear — long enough to have founded a house of your own. */
+export const FIRST_RIVAL_MIN_DAY = 10;
+
+/** Colony size the pioneer camp waits for, the same gate the weighted `rival_settlement` event uses. */
+export const FIRST_RIVAL_MIN_HUMANS = 6;
+
+/**
+ * Opens the frontier: the first rival camp is a milestone, not a lottery ticket, and it starts
+ * `competitive` so the raid path (tense or competitive only) is reachable. Later camps use the pool.
+ */
+export function tryFrontierSettlement(
+  state: WorldState,
+  allAlive: Entity[],
+  buildings: Building[],
+  ctx?: TickContext,
+): GameEvent | null {
+  if (state.rivalSettlements.length > 0) return null;
+  if (state.tick < FIRST_RIVAL_MIN_DAY * TICKS_PER_DAY) return null;
+  if (playerHumanCount(allAlive) < FIRST_RIVAL_MIN_HUMANS) return null;
+
+  const hasPlayerHouse = buildings.some(
+    (b) =>
+      b.completed
+      && b.faction !== 'rival'
+      && (b.type === BuildingType.House || b.type === BuildingType.Mansion),
+  );
+  if (!hasPlayerHouse) return null;
+
+  return spawnRivalSettlement(state, allAlive, buildings, ctx, 'competitive');
 }

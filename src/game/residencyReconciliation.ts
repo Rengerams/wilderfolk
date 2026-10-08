@@ -3,9 +3,10 @@ import type { Building, Entity } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
 import { collectFamilyMembers, collectOwnHousehold, isMinorChild } from './householdComposition';
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove, isImprisoned } from './residencyOccupancy';
-import { listPlayerResidences, ensureOrphanAdoption, rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove } from './residencySelection';
+import { listPlayerResidences, ensureOrphanAdoption, rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitBucket, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove } from './residencySelection';
 import type { ResidenceTraitsById } from './residencySelection';
 import { isPlayerHuman } from './playerHuman';
+import { TICKS_PER_DAY } from './dayCycleClock';
 
 /**
  * One residence write: the occupancy count, the pass's trait map and the field move together.
@@ -203,10 +204,36 @@ function fillHomelessAfterEviction(
   }
 }
 
+/**
+ * Sweep buckets per day — one per assignment pulse.
+ *
+ * `assignMissingResidences` with a tick sweeps only the units whose bucket that pulse owns, so a day
+ * of reassignment work is spread across the day instead of landing whole on the day boundary. It must
+ * equal the assignment layer's pulses per day (`TICKS_PER_DAY / LAYER_ASSIGN_INTERVAL`, 72 / 18 = 4)
+ * or a bucket would never come round; the guard test pins that coupling.
+ */
+export const RESIDENCE_SWEEP_BUCKETS = 4;
+
+/** The bucket one assignment pulse owns: the day's pulse index. */
+function activeSweepBucket(tick: number): number {
+  const tickOfDay = ((tick % TICKS_PER_DAY) + TICKS_PER_DAY) % TICKS_PER_DAY;
+  return Math.floor((tickOfDay * RESIDENCE_SWEEP_BUCKETS) / TICKS_PER_DAY);
+}
+
+/**
+ * Seat every settler who has no residence, repair every housing unit that is wrongly placed.
+ *
+ * `allHumansForGenealogy` widens the family pool beyond the settlers being seated. With no `sweepTick`
+ * the whole colony converges at once — a load, a player command or an event must not wait for a
+ * bucket to come round. With one, only that pulse's bucket of already-housed units is swept; the
+ * eviction rebalance and the homeless fill below stay global on every call, so a settler who loses a
+ * bed is never left outside until the next cycle.
+ */
 export function assignMissingResidences(
   humans: Entity[],
   buildings: Building[],
   allHumansForGenealogy?: Entity[],
+  sweepTick?: number,
 ): void {
   const residences = listPlayerResidences(buildings);
   if (residences.length === 0) return;
@@ -245,36 +272,59 @@ export function assignMissingResidences(
   // Family structure is static while we converge on residence slots — build the
   // housing units ONCE instead of every pass (was 24× full rebuilds per call).
   const housingUnitsBase = buildHousingUnits(alive);
-  for (let pass = 0; pass < 24; pass++) {
-    let reassigned = 0;
-    // One occupancy scan per pass — O(H) then O(1) counts (EK-E2) — and one trait walk beside it,
-    // threaded through every pick below instead of rebuilt per pick (F-SIM-9).
+
+  if (sweepTick === undefined) {
+    for (let pass = 0; pass < 24; pass++) {
+      let reassigned = 0;
+      // One occupancy scan per pass — O(H) then O(1) counts (EK-E2) — and one trait walk beside it,
+      // threaded through every pick below instead of rebuilt per pick (F-SIM-9).
+      const occupancy = buildResidenceOccupancy(alive);
+      const traits = buildResidenceTraits(alive);
+      const housingUnits = sortHousingUnitsForAssignment(
+        housingUnitsBase,
+        alive,
+        residences,
+        occupancy,
+        traits,
+      );
+      for (const unit of housingUnits) {
+        if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
+
+        for (const member of unit) {
+          moveResident(occupancy, traits, member, undefined);
+        }
+        assignFamilyToResidence(unit, alive, residences, humans, occupancy, traits);
+        reassigned++;
+      }
+      const evicted = rebalanceOvercrowdedResidences(alive, residences);
+      if (evicted) {
+        // Rebalance clears residences without the maps — rebuild both before fill.
+        const afterEvict = buildResidenceOccupancy(alive);
+        const traitsAfterEvict = buildResidenceTraits(alive);
+        fillHomelessAfterEviction(alive, residences, afterEvict, traitsAfterEvict);
+      }
+      if (reassigned === 0 && !evicted) break;
+    }
+  } else {
+    // One pulse, one bucket. `housingUnitsBase` order is the sweep order: it is deterministic and
+    // independent of which pulse is running, so a unit's repair does not depend on the tick.
+    const bucket = activeSweepBucket(sweepTick);
     const occupancy = buildResidenceOccupancy(alive);
     const traits = buildResidenceTraits(alive);
-    const housingUnits = sortHousingUnitsForAssignment(
-      housingUnitsBase,
-      alive,
-      residences,
-      occupancy,
-      traits,
-    );
-    for (const unit of housingUnits) {
+    for (const unit of housingUnitsBase) {
+      if (housingUnitBucket(unit, RESIDENCE_SWEEP_BUCKETS) !== bucket) continue;
       if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
 
       for (const member of unit) {
         moveResident(occupancy, traits, member, undefined);
       }
       assignFamilyToResidence(unit, alive, residences, humans, occupancy, traits);
-      reassigned++;
     }
-    const evicted = rebalanceOvercrowdedResidences(alive, residences);
-    if (evicted) {
-      // Rebalance clears residences without the maps — rebuild both before fill.
+    if (rebalanceOvercrowdedResidences(alive, residences)) {
       const afterEvict = buildResidenceOccupancy(alive);
       const traitsAfterEvict = buildResidenceTraits(alive);
       fillHomelessAfterEviction(alive, residences, afterEvict, traitsAfterEvict);
     }
-    if (reassigned === 0 && !evicted) break;
   }
 
   {

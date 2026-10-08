@@ -44,6 +44,8 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   }
 
   syncResidenceOccupants(allHumans, updatedBuildings);
-  assignMissingResidences(playerHumans, updatedBuildings, allHumans);
+  // The pulse owns one sweep bucket of the day's reassignment work; the homeless fill inside the
+  // pass stays global, so nothing waits for its bucket to come round.
+  assignMissingResidences(playerHumans, updatedBuildings, allHumans, world.tick);
   assignMissingWorkers(playerHumans, updatedBuildings, world);
 }

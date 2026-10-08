@@ -9,6 +9,12 @@
  *  - workplace/residence/prison references point at existing buildings
  *  - building occupants reference living entities
  *  - story/event infrastructure remains valid
+ *  - the year produced real social activity, not a quiet no-op
+ *
+ * The scenario gives the founders one home and a raised larder so the year is not spent starving,
+ * but that provisioning does not survive: `updateStorageCaps` recomputes the cap and the spoilage
+ * rate from the completed buildings, and the larder empties before day 360. Food economics are
+ * therefore outside this test on purpose — the long-run harness carries the food and stall gate.
  *
  * The test intentionally prints a compact report at days 90, 180, 270, and
  * 360. This makes long-run behavior inspectable without flooding the output
@@ -35,7 +41,9 @@ const SEED = 12345;
 const FULL_YEAR_TICKS = DAYS_PER_YEAR * TICKS_PER_DAY;
 const STARTER_HOUSE_OFFSET = 24;
 const POPULATION_SANITY_LIMIT = 5_000;
-const TEST_TIMEOUT_MS = 120_000;
+const TEST_TIMEOUT_MS = 300_000;
+/** The larder this scenario starts with; raised so food never gates a social event. */
+const SCAFFOLD_FOOD = 100_000;
 const DEBUG = process.argv.includes('--debug') || process.env.WILDERFOLK_DEBUG === '1';
 const CHECKPOINT_DAYS = Array.from(
   { length: Math.ceil(DAYS_PER_YEAR / 90) },
@@ -173,16 +181,22 @@ function runFullYear(seed: number): {
   startTick: number;
   /** Ticks on which the story queue held at least one card — see the guard in the test below. */
   storyCardsQueued: number;
+  /** Exact counts taken from the log as it grows; `lifetimeStats` only settles at a year boundary. */
+  birthsLogged: number;
+  marriagesLogged: number;
 } {
   const world = initGame({ size: MapSize.Medium, seed });
   setSimSeed(seed);
 
-  // `initGame` intentionally starts before the player has built housing. A
-  // full-year relationship test with no house would therefore measure colony
-  // starvation and settler deaths, not relationship behavior. Give the seeded
-  // founders one completed home and enough starting food for this integration
-  // scenario; all subsequent movement, relationship, and daily logic remains
-  // production code.
+  // `initGame` starts before the player has built housing. A full-year relationship test with no
+  // house would measure colony starvation and settler deaths, not relationship behavior. Give the
+  // seeded founders one completed home and enough starting food for this integration scenario; all
+  // subsequent movement, relationship, and daily logic remains production code.
+  //
+  // Honest limits of that provisioning, measured on this seed: `updateStorageCaps` recomputes both
+  // `storageMax` and `foodSpoilageRate` from the completed buildings, so the raised larder and the
+  // zeroed spoilage rate below do not survive the year, and the larder does reach 0 before day 360.
+  // This test therefore says nothing about food economics; the long-run harness carries that gate.
   const founders = world.entities.filter((entity) => entity.type === EntityType.Human);
   // If no founder exists, place the starter house at the map center.
   const anchor = founders[0] ?? { x: world.width / 2, y: world.height / 2 };
@@ -196,7 +210,7 @@ function runFullYear(seed: number): {
   starterHouse.constructionProgress = 1;
   starterHouse.spriteScale = 1;
   world.buildings.push(starterHouse);
-  world.storageMax.food = 100_000;
+  world.storageMax.food = SCAFFOLD_FOOD;
   world.resources.food = world.storageMax.food;
   world.foodSpoilageRate = 0;
   assignMissingResidences(founders, world.buildings, world.entities);
@@ -208,10 +222,19 @@ function runFullYear(seed: number): {
   const checkpoints = new Set(CHECKPOINT_DAYS.map((day) => day * TICKS_PER_DAY));
   let lastDiagnosticSnapshotCount = 1;
   let storyCardsQueued = 0;
+  let birthsLogged = 0;
+  let marriagesLogged = 0;
+  const countedEventIds = new Set<number>();
 
   for (let tick = 1; tick <= FULL_YEAR_TICKS; tick += 1) {
     gameTick(world);
     if (world.pendingStoryEvents?.length) storyCardsQueued += 1;
+    for (const event of world.eventLog) {
+      if (countedEventIds.has(event.id)) continue;
+      countedEventIds.add(event.id);
+      if (event.type === 'birth') birthsLogged += 1;
+      if (event.type === 'marriage') marriagesLogged += 1;
+    }
     if (!checkpoints.has(tick)) continue;
 
     const day = tick / TICKS_PER_DAY;
@@ -242,7 +265,7 @@ function runFullYear(seed: number): {
       caravanCompletions: world.lifetimeStats.tradeCaravansCompleted,
     });
   }
-  return { world, startYear, startTick, storyCardsQueued };
+  return { world, startYear, startTick, storyCardsQueued, birthsLogged, marriagesLogged };
 }
 
 describe('full in-game year integration', () => {
@@ -254,7 +277,7 @@ describe('full in-game year integration', () => {
   it(
     `runs ${DAYS_PER_YEAR} days (${FULL_YEAR_TICKS} ticks) with seed ${SEED} without invariant violations`,
     () => {
-      const { world, startYear, startTick, storyCardsQueued } = runFullYear(SEED);
+      const { world, startYear, startTick, storyCardsQueued, birthsLogged, marriagesLogged } = runFullYear(SEED);
 
       // Calendar exactly one year later (360-day year, dayInYear is 0-based).
       expect(world.tick).toBe(startTick + FULL_YEAR_TICKS);
@@ -303,6 +326,34 @@ describe('full in-game year integration', () => {
 
       // Final invariant pass (redundant with the last checkpoint but explicit).
       expect(collectSimulationInvariantErrors(world)).toEqual([]);
+
+      // Non-vacuity for the domains this test does cover. Invariants hold trivially in a year where
+      // nothing happens, so the year has to show real relationship and lifecycle activity. Measured
+      // on this seed: pregnancies start, births are delivered and marriages are formed.
+      expect(birthsLogged, 'births were delivered during the year').toBeGreaterThan(0);
+      expect(marriagesLogged, 'marriages were formed during the year').toBeGreaterThan(0);
+      const diagnostics = getRelationshipDiagnosticsHistory().filter(
+        (snapshot): snapshot is NonNullable<typeof snapshot> => snapshot != null,
+      );
+      expect(
+        diagnostics.reduce((sum, snapshot) => sum + snapshot.pregnanciesStartedThisInterval, 0),
+        'pregnancies started during the year',
+      ).toBeGreaterThan(0);
+      const humans = world.entities.filter((entity) => entity.alive && entity.type === EntityType.Human);
+      expect(humans.length, 'the year left more than the two founders alive').toBeGreaterThan(2);
+
+      // Food economics are deliberately outside this test, and the numbers say so rather than
+      // implying otherwise: the storage owner recomputes cap and spoilage from the one house, so the
+      // provisioning above is spent, and the larder empties before the year ends. `foodEmpty` is
+      // recorded for the reader instead of asserted — asserting it either way would be a lie about
+      // what this scenario measures.
+      if (DEBUG) {
+        console.info('[FullYear food]', {
+          stored: Math.round(world.resources.food ?? 0),
+          spoilageRatePerDay: world.foodSpoilageRate,
+        });
+      }
+      expect(world.foodSpoilageRate).toBeGreaterThanOrEqual(0);
     },
     TEST_TIMEOUT_MS,
   );

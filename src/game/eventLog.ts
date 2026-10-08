@@ -3,7 +3,7 @@ import { addNotification } from './simEffects';
 
 let nextEventLogId = 1;
 
-/** Bound authoritative and presentation event history consistently. */
+/** Rolling window of the most recent chronicle entries; everything older is dropped. */
 export const EVENT_LOG_MAX_ENTRIES = 20000;
 
 /** Load repair: unique ids, and no more entries than the writers' own cap keeps. */
@@ -14,7 +14,8 @@ export function repairEventLogOnLoad(state: Pick<WorldState, 'eventLog'>): void 
     seen.add(entry.id);
     return true;
   });
-  // The log is newest-first, so a cap keeps the head — the same end the delta merge trims.
+  // Newest-first throughout, so a cap keeps the head (index 0) and discards the oldest tail — the
+  // same end the tick trim (`pop`) and the worker delta merge (`slice(0, …)`) drop.
   const bounded = kept.length > EVENT_LOG_MAX_ENTRIES ? kept.slice(0, EVENT_LOG_MAX_ENTRIES) : kept;
   if (bounded.length !== state.eventLog.length) state.eventLog = bounded;
 }

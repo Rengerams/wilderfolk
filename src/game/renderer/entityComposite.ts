@@ -3,6 +3,7 @@ import { getAnimalSpriteMetrics } from '../entitySprites';
 import { getHumanSpriteMetrics } from '../humanSprites';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { motionTime } from './shared';
+import { presentationPosition } from './motionInterpolation';
 import { _cachedAnimals, _cachedHumans } from './entityCache';
 import { worldToScreenX, worldToScreenY } from '../viewState';
 import { drawAnimals } from './animals';
@@ -35,17 +36,26 @@ function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: 
   drawBuildings(drawCtx, state, cw, ch);
   drawCampMarkers(drawCtx, state, cw, ch);
   drawEcoConnections(drawCtx, state, state.camera, cw, ch);
+}
+
+/**
+ * Per-frame pass for everything that moves between simulation ticks — settlers, wildlife, trail
+ * lines, notices and particles. It draws into the frame from the live camera, so positions can be
+ * blended by the tick fraction; the tick-keyed bitmap cannot show motion between its repaints.
+ */
+export function paintMovingEntities(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+): void {
+  const drawCtx = ctx;
   // Build ghost is drawn live in renderGame (animated bob / brackets)
+  // Hunt arrows stay in the overlay pass (`overlay.ts`) — they advance on a millisecond clock.
   drawAnimals(drawCtx, state, cw, ch, true);
   drawTradeRouteLines(drawCtx, state, cw, ch);
   drawRaidMarchLines(drawCtx, state, cw, ch);
   drawHuntChaseLines(drawCtx, state, cw, ch);
-  // Hunt arrows are NOT painted here: they advance on a wall-clock animation, and this
-  // layer is only repainted on a sim tick (≈1.5×/s at 1×), so a ~1 s flight was sampled
-  // once or twice and strobed. They draw in the per-frame overlay instead — see
-  // `renderer/overlay.ts`, which keeps the tested millisecond retention contract intact.
-  // Simulation notices remain visible, but active speech/name overlays are the
-  // higher-priority readable text directly above settlers.
   drawFloatingTexts(drawCtx, state, cw, ch);
   drawHumans(drawCtx, state, cw, ch, true);
   drawParticles(drawCtx, state, cw, ch);
@@ -55,8 +65,9 @@ function drawEntityFlashOverlay(ctx: CanvasRenderingContext2D, state: RenderSnap
   const cam = state.camera;
   for (const e of _cachedAnimals) {
     if (e.flash <= 0) continue;
-    const sx = worldToScreenX(e.x, cam, cw);
-    const sy = worldToScreenY(e.y, cam, ch);
+    const pos = presentationPosition(e);
+    const sx = worldToScreenX(pos.x, cam, cw);
+    const sy = worldToScreenY(pos.y, cam, ch);
     const { spriteH } = getAnimalSpriteMetrics(e, cam.zoom);
     ctx.save();
     ctx.globalAlpha = 0.7 + Math.sin(motionTime * 20) * 0.3;
@@ -69,8 +80,9 @@ function drawEntityFlashOverlay(ctx: CanvasRenderingContext2D, state: RenderSnap
   }
   for (const human of _cachedHumans) {
     if (human.flash <= 0) continue;
-    const sx = worldToScreenX(human.x, cam, cw);
-    const sy = worldToScreenY(human.y, cam, ch);
+    const pos = presentationPosition(human);
+    const sx = worldToScreenX(pos.x, cam, cw);
+    const sy = worldToScreenY(pos.y, cam, ch);
     const { size, spriteH, footOffset } = getHumanSpriteMetrics(human, cam.zoom);
     const footY = sy + footOffset;
     ctx.save();

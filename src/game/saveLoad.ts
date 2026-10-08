@@ -998,6 +998,8 @@ function worldScalarRules(): readonly ElementFieldRule[] {
     { field: 'leaderSinceYear', isValid: isFiniteNumber },
     { field: 'lastElectionYear', isValid: isFiniteNumber },
     { field: 'pendingElectionYear', isValid: isFiniteNumberOrNull },
+    // The same `null` is "nothing to notify", and an infinite one raises the notice every year.
+    { field: 'electionBuildupNotifiedYear', isValid: isFiniteNumberOrNull },
     // Both reach the renderer and the roll counter: a NaN timer can never satisfy its modulo.
     { field: 'weather', isValid: isMemberOf(WEATHER_TYPE_VALUES) },
     { field: 'weatherTimer', isValid: isFiniteNumber },

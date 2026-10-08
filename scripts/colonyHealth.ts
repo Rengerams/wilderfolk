@@ -878,23 +878,21 @@ export function collectInvariantErrors(world: WorldState): string[] {
  * Why a settled colony is not growing, named one cause per verdict.
  *
  * Every rule below compares numbers the observer already records, so a verdict is a statement about
- * the recorded run rather than a second measurement. A rule fires only on a state the growth path
- * has already failed to correct: beds full with settlers outside them, adults with open posts they
- * are never given, or a larder and a woodpile spent to nothing while people still go hungry.
+ * the recorded run rather than a second measurement. Only states the growth path has already failed
+ * to correct qualify: beds full with settlers outside them and no building raised to fix it, a
+ * larder spent to nothing while the day still eats more than it grows, or a woodpile never once
+ * above nothing with an empty building queue. A settlement with more adults than posts is left
+ * alone on purpose — that is a preset, not a stall, and the idle still forage.
  */
 export type ColonyStallReason =
   | 'housing-full'
-  | 'idle-with-open-jobs'
   | 'food-exhausted'
-  | 'wood-pinned'
-  | 'chronic-understaffing';
+  | 'wood-pinned';
 
 /** Runs long enough that a demand the colony never meets stops being a settling-in period. */
 export const STALL_SETTLING_DAYS = 30;
 /** Below this share of its own storage cap a resource is pinned at nothing, not merely low. */
 const RESOURCE_PINNED_SHARE = 0.02;
-/** Idle adults outnumbering the workers for this share of the run is a labour floor, not a lull. */
-const CHRONIC_UNDERSTAFFING_SHARE = 0.49;
 
 export interface ColonyStallVerdict {
   stalled: boolean;
@@ -930,8 +928,8 @@ export function assessColonyStall(input: ColonyStallInput): ColonyStallVerdict {
   // A run shorter than the settling period is a settling-in period, not a verdict.
   if (final.day < STALL_SETTLING_DAYS) return { stalled: false, reasons, evidence };
 
+  const observations = snapshots.length;
   const housing = final.housing;
-  const jobSlots = Math.max(0, final.workforce.workerSlots - final.workforce.filledWorkerSlots);
   const woodPin = world.storageMax.wood * RESOURCE_PINNED_SHARE;
   const stonePin = world.storageMax.stone * RESOURCE_PINNED_SHARE;
 
@@ -940,14 +938,6 @@ export function assessColonyStall(input: ColonyStallInput): ColonyStallVerdict {
     evidence.push(
       `housing-full: ${housing.homelessPlayerHumans} homeless with every one of ${housing.totalBeds} beds taken `
         + `and 0 buildings raised in ${final.day} days`,
-    );
-  }
-
-  if (jobSlots > 0 && final.workforce.idle > final.workforce.working) {
-    reasons.push('idle-with-open-jobs');
-    evidence.push(
-      `idle-with-open-jobs: ${final.workforce.idle} idle against ${final.workforce.working} working `
-        + `while ${jobSlots} of ${final.workforce.workerSlots} worker slots stand empty`,
     );
   }
 
@@ -971,15 +961,8 @@ export function assessColonyStall(input: ColonyStallInput): ColonyStallVerdict {
     );
   }
 
-  const idleDays = snapshots.filter((snapshot) => snapshot.workforce.idle > snapshot.workforce.working).length;
-  if (
-    !reasons.includes('housing-full')
-    && idleDays > snapshots.length * CHRONIC_UNDERSTAFFING_SHARE
-  ) {
-    reasons.push('chronic-understaffing');
-    evidence.push(
-      `chronic-understaffing: idle outnumbered working on ${idleDays} of ${snapshots.length} observations`,
-    );
+  if (reasons.length > 0) {
+    evidence.push(`judged on the final day (${observations} earlier observations recorded the same run)`);
   }
 
   return { stalled: reasons.length > 0, reasons, evidence };

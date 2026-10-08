@@ -7,15 +7,18 @@ import {
   resetEntityCaches,
   updateCachedEntities,
   updateCachedEntitiesFromSoA,
+  _tickAnimals,
+  _tickHumans,
 } from './renderer/entityCache';
 import { resetWeatherCaches } from './renderer/weather';
-import { compositeCachedEntityLayer } from './renderer/entityComposite';
+import { compositeCachedEntityLayer, paintMovingEntities } from './renderer/entityComposite';
 import { drawGameOverlay } from './renderer/overlay';
+import { beginMotionFrame, resetMotionInterpolation } from './renderer/motionInterpolation';
+import { drawMiniMapFrame } from './renderer/miniMapFrame';
 import { getPresentationRng } from './simRng';
 import { resetLogisticsOverlayCache } from './logisticsOverlayData';
 
 // ============ MAIN RENDER ============
-/** Read-only render pass — camera/screenShake must be pre-interpolated in the snapshot. */
 /** Clear module-level render caches when starting a new session or loading a save. */
 export function resetRendererCaches(): void {
   resetTerrainCaches();
@@ -24,13 +27,27 @@ export function resetRendererCaches(): void {
   resetDialogueSessions();
   resetWeatherCaches();
   resetRenderClock();
+  resetMotionInterpolation();
   // The logistics projection memo is keyed on world identity, and a new session, a loaded save or a
   // `setWorld` all replace that object — but the key also has a cached *reference* to it, so dropping
   // it here keeps the cache from pinning a dead world alive and makes the invalidation explicit.
   resetLogisticsOverlayCache();
 }
 
-export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+/**
+ * Read-only render pass — camera/screenShake must be pre-interpolated in the snapshot.
+ *
+ * `tickFraction` is how far the accumulator has advanced through the fixed step: movers are drawn
+ * blended between the previous and current tick by it, and `1` (the paused value) draws the exact
+ * tick state.
+ */
+export function renderGame(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+  tickFraction = 1,
+) {
   tickRenderClock(performance.now());
   ctx.imageSmoothingEnabled = false;
 
@@ -49,6 +66,8 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
     );
   }
 
+  beginMotionFrame(state.tick, tickFraction, _tickHumans, _tickAnimals);
+
   // Camera shake is the one canvas motion the OS preference removes outright, not just freezes.
   const shake = effectiveScreenShake(state.screenShake);
   if (shake > 0.1) {
@@ -58,9 +77,13 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
 
   drawGround(ctx, state, cw, ch);
   compositeCachedEntityLayer(ctx, state, cw, ch);
+  paintMovingEntities(ctx, state, cw, ch);
   drawGameOverlay(ctx, state, cw, ch);
 
   if (shake > 0.1) {
     ctx.restore();
   }
+
+  // The mini-map paints on this frame, from the registration its panel makes on mount.
+  drawMiniMapFrame();
 }

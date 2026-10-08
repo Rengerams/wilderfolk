@@ -9,7 +9,8 @@ import { getResidenceCapacity, isResidenceBuildingType } from './residencyOccupa
 import { assignMissingResidences } from './residencyReconciliation';
 import { invalidatePopulationSnapshotCache } from './populationGrowth';
 
-const REPAIR_COST = { wood: 10, stone: 5 } as const;
+/** The repair owner's materials. Exported so a spender can leave the price of one repair behind. */
+export const REPAIR_COST = { wood: 10, stone: 5 } as const;
 const BUILDING_REFUND_RATIO = 0.5;
 /** Upgrade ceiling: a completed building may reach this level, no further. */
 const MAX_BUILDING_LEVEL = 3;

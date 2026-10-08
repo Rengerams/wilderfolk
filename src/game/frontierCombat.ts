@@ -139,6 +139,18 @@ export function getRivalRaidStrength(rival: RivalSettlement): number {
   return Math.round(rival.population * 12 * mood);
 }
 
+/** Adults the raid numbers are tuned for — the village size a camp's own war-band is a match for. */
+export const RAID_GROWTH_BASE_ADULTS = 8;
+
+/**
+ * Raid pressure as a multiple of the camp's own war-band: a village of `RAID_GROWTH_BASE_ADULTS` is
+ * raided at the camp's raw strength, and every further band of adults scales the raid with it.
+ */
+export function getRaidGrowthScale(adultCount: number): number {
+  const adults = Number.isFinite(adultCount) ? Math.max(0, adultCount) : 0;
+  return Math.max(1, adults / RAID_GROWTH_BASE_ADULTS);
+}
+
 /** Rival strength when you attack their camp — includes home-turf defense bonus. */
 export function getRivalDefenseStrength(rival: RivalSettlement): number {
   return Math.round(getRivalRaidStrength(rival) * OUTGOING_RAID_DEFENSE_MULT);
@@ -620,6 +632,17 @@ export function rollIncomingRaidLoot(rival: RivalSettlement): RaidLootBundle {
   };
 }
 
+/** Scales a raid's prize by the same growth multiple as the war-band carrying it off. */
+function multiplyRaidLoot(loot: RaidLootBundle, factor: number): RaidLootBundle {
+  const f = Math.max(0, factor);
+  return {
+    food: Math.round(loot.food * f),
+    wood: Math.round(loot.wood * f),
+    stone: Math.round(loot.stone * f),
+    gold: Math.round(loot.gold * f),
+  };
+}
+
 function scaleRaidLoot(loot: RaidLootBundle, fraction: number): RaidLootBundle {
   const f = Math.max(0, Math.min(1, fraction));
   return {
@@ -819,8 +842,11 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   else if (reputationBand === 'friendly') chance *= 0.6;
   if (getSimRng('frontierCombat')() > chance) return;
 
-  const attackerStrength = getRivalRaidStrength(rival);
-  const loot = rollIncomingRaidLoot(rival);
+  // The war-band and its prize grow with the colony they are aimed at, so a raid stays as real a
+  // threat — and as real a loss — to a grown village as it was to a young one.
+  const growth = getRaidGrowthScale(computeMilitiaBreakdown(state, allAlive).adultCount);
+  const attackerStrength = Math.round(getRivalRaidStrength(rival) * growth);
+  const loot = multiplyRaidLoot(rollIncomingRaidLoot(rival), growth);
   const marchDistancePx = getCampDistancePixels(state, state.buildings, rival);
   const marchDistanceTiles = getCampDistanceTiles(marchDistancePx);
   const responseDays = getIncomingRaidResponseDays(marchDistanceTiles);

@@ -31,6 +31,11 @@
  * `--bot` runs the auto-play ladder on its own cadence (`shouldVirtualPlayerAct`) through the command
  * door the game uses. Every run writes the final `eventLog` beside its JSONL record, for tracing.
  *
+ * A finished run is also judged on whether the colony still works: `assessColonyStall` reads the
+ * recorded health and reports `healthy` or a `stalled(...)` verdict, which fails the run. Only
+ * `--bot` raises buildings, so on a passive run `raised=0` is expected and the stall rules rest on
+ * housing, food and wood instead.
+ *
  * Normal mode is deliberately bounded: one line per checkpoint on stdout, with the complete record
  * written to the JSONL log. Nothing here changes a simulation rule; see `scripts/colonyHealth.ts`.
  */

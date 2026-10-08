@@ -117,7 +117,9 @@ function tickImmigration(
       state.humanPopulation = counts.humans;
 
       const villagers = allAlive.filter(isPlayerHuman);
-      assignMissingResidences(villagers, updatedBuildings, allAlive);
+      // Newcomers arrive homeless, so the pass's own global fill seats them on this call whatever the
+      // sweep bucket is; the tick only spreads the already-housed reassignment work.
+      assignMissingResidences(villagers, updatedBuildings, allAlive, state.tick);
 
       const label = admitted === 1
         ? (newcomers[0].age < HUMAN_ADULT_MIN_AGE ? 'A young settler arrived' : '+1 Settler arrived')

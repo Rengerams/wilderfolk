@@ -30,7 +30,7 @@ import { WEATHER_CONFIGS } from '../gameTypes';
 import { isWaterTerrainType } from '../terrain/terrainTraits';
 import { tileTypeAt } from '../terrain/terrainGrid';
 import type { RenderSnapshot } from '../renderSnapshot';
-import { motionTime, renderTime } from './shared';
+import { motionTime, renderDelta, renderTime } from './shared';
 import { getPresentationRng } from '../simRng';
 import { worldToScreenX, worldToScreenY } from '../viewState';
 
@@ -93,8 +93,8 @@ function rnd(a: number, b: number): number {
 const CLOUD_PARALLAX = 0.06;
 /** Camera parallax factor for the fog bands — Teraforge's `f.camY * 0.04`. */
 const FOG_PARALLAX = 0.04;
-/** A frame longer than this (a backgrounded tab, a long GC) advances no further than this. */
-const MAX_FRAME_DT = 0.1;
+/** Season-particle speed in px/s; the clock's frame delta scales it, so the fall rate is frame-rate free. */
+const SEASON_PARTICLE_PX_PER_SECOND = 60;
 
 /* ========================= SHARED LAYERS ========================= */
 
@@ -481,19 +481,15 @@ function weatherTemperatureShift(w: WeatherType): number {
 
 let activeWeather: WeatherType | null = null;
 let activeEffect: WeatherEffect | null = null;
-let lastRenderTime = renderTime;
 
 export function resetWeatherCaches(): void {
   activeWeather = null;
   activeEffect = null;
-  lastRenderTime = renderTime;
 }
 
 /** Build one frame from the snapshot. The camera is what gives the cloud and fog layers their parallax. */
 function weatherFrame(state: RenderSnapshot, cw: number, ch: number): WeatherFrame {
   const cam = state.camera;
-  const dt = Math.min(MAX_FRAME_DT, Math.max(0, renderTime - lastRenderTime));
-  lastRenderTime = renderTime;
   return {
     width: cw,
     height: ch,
@@ -501,7 +497,7 @@ function weatherFrame(state: RenderSnapshot, cw: number, ch: number): WeatherFra
     camX: cam.x,
     camY: cam.y,
     time: renderTime,
-    dt,
+    dt: renderDelta,
   };
 }
 
@@ -644,9 +640,11 @@ export function drawSeasonParticles(ctx: CanvasRenderingContext2D, state: Render
   }
   if (!state.juiceEffectsEnabled) return;
   const fall = state.season === Season.Fall;
+  // Advanced by the frame delta the clock publishes, so the fall rate does not follow the frame rate.
+  const step = renderDelta * SEASON_PARTICLE_PX_PER_SECOND;
   for (const p of seasonParts) {
-    p.y += p.vy;
-    p.x += p.vx + Math.sin(motionTime * 1.4 + p.sway) * 0.35;
+    p.y += p.vy * step;
+    p.x += (p.vx + Math.sin(motionTime * 1.4 + p.sway) * 0.35) * step;
     if (p.y > ch + 8 || p.x < -8 || p.x > cw + 8) {
       p.y = -8 - getPresentationRng('weatherFx')() * 8;
       p.x = getPresentationRng('weatherFx')() * cw;

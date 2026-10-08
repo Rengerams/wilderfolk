@@ -47,6 +47,7 @@ import {
   getOldAgeDeathChance,
   ticksForDays,
   PREGNANCY_TICKS,
+  isStartOfClockHour,
 } from '../dayCycle';
 import { formatCitizenName, formatDeathLog, humanDisplayName } from '../citizenId';
 import { dissolveMarriage, formatCaughtCheaterDivorceDetail, syncMarriageSurnames } from '../nameLoader';
@@ -1632,6 +1633,9 @@ export function tryDailyAffairEncounter(
   width?: number,
   height?: number,
 ): void {
+  // The caller matches a whole encounter hour and three ticks share it. Acting only on the hour's
+  // first tick keeps the encounter — and its one establishment line — once per settler per day.
+  if (!isStartOfClockHour(state.tick)) return;
   const config = SPECIES_CONFIG[EntityType.Human];
   recordRelationshipDiagnostic('affairChecks');
   if (!isPlayerHuman(entity)) return;
@@ -1711,8 +1715,13 @@ export function tryDailyAffairEncounter(
   recordRelationshipDiagnostic('affairProgressGains');
   recordAffairTrystSite(entity, paramour, state, buildingById);
 
+  // An established pair re-ran this block on every later successful roll, re-announcing the same
+  // affair. Establishment is the transition, so only a pair that is not already each other's logs it.
+  const alreadyEstablished =
+    entity.affairPartnerId === paramour.id && paramour.affairPartnerId === entity.id;
   if (
-    (entity.affairProgress ?? 0) >= R.AFFAIR_PROGRESS_MAX
+    !alreadyEstablished
+    && (entity.affairProgress ?? 0) >= R.AFFAIR_PROGRESS_MAX
     && (paramour.affairProgress ?? 0) >= R.AFFAIR_PROGRESS_MAX
   ) {
     entity.affairPartnerId = paramour.id;

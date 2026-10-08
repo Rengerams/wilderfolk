@@ -1,9 +1,14 @@
 import type { SpriteFrame } from '../spriteLoader';
 import { BuildingType } from '../gameTypes';
 
+/** Longest frame the clocks will integrate, so a stalled tab cannot teleport per-frame motion. */
+export const MAX_FRAME_DELTA_S = 0.1;
+
 let _lastRenderTime = 0;
 /** Global render time in seconds, advanced once per frame by {@link tickRenderClock}. */
 export let renderTime = 0;
+/** Seconds since the previous frame, clamped — the one delta every per-frame motion integrates. */
+export let renderDelta = 0;
 /**
  * Oscillator clock in seconds — the same clock, held still while the OS asks for reduced motion.
  *
@@ -43,12 +48,16 @@ export function resetRenderClock(): void {
   _lastRenderTime = 0;
   renderTime = 0;
   motionTime = 0;
+  renderDelta = 0;
 }
 
 /** Advance the render clock from a DOMHighResTimeStamp; returns the new render time. */
 export function tickRenderClock(now: number): number {
-  const dt = _lastRenderTime > 0 ? Math.min(0.1, (now - _lastRenderTime) / 1000) : 1 / 60;
+  const dt = _lastRenderTime > 0
+    ? Math.min(MAX_FRAME_DELTA_S, (now - _lastRenderTime) / 1000)
+    : 1 / 60;
   _lastRenderTime = now;
+  renderDelta = dt;
   renderTime += dt;
   if (!prefersReducedMotion()) motionTime += dt;
   return renderTime;

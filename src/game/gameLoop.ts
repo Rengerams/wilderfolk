@@ -3,6 +3,7 @@ import { gameTick, computeSimulationFocus, type SimulationFocus } from './gameEn
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycle';
 import { EntityCatalog } from './entityCatalog';
 import { renderGame, resetRendererCaches } from './rendererLoader';
+import { getRenderDpr } from './canvasLayer';
 import { buildRenderSnapshot, type RenderSnapshot } from './renderSnapshot';
 import { patchCatalogKinematicsFromRenderSoA } from './simBuffers/applyKinematics';
 import type { EntityRenderMeta } from './simBuffers/entityRenderMeta';
@@ -166,6 +167,11 @@ export class GameLoop {
   private rafId = 0;
   private running = false;
   private tickAccumulator = 0;
+  /**
+   * How far the accumulator sits through the current fixed step, handed to the renderer so movers
+   * blend between ticks. Paused reads `1` — the exact tick state, no drift and no smear.
+   */
+  private tickFraction = 1;
   private lastFrameTime = 0;
   private lastUiUpdate = 0;
   /**
@@ -855,6 +861,7 @@ export class GameLoop {
     this.running = true;
     this.lastFrameTime = 0;
     this.tickAccumulator = 0;
+    this.tickFraction = 1;
     if (!this.workerHost && !this.workerBooting) {
       this.scheduleWorkerRecovery();
     }
@@ -1059,8 +1066,13 @@ export class GameLoop {
         this.renderMetaBySlot = null;
         ticksThisFrame = steps;
       }
+      // The remainder of the fixed step is the render blend. A backed-up accumulator (the catch-up
+      // budget ran out) clamps to 1 rather than overshooting the tick it is already past.
+      this.tickFraction = Math.min(1, this.tickAccumulator / msPerTick);
     } else {
       this.tickAccumulator = 0;
+      // Paused: no step is in progress, so the exact tick state is what must be drawn.
+      this.tickFraction = 1;
       if (this.workerHost && this.lastPausedSentToWorker !== true) {
         this.workerHost.setPaused(true);
         this.lastPausedSentToWorker = true;
@@ -1190,7 +1202,8 @@ export class GameLoop {
     const ctx = this.canvasCtx;
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
+    // The canvas layer owns the device-pixel ratio this context is scaled by (`F-RND-7`).
+    const dpr = getRenderDpr();
     const targetW = Math.floor(layoutW * dpr);
     const targetH = Math.floor(layoutH * dpr);
     if (targetW <= 0 || targetH <= 0) return;
@@ -1218,7 +1231,7 @@ export class GameLoop {
       this.snapshotKey = dirtyKey;
     }
 
-    renderGame(ctx, snapshot, layoutW, layoutH);
+    renderGame(ctx, snapshot, layoutW, layoutH, this.tickFraction);
 
     if (this.world.screenShakeImpulse > 0) {
       clearScreenShakeImpulse(this.world);

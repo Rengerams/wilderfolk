@@ -26,6 +26,10 @@
  *   node node_modules/vite/bin/vite.js --port 5173 --strictPort --host 127.0.0.1   # dev server (DEV-only button)
  *   node scripts/autoplay-browser-probe.mjs
  *   node scripts/autoplay-browser-probe.mjs --url http://127.0.0.1:5173/ --watch-ms 25000 --speed 10
+ *   node scripts/autoplay-browser-probe.mjs --sightings 12 --clip-w 320 --clip-h 240 --clip-scale 4
+ *
+ * `--sightings N` also writes N clipped frames (`sighting-000.png`…) centred on the village at the
+ * `--zoom-preset` camera zoom, for overlays that only exist as pixels, and prints their paths.
  *
  * Exits 0 when the bot acted, 1 otherwise. Nothing to add to package.json.
  */
@@ -53,6 +57,14 @@ function parseArgs(argv) {
     headful: false,
     width: VIEWPORT.width,
     height: VIEWPORT.height,
+    /** Clipped frames to capture for visual review; 0 leaves the probe exactly as it was. */
+    sightings: 0,
+    sightingMs: 700,
+    clipWidth: 320,
+    clipHeight: 240,
+    clipScale: 4,
+    /** Camera zoom preset the sightings run picks; 2 draws badges, plates and bubbles. */
+    zoomPreset: 2,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -61,6 +73,12 @@ function parseArgs(argv) {
     else if (arg === '--speed') args.speed = Number(argv[++i]);
     else if (arg === '--width') args.width = Number(argv[++i]);
     else if (arg === '--height') args.height = Number(argv[++i]);
+    else if (arg === '--sightings') args.sightings = Number(argv[++i]);
+    else if (arg === '--sighting-ms') args.sightingMs = Number(argv[++i]);
+    else if (arg === '--clip-w') args.clipWidth = Number(argv[++i]);
+    else if (arg === '--clip-h') args.clipHeight = Number(argv[++i]);
+    else if (arg === '--clip-scale') args.clipScale = Number(argv[++i]);
+    else if (arg === '--zoom-preset') args.zoomPreset = Number(argv[++i]);
     else if (arg === '--headful') args.headful = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -300,6 +318,48 @@ const CAPABILITIES = {
       canvas.dispatchEvent(new PointerEvent('pointerup', opts));
       canvas.dispatchEvent(new MouseEvent('click', opts));
       return { clicked: true, at: [Math.round(x), Math.round(y)] };
+    })()`;
+  },
+
+  /**
+   * Read the stage's live camera zoom, from the control the player reads rather than from a guess.
+   * Returns the preset and the live percentage so a caller can assert the zoom it is actually at.
+   */
+  readCameraZoom() {
+    return `(() => {
+      const live = document.querySelector('[title="Live zoom"]');
+      const preset = document.querySelector('select[aria-label="Zoom preset"]');
+      if (!live) return null;
+      return {
+        zoomLabel: (live.textContent || '').trim(),
+        preset: preset ? Number(preset.value) : null,
+        presets: preset ? [...preset.options].map((o) => Number(o.value)) : [],
+      };
+    })()`;
+  },
+
+  /** Choose a camera zoom through the stage's own preset select. */
+  setCameraZoomPreset(preset) {
+    return `(() => {
+      const select = document.querySelector('select[aria-label="Zoom preset"]');
+      if (!select) return { ok: false, reason: 'no zoom preset control' };
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+      setter.call(select, ${JSON.stringify(String(preset))});
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      return { ok: true, now: Number(select.value) };
+    })()`;
+  },
+
+  /** Centre the camera on the village through the mini-map's own Enter control. */
+  centreOnVillage() {
+    return `(() => {
+      const minimap = document.querySelector('[aria-label^="Mini-map"]');
+      if (!minimap) return { ok: false, reason: 'no mini-map' };
+      minimap.focus();
+      const opts = { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true };
+      minimap.dispatchEvent(new KeyboardEvent('keydown', opts));
+      minimap.dispatchEvent(new KeyboardEvent('keyup', opts));
+      return { ok: true, focused: document.activeElement === minimap, label: minimap.getAttribute('aria-label') };
     })()`;
   },
 
@@ -748,6 +808,49 @@ async function main() {
     console.log(`sim ticks seen advancing   : ${tickLabels.size} distinct labels`);
     console.log(`console errors             : ${consoleErrors.length}`);
     for (const error of consoleErrors.slice(0, 10)) console.log(`  ! ${error}`);
+
+    // Pixel evidence for the canvas-only overlays (status badge, name plate, speech bubble), which no
+    // DOM assertion can see. Reported as file paths: the question is what the frame looks like.
+    const sightings = [];
+    const sightingReport = {};
+    if (args.sightings > 0) {
+      // 1x, because a speech bubble lasts only a few simulation ticks and at 10x that is under a
+      // second of real time. The act ladder above is already recorded, so this cannot affect it.
+      const speedPick = await evaluate(clickButtonExpression('1x'));
+      const centred = await evaluate(CAPABILITIES.centreOnVillage());
+      const presetPick = await evaluate(CAPABILITIES.setCameraZoomPreset(args.zoomPreset));
+      await sleep(1500);
+      const zoom = await evaluate(CAPABILITIES.readCameraZoom());
+      const clipX = Math.round((args.width - args.clipWidth) / 2);
+      const clipY = Math.round((args.height - args.clipHeight) / 2);
+      Object.assign(sightingReport, { speedPick, centred, presetPick, zoom, clipX, clipY });
+
+      console.log('');
+      console.log('--- sightings (pixel evidence, not gated) ---');
+      console.log(`speed set to 1x            : ${JSON.stringify(speedPick)}`);
+      console.log(`centred on village         : ${JSON.stringify(centred)}`);
+      console.log(`zoom preset ${args.zoomPreset} chosen       : ${JSON.stringify(presetPick)}`);
+      console.log(`live camera zoom           : ${JSON.stringify(zoom)}`);
+      console.log(`clip                       : ${clipX},${clipY} ${args.clipWidth}x${args.clipHeight} @${args.clipScale}x`);
+
+      for (let i = 0; i < args.sightings; i++) {
+        const shot = await session.send('Page.captureScreenshot', {
+          format: 'png',
+          clip: {
+            x: clipX, y: clipY, width: args.clipWidth, height: args.clipHeight, scale: args.clipScale,
+          },
+        });
+        const file = path.join(outDir, `sighting-${String(i).padStart(3, '0')}.png`);
+        writeFileSync(file, Buffer.from(shot.data, 'base64'));
+        sightings.push(file);
+        console.log(`  ${file}`);
+        await sleep(args.sightingMs);
+      }
+      writeFileSync(
+        path.join(outDir, 'sightings.json'),
+        `${JSON.stringify({ ...sightingReport, files: sightings }, null, 2)}\n`,
+      );
+    }
 
     // Subject windows: the family tree opens as its own window and closes again.
     // The browser half of "one window per subject" (owner: "each subject should just have its own

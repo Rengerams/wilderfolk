@@ -142,10 +142,128 @@ export function drawBuildingHighlightRing(
   ctx.restore();
 }
 
+/** Baked strip opacity for a road segment and for a wall panel. */
+const ROAD_STRIP_ALPHA = 0.92;
+const WALL_PANEL_ALPHA = 0.94;
+/** The hover tint repaints the same art at full opacity over its baked copy. */
+const STRIP_HOVER_ALPHA = 1;
+/** Foundation-pad opacity while a building is under construction, and the hover tint it takes. */
+const CONSTRUCTION_PAD_ALPHA = 0.28;
+const CONSTRUCTION_HOVER_PAD_ALPHA = 0.45;
+
+/** Which hover tint a building gets: a repainted strip, a brighter foundation pad, or none. */
+export function hoverTintKindFor(building: Building): 'strip' | 'pad' | null {
+  if (!building.completed) return 'pad';
+  if (building.type === BuildingType.Road || ISO_PANEL_BUILDINGS.has(building.type)) return 'strip';
+  return null;
+}
+
+/**
+ * One strip-painted building — a road segment or a wall panel, with a road's junction overlay.
+ * `strips` is the pass's shared road index; `hover` is the tint, so the hover pass reuses this.
+ */
+function drawStripBuilding(
+  ctx: CanvasRenderingContext2D,
+  building: Building,
+  rect: { sx: number; sy: number; w: number; h: number },
+  strips: ReturnType<typeof collectStripCenters> | null,
+  hover: boolean,
+): void {
+  const { sx, sy, w, h } = rect;
+  const alpha = hover
+    ? STRIP_HOVER_ALPHA
+    : building.type === BuildingType.Road ? ROAD_STRIP_ALPHA : WALL_PANEL_ALPHA;
+  const rot = effectiveBuildingRotation(building.type, building.rotation);
+  drawProceduralStripBuilding(ctx, building.type, sx, sy, w, h, rot, alpha);
+  if (building.type !== BuildingType.Road || !strips) return;
+  const roadJunction = analyzeStripJunction(building.x, building.y, strips.hList, strips.vList, strips.along);
+  if (roadJunction.kind !== 'end' && roadJunction.kind !== 'straight') {
+    drawStripJunctionOverlay(ctx, building.type, sx, sy, w, h, roadJunction, alpha);
+  }
+}
+
+/**
+ * One under-construction building: foundation pad, scaffold art and progress bar.
+ * Split out so the per-frame hover pass repaints the same body at the hover pad opacity.
+ */
+function drawConstructionBody(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  building: Building,
+  rect: { sx: number; sy: number; w: number; h: number },
+  hover: boolean,
+): void {
+  const cam = state.camera;
+  const { sx, sy, w, h } = rect;
+  const cfg = BUILDING_CONFIGS[building.type];
+  const tint = cfg.backgroundColor;
+  const border = darkerColor(tint, 0.35);
+  const dash = categoryBorderDashForType(building.type);
+  // The authoritative completeness value only changes once per colony day, so the pad, the bar
+  // and the number are drawn from the smoothed display value: otherwise they stand still for a
+  // whole game day (48 real seconds at 1x) and then jump.
+  const shownProgress = displayedConstructionProgress(building, state.tick);
+  drawBuildingPad(
+    ctx, cfg.padShape, sx, sy, w, h, tint, border,
+    hover ? CONSTRUCTION_HOVER_PAD_ALPHA : CONSTRUCTION_PAD_ALPHA, dash, 1.5,
+  );
+  const rot = effectiveBuildingRotation(building.type, building.rotation);
+  if (isStripBuildType(building.type)) {
+    drawProceduralStripBuilding(ctx, building.type, sx, sy, w, h, rot, 0.55);
+  } else if (isDecorType(building.type)) {
+    drawProceduralDecor(ctx, building.type, sx, sy, w, h, 0.75);
+  } else {
+    const frame = cfg.sprite ? getSpriteFrame(cfg.sprite) : null;
+    if (frame) {
+      // Construction builds up — the frame grows from scaffold to full size.
+      const buildScale = Math.max(0.35, 0.45 + 0.55 * (shownProgress / 100));
+      drawBuildingSprite(
+        ctx, building.type, frame, sx, sy, w, h,
+        Math.max(buildScale, building.spriteScale || 0.55),
+        rot,
+        cfg.spriteDisplayScale ?? DEFAULT_SPRITE_DISPLAY_SCALE,
+        cfg.spriteAnchorY,
+      );
+    }
+  }
+
+  // Progress bar
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(sx - w / 2, sy + h / 2 - 4, w, 4);
+  ctx.fillStyle = '#22c55e';
+  ctx.fillRect(sx - w / 2, sy + h / 2 - 4, w * (shownProgress / 100), 4);
+  ctx.fillStyle = '#44403c';
+  ctx.font = `${Math.max(8, 10 * cam.zoom)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`${Math.floor(shownProgress)}%`, sx, sy + 3);
+}
+
+/** Road strip index the last layer bake built, reused by the hover tint's junction overlay. */
+let lastBakedRoadStrips: ReturnType<typeof collectStripCenters> | null = null;
+
+/**
+ * Hover tint for the building under the cursor, drawn per frame over the baked layer.
+ * The layer key carries no hover, so a tint painted there waited for the next tick and never moved
+ * while the game was paused.
+ */
+export function drawHoveredBuildingTint(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+): void {
+  const hovered = state.hoveredBuilding;
+  if (!hovered || hoverTintKindFor(hovered) === null) return;
+  const rect = getBuildingScreenRect(hovered, state, state.camera, cw, ch);
+  if (hovered.completed) {
+    drawStripBuilding(ctx, hovered, rect, lastBakedRoadStrips, true);
+    return;
+  }
+  drawConstructionBody(ctx, state, hovered, rect, true);
+}
+
 export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;
-
-  const isHovered = (b: typeof state.buildings[0]) => state.hoveredBuilding?.id === b.id;
 
   // Roads first. The strip-centre index is collected **once** for the whole pass: it walks
   // every building and allocates an entry per strip, so calling `detectBuildingJunction` per
@@ -155,73 +273,30 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   let roadStrips: ReturnType<typeof collectStripCenters> | null = null;
   for (const b of state.buildings) {
     if (b.type !== BuildingType.Road || !b.completed) continue;
-    const { sx, sy, w, h } = getBuildingScreenRect(b, state, cam, cw, ch);
-    if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
-    const hover = isHovered(b);
-    const rot = effectiveBuildingRotation(b.type, b.rotation);
-    drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, hover ? 1 : 0.92);
-    const strips = (roadStrips ??= collectStripCenters(state.buildings, 'road'));
-    const roadJunction = analyzeStripJunction(b.x, b.y, strips.hList, strips.vList, strips.along);
-    if (roadJunction.kind !== 'end' && roadJunction.kind !== 'straight') {
-      drawStripJunctionOverlay(ctx, b.type, sx, sy, w, h, roadJunction, hover ? 1 : 0.92);
-    }
+    const rect = getBuildingScreenRect(b, state, cam, cw, ch);
+    if (rect.sx + rect.w < -20 || rect.sx - rect.w > cw + 20) continue;
+    if (rect.sy + rect.h < -20 || rect.sy - rect.h > ch + 20) continue;
+    roadStrips ??= collectStripCenters(state.buildings, 'road');
+    drawStripBuilding(ctx, b, rect, roadStrips, false);
   }
+  lastBakedRoadStrips = roadStrips;
 
   // Palisade walls, corners & gates (procedural — chains read clearly on the map)
   for (const b of state.buildings) {
     if (!ISO_PANEL_BUILDINGS.has(b.type) || !b.completed) continue;
-    const { sx, sy, w, h } = getBuildingScreenRect(b, state, cam, cw, ch);
-    if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
-    const rot = effectiveBuildingRotation(b.type, b.rotation);
-    const hover = isHovered(b);
-    const alpha = hover ? 1 : 0.94;
-    drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, alpha);
+    const rect = getBuildingScreenRect(b, state, cam, cw, ch);
+    if (rect.sx + rect.w < -20 || rect.sx - rect.w > cw + 20) continue;
+    if (rect.sy + rect.h < -20 || rect.sy - rect.h > ch + 20) continue;
+    drawStripBuilding(ctx, b, rect, null, false);
   }
 
   // Under construction
   for (const b of state.buildings) {
     if (b.completed) continue;
-    const { sx, sy, w, h } = getBuildingScreenRect(b, state, cam, cw, ch);
-    if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
-    const cfg = BUILDING_CONFIGS[b.type];
-    const tint = cfg.backgroundColor;
-    const border = darkerColor(tint, 0.35);
-    const dash = categoryBorderDashForType(b.type);
-    const hover = isHovered(b);
-    // The authoritative completeness value only changes once per colony day, so the pad, the bar
-    // and the number are drawn from the smoothed display value: otherwise they stand still for a
-    // whole game day (48 real seconds at 1x) and then jump.
-    const shownProgress = displayedConstructionProgress(b, state.tick);
-    drawBuildingPad(ctx, cfg.padShape, sx, sy, w, h, tint, border, hover ? 0.45 : 0.28, dash, 1.5);
-    const rot = effectiveBuildingRotation(b.type, b.rotation);
-    if (isStripBuildType(b.type)) {
-      drawProceduralStripBuilding(ctx, b.type, sx, sy, w, h, rot, 0.55);
-    } else if (isDecorType(b.type)) {
-      drawProceduralDecor(ctx, b.type, sx, sy, w, h, 0.75);
-    } else {
-      const frame = cfg.sprite ? getSpriteFrame(cfg.sprite) : null;
-      if (frame) {
-        // Construction builds up — the frame grows from scaffold to full size.
-        const buildScale = Math.max(0.35, 0.45 + 0.55 * (shownProgress / 100));
-        drawBuildingSprite(
-          ctx, b.type, frame, sx, sy, w, h,
-          Math.max(buildScale, b.spriteScale || 0.55),
-          rot,
-          cfg.spriteDisplayScale ?? DEFAULT_SPRITE_DISPLAY_SCALE,
-          cfg.spriteAnchorY,
-        );
-      }
-    }
-
-    // Progress bar
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.fillRect(sx - w / 2, sy + h / 2 - 4, w, 4);
-    ctx.fillStyle = '#22c55e';
-    ctx.fillRect(sx - w / 2, sy + h / 2 - 4, w * (shownProgress / 100), 4);
-    ctx.fillStyle = '#44403c';
-    ctx.font = `${Math.max(8, 10 * cam.zoom)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText(`${Math.floor(shownProgress)}%`, sx, sy + 3);
+    const rect = getBuildingScreenRect(b, state, cam, cw, ch);
+    if (rect.sx + rect.w < -20 || rect.sx - rect.w > cw + 20) continue;
+    if (rect.sy + rect.h < -20 || rect.sy - rect.h > ch + 20) continue;
+    drawConstructionBody(ctx, state, b, rect, false);
   }
 
   // Completed buildings (roads and wall panels already drawn above)

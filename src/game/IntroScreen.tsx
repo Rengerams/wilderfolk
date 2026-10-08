@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ensureIntroAudio, getMuteState, toggleMute } from '../audio';
 import { GAME_PHASE, GAME_SUBTITLE, GAME_VERSION, GAME_VERSION_TAGLINE } from './version';
 import { getPresentationRng } from './simRng';
+import { fitCanvasToDpr } from './canvasLayer';
 import { INTRO_DURATION_MS, INTRO_TIMELINE_MS } from './introTimeline';
 import { isActivatableTarget } from './hotkeys';
 
@@ -278,15 +279,14 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
     let width = window.innerWidth;
     let height = window.innerHeight;
 
     const resize = () => {
       width = window.innerWidth;
       height = window.innerHeight;
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
+      // The canvas surface owner sizes every display canvas, so the ratio is computed in one place.
+      const dpr = fitCanvasToDpr(canvas, width, height);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 

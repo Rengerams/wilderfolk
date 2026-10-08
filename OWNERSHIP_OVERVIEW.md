@@ -17,7 +17,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Workforce / jobs | `workforce.ts` + `buildingStaffingActions.ts` | assignment / command | `assignStaffWorkerToBuilding`, `assignMissingWorkers`, … |
 | Workforce policy preset | `workforcePolicy.ts` | player-command + assignment | `getWorkforcePolicy`, `setWorkforcePolicy`, `jobBuildingPriorityForPolicy` |
 | Generic assign/remove command route | `buildingActionRouting.ts` | player-command | `assignIdleWorkerToBuilding`, `removeWorkerFromBuilding` (routes to staffing or residency) |
-| Housing / residence | `residencyOccupancy.ts` / `residencySelection.ts` / `residencyReconciliation.ts` / `buildingResidencyActions.ts` | assignment / command | `countResidentsInBuilding`, `syncPartnerResidence`, `isResidenceOccupantEntity` (the rule the inspector reads too), … |
+| Housing / residence | `residencyOccupancy.ts` / `residencySelection.ts` / `residencyReconciliation.ts` / `buildingResidencyActions.ts` | assignment / command | `countResidentsInBuilding`, `syncPartnerResidence`, `isResidenceOccupantEntity` (the rule the inspector reads too), `assignMissingResidences` (with a `sweepTick` it sweeps that pulse's bucket of the day's reassignment work; without one it converges the whole colony immediately), … |
 | Construction progress | `dailyBuildingEconomy.ts` | daily | construction progress in daily economy |
 | Economy / resources | `resourceUtils.ts` (add), `economy.ts` (caps/spoilage), `dailyBuildingEconomy.ts` (production) | daily / command | `addResource`, `updateStorageCaps`, `tickWinterHeating` |
 | Workshop recipes | `workshops.ts` | — | `canAffordWorkshopRecipe(resources, recipe)` |
@@ -26,6 +26,8 @@ Purpose: one decision → one owner module → one definition of each function.
 | Diplomacy card prices | `groupEvents.ts` | — (data read by the card's label, its gate and its charge) | `DIPLOMACY_TRIBUTE_PAY_FOOD`, `DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD`, `DIPLOMACY_ALLIANCE_ACCEPT_GOLD`, `DIPLOMACY_ALLIANCE_COUNTER_FOOD`, `DIPLOMACY_ALLIANCE_COUNTER_GOLD`, `DIPLOMACY_PEACE_SIGN_GOLD`, `DIPLOMACY_PEACE_SIGN_FOOD`, `DIPLOMACY_PEACE_TRIBUTE_FOOD` |
 | Rival settlement day pulse | `rivalEvents.ts` | new-calendar-day | `tickRivalSettlements` |
 | Rival schedule wiring | `groupEvents.ts` | daily | `tickWorldRivalSettlements` (callbacks only) |
+| Frontier founding | `groupEvents.ts` | new-calendar-day | `tryFrontierSettlement`, `FIRST_RIVAL_MIN_DAY`, `FIRST_RIVAL_MIN_HUMANS`, `spawnRivalSettlement` (optional founding relationship) |
+| Raid growth scaling | `frontierCombat.ts` | raid queue | `getRaidGrowthScale`, `RAID_GROWTH_BASE_ADULTS`, `multiplyRaidLoot` |
 | Casual social feedback | `humanSocial.ts` / `socialLife.ts` | staggered-social | chat / greeting helpers |
 | Youth love | `humanRelationships.ts` | new-calendar-day | `advanceYouthLove`, `reconcileYouthLove` |
 | Courtship / marriage | `humanRelationships.ts` | staggered-social (approach) + new-calendar-day (reconciliation) | `findCourtshipPartner`, `bindCourtship`, `reconcileCourtships`, `tryCompleteCourtshipMarriage` |
@@ -121,7 +123,8 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Shared sim helpers (multipliers, reputation, season) | `simHelpers.ts` | — (helper, no cadence of its own) | `getMultiplier`, `addReputation`, `hasTech`, `getSeason` |
 | Relationship diagnostics | `relationshipDiagnostics.ts` | dev-only, recorded at each decision roll | `recordRelationshipDiagnostic`, `flushRelationshipDiagnostics`, `setRelationshipDiagnosticsEnabled` |
 | Spatial-query metrics and grid A/B switch | `spatialQueryMetrics.ts` | dev-only | `setSpatialQueryMetricsEnabled`, `setSpatialQueryGridMode`, `isSpatialQueryMetricsEnabled` |
-| Auto-play decisions (dev-gated, N17) | `virtualPlayer.ts` | player-command — one action per in-game hour through the same command door | `decideVirtualPlayerAction` and the `decide*` family |
+| Auto-play decisions and their waiting verdict (dev-gated, N17) | `virtualPlayer.ts` | player-command — one action per in-game hour through the same command door | `decideVirtualPlayerAction` and the `decide*` family, `virtualPlayerWaitingReason`, `buildingBlockReason`, `canSpendKeepingReserve`, `spareBedReserve`, `wantedProducerCount`, `completedProducerCount`, `canStaffUnmannedProducer` |
+| Auto-play tuning (buffers, reserves, producers per settler) | `gameConstants.ts` | — (data read by the `decide*` family) | the `VirtualPlayer` block (`SPARE_BED_*`, `SETTLERS_PER_FOOD_PRODUCER`, `SETTLERS_PER_INDUSTRY_PRODUCER`) |
 | Player preferences | `preferences.ts` | UI (boot read + toggle write) | `loadAutoSavePreference`, `saveAutoSavePreference`, `loadTutorialsEnabled`, `saveTutorialsEnabled` |
 | Camera and view state | `viewState.ts` | render pass + input + session setup | `createInitialView`, `updateView`, `resolveEntity`, `resolveBuilding`, `clampCameraZoom` |
 | Building rotation rules | `buildingRotation.ts` | player-command (placement) | `isRotatableBuildingType`, `toggleBuildingRotation` |
@@ -164,7 +167,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Tamed-animal care and feeding | `animalCare.ts` | daily (`tickDailyWorldEvents`) + wildlife layer | `tickAnimalCare`, `tamedAnimalsFedToday`, `countTamedAnimals`, `getAnimalCareStatus` |
 | Grazing pressure and grass growth multipliers | `grassEcology.ts` | per tick + daily production | `getGrassGrowthMultiplier`, `getGrazerDailyDemand`, `getWinterEnergyPenalty`, `getWeatherFarmMultiplier` |
 | Settler activity status projection (inspector/UI) | `humanStatus.ts` | UI (read-only projection) | `getHumanActivityStatus`, `getHumanActivityProjection` |
-| Speech-bubble and name-label layout | `renderer/overheadLayout.ts` | render pass | `resolveSpeechBubbleRect`, `getSpeechBubbleFontSize`, `getSpeechBubbleHeadClearance`, `shouldDrawHumanNameLabel`, `formatHumanNameLabel` |
+| Speech-bubble, name-label and status-badge layout | `renderer/overheadLayout.ts` (layout and decisions) + `renderer/humans.ts` (badge and facts painting) | render pass | `resolveSpeechBubbleRect`, `getSpeechBubbleFontSize`, `getSpeechBubbleHeadClearance`, `shouldDrawHumanNameLabel`, `formatHumanNameLabel`, `getStatusBadgeLayout`, `getNamePlateLayout`, `resolveStatusBadgeKind`, `getStatusBadgeShape`, `getStatusBadgeColor`, `combatTokenStatusKind`, `HUMAN_STATUS_KINDS`, `HumanStatusKind`, `StatusBadgeShape`, `HumanStatusFacts`, `getStatusFacts`, `paintStatusGlyph`, `drawStatusBadge` |
 | Render clock and canvas motion preference | `renderer/shared.ts` | render pass (once per frame) | `tickRenderClock`, `resetRenderClock`, `renderTime`, `motionTime`, `prefersReducedMotion`, `effectiveScreenShake` |
 
 ### Presentation, UI and remaining simulation owners (2026-09-16 work-list sweep)
@@ -179,12 +182,17 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | HUD badges, banners and alerts | `AlertBar.tsx` + `ActiveEventBanner.tsx` + `BigNewsBanner.tsx` + `MomentTitleCard.tsx` + `ResourceBadge.tsx` + `ResourceIcons.tsx` + `ResourceCost.tsx` + `VillageRequestCard.tsx` | UI (read-only presentation) | `AlertBar`, `ActiveEventBanner`, `BigNewsBanner`, `ResourceBadge`, `ResourceCost` |
 | Sidebar tabs and read-only panels | `DynastyPanel.tsx` + `FrontierTabPanel.tsx` + `LogTabPanel.tsx` + `MoreTabPanel.tsx` + `NatureTabPanel.tsx` + `ProgressTabPanel.tsx` + `ValleyChroniclePanel.tsx` + `VillageTabPanel.tsx` + `PopulationPanel.tsx` + `StatisticsPanel.tsx` + `VillageLeadershipPanel.tsx` + `FocusPanel.tsx` + `CitizenOverviewScreen.tsx` + `CombatPreviewPanel.tsx` + `CombatLogPanel.tsx` + `VisitorCampPanel.tsx` + `BlacksmithForgePanel.tsx` + `BuildCatalogPanel.tsx` + `WorkSchedulePanel.tsx` + `VenueSchedulePanel.tsx` + `WorkHoursWindow.tsx` + `FamilyTreeWindow.tsx` + `FamiliesTreePanel.tsx` + `SimulationDiagnosticsPanel.tsx` + `GuidedCampaignPanel.tsx` + `SelectedBuildingPanel.tsx` + `SelectedEntityPanel.tsx` + `MapSetupScreen.tsx` + `IntroScreen.tsx` + `MiniMap.tsx` + `ChallengesPanel.tsx` + `FrontierPanel.tsx` + `TutorialOverlay.tsx` + `TutorialCampaignBanner.tsx` + `ContextualTutorialCard.tsx` | UI (read-only projections; commands go through `App`) | `ProgressTabPanel`, `VillageTabPanel`, `NatureTabPanel`, `MoreTabPanel`, `PopulationPanel`, `SelectedBuildingPanel`, `SelectedEntityPanel`, `MapSetupScreen`, `IntroScreen`, `computeMiniMapViewportRect` |
 | Village dashboard projection | `dashboard/GameDashboard.tsx` | UI (read-only) | `GameDashboard` |
-| Session, input, persistence and feedback hooks | `useGameSession.ts` + `useCanvasInteractions.ts` + `useKeyboardControls.ts` + `useGamePersistence.ts` + `useTransientGameFeedback.ts` + `useContextualTutorial.ts` + `useGameShellState.ts` + `useFpsMeter.ts` + `useGameAudio.ts` + `useVirtualPlayer.ts` | UI (lifecycle; dispatch only through the command door) | `useGameSession`, `useCanvasInteractions`, `useKeyboardControls`, `useGamePersistence`, `useTransientGameFeedback` |
+| Session, input, persistence and feedback hooks | `useGameSession.ts` + `useCanvasInteractions.ts` + `useKeyboardControls.ts` + `useGamePersistence.ts` + `useTransientGameFeedback.ts` + `useContextualTutorial.ts` + `useGameShellState.ts` + `useFpsMeter.ts` + `useGameAudio.ts` + `useVirtualPlayer.ts` | UI (lifecycle; dispatch only through the command door) | `useGameSession`, `useCanvasInteractions`, `useKeyboardControls`, `useGamePersistence`, `useTransientGameFeedback`, `virtualPlayerStatusText`, `VIRTUAL_PLAYER_IDLE_STATUS` |
 | Overlay keyboard and map-pointer gesture contract | `hooks/useOverlayKeyboard.ts` + `hooks/useCanvasInteractions.ts` | UI input; a window claims the keyboard while open and closes on Escape, and a map gesture's travel decides click versus pan | `useOverlayKeyboard`, `useCanvasInteractions`, `pointerMovedRef` |
 | Hotkeys, help, alerts and UI-side projections | `hotkeys.ts` + `guideHelp.ts` + `priorityAlerts.ts` + `focusHints.ts` + `rivalDisplay.ts` + `uiSimSummary.ts` + `villagePortrait.ts` + `citizenOverview.ts` + `familyLegacy.ts` + `familyTree.ts` + `buildingProgressDisplay.ts` + `housingDiagnostics.ts` + `scheduleFeedback.ts` + `contextualTutorial.ts` | UI (read-only projections) | `HEADER_DOORS`, `resolveSidebarTabFromKey`, `searchGuideHelp`, `getPriorityAlerts`, `getFocusHints`, `computeVillageStats`, `computeCitizenOverview`, `buildFamilyTree` |
 | Wolf scent field (deposit, decay, gradient sampling) | `scentGrid.ts` | realtime (every tick) + render SoA sidecar | `ensureScentGrid`, `tickScentGrid`, `ScentGrid`, `ScentGridReader` |
 | Schedule and per-person day rolls | `humanSchedule.ts` | realtime + daily | `personDayRoll`, `isAsleepAtHome`, `prefersHomeTonightFor`, `isFestivalGatheringHour`, `isFestivalGatherer` |
-| Building command actions (config and maintenance) | `buildingConfigurationActions.ts` + `buildingMaintenanceActions.ts` | player-command | `setWorkshopRecipe`, `setMineMode`, `demolishBuilding`, `repairBuilding`, `upgradeBuilding` |
+| Tick interpolation for moving entities | `renderer/motionInterpolation.ts` | per frame (presentation) | `interpolatePosition`, `beginMotionFrame`, `presentationPosition`, `resetMotionInterpolation` |
+| Per-frame repaint of the movers (animals, humans, particles, trail lines, floating text) | `renderer/entityComposite.ts` | per frame (presentation) | `paintMovingEntities` |
+| Hover tint for roads, walls and construction pads | decision `renderer/buildings.ts`, drawn by `renderer/overlay.ts` | per frame (presentation) | `hoverTintKindFor`, `drawHoveredBuildingTint`, `drawStripBuilding`, `drawConstructionBody` |
+| Render device-pixel-ratio and canvas fit | `canvasLayer.ts` | per frame (presentation) | `getRenderDpr`, `fitCanvasToDpr` |
+| Mini-map frame drawing and repaint cadence | `renderer/miniMapFrame.ts` | per frame (presentation) | `drawMiniMapFrame`, `registerMiniMapFrameDraw`, `shouldRepaintMiniMap` |
+| Building command actions (config and maintenance) | `buildingConfigurationActions.ts` + `buildingMaintenanceActions.ts` | player-command | `setWorkshopRecipe`, `setMineMode`, `demolishBuilding`, `repairBuilding`, `upgradeBuilding`, `REPAIR_COST` |
 | Spatial grids (mobile, grass, social) and their invariants | `spatialGrid.ts` | realtime (rebuild/reconcile per tick) + query helpers | `syncMobileSimGrid`, `syncSpatialGridEntity`, `assertSpatialGridInvariants`, `EntitySpatialGrid`, `isHumanSocialGridEntity` |
 | Systems tick layer | `tickLayerSystems.ts` | systems pulse (`LAYER_SYSTEMS_INTERVAL`) | `tickLayerSystems`, `tickWildlife`, `tickWolfRecruitment`, `isWildlifePredator` |
 | Resource types, costs and build catalogue | `resourceTypes.ts` + `resourceCost.ts` + `buildCatalog.ts` | — (data + formatting, no state) | `formatResourceAmount`, `formatResourceAmounts`, `formatResourceCost`, `canAffordResourceCost`, `categoryForBuildingType` |
@@ -307,12 +315,17 @@ exports it.
 
 The long-run gate's housing verdict is the housing owner's, not the harness's; the harness only names
 the residence that broke, so a failed gate says which home and which day instead of only a count.
+The stall verdict below is the harness's own read of the run it just made: a settlement that broke no
+invariant can still have stopped working, and when the shipped default scenario reads as stalled it is
+reported as stalled — never softened until it passes.
 
 | Decision | True owner | Cadence / called from | Key entry functions |
 |---|---|---|---|
 | Naming the residence behind a failed housing verdict | `scripts/run-full-year.mts` | both the per-checkpoint and the final housing assertion | `describeHousingFailure` |
 | Housing consistency verdict (over-capacity, orphaned references, occupant-list mismatches) | `housingDiagnostics.ts` | read-only, sampled per checkpoint | `collectHousingDiagnostics`, `isHousingDiagnosticsHealthy` |
 | A home's beds, and whether one is free | `residencyOccupancy.ts` | every residence write | `getResidenceCapacity`, `residenceRoomFor` |
+| Spreading one day's reassignment work across the assignment pulses | `residencyReconciliation.ts` (bucket key: `residencySelection.ts`) | assignment pulse when a tick is supplied; a load, a player command or an event converges immediately and takes no tick | `RESIDENCE_SWEEP_BUCKETS` (must equal the layer's pulses per day), `assignMissingResidences` (optional `sweepTick`), `housingUnitBucket` |
+| Colony stall verdict — whether a run that broke no invariant still works (beds full with settlers outside them and nothing raised, an empty larder still eating more than it grows, a woodpile at nothing with no building raised) | `scripts/colonyHealth.ts` | read-only, per checkpoint and once at the end of a run; a stalled verdict fails the run | `assessColonyStall`, `assertColonyNotStalled`, `formatColonyStallVerdict` |
 
 ## Protected facades (re-export / schedule only — no new policy)
 

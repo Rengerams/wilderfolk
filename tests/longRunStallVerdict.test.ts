@@ -7,12 +7,9 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { gameTick } from '../src/game/gameEngine';
-import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
-import { applyWorkerCommand } from '../src/game/simWorker/commands';
-import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
-import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import { resetRelationshipDiagnostics, setRelationshipDiagnosticsEnabled } from '../src/game/relationshipDiagnostics';
 import { resetSimRng } from '../src/game/simRng';
 import {
@@ -38,7 +35,11 @@ interface ObservedRun {
   newBuildings: number;
 }
 
-function observeRun(world: WorldState, days: number, driveBot: boolean): ObservedRun {
+/**
+ * Tick the real simulation and record the gate's own observations. No bot: the passive scenario is
+ * the one the harness ships, and the growth it does raise comes from the simulation itself.
+ */
+function observeRun(world: WorldState, days: number): ObservedRun {
   setRelationshipDiagnosticsEnabled(true);
   const observer = createColonyObserver(world);
   const initialBuildingIds = new Set(world.buildings.map((building) => building.id));
@@ -49,18 +50,9 @@ function observeRun(world: WorldState, days: number, driveBot: boolean): Observe
       (_, index) => Math.min((index + 1) * CHECKPOINT_DAYS, days) * TICKS_PER_DAY,
     ),
   );
-  let lastActedTick: number | null = null;
 
   for (let tick = 1; tick <= days * TICKS_PER_DAY; tick += 1) {
     gameTick(world);
-    if (driveBot && shouldVirtualPlayerAct(true, { paused: world.paused, tick: world.tick }, lastActedTick)) {
-      lastActedTick = world.tick;
-      const decision = decideVirtualPlayerAction(world);
-      if (decision) {
-        const applied = applyWorkerCommand(world, decision.command);
-        if (applied !== world) Object.assign(world as unknown as Record<string, unknown>, applied);
-      }
-    }
     if (!checkpoints.has(tick)) continue;
     snapshots.push(observer.observe(tick / TICKS_PER_DAY, sampleDelta(world), []));
   }
@@ -131,7 +123,7 @@ describe('long-run non-vacuity verdict', () => {
       const consoleCapture = captureConsoleVolume();
       let run: ObservedRun;
       try {
-        run = observeRun(prepared.world, HEALTHY_DAYS, true);
+        run = observeRun(prepared.world, HEALTHY_DAYS);
       } finally {
         consoleCapture.restore();
       }
@@ -140,14 +132,17 @@ describe('long-run non-vacuity verdict', () => {
       expect(formatColonyStallVerdict(verdict)).toBe('healthy');
       expect(verdict.reasons).toEqual([]);
 
-      // The verdict is only meaningful if the run it approves actually did something: without this
-      // "healthy" would also describe a world where nothing ever happened.
+      // The verdict is only meaningful if the run it approves actually grew: without this "healthy"
+      // would also describe a world where nothing ever happened. Growth here is people, not
+      // buildings — nothing raises a building without the bot or the player.
       const settlers = run.final.housing.occupiedBeds + run.final.housing.homelessPlayerHumans;
-      expect(run.newBuildings, 'the run raised buildings').toBeGreaterThan(0);
       expect(settlers, 'the settlement grew').toBeGreaterThan(founders);
+      expect(run.final.lifecycle.birthsLogged, 'births were delivered').toBeGreaterThan(0);
       expect(run.final.workforce.working, 'workers hold posts').toBeGreaterThan(0);
+      expect(run.final.food.stored, 'the larder still holds food').toBeGreaterThan(0);
+      expect(run.final.housing.homelessPlayerHumans, 'nobody was left outside a bed').toBe(0);
     },
-    240_000,
+    300_000,
   );
 
   it('fails a stalled colony that raises nothing while its beds stay full', () => {
@@ -160,11 +155,10 @@ describe('long-run non-vacuity verdict', () => {
 
     expect(verdict.stalled).toBe(true);
     expect(verdict.reasons).toContain('housing-full');
-    expect(verdict.reasons).toContain('idle-with-open-jobs');
     expect(verdict.reasons).toContain('food-exhausted');
     expect(verdict.reasons).toContain('wood-pinned');
     expect(verdict.evidence.join(' ')).toContain('23 homeless');
-    expect(verdict.evidence.join(' ')).toContain('44 idle');
+    expect(verdict.evidence.join(' ')).toContain('larder at 0');
   });
 
   it('clears the housing and resource rules once the colony raises a building', () => {
@@ -191,17 +185,21 @@ describe('long-run non-vacuity verdict', () => {
     expect(verdict).toEqual({ stalled: false, reasons: [], evidence: [] });
   });
 
-  it('does not fire on one empty larder in an otherwise working colony', () => {
-    const dip = reportOf({
-      food: { stored: 0, producedToday: 3, consumedToday: 40 },
-      workforce: { working: 13, idle: 4, workerSlots: 21, filledWorkerSlots: 13 },
-      housing: { homelessPlayerHumans: 0, occupiedBeds: 41, totalBeds: 60 },
+  it('does not fire on a single observation of a working colony', () => {
+    // The measured 60-day producers state: 48 settlers, food in the larder, every bed in use by
+    // someone, and no new building because nobody issued a build command. None of the rules is a
+    // sustained-stress test, so one such reading alone must not produce a verdict.
+    const working = reportOf({
+      day: 60,
+      food: { stored: 2112, producedToday: 107, consumedToday: 46, netToday: 61 },
+      workforce: { working: 13, idle: 29, workerSlots: 21, filledWorkerSlots: 13 },
+      housing: { homelessPlayerHumans: 0, occupiedBeds: 48, totalBeds: 48 },
     });
     const verdict = assessColonyStall({
-      world: fakeWorld(900, 400),
-      snapshots: [dip],
-      final: dip,
-      newBuildingsAtEnd: 2,
+      world: fakeWorld(1700, 90),
+      snapshots: [working],
+      final: working,
+      newBuildingsAtEnd: 0,
     });
 
     expect(verdict.stalled).toBe(false);

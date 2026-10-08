@@ -60,6 +60,25 @@ export function resizeCanvasSurface(
   return getCanvasContext(surface);
 }
 
+/**
+ * Sizes a **display** canvas to `logical × dpr` device pixels and returns the ratio its context must
+ * be scaled by, so a surface that paints in logical pixels stays 1:1 on the device grid.
+ */
+export function fitCanvasToDpr(
+  canvas: { width: number; height: number },
+  logicalWidth: number,
+  logicalHeight: number,
+): number {
+  const dpr = getRenderDpr();
+  const width = Math.floor(logicalWidth * dpr);
+  const height = Math.floor(logicalHeight * dpr);
+  if (width > 0 && height > 0 && (canvas.width !== width || canvas.height !== height)) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  return dpr;
+}
+
 export function clearCanvasSurface(ctx: CanvasContext2d, width: number, height: number): void {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;

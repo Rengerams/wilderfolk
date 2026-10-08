@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { WorldState } from '../game/gameTypes';
 import type { WorkerCommand } from '../game/simWorker/commands';
-import { decideVirtualPlayerAction } from '../game/virtualPlayer';
+import { decideVirtualPlayerAction, virtualPlayerWaitingReason } from '../game/virtualPlayer';
 import { TICKS_PER_HOUR } from '../game/dayCycleClock';
 import { playerHumanCount } from '../game/playerHuman';
 
 
 export const VIRTUAL_PLAYER_HISTORY_LIMIT = 8;
 export const VIRTUAL_PLAYER_TOOLTIP_LIMIT = 5;
-const IDLE_STATUS = 'no action needed — colony looks healthy';
+/**
+ * The status only ever shown when the ladder has nothing to do *and* the colony is short of nothing
+ * (`virtualPlayerWaitingReason` returns null): every other idle hour names the need it waits on.
+ */
+export const VIRTUAL_PLAYER_IDLE_STATUS = 'no action needed — colony looks healthy';
 const WAITING_STATUS = 'waiting for the next in-game hour';
 const PAUSED_STATUS = 'paused — the world is not advancing';
 
@@ -135,7 +139,10 @@ export function useVirtualPlayer({
     // oxlint-disable-next-line react/set-state-in-effect
     setRun((previous) => {
       if (!decision) {
-        return previous.status === IDLE_STATUS ? previous : { ...previous, status: IDLE_STATUS };
+        // The ladder only returns null for a colony that needs nothing, so an idle
+        // hour names the specific need it is waiting on — never a blanket "healthy".
+        const idle = virtualPlayerWaitingReason(world) ?? VIRTUAL_PLAYER_IDLE_STATUS;
+        return previous.status === idle ? previous : { ...previous, status: idle };
       }
       const act: VirtualPlayerAct = {
         tick,
