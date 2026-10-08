@@ -894,9 +894,26 @@ export default function SelectedBuildingPanel({
             </>
           )}
           {!canAssignWorker && building.occupants.length < config.maxOccupants && (
-            <p className="col-span-2 text-[11px] text-stone-300">
-              No idle settlers — recruit or free up workers.
-            </p>
+            <div className="col-span-2 space-y-0.5">
+              <p className="text-[11px] text-stone-300">
+                No idle settlers — recruit or free up workers.
+              </p>
+              {staffRefusals.length > 0 && (
+                <>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Unavailable</p>
+                  {staffRefusals.slice(0, STAFFING_REFUSAL_LIMIT).map((staffRefusal) => (
+                    <p key={staffRefusal.settlerId} className="text-[10px] text-amber-200/90">
+                      {staffRefusal.name} — {staffRefusal.label}
+                    </p>
+                  ))}
+                  {staffRefusals.length > STAFFING_REFUSAL_LIMIT && (
+                    <p className="text-[10px] text-stone-400">
+                      +{staffRefusals.length - STAFFING_REFUSAL_LIMIT} more unavailable.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
           )}
           {!isHousing && isManualStaffing && (() => {
             // A Prison's occupant list is guards ∪ prisoners (`workforce.syncJobBuildingOccupants`), so

@@ -27,9 +27,14 @@ export function getScheduleProductivityMultiplier(entity: Pick<Entity, 'schedule
   return Math.max(MIN_SCHEDULE_PRODUCTIVITY, 1 - getScheduleFatigue(entity) * 0.0035);
 }
 
-export function recordScheduleWorkTick(entity: Entity): void {
+/**
+ * Credit `step` consecutive ticks of attendance — one call per evaluated tick, so a caller that
+ * does not evaluate every tick can still record the ticks it covered (see `humanTick`).
+ */
+export function recordScheduleWorkTick(entity: Entity, step = 1): void {
   if (!entity.alive || entity.isJuvenile || entity.faction) return;
-  entity.scheduleWorkedTicksToday = (entity.scheduleWorkedTicksToday ?? 0) + 1;
+  if (!Number.isFinite(step) || step <= 0) return;
+  entity.scheduleWorkedTicksToday = (entity.scheduleWorkedTicksToday ?? 0) + step;
 }
 
 /**

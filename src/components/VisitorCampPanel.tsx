@@ -120,7 +120,7 @@ export default function VisitorCampPanel({
         title={talkMeta.hint}
         className="mb-2 w-full rounded bg-indigo-900 px-2 py-1.5 text-[11px] font-bold text-indigo-100 hover:bg-indigo-800 disabled:opacity-40"
       >
-        {talkMeta.buttonLabel}
+        {talkMeta.buttonLabel}{talkMeta.unavailableReason ? ` — ${talkMeta.unavailableReason}` : ''}
       </button>
       {group.kind === 'refugees' && !(group.refugeeResolved ?? false) && (
         <div className="space-y-1">

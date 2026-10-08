@@ -5,7 +5,7 @@ import { getEcosystemBreakdown } from '../../game/gameEngine';
 import { getEcosystemHealth } from '../../game/dailyEcology';
 import { resourceFillPercent } from '../../game/dashboardData';
 import { SEASON_LABELS, seasonTextClass, formatTemperatureC, computeDailyTemperatureC } from '../../game/temperature';
-import { Season, WeatherType } from '../../game/gameTypes';
+import { Season, WeatherType, WEATHER_CONFIGS } from '../../game/gameTypes';
 import {
   computeValleyEcologySnapshot,
   valleyStageEmoji,
@@ -13,15 +13,6 @@ import {
   type ValleyStage,
 } from '../../game/ecologyStage';
 import Emoji from '../Emoji';
-
-const WEATHER_ICONS: Record<WeatherType, string> = {
-  [WeatherType.Clear]: '',
-  [WeatherType.Rain]: '🌧️',
-  [WeatherType.Storm]: '⛈️',
-  [WeatherType.Snow]: '❄️',
-  [WeatherType.Fog]: '🌫️',
-  [WeatherType.Drought]: '🌵',
-};
 
 interface WildlifeBarProps {
   label: string;
@@ -265,10 +256,22 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
           <div className="rounded bg-stone-600/30 p-2">
             <div className="text-stone-400">Biodiversity</div>
             <strong className="text-lg text-white">{state.biodiversityIndex.toFixed(2)}</strong>
+            {/* The index name is the ecology owner's; no owner supplies a band for the number. */}
+            <span className="block text-[10px] text-stone-500">{'Shannon-Wiener index (H′)'}</span>
           </div>
           <div className="rounded bg-stone-600/30 p-2">
             <div className="text-stone-400">Weather</div>
-            <strong className="text-lg text-white">{state.weather}</strong>
+            {/* Defaulted: the loader does not vet `weather` yet, and an unknown value must read as
+                weather rather than throw the panel. */}
+            {(() => {
+              const weather = WEATHER_CONFIGS[state.weather] ?? WEATHER_CONFIGS[WeatherType.Clear];
+              return (
+                <strong className="flex items-center gap-1 text-lg text-white">
+                  {weather.emoji ? <Emoji>{weather.emoji}</Emoji> : null}
+                  {weather.label}
+                </strong>
+              );
+            })()}
           </div>
         </div>
 
@@ -316,8 +319,15 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
           )}
           {state.weather !== WeatherType.Clear && (
             <p>
-              {WEATHER_ICONS[state.weather] ? <Emoji className="mr-1">{WEATHER_ICONS[state.weather]}</Emoji> : null}
-              <strong className="text-stone-200">{state.weather}</strong>
+              {(() => {
+                const weather = WEATHER_CONFIGS[state.weather] ?? WEATHER_CONFIGS[WeatherType.Clear];
+                return (
+                  <>
+                    {weather.emoji ? <Emoji className="mr-1">{weather.emoji}</Emoji> : null}
+                    <strong className="text-stone-200">{weather.label}</strong>
+                  </>
+                );
+              })()}
               {' '}— shifts today&apos;s temperature and farming
             </p>
           )}

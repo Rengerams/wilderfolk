@@ -67,7 +67,7 @@ describe('a caravan carrier leaves through the tick spawn path', () => {
     const state = makeDepartingWorld(LAYER_SYSTEMS_INTERVAL);
     const ctx = makeCtx(state);
 
-    tickTradeCaravans(state, ctx);
+    tickTradeCaravans(state, ctx, LAYER_SYSTEMS_INTERVAL);
 
     const spawned = ctx.newEntities.filter(isCarrier);
     expect(spawned).toHaveLength(1);

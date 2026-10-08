@@ -2,6 +2,22 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Counted a settler's shift even when the camera was elsewhere** — the off-screen throttle skipped the attendance counter on 23 of every 24 ticks, so a workplace's output depended on where the player was looking; attendance is now recorded for the shift, not for the frame.
+
+- **Moved a docked caravan's wait onto the clock it is measured in** — the countdown ran inside the same per-settler throttle, so a caravan the player watched reached its partner up to 24 times sooner than one they did not.
+
+- **Stopped the yearly death tally counting departures as deaths** — finished caravan carriers and departing visitor groups are despawned by marking them not alive, so every completed trade run added a phantom settler death to the year review.
+
+- **Let a disaster end when hostile weather is switched off** — the feature's early return sat above the loop that ages disasters, so a save carrying one kept it forever and permanently penalised the village's election score.
+
+- **Made the grid markers and zone hints ride the terrain relief** — they were drawn at the flat-map height while the buildings that land on them were lifted, so the two disagreed by up to a relief cap on a slope.
+
+- **Kept every critical alert on the strip and marked it without colour alone** — a flat two-chip limit hid the third of three simultaneous criticals behind "+N more".
+
+- **Gave blocked trade and raid buttons a visible reason** — the refusal lived only in a hover tooltip, which is unreachable on touch and on a disabled, unfocusable button.
+
+- **Showed the village why a workplace cannot be staffed** — switching a building to manual with no idle settler printed a bare "No idle settlers"; it now lists the settlers the staffing owner refuses and its own wording for each.
+
 - **Stopped a loaded valley growing its forest back over the houses** — a compact save regenerates the ground from its seed, and the record of terrain the player cleared was never written, so every building's footprint returned to forest on load; the sparse overrides now round-trip.
 
 - **Cleared the relationships a loaded colony cannot resolve** — a spouse or courtship id naming nobody left a settler stuck as married to nobody, who could then never widow and was shut out of courtship permanently; a load now sweeps those ids, reusing the same owner the death path uses.

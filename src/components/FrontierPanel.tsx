@@ -216,6 +216,7 @@ function FrontierPanel({
                     <p className="text-[10px] text-stone-600">Open camp on map for gifts, peace, diplomacy →</p>
                   </button>
                   {onLaunchRaid && (
+                    <>
                     <button
                       type="button"
                       disabled={!raidEligibility.ok}
@@ -228,6 +229,13 @@ function FrontierPanel({
                     >
                       🏹 {outgoingRaidAction.buttonLabel} ({raidFoodCost}🍖)
                     </button>
+                    {/* A disabled button is not focusable and its title is unreachable on touch. */}
+                    {!raidEligibility.ok && (
+                      <p className="mt-0.5 text-[10px] text-rose-300">
+                        ⚠️ {raidEligibility.blockReason ?? 'Cannot raid'}
+                      </p>
+                    )}
+                    </>
                   )}
                 </div>
               );

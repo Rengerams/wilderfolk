@@ -288,7 +288,33 @@ function hasActiveCarrier(state: WorldState, route: TradeRoute): boolean {
   return state.entities.some((e) => e.alive && e.id === carrierId);
 }
 
-export function tickTradeCaravans(state: WorldState, ctx: TickContext): void {
+/**
+ * Age a docked caravan's wait by `step` ticks — the systems layer owns it, because the countdown is
+ * measured in ticks and the per-human throttle only reaches an off-screen caravan every 24 of them.
+ * `caravanWaitTicks` is a tick count; `step` is the ticks one systems pulse covers.
+ */
+function countDownCaravanWait(state: WorldState, route: TradeRoute, step: number): void {
+  if ((route.caravanWaitTicks ?? 0) > 0) {
+    route.caravanWaitTicks = Math.max(0, (route.caravanWaitTicks ?? 0) - step);
+  }
+  if ((route.caravanWaitTicks ?? 0) > 0) return;
+  if ((route.caravanLeg ?? 'outbound') !== 'at_partner') return;
+
+  const carrierId = route.caravanCarrierId;
+  if (carrierId == null) return;
+  const carrier =
+    ensureEntityByIdMap(state).get(carrierId) ?? state.entities.find((e) => e.alive && e.id === carrierId);
+  // Position gates are the tick owner's; this only decides the wait is over.
+  if (!carrier) return;
+  tryAdvanceCaravanLeg(state, carrier);
+}
+
+export function tickTradeCaravans(
+  state: WorldState,
+  ctx: TickContext,
+  /** Ticks advanced per call — the cadence of the layer that calls this. */
+  step: number,
+): void {
   for (let i = 0; i < state.tradeRoutes.length; i++) {
     const route = state.tradeRoutes[i];
     if (!route.active) continue;
@@ -306,7 +332,10 @@ export function tickTradeCaravans(state: WorldState, ctx: TickContext): void {
           route.nextDepartureTick = undefined;
         }
       }
+      continue;
     }
+
+    countDownCaravanWait(state, route, step);
   }
 }
 
@@ -343,7 +372,6 @@ export function tryAdvanceCaravanLeg(state: WorldState, entity: Entity): void {
   }
 
   if (leg === 'at_partner') {
-    route.caravanWaitTicks = Math.max(0, (route.caravanWaitTicks ?? 0) - 1);
     if ((route.caravanWaitTicks ?? 0) > 0) return;
 
     // ER-12: exports were already reserved at departure — only imports need room.

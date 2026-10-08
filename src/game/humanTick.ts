@@ -502,6 +502,61 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
+    const workplace = findHumanWorkplace(entity, updatedBuildings, workplaceOpts);
+    const isInnkeeper =
+      entity.job === JobType.Innkeeper && workplace?.type === BuildingType.Tavern && workplace.completed;
+
+    const festivalGathering = isFestivalGatheringHour(hourOfDay, state.festival?.active) && !isInnkeeper;
+    const ordinaryWorkplace =
+      workplace != null &&
+      workplace.type !== BuildingType.Church &&
+      workplace.type !== BuildingType.TownHall &&
+      workplace.type !== BuildingType.Prison;
+    const onSchoolShift = schoolTarget != null && isOnWorkShift(state.tick, hourOfDay);
+    const onDayJobShift =
+      !festivalGathering &&
+      ((goWorkTime &&
+        !isInnkeeper &&
+        (ordinaryWorkplace ||
+          (entity.job === JobType.Soldier &&
+            isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings)))) ||
+        onSchoolShift);
+    const onOfficialShift =
+      entity.job === JobType.Official &&
+      workplace?.type === BuildingType.TownHall &&
+      workplace.completed &&
+      goWorkTime;
+
+    const venueWorkerIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
+    const venueWorkerCount = workplace?.occupants.length ?? 0;
+    const usesAutoVenueShifts = workplace?.staffingMode !== 'manual';
+    const onTavernShift =
+      isInnkeeper &&
+      (state.festival?.active === true
+        ? isVenueServiceHour(state, 'tavern', hourOfDay, true)
+        : venueWorkerIndex >= 0 && usesAutoVenueShifts
+          ? isVenueWorkerServiceHour(state, 'tavern', hourOfDay, venueWorkerIndex, venueWorkerCount)
+          : isVenueServiceHour(state, 'tavern', hourOfDay));
+
+    const onMoonPriestShift =
+      entity.job === JobType.Priest &&
+      workplace?.type === BuildingType.Church &&
+      workplace.completed &&
+      isOnMoonHowlerNightShift(state.tick, hourOfDay);
+
+    const isPrisonGuardAtPost =
+      entity.job === JobType.PrisonGuard && workplace?.type === BuildingType.Prison && workplace.completed;
+    const prisonShift = isPrisonGuardAtPost
+      ? prisonShiftForGuard(entity.id, prisonGuardIds(state, workplace.occupants ?? []), state.tick)
+      : null;
+    const onPrisonShift = prisonShift != null && shiftCoversHour(prisonShift, hourOfDay);
+
+    // Attendance is a schedule fact, not a viewport one: crediting it above the off-screen throttle
+    // is what stops a workplace's output from tracking where the camera happens to be.
+    const onJobShift =
+      onDayJobShift || onTavernShift || onMoonPriestShift || onPrisonShift;
+    if (isPlayerHuman(entity) && (onJobShift || onOfficialShift)) recordScheduleWorkTick(entity);
+
     const inFocus = !focus || isInFocus(entity, focus);
     const active =
       !isPrisoner &&
@@ -584,7 +639,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       syncEntityGrids(ctx, entity);
       continue;
     }
-
     // Visitors & rival settlers
     if (entity.faction === 'visitor' || entity.faction === 'rival') {
       const camp =
@@ -651,47 +705,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     let suppressIdle = false;
     let onSchedule = false;
-    const workplace = findHumanWorkplace(entity, updatedBuildings, workplaceOpts);
-    const isInnkeeper =
-      entity.job === JobType.Innkeeper && workplace?.type === BuildingType.Tavern && workplace.completed;
-
-    const festivalGathering = isFestivalGatheringHour(hourOfDay, state.festival?.active) && !isInnkeeper;
-    const ordinaryWorkplace =
-      workplace != null &&
-      workplace.type !== BuildingType.Church &&
-      workplace.type !== BuildingType.TownHall &&
-      workplace.type !== BuildingType.Prison;
-    const onSchoolShift = schoolTarget != null && isOnWorkShift(state.tick, hourOfDay);
-    const onDayJobShift =
-      !festivalGathering &&
-      ((goWorkTime &&
-        !isInnkeeper &&
-        (ordinaryWorkplace ||
-          (entity.job === JobType.Soldier &&
-            isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings)))) ||
-        onSchoolShift);
-    const onOfficialShift =
-      entity.job === JobType.Official &&
-      workplace?.type === BuildingType.TownHall &&
-      workplace.completed &&
-      goWorkTime;
-
-    const venueWorkerIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
-    const venueWorkerCount = workplace?.occupants.length ?? 0;
-    const usesAutoVenueShifts = workplace?.staffingMode !== 'manual';
-    const onTavernShift =
-      isInnkeeper &&
-      (state.festival?.active === true
-        ? isVenueServiceHour(state, 'tavern', hourOfDay, true)
-        : venueWorkerIndex >= 0 && usesAutoVenueShifts
-          ? isVenueWorkerServiceHour(state, 'tavern', hourOfDay, venueWorkerIndex, venueWorkerCount)
-          : isVenueServiceHour(state, 'tavern', hourOfDay));
-
-    const onMoonPriestShift =
-      entity.job === JobType.Priest &&
-      workplace?.type === BuildingType.Church &&
-      workplace.completed &&
-      isOnMoonHowlerNightShift(state.tick, hourOfDay);
 
     const isHotelier =
       entity.job === JobType.Hotelier && workplace?.type === BuildingType.Hotel && workplace.completed;
@@ -701,27 +714,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         ? isVenueWorkerServiceHour(state, 'hotel', hourOfDay, venueWorkerIndex, venueWorkerCount)
         : isVenueServiceHour(state, 'hotel', hourOfDay));
 
-    // A prison guard's day is his roster shift rather than the colony window (see `prisonShifts`).
-    const isPrisonGuardAtPost =
-      entity.job === JobType.PrisonGuard && workplace?.type === BuildingType.Prison && workplace.completed;
-    const prisonShift = isPrisonGuardAtPost
-      ? prisonShiftForGuard(entity.id, prisonGuardIds(state, workplace.occupants ?? []), state.tick)
-      : null;
-    const onPrisonShift = prisonShift != null && shiftCoversHour(prisonShift, hourOfDay);
     // A crew larger than the three shifts takes days off in turn, and a resting guard is *free* — he is
     // not on the colony work day. Without this he still walked to the prison for `goWorkTime`, so an
     // off-duty guard stood on a post he was not rostered for and had no day off at all.
     const offDutyPrisonGuard = isPrisonGuardAtPost && prisonShift == null;
     const shiftStartHour = prisonShift?.startHour ?? workSchedule.startHour;
-
-    const onJobShift =
-      onDayJobShift || onTavernShift || onHotelShift || onMoonPriestShift || onPrisonShift;
-    if (onJobShift && isPlayerHuman(entity)) recordScheduleWorkTick(entity);
-    // An official at the Town Hall serves a shift like anyone else, so the chronicle and the
-    // workplace's own output must count it. `onJobShift` deliberately does not carry the official
-    // shift — it also drives movement and `stayIn` — so attendance is recorded on its own line here,
-    // which is the half that was missing while the behaviour half already included it.
-    else if (onOfficialShift && isPlayerHuman(entity)) recordScheduleWorkTick(entity);
 
     const stayIn =
       !festivalGathering &&

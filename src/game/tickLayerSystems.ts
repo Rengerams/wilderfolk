@@ -171,7 +171,7 @@ export function tickLayerSystems(state: WorldState, ctx: TickContext): void {
   updateWeather(state);
   updateDisasters(state);
   updateResearch(state);
-  tickTradeCaravans(state, ctx);
+  tickTradeCaravans(state, ctx, LAYER_SYSTEMS_INTERVAL);
   tickWildlife(state, ctx);
   tickWolfRecruitment(state, ctx);
 }

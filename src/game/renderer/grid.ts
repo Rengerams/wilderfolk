@@ -1,10 +1,11 @@
 import { GRID_SIZE, PATH_CELL, snapToGrid } from '../gameTypes';
 import { isNightHour } from '../dayCycle';
-import { getBuildingFootprintForType, snapBuildingCenter } from '../buildingRotation';
+import { snapBuildingCenter } from '../buildingRotation';
 import { canPlaceBuildingSnapshot } from '../placementUtils';
 import { isUnbuildableTerrainType, isWaterTerrainType } from '../terrain/terrainTraits';
 import { tileTypeAt } from '../terrain/terrainGrid';
 import { worldToScreen as w2s, worldToScreenX, worldToScreenY } from '../viewState';
+import { terrainRiseAt } from '../terrainAtlas';
 import type { RenderSnapshot } from '../renderSnapshot';
 
 const GRID_MAJOR_EVERY = 5;
@@ -269,7 +270,10 @@ export function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, c
         // 20), so a plate could show the verdict of the cell beside it. `drawBuildZoneOverlay`
         // below already draws at the snapped centre.
         const px = worldToScreenX(cx, cam, cw);
-        const py = worldToScreenY(cy, cam, ch);
+        // Ride the 2.5D relief the same way the ghost does, so a plate and the building that lands
+        // on it share one screen height instead of the plate floating at the flat-map position.
+        const py = worldToScreenY(cy, cam, ch)
+          - terrainRiseAt(state.worldMap, cx, cy) * cam.zoom;
         if (px + halfW < 0 || px - halfW > cw || py + halfH < 0 || py - halfH > ch) continue;
         const valid = canPlaceBuildingSnapshot(state, state.buildMode, cx, cy, state.buildRotation);
         drawIsoCellMarker(
@@ -301,7 +305,8 @@ export function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, c
   // Enclosed area hint while drawing walls
   if (state.buildStripPreview?.enclosedAreas?.length) {
     for (const area of state.buildStripPreview.enclosedAreas) {
-      const [ax, ay] = w2s(area.x, area.y, cam, cw, ch);
+      const [ax, ayBase] = w2s(area.x, area.y, cam, cw, ch);
+      const ay = ayBase - terrainRiseAt(state.worldMap, area.x, area.y) * cam.zoom;
       const aw = area.w * cam.zoom;
       const ah = area.h * cam.zoom;
       ctx.fillStyle = 'rgba(34, 197, 94, 0.1)';
