@@ -543,7 +543,7 @@ export function tryMoonHowlerChurchCures(
         howlerName,
         priestName,
       );
-      killHuman(priest, buildings, entityById, state.tick);
+      killHuman(priest, buildings, entityById, state.tick, state);
       createDeathParticles(state, priest.x, priest.y, '#8B0000', 10);
       impulseScreenShake(state, 5);
       howler.energy = Math.min(howler.maxEnergy, howler.energy + 120);

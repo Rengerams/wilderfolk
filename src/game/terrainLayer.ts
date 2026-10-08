@@ -41,7 +41,7 @@ const TERRAIN_FILL_PATH: Partial<Record<TerrainType, string>> = {
   [TerrainType.River]: '/sprites/terrain/water_deep_fill.png',
   [TerrainType.DeepWater]: '/sprites/terrain/water_deep_fill.png',
   [TerrainType.Snow]: '/sprites/terrain/snow.png',
-  [TerrainType.Mountains]: '/sprites/terrain/mountain.jpg',
+  [TerrainType.Mountains]: '/sprites/terrain/mountain.png',
 };
 
 /** Translucent azure re-glaze over every water tile for consistent blue depth. */

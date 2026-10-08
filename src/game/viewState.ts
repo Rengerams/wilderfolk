@@ -376,7 +376,7 @@ export function pickTransientWorldFieldsForSave(world: WorldState): Record<strin
 
 export function restoreTransientWorldFieldsFromSave(
   parsed: Record<string, unknown>,
-): Pick<WorldState, 'deathParticles' | 'floatingTexts' | 'disasters'> {
+): Pick<WorldState, 'deathParticles' | 'floatingTexts' | 'notifications' | 'disasters'> {
   return {
     deathParticles: Array.isArray(parsed.deathParticles)
       ? (parsed.deathParticles as WorldState['deathParticles'])
@@ -384,6 +384,9 @@ export function restoreTransientWorldFieldsFromSave(
     floatingTexts: Array.isArray(parsed.floatingTexts)
       ? (parsed.floatingTexts as WorldState['floatingTexts'])
       : [],
+    // Never the payload's own toasts: a saved one is already expired. Empty, not absent, because
+    // every reader (and `addNotification`) treats the field as a list.
+    notifications: [],
     disasters: Array.isArray(parsed.disasters)
       ? (parsed.disasters as WorldState['disasters'])
       : [],

@@ -511,7 +511,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             } else {
               const victimId = caughtPrey.id;
               if (isHumanPrey) {
-                killHuman(caughtPrey, updatedBuildings, entityById, state.tick);
+                killHuman(caughtPrey, updatedBuildings, entityById, state.tick, state);
                 const humanBucket = byType[caughtPrey.type];
                 if (humanBucket) {
                   const hIdx = humanBucket.indexOf(caughtPrey);

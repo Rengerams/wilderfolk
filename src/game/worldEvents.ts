@@ -79,7 +79,7 @@ function killEntityInDisaster(
   killedThisTick.add(entity.id);
 
   if (entity.type === EntityType.Human) {
-    killHuman(entity, state.buildings, entityById, state.tick);
+    killHuman(entity, state.buildings, entityById, state.tick, state);
     logDeath(
       state,
       formatDeathLog(entity, 'died in a disaster'),
@@ -352,7 +352,7 @@ export function updateDisasters(state: WorldState): void {
         if (getSimRng('worldEvents')() < 0.2) {
           if (!killedThisTick.has(e.id)) {
             killedThisTick.add(e.id);
-            killHuman(e, state.buildings, entityById, state.tick);
+            killHuman(e, state.buildings, entityById, state.tick, state);
             clearHuntTargetsForVictim(state, e.id);
             infected++;
             createDeathParticles(state, e.x, e.y, '#4a6741', 6, 'smoke');

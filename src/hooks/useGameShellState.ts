@@ -4,7 +4,6 @@ import type { GameEventLog } from '../game/gameTypes';
 import type { SidebarTab } from '../game/hotkeys';
 import {
   loadFirstNightWarningDismissed,
-  loadIntroSeen,
   loadJuiceEffectsEnabled,
   loadShowFps,
   loadShowSimTick,
@@ -191,9 +190,9 @@ export function useGameShellState() {
   const [showFps, setShowFps] = useState(loadShowFps);
   const [showTutorial, setShowTutorial] = useState(loadShowTutorial);
   const [tutorialStep, setTutorialStep] = useState(0);
-  // Skip the cinematic on a browser that has already watched it: it is a 23.6-second timed reveal,
-  // and gating every load on it delays "Load saved game" by that long for no new information.
-  const [showIntro, setShowIntro] = useState(() => !loadIntroSeen());
+  // The cinematic is skippable in place (its own "Skip intro" button), so it needs no persisted
+  // "seen" flag: a returning player skips it in one click and still lands on the map screen.
+  const [showIntro, setShowIntro] = useState(true);
   const [showMapSetup, setShowMapSetup] = useState(false);
   const [mapSetupSource, setMapSetupSource] = useState<MapSetupSource>('intro');
   const [buildPanelOpen, setBuildPanelOpen] = useState(loadBuildPanelOpen);

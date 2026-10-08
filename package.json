@@ -41,6 +41,7 @@
   "packageManager": "",
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "deno": "^2.9.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router": "^8.4.0",
@@ -64,6 +65,7 @@
   },
   "allowScripts": {
     "esbuild": true,
-    "skia-canvas@3.0.8": true
+    "skia-canvas@3.0.8": true,
+    "deno@2.9.6": true
   }
 }

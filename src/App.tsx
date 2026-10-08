@@ -6,7 +6,7 @@ import {
 
   GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
 
-  saveGameToSlot, describeFileSaveReason, loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave, downloadSaveFile,
+  saveGameToSlot, loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave,
   loadGameFromFileTextOutcome,
   getDiplomacyChoiceEligibility, getVisitorLeaderTalkMeta,
   ensureFullTradeRoutes,
@@ -99,7 +99,6 @@ import { useCanvasInteractions } from './hooks/useCanvasInteractions';
 import { useContextualTutorial } from './hooks/useContextualTutorial';
 import ContextualTutorialCard from './components/ContextualTutorialCard';
 import {
-  saveIntroSeen,
   saveTutorialChoice,
   saveAutoSavePreference,
   saveTutorialsEnabled,
@@ -1095,37 +1094,6 @@ export default function App() {
     loadFromSlot({ successToast: 'Game loaded' });
   }, [loadFromSlot]);
 
-  const handleSaveToFile = useCallback(async () => {
-    const loop = loopRef.current;
-    const view = loop?.getView() ?? viewRef.current;
-    if (!view) return;
-    let worldToSave = worldRef.current;
-    if (loop) {
-      worldToSave = await loop.exportAuthoritativeWorld();
-    }
-    const result = downloadSaveFile(worldToSave, view);
-    if (!result.success) {
-      showSaveToast({ message: result.error, type: 'error' });
-      return;
-    }
-    if (result.fileReason) {
-      // Deliberately outside the slot: no slot was written, so Load must not be offered against one.
-      showSaveToast({ message: describeFileSaveReason(result.fileReason), type: 'warning' });
-      return;
-    }
-    if (result.slotWarning) {
-      // The file is on disk but the slot is not: do not enable Load against a slot that was never
-      // written, and say so, because the player has just been told a save exists.
-      showSaveToast({ message: result.slotWarning, type: 'warning' });
-      return;
-    }
-    setHasSavedGame(true);
-    showSaveToast({
-      message: 'Save downloaded — keep the .json file safe',
-      type: 'success',
-    });
-  }, [showSaveToast, worldRef, loopRef, viewRef]);
-
   const handleLoadFromFile = useCallback((jsonText: string) => {
     // One owner for the refusal detail, so a file load names the field that broke exactly as the
     // slot path does.
@@ -1185,9 +1153,7 @@ export default function App() {
       <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-stone-950 text-stone-400">Loading…</div>}>
         <IntroScreen
           onContinue={() => {
-            // Remember that this browser has seen the cinematic, so the next load goes straight to
-            // the map screen. Replaying it stays available from the menu, which re-opens this screen.
-            saveIntroSeen(true);
+            // The cinematic leads to the map screen; its own "Skip intro" button routes here too.
             setShowIntro(false);
             setMapSetupSource('intro');
             setShowMapSetup(true);
@@ -1319,7 +1285,6 @@ export default function App() {
           activeSubject={citizenOverviewOpen ? overviewNavFromState(overviewSection, overviewWorldFocus) : null}
           onSave={handleSave}
           onLoad={handleLoad}
-          onSaveToFile={() => { void handleSaveToFile(); }}
           onLoadFromFile={handleLoadFromFile}
           tutorialsEnabled={tutorialsEnabled}
           juiceEffectsEnabled={juiceEffectsEnabled}
@@ -1338,6 +1303,7 @@ export default function App() {
           onVolumePreset={handleVolumePreset}
           onOpenGuide={handleOpenGuide}
           onStartNewGame={startNewGame}
+          onReplayIntro={() => setShowIntro(true)}
           onOpenCitizenOverview={openCitizenOverview}
           onFocusLeader={() => {
             const leaderId = world.villageLeaderId;
@@ -1397,7 +1363,7 @@ export default function App() {
             className="pointer-events-auto absolute right-3 top-3 z-[40] flex max-h-[calc(100vh-7rem)] w-[min(20rem,calc(100vw-8rem))] flex-col gap-1.5 overflow-y-auto pr-0.5"
             aria-live="polite"
           >
-            {world.notifications.slice(-4).map((n) => {
+            {(world.notifications ?? []).slice(-4).map((n) => {
               // Acting on a notification must not destroy it: the body jumps to the subject and the
               // × dismisses. One shared button for both meant the only way to act on a warning was
               // to lose the text being read.

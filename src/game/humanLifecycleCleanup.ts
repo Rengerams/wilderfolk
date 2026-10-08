@@ -1,5 +1,6 @@
-import type { Building, Entity } from './gameTypes';
+import type { Building, Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
+import { logEvent } from './eventLog';
 import { finalizeMoonHowlerDeath, isSettlerRelationshipEntity } from './moonHowlerForm';
 import { cleanupEntityDialogueState } from './humanChat';
 import { TICKS_PER_DAY } from './dayCycleClock';
@@ -165,6 +166,7 @@ function reassignOrphansAfterDeath(
 export function reconcileFamilyReferencesAfterRemoval(
   removedId: number,
   entityById: ReadonlyMap<number, Entity>,
+  state?: WorldState,
 ): void {
   for (const survivor of entityById.values()) {
     if (!survivor.alive) continue;
@@ -199,7 +201,12 @@ export function reconcileFamilyReferencesAfterRemoval(
     // Release a tamed animal whose owner just died: nothing else clears `tamedBy` on death and
     // `isValidHuntPrey` refuses tamed prey, so the orphan stayed on the daily ration list forever
     // and could never be hunted.
-    if (survivor.tamedBy === removedId) survivor.tamedBy = undefined;
+    if (survivor.tamedBy === removedId) {
+      survivor.tamedBy = undefined;
+      if (state) {
+        logEvent(state, 'migration', `A tamed ${survivor.type} returned to the wild after its owner died.`);
+      }
+    }
     if (survivor.childrenIds?.includes(removedId)) {
       survivor.childrenIds = survivor.childrenIds.filter((id) => id !== removedId);
     }
@@ -212,13 +219,14 @@ export function killHuman(
   buildings: Building[],
   entityById?: ReadonlyMap<number, Entity>,
   tick?: number,
+  state?: WorldState,
 ): void {
   if (!entity.alive || !isKillableSettlerEntity(entity)) return;
   entity.alive = false;
   if (entityById instanceof Map) entityById.delete(entity.id);
   finalizeMoonHowlerDeath(entity);
   finalizeHumanDeath(entity, buildings, entityById, tick);
-  if (entityById) reconcileFamilyReferencesAfterRemoval(entity.id, entityById);
+  if (entityById) reconcileFamilyReferencesAfterRemoval(entity.id, entityById, state);
   // entityById is required so we can walk living settlers for adoption/housing.
   if (entityById) reassignOrphansAfterDeath(entity, buildings, entityById);
 }

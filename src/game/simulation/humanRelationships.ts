@@ -941,7 +941,7 @@ export function tryDailyHumanMortality(
 
   const oldAgeChance = getOldAgeDeathChance(entity.age);
   if (oldAgeChance > 0 && (entity.age >= HUMAN_MAX_LIFESPAN_YEARS || personDayRoll(entity.id, state.tick, 606) < oldAgeChance)) {
-    killHuman(entity, buildings, entityById, state.tick);
+    killHuman(entity, buildings, entityById, state.tick, state);
     createDeathParticles(state, entity.x, entity.y, '#aaaaaa', 5, 'smoke');
     const cause = entity.age >= HUMAN_MAX_LIFESPAN_YEARS ? 'old age' : 'an age-related illness';
     logDeath(
@@ -955,7 +955,7 @@ export function tryDailyHumanMortality(
   {
     const illnessChance = HUMAN_DAILY_ILLNESS_CHANCE + getValleyIllnessChanceBonus(state);
     if (entity.age >= HUMAN_ADULT_MIN_AGE && personDayRoll(entity.id, state.tick, 607) < illnessChance) {
-      killHuman(entity, buildings, entityById, state.tick);
+      killHuman(entity, buildings, entityById, state.tick, state);
       createDeathParticles(state, entity.x, entity.y, '#aaaaaa', 5, 'smoke');
       logDeath(
         state,

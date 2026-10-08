@@ -97,8 +97,8 @@ tutorialsEnabled,
   onOpenTrade,
   onSave,
   onLoad,
-  onSaveToFile,
   onLoadFromFile,
+  onReplayIntro,
   onToggleAutoSave,
   onToggleTutorials,
   onToggleJuiceEffects,
@@ -425,8 +425,8 @@ tutorialsEnabled,
           volumePreset={volumePreset}
           onSave={onSave}
           onLoad={onLoad}
-          onSaveToFile={onSaveToFile}
           onLoadFromFile={onLoadFromFile}
+          onReplayIntro={onReplayIntro}
           onToggleAutoSave={onToggleAutoSave}
           onToggleTutorials={onToggleTutorials}
           onToggleJuiceEffects={onToggleJuiceEffects}

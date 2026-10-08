@@ -579,7 +579,7 @@ function applyRaidCasualties(
     mode === 'raiding' ? `fell raiding ${rivalName}` : 'fell defending the village';
   const entityById = ensureEntityByIdMap(state);
   for (const victim of victims) {
-    killHuman(victim, state.buildings, entityById, state.tick);
+    killHuman(victim, state.buildings, entityById, state.tick, state);
     logDeath(
       state,
       formatDeathLog(victim, deathReason),

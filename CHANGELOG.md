@@ -2,6 +2,14 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Fixed: loading a save no longer blacks out the game** — the toast list was dropped on load while the shell still expected one, so the first render after any load threw.
+
+- **Fixed: the opening cinematic and the valley choice behind it are back on every load** — the cinematic was always skippable in place, so suppressing it on a return visit only removed the map screen.
+
+- **Fixed: a tamed animal that returns to the wild when its owner dies now leaves a Chronicle entry, so the change no longer happens silently.**
+
+- **Changed: the mountain ground fill is now the re-exported PNG** — the bake and its boot preload name the file the art actually ships as, so the rock texture loads again.
+
 - **Fixed: removed the 30-second auto-save — a manual save now always exports a JSON file, and the toggle now means save-on-exit.**
 
 - **Changed: the stale one-off scripts under the archive folder are gone** — nothing referenced them and their imports pointed at modules that no longer exist, so the folder and the two exclusion clauses it needed were removed.

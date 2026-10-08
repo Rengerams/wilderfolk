@@ -157,7 +157,7 @@ describe('worker command round trips (shared worker + fallback implementation)',
 
   it('removeWorker — clears the assignment', () => {
     const priest = human(1, { homeBuildingId: 4, job: JobType.Priest });
-    const church = building(4, BuildingType.Church, { occupants: [1] });
+    const church = building(4, BuildingType.Church, { occupants: [1], staffingMode: 'manual' });
     const world = makeWorld([priest], [church]);
 
     const next = applyWorkerCommand(world, cmd({ op: 'removeWorker', buildingId: 4, humanId: 1 }));

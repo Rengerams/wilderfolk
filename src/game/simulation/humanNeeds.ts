@@ -82,7 +82,7 @@ export function killFromExhaustion(
   // Guard against duplicate obituary and processing if entity already died this tick
   if (!entity.alive) return;
 
-  killHuman(entity, buildings, entityById, state.tick);
+  killHuman(entity, buildings, entityById, state.tick, state);
   createDeathParticles(state, entity.x, entity.y, '#8B0000', 8);
   logDeath(
     state,

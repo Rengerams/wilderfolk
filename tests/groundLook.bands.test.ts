@@ -153,6 +153,84 @@ describe('the ground bake paints the classification it is drawn under', () => {
     expect(snow / total, 'share of the bake that is snow').toBeGreaterThan(0.002);
   });
 
+  it('paints every water tile as water, and each preset as its own landscape', async () => {
+    // Two player-visible invariants, measured on the real bake.
+    //
+    // 1. A tile `classifyTile` calls water must not be painted as walkable ground — the "settlers walk
+    //    over water" reading. Blue-dominance (`b > g`) separates the bathymetric ramp (`[104,182,206]`
+    //    down to `[13,46,88]`) and the river ramp (`[86,168,196]` → `[34,98,148]`) from every land
+    //    swatch on the chart, the greenest of which is `[49,122,34]`.
+    // 2. Ten presets must not bake one landscape. The mean colour of each bake is printed so a collapse
+    //    to a single palette is visible as collapsed numbers, and the closest pair is asserted apart.
+    const TILE = 10;
+    const waterTypes = new Set<TerrainType>([
+      TerrainType.DeepWater,
+      TerrainType.ShallowWater,
+      TerrainType.River,
+    ]);
+    const presets = Object.values(MapPreset) as MapPreset[];
+    const means = new Map<MapPreset, [number, number, number]>();
+
+    for (const preset of presets) {
+      const { map, img } = await bake(preset);
+      let waterTiles = 0;
+      let sampled = 0;
+      let landPainted = 0;
+      let rSum = 0, gSum = 0, bSum = 0;
+      for (let i = 0; i < img.width * img.height; i++) {
+        rSum += img.data[i * 4];
+        gSum += img.data[i * 4 + 1];
+        bSum += img.data[i * 4 + 2];
+      }
+      const pixels = img.width * img.height;
+      means.set(preset, [rSum / pixels, gSum / pixels, bSum / pixels]);
+
+      for (let ty = 0; ty < map.height; ty++) {
+        for (let tx = 0; tx < map.width; tx++) {
+          const type = tileAt(map, tx, ty)?.type;
+          if (!type || !waterTypes.has(type)) continue;
+          // The tile's own centre pixel: the colour ramp is coarser than the tile grid, so sampling a
+          // whole footprint would read the far side of a bank rather than the tile's own paint.
+          const px = tx * TILE + TILE / 2;
+          const py = ty * TILE + TILE / 2;
+          if (px >= img.width || py >= img.height) continue;
+          waterTiles++;
+          const off = (py * img.width + px) * 4;
+          sampled++;
+          if (img.data[off + 1] > img.data[off + 2]) landPainted++;
+        }
+      }
+
+      console.log(
+        `${preset.padEnd(13)} waterTiles ${String(waterTiles).padStart(6)} `
+        + `paintedAsLand ${sampled ? ((landPainted / sampled) * 100).toFixed(2) : '--'}% `
+        + `mean rgb(${means.get(preset)!.map((v) => v.toFixed(0)).join(',')})`,
+      );
+
+      if (waterTiles === 0) continue;
+      // The ceiling is the shoreline seam, not the ramp: the bake reads a 3×3-smoothed height for the
+      // waterline while classification reads the raw field, so a tile whose own cell is water can sit
+      // just above the line. Measured 1.5–2.9 % over these presets; a map painted as land reads 100 %.
+      expect(
+        landPainted / sampled,
+        `${preset}: share of water tiles painted as land`,
+      ).toBeLessThan(0.06);
+    }
+
+    let closest = { pair: '', d: Infinity };
+    for (let i = 0; i < presets.length; i++) {
+      for (let j = i + 1; j < presets.length; j++) {
+        const a = means.get(presets[i]!)!;
+        const b = means.get(presets[j]!)!;
+        const d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+        if (d < closest.d) closest = { pair: `${presets[i]} / ${presets[j]}`, d };
+      }
+    }
+    console.log(`closest preset pair by mean colour: ${closest.pair} d ${closest.d.toFixed(2)}`);
+    // One green field for every preset is what this exists to catch.
+    expect(closest.d, `closest preset pair ${closest.pair}`).toBeGreaterThan(4);
+  });
+
   it('is deterministic, and a viewport bake matches the same crop of the whole map', async () => {
     // Both claims are load-bearing: determinism is the terrain contract, and the viewport identity is
     // what the chunked bake builds on (`renderer/terrain.ts` bakes one canvas per visible 256 px

@@ -231,7 +231,7 @@ loading splash (`App.tsx`), so the bound is 256 device px at 2×; the favicon an
 | `terrain/dirt_fill.png` | **no code path** | ground fill for the per-pixel bake |
 | `terrain/forest.png` | `spriteLoader.ts`, `terrainLayer.ts` | ground fill for the per-pixel bake |
 | `terrain/grass_fill.png` | `spriteLoader.ts`, `terrainLayer.ts` | ground fill for the per-pixel bake |
-| `terrain/mountain.jpg` | `spriteLoader.ts`, `terrainLayer.ts` | ground fill for the per-pixel bake |
+| `terrain/mountain.png` | `spriteLoader.ts`, `terrainLayer.ts` | ground fill for the per-pixel bake |
 | `terrain/sand_fill.png` | `spriteLoader.ts`, `terrainLayer.ts` | ground fill for the per-pixel bake |
 | `terrain/snow.png` | `spriteLoader.ts`, `terrainLayer.ts` | ground fill for the per-pixel bake |
 | `terrain/snow_light.png` | **no code path** | ground fill for the per-pixel bake |

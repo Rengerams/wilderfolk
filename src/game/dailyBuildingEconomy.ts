@@ -588,7 +588,7 @@ function tickBuildingProduction(
             // so the death goes through the one owner every other death uses, which also runs the
             // family, residence and workplace cleanup.
             const killedById = ensureEntityByIdMap(state);
-            killHuman(hunter, updatedBuildings, killedById, state.tick);
+            killHuman(hunter, updatedBuildings, killedById, state.tick, state);
             // The post keeps its roster truthful in the same tick: the dead hunter is not at work.
             building.occupants = building.occupants.filter((id) => id !== hunter.id);
             logDeath(

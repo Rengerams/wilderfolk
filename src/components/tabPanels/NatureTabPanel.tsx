@@ -316,7 +316,7 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
             </div>
           </div>
           <p className="mt-2 text-[10px] text-stone-600">
-            Growing towns shed pristine wilderness — there is no player tree planting yet. Early food-chain balance still matters for hunting.
+            Growing towns shed pristine wilderness, and settlers cannot replant it — early food-chain balance still matters for hunting.
           </p>
         </div>
       </div>

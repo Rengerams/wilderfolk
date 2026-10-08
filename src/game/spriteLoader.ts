@@ -139,7 +139,7 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/terrain/water_shallow_fill.png',
     '/sprites/terrain/water_deep_fill.png',
     '/sprites/terrain/snow.png',
-    '/sprites/terrain/mountain.jpg',
+    '/sprites/terrain/mountain.png',
     // The optional transparent 4×4 sand-bank/water mask sheet
     // (`SAND_WATER_OVERLAY_PATH`) is omitted until `public/sprites/terrain/sand_water_overlay.png`
     // ships: the retired tile bake reads it only when the sprite is present, and preloading a missing

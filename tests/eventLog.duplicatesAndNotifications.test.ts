@@ -169,6 +169,7 @@ describe('the auto-staff card reports the pass that ran', () => {
     const state = initGame();
     const church = createBuilding(BuildingType.Church, 400, 400, 700);
     church.completed = true;
+    church.staffingMode = 'manual';
     state.buildings = [church];
     state.entities = [settler(1, 400, 400, { gender: 'male' })];
     invalidateEntityByIdMap(state);

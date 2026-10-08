@@ -19,8 +19,8 @@ export interface GameMenuSettingsCallbacks {
   volumePreset: VolumePreset;
   onSave: () => void;
   onLoad: () => void;
-  onSaveToFile: () => void;
   onLoadFromFile: (jsonText: string) => void;
+  onReplayIntro: () => void;
   onToggleAutoSave: () => void;
   onToggleTutorials: () => void;
   onToggleJuiceEffects: () => void;
@@ -163,8 +163,8 @@ export default function GameMenu({
   volumePreset,
   onSave,
   onLoad,
-  onSaveToFile,
   onLoadFromFile,
+  onReplayIntro,
   onToggleAutoSave,
   onToggleTutorials,
   onToggleJuiceEffects,
@@ -297,12 +297,6 @@ export default function GameMenu({
                   icon="💾"
                   label="Save game"
                   hint="Download .json — your saves live outside the browser"
-                  onClick={() => { onSaveToFile(); close(); }}
-                />
-                <MenuAction
-                  icon="⬇️"
-                  label="Save to browser"
-                  hint="Temporary quick-save — browser data clears it; oversized valleys save as a file"
                   onClick={() => { onSave(); close(); }}
                 />
                 <MenuAction
@@ -317,6 +311,12 @@ export default function GameMenu({
                   label="Load game from file"
                   hint="Open a .json you saved earlier"
                   onClick={() => fileInputRef.current?.click()}
+                />
+                <MenuAction
+                  icon="🎬"
+                  label="Replay intro"
+                  hint="Play the opening cinematic again"
+                  onClick={() => { onReplayIntro(); close(); }}
                 />
                 <input
                   ref={fileInputRef}

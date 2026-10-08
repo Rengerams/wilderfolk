@@ -47,11 +47,14 @@ describe('L2 — a pet is released when its owner dies', () => {
     expect(countTamedAnimals(state)).toBe(1);
     expect(isValidHuntPrey(deer, EntityType.Deer, owner.id + 10_000)).toBe(false);
 
-    killHuman(owner, state.buildings, indexOf(state.entities));
+    killHuman(owner, state.buildings, indexOf(state.entities), state.tick, state);
 
     expect(deer.tamedBy).toBeUndefined();
     expect(countTamedAnimals(state)).toBe(0);
     expect(isValidHuntPrey(deer, EntityType.Deer, owner.id + 10_000)).toBe(true);
+    expect(
+      state.eventLog.some((e) => e.type === 'migration' && e.message.includes('returned to the wild')),
+    ).toBe(true);
   });
 
   it('no longer charges the larder for the orphaned animal', () => {

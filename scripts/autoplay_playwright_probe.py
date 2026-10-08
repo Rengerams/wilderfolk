@@ -54,6 +54,148 @@ STATE_JS = """
 """
 
 
+# What the live app actually painted on the ground canvas, for the preset the player chose.
+# Water on this renderer is blue-dominant (the bathymetric ramp runs [104,182,206] … [13,46,88] and the
+# river ramp [86,168,196] … [34,98,148]); no land swatch is (the greenest on the chart is [49,122,34]).
+GROUND_STATS_JS = """
+() => {
+  const canvas = document.querySelector('canvas[aria-label="Valley map"]');
+  if (!canvas) return { error: 'no Valley map canvas' };
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return { error: 'the Valley map canvas has no 2d context' };
+  const w = canvas.width;
+  const h = canvas.height;
+  const data = ctx.getImageData(0, 0, w, h).data;
+  let r = 0, g = 0, b = 0, n = 0, blue = 0, green = 0;
+  const seen = new Set();
+  for (let i = 0; i < data.length; i += 16) {
+    const pr = data[i], pg = data[i + 1], pb = data[i + 2];
+    r += pr; g += pg; b += pb; n++;
+    if (pb > pg) blue++;
+    else if (pg > pb + 20) green++;
+    seen.add(((pr >> 4) << 8) | ((pg >> 4) << 4) | (pb >> 4));
+  }
+  return {
+    width: w, height: h, sampled: n,
+    mean: [Math.round(r / n), Math.round(g / n), Math.round(b / n)],
+    blueShare: blue / n, greenShare: green / n, distinctColors: seen.size,
+  };
+}
+"""
+
+
+def selected_preset_label(page) -> str:
+    """The preset card the setup screen currently marks selected, read from its own markup."""
+    return page.evaluate(
+        """() => {
+          const card = document.querySelector('[aria-label="New settlement"] .ui-selected');
+          if (!card) return '';
+          const title = card.querySelector('span.block');
+          return ((title ? title.textContent : card.textContent) || '').trim();
+        }"""
+    )
+
+
+def choose_preset(page, label: str) -> bool:
+    """Click a preset card inside the panel its owner headings: <h2>Choose your land</h2>."""
+    return bool(
+        page.evaluate(
+            """(label) => {
+              const heading = [...document.querySelectorAll('h2')]
+                .find((h) => (h.textContent || '').trim().toLowerCase() === 'choose your land');
+              if (!heading) return false;
+              const scope = heading.closest('section') || document;
+              const wanted = label.toLowerCase();
+              const hit = [...scope.querySelectorAll('button')]
+                .find((b) => (b.textContent || '').toLowerCase().includes(wanted));
+              if (!hit) return false;
+              hit.click();
+              return true;
+            }""",
+            label.lower(),
+        )
+    )
+
+
+def set_camera_zoom(page, preset: float) -> str:
+    """Choose a camera zoom through the stage's own preset select (owner-authored aria-label)."""
+    return page.evaluate(
+        """(preset) => {
+          const select = document.querySelector('select[aria-label="Zoom preset"]');
+          if (!select) return 'no zoom preset control';
+          const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+          setter.call(select, String(preset));
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          const live = document.querySelector('[title="Live zoom"]');
+          return live ? (live.textContent || '').trim() : 'set';
+        }""",
+        str(preset),
+    )
+
+
+def run_ground_look(args) -> int:
+    """Measure the ground the live app paints, one fresh game per preset label."""
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=not args.headful)
+        page = browser.new_page(viewport={"width": args.width, "height": args.height})
+        errors: list[str] = []
+        page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" else None)
+        page.on("pageerror", lambda exc: errors.append(str(exc)))
+
+        print(f"ground look: {len(args.ground_presets)} preset(s), one fresh game each at {args.width}x{args.height}")
+        print("")
+        for label in args.ground_presets:
+            page.goto(args.url, wait_until="load")
+            wait_for(page, "() => !!document.querySelector('canvas')", "canvas")
+            if not click_text(page, "skip intro"):
+                click_text(page, "choose your land")
+            wait_for(page, "() => document.body.textContent.includes('Settle the valley')", "map setup")
+            requested = choose_preset(page, label)
+            chosen = selected_preset_label(page)
+            click_text(page, "settle the valley")
+            wait_for(
+                page,
+                "() => /\\d{1,2}:\\d{2}/.test((document.querySelector('header')||{}).textContent||'')",
+                "gameplay HUD",
+                180000,
+            )
+            if page.evaluate("() => document.body.textContent.includes('Quick start')"):
+                click_text(page, "skip")
+            if args.ground_zoom:
+                set_camera_zoom(page, args.ground_zoom)
+
+            # The ground bakes under a per-frame pixel budget, so wait for the painted mean to settle.
+            stats = page.evaluate(GROUND_STATS_JS)
+            stable = 0
+            for _ in range(30):
+                page.wait_for_timeout(700)
+                nxt = page.evaluate(GROUND_STATS_JS)
+                stable = stable + 1 if nxt.get("mean") == stats.get("mean") else 0
+                stats = nxt
+                if stable >= 2:
+                    break
+
+            if stats.get("error"):
+                print(f"{label:<14} ERROR {stats['error']}")
+                continue
+            print(
+                f"{label:<14} requested={requested} chosen={chosen!r} "
+                f"mean=rgb({','.join(str(v) for v in stats['mean'])}) "
+                f"waterBlue={stats['blueShare'] * 100:5.1f}% landGreen={stats['greenShare'] * 100:5.1f}% "
+                f"colours={stats['distinctColors']:5d} canvas={stats['width']}x{stats['height']}"
+            )
+
+        print("")
+        if errors:
+            print(f"console errors ({len(errors)}):")
+            for error in errors[:10]:
+                print(f"   ! {error}")
+        else:
+            print("console errors: none")
+        browser.close()
+    return 0
+
+
 def click_text(page, text: str) -> bool:
     """Click the first <button> whose text contains `text` (case-insensitive)."""
     return bool(
@@ -83,7 +225,22 @@ def main() -> int:
     parser.add_argument("--headful", action="store_true")
     parser.add_argument("--width", type=int, default=1600)
     parser.add_argument("--height", type=int, default=900)
+    parser.add_argument(
+        "--ground-presets",
+        default="",
+        help="comma-separated preset labels (e.g. 'Islands,Meadows,Arabia'): start a fresh game on each "
+             "and report the ground the live app painted on the Valley map canvas",
+    )
+    parser.add_argument(
+        "--ground-zoom",
+        type=float,
+        default=0.0,
+        help="camera zoom preset to measure the ground at (0 = leave the game's own default)",
+    )
     args = parser.parse_args()
+    if args.ground_presets:
+        args.ground_presets = [p.strip() for p in args.ground_presets.split(",") if p.strip()]
+        return run_ground_look(args)
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=not args.headful)
