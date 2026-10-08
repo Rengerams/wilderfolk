@@ -33,6 +33,13 @@ import { tickHumans } from '../src/game/humanTick';
 const TEST_SEED = 20_261_010;
 /** 23:20 — deep night, so `stayIn` is unconditional, and not a clock hour, so no home snap fires. */
 const LATE_NIGHT_OFFSET = 23 * TICKS_PER_HOUR + 1;
+/**
+ * A walkable land point on this seed, with land to its west and east. The cases below used
+ * `width * 0.78`, which on this map is open sea several tiles from any shore — they passed only
+ * while a settler could walk over water.
+ */
+const WALKER_X = 1280;
+const WALKER_Y = 672;
 
 let settlerPrototype: Entity | undefined;
 
@@ -160,8 +167,8 @@ afterEach(() => {
 describe('settler lodging overnight', () => {
   it('sleeps at a completed hotel with a free bed when the walk home is too long for the night', () => {
     const state = newWorld();
-    const walkerX = Math.round(state.width * 0.78);
-    const walkerY = Math.round(state.height * 0.5);
+    const walkerX = WALKER_X;
+    const walkerY = WALKER_Y;
     const home = house(1, Math.round(state.width * 0.06), walkerY);
     // ~45 px from the walker's centre, inside the walk's direct (non-pathing) branch.
     const inn = hotel(2, walkerX + 45, walkerY);
@@ -192,8 +199,8 @@ describe('settler lodging overnight', () => {
 
   it('goes home as before when the walk home fits in the night', () => {
     const state = newWorld();
-    const walkerX = Math.round(state.width * 0.78);
-    const walkerY = Math.round(state.height * 0.5);
+    const walkerX = WALKER_X;
+    const walkerY = WALKER_Y;
     // Centre 40 px away: about an hour's walk, below LODGING_MIN_COMMUTE_HOURS.
     const home = house(1, walkerX - 60, walkerY);
     const inn = hotel(2, walkerX + 45, walkerY);

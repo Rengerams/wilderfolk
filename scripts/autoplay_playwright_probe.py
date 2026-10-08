@@ -1,5 +1,5 @@
 """
-Temporary Playwright probe (local-only, gitignored, safe to delete).
+Playwright probe for the running game — the sanctioned browser harness (git-tracked).
 
 WHY: the reported illogic is a *ladder* one — "it researches Advanced Farming but
 it is not building a farm", and gold is low at the start. The Node tests pin the
@@ -11,8 +11,11 @@ USAGE
     node node_modules/vite/bin/vite.js --port 5173 --strictPort --host 127.0.0.1
     python scripts/autoplay_playwright_probe.py
     python scripts/autoplay_playwright_probe.py --url http://127.0.0.1:5173/ --seconds 25
+    # Ground look — the pixels the live app painted, one fresh game per preset, at a chosen zoom:
+    python scripts/autoplay_playwright_probe.py --ground-presets "Islands,Meadows" --ground-zoom 0.5
 
-Exits 0 when the farm is built before the research and the status line is visible.
+Exits 0 when the farm is built before the research and the status line is visible; the
+--ground-presets mode exits 0 after printing its table.
 """
 
 from __future__ import annotations

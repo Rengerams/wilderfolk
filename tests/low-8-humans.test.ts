@@ -161,7 +161,7 @@ describe('L8 — removal targets the settler\'s own building', () => {
 
   it('still detaches a settler from the building they actually work at', () => {
     const state = newWorld();
-    const church = building(1, BuildingType.Church);
+    const church = building(1, BuildingType.Church, { staffingMode: 'manual' });
     state.buildings = [church];
     const worker = settler(10, { homeBuildingId: church.id, job: JobType.Priest, occupation: 'priest' });
     church.occupants = [worker.id];

@@ -1009,12 +1009,13 @@ export class GameLoop {
         // Hold accumulator until worker is authoritative
       } else if (this.workerEnabled && this.workerHost) {
         const stallMs = this.workerStallThresholdMs();
-        const stalled =
-          this.workerHost.hasTickInFlight() &&
-          performance.now() - this.lastWorkerActivity > stallMs;
+        // Silence only counts while ticks are being asked for: a pause posts none, so the clock
+        // otherwise aged for the whole pause and the first tick back condemned a healthy worker.
+        const silenceMs =
+          performance.now() - Math.max(this.lastWorkerActivity, this.lastWorkerTickRequest);
+        const stalled = this.workerHost.hasTickInFlight() && silenceMs > stallMs;
 
         if (stalled) {
-          const silenceMs = performance.now() - this.lastWorkerActivity;
           console.warn(
             `[GameLoop] Worker silent ${silenceMs.toFixed(0)}ms with ${this.workerHost.getTicksInFlight?.() ?? 'unknown'} tick(s) in flight (threshold ${stallMs.toFixed(0)}ms, last measured tick latency ${this.workerTickLatencyMs.toFixed(0)}ms, command in flight=${this.workerHost.hasCommandInFlight?.() ? 'yes' : 'no'}, hidden=${pageHidden()})`,
           );

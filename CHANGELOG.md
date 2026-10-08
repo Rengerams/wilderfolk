@@ -1,5 +1,31 @@
 # Changelog
 
+## <u>[0.6.5.1]</u> — 2026-10-08
+
+- **Fixed: an on-duty prison guard no longer abandons his post to visit his wife** — a free-time walk to a distant spouse overwrote the work commute in the same tick, so the rota was full, nobody stood on the post, and every such hour rolled a prisoner escape.
+
+- **Fixed: animals and settlers no longer flick back to where they stood a moment ago** — the render snapshot and the simulation were both writing entity positions, and the snapshot is a past tick, so it dragged every mover back one buffer behind itself.
+
+- **Fixed: the drawn position no longer goes stale while a command is in flight** — the render cache was keyed on the tick alone, and a command's refresh arrives at an unchanged tick, so it served the previous frame's entities.
+
+- **Fixed: a settler-only pregnancy counter no longer rides on every blade of grass and tree** — it was initialised on every entity, so each save carried a number only a mother can use; it now appears only once a settler is expecting, which shrinks every save.
+
+- **Changed: grass and trees no longer carry a combat roll seed** — only the species that take part in a predator or prey roll are seeded, which trims a number a blade or a trunk can never use and shrinks every save.
+
+- **Changed: grass and trees no longer carry an animation frame or a settler generation** — only species whose animation clock runs, and only settlers in a family tree, read them, so both numbers leave every blade and trunk and the save shrinks.
+
+- **Fixed: a reloaded colony no longer re-adds an animation frame and a generation to every blade of grass and tree** — the load path defaulted both on every element, so one reload put them back and the next save paid for them again.
+
+- **Fixed: a long pause no longer reads as a stalled simulation worker** — the silence clock kept ageing while the game was paused, so the first tick after a pause condemned a healthy worker and the game fell back to main-thread ticks.
+
+- **Fixed: settlers no longer walk over water or through walls** — the grid that blocks them was read only on long walks, so a short leg, or one with no way around, crossed the obstacle. Every step now asks it and slides along what it refuses.
+
+- **Fixed: a bridge is now a crossing** — a completed bridge was marked as walkable but left the water under its deck blocked, so the router still refused it and the settler waded the river beside it.
+
+- **Fixed: walkers no longer cut a corner diagonally** — the route advanced to the next waypoint from half a tile away, which cut one-tile gaps and left the walker pressed against the bank.
+
+- **Added: the save inspector audits the ground the colony stands on** — a sent-in save now names anyone standing in water, inside a wall or on reserved decor, and can run the colony forward to show whether anyone walks onto it.
+
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
 - **Fixed: loading a save no longer blacks out the game** — the toast list was dropped on load while the shell still expected one, so the first render after any load threw.

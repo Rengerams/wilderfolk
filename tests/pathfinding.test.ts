@@ -118,4 +118,48 @@ describe('pathfinding', () => {
     expect(lineCrossesBlocked(grid, sx, sy, ex, sy)).toBe(true);
     expect(lineCrossesBlocked(grid, sx, sy, 8 * PATH_CELL, sy)).toBe(false);
   });
+
+  it('opens the water a bridge spans, so the deck is a crossing and not decoration', () => {
+    // River column 5 for every row: the two banks are separate unless a deck connects them.
+    const map = makeMap(10, 10, 8, (x) => x === 5);
+    const bridge: Building = {
+      id: 2,
+      type: BuildingType.Bridge,
+      x: 5 * PATH_CELL,
+      y: 5 * PATH_CELL,
+      width: PATH_CELL,
+      height: PATH_CELL,
+      occupants: [],
+      level: 1,
+      constructionProgress: 100,
+      completed: true,
+      health: 100,
+      maxHealth: 100,
+      spriteScale: 1,
+      buildAnimTimer: 0,
+    };
+
+    // Fixture premise: with no bridge the river separates the banks for the router.
+    const bare = getPathGrid(map, []);
+    expect(bare.blocked[5 * bare.cols + 5]).toBe(1);
+    expect(findPath(bare, 0, 5, 9, 5)).toBeNull();
+
+    // `isWalkableRoad` calls a completed bridge walkable, so its footprint must clear the blocked
+    // water it spans. Stamping only the road mask left the deck a cost discount on a tile the
+    // router still refused: no route was found and the walk fell back to the straight line, so a
+    // settler waded the river the bridge was built across.
+    const grid = getPathGrid(map, [bridge]);
+    expect(grid.road?.[5 * grid.cols + 5]).toBe(1);
+    expect(grid.blocked[5 * grid.cols + 5], 'the deck tile is still water to the router').toBe(0);
+    // The crossing is walkable end to end, so no straight line over it is "blocked" any more.
+    const mid = 5 * PATH_CELL + 5;
+    expect(lineCrossesBlocked(grid, 5, mid, 9 * PATH_CELL + 5, mid)).toBe(false);
+
+    // The two banks are now one connected walk. (The route is simplified to line-of-sight corners, so
+    // it need not name the deck tile itself — the connectivity is the contract.)
+    const path = findPath(grid, 0, 5, 9, 5);
+    expect(path).not.toBeNull();
+    expect(path![0]).toEqual({ x: 0, y: 5 });
+    expect(path![path!.length - 1]).toEqual({ x: 9, y: 5 });
+  });
 });

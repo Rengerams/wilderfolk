@@ -40,6 +40,19 @@ export interface CreateEntityOptions {
   inheritedTraits?: SettlerTrait[];
 }
 
+/** The species `tickLayerSystems` ticks — wildlife plus settlers — so the only ones whose animation
+ *  clock runs and the only ones a predator/prey catch can involve. Inline: it imports `createEntity`.
+ *  Exported so the save loader repairs `animFrame` for exactly the species this factory seeds it on. */
+export const TICKED_SPECIES: ReadonlySet<EntityType> = new Set([
+  EntityType.Human,
+  EntityType.Rabbit,
+  EntityType.Deer,
+  EntityType.Wolf,
+  EntityType.Fox,
+  EntityType.Werewolf,
+  EntityType.Wildkin,
+]);
+
 export function createEntity(
   type: EntityType,
   x: number,
@@ -120,7 +133,8 @@ export function createEntity(
     gender: isHuman ? entGender : undefined,
     isJuvenile: effectiveJuvenile,
     pregnant: undefined,
-    pregnancyProgress: 0,
+    // Settler-only: the isHuman branch below assigns 0, so no blade of grass materialises it.
+    pregnancyProgress: undefined,
     homeBuildingId: undefined,
     residenceBuildingId: undefined,
     occupation: isHuman ? 'settler' : undefined,
@@ -134,7 +148,8 @@ export function createEntity(
     name,
     surname,
     maidenSurname,
-    generation: isHuman ? gen : 0,
+    // Settler genealogy: family tree, dynasty and founder checks read it, nothing else does.
+    generation: isHuman ? gen : undefined,
     partnerId: opts?.partnerId,
     affairPartnerId: undefined,
     affairProgress: 0,
@@ -151,8 +166,8 @@ export function createEntity(
     adoptiveMotherId: undefined,
     adoptiveFatherId: undefined,
     spriteAngle: simRandom() * Math.PI * 2,
-    animFrame: 0,
-    combatRollSeed: ((id * 2654435761) ^ 0x9e3779b9) >>> 0,
+    animFrame: TICKED_SPECIES.has(type) ? 0 : undefined,
+    combatRollSeed: TICKED_SPECIES.has(type) ? ((id * 2654435761) ^ 0x9e3779b9) >>> 0 : undefined,
     spriteVariant:
       isHuman && entGender ? (opts?.spriteVariant ?? pickHumanVariant(id, entGender)) : undefined,
   };

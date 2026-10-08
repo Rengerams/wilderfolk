@@ -24,6 +24,15 @@ export interface RenderSoABuckets {
 let cachedTick = UNCACHED_RENDER_TICK;
 let cachedMetaBySlot: EntityRenderMeta[] | undefined;
 /**
+ * The render buffer the buckets were built from.
+ *
+ * A tick counter alone is not a sufficient key: a command result carries its own render refresh, so
+ * the same tick can arrive twice with a **different** buffer. Keyed on the tick alone, the second
+ * call took the "nothing changed" branch and served the previous buffer's shims — so the drawn
+ * position lagged a buffer behind the world on every command.
+ */
+let cachedReader: RenderSoAReaderV1 | null = null;
+/**
  * The containers a rebuild refills in place. Only the entity shims are new objects each tick; the
  * lists and both slot indexes are the same instances, so a rebuild allocates none of them.
  */
@@ -52,6 +61,7 @@ function emptyBuckets(): RenderSoABuckets {
 export function invalidateRenderSoABucketsCache(): void {
   cachedTick = UNCACHED_RENDER_TICK;
   cachedMetaBySlot = undefined;
+  cachedReader = null;
   slotLists.grassSlots.length = 0;
   slotLists.treeSlots.length = 0;
   slotLists.animalSlots.length = 0;
@@ -71,13 +81,14 @@ export function updateRenderSoABuckets(
   metaBySlot: EntityRenderMeta[] | undefined,
   tick: number,
 ): RenderSoABuckets {
-  if (cachedTick === tick && cachedMetaBySlot === metaBySlot) {
+  if (cachedTick === tick && cachedMetaBySlot === metaBySlot && cachedReader === reader) {
     return buckets;
   }
 
   try {
     cachedTick = tick;
     cachedMetaBySlot = metaBySlot;
+    cachedReader = reader;
 
     const { grassSlots, treeSlots, animalSlots, humanSlots, shims, shimBySlot, shimById } = slotLists;
     grassSlots.length = 0;

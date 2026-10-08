@@ -4,13 +4,39 @@ import { BuildingType } from '../buildings';
 import type { Building, Entity } from '../gameTypes';
 import { PRISON_GUARDS_MAX } from '../prisonShifts';
 import { isActiveMoonHowler } from '../moonHowler';
-import { steerWithPath } from '../pathfinding';
+import { isGroundWalkableAt, isWalkStepAllowed, steerWithPath } from '../pathfinding';
 import { faceVelocity } from './movementSteering';
 
 /** Beyond this distance, settlers snap to home/work. */
 export const COMMUTE_SNAP_DISTANCE = 200;
 
 // ============ COMMUTE HELPERS ============
+
+/** Cells probed for a blocked stand point, nearest ring first and south before north. */
+const STAND_POINT_FALLBACK_OFFSETS: readonly (readonly [number, number])[] = [
+  [0, 1], [1, 1], [-1, 1], [1, 0], [-1, 0], [1, -1], [-1, -1], [0, -1],
+];
+
+/**
+ * Moves a stand point onto ground a walker can occupy.
+ *
+ * A workplace row, a home arc and a crowd slot are geometry, not terrain: they land on water, on a
+ * decor cell the L3 pass reserved, or under a completed wall. The owner's own save had two soldiers
+ * standing in a pond and ten settlers inside walls — all of them simply standing where the row put
+ * them, and a walk that cannot occupy its destination hovers at the edge of it instead of arriving.
+ * The grid owns "can a walker stand here", so the point moves to the nearest cell it allows.
+ */
+function walkableStandPoint(x: number, y: number): { x: number; y: number } {
+  if (isGroundWalkableAt(x, y)) return { x, y };
+  for (let ring = 1; ring <= 3; ring++) {
+    for (const [dx, dy] of STAND_POINT_FALLBACK_OFFSETS) {
+      const nx = x + dx * PATH_CELL * ring;
+      const ny = y + dy * PATH_CELL * ring;
+      if (isGroundWalkableAt(nx, ny)) return { x: nx, y: ny };
+    }
+  }
+  return { x, y };
+}
 
 /**
  * A place in a crowd gathered around a point — a festival at the performers' camp or the hall front.
@@ -30,11 +56,11 @@ export function crowdGatherPosition(cx: number, cy: number, entityId: number): {
   const angle = (slot / CROWD_GATHER_PER_RING) * Math.PI * 2 + ring * 0.13;
   const radius = CROWD_GATHER_INNER_PX + ring * CROWD_GATHER_RING_GAP_PX;
 
-  return {
-    x: cx + Math.cos(angle) * radius,
+  return walkableStandPoint(
+    cx + Math.cos(angle) * radius,
     // Flattened, so the crowd occupies ground rather than forming a perfect circle.
-    y: cy + Math.sin(angle) * radius * 0.7,
-  };
+    cy + Math.sin(angle) * radius * 0.7,
+  );
 }
 
 /** 12 × 16 = 192 places in a festival crowd, from just outside the stage to the edge of it. */
@@ -66,12 +92,12 @@ export function venueGatherPosition(building: Building, entityId: number): { x: 
   const angle = Math.PI * 0.18 + (slot / Math.max(1, VENUE_GATHER_PER_ARC - 1)) * Math.PI * 0.64;
   const radius = building.width / 2 + VENUE_GATHER_STANDOFF_PX + arc * VENUE_GATHER_ARC_GAP_PX;
 
-  return {
-    x: building.x + Math.cos(angle) * radius,
+  return walkableStandPoint(
+    building.x + Math.cos(angle) * radius,
     // Cleared of the wall by a standoff at every angle — the flatter the arc, the closer the apex came to
     // the footprint, which put settlers inside the building they came to visit.
-    y: building.y + building.height + VENUE_GATHER_STANDOFF_PX + Math.sin(angle) * radius * 0.5,
-  };
+    building.y + building.height + VENUE_GATHER_STANDOFF_PX + Math.sin(angle) * radius * 0.5,
+  );
 }
 
 /** Slots available to a venue crowd: three arcs of eight. */
@@ -94,10 +120,10 @@ export function homeStandPosition(building: Building, entityId: number): { x: nu
   const ring = (seed % 4) + 1;
   const radius = 10 + ring * 6;
 
-  return {
-    x: cx + Math.cos(angle) * radius,
-    y: cy + Math.sin(angle) * (radius * 0.65) + building.height * 0.2,
-  };
+  return walkableStandPoint(
+    cx + Math.cos(angle) * radius,
+    cy + Math.sin(angle) * (radius * 0.65) + building.height * 0.2,
+  );
 }
 
 /** Spacing between two workers of the same building, in world px (a settler sprite is ~20 px wide). */
@@ -148,11 +174,11 @@ export function humanBuildingTarget(
   const slot = isPrison ? rawSlot % PRISON_GUARDS_MAX : rawSlot;
   const rowLength = isPrison ? PRISON_GUARDS_MAX : crew.length;
   const span = Math.max(0, rowLength - 1) * WORKER_STAND_SPACING_PX;
-  return {
-    x: building.x - span / 2 + slot * WORKER_STAND_SPACING_PX,
+  return walkableStandPoint(
+    building.x - span / 2 + slot * WORKER_STAND_SPACING_PX,
     // Workers stand in front of the building (south) so sprites are not obscured
-    y: building.y + building.height / 2 + WORKER_STAND_STANDOFF_PX,
-  };
+    building.y + building.height / 2 + WORKER_STAND_STANDOFF_PX,
+  );
 }
 
 export function commuteDistanceToBuilding(
@@ -200,6 +226,36 @@ export function commutePathCacheKey(
 }
 
 /**
+ * Applies one tick's walk step, refusing the tiles the path grid blocks.
+ *
+ * Every walk ends here, which is where "a wall is solid and water is not ground" has to hold: the
+ * steerers only set a velocity, and none of them is obliged to check what it points into. A step
+ * into a blocked tile becomes its axis-separated halves, so a walker pressed against a wall or a
+ * bank slides along its face instead of passing through it or stopping dead in the open.
+ *
+ * Velocity is left exactly as the steering owner set it — this only decides how far of it is walked,
+ * because the blend the caller reads back (`vx`/`vy` after the tick) is that owner's contract.
+ */
+export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
+  const stepX = entity.vx * roadMult;
+  const stepY = entity.vy * roadMult;
+  if (stepX === 0 && stepY === 0) return;
+
+  if (isWalkStepAllowed(entity.x, entity.y, entity.x + stepX, entity.y + stepY)) {
+    entity.x += stepX;
+    entity.y += stepY;
+    return;
+  }
+
+  if (stepX !== 0 && isWalkStepAllowed(entity.x, entity.y, entity.x + stepX, entity.y)) {
+    entity.x += stepX;
+  }
+  if (stepY !== 0 && isWalkStepAllowed(entity.x, entity.y, entity.x, entity.y + stepY)) {
+    entity.y += stepY;
+  }
+}
+
+/**
  * Steers a human entity towards their target building.
  * Returns `true` if the entity has arrived within destination radius, `false` otherwise.
  */
@@ -226,30 +282,33 @@ export function commuteHumanToBuilding(
   const distRush = Math.min(COMMUTE_CONFIG.MAX_DIST_RUSH, 1 + dist / 40);
   const moveSpeed = speed * rush * distRush;
 
+  // The path owner is asked at **every** distance. This used to run only beyond LONG_RANGE_DIST
+  // (50 px), so a shorter leg — and the last 50 px of every leg — steered straight at the target,
+  // straight across a river or a wall. `steerWithPath` answers 'direct' when the line is clear,
+  // which is what leaves the long-range pacing and the approach easing below unchanged.
+  const cacheKey = commutePathCacheKey(
+    building.id,
+    arrivingHome,
+    entity.x,
+    entity.y,
+    target.x,
+    target.y,
+    entity.id,
+  );
+  const handled = steerWithPath(
+    entity,
+    target.x,
+    target.y,
+    moveSpeed * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO,
+    cacheKey,
+  );
+
+  // 'path' only sets the velocity along the route; the human loop's movement apply at the end of
+  // the tick is the single integration (the stepper must not move the entity as well).
+  if (handled === 'path') return false;
+  if (handled === 'arrived') return true;
+
   if (dist > COMMUTE_CONFIG.LONG_RANGE_DIST) {
-    const cacheKey = commutePathCacheKey(
-      building.id,
-      arrivingHome,
-      entity.x,
-      entity.y,
-      target.x,
-      target.y,
-      entity.id,
-    );
-
-    const handled = steerWithPath(
-      entity,
-      target.x,
-      target.y,
-      moveSpeed * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO,
-      cacheKey,
-    );
-
-    // 'path' only sets the velocity along the route; the human loop's movement apply at the end of
-    // the tick is the single integration (the stepper must not move the entity as well).
-    if (handled === 'path') return false;
-    if (handled === 'arrived') return true;
-
     const step = Math.min(dist, moveSpeed * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO);
     entity.vx = (dx / dist) * step;
     entity.vy = (dy / dist) * step;

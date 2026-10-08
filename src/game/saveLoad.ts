@@ -27,6 +27,7 @@ import { reconcileFamilyReferencesAfterRemoval } from './humanLifecycleCleanup';
 import { isPlayerHuman } from './playerHuman';
 import { GAME_VERSION } from './version';
 import { ensureEntitySkills } from './skills';
+import { TICKED_SPECIES } from './entityFactory';
 import { normalizeWorkSchedule } from './workSchedule';
 import { normalizeWorkforcePolicy } from './workforcePolicy';
 import { normalizeVenueSchedule } from './venueSchedule';
@@ -1291,11 +1292,11 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       pendingRaidEvents: worldData.pendingRaidEvents ?? [],
       pendingOutgoingRaidEvents: worldData.pendingOutgoingRaidEvents ?? [],
       entities: (worldData.entities || []).map((e: Partial<Entity>) => {
+        // Required fields (`vx`, `vy`, `alive`, `flash`, `birthYear`, `birthMonth`, `birthDay`) are
+        // repaired for every element here; `...e` still wins over every default the payload carries.
         const entity = {
           childrenIds: [],
-          generation: 0,
           spriteAngle: 0,
-          animFrame: 0,
           vx: 0,
           vy: 0,
           alive: true,
@@ -1306,6 +1307,11 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
           birthDay: 0,
           ...e,
         } as Entity;
+        // `generation` and `animFrame` are optional and are read only for the species that carry them,
+        // so they are repaired for those species alone. Defaulting them for every element re-materialised
+        // both on all 932 grass blades and trees of a loaded world, undoing the factory's own scoping.
+        if (entity.type === EntityType.Human) entity.generation ??= 0;
+        if (TICKED_SPECIES.has(entity.type)) entity.animFrame ??= 0;
         migrateEntityPersistedFields(entity, e);
         if (entity.type === EntityType.Human && entity.spriteVariant === undefined && entity.gender) {
           entity.spriteVariant = pickHumanVariant(entity.id, entity.gender);

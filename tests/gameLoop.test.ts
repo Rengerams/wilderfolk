@@ -358,6 +358,55 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       }
     });
 
+    it('does not read a long pause as worker silence when ticking resumes', async () => {
+      const world = makeWorldForEntities([human(1)], []);
+      const loop = new GameLoop(world, createInitialView(400, 300), () => null);
+      await settleLoop(loop);
+
+      // A pause posts no tick, so `lastWorkerActivity` ages for the whole pause. The resume posts the
+      // first tick; a worker that answers it is healthy and must not be torn down by the stale clock.
+      let ticksInFlight = 0;
+      const dispose = vi.fn();
+      const fakeHost = {
+        isReady: () => true,
+        hasTickInFlight: () => ticksInFlight > 0,
+        canPipelineTick: () => true,
+        requestTick: () => {
+          ticksInFlight++;
+          return true;
+        },
+        setPaused: vi.fn(),
+        getAuthoritativeWorld: () => world,
+        dispose,
+      };
+
+      world.speed = 10;
+      (loop as unknown as { workerEnabled: boolean }).workerEnabled = true;
+      (loop as unknown as { workerBooting: boolean }).workerBooting = false;
+      (loop as unknown as { workerHost: unknown }).workerHost = fakeHost;
+      (loop as unknown as { lastPausedSentToWorker: boolean }).lastPausedSentToWorker = true;
+      (loop as unknown as { lastWorkerActivity: number }).lastWorkerActivity = 0;
+
+      const now = vi.spyOn(performance, 'now').mockReturnValue(15_000);
+      vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1));
+
+      try {
+        const frame = (loop as unknown as { frame: (time: number) => void }).frame;
+        frame(1_000); // primes the frame clock; a paused loop posted nothing
+        expect(fakeHost.setPaused).toHaveBeenCalledWith(false);
+
+        frame(1_100);
+        expect(ticksInFlight, 'the resume posted a tick').toBeGreaterThan(0);
+
+        frame(1_200);
+        expect(dispose, 'a 15 s pause was read as worker silence').not.toHaveBeenCalled();
+        expect((loop as unknown as { workerHost: unknown }).workerHost).toBe(fakeHost);
+      } finally {
+        now.mockRestore();
+        vi.unstubAllGlobals();
+      }
+    });
+
     it('falls back immediately on a worker tick fault and restores authoritative state', async () => {
       const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church)]);
       const authoritative = structuredClone(world);

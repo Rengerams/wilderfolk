@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
-import { TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { getHourOfDay } from '../src/game/dayCycleClock';
 import { isFestivalOverrideActive, isVenueServiceHour } from '../src/game/venueSchedule';
 import { getHumanActivityStatus } from '../src/game/humanStatus';
@@ -203,6 +203,34 @@ describe('a prison is open 24 hours', () => {
     expect(atTwoOClock!).toBeLessThanOrEqual(55);
     // And no clock hour of that day was recorded unguarded: nothing closed the prison.
     expect(prison.uncoveredPrisonHours ?? []).toEqual([]);
+  });
+
+  it('holds every clock hour with a crew larger than the watch, which rests a guard each day', () => {
+    // The owner's report was "prisoners escape with 8 guards on the roster". The shift rows name three
+    // of the crew and list the rest as off duty, so the risk is a rotation that leaves an hour open.
+    const house = building(20, BuildingType.House, 40, 40, []);
+    const prison = building(PRISON_ID, BuildingType.Prison, PRISON_X, PRISON_Y, []);
+    const guards = [1, 2, 3, 4].map((id) =>
+      human(id, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, residenceBuildingId: 20, x: 608, y: 71 }),
+    );
+    const prisoner = human(
+      9,
+      { prisonBuildingId: PRISON_ID, prisonerUntilTick: 1000, prisonSentenceCrime: 'scandal', x: 608, y: 71 },
+    );
+    house.occupants = guards.map((guard) => guard.id);
+    prison.occupants = [...guards.map((guard) => guard.id), prisoner.id];
+    const state = worldState([...guards, prisoner], [house, prison], null);
+    state.tick = 0;
+
+    for (let day = 0; day < 3; day++) {
+      for (let t = 0; t < TICKS_PER_DAY; t++) {
+        gameTick(state);
+        // Read before the day boundary's pulse clears the list, or the day's own hours are invisible.
+        if (t === TICKS_PER_DAY - 1) {
+          expect(prison.uncoveredPrisonHours ?? [], `day ${day} hours with nobody on the post`).toEqual([]);
+        }
+      }
+    }
   });
 });
 

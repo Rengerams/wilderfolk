@@ -5,8 +5,13 @@ import type { RenderSoAReaderV1 } from './renderSoAReader';
 import { RESIDENCE_BUILDING_NONE } from './schema';
 
 /**
- * Syncs catalog positions, velocities, animation frames, and speech bubbles
- * from the binary render SoA buffer sent by the simulation worker.
+ * Syncs catalog animation frames, sprite attitude and speech bubbles from the render SoA buffer.
+ *
+ * Position and velocity are deliberately **not** written here. `catalog` holds the live world's own
+ * `Entity` objects (`entityCatalog.rebuild` stores the references), so this was a second writer of
+ * `x`/`y`/`vx`/`vy` beside the tick delta — and a render buffer is a snapshot of a past tick, so it
+ * dragged the display world back to where the mover stood a buffer ago. The canvas does not read
+ * those fields from the catalog either; it draws the render shims.
  */
 export function patchCatalogKinematicsFromRenderSoA(
   catalog: EntityCatalog,
@@ -18,10 +23,6 @@ export function patchCatalogKinematicsFromRenderSoA(
     const entity = catalog.getAny(id);
     if (!entity || !entity.alive) return;
 
-    entity.x = reader.x(slot);
-    entity.y = reader.y(slot);
-    entity.vx = reader.vx(slot);
-    entity.vy = reader.vy(slot);
     entity.spriteAngle = reader.spriteAngle(slot);
     entity.animFrame = reader.animFrame(slot);
     entity.size = reader.size(slot);

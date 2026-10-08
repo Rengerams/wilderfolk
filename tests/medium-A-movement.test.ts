@@ -18,9 +18,9 @@
 import { describe, expect, it } from 'vitest';
 import { steerVisitorToHotel } from '../src/game/hotelStay';
 import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
-import { setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
+import { getPathGrid, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { getCurrentPathfinderTickCounters, resetPathfinderSession, setPathfindingMetricsEnabled } from '../src/game/pathfindingMetrics';
-import { commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { applyHumanWalkStep, commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { personDayRoll, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldMap, WorldState } from '../src/game/gameTypes';
@@ -263,6 +263,95 @@ describe('M27 commute movement', () => {
 
     // Exactly one step per tick — never two (a stepper that also moves the entity).
     expect(moved).toBeCloseTo(Math.min(stepPerTick, distBefore), 6);
+  });
+});
+
+describe('water and walls are solid under every walk', () => {
+  /** The grid's own verdict for the tile a world point stands in. */
+  function blockedAt(map: WorldMap, buildings: Building[], x: number, y: number): boolean {
+    const grid = getPathGrid(map, buildings);
+    const tx = Math.floor(x / PATH_CELL);
+    const ty = Math.floor(y / PATH_CELL);
+    return grid.blocked[ty * grid.cols + tx] === 1;
+  }
+
+  it('stops a walker at the riverbank instead of letting it ford', () => {
+    const map = makeMap(40, 40, 941, (x) => x === 20);
+    setCurrentPathMap(map, []);
+    const walker = human(3, pixel(19, 10), pixel(10, 10));
+    walker.vx = 2;
+
+    for (let tick = 0; tick < 30; tick++) applyHumanWalkStep(walker, 1);
+
+    // Straight east is the river; every step into it is refused, so the walk stays on the bank.
+    // (The velocity stays as the steering set it: the walk decides the step, not the velocity.)
+    expect(Math.floor(walker.x / PATH_CELL), 'the settler walked into the river').toBe(19);
+  });
+
+  it('lets a walker already standing on a blocked tile walk off it', () => {
+    const map = makeMap(40, 40, 944, (x) => x === 20);
+    setCurrentPathMap(map, []);
+    // Settlers do end up on water — shoved by a neighbour, snapped to a doorstep, or restored from a
+    // save made while they waded. Testing the whole step instead of the ground ahead would freeze
+    // them there for good, so the cell they already occupy is not an obstacle to leaving it.
+    const walker = human(5, pixel(20, 10) + 2, pixel(10, 10));
+    walker.vx = -2;
+    for (let tick = 0; tick < 20; tick++) applyHumanWalkStep(walker, 1);
+
+    expect(Math.floor(walker.x / PATH_CELL), 'the settler could not leave the water').toBeLessThan(20);
+  });
+
+  it('stops a walker at a wall instead of letting it pass through', () => {
+    const map = makeMap(40, 40, 942, () => false);
+    const wall: Building = {
+      id: 5,
+      type: BuildingType.Wall,
+      x: pixel(20, 10),
+      y: pixel(10, 10),
+      width: PATH_CELL,
+      height: PATH_CELL,
+      occupants: [],
+      level: 1,
+      constructionProgress: 100,
+      completed: true,
+      health: 100,
+      maxHealth: 100,
+      spriteScale: 1,
+      buildAnimTimer: 0,
+    } as Building;
+    const blockedAtWall = blockedAt(map, [wall], pixel(20, 10), pixel(10, 10));
+    expect(blockedAtWall, 'fixture premise: the wall blocks its own tile').toBe(true);
+    setCurrentPathMap(map, [wall]);
+
+    const walker = human(4, pixel(19, 10), pixel(10, 10));
+    walker.vx = 2;
+    for (let tick = 0; tick < 30; tick++) applyHumanWalkStep(walker, 1);
+
+    expect(Math.floor(walker.x / PATH_CELL), 'the settler walked through the wall').toBe(19);
+  });
+
+  it('routes a short leg through a gap instead of fording it', () => {
+    // River column 20 with a single gap at row 12, and a workplace 20 px east of the settler: a leg
+    // under LONG_RANGE_DIST (50), which used to steer straight at the target and straight into the
+    // river.
+    const map = makeMap(40, 40, 943, (x, y) => x === 20 && y !== 12);
+    const buildings: Building[] = [];
+    setCurrentPathMap(map, buildings);
+    const workplace = { id: 7, x: pixel(21, 10), y: pixel(10, 10) - 25, width: 40, height: 30, completed: true } as Building;
+    const walker = human(3, pixel(19, 10), pixel(10, 10));
+
+    let arrived = false;
+    let forded = false;
+    for (let tick = 0; tick < 600 && !arrived; tick++) {
+      arrived = commuteHumanToBuilding(walker, workplace, 1, false);
+      applyHumanWalkStep(walker, 1);
+      if (blockedAt(map, buildings, walker.x, walker.y)) forded = true;
+    }
+
+    expect(forded, 'the settler stood in the river').toBe(false);
+    // And it really crossed, through the gap: a walker merely stopped at the bank never arrives.
+    expect(arrived, 'the settler never reached the far bank').toBe(true);
+    expect(walker.x).toBeGreaterThan(pixel(20, 10));
   });
 });
 

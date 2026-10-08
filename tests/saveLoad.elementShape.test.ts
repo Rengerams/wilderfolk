@@ -12,8 +12,9 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
+import { gameTick } from '../src/game/gameEngine';
 import { createInitialView } from '../src/game/viewState';
-import { buildSaveData, loadGameFromParsedOutcome, describeSaveLoadOutcome } from '../src/game/saveLoad';
+import { buildSaveData, loadGameFromParsed, loadGameFromParsedOutcome, describeSaveLoadOutcome } from '../src/game/saveLoad';
 import { resetSimRng } from '../src/game/simRng';
 import { EntityType, type Entity, type WorldState } from '../src/game/gameTypes';
 
@@ -231,5 +232,104 @@ describe('a persisted array holding a value its readers would break on is refuse
 
     const outcome = loadGameFromParsedOutcome(payload);
     expect(outcome.ok, 'a real food-day sample must survive the new rule').toBe(true);
+  });
+});
+
+describe('the element defaults repair what a payload omits, and nothing more', () => {
+  /** The four fields `createEntity` scopes by species, so a save never carries them on scenery. */
+  const SCOPED = ['pregnancyProgress', 'combatRollSeed', 'generation', 'animFrame'] as const;
+  const CARRIER_TYPES = new Set<string>(['human', 'rabbit', 'deer', 'wolf', 'fox', 'werewolf', 'wildkin']);
+
+  /** A real payload with the four scoped fields stripped, the way a fresh world's save omits them. */
+  function payloadWithoutScopedFields(): Record<string, unknown> {
+    const payload = realPayload();
+    for (const e of elements(payload, 'entities')) {
+      for (const key of SCOPED) delete e[key];
+    }
+    return payload;
+  }
+
+  /** The mapper's elements are unvalidated records, so the helpers stay structural. */
+  const typeOf = (e: object): string => String((e as { type?: unknown }).type);
+
+  function scenery(entities: readonly object[]): object[] {
+    return entities.filter((e) => !CARRIER_TYPES.has(typeOf(e)));
+  }
+
+  const read = (e: object, key: (typeof SCOPED)[number]): unknown =>
+    (e as Record<string, unknown>)[key];
+
+  it('does not re-materialise a scoped field on an entity that never carried it', () => {
+    // The defect this pins: the load literal defaulted all four for every element, so one reload put
+    // them back on every blade of grass and tree and the next save paid for them again.
+    const loaded = loadGameFromParsed(payloadWithoutScopedFields());
+    expect(loaded, 'the stripped fixture must still load').not.toBeNull();
+    if (!loaded) return;
+
+    const sceneryEntities = scenery(loaded.world.entities);
+    expect(sceneryEntities.length, 'the fixture must contain grass or trees').toBeGreaterThan(0);
+    for (const key of SCOPED) {
+      const carrying = sceneryEntities.filter((e) => read(e, key) !== undefined);
+      expect(carrying.length, `${key} was re-materialised on ${carrying[0] ? typeOf(carrying[0]) : 'scenery'}`).toBe(0);
+    }
+
+    // The species that read them are still repaired: a settler keeps a generation and an animation
+    // clock, which is the legacy/damaged-save repair this literal exists for.
+    const humans = loaded.world.entities.filter((e) => e.type === EntityType.Human);
+    expect(humans.length, 'the fixture must contain a settler').toBeGreaterThan(0);
+    for (const human of humans) {
+      expect(human.generation, 'a settler generation is repaired').toBe(0);
+      expect(human.animFrame, 'a settler animation clock is repaired').toBe(0);
+    }
+  });
+
+  it('keeps them absent through a tick and a re-save', () => {
+    const loaded = loadGameFromParsed(payloadWithoutScopedFields());
+    if (!loaded) throw new Error('the stripped fixture must still load');
+    for (let i = 0; i < 40; i++) gameTick(loaded.world);
+
+    const resaved = buildSaveData(loaded.world, createInitialView(loaded.world.width, loaded.world.height));
+    const resavedEntities = elements(resaved, 'entities');
+    expect(scenery(resavedEntities).length, 'the fixture must still contain grass or trees').toBeGreaterThan(0);
+    for (const e of scenery(resavedEntities)) {
+      for (const key of SCOPED) {
+        expect(read(e, key), `${typeOf(e)} carried ${key} into the re-saved payload`).toBeUndefined();
+      }
+    }
+  });
+
+  it('still repairs every required field a payload omits', () => {
+    const payload = realPayload();
+    for (const e of elements(payload, 'entities')) {
+      for (const key of ['vx', 'vy', 'flash', 'alive', 'birthYear', 'birthMonth', 'birthDay']) delete e[key];
+    }
+
+    const loaded = loadGameFromParsed(payload);
+    expect(loaded, 'a payload that drops required fields must still load').not.toBeNull();
+    if (!loaded) return;
+    for (const e of loaded.world.entities) {
+      expect(Number.isFinite(e.vx), `${e.type} vx`).toBe(true);
+      expect(Number.isFinite(e.vy), `${e.type} vy`).toBe(true);
+      expect(e.flash, `${e.type} flash`).toBe(0);
+      expect(e.alive, `${e.type} alive`).toBe(true);
+      expect(Number.isFinite(e.birthYear), `${e.type} birthYear`).toBe(true);
+      expect(Number.isFinite(e.birthMonth), `${e.type} birthMonth`).toBe(true);
+      expect(Number.isFinite(e.birthDay), `${e.type} birthDay`).toBe(true);
+    }
+  });
+
+  it('lets a value the payload does carry win over the default', () => {
+    const payload = realPayload();
+    const target = elements(payload, 'entities')[0]!;
+    target.vx = 12.5;
+    target.flash = 7;
+    target.generation = 3;
+
+    const loaded = loadGameFromParsed(payload);
+    if (!loaded) throw new Error('the fixture must load');
+    const same = loaded.world.entities.find((e) => e.id === target.id);
+    expect(same?.vx, 'a carried vx must not be replaced by the default').toBe(12.5);
+    expect(same?.flash).toBe(7);
+    expect(same?.generation, 'a carried generation must survive').toBe(3);
   });
 });

@@ -229,7 +229,8 @@ describe('the ground bake paints the classification it is drawn under', () => {
     console.log(`closest preset pair by mean colour: ${closest.pair} d ${closest.d.toFixed(2)}`);
     // One green field for every preset is what this exists to catch.
     expect(closest.d, `closest preset pair ${closest.pair}`).toBeGreaterThan(4);
-  });
+    // Ten full-map bakes measure ~39 s, so the 30 s default would fail a passing case.
+  }, 120_000);
 
   it('is deterministic, and a viewport bake matches the same crop of the whole map', async () => {
     // Both claims are load-bearing: determinism is the terrain contract, and the viewport identity is

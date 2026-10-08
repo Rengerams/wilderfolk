@@ -113,6 +113,7 @@ import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { setCurrentPathMap } from './pathfinding';
 import {
   COMMUTE_SNAP_DISTANCE,
+  applyHumanWalkStep,
   commuteDistanceToBuilding,
   commuteHumanToBuilding,
   commuteLeadHoursFor,
@@ -1093,7 +1094,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Courtship
-    if (socialTime && isEligibleToCourt(entity) && entity.gender && entity.energy > config.reproductionEnergyThreshold * 0.6) {
+    if (!onJobShift && socialTime && isEligibleToCourt(entity) && entity.gender && entity.energy > config.reproductionEnergyThreshold * 0.6) {
       const courtRange = atHome ? 120 : 80;
       const closest = findCourtshipPartner(
         entity,
@@ -1174,8 +1175,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Married couples proximity
+    // Married couples proximity — free time only: a settler on a shift keeps the post his work
+    // commute gave him (a Prison is not an `ordinaryWorkplace`, so `socialTime` is true on a guard's shift).
     if (
+      !onJobShift &&
       socialTime &&
       isPlayerHuman(entity) &&
       entity.gender === 'female' &&
@@ -1714,8 +1717,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     );
     const roadMult = nearRoad ? ROAD_SPEED_MULT : 1.0;
 
-    entity.x += entity.vx * roadMult;
-    entity.y += entity.vy * roadMult;
+    // The single integration for every walk, and the only place water and walls are enforced: the
+    // steerers set a velocity without checking what it points into (see `applyHumanWalkStep`).
+    applyHumanWalkStep(entity, roadMult);
 
     clampToMapBounds(entity, width, height);
 

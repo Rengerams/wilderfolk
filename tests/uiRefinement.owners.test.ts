@@ -54,10 +54,19 @@ describe('R1 — the unmount save never writes a colony no loop owns', () => {
       /useEffect\(\(\) => \{\s*return \(\) => \{([\s\S]*?)\};\s*\}, \[loopRef\]\);/,
     );
     expect(effect, 'fixture premise: the unmount-save effect exists').not.toBeNull();
+    // BRITTLE-TEST: the cleanup reads the live ref into a local and gates the exit save on it; the
+    // guard's meaning is what matters — return before saving when no loop owns a colony (StrictMode
+    // runs the mount effect twice and would overwrite the slot with an empty world).
+    const body = effect?.[1] ?? '';
+    expect(body, 'the cleanup reads the loop ref into a local').toContain('const loop = loopRef.current;');
     expect(
-      effect?.[1] ?? '',
+      body,
       'the unmount cleanup saves without a loop again (StrictMode overwrites the save slot)',
-    ).toMatch(/if \(!loopRef\.current\) return;/);
+    ).toMatch(/if \(!loop\) return;/);
+    expect(
+      body.indexOf('if (!loop) return;'),
+      'the unmount cleanup saves before it checks for a loop',
+    ).toBeLessThan(body.indexOf('persistCurrentGameRef'));
   });
 });
 

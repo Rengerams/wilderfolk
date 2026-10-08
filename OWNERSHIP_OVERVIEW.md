@@ -12,7 +12,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Assignment pulse | `tickLayerAssign.ts` | assignment (~4×/day) | `tickLayerAssign` |
 | Daily pulse | `tickLayerDaily.ts` | daily (once per colony day) | `tickLayerDaily` |
 | Human tick pulse | `humanTick.ts` | realtime | `tickHumans` |
-| Movement / pathfinding | `humanMovement.ts` | realtime | movement helpers |
+| Movement / pathfinding | `humanMovement.ts` | realtime | movement helpers, `applyHumanWalkStep` (the one integration of a walk step) |
 | Commute reach: lead hours and assignable distance | `commuteReach.ts` | — (pure rule; read by the movement path, work assignment and the panel) | `commuteLeadHoursFor`, `isWithinAssignableCommute`, `MAX_ASSIGNABLE_COMMUTE_HOURS`, `MAX_COMMUTE_LEAD_HOURS`, `WORK_COMMUTE_RUSH`, `COMMUTE_CONFIG` |
 | Workforce / jobs | `workforce.ts` + `buildingStaffingActions.ts` | assignment / command | `assignStaffWorkerToBuilding`, `assignMissingWorkers`, … |
 | Workforce policy preset | `workforcePolicy.ts` | player-command + assignment | `getWorkforcePolicy`, `setWorkforcePolicy`, `jobBuildingPriorityForPolicy` |
@@ -71,7 +71,7 @@ behaviour. Nothing here changes the ownership law: one decision, one owner, one 
 | Authored one-time stories (flags, cards, cooldown) | `storyHelpers.ts` (shared contract) + each story owner (`travelingTheatre.ts`, `inventionFair.ts`, `famineDesperation.ts`) | daily / story-card answer | `storyFlag`, `setStoryFlags`, `pushStoryCard`; `maybeOfferTravelingTheatre`, `resolveTravelingTheatre`, `tickTravelingTheatre` |
 | Leadership elections (term + vacancy) | `villageLeadership.ts` | daily due-date check, year rollover, ceremony ticks | `tryStartVacancyElectionCeremony`, `tryStartTermElectionCeremony`, `tickElectionCeremony`, `tickLeaderVacancy` |
 | Tutorial / guided campaign | `guidedCampaign.ts` + `tutorialCampaign.ts` | daily | `tickGuidedCampaign`, `recordGuidedCampaignChoice`, `currentCampaignStep` |
-| Pathfinding and the path cache | `pathfinding.ts` | realtime movement | `findPath`, `getPathGrid`, `pathWaypoints`, `steerWithPath`, `setCurrentPathMap`, `distanceToSegment` |
+| Pathfinding and the path cache | `pathfinding.ts` | realtime movement | `findPath`, `getPathGrid`, `pathWaypoints`, `steerWithPath`, `setCurrentPathMap`, `distanceToSegment`, `isWalkStepAllowed` (the grid's verdict on one walk step) |
 | Sprite preload and lookup (presentation) | `spriteLoader.ts` | boot / render | `preloadAllSprites`, `loadSprite`, `getSprite`, `isSpriteLoaded` |
 | Terrain decor stamps (presentation) | `terrainLayer.ts` | render / bake | `stampPropSprite`, `stampMountainPeaks`, `mountainSpritesReady` |
 | Staffing eligibility and assignment | `buildingStaffingActions.ts` (eligibility rules in `residencyOccupancy.ts`) | player-command + assignment | `canAssignWorkerToBuilding`, `assignStaffWorkerToBuilding`, `removeStaffWorkerFromBuilding`, `hasWorkAssignment`, `isImprisoned` |
@@ -217,7 +217,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Workshop gold projection | `workshopEconomy.ts` | UI projection | `estimateWorkshopGold` |
 | Juice particles and hunt visuals | `juiceEffects.ts` + `huntvisuals.ts` | presentation, spawned by sim events | `pushTransientParticle`, `spawnBuildCompleteParticles`, `addHuntVisual`, `pruneHuntVisuals` |
 | Entity-type cache | `entityTypeCache.ts` | per tick (`gameTick`) and per invalidation; `getCachedEntityByType` validates the cached bucket set against the caller's own entity list and drops a disagreeing entry | `getCachedEntityByType`, `invalidateCachedEntityByType`, `cacheEntityByType` |
-| Render snapshot and kinematics patch | `renderSnapshot.ts` + `simBuffers/applyKinematics.ts` | per frame | `buildRenderSnapshot`, `patchCatalogKinematicsFromRenderSoA`, `colonyHasBlacksmith` |
+| Render snapshot and catalog animation patch | `renderSnapshot.ts` + `simBuffers/applyKinematics.ts` | per frame | `buildRenderSnapshot`, `patchCatalogKinematicsFromRenderSoA`, `colonyHasBlacksmith` |
 | Worker UI-patch merge | `simWorker/uiPatch.ts` | worker boundary (`patchUi`) | `applyWorkerUiPatch` |
 | Renderer facade and entity-layer compositing | `renderer.ts` + `renderer/entityComposite.ts` + `renderer/buildings.ts` + `renderer/animals.ts` + `renderer/trees.ts` + `renderer/grass.ts` + `renderer/particles.ts` + `renderer/markers.ts` + `renderer/scent.ts` + `renderer/nightEffects.ts` + `renderer/overlay.ts` + `renderer/buildPreview.ts` | render pass | `renderGame`, `compositeCachedEntityLayer`, `drawBuildings`, `drawAnimals`, `drawTrees`, `drawGrass`, `drawParticles`, `drawCampMarkers`, `drawScentOverlay`, `drawGameOverlay`, `drawBuildPreview`, `footprintGroundRise`, `targetGroundStep`, `isHighlightableBuilding`, `getBuildingFootprintScreenRect`, `drawBuildingHighlightRing` |
 | Animal sprite metrics | `entitySprites.ts` | render pass | `getAnimalSpriteMetrics` |
@@ -322,6 +322,7 @@ reported as stalled — never softened until it passes.
 | A home's beds, and whether one is free | `residencyOccupancy.ts` | every residence write | `getResidenceCapacity`, `residenceRoomFor` |
 | Spreading one day's reassignment work across the assignment pulses | `residencyReconciliation.ts` (bucket key: `residencySelection.ts`) | assignment pulse when a tick is supplied; a load, a player command or an event converges immediately and takes no tick | `RESIDENCE_SWEEP_BUCKETS` (must equal the layer's pulses per day), `assignMissingResidences` (optional `sweepTick`), `housingUnitBucket` |
 | Colony stall verdict — whether a run that broke no invariant still works (beds full with settlers outside them and nothing raised, an empty larder still eating more than it grows, a woodpile at nothing with no building raised) | `scripts/colonyHealth.ts` | read-only, per checkpoint and once at the end of a run; a stalled verdict fails the run | `assessColonyStall`, `assertColonyNotStalled`, `formatColonyStallVerdict` |
+| Sent-in save ground audit — what blocks each settler's own tile (water, a completed wall's footprint, or reserved decor) and whether anyone walks onto blocked ground over `--days=N` | `scripts/inspect-save.mts` | read-only, when a save is inspected; `--days` runs the sim forward in-process | `reportGroundAudit` |
 
 ## Protected facades (re-export / schedule only — no new policy)
 

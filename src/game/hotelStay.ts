@@ -27,6 +27,7 @@ import { hasResidenceAssignment } from './residencyOccupancy';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { addFloatingText, addNotification } from './simEffects';
 import { steerWithPath } from './pathfinding';
+import { applyHumanWalkStep } from './simulation/humanMovement';
 import { logEvent } from './eventLog';
 import { ensureEntityByIdMap } from './entityIndex';
 import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
@@ -496,17 +497,16 @@ export function steerVisitorToHotel(
     // position: a position key changes every step, so A* re-ran per tick and the shared cache churned.
     const handled = steerWithPath(visitor, tx, ty, speed * 0.7, `h_${hotel.id}_${visitor.id}`);
     // 'path' only sets the velocity — the stepper never moves an entity, so the walk applies this
-    // tick's step here (exactly once).
+    // tick's step here (exactly once). Every human walk goes through the one grid-aware integration:
+    // this caller used to apply the velocity raw, so a guest waded a river or crossed a wall.
     if (handled === 'path') {
-      visitor.x += visitor.vx;
-      visitor.y += visitor.vy;
+      applyHumanWalkStep(visitor, 1);
       return true;
     }
     if (handled === 'arrived') return true;
     visitor.vx = (dx / dist) * speed * 0.7;
     visitor.vy = (dy / dist) * speed * 0.7;
-    visitor.x += visitor.vx;
-    visitor.y += visitor.vy;
+    applyHumanWalkStep(visitor, 1);
     faceVelocity(visitor);
   } else {
     visitor.vx = 0;

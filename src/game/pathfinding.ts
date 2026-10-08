@@ -56,8 +56,14 @@ function isWalkableRoad(b: Building): boolean {
   );
 }
 
-/** Stamps 1 over every grid tile a building's footprint covers, clamped to the grid. */
-function stampBuildingFootprint(grid: Uint8Array, cols: number, rows: number, b: Building): void {
+/** Stamps `value` over every grid tile a building's footprint covers, clamped to the grid. */
+function stampBuildingFootprint(
+  grid: Uint8Array,
+  cols: number,
+  rows: number,
+  b: Building,
+  value = 1,
+): void {
   const x0 = Math.max(0, Math.floor(b.x / PATH_CELL));
   const y0 = Math.max(0, Math.floor(b.y / PATH_CELL));
   const x1 = Math.min(cols - 1, Math.floor((b.x + Math.max(0, b.width - 0.001)) / PATH_CELL));
@@ -65,7 +71,7 @@ function stampBuildingFootprint(grid: Uint8Array, cols: number, rows: number, b:
 
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
-      grid[y * cols + x] = 1;
+      grid[y * cols + x] = value;
     }
   }
 }
@@ -145,6 +151,11 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
       } else if (isWalkableRoad(b)) {
         road ??= new Uint8Array(cols * rows);
         stampBuildingFootprint(road, cols, rows, b);
+        // `isWalkableRoad` calls a road or bridge walkable, so the deck also **opens** the water it
+        // spans. Stamping only the mask left a bridge as a cost discount on a tile the router still
+        // refused: no route was found, the walk fell back to the straight line, and the settler waded
+        // the river the bridge was built across.
+        stampBuildingFootprint(blocked, cols, rows, b, 0);
       }
     }
   }
@@ -480,6 +491,15 @@ let currentGrid: PathGrid | null = null;
  *  the current segment (interrupted elsewhere), not on ordinary forward progress. */
 const PATH_CACHE_OFF_ROUTE_TOLERANCE = PATH_CELL * 2;
 
+/**
+ * How close a walker must come to a waypoint before the route advances to the next one.
+ *
+ * Half a tile, so a corner is **reached** and not passed at a tile's distance. The old 14 px radius
+ * let a walker cut a one-tile gap diagonally: the step into the water was refused, and it then
+ * crawled along the bank toward the next waypoint on the far side.
+ */
+const PATH_WAYPOINT_REACHED_PX = PATH_CELL * 0.5;
+
 /** Perpendicular distance from (px,py) to the segment (ax,ay)-(bx,by). */
 function distanceToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
   const abx = bx - ax;
@@ -579,7 +599,10 @@ export function steerWithPath(
     if (cached !== undefined && cached.waypoints !== null && cached.waypoints.length > 1) {
       while (
         cached.nextIndex < cached.waypoints.length - 1
-        && Math.hypot(cached.waypoints[cached.nextIndex].x - entity.x, cached.waypoints[cached.nextIndex].y - entity.y) < 14
+        && Math.hypot(
+          cached.waypoints[cached.nextIndex].x - entity.x,
+          cached.waypoints[cached.nextIndex].y - entity.y,
+        ) < PATH_WAYPOINT_REACHED_PX
       ) {
         cached.nextIndex++;
       }
@@ -623,4 +646,68 @@ export function steerWithPath(
     }
   }
   return 'direct';
+}
+
+/**
+ * Whether a walker may move between two world points, by the grid's own rule.
+ *
+ * The integration asks this every tick. `steerWithPath` only routes the leg a caller hands it, so
+ * movement no steerer saw — idle drift, a leisure walk, or the last stretch of a leg whose line is
+ * blocked — entered water and walls freely.
+ *
+ * The cell the walker already stands in is not an obstacle to leaving it. A settler can end up on a
+ * blocked tile (shoved by a neighbour, snapped to a doorstep, or restored from an older save that
+ * waded), and testing the whole step instead of the ground ahead would freeze it there for good.
+ */
+export function isWalkStepAllowed(fromX: number, fromY: number, toX: number, toY: number): boolean {
+  const grid = currentGrid;
+  if (!grid) return true;
+  const startTx = Math.floor(fromX / PATH_CELL);
+  const startTy = Math.floor(fromY / PATH_CELL);
+  const startIdx =
+    startTx >= 0 && startTy >= 0 && startTx < grid.cols && startTy < grid.rows
+      ? startTy * grid.cols + startTx
+      : -1;
+  // Already on ground the grid blocks — shoved there, built on, or restored from a save made while
+  // they waded. Every direction is a way out and none of them is a way in, so the step is allowed:
+  // refusing it (or only part of it) is what leaves a settler standing in a pond for good.
+  if (startIdx >= 0 && grid.blocked[startIdx] === 1) return true;
+
+  const span = Math.max(Math.abs(toX - fromX), Math.abs(toY - fromY));
+  const steps = Math.max(4, Math.min(128, Math.ceil(span / (PATH_CELL * 0.5))));
+  let prevElev: number | null = null;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const tx = Math.floor((fromX + (toX - fromX) * t) / PATH_CELL);
+    const ty = Math.floor((fromY + (toY - fromY) * t) / PATH_CELL);
+    if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) continue;
+    const idx = ty * grid.cols + tx;
+    if (idx === startIdx) continue;
+    if (grid.blocked[idx]) return false;
+    // A cliff step along the way is impassable too, matching the A* cliff rule.
+    if (grid.elevation) {
+      const e = grid.elevation[idx];
+      if (prevElev !== null && Math.abs(e - prevElev) > CLIFF_STEP) return false;
+      prevElev = e;
+    }
+  }
+  return true;
+}
+
+/**
+ * Whether a walker may **stand** on the ground at a world point — the grid's verdict with no step
+ * exemption.
+ *
+ * A destination has to be a cell a walker can occupy, not merely one it can reach from where it
+ * already is. This is what lets a stand point (a workplace row, a home arc, a hotel doorstep) move
+ * off water, a reserved decor cell or a completed wall's footprint instead of leaving a settler
+ * hovering at the edge of it. Out-of-bounds reads as open, the tolerance the step rule takes.
+ */
+export function isGroundWalkableAt(x: number, y: number): boolean {
+  const grid = currentGrid;
+  if (!grid) return true;
+  const tx = Math.floor(x / PATH_CELL);
+  const ty = Math.floor(y / PATH_CELL);
+  if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) return true;
+  return grid.blocked[ty * grid.cols + tx] !== 1;
 }

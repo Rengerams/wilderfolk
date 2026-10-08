@@ -202,7 +202,8 @@ describe('a jailing raises a card the player cannot miss', () => {
     }
     // Without this the assertion above holds vacuously on a seed set that never arrests.
     expect(jailed).toBeGreaterThan(0);
-  });
+    // 40 seeds each build a whole world (measured ~38 s), so the 30 s default would fail a passing case.
+  }, 120_000);
 
   it('jails nobody and raises no card while the prison has no guard', () => {
     for (let seed = 1; seed <= 10; seed += 1) {
