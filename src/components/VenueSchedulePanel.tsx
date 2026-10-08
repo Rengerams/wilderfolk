@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import type { WorldState } from '../game/gameTypes';
+import { HOURS_PER_DAY } from '../game/gameConstants';
 import { getScheduleImpactPreview } from '../game/scheduleFeedback';
 import {
   getVenueSchedule,
   getVenueScheduleLabel,
   getVenueScheduleHours,
+  isFestivalOverrideActive,
   validateVenueSchedule,
   type VenueScheduleKind,
 } from '../game/venueSchedule';
@@ -24,7 +26,7 @@ export default function VenueSchedulePanel({ state, onApply }: Props) {
   });
   const label = venue === 'tavern' ? 'Tavern' : 'Hotel';
   const preview = getScheduleImpactPreview(state, venue, getVenueScheduleHours(current), validation.ok ? getVenueScheduleHours(validation.schedule) : getVenueScheduleHours(current));
-  const festivalStatus = venue === 'tavern' && state.festival?.active === true ? 'Festival override: Tavern remains open all day while the festival is active.' : 'No temporary override is active.';
+  const festivalStatus = isFestivalOverrideActive(state, venue) ? 'Festival override: Tavern remains open all day while the festival is active.' : 'No temporary override is active.';
 
   return (
     <div className="space-y-3 text-sm text-stone-300">
@@ -43,7 +45,7 @@ export default function VenueSchedulePanel({ state, onApply }: Props) {
         {(['Opens', 'Closes'] as const).map((labelText, index) => (
           <label key={labelText} className="text-xs text-stone-400">{labelText}
             <select value={index === 0 ? startHour : endHour} onChange={(event) => (index === 0 ? setStartHour(Number(event.target.value)) : setEndHour(Number(event.target.value)))} className="mt-1 w-full rounded border border-stone-600 bg-stone-900 px-2 py-1.5 text-stone-100">
-              {Array.from({ length: 24 }, (_, hour) => <option key={hour} value={hour}>{String(hour).padStart(2, '0')}:00</option>)}
+              {Array.from({ length: HOURS_PER_DAY }, (_, hour) => <option key={hour} value={hour}>{String(hour).padStart(2, '0')}:00</option>)}
             </select>
           </label>
         ))}

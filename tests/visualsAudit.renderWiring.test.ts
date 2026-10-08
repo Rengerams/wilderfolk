@@ -256,7 +256,10 @@ describe('D19 — the leader aura is drawn per frame, not into the cached layer'
 
 describe('D23 — ghost and strip previews ride the terrain relief', () => {
   it('lifts the ghost sprite and both preview plates', () => {
-    expect(readSrc('game/renderer/buildPreview.ts')).toContain('terrainRiseAt(state.worldMap');
+    // One owner for the sampled footprint point: a bare `terrainRiseAt` in either file is the drift
+    // this pins, because it cannot say which point of the footprint it sampled.
+    expect(readSrc('game/renderer/buildPreview.ts')).toContain('footprintGroundRise(state.worldMap');
+    expect(readSrc('game/renderer/buildings.ts')).toContain('footprintGroundRise(state.worldMap');
     // Once for the strip segments, once for the ghost plate.
     expect((readSrc('game/renderer/grid.ts').match(/terrainRiseAt\(state\.worldMap/g) ?? []).length).toBe(2);
   });

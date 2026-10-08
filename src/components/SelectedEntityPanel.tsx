@@ -19,7 +19,7 @@ import { getHumanVariantLabel } from '../game/humanSprites';
 import { getTameFoodCost } from '../game/buildingActions';
 import { hasNearbyPlayerTamingPost, listTamingCandidates, getTameEntityEligibility } from '../game/settlerInteractionActions';
 import { getBuildingConfig } from '../game/buildingConfig';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getHumanActivityProjection } from '../game/humanStatus';
 import { explainSettlerMovement } from '../game/dashboardData';
 import { citizenFullName, citizenGivenName, humanDisplayName } from '../game/citizenId';
@@ -92,18 +92,16 @@ export default function SelectedEntityPanel({
     ? explainSettlerMovement(state, entity.id)
     : null;
 
-  // 🚀 PERFORMANCE: Memoize expensive array filtering and derivations
-
-  const childCount = useMemo(() => {
-    return isHuman && !isVisitor && !isRival ? countLivingChildren(entity, allEntities) : 0;
-  }, [isHuman, isVisitor, isRival, entity, allEntities]);
+  // Derived each render: the sim mutates the world and its entities in place, so a memo
+  // keyed on them cannot see a change.
+  const childCount = isHuman && !isVisitor && !isRival ? countLivingChildren(entity, allEntities) : 0;
 
   // Both come from the taming owner: the local list offered visitors/rivals (a click did nothing, since
   // the command refuses them) and the local reach test was paired with a command that added half a
   // footprint to the post's position. `building.x/y` is the footprint **centre** (the pad and sprite are
   // drawn from `x - w/2`; the bounds/terrain/overlap checks use `x ± w/2`), so both now measure from the
   // centre (`LIVE-FINDINGS-STATUS.md`, F16 and F17).
-  const availableHumans = useMemo(() => listTamingCandidates(state), [state]);
+  const availableHumans = listTamingCandidates(state);
 
   const tameableTypes: EntityType[] = [EntityType.Wolf, EntityType.Fox, EntityType.Deer, EntityType.Rabbit];
   const isTameable = tameableTypes.includes(entity.type) && !entity.tamedBy;

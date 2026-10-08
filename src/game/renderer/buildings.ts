@@ -3,6 +3,7 @@ import type { Building } from '../gameTypes';
 import { isDecorType } from '../beautyGrid';
 import { categoryBorderDashForType } from '../buildCatalog';
 import { drawProceduralDecor } from '../decorRender';
+import { getBuildingFootprintRect } from '../buildingGeometry';
 import { effectiveBuildingRotation } from '../buildingRotation';
 import { displayedConstructionProgress } from '../buildingProgressDisplay';
 import type { RenderSnapshot } from '../renderSnapshot';
@@ -59,6 +60,14 @@ function completedDepthSortedBuildings(buildings: readonly Building[]): Building
   return sorted;
 }
 
+/** The relief under a building's ground: the bottom centre of its owner-defined footprint. */
+export function footprintGroundRise(
+  map: RenderSnapshot['worldMap'],
+  footprint: Pick<Building, 'x' | 'y' | 'width' | 'height'>,
+): number {
+  return terrainRiseAt(map, footprint.x, getBuildingFootprintRect(footprint).bottom);
+}
+
 export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;
 
@@ -66,7 +75,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     const sx = (b.x - cam.x) * cam.zoom + cw / 2;
     // Ride the 2.5D relief — the footprint base sits on the raised terrain
     const sy = (b.y - cam.y) * cam.zoom + ch / 2
-      - terrainRiseAt(state.worldMap, b.x + b.width / 2, b.y + b.height) * cam.zoom;
+      - footprintGroundRise(state.worldMap, b) * cam.zoom;
     const w = b.width * cam.zoom;
     const h = b.height * cam.zoom;
     return { sx, sy, w, h };

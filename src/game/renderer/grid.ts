@@ -319,8 +319,8 @@ export function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, c
     }
   }
 
-  // The strip drag preview and the build ghost plate follow the pointer, so they are drawn per frame
-  // in the overlay pass (`buildVisualsOverlay.ts`) instead of invalidating this tick-keyed bitmap.
+  // The build ghost plate follows the pointer and is drawn per frame in the overlay pass
+  // (`overlay.ts`), so it does not invalidate this tick-keyed bitmap.
 }
 
 /** Placement grid on top of sprites — major lines only during play; full grid in build mode. */

@@ -48,10 +48,8 @@ let entityLayerCache: EntityLayerCache | null = null;
  * Camera position is intentionally NOT part of the key — panning within the
  * margin reuses the layer via {@link entityLayerAnchorMoved} instead.
  *
- * Only what a **layer painter** reads belongs here: the placement ghost, the strip drag
- * preview and the hover highlight are drawn per frame in the overlay pass
- * (`renderer/buildVisualsOverlay.ts`), because pointer motion changes them many times a second and
- * each change re-baked every grass tuft, tree, building, animal and settler in view.
+ * Only what a **layer painter** reads belongs here. The placement ghost is drawn per frame in the
+ * overlay pass (`renderer/overlay.ts`); the hover highlight is painted by `renderer/buildings.ts`.
  */
 /** Reused key scratch — this runs every frame, so the array and the joined string are memoised. */
 const layerKeyParts: (string | number)[] = [];

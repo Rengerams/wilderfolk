@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { WorldState } from '../game/gameTypes';
+import { HOURS_PER_DAY } from '../game/gameConstants';
 import { readVillageFatigue } from '../game/dailyScheduleFatigue';
 import { MIN_SCHEDULE_PRODUCTIVITY } from '../game/scheduleFatigue';
 import { getScheduleImpactPreview } from '../game/scheduleFeedback';
@@ -14,9 +15,6 @@ interface Props {
   state: WorldState;
   onApply: (startHour: number, endHour: number) => void;
 }
-
-/** The day's 24 whole hours — the domain both schedule selects offer. */
-const HOURS_IN_DAY = 24;
 
 /** One hour picker. Opens and Closes were two identical 24-option `<select>` blocks, so the hour
  * format and the domain had to be changed twice. */
@@ -37,7 +35,7 @@ function HourSelect({
         onChange={(event) => onChange(Number(event.target.value))}
         className="mt-1 w-full rounded border border-stone-600 bg-stone-900 px-2 py-1.5 text-stone-100"
       >
-        {Array.from({ length: HOURS_IN_DAY }, (_, value) => (
+        {Array.from({ length: HOURS_PER_DAY }, (_, value) => (
           <option key={value} value={value}>
             {String(value).padStart(2, '0')}:00
           </option>
@@ -63,7 +61,7 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
   
   // The mean and its band are the fatigue owner's (`readVillageFatigue`): the panel used to average
   // `scheduleFatigue` and band it at 60/25 itself, so the thresholds were tunable only in this view.
-  const fatigue = useMemo(() => readVillageFatigue(state), [state]);
+  const fatigue = readVillageFatigue(state);
   const fatigueLabel = fatigue.label;
   const outputMultiplier = fatigue.outputShare;
   

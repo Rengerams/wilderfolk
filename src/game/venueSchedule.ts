@@ -120,6 +120,11 @@ export function isVenueWorkerServiceHour(
   return hour >= start && hour < end;
 }
 
+/** The festival keeps a tavern open all day, whatever its service window says. */
+export function isFestivalOverrideActive(state: Pick<WorldState, 'festival'>, kind: VenueScheduleKind): boolean {
+  return kind === 'tavern' && state.festival?.active === true;
+}
+
 export function isVenueServiceHour(state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind, hour: number, festivalActive = false): boolean {
   if (kind === 'tavern' && festivalActive) return true;
   const schedule = getVenueSchedule(state, kind);

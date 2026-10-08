@@ -4,11 +4,11 @@ import { getPlaceBuildingFailureLabel } from '../buildingPlacementLabels';
 import { drawProceduralDecor } from '../decorRender';
 import { getBuildingFootprintForType } from '../buildingRotation';
 import { categoryBorderDashForType } from '../buildCatalog';
-import { terrainRiseAt } from '../terrainAtlas';
 import { getSpriteFrame } from '../spriteLoader';
 import { isStripBuildType } from '../stripBuild';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { darkerColor, DEFAULT_SPRITE_DISPLAY_SCALE, motionTime } from './shared';
+import { footprintGroundRise } from './buildings';
 import { drawBuildingPad, drawBuildingSprite } from './spriteDrawing';
 
 // ============ BUILD PREVIEW ============
@@ -19,12 +19,14 @@ export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSna
   const cfg = BUILDING_CONFIGS[state.buildMode];
   const footprint = getBuildingFootprintForType(state.buildMode, state.buildRotation);
   const sx = (state.buildGhost.x - state.camera.x) * state.camera.zoom + cw / 2;
-  // Ride the 2.5D relief on the same footprint point the placed building samples
-  // (`buildings.ts` getBuildingScreenRect: centre-x / bottom-y), so the ghost is drawn where the
-  // building will land rather than up to a relief cap (0.35 × PATH_CELL = 3.5 wu) below it.
+  // One owner for the sampled ground, so the ghost lands exactly where the placed building will.
   const sy = (state.buildGhost.y - state.camera.y) * state.camera.zoom + ch / 2
-    - terrainRiseAt(state.worldMap, state.buildGhost.x, state.buildGhost.y + footprint.height / 2)
-      * state.camera.zoom;
+    - footprintGroundRise(state.worldMap, {
+      x: state.buildGhost.x,
+      y: state.buildGhost.y,
+      width: footprint.width,
+      height: footprint.height,
+    }) * state.camera.zoom;
   const w = footprint.width * state.camera.zoom;
   const h = footprint.height * state.camera.zoom;
   const valid = state.buildGhost.valid;
