@@ -1,7 +1,6 @@
 import type { WorldState, Entity } from './gameTypes';
 import type { PopulationCounts } from './entityCounts';
 import type { TickContext } from './simulation/simulationTypes';
-import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY, FESTIVAL_CHECK_TICKS, getAbsoluteCalendarDay, DAYS_PER_YEAR, getCalendarDay, isNewCalendarDayTick } from './dayCycle';
 import { displayYear } from './dayCycleClock';
 
@@ -9,7 +8,7 @@ import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { addReputation } from './simHelpers';
 import { tickLeaderVacancy, tickElectionBuildup, tryStartVacancyElectionCeremony, tryStartTermElectionCeremony } from './villageLeadership';
-import { getTownHallFestivalCooldownTicks } from './townHall';
+import { getTownHallFestivalCooldownTicks, isTownHallStaffed } from './townHall';
 
 import { rollYearlyWorldEvent, tryFirstWeekVisitor, tryMidYearVisitorEvent, tickWorldRivalSettlements, tickVisitorGroups, tickVillageRequests } from './groupEvents';
 import { tickVisitorQuest } from './visitorQuest';
@@ -58,11 +57,7 @@ export function normalizeFestivalState(
 }
 
 function tickFestivals(state: WorldState, counts: PopulationCounts): void {
-  const townHallFestivalBoost = state.buildings.some(
-    (b) => b.completed && b.type === BuildingType.TownHall && b.faction !== 'rival' && b.occupants.length > 0,
-  )
-    ? 1.4
-    : 1;
+  const townHallFestivalBoost = isTownHallStaffed(state.buildings) ? 1.4 : 1;
 
   let festivalStartedThisTick = false;
 

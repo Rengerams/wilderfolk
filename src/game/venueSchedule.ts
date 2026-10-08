@@ -1,5 +1,5 @@
 import type { WorldState } from './gameTypes';
-import { TICKS_PER_HOUR } from './dayCycleClock';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycleClock';
 
 export type VenueScheduleKind = 'tavern' | 'hotel';
 export interface VenueSchedule { startHour: number; endHour: number }
@@ -133,7 +133,7 @@ export function isVenueServiceHour(state: Pick<WorldState, 'tavernSchedule' | 'h
 
 export function isVenueScheduleStartTick(state: Pick<WorldState, 'tick' | 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind): boolean {
   const schedule = getVenueSchedule(state, kind);
-  return state.tick % (24 * TICKS_PER_HOUR) === schedule.startHour * TICKS_PER_HOUR;
+  return state.tick % TICKS_PER_DAY === schedule.startHour * TICKS_PER_HOUR;
 }
 
 export function getVenueScheduleLabel(schedule: VenueSchedule): string {

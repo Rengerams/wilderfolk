@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { GAME_PHASE, GAME_VERSION } from '../../game/gameEngine';
 import { searchGuideHelp } from '../../game/guideHelp';
+import { HEADER_DOORS } from '../../game/hotkeys';
 import { describeHospitalReputation } from '../../game/hospitalCare';
 // Interpolated, not typed: this card said "every 5 years" long after the owner's term was shortened
 // (10 → 5 → 2, `villageLeadership.ts:24-27`), while two other surfaces already rendered the constant.
@@ -148,7 +149,7 @@ export default function MoreTabPanel({
               <p><strong className="text-stone-200">👥 People</strong> — The household roster, family trees and each settler's own story.</p>
               <p><strong className="text-stone-200">🎯 Progress</strong> — Research, trade routes and the village portrait. Sub-tabs show badges when research or trade is ready.</p>
               <p><strong className="text-stone-200">☰ Menu</strong> — Save and load, settings, this Guide, and the Campaign.</p>
-              <p><strong className="text-stone-200">Every window has a keyboard door</strong> — <strong className="text-stone-200">F</strong> Frontier · <strong className="text-stone-200">C</strong> Daily council · <strong className="text-stone-200">N</strong> Nature · <strong className="text-stone-200">O</strong> People · <strong className="text-stone-200">P</strong> Progress · <strong className="text-stone-200">M</strong> Menu. Press <strong className="text-stone-200">?</strong> for the full list.</p>
+              <p><strong className="text-stone-200">Every window has a keyboard door</strong> — {[...HEADER_DOORS, { key: 'C', label: 'Daily council' }, { key: 'O', label: 'People' }].map((door, index) => (<span key={door.label}>{index > 0 ? ' · ' : ''}<strong className="text-stone-200">{door.key}</strong> {door.label}</span>))}. Press <strong className="text-stone-200">?</strong> for the full list.</p>
             </div>
           </div>
 

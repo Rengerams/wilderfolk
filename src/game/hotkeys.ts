@@ -14,23 +14,28 @@ import { BuildingType } from './gameTypes';
  */
 export type SidebarTab = 'village' | 'schedule' | 'frontier' | 'nature' | 'progress' | 'log' | 'more';
 
-export const TAB_HOTKEYS: Record<string, SidebarTab> = {
-  v: 'village',
-  f: 'frontier',
-  n: 'nature',
-  p: 'progress',
-  l: 'log',
-  m: 'more',
-};
+/**
+ * The six header doors, in the order every surface presents them — the one display vocabulary.
+ *
+ * The shortcut sheet and the Guide each used to name a different set of six, so a stuck player was
+ * sent to a door the header does not have. Both now render this list.
+ */
+export const HEADER_DOORS: readonly { key: string; tab: SidebarTab; label: string }[] = [
+  { key: 'V', tab: 'village', label: 'Village' },
+  { key: 'F', tab: 'frontier', label: 'Frontier' },
+  { key: 'N', tab: 'nature', label: 'Nature' },
+  { key: 'P', tab: 'progress', label: 'Progress' },
+  { key: 'L', tab: 'log', label: 'Log' },
+  { key: 'M', tab: 'more', label: 'Menu' },
+];
 
-export const TAB_HOTKEY_CODES: Record<string, SidebarTab> = {
-  KeyV: 'village',
-  KeyF: 'frontier',
-  KeyN: 'nature',
-  KeyP: 'progress',
-  KeyL: 'log',
-  KeyM: 'more',
-};
+export const TAB_HOTKEYS: Record<string, SidebarTab> = Object.fromEntries(
+  HEADER_DOORS.map((door) => [door.key.toLowerCase(), door.tab] as const),
+);
+
+export const TAB_HOTKEY_CODES: Record<string, SidebarTab> = Object.fromEntries(
+  HEADER_DOORS.map((door) => [`Key${door.key}`, door.tab] as const),
+);
 
 /** Number keys → building types (must be string BuildingType values, not indices). */
 export const HOTKEY_BUILDINGS: Record<string, BuildingType> = {

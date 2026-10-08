@@ -2,7 +2,7 @@ import Emoji from './Emoji';
 import GameMenu, { type GameMenuSettingsCallbacks } from './GameMenu';
 import ResourceBadge from './ResourceBadge';
 import type { WorldState } from '../game/gameTypes';
-import { WEATHER_CONFIGS } from '../game/gameTypes';
+import { WEATHER_CONFIGS, WeatherType } from '../game/gameTypes';
 import { isNightHour, getHourOfDay, getWeekdayLabel, isWeekend, getAbsoluteCalendarDay, TICKS_PER_DAY } from '../game/dayCycle';
 import { displayYear } from '../game/dayCycleClock';
 import { DEFAULT_WORK_SCHEDULE, getWorkSchedule, getWorkScheduleLabel } from '../game/workSchedule';
@@ -119,6 +119,8 @@ tutorialsEnabled,
   const weekday = getWeekdayLabel(world.tick);
   const weekend = isWeekend(world.tick);
   const dailyTempC = computeDailyTemperatureC(world.season, world.weather, world.dayInYear, world.year);
+  // Defaulted: an unexpected weather value must read as weather rather than throw the bar.
+  const weather = WEATHER_CONFIGS[world.weather] ?? WEATHER_CONFIGS[WeatherType.Clear];
   const seasonLabel = SEASON_LABELS[world.season];
   // The band and the cap are the growth owner's (`POPULATION_NEAR_CAP_RATIO` /
   // `resolvePopulationCap`); this view only paints the answer. The open-bed
@@ -193,7 +195,7 @@ tutorialsEnabled,
       <div className="flex shrink-0 items-center gap-2">
         <div
           className="hud-chip flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs sm:px-2.5 sm:text-[13px]"
-          title={`${seasonLabel} · ${formatTemperatureC(dailyTempC)} · ${weekday}${weekend ? ' (free)' : ` (work ${getWorkScheduleLabel(workSchedule)})`} · Year ${displayYear(world.year)} · Day ${world.dayInYear}${world.weather !== 'clear' ? ` · ${WEATHER_CONFIGS[world.weather].label}` : ''}${world.festival ? ` · ${world.festival.name}` : ''} · sim tick ${world.tick} (day ${absoluteDay})${showSimTick ? '' : ' — enable “Show sim tick” in Menu → Settings to pin tick on the bar'}`}
+          title={`${seasonLabel} · ${formatTemperatureC(dailyTempC)} · ${weekday}${weekend ? ' (free)' : ` (work ${getWorkScheduleLabel(workSchedule)})`} · Year ${displayYear(world.year)} · Day ${world.dayInYear}${world.weather !== 'clear' ? ` · ${weather.label}` : ''}${world.festival ? ` · ${world.festival.name}` : ''} · sim tick ${world.tick} (day ${absoluteDay})${showSimTick ? '' : ' — enable “Show sim tick” in Menu → Settings to pin tick on the bar'}`}
         >
           <span className={seasonTextClass(world.season)}>{seasonLabel}</span>
           <span className="font-mono text-stone-200">{formatTemperatureC(dailyTempC)}</span>
@@ -204,7 +206,7 @@ tutorialsEnabled,
           <span className="text-stone-400">·</span>
           <Emoji>{isNight ? '🌙' : weekend ? '🌿' : '☀️'}</Emoji>
           <span className="font-mono text-white">{formatHour(hour)}</span>
-          {world.weather !== 'clear' && <Emoji>{WEATHER_CONFIGS[world.weather].emoji}</Emoji>}
+          {world.weather !== 'clear' && <Emoji>{weather.emoji}</Emoji>}
           {world.festival && <Emoji title={world.festival.name}>🎉</Emoji>}
           {!workWindowIsDefault && !weekend && (
             <span

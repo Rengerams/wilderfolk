@@ -143,6 +143,36 @@ export function startResearch(state: WorldState, researchId: string): WorldState
   return state;
 }
 
+/** The completion branch: mark the active subject researched, unlock it, reset progress, announce. */
+function completeActiveResearch(state: WorldState): void {
+  const node = state.researchNodes.find(n => n.id === state.activeResearch);
+  if (!node) return;
+
+  node.researched = true;
+  node.unlocked = true;
+  unlockTechId(state, node.id);
+  state.activeResearch = null;
+  state.researchProgress = 0;
+
+  syncResearchUnlocks(state);
+
+  addNotification(state, 'Research Complete!', `${node.name} has been researched!`, 'success');
+  addReputation(state, 3);
+  notifyResearchCompletion(state, node);
+  logEvent(state, 'research', `${node.name} researched`);
+  impulseScreenShake(state, 3);
+}
+
+/**
+ * Adds progress to the active subject and resolves completion — the clamp's and the completion
+ * branch's one home, so a gift that grants progress cannot skip the finish.
+ */
+export function grantResearchProgress(state: WorldState, amount: number): void {
+  if (!state.activeResearch) return;
+  state.researchProgress = Math.min(100, state.researchProgress + amount);
+  if (state.researchProgress >= 100) completeActiveResearch(state);
+}
+
 /** Advances active research in place — called from `gameTick`, which mutates `WorldState` directly. */
 export function updateResearch(state: WorldState) {
   if (!state.activeResearch) return;
@@ -154,21 +184,5 @@ export function updateResearch(state: WorldState) {
   );
   const speedMult = getMultiplier(state, 'research_speed') * educatedMult;
   // Systems layer fires more often at higher day resolution — use dayCycle scale only
-  state.researchProgress = Math.min(100, state.researchProgress + speedMult * PER_TICK_RATE_SCALE);
-
-  if (state.researchProgress >= 100) {
-    node.researched = true;
-    node.unlocked = true;
-    unlockTechId(state, node.id);
-    state.activeResearch = null;
-    state.researchProgress = 0;
-
-    syncResearchUnlocks(state);
-
-    addNotification(state, 'Research Complete!', `${node.name} has been researched!`, 'success');
-    addReputation(state, 3);
-    notifyResearchCompletion(state, node);
-    logEvent(state, 'research', `${node.name} researched`);
-    impulseScreenShake(state, 3);
-  }
+  grantResearchProgress(state, speedMult * PER_TICK_RATE_SCALE);
 }

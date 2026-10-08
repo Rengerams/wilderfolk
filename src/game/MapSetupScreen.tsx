@@ -252,8 +252,9 @@ export default function MapSetupScreen({
         <section>
           <div className="mb-2 flex items-baseline justify-between">
             <h2 className="text-sm font-bold uppercase tracking-widest text-emerald-400">Choose your land</h2>
-            <span className="text-xs text-stone-400">10 lands, each generated live from its seed</span>
+            <span className="text-xs text-stone-400">10 lands · generated live · scroll for all</span>
           </div>
+          <div className="max-h-[34vh] overflow-y-auto rounded-lg pr-1">
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {presets.map((preset, i) => {
               const info = PRESET_INFO[preset];
@@ -290,6 +291,7 @@ export default function MapSetupScreen({
                 </button>
               );
             })}
+          </div>
           </div>
         </section>
 

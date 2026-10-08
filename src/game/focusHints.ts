@@ -4,8 +4,8 @@ import { displayYear } from './dayCycleClock';
 import { getLivePlayerPopulation, getTotalBeds } from './populationGrowth';
 import {
   getVillageLeader,
+  getElectionCeremonyStatus,
   getYearsUntilElection,
-  formatElectionDelay,
   formatSettlerName,
 } from './villageLeadership';
 import { hasIronSpears, hasStoneSpears } from './combat';
@@ -114,13 +114,12 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
 
   const leader = getVillageLeader(state);
   const until = getYearsUntilElection(state);
+  const ceremonyStatus = getElectionCeremonyStatus(state);
   if (!leader && state.pendingElectionYear != null) {
     hints.push({
       icon: '👑',
       title: 'Leadership vacancy',
-      detail: until > 0
-        ? `No village head — merit election in ${formatElectionDelay(until)} (Year ${displayYear(Math.floor(state.pendingElectionYear))}).`
-        : 'Merit election imminent — settlers will gather soon.',
+      detail: ceremonyStatus ?? 'Merit election imminent — settlers will gather soon.',
       action: { label: 'Leadership', id: 'open_village' },
     });
   } else if (leader) {

@@ -373,17 +373,12 @@ export default function CitizenOverviewScreen({
                       />
                     </section>
                   );
-                  // Rail tabs open one focused panel; the World nav button shows all three.
+                  // Rail tabs open one focused panel; every door that reaches the World section
+                  // sets a focus, so the unfocused case is the frontier.
                   if (worldFocus === 'frontier') return frontierPanel;
                   if (worldFocus === 'nature') return naturePanel;
                   if (worldFocus === 'progress') return progressPanel;
-                  return (
-                    <>
-                      {frontierPanel}
-                      {naturePanel}
-                      {progressPanel}
-                    </>
-                  );
+                  return frontierPanel;
                 })()}
               </div>
             )}

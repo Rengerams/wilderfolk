@@ -2,7 +2,7 @@ import { pruneHuntVisuals } from './huntvisuals';
 import type {
   WorldState, PopulationHistoryEntry, Entity,
 } from './gameTypes';
-import { EntityType, BuildingType, FLOATING_TEXT_FADE_TICKS } from './gameTypes';
+import { EntityType, FLOATING_TEXT_FADE_TICKS } from './gameTypes';
 import {
   USE_SPATIAL_GRID,
   syncMobileSimGrid,
@@ -32,6 +32,7 @@ import { getSimRng } from './simRng';
 import { tickHotelLodging } from './hotelStay';
 import { tickPrisonPresence } from './prisonGuardDuty';
 import { tickElectionCeremony } from './villageLeadership';
+import { findPlayerTownHall } from './townHall';
 import { addBigNews, addNotification, impulseScreenShake } from './simEffects';
 import { getEcosystemHealth } from './dailyEcology';
 
@@ -81,9 +82,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     const electionReveal = tickElectionCeremony(state, state.year);
     if (electionReveal) {
       addBigNews(state, electionReveal.title, electionReveal.message, 'positive');
-      const hall = state.buildings.find(
-        (b) => b.completed && b.type === BuildingType.TownHall && b.faction !== 'rival',
-      );
+      const hall = findPlayerTownHall(state.buildings);
       addNotification(
         state,
         electionReveal.title,

@@ -1,5 +1,6 @@
 import { useModalFocus } from '../hooks/useModalFocus';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
+import { HEADER_DOORS } from '../game/hotkeys';
 
 export interface Shortcut {
   keys: string;
@@ -19,7 +20,10 @@ const SHORTCUTS: Shortcut[] = [
   { keys: '1–9', description: 'Quick-build' },
   { keys: 'O', description: 'People — citizens, housing, work hours' },
   { keys: 'C', description: 'Daily council — what the village needs today' },
-  { keys: 'V F N P L M', description: 'Header doors: village, frontier, nature, progress, log, more' },
+  {
+    keys: HEADER_DOORS.map((door) => door.key).join(' '),
+    description: `Header doors: ${HEADER_DOORS.map((door) => door.label.toLowerCase()).join(', ')}`,
+  },
   { keys: 'H', description: 'Center on settlers' },
   { keys: 'R', description: 'Rotate road / wall / gate while placing' },
   { keys: 'ESC', description: 'Close overview · cancel build · clear selection' },

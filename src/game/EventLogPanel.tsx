@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useState } from 'react';
 import type { GameEventLog } from './gameTypes';
 import { displayYear } from './dayCycleClock';
 import { EVENT_LOG_FILTER_OPTIONS, getEventLogFilterLabel } from './eventLogFilters';
@@ -91,14 +91,10 @@ export default function EventLogPanel({ events, meta, initialFilter = 'all', onF
   const [downloadedFormat, setDownloadedFormat] = useState<'txt' | 'json' | 'csv' | null>(null);
   const [exportOnSave, setExportOnSave] = useState(loadExportChronicleOnSave);
 
-  const allFiltered = useMemo(
-    () => (filter === 'all' ? events : events.filter((e) => e.type === filter)),
-    [events, filter],
-  );
-  const filtered = useMemo(
-    () => allFiltered.slice(0, visibleCount),
-    [allFiltered, visibleCount],
-  );
+  // Derived each render: the chronicle array is mutated in place (unshift/pop), so a memo on it
+  // would never see an entry written after the panel opened.
+  const allFiltered = filter === 'all' ? events : events.filter((e) => e.type === filter);
+  const filtered = allFiltered.slice(0, visibleCount);
 
   /** A new filter starts its own list at the first page. */
   const chooseFilter = (next: 'all' | GameEventLog['type']) => {

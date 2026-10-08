@@ -3,8 +3,8 @@
  * The one entry point for every check in this repository.
  *
  *   npm test                     the standard gate (default)
- *   npm test -- all              standard + types + lint
- *   npm test -- full             all + the 360-day invariant run
+ *   npm test -- all              the same steps as standard
+ *   npm test -- full             standard + the full-year vitest file + the 360-day run
  *   npm test -- unit <pattern>   vitest only, optionally filtered
  *   npm test -- help             the full menu
  *
@@ -92,6 +92,8 @@ const STEP = {
    */
   knip: 'knip',
   cycles: 'node scripts/check-import-cycles.mjs',
+  /** Strict twin of `cycles`: a runtime import cycle exits 1 instead of warning. */
+  cyclesStrict: 'node scripts/check-import-cycles.mjs --strict',
   invariants: 'tsx scripts/run-full-year.mts',
   browser: 'node scripts/browser-smoke.mjs',
   build: 'npm run build',
@@ -105,9 +107,9 @@ const STEP = {
  * gate, which is what the `&&` chains these replace did.
  */
 const GATE = {
-  standard: ['check', 'dup', 'unit'],
-  all: ['check', 'dup', 'unit', 'types', 'lint'],
-  full: ['check', 'dup', 'unit', 'types', 'lint', 'invariants'],
+  standard: ['check', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
+  all: ['check', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
+  full: ['check', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'invariantTest', 'invariants'],
   audit: ['knip', 'cycles'],
   accept: ['build', 'browser'],
 };
@@ -130,10 +132,10 @@ const ALIAS = {
 const MENU = `
 wilderfolk test runner - one entry point, choose with args
 
-  npm test                        standard gate: check -> dup -> unit
+  npm test                        standard gate: check -> cycles --strict -> dup -> types -> lint -> unit
   npm test -- standard            same as above
-  npm test -- all                 standard + types + lint
-  npm test -- full                all + the 360-day invariant run
+  npm test -- all                 same steps as standard
+  npm test -- full                standard + invariant-test + invariants
   npm test -- accept              build + the real-browser gate
 
   npm test -- unit [<pattern>]    vitest only; <pattern> filters by name/path

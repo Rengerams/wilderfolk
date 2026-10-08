@@ -51,6 +51,7 @@ import {
 import { formatCitizenName, formatDeathLog, humanDisplayName } from '../citizenId';
 import { dissolveMarriage, formatCaughtCheaterDivorceDetail, syncMarriageSurnames } from '../nameLoader';
 import { dampScandalReputationLoss } from '../townHall';
+import { isMinorChild } from '../householdComposition';
 import { getLivingEntity, getHousemates } from '../simQueries';
 import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_AFFAIR_RADIUS } from '../adaptiveSpatialQuery';
 import { isImprisoned } from '../residencyOccupancy';
@@ -1073,7 +1074,7 @@ function reassignDivorcedResidences(
     const children = villagers.filter(
       (child) =>
         child.alive &&
-        child.isJuvenile &&
+        isMinorChild(child) &&
         (child.motherId === custodian.id ||
           child.adoptiveMotherId === custodian.id ||
           child.fatherId === custodian.id ||

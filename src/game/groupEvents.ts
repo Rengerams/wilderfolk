@@ -26,33 +26,22 @@ import {
 } from './resourceUtils';
 import { recordFoodProduced, spendFood } from './economyLedger';
 import { getRandomSurname } from './nameLoader';
-import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
 import { maybeStartVisitorQuest } from './visitorQuest';
 import { logEvent } from './eventLog';
 import {
   cancelPendingOutgoingRaidsForRival,
   cancelPendingRaidsForRival,
   getPlayerCampCenter,
+  hasMilitiaWeapons,
 } from './frontierCombat';
 import { clearFactionWanderState } from './factionWander';
 import { getRefugeeWelcomeBonus } from './townHall';
-import { addBigNews, addNotification } from './simEffects';
+import { addBigNews, addFloatingText, addNotification } from './simEffects';
 import { tickRivalSettlements as tickRivalEvents } from './rivalEvents';
 import { createRivalProfile, ensureRivalProfile } from './rivalProfiles';
 import { addReputation, getReputationBand } from './simHelpers';
+import { grantResearchProgress } from './research';
 import { formatResourceAmounts, RESOURCE_METAS, type ResourceKey } from './resourceTypes';
-
-function hasWeapons(state: WorldState): boolean {
-  return hasIronSwords(state) || hasIronSpears(state) || hasStoneSpears(state);
-}
-
-function pushFloat(state: WorldState, x: number, y: number, text: string, color: string) {
-  state.floatingTexts.push({
-    id: state.nextFloatingTextId++,
-    x, y, text, color,
-    life: 24, maxLife: 24, scale: 1,
-  });
-}
 
 // Village Requests — one bounded daily offer system.
 export const VILLAGE_REQUEST_PROVISIONS_COST_GOLD = 15;
@@ -98,7 +87,7 @@ function expireVillageRequest(state: WorldState, request: VillageRequest, day: n
   finishVillageRequest(state, request, 'expired', day);
   const x = source?.campX ?? state.width / 2;
   const y = source?.campY ?? state.height / 2;
-  pushFloat(state, x, y - 18, 'Offer expired', '#f59e0b');
+  addFloatingText(state, x, y - 18, 'Offer expired', '#f59e0b');
   logEvent(state, 'event', `${request.sourceName}'s provisions offer expired`, request.sourceName);
 }
 
@@ -183,7 +172,7 @@ export function resolveVillageRequest(
   if (choice === 'decline') {
     addReputation(state, -VILLAGE_REQUEST_DECLINE_REPUTATION);
     finishVillageRequest(state, request, 'declined', day);
-    pushFloat(state, source.campX, source.campY - 18, 'Offer declined', '#94a3b8');
+    addFloatingText(state, source.campX, source.campY - 18, 'Offer declined', '#94a3b8');
     logEvent(state, 'event', `Declined ${source.name}'s provisions offer`, source.name);
     return state;
   }
@@ -192,7 +181,7 @@ export function resolveVillageRequest(
   if (!gate.ok) {
     const reason = gate.blockReason ?? 'Offer unavailable';
     addBigNews(state, 'Offer unavailable', reason, 'negative');
-    pushFloat(state, source.campX, source.campY - 18, reason, '#f97316');
+    addFloatingText(state, source.campX, source.campY - 18, reason, '#f97316');
     return state;
   }
 
@@ -204,7 +193,7 @@ export function resolveVillageRequest(
   addReputation(state, VILLAGE_REQUEST_PROVISIONS_REPUTATION);
   source.tradesCompleted++;
   finishVillageRequest(state, request, 'accepted', day);
-  pushFloat(state, source.campX, source.campY - 18, `-${VILLAGE_REQUEST_PROVISIONS_COST_GOLD} gold +${VILLAGE_REQUEST_PROVISIONS_FOOD} food`, '#22c55e');
+  addFloatingText(state, source.campX, source.campY - 18, `-${VILLAGE_REQUEST_PROVISIONS_COST_GOLD} gold +${VILLAGE_REQUEST_PROVISIONS_FOOD} food`, '#22c55e');
   logEvent(state, 'trade', `Accepted ${source.name}'s provisions offer (+${VILLAGE_REQUEST_PROVISIONS_FOOD} food)`, source.name);
   return state;
 }
@@ -554,19 +543,19 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
           const food = 10 + Math.floor(getSimRng('groupEvents')() * 20);
           addCappedResource(state, 'gold', gold);
           addCappedResource(state, 'food', food);
-          pushFloat(state, group.campX, group.campY - 20, `+${gold}g +${food}f`, '#eab308');
+          addFloatingText(state, group.campX, group.campY - 20, `+${gold}g +${food}f`, '#eab308');
           group.giftsGiven++;
           break;
         }
         case 'pilgrims':
           addReputation(state, 2);
-          pushFloat(state, group.campX, group.campY - 20, '+Rep', '#22c55e');
+          addFloatingText(state, group.campX, group.campY - 20, '+Rep', '#22c55e');
           group.giftsGiven++;
           break;
         case 'scholars':
           if (state.activeResearch) {
-            state.researchProgress = Math.min(100, state.researchProgress + 3);
-            pushFloat(state, group.campX, group.campY - 20, '+Research', '#8b5cf6');
+            grantResearchProgress(state, 3);
+            addFloatingText(state, group.campX, group.campY - 20, '+Research', '#8b5cf6');
           } else {
             const goldGift = Math.min(group.gold ?? 0, 10);
             group.gold = (group.gold ?? 0) - goldGift;
@@ -577,13 +566,13 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
         case 'nomads': {
           const wood = 10 + Math.floor(getSimRng('groupEvents')() * 15);
           addCappedResource(state, 'wood', wood);
-          pushFloat(state, group.campX, group.campY - 20, `+${wood}w`, '#d97706');
+          addFloatingText(state, group.campX, group.campY - 20, `+${wood}w`, '#d97706');
           group.giftsGiven++;
           break;
         }
         case 'performers':
           addReputation(state, 1);
-          pushFloat(state, group.campX, group.campY - 20, '🎭', '#f472b6');
+          addFloatingText(state, group.campX, group.campY - 20, '🎭', '#f472b6');
           group.giftsGiven++;
           break;
         case 'refugees':
@@ -593,7 +582,7 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
           const poachChance = group.leaderTalked ? 0.1 : 0.25;
           if (deer && seededRandomForRun(`poach:${group.id}:${state.tick}`) < poachChance) {
             killWildGameForPoach(state, deer);
-            pushFloat(state, deer.x, deer.y - 15, 'Hunted', '#f97316');
+            addFloatingText(state, deer.x, deer.y - 15, 'Hunted', '#f97316');
           }
           break;
         }
@@ -670,7 +659,7 @@ export function sendRivalGift(originalState: WorldState, rivalId: string): World
     const rival = state.rivalSettlements.find((r) => r.id === rivalId);
     if (!rival) return state;
     const color = rivalPreview.relationship === 'friendly' ? '#94a3b8' : '#f97316';
-    pushFloat(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot send a gift', color);
+    addFloatingText(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot send a gift', color);
     return state;
   }
 
@@ -715,7 +704,7 @@ export function establishRivalTradePact(originalState: WorldState, rivalId: stri
     const rival = state.rivalSettlements.find((r) => r.id === rivalId);
     if (!rival) return state;
     const color = rivalPreview.relationship === 'friendly' ? '#94a3b8' : '#f97316';
-    pushFloat(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot sign a pact', color);
+    addFloatingText(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot sign a pact', color);
     return state;
   }
 
@@ -742,7 +731,7 @@ export function getShowStrengthEligibility(
 ): { ok: boolean; blockReason?: string } {
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return { ok: false, blockReason: 'No such rival' };
-  const armed = hasWeapons(state);
+  const armed = hasMilitiaWeapons(state);
   if (!armed) return { ok: false, blockReason: 'Need weapons' };
   if (state.humanPopulation < 6) return { ok: false, blockReason: 'Need 6+ settlers' };
   return { ok: true };
@@ -755,7 +744,7 @@ export function showStrengthToRival(originalState: WorldState, rivalId: string):
 
   const eligibility = getShowStrengthEligibility(originalState, rivalId);
   if (!eligibility.ok) {
-    pushFloat(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot show strength', '#f97316');
+    addFloatingText(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot show strength', '#f97316');
     return state;
   }
 
@@ -802,7 +791,7 @@ export function signPeaceTreaty(originalState: WorldState, rivalId: string): Wor
 
   const eligibility = getPeaceTreatyEligibility(originalState, rivalId);
   if (!eligibility.ok) {
-    pushFloat(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot sign a treaty', '#f97316');
+    addFloatingText(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot sign a treaty', '#f97316');
     return state;
   }
 
@@ -819,19 +808,29 @@ export function signPeaceTreaty(originalState: WorldState, rivalId: string): Wor
     logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
   }
 
-  pushFloat(state, rival.campX, rival.campY - 20, '🕊️ Peace', '#22d3ee');
+  addFloatingText(state, rival.campX, rival.campY - 20, '🕊️ Peace', '#22d3ee');
   addBigNews(state, '🕊️ Peace signed', `${rival.name} and ${state.villageName} agreed to 60 days without raids.`, 'positive');
   logEvent(state, 'event', `Peace treaty with ${rival.name} — 60 days`, rival.name);
   return state;
 }
 
+/** Diplomacy-card prices — exported so the panel's button labels quote the owner's figures. */
+export const DIPLOMACY_TRIBUTE_PAY_FOOD = 30;
+export const DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD = 15;
+export const DIPLOMACY_ALLIANCE_ACCEPT_GOLD = 20;
+export const DIPLOMACY_ALLIANCE_COUNTER_FOOD = 25;
+export const DIPLOMACY_ALLIANCE_COUNTER_GOLD = 15;
+export const DIPLOMACY_PEACE_SIGN_GOLD = 15;
+export const DIPLOMACY_PEACE_SIGN_FOOD = 10;
+export const DIPLOMACY_PEACE_TRIBUTE_FOOD = 35;
+
 function diplomacyChoicesFor(kind: DiplomacyEventKind, rivalName: string): DiplomacyChoice[] {
   switch (kind) {
     case 'tribute':
       return [
-        { id: 'pay', label: 'Pay tribute (30🍖)', hint: 'Relations improve — they leave you in peace.' },
+        { id: 'pay', label: `Pay tribute (${DIPLOMACY_TRIBUTE_PAY_FOOD}🍖)`, hint: 'Relations improve — they leave you in peace.' },
         { id: 'refuse', label: 'Refuse', hint: 'Relations worsen and reputation drops.' },
-        { id: 'negotiate', label: 'Negotiate (15🍖)', hint: 'Split the difference — minor goodwill.' },
+        { id: 'negotiate', label: `Negotiate (${DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD}🍖)`, hint: 'Split the difference — minor goodwill.' },
       ];
     case 'border_dispute':
       return [
@@ -841,15 +840,15 @@ function diplomacyChoicesFor(kind: DiplomacyEventKind, rivalName: string): Diplo
       ];
     case 'alliance':
       return [
-        { id: 'accept', label: 'Accept alliance (20💰)', hint: 'Friendly relations and trade gifts.' },
+        { id: 'accept', label: `Accept alliance (${DIPLOMACY_ALLIANCE_ACCEPT_GOLD}💰)`, hint: 'Friendly relations and trade gifts.' },
         { id: 'decline', label: 'Politely decline', hint: 'Stay neutral — small reputation hit.' },
-        { id: 'counter', label: 'Counter-offer (25🍖 + 15💰)', hint: 'Strong friendship if you can afford it.' },
+        { id: 'counter', label: `Counter-offer (${DIPLOMACY_ALLIANCE_COUNTER_FOOD}🍖 + ${DIPLOMACY_ALLIANCE_COUNTER_GOLD}💰)`, hint: 'Strong friendship if you can afford it.' },
       ];
     case 'peace_treaty':
       return [
-        { id: 'sign', label: 'Sign peace (15💰 + 10🍖)', hint: `45 days without raids with ${rivalName}.` },
+        { id: 'sign', label: `Sign peace (${DIPLOMACY_PEACE_SIGN_GOLD}💰 + ${DIPLOMACY_PEACE_SIGN_FOOD}🍖)`, hint: `45 days without raids with ${rivalName}.` },
         { id: 'decline', label: 'Decline truce', hint: 'Relations may worsen — raids still possible.' },
-        { id: 'tribute', label: 'Demand tribute for peace', hint: 'Short 21-day truce — they pay you 35🍖.' },
+        { id: 'tribute', label: 'Demand tribute for peace', hint: `Short 21-day truce — they pay you ${DIPLOMACY_PEACE_TRIBUTE_FOOD}🍖.` },
       ];
     default:
       return [{ id: 'ack', label: 'Acknowledge', hint: rivalName }];
@@ -923,7 +922,7 @@ function maybeQueueDiplomacyEvent(state: WorldState, rival: RivalSettlement): vo
     ...meta,
     choices: diplomacyChoicesFor(kind, rival.name),
     createdAtTick: state.tick,
-    expiresAtTick: state.tick + 14 * TICKS_PER_DAY,
+    expiresAtTick: getDiplomacyExpiresAtTick({ createdAtTick: state.tick }),
   };
   state.pendingDiplomacyEvents.push(event);
   addBigNews(state, `${meta.emoji} Diplomacy needed`, `${rival.name}: ${meta.title}. Respond in the inspector or event banner.`, 'neutral');
@@ -962,31 +961,37 @@ export function getDiplomacyChoiceEligibility(
 ): { ok: boolean; blockReason?: string } {
   switch (event.kind) {
     case 'tribute':
-      if (choiceId === 'pay' && state.resources.food < 30) {
-        return { ok: false, blockReason: 'Need 30🍖' };
+      if (choiceId === 'pay' && state.resources.food < DIPLOMACY_TRIBUTE_PAY_FOOD) {
+        return { ok: false, blockReason: `Need ${DIPLOMACY_TRIBUTE_PAY_FOOD}🍖` };
       }
-      if (choiceId === 'negotiate' && state.resources.food < 15) {
-        return { ok: false, blockReason: 'Need 15🍖' };
+      if (choiceId === 'negotiate' && state.resources.food < DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD) {
+        return { ok: false, blockReason: `Need ${DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD}🍖` };
       }
       break;
     case 'border_dispute':
       if (choiceId === 'militia') {
-        const armed = hasWeapons(state);
+        const armed = hasMilitiaWeapons(state);
         if (!armed) return { ok: false, blockReason: 'Need spears' };
         if (state.humanPopulation < 6) return { ok: false, blockReason: 'Need 6+ settlers' };
       }
       break;
     case 'alliance':
-      if (choiceId === 'accept' && state.resources.gold < 20) {
-        return { ok: false, blockReason: 'Need 20💰' };
+      if (choiceId === 'accept' && state.resources.gold < DIPLOMACY_ALLIANCE_ACCEPT_GOLD) {
+        return { ok: false, blockReason: `Need ${DIPLOMACY_ALLIANCE_ACCEPT_GOLD}💰` };
       }
-      if (choiceId === 'counter' && (state.resources.food < 25 || state.resources.gold < 15)) {
-        return { ok: false, blockReason: 'Need 25🍖 + 15💰' };
+      if (
+        choiceId === 'counter'
+        && (state.resources.food < DIPLOMACY_ALLIANCE_COUNTER_FOOD || state.resources.gold < DIPLOMACY_ALLIANCE_COUNTER_GOLD)
+      ) {
+        return { ok: false, blockReason: `Need ${DIPLOMACY_ALLIANCE_COUNTER_FOOD}🍖 + ${DIPLOMACY_ALLIANCE_COUNTER_GOLD}💰` };
       }
       break;
     case 'peace_treaty':
-      if (choiceId === 'sign' && (state.resources.gold < 15 || state.resources.food < 10)) {
-        return { ok: false, blockReason: 'Need 15💰 + 10🍖' };
+      if (
+        choiceId === 'sign'
+        && (state.resources.gold < DIPLOMACY_PEACE_SIGN_GOLD || state.resources.food < DIPLOMACY_PEACE_SIGN_FOOD)
+      ) {
+        return { ok: false, blockReason: `Need ${DIPLOMACY_PEACE_SIGN_GOLD}💰 + ${DIPLOMACY_PEACE_SIGN_FOOD}🍖` };
       }
       break;
   }
@@ -1015,7 +1020,7 @@ export function respondToDiplomacyEvent(
 
   let resolved = false;
 
-  if (state.tick >= (event.expiresAtTick ?? event.createdAtTick + 14 * TICKS_PER_DAY)) {
+  if (state.tick >= getDiplomacyExpiresAtTick(event)) {
     removeEvent();
     logEvent(state, 'event', `Diplomacy message from ${rival.name} expired`, rival.name);
     return state;
@@ -1023,20 +1028,20 @@ export function respondToDiplomacyEvent(
 
   const gate = getDiplomacyChoiceEligibility(state, event, choiceId);
   if (!gate.ok) {
-    pushFloat(state, rival.campX, rival.campY - 20, gate.blockReason ?? 'Cannot answer', '#f97316');
+    addFloatingText(state, rival.campX, rival.campY - 20, gate.blockReason ?? 'Cannot answer', '#f97316');
     return state;
   }
 
   switch (event.kind) {
     case 'tribute':
       if (choiceId === 'pay') {
-        spendFood(state, 'tribute', 30);
+        spendFood(state, 'tribute', DIPLOMACY_TRIBUTE_PAY_FOOD);
         rival.relationship = shiftRelationship(rival.relationship, 1);
-        pushFloat(state, rival.campX, rival.campY - 20, 'Tribute paid', '#22c55e');
+        addFloatingText(state, rival.campX, rival.campY - 20, 'Tribute paid', '#22c55e');
         logEvent(state, 'trade', `Paid tribute to ${rival.name} — relations improved`, rival.name);
         resolved = true;
       } else if (choiceId === 'negotiate') {
-        spendFood(state, 'tribute', 15);
+        spendFood(state, 'tribute', DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD);
         if (rival.relationship === 'tense') rival.relationship = 'competitive';
         logEvent(state, 'trade', `Negotiated with ${rival.name} — partial tribute`, rival.name);
         resolved = true;
@@ -1068,15 +1073,15 @@ export function respondToDiplomacyEvent(
       break;
     case 'alliance':
       if (choiceId === 'accept') {
-        state.resources.gold -= 20;
+        state.resources.gold -= DIPLOMACY_ALLIANCE_ACCEPT_GOLD;
         rival.relationship = 'friendly';
         rival.daysUntilAction = 20;
-        pushFloat(state, rival.campX, rival.campY - 20, 'Alliance!', '#22d3ee');
+        addFloatingText(state, rival.campX, rival.campY - 20, 'Alliance!', '#22d3ee');
         logEvent(state, 'trade', `Alliance with ${rival.name}`, rival.name);
         resolved = true;
       } else if (choiceId === 'counter') {
-        spendFood(state, 'treaty', 25);
-        state.resources.gold -= 15;
+        spendFood(state, 'treaty', DIPLOMACY_ALLIANCE_COUNTER_FOOD);
+        state.resources.gold -= DIPLOMACY_ALLIANCE_COUNTER_GOLD;
         rival.relationship = 'friendly';
         rival.daysUntilAction = 25;
         addReputation(state, 3);
@@ -1090,8 +1095,8 @@ export function respondToDiplomacyEvent(
       break;
     case 'peace_treaty':
       if (choiceId === 'sign') {
-        state.resources.gold -= 15;
-        spendFood(state, 'treaty', 10);
+        state.resources.gold -= DIPLOMACY_PEACE_SIGN_GOLD;
+        spendFood(state, 'treaty', DIPLOMACY_PEACE_SIGN_FOOD);
         rival.peaceTreatyDays = PEACE_TREATY_EVENT_DAYS;
         rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PEACE_TREATY_EVENT_DAYS);
         if (rival.relationship === 'competitive') rival.relationship = 'neutral';
@@ -1101,7 +1106,7 @@ export function respondToDiplomacyEvent(
         if (cancelPendingOutgoingRaidsForRival(state, rival.id)) {
           logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
         }
-        pushFloat(state, rival.campX, rival.campY - 20, '🕊️ Truce', '#22d3ee');
+        addFloatingText(state, rival.campX, rival.campY - 20, '🕊️ Truce', '#22d3ee');
         logEvent(state, 'event', `Peace treaty with ${rival.name} — 45 days`, rival.name);
         resolved = true;
       } else if (choiceId === 'tribute') {
@@ -1113,11 +1118,11 @@ export function respondToDiplomacyEvent(
         if (cancelPendingOutgoingRaidsForRival(state, rival.id)) {
           logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
         }
-        const tributeFood = addCappedResource(state, 'food', 35);
-        if (tributeFood < 35) {
-          pushFloat(state, rival.campX, rival.campY - 20, `+${tributeFood}🍖 (storage full)`, '#f97316');
+        const tributeFood = addCappedResource(state, 'food', DIPLOMACY_PEACE_TRIBUTE_FOOD);
+        if (tributeFood < DIPLOMACY_PEACE_TRIBUTE_FOOD) {
+          addFloatingText(state, rival.campX, rival.campY - 20, `+${tributeFood}🍖 (storage full)`, '#f97316');
         } else {
-          pushFloat(state, rival.campX, rival.campY - 20, '+35🍖 tribute', '#eab308');
+          addFloatingText(state, rival.campX, rival.campY - 20, `+${DIPLOMACY_PEACE_TRIBUTE_FOOD}🍖 tribute`, '#eab308');
         }
         logEvent(state, 'trade', `Short truce with ${rival.name} — they paid tribute`, rival.name);
         resolved = true;
@@ -1205,34 +1210,34 @@ export function talkToVisitorLeader(originalState: WorldState, groupId: string):
     case 'traders':
       addCappedResource(state, 'gold', 15);
       addReputation(state, 3);
-      pushFloat(state, group.campX, group.campY - 20, '+15💰 +Rep', '#eab308');
+      addFloatingText(state, group.campX, group.campY - 20, '+15💰 +Rep', '#eab308');
       logEvent(state, 'trade', `Caravan master of ${group.name} shared market news`, group.name);
       break;
     case 'pilgrims':
       addReputation(state, 8);
-      pushFloat(state, group.campX, group.campY - 20, '+8 Rep', '#22c55e');
+      addFloatingText(state, group.campX, group.campY - 20, '+8 Rep', '#22c55e');
       logEvent(state, 'event', `Elder pilgrim blessed ${state.villageName}`, group.name);
       break;
     case 'scholars':
       if (state.activeResearch) {
-        state.researchProgress = Math.min(100, state.researchProgress + 25);
-        pushFloat(state, group.campX, group.campY - 20, '+Research', '#8b5cf6');
+        grantResearchProgress(state, 25);
+        addFloatingText(state, group.campX, group.campY - 20, '+Research', '#8b5cf6');
         logEvent(state, 'research', `Head scholar advanced your active research`, group.name);
       } else {
         addCappedResource(state, 'gold', 15);
-        pushFloat(state, group.campX, group.campY - 20, '+15💰', '#8b5cf6');
+        addFloatingText(state, group.campX, group.campY - 20, '+15💰', '#8b5cf6');
         logEvent(state, 'research', `Scholars of ${group.name} left notes and coin`, group.name);
       }
       break;
     case 'hunters':
       addReputation(state, 5);
-      pushFloat(state, group.campX, group.campY - 20, '+5 Rep', '#f97316');
+      addFloatingText(state, group.campX, group.campY - 20, '+5 Rep', '#f97316');
       logEvent(state, 'event', `Hunt captain of ${group.name} marked shared hunting grounds`, group.name);
       break;
     case 'nomads':
       addCappedResource(state, 'wood', 20);
       addReputation(state, 2);
-      pushFloat(state, group.campX, group.campY - 20, '+20🪵', '#d97706');
+      addFloatingText(state, group.campX, group.campY - 20, '+20🪵', '#d97706');
       logEvent(state, 'event', `Clan head of ${group.name} traded stories and timber`, group.name);
       break;
     case 'performers':
@@ -1242,7 +1247,7 @@ export function talkToVisitorLeader(originalState: WorldState, groupId: string):
       } else {
         state.festival.daysLeft = Math.min(14, state.festival.daysLeft + 2);
       }
-      pushFloat(state, group.campX, group.campY - 20, '🎭 Festival!', '#f472b6');
+      addFloatingText(state, group.campX, group.campY - 20, '🎭 Festival!', '#f472b6');
       logEvent(state, 'event', `Troupe leader of ${group.name} led a night of revelry`, group.name);
       break;
     default:
@@ -1300,7 +1305,7 @@ function seedGroupGold(kind: VisitorKind): number {
 }
 
 function rejectVisitorTrade(state: WorldState, group: VisitorGroup, hint: string, notify?: string): WorldState {
-  pushFloat(state, group.campX, group.campY - 20, hint, '#f97316');
+  addFloatingText(state, group.campX, group.campY - 20, hint, '#f97316');
   if (notify) addBigNews(state, 'Trade failed', notify, 'negative');
   return state;
 }
@@ -1429,7 +1434,7 @@ export function tradeWithVisitors(
   const gainedGold = effectiveReceive.gold ?? 0;
   if (gainedGold > 0) group.gold = Math.max(0, (group.gold ?? 0) - gainedGold);
 
-  pushFloat(
+  addFloatingText(
     state,
     group.campX,
     group.campY - 20,
@@ -1493,7 +1498,7 @@ export function negotiateRefugees(
   }
 
   if (!eligibility.ok) {
-    pushFloat(state, group.campX, group.campY - 20, eligibility.blockReason ?? 'Cannot settle them', '#f97316');
+    addFloatingText(state, group.campX, group.campY - 20, eligibility.blockReason ?? 'Cannot settle them', '#f97316');
     return state;
   }
 
@@ -1507,7 +1512,7 @@ export function negotiateRefugees(
       2 + getRefugeeWelcomeBonus(state.buildings),
     );
     if (joined === 0) {
-      pushFloat(state, group.campX, group.campY - 20, 'No room for refugees', '#f97316');
+      addFloatingText(state, group.campX, group.campY - 20, 'No room for refugees', '#f97316');
       return state;
     }
     spendFood(state, 'refugees', REFUGEE_WELCOME_FOOD);
@@ -1515,7 +1520,7 @@ export function negotiateRefugees(
     const villagers = allAlive.filter(isPlayerHuman);
     assignMissingResidences(villagers, state.buildings, allAlive);
     syncResidenceOccupants(villagers, state.buildings);
-    pushFloat(state, group.campX, group.campY - 20, `+${joined} settlers`, '#22c55e');
+    addFloatingText(state, group.campX, group.campY - 20, `+${joined} settlers`, '#22c55e');
     logEvent(state, 'migration', `Welcomed ${joined} refugee(s) from ${group.name}`, group.name);
     return state;
   }
@@ -1529,7 +1534,7 @@ export function negotiateRefugees(
       const villagers = allAlive.filter(isPlayerHuman);
       assignMissingResidences(villagers, state.buildings, allAlive);
       syncResidenceOccupants(villagers, state.buildings);
-      pushFloat(state, group.campX, group.campY - 20, '+1 refugee', '#22c55e');
+      addFloatingText(state, group.campX, group.campY - 20, '+1 refugee', '#22c55e');
       logEvent(state, 'migration', `Screened and admitted a refugee from ${group.name}`, group.name);
     } else {
       logEvent(state, 'migration', `Screened ${group.name} — none qualified to stay`, group.name);
@@ -1595,7 +1600,7 @@ export function hitTestCamp(
 export function tickWorldRivalSettlements(state: WorldState, allAlive: Entity[], ctx?: TickContext): void {
   tickRivalEvents(state, allAlive, {
     pushNews: addBigNews,
-    pushFloat,
+    pushFloat: addFloatingText,
     logEvent,
     tickPendingDiplomacyEvents,
     queueDiplomacyEvent: maybeQueueDiplomacyEvent,
@@ -1704,7 +1709,7 @@ export function rollYearlyWorldEvent(
       };
     case 'traveling_merchant':
       addCappedResource(state, 'gold', 50);
-      pushFloat(state, width / 2, height / 2, '+50 Gold', '#eab308');
+      addFloatingText(state, width / 2, height / 2, '+50 Gold', '#eab308');
       return {
         event: { id: `traveling_merchant_${state.tick}`, title: 'Traveling Merchant', description: 'A wealthy merchant caravan passed through!', emoji: '🛒', effect: '+50 Gold', type: 'positive' },
         bountifulHarvest,
@@ -1753,7 +1758,7 @@ export function rollYearlyWorldEvent(
         const rival = state.rivalSettlements[Math.floor(getSimRng('groupEvents')() * state.rivalSettlements.length)];
         const food = 25 + Math.floor(getSimRng('groupEvents')() * 25);
         addCappedResource(state, 'food', food);
-        pushFloat(state, rival.campX, rival.campY - 20, `+${food} food`, '#22c55e');
+        addFloatingText(state, rival.campX, rival.campY - 20, `+${food} food`, '#22c55e');
         return {
           event: { id: `generous_neighbors_${state.tick}`, title: 'Neighborly Gift', description: `${rival.name} shared food across the wilds.`, emoji: '🤝', effect: `+${food} Food`, type: 'positive' },
           bountifulHarvest,

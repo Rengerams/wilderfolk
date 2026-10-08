@@ -296,26 +296,27 @@ function compactWorldMapForSave(worldMap: WorldState['worldMap']) {
 }
 
 /**
- * The largest tile grid any shipped map has. `restoreWorldMapFromSave` multiplies a save's tile
- * dimensions by `PATH_CELL` and hands the result to `generateWorldMap`, which allocates typed arrays
- * for the whole surface — so an unbounded dimension pair lets a crafted file choose the allocation
- * (a 4000 × 3000 pair loads; a negative one surfaces a raw `RangeError` as the player's explanation).
- * Derived from `MAP_SIZE_DIMENSIONS` rather than hard-coded, so a bigger map size raises it.
+ * The largest tile span one axis of a shipped map can have. `restoreWorldMapFromSave` multiplies a
+ * save's tile dimensions by `PATH_CELL` and hands the result to `generateWorldMap`, which allocates
+ * typed arrays for the whole surface — so an unbounded dimension pair lets a crafted file choose the
+ * allocation (a 4000 × 3000 pair loads; a negative one surfaces a raw `RangeError` as the player's
+ * explanation). Bounded **per axis** from `MAP_SIZE_DIMENSIONS`, because one maximum let a mixed pair
+ * (the largest width against the largest height) through even though no shipped size is that shape.
  */
-function maxSavedMapTiles(): number {
+function maxSavedMapTilesForAxis(axis: 'width' | 'height'): number {
   let maxPixels = 0;
   for (const dimension of Object.values(MAP_SIZE_DIMENSIONS)) {
-    maxPixels = Math.max(maxPixels, dimension.width, dimension.height);
+    maxPixels = Math.max(maxPixels, dimension[axis]);
   }
   return Math.ceil(maxPixels / PATH_CELL);
 }
 
-function isUsableMapTileCount(value: unknown): value is number {
+function isUsableMapTileCount(value: unknown, limit: number): value is number {
   return (
     typeof value === 'number'
     && Number.isSafeInteger(value)
     && value > 0
-    && value <= maxSavedMapTiles()
+    && value <= limit
   );
 }
 
@@ -364,7 +365,10 @@ function restoreWorldMapFromSave(parsed: {
   }
   const wm = parsed.worldMap;
   const overrides = wm._overrides;
-  if (isUsableMapTileCount(wm.width) && isUsableMapTileCount(wm.height)) {
+  if (
+    isUsableMapTileCount(wm.width, maxSavedMapTilesForAxis('width'))
+    && isUsableMapTileCount(wm.height, maxSavedMapTilesForAxis('height'))
+  ) {
     // A compact save records the map in TILES (`WorldMap.width/height`, terrainGen's
     // return), while `generateWorldMap(width, height, …)` takes PIXELS. Passing the tile
     // counts straight through regenerated the valley at a hundredth of its area — a
@@ -555,6 +559,17 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 /**
+ * A year scalar that is legitimately `null`: no pending election, nothing to notify.
+ *
+ * A bare number rule would refuse every real save (`pendingElectionYear` is `number | null`). What it
+ * must catch is `Infinity`: `getYearsUntilElection` returns `pendingElectionYear - year`, so an
+ * infinite date reads as "merit election in Infinity years" and no election can ever run again.
+ */
+function isFiniteNumberOrNull(value: unknown): boolean {
+  return value === null || isFiniteNumber(value);
+}
+
+/**
  * A payload's `resources`/`storageMax` must carry **every** key as a finite number.
  *
  * Absence is deliberately *not* tolerated here, which is the opposite of the rule for the calendar
@@ -596,6 +611,9 @@ function findUnrestorableField(parsed: Record<string, unknown>): string | null {
   }
   if (parsed.lifetimeStats !== undefined && !isSaveObject(parsed.lifetimeStats)) {
     return 'lifetimeStats';
+  }
+  if (parsed.activeVillageRequest !== undefined && !isUsableVillageRequest(parsed.activeVillageRequest)) {
+    return 'activeVillageRequest';
   }
   // Present values must satisfy their own rule; absent ones are defaulted by the load path.
   for (const { field, isValid } of worldScalarRules()) {
@@ -717,6 +735,28 @@ const FOOD_HISTORY_ELEMENT_RULES: readonly ElementFieldRule[] = [
  */
 const EVENT_LOG_ELEMENT_RULES: readonly ElementFieldRule[] = [{ field: 'id', isValid: isUsableId }];
 
+/** The `kind` values `tickVisitorGroups` switches on — it is the same `as const` list as the type. */
+const VISITOR_KIND_VALUES: ReadonlySet<unknown> = new Set(['traders', 'pilgrims', 'scholars', 'hunters', 'nomads', 'refugees', 'performers']);
+
+/**
+ * A camped group's own fields: `spawnVisitorGroup` writes all of them, and a daily tick dereferences
+ * `daysLeft` and `entityIds` with no default, so a missing one freezes the camp or faults the tick.
+ */
+const VISITOR_GROUP_ELEMENT_RULES: readonly ElementFieldRule[] = [
+  { field: 'id', isValid: isStringId },
+  { field: 'kind', isValid: isMemberOf(VISITOR_KIND_VALUES) },
+  { field: 'daysLeft', isValid: isFiniteNumber },
+  { field: 'entityIds', isValid: isIdArray },
+];
+
+/** An incoming raid's own fields: a missing strength makes `Math.max(undefined, 1)` `NaN`, so every
+ *  Defend/Barricade resolves as `'defeat'`. `expiresAtTick` is not here — it has a legacy fallback. */
+const PENDING_RAID_ELEMENT_RULES: readonly ElementFieldRule[] = [
+  { field: 'id', isValid: isStringId },
+  { field: 'attackerStrength', isValid: isFiniteNumber },
+  { field: 'marchDistanceTiles', isValid: isFiniteNumber },
+];
+
 const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>> = {
   // Metric and aggregate samples: plain objects, and nothing keys on an element of either list.
   populationHistory: containerArrayRule(isAnyArray, []),
@@ -728,11 +768,11 @@ const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>>
   tradeRoutes: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   eventLog: containerArrayRule(isAnyArray, EVENT_LOG_ELEMENT_RULES),
   chronicleChapters: containerArrayRule(isAnyArray, null),
-  visitorGroups: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  visitorGroups: containerArrayRule(isAnyArray, VISITOR_GROUP_ELEMENT_RULES),
   villageRequestHistory: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   rivalSettlements: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   pendingDiplomacyEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
-  pendingRaidEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  pendingRaidEvents: containerArrayRule(isAnyArray, PENDING_RAID_ELEMENT_RULES),
   pendingStoryEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   pendingOutgoingRaidEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   tutorialSeen: containerArrayRule(isAnyArray, null),
@@ -839,6 +879,11 @@ function worldScalarRules(): readonly ElementFieldRule[] {
     { field: 'height', isValid: isFiniteNumber },
     { field: 'nextEntityId', isValid: isFiniteNumber },
     { field: 'nextBuildingId', isValid: isFiniteNumber },
+    // The persisted leadership years. `1e999` parses to `Infinity`, and an infinite election date is
+    // never reached — so a corrupt slot would leave the colony permanently headless.
+    { field: 'leaderSinceYear', isValid: isFiniteNumber },
+    { field: 'lastElectionYear', isValid: isFiniteNumber },
+    { field: 'pendingElectionYear', isValid: isFiniteNumberOrNull },
     // Both reach the renderer and the roll counter: a NaN timer can never satisfy its modulo.
     { field: 'weather', isValid: isMemberOf(WEATHER_TYPE_VALUES) },
     { field: 'weatherTimer', isValid: isFiniteNumber },
@@ -901,6 +946,27 @@ function findUnrestorableEntityField(parsed: Record<string, unknown>): string | 
     }
   }
   return null;
+}
+
+/**
+ * The shape `groupEvents.spawnVisitorGroup` gives a provisions card's answers: an id, a label and a
+ * detail, all strings. The card is not a container element, so it gets its own rule.
+ */
+function isVillageRequestChoice(value: unknown): boolean {
+  if (!isSaveObject(value)) return false;
+  const fields = value as Record<string, unknown>;
+  return [fields.id, fields.label, fields.detail].every((field) => typeof field === 'string');
+}
+
+/**
+ * The one save field whose reader is a render-time call: `getVillageRequestEligibility` runs
+ * `request.choices.some(…)` while the shell paints the card, so a card without a usable `choices`
+ * array white-screens the UI instead of refusing. Absence is the owner's own default — the load path
+ * defaults a missing card to `undefined` — but a *present* one must be walkable. Only `choices` is
+ * judged: the other keys are strings the readers dereference without a rule of their own.
+ */
+function isUsableVillageRequest(value: unknown): boolean {
+  return isSaveObject(value) && Array.isArray(value.choices) && value.choices.every(isVillageRequestChoice);
 }
 
 /**
@@ -1094,6 +1160,9 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       firstWeekVisitorSpawned: worldData.firstWeekVisitorSpawned ?? false,
       visitorGroups: (worldData.visitorGroups ?? []).map((g) => ({
         ...g,
+        // `giftsGiven` is `++`'d by the daily tick and has no rule of its own, so an absent one used
+        // to load as `NaN` and be re-saved as `null` — the sibling counter's default, applied here.
+        giftsGiven: g.giftsGiven ?? 0,
         tradesCompleted: g.tradesCompleted ?? 0,
         refugeeResolved: g.refugeeResolved ?? g.kind !== 'refugees',
         leaderTalked: g.leaderTalked ?? false,

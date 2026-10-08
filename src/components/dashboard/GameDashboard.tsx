@@ -17,7 +17,7 @@
  *
  * Read-only — it only projects state and never mutates simulation state.
  */
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { WorldState } from '../../game/gameTypes';
 import { collectDashboard, explainSettler, resourceFillPercent, type DashboardData } from '../../game/dashboardData';
 import { displayYear } from '../../game/dayCycleClock';
@@ -334,7 +334,8 @@ export default function GameDashboard({
   /** Open the Log window on the half and category a concern is about. */
   onOpenLog?: (nav: ConcernLogNav) => void;
 }) {
-  const data = useMemo(() => collectDashboard(state), [state]);
+  // Derived each render: the WorldState prop is mutated in place, so a `[state]` memo never sees a tick.
+  const data = collectDashboard(state);
   const [openTab, setOpenTab] = useState<'settlers' | 'trend'>('settlers');
   const [selectedSettlerId, setSelectedSettlerId] = useState<number | null>(null);
   // The keyboard half of the overlay contract: the dashboard owns the keyboard while it is open and

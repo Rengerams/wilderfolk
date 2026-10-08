@@ -1,70 +1,14 @@
-﻿import { PATH_CELL } from '../gameTypes';
+import { COMMUTE_CONFIG } from '../commuteReach';
+import { PATH_CELL } from '../gameTypes';
 import { BuildingType } from '../buildings';
 import type { Building, Entity } from '../gameTypes';
-import { TICKS_PER_HOUR } from '../dayCycle';
 import { PRISON_GUARDS_MAX } from '../prisonShifts';
 import { isActiveMoonHowler } from '../moonHowler';
 import { steerWithPath } from '../pathfinding';
-import { isEntityOnBuilding } from '../buildingRotation';
-import { faceVelocity, ROAD_SPEED_MULT } from './movementSteering';
-
-const COMMUTE_CONFIG = {
-  LONG_RANGE_DIST: 50,
-  ARRIVAL_DIST: 8,
-  MAX_DIST_RUSH: 12,
-  /** Final-approach easing: the last stretch closes at `dist * APPROACH_RATE_PER_TICK` per tick. */
-  APPROACH_RATE_PER_TICK: 0.25,
-  /** Per-tick distance on the pathed branch, as a fraction of `moveSpeed`. */
-  PATH_STEER_SPEED_RATIO: 0.88,
-} as const;
+import { faceVelocity } from './movementSteering';
 
 /** Beyond this distance, settlers snap to home/work. */
 export const COMMUTE_SNAP_DISTANCE = 200;
-
-/** The longest commute lead the scheduler hands out, in hours (see `commuteLeadHoursFor`). */
-export const MAX_COMMUTE_LEAD_HOURS = 6;
-
-/**
- * The `rush` the work commute passes to `commuteHumanToBuilding`, which multiplies the movement the
- * walk actually makes. The scheduling estimate has to include it or it disagrees with the walk by
- * exactly this factor.
- */
-export const WORK_COMMUTE_RUSH = 3.5;
-
-/** Roads are quicker to walk, so a settler who may use them can be housed further out. */
-const COMMUTE_ROAD_SPEED_MULT = ROAD_SPEED_MULT;
-
-/** Spacing of the samples that test whether a road serves a route, in world px. */
-const ROAD_ROUTE_SAMPLE_PX = 24;
-
-/**
- * Owner, 2026-10-06: *"if the commute is longer than 2 hrs they shouldn't be assigned to that
- * workplace"*. A settler who cannot reach a post inside two hours is not a candidate for it.
- */
-export const MAX_ASSIGNABLE_COMMUTE_HOURS = 2;
-
-/**
- * Hours before a shift a settler must set off, so they are **at** work when it starts. Floor of one
- * hour; past the ceiling the shift-start snap is what still puts them at their post.
- *
- * `rush` defaults to the multiplier the work commute really uses, so this reports the walk the
- * settler makes rather than a slower one they never walk.
- */
-export function commuteLeadHoursFor(
-  distance: number,
-  walkSpeed: number,
-  rush: number = WORK_COMMUTE_RUSH,
-): number {
-  if (!Number.isFinite(distance) || distance <= COMMUTE_CONFIG.ARRIVAL_DIST) return 1;
-  const speed = Number.isFinite(walkSpeed) && walkSpeed > 0 ? walkSpeed : 1;
-  const rushMult = Number.isFinite(rush) && rush > 0 ? rush : 1;
-  const perTick = speed * rushMult * Math.min(COMMUTE_CONFIG.MAX_DIST_RUSH, 1 + distance / 40)
-    * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
-  if (!Number.isFinite(perTick) || perTick <= 0) return 1;
-  const hours = distance / perTick / TICKS_PER_HOUR;
-  if (!Number.isFinite(hours)) return 1;
-  return Math.min(MAX_COMMUTE_LEAD_HOURS, Math.max(1, hours));
-}
 
 // ============ COMMUTE HELPERS ============
 
@@ -220,63 +164,6 @@ export function commuteDistanceToBuilding(
   return Math.hypot(target.x - entity.x, target.y - entity.y);
 }
 
-/**
- * Whether a road serves the route between two points.
- *
- * Samples along the straight line rather than asking whether the village owns any road at all: one
- * road on the far side of the map must not widen every settler's reachable radius.
- */
-function routePassesRoad(
-  fromX: number,
-  fromY: number,
-  toX: number,
-  toY: number,
-  buildings: readonly Building[],
-): boolean {
-  const distance = Math.hypot(toX - fromX, toY - fromY);
-  const samples = Math.max(1, Math.min(24, Math.ceil(distance / ROAD_ROUTE_SAMPLE_PX)));
-  for (let i = 1; i < samples; i++) {
-    const t = i / samples;
-    const x = fromX + (toX - fromX) * t;
-    const y = fromY + (toY - fromY) * t;
-    for (const building of buildings) {
-      if (building.type !== BuildingType.Road && building.type !== BuildingType.Bridge) continue;
-      if (!building.completed) continue;
-      if (isEntityOnBuilding(x, y, building, ROAD_ROUTE_SAMPLE_PX)) return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Whether this settler can be given a post at this building at all.
- *
- * Reads `commuteLeadHoursFor` so the hours the scheduler would actually hand out are the ones judged,
- * and measures from the settler's **home** when they have one — a post is held from where they live,
- * not from wherever they happen to be standing when the assignment runs.
- *
- * A road along the route counts in the settler's favour: the village steers settlers onto road tiles
- * and those tiles are quicker to walk, so a post reachable in time by road stays assignable. Without
- * one the settler is judged on plain walking.
- */
-export function isWithinAssignableCommute(
-  entity: Entity,
-  building: Building,
-  buildings: readonly Building[],
-  walkSpeed: number,
-): boolean {
-  const home = entity.homeBuildingId == null
-    ? undefined
-    : buildings.find((candidate) => candidate.id === entity.homeBuildingId);
-  const from = home ?? entity;
-  const toX = building.x + building.width / 2;
-  const toY = building.y + building.height / 2;
-  const distance = Math.hypot(toX - from.x, toY - from.y);
-  const usesRoad = routePassesRoad(from.x, from.y, toX, toY, buildings);
-  const speed = usesRoad ? walkSpeed * COMMUTE_ROAD_SPEED_MULT : walkSpeed;
-  return commuteLeadHoursFor(distance, speed) <= MAX_ASSIGNABLE_COMMUTE_HOURS;
-}
-
 export function snapHumanToBuilding(entity: Entity, building: Building, arrivingHome: boolean): void {
   const target = humanBuildingTarget(building, entity.id, arrivingHome);
   entity.x = target.x;
@@ -417,3 +304,11 @@ export function nearestActiveMoonHowler(
 
   return best;
 }
+
+export {
+  MAX_ASSIGNABLE_COMMUTE_HOURS,
+  MAX_COMMUTE_LEAD_HOURS,
+  WORK_COMMUTE_RUSH,
+  commuteLeadHoursFor,
+  isWithinAssignableCommute,
+} from '../commuteReach';

@@ -1,7 +1,7 @@
 import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState } from './gameTypes';
 import { maybeOfferValleyDebate } from './storyEvents';
 import { recordElectionPromises, tickElectionPromises } from './electionPromises';
-import { BuildingType, EntityType } from './gameTypes';
+import { EntityType } from './gameTypes';
 import { DAYS_PER_YEAR, getAgeInYears, HUMAN_ADULT_MIN_AGE, isImprisoned, TICKS_PER_HOUR } from './dayCycle';
 import { displayYear } from './dayCycleClock';
 import { logEvent } from './eventLog';
@@ -11,6 +11,7 @@ import { sayHumanChatPhrase } from './humanChat';
 import { ensureEntitySkills } from './skills';
 import { simulateElectionVotes } from './electionVotes';
 import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
+import { findPlayerTownHall } from './townHall';
 import { seededRandomForRun } from './simRng';
 import { humanDisplayName } from './citizenId';
 import { startFeud } from './relationships';
@@ -292,9 +293,7 @@ export function getLeadershipScoreBreakdown(
     Math.min(Math.max(0, ageYears - HUMAN_ADULT_MIN_AGE), 200) * 0.25,
   );
 
-  const townHall = state.buildings.find(
-    (b) => b.completed && b.type === BuildingType.TownHall && b.faction !== 'rival',
-  );
+  const townHall = findPlayerTownHall(state.buildings);
   const servicePoints = townHall?.occupants.includes(entity.id) ? 15 : 0;
   const communityPoints = entity.relationshipStatus === 'married' ? 5 : 0;
   const titlePoints = entity.title ? TITLE_MERIT_BONUS : 0;
@@ -438,9 +437,7 @@ function scoreSummary(b: LeadershipScoreBreakdown): string {
 }
 
 export function getElectionGatherSite(state: WorldState): { x: number; y: number } {
-  const hall = state.buildings.find(
-    (b) => b.completed && b.type === BuildingType.TownHall && b.faction !== 'rival',
-  );
+  const hall = findPlayerTownHall(state.buildings);
   if (hall) {
     return { x: hall.x + hall.width / 2, y: hall.y + hall.height / 2 };
   }
@@ -767,11 +764,7 @@ export function startElectionCeremony(
     pendingChanged: state.villageLeaderId !== winner.entityId,
   };
 
-  const place = state.buildings.some(
-    (b) => b.completed && b.type === BuildingType.TownHall && b.faction !== 'rival',
-  )
-    ? 'the Town Hall'
-    : 'the village center';
+  const place = findPlayerTownHall(state.buildings) ? 'the Town Hall' : 'the village center';
 
   logEvent(
     state,
@@ -904,12 +897,13 @@ export function tickElectionCeremony(state: WorldState, year: number): ElectionA
   ceremony.phaseTicksLeft--;
   if (ceremony.phaseTicksLeft <= 0) {
     advanceCeremonyPhase(state, ceremony);
+    // Tension lasts an hour: its gossip rolls once, on the phase change, not on a clock residue.
+    if (ceremony.phase === 'tension') {
+      tickElectionGossip(state);
+    }
   }
 
   if (ceremony.phase === 'gossip' && state.tick % 18 === 0) {
-    tickElectionGossip(state);
-  }
-  if (ceremony.phase === 'tension' && state.tick % 24 === 0) {
     tickElectionGossip(state);
   }
 
@@ -1172,6 +1166,7 @@ export function tryStartTermElectionCeremony(
 function isValidElectionCeremony(value: unknown): value is ElectionCeremonyState {
   if (!value || typeof value !== 'object') return false;
   const ceremony = value as Partial<ElectionCeremonyState>;
+  const pendingLeaderId: unknown = ceremony.pendingLeaderId;
   const phases: ElectionCeremonyPhase[] = ['gathering', 'gossip', 'tension', 'reveal'];
   return (
     typeof ceremony.phase === 'string' &&
@@ -1179,9 +1174,12 @@ function isValidElectionCeremony(value: unknown): value is ElectionCeremonyState
     typeof ceremony.phaseTicksLeft === 'number' &&
     Number.isFinite(ceremony.phaseTicksLeft) &&
     typeof ceremony.gatherX === 'number' &&
+    Number.isFinite(ceremony.gatherX) &&
     typeof ceremony.gatherY === 'number' &&
+    Number.isFinite(ceremony.gatherY) &&
     typeof ceremony.reason === 'string' &&
-    typeof ceremony.pendingLeaderId === 'number' &&
+    (pendingLeaderId === null ||
+      (typeof pendingLeaderId === 'number' && Number.isFinite(pendingLeaderId))) &&
     typeof ceremony.pendingLeaderName === 'string' &&
     typeof ceremony.pendingChanged === 'boolean'
   );

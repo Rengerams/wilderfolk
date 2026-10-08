@@ -2,6 +2,10 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Made the Guide and the shortcut sheet name the same six header doors** — each listed its own set, so the in-game help sent a stuck player to a door the header does not have; both now render one door list.
+
+- **Kept the map-setup gallery from clipping its own cards** — the second row of "Choose your land" was cut by the footer and pushed the size and difficulty choices off-screen at 900×600; the gallery scrolls inside a bounded height now, with the cue in its heading.
+
 - **Stopped a School and a Town Hall claiming their workers are assigned automatically** — the panel restated the manual-staffing rule by hand and omitted both, so a player waited for a teacher who could never arrive; it now reads the workforce owner's own verdict.
 
 - **Stopped a prison counting its prisoners as guards against the guard cap** — the workers line measured everyone in the building against the post count, so a fully guarded prison with cells to spare said "No idle settlers"; both numbers now come from the staffing owner.

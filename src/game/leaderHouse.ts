@@ -91,8 +91,6 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   if (!house) return;
 
   const household = collectLeaderHousehold(state);
-  if (household.length === 0) return;
-
   const entitledIds = new Set(household.map((m) => m.id));
   let evicted = false;
   let movedIn = false;

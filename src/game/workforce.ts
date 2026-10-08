@@ -9,7 +9,7 @@ import {
 } from './gameTypes';
 import { getOccupationForBuilding, ensureEntitySkills, readSkill } from './skills';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { isWithinAssignableCommute } from './simulation/humanMovement';
+import { isWithinAssignableCommute } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
 import { humanDisplayName } from './citizenId';
 import { assignMissingResidences } from './residencyReconciliation';

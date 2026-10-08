@@ -5,7 +5,7 @@ import { ensureEntityByIdMap } from './entityIndex';
 import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
 import { formatCitizenName, formatDeathLog } from './citizenId';
 import { logDeath, logEvent } from './eventLog';
-import { isPlayerHuman } from './playerHuman';
+import { playerHumanCount } from './playerHuman';
 import { isRivalAtPeace } from './rivalPeace';
 import { gainSkill } from './skills';
 import {
@@ -31,7 +31,7 @@ import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } fr
 import { getSimRng } from './simRng';
 import { addCappedResource } from './resourceUtils';
 import { spendFood } from './economyLedger';
-import { addBigNews } from './simEffects';
+import { addBigNews, addFloatingText } from './simEffects';
 import { addReputation, getReputationBand } from './simHelpers';
 
 export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
@@ -46,6 +46,8 @@ const RAID_FOOD_MIN = 22;
 const RAID_FOOD_MAX = 50;
 /** Home-turf bonus when you attack a rival camp (harder than meeting them at your gate). */
 const OUTGOING_RAID_DEFENSE_MULT = 1.25;
+/** Population both raid gates require before a war-band can march on a camp. */
+const MIN_RAID_POPULATION = 8;
 
 export function hasMilitiaWeapons(state: WorldState): boolean {
   return hasIronSwords(state) || hasIronSpears(state) || hasStoneSpears(state);
@@ -161,7 +163,7 @@ function getCounterRaidBlockReason(
   if (isRivalAtPeace(rival)) return `Peace treaty — ${rival.peaceTreatyDays} days left`;
   if (rival.relationship === 'friendly') return 'Friendly — cannot raid';
   if (!hasWeapons) return 'Need weapons (spears/swords)';
-  if (state.humanPopulation < 8) return `Need 8+ population (have ${state.humanPopulation})`;
+  if (state.humanPopulation < MIN_RAID_POPULATION) return `Need ${MIN_RAID_POPULATION}+ population (have ${state.humanPopulation})`;
   if (outgoingRaidFoodCost != null && state.resources.food < outgoingRaidFoodCost) {
     return `Need ${outgoingRaidFoodCost}🍖 provisions (have ${state.resources.food})`;
   }
@@ -277,7 +279,9 @@ export function canLaunchRaidOnRival(
   if (!hasMilitiaWeapons(state)) {
     return { ok: false, foodCost, blockReason: 'Need weapons (stone/iron spears or swords)' };
   }
-  if (state.humanPopulation < 8) return { ok: false, foodCost, blockReason: 'Need 8+ population' };
+  if (state.humanPopulation < MIN_RAID_POPULATION) {
+    return { ok: false, foodCost, blockReason: `Need ${MIN_RAID_POPULATION}+ population` };
+  }
   if (state.resources.food < foodCost) {
     return { ok: false, foodCost, blockReason: `Need ${foodCost}🍖 march provisions` };
   }
@@ -374,14 +378,6 @@ export function getCombatPreview(
       ? null
       : resolveCounterRaidRatio(militiaStrength, counterRaidRivalStrength!),
   };
-}
-
-function pushFloat(state: WorldState, x: number, y: number, text: string, color: string) {
-  state.floatingTexts.push({
-    id: state.nextFloatingTextId++,
-    x, y, text, color,
-    life: 28, maxLife: 28, scale: 1,
-  });
 }
 
 function flashMilitia(entities: Entity[], ticks = 22) {
@@ -499,7 +495,7 @@ function rewardRaidParticipants(
         `${formatCitizenName(leader)} led the raid against ${rivalName} — village reputation +${repBonus}`,
         formatCitizenName(leader),
       );
-      pushFloat(state, leader.x, leader.y - 24, `👑 +${repBonus} rep`, '#fbbf24');
+      addFloatingText(state, leader.x, leader.y - 24, `👑 +${repBonus} rep`, '#fbbf24');
     }
     if (granted > 0) {
       addBigNews(
@@ -809,7 +805,7 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   if (rival.raidCooldownDays > 0) return;
   if (isRivalAtPeace(rival)) return;
   if (rival.relationship !== 'tense' && rival.relationship !== 'competitive') return;
-  if (getPlayerHumanCount(allAlive) < 5) return;
+  if (playerHumanCount(allAlive) < 5) return;
 
   const hasPlayerStructure = state.buildings.some((b) => b.completed && b.faction !== 'rival');
   if (!hasPlayerStructure) return;
@@ -856,10 +852,6 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   state.screenShakeImpulse = Math.max(state.screenShakeImpulse, 5);
 }
 
-function getPlayerHumanCount(allAlive: Entity[]): number {
-  return allAlive.filter((e) => e.alive && isPlayerHuman(e)).length;
-}
-
 export function tickPendingRaidEvents(
   state: WorldState,
   allAlive: Entity[],
@@ -884,7 +876,7 @@ export function tickPendingRaidEvents(
     addReputation(state, -4);
     rival.relationship = 'tense';
     const camp = getPlayerCampCenter(state, buildings);
-    pushFloat(state, camp.x, camp.y - 25, formatLootParts(taken, '-') || 'Raid!', '#f87171');
+    addFloatingText(state, camp.x, camp.y - 25, formatLootParts(taken, '-') || 'Raid!', '#f87171');
     const lootNote = formatLootParts(taken);
     const defendedNote = structureBonus > 0
       ? ` — defenses (${structureBonus} structure strength) limited the damage`
@@ -968,7 +960,7 @@ export function respondToRaidEvent(
   if (choiceId === 'payoff') {
     const eligibility = getRaidChoiceEligibility(state, event, choiceId, allAlive);
     if (!eligibility.ok) {
-      pushFloat(state, camp.x, camp.y - 20, eligibility.blockReason ?? `Need ${event.lootFood}🍖`, '#f97316');
+      addFloatingText(state, camp.x, camp.y - 20, eligibility.blockReason ?? `Need ${event.lootFood}🍖`, '#f97316');
       return state;
     }
     spendFood(state, 'tribute', event.lootFood);
@@ -976,7 +968,7 @@ export function respondToRaidEvent(
       rival.relationship = rival.relationship === 'tense' ? 'competitive' : rival.relationship;
       rival.raidCooldownDays = 14;
     }
-    pushFloat(state, camp.x, camp.y - 20, 'Paid off', '#eab308');
+    addFloatingText(state, camp.x, camp.y - 20, 'Paid off', '#eab308');
     logEvent(state, 'combat', `Paid ${event.lootFood} food to end ${event.rivalName}'s raid`, event.rivalName, 'defense');
     remove();
     return state;
@@ -985,7 +977,7 @@ export function respondToRaidEvent(
   if (choiceId === 'barricade') {
     const eligibility = getRaidChoiceEligibility(state, event, choiceId, allAlive);
     if (!eligibility.ok) {
-      pushFloat(state, camp.x, camp.y - 20, eligibility.blockReason ?? 'Cannot barricade', '#f97316');
+      addFloatingText(state, camp.x, camp.y - 20, eligibility.blockReason ?? 'Cannot barricade', '#f97316');
       return state;
     }
     state.resources.wood -= BARRICADE_RAID_COST.wood ?? 0;
@@ -1013,7 +1005,7 @@ export function respondToRaidEvent(
         event.rivalName,
         'defense',
       );
-      pushFloat(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Raided', '#f87171');
+      addFloatingText(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Raided', '#f87171');
       applyRaidCasualties(
         state,
         allAlive,
@@ -1023,7 +1015,7 @@ export function respondToRaidEvent(
     } else {
       addReputation(state, 2);
       if (rival) rival.relationship = rival.relationship === 'tense' ? 'competitive' : rival.relationship;
-      pushFloat(state, camp.x, camp.y - 20, 'Held!', '#22c55e');
+      addFloatingText(state, camp.x, camp.y - 20, 'Held!', '#22c55e');
       logEvent(state, 'combat', `Barricade repelled ${event.rivalName}'s raid`, event.rivalName, 'repelled');
       applyRaidCasualties(state, allAlive, 'victory', event.rivalName);
     }
@@ -1036,7 +1028,7 @@ export function respondToRaidEvent(
   if (choiceId === 'defend') {
     const eligibility = getRaidChoiceEligibility(state, event, choiceId, allAlive);
     if (!eligibility.ok) {
-      pushFloat(state, camp.x, camp.y - 20, eligibility.blockReason ?? 'Cannot defend', '#f97316');
+      addFloatingText(state, camp.x, camp.y - 20, eligibility.blockReason ?? 'Cannot defend', '#f97316');
       return state;
     }
 
@@ -1059,7 +1051,7 @@ export function respondToRaidEvent(
           rival.relationship = rival.relationship === 'tense' ? 'competitive' : 'neutral';
           rival.raidCooldownDays = 28;
         }
-        pushFloat(state, camp.x, camp.y - 20, 'Victory!', '#22c55e');
+        addFloatingText(state, camp.x, camp.y - 20, 'Victory!', '#22c55e');
         logEvent(state, 'combat', `Militia routed ${event.rivalName}'s war-band`, event.rivalName, 'repelled');
         applyRaidCasualties(state, allAlive, 'victory', event.rivalName);
         break;
@@ -1068,7 +1060,7 @@ export function respondToRaidEvent(
         damageRandomPlayerBuilding(state, 6);
         addReputation(state, 1);
         if (rival) rival.raidCooldownDays = 20;
-        pushFloat(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Costly win', '#fbbf24');
+        addFloatingText(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Costly win', '#fbbf24');
         const lootNote = formatLootParts(taken);
         logEvent(
           state,
@@ -1094,7 +1086,7 @@ export function respondToRaidEvent(
           event.rivalName,
           'defense',
         );
-        pushFloat(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Looted', '#f87171');
+        addFloatingText(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Looted', '#f87171');
         break;
       }
       case 'defeat': {
@@ -1103,7 +1095,7 @@ export function respondToRaidEvent(
         addReputation(state, -6);
         if (rival) rival.relationship = 'tense';
         applyRaidCasualties(state, allAlive, 'heavy', event.rivalName);
-        pushFloat(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Raided!', '#f87171');
+        addFloatingText(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Raided!', '#f87171');
         const lootNote = formatLootParts(taken);
         logEvent(
           state,
@@ -1140,7 +1132,7 @@ function resolveOutgoingRaidCombat(
     rival.relationship = 'tense';
     rival.raidCooldownDays = 10;
     applyRaidCasualties(state, state.entities, 'victory', rival.name, 'raiding');
-    pushFloat(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Spoils!', '#22c55e');
+    addFloatingText(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Spoils!', '#22c55e');
     const lootNote = formatLootParts(gained);
     logEvent(
       state,
@@ -1164,13 +1156,13 @@ function resolveOutgoingRaidCombat(
       rival.name,
       'outgoing_raid',
     );
-    pushFloat(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Meager', '#fbbf24');
+    addFloatingText(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Meager', '#fbbf24');
   } else {
     spendFood(state, 'raid', 15);
     addReputation(state, -8);
     rival.relationship = 'tense';
     applyRaidCasualties(state, state.entities, 'heavy', rival.name, 'raiding');
-    pushFloat(state, rival.campX, rival.campY - 20, 'War-band broken!', '#f87171');
+    addFloatingText(state, rival.campX, rival.campY - 20, 'War-band broken!', '#f87171');
     logEvent(state, 'combat', `${verb} on ${rival.name} failed — war-band fought back`, rival.name, 'outgoing_raid');
     maybeQueueRaid(state, rival, state.entities.filter((e) => e.alive));
     rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 7);
@@ -1252,7 +1244,7 @@ export function respondToOutgoingRaidEvent(
     rival.daysUntilAction = 28;
     addReputation(state, -2);
     const lootNote = formatLootParts(gained);
-    pushFloat(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Tribute!', '#eab308');
+    addFloatingText(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Tribute!', '#eab308');
     logEvent(
       state,
       'combat',
@@ -1279,13 +1271,13 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
   const state = structuredClone(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return state;
-  if (rival.relationship === 'friendly') return state;
-  if (isRivalAtPeace(rival)) return state;
-  if (!hasMilitiaWeapons(state)) return state;
-  if (state.humanPopulation < 8) return state;
-  const raidFoodCost = getOutgoingRaidFoodCostForRival(state, rival);
-  if (state.resources.food < raidFoodCost) return state;
-  if ((state.pendingOutgoingRaidEvents ?? []).some((e) => e.rivalId === rivalId)) return state;
+
+  const eligibility = canLaunchRaidOnRival(state, rival);
+  if (!eligibility.ok) {
+    addFloatingText(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot march on this camp', '#f97316');
+    return state;
+  }
+  const raidFoodCost = eligibility.foodCost;
 
   if (!state.pendingOutgoingRaidEvents) state.pendingOutgoingRaidEvents = [];
 

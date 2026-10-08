@@ -11,6 +11,26 @@ import { isPlayerHuman } from '../game/playerHuman';
 const W = 152;
 const H = 110;
 
+export interface MiniMapViewportRect { x: number; y: number; width: number; height: number }
+
+/**
+ * The map's visible world span in mini-map pixels. A zero canvas measurement falls back to
+ * the world size — the whole map visible, which is what an unmeasured canvas actually shows.
+ */
+export function computeMiniMapViewportRect(
+  canvasWidth: number,
+  canvasHeight: number,
+  worldWidth: number,
+  worldHeight: number,
+  camera: { x: number; y: number; zoom: number },
+): MiniMapViewportRect {
+  const scaleX = W / worldWidth;
+  const scaleY = H / worldHeight;
+  const width = ((canvasWidth || worldWidth) / camera.zoom) * scaleX;
+  const height = ((canvasHeight || worldHeight) / camera.zoom) * scaleY;
+  return { x: camera.x * scaleX - width / 2, y: camera.y * scaleY - height / 2, width, height };
+}
+
 /**
  * Mini-map terrain tints come from the canonical terrain palette
  * (`terrainAtlas.terrainPaletteHex`) rather than a third hand-written table.
@@ -142,18 +162,19 @@ export default function MiniMap({
 
             // Viewport rectangle — sized from the map canvas, not the world (see `mapCanvasRef`).
             const mapCanvas = mapCanvasRef?.current;
-            const viewW = mapCanvas?.offsetWidth || mapCanvas?.clientWidth || world.width;
-            const viewH = mapCanvas?.offsetHeight || mapCanvas?.clientHeight || world.height;
-            const camW = (viewW / camera.zoom) * scaleX;
-            const camH = (viewH / camera.zoom) * scaleY;
-            const camX = camera.x * scaleX - camW / 2;
-            const camY = camera.y * scaleY - camH / 2;
+            const camRect = computeMiniMapViewportRect(
+              mapCanvas?.offsetWidth || mapCanvas?.clientWidth || 0,
+              mapCanvas?.offsetHeight || mapCanvas?.clientHeight || 0,
+              world.width,
+              world.height,
+              camera,
+            );
             ctx.strokeStyle = 'rgba(0,0,0,0.55)';
             ctx.lineWidth = 2;
-            ctx.strokeRect(camX, camY, camW, camH);
+            ctx.strokeRect(camRect.x, camRect.y, camRect.width, camRect.height);
             ctx.strokeStyle = '#fde68a';
             ctx.lineWidth = 1;
-            ctx.strokeRect(camX, camY, camW, camH);
+            ctx.strokeRect(camRect.x, camRect.y, camRect.width, camRect.height);
 
             // Inner rim
             ctx.strokeStyle = 'rgba(255,255,255,0.08)';

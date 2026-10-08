@@ -42,7 +42,7 @@ const isComment = (text) => {
   return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*');
 };
 
-const isSource = (file) => /\.(ts|tsx)$/.test(file) && !file.endsWith('.d.ts');
+const isSource = (file) => /\.(ts|tsx|mts)$/.test(file) && !file.endsWith('.d.ts');
 
 function inspect(where, text, found) {
   if (!isComment(text)) return;
