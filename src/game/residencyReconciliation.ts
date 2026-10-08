@@ -3,8 +3,24 @@ import type { Building, Entity } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
 import { collectFamilyMembers, collectOwnHousehold, isMinorChild } from './householdComposition';
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove, isImprisoned } from './residencyOccupancy';
-import { listPlayerResidences, ensureOrphanAdoption, rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence } from './residencySelection';
+import { listPlayerResidences, ensureOrphanAdoption, rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove } from './residencySelection';
+import type { ResidenceTraitsById } from './residencySelection';
 import { isPlayerHuman } from './playerHuman';
+
+/**
+ * One residence write: the occupancy count, the pass's trait map and the field move together.
+ * A pass that threaded a trait map but skipped either bookkeeping would read stale traits.
+ */
+function moveResident(
+  occupancy: ResidenceOccupancy | undefined,
+  traits: ResidenceTraitsById | undefined,
+  human: Entity,
+  toId: number | undefined,
+): void {
+  if (occupancy) occupancyMove(occupancy, human.residenceBuildingId, toId);
+  if (traits) residenceTraitMove(traits, human, human.residenceBuildingId, toId);
+  human.residenceBuildingId = toId;
+}
 
 function pickSharedResidence(
   human: Entity,
@@ -141,15 +157,15 @@ function assignFamilyToResidence(
   residences: Building[],
   allHumans: Entity[],
   occupancy?: ResidenceOccupancy,
+  traits?: ResidenceTraitsById,
 ): void {
   // A family that fits nowhere falls through to the split path below; the old
   // `?? pickSharedResidenceForFamily(...)` fallback re-ran the same fit test over the same
   // residences, so it could never contribute a placement.
-  const picked = pickResidenceForFamily(family, alive, residences, occupancy);
+  const picked = pickResidenceForFamily(family, alive, residences, occupancy, traits);
   if (picked !== undefined) {
     for (const member of family) {
-      if (occupancy) occupancyMove(occupancy, member.residenceBuildingId, picked);
-      member.residenceBuildingId = picked;
+      moveResident(occupancy, traits, member, picked);
     }
     return;
   }
@@ -158,25 +174,18 @@ function assignFamilyToResidence(
   const juveniles = family.filter((m) => m.isJuvenile).sort((a, b) => a.id - b.id);
 
   for (const adult of adults) {
-    const house = pickResidenceForHuman(adult, alive, residences, occupancy);
-    if (house !== undefined) {
-      if (occupancy) occupancyMove(occupancy, adult.residenceBuildingId, house);
-      adult.residenceBuildingId = house;
-    }
+    const house = pickResidenceForHuman(adult, alive, residences, occupancy, traits);
+    if (house !== undefined) moveResident(occupancy, traits, adult, house);
   }
 
   for (const child of juveniles) {
     const custodianHome = pickResidenceFromChildCustodian(child, allHumans, residences);
     if (custodianHome !== undefined) {
-      if (occupancy) occupancyMove(occupancy, child.residenceBuildingId, custodianHome);
-      child.residenceBuildingId = custodianHome;
+      moveResident(occupancy, traits, child, custodianHome);
       continue;
     }
-    const house = pickResidenceForHuman(child, alive, residences, occupancy);
-    if (house !== undefined) {
-      if (occupancy) occupancyMove(occupancy, child.residenceBuildingId, house);
-      child.residenceBuildingId = house;
-    }
+    const house = pickResidenceForHuman(child, alive, residences, occupancy, traits);
+    if (house !== undefined) moveResident(occupancy, traits, child, house);
   }
 }
 
@@ -184,14 +193,12 @@ function fillHomelessAfterEviction(
   alive: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
+  traits?: ResidenceTraitsById,
 ): void {
   for (const human of alive) {
     if (!hasResidenceAssignment(human)) {
-      const house = pickResidenceForHuman(human, alive, residences, occupancy);
-      if (house !== undefined) {
-        if (occupancy) occupancyMove(occupancy, human.residenceBuildingId, house);
-        human.residenceBuildingId = house;
-      }
+      const house = pickResidenceForHuman(human, alive, residences, occupancy, traits);
+      if (house !== undefined) moveResident(occupancy, traits, human, house);
     }
   }
 }
@@ -240,42 +247,43 @@ export function assignMissingResidences(
   const housingUnitsBase = buildHousingUnits(alive);
   for (let pass = 0; pass < 24; pass++) {
     let reassigned = 0;
-    // One occupancy scan per pass — O(H) then O(1) counts (EK-E2).
+    // One occupancy scan per pass — O(H) then O(1) counts (EK-E2) — and one trait walk beside it,
+    // threaded through every pick below instead of rebuilt per pick (F-SIM-9).
     const occupancy = buildResidenceOccupancy(alive);
+    const traits = buildResidenceTraits(alive);
     const housingUnits = sortHousingUnitsForAssignment(
       housingUnitsBase,
       alive,
       residences,
       occupancy,
+      traits,
     );
     for (const unit of housingUnits) {
-      if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy)) continue;
+      if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
 
       for (const member of unit) {
-        occupancyMove(occupancy, member.residenceBuildingId, undefined);
-        member.residenceBuildingId = undefined;
+        moveResident(occupancy, traits, member, undefined);
       }
-      assignFamilyToResidence(unit, alive, residences, humans, occupancy);
+      assignFamilyToResidence(unit, alive, residences, humans, occupancy, traits);
       reassigned++;
     }
     const evicted = rebalanceOvercrowdedResidences(alive, residences);
     if (evicted) {
-      // Rebalance clears residences without the map — rebuild before fill.
+      // Rebalance clears residences without the maps — rebuild both before fill.
       const afterEvict = buildResidenceOccupancy(alive);
-      fillHomelessAfterEviction(alive, residences, afterEvict);
+      const traitsAfterEvict = buildResidenceTraits(alive);
+      fillHomelessAfterEviction(alive, residences, afterEvict, traitsAfterEvict);
     }
     if (reassigned === 0 && !evicted) break;
   }
 
   {
     const occupancy = buildResidenceOccupancy(alive);
+    const traits = buildResidenceTraits(alive);
     for (const human of alive) {
       if (!hasResidenceAssignment(human)) {
-        const house = pickResidenceForHuman(human, alive, residences, occupancy);
-        if (house !== undefined) {
-          occupancyMove(occupancy, human.residenceBuildingId, house);
-          human.residenceBuildingId = house;
-        }
+        const house = pickResidenceForHuman(human, alive, residences, occupancy, traits);
+        if (house !== undefined) moveResident(occupancy, traits, human, house);
       }
     }
   }

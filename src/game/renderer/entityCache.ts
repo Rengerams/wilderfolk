@@ -65,6 +65,10 @@ export function resetEntityCaches(): void {
   _cachedGrass = [];
   _cachedPartnerById.clear();
   _renderSoABuckets = null;
+  _treeBands = null;
+  _animalBands = null;
+  _humanBands = null;
+  _soaGrassFallback = [];
   invalidateRenderSoABucketsCache();
 }
 
@@ -112,19 +116,110 @@ function syncDrawCacheSource(snapshot: RenderSnapshot): boolean {
   return true;
 }
 
-function filterEntitiesInViewport(entities: Entity[], cam: Camera, cw: number, ch: number): Entity[] {
-  // `viewportFromCamera` is a constant of this call, so it is built once instead of once per
-  // candidate entity (it was previously re-derived inside the predicate for all ~N candidates).
-  const pad = 72;
-  const vp = viewportFromCamera(cam.x, cam.y, cam.zoom, cw, ch, pad);
-  return entities.filter(
-    (entity) =>
-      !entity.hiddenFromPlayer
-      && entity.x >= vp.minX
-      && entity.x <= vp.maxX
-      && entity.y >= vp.minY
-      && entity.y <= vp.maxY,
-  );
+/** World-px pad added to the visible rect before culling, so a sprite cannot pop in at the edge. */
+const ENTITY_VIEWPORT_PAD_PX = 72;
+
+/** The viewport membership rule: visible, and inside the world rect. */
+function pushEntitiesInBounds(
+  entities: readonly Entity[],
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+  out: Entity[],
+): void {
+  for (let i = 0; i < entities.length; i++) {
+    const entity = entities[i];
+    if (entity.hiddenFromPlayer) continue;
+    if (entity.x < minX || entity.x > maxX || entity.y < minY || entity.y > maxY) continue;
+    out.push(entity);
+  }
+}
+
+/** Entities of one tick list inside a world rect, in list order — the linear reference walk. */
+export function filterEntitiesInViewportBounds(
+  entities: readonly Entity[],
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+): Entity[] {
+  const visible: Entity[] = [];
+  pushEntitiesInBounds(entities, minX, minY, maxX, maxY, visible);
+  return visible;
+}
+
+/** Contiguous groups a tick list is cut into for viewport queries. */
+const VIEWPORT_CHUNK_COUNT = 16;
+
+/** One contiguous group of a tick list, with the y range its entities actually occupy. */
+export interface ViewportChunk {
+  readonly entities: readonly Entity[];
+  readonly minY: number;
+  readonly maxY: number;
+}
+
+/**
+ * A tick list cut into contiguous chunks, each labelled by the y range it covers.
+ *
+ * A camera pan rebuilds the viewport lists every frame, and the previous code re-tested every tree,
+ * animal and settler in the world to do it. Chunks are contiguous slices, so a query returns entities
+ * in the list's own depth order; the y range is a *conservative* box around each chunk, so a list that
+ * is not y-sorted widens a chunk's range instead of hiding an entity from the query.
+ */
+export interface ViewportBands {
+  readonly chunks: readonly ViewportChunk[];
+}
+
+/** Cut a tick list into {@link VIEWPORT_CHUNK_COUNT} contiguous chunks with their y ranges. */
+export function buildViewportBands(entities: readonly Entity[]): ViewportBands {
+  const chunks: ViewportChunk[] = [];
+  if (entities.length === 0) return { chunks };
+  const perChunk = Math.ceil(entities.length / VIEWPORT_CHUNK_COUNT);
+  for (let start = 0; start < entities.length; start += perChunk) {
+    const end = Math.min(entities.length, start + perChunk);
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    for (let i = start; i < end; i++) {
+      const y = entities[i].y;
+      if (!Number.isFinite(y)) continue;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    chunks.push({ entities: entities.slice(start, end), minY, maxY });
+  }
+  return { chunks };
+}
+
+/** Entities inside a world rect, in list order — only the chunks that can hold one are scanned. */
+export function collectInViewportBounds(
+  bands: ViewportBands | null,
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+): Entity[] {
+  const visible: Entity[] = [];
+  if (!bands) return visible;
+  for (let c = 0; c < bands.chunks.length; c++) {
+    const chunk = bands.chunks[c];
+    if (chunk.maxY < minY || chunk.minY > maxY) continue;
+    pushEntitiesInBounds(chunk.entities, minX, minY, maxX, maxY, visible);
+  }
+  return visible;
+}
+
+/** Tick-keyed chunk indexes for the three viewport-culled draw lists. */
+let _treeBands: ViewportBands | null = null;
+let _animalBands: ViewportBands | null = null;
+let _humanBands: ViewportBands | null = null;
+/** The SoA grass shims, rebuilt with the buckets — the linear fallback `collectGrassInViewport` reads. */
+let _soaGrassFallback: Entity[] = [];
+
+function rebuildViewportBands(): void {
+  _treeBands = buildViewportBands(_tickTrees);
+  _animalBands = buildViewportBands(_tickAnimals);
+  _humanBands = buildViewportBands(_tickHumans);
 }
 
 function syncGrassDrawCache(
@@ -158,9 +253,18 @@ function syncEntityDrawViewport(
   const viewportKey = entityViewportKey(tick, cam, cw, ch);
   if (viewportKey === _cachedEntityViewportKey) return;
   _cachedEntityViewportKey = viewportKey;
-  _cachedTrees = filterEntitiesInViewport(_tickTrees, cam, cw, ch);
-  _cachedAnimals = filterEntitiesInViewport(_tickAnimals, cam, cw, ch);
-  _cachedHumans = filterEntitiesInViewport(_tickHumans, cam, cw, ch);
+  const vp = viewportFromCamera(cam.x, cam.y, cam.zoom, cw, ch, ENTITY_VIEWPORT_PAD_PX);
+  // The chunk indexes are built with the lists they describe; the linear walks below are the
+  // fallback for a caller that filled a list without one.
+  _cachedTrees = _treeBands
+    ? collectInViewportBounds(_treeBands, vp.minX, vp.minY, vp.maxX, vp.maxY)
+    : filterEntitiesInViewportBounds(_tickTrees, vp.minX, vp.minY, vp.maxX, vp.maxY);
+  _cachedAnimals = _animalBands
+    ? collectInViewportBounds(_animalBands, vp.minX, vp.minY, vp.maxX, vp.maxY)
+    : filterEntitiesInViewportBounds(_tickAnimals, vp.minX, vp.minY, vp.maxX, vp.maxY);
+  _cachedHumans = _humanBands
+    ? collectInViewportBounds(_humanBands, vp.minX, vp.minY, vp.maxX, vp.maxY)
+    : filterEntitiesInViewportBounds(_tickHumans, vp.minX, vp.minY, vp.maxX, vp.maxY);
 
   _cachedPartnerById.clear();
   for (const h of _cachedHumans) {
@@ -186,6 +290,7 @@ export function updateCachedEntities(
     _tickTrees = buckets.trees;
     _tickAnimals = buckets.animals;
     _tickHumans = buckets.humans;
+    rebuildViewportBands();
     _renderSoABuckets = null;
   }
   syncEntityDrawViewport(tick, cam, cw, ch);
@@ -218,28 +323,29 @@ export function updateCachedEntitiesFromSoA(state: RenderSnapshot, cw: number, c
     _tickTrees = entitiesFromSoASlots(_renderSoABuckets.treeSlots, _renderSoABuckets.shimBySlot);
     _tickAnimals = entitiesFromSoASlots(_renderSoABuckets.animalSlots, _renderSoABuckets.shimBySlot);
     _tickHumans = entitiesFromSoASlots(_renderSoABuckets.humanSlots, _renderSoABuckets.shimBySlot);
-  } else if (!_renderSoABuckets) {
+    rebuildViewportBands();
+    // The fallback list is the SoA path's own shims, not `[]`. `syncGrassRenderGridFromSoA` returns
+    // `undefined` when the spatial grid is switched off (`VITE_USE_SPATIAL_GRID=0`), and
+    // `collectGrassInViewport` then falls back to a linear scan of the array it is handed — so a
+    // hard-coded empty array drew **no grass at all** on the worker path while the main-thread path
+    // still drew it, which is exactly the A/B comparison the switch exists to make. It is rebuilt
+    // with the buckets, not per frame: a pan used to re-materialise every grass shim each frame.
+    _soaGrassFallback = entitiesFromSoASlots(_renderSoABuckets.grassSlots, _renderSoABuckets.shimBySlot);
+  } else if (!_renderSoABuckets || !_treeBands) {
     _renderSoABuckets = updateRenderSoABuckets(
       state.renderSoA,
       state.renderMetaBySlot ?? undefined,
       state.tick,
     );
+    rebuildViewportBands();
+    _soaGrassFallback = entitiesFromSoASlots(_renderSoABuckets.grassSlots, _renderSoABuckets.shimBySlot);
   }
   syncEntityDrawViewport(state.tick, state.camera, cw, ch);
 
-  // The fallback list is the SoA path's own shims, not `[]`. `syncGrassRenderGridFromSoA` returns
-  // `undefined` when the spatial grid is switched off (`VITE_USE_SPATIAL_GRID=0`), and
-  // `collectGrassInViewport` then falls back to a linear scan of the array it is handed — so a
-  // hard-coded empty array drew **no grass at all** on the worker path while the main-thread path
-  // still drew it, which is exactly the A/B comparison the switch exists to make. The shims are the
-  // same objects the grid would have indexed, so the two paths now differ only in the lookup.
-  const grassFallback = _renderSoABuckets
-    ? entitiesFromSoASlots(_renderSoABuckets.grassSlots, _renderSoABuckets.shimBySlot)
-    : [];
   syncGrassDrawCache(state.tick, state.camera, cw, ch, () =>
     collectGrassInViewport(
       state.grassGrid,
-      grassFallback,
+      _soaGrassFallback,
       state.width,
       state.height,
       state.camera.x,

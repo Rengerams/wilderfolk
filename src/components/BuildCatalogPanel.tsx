@@ -139,12 +139,21 @@ export default function BuildCatalogPanel({
                           : 'border-stone-700 bg-stone-800/50 opacity-70'
                   }`}
                 >
-                  <img
-                    src={config.sprite}
-                    alt=""
-                    className="h-10 w-10 shrink-0 object-contain"
-                    style={{ imageRendering: 'pixelated' }}
-                  />
+                  {/* A sprite-less type (procedural decor) has no art on disk, and `<img src>` with an
+                      absent path asks the server for the page itself — the tile shows the config's own
+                      emoji instead, the same fallback the map's pad uses. */}
+                  {config.sprite ? (
+                    <img
+                      src={config.sprite}
+                      alt=""
+                      className="h-10 w-10 shrink-0 object-contain"
+                      style={{ imageRendering: 'pixelated' }}
+                    />
+                  ) : (
+                    <Emoji className="h-10 w-10 shrink-0 text-center text-2xl leading-10">
+                      {config.emoji}
+                    </Emoji>
+                  )}
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
                       <span className={`text-sm font-bold leading-tight ${isSelected ? 'text-emerald-100' : 'text-stone-100'}`}>

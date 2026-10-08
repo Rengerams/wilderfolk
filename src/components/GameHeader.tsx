@@ -22,7 +22,7 @@ import { OVERVIEW_SUBJECTS, type OverviewNavId } from '../hooks/useGameShellStat
 /**
  * The overview's subjects whose door is a *new* icon in this bar.
  *
- * The Village subject is not in this list: its door is the population chip beside it, which has
+ * The People subject is not in this list: its door is the population chip beside it, which has
  * opened that subject since before the ruling and already shows the number the subject is about. All
  * six subjects therefore have a door here, without the bar carrying two glyphs for one thing.
  */
@@ -68,7 +68,7 @@ tutorialsEnabled: boolean;
   onOpenSubject?: (subject: OverviewNavId) => void;
   /** Which subject's window is open, so its door reads as pressed. */
   activeSubject?: OverviewNavId | null;
-  /** Open the full-screen village overview dashboard (Esc closes it). */
+  /** Open the daily council window (Esc closes it). */
   onOpenDashboard?: () => void;
 }
 
@@ -308,19 +308,16 @@ tutorialsEnabled,
             className={`flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[13px] ${
               popNearCap ? 'bg-rose-900/40 text-rose-300' : 'bg-sky-900/40 text-sky-300'
             } hover:brightness-110 disabled:cursor-default`}
-            title={`People overview (O) — ${population} settlers · cap ${popCap} · 🛏️ ${beds} beds (${openBeds} open)`}
-            aria-label="Open people overview"
+            /* The door names the subject window it opens, read from the one table that titles it, so
+               a screen reader cannot hear the same name from two adjacent doors. */
+            title={`${OVERVIEW_SUBJECTS.people.label} — ${OVERVIEW_SUBJECTS.people.hint} (O) · ${population} settlers · cap ${popCap} · 🛏️ ${beds} beds (${openBeds} open)`}
+            aria-label={`Open ${OVERVIEW_SUBJECTS.people.label.toLowerCase()} window`}
           >
             <span>👥</span>
             <span className="font-mono font-bold">{population}/{popCap}</span>
             <span className="text-[11px] opacity-75" title={`${beds} beds total`}>🛏️{beds}</span>
           </button>
 
-          {/* The Village overview's own door. Icon only, like every other control in this bar
-              (owner: *"just a icon not a name with it in the ehader"*) — the word lives in the
-              `title` and the accessible name, not as a label beside the glyph. It replaced a bare 📊
-              that the owner could not read as a door at all (*"i want a new icon in the header to
-              open it"*), and the glyph matches the one its window's title bar shows. */}
           {/*
             One icon per overview subject, icon only (owner: *"just a icon not a name with it in the
             ehader"*). Each opens **that subject's window** — the six full-screen panels the owner
@@ -361,13 +358,15 @@ tutorialsEnabled,
             </div>
           )}
 
+          {/* The daily council's own door — the name the Guide and the shortcut sheet already use for
+              this window. Icon only, like every other control here, so the word lives in the name. */}
           <button
             type="button"
             onClick={onOpenDashboard}
             disabled={!onOpenDashboard}
             className="flex items-center gap-0.5 rounded-md bg-amber-900/40 px-1.5 py-1 text-[13px] text-amber-200 hover:bg-amber-800/50 disabled:cursor-default"
-            title="Village overview — the daily council, food, jobs, population (opens in a window, Esc closes)"
-            aria-label="Open village overview"
+            title="Daily council — food, jobs, population and today's concerns (opens in a window, Esc closes)"
+            aria-label="Open daily council"
           >
             <span aria-hidden>🏘️</span>
           </button>

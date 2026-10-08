@@ -43,7 +43,7 @@ function surfaceContext(): Record<string, unknown> {
     scale: () => {},
     drawImage: () => {},
     clearRect: () => {},
-    // The decor overlay bake (`bakeTerrainDecor`) also strokes the rivers and the map frame on a
+    // The decor bake (`bakeDecorInRect`) also strokes the rivers and the map frame on a
     // surface of its own.
     beginPath: () => {},
     moveTo: () => {},

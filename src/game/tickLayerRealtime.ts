@@ -33,6 +33,7 @@ import { tickHotelLodging } from './hotelStay';
 import { tickPrisonPresence } from './prisonGuardDuty';
 import { tickElectionCeremony } from './villageLeadership';
 import { addBigNews, addNotification, impulseScreenShake } from './simEffects';
+import { getEcosystemHealth } from './dailyEcology';
 
 /** How often we sample world metrics into populationHistory. */
 export const STATS_SAMPLE_INTERVAL_TICKS = 10;
@@ -205,7 +206,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
       wood: state.resources.wood,
       stone: state.resources.stone,
       pollution: state.pollutionLevel,
-      ecosystemHealth: state.ecosystemHealth,
+      ecosystemHealth: getEcosystemHealth(state),
       biodiversity: state.biodiversityIndex,
     };
 
@@ -216,31 +217,35 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
   }
 
   // Zero-allocation particle animation
-  let particleWriteIdx = 0;
-  for (let i = 0; i < state.deathParticles.length; i++) {
-    const p = state.deathParticles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vy += 0.02;
-    p.life--;
-    if (p.life > 0) {
-      state.deathParticles[particleWriteIdx++] = p;
+  if (state.deathParticles.length > 0) {
+    let particleWriteIdx = 0;
+    for (let i = 0; i < state.deathParticles.length; i++) {
+      const p = state.deathParticles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.02;
+      p.life--;
+      if (p.life > 0) {
+        state.deathParticles[particleWriteIdx++] = p;
+      }
     }
+    state.deathParticles.length = particleWriteIdx;
   }
-  state.deathParticles.length = particleWriteIdx;
 
   // Zero-allocation floating-text animation
-  let textWriteIdx = 0;
-  for (let i = 0; i < state.floatingTexts.length; i++) {
-    const ft = state.floatingTexts[i];
-    ft.y -= 0.7;
-    ft.life--;
-    ft.scale = ft.life < FLOATING_TEXT_FADE_TICKS ? ft.life / FLOATING_TEXT_FADE_TICKS : 1;
-    if (ft.life > 0) {
-      state.floatingTexts[textWriteIdx++] = ft;
+  if (state.floatingTexts.length > 0) {
+    let textWriteIdx = 0;
+    for (let i = 0; i < state.floatingTexts.length; i++) {
+      const ft = state.floatingTexts[i];
+      ft.y -= 0.7;
+      ft.life--;
+      ft.scale = ft.life < FLOATING_TEXT_FADE_TICKS ? ft.life / FLOATING_TEXT_FADE_TICKS : 1;
+      if (ft.life > 0) {
+        state.floatingTexts[textWriteIdx++] = ft;
+      }
     }
+    state.floatingTexts.length = textWriteIdx;
   }
-  state.floatingTexts.length = textWriteIdx;
 
   pruneHuntVisuals(state);
 }

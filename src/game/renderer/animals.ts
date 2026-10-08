@@ -91,8 +91,8 @@ export function drawAnimals(
         ctx.fillText('👑', sx, sy - spriteH * 0.55 - Math.max(10, 12 * cam.zoom));
       }
       if (isActiveMoonHowler(e)) {
-        // Pulsing red ring — this Moon Howler is hunting right now.
-        const pulse = 0.5 + 0.5 * Math.sin(state.tick * 0.35 + e.id);
+        // Pulsing red ring — this Moon Howler is hunting right now. Render clock, not the sim tick.
+        const pulse = 0.5 + 0.5 * Math.sin(motionTime * 4.2 + e.id);
         ctx.save();
         ctx.strokeStyle = `rgba(239, 68, 68, ${0.45 + 0.4 * pulse})`;
         ctx.lineWidth = Math.max(1.5, 2 * cam.zoom);
@@ -107,7 +107,7 @@ export function drawAnimals(
     }
 
     if (e.combatTicks && e.combatTicks > 0) {
-      drawCombatBurst(ctx, sx, sy, spriteH * 0.45, state.tick, e.id);
+      drawCombatBurst(ctx, sx, sy, spriteH * 0.45, e.id);
     }
 
     if (sel) {

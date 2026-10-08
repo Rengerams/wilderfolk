@@ -79,13 +79,10 @@ export function drawSpriteFrame(
 }
 
 /**
- * Per-frame step squash for the 4-frame walk cycle.
+ * Step squash for the walk cycle — contact poses stay neutral, passing poses squash and stretch.
  *
- * The shipped human art is one portrait frame per class — `humanSprites.sliceWalkFrame`
- * returns it untouched for frames 0…3 because every sheet is taller than it is wide — so
- * there is no leg or arm motion in the art at all (audit `visuals-looks.md` D10). The step
- * has to come from the draw transform instead: contact frames stay neutral, the two passing
- * frames squash vertically while stretching horizontally and vice versa. Amplitude is ~6 %
+ * The shipped human art is one portrait frame per class (`humanSprites.sliceWalkFrame` returns every
+ * sheet untouched for frames 0…3), so the step has to come from the draw transform. Amplitude is ~6 %
  * so it survives `drawSpriteFrame`'s logical-pixel rounding at the shipped sprite heights.
  */
 const WALK_STEP_SQUASH: readonly { scaleX: number; scaleY: number }[] = [
@@ -95,21 +92,67 @@ const WALK_STEP_SQUASH: readonly { scaleX: number; scaleY: number }[] = [
   { scaleX: 0.95, scaleY: 1.05 },  // 3 — passing, extended
 ];
 
+/** Speed (world px/tick) at which the step reaches full stride. */
+const WALK_STRIDE_SPEED = 1.4;
+/** Walk cycles per second at a slow walk; scaled up with the settler's speed. */
+const WALK_CYCLES_PER_SECOND = 0.85;
+/** Cycle offset per settler id, so a crowd does not step in lockstep. */
+const WALK_PHASE_PER_ENTITY = 0.13;
+
+/** Wraps a walk-cycle position into `0 … WALK_STEP_SQUASH.length`. */
+function walkCyclePosition(walkFrame: number): number {
+  const n = WALK_STEP_SQUASH.length;
+  return ((walkFrame % n) + n) % n;
+}
+
+/** Step squash at a cycle position — whole numbers reproduce {@link WALK_STEP_SQUASH} exactly. */
+function walkStepSquashAt(walkFrame: number): { scaleX: number; scaleY: number } {
+  const n = WALK_STEP_SQUASH.length;
+  const at = walkCyclePosition(walkFrame);
+  const whole = Math.floor(at);
+  const t = at - whole;
+  const a = WALK_STEP_SQUASH[whole];
+  const b = WALK_STEP_SQUASH[(whole + 1) % n];
+  return { scaleX: a.scaleX + (b.scaleX - a.scaleX) * t, scaleY: a.scaleY + (b.scaleY - a.scaleY) * t };
+}
+
+/** Vertical step bob at a cycle position, blended between the owner's two pose heights. */
+function walkBobAt(walkFrame: number, speed: number, camZoom: number): number {
+  const n = WALK_STEP_SQUASH.length;
+  const at = walkCyclePosition(walkFrame);
+  const whole = Math.floor(at);
+  const t = at - whole;
+  return getHumanWalkBob(whole, speed, camZoom) * (1 - t)
+    + getHumanWalkBob((whole + 1) % n, speed, camZoom) * t;
+}
+
+/**
+ * Walk-cycle position on the render clock, in squash-table units.
+ *
+ * The simulation advances `animFrame` once per tick, so a tick-keyed pose arrived in one-second
+ * jumps; the step is sampled from the frame clock instead, at a cadence that follows the speed.
+ */
+export function walkFrameOnClock(clockSeconds: number, speed: number, entityId: number): number {
+  const stride = Math.min(1, speed / WALK_STRIDE_SPEED);
+  const cyclesPerSecond = WALK_CYCLES_PER_SECOND * (0.55 + 0.45 * stride);
+  const cycle = clockSeconds * cyclesPerSecond + entityId * WALK_PHASE_PER_ENTITY;
+  return (cycle - Math.floor(cycle)) * WALK_STEP_SQUASH.length;
+}
+
 export function getHumanWalkMotion(human: Entity, camZoom: number, hasWalkFrame: boolean, walkFrame: number): SpriteMotion {
   // Reduced motion keeps the walk translation (that is position) and drops the step bob/squash.
   if (prefersReducedMotion()) return {};
   const speed = Math.hypot(human.vx, human.vy);
   if (speed < 0.08) return {};
   if (hasWalkFrame) {
-    const frame = ((Math.floor(walkFrame) % WALK_STEP_SQUASH.length) + WALK_STEP_SQUASH.length) % WALK_STEP_SQUASH.length;
-    const step = WALK_STEP_SQUASH[frame];
+    const step = walkStepSquashAt(walkFrame);
     return {
-      bobY: getHumanWalkBob(walkFrame, speed, camZoom),
+      bobY: walkBobAt(walkFrame, speed, camZoom),
       scaleX: step.scaleX,
       scaleY: step.scaleY,
     };
   }
-  const stride = Math.min(1, speed / 1.4);
+  const stride = Math.min(1, speed / WALK_STRIDE_SPEED);
   const phase = (human.animFrame ?? 0) * 1.9 + human.id * 0.15;
   return { bobY: Math.abs(Math.sin(phase)) * stride * 2.8 * camZoom };
 }

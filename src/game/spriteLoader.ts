@@ -16,13 +16,6 @@ const loadingPromises = new Map<string, Promise<SpriteFrame>>();
 
 let humanSpritesReady = false;
 
-export const MOUNTAIN_SPRITE_PATHS = [
-  '/sprites/mountains/45.png',
-  '/sprites/mountains/135.png',
-  '/sprites/mountains/225.png',
-  '/sprites/mountains/315.png',
-] as const;
-
 /**
  * Kept in sync with humanSprites path constants (no import — avoids circular dep).
  * Exported so `tests/humanSprites.test.ts` can assert the sync: a ladder
@@ -151,8 +144,6 @@ export function preloadAllSprites(): Promise<void> {
     // (`SAND_WATER_OVERLAY_PATH`) is omitted until `public/sprites/terrain/sand_water_overlay.png`
     // ships: the retired tile bake reads it only when the sprite is present, and preloading a missing
     // file spams boot errors. See `BUG_REPORTS/2026-09-16-sand-water-overlay-sprite-missing.md`.
-    // Mountain peak overlays (`MOUNTAIN_SPRITE_PATHS`) are omitted until
-    // `public/sprites/mountains/` ships — preloading missing files spams boot errors.
   ];
   // Decor buildings draw procedurally — they declare no sprite at all.
   const buildingSprites = Object.values(BUILDING_CONFIGS)

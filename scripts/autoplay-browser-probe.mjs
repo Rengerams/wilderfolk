@@ -231,17 +231,13 @@ const CAPABILITIES = {
   },
 
   /**
-   * Open the **Village** subject window.
+   * Open the **Village** subject window, whose index holds the Household roster.
    *
-   * The full-screen Valley overview this used to open is gone: the owner's ruling is one window per
-   * subject, each with its own icon in the header (*"the 6 panel stacked now that opens full screen
-   * should be each subject a own icon the header and open a window for that subject not full
-   * screen"*). The Village subject's door is the population chip (`aria-label="Open people
-   * overview"`), which was already wired to that subject — the sidebar button that also opened it has
-   * been removed as a duplicate entrance, and the in-window nav strip went with the overlay.
+   * The header carries two doors: the population chip (`aria-label="Open people overview"`) opens the
+   * full-screen People overview, and the village door (`Open village overview`) opens this window.
    */
   openVillageWindow() {
-    return CAPABILITIES.clickByAriaLabel('Open people overview');
+    return CAPABILITIES.clickByAriaLabel('Open people window');
   },
 
   /** Select an exact-text nav chip inside the overview, e.g. "Village". */
@@ -760,15 +756,29 @@ async function main() {
     // under the map centre — an environment fact, not a defect in the window.
     // The household roster lives in the Village subject's window now, so open that first —
     // without it the settler buttons do not exist in the DOM at all.
-    await evaluate(CAPABILITIES.openVillageWindow());
+    const villageOpen = await evaluate(CAPABILITIES.openVillageWindow());
     await sleep(900);
-    await evaluate(CAPABILITIES.selectSettlerFromRoster());
+    const villageSurface = await evaluate(`(() => ({
+      dialogs: [...document.querySelectorAll('[role="dialog"]')].map((el) => el.getAttribute('aria-label')),
+      headings: [...document.querySelectorAll('h1,h2,h3')].map((el) => (el.textContent || '').trim()).filter(Boolean).slice(0, 10),
+      windowLabels: [...document.querySelectorAll('[aria-label]')]
+        .map((el) => el.getAttribute('aria-label'))
+        .filter((label) => /village|people|overview|family/i.test(label || '')),
+    }))()`);
+    const dialogsAfterVillage = villageSurface.dialogs;
+    const rosterAttempt = await evaluate(CAPABILITIES.selectSettlerFromRoster());
     await sleep(1000);
     const selectAttempt = await evaluate(CAPABILITIES.clickFirstCitizenRow());
     await sleep(1200);
     const familyTreeButton = await evaluate(CAPABILITIES.exists('family tree'));
     if (!familyTreeButton) {
-      console.log(`\nfamily tree window         : not reached (no settler selected at ${JSON.stringify(selectAttempt.at ?? null)})`);
+      // Report what the UI actually showed, not a bare "not reached": the capability already returns
+      // the buttons it saw, and discarding that made every miss undiagnosable.
+      console.log('\nfamily tree window         : not reached');
+      console.log(`  village door click       : ${JSON.stringify(villageOpen)}`);
+      console.log(`  surface after the door   : ${JSON.stringify(villageSurface)}`);
+      console.log(`  roster attempt           : ${JSON.stringify(rosterAttempt)}`);
+      console.log(`  settler attempt          : ${JSON.stringify(selectAttempt)}`);
     } else {
       await evaluate(CAPABILITIES.openFamilyTreeWindow());
       await sleep(800);

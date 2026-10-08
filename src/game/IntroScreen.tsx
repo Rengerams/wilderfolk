@@ -642,8 +642,10 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
             Choose your land →
           </button>
 
+          {/* The key handler above ignores Escape, Tab, modifier chords and a focused control, so the
+              prompt names what it actually accepts instead of promising "any key". */}
           <p className="max-w-sm text-center text-[13px] leading-relaxed text-stone-300">
-            Press any key or click to continue
+            Click anywhere, or press any key other than Escape, Tab or a shortcut, to continue
             {muted && (
               <span className="mt-1 block text-amber-400/90">Sound is off — tap 🔊 to unmute</span>
             )}

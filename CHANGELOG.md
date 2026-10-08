@@ -2,6 +2,14 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Stopped panning the map throwing away what you had selected** — the click that follows a drag arrives after the drag ends, so every pan cleared the selection and collapsed the inspector; a drag is now left to the camera.
+
+- **Made the work-hours editor and the family tree hold the keyboard** — the map's hotkeys stayed live behind those two windows and Escape acted on the game instead of closing them.
+
+- **Showed a catalogue tile with no sprite art as the building's own emoji** — a decor type with no image asked the server for the page itself.
+
+- **Repointed a settler-trait note at the modules that read it** — the comment named a simulation file that was split into domain modules long ago.
+
 - **Stopped a house holding more settlers than it has beds** — a marriage that could not seat the whole family, a divorce and a birth each wrote a residence without asking for a free bed, so a six-bed house could hold ten; every such move now takes the residence owner's room rule.
 
 - **Made the long-run gate check housing at every checkpoint** — an over-capacity settlement was only tested at year end, so a failure named the house but not the day it first appeared.

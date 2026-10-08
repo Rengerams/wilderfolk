@@ -1,6 +1,12 @@
 import { FLOATING_TEXT_FADE_TICKS, type Camera } from '../gameTypes';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { _cachedHumans, _cachedPartnerById } from './entityCache';
+import { motionTime } from './shared';
+
+/** Highlight ring alpha — on the render clock, so the pulse animates between simulation ticks. */
+function campHighlightPulse(): number {
+  return 0.55 + 0.25 * Math.sin(motionTime * 2.2);
+}
 
 // ============ CAMP MARKERS ============
 export function drawCampMarkers(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
@@ -13,7 +19,7 @@ export function drawCampMarkers(ctx: CanvasRenderingContext2D, state: RenderSnap
     if (sx < -40 || sx > cw + 40 || sy < -40 || sy > ch + 40) continue;
     const highlighted = state.highlightedCampKey === `visitor:${group.id}`;
     if (highlighted) {
-      const pulse = 0.55 + 0.25 * Math.sin(state.tick * 0.15);
+      const pulse = campHighlightPulse();
       ctx.strokeStyle = `rgba(34, 211, 238, ${pulse})`;
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -44,7 +50,7 @@ export function drawCampMarkers(ctx: CanvasRenderingContext2D, state: RenderSnap
     if (sx < -40 || sx > cw + 40 || sy < -40 || sy > ch + 40) continue;
     const highlighted = state.highlightedCampKey === `rival:${rival.id}`;
     if (highlighted) {
-      const pulse = 0.55 + 0.25 * Math.sin(state.tick * 0.15);
+      const pulse = campHighlightPulse();
       ctx.strokeStyle = `rgba(251, 146, 60, ${pulse})`;
       ctx.lineWidth = 3;
       ctx.beginPath();

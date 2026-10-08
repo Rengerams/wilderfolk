@@ -12,7 +12,6 @@ import {
   getHumanMarkerColors,
   getHumanMarkerRadius,
   getHumanSpriteMetrics,
-  getHumanWalkFrameIndex,
   getHumanSpriteFrame,
   getJuvenileFigureScale,
   getJuvenileSpriteFrame,
@@ -31,15 +30,17 @@ import { huntAnimProgress } from '../huntvisuals';
 import { getCachedNameWidth, isDrawableSpriteFrame, motionTime, roundRect } from './shared';
 import {
   formatHumanNameLabel,
+  getNamePlateLayout,
   getSpeechBubbleFontSize,
   getSpeechBubbleHeadClearance,
+  getStatusBadgeLayout,
   resolveSpeechBubbleRect,
   shouldDrawHumanNameLabel,
   type OverheadRect,
 } from './overheadLayout';
 
 import { _cachedHumans, _cachedPartnerById, _renderSoABuckets, _tickAnimals, _tickHumans } from './entityCache';
-import { drawContactShadow, drawSpriteFrame, getHumanWalkMotion } from './spriteDrawing';
+import { drawContactShadow, drawSpriteFrame, getHumanWalkMotion, walkFrameOnClock } from './spriteDrawing';
 
 function drawTalkingMouth(
   ctx: CanvasRenderingContext2D,
@@ -414,8 +415,9 @@ export function drawHuntVisuals(ctx: CanvasRenderingContext2D, state: RenderSnap
   }
 }
 
-export function drawCombatBurst(ctx: CanvasRenderingContext2D, sx: number, sy: number, size: number, tick: number, entityId: number) {
-  const pulse = 0.5 + Math.sin(tick * 0.5 + entityId) * 0.5;
+/** Combat ring — pulses on the render clock, so a fight reads as motion between simulation ticks. */
+export function drawCombatBurst(ctx: CanvasRenderingContext2D, sx: number, sy: number, size: number, entityId: number) {
+  const pulse = 0.5 + Math.sin(motionTime * 6 + entityId) * 0.5;
   ctx.save();
   ctx.strokeStyle = `rgba(251,191,36,${0.35 + pulse * 0.35})`;
   ctx.lineWidth = 2;
@@ -505,7 +507,7 @@ export function drawLeaderAuraOverlay(
   // Same bob the cached pass would have applied, from the same snapshot.
   const speed = Math.hypot(leader.vx, leader.vy);
   const isWalking = speed > HUMAN_WALK_SPEED_THRESHOLD;
-  const walkFrame = isWalking ? getHumanWalkFrameIndex(leader.animFrame ?? 0, speed) : 0;
+  const walkFrame = isWalking ? walkFrameOnClock(motionTime, speed, leader.id) : 0;
   const bobY = getHumanWalkMotion(leader, cam.zoom, isWalking, walkFrame).bobY ?? 0;
   const headY = footY - spriteH;
 
@@ -588,7 +590,9 @@ export function drawHumans(
     const flipX = human.vx < -0.05 || (Math.abs(human.vx) <= 0.05 && Math.cos(human.spriteAngle ?? 0) < 0);
     const speed = Math.hypot(human.vx, human.vy);
     const isWalking = speed > HUMAN_WALK_SPEED_THRESHOLD;
-    const walkFrame = isWalking ? getHumanWalkFrameIndex(human.animFrame ?? 0, speed) : 0;
+    // The step is sampled from the render clock: the sim tick moves `animFrame` once a second, which
+    // made a walk a one-second hop. The sprite sheet is still selected from the tick-advanced frame.
+    const walkFrame = isWalking ? walkFrameOnClock(motionTime, speed, human.id) : 0;
     const walkMotion = getHumanWalkMotion(human, cam.zoom, isWalking, walkFrame);
     const drawSize = size;
     const footY = sy + footOffset;
@@ -644,10 +648,29 @@ export function drawHumans(
     }
 
     if (human.combatTicks && human.combatTicks > 0) {
-      drawCombatBurst(ctx, sx, footY - spriteH * 0.45, drawSize, tick, human.id);
+      drawCombatBurst(ctx, sx, footY - spriteH * 0.45, drawSize, human.id);
     }
 
     const isTalking = (human.chatTicks ?? 0) > 0;
+
+    // The name plate is placed before the bubble so the bubble can dodge it — a plate is overhead text
+    // like a bubble, and a bubble only ever rises toward settlers drawn earlier (the list is y-ascending).
+    const nameZoomMin = isLeader ? 0.28 : (human.isJuvenile ? 0.38 : 0.45);
+    const labelY = headY - 4 - (isLeader && cam.zoom > 0.22 ? Math.max(10, 12 * cam.zoom) : 0);
+    let namePlate: { text: string; fontSize: number; labelY: number; rect: OverheadRect } | null = null;
+    if (shouldDrawHumanNameLabel(isTalking) && (human.name || human.surname || isLeader) && cam.zoom > nameZoomMin) {
+      const text = formatHumanNameLabel(human, {
+        isLeader,
+        showRole: cam.zoom > 0.5,
+        showId: cam.zoom > 0.72,
+      });
+      const fontSize = Math.max(isLeader ? 8 : 7, Math.min(isLeader ? 11 : 9, (isLeader ? 9.5 : 8) * cam.zoom));
+      const textWidth = getCachedNameWidth(ctx, text, fontSize, cam.zoom);
+      const plate = getNamePlateLayout(labelY, sx, textWidth, fontSize, isLeader);
+      occupiedBubbleRects.push(plate.rect);
+      namePlate = { text, fontSize, labelY, rect: plate.rect };
+    }
+
     if (isTalking) {
       drawTalkingMouth(ctx, sx, headY + spriteH * 0.12, drawSize, flipX, human.animFrame ?? 0);
       const bubbleText = getChatBubbleText(human, tick);
@@ -663,21 +686,21 @@ export function drawHumans(
 
     // Status badge
     if (cam.zoom > 0.6) {
+      const badge = getStatusBadgeLayout(cam.zoom);
       const bx = sx + size * 0.35;
       const by = headY + spriteH * 0.12;
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.beginPath();
-      ctx.arc(bx, by, 5, 0, Math.PI * 2);
+      ctx.arc(bx, by, badge.radius, 0, Math.PI * 2);
       ctx.fill();
-      ctx.font = '8px sans-serif';
+      ctx.font = `${badge.fontPx}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(getStatusIcon(human, statusCtx), bx, by);
       ctx.textBaseline = 'alphabetic';
     }
 
-    // Name label — leaders keep a gold plate at lower zoom
-    const labelY = headY - 4 - (isLeader && cam.zoom > 0.22 ? Math.max(10, 12 * cam.zoom) : 0);
+    // Faction ring — drawn under the name plate
     if (human.faction && cam.zoom > 0.55) {
       ctx.strokeStyle = human.faction === 'visitor' ? '#22d3ee' : '#fb923c';
       ctx.lineWidth = 1.5;
@@ -686,31 +709,24 @@ export function drawHumans(
       ctx.stroke();
     }
 
-    const nameZoomMin = isLeader ? 0.28 : (human.isJuvenile ? 0.38 : 0.45);
-    if (shouldDrawHumanNameLabel(isTalking) && (human.name || human.surname || isLeader) && cam.zoom > nameZoomMin) {
-      const fullName = formatHumanNameLabel(human, {
-        isLeader,
-        showRole: cam.zoom > 0.5,
-        showId: cam.zoom > 0.72,
-      });
-      const fontSize = Math.max(isLeader ? 8 : 7, Math.min(isLeader ? 11 : 9, (isLeader ? 9.5 : 8) * cam.zoom));
-      const tw = getCachedNameWidth(ctx, fullName, fontSize, cam.zoom);
+    if (namePlate) {
+      const { rect } = namePlate;
       if (isLeader) {
         ctx.fillStyle = 'rgba(120, 53, 15, 0.82)';
         ctx.strokeStyle = 'rgba(251, 191, 36, 0.85)';
         ctx.lineWidth = 1;
-        ctx.fillRect(sx - tw / 2 - 4, labelY - fontSize - 3, tw + 8, fontSize + 6);
-        ctx.strokeRect(sx - tw / 2 - 4, labelY - fontSize - 3, tw + 8, fontSize + 6);
+        ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+        ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
         ctx.fillStyle = '#fde68a';
       } else {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(sx - tw / 2 - 3, labelY - fontSize - 2, tw + 6, fontSize + 4);
+        ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
         ctx.fillStyle = human.faction === 'visitor' ? '#67e8f9' : human.faction === 'rival' ? '#fdba74' : human.gender === 'male' ? '#fbbf24' : '#fda4af';
       }
-      ctx.font = `bold ${fontSize}px sans-serif`;
+      ctx.font = `bold ${namePlate.fontSize}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
-      ctx.fillText(fullName, sx, labelY);
+      ctx.fillText(namePlate.text, sx, namePlate.labelY);
       ctx.textBaseline = 'alphabetic';
     }
 

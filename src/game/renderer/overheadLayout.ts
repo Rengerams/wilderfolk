@@ -40,6 +40,26 @@ export function getSpeechBubbleFontSize(zoom: number): number {
   return Math.max(7, Math.min(12, 8 * zoom));
 }
 
+/** Status-badge disc radius in px at 100 % zoom. */
+const STATUS_BADGE_RADIUS_PX = 6.5;
+/** Status glyph size in px at 100 % zoom — a colour emoji is unreadable below ~10 px. */
+const STATUS_BADGE_FONT_PX = 10;
+/** The badge tracks the camera zoom, but never shrinks past legibility or grows past the sprite. */
+const STATUS_BADGE_ZOOM_RANGE = { min: 0.8, max: 1.6 } as const;
+
+/**
+ * Status-badge geometry — the disc and the glyph inside it, sized together.
+ *
+ * The glyph is a colour emoji, which is unreadable below ~10 px, so the disc is sized to hold it.
+ */
+export function getStatusBadgeLayout(zoom: number): { radius: number; fontPx: number } {
+  const scale = Math.min(
+    STATUS_BADGE_ZOOM_RANGE.max,
+    Math.max(STATUS_BADGE_ZOOM_RANGE.min, zoom),
+  );
+  return { radius: STATUS_BADGE_RADIUS_PX * scale, fontPx: STATUS_BADGE_FONT_PX * scale };
+}
+
 export function getSpeechBubbleHeadClearance(
   spriteSize: number,
   zoom: number,
@@ -83,4 +103,32 @@ export function resolveSpeechBubbleRect(rect: OverheadRect, occupied: readonly O
     };
   }
   return candidate;
+}
+
+/**
+ * Name-plate box for a label, plus the padding the painter fills around the text.
+ *
+ * A plate is an overhead overlay like a bubble, so `resolveSpeechBubbleRect` must be given it.
+ */
+export function getNamePlateLayout(
+  labelY: number,
+  sx: number,
+  textWidth: number,
+  fontSize: number,
+  isLeader: boolean,
+): { rect: OverheadRect; padX: number; padY: number } {
+  const padX = isLeader ? 4 : 3;
+  const padY = isLeader ? 3 : 2;
+  const width = Math.ceil(textWidth + padX * 2);
+  const height = Math.ceil(fontSize + padY * 2);
+  return {
+    rect: {
+      x: Math.round(sx - textWidth / 2 - padX),
+      y: Math.round(labelY - fontSize - padY),
+      width,
+      height,
+    },
+    padX,
+    padY,
+  };
 }

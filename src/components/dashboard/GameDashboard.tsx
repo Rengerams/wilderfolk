@@ -1,5 +1,5 @@
 /**
- * The Village overview — a **window**, not the screen.
+ * The daily council — a **window**, not the screen.
  *
  * Owner reports that shaped this: *"there is a villageoverview but its not wired … i want a new icon
  * in the header to open it and not full screen"*. The data was never the problem; the shell was. It
@@ -344,7 +344,7 @@ export default function GameDashboard({
 
   return (
     <GameWindow
-      title="Village overview"
+      title="Daily council"
       icon="🏘️"
       // The panel's own header line, kept as the window's subtitle: the shell owns the title bar, so the
       // date and the population sit under the title instead of in a second bar of their own.

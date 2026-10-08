@@ -275,12 +275,6 @@ export function isInsideTileGrid(map: WorldMap, tx: number, ty: number): boolean
   return tx >= 0 && ty >= 0 && tx < map.width && ty < map.height;
 }
 
-/** The sparse per-tile override (camp clearing / cleared forest), if any. */
-export function tileOverrideAt(map: WorldMap, tx: number, ty: number): TerrainTile | undefined {
-  if (!isInsideTileGrid(map, tx, ty)) return undefined;
-  return map.overrides?.get(ty * map.width + tx);
-}
-
 /**
  * The `TerrainTile` at (tx, ty), or `undefined` when the coordinate is off-map
  * or the map has no continuous fields (a map stored by an older build).

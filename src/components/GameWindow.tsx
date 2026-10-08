@@ -4,7 +4,7 @@
  * Owner ruling, 2026-09-29: *"each subject should just have its own window not stacking up"*. Before
  * this, every subject was a section of one long inspector stack: the family tree was a flat list
  * inside `SelectedEntityPanel`, and the work/venue schedule editors were buried at
- * `CitizenOverviewScreen` (reachable only through Overview → Village). This shell is the primitive
+ * `CitizenOverviewScreen` (reachable only through the People window). This shell is the primitive
  * that replaces stacking — a title bar, one close control, and one scrollable body.
  *
  * It deliberately owns **no** subject logic. A caller passes a title and body; the shell never reads
@@ -23,6 +23,7 @@
  * it running.
  */
 import { createPortal } from 'react-dom';
+import { useId } from 'react';
 import type { ReactNode } from 'react';
 import { useModalFocus } from '../hooks/useModalFocus';
 
@@ -43,7 +44,7 @@ export interface GameWindowProps {
    *
    * It exists because the two built-in widths are a settled shape: a chat-sized centred window
    * (`26rem`) and a narrow anchored one (`18rem`). A subject that is genuinely wider than that — the
-   * Village overview carries a five-column resource row, two SVG charts and a settler table — had no
+   * daily council carries a five-column resource row, two SVG charts and a settler table — had no
    * way to fit the shell, so it hand-rolled a full-screen dialog of its own instead. Sizing is part of
    * the shell's job; bypassing it is what this prop removes. Omitted, nothing changes for any caller.
    */
@@ -86,11 +87,14 @@ export default function GameWindow({
   // owns, which is not reachable from outside a portal.
   const dialogRef = useModalFocus<HTMLDivElement>(centered);
   const width = widthClassName ?? (centered ? 'w-[26rem] max-w-[92vw]' : 'w-72');
+  // The dialog's accessible name *is* the visible title, not a second copy of it, so a window
+  // announces its subject once.
+  const titleId = useId();
   const panel = (
     <div
       ref={dialogRef}
       role="dialog"
-      aria-label={title}
+      aria-labelledby={titleId}
       // Only the centred variant is a modal: the anchored one sits beside the panel that opened it and
       // leaves the rest of the game reachable.
       aria-modal={centered || undefined}
@@ -102,7 +106,10 @@ export default function GameWindow({
     >
       <div className="flex items-start justify-between gap-2 border-b border-amber-600/20 p-3 pb-2">
         <div className="min-w-0">
-          <h2 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-400">
+          <h2
+            id={titleId}
+            className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-400"
+          >
             {icon && <span aria-hidden>{icon}</span>}
             <span className="truncate">{title}</span>
           </h2>

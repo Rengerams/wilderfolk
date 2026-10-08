@@ -20,7 +20,7 @@ import {
 import { displayYear } from './dayCycleClock';
 import { mergeCombatResearchNodes } from './combat';
 import { loadAutoSavePreference } from './preferences';
-import { dedupeEventLogIdsOnLoad, logEvent, syncEventLogIdFromState } from './eventLog';
+import { logEvent, repairEventLogOnLoad, syncEventLogIdFromState } from './eventLog';
 import { pickHumanVariant } from './humanSprites';
 import { migrateLegacyMoonHowler, syncMoonHowlerForms } from './moonHowler';
 import { reconcileFamilyReferencesAfterRemoval } from './humanLifecycleCleanup';
@@ -705,6 +705,12 @@ function containerArrayRule(
 /** A Big News card carries a string id — `highestBigNewsSeq` parses its sequence out of it. */
 const BIG_NEWS_ELEMENT_RULES: readonly ElementFieldRule[] = [{ field: 'id', isValid: isStringId }];
 
+/**
+ * A chronicle entry's id is **numeric**, unlike the string ids the other containers carry: the
+ * allocator is `Math.max(…ids) + 1`, so one non-numeric string makes every later id `NaN`.
+ */
+const EVENT_LOG_ELEMENT_RULES: readonly ElementFieldRule[] = [{ field: 'id', isValid: isUsableId }];
+
 const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>> = {
   // Metric and aggregate samples: plain objects, and nothing keys on an element of either list.
   populationHistory: containerArrayRule(isAnyArray, []),
@@ -713,7 +719,7 @@ const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>>
   researchNodes: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   unlockedTechs: containerArrayRule(isAnyArray, null),
   tradeRoutes: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
-  eventLog: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  eventLog: containerArrayRule(isAnyArray, EVENT_LOG_ELEMENT_RULES),
   chronicleChapters: containerArrayRule(isAnyArray, null),
   visitorGroups: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   villageRequestHistory: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
@@ -1157,7 +1163,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       world.villageLeaderId,
     );
 
-    dedupeEventLogIdsOnLoad(world);
+    repairEventLogOnLoad(world);
     syncEventLogIdFromState(world);
     syncBigNewsIdFromState(world);
     world.totalBuildingsCompleted = (world.buildings ?? []).filter(

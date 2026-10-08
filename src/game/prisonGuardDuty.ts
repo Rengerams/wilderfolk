@@ -11,6 +11,7 @@ import { isPlayerHuman } from './playerHuman';
 import { ensureEntityByIdMap } from './entityIndex';
 import { logEvent } from './eventLog';
 import { addFloatingText, addNotification } from './simEffects';
+import { humanDisplayName } from './citizenId';
 import { Prison } from './gameConstants';
 import { getHourOfDay, isStartOfClockHour } from './dayCycleClock';
 import { isNearBuilding } from './simulation/humanRelationships';
@@ -146,11 +147,11 @@ export function tickPrisonGuardDuty(state: WorldState): void {
       const cy = prison.y + prison.height / 2;
       addFloatingText(state, cx, cy - 14, 'A prisoner slipped out!', '#f59e0b');
       // The player is told, not just logged at: an escape is the consequence of a post they left open.
-      addNotification(state, 'Escaped', `${escapee.name ?? 'A prisoner'} slipped out of the unguarded Prison`, 'warning');
+      addNotification(state, 'Escaped', `${humanDisplayName(escapee)} slipped out of the unguarded Prison`, 'warning');
       logEvent(
         state,
         'prison',
-        `${escapee.name ?? 'A prisoner'} slipped out while the Prison was unguarded (${describeOpenPost(roster)}).`,
+        `${humanDisplayName(escapee)} slipped out while the Prison was unguarded (${describeOpenPost(roster)}).`,
       );
     }
   }

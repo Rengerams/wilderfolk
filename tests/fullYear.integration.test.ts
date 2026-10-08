@@ -231,8 +231,15 @@ function runFullYear(seed: number): {
       diagnosticsDays: history.length,
       pregnanciesStarted: history.reduce((total, snapshot) => total + snapshot.pregnanciesStartedThisInterval, 0),
       birthsCompleted: history.reduce((total, snapshot) => total + snapshot.birthsCompletedThisInterval, 0),
+      affairsEstablished: history.reduce((total, snapshot) => total + snapshot.affairsEstablished, 0),
+      peakActiveMarriages: history.reduce((peak, snapshot) => Math.max(peak, snapshot.activeMarriages), 0),
+      peakActiveAffairs: history.reduce((peak, snapshot) => Math.max(peak, snapshot.activeAffairs), 0),
       peakActivePregnancies: history.reduce((peak, snapshot) => Math.max(peak, snapshot.activePregnancies), 0),
       finalActivePregnancies: history.at(-1)?.activePregnancies ?? 0,
+      lifetimeStats: { ...world.lifetimeStats, totalResourcesGathered: undefined, longestLivingHuman: undefined },
+      yearlyStats: world.yearlyStats.map((ys) => ({ year: ys.year, births: ys.births.humans, marriages: ys.marriages, deaths: ys.deaths.humans })),
+      eventLogEntries: world.eventLog.length,
+      caravanCompletions: world.lifetimeStats.tradeCaravansCompleted,
     });
   }
   return { world, startYear, startTick, storyCardsQueued };

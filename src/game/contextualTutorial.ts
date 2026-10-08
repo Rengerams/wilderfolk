@@ -7,6 +7,7 @@ import { displayYear } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
 import { ELECTION_INTERVAL_YEARS } from './villageLeadership';
 import { isFoodCritical } from './resourceUtils';
+import { getEcosystemHealth } from './dailyEcology';
 
 export type ContextualTutorialId =
   | 'shelter_night'
@@ -308,7 +309,7 @@ function derivedSeenIds(state: WorldState): Set<string> {
     seen.add('moon_howler_hunt');
   }
   if (isFoodCritical(state)) seen.add('low_food');
-  if (state.ecosystemHealth < 30) seen.add('ecosystem_low');
+  if (getEcosystemHealth(state) < 30) seen.add('ecosystem_low');
   if ((state.valleyStage ?? 'stable') !== 'stable') seen.add('valley_strained');
   const hasRecordedBirth = state.yearlyStats.some((ys) => ys.births.humans > 0);
   const hasBornChild = state.entities.some(

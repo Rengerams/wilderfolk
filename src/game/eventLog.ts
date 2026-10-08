@@ -14,15 +14,17 @@ let nextEventLogId = 1;
  */
 export const EVENT_LOG_MAX_ENTRIES = 6000;
 
-/** Drop the later of two loaded entries sharing an id — the log's merge key and its render key. */
-export function dedupeEventLogIdsOnLoad(state: Pick<WorldState, 'eventLog'>): void {
+/** Load repair: unique ids, and no more entries than the writers' own cap keeps. */
+export function repairEventLogOnLoad(state: Pick<WorldState, 'eventLog'>): void {
   const seen = new Set<unknown>();
   const kept = state.eventLog.filter((entry) => {
     if (seen.has(entry.id)) return false;
     seen.add(entry.id);
     return true;
   });
-  if (kept.length !== state.eventLog.length) state.eventLog = kept;
+  // The log is newest-first, so a cap keeps the head — the same end the delta merge trims.
+  const bounded = kept.length > EVENT_LOG_MAX_ENTRIES ? kept.slice(0, EVENT_LOG_MAX_ENTRIES) : kept;
+  if (bounded.length !== state.eventLog.length) state.eventLog = bounded;
 }
 
 /** Restore monotonic ids after loading a save. */

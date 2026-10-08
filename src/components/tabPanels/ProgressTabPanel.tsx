@@ -2,7 +2,7 @@ import { Suspense, lazy, useMemo, useState } from 'react';
 import { ResearchType } from '../../game/gameTypes';
 import type { WorldState } from '../../game/gameEngine';
 import { canEstablishTradeRoute, hasCompletedMarket } from '../../game/tradeCaravans';
-import { canStartResearch } from '../../game/research';
+import { canStartResearch, getResearchBlockReason } from '../../game/research';
 import { computeVillagePortrait } from '../../game/villagePortrait';
 import { formatResourceAmounts } from '../../game/resourceTypes';
 import SubjectWindow from '../SubjectWindow';
@@ -221,6 +221,8 @@ export default function ProgressTabPanel({
                      * prerequisites were unmet and the command refused it.
                      */
                     const canResearch = canStartResearch(state, node.id);
+                    // A disabled choice prints the owner's own refusal, never a bare greyed button.
+                    const blockReason = canResearch ? null : getResearchBlockReason(state, node.id);
 
                     return (
                       <div key={node.id} className={`rounded-lg border p-2 text-[13px] ${
@@ -243,21 +245,21 @@ export default function ProgressTabPanel({
                             {node.unlocked && (
                               <button onClick={() => onStartResearch(node.id)}
                                 disabled={!canResearch}
-                                /**
-                                 * U-8: `canStartResearch` returns a bare boolean, so this view has no
-                                 * reason to print — but the disabled button must still say *which* node
-                                 * it belongs to and that it is unavailable, rather than looking like a
-                                 * live "Research" button that is merely greyed out. A real reason needs
-                                 * the research owner to return a gate object.
-                                 */
+                                /* The reason is the accessible name's tail as well as visible text,
+                                   because `title` on a disabled button is reachable nowhere. */
                                 aria-label={canResearch
                                   ? `Research ${node.name}`
-                                  : `Research ${node.name} — not available yet`}
+                                  : `Research ${node.name} — ${blockReason ?? 'not available yet'}`}
                                 className={`mt-1 w-full rounded py-1 text-[13px] font-bold transition-all ${
                                   canResearch ? 'bg-amber-600 text-white hover:bg-amber-500' : 'bg-stone-600 text-stone-400 cursor-not-allowed'
                                 }`}>
                                 {state.activeResearch === node.id ? 'Researching...' : 'Research'}
                               </button>
+                            )}
+                            {!canResearch && blockReason && (
+                              <p className="mt-1 text-[11px] font-normal leading-snug text-amber-300">
+                                ⚠️ {blockReason}
+                              </p>
                             )}
                           </>
                         )}

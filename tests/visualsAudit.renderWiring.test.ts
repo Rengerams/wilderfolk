@@ -247,7 +247,8 @@ describe('D19 — the leader aura is drawn per frame, not into the cached layer'
 // left to guard.
 
 // D21 (the prop-flip mirror) was deleted with the code it pinned: `stampPropSprite` and the
-// whole tile-era `bakeTerrainDecor` ground pass it belonged to. The per-pixel Whittaker bake owns
+// whole tile-era ground pass it belonged to. The per-pixel Whittaker bake (`bakeWhittakerGround`)
+// and the per-chunk decor bake (`bakeDecorInRect`) own
 // ground detail now, and a real `flipX` mirror for L3 decor is D24's business, not this one's.
 
 // D22 (boundary tiles feathering every differing neighbour) was deleted with the code it pinned:

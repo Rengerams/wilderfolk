@@ -4,6 +4,7 @@ import { isPlayerHuman } from './playerHuman';
 import { citizenFullName } from './citizenId';
 import { isMarriedOrExpecting } from './civilStatus';
 import { bondCensus, type BondCensus } from './relationships';
+import { getEcosystemHealth } from './dailyEcology';
 
 export interface YearlyStats {
   year: number;
@@ -204,7 +205,7 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
     },
     resources: { ...state.resources },
     ecosystem: {
-      health: state.ecosystemHealth,
+      health: getEcosystemHealth(state),
       pollution: state.pollutionLevel,
       biodiversity: state.biodiversityIndex,
     },

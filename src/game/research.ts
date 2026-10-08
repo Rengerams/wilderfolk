@@ -91,19 +91,42 @@ export function notifyBuildingLocked(state: WorldState, type: BuildingType): Wor
 }
 
 /**
- * Whether `startResearch` would accept this node right now — one shared gate so
- * callers that must not issue a doomed command (the in-app virtual player,
- * previews, diagnostics) read the same rule the command itself enforces.
+ * The research owner's refusal wording, or `null` when `startResearch` would accept the node.
+ * Same shape as the forge owner's gate, so a disabled choice prints a reason.
  */
-export function canStartResearch(state: WorldState, researchId: string): boolean {
+export function getResearchBlockReason(state: WorldState, researchId: string): string | null {
   const node = state.researchNodes.find(n => n.id === researchId);
-  if (!node || !node.unlocked || node.researched || state.activeResearch) return false;
+  if (!node) return 'No such research';
 
-  const prereqsMet = node.prerequisites.every(p => state.unlockedTechs.includes(p));
-  if (!prereqsMet) return false;
+  const missingPrereqs = node.prerequisites.filter(p => !state.unlockedTechs.includes(p));
+  if (missingPrereqs.length > 0) {
+    const names = missingPrereqs.map(p => state.researchNodes.find(n => n.id === p)?.name ?? p);
+    return `Needs ${names.join(' + ')} first`;
+  }
+  if (!node.unlocked) return 'Locked — an earlier tier comes first';
+  if (node.researched) return 'Already researched';
+  if (state.activeResearch) {
+    if (state.activeResearch === researchId) return 'In progress — wait for it to finish';
+    const active = state.researchNodes.find(n => n.id === state.activeResearch);
+    return `${active?.name ?? 'Another subject'} is already being researched`;
+  }
 
   const { wood, stone, gold } = node.cost;
-  return state.resources.wood >= wood && state.resources.stone >= stone && state.resources.gold >= gold;
+  const shortfalls: string[] = [];
+  if (wood > state.resources.wood) shortfalls.push(`${wood - state.resources.wood} more wood`);
+  if (stone > state.resources.stone) shortfalls.push(`${stone - state.resources.stone} more stone`);
+  if (gold > state.resources.gold) shortfalls.push(`${gold - state.resources.gold} more gold`);
+  if (shortfalls.length > 0) return `Need ${shortfalls.join(', ')}`;
+
+  return null;
+}
+
+/**
+ * Whether `startResearch` would accept this node — one shared gate, so a caller that must not
+ * issue a doomed command reads the rule the command itself enforces.
+ */
+export function canStartResearch(state: WorldState, researchId: string): boolean {
+  return getResearchBlockReason(state, researchId) === null;
 }
 
 /** Mutates `state` in place (same pattern as `updateResearch`) so callers need not reassign. */

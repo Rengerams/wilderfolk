@@ -8,7 +8,7 @@ import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { createEmptyLifetimeStats } from '../src/game/stats';
 import { addBigNews } from '../src/game/simEffects';
-import { logEvent } from '../src/game/eventLog';
+import { logEvent, EVENT_LOG_MAX_ENTRIES } from '../src/game/eventLog';
 import { resetSimRng } from '../src/game/simRng';
 import { WeatherType, type GameEventLog, type WorldState } from '../src/game/gameTypes';
 
@@ -217,5 +217,17 @@ describe('duplicate event-log ids are repaired on load', () => {
     const world = loadWorld(payload)!;
 
     expect(world.eventLog.map((entry) => entry.id)).toEqual([5, 4]);
+  });
+
+  it('trims a log longer than the writers’ cap, keeping the newest entries', () => {
+    const overflow = EVENT_LOG_MAX_ENTRIES + 5;
+    const entries = Array.from({ length: overflow }, (_, index) =>
+      logEntry(overflow - index, `line ${overflow - index}`));
+
+    const world = loadWorld(payloadWithEventLog(entries))!;
+
+    expect(world.eventLog).toHaveLength(EVENT_LOG_MAX_ENTRIES);
+    expect(world.eventLog[0].id).toBe(overflow);
+    expect(world.eventLog[world.eventLog.length - 1].id).toBe(overflow - EVENT_LOG_MAX_ENTRIES + 1);
   });
 });

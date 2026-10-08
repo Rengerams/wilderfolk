@@ -67,11 +67,6 @@ export function shiftCoversHour(shift: PrisonShift, hour: number): boolean {
   return hour >= shift.startHour || hour < shift.endHour;
 }
 
-export function shiftLengthHours(shift: PrisonShift): number {
-  const raw = shift.endHour - shift.startHour;
-  return raw > 0 ? raw : raw + 24;
-}
-
 /** Every clock hour of the day, in order. */
 export function shiftHours(shift: PrisonShift): number[] {
   const hours: number[] = [];

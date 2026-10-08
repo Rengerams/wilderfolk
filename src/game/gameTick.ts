@@ -28,6 +28,7 @@ import {
   syncResidenceOccupants,
 } from './dayCycle';
 import { displayYear } from './dayCycleClock';
+import { getEcosystemHealth } from './dailyEcology';
 import { buildEntityByType, type SimulationFocus } from './simFocus';
 import {
   cacheEntityByType,
@@ -102,7 +103,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     state.eventsThisYear = [];
     state.deathsThisYear = { humans: 0, animals: 0 };
     if (newYear > 0) {
-      state.ecoHealthYearsAbove80 = state.ecosystemHealth >= 80
+      state.ecoHealthYearsAbove80 = getEcosystemHealth(state) >= 80
         ? state.ecoHealthYearsAbove80 + 1
         : 0;
     }

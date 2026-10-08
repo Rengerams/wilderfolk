@@ -67,12 +67,13 @@ export function pickLeastCrowdedResidence(
    * longer re-implemented there (`LIVE-FINDINGS-STATUS.md`, duplication A2).
    */
   movingTogether: readonly Entity[] = [],
+  traits?: ResidenceTraitsById,
 ): number | undefined {
   let best: Building | undefined;
   let bestCount = Infinity;
   for (const residence of residences) {
     if (isLeaderHouseResidence(residence)) continue;
-    if (options.forbidSinglesOnly && residenceHostsOnlySingles(residence.id, humans)) continue;
+    if (options.forbidSinglesOnly && residenceHostsOnlySingles(residence.id, humans, traits)) continue;
     const cap = getResidenceCapacity(residence);
     const residents = countResidentsInBuilding(humans, residence.id, occupancy);
     let alreadyHere = 0;
@@ -176,6 +177,7 @@ function pickOrphanResidence(
   humans: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
+  traits?: ResidenceTraitsById,
 ): number | undefined {
   const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
   const custodianHome = pickResidenceFromChildCustodian(child, humans, residences, occupancy);
@@ -186,11 +188,11 @@ function pickOrphanResidence(
   for (const residence of residences) {
     if (isLeaderHouseResidence(residence)) continue;
     if (!residenceRoomFor(child, residence, alive, occupancy)) continue;
-    if (residenceHostsOnlySingles(residence.id, alive)) continue;
+    if (residenceHostsOnlySingles(residence.id, alive, traits)) continue;
     const count = countResidentsInBuilding(alive, residence.id, occupancy);
     let score = count;
     if (count === 0) score += HOUSING_SCORES.EMPTY_HOUSE_BONUS;
-    if (residenceHostsCouple(residence.id, alive)) score += HOUSING_SCORES.COUPLE_HOST_BONUS;
+    if (residenceHostsCouple(residence.id, alive, traits)) score += HOUSING_SCORES.COUPLE_HOST_BONUS;
     if (score < bestScore || (score === bestScore && residence.id < (best?.id ?? Infinity))) {
       bestScore = score;
       best = residence;
@@ -204,6 +206,7 @@ export function placeOrphanInHouse(
   humans: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
+  traits?: ResidenceTraitsById,
 ): boolean {
   const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
   if (hasResidenceAssignment(child)) {
@@ -212,8 +215,8 @@ export function placeOrphanInHouse(
   }
 
   const picked =
-    pickOrphanResidence(child, humans, residences, occupancy) ??
-    pickLeastCrowdedResidence(alive, residences, 1, { forbidSinglesOnly: true }, occupancy);
+    pickOrphanResidence(child, humans, residences, occupancy, traits) ??
+    pickLeastCrowdedResidence(alive, residences, 1, { forbidSinglesOnly: true }, occupancy, [], traits);
   if (picked === undefined) return false;
 
   child.residenceBuildingId = picked;
@@ -225,6 +228,7 @@ export function ensureOrphanAdoption(
   humans: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
+  traits?: ResidenceTraitsById,
 ): boolean {
   if (!child.alive || child.faction || !isMinorChild(child)) return false;
 
@@ -274,7 +278,7 @@ export function ensureOrphanAdoption(
     return true;
   }
 
-  return placeOrphanInHouse(child, humans, residences, occupancy);
+  return placeOrphanInHouse(child, humans, residences, occupancy, traits);
 }
 
 export function pickResidenceFromChildCustodian(
@@ -537,6 +541,7 @@ export function housingUnitNeedsReassignment(
   alive: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
+  traits?: ResidenceTraitsById,
 ): boolean {
   if (!isFamilyHousingValid(unit, residences, alive, occupancy)) return true;
   const homeId = unitResidenceId(unit);
@@ -549,8 +554,8 @@ export function housingUnitNeedsReassignment(
     if (!unitSharesResidenceWithOutsiders(unit, alive, homeId)) return false;
     if (hasEmptyResidenceForUnit(unit, alive, residences, occupancy)) return true;
     if (
-      residenceHostsCouple(homeId, alive) &&
-      hasSinglesOnlyResidenceWithRoom(unit, alive, residences, homeId, occupancy)
+      residenceHostsCouple(homeId, alive, traits) &&
+      hasSinglesOnlyResidenceWithRoom(unit, alive, residences, homeId, occupancy, traits)
     ) {
       return true;
     }
@@ -567,8 +572,9 @@ export function isUnnecessarilySharingHousing(
   humans: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
+  traits?: ResidenceTraitsById,
 ): boolean {
-  return housingUnitNeedsReassignment(unit, humans, residences, occupancy);
+  return housingUnitNeedsReassignment(unit, humans, residences, occupancy, traits);
 }
 
 export function auditHousingSharingIssues(humans: Entity[], buildings: Building[]): string[] {
@@ -605,9 +611,10 @@ export function sortHousingUnitsForAssignment(
   alive: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
+  traits?: ResidenceTraitsById,
 ): Entity[][] {
   const needReassign = units.map((u) =>
-    housingUnitNeedsReassignment(u, alive, residences, occupancy),
+    housingUnitNeedsReassignment(u, alive, residences, occupancy, traits),
   );
   return units
     .map((unit, i) => ({ unit, need: needReassign[i] ? 0 : 1, len: unit.length }))
@@ -616,47 +623,73 @@ export function sortHousingUnitsForAssignment(
 }
 
 /**
- * Per-residence facts the pickers ask about, built in **one** walk over `humans` instead of a colony
- * scan per question. Threading `traits` through is what makes a pick O(residences) instead of
- * O(residences × humans) — the day-boundary freeze was 982 settlers × 694 residences × a full filter.
+ * Per-residence facts the pickers ask about, built in **one** walk over `humans` and then kept
+ * current by `residenceTraitMove` beside every occupancy move — threading it through is what makes
+ * a pick O(residences) instead of O(residences × humans).
  */
-interface ResidenceTraits {
+export interface ResidenceTraits {
   adults: number;
-  hasMinor: boolean;
-  hasCouple: boolean;
+  minors: number;
+  /** Occupants whose partner is a housemate; above zero is the "hosts a couple" predicate. */
+  pairs: number;
+  occupants: Map<number, Entity>;
 }
-type ResidenceTraitsById = Map<number, ResidenceTraits>;
+export type ResidenceTraitsById = Map<number, ResidenceTraits>;
 
-function buildResidenceTraits(humans: readonly Entity[]): ResidenceTraitsById {
-  const traits: ResidenceTraitsById = new Map();
-  const occupantIds = new Map<number, Set<number>>();
-  for (const h of humans) {
-    if (!h.alive || !isPlayerHuman(h)) continue;
-    const id = h.residenceBuildingId;
-    if (id == null) continue;
-    let entry = traits.get(id);
-    if (!entry) {
-      entry = { adults: 0, hasMinor: false, hasCouple: false };
-      traits.set(id, entry);
-    }
-    if (isMinorChild(h)) entry.hasMinor = true;
-    if (!h.isJuvenile) entry.adults += 1;
-    const ids = occupantIds.get(id);
-    if (ids) ids.add(h.id);
-    else occupantIds.set(id, new Set([h.id]));
+function addResidenceOccupant(traits: ResidenceTraitsById, residenceId: number, human: Entity): void {
+  let entry = traits.get(residenceId);
+  if (!entry) {
+    entry = { adults: 0, minors: 0, pairs: 0, occupants: new Map() };
+    traits.set(residenceId, entry);
   }
-  // A couple is an occupant whose partner lives in the same house — the second walk is what that
-  // needs, and it is still linear.
-  for (const h of humans) {
-    if (!h.alive || !isPlayerHuman(h) || h.partnerId == null) continue;
-    const id = h.residenceBuildingId;
-    if (id == null) continue;
-    if (occupantIds.get(id)?.has(h.partnerId)) {
-      const entry = traits.get(id);
-      if (entry) entry.hasCouple = true;
-    }
+  entry.occupants.set(human.id, human);
+  if (!human.isJuvenile) entry.adults += 1;
+  if (isMinorChild(human)) entry.minors += 1;
+  if (human.partnerId != null && entry.occupants.has(human.partnerId)) entry.pairs += 1;
+  for (const occupant of entry.occupants.values()) {
+    if (occupant.id !== human.id && occupant.partnerId === human.id) entry.pairs += 1;
+  }
+}
+
+function removeResidenceOccupant(traits: ResidenceTraitsById, residenceId: number, human: Entity): void {
+  const entry = traits.get(residenceId);
+  if (!entry) return;
+  entry.occupants.delete(human.id);
+  if (!human.isJuvenile) entry.adults -= 1;
+  if (isMinorChild(human)) entry.minors -= 1;
+  if (human.partnerId != null && entry.occupants.has(human.partnerId)) entry.pairs -= 1;
+  for (const occupant of entry.occupants.values()) {
+    if (occupant.partnerId === human.id) entry.pairs -= 1;
+  }
+  if (entry.occupants.size === 0) traits.delete(residenceId);
+}
+
+/** One walk over the colony; a house with no occupant gets no entry. */
+export function buildResidenceTraits(humans: readonly Entity[]): ResidenceTraitsById {
+  const traits: ResidenceTraitsById = new Map();
+  for (const human of humans) {
+    if (!human.alive || !isPlayerHuman(human)) continue;
+    const residenceId = human.residenceBuildingId;
+    if (residenceId == null) continue;
+    addResidenceOccupant(traits, residenceId, human);
   }
   return traits;
+}
+
+/**
+ * Applies one move to a threaded trait map, exactly as a fresh `buildResidenceTraits` would read it
+ * at that moment. Every residence write inside an assignment pass must call this beside
+ * `occupancyMove`, or the threaded map drifts from the live world.
+ */
+export function residenceTraitMove(
+  traits: ResidenceTraitsById,
+  human: Entity,
+  fromId: number | undefined,
+  toId: number | undefined,
+): void {
+  if (fromId === toId) return;
+  if (fromId != null) removeResidenceOccupant(traits, fromId, human);
+  if (toId != null) addResidenceOccupant(traits, toId, human);
 }
 
 function traitsFor(humans: Entity[], traits?: ResidenceTraitsById): ResidenceTraitsById {
@@ -668,7 +701,7 @@ function residenceHostsCouple(
   humans: Entity[],
   traits?: ResidenceTraitsById,
 ): boolean {
-  return traitsFor(humans, traits).get(residenceId)?.hasCouple ?? false;
+  return (traitsFor(humans, traits).get(residenceId)?.pairs ?? 0) > 0;
 }
 
 function residenceHostsOnlySingles(
@@ -677,7 +710,7 @@ function residenceHostsOnlySingles(
   traits?: ResidenceTraitsById,
 ): boolean {
   const entry = traitsFor(humans, traits).get(residenceId);
-  if (!entry || entry.hasMinor || entry.hasCouple) return false;
+  if (!entry || entry.minors > 0 || entry.pairs > 0) return false;
   return entry.adults > 0;
 }
 
@@ -698,14 +731,16 @@ export function pickResidenceForFamily(
   humans: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
+  traitsIn?: ResidenceTraitsById,
 ): number | undefined {
   if (residences.length === 0 || family.length === 0) return undefined;
 
   const loneSingle = isLoneSettler(family, humans);
   const hasMinor = family.some((m) => isMinorChild(m));
   
-  // One walk over the colony, then every per-residence question below is a map lookup.
-  const traits = buildResidenceTraits(humans);
+  // A threaded map is the pass's own; without one, one walk over the colony answers every
+  // per-residence question below by lookup.
+  const traits = traitsFor(humans, traitsIn);
 
   let emptyHouseCount = 0;
   const singlesFriendlyHouseIds = new Set<number>();
@@ -802,11 +837,12 @@ export function pickResidenceForHumanExcluding(
   residences: Building[],
   excludeResidenceIds: Iterable<number> = [],
   occupancy?: ResidenceOccupancy,
+  traits?: ResidenceTraitsById,
 ): number | undefined {
   const exclude = new Set(excludeResidenceIds);
   const filtered = residences.filter((r) => !exclude.has(r.id));
   if (filtered.length === 0) return undefined;
-  return pickResidenceForHuman(human, humans, filtered, occupancy);
+  return pickResidenceForHuman(human, humans, filtered, occupancy, traits);
 }
 
 export function pickResidenceForHuman(
@@ -814,11 +850,12 @@ export function pickResidenceForHuman(
   humans: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
+  traits?: ResidenceTraitsById,
 ): number | undefined {
   if (residences.length === 0) return undefined;
 
   const household = isMinorChild(human) ? [human] : collectOwnHousehold(human, humans);
-  const familyHouse = pickResidenceForFamily(household, humans, residences, occupancy);
+  const familyHouse = pickResidenceForFamily(household, humans, residences, occupancy, traits);
   if (familyHouse !== undefined) return familyHouse;
 
   if (human.partnerId) {
@@ -837,5 +874,5 @@ export function pickResidenceForHuman(
   }
 
   const crowdOpts: PickResidenceOptions = isMinorChild(human) ? { forbidSinglesOnly: true } : {};
-  return pickLeastCrowdedResidence(humans, residences, 1, crowdOpts, occupancy);
+  return pickLeastCrowdedResidence(humans, residences, 1, crowdOpts, occupancy, [], traits);
 }

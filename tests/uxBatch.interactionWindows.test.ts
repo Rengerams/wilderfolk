@@ -44,7 +44,7 @@ describe('a camera pan does not throw the selection away', () => {
     // `handleCanvasClick` had nothing left to measure and every pan reached the deselect branch.
     expect(interactions).toContain('const pointerMovedRef = useRef(false);');
     expect(interactions).toMatch(
-      /const origin = clickOriginRef\.current;\n\s*pointerMovedRef\.current = origin/,
+      /const origin = clickOriginRef\.current;\n\s*if \(origin && e\) \{\n\s*const dx = e\.clientX - origin\.x;\n\s*const dy = e\.clientY - origin\.y;\n\s*pointerMovedRef\.current = dx \* dx \+ dy \* dy > 16;/,
     );
   });
 
@@ -54,5 +54,19 @@ describe('a camera pan does not throw the selection away', () => {
     );
     // A fresh gesture starts as a click, so a stale verdict cannot swallow the next real click.
     expect(interactions).toMatch(/pointerMovedRef\.current = false;\n\s*if \(gameplayActive && e\.button === 0\)/);
+  });
+});
+
+describe('a catalogue tile without a sprite shows the building itself', () => {
+  const catalogue = read('src/components/BuildCatalogPanel.tsx');
+
+  it('guards the image on the optional sprite path', () => {
+    // `BuildingConfig.sprite` is optional for procedural decor, and `<img src>` with an absent path
+    // asks the server for the page itself. The image must sit behind the guard, not beside it.
+    expect(catalogue).toContain('{config.sprite ? (');
+    expect(catalogue).toMatch(
+      /\{config\.sprite \? \(\n\s*<img\n\s*src=\{config\.sprite\}/,
+    );
+    expect(catalogue).toContain('{config.emoji}');
   });
 });

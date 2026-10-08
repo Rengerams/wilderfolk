@@ -42,12 +42,6 @@ import {
   warp,
 } from './noise';
 
-/**
- * The four-layer cell edges live in `terrainGrid` (the representation owner);
- * re-exported so the generator's importers keep one path to them.
- */
-export { BUILD_CELL, TERRAIN_CELL } from './terrainGrid';
-
 /** Global decor density multiplier (Teraforge `decorDensity` default). */
 const DECOR_DENSITY = 1.2;
 

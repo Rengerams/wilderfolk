@@ -11,6 +11,7 @@ import type { EntitySpatialGrid } from './spatialGrid';
 import type { ViewState } from './viewState';
 import { resolveBuilding, resolveEntity } from './viewState';
 import { computeLogisticsOverlayCached, type LogisticsOverlayData } from './logisticsOverlayData';
+import { getEcosystemHealth } from './dailyEcology';
 
 /**
  * A shared, frozen by-type table for the SoA render path, which never reads `snapshot.entityByType`.
@@ -193,7 +194,7 @@ export function buildRenderSnapshot(
     visitorGroups: world.visitorGroups ?? [],
     rivalSettlements: world.rivalSettlements ?? [],
     highlightedCampKey: view.highlightedCampKey,
-    ecosystemHealth: world.ecosystemHealth,
+    ecosystemHealth: getEcosystemHealth(world),
     pollutionLevel: world.pollutionLevel,
     renffrOmen: world.renffrOmen ?? null,
     unlockedTechs: world.unlockedTechs ?? [],

@@ -129,17 +129,6 @@ export function overlapsAnyBuilding(
   return false;
 }
 
-/** Any structure (player or rival) blocks placement — alias of overlapsAnyBuilding. */
-export function overlapsPlayerBuilding(
-  buildings: readonly Building[],
-  width: number,
-  height: number,
-  x: number,
-  y: number,
-): boolean {
-  return overlapsAnyBuilding(buildings, width, height, x, y);
-}
-
 /**
  * Renderer-only spatial index over building footprints.
  *

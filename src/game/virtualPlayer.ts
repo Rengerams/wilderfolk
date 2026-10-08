@@ -53,6 +53,7 @@ import {
 import { canAfford } from './resourceUtils';
 import { countHomelessSettlers, isResidenceBuilding } from './residencyOccupancy';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
+import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
 import { canAssignWorkerToBuilding, listAssignableWorkersForBuilding } from './buildingStaffingActions';
@@ -1520,7 +1521,7 @@ const COMMUNITY_BUILD_ORDER: readonly ServiceBuildOption[] = [
     type: BuildingType.WildlifePreserve,
     needed: (state) =>
       !ownsBuildingOfType(state, BuildingType.WildlifePreserve)
-      && (state.ecosystemHealth ?? 100) < VirtualPlayer.ECOLOGY_HEALTHY_THRESHOLD,
+      && getEcosystemHealth(state) < VirtualPlayer.ECOLOGY_HEALTHY_THRESHOLD,
   },
 ];
 
