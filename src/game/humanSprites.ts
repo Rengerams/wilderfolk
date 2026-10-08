@@ -150,7 +150,15 @@ export const HUMAN_FOOT_OFFSET_RATIO = 0.2;
 export const HUMAN_MIN_SCREEN_PX = 30;
 /** Fallback aspect ratio of the human PNG sprites (27x72, feet on bottom row). */
 export const HUMAN_SPRITE_ASPECT = 27 / 72;
-
+/**
+ * The clickable floor for a settler, in screen pixels: the smallest box a pointer can reliably hit.
+ *
+ * The drawn sprite is much smaller than this at ordinary zoom, and it shrinks further in world
+ * terms as the camera zooms in, which made picking one settler out of a crowd the hardest click on
+ * the map. Applied as a screen-space minimum in `getHumanSelectionBounds`.
+ */
+export const HUMAN_MIN_HIT_WIDTH_PX = 26;
+export const HUMAN_MIN_HIT_HEIGHT_PX = 34;
 export interface HumanSpriteMetrics {
   size: number;
   spriteH: number;
@@ -178,18 +186,26 @@ export function getHumanSpritePath(human: Entity): string {
   return getHumanWalkSheetPath(gender, variant);
 }
 
-/** World-space selection bounds for a human sprite (centered on the visible sprite). */
+/**
+ * A sprite's clickable box, in world units, for the current zoom.
+ *
+ * The ellipse is the drawn sprite, but a drawn sprite is a fraction of the size a pointer can
+ * reliably hit: at the default zoom the box is about 11 × 29 CSS px, and because it was world-space
+ * it kept shrinking as the player zoomed *in* to pick someone out of a crowd. The bounds are
+ * therefore clamped to a floor measured in **screen** pixels and converted back to world units, so
+ * tolerance is constant on screen however far the camera is in.
+ */
 export function getHumanSelectionBounds(
   human: Entity,
   camZoom: number,
 ): { cx: number; cy: number; rx: number; ry: number } {
-  void camZoom; // bounds use world units; param kept for call-site API
   const worldH = human.isJuvenile ? HUMAN_WORLD_HEIGHT * 0.72 : HUMAN_WORLD_HEIGHT;
   const footOffsetWorld = worldH * HUMAN_FOOT_OFFSET_RATIO;
   const cx = human.x;
   const cy = human.y + footOffsetWorld - worldH / 2;
-  const ry = worldH / 2;
-  const rx = worldH * HUMAN_SPRITE_ASPECT / 2;
+  const zoom = Number.isFinite(camZoom) && camZoom > 0 ? camZoom : 1;
+  const ry = Math.max(worldH / 2, HUMAN_MIN_HIT_HEIGHT_PX / 2 / zoom);
+  const rx = Math.max(worldH * HUMAN_SPRITE_ASPECT / 2, HUMAN_MIN_HIT_WIDTH_PX / 2 / zoom);
   return { cx, cy, rx, ry };
 }
 

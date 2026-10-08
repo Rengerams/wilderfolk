@@ -32,7 +32,9 @@ dependency-graph.dot
 dependency-graph.svg
 references.md
 .git
-
+dist/
+pnpm-workspace.yaml
+tmp/
 TERAFORGE.md
 GIT_SURVIVAL_GUIDE.md
 # Local configuration and generated tooling files

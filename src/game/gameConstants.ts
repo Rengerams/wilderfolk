@@ -321,4 +321,41 @@ export const VirtualPlayer = {
    * cheap on a big map.
    */
   ROAD_PATH_MAX_NODES: 4000,
+  /**
+   * 10 = settlers the colony must reach before the bot spends a building hour on a
+   * community service (well, tavern, church, workshop, storage).
+   *
+   * A founding pair needs a house, food and a leader's house; a well or a tavern
+   * before there is a village is a building a human would not raise yet. 10 is the
+   * point where the settlement outgrows a single camp and the per-settler services
+   * (`getWellCoverage`, storage caps, `ecosystemHealth`) start to bite.
+   */
+  COMMUNITY_MIN_SETTLERS: 10,
+  /**
+   * 3 = days of settler food need kept in store before the bot spends an hour on a
+   * community service. Stricter than the general `FOOD_BUFFER_DAYS` (2) because a
+   * service is optional: food, housing and repair all outrank it.
+   */
+  COMMUNITY_FOOD_RESERVE_DAYS: 3,
+  /**
+   * 3 = days of settler food need kept in store before the bot upgrades a completed
+   * building. Nothing may raise a level out of the colony's lunch.
+   */
+  UPGRADE_FOOD_RESERVE_DAYS: 3,
+  /**
+   * 2 = the wood, stone and gold *multiple* of an upgrade's own price the colony must
+   * hold before the bot will pay it (`getBuildingUpgradeCost` scales with level).
+   * Keeping one upgrade's worth in reserve means an upgrade can never be the reason
+   * the next house or farm cannot be built.
+   */
+  UPGRADE_COST_RESERVE_MULT: 2,
+  /**
+   * 60 = the ecosystem-health line the bot treats as "the ground needs help", so a Wildlife
+   * Preserve is worth an hour (`decideCommunity`). It is the *same* 0–100 scale the Nature
+   * window paints green above 60 and the leader's score rewards at 60 — stated here by name
+   * rather than re-typed in the bot. Deliberately not extracted into a shared band constant:
+   * the two readers compare `> 60` and `>= 60`, and unifying the operator is a balance call,
+   * not this change's business.
+   */
+  ECOLOGY_HEALTHY_THRESHOLD: 60,
 } as const;

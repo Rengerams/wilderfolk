@@ -139,12 +139,13 @@ export default function MoreTabPanel({
               <p><strong className="text-stone-200">Build panel (left)</strong> — Press <strong className="text-stone-200">B</strong> to open. Pick a category, then a building. Keys <strong className="text-stone-200">1–9</strong> quick-select common types.</p>
               <p><strong className="text-stone-200">Grid</strong> — Press <strong className="text-stone-200">G</strong> to toggle the placement grid (auto-on when building).</p>
               <p><strong className="text-stone-200">Inspector</strong> — Top of the right panel; collapsible, auto-opens when you click the map.</p>
-              <p><strong className="text-stone-200">Village</strong> — Focus hints with <strong className="text-stone-200">Go →</strong>, population, leadership, armament.</p>
-              <p><strong className="text-stone-200">Frontier</strong> — Visitors, rivals, raids, diplomacy (badge when action needed).</p>
-              <p><strong className="text-stone-200">Nature</strong> — Ecosystem health and wildlife counts.</p>
-              <p><strong className="text-stone-200">Progress</strong> — Research · Trade · Goals (legend portrait + optional challenges). Sub-tabs show badges when researching or trade is ready.</p>
-              <p><strong className="text-stone-200">More</strong> — Guide (this page) and Campaign.</p>
-              <p><strong className="text-stone-200">Tab hotkeys</strong> — <strong className="text-stone-200">V</strong> Village · <strong className="text-stone-200">F</strong> Frontier · <strong className="text-stone-200">N</strong> Nature · <strong className="text-stone-200">P</strong> Progress · <strong className="text-stone-200">L</strong> Log · <strong className="text-stone-200">M</strong> More.</p>
+              <p><strong className="text-stone-200">🏕️ Frontier</strong> — Visitors, rivals, raids and diplomacy. Opens in its own window.</p>
+              <p><strong className="text-stone-200">🏘️ Daily council</strong> — What the village needs today, food by source, jobs and population.</p>
+              <p><strong className="text-stone-200">🌿 Nature</strong> — Ecosystem health, weather and wildlife counts.</p>
+              <p><strong className="text-stone-200">👥 People</strong> — The household roster, family trees and each settler's own story.</p>
+              <p><strong className="text-stone-200">🎯 Progress</strong> — Research, trade routes and the village portrait. Sub-tabs show badges when research or trade is ready.</p>
+              <p><strong className="text-stone-200">☰ Menu</strong> — Save and load, settings, this Guide, and the Campaign.</p>
+              <p><strong className="text-stone-200">Every window has a keyboard door</strong> — <strong className="text-stone-200">F</strong> Frontier · <strong className="text-stone-200">C</strong> Daily council · <strong className="text-stone-200">N</strong> Nature · <strong className="text-stone-200">O</strong> People · <strong className="text-stone-200">P</strong> Progress · <strong className="text-stone-200">M</strong> Menu. Press <strong className="text-stone-200">?</strong> for the full list.</p>
             </div>
           </div>
 
@@ -263,7 +264,7 @@ export default function MoreTabPanel({
               <p>• <strong className="text-amber-200">Hospital</strong> — {describeHospitalReputation()}</p>
               <p>• <strong className="text-amber-200">Demolish</strong> — Click any building → sidebar → <strong className="text-stone-200">🗑 Demolish</strong> (works on houses too; residents are reassigned).</p>
               <p>• <strong className="text-amber-200">Reputation ⭐</strong> — Village header &amp; Progress → Trade. From Town Hall, Hospital, pilgrims, festivals, and avoiding scandals. Unlocks trade routes.</p>
-              <p>• <strong className="text-amber-200">Village head 👑</strong> — First male leads until Year {displayYear(ELECTION_INTERVAL_YEARS)}; merit elections every {ELECTION_INTERVAL_YEARS} years after that. Village tab → Leadership for standings and record score. Scandals hurt re-election; a strong challenger can still win.</p>
+              <p>• <strong className="text-amber-200">Village head 👑</strong> — First male leads until Year {displayYear(ELECTION_INTERVAL_YEARS)}; merit elections every {ELECTION_INTERVAL_YEARS} years after that. Open <strong className="text-stone-200">🏘️ Daily council</strong> for standings and record score. Scandals hurt re-election; a strong challenger can still win.</p>
             </div>
           </div>
 
@@ -284,9 +285,9 @@ export default function MoreTabPanel({
           </div>
 
           <div className="rounded-xl bg-stone-700/50 p-3">
-            <h3 className="mb-2 text-sm font-bold text-amber-300">📜 Village Chronicle (Log tab)</h3>
+            <h3 className="mb-2 text-sm font-bold text-amber-300">📜 Village Chronicle</h3>
             <div className="space-y-1 text-stone-300">
-              <p>Right sidebar → <strong className="text-stone-200">📜 Log</strong> — scrollable history of everything that happened (newest on top).</p>
+              <p><strong className="text-stone-200">📜 Log</strong> door in the header — scrollable history of everything that happened (newest on top).</p>
               <p>Filter by type, hit <strong className="text-stone-200">Download .txt</strong> for a text file (opens in Notepad), or enable export when you 💾 Save.</p>
               <p className="text-stone-300">File name: <strong className="text-stone-300">wilderfolk-YourVillage-chronicle.txt</strong> in your Downloads folder.</p>
             </div>

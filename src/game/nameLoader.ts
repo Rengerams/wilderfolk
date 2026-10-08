@@ -403,7 +403,7 @@ function clearMarriageLinks(entity: Entity): void {
   entity.lastAffairSiteY = undefined;
 }
 
-export function grantDivorce(wife: Entity, husband: Entity): void {
+export function grantDivorce(wife: Entity, husband: Entity, endedAtTick = 0): void {
   if (wife.maidenSurname?.trim()) {
     wife.surname = wife.maidenSurname.trim();
   }
@@ -411,13 +411,17 @@ export function grantDivorce(wife: Entity, husband: Entity): void {
   clearMarriageLinks(husband);
   wife.relationshipStatus = statusAfterDivorce(wife);
   husband.relationshipStatus = statusAfterDivorce(husband);
+  // Stamp the pair so they cannot turn round and remarry each other. Both sides carry the record:
+  // either partner may be the one whose courtship completes the marriage.
+  wife.pastPartnerTicks = { ...wife.pastPartnerTicks, [husband.id]: endedAtTick };
+  husband.pastPartnerTicks = { ...husband.pastPartnerTicks, [wife.id]: endedAtTick };
 }
 
-export function dissolveMarriage(partnerA: Entity, partnerB: Entity): void {
+export function dissolveMarriage(partnerA: Entity, partnerB: Entity, endedAtTick = 0): void {
   const wife = partnerA.gender === 'female' ? partnerA : partnerB.gender === 'female' ? partnerB : null;
   const husband = partnerA.gender === 'male' ? partnerA : partnerB.gender === 'male' ? partnerB : null;
   if (wife && husband) {
-    grantDivorce(wife, husband);
+    grantDivorce(wife, husband, endedAtTick);
     return;
   }
   clearMarriageLinks(partnerA);

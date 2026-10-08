@@ -2,6 +2,40 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Made a refused load leave the running colony alone** — the restore replaced the RNG seed part-way through, so a save that was then refused kept the failed load's randomness for the rest of the session; the session's seed and auto-save setting are now put back.
+
+- **Stopped a corrupted save poisoning every later spawn** — a payload missing an id allocator gave every new settler and building an id of `NaN`, and a rewound one collided with live ids; each is now raised past the highest id the world holds.
+
+- **Refused save files with duplicate, fractional or negative ids** — two entities sharing an id made one of them vanish from every id lookup, unable to be selected or targeted, and the next save wrote the collision back.
+
+- **Stopped a corrupted festival lasting forever** — the daily tick ends a festival when its remaining days reach zero, so a stored non-number made that test permanently false and the 1.5× festival boost never ended.
+
+- **Told the truth when a save reaches a file but not the browser slot** — a full storage quota was swallowed, so the game reported success and then offered Load against a slot it had never written, which could restore an older colony instead.
+
+- **Made a wolf able to kill** — a fight-back could only ever cost the hunter energy, so a long colony's chronicle held thousands of bites and no deaths; one roll now chooses between killed, mauled and an ordinary bite at the owner's odds.
+
+- **Stopped divorced couples remarrying the next day** — nothing recorded that two settlers had already been married, so a pair who still shared a house courted and remarried immediately after every divorce; a marriage now keeps them apart for a year.
+
+- **Stopped selling upgrades that do nothing** — the Church, School, Tavern, Prison, Barracks, Hospital and Town Hall all offered an upgrade because they are staffed, but nothing reads their level; the rule now lists the types whose level really changes output or beds.
+
+- **Let the affair system actually run** — its daily check compared a tick of the day against an hour, so it could only match the small hours when the settler was asleep at home and its own rules refused it; most married settlers never reached it at all.
+
+- **Counted a Town Hall official as working** — officials served their shift while the chronicle called every official day a rest day.
+
+- **Skipped the opening cinematic on a browser that has seen it** — it is a 23.6-second reveal that gated every load, so a returning player waited that long to reach Load; it plays once and stays reachable from the menu.
+
+- **Made resuming a pause only a resume** — it also auto-staffed every idle settler, so pressing Space undid a deliberate choice to leave a building unstaffed.
+
+- **Made settlers clickable** — the hit box was measured in world units and shrank as the player zoomed in to pick someone out of a crowd; it now has a floor measured on screen.
+
+- **Fixed the mini-map's viewport box** — it was sized from the world instead of the canvas, so it was the wrong size at every zoom and ignored a window resize.
+
+- **Stopped a notification self-destructing when you act on it** — clicking the card both jumped to the subject and dismissed it; the card now jumps and its own × dismisses.
+
+- **Gave the arrow keys one owner** — they panned the camera and stepped the map cursor at the same time, which made the keyboard route onto the map unusable.
+
+- **Taught auto-play to finish the village and raise its buildings** — the bot now builds the well, tavern, workshop, school, church, storage, mill, hotel and taming post once the settlement needs one, and upgrades completed buildings from surplus, only after food, housing and defence.
+
 - **Cut the day-rollover freeze from 58 s to 18 s, and it is still going** — residency assignment asked whether a house held a couple, a minor or only singles by re-scanning the whole colony per question, per house, per family; one walk now answers all three.
 
 - **Gave prison guards days off and split the jail's posts from its cells** — the Prison seats five guards beside four cells, three on watch and two resting each day, a resting guard no longer walks to a post he is not rostered for, and prisoners are no longer listed as the jail's workers.

@@ -99,6 +99,7 @@ import { useCanvasInteractions } from './hooks/useCanvasInteractions';
 import { useContextualTutorial } from './hooks/useContextualTutorial';
 import ContextualTutorialCard from './components/ContextualTutorialCard';
 import {
+  saveIntroSeen,
   saveTutorialChoice,
   saveAutoSavePreference,
   saveTutorialsEnabled,
@@ -151,7 +152,9 @@ function SaveToastBanner({
       className={`pointer-events-auto absolute bottom-16 left-1/2 ${className} -translate-x-1/2 rounded-lg border px-4 py-2 text-sm font-semibold shadow-2xl backdrop-blur hover:brightness-110 ${
         toast.type === 'success'
           ? 'border-emerald-500/40 bg-emerald-950/90 text-emerald-200'
-          : 'border-rose-500/40 bg-rose-950/90 text-rose-200'
+          : toast.type === 'warning'
+            ? 'border-amber-500/40 bg-amber-950/90 text-amber-200'
+            : 'border-rose-500/40 bg-rose-950/90 text-rose-200'
       }`}
     >
       {toast.type === 'success' ? '💾 ' : '⚠️ '}{toast.message}
@@ -412,11 +415,10 @@ export default function App() {
   const togglePause = useCallback(() => {
     const loop = loopRef.current;
     if (!loop) return;
-    const wasPaused = loop.getWorld().paused;
     loop.mutateWorld((w) => { w.paused = !w.paused; });
-    if (wasPaused) {
-      loop.applyCommand({ proto: 1, op: 'autoStaffWorkers' });
-    }
+    // Resuming is only a resume. It used to also fire `autoStaffWorkers`, so pressing Space handed
+    // every idle settler a job with no confirmation and undid a player's deliberate unstaffing. The
+    // labelled "Auto-assign all workers" control owns that decision.
   }, [loopRef]);
 
   const resumeAfterTutorialOverlay = useCallback(() => {
@@ -1103,6 +1105,12 @@ export default function App() {
       showSaveToast({ message: result.error, type: 'error' });
       return;
     }
+    if (result.slotWarning) {
+      // The file is on disk but the slot is not: do not enable Load against a slot that was never
+      // written, and say so, because the player has just been told a save exists.
+      showSaveToast({ message: result.slotWarning, type: 'warning' });
+      return;
+    }
     setHasSavedGame(true);
     showSaveToast({
       message: 'Save downloaded — keep the .json file safe',
@@ -1179,6 +1187,9 @@ export default function App() {
       <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-stone-950 text-stone-400">Loading…</div>}>
         <IntroScreen
           onContinue={() => {
+            // Remember that this browser has seen the cinematic, so the next load goes straight to
+            // the map screen. Replaying it stays available from the menu, which re-opens this screen.
+            saveIntroSeen(true);
             setShowIntro(false);
             setMapSetupSource('intro');
             setShowMapSetup(true);
@@ -1388,29 +1399,30 @@ export default function App() {
             className="pointer-events-auto absolute right-3 top-3 z-[40] flex max-h-[calc(100vh-7rem)] w-[min(20rem,calc(100vw-8rem))] flex-col gap-1.5 overflow-y-auto pr-0.5"
             aria-live="polite"
           >
-            {world.notifications.slice(-4).map((n) => (
-              <button
+            {world.notifications.slice(-4).map((n) => {
+              // Acting on a notification must not destroy it: the body jumps to the subject and the
+              // × dismisses. One shared button for both meant the only way to act on a warning was
+              // to lose the text being read.
+              const openSubject = () => {
+                if (n.focus) {
+                  focusWorldCamera(n.focus.x, n.focus.y, 1.5);
+                }
+                // Visitor/rival camp notification — select the camp so the
+                // inspector opens with its talk/trade actions visible.
+                if (n.campKey) {
+                  loopRef.current?.patchView({
+                    selectedCampKey: n.campKey,
+                    selectedEntityId: null,
+                    selectedEntityIds: [],
+                    selectedBuildingId: null,
+                  });
+                  setInspectorCollapsed(false);
+                }
+              };
+              return (
+              <div
                 key={n.id}
-                type="button"
-                onClick={() => {
-                  if (n.focus) {
-                    focusWorldCamera(n.focus.x, n.focus.y, 1.5);
-                  }
-                  // Visitor/rival camp notification — select the camp so the
-                  // inspector opens with its talk/trade actions visible.
-                  if (n.campKey) {
-                    loopRef.current?.patchView({
-                      selectedCampKey: n.campKey,
-                      selectedEntityId: null,
-                      selectedEntityIds: [],
-                      selectedBuildingId: null,
-                    });
-                    setInspectorCollapsed(false);
-                  }
-                  dismissNotification(n.id);
-                }}
-                title={n.focus ? (n.campKey ? 'Open camp · click to dismiss' : 'Focus location · click to dismiss') : 'Dismiss'}
-                className={`group relative w-full rounded-xl border-2 px-3 py-2 pr-8 text-left text-sm shadow-xl backdrop-blur-md transition-all animate-in slide-in-from-right hover:brightness-110 ${
+                className={`group relative w-full rounded-xl border-2 text-left text-sm shadow-xl backdrop-blur-md transition-all animate-in slide-in-from-right ${
                   n.type === 'success'
                     ? 'border-emerald-500/45 bg-emerald-950/92 text-emerald-100'
                     : n.type === 'warning'
@@ -1420,11 +1432,28 @@ export default function App() {
                         : 'border-stone-500/50 bg-stone-900/94 text-stone-100'
                 }`}
               >
-                <span className="block font-bold leading-tight">{n.title}</span>
-                <span className="mt-0.5 block text-[13px] leading-relaxed opacity-90">{n.message}</span>
-                <span className="absolute right-2 top-2 text-sm leading-none text-stone-400 group-hover:text-white">×</span>
-              </button>
-            ))}
+                <button
+                  type="button"
+                  onClick={openSubject}
+                  disabled={!n.focus && !n.campKey}
+                  title={n.focus ? (n.campKey ? 'Open camp' : 'Focus location') : n.message}
+                  className="block w-full rounded-xl px-3 py-2 pr-9 text-left disabled:cursor-default"
+                >
+                  <span className="block font-bold leading-tight">{n.title}</span>
+                  <span className="mt-0.5 block text-[13px] leading-relaxed opacity-90">{n.message}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismissNotification(n.id)}
+                  aria-label={`Dismiss ${n.title}`}
+                  title="Dismiss"
+                  className="absolute right-1.5 top-1.5 rounded px-1.5 py-0.5 text-sm leading-none text-stone-400 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  ×
+                </button>
+              </div>
+              );
+            })}
           </div>
 
           {/* Raid defense — respond before march deadline (distance-scaled) */}

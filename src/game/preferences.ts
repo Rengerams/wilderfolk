@@ -5,6 +5,7 @@ const FIRST_NIGHT_WARNING_KEY = 'wilderfolk-first-night-warning-dismissed';
 const SHOW_SIM_TICK_KEY = 'wilderfolk-show-sim-tick';
 const SHOW_FPS_KEY = 'wilderfolk-show-fps';
 const TUTORIAL_CHOICE_KEY = 'wilderfolk-tutorial-choice';
+const INTRO_SEEN_KEY = 'wilderfolk-intro-seen';
 
 let cachedJuiceEffects: boolean | null = null;
 
@@ -120,4 +121,19 @@ export function saveShowFps(enabled: boolean): void {
 /** Resets in-memory preference caches (primarily for unit tests and session resets). */
 export function resetPreferencesCache(): void {
   cachedJuiceEffects = null;
+}
+
+/**
+ * Whether this browser has already watched the opening cinematic.
+ *
+ * The intro is a 23.6-second timed reveal, so gating every load on it made a returning player wait
+ * that long to reach "Load saved game". This is the flag that lets the game skip straight to the
+ * map-setup screen instead; the cinematic stays reachable from the menu.
+ */
+export function loadIntroSeen(): boolean {
+  return readBoolPreference(INTRO_SEEN_KEY, false);
+}
+
+export function saveIntroSeen(seen: boolean): void {
+  writeBoolPreference(INTRO_SEEN_KEY, seen);
 }

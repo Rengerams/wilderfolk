@@ -19,7 +19,11 @@ const AUTO_SAVE_FAILURE_MESSAGE = 'Auto-save failed — try manual save from the
 
 export interface SaveToast {
   message: string;
-  type: 'success' | 'error';
+  /**
+   * `warning` = the action partly succeeded. Used when a save reaches a file but the browser slot
+   * could not be written, which the player must know because Load will not see it.
+   */
+  type: 'success' | 'warning' | 'error';
 }
 
 export interface PersistCurrentGameOptions {

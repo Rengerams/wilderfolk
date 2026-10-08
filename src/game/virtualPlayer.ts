@@ -16,7 +16,9 @@
  *  10. repairs  11. forge orders  12. building tuning  13. recruitment
  *  14. visitors 15. manual staffing  16. staffing mode  17. work day
  *  18. venue hours  19. surplus crew  20. roads  21. demolition
- *  22. upkeep & agency  23. rival relations
+ *  22. upkeep & agency (housing, taming)  23. rival relations
+ *  24. community services  25. building upgrades
+ *  (24 and 25 are last on purpose: they may only spend an hour nothing else wanted)
  *
  * Costs, affordability, placement validity, staffing eligibility, research
  * gating, festival readiness, repair/upgrade rules, recruitment, forging, taming,
@@ -76,6 +78,8 @@ import { Human, VirtualPlayer } from './gameConstants';
 import { getStoryChoiceEligibility } from './storyEvents';
 import type { DiplomacyEvent, RaidEvent, StoryEvent } from './gameTypes';
 import {
+  buildingTypeHasLevelBenefit,
+  getBuildingUpgradeCost,
   getBuildingUpgradeEligibility,
   getRepairBuildingEligibility,
 } from './buildingMaintenanceActions';
@@ -1278,6 +1282,45 @@ function decideUpkeep(state: WorldState): VirtualPlayerDecision | null {
     }
   }
 
+  // A general upgrade is *not* proposed here: like a community building it is the most
+  // postponable thing the bot spends on, so it lives at the end of the ladder
+  // (`decideUpgrades`) where it cannot shadow defence, diplomacy or expansion. The housing
+  // expansion above stays, because a homeless colony has no more urgent building to raise.
+  return null;
+}
+
+/**
+ * 25 — the last hour of the ladder: raise a completed building a level.
+ *
+ * The whole test is the owner's (`getBuildingUpgradeEligibility`) plus the reserve policy
+ * (`canAffordUpgradeWithReserve`), so the bot can never spend an hour on an upgrade the owner
+ * would refuse. `buildingTypeHasLevelBenefit` keeps it off the 16 types whose level nothing
+ * reads, where the upgrade is offered to nobody — the same derivation the panel uses to hide
+ * the button.
+ *
+ * Last on purpose, beside `decideCommunity`: an upgrade competes with nothing, so it takes the
+ * hour only when food, housing, repair, defence and services all have nothing to do.
+ */
+function decideUpgrades(state: WorldState): VirtualPlayerDecision | null {
+  // An idle settler is work the colony has not placed yet, and placing one is worth more than a
+  // level — so while anybody is idle, the ladder's other steps get the hour.
+  if (computeVillageStats(state).idle > 0) return null;
+
+  for (const building of state.buildings) {
+    if (!building.completed || building.faction === 'rival') continue;
+    if (!buildingTypeHasLevelBenefit(building.type)) continue;
+    // The Leader's House is free and belongs to the office, not the colony's budget: raising its
+    // level would spend real resources on the one building nobody paid to raise. The UI hides the
+    // button for it (`upgradeBuilding` treats it as structural); the bot must skip it too.
+    if (building.type === BuildingType.LeaderHouse) continue;
+    if (!getBuildingUpgradeEligibility(state, building.id).ok) continue;
+    if (!canAffordUpgradeWithReserve(state, building)) continue;
+    return {
+      command: { proto: WORKER_CMD_PROTO, op: 'upgradeBuilding', buildingId: building.id },
+      reason: `upgrade the ${BUILDING_CONFIGS[building.type].label} — the stores can spare it`,
+    };
+  }
+
   return null;
 }
 
@@ -1324,6 +1367,182 @@ function decideDemolish(state: WorldState): VirtualPlayerDecision | null {
     command: { proto: WORKER_CMD_PROTO, op: 'demolishBuilding', buildingId: redundant.id },
     reason: `clear the empty ${BUILDING_CONFIGS[redundant.type].label} — the village has no room left to build`,
   };
+}
+
+/**
+ * One community building the bot will raise, with the condition that makes it worth its hour.
+ * `needed` is a *want* only: whether the colony may actually build it is still decided by
+ * `canPlaceBuilding` (research gate, cost, terrain), so no rule is restated here.
+ */
+interface ServiceBuildOption {
+  type: BuildingType;
+  needed: (state: WorldState) => boolean;
+}
+
+/** The colony already has this type, built or on the way — `decideCivic`'s own rule. */
+function ownsBuildingOfType(state: WorldState, type: BuildingType): boolean {
+  return state.buildings.some((building) => building.type === type && building.faction !== 'rival');
+}
+
+function hasCompletedBuildingOfType(state: WorldState, type: BuildingType): boolean {
+  return state.buildings.some(
+    (building) => building.type === type && building.faction !== 'rival' && building.completed,
+  );
+}
+
+/** Adult settlers — the population a service has to be worth building for. */
+function adultSettlerCount(state: WorldState): number {
+  let adults = 0;
+  for (const entity of state.entities) {
+    if (!entity.alive || !isPlayerHuman(entity) || entity.isJuvenile) continue;
+    adults++;
+  }
+  return adults;
+}
+
+function hasJuvenileSettler(state: WorldState): boolean {
+  return state.entities.some((entity) => entity.alive && isPlayerHuman(entity) && entity.isJuvenile);
+}
+
+/** The `state.resources.storageMax` key a storage building extends. */
+type StorageResourceKey = 'wood' | 'stone' | 'gold';
+
+/** Two thirds full: the shelf is nearly full, so extra capacity is the next useful build. */
+const STORAGE_PRESSURE_RATIO = 2 / 3;
+
+function storageNearlyFull(state: WorldState, key: StorageResourceKey): boolean {
+  const cap = state.storageMax?.[key];
+  if (!cap || cap <= 0) return false;
+  return (state.resources[key] ?? 0) >= cap * STORAGE_PRESSURE_RATIO;
+}
+
+/**
+ * 22 — the community services: the buildings a settlement raises once it is a
+ * settlement, and the ones no earlier step ever proposed.
+ *
+ * Order is the order of need. Each entry's `needed` is grounded in the mechanic
+ * that building owns, so none of them is a wish: the well answers a village too
+ * big to walk for water, the tavern a population that needs somewhere to unwind,
+ * the school children who exist, the church the scandal pressure `churchStrength`
+ * actually modifies, storage the shelf that is nearly full, and the preserve
+ * ground an ecosystem under strain needs back.
+ *
+ * Whether any of it may be *placed* is not restated: `canPlaceBuilding` refuses a
+ * locked research, an unaffordable price and a blocked site, so `findPlacementSpot`
+ * returns no spot and the step simply waits its turn — the same contract
+ * `decideCivic` documents.
+ *
+ * Deliberately behind food, housing, repair and demolition, and behind a real food
+ * reserve: a community building is the first thing a colony should be able to
+ * postpone. Storage comes before the services that merely want building, so the
+ * colony widens its shelves before it spends on comfort.
+ */
+function decideCommunity(state: WorldState): VirtualPlayerDecision | null {
+  if (adultSettlerCount(state) < VirtualPlayer.COMMUNITY_MIN_SETTLERS) return null;
+  if (!hasFoodMargin(state, VirtualPlayer.COMMUNITY_FOOD_RESERVE_DAYS)) return null;
+
+  for (const { type, needed } of COMMUNITY_BUILD_ORDER) {
+    if (needed(state) && canAfford(state, BUILDING_CONFIGS[type].cost)) {
+      const spot = findPlacementSpot(state, type, 0);
+      if (spot) {
+        return {
+          command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type, x: spot.x, y: spot.y, rotation: 0 },
+          reason: `build a ${BUILDING_CONFIGS[type].label} — the settlement is big enough to need one`,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * The community buildings, in the order the bot wants them, with the condition that
+ * justifies each. Repair and expansion are not here — they are `decideRepairs` and
+ * the upgrade half of `decideUpkeep`.
+ */
+const COMMUNITY_BUILD_ORDER: readonly ServiceBuildOption[] = [
+  {
+    type: BuildingType.Well,
+    needed: (state) => !ownsBuildingOfType(state, BuildingType.Well),
+  },
+  {
+    type: BuildingType.Tavern,
+    needed: (state) => !ownsBuildingOfType(state, BuildingType.Tavern),
+  },
+  {
+    type: BuildingType.Workshop,
+    needed: (state) =>
+      !ownsBuildingOfType(state, BuildingType.Workshop)
+      && hasCompletedBuildingOfType(state, BuildingType.Blacksmith),
+  },
+  {
+    type: BuildingType.School,
+    needed: (state) => !ownsBuildingOfType(state, BuildingType.School) && hasJuvenileSettler(state),
+  },
+  {
+    type: BuildingType.Church,
+    needed: (state) => !ownsBuildingOfType(state, BuildingType.Church),
+  },
+  {
+    type: BuildingType.Barn,
+    needed: (state) =>
+      !ownsBuildingOfType(state, BuildingType.Barn)
+      && storageNearlyFull(state, 'wood'),
+  },
+  {
+    type: BuildingType.Silo,
+    needed: (state) =>
+      !ownsBuildingOfType(state, BuildingType.Silo)
+      && storageNearlyFull(state, 'gold'),
+  },
+  {
+    type: BuildingType.WoodStorehouse,
+    needed: (state) =>
+      !ownsBuildingOfType(state, BuildingType.WoodStorehouse)
+      && storageNearlyFull(state, 'wood'),
+  },
+  {
+    type: BuildingType.Mill,
+    needed: (state) => !ownsBuildingOfType(state, BuildingType.Mill),
+  },
+  {
+    type: BuildingType.Hotel,
+    needed: (state) =>
+      !ownsBuildingOfType(state, BuildingType.Hotel)
+      && (state.visitorGroups?.length ?? 0) > 0,
+  },
+  {
+    type: BuildingType.TamingPost,
+    needed: (state) => !ownsBuildingOfType(state, BuildingType.TamingPost),
+  },
+  {
+    type: BuildingType.WildlifePreserve,
+    needed: (state) =>
+      !ownsBuildingOfType(state, BuildingType.WildlifePreserve)
+      && (state.ecosystemHealth ?? 100) < VirtualPlayer.ECOLOGY_HEALTHY_THRESHOLD,
+  },
+];
+
+/**
+ * Whether the colony can pay an upgrade **and keep an upgrade's worth in reserve**.
+ *
+ * `getBuildingUpgradeEligibility` already answers "can we pay this" — the upgrade half of
+ * `decideUpkeep` asks the stricter question, because a level is the most postponable thing the
+ * bot spends on: raising one out of the shelf that the next house or farm needs is how a colony
+ * starves with a fine set of level-3 buildings. Food is the shared reserve policy
+ * (`hasFoodMargin`), and the materials must clear `UPGRADE_COST_RESERVE_MULT` times their own
+ * price, so the reserve scales with the level being bought.
+ */
+function canAffordUpgradeWithReserve(state: WorldState, building: Building): boolean {
+  if (!hasFoodMargin(state, VirtualPlayer.UPGRADE_FOOD_RESERVE_DAYS)) return false;
+  const cost = getBuildingUpgradeCost(building);
+  const reserve = VirtualPlayer.UPGRADE_COST_RESERVE_MULT;
+  return (
+    state.resources.wood >= cost.wood * reserve
+    && state.resources.stone >= cost.stone * reserve
+    && state.resources.gold >= cost.gold * reserve
+  );
 }
 
 /**
@@ -1428,5 +1647,9 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     ?? decideDemolish(state)
     ?? decideUpkeep(state)
     ?? decideRivalRelations(state)
+    // Last two on purpose: a community building and a building upgrade are the only proposals
+    // that may spend an hour nothing else wanted, so neither can shadow defence or diplomacy.
+    ?? decideCommunity(state)
+    ?? decideUpgrades(state)
   );
 }

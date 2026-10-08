@@ -987,7 +987,7 @@ export function tryDailyAmicableDivorce(
   if (!shouldLeadAffairPair(entity, spouse)) return;
   if (rng() >= MARRIAGE_DAILY_AMICABLE_DIVORCE_CHANCE) return;
 
-  dissolveMarriage(entity, spouse);
+  dissolveMarriage(entity, spouse, state.tick);
   startCourtshipCooldown(entity);
   startCourtshipCooldown(spouse);
   if (entity.pregnant) entity.relationshipStatus = 'expecting';
@@ -1106,7 +1106,7 @@ function tryDivorceOnCaughtCheater(
   const divorceChance = caughtInAct ? 1 : RELATIONSHIP_CONFIG.DIVORCE_CAUGHT_CHANCE;
   if (personDayRoll(cheater.id, state.tick, 608) >= divorceChance) return;
 
-  dissolveMarriage(spouse, cheater);
+  dissolveMarriage(spouse, cheater, state.tick);
   startCourtshipCooldown(spouse);
   startCourtshipCooldown(cheater);
   if (cheater.pregnant) cheater.relationshipStatus = 'expecting';
@@ -1136,7 +1136,7 @@ function tryDivorceOnCaughtCheater(
     const paramourSpousePresent = caughtInAct || isSpouseNearby(paramour, entityById, 40);
     const paramourDivorceChance = caughtInAct ? 1 : RELATIONSHIP_CONFIG.DIVORCE_CAUGHT_CHANCE;
     if (paramourSpouse && paramourSpousePresent && personDayRoll(paramour.id, state.tick, 609) < paramourDivorceChance) {
-      dissolveMarriage(paramourSpouse, paramour);
+      dissolveMarriage(paramourSpouse, paramour, state.tick);
       if (paramour.pregnant) paramour.relationshipStatus = 'expecting';
       if (paramourSpouse.pregnant) paramourSpouse.relationshipStatus = 'expecting';
       logEvent(
@@ -1368,7 +1368,16 @@ export function courtshipRatePerHour(socialTime: boolean): number {
     * (socialTime ? 1 : Relationship.COURTSHIP_WORK_RATE_FACTOR);
 }
 
-export function isEligibleToCourt(entity: Entity): boolean {
+export /**
+ * Whether a settler may court at all — the per-settler half of the courtship gate.
+ *
+ * The pair half is `isWithinRemarriageBar`, applied wherever a couple is actually formed: a settler
+ * who has been married to someone before may not court *that person* again until a year has passed
+ * since the marriage ended. Without it a divorced pair — who usually still share a house and so meet
+ * daily — remarried the next day and divorced again on the next daily roll, which is the cycle the
+ * owner reported.
+ */
+function isEligibleToCourt(entity: Entity): boolean {
   return (
     isPlayerHuman(entity) &&
     entity.alive &&
@@ -1384,6 +1393,19 @@ export function isEligibleToCourt(entity: Entity): boolean {
   );
 }
 
+/** Ticks a divorced pair must stay apart before they may court each other again: one year. */
+export const REMARRIAGE_BAR_TICKS = TICKS_PER_DAY * DAYS_PER_YEAR;
+
+/**
+ * Whether `entity` is barred from courting `other` because their own marriage to them ended too
+ * recently. One year, counted from the tick the marriage ended (`pastPartnerTicks`, stamped by the
+ * divorce owner).
+ */
+export function isWithinRemarriageBar(entity: Entity, other: Entity, tick: number): boolean {
+  const endedAt = entity.pastPartnerTicks?.[other.id];
+  return endedAt != null && tick - endedAt < REMARRIAGE_BAR_TICKS;
+}
+
 /** Put a settler out of the courting pool for `COURTSHIP_COOLDOWN_DAYS`, counted down daily. */
 export function startCourtshipCooldown(entity: Entity): void {
   entity.courtshipCooldownDays = Relationship.COURTSHIP_COOLDOWN_DAYS;
@@ -1395,14 +1417,17 @@ export function startCourtshipCooldown(entity: Entity): void {
  * `findCourtshipPartner` re-selects every tick. Audit F5: without the exclusivity test a third
  * settler could take an already-courting partner, orphaning the previous link and its progress.
  */
-function isCourtshipCandidate(entity: Entity, candidate: Entity): boolean {
+function isCourtshipCandidate(entity: Entity, candidate: Entity, tick: number): boolean {
   return (
     isEligibleToCourt(candidate) &&
     (candidate.courtshipPartnerId == null || candidate.courtshipPartnerId === entity.id) &&
     !!candidate.gender &&
     !!entity.gender &&
     candidate.gender !== entity.gender &&
-    candidate.id !== entity.id
+    candidate.id !== entity.id &&
+    // A pair who were married before may not court again for a year, on either side's record.
+    !isWithinRemarriageBar(entity, candidate, tick) &&
+    !isWithinRemarriageBar(candidate, entity, tick)
   );
 }
 
@@ -1467,10 +1492,14 @@ export function findCourtshipPartner(
   atHome: boolean,
   courtRange: number,
   humanSocialGrid: EntitySpatialGrid | undefined,
-  residenceOccupants: Map<number, Entity[]>,
-  fallbackHumans?: readonly Entity[],
-  width?: number,
-  height?: number,
+  residenceOccupants: Map<number, Entity[]> = new Map(),
+  fallbackHumans: readonly Entity[] | undefined = undefined,
+  width: number | undefined = undefined,
+  height: number | undefined = undefined,
+  // Defaulted to 0 so a caller that does not care about the divorce bar (most tests) keeps its
+  // argument list. A divorce is always stamped at a tick > 0, so from tick 0 every past marriage is
+  // still inside the bar — the strict reading, which is the safe one.
+  tick = 0,
 ): Entity | undefined {
   const currentCourtship =
     entity.courtshipPartnerId != null
@@ -1479,7 +1508,7 @@ export function findCourtshipPartner(
   if (
     currentCourtship &&
     currentCourtship.courtshipPartnerId === entity.id &&
-    isCourtshipCandidate(entity, currentCourtship)
+    isCourtshipCandidate(entity, currentCourtship, tick)
   ) {
     return currentCourtship;
   }
@@ -1488,7 +1517,7 @@ export function findCourtshipPartner(
   let closestDistSq = courtRange * courtRange;
 
   const consider = (candidate: Entity, distSq: number) => {
-    if (!isCourtshipCandidate(entity, candidate)) return;
+    if (!isCourtshipCandidate(entity, candidate, tick)) return;
     if (distSq >= closestDistSq) return;
     closestDistSq = distSq;
     closest = candidate;
@@ -1497,7 +1526,7 @@ export function findCourtshipPartner(
   for (const friendId of entity.childhoodFriendsIds ?? []) {
     const friend = fallbackHumans?.find((h) => h.id === friendId);
     if (!friend || !friend.alive) continue;
-    if (!isCourtshipCandidate(entity, friend)) continue;
+    if (!isCourtshipCandidate(entity, friend, tick)) continue;
     const dx = friend.x - entity.x;
     const dy = friend.y - entity.y;
     consider(friend, (dx * dx + dy * dy) * 0.25);
@@ -1518,7 +1547,7 @@ export function findCourtshipPartner(
     entity.x,
     entity.y,
     courtRange,
-    (candidate) => isCourtshipCandidate(entity, candidate),
+    (candidate) => isCourtshipCandidate(entity, candidate, tick),
     socialAdaptiveOptions('social', fallbackHumans?.length ?? 0, width ?? 0, height ?? 0),
   );
   if (nearby) {
@@ -1692,8 +1721,7 @@ export function tryDailyAffairEncounter(
 }
 
 /** Finalize mutual courtship into marriage — owned by humanRelationships. */
-export function tryCompleteCourtshipMarriage(
-  state: WorldState,
+export function tryCompleteCourtshipMarriage(  state: WorldState,
   entity: Entity,
   partner: Entity,
   residences: Building[],
@@ -1704,6 +1732,10 @@ export function tryCompleteCourtshipMarriage(
   if ((entity.courtshipProgress ?? 0) < 100 || (partner.courtshipProgress ?? 0) < 100) return false;
   if (entity.age < HUMAN_MOVE_OUT_MIN_AGE || partner.age < HUMAN_MOVE_OUT_MIN_AGE) return false;
   if (!isEligibleToCourt(entity) || !isEligibleToCourt(partner)) return false;
+  // A pair who were married before must stay apart a year before they can marry again. Checked on
+  // both sides, because either partner may be the one whose courtship completes the pair.
+  if (isWithinRemarriageBar(entity, partner, state.tick)) return false;
+  if (isWithinRemarriageBar(partner, entity, state.tick)) return false;
 
   entity.relationshipStatus = 'married';
   entity.partnerId = partner.id;

@@ -27,7 +27,7 @@ import {
   isOnWorkScheduleShift,
   isWorkScheduleHour,
 } from './workSchedule';
-import { getTickOfDay, isWorkDay } from './dayCycleClock';
+import { isWorkDay } from './dayCycleClock';
 import { SCHOOL_MIN_AGE } from './gameConstants';
 import {
   HUMAN_ADULT_MIN_AGE,
@@ -462,7 +462,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (
       !isPrisoner &&
       isPlayerHuman(entity) &&
-      getTickOfDay(state.tick) === affairEncounterHourOfDay(entity.id)
+      // Compare like with like: the owner's stagger is an **hour** (06:00–19:00), and
+      // `getTickOfDay` returns a tick-of-day (0–71), so the old test could only ever match clock
+      // hours 02:00–06:20 — asleep at home, where the encounter's own gates refuse it. Most married
+      // settlers therefore never reached the establishment owner at all.
+      hourOfDay === affairEncounterHourOfDay(entity.id)
     ) {
       tryDailyAffairEncounter(
         state,
@@ -713,6 +717,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const onJobShift =
       onDayJobShift || onTavernShift || onHotelShift || onMoonPriestShift || onPrisonShift;
     if (onJobShift && isPlayerHuman(entity)) recordScheduleWorkTick(entity);
+    // An official at the Town Hall serves a shift like anyone else, so the chronicle and the
+    // workplace's own output must count it. `onJobShift` deliberately does not carry the official
+    // shift — it also drives movement and `stayIn` — so attendance is recorded on its own line here,
+    // which is the half that was missing while the behaviour half already included it.
+    else if (onOfficialShift && isPlayerHuman(entity)) recordScheduleWorkTick(entity);
 
     const stayIn =
       !festivalGathering &&
@@ -1067,6 +1076,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         allHumans,
         width,
         height,
+        state.tick,
       );
 
       if (closest) {

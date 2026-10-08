@@ -1,5 +1,5 @@
 import type { Building, WorldState } from './gameTypes';
-import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType } from './gameTypes';
+import { BUILDING_CONFIGS, BuildingType, LEVEL_BENEFIT_BUILDING_TYPES } from './gameTypes';
 import { addResource } from './economy';
 import { addFloatingText, addNotification, createDeathParticles, impulseScreenShake } from './simEffects';
 import { assignMissingWorkers, removeWorkerTransition } from './workforce';
@@ -29,22 +29,14 @@ export const NO_LEVEL_BENEFIT_REASON = 'This building does not have levels';
  * like its upgradable"* — i.e. behave exactly like a maxed building, which already hides the button
  * and reads as complete.
  *
- * Computed from what actually reads `building.level`, not from a hand-written list (audited with
- * `tmp/level-effect-audit.mts`):
- *
- *  - **Residences** — `getResidenceCapacity` adds +2 occupants per level above 1.
- *  - **Buildings with a job** — `dailyBuildingEconomy` and `workshopEconomy` multiply output by
- *    `building.level || 1`, so every producing building gains.
- *  - **Everything else** — nothing reads `level`. That is 16 of the 38 types (road, wall, wallGate,
- *    bridge, well, barn, silo, woodStorehouse, mill, tamingPost, watchtower, wildlifePreserve,
- *    garden, statue, lamp, fence), and offering them an upgrade charged real resources for a number
- *    that affected nothing.
- *
- * Derived rather than listed so a new producing building is upgradeable automatically, and so this
- * cannot drift from the two multipliers that actually read the field.
+ * Membership of `LEVEL_BENEFIT_BUILDING_TYPES` is the whole rule, and that set is the list of types
+ * something actually reads `level` for: the production multiplier, the workshop multiplier and
+ * residence capacity. "Is a residence or has a job" was the older test, and it offered an upgrade on
+ * Church, School, Tavern, Prison, Barracks, Hospital and Town Hall — staffed buildings whose level no
+ * code reads, so the button charged real resources for a number that affected nothing.
  */
 export function buildingTypeHasLevelBenefit(type: BuildingType): boolean {
-  return isResidenceBuildingType(type) || !!BUILDING_JOB_TYPES[type];
+  return LEVEL_BENEFIT_BUILDING_TYPES.has(type);
 }
 
 /**

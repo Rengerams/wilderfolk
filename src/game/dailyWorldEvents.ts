@@ -37,6 +37,26 @@ import { tickValleyEcologyStage } from './ecologyStage';
 import { decayIdleSkills } from './skills';
 import { getSimRng } from './simRng';
 
+/**
+ * A festival the simulation can actually run, or `null`.
+ *
+ * The daily tick decrements `daysLeft` and ends the festival when it reaches zero, so a stored
+ * non-number (`"abc"`) makes that comparison permanently false: one corrupted value became a
+ * permanent 1.5× production, economy and courtship buff that survived every later save. The loader
+ * therefore runs the stored value through this, beside `normalizeWorkSchedule`.
+ */
+export function normalizeFestivalState(
+  value: unknown,
+): { active: boolean; name: string; daysLeft: number } | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as { active?: unknown; name?: unknown; daysLeft?: unknown };
+  if (typeof candidate.active !== 'boolean') return null;
+  if (typeof candidate.name !== 'string' || candidate.name.trim() === '') return null;
+  if (typeof candidate.daysLeft !== 'number' || !Number.isFinite(candidate.daysLeft)) return null;
+  if (candidate.daysLeft <= 0) return null;
+  return { active: candidate.active, name: candidate.name, daysLeft: candidate.daysLeft };
+}
+
 function tickFestivals(state: WorldState, counts: PopulationCounts): void {
   const townHallFestivalBoost = state.buildings.some(
     (b) => b.completed && b.type === BuildingType.TownHall && b.faction !== 'rival' && b.occupants.length > 0,

@@ -1,5 +1,6 @@
-import type { WorldState, Entity } from './gameTypes';
-import { EntityType, BuildingType, JobType, DEFAULT_WORKSHOP_RECIPE_ID, PATH_CELL } from './gameTypes';
+import type { WorldState, Entity, TerrainTile } from './gameTypes';
+import { EntityType, BuildingType, JobType, TerrainType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, PATH_CELL } from './gameTypes';
+import { setTileOverride } from './terrain/terrainGrid';
 import { INITIAL_CHALLENGES } from './challenges';
 import { createEmptyLifetimeStats } from './stats';
 import {
@@ -12,7 +13,7 @@ import { ENTITY_PERSISTED_FIELDS, WORLD_STATE_SAVE_KEYS } from './saveSchema';
 import { generateWorldMap } from './terrainGen';
 import {
   getCalendarDay, getHourOfDay, getAbsoluteCalendarDay, migrateHumanAges, rebuildChildrenIds,
-  TICKS_PER_DAY, DAYS_PER_YEAR,
+  TICKS_PER_DAY, LEGACY_TICKS_PER_DAY, DAYS_PER_YEAR,
   assignMissingResidences,
   repairJuvenileAssignmentsOnLoad,
 } from './dayCycle';
@@ -22,11 +23,13 @@ import { loadAutoSavePreference, saveAutoSavePreference } from './preferences';
 import { logEvent, syncEventLogIdFromState } from './eventLog';
 import { pickHumanVariant } from './humanSprites';
 import { migrateLegacyMoonHowler, syncMoonHowlerForms } from './moonHowler';
+import { reconcileFamilyReferencesAfterRemoval } from './humanLifecycleCleanup';
 import { isPlayerHuman } from './playerHuman';
 import { GAME_VERSION } from './version';
 import { ensureEntitySkills } from './skills';
 import { normalizeWorkSchedule } from './workSchedule';
 import { normalizeWorkforcePolicy } from './workforcePolicy';
+import { normalizeFestivalState } from './dailyWorldEvents';
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
 import { adoptSimSeedFromWorld, restoreSimRng, snapshotSimRng } from './simRng';
@@ -61,7 +64,15 @@ function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): v
   ensureEntitySkills(entity);
 }
 
-export type SaveResult = { success: true } | { success: false; error: string };
+/**
+ * `slotWarning` is present when the file downloaded but the **browser slot** could not be written
+ * (storage full, or storage blocked). The caller must not mark the slot as present in that case:
+ * the toast used to say success either way, so Load was offered against a stale or empty slot and
+ * could silently restore an older colony with no date shown anywhere.
+ */
+export type SaveResult =
+  | { success: true; slotWarning?: string }
+  | { success: false; error: string };
 
 /** Why a save payload was refused — the player-facing reason comes from this. */
 export type SaveReadFailure = 'empty' | 'unreadable' | 'malformed' | 'version-mismatch';
@@ -224,10 +235,13 @@ export function downloadSaveFile(world: WorldState, view: ViewState): SaveResult
   try {
     const saveData = buildSaveData(world, view);
     const json = JSON.stringify(saveData);
+    let slotWarning: string | undefined;
     try {
       localStorage.setItem(SAVE_KEY, json);
     } catch {
-      /* file download still works if storage is full */
+      // The download still works, so this is a warning rather than a failure — but it must be
+      // reported, because the caller otherwise enables Load against a slot it did not write.
+      slotWarning = 'Saved to a file — the browser save slot is full, so Load will not see this.';
     }
     if (typeof document !== 'undefined') {
       const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
@@ -241,7 +255,7 @@ export function downloadSaveFile(world: WorldState, view: ViewState): SaveResult
       anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
     }
-    return { success: true };
+    return slotWarning ? { success: true, slotWarning } : { success: true };
   } catch (e) {
     console.error('Save download failed:', e);
     return { success: false, error: 'Could not download save file' };
@@ -256,11 +270,80 @@ function compactWorldMapForSave(worldMap: WorldState['worldMap']) {
     size: worldMap.size,
     width: worldMap.width,
     height: worldMap.height,
+    /**
+     * The sparse per-tile overrides, as `[key, tile]` pairs.
+     *
+     * They are the **only** record of terrain the player changed — building placement clears forest
+     * under a footprint — and the compact save regenerates the ground from its seed, so without them
+     * every building's cleared ground came back as forest after a load: canopy repainted over houses,
+     * and `tileAt` reported Forest under a building for the rest of the game. The key is the owner's
+     * own encoding (`y * width + x`), which the regenerated map shares, so no tile arithmetic is
+     * needed here. A `Map` is not JSON, hence the pairs.
+     */
+    _overrides: worldMap.overrides ? [...worldMap.overrides.entries()] : undefined,
     _compact: true as const,
   };
 }
 
-function restoreWorldMapFromSave(parsed: { worldMap?: WorldState['worldMap'] & { _compact?: boolean } }): WorldState['worldMap'] {
+/**
+ * The largest tile grid any shipped map has. `restoreWorldMapFromSave` multiplies a save's tile
+ * dimensions by `PATH_CELL` and hands the result to `generateWorldMap`, which allocates typed arrays
+ * for the whole surface — so an unbounded dimension pair lets a crafted file choose the allocation
+ * (a 4000 × 3000 pair loads; a negative one surfaces a raw `RangeError` as the player's explanation).
+ * Derived from `MAP_SIZE_DIMENSIONS` rather than hard-coded, so a bigger map size raises it.
+ */
+function maxSavedMapTiles(): number {
+  let maxPixels = 0;
+  for (const dimension of Object.values(MAP_SIZE_DIMENSIONS)) {
+    maxPixels = Math.max(maxPixels, dimension.width, dimension.height);
+  }
+  return Math.ceil(maxPixels / PATH_CELL);
+}
+
+function isUsableMapTileCount(value: unknown): value is number {
+  return (
+    typeof value === 'number'
+    && Number.isSafeInteger(value)
+    && value > 0
+    && value <= maxSavedMapTiles()
+  );
+}
+
+/**
+ * Re-apply the saved per-tile overrides onto a freshly regenerated map.
+ *
+ * Delegates the key decoding and cache invalidation to `setTileOverride`, which owns both — a local
+ * `map.overrides.set()` would leave the map's derived-tile projection cache holding the pre-load
+ * ground for exactly the tiles being restored.
+ */
+function applySavedTerrainOverrides(
+  map: WorldState['worldMap'],
+  overrides: unknown,
+): WorldState['worldMap'] {
+  if (!map || !Array.isArray(overrides) || overrides.length === 0) return map;
+  for (const entry of overrides) {
+    if (!Array.isArray(entry) || entry.length !== 2) continue;
+    const [key, tile] = entry as [unknown, unknown];
+    if (typeof key !== 'number' || !Number.isSafeInteger(key) || key < 0) continue;
+    if (!tile || typeof tile !== 'object') continue;
+    const candidate = tile as Partial<TerrainTile>;
+    if (!TERRAIN_TYPE_VALUES.has(candidate.type)) continue;
+    if (!isFiniteNumber(candidate.elevation)) continue;
+    if (!isFiniteNumber(candidate.moisture)) continue;
+    if (!isFiniteNumber(candidate.variation)) continue;
+    setTileOverride(map, key % map.width, Math.floor(key / map.width), {
+      type: candidate.type as TerrainTile['type'],
+      elevation: candidate.elevation,
+      moisture: candidate.moisture,
+      variation: candidate.variation,
+    });
+  }
+  return map;
+}
+
+function restoreWorldMapFromSave(parsed: {
+  worldMap?: (WorldState['worldMap'] & { _compact?: boolean; _overrides?: unknown }) | null;
+}): WorldState['worldMap'] {
   if (!parsed.worldMap) return null;
   // Only a compact save (`_compact: true`) is a seed/preset reference to regenerate below; every
   // other save carries its own map data and is restored as it was written. The old test also
@@ -270,24 +353,31 @@ function restoreWorldMapFromSave(parsed: { worldMap?: WorldState['worldMap'] & {
     return parsed.worldMap;
   }
   const wm = parsed.worldMap;
-  if (typeof wm.width === 'number' && typeof wm.height === 'number') {
+  const overrides = wm._overrides;
+  if (isUsableMapTileCount(wm.width) && isUsableMapTileCount(wm.height)) {
     // A compact save records the map in TILES (`WorldMap.width/height`, terrainGen's
     // return), while `generateWorldMap(width, height, …)` takes PIXELS. Passing the tile
     // counts straight through regenerated the valley at a hundredth of its area — a
     // 1600x1200 px colony came back as 160x120 px, leaving 1197 of its 1202 entities off
     // the map, which reads to the player as "the save failed to load".
-    return generateWorldMap(
-      wm.width * PATH_CELL,
-      wm.height * PATH_CELL,
-      wm.seed,
-      wm.size ?? 'medium',
-      wm.preset ?? 'continental',
+    return applySavedTerrainOverrides(
+      generateWorldMap(
+        wm.width * PATH_CELL,
+        wm.height * PATH_CELL,
+        wm.seed,
+        wm.size ?? 'medium',
+        wm.preset ?? 'continental',
+      ),
+      overrides,
     );
   }
-  return generateWorldMap(
-    wm.size ?? 'medium',
-    wm.preset ?? 'continental',
-    wm.seed,
+  return applySavedTerrainOverrides(
+    generateWorldMap(
+      wm.size ?? 'medium',
+      wm.preset ?? 'continental',
+      wm.seed,
+    ),
+    overrides,
   );
 }
 
@@ -513,6 +603,7 @@ interface ElementFieldRule {
 const ENTITY_TYPE_VALUES: ReadonlySet<unknown> = new Set(Object.values(EntityType));
 const JOB_TYPE_VALUES: ReadonlySet<unknown> = new Set(Object.values(JobType));
 const BUILDING_TYPE_VALUES: ReadonlySet<unknown> = new Set(Object.values(BuildingType));
+const TERRAIN_TYPE_VALUES: ReadonlySet<unknown> = new Set(Object.values(TerrainType));
 
 /** Membership in one of the `as const` enums this file already imports for the restore path. */
 function isMemberOf(values: ReadonlySet<unknown>): (value: unknown) => boolean {
@@ -525,6 +616,17 @@ function isFiniteWithin(limit: number): (value: unknown) => boolean {
 }
 
 /**
+ * An id the rest of the engine can actually key on.
+ *
+ * `isFiniteNumber` accepted `1.5` and `-4`, so a payload could restore entities the code looks up by
+ * integer equality and never finds. Every id in the save is produced by the allocators, which only
+ * ever emit non-negative safe integers, so nothing a current build writes is refused by this.
+ */
+function isUsableId(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+/**
  * The per-element keys a malformed payload actually mistypes, and what "usable" means for each.
  *
  * `x`/`y` are additionally bounded to the map, because an entity outside it is the other thing
@@ -533,7 +635,7 @@ function isFiniteWithin(limit: number): (value: unknown) => boolean {
  */
 function entityFieldRules(width: number, height: number): readonly ElementFieldRule[] {
   return [
-    { field: 'id', isValid: isFiniteNumber },
+    { field: 'id', isValid: isUsableId },
     { field: 'type', isValid: isMemberOf(ENTITY_TYPE_VALUES) },
     { field: 'x', isValid: isFiniteWithin(width) },
     { field: 'y', isValid: isFiniteWithin(height) },
@@ -544,7 +646,7 @@ function entityFieldRules(width: number, height: number): readonly ElementFieldR
 
 function buildingFieldRules(width: number, height: number): readonly ElementFieldRule[] {
   return [
-    { field: 'id', isValid: isFiniteNumber },
+    { field: 'id', isValid: isUsableId },
     { field: 'type', isValid: isMemberOf(BUILDING_TYPE_VALUES) },
     { field: 'x', isValid: isFiniteWithin(width) },
     { field: 'y', isValid: isFiniteWithin(height) },
@@ -582,6 +684,10 @@ function findUnrestorableEntityField(parsed: Record<string, unknown>): string | 
   for (const { key, rules } of scans) {
     const list = parsed[key];
     if (!Array.isArray(list)) continue;
+    /** Ids already used in this list. Two entities sharing one id make `entityById` silently drop
+     *  whichever was inserted first, so that settler can never be selected, inspected or targeted —
+     *  and the next save writes the collision back. */
+    const seenIds = new Set<number>();
     for (let i = 0; i < list.length; i++) {
       const element: unknown = list[i];
       if (!isSaveObject(element)) return `${key}[${i}]`;
@@ -592,9 +698,101 @@ function findUnrestorableEntityField(parsed: Record<string, unknown>): string | 
         if (value === undefined && field !== 'type') continue;
         if (!isValid(value)) return `${key}[${i}].${field}`;
       }
+      const id = record.id;
+      if (typeof id === 'number') {
+        if (seenIds.has(id)) return `${key}[${i}].id (duplicate of an earlier entry)`;
+        seenIds.add(id);
+      }
     }
   }
   return null;
+}
+
+/**
+ * Clear every reference a loaded colony cannot resolve.
+ *
+ * The restore rebuilds `childrenIds` and re-assigns missing homes and jobs, but nothing swept the
+ * relationship ids a save can carry to a settler who is no longer in it. A dangling `partnerId` is
+ * not a crash — every lookup is guarded — it is worse: a settler whose status says `married` with no
+ * spouse never widows, never divorces, and is excluded from courtship by the very id it cannot
+ * resolve, so the corruption is durable and the next save writes it back.
+ *
+ * The relationship half is delegated to the owner that already knows every field
+ * (`reconcileFamilyReferencesAfterRemoval`, which the death path uses), called once per unresolvable
+ * id; the building half is a scrub, because a home or a residence that does not exist is a missing
+ * assignment, not a broken marriage.
+ */
+function reconcileDanglingReferencesOnLoad(world: WorldState): void {
+  const livingIds = new Set<number>();
+  for (const entity of world.entities ?? []) {
+    if (entity.alive) livingIds.add(entity.id);
+  }
+  const buildingIds = new Set<number>();
+  for (const building of world.buildings ?? []) buildingIds.add(building.id);
+
+  const aliveEntities = (world.entities ?? []).filter((entity) => entity.alive);
+  const referencedIds = new Set<number>();
+  for (const entity of aliveEntities) {
+    for (const id of [
+      entity.partnerId,
+      entity.pregnantById,
+      entity.courtshipPartnerId,
+      entity.youthLovePartnerId,
+      entity.affairPartnerId,
+      entity.tamedBy,
+    ]) {
+      if (typeof id === 'number' && !livingIds.has(id)) referencedIds.add(id);
+    }
+  }
+  if (referencedIds.size > 0) {
+    const byId = new Map(aliveEntities.map((entity) => [entity.id, entity]));
+    for (const missingId of referencedIds) {
+      reconcileFamilyReferencesAfterRemoval(missingId, byId);
+    }
+  }
+
+  for (const entity of world.entities ?? []) {
+    if (entity.homeBuildingId != null && !buildingIds.has(entity.homeBuildingId)) {
+      entity.homeBuildingId = undefined;
+    }
+    if (entity.residenceBuildingId != null && !buildingIds.has(entity.residenceBuildingId)) {
+      entity.residenceBuildingId = undefined;
+    }
+    if (entity.prisonBuildingId != null && !buildingIds.has(entity.prisonBuildingId)) {
+      entity.prisonBuildingId = undefined;
+    }
+  }
+  for (const building of world.buildings ?? []) {
+    if (building.occupants.length > 0) {
+      building.occupants = building.occupants.filter((id) => livingIds.has(id));
+    }
+  }
+}
+
+/**
+ * Make every id allocator safe to consume: at least one past the highest id the restored world holds.
+ *
+ * A same-version payload can carry no allocator at all (every later spawn gets `NaN`), or a rewound
+ * one (the next spawn collides with a live id, and `entityById` then drops one of the two). Both are
+ * silent: the ids are used unguarded by births, immigrants, wildlife spawns and building placement.
+ * The floor is `max(current, highest + 1)`, so a legitimately larger allocator is never lowered.
+ */
+function floorIdAllocators(world: WorldState): void {
+  const floorFor = (current: unknown, highest: number): number => {
+    const safe = typeof current === 'number' && Number.isSafeInteger(current) && current > 0 ? current : 0;
+    return Math.max(safe, highest + 1);
+  };
+  let highestEntity = 0;
+  for (const entity of world.entities ?? []) {
+    if (Number.isSafeInteger(entity.id) && entity.id > highestEntity) highestEntity = entity.id;
+  }
+  let highestBuilding = 0;
+  for (const building of world.buildings ?? []) {
+    if (Number.isSafeInteger(building.id) && building.id > highestBuilding) highestBuilding = building.id;
+  }
+  world.nextEntityId = floorFor(world.nextEntityId, highestEntity);
+  world.nextBuildingId = floorFor(world.nextBuildingId, highestBuilding);
+  world.nextFloatingTextId = floorFor(world.nextFloatingTextId, 0);
 }
 
 /**
@@ -626,6 +824,17 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
   // mutation of its input regardless of who calls it. The clone also means a throw from it lands in
   // the refusal shape below instead of escaping.
   let source: Record<string, unknown>;
+  /**
+   * The live session's globals, captured before anything can be replaced.
+   *
+   * `adoptSimSeedFromWorld` clears the whole RNG stream registry and `restoreSimRng` re-creates the
+   * streams, both part-way through the restore — so a restore that failed *after* them left the
+   * running colony drawing from the refused save's seed for the rest of the session, and baking that
+   * seed into every later save. The declared contract is "the session, or the reason", so a refusal
+   * now puts these back.
+   */
+  const rngBeforeLoad = snapshotSimRng();
+  const autoSaveBeforeLoad = loadAutoSavePreference();
   try {
     source = structuredClone(parsed);
   } catch (err) {
@@ -637,13 +846,22 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     const worldData = pickWorldStateFromSave(source);
 
     let loadedTick = (worldData.tick ?? (source.tick as number | undefined) ?? 0) as number;
-    const savedTicksPerDay = typeof source._ticksPerDay === 'number' && source._ticksPerDay > 0
-      ? (source._ticksPerDay as number)
+    /**
+     * Only the two tick resolutions this build has ever written: the legacy 24 ticks/day and the
+     * current `TICKS_PER_DAY`. `migrateTickTimeline` *scales the whole timeline* by this — `tick`,
+     * every cooldown and every deadline — and it used to accept any positive number, so
+     * `_ticksPerDay: 1e-6` loaded a colony into **year 66666**.
+     */
+    const savedTicksPerDay = source._ticksPerDay === LEGACY_TICKS_PER_DAY
+      ? LEGACY_TICKS_PER_DAY
       : TICKS_PER_DAY;
     const autoSave = typeof worldData.autoSave === 'boolean'
       ? worldData.autoSave
       : loadAutoSavePreference();
-    saveAutoSavePreference(autoSave);
+    // The preference is written on the **success** path only. Writing it here meant a load that was
+    // then refused had already changed the player's auto-save setting for no visible reason, and the
+    // same class of early side effect replaced the live session's RNG seed and streams (restored in
+    // the catch below).
 
     const transient = restoreTransientWorldFieldsFromSave(source);
     const world = {
@@ -666,7 +884,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       ...transient,
       bigNews: [],
       screenShakeImpulse: 0,
-      festival: worldData.festival ?? null,
+      festival: normalizeFestivalState(worldData.festival),
       townHallFestivalCooldownUntilTick: worldData.townHallFestivalCooldownUntilTick ?? 0,
       // A save written before `storageMax` existed carries none, and the fallback was a third copy of
       // the cap rule (`800 / 300 / 800 / 20000 / 300`) that could drift from `economy`'s own — so the
@@ -784,6 +1002,14 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         ? { ...b, workshopRecipeId: DEFAULT_WORKSHOP_RECIPE_ID }
         : b,
     );
+    // The allocators are consumed unguarded by births, immigrants, spawns and placements, so this is
+    // the last point where they can be made safe before anything allocates from them. The index is
+    // rebuilt here, before the migration and assignment passes below, because those resolve entities
+    // by id and `resolveEntity` otherwise falls back to a linear scan of the whole colony — inside
+    // the residency pass that is already the most expensive one on a large save.
+    floorIdAllocators(world);
+    rebuildEntityByIdMap(world);
+    reconcileDanglingReferencesOnLoad(world);
 
     migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
     rebuildChildrenIds(world.entities);
@@ -857,7 +1083,6 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       tutorialSeen: (parsed.tutorialSeen as string[] | undefined) ?? [],
     });
     clearAllFactionWanderStates();
-    rebuildEntityByIdMap(world);
     // `beautyGrid` is a runtime cache (stripped from the save, and now dropped by
     // `invalidateWorldRuntimeCaches`), and it used to be rebuilt only by the **daily** layer — so a
     // loaded colony ran up to a full game day with no beauty field at all: free-time settlers were not
@@ -870,9 +1095,15 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     // not yet earned — `rebuildBeautyGridFromWorld` exists for exactly this split.
     rebuildBeautyGridFromWorld(world);
     const view = createViewFromSave(parsed, world);
+    // Both globals above are adopted by the restore; commit them only now that it has succeeded.
+    saveAutoSavePreference(autoSave);
     return { ok: true, world, view };
   } catch (e) {
     console.error('Save load failed:', e);
+    // Put the live session's globals back, so a refused load leaves the running colony exactly as it
+    // was: same RNG seed, same stream positions, same auto-save setting.
+    restoreSimRng(rngBeforeLoad);
+    saveAutoSavePreference(autoSaveBeforeLoad);
     return {
       ok: false,
       reason: 'unrestorable',

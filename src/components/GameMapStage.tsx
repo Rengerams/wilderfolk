@@ -166,7 +166,12 @@ export default function GameMapStage({
 
       <div className="map-frame-overlay pointer-events-none absolute inset-0 z-[5]" aria-hidden />
 
-      <MiniMap worldRef={worldRef} viewRef={viewRef} onNavigate={onNavigate} />
+      <MiniMap
+        worldRef={worldRef}
+        viewRef={viewRef}
+        onNavigate={onNavigate}
+        mapCanvasRef={canvasRef}
+      />
 
       <div className="pointer-events-auto absolute bottom-4 right-4 z-20 flex flex-col items-stretch gap-0.5 rounded-lg border border-stone-600 bg-stone-800/85 p-1 shadow-xl backdrop-blur">
         <button

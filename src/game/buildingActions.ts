@@ -29,10 +29,13 @@ export {
   autoStaffAllWorkers,
   canAssignWorkerToBuilding,
   fillBuildingWorkers,
-  isOnConstructionCrew,
   listAssignableWorkersForBuilding,
   pickAdultSettler,
 } from './buildingStaffingActions';
+
+// The crew-membership rule is owned by `workforce`; re-exporting it from a module that never
+// declared it left the barrel uncompilable.
+export { isOnConstructionCrew } from './workforce';
 
 export {
   assignIdleWorkerToBuilding,

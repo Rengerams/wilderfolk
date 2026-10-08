@@ -24,11 +24,18 @@ export default function MiniMap({
   worldRef,
   viewRef,
   onNavigate,
+  mapCanvasRef,
 }: {
   worldRef: RefObject<WorldState>;
   viewRef: RefObject<ViewState>;
   /** Click-to-navigate: jump the camera to a world coordinate. */
   onNavigate?: (worldX: number, worldY: number) => void;
+  /**
+   * The live map canvas, so the viewport rectangle can be sized from what is **actually on screen**
+   * rather than from the world's dimensions. Without it the box is `minimapWidth / (2 × zoom)`
+   * whatever the window size, so it lies about the visible area at every zoom and ignores a resize.
+   */
+  mapCanvasRef?: RefObject<HTMLCanvasElement | null>;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameCounter = useRef(0);
@@ -133,9 +140,12 @@ export default function MiniMap({
               ctx.fillRect(sx - 2, sy - 2, 4, 3);
             }
 
-            // Viewport rectangle
-            const camW = (world.width / camera.zoom) * scaleX * 0.5;
-            const camH = (world.height / camera.zoom) * scaleY * 0.5;
+            // Viewport rectangle — sized from the map canvas, not the world (see `mapCanvasRef`).
+            const mapCanvas = mapCanvasRef?.current;
+            const viewW = mapCanvas?.offsetWidth || mapCanvas?.clientWidth || world.width;
+            const viewH = mapCanvas?.offsetHeight || mapCanvas?.clientHeight || world.height;
+            const camW = (viewW / camera.zoom) * scaleX;
+            const camH = (viewH / camera.zoom) * scaleY;
             const camX = camera.x * scaleX - camW / 2;
             const camY = camera.y * scaleY - camH / 2;
             ctx.strokeStyle = 'rgba(0,0,0,0.55)';

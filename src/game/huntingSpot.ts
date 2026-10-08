@@ -277,3 +277,42 @@ const HUNTING_PURSUIT_CLOSE_FRACTION = 0.6;
 export const HUNTING_FIGHT_BACK_CHANCE = 0.35;
 export const HUNTING_FIGHT_BACK_BITE_ENERGY = 140;
 
+/**
+ * What a fight-back can do to the hunter, rolled per bite on the same stateless per-shot key as the
+ * fight-back roll itself.
+ *
+ * Owner's numbers: *"wolfs should kill sometimes a human like a 5% change and 11% change for hurting
+ * a human"*. They are read as floor-to-ceiling bands on one roll — under 5 % the hunter is killed,
+ * under 16 % (5 + 11) they are mauled, and above that the bite costs only energy. Rolling them as two
+ * separate draws would make the real kill chance 5 % of the 11 % band rather than 5 % of bites.
+ *
+ * A bite that kills is rare enough to matter and common enough to be seen: at the 35 % fight-back
+ * chance this is ~1.75 % of wolf hunts.
+ */
+export const HUNTING_FIGHT_BACK_KILL_CHANCE = 0.05;
+/** 0.11 = the band above the kill band, so a mauling is ~11 % of bites and ~3.9 % of wolf hunts. */
+export const HUNTING_FIGHT_BACK_INJURY_CHANCE = 0.11;
+/**
+ * 260 = the extra energy a mauling costs on top of the ordinary bite (140), which is well over half a
+ * settler's 500-point bar. A settler's health *is* its energy (see above), so this is what "hurt"
+ * means: a hunter who survives a mauling is out of the day, not merely nicked.
+ */
+export const HUNTING_FIGHT_BACK_MAUL_ENERGY = 260;
+
+/** What a wolf's bite does to the hunter. */
+export type HuntingFightBackFate = 'killed' | 'mauled' | 'bitten';
+
+/**
+ * Resolve one bite from a roll in `[0, 1)`.
+ *
+ * Pure, and the single owner of the bands, so the odds are testable without steering a hash — the
+ * economy layer supplies the roll from its stateless per-shot key. The bands are ordered
+ * floor-to-ceiling: anything below the kill chance kills, anything still below kill + injury mauls,
+ * and the rest is an ordinary bite.
+ */
+export function huntingFightBackFate(roll: number): HuntingFightBackFate {
+  if (roll < HUNTING_FIGHT_BACK_KILL_CHANCE) return 'killed';
+  if (roll < HUNTING_FIGHT_BACK_KILL_CHANCE + HUNTING_FIGHT_BACK_INJURY_CHANCE) return 'mauled';
+  return 'bitten';
+}
+

@@ -196,6 +196,40 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
 export const HOTEL_GUEST_CAPACITY = 4;
 
 /**
+ * The building types whose `level` genuinely changes something — the exact set an upgrade may be
+ * offered for.
+ *
+ * Derived from what actually reads the field, not from "it has a job": a level is only worth
+ * resources where something consumes it. Three readers exist in the whole codebase —
+ * `dailyBuildingEconomy` multiplies production by `level` (through `totalMult`), `workshopEconomy`
+ * scales a workshop recipe, and `getResidenceCapacity` adds two beds per level.
+ *
+ * A job is not a production path, and neither is a civic function. Church, School, Tavern, Prison,
+ * Barracks, Hospital and Town Hall are all staffed workplaces whose level is read by **nothing** —
+ * their effects are flat (`grantHospitalIntervalReputation`, `tickTownHallCivic`) or live in a
+ * separate system. The rule "has a job" put an ⬆ Upgrade button on them and made the auto-play bot
+ * pay for it.
+ */
+export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingType>([
+  // Residences: +2 occupants per level above 1 (`residencyOccupancy.getResidenceCapacity`).
+  BuildingType.House,
+  BuildingType.Mansion,
+  // Workshop output (`workshopEconomy`) and the Blacksmith's own workshop.
+  BuildingType.Blacksmith,
+  BuildingType.Workshop,
+  // Production blocks in `dailyBuildingEconomy` that multiply by `totalMult` (hence by `level`).
+  BuildingType.Farm,
+  BuildingType.Greenhouse,
+  BuildingType.LumberMill,
+  BuildingType.Quarry,
+  BuildingType.Mine,
+  BuildingType.Store,
+  BuildingType.Market,
+  BuildingType.Silo,
+  BuildingType.HuntingSpot,
+  BuildingType.FishingSpot,
+]);
+/**
  * Occupation string of the sitting village leader — no workplace, no auto-assign
  * (leading is the job; family members keep normal occupations). See leaderHouse.ts.
  */
@@ -299,6 +333,15 @@ export interface Entity {
   lastAffairSiteY?: number;
   scandalCooldownUntilTick?: number;
   griefUntilTick?: number;
+  /**
+   * Former spouses, each mapped to the tick their marriage to this settler ended.
+   *
+   * `isEligibleToCourt` asks nothing about the past, so a divorced pair — who usually still share a
+   * house and therefore meet every day — could court and remarry immediately, then divorce again on
+   * the next daily amicable roll. This is the pair's own record, so the "not the same person again
+   * for a year" rule in `humanRelationships` has something to read.
+   */
+  pastPartnerTicks?: Record<number, number>;
   courtshipPartnerId?: number;
   courtshipProgress?: number;
   youthLovePartnerId?: number;

@@ -9,7 +9,6 @@ Apply instructions in this order:
 1. **Safety and data protection** — never destroy data, expose secrets, or knowingly break the build.
 2. **Explicit instructions in the current task** — the current owner or lead request takes precedence over this file.
 3. **This file (`AGENTS.md`)**.
-4. ** Read Command.md for functions available in powershell 7**
 5. **Repository documentation and conventions** — 
 6. **Local style preferences**.
 6. ** md files in docs/archive are archive documents and stale**
@@ -21,28 +20,12 @@ If two instructions conflict, follow the higher-priority instruction, state the 
 ## Command Tools & Terminal Execution
 
 * **Operating System:** Windows 10
-* **Shell Environment:** PowerShell 7 (`pwsh`)
-* **Execution Rules:** You must strictly follow the syntax rules for PowerShell 7. To prevent terminal syntax errors, environment variable failures, and crashes, you are **REQUIRED** to read and apply the rules defined in [`command.md`](command.md) before executing any command in the terminal.
-* **Verify the shell before you trust the rules.** Do not assume PowerShell 7 — a harness can hold a stale but expect powershell 7.
+* **Shell Environment:** PowerShell 5 
+* **Execution Rules:** You must strictly follow the syntax rules for PowerShell 5. 
 
-```
-- OS: Microsoft Windows 10 Pro
-- PowerShell: 7.7.0-preview.5
-- Python: Python 3.14.7
-- Node: v26.10.0
-- Git: git version 2.55.0.windows.5
-- NPM: 12.1.0
-- Curl: curl 8.13.0 (Windows) libcurl/8.13.0 Schannel zlib/1.3.1 WinIDN
-- Wget: GNU Wget 1.21.4 built on mingw32.
-- Chrome: 154.0.8037.59
- ```
 
-  ```powershell
-  $PSVersionTable.PSVersion.ToString()   # 7.x -> follow the PowerShell 7 rules
-  ```
 
-  If it reports `5.1`, apply the **PowerShell 5.1 fallbacks** section of `command.md` and say so in your
-  report. Do not work around a wrong shell silently.
+
 
 ## Non-negotiable rules
 

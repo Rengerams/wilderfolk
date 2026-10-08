@@ -269,11 +269,21 @@ export function useKeyboardControls({
     const cameraLoop = () => {
       const keys = keysRef.current;
       const speed = 6;
+      /**
+       * Arrow keys belong to the map cursor while the canvas holds focus.
+       *
+       * `GameMapStage` binds the same four keys to the keyboard map cursor, so without this the
+       * camera slid out from under the cursor on every step and the one keyboard route onto the map
+       * was unusable. WASD always pans: the cursor does not bind those, so movement never becomes
+       * unreachable.
+       */
+      const arrowsPanCamera = typeof document === 'undefined'
+        || document.activeElement !== canvasRef.current;
       let dx = 0, dy = 0;
-      if (keys.has('w') || keys.has('arrowup')) dy -= speed;
-      if (keys.has('s') || keys.has('arrowdown')) dy += speed;
-      if (keys.has('a') || keys.has('arrowleft')) dx -= speed;
-      if (keys.has('d') || keys.has('arrowright')) dx += speed;
+      if (keys.has('w') || (arrowsPanCamera && keys.has('arrowup'))) dy -= speed;
+      if (keys.has('s') || (arrowsPanCamera && keys.has('arrowdown'))) dy += speed;
+      if (keys.has('a') || (arrowsPanCamera && keys.has('arrowleft'))) dx -= speed;
+      if (keys.has('d') || (arrowsPanCamera && keys.has('arrowright'))) dx += speed;
 
       if (dx !== 0 || dy !== 0) {
         cameraVelRef.current.x += dx * 0.3;

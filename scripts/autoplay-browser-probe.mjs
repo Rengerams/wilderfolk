@@ -18,6 +18,10 @@
  *   - does the status line ever appear, and
  *   - does the act history (the chip tooltip) ever fill up?
  *
+ * It also runs the `auditControls` capability over the live valley — measured control sizes, font
+ * sizes and WCAG contrast — and writes `control-audit.json` next to the window screenshot. That half
+ * is reported, never gated.
+ *
  * USAGE
  *   node node_modules/vite/bin/vite.js --port 5173 --strictPort --host 127.0.0.1   # dev server (DEV-only button)
  *   node scripts/autoplay-browser-probe.mjs
@@ -431,6 +435,99 @@ const CAPABILITIES = {
     })()`;
   },
 
+  /**
+   * Measure every interactive control and player-readable text run on the current screen.
+   *
+   * Answers a question no Node tier can: *are the visible controls big enough to hit, and is their
+   * text readable against what is actually behind it?* It reports observed geometry and computed
+   * colour, not a verdict, because the thresholds are the caller's.
+   *
+   * Contrast is text colour against the nearest ancestor with an opaque background. An element that
+   * resolves to no opaque ancestor is reported as `backgroundKnown: false` instead of being guessed,
+   * and so is any element that paints over the canvas — which is most of the map HUD.
+   */
+  auditControls() {
+    return `(() => {
+      const parse = (raw) => {
+        const m = String(raw).match(/rgba?\\(([^)]+)\\)/);
+        if (!m) return null;
+        const parts = m[1].split(/[,\\s/]+/).filter(Boolean).map(Number);
+        if (parts.length < 3 || parts.some((n) => !Number.isFinite(n))) return null;
+        return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 };
+      };
+      const lum = (c) => {
+        const f = (v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
+        return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
+      };
+      const ratio = (fg, bg) => {
+        const a = lum(fg), b = lum(bg);
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      };
+      const visible = (el) => {
+        const r = el.getBoundingClientRect();
+        const s = getComputedStyle(el);
+        return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+      };
+      // Walk up to the first ancestor that actually paints a background, so a chip on a panel is
+      // compared with the panel and not with the document.
+      const backgroundFor = (el) => {
+        let node = el;
+        while (node && node !== document.documentElement) {
+          const c = parse(getComputedStyle(node).backgroundColor);
+          if (c && c.a >= 0.9) return c;
+          node = node.parentElement;
+        }
+        return null;
+      };
+      const controls = [...document.querySelectorAll('button,[role="button"],a[href],select,input,summary,[role="tab"]')]
+        .filter(visible)
+        .map((el) => {
+          const r = el.getBoundingClientRect();
+          const label = (el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '')
+            .replace(/\\s+/g, ' ').trim().slice(0, 48);
+          return { label, w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top), left: Math.round(r.left) };
+        })
+        .filter((c) => c.label);
+      const small = controls.filter((c) => Math.min(c.w, c.h) < 24);
+
+      const textRuns = [...document.querySelectorAll('p,span,h1,h2,h3,h4,label,strong,em,li,td,th')]
+        .filter((el) => visible(el) && el.children.length === 0 && (el.textContent || '').trim().length > 1)
+        .map((el) => {
+          const s = getComputedStyle(el);
+          const fg = parse(s.color) || { r: 0, g: 0, b: 0, a: 1 };
+          const bg = backgroundFor(el);
+          const fontSize = parseFloat(s.fontSize) || 0;
+          const weight = Number(s.fontWeight) || 400;
+          const contrast = bg ? Math.round(ratio(fg, bg) * 100) / 100 : null;
+          return {
+            text: (el.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 42),
+            fontSize: Math.round(fontSize * 10) / 10,
+            weight,
+            contrast,
+            backgroundKnown: !!bg,
+            large: fontSize >= 24 || (fontSize >= 18.66 && weight >= 700),
+          };
+        });
+      const failures = textRuns
+        .filter((t) => t.contrast != null && t.contrast < (t.large ? 3 : 4.5))
+        .sort((a, b) => a.contrast - b.contrast);
+      const fonts = [...new Set(textRuns.map((t) => t.fontSize))].sort((a, b) => a - b);
+
+      return {
+        viewport: { w: innerWidth, h: innerHeight },
+        controls: controls.length,
+        under24px: small.length,
+        smallest: small.sort((a, b) => Math.min(a.w, a.h) - Math.min(b.w, b.h)).slice(0, 12),
+        textRuns: textRuns.length,
+        unmeasurableText: textRuns.filter((t) => !t.backgroundKnown).length,
+        contrastFailures: failures.length,
+        worstContrast: failures.slice(0, 10),
+        fontSizes: fonts,
+        tinyText: textRuns.filter((t) => t.fontSize < 12 && t.text.length > 4).length,
+      };
+    })()`;
+  },
+
   /** The exact headings/patterns this capability set knows, so a caller cannot mistype one. */
   panels: {
     venue: { heading: 'Hospitality service hours', button: 'Apply .*service hours' },
@@ -594,6 +691,26 @@ async function main() {
     }
     const before = state;
     console.log(`before click: pressed=${before.pressed} paused=${before.paused} tick=${before.tickLabel} status=${before.status}`);
+
+    // Measured UX audit of the live valley. Reported, never gated: it describes the shipped layout at
+    // this viewport, and a threshold here would freeze an art direction that is still moving.
+    const controlAudit = await evaluate(CAPABILITIES.auditControls());
+    if (controlAudit) {
+      writeFileSync(path.join(outDir, 'control-audit.json'), `${JSON.stringify(controlAudit, null, 2)}\n`);
+      console.log('');
+      console.log('--- control audit (measured, not gated) ---');
+      console.log(`viewport                   : ${controlAudit.viewport.w}x${controlAudit.viewport.h}`);
+      console.log(`interactive controls       : ${controlAudit.controls} (${controlAudit.under24px} under 24px on their short side)`);
+      for (const c of controlAudit.smallest.slice(0, 6)) {
+        console.log(`   small: ${String(c.w).padStart(4)}x${String(c.h).padStart(3)}  "${c.label}"`);
+      }
+      console.log(`text runs measured         : ${controlAudit.textRuns} (${controlAudit.unmeasurableText} over an unknown background)`);
+      console.log(`font sizes in use          : ${controlAudit.fontSizes.join(', ')}px  (${controlAudit.tinyText} runs under 12px)`);
+      console.log(`contrast below WCAG AA     : ${controlAudit.contrastFailures}`);
+      for (const t of controlAudit.worstContrast.slice(0, 6)) {
+        console.log(`   ${String(t.contrast).padStart(5)}:1  ${t.fontSize}px  "${t.text}"`);
+      }
+    }
 
     // 3. Click 🤖 Auto-play.
     const bot = await evaluate(clickButtonExpression('auto-play'));

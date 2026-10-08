@@ -33,13 +33,18 @@ import { canAffordWorkshopRecipe } from './workshops';
 import { logEvent } from './eventLog';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getHuntFoodMultiplier } from './combat';
-import { isProductionTick, PRODUCTION_INTERVAL, TICKS_PER_DAY } from './dayCycle';
+import { isProductionTick, PRODUCTION_INTERVAL, TICKS_PER_DAY, killHuman } from './dayCycle';
+import { formatDeathLog } from './citizenId';
+import { logDeath } from './eventLog';
+import { ensureEntityByIdMap } from './entityIndex';
 import type { TickContext } from './simulation/simulationTypes';
 import {
   commitHuntingSpotTarget,
   findLiveAssignedWorker,
   HUNTING_FIGHT_BACK_BITE_ENERGY,
   HUNTING_FIGHT_BACK_CHANCE,
+  HUNTING_FIGHT_BACK_MAUL_ENERGY,
+  huntingFightBackFate,
   huntingKillReach,
   huntingSpotTarget,
   isHuntingStrikeLive,
@@ -572,23 +577,49 @@ function tickBuildingProduction(
 
         if (foughtBack) {
           /**
-           * The wolf turns on the **hunter**, not the building.
-           *
-           * Owner, 2026-09-30: *"dont forget animals fight back"*. The rule itself is untouched — the
-           * same 35 % roll that was already here, against the wolf only (`HUNTING_FIGHT_BACK_CHANCE`),
-           * next to the 85 % accuracy roll that is the hunter's own chance of winning the exchange. What
-           * changed is where the bite lands: the old branch took 12 health off the Hunting Spot from an
-           * animal the settler was never near, and now that the hunter walks up to it (contact reach,
-           * `huntingKillReach`) they are the one in range. `huntingSpot.ts` carries the numbers.
+           * The wolf turns on the **hunter**, not the building, and one roll decides how badly it
+           * goes: killed, mauled, or an ordinary bite. The bands are the owner's odds and live in
+           * `huntingSpot` with their reasoning. An energy-only bite cannot kill anything, which is
+           * how a long colony's chronicle fills with bites and has no deaths in it.
            */
-          hunter.energy = Math.max(0, hunter.energy - HUNTING_FIGHT_BACK_BITE_ENERGY);
+          const fate = huntingFightBackFate(seededRandomForRun(`${huntKey}:fate`));
+          if (fate === 'killed') {
+            // A settler's health is its energy, but a mauling is not what kills here: the wolf does,
+            // so the death goes through the one owner every other death uses, which also runs the
+            // family, residence and workplace cleanup.
+            const killedById = ensureEntityByIdMap(state);
+            killHuman(hunter, updatedBuildings, killedById, state.tick);
+            // The post keeps its roster truthful in the same tick: the dead hunter is not at work.
+            building.occupants = building.occupants.filter((id) => id !== hunter.id);
+            logDeath(
+              state,
+              formatDeathLog(hunter, `was killed by a wolf at the ${BUILDING_CONFIGS[building.type].label}`),
+              humanDisplayName(hunter),
+              { x: hunter.x, y: hunter.y },
+            );
+            continue;
+          }
+
+  const mauled = fate === 'mauled';
+          hunter.energy = Math.max(
+            0,
+            hunter.energy - HUNTING_FIGHT_BACK_BITE_ENERGY - (mauled ? HUNTING_FIGHT_BACK_MAUL_ENERGY : 0),
+          );
           hunter.combatTicks = 14;
           hunter.flash = 10;
-          addFloatingText(state, hunter.x, hunter.y - 14, 'Wolf fights back! 🐺', '#f87171');
+          addFloatingText(
+            state,
+            hunter.x,
+            hunter.y - 14,
+            mauled ? 'Mauled by a wolf! 🐺' : 'Wolf fights back! 🐺',
+            '#f87171',
+          );
           logEvent(
             state,
             'combat',
-            `A wild wolf fought back at the Hunting Spot and bit ${humanDisplayName(hunter)}`,
+            mauled
+              ? `A wild wolf mauled ${humanDisplayName(hunter)} at the Hunting Spot`
+              : `A wild wolf fought back at the Hunting Spot and bit ${humanDisplayName(hunter)}`,
             humanDisplayName(hunter),
           );
         } else if (success) {
