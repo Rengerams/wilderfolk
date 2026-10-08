@@ -29,6 +29,7 @@ import { GAME_VERSION } from './version';
 import { ensureEntitySkills } from './skills';
 import { normalizeWorkSchedule } from './workSchedule';
 import { normalizeWorkforcePolicy } from './workforcePolicy';
+import { normalizeVenueSchedule } from './venueSchedule';
 import { normalizeFestivalState } from './dailyWorldEvents';
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
@@ -874,6 +875,10 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       // documented default (`workforcePolicy.DEFAULT_WORKFORCE_POLICY`). No save-version
       // bump — the same in-place-default contract `workSchedule` and `mineMode` use.
       workforcePolicy: normalizeWorkforcePolicy(worldData.workforcePolicy),
+      // Same in-place-default contract for the venue windows: an unusable pair loads as that
+      // venue's documented default instead of a silently substituted one the next save would keep.
+      tavernSchedule: normalizeVenueSchedule(worldData.tavernSchedule, 'tavern'),
+      hotelSchedule: normalizeVenueSchedule(worldData.hotelSchedule, 'hotel'),
       tick: loadedTick,
       lastProcessedCalendarDay: typeof worldData.lastProcessedCalendarDay === 'number'
         ? worldData.lastProcessedCalendarDay

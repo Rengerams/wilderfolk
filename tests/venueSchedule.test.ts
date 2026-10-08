@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import {
   DEFAULT_HOTEL_SCHEDULE,
@@ -11,8 +11,30 @@ import {
   setVenueSchedule,
   validateVenueSchedule,
 } from '../src/game/venueSchedule';
+import { initGame } from '../src/game/worldGen';
+import { createInitialView } from '../src/game/viewState';
+import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
+import { resetSimRng } from '../src/game/simRng';
+import type { WorldState } from '../src/game/gameTypes';
 
 const base = { tick: 0, tavernSchedule: undefined, hotelSchedule: undefined };
+
+/** A real payload from `buildSaveData`, so the load-boundary cases below corrupt what the game writes. */
+function realPayload(): Record<string, unknown> {
+  resetSimRng();
+  const world = initGame({ seed: 4242 });
+  return structuredClone(buildSaveData(world, createInitialView(world.width, world.height)));
+}
+
+function loadWorld(payload: Record<string, unknown>): WorldState {
+  const outcome = loadGameFromParsedOutcome(payload);
+  if (!outcome.ok) throw new Error(`fixture payload refused: ${outcome.detail ?? outcome.reason}`);
+  return outcome.world;
+}
+
+afterEach(() => {
+  resetSimRng();
+});
 
 describe('independent venue schedules', () => {
   it('uses the canonical legacy-compatible defaults', () => {
@@ -119,5 +141,48 @@ describe('independent venue schedules', () => {
     const state = { tick: 8 * 3, tavernSchedule: { startHour: 8, endHour: 14 }, hotelSchedule: undefined };
     expect(isVenueScheduleStartTick(state, 'tavern')).toBe(true);
     expect(isVenueScheduleStartTick({ ...state, tick: TICKS_PER_DAY }, 'tavern')).toBe(false);
+  });
+});
+
+describe('venue schedules are normalised at the load boundary', () => {
+  it('round-trips a stored window instead of reading back the default', () => {
+    const payload = realPayload();
+    payload.tavernSchedule = { startHour: 4, endHour: 23 };
+    payload.hotelSchedule = { startHour: 8, endHour: 20 };
+
+    const world = loadWorld(payload);
+
+    expect(world.tavernSchedule).toEqual({ startHour: 4, endHour: 23 });
+    expect(world.hotelSchedule).toEqual({ startHour: 8, endHour: 20 });
+  });
+
+  it('falls back to each venue default when the stored hours are unusable', () => {
+    const payload = realPayload();
+    payload.tavernSchedule = { startHour: 'x', endHour: 23 };
+    payload.hotelSchedule = { startHour: 6, endHour: 99 };
+
+    const world = loadWorld(payload);
+
+    expect(world.tavernSchedule).toEqual(DEFAULT_TAVERN_SCHEDULE);
+    expect(world.hotelSchedule).toEqual(DEFAULT_HOTEL_SCHEDULE);
+  });
+
+  it('falls back to the default when the stored field is not an object', () => {
+    const payload = realPayload();
+    payload.hotelSchedule = 'nope';
+
+    expect(loadWorld(payload).hotelSchedule).toEqual(DEFAULT_HOTEL_SCHEDULE);
+  });
+
+  it('keeps the current behaviour when the field is absent', () => {
+    const payload = realPayload();
+    delete payload.tavernSchedule;
+    delete payload.hotelSchedule;
+
+    const world = loadWorld(payload);
+
+    expect(world.tavernSchedule).toEqual(DEFAULT_TAVERN_SCHEDULE);
+    expect(world.hotelSchedule).toEqual(DEFAULT_HOTEL_SCHEDULE);
+    expect(getVenueSchedule(world, 'tavern')).toEqual(DEFAULT_TAVERN_SCHEDULE);
   });
 });

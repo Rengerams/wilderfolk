@@ -35,11 +35,7 @@ function readSchedule(state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'
 }
 
 export function getVenueSchedule(state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>, kind: VenueScheduleKind): VenueSchedule {
-  const raw = readSchedule(state, kind);
-  if (!raw || typeof raw !== 'object') return { ...defaultFor(kind) };
-  const candidate = raw as { startHour?: unknown; endHour?: unknown };
-  const result = validateVenueSchedule(candidate.startHour, candidate.endHour);
-  return result.ok ? result.schedule : { ...defaultFor(kind) };
+  return normalizeVenueSchedule(readSchedule(state, kind), kind);
 }
 
 /**
@@ -64,6 +60,17 @@ export function validateVenueSchedule(
     return { ok: true, status: 'unchanged', schedule: { startHour, endHour } };
   }
   return { ok: true, status: 'accepted', schedule: { startHour, endHour } };
+}
+
+/**
+ * Parses a stored venue window, falling back to that venue's documented default when it is absent
+ * or unusable — the contract `getVenueSchedule` already applies to a stored value at read time.
+ */
+export function normalizeVenueSchedule(value: unknown, kind: VenueScheduleKind): VenueSchedule {
+  if (!value || typeof value !== 'object') return { ...defaultFor(kind) };
+  const candidate = value as { startHour?: unknown; endHour?: unknown };
+  const result = validateVenueSchedule(candidate.startHour, candidate.endHour);
+  return result.ok ? result.schedule : { ...defaultFor(kind) };
 }
 
 export function setVenueSchedule(state: WorldState, kind: VenueScheduleKind, startHour: number, endHour: number): WorldState {

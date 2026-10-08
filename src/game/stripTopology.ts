@@ -19,6 +19,9 @@ import {
 
 export const STRIP_SNAP_RADIUS = 38;
 
+/** Spacing of the snap samples taken along an existing strip, in world px. */
+const STRIP_SNAP_SAMPLE_PX = 12;
+
 const ROAD_STRIP_TYPES = new Set<BuildingType>([BuildingType.Road]);
 
 /** Wall membership is `defenseStructures.isWallBuildingType`'s rule, not a second set here. */
@@ -69,7 +72,15 @@ function collectSnapPoints(buildings: Building[], family: 'wall' | 'road'): { x:
     const rot = buildingStripRotation(b);
     const sampleType = b.type === BuildingType.WallGate ? BuildingType.WallGate : b.type;
     const [a, c] = getStripSegmentEndpoints(sampleType, b.x, b.y, rot);
-    points.push(a, c, { x: b.x, y: b.y });
+    // The two ends and the centre leave a gap of half a tile on each side that the snap radius does
+    // not reach, so a drag a third of the way along a road found nothing to connect to. Sampling the
+    // whole run makes any point along an existing road a landing place for the next one.
+    const span = Math.max(Math.abs(c.x - a.x), Math.abs(c.y - a.y));
+    const steps = Math.max(1, Math.round(span / STRIP_SNAP_SAMPLE_PX));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      points.push({ x: a.x + (c.x - a.x) * t, y: a.y + (c.y - a.y) * t });
+    }
   }
   return points;
 }

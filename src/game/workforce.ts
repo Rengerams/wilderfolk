@@ -8,6 +8,8 @@ import {
   LEADER_OCCUPATION,
 } from './gameTypes';
 import { getOccupationForBuilding, ensureEntitySkills, readSkill } from './skills';
+import { SPECIES_CONFIG } from './speciesConfig';
+import { isWithinAssignableCommute } from './simulation/humanMovement';
 import { isPlayerHuman } from './playerHuman';
 import { humanDisplayName } from './citizenId';
 import { assignMissingResidences } from './residencyReconciliation';
@@ -423,7 +425,9 @@ export function assignWorkerInPlace(
       !h.isJuvenile &&
       !hasWorkAssignment(h) &&
       !isImprisoned(h) &&
-      !isOnConstructionCrew(buildings, h.id),
+      !isOnConstructionCrew(buildings, h.id) &&
+      // Owner, 2026-10-06: a post more than two hours from home is not offered to that settler.
+      isWithinAssignableCommute(h, building, buildings, SPECIES_CONFIG[EntityType.Human].speed),
   );
 
   const buildingX = building.x + building.width / 2;
