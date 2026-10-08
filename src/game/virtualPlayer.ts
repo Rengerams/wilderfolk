@@ -1704,7 +1704,7 @@ const COMMUNITY_BUILD_ORDER: readonly ServiceBuildOption[] = [
   },
   // Everything else the catalogue offers, one of each, appended after the list that already had a
   // rule — the owner's *"all buildings should be buildable by the bot"*. Each is priced, gated and
-  // sited by its own owners (research, `canPlaceBuilding`, the river rule for a Bridge), and the
+  // sited by its own owners (research, `canPlaceBuilding`), and the
   // ladder position keeps them behind food, housing, defence and diplomacy. The functional ones
   // clear the general food buffer rather than the comfort reserve, because a Market, a Hospital or a
   // prison is not a comfort spend; comfort and decor stay last and strict.
@@ -1726,11 +1726,6 @@ const COMMUNITY_BUILD_ORDER: readonly ServiceBuildOption[] = [
   {
     type: BuildingType.Mansion,
     needed: (state) => !ownsBuildingOfType(state, BuildingType.Mansion),
-  },
-  {
-    type: BuildingType.Bridge,
-    needed: (state) => !ownsBuildingOfType(state, BuildingType.Bridge),
-    foodReserveDays: VirtualPlayer.FOOD_BUFFER_DAYS,
   },
   {
     type: BuildingType.Garden,
@@ -1892,7 +1887,7 @@ function decidePerimeter(state: WorldState): VirtualPlayerDecision | null {
     (rival) => rival.relationship === 'tense' || rival.relationship === 'competitive',
   );
   // Only a neighbour the colony has already paid and who is still hostile is worth a wall.
-  if (!hostile.some((rival) => rival.giftsGiven > 0)) return null;
+  if (!hostile.some((rival) => (rival.giftsGiven ?? 0) > 0)) return null;
 
   for (const type of DEFENCE_BUILD_ORDER) {
     if (ownsBuildingOfType(state, type)) continue;

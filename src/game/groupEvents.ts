@@ -494,6 +494,7 @@ export function spawnRivalSettlement(
     daysUntilAction: 30 + Math.floor(getSimRng('groupEvents')() * 30),
     raidCooldownDays: 45 + Math.floor(getSimRng('groupEvents')() * 30),
     peaceTreatyDays: 0,
+    giftsGiven: 0,
     profile: createRivalProfile(groupId.length + state.year + pop, relationship),
   });
 
@@ -669,6 +670,7 @@ export function sendRivalGift(originalState: WorldState, rivalId: string): World
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return state;
   spendFood(state, 'gift', RIVAL_GIFT_FOOD_COST);
+  rival.giftsGiven = (rival.giftsGiven ?? 0) + 1;
   const before = rival.relationship;
   rival.relationship = shiftRelationship(rival.relationship, 1);
   rival.daysUntilAction = Math.max(rival.daysUntilAction, 14);

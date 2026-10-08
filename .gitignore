@@ -61,7 +61,7 @@ tools/
 *.sln
 *.sw?
 *.lnk
-
+docs/log/
 # Local-only working directories and test artifacts
 tmp/
 playtest/

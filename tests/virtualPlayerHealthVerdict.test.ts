@@ -486,7 +486,7 @@ function villageMissing(missing: BuildingType, overrides: Partial<WorldState> = 
 describe('every building type is buildable by the bot', () => {
   for (const type of [
     BuildingType.Market, BuildingType.Hospital, BuildingType.Prison, BuildingType.Mansion,
-    BuildingType.Bridge, BuildingType.Garden, BuildingType.Statue, BuildingType.Lamp,
+    BuildingType.Garden, BuildingType.Statue, BuildingType.Lamp,
   ]) {
     it(`raises a ${type} once the village is settled`, () => {
       const world = villageMissing(type);

@@ -2,6 +2,10 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Made auto-play fortify only a neighbour it has already paid** — the bot sends the food gift first and only raises a watchtower, barracks or wall when a hostile rival took that gift and stayed hostile.
+
+- **Stopped auto-play raising a Bridge** — bridges are left to the player to place, so the bot no longer proposes one.
+
 - **Spread the colony's residence assignment across the day** — the day boundary rehoused every settler at once and could freeze the game for a minute; each pulse now sweeps a quarter of the colony instead of the whole at once, so no single tick carries the day's housing work.
 
 - **Refused a corrupt election-buildup year at the save boundary** — the year the buildup notice was raised was the last leadership value accepted without a rule, so a save carrying an unusable one loaded and then misread the notice; it is refused by name now, like its siblings.

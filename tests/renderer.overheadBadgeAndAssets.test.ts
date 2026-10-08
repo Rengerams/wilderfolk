@@ -9,6 +9,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { getHumanStatusCombatIconFromFlags } from '../src/game/combat';
 import {
+  clampSpeechBubbleTailY,
   combatTokenStatusKind,
   getStatusBadgeColor,
   getStatusBadgeLayout,
@@ -141,6 +142,22 @@ describe('speech bubbles reserve the name plates', () => {
     expect(bubbleDraw).toBeGreaterThan(bubblePush);
     // Exactly one bubble draw site, and it is the deferred one.
     expect(source.split('drawSpeechBubble(').length - 1).toBe(2);
+  });
+
+  it('stops a lifted bubble tail above the plate instead of slicing through its text', () => {
+    // A bubble lifted above its speaker's plate: its bottom sits 6 px over the plate top.
+    const plate = { x: 100, y: 200, width: 70, height: 13 };
+    const bubbleBottom = plate.y - 6;
+    const headTarget = 260;
+
+    const tailY = clampSpeechBubbleTailY(bubbleBottom, headTarget, [plate]);
+    expect(tailY).toBeLessThanOrEqual(plate.y - 3);
+    expect(tailY).toBeGreaterThan(bubbleBottom);
+  });
+
+  it('leaves the tail alone when nothing reserved is in its path', () => {
+    const plateAbove = { x: 100, y: 60, width: 70, height: 13 };
+    expect(clampSpeechBubbleTailY(100, 260, [plateAbove])).toBe(260);
   });
 });
 

@@ -1288,6 +1288,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         ...r,
         raidCooldownDays: r.raidCooldownDays ?? 30,
         peaceTreatyDays: r.peaceTreatyDays ?? 0,
+        giftsGiven: r.giftsGiven ?? 0,
       })),
       pendingDiplomacyEvents: worldData.pendingDiplomacyEvents ?? [],
       pendingRaidEvents: worldData.pendingRaidEvents ?? [],
