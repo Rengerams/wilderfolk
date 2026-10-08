@@ -189,3 +189,47 @@ describe('a save whose container array is unusable is refused by name', () => {
     expect(outcome.detail).toContain('buildings[0].occupants');
   });
 });
+
+describe('a persisted array holding a value its readers would break on is refused by name', () => {
+  it('refuses a food history that is not an array', () => {
+    // `pushCompletedDayToHistory` pushes into `state.foodHistory ?? []`, so a string here threw
+    // "history.push is not a function" out of a daily tick.
+    const payload = realPayload();
+    payload.foodHistory = 'last month';
+
+    const outcome = loadGameFromParsedOutcome(payload);
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.reason).toBe('unrestorable');
+    expect(outcome.detail).toContain('foodHistory');
+  });
+
+  it('refuses a food-day sample the dashboard dereferences', () => {
+    const payload = realPayload();
+    payload.foodHistory = [{ day: 3 }];
+
+    const outcome = loadGameFromParsedOutcome(payload);
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.detail).toContain('foodHistory[0].produced');
+  });
+
+  it('refuses a dismissal list that is not an array', () => {
+    // A string spreads into one-character ids, so every dismissal silently stopped matching.
+    const payload = realPayload();
+    payload.dismissedNotificationIds = 'n1';
+
+    const outcome = loadGameFromParsedOutcome(payload);
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.detail).toContain('dismissedNotificationIds');
+  });
+
+  it('still loads the food history this build writes, so the refusals above bite', () => {
+    const payload = realPayload();
+    payload.foodHistory = [{ day: 3, produced: { food: 12 }, consumed: { food: 4 } }];
+
+    const outcome = loadGameFromParsedOutcome(payload);
+    expect(outcome.ok, 'a real food-day sample must survive the new rule').toBe(true);
+  });
+});

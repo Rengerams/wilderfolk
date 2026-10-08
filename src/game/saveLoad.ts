@@ -705,6 +705,12 @@ function containerArrayRule(
 /** A Big News card carries a string id — `highestBigNewsSeq` parses its sequence out of it. */
 const BIG_NEWS_ELEMENT_RULES: readonly ElementFieldRule[] = [{ field: 'id', isValid: isStringId }];
 
+/** The dashboard and the council read both maps of a food-day sample, so one missing them throws. */
+const FOOD_HISTORY_ELEMENT_RULES: readonly ElementFieldRule[] = [
+  { field: 'produced', isValid: isSaveObject },
+  { field: 'consumed', isValid: isSaveObject },
+];
+
 /**
  * A chronicle entry's id is **numeric**, unlike the string ids the other containers carry: the
  * allocator is `Math.max(…ids) + 1`, so one non-numeric string makes every later id `NaN`.
@@ -715,6 +721,7 @@ const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>>
   // Metric and aggregate samples: plain objects, and nothing keys on an element of either list.
   populationHistory: containerArrayRule(isAnyArray, []),
   yearlyStats: containerArrayRule(isAnyArray, []),
+  foodHistory: containerArrayRule(isAnyArray, FOOD_HISTORY_ELEMENT_RULES),
   challenges: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   researchNodes: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   unlockedTechs: containerArrayRule(isAnyArray, null),
@@ -733,6 +740,8 @@ const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>>
   appliedSaveMigrations: containerArrayRule(isAnyArray, null),
   bigNews: containerArrayRule(isAnyArray, BIG_NEWS_ELEMENT_RULES),
   dismissedBigNewsIds: containerArrayRule(isAnyArray, null),
+  dismissedActiveEventIds: containerArrayRule(isAnyArray, null),
+  dismissedNotificationIds: containerArrayRule(isAnyArray, null),
 };
 
 /** A loaded Big News card, with the fields its readers dereference made safe. */
