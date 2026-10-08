@@ -365,27 +365,24 @@ export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewS
   };
 }
 
+/** Presentation-only fields a save carries. `notifications` is excluded: a toast's life is wall clock. */
 export function pickTransientWorldFieldsForSave(world: WorldState): Record<string, unknown> {
   return {
     deathParticles: world.deathParticles ?? [],
     floatingTexts: world.floatingTexts ?? [],
-    notifications: world.notifications ?? [],
     disasters: world.disasters ?? [],
   };
 }
 
 export function restoreTransientWorldFieldsFromSave(
   parsed: Record<string, unknown>,
-): Pick<WorldState, 'deathParticles' | 'floatingTexts' | 'notifications' | 'disasters'> {
+): Pick<WorldState, 'deathParticles' | 'floatingTexts' | 'disasters'> {
   return {
     deathParticles: Array.isArray(parsed.deathParticles)
       ? (parsed.deathParticles as WorldState['deathParticles'])
       : [],
     floatingTexts: Array.isArray(parsed.floatingTexts)
       ? (parsed.floatingTexts as WorldState['floatingTexts'])
-      : [],
-    notifications: Array.isArray(parsed.notifications)
-      ? (parsed.notifications as WorldState['notifications'])
       : [],
     disasters: Array.isArray(parsed.disasters)
       ? (parsed.disasters as WorldState['disasters'])

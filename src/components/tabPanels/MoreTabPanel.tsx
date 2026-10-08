@@ -159,7 +159,7 @@ export default function MoreTabPanel({
               <p>• <strong className="text-cyan-200">Traveling groups</strong> camp near your village — traders, pilgrims, scholars, performers, and more. They bring gifts and leave after a while.</p>
               <p>• <strong className="text-amber-200">Rival settlements</strong> appear on the same map and <strong className="text-stone-200">slowly expand</strong> (houses, farms, markets, or towers by mood — not always hostile).</p>
               <p>• Relationships vary: <em>friendly</em> neighbors trade &amp; grow peacefully, <em>competitive</em> ones hunt your deer, <em>tense</em> ones may fortify and raid.</p>
-              <p>• Check the <strong className="text-stone-200">Frontier tab</strong> to see who&apos;s currently on the map.</p>
+              <p>• Check the <strong className="text-stone-200">Frontier</strong> window to see who&apos;s currently on the map.</p>
             </div>
           </div>
 
@@ -271,9 +271,9 @@ export default function MoreTabPanel({
               <p>• <strong className="text-amber-200">Farm</strong> — Produces food every season.</p>
               <p>• <strong className="text-amber-200">Lumber Mill</strong> — Produces wood. Needs workers.</p>
               <p>• <strong className="text-amber-200">Quarry</strong> — Produces stone. • <strong className="text-amber-200">Mine</strong> — Produces iron or gold; choose the ore per mine.</p>
-              <p>• <strong className="text-amber-200">Roads</strong> — Infra tab (key 8). Horizontal strips — zigzag them (step north/south each segment) for paths up hills. Boost nearby buildings +15%.</p>
+              <p>• <strong className="text-amber-200">Roads</strong> — Infra category in the build panel (key 8). Horizontal strips — zigzag them (step north/south each segment) for paths up hills. Boost nearby buildings +15%.</p>
               <p>• <strong className="text-amber-200">Town Hall</strong> — After <strong className="text-stone-200">Urban Planning</strong>. Staff officials for taxes, trade &amp; immigration boosts, election site, scandal buffer, and hosted festivals.</p>
-              <p>• <strong className="text-amber-200">Church</strong> — Community tab, no research needed. Faster marriages, breaks Moon Howler curses, stricter morals.</p>
+              <p>• <strong className="text-amber-200">Church</strong> — Community category in the build panel, no research needed. Faster marriages, breaks Moon Howler curses, stricter morals.</p>
               <p>• <strong className="text-amber-200">Hospital</strong> — {describeHospitalReputation()}</p>
               <p>• <strong className="text-amber-200">Demolish</strong> — Click any building → sidebar → <strong className="text-stone-200">🗑 Demolish</strong> (works on houses too; residents are reassigned).</p>
               <p>• <strong className="text-amber-200">Reputation ⭐</strong> — Village header &amp; Progress → Trade. From Town Hall, Hospital, pilgrims, festivals, and avoiding scandals. Unlocks trade routes.</p>
@@ -309,7 +309,7 @@ export default function MoreTabPanel({
           <div className="rounded-xl bg-stone-700/50 p-3">
             <h3 className="mb-2 text-sm font-bold text-violet-300">🦴 Taming Animals</h3>
             <div className="space-y-1 text-stone-300">
-              <p>1. Build a <strong className="text-stone-200">Taming Post</strong> (Community tab).</p>
+              <p>1. Build a <strong className="text-stone-200">Taming Post</strong> (Community category in the build panel).</p>
               <p>2. Click a wild <strong className="text-stone-200">wolf, fox, deer, or rabbit</strong> within ~140px of the post.</p>
               <p>3. Pick an adult settler — costs food: rabbit 10, fox 25, deer 30, wolf 40.</p>
               <p>4. Tamed animals <strong className="text-stone-200">follow their owner</strong>. Wolves and foxes sometimes hunt nearby prey for them.</p>

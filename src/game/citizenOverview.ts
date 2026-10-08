@@ -1,15 +1,5 @@
-/**
- * Citizen-first overview numbers for the full-screen People screen.
- * Presentation-only aggregation — does not mutate simulation state.
- *
- * The labour counters (`total`/`adults`/`children`/`working`/`idle`/`imprisoned`) and the housing
- * numbers come from their owner, `uiSimSummary.computeVillageStats`, which the top-bar HUD reads
- * too. Only the social counters — pregnancy, marriages, affairs, grief — are gathered here, so a
- * change to what counts as "working" cannot make the HUD and this screen disagree
- * (`LIVE-FINDINGS-STATUS.md`, A7). Homelessness is the residence owner's rule
- * (`residencyOccupancy.countHomelessSettlers`): the local count here used to drop a child without a
- * bed and count a jailed settler as homeless.
- */
+/** Citizen-first overview numbers for the People screen; presentation-only. Labour/housing come from
+ *  `uiSimSummary.computeVillageStats` and homelessness from `countHomelessSettlers` — do not recount. */
 import { Season, type WorldState, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { summarizeFoodLedger } from './economyLedger';
@@ -31,13 +21,7 @@ export type VillageMood =
 const MIN_IDLE_ADULTS = 2;
 const IDLE_ADULT_SHARE = 0.35;
 
-/**
- * The "many adults are idle" rule — one definition.
- *
- * The overview screen's Work card used to compute `idle > max(2, adults × 0.35)` itself, so retuning
- * the threshold here left the card green while the header mood read "Under pressure — Many adults are
- * idle without work." on the same screen.
- */
+/** The "many adults are idle" rule — one definition; views read it, never recompute the threshold. */
 export function hasManyAdultsIdle(stats: { idle: number; adults: number }): boolean {
   return stats.idle > Math.max(MIN_IDLE_ADULTS, stats.adults * IDLE_ADULT_SHARE);
 }
@@ -54,12 +38,8 @@ export interface CitizenOverviewStats {
   affairs: number;
   /** Affairs established so far in the current colony year — see `computeCitizenOverview`. */
   affairsThisYear: number;
-  /**
-   * Mutual youth-love (sweetheart) pairs aged 12–17, counted once per pair. Youth love is a real
-   * simulation state (`humanRelationships.advanceYouthLove`) that used to have no counter anywhere
-   * outside the opt-in console diagnostics, so a save could hold sweethearts while the People screen
-   * could only ever show nothing. Same `id < partnerId` convention as `activeYouthLovePairs`.
-   */
+  /** Mutual youth-love (sweetheart) pairs aged 12–17, counted once per pair with the same
+   *  `id < partnerId` convention as `activeYouthLovePairs`. */
   youthLove: number;
   grieving: number;
   homeless: number;

@@ -115,11 +115,8 @@ export function tickBeauty(state: WorldState): void {
   );
 }
 
-/**
- * The prettiest world spot within `radiusTiles` of (cx, cy) — used to nudge
- * free-time destinations. Falls back to (cx, cy) when the grid is missing, so
- * callers can always steer somewhere.
- */
+/** The prettiest world spot within `radiusTiles` of (cx, cy) for free-time destinations. Falls back
+ *  to (cx, cy) when the grid is missing, so callers can always steer somewhere. */
 export function pickBeautySpot(
   grid: BeautyGrid | null,
   cx: number,

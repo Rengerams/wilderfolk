@@ -72,7 +72,7 @@ export const TUTORIAL_CAMPAIGN: TutorialCampaignStep[] = [
     id: 'year_two',
     icon: '🎉',
     title: 'Your valley lives on',
-    detail: 'You made it through the first year. Focus hints live in Overview → Village, the roster is in the same tab, and the village portrait is in Progress → Goals. The wild is watching.',
+    detail: 'You made it through the first year. Focus hints live in the Daily council, the roster is in People, and the village portrait is in the Progress window. The wild is watching.',
     isComplete: (w) => w.year >= 2,
   },
 ];

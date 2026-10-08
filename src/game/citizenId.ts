@@ -59,9 +59,8 @@ export function formatCitizenId(id: number): string {
 }
 
 export function formatCitizenName(entity: Pick<Entity, 'id' | 'name' | 'surname'>): string {
-  // The label form of the owner's fallback (a bare noun after the `#id`), and the owner's trim: this
-  // formatter used to type its own `'Settler'` literal, which is how one settler read "A settler" in
-  // one panel and "#12 Settler" in another.
+  // The label form of the owner's fallback (a bare noun after the `#id`) plus the owner's trim —
+  // never a local literal, so one settler reads the same name in every panel.
   const name = entity.name?.trim();
   const base = name ? name : SETTLER_LABEL_FALLBACK;
   const surname = entity.surname?.trim();

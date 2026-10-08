@@ -200,7 +200,7 @@ export default function MapSetupScreen({
   const sizes = Object.values(MapSize) as MapSize[];
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-stone-950 via-stone-900 to-emerald-950">
+    <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-stone-950 via-stone-900 to-emerald-950" role="main" aria-label="New settlement">
       <header className="flex shrink-0 items-center justify-between border-b border-stone-800/80 px-4 py-3 sm:px-8">
         <div className="flex items-center gap-3">
           <img

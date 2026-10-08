@@ -30,19 +30,8 @@ const SAND_WATER_OVERLAY_COLUMNS = 4;
  */
 export const TERRAIN_MATERIAL_ATLAS_REVISION = 1;
 
-/**
- * Canonical terrain colours — the one owner of the ground's base palette.
- *
- * Three tables used to disagree on the same concept: the canvas bake palette
- * (`renderer/terrain.ts`), the deleted Pixi palette (`renderer/pixiTerrain.ts`) and the minimap
- * dots (`components/MiniMap.tsx`), so the minimap could never match the map it navigates (audit
- * `visuals-looks.md` D12). These are the **live canvas2D** values, which is what ships and what
- * the minimap now reads. `PRESET_TERRAIN_COLORS` in `renderer/terrain.ts` still shifts them per
- * map preset for the bake only, so a preset map's minimap stays an approximation.
- *
- * Numbers, not CSS strings: the bake needs `0xRRGGBB` for its per-channel shading, and
- * {@link terrainPaletteHex} serves the consumers that want a CSS colour.
- */
+/** Canonical terrain colours — the single owner of the ground's base palette. Numbers (`0xRRGGBB`),
+ *  not CSS (`terrainPaletteHex` for those); `PRESET_TERRAIN_COLORS` shifts the bake, not the minimap. */
 export const TERRAIN_PALETTE: Record<TerrainType, number> = {
   [TerrainType.DeepWater]: 0x1c3a6e,
   [TerrainType.ShallowWater]: 0x2a588c,

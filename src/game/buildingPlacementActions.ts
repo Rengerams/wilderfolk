@@ -27,10 +27,8 @@ import {
 import { patchTile, rebakeTerrainGrids, tileAt } from './terrain/terrainGrid';
 import { logEvent } from './eventLog';
 
-// The unbuildable-terrain rule has one owner: `terrain/terrainTraits.isUnbuildableTerrainType`
-// (it sits in a leaf module so `terrainGrid` can read it without importing `placementUtils` back).
-// A second exported copy of the same set used to live here; nothing read it (two modules only
-// re-exported it), so it was removed with the re-exports rather than restated.
+// The unbuildable-terrain rule has one owner: `terrain/terrainTraits.isUnbuildableTerrainType`, a
+// leaf module so `terrainGrid` can read it without importing `placementUtils` back. Do not restate it.
 
 export { isFootprintOnBuildableTerrain } from './placementUtils';
 

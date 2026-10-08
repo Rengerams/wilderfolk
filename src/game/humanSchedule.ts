@@ -8,11 +8,12 @@ import {
 import { isNearResidence } from './residencyOccupancy';
 import type { Building, Entity } from './gameTypes';
 
-/** Legacy shift start (07:00) — used when no colony schedule is supplied. */
+/** Legacy window start (07:00); the shipped default work schedule (07–16) also starts here. */
 export const WORK_START = 7;
-/** Legacy shift end exclusive (18:00) — free from 18:00 onward by default. */
+/** Legacy window end, exclusive (18:00) — not the shipped default (07–16), but still read directly
+ *  by school hours, town-hall hours, work-sound detection and the renderer. */
 export const WORK_END = 18;
-/** Legacy after-work/home transition. */
+/** Evening/home transition hour — a fixed clock hour, independent of the work window. */
 export const EVENING_START = 18;
 /** Tavern service window, inclusive start and exclusive end. */
 export const TAVERN_SHIFT_START = 17;
@@ -20,7 +21,7 @@ export const TAVERN_SHIFT_END = 23;
 /** Festival gathering window for realtime movement. */
 export const FESTIVAL_GATHER_START = 15;
 export const FESTIVAL_GATHER_END = 22;
-/** Legacy work hours per weekday; daily construction uses this unit. */
+/** Legacy 07–18 hours per weekday (11); drives daily construction and the school-day floor. */
 export const WORK_HOURS_PER_DAY = WORK_END - WORK_START;
 
 /** A work-day window (start inclusive, end exclusive). */
@@ -29,7 +30,8 @@ export interface DayWindow {
   endHour: number;
 }
 
-/** Legacy fixed 07–18 window — used when no colony schedule is supplied. */
+/** Legacy fixed 07–18 window — the fallback for `isWorkHourFor`, and read directly by the school,
+ *  town-hall and renderer paths that take no schedule. */
 export const LEGACY_WINDOW: DayWindow = { startHour: WORK_START, endHour: WORK_END };
 
 export function buildWorkHours(buildDays: number): number {

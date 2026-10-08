@@ -15,11 +15,9 @@
  * Names, units and owners for every layer: docs/TILE_LATTICE_GUIDELINES.md
  * ```
  *
- * Every consumer that used to index `map.tiles[ty][tx]` goes through
- * {@link tileAt} / {@link tileTypeAt} instead, so the representation can change
- * without touching the ~60 call sites again. `WorldMap.overrides` (camp and
- * forest clearing) is applied on read and {@link rebakeTerrainGrids} keeps the
- * two grids consistent with it.
+ * Consumers read tiles through {@link tileAt} / {@link tileTypeAt} — there is no `map.tiles` array —
+ * so the representation can change without touching call sites. `WorldMap.overrides` (camp and
+ * forest clearing) is applied on read and {@link rebakeTerrainGrids} keeps the two grids consistent.
  *
  * Ids are raw 0/1/2 values because these arrays are written by hand in hot
  * loops; {@link Walkability} and {@link Buildability} are the named owners of
@@ -40,12 +38,8 @@ import { isUnbuildableTerrainType } from './terrainTraits';
  * the tile projection and the per-pixel bake must all agree on it — a second copy anywhere would
  * let terrain and the ground art disagree about where a cell ends.
  *
- * It is **16**, down from Teraforge's 64 (2026-09-24): the water layer was split onto its own
- * lattice first (see {@link WATER_CELL}), which meant dropping this one reclassified nothing any
- * fixture pinned. Changing it again is *not* a safe one-line change — a map built on a different
- * lattice reclassifies tiles, and that reaches tests which pin terrain-dependent outcomes
- * (`workerMainThread.parity` diverged between the worker and the main thread when this moved, and
- * the hand-built pathfinding fixture pins a river by cell coordinate).
+ * Keep it in step with `WATER_CELL` and the other layers: changing it reclassifies every tile and
+ * breaks tests that pin terrain-dependent outcomes.
  */
 export const TERRAIN_CELL = 16;
 
@@ -299,8 +293,7 @@ export function tileTypeAtWorld(map: WorldMap | null, worldX: number, worldY: nu
 function projectTile(map: WorldMap, tx: number, ty: number): TerrainTile | undefined {
   const { cols, rows, elevation, moisture, temperature, riverDist } = map;
   if (!cols || !rows || !elevation || !moisture || !temperature || !riverDist) return undefined;
-  // Water carries its own dimensions; a map written before the split falls back to the biome
-  // lattice, which is where the field used to live.
+  // Water carries its own dimensions; a map without them falls back to the biome lattice.
   const waterCols = map.waterCols ?? cols;
   const waterRows = map.waterRows ?? rows;
 

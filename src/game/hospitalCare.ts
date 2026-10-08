@@ -20,6 +20,9 @@ export const HOSPITAL_TREATMENT_REPUTATION_MAX = 3;
 /** Days between staffed-hospital grants — `PRODUCTION_INTERVAL.hospital`, for the UI copy. */
 export const HOSPITAL_REPUTATION_INTERVAL_DAYS = PRODUCTION_INTERVAL.hospital / TICKS_PER_DAY;
 
+/** How near the ward a settler must stand for the ward round to reach them, in world px. */
+export const HOSPITAL_WARD_RADIUS_PX = 70;
+
 /**
  * The hospital's whole reputation grant for one production interval: the flat staffed grant plus
  * the ward round's own grant for the patients it treats. `dailyBuildingEconomy` decides *when* the
@@ -81,6 +84,60 @@ export function medicalUrgency(entity: Entity): number {
   if (energyRatio < 0.42) return 0.55;
   if (energyRatio < 0.55) return 0.3;
   return 0;
+}
+
+/** The owner's own reason this settler needs care, or `null` — the roster renders it verbatim. */
+export function medicalCareReason(entity: Entity, tick: number): string | null {
+  if (!needsMedicalCare(entity, tick)) return null;
+  if (entity.pregnant) return 'expecting';
+  if (entity.energy < entity.maxEnergy * 0.42) return 'exhausted';
+  return 'grieving';
+}
+
+/** One patient in the ward, with the owner's reason they are there. */
+export interface HospitalPatientEntry {
+  entity: Entity;
+  reason: string;
+}
+
+/** One hospital's roster — a view for the building inspector, derived like the school's. */
+export interface HospitalRosterEntry {
+  hospitalId: number;
+  patients: HospitalPatientEntry[];
+}
+
+/** Who is in the ward, each with the owner's reason — the same reach the ward round treats by. */
+export function getHospitalRoster(
+  hospital: Building,
+  entities: readonly Entity[],
+  tick: number,
+): HospitalRosterEntry {
+  const hx = hospital.x + hospital.width / 2;
+  const hy = hospital.y + hospital.height / 2;
+  const patients: HospitalPatientEntry[] = [];
+  for (const e of entities) {
+    if (!e.alive || !isPlayerHuman(e)) continue;
+    if (Math.hypot(e.x - hx, e.y - hy) > HOSPITAL_WARD_RADIUS_PX) continue;
+    const reason = medicalCareReason(e, tick);
+    if (reason) patients.push({ entity: e, reason });
+  }
+  patients.sort((a, b) => medicalUrgency(b.entity) - medicalUrgency(a.entity));
+  return { hospitalId: hospital.id, patients };
+}
+
+/** Player-facing summary of a roster — the inspector renders these strings verbatim. */
+export function describeHospitalRoster(
+  entry: HospitalRosterEntry,
+  hasDoctor: boolean,
+): { headline: string; emptyHint: string | null } {
+  return {
+    headline: `In the ward ${entry.patients.length}`,
+    emptyHint: entry.patients.length > 0
+      ? null
+      : hasDoctor
+        ? 'Ward empty — settlers walk here when expecting, exhausted or grieving.'
+        : 'No doctor assigned — only a staffed hospital treats patients.',
+  };
 }
 
 /** Nearest staffed hospital to walk to (undefined when already there, or none exist). */
@@ -220,7 +277,7 @@ export function tickHospitalDailyCare(
   let treated = 0;
   for (const p of patients) {
     if (treated >= 2 + hospital.occupants.length) break;
-    const near = Math.hypot(p.x - hx, p.y - hy) < 70;
+    const near = Math.hypot(p.x - hx, p.y - hy) < HOSPITAL_WARD_RADIUS_PX;
     // Urgent cases farther away still get a small passive "clinic" benefit if staffed
     if (!near && medicalUrgency(p) < 0.7) continue;
     // Doctor presence is the ward's own occupant scan — a patient standing near the

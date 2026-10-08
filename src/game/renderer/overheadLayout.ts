@@ -234,9 +234,9 @@ export function clampSpeechBubbleTailY(
   for (const rect of reserved) {
     if (rect.y < bubbleBottomY - 1) continue;
     if (rect.y >= limit) continue;
-    limit = rect.y;
+    limit = rect.y - TAIL_PLATE_GAP_PX;
   }
-  return Math.min(targetY, limit - TAIL_PLATE_GAP_PX);
+  return Math.min(targetY, limit);
 }
 
 /**

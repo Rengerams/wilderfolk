@@ -167,22 +167,9 @@ function spreadHeights(raw: Float32Array, seaLevel: number): { heights: Float32A
 }
 
 /**
- * The two biome cuts for a finished moisture field — from that map's own distribution **and the
- * preset's own forest want**.
- *
- * The cuts used to be two fixed quantiles (0.58 / 0.86) on *every* map, which forced one composition
- * on all ten presets: `arabia` (hot, semi-arid) and `oasis` (desert with a pool) each grew a third to
- * a half of their tiles as forest, and every map carried the same canopy share whatever its climate.
- * Meanwhile the L2 biome field, which reads the preset's `forest` directly, called the very same maps
- * `dirt 54 % / desert 36 %` — two classifiers disagreeing about the same ground. An AoE2 archetype is
- * the opposite of one-shape-fits-all: Arabia is open desert, Black Forest is a wall of trees, and
- * neither should contain the other.
- *
- * Which quantile is used still comes from the map's own moisture distribution, because an absolute
- * cut cannot work — the field runs 0.47 at p50 on one preset and 0.73 on the next, so a fixed number
- * paints one map solid grass and the next solid canopy. What follows the preset is **which** quantile:
- * `forest: 0.15` (oasis) means only the wettest ~17 % of the map can be woodland, `forest: 0.98`
- * (black forest) means all but the driest 5 % can.
+ * The two biome cuts for a finished moisture field — a quantile of that map's own distribution, the
+ * preset's `forest` want choosing which quantile. An absolute cut cannot work: 0.47 at p50 on one
+ * preset, 0.73 on the next — so the cut is always a quantile, never a fixed value.
  */
 const MOISTURE_FOREST_QUANTILE_MIN = 0.05;
 const MOISTURE_FOREST_QUANTILE_MAX = 0.97;
@@ -515,13 +502,8 @@ function carveRivers(
     // finer resolution (see `buildWaterField`), so that a river edge is not quantised to this
     // coarse biome lattice.
     //
-    // The cross-section is the paper's river primitive: `h(p) = u_z(p) + δ(d(p))`, the *projection's*
-    // own elevation plus a profile across the channel, placed onto the terrain with the replace operator
-    // (`h = (1 - w_B)·h_A + w_B·h_B`, §7) whose weight has compact support. Two things follow that the
-    // old carve got wrong. The bed sits below **this river's** surface, not below sea level — a mountain
-    // stream used to be cut to sea level, a canyon through a hillside — and the banks run out to the
-    // terrain instead of stopping at a ring, because the weight reaches zero smoothly. That ring and
-    // that flat plate are what made every river edge a terrace on the coarse lattice.
+    // Bed sits below the river's own surface (not sea level) and banks run out to terrain as the
+    // replace weight reaches zero — a hard ring or flat plate would terrace the river edge.
     for (const p of path) {
       const bedSurface = sampleElev(elevation, cols, rows, p.x, p.y);
       const halfWidth = p.w;
@@ -683,9 +665,8 @@ function assignBiomes(
       for (let x = 1; x < cols - 1; x++) {
         const i = idx(x, y, cols);
         const self = src[i];
-        // No river guard here: `B.river` is never assigned by this function — water is `deep_water`
-        // and `water`, and a river is the `riverDist` field, not a biome label — so the guard this
-        // loop used to carry could not fire.
+        // No river guard here: `B.river` is never assigned by this function — a river is the
+        // `riverDist` field, not a biome label.
         const counts = new Map<number, number>();
         for (let j = -1; j <= 1; j++)
           for (let k = -1; k <= 1; k++) {
@@ -801,18 +782,9 @@ export function generateRawTerrain(
     for (let x = 0; x < cols; x++) {
       const i = idx(x, y, cols);
       const [wx, wy] = warp(x * mScale, y * mScale, tseed + 991, 0.9, 0.5);
-      // `s.moisture` is the preset's climate bias — the desert presets are dry and the forest
-      // presets wet. It was carried on the map as `moistureBias` for the renderer but never
-      // reached this field, so every preset generated the same damp climate and the arid
-      // presets could not produce desert at all (`te > 0.6 && mo < 0.35` was unreachable).
-      //
-      // `MOISTURE_SPREAD` widens the fBm mean (which clusters near 0.5) into real wet and dry
-      // regions, and `MOISTURE_ALTITUDE_PENALTY` keeps high ground drier than the valleys
-      // below it — together they are what give one map a gradient instead of a single climate.
-      //
-      // `rainShadow` is the *directional* half of that: the altitude penalty dries both flanks of a
-      // range equally, so a range had no wet side; the shadow dries the leeward flank only, which is
-      // where a range's dry interior comes from (`terrain/rainShadow.ts`).
+      // `s.moisture` is the preset's climate bias (desert dry, forest wet) and must reach this field.
+      // `MOISTURE_SPREAD` widens the fBm mean into wet/dry regions; the altitude penalty dries high
+      // ground; `rainShadow` dries the leeward flank only.
       let mo = fbm(wx, wy, tseed + 2503, { octaves: 4 });
       mo = clamp(
         MOISTURE_BASE + (mo - 0.5) * MOISTURE_SPREAD + s.moisture

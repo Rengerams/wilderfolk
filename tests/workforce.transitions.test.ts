@@ -256,7 +256,7 @@ describe('workforce command surface', () => {
       occupation: JOB_LABELS[JobType.Priest],
       job: JobType.Priest,
     });
-    const church = building(4, BuildingType.Church, { occupants: [1] });
+    const church = building(4, BuildingType.Church, { occupants: [1], staffingMode: 'manual' });
     const world = makeWorld([priest], [church]);
 
     const next = removeWorkerFromBuilding(world, 4, 1);

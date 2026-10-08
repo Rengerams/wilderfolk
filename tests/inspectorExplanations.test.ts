@@ -84,7 +84,7 @@ function commuter(millX: number, millY: number) {
 describe('P3 — building staffing explanation', () => {
   it('reports auto/manual mode, capacity and current workers from their owners', () => {
     const worker = human(1, { homeBuildingId: 5 });
-    const church = building(5, BuildingType.Church, { occupants: [1] });
+    const church = building(5, BuildingType.Church, { occupants: [1], staffingMode: 'manual' });
     const farm = building(6, BuildingType.Farm);
     const world = makeWorld([worker], [church, farm], 0, null);
 

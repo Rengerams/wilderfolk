@@ -1832,7 +1832,7 @@ export default function App() {
           selectedLabel={selectedVisitorCamp?.name ?? selectedBuilding?.type ?? selectedEntity?.name ?? 'Selected'}
           onClear={clearSelection}
           onToggleCollapsed={() => setInspectorCollapsed((v) => !v)}
-          diagnostics={<SimulationDiagnosticsPanel loopRef={loopRef} debugMode={debugMode} />}
+          diagnostics={debugMode ? <SimulationDiagnosticsPanel loopRef={loopRef} debugMode={debugMode} /> : undefined}
         >
 
             {selectedVisitorCamp ? (

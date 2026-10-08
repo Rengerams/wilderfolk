@@ -823,17 +823,16 @@ describe('virtual player decision engine', () => {
   });
 
   it("makes the player's staffing call at a manual workplace explicit (the Church)", () => {
-    // Generic auto-staffing never fills a manual workplace (Church, Prison,
-    // Barracks, School, Town Hall) — that choice is the player's. The bot *is* the
-    // player, so it makes the choice itself, with one explicit `assignWorker` for
-    // that building instead of a blanket `autoStaffWorkers`.
+    // Generic auto-staffing never fills a manual workplace — that choice is the
+    // player's. The bot *is* the player, so it makes the choice itself, with one
+    // explicit `assignWorker` for that building instead of a blanket `autoStaffWorkers`.
     const world = makeWorld(
       [
         human(1, { residenceBuildingId: 1 }),
         human(2, { residenceBuildingId: 1 }),
         human(3, { residenceBuildingId: 1 }),
       ],
-      [building(1, BuildingType.House, { occupants: [1, 2, 3] }), building(2, BuildingType.Church)],
+      [building(1, BuildingType.House, { occupants: [1, 2, 3] }), building(2, BuildingType.Church, { staffingMode: 'manual' })],
     );
 
     const decision = decideVirtualPlayerAction(world);
@@ -1327,7 +1326,7 @@ describe('virtual player remaining action surface', () => {
         human(2, { residenceBuildingId: 1 }),
         human(3, { residenceBuildingId: 1 }),
       ],
-      [building(1, BuildingType.House, { occupants: [1, 2, 3] }), building(2, BuildingType.Church)],
+      [building(1, BuildingType.House, { occupants: [1, 2, 3] }), building(2, BuildingType.Church, { staffingMode: 'manual' })],
     );
 
     const decision = decideVirtualPlayerAction(world)!;
@@ -1335,8 +1334,7 @@ describe('virtual player remaining action surface', () => {
 
     const applied = applyWorkerCommand(world, decision.command);
     expect(applied.entities.find((entity) => entity.id === 1)?.homeBuildingId).toBe(2);
-    // Every settler now has a post, so the step retires instead of re-firing (the
-    // next hour may move on to making that Church crew explicit — step 16).
+    // Every settler now has a post, so the step retires instead of re-firing.
     expect(decideVirtualPlayerAction(applied)?.command ?? null).not.toMatchObject({
       op: 'assignWorker',
     });
@@ -1371,7 +1369,7 @@ describe('virtual player remaining action surface', () => {
       [human(1, { residenceBuildingId: 1 }), human(2, { homeBuildingId: 3 })],
       [
         building(1, BuildingType.House, { occupants: [1] }),
-        building(3, BuildingType.Church, { occupants: [2] }),
+        building(3, BuildingType.Church, { occupants: [2], staffingMode: 'manual' }),
       ],
     );
     expect(buildingTypeHasLevelBenefit(BuildingType.Church)).toBe(false);
@@ -1492,29 +1490,7 @@ describe('virtual player remaining action surface', () => {
       rivalId: 'rival_ravenhold',
     });
   });
-  it('marks a staffed manual workplace manual, and releases an empty stale one', () => {
-    // The Church keeps a crew the player placed by hand: make that explicit so a
-    // blanket auto-staff can never rearrange it.
-    const church = makeWorld(
-      [human(1, { residenceBuildingId: 1, homeBuildingId: 2 })],
-      [building(1, BuildingType.House, { occupants: [1] }), building(2, BuildingType.Church, { occupants: [1] })],
-    );
-
-    const decision = decideVirtualPlayerAction(church)!;
-    expect(decision.command).toMatchObject({
-      op: 'setBuildingStaffingMode',
-      buildingId: 2,
-      mode: 'manual',
-    });
-    expect(decision.reason).toContain('Church');
-
-    const applied = applyWorkerCommand(church, decision.command);
-    expect(applied.buildings.find((b) => b.id === 2)?.staffingMode).toBe('manual');
-    // …and the step retires once the mode is explicit.
-    expect(decideVirtualPlayerAction(applied)?.command ?? null).not.toMatchObject({
-      op: 'setBuildingStaffingMode',
-    });
-
+  it('releases an empty manual workplace, and leaves a staffed one alone', () => {
     // An empty Farm still flagged manual is holding the colony back: release it.
     const stale = makeWorld(
       [human(1, { residenceBuildingId: 1, homeBuildingId: 3 })],

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType, JobType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { LEADER_OCCUPATION, applyLeaderOccupation, syncLeaderHouseResidency } from '../src/game/leaderHouse';
-import { isManualStaffBuilding } from '../src/game/workforce';
+import { isManualStaffingBuilding } from '../src/game/workforce';
 import { building, human } from '../src/test/factories';
 
 describe("Leader's House", () => {
@@ -94,15 +94,10 @@ describe("Leader's House", () => {
 });
 
 describe('manual staffing policy', () => {
-  it('keeps civic and security buildings manual while ordinary production remains auto-staffable', () => {
-    for (const type of [
-      BuildingType.TownHall,
-      BuildingType.Church,
-      BuildingType.Prison,
-      BuildingType.Barracks,
-    ]) {
-      expect(isManualStaffBuilding(type)).toBe(true);
-    }
-    expect(isManualStaffBuilding(BuildingType.Farm)).toBe(false);
+  it('defaults every workplace to auto and honours an explicit manual flag', () => {
+    const church = building(4, BuildingType.Church);
+    expect(isManualStaffingBuilding(church)).toBe(false);
+    expect(isManualStaffingBuilding({ ...church, staffingMode: 'manual' })).toBe(true);
+    expect(isManualStaffingBuilding({ ...church, staffingMode: 'auto' })).toBe(false);
   });
 });

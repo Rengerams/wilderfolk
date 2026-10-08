@@ -12,10 +12,8 @@ export function tickDailyChallenges(
   counts: { humans: number },
 ): void {
   const challengeHumanCount = counts.humans;
-  // Both per-challenge building facts, in one pass for the whole board. The loop below used to
-  // rebuild them per challenge (two full scans of `updatedBuildings` × up to eight challenges) for
-  // values that depend on nothing but the array. `building.completed` is written only by
-  // `tickBuildingProgress` earlier in the same daily pass and never inside this loop.
+  // Both per-challenge building facts, in one pass for the whole board — never rebuild them per
+  // challenge. `building.completed` is not written inside this loop, so the facts stay valid.
   const buildingFacts = buildChallengeBuildingFacts(ctx.updatedBuildings);
   // Built on the first *incomplete* challenge: the clone copies every own `WorldState` property, and
   // a board whose challenges are all complete has no consumer for it.

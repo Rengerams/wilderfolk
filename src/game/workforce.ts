@@ -25,15 +25,6 @@ import {
   type WorkforcePolicy,
 } from './workforcePolicy';
 
-/** Workplaces that require manual player staffing by default. */
-const MANUAL_STAFF_BUILDINGS = new Set<BuildingType>([
-  BuildingType.Church,
-  BuildingType.Prison,
-  BuildingType.Barracks,
-  BuildingType.School,
-  BuildingType.TownHall,
-]);
-
 /**
  * A settler's display name for these log lines.
  *
@@ -62,16 +53,9 @@ export function isOnConstructionCrew(
   return false;
 }
 
-export function isManualStaffBuilding(type: BuildingType): boolean {
-  return MANUAL_STAFF_BUILDINGS.has(type);
-}
-
-/** Per-building staffing mode check with fallback to building-type defaults. */
-export function isManualStaffingBuilding(building: Pick<Building, 'type' | 'staffingMode'>): boolean {
-  return (
-    building.staffingMode === 'manual' ||
-    (building.staffingMode == null && isManualStaffBuilding(building.type))
-  );
+/** Only an explicit `manual` keeps the player's own crew out of the auto pass. */
+export function isManualStaffingBuilding(building: Pick<Building, 'staffingMode'>): boolean {
+  return building.staffingMode === 'manual';
 }
 
 /**

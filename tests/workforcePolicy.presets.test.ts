@@ -185,7 +185,7 @@ describe('workforce policy — manual assignment stays authoritative', () => {
 
       // A manual-staffing workplace proves the removal end state in isolation: the auto pass
       // skips it under every preset, so the settler stays released.
-      const church = building(4, BuildingType.Church, { occupants: [2] });
+      const church = building(4, BuildingType.Church, { occupants: [2], staffingMode: 'manual' });
       const priest = human(2, { homeBuildingId: 4, job: JobType.Priest });
       const churchWorld = makeWorld([priest], [house, church], preset);
 

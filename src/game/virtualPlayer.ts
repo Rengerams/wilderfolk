@@ -40,7 +40,7 @@
  * would refuse: a refused command still claims its in-game hour, so it would
  * repeat every hour until the card expired while nothing else got done.
  */
-import type { Building, HuntingSpotPrey, Resources, StaffingMode, VisitorGroup, WorldState } from './gameTypes';
+import type { Building, HuntingSpotPrey, Resources, VisitorGroup, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, GRID_SIZE, PATH_CELL } from './gameTypes';
 import type { ForgeOrderId } from './gameTypes';
 import { WORKER_CMD_PROTO, type WorkerCommand } from './simWorker/commands';
@@ -65,7 +65,6 @@ import {
   completedJobBuildings,
   countWorkersAtBuilding,
   findOverstaffedDonorBuilding,
-  isManualStaffBuilding,
   isManualStaffingBuilding,
 } from './workforce';
 import { readSkill } from './skills';
@@ -1080,11 +1079,10 @@ function decideVisitorRelations(state: WorldState): VirtualPlayerDecision | null
 /**
  * 15 — manual staffing leftovers.
  *
- * Generic auto-staffing deliberately never fills a manual workplace (Church,
- * Prison, Barracks, School, Town Hall) because that is the player's choice. The
- * bot *is* the player, so when such a workplace stands with a free slot and an
- * idle adult exists it makes the choice explicitly, with one `assignWorker` for
- * that building — never a blanket `autoStaffWorkers`.
+ * Generic auto-staffing never fills a workplace explicitly set to manual, because
+ * that is the player's choice. The bot *is* the player, so when such a workplace
+ * stands with a free slot and an idle adult exists it makes the choice explicitly,
+ * with one `assignWorker` for that building — never a blanket `autoStaffWorkers`.
  */
 function decideManualStaffing(state: WorldState): VirtualPlayerDecision | null {
   if (computeVillageStats(state).idle === 0) return null;
@@ -1128,35 +1126,24 @@ function chooseRefugeeChoice(state: WorldState, group: VisitorGroup): RefugeeCho
 }
 
 /**
- * 16 — make the staffing mode explicit where it protects a real crew, and release
- * an empty workplace that a stale `manual` flag is holding back.
+ * 16 — release an empty workplace that a stale `manual` flag is holding back.
  *
- * A manual workplace with settlers at their posts is marked `manual`, so generic
- * auto-staffing can never quietly rearrange the crew the player chose. A
- * non-manual workplace that still says `manual` with nobody in it is returned to
- * `auto`, so the colony can fill it again. Anything else — including a working
- * workplace the player deliberately set to `auto` — is left exactly as it is, so
- * the step retires instead of fighting the player.
+ * A workplace explicitly set to `manual` with nobody at their posts is returned to
+ * `auto`, so the colony can fill it again. A manual workplace with its own crew, and
+ * anything else, is left exactly as it is, so the step retires instead of fighting
+ * the player.
  */
 function decideStaffingMode(state: WorldState): VirtualPlayerDecision | null {
   for (const building of state.buildings) {
     if (!building.completed || building.faction === 'rival') continue;
     if (!BUILDING_JOB_TYPES[building.type]) continue;
 
-    let desired: StaffingMode | null = null;
-    if (isManualStaffBuilding(building.type)) {
-      if (building.occupants.length > 0 && building.staffingMode !== 'manual') desired = 'manual';
-    } else if (building.staffingMode === 'manual' && building.occupants.length === 0) {
-      desired = 'auto';
+    if (building.staffingMode === 'manual' && building.occupants.length === 0) {
+      return {
+        command: { proto: WORKER_CMD_PROTO, op: 'setBuildingStaffingMode', buildingId: building.id, mode: 'auto' },
+        reason: `return the empty ${BUILDING_CONFIGS[building.type].label} to auto staffing`,
+      };
     }
-    if (!desired) continue;
-
-    return {
-      command: { proto: WORKER_CMD_PROTO, op: 'setBuildingStaffingMode', buildingId: building.id, mode: desired },
-      reason: desired === 'manual'
-        ? `mark the ${BUILDING_CONFIGS[building.type].label} manual — its crew is the player's own`
-        : `return the empty ${BUILDING_CONFIGS[building.type].label} to auto staffing`,
-    };
   }
 
   return null;

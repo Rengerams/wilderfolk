@@ -3,16 +3,8 @@
 /** Full moon hits every ~2 in-game weeks */
 export const DAYS_PER_MOON_CYCLE = 14;
 
-/**
- * Adult floor: courtship, marriage, affairs, leadership, adoption singles and recruit ages.
- * 18 is the documented age ladder (`docs/archive/FERTILITY_AGE14_F1.md`: "The adult marriage
- * threshold remains 18"; `docs/archive/YOUTH_LOVE_FEATURE.md`: "18 = Adult transition"), and it
- * matches `HUMAN_MOVE_OUT_MIN_AGE` (18) in `residencyOccupancy.ts` and `Relationship.AFFAIR_MIN_AGE`
- * (18). It was 16 until 2026-09-16, which let 16–17 year olds court, be recruited as adults, be
- * offered a home of their own and be elected leader — see
- * `BUG_REPORTS/2026-09-16-adult-floor-was-16-against-the-documented-18.md`.
- * Full age ladder lives next to related constants in `dayCycle.ts` (EK-E4).
- */
+/** Adult floor: courtship, marriage, affairs, leadership, adoption singles and recruit ages. Must
+ *  match `HUMAN_MOVE_OUT_MIN_AGE` and `Relationship.AFFAIR_MIN_AGE`; do not lower it. */
 export const HUMAN_ADULT_MIN_AGE = 18;
 
 /** Colony days a human stays a juvenile; `tryGraduateHumanChild` promotes on the graduation tick. */

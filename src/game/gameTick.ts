@@ -308,8 +308,10 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.buildings = updatedBuildings;
   state.season = season;
   state.humanPopulation = finalCounts.humans;
-  // Track the true peak here: `yearlyStats` only samples year-end population.
-  if (finalCounts.humans > state.lifetimeStats.largestPopulation.count) {
+  // Track the true peak here: `yearlyStats` only samples year-end population. A world whose
+  // `lifetimeStats` predates the field has no record yet, which reads as the owner's empty count.
+  const peakCount = state.lifetimeStats.largestPopulation?.count ?? 0;
+  if (finalCounts.humans > peakCount) {
     state.lifetimeStats.largestPopulation = { count: finalCounts.humans, year: state.year };
   }
   state.wildlifeCounts = wildlifeCountsFromPopulation(finalCounts);

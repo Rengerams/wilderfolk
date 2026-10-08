@@ -20,8 +20,8 @@ import type { Entity, WorldState } from './gameTypes';
  *   (`tests/uiRefinement.owners.test.ts`).
  * - `scentGrid` — simulation state in a runtime-cache slot; dropped on purpose on save and recreated
  *   by the first realtime tick (`worldRuntimeCaches.ts` documents the two duties).
- * - `deathParticles` / `floatingTexts` / `notifications` — transient presentation, round-tripped by
- *   the same transient pair as `disasters` (so they survive today, by that list's choice).
+ * - `deathParticles` / `floatingTexts` — transient presentation, round-tripped by the same transient
+ *   pair as `disasters`. `notifications` is not: a toast's life is wall clock, so a restored one is stale.
  */
 export const WORLD_STATE_SAVE_KEYS = [
   'entities', 'buildings', 'tick', 'season', 'year', 'dayInYear', 'populationHistory',

@@ -39,13 +39,8 @@ export interface ChallengeProgress {
 }
 
 /**
- * The two building facts every challenge test derives from the building list.
- *
- * One pass produces both. `tickDailyChallenges` runs every challenge through
- * `isChallengeComplete` in a single `map`, so building them here and letting the caller hand them
- * back in keeps the rule in this owner while the per-challenge rescan disappears: the daily pass
- * used to run `buildings.filter(...)` **and** `buildings.some(...)` up to eight times each over the
- * same array for two values that only depend on the array.
+ * The two building facts every challenge test derives from the building list. One pass produces
+ * both — the caller hands them back in, so the daily pass must not rescan the array per challenge.
  */
 export interface ChallengeBuildingFacts {
   /** Completed, player-owned buildings. */

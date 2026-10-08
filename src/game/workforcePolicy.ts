@@ -184,9 +184,8 @@ const PRESET_BUILDING_ORDER: Readonly<Record<WorkforcePreset, readonly BuildingT
     jobBuildingId('tavern'),
     jobBuildingId('hotel'),
     jobBuildingId('church'),
-    // Named, but never auto-filled: `workforce.MANUAL_STAFF_BUILDINGS` has the player staff
-    // Barracks and Prison by hand under every preset. They are listed so the preset states the
-    // intended order out loud rather than leaving the two defense workplaces unranked.
+    // Listed so the preset states the intended order out loud rather than leaving the two
+    // defense workplaces unranked. They auto-fill like every other workplace unless set manual.
     jobBuildingId('barracks'),
     jobBuildingId('prison'),
   ],

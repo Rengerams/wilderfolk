@@ -38,3 +38,16 @@ export function canAffordResourceCost(
 ): boolean {
   return resourceCostEntries(cost).every(({ key, amount }) => (resources[key] ?? 0) >= amount);
 }
+
+/** What a cost still needs, in `COST_ORDER` — empty when the resources already cover it. */
+export function missingResourceCost(
+  resources: { wood: number; stone: number; food: number; gold: number; iron: number },
+  cost: ResourceCostAmount,
+): ResourceCostAmount {
+  const missing: ResourceCostAmount = {};
+  for (const { key, amount } of resourceCostEntries(cost)) {
+    const short = amount - (resources[key] ?? 0);
+    if (short > 0) missing[key] = short;
+  }
+  return missing;
+}

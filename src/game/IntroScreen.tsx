@@ -369,6 +369,8 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
     <div
       className="intro-root fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain"
       style={{ cursor: phase === 'ready' ? 'pointer' : 'default' }}
+      role="main"
+      aria-label="Wilderfolk intro"
     >
       {/* Base + aurora wash */}
       <div
@@ -408,14 +410,14 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
         </span>
       </div>
 
-      {/* Milestone ribbon. The rendered text takes the version from `GAME_VERSION` (`:412`), so it can
-          never go stale — this comment used to say "v0.5" and was itself the only stale thing here. */}
+      {/* Milestone ribbon. It reveals on the *last* beat, after the hook, so the title screen leads
+          with the game's hook rather than the release note. */}
       <div
         className={`intro-control absolute left-1/2 top-16 z-20 w-[min(92vw,28rem)] -translate-x-1/2 transition-all ease-out sm:top-20 ${
-          logoVisible ? 'opacity-100 translate-y-0' : 'pointer-events-none -translate-y-2 opacity-0'
+          chainVisible ? 'opacity-100 translate-y-0' : 'pointer-events-none -translate-y-2 opacity-0'
         }`}
         style={{ transitionDuration: `${FADE_MS}ms` }}
-        aria-hidden={!logoVisible}
+        aria-hidden={!chainVisible}
       >
         <div className="rounded-2xl border border-emerald-500/35 bg-gradient-to-r from-emerald-950/90 via-stone-950/90 to-amber-950/80 px-4 py-2.5 text-center shadow-[0_8px_32px_rgba(0,0,0,0.45)] ring-1 ring-amber-500/20 backdrop-blur-md">
           <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-400/95">

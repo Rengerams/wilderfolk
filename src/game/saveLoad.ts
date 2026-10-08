@@ -596,10 +596,8 @@ function migrateTickTimeline(
 }
 
 /**
- * Save the colony, taking the external file path when the browser slot cannot hold it.
- *
- * A cadence save (autosave, unmount) has no user gesture behind it, so it calls `saveGameToSlot`
- * and names the manual route rather than downloading on a timer.
+ * A manual save always exports a JSON file. The browser slot is written too when the payload fits it,
+ * so Load stays in step, and a slot that cannot be written is reported, never silently dropped.
  */
 export function saveGame(world: WorldState, view: ViewState): SaveResult {
   let json: string;
@@ -609,8 +607,7 @@ export function saveGame(world: WorldState, view: ViewState): SaveResult {
     console.error('Save build failed:', e);
     return { success: false, error: 'Save failed — check browser storage permissions' };
   }
-  if (decideSaveRoute(world, json).target === 'file') return downloadSaveJson(world, json);
-  return writeSaveSlot(json);
+  return downloadSaveJson(world, json);
 }
 
 /** Save to the browser slot only — the path a save with no user gesture may take. */

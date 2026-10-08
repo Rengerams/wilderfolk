@@ -209,16 +209,8 @@ function clearAssignmentsForDemolishedBuilding(state: WorldState, buildingId: nu
   }
 }
 
-/**
- * The one owner of "what it means for a building to leave authoritative state": the denormalized
- * completed-building counter, the adjacency index, its `state.adjacency` shadow, and — for a road —
- * the road-avoidance cache.
- *
- * Callers own *why* the building leaves (a demolition, or a strip replacement that refunds half) and
- * their own assignment cleanup; they no longer restate any of this. The counter used to be adjusted
- * only on demolition, so every Wall→Gate replacement left "Buildings" (Village tab, Statistics, the
- * population-snapshot cache key) one too high until the next load.
- */
+/** The one owner of "a building leaves authoritative state": the completed-building counter, the
+ *  adjacency index, its `state.adjacency` shadow and the road cache. Callers own why + assignments. */
 export function removeBuildingFromState(state: WorldState, building: Building): void {
   unindexAdjacency(state, building.id);
   state.adjacency = undefined;

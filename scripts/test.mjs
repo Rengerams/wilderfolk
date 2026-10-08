@@ -83,7 +83,7 @@ const STEP = {
   lintFix: 'oxlint --type-aware --type-check --fix src vite.config.ts vitest.config.ts',
   /** oxlint's experimental `--type-check` ignores `--tsconfig` (it auto-discovers the
    *  nearest tsconfig, the empty root project), so scripts are typechecked with `tsc`. */
-  scriptsLint: 'oxlint --type-aware --tsconfig tsconfig.scripts.json --ignore-pattern scripts/archive scripts',
+  scriptsLint: 'oxlint --type-aware --tsconfig tsconfig.scripts.json scripts',
   scriptsTypes: 'tsc -p tsconfig.scripts.json --noEmit',
   /**
    * knip can CRASH rather than report on this machine: oxc-parser's

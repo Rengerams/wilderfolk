@@ -1,18 +1,9 @@
 /**
  * Flow routing for the river carve — the hydrology half of the SIGGRAPH 2013 model
  * (Génevaux et al., *Terrain Generation Using Procedural Models Based on Hydrology*, §4–5).
- *
- * **Why this exists.** The generator used to pick river sources by an elevation score and then walk a
- * gradient with a meander bend, so a "river" was a *path*, not a drainage network: nothing knew how much
- * land drained through a point, two paths could cross, the walk needed a stagnation bail-out when the
- * gradient flattened on a depression, and the channel's width was a function of how far along the path it
- * had travelled (`step / 200`). The paper routes water instead: every cell drains into its lowest
- * neighbour, the terrain is de-pitted first so that routing is well defined, and a watercourse is read
- * from the **area that drains through it** — its mean flow is `φ = 0.42 · A^0.69` with `A` the upstream
- * watershed area (§5.1, after Dunne & Leopold 1978).
- *
- * These two passes are that routing. They are pure, deterministic, and depend on nothing else in the
- * terrain stack: same field in, same network out.
+ * Every cell drains into its lowest neighbour (the terrain is de-pitted first), and a watercourse's
+ * width reads from the **area that drains through it** — `φ = 0.42 · A^0.69` — not from path length.
+ * Pure and deterministic: same field in, same network out.
  */
 
 /** Where each cell sends its water, and how much land drains through it. */

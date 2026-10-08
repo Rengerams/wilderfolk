@@ -38,11 +38,10 @@ import { MINE_ORES, mineOreForMode, type MineMode } from '../game/buildings';
 import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
 import { offDutyPrisonGuards, prisonRoster, prisonShiftsAtHour, vacantPrisonShifts } from '../game/prisonShifts';
 import { prisonGuardIds } from '../game/prisonGuardDuty';
-import { describeHotelStatus } from '../game/hotelStay';
+import { describeHotelRoster, getHotelRoster } from '../game/hotelStay';
 import { isResidenceOccupantEntity } from '../game/residencyReconciliation';
-import { describeHospitalReputation } from '../game/hospitalCare';
+import { describeHospitalReputation, describeHospitalRoster, getHospitalRoster } from '../game/hospitalCare';
 import { displayedConstructionProgress } from '../game/buildingProgressDisplay';
-import { HOTEL_GUEST_CAPACITY } from '../game/gameTypes';
 import { HUNTING_SPOT_PREY_OPTIONS } from '../game/gameTypes';
 import type { HuntingSpotPrey } from '../game/gameTypes';
 import { getBuildingConfig } from '../game/buildingConfig';
@@ -688,14 +687,67 @@ export default function SelectedBuildingPanel({
             </div>
           );
         })()}
-        {building.completed && building.type === BuildingType.Hotel && (
-          <div className="mt-2 space-y-1 rounded-lg border border-cyan-700/40 bg-cyan-950/30 p-2">
-            <p className="text-[11px] text-cyan-100">{describeHotelStatus(building, state.entities)}</p>
-            <p className="text-[11px] text-stone-300">
-              Guests: up to {HOTEL_GUEST_CAPACITY} visitors rest free while the hotel is staffed.
-            </p>
-          </div>
-        )}
+        {building.completed && building.type === BuildingType.Hotel && (() => {
+          // The tick stores no settler stay: a settler lodges by the same commute rule the roster
+          // applies, so the list is derived exactly as the school's attendance is.
+          const roster = getHotelRoster(building, state.buildings, state.entities, getHourOfDay(state.tick));
+          const summary = describeHotelRoster(roster, building.occupants.length > 0);
+          return (
+            <div className="mt-2 space-y-1 rounded-lg border border-cyan-700/40 bg-cyan-950/30 p-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-300">
+                {summary.headline}
+              </p>
+              {summary.emptyHint && <p className="text-[11px] text-stone-300">{summary.emptyHint}</p>}
+              {(roster.guests.length > 0 || roster.lodgers.length > 0) && (
+                <ul className="space-y-0.5">
+                  {roster.guests.map((guest) => (
+                    <li key={guest.id} className="flex items-baseline justify-between gap-2 text-[11px]">
+                      <span className="truncate text-stone-200">{formatCitizenName(guest)}</span>
+                      <span className="shrink-0 text-cyan-300">
+                        {roster.sleepingNow ? 'visitor · asleep' : 'visitor · checked in'}
+                      </span>
+                    </li>
+                  ))}
+                  {roster.lodgers.map((lodger) => (
+                    <li key={lodger.id} className="flex items-baseline justify-between gap-2 text-[11px]">
+                      <span className="truncate text-stone-200">{formatCitizenName(lodger)}</span>
+                      <span className="shrink-0 text-emerald-300">
+                        {roster.sleepingNow ? 'settler · asleep' : 'settler · lodging tonight'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {summary.full && (
+                <p className="text-[11px] text-amber-400">⚠️ Every bed taken — a second hotel takes the overflow.</p>
+              )}
+            </div>
+          );
+        })()}
+        {building.completed && building.type === BuildingType.Hospital && (() => {
+          // Care is derived too: a settler walks to the nearest staffed hospital, so the roster asks
+          // the same reach the ward round treats by rather than storing an admission.
+          const roster = getHospitalRoster(building, state.entities, state.tick);
+          const summary = describeHospitalRoster(roster, building.occupants.length > 0);
+          return (
+            <div className="mt-2 space-y-1 rounded-lg border border-pink-700/40 bg-pink-950/30 p-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-300">
+                {summary.headline}
+              </p>
+              {summary.emptyHint && <p className="text-[11px] text-stone-300">{summary.emptyHint}</p>}
+              {roster.patients.length > 0 && (
+                <ul className="space-y-0.5">
+                  {roster.patients.map(({ entity, reason }) => (
+                    <li key={entity.id} className="flex items-baseline justify-between gap-2 text-[11px]">
+                      <span className="truncate text-stone-200">{formatCitizenName(entity)}</span>
+                      <span className="shrink-0 text-pink-300">{reason}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })()}
         {building.completed && building.type === BuildingType.TownHall && (
           <div className="mt-2 space-y-1.5 rounded-lg border border-blue-700/40 bg-blue-950/30 p-2">
             <p className="text-[11px] text-blue-200">{describeTownHallPerks(building)}</p>

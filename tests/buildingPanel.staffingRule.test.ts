@@ -53,7 +53,7 @@ const AUTO_STAFFING_CLAIM = 'Workers are assigned here automatically';
 
 describe('the inspector claims automatic staffing only where the workforce owner auto-staffs', () => {
   it('drops the claim for a completed School', () => {
-    const school = building(5, BuildingType.School);
+    const school = building(5, BuildingType.School, { staffingMode: 'manual' });
     expect(isManualStaffingBuilding(school)).toBe(true);
     expect(renderPanel(school, makeWorld([], [school]))).not.toContain(AUTO_STAFFING_CLAIM);
   });
@@ -99,7 +99,7 @@ describe('the manual worker picker reports the settlers it leaves out', () => {
   it("counts the rest of the owner's list beside the sliced picker", () => {
     const idle: Entity[] = [];
     for (let id = 1; id <= 13; id++) idle.push(human(id));
-    const school = building(5, BuildingType.School);
+    const school = building(5, BuildingType.School, { staffingMode: 'manual' });
     const state = makeWorld(idle, [school]);
 
     const picker = listAssignableWorkersForBuilding(state, school.id);

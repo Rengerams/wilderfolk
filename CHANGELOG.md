@@ -2,6 +2,26 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Changed: auto-assign is now the default for every workplace** — a building staffs itself automatically unless the player sets it to manual, and the manual toggle still keeps a hand-picked crew out of the auto pass.
+
+- **Changed: toasts are no longer written into a save** — a notification's life is measured on the real-world clock, so a restored one arrived already expired; the save keeps the dismissal ledger but not the toasts.
+
+- **Fixed: a speech bubble's tail now reaches the speaker** — it was stopped three pixels short of its target even with nothing in its way, so it pointed at the head without touching it.
+
+- **Added: the hotel and hospital inspectors name everyone staying there** — the hotel lists visitor guests and settler lodgers with whether they are asleep, and the hospital lists each patient in the ward with the reason they need care.
+
+- **Changed: a hospital now takes five doctors instead of two** — the ward's crew cap rises so a full ward round and doctor-on-duty care can both be staffed at once.
+
+- **Fixed: the player's inspector no longer shows the dev-only simulation diagnostics, and stale copy names the current windows** — the drawer is gated on the debug flag, and the guide and tutorial no longer point at the retired tab rail.
+
+- **Fixed: a visitor walking to a hotel no longer re-plans the whole route every step** — the route cache key held the visitor's moving position, so it missed every tick, re-ran the pathfinder and churned the shared cache; it is keyed on the visitor now.
+
+- **Fixed: an unaffordable building tile no longer accepts a click** — the catalogue re-derived the cost rule locally and used it only for dimming, so an unpayable building could be selected and then refused at the map; it now reads the cost owner and names what is short.
+
+- **Fixed: the long-run gate's checkpoint verdict no longer counts a rival's buildings as the colony's own** — a checkpoint read healthy because a neighbour camp had raised buildings, while the end-of-run verdict correctly saw the player had built nothing.
+
+- **Fixed: a settler cursed into Moon Howler form mid-romance no longer comes back to a one-sided sweetheart link** — the pair is held still while one is transformed, so the bond stays mutual.
+
 - **Fixed: the village head's next-vote year no longer prints a fraction** — the office badge read "next vote Y2.2472222222222222" where the election date is a fractional year; it now shows the whole year.
 
 - **Made a weather turn leave a record** — the weather changed silently, so the Chronicle never showed when conditions shifted; each change now logs a line.

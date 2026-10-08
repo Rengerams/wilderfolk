@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 import { describeSaveCompatibility } from '../game/saveLoad';
 import { getFocusableElements } from '../hooks/useModalFocus';
-import { AUTO_SAVE_INTERVAL_MS } from '../hooks/useGamePersistence';
 import { TICKS_PER_DAY } from '../game/dayCycle';
 
 export type VolumePreset = 'soft' | 'normal' | 'loud';
@@ -383,8 +382,8 @@ export default function GameMenu({
               <MenuSection title="Gameplay">
                 <MenuToggle
                   icon="⟳"
-                  label="Auto-save"
-                  hint={`Every ${AUTO_SAVE_INTERVAL_MS / 1000} seconds when enabled`}
+                  label="Save on exit"
+                  hint="Keeps the browser quick-save slot fresh when you leave the colony"
                   checked={autoSave}
                   onChange={onToggleAutoSave}
                 />

@@ -13,15 +13,9 @@ import { downloadChronicleLog, loadExportChronicleOnSave } from '../game/eventLo
 import { GameLoop } from '../game/gameLoop';
 import type { ViewState } from '../game/viewState';
 
-/** Auto-save cadence, in milliseconds. The game menu's copy renders this (`AUTO_SAVE_INTERVAL_MS / 1000`). */
-export const AUTO_SAVE_INTERVAL_MS = 30_000;
-const AUTO_SAVE_FAILURE_MESSAGE = 'Auto-save failed — try manual save from the menu';
-
 /**
- * A colony only the file path can hold: the cadence save stands down for it, and says so once
- * rather than every interval. Reset as soon as a cadence save reaches the slot again.
+ * A colony only the file path can hold: the exit save stands down for it and says so once.
  */
-let slotRefusingColony = false;
 let slotRefusingNoticeShown = false;
 
 export interface SaveToast {
@@ -36,7 +30,7 @@ export interface SaveToast {
 export interface PersistCurrentGameOptions {
   chronicle?: boolean;
   feedback?: boolean;
-  /** A cadence save (autosave, unmount): no user gesture, so it never triggers a file download. */
+  /** A save with no user gesture behind it (the exit save): never triggers a file download. */
   background?: boolean;
 }
 
@@ -69,19 +63,19 @@ export interface UseGamePersistenceOptions {
 /**
  * The save currently running, if any.
  *
- * Two saves can overlap in practice: the 30 s autosave interval (`useGamePersistence`'s effect) and a
- * Ctrl+S or the unmount save, both of which resume from the same idle wake. Without this, the second
- * call reached `GameWorkerHost.exportSave()`, which refuses a second export while one is in flight
- * (`'Export already in flight'`) — `GameLoop.exportAuthoritativeWorld` caught that, warned, and fell
- * back to `this.world`, **the display shadow**, so the save recorded a world up to
- * `MAX_PIPELINE_DEPTH` ticks behind the worker *while toasting "Game saved successfully"*
+ * Two saves can overlap in practice: the exit save and a Ctrl+S or menu save, both of which resume
+ * from the same idle wake. Without this, the second call reached `GameWorkerHost.exportSave()`, which
+ * refuses a second export while one is in flight (`'Export already in flight'`) —
+ * `GameLoop.exportAuthoritativeWorld` caught that, warned, and fell back to `this.world`, **the
+ * display shadow**, so the save recorded a world up to `MAX_PIPELINE_DEPTH` ticks behind the worker
+ * *while toasting "Game saved successfully"*
  *
  * Coalescing is the right resolution rather than queueing: both callers want the same thing — the
  * most recent authoritative snapshot written to the same slot — so the second one waits for the first
  * and reports its result. Serialising them would only write the same state twice.
  *
- * Module scope, not a hook ref, so the interval callback, the keyboard handler and the unmount
- * cleanup all see it; `persistGame` is a module function, not a hook.
+ * Module scope, not a hook ref, so the keyboard handler and the unmount cleanup all see it;
+ * `persistGame` is a module function, not a hook.
  */
 let saveInFlight: Promise<boolean> | null = null;
 
@@ -128,16 +122,13 @@ async function persistGameOnce(
   const result = background
     ? saveGameToSlot(worldToSave, view)
     : saveGame(worldToSave, view);
-  if (result.fileReason) {
-    slotRefusingColony = true;
-  } else if (result.success) {
-    slotRefusingColony = false;
+  if (result.success && !result.fileReason) {
     slotRefusingNoticeShown = false;
   }
 
   if (!result.success) {
     if (result.fileReason) {
-      // A cadence save leaves the download to the player, so it says so once, not per interval.
+      // The exit save leaves the download to the player, so it says so once.
       if (!slotRefusingNoticeShown) {
         slotRefusingNoticeShown = true;
         callbacks.showToast({ message: result.error, type: 'warning' });
@@ -197,6 +188,12 @@ async function persistGameOnce(
     return true;
   }
 
+  if (result.slotWarning) {
+    // The file is on disk but the slot is not: do not enable Load against a slot that was never written.
+    if (feedback) callbacks.showToast({ message: result.slotWarning, type: 'warning' });
+    return true;
+  }
+
   callbacks.markGameSaved();
 
   if (feedback) {
@@ -210,7 +207,7 @@ async function persistGameOnce(
 }
 
 /**
- * Owns browser persistence feedback, periodic auto-save intervals, and unmount lifecycle saves.
+ * Owns browser persistence feedback and the unmount lifecycle save.
  */
 export function useGamePersistence({
   loopRef,
@@ -260,41 +257,6 @@ export function useGamePersistence({
     persistCurrentGameRef.current = persistCurrentGame;
   }, [persistCurrentGame]);
 
-  // Periodic Auto-Save
-  const autoSaveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  useEffect(() => {
-    if (autoSaveIntervalRef.current) return;
-
-    autoSaveIntervalRef.current = setInterval(() => {
-      const loop = loopRef.current;
-      if (!loop) return;
-
-      const snapshot = loop.getWorld();
-      if (!snapshot.autoSave) return;
-      // A colony the slot cannot hold has no cadence save: the notice already named Save to file.
-      if (slotRefusingColony) return;
-
-      void persistCurrentGameRef.current({ chronicle: false, feedback: false, background: true })
-        .then((ok) => {
-          if (!ok && !slotRefusingColony) {
-            showSaveToast({ message: AUTO_SAVE_FAILURE_MESSAGE, type: 'error' });
-          }
-        })
-        .catch(() => {
-          if (!slotRefusingColony) {
-            showSaveToast({ message: AUTO_SAVE_FAILURE_MESSAGE, type: 'error' });
-          }
-        });
-    }, AUTO_SAVE_INTERVAL_MS);
-
-    return () => {
-      if (autoSaveIntervalRef.current) {
-        clearInterval(autoSaveIntervalRef.current);
-        autoSaveIntervalRef.current = null;
-      }
-    };
-  }, [loopRef, showSaveToast]);
-
   // Best-effort save on component unmount. Delegates to the latest persist
   // closure, which lazily reads loopRef/worldRef/viewRef at call time, so no
   // stale ref values are captured when the cleanup runs.
@@ -308,6 +270,8 @@ export function useGamePersistence({
       // happens on a real teardown. Reading the live ref is the point.
       // eslint-disable-next-line react-hooks/exhaustive-deps
       if (!loopRef.current) return;
+      // The auto-save preference now means "save when you leave"; with it off, exit writes nothing.
+      if (!loopRef.current.getWorld().autoSave) return;
       void persistCurrentGameRef.current({ chronicle: false, feedback: false, background: true });
     };
   }, [loopRef]);

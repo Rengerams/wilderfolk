@@ -1,14 +1,13 @@
 /**
- * Church manual staffing — SIMULATION_AUTHORITY.md §5 + Objective 5.
+ * Church staffing — a Church auto-fills by default and, once set to `manual`,
+ * keeps only the player-selected priest: the auto pass and rebalance skip it.
+ * A one-time save migration clears legacy Churches that were auto-filled
+ * before manual priest selection existed.
  *
- * The Church has capacity for four but requires only the player-selected
- * priest; manual buildings are never filled by generic auto-staffing or
- * rebalancing. A one-time save migration clears legacy Churches that were
- * auto-filled before manual priest selection existed.
- *
- * Covers: new-save (never auto-filled), manual assignment, daily
- * reconciliation (keeps the assigned priest, adds none), legacy-save
- * migration (idempotent, player Churches only), and invariant cleanliness.
+ * Covers: auto-fill by default, the manual override (auto/rebalance skip),
+ * manual assignment, daily reconciliation (keeps the assigned priest, adds
+ * none), legacy-save migration (idempotent, player Churches only), and
+ * invariant cleanliness.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, JOB_LABELS, JobType } from '../src/game/gameTypes';
@@ -31,19 +30,28 @@ function makeWorld(entities: Entity[], buildings: Building[]): WorldState {
 }
 
 describe('Church manual staffing', () => {
-  it('never auto-fills an empty Church on the daily staffing pass', () => {
+  it('auto-fills an empty Church by default', () => {
     const idle = [human(1), human(2), human(3)];
     const church = building(4, BuildingType.Church);
+
+    assignMissingWorkers(idle, [church]);
+
+    expect(church.occupants.length).toBeGreaterThan(0);
+  });
+
+  it('never auto-fills a Church set to manual', () => {
+    const idle = [human(1), human(2), human(3)];
+    const church = building(4, BuildingType.Church, { staffingMode: 'manual' });
 
     assignMissingWorkers(idle, [church]);
 
     expect(church.occupants).toEqual([]);
   });
 
-  it('never moves workers into an empty Church via rebalance', () => {
+  it('never moves workers into a manual Church via rebalance', () => {
     const farmWorker = human(1, { homeBuildingId: 2 });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
-    const church = building(4, BuildingType.Church);
+    const church = building(4, BuildingType.Church, { staffingMode: 'manual' });
 
     rebalanceJobWorkers([farmWorker], [farm, church]);
 
@@ -70,7 +78,7 @@ describe('Church manual staffing', () => {
   it('daily reconciliation keeps the assigned priest and adds no extras', () => {
     const priest = human(1, { homeBuildingId: 4, job: JobType.Priest });
     const idle = [human(2), human(3), human(4)];
-    const church = building(4, BuildingType.Church, { occupants: [1] });
+    const church = building(4, BuildingType.Church, { occupants: [1], staffingMode: 'manual' });
 
     assignMissingWorkers([priest, ...idle], [church]);
 

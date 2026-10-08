@@ -90,7 +90,6 @@ export {
   unindexEntityFromState,
 } from './entityIndex';
 export {
-  isManualStaffBuilding,
   jobBuildingPriority,
   countWorkersAtBuilding,
   countStaffedWorkersAtType,

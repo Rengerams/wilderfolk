@@ -16,7 +16,8 @@ import {
   describeSchoolRoster,
   getSchoolRoster,
 } from '../src/game/education';
-import { assignMissingWorkers, isManualStaffBuilding } from '../src/game/workforce';
+import { assignMissingWorkers } from '../src/game/workforce';
+import { building, human } from '../src/test/factories';
 import { isOnWorkShift } from '../src/game/humanSchedule';
 
 /**
@@ -126,10 +127,9 @@ describe('school.bonds.test.ts', () => {
 });
 
 /**
- * Regression: schools are manually staffed (the player picks the teacher, whose
- * personality shapes the kids) and each school caps attendance at
- * SCHOOL_MAX_CHILDREN — the 11th child finds no seat, so class sizes stay sane
- * and a second school becomes a real decision.
+ * Regression: each school caps attendance at SCHOOL_MAX_CHILDREN — the 11th
+ * child finds no seat, so class sizes stay sane and a second school becomes a
+ * real decision. A School auto-fills a teacher by default and can be set manual.
  */
 describe('school.capacity.test.ts', () => {
   function schoolFixture(): { child: Entity; school: Building } {
@@ -158,31 +158,18 @@ describe('school.capacity.test.ts', () => {
     return { child, school };
   }
 
-  describe('school manual staffing & capacity', () => {
-    it('the School is a manual-staff building — auto-assign never fills it', () => {
-      expect(isManualStaffBuilding(BuildingType.School)).toBe(true);
+  describe('school staffing & capacity', () => {
+    it('auto-fills an empty School by default', () => {
+      const idle = [human(1), human(2)];
+      const school = building(5, BuildingType.School);
+      assignMissingWorkers(idle, [school]);
+      expect(school.occupants.length).toBeGreaterThan(0);
     });
 
-    it('auto-staff leaves an unstaffed school empty even with idle settlers', () => {
-      const state = initGame();
-      // Idle adult settler, empty completed school.
-      const school: Building = {
-        ...state.buildings[0]!,
-        id: 8002,
-        type: BuildingType.School,
-        completed: true,
-        occupants: [],
-        faction: undefined,
-        x: 90,
-        y: 90,
-        width: 53,
-        height: 46,
-      };
-      state.buildings.push(school);
-      assignMissingWorkers(
-        state.entities.filter((e) => e.alive && e.type === EntityType.Human && !e.faction),
-        state.buildings,
-      );
+    it('a School set to manual is never auto-filled', () => {
+      const idle = [human(1), human(2)];
+      const school = building(5, BuildingType.School, { staffingMode: 'manual' });
+      assignMissingWorkers(idle, [school]);
       expect(school.occupants).toHaveLength(0);
     });
 

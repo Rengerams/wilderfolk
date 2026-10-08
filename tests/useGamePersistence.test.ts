@@ -4,8 +4,9 @@ import { initGame } from '../src/game/worldGen';
 import { persistGame } from '../src/hooks/useGamePersistence';
 import { createInitialView } from '../src/game/viewState';
 
-const { saveGameMock } = vi.hoisted(() => ({
+const { saveGameMock, saveGameToSlotMock } = vi.hoisted(() => ({
   saveGameMock: vi.fn(),
+  saveGameToSlotMock: vi.fn(),
 }));
 
 vi.mock('../src/game/gameEngine', async (importOriginal) => {
@@ -13,12 +14,14 @@ vi.mock('../src/game/gameEngine', async (importOriginal) => {
   return {
     ...actual,
     saveGame: saveGameMock,
+    saveGameToSlot: saveGameToSlotMock,
   };
 });
 
 describe('persistGame', () => {
   beforeEach(() => {
     saveGameMock.mockReset();
+    saveGameToSlotMock.mockReset();
   });
 
   it('saves the worker-authoritative world and preserves the manual-save feedback', async () => {
@@ -73,7 +76,7 @@ describe('persistGame', () => {
     expect(showToast).not.toHaveBeenCalled();
   });
 
-  it('keeps autosave-style persistence silent while still saving the authoritative snapshot', async () => {
+  it('keeps a silent save from toasting while still saving the authoritative snapshot', async () => {
     const authoritativeWorld = initGame({ villageName: 'Silent autosave' });
     const view = createInitialView(authoritativeWorld.width, authoritativeWorld.height);
     const showToast = vi.fn();
@@ -101,6 +104,34 @@ describe('persistGame', () => {
     expect(markGameSaved).toHaveBeenCalledOnce();
     expect(authoritativeWorld.floatingTexts).toHaveLength(0);
     expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it('the exit save writes the slot and never downloads (background path)', async () => {
+    const authoritativeWorld = initGame({ villageName: 'Exit save' });
+    const view = createInitialView(authoritativeWorld.width, authoritativeWorld.height);
+    const showToast = vi.fn();
+    const markGameSaved = vi.fn();
+    saveGameToSlotMock.mockReturnValue({ success: true });
+    const loop = {
+      exportAuthoritativeWorld: async () => authoritativeWorld,
+      getView: () => view,
+      getWorld: () => authoritativeWorld,
+      mutateWorld: (mutator: (world: WorldState) => void) => mutator(authoritativeWorld),
+    };
+
+    const saved = await persistGame(
+      {
+        getLoop: () => loop,
+        getWorld: () => authoritativeWorld,
+        getView: () => view,
+      },
+      { markGameSaved, showToast },
+      { chronicle: false, feedback: false, background: true },
+    );
+
+    expect(saved).toBe(true);
+    expect(saveGameToSlotMock).toHaveBeenCalledWith(authoritativeWorld, view);
+    expect(saveGameMock).not.toHaveBeenCalled();
   });
 
   it('reports the existing error and leaves saved state unchanged when persistence fails', async () => {

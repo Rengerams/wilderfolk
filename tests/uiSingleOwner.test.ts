@@ -148,15 +148,15 @@ describe('C2 — the view reads the owner instead of re-deriving the rule', () =
     expect(read('src/game/citizenId.ts')).toContain("if (!entity.name) return SETTLER_NAME_FALLBACK;");
   });
 
-  it('auto-save cadence and day length in copy come from the owners', () => {
-    // Pre-fix, GameMenu.tsx:385 `hint="Every 30 seconds when enabled"` and :399
-    // `hint="Raw tick + absolute day on the clock bar (72 ticks = 1 day)"`.
+  it('day length in copy comes from the owner, and the exit-save toggle no longer names a cadence', () => {
+    // Pre-fix, GameMenu.tsx:399 `hint="Raw tick + absolute day on the clock bar (72 ticks = 1 day)"`
+    // and the auto-save toggle claimed "Every 30 seconds when enabled".
     const menu = read('src/components/GameMenu.tsx');
-    expect(menu).toContain('AUTO_SAVE_INTERVAL_MS / 1000');
     expect(menu).toContain('${TICKS_PER_DAY} ticks = 1 day');
-    expect(menu, 'the hand-typed auto-save interval is back').not.toContain('Every 30 seconds when enabled');
     expect(menu, 'the hand-typed day length is back').not.toContain('(72 ticks = 1 day)');
-    expect(read('src/hooks/useGamePersistence.ts')).toContain('export const AUTO_SAVE_INTERVAL_MS = 30_000;');
+    expect(menu, 'the hand-typed auto-save interval is back').not.toContain('Every 30 seconds when enabled');
+    // The toggle now means "save when you leave", not a periodic cadence.
+    expect(menu).toContain('Save on exit');
   });
 });
 

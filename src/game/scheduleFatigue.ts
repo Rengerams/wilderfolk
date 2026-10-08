@@ -5,15 +5,8 @@ import { getWorkSchedule } from './workSchedule';
 export const MAX_SCHEDULE_FATIGUE = 100;
 /** The worst output a fully fatigued crew can fall to — the floor of the penalty, not a % of energy. */
 export const MIN_SCHEDULE_PRODUCTIVITY = 0.65;
-/**
- * The normal work day, in hours (owner: "normal work day is 9 hrs").
- *
- * Everything about a shift is measured from this one number: a settler who works this many
- * hours is neutral — no fatigue gain, no recovery — and `getWorkHourProductionMultiplier`
- * in `workSchedule` treats the same 9 hours as 1.0 output (`STANDARD_PRODUCTION_WORK_HOURS`).
- * It was 8 here while production used 9, so the game's own normal day accrued
- * `FATIGUE_PER_EXCESS_HOUR` of overtime every day for a settler simply doing a standard shift.
- */
+/** The normal work day, in hours (owner: "normal work day is 9 hrs"). A settler working exactly
+ *  this many hours is fatigue-neutral, and `workSchedule.STANDARD_PRODUCTION_WORK_HOURS` matches it. */
 export const NEUTRAL_WORK_HOURS = 9;
 export const FATIGUE_PER_EXCESS_HOUR = 10;
 export const RECOVERY_PER_SHORT_HOUR = 3;

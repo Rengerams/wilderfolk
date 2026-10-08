@@ -1616,7 +1616,7 @@ Most multi-node cycles **broken** via `playerHuman`, `entityFactory`, `rivalPeac
 | F-RND-21 | 🔴 | Entity, animal and projectile positions are never interpolated between simulation ticks — at 1× everything jumps once per second | Renderer: blend the previous tick's position by the tick fraction the loop already computes |
 | F-RND-17 | 🔴 | Season is not legible on the ground on the shipping render path | Owner design call (restore, keep, or a palette tint) |
 | F-RND-1 | 🔴 | The per-frame ground-bake budget could overrun a frame | **Code closed** (decor/allocation budget + the zoom-following re-bake); a browser look remains |
-| F-RND-5 | 🔴 | Hovering a building rebaked the entire entity layer | **Mostly closed** — the ring is per-frame now; the three alpha hover *tints* still repaint with the layer (≤1 tick lag, frozen while paused) |
+| F-RND-5 | 🔴 | Hovering a building rebaked the entire entity layer | **fixed** — the ring and the hover tints both draw per-frame in `drawGameOverlay`, never in the tick-keyed entity layer |
 | F-SIM-15 | 🟠 | The 360-day gate asserts invariants only, so a stalled economy passes | Non-vacuity assertions from the counters the harness already gathers |
 | F-SIM-10 | 🟠 | The post-daily entity dedupe is `O(new × alive)` via `Array.includes` on the busiest tick | A `Set` instead of the array scan |
 | F-RND-8 | 🟠 | A CSS filter runs over the full-screen DPR-scaled canvas every frame | Move the effect into the canvas or gate it |
@@ -1633,7 +1633,7 @@ Most multi-node cycles **broken** via `playerHuman`, `entityFactory`, `rivalPeac
 | F-SIM-17 | 🟡 | Notification lifetime is wall-clock state written into the save | A decision on what the lifetime means |
 | F-RND-7 | 🟡 | Canvas surfaces and DPR have two owners | Consolidate on one owner |
 | F-RND-10 | 🟡 | The per-tick SoA bucket rebuild allocates a shim and two map entries per entity | Reuse a preallocated bucket |
-| F-RND-14 | 🟡 | The mini-map is not DPR-scaled and runs its own rAF loop | DPR-scale it and fold it into the render loop |
+| F-RND-14 | 🟡 | The mini-map is not DPR-scaled and runs its own rAF loop | **fixed** — DPR-scaled via the shared ratio and driven by the main render loop (`drawMiniMapFrame`), no private rAF |
 | F-RND-24 | 🟡 | Motion timing is inconsistent — per-frame particle steps and two clocks | One clock |
 | F-SAV-22 | 🟡 | One browser slot shared by manual save, autosave and the unmount save | Product decision — sharper now that the Chronicle is 20,000 entries; big maps already save to a file by owner ruling |
 | ET-3 | 🟡 | The commute snap: the constant says 200 px but a 327.5 px commute was measured snapping | A measurement pass, then a decision |
@@ -1685,7 +1685,7 @@ Closed since the list above was written, each by measurement rather than assumpt
 | ET-6 | ✅ | `src/components/FamiliesTreePanel.tsx` was imported by nothing — the shipping tree is `FamilyTreeWindow.tsx` | Deleted 2026-10-08 — file removed, its two test reads dropped, ownership row trimmed, stale probe comment repointed |
 | ET-7 | ✅ | `src/game/roadmapContent.ts` is imported by nothing | Deleted 2026-10-08 — file removed, ownership row dropped |
 | ET-8 | ✅ | Six dead exports: `relativeDischarge` (hydrology), `biomeAt` / `isTileWalkable` / `terrainReader` / `tileGridSnapshot` (terrainGrid), `blockedRow` (test fixture) | Deleted 2026-10-08 — all six were unread (none test-only), so none kept; `biomeIndexAt` removed with `biomeAt` |
-| ET-9 | 🟡 | `scripts/archive/**` holds stale one-off scripts whose imports point at modules that no longer exist (24 unresolved imports) | Delete the directory (owner's call) or exclude it with a stated reason |
+| ET-9 | ✅ | `scripts/archive/**` holds stale one-off scripts whose imports point at modules that no longer exist (24 unresolved imports) | Deleted 2026-10-08 — the directory, its `tsconfig.scripts.json` exclude and the lint ignore-pattern are gone |
 | ET-10 | ✅ | `knip` reports `jscpd`, `oxlint`, `oxlint-tsgolint` as unused devDependencies and `tauri` as an unlisted binary | Declared in `knip.ts` (`ignoreDependencies` for the three CLIs, `ignoreBinaries` for `tauri`); `npm run audit` knip step clear |
 
 **End of register section.**

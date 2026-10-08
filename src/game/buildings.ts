@@ -39,7 +39,7 @@ export const BuildingType = {
   WildlifePreserve: 'wildlifePreserve',
   /** Public house — free-time hangout: drink, chat, unwind. */
   Tavern: 'tavern',
-  /** Guest lodging — visitors pay gold to sleep; staffed by hoteliers. */
+  /** Guest lodging — visitors and stranded settlers sleep free; staffed by hoteliers. */
   Hotel: 'hotel',
   /** Cross rivers — place on river / bank tiles only. */
   Bridge: 'bridge',
@@ -402,7 +402,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     height: 46,
     cost: { wood: 40, stone: 40, gold: 50 },
     buildTime: 6,
-    maxOccupants: 2,
+    maxOccupants: 5,
     emoji: '🏥',
     label: 'Hospital',
     description: 'Staff doctors — settlers visit when sick or pregnant. Staffed wards lower village energy drain.',

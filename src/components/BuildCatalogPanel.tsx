@@ -5,9 +5,12 @@ import {
   BUILDING_CATEGORIES,
   categoryForBuildingType,
 } from '../game/buildCatalog';
+import { isRotatableBuildingType } from '../game/buildingRotation';
 import { isBuildingTechUnlocked } from '../game/placementUtils';
 import { isUniqueBuildingAlreadyBuilt } from '../game/buildingPlacementActions';
 import { PLACEMENT_FAILURE_LABELS } from '../game/buildingPlacementLabels';
+import { canAffordResourceCost, missingResourceCost, resourceCostEntries } from '../game/resourceCost';
+import { RESOURCE_LABELS } from './resourceLabels';
 import Emoji from './Emoji';
 import ResourceCost from './ResourceCost';
 
@@ -108,9 +111,13 @@ export default function BuildCatalogPanel({
               const config = BUILDING_CONFIGS[type];
               if (!config) return null;
               const isSelected = selected === type;
-              const affordable = world.resources.wood >= config.cost.wood
-                && world.resources.stone >= config.cost.stone
-                && world.resources.gold >= config.cost.gold;
+              // Affordability is the cost owner's rule, never a local restatement of it.
+              const affordable = canAffordResourceCost(world.resources, config.cost);
+              const shortfall = affordable
+                ? ''
+                : resourceCostEntries(missingResourceCost(world.resources, config.cost))
+                  .map(({ key, amount }) => `${amount} more ${RESOURCE_LABELS[key].toLowerCase()}`)
+                  .join(' · ');
               // Both gates are the placement owners' own statements, so the catalogue cannot offer a
               // tile the placement command would refuse: the local tech test ignored the research
               // node, and the local unique-flag test restated the rule.
@@ -127,8 +134,12 @@ export default function BuildCatalogPanel({
                   key={type}
                   type="button"
                   onClick={() => (uniqueBuilt ? undefined : locked ? onLocked(type) : onSelect(type))}
-                  disabled={uniqueBuilt}
-                  title={uniqueBuilt ? `${config.label} — ${PLACEMENT_FAILURE_LABELS.unique}` : `${config.description}${hotkey ? ` · key ${hotkey}` : ''}`}
+                  disabled={uniqueBuilt || !affordable}
+                  title={uniqueBuilt
+                    ? `${config.label} — ${PLACEMENT_FAILURE_LABELS.unique}`
+                    : affordable
+                      ? `${config.description}${hotkey ? ` · key ${hotkey}` : ''}`
+                      : `${config.label} — need ${shortfall}`}
                   className={`flex w-full items-center gap-2.5 rounded-xl border-2 px-2.5 py-2 text-left transition-all ${
                     isSelected
                       ? 'border-emerald-400 bg-emerald-500/25 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-400/40'
@@ -182,6 +193,11 @@ export default function BuildCatalogPanel({
                         {PLACEMENT_FAILURE_LABELS.unique}
                       </span>
                     )}
+                    {!affordable && !uniqueBuilt && (
+                      <span className="mt-0.5 block text-xs font-medium text-amber-500/90">
+                        Need {shortfall}
+                      </span>
+                    )}
                     {!locked && (
                       <span className="mt-0.5 block text-xs leading-relaxed text-stone-400">
                         {config.description}
@@ -198,7 +214,7 @@ export default function BuildCatalogPanel({
       {selected && BUILDING_CONFIGS[selected] && (
         <div className="shrink-0 border-t border-stone-700/60 bg-stone-900/40 p-1.5">
           <p className="text-center text-[11px] font-medium text-stone-300">
-            Placing {BUILDING_CONFIGS[selected].label} — <kbd className="rounded bg-stone-800 px-1 text-stone-400">Esc</kbd> or right-click stops
+            Placing {BUILDING_CONFIGS[selected].label} — click places{isRotatableBuildingType(selected) ? ' · R rotates' : ''} · <kbd className="rounded bg-stone-800 px-1 text-stone-400">Esc</kbd> or right-click cancels
           </p>
         </div>
       )}
