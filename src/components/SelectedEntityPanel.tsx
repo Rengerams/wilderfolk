@@ -23,6 +23,7 @@ import { useEffect, useState } from 'react';
 import { getHumanActivityProjection } from '../game/humanStatus';
 import { explainSettlerMovement } from '../game/dashboardData';
 import { citizenFullName, citizenGivenName, humanDisplayName } from '../game/citizenId';
+import { displayYear } from '../game/dayCycleClock';
 
 function countLivingChildren(entity: Entity, allEntities: Entity[]): number {
   return allEntities.filter((e) =>
@@ -133,7 +134,7 @@ export default function SelectedEntityPanel({
             <p className="text-xs font-bold uppercase tracking-wide text-amber-200">Village head</p>
             <p className="text-[11px] text-amber-100/90">
               In office since Year {state.leaderSinceYear}
-              {state.pendingElectionYear != null ? ` · next vote Y${state.pendingElectionYear}` : ''}
+              {state.pendingElectionYear != null ? ` · next vote Y${displayYear(Math.floor(state.pendingElectionYear))}` : ''}
             </p>
           </div>
         </div>

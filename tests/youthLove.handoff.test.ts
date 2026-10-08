@@ -157,4 +157,33 @@ describe('youth-love → courtship handoff (audit F3)', () => {
     expect(older.youthLovePartnerId).toBeUndefined();
     expect(older.courtshipPartnerId).toBeUndefined();
   });
+
+  it('does not promote a pair while one partner is mid-transform, keeping the link mutual', () => {
+    const state = initGame({ seed: 20260916 });
+    const human = settler(1, 19, 'male', { youthLovePartnerId: 2, youthLoveProgress: 40, youthLoveStartedDay: 1 });
+    const werewolf = settler(2, 19, 'female', {
+      type: EntityType.Werewolf,
+      moonHowlerCursed: true,
+      youthLovePartnerId: 1,
+      youthLoveProgress: 40,
+      youthLoveStartedDay: 1,
+    });
+    state.entities = [human, werewolf];
+    state.tick = TICKS_PER_DAY;
+    const entityById = new Map([[1, human], [2, werewolf]]);
+
+    advance(state, {
+      entityById,
+      humanSocialGrid: undefined,
+      playerHumans: [human],
+      width: state.width,
+      height: state.height,
+    });
+
+    // The werewolf partner is frozen: no promotion, and the link stays mutual on both sides.
+    expect(human.youthLovePartnerId).toBe(2);
+    expect(werewolf.youthLovePartnerId).toBe(1);
+    expect(human.courtshipPartnerId).toBeUndefined();
+    expect(werewolf.courtshipPartnerId).toBeUndefined();
+  });
 });

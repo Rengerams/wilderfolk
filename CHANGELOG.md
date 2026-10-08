@@ -2,6 +2,10 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Fixed: the village head's next-vote year no longer prints a fraction** — the office badge read "next vote Y2.2472222222222222" where the election date is a fractional year; it now shows the whole year.
+
+- **Made a weather turn leave a record** — the weather changed silently, so the Chronicle never showed when conditions shifted; each change now logs a line.
+
 - **Fixed: the lifetime "Largest population" record no longer under-reports the peak** — it sampled only the year-end headcount, so a colony that peaked mid-year read a lower figure; it now tracks the peak every tick.
 
 - **Made settlers follow a cached route to its end instead of re-planning every few steps** — a long blocked walk re-ran the pathfinder every 32 px of progress although the route had not changed; it now re-plans only when the walker leaves the route.

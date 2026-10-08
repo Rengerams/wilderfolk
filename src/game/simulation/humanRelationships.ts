@@ -638,6 +638,9 @@ export function advanceYouthLove(
   for (const entity of playerHumans) {
     const partner = entity.youthLovePartnerId != null ? getLivingEntity(entity.youthLovePartnerId, entityById) : undefined;
     if (partner) {
+      // A partner mid-transform is frozen: promoting or breaking up writes only its live fields, and
+      // `revertToHumanForm` then re-asserts the stale snapshot, leaving the link one-sided.
+      if (!isPlayerHuman(partner)) continue;
       if (!shouldLeadAffairPair(entity, partner)) continue;
       // Both adults → the documented handoff. A pair retained by `reconcileYouthLove` (one adult, one
       // 12–17) waits here until the younger partner comes of age.
@@ -1502,9 +1505,9 @@ export function findCourtshipPartner(
   courtRange: number,
   humanSocialGrid: EntitySpatialGrid | undefined,
   residenceOccupants: Map<number, Entity[]> = new Map(),
-  fallbackHumans: readonly Entity[] | undefined = undefined,
-  width: number | undefined = undefined,
-  height: number | undefined = undefined,
+  fallbackHumans?: readonly Entity[],
+  width?: number,
+  height?: number,
   // Defaulted to 0 so a caller that does not care about the divorce bar (most tests) keeps its
   // argument list. A divorce is always stamped at a tick > 0, so from tick 0 every past marriage is
   // still inside the bar — the strict reading, which is the safe one.

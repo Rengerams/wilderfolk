@@ -105,16 +105,14 @@ export function updateWeather(state: WorldState): void {
   state.weatherTimer++;
   if (state.weatherTimer % Math.max(1, WEATHER_ROLL_SYSTEMS_PULSES) !== 0) return;
 
+  const previous = state.weather;
   const season = state.season;
   const roll = getSimRng('worldEvents')();
 
   // Bias to leave "event" weather after a spell
   if (state.weather !== WeatherType.Clear && roll < 0.35) {
     state.weather = WeatherType.Clear;
-    return;
-  }
-
-  if (season === Season.Spring) {
+  } else if (season === Season.Spring) {
     if (roll < 0.45) state.weather = WeatherType.Rain;
     else if (roll < 0.6) state.weather = WeatherType.Fog;
     else if (roll < 0.68) state.weather = WeatherType.Storm;
@@ -135,6 +133,10 @@ export function updateWeather(state: WorldState): void {
     else if (roll < 0.55) state.weather = WeatherType.Fog;
     else if (roll < 0.62) state.weather = WeatherType.Rain;
     else state.weather = WeatherType.Clear;
+  }
+
+  if (state.weather !== previous) {
+    logEvent(state, 'event', `The weather turned to ${state.weather}`);
   }
 }
 

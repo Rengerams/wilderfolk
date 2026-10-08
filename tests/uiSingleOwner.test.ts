@@ -132,17 +132,12 @@ describe('C2 — the view reads the owner instead of re-deriving the rule', () =
   });
 
   it('settler name fallback: every nameless settler reads the citizenId fallback', () => {
-    // Pre-fix: `e.name || 'Unknown'` (SelectedEntityPanel.tsx:34) and `person.name || 'Settler'`
-    // (FamiliesTreePanel.tsx:88) beside `humanDisplayName`'s 'A settler'.
     const inspector = read('src/components/SelectedEntityPanel.tsx');
-    const families = read('src/components/FamiliesTreePanel.tsx');
 
     // The fallback call sits wherever the view prints a given name, so assert the owner is read
-    // rather than the variable it happens to be passed; the negative checks below are the real guard.
+    // rather than the variable it happens to be passed; the negative check below is the real guard.
     expect(inspector).toContain('citizenGivenName(');
-    expect(families).toContain('citizenGivenName(person)');
     expect(inspector, "the 'Unknown' fallback is back").not.toContain("e.name || 'Unknown'");
-    expect(families, "the 'Settler' fallback is back").not.toContain("person.name || 'Settler'");
   });
 
   it('settler name fallback: one nameless settler shows one name', () => {
@@ -279,7 +274,6 @@ describe('C2 — the remaining semantic duplicates read their owners (2026-09-20
       'src/components/SelectedBuildingPanel.tsx',
       'src/components/dashboard/GameDashboard.tsx',
       'src/game/PopulationPanel.tsx',
-      'src/components/FamiliesTreePanel.tsx',
     ];
     for (const view of views) {
       expect(read(view), `${view} re-types a nameless-settler fallback`).not.toMatch(

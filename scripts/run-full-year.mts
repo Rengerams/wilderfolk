@@ -483,7 +483,7 @@ function run(): void {
       world,
       snapshots: healthObserved,
       final: health,
-      newBuildingsAtEnd: world.buildings.filter((building) => !initialBuildingIds.has(building.id)).length,
+      newBuildingsAtEnd: world.buildings.filter((building) => !initialBuildingIds.has(building.id) && building.faction !== 'rival').length,
     });
     writeCheckpoint(day, world, startedAt, health, provisional);
   }

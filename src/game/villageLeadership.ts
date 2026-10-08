@@ -35,7 +35,7 @@ import { getEcosystemHealth } from './dailyEcology';
 export const ELECTION_INTERVAL_YEARS = 2;
 /** 1/3 year = the 4-month campaign a vacancy allows before the successor election. */
 export const VACANCY_ELECTION_DELAY_YEARS = 1 / 3;
-export const ELECTION_PARTY_DAYS = 1;
+export const ELECTION_PARTY_DAYS: number = 1;
 export const ELECTION_PARTY_NAME = 'Election Revelry';
 
 /** Feud score the strongest loser opens against the winner — at most one per election. */

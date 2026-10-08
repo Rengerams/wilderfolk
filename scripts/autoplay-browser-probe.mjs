@@ -403,9 +403,8 @@ const CAPABILITIES = {
    *
    * Clicking the canvas only works if the generated world happens to put a settler under the click
    * (measured: it does not, so this check reported "not reached" instead of verifying anything).
-   * `FamiliesTreePanel` renders one button per settler whose `title` is `Show <name>'s family
-   * tree` (line 85) or `<relation> — show their tree` (line 163), which is a stable handle — read
-   * from the component, not inferred from its text.
+   * The family-tree opener carries a stable `Family tree` title, read from the component rather
+   * than inferred from its text.
    */
   selectSettlerFromFamiliesPanel() {
     return `(() => {

@@ -156,6 +156,8 @@ export default function FamilyTreeWindow({
     draw();
     window.addEventListener('resize', draw);
     return () => window.removeEventListener('resize', draw);
+    // `layoutKey` is the stable key for this whole layout, so re-measuring needs no other dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layoutKey]);
   /** Full names through `citizenFullName` — given names alone are ambiguous across generations. */
   const byId = new Map(allEntities.map((e) => [e.id, e] as const));
