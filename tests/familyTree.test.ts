@@ -8,6 +8,7 @@ import {
   type FamilyTreePerson,
   type FullFamilyTree,
 } from '../src/game/familyTree';
+import { REMARRIAGE_BAR_TICKS } from '../src/game/simulation/humanRelationships';
 
 function human(partial: Partial<Entity> & { id: number; name: string }): Entity {
   return {
@@ -454,5 +455,183 @@ describe('groupFamiliesByLineage', () => {
     const caspar = tree.rows.flatMap((generation) => generation.members).find((m) => m.id === 2);
 
     expect(caspar?.relation).toBe('Cousin');
+  });
+});
+
+/** The gap kinds a tree reports, so a test names the link rather than one sentence of its text. */
+const gapKindsOf = (tree: FullFamilyTree): string[] => tree.gaps.map((gap) => gap.kind);
+
+describe('the relations the simulation tracks beside the kin walk', () => {
+  it('draws a former spouse from the marriage record, with no child to infer the marriage from', () => {
+    // `pastPartnerTicks` is the stamp the one-year remarriage bar reads. The walk this replaced only
+    // found a former spouse through a shared child, so a childless divorce was invisible.
+    const focus = human({ id: 1, name: 'Leatha', gender: 'female', generation: 2 });
+    const former = human({ id: 2, name: 'Fabrice', gender: 'male', generation: 2 });
+    focus.pastPartnerTicks = { 2: 720 };
+    former.pastPartnerTicks = { 1: 720 };
+
+    const tree = buildFullFamilyTree(focus, [focus, former], 720);
+
+    expect(relationOf(tree, 2)).toBe('Former spouse');
+    expect(personIn(tree, 2)?.bonds).toContain('May not remarry yet');
+    // The relation word already says it; a bond must not say it twice.
+    expect(personIn(tree, 2)?.bonds).not.toContain('Former spouse');
+    expect(personIn(tree, 2)?.detail).toBe('30y');
+  });
+
+  it('drops the remarriage-bar label once the year is out, keeping the former marriage named', () => {
+    const focus = human({ id: 1, name: 'Leatha', gender: 'female', generation: 2 });
+    const former = human({ id: 2, name: 'Fabrice', gender: 'male', generation: 2 });
+    focus.pastPartnerTicks = { 2: 720 };
+    former.pastPartnerTicks = { 1: 720 };
+
+    const tree = buildFullFamilyTree(focus, [focus, former], 720 + REMARRIAGE_BAR_TICKS);
+
+    expect(relationOf(tree, 2)).toBe('Former spouse');
+    expect(personIn(tree, 2)?.bonds).not.toContain('May not remarry yet');
+  });
+
+  it('names a live courtship a courtship, not the in-law the kin walk would have called it', () => {
+    const focus = human({ id: 1, name: 'Ada', gender: 'female', generation: 2 });
+    const suitor = human({
+      id: 2, name: 'Bram', gender: 'male', generation: 2, courtshipPartnerId: 1, courtshipProgress: 40,
+    });
+    focus.courtshipPartnerId = 2;
+
+    const tree = buildFullFamilyTree(focus, [focus, suitor]);
+
+    expect(relationOf(tree, 2)).toBe('Courting');
+  });
+
+  it('names a youth-love bond and an affair, and never reads either as a marriage', () => {
+    const girl = human({ id: 1, name: 'Ada', age: 16, gender: 'female', generation: 2 });
+    const sweetheart = human({ id: 2, name: 'Bram', age: 16, gender: 'male', generation: 2, youthLovePartnerId: 1 });
+    girl.youthLovePartnerId = 2;
+    const youthTree = buildFullFamilyTree(girl, [girl, sweetheart]);
+    expect(relationOf(youthTree, 2)).toBe('Sweetheart');
+
+    const wife = human({ id: 1, name: 'Ada', gender: 'female', partnerId: 3, relationshipStatus: 'married' });
+    const husband = human({ id: 3, name: 'Otto', gender: 'male', partnerId: 1, relationshipStatus: 'married' });
+    const lover = human({ id: 2, name: 'Bram', gender: 'male', affairPartnerId: 1, affairProgress: 55 });
+    wife.affairPartnerId = 2;
+    const affairTree = buildFullFamilyTree(wife, [wife, husband, lover]);
+    expect(relationOf(affairTree, 3)).toBe('Spouse');
+    expect(relationOf(affairTree, 2)).toBe('Secret affair');
+  });
+
+  it('keeps a step-relation named when the step-parent is also a blood relative', () => {
+    // A father who marries his ex-wife's sister: she is the focus's aunt by blood *and* their
+    // stepmother by the marriage, and one word cannot carry both.
+    const grandmother = human({ id: 8, name: 'Oma', gender: 'female', generation: 1, childrenIds: [2, 3] });
+    const grandfather = human({ id: 9, name: 'Opa', gender: 'male', generation: 1, childrenIds: [2, 3] });
+    const mother = human({ id: 2, name: 'Sallie', gender: 'female', motherId: 8, fatherId: 9, generation: 2 });
+    const aunt = human({
+      id: 3, name: 'Mira', gender: 'female', motherId: 8, fatherId: 9, partnerId: 1, generation: 2,
+    });
+    const father = human({ id: 1, name: 'William', gender: 'male', partnerId: 3, generation: 2 });
+    const child = human({
+      id: 5, name: 'Miquel', age: 8, isJuvenile: true, motherId: 2, fatherId: 1, generation: 3,
+    });
+
+    const tree = buildFullFamilyTree(child, [grandmother, grandfather, mother, aunt, father, child]);
+
+    expect(relationOf(tree, 3)).toBe('Aunt');
+    expect(personIn(tree, 3)?.bonds).toContain('Stepmother');
+  });
+
+  it('shows a relative\'s job, and a child who moved out of the household', () => {
+    const mother = human({
+      id: 1, name: 'Sallie', gender: 'female', generation: 1,
+      occupation: 'Farmer', residenceBuildingId: 10, childrenIds: [2],
+    });
+    const child = human({
+      id: 2, name: 'Miquel', age: 20, motherId: 1, occupation: 'Miner',
+      residenceBuildingId: 11, generation: 2,
+    });
+
+    const tree = buildFullFamilyTree(child, [mother, child]);
+
+    expect(personIn(tree, 2)?.detail).toBe('20y · Miner');
+    expect(personIn(tree, 1)?.detail).toBe('30y · Farmer · own household');
+    // The same child, from the mother's own tree, reads as the one who left.
+    const fromMother = buildFullFamilyTree(mother, [mother, child]);
+    expect(personIn(fromMother, 2)?.detail).toBe('20y · Miner · moved out');
+  });
+
+  it('marks a settler whose record is dead rather than dropping them from their own tree', () => {
+    const dead = human({ id: 1, name: 'Anselm', gender: 'male', alive: false });
+
+    const tree = buildFullFamilyTree(dead, []);
+
+    expect(personIn(tree, 1)?.alive).toBe(false);
+    expect(tree.memberCount).toBe(1);
+  });
+});
+
+describe('the links the tree cannot draw, named in the projection', () => {
+  it('says a settler has no recorded parents instead of drawing a bare tree', () => {
+    const orphan = human({ id: 1, name: 'Bram', gender: 'male', generation: 1 });
+
+    const tree = buildFullFamilyTree(orphan, [orphan]);
+
+    expect(gapKindsOf(tree)).toEqual(['no-parents']);
+  });
+
+  it('names a parent id whose settler is no longer in the world', () => {
+    // A dead parent's record leaves the world; the id stays on the child's own row.
+    const child = human({ id: 1, name: 'Miquel', age: 8, isJuvenile: true, motherId: 2, fatherId: 3, generation: 2 });
+    const mother = human({ id: 2, name: 'Sallie', gender: 'female', generation: 1 });
+
+    const tree = buildFullFamilyTree(child, [child, mother]);
+
+    const gap = tree.gaps.find((entry) => entry.kind === 'parent-record-gone');
+    expect(gap?.text).toContain('Father #3');
+    expect(tree.gaps.filter((entry) => entry.kind === 'parent-record-gone')).toHaveLength(1);
+  });
+
+  it('names the dead co-parent of a child, and the dead former spouse of the record', () => {
+    const widow = human({ id: 1, name: 'Leatha', gender: 'female', generation: 1, childrenIds: [3] });
+    widow.pastPartnerTicks = { 9: 500 };
+    const child = human({
+      id: 3, name: 'Greg', age: 6, isJuvenile: true, motherId: 1, fatherId: 9, generation: 2,
+    });
+
+    const tree = buildFullFamilyTree(widow, [widow, child], 600);
+
+    expect(gapKindsOf(tree)).toContain('co-parent-record-gone');
+    expect(gapKindsOf(tree)).toContain('former-partner-record-gone');
+  });
+
+  it('names a courtship that ended, whose partner the game does not keep', () => {
+    const settler = human({ id: 1, name: 'Ada', gender: 'female', courtshipCooldownDays: 1 });
+
+    const tree = buildFullFamilyTree(settler, [settler]);
+
+    expect(gapKindsOf(tree)).toEqual(['no-parents', 'courtship-ended']);
+  });
+});
+
+describe('the stamboom slice the Village panel renders', () => {
+  it('adds step-parents, a former spouse and a courtship the kin walk did not name', () => {
+    const father = human({ id: 1, name: 'William', gender: 'male', partnerId: 3, generation: 1 });
+    const deadMotherId = 2;
+    const stepmother = human({ id: 3, name: 'Mira', gender: 'female', partnerId: 1, generation: 1 });
+    const focus = human({
+      id: 5, name: 'Miquel', age: 20, motherId: deadMotherId, fatherId: 1, generation: 2,
+    });
+    focus.pastPartnerTicks = { 7: 720 };
+    const former = human({ id: 7, name: 'Hedda', gender: 'female', generation: 2 });
+    const suitor = human({ id: 8, name: 'Bram', gender: 'male', generation: 2, courtshipPartnerId: 5 });
+    focus.courtshipPartnerId = 8;
+
+    const tree = buildFamilyTree(focus, [father, stepmother, focus, former, suitor], 720);
+    const relations = Object.fromEntries(tree.members.map((member) => [member.id, member.relationLabel]));
+
+    expect(relations[3]).toBe('Stepmother');
+    expect(relations[7]).toBe('Former spouse');
+    expect(relations[8]).toBe('Courting');
+    const formerMember = tree.members.find((member) => member.id === 7);
+    expect(formerMember?.bonds).toContain('May not remarry yet');
+    expect(tree.gaps.map((gap) => gap.kind)).toContain('parent-record-gone');
   });
 });

@@ -18,6 +18,7 @@ import { getElectionGatherTarget, isCeremonyAttendee } from './villageLeadership
 import {
   allowSocialLifeFor,
   isAsleepAtHome,
+  isFestivalGatherer,
   prefersHomeTonightFor,
   shouldBeAtHomeFor,
 } from './humanSchedule';
@@ -40,7 +41,6 @@ import {
   hasWorkAssignment,
   isOnWorkShift,
   isOnMoonHowlerNightShift,
-  isFestivalGatheringHour,
   isWeekend,
   personDayRoll,
   getAbsoluteCalendarDay,
@@ -102,7 +102,12 @@ import {
   tickHumanCivicVenueService,
   tickTavernService,
 } from './humanVenueBehavior';
-import { steerVisitorToHotel } from './hotelStay';
+import {
+  isSettlerLodgingAtHotel,
+  lodgingHotelFor,
+  restAtHotel,
+  steerVisitorToHotel,
+} from './hotelStay';
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { setCurrentPathMap } from './pathfinding';
@@ -506,7 +511,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const isInnkeeper =
       entity.job === JobType.Innkeeper && workplace?.type === BuildingType.Tavern && workplace.completed;
 
-    const festivalGathering = isFestivalGatheringHour(hourOfDay, state.festival?.active) && !isInnkeeper;
     const ordinaryWorkplace =
       workplace != null &&
       workplace.type !== BuildingType.Church &&
@@ -514,13 +518,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       workplace.type !== BuildingType.Prison;
     const onSchoolShift = schoolTarget != null && isOnWorkShift(state.tick, hourOfDay);
     const onDayJobShift =
-      !festivalGathering &&
-      ((goWorkTime &&
+      (goWorkTime &&
         !isInnkeeper &&
         (ordinaryWorkplace ||
           (entity.job === JobType.Soldier &&
             isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings)))) ||
-        onSchoolShift);
+      onSchoolShift;
     const onOfficialShift =
       entity.job === JobType.Official &&
       workplace?.type === BuildingType.TownHall &&
@@ -555,6 +558,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // is what stops a workplace's output from tracking where the camera happens to be.
     const onJobShift =
       onDayJobShift || onTavernShift || onMoonPriestShift || onPrisonShift;
+    // Work wins over revelry: the festival gathering is the free-time case (see `isFestivalGatherer`).
+    const festivalGathering = isFestivalGatherer(
+      hourOfDay,
+      state.festival?.active,
+      onJobShift || onOfficialShift,
+      isInnkeeper,
+    );
     if (isPlayerHuman(entity) && (onJobShift || onOfficialShift)) recordScheduleWorkTick(entity);
 
     const inFocus = !focus || isInFocus(entity, focus);
@@ -591,10 +601,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       continue;
     }
 
-    // Asleep at home: keep the mouth shut. Ambient chatter used to follow a settler
-    // indoors and put a speech bubble over somebody in bed; a scripted dialogue session
-    // is left alone (the dialogue tree owns it, not the sleep schedule).
-    const asleepAtHome = isAsleepAtHome(entity, buildingById, hourOfDay);
+    // Asleep at home or in a hotel bed: keep the mouth shut, so no speech bubble sits over somebody
+    // in bed. A scripted dialogue session is left alone — the dialogue tree owns it.
+    const asleepAtHome =
+      isAsleepAtHome(entity, buildingById, hourOfDay)
+      || isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay);
     tickHumanChat(entity, resolveChatPartner);
     if (asleepAtHome) endAmbientHumanChat(entity);
 
@@ -746,6 +757,18 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         )
       : undefined;
 
+    // Cross-map lodging: a walk home too long for the hours left before the sleep hour takes a
+    // hotel bed instead. Derived each tick; nothing is stored on the settler.
+    const lodgingHotel =
+      stayIn &&
+      !onJobShift &&
+      !huntingWere &&
+      !inElectionCeremony &&
+      !festivalGathering &&
+      hasResidenceAssignment(entity)
+        ? lodgingHotelFor(entity, updatedBuildings, allHumans, hourOfDay)
+        : undefined;
+
     if (onMoonPriestShift) {
       suppressIdle = true;
       onSchedule = true;
@@ -833,6 +856,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !huntingWere &&
       !inElectionCeremony &&
       !festivalGathering &&
+      !lodgingHotel &&
+      // A settler on a shift is never sent home; the home commute below carries the same exclusion,
+      // which is what keeps a rostered night guard on his post.
+      !onJobShift &&
       // Evening, and again through deep night. The snap used to fire at 18:00 ONLY, and only for the
       // ~half who `stayIn` at that hour (`prefersHomeTonightFor` returns `roll(103) < 0.5` for
       // 18:00–22:00), so a settler who decided later walked the whole way home in the dark and stayed
@@ -854,10 +881,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Home commute
+    // Home commute — or, for a settler the walk home would strand, the hotel bed instead.
     if (!huntingWere && !inElectionCeremony && !festivalGathering && !onJobShift && stayIn && hasResidenceAssignment(entity)) {
       const residence = buildingById.get(entity.residenceBuildingId!);
-      if (residence?.completed) {
+      if (lodgingHotel) {
+        if (commuteHumanToBuilding(entity, lodgingHotel, config.speed, false, 2.5)) restAtHotel(entity);
+        onSchedule = true;
+        suppressIdle = true;
+      } else if (residence?.completed) {
         commuteHumanToBuilding(entity, residence, config.speed, true, 2.5);
         onSchedule = true;
         suppressIdle = true;

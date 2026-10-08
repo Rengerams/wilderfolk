@@ -78,15 +78,12 @@ let terrainChunkCacheKey = '';
 // can see instead of by map area. The whole-map version measured 5.4 s at 6144×4608, which is what
 // blocked the Teraforge spec map sizes.
 //
-// **256 canvas px, not 1024.** A chunk is baked synchronously the frame it is first needed, so the
-// chunk size is the size of the hitch you feel when the camera reveals one: 256² is ~27 ms, 1024² is
-// ~0.43 s. It is also the size of the *waste*: the chunk grid is aligned to the chunk size and kept
-// one chunk of margin around the viewport, so a large chunk bakes many times the visible area — at
-// 1024 px the first frame on a Huge map measured **16.8 Mpx (11.0 s) for a 0.7 Mpx view**, sixteen
-// times more ground than the camera could show. At 256 px the same frame is ~3.1 Mpx (~1.4 s).
-// `WHITTAKER_CHUNK_SIZE` is 256 canvas px and the bake is a fixed 1 canvas px per world px, so a chunk
-// covers 256 world px and the whole map is baked once per session, under the per-frame budget below.
-const WHITTAKER_CHUNK_SIZE = 256; // canvas px per chunk; the world span is this × the bake step (1)
+// **256 world px, not 1024.** The chunk span is the size of the hitch you feel when the camera reveals
+// one and of the *waste*: the grid is aligned to it and kept one chunk of margin around the viewport,
+// so a large chunk bakes many times the visible area. The canvas is this span divided by the chunk's
+// own bake step (`targetGroundStep`); the **world span never changes with zoom**, which is what keeps
+// the chunk keys stable — a zoom re-bakes chunks in place instead of re-keying the cache.
+const WHITTAKER_CHUNK_SIZE = 256; // world px per chunk; the canvas is this / the chunk's bake step
 const WHITTAKER_CHUNK_MARGIN = 1; // keep one chunk of margin around the viewport
 /**
  * World px of overhang a chunk's decor canvas carries on every side.
@@ -125,6 +122,13 @@ export { GROUND_BAKE_PIXEL_BUDGET_PER_FRAME as GROUND_BAKE_PIXEL_BUDGET };
  * ~10–12 frames of the budget, then sharpens chunk by chunk from the view centre outward.
  */
 const GROUND_PREVIEW_STEP_FACTOR = 4;
+/** Ground chunks one frame may re-bake at a new step — one canvas allocation plus its first band. */
+const GROUND_REBAKE_CHUNKS_PER_FRAME = 1;
+/** World px per canvas px to bake the ground at for a camera zoom: nearest power of two to `1 / zoom`, clamped to 1–4. */
+export function targetGroundStep(zoom: number): number {
+  if (!Number.isFinite(zoom) || zoom <= 0) return 1;
+  return Math.min(4, Math.max(1, 2 ** Math.round(Math.log2(1 / zoom))));
+}
 /** One baked chunk: the canvas, the world rect it covers, and how much of it is baked yet. */
 interface GroundChunk {
   canvas: CanvasSurface;
@@ -150,6 +154,8 @@ interface GroundChunk {
   /** Canvas rows already baked into `canvas`. The chunk is drawn only once every row is in. */
   rowsBaked: number;
   rowsTotal: number;
+  /** World px per canvas px `canvas` holds — the target step at its last bake. */
+  bakedStep: number;
 }
 const whittakerChunks = new Map<string, GroundChunk>();
 let whittakerCacheKey = '';
@@ -271,8 +277,8 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
   // `terrainGrid.hasContinuousFields` is the owner of "this map carries the L2 fields"; this used to
   // be a second, hand-written copy of the same seven-field test.
   if (hasContinuousFields(map)) {
-    // The key carries what the bake **reads**: the map (seed, preset, world dims) and the bake
-    // resolution. It deliberately does **not** carry `getTerrainRevision()`. That counter is bumped by
+    // The key carries what the bake **reads**: the map (seed, preset, world dims). It deliberately
+    // does **not** carry `getTerrainRevision()`. That counter is bumped by
     // `buildingPlacementActions` when a footprint is cleared, but a cleared camp or a chopped forest
     // writes the sparse `overrides` layer and never touches `elevation` / `moisture` / `temperature` /
     // `riverDist` — so the re-bake produced a byte-identical image while freezing every visible chunk on
@@ -281,26 +287,18 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
     // `whittakerTerrain`'s header), so a season rollover invalidates nothing and re-bakes nothing.
     // The world dims are in the key because the same seed + preset at a different map size is a
     // different map; if a future edit ever mutates the generated fields, it must add a term here.
-    // **One bake resolution, fixed**: 1 canvas px per world px, for the life of the map.
-    //
-    // The bake used to coarsen with the camera (`groundWorldStepForZoom`): 1:1 above 100 % zoom, 1:2
-    // below ~70 %, 1:4 below ~35 %. Because the step is part of the cache key, crossing one of those
-    // thresholds **disposed every chunk on screen** and re-baked the whole view — which, once the fill
-    // became budgeted, showed the void until the refill caught up: *"zooming in and out gives a black
-    // background"*. A fixed step cannot be re-keyed by the camera at all, so zoom never invalidates the
-    // ground: chunks are baked once per map and the blit scales them (with smoothing on, a zoomed-out
-    // view is a clean downscale of a 1:1 bake — sharper than the coarse bake it replaces). The trade is
-    // that a wide view bakes its ground at 1:1 once, under the budget below, instead of re-baking a
-    // coarse copy on every zoom step.
-    const step = 1;
-    const chunkWorld = WHITTAKER_CHUNK_SIZE * step;
+    // The step follows the camera (`targetGroundStep`); the **cache key does not**, because a
+    // resolution term re-keyed every chunk on a zoom threshold. Each chunk carries its own `bakedStep`.
+    const targetStep = targetGroundStep(state.camera.zoom);
+    // The chunk grid is the same at every zoom, so a zoom move re-bakes the chunks already on screen.
+    const chunkWorld = WHITTAKER_CHUNK_SIZE;
     // The two map-wide fields (cast shadow, water proximity) are cell-resolution and depend on neither
     // the viewport nor the bake resolution, so they are keyed on the map alone and shared by every chunk.
     const mapKey = `${map.seed}|${map.preset}|${state.width}x${state.height}`;
-    const key = `${mapKey}|s${step}`;
+    const key = mapKey;
     if (whittakerCacheKey !== key) {
-      // A different world or bake resolution: the old surfaces have the wrong geometry, so they go —
-      // with their surfaces released — and the budgeted walk below re-fills from nothing.
+      // A different world: the old surfaces have the wrong geometry, so they go — with their surfaces
+      // released — and the budgeted walk below re-fills from nothing.
       for (const chunk of whittakerChunks.values()) disposeGroundChunk(chunk);
       whittakerChunks.clear();
       whittakerCacheKey = key;
@@ -330,12 +328,12 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
     const chunkGeometry = (origin: { x: number; y: number }) => {
       const worldW = Math.min(chunkWorld, state.width - origin.x);
       const worldH = Math.min(chunkWorld, state.height - origin.y);
-      const previewStep = Math.min(4, step * GROUND_PREVIEW_STEP_FACTOR);
+      const previewStep = Math.min(4, targetStep * GROUND_PREVIEW_STEP_FACTOR);
       return {
         worldW,
         worldH,
         previewStep,
-        rowsTotal: Math.max(1, Math.ceil(worldH / step)),
+        rowsTotal: Math.max(1, Math.ceil(worldH / targetStep)),
         previewW: Math.max(1, Math.ceil(worldW / previewStep)),
         previewH: Math.max(1, Math.ceil(worldH / previewStep)),
       };
@@ -348,8 +346,8 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
       if (existing) return existing;
       const geometry = chunkGeometry(origin);
       const chunk: GroundChunk = {
-        canvas: createCanvasSurface(Math.max(1, Math.ceil(geometry.worldW / step)), geometry.rowsTotal),
-        preview: geometry.previewStep > step
+        canvas: createCanvasSurface(Math.max(1, Math.ceil(geometry.worldW / targetStep)), geometry.rowsTotal),
+        preview: geometry.previewStep > targetStep
           ? createCanvasSurface(geometry.previewW, geometry.previewH)
           : null,
         previewStep: geometry.previewStep,
@@ -361,6 +359,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
         worldH: geometry.worldH,
         rowsBaked: 0,
         rowsTotal: geometry.rowsTotal,
+        bakedStep: targetStep,
       };
       whittakerChunks.set(chunkKey, chunk);
       return chunk;
@@ -370,15 +369,16 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
     const bakeChunkDecor = (chunk: GroundChunk): void => {
       const decorWorldW = chunk.worldW + DECOR_CHUNK_MARGIN * 2;
       const decorWorldH = chunk.worldH + DECOR_CHUNK_MARGIN * 2;
+      // Decor is step-independent: baked 1:1 and blitted at its world rect, so a ground re-bake keeps it.
       const decor = createCanvasSurface(
-        Math.max(1, Math.ceil(decorWorldW / step)),
-        Math.max(1, Math.ceil(decorWorldH / step)),
+        Math.max(1, Math.ceil(decorWorldW)),
+        Math.max(1, Math.ceil(decorWorldH)),
       );
       bakeDecorInRect(
         getCanvasContext(decor) as CanvasRenderingContext2D,
         map,
         { x: chunk.worldX - DECOR_CHUNK_MARGIN, y: chunk.worldY - DECOR_CHUNK_MARGIN, width: decorWorldW, height: decorWorldH },
-        1 / step,
+        1,
       );
       chunk.decor = decor;
     };
@@ -406,7 +406,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
       if (existing && (!existing.preview || existing.previewReady)) continue;
       const geometry = chunkGeometry(origin);
       // A bake step as coarse as the stand-in would be leaves nothing to cover.
-      if (geometry.previewStep <= step) continue;
+      if (geometry.previewStep <= targetStep) continue;
       const previewPixels = geometry.previewW * geometry.previewH;
       if (covered > 0 && budget < previewPixels) break;
       const chunk = existing ?? ensureChunk(origin);
@@ -426,17 +426,42 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
       covered++;
     }
 
+    // Pass 1.5 — re-step. A chunk off the camera's target step re-bakes in place: its canvas becomes
+    // the stand-in, so the swap shows no gap, and the sharpen pass refills the new canvas under budget.
+    let rebaked = 0;
+    for (const origin of plan) {
+      if (rebaked >= GROUND_REBAKE_CHUNKS_PER_FRAME) break;
+      const chunk = whittakerChunks.get(`${origin.x},${origin.y}`);
+      if (!chunk) continue;
+      if (!(chunk.bakedStep * 2 <= targetStep || chunk.bakedStep >= targetStep * 2)) continue;
+      if (chunk.rowsBaked > 0) {
+        // A canvas with rows already in it can stand in for the chunk; an empty one cannot.
+        if (chunk.preview) disposeCanvasSurface(chunk.preview);
+        chunk.preview = chunk.canvas;
+        chunk.previewReady = true;
+      } else {
+        disposeCanvasSurface(chunk.canvas);
+      }
+      const rows = Math.max(1, Math.ceil(chunk.worldH / targetStep));
+      chunk.canvas = createCanvasSurface(Math.max(1, Math.ceil(chunk.worldW / targetStep)), rows);
+      chunk.rowsTotal = rows;
+      chunk.bakedStep = targetStep;
+      chunk.rowsBaked = 0;
+      rebaked++;
+    }
+
     // Pass 2 — sharpen. Chunks are finished in plan order (view centre outward), each in horizontal
     // bands, so a frame never spends more than its budget on ground. At least one row is always baked
     // when the budget allows any: a budget smaller than a row must still move the fill forward.
     sharpen: for (const origin of plan) {
       if (budget <= 0) break;
       const chunk = ensureChunk(origin);
+      const chunkStep = chunk.bakedStep;
       while (budget > 0 && chunk.rowsBaked < chunk.rowsTotal) {
         const canvasW = Math.max(1, chunk.canvas.width);
         const rows = Math.max(1, Math.min(chunk.rowsTotal - chunk.rowsBaked, Math.floor(budget / canvasW)));
-        const bandWorldY = chunk.worldY + chunk.rowsBaked * step;
-        const bandWorldH = Math.min(chunk.worldH - chunk.rowsBaked * step, rows * step);
+        const bandWorldY = chunk.worldY + chunk.rowsBaked * chunkStep;
+        const bandWorldH = Math.min(chunk.worldH - chunk.rowsBaked * chunkStep, rows * chunkStep);
         if (bandWorldH <= 0) {
           chunk.rowsBaked = chunk.rowsTotal;
           break;
@@ -446,7 +471,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
           map.seaLevel ?? 0.24, map.moistureBias ?? 0,
           { x: chunk.worldX, y: bandWorldY, width: chunk.worldW, height: bandWorldH },
           whittakerFields ?? undefined,
-          step,
+          chunkStep,
         );
         // The bake is a pure function of the world coordinate, so a band written at its own row offset is
         // pixel-identical to the whole-chunk bake this replaces — pinned by
@@ -456,6 +481,11 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
         getCanvasContext(chunk.canvas).drawImage(baked, 0, chunk.rowsBaked);
         chunk.rowsBaked += baked.height;
         budget -= canvasW * baked.height;
+      }
+      if (chunk.rowsBaked >= chunk.rowsTotal && chunk.preview) {
+        // The crisp canvas is whole, so the stand-in it replaced is dead weight.
+        disposeCanvasSurface(chunk.preview);
+        chunk.preview = null;
       }
       if (budget <= 0) break;
     }

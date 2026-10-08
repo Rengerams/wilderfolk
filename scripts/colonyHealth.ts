@@ -870,4 +870,124 @@ export function collectInvariantErrors(world: WorldState): string[] {
   return collectSimulationInvariantErrors(world);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Non-vacuity: a world with no invariant left to break can still be a dead colony
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Why a settled colony is not growing, named one cause per verdict.
+ *
+ * Every rule below compares numbers the observer already records, so a verdict is a statement about
+ * the recorded run rather than a second measurement. A rule fires only on a state the growth path
+ * has already failed to correct: beds full with settlers outside them, adults with open posts they
+ * are never given, or a larder and a woodpile spent to nothing while people still go hungry.
+ */
+export type ColonyStallReason =
+  | 'housing-full'
+  | 'idle-with-open-jobs'
+  | 'food-exhausted'
+  | 'wood-pinned'
+  | 'chronic-understaffing';
+
+/** Runs long enough that a demand the colony never meets stops being a settling-in period. */
+export const STALL_SETTLING_DAYS = 30;
+/** Below this share of its own storage cap a resource is pinned at nothing, not merely low. */
+const RESOURCE_PINNED_SHARE = 0.02;
+/** Idle adults outnumbering the workers for this share of the run is a labour floor, not a lull. */
+const CHRONIC_UNDERSTAFFING_SHARE = 0.49;
+
+export interface ColonyStallVerdict {
+  stalled: boolean;
+  reasons: ColonyStallReason[];
+  /** One line per reason, carrying the numbers the verdict rests on. */
+  evidence: string[];
+}
+
+export function assertColonyNotStalled(verdict: ColonyStallVerdict, label: string): void {
+  if (!verdict.stalled) return;
+  throw new Error(`${label} is stalled (${verdict.reasons.join(', ')}): ${verdict.evidence.join('; ')}`);
+}
+
+/**
+ * What the non-vacuity rules may read: the recorded health snapshots plus the world's own counters.
+ * Counting only `newBuildingsAtEnd` as construction keeps this a read of state the run already has,
+ * so a caller cannot soften a verdict by describing the run differently.
+ */
+export interface ColonyStallInput {
+  world: WorldState;
+  /** Every checkpoint, oldest first, plus the final observation. */
+  snapshots: readonly ColonyHealthReport[];
+  final: ColonyHealthReport;
+  /** Buildings standing at the end that were not standing at day zero. */
+  newBuildingsAtEnd: number;
+}
+
+export function assessColonyStall(input: ColonyStallInput): ColonyStallVerdict {
+  const { world, snapshots, final, newBuildingsAtEnd } = input;
+  const reasons: ColonyStallReason[] = [];
+  const evidence: string[] = [];
+
+  // A run shorter than the settling period is a settling-in period, not a verdict.
+  if (final.day < STALL_SETTLING_DAYS) return { stalled: false, reasons, evidence };
+
+  const housing = final.housing;
+  const jobSlots = Math.max(0, final.workforce.workerSlots - final.workforce.filledWorkerSlots);
+  const woodPin = world.storageMax.wood * RESOURCE_PINNED_SHARE;
+  const stonePin = world.storageMax.stone * RESOURCE_PINNED_SHARE;
+
+  if (housing.homelessPlayerHumans > 0 && housing.occupiedBeds >= housing.totalBeds && newBuildingsAtEnd === 0) {
+    reasons.push('housing-full');
+    evidence.push(
+      `housing-full: ${housing.homelessPlayerHumans} homeless with every one of ${housing.totalBeds} beds taken `
+        + `and 0 buildings raised in ${final.day} days`,
+    );
+  }
+
+  if (jobSlots > 0 && final.workforce.idle > final.workforce.working) {
+    reasons.push('idle-with-open-jobs');
+    evidence.push(
+      `idle-with-open-jobs: ${final.workforce.idle} idle against ${final.workforce.working} working `
+        + `while ${jobSlots} of ${final.workforce.workerSlots} worker slots stand empty`,
+    );
+  }
+
+  if (final.food.stored <= 0 && final.food.producedToday < final.food.consumedToday) {
+    reasons.push('food-exhausted');
+    evidence.push(
+      `food-exhausted: larder at ${final.food.stored} while the day consumed ${final.food.consumedToday} `
+        + `against ${final.food.producedToday} produced`,
+    );
+  }
+
+  // Sized against the colony's own caps: a woodpile that never rose above the pinned share while
+  // nothing was ever built is a colony that cannot pay for its next building.
+  const wood = world.resources.wood ?? 0;
+  const stone = world.resources.stone ?? 0;
+  if (newBuildingsAtEnd === 0 && wood <= woodPin && stone <= stonePin) {
+    reasons.push('wood-pinned');
+    evidence.push(
+      `wood-pinned: wood ${Math.round(wood)}/${world.storageMax.wood} and stone `
+        + `${Math.round(stone)}/${world.storageMax.stone} at day ${final.day} with 0 buildings raised`,
+    );
+  }
+
+  const idleDays = snapshots.filter((snapshot) => snapshot.workforce.idle > snapshot.workforce.working).length;
+  if (
+    !reasons.includes('housing-full')
+    && idleDays > snapshots.length * CHRONIC_UNDERSTAFFING_SHARE
+  ) {
+    reasons.push('chronic-understaffing');
+    evidence.push(
+      `chronic-understaffing: idle outnumbered working on ${idleDays} of ${snapshots.length} observations`,
+    );
+  }
+
+  return { stalled: reasons.length > 0, reasons, evidence };
+}
+
+/** Human-readable outcome for the run log and the summary line. */
+export function formatColonyStallVerdict(verdict: ColonyStallVerdict): string {
+  return verdict.reasons.length > 0 ? `stalled(${verdict.reasons.join(',')})` : 'healthy';
+}
+
 

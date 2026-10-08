@@ -13,6 +13,8 @@ import { getRecruitSettlerEligibility, RECRUITMENT_COST } from '../../game/settl
 import { resourceFillPercent } from '../../game/dashboardData';
 import { resolvePopulationCap } from '../../game/populationGrowth';
 import { summarizeFoodLedger, ECONOMY_SOURCE_LABELS } from '../../game/economyLedger';
+import { describeSchoolingSummary, summarizeSchooling } from '../../game/education';
+import { getHourOfDay } from '../../game/dayCycle';
 import { REPUTATION_FRIENDLY_MIN, REPUTATION_HARSH_MAX } from '../../game/simHelpers';
 
 const FocusPanel = lazy(() => import('../../game/FocusPanel'));
@@ -109,6 +111,30 @@ const FoodLedger = memo(function FoodLedger({ state }: { state: WorldState }) {
   );
 });
 
+/**
+ * "Why is nobody in school?" at village scale — the seats actually taken, then every school-age
+ * child the seat rule leaves out, counted under the schooling owner's own reason.
+ */
+const SchoolingBreakdown = memo(function SchoolingBreakdown({ state }: { state: WorldState }) {
+  const summary = describeSchoolingSummary(
+    summarizeSchooling(state, state.tick, getHourOfDay(state.tick)),
+  );
+  return (
+    <div className="space-y-1 text-[13px]">
+      <p className="font-bold text-stone-200">{summary.headline}</p>
+      {summary.lines.map((line) => (
+        <p key={line} className="rounded bg-amber-950/30 px-2 py-1 text-amber-200">⚠️ {line}</p>
+      ))}
+      {summary.lines.length === 0 && summary.notes.length === 0 && (
+        <p className="text-emerald-300">✓ Every school-age child has a seat.</p>
+      )}
+      {summary.notes.map((note) => (
+        <p key={note} className="text-stone-400">{note}</p>
+      ))}
+    </div>
+  );
+});
+
 export interface VillageTabPanelProps {
   state: WorldState;
   villageStats: VillageStatsSummary;
@@ -149,7 +175,7 @@ export default function VillageTabPanel({
   // owner derived a fallback for a save without it.
   const popCap = resolvePopulationCap(state);
   /** Which subject window is open, if any — the same index-plus-windows shape the building panel uses. */
-  const [openSubject, setOpenSubject] = useState<'population' | 'food' | 'leadership' | 'roster' | 'armament' | 'reputation' | null>(null);
+  const [openSubject, setOpenSubject] = useState<'population' | 'food' | 'leadership' | 'roster' | 'schooling' | 'armament' | 'reputation' | null>(null);
   const closeSubject = () => setOpenSubject(null);
 
   return (
@@ -184,6 +210,7 @@ export default function VillageTabPanel({
           { id: 'food' as const, icon: '🍖', label: 'Food this day', hint: 'Produced vs eaten today, by source' },
           { id: 'leadership' as const, icon: '👑', label: 'Village leadership', hint: 'Standings, the head and their record' },
           { id: 'roster' as const, icon: '👨‍👩‍👧', label: 'Household roster', hint: 'Everyone, grouped by home' },
+          { id: 'schooling' as const, icon: '🎓', label: 'Schooling', hint: 'Who is in school, and why the rest are not' },
           { id: 'armament' as const, icon: '⚔️', label: 'Armament', hint: getHumanArmamentLabel(state) ?? 'Research Defense tech' },
           { id: 'reputation' as const, icon: '⭐', label: 'Reputation', hint: 'How it grows, and what caravans charge' },
         ]).map((subject) => (
@@ -334,6 +361,17 @@ export default function VillageTabPanel({
             onToggleFavorite={onToggleFavoriteCitizen}
           />
         </Suspense>
+      </SubjectWindow>
+
+      <SubjectWindow
+        windowKey="village-schooling"
+        open={openSubject === 'schooling'}
+        onClose={closeSubject}
+        icon="🎓"
+        title="Schooling"
+        subtitle="Children attend the nearest staffed school with a free seat"
+      >
+        <SchoolingBreakdown state={state} />
       </SubjectWindow>
 
       <SubjectWindow

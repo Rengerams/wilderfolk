@@ -1106,14 +1106,14 @@ export type MapSize = (typeof MapSize)[keyof typeof MapSize];
  * World pixels per map size — the Teraforge spec the ground renderer is measured against
  * (`renderer/whittakerTerrain`'s bake table).
  *
- * At this scale the ground fill's **fixed 1:1** bake step matters: zoom cannot re-key the cache without
- * dropping the chunks on screen (the "zooming gives a black background" bug), so the 50 % overview has
- * 80 chunks / 5.2 Mpx to sharpen on top of a 4.6 Mpx first view and can render as chunk-shaped gaps.
- * An earlier attempt at these values without a zoom-following bake step was reverted for that reason,
- * and **the step still missing is a per-chunk, in-place re-bake on zoom.** The four suites that encode a
- * map's scale were re-pinned with this change: the compact-save round trip (`saveWorldMap.compact`), the
- * river-network rules (`terragen.riverGeneration`), and two simulation behaviours (`medium-C1-economy`
- * deer spawn, `workCommute.leadHour`).
+ * These are the spec values, not the reduced ones. The ground fill bakes each chunk at the camera's
+ * own step and re-bakes a chunk in place when the zoom crosses a step boundary (`renderer/terrain`'s
+ * `targetGroundStep`, at most one chunk per frame), so a 50 % overview resolves at step 2 instead of
+ * sharpening eighty chunks of 1:1 ground on top of the first view — the cost that kept these sizes out
+ * of the build once before. The four suites that encode a map's scale were re-pinned with this change:
+ * the compact-save round trip (`saveWorldMap.compact`), the river-network rules
+ * (`terragen.riverGeneration`), and two simulation behaviours (`medium-C1-economy` deer spawn,
+ * `workCommute.leadHour`).
  */
 export const MAP_SIZE_DIMENSIONS: Record<MapSize, { width: number; height: number }> = {
   [MapSize.Medium]: { width: 2560, height: 1920 },

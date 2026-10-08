@@ -191,6 +191,30 @@ export function canEstablishTradeRoute(
   return { ok: true };
 }
 
+/**
+ * Village-level trade answer: the inactive routes that are ready, and the ones the owner refuses
+ * counted under its own reason — the total a single per-route line cannot give.
+ */
+export function summarizeTradeRouteBlocks(
+  state: WorldState,
+): { ready: number; blocked: Array<{ reason: string; count: number }> } {
+  const counts = new Map<string, number>();
+  let ready = 0;
+  for (const route of state.tradeRoutes ?? []) {
+    if (route.active) continue;
+    const eligibility = canEstablishTradeRoute(state, route.id);
+    if (eligibility.ok) {
+      ready++;
+      continue;
+    }
+    const reason = eligibility.blockReason ?? 'Unavailable';
+    counts.set(reason, (counts.get(reason) ?? 0) + 1);
+  }
+  const blocked = [...counts].map(([reason, count]) => ({ reason, count }));
+  blocked.sort((a, b) => b.count - a.count);
+  return { ready, blocked };
+}
+
 export function establishTradeRoute(state: WorldState, routeId: string): WorldState {
   const s = structuredClone(state);
   const route = s.tradeRoutes.find(r => r.id === routeId);

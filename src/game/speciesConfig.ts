@@ -1,4 +1,4 @@
-import { EntityType } from './gameTypes';
+import { EntityType, MapSize, MAP_SIZE_DIMENSIONS } from './gameTypes';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycleClock';
 
 export interface SpeciesConfig {
@@ -43,6 +43,12 @@ function cd(legacyHours: number): number {
   return legacyHours * TICKS_PER_HOUR;
 }
 
+/** Legacy Medium axis before the map grew to `MAP_SIZE_DIMENSIONS` — the denominator of `MAP_SCALE`. */
+const LEGACY_MEDIUM_AXIS_PX = 1200;
+
+/** Per-axis map enlargement: every mobile species' pace and absolute range scales with it. */
+export const MAP_SCALE = MAP_SIZE_DIMENSIONS[MapSize.Medium].width / LEGACY_MEDIUM_AXIS_PX;
+
 export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Object.freeze({
   [EntityType.Grass]: {
     maxEnergy: 100,
@@ -66,16 +72,16 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     energyLossPerTick: 2.5 * PER_TICK_RATE_SCALE,
     energyGain: { grass: 25 },
     maxAge: 365 * 3,
-    speed: 3.5,
+    speed: 3.5 * MAP_SCALE,
     size: 7,
     reproductionCooldown: cd(48),
     reproductionEnergyThreshold: 70,
     reproductionChance: 0.30,
     spawnEnergy: 60,
     color: '#c4875a',
-    fleeRange: 40,
+    fleeRange: 40 * MAP_SCALE,
     huntRange: 0,
-    wanderRadius: 60,
+    wanderRadius: 60 * MAP_SCALE,
     sprite: '/sprites/rabbit.png',
   },
   [EntityType.Deer]: {
@@ -83,16 +89,16 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     energyLossPerTick: 4.2 * PER_TICK_RATE_SCALE,
     energyGain: { grass: 55 },
     maxAge: 365 * 12,
-    speed: 3.0,
+    speed: 3.0 * MAP_SCALE,
     size: 11,
     reproductionCooldown: cd(192),
     reproductionEnergyThreshold: 300,
     reproductionChance: 0.15,
     spawnEnergy: 250,
     color: '#926418',
-    fleeRange: 50,
+    fleeRange: 50 * MAP_SCALE,
     huntRange: 0,
-    wanderRadius: 210,
+    wanderRadius: 210 * MAP_SCALE,
     sprite: '/sprites/deer.png',
   },
   [EntityType.Wolf]: {
@@ -100,7 +106,7 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     energyLossPerTick: 5.5 * PER_TICK_RATE_SCALE,
     energyGain: { deer: 650, rabbit: 30 },
     maxAge: 365 * 8,
-    speed: 4,
+    speed: 4 * MAP_SCALE,
     size: 13,
     reproductionCooldown: cd(360),
     reproductionEnergyThreshold: 450,
@@ -108,8 +114,8 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     spawnEnergy: 900,
     color: '#6b7280',
     fleeRange: 0,
-    huntRange: 350,
-    wanderRadius: 220,
+    huntRange: 350 * MAP_SCALE,
+    wanderRadius: 220 * MAP_SCALE,
     sprite: '/sprites/wolf.png',
   },
   [EntityType.Fox]: {
@@ -117,16 +123,16 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     energyLossPerTick: 4.2 * PER_TICK_RATE_SCALE,
     energyGain: { rabbit: 450, grass: 150 },
     maxAge: 365 * 5,
-    speed: 3.0,
+    speed: 3.0 * MAP_SCALE,
     size: 9,
     reproductionCooldown: cd(240),
     reproductionEnergyThreshold: 350,
     reproductionChance: 0.008,
     spawnEnergy: 90,
     color: '#ea580c',
-    fleeRange: 90,
-    huntRange: 100,
-    wanderRadius: 100,
+    fleeRange: 90 * MAP_SCALE,
+    huntRange: 100 * MAP_SCALE,
+    wanderRadius: 100 * MAP_SCALE,
     sprite: '/sprites/fox.png',
   },
   [EntityType.Human]: {
@@ -134,7 +140,9 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     energyLossPerTick: 4.2 * PER_TICK_RATE_SCALE,
     energyGain: { deer: 350, rabbit: 150 },
     maxAge: 90, // Human years
-    speed: 3.0,
+    // Walk speed tracks the map scale: Medium grew 1200x900 -> 2560x1920 (x2.133 per axis),
+    // so a commute covers the same share of the map in the same number of ticks.
+    speed: 6.4,
     size: 10,
     reproductionCooldown: cd(3600),
     reproductionEnergyThreshold: 180,
@@ -168,7 +176,7 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     energyLossPerTick: 6.0 * PER_TICK_RATE_SCALE,
     energyGain: { deer: 400, rabbit: 100 },
     maxAge: 365 * 35,
-    speed: 3.4,
+    speed: 3.4 * MAP_SCALE,
     size: 14,
     reproductionCooldown: cd(720),
     reproductionEnergyThreshold: 300,
@@ -176,8 +184,8 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     spawnEnergy: 350,
     color: '#7c6f9a',
     fleeRange: 0,
-    huntRange: 150,
-    wanderRadius: 150,
+    huntRange: 150 * MAP_SCALE,
+    wanderRadius: 150 * MAP_SCALE,
     sprite: '/sprites/wolf.png',
   },
   [EntityType.Wildkin]: {
@@ -185,16 +193,16 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     energyLossPerTick: 3.0 * PER_TICK_RATE_SCALE,
     energyGain: { grass: 45 },
     maxAge: 365 * 40,
-    speed: 3.2,
+    speed: 3.2 * MAP_SCALE,
     size: 12,
     reproductionCooldown: cd(288),
     reproductionEnergyThreshold: 200,
     reproductionChance: 0.008,
     spawnEnergy: 200,
     color: '#a3a35a',
-    fleeRange: 100,
+    fleeRange: 100 * MAP_SCALE,
     huntRange: 0,
-    wanderRadius: 90,
+    wanderRadius: 90 * MAP_SCALE,
     sprite: '/sprites/deer.png',
   },
 });

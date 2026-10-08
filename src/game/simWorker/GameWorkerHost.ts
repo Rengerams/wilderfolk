@@ -7,7 +7,7 @@ import { applySimTickDelta, type SimTickDelta } from '../simBuffers/simDelta';
 import { RENDER_BUFFER_POOL_SIZE } from '../simBuffers/renderBufferPool';
 import { ScentGridReader } from '../scentGrid';
 import { hydrateWorldRuntimeCaches, invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
-import { snapshotSimRng } from '../simRng';
+import { adoptWorldSimRngStamp, snapshotSimRng } from '../simRng';
 import type { WorkerCommand } from './commands';
 import {
   assertWorkerFeatures,
@@ -682,6 +682,8 @@ export class GameWorkerHost {
     }
 
     if (msg.type === 'exportSaveResult') {
+      // The worker stamps this world with its own live stream positions; ours are a replica of them.
+      adoptWorldSimRngStamp(msg.world);
       this.settleExport((pending) => pending.resolve(msg.world));
       this.resolveIdleWaiters();
       return;

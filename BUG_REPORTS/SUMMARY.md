@@ -6,6 +6,8 @@ Compiled 2026-09-16 from the 55 individual reports, plus fourteen 2026-09-16 rep
 
 Excluded on request: `2026-09-13-simulation-logic-audit.md` — the large audit document whose findings became the 2026-09-13 slice reports listed below.
 
+**2026-10-08 — register-only entries.** The 2026-10-06 audit campaign (141 findings) and the 2026-10-08 session (31 new findings plus 7 tooling/infra items) are recorded at the end of this file as one line each, **with no individual report files**, on the owner's instruction ("just only in the summary"). About 130 of the 172 are closed and verified; **25 defects remain open**, each with what a fix needs, plus ~25 small copy-and-layout findings noted in one line there. The evidence — `path:line`, measurements, before/after proofs — lives in `docs/private/audits/2026-10-06/`, which is gitignored; `BUG-OVERVIEW-2026-10-08.md` §6 is the consolidated view and `STATUS-2026-10-08.md` the full account. This register is therefore the durable index for them.
+
 ## At a glance
 
 | Discovered | Reports | Resolved | Still open / pending |
@@ -21,6 +23,7 @@ Excluded on request: `2026-09-13-simulation-logic-audit.md` — the large audit 
 | 2026-09-30 | 3 | 1 | 2 open — a founding-year election stored as "no election", and Town Hall officials that no attendance system records |
 | 2026-10-01 | 2 | 1 resolved + 1 pending | live check: three guards can be appointed and escapes stop |
 | 2026-10-02 | 4 | 0 | 4 open — the three above plus the day-rollover residency freeze (53–63 s of CPU in one boundary tick at 982 settlers) |
+| 2026-10-06 → 2026-10-08 | 0 files (register-only) | ~130 closed of 172 findings | **25 open** (+ ~25 small IX/UX items) — recorded in the section at the end of this file |
 
 **Open right now**
 
@@ -1600,3 +1603,65 @@ Most multi-node cycles **broken** via `playerHuman`, `entityFactory`, `rivalPeac
 |---|-----|-----|--------|-----|
 | ES-1 | 🟡 | Night atmosphere and building glow are drawn twice per frame: `renderGame` called `drawNightAtmosphere`/`drawNightBuildingGlow`/`drawDayAtmosphere`, then called `drawGameOverlay` which called the same functions again. This over-darkened night scenes and double-applied glow. | **fixed** | Removed the duplicate atmosphere block from `renderGame`; `drawGameOverlay` in `src/game/renderer/overlay.ts` now owns the full overlay pass. |
 | ES-2 | 🟡 | `drawEcoConnections` only checked horizontal screen bounds when culling marriage/relationship lines, so vertically off-screen pairs were still submitted for drawing. | **fixed** | Added vertical culling using the same bounding-span check (`midY ± halfSpan`) in `src/game/renderer/markers.ts`. |
+
+## Batch ET — 2026-10-06 audit campaign + 2026-10-08 session (register-only, 2026-10-08)
+
+**Files:** none — the owner asked for the register only. **Evidence:** `docs/private/audits/2026-10-06/` (gitignored); consolidated in `BUG-OVERVIEW-2026-10-08.md` §6, full account in `STATUS-2026-10-08.md`.
+**Legend:** `fixed` | `open` · Sev 🔴 High · 🟠 Med · 🟡 Low
+
+### Still open (25 listed here, plus the small IX/UX set noted at the end)
+
+| ID | Sev | Bug | Needs |
+|---|---|---|---|
+| F-RND-21 | 🔴 | Entity, animal and projectile positions are never interpolated between simulation ticks — at 1× everything jumps once per second | Renderer: blend the previous tick's position by the tick fraction the loop already computes |
+| F-RND-17 | 🔴 | Season is not legible on the ground on the shipping render path | Owner design call (restore, keep, or a palette tint) |
+| F-RND-1 | 🔴 | The per-frame ground-bake budget could overrun a frame | **Code closed** (decor/allocation budget + the zoom-following re-bake); a browser look remains |
+| F-RND-5 | 🔴 | Hovering a building rebaked the entire entity layer | **Mostly closed** — the ring is per-frame now; the three alpha hover *tints* still repaint with the layer (≤1 tick lag, frozen while paused) |
+| F-SIM-15 | 🟠 | The 360-day gate asserts invariants only, so a stalled economy passes | Non-vacuity assertions from the counters the harness already gathers |
+| F-SIM-10 | 🟠 | The post-daily entity dedupe is `O(new × alive)` via `Array.includes` on the busiest tick | A `Set` instead of the array scan |
+| F-RND-8 | 🟠 | A CSS filter runs over the full-screen DPR-scaled canvas every frame | Move the effect into the canvas or gate it |
+| F-RND-12 | 🟠 | The ground was baked at 1 canvas px per world px | Addressed by the zoom-following re-bake; needs the same browser look |
+| F-RND-18 | 🟠 | Status is 8 px colour emoji inside a 5 px badge (a smear; tofu where no emoji font) | Shape/outline or a sprite |
+| F-RND-20 | 🟠 | Speech bubbles avoid other bubbles but not other settlers' name plates | Reserve the plates in the bubble layout |
+| F-RND-26 | 🟠 | 40.2 MiB of assets shipped for art drawn at 5–120 px | Compression/downscale pass |
+| F-RND-27 | 🟠 | The asset register and licence notice are stale and cite files that do not exist | Provenance pass |
+| F-RND-28 | 🟠 | Mountain peak sprites do not exist and the path that used them is gone | Art, or delete the dead path |
+| T-2 / A-4 | 🟠 | `tests/fullYear.integration.test.ts` zeroes spoilage and fills food to 100,000, so the year-long gate cannot see a stalled economy | Non-vacuity assertions (the file is at least *run* now, by the tooling change) |
+| ET-1 | 🟠 | Of the 15 event kinds that reach the player only as a toast/card/float, **only "building placed" is now logged**; 3 changes leave no trace at all (a weather turn, idle skill decay, a tamed animal going feral when its owner dies) | One `logEvent` line each beside its existing channel — owner call |
+| ET-2 | 🟠 | `electionBuildupNotifiedYear` is the last leadership scalar unvetted at the load boundary (its three siblings were closed this session) | The same null-tolerant rule as its siblings |
+| F-SIM-18 | 🟡 | Two heavy realtime scans run unconditionally | Partly closed (empty-list early-outs); the scans remain |
+| F-SIM-17 | 🟡 | Notification lifetime is wall-clock state written into the save | A decision on what the lifetime means |
+| F-RND-7 | 🟡 | Canvas surfaces and DPR have two owners | Consolidate on one owner |
+| F-RND-10 | 🟡 | The per-tick SoA bucket rebuild allocates a shim and two map entries per entity | Reuse a preallocated bucket |
+| F-RND-14 | 🟡 | The mini-map is not DPR-scaled and runs its own rAF loop | DPR-scale it and fold it into the render loop |
+| F-RND-24 | 🟡 | Motion timing is inconsistent — per-frame particle steps and two clocks | One clock |
+| F-SAV-22 | 🟡 | One browser slot shared by manual save, autosave and the unmount save | Product decision — sharper now that the Chronicle is 20,000 entries; big maps already save to a file by owner ruling |
+| ET-3 | 🟡 | The commute snap: the constant says 200 px but a 327.5 px commute was measured snapping | A measurement pass, then a decision |
+| ET-4 | 🟡 | `scripts/` is deliberately outside `lint`, so the harness and probes are unchecked | A tsconfig for `scripts/` plus the cleanup it surfaces |
+
+*(The ~25 small `F-IX`/`F-UX` copy-and-layout findings — notification deep-link, unaffordable catalogue tiles, ghost cost/rotation hints, keyboard ghost, four-step job assignment, count-not-list, toast self-dismiss, the "Simulation diagnostics" label, title-screen copy, overlay Escape ownership, role-less intro/setup screens, no responsive rules below 720 px — are open, specified and small; they are listed individually in `BUG-OVERVIEW-2026-10-08.md` §6 and are not expanded here to keep this register scannable.)*
+
+### Closed by the two waves (with the guard that pins each)
+
+| ID | Sev | Bug | Guard / evidence |
+|---|---|---|---|
+| F-SAV-14 | 🟠 | A worker-mode save recorded the **main thread's** random streams instead of the ticked colony's, so a reload did not continue the same deterministic sequence | `tests/saveLoad.workerRngSnapshot.test.ts` — red before, green after; snapshot now travels with the exported world |
+| F-RND-11 | 🟠 | The placed building and its ghost sampled relief at different footprint points; its only verifier grepped for a call shape and stayed green over the defect | `footprintGroundRise` (one owner) + D23 in `tests/visualsAudit.renderWiring.test.ts` |
+| HOVER-1 | 🟠 | Hover left the entity-layer key, so the highlight stopped repainting — never while paused | Ring drawn per frame in the overlay pass; suite green, browser look pending |
+| RIVER-1 | 🟠 | `reachesSea` returned true at the first at-or-below-sea cell — normally an interior lake — so rivers could end in closed basins (0 of 4 at Huge, 1 of 4 on Highland) | Walk must reach a below-sea **border** cell; drained == drawn in all 30 preset × size configurations |
+| Feuds | 🟠 | A feud was announced at peak 30 but its settle line required 60, unreachable for the drift feud — 77 announcements, every one fading silently | `tests/relationships.friendCapAndFeudEnd.test.ts` — 45 starts → 45 settlements (was 45 → 0) |
+| Prison 24h | 🟠 | The pre-dawn home snap lacked `!onJobShift`, teleporting the rostered night guard off his post every hour, so those hours counted unguarded and earned escape rolls | `tests/prisonFestivalWorkContinuity.test.ts`; a whole-day run now records `uncoveredPrisonHours === []` |
+| Festival work | 🟠 | A festival suspended **everyone's** work and sent them to the hall, including officials, doctors and on-shift guards | Same file + `tests/festival.behavior.test.ts`; gathering now applies only to off-shift settlers, tavern override verified |
+| SAV-6 residual | 🟠 | Three persisted arrays (`foodHistory`, `dismissedActiveEventIds`, `dismissedNotificationIds`) had no load rule, so a string in one threw inside a tick | `tests/saveLoad.elementShape.test.ts` + `tests/persistenceBatch.dismissedLists.test.ts` |
+| CYCLE-1 | 🟠 | The remediation **introduced** a runtime import cycle (9 modules), and nothing gated it | `npm test -- cycles --strict` (0 runtime cycles); commute rule moved to the leaf `commuteReach.ts` |
+| Map sizes / terrain | 🔴 | Sizes raised to the spec (2560×1920 / 4096×3072 / 6144×4608); but every size was a window into **one identical height field** | `tests/terrain.mapVariety.test.ts` (fails with the per-size seed offset zeroed) |
+| Research / forge / wildlife pacing | 🟠 | Research ran ~4× slower than its own constant; the forge's constant understated its two-day cadence; wildlife did not pace with the map | `tests/mapScale.pacing.test.ts` |
+| Compact-save round trip | 🟠 | The loader re-derived the world size from lossy `ceil(px / PATH_CELL)` tiles, so Large/Huge gained a column on reload | `tests/saveWorldMap.compact.test.ts` 3/3; the payload's own pixel dimensions now win |
+| Remarriage bar | 🟠 | (Guard, not a fix) the divorce stamp the one-year bar reads must survive a save and a load | `tests/saveLoad.pastPartnerBar.test.ts` — fails if the round trip ever stops carrying it |
+| Hotel lodging | 🟠 | Feature: a settler whose walk home outlasts the hours before sleep lodges at a hotel instead; beds shared with paying guests | `tests/hotelSettlerLodging.night.test.ts` |
+| Ground re-bake | 🟠 | Feature/perf: chunks re-bake in place when the zoom crosses a step, at most one per frame | `tests/groundChunk.rebake.test.ts` (the cap was proved by raising it and watching the case fail) |
+| Chronicle | 🟡 | Cap raised 6000 → 20,000 (~140 B/entry; ~3.3 MiB against a ~5 MiB slot) and building placement now logged | `tests/buildingPlacement.chronicle.test.ts` |
+| Gate composition | 🟡 | The default gate ran neither a typecheck nor the cycle scan — how a committed type error and a runtime cycle both went unnoticed | `standard` = check, cyclesStrict, dup, types, lint, unit; `full` adds the year-long integration test |
+| Tooling/infra | 🟡 | Nine exported functions from a remediation batch were never registered; two comments cited a module that exists in no git ref; the mini-map regression had no test | Ownership rows added; comments repointed; `tests/minimap.viewportSizing.test.ts` |
+
+**End of register section.**

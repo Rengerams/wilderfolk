@@ -1,5 +1,5 @@
 import type { WorldState, Entity, TerrainTile } from './gameTypes';
-import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, PATH_CELL } from './gameTypes';
+import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, MapSize, PATH_CELL } from './gameTypes';
 import { setTileOverride } from './terrain/terrainGrid';
 import { INITIAL_CHALLENGES } from './challenges';
 import { normalizeLifetimeStats } from './stats';
@@ -33,7 +33,7 @@ import { normalizeVenueSchedule } from './venueSchedule';
 import { normalizeFestivalState } from './dailyWorldEvents';
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
-import { adoptSimSeedFromWorld, restoreSimRng, snapshotSimRng } from './simRng';
+import { adoptSimSeedFromWorld, restoreSimRng, snapshotSimRng, worldSimRngSnapshot } from './simRng';
 import { syncResearchUnlocks } from './research';
 import { assignMissingWorkers, removeWorkerTransition } from './workforce';
 import { syncBigNewsIdFromState } from './simEffects';
@@ -54,6 +54,28 @@ import { migrateVillageForgeOnLoad } from './forge';
 
 const SAVE_KEY = 'ecosim_save';
 
+/**
+ * The most a save payload may weigh before it leaves the browser slot for a file.
+ *
+ * One slot shares a typical ~5 MiB localStorage quota and browsers store UTF-16, two bytes per code
+ * unit, so this ceiling (4.0 MB stored) keeps a write clear of a refused or truncated one.
+ */
+export const BROWSER_SLOT_BUDGET_BYTES = 4_000_000;
+
+/** localStorage stores UTF-16, so a serialized code unit costs two bytes of the quota. */
+const STORED_BYTES_PER_CODE_UNIT = 2;
+
+/** The map sizes whose colony will not fit the one browser slot — Large and Huge. */
+const FILE_ONLY_MAP_SIZES: readonly MapSize[] = [MapSize.Large, MapSize.Huge];
+
+/** Why a colony's save goes to a file instead of the browser slot. */
+export type FileSaveReason = 'map-too-large' | 'payload-too-large';
+
+/** Where a colony's payload has to be written. */
+export type SaveRoute =
+  | { target: 'slot' }
+  | { target: 'file'; reason: FileSaveReason };
+
 /** The serialized `_version` text `buildSaveData` writes, in `JSON.stringify`'s own encoding. */
 const SAVED_VERSION_MARKER = `"_version":${JSON.stringify(GAME_VERSION)}`;
 
@@ -73,10 +95,13 @@ function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): v
  * (storage full, or storage blocked). The caller must not mark the slot as present in that case:
  * the toast used to say success either way, so Load was offered against a stale or empty slot and
  * could silently restore an older colony with no date shown anywhere.
+ *
+ * `fileReason` means the slot was never attempted: the payload left for a file instead
+ * (`decideSaveRoute`), so a caller must not advertise the slot as written either.
  */
 export type SaveResult =
-  | { success: true; slotWarning?: string }
-  | { success: false; error: string };
+  | { success: true; slotWarning?: string; fileReason?: FileSaveReason }
+  | { success: false; error: string; fileReason?: FileSaveReason };
 
 /** Why a save payload was refused — `not-a-save` is valid JSON that is not a save at all. */
 export type SaveReadFailure = 'empty' | 'unreadable' | 'malformed' | 'not-a-save' | 'version-mismatch';
@@ -219,7 +244,7 @@ export function buildSaveData(world: WorldState, view: ViewState): Record<string
   const persistable = stripRuntimeWorldFields(world);
   return {
     ...mergeForSave(persistable, view),
-    simRng: snapshotSimRng(),
+    simRng: worldSimRngSnapshot(world),
     worldMap: compactWorldMapForSave(persistable.worldMap),
     _savedAt: Date.now(),
     _version: GAME_VERSION,
@@ -240,18 +265,56 @@ export function buildSaveFilename(villageName: string, year: number, dayInYear: 
   return `wilderfolk-${safe}-Y${displayYear(year)}-D${dayInYear}.json`;
 }
 
-/** Download colony save as a file (also writes browser slot when possible). */
+/**
+ * Where this colony's save has to go. A Large or Huge map, and any payload past
+ * `BROWSER_SLOT_BUDGET_BYTES`, leaves the browser slot for an external file.
+ */
+export function decideSaveRoute(world: WorldState, json: string): SaveRoute {
+  const size = world.worldMap?.size;
+  if (size !== undefined && FILE_ONLY_MAP_SIZES.includes(size)) {
+    return { target: 'file', reason: 'map-too-large' };
+  }
+  if (json.length * STORED_BYTES_PER_CODE_UNIT > BROWSER_SLOT_BUDGET_BYTES) {
+    return { target: 'file', reason: 'payload-too-large' };
+  }
+  return { target: 'slot' };
+}
+
+/** Why the slot cannot hold this colony, in the player's words. */
+function fileSaveCause(reason: FileSaveReason): string {
+  return reason === 'map-too-large'
+    ? 'This valley is too large for the in-game save slot'
+    : 'This colony is too big for the in-game save slot';
+}
+
+/** Told after a save went to a file instead of the slot: why, and how to load it back. */
+export function describeFileSaveReason(reason: FileSaveReason): string {
+  return `${fileSaveCause(reason)} — saved as a file. Load it with Load from file.`;
+}
+
+/** Told when a save no user gesture asked for stands down instead of downloading. */
+export function describeCadenceFileSave(reason: FileSaveReason): string {
+  return `${fileSaveCause(reason)} — auto-save is off here. Save by hand with Save to file.`;
+}
+
+/** Download colony save as a file; the browser slot is written only when the payload fits it. */
 export function downloadSaveFile(world: WorldState, view: ViewState): SaveResult {
+  const saveData = buildSaveData(world, view);
+  return downloadSaveJson(world, JSON.stringify(saveData));
+}
+
+function downloadSaveJson(world: WorldState, json: string): SaveResult {
   try {
-    const saveData = buildSaveData(world, view);
-    const json = JSON.stringify(saveData);
+    const route = decideSaveRoute(world, json);
     let slotWarning: string | undefined;
-    try {
-      localStorage.setItem(SAVE_KEY, json);
-    } catch {
-      // The download still works, so this is a warning rather than a failure — but it must be
-      // reported, because the caller otherwise enables Load against a slot it did not write.
-      slotWarning = 'Saved to a file — the browser save slot is full, so Load will not see this.';
+    if (route.target === 'slot') {
+      try {
+        localStorage.setItem(SAVE_KEY, json);
+      } catch {
+        // The download still works, so this is a warning rather than a failure — but it must be
+        // reported, because the caller otherwise enables Load against a slot it did not write.
+        slotWarning = 'Saved to a file — the browser save slot is full, so Load will not see this.';
+      }
     }
     if (typeof document !== 'undefined') {
       const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
@@ -264,6 +327,11 @@ export function downloadSaveFile(world: WorldState, view: ViewState): SaveResult
       anchor.click();
       anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+    if (route.target === 'file') {
+      return slotWarning
+        ? { success: true, fileReason: route.reason, slotWarning }
+        : { success: true, fileReason: route.reason };
     }
     return slotWarning ? { success: true, slotWarning } : { success: true };
   } catch (e) {
@@ -313,7 +381,8 @@ function maxSavedMapPixelsForAxis(axis: 'width' | 'height'): number {
 
 /**
  * The largest tile grid the shipped presets can produce. `restoreWorldMapFromSave` multiplies a save's
- * tile dimensions by `PATH_CELL` and hands the result to `generateWorldMap`, which allocates typed
+ * tile dimensions by `PATH_CELL` when the payload carries no pixel size of its own, and hands the result
+ * to `generateWorldMap`, which allocates typed
  * arrays for the whole surface — so an unbounded dimension pair lets a crafted file choose the
  * allocation (a 4000 × 3000 pair loads; a negative one surfaces a raw `RangeError`).
  */
@@ -366,6 +435,8 @@ function applySavedTerrainOverrides(
 
 function restoreWorldMapFromSave(parsed: {
   worldMap?: (WorldState['worldMap'] & { _compact?: boolean; _overrides?: unknown }) | null;
+  width?: unknown;
+  height?: unknown;
 }): WorldState['worldMap'] {
   if (!parsed.worldMap) return null;
   // Only a compact save (`_compact: true`) is a seed/preset reference to regenerate below; every
@@ -378,15 +449,14 @@ function restoreWorldMapFromSave(parsed: {
   const wm = parsed.worldMap;
   const overrides = wm._overrides;
   if (isUsableMapTileCount(wm.width) && isUsableMapTileCount(wm.height)) {
-    // A compact save records the map in TILES (`WorldMap.width/height`, terrainGen's
-    // return), while `generateWorldMap(width, height, …)` takes PIXELS. Passing the tile
-    // counts straight through regenerated the valley at a hundredth of its area — a
-    // 1600x1200 px colony came back as 160x120 px, leaving 1197 of its 1202 entities off
-    // the map, which reads to the player as "the save failed to load".
+    // Tiles are `ceil(px / PATH_CELL)`, so multiplying back is lossy — 4096 px stores as 410 tiles and
+    // regenerates 4100, one path column past the original. The payload's own pixels win when present.
+    const pixelWidth = isFiniteNumber(parsed.width) ? parsed.width : wm.width * PATH_CELL;
+    const pixelHeight = isFiniteNumber(parsed.height) ? parsed.height : wm.height * PATH_CELL;
     return applySavedTerrainOverrides(
       generateWorldMap(
-        wm.width * PATH_CELL,
-        wm.height * PATH_CELL,
+        pixelWidth,
+        pixelHeight,
         wm.seed,
         wm.size ?? 'medium',
         wm.preset ?? 'continental',
@@ -525,10 +595,43 @@ function migrateTickTimeline(
   }
 }
 
+/**
+ * Save the colony, taking the external file path when the browser slot cannot hold it.
+ *
+ * A cadence save (autosave, unmount) has no user gesture behind it, so it calls `saveGameToSlot`
+ * and names the manual route rather than downloading on a timer.
+ */
 export function saveGame(world: WorldState, view: ViewState): SaveResult {
+  let json: string;
   try {
-    const saveData = buildSaveData(world, view);
-    localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+    json = JSON.stringify(buildSaveData(world, view));
+  } catch (e) {
+    console.error('Save build failed:', e);
+    return { success: false, error: 'Save failed — check browser storage permissions' };
+  }
+  if (decideSaveRoute(world, json).target === 'file') return downloadSaveJson(world, json);
+  return writeSaveSlot(json);
+}
+
+/** Save to the browser slot only — the path a save with no user gesture may take. */
+export function saveGameToSlot(world: WorldState, view: ViewState): SaveResult {
+  let json: string;
+  try {
+    json = JSON.stringify(buildSaveData(world, view));
+  } catch (e) {
+    console.error('Save build failed:', e);
+    return { success: false, error: 'Save failed — check browser storage permissions' };
+  }
+  const route = decideSaveRoute(world, json);
+  if (route.target === 'file') {
+    return { success: false, error: describeCadenceFileSave(route.reason), fileReason: route.reason };
+  }
+  return writeSaveSlot(json);
+}
+
+function writeSaveSlot(json: string): SaveResult {
+  try {
+    localStorage.setItem(SAVE_KEY, json);
     return { success: true };
   } catch (e) {
     const error =

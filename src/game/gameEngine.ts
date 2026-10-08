@@ -224,6 +224,8 @@ export { getFocusHints, type FocusHintAction } from './focusHints';
 
 export {
   saveGame,
+  saveGameToSlot,
+  describeFileSaveReason,
   loadGameOutcome,
   describeSaveLoadOutcome,
   loadGameFromParsed,

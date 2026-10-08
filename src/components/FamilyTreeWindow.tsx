@@ -13,6 +13,11 @@ export interface FamilyTreeWindowProps {
   /** The settler whose tree this is. */
   entity: Entity;
   allEntities: Entity[];
+  /**
+   * Current world tick. The projection needs it to say whether the remarriage bar still holds a
+   * former marriage; without it that one label is left off rather than guessed.
+   */
+  tick?: number;
   onClose: () => void;
   /** Select another citizen — how the tree is walked. */
   onSelect?: (entityId: number) => void;
@@ -23,16 +28,20 @@ function TreeNode({
   label,
   name,
   relation,
+  bonds,
   detail,
   icon,
+  alive = true,
   anchor = false,
   onSelect,
 }: {
   label?: string;
   name: string;
   relation?: string;
+  bonds?: readonly string[];
   detail?: string;
   icon?: string;
+  alive?: boolean;
   anchor?: boolean;
   onSelect?: () => void;
 }) {
@@ -42,6 +51,10 @@ function TreeNode({
       {icon && <span aria-hidden>{icon}</span>}
       <span className={anchor ? 'font-bold text-amber-50' : 'font-semibold text-amber-100'}>{name}</span>
       {relation && <span className="text-stone-400">{relation}</span>}
+      {bonds?.map((bond) => (
+        <span key={bond} className="rounded bg-stone-700/40 px-1 text-[10px] text-amber-300/80">{bond}</span>
+      ))}
+      {!alive && <span className="text-stone-400">dead</span>}
       {detail && <span className="text-stone-500">{detail}</span>}
     </>
   );
@@ -90,8 +103,14 @@ function TreeBranches({ branches }: { branches: Branch[] }) {
   );
 }
 
-export default function FamilyTreeWindow({ entity, allEntities, onClose, onSelect }: FamilyTreeWindowProps) {
-  const tree = buildFullFamilyTree(entity, allEntities);
+export default function FamilyTreeWindow({
+  entity,
+  allEntities,
+  tick,
+  onClose,
+  onSelect,
+}: FamilyTreeWindowProps) {
+  const tree = buildFullFamilyTree(entity, allEntities, tick);
   const relatives = tree.memberCount - 1;
   const treeBoxRef = useRef<HTMLDivElement | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -152,7 +171,9 @@ export default function FamilyTreeWindow({ entity, allEntities, onClose, onSelec
         icon={person.icon}
         name={fullNameOf(person)}
         relation={person.relation}
+        bonds={person.bonds}
         detail={person.detail}
+        alive={person.alive}
         anchor={person.isFocus}
         onSelect={person.isFocus ? undefined : pick(person)}
       />
@@ -199,6 +220,19 @@ export default function FamilyTreeWindow({ entity, allEntities, onClose, onSelec
               This family is larger than one window draws — {relatives} relatives are shown.
             </p>
           )}
+        </div>
+      )}
+
+      {/* The links the walk cannot draw, named so a short tree reads as a missing record and not as
+          a settler with no family. */}
+      {tree.gaps.length > 0 && (
+        <div className="mt-2 space-y-0.5 rounded bg-stone-800/50 p-2">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">
+            Not recorded, so not drawn
+          </p>
+          {tree.gaps.map((gap) => (
+            <p key={`${gap.kind}-${gap.text}`} className="text-[11px] text-stone-400">{gap.text}</p>
+          ))}
         </div>
       )}
 

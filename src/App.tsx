@@ -6,7 +6,7 @@ import {
 
   GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
 
-  saveGame, loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave, downloadSaveFile,
+  saveGameToSlot, describeFileSaveReason, loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave, downloadSaveFile,
   loadGameFromFileTextOutcome,
   getDiplomacyChoiceEligibility, getVisitorLeaderTalkMeta,
   ensureFullTradeRoutes,
@@ -1108,6 +1108,11 @@ export default function App() {
       showSaveToast({ message: result.error, type: 'error' });
       return;
     }
+    if (result.fileReason) {
+      // Deliberately outside the slot: no slot was written, so Load must not be offered against one.
+      showSaveToast({ message: describeFileSaveReason(result.fileReason), type: 'warning' });
+      return;
+    }
     if (result.slotWarning) {
       // The file is on disk but the slot is not: do not enable Load against a slot that was never
       // written, and say so, because the player has just been told a save exists.
@@ -1131,13 +1136,10 @@ export default function App() {
     }
     applyLoadedSession(outcome);
     setShowMapSetup(false);
-    setHasSavedGame(true);
-    // Keep browser slot in sync with the file you just loaded
-    try {
-      saveGame(outcome.world, outcome.view);
-    } catch {
-      /* ignore */
-    }
+    // Keep the browser slot in step with the file just loaded — the slot only, never a download.
+    // A valley the slot cannot hold leaves it untouched, so Load follows the slot's real contents.
+    saveGameToSlot(outcome.world, outcome.view);
+    setHasSavedGame(hasSave());
     showSaveToast({ message: 'Colony loaded from file', type: 'success' });
   }, [applyLoadedSession, showSaveToast, setShowMapSetup]);
 
@@ -1888,6 +1890,7 @@ export default function App() {
                       <FamilyTreeWindow
                         entity={treeEntity}
                         allEntities={world.entities}
+                        tick={world.tick}
                         onClose={() => setFamilyTreeFor(null)}
                         onSelect={(entityId) => {
                           playClickSound();

@@ -1,6 +1,7 @@
 import type { WorldState, Entity, Building } from './gameTypes';
 import { BuildingType, EntityType, JobType } from './gameTypes';
 import { WORK_HOURS_PER_DAY, TICKS_PER_HOUR, isOnWorkShift, isWorkHour } from './dayCycle';
+import { SCHOOL_MIN_AGE } from './gameConstants';
 import { ensureEntitySkills } from './skills';
 import { addNotification } from './simEffects';
 import { formatCitizenName } from './citizenId';
@@ -41,7 +42,7 @@ export function findStaffedSchools(buildings: readonly Building[]): Building[] {
 export function findNearestStaffedSchool(
   child: Entity,
   schools: readonly Building[],
-  reserved?: Map<number, number>,
+  reserved?: ReadonlyMap<number, number>,
 ): Building | undefined {
   if (schools.length === 0) return undefined;
   let best: Building | undefined;
@@ -63,7 +64,7 @@ export function findNearestStaffedSchool(
 export function findSchoolForChild(
   child: Entity,
   buildings: Building[],
-  reserved?: Map<number, number>,
+  reserved?: ReadonlyMap<number, number>,
 ): Building | undefined {
   return findNearestStaffedSchool(child, findStaffedSchools(buildings), reserved);
 }
@@ -72,6 +73,26 @@ export function isChildAtSchool(child: Entity, school: Building, maxDist = 28): 
   const cx = school.x + school.width / 2;
   const cy = school.y + school.height / 2;
   return Math.hypot(child.x - cx, child.y - cy) <= maxDist;
+}
+
+/**
+ * The schooling owner's reason this settler has no classroom seat, or `null` when the seat rule would
+ * take them. Pass the pass's `reserved` tally to ask the same question in the tick's world order.
+ */
+export function getSchoolingBlockReason(
+  child: Entity,
+  buildings: readonly Building[],
+  reserved?: ReadonlyMap<number, number>,
+): string | null {
+  if (child.age < SCHOOL_MIN_AGE) return `Too young — school starts at age ${SCHOOL_MIN_AGE}`;
+  if (!child.isJuvenile) return 'Grown up — past school age';
+  const schools = buildings.filter((b) => b.type === BuildingType.School && b.faction !== 'rival');
+  if (schools.length === 0) return 'No school built';
+  if (!schools.some((b) => b.completed)) return 'School still under construction';
+  const staffed = findStaffedSchools(buildings);
+  if (staffed.length === 0) return 'School has no teacher assigned';
+  if (!findNearestStaffedSchool(child, staffed, reserved)) return 'Every classroom is full';
+  return null;
 }
 
 export interface SchoolRosterEntry {
@@ -155,6 +176,95 @@ export function describeSchoolRoster(
         : 'No teacher assigned — children only attend a staffed school.',
     classroomFull: entry.pupils.length >= SCHOOL_MAX_CHILDREN,
   };
+}
+
+/** One reason this settler set is out of school, with how many of them it holds. */
+export interface SchoolingReasonCount {
+  /** The owner's own reason, exactly as {@link getSchoolingBlockReason} states it. */
+  reason: string;
+  count: number;
+}
+
+/** Village-wide schooling answer: the population, the seats, and why each unseated child is out. */
+export interface SchoolingSummary {
+  /** Settlers below `SCHOOL_MIN_AGE` — school is not open to them yet. */
+  tooYoung: number;
+  /** Children in the school-age band the tick enrols (`SCHOOL_MIN_AGE` to graduation). */
+  schoolAge: number;
+  /** School-age children the seat rule gives a place to. */
+  enrolled: number;
+  /** Enrolled children inside a classroom during class hours right now. */
+  inClassNow: number;
+  /** Whether the clock is in a school shift at all; outside it nobody is in class. */
+  classHours: boolean;
+  /** Every school-age child without a seat, counted by the owner's reason. */
+  outOfSchool: SchoolingReasonCount[];
+}
+
+/**
+ * Every child in the village, seated or not, with the owner's reason for each unseated one — the
+ * aggregate a per-school roster cannot give when no school exists.
+ */
+export function summarizeSchooling(
+  state: WorldState,
+  tick: number,
+  hourOfDay: number,
+): SchoolingSummary {
+  const children = state.entities.filter(
+    (e) => e.alive && e.type === EntityType.Human && e.isJuvenile && isPlayerHuman(e),
+  );
+  const staffed = findStaffedSchools(state.buildings);
+  const classHours = isOnWorkShift(tick, hourOfDay);
+  const reserved = new Map<number, number>();
+  const buckets = new Map<string, number>();
+
+  let tooYoung = 0;
+  let schoolAge = 0;
+  let enrolled = 0;
+  let inClassNow = 0;
+  for (const child of children) {
+    if (child.age < SCHOOL_MIN_AGE) {
+      tooYoung++;
+      continue;
+    }
+    schoolAge++;
+    const seat = findNearestStaffedSchool(child, staffed, reserved);
+    if (seat) {
+      reserved.set(seat.id, (reserved.get(seat.id) ?? 0) + 1);
+      enrolled++;
+      if (classHours && isChildAtSchool(child, seat)) inClassNow++;
+      continue;
+    }
+    const reason = getSchoolingBlockReason(child, state.buildings, reserved);
+    if (reason) buckets.set(reason, (buckets.get(reason) ?? 0) + 1);
+  }
+
+  const outOfSchool = [...buckets].map(([reason, count]) => ({ reason, count }));
+  outOfSchool.sort((a, b) => b.count - a.count);
+  return { tooYoung, schoolAge, enrolled, inClassNow, classHours, outOfSchool };
+}
+
+/** Player-facing schooling breakdown — the panel prints these strings verbatim. */
+export function describeSchoolingSummary(
+  summary: SchoolingSummary,
+): { headline: string; lines: string[]; notes: string[] } {
+  const lines = summary.outOfSchool.map(
+    ({ reason, count }) => `${count} ${count === 1 ? 'child' : 'children'} — ${reason}`,
+  );
+  const notes: string[] = [];
+  if (summary.tooYoung > 0) {
+    notes.push(`${summary.tooYoung} younger than ${SCHOOL_MIN_AGE} — not school age yet.`);
+  }
+  if (summary.schoolAge > 0 && !summary.classHours) {
+    notes.push('Outside school hours — classes run on weekday work hours only.');
+  } else if (summary.classHours && summary.enrolled > summary.inClassNow) {
+    notes.push(`${summary.enrolled - summary.inClassNow} enrolled children not in class right now — still walking or busy.`);
+  }
+  const headline = summary.schoolAge === 0
+    ? 'No children of school age in the village.'
+    : `${summary.enrolled} of ${summary.schoolAge} school-age children have a seat`
+      + (summary.classHours ? ` · ${summary.inClassNow} in class now.` : '.');
+  return { headline, lines, notes };
 }
 
 /** Maturation multiplier while a child is actively attending a staffed school. */

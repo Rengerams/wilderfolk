@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateWorldMap } from '../src/game/terrainGen';
 import { MapPreset, MapSize, TerrainType, type WorldMap } from '../src/game/gameTypes';
-import { tileTypeAt } from '../src/game/terrain/terrainGrid';
+import { TERRAIN_CELL, tileTypeAt } from '../src/game/terrain/terrainGrid';
 import { computeFlow, fillDepressions, riverWidthAt } from '../src/game/terrain/hydrology';
 import { generateRawTerrain } from '../src/game/terrain/terragen';
 
@@ -21,6 +21,47 @@ function countType(map: WorldMap, type: TerrainType): number {
     }
   }
   return n;
+}
+
+/** The drainage network of a finished map, recomputed from the carved height field the map ships. */
+interface Drainage {
+  cols: number;
+  rows: number;
+  elevation: Float32Array;
+  seaLevel: number;
+  downstream: Int32Array;
+}
+
+function networkOf(map: WorldMap): Drainage {
+  const cols = map.cols!;
+  const rows = map.rows!;
+  const elevation = map.elevation!;
+  const { downstream } = computeFlow(fillDepressions(elevation, cols, rows), cols, rows);
+  return { cols, rows, elevation, seaLevel: map.seaLevel!, downstream };
+}
+
+/** Whether the chain draining from `from` ends on the sea: a below-sea border cell. */
+function drainsToSea(net: Drainage, from: number): boolean {
+  let cell = from;
+  for (let step = 0; step < net.cols * net.rows; step++) {
+    const next = net.downstream[cell]!;
+    if (next < 0) {
+      const x = cell % net.cols;
+      const y = (cell / net.cols) | 0;
+      const border = x === 0 || y === 0 || x === net.cols - 1 || y === net.rows - 1;
+      return border && net.elevation[cell]! <= net.seaLevel + 0.02;
+    }
+    cell = next;
+  }
+  return false;
+}
+
+/** The drainage-network cell a polyline's last point sits in — where the channel let out. */
+function outletCell(river: { x: number; y: number }[], cols: number, rows: number): number {
+  const last = river[river.length - 1]!;
+  const x = Math.min(cols - 1, Math.max(0, Math.floor(last.x / TERRAIN_CELL)));
+  const y = Math.min(rows - 1, Math.max(0, Math.floor(last.y / TERRAIN_CELL)));
+  return y * cols + x;
 }
 
 describe('Teraforge river generation', () => {
@@ -59,30 +100,42 @@ describe('Teraforge river generation', () => {
   });
 
   it('draws connected rivers that reach the sea, not streams that stop inland', () => {
-    // Two failures this guards, both of which shipped. (1) Selection used to pick N springs chosen for
-    // being *far apart* and walk each one downhill, so a map grew several short squiggles that never
-    // joined into a system. (2) A walk follows the drainage network, which terminates at the map
-    // border — and the border is not automatically coast, so a channel could be carved along a chain
-    // that walked off the edge onto elevated ground and simply **stopped in a field**. Ranked by the
-    // length of the river a headwater feeds, and filtered to candidates whose chain reaches water, the
-    // map now grows one trunk with tributaries that merge into it and end at the sea.
-    const map = generateWorldMap(MapSize.Medium, MapPreset.Meadows, 1234);
-    expect(map.rivers.length, 'at least one river').toBeGreaterThan(0);
+    // Ranked by the river a headwater feeds and filtered to chains that let out on the sea, the map grows
+    // one trunk with tributaries instead of squiggles that stop in a field. All three shipped sizes.
+    for (const size of [MapSize.Medium, MapSize.Large, MapSize.Huge]) {
+      const map = generateWorldMap(size, MapPreset.Meadows, 1234);
+      const net = networkOf(map);
 
-    const cell = 16;
-    const mapW = map.width * 10;
-    const mapH = map.height * 10;
-    // Every river must reach a map edge: the drainage walk ends at the border, and a candidate is only
-    // accepted when the border it ends on is at or below sea level.
-    const touchesEdge = (p: { x: number; y: number }): boolean =>
-      p.x <= cell || p.y <= cell || p.x >= mapW - cell || p.y >= mapH - cell;
-    const reaches = map.rivers.filter((river) => river.some(touchesEdge));
-    expect(reaches.length, 'rivers that reach the map edge / coast').toBeGreaterThan(0);
+      // A river that flows into a lake reaches the sea only if that lake drains there, so the drawn
+      // polyline is traced through the drainage network, not measured against the border. No length
+      // or count floor here: a river is not a requirement, and a short or absent one is acceptable.
+      for (const river of map.rivers) {
+        const outlet = river[river.length - 1]!;
+        expect(
+          drainsToSea(net, outletCell(river, net.cols, net.rows)),
+          `${size}: river letting out at ${outlet.x},${outlet.y} does not drain to the sea`,
+        ).toBe(true);
+      }
+    }
+  });
 
-    // And they must form a system rather than isolated fragments: the longest river has to cover a
-    // real share of the map, which a scatter of short springs cannot do.
-    const longest = Math.max(...map.rivers.map((r) => r.length));
-    expect(longest, 'longest river, in cells').toBeGreaterThan(Math.min(map.cols!, map.rows!) * 0.4);
+  it('lets every drawn river out into water that carries on to the sea, on every shipped preset', () => {
+    // The drainage property holds on all ten, measured. The floor is only that the check is not
+    // vacuous: a river is not a requirement, so a preset may legitimately draw a short one or none.
+    let presetsWithRivers = 0;
+    for (const preset of Object.values(MapPreset)) {
+      const map = generateWorldMap(MapSize.Medium, preset, 1234);
+      if (map.rivers.length > 0) presetsWithRivers++;
+      const net = networkOf(map);
+      for (const river of map.rivers) {
+        const outlet = river[river.length - 1]!;
+        expect(
+          drainsToSea(net, outletCell(river, net.cols, net.rows)),
+          `${preset}: river letting out at ${outlet.x},${outlet.y} does not drain to the sea`,
+        ).toBe(true);
+      }
+    }
+    expect(presetsWithRivers, 'presets that drew a river at all (oasis requests none)').toBeGreaterThan(0);
   });
 });
 

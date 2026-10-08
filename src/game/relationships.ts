@@ -30,7 +30,6 @@ export const FRIENDSHIP_DECAY_PER_DAY = 0.1;
 
 const FEUD_DECAY_PER_DAY = 0.4;
 const FEUD_ENERGY_DRAIN = 0.15;
-const NOTABLE_FEUD_PEAK = 60;
 const FEUD_BREWING_THRESHOLD = 30;
 
 const INCOMPATIBLE_PAIR_FEUD_CHANCE_PER_DAY = 0.00005;
@@ -281,7 +280,9 @@ export function advanceSocialRelationships(
         if (p.feudPeaks) delete p.feudPeaks[key];
         if (other.feudPeaks) delete other.feudPeaks[otherKey];
 
-        if (peak >= NOTABLE_FEUD_PEAK) {
+        // A feud announced when it crossed the brewing threshold is announced when it ends:
+        // the drift feud peaks at exactly that threshold, so this is the pair to the start line.
+        if (peak >= FEUD_BREWING_THRESHOLD) {
           logEvent(state, 'event', `${p.name ?? 'A settler'} and ${other.name ?? 'another settler'} have settled their feud`);
         }
       } else {

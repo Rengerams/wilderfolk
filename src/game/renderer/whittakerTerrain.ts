@@ -727,8 +727,9 @@ export interface WhittakerViewport {
  *
  * `worldStep` is world pixels per canvas pixel; `null`/omitted keeps the whole-map default (1, or 2
  * once the baked area passes {@link FULL_BAKE_PIXEL_BUDGET}). A caller that knows the camera zoom
- * should pass `groundWorldStepForZoom(zoom)`. Whatever the caller passes, the canvas is pixel-aligned
- * to the world grid — the chunk origin is a multiple of the step — so neighbouring chunks never seam.
+ * should pass `targetGroundStep(zoom)` (owned by `renderer/terrain`). Whatever the caller passes, the
+ * canvas is pixel-aligned to the world grid — the chunk origin is a multiple of the step — so
+ * neighbouring chunks never seam.
  */
 export function bakeWhittakerGround(
   map: WorldMap,

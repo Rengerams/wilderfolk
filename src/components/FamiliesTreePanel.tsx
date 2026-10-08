@@ -17,8 +17,8 @@ import Emoji from './Emoji';
 
 const GENERATION_TITLE: Record<number, string> = {
   0: 'Grandparents',
-  1: 'Parents & aunts / uncles',
-  2: 'Spouse & siblings',
+  1: 'Parents, step-parents & aunts / uncles',
+  2: 'Spouse, partners & siblings',
   3: 'Children & nephews / nieces',
   4: 'Grandchildren',
 };
@@ -40,8 +40,8 @@ export default function FamiliesTreePanel({ state, onFocusCitizen }: FamiliesTre
   // clicking a name chip overrides it.
   const focus = (focusId != null ? people.find((p) => p.id === focusId) : null) ?? people[0] ?? null;
   const tree: FamilyTree | null = useMemo(
-    () => (focus ? buildFamilyTree(focus, state.entities) : null),
-    [focus, state.entities],
+    () => (focus ? buildFamilyTree(focus, state.entities, state.tick) : null),
+    [focus, state.entities, state.tick],
   );
 
   if (people.length === 0) {
@@ -149,6 +149,18 @@ export default function FamiliesTreePanel({ state, onFocusCitizen }: FamiliesTre
               })}
             </div>
           )}
+
+          {/* A short tree is a missing record, not a settler without a family: name each link. */}
+          {tree.gaps.length > 0 && (
+            <div className="mt-2 space-y-0.5 rounded bg-stone-800/50 p-2">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">
+                Not recorded, so not drawn
+              </p>
+              {tree.gaps.map((gap) => (
+                <p key={`${gap.kind}-${gap.text}`} className="text-[11px] text-stone-400">{gap.text}</p>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -169,7 +181,11 @@ function KinChip({ member, onOpen }: { member: KinMember; onOpen: () => void }) 
       <p className="text-[12px] font-semibold text-stone-100">
         <Emoji className="mr-0.5">{member.icon}</Emoji>
         {member.name}
+        {!member.alive && <span className="ml-1 text-stone-400">dead</span>}
       </p>
+      {member.bonds.length > 0 && (
+        <p className="text-[10px] text-amber-300/80">{member.bonds.join(' · ')}</p>
+      )}
     </button>
   );
 }

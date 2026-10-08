@@ -1,10 +1,12 @@
 /**
- * Hotel lodging — staffed hotels host visitors overnight, free of charge (the hotelier gains work
- * experience for tending them; nothing is charged).
+ * Hotel lodging — hotels host visitors and, overnight, settlers whose walk home is too long for
+ * the hours left before their sleep hour. Lodging is free of charge (the hotelier gains work
+ * experience for tending guests; nothing is charged).
  */
 import type { Building, Entity, WorldState } from './gameTypes';
 import {
   BuildingType,
+  EntityType,
   HOTEL_GUEST_CAPACITY,
   JobType,
 } from './gameTypes';
@@ -16,7 +18,12 @@ import {
   nextTickAtClockHour,
   personDayRoll,
   NIGHT_END,
+  NIGHT_START,
 } from './dayCycle';
+import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS, WORK_COMMUTE_RUSH } from './commuteReach';
+import { isPlayerHuman } from './playerHuman';
+import { hasResidenceAssignment } from './residencyOccupancy';
+import { SPECIES_CONFIG } from './speciesConfig';
 import { addFloatingText, addNotification } from './simEffects';
 import { steerWithPath } from './pathfinding';
 import { logEvent } from './eventLog';
@@ -25,6 +32,149 @@ import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 import { gainSkill } from './skills';
 import { seededRandomForRun } from './simRng';
 import { faceVelocity } from './simulation/movementSteering';
+
+/** Walk-home time, in hours, below which a settler never looks for a hotel bed. */
+export const LODGING_MIN_COMMUTE_HOURS = 1.5;
+
+/** How near a hotel a settler stands, in world px, to hold one of its beds for the night. */
+export const HOTEL_LODGING_RADIUS_PX = 40;
+
+/** Energy, per in-game hour of rest, restored by a night in a hotel bed. */
+export const HOTEL_REST_ENERGY_PER_HOUR = 0.8;
+
+/** Species walk speed the nightly lodging reach is measured with. */
+const HUMAN_WALK_SPEED = SPECIES_CONFIG[EntityType.Human].speed;
+
+function buildingFrom(
+  buildings: readonly Building[] | ReadonlyMap<number, Building>,
+  id: number,
+): Building | undefined {
+  return 'get' in buildings
+    ? (buildings as ReadonlyMap<number, Building>).get(id)
+    : (buildings as readonly Building[]).find((b) => b.id === id);
+}
+
+function centreDistance(entity: Entity, building: Building): number {
+  return Math.hypot(
+    building.x + building.width / 2 - entity.x,
+    building.y + building.height / 2 - entity.y,
+  );
+}
+
+/** Hours left before the settler must be asleep; zero once the night window is open. */
+function hoursUntilSleep(hour: number): number {
+  return isNightHour(hour) ? 0 : NIGHT_START - hour;
+}
+
+/**
+ * A settler's walk home is too long for the hours left before their sleep hour. Derived: nothing
+ * about a lodging is stored on the settler, so the save format is untouched.
+ */
+export function needsHotelBed(
+  entity: Entity,
+  buildings: readonly Building[] | ReadonlyMap<number, Building>,
+  hour: number,
+): boolean {
+  if (!entity.alive || !isPlayerHuman(entity) || !hasResidenceAssignment(entity)) return false;
+  const home = buildingFrom(buildings, entity.residenceBuildingId!);
+  if (!home?.completed) return false;
+  const homeHours = commuteLeadHoursFor(centreDistance(entity, home), HUMAN_WALK_SPEED, WORK_COMMUTE_RUSH);
+  if (homeHours < LODGING_MIN_COMMUTE_HOURS) return false;
+  return hoursUntilSleep(hour) < homeHours;
+}
+
+/** Completed player hotels this settler could reach tonight and that are no further than home, nearest first. */
+export function lodgingHotelsFor(
+  entity: Entity,
+  buildings: readonly Building[],
+  hour: number,
+): Building[] {
+  if (!needsHotelBed(entity, buildings, hour)) return [];
+  const home = buildingFrom(buildings, entity.residenceBuildingId!);
+  const homeHours = home
+    ? commuteLeadHoursFor(centreDistance(entity, home), HUMAN_WALK_SPEED, WORK_COMMUTE_RUSH)
+    : 0;
+  const hotels: Building[] = [];
+  for (const b of buildings) {
+    if (!b.completed || b.type !== BuildingType.Hotel || b.faction === 'rival') continue;
+    const hours = commuteLeadHoursFor(centreDistance(entity, b), HUMAN_WALK_SPEED, WORK_COMMUTE_RUSH);
+    if (hours > MAX_ASSIGNABLE_COMMUTE_HOURS || hours > homeHours) continue;
+    hotels.push(b);
+  }
+  hotels.sort((a, b) => centreDistance(entity, a) - centreDistance(entity, b));
+  return hotels;
+}
+
+/**
+ * Settlers holding beds at this hotel tonight — those standing at it who cannot reach home before
+ * their sleep hour. Derived from position and the commute rule, never written to the settler.
+ */
+export function countHotelSettlerLodgers(
+  hotel: Building,
+  buildings: readonly Building[] | ReadonlyMap<number, Building>,
+  entities: readonly Entity[],
+  hour: number,
+): number {
+  const cx = hotel.x + hotel.width / 2;
+  const cy = hotel.y + hotel.height / 2;
+  let lodgers = 0;
+  for (const e of entities) {
+    if (Math.hypot(e.x - cx, e.y - cy) > HOTEL_LODGING_RADIUS_PX) continue;
+    if (needsHotelBed(e, buildings, hour)) lodgers += 1;
+  }
+  return lodgers;
+}
+
+/** Settler-lodger counts per hotel, built once per tick so the visitor check shares one number. */
+export function buildHotelSettlerLodgerCounts(
+  hotels: readonly Building[],
+  buildings: readonly Building[],
+  entities: readonly Entity[],
+  hour: number,
+): Map<number, number> {
+  const counts = new Map<number, number>();
+  for (const hotel of hotels) {
+    counts.set(hotel.id, countHotelSettlerLodgers(hotel, buildings, entities, hour));
+  }
+  return counts;
+}
+
+/** True when the settler is resting in a hotel bed right now (position plus the commute rule). */
+export function isSettlerLodgingAtHotel(
+  entity: Entity,
+  buildings: readonly Building[],
+  hour: number,
+): boolean {
+  if (!isNightHour(hour) || !needsHotelBed(entity, buildings, hour)) return false;
+  for (const b of buildings) {
+    if (!b.completed || b.type !== BuildingType.Hotel || b.faction === 'rival') continue;
+    if (centreDistance(entity, b) <= HOTEL_LODGING_RADIUS_PX) return true;
+  }
+  return false;
+}
+
+/**
+ * The hotel this settler lodges at tonight, or `undefined` to walk home exactly as before.
+ * The shared cap is `HOTEL_GUEST_CAPACITY`: visitor guests and settler lodgers share the beds.
+ */
+export function lodgingHotelFor(
+  entity: Entity,
+  buildings: readonly Building[],
+  entities: readonly Entity[],
+  hour: number,
+): Building | undefined {
+  for (const hotel of lodgingHotelsFor(entity, buildings, hour)) {
+    const lodgers = countHotelSettlerLodgers(hotel, buildings, entities, hour);
+    const selfCounted = centreDistance(entity, hotel) <= HOTEL_LODGING_RADIUS_PX ? 1 : 0;
+    if (guestCount(hotel, entities) + lodgers - selfCounted < HOTEL_GUEST_CAPACITY) return hotel;
+  }
+  return undefined;
+}
+
+/** A night of hotel rest restores energy at the same rate for visitors and settling lodgers. */
+export function restAtHotel(entity: Entity): void {
+  entity.energy = Math.min(entity.maxEnergy, entity.energy + HOTEL_REST_ENERGY_PER_HOUR * PER_TICK_RATE_SCALE);
+}
 
 export function findStaffedHotels(buildings: readonly Building[]): Building[] {
   return buildings.filter(
@@ -142,16 +292,21 @@ function repairAllHotelStayPointers(state: WorldState, hotels: readonly Building
  * dropped guests' own `hotelStayBuildingId` in the same call **when the prune actually dropped
  * something**. Inside `tickHotelLodging` the list is already pruned for the whole tick before this
  * runs, so the repair never fires there and the visitor × hotel loop stays O(guests) per hotel.
+ *
+ * `settlerLodgers` is the derived count of settlers already sleeping here tonight
+ * (`countHotelSettlerLodgers`). Visitors and settlers share `HOTEL_GUEST_CAPACITY`, so the two
+ * counts are added and only the total is compared with the cap.
  */
 export function hotelHasVacancy(
   hotel: Building,
   entities: readonly Entity[],
   byId?: HotelGuestIndex,
+  settlerLodgers = 0,
 ): boolean {
   const before = (hotel.hotelGuestIds ?? []).length;
   pruneHotelGuests(hotel, entities, byId);
   if ((hotel.hotelGuestIds ?? []).length !== before) repairHotelStayPointers(hotel, entities);
-  return guestCount(hotel, entities, byId) < HOTEL_GUEST_CAPACITY;
+  return guestCount(hotel, entities, byId) + settlerLodgers < HOTEL_GUEST_CAPACITY;
 }
 
 /** Pick a staffed hotel with free beds (prefer closest to visitor). */
@@ -160,9 +315,10 @@ export function pickHotelForVisitor(
   buildings: readonly Building[],
   entities: readonly Entity[],
   byId?: HotelGuestIndex,
+  settlerLodgersByHotel?: ReadonlyMap<number, number>,
 ): Building | undefined {
   const hotels = findStaffedHotels(buildings)
-    .filter((h) => hotelHasVacancy(h, entities, byId))
+    .filter((h) => hotelHasVacancy(h, entities, byId, settlerLodgersByHotel?.get(h.id) ?? 0))
     .sort((a, b) => {
       const da = Math.hypot(visitor.x - a.x, visitor.y - a.y);
       const db = Math.hypot(visitor.x - b.x, visitor.y - b.y);
@@ -182,11 +338,15 @@ export function hotelCheckoutTick(fromTick: number): number {
 /**
  * Check a visitor into a hotel for the night. Lodging is free — the hotelier gains work experience
  * for tending guests — so this charges nothing. Returns true if lodging started.
+ *
+ * `settlerLodgers` is the derived settler count for this hotel; visitors and settlers share
+ * `HOTEL_GUEST_CAPACITY`, so a settler's bed is never silently taken by a visitor.
  */
 export function checkInVisitor(
   state: WorldState,
   visitor: Entity,
   hotel: Building,
+  settlerLodgers = 0,
 ): boolean {
   if (visitor.faction !== 'visitor' || !visitor.alive) return false;
   if (!hotel.completed || hotel.occupants.length === 0) return false;
@@ -201,7 +361,7 @@ export function checkInVisitor(
     visitor.hotelStayUntilTick = hotelCheckoutTick(state.tick);
     return true;
   }
-  if (guestCount(hotel, state.entities, byId) >= HOTEL_GUEST_CAPACITY) return false;
+  if (guestCount(hotel, state.entities, byId) + settlerLodgers >= HOTEL_GUEST_CAPACITY) return false;
 
   // Free lodging for now — hoteliers still gain work experience for tending guests.
   hotel.hotelGuestIds = [...(hotel.hotelGuestIds ?? []), visitor.id];
@@ -276,16 +436,18 @@ export function tickHotelLodging(state: WorldState): void {
   if (visitors.length === 0) return;
 
   let nightCheckIns = 0;
+  const settlerLodgersByHotel = buildHotelSettlerLodgerCounts(hotels, state.buildings, state.entities, hour);
   for (const v of visitors) {
     // Stable chance per visitor per night so not everyone piles in same tick
     if (personDayRoll(v.id, state.tick, 910) > 0.55) continue;
-    const hotel = pickHotelForVisitor(v, state.buildings, state.entities, byId);
+    const hotel = pickHotelForVisitor(v, state.buildings, state.entities, byId, settlerLodgersByHotel);
     if (!hotel) continue;
+    const settlerLodgers = settlerLodgersByHotel.get(hotel.id) ?? 0;
     // Prefer check-in near evening once
     if (hour >= 18 && hour <= 22 && personDayRoll(v.id, state.tick, 911) < 0.35) {
-      if (checkInVisitor(state, v, hotel)) nightCheckIns++;
+      if (checkInVisitor(state, v, hotel, settlerLodgers)) nightCheckIns++;
     } else if (isNightHour(hour) && personDayRoll(v.id, state.tick, 912) < 0.5) {
-      if (checkInVisitor(state, v, hotel)) nightCheckIns++;
+      if (checkInVisitor(state, v, hotel, settlerLodgers)) nightCheckIns++;
     }
   }
 
@@ -341,8 +503,7 @@ export function steerVisitorToHotel(
   } else {
     visitor.vx = 0;
     visitor.vy = 0;
-    // Rest — recover energy while lodging (scaled for multi-tick hours)
-    visitor.energy = Math.min(visitor.maxEnergy, visitor.energy + 0.8 * PER_TICK_RATE_SCALE);
+    restAtHotel(visitor);
   }
   return true;
 }
@@ -372,8 +533,8 @@ export function describeHotelStatus(
 ): string {
   if (!hotel.completed) return 'Under construction';
   if (hotel.occupants.length === 0) {
-    return `Assign Hoteliers — then up to ${HOTEL_GUEST_CAPACITY} visitors can rest here.`;
+    return `Assign Hoteliers — then up to ${HOTEL_GUEST_CAPACITY} guests can sleep here.`;
   }
   const n = guestCount(hotel, entities);
-  return `Staffed · ${n}/${HOTEL_GUEST_CAPACITY} guests · free lodging`;
+  return `Staffed · ${n}/${HOTEL_GUEST_CAPACITY} visitor guests · settlers sleep free at night`;
 }

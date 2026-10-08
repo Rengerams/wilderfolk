@@ -8,7 +8,8 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
 import { getHourOfDay } from './dayCycleClock';
-import { EVENING_START, isFestivalGatheringHour, prefersHomeTonight } from './dayCycle';
+import { EVENING_START, prefersHomeTonight } from './dayCycle';
+import { isFestivalGatherer } from './humanSchedule';
 import { getWorkSchedule, getWorkScheduleLabel, isOnWorkScheduleShift } from './workSchedule';
 import { findHumanWorkplace } from './workforce';
 import { humanBuildingTarget } from './simulation/humanMovement';
@@ -86,13 +87,15 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
 
   const hourOfDay = getHourOfDay(state.tick);
   const festivalActive = state.festival?.active;
-  if (isFestivalGatheringHour(hourOfDay, festivalActive) && entity.job !== JobType.Innkeeper) {
+  const workplace = findHumanWorkplace(entity, state.buildings);
+  const onWorkSchedule = workplace != null && isOnWorkScheduleShift(state, hourOfDay);
+  // The verdict is the simulation owner's, so the label cannot drift from what the settler does.
+  if (isFestivalGatherer(hourOfDay, festivalActive, onWorkSchedule, entity.job === JobType.Innkeeper)) {
     return 'Gathering at festival';
   }
 
   // Assigned workplace during the configured work shift.
-  const workplace = findHumanWorkplace(entity, state.buildings);
-  if (workplace && isOnWorkScheduleShift(state, hourOfDay)) {
+  if (workplace && onWorkSchedule) {
     const target = humanBuildingTarget(workplace, entity.id, false);
     const dist = Math.hypot(target.x - entity.x, target.y - entity.y);
     const label = labelFor(workplace);
@@ -105,7 +108,7 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
   const isEveningOuting = hourOfDay >= EVENING_START
     && hourOfDay < 23
     && !prefersHomeTonight(entity.id, state.tick, hourOfDay)
-    && !(workplace && isOnWorkScheduleShift(state, hourOfDay));
+    && !onWorkSchedule;
   if (isEveningOuting) return 'Socialising — evening outing';
 
   // Otherwise: use the building the human is standing near.

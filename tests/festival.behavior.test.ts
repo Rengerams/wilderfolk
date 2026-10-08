@@ -1,10 +1,6 @@
 /**
- * Festival behavior regression — BUG 2026-08-21-festival-participants-keep-working.
- *
- * A festival is not only an economic multiplier. During its daily gathering
- * window, the realtime human owner must redirect ordinary settlers from normal
- * weekday work to the communal venue. Worker assignments remain untouched and
- * resume automatically when the window ends.
+ * Festival behavior — owner ruling: settlers keep working during a festival, and the gathering
+ * window redirects the settlers who are free instead.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
@@ -74,13 +70,14 @@ function building(
   };
 }
 
-function makeState(festivalActive: boolean): { state: WorldState; worker: Entity } {
+function makeState(festivalActive: boolean): { state: WorldState; worker: Entity; idler: Entity } {
   const worker = human(1, { job: JobType.Farmer, homeBuildingId: 10 });
   const official = human(2, { x: 330, y: 210, job: JobType.Official, homeBuildingId: 20 });
+  const idler = human(3);
   const farm = building(10, BuildingType.Farm, 30, 40, [worker.id]);
   const hall = building(20, BuildingType.TownHall, 320, 190, [official.id]);
   const state: WorldState = {
-    entities: [worker, official],
+    entities: [worker, official, idler],
     buildings: [farm, hall],
     // gameTick increments before running realtime behavior: 44 -> 45 = 15:00.
     tick: 44,
@@ -143,23 +140,28 @@ function makeState(festivalActive: boolean): { state: WorldState; worker: Entity
     researchProgress: 0,
     festival: festivalActive ? { active: true, name: 'Test Festival', daysLeft: 3 } : null,
   } as unknown as WorldState;
-  return { state, worker };
+  return { state, worker, idler };
 }
 
 describe('festival participant behavior', () => {
-  it('redirects an ordinary weekday worker from the farm toward the staffed Town Hall at 15:00', () => {
+  it('keeps the assigned farmer on the farm at 15:00 and gathers the settler who is free', () => {
     const ordinary = makeState(false);
     const festival = makeState(true);
 
     const ordinaryAfter = gameTick(ordinary.state).entities.find((entity) => entity.id === ordinary.worker.id)!;
     const festivalAfter = gameTick(festival.state).entities.find((entity) => entity.id === festival.worker.id)!;
+    const idlerAfter = festival.state.entities.find((entity) => entity.id === festival.idler.id)!;
 
-    // Without a festival, the farm is left/down from the worker. During a
-    // festival, the staffed Town Hall is right/down and wins the movement choice.
+    // The farm is left of the worker: the festival does not take him off his shift, and the
+    // schedule owner credits the attendance.
     expect(ordinaryAfter.vx).toBeLessThan(0);
-    expect(festivalAfter.vx).toBeGreaterThan(0);
-    expect(festivalAfter.vy).toBeGreaterThan(0);
+    expect(festivalAfter.vx).toBeLessThan(0);
+    expect(festivalAfter.scheduleWorkedTicksToday ?? 0).toBeGreaterThan(0);
     expect(festivalAfter.homeBuildingId).toBe(10);
     expect(festival.state.buildings.find((entry) => entry.id === 10)?.occupants).toEqual([1]);
+
+    // The festival still gathers the settler with no shift: the staffed Town Hall is right/down.
+    expect(idlerAfter.vx).toBeGreaterThan(0);
+    expect(idlerAfter.vy).toBeGreaterThan(0);
   });
 });

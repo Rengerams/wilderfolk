@@ -306,9 +306,10 @@ describe('camp anchor inside the human loop (N-4)', () => {
     expect(getPlayerCampCenter(world, world.buildings)).toEqual(HALL_ANCHOR);
     expect(getPlayerCampCenterFromBuildings(world.buildings)).toEqual(HALL_ANCHOR);
 
-    // Pinned positions of the two entities whose motion is derived from that anchor.
-    expect({ x: raider.x, y: raider.y }).toEqual({ x: 637.7015384615385, y: 320 });
-    expect({ x: guard.x, y: guard.y }).toEqual({ x: 215.942082461274, y: 216.3637400361359 });
+    // Pinned positions of the two entities whose motion is derived from that anchor. Both numbers
+    // move only with the movement owner: the human walk speed and the workplace stand points.
+    expect({ x: raider.x, y: raider.y }).toEqual({ x: 635.0966153846153, y: 320 });
+    expect({ x: guard.x, y: guard.y }).toEqual({ x: 217.0097759173845, y: 217.9093120770899 });
 
     // The visitor is the third call site: its anchor read only feeds `nearVillage`, which scales the
     // chat chance rather than steering, so it is asserted to have survived the shared branch rather
@@ -333,16 +334,8 @@ describe('camp anchor inside the human loop (N-4)', () => {
     expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(0.5);
     expect(getPlayerCampCenter(world, world.buildings)).toEqual(after);
 
-    expect({ x: raider.x, y: raider.y }).toEqual({ x: 638.051197442481, y: 321.21864434335623 });
-    /**
-     * Recalibrated 2026-09-30, and only because an upstream destination moved: the workplace stand
-     * point (`humanMovement.humanBuildingTarget`) stopped adding half a footprint to a value that is
-     * already the building centre, and stopped dispersing workers by a 7-value hash of their id, so
-     * the barracks guard — one worker, whose post moved from `x + 15 + offset, y + 27.6` to
-     * `x, y + 25` — leaves its patrol with a marginally different velocity. The pin stays a pin; the
-     * invariant half above (`after` moves, the anchor follows the live average) is what this case is
-     * for and it is unchanged. Change these two numbers only together with the destination owner.
-     */
-    expect({ x: guard.x, y: guard.y }).toEqual({ x: 214.73298605455093, y: 216.63585140001643 });
+    // Pinned at the current human walk speed: these two numbers move only with the movement owner.
+    expect({ x: raider.x, y: raider.y }).toEqual({ x: 635.8425545439593, y: 322.59977459916 });
+    expect({ x: guard.x, y: guard.y }).toEqual({ x: 215.03337226662504, y: 218.53584251513274 });
   });
 });

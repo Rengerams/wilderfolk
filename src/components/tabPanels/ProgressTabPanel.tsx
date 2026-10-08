@@ -1,7 +1,7 @@
 import { Suspense, lazy, useMemo, useState } from 'react';
 import { ResearchType } from '../../game/gameTypes';
 import type { WorldState } from '../../game/gameEngine';
-import { canEstablishTradeRoute, hasCompletedMarket } from '../../game/tradeCaravans';
+import { canEstablishTradeRoute, hasCompletedMarket, summarizeTradeRouteBlocks } from '../../game/tradeCaravans';
 import { canStartResearch, getResearchBlockReason } from '../../game/research';
 import { computeVillagePortrait } from '../../game/villagePortrait';
 import { formatResourceAmounts } from '../../game/resourceTypes';
@@ -156,6 +156,8 @@ export default function ProgressTabPanel({
    * the sub-nav above still selects between the three groups.
    */
   const [openSubject, setOpenSubject] = useState<ProgressSubjectId | null>(null);
+  // The trade owner's village-level answer: counts per reason, not a second reading of its rule.
+  const tradeBlocks = summarizeTradeRouteBlocks(state);
   return (
     <div className="space-y-3">
       <div className="progress-subnav">
@@ -285,6 +287,12 @@ export default function ProgressTabPanel({
                 routes below are exempt, so a colony with gold can still buy wood, stone or food.
               </p>
             )}
+
+            {tradeBlocks.blocked.map((entry) => (
+              <p key={entry.reason} className="mb-2 text-[13px] text-amber-400">
+                ⚠️ {entry.count} route{entry.count === 1 ? '' : 's'} not open yet — {entry.reason}
+              </p>
+            ))}
 
             <div className="space-y-2">
               {state.tradeRoutes.map(route => {

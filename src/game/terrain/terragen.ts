@@ -11,6 +11,7 @@
  */
 import {
   MapPreset,
+  MapSize,
   PATH_CELL,
   TerrainType,
   type TerrainDecoration,
@@ -431,15 +432,8 @@ function carveRivers(
     return steps;
   };
 
-  /**
-   * Whether the chain from `from` actually **reaches water**.
-   *
-   * This is the check whose absence drew rivers that stop dead on dry land: the drainage network
-   * terminates at the map border, and the border is not automatically coast — a chain that walks off
-   * the edge onto elevated ground has not reached the sea, and painting it as a river is what left the
-   * channel ending in a field. So a candidate only counts when its chain ends in water: below sea
-   * level, or on the border with the water level that lets it leave the map.
-   */
+  /** Whether the chain from `from` lets out on the border below sea level — the only terminal that is sea.
+   *  The flood spills a lake over ground that can still stand above sea level, so a below-sea lake is not sea. */
   const reachesSea = (from: number): boolean => {
     let cell = from;
     for (let step = 0; step < cols * rows; step++) {
@@ -449,7 +443,6 @@ function carveRivers(
         const border = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
         return border && elevation[cell]! <= seaLevel + 0.02;
       }
-      if (Math.max(elevation[cell]!, seaLevel) <= seaLevel + 0.003) return true;
       cell = next;
     }
     return false;
@@ -761,6 +754,14 @@ function placeDecorations(
   return decorations;
 }
 
+/** Per-size terrain seed offset. The noise domain is a pure function of cell index, so one offset
+ *  per size makes each shipped size its own country instead of a crop of one landscape. */
+const SIZE_TERRAIN_SEED_OFFSET: Record<MapSize, number> = {
+  [MapSize.Medium]: 0,
+  [MapSize.Large]: 0x9e3779b9,
+  [MapSize.Huge]: 0x85ebca6b,
+};
+
 /* ===== Public API ===== */
 
 export function generateRawTerrain(
@@ -771,7 +772,7 @@ export function generateRawTerrain(
   preset: WorldMap['preset'],
 ): WorldMap {
   const s = PRESET_SETTINGS[preset];
-  const tseed = hashString(String(seed));
+  const tseed = (hashString(String(seed)) + SIZE_TERRAIN_SEED_OFFSET[size]) >>> 0;
 
   const tileW = Math.ceil(width / 10);
   const tileH = Math.ceil(height / 10);

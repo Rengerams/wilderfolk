@@ -150,6 +150,29 @@ export function snapshotSimRng(): SimRngSnapshot {
   return { seed: currentSeed, global: globalState ?? null, owners };
 }
 
+/** Worlds carrying a snapshot written by the realm that ticked them, not by the realm saving them. */
+const tickingRealmStampedWorlds = new WeakSet<object>();
+
+/** Stamp `world` with this realm's live positions at a boundary, marking them as that realm's own. */
+export function stampWorldSimRng(world: { simRng?: SimRngSnapshot }): SimRngSnapshot {
+  const snapshot = snapshotSimRng();
+  world.simRng = snapshot;
+  tickingRealmStampedWorlds.add(world as object);
+  return snapshot;
+}
+
+/** Accept a peer realm's `simRng` stamp on a world it exported, so a save trusts it over ours. */
+export function adoptWorldSimRngStamp(world: object): void {
+  tickingRealmStampedWorlds.add(world);
+}
+
+/** The snapshot that belongs to `world`: its own stamp when the ticking realm wrote one (worker
+ *  export), else this realm's registry — the ticking realm itself when no worker is in play. */
+export function worldSimRngSnapshot(world: { simRng?: SimRngSnapshot }): SimRngSnapshot {
+  if (tickingRealmStampedWorlds.has(world as object) && world.simRng) return world.simRng;
+  return snapshotSimRng();
+}
+
 /** Validate an untrusted snapshot (save files) into the shape `restoreSimRng` accepts. */
 export function parseSimRngSnapshot(value: unknown): SimRngSnapshot | null {
   if (!value || typeof value !== 'object') return null;

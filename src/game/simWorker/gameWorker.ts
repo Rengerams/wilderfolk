@@ -8,7 +8,7 @@ import {
   invalidateWorldRuntimeCaches,
   restoreSimulationState,
 } from '../worldRuntimeCaches';
-import { adoptSimSeedFromWorld, restoreSimRng } from '../simRng';
+import { adoptSimSeedFromWorld, restoreSimRng, stampWorldSimRng } from '../simRng';
 import { loadNames } from '../nameLoader';
 
 installDialogueBankPayload(canonicalDialogueBank);
@@ -239,6 +239,8 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const liveSimulationState = captureSimulationState(world);
         invalidateWorldRuntimeCaches(world);
         const clonedWorld = structuredClone(world);
+        // The clone carries the ticked realm's own positions; its hand-off stamp predates every tick.
+        stampWorldSimRng(clonedWorld);
         hydrateWorldRuntimeCaches(world);
         restoreSimulationState(world, liveSimulationState);
 

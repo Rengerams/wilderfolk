@@ -68,11 +68,13 @@ function distanceWhereHoursReach(targetHours: number, speed: number): number {
 
 describe('a post beyond a two-hour walk is not offered', () => {
   it('judges the walk the settler actually makes, including the commute rush', () => {
-    // The scheduler's estimate and the walk agree only if the estimate carries the same rush.
-    const oneHourOfRushing = WALK_SPEED * WORK_COMMUTE_RUSH * 3 * 0.88;
-    expect(commuteLeadHoursFor(oneHourOfRushing, WALK_SPEED)).toBeLessThan(2);
-    // Without the rush the same distance reads far longer, which is the defect this pins.
-    expect(commuteLeadHoursFor(oneHourOfRushing, WALK_SPEED / WORK_COMMUTE_RUSH)).toBeGreaterThan(2);
+    // The scheduler's estimate carries the same rush the walk does: at 60% of the distance the
+    // two-hour walk reaches it fits the rule, and stripped of the rush the same walk does not.
+    const insideTheRule = distanceWhereHoursReach(MAX_ASSIGNABLE_COMMUTE_HOURS, WALK_SPEED) * 0.6;
+    expect(commuteLeadHoursFor(insideTheRule, WALK_SPEED)).toBeLessThan(MAX_ASSIGNABLE_COMMUTE_HOURS);
+    expect(commuteLeadHoursFor(insideTheRule, WALK_SPEED / WORK_COMMUTE_RUSH)).toBeGreaterThan(
+      MAX_ASSIGNABLE_COMMUTE_HOURS,
+    );
   });
 
   it('accepts a house beside the workplace and refuses one across the map', () => {

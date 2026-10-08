@@ -2,7 +2,21 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
-- **Enlarged the three map sizes to the renderer's full spec** — Medium 2560×1920, Large 4096×3072, Huge 6144×4608 world pixels; settlers walk about twice as fast so a commute still takes the hours it did, and the rules that assumed smaller maps were re-derived.
+- **Made the ground re-bake at the zoom you are looking at** — a chunk now re-bakes in place when the zoom crosses a step, at most one chunk per frame, so a zoomed-out overview resolves at half resolution instead of sharpening every chunk at full detail; the enlarged maps stay smooth.
+
+- **Let settlers sleep at a hotel when home is too far** — a settler whose walk home would outlast the hours before their sleep hour now lodges at the nearest completed hotel instead of crossing the map; the eight beds are shared with paying guests and the cap is never exceeded.
+
+- **Raised a hotel's sleeping capacity from four to eight** — the staffed hotel's beds are one pool, shared by paying visitor guests and by settlers lodging overnight.
+
+- **Kept the night prison guard on his post, and let settlers work through a festival** — a pre-dawn trip home teleported the rostered night guard off his post, so those hours counted unguarded; and a festival suspended everyone's work, where it now gathers only settlers who are off shift.
+
+- **Made a feud's end announced** — a feud could be announced as brewing and then fade with no word, because the start line and the end line used different bars; both use the same one now, and a feud ended by a death is left to the death line.
+
+- **Made a reload continue the same colony** — a save taken while the simulation ran in its worker recorded the main thread's random streams instead of the colony's, so a reload did not carry on the same deterministic sequence; the snapshot now travels with the saved world.
+
+- **Made rivers reach the sea on the big maps** — a river could let out into a lake whose own channel climbs back over land, so the channel ended in a basin; an outlet now has to drain to a below-sea border cell, which holds at every map size and land type.
+
+- **Enlarged the three map sizes to the renderer's full spec** — Medium 2560×1920, Large 4096×3072, Huge 6144×4608; settlers walk twice as fast so a commute still takes the hours it did, the smaller-map assumptions were re-derived, and a big-map colony saves to a file instead of the in-game slot.
 
 - **Made a building's hover highlight appear at once, and while paused** — the highlight left the entity layer's cache key when that layer was memoised, so the ring only redrew on the next tick; it is painted per frame now, beside the placement ghost.
 

@@ -73,6 +73,19 @@ export function isFestivalGatheringHour(hour: number, festivalActive?: boolean):
   return festivalActive === true && hour >= FESTIVAL_GATHER_START && hour < FESTIVAL_GATHER_END;
 }
 
+/**
+ * A settler joins the festival gathering only when the window is open and he has no shift to be on:
+ * work wins over revelry (owner: "during festival they should also work").
+ */
+export function isFestivalGatherer(
+  hour: number,
+  festivalActive: boolean | undefined,
+  onShift: boolean,
+  isInnkeeper: boolean,
+): boolean {
+  return isFestivalGatheringHour(hour, festivalActive) && !isInnkeeper && !onShift;
+}
+
 export function isOnInnkeeperShift(tick: number, hour?: number, festivalActive?: boolean): boolean {
   const currentHour = hour ?? getHourOfDay(tick);
   return isTavernOpen(currentHour, festivalActive);

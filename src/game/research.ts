@@ -6,6 +6,7 @@ import { addReputation, getMultiplier } from './simHelpers';
 import { getEducationResearchMultiplier } from './education';
 import { isPlayerHuman } from './playerHuman';
 import { PER_TICK_RATE_SCALE } from './dayCycle';
+import { WILDLIFE_LAYER_INTERVAL } from './simFocus';
 
 const RESEARCH_TAB_LABELS: Record<ResearchType, string> = {
   [ResearchType.Agriculture]: 'Agriculture',
@@ -183,6 +184,7 @@ export function updateResearch(state: WorldState) {
     state.entities.filter((e) => e.alive && isPlayerHuman(e)),
   );
   const speedMult = getMultiplier(state, 'research_speed') * educatedMult;
-  // Systems layer fires more often at higher day resolution — use dayCycle scale only
-  grantResearchProgress(state, speedMult * PER_TICK_RATE_SCALE);
+  // Systems layer pulses every WILDLIFE_LAYER_INTERVAL ticks (LAYER_SYSTEMS_INTERVAL derives from it),
+  // so the per-tick rate is scaled by that step — the same step `tickWildlife` applies to its rates.
+  grantResearchProgress(state, speedMult * PER_TICK_RATE_SCALE * WILDLIFE_LAYER_INTERVAL);
 }

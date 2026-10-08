@@ -32,9 +32,9 @@ function isMigratedHerdDeer(e: Entity, herdYear: number): boolean {
   return e.type === EntityType.Deer && e.migrationTag === herdYear;
 }
 
-/** How far inland a herd deer may be nudged to find passable ground. */
+/** How far inland a herd deer may be nudged to find passable ground, as a share of the map's short side. */
 const HERD_SPAWN_NUDGE_STEP = 12;
-const HERD_SPAWN_MAX_NUDGE = 300;
+const HERD_SPAWN_NUDGE_MAP_SHARE = 0.5;
 
 /**
  * Nearest passable point to a herd's edge arrival point: the nominal point
@@ -50,7 +50,9 @@ function findPassableHerdSpawn(
   inwardX: number,
   inwardY: number,
 ): { x: number; y: number } | null {
-  for (let dist = 0; dist <= HERD_SPAWN_MAX_NUDGE; dist += HERD_SPAWN_NUDGE_STEP) {
+  // The strip widens with the map: a fixed reach left every coastal edge dry of deer at the spec sizes.
+  const maxNudge = Math.min(state.width, state.height) * HERD_SPAWN_NUDGE_MAP_SHARE;
+  for (let dist = 0; dist <= maxNudge; dist += HERD_SPAWN_NUDGE_STEP) {
     const px = x + inwardX * dist;
     const py = y + inwardY * dist;
     if (isPassableWildlifePosition(state, px, py, 8)) return { x: px, y: py };

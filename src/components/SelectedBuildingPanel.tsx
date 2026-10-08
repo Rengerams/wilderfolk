@@ -381,6 +381,7 @@ export default function SelectedBuildingPanel({
                 : (raidEligibility.blockReason ?? 'Cannot raid')}
             >
               🏹 {outgoingRaidAction?.buttonLabel ?? 'Raid their camp'} ({raidFoodCost}🍖)
+              {!canLaunchRaid ? refusal(raidEligibility) : ''}
             </button>
           </div>
         )}
@@ -702,6 +703,7 @@ export default function SelectedBuildingPanel({
               const fest = canHostTownFestival(state, building);
               const cooldownLeft = daysUntilTick(state.tick, state.townHallFestivalCooldownUntilTick ?? 0);
               return (
+                <>
                 <button
                   type="button"
                   disabled={!fest.ok}
@@ -712,6 +714,11 @@ export default function SelectedBuildingPanel({
                   🎉 Host town festival ({TOWN_HALL_FESTIVAL_DAYS}d)
                   {!fest.ok && cooldownLeft > 0 ? ` — ${cooldownLeft}d cooldown` : ''}
                 </button>
+                {/* The festival owner's refusal as text — a disabled button's title is unreachable. */}
+                {!fest.ok && fest.reason && (
+                  <p className="text-[11px] text-amber-400">⚠️ {fest.reason}</p>
+                )}
+                </>
               );
             })()}
           </div>

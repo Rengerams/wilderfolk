@@ -21,6 +21,21 @@ export const FORGE_BONUSES = {
   towerBallistaTotalPerTower: 27,
 } as const;
 
+/** Forge progress is applied once per workshop production tick, and that tick is two days. */
+export const FORGE_PACE_INTERVAL_TICKS = PRODUCTION_INTERVAL.workshop;
+
+/** Progress points a smith delivers per forge tick — read at the two-day cadence above, not per tick. */
+export const FORGE_PROGRESS_PER_TWO_DAY_TICK: Readonly<Record<ForgeOrderId, number>> = Object.freeze({
+  iron_spears: 34,
+  iron_shields: 34,
+  iron_pickaxes: 32,
+  guard_halberds: 30,
+  wall_plates: 30,
+  iron_swords: 28,
+  scale_mail: 28,
+  tower_ballistae: 26,
+});
+
 /** Display + forge priority: basic iron → utility → drill/walls → tier-5 war gear. */
 export const FORGE_ORDERS: ForgeOrder[] = [
   {
@@ -30,7 +45,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     description: 'Village-wide iron spears — longer hunts, fight back vs wolves, unlock militia raids.',
     techId: COMBAT_TECH.ironSpears,
     inputs: { wood: 25, stone: 20, gold: 15, iron: 15 },
-    progressPerTick: 34,
+    progressPerTick: FORGE_PROGRESS_PER_TWO_DAY_TICK.iron_spears,
   },
   {
     id: 'iron_shields',
@@ -39,7 +54,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     description: 'Heavy shields for all settlers — strong predator blocks and raid armor baseline.',
     techId: COMBAT_TECH.ironShields,
     inputs: { wood: 30, stone: 25, gold: 15, iron: 15 },
-    progressPerTick: 34,
+    progressPerTick: FORGE_PROGRESS_PER_TWO_DAY_TICK.iron_shields,
   },
   {
     id: 'iron_pickaxes',
@@ -48,7 +63,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     description: `Quarries produce ${Math.round((FORGE_BONUSES.quarryYieldMult - 1) * 100)}% more stone while staffed.`,
     techId: 'mining_2',
     inputs: { wood: 25, stone: 30, gold: 15, iron: 10 },
-    progressPerTick: 32,
+    progressPerTick: FORGE_PROGRESS_PER_TWO_DAY_TICK.iron_pickaxes,
   },
   {
     id: 'guard_halberds',
@@ -58,7 +73,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     techId: COMBAT_TECH.militiaDrill,
     requiresForge: ['iron_spears'],
     inputs: { wood: 30, stone: 25, gold: 15, iron: 25 },
-    progressPerTick: 30,
+    progressPerTick: FORGE_PROGRESS_PER_TWO_DAY_TICK.guard_halberds,
   },
   {
     id: 'wall_plates',
@@ -68,7 +83,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     techId: COMBAT_TECH.reinforcedMasonry,
     requiresForge: ['iron_shields'],
     inputs: { wood: 30, stone: 40, gold: 15, iron: 20 },
-    progressPerTick: 30,
+    progressPerTick: FORGE_PROGRESS_PER_TWO_DAY_TICK.wall_plates,
   },
   {
     id: 'iron_swords',
@@ -78,7 +93,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     techId: COMBAT_TECH.ironSwords,
     requiresForge: ['iron_spears'],
     inputs: { wood: 30, stone: 25, gold: 15, iron: 30 },
-    progressPerTick: 28,
+    progressPerTick: FORGE_PROGRESS_PER_TWO_DAY_TICK.iron_swords,
   },
   {
     id: 'scale_mail',
@@ -88,7 +103,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     techId: COMBAT_TECH.scaleMail,
     requiresForge: ['iron_shields'],
     inputs: { wood: 20, stone: 35, gold: 15, iron: 30 },
-    progressPerTick: 28,
+    progressPerTick: FORGE_PROGRESS_PER_TWO_DAY_TICK.scale_mail,
   },
   {
     id: 'tower_ballistae',
@@ -98,7 +113,7 @@ export const FORGE_ORDERS: ForgeOrder[] = [
     techId: COMBAT_TECH.bastionTowers,
     requiresForge: ['wall_plates'],
     inputs: { wood: 35, stone: 45, gold: 20, iron: 40 },
-    progressPerTick: 26,
+    progressPerTick: FORGE_PROGRESS_PER_TWO_DAY_TICK.tower_ballistae,
   },
 ];
 
@@ -316,7 +331,7 @@ export function tickVillageForge(state: WorldState, buildings: Building[]): void
   );
   if (!smith) return;
 
-  if (!isProductionTick(state.tick, PRODUCTION_INTERVAL.workshop)) return;
+  if (!isProductionTick(state.tick, FORGE_PACE_INTERVAL_TICKS)) return;
 
   // Extra staffed smiths speed the run (soft cap so 2–3 workers feel better than 1).
   const crew = Math.max(1, Math.min(3, smith.occupants?.length ?? 1));

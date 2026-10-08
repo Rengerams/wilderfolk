@@ -297,7 +297,7 @@ export default function GameMenu({
                 <MenuAction
                   icon="💾"
                   label="Save game"
-                  hint="Browser slot only (can be wiped)"
+                  hint="Browser slot — a valley too big for it saves as a file"
                   onClick={() => { onSave(); close(); }}
                 />
                 <MenuAction

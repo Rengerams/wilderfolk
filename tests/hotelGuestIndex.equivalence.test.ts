@@ -27,7 +27,7 @@
  * another hotel's list, and the mutation is idempotent.
  */
 import { describe, expect, it } from 'vitest';
-import { BuildingType, EntityType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, HOTEL_GUEST_CAPACITY } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
@@ -276,18 +276,21 @@ describe('the indexed lookups answer what the entity scans answered', () => {
   });
 
   it('a guest missing from the id map still counts — the fallback the index depends on', () => {
+    // Full at the owner's own capacity, whatever it is: the point is where the count comes from,
+    // not the number of beds.
+    const guestIds = Array.from({ length: HOTEL_GUEST_CAPACITY }, (_, index) => 30 + index);
     const full = initGame();
-    const guests = [30, 31, 32, 33].map((id) => visitorEntity(id, { hotelStayBuildingId: HOTEL_A }));
+    const guests = guestIds.map((id) => visitorEntity(id, { hotelStayBuildingId: HOTEL_A }));
     full.entities = guests;
-    full.buildings = [hotel(HOTEL_A, { occupants: [999], hotelGuestIds: [30, 31, 32, 33] })];
+    full.buildings = [hotel(HOTEL_A, { occupants: [999], hotelGuestIds: [...guestIds] })];
     invalidateEntityByIdMap(full);
 
     const byId = ensureEntityByIdMap(full);
     expect(hotelHasVacancy(full.buildings[0], full.entities, byId)).toBe(false);
 
     // Simulate a spawn that reached `state.entities` without being indexed: the map is now missing a
-    // live guest. Counting from the map alone would read 3/4 and report a vacancy that does not exist.
-    byId.delete(33);
+    // live guest. Counting from the map alone would read one short and report a vacancy that is not there.
+    byId.delete(guestIds[guestIds.length - 1]);
     expect(hotelHasVacancy(full.buildings[0], full.entities, byId)).toBe(false);
   });
 });

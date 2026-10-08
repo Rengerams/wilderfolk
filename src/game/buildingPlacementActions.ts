@@ -25,6 +25,7 @@ import {
   overlapsAnyBuilding,
 } from './placementUtils';
 import { patchTile, rebakeTerrainGrids, tileAt } from './terrain/terrainGrid';
+import { logEvent } from './eventLog';
 
 // The unbuildable-terrain rule has one owner: `terrain/terrainTraits.isUnbuildableTerrainType`
 // (it sits in a leaf module so `terrainGrid` can read it without importing `placementUtils` back).
@@ -209,6 +210,7 @@ export function startBuilding(
     '#22c55e',
     'brief',
   );
+  logEvent(state, 'building', `${config.label} placed`);
   impulseScreenShake(state, 2);
   return state;
 }

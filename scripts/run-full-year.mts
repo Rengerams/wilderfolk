@@ -18,24 +18,32 @@
  *   npx tsx scripts/run-full-year.mts --years=2
  *   npx tsx scripts/run-full-year.mts --scenario=producers --days=100
  *   npx tsx scripts/run-full-year.mts --scenario=producers --days=100 --verbose
+ *   npx tsx scripts/run-full-year.mts --scenario=producers --days=720 --bot
  *
  * Options:
  *   --years=N       1..10 (default 1); ignored when --days is given
  *   --days=N        explicit length, 1..3600; the P1 scenario command uses --days=100
  *   --scenario=     restocked | producers (default restocked)
  *   --seed=N        world/colony seed (default 12345); review a run by seed and checkpoint
+ *   --bot           drive the colony with the virtual player instead of ticking it passively
  *   --verbose       print the full per-checkpoint health record to stdout (default: one summary line)
+ *
+ * `--bot` runs the auto-play ladder on its own cadence (`shouldVirtualPlayerAct`) through the command
+ * door the game uses. Every run writes the final `eventLog` beside its JSONL record, for tracing.
  *
  * Normal mode is deliberately bounded: one line per checkpoint on stdout, with the complete record
  * written to the JSONL log. Nothing here changes a simulation rule; see `scripts/colonyHealth.ts`.
  */
-import { appendFileSync, mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gameTick } from '../src/game/gameEngine';
-import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { DAYS_PER_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { EntityType, MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
+import { applyWorkerCommand } from '../src/game/simWorker/commands';
+import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
+import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { getResidenceCapacity, isResidenceBuilding } from '../src/game/residencyOccupancy';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -55,15 +63,19 @@ import {
   PACING_TICK_BUDGET_MS,
   SCENARIOS,
   SERIALIZATION_SPIKE_MS,
+  assessColonyStall,
+  assertColonyNotStalled,
   captureConsoleVolume,
   collectInvariantErrors,
   countRelationships,
   createColonyObserver,
+  formatColonyStallVerdict,
   isScenarioName,
   prepareColonyWorld,
   sampleDelta,
   summarizeLivingPopulation,
   type ColonyHealthReport,
+  type ColonyStallVerdict,
   type ScenarioName,
 } from './colonyHealth';
 
@@ -89,6 +101,8 @@ interface RunOptions {
   days: number;
   seed: number;
   verbose: boolean;
+  /** True when the virtual player drives the run; false leaves the world ticking passively. */
+  bot: boolean;
 }
 
 function readPositiveIntegerOption(args: readonly string[], name: string): number | null {
@@ -127,7 +141,13 @@ function readRunOptions(args: readonly string[]): RunOptions {
     throw new Error(`The scenario length must be between 1 and ${MAX_DAYS} days.`);
   }
 
-  return { scenario: scenarioValue, days: totalDays, seed, verbose: args.includes('--verbose') };
+  return {
+    scenario: scenarioValue,
+    days: totalDays,
+    seed,
+    verbose: args.includes('--verbose'),
+    bot: args.includes('--bot'),
+  };
 }
 
 const options = readRunOptions(process.argv.slice(2));
@@ -145,6 +165,10 @@ interface RunCounters {
   invariantViolations: number;
   /** Always 0 here: this scenario never exercises the worker transport (P2 measures it). */
   workerFallbacks: number;
+  /** Bot acts applied through the command door, and the in-game hours the bot found nothing to do. */
+  botActs: number;
+  botIdleHours: number;
+  botByOp: Record<string, number>;
 }
 
 const counters: RunCounters = {
@@ -152,7 +176,13 @@ const counters: RunCounters = {
   serializationSpikes: 0,
   invariantViolations: 0,
   workerFallbacks: 0,
+  botActs: 0,
+  botIdleHours: 0,
+  botByOp: {},
 };
+
+/** The world the running attempt owns, so a failure still leaves its event-log trace on disk. */
+let activeWorld: WorldState | null = null;
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -243,17 +273,20 @@ function sumDiagnostics(
  * One bounded stdout line per checkpoint, so normal mode never floods a terminal, while the full
  * health record goes to the JSONL log (and to stdout with --verbose).
  */
-function checkpointSummary(health: ColonyHealthReport, world: WorldState): string {
+function checkpointSummary(health: ColonyHealthReport, world: WorldState, stall: ColonyStallVerdict): string {
   return [
     `[colony] day ${health.day}`,
     `tick ${health.tick}`,
     `scenario=${options.scenario}`,
+    `bot=${options.bot}`,
+    `botActs=${counters.botActs}`,
     `restocks=${SCENARIOS[options.scenario].restocksAtCheckpoint}`,
     `settlers=${livingSettlers(world)}`,
     `food=${health.food.stored}/${health.food.storageMax}`,
     `producedToday=${health.food.producedToday}`,
     `consumedToday=${health.food.consumedToday}`,
     `beds=${health.housing.occupiedBeds}/${health.housing.totalBeds}`,
+    `homeless=${health.housing.homelessPlayerHumans}`,
     `working=${health.workforce.working}`,
     `idle=${health.workforce.idle}`,
     `unstaffed=${health.workforce.unstaffedJobBuildings}`,
@@ -267,6 +300,7 @@ function checkpointSummary(health: ColonyHealthReport, world: WorldState): strin
     `tamed=${health.animals.tamed}`,
     `deltaBytes=${health.deltas.v8Bytes}`,
     `invariants=${health.invariants.violations}`,
+    `colony=${formatColonyStallVerdict(stall)}`,
   ].join(' ');
 }
 
@@ -274,7 +308,13 @@ function livingSettlers(world: WorldState): number {
   return world.entities.filter((entity) => entity.alive && entity.type === EntityType.Human).length;
 }
 
-function writeCheckpoint(day: number, world: WorldState, startedAt: number, health: ColonyHealthReport): void {
+function writeCheckpoint(
+  day: number,
+  world: WorldState,
+  startedAt: number,
+  health: ColonyHealthReport,
+  stall: ColonyStallVerdict,
+): void {
   writeLog(
     {
       kind: 'full-year-checkpoint',
@@ -290,9 +330,61 @@ function writeCheckpoint(day: number, world: WorldState, startedAt: number, heal
       wood: Math.round(world.resources.wood ?? 0),
       relationships: countRelationships(world),
       health,
+      stall,
     },
-    options.verbose ? undefined : checkpointSummary(health, world),
+    options.verbose ? undefined : checkpointSummary(health, world, stall),
   );
+}
+
+/**
+ * One bot act through the command door `GameLoop` uses. A cloning owner (venue schedules, trade
+ * routes) returns a new world object, so the clone is copied back into the object the observer holds.
+ */
+function applyBotDecision(world: WorldState): void {
+  const decision = decideVirtualPlayerAction(world);
+  if (!decision) {
+    counters.botIdleHours += 1;
+    return;
+  }
+  counters.botActs += 1;
+  counters.botByOp[decision.command.op] = (counters.botByOp[decision.command.op] ?? 0) + 1;
+
+  const applied = applyWorkerCommand(world, decision.command);
+  if (applied === world) return;
+  const target = world as unknown as Record<string, unknown>;
+  const source = applied as unknown as Record<string, unknown>;
+  for (const key of Object.keys(target)) {
+    if (!(key in source)) delete target[key];
+  }
+  Object.assign(target, source);
+}
+
+/** The world's own `eventLog`, unfiltered, one entry per line in the order the world holds it. */
+function writeEventLogTrace(world: WorldState): { path: string; entries: number; bytes: number } {
+  const tracePath = resolve(
+    logDirectory,
+    `event-log-${options.scenario}-seed${options.seed}-${TOTAL_DAYS}d-${runId}.jsonl`,
+  );
+  const traceText = world.eventLog.map((entry) => JSON.stringify(entry)).join('\n');
+  const fileText = traceText.length > 0 ? `${traceText}\n` : '';
+  writeFileSync(tracePath, fileText, 'utf8');
+  const bytes = Buffer.byteLength(fileText, 'utf8');
+  writeLog(
+    {
+      kind: 'full-year-event-log-trace',
+      scenario: options.scenario,
+      seed: options.seed,
+      days: TOTAL_DAYS,
+      path: tracePath,
+      entries: world.eventLog.length,
+      bytes,
+      order: 'newest-first, exactly as WorldState.eventLog holds it',
+      newestId: world.eventLog[0]?.id ?? null,
+      oldestId: world.eventLog[world.eventLog.length - 1]?.id ?? null,
+    },
+    `[colony] event log trace ${relative(projectRoot, tracePath)} entries=${world.eventLog.length} bytes=${bytes}`,
+  );
+  return { path: tracePath, entries: world.eventLog.length, bytes };
 }
 
 function run(): void {
@@ -303,12 +395,18 @@ function run(): void {
   // Console volume is measured, never hidden: every call is still forwarded to the real console.
   const consoleCapture = captureConsoleVolume();
 
-  const { world, startTick, startYear, restocksAtCheckpoint, settlement } = prepareColonyWorld({
+  const prepared = prepareColonyWorld({
     size: MapSize.Medium,
     seed: options.seed,
     scenario: options.scenario,
   });
+  const world = prepared.world;
+  activeWorld = world;
+  const { startTick, startYear, restocksAtCheckpoint, settlement } = prepared;
   const observer = createColonyObserver(world);
+  const initialBuildingIds = new Set(world.buildings.map((building) => building.id));
+  const healthObserved: ColonyHealthReport[] = [];
+  let lastBotActedTick: number | null = null;
   const checkpoints = new Set(
     Array.from(
       { length: Math.ceil(TOTAL_DAYS / CHECKPOINT_INTERVAL_DAYS) },
@@ -340,6 +438,16 @@ function run(): void {
     const tickStartedAt = performance.now();
     gameTick(world);
     if (performance.now() - tickStartedAt > PACING_TICK_BUDGET_MS) counters.stalledTicks += 1;
+
+    // The bot's own cadence rule, read from the hook that drives it in the game rather than copied.
+    if (
+      options.bot
+      && shouldVirtualPlayerAct(true, { paused: world.paused, tick: world.tick }, lastBotActedTick)
+    ) {
+      lastBotActedTick = world.tick;
+      applyBotDecision(world);
+    }
+
     if (!checkpoints.has(tick)) continue;
 
     if (restocksAtCheckpoint) {
@@ -364,8 +472,20 @@ function run(): void {
     const deltas = sampleDelta(world);
     if (deltas.serializeMs > SERIALIZATION_SPIKE_MS) counters.serializationSpikes += 1;
     const health = observer.observe(day, deltas, invariantErrors);
-    writeCheckpoint(day, world, startedAt, health);
+    healthObserved.push(health);
+    // Evaluated from the observations so far, so a stalled colony is named at the checkpoint it
+    // first reads as stalled rather than only at the end of the run.
+    const provisional = assessColonyStall({
+      world,
+      snapshots: healthObserved,
+      final: health,
+      newBuildingsAtEnd: world.buildings.filter((building) => !initialBuildingIds.has(building.id)).length,
+    });
+    writeCheckpoint(day, world, startedAt, health, provisional);
   }
+
+  // Written before any assertion below: a run that breaks still leaves its trace on disk.
+  const trace = writeEventLogTrace(world);
 
   assert(world.tick === startTick + TOTAL_TICKS, 'calendar tick did not advance by the requested duration');
   assert(
@@ -419,6 +539,29 @@ function run(): void {
   const consoleVolume = consoleCapture.volume();
   consoleCapture.restore();
 
+  // Buildings that did not stand at day 0. The bot is the only command issuer in this run, so a new
+  // player-owned building is one the bot raised; rival keeps count separately.
+  const raisedBuildings = world.buildings.filter((building) => !initialBuildingIds.has(building.id));
+  const raisedByType: Record<string, number> = {};
+  const standingByType: Record<string, number> = {};
+  for (const building of world.buildings) {
+    const label = BUILDING_CONFIGS[building.type].label;
+    standingByType[label] = (standingByType[label] ?? 0) + 1;
+  }
+  for (const building of raisedBuildings) {
+    const label = BUILDING_CONFIGS[building.type].label;
+    raisedByType[label] = (raisedByType[label] ?? 0) + 1;
+  }
+
+  // Non-vacuity: invariants and housing consistency can both hold while the colony has stopped
+  // responding to its own demand. The verdict is a distinct outcome, not a softened failure.
+  const stall = assessColonyStall({
+    world,
+    snapshots: healthObserved,
+    final: finalHealth,
+    newBuildingsAtEnd: raisedBuildings.filter((building) => building.faction !== 'rival').length,
+  });
+
   writeLog({
     kind: 'full-year-complete',
     scenario: options.scenario,
@@ -428,6 +571,22 @@ function run(): void {
     days: TOTAL_DAYS,
     ticks: TOTAL_TICKS,
     settlement,
+    bot: {
+      enabled: options.bot,
+      cadenceTicksPerHour: TICKS_PER_HOUR,
+      acts: counters.botActs,
+      idleHours: counters.botIdleHours,
+      byOp: counters.botByOp,
+    },
+    eventLogTrace: {
+      ...trace,
+      relativePath: relative(projectRoot, trace.path),
+      order: 'newest-first, exactly as WorldState.eventLog holds it',
+      newestId: world.eventLog[0]?.id ?? null,
+      oldestId: world.eventLog[world.eventLog.length - 1]?.id ?? null,
+      /** Event ids are contiguous per process, so the shortfall against them is what the cap dropped. */
+      droppedByLogCap: Math.max(0, (world.eventLog[0]?.id ?? 0) - world.eventLog.length),
+    },
     counters: {
       ...counters,
       workerFallbacksSource: 'main-thread scenario: the worker transport is not exercised here (P2 measures it)',
@@ -437,6 +596,44 @@ function run(): void {
     },
     console: consoleVolume,
     health: finalHealth,
+    stall,
+    build: {
+      standingAtEnd: world.buildings.length,
+      standingByType,
+      raisedSinceDayZero: raisedBuildings.length,
+      raisedByType,
+      raisedRivalOwned: raisedBuildings.filter((building) => building.faction === 'rival').length,
+    },
+    finalState: {
+      resources: {
+        food: Math.round(world.resources.food ?? 0),
+        wood: Math.round(world.resources.wood ?? 0),
+        stone: Math.round(world.resources.stone ?? 0),
+        iron: Math.round(world.resources.iron ?? 0),
+        gold: Math.round(world.resources.gold ?? 0),
+      },
+      storageMax: world.storageMax,
+      foodSpoilageRatePerDay: world.foodSpoilageRate,
+      research: {
+        researched: world.researchNodes.filter((node) => node.researched).length,
+        total: world.researchNodes.length,
+        activeResearch: world.activeResearch,
+        researchProgress: Math.round(world.researchProgress),
+        unlockedTechs: world.unlockedTechs.length,
+      },
+      tradeRoutes: {
+        total: world.tradeRoutes.length,
+        active: world.tradeRoutes.filter((route) => route.active).length,
+      },
+      visitorKinds: world.visitorGroups.map((group) => group.kind),
+      festival: world.festival,
+      villageLeaderId: world.villageLeaderId,
+      lastElectionYear: world.lastElectionYear,
+      pendingElectionYear: world.pendingElectionYear,
+      activeMigration: world.activeMigration ?? null,
+      totalBuildingsCompleted: world.totalBuildingsCompleted,
+      lifetimeStats: world.lifetimeStats,
+    },
     outcome: {
       population: {
         ...summarizeLivingPopulation(world),
@@ -458,6 +655,13 @@ function run(): void {
       relationshipDiagnosticDays: snapshots.length,
     },
   });
+
+  process.stdout.write(
+    `[colony] outcome scenario=${options.scenario} days=${TOTAL_DAYS} colony=${formatColonyStallVerdict(stall)}`
+      + ` settlers=${livingSettlers(world)} buildings=${world.buildings.length} raised=${raisedBuildings.length}`
+      + (stall.stalled ? ` reasons=${stall.reasons.join(',')}\n[colony] stall ${stall.evidence.join(' | ')}\n` : '\n'),
+  );
+  assertColonyNotStalled(stall, `the ${TOTAL_DAYS}-day ${options.scenario} run`);
 }
 
 mkdirSync(logDirectory, { recursive: true });
@@ -466,6 +670,7 @@ try {
 } catch (error) {
   const message = error instanceof Error ? error.stack ?? error.message : String(error);
   writeLog({ kind: 'full-year-failed', scenario: options.scenario, seed: options.seed, message });
+  if (activeWorld) writeEventLogTrace(activeWorld);
   process.exitCode = 1;
 } finally {
   resetRelationshipDiagnostics();

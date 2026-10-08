@@ -20,7 +20,7 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { createSimFocus } from '../src/game/simFocus';
 import { getWorkSchedule, isOnWorkCommuteHours } from '../src/game/workSchedule';
-import { TICKS_PER_DAY, TICKS_PER_HOUR, getWeekday } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, getWeekday } from '../src/game/dayCycleClock';
 
 function workplace(state: WorldState, x: number, y: number): Building {
   const b = {
@@ -60,9 +60,12 @@ describe('work-commute departure window', () => {
     const commuteHour = schedule.startHour - 1;
     expect(isOnWorkCommuteHours(schedule, commuteHour)).toBe(true);
 
-    state.tick = tickAtHourOnWorkDay(state, commuteHour);
+    // From the top of the lead hour, so the window spans several ticks rather than one.
+    state.tick = tickAtHourOnWorkDay(state, commuteHour) - 1;
     const before = Math.hypot(stand.x - person.x, stand.y - person.y);
-    gameTick(state, createSimFocus(state));
+
+    // Blocked ground makes the first tick a detour, so the gap is measured across the whole window.
+    while (getHourOfDay(state.tick) < schedule.startHour) gameTick(state, createSimFocus(state));
 
     expect(Math.hypot(stand.x - person.x, stand.y - person.y)).toBeLessThan(before);
   });

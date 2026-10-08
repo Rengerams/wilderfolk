@@ -7,7 +7,7 @@ import {
   useState,
   type RefObject,
 } from 'react';
-import { saveGame } from '../game/gameEngine';
+import { saveGame, saveGameToSlot, describeFileSaveReason } from '../game/gameEngine';
 import type { WorldState } from '../game/gameEngine';
 import { downloadChronicleLog, loadExportChronicleOnSave } from '../game/eventLogExport';
 import { GameLoop } from '../game/gameLoop';
@@ -16,6 +16,13 @@ import type { ViewState } from '../game/viewState';
 /** Auto-save cadence, in milliseconds. The game menu's copy renders this (`AUTO_SAVE_INTERVAL_MS / 1000`). */
 export const AUTO_SAVE_INTERVAL_MS = 30_000;
 const AUTO_SAVE_FAILURE_MESSAGE = 'Auto-save failed — try manual save from the menu';
+
+/**
+ * A colony only the file path can hold: the cadence save stands down for it, and says so once
+ * rather than every interval. Reset as soon as a cadence save reaches the slot again.
+ */
+let slotRefusingColony = false;
+let slotRefusingNoticeShown = false;
 
 export interface SaveToast {
   message: string;
@@ -29,6 +36,8 @@ export interface SaveToast {
 export interface PersistCurrentGameOptions {
   chronicle?: boolean;
   feedback?: boolean;
+  /** A cadence save (autosave, unmount): no user gesture, so it never triggers a file download. */
+  background?: boolean;
 }
 
 type PersistenceLoop = Pick<
@@ -115,8 +124,26 @@ async function persistGameOnce(
     worldToSave = await loop.exportAuthoritativeWorld();
   }
 
-  const result = saveGame(worldToSave, view);
+  const background = options?.background ?? false;
+  const result = background
+    ? saveGameToSlot(worldToSave, view)
+    : saveGame(worldToSave, view);
+  if (result.fileReason) {
+    slotRefusingColony = true;
+  } else if (result.success) {
+    slotRefusingColony = false;
+    slotRefusingNoticeShown = false;
+  }
+
   if (!result.success) {
+    if (result.fileReason) {
+      // A cadence save leaves the download to the player, so it says so once, not per interval.
+      if (!slotRefusingNoticeShown) {
+        slotRefusingNoticeShown = true;
+        callbacks.showToast({ message: result.error, type: 'warning' });
+      }
+      return false;
+    }
     if (feedback) callbacks.showToast({ message: result.error, type: 'error' });
     return false;
   }
@@ -130,7 +157,8 @@ async function persistGameOnce(
     });
   }
 
-  if (chronicle && loadExportChronicleOnSave()) {
+  const chronicleExported = chronicle && loadExportChronicleOnSave();
+  if (chronicleExported) {
     try {
       downloadChronicleLog(worldToSave.eventLog, {
         villageName: worldToSave.villageName,
@@ -143,8 +171,6 @@ async function persistGameOnce(
       /* Storage save succeeded, export download failed gracefully */
     }
   }
-
-  callbacks.markGameSaved();
 
   if (feedback) {
     accessors.getLoop()?.mutateWorld((world) => {
@@ -160,12 +186,22 @@ async function persistGameOnce(
         scale: 1.5,
       });
     });
+  }
 
+  if (result.fileReason) {
+    // The slot was skipped on purpose, so Load must not be enabled against it.
     callbacks.showToast({
-      message:
-        chronicle && loadExportChronicleOnSave()
-          ? 'Game saved · chronicle .txt downloaded'
-          : 'Game saved successfully',
+      message: `${describeFileSaveReason(result.fileReason)}${chronicleExported ? ' · chronicle .txt downloaded' : ''}`,
+      type: 'warning',
+    });
+    return true;
+  }
+
+  callbacks.markGameSaved();
+
+  if (feedback) {
+    callbacks.showToast({
+      message: chronicleExported ? 'Game saved · chronicle .txt downloaded' : 'Game saved successfully',
       type: 'success',
     });
   }
@@ -235,13 +271,19 @@ export function useGamePersistence({
 
       const snapshot = loop.getWorld();
       if (!snapshot.autoSave) return;
+      // A colony the slot cannot hold has no cadence save: the notice already named Save to file.
+      if (slotRefusingColony) return;
 
-      void persistCurrentGameRef.current({ chronicle: false, feedback: false })
+      void persistCurrentGameRef.current({ chronicle: false, feedback: false, background: true })
         .then((ok) => {
-          if (!ok) showSaveToast({ message: AUTO_SAVE_FAILURE_MESSAGE, type: 'error' });
+          if (!ok && !slotRefusingColony) {
+            showSaveToast({ message: AUTO_SAVE_FAILURE_MESSAGE, type: 'error' });
+          }
         })
         .catch(() => {
-          showSaveToast({ message: AUTO_SAVE_FAILURE_MESSAGE, type: 'error' });
+          if (!slotRefusingColony) {
+            showSaveToast({ message: AUTO_SAVE_FAILURE_MESSAGE, type: 'error' });
+          }
         });
     }, AUTO_SAVE_INTERVAL_MS);
 
@@ -266,7 +308,7 @@ export function useGamePersistence({
       // happens on a real teardown. Reading the live ref is the point.
       // eslint-disable-next-line react-hooks/exhaustive-deps
       if (!loopRef.current) return;
-      void persistCurrentGameRef.current({ chronicle: false, feedback: false });
+      void persistCurrentGameRef.current({ chronicle: false, feedback: false, background: true });
     };
   }, [loopRef]);
 
