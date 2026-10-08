@@ -292,7 +292,10 @@ describe('worker boundary closure', () => {
     resetSimRng();
     let world = initGame({ seed: SEED });
     adoptSimSeedFromWorld(world);
-    world.buildings.push(createBuilding(BuildingType.Farm, 60, 60, world.nextBuildingId++));
+    // Pre-increment, matching every production allocator (`buildingPlacementActions`, `groupEvents`):
+    // post-increment allocated the building id 0 and then left `nextBuildingId` at 0, so the *next*
+    // building would have reused id 0. The fixture was the only thing relying on that.
+    world.buildings.push(createBuilding(BuildingType.Farm, 60, 60, ++world.nextBuildingId));
     const before = structuredClone(world) as WorldState;
     const entitiesBefore = entitiesWithoutBirthDates(world);
 
@@ -337,7 +340,21 @@ describe('worker boundary closure', () => {
     expect(reloaded.eventLog.map((entry) => entry.id)).toEqual(exported.eventLog.map((entry) => entry.id));
 
     // Every other save key keeps its effective value.
-    const normalizedByLoad = new Set(['paused', 'tradeRoutes', 'tutorialSeen', 'entities']);
+    //
+    // The id allocators are normalized by the load, on purpose: `floorIdAllocators` raises each one to
+    // at least one past the highest id the world holds, because a payload can carry none (a later
+    // spawn then gets `NaN`) or a rewound one (the next spawn collides with a live id and
+    // `entityById` silently drops one of the two). A world whose allocator is already above every id
+    // round-trips unchanged, which the value-integrity suite pins.
+    const normalizedByLoad = new Set([
+      'paused',
+      'tradeRoutes',
+      'tutorialSeen',
+      'entities',
+      'nextEntityId',
+      'nextBuildingId',
+      'nextFloatingTextId',
+    ]);
     for (const key of WORLD_STATE_SAVE_KEYS) {
       if (normalizedByLoad.has(key)) continue;
       if (!(key in (exported as unknown as Record<string, unknown>))) continue;

@@ -21,6 +21,8 @@ import {
   bindCourtship,
   findCourtshipPartner,
   reconcileCourtships,
+  REMARRIAGE_BAR_TICKS,
+  tryCompleteCourtshipMarriage,
 } from '../src/game/simulation/humanRelationships';
 import { killHuman } from '../src/game/humanLifecycleCleanup';
 import { grantDivorce } from '../src/game/nameLoader';
@@ -165,5 +167,78 @@ describe('courtship exclusivity and cleanup (audit F5)', () => {
 
     expect(wife.courtshipPartnerId).toBeUndefined();
     expect(wife.courtshipProgress).toBe(0);
+  });
+});
+
+describe('a divorced pair may not court again for a year (owner, 2026-10-06)', () => {
+  const DIVORCE_TICK = TICKS_PER_DAY * 10;
+
+  function divorcedPair(): { a: Entity; b: Entity } {
+    const a = settler(A_ID, 'male');
+    const b = settler(B_ID, 'female');
+    grantDivorce(a, b, DIVORCE_TICK);
+    return { a, b };
+  }
+
+  it('stamps the tick the marriage ended on both sides', () => {
+    const { a, b } = divorcedPair();
+
+    expect(a.pastPartnerTicks?.[B_ID]).toBe(DIVORCE_TICK);
+    expect(b.pastPartnerTicks?.[A_ID]).toBe(DIVORCE_TICK);
+  });
+
+  it('refuses to re-select the ex-partner the day after the divorce', () => {
+    const { a, b } = divorcedPair();
+
+    const partner = findCourtshipPartner(
+      a, false, 120, undefined, new Map(), [a, b], 1200, 900,
+      DIVORCE_TICK + 1,
+    );
+
+    expect(partner).toBeUndefined();
+  });
+
+  it('will not complete the marriage even when both sides are at full courtship', () => {
+    const { a, b } = divorcedPair();
+    a.courtshipPartnerId = b.id;
+    a.courtshipProgress = 100;
+    b.courtshipPartnerId = a.id;
+    b.courtshipProgress = 100;
+    const { state, entityById } = fixture([a, b]);
+    state.tick = DIVORCE_TICK + 30;
+
+    const married = tryCompleteCourtshipMarriage(state, a, b, [], [a, b]);
+
+    expect(married).toBe(false);
+    expect(a.relationshipStatus).toBe('single');
+    expect(a.partnerId).toBeUndefined();
+    expect(entityById.size).toBe(2);
+  });
+
+  it('lets the same pair court again once the year has passed', () => {
+    const { a, b } = divorcedPair();
+
+    const partner = findCourtshipPartner(
+      a, false, 120, undefined, new Map(), [a, b], 1200, 900,
+      DIVORCE_TICK + REMARRIAGE_BAR_TICKS + 1,
+    );
+
+    expect(partner?.id).toBe(B_ID);
+  });
+
+  it('does not bar either of them from a different settler', () => {
+    const { a, b } = divorcedPair();
+    const c = settler(C_ID, 'female');
+    const { state } = fixture([a, b, c]);
+    state.tick = DIVORCE_TICK + 1;
+    a.courtshipPartnerId = c.id;
+    a.courtshipProgress = 100;
+    c.courtshipPartnerId = a.id;
+    c.courtshipProgress = 100;
+
+    const married = tryCompleteCourtshipMarriage(state, a, c, [], [a, b, c]);
+
+    expect(married).toBe(true);
+    expect(a.partnerId).toBe(C_ID);
   });
 });

@@ -37,7 +37,7 @@ import { canLaunchRaidOnRival, getRaidChoiceEligibility } from '../src/game/fron
 import { getOpenBeds, getOpenPlayerBeds } from '../src/game/populationGrowth';
 import { canPlaceBuilding } from '../src/game/buildingPlacementActions';
 import { canAssignWorkerToBuilding } from '../src/game/buildingStaffingActions';
-import { getRepairBuildingEligibility } from '../src/game/buildingMaintenanceActions';
+import { getRepairBuildingEligibility, buildingTypeHasLevelBenefit } from '../src/game/buildingMaintenanceActions';
 import { getForgeBlockReason, isForgeOrderComplete } from '../src/game/forge';
 import { getRecruitSettlerEligibility } from '../src/game/settlerInteractionActions';
 import { getVisitorTradeEligibility } from '../src/game/groupEvents';
@@ -434,6 +434,25 @@ function tunableVillage(overrides: Partial<WorldState> = {}): WorldState {
   );
 }
 
+/**
+ * The bot's *terminal* state: it has nothing left for the colony to do, so the only thing it may
+ * still propose is raising a building a level.
+ *
+ * `decideVirtualPlayerAction` ends with two postponable steps — a community building and a building
+ * upgrade — which by design only ever fire when every earlier step passed. So a fixture that used to
+ * assert `toBeNull()` ("nothing to fix") now correctly gets an upgrade on its own completed House or
+ * Farm, because those fixtures hand the colony full stores and no idle settler. This helper keeps
+ * those assertions meaningful: the decision must be `null` or that upgrade, and never a step that
+ * should have fired earlier.
+ */
+function expectNothingLeftButUpgrades(decision: ReturnType<typeof decideVirtualPlayerAction>): void {
+  if (decision === null) return;
+  expect(
+    decision.command.op,
+    `expected the ladder to be exhausted, but it proposed ${JSON.stringify(decision.command)}`,
+  ).toBe('upgradeBuilding');
+}
+
 describe('virtual player decision engine', () => {
   it('proposes a House when a settler is homeless and placement is legal', () => {
     const world = makeWorld([human(1), human(2), human(3)], []);
@@ -570,7 +589,7 @@ describe('virtual player decision engine', () => {
   it('returns null when there is nothing to fix', () => {
     const world = housedVillage(2);
 
-    expect(decideVirtualPlayerAction(world)).toBeNull();
+    expectNothingLeftButUpgrades(decideVirtualPlayerAction(world));
   });
 
   it('answers an open raid card with the card own id and an answer the raid owner accepts', () => {
@@ -643,7 +662,7 @@ describe('virtual player decision engine', () => {
 
     // Every answer is refused and nothing else needs fixing: no command is issued,
     // and `useVirtualPlayer` reports the idle status for the hour.
-    expect(decideVirtualPlayerAction(world)).toBeNull();
+    expectNothingLeftButUpgrades(decideVirtualPlayerAction(world));
   });
 
   it('answers other card types with their own id and falls back to the first choice', () => {
@@ -800,7 +819,7 @@ describe('virtual player decision engine', () => {
     // The owner agrees a worker *could* be moved there by hand…
     expect(canAssignWorkerToBuilding(world, 3)).toBe(true);
     // …but the generic command cannot, so the bot must not spend the hour asking.
-    expect(decideVirtualPlayerAction(world)).toBeNull();
+    expectNothingLeftButUpgrades(decideVirtualPlayerAction(world));
   });
 
   it("makes the player's staffing call at a manual workplace explicit (the Church)", () => {
@@ -859,7 +878,7 @@ describe('virtual player decision engine', () => {
     const gated = makeWorld([human(1, { residenceBuildingId: 1 })], [], {
       researchNodes: [researchNode({ prerequisites: ['agriculture_0'] })],
     });
-    expect(decideVirtualPlayerAction(gated)).toBeNull();
+    expectNothingLeftButUpgrades(decideVirtualPlayerAction(gated));
 
     const ready = makeWorld([human(1, { residenceBuildingId: 1 })], [], {
       researchNodes: [researchNode()],
@@ -993,7 +1012,7 @@ describe('virtual player decision engine', () => {
 
     // No forestry_1 in `unlockedTechs`: the placement owner reports the building
     // locked, so no spot exists and the step proposes nothing.
-    expect(decideVirtualPlayerAction(world)).toBeNull();
+    expectNothingLeftButUpgrades(decideVirtualPlayerAction(world));
   });
 
   it('is deterministic and never mutates the world it reads', () => {
@@ -1016,7 +1035,7 @@ describe('virtual player decision engine', () => {
     const applied = applyWorkerCommand(homeless, first.command);
     expect(applied.buildings.some((b) => b.type === BuildingType.House && !b.completed)).toBe(true);
     // …so the housing need is already being served and is not proposed again.
-    expect(decideVirtualPlayerAction(applied)).toBeNull();
+    expectNothingLeftButUpgrades(decideVirtualPlayerAction(applied));
 
     const researchReady = makeWorld([human(1, { residenceBuildingId: 1 })], [], {
       researchNodes: [researchNode()],
@@ -1026,7 +1045,7 @@ describe('virtual player decision engine', () => {
 
     const afterResearch = applyWorkerCommand(researchReady, researchDecision.command);
     expect(afterResearch.activeResearch).toBe('agriculture_1');
-    expect(decideVirtualPlayerAction(afterResearch)).toBeNull();
+    expectNothingLeftButUpgrades(decideVirtualPlayerAction(afterResearch));
   });
 });
 
@@ -1062,7 +1081,7 @@ describe('virtual player remaining action surface', () => {
       [building(1, BuildingType.House, { occupants: [1], health: 90 })],
     );
 
-    expect(decideVirtualPlayerAction(world)).toBeNull();
+    expectNothingLeftButUpgrades(decideVirtualPlayerAction(world));
   });
 
   it('queues the best forge order a staffed Blacksmith can start', () => {
@@ -1108,7 +1127,7 @@ describe('virtual player remaining action surface', () => {
     expect(isForgeOrderComplete(world.villageForge, 'iron_spears')).toBe(true);
     expect(getForgeBlockReason(world, 'iron_spears')).toContain('already forged');
     // Shields and pickaxes need defense_5 / mining_2, so no order is startable.
-    expect(decideVirtualPlayerAction(world)).toBeNull();
+    expectNothingLeftButUpgrades(decideVirtualPlayerAction(world));
   });
 
   it('proposes no forge order for an unstaffed Blacksmith', () => {
@@ -1126,7 +1145,7 @@ describe('virtual player remaining action surface', () => {
     );
 
     expect(getForgeBlockReason(world, 'iron_spears')).toBe('Staff the Blacksmith to forge');
-    expect(decideVirtualPlayerAction(world)).toBeNull();
+    expectNothingLeftButUpgrades(decideVirtualPlayerAction(world));
   });
 
   it('works the gold seam when the treasury is low', () => {
@@ -1211,7 +1230,7 @@ describe('virtual player remaining action surface', () => {
     const world = settledVillage(2, { tick: 0 });
 
     // Everything else the village needs is already done, so the idle hour is real.
-    expect(decideVirtualPlayerAction(world)).toBeNull();
+    expectNothingLeftButUpgrades(decideVirtualPlayerAction(world));
   });
 
   it("does not count the Leader's House beds as room for a recruit", () => {
@@ -1341,6 +1360,25 @@ describe('virtual player remaining action surface', () => {
 
     const applied = applyWorkerCommand(world, decision.command);
     expect(applied.buildings.find((b) => b.id === 1)?.level).toBe(2);
+  });
+
+  it('never proposes an upgrade for a building whose level does nothing', () => {
+    // A Church is a staffed workplace and was upgradeable under the old "has a job" rule, but no
+    // code reads its level: it has no production block, so the button charged real resources for a
+    // number that affected nothing. `buildingTypeHasLevelBenefit` is the single rule for that, and
+    // the same one the panel uses to hide the button — so the bot must not buy it either.
+    const world = makeWorld(
+      [human(1, { residenceBuildingId: 1 }), human(2, { homeBuildingId: 3 })],
+      [
+        building(1, BuildingType.House, { occupants: [1] }),
+        building(3, BuildingType.Church, { occupants: [2] }),
+      ],
+    );
+    expect(buildingTypeHasLevelBenefit(BuildingType.Church)).toBe(false);
+
+    const decision = decideVirtualPlayerAction(world);
+
+    expect(decision?.command.op ?? null).not.toBe('upgradeBuilding');
   });
 
   it('tames a creature a Taming Post can reach, from a deep larder', () => {
