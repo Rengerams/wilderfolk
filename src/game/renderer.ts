@@ -1,7 +1,7 @@
 import type { RenderSnapshot } from './renderSnapshot';
 import { resetDialogueSessions } from './humanChat';
 import { disposeEntityLayerCache } from './entityLayer';
-import { resetRenderClock, tickRenderClock } from './renderer/shared';
+import { effectiveScreenShake, resetRenderClock, tickRenderClock } from './renderer/shared';
 import { drawGround, resetTerrainCaches } from './renderer/terrain';
 import {
   resetEntityCaches,
@@ -49,7 +49,8 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderSnapshot,
     );
   }
 
-  const shake = state.screenShake;
+  // Camera shake is the one canvas motion the OS preference removes outright, not just freezes.
+  const shake = effectiveScreenShake(state.screenShake);
   if (shake > 0.1) {
     ctx.save();
     ctx.translate((getPresentationRng('rendererShake')() - 0.5) * shake * 2, (getPresentationRng('rendererShake')() - 0.5) * shake * 2);

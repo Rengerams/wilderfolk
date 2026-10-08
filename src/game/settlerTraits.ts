@@ -1,8 +1,8 @@
 /**
  * Settler personality traits — a trait catalog that makes each villager
  * feel like an individual. Traits are assigned at creation (1–3 per settler),
- * inherited partly from parents, and feed subtle behavioral modifiers in
- * lifeSimulation / buildingActions / education / research.
+ * inherited partly from parents, and read as `traitMultiplier` by the tick
+ * bodies that need them (humanTick, humanNeeds, humanRelationships, hunting).
  */
 import type { Entity, SettlerTrait } from './gameTypes';
 import { getSimRng } from './simRng';

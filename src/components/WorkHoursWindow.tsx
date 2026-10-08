@@ -22,6 +22,7 @@ import GameWindow from './GameWindow';
 import WorkSchedulePanel from './WorkSchedulePanel';
 import VenueSchedulePanel from './VenueSchedulePanel';
 import WorkforcePolicyPanel from './WorkforcePolicyPanel';
+import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 
 /** Which of the three editors the window shows. */
 type WorkHoursSubjectId = 'work' | 'venue' | 'workforce';
@@ -58,6 +59,10 @@ export default function WorkHoursWindow({
   onClose,
 }: WorkHoursWindowProps) {
   const [subject, setSubject] = useState<WorkHoursSubjectId>('work');
+  // `GameWindow` owns the focus half of the overlay contract; the keyboard half is the caller's, and
+  // it was missing here — the map's hotkeys stayed live behind these windows and Escape ran the game's
+  // own chain instead of closing them.
+  useOverlayKeyboard('work-hours-window', onClose);
 
   return (
     <GameWindow title="Work & venue hours" icon="🕰️" onClose={onClose} maxBodyClassName="max-h-[70vh]">

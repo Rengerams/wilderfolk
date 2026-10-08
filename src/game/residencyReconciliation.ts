@@ -303,11 +303,27 @@ export function syncPartnerResidence(
     household.push(member);
   }
 
-  const shared = pickResidenceForFamily(household, humans, residences)
-    ?? pickSharedResidence(human, partner, humans, residences);
-  if (shared === undefined) return;
+  const familyHome = pickResidenceForFamily(household, humans, residences);
+  if (familyHome !== undefined) {
+    for (const member of household) {
+      member.residenceBuildingId = familyHome;
+    }
+    return;
+  }
+
+  // No home fits the whole family, so only the couple moves: a minor child follows into a home
+  // that has room for them, by the child-custodian rule the assign layer also uses.
+  const coupleHome = pickSharedResidence(human, partner, humans, residences);
+  if (coupleHome === undefined) return;
 
   for (const member of household) {
-    member.residenceBuildingId = shared;
+    if (member.residenceBuildingId === coupleHome) continue;
+    if (member.id === human.id || member.id === partner.id) {
+      member.residenceBuildingId = coupleHome;
+      continue;
+    }
+    if (pickResidenceFromChildCustodian(member, humans, residences) === coupleHome) {
+      member.residenceBuildingId = coupleHome;
+    }
   }
 }

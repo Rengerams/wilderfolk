@@ -75,6 +75,53 @@ export function createEmptyLifetimeStats(): LifetimeStats {
   };
 }
 
+/** A loaded `lifetimeStats`: every one of the record's 14 fields falls back to its empty value. */
+export function normalizeLifetimeStats(value: unknown): LifetimeStats {
+  const empty = createEmptyLifetimeStats();
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return empty;
+  const saved = value as Partial<LifetimeStats>;
+  const count = (field: unknown, fallback: number): number =>
+    typeof field === 'number' && Number.isFinite(field) ? field : fallback;
+  const record = (field: unknown): Record<string, unknown> =>
+    field !== null && typeof field === 'object' && !Array.isArray(field)
+      ? (field as Record<string, unknown>)
+      : {};
+  const gathered = record(saved.totalResourcesGathered);
+  const longest = record(saved.longestLivingHuman);
+  const largest = record(saved.largestPopulation);
+  const productive = record(saved.mostProductiveYear);
+  return {
+    totalHumansBorn: count(saved.totalHumansBorn, empty.totalHumansBorn),
+    totalHumansDied: count(saved.totalHumansDied, empty.totalHumansDied),
+    totalMarriages: count(saved.totalMarriages, empty.totalMarriages),
+    totalBuildings: count(saved.totalBuildings, empty.totalBuildings),
+    totalBuildingsUpgraded: count(saved.totalBuildingsUpgraded, empty.totalBuildingsUpgraded),
+    totalResourcesGathered: {
+      wood: count(gathered.wood, empty.totalResourcesGathered.wood),
+      stone: count(gathered.stone, empty.totalResourcesGathered.stone),
+      food: count(gathered.food, empty.totalResourcesGathered.food),
+      gold: count(gathered.gold, empty.totalResourcesGathered.gold),
+    },
+    disastersSurvived: count(saved.disastersSurvived, empty.disastersSurvived),
+    technologiesResearched: count(saved.technologiesResearched, empty.technologiesResearched),
+    tradeRoutesEstablished: count(saved.tradeRoutesEstablished, empty.tradeRoutesEstablished),
+    tradeCaravansCompleted: count(saved.tradeCaravansCompleted, empty.tradeCaravansCompleted),
+    goldFromTradeRoutes: count(saved.goldFromTradeRoutes, empty.goldFromTradeRoutes),
+    longestLivingHuman: {
+      name: typeof longest.name === 'string' ? longest.name : empty.longestLivingHuman.name,
+      age: count(longest.age, empty.longestLivingHuman.age),
+    },
+    largestPopulation: {
+      count: count(largest.count, empty.largestPopulation.count),
+      year: count(largest.year, empty.largestPopulation.year),
+    },
+    mostProductiveYear: {
+      year: count(productive.year, empty.mostProductiveYear.year),
+      buildings: count(productive.buildings, empty.mostProductiveYear.buildings),
+    },
+  };
+}
+
 export function recordYearlyStats(state: WorldState, forYear?: number): YearlyStats {
   const entities = state.entities;
   const alive = entities.filter(e => e.alive);
@@ -83,7 +130,7 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
   const humans = alive.filter((e) => e.type === ET.Human && isPlayerHuman(e));
   const prevYearStats = state.yearlyStats[state.yearlyStats.length - 1];
 
-  // Humans born during this calendar year (birthYear set at birth in lifeSimulation)
+  // Humans born during this calendar year (birthYear set at birth in `humanLifecycle`)
   const humanBirths = humans.filter((h) => h.birthYear === statsYear).length;
 
   // Active marriages, not `=== 'married'`: conception moves both partners to `'expecting'` for the

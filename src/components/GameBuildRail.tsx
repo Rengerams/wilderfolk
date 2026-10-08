@@ -58,7 +58,9 @@ export default function GameBuildRail({
         </Suspense>
       ) : (
         <div className="flex h-full flex-col items-center gap-2 py-3">
-          <span className="text-base" title="Build catalog on the left · press B">🏗️</span>
+          <span className="text-base" aria-hidden>🏗️</span>
+          {/* A touch player gets no hover, so the collapsed rail states the key as visible text. */}
+          <kbd className="rounded bg-stone-800 px-1 text-[10px] font-bold text-stone-400">B</kbd>
           <button
             type="button"
             onClick={onToggleGrid}

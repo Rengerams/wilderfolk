@@ -32,11 +32,10 @@ export const PRISON_SHIFTS: readonly PrisonShift[] = Object.freeze([
 export const PRISON_GUARDS_FOR_FULL_COVERAGE = PRISON_SHIFTS.length;
 
 /**
- * Guard posts a Prison offers (owner's limit). Two more than a full watch, so the crew can take days
- * off in turn: three of five hold the shifts each day, which is how the guard posts and the cells stay
- * separate numbers instead of one shared occupant list.
+ * Guard posts a Prison offers (owner's limit). One more than a full watch, so the crew can take days
+ * off in turn: three of the four hold the shifts each day.
  */
-export const PRISON_GUARDS_MAX = 5;
+export const PRISON_GUARDS_MAX = 4;
 
 /** Cells beside the guard posts (owner's limit). */
 export const PRISON_PRISONERS_MAX = 4;

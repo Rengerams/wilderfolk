@@ -33,19 +33,31 @@ vi.mock('../src/game/tickLayerRealtime', () => ({
   }),
 }));
 
-vi.mock('../src/game/tickLayerSystems', () => ({
-  tickLayerSystems: vi.fn((state: { tick: number }) => {
-    callLog.calls.push(`systems@${state.tick}`);
-  }),
-  LAYER_SYSTEMS_INTERVAL: 4,
-}));
+vi.mock('../src/game/tickLayerSystems', async () => {
+  // The interval must come from the owner, not a literal: a mock that hardcodes it lets the real
+  // constant change while this test keeps reporting the old cadence.
+  const actual = await vi.importActual<typeof import('../src/game/tickLayerSystems')>(
+    '../src/game/tickLayerSystems',
+  );
+  return {
+    ...actual,
+    tickLayerSystems: vi.fn((state: { tick: number }) => {
+      callLog.calls.push(`systems@${state.tick}`);
+    }),
+  };
+});
 
-vi.mock('../src/game/tickLayerAssign', () => ({
-  tickLayerAssign: vi.fn((state: { tick: number }) => {
-    callLog.calls.push(`assign@${state.tick}`);
-  }),
-  LAYER_ASSIGN_INTERVAL: 18,
-}));
+vi.mock('../src/game/tickLayerAssign', async () => {
+  const actual = await vi.importActual<typeof import('../src/game/tickLayerAssign')>(
+    '../src/game/tickLayerAssign',
+  );
+  return {
+    ...actual,
+    tickLayerAssign: vi.fn((state: { tick: number }) => {
+      callLog.calls.push(`assign@${state.tick}`);
+    }),
+  };
+});
 
 vi.mock('../src/game/tickLayerDaily', () => ({
   tickLayerDaily: vi.fn((state: { tick: number }) => {
@@ -56,6 +68,8 @@ vi.mock('../src/game/tickLayerDaily', () => ({
 
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { LAYER_SYSTEMS_INTERVAL } from '../src/game/tickLayerSystems';
+import { LAYER_ASSIGN_INTERVAL } from '../src/game/tickLayerAssign';
 
 function world(startTick: number): WorldState {
   return {
@@ -129,6 +143,12 @@ beforeEach(() => {
 describe('gameTick layer orchestration (fixed schedule)', () => {
   it('protects the production cadence: TICKS_PER_DAY is 72', () => {
     expect(TICKS_PER_DAY).toBe(72);
+  });
+
+  it('pins the layer intervals the schedule law declares', () => {
+    // The counts below are written as the law's literals, so these two must agree with it.
+    expect(LAYER_SYSTEMS_INTERVAL).toBe(4);
+    expect(LAYER_ASSIGN_INTERVAL).toBe(18);
   });
 
   it('calls the four layers in fixed order on a full-stack tick (72)', () => {

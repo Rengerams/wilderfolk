@@ -17,7 +17,7 @@ import {
 import { TRAIT_DEFS } from '../game/settlerTraits';
 import { getHumanVariantLabel } from '../game/humanSprites';
 import { getTameFoodCost } from '../game/buildingActions';
-import { hasNearbyPlayerTamingPost, listTamingCandidates } from '../game/settlerInteractionActions';
+import { hasNearbyPlayerTamingPost, listTamingCandidates, getTameEntityEligibility } from '../game/settlerInteractionActions';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { useEffect, useMemo, useState } from 'react';
 import { getHumanActivityProjection } from '../game/humanStatus';
@@ -116,6 +116,15 @@ export default function SelectedEntityPanel({
   // Safe access to resources food to prevent undefined crashes during initialization
   const currentFood = state.resources?.food ?? 0;
   const canAffordTame = tameFoodCost == null || currentFood >= tameFoodCost;
+  // A tame is the whole colony's food, so affordability is the one gate that disables every candidate.
+  const tameDisabled = tameFoodCost != null && !canAffordTame;
+  /**
+   * Why the buttons are dead, in the taming owner's own words. The owner prices a tame and the panel
+   * reads that price back, so a greyed-out name no longer has to be taken on trust.
+   */
+  const tameBlockReason = tameDisabled && availableHumans.length > 0
+    ? getTameEntityEligibility(state, entity.id, availableHumans[0].id).blockReason ?? null
+    : null;
 
   return (
     <div className={`rounded-xl p-3 ${isVillageHead ? 'border-2 border-amber-400/70 bg-gradient-to-b from-amber-900/45 to-amber-950/30 shadow-md shadow-amber-900/30' : 'border border-amber-600/30 bg-amber-900/20'}`}>
@@ -227,7 +236,9 @@ export default function SelectedEntityPanel({
           )}
           {isHuman && !isVisitor && !isRival && (
             <p className="text-[11px] text-amber-400">
-              <span className="font-mono text-stone-400">Citizen #{entity.id}</span>
+              {/* The settler's own name, not the internal entity id the save allocates: the id is
+                  engine bookkeeping and told the player nothing about the person in front of them. */}
+              <span className="font-mono text-stone-400">{citizenFullName(entity)}</span>
               {' · '}
               {entity.gender === 'male' ? '♂' : '♀'} {entity.relationshipStatus || 'child'}
               {(entity.generation ?? 0) > 0 ? ` · Gen ${entity.generation}` : ''}
@@ -385,20 +396,27 @@ export default function SelectedEntityPanel({
           ) : (
             <div className="space-y-1">
               <p className="text-[11px] text-stone-300">
-                Assign a settler to tame{tameFoodCost != null ? ` (${tameFoodCost} food)` : ''}:
+                Assign a settler to tame{tameFoodCost != null ? ` (${tameFoodCost} food)` : ''}
+                {' · '}
+                {availableHumans.length} available:
               </p>
-              <div className="grid grid-cols-2 gap-1">
-                {availableHumans.slice(0, 4).map(h => (
+              {/* Every candidate is offered: the old fixed four-slot grid dropped the rest with no hint
+                  that anyone had been left out. Four stay visible and the list scrolls past them. */}
+              <div className="grid max-h-28 grid-cols-2 gap-1 overflow-y-auto overscroll-contain">
+                {availableHumans.map(h => (
                   <button
                     key={h.id}
                     onClick={() => onTame?.(h.id)}
-                    disabled={!canAffordTame}
+                    disabled={tameDisabled}
                     className="rounded bg-emerald-700 px-1.5 py-1 text-[10px] font-bold text-white hover:bg-emerald-600 transition-all disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     🦴 {citizenGivenName(h)}
                   </button>
                 ))}
               </div>
+              {tameBlockReason && (
+                <p className="text-[11px] text-amber-300">{tameBlockReason}</p>
+              )}
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 
 import { BuildingType } from '../buildings';
 import type { RenderSnapshot } from '../renderSnapshot';
-import { renderTime } from './shared';
+import { motionTime } from './shared';
 
 // ============ NIGHT BUILDING GLOW ============
 /** Disabled: day and night visual differences are removed. */
@@ -39,7 +39,7 @@ export function drawBuildingActiveEffects(
     if (!b.completed) {
       const dustN = cam.zoom > 0.7 ? 5 : 3;
       for (let i = 0; i < dustN; i++) {
-        const phase = renderTime * 1.8 + b.id * 0.7 + i * 1.3;
+        const phase = motionTime * 1.8 + b.id * 0.7 + i * 1.3;
         const px = sx + Math.sin(phase * 0.9 + i) * w * 0.35;
         const py = sy - h * 0.1 - ((phase * 12 + i * 7) % (h * 0.7));
         const a = 0.12 + (Math.sin(phase) * 0.5 + 0.5) * 0.18;
@@ -55,7 +55,7 @@ export function drawBuildingActiveEffects(
 
     // Blacksmith forge heat when order active or staffed
     if (b.type === BuildingType.Blacksmith && (forgeActive || b.occupants.length > 0)) {
-      const pulse = 0.55 + Math.sin(renderTime * 5 + b.id) * 0.25;
+      const pulse = 0.55 + Math.sin(motionTime * 5 + b.id) * 0.25;
       const heat = forgeActive ? 1 : 0.55;
       ctx.globalCompositeOperation = 'lighter';
       const gx = sx;
@@ -74,8 +74,8 @@ export function drawBuildingActiveEffects(
       // Rising sparks when forging
       if (forgeActive && cam.zoom > 0.45) {
         for (let i = 0; i < 4; i++) {
-          const t = (renderTime * 2.2 + b.id + i * 0.55) % 1.4;
-          const px = sx + Math.sin(renderTime * 3 + i * 2 + b.id) * w * 0.15;
+          const t = (motionTime * 2.2 + b.id + i * 0.55) % 1.4;
+          const px = sx + Math.sin(motionTime * 3 + i * 2 + b.id) * w * 0.15;
           const py = sy - h * 0.15 - t * h * 0.55;
           ctx.globalAlpha = (1 - t / 1.4) * 0.7;
           ctx.fillStyle = i % 2 === 0 ? '#fbbf24' : '#fb923c';
@@ -96,7 +96,7 @@ export function drawBuildingActiveEffects(
       const chimX = sx + w * 0.22;
       const chimY = sy - h * 0.38;
       for (let i = 0; i < 3; i++) {
-        const phase = renderTime * 1.1 + b.id * 0.4 + i * 0.9;
+        const phase = motionTime * 1.1 + b.id * 0.4 + i * 0.9;
         const drift = Math.sin(phase) * (3 + i);
         const rise = ((phase * 16 + i * 11) % 28);
         const smokeY = chimY - rise;
@@ -117,7 +117,7 @@ export function drawBuildingActiveEffects(
       && cam.zoom > 0.5
     ) {
       for (let i = 0; i < 3; i++) {
-        const phase = renderTime * 1.4 + b.id + i;
+        const phase = motionTime * 1.4 + b.id + i;
         const px = sx + Math.sin(phase) * w * 0.3;
         const py = sy - ((phase * 10) % (h * 0.4));
         ctx.globalAlpha = 0.1 + (Math.sin(phase * 2) * 0.5 + 0.5) * 0.1;

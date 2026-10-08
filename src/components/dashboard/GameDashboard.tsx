@@ -24,6 +24,9 @@ import { displayYear } from '../../game/dayCycleClock';
 import { ECONOMY_SOURCE_LABELS } from '../../game/economyLedger';
 import { useOverlayKeyboard } from '../../hooks/useOverlayKeyboard';
 import { citizenGivenName } from '../../game/citizenId';
+import { getEventLogFilterLabel } from '../../game/eventLogFilters';
+import type { GameEventLog } from '../../game/gameTypes';
+import type { LogSubTab } from '../../hooks/useGameShellState';
 import GameWindow from '../GameWindow';
 
 /**
@@ -44,6 +47,23 @@ const STATUS_STYLE: Record<string, string> = {
 
 /** Where a concern's "Go" button should take the player. */
 export type ConcernNav = 'farm' | 'house' | 'village' | 'nature' | 'frontier';
+
+export interface ConcernLogNav {
+  subTab: LogSubTab;
+  filter: GameEventLog['type'];
+}
+
+/**
+ * Concerns whose history the log already holds, so the concern can hand the player the exact category.
+ *
+ * Only where the concern's own events live: a raid is a `combat` line, and a Moon Howler's nights are
+ * logged as `event` lines. A concern with no matching category keeps its single "Go" button.
+ */
+const CONCERN_LOG_NAV: Record<string, ConcernLogNav | undefined> = {
+  raid: { subTab: 'combat', filter: 'combat' },
+  diplomacy: { subTab: 'combat', filter: 'combat' },
+  howler: { subTab: 'chronicle', filter: 'event' },
+};
 
 const CONCERN_NAV: Record<string, ConcernNav | undefined> = {
   famine: 'farm',
@@ -305,11 +325,14 @@ export default function GameDashboard({
   state,
   onClose,
   onNavigate,
+  onOpenLog,
 }: {
   state: WorldState;
   onClose: () => void;
   /** Jump to a relevant action/tab for a concern. */
   onNavigate?: (where: ConcernNav) => void;
+  /** Open the Log window on the half and category a concern is about. */
+  onOpenLog?: (nav: ConcernLogNav) => void;
 }) {
   const data = useMemo(() => collectDashboard(state), [state]);
   const [openTab, setOpenTab] = useState<'settlers' | 'trend'>('settlers');
@@ -361,15 +384,29 @@ export default function GameDashboard({
                       <div className="text-stone-400">{c.detail}</div>
                       <div className="flex items-center justify-between gap-2">
                         <div className="italic text-stone-500">{c.hint}</div>
-                        {CONCERN_NAV[c.id] && onNavigate && (
-                          <button
-                            type="button"
-                            onClick={() => onNavigate(CONCERN_NAV[c.id]!)}
-                            className="shrink-0 rounded bg-stone-800 px-2 py-0.5 font-semibold text-amber-200 hover:bg-stone-700"
-                          >
-                            Go →
-                          </button>
-                        )}
+                        <div className="flex shrink-0 items-center gap-1">
+                          {CONCERN_LOG_NAV[c.id] && onOpenLog && (
+                            <button
+                              type="button"
+                              // Names the category the log will open on, using the log's own filter
+                              // label, so the handover is not a leap into an unfiltered chronicle.
+                              aria-label={`Open the log filtered to ${getEventLogFilterLabel(CONCERN_LOG_NAV[c.id]!.filter)}`}
+                              onClick={() => onOpenLog(CONCERN_LOG_NAV[c.id]!)}
+                              className="rounded bg-stone-800 px-2 py-0.5 font-semibold text-sky-200 hover:bg-stone-700"
+                            >
+                              Log →
+                            </button>
+                          )}
+                          {CONCERN_NAV[c.id] && onNavigate && (
+                            <button
+                              type="button"
+                              onClick={() => onNavigate(CONCERN_NAV[c.id]!)}
+                              className="rounded bg-stone-800 px-2 py-0.5 font-semibold text-amber-200 hover:bg-stone-700"
+                            >
+                              Go →
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </li>
                   );

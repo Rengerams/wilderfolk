@@ -98,6 +98,22 @@ export function computePopulationCounts(entities: Entity[]): PopulationCounts {
   return counts;
 }
 
+/** The living population of a tick: its alive list plus the spawns it has not absorbed yet. */
+export function countLivingPopulation(
+  allAlive: readonly Entity[],
+  newEntities: readonly Entity[],
+): PopulationCounts {
+  const seen = new Set<Entity>(allAlive);
+  const merged: Entity[] = allAlive.slice();
+  for (const entity of newEntities) {
+    if (entity.alive && !seen.has(entity)) {
+      seen.add(entity);
+      merged.push(entity);
+    }
+  }
+  return computePopulationCounts(merged);
+}
+
 export function formatPopulationBrief(
   counts: Pick<PopulationCounts, 'humans' | 'visitorHumans' | 'rivalHumans'>,
   maxPop?: number,

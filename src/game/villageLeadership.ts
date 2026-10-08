@@ -14,6 +14,7 @@ import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
 import { seededRandomForRun } from './simRng';
 import { humanDisplayName } from './citizenId';
 import { startFeud } from './relationships';
+import { getEcosystemHealth } from './dailyEcology';
 
 /**
  * Years between scheduled (end-of-term) elections.
@@ -180,8 +181,9 @@ function assessVillageHealth(state: WorldState): 'good' | 'fair' | 'poor' {
   ).length;
 
   let score = 0;
-  if (state.ecosystemHealth >= 60) score += 1;
-  else if (state.ecosystemHealth < 30) score -= 2;
+  const ecoHealth = getEcosystemHealth(state);
+  if (ecoHealth >= 60) score += 1;
+  else if (ecoHealth < 30) score -= 2;
 
   if (state.villageReputation >= 40) score += 1;
   else if (state.villageReputation < 20) score -= 2;

@@ -161,7 +161,8 @@ export interface BuildingConfig {
   emoji: string;
   label: string;
   description: string;
-  sprite: string;
+  /** Map sprite path; absent for procedural decor (`decor: true`), which has no art on disk. */
+  sprite?: string;
   backgroundColor: string;
   padShape: 'round' | 'rect' | 'circle' | 'road';
   /** Extra multiplier so a sprite fills its intended map footprint. */
@@ -487,8 +488,8 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     height: 46,
     cost: { wood: 60, stone: 40, gold: 30 },
     buildTime: 5,
-    // Five guard posts — three on watch, two resting — beside four cells (see `prisonShifts`).
-    maxOccupants: 9,
+    // Four guard posts — three on watch, one resting — beside four cells (see `prisonShifts`).
+    maxOccupants: 8,
     emoji: '⛓️',
     label: 'Prison',
     description: 'Holds scandalous settlers for a short sentence. Three guards cover a full day.',
@@ -680,7 +681,6 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     emoji: '🌷',
     label: 'Garden',
     description: 'A flower bed — neighborhood beauty where settlers drift in free time.',
-    sprite: '/sprites/garden.png',
     backgroundColor: '#84cc16',
     padShape: 'rect',
     beauty: 3,
@@ -695,7 +695,6 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     emoji: '🗿',
     label: 'Statue',
     description: 'Carved stone — the strongest beauty nudge in the village.',
-    sprite: '/sprites/statue.png',
     backgroundColor: '#a8a29e',
     padShape: 'circle',
     beauty: 5,
@@ -710,7 +709,6 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     emoji: '🏮',
     label: 'Lamp',
     description: 'Street lamp — a constant warm landmark on the square.',
-    sprite: '/sprites/lamp.png',
     backgroundColor: '#eab308',
     padShape: 'circle',
     beauty: 2,
@@ -725,7 +723,6 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     emoji: '🚧',
     label: 'Fence',
     description: 'A light wooden fence — cheap beauty that prettifies a boundary.',
-    sprite: '/sprites/fence.png',
     backgroundColor: '#a16207',
     padShape: 'road',
     beauty: 1,

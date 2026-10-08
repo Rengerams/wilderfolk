@@ -5,7 +5,7 @@ import type { ChronicleExportMeta } from '../../game/eventLogExport';
 // declare a second, same-named union: the copies were contravariant-compatible, so a member added to
 // the owner compiled here and was simply unreachable — the identical drift `hotkeys.ts` documents
 // for `SidebarTab`.
-import type { LogSubTab } from '../../hooks/useGameShellState';
+import type { LogFilter, LogSubTab } from '../../hooks/useGameShellState';
 
 const EventLogPanel = lazy(() => import('../../game/EventLogPanel'));
 const CombatLogPanel = lazy(() => import('../CombatLogPanel'));
@@ -14,9 +14,18 @@ export interface LogTabPanelProps {
   state: WorldState;
   logSubTab: LogSubTab;
   setLogSubTab: (tab: LogSubTab) => void;
+  /** Category the Log door was opened on; `'all'` is the unfiltered chronicle. */
+  logFilter: LogFilter;
+  setLogFilter: (filter: LogFilter) => void;
 }
 
-export default function LogTabPanel({ state, logSubTab, setLogSubTab }: LogTabPanelProps) {
+export default function LogTabPanel({
+  state,
+  logSubTab,
+  setLogSubTab,
+  logFilter,
+  setLogFilter,
+}: LogTabPanelProps) {
   /**
    * One export header for both logs. The identical object used to be built inline in each branch,
    * so adding a field meant two edits and a chance the two logs exported different headers
@@ -56,6 +65,8 @@ export default function LogTabPanel({ state, logSubTab, setLogSubTab }: LogTabPa
             <EventLogPanel
               events={state.eventLog}
               meta={logMeta}
+              initialFilter={logFilter}
+              onFilterChange={setLogFilter}
             />
           </Suspense>
         </>

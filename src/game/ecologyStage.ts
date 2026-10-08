@@ -52,9 +52,20 @@ function effectiveValleyStage(state: WorldState): ValleyStage {
   return ValleyEcology.ENABLED ? (state.valleyStage ?? 'stable') : 'stable';
 }
 
-/** Reset stage bookkeeping to a fresh stable baseline (idempotent). */
+/** The parked baseline: stage fields as the disabled ladder wants them. */
+function isParkedValleyStageState(state: WorldState): boolean {
+  return (
+    state.valleyStage === 'stable'
+    && state.valleyStageSinceDay != null
+    && state.valleyRawStressStreakDays === 0
+    && state.valleyRawCalmStreakDays === 0
+    && state.valleyLastStageNotifyDay === -999
+  );
+}
+
+/** Reset to a fresh stable baseline; idempotent, so the daily caller writes only once. */
 function parkValleyStageState(state: WorldState): void {
-  ensureStageFields(state);
+  if (isParkedValleyStageState(state)) return;
   state.valleyStage = 'stable';
   state.valleyStageSinceDay = getAbsoluteCalendarDay(state.tick);
   state.valleyRawStressStreakDays = 0;

@@ -56,6 +56,22 @@ describe('the roster covers the day', () => {
     expect(prisonRoster(crew, 21 * TICKS_PER_DAY).map((e) => e.guardId)).toEqual([11, 22, 33]);
   });
 
+  it('rests one of the four posts in turn and still covers every shift', () => {
+    // Four posts for three shifts: the extra guard buys rest days, not a shorter watch.
+    const four = [11, 22, 33, 44];
+    const restDays = new Map<number, number>();
+    for (let day = 0; day < 40; day++) {
+      const tick = day * TICKS_PER_DAY;
+      const roster = prisonRoster(four, tick);
+      expect(vacantPrisonShifts(roster)).toEqual([]);
+      expect(unguardedPrisonHours(roster)).toEqual([]);
+      for (const id of offDutyPrisonGuards(four, tick)) restDays.set(id, (restDays.get(id) ?? 0) + 1);
+    }
+
+    // Ten rest days each in forty, and nobody is left off the rotation.
+    for (const id of four) expect(restDays.get(id)).toBe(10);
+  });
+
   it('leaves open the vacant shift\u2019s hours, minus what its neighbours\u2019 handovers cover', () => {
     // Week 0, two guards: crew positions 0 and 1 take morning and afternoon, so the night is vacant.
     const roster = prisonRoster([11, 22], 0);

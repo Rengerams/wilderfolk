@@ -46,6 +46,9 @@ export const WORLD_STATE_SAVE_KEYS = [
   'ecoHealthYearsAbove80', 'firstWeekVisitorSpawned', 'villageLeaderId', 'leaderSinceYear',
   'lastElectionYear', 'pendingElectionYear', 'electionBuildupNotifiedYear', 'electionCeremony',
   'villageForge', 'tutorialSeen', 'dismissedBigNewsIds', 'dismissedActiveEventIds',
+  // Live Big News cards: the dismissal ledger beside them already persists, so a load kept the
+  // ledger of a card it had thrown away, and `syncBigNewsIdFromState` read a list that was always [].
+  'bigNews',
   'dismissedNotificationIds', 'lastWildlifeReplenishLogDay', 'eventsThisYear',
   'appliedSaveMigrations',
   'storyFlags', 'pendingStoryEvents', 'guidedCampaign',

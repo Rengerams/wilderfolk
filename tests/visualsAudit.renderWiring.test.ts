@@ -164,9 +164,9 @@ describe('D17 — the decor build preview draws the decor, not a rectangle', () 
     const src = readSrc('game/renderer/buildPreview.ts');
     expect(src).toMatch(DECOR_PREVIEW_PROCEDURAL);
     expect(src).toContain('isDecorType(state.buildMode)');
-    // The garden/statue/lamp `sprite:` paths have no art on disk, so the sprite lookup can only
-    // ever return null for them — the ghost must not depend on it.
-    expect(src).toMatch(/const previewFrame = isDecor \? null : getSpriteFrame\(cfg\.sprite\)/);
+    // Procedural decor declares no sprite and has no art on disk, so the sprite lookup can only
+    // ever return null for it — the ghost must not depend on it.
+    expect(src).toMatch(/const previewFrame = isDecor \|\| !cfg\.sprite \? null : getSpriteFrame\(cfg\.sprite\)/);
   });
 });
 

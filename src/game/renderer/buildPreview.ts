@@ -8,7 +8,7 @@ import { terrainRiseAt } from '../terrainAtlas';
 import { getSpriteFrame } from '../spriteLoader';
 import { isStripBuildType } from '../stripBuild';
 import type { RenderSnapshot } from '../renderSnapshot';
-import { darkerColor, DEFAULT_SPRITE_DISPLAY_SCALE, renderTime } from './shared';
+import { darkerColor, DEFAULT_SPRITE_DISPLAY_SCALE, motionTime } from './shared';
 import { drawBuildingPad, drawBuildingSprite } from './spriteDrawing';
 
 // ============ BUILD PREVIEW ============
@@ -28,8 +28,8 @@ export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSna
   const w = footprint.width * state.camera.zoom;
   const h = footprint.height * state.camera.zoom;
   const valid = state.buildGhost.valid;
-  const bob = Math.sin(renderTime * 3.2) * Math.max(1.5, 2.5 * state.camera.zoom);
-  const pulse = 0.55 + Math.sin(renderTime * 4.5) * 0.2;
+  const bob = Math.sin(motionTime * 3.2) * Math.max(1.5, 2.5 * state.camera.zoom);
+  const pulse = 0.55 + Math.sin(motionTime * 4.5) * 0.2;
 
   // Soft outer glow ring (valid green / invalid red)
   ctx.save();
@@ -75,13 +75,11 @@ export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSna
 
   // Floating ghost sprite (hover bob).
   //
-  // Decor types (Garden / Statue / Lamp) declare a `sprite:` path that has no art on disk — the
-  // placed building is drawn procedurally (`drawProceduralDecor`, called from `buildings.ts`), so
-  // the ghost has to take the same procedural path. Falling through to the sprite lookup showed a
-  // flat validity-coloured rectangle instead of the flowers / statue / lamp about to be placed.
+  // Decor types (Garden / Statue / Lamp) declare no sprite: the placed building is drawn
+  // procedurally (`drawProceduralDecor`, called from `buildings.ts`), so the ghost does the same.
   ctx.globalAlpha = 0.78;
   const isDecor = isDecorType(state.buildMode);
-  const previewFrame = isDecor ? null : getSpriteFrame(cfg.sprite);
+  const previewFrame = isDecor || !cfg.sprite ? null : getSpriteFrame(cfg.sprite);
   if (previewFrame) {
     drawBuildingSprite(
       ctx, state.buildMode, previewFrame, sx, sy - h * 0.06 + bob, w, h, 1,

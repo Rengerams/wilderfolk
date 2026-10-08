@@ -68,6 +68,15 @@ const DRIVER_BAND_COLOR = {
   bad: 'text-rose-400',
 } as const;
 
+/** Species the Shannon index counts: rabbits, deer, wolves, foxes, werewolves, wildkin. */
+const BIODIVERSITY_SPECIES_COUNT = 6;
+
+/** The index with no scale is unreadable, so the panel states its ceiling and the share of it reached. */
+const BIODIVERSITY_SCALE = {
+  max: Math.log(BIODIVERSITY_SPECIES_COUNT),
+  label: `Shannon-Wiener index (H′) — maximum ${Math.log(BIODIVERSITY_SPECIES_COUNT).toFixed(2)} when all ${BIODIVERSITY_SPECIES_COUNT} counted species are equally common`,
+} as const;
+
 export default function NatureTabPanel({ state }: NatureTabPanelProps) {
   // Field-level deps on purpose — recompute only when an ecology input changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,6 +122,10 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
   // and not the number.
   const healthFill = resourceFillPercent({ amount: ecosystemHealth, cap: 100 });
   const pollutionFill = resourceFillPercent({ amount: state.pollutionLevel, cap: 100 });
+  const biodiversityFill = resourceFillPercent({
+    amount: state.biodiversityIndex,
+    cap: BIODIVERSITY_SCALE.max,
+  });
 
   const wc = state.wildlifeCounts;
   const preyTotal = (wc?.rabbits ?? 0) + (wc?.deer ?? 0);
@@ -256,8 +269,15 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
           <div className="rounded bg-stone-600/30 p-2">
             <div className="text-stone-400">Biodiversity</div>
             <strong className="text-lg text-white">{state.biodiversityIndex.toFixed(2)}</strong>
-            {/* The index name is the ecology owner's; no owner supplies a band for the number. */}
             <span className="block text-[10px] text-stone-500">{'Shannon-Wiener index (H′)'}</span>
+            {/* The index is a bare number without its ceiling: showing the score against the evenness
+                maximum the six counted species can reach is what makes 1.72 read as a healthy valley. */}
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-600" title={BIODIVERSITY_SCALE.label}>
+              <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${biodiversityFill}%` }} />
+            </div>
+            <span className="mt-0.5 block text-[10px] tabular-nums text-stone-500">
+              {state.biodiversityIndex.toFixed(2)} of {BIODIVERSITY_SCALE.max.toFixed(2)} max · {biodiversityFill}% even
+            </span>
           </div>
           <div className="rounded bg-stone-600/30 p-2">
             <div className="text-stone-400">Weather</div>

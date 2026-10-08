@@ -26,6 +26,8 @@ export interface MoreTabPanelProps {
   debugMode: boolean;
   state: WorldState;
   onStartGuidedCampaign: () => void;
+  /** Opens the shortcut sheet from the Guide, so the Guide's own `?` pointer is never a dead end. */
+  onOpenShortcuts?: () => void;
 }
 
 export default function MoreTabPanel({
@@ -38,6 +40,7 @@ export default function MoreTabPanel({
   debugMode,
   state,
   onStartGuidedCampaign,
+  onOpenShortcuts,
 }: MoreTabPanelProps) {
   const [helpQuery, setHelpQuery] = useState('');
   const helpHits = useMemo(() => searchGuideHelp(helpQuery), [helpQuery]);
@@ -249,6 +252,15 @@ export default function MoreTabPanel({
               camera panning and zoom, quick-build, overlays, rotating roads and walls, and closing
               anything you have open. It is always the current list.
             </p>
+            {onOpenShortcuts && (
+              <button
+                type="button"
+                onClick={onOpenShortcuts}
+                className="mt-2 w-full rounded-lg border border-stone-600 px-3 py-1.5 text-xs font-semibold text-stone-300 hover:border-emerald-500/40 hover:text-emerald-200"
+              >
+                Open the shortcut sheet
+              </button>
+            )}
           </div>
 
           <div className="rounded-xl bg-stone-700/50 p-3">

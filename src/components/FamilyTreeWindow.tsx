@@ -7,6 +7,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { citizenFullName } from '../game/citizenId';
 import { buildFullFamilyTree, type FamilyTreePerson } from '../game/familyTree';
 import GameWindow from './GameWindow';
+import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 
 export interface FamilyTreeWindowProps {
   /** The settler whose tree this is. */
@@ -94,6 +95,10 @@ export default function FamilyTreeWindow({ entity, allEntities, onClose, onSelec
   const relatives = tree.memberCount - 1;
   const treeBoxRef = useRef<HTMLDivElement | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
+  // `GameWindow` owns the focus half of the overlay contract; the keyboard half is the caller's, and
+  // it was missing here — the map's hotkeys stayed live behind the tree and Escape ran the game's own
+  // chain instead of closing it.
+  useOverlayKeyboard('family-tree-window', onClose);
   /** The member layout, as a stable key: re-measure when it changes, not on every render. */
   const layoutKey = tree.rows.map((r) => r.members.map((m) => m.id).join(',')).join('|');
 

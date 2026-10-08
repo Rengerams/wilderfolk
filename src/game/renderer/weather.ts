@@ -30,7 +30,7 @@ import { WEATHER_CONFIGS } from '../gameTypes';
 import { isWaterTerrainType } from '../terrain/terrainTraits';
 import { tileTypeAt } from '../terrain/terrainGrid';
 import type { RenderSnapshot } from '../renderSnapshot';
-import { renderTime } from './shared';
+import { motionTime, renderTime } from './shared';
 import { getPresentationRng } from '../simRng';
 
 /* ========================= TERAFORGE'S REGISTRY CONTRACT ========================= */
@@ -497,21 +497,21 @@ export function drawWaterShimmer(ctx: CanvasRenderingContext2D, state: RenderSna
       const sw = ts * z * stride;
 
       // Broad flowing wave bands — the water visibly moves (sine currents).
-      const flow = renderTime * 0.16 + tx * 0.9 + ty * 1.35;
+      const flow = motionTime * 0.16 + tx * 0.9 + ty * 1.35;
       for (let band = 0; band < 2; band++) {
         const bp = (flow + band * 0.5) % 1;
         const bandY = sy + sw * (0.12 + bp * 0.76);
-        const waveH = Math.max(1, sw * (0.06 + 0.03 * Math.sin(renderTime * 1.3 + tx * 2.3 + ty * 1.7)));
-        const bandAlpha = 0.05 + 0.03 * Math.sin(renderTime * 1.6 + tx * 1.3 + ty * 0.8);
+        const waveH = Math.max(1, sw * (0.06 + 0.03 * Math.sin(motionTime * 1.3 + tx * 2.3 + ty * 1.7)));
+        const bandAlpha = 0.05 + 0.03 * Math.sin(motionTime * 1.6 + tx * 1.3 + ty * 0.8);
         ctx.fillStyle = `rgba(255,255,255,${Math.max(0.02, bandAlpha)})`;
         ctx.fillRect(sx - 2, bandY, sw + 4, waveH);
       }
 
       // Sparkle streaks (existing) — thin light lines sliding downstream.
-      const phase = renderTime * 0.5 + (tx * 7 + ty * 13);
+      const phase = motionTime * 0.5 + (tx * 7 + ty * 13);
       const p1 = phase % 1;
       const p2 = (phase + 0.55) % 1;
-      const alpha = 0.09 + Math.sin(renderTime * 2.1 + tx + ty * 0.7) * 0.04;
+      const alpha = 0.09 + Math.sin(motionTime * 2.1 + tx + ty * 0.7) * 0.04;
       ctx.fillStyle = `rgba(255,255,255,${alpha})`;
       ctx.fillRect(sx + p1 * sw, sy + sw * 0.32, sw * 0.22, Math.max(1, sw * 0.045));
       ctx.fillRect(sx + p2 * sw, sy + sw * 0.66, sw * 0.16, Math.max(1, sw * 0.045));
@@ -563,7 +563,7 @@ export function drawSeasonParticles(ctx: CanvasRenderingContext2D, state: Render
   const fall = state.season === Season.Fall;
   for (const p of seasonParts) {
     p.y += p.vy;
-    p.x += p.vx + Math.sin(renderTime * 1.4 + p.sway) * 0.35;
+    p.x += p.vx + Math.sin(motionTime * 1.4 + p.sway) * 0.35;
     if (p.y > ch + 8 || p.x < -8 || p.x > cw + 8) {
       p.y = -8 - getPresentationRng('weatherFx')() * 8;
       p.x = getPresentationRng('weatherFx')() * cw;
@@ -573,13 +573,13 @@ export function drawSeasonParticles(ctx: CanvasRenderingContext2D, state: Render
   if (fall) {
     ctx.fillStyle = '#e8a24c';
     for (const p of seasonParts) {
-      ctx.globalAlpha = 0.45 + Math.sin(renderTime * 3 + p.sway) * 0.18;
+      ctx.globalAlpha = 0.45 + Math.sin(motionTime * 3 + p.sway) * 0.18;
       ctx.fillRect(p.x, p.y, p.size, p.size * 0.6);
     }
   } else {
     ctx.fillStyle = '#ffffff';
     for (const p of seasonParts) {
-      ctx.globalAlpha = 0.22 + Math.sin(renderTime * 2 + p.sway) * 0.1;
+      ctx.globalAlpha = 0.22 + Math.sin(motionTime * 2 + p.sway) * 0.1;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
       ctx.fill();

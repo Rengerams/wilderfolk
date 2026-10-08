@@ -231,20 +231,6 @@ button:active:not(:disabled) {
   animation: slide-in-from-left 0.3s ease-out;
 }
 
-/* Sidebar tabs — slightly taller hit targets, clearer active state */
-.sidebar-tabs {
-  background: rgba(12, 10, 9, 0.72) !important;
-  border-top-color: rgba(68, 64, 60, 0.9) !important;
-}
-
-.sidebar-tab--active {
-  background: rgba(16, 185, 129, 0.18) !important;
-  box-shadow:
-    inset 0 0 0 1px rgba(52, 211, 153, 0.4),
-    0 0 12px rgba(16, 185, 129, 0.12) !important;
-  color: #6ee7b7;
-}
-
 /* Research node connection lines (visual) */
 .research-tree-line {
   stroke: #475569;
@@ -298,59 +284,6 @@ button:active:not(:disabled) {
 /* Smooth panel transitions */
 aside {
   transition: width 0.3s ease;
-}
-
-/* Sidebar tab bar */
-.sidebar-tabs {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 3px;
-  padding: 6px 4px;
-  background: rgba(28, 25, 23, 0.85);
-  border-top: 1px solid rgba(68, 64, 60, 0.8);
-}
-
-.sidebar-tab {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 8px 4px;
-  border-radius: 10px;
-  transition: background 0.15s ease, color 0.15s ease;
-  min-height: 3.25rem;
-}
-
-.sidebar-tab--active {
-  background: rgba(16, 185, 129, 0.15);
-  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.35);
-}
-
-.sidebar-tab-dot {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: #f59e0b;
-  box-shadow: 0 0 4px rgba(245, 158, 11, 0.6);
-}
-
-.sidebar-tab-badge {
-  position: absolute;
-  top: 2px;
-  right: 4px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: 999px;
-  background: #f43f5e;
-  color: white;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 16px;
-  text-align: center;
 }
 
 .progress-subnav {
@@ -470,34 +403,6 @@ aside {
   pointer-events: auto;
 }
 
-.game-view-drawer--dock {
-  top: 0.75rem;
-  bottom: auto;
-  width: 4.5rem;
-  min-height: 26rem;
-  opacity: 0.97;
-}
-
-.game-view-drawer--dock .sidebar-tabs {
-  grid-template-columns: 1fr;
-  gap: 0.25rem;
-  padding: 0.4rem;
-  border-top: 0;
-}
-
-.game-view-drawer--dock .sidebar-tab {
-  min-height: 3.25rem;
-  padding-inline: 0.25rem;
-}
-
-.game-view-drawer--dock .sidebar-tab > span:not(.sidebar-tab-badge):not(.sidebar-tab-dot) {
-  display: none;
-}
-
-.game-view-drawer--dock .game-view-content {
-  display: none;
-}
-
 .game-view-drawer--rail {
   bottom: auto;
   width: 3.2rem;
@@ -544,7 +449,6 @@ aside {
     border-radius: 0.75rem;
   }
 
-  .game-view-drawer--dock,
   .game-view-drawer--rail {
     top: 0.5rem;
     right: 0.5rem;
@@ -552,10 +456,6 @@ aside {
     left: auto;
     width: 3.35rem;
     min-height: 0;
-  }
-
-  .game-view-drawer--dock .sidebar-tabs {
-    grid-template-columns: repeat(2, 1fr);
   }
 }
 

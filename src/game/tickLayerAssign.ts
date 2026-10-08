@@ -20,7 +20,7 @@ export const LAYER_ASSIGN_INTERVAL = 6 * TICKS_PER_HOUR;
  * Assignment layer — residence + workforce bookkeeping.
  *
  * Realtime interactions (chat, affairs, courtship) run in `tickHumans`.
- * Daily mortality and conception stay under `isNewCalendarDay` in `lifeSimulation`.
+ * Daily mortality and conception stay under `isNewCalendarDay` in `humanTick`.
  *
  * Called when `world.tick % LAYER_ASSIGN_INTERVAL === 0`.
  */

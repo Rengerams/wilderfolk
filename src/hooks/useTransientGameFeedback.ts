@@ -142,7 +142,6 @@ export function useTransientGameFeedback({
   loopRef,
   onFeedbackInteraction,
 }: UseTransientGameFeedbackOptions) {
-  const [momentCard, setMomentCard] = useState<MomentCardData | null>(null);
   const [dismissedChapter, setDismissedChapter] = useState<string | null>(null);
   const [hiddenBigNewsIds, setHiddenBigNewsIds] = useState<ReadonlySet<string>>(() => new Set());
   const [hiddenActiveEventIds, setHiddenActiveEventIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -189,17 +188,18 @@ export function useTransientGameFeedback({
     () => getPendingChapterMoment({ chronicleChapters: world.chronicleChapters }, dismissedChapter),
     [dismissedChapter, world.chronicleChapters],
   );
-  const activeMoment = momentCard ?? pendingChapterCard;
 
-  const dismissMomentCard = useCallback(() => {
-    if (momentCard) {
-      setMomentCard(null);
-      return;
-    }
+  /**
+   * The card on screen is the pending chapter, so dismissal is the chapter's own ledger write.
+   *
+   * The second card slot this hook carried — a free-standing moment — had no producer and no reader
+   * beyond its own dismissal, so it is gone rather than left as a branch no state could reach.
+   */
+  const dismissChapterCard = useCallback(() => {
     if (pendingChapterCard) {
       setDismissedChapter(pendingChapterCard.id);
     }
-  }, [momentCard, pendingChapterCard]);
+  }, [pendingChapterCard]);
 
   const dismissNotification = useCallback(
     (id: string, playFeedback = true) => {
@@ -382,10 +382,10 @@ export function useTransientGameFeedback({
     activeBigNews,
     activeEventDismissible,
     activeEventForBanner,
-    activeMoment,
+    activeChapterMoment: pendingChapterCard,
     dismissActiveEvent,
     dismissBigNewsItem,
-    dismissMomentCard,
+    dismissChapterCard,
     dismissNotification,
     resetTransientFeedbackForNewSession,
     synchronizeTransientFeedbackFromWorld,

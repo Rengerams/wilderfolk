@@ -117,7 +117,7 @@ Domain logic lives in modules, not one mega-file:
 
 | Module | Owns |
 |--------|------|
-| `lifeSimulation.ts` | Human + wildlife tick bodies |
+| `humanTick.ts` | Human tick bodies (animal AI: `tickLayerSystems`) |
 | `dayCycle.ts` | Calendar, housing, age, family helpers |
 | `frontierCombat.ts` | Raids (abstract ratios, not a battle screen) |
 | `groupEvents.ts` | Visitors, rivals, living camps, diplomacy |
@@ -236,7 +236,7 @@ src/
     gameLoop.ts           session clock
     gameTick.ts           tick orchestrator
     tickLayer*.ts         four layers
-    lifeSimulation.ts     people & beasts
+    humanTick.ts          people & beasts
     renderer.ts           Canvas draw
     saveLoad.ts           persist
     frontierCombat.ts     war abstract

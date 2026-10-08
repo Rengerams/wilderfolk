@@ -7,7 +7,7 @@ import {
   GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
 
   saveGame, loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave, downloadSaveFile,
-  parseSaveJson, describeSaveReadFailure, loadGameFromParsed,
+  loadGameFromFileTextOutcome,
   getDiplomacyChoiceEligibility, getVisitorLeaderTalkMeta,
   ensureFullTradeRoutes,
   getCombatPreview,
@@ -198,10 +198,12 @@ export default function App() {
     firstNightWarningDismissed,
     inspectorCollapsed,
     juiceEffectsEnabled,
+    logFilter,
     logSubTab,
     mapSetupSource,
     moreSubTab,
     openCitizenOverview,
+    openLog,
     openTab,
     overviewSection,
     overviewWorldFocus,
@@ -214,6 +216,7 @@ export default function App() {
     setFirstNightWarningDismissed,
     setInspectorCollapsed,
     setLogSubTab,
+    setLogFilter,
     setMapSetupSource,
     setMoreSubTab,
     setProgressSubTab,
@@ -334,10 +337,10 @@ export default function App() {
     activeBigNews,
     activeEventDismissible,
     activeEventForBanner,
-    activeMoment,
+    activeChapterMoment,
     dismissActiveEvent,
     dismissBigNewsItem,
-    dismissMomentCard,
+    dismissChapterCard,
     dismissNotification,
     resetTransientFeedbackForNewSession,
     synchronizeTransientFeedbackFromWorld,
@@ -1119,26 +1122,19 @@ export default function App() {
   }, [showSaveToast, worldRef, loopRef, viewRef]);
 
   const handleLoadFromFile = useCallback((jsonText: string) => {
-    // Parse first: the refusal reason (empty / damaged / another build) is what the
-    // player needs to see. Only then attempt the full world restore.
-    const parsed = parseSaveJson(jsonText);
-    if (!parsed.valid) {
-      showSaveToast({ message: describeSaveReadFailure(parsed), type: 'error' });
+    // One owner for the refusal detail, so a file load names the field that broke exactly as the
+    // slot path does.
+    const outcome = loadGameFromFileTextOutcome(jsonText);
+    if (!outcome.ok) {
+      showSaveToast({ message: describeSaveLoadOutcome(outcome), type: 'error' });
       return;
     }
-    const loaded = loadGameFromParsed(parsed.parsed);
-    if (!loaded) {
-      // The "parsed but not restorable" message has one owner (`saveLoad.describeSaveLoadOutcome`),
-      // so the slot, menu and file paths cannot drift apart.
-      showSaveToast({ message: describeSaveLoadOutcome({ reason: 'unrestorable' }), type: 'error' });
-      return;
-    }
-    applyLoadedSession(loaded);
+    applyLoadedSession(outcome);
     setShowMapSetup(false);
     setHasSavedGame(true);
     // Keep browser slot in sync with the file you just loaded
     try {
-      saveGame(loaded.world, loaded.view);
+      saveGame(outcome.world, outcome.view);
     } catch {
       /* ignore */
     }
@@ -1799,8 +1795,8 @@ export default function App() {
             />
           )}
 
-          {!showTutorial && activeMoment && (
-            <MomentTitleCard moment={activeMoment} onDone={dismissMomentCard} />
+          {!showTutorial && activeChapterMoment && (
+            <MomentTitleCard moment={activeChapterMoment} onDone={dismissChapterCard} />
           )}
 
           {contextualTip && tutorialsEnabled && !showTutorial && (
@@ -2050,6 +2046,10 @@ export default function App() {
                 break;
             }
           }}
+          onOpenLog={({ subTab, filter }) => {
+            setShowDashboard(false);
+            openLog(subTab, filter);
+          }}
         />
       )}
 
@@ -2065,10 +2065,13 @@ export default function App() {
           section={overviewSection}
           worldFocus={overviewWorldFocus}
           onNavChange={selectOverviewNav}
+          onOpenShortcuts={() => setShowShortcuts(true)}
           progressSubTab={progressSubTab}
           setProgressSubTab={setProgressSubTab}
           logSubTab={logSubTab}
           setLogSubTab={setLogSubTab}
+          logFilter={logFilter}
+          setLogFilter={setLogFilter}
           moreSubTab={moreSubTab}
           setMoreSubTab={setMoreSubTab}
           tutorialsEnabled={tutorialsEnabled}

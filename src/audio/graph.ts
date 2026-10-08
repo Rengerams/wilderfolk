@@ -1,4 +1,4 @@
-import { FILTER_FREQ, STORAGE_KEYS, VOLUMES } from './constants';
+import { FILTER_FREQ, LIMITER, STORAGE_KEYS, VOLUMES } from './constants';
 import {
   levelsForPreset,
   loadVolumePreset,
@@ -27,6 +27,7 @@ function saveMutePreference(muted: boolean) {
 class AudioGraph {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
+  private limiter: DynamicsCompressorNode | null = null;
   private musicGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
   private ambientGain: GainNode | null = null;
@@ -43,7 +44,16 @@ class AudioGraph {
 
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = 0;
-      this.masterGain.connect(this.ctx.destination);
+      // Master → limiter → speakers: the loud preset drives the master past unity and nothing else
+      // bounds the summed buses, so the last node before the destination is a hard limiter.
+      this.limiter = this.ctx.createDynamicsCompressor();
+      this.limiter.threshold.value = LIMITER.thresholdDb;
+      this.limiter.knee.value = LIMITER.kneeDb;
+      this.limiter.ratio.value = LIMITER.ratio;
+      this.limiter.attack.value = LIMITER.attackSec;
+      this.limiter.release.value = LIMITER.releaseSec;
+      this.masterGain.connect(this.limiter);
+      this.limiter.connect(this.ctx.destination);
 
       this.musicFilter = this.ctx.createBiquadFilter();
       this.musicFilter.type = 'lowpass';
@@ -87,6 +97,12 @@ class AudioGraph {
   getVolumePreset(): VolumePreset {
     this.ensure();
     return this.volumePreset;
+  }
+
+  /** Current preset levels — what the HTMLAudio fallback needs to scale its element. */
+  getLevels(): AudioLevels {
+    this.ensure();
+    return { ...this.levels };
   }
 
   setVolumePreset(preset: VolumePreset) {

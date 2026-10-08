@@ -20,6 +20,15 @@ export const FILTER_FREQ = {
   musicIntro: 2800,
 } as const;
 
+/** Master-bus limiter — the loud preset scales the master past unity, so the sum must be bounded. */
+export const LIMITER = {
+  thresholdDb: -3,
+  kneeDb: 0,
+  ratio: 20,
+  attackSec: 0.003,
+  releaseSec: 0.25,
+} as const;
+
 export const NOTES = {
   C3: 130.81, D3: 146.83, E3: 164.81, G3: 196.0, A3: 220.0,
   C4: 261.63, D4: 293.66, E4: 329.63, G4: 392.0, A4: 440.0,

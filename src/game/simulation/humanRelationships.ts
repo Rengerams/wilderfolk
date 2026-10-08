@@ -37,6 +37,7 @@ import {
   isResidenceBuilding,
   pickResidenceForHuman,
   pickResidenceForHumanExcluding,
+  pickResidenceFromChildCustodian,
   syncResidenceOccupants,
   syncPartnerResidence,
   killHuman,
@@ -1079,7 +1080,10 @@ function reassignDivorcedResidences(
           child.adoptiveFatherId === custodian.id),
     );
     for (const child of children) {
-      child.residenceBuildingId = custodian.residenceBuildingId;
+      // A child follows the custodian only into a home with room for them; the assign layer
+      // places the rest, exactly as the death path does.
+      const custodianHome = pickResidenceFromChildCustodian(child, villagers, residences);
+      if (custodianHome !== undefined) child.residenceBuildingId = custodianHome;
     }
   }
 
@@ -1296,6 +1300,9 @@ function reportUnguardedPrison(state: WorldState): void {
 function arrestForScandal(state: WorldState, offender: Entity): void {
   if (!offender.alive || offender.type !== EntityType.Human) return;
   if (!isMarriedScandalOffender(offender)) return;
+  // A serving guard keeps the post: three shifts need three guards, so jailing the crew leaves the
+  // Prison unguarded — and an unguarded Prison leaks its prisoners. The sentence would undo the post.
+  if (offender.job === JobType.PrisonGuard) return;
   const humans = state.entities.filter(isPlayerHuman);
   const prisons = state.buildings.filter(
     (b) => b.completed && b.type === BuildingType.Prison && countGuardsAtPrison(humans, b) > 0,

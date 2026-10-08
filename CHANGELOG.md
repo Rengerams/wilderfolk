@@ -2,6 +2,78 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Stopped a house holding more settlers than it has beds** — a marriage that could not seat the whole family, a divorce and a birth each wrote a residence without asking for a free bed, so a six-bed house could hold ten; every such move now takes the residence owner's room rule.
+
+- **Made the long-run gate check housing at every checkpoint** — an over-capacity settlement was only tested at year end, so a failure named the house but not the day it first appeared.
+
+- **Stopped a home with room for one bed being asked to take two movers** — the least-crowded rule discounted a mover who already lived there twice, so a settler marrying someone already housed walked the couple into a full house.
+
+- **Gave the Prison four guard posts beside four cells** — the owner's cap: three nine-hour shifts still need three guards for round-the-clock cover, and the fourth takes rest days in turn.
+
+- **Stopped the prison's own guards being jailed for scandal** — a caught affair jailed both offenders with no role check, so the sentence dissolved the very post the prison needs, and an unguarded prison leaks its prisoners.
+
+- **Checked every lifetime statistic a save carries** — only two of the fourteen fields were backfilled, so a damaged payload could leave the colony's counters undefined.
+
+- **Made the Big News cards survive a save** — the cards were dropped while their dismissed-id list was kept, so a loaded colony's news panel came back empty.
+
+- **Made a loaded colony's id bookkeeping consistent** — duplicate chronicle ids were kept beside live ones, and the allocator and entity-index repairs ran after the passes that resolve entities by id.
+
+- **Stopped a load writing the player's auto-save preference** — a save's own setting is now adopted by the loaded colony only, never by the browser default the next settlement starts from.
+
+- **Said which field a bad save file failed on** — the load-from-file path reported only "cannot be restored", and valid JSON that is not a save was blamed on a syntax error instead.
+
+- **Made the save-slot check read the slot instead of parsing the save** — a returning player paid a full synchronous parse before the first frame.
+
+- **Vetted the weather on load** — an unknown weather or a non-numeric timer loaded into a valley whose weather could never change again.
+
+- **Removed the dead founding-card state** — a deleted title card left a state slot and an unreachable branch; the live chapter card now has the name it actually renders.
+
+- **Showed the biodiversity index against its own ceiling** — a bare number is now a score with an evenness bar a player can read.
+
+- **Kept the diagnostics drawer when nothing is selected** — clearing a selection silently removed the panel the player had deliberately opened.
+
+- **Put the build hotkey on the collapsed build rail** — the only hint was a hover tooltip, which a touch player never sees.
+
+- **Let the Guide open the shortcut sheet** — the sheet it pointed at could not be reached from the Guide, which has no hotkey of its own.
+
+- **Listed every taming candidate instead of four** — the picker silently truncated its list, and now says how many are available and why a button is dead.
+
+- **Showed a settler's name instead of their internal id** — the citizen panel labelled people with the save's allocator id.
+
+- **Reached the chronicle and the combat log pre-filtered from a concern** — the dashboard's concerns now open the log on their own filter.
+
+- **Deleted the retired sidebar's styles** — the tab rail is gone, and its CSS was still shipped.
+
+- **Stopped the parked ecology ladder rewriting persisted state every day** — the disabled valley stage is now idempotent and normalises a legacy save once.
+
+- **Removed a third Big News id allocator** — a private counter produced ids that the rollback contract and the dismissed-id list could not see.
+
+- **Counted the colony where the daily tail uses it** — the tail reasoned about the population the day started with.
+
+- **Rolled one prison escape chance per unguarded hour** — the daily pass stopped after the first escape, so a prison left open all day freed at most one prisoner.
+
+- **Read the ecosystem score through its owner** — the village-health line read the raw field, so a legacy save scored an undefined ecosystem.
+
+- **Made one despawn rule for finished caravans and departing visitors** — the carrier splice was the last manual removal beside the tick's own membership rebuild.
+
+- **Repointed the architecture notes at the files that exist** — they still named a simulation file that was split into domain modules.
+
+- **Stopped rebuilding per-frame work the frame did not change** — the ground-chunk plan, the overlay vignette's gradient and the entity-layer cache key are reused until an input actually moves.
+
+- **Kept the blacksmith scan out of camera-only frames** — a panning camera re-scanned every building for a colony-wide fact only a tick can change.
+
+- **Gave a building without a sprite its own footprint pad** — an unloaded sprite drew one white box instead of the building's own category colour.
+
+- **Dropped four sprite paths that pointed at files which never existed** — those decor types draw procedurally, so the catalogue advertised images that could only 404.
+
+- **Added a gender glyph to settler name plates** — gender was carried by label colour alone.
+
+- **Honoured the system's reduced-motion setting on the canvas** — pulses, sway, shimmer, sparkle and screen shake now hold still, while movement and floating text keep their timing.
+
+- **Loaded exactly the fill sprites the ground stamps** — the preload list named files nothing read and missed the ones the bake draws.
+
+- **Made the volume preset reach the fallback music player, and bounded the master bus** — soft, normal and loud did nothing when the HTML audio fallback was playing, and the loud preset could clip.
+
 - **Refused a save whose container arrays cannot be read** — a malformed list among the world's arrays reached the interface and showed the player raw engine text instead of naming the field that was wrong.
 
 - **Bounded the clock fields a loaded save may claim** — a negative, fractional or astronomically large tick was accepted, and the header, seasons and daily gate all derive a date from it, so a crafted file could freeze the calendar or name a year before the settlement.

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPreset, MapSize } from '../game/gameTypes';
+import type { GameEventLog } from '../game/gameTypes';
 import type { SidebarTab } from '../game/hotkeys';
 import {
   loadFirstNightWarningDismissed,
@@ -19,6 +20,13 @@ export type { SidebarTab };
 // because the copies were contravariant-compatible a member added here compiled in the panel and was
 // simply unreachable — the same drift the `SidebarTab` note above records.
 export type LogSubTab = 'chronicle' | 'combat';
+/**
+ * Filter the Log window opens on, so a concern can hand over the ongoing history it is about.
+ *
+ * `'all'` is the panel's own unfiltered state and the default; a subject opens its own category
+ * rather than the whole chronicle.
+ */
+export type LogFilter = 'all' | GameEventLog['type'];
 export type ProgressSubTab = 'research' | 'trade' | 'goals';
 export type MoreSubTab = 'guide' | 'campaign';
 export type MapSetupSource = 'intro' | 'game';
@@ -172,6 +180,7 @@ export function useGameShellState() {
   const [progressSubTab, setProgressSubTab] = useState<ProgressSubTab>('research');
   const [moreSubTab, setMoreSubTab] = useState<MoreSubTab>('guide');
   const [logSubTab, setLogSubTab] = useState<LogSubTab>('chronicle');
+  const [logFilter, setLogFilter] = useState<LogFilter>('all');
   const [inspectorCollapsed, setInspectorCollapsed] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [tutorialsEnabled, setTutorialsEnabled] = useState(loadTutorialsEnabled);
@@ -239,6 +248,22 @@ export function useGameShellState() {
     setOpenTabs(new Set([sidebarTabForOverviewNav(id)]));
   }, []);
 
+  /**
+   * Opens the Log window on the half and the category the caller was talking about.
+   *
+   * A concern is about a named history — a raid, a wolf attack, a wedding — and the Log door itself can
+   * only offer the whole chronicle, so the handover carries both the sub-tab and the filter.
+   */
+  const openLog = useCallback((subTab: LogSubTab, filter: LogFilter = 'all') => {
+    const mapped = mapSidebarTabToOverview('log');
+    setOverviewSection(mapped.section);
+    setOverviewWorldFocus(mapped.worldFocus);
+    setOpenTabs(new Set(['log']));
+    setCitizenOverviewOpen(true);
+    setLogSubTab(subTab);
+    setLogFilter(filter);
+  }, []);
+
   useEffect(() => {
     try {
       if (typeof localStorage !== 'undefined') {
@@ -259,6 +284,9 @@ export function useGameShellState() {
     setMoreSubTab,
     logSubTab,
     setLogSubTab,
+    logFilter,
+    setLogFilter,
+    openLog,
 
     // Map Setup & Modals
     selectedMapSize,

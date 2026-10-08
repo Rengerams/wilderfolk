@@ -7,7 +7,7 @@
  * player (and a developer) could not tell an empty slot from a truncated file from a
  * save written by another build, and the real cause was only visible in the console.
  *
- * These cases pin the four real causes, their player-facing messages, and the fact that
+ * These cases pin the five real causes, their player-facing messages, and the fact that
  * a valid payload still parses.
  */
 import { describe, it, expect } from 'vitest';
@@ -51,9 +51,10 @@ describe('save refusal reasons', () => {
     expect(mismatch.detail).toContain(GAME_VERSION);
     expect(describeSaveReadFailure(mismatch)).toContain('different build');
 
-    // A non-string version must not stringify as "[object Object]".
+    // A `_version` that is not a version at all is not a save of another build either.
     const odd = refusal(parseSaveJson(JSON.stringify({ _version: { build: 3 } })));
-    expect(odd.detail).toContain('unknown');
+    expect(odd.reason).toBe('not-a-save');
+    expect(odd.detail).toContain('object');
     expect(describeSaveReadFailure(odd)).not.toContain('[object Object]');
   });
 
@@ -69,13 +70,14 @@ describe('save refusal reasons', () => {
     // handler (`App.handleLoadFromFile` has no try/catch) with no toast and no visible cause.
     for (const raw of ['null', '[]', '"x"', '123', 'true']) {
       const refused = refusal(parseSaveJson(raw));
-      expect(refused.reason, raw).toBe('malformed');
+      expect(refused.reason, raw).toBe('not-a-save');
       expect(refused.detail, raw).toBeTruthy();
     }
 
     // The detail says what the payload actually was, so the player can repeat it back.
     expect(refusal(parseSaveJson('null')).detail).toContain('null');
     expect(refusal(parseSaveJson('[]')).detail).toContain('array');
-    expect(describeSaveReadFailure(refusal(parseSaveJson('123')))).toContain('damaged or truncated');
+    // Valid JSON, so the refusal names it a non-save rather than claiming the JSON is damaged.
+    expect(describeSaveReadFailure(refusal(parseSaveJson('123')))).toContain('not a Wilderfolk save');
   });
 });

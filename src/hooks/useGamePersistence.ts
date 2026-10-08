@@ -34,7 +34,10 @@ export interface PersistCurrentGameOptions {
 type PersistenceLoop = Pick<
   GameLoop,
   'exportAuthoritativeWorld' | 'getView' | 'getWorld' | 'mutateWorld'
->;
+> & {
+  /** Optional so a test double that only exports a world still satisfies the contract. */
+  lastExportWasDegraded?: () => boolean;
+};
 
 export interface GamePersistenceAccessors {
   getLoop: () => PersistenceLoop | null;
@@ -116,6 +119,15 @@ async function persistGameOnce(
   if (!result.success) {
     if (feedback) callbacks.showToast({ message: result.error, type: 'error' });
     return false;
+  }
+  // The worker export is allowed to fall back to the display world, which carries optimistic commands
+  // the worker never confirmed. Say so rather than let a success toast imply the file matches the
+  // running colony.
+  if (feedback && loop?.lastExportWasDegraded?.()) {
+    callbacks.showToast({
+      message: 'Saved from the screen copy — the simulation worker did not answer in time.',
+      type: 'warning',
+    });
   }
 
   if (chronicle && loadExportChronicleOnSave()) {

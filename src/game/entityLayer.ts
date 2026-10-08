@@ -53,8 +53,15 @@ let entityLayerCache: EntityLayerCache | null = null;
  * (`renderer/buildVisualsOverlay.ts`), because pointer motion changes them many times a second and
  * each change re-baked every grass tuft, tree, building, animal and settler in view.
  */
+/** Reused key scratch — this runs every frame, so the array and the joined string are memoised. */
+const layerKeyParts: (string | number)[] = [];
+let layerKeySnapshot: (string | number)[] = [];
+let layerKeyString = '';
+
 export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: number): string {
-  return [
+  const parts = layerKeyParts;
+  parts.length = 0;
+  parts.push(
     state.tick,
     cw,
     ch,
@@ -62,13 +69,11 @@ export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: numbe
     state.showGrid ? 1 : 0,
     state.showPaths ? 1 : 0,
     state.selectedEntity?.id ?? '',
-    // The painters read the whole selection (`humans.ts` / `animals.ts` draw a ring per id) and the
-    // juice-effects preference (contact-shadow strength), but neither was keyed — so a shift-click
-    // that changed only a non-primary id, or toggling the preference, left the cached bitmap stale
-    // until the next tick, and indefinitely while paused. `state.season` is deliberately not keyed:
-    // `gameTick` advances `state.tick` and assigns `state.season` in the same call, and `tick` is
-    // already in this key, so the season can never change without a rebuild.
-    state.selectedEntityIds.join(','),
+  );
+  // Painters read the whole selection and the juice-effects preference, so both are keyed. The
+  // season is not: `gameTick` moves `tick` and `season` together, and `tick` is already keyed.
+  for (const id of state.selectedEntityIds ?? []) parts.push(id);
+  parts.push(
     state.juiceEffectsEnabled ? 1 : 0,
     state.selectedBuilding?.id ?? '',
     state.villageLeaderId ?? '',
@@ -80,7 +85,22 @@ export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: numbe
     state.visitorGroups.length,
     state.buildings.length,
     state.entities.length,
-  ].join('|');
+  );
+
+  const cached = layerKeySnapshot;
+  if (cached.length === parts.length) {
+    let same = true;
+    for (let i = 0; i < parts.length; i++) {
+      if (cached[i] !== parts[i]) {
+        same = false;
+        break;
+      }
+    }
+    if (same) return layerKeyString;
+  }
+  layerKeySnapshot = parts.slice();
+  layerKeyString = parts.join('|');
+  return layerKeyString;
 }
 
 /** Surface dimensions for a viewport of cw×ch (padded on all sides). */

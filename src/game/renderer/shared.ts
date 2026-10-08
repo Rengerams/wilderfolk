@@ -4,11 +4,45 @@ import { BuildingType } from '../gameTypes';
 let _lastRenderTime = 0;
 /** Global render time in seconds, advanced once per frame by {@link tickRenderClock}. */
 export let renderTime = 0;
+/**
+ * Oscillator clock in seconds — the same clock, held still while the OS asks for reduced motion.
+ *
+ * Pulses, bobs, sparkle and sway read this instead of {@link renderTime}, so honouring the
+ * preference freezes decoration without stopping motion integration (weather drift, particles).
+ */
+export let motionTime = 0;
+
+let reducedMotionQuery: MediaQueryList | null | undefined;
+
+function getReducedMotionQuery(): MediaQueryList | null {
+  if (reducedMotionQuery === undefined) {
+    reducedMotionQuery = null;
+    try {
+      if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+        reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+      }
+    } catch {
+      reducedMotionQuery = null;
+    }
+  }
+  return reducedMotionQuery;
+}
+
+/** True when the OS asks for reduced motion; false where `matchMedia` is unavailable. */
+export function prefersReducedMotion(): boolean {
+  return getReducedMotionQuery()?.matches ?? false;
+}
+
+/** Screen-shake amplitude to apply — zero while the OS asks for reduced motion. */
+export function effectiveScreenShake(screenShake: number): number {
+  return prefersReducedMotion() ? 0 : screenShake;
+}
 
 /** Reset the render clock and all derived timing state. */
 export function resetRenderClock(): void {
   _lastRenderTime = 0;
   renderTime = 0;
+  motionTime = 0;
 }
 
 /** Advance the render clock from a DOMHighResTimeStamp; returns the new render time. */
@@ -16,6 +50,7 @@ export function tickRenderClock(now: number): number {
   const dt = _lastRenderTime > 0 ? Math.min(0.1, (now - _lastRenderTime) / 1000) : 1 / 60;
   _lastRenderTime = now;
   renderTime += dt;
+  if (!prefersReducedMotion()) motionTime += dt;
   return renderTime;
 }
 

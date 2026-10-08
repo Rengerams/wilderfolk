@@ -74,15 +74,15 @@ export function pickLeastCrowdedResidence(
     if (isLeaderHouseResidence(residence)) continue;
     if (options.forbidSinglesOnly && residenceHostsOnlySingles(residence.id, humans)) continue;
     const cap = getResidenceCapacity(residence);
-    let count = countResidentsInBuilding(humans, residence.id, occupancy);
-    let slots = extraSlots;
+    const residents = countResidentsInBuilding(humans, residence.id, occupancy);
+    let alreadyHere = 0;
     for (const mover of movingTogether) {
-      if (mover.residenceBuildingId === residence.id) {
-        count--;
-        slots--;
-      }
+      if (mover.residenceBuildingId === residence.id) alreadyHere++;
     }
-    if (count + slots > cap) continue;
+    // The home holds its current residents plus every mover that is not one of them — a mover
+    // already living there is discounted once, from the count or from the slots, never both.
+    if (residents + extraSlots - alreadyHere > cap) continue;
+    const count = residents - alreadyHere;
     if (count < bestCount || (count === bestCount && residence.id < (best?.id ?? Infinity))) {
       bestCount = count;
       best = residence;

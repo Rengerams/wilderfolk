@@ -114,6 +114,15 @@ export function useCanvasInteractions({
 }: UseCanvasInteractionsOptions) {
   // Suppresses subsequent onClick handling if strip build was already committed on mouseUp
   const stripPlacedOnMouseUpRef = useRef(false);
+  /**
+   * Did the gesture that just ended move the pointer far enough to be a pan rather than a click?
+   *
+   * The click event arrives **after** `mouseup`, which clears `clickOriginRef`, so the distance guard
+   * in `handleCanvasClick` had nothing left to measure and every pan fell through to the deselect
+   * branch — the most frequent map action threw the selection away. The verdict is taken in `mouseup`,
+   * while the origin still exists, and read by the click that follows.
+   */
+  const pointerMovedRef = useRef(false);
 
   const getEventWorldCoords = useCallback(
     (clientX: number, clientY: number): { worldX: number; worldY: number; rect: DOMRect } | null => {
@@ -139,6 +148,13 @@ export function useCanvasInteractions({
       // Consume strip placement event if it already fired on mouse up
       if (stripPlacedOnMouseUpRef.current) {
         stripPlacedOnMouseUpRef.current = false;
+        pointerMovedRef.current = false;
+        return;
+      }
+
+      // A pan is not a click: `mouseup` recorded the movement while the origin still existed.
+      if (pointerMovedRef.current) {
+        pointerMovedRef.current = false;
         return;
       }
 
@@ -454,6 +470,8 @@ export function useCanvasInteractions({
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
+      // A fresh gesture starts as a click; `mouseup` decides whether it was a pan.
+      pointerMovedRef.current = false;
       if (gameplayActive && e.button === 0) {
         onPrimeAudioUnlock();
         audioStartedRef.current = true;
@@ -489,6 +507,7 @@ export function useCanvasInteractions({
       cameraDragStartRef,
       clickOriginRef,
       rightClickOriginRef,
+      pointerMovedRef,
     ],
   );
 
@@ -539,6 +558,18 @@ export function useCanvasInteractions({
         rightClickOriginRef.current = null;
       }
 
+      // Record the gesture's travel before the origin is dropped — the click that follows reads it.
+      // `clickOriginRef` is only ever set on a real press, so a missing origin means there is no
+      // gesture to measure.
+      const origin = clickOriginRef.current;
+      if (origin && e) {
+        const dx = e.clientX - origin.x;
+        const dy = e.clientY - origin.y;
+        pointerMovedRef.current = dx * dx + dy * dy > 16;
+      } else {
+        pointerMovedRef.current = false;
+      }
+
       isDraggingRef.current = false;
       cameraDragStartRef.current = null;
       clickOriginRef.current = null;
@@ -552,6 +583,7 @@ export function useCanvasInteractions({
       cameraDragStartRef,
       clickOriginRef,
       rightClickOriginRef,
+      pointerMovedRef,
       loopRef,
       worldRef,
     ],

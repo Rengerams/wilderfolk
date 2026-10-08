@@ -198,6 +198,7 @@ export class GameLoop {
   private lastWorkerTickRequest = 0;
   private lastDailyBoundaryTick = 0;
   private workerTickLatencyMs = 0;
+  private exportDegraded = false;
   private workerRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
   private workerRecoveryDelayMs = WORKER_RECOVERY_INITIAL_DELAY_MS;
   private workerRecoveryInFlight = false;
@@ -510,6 +511,18 @@ export class GameLoop {
     return this.world;
   }
 
+  /**
+   * Whether the most recent {@link exportAuthoritativeWorld} fell back to the display world.
+   *
+   * That fallback is deliberate — a worker fault, a host swap or a timed-out idle wait must still
+   * produce a save — but the display world is a clone the optimistic commands were replayed onto, so
+   * a degraded export can persist a player action the worker never confirmed. The caller warns on it
+   * rather than letting a success toast stand for a save that may not match the running colony.
+   */
+  lastExportWasDegraded(): boolean {
+    return this.exportDegraded;
+  }
+
   getView(): ViewState {
     return this.view;
   }
@@ -757,8 +770,7 @@ export class GameLoop {
     // identity test below is the only one that catches a host swap mid-save.
     const host = this.workerHost;
     if (this.workerEnabled && host?.isReady()) {
-      const exportGen = this.sessionGen;
-      try {
+      const exportGen = this.sessionGen;      try {
         // Deliberately **no** `syncAfterWorkerMutation()` here. It adopts the host's authoritative
         // world into the display, which is right for the command-failure paths that call it — they
         // have just been told the display is wrong — and wrong for a read: it advances the display to
@@ -775,6 +787,7 @@ export class GameLoop {
         // A worker fault replaces the host and already synced the display world (`fallbackFromWorker`),
         // so falling back to `this.world` is correct — and must not read the field it just nulled.
         if (exportGen !== this.sessionGen || this.workerHost !== host || !host.isReady()) {
+          this.exportDegraded = true;
           return this.world;
         }
 
@@ -784,13 +797,20 @@ export class GameLoop {
             setTimeout(() => reject(new Error('Worker export timed out')), timeoutMs);
           }),
         ]);
-        if (exportGen !== this.sessionGen || this.workerHost !== host) return this.world;
+        if (exportGen !== this.sessionGen || this.workerHost !== host) {
+          this.exportDegraded = true;
+          return this.world;
+        }
 
+        this.exportDegraded = false;
         return hydrateWorldRuntimeCaches(exported);
       } catch (err) {
         console.warn('[GameLoop] exportSave failed — using main shadow', err);
+        this.exportDegraded = true;
       }
     }
+    // No worker in play: the display world *is* the authority, so nothing was degraded.
+    this.exportDegraded = false;
     return this.world;
   }
 

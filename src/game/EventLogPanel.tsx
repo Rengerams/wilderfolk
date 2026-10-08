@@ -14,6 +14,10 @@ import {
 interface Props {
   events: GameEventLog[];
   meta: ChronicleExportMeta;
+  /** Category to open on, so a caller that already knows the subject need not land on "All". */
+  initialFilter?: 'all' | GameEventLog['type'];
+  /** Mirrors the panel's own category choice back to that caller. */
+  onFilterChange?: (filter: 'all' | GameEventLog['type']) => void;
 }
 
 const EVENT_ICONS: Record<GameEventLog['type'], string> = {
@@ -80,8 +84,8 @@ const LogRow = memo(function LogRow({ evt }: { evt: GameEventLog }) {
   );
 });
 
-export default function EventLogPanel({ events, meta }: Props) {
-  const [filter, setFilter] = useState<'all' | GameEventLog['type']>('all');
+export default function EventLogPanel({ events, meta, initialFilter = 'all', onFilterChange }: Props) {
+  const [filter, setFilter] = useState<'all' | GameEventLog['type']>(initialFilter);
   const [visibleCount, setVisibleCount] = useState(IN_GAME_LOG_PAGE);
   const [copied, setCopied] = useState(false);
   const [downloadedFormat, setDownloadedFormat] = useState<'txt' | 'json' | 'csv' | null>(null);
@@ -100,6 +104,7 @@ export default function EventLogPanel({ events, meta }: Props) {
   const chooseFilter = (next: 'all' | GameEventLog['type']) => {
     setFilter(next);
     setVisibleCount(IN_GAME_LOG_PAGE);
+    onFilterChange?.(next);
   };
 
   const copyLog = async () => {

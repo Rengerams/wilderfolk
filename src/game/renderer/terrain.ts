@@ -168,6 +168,10 @@ function disposeGroundChunk(chunk: GroundChunk): void {
  * unchanged from the unbudgeted version it replaces — chunk-aligned, one chunk of margin — so a
  * completed fill is pixel-identical to what this function's predecessor baked in one go.
  */
+/** Memo for {@link planGroundChunks} — the last viewport's plan, reused while its arguments hold. */
+let plannedChunksKey = '';
+let plannedChunks: { x: number; y: number }[] = [];
+
 export function planGroundChunks(
   worldW: number,
   worldH: number,
@@ -175,6 +179,10 @@ export function planGroundChunks(
   view: { x: number; y: number; width: number; height: number },
   marginChunks = WHITTAKER_CHUNK_MARGIN,
 ): { x: number; y: number }[] {
+  // Callers only iterate the result, so a still camera reuses the plan instead of allocating and
+  // sorting a fresh one every frame. Treat the returned array as read-only.
+  const planKey = `${worldW}|${worldH}|${chunkWorld}|${view.x}|${view.y}|${view.width}|${view.height}|${marginChunks}`;
+  if (planKey === plannedChunksKey) return plannedChunks;
   const margin = chunkWorld * marginChunks;
   const minX = Math.max(0, Math.floor((view.x - margin) / chunkWorld) * chunkWorld);
   const minY = Math.max(0, Math.floor((view.y - margin) / chunkWorld) * chunkWorld);
@@ -192,6 +200,8 @@ export function planGroundChunks(
     const db = (b.x + half - centreX) ** 2 + (b.y + half - centreY) ** 2;
     return da - db;
   });
+  plannedChunksKey = planKey;
+  plannedChunks = plan;
   return plan;
 }
 

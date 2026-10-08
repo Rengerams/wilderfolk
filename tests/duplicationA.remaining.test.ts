@@ -167,7 +167,7 @@ describe('A18 — the builder-eligibility rule is one predicate', () => {
       'the builder predicate is gone or no longer shared',
     ).toHaveLength(3);
     expect(
-      source.match(/isOnConstructionCrew\(state, entity\.id/g) ?? [],
+      source.match(/isOnConstructionCrew\(state\.buildings, entity\.id/g) ?? [],
       'the builder chain is inlined again',
     ).toHaveLength(2);
   });

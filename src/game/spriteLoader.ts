@@ -37,8 +37,6 @@ export const MOUNTAIN_SPRITE_PATHS = [
 export const HUMAN_SPRITE_PATHS = new Set<string>([
   '/sprites/human_male.png',
   '/sprites/human_female.png',
-  '/sprites/human_male_toddler_v1.png',
-  '/sprites/human_female_toddler_v1.png',
   '/sprites/new_male_set/male_poor_labourer.png',
   '/sprites/new_male_set/male_farmhand.png',
   '/sprites/new_male_set/male_craftsman.png',
@@ -140,28 +138,26 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/house_leader.png',
     '/sprites/human_male.png',
     '/sprites/human_female.png',
-    // Seamless ground fills (Phase A terrain — stamped in bakeTerrainLayer)
+    // Seamless ground fills — exactly the paths `terrainLayer`'s fill table stamps in `bakeTerrainLayer`.
     '/sprites/terrain/grass_fill.png',
-    '/sprites/terrain/dirt_fill.png',
+    '/sprites/terrain/forest.png',
+    '/sprites/terrain/dirt.png',
     '/sprites/terrain/sand_fill.png',
     '/sprites/terrain/water_shallow_fill.png',
     '/sprites/terrain/water_deep_fill.png',
-    // Saturated azure water texture — rivers + coast stamp this (survives the
-    // season wash where the light-cyan fills turned green).
-    '/sprites/ocean.png',
+    '/sprites/terrain/snow.png',
+    '/sprites/terrain/mountain.jpg',
     // The optional transparent 4×4 sand-bank/water mask sheet
     // (`SAND_WATER_OVERLAY_PATH`) is omitted until `public/sprites/terrain/sand_water_overlay.png`
     // ships: the retired tile bake reads it only when the sprite is present, and preloading a missing
     // file spams boot errors. See `BUG_REPORTS/2026-09-16-sand-water-overlay-sprite-missing.md`.
-    // Painted dirt (25×25 seamless) — hills/peaks relief surfaces
-    '/sprites/tile_dirt.png',
     // Mountain peak overlays (`MOUNTAIN_SPRITE_PATHS`) are omitted until
     // `public/sprites/mountains/` ships — preloading missing files spams boot errors.
   ];
-  // Decor buildings draw procedurally — they reference no real sprite file.
+  // Decor buildings draw procedurally — they declare no sprite at all.
   const buildingSprites = Object.values(BUILDING_CONFIGS)
     .filter((cfg) => !cfg.decor)
-    .map((cfg) => cfg.sprite);
+    .flatMap((cfg) => (cfg.sprite ? [cfg.sprite] : []));
   const sprites = [...new Set([...wildlifeAndHumans, ...buildingSprites])];
 
   return Promise.all([

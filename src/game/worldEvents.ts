@@ -236,6 +236,17 @@ export function applyDailyWeatherEffects(state: WorldState): void {
 }
 
 export function updateDisasters(state: WorldState): void {
+  // Active disasters age to their end whatever the switch says: it gates new strikes, not the drain.
+  const remaining: typeof state.disasters = [];
+  for (let i = 0; i < state.disasters.length; i++) {
+    const d = state.disasters[i];
+    d.progress++;
+    if (d.progress < d.duration) {
+      remaining.push(d);
+    }
+  }
+  state.disasters = remaining;
+
   if (!HOSTILE_WEATHER_ENABLED) return; // temporary owner switch — see its declaration above
   if (
     isProductionTick(state.tick, EVENT_INTERVAL.disaster) &&
@@ -368,15 +379,4 @@ export function updateDisasters(state: WorldState): void {
       }
     }
   }
-
-  // Update active disasters progress
-  const remaining: typeof state.disasters = [];
-  for (let i = 0; i < state.disasters.length; i++) {
-    const d = state.disasters[i];
-    d.progress++;
-    if (d.progress < d.duration) {
-      remaining.push(d);
-    }
-  }
-  state.disasters = remaining;
 }

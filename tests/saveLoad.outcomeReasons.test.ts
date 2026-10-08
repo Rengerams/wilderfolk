@@ -71,8 +71,8 @@ describe('a load attempt always says why it failed', () => {
     const outcome = loadGameOutcome();
     expect(outcome.ok).toBe(false);
     if (outcome.ok) return;
-    expect(outcome.reason).toBe('malformed');
-    expect(describeSaveLoadOutcome(outcome)).toContain('not valid JSON');
+    expect(outcome.reason).toBe('not-a-save');
+    expect(describeSaveLoadOutcome(outcome)).toContain('not a Wilderfolk save');
   });
 
   it('names the field that made a version-matching save unrestorable (P-1)', () => {

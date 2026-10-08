@@ -36,28 +36,14 @@ import {
 } from './frontierCombat';
 import { clearFactionWanderState } from './factionWander';
 import { getRefugeeWelcomeBonus } from './townHall';
-import { addNotification } from './simEffects';
+import { addBigNews, addNotification } from './simEffects';
 import { tickRivalSettlements as tickRivalEvents } from './rivalEvents';
 import { createRivalProfile, ensureRivalProfile } from './rivalProfiles';
 import { addReputation, getReputationBand } from './simHelpers';
 import { formatResourceAmounts, RESOURCE_METAS, type ResourceKey } from './resourceTypes';
 
-let newsSeq = 0;
-
 function hasWeapons(state: WorldState): boolean {
   return hasIronSwords(state) || hasIronSpears(state) || hasStoneSpears(state);
-}
-
-function pushNews(state: WorldState, title: string, message: string, type: 'positive' | 'negative' | 'neutral') {
-  state.bigNews.push({
-    id: `ge_${++newsSeq}_${state.tick}`,
-    title,
-    message,
-    type,
-    createdAt: state.tick,
-    dismissed: false,
-  });
-  if (state.bigNews.length > 50) state.bigNews.shift();
 }
 
 function pushFloat(state: WorldState, x: number, y: number, text: string, color: string) {
@@ -152,7 +138,7 @@ export function tickVillageRequests(state: WorldState): void {
     ],
     expiresDay: day + VILLAGE_REQUEST_EXPIRY_DAYS,
   };
-  pushNews(state, '🥣 Caravan offer', `${trader.name} offers food for a fair price.`, 'neutral');
+  addBigNews(state, '🥣 Caravan offer', `${trader.name} offers food for a fair price.`, 'neutral');
   logEvent(state, 'event', `${trader.name} offered caravan provisions`, trader.name);
 }
 
@@ -205,7 +191,7 @@ export function resolveVillageRequest(
   const gate = getVillageRequestEligibility(state, request, choice);
   if (!gate.ok) {
     const reason = gate.blockReason ?? 'Offer unavailable';
-    pushNews(state, 'Offer unavailable', reason, 'negative');
+    addBigNews(state, 'Offer unavailable', reason, 'negative');
     pushFloat(state, source.campX, source.campY - 18, reason, '#f97316');
     return state;
   }
@@ -435,7 +421,7 @@ export function spawnVisitorGroup(
     performers: 'Lifts spirits — courtship boosted',
   };
 
-  pushNews(
+  addBigNews(
     state,
     `${template.emoji} Visitors Arrived!`,
     `${name} (${memberCount}) set camp near ${state.villageName}. They'll stay ${daysLeft} more day${daysLeft === 1 ? '' : 's'} after today.`,
@@ -527,7 +513,7 @@ export function spawnRivalSettlement(
     tense: 'Their leader looks… unamused.',
   }[relationship];
 
-  pushNews(state, '🏕️ New Settlement!', `${name} (${pop} settlers) founded a camp on the map. ${relText}`, relationship === 'tense' ? 'negative' : 'neutral');
+  addBigNews(state, '🏕️ New Settlement!', `${name} (${pop} settlers) founded a camp on the map. ${relText}`, relationship === 'tense' ? 'negative' : 'neutral');
   logEvent(state, 'migration', `${name} established a rival settlement on the frontier`, name);
 
   return {
@@ -624,7 +610,7 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
           aliveById.delete(id);
         }
       }
-      pushNews(state, '👋 Visitors Departed', `${group.name} packed up and left the valley.`, 'neutral');
+      addBigNews(state, '👋 Visitors Departed', `${group.name} packed up and left the valley.`, 'neutral');
       logEvent(state, 'migration', `${group.name} departed`);
     } else {
       remaining.push(group);
@@ -834,7 +820,7 @@ export function signPeaceTreaty(originalState: WorldState, rivalId: string): Wor
   }
 
   pushFloat(state, rival.campX, rival.campY - 20, '🕊️ Peace', '#22d3ee');
-  pushNews(state, '🕊️ Peace signed', `${rival.name} and ${state.villageName} agreed to 60 days without raids.`, 'positive');
+  addBigNews(state, '🕊️ Peace signed', `${rival.name} and ${state.villageName} agreed to 60 days without raids.`, 'positive');
   logEvent(state, 'event', `Peace treaty with ${rival.name} — 60 days`, rival.name);
   return state;
 }
@@ -940,7 +926,7 @@ function maybeQueueDiplomacyEvent(state: WorldState, rival: RivalSettlement): vo
     expiresAtTick: state.tick + 14 * TICKS_PER_DAY,
   };
   state.pendingDiplomacyEvents.push(event);
-  pushNews(state, `${meta.emoji} Diplomacy needed`, `${rival.name}: ${meta.title}. Respond in the inspector or event banner.`, 'neutral');
+  addBigNews(state, `${meta.emoji} Diplomacy needed`, `${rival.name}: ${meta.title}. Respond in the inspector or event banner.`, 'neutral');
   logEvent(state, 'event', `${rival.name} — ${meta.title}`, rival.name);
 }
 
@@ -1057,7 +1043,7 @@ export function respondToDiplomacyEvent(
       } else if (choiceId === 'refuse') {
         rival.relationship = shiftRelationship(rival.relationship, -1);
         addReputation(state, -4);
-        pushNews(state, '⚡ Tribute refused', `${rival.name} is displeased. Reputation -4.`, 'negative');
+        addBigNews(state, '⚡ Tribute refused', `${rival.name} is displeased. Reputation -4.`, 'negative');
         logEvent(state, 'event', `Refused tribute to ${rival.name}`, rival.name);
         resolved = true;
       }
@@ -1208,7 +1194,7 @@ export function talkToVisitorLeader(originalState: WorldState, groupId: string):
 
   if (group.kind === 'refugees') {
     group.leaderTalked = true;
-    pushNews(state, '🧳 Refugee spokesman', `${group.name} asks you to decide their fate below.`, 'neutral');
+    addBigNews(state, '🧳 Refugee spokesman', `${group.name} asks you to decide their fate below.`, 'neutral');
     logEvent(state, 'event', `Spoke with ${group.name} spokesman — negotiate to welcome or turn away`, group.name);
     return state;
   }
@@ -1315,7 +1301,7 @@ function seedGroupGold(kind: VisitorKind): number {
 
 function rejectVisitorTrade(state: WorldState, group: VisitorGroup, hint: string, notify?: string): WorldState {
   pushFloat(state, group.campX, group.campY - 20, hint, '#f97316');
-  if (notify) pushNews(state, 'Trade failed', notify, 'negative');
+  if (notify) addBigNews(state, 'Trade failed', notify, 'negative');
   return state;
 }
 
@@ -1608,7 +1594,7 @@ export function hitTestCamp(
 
 export function tickWorldRivalSettlements(state: WorldState, allAlive: Entity[], ctx?: TickContext): void {
   tickRivalEvents(state, allAlive, {
-    pushNews,
+    pushNews: addBigNews,
     pushFloat,
     logEvent,
     tickPendingDiplomacyEvents,
@@ -1857,7 +1843,7 @@ export function tryFirstWeekVisitor(
   state.firstWeekVisitorSpawned = true;
   const kind: VisitorKind = getSimRng('groupEvents')() < 0.55 ? 'pilgrims' : 'performers';
   const event = spawnVisitorGroup(state, allAlive, buildings, kind, ctx);
-  pushNews(
+  addBigNews(
     state,
     '🛖 Neighbors on the trail',
     `Word of ${state.villageName} reached the valley — ${kind} have come to greet your pioneers.`,

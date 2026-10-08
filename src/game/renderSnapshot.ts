@@ -98,6 +98,29 @@ export interface RenderSnapshot {
   readonly grassGrid: EntitySpatialGrid | null;
 }
 
+/** Last colony-wide blacksmith scan — this runs per frame, and the camera alone rebuilds the snapshot. */
+let blacksmithScan: { buildings: readonly Building[]; length: number; tick: number } | null = null;
+let blacksmithScanResult = false;
+
+function colonyHasBlacksmith(buildings: readonly Building[], tick: number): boolean {
+  // `completed` and `faction` only move inside a tick layer, so array identity, length and tick
+  // together cover every change to the predicate; a camera-only rebuild then re-scans nothing.
+  const cached = blacksmithScan;
+  if (
+    cached
+    && cached.buildings === buildings
+    && cached.length === buildings.length
+    && cached.tick === tick
+  ) {
+    return blacksmithScanResult;
+  }
+  blacksmithScanResult = buildings.some(
+    (b) => b.completed && b.type === BuildingType.Blacksmith && b.faction !== 'rival',
+  );
+  blacksmithScan = { buildings, length: buildings.length, tick };
+  return blacksmithScanResult;
+}
+
 export function buildRenderSnapshot(
   world: WorldState,
   view: ViewState,
@@ -175,9 +198,7 @@ export function buildRenderSnapshot(
     renffrOmen: world.renffrOmen ?? null,
     unlockedTechs: world.unlockedTechs ?? [],
     researchNodes: world.researchNodes ?? [],
-    hasBlacksmith: (world.buildings ?? []).some(
-      (b) => b.completed && b.type === BuildingType.Blacksmith && b.faction !== 'rival',
-    ),
+    hasBlacksmith: colonyHasBlacksmith(world.buildings ?? [], world.tick),
     villageForge: world.villageForge,
     villageLeaderId: world.villageLeaderId,
     pendingRaidEvents: world.pendingRaidEvents ?? [],

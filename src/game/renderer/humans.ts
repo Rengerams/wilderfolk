@@ -28,8 +28,9 @@ import type { RenderSnapshot } from '../renderSnapshot';
 import { terrainRiseAt } from '../terrainAtlas';
 import { getRenderSoABuckets } from '../simBuffers/renderSoAEntities';
 import { huntAnimProgress } from '../huntvisuals';
-import { getCachedNameWidth, isDrawableSpriteFrame, renderTime, roundRect } from './shared';
+import { getCachedNameWidth, isDrawableSpriteFrame, motionTime, roundRect } from './shared';
 import {
+  formatHumanNameLabel,
   getSpeechBubbleFontSize,
   getSpeechBubbleHeadClearance,
   resolveSpeechBubbleRect,
@@ -509,7 +510,7 @@ export function drawLeaderAuraOverlay(
   const headY = footY - spriteH;
 
   ctx.save();
-  const pulse = 0.55 + Math.sin(renderTime * 2.8 + leader.id) * 0.2;
+  const pulse = 0.55 + Math.sin(motionTime * 2.8 + leader.id) * 0.2;
   // Soft gold ground ring (double stroke at closer zoom)
   ctx.strokeStyle = `rgba(251, 191, 36, ${0.5 + pulse * 0.4})`;
   ctx.lineWidth = Math.max(2, 2.5 * cam.zoom);
@@ -635,7 +636,7 @@ export function drawHumans(
 
     if (human.flash > 0 && !forEntityLayerCache) {
       ctx.save();
-      ctx.globalAlpha = 0.7 + Math.sin(renderTime * 20) * 0.3;
+      ctx.globalAlpha = 0.7 + Math.sin(motionTime * 20) * 0.3;
       drawHuman();
       ctx.restore();
     } else {
@@ -687,18 +688,11 @@ export function drawHumans(
 
     const nameZoomMin = isLeader ? 0.28 : (human.isJuvenile ? 0.38 : 0.45);
     if (shouldDrawHumanNameLabel(isTalking) && (human.name || human.surname || isLeader) && cam.zoom > nameZoomMin) {
-      const prefix = isLeader
-        ? '👑 '
-        : human.faction === 'visitor'
-          ? '↗ '
-          : human.faction === 'rival'
-            ? '⚑ '
-            : '';
-      const childTag = human.isJuvenile ? ' · child' : '';
-      const roleTag = isLeader && cam.zoom > 0.5 ? ' · Head' : '';
-      const idTag = !human.faction && !isLeader && cam.zoom > 0.72 ? ` #${human.id}` : '';
-      const displayName = human.name?.trim() || (isLeader ? 'Village head' : 'Settler');
-      const fullName = prefix + (human.surname ? `${displayName} ${human.surname}` : displayName) + (human.title ? ` ${human.title}` : '') + roleTag + idTag + childTag;
+      const fullName = formatHumanNameLabel(human, {
+        isLeader,
+        showRole: cam.zoom > 0.5,
+        showId: cam.zoom > 0.72,
+      });
       const fontSize = Math.max(isLeader ? 8 : 7, Math.min(isLeader ? 11 : 9, (isLeader ? 9.5 : 8) * cam.zoom));
       const tw = getCachedNameWidth(ctx, fullName, fontSize, cam.zoom);
       if (isLeader) {

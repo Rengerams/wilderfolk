@@ -6,6 +6,7 @@ import {
   DEFAULT_SPRITE_DISPLAY_SCALE,
   ISO_PANEL_BUILDINGS,
   parseHexRgb,
+  prefersReducedMotion,
   roundRect,
   rgbaFromRgb,
 } from './shared';
@@ -95,6 +96,8 @@ const WALK_STEP_SQUASH: readonly { scaleX: number; scaleY: number }[] = [
 ];
 
 export function getHumanWalkMotion(human: Entity, camZoom: number, hasWalkFrame: boolean, walkFrame: number): SpriteMotion {
+  // Reduced motion keeps the walk translation (that is position) and drops the step bob/squash.
+  if (prefersReducedMotion()) return {};
   const speed = Math.hypot(human.vx, human.vy);
   if (speed < 0.08) return {};
   if (hasWalkFrame) {

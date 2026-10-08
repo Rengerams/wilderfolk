@@ -126,7 +126,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     } else if (isDecorType(b.type)) {
       drawProceduralDecor(ctx, b.type, sx, sy, w, h, 0.75);
     } else {
-      const frame = getSpriteFrame(cfg.sprite);
+      const frame = cfg.sprite ? getSpriteFrame(cfg.sprite) : null;
       if (frame) {
         // Construction builds up — the frame grows from scaffold to full size.
         const buildScale = Math.max(0.35, 0.45 + 0.55 * (shownProgress / 100));
@@ -157,7 +157,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
 
     const cfg = BUILDING_CONFIGS[b.type];
-    const frame = getSpriteFrame(cfg.sprite);
+    const frame = cfg.sprite ? getSpriteFrame(cfg.sprite) : null;
     const sel = state.selectedBuilding?.id === b.id;
     const hover = isHovered(b);
 
@@ -198,11 +198,21 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
         cfg.spriteAnchorY,
       );
     } else {
-      ctx.fillStyle = '#e7e5e4';
-      ctx.fillRect(sx - w / 2, sy - h / 2, w, h);
-      ctx.strokeStyle = sel ? tint : '#a8a29e';
-      ctx.lineWidth = sel ? 3 : 1;
-      ctx.strokeRect(sx - w / 2, sy - h / 2, w, h);
+      // No loaded frame for this type (sprite absent or still in flight): draw the building's own
+      // footprint pad so the fallback reads as the place the building stands, not a blank white box.
+      drawBuildingPad(
+        ctx,
+        cfg.padShape,
+        sx,
+        sy - h * 0.04,
+        w,
+        h,
+        tint,
+        darkerColor(tint, 0.35),
+        sel ? 0.5 : 0.32,
+        categoryBorderDashForType(b.type),
+        sel ? 2 : 1,
+      );
     }
 
     // Procedural level upgrades — roof/chimney/gold rim so upgrades read at a glance

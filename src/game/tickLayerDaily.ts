@@ -6,8 +6,8 @@
  * frontier systems, and daily-gated world events. Trees have no sim tick.
  */
 import type { Entity, WorldState } from './gameTypes';
-import type { PopulationCounts } from './entityCounts';
 import type { TickContext } from './simulation/simulationTypes';
+import { countLivingPopulation } from './entityCounts';
 
 import { addFloatingText } from './simEffects';
 import { playerHumansFrom } from './playerHuman';
@@ -37,7 +37,6 @@ export function tickLayerDaily(
   state: WorldState,
   ctx: TickContext,
   allAlive: Entity[],
-  counts: PopulationCounts,
 ): void {
   resolveDailyVillageScheduleFatigue(state, ctx.playerHumans);
 
@@ -79,6 +78,9 @@ export function tickLayerDaily(
   applyDailyWeatherEffects(state);
   tickGrassDaily(state, ctx, allAlive);
   tickDailyBuildingEconomy(state, ctx, allAlive);
+  // The tail counts at the point of use, after this layer's own spawns and deaths: the tick's
+  // pre-daily snapshot no longer describes the colony by the time these three read it.
+  const counts = countLivingPopulation(allAlive, ctx.newEntities);
   tickDailyPopulation(state, ctx, allAlive, counts);
   tickDailyWorldEvents(state, ctx, allAlive, counts);
   tickDailyChallenges(state, ctx, counts);

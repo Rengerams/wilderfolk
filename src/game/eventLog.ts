@@ -14,6 +14,17 @@ let nextEventLogId = 1;
  */
 export const EVENT_LOG_MAX_ENTRIES = 6000;
 
+/** Drop the later of two loaded entries sharing an id — the log's merge key and its render key. */
+export function dedupeEventLogIdsOnLoad(state: Pick<WorldState, 'eventLog'>): void {
+  const seen = new Set<unknown>();
+  const kept = state.eventLog.filter((entry) => {
+    if (seen.has(entry.id)) return false;
+    seen.add(entry.id);
+    return true;
+  });
+  if (kept.length !== state.eventLog.length) state.eventLog = kept;
+}
+
 /** Restore monotonic ids after loading a save. */
 export function syncEventLogIdFromState(state: Pick<WorldState, 'eventLog'>): void {
   if (state.eventLog.length > 0) {

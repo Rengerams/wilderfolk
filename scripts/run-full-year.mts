@@ -38,6 +38,12 @@ import { EntityType, MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { getResidenceCapacity, isResidenceBuilding } from '../src/game/residencyOccupancy';
+import { isPlayerHuman } from '../src/game/playerHuman';
+import {
+  collectHousingDiagnostics,
+  isHousingDiagnosticsHealthy,
+  type HousingDiagnosticsSnapshot,
+} from '../src/game/housingDiagnostics';
 import {
   getRelationshipDiagnosticsHistory,
   resetRelationshipDiagnostics,
@@ -161,6 +167,39 @@ function writeLog(event: Record<string, unknown>, stdoutLine?: string): void {
   const line = JSON.stringify({ timestamp: new Date().toISOString(), ...event });
   appendFileSync(logPath, `${line}\n`, 'utf8');
   process.stdout.write(`${stdoutLine ?? line}\n`);
+}
+
+/**
+ * Which home broke first, by the housing owner's own verdict. A count cannot say which residence
+ * holds too many, and every hypothesis about why has to be checked against the real assignment.
+ */
+function describeHousingFailure(
+  world: WorldState,
+  housing: HousingDiagnosticsSnapshot,
+): string {
+  const overCapacity = world.buildings
+    .filter((b) => isResidenceBuilding(b) && b.faction !== 'rival')
+    .map((b) => ({ b, cap: getResidenceCapacity(b), held: b.occupants.length }))
+    .filter((entry) => entry.held > entry.cap);
+  if (overCapacity.length > 0) {
+    return overCapacity.map((entry) => {
+      const type = BUILDING_CONFIGS[entry.b.type].label;
+      return `${type} #${entry.b.id} (level ${entry.b.level || 1}) holds ${entry.held} of ${entry.cap}: `
+        + entry.b.occupants
+          .map((id) => {
+            const e = world.entities.find((candidate) => candidate.id === id);
+            return e ? `#${id}${e.isJuvenile ? '(child)' : ''}` : `#${id}(missing)`;
+          })
+          .join(' ');
+    }).join('; ');
+  }
+  if (housing.orphanedResidenceReferences > 0) {
+    return `orphaned residence references: ${housing.orphanedResidenceReferences}`;
+  }
+  if (housing.occupantListMismatches > 0) {
+    return `occupant-list mismatches: ${housing.occupantListMismatches}`;
+  }
+  return 'unknown';
 }
 
 function assertWorldReferences(world: WorldState): void {
@@ -314,6 +353,13 @@ function run(): void {
     const invariantErrors = collectInvariantErrors(world);
     counters.invariantViolations += invariantErrors.length;
     assert(invariantErrors.length === 0, `Simulation invariants failed at day ${day}: ${invariantErrors.join('; ')}`);
+    // Sampled at every checkpoint, not only at the end, so a housing break is dated rather than
+    // dumped at year end with no clue which part of the run produced it.
+    const housingSnapshot = collectHousingDiagnostics(world);
+    assert(
+      isHousingDiagnosticsHealthy(housingSnapshot),
+      `Housing is inconsistent at day ${day}: ${describeHousingFailure(world, housingSnapshot)}`,
+    );
 
     const deltas = sampleDelta(world);
     if (deltas.serializeMs > SERIALIZATION_SPIKE_MS) counters.serializationSpikes += 1;
@@ -356,31 +402,9 @@ function run(): void {
   //     occupant-list mismatches) — capacity pressure is reported separately as `housingPressure`.
   //   - animals: every wildlife count stays a finite non-negative number and the valley is not empty,
   //     and the animal-care owner reports one of its three states.
-  // Name the illegal instance, not just the verdict: a count cannot say which home holds too many,
-  // and every hypothesis about why has to be checked against the real assignment.
-  const overCapacity = world.buildings
-    .filter((b) => isResidenceBuilding(b) && b.faction !== 'rival')
-    .map((b) => ({ b, cap: getResidenceCapacity(b), held: b.occupants.length }))
-    .filter((entry) => entry.held > entry.cap);
-  const housingFailure = overCapacity.length > 0
-    ? overCapacity.map((entry) => {
-        const type = BUILDING_CONFIGS[entry.b.type].label;
-        return `${type} #${entry.b.id} (level ${entry.b.level || 1}) holds ${entry.held} of ${entry.cap}: `
-          + entry.b.occupants
-            .map((id) => {
-              const e = world.entities.find((candidate) => candidate.id === id);
-              return e ? `#${id}${e.isJuvenile ? '(child)' : ''}` : `#${id}(missing)`;
-            })
-            .join(' ');
-      }).join('; ')
-    : finalHealth.housing.orphanedResidenceReferences > 0
-      ? `orphaned residence references: ${finalHealth.housing.orphanedResidenceReferences}`
-      : finalHealth.housing.occupantListMismatches > 0
-        ? `occupant-list mismatches: ${finalHealth.housing.occupantListMismatches}`
-        : 'unknown';
   assert(
     finalHealth.housing.healthy,
-    `housing diagnostics reported an inconsistent colony (${housingFailure}; `
+    `housing diagnostics reported an inconsistent colony (${describeHousingFailure(world, finalHealth.housing)}; `
       + `${finalHealth.housing.residences} residences, ${finalHealth.housing.totalBeds} beds, `
       + `${finalHealth.housing.occupiedBeds} occupied, ${finalHealth.housing.homelessPlayerHumans} homeless)`,
   );

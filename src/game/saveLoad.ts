@@ -1,8 +1,8 @@
 import type { WorldState, Entity, TerrainTile } from './gameTypes';
-import { EntityType, BuildingType, JobType, TerrainType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, PATH_CELL } from './gameTypes';
+import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, PATH_CELL } from './gameTypes';
 import { setTileOverride } from './terrain/terrainGrid';
 import { INITIAL_CHALLENGES } from './challenges';
-import { createEmptyLifetimeStats } from './stats';
+import { normalizeLifetimeStats } from './stats';
 import {
   mergeForSave,
   createViewFromSave,
@@ -19,8 +19,8 @@ import {
 } from './dayCycle';
 import { displayYear } from './dayCycleClock';
 import { mergeCombatResearchNodes } from './combat';
-import { loadAutoSavePreference, saveAutoSavePreference } from './preferences';
-import { logEvent, syncEventLogIdFromState } from './eventLog';
+import { loadAutoSavePreference } from './preferences';
+import { dedupeEventLogIdsOnLoad, logEvent, syncEventLogIdFromState } from './eventLog';
 import { pickHumanVariant } from './humanSprites';
 import { migrateLegacyMoonHowler, syncMoonHowlerForms } from './moonHowler';
 import { reconcileFamilyReferencesAfterRemoval } from './humanLifecycleCleanup';
@@ -54,6 +54,9 @@ import { migrateVillageForgeOnLoad } from './forge';
 
 const SAVE_KEY = 'ecosim_save';
 
+/** The serialized `_version` text `buildSaveData` writes, in `JSON.stringify`'s own encoding. */
+const SAVED_VERSION_MARKER = `"_version":${JSON.stringify(GAME_VERSION)}`;
+
 /** Restore entity fields that must survive save/load (see ENTITY_PERSISTED_FIELDS). */
 function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): void {
   for (const key of ENTITY_PERSISTED_FIELDS) {
@@ -75,8 +78,8 @@ export type SaveResult =
   | { success: true; slotWarning?: string }
   | { success: false; error: string };
 
-/** Why a save payload was refused — the player-facing reason comes from this. */
-export type SaveReadFailure = 'empty' | 'unreadable' | 'malformed' | 'version-mismatch';
+/** Why a save payload was refused — `not-a-save` is valid JSON that is not a save at all. */
+export type SaveReadFailure = 'empty' | 'unreadable' | 'malformed' | 'not-a-save' | 'version-mismatch';
 
 export type SaveReadResult =
   | { valid: false; reason: SaveReadFailure; detail?: string }
@@ -136,17 +139,21 @@ export function parseSaveJson(raw: string | null | undefined): SaveReadResult {
   if (!isSaveObject(payload)) {
     const detail = `payload is ${describeJsonShape(payload)}, not a save object`;
     console.error('Save parse failed: payload is not a save object');
-    return { valid: false, reason: 'malformed', detail };
+    return { valid: false, reason: 'not-a-save', detail };
   }
   const parsed = payload;
-  if (parsed._version !== GAME_VERSION) {
-    const version = parsed._version;
-    const versionLabel =
-      typeof version === 'string' || typeof version === 'number' ? String(version) : 'unknown';
+  const version = parsed._version;
+  // A valid JSON object without a usable `_version` is not a save of any build, so it gets its own
+  // reason instead of being reported as another build's.
+  if (typeof version !== 'string' && typeof version !== 'number') {
+    const detail = version === undefined ? 'no _version field' : `_version is ${describeJsonShape(version)}`;
+    return { valid: false, reason: 'not-a-save', detail };
+  }
+  if (version !== GAME_VERSION) {
     return {
       valid: false,
       reason: 'version-mismatch',
-      detail: `save ${versionLabel} vs build ${GAME_VERSION}`,
+      detail: `save ${String(version)} vs build ${GAME_VERSION}`,
     };
   }
   return { valid: true, parsed };
@@ -163,6 +170,8 @@ export function describeSaveReadFailure(
       return 'Could not read the browser save slot (storage unavailable or blocked).';
     case 'malformed':
       return `That save file is not valid JSON${failure.detail ? ` (${failure.detail})` : ''} — it is damaged or truncated.`;
+    case 'not-a-save':
+      return `That is not a Wilderfolk save${failure.detail ? ` (${failure.detail})` : ''} — load a save this build exported.`;
     case 'version-mismatch':
       return `Save is from a different build${failure.detail ? ` (${failure.detail})` : ''} — Beta keeps only current-build saves. Start a new settlement.`;
   }
@@ -605,6 +614,7 @@ const ENTITY_TYPE_VALUES: ReadonlySet<unknown> = new Set(Object.values(EntityTyp
 const JOB_TYPE_VALUES: ReadonlySet<unknown> = new Set(Object.values(JobType));
 const BUILDING_TYPE_VALUES: ReadonlySet<unknown> = new Set(Object.values(BuildingType));
 const TERRAIN_TYPE_VALUES: ReadonlySet<unknown> = new Set(Object.values(TerrainType));
+const WEATHER_TYPE_VALUES: ReadonlySet<unknown> = new Set(Object.values(WeatherType));
 
 /** Membership in one of the `as const` enums this file already imports for the restore path. */
 function isMemberOf(values: ReadonlySet<unknown>): (value: unknown) => boolean {
@@ -692,6 +702,9 @@ function containerArrayRule(
   return { isValid, elementRules };
 }
 
+/** A Big News card carries a string id — `highestBigNewsSeq` parses its sequence out of it. */
+const BIG_NEWS_ELEMENT_RULES: readonly ElementFieldRule[] = [{ field: 'id', isValid: isStringId }];
+
 const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>> = {
   // Metric and aggregate samples: plain objects, and nothing keys on an element of either list.
   populationHistory: containerArrayRule(isAnyArray, []),
@@ -712,8 +725,22 @@ const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>>
   tutorialSeen: containerArrayRule(isAnyArray, null),
   eventsThisYear: containerArrayRule(isAnyArray, null),
   appliedSaveMigrations: containerArrayRule(isAnyArray, null),
+  bigNews: containerArrayRule(isAnyArray, BIG_NEWS_ELEMENT_RULES),
   dismissedBigNewsIds: containerArrayRule(isAnyArray, null),
 };
+
+/** A loaded Big News card, with the fields its readers dereference made safe. */
+function normalizeBigNewsItem(item: WorldState['bigNews'][number]): WorldState['bigNews'][number] {
+  const fields = item as Partial<WorldState['bigNews'][number]>;
+  return {
+    id: item.id,
+    title: typeof fields.title === 'string' ? fields.title : '',
+    message: typeof fields.message === 'string' ? fields.message : '',
+    type: fields.type === 'positive' || fields.type === 'negative' ? fields.type : 'neutral',
+    createdAt: isFiniteNumber(fields.createdAt) ? fields.createdAt : 0,
+    dismissed: fields.dismissed === true,
+  };
+}
 
 /**
  * The first unusable container array, named as `tradeRoutes` or `visitorGroups[2]`.
@@ -797,6 +824,9 @@ function worldScalarRules(): readonly ElementFieldRule[] {
     { field: 'height', isValid: isFiniteNumber },
     { field: 'nextEntityId', isValid: isFiniteNumber },
     { field: 'nextBuildingId', isValid: isFiniteNumber },
+    // Both reach the renderer and the roll counter: a NaN timer can never satisfy its modulo.
+    { field: 'weather', isValid: isMemberOf(WEATHER_TYPE_VALUES) },
+    { field: 'weatherTimer', isValid: isFiniteNumber },
   ];
 }
 
@@ -975,16 +1005,15 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
   // the refusal shape below instead of escaping.
   let source: Record<string, unknown>;
   /**
-   * The live session's globals, captured before anything can be replaced.
+   * The live session's RNG snapshot, captured before anything can replace it.
    *
    * `adoptSimSeedFromWorld` clears the whole RNG stream registry and `restoreSimRng` re-creates the
    * streams, both part-way through the restore — so a restore that failed *after* them left the
    * running colony drawing from the refused save's seed for the rest of the session, and baking that
    * seed into every later save. The declared contract is "the session, or the reason", so a refusal
-   * now puts these back.
+   * puts this back.
    */
   const rngBeforeLoad = snapshotSimRng();
-  const autoSaveBeforeLoad = loadAutoSavePreference();
   try {
     source = structuredClone(parsed);
   } catch (err) {
@@ -1008,10 +1037,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     const autoSave = typeof worldData.autoSave === 'boolean'
       ? worldData.autoSave
       : loadAutoSavePreference();
-    // The preference is written on the **success** path only. Writing it here meant a load that was
-    // then refused had already changed the player's auto-save setting for no visible reason, and the
-    // same class of early side effect replaced the live session's RNG seed and streams (restored in
-    // the catch below).
+    // The payload's value is adopted onto the world; the browser preference stays the player's.
 
     const transient = restoreTransientWorldFieldsFromSave(source);
     const world = {
@@ -1036,7 +1062,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       year: 0,
       paused: true,
       ...transient,
-      bigNews: [],
+      bigNews: (worldData.bigNews ?? []).map(normalizeBigNewsItem),
       screenShakeImpulse: 0,
       festival: normalizeFestivalState(worldData.festival),
       townHallFestivalCooldownUntilTick: worldData.townHallFestivalCooldownUntilTick ?? 0,
@@ -1090,6 +1116,10 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       }),
     } as WorldState;
 
+    // Every pass below resolves entities by id, so floor the allocators and build the index first.
+    floorIdAllocators(world);
+    rebuildEntityByIdMap(world);
+
     migrateTickTimeline(world, savedTicksPerDay);
     loadedTick = world.tick;
     world.dayInYear = getCalendarDay(loadedTick);
@@ -1127,6 +1157,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       world.villageLeaderId,
     );
 
+    dedupeEventLogIdsOnLoad(world);
     syncEventLogIdFromState(world);
     syncBigNewsIdFromState(world);
     world.totalBuildingsCompleted = (world.buildings ?? []).filter(
@@ -1136,7 +1167,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       ? world.challenges
       : structuredClone(INITIAL_CHALLENGES);
     world.yearlyStats = world.yearlyStats ?? [];
-    world.lifetimeStats = world.lifetimeStats ?? createEmptyLifetimeStats();
+    world.lifetimeStats = normalizeLifetimeStats(world.lifetimeStats);
     world.eventsThisYear = worldData.eventsThisYear ?? [];
     if (!Array.isArray(world.chronicleChapters)) {
       world.chronicleChapters = [];
@@ -1156,13 +1187,6 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         ? { ...b, workshopRecipeId: DEFAULT_WORKSHOP_RECIPE_ID }
         : b,
     );
-    // The allocators are consumed unguarded by births, immigrants, spawns and placements, so this is
-    // the last point where they can be made safe before anything allocates from them. The index is
-    // rebuilt here, before the migration and assignment passes below, because those resolve entities
-    // by id and `resolveEntity` otherwise falls back to a linear scan of the whole colony — inside
-    // the residency pass that is already the most expensive one on a large save.
-    floorIdAllocators(world);
-    rebuildEntityByIdMap(world);
     reconcileDanglingReferencesOnLoad(world);
 
     migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
@@ -1195,8 +1219,6 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     mergeCombatResearchNodes(world.researchNodes);
     syncResearchUnlocks(world);
     world.tradeRoutes = ensureFullTradeRoutes(world.tradeRoutes ?? []);
-    world.lifetimeStats.tradeCaravansCompleted ??= 0;
-    world.lifetimeStats.goldFromTradeRoutes ??= 0;
     for (let i = 0; i < world.tradeRoutes.length; i++) {
       const route = world.tradeRoutes[i];
       enrichTradeRoute(route, world, i);
@@ -1249,15 +1271,11 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     // not yet earned — `rebuildBeautyGridFromWorld` exists for exactly this split.
     rebuildBeautyGridFromWorld(world);
     const view = createViewFromSave(parsed, world);
-    // Both globals above are adopted by the restore; commit them only now that it has succeeded.
-    saveAutoSavePreference(autoSave);
     return { ok: true, world, view };
   } catch (e) {
     console.error('Save load failed:', e);
-    // Put the live session's globals back, so a refused load leaves the running colony exactly as it
-    // was: same RNG seed, same stream positions, same auto-save setting.
+    // A refused load leaves the running colony drawing from its own RNG, not the save's seed.
     restoreSimRng(rngBeforeLoad);
-    saveAutoSavePreference(autoSaveBeforeLoad);
     return {
       ok: false,
       reason: 'unrestorable',
@@ -1301,19 +1319,29 @@ export function loadGameOutcome(): SaveLoadOutcome {
   }
 }
 
-/** Load a colony from a downloaded .json file body. */
-export function loadGameFromFileText(raw: string): { world: WorldState; view: ViewState } | null {
+/** Load a downloaded .json file body, reporting **why** it failed like the slot path does. */
+export function loadGameFromFileTextOutcome(raw: string): SaveLoadOutcome {
   const result = parseSaveJson(raw);
-  if (!result.valid) return null;
-  return loadGameFromParsed(result.parsed);
+  if (!result.valid) return { ok: false, reason: result.reason, detail: result.detail };
+  return loadGameFromParsedOutcome(result.parsed);
 }
 
-/**
- * A save in the browser slot that **this build can load** — not the same question as
- * `hasSaveSlot()`.
- */
+/** Load a colony from a downloaded .json file body, or `null` when it will not restore. */
+export function loadGameFromFileText(raw: string): { world: WorldState; view: ViewState } | null {
+  const outcome = loadGameFromFileTextOutcome(raw);
+  return outcome.ok ? { world: outcome.world, view: outcome.view } : null;
+}
+
+/** A save the version gate accepts, read from the `_version` marker rather than by parsing it. */
 export function hasSave(): boolean {
-  return readSavePayload().valid;
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    return raw.includes(SAVED_VERSION_MARKER);
+  } catch (e) {
+    console.error('Save slot probe failed:', e);
+    return false;
+  }
 }
 
 /**

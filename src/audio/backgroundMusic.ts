@@ -1,5 +1,5 @@
 import { BASS_SCALE, MELODY_SCALE, PHRASE_GAP_MS } from './constants';
-import { syncHtmlAudioMute } from './htmlAudioSync';
+import { syncHtmlAudioMute, syncHtmlAudioVolume } from './htmlAudioSync';
 import { audioGraph } from './graph';
 import { scheduleTone } from './scheduler';
 import { musicPlayer } from './trackPlayer';
@@ -61,6 +61,11 @@ class BackgroundMusicPlayer {
     syncHtmlAudioMute(this.htmlAudio, muted, this.running && this.usingHtmlAudio);
   }
 
+  /** Re-apply the volume preset to the HTML element this player falls back to. */
+  syncVolume() {
+    syncHtmlAudioVolume(this.htmlAudio, this.currentTrack().vol, audioGraph.getLevels());
+  }
+
   /** Start or recover gameplay music after unlock, unmute, or entering the map. */
   async ensurePlaying(): Promise<void> {
     if (this.ensurePromise) return this.ensurePromise;
@@ -83,6 +88,7 @@ class BackgroundMusicPlayer {
       this.htmlAudio.loop = true;
       this.htmlAudio.preload = 'auto';
       this.htmlTrackUrl = url;
+      this.syncVolume();
     }
     return this.htmlAudio;
   }
@@ -98,7 +104,7 @@ class BackgroundMusicPlayer {
   private async tryHtmlPlayback(url: string, volume: number): Promise<boolean> {
     if (audioGraph.isMuted) return false;
     const el = this.ensureHtmlAudio(url);
-    el.volume = volume;
+    syncHtmlAudioVolume(el, volume, audioGraph.getLevels());
     try {
       await el.play();
       this.usingHtmlAudio = true;

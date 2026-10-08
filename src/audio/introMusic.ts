@@ -1,4 +1,4 @@
-import { syncHtmlAudioMute } from './htmlAudioSync';
+import { syncHtmlAudioMute, syncHtmlAudioVolume } from './htmlAudioSync';
 import { audioGraph } from './graph';
 import { musicPlayer } from './trackPlayer';
 import { TRACKS, TRACK_VOLUMES } from './tracks';
@@ -46,6 +46,11 @@ class IntroMusicPlayer {
 
   syncMute(muted: boolean) {
     syncHtmlAudioMute(this.htmlAudio, muted, this.running && this.usingHtmlAudio);
+  }
+
+  /** Re-apply the volume preset to the HTML element this player falls back to. */
+  syncVolume() {
+    this.applyHtmlVolume();
   }
 
   async start() {
@@ -149,8 +154,7 @@ class IntroMusicPlayer {
   }
 
   private applyHtmlVolume() {
-    if (!this.htmlAudio) return;
-    this.htmlAudio.volume = TRACK_VOLUMES.intro;
+    syncHtmlAudioVolume(this.htmlAudio, TRACK_VOLUMES.intro, audioGraph.getLevels());
   }
 
   private stopHtmlAudio() {

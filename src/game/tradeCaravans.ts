@@ -129,8 +129,8 @@ function removeCarrier(state: WorldState, route: TradeRoute, entity: Entity): vo
   unindexEntityFromState(state, entity.id);
   entity.residenceBuildingId = undefined;
   entity.homeBuildingId = undefined;
-  const idx = state.entities.findIndex((e) => e.id === entity.id);
-  if (idx >= 0) state.entities.splice(idx, 1);
+  // No manual splice: clearing `alive` is how every other despawn leaves the world, and the tick's
+  // `state.entities = allAlive` rebuild is the single writer of membership.
   route.caravanCarrierId = undefined;
   route.caravanLeg = undefined;
   route.caravanWaitTicks = undefined;

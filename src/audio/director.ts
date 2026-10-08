@@ -115,6 +115,9 @@ class SoundDirector {
 
   setVolumePreset(preset: VolumePreset) {
     audioGraph.setVolumePreset(preset);
+    // The HTMLAudio players sit outside the bus chain, so the preset has to be pushed to them.
+    introMusic.syncVolume();
+    backgroundMusic.syncVolume();
   }
 
   initAudio() {

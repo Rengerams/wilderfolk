@@ -5,7 +5,7 @@ import { isActiveMoonHowler } from '../moonHowler';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { getSpriteFrame } from '../spriteLoader';
 import { terrainRiseAt } from '../terrainAtlas';
-import { isDrawableSpriteFrame, renderTime } from './shared';
+import { isDrawableSpriteFrame, motionTime } from './shared';
 import { _cachedAnimals } from './entityCache';
 import { drawContactShadow, drawSpriteFrame } from './spriteDrawing';
 import { drawCombatBurst } from './humans';
@@ -71,7 +71,7 @@ export function drawAnimals(
     };
 
     if (e.flash > 0 && !forEntityLayerCache) {
-      ctx.globalAlpha = 0.7 + Math.sin(renderTime * 20) * 0.3;
+      ctx.globalAlpha = 0.7 + Math.sin(motionTime * 20) * 0.3;
       drawAnimal();
       ctx.globalAlpha = 1;
     } else {

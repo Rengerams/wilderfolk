@@ -20,6 +20,7 @@ import type {
   OverviewWorldFocus,
   ProgressSubTab,
   LogSubTab,
+  LogFilter,
   MoreSubTab,
 } from '../hooks/useGameShellState';
 import { OVERVIEW_SUBJECTS, overviewNavFromState } from '../hooks/useGameShellState';
@@ -54,6 +55,9 @@ export interface CitizenOverviewScreenProps {
   setProgressSubTab: (tab: ProgressSubTab) => void;
   logSubTab: LogSubTab;
   setLogSubTab: (tab: LogSubTab) => void;
+  /** Category the Log window was opened on, so a concern can hand over its own history. */
+  logFilter: LogFilter;
+  setLogFilter: (filter: LogFilter) => void;
   moreSubTab: MoreSubTab;
   setMoreSubTab: (tab: MoreSubTab) => void;
   tutorialsEnabled: boolean;
@@ -77,6 +81,8 @@ export interface CitizenOverviewScreenProps {
   /** `?debug=1`, owned by the shell — forwarded so the Guide can gate its debug card. */
   debugMode: boolean;
   onStartGuidedCampaign: () => void;
+  /** Opens the shortcut sheet from the Guide's own Controls card. */
+  onOpenShortcuts?: () => void;
   suppressHintIds?: string[];
 }
 
@@ -141,6 +147,8 @@ export default function CitizenOverviewScreen({
   setProgressSubTab,
   logSubTab,
   setLogSubTab,
+  logFilter,
+  setLogFilter,
   moreSubTab,
   setMoreSubTab,
   tutorialsEnabled,
@@ -162,6 +170,7 @@ export default function CitizenOverviewScreen({
   onSpawnMoonHowlerDebug,
   debugMode,
   onStartGuidedCampaign,
+  onOpenShortcuts,
   suppressHintIds = [],
 }: CitizenOverviewScreenProps) {
   const overview = computeCitizenOverview(state);
@@ -384,6 +393,8 @@ export default function CitizenOverviewScreen({
                 state={state}
                 logSubTab={logSubTab}
                 setLogSubTab={setLogSubTab}
+                logFilter={logFilter}
+                setLogFilter={setLogFilter}
               />
             )}
 
@@ -398,6 +409,7 @@ export default function CitizenOverviewScreen({
                 debugMode={debugMode}
                 state={state}
                 onStartGuidedCampaign={onStartGuidedCampaign}
+                onOpenShortcuts={onOpenShortcuts}
               />
             )}
           </Suspense>

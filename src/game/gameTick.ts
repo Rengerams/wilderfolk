@@ -234,7 +234,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.humanPopulation = counts.humans;
 
   if (state.tick % TICKS_PER_DAY === 0) {
-    tickLayerDaily(state, ctx, allAlive, counts);
+    tickLayerDaily(state, ctx, allAlive);
   }
 
   // Daily systems may append authoritative entities through ctx.newEntities
@@ -260,8 +260,10 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   let deadAnimals = 0;
   for (const entity of aliveEntities) {
     if (entity.alive) continue;
-    if (entity.type === EntityType.Human) deadHumans++;
-    else if (entity.type !== EntityType.Tree && entity.type !== EntityType.Grass) deadAnimals++;
+    if (entity.type === EntityType.Human) {
+      // A departing visitor group or a finished caravan carrier clears `alive` without dying.
+      if (isPlayerHuman(entity)) deadHumans++;
+    } else if (entity.type !== EntityType.Tree && entity.type !== EntityType.Grass) deadAnimals++;
   }
   if (deadHumans > 0 || deadAnimals > 0) {
     const tally = state.deathsThisYear ?? (state.deathsThisYear = { humans: 0, animals: 0 });

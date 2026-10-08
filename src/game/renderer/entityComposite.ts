@@ -2,7 +2,7 @@ import { getRenderDpr, type CanvasContext2d } from '../canvasLayer';
 import { getAnimalSpriteMetrics } from '../entitySprites';
 import { getHumanSpriteMetrics } from '../humanSprites';
 import type { RenderSnapshot } from '../renderSnapshot';
-import { renderTime } from './shared';
+import { motionTime } from './shared';
 import { _cachedAnimals, _cachedHumans } from './entityCache';
 import { drawAnimals } from './animals';
 import { drawBuildings } from './buildings';
@@ -58,7 +58,7 @@ function drawEntityFlashOverlay(ctx: CanvasRenderingContext2D, state: RenderSnap
     const sy = (e.y - cam.y) * cam.zoom + ch / 2;
     const { spriteH } = getAnimalSpriteMetrics(e, cam.zoom);
     ctx.save();
-    ctx.globalAlpha = 0.7 + Math.sin(renderTime * 20) * 0.3;
+    ctx.globalAlpha = 0.7 + Math.sin(motionTime * 20) * 0.3;
     ctx.strokeStyle = 'rgba(251,191,36,0.85)';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -73,7 +73,7 @@ function drawEntityFlashOverlay(ctx: CanvasRenderingContext2D, state: RenderSnap
     const { size, spriteH, footOffset } = getHumanSpriteMetrics(human, cam.zoom);
     const footY = sy + footOffset;
     ctx.save();
-    ctx.globalAlpha = 0.7 + Math.sin(renderTime * 20) * 0.3;
+    ctx.globalAlpha = 0.7 + Math.sin(motionTime * 20) * 0.3;
     ctx.strokeStyle = 'rgba(251,191,36,0.85)';
     ctx.lineWidth = 2;
     ctx.beginPath();

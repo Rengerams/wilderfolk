@@ -21,6 +21,7 @@ import { dampScandalReputationLoss } from '../townHall';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { seededRandomForRun } from '../simRng';
 import { addReputation } from '../simHelpers';
+import { isResidenceBuilding, residenceRoomFor } from '../residencyOccupancy';
 
 export interface BirthContext {
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;
@@ -156,7 +157,16 @@ export function tickPregnancyAndBirth(
   });
 
   child.name = getRandomName(childGender);
-  child.residenceBuildingId = entity.residenceBuildingId;
+  // The newborn takes a bed in the mother's home only when one is free; otherwise the assign layer
+  // seats them by the child-custodian rule, never past the residence's capacity.
+  const motherHome = entity.residenceBuildingId == null
+    ? undefined
+    : updatedBuildings.find((building) => building.id === entity.residenceBuildingId);
+  child.residenceBuildingId = motherHome
+    && isResidenceBuilding(motherHome)
+    && residenceRoomFor(child, motherHome, allLivingHumans(state, newEntities, entityById))
+    ? motherHome.id
+    : undefined;
   setHumanBirthFromAge(child, 0, getColonyDay(state));
   pushNewEntity(state, ctx, child);
 

@@ -236,6 +236,7 @@ export {
   deleteSave,
   downloadSaveFile,
   loadGameFromFileText,
+  loadGameFromFileTextOutcome,
   parseSaveJson,
   readSavePayload,
   describeSaveReadFailure,

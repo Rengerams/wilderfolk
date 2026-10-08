@@ -126,10 +126,15 @@ export function tickPrisonGuardDuty(state: WorldState): void {
     if (uncoveredHours.length === 0) continue;
 
     const rng = getSimRng(RNG_OWNER);
+    // One roll per unguarded hour, and every success frees a prisoner: the pool shrinks so a freed
+    // settler cannot be picked again by a later hour of the same day.
+    const pool = [...prisoners];
     for (let i = 0; i < uncoveredHours.length; i++) {
+      if (pool.length === 0) break;
       if (!randomBool(rng, Prison.ESCAPE_CHANCE_PER_UNGUARDED_HOUR)) continue;
-      const escapee = randomChoice(rng, prisoners);
+      const escapee = randomChoice(rng, pool);
       if (!escapee) break;
+      pool.splice(pool.indexOf(escapee), 1);
       escapee.prisonBuildingId = undefined;
       escapee.prisonerUntilTick = undefined;
       escapee.prisonSentenceCrime = undefined;
@@ -147,7 +152,6 @@ export function tickPrisonGuardDuty(state: WorldState): void {
         'prison',
         `${escapee.name ?? 'A prisoner'} slipped out while the Prison was unguarded (${describeOpenPost(roster)}).`,
       );
-      break;
     }
   }
 }
