@@ -2,6 +2,10 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Fixed: removed the 30-second auto-save — a manual save now always exports a JSON file, and the toggle now means save-on-exit.**
+
+- **Changed: the stale one-off scripts under the archive folder are gone** — nothing referenced them and their imports pointed at modules that no longer exist, so the folder and the two exclusion clauses it needed were removed.
+
 - **Changed: auto-assign is now the default for every workplace** — a building staffs itself automatically unless the player sets it to manual, and the manual toggle still keeps a hand-picked crew out of the auto pass.
 
 - **Changed: toasts are no longer written into a save** — a notification's life is measured on the real-world clock, so a restored one arrived already expired; the save keeps the dismissal ledger but not the toasts.

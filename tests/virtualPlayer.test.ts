@@ -1376,7 +1376,8 @@ describe('virtual player remaining action surface', () => {
 
     const decision = decideVirtualPlayerAction(world);
 
-    expect(decision?.command.op ?? null).not.toBe('upgradeBuilding');
+    // Whatever the bot proposes, the Church (no level benefit) is never the upgrade target.
+    expect(decision?.command).not.toMatchObject({ op: 'upgradeBuilding', buildingId: 3 });
   });
 
   it('tames a creature a Taming Post can reach, from a deep larder', () => {

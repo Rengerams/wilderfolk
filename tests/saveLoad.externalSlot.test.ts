@@ -95,6 +95,23 @@ describe('a colony too big for the browser slot saves externally', () => {
     expect(readSavePayload().valid).toBe(true);
   });
 
+  it('a manual save downloads even when the slot is full, reporting the slot as unwritten', () => {
+    const world = colony();
+    vi.stubGlobal('localStorage', {
+      getItem: () => null,
+      setItem: () => {
+        throw new DOMException('full', 'QuotaExceededError');
+      },
+      removeItem: () => {},
+    });
+    const result = saveGame(world, createInitialView(world.width, world.height));
+
+    // The manual save exports the file regardless; the slot write is a bonus that reports its own failure.
+    expect(result.success).toBe(true);
+    expect(result).toHaveProperty('slotWarning');
+    expect(result).not.toHaveProperty('fileReason');
+  });
+
   it('keeps the genuine slot-full warning for a slot write that was attempted and refused', () => {
     const world = colony();
     vi.stubGlobal('localStorage', {

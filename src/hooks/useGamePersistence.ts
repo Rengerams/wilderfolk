@@ -269,9 +269,10 @@ export function useGamePersistence({
       // runs on mount, when no loop exists yet, so a captured value is always null and the save never
       // happens on a real teardown. Reading the live ref is the point.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      if (!loopRef.current) return;
+      const loop = loopRef.current;
+      if (!loop) return;
       // The auto-save preference now means "save when you leave"; with it off, exit writes nothing.
-      if (!loopRef.current.getWorld().autoSave) return;
+      if (!loop.getWorld().autoSave) return;
       void persistCurrentGameRef.current({ chronicle: false, feedback: false, background: true });
     };
   }, [loopRef]);
