@@ -216,6 +216,29 @@ export function resolveSpeechBubbleRect(rect: OverheadRect, occupied: readonly O
   return candidate;
 }
 
+/** Gap a clamped tail keeps above the overhead text it stops at. */
+const TAIL_PLATE_GAP_PX = 3;
+
+/**
+ * How far down a bubble's tail may reach: the speaker's head, but never into reserved overhead text.
+ *
+ * A lifted bubble sits above the name plate that pushed it up, so a tail drawn straight to the head
+ * slices through that plate's letters.
+ */
+export function clampSpeechBubbleTailY(
+  bubbleBottomY: number,
+  targetY: number,
+  reserved: readonly OverheadRect[],
+): number {
+  let limit = targetY;
+  for (const rect of reserved) {
+    if (rect.y < bubbleBottomY - 1) continue;
+    if (rect.y >= limit) continue;
+    limit = rect.y;
+  }
+  return Math.min(targetY, limit - TAIL_PLATE_GAP_PX);
+}
+
 /**
  * Name-plate box for a label, plus the padding the painter fills around the text.
  *

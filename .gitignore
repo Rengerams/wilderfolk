@@ -26,7 +26,6 @@ src-tauri/icons/
 src-tauri/icons/*
 !src-tauri/icons/icon.ico
 *.tsbuildinfo
-docs/
 # Generated analysis output
 dependency-graph.dot
 dependency-graph.svg

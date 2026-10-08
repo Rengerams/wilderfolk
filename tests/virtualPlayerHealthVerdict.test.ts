@@ -476,6 +476,9 @@ function villageMissing(missing: BuildingType, overrides: Partial<WorldState> = 
   }, { mills: 2, farms: 2 });
   world.buildings.push(...owned.map((type, index) => building(700 + index, type, {
     x: 760 + (index % 8) * 70, y: 760 + Math.floor(index / 8) * 70,
+    // Sites, not finished buildings: the owned types exist so every earlier rung is satisfied, while
+    // an unfinished one cannot be tuned, repaired, upgraded or crewed instead of the type under test.
+    completed: false, constructionProgress: 10,
   })));
   return world;
 }

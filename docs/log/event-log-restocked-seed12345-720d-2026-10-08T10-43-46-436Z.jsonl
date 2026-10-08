@@ -1,0 +1,1021 @@
+{"id":1020,"tick":51840,"year":2,"day":0,"type":"election","message":"Leadership election ceremony began at the village center (Year 3)","entityName":"Arthur Thornhill"}
+{"id":1019,"tick":51840,"year":1,"day":0,"type":"event","message":"Year 2 in review — 66 close friendships, 40 new; 41 settlers have a friend, 19 have none"}
+{"id":1018,"tick":51624,"year":1,"day":357,"type":"event","message":"Predators have migrated into the valley following game trails."}
+{"id":1017,"tick":51539,"year":1,"day":355,"type":"marriage","message":"Eleanor Batten and Harley Batten got married","entityName":"Eleanor Batten"}
+{"id":1016,"tick":51526,"year":1,"day":355,"type":"marriage","message":"Caleb Batten and Margaret Batten got married","entityName":"Caleb Batten"}
+{"id":1015,"tick":51468,"year":1,"day":354,"type":"event","message":"Moonlight took Margaret Sterling. Pray they don't find the lane.","entityName":"Margaret Sterling"}
+{"id":1014,"tick":51468,"year":1,"day":354,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":1013,"tick":51462,"year":1,"day":354,"type":"divorce","message":"Hannah Fletcher divorced Caleb Batten after catching them with Prudence Sterling","entityName":"Hannah Fletcher"}
+{"id":1012,"tick":51462,"year":1,"day":354,"type":"divorce","message":"Harley Batten divorced Prudence Sterling after catching them with Caleb Batten","entityName":"Harley Batten"}
+{"id":1011,"tick":51462,"year":1,"day":354,"type":"scandal","message":"Prudence Batten was caught with Caleb Batten","entityName":"Prudence Batten"}
+{"id":1010,"tick":51462,"year":1,"day":354,"type":"scandal","message":"Prudence Batten began a secret affair with Caleb Batten","entityName":"Prudence Batten"}
+{"id":1009,"tick":51408,"year":1,"day":354,"type":"event","message":"Moonlight took Margaret Sterling. Pray they don't find the lane.","entityName":"Margaret Sterling"}
+{"id":1008,"tick":51359,"year":1,"day":353,"type":"marriage","message":"Hannah Batten and Caleb Batten got married","entityName":"Hannah Batten"}
+{"id":1007,"tick":51336,"year":1,"day":353,"type":"marriage","message":"Prudence Batten and Harley Batten got married","entityName":"Prudence Batten"}
+{"id":1006,"tick":51315,"year":1,"day":352,"type":"divorce","message":"Prudence Whitaker divorced Harley Batten after catching them with Prudence Aldridge","entityName":"Prudence Whitaker"}
+{"id":1005,"tick":51315,"year":1,"day":352,"type":"divorce","message":"Caleb Batten divorced Prudence Aldridge after catching them with Harley Batten","entityName":"Caleb Batten"}
+{"id":1004,"tick":51315,"year":1,"day":352,"type":"scandal","message":"A feud is brewing between Caleb and Harley"}
+{"id":1003,"tick":51315,"year":1,"day":352,"type":"scandal","message":"Prudence Batten was caught with Harley Batten","entityName":"Prudence Batten"}
+{"id":1002,"tick":51315,"year":1,"day":352,"type":"scandal","message":"Prudence Batten began a secret affair with Harley Batten","entityName":"Prudence Batten"}
+{"id":1001,"tick":51264,"year":1,"day":352,"type":"event","message":"Thomas and Thomas have settled their feud"}
+{"id":1000,"tick":51229,"year":1,"day":351,"type":"marriage","message":"Beatrice Hawthorne and William Hawthorne got married","entityName":"Beatrice Hawthorne"}
+{"id":999,"tick":51155,"year":1,"day":350,"type":"marriage","message":"Ezra Blackwood and Mercy Blackwood got married","entityName":"Ezra Blackwood"}
+{"id":998,"tick":51079,"year":1,"day":349,"type":"divorce","message":"Temperance Vance divorced Ezra Blackwood after catching them with Charity Fairchild","entityName":"Temperance Vance"}
+{"id":997,"tick":51079,"year":1,"day":349,"type":"divorce","message":"William Hawthorne divorced Charity Fairchild after catching them with Ezra Blackwood","entityName":"William Hawthorne"}
+{"id":996,"tick":51079,"year":1,"day":349,"type":"scandal","message":"A feud is brewing between William and Ezra"}
+{"id":995,"tick":51079,"year":1,"day":349,"type":"scandal","message":"Charity Hawthorne was caught with Ezra Blackwood","entityName":"Charity Hawthorne"}
+{"id":994,"tick":51069,"year":1,"day":349,"type":"scandal","message":"Charity Hawthorne began a secret affair with Ezra Blackwood","entityName":"Charity Hawthorne"}
+{"id":993,"tick":51050,"year":1,"day":349,"type":"event","message":"A star scratched \"Renffr\" across the night sky. The letters fell out of alignment.","entityName":"Renffr"}
+{"id":992,"tick":51042,"year":1,"day":348,"type":"birth","message":"Eleanor Sterling was born","entityName":"Eleanor"}
+{"id":991,"tick":50904,"year":1,"day":347,"type":"event","message":"RavenCreek spent 5 food to recover","entityName":"RavenCreek"}
+{"id":990,"tick":50760,"year":1,"day":345,"type":"event","message":"#5520 Arthur Hawthorne and #7302 Clara Hawthorne became sweethearts","entityName":"Arthur"}
+{"id":989,"tick":50544,"year":1,"day":342,"type":"event","message":"Longer shifts reduced work output for 1 settler tomorrow (35.3h shifts)."}
+{"id":988,"tick":50472,"year":1,"day":341,"type":"event","message":"Longer shifts reduced work output for 1 settler tomorrow (24.0h shifts)."}
+{"id":987,"tick":50460,"year":1,"day":340,"type":"event","message":"Margaret Sterling is no longer asking permission to hunt.","entityName":"Margaret Sterling"}
+{"id":986,"tick":50460,"year":1,"day":340,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":985,"tick":50400,"year":1,"day":340,"type":"season","message":"Trade Fair festival began in the village"}
+{"id":984,"tick":50400,"year":1,"day":340,"type":"event","message":"Margaret Sterling is no longer asking permission to hunt.","entityName":"Margaret Sterling"}
+{"id":983,"tick":50328,"year":1,"day":339,"type":"event","message":"William and Harley have settled their feud"}
+{"id":982,"tick":49452,"year":1,"day":326,"type":"event","message":"Moonlight took Margaret Sterling. Pray they don't find the lane.","entityName":"Margaret Sterling"}
+{"id":981,"tick":49452,"year":1,"day":326,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":980,"tick":49392,"year":1,"day":326,"type":"event","message":"Margaret Sterling is no longer asking permission to hunt.","entityName":"Margaret Sterling"}
+{"id":979,"tick":49176,"year":1,"day":323,"type":"conception","message":"Margaret Sterling and William Sterling are expecting a child","entityName":"Margaret Sterling"}
+{"id":978,"tick":48903,"year":1,"day":319,"type":"birth","message":"Levi Fletcher was born a bastard","entityName":"Levi"}
+{"id":977,"tick":48879,"year":1,"day":318,"type":"marriage","message":"Margaret Sterling and William Sterling got married","entityName":"Margaret Sterling"}
+{"id":976,"tick":48875,"year":1,"day":318,"type":"marriage","message":"Temperance Blackwood and Ezra Blackwood got married","entityName":"Temperance Blackwood"}
+{"id":975,"tick":48816,"year":1,"day":318,"type":"event","message":"Prudence and Prudence have settled their feud"}
+{"id":974,"tick":48796,"year":1,"day":317,"type":"divorce","message":"Mercy Ashford divorced William Sterling after catching them with Margaret Sterling","entityName":"Mercy Ashford"}
+{"id":973,"tick":48796,"year":1,"day":317,"type":"divorce","message":"Ezra Blackwood divorced Margaret Sterling after catching them with William Sterling","entityName":"Ezra Blackwood"}
+{"id":972,"tick":48796,"year":1,"day":317,"type":"scandal","message":"A feud is brewing between Ezra and William"}
+{"id":971,"tick":48796,"year":1,"day":317,"type":"scandal","message":"Margaret Blackwood was caught with William Sterling","entityName":"Margaret Blackwood"}
+{"id":970,"tick":48693,"year":1,"day":316,"type":"scandal","message":"Margaret Blackwood began a secret affair with William Sterling","entityName":"Margaret Blackwood"}
+{"id":969,"tick":48672,"year":1,"day":316,"type":"event","message":"Year 2 election promises evaluated: 0/2 kept (reputation -4).","entityName":"Prudence Batten"}
+{"id":968,"tick":48672,"year":1,"day":316,"type":"scandal","message":"Prudence Batten's broken election promises are the talk of the village (Year 2).","entityName":"Prudence Batten"}
+{"id":967,"tick":48600,"year":1,"day":315,"type":"event","message":"Wildlife returned to the frontier meadows."}
+{"id":966,"tick":48600,"year":1,"day":315,"type":"event","message":"#2665 Levi Mercer and #7936 Hannah Blackwood became sweethearts","entityName":"Levi"}
+{"id":965,"tick":48444,"year":1,"day":312,"type":"event","message":"Margaret Mercer is no longer asking permission to hunt.","entityName":"Margaret Mercer"}
+{"id":964,"tick":48444,"year":1,"day":312,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":963,"tick":48384,"year":1,"day":312,"type":"event","message":"Margaret Mercer shed their boots. The village should lock its doors.","entityName":"Margaret Mercer"}
+{"id":962,"tick":47444,"year":1,"day":298,"type":"marriage","message":"Charity Hawthorne and William Hawthorne got married","entityName":"Charity Hawthorne"}
+{"id":961,"tick":47436,"year":1,"day":298,"type":"event","message":"Full moon rise — Margaret Mercer is abroad and hungry.","entityName":"Margaret Mercer"}
+{"id":960,"tick":47436,"year":1,"day":298,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":959,"tick":47376,"year":1,"day":298,"type":"event","message":"Margaret Mercer shed their boots. The village should lock its doors.","entityName":"Margaret Mercer"}
+{"id":958,"tick":47272,"year":1,"day":296,"type":"divorce","message":"Charity Fairchild divorced Thomas Mercer after catching them with Hannah Fletcher","entityName":"Charity Fairchild"}
+{"id":957,"tick":47272,"year":1,"day":296,"type":"divorce","message":"William Hawthorne divorced Hannah Fletcher after catching them with Thomas Mercer","entityName":"William Hawthorne"}
+{"id":956,"tick":47272,"year":1,"day":296,"type":"scandal","message":"A feud is brewing between William and Thomas"}
+{"id":955,"tick":47272,"year":1,"day":296,"type":"scandal","message":"Hannah Hawthorne was caught with Thomas Mercer","entityName":"Hannah Hawthorne"}
+{"id":954,"tick":47232,"year":1,"day":296,"type":"scandal","message":"Whispers spread about Charity Mercer and Thomas Thornhill","entityName":"Charity Mercer"}
+{"id":953,"tick":47088,"year":1,"day":294,"type":"scandal","message":"Hannah Hawthorne is secretly expecting a child","entityName":"Hannah Hawthorne"}
+{"id":952,"tick":46965,"year":1,"day":292,"type":"scandal","message":"Hannah Hawthorne began a secret affair with Thomas Mercer","entityName":"Hannah Hawthorne"}
+{"id":951,"tick":46944,"year":1,"day":292,"type":"scandal","message":"Whispers spread about Temperance Thornhill and William Hawthorne","entityName":"Temperance Thornhill"}
+{"id":950,"tick":46728,"year":1,"day":289,"type":"scandal","message":"Whispers spread about Margaret Blackwood and William Sterling","entityName":"Margaret Blackwood"}
+{"id":949,"tick":46727,"year":1,"day":288,"type":"birth","message":"Carisa Blackwood was born","entityName":"Carisa"}
+{"id":948,"tick":46677,"year":1,"day":288,"type":"scandal","message":"Margaret Blackwood began a secret affair with William Sterling","entityName":"Margaret Blackwood"}
+{"id":947,"tick":46428,"year":1,"day":284,"type":"event","message":"Full moon rise — Margaret Mercer is abroad and hungry.","entityName":"Margaret Mercer"}
+{"id":946,"tick":46428,"year":1,"day":284,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":945,"tick":46368,"year":1,"day":284,"type":"event","message":"Margaret Mercer is no longer asking permission to hunt.","entityName":"Margaret Mercer"}
+{"id":944,"tick":46296,"year":1,"day":283,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":943,"tick":46224,"year":1,"day":282,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":942,"tick":46203,"year":1,"day":281,"type":"scandal","message":"Temperance Thornhill began a secret affair with William Hawthorne","entityName":"Temperance Thornhill"}
+{"id":941,"tick":46173,"year":1,"day":281,"type":"scandal","message":"Charity Mercer began a secret affair with Thomas Thornhill","entityName":"Charity Mercer"}
+{"id":940,"tick":46152,"year":1,"day":281,"type":"event","message":"RavenCreek gathered supplies","entityName":"RavenCreek"}
+{"id":939,"tick":46152,"year":1,"day":281,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":938,"tick":46080,"year":1,"day":280,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":937,"tick":46008,"year":1,"day":279,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":936,"tick":45946,"year":1,"day":278,"type":"birth","message":"Prudence Vance was born a bastard","entityName":"Prudence"}
+{"id":935,"tick":45648,"year":1,"day":274,"type":"event","message":"#7011 Harley Fairchild and #7153 Abigail Vance became sweethearts","entityName":"Harley"}
+{"id":934,"tick":45648,"year":1,"day":274,"type":"event","message":"Longer shifts reduced work output for 2 settlers tomorrow (24.0h shifts)."}
+{"id":933,"tick":45587,"year":1,"day":273,"type":"event","message":"A star scratched \"Renffr\" across the night sky. The letters fell out of alignment.","entityName":"Renffr"}
+{"id":932,"tick":45576,"year":1,"day":273,"type":"event","message":"Predators have migrated into the valley following game trails."}
+{"id":931,"tick":45576,"year":1,"day":273,"type":"season","message":"Frostfall Feast festival began in the village"}
+{"id":930,"tick":45420,"year":1,"day":270,"type":"event","message":"Moonlight took Margaret Mercer. Pray they don't find the lane.","entityName":"Margaret Mercer"}
+{"id":929,"tick":45420,"year":1,"day":270,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":928,"tick":45415,"year":1,"day":270,"type":"birth","message":"Temperance Thornhill was born","entityName":"Temperance"}
+{"id":927,"tick":45360,"year":1,"day":270,"type":"event","message":"Moonlight took Margaret Mercer. Pray they don't find the lane.","entityName":"Margaret Mercer"}
+{"id":926,"tick":45216,"year":1,"day":268,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":925,"tick":45144,"year":1,"day":267,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":924,"tick":45072,"year":1,"day":266,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":923,"tick":45000,"year":1,"day":265,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":922,"tick":44928,"year":1,"day":264,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":921,"tick":44856,"year":1,"day":263,"type":"conception","message":"Margaret Blackwood and Ezra Blackwood are expecting a child","entityName":"Margaret Blackwood"}
+{"id":920,"tick":44729,"year":1,"day":261,"type":"birth","message":"Edward Thornhill was born","entityName":"Edward"}
+{"id":919,"tick":44601,"year":1,"day":259,"type":"birth","message":"Elijah Mercer was born","entityName":"Elijah"}
+{"id":918,"tick":44526,"year":1,"day":258,"type":"marriage","message":"Hannah Hawthorne and William Hawthorne got married","entityName":"Hannah Hawthorne"}
+{"id":917,"tick":44472,"year":1,"day":257,"type":"marriage","message":"Ezra Blackwood and Margaret Blackwood got married","entityName":"Ezra Blackwood"}
+{"id":916,"tick":44412,"year":1,"day":256,"type":"event","message":"Full moon rise — Margaret Mercer is abroad and hungry.","entityName":"Margaret Mercer"}
+{"id":915,"tick":44412,"year":1,"day":256,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":914,"tick":44355,"year":1,"day":256,"type":"divorce","message":"Eleanor Mercer divorced Ezra Blackwood after catching them with Temperance Vance","entityName":"Eleanor Mercer"}
+{"id":913,"tick":44355,"year":1,"day":256,"type":"divorce","message":"William Hawthorne divorced Temperance Vance after catching them with Ezra Blackwood","entityName":"William Hawthorne"}
+{"id":912,"tick":44355,"year":1,"day":256,"type":"scandal","message":"A feud is brewing between William and Ezra"}
+{"id":911,"tick":44355,"year":1,"day":256,"type":"scandal","message":"Temperance Hawthorne was caught with Ezra Blackwood","entityName":"Temperance Hawthorne"}
+{"id":910,"tick":44352,"year":1,"day":256,"type":"scandal","message":"Whispers spread about Eleanor Blackwood and William Hawthorne","entityName":"Eleanor Blackwood"}
+{"id":909,"tick":44352,"year":1,"day":256,"type":"event","message":"Margaret Mercer shed their boots. The village should lock its doors.","entityName":"Margaret Mercer"}
+{"id":908,"tick":44176,"year":1,"day":253,"type":"marriage","message":"Prudence Batten and Harley Batten got married","entityName":"Prudence Batten"}
+{"id":907,"tick":44136,"year":1,"day":253,"type":"scandal","message":"Temperance Hawthorne is secretly expecting a child","entityName":"Temperance Hawthorne"}
+{"id":906,"tick":44103,"year":1,"day":252,"type":"marriage","message":"William Sterling and Mercy Sterling got married","entityName":"William Sterling"}
+{"id":905,"tick":44097,"year":1,"day":252,"type":"scandal","message":"Eleanor Blackwood began a secret affair with William Hawthorne","entityName":"Eleanor Blackwood"}
+{"id":904,"tick":44061,"year":1,"day":251,"type":"divorce","message":"Margaret Aldridge divorced William Sterling after catching them with Margaret Sterling","entityName":"Margaret Aldridge"}
+{"id":903,"tick":44061,"year":1,"day":251,"type":"divorce","message":"Harley Batten divorced Margaret Sterling after catching them with William Sterling","entityName":"Harley Batten"}
+{"id":902,"tick":44061,"year":1,"day":251,"type":"scandal","message":"A feud is brewing between Harley and William"}
+{"id":901,"tick":44061,"year":1,"day":251,"type":"scandal","message":"Margaret Batten was caught with William Sterling","entityName":"Margaret Batten"}
+{"id":900,"tick":44013,"year":1,"day":251,"type":"scandal","message":"Margaret Batten began a secret affair with William Sterling","entityName":"Margaret Batten"}
+{"id":899,"tick":43992,"year":1,"day":251,"type":"migration","message":"+1 Settler arrived"}
+{"id":898,"tick":43959,"year":1,"day":250,"type":"scandal","message":"Temperance Hawthorne began a secret affair with Ezra Blackwood","entityName":"Temperance Hawthorne"}
+{"id":897,"tick":43957,"year":1,"day":250,"type":"marriage","message":"Margaret Batten and Harley Batten got married","entityName":"Margaret Batten"}
+{"id":896,"tick":43920,"year":1,"day":250,"type":"migration","message":"+1 Settler arrived"}
+{"id":895,"tick":43848,"year":1,"day":249,"type":"conception","message":"Carisa Thornhill and Arthur Thornhill are expecting a child","entityName":"Carisa Thornhill"}
+{"id":894,"tick":43776,"year":1,"day":248,"type":"event","message":"Autumn migration: 4 herd deer lost from the passing herd; next herd 4."}
+{"id":893,"tick":43670,"year":1,"day":246,"type":"marriage","message":"Margaret Sterling and William Sterling got married","entityName":"Margaret Sterling"}
+{"id":892,"tick":43632,"year":1,"day":246,"type":"migration","message":"+1 Settler arrived"}
+{"id":891,"tick":43626,"year":1,"day":245,"type":"birth","message":"Prudence Prescott was born a bastard","entityName":"Prudence"}
+{"id":890,"tick":43488,"year":1,"day":244,"type":"migration","message":"+1 Settler arrived"}
+{"id":889,"tick":43483,"year":1,"day":243,"type":"marriage","message":"Temperance Hawthorne and William Hawthorne got married","entityName":"Temperance Hawthorne"}
+{"id":888,"tick":43416,"year":1,"day":243,"type":"migration","message":"+1 Settler arrived"}
+{"id":887,"tick":43404,"year":1,"day":242,"type":"event","message":"Full moon rise — Margaret Mercer is abroad and hungry.","entityName":"Margaret Mercer"}
+{"id":886,"tick":43404,"year":1,"day":242,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":885,"tick":43344,"year":1,"day":242,"type":"event","message":"Margaret Mercer is no longer asking permission to hunt.","entityName":"Margaret Mercer"}
+{"id":884,"tick":43272,"year":1,"day":241,"type":"event","message":"Autumn migration: a herd of 4 deer arrived."}
+{"id":883,"tick":43272,"year":1,"day":241,"type":"event","message":"Longer shifts reduced work output for 2 settlers tomorrow (24.0h shifts)."}
+{"id":882,"tick":43200,"year":1,"day":240,"type":"season","message":"Harvest Festival festival began in the village"}
+{"id":881,"tick":43200,"year":1,"day":240,"type":"migration","message":"+1 Settler arrived"}
+{"id":880,"tick":43200,"year":1,"day":240,"type":"conception","message":"Temperance Thornhill and Thomas Thornhill are expecting a child","entityName":"Temperance Thornhill"}
+{"id":879,"tick":42984,"year":1,"day":237,"type":"migration","message":"+1 Settler arrived"}
+{"id":878,"tick":42969,"year":1,"day":236,"type":"marriage","message":"Prudence Batten and Caleb Batten got married","entityName":"Prudence Batten"}
+{"id":877,"tick":42913,"year":1,"day":236,"type":"marriage","message":"Arthur Thornhill and Carisa Thornhill got married","entityName":"Arthur Thornhill"}
+{"id":876,"tick":42840,"year":1,"day":235,"type":"combat","message":"12 villagers fell defending against RavenCreek (#9894 Maude Thornhill, #6809 Josiah Whitaker, #14949 Carisa Thornhill, #15016 Jasper Fletcher, #14857 Levi Prescott, #10548 Margaret Hawthorne, #14856 Abigail Fletcher, #4206 Maude Hawthorne, #9144 Clara Batten, #1836 Levi Aldridge, #14853 Harley Blackwood, #15260 Jasper Fletcher)","entityName":"RavenCreek","combatKind":"defense"}
+{"id":875,"tick":42840,"year":1,"day":235,"type":"death","message":"#15260 Jasper Fletcher fell defending the village — at the age of 42 years (adult)","entityName":"#15260 Jasper Fletcher"}
+{"id":874,"tick":42840,"year":1,"day":235,"type":"death","message":"#14853 Harley Blackwood fell defending the village — at the age of 30 years (adult)","entityName":"#14853 Harley Blackwood"}
+{"id":873,"tick":42840,"year":1,"day":235,"type":"death","message":"#1836 Levi Aldridge fell defending the village — at the age of 12 years (adult)","entityName":"#1836 Levi Aldridge"}
+{"id":872,"tick":42840,"year":1,"day":235,"type":"death","message":"#9144 Clara Batten fell defending the village — at the age of 18 years (adult)","entityName":"#9144 Clara Batten"}
+{"id":871,"tick":42840,"year":1,"day":235,"type":"death","message":"#4206 Maude Hawthorne fell defending the village — at the age of 47 years (adult)","entityName":"#4206 Maude Hawthorne"}
+{"id":870,"tick":42840,"year":1,"day":235,"type":"death","message":"#14856 Abigail Fletcher fell defending the village — at the age of 18 years (adult)","entityName":"#14856 Abigail Fletcher"}
+{"id":869,"tick":42840,"year":1,"day":235,"type":"death","message":"#10548 Margaret Hawthorne fell defending the village — at the age of 12 years (adult)","entityName":"#10548 Margaret Hawthorne"}
+{"id":868,"tick":42840,"year":1,"day":235,"type":"death","message":"#14857 Levi Prescott fell defending the village — at the age of 47 years (adult)","entityName":"#14857 Levi Prescott"}
+{"id":867,"tick":42840,"year":1,"day":235,"type":"death","message":"#15016 Jasper Fletcher fell defending the village — at the age of 40 years (adult)","entityName":"#15016 Jasper Fletcher"}
+{"id":866,"tick":42840,"year":1,"day":235,"type":"death","message":"#14949 Carisa Thornhill fell defending the village — at the age of 19 years (adult)","entityName":"#14949 Carisa Thornhill"}
+{"id":865,"tick":42840,"year":1,"day":235,"type":"death","message":"#6809 Josiah Whitaker fell defending the village — at the age of 12 years (adult)","entityName":"#6809 Josiah Whitaker"}
+{"id":864,"tick":42840,"year":1,"day":235,"type":"death","message":"#9894 Maude Thornhill fell defending the village — at the age of 37 years (adult)","entityName":"#9894 Maude Thornhill"}
+{"id":863,"tick":42840,"year":1,"day":235,"type":"combat","message":"Raid from RavenCreek succeeded — no response in time (lost 44🍖 49🪵 19🪨 17💰)","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":862,"tick":42809,"year":1,"day":234,"type":"birth","message":"Harley Batten was born","entityName":"Harley"}
+{"id":861,"tick":42781,"year":1,"day":234,"type":"marriage","message":"Maude Thornhill and Arthur Thornhill got married","entityName":"Maude Thornhill"}
+{"id":860,"tick":42700,"year":1,"day":233,"type":"marriage","message":"Abigail Blackwood and Harley Blackwood got married","entityName":"Abigail Blackwood"}
+{"id":859,"tick":42696,"year":1,"day":233,"type":"conception","message":"Charity Mercer and Thomas Mercer are expecting a child","entityName":"Charity Mercer"}
+{"id":858,"tick":42624,"year":1,"day":232,"type":"combat","message":"RavenCreek launched a raid on the village","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":857,"tick":42624,"year":1,"day":232,"type":"event","message":"RavenCreek gathered supplies","entityName":"RavenCreek"}
+{"id":856,"tick":42618,"year":1,"day":231,"type":"divorce","message":"Carisa Fairchild divorced Jasper Fletcher after catching them with Prudence Sterling","entityName":"Carisa Fairchild"}
+{"id":855,"tick":42618,"year":1,"day":231,"type":"divorce","message":"Jasper Fletcher divorced Prudence Sterling after catching them with Jasper Fletcher","entityName":"Jasper Fletcher"}
+{"id":854,"tick":42618,"year":1,"day":231,"type":"scandal","message":"A feud is brewing between Jasper and Jasper"}
+{"id":853,"tick":42618,"year":1,"day":231,"type":"scandal","message":"Prudence Fletcher was caught with Jasper Fletcher","entityName":"Prudence Fletcher"}
+{"id":852,"tick":42606,"year":1,"day":231,"type":"scandal","message":"Prudence Fletcher began a secret affair with Jasper Fletcher","entityName":"Prudence Fletcher"}
+{"id":851,"tick":42552,"year":1,"day":231,"type":"event","message":"Predators have migrated into the valley following game trails."}
+{"id":850,"tick":42484,"year":1,"day":230,"type":"divorce","message":"Harley Blackwood divorced Prudence Whitaker after catching them with Arthur Thornhill","entityName":"Harley Blackwood"}
+{"id":849,"tick":42484,"year":1,"day":230,"type":"divorce","message":"Prudence Aldridge divorced Arthur Thornhill after catching them with Prudence Blackwood","entityName":"Prudence Aldridge"}
+{"id":848,"tick":42484,"year":1,"day":230,"type":"scandal","message":"A feud is brewing between Prudence and Prudence"}
+{"id":847,"tick":42484,"year":1,"day":230,"type":"scandal","message":"Arthur Thornhill was caught with Prudence Blackwood","entityName":"Arthur Thornhill"}
+{"id":846,"tick":42480,"year":1,"day":230,"type":"scandal","message":"Whispers spread about Clara Batten and Harley Blackwood","entityName":"Clara Batten"}
+{"id":845,"tick":42462,"year":1,"day":229,"type":"scandal","message":"Arthur Thornhill began a secret affair with Prudence Blackwood","entityName":"Arthur Thornhill"}
+{"id":844,"tick":42432,"year":1,"day":229,"type":"scandal","message":"Clara Batten began a secret affair with Harley Blackwood","entityName":"Clara Batten"}
+{"id":843,"tick":42430,"year":1,"day":229,"type":"marriage","message":"Margaret Prescott and Levi Prescott got married","entityName":"Margaret Prescott"}
+{"id":842,"tick":42396,"year":1,"day":228,"type":"event","message":"Margaret Mercer is no longer asking permission to hunt.","entityName":"Margaret Mercer"}
+{"id":841,"tick":42396,"year":1,"day":228,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":840,"tick":42336,"year":1,"day":228,"type":"event","message":"Margaret Mercer shed their boots. The village should lock its doors.","entityName":"Margaret Mercer"}
+{"id":839,"tick":42228,"year":1,"day":226,"type":"marriage","message":"Charity Mercer and Thomas Mercer got married","entityName":"Charity Mercer"}
+{"id":838,"tick":42069,"year":1,"day":224,"type":"divorce","message":"Beatrice Prescott divorced Thomas Mercer after catching them with Hannah Fletcher","entityName":"Beatrice Prescott"}
+{"id":837,"tick":42069,"year":1,"day":224,"type":"divorce","message":"Levi Prescott divorced Hannah Fletcher after catching them with Thomas Mercer","entityName":"Levi Prescott"}
+{"id":836,"tick":42069,"year":1,"day":224,"type":"scandal","message":"A feud is brewing between Levi and Thomas"}
+{"id":835,"tick":42069,"year":1,"day":224,"type":"scandal","message":"Hannah Prescott was caught with Thomas Mercer","entityName":"Hannah Prescott"}
+{"id":834,"tick":42069,"year":1,"day":224,"type":"scandal","message":"Hannah Prescott began a secret affair with Thomas Mercer","entityName":"Hannah Prescott"}
+{"id":833,"tick":41760,"year":1,"day":220,"type":"conception","message":"Beatrice Mercer and Thomas Mercer are expecting a child","entityName":"Beatrice Mercer"}
+{"id":832,"tick":41560,"year":1,"day":217,"type":"marriage","message":"Beatrice Mercer and Thomas Mercer got married","entityName":"Beatrice Mercer"}
+{"id":831,"tick":41496,"year":1,"day":216,"type":"marriage","message":"Temperance Thornhill and Thomas Thornhill got married","entityName":"Temperance Thornhill"}
+{"id":830,"tick":41388,"year":1,"day":214,"type":"event","message":"Moonlight took Margaret Mercer. Pray they don't find the lane.","entityName":"Margaret Mercer"}
+{"id":829,"tick":41388,"year":1,"day":214,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":828,"tick":41376,"year":1,"day":214,"type":"divorce","message":"Abigail Fletcher divorced Thomas Thornhill after catching them with Maude Prescott","entityName":"Abigail Fletcher"}
+{"id":827,"tick":41376,"year":1,"day":214,"type":"divorce","message":"Thomas Mercer divorced Maude Prescott after catching them with Thomas Thornhill","entityName":"Thomas Mercer"}
+{"id":826,"tick":41376,"year":1,"day":214,"type":"scandal","message":"A feud is brewing between Thomas and Thomas"}
+{"id":825,"tick":41376,"year":1,"day":214,"type":"scandal","message":"Maude Mercer was caught with Thomas Thornhill","entityName":"Maude Mercer"}
+{"id":824,"tick":41376,"year":1,"day":214,"type":"scandal","message":"Maude Mercer began a secret affair with Thomas Thornhill","entityName":"Maude Mercer"}
+{"id":823,"tick":41328,"year":1,"day":214,"type":"event","message":"Margaret Mercer is no longer asking permission to hunt.","entityName":"Margaret Mercer"}
+{"id":822,"tick":41184,"year":1,"day":212,"type":"event","message":"Prudence and Caleb have settled their feud"}
+{"id":821,"tick":41163,"year":1,"day":211,"type":"birth","message":"Ezra Thornhill was born","entityName":"Ezra"}
+{"id":820,"tick":41125,"year":1,"day":211,"type":"birth","message":"Hannah Blackwood was born","entityName":"Hannah"}
+{"id":819,"tick":41112,"year":1,"day":211,"type":"event","message":"Margaret and Hannah have settled their feud"}
+{"id":818,"tick":41112,"year":1,"day":211,"type":"scandal","message":"Whispers spread about Abigail Thornhill and Jasper Fletcher","entityName":"Abigail Thornhill"}
+{"id":817,"tick":41040,"year":1,"day":210,"type":"conception","message":"Clara Batten and Caleb Batten are expecting a child","entityName":"Clara Batten"}
+{"id":816,"tick":40920,"year":1,"day":208,"type":"scandal","message":"Abigail Thornhill began a secret affair with Jasper Fletcher","entityName":"Abigail Thornhill"}
+{"id":815,"tick":40833,"year":1,"day":207,"type":"birth","message":"Ezra Blackwood was born","entityName":"Ezra"}
+{"id":814,"tick":40565,"year":1,"day":203,"type":"birth","message":"Caleb Mercer was born","entityName":"Caleb"}
+{"id":813,"tick":40514,"year":1,"day":202,"type":"marriage","message":"Carisa Fletcher and Jasper Fletcher got married","entityName":"Carisa Fletcher"}
+{"id":812,"tick":40464,"year":1,"day":202,"type":"migration","message":"+1 Settler arrived"}
+{"id":811,"tick":40380,"year":1,"day":200,"type":"event","message":"Margaret Mercer is no longer asking permission to hunt.","entityName":"Margaret Mercer"}
+{"id":810,"tick":40380,"year":1,"day":200,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":809,"tick":40320,"year":1,"day":200,"type":"event","message":"Full moon rise — Margaret Mercer is abroad and hungry.","entityName":"Margaret Mercer"}
+{"id":808,"tick":39876,"year":1,"day":193,"type":"marriage","message":"Prudence Fletcher and Jasper Fletcher got married","entityName":"Prudence Fletcher"}
+{"id":807,"tick":39816,"year":1,"day":193,"type":"migration","message":"+1 Settler arrived"}
+{"id":806,"tick":39816,"year":1,"day":193,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":805,"tick":39744,"year":1,"day":192,"type":"migration","message":"+1 Settler arrived"}
+{"id":804,"tick":39744,"year":1,"day":192,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":803,"tick":39672,"year":1,"day":191,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":802,"tick":39600,"year":1,"day":190,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":801,"tick":39599,"year":1,"day":189,"type":"marriage","message":"Hannah Prescott and Levi Prescott got married","entityName":"Hannah Prescott"}
+{"id":800,"tick":39528,"year":1,"day":189,"type":"event","message":"Predators have migrated into the valley following game trails."}
+{"id":799,"tick":39528,"year":1,"day":189,"type":"migration","message":"+1 Settler arrived"}
+{"id":798,"tick":39528,"year":1,"day":189,"type":"event","message":"Short shifts spared 2 settlers that output cost (3.0h shifts)."}
+{"id":797,"tick":39456,"year":1,"day":188,"type":"migration","message":"+2 Settlers arrived"}
+{"id":796,"tick":39384,"year":1,"day":187,"type":"migration","message":"+2 Settlers arrived"}
+{"id":795,"tick":39372,"year":1,"day":186,"type":"event","message":"Moonlight took Margaret Mercer. Pray they don't find the lane.","entityName":"Margaret Mercer"}
+{"id":794,"tick":39372,"year":1,"day":186,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":793,"tick":39312,"year":1,"day":186,"type":"conception","message":"Eleanor Blackwood and Ezra Blackwood are expecting a child","entityName":"Eleanor Blackwood"}
+{"id":792,"tick":39312,"year":1,"day":186,"type":"event","message":"Moonlight took Margaret Mercer. Pray they don't find the lane.","entityName":"Margaret Mercer"}
+{"id":791,"tick":39168,"year":1,"day":184,"type":"migration","message":"+1 Settler arrived"}
+{"id":790,"tick":39168,"year":1,"day":184,"type":"event","message":"Longer shifts reduced work output for 2 settlers tomorrow (24.0h shifts)."}
+{"id":789,"tick":39096,"year":1,"day":183,"type":"season","message":"Harvest Festival festival began in the village"}
+{"id":788,"tick":39025,"year":1,"day":182,"type":"marriage","message":"Clara Batten and Caleb Batten got married","entityName":"Clara Batten"}
+{"id":787,"tick":38952,"year":1,"day":181,"type":"combat","message":"12 villagers fell defending against RavenCreek (#2385 Caleb Whitaker, #10946 Clara Vance, #10032 Eliza Whitaker, #2121 Thomas Blackwood, #10549 Henry Fairchild, #2752 Ezra Whitaker, #3231 Carisa Thornhill, #10379 Margaret Sterling, #5301 Clara Mercer, #2362 Edward Fairchild, #10547 Martha Batten, #9231 Amos Hawthorne)","entityName":"RavenCreek","combatKind":"defense"}
+{"id":786,"tick":38952,"year":1,"day":181,"type":"death","message":"#9231 Amos Hawthorne fell defending the village — at the age of 41 years (adult)","entityName":"#9231 Amos Hawthorne"}
+{"id":785,"tick":38952,"year":1,"day":181,"type":"death","message":"#10547 Martha Batten fell defending the village — at the age of 26 years (adult)","entityName":"#10547 Martha Batten"}
+{"id":784,"tick":38952,"year":1,"day":181,"type":"death","message":"#2362 Edward Fairchild fell defending the village — at the age of 12 years (adult)","entityName":"#2362 Edward Fairchild"}
+{"id":783,"tick":38952,"year":1,"day":181,"type":"death","message":"#5301 Clara Mercer fell defending the village — at the age of 12 years (adult)","entityName":"#5301 Clara Mercer"}
+{"id":782,"tick":38952,"year":1,"day":181,"type":"death","message":"#10379 Margaret Sterling fell defending the village — at the age of 46 years (adult)","entityName":"#10379 Margaret Sterling"}
+{"id":781,"tick":38952,"year":1,"day":181,"type":"death","message":"#3231 Carisa Thornhill fell defending the village — at the age of 12 years (adult)","entityName":"#3231 Carisa Thornhill"}
+{"id":780,"tick":38952,"year":1,"day":181,"type":"death","message":"#2752 Ezra Whitaker fell defending the village — at the age of 12 years (adult)","entityName":"#2752 Ezra Whitaker"}
+{"id":779,"tick":38952,"year":1,"day":181,"type":"death","message":"#10549 Henry Fairchild fell defending the village — at the age of 12 years (adult)","entityName":"#10549 Henry Fairchild"}
+{"id":778,"tick":38952,"year":1,"day":181,"type":"death","message":"#2121 Thomas Blackwood fell defending the village — at the age of 12 years (adult)","entityName":"#2121 Thomas Blackwood"}
+{"id":777,"tick":38952,"year":1,"day":181,"type":"death","message":"#10032 Eliza Whitaker fell defending the village — at the age of 12 years (adult)","entityName":"#10032 Eliza Whitaker"}
+{"id":776,"tick":38952,"year":1,"day":181,"type":"death","message":"#10946 Clara Vance fell defending the village — at the age of 52 years (adult)","entityName":"#10946 Clara Vance"}
+{"id":775,"tick":38952,"year":1,"day":181,"type":"death","message":"#2385 Caleb Whitaker fell defending the village — at the age of 12 years (adult)","entityName":"#2385 Caleb Whitaker"}
+{"id":774,"tick":38952,"year":1,"day":181,"type":"combat","message":"Raid from RavenCreek succeeded — no response in time (lost 21🍖 54🪵 31🪨 18💰)","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":773,"tick":38952,"year":1,"day":181,"type":"event","message":"#1836 Levi Aldridge and #5301 Clara Mercer became sweethearts","entityName":"Levi"}
+{"id":772,"tick":38952,"year":1,"day":181,"type":"conception","message":"Maude Mercer and Thomas Mercer are expecting a child","entityName":"Maude Mercer"}
+{"id":771,"tick":38736,"year":1,"day":178,"type":"combat","message":"RavenCreek launched a raid on the village","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":770,"tick":38736,"year":1,"day":178,"type":"event","message":"RavenCreek spent 12 wood preparing defenses","entityName":"RavenCreek"}
+{"id":769,"tick":38364,"year":1,"day":172,"type":"event","message":"Moonlight took Margaret Mercer. Pray they don't find the lane.","entityName":"Margaret Mercer"}
+{"id":768,"tick":38364,"year":1,"day":172,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":767,"tick":38304,"year":1,"day":172,"type":"event","message":"Margaret Mercer shed their boots. The village should lock its doors.","entityName":"Margaret Mercer"}
+{"id":766,"tick":38232,"year":1,"day":171,"type":"scandal","message":"Whispers spread about Maude Mercer and Arthur Thornhill","entityName":"Maude Mercer"}
+{"id":765,"tick":38160,"year":1,"day":170,"type":"scandal","message":"A feud is brewing between Clara and Maude"}
+{"id":764,"tick":37776,"year":1,"day":164,"type":"scandal","message":"Maude Mercer began a secret affair with Arthur Thornhill","entityName":"Maude Mercer"}
+{"id":763,"tick":37768,"year":1,"day":164,"type":"birth","message":"Temperance Batten was born","entityName":"Temperance"}
+{"id":762,"tick":37356,"year":1,"day":158,"type":"event","message":"Margaret Mercer shed their boots. The village should lock its doors.","entityName":"Margaret Mercer"}
+{"id":761,"tick":37356,"year":1,"day":158,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":760,"tick":37296,"year":1,"day":158,"type":"event","message":"Moonlight took Margaret Mercer. Pray they don't find the lane.","entityName":"Margaret Mercer"}
+{"id":759,"tick":36864,"year":1,"day":152,"type":"event","message":"Charity and Clara have settled their feud"}
+{"id":758,"tick":36576,"year":1,"day":148,"type":"event","message":"#2385 Caleb Whitaker and #3052 Margaret Whitaker became sweethearts","entityName":"Caleb"}
+{"id":757,"tick":36504,"year":1,"day":147,"type":"event","message":"Predators have migrated into the valley following game trails."}
+{"id":756,"tick":36376,"year":1,"day":145,"type":"marriage","message":"Eleanor Blackwood and Ezra Blackwood got married","entityName":"Eleanor Blackwood"}
+{"id":755,"tick":36360,"year":1,"day":145,"type":"event","message":"Martha and Prudence have settled their feud"}
+{"id":754,"tick":36348,"year":1,"day":144,"type":"event","message":"Margaret Mercer is no longer asking permission to hunt.","entityName":"Margaret Mercer"}
+{"id":753,"tick":36348,"year":1,"day":144,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":752,"tick":36288,"year":1,"day":144,"type":"migration","message":"+1 Settler arrived"}
+{"id":751,"tick":36288,"year":1,"day":144,"type":"event","message":"Margaret Mercer shed their boots. The village should lock its doors.","entityName":"Margaret Mercer"}
+{"id":750,"tick":36216,"year":1,"day":143,"type":"migration","message":"+1 Settler arrived"}
+{"id":749,"tick":36216,"year":1,"day":143,"type":"conception","message":"Martha Batten and Caleb Batten are expecting a child","entityName":"Martha Batten"}
+{"id":748,"tick":36000,"year":1,"day":140,"type":"migration","message":"+1 Settler arrived"}
+{"id":747,"tick":35988,"year":1,"day":139,"type":"event","message":"A star scratched \"Renffr\" across the night sky. The letters fell out of alignment.","entityName":"Renffr"}
+{"id":746,"tick":35856,"year":1,"day":138,"type":"migration","message":"+1 Settler arrived"}
+{"id":745,"tick":35782,"year":1,"day":136,"type":"event","message":"Campaign promises recorded for Year 2: 1) Fortify Village: Construct at least 5 walls or towers 2) Forge Ahead: Fulfill at least 3 forge orders."}
+{"id":744,"tick":35782,"year":1,"day":136,"type":"election","message":"Election revelry began — 1 day of celebration","entityName":"Prudence Thornhill"}
+{"id":743,"tick":35782,"year":1,"day":136,"type":"election","message":"Prudence Thornhill succeeded as village head — 11 of 32 ballots · merit 14 (skills 0, experience 9, family +5)","entityName":"Prudence Thornhill"}
+{"id":742,"tick":35782,"year":1,"day":136,"type":"scandal","message":"A feud is brewing between Caleb and Prudence"}
+{"id":741,"tick":35712,"year":1,"day":136,"type":"election","message":"Leadership election ceremony began at the village center (Year 2)","entityName":"Prudence Thornhill"}
+{"id":740,"tick":35653,"year":1,"day":135,"type":"marriage","message":"Prudence Thornhill and Arthur Thornhill got married","entityName":"Prudence Thornhill"}
+{"id":739,"tick":35640,"year":1,"day":135,"type":"migration","message":"+1 Settler arrived"}
+{"id":738,"tick":35568,"year":1,"day":134,"type":"migration","message":"+1 Settler arrived"}
+{"id":737,"tick":35496,"year":1,"day":133,"type":"migration","message":"+1 Settler arrived"}
+{"id":736,"tick":35489,"year":1,"day":132,"type":"marriage","message":"Martha Batten and Caleb Batten got married","entityName":"Martha Batten"}
+{"id":735,"tick":35424,"year":1,"day":132,"type":"migration","message":"+1 Settler arrived"}
+{"id":734,"tick":35340,"year":1,"day":130,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":733,"tick":35340,"year":1,"day":130,"type":"event","message":"Full moon rise — Margaret Mercer is abroad and hungry.","entityName":"Margaret Mercer"}
+{"id":732,"tick":35340,"year":1,"day":130,"type":"event","message":"Margaret Mercer was cursed as a Moon Howler","entityName":"Margaret Mercer"}
+{"id":731,"tick":35130,"year":1,"day":127,"type":"event","message":"A star scratched \"Renffr\" across the night sky. The letters fell out of alignment.","entityName":"Renffr"}
+{"id":730,"tick":34848,"year":1,"day":124,"type":"combat","message":"11 villagers fell defending against RavenCreek (#9232 Patience Whitaker, #2530 Henry Whitaker, #3353 Clara Vance, #2531 Maude Langford, #3812 Beatrice Fairchild, #10546 Levi Fairchild, #2985 Margaret Mercer, #3230 Mercy Whitaker, #7612 Hannah Whitaker, #2588 Beatrice Whitaker, #1198 Thomas Aldridge)","entityName":"RavenCreek","combatKind":"defense"}
+{"id":729,"tick":34848,"year":1,"day":124,"type":"death","message":"#1198 Thomas Aldridge fell defending the village — at the age of 41 years (adult)","entityName":"#1198 Thomas Aldridge"}
+{"id":728,"tick":34848,"year":1,"day":124,"type":"death","message":"#2588 Beatrice Whitaker fell defending the village — at the age of 12 years (adult)","entityName":"#2588 Beatrice Whitaker"}
+{"id":727,"tick":34848,"year":1,"day":124,"type":"death","message":"#7612 Hannah Whitaker fell defending the village — at the age of 35 years (adult)","entityName":"#7612 Hannah Whitaker"}
+{"id":726,"tick":34848,"year":1,"day":124,"type":"death","message":"#3230 Mercy Whitaker fell defending the village — at the age of 12 years (adult)","entityName":"#3230 Mercy Whitaker"}
+{"id":725,"tick":34848,"year":1,"day":124,"type":"death","message":"#2985 Margaret Mercer fell defending the village — at the age of 12 years (adult)","entityName":"#2985 Margaret Mercer"}
+{"id":724,"tick":34848,"year":1,"day":124,"type":"death","message":"#10546 Levi Fairchild fell defending the village — at the age of 28 years (adult)","entityName":"#10546 Levi Fairchild"}
+{"id":723,"tick":34848,"year":1,"day":124,"type":"death","message":"#3812 Beatrice Fairchild fell defending the village — at the age of 45 years (adult)","entityName":"#3812 Beatrice Fairchild"}
+{"id":722,"tick":34848,"year":1,"day":124,"type":"death","message":"#2531 Maude Langford fell defending the village — at the age of 26 years (adult)","entityName":"#2531 Maude Langford"}
+{"id":721,"tick":34848,"year":1,"day":124,"type":"death","message":"#3353 Clara Vance fell defending the village — at the age of 12 years (adult)","entityName":"#3353 Clara Vance"}
+{"id":720,"tick":34848,"year":1,"day":124,"type":"death","message":"#2530 Henry Whitaker fell defending the village — at the age of 12 years (adult)","entityName":"#2530 Henry Whitaker"}
+{"id":719,"tick":34848,"year":1,"day":124,"type":"death","message":"#9232 Patience Whitaker fell defending the village — at the age of 39 years (adult)","entityName":"#9232 Patience Whitaker"}
+{"id":718,"tick":34848,"year":1,"day":124,"type":"combat","message":"Raid from RavenCreek succeeded — no response in time (lost 29🍖 56🪵 29🪨 17💰)","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":717,"tick":34632,"year":1,"day":121,"type":"combat","message":"RavenCreek launched a raid on the village","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":716,"tick":34632,"year":1,"day":121,"type":"event","message":"RavenCreek gathered supplies","entityName":"RavenCreek"}
+{"id":715,"tick":34334,"year":1,"day":116,"type":"event","message":"A star scratched \"Renffr\" across the night sky. The letters fell out of alignment.","entityName":"Renffr"}
+{"id":714,"tick":34332,"year":1,"day":116,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":713,"tick":34332,"year":1,"day":116,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":712,"tick":34272,"year":1,"day":116,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":711,"tick":34249,"year":1,"day":115,"type":"marriage","message":"Thomas Aldridge and Clara Aldridge got married","entityName":"Thomas Aldridge"}
+{"id":710,"tick":34231,"year":1,"day":115,"type":"marriage","message":"Beatrice Fairchild and Levi Fairchild got married","entityName":"Beatrice Fairchild"}
+{"id":709,"tick":34026,"year":1,"day":112,"type":"divorce","message":"Levi Fairchild divorced Hannah Fletcher after catching them with Thomas Aldridge","entityName":"Levi Fairchild"}
+{"id":708,"tick":34026,"year":1,"day":112,"type":"divorce","message":"Margaret Mercer divorced Thomas Aldridge after catching them with Hannah Fairchild","entityName":"Margaret Mercer"}
+{"id":707,"tick":34026,"year":1,"day":112,"type":"scandal","message":"A feud is brewing between Margaret and Hannah"}
+{"id":706,"tick":34026,"year":1,"day":112,"type":"scandal","message":"Thomas Aldridge was caught with Hannah Fairchild","entityName":"Thomas Aldridge"}
+{"id":705,"tick":34026,"year":1,"day":112,"type":"scandal","message":"Thomas Aldridge began a secret affair with Hannah Fairchild","entityName":"Thomas Aldridge"}
+{"id":704,"tick":33552,"year":1,"day":106,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":703,"tick":33480,"year":1,"day":105,"type":"event","message":"Predators have migrated into the valley following game trails."}
+{"id":702,"tick":33480,"year":1,"day":105,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":701,"tick":33408,"year":1,"day":104,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":700,"tick":33336,"year":1,"day":103,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":699,"tick":33324,"year":1,"day":102,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":698,"tick":33324,"year":1,"day":102,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":697,"tick":33264,"year":1,"day":102,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":696,"tick":33264,"year":1,"day":102,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":695,"tick":33192,"year":1,"day":101,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":694,"tick":33120,"year":1,"day":100,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":693,"tick":33048,"year":1,"day":99,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":692,"tick":33048,"year":1,"day":99,"type":"event","message":"A star scratched \"Renffr\" across the night sky. The letters fell out of alignment.","entityName":"Renffr"}
+{"id":691,"tick":32688,"year":1,"day":94,"type":"event","message":"Longer shifts reduced work output for 1 settler tomorrow (24.0h shifts)."}
+{"id":690,"tick":32686,"year":1,"day":93,"type":"birth","message":"Caleb Fairchild was born","entityName":"Caleb"}
+{"id":689,"tick":32616,"year":1,"day":93,"type":"season","message":"Midsummer Feast festival began in the village"}
+{"id":688,"tick":32400,"year":1,"day":90,"type":"event","message":"#2362 Edward Fairchild and #10032 Eliza Whitaker became sweethearts","entityName":"Edward"}
+{"id":687,"tick":32316,"year":1,"day":88,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":686,"tick":32316,"year":1,"day":88,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":685,"tick":32256,"year":1,"day":88,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":684,"tick":31824,"year":1,"day":82,"type":"event","message":"Beatrice and Hannah have settled their feud"}
+{"id":683,"tick":31324,"year":1,"day":75,"type":"death","message":"Thomas Aldridge left the village mourning Josiah Whitaker. — at the age of 23 years (adult)","entityName":"Josiah Whitaker"}
+{"id":682,"tick":31308,"year":1,"day":74,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":681,"tick":31308,"year":1,"day":74,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":680,"tick":31248,"year":1,"day":74,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":679,"tick":31176,"year":1,"day":73,"type":"conception","message":"Hannah Fairchild and Levi Fairchild are expecting a child","entityName":"Hannah Fairchild"}
+{"id":678,"tick":31104,"year":1,"day":72,"type":"event","message":"Maude and Patience have settled their feud"}
+{"id":677,"tick":30720,"year":1,"day":66,"type":"marriage","message":"Josiah Whitaker and Patience Whitaker got married","entityName":"Josiah Whitaker"}
+{"id":676,"tick":30705,"year":1,"day":66,"type":"marriage","message":"Margaret Aldridge and Thomas Aldridge got married","entityName":"Margaret Aldridge"}
+{"id":675,"tick":30538,"year":1,"day":64,"type":"divorce","message":"Josiah Whitaker divorced Clara Langford after catching them with Thomas Aldridge","entityName":"Josiah Whitaker"}
+{"id":674,"tick":30538,"year":1,"day":64,"type":"divorce","message":"Charity Fairchild divorced Thomas Aldridge after catching them with Clara Whitaker","entityName":"Charity Fairchild"}
+{"id":673,"tick":30538,"year":1,"day":64,"type":"scandal","message":"A feud is brewing between Charity and Clara"}
+{"id":672,"tick":30538,"year":1,"day":64,"type":"scandal","message":"Thomas Aldridge was caught with Clara Whitaker","entityName":"Thomas Aldridge"}
+{"id":671,"tick":30456,"year":1,"day":63,"type":"event","message":"Wildlife returned to the frontier meadows."}
+{"id":670,"tick":30456,"year":1,"day":63,"type":"event","message":"RavenCreek gathered supplies","entityName":"RavenCreek"}
+{"id":669,"tick":30300,"year":1,"day":60,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":668,"tick":30300,"year":1,"day":60,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":667,"tick":30285,"year":1,"day":60,"type":"birth","message":"Maude Aldridge was born","entityName":"Maude"}
+{"id":666,"tick":30240,"year":1,"day":60,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":665,"tick":30166,"year":1,"day":58,"type":"marriage","message":"Hannah Fairchild and Levi Fairchild got married","entityName":"Hannah Fairchild"}
+{"id":664,"tick":30138,"year":1,"day":58,"type":"scandal","message":"Thomas Aldridge began a secret affair with Clara Whitaker","entityName":"Thomas Aldridge"}
+{"id":663,"tick":30075,"year":1,"day":57,"type":"divorce","message":"Martha Caldwell divorced Levi Fairchild after catching them with Prudence Aldridge","entityName":"Martha Caldwell"}
+{"id":662,"tick":30075,"year":1,"day":57,"type":"scandal","message":"A feud is brewing between Martha and Prudence"}
+{"id":661,"tick":30075,"year":1,"day":57,"type":"scandal","message":"Levi Fairchild was caught with Prudence Aldridge","entityName":"Levi Fairchild"}
+{"id":660,"tick":29982,"year":1,"day":56,"type":"scandal","message":"Levi Fairchild began a secret affair with Prudence Aldridge","entityName":"Levi Fairchild"}
+{"id":659,"tick":29292,"year":1,"day":46,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":658,"tick":29292,"year":1,"day":46,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":657,"tick":29232,"year":1,"day":46,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":656,"tick":28800,"year":1,"day":40,"type":"conception","message":"Charity Aldridge and Thomas Aldridge are expecting a child","entityName":"Charity Aldridge"}
+{"id":655,"tick":28284,"year":1,"day":32,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":654,"tick":28284,"year":1,"day":32,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":653,"tick":28224,"year":1,"day":32,"type":"migration","message":"+1 Settler arrived"}
+{"id":652,"tick":28224,"year":1,"day":32,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":651,"tick":28080,"year":1,"day":30,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":650,"tick":28008,"year":1,"day":29,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":649,"tick":27936,"year":1,"day":28,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":648,"tick":27864,"year":1,"day":27,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":647,"tick":27792,"year":1,"day":26,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":646,"tick":27720,"year":1,"day":25,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":645,"tick":27648,"year":1,"day":24,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":644,"tick":27576,"year":1,"day":23,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":643,"tick":27432,"year":1,"day":21,"type":"event","message":"Wildlife returned to the frontier meadows."}
+{"id":642,"tick":27288,"year":1,"day":19,"type":"migration","message":"+1 Settler arrived"}
+{"id":641,"tick":27276,"year":1,"day":18,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":640,"tick":27276,"year":1,"day":18,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":639,"tick":27216,"year":1,"day":18,"type":"migration","message":"A settler family arrived (4)"}
+{"id":638,"tick":27216,"year":1,"day":18,"type":"event","message":"Longer shifts reduced work output for 1 settler tomorrow (24.0h shifts)."}
+{"id":637,"tick":27216,"year":1,"day":18,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":636,"tick":27197,"year":1,"day":17,"type":"marriage","message":"Thomas Aldridge and Charity Aldridge got married","entityName":"Thomas Aldridge"}
+{"id":635,"tick":27167,"year":1,"day":17,"type":"marriage","message":"Prudence Hawthorne and Amos Hawthorne got married","entityName":"Prudence Hawthorne"}
+{"id":634,"tick":27144,"year":1,"day":17,"type":"season","message":"Spring Revel festival began in the village"}
+{"id":633,"tick":27144,"year":1,"day":17,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":632,"tick":27072,"year":1,"day":16,"type":"election","message":"Edward Thornhill can no longer lead — merit election scheduled for Year 2","entityName":"Edward Thornhill"}
+{"id":631,"tick":27072,"year":1,"day":16,"type":"combat","message":"7 villagers fell defending against RavenCreek (#7678 Clara Thornhill, #2123 Beatrice Hawthorne, #1687 Henry Vance, #9324 Eliza Vance, #9145 Prudence Aldridge, #2365 Henry Hawthorne, #1903 Edward Thornhill)","entityName":"RavenCreek","combatKind":"defense"}
+{"id":630,"tick":27072,"year":1,"day":16,"type":"death","message":"#1903 Edward Thornhill fell defending the village — at the age of 49 years (adult)","entityName":"#1903 Edward Thornhill"}
+{"id":629,"tick":27072,"year":1,"day":16,"type":"death","message":"#2365 Henry Hawthorne fell defending the village — at the age of 47 years (adult)","entityName":"#2365 Henry Hawthorne"}
+{"id":628,"tick":27072,"year":1,"day":16,"type":"death","message":"#9145 Prudence Aldridge fell defending the village — at the age of 29 years (adult)","entityName":"#9145 Prudence Aldridge"}
+{"id":627,"tick":27072,"year":1,"day":16,"type":"death","message":"#9324 Eliza Vance fell defending the village — at the age of 39 years (adult)","entityName":"#9324 Eliza Vance"}
+{"id":626,"tick":27072,"year":1,"day":16,"type":"death","message":"#1687 Henry Vance fell defending the village — at the age of 36 years (adult)","entityName":"#1687 Henry Vance"}
+{"id":625,"tick":27072,"year":1,"day":16,"type":"death","message":"#2123 Beatrice Hawthorne fell defending the village — at the age of 43 years (adult)","entityName":"#2123 Beatrice Hawthorne"}
+{"id":624,"tick":27072,"year":1,"day":16,"type":"death","message":"#7678 Clara Thornhill fell defending the village — at the age of 27 years (adult)","entityName":"#7678 Clara Thornhill"}
+{"id":623,"tick":27072,"year":1,"day":16,"type":"combat","message":"Raid from RavenCreek succeeded — no response in time (lost 46🍖 48🪵 23🪨 20💰)","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":622,"tick":27072,"year":1,"day":16,"type":"event","message":"Short shifts spared 1 settler that output cost (7.0h shifts)."}
+{"id":621,"tick":27070,"year":1,"day":15,"type":"event","message":"Campaign promises recorded for Year 2: 1) Fortify Village: Construct at least 5 walls or towers 2) Forge Ahead: Fulfill at least 3 forge orders."}
+{"id":620,"tick":27070,"year":1,"day":15,"type":"election","message":"Election revelry began — 1 day of celebration","entityName":"Edward Thornhill"}
+{"id":619,"tick":27070,"year":1,"day":15,"type":"election","message":"Edward Thornhill succeeded as village head — 8 of 27 ballots · merit 13 (skills 0, experience 8, family +5)","entityName":"Edward Thornhill"}
+{"id":618,"tick":27070,"year":1,"day":15,"type":"scandal","message":"A feud is brewing between Henry and Edward"}
+{"id":617,"tick":27012,"year":1,"day":15,"type":"birth","message":"Jasper Whitaker was born","entityName":"Jasper"}
+{"id":616,"tick":27000,"year":1,"day":15,"type":"election","message":"Leadership election ceremony began at the village center (Year 2)","entityName":"Edward Thornhill"}
+{"id":615,"tick":26928,"year":1,"day":14,"type":"conception","message":"Eliza Vance and Henry Vance are expecting a child","entityName":"Eliza Vance"}
+{"id":614,"tick":26856,"year":1,"day":13,"type":"combat","message":"RavenCreek launched a raid on the village","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":613,"tick":26856,"year":1,"day":13,"type":"event","message":"RavenCreek spent 12 wood preparing defenses","entityName":"RavenCreek"}
+{"id":612,"tick":26816,"year":1,"day":12,"type":"birth","message":"Gideon Mercer was born","entityName":"Gideon"}
+{"id":611,"tick":26784,"year":1,"day":12,"type":"migration","message":"Lantern Pilgrimage departed"}
+{"id":610,"tick":26640,"year":1,"day":10,"type":"migration","message":"+1 Settler arrived"}
+{"id":609,"tick":26268,"year":1,"day":4,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":608,"tick":26268,"year":1,"day":4,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":607,"tick":26208,"year":1,"day":4,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":606,"tick":26114,"year":1,"day":2,"type":"birth","message":"Amos Thornhill was born a bastard","entityName":"Amos"}
+{"id":605,"tick":25920,"year":1,"day":0,"type":"migration","message":"Lantern Pilgrimage arrived near the village","entityName":"Lantern Pilgrimage"}
+{"id":604,"tick":25920,"year":0,"day":0,"type":"event","message":"Year 1 in review — 26 close friendships, 26 new; 24 settlers have a friend, 29 have none"}
+{"id":603,"tick":25776,"year":0,"day":358,"type":"migration","message":"A young settler arrived"}
+{"id":602,"tick":25603,"year":0,"day":355,"type":"marriage","message":"Henry Vance and Eliza Vance got married","entityName":"Henry Vance"}
+{"id":601,"tick":25552,"year":0,"day":354,"type":"divorce","message":"Hannah Whitaker divorced Henry Vance after catching them with Beatrice Caldwell","entityName":"Hannah Whitaker"}
+{"id":600,"tick":25552,"year":0,"day":354,"type":"scandal","message":"A feud is brewing between Hannah and Beatrice"}
+{"id":599,"tick":25552,"year":0,"day":354,"type":"scandal","message":"Henry Vance was caught with Beatrice Caldwell","entityName":"Henry Vance"}
+{"id":598,"tick":25455,"year":0,"day":353,"type":"scandal","message":"Henry Vance began a secret affair with Beatrice Caldwell","entityName":"Henry Vance"}
+{"id":597,"tick":25344,"year":0,"day":352,"type":"migration","message":"+2 Settlers arrived"}
+{"id":596,"tick":25272,"year":0,"day":351,"type":"event","message":"Longer shifts reduced work output for 1 settler tomorrow (24.0h shifts)."}
+{"id":595,"tick":25260,"year":0,"day":350,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":594,"tick":25260,"year":0,"day":350,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":593,"tick":25212,"year":0,"day":350,"type":"birth","message":"Henry Thornhill was born","entityName":"Henry"}
+{"id":592,"tick":25200,"year":0,"day":350,"type":"season","message":"Spring Revel festival began in the village"}
+{"id":591,"tick":25200,"year":0,"day":350,"type":"conception","message":"Clara Whitaker and Josiah Whitaker are expecting a child","entityName":"Clara Whitaker"}
+{"id":590,"tick":25200,"year":0,"day":350,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":589,"tick":25178,"year":0,"day":349,"type":"birth","message":"Carisa Langford was born a bastard","entityName":"Carisa"}
+{"id":588,"tick":25061,"year":0,"day":348,"type":"marriage","message":"Josiah Whitaker and Clara Whitaker got married","entityName":"Josiah Whitaker"}
+{"id":587,"tick":24973,"year":0,"day":346,"type":"marriage","message":"Henry Vance and Hannah Vance got married","entityName":"Henry Vance"}
+{"id":586,"tick":24945,"year":0,"day":346,"type":"marriage","message":"Beatrice Hawthorne and Amos Hawthorne got married","entityName":"Beatrice Hawthorne"}
+{"id":585,"tick":24907,"year":0,"day":345,"type":"divorce","message":"Charity Fairchild divorced Josiah Whitaker after catching them with Beatrice Prescott","entityName":"Charity Fairchild"}
+{"id":584,"tick":24907,"year":0,"day":345,"type":"divorce","message":"Henry Vance divorced Beatrice Prescott after catching them with Josiah Whitaker","entityName":"Henry Vance"}
+{"id":583,"tick":24907,"year":0,"day":345,"type":"scandal","message":"A feud is brewing between Henry and Josiah"}
+{"id":582,"tick":24907,"year":0,"day":345,"type":"scandal","message":"Beatrice Vance was caught with Josiah Whitaker","entityName":"Beatrice Vance"}
+{"id":581,"tick":24899,"year":0,"day":345,"type":"marriage","message":"Thomas Aldridge and Prudence Aldridge got married","entityName":"Thomas Aldridge"}
+{"id":580,"tick":24854,"year":0,"day":345,"type":"birth","message":"Hannah Hawthorne was born","entityName":"Hannah"}
+{"id":579,"tick":24825,"year":0,"day":344,"type":"scandal","message":"Beatrice Vance began a secret affair with Josiah Whitaker","entityName":"Beatrice Vance"}
+{"id":578,"tick":24803,"year":0,"day":344,"type":"divorce","message":"Amos Hawthorne divorced Patience Thornhill after catching them with Thomas Aldridge","entityName":"Amos Hawthorne"}
+{"id":577,"tick":24803,"year":0,"day":344,"type":"divorce","message":"Maude Langford divorced Thomas Aldridge after catching them with Patience Hawthorne","entityName":"Maude Langford"}
+{"id":576,"tick":24803,"year":0,"day":344,"type":"scandal","message":"A feud is brewing between Maude and Patience"}
+{"id":575,"tick":24803,"year":0,"day":344,"type":"scandal","message":"Thomas Aldridge was caught with Patience Hawthorne","entityName":"Thomas Aldridge"}
+{"id":574,"tick":24624,"year":0,"day":342,"type":"scandal","message":"Patience Hawthorne is secretly expecting a child","entityName":"Patience Hawthorne"}
+{"id":573,"tick":24450,"year":0,"day":339,"type":"scandal","message":"Thomas Aldridge began a secret affair with Patience Hawthorne","entityName":"Thomas Aldridge"}
+{"id":572,"tick":24408,"year":0,"day":339,"type":"event","message":"Wildlife returned to the frontier meadows."}
+{"id":571,"tick":24343,"year":0,"day":338,"type":"event","message":"A star scratched \"Renffr\" across the night sky. The letters fell out of alignment.","entityName":"Renffr"}
+{"id":570,"tick":24252,"year":0,"day":336,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":569,"tick":24252,"year":0,"day":336,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":568,"tick":24192,"year":0,"day":336,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":567,"tick":23760,"year":0,"day":330,"type":"event","message":"An unanswered diplomacy message faded — neighbors grew impatient"}
+{"id":566,"tick":23760,"year":0,"day":330,"type":"migration","message":"+1 Settler arrived"}
+{"id":565,"tick":23544,"year":0,"day":327,"type":"migration","message":"+2 Settlers arrived"}
+{"id":564,"tick":23472,"year":0,"day":326,"type":"conception","message":"Maude Aldridge and Thomas Aldridge are expecting a child","entityName":"Maude Aldridge"}
+{"id":563,"tick":23400,"year":0,"day":325,"type":"conception","message":"Clara Thornhill and Edward Thornhill are expecting a child","entityName":"Clara Thornhill"}
+{"id":562,"tick":23328,"year":0,"day":324,"type":"migration","message":"+1 Settler arrived"}
+{"id":561,"tick":23256,"year":0,"day":323,"type":"conception","message":"Maude Hawthorne and Henry Hawthorne are expecting a child","entityName":"Maude Hawthorne"}
+{"id":560,"tick":23244,"year":0,"day":322,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":559,"tick":23244,"year":0,"day":322,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":558,"tick":23184,"year":0,"day":322,"type":"migration","message":"+1 Settler arrived"}
+{"id":557,"tick":23184,"year":0,"day":322,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":556,"tick":23133,"year":0,"day":321,"type":"marriage","message":"Edward Thornhill and Clara Thornhill got married","entityName":"Edward Thornhill"}
+{"id":555,"tick":23040,"year":0,"day":320,"type":"event","message":"Thomas and Henry have settled their feud"}
+{"id":554,"tick":23029,"year":0,"day":319,"type":"marriage","message":"Thomas Aldridge and Maude Aldridge got married","entityName":"Thomas Aldridge"}
+{"id":553,"tick":23027,"year":0,"day":319,"type":"marriage","message":"Henry Hawthorne and Maude Hawthorne got married","entityName":"Henry Hawthorne"}
+{"id":552,"tick":22968,"year":0,"day":319,"type":"combat","message":"12 villagers fell defending against RavenCreek (#2124 Edward Sterling, #1526 Hannah Sterling, #7457 Maude Hawthorne, #2058 Arthur Blackwood, #3734 Temperance Aldridge, #1356 Patience Thornhill, #2455 Charity Blackwood, #1583 Temperance Ashford, #1115 Clara Whitaker, #1740 Carisa Hawthorne, #1974 Henry Whitaker, #3868 Jasper Ashford)","entityName":"RavenCreek","combatKind":"defense"}
+{"id":551,"tick":22968,"year":0,"day":319,"type":"death","message":"#3868 Jasper Ashford fell defending the village — at the age of 49 years (adult)","entityName":"#3868 Jasper Ashford"}
+{"id":550,"tick":22968,"year":0,"day":319,"type":"death","message":"#1974 Henry Whitaker fell defending the village — at the age of 12 years (adult)","entityName":"#1974 Henry Whitaker"}
+{"id":549,"tick":22968,"year":0,"day":319,"type":"death","message":"#1740 Carisa Hawthorne fell defending the village — at the age of 45 years (adult)","entityName":"#1740 Carisa Hawthorne"}
+{"id":548,"tick":22968,"year":0,"day":319,"type":"death","message":"#1115 Clara Whitaker fell defending the village — at the age of 13 years (adult)","entityName":"#1115 Clara Whitaker"}
+{"id":547,"tick":22968,"year":0,"day":319,"type":"death","message":"#1583 Temperance Ashford fell defending the village — at the age of 35 years (adult)","entityName":"#1583 Temperance Ashford"}
+{"id":546,"tick":22968,"year":0,"day":319,"type":"death","message":"#2455 Charity Blackwood fell defending the village — at the age of 49 years (adult)","entityName":"#2455 Charity Blackwood"}
+{"id":545,"tick":22968,"year":0,"day":319,"type":"death","message":"#1356 Patience Thornhill fell defending the village — at the age of 41 years (adult)","entityName":"#1356 Patience Thornhill"}
+{"id":544,"tick":22968,"year":0,"day":319,"type":"death","message":"#3734 Temperance Aldridge fell defending the village — at the age of 33 years (adult)","entityName":"#3734 Temperance Aldridge"}
+{"id":543,"tick":22968,"year":0,"day":319,"type":"death","message":"#2058 Arthur Blackwood fell defending the village — at the age of 35 years (adult)","entityName":"#2058 Arthur Blackwood"}
+{"id":542,"tick":22968,"year":0,"day":319,"type":"death","message":"#7457 Maude Hawthorne fell defending the village — at the age of 40 years (adult)","entityName":"#7457 Maude Hawthorne"}
+{"id":541,"tick":22968,"year":0,"day":319,"type":"death","message":"#1526 Hannah Sterling fell defending the village — at the age of 25 years (adult)","entityName":"#1526 Hannah Sterling"}
+{"id":540,"tick":22968,"year":0,"day":319,"type":"death","message":"#2124 Edward Sterling fell defending the village — at the age of 12 years (adult)","entityName":"#2124 Edward Sterling"}
+{"id":539,"tick":22968,"year":0,"day":319,"type":"combat","message":"Raid from RavenCreek succeeded — no response in time (lost 23🍖 70🪵 30🪨 10💰)","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":538,"tick":22752,"year":0,"day":316,"type":"event","message":"RavenCreek — Border dispute with RavenCreek","entityName":"RavenCreek"}
+{"id":537,"tick":22752,"year":0,"day":316,"type":"combat","message":"RavenCreek launched a raid on the village","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":536,"tick":22752,"year":0,"day":316,"type":"event","message":"RavenCreek gathered supplies","entityName":"RavenCreek"}
+{"id":535,"tick":22320,"year":0,"day":310,"type":"event","message":"Henry and Arthur have settled their feud"}
+{"id":534,"tick":22236,"year":0,"day":308,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":533,"tick":22236,"year":0,"day":308,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":532,"tick":22176,"year":0,"day":308,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":531,"tick":21888,"year":0,"day":304,"type":"event","message":"Hannah and Maude have settled their feud"}
+{"id":530,"tick":21384,"year":0,"day":297,"type":"event","message":"Predators have migrated into the valley following game trails."}
+{"id":529,"tick":21228,"year":0,"day":294,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":528,"tick":21228,"year":0,"day":294,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":527,"tick":21168,"year":0,"day":294,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":526,"tick":20880,"year":0,"day":290,"type":"scandal","message":"Whispers spread about Temperance Ashford and Henry Hawthorne","entityName":"Temperance Ashford"}
+{"id":525,"tick":20592,"year":0,"day":286,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":524,"tick":20520,"year":0,"day":285,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":523,"tick":20448,"year":0,"day":284,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":522,"tick":20376,"year":0,"day":283,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":521,"tick":20304,"year":0,"day":282,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":520,"tick":20232,"year":0,"day":281,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":519,"tick":20220,"year":0,"day":280,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":518,"tick":20220,"year":0,"day":280,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":517,"tick":20160,"year":0,"day":280,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":516,"tick":20160,"year":0,"day":280,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":515,"tick":20088,"year":0,"day":279,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":514,"tick":19891,"year":0,"day":276,"type":"marriage","message":"Charity Whitaker and Josiah Whitaker got married","entityName":"Charity Whitaker"}
+{"id":513,"tick":19749,"year":0,"day":274,"type":"birth","message":"Hannah Blackwood was born a bastard","entityName":"Hannah"}
+{"id":512,"tick":19728,"year":0,"day":274,"type":"event","message":"Longer shifts reduced work output for 1 settler tomorrow (24.0h shifts)."}
+{"id":511,"tick":19662,"year":0,"day":273,"type":"marriage","message":"Arthur Blackwood and Charity Blackwood got married","entityName":"Arthur Blackwood"}
+{"id":510,"tick":19656,"year":0,"day":273,"type":"season","message":"Frostfall Feast festival began in the village"}
+{"id":509,"tick":19563,"year":0,"day":271,"type":"divorce","message":"Josiah Whitaker divorced Charity Sterling after catching them with Arthur Blackwood","entityName":"Josiah Whitaker"}
+{"id":508,"tick":19563,"year":0,"day":271,"type":"divorce","message":"Beatrice Caldwell divorced Arthur Blackwood after catching them with Charity Whitaker","entityName":"Beatrice Caldwell"}
+{"id":507,"tick":19563,"year":0,"day":271,"type":"scandal","message":"A feud is brewing between Beatrice and Charity"}
+{"id":506,"tick":19563,"year":0,"day":271,"type":"scandal","message":"Arthur Blackwood was caught with Charity Whitaker","entityName":"Arthur Blackwood"}
+{"id":505,"tick":19458,"year":0,"day":270,"type":"scandal","message":"Arthur Blackwood began a secret affair with Charity Whitaker","entityName":"Arthur Blackwood"}
+{"id":504,"tick":19440,"year":0,"day":270,"type":"event","message":"Henry and Jasper have settled their feud"}
+{"id":503,"tick":19296,"year":0,"day":268,"type":"event","message":"Margaret and Beatrice have settled their feud"}
+{"id":502,"tick":19212,"year":0,"day":266,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":501,"tick":19212,"year":0,"day":266,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":500,"tick":19152,"year":0,"day":266,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":499,"tick":19080,"year":0,"day":265,"type":"migration","message":"+1 Settler arrived"}
+{"id":498,"tick":19069,"year":0,"day":264,"type":"marriage","message":"Charity Whitaker and Josiah Whitaker got married","entityName":"Charity Whitaker"}
+{"id":497,"tick":19008,"year":0,"day":264,"type":"migration","message":"+1 Settler arrived"}
+{"id":496,"tick":18936,"year":0,"day":263,"type":"migration","message":"+1 Settler arrived"}
+{"id":495,"tick":18926,"year":0,"day":262,"type":"birth","message":"Clara Vance was born","entityName":"Clara"}
+{"id":494,"tick":18476,"year":0,"day":256,"type":"marriage","message":"Thomas Aldridge and Temperance Aldridge got married","entityName":"Thomas Aldridge"}
+{"id":493,"tick":18432,"year":0,"day":256,"type":"migration","message":"+1 Settler arrived"}
+{"id":492,"tick":18360,"year":0,"day":255,"type":"election","message":"Carisa Caldwell can no longer lead — merit election scheduled for Year 2","entityName":"Carisa Caldwell"}
+{"id":491,"tick":18360,"year":0,"day":255,"type":"event","message":"Wildlife returned to the frontier meadows."}
+{"id":490,"tick":18360,"year":0,"day":255,"type":"combat","message":"12 villagers fell defending against RavenCreek (#1285 Josiah Aldridge, #2454 Henry Prescott, #1971 Eliza Sterling, #1680 Josiah Fairchild, #3963 Maude Fairchild, #2120 Carisa Langford, #1747 Carisa Caldwell, #2122 Arthur Sterling, #1751 Clara Aldridge, #2529 Edward Ashford, #1049 Clara Mercer, #1585 William Blackwood)","entityName":"RavenCreek","combatKind":"defense"}
+{"id":489,"tick":18360,"year":0,"day":255,"type":"death","message":"#1585 William Blackwood fell defending the village — at the age of 48 years (adult)","entityName":"#1585 William Blackwood"}
+{"id":488,"tick":18360,"year":0,"day":255,"type":"death","message":"#1049 Clara Mercer fell defending the village — at the age of 38 years (adult)","entityName":"#1049 Clara Mercer"}
+{"id":487,"tick":18360,"year":0,"day":255,"type":"death","message":"#2529 Edward Ashford fell defending the village — at the age of 43 years (adult)","entityName":"#2529 Edward Ashford"}
+{"id":486,"tick":18360,"year":0,"day":255,"type":"death","message":"#1751 Clara Aldridge fell defending the village — at the age of 18 years (adult)","entityName":"#1751 Clara Aldridge"}
+{"id":485,"tick":18360,"year":0,"day":255,"type":"death","message":"#2122 Arthur Sterling fell defending the village — at the age of 45 years (adult)","entityName":"#2122 Arthur Sterling"}
+{"id":484,"tick":18360,"year":0,"day":255,"type":"death","message":"#1747 Carisa Caldwell fell defending the village — at the age of 53 years (adult)","entityName":"#1747 Carisa Caldwell"}
+{"id":483,"tick":18360,"year":0,"day":255,"type":"death","message":"#2120 Carisa Langford fell defending the village — at the age of 50 years (adult)","entityName":"#2120 Carisa Langford"}
+{"id":482,"tick":18360,"year":0,"day":255,"type":"death","message":"#3963 Maude Fairchild fell defending the village — at the age of 29 years (adult)","entityName":"#3963 Maude Fairchild"}
+{"id":481,"tick":18360,"year":0,"day":255,"type":"death","message":"#1680 Josiah Fairchild fell defending the village — at the age of 26 years (adult)","entityName":"#1680 Josiah Fairchild"}
+{"id":480,"tick":18360,"year":0,"day":255,"type":"death","message":"#1971 Eliza Sterling fell defending the village — at the age of 47 years (adult)","entityName":"#1971 Eliza Sterling"}
+{"id":479,"tick":18360,"year":0,"day":255,"type":"death","message":"#2454 Henry Prescott fell defending the village — at the age of 51 years (adult)","entityName":"#2454 Henry Prescott"}
+{"id":478,"tick":18360,"year":0,"day":255,"type":"death","message":"#1285 Josiah Aldridge fell defending the village — at the age of 12 years (adult)","entityName":"#1285 Josiah Aldridge"}
+{"id":477,"tick":18360,"year":0,"day":255,"type":"combat","message":"Raid from RavenCreek succeeded — no response in time (lost 47🍖 50🪵 35🪨 15💰)","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":476,"tick":18204,"year":0,"day":252,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":475,"tick":18204,"year":0,"day":252,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":474,"tick":18144,"year":0,"day":252,"type":"combat","message":"RavenCreek launched a raid on the village","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":473,"tick":18144,"year":0,"day":252,"type":"event","message":"RavenCreek gathered supplies","entityName":"RavenCreek"}
+{"id":472,"tick":18144,"year":0,"day":252,"type":"event","message":"Beatrice and Temperance have settled their feud"}
+{"id":471,"tick":18144,"year":0,"day":252,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":470,"tick":18051,"year":0,"day":250,"type":"birth","message":"Clara Aldridge was born","entityName":"Clara"}
+{"id":469,"tick":17983,"year":0,"day":249,"type":"birth","message":"Carisa Thornhill was born","entityName":"Carisa"}
+{"id":468,"tick":17928,"year":0,"day":249,"type":"conception","message":"Hannah Blackwood and William Blackwood are expecting a child","entityName":"Hannah Blackwood"}
+{"id":467,"tick":17856,"year":0,"day":248,"type":"event","message":"Autumn migration: 10 herd deer lost from the passing herd; next herd 4."}
+{"id":466,"tick":17814,"year":0,"day":247,"type":"marriage","message":"Eliza Sterling and Arthur Sterling got married","entityName":"Eliza Sterling"}
+{"id":465,"tick":17805,"year":0,"day":247,"type":"scandal","message":"Temperance Ashford began a secret affair with Henry Hawthorne","entityName":"Temperance Ashford"}
+{"id":464,"tick":17784,"year":0,"day":247,"type":"event","message":"Thomas and Henry have settled their feud"}
+{"id":463,"tick":17765,"year":0,"day":246,"type":"marriage","message":"Charity Ashford and Edward Ashford got married","entityName":"Charity Ashford"}
+{"id":462,"tick":17612,"year":0,"day":244,"type":"birth","message":"Abigail Ashford was born","entityName":"Abigail"}
+{"id":461,"tick":17563,"year":0,"day":243,"type":"divorce","message":"Carisa Caldwell divorced Edward Ashford after catching them with Charity Sterling","entityName":"Carisa Caldwell"}
+{"id":460,"tick":17563,"year":0,"day":243,"type":"divorce","message":"Arthur Sterling divorced Charity Sterling after catching them with Edward Ashford","entityName":"Arthur Sterling"}
+{"id":459,"tick":17563,"year":0,"day":243,"type":"scandal","message":"A feud is brewing between Arthur and Edward"}
+{"id":458,"tick":17563,"year":0,"day":243,"type":"scandal","message":"Charity Sterling was caught with Edward Ashford","entityName":"Charity Sterling"}
+{"id":457,"tick":17529,"year":0,"day":243,"type":"scandal","message":"Charity Sterling began a secret affair with Edward Ashford","entityName":"Charity Sterling"}
+{"id":456,"tick":17352,"year":0,"day":241,"type":"event","message":"Autumn migration: a herd of 10 deer arrived."}
+{"id":455,"tick":17349,"year":0,"day":240,"type":"event","message":"A star scratched \"Renffr\" across the night sky. The letters fell out of alignment.","entityName":"Renffr"}
+{"id":454,"tick":17208,"year":0,"day":239,"type":"event","message":"Carisa and Maude have settled their feud"}
+{"id":453,"tick":17196,"year":0,"day":238,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":452,"tick":17196,"year":0,"day":238,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":451,"tick":17136,"year":0,"day":238,"type":"conception","message":"Beatrice Vance and Henry Vance are expecting a child","entityName":"Beatrice Vance"}
+{"id":450,"tick":17136,"year":0,"day":238,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":449,"tick":17065,"year":0,"day":237,"type":"birth","message":"Harley Fairchild was born a bastard","entityName":"Harley"}
+{"id":448,"tick":16614,"year":0,"day":230,"type":"birth","message":"Josiah Sterling was born a bastard","entityName":"Josiah"}
+{"id":447,"tick":16488,"year":0,"day":229,"type":"conception","message":"Clara Aldridge and Thomas Aldridge are expecting a child","entityName":"Clara Aldridge"}
+{"id":446,"tick":16445,"year":0,"day":228,"type":"marriage","message":"Hannah Blackwood and William Blackwood got married","entityName":"Hannah Blackwood"}
+{"id":445,"tick":16416,"year":0,"day":228,"type":"event","message":"Edward and Jasper have settled their feud"}
+{"id":444,"tick":16414,"year":0,"day":227,"type":"event","message":"Campaign promises recorded for Year 1: 1) Fortify Village: Construct at least 5 walls or towers 2) Forge Ahead: Fulfill at least 3 forge orders."}
+{"id":443,"tick":16414,"year":0,"day":227,"type":"election","message":"Election revelry began — 1 day of celebration","entityName":"Carisa Ashford"}
+{"id":442,"tick":16414,"year":0,"day":227,"type":"election","message":"Carisa Ashford succeeded as village head — 6 of 37 ballots · merit 14 (skills 0, experience 9, family +5)","entityName":"Carisa Ashford"}
+{"id":441,"tick":16414,"year":0,"day":227,"type":"scandal","message":"A feud is brewing between Henry and Carisa"}
+{"id":440,"tick":16344,"year":0,"day":227,"type":"election","message":"Leadership election ceremony began at the village center (Year 1)","entityName":"Carisa Ashford"}
+{"id":439,"tick":16316,"year":0,"day":226,"type":"divorce","message":"Hannah Sterling divorced William Blackwood after catching them with Eliza Whitaker","entityName":"Hannah Sterling"}
+{"id":438,"tick":16316,"year":0,"day":226,"type":"scandal","message":"A feud is brewing between Hannah and Eliza"}
+{"id":437,"tick":16316,"year":0,"day":226,"type":"scandal","message":"William Blackwood was caught with Eliza Whitaker","entityName":"William Blackwood"}
+{"id":436,"tick":16275,"year":0,"day":226,"type":"marriage","message":"Arthur Blackwood and Beatrice Blackwood got married","entityName":"Arthur Blackwood"}
+{"id":435,"tick":16220,"year":0,"day":225,"type":"marriage","message":"Carisa Hawthorne and Henry Hawthorne got married","entityName":"Carisa Hawthorne"}
+{"id":434,"tick":16188,"year":0,"day":224,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":433,"tick":16188,"year":0,"day":224,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":432,"tick":16128,"year":0,"day":224,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":431,"tick":16117,"year":0,"day":223,"type":"marriage","message":"Thomas Aldridge and Clara Aldridge got married","entityName":"Thomas Aldridge"}
+{"id":430,"tick":16098,"year":0,"day":223,"type":"marriage","message":"Henry Vance and Beatrice Vance got married","entityName":"Henry Vance"}
+{"id":429,"tick":16056,"year":0,"day":223,"type":"conception","message":"Patience Thornhill and Edward Thornhill are expecting a child","entityName":"Patience Thornhill"}
+{"id":428,"tick":16005,"year":0,"day":222,"type":"divorce","message":"Carisa Aldridge divorced Henry Vance after catching them with Charity Fairchild","entityName":"Carisa Aldridge"}
+{"id":427,"tick":16005,"year":0,"day":222,"type":"divorce","message":"Arthur Blackwood divorced Charity Fairchild after catching them with Henry Vance","entityName":"Arthur Blackwood"}
+{"id":426,"tick":16005,"year":0,"day":222,"type":"scandal","message":"A feud is brewing between Arthur and Henry"}
+{"id":425,"tick":16005,"year":0,"day":222,"type":"scandal","message":"Charity Blackwood was caught with Henry Vance","entityName":"Charity Blackwood"}
+{"id":424,"tick":16005,"year":0,"day":222,"type":"scandal","message":"Charity Blackwood began a secret affair with Henry Vance","entityName":"Charity Blackwood"}
+{"id":423,"tick":15984,"year":0,"day":222,"type":"conception","message":"Temperance Ashford and Jasper Ashford are expecting a child","entityName":"Temperance Ashford"}
+{"id":422,"tick":15939,"year":0,"day":221,"type":"scandal","message":"William Blackwood began a secret affair with Eliza Whitaker","entityName":"William Blackwood"}
+{"id":421,"tick":15901,"year":0,"day":220,"type":"event","message":"A star scratched \"Renffr\" across the night sky. The letters fell out of alignment.","entityName":"Renffr"}
+{"id":420,"tick":15835,"year":0,"day":219,"type":"marriage","message":"Carisa Ashford and Edward Ashford got married","entityName":"Carisa Ashford"}
+{"id":419,"tick":15758,"year":0,"day":218,"type":"divorce","message":"Carisa Langford divorced Thomas Aldridge after catching them with Margaret Mercer","entityName":"Carisa Langford"}
+{"id":418,"tick":15758,"year":0,"day":218,"type":"divorce","message":"Henry Hawthorne divorced Margaret Mercer after catching them with Thomas Aldridge","entityName":"Henry Hawthorne"}
+{"id":417,"tick":15758,"year":0,"day":218,"type":"scandal","message":"A feud is brewing between Henry and Thomas"}
+{"id":416,"tick":15758,"year":0,"day":218,"type":"scandal","message":"Margaret Hawthorne was caught with Thomas Aldridge","entityName":"Margaret Hawthorne"}
+{"id":415,"tick":15735,"year":0,"day":218,"type":"scandal","message":"Margaret Hawthorne began a secret affair with Thomas Aldridge","entityName":"Margaret Hawthorne"}
+{"id":414,"tick":15597,"year":0,"day":216,"type":"divorce","message":"Hannah Fletcher divorced Edward Ashford after catching them with Maude Thornhill","entityName":"Hannah Fletcher"}
+{"id":413,"tick":15597,"year":0,"day":216,"type":"scandal","message":"A feud is brewing between Hannah and Maude"}
+{"id":412,"tick":15597,"year":0,"day":216,"type":"scandal","message":"Edward Ashford was caught with Maude Thornhill","entityName":"Edward Ashford"}
+{"id":411,"tick":15597,"year":0,"day":216,"type":"scandal","message":"Edward Ashford began a secret affair with Maude Thornhill","entityName":"Edward Ashford"}
+{"id":410,"tick":15336,"year":0,"day":213,"type":"event","message":"Wildlife returned to the frontier meadows."}
+{"id":409,"tick":15336,"year":0,"day":213,"type":"conception","message":"Charity Blackwood and Arthur Blackwood are expecting a child","entityName":"Charity Blackwood"}
+{"id":408,"tick":15272,"year":0,"day":212,"type":"marriage","message":"Josiah Fairchild and Maude Fairchild got married","entityName":"Josiah Fairchild"}
+{"id":407,"tick":15180,"year":0,"day":210,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":406,"tick":15180,"year":0,"day":210,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":405,"tick":15120,"year":0,"day":210,"type":"death","message":"#2598 Patience Fairchild died of a sudden illness — at the age of 52 years (adult)","entityName":"#2598 Patience Fairchild"}
+{"id":404,"tick":15120,"year":0,"day":210,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":403,"tick":14862,"year":0,"day":206,"type":"scandal","message":"Carisa Vance began a secret affair with Henry Hawthorne","entityName":"Carisa Vance"}
+{"id":402,"tick":14760,"year":0,"day":205,"type":"conception","message":"Hannah Blackwood and William Blackwood are expecting a child","entityName":"Hannah Blackwood"}
+{"id":401,"tick":14256,"year":0,"day":198,"type":"scandal","message":"Whispers spread about Henry Vance and Patience Fairchild","entityName":"Henry Vance"}
+{"id":400,"tick":14172,"year":0,"day":196,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":399,"tick":14172,"year":0,"day":196,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":398,"tick":14112,"year":0,"day":196,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":397,"tick":14112,"year":0,"day":196,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":396,"tick":14040,"year":0,"day":195,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":395,"tick":14007,"year":0,"day":194,"type":"scandal","message":"Henry Vance began a secret affair with Patience Fairchild","entityName":"Henry Vance"}
+{"id":394,"tick":13970,"year":0,"day":194,"type":"marriage","message":"Charity Blackwood and Arthur Blackwood got married","entityName":"Charity Blackwood"}
+{"id":393,"tick":13968,"year":0,"day":194,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":392,"tick":13896,"year":0,"day":193,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":391,"tick":13824,"year":0,"day":192,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":390,"tick":13770,"year":0,"day":191,"type":"marriage","message":"Henry Vance and Carisa Vance got married","entityName":"Henry Vance"}
+{"id":389,"tick":13752,"year":0,"day":191,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":388,"tick":13727,"year":0,"day":190,"type":"divorce","message":"Henry Vance divorced Maude Blackwood after catching them with Arthur Blackwood","entityName":"Henry Vance"}
+{"id":387,"tick":13727,"year":0,"day":190,"type":"divorce","message":"Abigail Batten divorced Arthur Blackwood after catching them with Maude Vance","entityName":"Abigail Batten"}
+{"id":386,"tick":13727,"year":0,"day":190,"type":"scandal","message":"A feud is brewing between Abigail and Maude"}
+{"id":385,"tick":13727,"year":0,"day":190,"type":"scandal","message":"Arthur Blackwood was caught with Maude Vance","entityName":"Arthur Blackwood"}
+{"id":384,"tick":13680,"year":0,"day":190,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":383,"tick":13629,"year":0,"day":189,"type":"marriage","message":"Margaret Hawthorne and Henry Hawthorne got married","entityName":"Margaret Hawthorne"}
+{"id":382,"tick":13608,"year":0,"day":189,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":381,"tick":13482,"year":0,"day":187,"type":"scandal","message":"Arthur Blackwood began a secret affair with Maude Vance","entityName":"Arthur Blackwood"}
+{"id":380,"tick":13275,"year":0,"day":184,"type":"marriage","message":"Temperance Ashford and Jasper Ashford got married","entityName":"Temperance Ashford"}
+{"id":379,"tick":13248,"year":0,"day":184,"type":"event","message":"Longer shifts reduced work output for 1 settler tomorrow (24.0h shifts)."}
+{"id":378,"tick":13176,"year":0,"day":183,"type":"season","message":"Harvest Festival festival began in the village"}
+{"id":377,"tick":13164,"year":0,"day":182,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":376,"tick":13164,"year":0,"day":182,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":375,"tick":13153,"year":0,"day":182,"type":"marriage","message":"Arthur Sterling and Charity Sterling got married","entityName":"Arthur Sterling"}
+{"id":374,"tick":13138,"year":0,"day":182,"type":"divorce","message":"Clara Mercer divorced Jasper Ashford after catching them with Clara Hawthorne","entityName":"Clara Mercer"}
+{"id":373,"tick":13138,"year":0,"day":182,"type":"divorce","message":"Henry Hawthorne divorced Clara Hawthorne after catching them with Jasper Ashford","entityName":"Henry Hawthorne"}
+{"id":372,"tick":13138,"year":0,"day":182,"type":"scandal","message":"A feud is brewing between Henry and Jasper"}
+{"id":371,"tick":13138,"year":0,"day":182,"type":"scandal","message":"Clara Hawthorne was caught with Jasper Ashford","entityName":"Clara Hawthorne"}
+{"id":370,"tick":13125,"year":0,"day":182,"type":"scandal","message":"Clara Hawthorne began a secret affair with Jasper Ashford","entityName":"Clara Hawthorne"}
+{"id":369,"tick":13104,"year":0,"day":182,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":368,"tick":13068,"year":0,"day":181,"type":"marriage","message":"Hannah Ashford and Edward Ashford got married","entityName":"Hannah Ashford"}
+{"id":367,"tick":12986,"year":0,"day":180,"type":"divorce","message":"Margaret Mercer divorced Arthur Sterling after catching them with Beatrice Caldwell","entityName":"Margaret Mercer"}
+{"id":366,"tick":12986,"year":0,"day":180,"type":"scandal","message":"A feud is brewing between Margaret and Beatrice"}
+{"id":365,"tick":12986,"year":0,"day":180,"type":"scandal","message":"Arthur Sterling was caught with Beatrice Caldwell","entityName":"Arthur Sterling"}
+{"id":364,"tick":12942,"year":0,"day":179,"type":"marriage","message":"Patience Thornhill and Edward Thornhill got married","entityName":"Patience Thornhill"}
+{"id":363,"tick":12885,"year":0,"day":178,"type":"divorce","message":"Beatrice Prescott divorced Edward Ashford after catching them with Charity Sterling","entityName":"Beatrice Prescott"}
+{"id":362,"tick":12885,"year":0,"day":178,"type":"divorce","message":"Edward Thornhill divorced Charity Sterling after catching them with Edward Ashford","entityName":"Edward Thornhill"}
+{"id":361,"tick":12885,"year":0,"day":178,"type":"scandal","message":"A feud is brewing between Edward and Edward"}
+{"id":360,"tick":12885,"year":0,"day":178,"type":"scandal","message":"Charity Thornhill was caught with Edward Ashford","entityName":"Charity Thornhill"}
+{"id":359,"tick":12858,"year":0,"day":178,"type":"scandal","message":"Arthur Sterling began a secret affair with Beatrice Caldwell","entityName":"Arthur Sterling"}
+{"id":358,"tick":12784,"year":0,"day":177,"type":"birth","message":"Arthur Vance was born","entityName":"Arthur"}
+{"id":357,"tick":12639,"year":0,"day":175,"type":"scandal","message":"Margaret Sterling began a secret affair with Henry Hawthorne","entityName":"Margaret Sterling"}
+{"id":356,"tick":12384,"year":0,"day":172,"type":"event","message":"RavenCreek spent 12 wood preparing defenses","entityName":"RavenCreek"}
+{"id":355,"tick":12312,"year":0,"day":171,"type":"event","message":"Wildlife returned to the frontier meadows."}
+{"id":354,"tick":12273,"year":0,"day":170,"type":"birth","message":"Clara Langford was born a bastard","entityName":"Clara"}
+{"id":353,"tick":12273,"year":0,"day":170,"type":"scandal","message":"Charity Thornhill began a secret affair with Edward Ashford","entityName":"Charity Thornhill"}
+{"id":352,"tick":12168,"year":0,"day":169,"type":"scandal","message":"Whispers spread about Clara Ashford and Henry Prescott","entityName":"Clara Ashford"}
+{"id":351,"tick":12156,"year":0,"day":168,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":350,"tick":12156,"year":0,"day":168,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":349,"tick":12096,"year":0,"day":168,"type":"scandal","message":"Whispers spread about William Blackwood and Maude Thornhill","entityName":"William Blackwood"}
+{"id":348,"tick":12096,"year":0,"day":168,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":347,"tick":11993,"year":0,"day":166,"type":"marriage","message":"Abigail Blackwood and Arthur Blackwood got married","entityName":"Abigail Blackwood"}
+{"id":346,"tick":11978,"year":0,"day":166,"type":"marriage","message":"Margaret Sterling and Arthur Sterling got married","entityName":"Margaret Sterling"}
+{"id":345,"tick":11907,"year":0,"day":165,"type":"scandal","message":"William Blackwood began a secret affair with Maude Thornhill","entityName":"William Blackwood"}
+{"id":344,"tick":11826,"year":0,"day":164,"type":"divorce","message":"Arthur Sterling divorced Temperance Langford after catching them with Arthur Blackwood","entityName":"Arthur Sterling"}
+{"id":343,"tick":11826,"year":0,"day":164,"type":"divorce","message":"Beatrice Aldridge divorced Arthur Blackwood after catching them with Temperance Sterling","entityName":"Beatrice Aldridge"}
+{"id":342,"tick":11826,"year":0,"day":164,"type":"scandal","message":"A feud is brewing between Beatrice and Temperance"}
+{"id":341,"tick":11826,"year":0,"day":164,"type":"scandal","message":"Arthur Blackwood was caught with Temperance Sterling","entityName":"Arthur Blackwood"}
+{"id":340,"tick":11826,"year":0,"day":164,"type":"scandal","message":"Arthur Blackwood began a secret affair with Temperance Sterling","entityName":"Arthur Blackwood"}
+{"id":339,"tick":11649,"year":0,"day":161,"type":"scandal","message":"Clara Ashford began a secret affair with Henry Prescott","entityName":"Clara Ashford"}
+{"id":338,"tick":11304,"year":0,"day":157,"type":"conception","message":"Maude Vance and Henry Vance are expecting a child","entityName":"Maude Vance"}
+{"id":337,"tick":11160,"year":0,"day":155,"type":"event","message":"Clara and Beatrice have settled their feud"}
+{"id":336,"tick":11148,"year":0,"day":154,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":335,"tick":11148,"year":0,"day":154,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":334,"tick":11088,"year":0,"day":154,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":333,"tick":11016,"year":0,"day":153,"type":"event","message":"Edward and Arthur have settled their feud"}
+{"id":332,"tick":11005,"year":0,"day":152,"type":"marriage","message":"Henry Vance and Maude Vance got married","entityName":"Henry Vance"}
+{"id":331,"tick":11001,"year":0,"day":152,"type":"marriage","message":"Edward Thornhill and Charity Thornhill got married","entityName":"Edward Thornhill"}
+{"id":330,"tick":10916,"year":0,"day":151,"type":"divorce","message":"Edward Thornhill divorced Carisa Aldridge after catching them with Henry Vance","entityName":"Edward Thornhill"}
+{"id":329,"tick":10916,"year":0,"day":151,"type":"divorce","message":"Maude Langford divorced Henry Vance after catching them with Carisa Thornhill","entityName":"Maude Langford"}
+{"id":328,"tick":10916,"year":0,"day":151,"type":"scandal","message":"A feud is brewing between Maude and Carisa"}
+{"id":327,"tick":10916,"year":0,"day":151,"type":"scandal","message":"Henry Vance was caught with Carisa Thornhill","entityName":"Henry Vance"}
+{"id":326,"tick":10571,"year":0,"day":146,"type":"marriage","message":"Henry Prescott and Prudence Prescott got married","entityName":"Henry Prescott"}
+{"id":325,"tick":10524,"year":0,"day":146,"type":"marriage","message":"Thomas Aldridge and Carisa Aldridge got married","entityName":"Thomas Aldridge"}
+{"id":324,"tick":10461,"year":0,"day":145,"type":"divorce","message":"Prudence Sterling divorced Thomas Aldridge after catching them with Abigail Batten","entityName":"Prudence Sterling"}
+{"id":323,"tick":10461,"year":0,"day":145,"type":"divorce","message":"Henry Prescott divorced Abigail Batten after catching them with Thomas Aldridge","entityName":"Henry Prescott"}
+{"id":322,"tick":10461,"year":0,"day":145,"type":"scandal","message":"A feud is brewing between Henry and Thomas"}
+{"id":321,"tick":10461,"year":0,"day":145,"type":"scandal","message":"Abigail Prescott was caught with Thomas Aldridge","entityName":"Abigail Prescott"}
+{"id":320,"tick":10461,"year":0,"day":145,"type":"scandal","message":"Abigail Prescott began a secret affair with Thomas Aldridge","entityName":"Abigail Prescott"}
+{"id":319,"tick":10407,"year":0,"day":144,"type":"scandal","message":"Henry Vance began a secret affair with Carisa Thornhill","entityName":"Henry Vance"}
+{"id":318,"tick":10296,"year":0,"day":143,"type":"event","message":"Thomas and Eliza have settled their feud"}
+{"id":317,"tick":10296,"year":0,"day":143,"type":"conception","message":"Temperance Sterling and Arthur Sterling are expecting a child","entityName":"Temperance Sterling"}
+{"id":316,"tick":10264,"year":0,"day":142,"type":"marriage","message":"Beatrice Ashford and Edward Ashford got married","entityName":"Beatrice Ashford"}
+{"id":315,"tick":10263,"year":0,"day":142,"type":"marriage","message":"Clara Ashford and Jasper Ashford got married","entityName":"Clara Ashford"}
+{"id":314,"tick":10151,"year":0,"day":140,"type":"divorce","message":"Charity Sterling divorced Jasper Ashford after catching them with Carisa Langford","entityName":"Charity Sterling"}
+{"id":313,"tick":10151,"year":0,"day":140,"type":"divorce","message":"Edward Ashford divorced Carisa Langford after catching them with Jasper Ashford","entityName":"Edward Ashford"}
+{"id":312,"tick":10151,"year":0,"day":140,"type":"scandal","message":"A feud is brewing between Edward and Jasper"}
+{"id":311,"tick":10151,"year":0,"day":140,"type":"scandal","message":"Carisa Ashford was caught with Jasper Ashford","entityName":"Carisa Ashford"}
+{"id":310,"tick":10140,"year":0,"day":140,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":309,"tick":10140,"year":0,"day":140,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":308,"tick":10080,"year":0,"day":140,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":307,"tick":9900,"year":0,"day":137,"type":"scandal","message":"Carisa Ashford began a secret affair with Jasper Ashford","entityName":"Carisa Ashford"}
+{"id":306,"tick":9288,"year":0,"day":129,"type":"event","message":"Predators have migrated into the valley following game trails."}
+{"id":305,"tick":9191,"year":0,"day":127,"type":"marriage","message":"Arthur Blackwood and Beatrice Blackwood got married","entityName":"Arthur Blackwood"}
+{"id":304,"tick":9164,"year":0,"day":127,"type":"marriage","message":"Arthur Sterling and Temperance Sterling got married","entityName":"Arthur Sterling"}
+{"id":303,"tick":9132,"year":0,"day":126,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":302,"tick":9132,"year":0,"day":126,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":301,"tick":9072,"year":0,"day":126,"type":"migration","message":"+1 Settler arrived"}
+{"id":300,"tick":9072,"year":0,"day":126,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":299,"tick":9048,"year":0,"day":125,"type":"divorce","message":"Carisa Caldwell divorced Arthur Blackwood after catching them with Charity Fairchild","entityName":"Carisa Caldwell"}
+{"id":298,"tick":9048,"year":0,"day":125,"type":"divorce","message":"Arthur Sterling divorced Charity Fairchild after catching them with Arthur Blackwood","entityName":"Arthur Sterling"}
+{"id":297,"tick":9048,"year":0,"day":125,"type":"scandal","message":"A feud is brewing between Arthur and Arthur"}
+{"id":296,"tick":9048,"year":0,"day":125,"type":"event","message":"A scandal went unpunished — the prison has no guard on duty"}
+{"id":295,"tick":9048,"year":0,"day":125,"type":"scandal","message":"Charity Sterling was caught with Arthur Blackwood","entityName":"Charity Sterling"}
+{"id":294,"tick":9021,"year":0,"day":125,"type":"scandal","message":"Charity Sterling began a secret affair with Arthur Blackwood","entityName":"Charity Sterling"}
+{"id":293,"tick":8826,"year":0,"day":122,"type":"scandal","message":"Thomas Aldridge began a secret affair with Carisa Blackwood","entityName":"Thomas Aldridge"}
+{"id":292,"tick":8352,"year":0,"day":116,"type":"migration","message":"+1 Settler arrived"}
+{"id":291,"tick":8270,"year":0,"day":114,"type":"marriage","message":"Charity Ashford and Jasper Ashford got married","entityName":"Charity Ashford"}
+{"id":290,"tick":8208,"year":0,"day":114,"type":"migration","message":"+1 Settler arrived"}
+{"id":289,"tick":8124,"year":0,"day":112,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":288,"tick":8124,"year":0,"day":112,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":287,"tick":8064,"year":0,"day":112,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":286,"tick":7920,"year":0,"day":110,"type":"migration","message":"+1 Settler arrived"}
+{"id":285,"tick":7911,"year":0,"day":109,"type":"marriage","message":"Abigail Prescott and Henry Prescott got married","entityName":"Abigail Prescott"}
+{"id":284,"tick":7776,"year":0,"day":108,"type":"migration","message":"+1 Settler arrived"}
+{"id":283,"tick":7704,"year":0,"day":107,"type":"election","message":"Thomas Sterling can no longer lead — merit election scheduled for Year 1","entityName":"Thomas Sterling"}
+{"id":282,"tick":7704,"year":0,"day":107,"type":"combat","message":"12 villagers fell defending against RavenCreek (#2822 Edward Whitaker, #986 Thomas Sterling, #2283 Henry Vance, #2377 Jasper Batten, #1428 Arthur Whitaker, #1676 Edward Vance, #2061 Edward Fairchild, #2662 Amos Caldwell, #1972 Thomas Whitaker, #1917 Amos Thornhill, #1975 Ezra Caldwell, #2277 Abigail Prescott)","entityName":"RavenCreek","combatKind":"defense"}
+{"id":281,"tick":7704,"year":0,"day":107,"type":"death","message":"#2277 Abigail Prescott fell defending the village — at the age of 50 years (adult)","entityName":"#2277 Abigail Prescott"}
+{"id":280,"tick":7704,"year":0,"day":107,"type":"death","message":"#1975 Ezra Caldwell fell defending the village — at the age of 24 years (adult)","entityName":"#1975 Ezra Caldwell"}
+{"id":279,"tick":7704,"year":0,"day":107,"type":"death","message":"#1917 Amos Thornhill fell defending the village — at the age of 18 years (adult)","entityName":"#1917 Amos Thornhill"}
+{"id":278,"tick":7704,"year":0,"day":107,"type":"death","message":"#1972 Thomas Whitaker fell defending the village — at the age of 36 years (adult)","entityName":"#1972 Thomas Whitaker"}
+{"id":277,"tick":7704,"year":0,"day":107,"type":"death","message":"#2662 Amos Caldwell fell defending the village — at the age of 46 years (adult)","entityName":"#2662 Amos Caldwell"}
+{"id":276,"tick":7704,"year":0,"day":107,"type":"death","message":"#2061 Edward Fairchild fell defending the village — at the age of 30 years (adult)","entityName":"#2061 Edward Fairchild"}
+{"id":275,"tick":7704,"year":0,"day":107,"type":"death","message":"#1676 Edward Vance fell defending the village — at the age of 36 years (adult)","entityName":"#1676 Edward Vance"}
+{"id":274,"tick":7704,"year":0,"day":107,"type":"death","message":"#1428 Arthur Whitaker fell defending the village — at the age of 22 years (adult)","entityName":"#1428 Arthur Whitaker"}
+{"id":273,"tick":7704,"year":0,"day":107,"type":"death","message":"#2377 Jasper Batten fell defending the village — at the age of 49 years (adult)","entityName":"#2377 Jasper Batten"}
+{"id":272,"tick":7704,"year":0,"day":107,"type":"death","message":"#2283 Henry Vance fell defending the village — at the age of 54 years (adult)","entityName":"#2283 Henry Vance"}
+{"id":271,"tick":7704,"year":0,"day":107,"type":"death","message":"#986 Thomas Sterling fell defending the village — at the age of 38 years (adult)","entityName":"#986 Thomas Sterling"}
+{"id":270,"tick":7704,"year":0,"day":107,"type":"death","message":"#2822 Edward Whitaker fell defending the village — at the age of 13 years (adult)","entityName":"#2822 Edward Whitaker"}
+{"id":269,"tick":7704,"year":0,"day":107,"type":"combat","message":"Raid from RavenCreek succeeded — no response in time (lost 36🍖 44🪵 23🪨 11💰)","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":268,"tick":7669,"year":0,"day":106,"type":"marriage","message":"Charity Sterling and Arthur Sterling got married","entityName":"Charity Sterling"}
+{"id":267,"tick":7632,"year":0,"day":106,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":266,"tick":7621,"year":0,"day":105,"type":"marriage","message":"Beatrice Vance and Henry Vance got married","entityName":"Beatrice Vance"}
+{"id":265,"tick":7560,"year":0,"day":105,"type":"prison","message":"Edward Fairchild slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":264,"tick":7560,"year":0,"day":105,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":263,"tick":7550,"year":0,"day":104,"type":"divorce","message":"Charity Fairchild divorced Edward Fairchild after catching them with Beatrice Prescott","entityName":"Charity Fairchild"}
+{"id":262,"tick":7550,"year":0,"day":104,"type":"divorce","message":"Henry Vance divorced Beatrice Prescott after catching them with Edward Fairchild","entityName":"Henry Vance"}
+{"id":261,"tick":7550,"year":0,"day":104,"type":"scandal","message":"A feud is brewing between Henry and Edward"}
+{"id":260,"tick":7550,"year":0,"day":104,"type":"prison","message":"Edward Fairchild was imprisoned for scandal","entityName":"Edward Fairchild"}
+{"id":259,"tick":7550,"year":0,"day":104,"type":"scandal","message":"Beatrice Vance was caught with Edward Fairchild","entityName":"Beatrice Vance"}
+{"id":258,"tick":7545,"year":0,"day":104,"type":"scandal","message":"Beatrice Vance began a secret affair with Edward Fairchild","entityName":"Beatrice Vance"}
+{"id":257,"tick":7488,"year":0,"day":104,"type":"combat","message":"RavenCreek launched a raid on the village","entityName":"RavenCreek","combatKind":"incoming_raid"}
+{"id":256,"tick":7488,"year":0,"day":104,"type":"event","message":"RavenCreek spent 12 wood preparing defenses","entityName":"RavenCreek"}
+{"id":255,"tick":7488,"year":0,"day":104,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":254,"tick":7416,"year":0,"day":103,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":253,"tick":7344,"year":0,"day":102,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":252,"tick":7313,"year":0,"day":101,"type":"birth","message":"Josiah Thornhill was born","entityName":"Josiah"}
+{"id":251,"tick":7298,"year":0,"day":101,"type":"marriage","message":"Clara Caldwell and Ezra Caldwell got married","entityName":"Clara Caldwell"}
+{"id":250,"tick":7272,"year":0,"day":101,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":249,"tick":7200,"year":0,"day":100,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":248,"tick":7128,"year":0,"day":99,"type":"prison","message":"Ezra Caldwell slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":247,"tick":7128,"year":0,"day":99,"type":"prison","message":"Clara Mercer slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":246,"tick":7128,"year":0,"day":99,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":245,"tick":7116,"year":0,"day":98,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":244,"tick":7116,"year":0,"day":98,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":243,"tick":7071,"year":0,"day":98,"type":"divorce","message":"Beatrice Aldridge divorced Ezra Caldwell after catching them with Clara Mercer","entityName":"Beatrice Aldridge"}
+{"id":242,"tick":7071,"year":0,"day":98,"type":"divorce","message":"Arthur Sterling divorced Clara Mercer after catching them with Ezra Caldwell","entityName":"Arthur Sterling"}
+{"id":241,"tick":7071,"year":0,"day":98,"type":"scandal","message":"A feud is brewing between Arthur and Ezra"}
+{"id":240,"tick":7071,"year":0,"day":98,"type":"prison","message":"Ezra Caldwell was imprisoned for scandal","entityName":"Ezra Caldwell"}
+{"id":239,"tick":7071,"year":0,"day":98,"type":"prison","message":"Clara Sterling was imprisoned for scandal","entityName":"Clara Sterling"}
+{"id":238,"tick":7071,"year":0,"day":98,"type":"scandal","message":"Clara Sterling was caught with Ezra Caldwell","entityName":"Clara Sterling"}
+{"id":237,"tick":7056,"year":0,"day":98,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":236,"tick":7043,"year":0,"day":97,"type":"marriage","message":"Carisa Blackwood and Arthur Blackwood got married","entityName":"Carisa Blackwood"}
+{"id":235,"tick":7041,"year":0,"day":97,"type":"scandal","message":"Clara Sterling began a secret affair with Ezra Caldwell","entityName":"Clara Sterling"}
+{"id":234,"tick":6992,"year":0,"day":97,"type":"event","message":"A star scratched \"Renffr\" across the night sky. The letters fell out of alignment.","entityName":"Renffr"}
+{"id":233,"tick":6976,"year":0,"day":96,"type":"marriage","message":"Clara Sterling and Arthur Sterling got married","entityName":"Clara Sterling"}
+{"id":232,"tick":6912,"year":0,"day":96,"type":"prison","message":"Arthur Blackwood slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":231,"tick":6843,"year":0,"day":95,"type":"divorce","message":"Clara Mercer divorced Arthur Blackwood after catching them with Carisa Caldwell","entityName":"Clara Mercer"}
+{"id":230,"tick":6843,"year":0,"day":95,"type":"divorce","message":"Arthur Sterling divorced Carisa Caldwell after catching them with Arthur Blackwood","entityName":"Arthur Sterling"}
+{"id":229,"tick":6843,"year":0,"day":95,"type":"scandal","message":"A feud is brewing between Arthur and Arthur"}
+{"id":228,"tick":6843,"year":0,"day":95,"type":"prison","message":"Arthur Blackwood was imprisoned for scandal","entityName":"Arthur Blackwood"}
+{"id":227,"tick":6843,"year":0,"day":95,"type":"scandal","message":"Carisa Sterling was caught with Arthur Blackwood","entityName":"Carisa Sterling"}
+{"id":226,"tick":6819,"year":0,"day":94,"type":"scandal","message":"Carisa Sterling began a secret affair with Arthur Blackwood","entityName":"Carisa Sterling"}
+{"id":225,"tick":6768,"year":0,"day":94,"type":"event","message":"Longer shifts reduced work output for 1 settler tomorrow (24.0h shifts)."}
+{"id":224,"tick":6696,"year":0,"day":93,"type":"season","message":"Midsummer Feast festival began in the village"}
+{"id":223,"tick":6556,"year":0,"day":91,"type":"marriage","message":"Clara Hawthorne and Henry Hawthorne got married","entityName":"Clara Hawthorne"}
+{"id":222,"tick":6530,"year":0,"day":90,"type":"marriage","message":"Eliza Whitaker and Thomas Whitaker got married","entityName":"Eliza Whitaker"}
+{"id":221,"tick":6510,"year":0,"day":90,"type":"birth","message":"Clara Vance was born","entityName":"Clara"}
+{"id":220,"tick":6492,"year":0,"day":90,"type":"marriage","message":"Abigail Batten and Jasper Batten got married","entityName":"Abigail Batten"}
+{"id":219,"tick":6486,"year":0,"day":90,"type":"marriage","message":"Charity Fairchild and Edward Fairchild got married","entityName":"Charity Fairchild"}
+{"id":218,"tick":6467,"year":0,"day":89,"type":"marriage","message":"Josiah Fairchild and Patience Fairchild got married","entityName":"Josiah Fairchild"}
+{"id":217,"tick":6445,"year":0,"day":89,"type":"marriage","message":"Beatrice Vance and Henry Vance got married","entityName":"Beatrice Vance"}
+{"id":216,"tick":6408,"year":0,"day":89,"type":"prison","message":"Clara Hawthorne slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":215,"tick":6408,"year":0,"day":89,"type":"prison","message":"Henry Hawthorne slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":214,"tick":6357,"year":0,"day":88,"type":"divorce","message":"Patience Vance divorced Henry Vance after catching them with Charity Fairchild","entityName":"Patience Vance"}
+{"id":213,"tick":6357,"year":0,"day":88,"type":"divorce","message":"Josiah Fairchild divorced Charity Fairchild after catching them with Henry Vance","entityName":"Josiah Fairchild"}
+{"id":212,"tick":6357,"year":0,"day":88,"type":"scandal","message":"A feud is brewing between Josiah and Henry"}
+{"id":211,"tick":6357,"year":0,"day":88,"type":"scandal","message":"Charity Fairchild was caught with Henry Vance","entityName":"Charity Fairchild"}
+{"id":210,"tick":6357,"year":0,"day":88,"type":"scandal","message":"Charity Fairchild began a secret affair with Henry Vance","entityName":"Charity Fairchild"}
+{"id":209,"tick":6342,"year":0,"day":88,"type":"divorce","message":"Abigail Batten divorced Henry Hawthorne after catching them with Clara Hawthorne","entityName":"Abigail Batten"}
+{"id":208,"tick":6342,"year":0,"day":88,"type":"divorce","message":"Jasper Batten divorced Clara Hawthorne after catching them with Henry Hawthorne","entityName":"Jasper Batten"}
+{"id":207,"tick":6342,"year":0,"day":88,"type":"scandal","message":"A feud is brewing between Jasper and Henry"}
+{"id":206,"tick":6342,"year":0,"day":88,"type":"prison","message":"Henry Hawthorne was imprisoned for scandal","entityName":"Henry Hawthorne"}
+{"id":205,"tick":6342,"year":0,"day":88,"type":"prison","message":"Clara Batten was imprisoned for scandal","entityName":"Clara Batten"}
+{"id":204,"tick":6342,"year":0,"day":88,"type":"scandal","message":"Clara Batten was caught with Henry Hawthorne","entityName":"Clara Batten"}
+{"id":203,"tick":6336,"year":0,"day":88,"type":"prison","message":"Eliza Ashford slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":202,"tick":6264,"year":0,"day":87,"type":"event","message":"Wildlife returned to the frontier meadows."}
+{"id":201,"tick":6264,"year":0,"day":87,"type":"prison","message":"Thomas Whitaker slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":200,"tick":6213,"year":0,"day":86,"type":"scandal","message":"Clara Batten began a secret affair with Henry Hawthorne","entityName":"Clara Batten"}
+{"id":199,"tick":6178,"year":0,"day":85,"type":"divorce","message":"Beatrice Prescott divorced Thomas Whitaker after catching them with Eliza Ashford","entityName":"Beatrice Prescott"}
+{"id":198,"tick":6178,"year":0,"day":85,"type":"divorce","message":"Edward Fairchild divorced Eliza Ashford after catching them with Thomas Whitaker","entityName":"Edward Fairchild"}
+{"id":197,"tick":6178,"year":0,"day":85,"type":"scandal","message":"A feud is brewing between Edward and Thomas"}
+{"id":196,"tick":6178,"year":0,"day":85,"type":"prison","message":"Thomas Whitaker was imprisoned for scandal","entityName":"Thomas Whitaker"}
+{"id":195,"tick":6178,"year":0,"day":85,"type":"prison","message":"Eliza Fairchild was imprisoned for scandal","entityName":"Eliza Fairchild"}
+{"id":194,"tick":6178,"year":0,"day":85,"type":"scandal","message":"Eliza Fairchild was caught with Thomas Whitaker","entityName":"Eliza Fairchild"}
+{"id":193,"tick":6171,"year":0,"day":85,"type":"scandal","message":"Eliza Fairchild began a secret affair with Thomas Whitaker","entityName":"Eliza Fairchild"}
+{"id":192,"tick":6108,"year":0,"day":84,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":191,"tick":6108,"year":0,"day":84,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":190,"tick":6089,"year":0,"day":84,"type":"birth","message":"Carisa Thornhill was born","entityName":"Carisa"}
+{"id":189,"tick":6079,"year":0,"day":84,"type":"birth","message":"Mercy Whitaker was born","entityName":"Mercy"}
+{"id":188,"tick":6048,"year":0,"day":84,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":187,"tick":5879,"year":0,"day":81,"type":"marriage","message":"Abigail Prescott and Henry Prescott got married","entityName":"Abigail Prescott"}
+{"id":186,"tick":5835,"year":0,"day":81,"type":"marriage","message":"Arthur Whitaker and Charity Whitaker got married","entityName":"Arthur Whitaker"}
+{"id":185,"tick":5730,"year":0,"day":79,"type":"birth","message":"Abigail Sterling was born a bastard","entityName":"Abigail"}
+{"id":184,"tick":5688,"year":0,"day":79,"type":"prison","message":"Charity Sterling slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":183,"tick":5654,"year":0,"day":78,"type":"birth","message":"Margaret Fairchild was born","entityName":"Margaret"}
+{"id":182,"tick":5640,"year":0,"day":78,"type":"divorce","message":"Henry Prescott divorced Charity Sterling after catching them with Arthur Whitaker","entityName":"Henry Prescott"}
+{"id":181,"tick":5640,"year":0,"day":78,"type":"divorce","message":"Abigail Fairchild divorced Arthur Whitaker after catching them with Charity Prescott","entityName":"Abigail Fairchild"}
+{"id":180,"tick":5640,"year":0,"day":78,"type":"scandal","message":"A feud is brewing between Abigail and Charity"}
+{"id":179,"tick":5640,"year":0,"day":78,"type":"prison","message":"Charity Prescott was imprisoned for scandal","entityName":"Charity Prescott"}
+{"id":178,"tick":5640,"year":0,"day":78,"type":"scandal","message":"Arthur Whitaker was caught with Charity Prescott","entityName":"Arthur Whitaker"}
+{"id":177,"tick":5634,"year":0,"day":78,"type":"scandal","message":"Arthur Whitaker began a secret affair with Charity Prescott","entityName":"Arthur Whitaker"}
+{"id":176,"tick":5592,"year":0,"day":77,"type":"marriage","message":"Clara Batten and Jasper Batten got married","entityName":"Clara Batten"}
+{"id":175,"tick":5580,"year":0,"day":77,"type":"marriage","message":"Carisa Ashford and Edward Ashford got married","entityName":"Carisa Ashford"}
+{"id":174,"tick":5569,"year":0,"day":77,"type":"marriage","message":"Henry Vance and Patience Vance got married","entityName":"Henry Vance"}
+{"id":173,"tick":5472,"year":0,"day":76,"type":"prison","message":"Edward Ashford slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":172,"tick":5472,"year":0,"day":76,"type":"prison","message":"Carisa Langford slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":171,"tick":5472,"year":0,"day":76,"type":"birth","message":"Margaret Hawthorne was born a bastard","entityName":"Margaret"}
+{"id":170,"tick":5436,"year":0,"day":75,"type":"divorce","message":"Patience Vance divorced Edward Ashford after catching them with Carisa Langford","entityName":"Patience Vance"}
+{"id":169,"tick":5436,"year":0,"day":75,"type":"divorce","message":"Henry Vance divorced Carisa Langford after catching them with Edward Ashford","entityName":"Henry Vance"}
+{"id":168,"tick":5436,"year":0,"day":75,"type":"scandal","message":"A feud is brewing between Henry and Edward"}
+{"id":167,"tick":5436,"year":0,"day":75,"type":"prison","message":"Edward Ashford was imprisoned for scandal","entityName":"Edward Ashford"}
+{"id":166,"tick":5436,"year":0,"day":75,"type":"prison","message":"Carisa Vance was imprisoned for scandal","entityName":"Carisa Vance"}
+{"id":165,"tick":5436,"year":0,"day":75,"type":"scandal","message":"Carisa Vance was caught with Edward Ashford","entityName":"Carisa Vance"}
+{"id":164,"tick":5400,"year":0,"day":75,"type":"conception","message":"Carisa Thornhill and Edward Thornhill are expecting a child","entityName":"Carisa Thornhill"}
+{"id":163,"tick":5364,"year":0,"day":74,"type":"scandal","message":"Carisa Vance began a secret affair with Edward Ashford","entityName":"Carisa Vance"}
+{"id":162,"tick":5256,"year":0,"day":73,"type":"event","message":"An unanswered diplomacy message faded — neighbors grew impatient"}
+{"id":161,"tick":5256,"year":0,"day":73,"type":"marriage","message":"Carisa Sterling and Arthur Sterling got married","entityName":"Carisa Sterling"}
+{"id":160,"tick":5213,"year":0,"day":72,"type":"marriage","message":"Ezra Caldwell and Beatrice Caldwell got married","entityName":"Ezra Caldwell"}
+{"id":159,"tick":5184,"year":0,"day":72,"type":"prison","message":"Jasper Batten slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":158,"tick":5157,"year":0,"day":71,"type":"marriage","message":"Patience Vance and Edward Vance got married","entityName":"Patience Vance"}
+{"id":157,"tick":5112,"year":0,"day":71,"type":"prison","message":"Carisa Caldwell slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":156,"tick":5100,"year":0,"day":70,"type":"event","message":"Thomas Aldridge is no longer asking permission to hunt.","entityName":"Thomas Aldridge"}
+{"id":155,"tick":5100,"year":0,"day":70,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":154,"tick":5067,"year":0,"day":70,"type":"marriage","message":"Clara Blackwood and Arthur Blackwood got married","entityName":"Clara Blackwood"}
+{"id":153,"tick":5040,"year":0,"day":70,"type":"prison","message":"Edward Vance slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":152,"tick":5040,"year":0,"day":70,"type":"migration","message":"A young settler arrived"}
+{"id":151,"tick":5040,"year":0,"day":70,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":150,"tick":4918,"year":0,"day":68,"type":"marriage","message":"Carisa Thornhill and Edward Thornhill got married","entityName":"Carisa Thornhill"}
+{"id":149,"tick":4913,"year":0,"day":68,"type":"divorce","message":"Patience Ashford divorced Jasper Batten after catching them with Carisa Caldwell","entityName":"Patience Ashford"}
+{"id":148,"tick":4913,"year":0,"day":68,"type":"divorce","message":"Ezra Caldwell divorced Carisa Caldwell after catching them with Jasper Batten","entityName":"Ezra Caldwell"}
+{"id":147,"tick":4913,"year":0,"day":68,"type":"scandal","message":"A feud is brewing between Ezra and Jasper"}
+{"id":146,"tick":4913,"year":0,"day":68,"type":"prison","message":"Jasper Batten was imprisoned for scandal","entityName":"Jasper Batten"}
+{"id":145,"tick":4913,"year":0,"day":68,"type":"prison","message":"Carisa Caldwell was imprisoned for scandal","entityName":"Carisa Caldwell"}
+{"id":144,"tick":4913,"year":0,"day":68,"type":"scandal","message":"Carisa Caldwell was caught with Jasper Batten","entityName":"Carisa Caldwell"}
+{"id":143,"tick":4896,"year":0,"day":68,"type":"prison","message":"Beatrice Aldridge slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":142,"tick":4896,"year":0,"day":68,"type":"milestone","message":"👑 A Dynasty — Three generations of one family live together — a line written into the valley."}
+{"id":141,"tick":4875,"year":0,"day":67,"type":"scandal","message":"Carisa Caldwell began a secret affair with Jasper Batten","entityName":"Carisa Caldwell"}
+{"id":140,"tick":4874,"year":0,"day":67,"type":"divorce","message":"Arthur Sterling divorced Beatrice Aldridge after catching them with Edward Vance","entityName":"Arthur Sterling"}
+{"id":139,"tick":4874,"year":0,"day":67,"type":"divorce","message":"Clara Mercer divorced Edward Vance after catching them with Beatrice Sterling","entityName":"Clara Mercer"}
+{"id":138,"tick":4874,"year":0,"day":67,"type":"scandal","message":"A feud is brewing between Clara and Beatrice"}
+{"id":137,"tick":4874,"year":0,"day":67,"type":"prison","message":"Beatrice Sterling was imprisoned for scandal","entityName":"Beatrice Sterling"}
+{"id":136,"tick":4874,"year":0,"day":67,"type":"prison","message":"Edward Vance was imprisoned for scandal","entityName":"Edward Vance"}
+{"id":135,"tick":4874,"year":0,"day":67,"type":"scandal","message":"Edward Vance was caught with Beatrice Sterling","entityName":"Edward Vance"}
+{"id":134,"tick":4872,"year":0,"day":67,"type":"scandal","message":"Edward Vance began a secret affair with Beatrice Sterling","entityName":"Edward Vance"}
+{"id":133,"tick":4865,"year":0,"day":67,"type":"marriage","message":"Temperance Caldwell and Amos Caldwell got married","entityName":"Temperance Caldwell"}
+{"id":132,"tick":4852,"year":0,"day":67,"type":"birth","message":"Ezra Sterling was born","entityName":"Ezra"}
+{"id":131,"tick":4752,"year":0,"day":66,"type":"prison","message":"Temperance Blackwood slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":130,"tick":4701,"year":0,"day":65,"type":"divorce","message":"Carisa Aldridge divorced Arthur Blackwood after catching them with Temperance Blackwood","entityName":"Carisa Aldridge"}
+{"id":129,"tick":4701,"year":0,"day":65,"type":"divorce","message":"Edward Thornhill divorced Temperance Blackwood after catching them with Arthur Blackwood","entityName":"Edward Thornhill"}
+{"id":128,"tick":4701,"year":0,"day":65,"type":"scandal","message":"A feud is brewing between Edward and Arthur"}
+{"id":127,"tick":4701,"year":0,"day":65,"type":"prison","message":"Temperance Thornhill was imprisoned for scandal","entityName":"Temperance Thornhill"}
+{"id":126,"tick":4701,"year":0,"day":65,"type":"scandal","message":"Temperance Thornhill was caught with Arthur Blackwood","entityName":"Temperance Thornhill"}
+{"id":125,"tick":4701,"year":0,"day":65,"type":"scandal","message":"Temperance Thornhill began a secret affair with Arthur Blackwood","entityName":"Temperance Thornhill"}
+{"id":124,"tick":4690,"year":0,"day":65,"type":"marriage","message":"Thomas Aldridge and Prudence Aldridge got married","entityName":"Thomas Aldridge"}
+{"id":123,"tick":4680,"year":0,"day":65,"type":"conception","message":"Maude Vance and Henry Vance are expecting a child","entityName":"Maude Vance"}
+{"id":122,"tick":4642,"year":0,"day":64,"type":"birth","message":"Levi Thornhill was born","entityName":"Levi"}
+{"id":121,"tick":4608,"year":0,"day":64,"type":"migration","message":"+1 Settler arrived"}
+{"id":120,"tick":4545,"year":0,"day":63,"type":"marriage","message":"Edward Ashford and Patience Ashford got married","entityName":"Edward Ashford"}
+{"id":119,"tick":4536,"year":0,"day":63,"type":"migration","message":"+1 Settler arrived"}
+{"id":118,"tick":4464,"year":0,"day":62,"type":"migration","message":"+1 Settler arrived"}
+{"id":117,"tick":4464,"year":0,"day":62,"type":"conception","message":"Hannah Thornhill and Amos Thornhill are expecting a child","entityName":"Hannah Thornhill"}
+{"id":116,"tick":4424,"year":0,"day":61,"type":"marriage","message":"Henry Vance and Maude Vance got married","entityName":"Henry Vance"}
+{"id":115,"tick":4401,"year":0,"day":61,"type":"marriage","message":"Patience Batten and Jasper Batten got married","entityName":"Patience Batten"}
+{"id":114,"tick":4354,"year":0,"day":60,"type":"birth","message":"Beatrice Ashford was born a bastard","entityName":"Beatrice"}
+{"id":113,"tick":4320,"year":0,"day":60,"type":"migration","message":"+1 Settler arrived"}
+{"id":112,"tick":4285,"year":0,"day":59,"type":"birth","message":"Henry Vance was born","entityName":"Henry"}
+{"id":111,"tick":4271,"year":0,"day":59,"type":"marriage","message":"Carisa Blackwood and Arthur Blackwood got married","entityName":"Carisa Blackwood"}
+{"id":110,"tick":4248,"year":0,"day":59,"type":"event","message":"RavenCreek hunters took game from the shared wilds","entityName":"RavenCreek"}
+{"id":109,"tick":4248,"year":0,"day":59,"type":"event","message":"RavenCreek — Border dispute with RavenCreek","entityName":"RavenCreek"}
+{"id":108,"tick":4248,"year":0,"day":59,"type":"event","message":"RavenCreek spent 12 wood preparing defenses","entityName":"RavenCreek"}
+{"id":107,"tick":4248,"year":0,"day":59,"type":"migration","message":"+1 Settler arrived"}
+{"id":106,"tick":4227,"year":0,"day":58,"type":"marriage","message":"Hannah Thornhill and Amos Thornhill got married","entityName":"Hannah Thornhill"}
+{"id":105,"tick":4176,"year":0,"day":58,"type":"conception","message":"Eliza Fairchild and Edward Fairchild are expecting a child","entityName":"Eliza Fairchild"}
+{"id":104,"tick":4116,"year":0,"day":57,"type":"divorce","message":"Carisa Aldridge divorced Amos Thornhill after catching them with Hannah Fletcher","entityName":"Carisa Aldridge"}
+{"id":103,"tick":4116,"year":0,"day":57,"type":"divorce","message":"Henry Vance divorced Hannah Fletcher after catching them with Amos Thornhill","entityName":"Henry Vance"}
+{"id":102,"tick":4116,"year":0,"day":57,"type":"scandal","message":"A feud is brewing between Henry and Amos"}
+{"id":101,"tick":4116,"year":0,"day":57,"type":"scandal","message":"Hannah Vance was caught with Amos Thornhill","entityName":"Hannah Vance"}
+{"id":100,"tick":4104,"year":0,"day":57,"type":"conception","message":"Beatrice Whitaker and Thomas Whitaker are expecting a child","entityName":"Beatrice Whitaker"}
+{"id":99,"tick":4092,"year":0,"day":56,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":98,"tick":4092,"year":0,"day":56,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":97,"tick":4032,"year":0,"day":56,"type":"migration","message":"+2 Settlers arrived"}
+{"id":96,"tick":4032,"year":0,"day":56,"type":"scandal","message":"Whispers spread about Thomas Sterling and Beatrice Whitaker","entityName":"Thomas Sterling"}
+{"id":95,"tick":4032,"year":0,"day":56,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":94,"tick":3960,"year":0,"day":55,"type":"divorce","message":"Clara Hawthorne and Arthur Blackwood divorced amicably","entityName":"Clara Hawthorne"}
+{"id":93,"tick":3960,"year":0,"day":55,"type":"conception","message":"Clara Blackwood and Arthur Blackwood are expecting a child","entityName":"Clara Blackwood"}
+{"id":92,"tick":3941,"year":0,"day":54,"type":"marriage","message":"Abigail Hawthorne and Henry Hawthorne got married","entityName":"Abigail Hawthorne"}
+{"id":91,"tick":3914,"year":0,"day":54,"type":"marriage","message":"Carisa Vance and Henry Vance got married","entityName":"Carisa Vance"}
+{"id":90,"tick":3888,"year":0,"day":54,"type":"scandal","message":"A feud is brewing between Thomas and Eliza"}
+{"id":89,"tick":3885,"year":0,"day":53,"type":"birth","message":"Caleb Blackwood was born","entityName":"Caleb"}
+{"id":88,"tick":3816,"year":0,"day":53,"type":"migration","message":"+1 Settler arrived"}
+{"id":87,"tick":3744,"year":0,"day":52,"type":"migration","message":"+1 Settler arrived"}
+{"id":86,"tick":3723,"year":0,"day":51,"type":"marriage","message":"Arthur Whitaker and Abigail Whitaker got married","entityName":"Arthur Whitaker"}
+{"id":85,"tick":3708,"year":0,"day":51,"type":"birth","message":"Edward Fairchild was born","entityName":"Edward"}
+{"id":84,"tick":3672,"year":0,"day":51,"type":"migration","message":"+1 Settler arrived"}
+{"id":83,"tick":3600,"year":0,"day":50,"type":"prison","message":"Abigail Batten slipped out while the Prison was unguarded (2 of 3 shifts unstaffed)."}
+{"id":82,"tick":3551,"year":0,"day":49,"type":"divorce","message":"Patience Ashford divorced Arthur Whitaker after catching them with Abigail Batten","entityName":"Patience Ashford"}
+{"id":81,"tick":3551,"year":0,"day":49,"type":"divorce","message":"Thomas Aldridge divorced Abigail Batten after catching them with Arthur Whitaker","entityName":"Thomas Aldridge"}
+{"id":80,"tick":3551,"year":0,"day":49,"type":"scandal","message":"A feud is brewing between Thomas and Arthur"}
+{"id":79,"tick":3551,"year":0,"day":49,"type":"prison","message":"Abigail Aldridge was imprisoned for scandal","entityName":"Abigail Aldridge"}
+{"id":78,"tick":3551,"year":0,"day":49,"type":"scandal","message":"Abigail Aldridge was caught with Arthur Whitaker","entityName":"Abigail Aldridge"}
+{"id":77,"tick":3549,"year":0,"day":49,"type":"scandal","message":"Abigail Aldridge began a secret affair with Arthur Whitaker","entityName":"Abigail Aldridge"}
+{"id":76,"tick":3528,"year":0,"day":49,"type":"migration","message":"+1 Settler arrived"}
+{"id":75,"tick":3405,"year":0,"day":47,"type":"scandal","message":"Hannah Vance began a secret affair with Amos Thornhill","entityName":"Hannah Vance"}
+{"id":74,"tick":3276,"year":0,"day":45,"type":"scandal","message":"Thomas Sterling began a secret affair with Beatrice Whitaker","entityName":"Thomas Sterling"}
+{"id":73,"tick":3240,"year":0,"day":45,"type":"event","message":"Predators have migrated into the valley following game trails."}
+{"id":72,"tick":3240,"year":0,"day":45,"type":"migration","message":"A settler family arrived (4)"}
+{"id":71,"tick":3229,"year":0,"day":44,"type":"birth","message":"Thomas Sterling was born","entityName":"Thomas"}
+{"id":70,"tick":3096,"year":0,"day":43,"type":"migration","message":"+1 Settler arrived"}
+{"id":69,"tick":3096,"year":0,"day":43,"type":"conception","message":"Temperance Thornhill and Edward Thornhill are expecting a child","entityName":"Temperance Thornhill"}
+{"id":68,"tick":3084,"year":0,"day":42,"type":"event","message":"Full moon rise — Thomas Aldridge is abroad and hungry.","entityName":"Thomas Aldridge"}
+{"id":67,"tick":3084,"year":0,"day":42,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":66,"tick":3024,"year":0,"day":42,"type":"event","message":"Thomas Aldridge shed their boots. The village should lock its doors.","entityName":"Thomas Aldridge"}
+{"id":65,"tick":3016,"year":0,"day":41,"type":"marriage","message":"Eliza Fairchild and Edward Fairchild got married","entityName":"Eliza Fairchild"}
+{"id":64,"tick":2962,"year":0,"day":41,"type":"marriage","message":"Clara Blackwood and Arthur Blackwood got married","entityName":"Clara Blackwood"}
+{"id":63,"tick":2952,"year":0,"day":41,"type":"migration","message":"+1 Settler arrived"}
+{"id":62,"tick":2880,"year":0,"day":40,"type":"migration","message":"+1 Settler arrived"}
+{"id":61,"tick":2868,"year":0,"day":39,"type":"marriage","message":"Carisa Caldwell and Ezra Caldwell got married","entityName":"Carisa Caldwell"}
+{"id":60,"tick":2808,"year":0,"day":39,"type":"migration","message":"+1 Settler arrived"}
+{"id":59,"tick":2808,"year":0,"day":39,"type":"conception","message":"Patience Whitaker and Arthur Whitaker are expecting a child","entityName":"Patience Whitaker"}
+{"id":58,"tick":2808,"year":0,"day":39,"type":"conception","message":"Clara Vance and Edward Vance are expecting a child","entityName":"Clara Vance"}
+{"id":57,"tick":2736,"year":0,"day":38,"type":"migration","message":"A settler family arrived (3)"}
+{"id":56,"tick":2664,"year":0,"day":37,"type":"migration","message":"+1 Settler arrived"}
+{"id":55,"tick":2651,"year":0,"day":36,"type":"marriage","message":"Carisa Thornhill and Amos Thornhill got married","entityName":"Carisa Thornhill"}
+{"id":54,"tick":2592,"year":0,"day":36,"type":"migration","message":"+1 Settler arrived"}
+{"id":53,"tick":2531,"year":0,"day":35,"type":"marriage","message":"Temperance Thornhill and Edward Thornhill got married","entityName":"Temperance Thornhill"}
+{"id":52,"tick":2448,"year":0,"day":34,"type":"migration","message":"+1 Settler arrived"}
+{"id":51,"tick":2342,"year":0,"day":32,"type":"birth","message":"Levi Aldridge was born","entityName":"Levi"}
+{"id":50,"tick":2304,"year":0,"day":32,"type":"conception","message":"Hannah Blackwood and William Blackwood are expecting a child","entityName":"Hannah Blackwood"}
+{"id":49,"tick":2160,"year":0,"day":30,"type":"migration","message":"+1 Settler arrived"}
+{"id":48,"tick":2118,"year":0,"day":29,"type":"marriage","message":"Hannah Vance and Henry Vance got married","entityName":"Hannah Vance"}
+{"id":47,"tick":2088,"year":0,"day":29,"type":"migration","message":"+1 Settler arrived"}
+{"id":46,"tick":2076,"year":0,"day":28,"type":"event","message":"Full moon rose — cursed settlers transformed"}
+{"id":45,"tick":2076,"year":0,"day":28,"type":"event","message":"Moonlight took Thomas Aldridge. Pray they don't find the lane.","entityName":"Thomas Aldridge"}
+{"id":44,"tick":2076,"year":0,"day":28,"type":"event","message":"Thomas Aldridge was cursed as a Moon Howler","entityName":"Thomas Aldridge"}
+{"id":43,"tick":2016,"year":0,"day":28,"type":"migration","message":"+1 Settler arrived"}
+{"id":42,"tick":1974,"year":0,"day":27,"type":"marriage","message":"Hannah Blackwood and William Blackwood got married","entityName":"Hannah Blackwood"}
+{"id":41,"tick":1965,"year":0,"day":27,"type":"scandal","message":"Abigail Aldridge began a secret affair with William Blackwood","entityName":"Abigail Aldridge"}
+{"id":40,"tick":1944,"year":0,"day":27,"type":"migration","message":"+1 Settler arrived"}
+{"id":39,"tick":1934,"year":0,"day":26,"type":"marriage","message":"Clara Vance and Edward Vance got married","entityName":"Clara Vance"}
+{"id":38,"tick":1872,"year":0,"day":26,"type":"event","message":"RavenCreek raised a watchtower at their camp","entityName":"RavenCreek"}
+{"id":37,"tick":1872,"year":0,"day":26,"type":"migration","message":"+2 Settlers arrived"}
+{"id":36,"tick":1800,"year":0,"day":25,"type":"migration","message":"+1 Settler arrived"}
+{"id":35,"tick":1728,"year":0,"day":24,"type":"migration","message":"Lantern Pilgrimage departed"}
+{"id":34,"tick":1728,"year":0,"day":24,"type":"conception","message":"Margaret Sterling and Thomas Sterling are expecting a child","entityName":"Margaret Sterling"}
+{"id":33,"tick":1656,"year":0,"day":23,"type":"migration","message":"+1 Settler arrived"}
+{"id":32,"tick":1584,"year":0,"day":22,"type":"event","message":"RavenCreek raised a farm at their camp","entityName":"RavenCreek"}
+{"id":31,"tick":1584,"year":0,"day":22,"type":"migration","message":"+1 Settler arrived"}
+{"id":30,"tick":1440,"year":0,"day":20,"type":"migration","message":"+1 Settler arrived"}
+{"id":29,"tick":1293,"year":0,"day":17,"type":"marriage","message":"Patience Whitaker and Arthur Whitaker got married","entityName":"Patience Whitaker"}
+{"id":28,"tick":1152,"year":0,"day":16,"type":"migration","message":"+1 Settler arrived"}
+{"id":27,"tick":1152,"year":0,"day":16,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":26,"tick":1080,"year":0,"day":15,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":25,"tick":1008,"year":0,"day":14,"type":"migration","message":"+1 Settler arrived"}
+{"id":24,"tick":1008,"year":0,"day":14,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":23,"tick":936,"year":0,"day":13,"type":"migration","message":"+1 Settler arrived"}
+{"id":22,"tick":936,"year":0,"day":13,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":21,"tick":936,"year":0,"day":13,"type":"death","message":"#1271 Clara Mercer died of a sudden illness — at the age of 53 years (adult)","entityName":"#1271 Clara Mercer"}
+{"id":20,"tick":864,"year":0,"day":12,"type":"migration","message":"A young settler arrived"}
+{"id":19,"tick":864,"year":0,"day":12,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":18,"tick":864,"year":0,"day":12,"type":"conception","message":"Abigail Aldridge and Thomas Aldridge are expecting a child","entityName":"Abigail Aldridge"}
+{"id":17,"tick":792,"year":0,"day":11,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":16,"tick":720,"year":0,"day":10,"type":"migration","message":"RavenCreek established a rival settlement on the frontier","entityName":"RavenCreek"}
+{"id":15,"tick":720,"year":0,"day":10,"type":"migration","message":"+1 Settler arrived"}
+{"id":14,"tick":720,"year":0,"day":10,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":13,"tick":648,"year":0,"day":9,"type":"event","message":"Short shifts spared 1 settler that output cost (6.0h shifts)."}
+{"id":12,"tick":629,"year":0,"day":8,"type":"marriage","message":"Abigail Aldridge and Thomas Aldridge got married","entityName":"Abigail Aldridge"}
+{"id":11,"tick":504,"year":0,"day":7,"type":"migration","message":"Lantern Pilgrimage arrived near the village","entityName":"Lantern Pilgrimage"}
+{"id":10,"tick":504,"year":0,"day":7,"type":"migration","message":"+1 Settler arrived"}
+{"id":9,"tick":377,"year":0,"day":5,"type":"event","message":"A star scratched \"Renffr\" across the night sky. The letters fell out of alignment.","entityName":"Renffr"}
+{"id":8,"tick":360,"year":0,"day":5,"type":"migration","message":"+1 Settler arrived"}
+{"id":7,"tick":288,"year":0,"day":4,"type":"migration","message":"A young settler arrived"}
+{"id":6,"tick":288,"year":0,"day":4,"type":"event","message":"Longer shifts reduced work output for 1 settler tomorrow (24.0h shifts)."}
+{"id":5,"tick":216,"year":0,"day":3,"type":"event","message":"Wildlife returned to the frontier meadows."}
+{"id":4,"tick":216,"year":0,"day":3,"type":"season","message":"Spring Revel festival began in the village"}
+{"id":3,"tick":72,"year":0,"day":1,"type":"migration","message":"+1 Settler arrived"}
+{"id":2,"tick":72,"year":0,"day":1,"type":"milestone","message":"🏠 The Foundation — The first house rises in the wild valley."}
+{"id":1,"tick":24,"year":0,"day":0,"type":"election","message":"Thomas Sterling leads the founding colony until the first merit election (Year 3)","entityName":"Thomas Sterling"}
+{"id":0,"tick":0,"year":0,"day":0,"type":"season","message":"The pioneers have arrived. A new settlement begins."}

@@ -29,6 +29,7 @@ import { getRenderSoABuckets } from '../simBuffers/renderSoAEntities';
 import { huntAnimProgress } from '../huntvisuals';
 import { getCachedNameWidth, isDrawableSpriteFrame, motionTime, roundRect } from './shared';
 import {
+  clampSpeechBubbleTailY,
   formatHumanNameLabel,
   getNamePlateLayout,
   getSpeechBubbleFontSize,
@@ -122,15 +123,19 @@ function drawSpeechBubble(
   ctx.fill();
   ctx.stroke();
 
-  // Tail
-  ctx.fillStyle = 'rgba(255,252,245,0.97)';
-  ctx.beginPath();
-  ctx.moveTo(sx - 5, by + bh - 1);
-  ctx.lineTo(sx, sy - size - 4 + bob * 0.3);
-  ctx.lineTo(sx + 5, by + bh - 1);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+  // Tail — clamped so a lifted bubble's tail stops above the name plate instead of slicing its text.
+  const tailBottom = by + bh - 1;
+  const tailTipY = clampSpeechBubbleTailY(tailBottom, sy - size - 4 + bob * 0.3, occupiedBubbleRects);
+  if (tailTipY > tailBottom + 1) {
+    ctx.fillStyle = 'rgba(255,252,245,0.97)';
+    ctx.beginPath();
+    ctx.moveTo(sx - 5, tailBottom);
+    ctx.lineTo(sx, tailTipY);
+    ctx.lineTo(sx + 5, tailBottom);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
 
   ctx.fillStyle = '#1c1917';
   ctx.textAlign = 'center';
