@@ -51,7 +51,6 @@ import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { getResidenceCapacity, isResidenceBuilding } from '../src/game/residencyOccupancy';
-import { isPlayerHuman } from '../src/game/playerHuman';
 import {
   collectHousingDiagnostics,
   isHousingDiagnosticsHealthy,

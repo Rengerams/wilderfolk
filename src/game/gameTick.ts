@@ -308,6 +308,10 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.buildings = updatedBuildings;
   state.season = season;
   state.humanPopulation = finalCounts.humans;
+  // Track the true peak here: `yearlyStats` only samples year-end population.
+  if (finalCounts.humans > state.lifetimeStats.largestPopulation.count) {
+    state.lifetimeStats.largestPopulation = { count: finalCounts.humans, year: state.year };
+  }
   state.wildlifeCounts = wildlifeCountsFromPopulation(finalCounts);
   markCalendarDayProcessed(state);
 

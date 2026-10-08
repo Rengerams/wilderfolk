@@ -476,17 +476,24 @@ export function lineCrossesBlocked(
 /** Module-level "current map" for pathing — set once per tick by the sim. */
 let currentGrid: PathGrid | null = null;
 
-/**
- * Cached waypoints are only valid while the entity is still near the tile the path
- * was computed from: cache keys name a commute leg, not an origin, so a leg begun
- * from somewhere else must not steer the entity back to the old path start.
- */
-const PATH_CACHE_ORIGIN_TOLERANCE = PATH_CELL * 2;
+/** A cached route stays valid while the settler walks it; reuse ends only when the settler leaves
+ *  the current segment (interrupted elsewhere), not on ordinary forward progress. */
+const PATH_CACHE_OFF_ROUTE_TOLERANCE = PATH_CELL * 2;
+
+/** Perpendicular distance from (px,py) to the segment (ax,ay)-(bx,by). */
+function distanceToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const lenSq = abx * abx + aby * aby;
+  if (lenSq === 0) return Math.hypot(px - ax, py - ay);
+  const t = Math.max(0, Math.min(1, ((px - ax) * abx + (py - ay) * aby) / lenSq));
+  return Math.hypot(px - (ax + abx * t), py - (ay + aby * t));
+}
 
 interface CachedPath {
-  originX: number;
-  originY: number;
   waypoints: { x: number; y: number }[] | null;
+  /** Waypoint the settler is currently walking toward, so progress survives a cache hit. */
+  nextIndex: number;
 }
 
 const pathCache = new Map<string, CachedPath>();
@@ -567,10 +574,22 @@ export function steerWithPath(
 
   if (lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY)) {
     let cached = pathCache.get(cacheKey);
-    if (
-      cached === undefined
-      || Math.hypot(cached.originX - entity.x, cached.originY - entity.y) > PATH_CACHE_ORIGIN_TOLERANCE
-    ) {
+    // Reuse the route while the settler is still walking it; advance past reached waypoints and
+    // recompute only when the settler has left the current segment (interrupted elsewhere).
+    if (cached !== undefined && cached.waypoints !== null && cached.waypoints.length > 1) {
+      while (
+        cached.nextIndex < cached.waypoints.length - 1
+        && Math.hypot(cached.waypoints[cached.nextIndex].x - entity.x, cached.waypoints[cached.nextIndex].y - entity.y) < 14
+      ) {
+        cached.nextIndex++;
+      }
+      const prev = cached.waypoints[cached.nextIndex - 1];
+      const next = cached.waypoints[cached.nextIndex];
+      if (distanceToSegment(entity.x, entity.y, prev.x, prev.y, next.x, next.y) > PATH_CACHE_OFF_ROUTE_TOLERANCE) {
+        cached = undefined;
+      }
+    }
+    if (cached === undefined) {
       recordPathCacheMiss();
       const path = findPath(
         currentGrid,
@@ -579,12 +598,12 @@ export function steerWithPath(
         Math.floor(targetX / PATH_CELL),
         Math.floor(targetY / PATH_CELL),
       );
-      cached = {
-        originX: entity.x,
-        originY: entity.y,
-        waypoints: path ? pathWaypoints(path) : null,
-      };
-      if (pathCache.size > 200) pathCache.clear();
+      const waypoints = path ? pathWaypoints(path) : null;
+      cached = { waypoints, nextIndex: waypoints && waypoints.length > 1 ? 1 : 0 };
+      if (pathCache.size > 200) {
+        const oldestKey = pathCache.keys().next().value;
+        if (oldestKey !== undefined) pathCache.delete(oldestKey);
+      }
       pathCache.set(cacheKey, cached);
     } else {
       recordPathCacheHit();
@@ -592,9 +611,7 @@ export function steerWithPath(
 
     const wp = cached.waypoints;
     if (wp && wp.length > 1) {
-      let i = 0;
-      while (i < wp.length - 1 && Math.hypot(wp[i].x - entity.x, wp[i].y - entity.y) < 14) i++;
-      const next = wp[i];
+      const next = wp[cached.nextIndex];
       const ndx = next.x - entity.x;
       const ndy = next.y - entity.y;
       const nd = Math.hypot(ndx, ndy) || 1;

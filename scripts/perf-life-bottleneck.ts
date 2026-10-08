@@ -7,15 +7,16 @@
  */
 import { Session } from 'node:inspector/promises';
 import { gameTick, initGame } from '../src/game/gameEngine';
-import { EntityType, MapSize } from '../src/game/gameTypes';
+import { BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
 import { preloadDialogueBank } from '../src/game/dialogueTrees';
-import { createEntity } from '../src/game/worldGen';
+import { createBuilding, createEntity } from '../src/game/worldGen';
 
 const POP = Number(process.env.SIM_POP ?? 1200);
 const TICKS = Number(process.env.PERF_TICKS ?? 120);
 const WARMUP = Number(process.env.PERF_WARMUP ?? 30);
 const FULL_SIM = process.env.SIM_FULL_SIM === '1';
 const STRIP_ECOLOGY = process.env.SIM_STRIP_ECOLOGY === '1';
+const SETTLED = process.env.SIM_SETTLED === '1';
 
 type CpuNode = {
   id: number;
@@ -39,6 +40,42 @@ function seedHumans(state: ReturnType<typeof initGame>, pop: number): void {
     h.gender = i % 2 === 0 ? 'male' : 'female';
     h.isJuvenile = false;
     h.age = 25;
+    state.entities.push(h);
+    state.humanPopulation++;
+  }
+}
+
+/** Settled colony: two settlers per completed House, spread over the map, so spatial queries stay sparse. */
+function seedSettledColony(state: ReturnType<typeof initGame>, pop: number): void {
+  const cols = Math.max(1, Math.ceil(Math.sqrt(pop / 2)));
+  const houseCount = Math.max(1, Math.ceil(pop / 2));
+  const rows = Math.ceil(houseCount / cols);
+  const spacingX = (state.width * 0.9) / (cols + 1);
+  const spacingY = (state.height * 0.9) / (rows + 1);
+  const houses: ReturnType<typeof createBuilding>[] = [];
+  for (let i = 0; i < houseCount; i++) {
+    const x = state.width * 0.05 + spacingX * ((i % cols) + 1);
+    const y = state.height * 0.05 + spacingY * (Math.floor(i / cols) + 1);
+    const house = createBuilding(BuildingType.House, x, y, state.nextBuildingId++);
+    house.completed = true;
+    state.buildings.push(house);
+    houses.push(house);
+  }
+  for (let i = 0; i < pop; i++) {
+    const house = houses[i % houses.length];
+    const h = createEntity(
+      EntityType.Human,
+      house.x + (Math.random() - 0.5) * 30,
+      house.y + (Math.random() - 0.5) * 30,
+      state.nextEntityId++,
+      300,
+    );
+    h.name = `S${i}`;
+    h.surname = 'Profile';
+    h.gender = i % 2 === 0 ? 'male' : 'female';
+    h.isJuvenile = false;
+    h.age = 25;
+    h.residenceBuildingId = house.id;
     state.entities.push(h);
     state.humanPopulation++;
   }
@@ -82,7 +119,8 @@ async function main(): Promise<void> {
       (entity) => entity.type !== EntityType.Tree && entity.type !== EntityType.Grass,
     );
   }
-  seedHumans(state, POP);
+  if (SETTLED) seedSettledColony(state, POP);
+  else seedHumans(state, POP);
 
   const focus = FULL_SIM ? undefined : undefined;
   for (let i = 0; i < WARMUP; i++) gameTick(state, focus);
@@ -103,12 +141,12 @@ async function main(): Promise<void> {
   for (const id of profile.samples ?? []) counts.set(id, (counts.get(id) ?? 0) + 1);
 
   const lifeRows = profile.nodes
-    .filter((node) => /(humanTick|simulation|tickLayerSystems|tickLayerDaily)/.test(sourceName(node.callFrame.url)))
+    .filter((node) => /\.ts$/.test(sourceName(node.callFrame.url)))
     .map((node) => ({
       name: node.callFrame.functionName || '(anonymous)',
+      file: sourceName(node.callFrame.url),
       line: (node.callFrame.lineNumber ?? -1) + 1,
       samples: counts.get(node.id) ?? 0,
-      url: node.callFrame.url,
     }))
     .filter((row) => row.samples > 0)
     .sort((a, b) => b.samples - a.samples);
@@ -116,10 +154,18 @@ async function main(): Promise<void> {
   const totalSamples = profile.samples?.length ?? 0;
   console.log(`Population=${POP} ticks=${TICKS} warmup=${WARMUP} | ${FULL_SIM ? 'FULL SIM' : 'focus throttle'} | ecology=${STRIP_ECOLOGY ? 'stripped' : 'preserved'}`);
   console.log(`Wall=${wallMs.toFixed(1)}ms avg=${(wallMs / TICKS).toFixed(2)}ms/tick CPU samples=${totalSamples}`);
-  console.log('\nTop human-sim leaf samples (approximate CPU hotspots):');
-  for (const row of lifeRows.slice(0, 30)) {
+  console.log('\nTop leaf samples across game files (approximate CPU hotspots):');
+  for (const row of lifeRows.slice(0, 40)) {
     const share = totalSamples > 0 ? (row.samples / totalSamples) * 100 : 0;
-    console.log(`${row.name.padEnd(42)} line=${String(row.line).padStart(4)} samples=${String(row.samples).padStart(5)} share=${share.toFixed(2).padStart(6)}%`);
+    console.log(`${row.file.padEnd(26)} ${row.name.padEnd(30)} line=${String(row.line).padStart(4)} samples=${String(row.samples).padStart(5)} share=${share.toFixed(2).padStart(6)}%`);
+  }
+
+  const byFile = new Map<string, number>();
+  for (const row of lifeRows) byFile.set(row.file, (byFile.get(row.file) ?? 0) + row.samples);
+  console.log('\nSelf time by file:');
+  for (const [file, samples] of [...byFile.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20)) {
+    const share = totalSamples > 0 ? (samples / totalSamples) * 100 : 0;
+    console.log(`${file.padEnd(26)} samples=${String(samples).padStart(5)} share=${share.toFixed(2).padStart(6)}%`);
   }
 
   const targetNames = new Set(['tickHumans', 'tickWildlife', 'tickGrassDaily', 'findCourtshipPartner', 'tryDailyConception', 'tryDailyAffairGossip', 'tryExposeCaughtAffairForPair']);

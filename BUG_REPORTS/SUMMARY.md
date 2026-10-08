@@ -1678,14 +1678,14 @@ Closed since the list above was written, each by measurement rather than assumpt
 
 ### Batch ET update — dead code and tooling (2026-10-08)
 
-`knip` was run and its findings belong in this register too. Recorded, not yet fixed (the pass that would clear them died mid-task):
+`knip` was run and its findings belong in this register too. ET-7, ET-8 and ET-10 are now cleared (measured); ET-6 and ET-9 remain open for an owner decision:
 
 | Item | Sev | Finding | Needs |
 |---|---|---|---|
 | ET-6 | 🟡 | **`src/components/FamiliesTreePanel.tsx` is imported by nothing** — the family tree that ships is `FamilyTreeWindow.tsx`. An agent improving the tree was working in the dead file before this was caught | Delete the dead file or wire it; one owner decides |
-| ET-7 | 🟡 | `src/game/roadmapContent.ts` is imported by nothing | Verify repo-wide, then delete |
-| ET-8 | 🟡 | Six dead exports: `relativeDischarge` (hydrology), `biomeAt` / `isTileWalkable` / `terrainReader` / `tileGridSnapshot` (terrainGrid), `blockedRow` (test fixture) | Delete the genuinely unread ones; keep and ignore the test-only ones with a reason |
+| ET-7 | ✅ | `src/game/roadmapContent.ts` is imported by nothing | Deleted 2026-10-08 — file removed, ownership row dropped |
+| ET-8 | ✅ | Six dead exports: `relativeDischarge` (hydrology), `biomeAt` / `isTileWalkable` / `terrainReader` / `tileGridSnapshot` (terrainGrid), `blockedRow` (test fixture) | Deleted 2026-10-08 — all six were unread (none test-only), so none kept; `biomeIndexAt` removed with `biomeAt` |
 | ET-9 | 🟡 | `scripts/archive/**` holds stale one-off scripts whose imports point at modules that no longer exist (24 unresolved imports) | Delete the directory (owner's call) or exclude it with a stated reason |
-| ET-10 | 🟡 | `knip` reports `jscpd`, `oxlint`, `oxlint-tsgolint` as unused devDependencies and `tauri` as an unlisted binary | False positives for the three CLIs (`scripts/test.mjs` invokes them by name) — declare them where knip expects rather than removing them |
+| ET-10 | ✅ | `knip` reports `jscpd`, `oxlint`, `oxlint-tsgolint` as unused devDependencies and `tauri` as an unlisted binary | Declared in `knip.ts` (`ignoreDependencies` for the three CLIs, `ignoreBinaries` for `tauri`); `npm run audit` knip step clear |
 
 **End of register section.**

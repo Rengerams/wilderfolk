@@ -19,6 +19,7 @@ import { describe, expect, it } from 'vitest';
 import { steerVisitorToHotel } from '../src/game/hotelStay';
 import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
 import { setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
+import { getCurrentPathfinderTickCounters, resetPathfinderSession, setPathfindingMetricsEnabled } from '../src/game/pathfindingMetrics';
 import { commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { personDayRoll, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
@@ -200,6 +201,36 @@ describe('M22 path cache origin', () => {
     const toStaleOriginY = pixel(5, 35) - entity.y;
     const steeredBackToOrigin = entity.vx * toStaleOriginX + entity.vy * toStaleOriginY;
     expect(steeredBackToOrigin).toBeLessThanOrEqual(0);
+  });
+});
+
+describe('path cache reuses the route through forward progress', () => {
+  it('does not re-run A* while the settler is still walking the cached route', () => {
+    setPathfindingMetricsEnabled(true);
+    resetPathfinderSession();
+    // A river with one gap keeps the direct line blocked for the whole first stretch of the walk.
+    setCurrentPathMap(makeMap(40, 40, 931, (x, y) => y === 20 && x !== 35), []);
+    const target = { x: pixel(20, 10), y: pixel(20, 10) };
+    const entity = human(7, pixel(5, 35), pixel(5, 35));
+    const cacheKey = 'c_7_42_h';
+
+    // First leg computes A* exactly once.
+    expect(steerWithPath(entity, target.x, target.y, 5, cacheKey)).toBe('path');
+
+    // Walk the route forward: each step must be a cache hit, never a fresh A* run.
+    for (let step = 0; step < 12; step++) {
+      entity.x += entity.vx;
+      entity.y += entity.vy;
+      expect(steerWithPath(entity, target.x, target.y, 5, cacheKey)).toBe('path');
+    }
+
+    const counters = getCurrentPathfinderTickCounters();
+    expect(counters.findPathCalls).toBe(1);
+    expect(counters.cacheMisses).toBe(1);
+    expect(counters.cacheHits).toBeGreaterThan(0);
+
+    setPathfindingMetricsEnabled(false);
+    resetPathfinderSession();
   });
 });
 

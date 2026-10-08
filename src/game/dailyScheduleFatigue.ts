@@ -95,7 +95,7 @@ export function resolveDailyVillageScheduleFatigue(
     logEvent(
       state,
       'event',
-      `Longer shifts reduced work output for ${rises} settler${rises === 1 ? '' : 's'} tomorrow (${formatHours(riseHours / rises)} shifts).`,
+      `Longer shifts reduced work output for ${rises} settler${rises === 1 ? '' : 's'} tomorrow (avg ${formatHours(riseHours / rises)} worked).`,
     );
   }
 
@@ -105,7 +105,7 @@ export function resolveDailyVillageScheduleFatigue(
     logEvent(
       state,
       'event',
-      `Short shifts spared ${recoveries} settler${recoveries === 1 ? '' : 's'} that output cost (${formatHours(recoveryHours / recoveries)} shifts).`,
+      `Short shifts spared ${recoveries} settler${recoveries === 1 ? '' : 's'} that output cost (avg ${formatHours(recoveryHours / recoveries)} worked).`,
     );
   }
 }

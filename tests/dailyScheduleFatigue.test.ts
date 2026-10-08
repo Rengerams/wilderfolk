@@ -37,7 +37,7 @@ describe('daily village schedule fatigue', () => {
 
     expect(world.eventLog).toHaveLength(1);
     expect(world.eventLog[0]?.message).toContain('reduced work output for 2 settlers');
-    expect(world.eventLog[0]?.message).toContain('12.0h shifts');
+    expect(world.eventLog[0]?.message).toContain('avg 12.0h worked');
     // Never a fatigue percentage: that scale runs the opposite way to the settler's energy out of
     // 500, so a bare percentage read as a crew near death rather than a crew working efficiently.
     expect(world.eventLog[0]?.message).not.toContain('%');

@@ -30,6 +30,7 @@ import { loadNames } from '../src/game/nameLoader';
 import { loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import {
   countAlive,
+  expectedCityAlive,
   maintainCityBenchmarkState,
   refreshCityBenchmarkResources,
   seedCityScaleProfile,
@@ -69,7 +70,7 @@ function bench(
     // A saved colony is measured as it stands: the fixture maintainer would top its population,
     // buildings and larder back up to the benchmark targets and change what is being measured.
     if (maintain) {
-      maintainCityBenchmarkState(state, targets);
+      maintainCityBenchmarkState(state, expectedCityAlive(targets), targets);
       refreshCityBenchmarkResources(state, t);
     }
     const cpu0 = process.cpuUsage();
@@ -78,7 +79,7 @@ function bench(
     const dt = performance.now() - t0;
     const cpu = process.cpuUsage(cpu0);
     const cpuForTick = (cpu.user + cpu.system) / 1000;
-    if (maintain) maintainCityBenchmarkState(state, targets);
+    if (maintain) maintainCityBenchmarkState(state, expectedCityAlive(targets), targets);
     if (t > WARMUP) {
       ms.push(dt);
       cpuMs.push(cpuForTick);

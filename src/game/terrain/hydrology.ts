@@ -221,20 +221,7 @@ export function computeFlow(filled: Float32Array, cols: number, rows: number): F
   return { downstream, accumulation };
 }
 
-/**
- * The mean flow through a point, from the area that drains through it.
- *
- * The paper's §5.1 power law, `φ = 0.42 · A^0.69` (A in m², φ in m³s⁻¹), after Dunne & Leopold. Wilderfolk
- * has no metric scale — a cell is 16 px and the world is dimensionless — so the constants are dropped and
- * only the law's **shape** is kept: the caller supplies `area` normalised to the map's own largest
- * catchment, and this returns a relative discharge. What matters is that width follows drainage area
- * rather than distance travelled, which is the entire point of routing water.
- */
 export const DISCHARGE_AREA_EXPONENT = 0.69;
-
-export function relativeDischarge(normalisedArea: number): number {
-  return Math.pow(Math.max(0, normalisedArea), DISCHARGE_AREA_EXPONENT);
-}
 
 /**
  * Channel width from the land that drains through the point — the paper's chain `A → φ → geometry`,

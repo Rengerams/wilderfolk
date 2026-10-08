@@ -26,7 +26,6 @@
  * their meaning.
  */
 import { TerrainType, PATH_CELL, type TerrainTile, type WorldMap } from '../gameTypes';
-import { BIOME_BY_IDX, type BiomeDef } from './biomes';
 import { clamp, lerp, valueNoise, hashString } from './noise';
 // The unbuildable-terrain rule lives in a leaf module (`terrainTraits`) precisely so this file can
 // read it without importing `placementUtils`, which imports `tileAt` from here — that pair was a
@@ -92,24 +91,6 @@ export function sampleElev(
     lerp(el[idx(xi, yi2, cols)], el[idx(xi2, yi2, cols)], fx),
     fy,
   );
-}
-
-/** The 15-biome classification at fractional cell coordinates. */
-export function biomeIndexAt(
-  map: WorldMap,
-  cellX: number,
-  cellY: number,
-): number {
-  const { cols, rows, terrain } = map;
-  if (!cols || !rows || !terrain) return 0;
-  const x = clamp(Math.floor(cellX), 0, cols - 1);
-  const y = clamp(Math.floor(cellY), 0, rows - 1);
-  return terrain[idx(x, y, cols)];
-}
-
-/** The biome definition at fractional cell coordinates. */
-export function biomeAt(map: WorldMap, cellX: number, cellY: number): BiomeDef {
-  return BIOME_BY_IDX[biomeIndexAt(map, cellX, cellY)];
 }
 
 /**
@@ -406,21 +387,6 @@ export function isWalkableTerrainType(type: TerrainType): boolean {
 }
 
 /**
- * Whether the world behind a 10px cell is passable, from the L0 grid when the
- * map has one and from the projected tile type otherwise — one answer for both
- * representations, so a legacy map and a Teraforge map cannot disagree.
- */
-export function isTileWalkable(map: WorldMap, tx: number, ty: number): boolean {
-  if (!isInsideTileGrid(map, tx, ty)) return false;
-  const grid = map.pathGrid;
-  if (grid && map.pCols === map.width && map.pRows === map.height) {
-    return grid[ty * map.width + tx] === Walkability.Open;
-  }
-  const tile = tileAt(map, tx, ty);
-  return !!tile && isWalkableTerrainType(tile.type);
-}
-
-/**
  * Whether the terrain behind a 10px cell accepts a structure. Reads the same
  * `isUnbuildableTerrainType` owner the placement rules use (`terrainTraits`), so the L1 grid and
  * the build-mode blocker can never disagree about what "hard ground" means.
@@ -507,53 +473,4 @@ export function rebakeTerrainGrids(
       rebakeBuildCell(map, bx, by);
     }
   }
-}
-
-/* ===== Bulk reads ===== */
-
-/**
- * A row-scoped, bounds-free view of the map, for loops that already know their
- * rectangle (the terrain bake, the minimap, the decor pass). `type()` returns
- * `null` off-map, so callers keep their existing "skip if missing" shape.
- */
-export interface TerrainReader {
-  width: number;
-  height: number;
-  type(tx: number, ty: number): TerrainType | null;
-  tile(tx: number, ty: number): TerrainTile | undefined;
-  /** The tile type at a world pixel, `null` off-map. */
-  typeAtWorld(worldX: number, worldY: number): TerrainType | null;
-}
-
-export function terrainReader(map: WorldMap): TerrainReader {
-  return {
-    width: map.width,
-    height: map.height,
-    type: (tx, ty) => tileTypeAt(map, tx, ty),
-    tile: (tx, ty) => tileAt(map, tx, ty),
-    typeAtWorld: (worldX, worldY) => tileTypeAtWorld(map, worldX, worldY),
-  };
-}
-
-/**
- * Materialise the whole tile grid as `TerrainTile[][]`, for the few consumers
- * that genuinely need a dense 2D array (test fixtures, the map-preview canvas).
- * Prefer {@link tileAt} / {@link terrainReader}: this allocates one object per
- * tile — 283 000 of them on a 2560×1920 map.
- */
-export function tileGridSnapshot(map: WorldMap): TerrainTile[][] {
-  const rows: TerrainTile[][] = [];
-  for (let ty = 0; ty < map.height; ty++) {
-    const row: TerrainTile[] = new Array(map.width);
-    for (let tx = 0; tx < map.width; tx++) {
-      row[tx] = tileAt(map, tx, ty) ?? {
-        type: TerrainType.Grassland,
-        elevation: 0,
-        moisture: 0,
-        variation: 0,
-      };
-    }
-    rows.push(row);
-  }
-  return rows;
 }

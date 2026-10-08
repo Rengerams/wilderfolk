@@ -75,9 +75,16 @@ const STEP = {
    *
    * Until that happens the gate states its actual scope instead of sitting red
    * on a directory it was never able to check.
+   *
+   * `scripts/` now has its own two steps below (`scripts-lint`, `scripts-types`),
+   * gated separately so the `src` lint above is neither widened nor weakened.
    */
   lint: 'oxlint --type-aware --type-check src vite.config.ts vitest.config.ts',
   lintFix: 'oxlint --type-aware --type-check --fix src vite.config.ts vitest.config.ts',
+  /** oxlint's experimental `--type-check` ignores `--tsconfig` (it auto-discovers the
+   *  nearest tsconfig, the empty root project), so scripts are typechecked with `tsc`. */
+  scriptsLint: 'oxlint --type-aware --tsconfig tsconfig.scripts.json --ignore-pattern scripts/archive scripts',
+  scriptsTypes: 'tsc -p tsconfig.scripts.json --noEmit',
   /**
    * knip can CRASH rather than report on this machine: oxc-parser's
    * `createBuffer()` reserves a single ~6 GiB ArrayBuffer ("6 GiB of *virtual*
@@ -120,6 +127,8 @@ const ALIAS = {
   dup: ['dup'],
   types: ['types'],
   lint: ['lint'],
+  'scripts-lint': ['scriptsLint'],
+  'scripts-types': ['scriptsTypes'],
   knip: ['knip'],
   cycles: ['cycles'],
   invariants: ['invariants'],
@@ -144,6 +153,8 @@ wilderfolk test runner - one entry point, choose with args
   npm test -- invariants          the 360-day run (docs/log/full-year-*.jsonl)
   npm test -- types               tsc on the vitest project
   npm test -- lint [--fix]        oxlint, type-aware
+  npm test -- scripts-lint        oxlint, type-aware, over scripts/
+  npm test -- scripts-types       tsc on the scripts project
   npm test -- dup                 jscpd duplicate scan
   npm test -- check               source-shadow-file check
   npm test -- knip                knip (unused files/exports)

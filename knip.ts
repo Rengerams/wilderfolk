@@ -158,7 +158,13 @@ const config: KnipConfig = {
    */
   ignoreDependencies: [
     'tw-animate-css',
+    // CLIs invoked by name from scripts/test.mjs; knip cannot follow the shell strings.
+    'jscpd',
+    'oxlint',
+    'oxlint-tsgolint',
   ],
+  // `tauri` runs from package.json scripts (tauri:dev / tauri:build), not an npm dependency.
+  ignoreBinaries: ['tauri'],
 };
 
 export default config;

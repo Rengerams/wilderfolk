@@ -51,7 +51,7 @@ behaviour. Nothing here changes the ownership law: one decision, one owner, one 
 | Decision | True owner | Cadence | Key entry functions |
 |---|---|---|---|
 | Combat tiers, counter-attack / block rolls | `combat.ts` (research data in `gameTypes.ts`; raid outcomes in `frontierCombat.ts`) | combat resolution | `getArmamentSteps`, `getCounterAttackChance`, `getPredatorBlockChance`, `rollCounterAttack`, `rollPredatorBlock` |
-| Deaths and yearly statistics | `stats.ts` (the per-tick tally is written by `gameTick.ts`) | per-tick tally + year-rollover record | `recordYearlyStats`, `updateLifetimeStats`, `createEmptyLifetimeStats`, `normalizeLifetimeStats`; `gameTick`'s `deathsThisYear` tally |
+| Deaths and yearly statistics | `stats.ts` (the per-tick tally is written by `gameTick.ts`) | per-tick tally + year-rollover record | `recordYearlyStats`, `updateLifetimeStats`, `createEmptyLifetimeStats`, `normalizeLifetimeStats`; `gameTick`'s `deathsThisYear` tally and `largestPopulation` running peak |
 | Event log / Chronicle | `eventLog.ts` | event-driven | `logEvent`, `logDeath`, `syncEventLogIdFromState`, `repairEventLogOnLoad`, `resolveCombatLogKind` |
 | Big news, notifications, floating text | `simEffects.ts` | event-driven | `addBigNews`, `syncBigNewsIdFromState`, `addNotification`, `addFloatingText` |
 | Save / load and timeline migration | `saveLoad.ts` (allow-list: `saveSchema.ts`) | load / player-command | `buildSaveData`, `loadGameFromParsed`, `parseSaveJson`, `loadGameFromFileTextOutcome`, `migrateTickTimeline`, `clearAutoFilledChurches` |
@@ -71,7 +71,7 @@ behaviour. Nothing here changes the ownership law: one decision, one owner, one 
 | Authored one-time stories (flags, cards, cooldown) | `storyHelpers.ts` (shared contract) + each story owner (`travelingTheatre.ts`, `inventionFair.ts`, `famineDesperation.ts`) | daily / story-card answer | `storyFlag`, `setStoryFlags`, `pushStoryCard`; `maybeOfferTravelingTheatre`, `resolveTravelingTheatre`, `tickTravelingTheatre` |
 | Leadership elections (term + vacancy) | `villageLeadership.ts` | daily due-date check, year rollover, ceremony ticks | `tryStartVacancyElectionCeremony`, `tryStartTermElectionCeremony`, `tickElectionCeremony`, `tickLeaderVacancy` |
 | Tutorial / guided campaign | `guidedCampaign.ts` + `tutorialCampaign.ts` | daily | `tickGuidedCampaign`, `recordGuidedCampaignChoice`, `currentCampaignStep` |
-| Pathfinding and the path cache | `pathfinding.ts` | realtime movement | `findPath`, `getPathGrid`, `pathWaypoints`, `steerWithPath`, `setCurrentPathMap` |
+| Pathfinding and the path cache | `pathfinding.ts` | realtime movement | `findPath`, `getPathGrid`, `pathWaypoints`, `steerWithPath`, `setCurrentPathMap`, `distanceToSegment` |
 | Sprite preload and lookup (presentation) | `spriteLoader.ts` | boot / render | `preloadAllSprites`, `loadSprite`, `getSprite`, `isSpriteLoaded` |
 | Terrain decor stamps (presentation) | `terrainLayer.ts` | render / bake | `stampPropSprite`, `stampMountainPeaks`, `mountainSpritesReady` |
 | Staffing eligibility and assignment | `buildingStaffingActions.ts` (eligibility rules in `residencyOccupancy.ts`) | player-command + assignment | `canAssignWorkerToBuilding`, `assignStaffWorkerToBuilding`, `removeStaffWorkerFromBuilding`, `hasWorkAssignment`, `isImprisoned` |
@@ -280,10 +280,6 @@ The explorer now attaches an entry-function name only when the function lives in
 
 `tickLayerAssign.ts` was the only `src/` module in that snapshot with **no** owner-cell mention (it appeared only as `tickLayerAssign.syncResidenceOccupants` in registry `scheduledFrom` strings). After the matcher stopped reading `scheduledFrom`, `tickLayerDaily.ts` was in the same boat: it lived only in the facade table (which the explorer does not parse) and in other rows' cadence notes. Both pulse files are now rows in the first table, schedule facades like each other. `tickLayerRealtime.ts` moved out of the Movement row into its own Realtime pulse row for the same reason: the file schedules owners, it does not own movement policy.
 
-| Decision | True owner | Cadence / called from | Key entry functions |
-|---|---|---|---|
-| In-game roadmap copy and panel | `roadmapContent.ts` + `RoadmapPanel.tsx` | UI (read-only) | `RoadmapPanel` |
-
 ## Owners recorded by the 2026-10-01 call-graph pass
 
 `docs/tools/call-graph.json` (generated 2026-10-01T00:21:45) reported **2657/2767** functions with a
@@ -294,10 +290,10 @@ exports it.
 
 | Decision | True owner | Cadence / called from | Key entry functions |
 |---|---|---|---|
-| Terrain data model, its four-layer grid and the tile projection | `terrain/terrainGrid.ts` | generation, then read-only | `tileAt`, `tileTypeAt`, `tileTypeAtWorld`, `biomeAt`, `isTileBuildable`, `isTileWalkable`, `setTileOverride`, `rebakeTerrainGrids`, `terrainReader` |
+| Terrain data model, its four-layer grid and the tile projection | `terrain/terrainGrid.ts` | generation, then read-only | `tileAt`, `tileTypeAt`, `tileTypeAtWorld`, `isTileBuildable`, `setTileOverride`, `rebakeTerrainGrids` |
 | Terrain generation pipeline | `terrain/terragen.ts` | world generation, once per map | `generateRawTerrain` |
 | Noise and PRNG primitives | `terrain/noise.ts` | generation (pure) | `fbm`, `ridged`, `warp`, `valueNoise`, `mulberry32`, `hash2`, `clamp` |
-| River flow routing (the hydrology model) | `terrain/hydrology.ts` | generation, after de-pitting | `computeFlow`, `fillDepressions`, `riverWidthAt`, `relativeDischarge` |
+| River flow routing (the hydrology model) | `terrain/hydrology.ts` | generation, after de-pitting | `computeFlow`, `fillDepressions`, `riverWidthAt` |
 | What a terrain type **is** — water, and may anything stand on it | `terrain/terrainTraits.ts` | read-only leaf (breaks the `placementUtils ↔ terrainGrid` cycle) | `isWaterTerrainType`, `isUnbuildableTerrainType` |
 | Orographic rain shadow | `terrain/rainShadow.ts` | generation (the moisture field) | `rainShadowField` |
 | Ground bake, per-pixel Whittaker | `renderer/whittakerTerrain.ts` | render, cached per viewport | `buildWhittakerFields`, `bakeWhittakerGround`, `bandDetail` |
@@ -309,7 +305,7 @@ exports it.
 | One subject as an index inside a window | `components/SubjectWindow.tsx` | UI (composition/wiring only) | `SubjectWindow` |
 | Work & venue hours editor | `components/WorkHoursWindow.tsx` | UI (read-only editors, commands out) | `WorkHoursWindow` |
 | Family tree window | `components/FamilyTreeWindow.tsx` | UI (read-only; the data owner is `game/familyTree.buildFullFamilyTree`) | `FamilyTreeWindow` |
-| Test map fixtures | `src/test/worldMapFixtures.ts` | test tier only — never in the app build | `testWorldMap`, `blockedColumn`, `blockedRow` |
+| Test map fixtures | `src/test/worldMapFixtures.ts` | test tier only — never in the app build | `testWorldMap`, `blockedColumn` |
 
 ## Owners recorded by the 2026-10-08 audit-remediation session
 

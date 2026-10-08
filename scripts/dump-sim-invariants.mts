@@ -54,12 +54,6 @@ function human(world: JsonWorld, id: number): Entity {
   return found;
 }
 
-function building(world: JsonWorld, id: number): Building {
-  const found = world.buildings.find((b) => b.id === id);
-  if (!found) throw new Error(`scenario fixture error: no building ${id}`);
-  return found;
-}
-
 /** The founders `initGame` seeds — the only humans a fresh world owns. */
 function founders(world: JsonWorld): Entity[] {
   return world.entities.filter((e) => e.type === EntityType.Human && e.alive);

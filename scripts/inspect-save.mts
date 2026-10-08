@@ -79,14 +79,8 @@ if (!loadedMap) {
   console.log('worldMap: absent after load');
 } else {
   const tilePx = loaded.world.width / loadedMap.width;
-  // A compact save carries `tiles` in its own packed form, so the row probe is conditional: reading
-  // `tiles[0].length` unguarded threw on every compact save and hid the report below it.
-  const rows = loadedMap.tiles?.length ?? 0;
-  const firstRow = loadedMap.tiles?.[0]?.length ?? 0;
   console.log(
-    `world state ${loaded.world.width}x${loaded.world.height} px · worldMap ${loadedMap.width}x${loadedMap.height} tiles` +
-      (rows > 0 ? ` (${rows} rows, first row ${firstRow} tiles)` : ' (compact — tiles are packed, not a row array)') +
-      ` · tile = ${tilePx} px`,
+    `world state ${loaded.world.width}x${loaded.world.height} px · worldMap ${loadedMap.width}x${loadedMap.height} tiles · tile = ${tilePx} px`,
   );
   const expectedTilesX = Math.ceil(loaded.world.width / PATH_CELL);
   const expectedTilesY = Math.ceil(loaded.world.height / PATH_CELL);

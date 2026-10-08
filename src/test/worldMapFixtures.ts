@@ -97,8 +97,3 @@ export function testWorldMap(options: TestMapOptions): WorldMap {
 export function blockedColumn(tx: number): TestMapOptions['tileType'] {
   return (x: number) => (x === tx ? TerrainType.River : undefined);
 }
-
-/** A blocked row at tile `ty`, spanning every column. */
-export function blockedRow(ty: number): TestMapOptions['tileType'] {
-  return (_x: number, y: number) => (y === ty ? TerrainType.River : undefined);
-}

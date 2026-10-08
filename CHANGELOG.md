@@ -2,6 +2,18 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Fixed: the lifetime "Largest population" record no longer under-reports the peak** — it sampled only the year-end headcount, so a colony that peaked mid-year read a lower figure; it now tracks the peak every tick.
+
+- **Made settlers follow a cached route to its end instead of re-planning every few steps** — a long blocked walk re-ran the pathfinder every 32 px of progress although the route had not changed; it now re-plans only when the walker leaves the route.
+
+- **Made the pathfinder drop one stale route instead of clearing the whole cache** — past 200 settlers pathing at once, the cache emptied and everyone re-planned from scratch; it now evicts only the oldest.
+
+- **Fixed: the fatigue line no longer reports an average of worked hours as a shift** — a fractional day like 22.3h read as an impossible shift length; it now says the settlers worked that many hours on average.
+
+- **Added a lint and typecheck pass for the harness scripts** — the simulation probes and drivers sat outside every check, so their unused code and type errors went unseen; they are now reported by their own config.
+
+- **Fixed the city benchmark so each tier holds its own population** — the per-tier target landed in the maintainer's minimum-headcount slot and was ignored, so the larger tiers ran down instead of staying steady.
+
 - **Made auto-play fortify only a neighbour it has already paid** — the bot sends the food gift first and only raises a watchtower, barracks or wall when a hostile rival took that gift and stayed hostile.
 
 - **Stopped auto-play raising a Bridge** — bridges are left to the player to place, so the bot no longer proposes one.
