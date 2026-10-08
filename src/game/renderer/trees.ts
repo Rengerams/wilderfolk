@@ -4,6 +4,7 @@ import { getSpriteFrame } from '../spriteLoader';
 import { isDrawableSpriteFrame } from './shared';
 import { drawContactShadow, drawGroundAO, drawSpriteFrame } from './spriteDrawing';
 import { _cachedTrees } from './entityCache';
+import { worldToScreenX, worldToScreenY } from '../viewState';
 
 const BLUEBERRY_TREE_SPRITE_PATH = '/sprites/blueberry_tree.png';
 /** Regular tree variants — `tree.png` (rounded) and `tree2.png` (taller). Both are preloaded. */
@@ -40,8 +41,8 @@ export function drawTrees(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
 
   for (let i = 0; i < trees.length; i++) {
     const tree = trees[i];
-    const sx = (tree.x - cam.x) * cam.zoom + cw / 2;
-    const sy = (tree.y - cam.y) * cam.zoom + ch / 2;
+    const sx = worldToScreenX(tree.x, cam, cw);
+    const sy = worldToScreenY(tree.y, cam, ch);
     const baseSize = tree.size > 0 ? tree.size : 12;
     const size = baseSize * 2.4 * cam.zoom;
 

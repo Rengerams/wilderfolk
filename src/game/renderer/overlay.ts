@@ -1,6 +1,7 @@
 import { drawRenffrOmen } from '../renffrStar';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { motionTime } from './shared';
+import { drawBuildingHighlightRing, getBuildingFootprintScreenRect, isHighlightableBuilding } from './buildings';
 import { drawBuildPreview } from './buildPreview';
 import { drawGridTopOverlay } from './grid';
 import { drawBuildingActiveEffects } from './nightEffects';
@@ -20,6 +21,7 @@ export function drawGameOverlay(
   ch: number,
 ): void {
   drawBuildingActiveEffects(ctx, state, cw, ch);
+  drawHoveredBuildingRing(ctx, state, cw, ch);
   drawBuildPreview(ctx, state, cw, ch);
   drawEntityFlashOverlay(ctx, state, cw, ch);
   // Hunt arrows live here, not in the tick-keyed entity layer: `huntAnimProgress` is a
@@ -55,6 +57,27 @@ export function drawGameOverlay(
   if (state.renffrOmen) {
     drawRenffrOmen(ctx, state.renffrOmen, cw, ch, motionTime);
   }
+}
+
+/**
+ * Hover feedback repaints every frame, never in the tick-keyed entity layer: the layer is keyed on
+ * the tick and the selection, so a ring baked there lagged a tick and never appeared while paused.
+ */
+function drawHoveredBuildingRing(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+): void {
+  const hovered = state.hoveredBuilding;
+  // The layer already paints the selection ring for the same footprint.
+  if (hovered == null || hovered.id === state.selectedBuilding?.id) return;
+  if (!isHighlightableBuilding(hovered)) return;
+  drawBuildingHighlightRing(
+    ctx,
+    getBuildingFootprintScreenRect(hovered, state, state.camera, cw, ch),
+    { stroke: 'rgba(255,255,255,0.85)', lineWidth: 1.5, pad: 3, shadowBlur: 5 },
+  );
 }
 
 /** Cool blue night wash — no-op to disable night darkening. */

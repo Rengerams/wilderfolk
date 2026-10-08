@@ -4,6 +4,7 @@ import { isDrawableSpriteFrame } from './shared';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { drawSpriteFrame } from './spriteDrawing';
 import { _cachedGrass } from './entityCache';
+import { worldToScreenX, worldToScreenY } from '../viewState';
 
 function grassSeasonFill(season: Season): string {
   switch (season) {
@@ -36,8 +37,8 @@ export function drawGrass(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
   ctx.save();
   let drawn = 0;
   for (const grass of _cachedGrass) {
-    const sx = (grass.x - cam.x) * cam.zoom + cw / 2;
-    const sy = (grass.y - cam.y) * cam.zoom + ch / 2;
+    const sx = worldToScreenX(grass.x, cam, cw);
+    const sy = worldToScreenY(grass.y, cam, ch);
     const size = grass.size * 1.0 * cam.zoom;
     if (sx + size < -20 || sx - size > cw + 20 || sy + size < -20 || sy - size > ch + 20) continue;
     // Density cull when zoomed out

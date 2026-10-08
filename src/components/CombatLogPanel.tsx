@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type { GameEventLog } from '../game/gameTypes';
 import { displayYear } from '../game/dayCycleClock';
 import { summarizeCombatEvents } from '../game/eventLog';
@@ -20,17 +19,13 @@ function formatLine(evt: GameEventLog): string {
   return `Year ${displayYear(evt.year)}, Day ${evt.day} — ${evt.message}`;
 }
 
+// The chronicle array is mutated in place and handed straight in, so a memo keyed on it could never
+// see a new line; every value below is derived each render.
 export default function CombatLogPanel({ events, meta }: Props) {
-  const combatEvents = useMemo(
-    () => events.filter((e) => e.type === 'combat'),
-    [events],
-  );
-  const shown = useMemo(
-    () => combatEvents.slice(0, IN_GAME_LIMIT),
-    [combatEvents],
-  );
+  const combatEvents = events.filter((e) => e.type === 'combat');
+  const shown = combatEvents.slice(0, IN_GAME_LIMIT);
 
-  const stats = useMemo(() => summarizeCombatEvents(combatEvents), [combatEvents]);
+  const stats = summarizeCombatEvents(combatEvents);
 
   const exportCombat = () => {
     downloadChronicleLog(combatEvents, { ...meta, villageName: `${meta.villageName} — Combat` });

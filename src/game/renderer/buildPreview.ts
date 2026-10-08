@@ -12,6 +12,35 @@ import { footprintGroundRise } from './buildings';
 import { drawBuildingPad, drawBuildingSprite } from './spriteDrawing';
 
 // ============ BUILD PREVIEW ============
+/**
+ * The ghost's validity glow is a function of the footprint size and the verdict, not of the camera, so
+ * it is cached at the origin and drawn through a translate; the animated `pulse` rides `globalAlpha`.
+ */
+let previewGlowCache: {
+  ctx: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+  valid: boolean;
+  gradient: CanvasGradient;
+} | null = null;
+
+function previewGlowGradient(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  valid: boolean,
+): CanvasGradient {
+  const cached = previewGlowCache;
+  if (cached && cached.ctx === ctx && cached.width === w && cached.height === h && cached.valid === valid) {
+    return cached.gradient;
+  }
+  const gradient = ctx.createRadialGradient(0, 0, Math.min(w, h) * 0.2, 0, 0, Math.max(w, h) * 0.85);
+  gradient.addColorStop(0, valid ? 'rgba(52, 211, 153, 1)' : 'rgba(248, 113, 113, 1)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  previewGlowCache = { ctx, width: w, height: h, valid, gradient };
+  return gradient;
+}
+
 export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (!state.buildMode) return;
   if (state.buildStripPreview && isStripBuildType(state.buildMode)) return;
@@ -35,12 +64,11 @@ export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSna
 
   // Soft outer glow ring (valid green / invalid red)
   ctx.save();
-  const glow = ctx.createRadialGradient(sx, sy, Math.min(w, h) * 0.2, sx, sy, Math.max(w, h) * 0.85);
-  glow.addColorStop(0, valid ? `rgba(52, 211, 153, ${0.22 * pulse})` : `rgba(248, 113, 113, ${0.2 * pulse})`);
-  glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow;
+  ctx.globalAlpha = valid ? 0.22 * pulse : 0.2 * pulse;
+  ctx.fillStyle = previewGlowGradient(ctx, w, h, valid);
+  ctx.translate(sx, sy);
   ctx.beginPath();
-  ctx.ellipse(sx, sy + h * 0.05, w * 0.72, h * 0.55, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, h * 0.05, w * 0.72, h * 0.55, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 

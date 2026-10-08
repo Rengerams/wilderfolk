@@ -11,7 +11,7 @@ import { sayHumanChatPhrase } from './humanChat';
 import { ensureEntitySkills } from './skills';
 import { simulateElectionVotes } from './electionVotes';
 import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
-import { findPlayerTownHall } from './townHall';
+import { findPlayerTownHall } from './playerTownHall';
 import { seededRandomForRun } from './simRng';
 import { humanDisplayName } from './citizenId';
 import { startFeud } from './relationships';

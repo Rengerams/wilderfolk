@@ -99,6 +99,10 @@ const WHITTAKER_CHUNK_MARGIN = 1; // keep one chunk of margin around the viewpor
  */
 const DECOR_CHUNK_MARGIN = 32;
 /**
+ * Decor canvases one frame may bake — each is (256 + 2×32)² ≈ 102 kpx, twelve times the ground budget.
+ */
+const DECOR_BAKE_CHUNKS_PER_FRAME = 1;
+/**
  * Pixels of new ground one frame may bake.
  *
  * The per-pixel shader measures **1.5–4.6 µs per pixel** on the development machine (a 0.07 Mpx chunk
@@ -130,7 +134,7 @@ interface GroundChunk {
   /** False until the stand-in has been baked once — it is not re-baked while the crisp pass runs. */
   previewReady: boolean;
   /**
-   * This chunk's river courses and L3 props, baked once with the chunk.
+   * This chunk's river courses and L3 props, baked one chunk per frame by `DECOR_BAKE_CHUNKS_PER_FRAME`.
    *
    * It is a canvas of its own, not part of `canvas`, because the props need an **overhang margin** — the
    * art of a prop reaches ~24 world px either side of its origin, so a canvas that stopped at the chunk
@@ -316,23 +320,56 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
     const vw = Math.abs(brX - tlX);
     const vh = Math.abs(brY - tlY);
     const plan = planGroundChunks(state.width, state.height, chunkWorld, { x: vx, y: vy, width: vw, height: vh });
+    // Every planned chunk stays cached for this frame, materialised or not, so the prune below only
+    // drops what the camera has left behind.
     const keep = new Set<string>();
+    for (const origin of plan) keep.add(`${origin.x},${origin.y}`);
     let budget = GROUND_BAKE_PIXEL_BUDGET_PER_FRAME;
+
+    /** What a chunk at `origin` covers — sized without allocating, so a plan entry can be costed first. */
+    const chunkGeometry = (origin: { x: number; y: number }) => {
+      const worldW = Math.min(chunkWorld, state.width - origin.x);
+      const worldH = Math.min(chunkWorld, state.height - origin.y);
+      const previewStep = Math.min(4, step * GROUND_PREVIEW_STEP_FACTOR);
+      return {
+        worldW,
+        worldH,
+        previewStep,
+        rowsTotal: Math.max(1, Math.ceil(worldH / step)),
+        previewW: Math.max(1, Math.ceil(worldW / previewStep)),
+        previewH: Math.max(1, Math.ceil(worldH / previewStep)),
+      };
+    };
 
     const ensureChunk = (origin: { x: number; y: number }): GroundChunk => {
       const chunkKey = `${origin.x},${origin.y}`;
       keep.add(chunkKey);
       const existing = whittakerChunks.get(chunkKey);
       if (existing) return existing;
-      const worldW = Math.min(chunkWorld, state.width - origin.x);
-      const worldH = Math.min(chunkWorld, state.height - origin.y);
-      const rowsTotal = Math.max(1, Math.ceil(worldH / step));
-      const previewStep = Math.min(4, step * GROUND_PREVIEW_STEP_FACTOR);
-      // The chunk's river courses and L3 props, baked **once here** — never per frame. Only chunks the
-      // camera plans (the visible rect plus one chunk of margin) get one, so props off screen cost
-      // nothing at all, and each chunk's is baked a single time for the life of the map.
-      const decorWorldW = worldW + DECOR_CHUNK_MARGIN * 2;
-      const decorWorldH = worldH + DECOR_CHUNK_MARGIN * 2;
+      const geometry = chunkGeometry(origin);
+      const chunk: GroundChunk = {
+        canvas: createCanvasSurface(Math.max(1, Math.ceil(geometry.worldW / step)), geometry.rowsTotal),
+        preview: geometry.previewStep > step
+          ? createCanvasSurface(geometry.previewW, geometry.previewH)
+          : null,
+        previewStep: geometry.previewStep,
+        previewReady: false,
+        decor: null,
+        worldX: origin.x,
+        worldY: origin.y,
+        worldW: geometry.worldW,
+        worldH: geometry.worldH,
+        rowsBaked: 0,
+        rowsTotal: geometry.rowsTotal,
+      };
+      whittakerChunks.set(chunkKey, chunk);
+      return chunk;
+    };
+
+    /** Bake one chunk's river courses and L3 props onto the overhanging canvas of its own. */
+    const bakeChunkDecor = (chunk: GroundChunk): void => {
+      const decorWorldW = chunk.worldW + DECOR_CHUNK_MARGIN * 2;
+      const decorWorldH = chunk.worldH + DECOR_CHUNK_MARGIN * 2;
       const decor = createCanvasSurface(
         Math.max(1, Math.ceil(decorWorldW / step)),
         Math.max(1, Math.ceil(decorWorldH / step)),
@@ -340,40 +377,41 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
       bakeDecorInRect(
         getCanvasContext(decor) as CanvasRenderingContext2D,
         map,
-        { x: origin.x - DECOR_CHUNK_MARGIN, y: origin.y - DECOR_CHUNK_MARGIN, width: decorWorldW, height: decorWorldH },
+        { x: chunk.worldX - DECOR_CHUNK_MARGIN, y: chunk.worldY - DECOR_CHUNK_MARGIN, width: decorWorldW, height: decorWorldH },
         1 / step,
       );
-      const chunk: GroundChunk = {
-        canvas: createCanvasSurface(Math.max(1, Math.ceil(worldW / step)), rowsTotal),
-        preview: previewStep > step
-          ? createCanvasSurface(Math.max(1, Math.ceil(worldW / previewStep)), Math.max(1, Math.ceil(worldH / previewStep)))
-          : null,
-        previewStep,
-        previewReady: false,
-        decor,
-        worldX: origin.x,
-        worldY: origin.y,
-        worldW,
-        worldH,
-        rowsBaked: 0,
-        rowsTotal,
-      };
-      whittakerChunks.set(chunkKey, chunk);
-      return chunk;
+      chunk.decor = decor;
     };
+
+    // Pass 0 — props. A chunk's decor canvas is the largest surface it allocates, so one per frame is
+    // its whole budget: baking the whole window's prop art here is what made a pan past the margin hitch.
+    let decorBaked = 0;
+    for (const origin of plan) {
+      if (decorBaked >= DECOR_BAKE_CHUNKS_PER_FRAME) break;
+      const chunk = whittakerChunks.get(`${origin.x},${origin.y}`) ?? ensureChunk(origin);
+      if (chunk.decor) continue;
+      bakeChunkDecor(chunk);
+      decorBaked++;
+    }
 
     // Pass 1 — cover. Every planned chunk gets its coarse stand-in before any of them is sharpened, so
     // the map is whole early instead of arriving one chunk at a time; the stand-in is 1/16 of the crisp
     // bake, so the whole view costs about one crisp chunk. **The first stand-in of a frame is baked even
     // if it alone exceeds the budget** — covering the view is what keeps the void off the screen, and a
-    // starved cover pass is exactly what turned a zoom into a black background. Later ones wait for a
-    // frame that can afford them.
+    // starved cover pass is exactly what turned a zoom into a black background. A later one waits for a
+    // frame that can afford it, and a chunk that cannot be afforded is not allocated either.
     let covered = 0;
     for (const origin of plan) {
-      const chunk = ensureChunk(origin);
-      if (!chunk.preview || chunk.previewReady) continue;
-      const previewPixels = chunk.preview.width * chunk.preview.height;
+      const existing = whittakerChunks.get(`${origin.x},${origin.y}`);
+      if (existing && (!existing.preview || existing.previewReady)) continue;
+      const geometry = chunkGeometry(origin);
+      // A bake step as coarse as the stand-in would be leaves nothing to cover.
+      if (geometry.previewStep <= step) continue;
+      const previewPixels = geometry.previewW * geometry.previewH;
       if (covered > 0 && budget < previewPixels) break;
+      const chunk = existing ?? ensureChunk(origin);
+      const preview = chunk.preview;
+      if (!preview) continue;
       const bakedPreview = bakeWhittakerGround(
         map, state.width, state.height,
         map.seaLevel ?? 0.24, map.moistureBias ?? 0,
@@ -382,7 +420,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
         chunk.previewStep,
       );
       if (!bakedPreview) break; // no continuous fields: the guard above already excluded this
-      getCanvasContext(chunk.preview).drawImage(bakedPreview, 0, 0);
+      getCanvasContext(preview).drawImage(bakedPreview, 0, 0);
       chunk.previewReady = true;
       budget -= previewPixels;
       covered++;
@@ -392,6 +430,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
     // bands, so a frame never spends more than its budget on ground. At least one row is always baked
     // when the budget allows any: a budget smaller than a row must still move the fill forward.
     sharpen: for (const origin of plan) {
+      if (budget <= 0) break;
       const chunk = ensureChunk(origin);
       while (budget > 0 && chunk.rowsBaked < chunk.rowsTotal) {
         const canvasW = Math.max(1, chunk.canvas.width);
@@ -516,6 +555,46 @@ function drawSimpleGreenGround(ctx: CanvasRenderingContext2D, state: RenderSnaps
   ctx.strokeRect(tlx, tly, mapW, mapH);
 }
 
+/** The void wash depends only on the context and the viewport, so it is built once per size. */
+let voidGradientCache: {
+  ctx: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+  gradient: CanvasGradient;
+} | null = null;
+
+function voidGradient(ctx: CanvasRenderingContext2D, cw: number, ch: number): CanvasGradient {
+  const cached = voidGradientCache;
+  if (cached && cached.ctx === ctx && cached.width === cw && cached.height === ch) return cached.gradient;
+  const gradient = ctx.createRadialGradient(
+    cw * 0.5, ch * 0.4, Math.min(cw, ch) * 0.1, cw * 0.5, ch * 0.55, Math.max(cw, ch) * 0.8,
+  );
+  gradient.addColorStop(0, 'rgba(28, 48, 36, 0.25)');
+  gradient.addColorStop(0.45, 'rgba(10, 16, 12, 0)');
+  gradient.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
+  voidGradientCache = { ctx, width: cw, height: ch, gradient };
+  return gradient;
+}
+
+/** The map's diagonal sun wash, rebased on the map's own rect so panning never misses the cache. */
+let sunGradientCache: {
+  ctx: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+  gradient: CanvasGradient;
+} | null = null;
+
+function sunGradient(ctx: CanvasRenderingContext2D, width: number, height: number): CanvasGradient {
+  const cached = sunGradientCache;
+  if (cached && cached.ctx === ctx && cached.width === width && cached.height === height) return cached.gradient;
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, 'rgba(255, 250, 230, 0.045)');
+  gradient.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
+  gradient.addColorStop(1, 'rgba(10, 20, 40, 0.06)');
+  sunGradientCache = { ctx, width, height, gradient };
+  return gradient;
+}
+
 function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;
 
@@ -532,11 +611,7 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   const voidBase = (presetVoid && voidColors[presetVoid]) || '#0c1410';
   ctx.fillStyle = voidBase;
   ctx.fillRect(0, 0, cw, ch);
-  const voidGrad = ctx.createRadialGradient(cw * 0.5, ch * 0.4, Math.min(cw, ch) * 0.1, cw * 0.5, ch * 0.55, Math.max(cw, ch) * 0.8);
-  voidGrad.addColorStop(0, 'rgba(28, 48, 36, 0.25)');
-  voidGrad.addColorStop(0.45, 'rgba(10, 16, 12, 0)');
-  voidGrad.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
-  ctx.fillStyle = voidGrad;
+  ctx.fillStyle = voidGradient(ctx, cw, ch);
   ctx.fillRect(0, 0, cw, ch);
 
   if (state.worldMap && (whittakerChunks.size > 0 || terrainChunkCache.size > 0)) {
@@ -621,10 +696,7 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
 
     // Phase D — softer sun wash (textures + season wash carry most of the look)
     ctx.save();
-    const sun = ctx.createLinearGradient(sx0, sy0, sx0 + drawW, sy0 + drawH);
-    sun.addColorStop(0, 'rgba(255, 250, 230, 0.045)');
-    sun.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
-    sun.addColorStop(1, 'rgba(10, 20, 40, 0.06)');
+    const sun = sunGradient(ctx, drawW, drawH);
     ctx.fillStyle = sun;
     ctx.fillRect(sx0, sy0, drawW, drawH);
     ctx.restore();

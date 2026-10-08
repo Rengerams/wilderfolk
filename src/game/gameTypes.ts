@@ -192,8 +192,8 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
   [BuildingType.Hotel]: JobType.Hotelier,
 };
 
-/** Max visitor guests who can sleep at one staffed hotel overnight. */
-export const HOTEL_GUEST_CAPACITY = 4;
+/** Max sleepers at one staffed hotel overnight — visitors and settlers share the same beds. */
+export const HOTEL_GUEST_CAPACITY = 8;
 
 /**
  * The building types whose `level` genuinely changes something — the exact set an upgrade may be
@@ -1103,30 +1103,22 @@ export const MapSize = {
 export type MapSize = (typeof MapSize)[keyof typeof MapSize];
 
 /**
- * World pixels per map size.
+ * World pixels per map size — the Teraforge spec the ground renderer is measured against
+ * (`renderer/whittakerTerrain`'s bake table).
  *
- * **These are the reduced shipped sizes, not the Teraforge spec the ground renderer is measured
- * against** (`renderer/whittakerTerrain`'s bake table: 2560×1920 / 4096×3072 / 6144×4608). Raising them
- * to the spec values is a **two-part** change and was attempted on 2026-09-29 with only the first in
- * place; it was reverted the same session for exactly the reasons recorded here:
- *
- * - the ground fill is baked at a **fixed 1:1** step (zoom cannot re-key the cache without dropping the
- *   chunks on screen — the "zooming gives a black background" bug), and at 2560×1920 that makes the
- *   50 % overview **80 chunks / 5.2 Mpx** of ground to sharpen on top of a 4.6 Mpx first view: the
- *   overview rendered as chunk-shaped gaps at 11 fps;
- * - four suites encode the shipped scale and fail on the bigger ones — the compact-save round trip
- *   (`saveWorldMap.compact`), the river-network rules (`terragen.riverGeneration`, whose trunk must
- *   exceed a share of the map's short side), and two simulation behaviours (`medium-C1-economy` deer
- *   spawn, `workCommute.leadHour`).
- *
- * So the order is: **chunk the decor** (done — no full-map surface is left in the ground path), then give
- * each chunk a **zoom-following bake step re-baked in place**, then raise these values and re-pin the four
- * suites.
+ * At this scale the ground fill's **fixed 1:1** bake step matters: zoom cannot re-key the cache without
+ * dropping the chunks on screen (the "zooming gives a black background" bug), so the 50 % overview has
+ * 80 chunks / 5.2 Mpx to sharpen on top of a 4.6 Mpx first view and can render as chunk-shaped gaps.
+ * An earlier attempt at these values without a zoom-following bake step was reverted for that reason,
+ * and **the step still missing is a per-chunk, in-place re-bake on zoom.** The four suites that encode a
+ * map's scale were re-pinned with this change: the compact-save round trip (`saveWorldMap.compact`), the
+ * river-network rules (`terragen.riverGeneration`), and two simulation behaviours (`medium-C1-economy`
+ * deer spawn, `workCommute.leadHour`).
  */
 export const MAP_SIZE_DIMENSIONS: Record<MapSize, { width: number; height: number }> = {
-  [MapSize.Medium]: { width: 1200, height: 900 },
-  [MapSize.Large]: { width: 1600, height: 1200 },
-  [MapSize.Huge]: { width: 2560, height: 1920 },
+  [MapSize.Medium]: { width: 2560, height: 1920 },
+  [MapSize.Large]: { width: 4096, height: 3072 },
+  [MapSize.Huge]: { width: 6144, height: 4608 },
 };
 
 /**

@@ -2,6 +2,7 @@
 import { BuildingType } from '../buildings';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { motionTime } from './shared';
+import { worldToScreenX, worldToScreenY } from '../viewState';
 
 // ============ NIGHT BUILDING GLOW ============
 /** Disabled: day and night visual differences are removed. */
@@ -29,8 +30,8 @@ export function drawBuildingActiveEffects(
   ctx.save();
   for (const b of state.buildings) {
     if (b.faction === 'rival') continue;
-    const sx = (b.x - cam.x) * cam.zoom + cw / 2;
-    const sy = (b.y - cam.y) * cam.zoom + ch / 2;
+    const sx = worldToScreenX(b.x, cam, cw);
+    const sy = worldToScreenY(b.y, cam, ch);
     const w = b.width * cam.zoom;
     const h = b.height * cam.zoom;
     if (sx + w < -40 || sx - w > cw + 40 || sy + h < -40 || sy - h > ch + 40) continue;

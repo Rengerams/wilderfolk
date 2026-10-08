@@ -4,6 +4,7 @@ import { getHumanSpriteMetrics } from '../humanSprites';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { motionTime } from './shared';
 import { _cachedAnimals, _cachedHumans } from './entityCache';
+import { worldToScreenX, worldToScreenY } from '../viewState';
 import { drawAnimals } from './animals';
 import { drawBuildings } from './buildings';
 import { drawBuildZoneOverlay, drawGrid } from './grid';
@@ -54,8 +55,8 @@ function drawEntityFlashOverlay(ctx: CanvasRenderingContext2D, state: RenderSnap
   const cam = state.camera;
   for (const e of _cachedAnimals) {
     if (e.flash <= 0) continue;
-    const sx = (e.x - cam.x) * cam.zoom + cw / 2;
-    const sy = (e.y - cam.y) * cam.zoom + ch / 2;
+    const sx = worldToScreenX(e.x, cam, cw);
+    const sy = worldToScreenY(e.y, cam, ch);
     const { spriteH } = getAnimalSpriteMetrics(e, cam.zoom);
     ctx.save();
     ctx.globalAlpha = 0.7 + Math.sin(motionTime * 20) * 0.3;
@@ -68,8 +69,8 @@ function drawEntityFlashOverlay(ctx: CanvasRenderingContext2D, state: RenderSnap
   }
   for (const human of _cachedHumans) {
     if (human.flash <= 0) continue;
-    const sx = (human.x - cam.x) * cam.zoom + cw / 2;
-    const sy = (human.y - cam.y) * cam.zoom + ch / 2;
+    const sx = worldToScreenX(human.x, cam, cw);
+    const sy = worldToScreenY(human.y, cam, ch);
     const { size, spriteH, footOffset } = getHumanSpriteMetrics(human, cam.zoom);
     const footY = sy + footOffset;
     ctx.save();

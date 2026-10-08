@@ -91,6 +91,13 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   if (!house) return;
 
   const household = collectLeaderHousehold(state);
+  // A household reads empty while the office is still held (Moon Howler form, prison sentence), so
+  // only a vacant office may evict.
+  const officeHeld =
+    state.villageLeaderId != null
+    && state.entities.some((e) => e.id === state.villageLeaderId && e.alive);
+  if (household.length === 0 && officeHeld) return;
+
   const entitledIds = new Set(household.map((m) => m.id));
   let evicted = false;
   let movedIn = false;

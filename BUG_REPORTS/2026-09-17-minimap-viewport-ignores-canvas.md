@@ -1,7 +1,7 @@
 # The minimap viewport rectangle ignored the canvas size
 
 - Bug: the minimap drew its camera rectangle as `world.width / zoom * scaleX * 0.5`, which collapses to `minimapWidth / (2 * zoom)` — it never read the map canvas, so the box was the wrong size and did not follow a window resize
-- Status: resolved
+- Status: resolved (2026-10-08: re-confirmed after a regression — the rectangle is pinned by a numeric test)
 - Date discovered: 2026-09-16 (UI-logic audit, finding F6)
 - Date resolved: 2026-09-17
 - Version/build: 0.6.4
@@ -14,6 +14,7 @@
 
 - 2026-09-16 — open (found by the UI-logic audit pass; never filed as a report)
 - 2026-09-17 — resolved (the rectangle is derived from the map canvas and the zoom)
+- 2026-10-08 — resolved (the first fix regressed; the rectangle is derived from the canvas again and is pinned by `tests/minimap.viewportSizing.test.ts`)
 
 ## Observed behavior
 
@@ -58,12 +59,11 @@ already holds that ref.
 
 ## Regression test
 
-None added: the defect is arithmetic inside a `requestAnimationFrame` draw against a canvas 2D
-context, and this tier has no DOM (`vitest.config.ts` is `environment: 'node'`). A pure helper
-could be extracted and tested, but that would reshape the component for one expression; the
-change is a three-line substitution whose correctness is the renderer's `cw / 2` contract,
-stated in the code comment. Disclosed rather than papered over with a source-scan assertion
-that would prove nothing about the number.
+`tests/minimap.viewportSizing.test.ts` — the arithmetic is now the pure exported
+`computeMiniMapViewportRect` in `src/components/MiniMap.tsx`, so it is asserted numerically with
+no DOM: canvas size + camera + world in, hand-computed rectangle out. It pins the canvas-derived
+width (which the world-derived expression got wrong), a canvas with a different aspect, the
+zero-measurement fallback, and the rectangle following the camera.
 
 ## Invariants checked
 

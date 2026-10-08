@@ -1,5 +1,5 @@
 import { BuildingType, BUILDING_CONFIGS, EntityType } from '../gameTypes';
-import type { Building } from '../gameTypes';
+import type { Building, Camera } from '../gameTypes';
 import { isDecorType } from '../beautyGrid';
 import { categoryBorderDashForType } from '../buildCatalog';
 import { drawProceduralDecor } from '../decorRender';
@@ -39,16 +39,21 @@ import {
 let sortedBuildingsKey: { array: readonly Building[]; count: number } | null = null;
 let sortedBuildings: Building[] | null = null;
 
+/** The buildings the completed pass depth-sorts and highlights: finished, not roads or wall panels. */
+export function isHighlightableBuilding(b: Building): boolean {
+  return b.completed && b.type !== BuildingType.Road && !ISO_PANEL_BUILDINGS.has(b.type);
+}
+
 function completedDepthSortedBuildings(buildings: readonly Building[]): Building[] {
   let count = 0;
   for (const b of buildings) {
-    if (b.completed && b.type !== BuildingType.Road && !ISO_PANEL_BUILDINGS.has(b.type)) count++;
+    if (isHighlightableBuilding(b)) count++;
   }
   if (sortedBuildings && sortedBuildingsKey?.array === buildings && sortedBuildingsKey.count === count) {
     return sortedBuildings;
   }
   const sorted = buildings
-    .filter((b) => b.completed && b.type !== BuildingType.Road && !ISO_PANEL_BUILDINGS.has(b.type))
+    .filter((b) => isHighlightableBuilding(b))
     .sort((a, b) => {
       const depthA = a.y + a.height / 2;
       const depthB = b.y + b.height / 2;
@@ -68,18 +73,77 @@ export function footprintGroundRise(
   return terrainRiseAt(map, footprint.x, getBuildingFootprintRect(footprint).bottom);
 }
 
+/** Screen anchor of a building: its footprint centre projected onto the sampled relief. */
+function getBuildingScreenRect(
+  b: Pick<Building, 'x' | 'y' | 'width' | 'height'>,
+  state: RenderSnapshot,
+  cam: Camera,
+  cw: number,
+  ch: number,
+): { sx: number; sy: number; w: number; h: number } {
+  const sx = (b.x - cam.x) * cam.zoom + cw / 2;
+  // Ride the 2.5D relief — the footprint base sits on the raised terrain
+  const sy = (b.y - cam.y) * cam.zoom + ch / 2
+    - footprintGroundRise(state.worldMap, b) * cam.zoom;
+  return { sx, sy, w: b.width * cam.zoom, h: b.height * cam.zoom };
+}
+
+/** The owner's footprint rect (`getBuildingFootprintRect`) in screen px, around that same anchor. */
+export function getBuildingFootprintScreenRect(
+  b: Pick<Building, 'x' | 'y' | 'width' | 'height'>,
+  state: RenderSnapshot,
+  cam: Camera,
+  cw: number,
+  ch: number,
+): { left: number; top: number; right: number; bottom: number } {
+  const { sx, sy } = getBuildingScreenRect(b, state, cam, cw, ch);
+  const rect = getBuildingFootprintRect(b);
+  return {
+    left: sx + (rect.left - b.x) * cam.zoom,
+    top: sy + (rect.top - b.y) * cam.zoom,
+    right: sx + (rect.right - b.x) * cam.zoom,
+    bottom: sy + (rect.bottom - b.y) * cam.zoom,
+  };
+}
+
+/** Stroke of one building highlight — the click selection ring or the hover ring. */
+export interface BuildingHighlightStyle {
+  stroke: string;
+  lineWidth: number;
+  pad: number;
+  fill?: string;
+  dash?: number[];
+  shadowBlur?: number;
+}
+
+/** The one ring painter, around a footprint rect from {@link getBuildingFootprintScreenRect}. */
+export function drawBuildingHighlightRing(
+  ctx: CanvasRenderingContext2D,
+  rect: { left: number; top: number; right: number; bottom: number },
+  style: BuildingHighlightStyle,
+): void {
+  const x = rect.left - style.pad;
+  const y = rect.top - style.pad;
+  const w = rect.right - rect.left + style.pad * 2;
+  const h = rect.bottom - rect.top + style.pad * 2;
+  ctx.save();
+  if (style.fill) {
+    ctx.fillStyle = style.fill;
+    ctx.fillRect(x, y, w, h);
+  }
+  ctx.strokeStyle = style.stroke;
+  ctx.lineWidth = style.lineWidth;
+  if (style.dash) ctx.setLineDash(style.dash);
+  if (style.shadowBlur) {
+    ctx.shadowColor = style.stroke;
+    ctx.shadowBlur = style.shadowBlur;
+  }
+  ctx.strokeRect(x, y, w, h);
+  ctx.restore();
+}
+
 export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;
-
-  function getBuildingScreenRect(b: typeof state.buildings[0]) {
-    const sx = (b.x - cam.x) * cam.zoom + cw / 2;
-    // Ride the 2.5D relief — the footprint base sits on the raised terrain
-    const sy = (b.y - cam.y) * cam.zoom + ch / 2
-      - footprintGroundRise(state.worldMap, b) * cam.zoom;
-    const w = b.width * cam.zoom;
-    const h = b.height * cam.zoom;
-    return { sx, sy, w, h };
-  }
 
   const isHovered = (b: typeof state.buildings[0]) => state.hoveredBuilding?.id === b.id;
 
@@ -91,7 +155,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   let roadStrips: ReturnType<typeof collectStripCenters> | null = null;
   for (const b of state.buildings) {
     if (b.type !== BuildingType.Road || !b.completed) continue;
-    const { sx, sy, w, h } = getBuildingScreenRect(b);
+    const { sx, sy, w, h } = getBuildingScreenRect(b, state, cam, cw, ch);
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
     const hover = isHovered(b);
     const rot = effectiveBuildingRotation(b.type, b.rotation);
@@ -106,7 +170,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   // Palisade walls, corners & gates (procedural — chains read clearly on the map)
   for (const b of state.buildings) {
     if (!ISO_PANEL_BUILDINGS.has(b.type) || !b.completed) continue;
-    const { sx, sy, w, h } = getBuildingScreenRect(b);
+    const { sx, sy, w, h } = getBuildingScreenRect(b, state, cam, cw, ch);
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
     const rot = effectiveBuildingRotation(b.type, b.rotation);
     const hover = isHovered(b);
@@ -117,7 +181,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   // Under construction
   for (const b of state.buildings) {
     if (b.completed) continue;
-    const { sx, sy, w, h } = getBuildingScreenRect(b);
+    const { sx, sy, w, h } = getBuildingScreenRect(b, state, cam, cw, ch);
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
     const cfg = BUILDING_CONFIGS[b.type];
     const tint = cfg.backgroundColor;
@@ -162,13 +226,12 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
 
   // Completed buildings (roads and wall panels already drawn above)
   for (const b of completedDepthSortedBuildings(state.buildings)) {
-    const { sx, sy, w, h } = getBuildingScreenRect(b);
+    const { sx, sy, w, h } = getBuildingScreenRect(b, state, cam, cw, ch);
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
 
     const cfg = BUILDING_CONFIGS[b.type];
     const frame = cfg.sprite ? getSpriteFrame(cfg.sprite) : null;
     const sel = state.selectedBuilding?.id === b.id;
-    const hover = isHovered(b);
 
     // Shared long contact/cast shadow establishes one SE light direction for every visible subject.
     drawContactShadow(
@@ -243,24 +306,14 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
       ctx.fillText(label, sx, sy - h / 2 - 5);
     }
 
-    if (sel || hover) {
-      const ringColor = sel ? (isRival ? '#a5b4fc' : '#6ee7b7') : 'rgba(255,255,255,0.85)';
-      const padX = sx - w / 2 - 3;
-      const padY = sy - h / 2 - 3;
-      const padRw = w + 6;
-      const padRh = h + 6;
-      ctx.save();
-      if (sel) {
-        ctx.fillStyle = isRival ? 'rgba(99, 102, 241, 0.12)' : 'rgba(16, 185, 129, 0.12)';
-        ctx.fillRect(padX, padY, padRw, padRh);
-      }
-      ctx.strokeStyle = ringColor;
-      ctx.lineWidth = sel ? 2.5 : 1.5;
-      ctx.shadowColor = ringColor;
-      ctx.shadowBlur = sel ? 12 : 5;
-      ctx.strokeRect(padX, padY, padRw, padRh);
-      ctx.shadowBlur = 0;
-      ctx.restore();
+    if (sel) {
+      drawBuildingHighlightRing(ctx, getBuildingFootprintScreenRect(b, state, cam, cw, ch), {
+        stroke: isRival ? '#a5b4fc' : '#6ee7b7',
+        fill: isRival ? 'rgba(99, 102, 241, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+        lineWidth: 2.5,
+        pad: 3,
+        shadowBlur: 12,
+      });
     }
 
     if (b.level > 1) {
@@ -313,25 +366,14 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
       if (id == null) return;
       const building = state.buildings.find((candidate) => candidate.id === id);
       if (!building) return;
-      const { sx, sy, w, h } = getBuildingScreenRect(building);
-      const pad = Math.max(3, 4 * cam.zoom);
-      ctx.save();
-      ctx.strokeStyle = stroke;
-      ctx.lineWidth = Math.max(2, 2.5 * cam.zoom);
-      ctx.setLineDash([Math.max(4, 6 * cam.zoom), Math.max(3, 4 * cam.zoom)]);
-      // `getBuildingScreenRect` returns **centre-x / bottom-y**, not a centre — it is the anchor the
-      // sprite itself is drawn from, so the art rises off the footprint base (the convention
-      // `buildPreview.ts:23` and `grid.ts:331` both record). Treating it as a centre and subtracting
-      // half the footprint put this ring a half-footprint up and to the left of the building, which
-      // is the offset the owner reported. Build the rect from the base instead: the box spans the
-      // footprint horizontally around `sx`, and vertically **upward** from the base line `sy`.
-      ctx.strokeRect(
-        sx - w / 2 - pad,
-        sy - h - pad,
-        w + pad * 2,
-        h + pad * 2,
-      );
-      ctx.restore();
+      // Both rings read the owner's footprint rect (`buildingGeometry`), so neither can sit half
+      // a footprint off the building it marks.
+      drawBuildingHighlightRing(ctx, getBuildingFootprintScreenRect(building, state, cam, cw, ch), {
+        stroke,
+        lineWidth: Math.max(2, 2.5 * cam.zoom),
+        pad: Math.max(3, 4 * cam.zoom),
+        dash: [Math.max(4, 6 * cam.zoom), Math.max(3, 4 * cam.zoom)],
+      });
     };
     ring(selected.residenceBuildingId, '#38bdf8'); // home — sky blue
     ring(selected.homeBuildingId, '#facc15'); // workplace — amber

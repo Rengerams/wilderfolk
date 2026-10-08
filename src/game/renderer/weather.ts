@@ -32,6 +32,7 @@ import { tileTypeAt } from '../terrain/terrainGrid';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { motionTime, renderTime } from './shared';
 import { getPresentationRng } from '../simRng';
+import { worldToScreenX, worldToScreenY } from '../viewState';
 
 /* ========================= TERAFORGE'S REGISTRY CONTRACT ========================= */
 
@@ -100,6 +101,40 @@ const MAX_FRAME_DT = 0.1;
 interface CloudPuff { x: number; y: number; r: number; sp: number; a: number }
 
 /**
+ * One soft puff bitmap per colour, rasterised once and scaled per puff — the ramp's colour is constant,
+ * so a blob faded by the puff's alpha is what the per-puff gradient drew, and no DOM falls back to it.
+ */
+const cloudPuffBlobs = new Map<string, HTMLCanvasElement | null>();
+
+function getCloudPuffBlob(color: string): HTMLCanvasElement | null {
+  const cached = cloudPuffBlobs.get(color);
+  if (cached !== undefined) return cached;
+  let blob: HTMLCanvasElement | null = null;
+  try {
+    if (typeof document !== 'undefined') {
+      const size = 64;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const g = canvas.getContext('2d');
+      if (g) {
+        const c = size / 2;
+        const grad = g.createRadialGradient(c, c, 0, c, c, c);
+        grad.addColorStop(0, weatherOverlayStyle(color, 1));
+        grad.addColorStop(1, weatherOverlayStyle(color, 0));
+        g.fillStyle = grad;
+        g.fillRect(0, 0, size, size);
+        blob = canvas;
+      }
+    }
+  } catch {
+    blob = null;
+  }
+  cloudPuffBlobs.set(color, blob);
+  return blob;
+}
+
+/**
  * Teraforge's cloud puffs: soft dark blobs drifting with the camera, drawn with `multiply` so they
  * read as cloud shadow rather than as grey discs. It is a *layer* here, not a plugin, because
  * Wilderfolk has no `Clouds` weather state to select it.
@@ -125,11 +160,20 @@ function makeCloudLayer(count: number, color: string, alpha: number): {
     draw(g, f) {
       g.save();
       g.globalCompositeOperation = 'multiply';
+      const blob = getCloudPuffBlob(color);
+      // The blob is a bitmap, so it is scaled smoothly — the frame runs with smoothing off for sprites.
+      if (blob) g.imageSmoothingEnabled = true;
       for (const p of puffs) {
         const x = p.x - f.camX * CLOUD_PARALLAX;
         const y = p.y - f.camY * CLOUD_PARALLAX;
+        const puffAlpha = Math.min(1, p.a * alpha * 2);
+        if (blob) {
+          g.globalAlpha = puffAlpha;
+          g.drawImage(blob, x - p.r, y - p.r, p.r * 2, p.r * 2);
+          continue;
+        }
         const grad = g.createRadialGradient(x, y, 0, x, y, p.r);
-        grad.addColorStop(0, weatherOverlayStyle(color, Math.min(1, p.a * alpha * 2)));
+        grad.addColorStop(0, weatherOverlayStyle(color, puffAlpha));
         grad.addColorStop(1, weatherOverlayStyle(color, 0));
         g.fillStyle = grad;
         g.fillRect(x - p.r, y - p.r, p.r * 2, p.r * 2);
@@ -299,6 +343,38 @@ registerWeather({
 
 interface FogBand { y: number; sp: number; x: number; h: number }
 
+/**
+ * The mist ramp every band shares, rasterised once — the band's height scales it exactly as it scaled
+ * the gradient it replaces. `null` (no DOM) keeps the per-band gradient fallback.
+ */
+let fogBandBlob: HTMLCanvasElement | null | undefined;
+
+function getFogBandBlob(): HTMLCanvasElement | null {
+  if (fogBandBlob !== undefined) return fogBandBlob;
+  fogBandBlob = null;
+  try {
+    if (typeof document !== 'undefined') {
+      const height = 64;
+      const canvas = document.createElement('canvas');
+      canvas.width = 2;
+      canvas.height = height;
+      const g = canvas.getContext('2d');
+      if (g) {
+        const grad = g.createLinearGradient(0, 0, 0, height);
+        grad.addColorStop(0, 'rgba(255,255,255,0)');
+        grad.addColorStop(0.5, 'rgba(248,250,252,0.22)');
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = grad;
+        g.fillRect(0, 0, 2, height);
+        fogBandBlob = canvas;
+      }
+    }
+  } catch {
+    fogBandBlob = null;
+  }
+  return fogBandBlob;
+}
+
 /** Fog: horizontal mist bands drifting across the viewport (Teraforge), plus Wilderfolk's density veil. */
 function makeFog(): WeatherEffect {
   const cfg = WEATHER_CONFIGS[WeatherType.Fog];
@@ -316,9 +392,16 @@ function makeFog(): WeatherEffect {
     },
     draw(g, f) {
       g.save();
+      const blob = getFogBandBlob();
+      // The band is a bitmap, so it is scaled smoothly — the frame runs with smoothing off for sprites.
+      if (blob) g.imageSmoothingEnabled = true;
       for (const b of bands) {
         const x = ((b.x % (f.width + 900)) + f.width + 900) % (f.width + 900) - 450;
         const y = (b.y - f.camY * FOG_PARALLAX) % (f.height + 200);
+        if (blob) {
+          g.drawImage(blob, x - 500, y, 1400, b.h);
+          continue;
+        }
         const grad = g.createLinearGradient(0, y, 0, y + b.h);
         grad.addColorStop(0, 'rgba(255,255,255,0)');
         grad.addColorStop(0.5, 'rgba(248,250,252,0.22)');
@@ -492,8 +575,8 @@ export function drawWaterShimmer(ctx: CanvasRenderingContext2D, state: RenderSna
     for (let tx = tx0; tx <= tx1; tx += stride) {
       const type = tileTypeAt(map, tx, ty);
       if (type === null || !isWaterTerrainType(type)) continue;
-      const sx = (tx * ts - cam.x) * z + cw / 2;
-      const sy = (ty * ts - cam.y) * z + ch / 2;
+      const sx = worldToScreenX(tx * ts, cam, cw);
+      const sy = worldToScreenY(ty * ts, cam, ch);
       const sw = ts * z * stride;
 
       // Broad flowing wave bands — the water visibly moves (sine currents).

@@ -2,6 +2,24 @@
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 
+- **Enlarged the three map sizes to the renderer's full spec** — Medium 2560×1920, Large 4096×3072, Huge 6144×4608 world pixels; settlers walk about twice as fast so a commute still takes the hours it did, and the rules that assumed smaller maps were re-derived.
+
+- **Made a building's hover highlight appear at once, and while paused** — the highlight left the entity layer's cache key when that layer was memoised, so the ring only redrew on the next tick; it is painted per frame now, beside the placement ghost.
+
+- **Put the home and workplace rings on the building they mark** — both were built from the sprite's base anchor as if it were a centre, so a settler's house ring sat half a footprint above the house.
+
+- **Gave a refused raid the reason the rules already return** — marching on a rival re-implemented six eligibility gates and returned silently, so a blocked raid button did nothing and explained nothing; it now shows the same reason the eligibility owner gives.
+
+- **Let a vacant leader's house pass to the next household** — the manor stayed with the departed head's family until a new head was elected, and a save preserved the squat; a house is vacated whenever no living settler holds the office.
+
+- **Made the voting-day gossip reachable** — it was gated to a tick remainder the ceremony can never land on, so the four "they are about to announce" lines could never fire; the roll now happens when the phase turns to tension.
+
+- **Let a research gift that fills the bar finish the project** — a visitor's gift clamped progress at the cap instead of completing, so the unlock arrived only on the next systems pulse; both gift paths now share the owner's completion rule.
+
+- **Made the default test gate check types, lint and import cycles** — the default run ran neither a typecheck nor the cycle scan, which is how a committed type error and a runtime import cycle went unnoticed; it now runs both, and the long gate runs the year-long integration test.
+
+- **Stopped the dashboard and the combat log freezing at the values they opened with** — both memoised a projection on the world object, which the simulation mutates in place, so neither could see a change while the simulation ran on the main thread.
+
 - **Made the Guide and the shortcut sheet name the same six header doors** — each listed its own set, so the in-game help sent a stuck player to a door the header does not have; both now render one door list.
 
 - **Kept the map-setup gallery from clipping its own cards** — the second row of "Choose your land" was cut by the footer and pushed the size and difficulty choices off-screen at 900×600; the gallery scrolls inside a bounded height now, with the cue in its heading.

@@ -1,4 +1,5 @@
 import type { RenderSnapshot } from '../renderSnapshot';
+import { worldToScreenX, worldToScreenY } from '../viewState';
 
 // ============ PARTICLES ============
 function drawParticleShape(
@@ -49,8 +50,8 @@ export function drawParticles(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   const cam = state.camera;
   ctx.save();
   for (const p of state.deathParticles) {
-    const sx = (p.x - cam.x) * cam.zoom + cw / 2;
-    const sy = (p.y - cam.y) * cam.zoom + ch / 2;
+    const sx = worldToScreenX(p.x, cam, cw);
+    const sy = worldToScreenY(p.y, cam, ch);
     const size = p.size * cam.zoom;
     if (sx + size < -20 || sx - size > cw + 20 || sy + size < -20 || sy - size > ch + 20) continue;
     drawParticleShape(ctx, sx, sy, size, p, p.life / p.maxLife);

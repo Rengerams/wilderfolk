@@ -8,6 +8,7 @@ import { addFloatingText, addNotification } from './simEffects';
 import { addResource } from './economy';
 import { logEvent } from './eventLog';
 import { getVillageLeader } from './villageLeadership';
+import { findPlayerTownHall } from './playerTownHall';
 import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 import { isPlayerHuman } from './playerHuman';
 
@@ -16,12 +17,6 @@ export function getTownHallFestivalCooldownTicks(): number {
 }
 export const TOWN_HALL_FESTIVAL_COST = { food: 25, gold: 20 };
 export const TOWN_HALL_FESTIVAL_DAYS = 14;
-
-export function findPlayerTownHall(buildings: Building[]): Building | undefined {
-  return buildings.find(
-    (b) => b.completed && b.type === BuildingType.TownHall && b.faction !== 'rival',
-  );
-}
 
 export function isTownHallStaffed(buildings: Building[]): boolean {
   const hall = findPlayerTownHall(buildings);

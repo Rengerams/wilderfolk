@@ -60,7 +60,8 @@ import { canAssignWorkerToBuilding, listAssignableWorkersForBuilding } from './b
 import { isManualStaffBuilding, isManualStaffingBuilding } from './workforce';
 import { readSkill } from './skills';
 import { getOpenPlayerBeds } from './populationGrowth';
-import { canHostTownFestival, findPlayerTownHall } from './townHall';
+import { canHostTownFestival } from './townHall';
+import { findPlayerTownHall } from './playerTownHall';
 import { canStartResearch } from './research';
 import {
   getDiplomacyChoiceEligibility,

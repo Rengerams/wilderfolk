@@ -296,27 +296,39 @@ function compactWorldMapForSave(worldMap: WorldState['worldMap']) {
 }
 
 /**
- * The largest tile span one axis of a shipped map can have. `restoreWorldMapFromSave` multiplies a
- * save's tile dimensions by `PATH_CELL` and hands the result to `generateWorldMap`, which allocates
- * typed arrays for the whole surface — so an unbounded dimension pair lets a crafted file choose the
- * allocation (a 4000 × 3000 pair loads; a negative one surfaces a raw `RangeError` as the player's
- * explanation). Bounded **per axis** from `MAP_SIZE_DIMENSIONS`, because one maximum let a mixed pair
- * (the largest width against the largest height) through even though no shipped size is that shape.
+ * The largest pixel span one axis of a map the game offers has. `MAP_SIZE_DIMENSIONS` is the source of
+ * truth, so a preset the owner raises raises this.
+ *
+ * The world's own dimensions are the ones `generateWorldMap` allocates typed arrays from, so a pair no
+ * preset could be (the largest width against the largest height) must be refused by name. A single
+ * maximum shared by both axes let exactly that pair through.
  */
-function maxSavedMapTilesForAxis(axis: 'width' | 'height'): number {
+function maxSavedMapPixelsForAxis(axis: 'width' | 'height'): number {
   let maxPixels = 0;
   for (const dimension of Object.values(MAP_SIZE_DIMENSIONS)) {
     maxPixels = Math.max(maxPixels, dimension[axis]);
   }
-  return Math.ceil(maxPixels / PATH_CELL);
+  return maxPixels;
 }
 
-function isUsableMapTileCount(value: unknown, limit: number): value is number {
+/**
+ * The largest tile grid the shipped presets can produce. `restoreWorldMapFromSave` multiplies a save's
+ * tile dimensions by `PATH_CELL` and hands the result to `generateWorldMap`, which allocates typed
+ * arrays for the whole surface — so an unbounded dimension pair lets a crafted file choose the
+ * allocation (a 4000 × 3000 pair loads; a negative one surfaces a raw `RangeError`).
+ */
+function maxSavedMapTiles(): number {
+  return Math.ceil(
+    Math.max(maxSavedMapPixelsForAxis('width'), maxSavedMapPixelsForAxis('height')) / PATH_CELL,
+  );
+}
+
+function isUsableMapTileCount(value: unknown): value is number {
   return (
     typeof value === 'number'
     && Number.isSafeInteger(value)
     && value > 0
-    && value <= limit
+    && value <= maxSavedMapTiles()
   );
 }
 
@@ -365,10 +377,7 @@ function restoreWorldMapFromSave(parsed: {
   }
   const wm = parsed.worldMap;
   const overrides = wm._overrides;
-  if (
-    isUsableMapTileCount(wm.width, maxSavedMapTilesForAxis('width'))
-    && isUsableMapTileCount(wm.height, maxSavedMapTilesForAxis('height'))
-  ) {
+  if (isUsableMapTileCount(wm.width) && isUsableMapTileCount(wm.height)) {
     // A compact save records the map in TILES (`WorldMap.width/height`, terrainGen's
     // return), while `generateWorldMap(width, height, …)` takes PIXELS. Passing the tile
     // counts straight through regenerated the valley at a hundredth of its area — a
@@ -875,8 +884,10 @@ function worldScalarRules(): readonly ElementFieldRule[] {
   return [
     { field: 'tick', isValid: isSafeIntegerWithin(MAX_USABLE_TICK) },
     { field: 'lastProcessedCalendarDay', isValid: isSafeIntegerWithin(MAX_USABLE_CALENDAR_DAY) },
-    { field: 'width', isValid: isFiniteNumber },
-    { field: 'height', isValid: isFiniteNumber },
+    // The two axes are bounded separately, from the largest map the game offers: a pair where one axis
+    // exceeds its own maximum is refused by name instead of allocating a surface no map has.
+    { field: 'width', isValid: isFiniteWithin(maxSavedMapPixelsForAxis('width')) },
+    { field: 'height', isValid: isFiniteWithin(maxSavedMapPixelsForAxis('height')) },
     { field: 'nextEntityId', isValid: isFiniteNumber },
     { field: 'nextBuildingId', isValid: isFiniteNumber },
     // The persisted leadership years. `1e999` parses to `Infinity`, and an infinite election date is

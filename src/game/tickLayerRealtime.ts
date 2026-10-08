@@ -32,7 +32,7 @@ import { getSimRng } from './simRng';
 import { tickHotelLodging } from './hotelStay';
 import { tickPrisonPresence } from './prisonGuardDuty';
 import { tickElectionCeremony } from './villageLeadership';
-import { findPlayerTownHall } from './townHall';
+import { findPlayerTownHall } from './playerTownHall';
 import { addBigNews, addNotification, impulseScreenShake } from './simEffects';
 import { getEcosystemHealth } from './dailyEcology';
 
