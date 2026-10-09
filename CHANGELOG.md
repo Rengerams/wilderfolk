@@ -2,6 +2,14 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
+- **Fixed: childhood now ends at the adult floor** — a settler became an adult and took a job at 12, so children filled the postings while adult settlers sat idle and their children could not be apprenticed.
+
+- **Fixed: a settler widowed mid-pregnancy never married again** — conception marks both spouses as expecting and only the birth clears the father, so a wife's death stranded her husband in a status the courtship rule refuses; existing saves repair on the next tick.
+
+- **Fixed: a saved valley now regenerates as the valley it was saved from** — a compact save records the terrain noise seed it was generated with, and an older save with none falls back to the pre-change seed when its own completed fishing docks show the current one reclaimed their water.
+
+- **Fixed: two lifetime records that never recorded anything** — a colony's gathered resources and its most productive year stayed at zero for a whole game; gathering is now counted where storage accepts it, the best year is settled at each year boundary, and both show under Lifetime Records.
+
 - **Fixed: an on-duty prison guard no longer abandons his post to visit his wife** — a free-time walk to a distant spouse overwrote the work commute in the same tick, so the rota was full, nobody stood on the post, and every such hour rolled a prisoner escape.
 
 - **Fixed: animals and settlers no longer flick back to where they stood a moment ago** — the render snapshot and the simulation were both writing entity positions, and the snapshot is a past tick, so it dragged every mover back one buffer behind itself.
@@ -25,6 +33,8 @@
 - **Fixed: walkers no longer cut a corner diagonally** — the route advanced to the next waypoint from half a tile away, which cut one-tile gaps and left the walker pressed against the bank.
 
 - **Added: the save inspector audits the ground the colony stands on** — a sent-in save now names anyone standing in water, inside a wall or on reserved decor, and can run the colony forward to show whether anyone walks onto it.
+
+- **Fixed: a festival no longer pays innkeepers for the whole day** — the all-day tavern opening was credited as work, so every innkeeper worked a 24-hour day and sat at maximum fatigue, which cost the tavern a third of its output.
 
 ## <u>[0.6.5.1]</u> — 2026-09-30
 

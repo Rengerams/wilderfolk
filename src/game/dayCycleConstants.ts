@@ -7,8 +7,8 @@ export const DAYS_PER_MOON_CYCLE = 14;
  *  match `HUMAN_MOVE_OUT_MIN_AGE` and `Relationship.AFFAIR_MIN_AGE`; do not lower it. */
 export const HUMAN_ADULT_MIN_AGE = 18;
 
-/** Colony days a human stays a juvenile; `tryGraduateHumanChild` promotes on the graduation tick. */
-export const HUMAN_CHILDHOOD_DAYS = 12;
+/** Childhood in life-years ends where adulthood begins; the graduation tick promotes at this age. */
+export const HUMAN_CHILDHOOD_YEARS = HUMAN_ADULT_MIN_AGE;
 
 /** Age in life-years at which the old-age death rate starts to apply. */
 export const HUMAN_VENERABLE_AGE = 60;

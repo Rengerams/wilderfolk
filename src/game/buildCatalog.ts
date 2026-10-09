@@ -55,6 +55,7 @@ export const BUILDING_CATEGORIES: BuildingCategoryDef[] = [
       BuildingType.Prison,
       BuildingType.Well,
       BuildingType.TamingPost,
+      BuildingType.WildlifePreserve,
     ],
   },
   {

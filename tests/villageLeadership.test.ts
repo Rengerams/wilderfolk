@@ -27,6 +27,7 @@ import {
   validateVillageLeaderOnLoad,
 } from '../src/game/villageLeadership';
 import { initGame } from '../src/game/worldGen';
+import { friendCount } from '../src/game/relationships';
 
 /**
  * Village head must stay resolvable while in temporary Moon Howler form (EJ-10).
@@ -324,13 +325,34 @@ describe('villageLeadership.titlePoints.test.ts', () => {
     } as Entity;
   }
 
+  function building(id: number, type: BuildingType, overrides: Partial<Building> = {}): Building {
+    return {
+      id,
+      type,
+      x: 0,
+      y: 0,
+      width: 20,
+      height: 20,
+      occupants: [],
+      level: 1,
+      constructionProgress: 100,
+      completed: true,
+      health: 100,
+      maxHealth: 100,
+      spriteScale: 1,
+      buildAnimTimer: 0,
+      ...overrides,
+    } as Building;
+  }
+
   /**
    * A deliberately partial `WorldState`: it carries only the fields the leadership owners read —
    * `entities`, `villageLeaderId`, `leaderSinceYear`, `year`, `dayInYear`, `tick`, `buildings`,
    * `resources`, `storageMax`, `tradeRoutes`, `villageReputation` and `humanPopulation`. Everything
-   * else (`ecosystemHealth`, `disasters`, `eventLog`, `festival`, …) is absent because title scoring
-   * never touches it: `getLeadershipScoreBreakdown` and `isEligibleForLeadership` are the only owners
-   * exercised, and neither reads past the list above.
+   * else (`disasters`, `festival`, …) is absent because title scoring never touches it:
+   * `getLeadershipScoreBreakdown` and `isEligibleForLeadership` are the only owners exercised, and
+   * neither reads past the list above plus the incumbent-record inputs (`eventLog`, `disasters`,
+   * `ecosystemHealth`) that a sitting leader's `recordPoints` needs.
    */
   function stubState(entities: Entity[]): WorldState {
     return {
@@ -341,6 +363,9 @@ describe('villageLeadership.titlePoints.test.ts', () => {
       dayInYear: 10,
       tick: 500,
       buildings: [],
+      eventLog: [],
+      disasters: [],
+      ecosystemHealth: 80,
       resources: { wood: 0, stone: 0, food: 0, gold: 0, iron: 0 },
       storageMax: { wood: 0, stone: 0, food: 0, gold: 0, iron: 0 },
       tradeRoutes: [],
@@ -350,13 +375,13 @@ describe('villageLeadership.titlePoints.test.ts', () => {
   }
 
   describe('leadership title bonus', () => {
-    it('a titled candidate gains +8 titlePoints in the score breakdown', () => {
+    it('a titled candidate gains +30 titlePoints in the score breakdown', () => {
       const hero = stubHuman(1, { title: 'Moonslayer' });
       const state = stubState([hero]);
 
       const breakdown = getLeadershipScoreBreakdown(state, hero);
-      expect(breakdown.titlePoints).toBe(8);
-      expect(breakdown.totalScore).toBe(breakdown.skillPoints + breakdown.experiencePoints + 8);
+      expect(breakdown.titlePoints).toBe(30);
+      expect(breakdown.totalScore).toBe(breakdown.skillPoints + breakdown.experiencePoints + 30);
     });
 
     it('an untitled candidate gets no title bonus', () => {
@@ -372,12 +397,78 @@ describe('villageLeadership.titlePoints.test.ts', () => {
 
       const ranked = rankLeadershipCandidates(state);
       expect(ranked[0]!.entityId).toBe(1);
-      expect(ranked[0]!.totalScore).toBe(ranked[1]!.totalScore + 8);
+      expect(ranked[0]!.totalScore).toBe(ranked[1]!.totalScore + 30);
     });
 
     it('the title shows after the candidate name', () => {
       expect(formatSettlerName(stubHuman(1, { title: 'Moonslayer' }))).toBe('Asha Reed Moonslayer');
       expect(formatSettlerName(stubHuman(2))).toBe('Asha Reed');
+    });
+  });
+
+  /**
+   * A census of the owner's Year 3 save was 9 farmers in the top ten, with `skillPoints` 94 % of the
+   * leader's 213 — a single capped trade outweighed a lifetime of service, marriage and friendship
+   * (15 for a Town Hall seat, 5 for a spouse). The bonuses now scale with the settler's own record so
+   * a veteran who never capped a trade genuinely contests one who did.
+   */
+  describe('merit weighs a career, not only a capped skill', () => {
+    const closeFriends = (count: number) =>
+      Object.fromEntries(Array.from({ length: count }, (_, i) => [`f_${900 + i}`, 70]));
+
+    it('a long-serving, well-liked veteran without a capped trade contests a capped farmer', () => {
+      // 30 years of service, a Town Hall seat, 37 close friends and a spouse — a full career.
+      const veteran = stubHuman(1, {
+        age: 48,
+        skills: { farmer: 20 },
+        title: 'Moonslayer',
+        relationshipStatus: 'married',
+        friendships: closeFriends(37),
+      });
+      const farmer = stubHuman(2, { age: 30, skills: { farmer: 100 } });
+      const hall = building(10, BuildingType.TownHall, { occupants: [1] });
+      const state = stubState([veteran, farmer]);
+      state.buildings = [hall];
+
+      const veteranScore = getLeadershipScoreBreakdown(state, veteran);
+      const farmerScore = getLeadershipScoreBreakdown(state, farmer);
+
+      expect(friendCount(veteran)).toBe(37);
+      expect(veteranScore.communityPoints).toBeGreaterThan(0);
+      expect(veteranScore.servicePoints).toBeGreaterThan(0);
+      expect(farmerScore.totalScore - veteranScore.totalScore).toBeLessThanOrEqual(20);
+    });
+
+    it('keeps a scandal measurably expensive for the incumbent', () => {
+      const incumbent = stubHuman(1, { age: 40 });
+      const state = stubState([incumbent]);
+      state.villageLeaderId = 1;
+      state.leaderSinceYear = 5;
+      // Premise: a healthy colony under a clean incumbent, so the record term has something to lose.
+      state.resources.food = 400;
+      state.storageMax.food = 800;
+      state.villageReputation = 60;
+      state.tradeRoutes.push({ active: true } as never);
+      const clean = getLeadershipScoreBreakdown(state, incumbent);
+
+      state.eventLog.push({ year: 5, type: 'scandal', message: 'a scandal', entityName: 'Asha' } as never);
+      const tainted = getLeadershipScoreBreakdown(state, incumbent);
+
+      expect(clean.recordPoints, 'fixture premise: a healthy clean term scores positively').toBeGreaterThan(0);
+      expect(tainted.recordPoints).toBeLessThan(clean.recordPoints);
+      // Softened, not free: one scandal costs its own points and the clean-term bonus.
+      expect(clean.recordPoints - tainted.recordPoints).toBeGreaterThanOrEqual(4);
+    });
+
+    it('keeps the ranking contract: score desc, then age desc, then id asc', () => {
+      const lowId = stubHuman(1, { age: 30 });
+      const youngTwin = stubHuman(2, { age: 31 });
+      const oldTwin = stubHuman(3, { age: 31 });
+      const state = stubState([lowId, youngTwin, oldTwin]);
+
+      const ranked = rankLeadershipCandidates(state);
+
+      expect(ranked.map((b) => b.entityId)).toEqual([2, 3, 1]);
     });
   });
 });

@@ -37,6 +37,8 @@ import {
   removeWorkerFromBuilding,
 } from '../src/game/buildingActions';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
+import { HUMAN_CHILDHOOD_YEARS, setHumanBirthFromAge } from '../src/game/dayCycle';
+import { recordScheduleWorkTick } from '../src/game/scheduleFatigue';
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
   return {
@@ -281,6 +283,39 @@ describe('idle-worker counts', () => {
 
     removeWorkerTransition(settler, [farm]);
     expect(countWorkingAndIdleSettlers([settler], [farm])).toEqual({ working: 0, idle: 1 });
+  });
+});
+
+/**
+ * The childhood boundary *is* the adult floor, and `setHumanBirthFromAge` derives `isJuvenile` from it.
+ * Below the boundary both work paths refuse: no work tick is credited and no workplace can be held.
+ */
+describe('the childhood boundary bars work until the adult floor', () => {
+  it('credits no work tick and no workplace to a 12–17 year old, and both at 18', () => {
+    const youth = human(1);
+    setHumanBirthFromAge(youth, HUMAN_CHILDHOOD_YEARS - 1, 0);
+    const adult = human(2);
+    setHumanBirthFromAge(adult, HUMAN_CHILDHOOD_YEARS, 0);
+
+    expect(youth.isJuvenile).toBe(true);
+    expect(adult.isJuvenile).toBe(false);
+
+    recordScheduleWorkTick(youth);
+    recordScheduleWorkTick(adult);
+    expect(youth.scheduleWorkedTicksToday ?? 0).toBe(0);
+    expect(adult.scheduleWorkedTicksToday).toBe(1);
+
+    const youthFarm = building(2, BuildingType.Farm);
+    expect(assignWorkerTransition(youth, youthFarm)).toBe(false);
+    expect(youthFarm.occupants).toEqual([]);
+    expect(youth.homeBuildingId).toBeUndefined();
+    expect(youth.job).toBe(JobType.Settler);
+
+    const adultFarm = building(3, BuildingType.Farm);
+    expect(assignWorkerTransition(adult, adultFarm)).toBe(true);
+    expect(adultFarm.occupants).toEqual([2]);
+    expect(adult.homeBuildingId).toBe(3);
+    expect(adult.job).toBe(JobType.Farmer);
   });
 });
 

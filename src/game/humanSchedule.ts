@@ -88,9 +88,12 @@ export function isFestivalGatherer(
   return isFestivalGatheringHour(hour, festivalActive) && !isInnkeeper && !onShift;
 }
 
-export function isOnInnkeeperShift(tick: number, hour?: number, festivalActive?: boolean): boolean {
-  const currentHour = hour ?? getHourOfDay(tick);
-  return isTavernOpen(currentHour, festivalActive);
+/**
+ * Legacy innkeeper-duty query. A festival opens the Tavern to visitors and creates no worker duty, so
+ * the festival flag no longer extends the shift — it stays in the signature for its existing callers.
+ */
+export function isOnInnkeeperShift(tick: number, hour?: number, _festivalActive?: boolean): boolean {
+  return isTavernServiceHour(hour ?? getHourOfDay(tick));
 }
 
 export function isOnMoonHowlerNightShift(tick: number, hour?: number): boolean {

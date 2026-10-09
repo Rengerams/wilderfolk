@@ -1,11 +1,14 @@
 import { useModalFocus } from '../hooks/useModalFocus';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 import { HEADER_DOORS } from '../game/hotkeys';
+import { overviewSubjectForTab } from '../hooks/useGameShellState';
 
 export interface Shortcut {
   keys: string;
   description: string;
 }
+
+const PEOPLE_SUBJECT = overviewSubjectForTab('village');
 
 const SHORTCUTS: Shortcut[] = [
   { keys: 'WASD / drag', description: 'Pan camera' },
@@ -18,11 +21,12 @@ const SHORTCUTS: Shortcut[] = [
   { keys: 'G', description: 'Toggle placement grid' },
   { keys: 'X', description: 'Toggle logistics overlay (supply · commute · connectivity)' },
   { keys: '1–9', description: 'Quick-build' },
-  { keys: 'O', description: 'People — citizens, housing, work hours' },
+  { keys: 'O', description: `${PEOPLE_SUBJECT.label} — ${PEOPLE_SUBJECT.hint} (V opens the same window)` },
   { keys: 'C', description: 'Daily council — what the village needs today' },
   {
     keys: HEADER_DOORS.map((door) => door.key).join(' '),
-    description: `Header doors: ${HEADER_DOORS.map((door) => door.label.toLowerCase()).join(', ')}`,
+    // Names come from the header's own vocabulary, never from the key table.
+    description: `Header doors: ${HEADER_DOORS.map((door) => overviewSubjectForTab(door.tab).label.toLowerCase()).join(', ')}`,
   },
   { keys: 'H', description: 'Center on settlers' },
   { keys: 'R', description: 'Rotate road / wall / gate while placing' },

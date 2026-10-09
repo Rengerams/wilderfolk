@@ -17,6 +17,7 @@ export default function FrontierTabPanel({
   onFocusVisitor,
   onFocusRival,
   onLaunchRaid,
+  onProvokeRival,
 }: FrontierTabPanelProps) {
   return (
     <Suspense fallback={<p className="text-[13px] text-stone-300">Loading frontier…</p>}>
@@ -28,6 +29,7 @@ export default function FrontierTabPanel({
         onFocusVisitor={onFocusVisitor}
         onFocusRival={onFocusRival}
         onLaunchRaid={onLaunchRaid}
+        onProvokeRival={onProvokeRival}
       />
     </Suspense>
   );

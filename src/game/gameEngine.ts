@@ -145,6 +145,8 @@ export {
   getRivalDefenseStrength,
   resolveCounterRaidRatio,
   canLaunchRaidOnRival,
+  provokeRival,
+  canProvokeRival,
   isCounterRaidOnRival,
   getOutgoingRaidActionLabel,
   formatRaidDeadline,

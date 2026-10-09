@@ -12,6 +12,7 @@ import type { Entity, WorldState } from '../src/game/gameTypes';
 import { freeHuntFoodGain } from '../src/game/simulation/humanNeeds';
 import { isValidHuntPrey } from '../src/game/simulation/simulationEntities';
 import { getValleyHuntYieldMultiplier } from '../src/game/ecologyStage';
+import { ValleyEcology } from '../src/game/gameConstants';
 
 describe('free-roam hunt food', () => {
   const baseState = {
@@ -35,16 +36,23 @@ describe('free-roam hunt food', () => {
     expect(freeHuntFoodGain(EntityType.Fox, baseState)).toBeGreaterThan(fallback);
   });
 
-  it('valley stage does not cut hunt yield while valley ecology is parked', () => {
-    // Valley-ecology stage ladder is parked (ValleyEcology.ENABLED = false):
-    // every stage reads as stable, so hunt yield must be unchanged.
-    const stable = freeHuntFoodGain(EntityType.Deer, baseState);
-    const damaged = freeHuntFoodGain(EntityType.Deer, {
-      ...baseState,
-      valleyStage: 'damaged',
-    } as WorldState);
-    expect(damaged).toBe(stable);
-    expect(getValleyHuntYieldMultiplier({ valleyStage: 'damaged' } as WorldState)).toBe(1);
+  it('cuts hunt yield by stage while the ladder runs, and reads stable while it is parked', () => {
+    const damaged = { ...baseState, valleyStage: 'damaged' } as WorldState;
+    const switchState = ValleyEcology as unknown as { ENABLED: boolean };
+    const wasEnabled = switchState.ENABLED;
+    try {
+      switchState.ENABLED = true;
+      expect(getValleyHuntYieldMultiplier(damaged)).toBeLessThan(1);
+      expect(freeHuntFoodGain(EntityType.Deer, damaged)).toBeLessThan(
+        freeHuntFoodGain(EntityType.Deer, baseState),
+      );
+
+      switchState.ENABLED = false;
+      expect(getValleyHuntYieldMultiplier(damaged)).toBe(1);
+      expect(freeHuntFoodGain(EntityType.Deer, damaged)).toBe(freeHuntFoodGain(EntityType.Deer, baseState));
+    } finally {
+      switchState.ENABLED = wasEnabled;
+    }
   });
 });
 

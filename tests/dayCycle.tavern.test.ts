@@ -1,6 +1,6 @@
 /**
- * Tavern service hours — the pub is open 17:00–22:59 normally, but stays open
- * all day and night during festivals (the innkeeper works the party).
+ * Tavern service hours — the pub is open 17:00–22:59 normally, and stays open all day and night during
+ * festivals. Festival opening is *visitor* availability: it never extends the innkeeper's shift.
  */
 import { describe, it, expect } from 'vitest';
 import { isFestivalGatheringHour, isOnInnkeeperShift, isTavernOpen, TICKS_PER_DAY } from '../src/game/dayCycle';
@@ -19,8 +19,9 @@ describe('tavern festival hours', () => {
     }
   });
 
-  it('innkeeper works the festival around the clock', () => {
-    expect(isOnInnkeeperShift(TICKS_PER_DAY * 10, 9, true)).toBe(true); // mid-day, festival
+  it('does not extend the innkeeper shift for a festival, which only opens the tavern', () => {
+    // A festival is visitor availability; the worker's shift is the configured window either way.
+    expect(isOnInnkeeperShift(TICKS_PER_DAY * 10, 9, true)).toBe(false); // mid-day, festival
     expect(isOnInnkeeperShift(TICKS_PER_DAY * 10, 9)).toBe(false); // same hour, no festival
     expect(isOnInnkeeperShift(TICKS_PER_DAY * 10, 19)).toBe(true); // evening shift always
   });

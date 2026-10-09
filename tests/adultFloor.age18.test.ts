@@ -10,7 +10,7 @@
  * `BUG_REPORTS/2026-09-16-adult-floor-was-16-against-the-documented-18.md`.
  */
 import { describe, expect, it } from 'vitest';
-import { HUMAN_ADULT_MIN_AGE, HUMAN_CHILDHOOD_DAYS } from '../src/game/dayCycle';
+import { HUMAN_ADULT_MIN_AGE, HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycle';
 import { HUMAN_MOVE_OUT_MIN_AGE } from '../src/game/residencyOccupancy';
 import { Relationship } from '../src/game/gameConstants';
 import { isEligibleForLeadership } from '../src/game/villageLeadership';
@@ -28,7 +28,7 @@ function human(id: number, age: number, overrides: Partial<Entity> = {}): Entity
     gender: 'male',
     alive: true,
     age,
-    isJuvenile: age < HUMAN_CHILDHOOD_DAYS,
+    isJuvenile: age < HUMAN_CHILDHOOD_YEARS,
     relationshipStatus: 'single',
     childrenIds: [],
     ...overrides,
@@ -40,7 +40,8 @@ describe('the adult floor is 18', () => {
     expect(HUMAN_ADULT_MIN_AGE).toBe(18);
     expect(HUMAN_ADULT_MIN_AGE).toBe(HUMAN_MOVE_OUT_MIN_AGE);
     expect(HUMAN_ADULT_MIN_AGE).toBe(Relationship.AFFAIR_MIN_AGE);
-    expect(HUMAN_ADULT_MIN_AGE).toBeGreaterThan(HUMAN_CHILDHOOD_DAYS);
+    // Childhood ends where adulthood begins, so the two boundaries are one value.
+    expect(HUMAN_CHILDHOOD_YEARS).toBe(HUMAN_ADULT_MIN_AGE);
   });
 
   it('keeps a 17 year old out of courtship and lets an 18 year old in', () => {

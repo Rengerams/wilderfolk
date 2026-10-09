@@ -66,10 +66,11 @@ export function getGrazingPressureReport(state: WorldState): GrazingPressureRepo
   // (winter) energy penalty applies here too. The audit's L30: this report called the low-level
   // helper with `winterPenalty = 0`, which made `getGrazerDailyDemand` — the only place the
   // penalty is applied to demand — unreachable and understated winter grazing pressure.
+  // Grazers only. The Wildkin is an apex predator with a meat diet (`speciesConfig`), so it takes no
+  // grass bite and must not be counted here; the counts it contributes stay in the report below.
   const grazingDemandPerDay =
     getGrazerDailyDemand('deer', state.season) * deerCount
-    + getGrazerDailyDemand('rabbit', state.season) * rabbitCount
-    + getGrazerDailyDemand('wildkin', state.season) * wildkinCount;
+    + getGrazerDailyDemand('rabbit', state.season) * rabbitCount;
 
   const pressureRatio = grazingDemandPerDay / Math.max(grassRecoveryPerDay, GRASS_GROWTH_PER_TICK * TICKS_PER_DAY);
 

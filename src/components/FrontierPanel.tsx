@@ -3,6 +3,7 @@ import type { WorldState } from '../game/gameTypes';
 import CombatPreviewPanel from '../game/CombatPreviewPanel';
 import {
   canLaunchRaidOnRival,
+  canProvokeRival,
   getOutgoingRaidActionLabel,
   formatCampDistance,
   formatRaidDeadline,
@@ -33,6 +34,7 @@ export interface FrontierPanelProps {
   onFocusVisitor: (id: string, x: number, y: number) => void;
   onFocusRival: (id: string, x: number, y: number, buildingId?: number) => void;
   onLaunchRaid?: (rivalId: string) => void;
+  onProvokeRival?: (rivalId: string) => void;
 }
 
 function FrontierPanel({
@@ -43,6 +45,7 @@ function FrontierPanel({
   onFocusVisitor,
   onFocusRival,
   onLaunchRaid,
+  onProvokeRival,
 }: FrontierPanelProps) {
   const pendingRaids = state.pendingRaidEvents ?? [];
   const firstPendingRaid = pendingRaids[0];
@@ -173,6 +176,7 @@ function FrontierPanel({
               const hasRaid = pendingRaids.some((e) => e.rivalId === r.id);
               const hasDiplo = pendingDiplomacy.some((e) => e.rivalId === r.id);
               const raidEligibility = canLaunchRaidOnRival(state, r);
+              const provokeEligibility = canProvokeRival(state, r);
               const raidFoodCost = getOutgoingRaidFoodCostForRival(state, r);
               const outgoingRaidAction = getOutgoingRaidActionLabel(state, r.id);
               const profile = normalizeRivalProfile(r);
@@ -217,6 +221,29 @@ function FrontierPanel({
                   </button>
                   {onLaunchRaid && (
                     <>
+                    {onProvokeRival && (
+                      <>
+                      <button
+                        type="button"
+                        disabled={!provokeEligibility.ok}
+                        title={provokeEligibility.ok
+                          ? 'Declare hostility — relations turn tense (reputation -6) so you can raid them'
+                          : provokeEligibility.blockReason}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onProvokeRival(r.id);
+                        }}
+                        className="mt-1.5 w-full rounded bg-rose-950 px-2 py-1 text-[10px] font-bold text-rose-100 hover:bg-rose-900 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        🗡️ Declare hostility
+                      </button>
+                      {!provokeEligibility.ok && (
+                        <p className="mt-0.5 text-[10px] text-stone-400">
+                          {provokeEligibility.blockReason}
+                        </p>
+                      )}
+                      </>
+                    )}
                     <button
                       type="button"
                       disabled={!raidEligibility.ok}

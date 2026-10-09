@@ -84,10 +84,7 @@ describe('familyTree', () => {
       id: 8,
       name: 'Kid',
       // A minor: `childRelation` classifies by **age** against `HUMAN_ADULT_MIN_AGE` (18), not by the
-      // `isJuvenile` flag — that flag flips at `HUMAN_CHILDHOOD_DAYS` (12), so relying on it labelled a
-      // 16-year-old an "Adult child" (owner: *"16 years it not an adult?"*). This fixture previously
-      // omitted an age entirely and inherited the factory default of 30, so it was an adult by the real
-      // rule while the test still called it a Child.
+      // `isJuvenile` flag. The explicit age matters — the factory default is an adult 30.
       age: 8,
       isJuvenile: true,
       gender: 'female',
@@ -504,8 +501,10 @@ describe('the relations the simulation tracks beside the kin walk', () => {
   });
 
   it('names a youth-love bond and an affair, and never reads either as a marriage', () => {
-    const girl = human({ id: 1, name: 'Ada', age: 16, gender: 'female', generation: 2 });
-    const sweetheart = human({ id: 2, name: 'Bram', age: 16, gender: 'male', generation: 2, youthLovePartnerId: 1 });
+    const girl = human({ id: 1, name: 'Ada', age: 16, isJuvenile: true, gender: 'female', generation: 2 });
+    const sweetheart = human({
+      id: 2, name: 'Bram', age: 16, isJuvenile: true, gender: 'male', generation: 2, youthLovePartnerId: 1,
+    });
     girl.youthLovePartnerId = 2;
     const youthTree = buildFullFamilyTree(girl, [girl, sweetheart]);
     expect(relationOf(youthTree, 2)).toBe('Sweetheart');

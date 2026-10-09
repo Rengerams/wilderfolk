@@ -1,6 +1,6 @@
 import type { WorldState, Entity, TerrainTile } from './gameTypes';
 import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, MapSize, PATH_CELL } from './gameTypes';
-import { setTileOverride } from './terrain/terrainGrid';
+import { isWalkableTerrainType, setTileOverride, tileAt, Walkability } from './terrain/terrainGrid';
 import { INITIAL_CHALLENGES } from './challenges';
 import { normalizeLifetimeStats } from './stats';
 import {
@@ -11,6 +11,7 @@ import {
 } from './viewState';
 import { ENTITY_PERSISTED_FIELDS, WORLD_STATE_SAVE_KEYS } from './saveSchema';
 import { generateWorldMap } from './terrainGen';
+import { legacyTerrainSeed } from './terrain/terragen';
 import {
   getCalendarDay, getHourOfDay, getAbsoluteCalendarDay, migrateHumanAges, rebuildChildrenIds,
   TICKS_PER_DAY, LEGACY_TICKS_PER_DAY, DAYS_PER_YEAR,
@@ -360,6 +361,8 @@ function compactWorldMapForSave(worldMap: WorldState['worldMap']) {
      * needed here. A `Map` is not JSON, hence the pairs.
      */
     _overrides: worldMap.overrides ? [...worldMap.overrides.entries()] : undefined,
+    /** The resolved noise seed, so the valley regenerates exactly — see `terrainSeedFor`. */
+    _terrainSeed: worldMap.terrainSeed,
     _compact: true as const,
   };
 }
@@ -435,9 +438,10 @@ function applySavedTerrainOverrides(
 }
 
 function restoreWorldMapFromSave(parsed: {
-  worldMap?: (WorldState['worldMap'] & { _compact?: boolean; _overrides?: unknown }) | null;
+  worldMap?: (WorldState['worldMap'] & { _compact?: boolean; _overrides?: unknown; _terrainSeed?: unknown }) | null;
   width?: unknown;
   height?: unknown;
+  buildings?: unknown;
 }): WorldState['worldMap'] {
   if (!parsed.worldMap) return null;
   // Only a compact save (`_compact: true`) is a seed/preset reference to regenerate below; every
@@ -449,30 +453,102 @@ function restoreWorldMapFromSave(parsed: {
   }
   const wm = parsed.worldMap;
   const overrides = wm._overrides;
-  if (isUsableMapTileCount(wm.width) && isUsableMapTileCount(wm.height)) {
-    // Tiles are `ceil(px / PATH_CELL)`, so multiplying back is lossy — 4096 px stores as 410 tiles and
-    // regenerates 4100, one path column past the original. The payload's own pixels win when present.
-    const pixelWidth = isFiniteNumber(parsed.width) ? parsed.width : wm.width * PATH_CELL;
-    const pixelHeight = isFiniteNumber(parsed.height) ? parsed.height : wm.height * PATH_CELL;
+  const storedTerrainSeed = isFiniteNumber(wm._terrainSeed) ? wm._terrainSeed : undefined;
+  /** Regenerate the valley, with the save's recorded seed when it has one. */
+  const regenerateTerrain = (terrainSeed?: number): WorldState['worldMap'] => {
+    if (isUsableMapTileCount(wm.width) && isUsableMapTileCount(wm.height)) {
+      // Tiles are `ceil(px / PATH_CELL)`, so multiplying back is lossy — 4096 px stores as 410 tiles and
+      // regenerates 4100, one path column past the original. The payload's own pixels win when present.
+      const pixelWidth = isFiniteNumber(parsed.width) ? parsed.width : wm.width * PATH_CELL;
+      const pixelHeight = isFiniteNumber(parsed.height) ? parsed.height : wm.height * PATH_CELL;
+      return applySavedTerrainOverrides(
+        generateWorldMap(
+          pixelWidth,
+          pixelHeight,
+          wm.seed,
+          wm.size ?? 'medium',
+          wm.preset ?? 'continental',
+          terrainSeed,
+        ),
+        overrides,
+      );
+    }
     return applySavedTerrainOverrides(
-      generateWorldMap(
-        pixelWidth,
-        pixelHeight,
-        wm.seed,
-        wm.size ?? 'medium',
-        wm.preset ?? 'continental',
-      ),
+      generateWorldMap(wm.size ?? 'medium', wm.preset ?? 'continental', wm.seed),
       overrides,
     );
+  };
+
+  const map = regenerateTerrain(storedTerrainSeed);
+  // A pre-offset save carries no terrain seed, and only its own placements can tell whether the
+  // current rule regenerated the valley it was played in. A completed fishing dock is the witness:
+  // its footprint rule needs water, and the legacy rule is the one that put it there.
+  if (storedTerrainSeed !== undefined || !completedFishingSpotNeedsWater(map, parsed.buildings)) {
+    return map;
   }
-  return applySavedTerrainOverrides(
-    generateWorldMap(
-      wm.size ?? 'medium',
-      wm.preset ?? 'continental',
-      wm.seed,
-    ),
-    overrides,
-  );
+  return regenerateTerrain(legacyTerrainSeed(wm.seed));
+}
+
+/**
+ * Whether a completed Fishing Spot — whose placement rule requires water inside its footprint — stands
+ * on a map with none under it, which says the regenerated valley is not the one it was built on.
+ */
+function completedFishingSpotNeedsWater(map: WorldState['worldMap'], savedBuildings: unknown): boolean {
+  if (!map) return false;
+  return completedFishingSpots(savedBuildings).some((spot) => !fishingSpotFootprintHasWater(map, spot));
+}
+
+/** The footprint geometry a water test needs, read off a raw save element. */
+interface SavedFootprint {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** The completed Fishing Spots of a raw save's building list, with usable geometry only. */
+function completedFishingSpots(savedBuildings: unknown): SavedFootprint[] {
+  if (!Array.isArray(savedBuildings)) return [];
+  const spots: SavedFootprint[] = [];
+  for (const element of savedBuildings) {
+    if (!isSaveObject(element)) continue;
+    if (element.type !== BuildingType.FishingSpot || element.completed !== true) continue;
+    if (!isFiniteNumber(element.x) || !isFiniteNumber(element.y)) continue;
+    spots.push({
+      x: element.x,
+      y: element.y,
+      width: isFiniteNumber(element.width) && element.width > 0 ? element.width : PATH_CELL,
+      height: isFiniteNumber(element.height) && element.height > 0 ? element.height : PATH_CELL,
+    });
+  }
+  return spots;
+}
+
+/** Whether any water cell lies inside a footprint, sampled at half a tile and one tile wide. */
+function fishingSpotFootprintHasWater(
+  map: NonNullable<WorldState['worldMap']>,
+  footprint: SavedFootprint,
+): boolean {
+  const halfW = footprint.width / 2;
+  const halfH = footprint.height / 2;
+  const margin = PATH_CELL;
+  const step = PATH_CELL / 2;
+  for (let y = footprint.y - halfH - margin; y <= footprint.y + halfH + margin; y += step) {
+    for (let x = footprint.x - halfW - margin; x <= footprint.x + halfW + margin; x += step) {
+      if (terrainHasWaterAt(map, x, y)) return true;
+    }
+  }
+  return false;
+}
+
+/** Whether the regenerated ground under a world point is water; off the map counts as dry land. */
+function terrainHasWaterAt(map: NonNullable<WorldState['worldMap']>, worldX: number, worldY: number): boolean {
+  const tx = Math.floor(worldX / PATH_CELL);
+  const ty = Math.floor(worldY / PATH_CELL);
+  if (tx < 0 || ty < 0 || tx >= map.width || ty >= map.height) return false;
+  if (map.pathGrid) return map.pathGrid[ty * map.width + tx] === Walkability.Water;
+  const tile = tileAt(map, tx, ty);
+  return !!tile && !isWalkableTerrainType(tile.type);
 }
 
 /** Strip per-tick runtime indexes before persistence (not in WORLD_STATE_SAVE_KEYS). */

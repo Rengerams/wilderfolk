@@ -4,6 +4,7 @@ import type { TickContext } from './simulationTypes';
 import { recordWildlifeBirth, recordGrassBirth, recordGrassDeath } from '../simQueries';
 import { syncSpatialGridEntity } from '../spatialGrid';
 import { killHuman, isKillableSettlerEntity } from '../dayCycle';
+import { logWildkinDeath } from '../wildkinChronicle';
 
 /** Medium map reference area for grass population cap scaling. */
 const GRASS_CAP_REFERENCE_AREA = 1200 * 900;
@@ -72,12 +73,16 @@ export function markWildlifeDead(
   entity: Entity,
   wildlifeDeathsThisTick?: Set<number>,
   tick?: number,
+  state?: WorldState,
 ): void {
   if (!entity.alive) return;
 
   if (isKillableSettlerEntity(entity)) {
     killHuman(entity, ctx.updatedBuildings, ctx.entityById, tick);
   } else {
+    // The Wildkin's death is chronicled from here because this is the one place every wildlife death
+    // passes through. Nothing else needs `state`, so it stays optional.
+    if (state && entity.type === EntityType.Wildkin) logWildkinDeath(state, entity);
     entity.alive = false;
     ctx.entityById.delete(entity.id);
     wildlifeDeathsThisTick?.add(entity.id);

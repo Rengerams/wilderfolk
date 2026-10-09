@@ -7,6 +7,7 @@ import {
   getDiplomacyChoiceEligibility,
   getRivalRaidStrength, getCombatPreview,
   canLaunchRaidOnRival,
+  canProvokeRival,
   getOutgoingRaidActionLabel,
   getOutgoingRaidFoodCostForRival, formatCampDistance, getCampDistancePixels,
   formatRaidLootSummary, raidEventLoot,
@@ -212,6 +213,7 @@ export default function SelectedBuildingPanel({
     const atPeace = rival ? isRivalAtPeace(rival) : false;
     const raidEligibility = rival ? canLaunchRaidOnRival(state, rival) : { ok: false, foodCost: 0, blockReason: 'Unknown rival' };
     const canLaunchRaid = raidEligibility.ok;
+    const provokeGate = rival ? canProvokeRival(state, rival) : null;
     const outgoingRaidAction = rival ? getOutgoingRaidActionLabel(state, rival.id) : null;
     const isCounterRaid = raidsForRival.length > 0;
     // The four rival-action gates are the *owners'* verdicts, plus the refusal text they carry. The
@@ -369,6 +371,17 @@ export default function SelectedBuildingPanel({
               title="60 days without raids · needs neutral+ relations (not tense)"
             >
               🕊️ Sign peace ({PEACE_TREATY_GOLD_COST}💰 + {PEACE_TREATY_FOOD_COST}🍖){refusal(peaceGate)}
+            </button>
+            <button
+              type="button"
+              disabled={!provokeGate?.ok}
+              onClick={() => onDiplomacyAction({ proto: 1, op: 'provokeRival', rivalId: rival.id })}
+              className="rounded bg-rose-950 px-2 py-1 text-[10px] font-bold text-rose-100 hover:bg-rose-900 disabled:opacity-40"
+              title={provokeGate?.ok
+                ? 'Declare hostility — relations turn tense (reputation -6) so you can raid them'
+                : (provokeGate?.blockReason ?? 'Cannot provoke')}
+            >
+              🗡️ Declare hostility{refusal(provokeGate)}
             </button>
             <button
               type="button"

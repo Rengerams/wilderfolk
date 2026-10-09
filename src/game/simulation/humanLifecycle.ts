@@ -16,6 +16,7 @@ import { pushNewEntity, allLivingHumans } from './simulationEntities';
 import { pickHumanVariant } from '../humanSprites';
 import { addBigNews, addFloatingText, addNotification, createDeathParticles } from '../simEffects';
 import { logEvent } from '../eventLog';
+import { logWildkinBirth } from '../wildkinChronicle';
 import { humanDisplayName } from '../citizenId';
 import { dampScandalReputationLoss } from '../townHall';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
@@ -116,7 +117,7 @@ export function tickPregnancyAndBirth(
       'neutral',
     );
     addFloatingText(state, entity.x, entity.y - 20, 'Wildkin born!', '#a3a35a');
-    logEvent(state, 'birth', `${entity.name || 'A settler'} gave birth to a Wildkin`, entity.name);
+    logWildkinBirth(state, wildkin, entity.name ?? '');
     return;
   }
 

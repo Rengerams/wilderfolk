@@ -166,7 +166,7 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   tickGuidedCampaign(state);
   // Watchtowers reveal marching raiders earlier than patrols (daily, bounded).
   detectRaidersFromWatchtowers(state, allAlive);
-  tickWorldRivalSettlements(state, allAlive, ctx);
+  tickWorldRivalSettlements(state, allAlive);
 
   // Population cleanup and immigration remain in tickLayerDaily.
   tickFestivals(state, counts);
@@ -179,15 +179,8 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   // Eco indexes refresh once per day (before the valley stage consumes them)
   tickEcosystemMetrics(state, counts, ctx.updatedBuildings);
 
-  // Valley ecology stage, reading the eco indexes refreshed just above.
-  //
-  // It runs *after* this day's building production, because `tickLayerDaily` calls the economy before
-  // this function — so when the ladder is re-enabled its farm/hunt multipliers take effect the next
-  // day, a one-day lag. The old comment claimed "before production yields", which the call order has
-  // never satisfied (`LIVE-FINDINGS-STATUS.md`, L14). Moving it here is not a one-line move: the
-  // refresh above would have to move with it, and the ladder is parked
-  // (`ValleyEcology.ENABLED = false`), so the change cannot be validated today — owner call on
-  // re-enable.
+  // Valley ecology stage, reading the eco indexes refreshed just above. It runs after this day's
+  // building production, so its farm/hunt multipliers land one day late — always behind the warning.
   tickValleyEcologyStage(state);
 
   // Autumn deer migration — herds arrive, graze, and leave with memory

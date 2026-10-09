@@ -14,7 +14,7 @@ import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
 import { findPlayerTownHall } from './playerTownHall';
 import { seededRandomForRun } from './simRng';
 import { humanDisplayName } from './citizenId';
-import { startFeud } from './relationships';
+import { friendCount, startFeud } from './relationships';
 import { getEcosystemHealth } from './dailyEcology';
 
 /**
@@ -110,14 +110,29 @@ export interface IncumbentRecordAssessment {
   scandalStatus: 'clean' | 'tainted';
 }
 
-const RECORD_ECONOMY_GOOD = 4;
-const RECORD_ECONOMY_POOR = -5;
+const RECORD_ECONOMY_GOOD = 6;
+const RECORD_ECONOMY_POOR = -6;
 const RECORD_SCANDAL_CLEAN = 3;
-const RECORD_SCANDAL_EACH = -5;
-const RECORD_VILLAGE_GOOD = 3;
+const RECORD_SCANDAL_EACH = -4;
+const RECORD_VILLAGE_GOOD = 4;
 const RECORD_VILLAGE_POOR = -6;
-const RECORD_POSITIVE_CAP = 8;
-const TITLE_MERIT_BONUS = 8;
+const RECORD_POSITIVE_CAP = 12;
+const TITLE_MERIT_BONUS = 30;
+
+/**
+ * Merit per year served past adulthood, at the top of the witnessed age range (~0.2 of a capped trade).
+ *
+ * The bonus terms are sized against `skillPoints`, which pays up to 200 for one capped trade: a full
+ * career of experience, service, community standing and a title together reach about that same 200,
+ * so a long-serving settler contends without having capped a trade (`CHANGELOG.md`, merit rebalance).
+ */
+const EXPERIENCE_MERIT_PER_YEAR = 1.0;
+/** Merit for holding a Town Hall seat — serving the village, not merely living in it. */
+const SERVICE_MERIT = 60;
+/** Merit per close friendship (`relationships.friendCount`, the ≥60 bond the owner calls a friend). */
+const COMMUNITY_MERIT_PER_FRIEND = 2;
+/** Merit for being married, the household half of standing. */
+const COMMUNITY_MERIT_MARRIED = 8;
 
 export interface ElectionAnnouncement {
   title: string;
@@ -290,12 +305,14 @@ export function getLeadershipScoreBreakdown(
   const skillPoints = Math.round(skillSum * 2);
   const ageYears = leadershipAgeYears(entity, state);
   const experiencePoints = Math.round(
-    Math.min(Math.max(0, ageYears - HUMAN_ADULT_MIN_AGE), 200) * 0.25,
+    Math.min(Math.max(0, ageYears - HUMAN_ADULT_MIN_AGE), 200) * EXPERIENCE_MERIT_PER_YEAR,
   );
 
   const townHall = findPlayerTownHall(state.buildings);
-  const servicePoints = townHall?.occupants.includes(entity.id) ? 15 : 0;
-  const communityPoints = entity.relationshipStatus === 'married' ? 5 : 0;
+  const servicePoints = townHall?.occupants.includes(entity.id) ? SERVICE_MERIT : 0;
+  const communityPoints =
+    friendCount(entity) * COMMUNITY_MERIT_PER_FRIEND +
+    (entity.relationshipStatus === 'married' ? COMMUNITY_MERIT_MARRIED : 0);
   const titlePoints = entity.title ? TITLE_MERIT_BONUS : 0;
   const recordPoints = getIncumbentRecordPoints(state, entity);
   const baseScore = skillPoints + experiencePoints + servicePoints + communityPoints + titlePoints;

@@ -32,6 +32,11 @@ export function removeHumanFromBuildingOccupants(entity: Entity, buildings: Buil
   }
 }
 
+/** The status a settler holds once the marriage that set it is gone: only a pregnancy keeps `'expecting'`. */
+function statusAfterMarriageEnd(entity: Pick<Entity, 'pregnant'>): 'single' | 'expecting' {
+  return entity.pregnant ? 'expecting' : 'single';
+}
+
 /** Clear building assignments when a human dies (work, home, prison). */
 export function finalizeHumanDeath(
   entity: Entity,
@@ -59,7 +64,7 @@ export function finalizeHumanDeath(
   entity.prisonSentenceCrime = undefined;
 
   if (entity.relationshipStatus === 'married') {
-    entity.relationshipStatus = entity.pregnant ? 'expecting' : 'single';
+    entity.relationshipStatus = statusAfterMarriageEnd(entity);
   }
   entity.partnerId = undefined;
   entity.affairPartnerId = undefined;
@@ -82,8 +87,10 @@ export function finalizeHumanDeath(
       const partner = entityById.get(partnerId);
       if (partner?.alive) {
         partner.partnerId = undefined;
-        if (partner.relationshipStatus === 'married') {
-          partner.relationshipStatus = partner.pregnant ? 'expecting' : 'single';
+        // A father's `'expecting'` is the dead partner's pregnancy — nothing will ever clear it, and
+        // courtship refuses anything but `'single'`, so the widow or widower would never marry again.
+        if (partner.relationshipStatus === 'married' || partner.relationshipStatus === 'expecting') {
+          partner.relationshipStatus = statusAfterMarriageEnd(partner);
         }
         // About a week of mourning when we know the tick — stoic settlers recover sooner.
         if (tick != null) {
@@ -172,8 +179,8 @@ export function reconcileFamilyReferencesAfterRemoval(
     if (!survivor.alive) continue;
     if (survivor.partnerId === removedId) {
       survivor.partnerId = undefined;
-      if (survivor.relationshipStatus === 'married') {
-        survivor.relationshipStatus = survivor.pregnant ? 'expecting' : 'single';
+      if (survivor.relationshipStatus === 'married' || survivor.relationshipStatus === 'expecting') {
+        survivor.relationshipStatus = statusAfterMarriageEnd(survivor);
       }
     }
     if (survivor.affairPartnerId === removedId) {
@@ -248,10 +255,12 @@ export function reconcileOrphanedMarriages(entities: readonly Entity[]): void {
   }
   for (const human of entities) {
     if (!human.alive || human.type !== EntityType.Human) continue;
-    if (human.partnerId == null || human.relationshipStatus !== 'married') continue;
-    if (!isSettlerRelationshipEntity(byId.get(human.partnerId))) {
-      human.partnerId = undefined;
-      human.relationshipStatus = human.pregnant ? 'expecting' : 'single';
-    }
+    // A status that names a marriage cannot outlive the partner it names — including a father's
+    // `'expecting'`, which only his partner's pregnancy clears, so nothing would ever free him.
+    if (human.relationshipStatus !== 'married' && human.relationshipStatus !== 'expecting') continue;
+    const partner = human.partnerId != null ? byId.get(human.partnerId) : undefined;
+    if (isSettlerRelationshipEntity(partner)) continue;
+    human.partnerId = undefined;
+    human.relationshipStatus = statusAfterMarriageEnd(human);
   }
 }

@@ -1601,17 +1601,16 @@ export function hitTestCamp(
   return null;
 }
 
-export function tickWorldRivalSettlements(state: WorldState, allAlive: Entity[], ctx?: TickContext): void {
+export function tickWorldRivalSettlements(state: WorldState, allAlive: Entity[]): void {
   tickRivalEvents(state, allAlive, {
     pushNews: addBigNews,
     pushFloat: addFloatingText,
     logEvent,
     tickPendingDiplomacyEvents,
     queueDiplomacyEvent: maybeQueueDiplomacyEvent,
-    createFactionHuman,
     createRivalBuilding,
     killWildGameForPoach,
-  }, ctx);
+  });
 }
 
 export type WorldEventId =

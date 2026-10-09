@@ -89,7 +89,10 @@ import {
   gainSkill,
   getJobForBuilding,
   rewardProductionSkills,
+  rewardBuildingWork,
   getWorkerSkillMultiplier,
+  SKILL_CREDIT_INTERVAL_TICKS,
+  WORK_SKILL_PER_SHIFT,
 } from './skills';
 import { assignMissingWorkers, getSmithBonus } from './workforce';
 import { isPlayerHuman } from './playerHuman';
@@ -458,6 +461,18 @@ function tickBuildingProduction(
       presenceMult;
     const staffed = !BUILDING_JOB_TYPES[building.type] || workers > 0;
 
+    // Work is what teaches: the crew is credited on the standard skill cadence whether or not
+    // storage accepted the goods, and scaled by the hours it actually put in (`presenceMult`).
+    if (
+      building.completed &&
+      staffed &&
+      productionJob &&
+      productionJob !== JobType.Hunter &&
+      isProductionTick(state.tick, SKILL_CREDIT_INTERVAL_TICKS)
+    ) {
+      rewardBuildingWork(state, building, presenceMult, WORK_SKILL_PER_SHIFT, entityById);
+    }
+
     // --- Farm ---
     if (
       building.completed &&
@@ -646,7 +661,7 @@ function tickBuildingProduction(
             recordFoodProduced(state, 'hunting', added);
             const preyId = targetPrey.id;
             targetPrey.energy = 0;
-            markWildlifeDead(ctx, targetPrey, undefined, state.tick);
+            markWildlifeDead(ctx, targetPrey, undefined, state.tick, state);
             // The 4th argument is the tick's `byType` buckets. `clearHuntersTargetingPrey` sweeps
             // only HUNTER_TYPES when it is given them (simulationEntities.ts), which is the same
             // hunter-bucket scoping the three systems-layer call sites already use; without it this

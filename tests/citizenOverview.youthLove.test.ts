@@ -35,7 +35,7 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
     spriteAngle: 0,
     childrenIds: [],
     generation: 0,
-    isJuvenile: false,
+    isJuvenile: true, // a 12–17 year old is a juvenile below the adult floor
     job: 'settler' as Entity['job'],
     relationshipStatus: 'single',
     ...overrides,

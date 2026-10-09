@@ -10,7 +10,7 @@ import { ELECTION_INTERVAL_YEARS } from '../../game/villageLeadership';
 import { displayYear } from '../../game/dayCycleClock';
 import GuidedCampaignPanel from '../GuidedCampaignPanel';
 import type { WorldState } from '../../game/gameTypes';
-import type { MoreSubTab } from '../../hooks/useGameShellState';
+import { OVERVIEW_SUBJECTS, overviewSubjectForTab, type MoreSubTab } from '../../hooks/useGameShellState';
 
 // The sub-tab union is owned by the shell (`useGameShellState`). It used to be re-declared here, which
 // meant a new member compiled in the shell but was unreachable in this panel — the panel's own copy
@@ -147,9 +147,14 @@ export default function MoreTabPanel({
               <p><strong className="text-stone-200">🏘️ Daily council</strong> — What the village needs today, food by source, jobs and population.</p>
               <p><strong className="text-stone-200">🌿 Nature</strong> — Ecosystem health, weather and wildlife counts.</p>
               <p><strong className="text-stone-200">👥 People</strong> — The household roster, family trees and each settler's own story.</p>
-              <p><strong className="text-stone-200">🎯 Progress</strong> — Research, trade routes and the village portrait. Sub-tabs show badges when research or trade is ready.</p>
-              <p><strong className="text-stone-200">☰ Menu</strong> — Save and load, settings, this Guide, and the Campaign.</p>
-              <p><strong className="text-stone-200">Every window has a keyboard door</strong> — {[...HEADER_DOORS, { key: 'C', label: 'Daily council' }, { key: 'O', label: 'People' }].map((door, index) => (<span key={door.label}>{index > 0 ? ' · ' : ''}<strong className="text-stone-200">{door.key}</strong> {door.label}</span>))}. Press <strong className="text-stone-200">?</strong> for the full list.</p>
+              <p><strong className="text-stone-200">{OVERVIEW_SUBJECTS.progress.icon} {OVERVIEW_SUBJECTS.progress.label}</strong> — Research, trade routes and the village portrait. Sub-tabs show badges when research or trade is ready.</p>
+              <p><strong className="text-stone-200">{OVERVIEW_SUBJECTS.help.icon} {OVERVIEW_SUBJECTS.help.label}</strong> — Save and load, settings, this Guide, and the Campaign.</p>
+              <p><strong className="text-stone-200">Every window has a keyboard door</strong> — {[
+                // Door names come from the header's own vocabulary; the key table names no window.
+                ...HEADER_DOORS.map((door) => ({ key: door.key, label: overviewSubjectForTab(door.tab).label })),
+                { key: 'C', label: 'Daily council' },
+                { key: 'O', label: `${overviewSubjectForTab('village').label} (V opens the same window)` },
+              ].map((door, index) => (<span key={door.key}>{index > 0 ? ' · ' : ''}<strong className="text-stone-200">{door.key}</strong> {door.label}</span>))}. Press <strong className="text-stone-200">?</strong> for the full list.</p>
             </div>
           </div>
 

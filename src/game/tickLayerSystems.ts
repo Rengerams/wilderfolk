@@ -12,7 +12,7 @@ import {
   EVENT_INTERVAL,
   isNewCalendarDayTick,
   killHuman,
-  HUMAN_CHILDHOOD_DAYS,
+  HUMAN_CHILDHOOD_YEARS,
   TICKS_PER_HOUR,
 } from './dayCycle';
 import type { TickContext } from './simulation/simulationTypes';
@@ -271,14 +271,14 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
       // 2. Old age death
       if (entity.age >= entity.maxAge) {
-        markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick);
+        markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick, state);
         createDeathParticles(state, entity.x, entity.y, '#aaaaaa', 5, 'smoke');
         syncEntityGrids(ctx, entity);
         continue;
       }
 
       // 3. Growth transitions
-      if (entity.isJuvenile && entity.age >= HUMAN_CHILDHOOD_DAYS) {
+      if (entity.isJuvenile && entity.age >= HUMAN_CHILDHOOD_YEARS) {
         entity.isJuvenile = false;
         entity.size = SPECIES_CONFIG[entity.type].size;
         entity.speed = SPECIES_CONFIG[entity.type].speed;
@@ -296,7 +296,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       entity.energy -= (config.energyLossPerTick * grazerEase + winterPenalty) * step;
 
       if (entity.energy <= 0) {
-        markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick);
+        markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick, state);
         createDeathParticles(state, entity.x, entity.y, '#8a2a2a', 8);
         syncEntityGrids(ctx, entity);
         continue;
@@ -474,7 +474,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
               )
             ) {
               const victimId = caughtPrey.id;
-              markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick);
+              markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick, state);
               syncEntityGrids(ctx, entity);
               clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId, byType);
 
@@ -518,7 +518,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                   if (hIdx >= 0) humanBucket.splice(hIdx, 1);
                 }
               } else {
-                markWildlifeDead(ctx, caughtPrey, wildlifeDeathsThisTick, state.tick);
+                markWildlifeDead(ctx, caughtPrey, wildlifeDeathsThisTick, state.tick, state);
               }
 
               clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId, byType);
@@ -729,7 +729,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             );
             if (assistPrey?.alive) {
               const preyId = assistPrey.id;
-              markWildlifeDead(ctx, assistPrey, wildlifeDeathsThisTick, state.tick);
+              markWildlifeDead(ctx, assistPrey, wildlifeDeathsThisTick, state.tick, state);
               clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId, byType);
               syncEntityGrids(ctx, assistPrey);
               createDeathParticles(state, assistPrey.x, assistPrey.y, '#8a2a2a', 6);

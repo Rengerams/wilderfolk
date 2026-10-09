@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import type { GameState } from './gameEngine';
 import { displayYear } from './dayCycleClock';
 import { ResourceIcon, type ResourceKey } from '../components/ResourceIcons';
+import { RESOURCE_LABELS } from '../components/resourceLabels';
+import { RESOURCE_METAS } from './resourceTypes';
 
 interface Props {
   state: GameState;
@@ -14,6 +16,9 @@ interface Props {
  */
 export default function StatisticsPanel({ state }: Props) {
   const lifetime = state.lifetimeStats;
+  const gatheredEntries = (['wood', 'stone', 'food', 'gold'] as const)
+    .map((resource) => ({ resource, amount: lifetime.totalResourcesGathered[resource] ?? 0 }))
+    .filter((entry) => entry.amount > 0);
 
   return (
     <div className="space-y-3 text-[13px] text-stone-300">
@@ -71,6 +76,36 @@ export default function StatisticsPanel({ state }: Props) {
                 <strong className="text-emerald-300">{lifetime.largestPopulation.count.toLocaleString()}</strong>
                 <span className="text-stone-400"> (Year {displayYear(lifetime.largestPopulation.year)})</span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {lifetime.mostProductiveYear.buildings > 0 && (
+          <div className="mt-1 flex items-center gap-2 rounded bg-stone-800/60 p-2">
+            <span className="text-base">🏗️</span>
+            <div className="min-w-0">
+              <span className="text-[10px] uppercase tracking-wider text-stone-400">Most Productive Year</span>
+              <div className="text-[13px]">
+                <strong className="text-blue-300">{lifetime.mostProductiveYear.buildings.toLocaleString()}</strong>
+                <span className="text-stone-400"> built (Year {displayYear(lifetime.mostProductiveYear.year)})</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {gatheredEntries.length > 0 && (
+          <div className="mt-2">
+            <span className="text-[10px] uppercase tracking-wider text-stone-400">Gathered All Time</span>
+            <div className="mt-1 grid grid-cols-2 gap-1.5">
+              {gatheredEntries.map(({ resource, amount }) => (
+                <StatBox
+                  key={resource}
+                  label={RESOURCE_LABELS[resource]}
+                  value={amount}
+                  resource={resource}
+                  color={RESOURCE_METAS[resource].color}
+                />
+              ))}
             </div>
           </div>
         )}

@@ -205,13 +205,22 @@ export interface GenerateWorldMapOptions {
 /** Preferred: `generateWorldMap(MapSize.Medium, MapPreset.Continental, seed)`. */
 export function generateWorldMap(size: MapSize, preset?: MapPreset, seed?: number): WorldMap;
 /** Legacy pixel dimensions — prefer MapSize overload. */
-export function generateWorldMap(width: number, height: number, seed?: number, size?: MapSize, preset?: MapPreset): WorldMap;
+export function generateWorldMap(
+  width: number,
+  height: number,
+  seed?: number,
+  size?: MapSize,
+  preset?: MapPreset,
+  /** The noise seed a save recorded — see `terrainSeedFor`. Wins over `seed` + `size`. */
+  terrainSeed?: number,
+): WorldMap;
 export function generateWorldMap(
   widthOrSize: number | MapSize = 1200,
   heightOrPreset: number | MapPreset = 900,
   seedOrUndefined?: number,
   sizeArg?: MapSize,
   presetArg: MapPreset = 'continental',
+  terrainSeedArg?: number,
 ): WorldMap {
   let width: number;
   let height: number;
@@ -243,7 +252,7 @@ export function generateWorldMap(
   }
 
   // Teraforge engine: 64px cells → 10px tiles + continuous fields + L0/L1 grids.
-  const map = generateRawTerrain(width, height, seed, size, preset);
+  const map = generateRawTerrain(width, height, seed, size, preset, terrainSeedArg);
 
   // Carve a buildable camp clearing and strip the start-area forest so the founding
   // pioneers and first buildings have usable ground near the centre.

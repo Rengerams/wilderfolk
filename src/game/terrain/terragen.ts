@@ -745,15 +745,39 @@ const SIZE_TERRAIN_SEED_OFFSET: Record<MapSize, number> = {
 
 /* ===== Public API ===== */
 
+/**
+ * The noise seed the pre-`SIZE_TERRAIN_SEED_OFFSET` generator used, kept so a compact save written
+ * before the offsets existed can still be regenerated as the valley its owner played.
+ */
+export function legacyTerrainSeed(seed: number): number {
+  return hashString(String(seed)) >>> 0;
+}
+
+/**
+ * The terrain noise seed for a world. `terrainSeed` states the seed a save was generated with and
+ * wins outright: a compact save regenerates its whole valley, so any tuning of the offset (or of
+ * `hashString`, or of the size table) would otherwise repaint every existing settlement.
+ */
+export function terrainSeedFor(
+  seed: number,
+  size: WorldMap['size'],
+  terrainSeed?: number,
+): number {
+  if (typeof terrainSeed === 'number' && Number.isFinite(terrainSeed)) return terrainSeed >>> 0;
+  return (hashString(String(seed)) + SIZE_TERRAIN_SEED_OFFSET[size]) >>> 0;
+}
+
 export function generateRawTerrain(
   width: number,
   height: number,
   seed: number,
   size: WorldMap['size'],
   preset: WorldMap['preset'],
+  /** The seed an existing save was generated with — see {@link terrainSeedFor}. */
+  terrainSeed?: number,
 ): WorldMap {
   const s = PRESET_SETTINGS[preset];
-  const tseed = (hashString(String(seed)) + SIZE_TERRAIN_SEED_OFFSET[size]) >>> 0;
+  const tseed = terrainSeedFor(seed, size, terrainSeed);
 
   const tileW = Math.ceil(width / 10);
   const tileH = Math.ceil(height / 10);
@@ -926,6 +950,8 @@ export function generateRawTerrain(
     bRows,
     seaLevel,
     moistureBias: s.moisture,
+    /** Recorded so a save can regenerate this exact valley — see `terrainSeedFor`. */
+    terrainSeed: tseed,
     moistureForestThreshold: cuts.forest,
     moistureDarkForestThreshold: cuts.darkForest,
     waterfalls,

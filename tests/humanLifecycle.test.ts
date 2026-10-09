@@ -210,7 +210,14 @@ describe('human lifecycle golden contracts', () => {
     expect(ctx.newEntities[0]?.type).toBe(EntityType.Wildkin);
     expect(mother.childrenIds).toEqual([]);
     expect(mother.pregnant).toBe(false);
-    expect(state.eventLog.some((event) => event.type === 'birth' && event.message.includes('Wildkin'))).toBe(true);
+    const wildkinLine = state.eventLog.find(
+      (event) => event.type === 'birth' && event.message.includes('Wildkin'),
+    );
+    expect(wildkinLine).toBeDefined();
+    // The creature is half human and once in a generation, so its one chronicle line has to say
+    // where it is — a bare "gave birth to a Wildkin" leaves it lost in a large colony.
+    expect(wildkinLine?.message).toMatch(/at the settlement|near the settlement|out in the wilds to the/);
+    expect(wildkinLine?.message).toContain('half human');
     expect(collectSimulationInvariantErrors({ ...state, entities: [...state.entities, ...ctx.newEntities] })).toEqual([]);
   });
 

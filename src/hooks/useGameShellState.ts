@@ -134,6 +134,14 @@ export function sidebarTabForOverviewNav(id: OverviewNavId): SidebarTab {
   return OVERVIEW_NAV_RAIL[id];
 }
 
+/** The subject a sidebar tab opens — the name the header and its window both show for it. */
+export function overviewSubjectForTab(tab: SidebarTab): OverviewSubjectMeta {
+  const id = (Object.entries(OVERVIEW_NAV_RAIL) as [OverviewNavId, SidebarTab][])
+    .find(([, rail]) => rail === tab)?.[0];
+  // `schedule` is a declared-but-unproduced id whose view renders inside the People subject.
+  return OVERVIEW_SUBJECTS[id ?? 'people'];
+}
+
 /** Map an in-overview nav chip to section + world focus. */
 export function mapOverviewNav(id: OverviewNavId): {
   section: OverviewSection;

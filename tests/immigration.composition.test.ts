@@ -1,13 +1,12 @@
 /**
  * Immigration party composition (2026-09-16).
  *
- * Immigrants used to be adults only (18–55). A party is now one of three shapes: a lone youth
- * (12–17), a married couple that may bring 1–2 children, or a single adult. The age bands are the
- * simulation's own (childhood under `HUMAN_CHILDHOOD_DAYS`, youth 12–17, adult from
- * `HUMAN_ADULT_MIN_AGE`/`HUMAN_MOVE_OUT_MIN_AGE`), and a child only ever arrives with both parents.
+ * A party is one of three shapes: a lone youth (12–17), a married couple that may bring 1–2 children,
+ * or a single adult. A family child still only arrives with both parents; the lone youth is a
+ * juvenile, since childhood ends at the adult floor.
  */
 import { describe, expect, it } from 'vitest';
-import { HUMAN_CHILDHOOD_DAYS, HUMAN_ADULT_MIN_AGE } from '../src/game/dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/dayCycle';
 import { HUMAN_MOVE_OUT_MIN_AGE } from '../src/game/residencyOccupancy';
 import { Immigration } from '../src/game/gameConstants';
 import { setSimSeed } from '../src/game/simRng';
@@ -35,7 +34,9 @@ function parties(maxMembers: number, seeds = 150): Entity[][] {
   return result;
 }
 
-const isChild = (e: Entity) => e.age < HUMAN_CHILDHOOD_DAYS;
+/** The generator's family-child band (2–11); a lone youth is 12–17, so not a child here. */
+const isChild = (e: Entity) =>
+  e.age >= Immigration.CHILD_AGE_MIN && e.age <= Immigration.CHILD_AGE_MAX;
 
 describe('immigration party composition', () => {
   it('produces all three party shapes, including youths and families with children', () => {
@@ -115,8 +116,9 @@ describe('immigration party composition', () => {
     expect(member.age).toBeLessThanOrEqual(Immigration.YOUTH_AGE_MAX);
     expect(member.partnerId).toBeUndefined();
     expect(member.relationshipStatus).toBe('single');
-    // A youth is past childhood (graduated) but below the adult floor and the marriage floor.
-    expect(member.isJuvenile).toBe(false);
+    // A youth is below the childhood boundary — which *is* the adult floor — so the factory flags a
+    // juvenile; the youth band stays under the marriage floor and out of adult work.
+    expect(member.isJuvenile).toBe(true);
     expect(member.age).toBeGreaterThanOrEqual(Immigration.YOUTH_AGE_MIN);
     expect(member.age).toBeLessThanOrEqual(Immigration.YOUTH_AGE_MAX);
     expect(member.age).toBeLessThan(HUMAN_MOVE_OUT_MIN_AGE);

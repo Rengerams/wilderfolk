@@ -60,6 +60,7 @@ import { createInitialView } from '../src/game/viewState';
 import { getWorkSchedule } from '../src/game/workSchedule';
 import { getVenueSchedule } from '../src/game/venueSchedule';
 import { EntityType, BuildingType, type WorldState } from '../src/game/gameTypes';
+import { HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycle';
 
 const SEED = 4242;
 const TICKS = 240; // 5 colony days — crosses every daily cadence at least five times
@@ -318,6 +319,16 @@ describe('worker boundary closure', () => {
     invalidateWorldRuntimeCaches(display);
     const exported = hydrateWorldRuntimeCaches(structuredClone(display));
     hydrateWorldRuntimeCaches(display);
+
+    // `migrateHumanAges` backfills a zeroed calendar birth date; this fixture's own spawns all carry a
+    // real one, so a legacy payload's state is built here (an adult recomputes to the same age).
+    const legacy = exported.entities.find(
+      (entity) => entity.type === EntityType.Human && entity.alive && entity.age >= HUMAN_CHILDHOOD_YEARS,
+    );
+    expect(legacy, 'the fixture has an adult to carry a legacy birth date').toBeDefined();
+    if (!legacy) return;
+    legacy.birthDay = 0;
+    legacy.birthMonth = 0;
 
     const save = buildSaveData(exported, createInitialView(exported.width, exported.height));
     const parsed = parseSaveJson(JSON.stringify(save));

@@ -1,4 +1,5 @@
 import type { WorldState, Resources } from './gameTypes';
+import { recordResourcesGathered } from './stats';
 
 export const FOOD_LOW_THRESHOLD = 20;
 /** 15 = the floor under the per-settler rule; 1.5 = stores per settler below which food is critical. */
@@ -67,6 +68,10 @@ export function addCappedResource(state: WorldState, type: keyof Resources, amou
   const add = Math.min(amount, headroom);
 
   state.resources[type] = current + add;
+  // The lifetime gathering record reads this return value, so every gain in the game — production,
+  // foraging, hunting, fishing, trade, rewards and refunds — is counted exactly once, at the one
+  // place storage accepts it.
+  recordResourcesGathered(state, type, add);
   return add;
 }
 

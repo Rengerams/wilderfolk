@@ -336,6 +336,6 @@ describe('camp anchor inside the human loop (N-4)', () => {
 
     // Pinned at the current human walk speed: these two numbers move only with the movement owner.
     expect({ x: raider.x, y: raider.y }).toEqual({ x: 635.8425545439593, y: 322.59977459916 });
-    expect({ x: guard.x, y: guard.y }).toEqual({ x: 213.936892991149, y: 218.37240262835442 });
+    expect({ x: guard.x, y: guard.y }).toEqual({ x: 214.2927530438579, y: 218.4645487069787 });
   });
 });

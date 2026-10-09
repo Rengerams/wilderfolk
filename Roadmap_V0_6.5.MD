@@ -1,3 +1,14 @@
+0.6.5.1
+
+Where it sits on the ladder — its diet, ecology role, and combat/vulnerability compared with wolf, deer and rabbit, with the config table.
+The breeding arithmetic — whether its caps are actually high, and whether a lone one can reproduce at all, which decides if "rare" is enforced by the rules or just by luck.
+A texture slot — the path, dimensions and register entry waiting for your art, so it stops wearing a wolf's face.
+Tracking — birth, sighting and death lines with a location, plus whether the family tree already lists it as Janet's child.
+A birth line — the Moon Howler lineage, which is the only route you've ever seen it arrive by.
+
+
+
+
 # Wilderfolk Roadmap
 
 <p align="center">

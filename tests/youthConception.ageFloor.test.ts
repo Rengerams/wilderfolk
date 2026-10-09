@@ -58,7 +58,7 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
     name: id === MOTHER_ID ? 'Maren' : 'Erik',
     surname: 'Vale',
     generation: 1,
-    isJuvenile: false,
+    isJuvenile: true, // 12 — below the childhood boundary, which is the adult floor
     job: JobType.Settler,
     childrenIds: [],
     reproductionCooldown: 0,

@@ -1,16 +1,13 @@
 import type { Building, Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
 import { BuildingType, BUILDING_CONFIGS, EntityType } from './gameTypes';
 import { getColonyDay, isNewCalendarDayTick } from './dayCycle';
-import { maybeQueueRaid } from './frontierCombat';
-import { indexLivingEntity } from './entityIndex';
+import { canRivalCampGrow, getRivalGrowthFoodCost, isRivalGrowthDay, maybeQueueRaid } from './frontierCombat';
 import { isRivalAtPeace } from './rivalPeace';
 import { applyRivalDailyAction, ensureRivalProfile, selectRivalDailyAction } from './rivalProfiles';
 import { getSimRng } from './simRng';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
 import { adjustPollutionLevel } from './dailyEcology';
-import { pushNewEntity } from './simulation/simulationEntities';
-import type { TickContext } from './simulation/simulationTypes';
 
 export interface RivalEventCallbacks {
   pushNews: (state: WorldState, title: string, message: string, type: 'positive' | 'negative' | 'neutral') => void;
@@ -18,14 +15,6 @@ export interface RivalEventCallbacks {
   logEvent: (state: WorldState, type: GameEventLog['type'], message: string, subject?: string) => void;
   tickPendingDiplomacyEvents: (state: WorldState) => void;
   queueDiplomacyEvent: (state: WorldState, rival: RivalSettlement) => void;
-  createFactionHuman: (
-    state: WorldState,
-    x: number,
-    y: number,
-    faction: 'rival',
-    groupId: string,
-    surname: string,
-  ) => Entity;
   createRivalBuilding: (
     state: WorldState,
     type: BuildingType,
@@ -202,7 +191,6 @@ export function tickRivalSettlements(
   state: WorldState,
   allAlive: Entity[],
   callbacks: RivalEventCallbacks,
-  ctx?: TickContext,
 ): void {
   if (!isNewCalendarDayTick(state)) return;
 
@@ -215,11 +203,16 @@ export function tickRivalSettlements(
 
   for (const rival of state.rivalSettlements) {
     ensureRivalProfile(rival);
-    let population = 0;
-    for (const id of rival.entityIds) {
-      if (aliveById.get(id)?.alive) population++;
+    // A camp that fields no entities still carries a population — the ledger-growth number below.
+    // Writing the roster count unconditionally erased every settler that growth added, so the camp
+    // stayed at its founding size forever; the count is a floor, never a shrink.
+    if (rival.entityIds.length > 0) {
+      let population = 0;
+      for (const id of rival.entityIds) {
+        if (aliveById.get(id)?.alive) population++;
+      }
+      rival.population = Math.max(rival.population, population);
     }
-    rival.population = population;
 
     if (rival.raidCooldownDays > 0) rival.raidCooldownDays--;
     if (rival.peaceTreatyDays > 0) {
@@ -234,6 +227,21 @@ export function tickRivalSettlements(
     if (!isRivalAtPeace(rival)) maybeQueueRaid(state, rival, allAlive);
 
     maybeExpandRivalCamp(state, rival, buildings, callbacks);
+
+    // Growth rolls on its own cadence: the action-timer gate below is reached once per 45-90 days,
+    // so a camp that only grew there stayed at its founding size for years.
+    if (
+      state.year > rival.foundedYear + 1
+      && isRivalGrowthDay(state.rivalSettlements.indexOf(rival), getColonyDay(state))
+      && canRivalCampGrow(rival)
+      && getSimRng('rivalEvents')() < 0.45
+    ) {
+      const profile = ensureRivalProfile(rival);
+      profile.ledger.food = Math.max(0, profile.ledger.food - getRivalGrowthFoodCost());
+      rival.population++;
+      callbacks.logEvent(state, 'event', `${rival.name} grew — ${rival.population} souls at the camp`, rival.name);
+    }
+
     rival.daysUntilAction--;
     if (rival.daysUntilAction > 0) continue;
     rival.daysUntilAction = 45 + Math.floor(getSimRng('rivalEvents')() * 45);
@@ -276,20 +284,6 @@ export function tickRivalSettlements(
       callbacks.pushNews(state, '⚡ Border Tension', `${rival.name} grumbles about your expansion. Reputation -2.`, 'negative');
     } else if (rival.relationship === 'neutral' && getSimRng('rivalEvents')() < 0.3) {
       callbacks.logEvent(state, 'event', `${rival.name} scouts were seen mapping the river bend`, rival.name);
-    }
-
-    if (state.year > rival.foundedYear + 1 && rival.population < 12 && getSimRng('rivalEvents')() < 0.2) {
-      const entity = callbacks.createFactionHuman(state, rival.campX, rival.campY, 'rival', rival.id, rival.name);
-      rival.entityIds.push(entity.id);
-      rival.population++;
-      if (ctx) {
-        pushNewEntity(state, ctx, entity);
-        if (!allAlive.includes(entity)) allAlive.push(entity);
-      } else {
-        allAlive.push(entity);
-        indexLivingEntity(state, entity);
-      }
-      callbacks.logEvent(state, 'migration', `${rival.name} welcomed a new family`, rival.name);
     }
   }
 }

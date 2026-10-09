@@ -132,10 +132,10 @@ export const Human = {
  * `worldGen.createImmigrantSettler`.
  *
  * A party is one of three shapes, rolled in this order: a **lone youth** (12–17), a **married
- * couple** (which may bring 1–2 children), or a **single adult**. The ages use the simulation's
- * own bands: under `HUMAN_CHILDHOOD_DAYS` (12) is a child (school, juvenile), 12–17 is a youth
- * (graduated, adult-sized, youth love, no marriage before `HUMAN_MOVE_OUT_MIN_AGE` = 18), and 18+
- * is an adult. A child therefore only ever arrives *with* both parents — never alone.
+ * couple** (which may bring 1–2 children), or a **single adult**. Ages use the simulation's own
+ * bands: under `HUMAN_CHILDHOOD_YEARS` (18) is a child, so the 12–17 lone youth arrives a
+ * juvenile too and only the 18+ lane may marry (`HUMAN_MOVE_OUT_MIN_AGE`). A family child (2–11)
+ * only ever arrives with both parents; the lone youth lane brings its settler alone.
  */
 export const Immigration = {
   /** Ages a lone adult, or a couple's lead adult, can arrive with. */
@@ -155,7 +155,7 @@ export const Immigration = {
   PREGNANT_WIFE_CHANCE: 0.4,
   /** Chance an arriving couple brings children (only when the colony has room for them). */
   FAMILY_WITH_CHILD_CHANCE: 0.6,
-  /** Children are under `HUMAN_CHILDHOOD_DAYS`, so they enrol at school and graduate there. */
+  /** Children are under `HUMAN_CHILDHOOD_YEARS`, so they enrol at school and graduate there. */
   CHILD_AGE_MIN: 2,
   CHILD_AGE_MAX: 11,
   /** Up to two children per family; the caller's free-slot count caps it further. */
@@ -169,14 +169,14 @@ export const Immigration = {
  * ladder `0-2 baby / 2-6 toddler / 6-12 child / 12-18 juvenile`.
  *
  * School had **no minimum age at all**: `humanTick` gated the school run on `entity.isJuvenile` alone,
- * and that flag is `age < HUMAN_CHILDHOOD_DAYS` (12) — true from birth. So a newborn was eligible for
+ * and that flag is `age < HUMAN_CHILDHOOD_YEARS` (18) — true from birth. So a newborn was eligible for
  * a school shift and would walk to one whenever a school was in range; the only thing that ever
  * stopped it was the building being absent or too far, which is why it reads as an intermittent
  * absurdity rather than a constant one.
  *
  * 6 is the owner's own number for the start of the "child" band, and it is the first of their four
  * stages that implies schooling. Deliberately **not** a new global age ladder: the simulation's bands
- * stay as they are (`HUMAN_CHILDHOOD_DAYS` 12 = graduation, `HUMAN_ADULT_MIN_AGE` 18 = adult) and this
+ * stay as they are (`HUMAN_CHILDHOOD_YEARS` = graduation = `HUMAN_ADULT_MIN_AGE` 18 = adult) and this
  * is one gate on one activity — a baby does not go to school. Turning the other three stages into real
  * mechanics is a separate, balance-affecting decision.
  */
@@ -210,11 +210,11 @@ export const Prison = {
 /**
  * Valley ecology stage ladder (Stable → Strained → Damaged → Collapse).
  *
- * While ENABLED is false the effective stage always reads 'stable' — no
- * transitions, notifications, focus hints, or hunt/farm/illness effects.
+ * The single switch for the whole ladder: turn it off to park the valley at a quiet 'stable', with
+ * no transitions, notifications, focus hints, or hunt/farm/illness effects.
  */
 export const ValleyEcology = {
-  ENABLED: false,
+  ENABLED: true,
 } as const;
 
 /**

@@ -236,6 +236,89 @@ describe('valley ecology stage (L17, L18)', () => {
     expect(grazing?.stress).toBe(2);
     expect(grazing?.band).toBe('bad');
   });
+
+  it('walks a stressed valley down to collapse and recovers it one step at a time', () => {
+    const state = world();
+    quietValley(state);
+    state.tick = TICKS_PER_DAY * 20;
+    state.ecosystemHealth = 10; // footprint driver bad → raw stress 2
+    state.eventLog = [];
+    state.notifications = [];
+    state.bigNews = [];
+    state.valleyStage = 'stable';
+    state.valleyStageSinceDay = 0;
+    state.valleyRawStressStreakDays = 0;
+    state.valleyRawCalmStreakDays = 0;
+    state.valleyLastStageNotifyDay = -999;
+    const reputationBefore = state.villageReputation ?? 0;
+
+    expect(computeRawEcologyStress(state).stressLevel).toBe(2);
+    for (let day = 20; day < 23; day++) {
+      state.tick = TICKS_PER_DAY * day;
+      tickValleyEcologyStage(state);
+    }
+    expect(state.valleyStage).toBe('strained');
+
+    for (let day = 23; day < 26; day++) {
+      state.tick = TICKS_PER_DAY * day;
+      tickValleyEcologyStage(state);
+    }
+    expect(state.valleyStage).toBe('damaged');
+
+    // Two bad drivers is raw stress 3, the only input that may reach collapse.
+    state.wildlifeCounts = { ...state.wildlifeCounts, deer: 20, rabbits: 0, wolves: 0, grass: 1 };
+    expect(computeRawEcologyStress(state).stressLevel).toBe(3);
+    for (let day = 26; day < 29; day++) {
+      state.tick = TICKS_PER_DAY * day;
+      tickValleyEcologyStage(state);
+    }
+    // Confirmed stress alone is not enough: damaged must dwell before the last step is allowed.
+    expect(state.valleyStage).toBe('damaged');
+
+    state.tick = TICKS_PER_DAY * 29;
+    tickValleyEcologyStage(state);
+    expect(state.valleyStage).toBe('collapse');
+    expect(state.villageReputation).toBe(reputationBefore - 4);
+
+    // Recovery steps back one stage per two calm days, so collapse is never a dead end.
+    quietValley(state);
+    state.ecosystemHealth = 100;
+    for (let day = 30; day <= 35; day++) {
+      state.tick = TICKS_PER_DAY * day;
+      tickValleyEcologyStage(state);
+      if (day === 30) expect(state.valleyStage).toBe('collapse');
+      if (day === 31) expect(state.valleyStage).toBe('damaged');
+      if (day === 33) expect(state.valleyStage).toBe('strained');
+    }
+    expect(state.valleyStage).toBe('stable');
+  });
+
+  it('holds a healthy valley at stable across a year of daily ticks', () => {
+    const state = world();
+    quietValley(state);
+    state.tick = TICKS_PER_DAY * 20;
+    state.eventLog = [];
+    state.notifications = [];
+    state.bigNews = [];
+    expect(computeRawEcologyStress(state).stressLevel).toBe(0);
+
+    for (let day = 20; day < 380; day++) {
+      state.tick = TICKS_PER_DAY * day;
+      tickValleyEcologyStage(state);
+    }
+
+    expect(state.valleyStage).toBe('stable');
+    expect(state.notifications).toHaveLength(0);
+    expect(state.bigNews).toHaveLength(0);
+    expect(state.eventLog).toHaveLength(0);
+  });
+});
+
+describe('valley ecology ladder shipping state', () => {
+  it('ships enabled, so the ladder runs unless the owner parks it again', () => {
+    // Flipping this off is a deliberate owner decision; change this expectation with it.
+    expect(ValleyEcology.ENABLED).toBe(true);
+  });
 });
 
 describe('economy storage caps (L19)', () => {

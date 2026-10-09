@@ -11,7 +11,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { OVERVIEW_SUBJECTS } from '../src/hooks/useGameShellState';
+import { OVERVIEW_SUBJECTS, overviewSubjectForTab } from '../src/hooks/useGameShellState';
+import { HEADER_DOORS } from '../src/game/hotkeys';
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.env.UX2_SOURCE_ROOT ?? process.cwd(), relativePath), 'utf8');
@@ -50,5 +51,52 @@ describe('the two overview doors name their own windows', () => {
     expect(window, 'the dialog name is a second copy of the visible title again').not.toContain(
       'aria-label={title}',
     );
+  });
+});
+
+describe('every door name comes from the one subject vocabulary', () => {
+  it('names each header door the way the header does', () => {
+    expect(HEADER_DOORS.map((door) => overviewSubjectForTab(door.tab).label)).toEqual([
+      'People',
+      'Frontier',
+      'Nature',
+      'Progress',
+      'Log',
+      'More',
+    ]);
+  });
+
+  it('keeps no second copy of a door name in the key table', () => {
+    expect(
+      read('src/game/hotkeys.ts'),
+      'the key table stores door names again',
+    ).not.toMatch(/label: '/);
+  });
+
+  it('renders the sheet and the Guide from the vocabulary, not from a literal', () => {
+    for (const file of [
+      'src/components/ShortcutsOverlay.tsx',
+      'src/components/tabPanels/MoreTabPanel.tsx',
+    ]) {
+      const source = read(file);
+      expect(source, `${file} does not resolve a door name from the subject table`)
+        .toContain('overviewSubjectForTab(');
+      expect(source, `${file} hard-codes a door name the vocabulary owns`).not.toMatch(/'Village'/);
+    }
+  });
+
+  it('says V and O are two routes to the People window', () => {
+    expect(read('src/components/ShortcutsOverlay.tsx')).toContain('V opens the same window');
+    expect(read('src/components/tabPanels/MoreTabPanel.tsx')).toContain('V opens the same window');
+  });
+
+  it('draws the Guide window list from the vocabulary, glyph included', () => {
+    const guide = read('src/components/tabPanels/MoreTabPanel.tsx');
+    for (const subject of ['progress', 'help'] as const) {
+      expect(guide, `the Guide does not read the ${subject} name and glyph from the subject table`)
+        .toContain(`{OVERVIEW_SUBJECTS.${subject}.icon} {OVERVIEW_SUBJECTS.${subject}.label}`);
+    }
+    expect(guide, 'the Guide writes the Progress glyph by hand again').not.toContain('🎯 Progress');
+    expect(guide, 'the Guide writes the More name by hand again').not.toContain('☰ Menu');
   });
 });

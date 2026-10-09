@@ -14,6 +14,7 @@ import {
   getMilitiaArmamentLabel,
 } from './militiaBalance';
 import { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter } from './villageAnchor';
+import { normalizeRivalProfile } from './rivalProfiles';
 
 /**
  * The village anchor: completed player Town Hall, else House, else the living player settlers' mean,
@@ -143,12 +144,32 @@ export function getRivalRaidStrength(rival: RivalSettlement): number {
 export const RAID_GROWTH_BASE_ADULTS = 8;
 
 /**
+ * Ceiling on raid pressure. Growth is sublinear in adults and stops here, so a large colony is raided
+ * hard but never by an unbounded war-band — measured against militia strength, not a fixed prize.
+ */
+export const RAID_GROWTH_MAX_SCALE = 6;
+
+/** Ceiling on one raid's prize, in the same units as `getRaidGrowthScale` — the prize rides the raid. */
+export const RAID_LOOT_MAX_SCALE = 3.5;
+
+/**
  * Raid pressure as a multiple of the camp's own war-band: a village of `RAID_GROWTH_BASE_ADULTS` is
  * raided at the camp's raw strength, and every further band of adults scales the raid with it.
+ *
+ * The square root is what keeps the two sides from cancelling out: linear scaling matched militia
+ * growth exactly, so the ratio (and the outcome tier) never moved, and a 1 600-settler colony was
+ * raided at 54 strength forever. This reaches `RAID_GROWTH_MAX_SCALE` and holds.
  */
 export function getRaidGrowthScale(adultCount: number): number {
   const adults = Number.isFinite(adultCount) ? Math.max(0, adultCount) : 0;
-  return Math.max(1, adults / RAID_GROWTH_BASE_ADULTS);
+  const bands = adults / RAID_GROWTH_BASE_ADULTS;
+  return Math.max(1, Math.min(RAID_GROWTH_MAX_SCALE, Math.sqrt(bands)));
+}
+
+/** How much of the growth multiple a raid can carry off as loot — bounded by `RAID_LOOT_MAX_SCALE`. */
+export function getRaidLootScale(growthScale: number): number {
+  const scale = Number.isFinite(growthScale) ? Math.max(1, growthScale) : 1;
+  return Math.min(RAID_LOOT_MAX_SCALE, scale);
 }
 
 /** Rival strength when you attack their camp — includes home-turf defense bonus. */
@@ -301,6 +322,82 @@ export function canLaunchRaidOnRival(
     return { ok: false, foodCost, blockReason: 'War-band already marching on this camp' };
   }
   return { ok: true, foodCost };
+}
+
+/** One deliberate act of hostility — cheap in goods, dear in standing. */
+const PROVOKE_REPUTATION_COST = 6;
+/** The camp answers a provocation on its own timer, not the next raid roll. */
+const PROVOKE_RAID_COOLDOWN_DAYS = 12;
+
+/** The player's own door out of a friendly stand-off — the only relations change they initiate. */
+export function canProvokeRival(
+  state: WorldState,
+  rival: RivalSettlement,
+): { ok: boolean; blockReason?: string } {
+  if (!state.rivalSettlements.some((r) => r.id === rival.id)) return { ok: false, blockReason: 'No such rival' };
+  if (rival.relationship === 'tense') return { ok: false, blockReason: 'Relations already tense' };
+  return { ok: true };
+}
+
+export function provokeRival(originalState: WorldState, rivalId: string): WorldState {
+  const state = structuredClone(originalState);
+  const rival = state.rivalSettlements.find((r) => r.id === rivalId);
+  if (!rival) return state;
+
+  const eligibility = canProvokeRival(state, rival);
+  if (!eligibility.ok) {
+    addFloatingText(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot provoke', '#f97316');
+    return state;
+  }
+
+  rival.relationship = 'tense';
+  rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PROVOKE_RAID_COOLDOWN_DAYS);
+  rival.daysUntilAction = Math.max(rival.daysUntilAction, PROVOKE_RAID_COOLDOWN_DAYS);
+  addReputation(state, -PROVOKE_REPUTATION_COST);
+  addFloatingText(state, rival.campX, rival.campY - 20, '⚠️ Hostility declared', '#f87171');
+  addBigNews(
+    state,
+    '⚔️ Hostility declared',
+    `${state.villageName} sent ${rival.name} a war challenge — they will answer it.`,
+    'negative',
+  );
+  logEvent(
+    state,
+    'combat',
+    `Declared hostility toward ${rival.name} — relations turn tense, reputation -${PROVOKE_REPUTATION_COST}`,
+    rival.name,
+    'outgoing_raid',
+  );
+  return state;
+}
+
+/** A camp takes stock of its stores on this cadence, whatever its action timer says. */
+export const RIVAL_GROWTH_INTERVAL_DAYS = 9;
+/** A camp this size has outgrown the room the valley leaves it. */
+const RIVAL_CAMP_MAX_POPULATION = 12;
+/** Stores a camp must hold per head, and the morale/recovery below which nobody joins it. */
+const RIVAL_GROWTH_FOOD_PER_HEAD = 10;
+const RIVAL_GROWTH_MIN_MORALE = 55;
+const RIVAL_GROWTH_MIN_RECOVERY = 40;
+
+/** What a camp spends from its stores to settle another family. */
+export function getRivalGrowthFoodCost(): number {
+  return RIVAL_GROWTH_FOOD_PER_HEAD * 2;
+}
+
+/** Whether this camp's own stores can support another settler — the gate the growth roll asks. */
+export function canRivalCampGrow(rival: RivalSettlement): boolean {
+  if (rival.population >= RIVAL_CAMP_MAX_POPULATION) return false;
+  const profile = normalizeRivalProfile(rival);
+  const needed = RIVAL_GROWTH_FOOD_PER_HEAD * Math.max(1, rival.population);
+  return profile.ledger.food >= needed
+    && profile.ledger.morale >= RIVAL_GROWTH_MIN_MORALE
+    && profile.ledger.recovery >= RIVAL_GROWTH_MIN_RECOVERY;
+}
+
+/** Which day of the cadence this camp takes stock on — staggered so camps do not all roll together. */
+export function isRivalGrowthDay(rivalIndex: number, colonyDay: number): boolean {
+  return (colonyDay + rivalIndex * 3) % RIVAL_GROWTH_INTERVAL_DAYS === 0;
 }
 
 export function getCombatPreview(
@@ -643,6 +740,20 @@ function multiplyRaidLoot(loot: RaidLootBundle, factor: number): RaidLootBundle 
   };
 }
 
+/** A raid must cost a colony something even when the war-band is small: share of stores it can take. */
+const RAID_LOOT_MIN_STORE_SHARE = 0.005;
+/** Gold carries no storage cap, so its floor is a share of the purse rather than a food-scaled one. */
+const RAID_LOOT_MIN_GOLD_SHARE = 0.02;
+
+/** Raises a rolled prize to that floor; it never lowers a roll, so a small colony keeps its own risk. */
+export function raiseRaidLootToFloor(loot: RaidLootBundle, state: WorldState): RaidLootBundle {
+  const food = Math.min(state.resources.food, Math.max(loot.food, Math.round(state.resources.food * RAID_LOOT_MIN_STORE_SHARE)));
+  const wood = Math.min(state.resources.wood, Math.max(loot.wood, Math.round(state.resources.wood * RAID_LOOT_MIN_STORE_SHARE)));
+  const stone = Math.min(state.resources.stone, Math.max(loot.stone, Math.round(state.resources.stone * RAID_LOOT_MIN_STORE_SHARE)));
+  const gold = Math.min(state.resources.gold, Math.max(loot.gold, Math.round(state.resources.gold * RAID_LOOT_MIN_GOLD_SHARE)));
+  return { food, wood, stone, gold };
+}
+
 function scaleRaidLoot(loot: RaidLootBundle, fraction: number): RaidLootBundle {
   const f = Math.max(0, Math.min(1, fraction));
   return {
@@ -780,21 +891,37 @@ function outgoingRaidChoices(
   ];
 }
 
-function rollOutgoingRaidSpoils(rival: RivalSettlement, tier: 'success' | 'meager'): RaidLootBundle {
+/**
+ * What a war-band carries home. The camp's stores and people set the base, and `lootScale` carries the
+ * same strength multiple the fight did — a 5-person camp has little worth taking, a grown one does.
+ */
+export function rollOutgoingRaidSpoils(
+  rival: RivalSettlement,
+  tier: 'success' | 'meager',
+  lootScale: number,
+): RaidLootBundle {
   const pop = Math.max(1, rival.population);
-  if (tier === 'success') {
-    return {
-      food: 28 + Math.floor(getSimRng('frontierCombat')() * 22),
-      wood: 22 + Math.floor(getSimRng('frontierCombat')() * 28) + pop * 3,
-      stone: 12 + Math.floor(getSimRng('frontierCombat')() * 18) + pop,
-      gold: 14 + Math.floor(getSimRng('frontierCombat')() * 18),
+  const stores = Math.max(0, normalizeRivalProfile(rival).ledger.food);
+  const wealth = 1 + Math.min(1, stores / 200) + Math.min(1, pop / 12);
+  const rich = tier === 'success'
+    ? {
+      food: (28 + Math.floor(getSimRng('frontierCombat')() * 22)) * wealth,
+      wood: (22 + Math.floor(getSimRng('frontierCombat')() * 28) + pop * 3) * wealth,
+      stone: (12 + Math.floor(getSimRng('frontierCombat')() * 18) + pop) * wealth,
+      gold: (14 + Math.floor(getSimRng('frontierCombat')() * 18)) * wealth,
+    }
+    : {
+      food: (12 + Math.floor(getSimRng('frontierCombat')() * 12)) * wealth,
+      wood: (8 + Math.floor(getSimRng('frontierCombat')() * 14) + pop) * wealth,
+      stone: (4 + Math.floor(getSimRng('frontierCombat')() * 8)) * wealth,
+      gold: (6 + Math.floor(getSimRng('frontierCombat')() * 10)) * wealth,
     };
-  }
+  const scale = getRaidLootScale(lootScale);
   return {
-    food: 12 + Math.floor(getSimRng('frontierCombat')() * 12),
-    wood: 8 + Math.floor(getSimRng('frontierCombat')() * 14) + pop,
-    stone: 4 + Math.floor(getSimRng('frontierCombat')() * 8),
-    gold: 6 + Math.floor(getSimRng('frontierCombat')() * 10),
+    food: Math.max(1, Math.round(rich.food * scale)),
+    wood: Math.max(1, Math.round(rich.wood * scale)),
+    stone: Math.max(1, Math.round(rich.stone * scale)),
+    gold: Math.max(1, Math.round(rich.gold * scale)),
   };
 }
 
@@ -846,7 +973,7 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   // threat — and as real a loss — to a grown village as it was to a young one.
   const growth = getRaidGrowthScale(computeMilitiaBreakdown(state, allAlive).adultCount);
   const attackerStrength = Math.round(getRivalRaidStrength(rival) * growth);
-  const loot = multiplyRaidLoot(rollIncomingRaidLoot(rival), growth);
+  const loot = raiseRaidLootToFloor(multiplyRaidLoot(rollIncomingRaidLoot(rival), growth), state);
   const marchDistancePx = getCampDistancePixels(state, state.buildings, rival);
   const marchDistanceTiles = getCampDistanceTiles(marchDistancePx);
   const responseDays = getIncomingRaidResponseDays(marchDistanceTiles);
@@ -1147,6 +1274,8 @@ function resolveOutgoingRaidCombat(
 ): void {
   const outcome = resolveCounterRaidRatio(event.attackerStrength, event.defenderStrength);
   const verb = event.isCounterRaid ? 'Counter-raid' : 'Raid';
+  // The strength you brought over their defense is what decides how much there is to carry home.
+  const lootScale = Math.sqrt(event.attackerStrength / Math.max(event.defenderStrength, 1));
   const warBand = getRaidParticipants(state, state.entities, 'outgoing');
   rewardRaidParticipants(state, warBand, counterRaidToReward(outcome), rival.name);
 
@@ -1154,7 +1283,7 @@ function resolveOutgoingRaidCombat(
   state.screenShakeImpulse = Math.max(state.screenShakeImpulse, outcome === 'fail' ? 8 : 4);
 
   if (outcome === 'success') {
-    const gained = grantRaidSpoils(state, rollOutgoingRaidSpoils(rival, 'success'));
+    const gained = grantRaidSpoils(state, rollOutgoingRaidSpoils(rival, 'success', lootScale));
     rival.relationship = 'tense';
     rival.raidCooldownDays = 10;
     applyRaidCasualties(state, state.entities, 'victory', rival.name, 'raiding');
@@ -1169,7 +1298,7 @@ function resolveOutgoingRaidCombat(
     );
     addReputation(state, -5);
   } else if (outcome === 'meager') {
-    const gained = grantRaidSpoils(state, rollOutgoingRaidSpoils(rival, 'meager'));
+    const gained = grantRaidSpoils(state, rollOutgoingRaidSpoils(rival, 'meager', lootScale));
     rival.relationship = 'tense';
     rival.raidCooldownDays = 14;
     addReputation(state, -4);

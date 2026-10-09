@@ -1,5 +1,6 @@
 import type { Entity, WorldState, Building } from './gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, EntityType, JOB_LABELS, JobType } from './gameTypes';
+import { TICKS_PER_DAY } from './dayCycle';
 
 export function getOccupationForBuilding(type: BuildingType): string {
   const job = BUILDING_JOB_TYPES[type];
@@ -23,6 +24,12 @@ export function readSkill(entity: { skills?: Partial<Record<JobType, number>> },
 
 /** Slow idle decay — skills fade when a job is not practiced (~0.5 pt / 30 days). */
 export const SKILL_IDLE_DECAY_PER_DAY = 0.017;
+
+/** Skill a settler earns for one full shift of work, at full attendance. */
+export const WORK_SKILL_PER_SHIFT = 0.2;
+
+/** How often the worked-shift credit is paid — the daily production cadence. */
+export const SKILL_CREDIT_INTERVAL_TICKS = TICKS_PER_DAY;
 
 export function gainSkill(
   state: WorldState,
@@ -60,6 +67,25 @@ export function rewardProductionSkills(
   for (const id of building.occupants) gainSkill(state, id, job, amount, entityById);
 }
 
+/**
+ * Credit a production crew for the shift it worked, on the building's production tick.
+ *
+ * Separate from `rewardProductionSkills` on purpose: that one is paid for *output* and so stops
+ * the day stores fill, which strands every trade whose good has a full store (iron, gold, stone)
+ * at its entry skill. Learning follows attendance (`presenceShare`), not the storeroom.
+ */
+export function rewardBuildingWork(
+  state: WorldState,
+  building: Building,
+  presenceShare: number,
+  amount: number,
+  entityById?: Map<number, Entity>,
+): void {
+  const job = getJobForBuilding(building.type);
+  if (!job || presenceShare <= 0) return;
+  for (const id of building.occupants) gainSkill(state, id, job, amount * presenceShare, entityById);
+}
+
 export function getWorkerSkillMultiplier(
   state: WorldState,
   building: Building,
@@ -81,3 +107,4 @@ export function getWorkerSkillMultiplier(
   const resourcefulMult = 1 + Math.min(0.3, resourceful * 0.1);
   return (1 + avg * 0.02) * resourcefulMult; // up to 3x at skill 100
 }
+

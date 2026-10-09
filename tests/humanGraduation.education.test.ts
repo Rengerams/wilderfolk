@@ -3,8 +3,8 @@
  *
  * The daily age sync (`syncHumanAgeFromCalendar`) used to write `isJuvenile` itself.
  * `humanTick` calls that sync and then, later in the *same* tick, `tryGraduateHumanChild`,
- * whose guard is `isJuvenile && age >= HUMAN_CHILDHOOD_DAYS`. The sync therefore cleared
- * the flag on precisely the tick when the age crossed 12, so graduation was unsatisfiable:
+ * whose guard is `isJuvenile && age >= HUMAN_CHILDHOOD_YEARS`. The sync therefore cleared
+ * the flag on precisely the tick when the age crossed 18, so graduation was unsatisfiable:
  * `entity.size`/`speed` were never promoted to adult values and `applyEducationGraduation`
  * — the only writer of `entity.educated`, and the source of the graduation skill and
  * max-energy bonus — never ran for any settler.
@@ -18,7 +18,7 @@ import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import {
-  HUMAN_CHILDHOOD_DAYS,
+  HUMAN_CHILDHOOD_YEARS,
   getColonyDay,
   setHumanBirthFromAge,
   syncHumanAgeFromCalendar,
@@ -80,12 +80,12 @@ describe('a child graduates once, with the education payoff', () => {
   it('keeps the transition reachable on the age-sync tick', () => {
     const state = initGame({ seed: FIXTURE_SEED });
     state.tick = TICKS_PER_DAY * 10;
-    const child = makeChild(HUMAN_CHILDHOOD_DAYS, state);
+    const child = makeChild(HUMAN_CHILDHOOD_YEARS, state);
     state.entities = [child];
 
     // The sync updates the calendar age and must leave the flag for the transition.
     syncHumanAgeFromCalendar(child, state);
-    expect(child.age).toBeGreaterThanOrEqual(HUMAN_CHILDHOOD_DAYS);
+    expect(child.age).toBeGreaterThanOrEqual(HUMAN_CHILDHOOD_YEARS);
     expect(child.isJuvenile).toBe(true);
 
     const graduated = tryGraduateHumanChild(child, ADULT_SIZE, ADULT_SPEED, (entity) => {
@@ -103,7 +103,7 @@ describe('a child graduates once, with the education payoff', () => {
   it('graduates only once, so later ticks do not re-apply the bonus', () => {
     const state = initGame({ seed: FIXTURE_SEED });
     state.tick = TICKS_PER_DAY * 10;
-    const child = makeChild(HUMAN_CHILDHOOD_DAYS, state);
+    const child = makeChild(HUMAN_CHILDHOOD_YEARS, state);
     state.entities = [child];
 
     expect(syncThenGraduate(state, child)).toBe(true);
@@ -117,7 +117,7 @@ describe('a child graduates once, with the education payoff', () => {
   it('does not graduate a child who is still below the childhood threshold', () => {
     const state = initGame({ seed: FIXTURE_SEED });
     state.tick = TICKS_PER_DAY * 10;
-    const child = makeChild(HUMAN_CHILDHOOD_DAYS - 1, state);
+    const child = makeChild(HUMAN_CHILDHOOD_YEARS - 1, state);
     state.entities = [child];
 
     expect(syncThenGraduate(state, child)).toBe(false);

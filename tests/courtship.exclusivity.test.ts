@@ -20,11 +20,12 @@ import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import {
   bindCourtship,
   findCourtshipPartner,
+  isEligibleToCourt,
   reconcileCourtships,
   REMARRIAGE_BAR_TICKS,
   tryCompleteCourtshipMarriage,
 } from '../src/game/simulation/humanRelationships';
-import { killHuman } from '../src/game/humanLifecycleCleanup';
+import { killHuman, reconcileOrphanedMarriages } from '../src/game/humanLifecycleCleanup';
 import { grantDivorce } from '../src/game/nameLoader';
 
 const A_ID = 1;
@@ -240,5 +241,70 @@ describe('a divorced pair may not court again for a year (owner, 2026-10-06)', (
 
     expect(married).toBe(true);
     expect(a.partnerId).toBe(C_ID);
+  });
+});
+
+describe('a widowed settler may court again (owner, 2026-10-09)', () => {
+  it('frees a widower whose wife died before the birth — the expecting status was hers, not his', () => {
+    const wife = settler(B_ID, 'female', {
+      partnerId: A_ID,
+      relationshipStatus: 'expecting',
+      pregnant: true,
+      pregnancyProgress: 4,
+      pregnancyDueProgress: 9,
+    });
+    const widower = settler(A_ID, 'male', { partnerId: B_ID, relationshipStatus: 'expecting' });
+    const free = settler(C_ID, 'female');
+    const { entityById } = fixture([wife, widower, free]);
+
+    killHuman(wife, [], entityById, TICKS_PER_DAY);
+
+    expect(widower.partnerId).toBeUndefined();
+    expect(widower.relationshipStatus).toBe('single');
+    expect(isEligibleToCourt(widower)).toBe(true);
+    expect(
+      findCourtshipPartner(widower, false, 120, undefined, new Map(), [widower, free], 1200, 900, TICKS_PER_DAY)?.id,
+    ).toBe(C_ID);
+  });
+
+  it('leaves a pregnant widow expecting, because that pregnancy is still hers', () => {
+    const husband = settler(A_ID, 'male', { partnerId: B_ID, relationshipStatus: 'expecting' });
+    const widow = settler(B_ID, 'female', {
+      partnerId: A_ID,
+      relationshipStatus: 'expecting',
+      pregnant: true,
+      pregnancyProgress: 4,
+      pregnancyDueProgress: 9,
+    });
+    const { entityById } = fixture([husband, widow]);
+
+    killHuman(husband, [], entityById, TICKS_PER_DAY);
+
+    expect(widow.partnerId).toBeUndefined();
+    expect(widow.pregnant).toBe(true);
+    expect(widow.relationshipStatus).toBe('expecting');
+  });
+
+  it('still frees a widow whose marriage ended without a pregnancy', () => {
+    const wife = settler(B_ID, 'female', { partnerId: A_ID, relationshipStatus: 'married' });
+    const widower = settler(A_ID, 'male', { partnerId: B_ID, relationshipStatus: 'married' });
+    const { entityById } = fixture([wife, widower]);
+
+    killHuman(wife, [], entityById, TICKS_PER_DAY);
+
+    expect(widower.relationshipStatus).toBe('single');
+    expect(isEligibleToCourt(widower)).toBe(true);
+  });
+
+  it('repairs a status left expecting with no partner and no pregnancy of its own', () => {
+    const widower = settler(A_ID, 'male', { relationshipStatus: 'expecting' });
+    const free = settler(B_ID, 'female');
+    const entities = [widower, free];
+    fixture(entities);
+
+    reconcileOrphanedMarriages(entities);
+
+    expect(widower.relationshipStatus).toBe('single');
+    expect(isEligibleToCourt(widower)).toBe(true);
   });
 });

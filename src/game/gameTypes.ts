@@ -1189,6 +1189,13 @@ export interface WorldMap {
   seaLevel?: number;
   moistureBias?: number;
   /**
+   * The noise seed this ground was generated from.
+   *
+   * A compact save regenerates its whole valley from seed/preset/size, so the resolved seed has to
+   * travel with it — tuning the per-size offset otherwise repainted every existing settlement.
+   */
+  terrainSeed?: number;
+  /**
    * Per-map biome cuts for the moisture field, derived by the generator from that map's own
    * distribution. Absolute constants cannot work: the tile-level moisture field runs 0.47 at
    * p50 on an arid preset and 0.73 on a wet one, so a fixed cut paints one map entirely

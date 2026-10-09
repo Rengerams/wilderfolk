@@ -5,7 +5,7 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { getHourOfDay } from '../src/game/dayCycleClock';
-import { isFestivalOverrideActive, isVenueServiceHour } from '../src/game/venueSchedule';
+import { getVenueSchedule, getVenueScheduleHours, isFestivalOverrideActive, isVenueServiceHour } from '../src/game/venueSchedule';
 import { getHumanActivityStatus } from '../src/game/humanStatus';
 
 const PRISON_ID = 10;
@@ -254,14 +254,34 @@ describe('settlers keep working during a festival', () => {
     expect(getHumanActivityStatus(state, idler)).toBe('Gathering at festival');
   });
 
-  it('still keeps the tavern open all day during a festival', () => {
+  it('keeps the tavern open to visitors all festival day without paying the innkeeper for it', () => {
     const { state, innkeeper } = festivalWorkWorld();
 
+    // Visitor service: the override opens the pub, whatever the configured window says.
     expect(isVenueServiceHour(state, 'tavern', 15, false)).toBe(false);
     expect(isVenueServiceHour(state, 'tavern', 15, true)).toBe(true);
     expect(isFestivalOverrideActive(state, 'tavern')).toBe(true);
 
+    // Duty: 15:00 is outside the tavern's 17:00-23:00 window, so no work tick is recorded — crediting
+    // the visitor override here would pay an innkeeper for all 24 hours of a festival day.
     gameTick(state);
-    expect(innkeeper.scheduleWorkedTicksToday ?? 0).toBeGreaterThan(0);
+    expect(innkeeper.scheduleWorkedTicksToday ?? 0, 'credited outside the configured shift').toBe(0);
+
+    // …and the ordinary window still credits, so this is a boundary and not a dead shift.
+    state.tick = 18 * TICKS_PER_HOUR - 1;
+    gameTick(state);
+    expect(innkeeper.scheduleWorkedTicksToday ?? 0, 'the 18:00 hour is inside the window').toBeGreaterThan(0);
+  });
+
+  it('credits a festival innkeeper for the configured window and not the whole day', () => {
+    // An all-day festival override credited as work pins every innkeeper's fatigue at 100 and costs
+    // the tavern a third of its output through the fatigue multiplier.
+    const { state, innkeeper } = festivalWorkWorld();
+    state.tick = 0;
+    for (let tick = 0; tick < TICKS_PER_DAY; tick++) gameTick(state);
+
+    expect(innkeeper.scheduleLastWorkedHours, 'a festival day credited as 24 worked hours').toBe(
+      getVenueScheduleHours(getVenueSchedule(state, 'tavern')),
+    );
   });
 });

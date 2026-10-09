@@ -191,7 +191,9 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
   [EntityType.Wildkin]: {
     maxEnergy: 450,
     energyLossPerTick: 3.0 * PER_TICK_RATE_SCALE,
-    energyGain: { grass: 45 },
+    // Apex: meat, not grass — the same diet shape as the wolf. It is half human and born of the
+    // colony, so it takes the deer and rabbits the colony also lives on.
+    energyGain: { deer: 500, rabbit: 200 },
     maxAge: 365 * 40,
     speed: 3.2 * MAP_SCALE,
     size: 12,
@@ -200,8 +202,10 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     reproductionChance: 0.008,
     spawnEnergy: 200,
     color: '#a3a35a',
-    fleeRange: 100 * MAP_SCALE,
-    huntRange: 0,
+    // Apex predators do not flee (wolf and werewolf both sit at 0) and they do hunt — the range is
+    // the wolf's own eyes, which is what makes the hunting block below reachable.
+    fleeRange: 0,
+    huntRange: 350 * MAP_SCALE,
     wanderRadius: 90 * MAP_SCALE,
     sprite: '/sprites/deer.png',
   },

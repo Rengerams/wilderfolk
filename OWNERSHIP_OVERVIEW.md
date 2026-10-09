@@ -25,9 +25,11 @@ Purpose: one decision → one owner module → one definition of each function.
 | Village Requests | `groupEvents.ts` | new-calendar-day / command | `tickVillageRequests`, `resolveVillageRequest` |
 | Diplomacy card prices | `groupEvents.ts` | — (data read by the card's label, its gate and its charge) | `DIPLOMACY_TRIBUTE_PAY_FOOD`, `DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD`, `DIPLOMACY_ALLIANCE_ACCEPT_GOLD`, `DIPLOMACY_ALLIANCE_COUNTER_FOOD`, `DIPLOMACY_ALLIANCE_COUNTER_GOLD`, `DIPLOMACY_PEACE_SIGN_GOLD`, `DIPLOMACY_PEACE_SIGN_FOOD`, `DIPLOMACY_PEACE_TRIBUTE_FOOD` |
 | Rival settlement day pulse | `rivalEvents.ts` | new-calendar-day | `tickRivalSettlements` |
+| Rival camp growth | `frontierCombat.ts` (rule) → `rivalEvents.ts` (day pulse) | new-calendar-day | `canRivalCampGrow`, `isRivalGrowthDay`, `getRivalGrowthFoodCost`, `RIVAL_GROWTH_INTERVAL_DAYS` |
+| Player-declared hostility | `frontierCombat.ts` | player-command | `provokeRival`, `canProvokeRival` |
 | Rival schedule wiring | `groupEvents.ts` | daily | `tickWorldRivalSettlements` (callbacks only) |
 | Frontier founding | `groupEvents.ts` | new-calendar-day | `tryFrontierSettlement`, `FIRST_RIVAL_MIN_DAY`, `FIRST_RIVAL_MIN_HUMANS`, `spawnRivalSettlement` (optional founding relationship) |
-| Raid growth scaling | `frontierCombat.ts` | raid queue | `getRaidGrowthScale`, `RAID_GROWTH_BASE_ADULTS`, `multiplyRaidLoot` |
+| Raid growth scaling | `frontierCombat.ts` | raid queue | `getRaidGrowthScale`, `getRaidLootScale`, `raiseRaidLootToFloor`, `rollOutgoingRaidSpoils`, `RAID_GROWTH_BASE_ADULTS`, `RAID_GROWTH_MAX_SCALE`, `RAID_LOOT_MAX_SCALE`, `multiplyRaidLoot` |
 | Casual social feedback | `humanSocial.ts` / `socialLife.ts` | staggered-social | chat / greeting helpers |
 | Youth love | `humanRelationships.ts` | new-calendar-day | `advanceYouthLove`, `reconcileYouthLove` |
 | Courtship / marriage | `humanRelationships.ts` | staggered-social (approach) + new-calendar-day (reconciliation) | `findCourtshipPartner`, `bindCourtship`, `reconcileCourtships`, `tryCompleteCourtshipMarriage` |
@@ -51,7 +53,7 @@ behaviour. Nothing here changes the ownership law: one decision, one owner, one 
 | Decision | True owner | Cadence | Key entry functions |
 |---|---|---|---|
 | Combat tiers, counter-attack / block rolls | `combat.ts` (research data in `gameTypes.ts`; raid outcomes in `frontierCombat.ts`) | combat resolution | `getArmamentSteps`, `getCounterAttackChance`, `getPredatorBlockChance`, `rollCounterAttack`, `rollPredatorBlock` |
-| Deaths and yearly statistics | `stats.ts` (the per-tick tally is written by `gameTick.ts`) | per-tick tally + year-rollover record | `recordYearlyStats`, `updateLifetimeStats`, `createEmptyLifetimeStats`, `normalizeLifetimeStats`; `gameTick`'s `deathsThisYear` tally and `largestPopulation` running peak |
+| Deaths and yearly statistics | `stats.ts` (the per-tick tally is written by `gameTick.ts`) | per-tick tally + year-rollover record | `recordYearlyStats`, `updateLifetimeStats`, `createEmptyLifetimeStats`, `normalizeLifetimeStats`, `recordResourcesGathered`; `gameTick`'s `deathsThisYear` tally and `largestPopulation` running peak |
 | Event log / Chronicle | `eventLog.ts` | event-driven | `logEvent`, `logDeath`, `syncEventLogIdFromState`, `repairEventLogOnLoad`, `resolveCombatLogKind` |
 | Big news, notifications, floating text | `simEffects.ts` | event-driven | `addBigNews`, `syncBigNewsIdFromState`, `addNotification`, `addFloatingText` |
 | Save / load and timeline migration | `saveLoad.ts` (allow-list: `saveSchema.ts`) | load / player-command | `buildSaveData`, `loadGameFromParsed`, `parseSaveJson`, `loadGameFromFileTextOutcome`, `migrateTickTimeline`, `clearAutoFilledChurches` |
@@ -115,7 +117,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Authored story events (children shelter, winter freeze, grief, welcomes) | `storyEvents.ts` | new-calendar-day (`tickDailyWorldEvents`) + story command | `offerStoryEvent`, `tickChildrenShelter`, `tickWinterFreezeCheck`, `respondToStoryEvent`, `getStoryChoiceEligibility` |
 | Village forge orders | `forge.ts` | daily (`tickBuildingProduction`) + player-command | `tickVillageForge`, `queueForgeOrder`, `isForgeOrderComplete`, `normalizeForgeState` |
 | Building adjacency index | `adjacencyIndex.ts` | assignment/daily (production, completion, demolition) | `ensureAdjacencyIndex`, `syncAdjacency`, `unindexAdjacency`, `getAdjacencyMultiplierFromIndex` |
-| Valley ecology stage (parked, `ValleyEcology.ENABLED = false`) | `ecologyStage.ts` | daily (`tickDailyWorldEvents`) | `tickValleyEcologyStage`, `valleyStageIndex`, `computeRawEcologyStress`, `getValleyHuntYieldMultiplier` |
+| Valley ecology stage (`ValleyEcology.ENABLED` is the single switch) | `ecologyStage.ts` | daily (`tickDailyWorldEvents`) | `tickValleyEcologyStage`, `valleyStageIndex`, `computeRawEcologyStress`, `getValleyHuntYieldMultiplier` |
 | Housing/bed projection for decisions and UI | `populationGrowth.ts` | on demand (auto-play `decide*`, citizen overview, focus hints) | `snapshotPopulation`, `getOpenPlayerBeds`, `getTotalBeds`, `getLivePlayerPopulation` |
 | Social proximity queries | `adaptiveSpatialQuery.ts` | — (query helper over the human social grid) | `forEachAdaptiveInRadius`, `findClosestAdaptiveInRadius`, `socialAdaptiveOptions` |
 | Citizen identity, display names and chronicle names | `citizenId.ts` | — (formatting/parse, no state) | `humanDisplayName`, `formatCitizenName`, `formatDeathLog`, `findCitizenByQuery` |
@@ -184,6 +186,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Village dashboard projection | `dashboard/GameDashboard.tsx` | UI (read-only) | `GameDashboard` |
 | Session, input, persistence and feedback hooks | `useGameSession.ts` + `useCanvasInteractions.ts` + `useKeyboardControls.ts` + `useGamePersistence.ts` + `useTransientGameFeedback.ts` + `useContextualTutorial.ts` + `useGameShellState.ts` + `useFpsMeter.ts` + `useGameAudio.ts` + `useVirtualPlayer.ts` | UI (lifecycle; dispatch only through the command door) | `useGameSession`, `useCanvasInteractions`, `useKeyboardControls`, `useGamePersistence`, `useTransientGameFeedback`, `virtualPlayerStatusText`, `VIRTUAL_PLAYER_IDLE_STATUS` |
 | Overlay keyboard and map-pointer gesture contract | `hooks/useOverlayKeyboard.ts` + `hooks/useCanvasInteractions.ts` | UI input; a window claims the keyboard while open and closes on Escape, and a map gesture's travel decides click versus pan | `useOverlayKeyboard`, `useCanvasInteractions`, `pointerMovedRef` |
+| Overview subject vocabulary (door names, glyphs, hints) | `hooks/useGameShellState.ts` | UI (read-only projection; the header, the Guide and the shortcut sheet all render it) | `OVERVIEW_SUBJECTS`, `overviewSubjectForTab` |
 | Hotkeys, help, alerts and UI-side projections | `hotkeys.ts` + `guideHelp.ts` + `priorityAlerts.ts` + `focusHints.ts` + `rivalDisplay.ts` + `uiSimSummary.ts` + `villagePortrait.ts` + `citizenOverview.ts` + `familyLegacy.ts` + `familyTree.ts` + `buildingProgressDisplay.ts` + `housingDiagnostics.ts` + `scheduleFeedback.ts` + `contextualTutorial.ts` | UI (read-only projections) | `HEADER_DOORS`, `resolveSidebarTabFromKey`, `searchGuideHelp`, `getPriorityAlerts`, `getFocusHints`, `computeVillageStats`, `computeCitizenOverview`, `buildFamilyTree` |
 | Wolf scent field (deposit, decay, gradient sampling) | `scentGrid.ts` | realtime (every tick) + render SoA sidecar | `ensureScentGrid`, `tickScentGrid`, `ScentGrid`, `ScentGridReader` |
 | Schedule and per-person day rolls | `humanSchedule.ts` | realtime + daily | `personDayRoll`, `isAsleepAtHome`, `prefersHomeTonightFor`, `isFestivalGatheringHour`, `isFestivalGatherer` |
@@ -291,7 +294,7 @@ exports it.
 | Decision | True owner | Cadence / called from | Key entry functions |
 |---|---|---|---|
 | Terrain data model, its four-layer grid and the tile projection | `terrain/terrainGrid.ts` | generation, then read-only | `tileAt`, `tileTypeAt`, `tileTypeAtWorld`, `isTileBuildable`, `setTileOverride`, `rebakeTerrainGrids` |
-| Terrain generation pipeline | `terrain/terragen.ts` | world generation, once per map | `generateRawTerrain` |
+| Terrain generation pipeline | `terrain/terragen.ts` | world generation, once per map | `generateRawTerrain`, `terrainSeedFor`, `legacyTerrainSeed` |
 | Noise and PRNG primitives | `terrain/noise.ts` | generation (pure) | `fbm`, `ridged`, `warp`, `valueNoise`, `mulberry32`, `hash2`, `clamp` |
 | River flow routing (the hydrology model) | `terrain/hydrology.ts` | generation, after de-pitting | `computeFlow`, `fillDepressions`, `riverWidthAt` |
 | What a terrain type **is** — water, and may anything stand on it | `terrain/terrainTraits.ts` | read-only leaf (breaks the `placementUtils ↔ terrainGrid` cycle) | `isWaterTerrainType`, `isUnbuildableTerrainType` |

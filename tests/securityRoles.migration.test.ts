@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { migrateLegacySecurityRoles } from '../src/game/saveLoad';
-import { repairJuvenileAssignmentsOnLoad } from '../src/game/dayCycle';
+import { repairJuvenileAssignmentsOnLoad, HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycle';
 
 function legacyHuman(id: number, homeBuildingId?: number): Entity {
   return {
@@ -98,10 +98,9 @@ describe('juvenile assignment load repair', () => {
 
   it('leaves anyone at or past the threshold to the graduation transition', () => {
     const adult = { ...legacyHuman(2, 10), age: 30, isJuvenile: false, job: JobType.Soldier };
-    // A 12-year-old flagged juvenile is graduation's business: clearing the flag here would skip the
-    // `size`/`speed`/`educated` work that transition owns, and `tryGraduateHumanChild` would then
-    // never fire for them again.
-    const graduate = { ...legacyHuman(3, 10), age: 12, isJuvenile: true, job: JobType.Soldier };
+    // A settler at the childhood boundary, still flagged juvenile, is graduation's business: the flag
+    // is what `tryGraduateHumanChild` needs, and clearing it here would skip its `size`/`educated` work.
+    const graduate = { ...legacyHuman(3, 10), age: HUMAN_CHILDHOOD_YEARS, isJuvenile: true, job: JobType.Soldier };
     const world = { entities: [adult, graduate], buildings: [barracks([2, 3])], villageLeaderId: null } as WorldState;
 
     repairJuvenileAssignmentsOnLoad(world);
@@ -111,6 +110,26 @@ describe('juvenile assignment load repair', () => {
     expect(graduate.isJuvenile).toBe(true);
     expect(graduate.job).toBe(JobType.Soldier);
     expect(graduate.homeBuildingId).toBe(10);
+  });
+
+  it('demotes a 12–17 year old holding a posting, since childhood now ends at the adult floor', () => {
+    const youth = {
+      ...legacyHuman(5, 10),
+      age: HUMAN_CHILDHOOD_YEARS - 3,
+      isJuvenile: false,
+      job: JobType.Soldier,
+      occupation: 'soldier',
+    };
+    const barracks10 = barracks([5]);
+    const world = { entities: [youth], buildings: [barracks10], villageLeaderId: null } as WorldState;
+
+    repairJuvenileAssignmentsOnLoad(world);
+
+    expect(youth.isJuvenile).toBe(true);
+    expect(youth.job).toBe(JobType.Settler);
+    expect(youth.occupation).toBe('settler');
+    expect(youth.homeBuildingId).toBeUndefined();
+    expect(barracks10.occupants).not.toContain(5);
   });
 
   it('leaves the sitting leader alone even if the flag disagrees', () => {

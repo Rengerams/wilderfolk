@@ -170,11 +170,13 @@ describe('conception is labelled as its own event type', () => {
   it('logs a youth-love conception as `conception`, never as `birth`', () => {
     const youthFather = human(FATHER_ID, {
       age: 16,
+      isJuvenile: true,
       relationshipStatus: 'single',
       youthLovePartnerId: MOTHER_ID,
     });
     const youthMother = human(MOTHER_ID, {
       age: 16,
+      isJuvenile: true,
       relationshipStatus: 'single',
       youthLovePartnerId: FATHER_ID,
     });

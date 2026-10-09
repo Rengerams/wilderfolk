@@ -248,10 +248,8 @@ function otherParentIdOfChild(child: Entity, parentId: number): number | undefin
 
 function childRelation(child: Entity): KinRelation {
   if (child.isBastard) return 'bastard_child';
-  // Age, not `isJuvenile`. `isJuvenile` is recomputed from `HUMAN_CHILDHOOD_DAYS` (12), which is the
-  // *graduation* age, while the documented adult floor is `HUMAN_ADULT_MIN_AGE` (18). Between the two a
-  // settler is neither — and reading `isJuvenile` labelled a 16-year-old an "Adult child" (owner:
-  // *"16 years it not an adult?"*). The age ladder has one owner; this asks it instead of the flag.
+  // Age, not `isJuvenile`. The flag's boundary is `HUMAN_CHILDHOOD_YEARS`, which is the adult floor
+  // itself; asking the ladder's own constant keeps this label one source of truth.
   return child.age >= HUMAN_ADULT_MIN_AGE ? 'adult_child' : 'child';
 }
 

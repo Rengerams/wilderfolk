@@ -2072,6 +2072,10 @@ export default function App() {
             playClickSound();
             applyGameAction({ proto: 1, op: 'launchRaidOnRival', rivalId });
           }}
+          onProvokeRival={(rivalId) => {
+            playClickSound();
+            applyGameAction({ proto: 1, op: 'provokeRival', rivalId });
+          }}
           onStartResearch={(researchId) => applyGameAction({ proto: 1, op: 'startResearch', researchId })}
           onEstablishTradeRoute={(routeId) => applyGameAction({ proto: 1, op: 'establishTradeRoute', routeId })}
           onReplayTutorial={() => { setTutorialStep(0); setShowTutorial(true); }}

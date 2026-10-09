@@ -4,7 +4,7 @@
  *   L43  huntingSpots        prey-id guard must not accept Object.prototype keys
  *   L44  mapBounds           NaN positions must not survive the clamp
  *   L47  militiaBalance      wall-cap label must match the cap the forge grants
- *   L21/L22 entityFactory    the auto-detected juvenile flag must use the 12-year floor
+ *   L21/L22 entityFactory    the auto-detected juvenile flag must use the childhood floor
  *   L54  residencyReconciliation  the unreachable duplicate family scorer is gone
  *   L55  residencySelection  housing audit must ignore rival/leader housing
  *   L63  simulationEntities  mid-tick hunters must lose a dangling prey target
@@ -46,6 +46,7 @@ import { computeMilitiaBreakdown } from '../src/game/militiaBalance';
 import { getDefenseStructureBreakdown, getWallSegmentCap } from '../src/game/defenseStructures';
 import { createEntity } from '../src/game/entityFactory';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
+import { HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycle';
 import { clearHuntersTargetingPrey } from '../src/game/simulation/simulationEntities';
 import * as residencySelection from '../src/game/residencySelection';
 import { auditHousingSharingIssues } from '../src/game/residencySelection';
@@ -182,7 +183,7 @@ describe('L47 wall-cap label', () => {
 });
 
 describe('L21/L22 factory juvenile threshold', () => {
-  it('keeps the auto-detected size in step with the 12-year juvenile floor', () => {
+  it('keeps the auto-detected size in step with the childhood floor', () => {
     const humanSize = SPECIES_CONFIG[EntityType.Human].size;
 
     const child = createEntity(EntityType.Human, 10, 10, 899, undefined, undefined, {
@@ -192,17 +193,24 @@ describe('L21/L22 factory juvenile threshold', () => {
     expect(child.isJuvenile).toBe(true);
     expect(child.size).toBe(humanSize * 0.5);
 
-    // 12-15 year olds are adults to every age-gated rule (isJuvenile is recomputed from the
-    // 12-year floor), so they must not be created at half size with `isJuvenile === false`.
+    // The childhood floor *is* the adult floor, so a 12–17 year old is a juvenile too and must not be
+    // created at half size with `isJuvenile === false` — the flag and `size` have to agree.
     const teen = createEntity(EntityType.Human, 10, 10, 900, undefined, undefined, {
       ageYears: 13,
       colonyDay: 0,
     });
-    expect(teen.isJuvenile).toBe(false);
-    expect(teen.size).toBe(humanSize);
+    expect(teen.isJuvenile).toBe(true);
+    expect(teen.size).toBe(humanSize * 0.5);
 
-    const adult = createEntity(EntityType.Human, 10, 10, 901, undefined, undefined, {
-      ageYears: 17,
+    const youth = createEntity(EntityType.Human, 10, 10, 901, undefined, undefined, {
+      ageYears: HUMAN_CHILDHOOD_YEARS - 1,
+      colonyDay: 0,
+    });
+    expect(youth.isJuvenile).toBe(true);
+    expect(youth.size).toBe(humanSize * 0.5);
+
+    const adult = createEntity(EntityType.Human, 10, 10, 902, undefined, undefined, {
+      ageYears: HUMAN_CHILDHOOD_YEARS,
       colonyDay: 0,
     });
     expect(adult.isJuvenile).toBe(false);

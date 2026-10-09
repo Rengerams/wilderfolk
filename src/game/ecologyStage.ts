@@ -40,13 +40,8 @@ export interface ValleyEcologySnapshot {
 const STAGE_ORDER: readonly ValleyStage[] = ['stable', 'strained', 'damaged', 'collapse'];
 
 /**
- * Parked (2026-09-08, developer): the valley-stage ladder is disabled until it
- * is rebalanced. `ValleyEcology.ENABLED` in gameConstants is the single switch.
- * While parked, `tickValleyEcologyStage` and `ensureValleyEcologyOnLoad` keep
- * the persisted stage frozen at a quiet 'stable', so no strain messages,
- * notifications, focus hints, tutorial beats, or hunt/farm/illness effects
- * fire, and every module that reads `state.valleyStage` sees a calm valley.
- * Flip the switch to true to re-enable — no other code change needed.
+ * The stage every multiplier and focus hint reads: the live stage while the ladder runs, a quiet
+ * 'stable' while `ValleyEcology.ENABLED` is off.
  */
 function effectiveValleyStage(state: WorldState): ValleyStage {
   return ValleyEcology.ENABLED ? (state.valleyStage ?? 'stable') : 'stable';
@@ -264,7 +259,7 @@ const HELP_BY_DRIVER: Record<EcologyDriverId, string[]> = {
 };
 
 export function computeValleyEcologySnapshot(state: WorldState): ValleyEcologySnapshot {
-  // Parked: report a quiet stable valley — no drivers, no strain copy.
+  // Ladder off: report a quiet stable valley — no drivers, no strain copy.
   if (!ValleyEcology.ENABLED) {
     return {
       stage: 'stable',

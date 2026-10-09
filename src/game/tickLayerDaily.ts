@@ -30,6 +30,7 @@ import { applyDailyWeatherEffects } from './worldEvents';
 
 // Chronicles
 import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
+import { tickWildkinChronicle } from './wildkinChronicle';
 
 // ==================== DAILY LAYER ENTRYPOINT ====================
 
@@ -77,6 +78,7 @@ export function tickLayerDaily(
   // Daily world & economy systems
   applyDailyWeatherEffects(state);
   tickGrassDaily(state, ctx, allAlive);
+  tickWildkinChronicle(state, ctx);
   tickDailyBuildingEconomy(state, ctx, allAlive);
   // The tail counts at the point of use, after this layer's own spawns and deaths: the tick's
   // pre-daily snapshot no longer describes the colony by the time these three read it.

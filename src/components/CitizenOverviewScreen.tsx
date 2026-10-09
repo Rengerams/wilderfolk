@@ -73,6 +73,7 @@ export interface CitizenOverviewScreenProps {
   onFocusVisitor: (id: string, x: number, y: number) => void;
   onFocusRival: (id: string, x: number, y: number, buildingId?: number) => void;
   onLaunchRaid: (rivalId: string) => void;
+  onProvokeRival: (rivalId: string) => void;
   onStartResearch: (researchId: string) => void;
   onEstablishTradeRoute: (routeId: string) => void;
   onReplayTutorial: () => void;
@@ -163,6 +164,7 @@ export default function CitizenOverviewScreen({
   onFocusVisitor,
   onFocusRival,
   onLaunchRaid,
+  onProvokeRival,
   onStartResearch,
   onEstablishTradeRoute,
   onReplayTutorial,
@@ -343,6 +345,7 @@ export default function CitizenOverviewScreen({
                           onClose();
                         }}
                         onLaunchRaid={onLaunchRaid}
+                        onProvokeRival={onProvokeRival}
                       />
                     </section>
                   );

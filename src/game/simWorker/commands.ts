@@ -51,7 +51,7 @@ import { notifyBuildingLocked, startResearch } from '../research';
 import { establishTradeRoute } from '../tradeCaravans';
 import { addBigNews, addFloatingText } from '../simEffects';
 import { deliverVisitorQuest } from '../visitorQuest';
-import { respondToOutgoingRaidEvent, respondToRaidEvent, launchRaidOnRival } from '../frontierCombat';
+import { respondToOutgoingRaidEvent, respondToRaidEvent, launchRaidOnRival, provokeRival } from '../frontierCombat';
 import { respondToStoryEvent } from '../storyEvents';
 import { startGuidedCampaign } from '../guidedCampaign';
 import { hostTownFestival } from '../townHall';
@@ -96,6 +96,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'showStrengthToRival'; rivalId: string }
   | { proto: 1; op: 'signPeaceTreaty'; rivalId: string }
   | { proto: 1; op: 'launchRaidOnRival'; rivalId: string }
+  | { proto: 1; op: 'provokeRival'; rivalId: string }
   | { proto: 1; op: 'startResearch'; researchId: string }
   | { proto: 1; op: 'establishTradeRoute'; routeId: string }
   | { proto: 1; op: 'hostTownFestival'; buildingId: number }
@@ -137,6 +138,7 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'showStrengthToRival',
   'signPeaceTreaty',
   'launchRaidOnRival',
+  'provokeRival',
   'startResearch',
   'establishTradeRoute',
   'hostTownFestival',
@@ -286,6 +288,7 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
     case 'showStrengthToRival':
     case 'signPeaceTreaty':
     case 'launchRaidOnRival':
+    case 'provokeRival':
       return isNonEmptyString(cmd.rivalId);
     case 'startResearch':
       return isNonEmptyString(cmd.researchId);
@@ -397,6 +400,8 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return signPeaceTreaty(world, cmd.rivalId);
     case 'launchRaidOnRival':
       return launchRaidOnRival(world, cmd.rivalId);
+    case 'provokeRival':
+      return provokeRival(world, cmd.rivalId);
     case 'startResearch':
       return startResearch(world, cmd.researchId);
     case 'establishTradeRoute':

@@ -5,6 +5,15 @@ import { citizenFullName } from './citizenId';
 import { isMarriedOrExpecting } from './civilStatus';
 import { bondCensus, type BondCensus } from './relationships';
 import { getEcosystemHealth } from './dailyEcology';
+import type { ResourceKey } from './resourceTypes';
+
+/**
+ * The four resources the yearly and lifetime records account for.
+ *
+ * Iron is deliberately outside this record: `Resources` carries it, but these two statistics
+ * predate the mine and every stored world reads the four-key shape.
+ */
+export type GatheredResources = Record<Exclude<ResourceKey, 'iron'>, number>;
 
 export interface YearlyStats {
   year: number;
@@ -28,7 +37,7 @@ export interface YearlyStats {
     /** Cumulative upgrade levels standing at year end — the baseline next year's delta compares to. */
     upgradedTotal: number;
   };
-  resources: { wood: number; stone: number; food: number; gold: number };
+  resources: GatheredResources;
   ecosystem: { health: number; pollution: number; biodiversity: number };
   /**
    * How friendships stood at year end, with the year's growth.
@@ -46,7 +55,7 @@ export interface LifetimeStats {
   totalMarriages: number;
   totalBuildings: number;
   totalBuildingsUpgraded: number;
-  totalResourcesGathered: { wood: number; stone: number; food: number; gold: number };
+  totalResourcesGathered: GatheredResources;
   disastersSurvived: number;
   technologiesResearched: number;
   tradeRoutesEstablished: number;
@@ -121,6 +130,21 @@ export function normalizeLifetimeStats(value: unknown): LifetimeStats {
       buildings: count(productive.buildings, empty.mostProductiveYear.buildings),
     },
   };
+}
+
+/**
+ * The single writer of `lifetimeStats.totalResourcesGathered`: adds the amount storage accepted.
+ *
+ * `addCappedResource` calls this with its own return value, so the record counts what actually
+ * entered storage and not what a capped or partial deposit tried to add. Iron is ignored — see
+ * {@link GatheredResources}. A world loaded before this field was written simply starts from zero.
+ */
+export function recordResourcesGathered(state: WorldState, type: ResourceKey, accepted: number): void {
+  if (!(accepted > 0) || type === 'iron') return;
+  // A partial fixture can omit the record; a world without it has nothing to update.
+  const gathered = state.lifetimeStats.totalResourcesGathered as GatheredResources | undefined;
+  if (!gathered) return;
+  gathered[type] = (gathered[type] ?? 0) + accepted;
 }
 
 export function recordYearlyStats(state: WorldState, forYear?: number): YearlyStats {
@@ -244,6 +268,14 @@ export function updateLifetimeStats(state: WorldState, stats: LifetimeStats): Li
   for (const ys of state.yearlyStats) {
     if (ys.population.humans > s.largestPopulation.count) {
       s.largestPopulation = { count: ys.population.humans, year: ys.year };
+    }
+  }
+
+  // Most productive year, on the same scan as the two records above. Guarded on a non-zero
+  // completion count so a year that built nothing cannot take the record from the empty default.
+  for (const ys of state.yearlyStats) {
+    if (ys.buildings.completed > s.mostProductiveYear.buildings) {
+      s.mostProductiveYear = { year: ys.year, buildings: ys.buildings.completed };
     }
   }
 

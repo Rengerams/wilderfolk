@@ -15,18 +15,16 @@ import { BuildingType } from './gameTypes';
 export type SidebarTab = 'village' | 'schedule' | 'frontier' | 'nature' | 'progress' | 'log' | 'more';
 
 /**
- * The six header doors, in the order every surface presents them — the one display vocabulary.
- *
- * The shortcut sheet and the Guide each used to name a different set of six, so a stuck player was
- * sent to a door the header does not have. Both now render this list.
+ * The six header doors, in the order every surface presents them — key→tab routing, no names.
+ * A door's name is owned by `OVERVIEW_SUBJECTS`; surfaces read it with `overviewSubjectForTab`.
  */
-export const HEADER_DOORS: readonly { key: string; tab: SidebarTab; label: string }[] = [
-  { key: 'V', tab: 'village', label: 'Village' },
-  { key: 'F', tab: 'frontier', label: 'Frontier' },
-  { key: 'N', tab: 'nature', label: 'Nature' },
-  { key: 'P', tab: 'progress', label: 'Progress' },
-  { key: 'L', tab: 'log', label: 'Log' },
-  { key: 'M', tab: 'more', label: 'Menu' },
+export const HEADER_DOORS: readonly { key: string; tab: SidebarTab }[] = [
+  { key: 'V', tab: 'village' },
+  { key: 'F', tab: 'frontier' },
+  { key: 'N', tab: 'nature' },
+  { key: 'P', tab: 'progress' },
+  { key: 'L', tab: 'log' },
+  { key: 'M', tab: 'more' },
 ];
 
 export const TAB_HOTKEYS: Record<string, SidebarTab> = Object.fromEntries(
